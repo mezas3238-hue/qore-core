@@ -13,8 +13,7 @@
     ],
     "integrator_staged_repair_blockers": [],
     "integrator_resolved_support_blockers": [
-      "A-SUPPORT-001_FINAL_EXAM_SELF_ATTESTATION",
-      "A-LEGACY-STACK-WORKFLOW-PYTHONPATH_CHILD_REGRESSION_NOT_IMPORTED"
+      "A-SUPPORT-001_FINAL_EXAM_SELF_ATTESTATION"
     ]
   },
   "architect_b": {
@@ -219,6 +218,7 @@
     "architect_b_t16_provider_native_lane_staged": true,
     "legacy_stack_import_repair_staged": true,
     "exact_integrator_head_ci_pending": true,
-    "productive_authority": false
+    "productive_authority": false,
+    "accounting_repaired_to_per_file_entries": true
   }
 }

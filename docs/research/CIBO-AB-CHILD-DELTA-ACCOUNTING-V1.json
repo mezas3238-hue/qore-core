@@ -9,27 +9,272 @@
     "files_present_in_integrator_delta": 106,
     "deliberate_overrides": [
       {
-        "category": "CHILD_WORKFLOWS_NOT_COPIED_AS_AUTHORITY",
-        "count": 61,
-        "reason": "Integrator keeps its own workflow ownership, exact-head evidence semantics, World Cup gate, and avoids Architect-A workflow regressions such as removed PYTHONPATH."
+        "path": ".github/workflows/cibo-architect-a-ce2i-registry-reconciliation.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
       },
       {
-        "category": "CANONICAL_GOVERNANCE_DOCS_OWNED_BY_INTEGRATOR",
-        "count": 4,
-        "paths": [
-          "docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json",
-          "docs/research/CIBO-SOURCE-OF-TRUTH-RECONCILIATION-V1.md",
-          "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
-          "docs/research/CIBO-WORLD-CUP-SOVEREIGN-CAPITAL-AMPLIFICATION-GAP-MATRIX-V1.md"
-        ]
+        "path": ".github/workflows/cibo-architect-a-internal-readiness.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
       },
       {
-        "category": "GLOBAL_ZERO_OPEN_OWNED_BY_INTEGRATOR",
-        "count": 2,
-        "paths": [
-          "scripts/cibo_zero_open_work_gate.py",
-          "tests/infrastructure/test_cibo_zero_open_work_gate.py"
-        ]
+        "path": ".github/workflows/cibo-architect-a-mechanism-stress-admission.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-as-is-economic-baseline.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-burned-calibration-pack.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-capital-efficiency-sizing-lab.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-ce2i-oos-stress-admission.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-ce2i-strict-four-fold-replication.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-cma-compound-boundary.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-compound-accounting-foundation.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-compound-causal-ablation.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-compound-engine-integrated-cycle.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-compound-protected-floor.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-core-compound-portfolio.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-ctrader-demo-provider-economics.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-final-integrated-exam.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-genc-strict-four-fold-replication.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-genc10-capital-digital-twin.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-genc11-genc13-utility-wrapper.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-genc11-multi-period-mpc.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-genc12-crisis-capital.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-genc13-meta-capital-memory.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-genc14-autonomous-capital-science.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-genc3-genc6-economic-gate.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-genc7-profit-preservation.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-genc8-adaptive-compound-speed.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-genc9-robust-growth.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-generation-current-control.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-internal-capital-market.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-legacy-stack-quarantine.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-marginal-capital-utility-evidence.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-phase18-audjpy-r42-replay.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-phase18-eurusd-r38-replay.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-phase18-gbpjpy-r38-replay.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-phase18-gbpusd-r43-replay.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-phase18-vt08-forex-r315-replay.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-phase18-vt31-nas100-v4-replay.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-phase18-xauusd-r34-replay.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-phase19-burned-calibration.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-phase19-integrated-chronology.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-phase19k-temporal-concordance.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-phase19l-competition-identifiability.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-phase19m-regime-identifiability.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-phase19n-factor-topology.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-phase20-demo-execution-arm.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-phase20-forward-bootstrap.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-phase20-provider-uncertainty.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-pre-holdout-checkpoint.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-protected-base-overlay.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-protected-base-strict-four-fold.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-provider-instrument-capability.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-sequential-compounding-shadow.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-t02-burned-structural-calibration.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-t04-t10-economic-gate.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-t06-t07-expansion-utility.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-t09-t18-scarcity-safety.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-t12-regime-oos-utility.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-t13-drawdown-reserve-oos-utility.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-t14-t15-causal-utility.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-usd60-holdout-source-validation.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": ".github/workflows/cibo-zero-open-work-gate.yml",
+        "reason": "Integrator retains reconciled workflow authority and avoids child workflow regressions/duplicate execution."
+      },
+      {
+        "path": "docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json",
+        "reason": "Integrator retains canonical governance/zero-open authority for this path."
+      },
+      {
+        "path": "docs/research/CIBO-SOURCE-OF-TRUTH-RECONCILIATION-V1.md",
+        "reason": "Integrator retains canonical governance/zero-open authority for this path."
+      },
+      {
+        "path": "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
+        "reason": "Integrator retains canonical governance/zero-open authority for this path."
+      },
+      {
+        "path": "docs/research/CIBO-WORLD-CUP-SOVEREIGN-CAPITAL-AMPLIFICATION-GAP-MATRIX-V1.md",
+        "reason": "Integrator retains canonical governance/zero-open authority for this path."
+      },
+      {
+        "path": "scripts/cibo_zero_open_work_gate.py",
+        "reason": "Integrator retains canonical governance/zero-open authority for this path."
+      },
+      {
+        "path": "tests/infrastructure/test_cibo_zero_open_work_gate.py",
+        "reason": "Integrator retains canonical governance/zero-open authority for this path."
       }
     ],
     "deliberate_noncanonical_snapshots": [],
@@ -42,27 +287,76 @@
     "files_present_in_integrator_delta": 85,
     "deliberate_overrides": [
       {
-        "category": "CHILD_WORKFLOWS_NOT_COPIED_AS_AUTHORITY",
-        "count": 11,
-        "reason": "Integrator preserves its reconciled workflow surfaces; the T16 post-declaration workflow is integrated separately because it is the new provider-native lane."
+        "path": ".github/workflows/cibo-arch-b-forward-economic-manifest.yml",
+        "reason": "Integrator retains reconciled workflow authority for this non-T16 child workflow."
       },
       {
-        "category": "CANONICAL_LEDGER_OWNED_BY_INTEGRATOR",
-        "count": 1,
-        "paths": [
-          "docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json"
-        ]
+        "path": ".github/workflows/cibo-arch-b-zero-open-work.yml",
+        "reason": "Integrator retains reconciled workflow authority for this non-T16 child workflow."
       },
       {
-        "category": "INTEGRATOR_REPAIR_TESTS_PRESERVED",
-        "count": 4,
-        "paths": [
-          "tests/infrastructure/test_cibo_ce2i_t11_execution_cost_calibration.py",
-          "tests/infrastructure/test_cibo_ctrader_demo_capability_registry.py",
-          "tests/infrastructure/test_cibo_integrated_capital_forward_binding.py",
-          "tests/infrastructure/test_cibo_legacy_stack_quarantine.py"
-        ],
-        "reason": "Integrator versions retain prior exact-head repairs; legacy-stack test is additionally made independent of PYTHONPATH in this integration batch."
+        "path": ".github/workflows/cibo-b-actions-queue-cleanup.yml",
+        "reason": "Integrator retains reconciled workflow authority for this non-T16 child workflow."
+      },
+      {
+        "path": ".github/workflows/cibo-b-provider-forward-tool-readiness.yml",
+        "reason": "Integrator retains reconciled workflow authority for this non-T16 child workflow."
+      },
+      {
+        "path": ".github/workflows/cibo-calibration-freeze-manifest.yml",
+        "reason": "Integrator retains reconciled workflow authority for this non-T16 child workflow."
+      },
+      {
+        "path": ".github/workflows/cibo-ctrader-demo-account-capability.yml",
+        "reason": "Integrator retains reconciled workflow authority for this non-T16 child workflow."
+      },
+      {
+        "path": ".github/workflows/cibo-integrated-capital-forward-binding.yml",
+        "reason": "Integrator retains reconciled workflow authority for this non-T16 child workflow."
+      },
+      {
+        "path": ".github/workflows/cibo-pre-holdout-checkpoint.yml",
+        "reason": "Integrator retains reconciled workflow authority for this non-T16 child workflow."
+      },
+      {
+        "path": ".github/workflows/cibo-risk-integration-closure.yml",
+        "reason": "Integrator retains reconciled workflow authority for this non-T16 child workflow."
+      },
+      {
+        "path": ".github/workflows/cibo-t20-capital-release.yml",
+        "reason": "Integrator retains reconciled workflow authority for this non-T16 child workflow."
+      },
+      {
+        "path": ".github/workflows/cibo-usd60-pre-exam-readiness.yml",
+        "reason": "Integrator retains reconciled workflow authority for this non-T16 child workflow."
+      },
+      {
+        "path": "docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json",
+        "reason": "Integrator retains its repaired/canonical version of this path."
+      },
+      {
+        "path": "scripts/cibo_zero_open_work_gate.py",
+        "reason": "Integrator retains its repaired/canonical version of this path."
+      },
+      {
+        "path": "tests/infrastructure/test_cibo_ce2i_t11_execution_cost_calibration.py",
+        "reason": "Integrator retains its repaired/canonical version of this path."
+      },
+      {
+        "path": "tests/infrastructure/test_cibo_ctrader_demo_capability_registry.py",
+        "reason": "Integrator retains its repaired/canonical version of this path."
+      },
+      {
+        "path": "tests/infrastructure/test_cibo_integrated_capital_forward_binding.py",
+        "reason": "Integrator retains its repaired/canonical version of this path."
+      },
+      {
+        "path": "tests/infrastructure/test_cibo_legacy_stack_quarantine.py",
+        "reason": "Integrator retains its repaired/canonical version of this path."
+      },
+      {
+        "path": "tests/infrastructure/test_cibo_zero_open_work_gate.py",
+        "reason": "Integrator retains its repaired/canonical version of this path."
       }
     ],
     "deliberate_noncanonical_snapshots": [
@@ -74,9 +368,7 @@
       "docs/research/CIBO-ARCH-B-MASTER-LEDGER-PATCH-REQUEST-V1.md",
       "docs/research/CIBO-ARCH-B-ZERO-OPEN-WORK-GATE-V1.md",
       "scripts/cibo_arch_b_zero_open_work_gate.py",
-      "scripts/cibo_zero_open_work_gate.py",
-      "tests/infrastructure/test_cibo_arch_b_zero_open_work_gate.py",
-      "tests/infrastructure/test_cibo_zero_open_work_gate.py"
+      "tests/infrastructure/test_cibo_arch_b_zero_open_work_gate.py"
     ],
     "unaccounted_files": []
   },
