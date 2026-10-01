@@ -11,6 +11,12 @@ from typing import Any
 from qore.infrastructure.cibo_ce2i_calibration_matrix import (
     CIBO_T01_T20_CALIBRATION_MATRIX,
 )
+from qore.infrastructure.cibo_ce2i_calibration_terminal_evidence import (
+    ACTIVE_CERTIFICATION_TOOLS,
+    QUALIFICATION_FAILED_TOOLS,
+    STRUCTURALLY_DISABLED_TOOLS,
+    build_terminal_calibration_readiness,
+)
 from qore.infrastructure.cibo_ce2i_holdout_registry import (
     CONFIRMED_CIBO_BURNS,
     PREREGISTERED_USD60_HOLDOUT,
@@ -21,12 +27,14 @@ from qore.infrastructure.cibo_ce2i_pre_holdout_gate import (
 )
 from qore.infrastructure.cibo_ce2i_provider_core_freeze_receipt import (
     PROVIDER_CORE_FREEZE_RECEIPT,
+    build_provider_core_component_freeze,
     provider_core_freeze_receipt_payload,
 )
 from qore.infrastructure.cibo_ce2i_provider_economics_evidence import (
     CURRENT_CTRADER_DEMO_PROVIDER_ECONOMICS,
 )
 from qore.infrastructure.cibo_ce2i_shadow_certification_receipts import (
+    PHASE20_SHADOW_ARTIFACT_DIGEST,
     SHADOW_CERTIFICATION_RECEIPTS,
     shadow_receipt_payload,
 )
@@ -84,11 +92,18 @@ def build_report(
 
     receipts = SHADOW_CERTIFICATION_RECEIPTS
     provider_receipt = PROVIDER_CORE_FREEZE_RECEIPT
+    provider_freeze = build_provider_core_component_freeze()
+    calibration = build_terminal_calibration_readiness()
+    if calibration.calibration_manifest is None:
+        raise RuntimeError("terminal calibration manifest was not sealed")
     readiness = evaluate_pre_holdout_readiness(
         provider_economics_frozen=provider_receipt.core_pre_holdout_ready,
-        calibration_freeze_manifest_sealed=False,
+        calibration_freeze_manifest_sealed=True,
         phase20d_causal_gate_passed=receipts.phase20_shadow_passed,
         phase21_policy_freeze_sealed=receipts.phase21_policy_freeze_sealed,
+        provider_economics_component_freeze=provider_freeze,
+        calibration_freeze_manifest=calibration.calibration_manifest,
+        phase20d_forward_manifest_sha256=PHASE20_SHADOW_ARTIFACT_DIGEST,
     )
     matrix = [
         {
@@ -124,7 +139,7 @@ def build_report(
     return {
         "schema": "qore.cibo.pre_holdout_checkpoint.v1",
         "identity": "CIBO_PRE_HOLDOUT_FREEZE_CHECKPOINT",
-        "status": "PRE_HOLDOUT_NOT_READY",
+        "status": readiness.status.value,
         "git_sha": git_sha,
         "config_sha256": _sha256(protocol),
         "calibration_matrix_sha256": calibration_matrix_sha256(),
@@ -153,10 +168,17 @@ def build_report(
             "holdout_outcomes_used": provider.holdout_outcomes_used,
             "target_aware": provider.target_aware,
         },
-        "ready_to_unseal_2017h1": False,
+        "ready_to_unseal_2017h1": not readiness.blockers,
         "phase20d_causal_tool_gate_passed": receipts.phase20_shadow_passed,
         "phase21_policy_freeze_sealed": receipts.phase21_policy_freeze_sealed,
         "shadow_certification_receipts": shadow_receipt_payload(),
+        "terminal_calibration": {
+            "manifest_fingerprint": calibration.calibration_manifest.fingerprint(),
+            "active_certification_tools": list(ACTIVE_CERTIFICATION_TOOLS),
+            "qualification_failed_tools": list(QUALIFICATION_FAILED_TOOLS),
+            "structurally_disabled_tools": list(STRUCTURALLY_DISABLED_TOOLS),
+            "historical_registry_rewritten": False,
+        },
         "pre_holdout_blockers": list(readiness.blockers),
         "protocol": protocol,
         "t01_t20_matrix": matrix,
