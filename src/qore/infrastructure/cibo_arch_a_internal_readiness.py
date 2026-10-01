@@ -93,6 +93,91 @@ class ArchitectAInternalReadinessReport:
     integration_authority: bool = False
     production_authority: bool = False
 
+    def __post_init__(self) -> None:
+        if self.schema != SCHEMA:
+            raise ArchitectAReadinessError(
+                "Architect A internal-readiness schema drift"
+            )
+        for name in (
+            "passed",
+            "scientific_closure_claimed",
+            "integration_authority",
+            "production_authority",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise ArchitectAReadinessError(
+                    f"Architect A internal-readiness {name} must be bool"
+                )
+        for name in (
+            "workstream_count",
+            "terminal_count",
+            "empirical_open_count",
+        ):
+            value = getattr(self, name)
+            if type(value) is not int or value < 0:
+                raise ArchitectAReadinessError(
+                    f"Architect A internal-readiness {name} must be non-negative int"
+                )
+        if self.workstream_count != len(A_WORKSTREAM_IDS):
+            raise ArchitectAReadinessError(
+                "Architect A internal-readiness workstream count drift"
+            )
+        for name in (
+            "terminal_ids",
+            "empirical_open_ids",
+            "internal_debt_ids",
+            "missing_workstream_ids",
+            "evidence_missing_ids",
+        ):
+            values = getattr(self, name)
+            if (
+                not isinstance(values, tuple)
+                or any(
+                    not isinstance(item, str) or item not in A_WORKSTREAM_IDS
+                    for item in values
+                )
+                or len(values) != len(set(values))
+            ):
+                raise ArchitectAReadinessError(
+                    f"Architect A internal-readiness {name} are invalid"
+                )
+        if self.terminal_count != len(self.terminal_ids):
+            raise ArchitectAReadinessError(
+                "Architect A internal-readiness terminal count drift"
+            )
+        if self.empirical_open_count != len(self.empirical_open_ids):
+            raise ArchitectAReadinessError(
+                "Architect A internal-readiness empirical-open count drift"
+            )
+        terminal = set(self.terminal_ids)
+        empirical = set(self.empirical_open_ids)
+        missing = set(self.missing_workstream_ids)
+        if terminal & empirical or terminal & missing or empirical & missing:
+            raise ArchitectAReadinessError(
+                "Architect A internal-readiness disposition overlap"
+            )
+        if terminal | empirical | missing != set(A_WORKSTREAM_IDS):
+            raise ArchitectAReadinessError(
+                "Architect A internal-readiness workstream coverage drift"
+            )
+        expected_pass = not (
+            self.internal_debt_ids
+            or self.missing_workstream_ids
+            or self.evidence_missing_ids
+        )
+        if self.passed != expected_pass:
+            raise ArchitectAReadinessError(
+                "Architect A internal-readiness pass/evidence drift"
+            )
+        if (
+            self.scientific_closure_claimed
+            or self.integration_authority
+            or self.production_authority
+        ):
+            raise ArchitectAReadinessError(
+                "Architect A internal-readiness cannot claim closure/authority"
+            )
+
     def as_dict(self) -> dict[str, Any]:
         return asdict(self)
 

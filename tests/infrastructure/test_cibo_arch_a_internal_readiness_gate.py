@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 import json
 from hashlib import sha256
 from pathlib import Path
@@ -271,4 +272,19 @@ def test_scientific_batch_plan_blocks_until_b_intake_is_ready(
 
     assert plan.population_batch_ready is False
     assert plan.blockers == ("ARCH_B_SCIENTIFIC_INTAKE_REQUIRED",)
+
+def test_architect_a_readiness_rejects_manual_pass_evidence_drift(
+    tmp_path: Path,
+) -> None:
+    payload = _ledger()
+    payload["workstreams"][0]["evidence_refs"] = []
+    path = tmp_path / "ledger.json"
+    _write(path, payload)
+    report = gate.evaluate_architect_a_internal_readiness(path)
+
+    with pytest.raises(
+        gate.ArchitectAReadinessError,
+        match="pass/evidence drift",
+    ):
+        replace(report, passed=True)
 
