@@ -429,20 +429,38 @@ def decode_ctrader_tick_series(
     for index, row in enumerate(rows):
         raw_timestamp = getattr(row, "timestamp", None)
         raw_tick = getattr(row, "tick", None)
-        if type(raw_timestamp) is not int or raw_timestamp < 0:
+        if type(raw_timestamp) is not int:
             raise CiboCapitalManagementError(
                 "historical tick timestamp invalid"
             )
         if type(raw_tick) is not int or raw_tick <= 0:
             raise CiboCapitalManagementError("historical tick price invalid")
         if index == 0:
+            if raw_timestamp <= 0:
+                raise CiboCapitalManagementError(
+                    "historical first tick timestamp invalid"
+                )
             absolute = raw_timestamp
         else:
-            if previous_timestamp is None or raw_timestamp > previous_timestamp:
+            if previous_timestamp is None or raw_timestamp == 0:
                 raise CiboCapitalManagementError(
                     "historical tick delta timestamp invalid"
                 )
-            absolute = previous_timestamp - raw_timestamp
+            # cTrader returns newest-first ticks. The first timestamp is
+            # absolute Unix ms; subsequent timestamps are relative deltas.
+            # Current Protobuf responses use signed negative deltas
+            # (current - previous), while older fixtures encoded the same
+            # distance as positive (previous - current). Decode both forms
+            # into one strictly descending absolute chronology.
+            absolute = (
+                previous_timestamp + raw_timestamp
+                if raw_timestamp < 0
+                else previous_timestamp - raw_timestamp
+            )
+            if absolute < 0 or absolute >= previous_timestamp:
+                raise CiboCapitalManagementError(
+                    "historical tick delta chronology invalid"
+                )
         decoded.append((absolute, Decimal(raw_tick) / _PRICE_SCALE))
         previous_timestamp = absolute
     return tuple(decoded)

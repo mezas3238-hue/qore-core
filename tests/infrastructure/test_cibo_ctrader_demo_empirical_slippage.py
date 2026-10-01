@@ -7,6 +7,30 @@ from qore.infrastructure.cibo_ctrader_demo_empirical_slippage import (
 )
 
 
+def test_tick_series_accepts_live_signed_negative_deltas() -> None:
+    rows = (
+        SimpleNamespace(timestamp=1_790_884_402_000, tick=10_956_400),
+        SimpleNamespace(timestamp=-157, tick=10_956_300),
+        SimpleNamespace(timestamp=-250, tick=10_956_200),
+    )
+
+    assert decode_ctrader_tick_series(rows) == (
+        (1_790_884_402_000, Decimal("109.564")),
+        (1_790_884_401_843, Decimal("109.563")),
+        (1_790_884_401_593, Decimal("109.562")),
+    )
+
+
+def test_tick_series_rejects_non_descending_delta() -> None:
+    rows = (
+        SimpleNamespace(timestamp=1_000, tick=110_000),
+        SimpleNamespace(timestamp=2_000, tick=110_001),
+    )
+
+    with pytest.raises(CiboCapitalManagementError):
+        decode_ctrader_tick_series(rows)
+
+
 def test_tick_series_decodes_newest_first_delta_timestamps() -> None:
     rows = (
         SimpleNamespace(timestamp=1_000_000, tick=110_000),
