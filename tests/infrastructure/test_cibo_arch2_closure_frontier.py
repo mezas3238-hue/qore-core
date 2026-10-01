@@ -21,7 +21,8 @@ def test_only_evidence_backed_terminal_recommendations_are_ready() -> None:
         for name, row in rows.items()
         if row.state is Arch2ClosureState.TERMINAL_RECOMMENDATION_READY
     }
-    assert ready == {"PROVIDER_ECONOMICS", "FORWARD_QUALIFICATION"}
+    assert ready == {"T03", "PROVIDER_ECONOMICS", "FORWARD_QUALIFICATION"}
+    assert rows["T03"].terminal_recommendation == "FALSIFIED_AND_CLOSED"
     assert rows["PROVIDER_ECONOMICS"].terminal_recommendation == (
         "SUPERSEDED_WITH_PROVEN_LINEAGE"
     )
