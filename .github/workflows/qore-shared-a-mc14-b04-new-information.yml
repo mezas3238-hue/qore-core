@@ -1,0 +1,245 @@
+name: QORE Shared A MC14 B04 New Information Replay
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  B04_RUN_ID: "36765098842"
+  B04_GIT_SHA: "aec788d073aedc31f609c1609af3f7d4d8e5ae30"
+  B04_GLOBAL_ARTIFACT_ID: "11129732922"
+  B04_SOURCE_MANIFEST_ARTIFACT_ID: "10982052296"
+  R8_EVIDENCE_ARTIFACT_ID: "10402199719"
+
+jobs:
+  replay:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate frozen MC14 implementation
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          mkdir -p input/{manifest,r8,global,US2000,XAUUSD} result
+          ruff check \
+            src/qore/infrastructure/core_stack_v2/mc14_b04_cross_asset_causal.py \
+            tests/infrastructure/test_core_stack_v2_mc14_b04_cross_asset_causal.py \
+            scripts/shared_mc14_b04_new_information_causal_replay.py
+          mypy \
+            src/qore/infrastructure/core_stack_v2/mc14_b04_cross_asset_causal.py \
+            scripts/shared_mc14_b04_new_information_causal_replay.py
+          pytest -q \
+            tests/infrastructure/test_core_stack_v2_mc14_b04_cross_asset_causal.py
+
+      - name: Verify immutable upstream lineage
+        run: |
+          set -euo pipefail
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${B04_RUN_ID}" --jq '.conclusion')" = "success"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${B04_RUN_ID}" --jq '.head_sha')" = "${B04_GIT_SHA}"
+          for artifact in \
+            "${B04_GLOBAL_ARTIFACT_ID}" \
+            "${B04_SOURCE_MANIFEST_ARTIFACT_ID}" \
+            "${R8_EVIDENCE_ARTIFACT_ID}"
+          do
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact}" --jq '.expired')" = "false"
+          done
+
+      - name: Recover manifest, global pack and exact R8
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${B04_SOURCE_MANIFEST_ARTIFACT_ID}/zip" > manifest.zip
+          unzip -q manifest.zip -d input/manifest
+          (cd input/manifest && sha256sum -c SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${B04_GLOBAL_ARTIFACT_ID}/zip" > global.zip
+          unzip -q global.zip -d input/global
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${R8_EVIDENCE_ARTIFACT_ID}/zip" > r8.zip
+          unzip -q r8.zip -d input/r8
+          (cd input/r8 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+      - name: Enforce exact B04-to-R8 evidence identity
+        run: |
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+
+          manifest=json.loads(
+              Path(
+                  "input/manifest/wp05-v12-r8-tick-acquisition-manifest.json"
+              ).read_text()
+          )
+          assert manifest["manifest_sha256"] == (
+              "2f18b9f11d5893effa46ac85c712edd6646d1d90a9de521b235143e42155d191"
+          )
+          expected=dict(manifest["evidence_sha256"])
+          observed={}
+          for market in ("NAS100","SP500","US30"):
+              path=Path("input/r8/fresh")/market/"market-evidence.json"
+              observed[market]=hashlib.sha256(path.read_bytes()).hexdigest()
+          assert observed == expected
+          assert expected == {
+              "NAS100":"4031c7e21bb311fdb99d7b1028fd9ff154ace1dc4886249ff978b700fdeeedcb",
+              "SP500":"b6e9f478f7bc7a56eb79491ec22ff5e8d2144f0663355b8e9f84b407757dd4a4",
+              "US30":"b64957e8558c96241d6b6e9340b0550694d37b668509d975c38f20992073fe75",
+          }
+          PY
+
+      - name: Recover exact 32 raw B04 shards
+        run: |
+          set -euo pipefail
+          while read -r family shard artifact
+          do
+            dest="input/${family}/shard-$(printf '%02d' "${shard}")"
+            mkdir -p "${dest}"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact}" --jq '.expired')" = "false"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact}" --jq '.workflow_run.id')" = "${B04_RUN_ID}"
+            gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact}/zip" > raw.zip
+            unzip -q raw.zip -d "${dest}"
+            (cd "${dest}" && sha256sum -c SHA256SUMS)
+          done <<'EOF'
+US2000 0 11120453782
+US2000 1 11120583347
+US2000 2 11121539720
+US2000 3 11123796048
+US2000 4 11125605751
+US2000 5 11124951122
+US2000 6 11125221937
+US2000 7 11124917358
+US2000 8 11125283618
+US2000 9 11126180622
+US2000 10 11127145001
+US2000 11 11126720509
+US2000 12 11127385895
+US2000 13 11126173903
+US2000 14 11126054281
+US2000 15 11127162911
+XAUUSD 0 11126393768
+XAUUSD 1 11126844316
+XAUUSD 2 11127681415
+XAUUSD 3 11128470567
+XAUUSD 4 11128126907
+XAUUSD 5 11127503974
+XAUUSD 6 11128038983
+XAUUSD 7 11128329364
+XAUUSD 8 11128678393
+XAUUSD 9 11129670223
+XAUUSD 10 11129371928
+XAUUSD 11 11129452702
+XAUUSD 12 11129686458
+XAUUSD 13 11130096371
+XAUUSD 14 11130695130
+XAUUSD 15 11130426077
+EOF
+
+      - name: Execute frozen B04 new-information MC14 replay
+        run: |
+          set -euo pipefail
+          python scripts/shared_mc14_b04_new_information_causal_replay.py \
+            --us2000-root input/US2000 \
+            --xauusd-root input/XAUUSD \
+            --r8-nas input/r8/fresh/NAS100/market-evidence.json \
+            --r8-sp input/r8/fresh/SP500/market-evidence.json \
+            --r8-us input/r8/fresh/US30/market-evidence.json \
+            --output result/mc14-b04-causal-replay.json \
+            | tee result/summary.json
+
+      - name: Validate scientific disposition without gate rescue
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p=json.loads(
+              Path("result/mc14-b04-causal-replay.json").read_text()
+          )
+          assert p["identity"] == (
+              "QORE_SHARED_MC14_B04_NEW_INFORMATION_TEMPORAL_CAUSAL_REPLAY_001"
+          )
+          assert p["b04_run_id"] == 36765098842
+          assert p["b04_git_sha"] == (
+              "aec788d073aedc31f609c1609af3f7d4d8e5ae30"
+          )
+          assert p["post_source_ticks_used_in_features"] is False
+          assert p["future_market_used_in_feature_construction"] is False
+          assert p["trade_pnl_used"] is False
+          assert p["r6_r5_read"] is False
+          assert p["protected_certification_holdout_opened"] is False
+          assert p["mc14_completed_and_proven"] is False
+          allowed={
+              "TEMPORALLY_REPLICATED_RESEARCH_RELATION_FOUND",
+              "FALSIFIED_AND_CLOSED_FOR_THIS_MECHANISM",
+              "INSUFFICIENT_DO_NOT_INFER",
+          }
+          assert all(
+              row["status"] in allowed
+              for row in p["family_results"].values()
+          )
+          PY
+
+      - name: Seal
+        run: |
+          set -euo pipefail
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          printf '%s\n' "${GITHUB_RUN_ID}" > result/run-id.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 \
+              | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - name: Upload evidence
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-a-mc14-b04-new-information-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report
+        env:
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=json.loads(
+              Path("result/mc14-b04-causal-replay.json").read_text()
+          )
+          lines=[
+              "## Shared A MC-14 — B04 New-Information Temporal Causal Replay",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- artifact: `{os.environ['ARTIFACT_ID']}`",
+              "- B04↔R8 source lineage: **exact SHA match**",
+              "- post-source ticks in feature construction: **False**",
+              "- R6/R5/protected certification holdout opened: **False / False / False**",
+          ]
+          for family,row in p["family_results"].items():
+              lines += [
+                  f"- {family}: **{row['status']}**",
+                  f"  - replicated relations: **{row.get('replicated_relation_count',0)}**",
+                  f"  - insufficient features: **{row.get('insufficient_feature_count',0)}**",
+              ]
+          lines += [
+              f"- next gate: **{p['next_gate']}**",
+              "- MC-14 completed-and-proven: **False**",
+          ]
+          Path("result/issue-comment.md").write_text("\n".join(lines)+"\n")
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md

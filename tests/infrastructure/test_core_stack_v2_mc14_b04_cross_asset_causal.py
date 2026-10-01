@@ -133,3 +133,31 @@ def test_partition_metrics_marks_small_groups_insufficient() -> None:
     assert result["effect_bps"] is None
     assert result["insufficient"] is True
     assert result["insufficient_reason"] == "MINIMUM_GROUP_COUNT_NOT_MET"
+
+
+def test_crossed_intermediate_quote_is_not_used(tmp_path: Path) -> None:
+    _write_shard(
+        tmp_path,
+        side="bid",
+        prices=[
+            ("2026-01-01T10:00:00+00:00", 100_000),
+            ("2026-01-01T10:30:00+00:00", 120_000),
+            ("2026-01-01T11:00:00+00:00", 110_000),
+        ],
+    )
+    _write_shard(
+        tmp_path,
+        side="ask",
+        prices=[
+            ("2026-01-01T10:00:00+00:00", 102_000),
+            ("2026-01-01T10:30:00+00:00", 119_000),
+            ("2026-01-01T11:00:00+00:00", 112_000),
+        ],
+    )
+    rows = extract_window_features(
+        root=tmp_path,
+        expected_window_count=1,
+    )
+    row = rows[0]
+    assert row.complete is True
+    assert row.feature("MEDIAN_SPREAD_BPS") >= 0

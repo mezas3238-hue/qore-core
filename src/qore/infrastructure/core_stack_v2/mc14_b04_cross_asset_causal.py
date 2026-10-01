@@ -153,7 +153,7 @@ def _read_pre_source_ticks(
                     bid_count += 1
                 else:
                     ask_count += 1
-    ticks.sort(key=lambda item: (item[0], item[1], item[2]))
+    ticks.sort(key=lambda item: item[0])
     return ticks, bid_count, ask_count
 
 
@@ -216,12 +216,19 @@ def extract_window_features(
         latest_ask: int | None = None
         mids2: list[int] = []
         spreads_bps: list[int] = []
-        for _observed_at, side, price in ticks:
-            if side == "bid":
-                latest_bid = price
-            else:
-                latest_ask = price
+        updates_by_time: dict[datetime, dict[str, int]] = defaultdict(dict)
+        for observed_at, side, price in ticks:
+            updates_by_time[observed_at][side] = price
+
+        for observed_at in sorted(updates_by_time):
+            updates = updates_by_time[observed_at]
+            if "bid" in updates:
+                latest_bid = updates["bid"]
+            if "ask" in updates:
+                latest_ask = updates["ask"]
             if latest_bid is None or latest_ask is None:
+                continue
+            if latest_ask < latest_bid:
                 continue
             mid2 = latest_bid + latest_ask
             if mid2 <= 0:
