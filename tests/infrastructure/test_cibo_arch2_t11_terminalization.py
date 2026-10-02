@@ -16,11 +16,7 @@ from qore.infrastructure.cibo_arch2_t11_market_impact_evaluator import (
 )
 from qore.infrastructure.cibo_arch2_t11_market_impact_terminal_receipt import (
     COMPLETED as IMPACT_COMPLETED,
-)
-from qore.infrastructure.cibo_arch2_t11_market_impact_terminal_receipt import (
     FALSIFIED as IMPACT_FALSIFIED,
-)
-from qore.infrastructure.cibo_arch2_t11_market_impact_terminal_receipt import (
     V3_CANONICAL_HEAD_SHA,
     V3_CANONICAL_RUN_ATTEMPT,
     V3_CANONICAL_RUN_ID,
@@ -36,6 +32,13 @@ from qore.infrastructure.cibo_arch2_t11_nonlinear_input_freeze import (
 from qore.infrastructure.cibo_arch2_t11_post_containment_cycle_v3 import (
     CYCLE_ID,
 )
+from qore.infrastructure.cibo_arch2_t11_terminalization import (
+    COMPLETED,
+    FALSIFIED,
+    WAITING,
+    terminalize_t11,
+    terminalize_t11_from_receipt,
+)
 from qore.infrastructure.cibo_arch2_t11_v3_retry_claim import (
     FAILED_RUN_ID,
     RETRY_TOKEN,
@@ -43,13 +46,6 @@ from qore.infrastructure.cibo_arch2_t11_v3_retry_claim import (
 from qore.infrastructure.cibo_arch2_t11_v3_terminal_receipt import (
     V3_CANCELLED_DUPLICATE_RUN_ID,
     T11V3TerminalReceipt,
-)
-from qore.infrastructure.cibo_arch2_t11_terminalization import (
-    COMPLETED,
-    FALSIFIED,
-    WAITING,
-    terminalize_t11,
-    terminalize_t11_from_receipt,
 )
 from qore.infrastructure.cibo_ce2i_phase20_train_prior import (
     frozen_train_prior_for,

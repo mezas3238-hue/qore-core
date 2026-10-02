@@ -1,5 +1,3 @@
-from scripts.cibo_arch2_t11_market_impact_terminal import build_terminal_payload
-
 from qore.infrastructure.cibo_arch2_t11_experiment_plan import (
     T11_MARKET_IMPACT_EXPERIMENT_PLAN,
 )
@@ -15,6 +13,8 @@ from qore.infrastructure.cibo_arch2_t11_v3_terminal_receipt import (
     V3_CANONICAL_RUN_ID,
     build_t11_v3_terminal_receipt,
 )
+
+from scripts.cibo_arch2_t11_market_impact_terminal import build_terminal_payload
 
 
 def _report(*, failed_symbol: str | None = None) -> dict[str, object]:
