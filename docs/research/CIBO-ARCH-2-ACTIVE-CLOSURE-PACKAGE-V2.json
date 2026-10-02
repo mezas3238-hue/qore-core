@@ -48,33 +48,31 @@
     },
     {
       "workstream_id": "T11",
-      "state": "PARTIAL_EVIDENCE_READY",
+      "state": "BLOCKED_ON_PROVIDER_CONTAINMENT",
       "resolved_blockers": [
         "REAL_EXECUTION_POPULATION_REQUIRED",
         "EMPIRICAL_SLIPPAGE_CALIBRATION_REQUIRED"
       ],
-      "remaining_requirement": "AUTHORIZED_FORWARD_MANIFEST_FOR_GROSS_EDGE_PLUS_CANONICAL_TECHNICAL_REPLACEMENT_MARKET_IMPACT_RUN_36946792349_IN_PROGRESS",
+      "remaining_requirement": "EXACT_TWO_CANCELLED_V1_DEMO_POSITIONS_MUST_BE_CLOSED_AND_A_NEW_READ_ONLY_ZERO_CONTAINMENT_RECEIPT_PROVEN_BEFORE_ANY_NEW_VERSIONED_T11_MARKET_IMPACT_CYCLE",
       "evidence": [
         "docs/research/CIBO-ARCH-2-INTEGRATOR-PATCH-REQUEST-001.md",
-        "docs/research/CIBO-ARCH-2-INTEGRATOR-PATCH-REQUEST-008-T11-RUNNER-CONTRACT.md",
-        "src/qore/infrastructure/cibo_arch2_t11_nonlinear_input_freeze.py",
-        "src/qore/infrastructure/cibo_arch2_t11_experiment_plan.py",
-        "src/qore/infrastructure/cibo_arch2_t11_execution_claim.py",
-        "src/qore/infrastructure/cibo_arch2_t11_runner_readiness.py",
-        "src/qore/infrastructure/cibo_arch2_t11_market_impact_terminal_receipt.py",
-        "src/qore/infrastructure/cibo_arch2_t11_terminalization.py",
-        "github-actions://36945327912/CANCELLED_ZERO_TERMINAL_ARTIFACTS",
-        "github-actions://36946792349/IN_PROGRESS"
+        "src/qore/infrastructure/cibo_arch2_t11_provider_containment_state.py",
+        "github-actions://36947334465/SUCCESS",
+        "github-artifact://11202212072/sha256:15982828e8786065db2e08462f64dd61547d2ebec33772b0666255038fc47f78",
+        "github-actions://36945327912/CANCELLED",
+        "github-actions://36946792349/INVALIDATED_BY_PREEXISTING_ORPHAN_EXPOSURE"
       ],
       "execution_lineage": {
         "initial_run_id": 36945327912,
-        "initial_run_state": "CANCELLED_ZERO_TERMINAL_ARTIFACTS",
-        "initial_head_sha": "f239059c34897d395bf5503bea522c1795192bec",
-        "replacement_reason": "NON_OUTCOME_AWARE_WORKFLOW_CONTRACT_BINDING_WITH_ZERO_TERMINAL_ARTIFACTS",
-        "canonical_run_id": 36946792349,
-        "canonical_run_state": "IN_PROGRESS",
-        "canonical_head_sha": "c23483e9bb333b856c6a996bc9f6bde6a5ee6df3",
-        "further_silent_rerun_allowed": false
+        "initial_run_state": "CANCELLED_WITH_TWO_ORPHAN_DEMO_POSITIONS",
+        "containment_audit_run_id": 36947334465,
+        "containment_clean": false,
+        "open_cancelled_run_position_count": 2,
+        "open_cancelled_run_order_count": 0,
+        "contaminated_replacement_run_id": 36946792349,
+        "contaminated_replacement_evidence_admissible": false,
+        "further_provider_experiment_allowed": false,
+        "next_requirement": "ZERO_CONTAINMENT_RECEIPT_THEN_NEW_EXPLICITLY_VERSIONED_RESEARCH_CYCLE"
       }
     },
     {
@@ -139,9 +137,11 @@
     "external_dependency_fronts": [
       "T02",
       "T20",
-      "FRESH_OOS"
+      "FRESH_OOS",
+      "T11"
     ],
-    "empirical_fronts_in_progress": [
+    "empirical_fronts_in_progress": [],
+    "provider_containment_blocked_fronts": [
       "T11"
     ]
   }
