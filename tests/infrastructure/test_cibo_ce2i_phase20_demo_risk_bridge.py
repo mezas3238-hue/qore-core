@@ -6,9 +6,6 @@ from decimal import Decimal
 
 import pytest
 
-from qore.infrastructure.cibo_capital_management_authority import (
-    CiboCapitalManagementError,
-)
 from qore.infrastructure.account_wide_risk import (
     AccountRiskSnapshot,
     CiboCapitalProvenanceLot,
@@ -19,6 +16,9 @@ from qore.infrastructure.account_wide_risk import (
 from qore.infrastructure.account_wide_risk_ledger import (
     DurableAccountWideRiskEngine,
     DurableAccountWideRiskLedger,
+)
+from qore.infrastructure.cibo_capital_management_authority import (
+    CiboCapitalManagementError,
 )
 from qore.infrastructure.cibo_ce2i_phase20_demo_risk_bridge import (
     assert_phase20_demo_authorization_active,
