@@ -34,6 +34,12 @@ CLEANUP_ARTIFACT_ID = 11202798042
 CLEANUP_ARTIFACT_DIGEST = (
     "sha256:9a5929eb455bef83b3f54a0f57b89e7006b10765182c9ce67b366c740b415280"
 )
+CLEAN_AUDIT_RUN_ID = 36947985223
+CLEAN_AUDIT_HEAD_SHA = "af330950773aa89183839ef1810d2feaa9855d7e"
+CLEAN_AUDIT_ARTIFACT_ID = 11202788608
+CLEAN_AUDIT_ARTIFACT_DIGEST = (
+    "sha256:06aaffd5e19f11bb4b9a3f5c6e6d6d0924c52effcce506617e1ccac7f98c0cc0"
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,6 +54,10 @@ class T11PostContainmentCycleV3:
     cleanup_run_id: int
     cleanup_artifact_id: int
     cleanup_artifact_digest: str
+    clean_audit_run_id: int
+    clean_audit_head_sha: str
+    clean_audit_artifact_id: int
+    clean_audit_artifact_digest: str
     independent_clean_audit_required: bool
     independent_clean_audit_bound: bool
     v1_outcomes_consumable: bool
@@ -86,6 +96,13 @@ class T11PostContainmentCycleV3:
             or self.cleanup_artifact_digest != CLEANUP_ARTIFACT_DIGEST
         ):
             raise ValueError("T11 V3 cleanup lineage drift")
+        if (
+            self.clean_audit_run_id != CLEAN_AUDIT_RUN_ID
+            or self.clean_audit_head_sha != CLEAN_AUDIT_HEAD_SHA
+            or self.clean_audit_artifact_id != CLEAN_AUDIT_ARTIFACT_ID
+            or self.clean_audit_artifact_digest != CLEAN_AUDIT_ARTIFACT_DIGEST
+        ):
+            raise ValueError("T11 V3 clean-audit lineage drift")
         if not self.independent_clean_audit_required:
             raise ValueError("T11 V3 requires independent clean containment audit")
         expected_ready = self.independent_clean_audit_bound
@@ -116,14 +133,18 @@ T11_POST_CONTAINMENT_CYCLE_V3 = T11PostContainmentCycleV3(
     cleanup_run_id=CLEANUP_RUN_ID,
     cleanup_artifact_id=CLEANUP_ARTIFACT_ID,
     cleanup_artifact_digest=CLEANUP_ARTIFACT_DIGEST,
+    clean_audit_run_id=CLEAN_AUDIT_RUN_ID,
+    clean_audit_head_sha=CLEAN_AUDIT_HEAD_SHA,
+    clean_audit_artifact_id=CLEAN_AUDIT_ARTIFACT_ID,
+    clean_audit_artifact_digest=CLEAN_AUDIT_ARTIFACT_DIGEST,
     independent_clean_audit_required=True,
-    independent_clean_audit_bound=False,
+    independent_clean_audit_bound=True,
     v1_outcomes_consumable=False,
     v2_outcomes_consumable=False,
     changed_scientific_model=False,
     changed_thresholds=False,
     outcome_aware_repair=False,
-    ready_for_versioned_execution=False,
+    ready_for_versioned_execution=True,
     broker_execution_authorized=False,
     phase22_v2_consumed=False,
     canonical_ledger_modified=False,
