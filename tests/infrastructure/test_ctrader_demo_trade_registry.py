@@ -163,9 +163,22 @@ def test_registry_committed_risk_counts_open_and_live_pending_only(
         provider_order_status=provider_status.__getitem__,
     ) == Decimal("115.00")
 
-    # Local expiry is not proof that the broker removed the order. The
-    # expired order remains risk-bearing until provider terminal evidence.
-    provider_status["12347"] = 4
+    # cTrader EXPIRED/CANCELLED statuses can still contain partial fills,
+    # so the full requested risk remains reserved until fill/position evidence
+    # proves the surviving exposure.
+    for partial_capable_terminal in (4, 5):
+        provider_status["12347"] = partial_capable_terminal
+        assert registry.committed_stop_risk(
+            now=NOW,
+            provider_order_status=provider_status.__getitem__,
+        ) == Decimal("140.00")
+        assert registry.pending_stop_risk(
+            now=NOW,
+            provider_order_status=provider_status.__getitem__,
+        ) == Decimal("115.00")
+
+    # REJECTED is the only unbound terminal status that proves no execution.
+    provider_status["12347"] = 3
     assert registry.pending_stop_risk(
         now=NOW,
         provider_order_status=provider_status.__getitem__,
