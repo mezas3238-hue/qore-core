@@ -1,3 +1,5 @@
+from scripts.cibo_arch2_t11_market_impact_terminal import build_terminal_payload
+
 from qore.infrastructure.cibo_arch2_t11_experiment_plan import (
     T11_MARKET_IMPACT_EXPERIMENT_PLAN,
 )
@@ -84,3 +86,18 @@ def test_t11_v3_terminal_receipt_falsifies_without_pooled_rescue() -> None:
     assert receipt.market_impact_model_ready is False
     assert receipt.four_of_four_by_symbol[-1][1] is False
     assert receipt.terminal_recommendation == FALSIFIED
+
+
+def test_t11_terminal_cli_materializes_v3_retry_lineage() -> None:
+    payload = build_terminal_payload(_report())
+
+    assert payload["cycle_id"] == "CIBO_ARCH2_T11_MARKET_IMPACT_EXECUTION_CYCLE_V3"
+    assert payload["canonical_run_id"] == V3_CANONICAL_RUN_ID
+    assert payload["canonical_run_attempt"] == V3_CANONICAL_RUN_ATTEMPT
+    assert payload["canonical_head_sha"] == V3_CANONICAL_HEAD_SHA
+    assert payload["precursor_failed_run_id"] > 0
+    assert payload["cancelled_duplicate_run_id"] > 0
+    assert payload["holdout_outcomes_used"] is False
+    assert payload["phase22_v2_consumed"] is False
+    assert payload["canonical_ledger_modified"] is False
+    assert payload["productive_authority"] is False
