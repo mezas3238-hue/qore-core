@@ -57,31 +57,20 @@ def test_runtime_records_cibo_seed_risk_as_position_base_risk() -> None:
     assert source.count("base_risk_usd = seed.plan.stop_risk_usd") == 5
 
 
-def test_demo_account_reads_are_isolated_from_market_data_client() -> None:
+def test_demo_runtime_uses_single_ctrader_demo_connection_with_full_nonhistorical_budget() -> None:
     source = RUNTIME.read_text(encoding="utf-8")
 
-    assert "account_client = SpotwareCTraderOpenApiClient(" in source
-    assert "account_positions = CTraderDemoFreePositionService(" in source
-    assert "client=account_client" in source
-    assert "atexit.register(account_client.close)" in source
-    assert "transport = CTraderDemoReadOnlyTransport(" in source
-    assert "gateway = CTraderDemoReadOnlyGateway(" in source
+    assert "broker_positions = demo_sink.position_service" in source
+    assert "positions=broker_positions" in source
+    assert "client_messages_per_second=50" in source
+    assert "SpotwareCTraderOpenApiClient(" not in source
+    assert "account_client" not in source
+    assert "position_client" not in source
     assert source.count(
-        "_account_state_from_position_service(account_positions)"
+        "_account_state_from_position_service(broker_positions)"
     ) == 5
+    assert "broker_positions.positions()" in source
     assert "_account_state_from_demo_api(" not in source
-
-
-def test_demo_position_management_is_isolated_from_market_data_client() -> None:
-    source = RUNTIME.read_text(encoding="utf-8")
-
-    assert "position_client = SpotwareCTraderOpenApiClient(" in source
-    assert "position_positions = CTraderDemoFreePositionService(" in source
-    assert "client=position_client" in source
-    assert "atexit.register(position_client.close)" in source
-    assert "positions=position_positions" in source
-    assert "position_positions.positions()" in source
-    assert "positions=demo_sink.position_service" not in source
 
 
 def test_runtime_wires_passive_cma_position_observer_without_expansion() -> None:
@@ -193,7 +182,7 @@ def test_phase20_bootstrap_uses_the_broker_snapshot_clock() -> None:
 
     capture = (
         "phase20_bootstrap_account = "
-        "_account_state_from_position_service(account_positions)"
+        "_account_state_from_position_service(broker_positions)"
     )
     activation = "phase20_bootstrap_at = phase20_bootstrap_account.observed_at"
     bootstrap = (
