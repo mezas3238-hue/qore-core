@@ -10,6 +10,8 @@ on:
     paths:
       - '.github/workflows/cibo-architect-a1-internal-readiness.yml'
       - 'src/qore/infrastructure/cibo_arch_a1_internal_readiness.py'
+      - 'src/qore/infrastructure/cibo_arch_a1_integrator_handoff.py'
+      - 'src/qore/infrastructure/cibo_arch_a1_scientific_closure.py'
       - 'tests/infrastructure/test_cibo_arch_a1_internal_readiness.py'
       - 'src/qore/infrastructure/cibo_a1_*.py'
       - 'src/qore/infrastructure/cibo_t08_factor_correlation_lineage.py'
