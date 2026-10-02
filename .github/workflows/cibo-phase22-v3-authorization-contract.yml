@@ -1,0 +1,30 @@
+name: QORE CIBO Phase22 V3 Authorization Contract
+
+on:
+  push:
+    branches:
+      - agent/cibo-next-policy-sovereign-integration-001
+    paths:
+      - 'src/qore/infrastructure/cibo_phase22_v3_execution_authorization.py'
+      - 'tests/infrastructure/test_cibo_phase22_v3_execution_authorization.py'
+      - '.github/workflows/cibo-phase22-v3-authorization-contract.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  authorization-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - run: |
+          python -m ruff check \
+            src/qore/infrastructure/cibo_phase22_v3_execution_authorization.py \
+            tests/infrastructure/test_cibo_phase22_v3_execution_authorization.py
+          python -m pytest -q \
+            tests/infrastructure/test_cibo_phase22_v3_execution_authorization.py
