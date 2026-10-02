@@ -160,3 +160,5 @@ jobs:
             tests/infrastructure/test_cibo_phase22_v3_source_receipt.py \
             tests/infrastructure/test_cibo_phase22_v3_execution_authorization.py \
             tests/infrastructure/test_cibo_phase22_next_exam_governance.py
+
+# sovereign-validation-pulse: 2026-10-02-v3
