@@ -35,6 +35,12 @@ from qore.infrastructure.ctrader_open_api_client import (
 from qore.kernel.result import Failure
 
 _LABEL_PREFIX = "CIBOA2T11:"
+_AUDIT_PHASE = "POST_CLEANUP_INDEPENDENT_READ_ONLY"
+_CLEANUP_RUN_ID = 36947697015
+_CLEANUP_ARTIFACT_ID = 11202798042
+_CLEANUP_ARTIFACT_DIGEST = (
+    "sha256:9a5929eb455bef83b3f54a0f57b89e7006b10765182c9ce67b366c740b415280"
+)
 
 
 def claimed_run_suffix() -> str:
@@ -126,6 +132,10 @@ def build_report() -> dict[str, Any]:
         clean = not positions and not orders
         return {
             "schema": "qore.cibo.arch2.t11-v1-containment-audit.v1",
+            "audit_phase": _AUDIT_PHASE,
+            "cleanup_run_id": _CLEANUP_RUN_ID,
+            "cleanup_artifact_id": _CLEANUP_ARTIFACT_ID,
+            "cleanup_artifact_digest": _CLEANUP_ARTIFACT_DIGEST,
             "claimed_run_id": INITIAL_RUN_ID,
             "claimed_run_attempt": INITIAL_RUN_ATTEMPT,
             "claimed_run_suffix": claimed_run_suffix(),
