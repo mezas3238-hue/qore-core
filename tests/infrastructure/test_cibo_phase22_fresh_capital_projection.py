@@ -111,7 +111,7 @@ def test_future_outcome_changes_cannot_change_predecision_projection() -> None:
     assert first == second
 
 
-def test_vt31_projection_requires_four_provider_steps() -> None:
+def test_vt31_projection_keeps_trader_volume_free_and_uses_one_provider_seed_step() -> None:
     fresh = _fresh(
         trader_id=TraderLineage.VT31_NAS100,
         symbol="NAS100",
@@ -146,6 +146,8 @@ def test_vt31_projection_requires_four_provider_steps() -> None:
     )
 
     capital = projection.candidate.capital_input
-    assert capital.opportunity.minimum_execution_steps == 4
-    assert capital.minimum_stop_risk_usd == Decimal("40")
-    assert capital.minimum_margin_usd == Decimal("120")
+    assert capital.opportunity.minimum_execution_steps == 1
+    assert capital.minimum_stop_risk_usd == Decimal("10")
+    assert capital.minimum_margin_usd == Decimal("30")
+    assert capital.opportunity.context_value("sizing_authority") == "CIBO_CMA"
+    assert capital.opportunity.context_value("trader_sizing_authority") == "NONE"
