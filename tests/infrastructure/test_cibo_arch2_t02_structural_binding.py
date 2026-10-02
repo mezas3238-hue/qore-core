@@ -19,9 +19,9 @@ from qore.infrastructure.cibo_ce2i_phase20_forward_store import (
     Phase20ForwardOutcomeSeal,
 )
 from qore.infrastructure.cibo_ce2i_t02_terminal_reason_evidence import (
+    T02TerminalReason,
     T02TerminalReasonEvidence,
     T02TerminalReasonSource,
-    T02TerminalReason,
 )
 
 T0 = datetime(2026, 10, 2, 0, 0, tzinfo=UTC)
