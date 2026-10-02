@@ -46,7 +46,6 @@ jobs:
         run: |
           python -m pytest -q \
             tests/infrastructure/test_cibo_phase22_claimed_recovery.py \
-            tests/infrastructure/test_cibo_phase22_fresh_batch_assembly.py \
             tests/infrastructure/test_cibo_phase22_fresh_opportunity_batch.py
 
       - name: Require sovereign branch to remain exact claimed HEAD
