@@ -1243,7 +1243,7 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINEERING_CLOSED_PHASE22_V2_FRESH_OUTCOME_EXTERNAL_DEPENDENCY_BLOCKED",
+      "current_maturity": "PHASE22_V2_CONSUMED_QUALIFICATION_INVALID_NON_TERMINAL",
       "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py",
@@ -1258,12 +1258,19 @@
         "src/qore/infrastructure/cibo_phase22_dual_evidence_plan.py",
         "src/qore/infrastructure/cibo_phase22_execution_manifest.py",
         "src/qore/infrastructure/cibo_phase22_consumption_ledger.py",
-        "github-actions://36940403035/SUCCESS"
+        "github-actions://36940403035/SUCCESS",
+        "docs/research/CIBO-PHASE22-V2-CONSUMPTION-RECEIPT.json",
+        "docs/research/CIBO-PHASE22-V2-CLAIMED-RECOVERY-FORENSIC-RECEIPT.json",
+        "github-actions://37010938911/SUCCESS",
+        "github-actions-artifact://11227409531/sha256:ac938c675fa65cea555d4011cbbfa23e43c1f648d7bcd83d2c013e4920390d26"
       ],
       "blockers": [
-        "PHASE22_V2_FRESH_OUTCOME_RECEIPT_REQUIRED"
+        "PHASE22_V2_QUALIFICATION_INVALID_NON_TERMINAL",
+        "PHASE22_V2_ADVANCED_TOOL_EVIDENCE_HARD_INTEGRITY_FAILURE",
+        "PHASE22_V2_POPULATION_READINESS_NOT_MET",
+        "PHASE22_V2_SECOND_FRESH_EXECUTION_FORBIDDEN"
       ],
-      "next_gate": "Do not consume V2 until the canonical pre-holdout chain authorizes the one-shot. Then claim -> persist -> consume exactly once and bind the resulting source-bound fresh outcome receipt."
+      "next_gate": "Current Phase22 V2 one-shot is durably CONSUMED and qualification is INVALID with valid lineage. Preserve the non-terminal truth; do not rerun, mine another holdout, retune thresholds, or promote INVALID to terminal. Any successor fresh scientific cycle requires new governance and a new candidate/holdout lineage."
     },
     {
       "id": "TEMPORAL_REPLICATION",
