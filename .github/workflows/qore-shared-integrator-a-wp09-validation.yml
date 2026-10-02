@@ -1,0 +1,122 @@
+name: QORE Shared Integrator A WP09 Validation
+
+concurrency:
+  group: qore-shared-integrator-a-wp09-validation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+on:
+  pull_request:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/scientific_society.py
+      - src/qore/infrastructure/core_stack_v2/autonomous_scientific_lab.py
+      - scripts/shared_wp09_scientific_society_lab_integration.py
+      - .github/workflows/qore-shared-integrator-a-wp09-validation.yml
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install and validate code
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          mkdir -p input/{mc21,mc22,wp09_source} result
+          ruff check \
+            src/qore/infrastructure/core_stack_v2/scientific_society.py \
+            src/qore/infrastructure/core_stack_v2/autonomous_scientific_lab.py \
+            scripts/shared_wp09_scientific_society_lab_integration.py
+          mypy src/qore/infrastructure/core_stack_v2/scientific_society.py
+          mypy src/qore/infrastructure/core_stack_v2/autonomous_scientific_lab.py
+          pytest -q \
+            tests/infrastructure/test_core_stack_v2_scientific_society.py \
+            tests/infrastructure/test_core_stack_v2_autonomous_scientific_lab.py \
+            tests/infrastructure/test_core_stack_v2_shared_zero_open_work.py
+
+      - name: Verify immutable MC21 MC22 WP09 evidence
+        run: |
+          set -euo pipefail
+          for spec in \
+            "36778113321:11126741246" \
+            "36782306980:11128791254" \
+            "36783367625:11128447992"
+          do
+            run_id="${spec%%:*}"
+            artifact_id="${spec#*:}"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq '.status')" = "completed"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq '.conclusion')" = "success"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}" --jq '.expired')" = "false"
+          done
+
+      - name: Recover exact evidence
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11126741246/zip" > mc21.zip
+          unzip -q mc21.zip -d input/mc21
+          (cd input/mc21 && sha256sum -c SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11128791254/zip" > mc22.zip
+          unzip -q mc22.zip -d input/mc22
+          (cd input/mc22 && sha256sum -c SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11128447992/zip" > wp09.zip
+          unzip -q wp09.zip -d input/wp09_source
+          (cd input/wp09_source && sha256sum -c SHA256SUMS)
+
+      - name: Reproduce WP09 deterministically
+        run: |
+          python scripts/shared_wp09_scientific_society_lab_integration.py \
+            --mc21 input/mc21/mc21-real-engine-society-cycle.json \
+            --mc22 input/mc22/mc22-v18-full-reject-loop.json \
+            --output result/wp09-scientific-society-lab-integration.json \
+            | tee result/summary.json
+          cmp \
+            result/wp09-scientific-society-lab-integration.json \
+            input/wp09_source/wp09-scientific-society-lab-integration.json
+
+      - name: Validate WP09 boundary without auto-promotion
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from qore.infrastructure.core_stack_v2.shared_zero_open_work import (
+              SharedWorkState,
+              build_shared_master_open_work_ledger,
+          )
+
+          p=json.loads(Path("result/wp09-scientific-society-lab-integration.json").read_text())
+          assert p["status"] == "WP09_SCIENTIFIC_SOCIETY_COMPLETED_AND_PROVEN"
+          assert p["scientific_society_roles_real_engine_bound"] == 12
+          assert p["heterogeneous_model_family_count"] == 12
+          assert p["minority_falsification_preserved"] is True
+          assert p["simple_majority_voting_used"] is False
+          assert p["autonomous_lab_full_loop_capability_proven"] is True
+          assert p["society_output_consumed_by_lab"] is True
+          assert p["society_to_lab_last_stage"] == "FALSIFICATION"
+          assert p["society_to_lab_outcome"] == "REJECT"
+          assert p["society_to_lab_auto_promotion"] is False
+          assert p["wp09_completed_and_proven"] is True
+          assert p["master_ledger_mutated"] is False
+          assert p["protected_certification_holdout_opened"] is False
+
+          ledger={item.work_id:item for item in build_shared_master_open_work_ledger()}
+          assert ledger["WP-09"].state is not SharedWorkState.COMPLETED_AND_PROVEN
+          assert ledger["WP-10"].state is not SharedWorkState.COMPLETED_AND_PROVEN
+          assert ledger["MC-23"].state is not SharedWorkState.COMPLETED_AND_PROVEN
+          assert ledger["MC-26"].state is not SharedWorkState.COMPLETED_AND_PROVEN
+          assert ledger["MC-28"].state is not SharedWorkState.COMPLETED_AND_PROVEN
+          PY
