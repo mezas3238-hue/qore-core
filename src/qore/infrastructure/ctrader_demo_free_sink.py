@@ -84,10 +84,8 @@ def assert_cibo_sizing_authority(request: CiboRiskRequest) -> None:
 
 def _execution_request_for_risk(
     request: CiboRiskRequest,
-    authorization: RiskAuthorization | None,
+    authorization: RiskAuthorization,
 ) -> CiboRiskRequest:
-    if authorization is None:
-        return request
     if not isinstance(authorization, RiskAuthorization):
         raise CTraderDemoFreeSinkError(
             "canonical RiskAuthorization is required"
@@ -287,7 +285,7 @@ class CTraderDemoFreeSink:
         self,
         request: CiboRiskRequest,
         *,
-        risk_authorization: RiskAuthorization | None = None,
+        risk_authorization: RiskAuthorization,
         now: datetime | None = None,
     ) -> CTraderDemoFreeSubmitResult:
         assert_cibo_sizing_authority(request)
@@ -313,15 +311,12 @@ class CTraderDemoFreeSink:
                 contract=contract,
                 submitted_at=observed,
             )
-            auth_id, auth_fingerprint, reservation_id = (
+            _allocation_auth_id, _allocation_fingerprint, _allocation_reservation = (
                 allocation_fence_values(allocation)
             )
-            if risk_authorization is not None:
-                auth_id = risk_authorization.authorization_id
-                auth_fingerprint = (
-                    risk_authorization.authorization_fingerprint
-                )
-                reservation_id = risk_authorization.authorization_id
+            auth_id = risk_authorization.authorization_id
+            auth_fingerprint = risk_authorization.authorization_fingerprint
+            reservation_id = risk_authorization.authorization_id
             staged = self._runtime.stage_risk_fence(
                 submission,
                 risk_authorization_id=auth_id,
@@ -379,41 +374,19 @@ class CTraderDemoFreeSink:
                         execution_request.requested_volume,
                         "f",
                     ),
-                    risk_authorization_id=(
-                        None
-                        if risk_authorization is None
-                        else risk_authorization.authorization_id
-                    ),
+                    risk_authorization_id=risk_authorization.authorization_id,
                     risk_authorization_fingerprint=(
-                        None
-                        if risk_authorization is None
-                        else risk_authorization.authorization_fingerprint
+                        risk_authorization.authorization_fingerprint
                     ),
-                    risk_decision=(
-                        None
-                        if risk_authorization is None
-                        else risk_authorization.decision.value
+                    risk_decision=risk_authorization.decision.value,
+                    risk_authorized_at=risk_authorization.issued_at.isoformat(),
+                    risk_authorized_margin_usd=format(
+                        risk_authorization.margin_reserved,
+                        "f",
                     ),
-                    risk_authorized_at=(
-                        None
-                        if risk_authorization is None
-                        else risk_authorization.issued_at.isoformat()
-                    ),
-                    risk_authorized_margin_usd=(
-                        None
-                        if risk_authorization is None
-                        else format(
-                            risk_authorization.margin_reserved,
-                            "f",
-                        )
-                    ),
-                    risk_authorized_stop_risk_usd=(
-                        None
-                        if risk_authorization is None
-                        else format(
-                            risk_authorization.monetary_stop_loss,
-                            "f",
-                        )
+                    risk_authorized_stop_risk_usd=format(
+                        risk_authorization.monetary_stop_loss,
+                        "f",
                     ),
                     minimum_volume_uplifted=request.minimum_volume_uplifted,
                     source_contract_size_units=format(
@@ -598,7 +571,7 @@ def demo_capital_for(trader: TraderLineage) -> Decimal:
 def submit_demo_request(
     request: CiboRiskRequest,
     *,
-    risk_authorization: RiskAuthorization | None = None,
+    risk_authorization: RiskAuthorization,
 ) -> CTraderDemoFreeSubmitResult:
     return global_sink().submit(
         request,
