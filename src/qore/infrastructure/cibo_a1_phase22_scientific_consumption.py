@@ -17,6 +17,9 @@ from datetime import datetime
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
+from qore.infrastructure.cibo_ce2i_phase19_portfolio_replay import (
+    PHASE19_REQUIRED_TRADERS,
+)
 from qore.infrastructure.cibo_ce2i_phase20_forward_policy_store import (
     Phase20ForwardPolicyDecisionSeal,
     VersionedPhase20ForwardPolicyBook,
@@ -244,6 +247,14 @@ def build_a1_phase22_scientific_consumption_manifest(
     for policy in policy_book.decisions:
         _verify_policy(policy)
 
+    required_traders = tuple(
+        item.value for item in PHASE19_REQUIRED_TRADERS
+    )
+    if traders != set(required_traders):
+        raise CiboCapitalManagementError(
+            "A1 Phase22 manifest requires exact 7/7 Trader population"
+        )
+
     folds = _build_folds(ordered)
     return A1Phase22ScientificConsumptionManifest(
         manifest_id=MANIFEST_ID,
@@ -256,7 +267,7 @@ def build_a1_phase22_scientific_consumption_manifest(
         decision_count=len(ordered),
         policy_count=len(policy_book.decisions),
         outcome_count=len(evidence_book.outcomes),
-        trader_ids=tuple(sorted(traders)),
+        trader_ids=required_traders,
         folds=folds,
         exact_policy_coverage=True,
         historical_replay_only=True,
