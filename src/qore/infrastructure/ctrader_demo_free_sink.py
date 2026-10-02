@@ -111,6 +111,7 @@ class CTraderDemoFreeSink:
         root: Path,
         credentials: CTraderOpenApiCredentials,
         source_contract_sizes: dict[str, Decimal],
+        client_messages_per_second: int = 5,
     ) -> None:
         if not isinstance(root, Path):
             raise CTraderDemoFreeSinkError("root must be Path")
@@ -128,7 +129,10 @@ class CTraderDemoFreeSink:
         self._source_contract_sizes = dict(source_contract_sizes)
         self._lock = Lock()
 
-        client = SpotwareCTraderOpenApiClient(credentials=credentials)
+        client = SpotwareCTraderOpenApiClient(
+            credentials=credentials,
+            messages_per_second=client_messages_per_second,
+        )
         binding = discover_free_account_binding(client)
         if binding.account.account_ref != str(credentials.ctid_trader_account_id):
             client.close()
