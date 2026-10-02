@@ -52,8 +52,8 @@ def architect2_active_frontier_v2() -> tuple[Architect2ActiveFront, ...]:
             workstream_id="T02",
             state=Architect2ActiveState.WAITING_ON_AUTHORITATIVE_FORWARD_LIFECYCLE,
             remaining_requirement=(
-                "POST_FREEZE_EXPLICIT_TERMINAL_REASON_POPULATION_THEN_"
-                "CIBO_ARCH2_T02_PROVIDER_BOUND_ECONOMIC_ABLATION_V1"
+                "LIFECYCLE_INTAKE_READY__POST_FREEZE_EXPLICIT_TERMINAL_REASON_"
+                "POPULATION_THEN_PROVIDER_BOUND_ECONOMIC_ABLATION"
             ),
         ),
         Architect2ActiveFront(
@@ -66,23 +66,23 @@ def architect2_active_frontier_v2() -> tuple[Architect2ActiveFront, ...]:
             workstream_id="T11",
             state=Architect2ActiveState.FROZEN_GATE_WAITING_POPULATION,
             remaining_requirement=(
-                "FRESH_OOS_GROSS_EDGE_VALIDATION_AND_"
-                "MIN_VOLUME_MICROBUNDLE_MARKET_IMPACT_CALIBRATION"
+                "AUTHORIZED_FORWARD_MANIFEST_FOR_GROSS_EDGE_PLUS_"
+                "RUNNER_CONTRACT_READY_THEN_FROZEN_144_EPISODE_216_CHILD_"
+                "MARKET_IMPACT_POPULATION"
             ),
         ),
         Architect2ActiveFront(
             workstream_id="T16",
-            state=Architect2ActiveState.FROZEN_GATE_WAITING_POPULATION,
-            remaining_requirement=(
-                "POST_FREEZE_NAS100_US30_US500_M1_POPULATION_32_PLUS_"
-                "THEN_STRICT_4_OF_4_HEDGE_UTILITY"
-            ),
+            state=Architect2ActiveState.TERMINAL_RECOMMENDATION_READY,
+            remaining_requirement="INTEGRATOR_EVIDENCE_AUDIT",
+            proposed_terminal_disposition="FALSIFIED_AND_CLOSED",
         ),
         Architect2ActiveFront(
             workstream_id="T20",
             state=Architect2ActiveState.WAITING_ON_AUTHORITATIVE_FORWARD_LIFECYCLE,
             remaining_requirement=(
-                "REAL_CIBO_TO_RISK_TO_EXECUTION_TO_SETTLEMENT_TO_RELEASE_POPULATION"
+                "QUALIFIER_READY__REAL_CIBO_TO_RISK_TO_EXECUTION_TO_SETTLEMENT_"
+                "TO_RELEASE_POPULATION"
             ),
         ),
         Architect2ActiveFront(

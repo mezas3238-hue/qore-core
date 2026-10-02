@@ -93,6 +93,12 @@ _INTERNAL_EXTERNAL_BLOCKER_MARKERS = (
 
 _WORKSTREAM_CLASSIFIERS = (
     ("*cibo_a1_scientific_disposition*", "SOURCE_OF_TRUTH_RECONCILIATION"),
+    ("*cibo_a1_ce2i_phase22_population_binding*", "CE2I_CROSS_TOOL_INFRASTRUCTURE"),
+    ("*cibo_a1_genc2_phase22_profit_graduation*", "GEN-C2"),
+    ("*cibo_a1_genc3_genc7_phase22_binding*", "CAPITAL_AMPLIFICATION"),
+    ("*cibo_a1_phase22_historical_compound_dependency*", "SOURCE_OF_TRUTH_RECONCILIATION"),
+    ("*cibo_a1_phase22_scientific_consumption*", "SOURCE_OF_TRUTH_RECONCILIATION"),
+    ("*cibo_a1_t08_phase22_oos_binding*", "T08"),
     ("*cibo_a1_strict_temporal_population_lineage*", "TEMPORAL_REPLICATION"),
     ("*cibo_t08_factor_correlation_lineage*", "T08"),
     (
@@ -109,6 +115,7 @@ _WORKSTREAM_CLASSIFIERS = (
     ("*cibo_arch2_t03_*", "T03"),
     ("*cibo_arch2_t11_*", "T11"),
     ("*cibo_arch2_t16_*", "T16"),
+    ("*cibo_arch2_t20_*", "T20"),
     (
         "*cibo_arch2_provider_blocker_reconciliation*",
         "SOURCE_OF_TRUTH_RECONCILIATION",

@@ -380,8 +380,8 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINEERING_CLOSED_REALIZED_EXECUTION_AND_HEDGE_COST_MODEL_PROVEN_FRESH_OOS_NET_UTILITY_REQUIRED",
-      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "current_maturity": "FALSIFIED_AND_CLOSED_PREREGISTERED_HEDGE_UNIVERSE_FRESH_OOS_4_OF_4",
+      "terminal_disposition": "FALSIFIED_AND_CLOSED",
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
         "src/qore/infrastructure/cibo_ce2i_calibration_registry.py",
@@ -420,13 +420,16 @@
         "tests/infrastructure/test_cibo_arch2_t16_fresh_oos_utility.py",
         "github-actions://36934306276/SUCCESS",
         "github-artifact://11197137857/sha256:96ad9cc8a8ac5bdafc2f35cac556bf54a6250cff62abd65ff09db7bd8922434b",
-        "git://8cc3794feb645710952859fe40e20223e1c59093"
+        "git://8cc3794feb645710952859fe40e20223e1c59093",
+        "src/qore/infrastructure/cibo_arch2_t16_terminal_falsification.py",
+        "tests/infrastructure/test_cibo_arch2_t16_terminal_falsification.py",
+        "github-actions://36941142280/SUCCESS",
+        "github-artifact://11199498760/sha256:2aa2024db38efa100c4cf97eb8fc59038ea8b78a0428719ee106ea4bee3a0a16",
+        "git://f8c6409af5893ca8189a7aa13a3d406c4d19b649",
+        "sha256:81c5f14aa94e0e7065354256a6bcaf8a69154353180024e3f3089132223b5f54"
       ],
-      "blockers": [
-        "NET_ECONOMIC_BENEFIT_NOT_PROVEN",
-        "PROVIDER_BOUND_FRESH_OOS_HEDGE_UTILITY_REQUIRED"
-      ],
-      "next_gate": "Collect the preregistered post-freeze NAS100/US30/US500 M1 population without broker mutation, then require strict 4-of-4 positive net hedge utility after conservative observed round-trip costs."
+      "blockers": [],
+      "next_gate": "Terminal falsification for the preregistered US30/US500 hedge universe: both candidates failed all four fresh-OOS folds after frozen empirical execution costs. Reopen only through a new preregistered research cycle with a new hedge hypothesis; do not retune or expand this closed population."
     },
     {
       "id": "T17",
