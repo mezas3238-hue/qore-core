@@ -99,9 +99,7 @@ def _canonical_sha256(payload: object) -> str:
     return "sha256:" + hashlib.sha256(raw).hexdigest()
 
 
-def world_cup_policy_identity_sha256() -> str:
-    """Fingerprint the frozen non-compensatory World Cup protocol."""
-
+def _canonical_world_cup_policy_identity_sha256() -> str:
     return _canonical_sha256(
         {
             "exam_id": WORLD_CUP_MAXIMUM_CAPABILITY_EXAM_ID,
@@ -114,6 +112,12 @@ def world_cup_policy_identity_sha256() -> str:
             "aspirational_return_target_used": False,
         }
     )
+
+
+def world_cup_policy_identity_sha256() -> str:
+    """Fingerprint the frozen non-compensatory World Cup protocol."""
+
+    return _canonical_world_cup_policy_identity_sha256()
 
 
 def final_integrated_exam_report_sha256(
@@ -457,9 +461,10 @@ def assess_receipt_bound_world_cup_maximum_capability_exam(
     if receipts and all(
         isinstance(item, WorldCupControlReceipt) for item in receipts
     ):
-        if world_cup_policy_identity_sha256 != globals()[
-            "world_cup_policy_identity_sha256"
-        ]():
+        if (
+            world_cup_policy_identity_sha256
+            != _canonical_world_cup_policy_identity_sha256()
+        ):
             raise CiboCapitalManagementError(
                 "World Cup canonical receipt policy identity drift"
             )
