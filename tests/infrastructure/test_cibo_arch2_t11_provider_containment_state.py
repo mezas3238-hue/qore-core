@@ -15,9 +15,8 @@ def test_t11_provider_containment_fails_closed_on_orphan_exposure() -> None:
     assert state.audit_run_id == AUDIT_RUN_ID == 36947334465
     assert state.audit_artifact_id == AUDIT_ARTIFACT_ID == 11202212072
     assert state.audit_artifact_digest == AUDIT_ARTIFACT_DIGEST
-    assert state.contaminated_replacement_run_id == (
-        CONTAMINATED_REPLACEMENT_RUN_ID == 36946792349
-    )
+    assert state.contaminated_replacement_run_id == CONTAMINATED_REPLACEMENT_RUN_ID
+    assert CONTAMINATED_REPLACEMENT_RUN_ID == 36946792349
     assert state.open_position_count == 2
     assert state.open_order_count == 0
     assert state.open_labels == OPEN_CANCELLED_RUN_LABELS
