@@ -110,6 +110,12 @@ def build_reports(
     if not isinstance(compound_by, dict):
         raise ValueError("compound report trader_incremental_pnl_usd missing")
     compound_pnl = {str(k): _decimal(v) for k, v in compound_by.items()}
+    raw_compound_entries = compound.get("trader_compound_entries")
+    if not isinstance(raw_compound_entries, dict):
+        raise ValueError("compound trader_compound_entries missing")
+    compound_entries = {
+        str(k): int(v) for k, v in raw_compound_entries.items()
+    }
 
     rows: list[dict[str, object]] = []
     for trader in TRADERS:
@@ -137,8 +143,12 @@ def build_reports(
                 "risk_allowed": allowed,
                 "risk_reduced": reduced,
                 "risk_rejected": rejected,
-                "entries_executed": executed,
-                "settlements": executed,
+                "entries_executed_CORE": executed,
+                "compound_entries_executed": compound_entries.get(trader, 0),
+                "entries_executed_WITH_COMPOUND": (
+                    executed + compound_entries.get(trader, 0)
+                ),
+                "settlements_CORE": executed,
                 "gross_structural_pnl_usd": format(gross_pnl[trader], "f"),
                 "provider_execution_cost_usd": format(provider_cost[trader], "f"),
                 "net_realized_pnl_usd_MINIMAL_SEED_ONLY": format(
