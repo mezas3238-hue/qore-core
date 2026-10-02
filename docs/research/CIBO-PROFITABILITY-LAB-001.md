@@ -7,13 +7,29 @@ Observed final artifact: `11256800358`
 Observed reused-batch artifact: `11256450732`  
 Validation class: `NON_CERTIFYING_REUSED_HOLDOUT`
 
-## Mission
+## Owner directive and mission
 
-Explain why FULL_CIBO_CORE and FULL_CIBO_COMPOUND_PORTFOLIO failed to produce positive realized P/L even though the end-to-end infrastructure executed successfully.
+The seven Traders are **test population generators**, not the object of optimization and not candidates for post-hoc acceptance/rejection.
+
+The laboratory question is:
+
+> Can CIBO process the complete opportunity stream through all applicable cognitive, CE2I, CMA, Risk, capital-science, Compound and Portfolio capabilities, and can that full orchestration improve survival and portfolio economics without mutating Trader edge?
+
+The primary laboratory hypothesis is **UNDER-UTILIZATION / UNDER-ORCHESTRATION OF CIBO CAPABILITIES**.
+
+Run #28 proved that the end-to-end software path executes, but it did **not** prove that every applicable CIBO capability participated at every eligible decision epoch. The laboratory must therefore measure capability utilization before attributing negative economics to the Traders.
+
+"Sacar a flote todos los trades" is defined operationally as:
+
+- every emitted opportunity enters a complete CIBO decision pipeline;
+- every applicable capability is either APPLIED or produces an explicit fail-closed/non-applicable reason;
+- CIBO may reject, reduce, defer, protect, derisk, preserve, compound or allocate an opportunity, but it may not silently skip an applicable capability;
+- the objective is positive portfolio economics plus survival, not forcing every individual trade to become a winner;
+- no Trader methodology/edge is changed inside this laboratory.
 
 This laboratory is causal diagnosis, not outcome-aware optimization. The observed 2014-10-19 -> 2015-04-19 reused holdout is evidence for hypotheses only. It is forbidden to select thresholds, weights, Trader inclusion, tool eligibility, sizing rules, compound speed, or treatments because they improve this observed outcome.
 
-Any proposed mechanism change must be preregistered and later evaluated on a separate development/forward population before any certification claim.
+Any proposed CIBO mechanism/orchestration change must be preregistered and later evaluated on a separate development/forward population before any certification claim.
 
 ## Observed economics
 
@@ -142,6 +158,56 @@ Disposition:
 
 The same temporal-availability audit must be applied to cognitive memory, regime models and any other learned/frozen artifact before economic conclusions are accepted.
 
+## Full-infrastructure utilization requirement
+
+The next laboratory replay must emit a per-opportunity utilization ledger covering the complete CIBO stack:
+
+### Cognitive
+- CF01..CF19.
+
+### CE2I
+- T01..T20.
+
+### Capital science / Compound
+- GEN-C1..GEN-C14.
+
+### Capital and execution governance
+- CIBO Cognitive routing;
+- CE2I regime selection;
+- CMA capital-source selection and sole sizing authority;
+- QORE Risk ALLOW/REDUCE/REJECT;
+- provider economics / T11;
+- realized-profit release / T20;
+- Compound capital;
+- Compound Portfolio;
+- Sequential Compounding;
+- Internal Capital Market;
+- Profit Preservation;
+- Adaptive Compound Speed;
+- Robust Growth/Ruin Capacity;
+- Capital Digital Twin;
+- Multi-Period MPC;
+- Crisis Capital Intelligence;
+- Meta-Capital Memory.
+
+For every opportunity and every capability, one canonical disposition is required:
+
+- APPLIED;
+- REGIME_BLOCKED;
+- FAIL_CLOSED;
+- JUSTIFIED_NOT_APPLICABLE;
+- NOT_INTEGRATED.
+
+A capability that is implemented but never reached because the test harness bypassed its input path is a **LAB COVERAGE FAILURE**, not evidence that the capability is unnecessary.
+
+The laboratory must distinguish three different questions:
+
+1. **Implemented?** — code/contract exists.
+2. **Eligible?** — predecision state says it can legally participate.
+3. **Applied?** — it actually consumed the opportunity/state and affected or confirmed the decision.
+
+Only (3) counts as runtime utilization.
+
 ## Laboratory workstreams
 
 ### L1 — Opportunity-specific expectation science
@@ -158,20 +224,29 @@ Forbidden:
 
 Deliverable: preregistered estimator protocol and calibration diagnostics on development folds.
 
-### L2 — Selection attribution
+### L2 — Full-trade CIBO orchestration attribution
 
-For every opportunity, record:
+For every emitted opportunity, record:
 - raw Trader opportunity;
-- frozen prior expectation;
-- setup-specific expectation when available;
+- entry into CIBO Cognitive;
+- CF01..CF19 eligibility/application;
+- causal expectation surface;
 - regime posture;
-- CE2I tools eligible/applied/blocked;
-- allocator score/rank;
-- selected/not selected;
-- explicit decision reason;
-- QORE Risk disposition.
+- T01..T20 eligibility/application;
+- GEN-C1..GEN-C14 eligibility/application;
+- CMA capital-source decision;
+- CMA sizing/volume expression;
+- QORE Risk disposition;
+- provider-economics adjustment;
+- protection/derisk/optionality actions;
+- portfolio competition/netting/internal-capital-market actions;
+- Compound/Portfolio actions;
+- settlement and released-capital actions;
+- explicit reason for every capability not applied.
 
-Deliverable: exact explanation for every zero or rejected lane, including VT08 and EURUSD.
+The laboratory must not treat a Trader-level zero-selection result as sufficient explanation. It must explain the complete CIBO path for every opportunity.
+
+Deliverable: a per-opportunity CIBO utilization matrix plus aggregate utilization rates for every capability.
 
 ### L3 — Dollar-expression / minimum-volume distortion
 
@@ -228,13 +303,15 @@ Non-application always requires a reason.
 
 CIBO may leave this laboratory only when:
 
-1. the expectation mechanism is setup-specific or there is evidence that a static prior is sufficient;
-2. calibration and ranking are evaluated on development/forward folds not chosen from run #28;
-3. selection attribution is complete for all seven Traders;
-4. capital-expression distortion is quantified and bounded;
-5. Compound mechanisms demonstrate incremental economic value under causal ablation, rather than merely functioning mechanically;
-6. provider-adjusted economics remain positive where certification requires it;
-7. no outcome-aware tuning, leakage, LIVE, real capital, production or merge authority was used.
+1. every emitted opportunity is accounted for through the complete CIBO pipeline;
+2. CF01..CF19, T01..T20 and GEN-C1..GEN-C14 have explicit runtime utilization/accountability;
+3. no implemented/applicable capability is silently bypassed by the exam harness;
+4. the expectation mechanism is setup-specific or there is evidence that a static prior is sufficient;
+5. calibration and ranking are evaluated on development/forward folds not chosen from run #28;
+6. capital-expression distortion is quantified and bounded;
+7. Compound/Portfolio mechanisms demonstrate incremental economic value under causal ablation, rather than merely functioning mechanically;
+8. provider-adjusted portfolio economics are positive where certification requires it;
+9. no outcome-aware tuning, leakage, LIVE, real capital, production or merge authority was used.
 
 ## Governance
 
