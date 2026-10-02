@@ -62,9 +62,13 @@ class ProtectedBasePolicyCandidate:
             )
         _sha(self.policy_sha256, "policy_sha256")
         _aware(self.frozen_at, "frozen_at")
-        if self.protected_base_usd < 0:
+        if (
+            not isinstance(self.protected_base_usd, Decimal)
+            or not self.protected_base_usd.is_finite()
+            or self.protected_base_usd < 0
+        ):
             raise CiboCapitalManagementError(
-                "protected-base amount must be non-negative"
+                "protected-base amount must be finite non-negative Decimal"
             )
         if type(self.protection_class) is not ProtectedBaseClass:
             raise CiboCapitalManagementError(
@@ -92,6 +96,15 @@ class ProtectedBasePolicyCandidate:
             raise CiboCapitalManagementError(
                 "non-broker protected base cannot claim broker guarantee evidence"
             )
+        for name in (
+            "numeric_candidate_frozen",
+            "v3_mutated",
+            "productive_authority",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise CiboCapitalManagementError(
+                    f"protected-base candidate {name} must be bool"
+                )
         if (
             not self.numeric_candidate_frozen
             or self.v3_mutated
@@ -131,9 +144,17 @@ class ProtectedBaseEconomicObservation:
             )
         _sha(self.population_sha256, "population_sha256")
         _sha(self.provider_surface_sha256, "provider_surface_sha256")
-        if not self.fold_ids or len(self.fold_ids) != len(set(self.fold_ids)):
+        if (
+            not isinstance(self.fold_ids, tuple)
+            or not self.fold_ids
+            or any(
+                not isinstance(item, str) or not item
+                for item in self.fold_ids
+            )
+            or len(self.fold_ids) != len(set(self.fold_ids))
+        ):
             raise CiboCapitalManagementError(
-                "protected-base fold ids must be non-empty and unique"
+                "protected-base fold ids must be non-empty unique strings"
             )
         _aware(self.horizon_start, "horizon_start")
         _aware(self.horizon_end, "horizon_end")
@@ -156,14 +177,35 @@ class ProtectedBaseEconomicObservation:
             "minimum_optionality_usd",
             "provider_failure_incidence",
         ):
-            if getattr(self, name) < 0:
+            value = getattr(self, name)
+            if (
+                not isinstance(value, Decimal)
+                or not value.is_finite()
+                or value < 0
+            ):
                 raise CiboCapitalManagementError(
-                    f"protected-base {name} must be non-negative"
+                    f"protected-base {name} must be finite non-negative Decimal"
                 )
+        if (
+            not isinstance(self.capital_risk_time_productivity, Decimal)
+            or not self.capital_risk_time_productivity.is_finite()
+        ):
+            raise CiboCapitalManagementError(
+                "protected-base capital_risk_time_productivity must be finite Decimal"
+            )
         if self.provider_failure_incidence > Decimal(1):
             raise CiboCapitalManagementError(
                 "protected-base provider failure incidence must be <= 1"
             )
+        for name in (
+            "hindsight_retuned",
+            "weighted_score_used",
+            "certification_ready",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise CiboCapitalManagementError(
+                    f"protected-base observation {name} must be bool"
+                )
         if (
             self.hindsight_retuned
             or self.weighted_score_used
@@ -439,7 +481,11 @@ def _require_comparable(
 
 
 def _aware(value: datetime, name: str) -> None:
-    if value.tzinfo is None or value.utcoffset() is None:
+    if (
+        not isinstance(value, datetime)
+        or value.tzinfo is None
+        or value.utcoffset() is None
+    ):
         raise CiboCapitalManagementError(
             f"protected-base {name} must be timezone-aware"
         )
@@ -447,7 +493,8 @@ def _aware(value: datetime, name: str) -> None:
 
 def _sha(value: str, name: str) -> None:
     if (
-        not value.startswith("sha256:")
+        not isinstance(value, str)
+        or not value.startswith("sha256:")
         or len(value) != 71
         or any(char not in "0123456789abcdef" for char in value[7:])
     ):
