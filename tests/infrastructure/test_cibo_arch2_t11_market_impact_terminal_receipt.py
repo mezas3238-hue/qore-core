@@ -5,9 +5,9 @@ import pytest
 from qore.infrastructure.cibo_arch2_t11_market_impact_terminal_receipt import (
     COMPLETED,
     FALSIFIED,
-    V3_V3_CANONICAL_HEAD_SHA,
-    V3_V3_CANONICAL_RUN_ATTEMPT,
-    V3_V3_CANONICAL_RUN_ID,
+    V3_CANONICAL_HEAD_SHA,
+    V3_CANONICAL_RUN_ATTEMPT,
+    V3_CANONICAL_RUN_ID,
     build_t11_market_impact_terminal_receipt,
 )
 from qore.infrastructure.cibo_arch2_t11_experiment_plan import (
