@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 RUNTIME = Path("scripts/qore_ctrader_demo_free_runtime.py")
 
 
