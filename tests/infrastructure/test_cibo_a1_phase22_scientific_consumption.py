@@ -223,15 +223,20 @@ def test_a1_phase22_manifest_rejects_policy_digest_drift() -> None:
 
 
 def test_a1_phase22_manifest_rejects_missing_trader_lineage() -> None:
-    evidence, policies = _books()
-    first = evidence.decisions[0]
-    payload = json.loads(first.canonical_payload_json)
-    payload["candidates"] = payload["candidates"][:-1]
-    modified = replace(
-        first,
-        signal_fingerprints=first.signal_fingerprints[:-1],
-        canonical_payload_json=json.dumps(payload, sort_keys=True),
-    )
+    evidence, _policies = _books()
+    modified_decisions = []
+    for decision in evidence.decisions:
+        payload = json.loads(decision.canonical_payload_json)
+        payload["candidates"] = payload["candidates"][:-1]
+        modified_decisions.append(
+            replace(
+                decision,
+                signal_fingerprints=decision.signal_fingerprints[:-1],
+                canonical_payload_json=json.dumps(payload, sort_keys=True),
+            )
+        )
+    modified_tuple = tuple(modified_decisions)
+    modified_policies = tuple(_policy(item) for item in modified_tuple)
 
     with pytest.raises(
         CiboCapitalManagementError,
@@ -241,8 +246,46 @@ def test_a1_phase22_manifest_rejects_missing_trader_lineage() -> None:
             evidence_book=VersionedPhase22HistoricalReplayEvidenceBook(
                 generation=1,
                 amendment_sha256=evidence.amendment_sha256,
-                decisions=(modified,) + evidence.decisions[1:],
+                decisions=modified_tuple,
                 outcomes=(),
             ),
-            policy_book=policies,
+            policy_book=VersionedPhase20ForwardPolicyBook(
+                generation=1,
+                decisions=modified_policies,
+            ),
+        )
+
+
+def test_a1_phase22_manifest_rejects_policy_selection_outside_candidates() -> None:
+    evidence, policies = _books()
+    first = policies.decisions[0]
+    record = {
+        "evidence_sha256": first.evidence_sha256,
+        "selected_signal_fingerprints": ["not-a-sealed-candidate"],
+    }
+    canonical = json.dumps(
+        record,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    corrupted = Phase20ForwardPolicyDecisionSeal(
+        evidence_sha256=first.evidence_sha256,
+        policy_record_sha256="sha256:" + hashlib.sha256(
+            canonical.encode()
+        ).hexdigest(),
+        allocator_disposition=first.allocator_disposition,
+        selected_signal_fingerprints=("not-a-sealed-candidate",),
+        canonical_record_json=canonical,
+    )
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="selected outside decision candidates",
+    ):
+        build_a1_phase22_scientific_consumption_manifest(
+            evidence_book=evidence,
+            policy_book=VersionedPhase20ForwardPolicyBook(
+                generation=1,
+                decisions=(corrupted,) + policies.decisions[1:],
+            ),
         )
