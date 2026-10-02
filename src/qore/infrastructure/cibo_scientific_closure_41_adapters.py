@@ -77,6 +77,10 @@ from qore.infrastructure.cibo_scientific_closure_41 import (
 DEPENDENCY_SCHEMA = "QORE_CIBO_SCIENTIFIC_CLOSURE_41_DEPENDENCIES_V1"
 _SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 _SHA1_RE = re.compile(r"^[0-9a-f]{40}$")
+_HOLDOUT_ID_RE = re.compile(
+    r"^CIBO_USD60_6M_HOLDOUT_\\d{4}-\\d{2}-\\d{2}_"
+    r"\\d{4}-\\d{2}-\\d{2}_V\\d+$"
+)
 
 # Legacy source surfaces remain importable because several already-built gates
 # still emit these canonical receipt types. They are not the current ownership
@@ -146,7 +150,7 @@ _SPECIAL_REQUIREMENTS: dict[str, tuple[str, ...]] = {
     ),
     "FRESH_OOS": (
         "PHASE22_DURABLE_EXECUTION_CONSUMPTION_RECEIPT",
-        "PHASE22_V4_HOLDOUT_QUALIFICATION_REPORT",
+        "PHASE22_SUCCESSOR_HOLDOUT_QUALIFICATION_REPORT",
     ),
     "USD60_CAPABILITY_PROGRAM": (
         "USD60_FROZEN_MAXIMUM_CAPABILITY_GATE_SET",
@@ -166,7 +170,7 @@ _SPECIAL_REQUIREMENTS: dict[str, tuple[str, ...]] = {
 
 @dataclass(frozen=True, slots=True)
 class Group1V4TerminalEvidenceHandoff:
-    """Immutable downstream envelope produced only after Group-1 V4 closure."""
+    """Immutable downstream envelope for the actual Group-1 fresh successor."""
 
     candidate_id: str
     phase22_manifest_sha256: str
@@ -193,9 +197,9 @@ class Group1V4TerminalEvidenceHandoff:
     merge_authorized: bool = False
 
     def __post_init__(self) -> None:
-        if self.candidate_id != CANONICAL_HOLDOUT_ID:
+        if _HOLDOUT_ID_RE.fullmatch(self.candidate_id) is None:
             raise CiboCapitalManagementError(
-                "Group-1 V4 handoff candidate identity drift"
+                "Group-1 fresh handoff candidate identity invalid"
             )
         for name in (
             "phase22_manifest_sha256",
@@ -205,44 +209,44 @@ class Group1V4TerminalEvidenceHandoff:
         ):
             if _SHA256_RE.fullmatch(getattr(self, name)) is None:
                 raise CiboCapitalManagementError(
-                    f"Group-1 V4 handoff {name} invalid"
+                    f"Group-1 fresh handoff {name} invalid"
                 )
         if self.policy_identity != CANONICAL_POLICY_IDENTITY:
             raise CiboCapitalManagementError(
-                "Group-1 V4 handoff policy identity drift"
+                "Group-1 fresh handoff policy identity drift"
             )
         if self.qualification_plan_identity != CANONICAL_QUALIFICATION_PLAN_IDENTITY:
             raise CiboCapitalManagementError(
-                "Group-1 V4 handoff qualification-plan drift"
+                "Group-1 fresh handoff qualification-plan drift"
             )
         if self.provider_identity != CANONICAL_PROVIDER_IDENTITY:
             raise CiboCapitalManagementError(
-                "Group-1 V4 handoff provider identity drift"
+                "Group-1 fresh handoff provider identity drift"
             )
         if not self.population_identity.strip():
             raise CiboCapitalManagementError(
-                "Group-1 V4 handoff population identity required"
+                "Group-1 fresh handoff population identity required"
             )
         if _SHA1_RE.fullmatch(self.source_head_sha) is None:
             raise CiboCapitalManagementError(
-                "Group-1 V4 handoff source HEAD invalid"
+                "Group-1 fresh handoff source HEAD invalid"
             )
         if self.trader_ids != CANONICAL_PHASE22_TRADER_IDS:
             raise CiboCapitalManagementError(
-                "Group-1 V4 handoff requires exact ordered 7/7 Traders"
+                "Group-1 fresh handoff requires exact ordered 7/7 Traders"
             )
         if self.qualification_status not in {"PASS", "FAIL"}:
             raise CiboCapitalManagementError(
-                "Group-1 V4 handoff qualification is not terminal"
+                "Group-1 fresh handoff qualification is not terminal"
             )
         expected = COMPLETED if self.qualification_status == "PASS" else FALSIFIED
         if self.terminal_recommendation != expected:
             raise CiboCapitalManagementError(
-                "Group-1 V4 handoff status/disposition drift"
+                "Group-1 fresh handoff status/disposition drift"
             )
         if self.observed_at.tzinfo is None or self.observed_at.utcoffset() is None:
             raise CiboCapitalManagementError(
-                "Group-1 V4 handoff observed_at must be timezone-aware"
+                "Group-1 fresh handoff observed_at must be timezone-aware"
             )
         if any(
             (
@@ -258,7 +262,7 @@ class Group1V4TerminalEvidenceHandoff:
             )
         ):
             raise CiboCapitalManagementError(
-                "Group-1 V4 handoff contains contamination or authority"
+                "Group-1 fresh handoff contains contamination or authority"
             )
 
 
@@ -298,9 +302,9 @@ class Group2CapitalTerminalEvidenceHandoff:
             raise CiboCapitalManagementError(
                 "Group-2 capital handoff ownership drift"
             )
-        if self.candidate_id != CANONICAL_HOLDOUT_ID:
+        if _HOLDOUT_ID_RE.fullmatch(self.candidate_id) is None:
             raise CiboCapitalManagementError(
-                "Group-2 capital handoff candidate identity drift"
+                "Group-2 capital handoff candidate identity invalid"
             )
         for name in (
             "phase22_manifest_sha256",
@@ -394,6 +398,7 @@ class CanonicalScientificBinding:
     temporal_replication_result: str
     integrity_result: str
     evaluated_at: datetime
+    holdout_id: str = CANONICAL_HOLDOUT_ID
     evidence_origin: str = "CANONICAL_GATE_RECEIPT"
 
     def __post_init__(self) -> None:
@@ -421,6 +426,10 @@ class CanonicalScientificBinding:
         if not self.population_identity.strip():
             raise CiboCapitalManagementError(
                 "Canonical scientific binding population identity required"
+            )
+        if _HOLDOUT_ID_RE.fullmatch(self.holdout_id) is None:
+            raise CiboCapitalManagementError(
+                "Canonical scientific binding holdout identity invalid"
             )
         if _SHA256_RE.fullmatch(self.causal_lineage) is None:
             raise CiboCapitalManagementError(
@@ -464,7 +473,7 @@ def scientific_closure_41_dependency_manifest() -> dict[str, object]:
             "owner_group": (
                 "GROUP2_CAPITAL_COMPOUND"
                 if workstream_id in _GROUP2_SET
-                else "GROUP1_V4_FRESH_CE2I_GENC"
+                else "GROUP1_SUCCESSOR_FRESH_CE2I_GENC"
             ),
             "required_evidence_kinds": list(requirements),
             "future_artifact_digest_policy": "REQUIRED_AT_INTAKE",
@@ -477,7 +486,7 @@ def scientific_closure_41_dependency_manifest() -> dict[str, object]:
     return {
         "schema": DEPENDENCY_SCHEMA,
         "workstream_count": 41,
-        "group1_v4_fresh_ce2i_genc_count": 28,
+        "group1_successor_fresh_ce2i_genc_count": 28,
         "group2_capital_compound_count": 13,
         "legacy_architect_a_existing_consumer_count": 35,
         "legacy_special_canonical_adapter_count": 6,
@@ -513,6 +522,10 @@ def adapt_group2_capital_terminal_handoff(
         raise CiboCapitalManagementError(
             "Closure 41 Group-2 causal-lineage drift"
         )
+    if binding.holdout_id != handoff.candidate_id:
+        raise CiboCapitalManagementError(
+            "Closure 41 Group-2 holdout identity drift"
+        )
     if binding.evaluated_at < handoff.observed_at:
         raise CiboCapitalManagementError(
             "Closure 41 Group-2 chronology drift"
@@ -531,6 +544,7 @@ def adapt_group2_capital_terminal_handoff(
         source_refs=(handoff.source_gate_id,),
         source_digests=(handoff.source_gate_evidence_sha256,),
         binding=binding,
+        holdout_id=handoff.candidate_id,
     )
 
 
@@ -573,9 +587,10 @@ def adapt_group2_capital_terminal_batch(
         )
     manifests = {item.phase22_manifest_sha256 for item in handoffs}
     populations = {item.population_identity for item in handoffs}
-    if len(manifests) != 1 or len(populations) != 1:
+    candidates = {item.candidate_id for item in handoffs}
+    if len(manifests) != 1 or len(populations) != 1 or len(candidates) != 1:
         raise CiboCapitalManagementError(
-            "Closure 41 Group-2 batch cross-population or manifest drift"
+            "Closure 41 Group-2 batch cross-holdout/population/manifest drift"
         )
     return tuple(
         adapt_group2_capital_terminal_handoff(
@@ -771,37 +786,41 @@ def adapt_t20_terminal_receipt(
 
 
 
-def adapt_group1_v4_fresh_oos_handoff(
+def adapt_group1_fresh_oos_handoff(
     *,
     handoff: Group1V4TerminalEvidenceHandoff,
     binding: CanonicalScientificBinding,
 ) -> ScientificClosure41Evidence:
-    """Consume Group-1 immutable V4 truth without executing or retuning V4."""
+    """Consume immutable Group-1 successor truth without executing or retuning it."""
 
     if not isinstance(handoff, Group1V4TerminalEvidenceHandoff):
         raise CiboCapitalManagementError(
-            "Closure 41 V4 fresh-OOS adapter requires canonical Group-1 handoff"
+            "Closure 41 successor fresh-OOS adapter requires canonical Group-1 handoff"
         )
     if not isinstance(binding, CanonicalScientificBinding):
         raise CiboCapitalManagementError(
-            "Closure 41 V4 fresh-OOS adapter requires canonical binding"
+            "Closure 41 successor fresh-OOS adapter requires canonical binding"
         )
     if binding.population_identity != handoff.population_identity:
         raise CiboCapitalManagementError(
-            "Closure 41 V4 fresh-OOS population identity drift"
+            "Closure 41 successor fresh-OOS population identity drift"
         )
     if binding.causal_lineage != handoff.causal_lineage:
         raise CiboCapitalManagementError(
-            "Closure 41 V4 fresh-OOS causal-lineage drift"
+            "Closure 41 successor fresh-OOS causal-lineage drift"
+        )
+    if binding.holdout_id != handoff.candidate_id:
+        raise CiboCapitalManagementError(
+            "Closure 41 successor fresh-OOS holdout identity drift"
         )
     if binding.evaluated_at < handoff.observed_at:
         raise CiboCapitalManagementError(
-            "Closure 41 V4 fresh-OOS chronology drift"
+            "Closure 41 successor fresh-OOS chronology drift"
         )
     return _build_special(
         workstream_id=FRESH_OOS_ID,
         recommendation=handoff.terminal_recommendation,
-        source_kind="GROUP1_PHASE22_V4_TERMINAL_HANDOFF",
+        source_kind="GROUP1_PHASE22_SUCCESSOR_TERMINAL_HANDOFF",
         source_object=handoff,
         phase22_manifest_sha256=handoff.phase22_manifest_sha256,
         binding=binding,
@@ -809,7 +828,18 @@ def adapt_group1_v4_fresh_oos_handoff(
             handoff.outcome_bundle_sha256,
             handoff.qualification_artifact_sha256,
         ),
+        holdout_id=handoff.candidate_id,
     )
+
+
+def adapt_group1_v4_fresh_oos_handoff(
+    *,
+    handoff: Group1V4TerminalEvidenceHandoff,
+    binding: CanonicalScientificBinding,
+) -> ScientificClosure41Evidence:
+    """Compatibility alias; V4 itself is no longer assumed canonical."""
+
+    return adapt_group1_fresh_oos_handoff(handoff=handoff, binding=binding)
 
 
 def adapt_fresh_oos_terminal_intake(
@@ -951,6 +981,7 @@ def _build_special(
     phase22_manifest_sha256: str,
     binding: CanonicalScientificBinding,
     source_digests: tuple[str, ...] = (),
+    holdout_id: str | None = None,
 ) -> ScientificClosure41Evidence:
     source_status = "PASS" if recommendation == COMPLETED else "FAIL"
     return _build_evidence(
@@ -965,6 +996,7 @@ def _build_special(
         source_refs=(f"source://{source_kind}",),
         source_digests=source_digests,
         binding=binding,
+        holdout_id=holdout_id,
     )
 
 
@@ -981,6 +1013,7 @@ def _build_evidence(
     source_refs: tuple[str, ...],
     source_digests: tuple[str, ...],
     binding: CanonicalScientificBinding,
+    holdout_id: str | None = None,
 ) -> ScientificClosure41Evidence:
     if not isinstance(binding, CanonicalScientificBinding):
         raise CiboCapitalManagementError(
@@ -1024,6 +1057,7 @@ def _build_evidence(
         terminal_reason=terminal_reason,
         evaluated_at=binding.evaluated_at,
         phase22_manifest_sha256=phase22_manifest_sha256,
+        holdout_id=holdout_id or binding.holdout_id,
         evidence_origin=binding.evidence_origin,
         failed_dimensions=failed_dimensions,
         synthetic_evidence_used=False,
@@ -1073,6 +1107,10 @@ def _validate_group_evidence_batch(
         raise CiboCapitalManagementError(
             f"Closure 41 {label} Phase22 manifest drift"
         )
+    if len({item.holdout_id for item in ordered}) != 1:
+        raise CiboCapitalManagementError(
+            f"Closure 41 {label} cross-holdout lineage drift"
+        )
     return ordered
 
 
@@ -1081,7 +1119,7 @@ def validate_group1_immutable_evidence_batch(
     evidence: tuple[ScientificClosure41Evidence, ...],
     phase22_manifest_sha256: str,
 ) -> tuple[ScientificClosure41Evidence, ...]:
-    """Validate the immutable V4/FRESH_OOS + CE2I + GEN-C handoff."""
+    """Validate immutable successor FRESH_OOS + CE2I + GEN-C evidence."""
 
     return _validate_group_evidence_batch(
         evidence=evidence,
