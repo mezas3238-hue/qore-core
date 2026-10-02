@@ -14,7 +14,7 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter, defaultdict
-from dataclasses import asdict, fields, is_dataclass
+from dataclasses import fields, is_dataclass
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
@@ -146,7 +146,13 @@ def _trader_rows(*, execution: Any, compound: Any) -> list[dict[str, Any]]:
     return rows
 
 
-def _coverage(*, fresh: Any, replay_started_at: datetime, tool_audit: Any, compound: Any) -> dict[str, Any]:
+def _coverage(
+    *,
+    fresh: Any,
+    replay_started_at: datetime,
+    tool_audit: Any,
+    compound: Any,
+) -> dict[str, Any]:
     cognitive = build_cibo_capability_cognitive_coverage(
         source_batch_sha256=fresh.declared_batch_sha256,
         observed_at=replay_started_at,
