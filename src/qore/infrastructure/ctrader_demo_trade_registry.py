@@ -246,9 +246,9 @@ class CTraderDemoTradeRegistry:
                 continue
             if item.position_id is None:
                 status = provider_order_status(item.provider_order_ref)
-                if status in {3, 4, 5}:
+                if status == 3:
                     continue
-                if status not in {1, 2}:
+                if status not in {1, 2, 4, 5}:
                     raise RuntimeError(
                         "cTrader DEMO committed order status is unsupported"
                     )
@@ -284,9 +284,9 @@ class CTraderDemoTradeRegistry:
             if item.closed_at is not None or item.position_id is not None:
                 continue
             status = provider_order_status(item.provider_order_ref)
-            if status in {3, 4, 5}:
+            if status == 3:
                 continue
-            if status not in {1, 2}:
+            if status not in {1, 2, 4, 5}:
                 raise RuntimeError(
                     "cTrader DEMO pending order status is unsupported"
                 )
