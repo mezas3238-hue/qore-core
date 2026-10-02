@@ -348,3 +348,23 @@ def test_compound_portfolio_rejects_generation_parent_mismatch() -> None:
             event_id="admit-bad-generation-child",
             occurred_at=T0 + timedelta(seconds=4),
         )
+
+
+def test_compound_lot_rejects_noncanonical_origin_deal_ids() -> None:
+    lot = _lot(lot_id="bad-deal-provenance")
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="origin deal ids must be unique positive ints",
+    ):
+        replace(lot, origin_deal_ids=(2001, -1))
+
+
+def test_compound_lot_rejects_blank_parent_ids() -> None:
+    lot = _lot(lot_id="bad-parent-provenance")
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="parent ids must be unique non-empty strings",
+    ):
+        replace(lot, parent_lot_ids=("",))
