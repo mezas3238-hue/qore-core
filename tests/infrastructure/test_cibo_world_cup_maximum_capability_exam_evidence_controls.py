@@ -65,6 +65,13 @@ def _evidence():
             capital_conservation_sha256=_sha("capital-conservation"),
             competition_digital_twin_bound=True,
             capital_conservation_proven=True,
+            no_capital_creation=True,
+            no_duplicated_profit=True,
+            no_reused_released_capacity=True,
+            no_double_counted_netting=True,
+            margin_feasible=True,
+            chronology_monotonic=True,
+            future_information_used=False,
         ),
         WorldCupAsIsControlEvidence(
             **common,
