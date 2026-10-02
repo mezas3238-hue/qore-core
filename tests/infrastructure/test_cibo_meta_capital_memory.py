@@ -274,3 +274,33 @@ def test_genc13_report_cannot_contain_future_counterfactual_evidence() -> None:
             generated_at=T0 + timedelta(minutes=33),
             hypothesis_worth_preregistering=False,
         )
+
+
+def test_genc13_preregistration_claim_requires_counterfactual_evidence() -> None:
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="requires retrospective counterfactual evidence",
+    ):
+        Genc13SkepticReport(
+            report_id="phenotype-only-hypothesis",
+            episode=_episode(),
+            phenotypes=(_phenotype(),),
+            counterfactuals=(),
+            generated_at=T0 + timedelta(minutes=33),
+            hypothesis_worth_preregistering=True,
+        )
+
+
+def test_genc13_report_requires_canonical_evidence_tuples() -> None:
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="phenotype evidence must be canonical tuple",
+    ):
+        Genc13SkepticReport(
+            report_id="list-phenotypes",
+            episode=_episode(),
+            phenotypes=[_phenotype()],
+            counterfactuals=(_counterfactual(),),
+            generated_at=T0 + timedelta(minutes=33),
+            hypothesis_worth_preregistering=True,
+        )
