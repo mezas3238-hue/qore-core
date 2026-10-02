@@ -1,0 +1,16 @@
+{
+  "schema": "qore.cibo.profitability-lab.p0-trigger.v1",
+  "owner_authorized": true,
+  "authorized_at_utc": "2026-10-02T23:30:00Z",
+  "objective": "Run the all-Trader P0 diagnostic: all legal candidates reach CIBO CMA and sovereign QORE Risk; measure 7/7 participation, economics, Compound overlay, and full-stack runtime coverage.",
+  "source_population_run": 37075080556,
+  "source_batch_artifact_id": 11256450732,
+  "research_only": true,
+  "certification_claimed": false,
+  "broker_mutation": false,
+  "live": false,
+  "real_capital": false,
+  "production": false,
+  "merge_authority": false,
+  "outcome_aware_tuning": false
+}
