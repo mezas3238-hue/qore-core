@@ -9,7 +9,6 @@ survivability governor.
 from __future__ import annotations
 
 import argparse
-import atexit
 import hashlib
 import json
 import subprocess
@@ -43,9 +42,6 @@ from qore.infrastructure.ctrader_demo_free_sink import (
 )
 from qore.infrastructure.ctrader_demo_free_position_service import (
     CTraderDemoFreePositionService,
-)
-from qore.infrastructure.ctrader_open_api_client import (
-    SpotwareCTraderOpenApiClient,
 )
 from qore.infrastructure.account_wide_risk import (
     AccountRiskSnapshot,
@@ -385,6 +381,7 @@ def _configure_ctrader_demo_free_sink(root: Path) -> CTraderDemoFreeSink:
         root=root,
         credentials=credentials_from_environment(),
         source_contract_sizes=source_sizes,
+        client_messages_per_second=50,
     )
     configure_global_sink(sink)
     return sink
@@ -1064,23 +1061,14 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             received_at=received_at,
         )
 
-    # Keep position reconciliation and management on their own DEMO
-    # connection. Reconcile/order-management requests must never compete with
-    # the resident market-data stream or execution transport for provider
-    # request capacity.
-    position_client = SpotwareCTraderOpenApiClient(
-        credentials=credentials_from_environment(),
-    )
-    atexit.register(position_client.close)
-    position_positions = CTraderDemoFreePositionService(
-        client=position_client,
-        configuration=demo_sink.binding.configuration,
-    )
-
+    # cTrader recommends a single DEMO connection for all DEMO accounts.
+    # Keep one authenticated transport and separate concerns at the service
+    # layer instead of opening parallel DEMO sessions.
+    broker_positions = demo_sink.position_service
     demo_api = CTraderDemoFullApi(
         client=demo_sink.client,
         binding=demo_sink.binding,
-        positions=position_positions,
+        positions=broker_positions,
         registry=demo_sink.registry,
         binding_path=root / "var" / "ctrader_demo_free" / "binding.json",
         source_contract_sizes=demo_source_contract_sizes,
@@ -1091,20 +1079,8 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
     if not demo_api.warm_session_schedules():
         raise RuntimeError("cTrader DEMO broker session schedule unavailable")
 
-    # Keep broker account/equity reads on an independent DEMO connection.
-    # Account snapshots require two Open API requests; sharing the market-data
-    # connection can consume its provider message budget exactly at M1/M5
-    # decision boundaries and make otherwise-fresh bars miss the hard SLA.
-    account_client = SpotwareCTraderOpenApiClient(
-        credentials=credentials_from_environment(),
-    )
-    atexit.register(account_client.close)
-    account_positions = CTraderDemoFreePositionService(
-        client=account_client,
-        configuration=demo_sink.binding.configuration,
-    )
     boundary_account_sampler = BoundaryAccountSampler(
-        lambda: _account_state_from_position_service(account_positions)
+        lambda: _account_state_from_position_service(broker_positions)
     )
     mt5 = demo_api
     demo_management_api = demo_api
@@ -1147,7 +1123,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
     phase20_settlement_cursor_store = DurablePhase20DemoSettlementCursorStore(
         state_dir / "cibo-phase20-settlement-cursor.json"
     )
-    phase20_bootstrap_account = _account_state_from_position_service(account_positions)
+    phase20_bootstrap_account = _account_state_from_position_service(broker_positions)
     # The broker snapshot is the authoritative clock for the initial Phase20
     # assigned-capital observation. Capturing an activation instant before the
     # broker read makes the snapshot look artificially "future" and prevents
@@ -1160,7 +1136,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
         activated_at=phase20_bootstrap_at,
     )
     phase20_known_open_position_ids = tuple(
-        sorted(item.position_id for item in position_positions.positions())
+        sorted(item.position_id for item in broker_positions.positions())
     )
     # Forward stores are authoritative evidence. Corruption must fail startup.
     phase20_evidence_store.load()
@@ -1259,14 +1235,14 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
     # signatures; every market/account read is backed by cTrader DEMO.
     transport = CTraderDemoReadOnlyTransport(
         demo_api,
-        account_positions,
+        broker_positions,
     )
     risk_ledger = DurableAccountWideRiskLedger(state_dir / "demo-risk-observation.json")
     exit_ledger = _NoopExitLedger()
     risk = DurableAccountWideRiskEngine(risk_ledger)
     gateway = CTraderDemoReadOnlyGateway(
         demo_api,
-        account_positions,
+        broker_positions,
     )
 
     def recover_demo_market_state(
@@ -1713,7 +1689,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     },
                 )
                 try:
-                    arm_account = _account_state_from_position_service(account_positions)
+                    arm_account = _account_state_from_position_service(broker_positions)
                     # DEMO_FREE: no external reconciliation.
                     arm_r42_state = audjpy_r42_store.load()
                     arm_r34_state = r34_store.load()
@@ -2611,7 +2587,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                 },
             )
             try:
-                vt31_account = _account_state_from_position_service(account_positions)
+                vt31_account = _account_state_from_position_service(broker_positions)
                 # DEMO_FREE: no external reconciliation.
                 vt31_highest = max(highest, vt31_account.balance)
                 vt31_provider = SimpleNamespace()
@@ -2909,7 +2885,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             store.store(state)
             continue
 
-        account_state = _account_state_from_position_service(account_positions)
+        account_state = _account_state_from_position_service(broker_positions)
         # DEMO_FREE: no FundedNext reconciliation.
         # cTrader DEMO is the only mutation target in this account runtime.
         # The MT5-compatible adapter below translates the frozen Trader lifecycle
