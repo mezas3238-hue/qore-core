@@ -6,7 +6,9 @@ on:
     paths:
       - '.github/workflows/cibo-t20-capital-release.yml'
       - 'src/qore/infrastructure/cibo_t20_capital_release_evidence.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_demo_settlement_observer.py'
       - 'tests/infrastructure/test_cibo_t20_capital_release_evidence.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_demo_settlement_observer.py'
       - 'docs/research/CIBO-B-T20-CAPITAL-RELEASE-MECHANICAL-CLOSURE-V1.md'
   push:
     branches:
@@ -15,7 +17,9 @@ on:
     paths:
       - '.github/workflows/cibo-t20-capital-release.yml'
       - 'src/qore/infrastructure/cibo_t20_capital_release_evidence.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_demo_settlement_observer.py'
       - 'tests/infrastructure/test_cibo_t20_capital_release_evidence.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_demo_settlement_observer.py'
       - 'docs/research/CIBO-B-T20-CAPITAL-RELEASE-MECHANICAL-CLOSURE-V1.md'
 
 permissions:
@@ -36,10 +40,24 @@ jobs:
           python-version: '3.12'
       - run: python -m pip install -e '.[dev]'
       - name: Ruff
-        run: ruff check src/qore/infrastructure/cibo_t20_capital_release_evidence.py tests/infrastructure/test_cibo_t20_capital_release_evidence.py
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_t20_capital_release_evidence.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_demo_settlement_observer.py \
+            tests/infrastructure/test_cibo_t20_capital_release_evidence.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_demo_settlement_observer.py
       - name: mypy
-        run: mypy src/qore/infrastructure/cibo_t20_capital_release_evidence.py
+        run: |
+          mypy \
+            src/qore/infrastructure/cibo_t20_capital_release_evidence.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_demo_settlement_observer.py
       - name: py_compile
-        run: python -m py_compile src/qore/infrastructure/cibo_t20_capital_release_evidence.py
+        run: |
+          python -m py_compile \
+            src/qore/infrastructure/cibo_t20_capital_release_evidence.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_demo_settlement_observer.py
       - name: pytest
-        run: pytest -q --no-cov tests/infrastructure/test_cibo_t20_capital_release_evidence.py
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_t20_capital_release_evidence.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_demo_settlement_observer.py
