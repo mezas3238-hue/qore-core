@@ -46,7 +46,8 @@ jobs:
         run: |
           python -m pytest -q \
             tests/infrastructure/test_cibo_phase22_claimed_recovery.py \
-            tests/infrastructure/test_cibo_phase22_fresh_opportunity_batch.py
+            tests/infrastructure/test_cibo_phase22_fresh_opportunity_batch.py \
+            tests/infrastructure/test_cibo_phase22_chronological_replay_plan.py
 
       - name: Require sovereign branch to remain exact claimed HEAD
         shell: bash
@@ -217,7 +218,7 @@ jobs:
           set -euo pipefail
           replay_started_at="$(date -u '+%Y-%m-%dT%H:%M:%S+00:00')"
           out="$RUNNER_TEMP/recovery"
-          PYTHONPATH="$CLAIM_ROOT/src" python "$CLAIM_ROOT/scripts/cibo_phase22_execution_closure.py" \
+          PYTHONPATH="$GITHUB_WORKSPACE/src" python "$GITHUB_WORKSPACE/scripts/cibo_phase22_execution_closure.py" \
             --repo-root "$CLAIM_ROOT" \
             --branch-name "$SOVEREIGN_BRANCH" \
             --fresh-batch "$out/fresh-batch.json" \
