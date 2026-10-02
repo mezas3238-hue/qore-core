@@ -121,8 +121,8 @@ _ALLOWED_ORIGINS = {
 _RESULT_VALUES = {"PASS", "FAIL", "NOT_APPLICABLE"}
 _SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 _HOLDOUT_ID_RE = re.compile(
-    r"^CIBO_USD60_6M_HOLDOUT_\\d{4}-\\d{2}-\\d{2}_"
-    r"\\d{4}-\\d{2}-\\d{2}_V\\d+$"
+    r"^CIBO_USD60_6M_HOLDOUT_\d{4}-\d{2}-\d{2}_"
+    r"\d{4}-\d{2}-\d{2}_V\d+$"
 )
 
 
