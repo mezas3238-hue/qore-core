@@ -26,7 +26,8 @@ from qore.infrastructure.ctrader_demo_trade_registry import (
 )
 
 _ACTIVE_ORDER_STATUSES = frozenset({1, 2})
-_TERMINAL_ORDER_STATUSES = frozenset({3, 4, 5})
+_UNFILLED_TERMINAL_ORDER_STATUSES = frozenset({3})
+_AMBIGUOUS_PARTIAL_TERMINAL_ORDER_STATUSES = frozenset({4, 5})
 
 
 @dataclass(frozen=True, slots=True)
@@ -224,11 +225,17 @@ def reconcile_demo_risk_reservations(
                     f"{type(error).__name__}"
                 )
                 continue
-            if status in _TERMINAL_ORDER_STATUSES:
+            if status in _UNFILLED_TERMINAL_ORDER_STATUSES:
                 risk.cancel(authorization.authorization_id)
                 cancelled += 1
             elif status in _ACTIVE_ORDER_STATUSES:
                 pending += 1
+            elif status in _AMBIGUOUS_PARTIAL_TERMINAL_ORDER_STATUSES:
+                awaiting_fill += 1
+                blockers.append(
+                    "RISK_PROVIDER_ORDER_TERMINAL_FILL_AMBIGUOUS_"
+                    f"{authorization.authorization_id}:{status}"
+                )
             else:
                 blockers.append(
                     "RISK_PROVIDER_ORDER_STATUS_UNSUPPORTED_"
