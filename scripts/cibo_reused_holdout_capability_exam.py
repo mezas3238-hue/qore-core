@@ -11,9 +11,6 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-from qore.infrastructure.cibo_reused_holdout_capability_exam import (
-    run_reused_holdout_infrastructure_exam,
-)
 from qore.infrastructure.cibo_phase22_v4_execution_inputs import (
     load_phase22_sealed_fresh_batch,
     load_phase22_sealed_provider_numeric,
@@ -21,6 +18,9 @@ from qore.infrastructure.cibo_phase22_v4_execution_inputs import (
 from qore.infrastructure.cibo_phase22_v4_historical_regime import (
     PHASE22_REGIME_SYMBOLS,
     load_phase22_historical_regime_corpora,
+)
+from qore.infrastructure.cibo_reused_holdout_capability_exam import (
+    run_reused_holdout_infrastructure_exam,
 )
 
 

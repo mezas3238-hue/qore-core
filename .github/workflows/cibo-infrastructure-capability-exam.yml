@@ -6,6 +6,12 @@ on:
       - agent/cibo-integrator-ab-001
     paths:
       - 'docs/research/CIBO-INFRASTRUCTURE-CAPABILITY-EXAM-TRIGGER.json'
+      - 'src/qore/infrastructure/cibo_reused_holdout_capability_exam.py'
+      - 'src/qore/infrastructure/cibo_phase22_historical_replay_settlement.py'
+      - 'scripts/cibo_phase22_reused_holdout_batch_assembler.py'
+      - 'scripts/cibo_reused_holdout_capability_exam.py'
+      - 'tests/infrastructure/test_cibo_reused_holdout_capability_exam.py'
+      - '.github/workflows/cibo-infrastructure-capability-exam.yml'
 
 permissions:
   contents: read

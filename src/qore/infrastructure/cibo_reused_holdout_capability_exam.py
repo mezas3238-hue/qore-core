@@ -19,7 +19,6 @@ from dataclasses import asdict, dataclass
 from datetime import datetime
 from decimal import Decimal
 from enum import StrEnum
-from pathlib import Path
 from typing import Any
 
 from qore.infrastructure.cibo_capital_management_authority import (
@@ -274,7 +273,10 @@ def run_reused_holdout_infrastructure_exam(
         replay_started_at=replay_started_at,
     )
     baseline = _run_minimal_seed_baseline(plan)
-    full = _full_metrics(execution, opportunity_count=len(fresh.batch.opportunities))
+    full = _full_metrics(
+        execution,
+        opportunity_count=len(fresh.batch.opportunities),
+    )
     audit = _tool_audit(plan=plan, execution=execution)
 
     pf_delta = None
@@ -284,17 +286,41 @@ def run_reused_holdout_infrastructure_exam(
     gates = (
         ("EXACT_USD60_INITIAL_CAPITAL", full.initial_capital_usd == Decimal("60")),
         ("EXACT_SEVEN_TRADER_LANES", len(fresh.batch.traders) == 7),
-        ("SIX_MONTH_PROTOCOL_SURFACE", FROZEN_CIBO_USD60_SIX_MONTH_PROTOCOL.duration_months == 6),
+        (
+            "SIX_MONTH_PROTOCOL_SURFACE",
+            FROZEN_CIBO_USD60_SIX_MONTH_PROTOCOL.duration_months == 6,
+        ),
         ("SURVIVAL", full.ending_capital_usd > 0),
         ("ACCOUNTING_RESIDUAL_ZERO", execution.accounting_residual_usd == 0),
-        ("RISK_SOVEREIGNTY", execution.selected_count == execution.allowed_count + execution.reduced_count + execution.rejected_count),
-        ("SETTLEMENT_RELEASE_RECONCILED", len(execution.books.t20_release.release_chain) == execution.settled_count),
+        (
+            "RISK_SOVEREIGNTY",
+            execution.selected_count
+            == (
+                execution.allowed_count
+                + execution.reduced_count
+                + execution.rejected_count
+            ),
+        ),
+        (
+            "SETTLEMENT_RELEASE_RECONCILED",
+            len(execution.books.t20_release.release_chain)
+            == execution.settled_count,
+        ),
         ("BROKER_MUTATION_ZERO", execution.broker_mutation_performed is False),
-        ("FLOATING_PNL_NOT_FUNDING", execution.floating_pnl_used_as_funding is False),
-        ("BASELINE_COMPARISON_COMPLETE", baseline.opportunity_count == len(fresh.batch.opportunities)),
+        (
+            "FLOATING_PNL_NOT_FUNDING",
+            execution.floating_pnl_used_as_funding is False,
+        ),
+        (
+            "BASELINE_COMPARISON_COMPLETE",
+            baseline.opportunity_count == len(fresh.batch.opportunities),
+        ),
         ("PERFORMANCE_DIFFERENCE_MEASURED", _metrics_differ(baseline, full)),
         ("T01_T20_ACCOUNTABILITY_COMPLETE", all(item.reason for item in audit)),
-        ("T01_T20_RUNTIME_INTEGRATION_COMPLETE", all(item.integration_complete for item in audit)),
+        (
+            "T01_T20_RUNTIME_INTEGRATION_COMPLETE",
+            all(item.integration_complete for item in audit),
+        ),
     )
     report = InfrastructureCapabilityExamReport(
         exam_id=EXAM_ID,
@@ -584,25 +610,40 @@ def _tool_audit(
                 reason = "mission/regime selector blocked tool before action engine"
             else:
                 status = ToolRuntimeStatus.NOT_INTEGRATED
-                reason = "tool contract exists but no runtime action/fail-closed receipt was observed"
+                reason = (
+                    "tool contract exists but no runtime action/fail-closed "
+                    "receipt was observed"
+                )
         elif code == "T05":
             if release_count > 0 and len(plan.epochs) > 1:
                 status = ToolRuntimeStatus.APPLIED
                 stat["applied"] = release_count
-                reason = "settled risk/margin was released and subsequent epochs recomputed reusable headroom"
+                reason = (
+                    "settled risk/margin was released and subsequent epochs "
+                    "recomputed reusable headroom"
+                )
             else:
                 status = ToolRuntimeStatus.JUSTIFIED_NOT_APPLICABLE
                 reason = "no reconciled released capacity was available for a later epoch"
         elif code == "T06":
             if profit_available and stat["enabled"] > 0:
                 status = ToolRuntimeStatus.NOT_INTEGRATED
-                reason = "realized profit existed but historical executor always calls plan_minimal_seed and never plan_expansion"
+                reason = (
+                    "realized profit existed but historical executor always "
+                    "calls plan_minimal_seed and never plan_expansion"
+                )
             else:
                 status = ToolRuntimeStatus.JUSTIFIED_NOT_APPLICABLE
-                reason = "no positive realized-profit expansion capacity became available while T06 was eligible"
+                reason = (
+                    "no positive realized-profit expansion capacity became "
+                    "available while T06 was eligible"
+                )
         elif code == "T07":
             status = ToolRuntimeStatus.JUSTIFIED_NOT_APPLICABLE
-            reason = "replay carries zero broker-confirmed protected economic floor; protected-capacity expansion is ineligible"
+            reason = (
+                "replay carries zero broker-confirmed protected economic floor; "
+                "protected-capacity expansion is ineligible"
+            )
         elif code == "T09":
             if stat["applied"] > 0 or multi_candidate_epochs > 0:
                 status = ToolRuntimeStatus.APPLIED
@@ -614,7 +655,10 @@ def _tool_audit(
         elif code == "T11":
             if stat["enabled"] > 0:
                 status = ToolRuntimeStatus.NOT_INTEGRATED
-                reason = "provider numeric freeze supplies point economics but replay does not invoke the T11 marginal volume-cost engine"
+                reason = (
+                    "provider numeric freeze supplies point economics but replay "
+                    "does not invoke the T11 marginal volume-cost engine"
+                )
             else:
                 status = ToolRuntimeStatus.REGIME_BLOCKED
                 reason = "regime/mission did not enable execution-efficient exposure"
@@ -635,7 +679,10 @@ def _tool_audit(
         elif code == "T14":
             if stat["enabled"] > 0 and execution.settled_count > 0:
                 status = ToolRuntimeStatus.NOT_INTEGRATED
-                reason = "positions existed while T14 was eligible, but historical executor never invokes plan_dynamic_derisking"
+                reason = (
+                    "positions existed while T14 was eligible, but historical "
+                    "executor never invokes plan_dynamic_derisking"
+                )
             else:
                 status = ToolRuntimeStatus.JUSTIFIED_NOT_APPLICABLE
                 reason = "no eligible live position-path de-risk action was present"
@@ -661,7 +708,10 @@ def _tool_audit(
             if execution.allowed_count + execution.reduced_count > 0:
                 status = ToolRuntimeStatus.APPLIED
                 stat["applied"] = execution.allowed_count + execution.reduced_count
-                reason = "QORE Risk reservations were created before accepted historical deployments"
+                reason = (
+                    "QORE Risk reservations were created before accepted "
+                    "historical deployments"
+                )
             else:
                 status = ToolRuntimeStatus.FAIL_CLOSED
                 reason = "no Risk-authorized deployment required a capacity reservation"
