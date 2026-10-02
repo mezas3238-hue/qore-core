@@ -1,0 +1,43 @@
+name: QORE CIBO T12 T13 Phase22 Causal Lineage
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-ce2i-phase20-t12-t13-phase22-lineage.yml'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t12_t13_phase22_causal_lineage.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t12_t13_phase22_causal_lineage.py'
+      - 'docs/research/CIBO-T12-T13-PHASE22-CAUSAL-POPULATION-LINEAGE-V1.md'
+
+permissions:
+  contents: read
+
+env:
+  EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  t12-t13-phase22-causal-lineage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: T12/T13 Phase22 causal population lineage
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_ce2i_phase20_t12_t13_phase22_causal_lineage.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t12_t13_phase22_causal_lineage.py
+          mypy \
+            src/qore/infrastructure/cibo_ce2i_phase20_t12_t13_phase22_causal_lineage.py
+          python -m py_compile \
+            src/qore/infrastructure/cibo_ce2i_phase20_t12_t13_phase22_causal_lineage.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_ce2i_phase20_t12_t13_phase22_causal_lineage.py
