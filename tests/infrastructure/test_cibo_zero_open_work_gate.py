@@ -1031,3 +1031,22 @@ def test_t16_post_declaration_surfaces_belong_to_t16() -> None:
 
     assert set(assignments) == {(path, "T16") for path in inventory}
     assert orphan_candidates == ()
+
+
+def test_arch2_integrator_intake_receipt_has_reconciliation_ownership() -> None:
+    inventory = (
+        "src/qore/infrastructure/cibo_arch2_integrator_intake_receipt.py",
+        "tests/infrastructure/test_cibo_arch2_integrator_intake_receipt.py",
+    )
+
+    assignments, orphan_candidates = gate._classify_inventory(
+        inventory,
+        ledger_ids=frozenset(
+            {"SOURCE_OF_TRUTH_RECONCILIATION", "ORPHAN_INVENTORY"}
+        ),
+    )
+
+    assert set(assignments) == {
+        (path, "SOURCE_OF_TRUTH_RECONCILIATION") for path in inventory
+    }
+    assert orphan_candidates == ()
