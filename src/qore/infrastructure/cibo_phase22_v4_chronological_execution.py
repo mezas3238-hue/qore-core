@@ -796,10 +796,9 @@ def execute_phase22_chronological_replay(
             release_chain=tuple(releases),
         ),
     )
-    expected_final = initial + sum(
-        (item.realized_net_pnl_usd for item in outcomes),
-        Decimal(0),
-    )
+    expected_final = initial
+    for item in outcomes:
+        expected_final += item.realized_net_pnl_usd
     residual = realized - expected_final
     return Phase22HistoricalExecutionReport(
         books=books,
