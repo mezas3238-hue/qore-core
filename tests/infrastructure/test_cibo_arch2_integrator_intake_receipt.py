@@ -1,8 +1,8 @@
-from qore.infrastructure.cibo_arch2_integrator_intake_receipt import (
-    ARCHITECT2_INTEGRATOR_INTAKE_RECEIPT,
-)
 from qore.infrastructure.cibo_arch2_active_scope_v2 import (
     ARCHITECT2_ACTIVE_OWNERSHIP,
+)
+from qore.infrastructure.cibo_arch2_integrator_intake_receipt import (
+    ARCHITECT2_INTEGRATOR_INTAKE_RECEIPT,
 )
 
 
