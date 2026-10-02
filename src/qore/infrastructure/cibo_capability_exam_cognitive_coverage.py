@@ -64,7 +64,7 @@ from qore.modules.cibo.cognitive_contracts import (
 )
 
 
-EXPECTED_FACULTIES = tuple(CiboFacultyDomain)
+EXPECTED_FACULTIES = tuple(sorted(CiboFacultyDomain, key=lambda item: item.value))
 EXPECTED_TOOLS = tuple(f"T{index:02d}" for index in range(1, 21))
 
 
