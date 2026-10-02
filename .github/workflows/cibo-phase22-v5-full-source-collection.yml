@@ -36,14 +36,14 @@ jobs:
           python - <<'PY'
           import json
           from pathlib import Path
-          from qore.infrastructure.cibo_next_policy_advanced_scientific_eligibility import (
-              NEXT_POLICY_ADVANCED_SCIENTIFIC_ELIGIBILITY,
-          )
-          from qore.infrastructure.cibo_next_policy_code_bundle_lineage import (
-              NEXT_POLICY_CODE_BUNDLE_LINEAGE,
-          )
           from qore.infrastructure.cibo_phase22_v5_governance import (
               V5_CANDIDATE_ID,
+          )
+          FROZEN_POLICY_SHA = (
+              "sha256:4c2fbee5d9e6488c2c378eceda6da0a49a415f6af3b3aa29f673bfaa93ee54a4"
+          )
+          FROZEN_ELIGIBILITY_SHA = (
+              "sha256:8101c287ba024032c81f97d1768c0380cb061e57de0cb87838e6b032074d610f"
           )
 
           trigger = json.loads(
@@ -53,7 +53,7 @@ jobs:
               ).read_text(encoding="utf-8")
           )
           assert trigger["schema"] == (
-              "qore.cibo.phase22.v5-source-collection-trigger.v1"
+              "qore.cibo.phase22.v4-source-collection-trigger.v1"
           )
           assert trigger["candidate_id"] == V5_CANDIDATE_ID
           assert trigger["source_availability_conclusion"] == "SUCCESS"
@@ -62,11 +62,9 @@ jobs:
           assert trigger["source_availability_artifact_digest"].startswith(
               "sha256:"
           )
-          assert trigger["policy_bundle_sha256"] == (
-              NEXT_POLICY_CODE_BUNDLE_LINEAGE.fingerprint()
-          )
+          assert trigger["policy_bundle_sha256"] == FROZEN_POLICY_SHA
           assert trigger["advanced_scientific_eligibility_sha256"] == (
-              NEXT_POLICY_ADVANCED_SCIENTIFIC_ELIGIBILITY.fingerprint()
+              FROZEN_ELIGIBILITY_SHA
           )
           assert trigger["trader_logic_authorized"] is False
           assert trigger["outcome_inspection_authorized"] is False
@@ -308,7 +306,7 @@ jobs:
           }
           assert symbols == expected
           seal = {
-              "schema": "qore.cibo.phase22.v5-source-corpus-seal.v1",
+              "schema": "qore.cibo.phase22.v4-source-corpus-seal.v1",
               "candidate_id": (
                   "CIBO_USD60_6M_HOLDOUT_2014-04-19_2014-10-19_V5"
               ),

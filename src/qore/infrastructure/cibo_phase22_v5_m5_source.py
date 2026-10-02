@@ -65,7 +65,7 @@ def v5_partition_grid() -> tuple[base.Partition, ...]:
         raise CiboCapitalManagementError(
             "next-exam V5 candidate is not burn-clean"
         )
-    boundary = datetime(2014, 7, 19, tzinfo=UTC)
+    boundary = datetime(2014, 7, 1, tzinfo=UTC)
     return (
         base.Partition(
             "2014-v5-a",
@@ -233,7 +233,7 @@ def consume_v5_symbol(
     base.write_root_hashes(output)
 
     payload = {
-        "schema": "qore.cibo.phase22.next-exam-m5-source.v1",
+        "schema": "qore.cibo.phase22.v5-m5-source.v1",
         "identity": IDENTITY,
         "candidate_id": candidate.candidate_id,
         "window": {

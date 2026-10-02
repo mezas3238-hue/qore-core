@@ -78,14 +78,14 @@ jobs:
       - name: Probe V5 boundaries read-only
         run: |
           mkdir -p artifacts
-          python -m qore.infrastructure.cibo_phase22_v5_source_availability             artifacts/v5-source-availability.json             > artifacts/v5-source-availability.stdout.json
+          python -m qore.infrastructure.cibo_phase22_v5_source_availability             artifacts/v4-source-availability.json             > artifacts/v4-source-availability.stdout.json
       - name: Enforce non-mutating V5 truth
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
           p = json.loads(
-              Path("artifacts/v5-source-availability.json").read_text()
+              Path("artifacts/v4-source-availability.json").read_text()
           )
           assert p["candidate_id"] == (
               "CIBO_USD60_6M_HOLDOUT_2014-04-19_2014-10-19_V5"

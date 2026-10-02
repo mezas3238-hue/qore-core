@@ -341,7 +341,7 @@ def collect_nas100_m1(
             )
 
     manifest = {
-        "schema": "qore.cibo.phase22.next-exam-nas100-m1-source.v1",
+        "schema": "qore.cibo.phase22.v5-nas100-m1-source.v1",
         "identity": IDENTITY,
         "candidate_id": candidate.candidate_id,
         "canonical_symbol": "NAS100",

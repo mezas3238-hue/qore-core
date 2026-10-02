@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -22,10 +23,31 @@ def test_v5_candidate_is_mechanical_adjacent_and_pre_outcome() -> None:
     assert candidate.end_exclusive_at == datetime(2014, 10, 19, tzinfo=UTC)
     payload = phase22_v5_governance_payload()
     assert payload["selection_outcomes_inspected"] is False
-    assert payload["v4_lane_outcomes_used_for_selection"] is False
+    assert payload["v4_lane_artifact_contents_used_for_selection"] is False
     assert payload["policy_retuning_authorized"] is False
     assert payload["fresh_execution_authorized"] is False
     assert payload["second_v4_execution_authorized"] is False
+
+
+def test_v5_predecessor_is_terminal_consumed_invalid() -> None:
+    forensic = json.loads(
+        Path(
+            "docs/research/"
+            "CIBO-PHASE22-V4-CLAIMED-FAILURE-FORENSIC-RECEIPT.json"
+        ).read_text(encoding="utf-8")
+    )
+    consumption = json.loads(
+        Path("docs/research/CIBO-PHASE22-V4-CONSUMPTION-RECEIPT.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert forensic["terminal_assessment"]["candidate_status"] == (
+        "INVALID_CONSUMED"
+    )
+    assert forensic["terminal_assessment"]["candidate_terminal"] is True
+    assert forensic["scientific_integrity"]["v4_reexecution_forbidden"] is True
+    assert consumption["claim_committed"] is True
+    assert consumption["outcomes_emitted"] is True
 
 
 def test_v5_probe_surface_allows_only_read_requests() -> None:

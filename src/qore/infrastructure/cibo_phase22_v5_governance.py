@@ -1,9 +1,9 @@
 """Pre-outcome governance for the Phase22 V5 successor fresh cycle.
 
-V4 is durably consumed/invalid and may never be rerun. V5 is selected
+V4 is terminally CONSUMED_INVALID and may never be rerun. V5 is selected
 mechanically as the immediately preceding exact six-calendar-month block.
-This module does not read market data, inspect outcomes, change Trader policy,
-or grant fresh execution.
+This module does not inspect V4 lane outcomes, read V5 market outcomes, change
+Trader policy, or grant execution authority.
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ from qore.infrastructure.cibo_ce2i_holdout_registry import (
     candidate_is_burn_clean_for_all_lineages,
 )
 
-CONSUMED_V4_CANDIDATE_ID = (
+CONSUMED_INVALID_V4_CANDIDATE_ID = (
     "CIBO_USD60_6M_HOLDOUT_2014-10-19_2015-04-19_V4"
 )
 V5_CANDIDATE_ID = (
@@ -34,9 +34,8 @@ PHASE22_V5_CANDIDATE = CiboHoldoutCandidate(
     status=CiboHoldoutCandidateStatus.SOURCE_VALIDATION_PENDING,
     selection_rule=(
         "immediately preceding exact six-calendar-month block ending at the "
-        "V4 start boundary; selected mechanically after V4 was durably "
-        "consumed/invalid without using V4 lane outcomes or inspecting V5 "
-        "outcomes"
+        "V4 start boundary; selected mechanically after V4 terminal "
+        "CONSUMED_INVALID disposition without using V4 lane outcomes"
     ),
     outcome_data_inspected_at_selection=False,
     source_validation_complete=False,
@@ -58,7 +57,7 @@ def phase22_v5_governance_payload() -> dict[str, object]:
     candidate = PHASE22_V5_CANDIDATE
     return {
         "schema": "qore.cibo.phase22.v5-pre-outcome-governance.v1",
-        "consumed_v4_candidate_id": CONSUMED_V4_CANDIDATE_ID,
+        "consumed_invalid_v4_candidate_id": CONSUMED_INVALID_V4_CANDIDATE_ID,
         "v4_rerun_authorized": False,
         "candidate_id": candidate.candidate_id,
         "window": {
@@ -67,7 +66,7 @@ def phase22_v5_governance_payload() -> dict[str, object]:
         },
         "selection_rule": candidate.selection_rule,
         "selection_outcomes_inspected": False,
-        "v4_lane_outcomes_used_for_selection": False,
+        "v4_lane_artifact_contents_used_for_selection": False,
         "policy_retuning_authorized": False,
         "methodology_change_authorized": False,
         "source_validation_complete": False,

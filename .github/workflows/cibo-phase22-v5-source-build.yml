@@ -1,0 +1,56 @@
+name: QORE CIBO Phase22 V5 Source Build
+
+on:
+  push:
+    branches:
+      - agent/cibo-integrator-ab-001
+    paths:
+      - 'src/qore/infrastructure/cibo_phase22_v5_*.py'
+      - 'tests/infrastructure/test_cibo_phase22_v5_*.py'
+      - '.github/workflows/cibo-phase22-v5-source-build.yml'
+      - '.github/workflows/cibo-phase22-v5-source-availability.yml'
+      - '.github/workflows/cibo-phase22-v5-full-source-collection.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev,ctrader]'
+      - name: Static quality
+        run: |
+          python -m ruff check             src/qore/infrastructure/cibo_phase22_v5_governance.py             src/qore/infrastructure/cibo_phase22_v5_source_availability.py             src/qore/infrastructure/cibo_phase22_v5_m5_source.py             src/qore/infrastructure/cibo_phase22_v5_m1_source.py             tests/infrastructure/test_cibo_phase22_v5_source_availability.py             tests/infrastructure/test_cibo_phase22_v5_m5_source.py             tests/infrastructure/test_cibo_phase22_v5_m1_source.py
+          python -m mypy             src/qore/infrastructure/cibo_phase22_v5_governance.py             src/qore/infrastructure/cibo_phase22_v5_source_availability.py             src/qore/infrastructure/cibo_phase22_v5_m5_source.py             src/qore/infrastructure/cibo_phase22_v5_m1_source.py
+      - name: V5 pre-outcome tests
+        run: |
+          python -m pytest -q --no-cov             tests/infrastructure/test_cibo_phase22_v5_source_availability.py             tests/infrastructure/test_cibo_phase22_v5_m5_source.py             tests/infrastructure/test_cibo_phase22_v5_m1_source.py
+      - name: Prove source code cannot mutate broker state
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          paths = (
+              Path("src/qore/infrastructure/cibo_phase22_v5_source_availability.py"),
+              Path("src/qore/infrastructure/cibo_phase22_v5_m5_source.py"),
+              Path("src/qore/infrastructure/cibo_phase22_v5_m1_source.py"),
+          )
+          forbidden = (
+              "ProtoOANewOrderReq",
+              "ProtoOAClosePositionReq",
+              "ProtoOACancelOrderReq",
+              "ProtoOAAmendOrderReq",
+              "ProtoOAAmendPositionSLTPReq",
+          )
+          for path in paths:
+              source = path.read_text(encoding="utf-8")
+              for token in forbidden:
+                  assert token not in source, (path, token)
+          PY
