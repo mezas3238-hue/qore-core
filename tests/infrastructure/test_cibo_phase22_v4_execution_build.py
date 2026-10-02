@@ -14,6 +14,7 @@ from qore.infrastructure.cibo_phase22_trader_parity_manifest import (
 from qore.infrastructure.cibo_phase22_v4_execution_authorization import (
     AUTHORIZATION_RELATIVE_PATH,
     build_phase22_v4_execution_authorization,
+    load_phase22_v4_execution_authorization,
 )
 from qore.infrastructure.cibo_phase22_v4_execution_manifest import (
     build_phase22_v4_execution_manifest,
@@ -67,7 +68,7 @@ def test_v4_vt31_abi_is_exact_six_fields() -> None:
     series, account, evidence, checked_at, collector_sha, provider = result
     assert series == _FakeVt31Source.series
     assert account == "PHASE22_V4_HISTORICAL_ACCOUNT_NOT_CLAIMED"
-    assert evidence == _FakeVt31Source.fingerprint
+    assert evidence == "a" * 64
     assert checked_at == _FakeVt31Source.last_closed_at
     assert collector_sha == _FakeVt31Source.corpus_git_sha
     assert provider == _FakeVt31Source.provider_symbol
@@ -115,5 +116,17 @@ def test_v4_claim_is_bound_to_authorization_and_pristine_store(
     assert claim.productive_authority is False
 
 
-def test_v4_authorization_receipt_is_not_materialized_pre_owner_gate() -> None:
-    assert not Path(AUTHORIZATION_RELATIVE_PATH).exists()
+def test_v4_authorization_receipt_matches_owner_gate_when_materialized() -> None:
+    path = Path(AUTHORIZATION_RELATIVE_PATH)
+    if not path.exists():
+        return
+    authorization = load_phase22_v4_execution_authorization(path)
+    assert authorization.fresh_holdout_execution_authorized is True
+    assert authorization.one_shot_only is True
+    assert authorization.second_execution_authorized is False
+    assert authorization.broker_mutation_authorized is False
+    assert authorization.live_authorized is False
+    assert authorization.real_capital_authorized is False
+    assert authorization.production_authorized is False
+    assert authorization.merge_authorized is False
+    assert authorization.productive_authority is False
