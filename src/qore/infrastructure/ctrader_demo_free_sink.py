@@ -24,7 +24,6 @@ from qore.infrastructure.account_wide_risk import (
 )
 from qore.infrastructure.ctrader_demo_allocation_only import (
     CTraderDemoBrokerContract,
-    allocation_fence_values,
     authorize_allocation_only,
     build_allocation_only_submission,
     equal_active_trader_allocations,
@@ -310,9 +309,6 @@ class CTraderDemoFreeSink:
                 allocation,
                 contract=contract,
                 submitted_at=observed,
-            )
-            _allocation_auth_id, _allocation_fingerprint, _allocation_reservation = (
-                allocation_fence_values(allocation)
             )
             auth_id = risk_authorization.authorization_id
             auth_fingerprint = risk_authorization.authorization_fingerprint
