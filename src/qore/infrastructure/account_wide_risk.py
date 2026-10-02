@@ -485,6 +485,45 @@ class AccountWideRiskEngine:
                 Decimal(0),
             )
 
+    def reservations(self) -> tuple[RiskReservation, ...]:
+        """Return an immutable authorization-state snapshot for reconciliation."""
+
+        with self._lock:
+            return tuple(
+                sorted(
+                    self._reservations.values(),
+                    key=lambda item: item.authorization.authorization_id,
+                )
+            )
+
+    def reservation_for(
+        self,
+        authorization_id: str,
+    ) -> RiskReservation | None:
+        """Read one Risk reservation without changing authority or capacity."""
+
+        if not authorization_id:
+            raise AccountWideRiskError("authorization_id is required")
+        with self._lock:
+            return self._reservations.get(authorization_id)
+
+    def reconcile_terminal_release(self, authorization_id: str) -> None:
+        """Release internal shadow after caller proves broker terminal settlement.
+
+        This method never infers provider state. Callers must bind a definitive
+        broker fill plus terminal settlement before invoking it.
+        """
+
+        with self._lock:
+            item = self._require_active(authorization_id)
+            self._reservations[authorization_id] = replace(
+                item,
+                pending_stop_risk=Decimal(0),
+                pending_margin=Decimal(0),
+                filled_unreconciled_stop_risk=Decimal(0),
+                state=ReservationState.RELEASED,
+            )
+
     def _evaluate_locked(
         self,
         request: CiboRiskRequest,
