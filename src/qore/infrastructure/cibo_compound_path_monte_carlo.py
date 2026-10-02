@@ -319,6 +319,10 @@ class CompoundMonteCarloPathResult:
             raise CiboCompoundCapitalError(
                 "compound Monte Carlo ending realized-capital identity drift"
             )
+        if self.minimum_realized_capital_usd > self.ending_realized_capital_usd:
+            raise CiboCompoundCapitalError(
+                "compound Monte Carlo minimum realized capital exceeds ending capital"
+            )
 
         for name in (
             "dependency_breach_count",
