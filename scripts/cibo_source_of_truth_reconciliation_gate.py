@@ -140,13 +140,13 @@ def validate_reconciliation(repo_root: Path = ROOT) -> list[str]:
         if isinstance(row.get("id"), str)
     }
     for workstream_id in _REQUIRED_EXAMS:
-        row = by_id.get(workstream_id)
-        if row is None:
+        exam_row = by_id.get(workstream_id)
+        if exam_row is None:
             errors.append(f"required exam missing: {workstream_id}")
             continue
-        if row.get("mandatory") is not True:
+        if exam_row.get("mandatory") is not True:
             errors.append(f"required exam not mandatory: {workstream_id}")
-        if row.get("certification_blocking") is not True:
+        if exam_row.get("certification_blocking") is not True:
             errors.append(f"required exam not certification-blocking: {workstream_id}")
 
     matrix_terminal = acceptance.get("integrated_terminal_ids")
@@ -186,10 +186,10 @@ def validate_reconciliation(repo_root: Path = ROOT) -> list[str]:
     if accounting.get("all_child_delta_files_accounted") is not True:
         errors.append("child delta inventory is not fully accounted")
     for key in ("architect_a", "architect_b"):
-        row = accounting.get(key)
-        if not isinstance(row, dict):
+        accounting_entry = accounting.get(key)
+        if not isinstance(accounting_entry, dict):
             continue
-        if row.get("unaccounted_files") != []:
+        if accounting_entry.get("unaccounted_files") != []:
             errors.append(f"{key} contains unaccounted child files")
     if accounting.get("productive_authority") is not False:
         errors.append("child accounting productive authority must be false")
