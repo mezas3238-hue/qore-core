@@ -13,6 +13,7 @@ from qore.kernel.result import Success
 
 class _NativeClient:
     def __init__(self, *_args: object, **_kwargs: object) -> None:
+        self.kwargs = dict(_kwargs)
         self.message_callback = None
 
     def __getattr__(self, name: str) -> object:
@@ -47,7 +48,7 @@ class _Response:
     pass
 
 
-def _client() -> SpotwareCTraderOpenApiClient:
+def _client(messages_per_second: int = 5) -> SpotwareCTraderOpenApiClient:
     messages = {
         "ProtoHeartbeatEvent": _Heartbeat,
         "ProtoOAAccountsTokenInvalidatedEvent": _Invalidated,
@@ -71,6 +72,7 @@ def _client() -> SpotwareCTraderOpenApiClient:
             refresh_token="refresh",
             ctid_trader_account_id=42,
         ),
+        messages_per_second=messages_per_second,
         _bindings=cast(_SdkBindings, bindings),
     )
 
@@ -93,3 +95,10 @@ def test_spot_wait_does_not_scan_or_requeue_unrelated_messages() -> None:
     assert result.value is spot
     assert queues[_Heartbeat].qsize() == heartbeat_depth == 5_000
     assert _Response not in queues
+
+
+def test_configurable_send_rate_is_bound_to_sdk_client() -> None:
+    client = _client(messages_per_second=50)
+    native = object.__getattribute__(client, "_client")
+
+    assert native.kwargs["numberOfMessagesToSendPerSecond"] == 50
