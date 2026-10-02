@@ -6,6 +6,8 @@ from pathlib import Path
 from threading import Lock
 from types import SimpleNamespace
 
+import pytest
+
 from qore.infrastructure.account_wide_risk import (
     AccountRiskSnapshot,
     CiboCapitalProvenanceLot,
@@ -25,7 +27,10 @@ from qore.infrastructure.cibo_ce2i_phase20_demo_shadow_risk import (
 from qore.infrastructure.ctrader_demo_allocation_only import (
     equal_active_trader_allocations,
 )
-from qore.infrastructure.ctrader_demo_free_sink import CTraderDemoFreeSink
+from qore.infrastructure.ctrader_demo_free_sink import (
+    CTraderDemoFreeSink,
+    CTraderDemoFreeSinkError,
+)
 from qore.infrastructure.ctrader_demo_trade_registry import (
     CTraderDemoTradeRegistry,
     DemoTradeRegistryEntry,
@@ -243,3 +248,23 @@ def test_registry_round_trip_preserves_risk_provenance(tmp_path: Path) -> None:
 
     restarted = CTraderDemoTradeRegistry(path)
     assert restarted.entries() == (row,)
+
+
+def test_sink_rejects_missing_sovereign_risk_authorization(
+    tmp_path: Path,
+) -> None:
+    sink, runtime, registry = _sink(tmp_path)
+
+    with pytest.raises(
+        CTraderDemoFreeSinkError,
+        match="canonical RiskAuthorization",
+    ):
+        sink.submit(
+            _request(),
+            risk_authorization=None,  # type: ignore[arg-type]
+            now=NOW,
+        )
+
+    assert runtime.fences == []
+    assert runtime.submissions == []
+    assert registry.rows == []
