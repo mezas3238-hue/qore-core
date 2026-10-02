@@ -114,9 +114,6 @@ NONCERTIFIABLE_HOLDOUT_IDS = frozenset(
         SOURCE_UNAVAILABLE_V5_HOLDOUT_ID,
     }
 )
-# Deprecated compatibility export. It is intentionally non-certifiable and
-# must never be used as a default for new evidence.
-CANONICAL_HOLDOUT_ID = CONSUMED_INVALID_V4_HOLDOUT_ID
 CANONICAL_POLICY_IDENTITY = phase20d_qualification_plan_sha256()
 CANONICAL_QUALIFICATION_PLAN_IDENTITY = (
     phase22_holdout_qualification_plan_sha256()
