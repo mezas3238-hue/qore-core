@@ -13,6 +13,6 @@
   "production": false,
   "merge_authority": false,
   "outcome_aware_tuning": false,
-  "retrigger_for_head": "bd928bb0713f0a547a67848cb45f50168b729011",
-  "retrigger_reason": "Remove duplicate Compound Risk record_full_fill/reconcile_fill calls only; no economics or selection changed."
+  "retrigger_for_head": "10ec8e0a10a2fb2fb88cf470ec8b28811033037b",
+  "retrigger_reason": "Relaunch P0 on current reconciled lab allocator/policy HEAD after concurrent integration repairs; Owner authorization and economic treatment remain research-only."
 }
