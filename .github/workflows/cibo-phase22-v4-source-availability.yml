@@ -1,0 +1,101 @@
+name: QORE CIBO Phase22 V4 Source Availability
+
+on:
+  push:
+    branches:
+      - agent/cibo-integrator-ab-001
+    paths:
+      - 'src/qore/infrastructure/cibo_phase22_v4_governance.py'
+      - 'src/qore/infrastructure/cibo_phase22_v4_source_availability.py'
+      - 'tests/infrastructure/test_cibo_phase22_v4_source_availability.py'
+      - '.github/workflows/cibo-phase22-v4-source-availability.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qore-cibo-phase22-v4-source-availability
+  cancel-in-progress: false
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID }}
+
+jobs:
+  read-only-source-availability:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev,ctrader]'
+      - name: Static and governance quality
+        run: |
+          python -m ruff check             src/qore/infrastructure/cibo_phase22_v4_governance.py             src/qore/infrastructure/cibo_phase22_v4_source_availability.py             tests/infrastructure/test_cibo_phase22_v4_source_availability.py
+          python -m mypy             src/qore/infrastructure/cibo_phase22_v4_governance.py             src/qore/infrastructure/cibo_phase22_v4_source_availability.py
+          python -m pytest -q --no-cov             tests/infrastructure/test_cibo_phase22_v4_source_availability.py
+      - name: Prove source probe contains no broker mutation request
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          source = Path(
+              "src/qore/infrastructure/"
+              "cibo_phase22_v4_source_availability.py"
+          ).read_text(encoding="utf-8")
+          forbidden = (
+              "ProtoOANewOrderReq",
+              "ProtoOAClosePositionReq",
+              "ProtoOACancelOrderReq",
+              "ProtoOAAmendOrderReq",
+              "ProtoOAAmendPositionSLTPReq",
+          )
+          for token in forbidden:
+              assert token not in source
+          PY
+      - name: Require DEMO-only read credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in             QORE_CTRADER_CLIENT_ID             QORE_CTRADER_CLIENT_SECRET             QORE_CTRADER_ACCESS_TOKEN             QORE_CTRADER_REFRESH_TOKEN             QORE_CTRADER_DEMO_ACCOUNT_ID
+          do
+            test -n "${!name:-}" || exit 4
+          done
+      - name: Probe V4 boundaries read-only
+        run: |
+          mkdir -p artifacts
+          python -m qore.infrastructure.cibo_phase22_v4_source_availability             artifacts/v4-source-availability.json             > artifacts/v4-source-availability.stdout.json
+      - name: Enforce non-mutating V4 truth
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = json.loads(
+              Path("artifacts/v4-source-availability.json").read_text()
+          )
+          assert p["candidate_id"] == (
+              "CIBO_USD60_6M_HOLDOUT_2014-10-19_2015-04-19_V4"
+          )
+          assert p["window"]["start"] == "2014-10-19T00:00:00+00:00"
+          assert p["window"]["end_exclusive"] == "2015-04-19T00:00:00+00:00"
+          assert p["probe_count"] == 10
+          assert p["required_surface_count"] == 10
+          assert p["source_available"] is True
+          assert p["trader_logic_executed"] is False
+          assert p["outcomes_inspected"] is False
+          assert p["broker_mutation"] is False
+          assert p["orders_created"] == 0
+          assert p["positions_opened"] == 0
+          assert p["live_authorized"] is False
+          assert p["real_capital_authorized"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-phase22-v4-source-availability-${{ github.sha }}
+          path: artifacts
+          if-no-files-found: error
+          retention-days: 90
