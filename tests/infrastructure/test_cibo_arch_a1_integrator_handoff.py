@@ -188,7 +188,9 @@ def test_a1_integrator_handoff_preserves_terminal_falsification() -> None:
         a1_head_sha="b" * 40,
         readiness=readiness,
         package=package,
-        canonical_closure=_canonical_closure(),
+        canonical_closure=_canonical_closure(
+            falsified_ids=("T08", "T15"),
+        ),
     )
 
     assert "T08" in receipt.falsified_ids
