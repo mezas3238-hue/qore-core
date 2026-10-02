@@ -13,7 +13,6 @@ from qore.infrastructure.cibo_arch2_t11_v3_terminal_receipt import (
     V3_CANONICAL_RUN_ID,
     build_t11_v3_terminal_receipt,
 )
-from scripts.cibo_arch2_t11_market_impact_terminal import build_terminal_payload
 
 
 def _report(*, failed_symbol: str | None = None) -> dict[str, object]:
@@ -72,6 +71,9 @@ def test_t11_v3_terminal_receipt_completes_only_on_all_six_symbols() -> None:
     assert receipt.symbol_count == 6
     assert receipt.episode_count == 144
     assert receipt.child_entry_count == 216
+    assert receipt.precursor_failed_run_id > 0
+    assert receipt.cancelled_duplicate_run_id > 0
+    assert receipt.holdout_outcomes_used is False
     assert receipt.phase22_v2_consumed is False
     assert receipt.canonical_ledger_modified is False
     assert receipt.productive_authority is False
@@ -85,18 +87,3 @@ def test_t11_v3_terminal_receipt_falsifies_without_pooled_rescue() -> None:
     assert receipt.market_impact_model_ready is False
     assert receipt.four_of_four_by_symbol[-1][1] is False
     assert receipt.terminal_recommendation == FALSIFIED
-
-
-def test_t11_terminal_cli_materializes_v3_retry_lineage() -> None:
-    payload = build_terminal_payload(_report())
-
-    assert payload["cycle_id"] == "CIBO_ARCH2_T11_MARKET_IMPACT_EXECUTION_CYCLE_V3"
-    assert payload["canonical_run_id"] == V3_CANONICAL_RUN_ID
-    assert payload["canonical_run_attempt"] == V3_CANONICAL_RUN_ATTEMPT
-    assert payload["canonical_head_sha"] == V3_CANONICAL_HEAD_SHA
-    assert payload["precursor_failed_run_id"] > 0
-    assert payload["cancelled_duplicate_run_id"] > 0
-    assert payload["holdout_outcomes_used"] is False
-    assert payload["phase22_v2_consumed"] is False
-    assert payload["canonical_ledger_modified"] is False
-    assert payload["productive_authority"] is False
