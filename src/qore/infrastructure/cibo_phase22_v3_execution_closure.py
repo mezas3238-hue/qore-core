@@ -46,17 +46,15 @@ from qore.infrastructure.cibo_phase22_v3_git_durable_claim import (
 from qore.infrastructure.cibo_phase22_v3_historical_regime import (
     build_phase22_historical_regime_evidence,
 )
-from qore.infrastructure.cibo_phase22_historical_replay_stores import (
-    persist_phase22_historical_store_set,
+from qore.infrastructure.cibo_phase22_v3_store_contract import (
+    PHASE22_V3_STORE_IDENTITIES,
+    persist_phase22_v3_historical_store_set,
 )
 from qore.infrastructure.cibo_phase22_one_shot_batch import (
     Phase22OneShotBatchCompletionReceipt,
 )
 from qore.infrastructure.cibo_phase22_v3_one_shot_claim import (
     Phase22V3OneShotClaimReceipt,
-)
-from qore.infrastructure.cibo_phase22_store_contract import (
-    PHASE22_STORE_IDENTITIES,
 )
 from qore.infrastructure.trader_lab.ict_turtle_soup_r4_source_exact import (
     Evidence,
@@ -93,7 +91,7 @@ class Phase22V3ExecutionClosure:
             raise CiboCapitalManagementError(
                 "Phase22 closure durable claim/completion lineage drift"
             )
-        expected_roles = tuple(item.name for item in PHASE22_STORE_IDENTITIES)
+        expected_roles = tuple(item.name for item in PHASE22_V3_STORE_IDENTITIES)
         if tuple(name for name, _ in self.store_sha256s) != expected_roles:
             raise CiboCapitalManagementError(
                 "Phase22 closure store digest surface drift"
@@ -205,11 +203,11 @@ def close_phase22_v3_one_shot_execution(
         regime_evidence=regimes,
         replay_started_at=replay_started_at,
     )
-    raw_store_sha256s = persist_phase22_historical_store_set(
+    raw_store_sha256s = persist_phase22_v3_historical_store_set(
         root=store_root,
         books=execution.books,
     )
-    roles = tuple(item.name for item in PHASE22_STORE_IDENTITIES)
+    roles = tuple(item.name for item in PHASE22_V3_STORE_IDENTITIES)
     if len(raw_store_sha256s) != len(roles):
         raise CiboCapitalManagementError(
             "Phase22 closure store persistence count drift"
