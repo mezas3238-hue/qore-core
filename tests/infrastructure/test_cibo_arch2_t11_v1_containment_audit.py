@@ -1,6 +1,6 @@
 from qore.infrastructure.cibo_arch2_t11_execution_claim import (
-    RUN_ATTEMPT,
-    RUN_ID,
+    INITIAL_RUN_ATTEMPT,
+    INITIAL_RUN_ID,
 )
 
 import importlib.util
@@ -26,7 +26,7 @@ audit = _load()
 
 
 def test_claimed_suffix_is_exact_run_attempt_suffix() -> None:
-    assert audit.claimed_run_suffix() == f"{RUN_ID}-{RUN_ATTEMPT}"[-6:]
+    assert audit.claimed_run_suffix() == f"{INITIAL_RUN_ID}-{INITIAL_RUN_ATTEMPT}"[-6:]
 
 
 def test_only_exact_claimed_run_labels_match() -> None:
