@@ -243,6 +243,8 @@ def test_phase22_t12_rejects_stale_snapshot_binding() -> None:
         VersionedPhase22HistoricalReplayEvidenceBook(
             generation=book.generation,
             amendment_sha256=book.amendment_sha256,
+            source_receipt_sha256=book.source_receipt_sha256,
+            source_collector_git_shas=book.source_collector_git_shas,
             decisions=(modified,) + book.decisions[1:],
             outcomes=book.outcomes,
         )
