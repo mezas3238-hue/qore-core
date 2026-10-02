@@ -16,7 +16,6 @@ from qore.infrastructure.cibo_arch_a1_scientific_closure import (
 )
 from qore.infrastructure.cibo_arch_a_internal_readiness import (
     _PHASE22_V2_EVIDENCE_REQUIREMENTS_BY_WORKSTREAM,
-    A_WORKSTREAM_IDS,
     PHASE22_V2_SCIENTIFIC_DISPOSITION_SCHEMA,
     ArchitectAPhase22V2ScientificDispositionReceipt,
     ArchitectAPhase22V2WorkstreamEvidenceMatrix,
@@ -42,12 +41,12 @@ def _matrix() -> ArchitectAPhase22V2WorkstreamEvidenceMatrix:
             missing_kinds=(),
             ready_for_frozen_evaluation=True,
         )
-        for workstream_id in A_WORKSTREAM_IDS
+        for workstream_id in _PHASE22_V2_EVIDENCE_REQUIREMENTS_BY_WORKSTREAM
     )
     return ArchitectAPhase22V2WorkstreamEvidenceMatrix(
         phase22_manifest_sha256=_sha("phase22"),
         states=states,
-        ready_ids=A_WORKSTREAM_IDS,
+        ready_ids=tuple(_PHASE22_V2_EVIDENCE_REQUIREMENTS_BY_WORKSTREAM),
         blocked_ids=(),
         all_external_workstreams_ready=True,
     )
