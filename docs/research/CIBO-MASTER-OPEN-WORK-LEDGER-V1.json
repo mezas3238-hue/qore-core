@@ -1243,7 +1243,7 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "PHASE22_V2_CONSUMED_QUALIFICATION_INVALID_NON_TERMINAL",
+      "current_maturity": "PHASE22_V3_CLAIMED_EXECUTION_INCOMPLETE_NON_TERMINAL",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py",
@@ -1262,16 +1262,22 @@
         "docs/research/CIBO-PHASE22-V2-CONSUMPTION-RECEIPT.json",
         "docs/research/CIBO-PHASE22-V2-CLAIMED-RECOVERY-FORENSIC-RECEIPT.json",
         "github-actions://37010938911/SUCCESS",
-        "github-actions-artifact://11227409531/sha256:ac938c675fa65cea555d4011cbbfa23e43c1f648d7bcd83d2c013e4920390d26"
+        "github-actions-artifact://11227409531/sha256:ac938c675fa65cea555d4011cbbfa23e43c1f648d7bcd83d2c013e4920390d26",
+        "docs/research/CIBO-PHASE22-V3-EXECUTION-AUTHORIZATION.json",
+        "docs/research/CIBO-PHASE22-V3-ONE-SHOT-CLAIM.json",
+        "docs/research/CIBO-PHASE22-V3-CONSUMPTION-RECEIPT.json",
+        "docs/research/CIBO-PHASE22-V3-CLAIMED-FAILURE-FORENSIC-RECEIPT.json",
+        "github-actions://37047009381/FAILURE",
+        "github-actions-artifact://11245575444/sha256:d1a0f298b3d55cb916b488ba4739937e85bdab253e9b435dc5a0b45ad32e160b"
       ],
       "blockers": [
-        "PHASE22_V2_QUALIFICATION_INVALID_NON_TERMINAL",
-        "PHASE22_V2_ADVANCED_TOOL_EVIDENCE_HARD_INTEGRITY_FAILURE",
-        "PHASE22_V2_POPULATION_READINESS_NOT_MET",
-        "PHASE22_V2_SECOND_FRESH_EXECUTION_FORBIDDEN",
+        "PHASE22_V3_CLAIMED_ONE_SHOT_INCOMPLETE",
+        "PHASE22_V3_VT31_FROZEN_SOURCE_ABI_FAILURE",
+        "PHASE22_V3_ASSEMBLY_AND_CLOSURE_NOT_RUN",
+        "PHASE22_V3_SECOND_FRESH_EXECUTION_FORBIDDEN",
         "SUCCESSOR_FRESH_SCIENTIFIC_CYCLE_TERMINAL_EVIDENCE_REQUIRED"
       ],
-      "next_gate": "Phase22 V2 is durably CONSUMED and scientifically INVALID/non-terminal. FRESH_OOS remains OPEN. Do not rerun or rehabilitate V2. A successor fresh scientific cycle may proceed only under new governance and may close FRESH_OOS only with valid terminal scientific evidence."
+      "next_gate": "Phase22 V3 is durably CLAIMED and non-rerunnable. Six of seven fresh lanes completed; VT31 failed before emitting its lane artifact because the frozen source adapter returned an incompatible market-evidence ABI. Assembly/closure did not run. Preserve V3 as immutable forensic evidence; do not rerun or rehabilitate it. The next admissible action is a mechanically selected successor fresh cycle under separate governance, frozen policy lineage, and new explicit Owner authorization."
     },
     {
       "id": "TEMPORAL_REPLICATION",
