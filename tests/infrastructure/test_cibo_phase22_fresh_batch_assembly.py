@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from unittest.mock import patch
 
 import pytest
 
@@ -143,9 +144,16 @@ def test_assembly_builds_exact_seven_trader_chronological_surface() -> None:
 def test_assembly_requires_durable_claim_before_fresh_results() -> None:
     turtle, digests = _surface()
 
-    with pytest.raises(
-        CiboCapitalManagementError,
-        match="durable one-shot claim",
+    with (
+        patch(
+            "qore.infrastructure.cibo_phase22_fresh_batch_assembly."
+            "load_phase22_execution_consumption_receipt",
+            return_value=None,
+        ),
+        pytest.raises(
+            CiboCapitalManagementError,
+            match="durable one-shot claim",
+        ),
     ):
         assemble_phase22_fresh_batch(
             vt08_payload=_native_payload("VT08_FOREX", "GBPUSD", 1),
