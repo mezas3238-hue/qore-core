@@ -78,7 +78,23 @@ def build_pre_exam_zero_open_control(
         )
 
     validated_ledger = validate_pre_exam_reconciled_ledger(reconciled_ledger)
+    ledger_canonical = json.dumps(
+        validated_ledger,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+    ).encode("utf-8")
+    ledger_sha = "sha256:" + hashlib.sha256(ledger_canonical).hexdigest()
+
     pre = _parse_canonical(pre_exam_artifact_json)
+    if pre.get("evidence_head_sha") != pre_exam_evidence_git_sha:
+        raise CiboCapitalManagementError(
+            "P2 PRE_EXAM artifact/evidence HEAD drift"
+        )
+    if pre.get("ledger_sha256") != ledger_sha:
+        raise CiboCapitalManagementError(
+            "P2 PRE_EXAM artifact/ledger digest drift"
+        )
     expected = {
         "schema": _ZERO_OPEN_SCHEMA,
         "scope": "PRE_EXAM",
@@ -100,13 +116,6 @@ def build_pre_exam_zero_open_control(
     source_sha = "sha256:" + hashlib.sha256(
         pre_exam_artifact_json.encode("utf-8")
     ).hexdigest()
-    ledger_canonical = json.dumps(
-        validated_ledger,
-        sort_keys=True,
-        separators=(",", ":"),
-        ensure_ascii=True,
-    ).encode("utf-8")
-    ledger_sha = "sha256:" + hashlib.sha256(ledger_canonical).hexdigest()
     payload = {
         "schema": _ARTIFACT_SCHEMA,
         "evidence_binding_id": "P2_PRE_EXAM_ZERO_OPEN_PASS",
