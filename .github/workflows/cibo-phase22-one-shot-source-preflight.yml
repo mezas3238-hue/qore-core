@@ -109,7 +109,7 @@ jobs:
             --sources-root sources \
             --output preflight/source-preflight.json
 
-      - name: Materialize exact frozen replay source checkouts
+      - name: Materialize exact parity-proven replay programs
         shell: bash
         run: |
           set -euo pipefail
@@ -123,20 +123,42 @@ jobs:
               print(
                   item.trader_id,
                   item.methodology_git_sha,
-                  item.module_relative_path,
+                  item.source_mode,
+                  item.source_relative_path,
+                  item.parity_adapter_relative_path,
+                  item.geometry_patch_script or "-",
                   sep="\t",
               )
-          print("VT31_NAS100", FROZEN_VT31_SOURCE_SHA, "-", sep="\t")
+          print(
+              "VT31_NAS100",
+              FROZEN_VT31_SOURCE_SHA,
+              "IMMUTABLE_VT31_SOURCE",
+              "-",
+              "-",
+              "-",
+              sep="\t",
+          )
           PY
-          while IFS=$'\t' read -r trader sha module_path; do
-            git fetch --no-tags --depth=1 origin "${sha}"
-            git worktree add --detach "frozen/${trader}" "${sha}"
-            test "$(git -C "frozen/${trader}" rev-parse HEAD)" = "${sha}"
-            if [ "${module_path}" != "-" ]; then
-              test -f "frozen/${trader}/${module_path}"
+          while IFS=$'\t' read -r trader sha mode source_path adapter_path patch_script; do
+            if [ "${mode}" = "PARITY_PROVEN_HEAD_ADAPTER" ]; then
+              test -f "${adapter_path}"
+              cp "${adapter_path}" "patched/${trader}-geometry.py"
+            else
+              git fetch --no-tags --depth=1 origin "${sha}"
+              git worktree add --detach "frozen/${trader}" "${sha}"
+              test "$(git -C "frozen/${trader}" rev-parse HEAD)" = "${sha}"
+              if [ "${mode}" = "IMMUTABLE_SOURCE_PLUS_SERIALIZATION_PATCH" ]; then
+                test -f "frozen/${trader}/${source_path}"
+                test -f "${patch_script}"
+                python "${patch_script}" \
+                  "frozen/${trader}/${source_path}" \
+                  "patched/${trader}-geometry.py"
+              fi
+            fi
+            if [ "${trader}" != "VT31_NAS100" ]; then
               python scripts/cibo_phase22_turtle_fresh_corpus_patch.py \
                 --trader "${trader}" \
-                --source "frozen/${trader}/${module_path}" \
+                --source "patched/${trader}-geometry.py" \
                 --output "patched/${trader}.py" \
                 --report "preflight/patch-reports/${trader}.json"
               python -m py_compile "patched/${trader}.py"
