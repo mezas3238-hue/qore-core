@@ -22,9 +22,17 @@ from qore.infrastructure.cibo_phase22_historical_replay_settlement import (
     Phase22HistoricalReplayOutcomeSeal,
     VersionedPhase22HistoricalReplayEvidenceBook,
 )
+from qore.infrastructure.cibo_phase22_holdout_v2_source_receipt import (
+    V2_SOURCE_BINDINGS,
+    phase22_v2_holdout_source_receipt_sha256,
+)
 
 BASE = datetime(2015, 10, 20, 12, 0, tzinfo=UTC)
 CANDIDATE_ID = "CIBO_USD60_6M_HOLDOUT_2015-10-19_2016-04-19_V2"
+
+SOURCE_COLLECTOR_GIT_SHAS = tuple(
+    sorted({item.collector_git_sha for item in V2_SOURCE_BINDINGS})
+)
 
 
 def _sha(label: str) -> str:
@@ -160,6 +168,8 @@ def _book(
             for index in range(80)
         )
     return VersionedPhase22HistoricalReplayEvidenceBook(
+        source_receipt_sha256=phase22_v2_holdout_source_receipt_sha256(),
+        source_collector_git_shas=SOURCE_COLLECTOR_GIT_SHAS,
         generation=1,
         amendment_sha256=_sha("amendment"),
         decisions=decisions,
@@ -231,6 +241,8 @@ def test_phase22_t12_rejects_stale_snapshot_binding() -> None:
     )
     report = assess_phase22_t12_t13_causal_population(
         VersionedPhase22HistoricalReplayEvidenceBook(
+            source_receipt_sha256=book.source_receipt_sha256,
+            source_collector_git_shas=book.source_collector_git_shas,
             generation=book.generation,
             amendment_sha256=book.amendment_sha256,
             decisions=(modified,) + book.decisions[1:],
