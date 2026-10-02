@@ -7,11 +7,11 @@ from qore.infrastructure.cibo_arch2_t11_market_impact_terminal_receipt import (
     FALSIFIED,
     build_t11_market_impact_terminal_receipt,
 )
-from qore.infrastructure.cibo_capital_management_authority import (
-    CiboCapitalManagementError,
-)
 from qore.infrastructure.cibo_arch2_t11_nonlinear_input_freeze import (
     REQUIRED_SYMBOLS,
+)
+from qore.infrastructure.cibo_capital_management_authority import (
+    CiboCapitalManagementError,
 )
 
 
