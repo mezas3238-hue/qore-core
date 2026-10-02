@@ -40,7 +40,10 @@ from qore.infrastructure.cibo_scientific_closure_41_adapters import (
     SPECIAL_6_IDS,
     CanonicalScientificBinding,
     Group1V4TerminalEvidenceHandoff,
+    Group2CapitalTerminalEvidenceHandoff,
     adapt_group1_v4_fresh_oos_handoff,
+    adapt_group2_capital_terminal_batch,
+    adapt_group2_capital_terminal_handoff,
     adapt_t02_terminal_assessment,
     adapt_t11_terminal_receipts,
     adapt_usd60_capability_classification,
@@ -99,6 +102,35 @@ def _v4_handoff(
     )
 
 
+
+
+def _group2_handoff(
+    workstream_id: str,
+    *,
+    status: str = "PASS",
+    manifest: str | None = None,
+    population: str = "phase22-v4:canonical",
+) -> Group2CapitalTerminalEvidenceHandoff:
+    passed = status == "PASS"
+    return Group2CapitalTerminalEvidenceHandoff(
+        workstream_id=workstream_id,
+        candidate_id=CANONICAL_HOLDOUT_ID,
+        phase22_manifest_sha256=manifest or _sha("v4-manifest"),
+        source_gate_id=f"gate:{workstream_id}",
+        source_gate_evidence_sha256=_sha(f"evidence:{workstream_id}"),
+        source_gate_status=status,
+        terminal_recommendation=COMPLETED if passed else FALSIFIED,
+        failed_dimensions=() if passed else ("NONCOMPENSATORY_GATE",),
+        population_identity=population,
+        policy_identity=CANONICAL_POLICY_IDENTITY,
+        qualification_plan_identity=CANONICAL_QUALIFICATION_PLAN_IDENTITY,
+        provider_identity=CANONICAL_PROVIDER_IDENTITY,
+        causal_lineage=_sha("lineage"),
+        source_head_sha="b" * 40,
+        observed_at=datetime(2026, 10, 2, 11, 59, tzinfo=UTC),
+    )
+
+
 def _all_pass_gates() -> CiboMaximumCapabilityGateSet:
     return CiboMaximumCapabilityGateSet(
         six_complete_months=True,
@@ -142,6 +174,10 @@ def test_dependency_manifest_names_all_41_without_fabricating_future_digests() -
     assert manifest["workstream_count"] == 41
     assert manifest["group1_v4_fresh_ce2i_genc_count"] == 28
     assert manifest["group2_capital_compound_count"] == 13
+    assert (
+        manifest["group2_evidence_state"]
+        == "WAITING_FOR_GROUP1_IMMUTABLE_EVIDENCE"
+    )
     assert manifest["unknown_future_digests_fabricated"] is False
     rows = manifest["workstreams"]
     assert isinstance(rows, list)
@@ -346,4 +382,84 @@ def test_v4_fresh_handoff_rejects_incomplete_trader_surface() -> None:
                 "R38_GBPJPY",
                 "R42_AUDJPY",
             )
+        )
+
+
+def test_group2_capital_terminal_handoff_preserves_scientific_falsification() -> None:
+    evidence = adapt_group2_capital_terminal_handoff(
+        handoff=_group2_handoff("ADVERSARIAL_STRESS", status="FAIL"),
+        binding=_binding(),
+    )
+    assert evidence.workstream_id == "ADVERSARIAL_STRESS"
+    assert evidence.previous_disposition == "EXTERNAL_DEPENDENCY_BLOCKED"
+    assert evidence.terminal_disposition == FALSIFIED
+    assert evidence.failed_dimensions == ("NONCOMPENSATORY_GATE",)
+
+
+def test_group2_capital_terminal_batch_requires_exact_13_of_13() -> None:
+    handoffs = tuple(
+        _group2_handoff(workstream_id)
+        for workstream_id in GROUP2_CAPITAL_13_IDS
+    )
+    bindings = {
+        workstream_id: _binding()
+        for workstream_id in GROUP2_CAPITAL_13_IDS
+    }
+    evidence = adapt_group2_capital_terminal_batch(
+        handoffs=handoffs,
+        bindings=bindings,
+    )
+    assert tuple(item.workstream_id for item in evidence) == (
+        GROUP2_CAPITAL_13_IDS
+    )
+    assert len(evidence) == 13
+    assert all(
+        item.previous_disposition == "EXTERNAL_DEPENDENCY_BLOCKED"
+        for item in evidence
+    )
+    assert all(item.terminal_disposition == COMPLETED for item in evidence)
+
+
+def test_group2_capital_terminal_batch_rejects_missing_workstream() -> None:
+    handoffs = tuple(
+        _group2_handoff(workstream_id)
+        for workstream_id in GROUP2_CAPITAL_13_IDS[:-1]
+    )
+    bindings = {
+        workstream_id: _binding()
+        for workstream_id in GROUP2_CAPITAL_13_IDS
+    }
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="handoff coverage mismatch",
+    ):
+        adapt_group2_capital_terminal_batch(
+            handoffs=handoffs,
+            bindings=bindings,
+        )
+
+
+def test_group2_capital_pass_cannot_hide_failed_dimension() -> None:
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="PASS cannot retain failed dimensions",
+    ):
+        Group2CapitalTerminalEvidenceHandoff(
+            workstream_id="TEMPORAL_REPLICATION",
+            candidate_id=CANONICAL_HOLDOUT_ID,
+            phase22_manifest_sha256=_sha("v4-manifest"),
+            source_gate_id="gate:TEMPORAL_REPLICATION",
+            source_gate_evidence_sha256=_sha("temporal"),
+            source_gate_status="PASS",
+            terminal_recommendation=COMPLETED,
+            failed_dimensions=("WF4_FAILED",),
+            population_identity="phase22-v4:canonical",
+            policy_identity=CANONICAL_POLICY_IDENTITY,
+            qualification_plan_identity=(
+                CANONICAL_QUALIFICATION_PLAN_IDENTITY
+            ),
+            provider_identity=CANONICAL_PROVIDER_IDENTITY,
+            causal_lineage=_sha("lineage"),
+            source_head_sha="b" * 40,
+            observed_at=datetime(2026, 10, 2, 11, 59, tzinfo=UTC),
         )
