@@ -845,7 +845,11 @@ class CTraderDemoFullApi:
                     }
                 if len(observed) >= count_hint:
                     break
-                if not bool(getattr(response.value, "hasMore", False)):
+                provider_has_more = getattr(response.value, "hasMore", None)
+                # The live DEMO endpoint can omit hasMore even when older
+                # history is available.  Only an explicit False is terminal;
+                # otherwise bounded cursor pagination must keep walking back.
+                if provider_has_more is False:
                     break
                 if oldest_opened is None:
                     break
