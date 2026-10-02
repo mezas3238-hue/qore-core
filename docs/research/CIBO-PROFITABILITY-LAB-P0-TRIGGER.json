@@ -13,6 +13,6 @@
   "production": false,
   "merge_authority": false,
   "outcome_aware_tuning": false,
-  "retrigger_for_head": "16d102fa5f79ec4b870f44aa3e2cf2be6a00c285",
-  "retrigger_reason": "Continue P0 after converting lab-only minimum-seed infeasibility into explicit rejection instead of abort; no economic parameters changed."
+  "retrigger_for_head": "d996b38480e1ccb75b3685d450dbca2adf37b987",
+  "retrigger_reason": "Bind lab all-Trader policy surface one-to-one with durable Risk decisions, including explicit REJECT for CMA-unexpressible opportunities. No economic parameters changed."
 }
