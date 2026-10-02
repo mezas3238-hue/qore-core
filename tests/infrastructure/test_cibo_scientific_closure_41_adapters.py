@@ -420,7 +420,11 @@ def test_successor_fresh_handoff_rejects_cross_holdout_binding() -> None:
     ):
         adapt_group1_fresh_oos_handoff(
             handoff=handoff,
-            binding=_binding(),
+            binding=_binding(
+                holdout_id=(
+                    "CIBO_USD60_6M_HOLDOUT_2013-04-19_2013-10-19_V7"
+                )
+            ),
         )
 
 
