@@ -45,6 +45,31 @@ def test_current_integrated_checkpoint_is_internally_reconciled() -> None:
     assert report["certification_claim"] is False
 
 
+def test_non_terminal_maturity_cannot_be_counted_terminal(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    payload = _load(gate.LEDGER)
+    row = next(
+        item
+        for item in payload["workstreams"]
+        if item["id"] == "FRESH_OOS"
+    )
+    row["terminal_disposition"] = "EXTERNAL_DEPENDENCY_BLOCKED"
+    payload["current_summary"]["terminal_count"] += 1
+    payload["current_summary"]["open_count"] -= 1
+    ledger = tmp_path / "ledger.json"
+    _write(ledger, payload)
+    monkeypatch.setattr(gate, "LEDGER", ledger)
+
+    errors = gate.validate_reconciliation()
+
+    assert (
+        "FRESH_OOS non-terminal maturity cannot have terminal disposition"
+        in errors
+    )
+
+
 def test_world_cup_cannot_be_dropped_from_integrated_ledger(
     tmp_path: Path,
     monkeypatch,
