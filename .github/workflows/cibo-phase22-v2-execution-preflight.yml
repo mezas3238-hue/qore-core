@@ -95,10 +95,12 @@ jobs:
 
           manifest = build_phase22_execution_manifest()
           guard = assess_phase22_one_shot_guard()
-          assert guard.status is Phase22OneShotGuardStatus.READY
-          assert guard.blockers == ()
-          assert guard.authorized_to_create_durable_claim is True
+          assert guard.status is Phase22OneShotGuardStatus.CONSUMED
+          assert guard.execution_claimed is True
+          assert guard.fresh_outcomes_already_emitted is True
+          assert guard.authorized_to_create_durable_claim is False
           assert guard.authorized_to_emit_first_fresh_outcome is False
+          assert guard.productive_authority is False
 
           out = Path("phase22-v2-preflight")
           (out / "execution-manifest.json").write_text(
