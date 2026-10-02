@@ -10,6 +10,7 @@ import hashlib
 import json
 import re
 from dataclasses import asdict, dataclass
+from pathlib import Path
 
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
@@ -171,3 +172,16 @@ def build_phase22_v3_execution_authorization(
         merge_authorized=False,
         productive_authority=False,
     )
+
+
+def load_phase22_v3_execution_authorization(
+    path: Path = Path(AUTHORIZATION_RELATIVE_PATH),
+) -> Phase22V3ExecutionAuthorization:
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(raw, dict) or raw.get("schema") != AUTHORIZATION_SCHEMA:
+        raise CiboCapitalManagementError(
+            "V3 execution authorization schema drift"
+        )
+    fields = dict(raw)
+    fields.pop("schema", None)
+    return Phase22V3ExecutionAuthorization(**fields)
