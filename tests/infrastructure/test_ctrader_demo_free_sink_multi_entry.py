@@ -58,6 +58,7 @@ class _Positions:
         return (
             SimpleNamespace(
                 trader_id=TraderLineage.R38_EURUSD,
+                qore_symbol="EURUSD",
                 position_id=9001,
             ),
         )
