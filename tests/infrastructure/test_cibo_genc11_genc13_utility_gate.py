@@ -294,3 +294,36 @@ def test_genc13_cannot_claim_genc11_transition_calibration_flag() -> None:
             evidence,
             transition_uncertainty_calibrated=True,
         )
+
+
+def test_wrapper_rejects_control_status_for_treatment_receipt() -> None:
+    report = evaluate_genc11_genc13_utility(
+        _input(Genc11Genc13Workstream.GENC11)
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="treatment status is invalid",
+    ):
+        replace(
+            report,
+            status=Genc9EconomicGateStatus.CONTROL,
+            research_eligible=False,
+        )
+
+
+def test_wrapper_rejects_safety_status_without_failed_dimension() -> None:
+    report = evaluate_genc11_genc13_utility(
+        _input(Genc11Genc13Workstream.GENC11)
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="safety rejection requires failed dimensions",
+    ):
+        replace(
+            report,
+            status=Genc9EconomicGateStatus.REJECTED_SAFETY_DETERIORATION,
+            research_eligible=False,
+            failed_dimensions=(),
+        )
