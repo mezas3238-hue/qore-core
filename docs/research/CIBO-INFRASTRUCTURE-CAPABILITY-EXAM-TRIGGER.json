@@ -16,8 +16,8 @@
   "real_capital_authorized": false,
   "production_authorized": false,
   "merge_authorized": false,
-  "retrigger_for_head": "846d8d89e7d2b14bae80aca0908e0827bc62e37d",
-  "retrigger_reason": "Relaunch after fixing Compound shadow reservation lifecycle: authorize -> full fill -> open-risk snapshot reconciliation -> release QORE fill shadow; no Trader edge or outcome logic changed.",
+  "retrigger_for_head": "85bfebd677acdb5d4b7f37a008cdada0b4123f88",
+  "retrigger_reason": "Relaunch after canonical Compound Risk fill/reconciliation lifecycle repair; no Trader edge, selection, sizing, target, or outcome logic changed.",
   "launch_authorized_by_owner": true,
   "launch_authorized_at_utc": "2026-10-02T22:45:00Z"
 }
