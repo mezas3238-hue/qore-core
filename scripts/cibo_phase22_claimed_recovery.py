@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from qore.infrastructure.cibo_phase22_claimed_recovery import (
+    canonicalize_claimed_native_opportunity_order,
     recover_vt31_claimed_payload,
 )
 from qore.infrastructure.cibo_phase22_fresh_batch_assembly import (
@@ -83,12 +84,12 @@ def main() -> int:
         **{trader_id: _sha(path) for trader_id, path in turtle_paths.items()},
     }
     batch = assemble_phase22_fresh_batch(
-        vt08_payload=_json(args.vt08),
+        vt08_payload=canonicalize_claimed_native_opportunity_order(_json(args.vt08)),
         turtle_rows={
             trader_id: _jsonl(path)
             for trader_id, path in turtle_paths.items()
         },
-        vt31_payload=recovered_vt31,
+        vt31_payload=canonicalize_claimed_native_opportunity_order(recovered_vt31),
         lane_artifact_sha256s=lane_digests,
     )
     payload = {
