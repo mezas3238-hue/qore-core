@@ -33,7 +33,7 @@ def test_active_frontier_has_three_terminal_recommendations() -> None:
         == "SUPERSEDED_WITH_PROVEN_LINEAGE"
     )
 
-    assert rows["T11"].state is Architect2ActiveState.FROZEN_GATE_WAITING_POPULATION
+    assert rows["T11"].state is Architect2ActiveState.PARTIAL_EVIDENCE_READY
     assert rows["T16"].state is Architect2ActiveState.TERMINAL_RECOMMENDATION_READY
     assert rows["T16"].proposed_terminal_disposition == "FALSIFIED_AND_CLOSED"
     assert (
