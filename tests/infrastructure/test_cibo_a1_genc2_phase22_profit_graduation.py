@@ -7,11 +7,19 @@ from decimal import Decimal
 
 import pytest
 
+from qore.infrastructure.cibo_a1_a2_scientific_dependency import (
+    CONTRACT_ID as A1_A2_DEPENDENCY_CONTRACT_ID,
+    A1A2ScientificDependencyAdmission,
+)
 from qore.infrastructure.cibo_a1_genc2_phase22_profit_graduation import (
     Genc2EconomicRole,
     Genc2EconomicStatus,
     Genc2ProfitGraduationFoldObservation,
     evaluate_genc2_phase22_profit_graduation,
+)
+from qore.infrastructure.cibo_a1_phase22_canonical_manifest_bridge import (
+    BRIDGE_ID,
+    A1Phase22CanonicalScientificManifestBridge,
 )
 from qore.infrastructure.cibo_a1_phase22_historical_compound_dependency import (
     CONTRACT_ID,
@@ -63,6 +71,42 @@ def _manifest() -> A1Phase22ScientificConsumptionManifest:
     )
 
 
+def _bridge() -> A1Phase22CanonicalScientificManifestBridge:
+    manifest = _manifest()
+    return A1Phase22CanonicalScientificManifestBridge(
+        bridge_id=BRIDGE_ID,
+        canonical_phase22_manifest_sha256=_sha("canonical-phase22"),
+        a1_consumption_manifest_sha256=manifest.fingerprint(),
+        candidate_id=manifest.candidate_id,
+        decision_epochs=manifest.decision_count,
+        trader_ids=manifest.trader_ids,
+        fold_ids=FOLDS,
+        qualification_status="PASS",
+        ready_for_scientific_reentry=True,
+        exact_candidate_binding=True,
+        exact_decision_population_count=True,
+        exact_trader_lineage=True,
+        exact_fold_lineage=True,
+        a2_compatible_manifest_identity=True,
+    )
+
+
+def _a2_dependency() -> A1A2ScientificDependencyAdmission:
+    bridge = _bridge()
+    return A1A2ScientificDependencyAdmission(
+        contract_id=A1_A2_DEPENDENCY_CONTRACT_ID,
+        a2_workstream_id="COMPOUND_ENGINE",
+        canonical_phase22_manifest_sha256=bridge.canonical_phase22_manifest_sha256,
+        a1_manifest_bridge_sha256=bridge.fingerprint(),
+        a2_source_head="b" * 40,
+        a2_source_gate_id="COMPOUND_ENGINE_PHASE22_GATE_V1",
+        a2_source_gate_evidence_sha256=_sha("compound-engine-evidence"),
+        a2_disposition_receipt_sha256=_sha("compound-engine-disposition"),
+        recommended_disposition="COMPLETED_AND_PROVEN",
+        admitted_for_a1_consumption=True,
+    )
+
+
 def _dependency():
     manifest = _manifest()
     receipt = A1HistoricalCompoundLineageReceipt(
@@ -87,6 +131,8 @@ def _dependency():
     )
     return admit_historical_compound_lineage_for_a1(
         manifest=manifest,
+        canonical_bridge=_bridge(),
+        a2_dependency=_a2_dependency(),
         receipt=receipt,
     )
 
