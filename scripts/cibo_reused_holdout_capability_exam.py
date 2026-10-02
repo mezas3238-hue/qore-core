@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
+import sys
 from dataclasses import fields, is_dataclass
 from datetime import datetime
 from decimal import Decimal
@@ -22,9 +24,14 @@ from qore.infrastructure.cibo_phase22_v4_historical_regime import (
 from qore.infrastructure.cibo_reused_holdout_capability_exam import (
     run_reused_holdout_infrastructure_exam,
 )
-from qore.infrastructure.cibo_usd60_capability_certification import (
-    assess_cibo_capability_economic_certification,
-    build_cibo_usd60_capability_certification_receipt,
+from qore.infrastructure.cibo_reused_holdout_compound_portfolio_lane import (
+    run_compound_portfolio_lane,
+)
+from qore.infrastructure.cibo_phase22_v4_execution_inputs import (
+    project_phase22_execution_inputs,
+)
+from qore.infrastructure.cibo_phase22_v4_chronological_replay_plan import (
+    build_phase22_chronological_replay_plan,
 )
 from qore.infrastructure.cibo_usd60_dual_objective_exam import (
     assess_cibo_usd60_dual_objective_exam,
@@ -111,14 +118,18 @@ def main() -> int:
         replay_started_at=datetime.fromisoformat(args.replay_started_at),
     )
     dual_objective = assess_cibo_usd60_dual_objective_exam(report)
-    capability_receipt = build_cibo_usd60_capability_certification_receipt(
-        report=report,
-        integrated_git_sha=args.integrated_git_sha,
-        workflow_run_id=args.workflow_run_id,
-        qualified_at=datetime.now().astimezone(),
+    projections = project_phase22_execution_inputs(
+        fresh=fresh,
+        provider=provider,
+        provider_numeric_freeze_sha256=args.provider_numeric_freeze_sha256,
     )
-    economic_decision = assess_cibo_capability_economic_certification(
-        capability_receipt
+    plan = build_phase22_chronological_replay_plan(
+        fresh=fresh,
+        projections=projections,
+    )
+    compound = run_compound_portfolio_lane(
+        plan=plan,
+        core_execution=execution,
     )
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
@@ -148,13 +159,58 @@ def main() -> int:
         + "\n",
         encoding="utf-8",
     )
-    (args.output_dir / "usd60-capability-certification-receipt.json").write_text(
-        json.dumps(capability_receipt.payload(), indent=2, sort_keys=True) + "\n",
+    compound_path = args.output_dir / "compound-portfolio-report.json"
+    compound_path.write_text(
+        json.dumps(
+            compound.payload(core_executed_count=execution.settled_count),
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
         encoding="utf-8",
     )
-    (args.output_dir / "usd60-capability-economic-certification.json").write_text(
-        json.dumps(economic_decision.payload(), indent=2, sort_keys=True) + "\n",
+    disposition = {
+        "status": (
+            "ELIGIBLE_FOR_NEXT_EXAM"
+            if (
+                report.full_cibo.net_realized_pnl_usd > 0
+                and compound.net_realized_pnl_usd > 0
+                and execution.settled_count > 0
+            )
+            else "REJECTED_FOR_CERTIFICATION"
+        ),
+        "full_cibo_net_realized_pnl_usd": format(
+            report.full_cibo.net_realized_pnl_usd, "f"
+        ),
+        "full_cibo_compound_portfolio_net_realized_pnl_usd": format(
+            compound.net_realized_pnl_usd, "f"
+        ),
+        "scientific_freshness_claimed": False,
+        "certification_claimed": False,
+    }
+    (args.output_dir / "exam-disposition.json").write_text(
+        json.dumps(disposition, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
+    )
+
+    subprocess.run(
+        [
+            sys.executable,
+            "scripts/cibo_capability_exam_column_report.py",
+            "--batch",
+            str(args.batch),
+            "--capability",
+            str(args.output_dir / "capability-exam-report.json"),
+            "--execution",
+            str(args.output_dir / "execution-report.json"),
+            "--tool-audit",
+            str(args.output_dir / "tool-audit.json"),
+            "--compound",
+            str(compound_path),
+            "--output-dir",
+            str(args.output_dir),
+        ],
+        check=True,
     )
     print(
         json.dumps(
@@ -181,13 +237,15 @@ def main() -> int:
                     for item in report.tool_audit
                     if item.status.value == "NOT_INTEGRATED"
                 ],
+                "compound_portfolio_ending_capital_usd": format(
+                    compound.ending_capital_usd, "f"
+                ),
+                "compound_incremental_pnl_usd": format(
+                    compound.compound_incremental_pnl_usd, "f"
+                ),
+                "exam_disposition": disposition["status"],
                 "scientific_freshness_claimed": False,
-                "capability_certification_receipt_sha256": (
-                    capability_receipt.fingerprint()
-                ),
-                "capability_economic_certification": (
-                    economic_decision.status.value
-                ),
+                "certification_claimed": False,
             },
             sort_keys=True,
         )
