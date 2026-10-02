@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 from hashlib import sha256
 from pathlib import Path
@@ -16,6 +17,8 @@ from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
 from qore.infrastructure.cibo_final_integrated_exam_arch_b_ledger_transition import (
+    ARCHITECT_B_PHASE22_DISPOSITION_SCHEMA,
+    ARCHITECT_B_PHASE22_WORKSTREAM_IDS,
     ArchitectBPhase22DispositionReceipt,
 )
 from qore.infrastructure.cibo_final_integrated_exam_external_blocker_reconciliation import (
@@ -27,18 +30,6 @@ _LEDGER_PATH = (
     / "docs"
     / "research"
     / "CIBO-MASTER-OPEN-WORK-LEDGER-V1.json"
-)
-_B_IDS = (
-    "T02",
-    "T03",
-    "T11",
-    "T16",
-    "T20",
-    "PROVIDER_ECONOMICS",
-    "FORWARD_QUALIFICATION",
-    "FRESH_OOS",
-    "USD60_CAPABILITY_PROGRAM",
-    "INTEGRATED_CAPITAL_TRUTH",
 )
 
 
@@ -97,32 +88,22 @@ def _a_batch(receipts):
 def _b_receipts():
     return tuple(
         ArchitectBPhase22DispositionReceipt(
-            schema="qore.cibo.arch-b.phase22-disposition.v1",
+            schema=ARCHITECT_B_PHASE22_DISPOSITION_SCHEMA,
             workstream_id=workstream_id,
             phase22_manifest_sha256=_sha("manifest"),
             source_gate_id=f"b:{workstream_id}",
             source_gate_evidence_sha256=_sha("b:" + workstream_id),
-            source_gate_status=(
-                "FAIL" if workstream_id == "T03" else "PASS"
-            ),
-            passed=workstream_id != "T03",
-            recommended_disposition=(
-                "FALSIFIED_AND_CLOSED"
-                if workstream_id == "T03"
-                else "COMPLETED_AND_PROVEN"
-            ),
-            blockers=("NO_EQUIVALENT_EXPRESSION",)
-            if workstream_id == "T03"
-            else (),
-            failed_dimensions=("equivalent_expression",)
-            if workstream_id == "T03"
-            else (),
+            source_gate_status="PASS",
+            passed=True,
+            recommended_disposition="COMPLETED_AND_PROVEN",
+            blockers=(),
+            failed_dimensions=(),
         )
-        for workstream_id in _B_IDS
+        for workstream_id in ARCHITECT_B_PHASE22_WORKSTREAM_IDS
     )
 
 
-def test_reconciliation_resolves_all_45_and_leaves_only_two_exams() -> None:
+def test_reconciliation_resolves_all_41_and_leaves_only_two_exams() -> None:
     ledger = json.loads(_LEDGER_PATH.read_text(encoding="utf-8"))
     a_receipts = _a_receipts()
     post, receipt = reconcile_all_external_blockers(
@@ -131,9 +112,10 @@ def test_reconciliation_resolves_all_45_and_leaves_only_two_exams() -> None:
         architect_a_receipts=a_receipts,
         architect_b_receipts=_b_receipts(),
     )
-    assert receipt.external_before_count == 45
+    assert receipt.external_before_count == 41
     assert receipt.external_after_count == 0
-    assert receipt.resolved_external_count == 45
+    assert receipt.resolved_external_count == 41
+    assert receipt.exact_41_external_blockers_resolved is True
     assert receipt.open_ids == (
         "FINAL_INTEGRATED_CIBO_EXAM",
         "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM",
@@ -146,6 +128,17 @@ def test_reconciliation_resolves_all_45_and_leaves_only_two_exams() -> None:
         "zero_open_work_pass": False,
         "final_certification_candidate": False,
     }
+    by_id = {row["id"]: row for row in post["workstreams"]}
+    assert by_id["T03"]["terminal_disposition"] == "FALSIFIED_AND_CLOSED"
+    assert by_id["T16"]["terminal_disposition"] == "FALSIFIED_AND_CLOSED"
+    assert (
+        by_id["PROVIDER_ECONOMICS"]["terminal_disposition"]
+        == "SUPERSEDED_WITH_PROVEN_LINEAGE"
+    )
+    assert (
+        by_id["FORWARD_QUALIFICATION"]["terminal_disposition"]
+        == "SUPERSEDED_WITH_PROVEN_LINEAGE"
+    )
 
 
 def test_reconciliation_rejects_a_b_manifest_drift() -> None:
@@ -174,4 +167,24 @@ def test_reconciliation_rejects_a_b_manifest_drift() -> None:
             architect_a_batch=_a_batch(a_receipts),
             architect_a_receipts=a_receipts,
             architect_b_receipts=tuple(b_receipts),
+        )
+
+
+def test_reconciliation_rejects_reopening_preclosed_rows() -> None:
+    ledger = json.loads(_LEDGER_PATH.read_text(encoding="utf-8"))
+    drifted = copy.deepcopy(ledger)
+    by_id = {row["id"]: row for row in drifted["workstreams"]}
+    by_id["T03"]["terminal_disposition"] = "EXTERNAL_DEPENDENCY_BLOCKED"
+    by_id["T02"]["terminal_disposition"] = "FALSIFIED_AND_CLOSED"
+
+    a_receipts = _a_receipts()
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="non-reopen disposition drift",
+    ):
+        reconcile_all_external_blockers(
+            ledger=drifted,
+            architect_a_batch=_a_batch(a_receipts),
+            architect_a_receipts=a_receipts,
+            architect_b_receipts=_b_receipts(),
         )

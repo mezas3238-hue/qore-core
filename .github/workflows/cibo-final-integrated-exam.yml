@@ -5,10 +5,14 @@ on:
     paths:
       - '.github/workflows/cibo-final-integrated-exam.yml'
       - 'src/qore/infrastructure/cibo_final_integrated_exam.py'
+      - 'src/qore/infrastructure/cibo_final_integrated_exam_scientific_ledger_transition.py'
+      - 'src/qore/infrastructure/cibo_final_integrated_exam_arch_b_ledger_transition.py'
+      - 'src/qore/infrastructure/cibo_final_integrated_exam_external_blocker_reconciliation.py'
       - 'src/qore/infrastructure/cibo_receipt_bound_final_integrated_exam.py'
       - 'src/qore/infrastructure/cibo_world_cup_maximum_capability_exam.py'
       - 'src/qore/infrastructure/cibo_crossboundary_evidence_receipt.py'
       - 'tests/infrastructure/test_cibo_final_integrated_exam.py'
+      - 'tests/infrastructure/test_cibo_final_integrated_exam_external_blocker_reconciliation.py'
       - 'tests/infrastructure/test_cibo_receipt_bound_final_integrated_exam.py'
       - 'tests/infrastructure/test_cibo_world_cup_maximum_capability_exam.py'
       - 'tests/infrastructure/test_cibo_crossboundary_evidence_receipt.py'
@@ -37,20 +41,30 @@ jobs:
         run: |
           ruff check \
             src/qore/infrastructure/cibo_final_integrated_exam.py \
+            src/qore/infrastructure/cibo_final_integrated_exam_scientific_ledger_transition.py \
+            src/qore/infrastructure/cibo_final_integrated_exam_arch_b_ledger_transition.py \
+            src/qore/infrastructure/cibo_final_integrated_exam_external_blocker_reconciliation.py \
             src/qore/infrastructure/cibo_receipt_bound_final_integrated_exam.py \
             src/qore/infrastructure/cibo_world_cup_maximum_capability_exam.py \
             src/qore/infrastructure/cibo_crossboundary_evidence_receipt.py \
             tests/infrastructure/test_cibo_final_integrated_exam.py \
+            tests/infrastructure/test_cibo_final_integrated_exam_external_blocker_reconciliation.py \
             tests/infrastructure/test_cibo_receipt_bound_final_integrated_exam.py \
             tests/infrastructure/test_cibo_world_cup_maximum_capability_exam.py \
             tests/infrastructure/test_cibo_crossboundary_evidence_receipt.py
           mypy \
             src/qore/infrastructure/cibo_final_integrated_exam.py \
+            src/qore/infrastructure/cibo_final_integrated_exam_scientific_ledger_transition.py \
+            src/qore/infrastructure/cibo_final_integrated_exam_arch_b_ledger_transition.py \
+            src/qore/infrastructure/cibo_final_integrated_exam_external_blocker_reconciliation.py \
             src/qore/infrastructure/cibo_receipt_bound_final_integrated_exam.py \
             src/qore/infrastructure/cibo_world_cup_maximum_capability_exam.py \
             src/qore/infrastructure/cibo_crossboundary_evidence_receipt.py
           python -m py_compile \
             src/qore/infrastructure/cibo_final_integrated_exam.py \
+            src/qore/infrastructure/cibo_final_integrated_exam_scientific_ledger_transition.py \
+            src/qore/infrastructure/cibo_final_integrated_exam_arch_b_ledger_transition.py \
+            src/qore/infrastructure/cibo_final_integrated_exam_external_blocker_reconciliation.py \
             src/qore/infrastructure/cibo_receipt_bound_final_integrated_exam.py \
             src/qore/infrastructure/cibo_world_cup_maximum_capability_exam.py \
             src/qore/infrastructure/cibo_crossboundary_evidence_receipt.py

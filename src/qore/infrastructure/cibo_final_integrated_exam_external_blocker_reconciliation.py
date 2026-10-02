@@ -1,4 +1,4 @@
-"""Exact 45-row external-blocker reconciliation for CIBO certification."""
+"""Exact current 41-row external-blocker reconciliation for CIBO certification."""
 
 from __future__ import annotations
 
@@ -15,10 +15,12 @@ from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
 from qore.infrastructure.cibo_final_integrated_exam_arch_b_ledger_transition import (
+    ARCHITECT_B_PHASE22_WORKSTREAM_IDS,
     ArchitectBPhase22DispositionReceipt,
     apply_architect_b_dispositions_to_ledger,
 )
 from qore.infrastructure.cibo_final_integrated_exam_scientific_ledger_transition import (
+    ARCHITECT_A_PHASE22_WORKSTREAM_IDS,
     apply_architect_a_scientific_dispositions_to_ledger,
 )
 
@@ -26,6 +28,16 @@ _LEDGER_SCHEMA = "QORE_CIBO_MASTER_OPEN_WORK_LEDGER_V1"
 _EXPECTED_OPEN = (
     "FINAL_INTEGRATED_CIBO_EXAM",
     "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM",
+)
+_EXPECTED_NON_REOPEN_DISPOSITIONS = {
+    "T03": "FALSIFIED_AND_CLOSED",
+    "T16": "FALSIFIED_AND_CLOSED",
+    "PROVIDER_ECONOMICS": "SUPERSEDED_WITH_PROVEN_LINEAGE",
+    "FORWARD_QUALIFICATION": "SUPERSEDED_WITH_PROVEN_LINEAGE",
+}
+_EXPECTED_EXTERNAL_IDS = frozenset(
+    ARCHITECT_A_PHASE22_WORKSTREAM_IDS
+    + ARCHITECT_B_PHASE22_WORKSTREAM_IDS
 )
 
 
@@ -71,6 +83,19 @@ def _open_ids(ledger: dict[str, Any]) -> tuple[str, ...]:
     )
 
 
+def _assert_non_reopen_preimage(ledger: dict[str, Any]) -> None:
+    by_id = {
+        str(row.get("id")): row for row in _mandatory_rows(ledger)
+    }
+    for workstream_id, disposition in _EXPECTED_NON_REOPEN_DISPOSITIONS.items():
+        row = by_id.get(workstream_id)
+        if row is None or row.get("terminal_disposition") != disposition:
+            raise CiboCapitalManagementError(
+                "external reconciliation non-reopen disposition drift: "
+                + workstream_id
+            )
+
+
 @dataclass(frozen=True, slots=True)
 class ExternalBlockerReconciliationReceipt:
     phase22_manifest_sha256: str
@@ -82,7 +107,7 @@ class ExternalBlockerReconciliationReceipt:
     external_after_count: int
     resolved_external_count: int
     open_ids: tuple[str, ...]
-    exact_45_external_blockers_resolved: bool
+    exact_41_external_blockers_resolved: bool
     certification_claimed: bool = False
     production_authority: bool = False
     merge_authority: bool = False
@@ -101,23 +126,23 @@ class ExternalBlockerReconciliationReceipt:
                     f"external reconciliation {name} invalid"
                 )
         if (
-            self.external_before_count != 45
+            self.external_before_count != 41
             or self.external_after_count != 0
-            or self.resolved_external_count != 45
+            or self.resolved_external_count != 41
         ):
             raise CiboCapitalManagementError(
-                "external reconciliation exact 45-row count drift"
+                "external reconciliation exact 41-row count drift"
             )
         if self.open_ids != _EXPECTED_OPEN:
             raise CiboCapitalManagementError(
                 "external reconciliation open-exam topology drift"
             )
         if (
-            type(self.exact_45_external_blockers_resolved) is not bool
-            or not self.exact_45_external_blockers_resolved
+            type(self.exact_41_external_blockers_resolved) is not bool
+            or not self.exact_41_external_blockers_resolved
         ):
             raise CiboCapitalManagementError(
-                "external reconciliation must resolve exact 45-row surface"
+                "external reconciliation must resolve exact 41-row surface"
             )
         if (
             self.certification_claimed
@@ -141,12 +166,16 @@ def reconcile_all_external_blockers(
     ],
     architect_b_receipts: tuple[ArchitectBPhase22DispositionReceipt, ...],
 ) -> tuple[dict[str, Any], ExternalBlockerReconciliationReceipt]:
-    """Resolve all 45 external blockers from source-bound A+B receipts."""
+    """Resolve the canonical 41 blockers from source-bound A+B/cross receipts."""
 
+    _assert_non_reopen_preimage(ledger)
     external_before = _external_ids(ledger)
-    if len(external_before) != 45:
+    if (
+        len(external_before) != 41
+        or set(external_before) != _EXPECTED_EXTERNAL_IDS
+    ):
         raise CiboCapitalManagementError(
-            "external reconciliation requires canonical 45-blocker starting state"
+            "external reconciliation requires canonical 41-blocker starting state"
         )
 
     after_a, a_transition = apply_architect_a_scientific_dispositions_to_ledger(
@@ -154,9 +183,11 @@ def reconcile_all_external_blockers(
         batch=architect_a_batch,
         receipts=architect_a_receipts,
     )
-    if len(a_transition.residual_external_ids) != 10:
+    if set(a_transition.residual_external_ids) != set(
+        ARCHITECT_B_PHASE22_WORKSTREAM_IDS
+    ):
         raise CiboCapitalManagementError(
-            "external reconciliation expected ten residual B blockers after A"
+            "external reconciliation expected six residual B/cross blockers after A"
         )
 
     after_b, b_transition = apply_architect_b_dispositions_to_ledger(
@@ -177,6 +208,8 @@ def reconcile_all_external_blockers(
             "external reconciliation left certification blockers: "
             + ",".join(external_after)
         )
+    _assert_non_reopen_preimage(after_b)
+
     mandatory = _mandatory_rows(after_b)
     terminal_count = sum(
         row.get("terminal_disposition") is not None for row in mandatory
@@ -205,10 +238,10 @@ def reconcile_all_external_blockers(
         post_ledger_sha256=_canonical_sha(after_b),
         architect_a_transition_sha256=a_transition.fingerprint(),
         architect_b_transition_sha256=b_transition.fingerprint(),
-        external_before_count=45,
+        external_before_count=41,
         external_after_count=0,
-        resolved_external_count=45,
+        resolved_external_count=41,
         open_ids=open_ids,
-        exact_45_external_blockers_resolved=True,
+        exact_41_external_blockers_resolved=True,
     )
     return after_b, receipt
