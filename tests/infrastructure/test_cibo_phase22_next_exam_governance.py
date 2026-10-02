@@ -42,7 +42,7 @@ def test_current_next_exam_is_fail_closed_not_ready() -> None:
     result = CURRENT_NEXT_PHASE22_READINESS
 
     assert result.status is NextPhase22ReadinessStatus.NOT_READY
-    assert "TURTLE_SUBORDINATE_WINDOW_INTEGRITY_CI_REQUIRED" in result.blockers
+    assert "TURTLE_SUBORDINATE_WINDOW_INTEGRITY_CI_REQUIRED" not in result.blockers
     assert (
         "ADVANCED_CE2I_PREDECISION_EVIDENCE_OR_ABSTENTION_FREEZE_REQUIRED"
         in result.blockers
