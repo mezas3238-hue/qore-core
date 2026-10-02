@@ -258,9 +258,14 @@ def evaluate_phase22_historical_policy(
     current_step: int,
     advanced_evidence: AdvancedPortfolioEvidence | None = None,
     known_options: tuple[Phase20MpcKnownOption, ...] = (),
+    lab_allow_nonpositive_expectation: bool = False,
 ) -> Phase22HistoricalPolicyDecisionRecord:
     """Evaluate frozen V4 composition without falsifying historical timestamps."""
 
+    if type(lab_allow_nonpositive_expectation) is not bool:
+        raise CiboCapitalManagementError(
+            "lab_allow_nonpositive_expectation must be bool"
+        )
     if not inputs:
         raise CiboCapitalManagementError(
             "Phase22 historical policy requires at least one candidate"
@@ -330,6 +335,7 @@ def evaluate_phase22_historical_policy(
         concentration_limit_by_group=concentration_limit_by_group,
         candidates=candidates,
         known_options=(),
+        lab_allow_nonpositive_expectation=lab_allow_nonpositive_expectation,
     )
     return Phase22HistoricalPolicyDecisionRecord(
         candidate_id=V4_CANDIDATE_ID,
