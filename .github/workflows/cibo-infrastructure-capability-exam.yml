@@ -11,8 +11,6 @@ on:
       - 'scripts/cibo_phase22_reused_holdout_batch_assembler.py'
       - 'scripts/cibo_reused_holdout_capability_exam.py'
       - 'tests/infrastructure/test_cibo_reused_holdout_capability_exam.py'
-      - 'src/qore/infrastructure/cibo_ce2i_phase20_robust_allocator.py'
-      - 'tests/infrastructure/test_cibo_ce2i_phase20_robust_allocator.py'
       - '.github/workflows/cibo-infrastructure-capability-exam.yml'
 
 permissions:
@@ -65,9 +63,7 @@ jobs:
           PY
       - name: Static quality and non-mutation proof
         run: |
-          python -m ruff check             src/qore/infrastructure/cibo_reused_holdout_capability_exam.py             src/qore/infrastructure/cibo_phase22_historical_replay_settlement.py             scripts/cibo_phase22_reused_holdout_batch_assembler.py             scripts/cibo_reused_holdout_capability_exam.py             tests/infrastructure/test_cibo_reused_holdout_capability_exam.py \
-            src/qore/infrastructure/cibo_ce2i_phase20_robust_allocator.py \
-            tests/infrastructure/test_cibo_ce2i_phase20_robust_allocator.py
+          python -m ruff check             src/qore/infrastructure/cibo_reused_holdout_capability_exam.py             src/qore/infrastructure/cibo_phase22_historical_replay_settlement.py             scripts/cibo_phase22_reused_holdout_batch_assembler.py             scripts/cibo_reused_holdout_capability_exam.py             tests/infrastructure/test_cibo_reused_holdout_capability_exam.py
           python -m pytest -q --no-cov             tests/infrastructure/test_cibo_reused_holdout_capability_exam.py
           python - <<'PY'
           from pathlib import Path

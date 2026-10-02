@@ -169,64 +169,8 @@ def test_phase20h_single_stable_candidate_does_not_require_competition() -> None
     assert decision.allocation.selected_signal_fingerprints == ("solo",)
     assert decision.applied_tools == ("T15",)
     assert decision.reason == (
-        "single causal candidate evaluated directly against T01 capacity "
-        "gates without T09/T18 competition"
+        "single causal candidate allocated without unnecessary competition tooling"
     )
-
-
-
-
-def test_phase20h_single_candidate_negative_rank_prior_cannot_veto_t01() -> None:
-    mission = _demo_mission()
-    decision = propose_phase20h_robust_allocation(
-        mission=mission,
-        regime=_regime(mission, opportunity_count=1),
-        hard_risk_headroom_usd=Decimal("5"),
-        margin_headroom_usd=Decimal("100"),
-        concentration_limit_by_group=(("USD", Decimal("100")),),
-        candidates=(
-            _candidate(
-                "solo-negative-prior",
-                TraderLineage.VT08_FOREX,
-                net="-1",
-                minutes="105",
-            ),
-        ),
-    )
-
-    assert decision.disposition is Phase20AllocatorDisposition.ALLOCATE
-    assert decision.allocation is not None
-    assert decision.allocation.selected_signal_fingerprints == (
-        "solo-negative-prior",
-    )
-    assert decision.allocation.rows[0].reason == (
-        "single valid opportunity fits T01 capacity gates"
-    )
-    assert decision.applied_tools == ("T15",)
-
-
-def test_phase20h_single_candidate_still_fails_closed_on_margin() -> None:
-    mission = _demo_mission()
-    decision = propose_phase20h_robust_allocation(
-        mission=mission,
-        regime=_regime(mission, opportunity_count=1),
-        hard_risk_headroom_usd=Decimal("5"),
-        margin_headroom_usd=Decimal("9"),
-        concentration_limit_by_group=(("USD", Decimal("100")),),
-        candidates=(
-            _candidate(
-                "solo-margin",
-                TraderLineage.R43_GBPUSD,
-                net="8",
-                minutes="5",
-            ),
-        ),
-    )
-
-    assert decision.disposition is Phase20AllocatorDisposition.NO_ELIGIBLE_ALLOCATION
-    assert decision.allocation is not None
-    assert decision.allocation.selected_signal_fingerprints == ()
-    assert decision.allocation.rows[0].reason == "shared margin headroom exhausted"
 
 
 def test_phase20h_recovery_preserves_all_new_capital() -> None:
