@@ -1,0 +1,45 @@
+{
+  "schema": "qore.cibo.phase22.next-exam-governance.v1",
+  "status": "PREPARATION_ONLY",
+  "consumed_v2": {
+    "candidate_id": "CIBO_USD60_6M_HOLDOUT_2015-10-19_2016-04-19_V2",
+    "state": "CONSUMED",
+    "qualification_status": "INVALID",
+    "second_fresh_execution_authorized": false,
+    "population_regeneration_authorized": false
+  },
+  "provisional_next_candidate": {
+    "candidate_id": "CIBO_USD60_6M_HOLDOUT_2015-04-19_2015-10-19_V3",
+    "start_at": "2015-04-19T00:00:00+00:00",
+    "end_exclusive_at": "2015-10-19T00:00:00+00:00",
+    "status": "SOURCE_VALIDATION_PENDING",
+    "selection_rule": "immediately preceding exact six-calendar-month block ending at the consumed V2 start boundary; selected mechanically without reading candidate source data or outcomes",
+    "outcome_data_inspected_at_selection": false,
+    "source_validation_complete": false,
+    "execution_authorized": false
+  },
+  "blockers": [
+    "TURTLE_SUBORDINATE_WINDOW_INTEGRITY_CI_REQUIRED",
+    "ADVANCED_CE2I_PREDECISION_EVIDENCE_OR_ABSTENTION_FREEZE_REQUIRED",
+    "FROZEN_POLICY_CODE_BUNDLE_LINEAGE_REQUIRED",
+    "NEW_HOLDOUT_SOURCE_VALIDATION_REQUIRED",
+    "NEW_ONE_SHOT_OWNER_AUTHORIZATION_REQUIRED"
+  ],
+  "required_order": [
+    "INTEGRATE_AND_GREEN_TURTLE_WINDOW_REPAIR",
+    "FREEZE_ADVANCED_CE2I_PREDECISION_EVIDENCE_OR_EXPLICIT_ABSTENTION",
+    "RECONCILE_FROZEN_POLICY_CODE_BUNDLE_LINEAGE",
+    "VALIDATE_NEW_SOURCE_WITHOUT_TRADER_EXECUTION_OR_OUTCOME_INSPECTION",
+    "OWNER_NEW_ONE_SHOT_AUTHORIZATION",
+    "CREATE_DURABLE_NEW_CLAIM",
+    "EXECUTE_EXACTLY_ONCE"
+  ],
+  "governance": {
+    "broker_mutation_authorized": false,
+    "live_authorized": false,
+    "real_capital_authorized": false,
+    "production_authorized": false,
+    "merge_authorized": false,
+    "productive_authority": false
+  }
+}
