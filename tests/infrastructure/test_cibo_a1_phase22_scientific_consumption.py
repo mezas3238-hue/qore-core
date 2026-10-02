@@ -13,6 +13,9 @@ from qore.infrastructure.cibo_a1_phase22_scientific_consumption import (
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
+from qore.infrastructure.cibo_ce2i_phase19_portfolio_replay import (
+    PHASE19_REQUIRED_TRADERS,
+)
 from qore.infrastructure.cibo_ce2i_phase20_forward_policy_store import (
     Phase20ForwardPolicyDecisionSeal,
     VersionedPhase20ForwardPolicyBook,
@@ -33,18 +36,24 @@ def _sha(label: str) -> str:
 
 
 def _decision(index: int) -> Phase20ForwardDecisionSeal:
-    signal = f"signal-{index}"
+    signals = tuple(
+        f"signal-{index}-{trader.value}"
+        for trader in PHASE19_REQUIRED_TRADERS
+    )
     payload = {
         "evidence_kind": "HISTORICAL_REPLAY_OBSERVED",
         "candidates": [
             {
                 "candidate": {
                     "signal_fingerprint": signal,
-                    "trader_id": (
-                        "VT31_NAS100" if index % 2 == 0 else "R38_EURUSD"
-                    ),
+                    "trader_id": trader.value,
                 }
             }
+            for signal, trader in zip(
+                signals,
+                PHASE19_REQUIRED_TRADERS,
+                strict=True,
+            )
         ],
     }
     at = BASE + timedelta(hours=index)
@@ -56,7 +65,7 @@ def _decision(index: int) -> Phase20ForwardDecisionSeal:
         candidate_id=CANDIDATE_ID,
         code_sha="a" * 40,
         parameter_sha256=_sha("params"),
-        signal_fingerprints=(signal,),
+        signal_fingerprints=signals,
         canonical_payload_json=json.dumps(payload, sort_keys=True),
         sealed_at=datetime(2026, 10, 1, 20, 0, tzinfo=UTC)
         + timedelta(seconds=index),
@@ -127,7 +136,9 @@ def test_a1_phase22_manifest_binds_one_exact_four_fold_population() -> None:
         "WF4",
     )
     assert tuple(item.decision_count for item in manifest.folds) == (2, 2, 2, 2)
-    assert manifest.trader_ids == ("R38_EURUSD", "VT31_NAS100")
+    assert manifest.trader_ids == tuple(
+        trader.value for trader in PHASE19_REQUIRED_TRADERS
+    )
 
 
 def test_a1_phase22_manifest_rejects_code_drift() -> None:
@@ -208,4 +219,30 @@ def test_a1_phase22_manifest_rejects_policy_digest_drift() -> None:
                 generation=1,
                 decisions=(corrupted,) + policies.decisions[1:],
             ),
+        )
+
+
+def test_a1_phase22_manifest_rejects_missing_trader_lineage() -> None:
+    evidence, policies = _books()
+    first = evidence.decisions[0]
+    payload = json.loads(first.canonical_payload_json)
+    payload["candidates"] = payload["candidates"][:-1]
+    modified = replace(
+        first,
+        signal_fingerprints=first.signal_fingerprints[:-1],
+        canonical_payload_json=json.dumps(payload, sort_keys=True),
+    )
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="exact 7/7 Trader population",
+    ):
+        build_a1_phase22_scientific_consumption_manifest(
+            evidence_book=VersionedPhase22HistoricalReplayEvidenceBook(
+                generation=1,
+                amendment_sha256=evidence.amendment_sha256,
+                decisions=(modified,) + evidence.decisions[1:],
+                outcomes=(),
+            ),
+            policy_book=policies,
         )
