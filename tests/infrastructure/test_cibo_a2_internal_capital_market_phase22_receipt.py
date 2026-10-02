@@ -113,9 +113,9 @@ def test_a2_internal_capital_market_rejects_capital_creation() -> None:
 def test_a2_internal_capital_market_rejects_outcome_at_seal() -> None:
     with pytest.raises(
         CiboCompoundCapitalError,
-        match="used outcome at seal",
+        match="shadow decision cannot contain outcome/authority",
     ):
-        _receipt(replace(_decision(), outcome_present_at_seal=True))
+        replace(_decision(), outcome_present_at_seal=True)
 
 
 def test_a2_internal_capital_market_receipt_is_deterministic() -> None:
