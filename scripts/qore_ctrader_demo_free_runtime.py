@@ -1064,10 +1064,23 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             received_at=received_at,
         )
 
+    # Keep position reconciliation and management on their own DEMO
+    # connection. Reconcile/order-management requests must never compete with
+    # the resident market-data stream or execution transport for provider
+    # request capacity.
+    position_client = SpotwareCTraderOpenApiClient(
+        credentials=credentials_from_environment(),
+    )
+    atexit.register(position_client.close)
+    position_positions = CTraderDemoFreePositionService(
+        client=position_client,
+        configuration=demo_sink.binding.configuration,
+    )
+
     demo_api = CTraderDemoFullApi(
         client=demo_sink.client,
         binding=demo_sink.binding,
-        positions=demo_sink.position_service,
+        positions=position_positions,
         registry=demo_sink.registry,
         binding_path=root / "var" / "ctrader_demo_free" / "binding.json",
         source_contract_sizes=demo_source_contract_sizes,
@@ -1147,7 +1160,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
         activated_at=phase20_bootstrap_at,
     )
     phase20_known_open_position_ids = tuple(
-        sorted(item.position_id for item in demo_sink.position_service.positions())
+        sorted(item.position_id for item in position_positions.positions())
     )
     # Forward stores are authoritative evidence. Corruption must fail startup.
     phase20_evidence_store.load()
