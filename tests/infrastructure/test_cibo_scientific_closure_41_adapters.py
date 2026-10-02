@@ -81,6 +81,7 @@ def _binding(
 def _v4_handoff(
     *,
     candidate_id: str = CANONICAL_HOLDOUT_ID,
+    population_identity: str = "phase22-v4:canonical",
     trader_ids: tuple[str, ...] = (
         "VT08_FOREX",
         "R34_XAUUSD",
@@ -96,7 +97,7 @@ def _v4_handoff(
         phase22_manifest_sha256=_sha("v4-manifest"),
         outcome_bundle_sha256=_sha("v4-outcomes"),
         qualification_artifact_sha256=_sha("v4-qualification"),
-        population_identity="phase22-v4:canonical",
+        population_identity=population_identity,
         policy_identity=CANONICAL_POLICY_IDENTITY,
         qualification_plan_identity=CANONICAL_QUALIFICATION_PLAN_IDENTITY,
         provider_identity=CANONICAL_PROVIDER_IDENTITY,
@@ -366,8 +367,10 @@ def test_legacy_v4_fresh_handoff_adapter_remains_compatible() -> None:
 def test_successor_fresh_handoff_accepts_exact_v6_identity() -> None:
     successor = "CIBO_USD60_6M_HOLDOUT_2013-10-19_2014-04-19_V6"
     population = "phase22-v6:canonical"
-    handoff = _v4_handoff(candidate_id=successor)
-    object.__setattr__(handoff, "population_identity", population)
+    handoff = _v4_handoff(
+        candidate_id=successor,
+        population_identity=population,
+    )
     evidence = adapt_group1_fresh_oos_handoff(
         handoff=handoff,
         binding=_binding(
