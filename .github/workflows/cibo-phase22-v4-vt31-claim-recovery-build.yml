@@ -1,0 +1,77 @@
+name: QORE CIBO Phase22 V4 VT31 Claim Recovery Build
+
+on:
+  push:
+    branches:
+      - agent/cibo-v4-vt31-claim-recovery-001
+    paths:
+      - 'scripts/cibo_phase22_v4_vt31_fresh_runner.py'
+      - 'tests/infrastructure/test_cibo_phase22_v4_vt31_claim_recovery.py'
+      - 'docs/research/CIBO-PHASE22-V4-VT31-CLAIM-RECOVERY-FORENSIC-V1.json'
+      - '.github/workflows/cibo-phase22-v4-vt31-claim-recovery-build.yml'
+      - '.github/workflows/cibo-phase22-v4-vt31-claimed-recovery.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Require recovery-only diff from durable claim
+        run: |
+          python - <<'PY'
+          import subprocess
+
+          claim = "2b1e3288bdad5f1521ec693c9ea7e6ed744132c0"
+          allowed = {
+              "scripts/cibo_phase22_v4_vt31_fresh_runner.py",
+              "tests/infrastructure/test_cibo_phase22_v4_vt31_claim_recovery.py",
+              "docs/research/CIBO-PHASE22-V4-VT31-CLAIM-RECOVERY-FORENSIC-V1.json",
+              ".github/workflows/cibo-phase22-v4-vt31-claim-recovery-build.yml",
+              ".github/workflows/cibo-phase22-v4-vt31-claimed-recovery.yml",
+          }
+          changed = set(
+              subprocess.check_output(
+                  ["git", "diff", "--name-only", claim, "HEAD"],
+                  text=True,
+              ).splitlines()
+          )
+          assert changed
+          assert changed <= allowed, sorted(changed - allowed)
+          PY
+      - name: Static and unit proof
+        run: |
+          python -m ruff check             scripts/cibo_phase22_v4_vt31_fresh_runner.py             tests/infrastructure/test_cibo_phase22_v4_vt31_claim_recovery.py
+          python -m pytest -q             tests/infrastructure/test_cibo_phase22_v4_vt31_claim_recovery.py
+      - name: Prove original claim remains unconsumed
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          claim = json.loads(
+              Path("docs/research/CIBO-PHASE22-V4-ONE-SHOT-CLAIM.json").read_text()
+          )
+          consumed = json.loads(
+              Path("docs/research/CIBO-PHASE22-V4-CONSUMPTION-RECEIPT.json").read_text()
+          )
+          assert claim["run_id"] == 37059089221
+          assert claim["run_attempt"] == 1
+          assert consumed["claim_committed"] is True
+          assert consumed["outcomes_emitted"] is False
+          assert consumed["outcome_bundle_sha256"] is None
+          PY
+      - name: Frozen VT31 identity self-check only
+        run: |
+          git fetch --no-tags --depth=1 origin cac38ed14f20e066536910145027426fd23f5939
+          git worktree add --detach "$RUNNER_TEMP/vt31-frozen"             cac38ed14f20e066536910145027426fd23f5939
+          python scripts/cibo_phase22_v4_vt31_fresh_runner.py             --frozen-root "$RUNNER_TEMP/vt31-frozen" --self-check

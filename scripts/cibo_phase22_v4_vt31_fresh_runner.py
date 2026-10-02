@@ -95,6 +95,45 @@ def _partition_executable_geometry(
     return executable, censored
 
 
+def _recovery_market_evidence_tuple(
+    source: object,
+) -> tuple[
+    tuple[OhlcSnapshot, ...],
+    str,
+    str,
+    object,
+    str,
+    str,
+]:
+    """Restore the frozen six-field ABI without changing methodology."""
+
+    adapted = adapt_v4_vt31_market_evidence(source)
+    (
+        series,
+        account,
+        evidence_fingerprint,
+        checked_at,
+        collector_git_sha,
+        provider_symbol,
+    ) = adapted
+    prefix = "sha256:"
+    if not evidence_fingerprint.startswith(prefix):
+        raise ValueError("VT31 V4 recovery fingerprint prefix missing")
+    raw_fingerprint = evidence_fingerprint[len(prefix):]
+    if (
+        len(raw_fingerprint) != 64
+        or any(ch not in "0123456789abcdef" for ch in raw_fingerprint)
+    ):
+        raise ValueError("VT31 V4 recovery fingerprint invalid")
+    return (
+        series,
+        account,
+        raw_fingerprint,
+        checked_at,
+        collector_git_sha,
+        provider_symbol,
+    )
+
 def run_fresh(
     *,
     frozen_root: Path,
@@ -120,7 +159,7 @@ def run_fresh(
         str,
         str,
     ]:
-        return adapt_v4_vt31_market_evidence(source)
+        return _recovery_market_evidence_tuple(source)
 
     original_residual = residual.load_market_evidence
     original_physical = physical.load_market_evidence
@@ -230,6 +269,8 @@ def run_fresh(
         "source_stats": stats,
         "binding_diagnostics": binding_diag,
         "methodology_changed": False,
+        "source_abi_recovery_only": True,
+        "historical_account_identity_claimed": False,
         "geometry_reconstructed": False,
         "selection_uses_realized_r": False,
         "legacy_trader_sizing_used_for_cibo": False,
