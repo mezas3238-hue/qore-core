@@ -8,6 +8,16 @@ import pytest
 from qore.infrastructure.cibo_arch2_t02_terminal_disposition import (
     T02TerminalDispositionAssessment,
 )
+from qore.infrastructure.cibo_arch2_t11_experiment_plan import (
+    T11_MARKET_IMPACT_EXPERIMENT_PLAN,
+)
+from qore.infrastructure.cibo_arch2_t11_market_impact_terminal_receipt import (
+    T11MarketImpactTerminalReceipt,
+)
+from qore.infrastructure.cibo_arch2_t11_nonlinear_input_freeze import (
+    REQUIRED_SYMBOLS,
+    T11_NONLINEAR_INPUT_FREEZE,
+)
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
@@ -23,6 +33,7 @@ from qore.infrastructure.cibo_scientific_closure_41_adapters import (
     SPECIAL_6_IDS,
     CanonicalScientificBinding,
     adapt_t02_terminal_assessment,
+    adapt_t11_terminal_receipts,
     adapt_usd60_capability_classification,
     scientific_closure_41_dependency_manifest,
 )
@@ -196,4 +207,55 @@ def test_usd60_hard_integrity_failure_cannot_be_hidden_as_integrity_pass() -> No
             architecture_or_calibration_intervention_possible=False,
             phase22_manifest_sha256=_sha("manifest"),
             binding=_binding(integrity="PASS"),
+        )
+
+
+def _t11_market_receipt(*, passed: bool) -> T11MarketImpactTerminalReceipt:
+    rows = tuple(
+        (
+            symbol,
+            passed if index > 0 else passed,
+        )
+        for index, symbol in enumerate(REQUIRED_SYMBOLS)
+    )
+    return T11MarketImpactTerminalReceipt(
+        report_sha256=_sha("t11-report"),
+        protocol_sha256=T11_NONLINEAR_INPUT_FREEZE.fingerprint(),
+        experiment_plan_sha256=T11_MARKET_IMPACT_EXPERIMENT_PLAN.fingerprint(),
+        symbol_count=len(REQUIRED_SYMBOLS),
+        episode_count=144,
+        child_entry_count=216,
+        four_of_four_by_symbol=rows,
+        market_impact_model_ready=passed,
+        terminal_recommendation=COMPLETED if passed else FALSIFIED,
+        broker_mutation_performed=True,
+        all_created_positions_closed=True,
+        phase22_v2_consumed=False,
+        canonical_ledger_modified=False,
+        productive_authority=False,
+    )
+
+
+def test_t11_falsified_market_impact_closes_without_new_broker_action() -> None:
+    evidence = adapt_t11_terminal_receipts(
+        market_impact=_t11_market_receipt(passed=False),
+        gross_edge=None,
+        phase22_manifest_sha256=_sha("manifest"),
+        binding=_binding(),
+    )
+
+    assert evidence.terminal_disposition == FALSIFIED
+    assert evidence.productive_authority is False
+
+
+def test_t11_passed_market_impact_still_requires_fresh_gross_edge() -> None:
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="fresh gross edge required",
+    ):
+        adapt_t11_terminal_receipts(
+            market_impact=_t11_market_receipt(passed=True),
+            gross_edge=None,
+            phase22_manifest_sha256=_sha("manifest"),
+            binding=_binding(),
         )

@@ -3,13 +3,18 @@
 from __future__ import annotations
 
 import json
+from dataclasses import asdict
 from pathlib import Path
 
+from qore.infrastructure.cibo_arch2_provider_blocker_reconciliation import (
+    reconcile_current_empirical_provider_plane,
+)
 from qore.infrastructure.cibo_scientific_closure_41 import (
     CANONICAL_HOLDOUT_ID,
     CANONICAL_POLICY_IDENTITY,
     CANONICAL_PROVIDER_IDENTITY,
     PACKAGE_SCHEMA,
+    SCIENTIFIC_CLOSURE_41_IDS,
     validate_scientific_closure_41_preimage,
 )
 from qore.infrastructure.cibo_scientific_closure_41_adapters import (
@@ -25,6 +30,20 @@ ARTIFACT_PATH = Path(
 def main() -> int:
     ledger = json.loads(LEDGER_PATH.read_text(encoding="utf-8"))
     summary = validate_scientific_closure_41_preimage(ledger)
+    workstreams = {
+        str(row.get("id")): row
+        for row in ledger["workstreams"]
+        if row.get("mandatory") is True
+    }
+    current_external_blockers = {
+        workstream_id: list(workstreams[workstream_id].get("blockers") or [])
+        for workstream_id in SCIENTIFIC_CLOSURE_41_IDS
+    }
+    provider_reconciliation = [
+        asdict(item)
+        for item in reconcile_current_empirical_provider_plane()
+        if item.workstream_id == "T11"
+    ]
     payload = {
         "schema": "QORE_CIBO_SCIENTIFIC_CLOSURE_41_SEMANTIC_GATE_V1",
         "closure_package_schema": PACKAGE_SCHEMA,
@@ -34,6 +53,8 @@ def main() -> int:
         "provider_identity": CANONICAL_PROVIDER_IDENTITY,
         **summary,
         "dependency_manifest": scientific_closure_41_dependency_manifest(),
+        "current_external_blockers": current_external_blockers,
+        "t11_provider_reconciliation": provider_reconciliation,
         "phase22_execution_authority": False,
         "canonical_ledger_write_authority": False,
         "final_exam_authority": False,

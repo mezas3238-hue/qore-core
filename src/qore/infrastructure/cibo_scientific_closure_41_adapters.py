@@ -24,6 +24,12 @@ from qore.infrastructure.cibo_arch2_fresh_oos_terminal_intake import (
 from qore.infrastructure.cibo_arch2_t02_terminal_disposition import (
     T02TerminalDispositionAssessment,
 )
+from qore.infrastructure.cibo_arch2_t11_gross_edge_oos import (
+    T11GrossEdgeFreshOOSResult,
+)
+from qore.infrastructure.cibo_arch2_t11_market_impact_terminal_receipt import (
+    T11MarketImpactTerminalReceipt,
+)
 from qore.infrastructure.cibo_arch2_t11_terminal_disposition import (
     T11TerminalDispositionAssessment,
     T11TerminalRecommendation,
@@ -312,6 +318,65 @@ def adapt_t11_terminal_assessment(
         phase22_manifest_sha256=phase22_manifest_sha256,
         binding=binding,
         source_digests=(PROVIDER_ARTIFACT_DIGEST,),
+    )
+
+
+def adapt_t11_terminal_receipts(
+    *,
+    market_impact: T11MarketImpactTerminalReceipt,
+    gross_edge: T11GrossEdgeFreshOOSResult | None,
+    phase22_manifest_sha256: str,
+    binding: CanonicalScientificBinding,
+) -> ScientificClosure41Evidence:
+    """Consume sealed T11 receipts without executing a new provider experiment."""
+
+    if not isinstance(market_impact, T11MarketImpactTerminalReceipt):
+        raise CiboCapitalManagementError(
+            "Closure 41 T11 receipt adapter requires market-impact receipt"
+        )
+    if gross_edge is not None and not isinstance(
+        gross_edge,
+        T11GrossEdgeFreshOOSResult,
+    ):
+        raise CiboCapitalManagementError(
+            "Closure 41 T11 gross-edge receipt invalid"
+        )
+
+    if market_impact.terminal_recommendation == FALSIFIED:
+        recommendation = FALSIFIED
+    elif market_impact.terminal_recommendation == COMPLETED:
+        if gross_edge is None:
+            raise CiboCapitalManagementError(
+                "Closure 41 T11 market impact passed; fresh gross edge required"
+            )
+        recommendation = (
+            COMPLETED if gross_edge.fresh_oos_validated else FALSIFIED
+        )
+    else:
+        raise CiboCapitalManagementError(
+            "Closure 41 T11 market-impact receipt disposition invalid"
+        )
+
+    source_digests = (
+        PROVIDER_ARTIFACT_DIGEST,
+        market_impact.report_sha256,
+        market_impact.protocol_sha256,
+        market_impact.experiment_plan_sha256,
+    )
+    if gross_edge is not None:
+        source_digests = (*source_digests, gross_edge.fingerprint())
+
+    return _build_special(
+        workstream_id="T11",
+        recommendation=recommendation,
+        source_kind="T11_TERMINAL_RECEIPT_CHAIN",
+        source_object={
+            "market_impact": market_impact,
+            "gross_edge": gross_edge,
+        },
+        phase22_manifest_sha256=phase22_manifest_sha256,
+        binding=binding,
+        source_digests=source_digests,
     )
 
 
