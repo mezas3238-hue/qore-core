@@ -76,6 +76,34 @@ def _rows(path: Path) -> tuple[dict[str, Any], ...]:
     return tuple(result)
 
 
+def _canonicalize_geometry(
+    path: Path,
+) -> tuple[tuple[dict[str, Any], ...], bool]:
+    rows = _rows(path)
+    ordered = tuple(
+        sorted(
+            rows,
+            key=lambda row: (
+                _aware(row["signal_at"], "signal_at"),
+                str(row.get("side", "")).lower(),
+                _aware(row["entry_at"], "entry_at"),
+                _aware(row["exit_at"], "exit_at"),
+                json.dumps(row, sort_keys=True, separators=(",", ":")),
+            ),
+        )
+    )
+    changed = ordered != rows
+    if changed:
+        path.write_text(
+            "".join(
+                json.dumps(row, sort_keys=True) + "\n"
+                for row in ordered
+            ),
+            encoding="utf-8",
+        )
+    return ordered, changed
+
+
 def _validate(rows: tuple[dict[str, Any], ...], trader_id: str) -> None:
     prior: tuple[datetime, str] | None = None
     for index, row in enumerate(rows):
@@ -131,7 +159,7 @@ def run_v4(
             )
     validate_source_report_window(report=report, start=_START, end=_END)
     geometry_path = output / geometry_name
-    rows = _rows(geometry_path)
+    rows, serialization_reordered = _canonicalize_geometry(geometry_path)
     _validate(rows, trader_id)
 
     counts = report.get("decision_counts", {})
@@ -165,6 +193,8 @@ def run_v4(
             "end_exclusive": _END.isoformat(),
         },
         "row_count": len(rows),
+        "serialization_reordered": serialization_reordered,
+        "serialization_only_change": True,
         "episode_lookup_attempts": episode_lookup_attempts,
         "episode_matches": matched_episode,
         "episode_misses": no_episode,
