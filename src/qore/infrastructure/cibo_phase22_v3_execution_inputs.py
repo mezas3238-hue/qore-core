@@ -5,6 +5,7 @@ GitHub orchestration. This module rehydrates them while recomputing the
 canonical fingerprints used by the in-process contracts; malformed or
 incomplete JSON therefore fails closed before policy evaluation.
 """
+# ruff: noqa: I001, E402
 
 from __future__ import annotations
 
