@@ -61,6 +61,8 @@ from qore.infrastructure.cibo_scientific_closure_41 import (
     CANONICAL_PROVIDER_IDENTITY,
     COMPLETED,
     FALSIFIED,
+    FRESH_OOS_ID,
+    OPEN_PREIMAGE,
     SCIENTIFIC_CLOSURE_41_IDS,
     ScientificClosure41Evidence,
 )
@@ -105,7 +107,7 @@ _SPECIAL_REQUIREMENTS: dict[str, tuple[str, ...]] = {
     ),
     "FRESH_OOS": (
         "PHASE22_DURABLE_EXECUTION_CONSUMPTION_RECEIPT",
-        "PHASE22_V2_HOLDOUT_QUALIFICATION_REPORT",
+        "PHASE22_V4_HOLDOUT_QUALIFICATION_REPORT",
     ),
     "USD60_CAPABILITY_PROGRAM": (
         "USD60_FROZEN_MAXIMUM_CAPABILITY_GATE_SET",
@@ -424,7 +426,7 @@ def adapt_fresh_oos_terminal_intake(
     return _build_special(
         workstream_id="FRESH_OOS",
         recommendation=intake.terminal_recommendation,
-        source_kind="PHASE22_V2_FRESH_OOS_TERMINAL_INTAKE",
+        source_kind="PHASE22_FRESH_OOS_TERMINAL_INTAKE",
         source_object=intake,
         phase22_manifest_sha256=phase22_manifest_sha256,
         binding=binding,
@@ -596,7 +598,11 @@ def _build_evidence(
     )
     return ScientificClosure41Evidence(
         workstream_id=workstream_id,
-        previous_disposition="EXTERNAL_DEPENDENCY_BLOCKED",
+        previous_disposition=(
+            OPEN_PREIMAGE
+            if workstream_id == FRESH_OOS_ID
+            else "EXTERNAL_DEPENDENCY_BLOCKED"
+        ),
         scientific_hypothesis=binding.scientific_hypothesis,
         evidence_refs=refs,
         evidence_sha256s=digests,
