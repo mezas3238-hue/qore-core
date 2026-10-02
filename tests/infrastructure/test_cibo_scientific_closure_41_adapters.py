@@ -25,6 +25,10 @@ from qore.infrastructure.cibo_ce2i_usd60_six_month_certification import (
     CiboMaximumCapabilityGateSet,
 )
 from qore.infrastructure.cibo_scientific_closure_41 import (
+    CANONICAL_HOLDOUT_ID,
+    CANONICAL_POLICY_IDENTITY,
+    CANONICAL_PROVIDER_IDENTITY,
+    CANONICAL_QUALIFICATION_PLAN_IDENTITY,
     COMPLETED,
     FALSIFIED,
 )
@@ -35,6 +39,8 @@ from qore.infrastructure.cibo_scientific_closure_41_adapters import (
     GROUP2_CAPITAL_13_IDS,
     SPECIAL_6_IDS,
     CanonicalScientificBinding,
+    Group1V4TerminalEvidenceHandoff,
+    adapt_group1_v4_fresh_oos_handoff,
     adapt_t02_terminal_assessment,
     adapt_t11_terminal_receipts,
     adapt_usd60_capability_classification,
@@ -58,6 +64,38 @@ def _binding(*, integrity: str = "PASS") -> CanonicalScientificBinding:
         temporal_replication_result="PASS",
         integrity_result=integrity,
         evaluated_at=datetime(2026, 10, 2, 12, 0, tzinfo=UTC),
+    )
+
+
+
+def _v4_handoff(
+    *,
+    candidate_id: str = CANONICAL_HOLDOUT_ID,
+    trader_ids: tuple[str, ...] = (
+        "VT08_FOREX",
+        "R34_XAUUSD",
+        "R38_EURUSD",
+        "R43_GBPUSD",
+        "R38_GBPJPY",
+        "R42_AUDJPY",
+        "VT31_NAS100",
+    ),
+) -> Group1V4TerminalEvidenceHandoff:
+    return Group1V4TerminalEvidenceHandoff(
+        candidate_id=candidate_id,
+        phase22_manifest_sha256=_sha("v4-manifest"),
+        outcome_bundle_sha256=_sha("v4-outcomes"),
+        qualification_artifact_sha256=_sha("v4-qualification"),
+        population_identity="phase22-v4:canonical",
+        policy_identity=CANONICAL_POLICY_IDENTITY,
+        qualification_plan_identity=CANONICAL_QUALIFICATION_PLAN_IDENTITY,
+        provider_identity=CANONICAL_PROVIDER_IDENTITY,
+        causal_lineage=_sha("lineage"),
+        source_head_sha="a" * 40,
+        trader_ids=trader_ids,
+        qualification_status="PASS",
+        terminal_recommendation=COMPLETED,
+        observed_at=datetime(2026, 10, 2, 11, 59, tzinfo=UTC),
     )
 
 
@@ -268,4 +306,44 @@ def test_t11_passed_market_impact_still_requires_fresh_gross_edge() -> None:
             gross_edge=None,
             phase22_manifest_sha256=_sha("manifest"),
             binding=_binding(),
+        )
+
+
+def test_v4_fresh_handoff_adapts_only_exact_immutable_identity() -> None:
+    evidence = adapt_group1_v4_fresh_oos_handoff(
+        handoff=_v4_handoff(),
+        binding=_binding(),
+    )
+    assert evidence.workstream_id == "FRESH_OOS"
+    assert evidence.previous_disposition == "OPEN"
+    assert evidence.holdout_id == CANONICAL_HOLDOUT_ID
+    assert evidence.terminal_disposition == COMPLETED
+
+
+def test_v4_fresh_handoff_rejects_stale_v2_candidate() -> None:
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="candidate identity drift",
+    ):
+        _v4_handoff(
+            candidate_id=(
+                "CIBO_USD60_6M_HOLDOUT_2015-10-19_2016-04-19_V2"
+            )
+        )
+
+
+def test_v4_fresh_handoff_rejects_incomplete_trader_surface() -> None:
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="exact ordered 7/7 Traders",
+    ):
+        _v4_handoff(
+            trader_ids=(
+                "VT08_FOREX",
+                "R34_XAUUSD",
+                "R38_EURUSD",
+                "R43_GBPUSD",
+                "R38_GBPJPY",
+                "R42_AUDJPY",
+            )
         )
