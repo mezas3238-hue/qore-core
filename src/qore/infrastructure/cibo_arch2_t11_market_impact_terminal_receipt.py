@@ -24,6 +24,13 @@ from qore.infrastructure.cibo_arch2_t11_nonlinear_input_freeze import (
     REQUIRED_SYMBOLS,
     T11_NONLINEAR_INPUT_FREEZE,
 )
+from qore.infrastructure.cibo_arch2_t11_post_containment_cycle_v3 import (
+    CYCLE_ID,
+    T11_POST_CONTAINMENT_CYCLE_V3,
+)
+from qore.infrastructure.cibo_arch2_t11_v3_retry_claim import (
+    T11_V3_TECHNICAL_RETRY_CLAIM,
+)
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
@@ -31,12 +38,20 @@ from qore.infrastructure.cibo_capital_management_authority import (
 COMPLETED = "COMPLETED_AND_PROVEN"
 FALSIFIED = "FALSIFIED_AND_CLOSED"
 
+V3_CANONICAL_RUN_ID = 36948511045
+V3_CANONICAL_RUN_ATTEMPT = 1
+V3_CANONICAL_HEAD_SHA = "7b9f6e6c6b4cf385f6df0c87d217b47e6cd12069"
+
 
 @dataclass(frozen=True, slots=True)
 class T11MarketImpactTerminalReceipt:
     report_sha256: str
     protocol_sha256: str
     experiment_plan_sha256: str
+    execution_cycle_id: str
+    canonical_run_id: int
+    canonical_run_attempt: int
+    canonical_head_sha: str
     symbol_count: int
     episode_count: int
     child_entry_count: int
@@ -63,6 +78,18 @@ class T11MarketImpactTerminalReceipt:
                 raise CiboCapitalManagementError(
                     f"T11 terminal receipt {name} invalid"
                 )
+        if self.execution_cycle_id != CYCLE_ID:
+            raise CiboCapitalManagementError(
+                "T11 terminal receipt V3 cycle lineage drift"
+            )
+        if (
+            self.canonical_run_id != V3_CANONICAL_RUN_ID
+            or self.canonical_run_attempt != V3_CANONICAL_RUN_ATTEMPT
+            or self.canonical_head_sha != V3_CANONICAL_HEAD_SHA
+        ):
+            raise CiboCapitalManagementError(
+                "T11 terminal receipt canonical execution lineage drift"
+            )
         if self.protocol_sha256 != T11_NONLINEAR_INPUT_FREEZE.fingerprint():
             raise CiboCapitalManagementError(
                 "T11 terminal receipt protocol lineage drift"
@@ -143,6 +170,28 @@ def build_t11_market_impact_terminal_receipt(
         raise CiboCapitalManagementError(
             "T11 terminal receipt report population drift"
         )
+    if report.get("experiment_plan_sha256") != (
+        T11_MARKET_IMPACT_EXPERIMENT_PLAN.fingerprint()
+    ):
+        raise CiboCapitalManagementError(
+            "T11 terminal receipt report experiment-plan lineage drift"
+        )
+    if not T11_POST_CONTAINMENT_CYCLE_V3.ready_for_versioned_execution:
+        raise CiboCapitalManagementError(
+            "T11 terminal receipt V3 base cycle not ready"
+        )
+    if not T11_V3_TECHNICAL_RETRY_CLAIM.one_retry_allowed:
+        raise CiboCapitalManagementError(
+            "T11 terminal receipt V3 retry lineage not authorized"
+        )
+    if (
+        str(report.get("run_id", "")) != str(V3_CANONICAL_RUN_ID)
+        or str(report.get("run_attempt", "")) != str(V3_CANONICAL_RUN_ATTEMPT)
+        or report.get("git_sha") != V3_CANONICAL_HEAD_SHA
+    ):
+        raise CiboCapitalManagementError(
+            "T11 terminal receipt report canonical-run lineage drift"
+        )
 
     evaluation = report.get("evaluation")
     if not isinstance(evaluation, dict):
@@ -195,6 +244,10 @@ def build_t11_market_impact_terminal_receipt(
         report_sha256=digest,
         protocol_sha256=T11_NONLINEAR_INPUT_FREEZE.fingerprint(),
         experiment_plan_sha256=T11_MARKET_IMPACT_EXPERIMENT_PLAN.fingerprint(),
+        execution_cycle_id=CYCLE_ID,
+        canonical_run_id=V3_CANONICAL_RUN_ID,
+        canonical_run_attempt=V3_CANONICAL_RUN_ATTEMPT,
+        canonical_head_sha=V3_CANONICAL_HEAD_SHA,
         symbol_count=len(ordered),
         episode_count=144,
         child_entry_count=216,
