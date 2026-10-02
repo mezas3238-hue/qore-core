@@ -216,8 +216,14 @@ def run_compound_portfolio_lane(
     *,
     plan: Phase22ChronologicalReplayPlan,
     core_execution: Phase22HistoricalExecutionReport,
+    lab_use_executed_core_surface: bool = False,
 ) -> CompoundPortfolioLaneResult:
     """Add causal profit-funded seeds without changing Core policy selection."""
+
+    if type(lab_use_executed_core_surface) is not bool:
+        raise CiboCapitalManagementError(
+            "lab_use_executed_core_surface must be bool"
+        )
 
     initial = FROZEN_CIBO_USD60_SIX_MONTH_PROTOCOL.initial_capital_usd
     core_realized = initial
@@ -249,6 +255,16 @@ def run_compound_portfolio_lane(
         for item in core_execution.books.executed_risk.executed_risk
         if item.risk_decision is not RiskDecision.REJECT
     )
+
+    core_selected_by_epoch: dict[datetime, tuple[str, ...]] = {}
+    if lab_use_executed_core_surface:
+        grouped: dict[datetime, list[str]] = defaultdict(list)
+        for item in core_risk_rows:
+            grouped[item.decided_at].append(item.signal_fingerprint)
+        core_selected_by_epoch = {
+            key: tuple(sorted(values))
+            for key, values in grouped.items()
+        }
 
     def core_open_capacity(clock: datetime) -> tuple[Decimal, Decimal]:
         rows = tuple(
@@ -324,8 +340,13 @@ def run_compound_portfolio_lane(
         if policy is None:
             raise CiboCapitalManagementError("compound lane missing Core policy")
         by_signal = {item.signal_fingerprint: item for item in epoch.candidates}
+        selected_signals = (
+            core_selected_by_epoch.get(epoch.market_decision_at, ())
+            if lab_use_executed_core_surface
+            else tuple(policy.selected_signal_fingerprints)
+        )
 
-        for signal in policy.selected_signal_fingerprints:
+        for signal in selected_signals:
             selected += 1
             candidate = by_signal[signal]
             opportunity = candidate.projection.candidate.capital_input.opportunity
