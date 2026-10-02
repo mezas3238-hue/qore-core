@@ -5,6 +5,7 @@ post-Phase21 in 2026. Current provider observations are bound only as an
 empirical counterfactual model; they are never represented as historical fills
 or historical provider terms.
 """
+# ruff: noqa: I001, E402
 
 from __future__ import annotations
 
