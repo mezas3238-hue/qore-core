@@ -174,6 +174,15 @@ class CompoundMonteCarloEpisode:
             raise CiboCompoundCapitalError(
                 "compound Monte Carlo zero floor graduation cannot carry evidence"
             )
+        for name in (
+            "market_record_present",
+            "terminal_release_present",
+            "future_leakage_used",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise CiboCompoundCapitalError(
+                    f"compound Monte Carlo episode {name} must be bool"
+                )
         if (
             not self.market_record_present
             or not self.terminal_release_present
@@ -190,9 +199,27 @@ class CompoundMonteCarloBlock:
     episodes: tuple[CompoundMonteCarloEpisode, ...]
 
     def __post_init__(self) -> None:
-        if not self.block_id or not self.episodes:
+        if (
+            not isinstance(self.block_id, str)
+            or not self.block_id
+            or not isinstance(self.episodes, tuple)
+            or not self.episodes
+            or any(
+                not isinstance(item, CompoundMonteCarloEpisode)
+                for item in self.episodes
+            )
+        ):
             raise CiboCompoundCapitalError(
                 "compound Monte Carlo block identity/episodes are required"
+            )
+        episode_ids = tuple(item.episode_id for item in self.episodes)
+        deployment_ids = tuple(item.deployment_id for item in self.episodes)
+        if (
+            len(episode_ids) != len(set(episode_ids))
+            or len(deployment_ids) != len(set(deployment_ids))
+        ):
+            raise CiboCompoundCapitalError(
+                "compound Monte Carlo block cannot duplicate episode/deployment"
             )
         ordered = tuple(
             sorted(
