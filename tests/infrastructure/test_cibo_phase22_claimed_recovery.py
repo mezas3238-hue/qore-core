@@ -16,6 +16,7 @@ from qore.infrastructure.cibo_phase22_claimed_recovery import (
     SOURCE_RUN_ID,
     VT31_ARTIFACT_ID,
     VT31_ARTIFACT_SHA256,
+    canonicalize_claimed_native_opportunity_order,
     recover_vt31_claimed_payload,
 )
 from qore.infrastructure.cibo_phase22_holdout_v2_source_receipt import CANDIDATE_ID
@@ -146,3 +147,29 @@ def test_recovery_is_bound_to_original_burned_run_artifact() -> None:
             source_run_id=SOURCE_RUN_ID,
             source_run_attempt=SOURCE_RUN_ATTEMPT,
         )
+
+
+def test_native_order_canonicalization_changes_order_not_population() -> None:
+    payload = _payload()
+    rows = payload["opportunities"]
+    assert isinstance(rows, list)
+    rows.reverse()
+    before = {
+        str(row["signal_fingerprint"]): str(row["realized_r"])
+        for row in rows
+        if isinstance(row, dict)
+    }
+
+    projected = canonicalize_claimed_native_opportunity_order(payload)
+    projected_rows = projected["opportunities"]
+    assert isinstance(projected_rows, list)
+    after = {
+        str(row["signal_fingerprint"]): str(row["realized_r"])
+        for row in projected_rows
+        if isinstance(row, dict)
+    }
+
+    assert before == after
+    assert [str(row["signal_at"]) for row in projected_rows] == sorted(
+        str(row["signal_at"]) for row in projected_rows
+    )
