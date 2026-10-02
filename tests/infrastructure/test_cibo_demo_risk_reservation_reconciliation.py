@@ -148,7 +148,7 @@ def test_exact_provider_fill_releases_internal_shadow_once_open_risk_is_visible(
     assert reservation.state is ReservationState.RELEASED
 
 
-def test_terminal_unfilled_provider_order_cancels_internal_reservation() -> None:
+def test_rejected_unfilled_provider_order_cancels_internal_reservation() -> None:
     risk = AccountWideRiskEngine()
     auth = risk.authorize(_request(), _snapshot(), now=NOW)
     entry = _entry(auth.authorization_id, position_id=None)
@@ -159,12 +159,44 @@ def test_terminal_unfilled_provider_order_cancels_internal_reservation() -> None
         confirmed_fill_authorization_ids=frozenset(),
         terminal_settlement_keys=frozenset(),
         broker_open_position_ids=frozenset(),
-        provider_order_status=lambda _: 4,
+        provider_order_status=lambda _: 3,
         observed_at=NOW + timedelta(seconds=5),
     )
 
     assert report.terminal_order_cancelled == 1
+    assert report.blockers == ()
     assert risk.active_reserved_stop_risk() == 0
+
+
+@pytest.mark.parametrize("provider_status", (4, 5))
+def test_partial_capable_terminal_order_status_stays_reserved(
+    provider_status: int,
+) -> None:
+    risk = AccountWideRiskEngine()
+    auth = risk.authorize(_request(), _snapshot(), now=NOW)
+    entry = _entry(auth.authorization_id, position_id=None)
+
+    report = reconcile_demo_risk_reservations(
+        risk=risk,
+        registry_entries=(entry,),
+        confirmed_fill_authorization_ids=frozenset(),
+        terminal_settlement_keys=frozenset(),
+        broker_open_position_ids=frozenset(),
+        provider_order_status=lambda _: provider_status,
+        observed_at=NOW + timedelta(seconds=5),
+    )
+
+    assert report.terminal_order_cancelled == 0
+    assert report.awaiting_fill_evidence == 1
+    assert report.safe_to_clear_boot_fence is False
+    assert report.blockers == (
+        "RISK_PROVIDER_ORDER_TERMINAL_FILL_AMBIGUOUS_"
+        f"{auth.authorization_id}:{provider_status}",
+    )
+    assert risk.active_reserved_stop_risk() == Decimal("10")
+    reservation = risk.reservation_for(auth.authorization_id)
+    assert reservation is not None
+    assert reservation.state is ReservationState.RESERVED
 
 
 def test_terminal_settlement_releases_shadow_only_with_exact_fill_lineage() -> None:
