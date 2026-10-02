@@ -7,6 +7,7 @@ on:
     paths:
       - '.github/workflows/cibo-phase22-execution-closure.yml'
       - 'src/qore/infrastructure/cibo_phase22_execution_closure.py'
+      - 'src/qore/infrastructure/cibo_phase22_git_durable_claim.py'
       - 'scripts/cibo_phase22_execution_closure.py'
       - 'src/qore/infrastructure/cibo_phase22_chronological_execution.py'
       - 'src/qore/infrastructure/cibo_phase22_historical_regime.py'
@@ -15,6 +16,7 @@ on:
     paths:
       - '.github/workflows/cibo-phase22-execution-closure.yml'
       - 'src/qore/infrastructure/cibo_phase22_execution_closure.py'
+      - 'src/qore/infrastructure/cibo_phase22_git_durable_claim.py'
       - 'scripts/cibo_phase22_execution_closure.py'
       - 'tests/infrastructure/test_cibo_phase22_execution_closure.py'
 
@@ -35,10 +37,12 @@ jobs:
         run: |
           ruff check \
             src/qore/infrastructure/cibo_phase22_execution_closure.py \
+            src/qore/infrastructure/cibo_phase22_git_durable_claim.py \
             scripts/cibo_phase22_execution_closure.py \
             tests/infrastructure/test_cibo_phase22_execution_closure.py
           mypy \
             src/qore/infrastructure/cibo_phase22_execution_closure.py \
+            src/qore/infrastructure/cibo_phase22_git_durable_claim.py \
             scripts/cibo_phase22_execution_closure.py
           python -m py_compile \
             src/qore/infrastructure/cibo_phase22_execution_closure.py \

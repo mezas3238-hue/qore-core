@@ -16,6 +16,7 @@ from qore.infrastructure.cibo_phase22_consumption_ledger import (
     persist_phase22_consumed_receipt,
 )
 from qore.infrastructure.cibo_phase22_execution_closure import (
+    PHASE22_SOVEREIGN_BRANCH,
     close_phase22_one_shot_execution,
 )
 from qore.infrastructure.cibo_phase22_execution_inputs import (
@@ -23,7 +24,10 @@ from qore.infrastructure.cibo_phase22_execution_inputs import (
     load_phase22_sealed_provider_numeric,
 )
 from qore.infrastructure.cibo_phase22_git_durable_claim import (
+    CONSUMPTION_RECEIPT_RELATIVE_PATH,
+    ONE_SHOT_CLAIM_RELATIVE_PATH,
     load_phase22_one_shot_claim_receipt,
+    verify_phase22_git_durable_claim,
 )
 from qore.infrastructure.cibo_phase22_historical_regime import (
     PHASE22_REGIME_SYMBOLS,
@@ -78,6 +82,12 @@ def _canonical(value: Any) -> Any:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
+    parser.add_argument("--repo-root", type=Path, default=Path.cwd())
+    parser.add_argument(
+        "--branch-name",
+        default=PHASE22_SOVEREIGN_BRANCH,
+    )
+    parser.add_argument("--remote-name", default="origin")
     parser.add_argument("--fresh-batch", type=Path, required=True)
     parser.add_argument("--provider-numeric", type=Path, required=True)
     parser.add_argument("--provider-numeric-freeze-sha256", required=True)
@@ -90,6 +100,23 @@ def main() -> int:
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
 
+    repo_root = args.repo_root.resolve()
+    expected_claim = (repo_root / ONE_SHOT_CLAIM_RELATIVE_PATH).resolve()
+    expected_consumption = (
+        repo_root / CONSUMPTION_RECEIPT_RELATIVE_PATH
+    ).resolve()
+    if args.claim.resolve() != expected_claim:
+        raise ValueError("Phase22 closure claim path is not canonical")
+    if args.consumption.resolve() != expected_consumption:
+        raise ValueError("Phase22 closure consumption path is not canonical")
+
+    durable_claim_evidence = verify_phase22_git_durable_claim(
+        repo_root=repo_root,
+        branch_name=args.branch_name,
+        remote_name=args.remote_name,
+    )
+
+    # Fresh evidence access is deliberately below the remote-durable barrier.
     fresh = load_phase22_sealed_fresh_batch(_json_object(args.fresh_batch))
     provider = load_phase22_sealed_provider_numeric(
         _json_object(args.provider_numeric)
@@ -114,6 +141,7 @@ def main() -> int:
         completed_at=datetime.fromisoformat(args.completed_at),
         claim=claim,
         consumption_claim=consumption,
+        durable_claim_evidence=durable_claim_evidence,
     )
 
     args.output_dir.mkdir(parents=True, exist_ok=True)

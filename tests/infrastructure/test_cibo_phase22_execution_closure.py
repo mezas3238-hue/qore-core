@@ -3,11 +3,14 @@ from decimal import Decimal
 from hashlib import sha256
 from pathlib import Path
 
+import pytest
+
 from qore.infrastructure.account_wide_risk import TraderLineage
 from qore.infrastructure.cibo_ce2i_phase22_qualification import (
     Phase22HoldoutQualificationStatus,
 )
 from qore.infrastructure.cibo_phase22_execution_closure import (
+    PHASE22_SOVEREIGN_BRANCH,
     close_phase22_one_shot_execution,
 )
 from qore.infrastructure.cibo_phase22_execution_inputs import (
@@ -16,6 +19,10 @@ from qore.infrastructure.cibo_phase22_execution_inputs import (
 )
 from qore.infrastructure.cibo_phase22_execution_manifest import (
     build_phase22_execution_manifest,
+)
+from qore.infrastructure.cibo_phase22_git_durable_claim import (
+    EXACT_CLAIM_PATHS,
+    Phase22GitDurableClaimEvidence,
 )
 from qore.infrastructure.cibo_phase22_fresh_opportunity_batch import (
     Phase22FreshOpportunity,
@@ -201,6 +208,28 @@ def _claim(store_root: Path) -> Phase22OneShotClaimReceipt:
     )
 
 
+def _durable_claim(
+    claim: Phase22OneShotClaimReceipt,
+    *,
+    source_head_sha: str | None = None,
+) -> Phase22GitDurableClaimEvidence:
+    source = claim.runner_git_sha if source_head_sha is None else source_head_sha
+    return Phase22GitDurableClaimEvidence(
+        source_head_sha=source,
+        claim_commit_sha="b" * 40,
+        remote_head_sha="b" * 40,
+        branch_name=PHASE22_SOVEREIGN_BRANCH,
+        claim_receipt_sha256=claim.fingerprint(),
+        claim_file_sha256=_sha("claim-file"),
+        consumption_file_sha256=_sha("consumption-file"),
+        changed_paths=EXACT_CLAIM_PATHS,
+        parent_claim_files_absent=True,
+        working_tree_clean=True,
+        remote_claim_observed=True,
+        durable_claim_proven=True,
+    )
+
+
 def test_closure_burns_one_shot_even_when_qualification_not_ready(
     tmp_path: Path,
 ) -> None:
@@ -219,6 +248,7 @@ def test_closure_burns_one_shot_even_when_qualification_not_ready(
         completed_at=datetime(2026, 10, 2, 7, 5, tzinfo=UTC),
         claim=claim,
         consumption_claim=claim.consumption_claim(),
+        durable_claim_evidence=_durable_claim(claim),
     )
 
     assert closure.qualification.status in {
@@ -256,6 +286,7 @@ def test_closure_store_set_is_create_once(tmp_path: Path) -> None:
         completed_at=datetime(2026, 10, 2, 7, 5, tzinfo=UTC),
         claim=claim,
         consumption_claim=claim.consumption_claim(),
+        durable_claim_evidence=_durable_claim(claim),
     )
     close_phase22_one_shot_execution(**kwargs)
 
@@ -265,3 +296,34 @@ def test_closure_store_set_is_create_once(tmp_path: Path) -> None:
         assert "create-once" in str(error) or "pristine" in str(error)
     else:
         raise AssertionError("second Phase22 store persistence must fail closed")
+
+def test_closure_rejects_durable_claim_lineage_drift_before_store_write(
+    tmp_path: Path,
+) -> None:
+    fresh = load_phase22_sealed_fresh_batch(_fresh_payload())
+    provider = load_phase22_sealed_provider_numeric(_provider_payload())
+    store_root = tmp_path / "phase22-v2-stores"
+    claim = _claim(store_root)
+
+    with pytest.raises(
+        Exception,
+        match="durable claim lineage mismatch",
+    ):
+        close_phase22_one_shot_execution(
+            fresh=fresh,
+            provider=provider,
+            provider_numeric_freeze_sha256=_sha("provider-freeze"),
+            corpora=_corpora(),
+            store_root=store_root,
+            replay_started_at=datetime(2026, 10, 2, 7, tzinfo=UTC),
+            completed_at=datetime(2026, 10, 2, 7, 5, tzinfo=UTC),
+            claim=claim,
+            consumption_claim=claim.consumption_claim(),
+            durable_claim_evidence=_durable_claim(
+                claim,
+                source_head_sha="f" * 40,
+            ),
+        )
+
+    assert not store_root.exists()
+

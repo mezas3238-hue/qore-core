@@ -39,6 +39,9 @@ from qore.infrastructure.cibo_phase22_execution_inputs import (
     Phase22SealedProviderNumericInput,
     project_phase22_execution_inputs,
 )
+from qore.infrastructure.cibo_phase22_git_durable_claim import (
+    Phase22GitDurableClaimEvidence,
+)
 from qore.infrastructure.cibo_phase22_historical_regime import (
     build_phase22_historical_regime_evidence,
 )
@@ -56,9 +59,12 @@ from qore.infrastructure.trader_lab.ict_turtle_soup_r4_source_exact import (
     Evidence,
 )
 
+PHASE22_SOVEREIGN_BRANCH = "agent/cibo-integrator-ab-001"
+
 
 @dataclass(frozen=True, slots=True)
 class Phase22ExecutionClosure:
+    durable_claim_evidence: Phase22GitDurableClaimEvidence
     execution: Phase22HistoricalExecutionReport
     qualification: Phase22HoldoutQualificationReport
     completion: Phase22OneShotBatchCompletionReceipt
@@ -69,6 +75,21 @@ class Phase22ExecutionClosure:
     productive_authority: bool = False
 
     def __post_init__(self) -> None:
+        if (
+            self.durable_claim_evidence.branch_name
+            != PHASE22_SOVEREIGN_BRANCH
+            or not self.durable_claim_evidence.durable_claim_proven
+        ):
+            raise CiboCapitalManagementError(
+                "Phase22 closure requires sovereign remote-durable claim proof"
+            )
+        if (
+            self.durable_claim_evidence.claim_receipt_sha256
+            != self.completion.claim_receipt_sha256
+        ):
+            raise CiboCapitalManagementError(
+                "Phase22 closure durable claim/completion lineage drift"
+            )
         expected_roles = tuple(item.name for item in PHASE22_STORE_IDENTITIES)
         if tuple(name for name, _ in self.store_sha256s) != expected_roles:
             raise CiboCapitalManagementError(
@@ -108,9 +129,26 @@ def close_phase22_one_shot_execution(
     completed_at: datetime,
     claim: Phase22OneShotClaimReceipt,
     consumption_claim: Phase22ExecutionConsumptionReceipt,
+    durable_claim_evidence: Phase22GitDurableClaimEvidence,
 ) -> Phase22ExecutionClosure:
     """Persist actual Phase22 evidence and record qualification without override."""
 
+    if not isinstance(durable_claim_evidence, Phase22GitDurableClaimEvidence):
+        raise CiboCapitalManagementError(
+            "Phase22 closure requires canonical durable claim evidence"
+        )
+    if durable_claim_evidence.branch_name != PHASE22_SOVEREIGN_BRANCH:
+        raise CiboCapitalManagementError(
+            "Phase22 closure durable claim branch is not sovereign"
+        )
+    if (
+        durable_claim_evidence.source_head_sha != claim.runner_git_sha
+        or durable_claim_evidence.source_head_sha != consumption_claim.claim_head_sha
+        or durable_claim_evidence.claim_receipt_sha256 != claim.fingerprint()
+    ):
+        raise CiboCapitalManagementError(
+            "Phase22 closure durable claim lineage mismatch"
+        )
     if claim.consumption_claim() != consumption_claim:
         raise CiboCapitalManagementError(
             "Phase22 closure claim/consumption lineage mismatch"
@@ -183,6 +221,7 @@ def close_phase22_one_shot_execution(
     )
     consumed = completion.consumed_receipt(claim=consumption_claim)
     return Phase22ExecutionClosure(
+        durable_claim_evidence=durable_claim_evidence,
         execution=execution,
         qualification=qualification,
         completion=completion,
