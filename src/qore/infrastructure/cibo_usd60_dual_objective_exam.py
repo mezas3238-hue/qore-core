@@ -26,9 +26,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from enum import StrEnum
 
-from qore.infrastructure.cibo_capital_management_authority import (
-    CiboCapitalManagementError,
-)
+from qore.infrastructure.cibo_capital_management_authority import CiboCapitalManagementError
 from qore.infrastructure.cibo_reused_holdout_capability_exam import (
     InfrastructureCapabilityExamReport,
     ToolRuntimeStatus,
