@@ -66,12 +66,9 @@ def architect2_active_frontier_v2() -> tuple[Architect2ActiveFront, ...]:
         ),
         Architect2ActiveFront(
             workstream_id="T11",
-            state=Architect2ActiveState.EMPIRICAL_PROVIDER_RUN_IN_PROGRESS,
-            remaining_requirement=(
-                "CANONICAL_V3_RUN_36948511045_MUST_TERMINATE_AND_BIND_"
-                "OUTCOME_BLIND_MARKET_IMPACT_RECEIPT__IF_MARKET_IMPACT_PASSES_"
-                "AUTHORIZED_REAL_FORWARD_MANIFEST_FOR_GROSS_EDGE_REMAINS_REQUIRED"
-            ),
+            state=Architect2ActiveState.TERMINAL_RECOMMENDATION_READY,
+            remaining_requirement="INTEGRATOR_EVIDENCE_AUDIT",
+            proposed_terminal_disposition="FALSIFIED_AND_CLOSED",
         ),
         Architect2ActiveFront(
             workstream_id="T16",
