@@ -31,9 +31,9 @@ def test_next_candidate_is_mechanical_disjoint_six_month_predecessor() -> None:
     )
     assert (
         NEXT_PHASE22_CANDIDATE.status
-        is CiboHoldoutCandidateStatus.SOURCE_VALIDATION_PENDING
+        is CiboHoldoutCandidateStatus.ELIGIBLE_FROZEN
     )
-    assert NEXT_PHASE22_CANDIDATE.source_validation_complete is False
+    assert NEXT_PHASE22_CANDIDATE.source_validation_complete is True
     assert NEXT_PHASE22_CANDIDATE.outcome_data_inspected_at_selection is False
     assert candidate_is_burn_clean_for_all_lineages(NEXT_PHASE22_CANDIDATE)
 
@@ -45,11 +45,11 @@ def test_current_next_exam_is_fail_closed_not_ready() -> None:
     assert "TURTLE_SUBORDINATE_WINDOW_INTEGRITY_CI_REQUIRED" not in result.blockers
     assert (
         "ADVANCED_CE2I_PREDECISION_EVIDENCE_OR_ABSTENTION_FREEZE_REQUIRED"
-        in result.blockers
+        not in result.blockers
     )
-    assert "FROZEN_POLICY_CODE_BUNDLE_LINEAGE_REQUIRED" in result.blockers
-    assert "NEW_HOLDOUT_SOURCE_VALIDATION_REQUIRED" in result.blockers
-    assert "NEW_ONE_SHOT_OWNER_AUTHORIZATION_REQUIRED" in result.blockers
+    assert "FROZEN_POLICY_CODE_BUNDLE_LINEAGE_REQUIRED" not in result.blockers
+    assert "NEW_HOLDOUT_SOURCE_VALIDATION_REQUIRED" not in result.blockers
+    assert result.blockers == ("NEW_ONE_SHOT_OWNER_AUTHORIZATION_REQUIRED",)
     assert result.second_v2_execution_authorized is False
 
 
@@ -103,8 +103,8 @@ def test_governance_payload_is_nonexecuting_and_digest_bound() -> None:
     payload = next_phase22_governance_payload()
 
     assert payload["consumed_v2_rerun_authorized"] is False
-    assert payload["candidate"]["status"] == "SOURCE_VALIDATION_PENDING"
-    assert payload["candidate"]["source_validation_complete"] is False
+    assert payload["candidate"]["status"] == "ELIGIBLE_FROZEN"
+    assert payload["candidate"]["source_validation_complete"] is True
     assert payload["broker_mutation_authorized"] is False
     assert payload["live_authorized"] is False
     assert payload["real_capital_authorized"] is False
