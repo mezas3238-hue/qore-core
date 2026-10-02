@@ -693,3 +693,35 @@ def test_gate_classifies_arch_a2_governance_surfaces() -> None:
         (path, "SOURCE_OF_TRUTH_RECONCILIATION")
         for path in inventory
     }
+
+
+def test_gate_classifies_a2_capital_science_crosslane_surfaces() -> None:
+    inventory = (
+        "src/qore/infrastructure/cibo_a2_phase22_historical_compound.py",
+        "tests/infrastructure/test_cibo_a2_phase22_historical_compound.py",
+        "src/qore/infrastructure/cibo_a2_internal_capital_market_phase22_receipt.py",
+        "tests/infrastructure/test_cibo_a2_internal_capital_market_phase22_receipt.py",
+        ".github/workflows/cibo-a2-cross-lane-capital-science.yml",
+        "docs/research/CIBO-A2-CAPITAL-SCIENCE-CROSS-LANE-CLOSURE-V1.md",
+    )
+    assignments, orphans = gate._classify_inventory(
+        inventory,
+        ledger_ids=frozenset(
+            {
+                "COMPOUND_ENGINE",
+                "INTERNAL_CAPITAL_MARKET",
+                "SOURCE_OF_TRUTH_RECONCILIATION",
+                "ORPHAN_INVENTORY",
+            }
+        ),
+    )
+
+    assert orphans == ()
+    assert dict(assignments) == {
+        inventory[0]: "COMPOUND_ENGINE",
+        inventory[1]: "COMPOUND_ENGINE",
+        inventory[2]: "INTERNAL_CAPITAL_MARKET",
+        inventory[3]: "INTERNAL_CAPITAL_MARKET",
+        inventory[4]: "SOURCE_OF_TRUTH_RECONCILIATION",
+        inventory[5]: "SOURCE_OF_TRUTH_RECONCILIATION",
+    }
