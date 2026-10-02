@@ -34,39 +34,78 @@ from qore.infrastructure.traders.vt08_b01_r3_8 import methodology_fingerprint
 class FrozenFreshReplaySource:
     trader_id: str
     methodology_git_sha: str
-    module_relative_path: str
+    source_mode: str
+    source_relative_path: str
+    parity_adapter_relative_path: str
+    geometry_patch_script: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.source_mode not in {
+            "IMMUTABLE_SOURCE_PLUS_SERIALIZATION_PATCH",
+            "PARITY_PROVEN_HEAD_ADAPTER",
+        }:
+            raise CiboCapitalManagementError(
+                "Phase22 frozen replay source mode drift"
+            )
+        if self.source_mode == "IMMUTABLE_SOURCE_PLUS_SERIALIZATION_PATCH":
+            if self.geometry_patch_script is None:
+                raise CiboCapitalManagementError(
+                    "Phase22 frozen replay geometry patch missing"
+                )
+        elif self.geometry_patch_script is not None:
+            raise CiboCapitalManagementError(
+                "Phase22 parity adapter cannot carry geometry patch"
+            )
 
 
 FROZEN_TURTLE_REPLAY_SOURCES = (
     FrozenFreshReplaySource(
         "R34_XAUUSD",
         "56ef138ee5ea1cde6d0bcf4c9e25e8b661c04e84",
+        "IMMUTABLE_SOURCE_PLUS_SERIALIZATION_PATCH",
+        "src/qore/infrastructure/trader_lab/"
+        "turtle_soup_xauusd_r34_frozen_r33_5y_validation.py",
         "src/qore/infrastructure/trader_lab/"
         "cibo_phase18_xauusd_r34_geometry_replay.py",
+        "scripts/cibo_phase18_xauusd_geometry_patch.py",
     ),
     FrozenFreshReplaySource(
         "R38_EURUSD",
         "324fb91d44a6fa328e66de2e22ace7386630c7aa",
+        "IMMUTABLE_SOURCE_PLUS_SERIALIZATION_PATCH",
+        "src/qore/infrastructure/trader_lab/"
+        "turtle_soup_eurusd_r38_5y_structural_risk_correction.py",
         "src/qore/infrastructure/trader_lab/"
         "cibo_phase18_eurusd_r38_geometry_replay.py",
+        "scripts/cibo_phase18_eurusd_geometry_patch.py",
     ),
     FrozenFreshReplaySource(
         "R43_GBPUSD",
         "e02d9384fbe6521040fc2779a085c43b8d5f0f92",
+        "PARITY_PROVEN_HEAD_ADAPTER",
+        "src/qore/infrastructure/trader_lab/"
+        "cibo_phase18_gbpusd_r39_geometry_replay.py",
         "src/qore/infrastructure/trader_lab/"
         "cibo_phase18_gbpusd_r39_geometry_replay.py",
     ),
     FrozenFreshReplaySource(
         "R38_GBPJPY",
         "eb62226e05f63cf94c1940634de676c55285e6dd",
+        "PARITY_PROVEN_HEAD_ADAPTER",
+        "src/qore/infrastructure/trader_lab/"
+        "cibo_phase18_gbpjpy_r37_geometry_replay.py",
         "src/qore/infrastructure/trader_lab/"
         "cibo_phase18_gbpjpy_r37_geometry_replay.py",
     ),
     FrozenFreshReplaySource(
         "R42_AUDJPY",
         "a332b077598e070a42b2497b3766d55e731f7dca",
+        "IMMUTABLE_SOURCE_PLUS_SERIALIZATION_PATCH",
+        "src/qore/infrastructure/trader_lab/"
+        "turtle_soup_audjpy_r40_frozen_r39_5y_validation.py",
         "src/qore/infrastructure/trader_lab/"
         "cibo_phase18_audjpy_r40_geometry_replay.py",
+        "scripts/cibo_phase18_audjpy_geometry_patch.py",
     ),
 )
 FROZEN_VT31_SOURCE_SHA = "cac38ed14f20e066536910145027426fd23f5939"
@@ -89,7 +128,10 @@ def validate_frozen_replay_source_manifest() -> None:
             raise CiboCapitalManagementError(
                 f"Phase22 frozen source SHA drift: {item.trader_id}"
             )
-        if not item.module_relative_path.endswith(".py"):
+        if (
+            not item.source_relative_path.endswith(".py")
+            or not item.parity_adapter_relative_path.endswith(".py")
+        ):
             raise CiboCapitalManagementError(
                 f"Phase22 frozen module path invalid: {item.trader_id}"
             )

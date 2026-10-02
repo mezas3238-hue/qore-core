@@ -194,7 +194,7 @@ def turtle_geometry_opportunity(
     stop = _decimal(row["structural_stop"], "structural_stop")
     target = _decimal(row["technical_target"], "technical_target")
     side = str(row["side"]).lower()
-    signal_fingerprint = reconstructed_signal_fingerprint(
+    signal_fingerprint = "sha256:" + reconstructed_signal_fingerprint(
         trader_id=lineage,
         qore_symbol=qore_symbol,
         side=side,

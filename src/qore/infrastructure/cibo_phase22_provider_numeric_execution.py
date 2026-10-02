@@ -202,7 +202,7 @@ def build_account_lineage_receipt(account_ref: str) -> Phase22ProviderAccountLin
         )
     legacy = hashlib.sha256(account_ref.encode("utf-8")).hexdigest()
     phase22 = hashlib.sha256(
-        f"ctrader-demo:{account_ref}".encode("utf-8")
+        f"ctrader-demo:{account_ref}".encode()
     ).hexdigest()
     return Phase22ProviderAccountLineageReceipt(
         provider_key="ctrader-demo",
