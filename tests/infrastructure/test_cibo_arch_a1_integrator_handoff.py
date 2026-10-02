@@ -17,6 +17,13 @@ from qore.infrastructure.cibo_arch_a1_integrator_handoff import (
 from qore.infrastructure.cibo_arch_a1_internal_readiness import (
     evaluate_architect_a1_internal_readiness,
 )
+from qore.infrastructure.cibo_arch_a1_scientific_closure import (
+    reconcile_architect_a1_scientific_dispositions,
+)
+from qore.infrastructure.cibo_arch_a_internal_readiness import (
+    PHASE22_V2_SCIENTIFIC_DISPOSITION_SCHEMA,
+    ArchitectAPhase22V2ScientificDispositionReceipt,
+)
 
 
 def _sha(label: str) -> str:
@@ -55,6 +62,44 @@ def _disposition(
     return build_a1_scientific_disposition(**kwargs)
 
 
+def _canonical_receipt(
+    workstream_id: str,
+    *,
+    falsified: bool = False,
+) -> ArchitectAPhase22V2ScientificDispositionReceipt:
+    return ArchitectAPhase22V2ScientificDispositionReceipt(
+        schema=PHASE22_V2_SCIENTIFIC_DISPOSITION_SCHEMA,
+        workstream_id=workstream_id,
+        phase22_manifest_sha256=_sha("canonical-phase22"),
+        source_gate_id=f"{workstream_id}_GATE_V1",
+        source_gate_evidence_sha256=_sha(f"canonical-{workstream_id}"),
+        source_gate_status="FAIL" if falsified else "PASS",
+        passed=not falsified,
+        recommended_disposition=(
+            "FALSIFIED_AND_CLOSED"
+            if falsified
+            else "COMPLETED_AND_PROVEN"
+        ),
+        blockers=("FROZEN_HYPOTHESIS_FAILED",) if falsified else (),
+        failed_dimensions=(),
+        owner_review_approved=False,
+    )
+
+
+def _canonical_closure(*, falsified_ids: tuple[str, ...] = ("T15",)):
+    receipts = tuple(
+        _canonical_receipt(
+            item,
+            falsified=item in set(falsified_ids),
+        )
+        for item in A1_WORKSTREAMS
+    )
+    return reconcile_architect_a1_scientific_dispositions(
+        phase22_manifest_sha256=_sha("canonical-phase22"),
+        receipts=receipts,
+    )
+
+
 def _package(
     *,
     head: str = "b" * 40,
@@ -84,6 +129,7 @@ def test_a1_integrator_handoff_accepts_exact_terminal_18_surface() -> None:
         a1_head_sha="b" * 40,
         readiness=readiness,
         package=package,
+        canonical_closure=_canonical_closure(),
     )
 
     assert receipt.terminal_count == 18
@@ -104,6 +150,7 @@ def test_a1_integrator_handoff_keeps_partial_science_blocked() -> None:
         a1_head_sha="b" * 40,
         readiness=readiness,
         package=package,
+        canonical_closure=_canonical_closure(),
     )
 
     assert receipt.ready_for_integrator is False
@@ -119,6 +166,7 @@ def test_a1_integrator_handoff_rejects_stale_package_head_by_blocker() -> None:
         a1_head_sha="b" * 40,
         readiness=readiness,
         package=package,
+        canonical_closure=_canonical_closure(),
     )
 
     assert receipt.ready_for_integrator is False
@@ -140,7 +188,24 @@ def test_a1_integrator_handoff_preserves_terminal_falsification() -> None:
         a1_head_sha="b" * 40,
         readiness=readiness,
         package=package,
+        canonical_closure=_canonical_closure(),
     )
 
     assert "T08" in receipt.falsified_ids
     assert receipt.ready_for_integrator is True
+
+
+def test_a1_integrator_handoff_blocks_canonical_partition_drift() -> None:
+    readiness = evaluate_architect_a1_internal_readiness(Path("."))
+    package = _package()
+
+    receipt = build_architect_a1_integrator_handoff(
+        a1_head_sha="b" * 40,
+        readiness=readiness,
+        package=package,
+        canonical_closure=_canonical_closure(falsified_ids=()),
+    )
+
+    assert receipt.ready_for_integrator is False
+    assert "A1_CANONICAL_CLOSURE_COMPLETED_PARTITION_DRIFT" in receipt.blockers
+    assert "A1_CANONICAL_CLOSURE_FALSIFIED_PARTITION_DRIFT" in receipt.blockers
