@@ -227,7 +227,8 @@ def build_phase22_one_shot_claim_receipt(
     guard = assess_phase22_one_shot_guard()
     if (
         guard.status is not Phase22OneShotGuardStatus.READY
-        or not guard.authorized_to_emit_first_fresh_outcome
+        or not guard.authorized_to_create_durable_claim
+        or guard.authorized_to_emit_first_fresh_outcome
         or guard.blockers
     ):
         raise CiboCapitalManagementError(
