@@ -121,8 +121,11 @@ def _intake() -> T02LifecycleTerminalIntake:
     return T02LifecycleTerminalIntake(
         provider_position_id=7001,
         provider_position_binding_ref="provider-binding:7001",
+        provider_position_binding_sha256=_sha("9"),
+        execution_risk_evidence_id="risk-1",
+        executed_risk_sha256=_sha("5"),
+        settlement_sha256=_sha("6"),
         lifecycle_evidence=evidence,
-        provider_position_binding_verified=True,
         inferred_from_pnl=False,
         inferred_from_price=False,
         productive_authority=False,
@@ -143,6 +146,7 @@ def test_t02_structural_binding_reconciles_all_three_planes() -> None:
         "provider-evidence-1"
     )
     assert bound.structural_outcome.execution_risk_evidence_id == "risk-1"
+    assert bound.provider_position_binding_sha256 == _sha("9")
     assert bound.structural_outcome.stopped_at_structural_stop is True
     assert bound.inferred_from_pnl is False
     assert bound.inferred_from_price is False
@@ -156,6 +160,36 @@ def test_t02_structural_binding_rejects_position_drift() -> None:
     with pytest.raises(
         CiboCapitalManagementError,
         match="provider/outcome position drift",
+    ):
+        bind_t02_structural_outcome(
+            manifest_row=_row(),
+            source_outcome=_outcome(),
+            terminal_intake=bad,
+        )
+
+
+def test_t02_structural_binding_rejects_executed_risk_digest_drift() -> None:
+    bad = _intake()
+    object.__setattr__(bad, "executed_risk_sha256", _sha("a"))
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="executed-risk SHA drift",
+    ):
+        bind_t02_structural_outcome(
+            manifest_row=_row(),
+            source_outcome=_outcome(),
+            terminal_intake=bad,
+        )
+
+
+def test_t02_structural_binding_rejects_settlement_digest_drift() -> None:
+    bad = _intake()
+    object.__setattr__(bad, "settlement_sha256", _sha("a"))
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="settlement SHA drift",
     ):
         bind_t02_structural_outcome(
             manifest_row=_row(),
