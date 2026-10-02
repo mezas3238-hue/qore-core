@@ -316,3 +316,26 @@ def test_genc14_science_fingerprint_binds_protected_holdout_identity() -> None:
     )
 
     assert first.fingerprint() != second.fingerprint()
+
+
+def test_genc14_science_fingerprint_binds_evidence_chronology() -> None:
+    record = start_genc14_science(
+        science_id="science-fingerprint-chronology",
+        hypothesis=_hypothesis(),
+    )
+    record = advance_genc14_science(
+        record,
+        evidence=_evidence(
+            kind=Genc14EvidenceKind.PREREGISTRATION,
+            minute=1,
+        ),
+        advanced_at=T0 + timedelta(minutes=2),
+    )
+    original = record.fingerprint()
+    shifted = replace(
+        record.evidence[0],
+        evaluated_at=T0 + timedelta(minutes=1, seconds=30),
+    )
+    variant = replace(record, evidence=(shifted,))
+
+    assert variant.fingerprint() != original
