@@ -28,6 +28,10 @@ from qore.infrastructure.cibo_ce2i_holdout_registry import (
 from qore.infrastructure.cibo_phase22_turtle_predecision_projection import (
     fresh_causal_active_ladder,
 )
+from scripts.cibo_phase22_turtle_window_replay import (
+    bind_replay_evaluation_window,
+    validate_source_report_window,
+)
 
 SOURCE_CODE_GIT_SHA = "324fb91d44a6fa328e66de2e22ace7386630c7aa"
 PARITY_OPEN = datetime(2021, 9, 17, tzinfo=UTC)
@@ -102,23 +106,31 @@ def run_window(
             raise ValueError(f"EURUSD exact replay module missing {name}")
     module = cast(_ExactReplayModule, raw_module)
 
-    module.EVAL_OPEN = opened_at
-    module.EVAL_CLOSE = closed_at
     causal_scope = (
         fresh_causal_active_ladder(raw_module)
         if mode == "FRESH"
         else nullcontext()
     )
-    with causal_scope:
-        result = module.run(
-            raw_root,
-            target_root,
-            cognitive_root,
-            freeze_root,
-            output_dir,
-        )
+    with bind_replay_evaluation_window(
+        raw_module,
+        start=opened_at,
+        end=closed_at,
+    ) as bound_eval_surfaces:
+        with causal_scope:
+            result = module.run(
+                raw_root,
+                target_root,
+                cognitive_root,
+                freeze_root,
+                output_dir,
+            )
     if not isinstance(result, dict):
         raise ValueError("EURUSD exact replay returned non-object report")
+    validate_source_report_window(
+        report=result,
+        start=opened_at,
+        end=closed_at,
+    )
 
     trades_path = output_dir / "phase18-eurusd-r38-geometry-trades.jsonl"
     report_path = output_dir / "phase18-eurusd-r38-geometry-report.json"
@@ -152,6 +164,8 @@ def run_window(
         "rows": len(rows),
         "geometry_sha256": _sha256(trades_path),
         "engine_report_sha256": _sha256(report_path),
+        "bound_eval_surfaces": list(bound_eval_surfaces),
+        "subordinate_setup_window_bound": "r3" in bound_eval_surfaces,
         "methodology_parameters_modified": False,
         "fresh_predecision_future_outcomes_masked": mode == "FRESH",
         "window_is_preregistered": True,
