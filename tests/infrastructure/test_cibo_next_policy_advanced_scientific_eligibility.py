@@ -26,6 +26,7 @@ from qore.infrastructure.cibo_next_policy_advanced_scientific_eligibility import
 )
 from qore.infrastructure.market_test_environment import MarketRuntimeEnvironment
 
+
 def _selection():
     account = CiboAccountCapitalIdentity(
         provider_key="ctrader-demo",
