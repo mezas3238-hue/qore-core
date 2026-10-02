@@ -187,7 +187,7 @@ def test_policy_identity_drift_fails_closed() -> None:
 def test_holdout_mismatch_fails_closed() -> None:
     with pytest.raises(
         CiboCapitalManagementError,
-        match="holdout identity drift",
+        match="versioned fresh holdout id",
     ):
         _evidence(
             "T02",
@@ -233,6 +233,34 @@ def test_not_ready_or_invalid_cannot_be_terminal(status: str) -> None:
     ):
         _evidence("T02", status=status)
 
+
+
+def test_package_accepts_one_successor_holdout_and_rejects_cross_holdout_mix() -> None:
+    manifest = _sha("phase22-successor-manifest")
+    successor = "CIBO_USD60_6M_HOLDOUT_2013-10-19_2014-04-19_V6"
+    evidence = tuple(
+        _evidence(workstream_id, manifest=manifest, holdout_id=successor)
+        for workstream_id in SCIENTIFIC_CLOSURE_41_IDS
+    )
+    package = build_scientific_closure_41_package(
+        phase22_manifest_sha256=manifest,
+        evidence=evidence,
+    )
+    assert package.holdout_id == successor
+
+    mixed = (*evidence[:-1], _evidence(
+        SCIENTIFIC_CLOSURE_41_IDS[-1],
+        manifest=manifest,
+        holdout_id=CANONICAL_HOLDOUT_ID,
+    ))
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="multiple fresh holdouts",
+    ):
+        build_scientific_closure_41_package(
+            phase22_manifest_sha256=manifest,
+            evidence=mixed,
+        )
 
 def test_package_accepts_terminal_falsification_without_rescue() -> None:
     package = _package(fail_id="GEN-C12")
