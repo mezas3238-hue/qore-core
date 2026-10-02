@@ -13,8 +13,8 @@ def test_integrator_intake_covers_only_current_eight_front_scope() -> None:
         ARCHITECT2_ACTIVE_OWNERSHIP
     )
     assert receipt.scope_count == 8
-    assert receipt.terminal_recommendation_count == 4
-    assert receipt.nonterminal_count == 4
+    assert receipt.terminal_recommendation_count == 5
+    assert receipt.nonterminal_count == 3
     assert receipt.external_dependency_count == 2
     assert receipt.integrator_receipt_dependency_count == 1
 
