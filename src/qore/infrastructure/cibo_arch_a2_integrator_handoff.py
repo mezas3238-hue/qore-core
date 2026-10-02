@@ -7,6 +7,15 @@ import json
 import re
 from dataclasses import asdict, dataclass
 
+from qore.infrastructure.cibo_a2_internal_capital_market_phase22_receipt import (
+    RECEIPT_ID as INTERNAL_CAPITAL_MARKET_DELIVERY_ID,
+)
+from qore.infrastructure.cibo_a2_phase22_historical_compound import (
+    A1_CONSUMER_CONTRACT_ID as HISTORICAL_COMPOUND_CONTRACT_ID,
+)
+from qore.infrastructure.cibo_a2_phase22_historical_compound import (
+    ADAPTER_ID as HISTORICAL_COMPOUND_ADAPTER_ID,
+)
 from qore.infrastructure.cibo_arch_a2_internal_readiness import (
     ArchitectA2InternalReadinessReport,
 )
@@ -180,15 +189,6 @@ def build_architect_a2_integrator_handoff(
         ready_for_integrator=not blockers,
     )
 
-HISTORICAL_COMPOUND_CONTRACT_ID = (
-    "CIBO_A1_PHASE22_HISTORICAL_COMPOUND_LINEAGE_DEPENDENCY_V1"
-)
-HISTORICAL_COMPOUND_ADAPTER_ID = (
-    "CIBO_A2_PHASE22_HISTORICAL_COMPOUND_REPLAY_ADAPTER_V1"
-)
-INTERNAL_CAPITAL_MARKET_DELIVERY_ID = (
-    "CIBO_A2_INTERNAL_CAPITAL_MARKET_CROSSLANE_DELIVERY_V1"
-)
 CAPITAL_SCIENCE_ENGINEERING_CLOSURE_SCHEMA = (
     "QORE_CIBO_ARCH_A2_CAPITAL_SCIENCE_ENGINEERING_CLOSURE_V1"
 )
