@@ -135,10 +135,28 @@ def _ledger() -> dict:
     }
 
 
-def _strict_artifact() -> str:
+def _ledger_sha256(payload: dict) -> str:
+    import hashlib
+
+    raw = json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+    ).encode("utf-8")
+    return "sha256:" + hashlib.sha256(raw).hexdigest()
+
+
+def _strict_artifact(
+    *,
+    closed_ledger: dict,
+    closure_head_sha: str = "c" * 40,
+) -> str:
     payload = {
         "schema": "QORE_CIBO_ZERO_OPEN_WORK_GATE_V1",
         "scope": "STRICT",
+        "evidence_head_sha": closure_head_sha,
+        "ledger_sha256": _ledger_sha256(closed_ledger),
         "pass": True,
         "mandatory_workstream_count": 64,
         "terminal_workstream_count": 64,
@@ -212,12 +230,65 @@ def test_certification_seal_requires_strict_zero_open_pass() -> None:
         world_cup_package=world_package,
         world_cup_report=world_report,
     )
-    strict = json.loads(_strict_artifact())
+    strict = json.loads(_strict_artifact(closed_ledger=closed))
     strict["pass"] = False
     bad = json.dumps(strict, indent=2, sort_keys=True) + "\n"
     with pytest.raises(
         CiboCapitalManagementError,
         match="STRICT field mismatch: pass",
+    ):
+        build_cibo_certification_seal(
+            transition=transition,
+            closed_ledger=closed,
+            strict_zero_open_artifact_json=bad,
+            closure_head_sha="c" * 40,
+            phase22_receipt=phase22,
+            certified_at=phase22.qualified_at + timedelta(days=1),
+        )
+
+
+def test_certification_seal_rejects_strict_head_drift() -> None:
+    phase22, final_package, final_report, world_package, world_report = _exam_chain()
+    closed, transition = build_certification_closure_ledger(
+        pre_ledger=_ledger(),
+        final_package=final_package,
+        final_report=final_report,
+        world_cup_package=world_package,
+        world_cup_report=world_report,
+    )
+    strict = _strict_artifact(
+        closed_ledger=closed,
+        closure_head_sha="d" * 40,
+    )
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="STRICT/closure HEAD drift",
+    ):
+        build_cibo_certification_seal(
+            transition=transition,
+            closed_ledger=closed,
+            strict_zero_open_artifact_json=strict,
+            closure_head_sha="c" * 40,
+            phase22_receipt=phase22,
+            certified_at=phase22.qualified_at + timedelta(days=1),
+        )
+
+
+def test_certification_seal_rejects_strict_ledger_drift() -> None:
+    phase22, final_package, final_report, world_package, world_report = _exam_chain()
+    closed, transition = build_certification_closure_ledger(
+        pre_ledger=_ledger(),
+        final_package=final_package,
+        final_report=final_report,
+        world_cup_package=world_package,
+        world_cup_report=world_report,
+    )
+    strict = json.loads(_strict_artifact(closed_ledger=closed))
+    strict["ledger_sha256"] = "sha256:" + "9" * 64
+    bad = json.dumps(strict, indent=2, sort_keys=True) + "\n"
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="STRICT/ledger digest drift",
     ):
         build_cibo_certification_seal(
             transition=transition,
@@ -241,7 +312,7 @@ def test_certification_seal_certifies_science_but_grants_no_operations() -> None
     seal = build_cibo_certification_seal(
         transition=transition,
         closed_ledger=closed,
-        strict_zero_open_artifact_json=_strict_artifact(),
+        strict_zero_open_artifact_json=_strict_artifact(closed_ledger=closed),
         closure_head_sha="c" * 40,
         phase22_receipt=phase22,
         certified_at=phase22.qualified_at + timedelta(days=1),
@@ -297,7 +368,7 @@ def test_candidate_cannot_promote_before_certification_seal() -> None:
     seal = build_cibo_certification_seal(
         transition=transition,
         closed_ledger=closed,
-        strict_zero_open_artifact_json=_strict_artifact(),
+        strict_zero_open_artifact_json=_strict_artifact(closed_ledger=closed),
         closure_head_sha="c" * 40,
         phase22_receipt=phase22,
         certified_at=phase22.qualified_at + timedelta(days=1),
@@ -388,7 +459,7 @@ def test_certification_seal_rejects_invalid_holdout_identity_shape() -> None:
     seal = build_cibo_certification_seal(
         transition=transition,
         closed_ledger=closed,
-        strict_zero_open_artifact_json=_strict_artifact(),
+        strict_zero_open_artifact_json=_strict_artifact(closed_ledger=closed),
         closure_head_sha="c" * 40,
         phase22_receipt=phase22,
         certified_at=phase22.qualified_at + timedelta(days=1),
