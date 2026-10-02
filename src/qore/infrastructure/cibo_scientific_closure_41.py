@@ -715,6 +715,21 @@ def apply_scientific_closure_41_to_ledger_copy(
         for row in _mandatory_rows(updated)
         if not row.get("terminal_disposition")
     )
+    terminal_count = sum(
+        row.get("terminal_disposition") is not None
+        for row in _mandatory_rows(updated)
+    )
+    if terminal_count != 62 or open_exam_ids != FINAL_EXAM_IDS:
+        raise CiboCapitalManagementError(
+            "Scientific closure 41 post-transition topology drift"
+        )
+    updated["current_summary"] = {
+        "mandatory_count": 64,
+        "terminal_count": 62,
+        "open_count": 2,
+        "zero_open_work_pass": False,
+        "final_certification_candidate": False,
+    }
 
     receipt = ScientificClosure41TransitionReceipt(
         schema=TRANSITION_SCHEMA,
