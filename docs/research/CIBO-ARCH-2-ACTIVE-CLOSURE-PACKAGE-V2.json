@@ -19,7 +19,11 @@
     "vps_touched": false,
     "fundednext_live_touched": false,
     "real_capital_used": false,
-    "productive_authority": false
+    "productive_authority": false,
+    "active_scope_v2_enforced": true,
+    "legacy_43_frontier_superseded_for_new_work": true,
+    "out_of_scope_a1_a2_surfaces_removed": true,
+    "integrator_intake_receipt": "src/qore/infrastructure/cibo_arch2_integrator_intake_receipt.py"
   },
   "fronts": [
     {
@@ -49,14 +53,29 @@
         "REAL_EXECUTION_POPULATION_REQUIRED",
         "EMPIRICAL_SLIPPAGE_CALIBRATION_REQUIRED"
       ],
-      "remaining_requirement": "AUTHORIZED_FORWARD_MANIFEST_FOR_GROSS_EDGE_PLUS_FROZEN_144_EPISODE_216_CHILD_MARKET_IMPACT_RUN_36945327912_IN_PROGRESS",
+      "remaining_requirement": "AUTHORIZED_FORWARD_MANIFEST_FOR_GROSS_EDGE_PLUS_CANONICAL_TECHNICAL_REPLACEMENT_MARKET_IMPACT_RUN_36946792349_IN_PROGRESS",
       "evidence": [
         "docs/research/CIBO-ARCH-2-INTEGRATOR-PATCH-REQUEST-001.md",
+        "docs/research/CIBO-ARCH-2-INTEGRATOR-PATCH-REQUEST-008-T11-RUNNER-CONTRACT.md",
         "src/qore/infrastructure/cibo_arch2_t11_nonlinear_input_freeze.py",
+        "src/qore/infrastructure/cibo_arch2_t11_experiment_plan.py",
+        "src/qore/infrastructure/cibo_arch2_t11_execution_claim.py",
         "src/qore/infrastructure/cibo_arch2_t11_runner_readiness.py",
         "src/qore/infrastructure/cibo_arch2_t11_market_impact_terminal_receipt.py",
-        "github-actions://36945327912/IN_PROGRESS"
-      ]
+        "src/qore/infrastructure/cibo_arch2_t11_terminalization.py",
+        "github-actions://36945327912/CANCELLED_ZERO_TERMINAL_ARTIFACTS",
+        "github-actions://36946792349/IN_PROGRESS"
+      ],
+      "execution_lineage": {
+        "initial_run_id": 36945327912,
+        "initial_run_state": "CANCELLED_ZERO_TERMINAL_ARTIFACTS",
+        "initial_head_sha": "f239059c34897d395bf5503bea522c1795192bec",
+        "replacement_reason": "NON_OUTCOME_AWARE_WORKFLOW_CONTRACT_BINDING_WITH_ZERO_TERMINAL_ARTIFACTS",
+        "canonical_run_id": 36946792349,
+        "canonical_run_state": "IN_PROGRESS",
+        "canonical_head_sha": "c23483e9bb333b856c6a996bc9f6bde6a5ee6df3",
+        "further_silent_rerun_allowed": false
+      }
     },
     {
       "workstream_id": "T16",
@@ -114,6 +133,16 @@
       "T16": "FALSIFIED_AND_CLOSED",
       "PROVIDER_ECONOMICS": "SUPERSEDED_WITH_PROVEN_LINEAGE",
       "FORWARD_QUALIFICATION": "SUPERSEDED_WITH_PROVEN_LINEAGE"
-    }
+    },
+    "integrator_intake_receipt": "src/qore/infrastructure/cibo_arch2_integrator_intake_receipt.py",
+    "scope_count": 8,
+    "external_dependency_fronts": [
+      "T02",
+      "T20",
+      "FRESH_OOS"
+    ],
+    "empirical_fronts_in_progress": [
+      "T11"
+    ]
   }
 }
