@@ -539,6 +539,27 @@ as FALSIFIED, NO_VALUE, INSUFFICIENT, TOO_FRAGILE, TOO_EXPENSIVE,
 NO_PROVIDER_ADVANTAGE, NO_MARGINAL_BENEFIT or
 BLOCKED_EXTERNAL_DEPENDENCY:<reason>.
 
+## Integrator certification-sequence reconciliation — 30-SEP-2026
+
+The current 64-mandatory-workstream law supersedes older wording that described
+the World Cup exam as post-certification. In the integrated certification
+topology, the Final Integrated CIBO Exam is an exam stage, not the final
+certification act.
+
+Canonical order:
+
+```text
+PRE_EXAM closure of all non-exam mandatory work
+→ FINAL_INTEGRATED_CIBO_EXAM
+→ WORLD_CUP_MAXIMUM_CAPABILITY_EXAM
+→ STRICT ZERO-OPEN
+→ FINAL CERTIFICATION CANDIDATE
+```
+
+Therefore World Cup remains mandatory and certification-blocking. This
+reconciliation changes sequencing only; it does not turn the +2,000% aspiration
+into a tuning objective and grants no LIVE, merge or productive authority.
+
 ## Updated engineering order
 
 The earlier "GEN-C1 next" sequence above is retained as historical provenance.
@@ -562,8 +583,9 @@ The active order is now:
 14. Build ablation, chronological replay, path-dependent Monte Carlo, stress
     and temporal replication.
 15. Preserve the final holdout until all prerequisite mechanisms are frozen.
-16. Certify ordinary CIBO first.
-17. Execute the separate World Cup Maximum-Capability Exam afterward.
+16. Execute the Final Integrated CIBO Exam after PRE_EXAM readiness.
+17. Execute the mandatory separate World Cup Maximum-Capability Exam after the Final Integrated Exam.
+18. Only after both mandatory exams are terminal may STRICT zero-open pass and CIBO become a final certification candidate.
 
 The +2,000% World Cup aspiration is an experimental North Star only. It must
 never become a tuning target or excuse for proportional risk expansion.

@@ -1,0 +1,39 @@
+name: QORE CIBO Phase22 Sealed Execution Inputs
+
+on:
+  push:
+    branches:
+      - agent/cibo-integrator-ab-001
+    paths:
+      - '.github/workflows/cibo-phase22-sealed-execution-inputs.yml'
+      - 'src/qore/infrastructure/cibo_phase22_execution_inputs.py'
+      - 'src/qore/infrastructure/cibo_phase22_fresh_capital_projection.py'
+      - 'src/qore/infrastructure/cibo_phase22_provider_numeric_execution.py'
+      - 'tests/infrastructure/test_cibo_phase22_execution_inputs.py'
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-phase22-sealed-execution-inputs.yml'
+      - 'src/qore/infrastructure/cibo_phase22_execution_inputs.py'
+      - 'tests/infrastructure/test_cibo_phase22_execution_inputs.py'
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Rehydrate and re-fingerprint sealed execution inputs
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_phase22_execution_inputs.py \
+            tests/infrastructure/test_cibo_phase22_execution_inputs.py
+          mypy src/qore/infrastructure/cibo_phase22_execution_inputs.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_phase22_execution_inputs.py

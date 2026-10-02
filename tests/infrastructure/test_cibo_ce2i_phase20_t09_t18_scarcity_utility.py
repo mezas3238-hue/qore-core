@@ -1,8 +1,14 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
+import pytest
+
+from qore.infrastructure.cibo_capital_management_authority import (
+    CiboCapitalManagementError,
+)
 from qore.infrastructure.cibo_ce2i_phase20_qualification import (
     Phase20QualificationRow,
 )
@@ -155,3 +161,19 @@ def test_scarcity_utility_does_not_score_unready_population() -> None:
         "T09_SCARCITY_CANDIDATE_OUTCOME_COVERAGE_NOT_MET"
         in report.t09.blockers
     )
+
+
+def test_scarcity_scope_rejects_noncanonical_fold_count() -> None:
+    report = assess_phase20_t09_t18_scarcity_utility(
+        qualification_rows=_rows(),
+        scarcity_readiness=_readiness(),
+    )
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="report requires frozen fold count",
+    ):
+        replace(
+            report.t09,
+            fold_policy_net_delta_usd=(Decimal("1"), Decimal("1")),
+        )

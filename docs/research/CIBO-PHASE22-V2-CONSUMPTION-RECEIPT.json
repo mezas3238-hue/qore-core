@@ -1,0 +1,11 @@
+{
+  "candidate_id": "CIBO_USD60_6M_HOLDOUT_2015-10-19_2016-04-19_V2",
+  "claim_committed": true,
+  "claim_head_sha": "61529c0dd512e1751d6e7392c964866654e85825",
+  "claim_run_attempt": 1,
+  "claim_run_id": 37007253157,
+  "execution_manifest_sha256": "sha256:ea1442b597d12f5ba8a45fcef38e5627e13a4c0af711ab5ff5f2a656a31ad655",
+  "outcome_bundle_sha256": "sha256:15e3543b3569c4f9b674ccce0c8bf6de41e872cdfb4ecff3620617e6e73f7146",
+  "outcomes_emitted": true,
+  "schema": "qore.cibo.phase22.execution-consumption-receipt.v1"
+}

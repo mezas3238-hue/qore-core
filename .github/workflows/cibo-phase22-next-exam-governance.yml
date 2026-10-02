@@ -1,0 +1,66 @@
+name: QORE CIBO Phase22 Next Exam Governance
+
+on:
+  push:
+    branches:
+      - agent/cibo-phase22-next-exam-governance-001
+      - agent/cibo-integrator-ab-001
+      - agent/cibo-next-policy-sovereign-integration-001
+    paths:
+      - 'src/qore/infrastructure/cibo_phase22_next_exam_governance.py'
+      - 'tests/infrastructure/test_cibo_phase22_next_exam_governance.py'
+      - 'docs/research/CIBO-PHASE22-NEXT-EXAM-GOVERNANCE-V1.json'
+      - '.github/workflows/cibo-phase22-next-exam-governance.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  governance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Static quality
+        run: |
+          python -m ruff check \
+            src/qore/infrastructure/cibo_phase22_next_exam_governance.py \
+            tests/infrastructure/test_cibo_phase22_next_exam_governance.py
+      - name: Prove deterministic candidate and fail-closed readiness
+        run: |
+          python -m pytest -q \
+            tests/infrastructure/test_cibo_phase22_next_exam_governance.py \
+            tests/infrastructure/test_cibo_ce2i_holdout_registry.py
+      - name: Require Owner authorization as sole blocker
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(
+              Path(
+                  "docs/research/CIBO-PHASE22-NEXT-EXAM-GOVERNANCE-V1.json"
+              ).read_text(encoding="utf-8")
+          )
+          assert payload["status"] == "AWAITING_OWNER_ONE_SHOT_AUTHORIZATION"
+          assert payload["consumed_v2"]["second_fresh_execution_authorized"] is False
+          assert payload["provisional_next_candidate"]["status"] == "ELIGIBLE_FROZEN"
+          assert payload["provisional_next_candidate"]["source_validation_complete"] is True
+          assert payload["provisional_next_candidate"]["execution_authorized"] is False
+          assert payload["blockers"] == [
+              "NEW_ONE_SHOT_OWNER_AUTHORIZATION_REQUIRED"
+          ]
+          for key in (
+              "broker_mutation_authorized",
+              "live_authorized",
+              "real_capital_authorized",
+              "production_authorized",
+              "merge_authorized",
+              "productive_authority",
+          ):
+              assert payload["governance"][key] is False
+          PY

@@ -1,0 +1,511 @@
+name: QORE CIBO Reused Holdout Infrastructure Capability Exam
+
+on:
+  workflow_dispatch:
+    inputs:
+      owner_authorized:
+        description: 'Explicit Owner authorization to launch the capability exam'
+        required: true
+        type: boolean
+        default: false
+  push:
+    branches:
+      - agent/cibo-integrator-ab-001
+    paths:
+      - 'docs/research/CIBO-INFRASTRUCTURE-CAPABILITY-EXAM-TRIGGER.json'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-cibo-reused-holdout-capability-exam
+  cancel-in-progress: false
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  preflight:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify explicit Owner launch authorization
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            test "${{ inputs.owner_authorized }}" = "true"
+          else
+            python -c 'import json; from pathlib import Path; p=json.loads(Path("docs/research/CIBO-INFRASTRUCTURE-CAPABILITY-EXAM-TRIGGER.json").read_text(encoding="utf-8")); assert p["launch_authorized_by_owner"] is True'
+          fi
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Verify exam readiness freeze
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p = json.loads(
+              Path(
+                  "docs/research/"
+                  "CIBO-USD60-CAPABILITY-EXAM-REPORTING-COMPOUND-FREEZE-V1.json"
+              ).read_text(encoding="utf-8")
+          )
+          assert p["schema"] == (
+              "qore.cibo.usd60-capability-exam-reporting-compound-freeze.v1"
+          )
+          readiness = p["readiness"]
+          assert readiness["turtle_temporal_alignment_ready"] is True
+          assert readiness["trader_column_reporting_ready"] is True
+          assert readiness["compound_portfolio_lane_ready"] is True
+          assert readiness["launch_ready"] is True
+          PY
+      - name: Verify reused-holdout Owner directive
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = json.loads(
+              Path(
+                  "docs/research/"
+                  "CIBO-INFRASTRUCTURE-CAPABILITY-EXAM-TRIGGER.json"
+              ).read_text(encoding="utf-8")
+          )
+          assert p["schema"] == "qore.cibo.infrastructure-capability-trigger.v1"
+          assert p["candidate_id"] == (
+              "CIBO_USD60_6M_HOLDOUT_2014-10-19_2015-04-19_V4"
+          )
+          assert p["validation_mode"] == "NON_CERTIFYING_REUSED_HOLDOUT"
+          assert p["reused_holdout_authorized"] is True
+          assert p["scientific_freshness_claimed"] is False
+          assert p["fresh_oos_generalization_claimed"] is False
+          assert p["broker_mutation_authorized"] is False
+          assert p["live_authorized"] is False
+          assert p["real_capital_authorized"] is False
+          assert p["production_authorized"] is False
+          assert p["merge_authorized"] is False
+          PY
+      - name: Static quality and non-mutation proof
+        run: |
+          python -m ruff check             src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py             scripts/cibo_capability_exam_column_report.py             scripts/cibo_phase22_v4_turtle_window_replay.py             src/qore/infrastructure/cibo_reused_holdout_capability_exam.py             src/qore/infrastructure/cibo_usd60_dual_objective_exam.py             src/qore/infrastructure/cibo_usd60_capability_certification.py             src/qore/infrastructure/cibo_capability_exam_cognitive_coverage.py             src/qore/infrastructure/cibo_ce2i_t11_runtime_guard.py             src/qore/infrastructure/cibo_phase22_fresh_capital_projection.py             src/qore/infrastructure/cibo_phase22_historical_replay_settlement.py             scripts/cibo_phase22_reused_holdout_batch_assembler.py             scripts/cibo_reused_holdout_capability_exam.py             tests/infrastructure/test_cibo_reused_holdout_capability_exam.py             tests/infrastructure/test_cibo_usd60_dual_objective_exam.py             tests/infrastructure/test_cibo_usd60_capability_certification.py             tests/infrastructure/test_cibo_phase22_fresh_capital_projection.py
+          python -m pytest -q --no-cov             tests/infrastructure/test_cibo_reused_holdout_capability_exam.py             tests/infrastructure/test_cibo_usd60_dual_objective_exam.py             tests/infrastructure/test_cibo_phase22_fresh_capital_projection.py
+          python - <<'PY'
+          from pathlib import Path
+          paths = (
+              Path("src/qore/infrastructure/cibo_reused_holdout_capability_exam.py"),
+              Path("scripts/cibo_phase22_reused_holdout_batch_assembler.py"),
+              Path("scripts/cibo_reused_holdout_capability_exam.py"),
+          )
+          forbidden = (
+              "ProtoOANewOrderReq",
+              "ProtoOAClosePositionReq",
+              "ProtoOACancelOrderReq",
+              "ProtoOAAmendOrderReq",
+              "ProtoOAAmendPositionSLTPReq",
+          )
+          for path in paths:
+              source = path.read_text(encoding="utf-8")
+              for token in forbidden:
+                  assert token not in source, (path, token)
+          PY
+      - name: Verify immutable source/provider artifacts exist
+        run: |
+          set -euo pipefail
+          python - <<'PY' > "$RUNNER_TEMP/artifacts.tsv"
+          from pathlib import Path
+          from qore.infrastructure.cibo_phase22_v4_source_receipt import (
+              load_phase22_v4_source_receipt,
+          )
+          from qore.infrastructure.cibo_phase22_provider_numeric_execution_receipt import (
+              PHASE22_PROVIDER_NUMERIC_EXECUTION_FREEZE_RECEIPT,
+          )
+          from qore.infrastructure.cibo_phase22_turtle_auxiliary_manifest import (
+              PHASE22_TURTLE_AUXILIARY_ARTIFACTS,
+          )
+          receipt = load_phase22_v4_source_receipt(
+              Path("docs/research/CIBO-PHASE22-V4-SOURCE-RECEIPT.json")
+          )
+          for item in receipt.bindings:
+              print(item.artifact_id, item.artifact_digest, sep="\t")
+          for item in PHASE22_TURTLE_AUXILIARY_ARTIFACTS:
+              print(item.artifact_id, item.artifact_digest, sep="\t")
+          x = PHASE22_PROVIDER_NUMERIC_EXECUTION_FREEZE_RECEIPT
+          print(x.artifact_id, x.artifact_digest, sep="\t")
+          PY
+          while IFS=$'\t' read -r artifact_id digest; do
+            payload="$(gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id")"
+            test "$(jq -r '.expired' <<<"$payload")" = "false"
+            test "$(jq -r '.digest' <<<"$payload")" = "$digest"
+          done < "$RUNNER_TEMP/artifacts.tsv"
+
+  vt08:
+    needs: preflight
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Execute reused VT08 lane
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/sources" "$RUNNER_TEMP/vt08-lane"
+          python - <<'PY' > "$RUNNER_TEMP/vt08-sources.tsv"
+          from pathlib import Path
+          from qore.infrastructure.cibo_phase22_v4_source_receipt import (
+              load_phase22_v4_source_receipt,
+          )
+          from qore.infrastructure.traders.vt08_b01_r3_8 import (
+              AUTHORIZED_FOREX_MARKETS,
+          )
+          receipt = load_phase22_v4_source_receipt(
+              Path("docs/research/CIBO-PHASE22-V4-SOURCE-RECEIPT.json")
+          )
+          by_key = {(x.symbol, x.timeframe): x for x in receipt.bindings}
+          for symbol in AUTHORIZED_FOREX_MARKETS:
+              x = by_key[(symbol, "M5")]
+              print(symbol, x.artifact_id, x.artifact_digest, sep="\t")
+          PY
+          args=()
+          while IFS=$'\t' read -r symbol artifact_id digest; do
+            zip="$RUNNER_TEMP/source-$symbol-M5.zip"
+            root="$RUNNER_TEMP/sources/$symbol-M5"
+            gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" > "$zip"
+            echo "$(cut -d: -f2 <<<"$digest")  $zip" | sha256sum -c -
+            mkdir -p "$root"
+            unzip -q "$zip" -d "$root"
+            args+=(--source "$symbol=$root")
+          done < "$RUNNER_TEMP/vt08-sources.tsv"
+          python -m qore.infrastructure.cibo_phase22_v4_vt08_fresh_runner             "${args[@]}"             --output "$RUNNER_TEMP/vt08-lane/vt08.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cibo-capability-v4-lane-VT08_FOREX-${{ github.run_id }}
+          path: ${{ runner.temp }}/vt08-lane
+          if-no-files-found: error
+          retention-days: 90
+
+  turtle:
+    needs: preflight
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {trader_id: R34_XAUUSD, symbol: XAUUSD}
+          - {trader_id: R38_EURUSD, symbol: EURUSD}
+          - {trader_id: R43_GBPUSD, symbol: GBPUSD}
+          - {trader_id: R38_GBPJPY, symbol: GBPJPY}
+          - {trader_id: R42_AUDJPY, symbol: AUDJPY}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Materialize exact frozen replay module
+        shell: bash
+        env:
+          TRADER_ID: ${{ matrix.trader_id }}
+        run: |
+          set -euo pipefail
+          python - "$TRADER_ID" <<'PY' > "$RUNNER_TEMP/replay.env"
+          import shlex
+          import sys
+          from qore.infrastructure.cibo_phase22_one_shot_source_preflight import (
+              FROZEN_TURTLE_REPLAY_SOURCES,
+          )
+          item = next(
+              x for x in FROZEN_TURTLE_REPLAY_SOURCES
+              if x.trader_id == sys.argv[1]
+          )
+          for key, value in {
+              "SOURCE_SHA": item.methodology_git_sha,
+              "SOURCE_MODE": item.source_mode,
+              "SOURCE_PATH": item.source_relative_path,
+              "ADAPTER_PATH": item.parity_adapter_relative_path,
+              "GEOMETRY_PATCH": item.geometry_patch_script or "-",
+          }.items():
+              print(f"{key}={shlex.quote(value)}")
+          PY
+          source "$RUNNER_TEMP/replay.env"
+          base="$RUNNER_TEMP/geometry-base.py"
+          if [ "$SOURCE_MODE" = "IMMUTABLE_SOURCE_PLUS_SERIALIZATION_PATCH" ]; then
+            frozen="$RUNNER_TEMP/frozen-$TRADER_ID"
+            git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
+            git worktree add --detach "$frozen" "$SOURCE_SHA"
+            test "$(git -C "$frozen" rev-parse HEAD)" = "$SOURCE_SHA"
+            python "$GEOMETRY_PATCH" "$frozen/$SOURCE_PATH" "$base"
+          else
+            test "$SOURCE_MODE" = "PARITY_PROVEN_HEAD_ADAPTER"
+            cp "$ADAPTER_PATH" "$base"
+          fi
+          python scripts/cibo_phase22_turtle_fresh_corpus_patch.py             --trader "$TRADER_ID"             --source "$base"             --output "$RUNNER_TEMP/replay-geometry.py"             --report "$RUNNER_TEMP/replay-corpus-patch.json"
+          python -m py_compile "$RUNNER_TEMP/replay-geometry.py"
+      - name: Download exact reused source and auxiliaries
+        shell: bash
+        env:
+          SYMBOL: ${{ matrix.symbol }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/source" "$RUNNER_TEMP/aux"
+          python - "$SYMBOL" <<'PY' > "$RUNNER_TEMP/source.tsv"
+          import sys
+          from pathlib import Path
+          from qore.infrastructure.cibo_phase22_v4_source_receipt import (
+              load_phase22_v4_source_receipt,
+          )
+          receipt = load_phase22_v4_source_receipt(
+              Path("docs/research/CIBO-PHASE22-V4-SOURCE-RECEIPT.json")
+          )
+          x = next(
+              row for row in receipt.bindings
+              if row.symbol == sys.argv[1] and row.timeframe == "M5"
+          )
+          print(x.artifact_id, x.artifact_digest, sep="\t")
+          PY
+          IFS=$'\t' read -r source_id source_digest < "$RUNNER_TEMP/source.tsv"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$source_id/zip" > "$RUNNER_TEMP/source.zip"
+          echo "$(cut -d: -f2 <<<"$source_digest")  $RUNNER_TEMP/source.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/source.zip" -d "$RUNNER_TEMP/source"
+          python - "$SYMBOL" <<'PY' > "$RUNNER_TEMP/aux.tsv"
+          import sys
+          from qore.infrastructure.cibo_phase22_turtle_auxiliary_manifest import (
+              PHASE22_TURTLE_AUXILIARY_ARTIFACTS,
+          )
+          for x in PHASE22_TURTLE_AUXILIARY_ARTIFACTS:
+              if x.symbol == sys.argv[1]:
+                  print(x.role, x.artifact_id, x.artifact_digest, sep="\t")
+          PY
+          while IFS=$'\t' read -r role artifact_id digest; do
+            zip="$RUNNER_TEMP/aux-$role.zip"
+            root="$RUNNER_TEMP/aux/$role"
+            gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" > "$zip"
+            echo "$(cut -d: -f2 <<<"$digest")  $zip" | sha256sum -c -
+            mkdir -p "$root"
+            unzip -q "$zip" -d "$root"
+          done < "$RUNNER_TEMP/aux.tsv"
+      - name: Rebuild same-window Journey and Target Destination
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/journey-v4" "$RUNNER_TEMP/target-v4"
+          python -m qore.infrastructure.trader_lab.cibo_market_atlas_journey_extractor_v1 symbol "$RUNNER_TEMP/source" "$RUNNER_TEMP/journey-v4"
+          python -m qore.infrastructure.trader_lab.cibo_market_atlas_target_destination_v2 "$RUNNER_TEMP/source" "$RUNNER_TEMP/journey-v4" "$RUNNER_TEMP/target-v4"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path(os.environ["RUNNER_TEMP"])
+          journey = json.loads(
+              (root / "journey-v4" / "journey-manifest.json").read_text()
+          )
+          target = json.loads(
+              (
+                  root
+                  / "target-v4"
+                  / "target-destination-v2-manifest.json"
+              ).read_text()
+          )
+          assert journey["earliest_observed_m5"].startswith("2014-")
+          assert journey["latest_observed_m5"].startswith("2015-")
+          assert int(target["episode_rows"]) > 0
+          assert int(target["candidate_rows"]) > 0
+          PY
+      - name: Execute reused Turtle lane
+        shell: bash
+        env:
+          TRADER_ID: ${{ matrix.trader_id }}
+        run: |
+          set -euo pipefail
+          lane="$RUNNER_TEMP/turtle-lane"
+          mkdir -p "$lane"
+          python scripts/cibo_phase22_v4_turtle_window_replay.py             --trader-id "$TRADER_ID"             --module-path "$RUNNER_TEMP/replay-geometry.py"             --raw-root "$RUNNER_TEMP/source"             --target-root "$RUNNER_TEMP/target-v4"             --cognitive-root "$RUNNER_TEMP/aux/COGNITIVE"             --freeze-root "$RUNNER_TEMP/aux/FREEZE"             --output "$lane"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cibo-capability-v4-lane-${{ matrix.trader_id }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/turtle-lane
+          if-no-files-found: error
+          retention-days: 90
+
+  vt31:
+    needs: preflight
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Materialize frozen VT31 methodology
+        shell: bash
+        run: |
+          set -euo pipefail
+          vt31_sha="$(python - <<'PY'
+          from qore.infrastructure.cibo_phase22_one_shot_source_preflight import (
+              FROZEN_VT31_SOURCE_SHA,
+          )
+          print(FROZEN_VT31_SOURCE_SHA)
+          PY
+          )"
+          frozen="$RUNNER_TEMP/vt31-frozen"
+          git fetch --no-tags --depth=1 origin "$vt31_sha"
+          git worktree add --detach "$frozen" "$vt31_sha"
+          test "$(git -C "$frozen" rev-parse HEAD)" = "$vt31_sha"
+          python scripts/cibo_phase22_v4_vt31_fresh_runner.py             --frozen-root "$frozen" --self-check             > "$RUNNER_TEMP/vt31-self-check.json"
+      - name: Execute reused VT31 lane
+        shell: bash
+        run: |
+          set -euo pipefail
+          read -r artifact_id digest < <(python - <<'PY'
+          from pathlib import Path
+          from qore.infrastructure.cibo_phase22_v4_source_receipt import (
+              load_phase22_v4_source_receipt,
+          )
+          receipt = load_phase22_v4_source_receipt(
+              Path("docs/research/CIBO-PHASE22-V4-SOURCE-RECEIPT.json")
+          )
+          x = next(
+              row for row in receipt.bindings
+              if row.symbol == "NAS100" and row.timeframe == "M1"
+          )
+          print(x.artifact_id, x.artifact_digest)
+          PY
+          )
+          zip="$RUNNER_TEMP/nas100-m1.zip"
+          root="$RUNNER_TEMP/nas100-m1"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" > "$zip"
+          echo "$(cut -d: -f2 <<<"$digest")  $zip" | sha256sum -c -
+          mkdir -p "$root"
+          unzip -q "$zip" -d "$root"
+          mkdir -p "$RUNNER_TEMP/vt31-lane"
+          python scripts/cibo_phase22_v4_vt31_fresh_runner.py             --frozen-root "$RUNNER_TEMP/vt31-frozen"             --source-root "$root"             --output "$RUNNER_TEMP/vt31-lane/vt31.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cibo-capability-v4-lane-VT31_NAS100-${{ github.run_id }}
+          path: ${{ runner.temp }}/vt31-lane
+          if-no-files-found: error
+          retention-days: 90
+
+  assemble:
+    needs: [vt08, turtle, vt31]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: cibo-capability-v4-lane-*-${{ github.run_id }}
+          path: ${{ runner.temp }}/lanes
+      - name: Assemble exact 7/7 reused batch
+        run: |
+          mkdir -p "$RUNNER_TEMP/batch"
+          python scripts/cibo_phase22_reused_holdout_batch_assembler.py             --vt08 "$RUNNER_TEMP/lanes/cibo-capability-v4-lane-VT08_FOREX-$GITHUB_RUN_ID/vt08.json"             --vt31 "$RUNNER_TEMP/lanes/cibo-capability-v4-lane-VT31_NAS100-$GITHUB_RUN_ID/vt31.json"             --r34-xauusd "$RUNNER_TEMP/lanes/cibo-capability-v4-lane-R34_XAUUSD-$GITHUB_RUN_ID/phase18-xauusd-r34-geometry-trades.jsonl"             --r38-eurusd "$RUNNER_TEMP/lanes/cibo-capability-v4-lane-R38_EURUSD-$GITHUB_RUN_ID/phase18-eurusd-r38-geometry-trades.jsonl"             --r43-gbpusd "$RUNNER_TEMP/lanes/cibo-capability-v4-lane-R43_GBPUSD-$GITHUB_RUN_ID/phase18-gbpusd-r39-geometry-trades.jsonl"             --r38-gbpjpy "$RUNNER_TEMP/lanes/cibo-capability-v4-lane-R38_GBPJPY-$GITHUB_RUN_ID/phase18-gbpjpy-r37-geometry-trades.jsonl"             --r42-audjpy "$RUNNER_TEMP/lanes/cibo-capability-v4-lane-R42_AUDJPY-$GITHUB_RUN_ID/phase18-audjpy-r40-geometry-trades.jsonl"             --output "$RUNNER_TEMP/batch/reused-batch.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cibo-capability-v4-batch-${{ github.run_id }}
+          path: ${{ runner.temp }}/batch
+          if-no-files-found: error
+          retention-days: 90
+
+  exam:
+    needs: assemble
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - uses: actions/download-artifact@v4
+        with:
+          name: cibo-capability-v4-batch-${{ github.run_id }}
+          path: ${{ runner.temp }}/batch
+      - name: Recover provider numeric model and regime corpora
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/provider" "$RUNNER_TEMP/regime"
+          python - <<'PY' > "$RUNNER_TEMP/provider.env"
+          from qore.infrastructure.cibo_phase22_provider_numeric_execution_receipt import (
+              PHASE22_PROVIDER_NUMERIC_EXECUTION_FREEZE_RECEIPT,
+          )
+          x = PHASE22_PROVIDER_NUMERIC_EXECUTION_FREEZE_RECEIPT
+          print(f"PROVIDER_ARTIFACT_ID={x.artifact_id}")
+          print(f"PROVIDER_ARTIFACT_DIGEST={x.artifact_digest}")
+          print(f"PROVIDER_FILE_SHA={x.provider_numeric_freeze_file_sha256}")
+          PY
+          source "$RUNNER_TEMP/provider.env"
+          zip="$RUNNER_TEMP/provider.zip"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$PROVIDER_ARTIFACT_ID/zip" > "$zip"
+          echo "$(cut -d: -f2 <<<"$PROVIDER_ARTIFACT_DIGEST")  $zip" | sha256sum -c -
+          unzip -q "$zip" -d "$RUNNER_TEMP/provider"
+          provider_json="$(find "$RUNNER_TEMP/provider" -name provider-numeric-execution-freeze.json -print -quit)"
+          test -n "$provider_json"
+          echo "$(cut -d: -f2 <<<"$PROVIDER_FILE_SHA")  $provider_json" | sha256sum -c -
+          echo "PROVIDER_JSON=$provider_json" >> "$GITHUB_ENV"
+          echo "PROVIDER_FILE_SHA=$PROVIDER_FILE_SHA" >> "$GITHUB_ENV"
+          python - <<'PY' > "$RUNNER_TEMP/regime.tsv"
+          from pathlib import Path
+          from qore.infrastructure.cibo_phase22_v4_historical_regime import (
+              PHASE22_REGIME_SYMBOLS,
+          )
+          from qore.infrastructure.cibo_phase22_v4_source_receipt import (
+              load_phase22_v4_source_receipt,
+          )
+          receipt = load_phase22_v4_source_receipt(
+              Path("docs/research/CIBO-PHASE22-V4-SOURCE-RECEIPT.json")
+          )
+          by_key = {(x.symbol, x.timeframe): x for x in receipt.bindings}
+          for symbol in PHASE22_REGIME_SYMBOLS:
+              x = by_key[(symbol, "M5")]
+              print(symbol, x.artifact_id, x.artifact_digest, sep="\t")
+          PY
+          while IFS=$'\t' read -r symbol artifact_id digest; do
+            zip="$RUNNER_TEMP/regime-$symbol.zip"
+            root="$RUNNER_TEMP/regime/$symbol"
+            gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" > "$zip"
+            echo "$(cut -d: -f2 <<<"$digest")  $zip" | sha256sum -c -
+            mkdir -p "$root"
+            unzip -q "$zip" -d "$root"
+          done < "$RUNNER_TEMP/regime.tsv"
+      - name: Execute infrastructure capability exam
+        run: |
+          replay_started_at="$(date -u '+%Y-%m-%dT%H:%M:%S+00:00')"
+          python scripts/cibo_reused_holdout_capability_exam.py             --batch "$RUNNER_TEMP/batch/reused-batch.json"             --provider-numeric "$PROVIDER_JSON"             --provider-numeric-freeze-sha256 "$PROVIDER_FILE_SHA"             --source-root "AUDJPY=$RUNNER_TEMP/regime/AUDJPY"             --source-root "EURUSD=$RUNNER_TEMP/regime/EURUSD"             --source-root "GBPJPY=$RUNNER_TEMP/regime/GBPJPY"             --source-root "GBPUSD=$RUNNER_TEMP/regime/GBPUSD"             --source-root "XAUUSD=$RUNNER_TEMP/regime/XAUUSD"             --replay-started-at "$replay_started_at"             --integrated-git-sha "$GITHUB_SHA"             --workflow-run-id "$GITHUB_RUN_ID"             --output-dir "$RUNNER_TEMP/capability-exam"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-cibo-reused-holdout-capability-exam-${{ github.run_id }}
+          path: ${{ runner.temp }}/capability-exam
+          if-no-files-found: warn
+          retention-days: 90

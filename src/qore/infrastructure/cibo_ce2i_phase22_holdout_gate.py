@@ -8,6 +8,7 @@ still required before economic certification.
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass
 from datetime import datetime
@@ -15,14 +16,25 @@ from datetime import datetime
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
+from qore.infrastructure.cibo_ce2i_holdout_registry import (
+    ACTIVE_USD60_HOLDOUT_CANDIDATE,
+)
 from qore.infrastructure.cibo_ce2i_phase20_forward_policy_store import (
     VersionedPhase20ForwardPolicyBook,
 )
-from qore.infrastructure.cibo_ce2i_phase20_forward_store import (
-    VersionedPhase20ForwardEvidenceBook,
-)
 from qore.infrastructure.cibo_ce2i_phase21_policy_freeze import (
     Phase21PolicyFreezeManifest,
+)
+from qore.infrastructure.cibo_ce2i_qualification_evidence_protocol import (
+    Phase20QualificationEvidenceBook,
+    require_qualification_evidence_book,
+)
+from qore.infrastructure.cibo_phase21_shadow_qualification_lineage import (
+    Phase21ShadowQualificationLineageReceipt,
+)
+from qore.infrastructure.cibo_phase22_holdout_v2_source_receipt import (
+    V2_SOURCE_BINDINGS,
+    phase22_v2_holdout_source_receipt_sha256,
 )
 
 _SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
@@ -49,33 +61,56 @@ class Phase22HoldoutLineageAssessment:
 
 def assess_phase22_holdout_lineage(
     *,
-    phase21_manifest: Phase21PolicyFreezeManifest,
-    qualification_evidence_book: VersionedPhase20ForwardEvidenceBook,
-    holdout_evidence_book: VersionedPhase20ForwardEvidenceBook,
+    phase21_manifest: (
+        Phase21PolicyFreezeManifest
+        | Phase21ShadowQualificationLineageReceipt
+    ),
+    qualification_evidence_book: Phase20QualificationEvidenceBook | None,
+    holdout_evidence_book: Phase20QualificationEvidenceBook,
     holdout_policy_book: VersionedPhase20ForwardPolicyBook,
-    qualification_evidence_store_sha256: str,
-    qualification_policy_store_sha256: str,
+    qualification_evidence_store_sha256: str | None,
+    qualification_policy_store_sha256: str | None,
     holdout_evidence_store_sha256: str,
     holdout_policy_store_sha256: str,
 ) -> Phase22HoldoutLineageAssessment:
-    if not isinstance(phase21_manifest, Phase21PolicyFreezeManifest):
+    canonical_phase21 = isinstance(
+        phase21_manifest,
+        Phase21PolicyFreezeManifest,
+    )
+    shadow_phase21 = isinstance(
+        phase21_manifest,
+        Phase21ShadowQualificationLineageReceipt,
+    )
+    if not canonical_phase21 and not shadow_phase21:
         raise CiboCapitalManagementError(
-            "Phase22 requires canonical Phase21 freeze manifest"
+            "Phase22 requires a recognized Phase21 frozen-policy lineage"
         )
-    if not isinstance(
-        qualification_evidence_book,
-        VersionedPhase20ForwardEvidenceBook,
-    ):
-        raise CiboCapitalManagementError(
-            "Phase22 qualification evidence book must be canonical"
+    if canonical_phase21:
+        qualification_evidence_book = require_qualification_evidence_book(
+            qualification_evidence_book,
+            context="Phase22 qualification evidence",
         )
-    if not isinstance(
+        if (
+            qualification_evidence_store_sha256 is None
+            or qualification_policy_store_sha256 is None
+        ):
+            raise CiboCapitalManagementError(
+                "canonical Phase21 lineage requires qualification store digests"
+            )
+    else:
+        if (
+            qualification_evidence_book is not None
+            or qualification_evidence_store_sha256 is not None
+            or qualification_policy_store_sha256 is not None
+        ):
+            raise CiboCapitalManagementError(
+                "historical-shadow Phase21 lineage forbids forward "
+                "qualification relabelling"
+            )
+    holdout_evidence_book = require_qualification_evidence_book(
         holdout_evidence_book,
-        VersionedPhase20ForwardEvidenceBook,
-    ):
-        raise CiboCapitalManagementError(
-            "Phase22 holdout evidence book must be canonical"
-        )
+        context="Phase22 holdout evidence",
+    )
     if not isinstance(
         holdout_policy_book,
         VersionedPhase20ForwardPolicyBook,
@@ -84,54 +119,117 @@ def assess_phase22_holdout_lineage(
             "Phase22 holdout policy book must be canonical"
         )
 
-    for name, value in (
-        (
-            "qualification_evidence_store_sha256",
-            qualification_evidence_store_sha256,
-        ),
-        (
-            "qualification_policy_store_sha256",
-            qualification_policy_store_sha256,
-        ),
-        ("holdout_evidence_store_sha256", holdout_evidence_store_sha256),
-        ("holdout_policy_store_sha256", holdout_policy_store_sha256),
-    ):
-        _require_sha256(value, name)
+    _require_sha256(
+        holdout_evidence_store_sha256,
+        "holdout_evidence_store_sha256",
+    )
+    _require_sha256(
+        holdout_policy_store_sha256,
+        "holdout_policy_store_sha256",
+    )
 
     reasons: list[str] = []
-    qualification = phase21_manifest.qualification
-    if (
-        qualification_evidence_store_sha256
-        != qualification.evidence_store_sha256
-    ):
-        reasons.append("QUALIFICATION_EVIDENCE_STORE_LINEAGE_MISMATCH")
-    if (
-        qualification_policy_store_sha256
-        != qualification.policy_store_sha256
-    ):
-        reasons.append("QUALIFICATION_POLICY_STORE_LINEAGE_MISMATCH")
-    if holdout_evidence_store_sha256 == qualification_evidence_store_sha256:
-        reasons.append("HOLDOUT_EVIDENCE_STORE_REUSED")
-    if holdout_policy_store_sha256 == qualification_policy_store_sha256:
-        reasons.append("HOLDOUT_POLICY_STORE_REUSED")
+    if canonical_phase21:
+        assert isinstance(phase21_manifest, Phase21PolicyFreezeManifest)
+        assert qualification_evidence_store_sha256 is not None
+        assert qualification_policy_store_sha256 is not None
+        qualification = phase21_manifest.qualification
+        _require_sha256(
+            qualification_evidence_store_sha256,
+            "qualification_evidence_store_sha256",
+        )
+        _require_sha256(
+            qualification_policy_store_sha256,
+            "qualification_policy_store_sha256",
+        )
+        if (
+            qualification_evidence_store_sha256
+            != qualification.evidence_store_sha256
+        ):
+            reasons.append("QUALIFICATION_EVIDENCE_STORE_LINEAGE_MISMATCH")
+        if (
+            qualification_policy_store_sha256
+            != qualification.policy_store_sha256
+        ):
+            reasons.append("QUALIFICATION_POLICY_STORE_LINEAGE_MISMATCH")
+        if holdout_evidence_store_sha256 == qualification_evidence_store_sha256:
+            reasons.append("HOLDOUT_EVIDENCE_STORE_REUSED")
+        if holdout_policy_store_sha256 == qualification_policy_store_sha256:
+            reasons.append("HOLDOUT_POLICY_STORE_REUSED")
+    else:
+        assert isinstance(
+            phase21_manifest,
+            Phase21ShadowQualificationLineageReceipt,
+        )
+        if (
+            holdout_evidence_store_sha256
+            in phase21_manifest.protected_source_digests
+        ):
+            reasons.append("HOLDOUT_EVIDENCE_REUSES_SHADOW_SOURCE")
+        if (
+            holdout_policy_store_sha256
+            in phase21_manifest.protected_source_digests
+        ):
+            reasons.append("HOLDOUT_POLICY_REUSES_SHADOW_SOURCE")
 
     decisions = holdout_evidence_book.decisions
     if not decisions:
         reasons.append("HOLDOUT_DECISION_POPULATION_EMPTY")
 
-    qualification_shas = {
-        item.evidence_sha256 for item in qualification_evidence_book.decisions
-    }
     holdout_shas = {item.evidence_sha256 for item in decisions}
-    if qualification_shas.intersection(holdout_shas):
-        reasons.append("QUALIFICATION_DECISION_REUSED_IN_HOLDOUT")
+    if canonical_phase21:
+        assert qualification_evidence_book is not None
+        qualification_shas = {
+            item.evidence_sha256 for item in qualification_evidence_book.decisions
+        }
+        if qualification_shas.intersection(holdout_shas):
+            reasons.append("QUALIFICATION_DECISION_REUSED_IN_HOLDOUT")
 
+    historical_replay = (
+        getattr(
+            holdout_evidence_book,
+            "qualification_evidence_kind",
+            "FORWARD_OBSERVED",
+        )
+        == "HISTORICAL_REPLAY_OBSERVED"
+    )
+    expected_source_collectors = tuple(
+        sorted({item.collector_git_sha for item in V2_SOURCE_BINDINGS})
+    )
     collector_shas: set[str] = set()
+    if historical_replay:
+        if (
+            getattr(holdout_evidence_book, "source_receipt_sha256", None)
+            != phase22_v2_holdout_source_receipt_sha256()
+        ):
+            reasons.append("HOLDOUT_SOURCE_RECEIPT_LINEAGE_MISMATCH")
+        if (
+            tuple(
+                getattr(
+                    holdout_evidence_book,
+                    "source_collector_git_shas",
+                    (),
+                )
+            )
+            != expected_source_collectors
+        ):
+            reasons.append("HOLDOUT_SOURCE_COLLECTOR_LINEAGE_MISMATCH")
+        collector_shas.update(expected_source_collectors)
     decision_by_sha = {}
+    holdout = ACTIVE_USD60_HOLDOUT_CANDIDATE
     for decision in decisions:
         decision_by_sha[decision.evidence_sha256] = decision
-        if decision.decision_at <= phase21_manifest.frozen_at:
-            reasons.append("HOLDOUT_DECISION_NOT_POST_PHASE21_FREEZE")
+        if not (
+            holdout.start_at
+            <= decision.decision_at
+            < holdout.end_exclusive_at
+        ):
+            reasons.append("HOLDOUT_DECISION_OUTSIDE_PREREGISTERED_WINDOW")
+        if (
+            decision.sealed_at is None
+            or decision.sealed_at <= phase21_manifest.frozen_at
+        ):
+            reasons.append("HOLDOUT_DECISION_SEAL_NOT_POST_PHASE21_FREEZE")
         if decision.candidate_id != phase21_manifest.candidate_id:
             reasons.append("HOLDOUT_CANDIDATE_IDENTITY_DRIFT")
         if decision.code_sha != phase21_manifest.candidate_code_sha:
@@ -143,12 +241,33 @@ def assess_phase22_holdout_lineage(
             reasons.append("HOLDOUT_PARAMETER_DIGEST_DRIFT")
         if not decision.sealed_within_deadline:
             reasons.append("HOLDOUT_DECISION_NOT_CAUSALLY_SEALED")
-        if decision.collector_git_sha is None:
+        if historical_replay:
+            try:
+                payload = json.loads(decision.canonical_payload_json)
+            except json.JSONDecodeError:
+                payload = {}
+            source_lineage = (
+                payload.get("source_lineage")
+                if isinstance(payload, dict)
+                else None
+            )
+            if not isinstance(source_lineage, dict):
+                reasons.append("HOLDOUT_DECISION_SOURCE_LINEAGE_INCOMPLETE")
+            else:
+                raw_collectors = source_lineage.get("collector_git_shas")
+                if (
+                    source_lineage.get("source_receipt_sha256")
+                    != phase22_v2_holdout_source_receipt_sha256()
+                    or not isinstance(raw_collectors, list)
+                    or tuple(raw_collectors) != expected_source_collectors
+                ):
+                    reasons.append("HOLDOUT_DECISION_SOURCE_LINEAGE_MISMATCH")
+        elif decision.collector_git_sha is None:
             reasons.append("HOLDOUT_COLLECTOR_GIT_LINEAGE_INCOMPLETE")
         else:
             collector_shas.add(decision.collector_git_sha)
 
-    if len(collector_shas) > 1:
+    if not historical_replay and len(collector_shas) > 1:
         reasons.append("HOLDOUT_COLLECTOR_GIT_LINEAGE_NOT_SINGLE_SHA")
 
     policy_shas = {

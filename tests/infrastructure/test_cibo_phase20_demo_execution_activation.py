@@ -137,11 +137,14 @@ def test_runtime_checks_activation_before_constructing_demo_sink() -> None:
     source = Path("scripts/qore_ctrader_demo_free_runtime.py").read_text(
         encoding="utf-8"
     )
-    run_start = source.index(
-        "def run(root: Path, *, mode: str, activation_path: Path)"
-    )
+    run_start = source.index("def run(")
     run_source = source[run_start:]
     gate = run_source.index("load_phase20_demo_execution_activation(")
-    sink = run_source.index("demo_sink = _configure_ctrader_demo_free_sink(root)")
+    bounded = run_source.index(
+        "cycle_budget = Phase20BoundedCycleBudget("
+    )
+    sink = run_source.index(
+        "demo_sink = _configure_ctrader_demo_free_sink(root)"
+    )
 
-    assert gate < sink
+    assert gate < bounded < sink

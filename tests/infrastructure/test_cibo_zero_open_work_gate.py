@@ -27,6 +27,8 @@ gate = _load_gate_module()
 
 
 def _ledger(*, disposition: str | None, blocking: bool = True) -> dict:
+    terminal_count = 1 if disposition is not None else 0
+    open_count = 1 - terminal_count
     return {
         "schema": "QORE_CIBO_MASTER_OPEN_WORK_LEDGER_V1",
         "terminal_dispositions": [
@@ -35,6 +37,13 @@ def _ledger(*, disposition: str | None, blocking: bool = True) -> dict:
             "SUPERSEDED_WITH_PROVEN_LINEAGE",
             "EXTERNAL_DEPENDENCY_BLOCKED",
         ],
+        "current_summary": {
+            "mandatory_count": 1,
+            "terminal_count": terminal_count,
+            "open_count": open_count,
+            "zero_open_work_pass": open_count == 0,
+            "final_certification_candidate": False,
+        },
         "workstreams": [
             {
                 "id": "TEST",
@@ -47,7 +56,15 @@ def _ledger(*, disposition: str | None, blocking: bool = True) -> dict:
                     else "OPEN_REQUIRED"
                 ),
                 "terminal_disposition": disposition,
-                "evidence_refs": [],
+                "evidence_refs": (
+                    (
+                        ["github-actions://123/SUCCESS"]
+                        if disposition == "EXTERNAL_DEPENDENCY_BLOCKED"
+                        else ["test://terminal-evidence"]
+                    )
+                    if disposition is not None
+                    else []
+                ),
                 "blockers": (
                     ["REAL_EXTERNAL_BLOCKER"]
                     if disposition == "EXTERNAL_DEPENDENCY_BLOCKED"
@@ -212,6 +229,13 @@ def test_gate_marks_unclassified_inventory_as_orphan_candidate(
             "next_gate": "Classify every CIBO inventory path.",
         }
     )
+    payload["current_summary"] = {
+        "mandatory_count": 2,
+        "terminal_count": 1,
+        "open_count": 1,
+        "zero_open_work_pass": False,
+        "final_certification_candidate": False,
+    }
     _write(ledger, payload)
     source = tmp_path / "src"
     source.mkdir()
@@ -232,3 +256,799 @@ def test_gate_marks_unclassified_inventory_as_orphan_candidate(
     assert verdict.passed is False
     assert verdict.orphan_candidate_paths == ("src/cibo_unknown.py",)
     assert "UNCLASSIFIED_ORPHAN_CANDIDATE" in verdict.reasons
+
+
+def test_gate_rejects_current_summary_count_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ledger = tmp_path / "ledger.json"
+    payload = _ledger(disposition=None)
+    payload["current_summary"]["open_count"] = 0
+    _write(ledger, payload)
+    monkeypatch.setattr(gate, "_REQUIRED_CANONICAL_ARTIFACTS", ())
+    monkeypatch.setattr(gate, "_INVENTORY_GLOBS", ())
+    monkeypatch.setattr(gate, "_MARKER_SCAN_GLOBS", ())
+
+    with pytest.raises(
+        gate.CiboZeroOpenWorkGateError,
+        match="current_summary open_count drift",
+    ):
+        gate.evaluate_gate(repo_root=tmp_path, ledger_path=ledger)
+
+
+def test_gate_rejects_closed_terminal_with_blockers(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ledger = tmp_path / "ledger.json"
+    payload = _ledger(disposition="COMPLETED_AND_PROVEN")
+    payload["workstreams"][0]["blockers"] = ["STALE_BLOCKER"]
+    _write(ledger, payload)
+    monkeypatch.setattr(gate, "_REQUIRED_CANONICAL_ARTIFACTS", ())
+    monkeypatch.setattr(gate, "_INVENTORY_GLOBS", ())
+    monkeypatch.setattr(gate, "_MARKER_SCAN_GLOBS", ())
+
+    with pytest.raises(
+        gate.CiboZeroOpenWorkGateError,
+        match="closed terminal workstream cannot retain blockers",
+    ):
+        gate.evaluate_gate(repo_root=tmp_path, ledger_path=ledger)
+
+
+def test_gate_rejects_terminal_without_evidence_refs(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ledger = tmp_path / "ledger.json"
+    payload = _ledger(disposition="FALSIFIED_AND_CLOSED")
+    payload["workstreams"][0]["current_maturity"] = "FALSIFIED_AND_CLOSED"
+    payload["workstreams"][0]["evidence_refs"] = []
+    _write(ledger, payload)
+    monkeypatch.setattr(gate, "_REQUIRED_CANONICAL_ARTIFACTS", ())
+    monkeypatch.setattr(gate, "_INVENTORY_GLOBS", ())
+    monkeypatch.setattr(gate, "_MARKER_SCAN_GLOBS", ())
+
+    with pytest.raises(
+        gate.CiboZeroOpenWorkGateError,
+        match="terminal workstream requires evidence references",
+    ):
+        gate.evaluate_gate(repo_root=tmp_path, ledger_path=ledger)
+
+
+def test_gate_rejects_unsafe_final_candidate_flag(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ledger = tmp_path / "ledger.json"
+    payload = _ledger(disposition="COMPLETED_AND_PROVEN")
+    payload["current_summary"]["final_certification_candidate"] = True
+    _write(ledger, payload)
+    monkeypatch.setattr(
+        gate,
+        "_REQUIRED_CANONICAL_ARTIFACTS",
+        ("required/missing.json",),
+    )
+    monkeypatch.setattr(gate, "_INVENTORY_GLOBS", ())
+    monkeypatch.setattr(gate, "_MARKER_SCAN_GLOBS", ())
+
+    with pytest.raises(
+        gate.CiboZeroOpenWorkGateError,
+        match="final-certification candidate contradicts gate evidence",
+    ):
+        gate.evaluate_gate(repo_root=tmp_path, ledger_path=ledger)
+
+
+def _pre_exam_ledger() -> dict:
+    payload = _ledger(disposition="COMPLETED_AND_PROVEN")
+    payload["workstreams"][0]["id"] = "SCIENTIFIC_WORK"
+    payload["workstreams"].extend(
+        (
+            {
+                "id": "FINAL_INTEGRATED_CIBO_EXAM",
+                "kind": "CERTIFICATION",
+                "mandatory": True,
+                "certification_blocking": True,
+                "current_maturity": "FINAL_EXAM_EXECUTION_BLOCKED",
+                "terminal_disposition": None,
+                "evidence_refs": ["docs/research/final-exam.md"],
+                "blockers": ["PRE_EXAM_ZERO_OPEN_PASS_REQUIRED"],
+                "next_gate": "Run the final integrated exam.",
+            },
+            {
+                "id": "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM",
+                "kind": "CERTIFICATION",
+                "mandatory": True,
+                "certification_blocking": True,
+                "current_maturity": "WAITING_FOR_FINAL_INTEGRATED_EXAM",
+                "terminal_disposition": None,
+                "evidence_refs": ["docs/research/world-cup-exam.md"],
+                "blockers": ["FINAL_INTEGRATED_CIBO_EXAM_REQUIRED"],
+                "next_gate": (
+                    "Run after the final integrated exam and before strict closure."
+                ),
+            },
+        )
+    )
+    payload["current_summary"] = {
+        "mandatory_count": 3,
+        "terminal_count": 1,
+        "open_count": 2,
+        "zero_open_work_pass": False,
+        "final_certification_candidate": False,
+    }
+    return payload
+
+
+def test_pre_exam_gate_excludes_both_mandatory_certification_exams(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ledger = tmp_path / "ledger.json"
+    _write(ledger, _pre_exam_ledger())
+    monkeypatch.setattr(gate, "_REQUIRED_CANONICAL_ARTIFACTS", ())
+    monkeypatch.setattr(gate, "_INVENTORY_GLOBS", ())
+    monkeypatch.setattr(gate, "_MARKER_SCAN_GLOBS", ())
+
+    pre_exam = gate.evaluate_pre_exam_gate(
+        repo_root=tmp_path,
+        ledger_path=ledger,
+    )
+    strict = gate.evaluate_gate(
+        repo_root=tmp_path,
+        ledger_path=ledger,
+    )
+
+    assert pre_exam.scope == "PRE_EXAM"
+    assert pre_exam.passed is True
+    assert pre_exam.open_workstream_ids == ()
+    assert pre_exam.mandatory_workstream_count == 1
+    assert strict.scope == "STRICT"
+    assert strict.passed is False
+    assert strict.open_workstream_ids == (
+        "FINAL_INTEGRATED_CIBO_EXAM",
+        "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM",
+    )
+
+
+def test_pre_exam_gate_still_blocks_other_open_work(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ledger = tmp_path / "ledger.json"
+    payload = _pre_exam_ledger()
+    payload["workstreams"][0]["current_maturity"] = "OPEN_REQUIRED"
+    payload["workstreams"][0]["terminal_disposition"] = None
+    payload["workstreams"][0]["evidence_refs"] = []
+    payload["current_summary"] = {
+        "mandatory_count": 3,
+        "terminal_count": 0,
+        "open_count": 3,
+        "zero_open_work_pass": False,
+        "final_certification_candidate": False,
+    }
+    _write(ledger, payload)
+    monkeypatch.setattr(gate, "_REQUIRED_CANONICAL_ARTIFACTS", ())
+    monkeypatch.setattr(gate, "_INVENTORY_GLOBS", ())
+    monkeypatch.setattr(gate, "_MARKER_SCAN_GLOBS", ())
+
+    verdict = gate.evaluate_pre_exam_gate(
+        repo_root=tmp_path,
+        ledger_path=ledger,
+    )
+
+    assert verdict.passed is False
+    assert verdict.open_workstream_ids == ("SCIENTIFIC_WORK",)
+
+
+def test_integrator_preserves_architect_b_inventory_classifiers() -> None:
+    inventory = (
+        "src/qore/infrastructure/cibo_arch_b_forward_economic_manifest.py",
+        "src/qore/infrastructure/cibo_ctrader_demo_account_capability.py",
+        "src/qore/infrastructure/cibo_research_memory.py",
+    )
+    ledger_ids = frozenset(
+        {
+            "FORWARD_QUALIFICATION",
+            "PROVIDER_ECONOMICS",
+            "LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK",
+        }
+    )
+
+    assignments, orphans = gate._classify_inventory(
+        inventory,
+        ledger_ids=ledger_ids,
+    )
+
+    assert dict(assignments) == {
+        (
+            "src/qore/infrastructure/"
+            "cibo_arch_b_forward_economic_manifest.py"
+        ): "FORWARD_QUALIFICATION",
+        (
+            "src/qore/infrastructure/"
+            "cibo_ctrader_demo_account_capability.py"
+        ): "PROVIDER_ECONOMICS",
+        "src/qore/infrastructure/cibo_research_memory.py": (
+            "LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK"
+        ),
+    }
+    assert orphans == ()
+
+
+def test_integrator_classifies_new_crossboundary_and_forward_inventory() -> None:
+    inventory = (
+        "src/qore/infrastructure/cibo_crossboundary_evidence_receipt.py",
+        "src/qore/infrastructure/cibo_receipt_bound_final_integrated_exam.py",
+        "src/qore/infrastructure/cibo_usd60_prerequisite_receipts.py",
+        "src/qore/infrastructure/cibo_ce2i_provider_execution_calibration.py",
+        "scripts/cibo_phase20_provider_execution_calibration.py",
+        "src/qore/infrastructure/cibo_ce2i_provider_economics_component_freeze.py",
+        "src/qore/infrastructure/cibo_integrated_capital_forward_binding.py",
+        ".github/workflows/cibo-integrated-capital-forward-binding.yml",
+        ".github/workflows/cibo-architect-a-internal-readiness.yml",
+        ".github/workflows/cibo-ctrader-demo-provider-economics.yml",
+        ".github/workflows/cibo-crossboundary-evidence-receipt.yml",
+    )
+    ledger_ids = frozenset(
+        {
+            "CE2I_CROSS_TOOL_INFRASTRUCTURE",
+            "FINAL_INTEGRATED_CIBO_EXAM",
+            "USD60_CAPABILITY_PROGRAM",
+            "PROVIDER_ECONOMICS",
+            "INTEGRATED_CAPITAL_TRUTH",
+            "ZERO_OPEN_WORK_GATE",
+        }
+    )
+
+    assignments, orphans = gate._classify_inventory(
+        inventory,
+        ledger_ids=ledger_ids,
+    )
+
+    assert dict(assignments) == {
+        "src/qore/infrastructure/cibo_crossboundary_evidence_receipt.py": (
+            "CE2I_CROSS_TOOL_INFRASTRUCTURE"
+        ),
+        "src/qore/infrastructure/cibo_receipt_bound_final_integrated_exam.py": (
+            "FINAL_INTEGRATED_CIBO_EXAM"
+        ),
+        "src/qore/infrastructure/cibo_usd60_prerequisite_receipts.py": (
+            "USD60_CAPABILITY_PROGRAM"
+        ),
+        "src/qore/infrastructure/cibo_ce2i_provider_execution_calibration.py": (
+            "PROVIDER_ECONOMICS"
+        ),
+        "scripts/cibo_phase20_provider_execution_calibration.py": (
+            "PROVIDER_ECONOMICS"
+        ),
+        "src/qore/infrastructure/cibo_ce2i_provider_economics_component_freeze.py": (
+            "PROVIDER_ECONOMICS"
+        ),
+        "src/qore/infrastructure/cibo_integrated_capital_forward_binding.py": (
+            "INTEGRATED_CAPITAL_TRUTH"
+        ),
+        ".github/workflows/cibo-integrated-capital-forward-binding.yml": (
+            "INTEGRATED_CAPITAL_TRUTH"
+        ),
+        ".github/workflows/cibo-architect-a-internal-readiness.yml": (
+            "ZERO_OPEN_WORK_GATE"
+        ),
+        ".github/workflows/cibo-ctrader-demo-provider-economics.yml": (
+            "PROVIDER_ECONOMICS"
+        ),
+        ".github/workflows/cibo-crossboundary-evidence-receipt.yml": (
+            "CE2I_CROSS_TOOL_INFRASTRUCTURE"
+        ),
+    }
+    assert orphans == ()
+
+
+def test_integrator_resolves_architect_b_crossboundary_request_002() -> None:
+    inventory = (
+        "src/qore/infrastructure/cibo_arch_b_forward_economic_manifest.py",
+        "scripts/cibo_phase20_arch_b_forward_economic_manifest.py",
+        "src/qore/infrastructure/cibo_ce2i_phase20_t02_structural_oos.py",
+        "src/qore/infrastructure/cibo_ce2i_phase20_t03_margin_population.py",
+        "src/qore/infrastructure/cibo_ce2i_phase20_t11_execution_population.py",
+        "src/qore/infrastructure/cibo_ce2i_phase20_t11_cost_binding.py",
+        "src/qore/infrastructure/cibo_ce2i_execution_efficiency.py",
+        "src/qore/infrastructure/cibo_ctrader_demo_account_capability.py",
+        "src/qore/infrastructure/cibo_ctrader_demo_capability_registry.py",
+        "src/qore/infrastructure/cibo_ce2i_provider_execution_calibration.py",
+        "scripts/cibo_phase20_provider_execution_calibration.py",
+        "src/qore/infrastructure/cibo_t20_capital_release.py",
+        "src/qore/infrastructure/cibo_usd60_exam_readiness.py",
+        "src/qore/infrastructure/cibo_integrated_capital_forward_binding.py",
+        "src/qore/infrastructure/cibo_research_memory.py",
+        "tests/infrastructure/test_cibo_risk_integration_closure.py",
+        ".github/workflows/cibo-risk-integration-closure.yml",
+        "docs/research/CIBO-RISK-INTEGRATION-CLOSURE-V1.md",
+    )
+    ledger_ids = frozenset(
+        {
+            "FORWARD_QUALIFICATION",
+            "T02",
+            "T03",
+            "T11",
+            "PROVIDER_ECONOMICS",
+            "T20",
+            "USD60_CAPABILITY_PROGRAM",
+            "INTEGRATED_CAPITAL_TRUTH",
+            "LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK",
+            "RISK_INTEGRATION",
+        }
+    )
+
+    assignments, orphans = gate._classify_inventory(
+        inventory,
+        ledger_ids=ledger_ids,
+    )
+
+    expected = (
+        "FORWARD_QUALIFICATION",
+        "FORWARD_QUALIFICATION",
+        "T02",
+        "T03",
+        "T11",
+        "T11",
+        "T11",
+        "PROVIDER_ECONOMICS",
+        "PROVIDER_ECONOMICS",
+        "PROVIDER_ECONOMICS",
+        "PROVIDER_ECONOMICS",
+        "T20",
+        "USD60_CAPABILITY_PROGRAM",
+        "INTEGRATED_CAPITAL_TRUTH",
+        "LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK",
+        "RISK_INTEGRATION",
+        "RISK_INTEGRATION",
+        "RISK_INTEGRATION",
+    )
+    assert tuple(item[1] for item in assignments) == expected
+    assert orphans == ()
+
+
+def test_integrator_classifies_pre_holdout_chain_inventory() -> None:
+    inventory = (
+        "src/qore/infrastructure/cibo_ce2i_calibration_freeze_manifest.py",
+        "src/qore/infrastructure/cibo_receipt_bound_calibration_freeze.py",
+        ".github/workflows/cibo-calibration-freeze-manifest.yml",
+        "src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py",
+        "src/qore/infrastructure/cibo_receipt_bound_pre_holdout.py",
+        "tests/infrastructure/test_cibo_receipt_bound_pre_holdout.py",
+    )
+    ledger_ids = frozenset(
+        {
+            "FORWARD_QUALIFICATION",
+            "USD60_CAPABILITY_PROGRAM",
+        }
+    )
+
+    assignments, orphans = gate._classify_inventory(
+        inventory,
+        ledger_ids=ledger_ids,
+    )
+
+    assert dict(assignments) == {
+        "src/qore/infrastructure/cibo_ce2i_calibration_freeze_manifest.py": (
+            "FORWARD_QUALIFICATION"
+        ),
+        "src/qore/infrastructure/cibo_receipt_bound_calibration_freeze.py": (
+            "FORWARD_QUALIFICATION"
+        ),
+        ".github/workflows/cibo-calibration-freeze-manifest.yml": (
+            "FORWARD_QUALIFICATION"
+        ),
+        "src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py": (
+            "USD60_CAPABILITY_PROGRAM"
+        ),
+        "src/qore/infrastructure/cibo_receipt_bound_pre_holdout.py": (
+            "USD60_CAPABILITY_PROGRAM"
+        ),
+        "tests/infrastructure/test_cibo_receipt_bound_pre_holdout.py": (
+            "USD60_CAPABILITY_PROGRAM"
+        ),
+    }
+    assert orphans == ()
+
+
+def test_integrator_classifies_t02_t11_forward_surfaces() -> None:
+    inventory = (
+        "src/qore/infrastructure/cibo_ce2i_t02_terminal_reason_evidence.py",
+        "src/qore/infrastructure/cibo_ce2i_phase20_t02_structural_oos.py",
+        ".github/workflows/cibo-t02-forward-structural-oos.yml",
+        "docs/research/CIBO-B-T02-FORWARD-STRUCTURAL-OOS-V1.md",
+        "src/qore/infrastructure/cibo_ce2i_t11_execution_cost_calibration.py",
+        ".github/workflows/cibo-t11-execution-cost-calibration.yml",
+        "docs/research/CIBO-B-T03-T11-FORWARD-EVIDENCE-RECONCILIATION-V1.md",
+    )
+    ledger_ids = frozenset({"T02", "T11"})
+
+    assignments, orphans = gate._classify_inventory(
+        inventory,
+        ledger_ids=ledger_ids,
+    )
+
+    assert dict(assignments) == {
+        "src/qore/infrastructure/cibo_ce2i_t02_terminal_reason_evidence.py": "T02",
+        "src/qore/infrastructure/cibo_ce2i_phase20_t02_structural_oos.py": "T02",
+        ".github/workflows/cibo-t02-forward-structural-oos.yml": "T02",
+        "docs/research/CIBO-B-T02-FORWARD-STRUCTURAL-OOS-V1.md": "T02",
+        "src/qore/infrastructure/cibo_ce2i_t11_execution_cost_calibration.py": "T11",
+        ".github/workflows/cibo-t11-execution-cost-calibration.yml": "T11",
+        "docs/research/CIBO-B-T03-T11-FORWARD-EVIDENCE-RECONCILIATION-V1.md": "T11",
+    }
+    assert orphans == ()
+
+
+def test_integrator_classifies_new_crossboundary_delivery_surfaces_precisely() -> None:
+    inventory = (
+        "src/qore/infrastructure/cibo_arch_a_capital_state_delivery.py",
+        "tests/infrastructure/test_cibo_arch_a_capital_state_delivery.py",
+        ".github/workflows/cibo-architect-a-capital-state-delivery.yml",
+        "src/qore/infrastructure/cibo_arch_a_forward_compound_delivery.py",
+        "tests/infrastructure/test_cibo_arch_a_forward_compound_delivery.py",
+        ".github/workflows/cibo-architect-a-forward-compound-delivery.yml",
+        "src/qore/infrastructure/cibo_compound_path_history.py",
+        "tests/infrastructure/test_cibo_compound_path_history.py",
+        ".github/workflows/cibo-compound-path-history.yml",
+        "src/qore/infrastructure/cibo_arch_a_path_evidence_delivery.py",
+        "tests/infrastructure/test_cibo_arch_a_path_evidence_delivery.py",
+        ".github/workflows/cibo-architect-a-path-evidence-delivery.yml",
+        "src/qore/infrastructure/cibo_receipt_bound_usd60_exam_readiness.py",
+        "tests/infrastructure/test_cibo_receipt_bound_usd60_exam_readiness.py",
+        ".github/workflows/cibo-usd60-pre-exam-readiness.yml",
+        ".github/workflows/cibo-arch-b-forward-economic-manifest.yml",
+        ".github/workflows/cibo-b-provider-forward-tool-readiness.yml",
+        ".github/workflows/cibo-t13-drawdown-reserve-oos-utility.yml",
+        ".github/workflows/cibo-t20-capital-release.yml",
+        ".github/workflows/cibo-ctrader-demo-account-capability.yml",
+    )
+    ledger_ids = frozenset(
+        {
+            "INTEGRATED_CAPITAL_TRUTH",
+            "COMPOUND_ENGINE",
+            "USD60_CAPABILITY_PROGRAM",
+            "FORWARD_QUALIFICATION",
+            "T11",
+            "T13",
+            "T20",
+            "PROVIDER_ECONOMICS",
+        }
+    )
+
+    assignments, orphans = gate._classify_inventory(
+        inventory,
+        ledger_ids=ledger_ids,
+    )
+
+    expected = (
+        "INTEGRATED_CAPITAL_TRUTH",
+        "INTEGRATED_CAPITAL_TRUTH",
+        "INTEGRATED_CAPITAL_TRUTH",
+        "COMPOUND_ENGINE",
+        "COMPOUND_ENGINE",
+        "COMPOUND_ENGINE",
+        "INTEGRATED_CAPITAL_TRUTH",
+        "INTEGRATED_CAPITAL_TRUTH",
+        "INTEGRATED_CAPITAL_TRUTH",
+        "INTEGRATED_CAPITAL_TRUTH",
+        "INTEGRATED_CAPITAL_TRUTH",
+        "INTEGRATED_CAPITAL_TRUTH",
+        "USD60_CAPABILITY_PROGRAM",
+        "USD60_CAPABILITY_PROGRAM",
+        "USD60_CAPABILITY_PROGRAM",
+        "FORWARD_QUALIFICATION",
+        "T11",
+        "T13",
+        "T20",
+        "PROVIDER_ECONOMICS",
+    )
+    assert tuple(item[1] for item in assignments) == expected
+    assert orphans == ()
+
+
+def test_integrator_classifies_ctrader_taxonomy_and_t17_limited_risk() -> None:
+    inventory = (
+        "src/qore/infrastructure/cibo_ctrader_demo_instrument_taxonomy.py",
+        "tests/infrastructure/test_cibo_ctrader_demo_instrument_taxonomy.py",
+        "src/qore/infrastructure/cibo_ce2i_t17_limited_risk_capability.py",
+        "scripts/cibo_t17_limited_risk_capability_probe.py",
+        "tests/infrastructure/test_cibo_ce2i_t17_limited_risk_capability.py",
+        "tests/infrastructure/test_cibo_t17_limited_risk_capability_probe.py",
+        "src/qore/infrastructure/cibo_t17_provider_capability_receipt.py",
+        "tests/infrastructure/test_cibo_t17_provider_capability_receipt.py",
+        ".github/workflows/cibo-t17-provider-capability-receipt.yml",
+    )
+    ledger_ids = frozenset({"PROVIDER_ECONOMICS", "T17"})
+
+    assignments, orphans = gate._classify_inventory(
+        inventory,
+        ledger_ids=ledger_ids,
+    )
+
+    assert dict(assignments) == {
+        "src/qore/infrastructure/cibo_ctrader_demo_instrument_taxonomy.py": (
+            "PROVIDER_ECONOMICS"
+        ),
+        "tests/infrastructure/test_cibo_ctrader_demo_instrument_taxonomy.py": (
+            "PROVIDER_ECONOMICS"
+        ),
+        "src/qore/infrastructure/cibo_ce2i_t17_limited_risk_capability.py": "T17",
+        "scripts/cibo_t17_limited_risk_capability_probe.py": "T17",
+        "tests/infrastructure/test_cibo_ce2i_t17_limited_risk_capability.py": "T17",
+        "tests/infrastructure/test_cibo_t17_limited_risk_capability_probe.py": "T17",
+        "src/qore/infrastructure/cibo_t17_provider_capability_receipt.py": "T17",
+        "tests/infrastructure/test_cibo_t17_provider_capability_receipt.py": "T17",
+        ".github/workflows/cibo-t17-provider-capability-receipt.yml": "T17",
+    }
+    assert orphans == ()
+
+
+def test_integrator_classifies_source_of_truth_reconciliation_surface() -> None:
+    inventory = (
+        "scripts/cibo_source_of_truth_reconciliation_gate.py",
+        "tests/infrastructure/test_cibo_source_of_truth_reconciliation_gate.py",
+        ".github/workflows/cibo-source-of-truth-reconciliation.yml",
+        "docs/research/CIBO-SOURCE-OF-TRUTH-RECONCILIATION-V1.md",
+    )
+    ledger_ids = frozenset({"SOURCE_OF_TRUTH_RECONCILIATION"})
+
+    assignments, orphans = gate._classify_inventory(
+        inventory,
+        ledger_ids=ledger_ids,
+    )
+
+    assert dict(assignments) == {
+        "scripts/cibo_source_of_truth_reconciliation_gate.py": (
+            "SOURCE_OF_TRUTH_RECONCILIATION"
+        ),
+        "tests/infrastructure/test_cibo_source_of_truth_reconciliation_gate.py": (
+            "SOURCE_OF_TRUTH_RECONCILIATION"
+        ),
+        ".github/workflows/cibo-source-of-truth-reconciliation.yml": (
+            "SOURCE_OF_TRUTH_RECONCILIATION"
+        ),
+        "docs/research/CIBO-SOURCE-OF-TRUTH-RECONCILIATION-V1.md": (
+            "SOURCE_OF_TRUTH_RECONCILIATION"
+        ),
+    }
+    assert orphans == ()
+
+
+def test_shared_ce2i_economic_gates_are_not_orphans() -> None:
+    inventory = (
+        "src/qore/infrastructure/cibo_ce2i_t04_t10_economic_gate.py",
+        "tests/infrastructure/test_cibo_ce2i_t04_t10_economic_gate.py",
+        "src/qore/infrastructure/cibo_ce2i_temporal_utility_replication.py",
+        "tests/infrastructure/test_cibo_ce2i_temporal_utility_replication.py",
+        "src/qore/infrastructure/cibo_t09_t18_scarcity_safety_gate.py",
+        "tests/infrastructure/test_cibo_t09_t18_scarcity_safety_gate.py",
+    )
+
+    assignments, orphans = gate._classify_inventory(
+        inventory,
+        ledger_ids=frozenset(
+            {"CE2I_CROSS_TOOL_INFRASTRUCTURE", "ORPHAN_INVENTORY"}
+        ),
+    )
+
+    assert orphans == ()
+    assert set(assignments) == {
+        (path, "CE2I_CROSS_TOOL_INFRASTRUCTURE") for path in inventory
+    }
+
+
+def test_b_surface_classifiers_are_not_orphans() -> None:
+    inventory = (
+        "src/qore/infrastructure/cibo_ce2i_t03_equivalent_expression.py",
+        "src/qore/infrastructure/cibo_ce2i_t11_execution_cost_calibration.py",
+        "src/qore/infrastructure/cibo_ce2i_t11_policy_input_readiness.py",
+        "src/qore/infrastructure/cibo_ce2i_t16_hedge_candidate.py",
+        "src/qore/infrastructure/cibo_ce2i_t17_limited_risk_capability.py",
+        "src/qore/infrastructure/cibo_ce2i_t17_structural_disable.py",
+        "scripts/cibo_t17_limited_risk_capability_probe.py",
+        "scripts/cibo_t17_structural_disable_probe.py",
+        "src/qore/infrastructure/cibo_ctrader_demo_capability_registry.py",
+        "src/qore/infrastructure/cibo_ctrader_demo_instrument_taxonomy.py",
+        "src/qore/infrastructure/cibo_integrated_capital_forward_binding.py",
+        "src/qore/infrastructure/cibo_usd60_exam_readiness.py",
+    )
+    ledger_ids = frozenset(
+        {
+            "T03",
+            "T11",
+            "T16",
+            "T17",
+            "PROVIDER_ECONOMICS",
+            "INTEGRATED_CAPITAL_TRUTH",
+            "USD60_CAPABILITY_PROGRAM",
+            "ORPHAN_INVENTORY",
+        }
+    )
+
+    assignments, orphan_candidates = gate._classify_inventory(
+        inventory,
+        ledger_ids=ledger_ids,
+    )
+
+    assert dict(assignments) == {
+        inventory[0]: "T03",
+        inventory[1]: "T11",
+        inventory[2]: "T11",
+        inventory[3]: "T16",
+        inventory[4]: "T17",
+        inventory[5]: "T17",
+        inventory[6]: "T17",
+        inventory[7]: "T17",
+        inventory[8]: "PROVIDER_ECONOMICS",
+        inventory[9]: "PROVIDER_ECONOMICS",
+        inventory[10]: "INTEGRATED_CAPITAL_TRUTH",
+        inventory[11]: "USD60_CAPABILITY_PROGRAM",
+    }
+    assert orphan_candidates == ()
+
+
+def test_t17_governed_provider_disposition_has_t17_ownership() -> None:
+    inventory = (
+        "src/qore/infrastructure/cibo_t17_governed_provider_disposition.py",
+        "tests/infrastructure/test_cibo_t17_governed_provider_disposition.py",
+    )
+
+    assignments, orphan_candidates = gate._classify_inventory(
+        inventory,
+        ledger_ids=frozenset({"T17", "ORPHAN_INVENTORY"}),
+    )
+
+    assert set(assignments) == {(path, "T17") for path in inventory}
+    assert orphan_candidates == ()
+
+
+def test_integrator_and_new_a_surfaces_have_explicit_ownership() -> None:
+    inventory = (
+        "scripts/cibo_ab_integration_gate.py",
+        "tests/infrastructure/test_cibo_ab_integration_gate.py",
+        ".github/workflows/cibo-ce2i-strict-four-fold-replication.yml",
+        "docs/research/CIBO-CE2I-STRICT-FOUR-FOLD-UTILITY-REPLICATION-V1.md",
+        ".github/workflows/cibo-ce2i-oos-stress-admission.yml",
+        "docs/research/CIBO-CE2I-OOS-MECHANISM-STRESS-ADMISSION-V1.md",
+        ".github/workflows/cibo-architect-a-mechanism-stress-admission.yml",
+        "docs/research/CIBO-ARCH-A-MECHANISM-ADVERSARIAL-STRESS-ADMISSION-V1.md",
+        ".github/workflows/cibo-genc-strict-four-fold-replication.yml",
+        "docs/research/CIBO-GENC-STRICT-FOUR-FOLD-TEMPORAL-REPLICATION-V1.md",
+        ".github/workflows/cibo-protected-base-strict-four-fold.yml",
+        "docs/research/CIBO-PROTECTED-BASE-STRICT-FOUR-FOLD-TEMPORAL-REPLICATION-V1.md",
+        "src/qore/infrastructure/cibo_ce2i_t16_preregistered_hedge_universe.py",
+        "docs/research/CIBO-B-T16-HEDGE-PAIR-PREREGISTRATION-V1.json",
+    )
+    ledger_ids = frozenset(
+        {
+            "SOURCE_OF_TRUTH_RECONCILIATION",
+            "CE2I_CROSS_TOOL_INFRASTRUCTURE",
+            "ADVERSARIAL_STRESS",
+            "TEMPORAL_REPLICATION",
+            "PROTECTED_BASE_CAPITAL",
+            "T16",
+            "ORPHAN_INVENTORY",
+        }
+    )
+    assignments, orphan_candidates = gate._classify_inventory(
+        inventory,
+        ledger_ids=ledger_ids,
+    )
+    assert orphan_candidates == ()
+    assert dict(assignments)[inventory[0]] == "SOURCE_OF_TRUTH_RECONCILIATION"
+    assert dict(assignments)[inventory[2]] == "CE2I_CROSS_TOOL_INFRASTRUCTURE"
+    assert dict(assignments)[inventory[4]] == "ADVERSARIAL_STRESS"
+    assert dict(assignments)[inventory[8]] == "TEMPORAL_REPLICATION"
+    assert dict(assignments)[inventory[10]] == "PROTECTED_BASE_CAPITAL"
+    assert dict(assignments)[inventory[12]] == "T16"
+
+
+def test_external_dependency_requires_exact_success_evidence(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ledger = tmp_path / "ledger.json"
+    payload = _ledger(
+        disposition="EXTERNAL_DEPENDENCY_BLOCKED",
+        blocking=True,
+    )
+    payload["workstreams"][0]["evidence_refs"] = ["docs/evidence.json"]
+    _write(ledger, payload)
+    monkeypatch.setattr(gate, "_REQUIRED_CANONICAL_ARTIFACTS", ())
+    monkeypatch.setattr(gate, "_INVENTORY_GLOBS", ())
+    monkeypatch.setattr(gate, "_MARKER_SCAN_GLOBS", ())
+
+    with pytest.raises(
+        gate.CiboZeroOpenWorkGateError,
+        match="requires exact SUCCESS evidence",
+    ):
+        gate.evaluate_gate(repo_root=tmp_path, ledger_path=ledger)
+
+
+def test_external_dependency_cannot_hide_internal_ci_work(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ledger = tmp_path / "ledger.json"
+    payload = _ledger(
+        disposition="EXTERNAL_DEPENDENCY_BLOCKED",
+        blocking=True,
+    )
+    payload["workstreams"][0]["blockers"] = [
+        "INTEGRATOR_COMPONENT_CI_REQUIRED"
+    ]
+    _write(ledger, payload)
+    monkeypatch.setattr(gate, "_REQUIRED_CANONICAL_ARTIFACTS", ())
+    monkeypatch.setattr(gate, "_INVENTORY_GLOBS", ())
+    monkeypatch.setattr(gate, "_MARKER_SCAN_GLOBS", ())
+
+    with pytest.raises(
+        gate.CiboZeroOpenWorkGateError,
+        match="hides internal work",
+    ):
+        gate.evaluate_gate(repo_root=tmp_path, ledger_path=ledger)
+
+
+def test_world_cup_exam_surfaces_have_world_cup_ownership() -> None:
+    inventory = (
+        "src/qore/infrastructure/"
+        "cibo_world_cup_maximum_capability_exam.py",
+        "tests/infrastructure/"
+        "test_cibo_world_cup_maximum_capability_exam.py",
+        "docs/research/"
+        "CIBO-WORLD-CUP-MAXIMUM-CAPABILITY-EXAM-PROTOCOL-V1.md",
+    )
+    assignments, orphan_candidates = gate._classify_inventory(
+        inventory,
+        ledger_ids=frozenset(
+            {"WORLD_CUP_MAXIMUM_CAPABILITY_EXAM", "ORPHAN_INVENTORY"}
+        ),
+    )
+
+    assert set(assignments) == {
+        (path, "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM")
+        for path in inventory
+    }
+    assert orphan_candidates == ()
+
+
+def test_t16_post_declaration_surfaces_belong_to_t16() -> None:
+    inventory = (
+        "scripts/cibo_t16_ctrader_demo_post_declaration_probe.py",
+        "tests/infrastructure/"
+        "test_cibo_t16_ctrader_demo_post_declaration_probe.py",
+        ".github/workflows/cibo-t16-post-declaration-market-structure.yml",
+        "docs/research/"
+        "CIBO-B-T16-POST-DECLARATION-MARKET-STRUCTURE-V1.md",
+    )
+    assignments, orphan_candidates = gate._classify_inventory(
+        inventory,
+        ledger_ids=frozenset({"T16", "ORPHAN_INVENTORY"}),
+    )
+
+    assert set(assignments) == {(path, "T16") for path in inventory}
+    assert orphan_candidates == ()
+
+
+def test_scientific_closure_41_inventory_is_not_orphaned() -> None:
+    inventory = (
+        "scripts/cibo_scientific_closure_41_semantic_gate.py",
+        "src/qore/infrastructure/cibo_scientific_closure_41.py",
+        "src/qore/infrastructure/cibo_scientific_closure_41_adapters.py",
+        "tests/infrastructure/test_cibo_scientific_closure_41.py",
+        "tests/infrastructure/test_cibo_scientific_closure_41_adapters.py",
+        ".github/workflows/cibo-scientific-closure-41.yml",
+    )
+    assignments, orphans = gate._classify_inventory(
+        inventory,
+        ledger_ids=frozenset({"SOURCE_OF_TRUTH_RECONCILIATION"}),
+    )
+
+    assert orphans == ()
+    assert len(assignments) == len(inventory)
+    assert {workstream_id for _path, workstream_id in assignments} == {
+        "SOURCE_OF_TRUTH_RECONCILIATION"
+    }

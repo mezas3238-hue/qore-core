@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - agent/cibo-capital-efficiency-sizing-lab-001
+      - agent/cibo-certification-architect-b-integration-001
     paths:
       - '.github/workflows/cibo-pre-holdout-checkpoint.yml'
       - 'scripts/cibo_pre_holdout_checkpoint.py'
@@ -14,6 +15,12 @@ on:
       - 'src/qore/infrastructure/cibo_ce2i_burned_t01_calibration.py'
       - 'src/qore/infrastructure/cibo_ce2i_burned_t07_calibration.py'
       - 'src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py'
+      - 'tests/infrastructure/test_cibo_crossboundary_evidence_receipt.py'
+      - 'tests/infrastructure/test_cibo_receipt_bound_calibration_freeze.py'
+      - 'tests/infrastructure/test_cibo_receipt_bound_pre_holdout.py'
+      - 'src/qore/infrastructure/cibo_crossboundary_evidence_receipt.py'
+      - 'src/qore/infrastructure/cibo_receipt_bound_calibration_freeze.py'
+      - 'src/qore/infrastructure/cibo_receipt_bound_pre_holdout.py'
       - 'src/qore/infrastructure/cibo_ce2i_holdout_registry.py'
       - 'src/qore/infrastructure/cibo_ce2i_usd60_six_month_certification.py'
       - 'src/qore/infrastructure/cibo_ce2i_provider_economics_evidence.py'
@@ -31,8 +38,18 @@ on:
       - 'src/qore/infrastructure/cibo_ce2i_burned_t01_calibration.py'
       - 'src/qore/infrastructure/cibo_ce2i_burned_t07_calibration.py'
       - 'src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py'
+      - 'src/qore/infrastructure/cibo_receipt_bound_pre_holdout.py'
+      - 'src/qore/infrastructure/cibo_receipt_bound_calibration_freeze.py'
+      - 'src/qore/infrastructure/cibo_crossboundary_evidence_receipt.py'
+      - 'tests/infrastructure/test_cibo_receipt_bound_pre_holdout.py'
+      - 'tests/infrastructure/test_cibo_receipt_bound_calibration_freeze.py'
+      - 'tests/infrastructure/test_cibo_crossboundary_evidence_receipt.py'
       - 'src/qore/infrastructure/cibo_ce2i_holdout_registry.py'
       - 'src/qore/infrastructure/cibo_ce2i_usd60_six_month_certification.py'
+      - 'src/qore/infrastructure/cibo_ce2i_provider_economics_evidence.py'
+      - 'src/qore/infrastructure/cibo_ce2i_provider_economics_provenance.py'
+      - 'tests/infrastructure/test_cibo_ce2i_provider_economics_evidence.py'
+      - 'tests/infrastructure/test_cibo_ce2i_provider_economics_provenance.py'
   workflow_dispatch:
 
 permissions:
@@ -66,6 +83,9 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_burned_t01_calibration.py \
             src/qore/infrastructure/cibo_ce2i_burned_t07_calibration.py \
             src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py \
+            src/qore/infrastructure/cibo_receipt_bound_pre_holdout.py \
+            src/qore/infrastructure/cibo_receipt_bound_calibration_freeze.py \
+            src/qore/infrastructure/cibo_crossboundary_evidence_receipt.py \
             src/qore/infrastructure/cibo_ce2i_holdout_registry.py \
             src/qore/infrastructure/cibo_ce2i_provider_economics_evidence.py \
             src/qore/infrastructure/cibo_ce2i_provider_economics_provenance.py
@@ -79,6 +99,9 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_burned_t01_calibration.py \
             src/qore/infrastructure/cibo_ce2i_burned_t07_calibration.py \
             src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py \
+            src/qore/infrastructure/cibo_receipt_bound_pre_holdout.py \
+            src/qore/infrastructure/cibo_receipt_bound_calibration_freeze.py \
+            src/qore/infrastructure/cibo_crossboundary_evidence_receipt.py \
             src/qore/infrastructure/cibo_ce2i_holdout_registry.py
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_ce2i_burned_calibration.py \
@@ -88,6 +111,9 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_calibration_registry.py \
             tests/infrastructure/test_cibo_ce2i_calibration_matrix.py \
             tests/infrastructure/test_cibo_ce2i_pre_holdout_gate.py \
+            tests/infrastructure/test_cibo_receipt_bound_pre_holdout.py \
+            tests/infrastructure/test_cibo_receipt_bound_calibration_freeze.py \
+            tests/infrastructure/test_cibo_crossboundary_evidence_receipt.py \
             tests/infrastructure/test_cibo_ce2i_holdout_registry.py \
             tests/infrastructure/test_cibo_ce2i_provider_economics_evidence.py \
             tests/infrastructure/test_cibo_ce2i_provider_economics_provenance.py

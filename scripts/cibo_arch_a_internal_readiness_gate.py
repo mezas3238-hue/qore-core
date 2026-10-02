@@ -1,0 +1,113 @@
+"""CLI for the Architect A internal-readiness contract."""
+
+from __future__ import annotations
+
+import argparse
+import json
+from pathlib import Path
+
+from qore.infrastructure.cibo_arch_a_internal_readiness import (
+    build_architect_a_scientific_batch_plan,
+    evaluate_architect_a_internal_readiness,
+    evaluate_architect_a_mechanism_evidence,
+    evaluate_architect_a_scientific_intake,
+)
+
+OUTPUT_PATH = Path("artifacts/cibo_arch_a_internal_readiness_v1.json")
+INTAKE_OUTPUT_PATH = Path("artifacts/cibo_arch_a_scientific_intake_v1.json")
+BATCH_OUTPUT_PATH = Path("artifacts/cibo_arch_a_scientific_batch_plan_v1.json")
+MECHANISM_OUTPUT_PATH = Path(
+    "artifacts/cibo_arch_a_mechanism_evidence_receipt_v1.json"
+)
+
+
+def _write_json(path: Path, payload: dict[str, object]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(payload, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--forward-manifest",
+        type=Path,
+        help="Architect-B exported forward-economic manifest JSON.",
+    )
+    parser.add_argument(
+        "--require-scientific-intake",
+        action="store_true",
+        help="Exit non-zero unless the B manifest unlocks A population intake.",
+    )
+    parser.add_argument(
+        "--mechanism-evidence",
+        type=Path,
+        help="Integrator JSON containing Architect-A mechanism evidence SHAs.",
+    )
+    parser.add_argument(
+        "--require-full-mechanism-science",
+        action="store_true",
+        help="Exit non-zero unless all mechanism evidence packages are present.",
+    )
+    args = parser.parse_args()
+
+    report = evaluate_architect_a_internal_readiness()
+    _write_json(OUTPUT_PATH, report.as_dict())
+    print(json.dumps(report.as_dict(), sort_keys=True))
+    if not report.passed:
+        return 1
+
+    if args.forward_manifest is None:
+        if args.require_scientific_intake:
+            parser.error(
+                "--require-scientific-intake requires --forward-manifest"
+            )
+        if args.mechanism_evidence is not None:
+            parser.error("--mechanism-evidence requires --forward-manifest")
+        if args.require_full_mechanism_science:
+            parser.error(
+                "--require-full-mechanism-science requires --forward-manifest"
+            )
+        return 0
+
+    payload = json.loads(args.forward_manifest.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise TypeError("Architect-B forward manifest must be JSON object")
+    intake = evaluate_architect_a_scientific_intake(payload)
+    batch = build_architect_a_scientific_batch_plan(report, intake)
+    _write_json(INTAKE_OUTPUT_PATH, intake.as_dict())
+    _write_json(BATCH_OUTPUT_PATH, batch.as_dict())
+    print(json.dumps(intake.as_dict(), sort_keys=True))
+    print(json.dumps(batch.as_dict(), sort_keys=True))
+
+    if args.require_scientific_intake and not batch.population_batch_ready:
+        return 2
+
+    mechanism = None
+    if args.mechanism_evidence is not None:
+        mechanism_payload = json.loads(
+            args.mechanism_evidence.read_text(encoding="utf-8")
+        )
+        if not isinstance(mechanism_payload, dict):
+            raise TypeError("Architect-A mechanism evidence must be JSON object")
+        mechanism = evaluate_architect_a_mechanism_evidence(
+            mechanism_payload,
+            intake,
+        )
+        _write_json(MECHANISM_OUTPUT_PATH, mechanism.as_dict())
+        print(json.dumps(mechanism.as_dict(), sort_keys=True))
+
+    if args.require_full_mechanism_science:
+        if mechanism is None:
+            parser.error(
+                "--require-full-mechanism-science requires --mechanism-evidence"
+            )
+        if not mechanism.ready_for_full_mechanism_science:
+            return 3
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

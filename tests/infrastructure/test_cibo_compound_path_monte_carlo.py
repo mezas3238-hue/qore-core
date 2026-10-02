@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
@@ -8,6 +9,7 @@ import pytest
 from qore.infrastructure.account_wide_risk import TraderLineage
 from qore.infrastructure.cibo_compound_capital import CiboCompoundCapitalError
 from qore.infrastructure.cibo_compound_path_monte_carlo import (
+    CompoundMonteCarloBlock,
     CompoundMonteCarloEpisode,
     CompoundMonteCarloInitialState,
     build_compound_monte_carlo_blocks,
@@ -261,4 +263,169 @@ def test_floor_graduation_cannot_exceed_realized_profit() -> None:
             deployed="5",
             pnl="1",
             floor="2",
+        )
+
+def test_compound_mc_summary_rejects_manual_aggregate_drift() -> None:
+    episode = _episode(
+        episode_id="single-aggregate",
+        start_minute=0,
+        duration_minutes=5,
+        generation=1,
+        deployed="5",
+        pnl="2",
+    )
+    summary = run_compound_path_monte_carlo(
+        initial=_initial(),
+        episodes=(episode,),
+        simulations=1,
+        draws_per_path=1,
+        components_per_block=1,
+        base_seed=13,
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="dependency breach aggregate drift",
+    ):
+        replace(summary, dependency_breach_paths=1)
+
+
+
+def test_compound_mc_result_rejects_terminal_capital_identity_drift() -> None:
+    episode = _episode(
+        episode_id="identity",
+        start_minute=0,
+        duration_minutes=5,
+        generation=1,
+        deployed="5",
+        pnl="2",
+    )
+    summary = run_compound_path_monte_carlo(
+        initial=_initial(),
+        episodes=(episode,),
+        simulations=1,
+        draws_per_path=1,
+        components_per_block=1,
+        base_seed=17,
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="ending realized-capital identity drift",
+    ):
+        replace(
+            summary.results[0],
+            ending_realized_capital_usd=(
+                summary.results[0].ending_realized_capital_usd
+                + Decimal("1")
+            ),
+        )
+
+
+def test_compound_mc_result_rejects_invalid_ending_generation_capacity() -> None:
+    episode = _episode(
+        episode_id="generation-integrity",
+        start_minute=0,
+        duration_minutes=5,
+        generation=1,
+        deployed="5",
+        pnl="2",
+    )
+    summary = run_compound_path_monte_carlo(
+        initial=_initial(),
+        episodes=(episode,),
+        simulations=1,
+        draws_per_path=1,
+        components_per_block=1,
+        base_seed=19,
+    )
+    result = summary.results[0]
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="ending generations must be unique",
+    ):
+        replace(
+            result,
+            ending_generation_capacity_usd=(
+                (1, Decimal("10")),
+                (1, Decimal("10")),
+            ),
+        )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="ending generation capacity must be finite non-negative",
+    ):
+        replace(
+            result,
+            ending_generation_capacity_usd=((1, Decimal("-1")),),
+        )
+
+
+def test_compound_mc_result_rejects_minimum_above_ending_capital() -> None:
+    episode = _episode(
+        episode_id="min-vs-ending",
+        start_minute=0,
+        duration_minutes=5,
+        generation=1,
+        deployed="5",
+        pnl="2",
+    )
+    summary = run_compound_path_monte_carlo(
+        initial=_initial(),
+        episodes=(episode,),
+        simulations=1,
+        draws_per_path=1,
+        components_per_block=1,
+        base_seed=23,
+    )
+    result = summary.results[0]
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="minimum realized capital exceeds ending capital",
+    ):
+        replace(
+            result,
+            minimum_realized_capital_usd=(
+                result.ending_realized_capital_usd + Decimal("1")
+            ),
+        )
+
+
+def test_compound_mc_episode_rejects_non_bool_provenance_flags() -> None:
+    episode = _episode(
+        episode_id="typed-flags",
+        start_minute=0,
+        duration_minutes=5,
+        generation=1,
+        deployed="5",
+        pnl="1",
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="market_record_present must be bool",
+    ):
+        replace(episode, market_record_present=1)
+
+
+def test_compound_mc_block_rejects_duplicate_episode_or_deployment() -> None:
+    episode = _episode(
+        episode_id="duplicate-block",
+        start_minute=0,
+        duration_minutes=5,
+        generation=1,
+        deployed="5",
+        pnl="1",
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="cannot duplicate episode/deployment",
+    ):
+        CompoundMonteCarloBlock(
+            block_id="duplicate",
+            episodes=(episode, episode),
         )

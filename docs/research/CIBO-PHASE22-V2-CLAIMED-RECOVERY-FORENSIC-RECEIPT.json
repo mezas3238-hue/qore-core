@@ -1,0 +1,127 @@
+{
+  "schema": "QORE_CIBO_PHASE22_V2_CLAIMED_RECOVERY_FORENSIC_RECEIPT_V1",
+  "candidate_id": "CIBO_USD60_6M_HOLDOUT_2015-10-19_2016-04-19_V2",
+  "original_one_shot": {
+    "run_id": 37007253157,
+    "run_attempt": 1,
+    "claim_commit_sha": "bc21ee2f92495a2698072b77e9510606b00ffe06",
+    "claim_receipt_sha256": "sha256:f6fa880733d5a935776b0072c8274c3a261d201bfb472ab4c777813054ed0d96",
+    "execution_manifest_sha256": "sha256:ea1442b597d12f5ba8a45fcef38e5627e13a4c0af711ab5ff5f2a656a31ad655",
+    "fresh_replay_count": 1,
+    "second_fresh_execution": false,
+    "fresh_lane_population_regenerated": false
+  },
+  "recovery": {
+    "code_head_sha": "4a7bbcf45b88d030ae64d56aaf3f2200b174deec",
+    "workflow_run_id": 37010938911,
+    "workflow_conclusion": "success",
+    "artifact_id": 11227409531,
+    "artifact_sha256": "sha256:ac938c675fa65cea555d4011cbbfa23e43c1f648d7bcd83d2c013e4920390d26",
+    "immutable_already_emitted_artifacts_reused": true,
+    "broker_mutation": false
+  },
+  "lane_artifacts": {
+    "VT08_FOREX": [
+      11226132792,
+      "sha256:20f26db710b013c68f8952b2c8a18fc1a62831385af05e8cf2bcb9939eaeb320"
+    ],
+    "R34_XAUUSD": [
+      11225958661,
+      "sha256:d67ba0566a10b1cbb8d232f403333444c0a7bdd397f25cf5c98b11513214c0ab"
+    ],
+    "R38_EURUSD": [
+      11226172630,
+      "sha256:9a8443f9f62e8259f541de6a359dc6f505dad4501e78800dd0eea0db328cfd3a"
+    ],
+    "R43_GBPUSD": [
+      11226556570,
+      "sha256:203e3cfb32bbd61af480452696121f6f09e9420854afb722486a701058a13c2f"
+    ],
+    "R38_GBPJPY": [
+      11226766076,
+      "sha256:10a37a616b584eee061ed3f0115f8c5515d5dd510e6fa6111878f9d1f638f872"
+    ],
+    "R42_AUDJPY": [
+      11226102979,
+      "sha256:86dfb68cea7e21009f98bb55642c08995d9b59cd2a0e76db0148557f7b501db4"
+    ],
+    "VT31_NAS100": [
+      11226930079,
+      "sha256:1a81b9be93b1aa5bb97d5a034e4c2373565a421643cbe659125bc612781b0d07"
+    ]
+  },
+  "vt31": {
+    "emitted_rows": 82,
+    "censored_geometry_count": 20,
+    "censored_excluded_count": 20,
+    "executable_retained_count": 62,
+    "assembled_total_executable_opportunities": 80,
+    "classifier": "VT31_REQUIRED_EXECUTABLE_GEOMETRY_V1",
+    "geometry_reconstructed": false,
+    "selection_uses_realized_r": false,
+    "receipt_sha256": "sha256:b09ca5bffefbabd310ed6cdbd286745d2c22274234f7757173f4cd5b747347da",
+    "assembled_batch_sha256": "sha256:cb5fb0e6840590a05f438bb24ee28f20130332e41d25ecce540fe318464c77aa"
+  },
+  "stores": {
+    "HOLDOUT_FORWARD_EVIDENCE": "sha256:4b8788206fca8563529a1e7bd2670c0dcc3191b84f661a3c44cab5b8f9b098d5",
+    "HOLDOUT_POLICY": "sha256:d948fc68a51c96aa0b4b593639e7273eb5ad446bd3ffbd97afa74fae79882b18",
+    "EXECUTED_RISK": "sha256:91315c25be02250c6a90a77f310d56ccd4c1dafb2bc07229a48a03de01840727",
+    "CMA_SETTLEMENT": "sha256:b7ede7c6916ea9c93ca397317bd3bcf21ed55ca6af8c079a3b439bd1b2160274",
+    "T20_RELEASE": "sha256:8682e9f2ad36c6c67a313d423d5c9547073ce03c88704f876db2a6abe8f8152c"
+  },
+  "execution": {
+    "initial_capital_usd": "60",
+    "final_capital_usd": "60",
+    "max_drawdown_usd": "0",
+    "selected": 0,
+    "allowed": 0,
+    "reduced": 0,
+    "rejected": 0,
+    "settled": 0,
+    "accounting_residual_usd": "0"
+  },
+  "qualification": {
+    "status": "INVALID",
+    "lineage_valid": true,
+    "plan_sha256": "sha256:ef9c86d781201695be4bf9b9dc1ba0f5f0e5484249d0393e0975a5b7c9ffc297",
+    "hard_failures": [
+      "ADVANCED_TOOL_EVIDENCE_COMPLETE_OR_EXPLICIT_ABSTENTION"
+    ],
+    "readiness": {
+      "ready": false,
+      "decision_epochs": 79,
+      "candidate_instances": 80,
+      "candidate_outcomes": 0,
+      "selected_outcomes": 0,
+      "represented_outcome_lineages": 0,
+      "reasons": [
+        "MINIMUM_DECISION_EPOCHS_NOT_MET",
+        "MINIMUM_CANDIDATE_OUTCOMES_NOT_MET",
+        "MINIMUM_SELECTED_OUTCOMES_NOT_MET",
+        "MINIMUM_GLOBAL_LINEAGES_NOT_MET",
+        "MINIMUM_OUTCOMES_PER_LINEAGE_NOT_MET",
+        "MINIMUM_FOLD_CANDIDATE_OUTCOMES_NOT_MET",
+        "MINIMUM_FOLD_LINEAGES_NOT_MET",
+        "CANDIDATE_OUTCOME_COVERAGE_NOT_MET",
+        "SELECTED_OUTCOME_COVERAGE_NOT_MET"
+      ]
+    },
+    "fresh_oos_terminal_ready": false,
+    "terminal_recommendation": null,
+    "rerun_authorized": false
+  },
+  "consumption": {
+    "state": "CONSUMED",
+    "outcomes_emitted": true,
+    "outcome_bundle_sha256": "sha256:15e3543b3569c4f9b674ccce0c8bf6de41e872cdfb4ecff3620617e6e73f7146",
+    "commit_sha": "b97a86b271a3546ba90953bf87e2329a333630cb"
+  },
+  "governance": {
+    "live_authorized": false,
+    "real_capital_authorized": false,
+    "production_authorized": false,
+    "merge_authorized": false,
+    "certification_claimed": false
+  },
+  "certification_implication": "PHASE22_INVALID_FRESH_OOS_NON_TERMINAL"
+}

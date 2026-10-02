@@ -21,6 +21,8 @@ from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
 
+T08_OOS_ABLATION_CONTRACT_ID = "CIBO_T08_FRESH_OOS_NETTING_ABLATION_V1"
+
 _MAX_NETTING_CREDIT_FRACTION = Decimal("0.50")
 
 
@@ -181,6 +183,28 @@ class T08NettingOosFold:
             raise CiboCapitalManagementError(
                 "T08 OOS fold drawdown cannot be negative"
             )
+        for name in (
+            "treatment_peak_loss_within_authorization",
+            "non_worse_drawdown",
+            "non_worse_pnl",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise CiboCapitalManagementError(
+                    f"T08 OOS fold {name} must be bool"
+                )
+        if self.non_worse_drawdown != (
+            self.treatment_max_drawdown_usd
+            <= self.baseline_max_drawdown_usd
+        ):
+            raise CiboCapitalManagementError(
+                "T08 OOS fold drawdown status drift"
+            )
+        if self.non_worse_pnl != (
+            self.treatment_total_pnl_usd >= self.baseline_total_pnl_usd
+        ):
+            raise CiboCapitalManagementError(
+                "T08 OOS fold PnL status drift"
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -223,9 +247,9 @@ class T08NettingOosAblationReport:
                 raise CiboCapitalManagementError(
                     f"T08 OOS report {name} invalid"
                 )
-        if self.minimum_epochs < 2 or self.required_folds < 2:
+        if self.minimum_epochs < 2 or self.required_folds != 4:
             raise CiboCapitalManagementError(
-                "T08 OOS report frozen thresholds invalid"
+                "T08 OOS report requires exactly four temporal folds"
             )
         for name in (
             "baseline_total_pnl_usd",
@@ -240,6 +264,174 @@ class T08NettingOosAblationReport:
         ):
             raise CiboCapitalManagementError(
                 "T08 OOS report drawdown cannot be negative"
+            )
+        for name in (
+            "mapping_evidence_bound",
+            "correlation_evidence_bound",
+            "pathwise_authorization_respected",
+            "fresh_oos_utility_demonstrated",
+            "risk_mapping_verified",
+            "correlation_state_verified",
+            "netting_credit_authorized",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise CiboCapitalManagementError(
+                    f"T08 OOS report {name} must be bool"
+                )
+        if not isinstance(self.blockers, tuple) or any(
+            not isinstance(item, str) or not item
+            for item in self.blockers
+        ):
+            raise CiboCapitalManagementError(
+                "T08 OOS report blockers must be non-empty strings"
+            )
+        if len(self.blockers) != len(set(self.blockers)):
+            raise CiboCapitalManagementError(
+                "T08 OOS report blockers must be unique"
+            )
+        if self.incremental_selected_count != (
+            self.treatment_selected_count - self.baseline_selected_count
+        ):
+            raise CiboCapitalManagementError(
+                "T08 OOS report incremental selection drift"
+            )
+        if self.sample_size >= self.required_folds * 2 and not self.folds:
+            raise CiboCapitalManagementError(
+                "T08 OOS report fold population drift"
+            )
+        if self.folds:
+            fold_indexes = tuple(item.fold_index for item in self.folds)
+            if fold_indexes != tuple(range(self.required_folds)):
+                raise CiboCapitalManagementError(
+                    "T08 OOS report fold identity drift"
+                )
+            if sum(item.epoch_count for item in self.folds) != self.sample_size:
+                raise CiboCapitalManagementError(
+                    "T08 OOS report fold sample drift"
+                )
+            if (
+                sum(item.baseline_selected_count for item in self.folds)
+                != self.baseline_selected_count
+                or sum(item.treatment_selected_count for item in self.folds)
+                != self.treatment_selected_count
+            ):
+                raise CiboCapitalManagementError(
+                    "T08 OOS report fold selection drift"
+                )
+            if sum(
+                (
+                    item.baseline_total_pnl_usd
+                    for item in self.folds
+                ),
+                Decimal(0),
+            ) != self.baseline_total_pnl_usd:
+                raise CiboCapitalManagementError(
+                    "T08 OOS report baseline fold PnL drift"
+                )
+            if sum(
+                (
+                    item.treatment_total_pnl_usd
+                    for item in self.folds
+                ),
+                Decimal(0),
+            ) != self.treatment_total_pnl_usd:
+                raise CiboCapitalManagementError(
+                    "T08 OOS report treatment fold PnL drift"
+                )
+
+        sample_ready = self.sample_size >= self.minimum_epochs
+        folds_ready = len(self.folds) == self.required_folds
+        all_folds_safe = folds_ready and all(
+            item.treatment_peak_loss_within_authorization
+            and item.non_worse_drawdown
+            and item.non_worse_pnl
+            for item in self.folds
+        )
+        expected_utility = (
+            sample_ready
+            and folds_ready
+            and self.mapping_evidence_bound
+            and self.correlation_evidence_bound
+            and self.pathwise_authorization_respected
+            and self.incremental_selected_count > 0
+            and self.treatment_total_pnl_usd >= self.baseline_total_pnl_usd
+            and self.treatment_max_drawdown_usd
+            <= self.baseline_max_drawdown_usd
+            and all_folds_safe
+        )
+        if self.fresh_oos_utility_demonstrated != expected_utility:
+            raise CiboCapitalManagementError(
+                "T08 OOS report utility result drift"
+            )
+
+        expected_blockers: list[str] = []
+        if self.sample_size == 0 and not self.folds:
+            expected_blockers.extend(
+                (
+                    f"T08_OOS_MINIMUM_EPOCHS_NOT_MET:0/{self.minimum_epochs}",
+                    f"T08_OOS_FOLD_COVERAGE_NOT_MET:0/{self.required_folds}",
+                    "T08_OOS_RISK_MAPPING_EVIDENCE_NOT_BOUND",
+                    "T08_OOS_CORRELATION_EVIDENCE_NOT_BOUND",
+                    "T08_OOS_NO_INCREMENTAL_CAPITAL_UTILITY",
+                    "FRESH_OOS_NETTING_UTILITY_NOT_DEMONSTRATED",
+                )
+            )
+        else:
+            if not sample_ready:
+                expected_blockers.append(
+                    "T08_OOS_MINIMUM_EPOCHS_NOT_MET:"
+                    f"{self.sample_size}/{self.minimum_epochs}"
+                )
+            if not folds_ready:
+                expected_blockers.append(
+                    "T08_OOS_FOLD_COVERAGE_NOT_MET:"
+                    f"{len(self.folds)}/{self.required_folds}"
+                )
+            if not self.mapping_evidence_bound:
+                expected_blockers.append(
+                    "T08_OOS_RISK_MAPPING_EVIDENCE_NOT_BOUND"
+                )
+            if not self.correlation_evidence_bound:
+                expected_blockers.append(
+                    "T08_OOS_CORRELATION_EVIDENCE_NOT_BOUND"
+                )
+            if self.incremental_selected_count <= 0:
+                expected_blockers.append(
+                    "T08_OOS_NO_INCREMENTAL_CAPITAL_UTILITY"
+                )
+            if self.treatment_total_pnl_usd < self.baseline_total_pnl_usd:
+                expected_blockers.append(
+                    "T08_OOS_TREATMENT_PNL_WORSE_THAN_BASELINE"
+                )
+            if (
+                self.treatment_max_drawdown_usd
+                > self.baseline_max_drawdown_usd
+            ):
+                expected_blockers.append(
+                    "T08_OOS_TREATMENT_DRAWDOWN_WORSE_THAN_BASELINE"
+                )
+            if not self.pathwise_authorization_respected:
+                expected_blockers.append(
+                    "T08_OOS_NETTED_RISK_AUTHORIZATION_BREACHED"
+                )
+            if folds_ready and not all_folds_safe:
+                expected_blockers.append(
+                    "T08_OOS_FOLD_SAFETY_OR_UTILITY_NOT_ROBUST"
+                )
+            if expected_utility:
+                expected_blockers.extend(
+                    (
+                        "SIGNED_FACTOR_RISK_MAP_REQUIRES_INDEPENDENT_CERTIFICATION",
+                        "CORRELATION_STATE_REQUIRES_INDEPENDENT_CERTIFICATION",
+                    )
+                )
+            else:
+                expected_blockers.append(
+                    "FRESH_OOS_NETTING_UTILITY_NOT_DEMONSTRATED"
+                )
+        if self.blockers != tuple(expected_blockers):
+            raise CiboCapitalManagementError(
+                "T08 OOS report blocker/result drift"
             )
         if self.risk_mapping_verified or self.correlation_state_verified:
             raise CiboCapitalManagementError(
@@ -263,9 +455,9 @@ def assess_t08_fresh_oos_netting_ablation(
         raise CiboCapitalManagementError(
             "T08 OOS minimum_epochs must be at least two"
         )
-    if required_folds < 2:
+    if required_folds != 4:
         raise CiboCapitalManagementError(
-            "T08 OOS required_folds must be at least two"
+            "T08 OOS required_folds must be exactly four"
         )
     if not epochs:
         return _empty_report(

@@ -1,0 +1,71 @@
+{
+  "schema": "qore.cibo.phase22.next-exam-governance.v1",
+  "status": "AWAITING_OWNER_ONE_SHOT_AUTHORIZATION",
+  "consumed_v2": {
+    "candidate_id": "CIBO_USD60_6M_HOLDOUT_2015-10-19_2016-04-19_V2",
+    "state": "CONSUMED",
+    "qualification_status": "INVALID",
+    "second_fresh_execution_authorized": false,
+    "population_regeneration_authorized": false
+  },
+  "provisional_next_candidate": {
+    "candidate_id": "CIBO_USD60_6M_HOLDOUT_2015-04-19_2015-10-19_V3",
+    "start_at": "2015-04-19T00:00:00+00:00",
+    "end_exclusive_at": "2015-10-19T00:00:00+00:00",
+    "status": "ELIGIBLE_FROZEN",
+    "selection_rule": "immediately preceding exact six-calendar-month block ending at the consumed V2 start boundary; selected mechanically without reading candidate source data or outcomes",
+    "outcome_data_inspected_at_selection": false,
+    "source_validation_complete": true,
+    "execution_authorized": false
+  },
+  "blockers": [
+    "NEW_ONE_SHOT_OWNER_AUTHORIZATION_REQUIRED"
+  ],
+  "required_order": [
+    "OWNER_NEW_ONE_SHOT_AUTHORIZATION",
+    "CREATE_DURABLE_NEW_CLAIM",
+    "EXECUTE_EXACTLY_ONCE"
+  ],
+  "governance": {
+    "broker_mutation_authorized": false,
+    "live_authorized": false,
+    "real_capital_authorized": false,
+    "production_authorized": false,
+    "merge_authorized": false,
+    "productive_authority": false
+  },
+  "satisfied_prerequisites": {
+    "turtle_subordinate_window_integrity": {
+      "status": "GREEN",
+      "run_id": 37016818566,
+      "head_sha": "f8f2bfde3fed00750fd14a226bbb22b09da24bc0",
+      "second_fresh_execution": false
+    },
+    "advanced_scientific_eligibility": {
+      "status": "GREEN",
+      "run_id": 37026020917,
+      "sha256": "sha256:8101c287ba024032c81f97d1768c0380cb061e57de0cb87838e6b032074d610f",
+      "outcomes_used": false
+    },
+    "policy_code_bundle_lineage": {
+      "status": "GREEN",
+      "run_id": 37026179229,
+      "sha256": "sha256:4c2fbee5d9e6488c2c378eceda6da0a49a415f6af3b3aa29f673bfaa93ee54a4",
+      "legacy_single_code_sha_sufficient": false
+    },
+    "source_validation": {
+      "status": "GREEN",
+      "availability_run_id": 37027014266,
+      "availability_artifact_id": 11235766192,
+      "availability_artifact_digest": "sha256:225c0ab8020be63fae37d44f5f3435550f61e53002e7277dc6a48fcd79c30961",
+      "corpus_run_id": 37027578451,
+      "corpus_seal_artifact_id": 11235822790,
+      "corpus_seal_artifact_digest": "sha256:76efe25e3dbab67be02d00a38d8f93edba54c136d6c6ef4e1d629535d3c95c36",
+      "source_receipt_sha256": "sha256:7698562ce68edb166d2b9a407b7d23e02571fb4366c7a96cc15f318c3ac55f02",
+      "source_count": 10,
+      "trader_logic_executed": false,
+      "outcomes_inspected": false,
+      "broker_mutation": false
+    }
+  }
+}

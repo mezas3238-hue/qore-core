@@ -1,0 +1,207 @@
+name: QORE CIBO Phase22 One-Shot Source Preflight
+
+on:
+  push:
+    branches:
+      - agent/cibo-integrator-ab-001
+    paths:
+      - '.github/workflows/cibo-phase22-one-shot-source-preflight.yml'
+      - 'src/qore/infrastructure/cibo_phase22_one_shot_source_preflight.py'
+      - 'src/qore/infrastructure/cibo_phase22_holdout_v2_source_receipt.py'
+      - 'src/qore/infrastructure/cibo_phase22_vt31_v4_fresh_source.py'
+      - 'src/qore/infrastructure/cibo_phase22_one_shot_guard.py'
+      - 'src/qore/infrastructure/cibo_phase22_turtle_auxiliary_manifest.py'
+      - 'scripts/cibo_phase22_turtle_auxiliary_manifest.py'
+      - 'scripts/cibo_phase22_one_shot_source_preflight.py'
+      - 'scripts/cibo_phase22_turtle_fresh_corpus_patch.py'
+      - 'scripts/cibo_phase22_vt31_v4_fresh_runner.py'
+      - 'tests/infrastructure/test_cibo_phase22_one_shot_source_preflight.py'
+      - 'tests/infrastructure/test_cibo_phase22_turtle_auxiliary_manifest.py'
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-phase22-one-shot-source-preflight.yml'
+      - 'src/qore/infrastructure/cibo_phase22_one_shot_source_preflight.py'
+      - 'src/qore/infrastructure/cibo_phase22_one_shot_guard.py'
+      - 'scripts/cibo_phase22_one_shot_source_preflight.py'
+      - 'tests/infrastructure/test_cibo_phase22_one_shot_source_preflight.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  preflight:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+
+      - name: Quality and non-executing contracts
+        run: |
+          ruff check src/qore/infrastructure/cibo_phase22_one_shot_source_preflight.py scripts/cibo_phase22_one_shot_source_preflight.py tests/infrastructure/test_cibo_phase22_one_shot_source_preflight.py src/qore/infrastructure/cibo_phase22_turtle_auxiliary_manifest.py scripts/cibo_phase22_turtle_auxiliary_manifest.py tests/infrastructure/test_cibo_phase22_turtle_auxiliary_manifest.py
+          mypy src/qore/infrastructure/cibo_phase22_one_shot_source_preflight.py scripts/cibo_phase22_one_shot_source_preflight.py src/qore/infrastructure/cibo_phase22_turtle_auxiliary_manifest.py scripts/cibo_phase22_turtle_auxiliary_manifest.py
+          pytest -q --no-cov tests/infrastructure/test_cibo_phase22_one_shot_source_preflight.py tests/infrastructure/test_cibo_phase22_turtle_auxiliary_manifest.py
+
+      - name: Confirm one-shot lifecycle guard without fresh replay authority
+        id: guard
+        run: |
+          mkdir -p preflight
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          from qore.infrastructure.cibo_phase22_one_shot_guard import (
+              Phase22OneShotGuardStatus,
+              assess_phase22_one_shot_guard,
+          )
+          guard = assess_phase22_one_shot_guard()
+          if guard.status is Phase22OneShotGuardStatus.READY:
+              assert guard.blockers == ()
+              assert guard.authorized_to_create_durable_claim is True
+              assert guard.authorized_to_emit_first_fresh_outcome is False
+              should_preflight = True
+          elif guard.status in {
+              Phase22OneShotGuardStatus.CLAIMED,
+              Phase22OneShotGuardStatus.CONSUMED,
+          }:
+              assert guard.execution_claimed is True
+              assert guard.authorized_to_create_durable_claim is False
+              assert guard.authorized_to_emit_first_fresh_outcome is False
+              should_preflight = False
+          else:
+              raise SystemExit(
+                  f"unexpected Phase22 one-shot guard state: {guard.status}"
+              )
+          Path("preflight/guard.json").write_text(
+              json.dumps(guard.payload(), indent=2, sort_keys=True) + "\n"
+          )
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
+              handle.write(
+                  "should_preflight="
+                  + ("true" if should_preflight else "false")
+                  + "\n"
+              )
+          PY
+
+      - name: Verify immutable Turtle auxiliary artifacts still exist
+        if: steps.guard.outputs.should_preflight == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/cibo_phase22_turtle_auxiliary_manifest.py             --json preflight/turtle-auxiliary-manifest.json             --tsv preflight/turtle-auxiliary-manifest.tsv
+          while IFS=$'\t' read -r symbol role run_id artifact_id name digest; do
+            payload="$(gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id")"
+            test "$(jq -r '.id' <<<"$payload")" = "$artifact_id"
+            test "$(jq -r '.name' <<<"$payload")" = "$name"
+            test "$(jq -r '.expired' <<<"$payload")" = "false"
+            test "$(jq -r '.workflow_run.id' <<<"$payload")" = "$run_id"
+            test "$(jq -r '.digest' <<<"$payload")" = "$digest"
+          done < preflight/turtle-auxiliary-manifest.tsv
+
+      - name: Download and verify all ten immutable V2 source archives
+        if: steps.guard.outputs.should_preflight == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p sources
+          python - <<'PY' > preflight/source-manifest.tsv
+          from qore.infrastructure.cibo_phase22_one_shot_source_preflight import (
+              expected_source_archive_rows,
+          )
+          for symbol, timeframe, artifact_id, digest, retained, first, last in (
+              expected_source_archive_rows()
+          ):
+              print(
+                  symbol,
+                  timeframe,
+                  artifact_id,
+                  digest.removeprefix("sha256:"),
+                  retained,
+                  first,
+                  last,
+                  sep="\t",
+              )
+          PY
+          while IFS=$'\t' read -r symbol timeframe artifact_id digest retained first last; do
+            key="$symbol-$timeframe"
+            gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip"               > "sources/$key.zip"
+            echo "$digest  sources/$key.zip" | sha256sum -c -
+            mkdir -p "sources/$key"
+            unzip -q "sources/$key.zip" -d "sources/$key"
+          done < preflight/source-manifest.tsv
+
+      - name: Validate source corpus identities without Trader execution
+        if: steps.guard.outputs.should_preflight == 'true'
+        run: |
+          python scripts/cibo_phase22_one_shot_source_preflight.py             --sources-root sources             --output preflight/source-preflight.json
+
+      - name: Materialize exact frozen replay programs without execution
+        if: steps.guard.outputs.should_preflight == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p frozen patched preflight/patch-reports
+          python - <<'PY' > preflight/frozen-replay-sources.tsv
+          from qore.infrastructure.cibo_phase22_one_shot_source_preflight import (
+              FROZEN_TURTLE_REPLAY_SOURCES,
+              FROZEN_VT31_SOURCE_SHA,
+          )
+          for item in FROZEN_TURTLE_REPLAY_SOURCES:
+              print(
+                  item.trader_id,
+                  item.methodology_git_sha,
+                  item.source_mode,
+                  item.source_relative_path,
+                  item.parity_adapter_relative_path,
+                  item.geometry_patch_script or "-",
+                  sep="\t",
+              )
+          print("VT31_NAS100", FROZEN_VT31_SOURCE_SHA, "IMMUTABLE_VT31_SOURCE", "-", "-", "-", sep="\t")
+          PY
+          while IFS=$'\t' read -r trader sha mode source_path adapter_path patch_script; do
+            if [ "$mode" = "PARITY_PROVEN_HEAD_ADAPTER" ]; then
+              test -f "$adapter_path"
+              cp "$adapter_path" "patched/$trader-geometry.py"
+            else
+              git fetch --no-tags --depth=1 origin "$sha"
+              git worktree add --detach "frozen/$trader" "$sha"
+              test "$(git -C "frozen/$trader" rev-parse HEAD)" = "$sha"
+              if [ "$mode" = "IMMUTABLE_SOURCE_PLUS_SERIALIZATION_PATCH" ]; then
+                test -f "frozen/$trader/$source_path"
+                test -f "$patch_script"
+                python "$patch_script"                   "frozen/$trader/$source_path"                   "patched/$trader-geometry.py"
+              fi
+            fi
+            if [ "$trader" != "VT31_NAS100" ]; then
+              python scripts/cibo_phase22_turtle_fresh_corpus_patch.py                 --trader "$trader"                 --source "patched/$trader-geometry.py"                 --output "patched/$trader.py"                 --report "preflight/patch-reports/$trader.json"
+              python -m py_compile "patched/$trader.py"
+            fi
+          done < preflight/frozen-replay-sources.tsv
+
+      - name: Validate frozen VT31 identity without fresh execution
+        if: steps.guard.outputs.should_preflight == 'true'
+        run: |
+          python scripts/cibo_phase22_vt31_v4_fresh_runner.py             --frozen-root frozen/VT31_NAS100             --self-check > preflight/vt31-self-check.json
+
+      - name: Seal pre-outcome preflight evidence
+        run: |
+          printf '%s\n' "$GITHUB_SHA" > preflight/git-sha.txt
+          find preflight -type f ! -name SHA256SUMS.txt -print0 | sort -z |             xargs -0 sha256sum > preflight/SHA256SUMS.txt
+          sha256sum -c preflight/SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-phase22-one-shot-source-preflight-${{ github.sha }}
+          path: preflight
+          if-no-files-found: error
+          retention-days: 90

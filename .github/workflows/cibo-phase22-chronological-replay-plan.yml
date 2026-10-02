@@ -1,0 +1,44 @@
+name: QORE CIBO Phase22 Chronological Replay Plan
+
+on:
+  push:
+    branches:
+      - agent/cibo-integrator-ab-001
+    paths:
+      - '.github/workflows/cibo-phase22-chronological-replay-plan.yml'
+      - 'src/qore/infrastructure/cibo_phase22_chronological_replay_plan.py'
+      - 'src/qore/infrastructure/cibo_phase22_execution_inputs.py'
+      - 'src/qore/infrastructure/cibo_phase22_fresh_capital_projection.py'
+      - 'tests/infrastructure/test_cibo_phase22_chronological_replay_plan.py'
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-phase22-chronological-replay-plan.yml'
+      - 'src/qore/infrastructure/cibo_phase22_chronological_replay_plan.py'
+      - 'src/qore/infrastructure/cibo_phase22_execution_inputs.py'
+      - 'src/qore/infrastructure/cibo_phase22_fresh_capital_projection.py'
+      - 'tests/infrastructure/test_cibo_phase22_chronological_replay_plan.py'
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Prove predecision/outcome separation
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_phase22_chronological_replay_plan.py \
+            tests/infrastructure/test_cibo_phase22_chronological_replay_plan.py
+          mypy \
+            src/qore/infrastructure/cibo_phase22_chronological_replay_plan.py
+          python -m py_compile \
+            src/qore/infrastructure/cibo_phase22_chronological_replay_plan.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_phase22_chronological_replay_plan.py

@@ -6,8 +6,11 @@ on:
     paths:
       - '.github/workflows/cibo-genc12-crisis-capital.yml'
       - 'src/qore/infrastructure/cibo_crisis_capital_intelligence.py'
+      - 'src/qore/infrastructure/cibo_genc12_economic_gate.py'
       - 'tests/infrastructure/test_cibo_crisis_capital_intelligence.py'
+      - 'tests/infrastructure/test_cibo_genc12_economic_gate.py'
       - 'docs/research/CIBO-GEN-C12-CRISIS-CAPITAL-INTELLIGENCE-V1.md'
+      - 'docs/research/CIBO-GEN-C12-NONCOMPENSATORY-ECONOMIC-GATE-V1.md'
       - 'docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json'
   push:
     branches:
@@ -15,8 +18,11 @@ on:
     paths:
       - '.github/workflows/cibo-genc12-crisis-capital.yml'
       - 'src/qore/infrastructure/cibo_crisis_capital_intelligence.py'
+      - 'src/qore/infrastructure/cibo_genc12_economic_gate.py'
       - 'tests/infrastructure/test_cibo_crisis_capital_intelligence.py'
+      - 'tests/infrastructure/test_cibo_genc12_economic_gate.py'
       - 'docs/research/CIBO-GEN-C12-CRISIS-CAPITAL-INTELLIGENCE-V1.md'
+      - 'docs/research/CIBO-GEN-C12-NONCOMPENSATORY-ECONOMIC-GATE-V1.md'
       - 'docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json'
 
 permissions:
@@ -40,9 +46,15 @@ jobs:
         run: |
           ruff check \
             src/qore/infrastructure/cibo_crisis_capital_intelligence.py \
-            tests/infrastructure/test_cibo_crisis_capital_intelligence.py
-          mypy src/qore/infrastructure/cibo_crisis_capital_intelligence.py
+            src/qore/infrastructure/cibo_genc12_economic_gate.py \
+            tests/infrastructure/test_cibo_crisis_capital_intelligence.py \
+            tests/infrastructure/test_cibo_genc12_economic_gate.py
+          mypy \
+            src/qore/infrastructure/cibo_crisis_capital_intelligence.py \
+            src/qore/infrastructure/cibo_genc12_economic_gate.py
           python -m py_compile \
-            src/qore/infrastructure/cibo_crisis_capital_intelligence.py
+            src/qore/infrastructure/cibo_crisis_capital_intelligence.py \
+            src/qore/infrastructure/cibo_genc12_economic_gate.py
           pytest -q --no-cov \
-            tests/infrastructure/test_cibo_crisis_capital_intelligence.py
+            tests/infrastructure/test_cibo_crisis_capital_intelligence.py \
+            tests/infrastructure/test_cibo_genc12_economic_gate.py

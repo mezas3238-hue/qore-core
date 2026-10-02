@@ -86,6 +86,14 @@ class Genc7FreshPopulation:
             raise CiboCompoundCapitalError(
                 "GEN-C7 population blocked count exceeds decisions"
             )
+        if (
+            self.treatment_control_divergence_count
+            + self.blocked_decision_count
+            != self.decision_epoch_count
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C7 population divergence/blocked partition drift"
+            )
         action_total = (
             self.protect_count
             + self.harvest_count
@@ -97,14 +105,29 @@ class Genc7FreshPopulation:
             raise CiboCompoundCapitalError(
                 "GEN-C7 population action counts drift"
             )
-        if len(self.account_keys) != len(set(self.account_keys)):
+        if self.hold_count != self.blocked_decision_count:
             raise CiboCompoundCapitalError(
-                "GEN-C7 population account keys must be unique"
+                "GEN-C7 population hold/blocked count drift"
+            )
+        if (
+            not isinstance(self.account_keys, tuple)
+            or any(
+                not isinstance(item, str) or not item
+                for item in self.account_keys
+            )
+            or len(self.account_keys) != len(set(self.account_keys))
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C7 population account keys must be unique non-empty strings"
             )
         if self.decision_epoch_count == 0:
             if self.status is not Genc7PopulationStatus.EMPTY:
                 raise CiboCompoundCapitalError(
                     "GEN-C7 empty population status drift"
+                )
+            if self.account_keys:
+                raise CiboCompoundCapitalError(
+                    "GEN-C7 empty population cannot have account keys"
                 )
             if (
                 self.minimum_evaluation_horizon_minutes is not None
@@ -112,6 +135,19 @@ class Genc7FreshPopulation:
             ):
                 raise CiboCompoundCapitalError(
                     "GEN-C7 empty population cannot have horizons"
+                )
+            if any(
+                value is not None
+                for value in (
+                    self.mean_giveback_amount_usd,
+                    self.mean_profit_retention_ratio,
+                    self.mean_base_drawdown_usd,
+                    self.mean_compound_drawdown_usd,
+                    self.mean_floor_growth_rate,
+                )
+            ):
+                raise CiboCompoundCapitalError(
+                    "GEN-C7 empty population cannot have means"
                 )
         else:
             if self.status is not Genc7PopulationStatus.DESCRIPTIVE_AVAILABLE:
@@ -128,6 +164,44 @@ class Genc7FreshPopulation:
                 raise CiboCompoundCapitalError(
                     "GEN-C7 population horizon range is invalid"
                 )
+            if not self.account_keys:
+                raise CiboCompoundCapitalError(
+                    "GEN-C7 populated summary requires account keys"
+                )
+            if (
+                self.decision_calendar_days <= 0
+                or self.decision_calendar_days > self.decision_epoch_count
+                or self.calendar_span_days < self.decision_calendar_days
+            ):
+                raise CiboCompoundCapitalError(
+                    "GEN-C7 population calendar counts are inconsistent"
+                )
+            if any(
+                value is None
+                for value in (
+                    self.mean_giveback_amount_usd,
+                    self.mean_profit_retention_ratio,
+                    self.mean_base_drawdown_usd,
+                    self.mean_compound_drawdown_usd,
+                )
+            ):
+                raise CiboCompoundCapitalError(
+                    "GEN-C7 populated summary requires core means"
+                )
+        if self.floor_growth_observed_count > self.decision_epoch_count:
+            raise CiboCompoundCapitalError(
+                "GEN-C7 population floor-growth count exceeds decisions"
+            )
+        if (
+            self.floor_growth_observed_count == 0
+            and self.mean_floor_growth_rate is not None
+        ) or (
+            self.floor_growth_observed_count > 0
+            and self.mean_floor_growth_rate is None
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C7 population floor-growth mean/count drift"
+            )
         for name in (
             "mean_giveback_amount_usd",
             "mean_profit_retention_ratio",
@@ -142,9 +216,16 @@ class Genc7FreshPopulation:
                 raise CiboCompoundCapitalError(
                     f"GEN-C7 population {name} must be finite Decimal"
                 )
-        if len(self.blockers) != len(set(self.blockers)):
+        if (
+            not isinstance(self.blockers, tuple)
+            or any(
+                not isinstance(item, str) or not item
+                for item in self.blockers
+            )
+            or len(self.blockers) != len(set(self.blockers))
+        ):
             raise CiboCompoundCapitalError(
-                "GEN-C7 population blockers must be unique"
+                "GEN-C7 population blockers must be unique non-empty strings"
             )
         for name in (
             "descriptive_only",
@@ -225,7 +306,7 @@ def describe_genc7_fresh_population(
     )
     if divergence_count == 0:
         blockers.append("NO_TREATMENT_CONTROL_DIVERGENCE")
-    blockers.append("ECONOMIC_GATE_NOT_YET_PREREGISTERED")
+    blockers.append("CAUSAL_EFFECT_IDENTIFICATION_NOT_EVALUATED")
     blockers.append("OUTCOME_BINDING_NOT_EVALUATED")
 
     return Genc7FreshPopulation(

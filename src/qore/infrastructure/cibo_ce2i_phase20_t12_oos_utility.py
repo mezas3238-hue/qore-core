@@ -159,6 +159,21 @@ class Phase20T12UtilityReport:
             raise CiboCapitalManagementError(
                 "Phase20 T12 utility fold vector length drift"
             )
+        fold_count = len(self.fold_treatment_net_delta_usd)
+        if fold_count not in {
+            0,
+            FROZEN_PHASE20D_QUALIFICATION_PLAN.fold_count,
+        }:
+            raise CiboCapitalManagementError(
+                "Phase20 T12 utility report requires frozen fold count"
+            )
+        if (
+            self.population_ready
+            and fold_count != FROZEN_PHASE20D_QUALIFICATION_PLAN.fold_count
+        ):
+            raise CiboCapitalManagementError(
+                "Phase20 T12 ready report requires frozen fold count"
+            )
         for name in (
             "population_ready",
             "fresh_oos_utility_demonstrated",
@@ -177,12 +192,60 @@ class Phase20T12UtilityReport:
             raise CiboCapitalManagementError(
                 "Phase20 T12 utility cannot grant runtime authority"
             )
+        if not isinstance(self.blockers, tuple) or any(
+            not isinstance(item, str) or not item for item in self.blockers
+        ):
+            raise CiboCapitalManagementError(
+                "Phase20 T12 utility blockers must be non-empty strings"
+            )
+        if len(self.blockers) != len(set(self.blockers)):
+            raise CiboCapitalManagementError(
+                "Phase20 T12 utility blockers must be unique"
+            )
+        expected_incremental = tuple(
+            treatment - control
+            for treatment, control in zip(
+                self.fold_treatment_net_delta_usd,
+                self.fold_control_net_delta_usd,
+                strict=True,
+            )
+        )
+        if self.fold_incremental_net_delta_usd != expected_incremental:
+            raise CiboCapitalManagementError(
+                "Phase20 T12 utility fold incremental drift"
+            )
         if self.fresh_oos_utility_demonstrated != (
             self.population_ready and not self.blockers
         ):
             raise CiboCapitalManagementError(
                 "Phase20 T12 utility result/blocker drift"
             )
+        if self.fresh_oos_utility_demonstrated:
+            plan = FROZEN_PHASE20D_QUALIFICATION_PLAN
+            if (
+                self.candidate_instances <= 0
+                or self.treatment_selected_instances <= 0
+                or self.control_selected_instances <= 0
+                or self.candidate_outcome_coverage
+                < plan.minimum_candidate_outcome_coverage
+                or self.treatment_selected_outcome_coverage
+                < plan.required_selected_outcome_coverage
+                or self.control_selected_outcome_coverage
+                < plan.required_selected_outcome_coverage
+                or any(
+                    value < 0
+                    for value in self.fold_incremental_net_delta_usd
+                )
+                or self.treatment_net_delta_usd
+                < self.control_net_delta_usd
+                or self.treatment_settlement_cash_drawdown_usd
+                > self.control_settlement_cash_drawdown_usd
+                or self.treatment_capital_productivity
+                <= self.control_capital_productivity
+            ):
+                raise CiboCapitalManagementError(
+                    "Phase20 T12 utility PASS metric drift"
+                )
 
 
 def assess_phase20_t12_oos_utility(

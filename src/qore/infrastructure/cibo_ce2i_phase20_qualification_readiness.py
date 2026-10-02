@@ -22,10 +22,13 @@ from qore.infrastructure.cibo_ce2i_phase20_forward_policy_store import (
 )
 from qore.infrastructure.cibo_ce2i_phase20_forward_store import (
     Phase20ForwardDecisionSeal,
-    VersionedPhase20ForwardEvidenceBook,
 )
 from qore.infrastructure.cibo_ce2i_phase20_qualification_plan import (
     FROZEN_PHASE20D_QUALIFICATION_PLAN,
+)
+from qore.infrastructure.cibo_ce2i_qualification_evidence_protocol import (
+    Phase20QualificationEvidenceBook,
+    require_qualification_evidence_book,
 )
 
 
@@ -61,15 +64,15 @@ class _OutcomeRow:
 
 def assess_phase20d_qualification_readiness(
     *,
-    evidence_book: VersionedPhase20ForwardEvidenceBook,
+    evidence_book: Phase20QualificationEvidenceBook,
     policy_book: VersionedPhase20ForwardPolicyBook,
 ) -> Phase20QualificationReadiness:
     """Assess readiness without inspecting realized outcome values."""
 
-    if not isinstance(evidence_book, VersionedPhase20ForwardEvidenceBook):
-        raise CiboCapitalManagementError(
-            "Phase20D readiness requires canonical evidence book"
-        )
+    evidence_book = require_qualification_evidence_book(
+        evidence_book,
+        context="Phase20D readiness",
+    )
     if not isinstance(policy_book, VersionedPhase20ForwardPolicyBook):
         raise CiboCapitalManagementError(
             "Phase20D readiness requires canonical policy book"
@@ -93,11 +96,26 @@ def assess_phase20d_qualification_readiness(
     pre_freeze_decisions = 0
     outcome_rows: list[_OutcomeRow] = []
 
+    qualification_time_basis = getattr(
+        evidence_book,
+        "qualification_time_basis",
+        "DECISION_AT",
+    )
+    if qualification_time_basis not in {"DECISION_AT", "SEALED_AT"}:
+        raise CiboCapitalManagementError(
+            "Phase20D readiness qualification time basis invalid"
+        )
+
     for decision in sorted(
         evidence_book.decisions,
         key=lambda item: (item.decision_at, item.evidence_sha256),
     ):
-        if decision.decision_at < plan.frozen_at:
+        qualification_at = (
+            decision.decision_at
+            if qualification_time_basis == "DECISION_AT"
+            else decision.sealed_at
+        )
+        if qualification_at is None or qualification_at < plan.frozen_at:
             pre_freeze_decisions += 1
         candidate_map = _candidate_lineage_map(decision)
         if set(candidate_map) != set(decision.signal_fingerprints):

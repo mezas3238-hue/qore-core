@@ -1,0 +1,28 @@
+{
+  "candidate_id": "CIBO_USD60_6M_HOLDOUT_2015-10-19_2016-04-19_V2",
+  "durable_claim_required_before_fresh_access": true,
+  "execution_manifest_sha256": "sha256:ea1442b597d12f5ba8a45fcef38e5627e13a4c0af711ab5ff5f2a656a31ad655",
+  "productive_authority": false,
+  "provider_execution_calibration_sha256": "sha256:45f692eb88f15ab89dbb380f26309af81ae4022405908dd671fa8dbbee8d9959",
+  "run_attempt": 1,
+  "run_id": 37007253157,
+  "runner_git_sha": "61529c0dd512e1751d6e7392c964866654e85825",
+  "schema": "qore.cibo.phase22.git-durable-one-shot-claim.v1",
+  "started_at": "2026-10-02T12:32:41+00:00",
+  "store_paths": [
+    "phase22-v2-stores/holdout-forward-evidence.json",
+    "phase22-v2-stores/holdout-policy.json",
+    "phase22-v2-stores/executed-risk.json",
+    "phase22-v2-stores/cma-settlement.json",
+    "phase22-v2-stores/t20-release.json"
+  ],
+  "trader_ids": [
+    "VT08_FOREX",
+    "R34_XAUUSD",
+    "R38_EURUSD",
+    "R43_GBPUSD",
+    "R38_GBPJPY",
+    "R42_AUDJPY",
+    "VT31_NAS100"
+  ]
+}

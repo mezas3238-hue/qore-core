@@ -1,0 +1,121 @@
+name: QORE CIBO B Provider Forward Tool Readiness
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-b-provider-forward-tool-readiness.yml'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t03_margin_population.py'
+      - 'src/qore/infrastructure/cibo_ce2i_t03_equivalent_expression.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t11_execution_population.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t11_cost_binding.py'
+      - 'src/qore/infrastructure/cibo_ce2i_execution_efficiency.py'
+      - 'src/qore/infrastructure/cibo_ce2i_t11_execution_cost_calibration.py'
+      - 'src/qore/infrastructure/cibo_ce2i_t11_policy_input_readiness.py'
+      - 'src/qore/infrastructure/cibo_ce2i_t16_hedge_candidate.py'
+      - 'src/qore/infrastructure/cibo_ce2i_t16_preregistered_hedge_universe.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t03_margin_population.py'
+      - 'tests/infrastructure/test_cibo_ce2i_t03_equivalent_expression.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t11_execution_population.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t11_cost_binding.py'
+      - 'tests/infrastructure/test_cibo_ce2i_execution_efficiency.py'
+      - 'tests/infrastructure/test_cibo_ce2i_t11_execution_cost_calibration.py'
+      - 'tests/infrastructure/test_cibo_ce2i_t11_policy_input_readiness.py'
+      - 'tests/infrastructure/test_cibo_ce2i_t16_hedge_candidate.py'
+      - 'tests/infrastructure/test_cibo_ce2i_t16_preregistered_hedge_universe.py'
+      - 'docs/research/CIBO-B-T16-HEDGE-PAIR-PREREGISTRATION-V1.json'
+      - 'docs/research/CIBO-B-T03-T11-FORWARD-EVIDENCE-RECONCILIATION-V1.md'
+  push:
+    branches:
+      - agent/cibo-certification-architect-b-integration-001
+    paths:
+      - '.github/workflows/cibo-b-provider-forward-tool-readiness.yml'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t03_margin_population.py'
+      - 'src/qore/infrastructure/cibo_ce2i_t03_equivalent_expression.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t11_execution_population.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t11_cost_binding.py'
+      - 'src/qore/infrastructure/cibo_ce2i_execution_efficiency.py'
+      - 'src/qore/infrastructure/cibo_ce2i_t11_execution_cost_calibration.py'
+      - 'src/qore/infrastructure/cibo_ce2i_t11_policy_input_readiness.py'
+      - 'src/qore/infrastructure/cibo_ce2i_t16_hedge_candidate.py'
+      - 'src/qore/infrastructure/cibo_ce2i_t16_preregistered_hedge_universe.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t03_margin_population.py'
+      - 'tests/infrastructure/test_cibo_ce2i_t03_equivalent_expression.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t11_execution_population.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t11_cost_binding.py'
+      - 'tests/infrastructure/test_cibo_ce2i_execution_efficiency.py'
+      - 'tests/infrastructure/test_cibo_ce2i_t11_execution_cost_calibration.py'
+      - 'tests/infrastructure/test_cibo_ce2i_t11_policy_input_readiness.py'
+      - 'tests/infrastructure/test_cibo_ce2i_t16_hedge_candidate.py'
+      - 'tests/infrastructure/test_cibo_ce2i_t16_preregistered_hedge_universe.py'
+      - 'docs/research/CIBO-B-T16-HEDGE-PAIR-PREREGISTRATION-V1.json'
+      - 'docs/research/CIBO-B-T03-T11-FORWARD-EVIDENCE-RECONCILIATION-V1.md'
+
+permissions:
+  contents: read
+
+env:
+  EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  provider-forward-tools:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: T03 T11 T16 forward evidence quality
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_ce2i_phase20_t03_margin_population.py \
+            src/qore/infrastructure/cibo_ce2i_t03_equivalent_expression.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t11_execution_population.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t11_cost_binding.py \
+            src/qore/infrastructure/cibo_ce2i_execution_efficiency.py \
+            src/qore/infrastructure/cibo_ce2i_t11_execution_cost_calibration.py \
+            src/qore/infrastructure/cibo_ce2i_t11_policy_input_readiness.py \
+            src/qore/infrastructure/cibo_ce2i_t16_hedge_candidate.py \
+            src/qore/infrastructure/cibo_ce2i_t16_preregistered_hedge_universe.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t03_margin_population.py \
+            tests/infrastructure/test_cibo_ce2i_t03_equivalent_expression.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t11_execution_population.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t11_cost_binding.py \
+            tests/infrastructure/test_cibo_ce2i_execution_efficiency.py \
+            tests/infrastructure/test_cibo_ce2i_t11_execution_cost_calibration.py \
+            tests/infrastructure/test_cibo_ce2i_t11_policy_input_readiness.py \
+            tests/infrastructure/test_cibo_ce2i_t16_hedge_candidate.py \
+            tests/infrastructure/test_cibo_ce2i_t16_preregistered_hedge_universe.py \
+            tests/infrastructure/test_cibo_ce2i_t16_preregistered_hedge_universe.py
+          mypy \
+            src/qore/infrastructure/cibo_ce2i_phase20_t03_margin_population.py \
+            src/qore/infrastructure/cibo_ce2i_t03_equivalent_expression.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t11_execution_population.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t11_cost_binding.py \
+            src/qore/infrastructure/cibo_ce2i_execution_efficiency.py \
+            src/qore/infrastructure/cibo_ce2i_t11_execution_cost_calibration.py \
+            src/qore/infrastructure/cibo_ce2i_t11_policy_input_readiness.py \
+            src/qore/infrastructure/cibo_ce2i_t16_hedge_candidate.py \
+            src/qore/infrastructure/cibo_ce2i_t16_preregistered_hedge_universe.py
+          python -m py_compile \
+            src/qore/infrastructure/cibo_ce2i_phase20_t03_margin_population.py \
+            src/qore/infrastructure/cibo_ce2i_t03_equivalent_expression.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t11_execution_population.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_t11_cost_binding.py \
+            src/qore/infrastructure/cibo_ce2i_execution_efficiency.py \
+            src/qore/infrastructure/cibo_ce2i_t11_execution_cost_calibration.py \
+            src/qore/infrastructure/cibo_ce2i_t11_policy_input_readiness.py \
+            src/qore/infrastructure/cibo_ce2i_t16_hedge_candidate.py \
+            src/qore/infrastructure/cibo_ce2i_t16_preregistered_hedge_universe.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_ce2i_phase20_t03_margin_population.py \
+            tests/infrastructure/test_cibo_ce2i_t03_equivalent_expression.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t11_execution_population.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t11_cost_binding.py \
+            tests/infrastructure/test_cibo_ce2i_execution_efficiency.py \
+            tests/infrastructure/test_cibo_ce2i_t11_execution_cost_calibration.py \
+            tests/infrastructure/test_cibo_ce2i_t11_policy_input_readiness.py \
+            tests/infrastructure/test_cibo_ce2i_t16_hedge_candidate.py

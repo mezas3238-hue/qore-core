@@ -1,0 +1,34 @@
+name: QORE CIBO Architect A Forward Compound Delivery
+
+on:
+  pull_request:
+    paths:
+      - 'src/qore/infrastructure/cibo_arch_a_forward_compound_delivery.py'
+      - 'tests/infrastructure/test_cibo_arch_a_forward_compound_delivery.py'
+      - '.github/workflows/cibo-architect-a-forward-compound-delivery.yml'
+  push:
+    branches:
+      - agent/cibo-integrator-ab-001
+    paths:
+      - 'src/qore/infrastructure/cibo_arch_a_forward_compound_delivery.py'
+      - 'tests/infrastructure/test_cibo_arch_a_forward_compound_delivery.py'
+      - '.github/workflows/cibo-architect-a-forward-compound-delivery.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  forward-compound-delivery:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Ruff
+        run: ruff check src/qore/infrastructure/cibo_arch_a_forward_compound_delivery.py tests/infrastructure/test_cibo_arch_a_forward_compound_delivery.py
+      - name: mypy
+        run: mypy src/qore/infrastructure/cibo_arch_a_forward_compound_delivery.py
+      - name: pytest
+        run: pytest -q --no-cov tests/infrastructure/test_cibo_arch_a_forward_compound_delivery.py tests/infrastructure/test_cibo_compound_real_population_binding.py

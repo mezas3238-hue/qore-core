@@ -1,8 +1,16 @@
 {
   "schema": "QORE_CIBO_MASTER_OPEN_WORK_LEDGER_V1",
   "directive": "CIBO_ABSOLUTE_CLOSURE_AMENDMENT_V1",
-  "audit_started_from_head": "398c2426173c961ea10797500899f9c8dd7a0bb5",
-  "source_of_truth": "GitHub HEAD + code + tests + CI + artifacts + ADR + roadmap + PR body",
+  "audit_started_from_head": "1460435615a663a614cd5ee8873f719d08086200",
+  "source_of_truth": {
+    "canonical": "GitHub HEAD + code + tests + CI + artifacts + ADR + roadmap + PR body",
+    "integrator_branch": "agent/cibo-integrator-ab-001",
+    "architect_a_pr": 660,
+    "architect_a_head": "9f7a24a86c04a1d0554996ab57523e7338465002",
+    "architect_b_pr": 661,
+    "architect_b_head": "5d028b1ebc76a98db36d26f86bc872e2f60c5541",
+    "reconciliation_rule": "TERMINAL_UNION_ONLY__OPEN_ITEMS_PRESERVED_FROM_COMMON_CHECKPOINT"
+  },
   "terminal_dispositions": [
     "COMPLETED_AND_PROVEN",
     "FALSIFIED_AND_CLOSED",
@@ -17,298 +25,520 @@
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "MECHANICAL_MINIMAL_EXECUTABLE_SEED_CONTRACT_PROVEN",
+      "terminal_disposition": "COMPLETED_AND_PROVEN",
       "evidence_refs": [
-        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
+        "src/qore/infrastructure/cibo_cma_initial_seed.py",
+        "src/qore/infrastructure/cibo_fundednext_seed.py",
+        "src/qore/infrastructure/cibo_cma_risk_request.py",
+        "tests/infrastructure/test_cibo_cma_initial_seed.py",
+        "tests/infrastructure/test_cibo_fundednext_seed.py",
+        "tests/infrastructure/test_cibo_ce2i_phase20_capital_action_certification.py",
+        "docs/research/CIBO-ARCH-B-T01-MINIMAL-SEED-MECHANICAL-CLOSURE-V1.md",
+        "github-actions://36727848357/SUCCESS"
       ],
       "blockers": [],
-      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+      "next_gate": "Terminal mechanical minimal-seed primitive. Economic utility of larger deployment remains independently blocking elsewhere."
     },
     {
       "id": "T02",
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
-        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
+        "src/qore/infrastructure/cibo_ce2i_t02_terminal_reason_evidence.py",
+        "tests/infrastructure/test_cibo_ce2i_t02_terminal_reason_evidence.py",
+        "src/qore/infrastructure/cibo_ce2i_phase20_t02_structural_oos.py",
+        "tests/infrastructure/test_cibo_ce2i_phase20_t02_structural_oos.py",
+        ".github/workflows/cibo-t02-forward-structural-oos.yml",
+        "docs/research/CIBO-B-T02-FORWARD-STRUCTURAL-OOS-V1.md",
+        "github-actions://36790166770/SUCCESS",
+        "docs/research/CIBO-ARCH-B-TERMINAL-DISPOSITION-PACKAGE-V1.json",
+        "github-actions://36814557961/SUCCESS"
       ],
       "blockers": [
-        "VALUE_DEMONSTRATION_AND_PROVIDER_BOUND_ECONOMICS_REQUIRED"
+        "REAL_POST_FREEZE_STRUCTURAL_TERMINAL_REASON_POPULATION_REQUIRED",
+        "PROVIDER_BOUND_LEVERAGE_ECONOMIC_ABLATION_REQUIRED"
       ],
-      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+      "next_gate": "External evidence dependency only. Reopen scientific evaluation when the recorded forward/provider population requirement becomes available; this disposition remains certification-blocking."
     },
     {
       "id": "T03",
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "FALSIFIED_AND_CLOSED_CURRENT_GOVERNED_CTRADER_DEMO_CONTRACT",
+      "terminal_disposition": "FALSIFIED_AND_CLOSED",
       "evidence_refs": [
-        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
+        ".github/workflows/cibo-b-provider-forward-tool-readiness.yml",
+        "docs/research/CIBO-B-T03-T11-FORWARD-EVIDENCE-RECONCILIATION-V1.md",
+        "github-actions://36790166956/SUCCESS",
+        "scripts/cibo_t03_provider_equivalent_candidate_screen.py",
+        "tests/infrastructure/test_cibo_t03_provider_equivalent_candidate_screen.py",
+        "docs/research/CIBO-ARCH-B-TERMINAL-DISPOSITION-PACKAGE-V1.json",
+        "github-actions://36814558179/SUCCESS",
+        "github-actions://36816113836/SUCCESS",
+        "github-actions://36816113832/SUCCESS",
+        "src/qore/infrastructure/cibo_arch2_t03_multileg_math.py",
+        "tests/infrastructure/test_cibo_arch2_t03_multileg_math.py",
+        "src/qore/infrastructure/cibo_arch2_t03_current_contract_falsification.py",
+        "tests/infrastructure/test_cibo_arch2_t03_current_contract_falsification.py",
+        "github-actions://36936279830/SUCCESS",
+        "github-artifact://11197727438/sha256:bbb52ebf064d3e90459a4fadc79b020dd04a158e2fbb6ec815c420e28b19d78f",
+        "git://9925d0f0a0e1fb88ba4da8eb15b602652e4423f8"
       ],
-      "blockers": [
-        "VALUE_DEMONSTRATION_AND_PROVIDER_BOUND_ECONOMICS_REQUIRED"
-      ],
-      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+      "blockers": [],
+      "next_gate": "Terminal falsification for the current governed cTrader DEMO comparison contract. Reopen only under a newly preregistered comparison contract with a genuinely equivalent lower-margin expression; no fresh-OOS utility is required while candidate_count remains zero."
     },
     {
       "id": "T04",
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
-        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
+        "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md",
+        "github-actions://36767442915/SUCCESS",
+        "src/qore/infrastructure/cibo_ce2i_t04_t10_economic_gate.py",
+        "tests/infrastructure/test_cibo_ce2i_t04_t10_economic_gate.py",
+        ".github/workflows/cibo-t04-t10-economic-gate.yml",
+        "docs/research/CIBO-CE2I-T04-T10-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
+        "github-actions://36790166857/SUCCESS",
+        "github-actions://36815304953/SUCCESS"
       ],
       "blockers": [
-        "VALUE_DEMONSTRATION_AND_PROVIDER_BOUND_ECONOMICS_REQUIRED"
+        "REAL_PROVIDER_VALID_CAUSAL_CONTROL_TREATMENT_POPULATION_REQUIRED",
+        "WF1_WF2_WF3_WF4_NONCOMPENSATORY_REPLICATION_REQUIRED"
       ],
-      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+      "next_gate": "No additional internal implementation is authorized while this disposition holds. Reopen only when the recorded real forward/OOS/provider dependency becomes available; then execute the already-frozen scientific protocol. This remains certification-blocking."
     },
     {
       "id": "T05",
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "MECHANICAL_RECYCLING_CONTRACT_PROVEN",
+      "terminal_disposition": "COMPLETED_AND_PROVEN",
       "evidence_refs": [
-        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
+        "docs/research/CIBO-CE2I-T05-T19-MECHANICAL-CLOSURE-V1.md",
+        "tests/infrastructure/test_cibo_ce2i_phase20_mechanism_certification.py",
+        "github-actions://36649279224/SUCCESS",
+        "github-actions://36750376948/SUCCESS"
       ],
       "blockers": [],
-      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+      "next_gate": "Terminal mechanical recycling contract. Economic allocation/redeployment utility remains owned by the relevant non-terminal allocation/expansion workstreams."
     },
     {
       "id": "T06",
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
-        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
+        "tests/infrastructure/test_cibo_ce2i_phase20_capital_action_certification.py",
+        "github-actions://36649279224/SUCCESS",
+        "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md",
+        "src/qore/infrastructure/cibo_expansion_utility_gate.py",
+        "tests/infrastructure/test_cibo_expansion_utility_gate.py",
+        "docs/research/CIBO-T06-T07-EXPANSION-UTILITY-GATE-V1.md",
+        ".github/workflows/cibo-t06-t07-expansion-utility.yml",
+        "github-actions://36755770224/SUCCESS",
+        "github-actions://36815305261/SUCCESS"
       ],
-      "blockers": [],
-      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+      "blockers": [
+        "FRESH_OOS_PROFIT_FUNDED_EXPANSION_UTILITY_REQUIRED"
+      ],
+      "next_gate": "No additional internal implementation is authorized while this disposition holds. Reopen only when the recorded real forward/OOS/provider dependency becomes available; then execute the already-frozen scientific protocol. This remains certification-blocking."
     },
     {
       "id": "T07",
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
-        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
+        "tests/infrastructure/test_cibo_ce2i_phase20_capital_action_certification.py",
+        "github-actions://36649279224/SUCCESS",
+        "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md",
+        "src/qore/infrastructure/cibo_expansion_utility_gate.py",
+        "tests/infrastructure/test_cibo_expansion_utility_gate.py",
+        "docs/research/CIBO-T06-T07-EXPANSION-UTILITY-GATE-V1.md",
+        ".github/workflows/cibo-t06-t07-expansion-utility.yml",
+        "github-actions://36755770224/SUCCESS",
+        "github-actions://36815305261/SUCCESS"
       ],
-      "blockers": [],
-      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+      "blockers": [
+        "FRESH_OOS_PROTECTED_CAPACITY_EXPANSION_UTILITY_REQUIRED"
+      ],
+      "next_gate": "No additional internal implementation is authorized while this disposition holds. Reopen only when the recorded real forward/OOS/provider dependency becomes available; then execute the already-frozen scientific protocol. This remains certification-blocking."
     },
     {
       "id": "T08",
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
-        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
+        "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md",
+        "github-actions://36767442915/SUCCESS",
+        "src/qore/infrastructure/cibo_ce2i_phase20_t08_oos_ablation.py",
+        "tests/infrastructure/test_cibo_ce2i_phase20_t08_oos_ablation.py",
+        "tests/infrastructure/test_cibo_ce2i_phase20_causal_tool_readiness.py",
+        "github-actions://36815305265/SUCCESS"
       ],
       "blockers": [
         "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
       ],
-      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+      "next_gate": "No additional internal implementation is authorized while this disposition holds. Reopen only when the recorded real forward/OOS/provider dependency becomes available; then execute the already-frozen protocol. This remains certification-blocking."
     },
     {
       "id": "T09",
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
-        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
+        "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md",
+        "github-actions://36767442915/SUCCESS",
+        "src/qore/infrastructure/cibo_t09_t18_scarcity_safety_gate.py",
+        "tests/infrastructure/test_cibo_t09_t18_scarcity_safety_gate.py",
+        ".github/workflows/cibo-t09-t18-scarcity-safety.yml",
+        "docs/research/CIBO-T09-T18-NONCOMPENSATORY-SCARCITY-SAFETY-GATE-V1.md",
+        "github-actions://36790166818/SUCCESS",
+        "github-actions://36815305285/SUCCESS"
       ],
       "blockers": [
-        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
+        "REAL_SIMULTANEOUS_SCARCITY_POPULATION_REQUIRED",
+        "STARVATION_AND_CONCENTRATION_NONWORSE_WF1_WF2_WF3_WF4_REQUIRED"
       ],
-      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+      "next_gate": "No additional internal implementation is authorized while this disposition holds. Reopen only when the recorded real forward/OOS/provider dependency becomes available; then execute the already-frozen scientific protocol. This remains certification-blocking."
     },
     {
       "id": "T10",
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
-        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
+        "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md",
+        "github-actions://36767442915/SUCCESS",
+        "src/qore/infrastructure/cibo_ce2i_t04_t10_economic_gate.py",
+        "tests/infrastructure/test_cibo_ce2i_t04_t10_economic_gate.py",
+        ".github/workflows/cibo-t04-t10-economic-gate.yml",
+        "docs/research/CIBO-CE2I-T04-T10-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
+        "github-actions://36790166857/SUCCESS",
+        "github-actions://36815304953/SUCCESS"
       ],
       "blockers": [
-        "VALUE_DEMONSTRATION_AND_PROVIDER_BOUND_ECONOMICS_REQUIRED"
+        "REAL_PROVIDER_VALID_CAUSAL_CONTROL_TREATMENT_POPULATION_REQUIRED",
+        "WF1_WF2_WF3_WF4_NONCOMPENSATORY_REPLICATION_REQUIRED"
       ],
-      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+      "next_gate": "No additional internal implementation is authorized while this disposition holds. Reopen only when the recorded real forward/OOS/provider dependency becomes available; then execute the already-frozen scientific protocol. This remains certification-blocking."
     },
     {
       "id": "T11",
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "ENGINEERING_CLOSED_EMPIRICAL_EXECUTION_AND_SLIPPAGE_PROVEN_FRESH_OOS_GROSS_EDGE_AND_MARKET_IMPACT_REQUIRED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
-        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
+        "src/qore/infrastructure/cibo_ce2i_provider_execution_calibration.py",
+        "src/qore/infrastructure/cibo_ce2i_t11_execution_cost_calibration.py",
+        "tests/infrastructure/test_cibo_ce2i_t11_execution_cost_calibration.py",
+        ".github/workflows/cibo-t11-execution-cost-calibration.yml",
+        "docs/research/CIBO-B-T03-T11-FORWARD-EVIDENCE-RECONCILIATION-V1.md",
+        ".github/workflows/cibo-b-provider-forward-tool-readiness.yml",
+        "github-actions://36790166956/SUCCESS",
+        "docs/research/CIBO-ARCH-B-TERMINAL-DISPOSITION-PACKAGE-V1.json",
+        "github-actions://36814558301/SUCCESS",
+        "src/qore/infrastructure/cibo_phase22_demo_empirical_provider_receipt.py",
+        "src/qore/infrastructure/cibo_arch2_provider_blocker_reconciliation.py",
+        "tests/infrastructure/test_cibo_arch2_provider_blocker_reconciliation.py",
+        "src/qore/infrastructure/cibo_arch2_t11_nonlinear_input_freeze.py",
+        "tests/infrastructure/test_cibo_arch2_t11_nonlinear_input_freeze.py",
+        "github-actions://36927602692/SUCCESS",
+        "github-artifact://11194039517/sha256:5957a77cceb44c15319785aa26a1a0574fef46535ff7ce69fcec3757d02972c4",
+        "git://9896fd96c95480744b2de123d42f1f7848993537"
       ],
-      "blockers": [],
-      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+      "blockers": [
+        "REAL_CALIBRATED_FRESH_OOS_GROSS_EDGE_MODEL_REQUIRED",
+        "REAL_PROVIDER_BOUND_MARKET_IMPACT_MODEL_REQUIRED"
+      ],
+      "next_gate": "Consume only post-freeze fresh-OOS gross-edge validation and the preregistered minimum-volume microbundle market-impact calibration; real execution population and empirical slippage are already proven."
     },
     {
       "id": "T12",
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
-        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
+        "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md",
+        "github-actions://36767442915/SUCCESS",
+        "github-actions://36767442725/SUCCESS",
+        "github-actions://36815305264/SUCCESS"
       ],
       "blockers": [
         "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
       ],
-      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+      "next_gate": "No additional internal implementation is authorized while this disposition holds. Reopen only when the recorded real forward/OOS/provider dependency becomes available; then execute the already-frozen scientific protocol. This remains certification-blocking."
     },
     {
       "id": "T13",
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
-        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
+        "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md",
+        "github-actions://36767442915/SUCCESS",
+        "github-actions://36767442878/SUCCESS",
+        "src/qore/infrastructure/cibo_ce2i_phase20_t13_oos_utility.py",
+        "tests/infrastructure/test_cibo_ce2i_phase20_t13_oos_utility.py",
+        ".github/workflows/cibo-t13-drawdown-reserve-oos-utility.yml",
+        "github-actions://36790166700/SUCCESS",
+        "github-actions://36815305288/SUCCESS"
       ],
       "blockers": [
-        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
+        "FRESH_PHASE20D_T13_TREATMENT_POPULATION_THRESHOLDS_REQUIRED",
+        "FOUR_FOLD_POSITIVE_TREATMENT_AND_NONWORSE_DRAWDOWN_EVIDENCE_REQUIRED",
+        "STRICT_CAPITAL_PRODUCTIVITY_IMPROVEMENT_REQUIRED"
       ],
-      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+      "next_gate": "No additional internal implementation is authorized while this disposition holds. Reopen only when the recorded real forward/OOS/provider dependency becomes available; then execute the already-frozen scientific protocol. This remains certification-blocking."
     },
     {
       "id": "T14",
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
-        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
+        "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md",
+        "src/qore/infrastructure/cibo_t14_t15_utility_gate.py",
+        "tests/infrastructure/test_cibo_t14_t15_utility_gate.py",
+        "docs/research/CIBO-T14-T15-CAUSAL-PARETO-UTILITY-GATE-V1.md",
+        ".github/workflows/cibo-t14-t15-causal-utility.yml",
+        "github-actions://36755770128/SUCCESS",
+        "github-actions://36815305262/SUCCESS"
       ],
       "blockers": [
         "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
       ],
-      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+      "next_gate": "No additional internal implementation is authorized while this disposition holds. Reopen only when the recorded real forward/OOS/provider dependency becomes available; then execute the already-frozen scientific protocol. This remains certification-blocking."
     },
     {
       "id": "T15",
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
-        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
+        "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md",
+        "src/qore/infrastructure/cibo_t14_t15_utility_gate.py",
+        "tests/infrastructure/test_cibo_t14_t15_utility_gate.py",
+        "docs/research/CIBO-T14-T15-CAUSAL-PARETO-UTILITY-GATE-V1.md",
+        ".github/workflows/cibo-t14-t15-causal-utility.yml",
+        "github-actions://36755770128/SUCCESS",
+        "github-actions://36815305262/SUCCESS"
       ],
       "blockers": [
-        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
+        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED",
+        "COUNTERFACTUAL_RESERVATION_CAUSAL_EFFECT_NOT_IDENTIFIED"
       ],
-      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+      "next_gate": "No additional internal implementation is authorized while this disposition holds. Reopen only when the recorded real forward/OOS/provider dependency becomes available; then execute the already-frozen scientific protocol. This remains certification-blocking."
     },
     {
       "id": "T16",
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "FAIL_CLOSED_PROVIDER_UNIVERSE_EVIDENCE_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "FALSIFIED_AND_CLOSED_PREREGISTERED_HEDGE_UNIVERSE_FRESH_OOS_4_OF_4",
+      "terminal_disposition": "FALSIFIED_AND_CLOSED",
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
         "src/qore/infrastructure/cibo_ce2i_calibration_registry.py",
         "src/qore/infrastructure/cibo_instrument_capability_registry.py",
-        "src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py"
+        "src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py",
+        "src/qore/infrastructure/cibo_receipt_bound_calibration_freeze.py",
+        "tests/infrastructure/test_cibo_receipt_bound_calibration_freeze.py",
+        "src/qore/infrastructure/cibo_ctrader_demo_account_capability.py",
+        "src/qore/infrastructure/cibo_ctrader_demo_capability_registry.py",
+        "scripts/cibo_ctrader_demo_account_capability_probe.py",
+        "tests/infrastructure/test_cibo_ctrader_demo_account_capability.py",
+        "tests/infrastructure/test_cibo_ctrader_demo_capability_registry.py",
+        "tests/infrastructure/test_cibo_ctrader_demo_account_capability_probe.py",
+        ".github/workflows/cibo-ctrader-demo-account-capability.yml",
+        "docs/research/CIBO-CTRADER-DEMO-ACCOUNT-CAPABILITY-V1.md",
+        "docs/research/CIBO-T16-T17-PROVIDER-CAPABILITY-RECONCILIATION-V1.md",
+        "src/qore/infrastructure/cibo_ctrader_demo_instrument_taxonomy.py",
+        "tests/infrastructure/test_cibo_ctrader_demo_instrument_taxonomy.py",
+        "src/qore/infrastructure/ctrader_open_api_client.py",
+        ".github/workflows/cibo-ctrader-demo-provider-economics.yml",
+        "src/qore/infrastructure/cibo_ce2i_t16_hedge_candidate.py",
+        "src/qore/infrastructure/cibo_ce2i_t16_preregistered_hedge_universe.py",
+        "tests/infrastructure/test_cibo_ce2i_t16_preregistered_hedge_universe.py",
+        "docs/research/CIBO-B-T16-HEDGE-PAIR-PREREGISTRATION-V1.json",
+        ".github/workflows/cibo-b-provider-forward-tool-readiness.yml",
+        "docs/research/CIBO-ARCH-B-TERMINAL-DISPOSITION-PACKAGE-V1.json",
+        "github-actions://36814558004/SUCCESS",
+        "scripts/cibo_t16_ctrader_demo_post_declaration_probe.py",
+        "tests/infrastructure/test_cibo_t16_ctrader_demo_post_declaration_probe.py",
+        ".github/workflows/cibo-t16-post-declaration-market-structure.yml",
+        "docs/research/CIBO-B-T16-POST-DECLARATION-MARKET-STRUCTURE-V1.md",
+        "github-actions://36817089026/SUCCESS",
+        "src/qore/infrastructure/cibo_arch2_t16_demo_execution_receipt.py",
+        "tests/infrastructure/test_cibo_arch2_t16_demo_execution_receipt.py",
+        "src/qore/infrastructure/cibo_arch2_t16_fresh_oos_utility.py",
+        "tests/infrastructure/test_cibo_arch2_t16_fresh_oos_utility.py",
+        "github-actions://36934306276/SUCCESS",
+        "github-artifact://11197137857/sha256:96ad9cc8a8ac5bdafc2f35cac556bf54a6250cff62abd65ff09db7bd8922434b",
+        "git://8cc3794feb645710952859fe40e20223e1c59093",
+        "src/qore/infrastructure/cibo_arch2_t16_terminal_falsification.py",
+        "tests/infrastructure/test_cibo_arch2_t16_terminal_falsification.py",
+        "github-actions://36941142280/SUCCESS",
+        "github-artifact://11199498760/sha256:2aa2024db38efa100c4cf97eb8fc59038ea8b78a0428719ee106ea4bee3a0a16",
+        "git://f8c6409af5893ca8189a7aa13a3d406c4d19b649",
+        "sha256:81c5f14aa94e0e7065354256a6bcaf8a69154353180024e3f3089132223b5f54"
       ],
-      "blockers": [
-        "CERTIFIED_HEDGE_PROVIDER_UNIVERSE_NOT_AVAILABLE",
-        "PROVIDER_VERIFIED_SUPPORT_OR_UNAVAILABLE_STATUS_REQUIRED",
-        "ECONOMIC_COST_RISK_EXECUTION_EVIDENCE_REQUIRED_IF_SUPPORTED"
-      ],
-      "next_gate": "Obtain provider-verified HEDGE capability evidence. If supported, execute provider-bound economic research; if provider-verified unavailable, close as current-provider ineligible without inventing capability."
+      "blockers": [],
+      "next_gate": "Terminal falsification for the preregistered US30/US500 hedge universe: both candidates failed all four fresh-OOS folds after frozen empirical execution costs. Reopen only through a new preregistered research cycle with a new hedge hypothesis; do not retune or expand this closed population."
     },
     {
       "id": "T17",
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "FAIL_CLOSED_PROVIDER_UNIVERSE_EVIDENCE_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "GOVERNED_PROVIDER_UNIVERSE_STRUCTURALLY_INELIGIBLE_PROVEN",
+      "terminal_disposition": "FALSIFIED_AND_CLOSED",
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
         "src/qore/infrastructure/cibo_ce2i_calibration_registry.py",
         "src/qore/infrastructure/cibo_instrument_capability_registry.py",
-        "src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py"
+        "src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py",
+        "src/qore/infrastructure/cibo_receipt_bound_calibration_freeze.py",
+        "tests/infrastructure/test_cibo_receipt_bound_calibration_freeze.py",
+        "src/qore/infrastructure/cibo_ctrader_demo_account_capability.py",
+        "src/qore/infrastructure/cibo_ctrader_demo_capability_registry.py",
+        "scripts/cibo_ctrader_demo_account_capability_probe.py",
+        "tests/infrastructure/test_cibo_ctrader_demo_account_capability.py",
+        "tests/infrastructure/test_cibo_ctrader_demo_capability_registry.py",
+        "tests/infrastructure/test_cibo_ctrader_demo_account_capability_probe.py",
+        ".github/workflows/cibo-ctrader-demo-account-capability.yml",
+        "docs/research/CIBO-CTRADER-DEMO-ACCOUNT-CAPABILITY-V1.md",
+        "docs/research/CIBO-T16-T17-PROVIDER-CAPABILITY-RECONCILIATION-V1.md",
+        "src/qore/infrastructure/cibo_ce2i_t17_limited_risk_capability.py",
+        "scripts/cibo_t17_limited_risk_capability_probe.py",
+        "tests/infrastructure/test_cibo_ce2i_t17_limited_risk_capability.py",
+        "tests/infrastructure/test_cibo_t17_limited_risk_capability_probe.py",
+        "src/qore/infrastructure/cibo_ctrader_demo_instrument_taxonomy.py",
+        "tests/infrastructure/test_cibo_ctrader_demo_instrument_taxonomy.py",
+        "src/qore/infrastructure/ctrader_open_api_client.py",
+        ".github/workflows/cibo-ctrader-demo-provider-economics.yml",
+        "src/qore/infrastructure/cibo_t17_provider_capability_receipt.py",
+        "tests/infrastructure/test_cibo_t17_provider_capability_receipt.py",
+        ".github/workflows/cibo-t17-provider-capability-receipt.yml",
+        "docs/research/CIBO-B-CTRADER-DEMO-PROVIDER-EVIDENCE-2026-10-01.json",
+        "docs/research/CIBO-B-T17-STRUCTURAL-DISPOSITION-V1.json",
+        "src/qore/infrastructure/cibo_ce2i_t17_structural_disable.py",
+        "src/qore/infrastructure/cibo_t17_governed_provider_disposition.py",
+        "tests/infrastructure/test_cibo_t17_governed_provider_disposition.py",
+        "docs/research/CIBO-ARCH-B-TERMINAL-DISPOSITION-PACKAGE-V1.json",
+        "github-actions://36814558260/SUCCESS",
+        "github-actions://36814558179/SUCCESS"
       ],
-      "blockers": [
-        "CERTIFIED_OPTION_DEFINED_RISK_SPREAD_PROVIDER_UNIVERSE_NOT_AVAILABLE",
-        "PROVIDER_VERIFIED_SUPPORT_OR_UNAVAILABLE_STATUS_REQUIRED",
-        "ECONOMIC_COST_RISK_EXECUTION_EVIDENCE_REQUIRED_IF_SUPPORTED"
-      ],
-      "next_gate": "Obtain provider-verified OPTION/DEFINED_RISK_SPREAD capability evidence. If supported, execute provider-bound economic research; if provider-verified unavailable, close as current-provider ineligible without inventing capability."
+      "blockers": [],
+      "next_gate": "Remain closed for the current governed cTrader DEMO + FundedNext Stellar Instant CFD universe. Reopen only if provider/account capability or governed provider universe changes."
     },
     {
       "id": "T18",
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
-        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
+        "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md",
+        "github-actions://36767442915/SUCCESS",
+        "src/qore/infrastructure/cibo_t09_t18_scarcity_safety_gate.py",
+        "tests/infrastructure/test_cibo_t09_t18_scarcity_safety_gate.py",
+        ".github/workflows/cibo-t09-t18-scarcity-safety.yml",
+        "docs/research/CIBO-T09-T18-NONCOMPENSATORY-SCARCITY-SAFETY-GATE-V1.md",
+        "github-actions://36790166818/SUCCESS",
+        "github-actions://36815305285/SUCCESS"
       ],
       "blockers": [
-        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
+        "REAL_SIMULTANEOUS_SCARCITY_POPULATION_REQUIRED",
+        "STARVATION_AND_CONCENTRATION_NONWORSE_WF1_WF2_WF3_WF4_REQUIRED"
       ],
-      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+      "next_gate": "No additional internal implementation is authorized while this disposition holds. Reopen only when the recorded real forward/OOS/provider dependency becomes available; then execute the already-frozen scientific protocol. This remains certification-blocking."
     },
     {
       "id": "T19",
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "ATOMIC_CAPACITY_RESERVATION_AND_DURABLE_CONCURRENCY_PROVEN",
+      "terminal_disposition": "COMPLETED_AND_PROVEN",
       "evidence_refs": [
-        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
+        "docs/research/CIBO-CE2I-T05-T19-MECHANICAL-CLOSURE-V1.md",
+        "tests/infrastructure/test_cibo_ce2i_phase20_mechanism_certification.py",
+        "github-actions://36649279224/SUCCESS",
+        "github-actions://36750376948/SUCCESS"
       ],
       "blockers": [],
-      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+      "next_gate": "Terminal mechanical capacity-reservation contract. No economic policy promotion is implied."
     },
     {
       "id": "T20",
       "kind": "CE2I_TOOL",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED_REAL_DATA_CLOSURE_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
-        "src/qore/infrastructure/cibo_ce2i_tool_registry.py"
+        "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
+        "src/qore/infrastructure/cibo_t20_capital_release_evidence.py",
+        "tests/infrastructure/test_cibo_t20_capital_release_evidence.py",
+        ".github/workflows/cibo-t20-capital-release.yml",
+        "docs/research/CIBO-B-T20-CAPITAL-RELEASE-MECHANICAL-CLOSURE-V1.md",
+        "github-actions://36790166892/SUCCESS",
+        "docs/research/CIBO-ARCH-B-TERMINAL-DISPOSITION-PACKAGE-V1.json",
+        "github-actions://36814558181/SUCCESS"
       ],
       "blockers": [
-        "FRESH_AUTHORITATIVE_RELEASE_RETURNED_CAPACITY_POPULATION_REQUIRED"
+        "REAL_AUTHORITATIVE_FORWARD_RELEASE_POPULATION_REQUIRED"
       ],
-      "next_gate": "Reconcile registry against engine/data/replay/OOS/stress evidence and assign terminal disposition."
+      "next_gate": "External evidence dependency only. Reopen scientific evaluation when the recorded forward/provider population requirement becomes available; this disposition remains certification-blocking."
     },
     {
       "id": "GEN-C0",
@@ -329,129 +559,213 @@
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED",
-      "terminal_disposition": null,
+      "current_maturity": "MATHEMATICAL_ACCOUNTING_AND_PROVENANCE_RECONCILIATION_PROVEN",
+      "terminal_disposition": "COMPLETED_AND_PROVEN",
       "evidence_refs": [
-        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md"
+        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
+        "tests/infrastructure/test_cibo_compound_cycle_replay.py",
+        "src/qore/infrastructure/cibo_compound_cycle_replay.py",
+        "src/qore/infrastructure/cibo_compound_cycle_audit.py",
+        "github-actions://36750376855/SUCCESS",
+        "docs/research/CIBO-GENC1-MATHEMATICAL-RECONCILIATION-CLOSURE-V1.md",
+        "github-actions://36750376948/SUCCESS"
       ],
-      "blockers": [
-        "END_TO_END_MATHEMATICAL_RECONCILIATION_REPLAY_REQUIRED"
-      ],
-      "next_gate": "Prove no double count/phantom/lost/unexplained capital under chronological replay."
+      "blockers": [],
+      "next_gate": "Terminal mechanical foundation. No economic utility claim. Downstream GEN-C2+ and Compound scientific/economic closure remain independently blocking."
     },
     {
       "id": "GEN-C2",
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED",
-      "terminal_disposition": null,
+      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
-        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md"
+        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
+        "docs/research/CIBO-ARCH-A-GENC2-GENC7-ENGINE-RECONCILIATION-V1.md",
+        "github-actions://36727848363/SUCCESS",
+        "src/qore/infrastructure/cibo_profit_preservation_economic_gate.py",
+        "docs/research/CIBO-GEN-C7-PROFIT-PRESERVATION-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
+        "github-actions://36760959025/SUCCESS",
+        "github-actions://36815305266/SUCCESS",
+        "github-actions://36815305015/SUCCESS"
       ],
       "blockers": [
         "CAUSAL_PROFIT_GRADUATION_POLICY_VALUE_REQUIRED"
       ],
-      "next_gate": "Close floor behavior with OOS profit graduation/giveback evidence."
+      "next_gate": "No additional internal implementation is authorized while this disposition holds. Reopen only when the recorded real forward/OOS/provider dependency becomes available; then execute the already-frozen protocol. This remains certification-blocking."
     },
     {
       "id": "GEN-C3",
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED",
-      "terminal_disposition": null,
+      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
-        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md"
+        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
+        "docs/research/CIBO-ARCH-A-GENC2-GENC7-ENGINE-RECONCILIATION-V1.md",
+        "github-actions://36727848288/SUCCESS",
+        "src/qore/infrastructure/cibo_core_compound_portfolio.py",
+        "tests/infrastructure/test_cibo_core_compound_portfolio.py",
+        "src/qore/infrastructure/cibo_compound_portfolio_ledger.py",
+        "src/qore/infrastructure/cibo_compound_portfolio_store.py",
+        "tests/infrastructure/test_cibo_compound_portfolio.py",
+        "src/qore/infrastructure/cibo_genc3_genc6_economic_gate.py",
+        "tests/infrastructure/test_cibo_genc3_genc6_economic_gate.py",
+        "docs/research/CIBO-GEN-C3-GEN-C6-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
+        ".github/workflows/cibo-genc3-genc6-economic-gate.yml",
+        "github-actions://36790167057/SUCCESS",
+        "github-actions://36815305260/SUCCESS",
+        "github-actions://36815305335/SUCCESS"
       ],
       "blockers": [
         "END_TO_END_COMPOUND_PORTFOLIO_ECONOMIC_CYCLE_REQUIRED"
       ],
-      "next_gate": "Integrate settlements, floor, generations, reserves, Internal Capital Market and release/recycling."
+      "next_gate": "No additional internal implementation is authorized while this disposition holds. Reopen only when the recorded real forward/OOS/provider dependency becomes available; then execute the already-frozen scientific protocol. This remains certification-blocking."
     },
     {
       "id": "GEN-C4",
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED",
-      "terminal_disposition": null,
+      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
-        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md"
+        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
+        "docs/research/CIBO-ARCH-A-GENC2-GENC7-ENGINE-RECONCILIATION-V1.md",
+        "github-actions://36727848441/SUCCESS",
+        "src/qore/infrastructure/cibo_marginal_capital_utility_evidence.py",
+        "tests/infrastructure/test_cibo_marginal_capital_utility_evidence.py",
+        "src/qore/infrastructure/cibo_marginal_capital_utility_evidence_store.py",
+        "tests/infrastructure/test_cibo_marginal_capital_utility_evidence_store.py",
+        "src/qore/infrastructure/cibo_marginal_leverage_utility.py",
+        "tests/infrastructure/test_cibo_marginal_leverage_utility.py",
+        "src/qore/infrastructure/cibo_genc3_genc6_economic_gate.py",
+        "tests/infrastructure/test_cibo_genc3_genc6_economic_gate.py",
+        "docs/research/CIBO-GEN-C3-GEN-C6-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
+        ".github/workflows/cibo-genc3-genc6-economic-gate.yml",
+        "github-actions://36790167057/SUCCESS",
+        "github-actions://36815305246/SUCCESS",
+        "github-actions://36815305335/SUCCESS"
       ],
       "blockers": [
         "REAL_DATA_BOUND_CAUSAL_VALUE_PROOF_REQUIRED"
       ],
-      "next_gate": "Integrate next-unit compound-capital decisions with Compound Portfolio and prove value."
+      "next_gate": "No additional internal implementation is authorized while this disposition holds. Reopen only when the recorded real forward/OOS/provider dependency becomes available; then execute the already-frozen scientific protocol. This remains certification-blocking."
     },
     {
       "id": "GEN-C5",
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED",
-      "terminal_disposition": null,
+      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
-        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md"
+        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
+        "docs/research/CIBO-ARCH-A-GENC2-GENC7-ENGINE-RECONCILIATION-V1.md",
+        "github-actions://36727848514/SUCCESS",
+        "src/qore/infrastructure/cibo_sequential_compounding_shadow_policy.py",
+        "src/qore/infrastructure/cibo_sequential_compounding_shadow_store.py",
+        "src/qore/infrastructure/cibo_sequential_compounding_population.py",
+        "src/qore/infrastructure/cibo_sequential_compounding_oos_binding.py",
+        "tests/infrastructure/test_cibo_sequential_compounding_shadow.py",
+        "tests/infrastructure/test_cibo_sequential_compounding_oos_binding.py",
+        ".github/workflows/cibo-sequential-compounding-shadow.yml",
+        "src/qore/infrastructure/cibo_genc3_genc6_economic_gate.py",
+        "tests/infrastructure/test_cibo_genc3_genc6_economic_gate.py",
+        "docs/research/CIBO-GEN-C3-GEN-C6-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
+        ".github/workflows/cibo-genc3-genc6-economic-gate.yml",
+        "github-actions://36790167057/SUCCESS",
+        "github-actions://36815305205/SUCCESS",
+        "github-actions://36815305335/SUCCESS"
       ],
       "blockers": [
         "FRESH_PATH_DEPENDENT_OOS_STRESS_REPLICATION_REQUIRED"
       ],
-      "next_gate": "Run chronological settlement→classification→capacity→next-opportunity control/treatment."
+      "next_gate": "No additional internal implementation is authorized while this disposition holds. Reopen only when the recorded real forward/OOS/provider dependency becomes available; then execute the already-frozen scientific protocol. This remains certification-blocking."
     },
     {
       "id": "GEN-C6",
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED",
-      "terminal_disposition": null,
+      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
-        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md"
+        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
+        "docs/research/CIBO-ARCH-A-GENC2-GENC7-ENGINE-RECONCILIATION-V1.md",
+        "github-actions://36727848088/SUCCESS",
+        "src/qore/infrastructure/cibo_internal_capital_market.py",
+        "src/qore/infrastructure/cibo_internal_capital_market_population.py",
+        "src/qore/infrastructure/cibo_internal_capital_market_oos_binding.py",
+        "tests/infrastructure/test_cibo_internal_capital_market.py",
+        "src/qore/infrastructure/cibo_genc3_genc6_economic_gate.py",
+        "tests/infrastructure/test_cibo_genc3_genc6_economic_gate.py",
+        "docs/research/CIBO-GEN-C3-GEN-C6-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
+        ".github/workflows/cibo-genc3-genc6-economic-gate.yml",
+        "github-actions://36790167057/SUCCESS",
+        "github-actions://36815305203/SUCCESS",
+        "github-actions://36815305335/SUCCESS"
       ],
       "blockers": [
         "FRESH_TRUE_SCARCITY_OOS_STRESS_REPLICATION_REQUIRED"
       ],
-      "next_gate": "Prove competition among base/profit/expansion/reserve/optionality/compound uses."
+      "next_gate": "No additional internal implementation is authorized while this disposition holds. Reopen only when the recorded real forward/OOS/provider dependency becomes available; then execute the already-frozen scientific protocol. This remains certification-blocking."
     },
     {
       "id": "GEN-C7",
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED",
-      "terminal_disposition": null,
+      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
-        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md"
+        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
+        "docs/research/CIBO-ARCH-A-GENC2-GENC7-ENGINE-RECONCILIATION-V1.md",
+        "github-actions://36727848202/SUCCESS",
+        "src/qore/infrastructure/cibo_profit_preservation_economic_gate.py",
+        "tests/infrastructure/test_cibo_profit_preservation_economic_gate.py",
+        "docs/research/CIBO-GEN-C7-PROFIT-PRESERVATION-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
+        ".github/workflows/cibo-genc7-profit-preservation.yml",
+        "github-actions://36760959025/SUCCESS",
+        "github-actions://36815305015/SUCCESS"
       ],
       "blockers": [
         "FRESH_OOS_GIVEBACK_RETENTION_STRESS_REPLICATION_REQUIRED"
       ],
-      "next_gate": "Close harvesting/protection/reserve/compoundable-profit utility."
+      "next_gate": "No additional internal implementation is authorized while this disposition holds. Reopen only when the recorded real forward/OOS/provider dependency becomes available; then execute the already-frozen scientific protocol. This remains certification-blocking."
     },
     {
       "id": "GEN-C8",
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
-        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md"
+        "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
+        "github-actions://36727848331/SUCCESS",
+        "docs/research/CIBO-ARCH-A-CI-RECONCILIATION-V1.md",
+        "src/qore/infrastructure/cibo_adaptive_compound_speed_economic_gate.py",
+        "tests/infrastructure/test_cibo_adaptive_compound_speed_economic_gate.py",
+        "docs/research/CIBO-GEN-C8-ADAPTIVE-COMPOUND-SPEED-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
+        ".github/workflows/cibo-genc8-adaptive-compound-speed.yml",
+        "github-actions://36760958950/SUCCESS",
+        "github-actions://36815305175/SUCCESS"
       ],
       "blockers": [
-        "CURRENT_HEAD_GEN_C8_CI_REVALIDATION_REQUIRED",
         "FRESH_OOS_STRESS_REPLICATION_REQUIRED"
       ],
-      "next_gate": "Restore green CI then bind calibrated causal states and prove adaptive-speed value."
+      "next_gate": "No additional internal implementation is authorized while this disposition holds. Reopen only when the recorded real forward/OOS/provider dependency becomes available; then execute the already-frozen scientific protocol. This remains certification-blocking."
     },
     {
       "id": "GEN-C9",
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_MONTE_CARLO_AND_ECONOMIC_GATE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
         "docs/research/CIBO-GEN-C9-ROBUST-GROWTH-RUIN-CAPACITY-PREREGISTRATION-V1.md",
@@ -461,44 +775,55 @@
         "src/qore/infrastructure/cibo_compound_path_monte_carlo.py",
         "src/qore/infrastructure/cibo_genc9_economic_gate.py",
         "tests/infrastructure/test_cibo_genc9_economic_gate.py",
-        "docs/research/CIBO-GEN-C9-NONCOMPENSATORY-ECONOMIC-GATE-V1.md"
+        "docs/research/CIBO-GEN-C9-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
+        "github-actions://36727848052/SUCCESS",
+        "docs/research/CIBO-ARCH-A-CI-RECONCILIATION-V1.md",
+        "src/qore/infrastructure/cibo_compound_real_population_binding.py",
+        "src/qore/infrastructure/cibo_compound_temporal_replication_gate.py",
+        "github-actions://36754064447/SUCCESS",
+        "github-actions://36815304935/SUCCESS"
       ],
       "blockers": [
-        "GEN_C9_FULL_ENGINE_CI_REVALIDATION_REQUIRED",
         "REAL_PROVIDER_VALID_COMPOUND_PATH_POPULATION_REQUIRED",
         "FRESH_OOS_STRESS_TEMPORAL_REPLICATION_REQUIRED"
       ],
-      "next_gate": "Pass GEN-C9 full CI; bind provider-valid real compound path population without tuning; apply frozen non-compensatory gate; then fresh OOS/stress/temporal replication."
+      "next_gate": "No additional internal implementation is authorized while this disposition holds. Reopen only when the recorded real forward/OOS/provider dependency becomes available; then execute the already-frozen scientific protocol. This remains certification-blocking."
     },
     {
       "id": "GEN-C10",
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
         "docs/research/CIBO-GEN-C10-CAPITAL-DIGITAL-TWIN-PREREGISTRATION-V1.md",
         "src/qore/infrastructure/cibo_capital_digital_twin.py",
         "tests/infrastructure/test_cibo_capital_digital_twin.py",
-        ".github/workflows/cibo-genc10-capital-digital-twin.yml"
+        ".github/workflows/cibo-genc10-capital-digital-twin.yml",
+        "github-actions://36727848250/SUCCESS",
+        "docs/research/CIBO-ARCH-A-CI-RECONCILIATION-V1.md",
+        "src/qore/infrastructure/cibo_genc10_transition_uncertainty_calibration.py",
+        "tests/infrastructure/test_cibo_genc10_transition_uncertainty_calibration.py",
+        "docs/research/CIBO-GEN-C10-TRANSITION-UNCERTAINTY-CALIBRATION-PROTOCOL-V1.md",
+        "github-actions://36754064440/SUCCESS",
+        "github-actions://36815305087/SUCCESS"
       ],
       "blockers": [
-        "GEN_C10_ENGINE_CI_REVALIDATION_REQUIRED",
-        "CALIBRATED_TRANSITION_UNCERTAINTY_NOT_YET_PROVEN",
-        "REAL_CHRONOLOGICAL_TWIN_POPULATION_NOT_YET_BOUND",
+        "REAL_CHRONOLOGICAL_TWIN_TRANSITION_POPULATION_NOT_YET_BOUND",
+        "REAL_TRANSITION_UNCERTAINTY_CALIBRATION_RESULTS_NOT_YET_PROVEN",
         "FRESH_OOS_STRESS_TEMPORAL_REPLICATION_REQUIRED"
       ],
-      "next_gate": "Pass GEN-C10 engine CI; bind real chronological twin snapshots; calibrate transition uncertainty without future leakage; then OOS/stress/replicate."
+      "next_gate": "No additional internal implementation is authorized while this disposition holds. Reopen only when the recorded real forward/OOS/provider dependency becomes available; then execute the already-frozen scientific protocol. This remains certification-blocking."
     },
     {
       "id": "GEN-C11",
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
         "docs/research/CIBO-GEN-C11-ROBUST-MULTI-PERIOD-MPC-V1.md",
@@ -506,23 +831,33 @@
         "tests/infrastructure/test_cibo_multi_period_capital_mpc.py",
         ".github/workflows/cibo-genc11-multi-period-mpc.yml",
         "src/qore/infrastructure/cibo_ce2i_phase20_mpc.py",
-        "src/qore/infrastructure/cibo_capital_digital_twin.py"
+        "src/qore/infrastructure/cibo_capital_digital_twin.py",
+        "github-actions://36727848107/SUCCESS",
+        "docs/research/CIBO-ARCH-A-CI-RECONCILIATION-V1.md",
+        "docs/research/CIBO-GEN-C11-NONCOMPENSATORY-UTILITY-GATE-V1.md",
+        "docs/research/CIBO-COMPOUND-TEMPORAL-ECONOMIC-REPLICATION-CRITERION-V1.md",
+        "src/qore/infrastructure/cibo_genc11_genc13_utility_gate.py",
+        "tests/infrastructure/test_cibo_genc11_genc13_utility_gate.py",
+        "docs/research/CIBO-GEN-C11-GEN-C13-NONCOMPENSATORY-UTILITY-WRAPPER-V1.md",
+        ".github/workflows/cibo-genc11-genc13-utility-wrapper.yml",
+        "github-actions://36805561977/SUCCESS",
+        "github-actions://36815304979/SUCCESS",
+        "github-actions://36815305207/SUCCESS"
       ],
       "blockers": [
-        "GEN_C11_ENGINE_CI_REVALIDATION_REQUIRED",
         "FRESH_MULTI_PERIOD_OOS_UTILITY_NOT_YET_PROVEN",
         "STRESS_AND_TEMPORAL_REPLICATION_REQUIRED",
         "GEN_C10_TRANSITION_UNCERTAINTY_NOT_YET_CALIBRATED"
       ],
-      "next_gate": "Pass GEN-C11 no-oracle CI; bind synchronized fresh GEN-C10 world populations; preregister economic utility gate; then OOS/stress/replicate."
+      "next_gate": "No additional internal implementation is authorized while this disposition holds. Reopen only when the recorded real forward/OOS/provider dependency becomes available; then execute the already-frozen scientific protocol. This remains certification-blocking."
     },
     {
       "id": "GEN-C12",
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
         "docs/research/CIBO-GEN-C12-CRISIS-CAPITAL-INTELLIGENCE-V1.md",
@@ -531,46 +866,62 @@
         ".github/workflows/cibo-genc12-crisis-capital.yml",
         "src/qore/infrastructure/cibo_ce2i_regime_selector.py",
         "src/qore/infrastructure/cibo_ce2i_dynamic_derisking.py",
-        "src/qore/infrastructure/cibo_capital_digital_twin.py"
+        "src/qore/infrastructure/cibo_capital_digital_twin.py",
+        "github-actions://36727848425/SUCCESS",
+        "docs/research/CIBO-ARCH-A-CI-RECONCILIATION-V1.md",
+        "src/qore/infrastructure/cibo_genc12_economic_gate.py",
+        "tests/infrastructure/test_cibo_genc12_economic_gate.py",
+        "docs/research/CIBO-GEN-C12-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
+        "github-actions://36757582127/SUCCESS",
+        "github-actions://36816113558/SUCCESS"
       ],
       "blockers": [
-        "GEN_C12_ENGINE_CI_REVALIDATION_REQUIRED",
         "REAL_CRISIS_POPULATION_NOT_YET_BOUND",
         "ADVERSARIAL_CRISIS_STRESS_AND_TEMPORAL_REPLICATION_REQUIRED",
         "ECONOMIC_VALUE_NOT_YET_DEMONSTRATED"
       ],
-      "next_gate": "Pass GEN-C12 engine CI; bind real causal crisis populations; run correlation/provider/margin/liquidity/drawdown stress; then OOS and temporal replication."
+      "next_gate": "Reopen when real crisis/provider-factor forward evidence is available; execute the frozen non-compensatory crisis protocol and temporal replication. This remains certification-blocking."
     },
     {
       "id": "GEN-C13",
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
         "docs/research/CIBO-GEN-C13-META-CAPITAL-MEMORY-SKEPTIC-V1.md",
         "src/qore/infrastructure/cibo_meta_capital_memory.py",
         "tests/infrastructure/test_cibo_meta_capital_memory.py",
         ".github/workflows/cibo-genc13-meta-capital-memory.yml",
-        "src/qore/infrastructure/cibo_executive_memory.py"
+        "src/qore/infrastructure/cibo_executive_memory.py",
+        "github-actions://36727848318/SUCCESS",
+        "docs/research/CIBO-ARCH-A-CI-RECONCILIATION-V1.md",
+        "docs/research/CIBO-GEN-C13-CAUSAL-IDENTIFICATION-PROTOCOL-V1.md",
+        "docs/research/CIBO-COMPOUND-CAUSAL-ABLATION-PROTOCOL-V1.md",
+        "src/qore/infrastructure/cibo_genc11_genc13_utility_gate.py",
+        "tests/infrastructure/test_cibo_genc11_genc13_utility_gate.py",
+        "docs/research/CIBO-GEN-C11-GEN-C13-NONCOMPENSATORY-UTILITY-WRAPPER-V1.md",
+        ".github/workflows/cibo-genc11-genc13-utility-wrapper.yml",
+        "github-actions://36805561977/SUCCESS",
+        "github-actions://36815305157/SUCCESS",
+        "github-actions://36815305207/SUCCESS"
       ],
       "blockers": [
-        "GEN_C13_ENGINE_CI_REVALIDATION_REQUIRED",
         "REAL_POST_OUTCOME_EPISODE_POPULATION_NOT_YET_BOUND",
-        "COUNTERFACTUAL_CAUSAL_IDENTIFICATION_NOT_YET_PROVEN",
+        "PROSPECTIVE_MEMORY_USE_CAUSAL_ABLATION_NOT_YET_RUN",
         "TEMPORAL_REPLICATION_REQUIRED"
       ],
-      "next_gate": "Pass GEN-C13 leakage/memory CI; bind reconciled post-outcome capital episodes; keep counterfactuals non-causal until identified; then replicate findings across time."
+      "next_gate": "No additional internal implementation is authorized while this disposition holds. Reopen only when the recorded real forward/OOS/provider dependency becomes available; then execute the already-frozen protocol. This remains certification-blocking."
     },
     {
       "id": "GEN-C14",
       "kind": "GEN_C",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
         "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
         "docs/research/CIBO-GEN-C14-GOVERNED-AUTONOMOUS-CAPITAL-SCIENCE-V1.md",
@@ -578,201 +929,321 @@
         "tests/infrastructure/test_cibo_governed_capital_science.py",
         ".github/workflows/cibo-genc14-autonomous-capital-science.yml",
         "src/qore/infrastructure/cibo_ce2i_burned_non_promotion.py",
-        "src/qore/infrastructure/cibo_ce2i_final_certification.py"
+        "src/qore/infrastructure/cibo_ce2i_final_certification.py",
+        "github-actions://36790166703/SUCCESS",
+        "github-actions://36815305156/SUCCESS"
       ],
       "blockers": [
-        "GEN_C14_ENGINE_CI_REVALIDATION_REQUIRED",
         "REAL_HYPOTHESIS_LINEAGES_NOT_YET_RUN_THROUGH_FULL_PIPELINE",
         "OWNER_REVIEW_IS_EXTERNAL_AND_CANNOT_BE_FABRICATED",
         "FINAL_PROMOTION_EVIDENCE_NOT_YET_AVAILABLE"
       ],
-      "next_gate": "Pass GEN-C14 governance CI; run real capital hypotheses through prereg/simulation/OOS/stress/replication; stop at OWNER_REVIEW_REQUIRED; never auto-promote."
+      "next_gate": "No additional internal implementation is authorized while this disposition holds. Reopen only when the recorded real forward/OOS/provider dependency becomes available; then execute the already-frozen scientific protocol. This remains certification-blocking."
     },
     {
       "id": "COMPOUND_ENGINE",
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "INTEGRATED_ENGINE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
         "src/qore/infrastructure/cibo_compound_cycle_state.py",
         "src/qore/infrastructure/cibo_compound_market_cycle.py",
         "src/qore/infrastructure/cibo_compound_cycle_audit.py",
         "tests/infrastructure/test_cibo_compound_cycle_state.py",
         "tests/infrastructure/test_cibo_compound_market_cycle.py",
-        ".github/workflows/cibo-compound-engine-integrated-cycle.yml"
+        ".github/workflows/cibo-compound-engine-integrated-cycle.yml",
+        "github-actions://36727848373/SUCCESS",
+        "docs/research/CIBO-ARCH-A-CI-RECONCILIATION-V1.md",
+        "src/qore/infrastructure/cibo_arch_a_forward_compound_delivery.py",
+        "tests/infrastructure/test_cibo_arch_a_forward_compound_delivery.py",
+        ".github/workflows/cibo-architect-a-forward-compound-delivery.yml",
+        "github-actions://36815305118/SUCCESS",
+        "github-actions://36815305048/SUCCESS"
       ],
       "blockers": [
-        "INTEGRATED_COMPOUND_CYCLE_CI_REVALIDATION_REQUIRED",
         "REAL_CHRONOLOGICAL_POPULATION_REPLAY_REQUIRED",
         "COMPOUND_MONTE_CARLO_REAL_POPULATION_STRESS_OOS_REPLICATION_REQUIRED"
       ],
-      "next_gate": "Pass integrated-cycle CI, then bind real chronological population and close scientific gates."
+      "next_gate": "No additional internal implementation is authorized while this disposition holds. Reopen only when the recorded real forward/OOS/provider dependency becomes available; then execute the already-frozen protocol. This remains certification-blocking."
     },
     {
       "id": "COMPOUND_PORTFOLIO",
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "INTEGRATED_ENGINE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
         "src/qore/infrastructure/cibo_compound_cycle_state.py",
-        "src/qore/infrastructure/cibo_compound_market_cycle.py"
+        "src/qore/infrastructure/cibo_compound_market_cycle.py",
+        "github-actions://36750376948/SUCCESS",
+        "docs/research/CIBO-GENC1-MATHEMATICAL-RECONCILIATION-CLOSURE-V1.md",
+        "github-actions://36815305118/SUCCESS",
+        "github-actions://36815305260/SUCCESS",
+        "github-actions://36815305335/SUCCESS"
       ],
       "blockers": [
-        "INTEGRATED_COMPOUND_CYCLE_CI_REVALIDATION_REQUIRED",
         "REAL_ECONOMIC_PORTFOLIO_REPLAY_REQUIRED",
         "FRESH_OOS_STRESS_REPLICATION_REQUIRED"
       ],
-      "next_gate": "Use the account-local Compound Portfolio in real chronological integrated replay and prove closure gates."
+      "next_gate": "No additional internal implementation is authorized while this disposition holds. Reopen only when the recorded real forward/OOS/provider dependency becomes available; then execute the already-frozen protocol. This remains certification-blocking."
     },
     {
       "id": "INTERNAL_CAPITAL_MARKET",
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "INTEGRATED_WITH_COMPOUND_CYCLE_CI_REVALIDATION_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
-        "src/qore/infrastructure/cibo_compound_market_cycle.py"
+        "src/qore/infrastructure/cibo_compound_market_cycle.py",
+        "github-actions://36750376948/SUCCESS",
+        "docs/research/CIBO-GENC1-MATHEMATICAL-RECONCILIATION-CLOSURE-V1.md",
+        "github-actions://36815305203/SUCCESS",
+        "github-actions://36815305335/SUCCESS"
       ],
       "blockers": [
-        "INTEGRATED_COMPOUND_CYCLE_CI_REVALIDATION_REQUIRED",
         "FRESH_TRUE_SCARCITY_ECONOMIC_VALUE_REQUIRED",
         "STRESS_AND_TEMPORAL_REPLICATION_REQUIRED"
       ],
-      "next_gate": "Pass integrated-cycle mechanics, then prove fresh scarcity value and non-compensatory stress/replication."
+      "next_gate": "No additional internal implementation is authorized while this disposition holds. Reopen only when the recorded real forward/OOS/provider dependency becomes available; then execute the already-frozen scientific protocol. This remains certification-blocking."
     },
     {
       "id": "CAPITAL_GENERATIONS",
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "GEN0_TO_GEN2_MECHANICS_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
-        "src/qore/infrastructure/cibo_compound_cycle_audit.py"
+        "src/qore/infrastructure/cibo_compound_cycle_audit.py",
+        "github-actions://36750376948/SUCCESS",
+        "docs/research/CIBO-GENC1-MATHEMATICAL-RECONCILIATION-CLOSURE-V1.md",
+        "github-actions://36815305114/SUCCESS"
       ],
       "blockers": [
-        "INTEGRATED_COMPOUND_CYCLE_CI_REVALIDATION_REQUIRED",
         "MULTI_GENERATION_REAL_REPLAY_REQUIRED",
         "FRESH_OOS_ATTRIBUTION_REQUIRED"
       ],
-      "next_gate": "Prove GEN-0→GEN-N parent/child provenance over real chronological replay, not only test fixtures."
+      "next_gate": "No additional internal implementation is authorized while this disposition holds. Reopen only when the recorded real forward/OOS/provider dependency becomes available; then execute the already-frozen protocol. This remains certification-blocking."
     },
     {
       "id": "PROTECTED_BASE_CAPITAL",
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "RESEARCH_OVERLAY_ENGINE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
         "docs/research/CIBO-ABSOLUTE-CLOSURE-AMENDMENT-V1.md",
         "src/qore/infrastructure/cibo_protected_base_overlay.py",
         "tests/infrastructure/test_cibo_protected_base_overlay.py",
         ".github/workflows/cibo-protected-base-overlay.yml",
         "src/qore/infrastructure/cibo_ce2i_usd60_robust_capacity.py",
-        "src/qore/infrastructure/cibo_capital_source_ledger.py"
+        "src/qore/infrastructure/cibo_capital_source_ledger.py",
+        "github-actions://36727848187/SUCCESS",
+        "docs/research/CIBO-ARCH-A-CI-RECONCILIATION-V1.md",
+        "docs/research/CIBO-PROTECTED-BASE-POLICY-BEHAVIOR-PREREGISTRATION-V1.md",
+        "src/qore/infrastructure/cibo_protected_base_policy_gate.py",
+        "tests/infrastructure/test_cibo_protected_base_policy_gate.py",
+        "docs/research/CIBO-PROTECTED-BASE-NONCOMPENSATORY-NUMERIC-POLICY-GATE-V1.md",
+        "github-actions://36760959053/SUCCESS",
+        "github-actions://36815305005/SUCCESS",
+        "github-actions://36815305307/SUCCESS"
       ],
       "blockers": [
-        "PROTECTED_BASE_OVERLAY_CI_REVALIDATION_REQUIRED",
-        "PROTECTED_BASE_POLICY_CALIBRATION_AND_CAUSAL_VALUE_NOT_YET_PROVEN",
+        "PROTECTED_BASE_NUMERIC_CANDIDATE_NOT_YET_FROZEN_ON_REAL_PROVIDER_VALID_POPULATION",
+        "PROTECTED_BASE_CAUSAL_VALUE_NOT_YET_PROVEN",
+        "FRESH_OOS_STRESS_AND_4_OF_4_TEMPORAL_REPLICATION_REQUIRED",
         "PROTECTED_BASE_REMAINS_RESEARCH_ONLY_AND_MUST_NOT_RETROACTIVELY_CHANGE_V3"
       ],
-      "next_gate": "Pass overlay CI, reconcile with robust protected-operating-floor semantics, preregister policy behavior, then prove chronological/OOS/stress value without V3 mutation."
+      "next_gate": "No additional internal implementation is authorized while this disposition holds. Reopen only when the recorded real forward/OOS/provider dependency becomes available; then execute the already-frozen scientific protocol. This remains certification-blocking."
     },
     {
       "id": "PROFIT_PROTECTION",
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_IMPLEMENTED",
-      "terminal_disposition": null,
-      "evidence_refs": [],
-      "blockers": [
-        "FRESH_OOS_PROFIT_RETENTION_AND_GIVEBACK_VALUE_REQUIRED"
+      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "evidence_refs": [
+        "src/qore/infrastructure/cibo_profit_preservation_shadow.py",
+        "tests/infrastructure/test_cibo_profit_preservation_shadow.py",
+        ".github/workflows/cibo-genc7-profit-preservation.yml",
+        "docs/research/CIBO-GEN-C7-PROFIT-PRESERVATION-GIVEBACK-SHADOW-PREREGISTRATION-V1.md",
+        "github-actions://36727848202/SUCCESS",
+        "src/qore/infrastructure/cibo_profit_preservation_economic_gate.py",
+        "docs/research/CIBO-GEN-C7-PROFIT-PRESERVATION-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
+        "github-actions://36760959025/SUCCESS",
+        "src/qore/infrastructure/cibo_compound_path_history.py",
+        "tests/infrastructure/test_cibo_compound_path_history.py",
+        ".github/workflows/cibo-compound-path-history.yml",
+        "src/qore/infrastructure/cibo_arch_a_path_evidence_delivery.py",
+        "tests/infrastructure/test_cibo_arch_a_path_evidence_delivery.py",
+        ".github/workflows/cibo-architect-a-path-evidence-delivery.yml",
+        "github-actions://36790166832/SUCCESS",
+        "github-actions://36790166614/SUCCESS",
+        "github-actions://36815305015/SUCCESS",
+        "github-actions://36815305225/SUCCESS",
+        "github-actions://36815305249/SUCCESS"
       ],
-      "next_gate": "Close GEN-C2/7 floor+harvest behavior."
+      "blockers": [
+        "REAL_FORWARD_GIVEBACK_PATH_HISTORY_REQUIRED",
+        "FRESH_OOS_PROFIT_RETENTION_AND_GIVEBACK_CAUSAL_VALUE_REQUIRED"
+      ],
+      "next_gate": "No additional internal implementation is authorized while this disposition holds. Reopen only when the recorded real forward/OOS/provider dependency becomes available; then execute the already-frozen protocol. This remains certification-blocking."
     },
     {
       "id": "PROVIDER_ECONOMICS",
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "POINT_IN_TIME_PROVIDER_TERMS_BOUND_HISTORICAL_AND_CAPABILITY_GAPS_OPEN",
-      "terminal_disposition": null,
+      "current_maturity": "SUPERSEDED_WITH_PROVEN_PHASE22_DUAL_EVIDENCE_PROVIDER_LINEAGE",
+      "terminal_disposition": "SUPERSEDED_WITH_PROVEN_LINEAGE",
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ctrader_demo_provider_economics.py",
         "src/qore/infrastructure/cibo_fundednext_provider.py",
-        "src/qore/infrastructure/cibo_instrument_capability_registry.py"
+        "src/qore/infrastructure/cibo_instrument_capability_registry.py",
+        "docs/research/CIBO-B-CTRADER-DEMO-PROVIDER-ECONOMICS-EVIDENCE-2026-09-30.json",
+        "github-actions://36727848127/SUCCESS",
+        "src/qore/infrastructure/cibo_ce2i_provider_execution_calibration.py",
+        "src/qore/infrastructure/cibo_ce2i_provider_economics_component_freeze.py",
+        "tests/infrastructure/test_cibo_ce2i_provider_execution_calibration.py",
+        "tests/infrastructure/test_cibo_ce2i_provider_economics_component_freeze.py",
+        "src/qore/infrastructure/cibo_ce2i_provider_economics_evidence.py",
+        "src/qore/infrastructure/cibo_ce2i_provider_economics_provenance.py",
+        "tests/infrastructure/test_cibo_ce2i_provider_economics_evidence.py",
+        "src/qore/infrastructure/cibo_ctrader_demo_account_capability.py",
+        "src/qore/infrastructure/cibo_ctrader_demo_capability_registry.py",
+        "scripts/cibo_ctrader_demo_account_capability_probe.py",
+        "tests/infrastructure/test_cibo_ctrader_demo_account_capability.py",
+        "tests/infrastructure/test_cibo_ctrader_demo_capability_registry.py",
+        "tests/infrastructure/test_cibo_ctrader_demo_account_capability_probe.py",
+        ".github/workflows/cibo-ctrader-demo-account-capability.yml",
+        "docs/research/CIBO-CTRADER-DEMO-ACCOUNT-CAPABILITY-V1.md",
+        "docs/research/CIBO-T16-T17-PROVIDER-CAPABILITY-RECONCILIATION-V1.md",
+        "src/qore/infrastructure/cibo_ctrader_demo_instrument_taxonomy.py",
+        "tests/infrastructure/test_cibo_ctrader_demo_instrument_taxonomy.py",
+        "src/qore/infrastructure/ctrader_open_api_client.py",
+        ".github/workflows/cibo-ctrader-demo-provider-economics.yml",
+        "src/qore/infrastructure/cibo_ce2i_t17_limited_risk_capability.py",
+        "scripts/cibo_t17_limited_risk_capability_probe.py",
+        "tests/infrastructure/test_cibo_ce2i_t17_limited_risk_capability.py",
+        "tests/infrastructure/test_cibo_t17_limited_risk_capability_probe.py",
+        "docs/research/CIBO-ARCH-B-TERMINAL-DISPOSITION-PACKAGE-V1.json",
+        "github-actions://36814558179/SUCCESS",
+        "src/qore/infrastructure/cibo_phase22_demo_empirical_provider_receipt.py",
+        "src/qore/infrastructure/cibo_phase22_provider_execution_calibration_receipt.py",
+        "src/qore/infrastructure/cibo_phase22_dual_evidence_plan.py",
+        "src/qore/infrastructure/cibo_arch2_provider_economics_terminal_recommendation.py",
+        "tests/infrastructure/test_cibo_arch2_provider_economics_terminal_recommendation.py",
+        "github-actions://36927602692/SUCCESS",
+        "github-artifact://11194039517/sha256:5957a77cceb44c15319785aa26a1a0574fef46535ff7ce69fcec3757d02972c4",
+        "github-actions://36940403035/SUCCESS"
       ],
-      "blockers": [
-        "HISTORICAL_PROVIDER_USD_ECONOMICS_NOT_AVAILABLE_FOR_LEGACY_REPLAY",
-        "EMPIRICAL_SLIPPAGE_CALIBRATION_REQUIRED_WHERE_USD_CLAIMS_REQUIRE_IT",
-        "T16_T17_PROVIDER_CAPABILITY_UNIVERSE_NOT_PROVIDER_VERIFIED"
-      ],
-      "next_gate": "Bind only provider-native point-in-time terms and forward observed costs; keep historical research R-denominated where USD fields are absent; obtain provider-verified T16/T17 capability evidence."
+      "blockers": [],
+      "next_gate": "Terminal supersession: Phase22 separates historical market replay from real current cTrader DEMO execution calibration and explicitly forbids fabricated historical provider fills. Reopen only on provider-plane contract regression; this does not grant deployment readiness."
     },
     {
       "id": "FORWARD_QUALIFICATION",
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "COLLECTING",
-      "terminal_disposition": null,
-      "evidence_refs": [],
-      "blockers": [
-        "PHASE20D_FRESH_POPULATION_THRESHOLDS_NOT_YET_MET_OR_REVALIDATED"
+      "current_maturity": "SUPERSEDED_WITH_PROVEN_PHASE22_DUAL_EVIDENCE_QUALIFICATION_LINEAGE",
+      "terminal_disposition": "SUPERSEDED_WITH_PROVEN_LINEAGE",
+      "evidence_refs": [
+        "src/qore/infrastructure/cibo_ce2i_calibration_freeze_manifest.py",
+        "tests/infrastructure/test_cibo_ce2i_calibration_freeze_manifest.py",
+        "src/qore/infrastructure/cibo_receipt_bound_calibration_freeze.py",
+        "tests/infrastructure/test_cibo_receipt_bound_calibration_freeze.py",
+        ".github/workflows/cibo-crossboundary-evidence-receipt.yml",
+        ".github/workflows/cibo-calibration-freeze-manifest.yml",
+        "src/qore/infrastructure/cibo_arch_b_forward_economic_manifest.py",
+        "scripts/cibo_phase20_arch_b_forward_economic_manifest.py",
+        "tests/infrastructure/test_cibo_arch_b_forward_economic_manifest.py",
+        "tests/infrastructure/test_cibo_phase20_arch_b_forward_economic_manifest_export.py",
+        ".github/workflows/cibo-arch-b-forward-economic-manifest.yml",
+        "docs/research/CIBO-ARCH-B-FORWARD-ECONOMIC-EVIDENCE-MANIFEST-V1.md",
+        "docs/research/CIBO-B-CALIBRATION-FREEZE-MANIFEST-V1.md",
+        "github-actions://36790166850/SUCCESS",
+        "github-actions://36790166754/SUCCESS",
+        "docs/research/CIBO-ARCH-B-TERMINAL-DISPOSITION-PACKAGE-V1.json",
+        "github-actions://36814558235/SUCCESS",
+        "src/qore/infrastructure/cibo_phase22_dual_evidence_plan.py",
+        "src/qore/infrastructure/cibo_arch2_forward_qualification_reconciliation.py",
+        "tests/infrastructure/test_cibo_arch2_forward_qualification_reconciliation.py",
+        "github-actions://36940403035/SUCCESS"
       ],
-      "next_gate": "Revalidate durable books and pass frozen Phase20D qualification without threshold changes."
+      "blockers": [],
+      "next_gate": "Terminal supersession of the old Phase20D duration/count qualification contract by the frozen Phase22 Dual Evidence Plan V2. Fresh-OOS outcome proof remains a separate FRESH_OOS dependency and V2 is not consumed here."
     },
     {
       "id": "PATH_DEPENDENT_MONTE_CARLO",
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "COMPOUND_DEPENDENCY_ADAPTER_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
         "src/qore/infrastructure/cibo_compound_path_monte_carlo.py",
         "tests/infrastructure/test_cibo_compound_path_monte_carlo.py",
-        ".github/workflows/cibo-genc9-robust-growth.yml"
+        ".github/workflows/cibo-genc9-robust-growth.yml",
+        "github-actions://36727848052/SUCCESS",
+        "docs/research/CIBO-ARCH-A-CI-RECONCILIATION-V1.md",
+        "src/qore/infrastructure/cibo_compound_real_population_binding.py",
+        "tests/infrastructure/test_cibo_compound_real_population_binding.py",
+        "docs/research/CIBO-COMPOUND-REAL-POPULATION-BINDING-V1.md",
+        "github-actions://36754064447/SUCCESS",
+        "src/qore/infrastructure/cibo_arch_a_forward_compound_delivery.py",
+        "tests/infrastructure/test_cibo_arch_a_forward_compound_delivery.py",
+        ".github/workflows/cibo-architect-a-forward-compound-delivery.yml",
+        "src/qore/infrastructure/cibo_compound_path_history.py",
+        "tests/infrastructure/test_cibo_compound_path_history.py",
+        ".github/workflows/cibo-compound-path-history.yml",
+        "src/qore/infrastructure/cibo_arch_a_path_evidence_delivery.py",
+        "tests/infrastructure/test_cibo_arch_a_path_evidence_delivery.py",
+        ".github/workflows/cibo-architect-a-path-evidence-delivery.yml",
+        "github-actions://36790166832/SUCCESS",
+        "github-actions://36815305225/SUCCESS",
+        "github-actions://36815305048/SUCCESS",
+        "github-actions://36815305141/SUCCESS"
       ],
       "blockers": [
-        "COMPOUND_PATH_MONTE_CARLO_CI_REVALIDATION_REQUIRED",
         "REAL_COMPOUND_EPISODE_POPULATION_AND_FLOOR_ATTRIBUTION_REQUIRED",
         "ADVERSARIAL_STRESS_AND_TEMPORAL_REPLICATION_REQUIRED"
       ],
-      "next_gate": "Pass dependency-aware Compound Monte Carlo CI; bind real chronological settled compound episodes plus protected-floor attribution; run adversarial paths and temporal replication."
+      "next_gate": "No additional internal implementation is authorized while this disposition holds. Reopen only when the recorded real forward/OOS/provider dependency becomes available; then execute the already-frozen protocol. This remains certification-blocking."
     },
     {
       "id": "ADVERSARIAL_STRESS",
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "COMPOUND_STRESS_ENGINE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
         "src/qore/infrastructure/cibo_compound_adversarial_stress.py",
         "tests/infrastructure/test_cibo_compound_adversarial_stress.py",
-        "docs/research/CIBO-COMPOUND-ADVERSARIAL-STRESS-MATRIX-V1.md"
+        "docs/research/CIBO-COMPOUND-ADVERSARIAL-STRESS-MATRIX-V1.md",
+        "github-actions://36727848052/SUCCESS",
+        "docs/research/CIBO-ARCH-A-CI-RECONCILIATION-V1.md",
+        "github-actions://36815305174/SUCCESS",
+        "github-actions://36815305180/SUCCESS"
       ],
       "blockers": [
-        "COMPOUND_STRESS_ENGINE_CI_REVALIDATION_REQUIRED",
         "REAL_COMPOUND_POPULATION_STRESS_EXECUTION_REQUIRED",
         "CRISIS_PROVIDER_FACTOR_STRESS_INTEGRATION_REQUIRED"
       ],
-      "next_gate": "Pass stress-engine CI; execute frozen matrix on real compound population; integrate GEN-C12 provider/liquidity/correlation crisis evidence; retain non-compensatory verdicts."
+      "next_gate": "No additional internal implementation is authorized while this disposition holds. Reopen only when the recorded real forward/OOS/provider dependency becomes available; then execute the already-frozen protocol. This remains certification-blocking."
     },
     {
       "id": "FRESH_OOS",
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "PRE_HOLDOUT_PHASE20D_PHASE21_PHASE22_GATES_IMPLEMENTED_REAL_FORWARD_PREREQUISITES_OPEN",
+      "current_maturity": "PHASE22_V4_SOURCE_VALIDATED_PRE_EXECUTION",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py",
@@ -780,61 +1251,108 @@
         "src/qore/infrastructure/cibo_ce2i_phase21_policy_freeze.py",
         "src/qore/infrastructure/cibo_ce2i_phase22_holdout_gate.py",
         "src/qore/infrastructure/cibo_ce2i_phase22_qualification.py",
-        ".github/workflows/cibo-pre-holdout-checkpoint.yml"
+        ".github/workflows/cibo-pre-holdout-checkpoint.yml",
+        "github-actions://36815305113/SUCCESS",
+        "github-actions://36815305247/SUCCESS",
+        "github-actions://36815305324/SUCCESS",
+        "src/qore/infrastructure/cibo_phase22_dual_evidence_plan.py",
+        "src/qore/infrastructure/cibo_phase22_execution_manifest.py",
+        "src/qore/infrastructure/cibo_phase22_consumption_ledger.py",
+        "github-actions://36940403035/SUCCESS",
+        "docs/research/CIBO-PHASE22-V2-CONSUMPTION-RECEIPT.json",
+        "docs/research/CIBO-PHASE22-V2-CLAIMED-RECOVERY-FORENSIC-RECEIPT.json",
+        "github-actions://37010938911/SUCCESS",
+        "github-actions-artifact://11227409531/sha256:ac938c675fa65cea555d4011cbbfa23e43c1f648d7bcd83d2c013e4920390d26",
+        "docs/research/CIBO-PHASE22-V3-EXECUTION-AUTHORIZATION.json",
+        "docs/research/CIBO-PHASE22-V3-ONE-SHOT-CLAIM.json",
+        "docs/research/CIBO-PHASE22-V3-CONSUMPTION-RECEIPT.json",
+        "docs/research/CIBO-PHASE22-V3-CLAIMED-FAILURE-FORENSIC-RECEIPT.json",
+        "github-actions://37047009381/FAILURE",
+        "github-actions-artifact://11245575444/sha256:d1a0f298b3d55cb916b488ba4739937e85bdab253e9b435dc5a0b45ad32e160b",
+        "docs/research/CIBO-PHASE22-V4-SOURCE-COLLECTION-TRIGGER.json",
+        "docs/research/CIBO-PHASE22-V4-SOURCE-RECEIPT.json",
+        "github-actions://37048678560/SUCCESS",
+        "github-actions-artifact://11246140100/sha256:9586d4c4b03d846e98a8d64dd308cd12d4287807dfb150dca156d4eac2c07d07",
+        "github-actions://37049312208/SUCCESS",
+        "github-actions-artifact://11245897154/sha256:285e0e54c87fab94fd5e51f394b942870844eb51b8b472c02d9337a7d55a15ff"
       ],
       "blockers": [
-        "PHASE20D_REAL_FORWARD_POPULATION_THRESHOLDS_NOT_YET_PASSED",
-        "PHASE21_POLICY_FREEZE_CANNOT_SEAL_BEFORE_FORWARD_QUALIFICATION",
-        "PHASE21_FORWARD_EMPIRICAL_VALIDATIONS_REQUIRED",
-        "PROVIDER_ECONOMICS_AND_CALIBRATION_FREEZE_MUST_BE_SEALED",
-        "2017H1_HOLDOUT_MUST_REMAIN_SEALED_UNTOUCHED_UNTIL_ALL_PREREQUISITES_PASS"
+        "PHASE22_V4_EXECUTION_BUILD_AND_EXACT_HEAD_CI_REQUIRED",
+        "PHASE22_V4_EXPLICIT_OWNER_ONE_SHOT_AUTHORIZATION_REQUIRED",
+        "PHASE22_V4_FRESH_TERMINAL_EVIDENCE_REQUIRED",
+        "PHASE22_V3_SECOND_FRESH_EXECUTION_FORBIDDEN"
       ],
-      "next_gate": "Collect the real frozen post-freeze Phase20D forward population to thresholds; pass exact causal-tool gates and Phase21 empirical validations; seal Phase21 policy freeze; only then become READY_TO_UNSEAL_2017H1. Do not open holdout from this workstream."
+      "next_gate": "V4 source availability and exact ten-source corpus are sealed read-only with no Trader logic or outcome inspection. Freeze the V4 execution build, prove the VT31 source-ABI repair and all seven lanes pre-outcome, then require a new explicit Owner one-shot authorization before any V4 fresh Trader execution. V3 remains permanently non-rerunnable."
     },
     {
       "id": "TEMPORAL_REPLICATION",
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "COMPOUND_REPLICATION_HARNESS_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
         "src/qore/infrastructure/cibo_compound_temporal_replication.py",
         "tests/infrastructure/test_cibo_compound_temporal_replication.py",
-        "docs/research/CIBO-COMPOUND-TEMPORAL-REPLICATION-V1.md"
+        "docs/research/CIBO-COMPOUND-TEMPORAL-REPLICATION-V1.md",
+        "github-actions://36727848052/SUCCESS",
+        "docs/research/CIBO-ARCH-A-CI-RECONCILIATION-V1.md",
+        "src/qore/infrastructure/cibo_compound_temporal_replication_gate.py",
+        "tests/infrastructure/test_cibo_compound_temporal_replication_gate.py",
+        "docs/research/CIBO-COMPOUND-TEMPORAL-ECONOMIC-REPLICATION-CRITERION-V1.md",
+        "github-actions://36754064447/SUCCESS",
+        "src/qore/infrastructure/cibo_arch_a_forward_compound_delivery.py",
+        "tests/infrastructure/test_cibo_arch_a_forward_compound_delivery.py",
+        ".github/workflows/cibo-architect-a-forward-compound-delivery.yml",
+        "github-actions://36815305141/SUCCESS",
+        "github-actions://36815305265/SUCCESS"
       ],
       "blockers": [
-        "COMPOUND_TEMPORAL_REPLICATION_CI_REVALIDATION_REQUIRED",
         "REAL_FROZEN_TEMPORAL_FOLDS_REQUIRED",
-        "ECONOMIC_REPLICATION_CRITERION_AND_RESULTS_REQUIRED"
+        "REAL_4_OF_4_ECONOMIC_REPLICATION_RESULTS_REQUIRED"
       ],
-      "next_gate": "Pass replication-harness CI; bind real frozen non-overlapping folds and fold-specific initial snapshots; apply predeclared economic criterion without pooling outcomes."
+      "next_gate": "No additional internal implementation is authorized while this disposition holds. Reopen only when the recorded real forward/OOS/provider dependency becomes available; then execute the already-frozen protocol. This remains certification-blocking."
     },
     {
       "id": "RISK_INTEGRATION",
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "PARTIAL_INTEGRATION",
-      "terminal_disposition": null,
-      "evidence_refs": [],
-      "blockers": [
-        "END_TO_END_DOWNSIZE_MINIMAL_SEED_NO_REJECT_ALL_EVIDENCE_REQUIRED"
+      "current_maturity": "MECHANICAL_AUTHORITY_AND_DOWNSIZE_CLOSURE_PROVEN",
+      "terminal_disposition": "COMPLETED_AND_PROVEN",
+      "evidence_refs": [
+        "tests/infrastructure/test_cibo_risk_integration_closure.py",
+        ".github/workflows/cibo-risk-integration-closure.yml",
+        "docs/research/CIBO-RISK-INTEGRATION-CLOSURE-V1.md",
+        "src/qore/infrastructure/account_wide_risk.py",
+        "src/qore/infrastructure/account_wide_risk_ledger.py",
+        "src/qore/infrastructure/cibo_cma_risk_request.py",
+        "src/qore/infrastructure/cibo_fundednext_seed.py",
+        "github-actions://36769958686/SUCCESS",
+        "docs/research/CIBO-INTEGRATOR-RISK-MECHANICAL-CLOSURE-RECONCILIATION-V1.md"
       ],
-      "next_gate": "Prove CIBO optimizes while Risk independently bounds without nominal-cost reject-all behavior."
+      "blockers": [],
+      "next_gate": "Mechanical Risk boundary is terminal. Real forward provider/execution/economic proof remains in FORWARD_QUALIFICATION, PROVIDER_ECONOMICS and USD60_CAPABILITY_PROGRAM."
     },
     {
       "id": "CAPITAL_AMPLIFICATION",
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "PARTIAL_INTEGRATION",
-      "terminal_disposition": null,
-      "evidence_refs": [],
-      "blockers": [
-        "COMPOUND_PORTFOLIO_AND_GEN_C_CLOSURE_REQUIRED"
+      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "evidence_refs": [
+        "src/qore/infrastructure/cibo_compound_causal_ablation.py",
+        "tests/infrastructure/test_cibo_compound_causal_ablation.py",
+        "docs/research/CIBO-COMPOUND-CAUSAL-ABLATION-PROTOCOL-V1.md",
+        ".github/workflows/cibo-compound-causal-ablation.yml",
+        "github-actions://36755770351/SUCCESS",
+        "github-actions://36815304940/SUCCESS"
       ],
-      "next_gate": "Integrate seed→journey→expansion→profit→compound portfolio→ICM→next opportunity."
+      "blockers": [
+        "UPSTREAM_COMPOUND_AND_GEN_C_REAL_EVIDENCE_CLOSURE_REQUIRED"
+      ],
+      "next_gate": "No additional internal implementation is authorized while this disposition holds. Reopen only when the recorded real forward/OOS/provider dependency becomes available; then execute the already-frozen protocol. This remains certification-blocking."
     },
     {
       "id": "AS_IS_CONTROL",
@@ -859,13 +1377,17 @@
       "kind": "GOVERNANCE",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "OPEN_REQUIRED",
-      "terminal_disposition": null,
-      "evidence_refs": [],
-      "blockers": [
-        "REGISTRY_ROADMAP_PR_BODY_CODE_STATE_DIVERGENCE_EXISTS"
+      "current_maturity": "RECONCILIATION_IMPLEMENTED_AND_EXACT_HEAD_CI_PROVEN",
+      "terminal_disposition": "COMPLETED_AND_PROVEN",
+      "evidence_refs": [
+        "docs/research/CIBO-SOURCE-OF-TRUTH-RECONCILIATION-V1.md",
+        "scripts/cibo_source_of_truth_reconciliation_gate.py",
+        "tests/infrastructure/test_cibo_source_of_truth_reconciliation_gate.py",
+        "github-actions://36816926205/SUCCESS",
+        "github-actions://36816926262/SUCCESS"
       ],
-      "next_gate": "Reconcile HEAD→code→tests→CI→artifacts→ADR→roadmap→PR body."
+      "blockers": [],
+      "next_gate": "Terminal governance implementation. Reopen only on source-of-truth, child-delta, ledger or authority regression."
     },
     {
       "id": "ORPHAN_INVENTORY",
@@ -887,39 +1409,82 @@
       "kind": "GOVERNANCE",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "IMPLEMENTATION_IN_PROGRESS",
-      "terminal_disposition": null,
-      "evidence_refs": [],
-      "blockers": [
-        "MASTER_LEDGER_HAS_OPEN_REQUIRED_WORK"
+      "current_maturity": "STRICT_AND_PRE_EXAM_AUDITOR_IMPLEMENTED_AND_EXACT_HEAD_CI_PROVEN",
+      "terminal_disposition": "COMPLETED_AND_PROVEN",
+      "evidence_refs": [
+        "scripts/cibo_zero_open_work_gate.py",
+        "tests/infrastructure/test_cibo_zero_open_work_gate.py",
+        "docs/research/CIBO-INTEGRATED-CERTIFICATION-SEQUENCE-AMENDMENT-V1.md",
+        "github-actions://36767443016/SUCCESS",
+        "scripts/cibo_arch_a_internal_readiness_gate.py",
+        "tests/infrastructure/test_cibo_arch_a_internal_readiness_gate.py",
+        ".github/workflows/cibo-architect-a-internal-readiness.yml",
+        ".github/workflows/cibo-zero-open-work-gate.yml",
+        "github-actions://36816926163/SUCCESS",
+        "github-actions://36816926262/SUCCESS"
       ],
-      "next_gate": "Gate must remain pass=false until every mandatory row has terminal disposition."
+      "blockers": [],
+      "next_gate": "Gate implementation is terminal. PRE_EXAM/STRICT verdicts remain data-dependent and will continue to fail closed while certification external dependencies or the Final/World Cup exams remain unresolved."
     },
     {
       "id": "FINAL_INTEGRATED_CIBO_EXAM",
       "kind": "CERTIFICATION",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "OPEN_REQUIRED",
+      "current_maturity": "RECEIPT_BOUND_EXAM_GATE_EXACT_HEAD_CI_GREEN_REAL_EXAM_OPEN",
       "terminal_disposition": null,
-      "evidence_refs": [],
-      "blockers": [
-        "ALL_PRECEDING_MANDATORY_WORKSTREAMS_MUST_CLOSE"
+      "evidence_refs": [
+        "docs/research/CIBO-INTEGRATED-CERTIFICATION-SEQUENCE-AMENDMENT-V1.md",
+        "docs/research/CIBO-CROSSBOUNDARY-EVIDENCE-BINDING-REUSE-V1.md",
+        "src/qore/infrastructure/cibo_final_integrated_exam.py",
+        "tests/infrastructure/test_cibo_final_integrated_exam.py",
+        ".github/workflows/cibo-final-integrated-exam.yml",
+        "docs/research/CIBO-FINAL-INTEGRATED-CERTIFICATION-EXAM-PROTOCOL-V1.md",
+        "github-actions://36767442737/SUCCESS",
+        "src/qore/infrastructure/cibo_crossboundary_evidence_receipt.py",
+        "src/qore/infrastructure/cibo_receipt_bound_final_integrated_exam.py",
+        "tests/infrastructure/test_cibo_crossboundary_evidence_receipt.py",
+        "tests/infrastructure/test_cibo_receipt_bound_final_integrated_exam.py",
+        ".github/workflows/cibo-crossboundary-evidence-receipt.yml",
+        "src/qore/infrastructure/cibo_ce2i_final_certification.py",
+        "src/qore/infrastructure/cibo_ce2i_phase21_policy_freeze.py",
+        "tests/infrastructure/test_cibo_ce2i_final_certification.py",
+        "github-actions://36790166786/SUCCESS",
+        "github-actions://36816926072/SUCCESS",
+        "github-actions://36816926163/SUCCESS",
+        "github-actions://36816926205/SUCCESS"
       ],
-      "next_gate": "Run full chronological integrated capital cycle with exact accounting identity."
+      "blockers": [
+        "PRE_EXAM_EXTERNAL_DEPENDENCIES_MUST_CLEAR",
+        "PHASE20D_PHASE21_PHASE22_AND_PROTECTED_HOLDOUT_CHAIN_REQUIRED",
+        "ACTUAL_18_RECEIPT_FINAL_INTEGRATED_EXAM_NOT_RUN"
+      ],
+      "next_gate": "After the real external prerequisites permit PRE_EXAM and exact Phase21/Phase22 certification, execute the actual 18-receipt Final Integrated Exam. Software-gate CI alone is not exam PASS."
     },
     {
       "id": "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM",
       "kind": "CERTIFICATION",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "BLOCKED_BY_ORDINARY_CLOSURE",
+      "current_maturity": "RECEIPT_BOUND_EXAM_GATE_EXACT_HEAD_CI_GREEN_REAL_EXAM_OPEN",
       "terminal_disposition": null,
-      "evidence_refs": [],
-      "blockers": [
-        "ZERO_OPEN_WORK_GATE_MUST_PASS_FIRST"
+      "evidence_refs": [
+        "docs/research/CIBO-INTEGRATED-CERTIFICATION-SEQUENCE-AMENDMENT-V1.md",
+        "src/qore/infrastructure/cibo_world_cup_maximum_capability_exam.py",
+        "tests/infrastructure/test_cibo_world_cup_maximum_capability_exam.py",
+        "docs/research/CIBO-WORLD-CUP-MAXIMUM-CAPABILITY-EXAM-PROTOCOL-V1.md",
+        ".github/workflows/cibo-final-integrated-exam.yml",
+        "github-actions://36816926072/SUCCESS"
       ],
-      "next_gate": "Run only after ordinary CIBO absolute closure."
+      "blockers": [
+        "FINAL_INTEGRATED_CIBO_EXAM_MUST_PASS_FIRST",
+        "COMPETITION_PROVIDER_ADAPTER_REAL_EVIDENCE_REQUIRED",
+        "WORLD_CUP_DIGITAL_TWIN_REAL_EVIDENCE_REQUIRED",
+        "WORLD_CUP_CAUSAL_MC_STRESS_REPLICATION_RECEIPTS_REQUIRED",
+        "CERTIFICATION_BLOCKING_EXTERNAL_DEPENDENCIES_MUST_CLEAR",
+        "ACTUAL_WORLD_CUP_MAXIMUM_CAPABILITY_EXAM_NOT_RUN"
+      ],
+      "next_gate": "Software gate is proven. After the actual Final Integrated Exam passes and external dependencies clear, bind real competition-provider, Digital-Twin, causal attribution, path-MC, stress and temporal receipts and execute the actual World Cup exam."
     },
     {
       "id": "HISTORICAL_PHASE18_REPLAY_EVIDENCE",
@@ -956,18 +1521,19 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "END_TO_END_AUTHORITY_ACCOUNTING_GATE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "COMPLETED_AND_PROVEN_ENGINEERING_AUTHORITY_ACCOUNTING_BOUNDARY",
+      "terminal_disposition": "COMPLETED_AND_PROVEN",
       "evidence_refs": [
         "tests/infrastructure/test_cibo_cma_compound_authority_boundary.py",
         ".github/workflows/cibo-cma-compound-boundary.yml",
         "docs/research/CIBO-CMA-COMPOUND-AUTHORITY-BOUNDARY-V1.md",
-        "src/qore/infrastructure/cibo_integrated_capital_truth.py"
+        "src/qore/infrastructure/cibo_integrated_capital_truth.py",
+        "github-actions://36758246018/SUCCESS",
+        "src/qore/infrastructure/cibo_cma_settlement_ledger.py",
+        "src/qore/infrastructure/cibo_cma_risk_request.py"
       ],
-      "blockers": [
-        "CMA_COMPOUND_BOUNDARY_CI_REVALIDATION_REQUIRED"
-      ],
-      "next_gate": "Pass authority/accounting boundary gate; then close CMA foundation integration as completed engineering lineage without claiming economic certification."
+      "blockers": [],
+      "next_gate": "Terminal engineering closure: Trader remains volume-free, CIBO owns requested sizing, QORE Risk remains independently downstream, and only canonical realized CMA settlement enters Compound. No economic certification claim."
     },
     {
       "id": "CE2I_CALIBRATION_GOVERNANCE",
@@ -1004,41 +1570,60 @@
       "kind": "LEGACY_PROGRAM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "RESEARCH_QUARANTINE_GATE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "QUARANTINED_AND_CURRENT_RUNTIME_DECOUPLED_CI_GREEN",
+      "terminal_disposition": "COMPLETED_AND_PROVEN",
       "evidence_refs": [
         "scripts/cibo_legacy_stack_quarantine.py",
         "tests/infrastructure/test_cibo_legacy_stack_quarantine.py",
         ".github/workflows/cibo-legacy-stack-quarantine.yml",
-        "docs/research/CIBO-LEGACY-STACK-QUARANTINE-V1.md"
+        "docs/research/CIBO-LEGACY-STACK-QUARANTINE-V1.md",
+        "src/qore/infrastructure/cibo_research_memory.py",
+        "src/qore/infrastructure/traders/vt31_nas100_cibo_market_memory.py",
+        "tests/infrastructure/test_vt31_cibo_market_memory_quarantine.py",
+        "github-actions://36759730275/SUCCESS"
       ],
-      "blockers": [
-        "LEGACY_STACK_QUARANTINE_CI_REVALIDATION_REQUIRED"
-      ],
-      "next_gate": "Pass AST import quarantine with zero forbidden current/runtime consumers; retain only GEN-C13 executive-memory reuse, then close legacy program without deleting research evidence."
+      "blockers": [],
+      "next_gate": "Terminal quarantine: historical cognitive/executive stack has no productive runtime import edge; retained memory reuse remains limited to explicitly governed research consumers."
     },
     {
       "id": "USD60_CAPABILITY_PROGRAM",
       "kind": "EVIDENCE_PROGRAM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ENGINE_FOUNDATION_IMPLEMENTED_FINAL_CAPABILITY_EXAM_NOT_RUN",
-      "terminal_disposition": null,
+      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
-        "src/qore/infrastructure/cibo_ce2i_usd60_robust_capacity.py"
+        "src/qore/infrastructure/cibo_ce2i_usd60_robust_capacity.py",
+        "src/qore/infrastructure/cibo_usd60_prerequisite_receipts.py",
+        "tests/infrastructure/test_cibo_usd60_prerequisite_receipts.py",
+        ".github/workflows/cibo-crossboundary-evidence-receipt.yml",
+        "src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py",
+        "tests/infrastructure/test_cibo_ce2i_pre_holdout_gate.py",
+        "src/qore/infrastructure/cibo_receipt_bound_pre_holdout.py",
+        "tests/infrastructure/test_cibo_receipt_bound_pre_holdout.py",
+        "src/qore/infrastructure/cibo_usd60_exam_readiness.py",
+        "tests/infrastructure/test_cibo_usd60_exam_readiness.py",
+        "docs/research/CIBO-B-USD60-PRE-EXAM-READINESS-V1.md",
+        "src/qore/infrastructure/cibo_receipt_bound_usd60_exam_readiness.py",
+        "tests/infrastructure/test_cibo_receipt_bound_usd60_exam_readiness.py",
+        ".github/workflows/cibo-usd60-pre-exam-readiness.yml",
+        "github-actions://36790166722/SUCCESS",
+        "github-actions://36816113930/SUCCESS"
       ],
       "blockers": [
-        "PROVIDER_VALID_USD_ECONOMICS_AND_FINAL_FROZEN_EXAM_REQUIRED"
+        "FROZEN_PHASE20D_REAL_FORWARD_THRESHOLDS_REQUIRED",
+        "PRE_EXAM_EXTERNAL_PREREQUISITES_REQUIRED",
+        "FINAL_GOVERNED_SIX_MONTH_EXAM_NOT_RUN"
       ],
-      "next_gate": "Reconcile robust-capacity/protected-operating-floor mechanics and run provider-valid capability challenge only after prerequisites."
+      "next_gate": "Reopen when real Phase20D/Phase21/provider prerequisites permit the governed six-month USD60 exam. Keep 2017H1 sealed until the existing pre-holdout chain authorizes unseal."
     },
     {
       "id": "INTEGRATED_CAPITAL_TRUTH",
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "ACCOUNT_SCOPED_FIVE_STORE_RECOVERY_ENGINE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
         "src/qore/infrastructure/cibo_integrated_capital_truth.py",
         "tests/infrastructure/test_cibo_integrated_capital_truth.py",
@@ -1052,37 +1637,69 @@
         "tests/infrastructure/test_cibo_integrated_capital_component_adapter.py",
         "tests/infrastructure/test_cibo_integrated_capital_recovery.py",
         "src/qore/infrastructure/cibo_integrated_capital_scope_store.py",
-        "tests/infrastructure/test_cibo_integrated_capital_scope_store.py"
+        "tests/infrastructure/test_cibo_integrated_capital_scope_store.py",
+        "src/qore/infrastructure/cibo_integrated_capital_forward_binding.py",
+        "tests/infrastructure/test_cibo_integrated_capital_forward_binding.py",
+        ".github/workflows/cibo-integrated-capital-forward-binding.yml",
+        "src/qore/infrastructure/cibo_arch_a_capital_state_delivery.py",
+        "tests/infrastructure/test_cibo_arch_a_capital_state_delivery.py",
+        ".github/workflows/cibo-architect-a-capital-state-delivery.yml",
+        "docs/research/CIBO-INTEGRATOR-TO-ARCH-A-EVIDENCE-DELIVERY-V1.json",
+        "src/qore/infrastructure/cibo_compound_path_history.py",
+        "tests/infrastructure/test_cibo_compound_path_history.py",
+        ".github/workflows/cibo-compound-path-history.yml",
+        "src/qore/infrastructure/cibo_arch_a_path_evidence_delivery.py",
+        "tests/infrastructure/test_cibo_arch_a_path_evidence_delivery.py",
+        ".github/workflows/cibo-architect-a-path-evidence-delivery.yml",
+        "docs/research/CIBO-B-INTEGRATED-CAPITAL-FORWARD-BINDING-V1.md",
+        "github-actions://36790166832/SUCCESS",
+        "github-actions://36790166614/SUCCESS",
+        "github-actions://36815305118/SUCCESS",
+        "github-actions://36815305147/SUCCESS",
+        "github-actions://36815305179/SUCCESS",
+        "github-actions://36815305225/SUCCESS",
+        "github-actions://36815305249/SUCCESS"
       ],
       "blockers": [
-        "ACCOUNT_SCOPED_FIVE_STORE_RECOVERY_CI_REVALIDATION_REQUIRED",
-        "REAL_CHRONOLOGICAL_POPULATION_BINDING_REQUIRED"
+        "REAL_CHRONOLOGICAL_FORWARD_POPULATION_BINDING_REQUIRED",
+        "REAL_FORWARD_COMPOUND_EVENT_STREAM_PATH_HISTORY_REQUIRED",
+        "PROTECTED_FLOOR_GRADUATION_CAUSAL_PATH_BINDING_REQUIRED"
       ],
-      "next_gate": "Pass account-scoped five-store recovery CI, then bind the journal and IntegratedCapitalTruth to real chronological research population and close OOS/stress/replication gates."
+      "next_gate": "No additional internal implementation is authorized while this disposition holds. Reopen only when the recorded real forward/OOS/provider dependency becomes available; then execute the already-frozen protocol. This remains certification-blocking."
     },
     {
       "id": "AS_IS_ECONOMIC_BASELINE",
       "kind": "EVIDENCE_PROGRAM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "CONTROL_IDENTITY_SEALED_FRESH_ECONOMIC_POPULATION_REQUIRED",
-      "terminal_disposition": null,
+      "current_maturity": "ENGINEERING_CLOSED_EXTERNAL_EVIDENCE_DEPENDENCY_BLOCKED",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
         "docs/research/CIBO-GENERATION-CURRENT-CONTROL-CANDIDATE-V1.md",
-        "scripts/cibo_generation_current_control_freeze.py"
+        "scripts/cibo_generation_current_control_freeze.py",
+        "docs/research/CIBO-AS-IS-ECONOMIC-BASELINE-BINDING-PLAN-V1.md",
+        "src/qore/infrastructure/cibo_ce2i_phase20_qualification.py",
+        "src/qore/infrastructure/cibo_ce2i_phase20_qualification_plan.py",
+        "src/qore/infrastructure/cibo_compound_real_population_binding.py",
+        "src/qore/infrastructure/cibo_as_is_economic_baseline.py",
+        "tests/infrastructure/test_cibo_as_is_economic_baseline.py",
+        "docs/research/CIBO-AS-IS-ECONOMIC-BASELINE-MATERIALIZATION-V1.md",
+        ".github/workflows/cibo-as-is-economic-baseline.yml",
+        "github-actions://36755769831/SUCCESS",
+        "github-actions://36815305298/SUCCESS"
       ],
       "blockers": [
         "FRESH_AS_IS_ECONOMIC_POPULATION_REQUIRED",
-        "CURRENT_TRADER_CIBO_COMPOUND_ALLOCATION_UTILIZATION_MEASUREMENT_REQUIRED",
+        "CURRENT_TRADER_CIBO_COMPOUND_ALLOCATION_UTILIZATION_MEASUREMENT_RESULTS_REQUIRED",
         "NO_SYNTHETIC_BASELINE_ALLOWED"
       ],
-      "next_gate": "Bind the sealed pre-C8 control to a fresh causal comparison population and measure current Traders/CIBO/compound/allocation/capital-utilization/provider constraints without retuning."
+      "next_gate": "No additional internal implementation is authorized while this disposition holds. Reopen only when the recorded real forward/OOS/provider dependency becomes available; then execute the already-frozen scientific protocol. This remains certification-blocking."
     }
   ],
   "current_summary": {
     "mandatory_count": 64,
-    "terminal_count": 7,
-    "open_count": 57,
+    "terminal_count": 61,
+    "open_count": 3,
     "zero_open_work_pass": false,
     "final_certification_candidate": false
   }

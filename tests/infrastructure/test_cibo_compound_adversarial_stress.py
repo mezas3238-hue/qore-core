@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+
+import pytest
 
 from qore.infrastructure.account_wide_risk import TraderLineage
 from qore.infrastructure.cibo_compound_adversarial_stress import (
@@ -9,8 +12,10 @@ from qore.infrastructure.cibo_compound_adversarial_stress import (
     CompoundStressKind,
     CompoundStressScenario,
     apply_compound_stress,
+    audit_compound_stress_family_coverage,
     run_compound_adversarial_stress,
 )
+from qore.infrastructure.cibo_compound_capital import CiboCompoundCapitalError
 from qore.infrastructure.cibo_compound_path_monte_carlo import (
     CompoundMonteCarloEpisode,
     CompoundMonteCarloInitialState,
@@ -143,3 +148,46 @@ def test_gap_slippage_never_increases_positive_pnl() -> None:
     original = {item.episode_id: item for item in _episodes()}
     for item in stressed:
         assert item.realized_pnl_usd <= original[item.episode_id].realized_pnl_usd
+
+def test_stress_result_rejects_manual_episode_count_drift() -> None:
+    result = run_compound_adversarial_stress(
+        initial=_initial(),
+        episodes=_episodes(),
+        scenarios=(_scenario(CompoundStressKind.MARGIN_HIKE),),
+        simulations=1,
+        draws_per_path=1,
+        components_per_block=3,
+        base_seed=1,
+    )[0]
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="episode-count drift",
+    ):
+        replace(result, stressed_episode_count=2)
+
+
+
+def test_compound_stress_coverage_requires_all_frozen_families() -> None:
+    scenarios = tuple(_scenario(kind) for kind in CompoundStressKind)
+
+    report = audit_compound_stress_family_coverage(scenarios)
+
+    assert report.represented_kinds == tuple(
+        kind.value for kind in CompoundStressKind
+    )
+    assert report.scenario_count == len(tuple(CompoundStressKind))
+    assert report.all_frozen_stress_families_represented is True
+    assert report.market_probability_claimed is False
+    assert report.scientific_disposition_claimed is False
+    assert report.certification_ready is False
+
+
+def test_compound_stress_coverage_rejects_missing_frozen_family() -> None:
+    scenarios = tuple(_scenario(kind) for kind in CompoundStressKind)[:-1]
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="coverage is incomplete",
+    ):
+        audit_compound_stress_family_coverage(scenarios)

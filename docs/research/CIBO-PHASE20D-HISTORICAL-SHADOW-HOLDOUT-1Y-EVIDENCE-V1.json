@@ -1,0 +1,69 @@
+{
+  "schema": "CIBO_PHASE20D_HISTORICAL_SHADOW_HOLDOUT_1Y_EVIDENCE_V1",
+  "policy_id": "CIBO_PHASE20D_HISTORICAL_SHADOW_HOLDOUT_1Y_V1",
+  "shadow_candidate_id": "CIBO_PHASE20D_SHADOW_HOLDOUT_1Y_2021H2_2022H1_V1",
+  "evidence_kind": "HISTORICAL_SHADOW_HOLDOUT",
+  "workflow_run_id": 36857676494,
+  "artifact_id": 11160430022,
+  "artifact_digest": "sha256:cb5991afd27d2b73f4854c4105699744e2aa3c173a58262305d37d4ad083ddce",
+  "evidence_head": "3c7e8c881fca6f18eab25152460bc96b5d329695",
+  "status": "PASS",
+  "chronology": {
+    "envelope_start": "2021-07-01T00:00:00+00:00",
+    "envelope_end_exclusive": "2022-07-01T00:00:00+00:00",
+    "observed_common_start": "2021-09-23T05:00:00+00:00",
+    "observed_common_end": "2022-06-29T09:00:00+00:00",
+    "decision_epochs": 775,
+    "candidate_outcomes": 855,
+    "distinct_trading_days": 214,
+    "calendar_span_days": 279,
+    "represented_lineages": 7,
+    "minimum_outcomes_any_lineage": 45,
+    "max_concurrent_positions": 5,
+    "cross_trader_overlapping_pairs": 250
+  },
+  "folds": [
+    {
+      "fold_id": "WF1",
+      "decision_epochs": 194,
+      "candidate_outcomes": 216,
+      "represented_lineages": 7
+    },
+    {
+      "fold_id": "WF2",
+      "decision_epochs": 194,
+      "candidate_outcomes": 216,
+      "represented_lineages": 7
+    },
+    {
+      "fold_id": "WF3",
+      "decision_epochs": 194,
+      "candidate_outcomes": 213,
+      "represented_lineages": 7
+    },
+    {
+      "fold_id": "WF4",
+      "decision_epochs": 193,
+      "candidate_outcomes": 210,
+      "represented_lineages": 7
+    }
+  ],
+  "gate": {
+    "physical_28_day_wait_satisfied_by_shadow": true,
+    "phase20d_population_temporal_gate_passed": true,
+    "eligible_to_continue_to_provider_aware_phase21_gates": true,
+    "selected_usd_economic_outcomes_deferred": true,
+    "provider_execution_economics_deferred": true
+  },
+  "governance": {
+    "burned_research_reuse_authorized": true,
+    "evidence_relabelled_forward_observed": false,
+    "provider_economics_fabricated": false,
+    "outcome_aware_refit_performed": false,
+    "final_holdout_2017h1_read": false,
+    "final_holdout_2017h1_status": "SEALED_UNTOUCHED",
+    "live_authorized": false,
+    "production_authorized": false,
+    "real_capital_authorized": false
+  }
+}

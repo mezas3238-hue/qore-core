@@ -6,6 +6,7 @@ from qore.infrastructure.cibo_ctrader_demo_provider_economics import (
     CTraderNativeCommissionTerms,
     CTraderProviderEconomicsProbe,
     CTraderProviderEconomicsSymbolEvidence,
+    _gsl_terms,
 )
 
 _NOW = datetime(2026, 9, 28, 13, 0, tzinfo=UTC)
@@ -91,3 +92,77 @@ def test_probe_never_claims_execution_or_holdout_history() -> None:
     assert probe.historical_exact_claimed is False
     assert probe.holdout_outcomes_used is False
     assert probe.target_aware is False
+
+
+def test_provider_symbol_can_carry_gsl_terms_without_promoting_execution() -> None:
+    row = CTraderProviderEconomicsSymbolEvidence(
+        qore_symbol="EURUSD",
+        provider_symbol="EURUSD",
+        symbol_id=1,
+        observed_at=_NOW,
+        digits=5,
+        bid=Decimal("1.17000"),
+        ask=Decimal("1.17010"),
+        min_volume_cents=100000,
+        max_volume_cents=100000000,
+        step_volume_cents=100000,
+        lot_size_cents=10000000,
+        commission=CTraderNativeCommissionTerms(
+            precise_rate_raw=5000000000,
+            commission_type=1,
+            precise_minimum_raw=100000000,
+            minimum_type=1,
+            minimum_asset="USD",
+        ),
+        expected_margin=(
+            CTraderExpectedMarginQuote(
+                native_volume_cents=100000,
+                buy_margin_usd=Decimal("11.70"),
+                sell_margin_usd=Decimal("11.70"),
+            ),
+        ),
+        margin_native_ready=True,
+        spread_native_ready=True,
+        guaranteed_stop_loss=True,
+        gsl_distance=25,
+        gsl_charge_raw=100,
+    )
+
+    assert row.guaranteed_stop_loss is True
+    assert row.gsl_distance == 25
+    assert row.gsl_charge_raw == 100
+    assert row.slippage_empirically_calibrated is False
+    assert row.historical_exact_claimed is False
+
+
+
+class _Proto:
+    def __init__(self, *, present: set[str], **values: object) -> None:
+        self._present = set(present)
+        for name, value in values.items():
+            setattr(self, name, value)
+
+    def HasField(self, name: str) -> bool:  # noqa: N802
+        return name in self._present
+
+
+def test_provider_defaults_do_not_create_false_gsl_terms() -> None:
+    detail = _Proto(
+        present={"guaranteedStopLoss", "gslDistance", "gslCharge"},
+        guaranteedStopLoss=False,
+        gslDistance=0,
+        gslCharge=0,
+    )
+
+    assert _gsl_terms(detail) == (False, None, None)
+
+
+def test_provider_gsl_terms_are_retained_only_when_explicitly_supported() -> None:
+    detail = _Proto(
+        present={"guaranteedStopLoss", "gslDistance", "gslCharge"},
+        guaranteedStopLoss=True,
+        gslDistance=25,
+        gslCharge=100,
+    )
+
+    assert _gsl_terms(detail) == (True, 25, 100)

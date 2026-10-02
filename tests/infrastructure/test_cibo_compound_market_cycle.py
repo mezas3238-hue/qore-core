@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -742,6 +743,24 @@ def test_compound_deployment_excess_loss_requires_explicit_evidence(
             ),
         )
 
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="exceeds sealed stop risk",
+    ):
+        settle_compound_deployment(
+            state,
+            event_id="gap-settlement-invalid-evidence",
+            occurred_at=T0 + timedelta(minutes=30),
+            deployment_id="gap-allocation:deployment",
+            settlement=_settlement(
+                signal="signal-a",
+                position_id=3003,
+                deal_id=4003,
+                pnl="-15",
+            ),
+            excess_loss_evidence_sha256="sha256:" + "z" * 64,
+        )
+
 
 def _integrated_funding_state() -> IntegratedCompoundFundingState:
     cycle = _funded_compound_state()
@@ -994,3 +1013,97 @@ def test_compound_funding_loss_consumes_same_amount_in_both_ledgers(
         "98.5"
     )
     assert state.capital_truth.nonconsumed_residual_usd == Decimal("0")
+
+def test_compound_cycle_audit_rejects_manual_generation_drift() -> None:
+    audit = reconcile_compound_cycle(_funded_compound_state())
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="generation lineage/highest-generation drift",
+    ):
+        replace(audit, highest_generation=2)
+
+
+
+def test_compound_cycle_audit_rejects_parent_generation_above_child() -> None:
+    state = _funded_compound_state()
+    ledger = state.compound_ledger
+
+    corrupted_archived = tuple(
+        replace(item, generation=3)
+        if item.lot_id == "compoundable:moved"
+        else item
+        for item in ledger.archived_lots
+    )
+    corrupted_active = tuple(
+        replace(item, generation=2)
+        if item.lot_id == "activate:moved"
+        else item
+        for item in ledger.active_lots
+    )
+    corrupted_ledger = replace(
+        ledger,
+        active_lots=corrupted_active,
+        archived_lots=corrupted_archived,
+    )
+    corrupted_state = replace(
+        state,
+        compound_ledger=corrupted_ledger,
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="generation parent cannot exceed child generation",
+    ):
+        reconcile_compound_cycle(corrupted_state)
+
+
+def test_compound_portfolio_rejects_event_totals_detached_from_lots() -> None:
+    state = _funded_compound_state()
+    ledger = state.compound_ledger
+    index = next(
+        i
+        for i, event in enumerate(ledger.events)
+        if event.source_lot_ids
+    )
+    event = ledger.events[index]
+    drifted = replace(
+        event,
+        source_total_usd=event.source_total_usd + Decimal("1"),
+        target_total_usd=event.target_total_usd + Decimal("1"),
+    )
+    events = tuple(
+        drifted if i == index else item
+        for i, item in enumerate(ledger.events)
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="source total does not match source lots",
+    ):
+        replace(ledger, events=events)
+
+
+def test_highest_generation_preserves_consumed_historical_generation() -> None:
+    state = _funded_compound_state()
+    target = state.compound_ledger.lot("activate:moved")
+    consumed_gen2 = replace(
+        target,
+        generation=2,
+        state=CompoundCapitalState.CONSUMED,
+    )
+    active = tuple(
+        consumed_gen2 if item.lot_id == target.lot_id else item
+        for item in state.compound_ledger.active_lots
+    )
+    ledger = replace(
+        state.compound_ledger,
+        active_lots=active,
+    )
+    consumed_state = replace(
+        state,
+        compound_ledger=ledger,
+        cumulative_realized_losses_usd=Decimal("60"),
+    )
+
+    assert consumed_state.highest_generation == 2

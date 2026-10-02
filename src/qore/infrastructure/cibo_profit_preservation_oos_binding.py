@@ -206,6 +206,17 @@ class Genc7BoundObservedPath:
             raise CiboCompoundCapitalError(
                 "GEN-C7 OOS evaluation horizon must be positive int"
             )
+        expected_window_end = self.decision_at + timedelta(
+            minutes=self.evaluation_horizon_minutes
+        )
+        if self.window_end_at != expected_window_end:
+            raise CiboCompoundCapitalError(
+                "GEN-C7 OOS bound path horizon binding drift"
+            )
+        if self.observed_at < self.window_end_at:
+            raise CiboCompoundCapitalError(
+                "GEN-C7 OOS bound observation cannot predate horizon"
+            )
         for name in (
             "realized_capital_delta_usd",
             "realized_profit_delta_usd",
@@ -275,6 +286,47 @@ class Genc7OosBindingReport:
             raise CiboCompoundCapitalError(
                 "GEN-C7 OOS failures must be unique"
             )
+        if (
+            not isinstance(self.rows, tuple)
+            or any(
+                not isinstance(item, Genc7BoundObservedPath)
+                for item in self.rows
+            )
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C7 OOS report rows must be canonical"
+            )
+        if self.bound_count != len(self.rows):
+            raise CiboCompoundCapitalError(
+                "GEN-C7 OOS bound count/row count drift"
+            )
+        if (
+            self.path_complete_count > self.outcome_count
+            or self.settlement_complete_count > self.outcome_count
+            or self.release_complete_count > self.outcome_count
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C7 OOS coverage counts exceed outcome count"
+            )
+        if (
+            self.bound_count
+            + len(self.missing_decision_ids)
+            + len(self.failures)
+            != self.decision_count
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C7 OOS decision accounting drift"
+            )
+        expected_status = _binding_status(
+            decision_count=self.decision_count,
+            bound_count=self.bound_count,
+            missing_count=len(self.missing_decision_ids),
+            failure_count=len(self.failures),
+        )
+        if self.status is not expected_status:
+            raise CiboCompoundCapitalError(
+                "GEN-C7 OOS report status/accounting drift"
+            )
         for name in (
             "treatment_effect_identified",
             "economic_utility_ready",
@@ -307,6 +359,20 @@ def bind_genc7_to_observed_paths(
     if len(outcome_shas) != len(set(outcome_shas)):
         raise CiboCompoundCapitalError(
             "GEN-C7 OOS decision outcome identity must be unique"
+        )
+    sealed_decision_shas = {
+        seal.decision_sha256
+        for record in book.records
+        if (seal := book.seal_for_decision(record.decision_id)) is not None
+    }
+    unmatched_outcomes = tuple(
+        item.outcome_id
+        for item in outcomes
+        if item.decision_sha256 not in sealed_decision_shas
+    )
+    if unmatched_outcomes:
+        raise CiboCompoundCapitalError(
+            "GEN-C7 OOS outcome population contains unsealed decisions"
         )
     by_decision_sha = {item.decision_sha256: item for item in outcomes}
 

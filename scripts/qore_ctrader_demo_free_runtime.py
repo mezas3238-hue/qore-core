@@ -42,6 +42,7 @@ from qore.infrastructure.ctrader_demo_free_sink import (
 )
 from qore.infrastructure.account_wide_risk import (
     AccountRiskSnapshot,
+    CiboRiskRequest,
     TraderLineage,
 )
 from qore.infrastructure.broker_risk_sizing import BrokerMinimumVolumeRiskRejectError
@@ -63,14 +64,28 @@ from qore.infrastructure.cibo_capital_source_ledger_store import (
 from qore.infrastructure.cibo_phase20_demo_execution_activation import (
     load_phase20_demo_execution_activation,
 )
+from qore.infrastructure.cibo_phase20_bounded_runtime import (
+    Phase20BoundedCycleBudget,
+)
 from qore.infrastructure.cibo_ctrader_demo_sizing import (
     build_ctrader_demo_cibo_sizing,
+)
+from qore.infrastructure.cibo_demo_risk_reservation_reconciliation import (
+    confirmed_fill_authorization_ids,
+    reconcile_demo_risk_reservations,
 )
 from qore.infrastructure.cibo_ce2i_phase20_ctrader_recovery import (
     reconcile_ctrader_demo_phase20_entry,
 )
 from qore.infrastructure.cibo_ce2i_phase20_demo_capital_bootstrap import (
     bootstrap_phase20_demo_assigned_capital,
+)
+from qore.infrastructure.cibo_ce2i_phase20_demo_risk_bridge import (
+    assert_phase20_demo_authorization_active,
+    authorize_phase20_demo_request,
+)
+from qore.infrastructure.cibo_ce2i_phase20_demo_shadow_risk import (
+    CiboDemoCapabilitySolvencyBudget,
 )
 from qore.infrastructure.cibo_ce2i_phase20_demo_runtime_bridge import (
     finalize_ctrader_demo_m5_phase20_policy,
@@ -609,6 +624,38 @@ def _signal_anchor(accepted_at: datetime) -> datetime:
     return local.astimezone(UTC)
 
 
+def _submit_demo_request_through_qore_risk(
+    *,
+    risk: DurableAccountWideRiskEngine,
+    request: CiboRiskRequest,
+    snapshot: AccountRiskSnapshot | None,
+    observed_at: datetime,
+):
+    if snapshot is None:
+        raise RuntimeError("qore-risk-snapshot-required-before-demo-submit")
+    decision = authorize_phase20_demo_request(
+        risk=risk,
+        request=request,
+        snapshot=snapshot,
+        observed_at=observed_at,
+    )
+    if decision.execution_request is None:
+        raise RuntimeError(
+            "qore-risk-reject:"
+            f"{decision.authorization.reason}"
+        )
+    execution_at = datetime.now(UTC)
+    assert_phase20_demo_authorization_active(
+        risk=risk,
+        authorization=decision.authorization,
+        observed_at=execution_at,
+    )
+    return submit_demo_request(
+        request,
+        risk_authorization=decision.authorization,
+    )
+
+
 def _process_candidate(
     *,
     candidate: Vt08B01Candidate,
@@ -622,6 +669,7 @@ def _process_candidate(
     capital_budget: Any,
     account_equity: Decimal,
     log_path: Path,
+    preflight_snapshot: AccountRiskSnapshot | None = None,
     phase20_after_submit: Callable[
         [
             TraderOpportunityEnvelope,
@@ -689,7 +737,12 @@ def _process_candidate(
         expires_at=setup.expires_at,
     )
     request = seed.request
-    demo_result = submit_demo_request(request)
+    demo_result = _submit_demo_request_through_qore_risk(
+        risk=risk,
+        request=request,
+        snapshot=preflight_snapshot,
+        observed_at=request_at,
+    )
     if phase20_after_submit is not None:
         phase20_after_submit(
             opportunity,
@@ -746,7 +799,12 @@ def _process_r34_candidate(
     )
     request = seed.request
     base_risk_usd = seed.plan.stop_risk_usd
-    demo_result = submit_demo_request(request)
+    demo_result = _submit_demo_request_through_qore_risk(
+        risk=risk,
+        request=request,
+        snapshot=preflight_snapshot,
+        observed_at=request_at,
+    )
     if demo_result.state == "SUBMITTED" and demo_result.client_order_id is not None:
         r34_store.mark_open(
             client_order_id=demo_result.client_order_id,
@@ -802,7 +860,12 @@ def _process_r38_candidate(
     )
     request = seed.request
     base_risk_usd = seed.plan.stop_risk_usd
-    demo_result = submit_demo_request(request)
+    demo_result = _submit_demo_request_through_qore_risk(
+        risk=risk,
+        request=request,
+        snapshot=preflight_snapshot,
+        observed_at=request_at,
+    )
     if demo_result.state == "SUBMITTED" and demo_result.client_order_id is not None:
         r38_store.mark_open(
             client_order_id=demo_result.client_order_id,
@@ -858,7 +921,12 @@ def _process_r43_candidate(
     )
     request = seed.request
     base_risk_usd = seed.plan.stop_risk_usd
-    demo_result = submit_demo_request(request)
+    demo_result = _submit_demo_request_through_qore_risk(
+        risk=risk,
+        request=request,
+        snapshot=preflight_snapshot,
+        observed_at=request_at,
+    )
     if demo_result.state == "SUBMITTED" and demo_result.client_order_id is not None:
         r43_store.mark_open(
             client_order_id=demo_result.client_order_id,
@@ -914,7 +982,12 @@ def _process_gbpjpy_r38_candidate(
     )
     request = seed.request
     base_risk_usd = seed.plan.stop_risk_usd
-    demo_result = submit_demo_request(request)
+    demo_result = _submit_demo_request_through_qore_risk(
+        risk=risk,
+        request=request,
+        snapshot=preflight_snapshot,
+        observed_at=request_at,
+    )
     if demo_result.state == "SUBMITTED" and demo_result.client_order_id is not None:
         gbpjpy_r38_store.mark_open(
             client_order_id=demo_result.client_order_id,
@@ -1003,7 +1076,12 @@ def _process_audjpy_r42_candidate(
     request = seed.request
     base_risk_usd = seed.plan.stop_risk_usd
 
-    demo_result = submit_demo_request(request)
+    demo_result = _submit_demo_request_through_qore_risk(
+        risk=risk,
+        request=request,
+        snapshot=preflight_snapshot,
+        observed_at=request_at,
+    )
     if demo_result.state == "SUBMITTED" and demo_result.client_order_id is not None:
         audjpy_r42_store.mark_open(
             client_order_id=demo_result.client_order_id,
@@ -1025,13 +1103,20 @@ def _process_audjpy_r42_candidate(
     return
 
 
-def run(root: Path, *, mode: str, activation_path: Path) -> None:
+def run(
+    root: Path,
+    *,
+    mode: str,
+    activation_path: Path,
+    max_cycles: int | None = None,
+) -> None:
     global mt5
     sha = _git_sha(root)
     load_phase20_demo_execution_activation(
         activation_path,
         expected_git_sha=sha,
     )
+    cycle_budget = Phase20BoundedCycleBudget(max_cycles=max_cycles)
     demo_sink = _configure_ctrader_demo_free_sink(root)
     binding_raw = json.loads(
         (root / "var" / "ctrader_demo_free" / "binding.json").read_text(encoding="utf-8")
@@ -1258,6 +1343,85 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
     risk = DurableAccountWideRiskEngine(risk_ledger)
     gateway = CTraderDemoReadOnlyGateway(demo_api)
 
+    def reconcile_execution_risk_reservations(
+        *,
+        observed_at: datetime,
+    ):
+        registry_entries = demo_sink.registry.entries()
+        confirmed = confirmed_fill_authorization_ids(
+            registry_entries=registry_entries,
+            mutation_records=phase20_mutation_ledger.records(),
+        )
+        settlement_book = cma_settlement_store.load()
+        terminal_keys = frozenset(
+            (item.signal_fingerprint, item.position_id)
+            for item in settlement_book.states
+            if item.position_closed
+        )
+        open_position_ids = frozenset(
+            item.position_id
+            for item in demo_sink.position_service.positions()
+        )
+        report = reconcile_demo_risk_reservations(
+            risk=risk,
+            registry_entries=registry_entries,
+            confirmed_fill_authorization_ids=confirmed,
+            terminal_settlement_keys=terminal_keys,
+            broker_open_position_ids=open_position_ids,
+            provider_order_status=demo_api.pending_order_status,
+            observed_at=observed_at,
+        )
+        if report.blockers:
+            raise RuntimeError(
+                "ctrader-demo-risk-reservation-reconciliation-blocked:"
+                + "|".join(report.blockers)
+            )
+        return report
+
+    def current_execution_risk_snapshot(
+        *,
+        observed_at: datetime,
+    ) -> AccountRiskSnapshot:
+        reconcile_execution_risk_reservations(observed_at=observed_at)
+        account_state = _account_state_from_demo_api(
+            demo_api,
+            observed_at,
+        )
+        pending_stop_risk = demo_sink.registry.pending_stop_risk(
+            now=observed_at,
+            provider_order_status=demo_api.pending_order_status,
+        )
+        committed_stop_risk = demo_sink.registry.committed_stop_risk(
+            now=observed_at,
+            provider_order_status=demo_api.pending_order_status,
+        )
+        if committed_stop_risk < pending_stop_risk:
+            raise RuntimeError(
+                "ctrader-demo-risk-registry-committed-below-pending"
+            )
+        open_stop_risk = committed_stop_risk - pending_stop_risk
+        provider_budget = CiboDemoCapabilitySolvencyBudget(
+            provider_headroom=account_state.equity,
+            max_risk_at_any_time=account_state.equity,
+            active_mll=Decimal(0),
+            hard_breach=account_state.equity <= 0,
+        )
+        return AccountRiskSnapshot(
+            account_binding_id=fingerprint,
+            equity=account_state.equity,
+            margin_used=account_state.margin,
+            free_margin=account_state.free_margin,
+            open_stop_worst_case_loss=open_stop_risk,
+            open_floating_loss=max(
+                Decimal(0),
+                account_state.balance - account_state.equity,
+            ),
+            pending_broker_worst_case_loss=pending_stop_risk,
+            qore_authorizable_headroom=account_state.equity,
+            provider_budget=provider_budget,
+            reconciled_at=account_state.observed_at,
+        )
+
     def recover_demo_market_state(
         *,
         symbol: str,
@@ -1304,6 +1468,27 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
     highest = Decimal(str(account_info.balance))
     previous_mll = Decimal(str(account_info.equity))
     log_path = root / "artifacts" / "ctrader_demo_free_runtime_events.jsonl"
+
+    risk_boot_at = datetime.now(UTC)
+    risk_boot_snapshot = current_execution_risk_snapshot(
+        observed_at=risk_boot_at,
+    )
+    risk.complete_boot_reconciliation(
+        risk_boot_snapshot,
+        now=risk_boot_at,
+    )
+    _log(
+        log_path,
+        {
+            "event": "CTRADER_DEMO_RISK_BOOT_RECONCILED",
+            "observed_at": risk_boot_at.isoformat(),
+            "active_reserved_stop_risk_usd": format(
+                risk.active_reserved_stop_risk(),
+                "f",
+            ),
+            "broker_mutation_performed": False,
+        },
+    )
 
     def observe_phase20_single_slot(
         *,
@@ -1531,8 +1716,8 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                 cibo_capital_mission.capability_measurement_enabled
             ),
             "ctrader_demo_writer": True,
-            "account_wide_risk_active": False,
-            "risk_role": "CAPITAL_ALLOCATOR_ONLY",
+            "account_wide_risk_active": True,
+            "risk_role": "SOVEREIGN_HARD_GOVERNOR",
             "prop_firm_policy_active": False,
             "gbpjpy_r38_enabled": True,
             "gbpjpy_r38_identity": "TURTLE_SOUP_GBPJPY_R38",
@@ -1580,7 +1765,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                 "artifacts/ctrader_demo_live_behavior_lab/market-tape.jsonl"
             ),
             "behavior_lab_market_tape_mode": "EVERY_VALID_BROKER_SPOT_EVENT",
-            "risk_role": "CAPITAL_ALLOCATOR_ONLY",
+            "risk_role": "SOVEREIGN_HARD_GOVERNOR",
         },
     )
     last_lifecycle: str | None = None
@@ -1687,7 +1872,9 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     arm_capital = SimpleNamespace(
                                                 qore_authorizable_headroom=arm_account.equity,
                     )
-                    arm_snapshot = None
+                    arm_snapshot = current_execution_risk_snapshot(
+                        observed_at=arm_started_at,
+                    )
                     arm_specs = {
                         symbol: gateway.read_symbol(symbol, now=arm_started_at)
                         for symbol in ("XAUUSD", "EURUSD", "GBPUSD", "GBPJPY", "AUDJPY")
@@ -2670,7 +2857,9 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                 vt31_capital = SimpleNamespace(
                                         qore_authorizable_headroom=vt31_account.equity,
                 )
-                vt31_snapshot = None
+                vt31_snapshot = current_execution_risk_snapshot(
+                    observed_at=vt31_arm_started_at,
+                )
                 vt31_lifecycle = SimpleNamespace(value="DEMO_FREE")
                 vt31_blocked = False
                 vt31_boundary = await_vt31_boundary_snapshot(
@@ -3583,6 +3772,9 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             capital_budget=capital,
                             account_equity=account_state.equity,
                             log_path=log_path,
+                            preflight_snapshot=current_execution_risk_snapshot(
+                                observed_at=cycle_at,
+                            ),
                             phase20_after_submit=observe_vt08_phase20_candidate,
                         )
                     processed_anchor = anchor_key
@@ -3647,6 +3839,9 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             account_equity=account_state.equity,
                             r34_store=r34_store,
                             log_path=log_path,
+                            preflight_snapshot=current_execution_risk_snapshot(
+                                observed_at=cycle_at,
+                            ),
                         )
                     processed_anchor = r34_anchor_key
                     state = state.with_cycle(
@@ -3714,6 +3909,9 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             account_equity=account_state.equity,
                             r38_store=r38_store,
                             log_path=log_path,
+                            preflight_snapshot=current_execution_risk_snapshot(
+                                observed_at=cycle_at,
+                            ),
                         )
                     processed_anchor = r38_anchor_key
                     state = state.with_cycle(
@@ -3783,6 +3981,9 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             account_equity=account_state.equity,
                             r43_store=r43_store,
                             log_path=log_path,
+                            preflight_snapshot=current_execution_risk_snapshot(
+                                observed_at=cycle_at,
+                            ),
                         )
                     processed_anchor = r43_anchor_key
                     state = state.with_cycle(
@@ -3856,6 +4057,9 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             account_equity=account_state.equity,
                             gbpjpy_r38_store=gbpjpy_r38_store,
                             log_path=log_path,
+                            preflight_snapshot=current_execution_risk_snapshot(
+                                observed_at=cycle_at,
+                            ),
                         )
                     processed_anchor = gbpjpy_r38_anchor_key
                     state = state.with_cycle(
@@ -3888,6 +4092,9 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                 heartbeat_at=cycle_at,
             )
             store.store(state)
+        if cycle_budget.complete_cycle():
+            demo_sink.close()
+            return
         cycle_elapsed = time.monotonic() - cycle_started
         time.sleep(max(0.05, _LOOP_SECONDS - cycle_elapsed))
 
@@ -3895,6 +4102,15 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", choices=("demo",), default="demo")
+    parser.add_argument(
+        "--max-cycles",
+        type=int,
+        default=None,
+        help=(
+            "Stop cleanly after N complete runtime cycles. "
+            "Execution activation remains mandatory."
+        ),
+    )
     parser.add_argument(
         "--activation",
         type=Path,
@@ -3910,8 +4126,11 @@ def main() -> None:
                 root,
                 mode=args.mode,
                 activation_path=(root / args.activation),
+                max_cycles=args.max_cycles,
             )
-        raise RuntimeError("resident runtime returned unexpectedly")
+        if args.max_cycles is None:
+            raise RuntimeError("resident runtime returned unexpectedly")
+        return
     except KeyboardInterrupt:
         raise
     except Exception as error:

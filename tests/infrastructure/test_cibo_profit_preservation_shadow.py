@@ -361,7 +361,7 @@ def test_genc7_population_is_descriptive_not_economic(tmp_path) -> None:
     assert population.descriptive_only is True
     assert population.economic_utility_ready is False
     assert population.certification_ready is False
-    assert "ECONOMIC_GATE_NOT_YET_PREREGISTERED" in population.blockers
+    assert "CAUSAL_EFFECT_IDENTIFICATION_NOT_EVALUATED" in population.blockers
     assert "OUTCOME_BINDING_NOT_EVALUATED" in population.blockers
 
 
@@ -511,4 +511,114 @@ def test_genc7_oos_refuses_counterfactual_effect_claim(tmp_path) -> None:
         _outcome_for_book(
             book,
             treatment_effect_identified=True,
+        )
+
+
+def test_genc7_bound_path_rejects_manual_horizon_or_observation_drift(
+    tmp_path,
+) -> None:
+    book = _oos_book(tmp_path)
+    report = bind_genc7_to_observed_paths(
+        book=book,
+        outcomes=(_outcome_for_book(book),),
+    )
+    row = report.rows[0]
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="bound path horizon binding drift",
+    ):
+        replace(
+            row,
+            window_end_at=row.window_end_at + timedelta(minutes=1),
+        )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="bound observation cannot predate horizon",
+    ):
+        replace(
+            row,
+            observed_at=row.window_end_at - timedelta(seconds=1),
+        )
+
+
+def test_genc7_oos_rejects_outcome_for_unsealed_decision(tmp_path) -> None:
+    book = _oos_book(tmp_path)
+    extra = replace(
+        _outcome_for_book(book),
+        outcome_id="genc7-outcome-extra",
+        decision_sha256="sha256:" + "f" * 64,
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="outcome population contains unsealed decisions",
+    ):
+        bind_genc7_to_observed_paths(
+            book=book,
+            outcomes=(extra,),
+        )
+
+
+def test_genc7_oos_report_rejects_manual_count_or_status_drift(tmp_path) -> None:
+    book = _oos_book(tmp_path)
+    report = bind_genc7_to_observed_paths(
+        book=book,
+        outcomes=(_outcome_for_book(book),),
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="bound count/row count drift",
+    ):
+        replace(report, bound_count=0)
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="report status/accounting drift",
+    ):
+        replace(report, status=Genc7OosBindingStatus.PARTIAL)
+
+
+def test_genc7_population_rejects_manual_partition_or_mean_drift(tmp_path) -> None:
+    decision = evaluate_genc7_profit_preservation_shadow(
+        state=_state(),
+        proposal=_proposal(),
+        decision_id="genc7-population-integrity",
+    )
+    store = DurableGenc7ProfitPreservationShadowStore(
+        tmp_path / "genc7-population-integrity.json"
+    )
+    book = store.seal(
+        decision,
+        sealed_at=T0 + timedelta(seconds=1),
+        expected_generation=0,
+    )
+    population = describe_genc7_fresh_population(book=book)
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="divergence/blocked partition drift",
+    ):
+        replace(population, blocked_decision_count=1)
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="hold/blocked count drift",
+    ):
+        replace(
+            population,
+            blocked_decision_count=1,
+            treatment_control_divergence_count=0,
+        )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="floor-growth mean/count drift",
+    ):
+        replace(
+            population,
+            floor_growth_observed_count=0,
+            mean_floor_growth_rate=Decimal("0.2"),
         )

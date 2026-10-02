@@ -9,17 +9,21 @@ from __future__ import annotations
 
 import json
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 from threading import Lock
 from uuid import NAMESPACE_URL, uuid5
 
-from qore.infrastructure.account_wide_risk import CiboRiskRequest, TraderLineage
+from qore.infrastructure.account_wide_risk import (
+    CiboRiskRequest,
+    RiskAuthorization,
+    RiskDecision,
+    TraderLineage,
+)
 from qore.infrastructure.ctrader_demo_allocation_only import (
     CTraderDemoBrokerContract,
-    allocation_fence_values,
     authorize_allocation_only,
     build_allocation_only_submission,
     equal_active_trader_allocations,
@@ -75,6 +79,57 @@ def assert_cibo_sizing_authority(request: CiboRiskRequest) -> None:
             "legacy Trader sizing authority is forbidden; "
             "CIBO CMA must own requested volume"
         )
+
+
+def _execution_request_for_risk(
+    request: CiboRiskRequest,
+    authorization: RiskAuthorization,
+) -> CiboRiskRequest:
+    if not isinstance(authorization, RiskAuthorization):
+        raise CTraderDemoFreeSinkError(
+            "canonical RiskAuthorization is required"
+        )
+    for name in (
+        "request_id",
+        "signal_fingerprint",
+        "qore_symbol",
+        "provider_symbol",
+        "side",
+        "entry_type",
+    ):
+        if getattr(authorization, name) != getattr(request, name):
+            raise CTraderDemoFreeSinkError(
+                f"Risk authorization/request {name} drift"
+            )
+    if authorization.requested_volume != request.requested_volume:
+        raise CTraderDemoFreeSinkError(
+            "Risk authorization requested-volume drift"
+        )
+    if authorization.decision is RiskDecision.REJECT:
+        raise CTraderDemoFreeSinkError(
+            "Risk REJECT cannot reach DEMO execution"
+        )
+    if authorization.decision not in {
+        RiskDecision.ALLOW,
+        RiskDecision.REDUCE,
+    }:
+        raise CTraderDemoFreeSinkError(
+            "unsupported Risk decision at DEMO execution"
+        )
+    execution_request = replace(
+        request,
+        requested_volume=authorization.authorized_volume,
+        capital_provenance=authorization.capital_provenance,
+    )
+    if execution_request.requested_stop_risk != authorization.monetary_stop_loss:
+        raise CTraderDemoFreeSinkError(
+            "Risk/execution stop-risk drift"
+        )
+    if execution_request.requested_margin != authorization.margin_reserved:
+        raise CTraderDemoFreeSinkError(
+            "Risk/execution margin drift"
+        )
+    return execution_request
 
 
 @dataclass(frozen=True, slots=True)
@@ -229,6 +284,7 @@ class CTraderDemoFreeSink:
         self,
         request: CiboRiskRequest,
         *,
+        risk_authorization: RiskAuthorization,
         now: datetime | None = None,
     ) -> CTraderDemoFreeSubmitResult:
         assert_cibo_sizing_authority(request)
@@ -236,11 +292,15 @@ class CTraderDemoFreeSink:
         if observed.tzinfo is None or observed.utcoffset() is None:
             raise CTraderDemoFreeSinkError("submit time must be timezone-aware")
         with self._lock:
+            execution_request = _execution_request_for_risk(
+                request,
+                risk_authorization,
+            )
             # No cross-trade or per-trader sizing gate lives in the DEMO sink.
             # Strategy-owned state decides whether another entry is legitimate.
             # Canonical idempotency prevents duplicate submission of the same signal.
             allocation = authorize_allocation_only(
-                request,
+                execution_request,
                 book=self._book,
                 now=observed,
             )
@@ -250,7 +310,9 @@ class CTraderDemoFreeSink:
                 contract=contract,
                 submitted_at=observed,
             )
-            auth_id, auth_fingerprint, reservation_id = allocation_fence_values(allocation)
+            auth_id = risk_authorization.authorization_id
+            auth_fingerprint = risk_authorization.authorization_fingerprint
+            reservation_id = risk_authorization.authorization_id
             staged = self._runtime.stage_risk_fence(
                 submission,
                 risk_authorization_id=auth_id,
@@ -305,7 +367,21 @@ class CTraderDemoFreeSink:
                     margin_per_volume=format(request.margin_per_volume, "f"),
                     requested_at=request.requested_at.isoformat(),
                     authorized_source_volume=format(
-                        request.requested_volume,
+                        execution_request.requested_volume,
+                        "f",
+                    ),
+                    risk_authorization_id=risk_authorization.authorization_id,
+                    risk_authorization_fingerprint=(
+                        risk_authorization.authorization_fingerprint
+                    ),
+                    risk_decision=risk_authorization.decision.value,
+                    risk_authorized_at=risk_authorization.issued_at.isoformat(),
+                    risk_authorized_margin_usd=format(
+                        risk_authorization.margin_reserved,
+                        "f",
+                    ),
+                    risk_authorized_stop_risk_usd=format(
+                        risk_authorization.monetary_stop_loss,
                         "f",
                     ),
                     minimum_volume_uplifted=request.minimum_volume_uplifted,
@@ -323,7 +399,7 @@ class CTraderDemoFreeSink:
                             item.source_id,
                             format(item.amount_usd, "f"),
                         )
-                        for item in request.capital_provenance
+                        for item in execution_request.capital_provenance
                     ),
                 )
             )
@@ -488,5 +564,12 @@ def demo_capital_for(trader: TraderLineage) -> Decimal:
     return global_sink().capital_for(trader)
 
 
-def submit_demo_request(request: CiboRiskRequest) -> CTraderDemoFreeSubmitResult:
-    return global_sink().submit(request)
+def submit_demo_request(
+    request: CiboRiskRequest,
+    *,
+    risk_authorization: RiskAuthorization,
+) -> CTraderDemoFreeSubmitResult:
+    return global_sink().submit(
+        request,
+        risk_authorization=risk_authorization,
+    )

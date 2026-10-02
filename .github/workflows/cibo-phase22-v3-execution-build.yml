@@ -1,0 +1,168 @@
+name: QORE CIBO Phase22 V3 Execution Build
+# exact-head pre-outcome revalidation after V3 CLI smoke repairs
+
+on:
+  push:
+    branches:
+      - agent/cibo-v3-execution-build-001
+      - agent/cibo-integrator-ab-001
+    paths:
+      - 'src/qore/infrastructure/cibo_phase22_v3_*.py'
+      - 'scripts/cibo_phase22_v3_*.py'
+      - '.github/workflows/cibo-phase22-v3-execution-build.yml'
+      - '.github/workflows/cibo-phase22-v3-sovereign-one-shot.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Static quality
+        run: |
+          python -m ruff check \
+            src/qore/infrastructure/cibo_phase22_v3_execution_manifest.py \
+            src/qore/infrastructure/cibo_phase22_v3_execution_inputs.py \
+            src/qore/infrastructure/cibo_phase22_v3_chronological_replay_plan.py \
+            src/qore/infrastructure/cibo_phase22_v3_historical_policy_replay.py \
+            src/qore/infrastructure/cibo_phase22_v3_historical_replay_sealing.py \
+            src/qore/infrastructure/cibo_phase22_v3_chronological_execution.py \
+            src/qore/infrastructure/cibo_phase22_v3_historical_regime.py \
+            src/qore/infrastructure/cibo_phase22_v3_execution_closure.py \
+            src/qore/infrastructure/cibo_phase22_v3_store_contract.py \
+            scripts/cibo_phase22_v3_execution_closure.py \
+            src/qore/infrastructure/cibo_phase22_v3_execution_authorization.py \
+            src/qore/infrastructure/cibo_phase22_v3_one_shot_claim.py \
+            src/qore/infrastructure/cibo_phase22_v3_git_durable_claim.py \
+            src/qore/infrastructure/cibo_phase22_v3_vt31_source.py \
+            src/qore/infrastructure/cibo_phase22_v3_vt08_fresh_runner.py \
+            src/qore/infrastructure/cibo_phase22_v3_fresh_batch.py \
+            src/qore/infrastructure/cibo_phase22_v3_fresh_evidence.py \
+            src/qore/infrastructure/cibo_phase22_v3_fresh_batch_assembly.py \
+            scripts/cibo_phase22_v3_vt31_fresh_runner.py \
+            scripts/cibo_phase22_v3_turtle_window_replay.py \
+            scripts/cibo_phase22_v3_fresh_batch_assembler.py
+      - name: Import every V3 execution surface
+        run: |
+          python - <<'PY'
+          modules = (
+              "qore.infrastructure.cibo_phase22_v3_execution_manifest",
+              "qore.infrastructure.cibo_phase22_v3_execution_inputs",
+              "qore.infrastructure.cibo_phase22_v3_chronological_replay_plan",
+              "qore.infrastructure.cibo_phase22_v3_historical_policy_replay",
+              "qore.infrastructure.cibo_phase22_v3_historical_replay_sealing",
+              "qore.infrastructure.cibo_phase22_v3_chronological_execution",
+              "qore.infrastructure.cibo_phase22_v3_historical_regime",
+              "qore.infrastructure.cibo_phase22_v3_execution_closure",
+              "qore.infrastructure.cibo_phase22_v3_store_contract",
+              "qore.infrastructure.cibo_phase22_v3_execution_authorization",
+              "qore.infrastructure.cibo_phase22_v3_one_shot_claim",
+              "qore.infrastructure.cibo_phase22_v3_git_durable_claim",
+              "qore.infrastructure.cibo_phase22_v3_vt31_source",
+              "qore.infrastructure.cibo_phase22_v3_vt08_fresh_runner",
+              "qore.infrastructure.cibo_phase22_v3_fresh_batch",
+              "qore.infrastructure.cibo_phase22_v3_fresh_evidence",
+              "qore.infrastructure.cibo_phase22_v3_fresh_batch_assembly",
+          )
+          for name in modules:
+              __import__(name)
+          PY
+      - name: Prove pre-outcome V3 manifest remains Owner-gated
+        run: |
+          python - <<'PY'
+          from qore.infrastructure.cibo_capital_management_authority import (
+              CiboCapitalManagementError,
+          )
+          from qore.infrastructure.cibo_phase22_next_exam_governance import (
+              CURRENT_NEXT_PHASE22_READINESS,
+              NEXT_CANDIDATE_ID,
+              NextPhase22ReadinessStatus,
+          )
+          from qore.infrastructure.cibo_phase22_v3_execution_authorization import (
+              build_phase22_v3_execution_authorization,
+          )
+          from qore.infrastructure.cibo_phase22_v3_execution_manifest import (
+              build_phase22_v3_execution_manifest,
+          )
+
+          manifest = build_phase22_v3_execution_manifest()
+          assert manifest.candidate_id == NEXT_CANDIDATE_ID
+          assert manifest.fingerprint().startswith("sha256:")
+          assert manifest.payload()["manifest_sha256"] == manifest.fingerprint()
+          assert manifest.fresh_outcomes_executed is False
+          assert manifest.broker_mutation_authorized is False
+          assert CURRENT_NEXT_PHASE22_READINESS.status is (
+              NextPhase22ReadinessStatus.NOT_READY
+          )
+          assert CURRENT_NEXT_PHASE22_READINESS.blockers == (
+              "NEW_ONE_SHOT_OWNER_AUTHORIZATION_REQUIRED",
+          )
+          try:
+              build_phase22_v3_execution_authorization(
+                  owner_authorization_id="OWNER_BUILD_TEST",
+                  authorized_parent_head_sha="a" * 40,
+              )
+          except CiboCapitalManagementError as error:
+              assert "Owner authorization is not registered" in str(error)
+          else:
+              raise AssertionError(
+                  "build CI must not mint a V3 execution authorization"
+              )
+          PY
+      - name: CLI smoke without fresh access
+        run: |
+          python scripts/cibo_phase22_v3_git_durable_claim.py --help
+          python scripts/cibo_phase22_v3_fresh_batch_assembler.py --help
+          python scripts/cibo_phase22_v3_execution_closure.py --help
+          python scripts/cibo_phase22_v3_turtle_window_replay.py --help
+          python scripts/cibo_phase22_v3_vt31_fresh_runner.py --help
+          python -m qore.infrastructure.cibo_phase22_v3_vt08_fresh_runner --help
+
+      - name: Prove VT31 censored geometry selection is outcome-blind
+        run: |
+          python - <<'PY'
+          from scripts.cibo_phase22_v3_vt31_fresh_runner import (
+              _partition_executable_geometry,
+          )
+
+          rows = [
+              {
+                  "entry": None,
+                  "initial_stop": None,
+                  "structural_target": None,
+                  "r_multiple": "999",
+              },
+              {
+                  "entry": "100",
+                  "initial_stop": "99",
+                  "structural_target": "102",
+                  "r_multiple": "-999",
+              },
+          ]
+          selected, censored = _partition_executable_geometry(rows)
+          assert censored == 1
+          assert len(selected) == 1
+          rows[0]["r_multiple"] = "-999999"
+          rows[1]["r_multiple"] = "999999"
+          selected2, censored2 = _partition_executable_geometry(rows)
+          assert censored2 == 1
+          assert len(selected2) == 1
+          PY
+      - name: Existing V3 governance regression
+        run: |
+          python -m pytest -q \
+            tests/infrastructure/test_cibo_phase22_v3_source_receipt.py \
+            tests/infrastructure/test_cibo_phase22_v3_execution_authorization.py \
+            tests/infrastructure/test_cibo_phase22_next_exam_governance.py \
+            tests/infrastructure/test_cibo_phase22_v3_store_contract.py
+
+# sovereign-validation-pulse: 2026-10-02-v3
