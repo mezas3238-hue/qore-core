@@ -9,6 +9,7 @@ import pytest
 from qore.infrastructure.account_wide_risk import TraderLineage
 from qore.infrastructure.cibo_compound_capital import CiboCompoundCapitalError
 from qore.infrastructure.cibo_compound_path_monte_carlo import (
+    CompoundMonteCarloBlock,
     CompoundMonteCarloEpisode,
     CompoundMonteCarloInitialState,
     build_compound_monte_carlo_blocks,
