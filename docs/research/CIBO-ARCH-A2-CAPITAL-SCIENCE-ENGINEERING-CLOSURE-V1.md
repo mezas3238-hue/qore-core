@@ -36,7 +36,15 @@ debt on this owned surface.
 Two A1 consumer dependencies were the remaining A2-owned engineering
 interfaces.
 
-They are now represented in the canonical A2 Integrator handoff module.
+They are now implemented by concrete A2 producer modules and bound into the
+canonical A2 Integrator handoff module:
+
+- `src/qore/infrastructure/cibo_a2_phase22_historical_compound.py`;
+- `src/qore/infrastructure/cibo_a2_internal_capital_market_phase22_receipt.py`.
+
+Their implementation is exercised directly by
+`QORE CIBO Architect A2 Capital Science Engineering Closure` and by the
+dedicated `QORE CIBO A2 Cross-Lane Capital Science` workflow.
 
 ### Historical COMPOUND_ENGINE replay
 
@@ -65,7 +73,7 @@ The producer receipt fail-closes unless it proves:
 
 Producer contract:
 
-`CIBO_A2_INTERNAL_CAPITAL_MARKET_CROSSLANE_DELIVERY_V1`
+`CIBO_A2_INTERNAL_CAPITAL_MARKET_PHASE22_RECEIPT_V1`
 
 The producer receipt binds:
 
