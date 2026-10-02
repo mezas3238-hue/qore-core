@@ -1,0 +1,129 @@
+name: QORE Shared VT31 Adverse Environment Journey V22
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - scripts/vt31_core_stack_v4_adverse_environment_journey_only_v22.py
+      - src/qore/infrastructure/core_stack_v2/environment_intelligence.py
+      - .github/workflows/qore-shared-vt31-adverse-environment-journey-v22.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  adverse-environment-journey:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - name: Static validation
+        run: |
+          ruff check \
+            src/qore/infrastructure/core_stack_v2/environment_intelligence.py \
+            scripts/vt31_core_stack_v4_adverse_environment_journey_only_v22.py
+          python -m py_compile \
+            src/qore/infrastructure/core_stack_v2/environment_intelligence.py \
+            scripts/vt31_core_stack_v4_adverse_environment_journey_only_v22.py
+      - name: Recover immutable R8/R6 three-index evidence
+        run: |
+          set -euo pipefail
+          mkdir -p input/pure input/cibo input/r8 input/r6 result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10799064861/zip" > pure.zip
+          unzip -q pure.zip -d input/pure
+          (cd input/pure && sha256sum -c SHA256SUMS)
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10478487667/zip" > cibo.zip
+          unzip -q cibo.zip -d input/cibo
+          (cd input/cibo && sha256sum -c SHA256SUMS)
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10402199719/zip" > r8.zip
+          unzip -q r8.zip -d input/r8
+          (cd input/r8 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          unzip -q r6.zip -d input/r6
+          (cd input/r6 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+      - name: Run density-preserving adverse environment laboratory
+        run: |
+          python scripts/vt31_core_stack_v4_adverse_environment_journey_only_v22.py \
+            --r8-trades input/pure/r8.json \
+            --r6-trades input/pure/r6.json \
+            --r8-nas input/r8/fresh/NAS100/market-evidence.json \
+            --r8-sp input/r8/fresh/SP500/market-evidence.json \
+            --r8-us input/r8/fresh/US30/market-evidence.json \
+            --r6-nas input/r6/fresh/NAS100/market-evidence.json \
+            --r6-sp input/r6/fresh/SP500/market-evidence.json \
+            --r6-us input/r6/fresh/US30/market-evidence.json \
+            --daily-path input/cibo/DAILY_PATH_LEDGER.jsonl \
+            --output result/adverse-environment-journey-v22.json \
+            | tee result/summary.json
+      - name: Governance and owner-objective validation
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p=json.loads(Path("result/adverse-environment-journey-v22.json").read_text())
+          assert p["challenge_set"] == {"r8":228,"r6":278}
+          assert p["r5_opened"] is False
+          assert p["new_holdout_opened"] is False
+          assert p["owner_objective"]["profit_factor_must_increase"] is True
+          assert p["owner_objective"]["acceptable_drawdown_r"] == [4,6]
+          assert p["owner_objective"]["exceptional_drawdown_r"] == "<4"
+          assert p["owner_objective"]["density_must_be_preserved"] is True
+          g=p["governance"]
+          assert g["vt31_is_falsification_lab_only"] is True
+          assert g["shared_generic_environment_engine_used"] is True
+          assert g["journey_only_no_entry_abstention"] is True
+          assert g["density_preservation_is_hard_gate"] is True
+          assert g["runtime_trade_outcomes_used"] is False
+          assert g["runtime_pnl_used"] is False
+          assert g["runtime_prior_loss_streak_used"] is False
+          assert g["future_m1_used"] is False
+          assert g["capital_risk_weighting_used"] is False
+          assert g["methodology_entry_modified"] is False
+          assert g["shared_order_authority"] is False
+          assert g["shared_risk_authority"] is False
+          assert g["shared_execution_authority"] is False
+          assert g["stop_widening_used"] is False
+          assert g["live_authorized"] is False
+          assert g["production_authorized"] is False
+          assert g["merge_authorized"] is False
+          assert len(p["policy_results"]) == 4
+          for item in p["policy_results"]:
+              assert item["r8"]["evaluation"]["density"]["retained"] == "1"
+              assert item["r6"]["evaluation"]["density"]["retained"] == "1"
+              assert item["r8"]["evaluation"]["density"]["entry_abstentions"] == 0
+              assert item["r6"]["evaluation"]["density"]["entry_abstentions"] == 0
+          if p["passes_calibration"]:
+              assert p["frozen_policy"] is not None
+              assert p["economic_status"] == "CALIBRATION_PASSED_NEW_HOLDOUT_REQUIRED"
+          else:
+              assert p["frozen_policy"] is None
+              assert p["economic_status"] == "FALSIFIED_BEFORE_NEW_HOLDOUT"
+          print(json.dumps({
+              "economic_status":p["economic_status"],
+              "passes_calibration":p["passes_calibration"],
+              "frozen_policy":p["frozen_policy"],
+              "best_diagnostic_policy":p["best_diagnostic_policy"],
+          },sort_keys=True))
+          PY
+      - name: Bind result
+        run: |
+          echo "$GITHUB_SHA" > result/git-sha.txt
+          (cd result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+          (cd result && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-vt31-adverse-environment-journey-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90

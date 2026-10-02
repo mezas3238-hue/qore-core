@@ -1,0 +1,67 @@
+name: QORE Shared WP05 Active Perception V12 Sensor Foundation
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - src/qore/infrastructure/ctrader_open_api_client.py
+      - src/qore/infrastructure/ctrader_historical_tick_data.py
+      - src/qore/infrastructure/ctrader_historical_tick_collector.py
+      - src/qore/infrastructure/historical_quote_side_evidence.py src/qore/infrastructure/historical_quote_side_shards.py
+      - src/qore/infrastructure/historical_quote_side_shards.py
+      - tests/infrastructure/test_ctrader_historical_tick_data.py
+      - tests/infrastructure/test_ctrader_historical_tick_collector.py
+      - tests/infrastructure/test_ctrader_open_api_permission_scope.py
+      - tests/infrastructure/test_historical_quote_side_evidence.py
+      - tests/infrastructure/test_historical_quote_side_shards.py
+      - .github/workflows/qore-shared-wp05-active-perception-v12-sensor-foundation.yml
+  pull_request:
+    paths:
+      - src/qore/infrastructure/ctrader_open_api_client.py
+      - src/qore/infrastructure/ctrader_historical_tick_data.py
+      - src/qore/infrastructure/ctrader_historical_tick_collector.py
+      - src/qore/infrastructure/historical_quote_side_evidence.py src/qore/infrastructure/historical_quote_side_shards.py
+      - tests/infrastructure/test_ctrader_historical_tick_data.py
+      - tests/infrastructure/test_ctrader_historical_tick_collector.py
+      - tests/infrastructure/test_ctrader_open_api_permission_scope.py
+      - tests/infrastructure/test_historical_quote_side_evidence.py
+      - .github/workflows/qore-shared-wp05-active-perception-v12-sensor-foundation.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  v12-sensor-foundation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Validate historical tick sensor boundary
+        run: |
+          ruff check src/qore/infrastructure/ctrader_open_api_client.py src/qore/infrastructure/ctrader_historical_tick_data.py src/qore/infrastructure/ctrader_historical_tick_collector.py src/qore/infrastructure/historical_quote_side_evidence.py src/qore/infrastructure/historical_quote_side_shards.py tests/infrastructure/test_ctrader_historical_tick_data.py tests/infrastructure/test_ctrader_historical_tick_collector.py tests/infrastructure/test_ctrader_open_api_permission_scope.py tests/infrastructure/test_historical_quote_side_evidence.py
+          mypy src/qore/infrastructure/ctrader_historical_tick_data.py src/qore/infrastructure/ctrader_historical_tick_collector.py src/qore/infrastructure/historical_quote_side_evidence.py src/qore/infrastructure/historical_quote_side_shards.py
+          python -m py_compile src/qore/infrastructure/ctrader_historical_tick_data.py src/qore/infrastructure/ctrader_historical_tick_collector.py src/qore/infrastructure/historical_quote_side_evidence.py src/qore/infrastructure/historical_quote_side_shards.py
+          pytest -q tests/infrastructure/test_ctrader_historical_tick_data.py tests/infrastructure/test_ctrader_historical_tick_collector.py tests/infrastructure/test_ctrader_open_api_permission_scope.py tests/infrastructure/test_historical_quote_side_evidence.py tests/infrastructure/test_historical_quote_side_shards.py tests/infrastructure/test_qualified_quote_evidence.py tests/infrastructure/test_quote_tick_capture.py tests/infrastructure/test_historical_market_event_dataset.py
+
+      - name: Report sensor foundation
+        if: always()
+        run: |
+          if [ "${{ job.status }}" = "success" ]; then
+            gh issue comment 643 --body "WP-05 V12 sensor foundation GREEN — historical cTrader BID/ASK request contract, newest-first delta timestamp decoding, 7-day request bound, pagination semantics, explicit quote-side provenance with provider-event/retrieval-time separation, exact retained quote bridge and immutable market-event dataset tests passed. This is infrastructure only; V12 is scientifically ACTIVE but no sensor representation has passed admission and fresh holdout remains CLOSED."
+          else
+            gh issue comment 643 --body "WP-05 V12 sensor foundation FAILED technically. V12 remains ACTIVE, but no sensor representation is admitted and fresh holdout remains CLOSED."
+          fi

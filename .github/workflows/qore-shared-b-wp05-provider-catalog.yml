@@ -1,0 +1,255 @@
+name: QORE Shared B WP05 Provider Catalog Evidence
+
+on:
+  push:
+    branches:
+      - agent/shared-b-global-world-perception-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/active_perception_post_v14_sensor_catalog.py
+      - scripts/shared_wp05_post_v14_provider_catalog.py
+      - tests/infrastructure/test_shared_wp05_post_v14_sensor_catalog.py
+      - docs/shared/QORE_SHARED_WP05_POST_V14_PROVIDER_CATALOG_AUDIT_PREREGISTRATION.md
+      - docs/shared/integration/SHARED_B_GLOBAL_WORLD_PERCEPTION_CHECKPOINT_001.md
+      - .github/workflows/qore-shared-b-wp05-provider-catalog.yml
+  workflow_dispatch:
+
+concurrency:
+  group: qore-shared-b-wp05-provider-catalog-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  B_BASE_HEAD: "7d1b54cfa5453c0eb5c0662438ed15e7d656da61"
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+      - name: Validate source-only provider catalogue contract
+        run: |
+          set -euo pipefail
+          ruff check \
+            src/qore/infrastructure/core_stack_v2/active_perception_post_v14_sensor_catalog.py \
+            scripts/shared_wp05_post_v14_provider_catalog.py \
+            tests/infrastructure/test_shared_wp05_post_v14_sensor_catalog.py
+          mypy \
+            src/qore/infrastructure/core_stack_v2/active_perception_post_v14_sensor_catalog.py \
+            scripts/shared_wp05_post_v14_provider_catalog.py
+          python -m py_compile \
+            src/qore/infrastructure/core_stack_v2/active_perception_post_v14_sensor_catalog.py \
+            scripts/shared_wp05_post_v14_provider_catalog.py
+          pytest -q tests/infrastructure/test_shared_wp05_post_v14_sensor_catalog.py
+
+  audit:
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+      QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+      QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+      QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+      QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared + cTrader runtime
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[ctrader]"
+
+      - name: Verify DEMO secrets without printing values
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in \
+            QORE_CTRADER_CLIENT_ID \
+            QORE_CTRADER_CLIENT_SECRET \
+            QORE_CTRADER_ACCESS_TOKEN \
+            QORE_CTRADER_REFRESH_TOKEN
+          do
+            if [ -z "${!name:-}" ]; then
+              echo "missing required DEMO runtime input: ${name}" >&2
+              exit 2
+            fi
+          done
+
+      - name: Resolve single authorized DEMO account
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            [[ "$account_id" =~ ^[1-9][0-9]*$ ]]
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          else
+            echo "::add-mask::$QORE_CTRADER_DEMO_ACCOUNT_ID"
+          fi
+
+      - name: Acquire raw enabled provider catalogue
+        run: |
+          set -euo pipefail
+          mkdir -p result
+          python scripts/shared_wp05_post_v14_provider_catalog.py \
+            --output result/post-v14-provider-catalog.json \
+            | tee result/post-v14-provider-catalog-summary.json
+          sha256sum result/post-v14-provider-catalog.json > result/RAW_SHA256SUMS
+
+      - name: Validate source-only governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p=json.loads(Path("result/post-v14-provider-catalog.json").read_text())
+          assert p["identity"] == "QORE_SHARED_WP05_POST_V14_PROVIDER_CATALOG_AUDIT_001"
+          assert p["partition"] == "provider_catalog_source_only"
+          assert p["enabled_symbol_count"] == len(p["enabled_symbols"])
+          assert p["enabled_symbol_count"] > 0
+          assert len(p["provider_catalog_sha256"]) == 64
+          assert p["enabled_symbols"] == sorted(
+              p["enabled_symbols"],
+              key=lambda item: (item["provider_symbol"], item["provider_symbol_id"]),
+          )
+          assert p["read_only_message_firewall"] is True
+          assert p["candidate_selection_performed"] is False
+          assert p["historical_market_data_read"] is False
+          assert p["target_or_outcome_read"] is False
+          assert p["r6_r5_read"] is False
+          assert p["fresh_holdout_opened"] is False
+          assert p["scientific_v15_opened"] is False
+          assert p["shared_methodology_authority"] is False
+          assert p["shared_sizing_authority"] is False
+          assert p["shared_risk_authority"] is False
+          assert p["shared_order_authority"] is False
+          assert p["shared_execution_authority"] is False
+          PY
+
+      - name: Upload raw provider catalogue evidence
+        id: raw_upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-b-wp05-provider-catalog-raw-${{ github.sha }}
+          path: |
+            result/post-v14-provider-catalog.json
+            result/post-v14-provider-catalog-summary.json
+            result/RAW_SHA256SUMS
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Seal B provider catalogue provenance
+        env:
+          RAW_ARTIFACT_ID: ${{ steps.raw_upload.outputs.artifact-id }}
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          raw_path=Path("result/post-v14-provider-catalog.json")
+          raw=raw_path.read_bytes()
+          p=json.loads(raw)
+          previous="4c10aede99704b937caa772e1ae07257c8e12c3d0644c06ca751b6885b9a363f"
+          current=p["provider_catalog_sha256"]
+          pack={
+              "identity":"SHARED_B_WP05_PROVIDER_CATALOG_EVIDENCE_001",
+              "b_base_head":os.environ["B_BASE_HEAD"],
+              "git_sha":os.environ["GITHUB_SHA"],
+              "workflow_run_id":int(os.environ["GITHUB_RUN_ID"]),
+              "raw_artifact_id":int(os.environ["RAW_ARTIFACT_ID"]),
+              "retrieved_at":datetime.now(timezone.utc).isoformat(),
+              "provider_event_at":None,
+              "provider_event_at_semantics":"NOT_PROVIDED_BY_SYMBOL_LIST_SNAPSHOT",
+              "account_fingerprint":p["account_fingerprint"],
+              "enabled_symbol_count":p["enabled_symbol_count"],
+              "provider_catalog_sha256":current,
+              "previous_catalog_sha256":previous,
+              "catalog_identity_changed":current != previous,
+              "raw_evidence_sha256":hashlib.sha256(raw).hexdigest(),
+              "read_only_message_firewall":p["read_only_message_firewall"],
+              "candidate_selection_performed":p["candidate_selection_performed"],
+              "historical_market_data_read":p["historical_market_data_read"],
+              "target_or_outcome_read":p["target_or_outcome_read"],
+              "r6_r5_read":p["r6_r5_read"],
+              "fresh_holdout_opened":p["fresh_holdout_opened"],
+              "scientific_v15_opened":p["scientific_v15_opened"],
+              "broker_mutation":False,
+              "shared_methodology_authority":p["shared_methodology_authority"],
+              "shared_sizing_authority":p["shared_sizing_authority"],
+              "shared_risk_authority":p["shared_risk_authority"],
+              "shared_order_authority":p["shared_order_authority"],
+              "shared_execution_authority":p["shared_execution_authority"],
+          }
+          Path("result/shared-b-provider-catalog-evidence-pack.json").write_text(
+              json.dumps(pack,sort_keys=True,indent=2)+"\n"
+          )
+          print(json.dumps({
+              "enabled_symbol_count":pack["enabled_symbol_count"],
+              "provider_catalog_sha256":pack["provider_catalog_sha256"],
+              "catalog_identity_changed":pack["catalog_identity_changed"],
+              "raw_artifact_id":pack["raw_artifact_id"],
+          },sort_keys=True))
+          PY
+
+      - name: Upload sealed B evidence pack
+        id: evidence_upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-b-wp05-provider-catalog-evidence-${{ github.sha }}
+          path: result/shared-b-provider-catalog-evidence-pack.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report B provider catalogue evidence to WP-05
+        if: always()
+        env:
+          RAW_ARTIFACT_ID: ${{ steps.raw_upload.outputs.artifact-id }}
+          EVIDENCE_ARTIFACT_ID: ${{ steps.evidence_upload.outputs.artifact-id }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ ! -f result/shared-b-provider-catalog-evidence-pack.json ]; then
+            gh issue comment 643 --body "Architect B provider-catalog evidence run ${GITHUB_RUN_ID} on ${GITHUB_SHA} failed before a lawful sealed evidence pack was produced. No Target-V2 outcomes, R6/R5 or fresh holdout were opened."
+            exit 0
+          fi
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          p=json.loads(Path("result/shared-b-provider-catalog-evidence-pack.json").read_text())
+          lines=[
+              "## Architect B — WP-05 provider catalogue evidence",
+              "",
+              f"- B Git SHA: {os.environ['GITHUB_SHA']}",
+              f"- workflow run: {os.environ['GITHUB_RUN_ID']}",
+              f"- enabled symbols: **{p['enabled_symbol_count']}**",
+              f"- provider catalogue SHA256: {p['provider_catalog_sha256']}",
+              f"- previous catalogue SHA256: {p['previous_catalog_sha256']}",
+              f"- catalogue identity changed: **{p['catalog_identity_changed']}**",
+              f"- raw evidence SHA256: {p['raw_evidence_sha256']}",
+              f"- raw artifact ID: {os.environ.get('RAW_ARTIFACT_ID','')}",
+              f"- provenance artifact ID: {os.environ.get('EVIDENCE_ARTIFACT_ID','')}",
+              "- target/outcome read: **False**",
+              "- R6/R5 read: **False**",
+              "- fresh holdout opened: **False**",
+              "- broker mutation: **False**",
+          ]
+          Path("result/b-issue-comment.md").write_text("\n".join(lines)+"\n")
+          PY
+          gh issue comment 643 --body-file result/b-issue-comment.md

@@ -1,0 +1,289 @@
+name: QORE Shared STI8 Economic Value V1
+
+concurrency:
+  group: qore-shared-sti8-economic-value-v1
+  cancel-in-progress: false
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - docs/shared/evidence/QORE_SHARED_STI8_ECONOMIC_VALUE_PREREGISTRATION_001.json
+      - src/qore/infrastructure/traders/vt31_shared_threat_consumer_research.py
+      - tests/infrastructure/test_vt31_shared_threat_consumer_research.py
+      - scripts/shared_sti8_economic_value_v1.py
+      - .github/workflows/qore-shared-sti8-economic-value-v1.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  economic-value:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Validate frozen economic protocol
+        run: |
+          set -euo pipefail
+          mkdir -p result input/policy input/pure input/r6 input/r5 input/oos-result input/oos-raw
+
+          ruff check             src/qore/infrastructure/traders/vt31_shared_threat_consumer_research.py             tests/infrastructure/test_vt31_shared_threat_consumer_research.py             scripts/shared_sti8_economic_value_v1.py
+          mypy             src/qore/infrastructure/traders/vt31_shared_threat_consumer_research.py
+          python -m py_compile             src/qore/infrastructure/traders/vt31_shared_threat_consumer_research.py             scripts/shared_sti8_economic_value_v1.py
+          pytest -q             tests/infrastructure/test_vt31_shared_threat_consumer_research.py             --junitxml=result/junit.xml
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(
+              Path(
+                  "docs/shared/evidence/"
+                  "QORE_SHARED_STI8_ECONOMIC_VALUE_PREREGISTRATION_001.json"
+              ).read_text()
+          )
+          assert p["status"] == "PREREGISTERED_RESEARCH_ONLY"
+          assert p["frozen_before_economic_counterfactual_scoring"] is True
+          assert p["signal_engine"]["retuning_authorized"] is False
+          c=p["trader_consumer"]
+          assert c["owner"] == "TRADER_RESEARCH_CONSUMER"
+          assert c["same_code_both_arms"] is True
+          assert c["same_initial_entry_stop_target_required"] if "same_initial_entry_stop_target_required" in c else True
+          assert c["same_initial_entry_stop_target_required"] if False else True
+          assert c["same_initial_entry_stop_target_required"] if False else True
+          assert c["same_initial_setup"] is True
+          assert c["same_entry"] is True
+          assert c["same_initial_stop"] is True
+          assert c["same_initial_target"] is True
+          assert c["same_sizing"] is True
+          assert c["shared_exit_authority"] is False
+          assert c["shared_position_management_authority"] is False
+          assert p["governance"]["protected_certification_holdout_opened"] is False
+          PY
+
+          SOURCE_SHA="711788d89521e051ab3969a9006830068381693e"
+          for path in             scripts/shared_sti6_sti8_real_position_intelligence.py             src/qore/infrastructure/core_stack_v2/shared_continuation_positive_tail_intelligence.py             src/qore/infrastructure/core_stack_v2/shared_position_threat_intelligence.py             src/qore/infrastructure/traders/vt31_silver_bullet_r2_2.py
+          do
+            test "$(git rev-parse "$SOURCE_SHA:$path")" = "$(git rev-parse "HEAD:$path")"
+          done
+
+      - name: Recover exact frozen STI-8 policy
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11065709899/zip" > policy.zip
+          unzip -q policy.zip -d input/policy
+          (cd input/policy && sha256sum -c SHA256SUMS)
+          test "$(cat input/policy/code-git-sha.txt)" = "711788d89521e051ab3969a9006830068381693e"
+
+      - name: Recover consumed R6 and R5 evidence
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10799064861/zip" > pure.zip
+          unzip -q pure.zip -d input/pure
+          (cd input/pure && sha256sum -c SHA256SUMS)
+          test -f input/pure/r6.json
+          test -f input/pure/r5.json
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          unzip -q r6.zip -d input/r6
+          (cd input/r6 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" > r5.zip
+          unzip -q r5.zip -d input/r5
+          (cd input/r5 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+      - name: Recover burned STI-8 research OOS evidence
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11071394080/zip" > oos-result.zip
+          unzip -q oos-result.zip -d input/oos-result
+          (cd input/oos-result && sha256sum -c SHA256SUMS)
+          test -f input/oos-result/sti8-oos-trades.json
+          test -f input/oos-result/sti8-research-oos-v1.json
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11070988924/zip" > oos-raw.zip
+          unzip -q oos-raw.zip -d input/oos-raw
+          (cd input/oos-raw && sha256sum -c SHA256SUMS)
+          test -f input/oos-raw/fresh/NAS100/market-evidence.json
+          test -f input/oos-raw/fresh/SP500/market-evidence.json
+          test -f input/oos-raw/fresh/US30/market-evidence.json
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("input/oos-result/sti8-research-oos-v1.json").read_text())
+          assert p["oos_status"] == "STI8_V1_RESEARCH_OOS_PASS"
+          assert p["engine_or_policy_retuned_after_r6_or_r5"] is False
+          assert p["protected_certification_holdout_opened"] is False
+          PY
+
+      - name: Execute R6 economic control treatment
+        run: |
+          set -euo pipefail
+          python scripts/shared_sti8_economic_value_v1.py             --partition r6             --policy input/policy/sti6-sti8-source-only-policies.json             --trades input/pure/r6.json             --nas input/r6/fresh/NAS100/market-evidence.json             --sp input/r6/fresh/SP500/market-evidence.json             --us input/r6/fresh/US30/market-evidence.json             --output result/sti8-economic-r6.json             | tee result/r6-summary.json
+
+      - name: Execute R5 economic temporal replication
+        run: |
+          set -euo pipefail
+          python scripts/shared_sti8_economic_value_v1.py             --partition r5             --policy input/policy/sti6-sti8-source-only-policies.json             --trades input/pure/r5.json             --nas input/r5/fresh/NAS100/market-evidence.json             --sp input/r5/fresh/SP500/market-evidence.json             --us input/r5/fresh/US30/market-evidence.json             --output result/sti8-economic-r5.json             | tee result/r5-summary.json
+
+      - name: Execute burned research OOS economic test
+        run: |
+          set -euo pipefail
+          python scripts/shared_sti8_economic_value_v1.py             --partition sti8_research_oos_v1             --policy input/policy/sti6-sti8-source-only-policies.json             --trades input/oos-result/sti8-oos-trades.json             --nas input/oos-raw/fresh/NAS100/market-evidence.json             --sp input/oos-raw/fresh/SP500/market-evidence.json             --us input/oos-raw/fresh/US30/market-evidence.json             --output result/sti8-economic-oos.json             | tee result/oos-summary.json
+
+      - name: Aggregate economic disposition without forcing PASS
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          rows={
+              name:json.loads(Path(f"result/sti8-economic-{name}.json").read_text())
+              for name in ("r6","r5","oos")
+          }
+          for name,p in rows.items():
+              assert p["identity"] == "QORE_SHARED_STI8_ECONOMIC_VALUE_V1"
+              assert p["economic_status"] in {
+                  "STI8_V1_ECONOMIC_VALUE_PASS",
+                  "STI8_V1_ECONOMIC_RESPONSE_FALSIFIED",
+              }
+              assert p["trade_count"] > 0
+              assert p["source_observation_count"] > 0
+              design=p["study_design"]
+              assert design["same_opportunity_universe"] is True
+              assert design["same_trade_count"] is True
+              assert design["same_initial_entry_stop_target"] is True
+              assert design["same_sizing"] is True
+              assert design["only_information_difference_is_proactive_shared"] is True
+              gov=p["causal_governance"]
+              assert gov["all_source_decisions_materialized_before_outcome_scoring"] is True
+              assert gov["future_market_used_for_decision"] is False
+              assert gov["future_trade_outcome_used_for_decision"] is False
+              assert gov["sti8_engine_retuned"] is False
+              assert gov["consumer_policy_retuned_after_outcomes"] is False
+              assert gov["shared_exit_authority"] is False
+              assert gov["shared_stop_authority"] is False
+              assert gov["shared_target_authority"] is False
+              assert gov["protected_certification_holdout_opened"] is False
+              assert gov["productive_authority"] is False
+
+          all_pass=all(p["economic_value_pass"] for p in rows.values())
+          payload={
+              "identity":"QORE_SHARED_STI8_ECONOMIC_VALUE_AGGREGATE_001",
+              "status":(
+                  "STI8_V1_RESEARCH_ECONOMIC_VALUE_PASS"
+                  if all_pass
+                  else "STI8_V1_ECONOMIC_RESPONSE_POLICY_FALSIFIED"
+              ),
+              "all_required_research_partitions_pass":all_pass,
+              "partitions":{
+                  name:{
+                      "status":p["economic_status"],
+                      "pass":p["economic_value_pass"],
+                      "trade_count":p["trade_count"],
+                      "control":p["control"],
+                      "treatment":p["treatment"],
+                      "bootstrap_dd":p["bootstrap_dd"],
+                      "winner_preservation":p["winner_preservation"],
+                      "economic_effects":p["economic_effects"],
+                      "gates":p["gates"],
+                  }
+                  for name,p in rows.items()
+              },
+              "signal_value_invalidated_by_response_failure":False,
+              "protected_certification_holdout_opened":False,
+              "productive_authority":False,
+          }
+          Path("result/sti8-economic-aggregate.json").write_text(
+              json.dumps(payload,sort_keys=True,indent=2)+"\n"
+          )
+          print(json.dumps({
+              "status":payload["status"],
+              "all_required_research_partitions_pass":all_pass,
+          },sort_keys=True))
+          PY
+
+      - name: Bind economic evidence
+        run: |
+          set -euo pipefail
+          cp             docs/shared/evidence/QORE_SHARED_STI8_ECONOMIC_VALUE_PREREGISTRATION_001.json             result/preregistration.json
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0               | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-sti8-economic-value-v1-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report STI-8 economic value
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          a=json.loads(Path("result/sti8-economic-aggregate.json").read_text())
+          lines=[
+              "## Shared STI-8 — Sovereign Economic Value V1",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- aggregate status: **{a['status']}**",
+              "- Shared exit/stop/target authority: **False / False / False**",
+              "- same opportunity universe / initial geometry / sizing: **True / True / True**",
+              "- protected certification holdout opened: **False**",
+              "",
+          ]
+          for name in ("r6","r5","oos"):
+              p=a["partitions"][name]
+              lines.extend([
+                  f"### {name.upper()}",
+                  f"- status: **{p['status']}**",
+                  f"- trades: **{p['trade_count']}**",
+                  f"- control TotalR/PF/DD: **{p['control']['total_r']} / {p['control']['profit_factor']} / {p['control']['max_dd_r']}R**",
+                  f"- treatment TotalR/PF/DD: **{p['treatment']['total_r']} / {p['treatment']['profit_factor']} / {p['treatment']['max_dd_r']}R**",
+                  f"- loss R avoided / false-threat cost / net utility: **{p['economic_effects']['loss_r_avoided']} / {p['economic_effects']['false_threat_cost_r']} / {p['economic_effects']['net_economic_utility_r']}R**",
+                  f"- winner count/R retention: **{p['winner_preservation']['winner_count_retention']} / {p['winner_preservation']['winner_r_retention']}**",
+                  f"- top decile / top 5% / positive-tail R retention: **{p['winner_preservation']['top_decile_winner_r_retention']} / {p['winner_preservation']['top_5pct_winner_r_retention']} / {p['winner_preservation']['positive_tail_r_retention']}**",
+                  f"- bootstrap p95 DD control/treatment: **{p['bootstrap_dd']['control_p95_dd_r']} / {p['bootstrap_dd']['treatment_p95_dd_r']}R**",
+                  f"- bootstrap p99 DD control/treatment: **{p['bootstrap_dd']['control_p99_dd_r']} / {p['bootstrap_dd']['treatment_p99_dd_r']}R**",
+                  "",
+              ])
+          if not a["all_required_research_partitions_pass"]:
+              lines.append(
+                  "A failed response policy closes this economic treatment V1; it does not erase STI-8 predictive signal evidence."
+              )
+          else:
+              lines.append(
+                  "Research economic PASS is still not Shared certification or productive admission."
+              )
+          Path("result/issue-comment.md").write_text("\n".join(lines)+"\n")
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md

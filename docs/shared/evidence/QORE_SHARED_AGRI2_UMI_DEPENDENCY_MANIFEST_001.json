@@ -1,0 +1,56 @@
+{
+  "identity": "QORE_SHARED_AGRI2_UMI_DEPENDENCY_MANIFEST_001",
+  "version": "001",
+  "purpose": "Freeze the exact UMI owner surfaces composed by Shared AGRI-2 without transferring their authority.",
+  "owners": [
+    {
+      "owner": "UMI-02_UNIVERSAL_INSTRUMENT_IDENTITY",
+      "path": "src/qore/infrastructure/universal_instrument_identity.py",
+      "git_blob_sha": "c39a77c621f9a6a524751d4e2983e71c36400a0f",
+      "agri2_role": "ECONOMIC_IDENTITY_LISTING_AND_CONSTRUCTION_AUTHORITY",
+      "authority_transferred_to_shared": false
+    },
+    {
+      "owner": "UMI-05_DERIVATIVE_CONTRACT_SEMANTICS",
+      "path": "src/qore/infrastructure/derivative_contract_semantics.py",
+      "git_blob_sha": "36e4d672459c489573eabc7ba5413bb5ef99c3a6",
+      "agri2_role": "DATED_FUTURES_MONTH_EXPIRY_MULTIPLIER_SETTLEMENT_NOTICE_LAST_TRADE",
+      "authority_transferred_to_shared": false
+    },
+    {
+      "owner": "UMI-07_COMMODITY_CONTRACT_DELIVERY_SEMANTICS",
+      "path": "src/qore/infrastructure/commodity_contract_delivery_semantics.py",
+      "git_blob_sha": "e2e7b4e302996a351cd3044077f250234ec81b25",
+      "agri2_role": "COMMODITY_REFERENCE_CLASS_UNIT_GRADE_DELIVERY_AND_FUTURES_COMPOSITION",
+      "authority_transferred_to_shared": false
+    }
+  ],
+  "status_evidence": [
+    {
+      "artifact": "UMI-02 lifecycle/currentness record",
+      "path": "docs/architecture/QORE-UMI-02-UNIVERSAL-INSTRUMENT-IDENTITY-LIFECYCLE-001.md",
+      "git_blob_sha": "b7499b79dcc65b40e038b6d54aa5ad3630ee886f",
+      "current_status_interpretation": "FULL_CLOSURE_RECERTIFICATION_RECORD_FINAL_CLOSURE_GOVERNED_BY_301"
+    },
+    {
+      "artifact": "UMI-07 Full Closure recertification ledger",
+      "path": "docs/architecture/QORE-UMI-07-FULL-CLOSURE-RECERTIFICATION-001.md",
+      "git_blob_sha": "ffc1153b4d19c3ce81a928b14d279959fe4609f4",
+      "current_status_interpretation": "GATE_B_COMPLETE_EXACT_CANDIDATE_QUALIFICATION_PENDING"
+    },
+    {
+      "artifact": "UMI14 Specialized Commodity Semantics",
+      "path": "docs/architecture/QORE-UMI14-SPECIALIZED-COMMODITY-SEMANTICS-001.md",
+      "git_blob_sha": "b3b42b2408b37d8f8e8024a2c8e84e8de8e38d7f",
+      "current_status_interpretation": "GATE_B_RECERTIFICATION_CANDIDATE_NOT_GATE_C_CERTIFIED"
+    }
+  ],
+  "laws": {
+    "agri2_creates_parallel_economic_identity_authority": false,
+    "agri2_creates_parallel_generic_futures_authority": false,
+    "agri2_creates_parallel_generic_commodity_delivery_authority": false,
+    "provider_symbol_is_canonical_identity": false,
+    "continuous_reference_is_native_contract": false,
+    "historical_umi_existence_implies_current_productive_certification": false
+  }
+}

@@ -1,0 +1,123 @@
+name: QORE Core Stack V2 VT31 Pure Methodology Baseline
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - .github/workflows/qore-core-stack-v2-vt31-pure-baseline.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  baseline:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -e ".[dev]"
+      - name: Recover immutable 5Y evidence
+        run: |
+          set -euo pipefail
+          mkdir -p input/r8 input/r6 input/r5 result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10402199719/zip" > r8.zip
+          unzip -q r8.zip -d input/r8
+          echo "4031c7e21bb311fdb99d7b1028fd9ff154ace1dc4886249ff978b700fdeeedcb  input/r8/fresh/NAS100/market-evidence.json" | sha256sum -c -
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          unzip -q r6.zip -d input/r6
+          echo "cf3ef22fa86916bfb2826f4fa48c7a9655b9509c76a05d9bb26d0d4cb6069581  input/r6/fresh/NAS100/market-evidence.json" | sha256sum -c -
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" > r5.zip
+          unzip -q r5.zip -d input/r5
+          echo "7b1e3d9e2bfd17ccc6f043befabf464838d150bc6034ced1f76a24ee248611d7  input/r5/fresh/NAS100/market-evidence.json" | sha256sum -c -
+      - name: Run frozen source-only methodology
+        run: |
+          set -euo pipefail
+          python scripts/vt31_nas100_silver_bullet_native_streak_falsification_v1.py             input/r8/fresh/NAS100/market-evidence.json             --partition r8             --output result/r8.json > result/r8-summary.json
+          python scripts/vt31_nas100_silver_bullet_native_streak_falsification_v1.py             input/r6/fresh/NAS100/market-evidence.json             --partition r6             --output result/r6.json > result/r6-summary.json
+          python scripts/vt31_nas100_silver_bullet_native_streak_falsification_v1.py             input/r5/fresh/NAS100/market-evidence.json             --partition r5             --output result/r5.json > result/r5-summary.json
+      - name: Aggregate pure 5Y economics
+        run: |
+          python - <<'PY'
+          import json
+          from decimal import Decimal
+          from pathlib import Path
+
+          rows=[]
+          folds={}
+          for name in ("r8","r6","r5"):
+              p=json.loads(Path(f"result/{name}.json").read_text())
+              assert p["silver_bullet_freeze"]["source_module_modified_by_lab"] is False
+              assert p["governance"]["silver_bullet_modified"] is False
+              assert p["governance"]["m1_only_source_replay"] is True
+              folds[name]=p["metrics"]
+              rows.extend(p["trades"])
+
+          rows.sort(key=lambda r:r["signal_at"])
+          values=[Decimal(str(r["net_r_after_friction"])) for r in rows]
+          gains=sum((x for x in values if x>0),Decimal(0))
+          losses=-sum((x for x in values if x<0),Decimal(0))
+          total=sum(values,Decimal(0))
+          equity=Decimal(0); peak=Decimal(0); dd=Decimal(0)
+          streak=0; max_streak=0
+          for x in values:
+              equity += x
+              peak=max(peak,equity)
+              dd=max(dd,peak-equity)
+              if x<0:
+                  streak+=1; max_streak=max(max_streak,streak)
+              else:
+                  streak=0
+          pf=None if losses==0 else gains/losses
+          payload={
+              "schema":"qore.core_stack_v2.vt31_pure_methodology_baseline.v1",
+              "identity":"ttrades-am-silver-bullet-nq-r2.2",
+              "source_only":True,
+              "core_stack_assistance":False,
+              "shared_core_assistance":False,
+              "trade_count":len(rows),
+              "wins":sum(x>0 for x in values),
+              "losses":sum(x<0 for x in values),
+              "flats":sum(x==0 for x in values),
+              "total_r":format(total,"f"),
+              "mean_r":format(total/Decimal(len(values)) if values else Decimal(0),"f"),
+              "profit_factor":None if pf is None else format(pf,"f"),
+              "max_drawdown_r":format(dd,"f"),
+              "max_losing_streak":max_streak,
+              "fold_metrics":folds,
+              "governance":{
+                  "methodology_modified":False,
+                  "reasoning_used":False,
+                  "rearm_used":False,
+                  "alloc_g_used":False,
+                  "core_stack_used":False,
+                  "shared_core_used":False,
+                  "live_authorized":False,
+                  "merge_authorized":False
+              }
+          }
+          Path("result/pure-5y-baseline.json").write_text(json.dumps(payload,sort_keys=True,indent=2)+"\n")
+          print(json.dumps(payload,sort_keys=True))
+          PY
+      - name: Bind result
+        run: |
+          echo "$GITHUB_SHA" > result/git-sha.txt
+          (cd result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+          (cd result && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-core-stack-v2-vt31-pure-baseline-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90

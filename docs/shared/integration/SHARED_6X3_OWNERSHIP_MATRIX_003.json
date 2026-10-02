@@ -1,0 +1,138 @@
+{
+  "schema": "QORE_SHARED_6_ARCHITECT_3_INTEGRATOR_OWNERSHIP_003",
+  "created_at": "2026-10-02",
+  "repo": "mezas3238-hue/qore-core",
+  "supersedes": "SHARED_6X3_OWNERSHIP_MATRIX_002",
+  "sources": {
+    "a_master_handoff_commit": "6b74c3cafc959deec2f37e98139b7e56f40af94f",
+    "a_master_handoff_path": "docs/shared/handoffs/QORE_SHARED_ARCHITECT_A_SPLIT_A1_A2_A3_MASTER_HANDOFF_001.md",
+    "b_master_checkpoint": "3757ab54c979977d1eb30874c7c8f33220e50f56",
+    "shared_baseline_before_v3": "274d2f5793c04aa197a58484f62774fa84b176b6"
+  },
+  "pairings": {
+    "integrator_1": [
+      "architect_1",
+      "architect_2"
+    ],
+    "integrator_2": [
+      "architect_3",
+      "architect_4"
+    ],
+    "integrator_3": [
+      "architect_5",
+      "architect_6"
+    ]
+  },
+  "architects": {
+    "1": {
+      "lane": "A",
+      "owns": [
+        "MC14_B04_REPLAY",
+        "STI5",
+        "STI6",
+        "STI8_V4",
+        "MC17",
+        "MC18",
+        "MC19"
+      ],
+      "integrator": "1"
+    },
+    "2": {
+      "lane": "A",
+      "owns": [
+        "MC11",
+        "MC23_VALIDATED_ADAPTATION",
+        "MC24",
+        "MC25",
+        "WP11"
+      ],
+      "integrator": "1"
+    },
+    "3": {
+      "lane": "A",
+      "owns": [
+        "STI3_GLOBAL",
+        "STI10_GLOBAL_7_OF_7",
+        "MC05",
+        "MC12",
+        "MC27",
+        "MC28",
+        "WP10",
+        "WP12"
+      ],
+      "integrator": "2",
+      "seam_with": "4"
+    },
+    "4": {
+      "lane": "B",
+      "owns": [
+        "B-06",
+        "B-07",
+        "B-08",
+        "B-09",
+        "B-10"
+      ],
+      "integrator": "2",
+      "seam_with": "3"
+    },
+    "5": {
+      "lane": "B",
+      "owns": [
+        "B-11",
+        "B-12",
+        "B-13",
+        "B-14",
+        "B-15"
+      ],
+      "integrator": "3"
+    },
+    "6": {
+      "lane": "B",
+      "owns": [
+        "B-16",
+        "B-21",
+        "B-22",
+        "B-24"
+      ],
+      "integrator": "3"
+    }
+  },
+  "b_closed_do_not_reopen": [
+    "B-01",
+    "B-02",
+    "B-03",
+    "B-04",
+    "B-05",
+    "B-17",
+    "B-18",
+    "B-19",
+    "B-20",
+    "B-23"
+  ],
+  "integrator_mission": [
+    "INTEGRATE",
+    "RECONCILE",
+    "REPAIR",
+    "VALIDATE",
+    "ADVANCE"
+  ],
+  "council_owned": [
+    "X-20",
+    "X-21",
+    "X-22"
+  ],
+  "laws": {
+    "github_source_of_truth": true,
+    "merge_without_owner_order": false,
+    "live": false,
+    "production": false,
+    "real_capital": false,
+    "vps": false,
+    "broker_mutation": false,
+    "sizing_authority": false,
+    "risk_authority": false,
+    "cibo_authority": false,
+    "execution_authority": false,
+    "final_holdout_open_authority": false
+  }
+}

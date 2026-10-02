@@ -1,0 +1,112 @@
+name: QORE Shared VT08 Terminal Recall Frontier V8
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - scripts/vt08_index_shared_terminal_recall_frontier_v8.py
+      - .github/workflows/qore-shared-vt08-terminal-recall-frontier-v8.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  terminal-recall-frontier-v8:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Checkout Shared
+        uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install research dependencies
+        run: pip install -e ".[dev]"
+
+      - name: Static validation
+        run: |
+          ruff check scripts/vt08_index_shared_terminal_recall_frontier_v8.py
+          python -m py_compile scripts/vt08_index_shared_terminal_recall_frontier_v8.py
+
+      - name: Download frozen V6 consumed ledger
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-shared-vt08-stop-target-discrimination-v6-1a534d0ae735efef4dcbc0c0be4b110ceaa80501
+          path: artifacts/v6
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 36131607443
+
+      - name: Run V8 terminal recall frontier
+        run: |
+          mkdir -p artifacts/v8
+          python scripts/vt08_index_shared_terminal_recall_frontier_v8.py             --v6-json artifacts/v6/vt08-index-shared-stop-target-discrimination-v6.json             --out artifacts/v8/vt08-index-shared-terminal-recall-frontier-v8.json             | tee artifacts/v8/summary.json
+
+      - name: Validate research contract
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p=json.loads(
+              Path(
+                  "artifacts/v8/"
+                  "vt08-index-shared-terminal-recall-frontier-v8.json"
+              ).read_text()
+          )
+          assert p["identity"] == "QORE_SHARED_VT08_TERMINAL_RECALL_FRONTIER_V8"
+          assert p["source_v6_run"] == 36131607443
+          assert p["source_shared_head"] == "1a534d0ae735efef4dcbc0c0be4b110ceaa80501"
+          assert p["research_only"] is True
+          assert p["consumed_evidence_only"] is True
+          assert p["runtime_actuation"] is False
+          assert p["sizing_used"] is False
+          assert p["trailing_used"] is False
+          assert p["target_extension_used"] is False
+
+          expected = {
+              "five_year": 2448,
+              "recent_two_year": 1017,
+              "r66_consumed_failed_holdout": 773,
+          }
+          for key, sample in expected.items():
+              w=p["windows"][key]
+              assert w["sample"] == sample
+              assert set(w["channels"]) == {
+                  "PATH_COMMITMENT_LATE",
+                  "CONTESTED_RECOVERY_EXHAUSTION",
+                  "RISING_DETERIORATION_SEQUENCE",
+              }
+              for c in w["channels"].values():
+                  assert c["status"] in {
+                      "ADMIT_FOR_ECONOMIC_SHADOW",
+                      "REJECT",
+                  }
+
+          print(json.dumps({
+              "admitted_all_windows": p["admitted_all_windows"],
+              "five_year": p["windows"]["five_year"]["channels"],
+              "recent_two_year": p["windows"]["recent_two_year"]["channels"],
+              "r66": p["windows"]["r66_consumed_failed_holdout"]["channels"],
+          }, sort_keys=True))
+          PY
+
+      - name: Bind result
+        run: |
+          cd artifacts/v8
+          echo "$GITHUB_SHA" > shared-git-sha.txt
+          echo "36131607443" > source-v6-run.txt
+          find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+          sha256sum -c SHA256SUMS
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-vt08-terminal-recall-frontier-v8-${{ github.sha }}
+          path: artifacts/v8/
+          if-no-files-found: error
+          retention-days: 90

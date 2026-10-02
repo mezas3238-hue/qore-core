@@ -1,0 +1,255 @@
+name: QORE Shared STI2 V2 Short Research OOS
+
+concurrency:
+  group: qore-shared-sti2-v2-short-oos
+  cancel-in-progress: false
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - docs/shared/evidence/QORE_SHARED_STI2_V2_SHORT_RESEARCH_OOS_PREREGISTRATION_001.json
+      - scripts/shared_sti2_v2_short_oos_probe.py
+      - scripts/shared_sti2_v2_short_oos_eval.py
+      - .github/workflows/qore-shared-sti2-v2-short-oos.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  QORE_SOFTWARE_SHA: ${{ github.sha }}
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+
+jobs:
+  short-oos:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install research and cTrader dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,ctrader]"
+
+      - name: Validate preregistration and frozen engines
+        run: |
+          set -euo pipefail
+          mkdir -p input/r8 fresh/{NAS100,SP500,US30} result
+          ruff check             scripts/shared_sti2_v2_short_oos_probe.py             scripts/shared_sti2_v2_short_oos_eval.py
+          python -m py_compile             scripts/shared_sti2_v2_short_oos_probe.py             scripts/shared_sti2_v2_short_oos_eval.py
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(
+              Path(
+                  "docs/shared/evidence/"
+                  "QORE_SHARED_STI2_V2_SHORT_RESEARCH_OOS_PREREGISTRATION_001.json"
+              ).read_text()
+          )
+          assert p["status"] == "PREREGISTERED_BEFORE_ACQUISITION"
+          assert p["window"]["opened_at_inclusive"] == "2026-07-22T00:00:00+00:00"
+          assert p["window"]["checked_at_exclusive"] == "2026-09-29T00:00:00+00:00"
+          assert p["window"]["temporal_replication_claim_authorized"] is False
+          assert p["v1_control"]["policy_freeze"] == "R8_SOURCE_ONLY"
+          assert p["v2_treatment"]["policy_freeze"] == "R8_SOURCE_ONLY"
+          assert p["evaluation_law"]["same_observation_universe_v1_v2"] is True
+          assert p["evaluation_law"]["same_future_target_definition_v1_v2"] is True
+          assert p["governance"]["oos_is_burned_after_first_open"] is True
+          assert p["governance"]["retuning_against_oos_authorized"] is False
+          assert p["governance"]["protected_certification_holdout_opened"] is False
+          PY
+
+          test "$(git rev-parse "af1dbe207cca37d2e2a1abe47afd15f6df9c873c:src/qore/infrastructure/core_stack_v2/shared_global_opportunity_trajectory_v2.py")" = "$(git rev-parse "HEAD:src/qore/infrastructure/core_stack_v2/shared_global_opportunity_trajectory_v2.py")"
+          test "$(git rev-parse "1df8be7cfea2621a4bfcf6a7de741aa585a29f35:scripts/shared_sti2_v2_trajectory_heads.py")" = "$(git rev-parse "HEAD:scripts/shared_sti2_v2_trajectory_heads.py")"
+
+      - name: Recover immutable R8 source-only calibration evidence
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10402199719/zip" > r8.zip
+          unzip -q r8.zip -d input/r8
+          (cd input/r8 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+      - name: Enforce one-shot short OOS opening
+        run: |
+          set -euo pipefail
+          marker_name="qore-shared-sti2-v2-short-oos-open-marker"
+          count="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${marker_name}" --jq '.artifacts | length')"
+          test "$count" = "0"
+          cat > result/oos-open-marker.json <<'JSON'
+          {
+            "identity":"QORE_SHARED_STI2_V2_SHORT_RESEARCH_OOS_001",
+            "window_opened_at":"2026-07-22T00:00:00+00:00",
+            "window_checked_at":"2026-09-29T00:00:00+00:00",
+            "v1_policy_fit":"R8_SOURCE_ONLY",
+            "v2_policy_fit":"R8_SOURCE_ONLY",
+            "retuning_authorized":false,
+            "temporal_replication_claim_authorized":false,
+            "protected_certification_holdout":false
+          }
+          JSON
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-sti2-v2-short-oos-open-marker
+          path: result/oos-open-marker.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Verify DEMO credentials
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN
+          do
+            test -n "${!name:-}"
+          done
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            test -n "$account_id"
+            echo "::add-mask::$account_id"
+            echo "QORE_CTRADER_DEMO_ACCOUNT_ID=$account_id" >> "$GITHUB_ENV"
+          fi
+
+      - name: Acquire preregistered short OOS once
+        run: |
+          set -euo pipefail
+          for market in NAS100 SP500 US30
+          do
+            QORE_DEMO_LAB_SYMBOL="$market"               python scripts/shared_sti2_v2_short_oos_probe.py               > "fresh/$market/market-evidence.json"
+          done
+          sha256sum fresh/*/market-evidence.json > fresh/EVIDENCE-SHA256SUMS
+
+          python - <<'PY'
+          import json
+          from datetime import datetime
+          from pathlib import Path
+          start=datetime.fromisoformat("2026-07-22T00:00:00+00:00")
+          end=datetime.fromisoformat("2026-09-29T00:00:00+00:00")
+          for market in ("NAS100","SP500","US30"):
+              p=json.loads(Path(f"fresh/{market}/market-evidence.json").read_text())
+              assert p["shared_identity"] == "QORE_SHARED_STI2_V2_SHORT_RESEARCH_OOS_001"
+              assert p["minimum_actual_coverage_days"] == 65
+              assert p["temporal_replication_claim_authorized"] is False
+              assert p["retuning_against_oos_authorized"] is False
+              assert p["read_only_research"] is True
+              assert p["account_is_live"] is False
+              first=datetime.fromisoformat(p["coverage"]["first_opened_at"])
+              last=datetime.fromisoformat(p["coverage"]["last_closed_at"])
+              assert first >= start
+              assert last <= end
+          PY
+
+      - name: Persist raw OOS evidence before evaluation
+        run: |
+          set -euo pipefail
+          mkdir -p raw-evidence
+          cp -R fresh raw-evidence/
+          cp             docs/shared/evidence/QORE_SHARED_STI2_V2_SHORT_RESEARCH_OOS_PREREGISTRATION_001.json             raw-evidence/
+          printf '%s\n' "${GITHUB_SHA}" > raw-evidence/code-git-sha.txt
+          (
+            cd raw-evidence
+            find . -type f ! -name SHA256SUMS -print0               | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-sti2-v2-short-oos-raw-${{ github.sha }}
+          path: raw-evidence/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Evaluate frozen V1 and V2 on same OOS
+        run: |
+          set -euo pipefail
+          python scripts/shared_sti2_v2_short_oos_eval.py             --r8-nas input/r8/fresh/NAS100/market-evidence.json             --r8-sp input/r8/fresh/SP500/market-evidence.json             --r8-us input/r8/fresh/US30/market-evidence.json             --oos-nas fresh/NAS100/market-evidence.json             --oos-sp fresh/SP500/market-evidence.json             --oos-us fresh/US30/market-evidence.json             --output result/sti2-v2-short-oos.json             | tee result/summary.json
+
+      - name: Validate scientific disposition without forcing PASS
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/sti2-v2-short-oos.json").read_text())
+          assert p["status"] in {
+              "STI2_V2_SHORT_RESEARCH_OOS_PASS",
+              "STI2_V2_SHORT_RESEARCH_OOS_FALSIFIED",
+          }
+          assert p["sample_count"] > 0
+          assert p["source_materialized_count"] == p["sample_count"]
+          assert p["v1_control"]["sample_count"] == p["v2_treatment"]["sample_count"]
+          g=p["governance"]
+          assert g["same_observation_universe"] is True
+          assert g["same_target_definition"] is True
+          assert g["both_source_arms_materialized_before_target_scoring"] is True
+          assert g["future_market_used_for_inference"] is False
+          assert g["oos_used_for_policy_fit"] is False
+          assert g["oos_burned_after_open"] is True
+          assert g["temporal_replication_claim_authorized"] is False
+          assert g["protected_certification_holdout_opened"] is False
+          assert g["productive_authority"] is False
+          PY
+
+      - name: Bind final evidence
+        run: |
+          set -euo pipefail
+          cp fresh/EVIDENCE-SHA256SUMS result/EVIDENCE-SHA256SUMS
+          cp             docs/shared/evidence/QORE_SHARED_STI2_V2_SHORT_RESEARCH_OOS_PREREGISTRATION_001.json             result/preregistration.json
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0               | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-sti2-v2-short-oos-result-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report short OOS
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p=json.loads(Path("result/sti2-v2-short-oos.json").read_text())
+          a=p["v1_control"]; b=p["v2_treatment"]
+          body="\n".join([
+              "## Shared STI-2 — V2 Short Research OOS",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- disposition: **{p['status']}**",
+              f"- samples: **{p['sample_count']}**",
+              f"- V1 precision/recall: **{a['precision_bps']}/{a['recall_bps']} bps**",
+              f"- V2 precision/recall: **{b['precision_bps']}/{b['recall_bps']} bps**",
+              f"- V2 recall uplift vs V1 same OOS: **{p['v2_recall_uplift_vs_v1_same_oos_bps']} bps**",
+              f"- gates: **{p['gates']}**",
+              "- temporal replication claim: **False**",
+              "- protected certification holdout opened: **False**",
+              "- productive authority: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md

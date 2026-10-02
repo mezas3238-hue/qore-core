@@ -1,0 +1,137 @@
+name: QORE Shared A MC20 Operational Stability Binding
+
+concurrency:
+  group: qore-shared-a-mc20-operational-stability-binding
+  cancel-in-progress: false
+
+on:
+  push:
+    branches:
+      - agent/shared-a-cognitive-science-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/stability_operational_binding.py
+      - tests/infrastructure/test_core_stack_v2_stability_operational_binding.py
+      - scripts/shared_mc20_operational_stability_binding.py
+      - .github/workflows/qore-shared-a-mc20-operational-stability-binding.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  A_FOUNDATION_RUN_ID: "36764891693"
+  A_FOUNDATION_ARTIFACT_ID: "11120781116"
+  A_FOUNDATION_SHA: "c42500916d694ae701a2365932ecc08f2e4cad0f"
+  B_RUNTIME_RUN_ID: "36764365409"
+  B_RUNTIME_ARTIFACT_ID: "11120521150"
+  B_RUNTIME_SHA: "fe38fc8aaa80d973b5b055f73a1a9c38ec47fd47"
+
+jobs:
+  bind:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install and validate
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          mkdir -p input/a input/b result
+          ruff check \
+            src/qore/infrastructure/core_stack_v2/stability_operational_binding.py \
+            tests/infrastructure/test_core_stack_v2_stability_operational_binding.py \
+            scripts/shared_mc20_operational_stability_binding.py
+          mypy src/qore/infrastructure/core_stack_v2/stability_operational_binding.py
+          pytest -q \
+            tests/infrastructure/test_core_stack_v2_stability_engine.py \
+            tests/infrastructure/test_core_stack_v2_stability_operational_binding.py
+      - name: Verify immutable upstream runs
+        run: |
+          set -euo pipefail
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${A_FOUNDATION_RUN_ID}" --jq '.status')" = "completed"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${A_FOUNDATION_RUN_ID}" --jq '.conclusion')" = "success"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${A_FOUNDATION_RUN_ID}" --jq '.head_sha')" = "${A_FOUNDATION_SHA}"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${B_RUNTIME_RUN_ID}" --jq '.status')" = "completed"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${B_RUNTIME_RUN_ID}" --jq '.conclusion')" = "success"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${B_RUNTIME_RUN_ID}" --jq '.head_sha')" = "${B_RUNTIME_SHA}"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${A_FOUNDATION_ARTIFACT_ID}" --jq '.expired')" = "false"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${B_RUNTIME_ARTIFACT_ID}" --jq '.expired')" = "false"
+      - name: Recover exact sealed evidence
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${A_FOUNDATION_ARTIFACT_ID}/zip" > a.zip
+          unzip -q a.zip -d input/a
+          (cd input/a && sha256sum -c SHA256SUMS)
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${B_RUNTIME_ARTIFACT_ID}/zip" > b.zip
+          unzip -q b.zip -d input/b
+          (cd input/b && sha256sum -c SHA256SUMS)
+          test -f input/a/mc20-stability-engine-real-replay.json
+          test -f input/b/shared-b-core-broker-real-replication.json
+      - name: Bind operational stability domains
+        run: |
+          python scripts/shared_mc20_operational_stability_binding.py \
+            --a-foundation input/a/mc20-stability-engine-real-replay.json \
+            --b-runtime input/b/shared-b-core-broker-real-replication.json \
+            --output result/mc20-operational-stability-binding.json \
+            | tee result/summary.json
+      - name: Validate completion
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/mc20-operational-stability-binding.json").read_text())
+          assert p["status"] == "MC20_STABILITY_ENGINE_COMPLETED_AND_PROVEN"
+          assert p["market_cognition_systemic_real_bound"] is True
+          assert p["qore_core_operational_telemetry_bound"] is True
+          assert p["provider_broker_operational_telemetry_bound"] is True
+          assert p["domains_distinct"] is True
+          assert p["market_price_used_as_core_health_proxy"] is False
+          assert p["market_price_used_as_provider_health_proxy"] is False
+          assert p["same_timestamp_cross_domain_fusion_claimed"] is False
+          assert p["states_are_trading_commands"] is False
+          assert p["productive_authority"] is False
+          assert p["mc20_completed_and_proven"] is True
+          assert p["master_ledger_mutated"] is False
+          assert p["protected_certification_holdout_opened"] is False
+          PY
+      - name: Seal
+        run: |
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (cd result && find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-a-mc20-operational-stability-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Report MC20
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p=json.loads(Path("result/mc20-operational-stability-binding.json").read_text())
+          body="\n".join([
+              "## Shared A MC-20 — Operational Stability Binding",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- disposition: **{p['status']}**",
+              "- MARKET / COGNITION / SYSTEMIC real binding: **Preserved**",
+              f"- QORE Core operational state: **{p['qore_core_state']}**",
+              f"- Provider/Broker operational state: **{p['provider_broker_state']}**",
+              "- market price used as operational-health proxy: **False**",
+              "- synthetic same-timestamp fusion claimed: **False**",
+              "- trading / execution / Risk / sizing authority: **None**",
+              "- MC-20 completed-and-proven: **True**",
+              "- protected certification holdout opened: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md

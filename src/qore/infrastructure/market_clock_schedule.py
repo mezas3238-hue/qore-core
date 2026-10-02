@@ -261,6 +261,29 @@ def _resolve_local_boundary(
     return unique[0]
 
 
+def resolve_wall_clock_boundary_utc(
+    *,
+    local_date: date,
+    boundary: WallClockBoundary,
+    timezone_name: str,
+) -> datetime | None:
+    """Resolve one local wall-clock boundary through the canonical DST guard."""
+
+    if type(local_date) is not date:
+        raise MarketClockScheduleValidationError(
+            "local_date must be exact date"
+        )
+    if not isinstance(boundary, WallClockBoundary):
+        raise MarketClockScheduleValidationError(
+            "boundary must be WallClockBoundary"
+        )
+    return _resolve_local_boundary(
+        local_date=local_date,
+        boundary=boundary,
+        zone=_zone(timezone_name),
+    )
+
+
 def derive_wall_clock_transitions(
     *,
     simulated_start: datetime,

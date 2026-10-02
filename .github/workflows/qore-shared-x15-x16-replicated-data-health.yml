@@ -1,0 +1,142 @@
+name: QORE Shared X15 X16 Replicated Data Health
+
+concurrency:
+  group: qore-shared-x15-x16-replicated-data-health
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/shared_data_health_intelligence.py
+      - tests/infrastructure/test_core_stack_v2_shared_data_health_intelligence.py
+      - scripts/shared_x15_x16_replicated_data_health.py
+      - .github/workflows/qore-shared-x15-x16-replicated-data-health.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  replicated-proof:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Validate X15 X16 engine
+        run: |
+          set -euo pipefail
+          mkdir -p result input/r8 input/r6 input/r5
+          ruff check             src/qore/infrastructure/core_stack_v2/shared_data_health_intelligence.py             tests/infrastructure/test_core_stack_v2_shared_data_health_intelligence.py             scripts/shared_x15_x16_replicated_data_health.py
+          mypy             src/qore/infrastructure/core_stack_v2/shared_data_health_intelligence.py
+          python -m py_compile             src/qore/infrastructure/core_stack_v2/shared_data_health_intelligence.py             scripts/shared_x15_x16_replicated_data_health.py
+          pytest -q             tests/infrastructure/test_core_stack_v2_shared_data_health_intelligence.py             --junitxml=result/junit.xml
+
+      - name: Recover immutable R8 R6 R5 market evidence
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10402199719/zip" > r8.zip
+          unzip -q r8.zip -d input/r8
+          (cd input/r8 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          unzip -q r6.zip -d input/r6
+          (cd input/r6 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" > r5.zip
+          unzip -q r5.zip -d input/r5
+          (cd input/r5 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+      - name: Execute replicated real-data health proof
+        run: |
+          set -euo pipefail
+          python scripts/shared_x15_x16_replicated_data_health.py             --r8-nas input/r8/fresh/NAS100/market-evidence.json             --r8-sp input/r8/fresh/SP500/market-evidence.json             --r8-us input/r8/fresh/US30/market-evidence.json             --r6-nas input/r6/fresh/NAS100/market-evidence.json             --r6-sp input/r6/fresh/SP500/market-evidence.json             --r6-us input/r6/fresh/US30/market-evidence.json             --r5-nas input/r5/fresh/NAS100/market-evidence.json             --r5-sp input/r5/fresh/SP500/market-evidence.json             --r5-us input/r5/fresh/US30/market-evidence.json             --output result/x15-x16-replicated-data-health.json             | tee result/summary.json
+
+      - name: Enforce deterministic proof
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/x15-x16-replicated-data-health.json").read_text())
+          assert p["status"] == "COMPLETED_AND_PROVEN_REPLICATED_REAL_DATA"
+          assert p["all_pass"] is True
+          assert p["proof"]["real_data_bound"] is True
+          assert p["proof"]["causal_replay_executed"] is True
+          assert p["proof"]["fault_injection_stress"] is True
+          assert p["proof"]["temporal_replication_r8_r6_r5"] is True
+          assert p["proof"]["market_closed_distinguished_from_feed_failure"] is True
+          assert p["proof"]["future_evidence_fails_closed"] is True
+          assert p["proof"]["roll_ambiguity_fails_closed"] is True
+          assert p["proof"]["identity_ambiguity_fails_closed"] is True
+          assert p["proof"]["provider_anomaly_fails_closed"] is True
+          for partition in ("r8","r6","r5"):
+              for market in ("NAS100","SP500","US30"):
+                  row=p["partitions"][partition][market]
+                  assert row["sample_count"] > 0
+                  assert row["all_pass"] is True
+          g=p["governance"]
+          assert g["protected_certification_holdout_opened"] is False
+          assert g["productive_authority"] is False
+          PY
+
+      - name: Bind evidence
+        run: |
+          set -euo pipefail
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0               | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-x15-x16-data-health-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report X15 X16 proof
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p=json.loads(Path("result/x15-x16-replicated-data-health.json").read_text())
+          samples=sum(
+              int(row["sample_count"])
+              for rows in p["partitions"].values()
+              for row in rows.values()
+          )
+          body="\n".join([
+              "## Shared X-15 / X-16 — Replicated Data Health + Freshness",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- disposition: **{p['status']}**",
+              f"- real source samples: **{samples}** across R8/R6/R5 × NAS100/SP500/US30",
+              "- fault injection: **PASS**",
+              "- market closed distinguished from feed failure: **PASS**",
+              "- future/duplicate/out-of-order/identity/roll/provider anomalies fail closed: **PASS**",
+              "- protected certification holdout opened: **False**",
+              "- productive authority: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md

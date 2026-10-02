@@ -1,0 +1,86 @@
+name: QORE Shared A MC06 Latent State Foundation
+
+concurrency:
+  group: qore-shared-a-mc06-latent-state-foundation
+  cancel-in-progress: false
+
+on:
+  push:
+    branches:
+      - agent/shared-a-cognitive-science-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/latent_state_reconstruction.py
+      - tests/infrastructure/test_core_stack_v2_latent_state_reconstruction.py
+      - scripts/shared_mc06_latent_state_real_replay.py
+      - .github/workflows/qore-shared-a-mc06-latent-state-foundation.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  replay:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install and validate
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          mkdir -p input/{r6,r5} result
+          ruff check src/qore/infrastructure/core_stack_v2/latent_state_reconstruction.py tests/infrastructure/test_core_stack_v2_latent_state_reconstruction.py scripts/shared_mc06_latent_state_real_replay.py
+          mypy src/qore/infrastructure/core_stack_v2/latent_state_reconstruction.py
+          pytest -q tests/infrastructure/test_core_stack_v2_latent_state_reconstruction.py
+      - name: Recover immutable source evidence
+        run: |
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          unzip -q r6.zip -d input/r6
+          (cd input/r6 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" > r5.zip
+          unzip -q r5.zip -d input/r5
+          (cd input/r5 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+      - name: Replay MC06
+        run: |
+          python scripts/shared_mc06_latent_state_real_replay.py             --r6-nas input/r6/fresh/NAS100/market-evidence.json             --r6-sp input/r6/fresh/SP500/market-evidence.json             --r6-us input/r6/fresh/US30/market-evidence.json             --r5-nas input/r5/fresh/NAS100/market-evidence.json             --r5-sp input/r5/fresh/SP500/market-evidence.json             --r5-us input/r5/fresh/US30/market-evidence.json             --output result/mc06-latent-state-real-replay.json             | tee result/summary.json
+      - name: Validate bounded disposition
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/mc06-latent-state-real-replay.json").read_text())
+          assert p["status"] == "MC06_LATENT_STATE_ENGINE_REAL_DATA_BOUND_PASS"
+          assert p["actor_identity_claimed"] is False
+          assert p["latent_predictive_value_demonstrated"] is False
+          assert p["latent_calibration_demonstrated"] is False
+          assert p["mc06_completed_and_proven"] is False
+          PY
+      - name: Seal
+        run: |
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (cd result && find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-a-mc06-latent-state-${{ github.sha }}
+          path: result/
+          retention-days: 90
+      - name: Report
+        run: |
+          {
+            echo "## Shared A MC-06 — Latent State foundation"
+            echo
+            echo "- source-only real replay: **PASS**"
+            echo "- uncertainty / provenance: **Present**"
+            echo "- actor identity claimed: **False**"
+            echo "- predictive value / calibration demonstrated: **False / False**"
+            echo "- MC-06 completed-and-proven: **False**"
+          } > result/issue-comment.md
+          gh issue comment 638 --body-file result/issue-comment.md

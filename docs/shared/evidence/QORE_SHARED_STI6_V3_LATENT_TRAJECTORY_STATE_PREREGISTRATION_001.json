@@ -1,0 +1,65 @@
+{
+  "identity": "QORE_SHARED_STI6_V3_LATENT_TRAJECTORY_STATE_PREREGISTRATION_001",
+  "workstream": "STI-6",
+  "generation": "V3",
+  "status": "PREREGISTERED_RESEARCH_ONLY",
+  "parent_v2": {
+    "disposition": "STI6_V2_FALSIFIED_ON_CONSUMED_R6",
+    "failure_mode": "HIGH_RECALL_LOW_SPECIFICITY_FALSE_CONTINUATION",
+    "threshold_rescue_allowed": false,
+    "r5_opened_by_v2": false
+  },
+  "scientific_hypothesis": {
+    "name": "UNSUPERVISED_LATENT_TRAJECTORY_STATES",
+    "claim": "Positive tails may occupy recurring multivariate trajectory states that static or monotone score thresholds cannot isolate.",
+    "state_identity_before_outcomes": "LATENT_TRAJECTORY_STATE_N",
+    "human_tail_interpretation_before_validation": false,
+    "cluster_count": 6,
+    "sequence_window": 5,
+    "features": [
+      "continuation_velocity_bps",
+      "tail_velocity_bps",
+      "local_expansion_bps",
+      "expansion_persistence_bps",
+      "failure_hazard_bps",
+      "world_coherence_bps",
+      "uncertainty_bps"
+    ]
+  },
+  "stage_1_unsupervised_representation": {
+    "partition": "R8_SOURCE_ONLY",
+    "outcomes_allowed": false,
+    "algorithm": "DETERMINISTIC_STANDARDIZED_KMEANS",
+    "iterations": 25,
+    "initialization": "DETERMINISTIC_FARTHEST_POINT",
+    "seed_used": false
+  },
+  "stage_2_development_mapping": {
+    "partition": "R6_CONSUMED",
+    "purpose": "Associate already-formed latent states with generic winners and >=2R positive tails.",
+    "state_formation_may_change_after_r6_outcomes": false,
+    "minimum_state_visitors": 10,
+    "continuation_state_winner_precision_bps_min": 6000,
+    "tail_state_tail_precision_bps_min": 6000
+  },
+  "stage_3_temporal_validation": {
+    "partition": "R5_CONSUMED_TEMPORAL_VALIDATION",
+    "state_centroids_frozen": true,
+    "selected_state_ids_frozen": true,
+    "gates": {
+      "winner_precision_bps_min": 6000,
+      "winner_recall_bps_min": 4000,
+      "positive_tail_precision_bps_min": 6000,
+      "positive_tail_recall_bps_min": 3000,
+      "false_continuation_on_nonwinners_bps_max": 4000
+    }
+  },
+  "governance": {
+    "future_market_used_for_inference": false,
+    "r5_used_for_state_selection": false,
+    "r5_used_for_cluster_fit": false,
+    "protected_certification_holdout_opened": false,
+    "productive_authority": false,
+    "mandatory_hold_authority": false
+  }
+}

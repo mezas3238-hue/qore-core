@@ -1,0 +1,93 @@
+name: QORE Shared VT08 Imminent Loss Transition Hazard V14
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - scripts/vt08_index_shared_imminent_loss_transition_hazard_v14.py
+      - .github/workflows/qore-shared-vt08-imminent-loss-transition-hazard-v14.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  imminent-loss-transition-hazard-v14:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Checkout Shared
+        uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install research dependencies
+        run: |
+          pip install -e ".[dev]"
+          pip install "numpy>=2,<3" "scikit-learn>=1.5,<2"
+      - name: Static validation
+        run: |
+          ruff check scripts/vt08_index_shared_imminent_loss_transition_hazard_v14.py
+          python -m py_compile scripts/vt08_index_shared_imminent_loss_transition_hazard_v14.py
+      - name: Download frozen V6 consumed ledger
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-shared-vt08-stop-target-discrimination-v6-1a534d0ae735efef4dcbc0c0be4b110ceaa80501
+          path: artifacts/v6
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 36131607443
+      - name: Run V14 imminent loss transition hazard
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/v14
+          python scripts/vt08_index_shared_imminent_loss_transition_hazard_v14.py \
+            --v6-json artifacts/v6/vt08-index-shared-stop-target-discrimination-v6.json \
+            --out artifacts/v14/vt08-index-shared-imminent-loss-transition-hazard-v14.json \
+            | tee artifacts/v14/summary.json
+      - name: Validate V14 governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("artifacts/v14/vt08-index-shared-imminent-loss-transition-hazard-v14.json").read_text())
+          assert p["identity"] == "QORE_SHARED_VT08_IMMINENT_LOSS_TRANSITION_HAZARD_V14"
+          assert p["source_v6_run"] == 36131607443
+          assert p["source_v13_run"] == 36141181714
+          assert p["hazard_horizon_bars"] == 6
+          assert p["research_only"] is True
+          assert p["consumed_evidence_only"] is True
+          assert p["imminent_transition_training_target"] is True
+          assert p["current_position_r_used"] is False
+          assert p["trade_age_used"] is False
+          assert p["runtime_outcome_input"] is False
+          assert p["future_market_input"] is False
+          assert p["sizing_used"] is False
+          assert p["risk_weighting_used"] is False
+          assert p["runtime_actuation"] is False
+          for key in ("five_year","recent_two_year","r66_consumed_failed_holdout"):
+              assert p["windows"][key]["observations"] > 0
+              assert p["windows"][key]["status"] in {"ADMIT_FOR_NEXT_RESEARCH","REJECT"}
+          print(json.dumps({
+              "validation_pass":p["validation_pass"],
+              "threshold":p["model"]["threshold"],
+              "training":p["training_threshold_metrics"],
+              "windows":p["windows"],
+              "top_coefficients":p["model"]["coefficients_by_absolute_magnitude"][:12],
+          },sort_keys=True))
+          PY
+      - name: Bind result
+        run: |
+          cd artifacts/v14
+          echo "$GITHUB_SHA" > shared-git-sha.txt
+          echo "36131607443" > source-v6-run.txt
+          find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+          sha256sum -c SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-vt08-imminent-loss-transition-hazard-v14-${{ github.sha }}
+          path: artifacts/v14/
+          if-no-files-found: error
+          retention-days: 90

@@ -4,6 +4,7 @@ import socket
 import ssl
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
+from enum import IntEnum
 from importlib import import_module
 from queue import Empty, Queue
 from threading import Event, Lock, Thread
@@ -36,6 +37,40 @@ class CTraderOpenApiProtocolError(CTraderOpenApiClientError):
     """The provider returned an unexpected or unsafe protocol message."""
 
     __slots__ = ()
+
+
+class CTraderOpenApiPermissionScope(IntEnum):
+    """Exact cTrader OAuth permission scope required by one runtime."""
+
+    VIEW = 0
+    TRADE = 1
+
+
+CTRADER_METADATA_READ_ONLY_MESSAGE_PAIRS = (
+    ("ProtoOAAssetListReq", "ProtoOAAssetListRes"),
+    ("ProtoOAAssetClassListReq", "ProtoOAAssetClassListRes"),
+    ("ProtoOASymbolCategoryListReq", "ProtoOASymbolCategoryListRes"),
+    ("ProtoOASymbolByIdReq", "ProtoOASymbolByIdRes"),
+    ("ProtoOASymbolsListReq", "ProtoOASymbolsListRes"),
+)
+
+CTRADER_METADATA_READ_ONLY_REQUEST_MESSAGES = frozenset(
+    request_name
+    for request_name, _response_name in CTRADER_METADATA_READ_ONLY_MESSAGE_PAIRS
+)
+
+
+def ctrader_permission_scope_matches(
+    observed_scope: object,
+    required_scope: CTraderOpenApiPermissionScope,
+) -> bool:
+    """Return True only when the provider token has the exact required scope."""
+
+    return (
+        type(observed_scope) is int
+        and isinstance(required_scope, CTraderOpenApiPermissionScope)
+        and observed_scope == int(required_scope)
+    )
 
 
 @dataclass(frozen=True, slots=True, repr=False)
@@ -215,15 +250,18 @@ class _SdkBindings:
             "ProtoOAAccountAuthReq",
             "ProtoOAAccountAuthRes",
             "ProtoOANewOrderReq",
-            "ProtoOASymbolsListReq",
-            "ProtoOASymbolsListRes",
-            "ProtoOASymbolByIdReq",
-            "ProtoOASymbolByIdRes",
+            *(
+                name
+                for pair in CTRADER_METADATA_READ_ONLY_MESSAGE_PAIRS
+                for name in pair
+            ),
             "ProtoOACancelOrderReq",
             "ProtoOAOrderListReq",
             "ProtoOAOrderDetailsReq",
             "ProtoOAReconcileReq",
             "ProtoOAGetTrendbarsReq",
+            "ProtoOAGetTickDataReq",
+            "ProtoOAGetTickDataRes",
             "ProtoOASubscribeSpotsReq",
             "ProtoOASpotEvent",
             "ProtoOAExecutionEvent",
@@ -285,6 +323,7 @@ class SpotwareCTraderOpenApiClient:
         "_access_token",
         "_refresh_token",
         "_request_timeout_seconds",
+        "_required_permission_scope",
         "_server_identity_verifier",
     )
 
@@ -296,6 +335,9 @@ class SpotwareCTraderOpenApiClient:
         *,
         credentials: CTraderOpenApiCredentials,
         request_timeout_seconds: float = 10.0,
+        required_permission_scope: CTraderOpenApiPermissionScope = (
+            CTraderOpenApiPermissionScope.TRADE
+        ),
         server_identity_verifier: CTraderTlsServerIdentityVerifier | None = None,
         _bindings: _SdkBindings | None = None,
     ) -> None:
@@ -303,12 +345,17 @@ class SpotwareCTraderOpenApiClient:
             raise CTraderOpenApiProtocolError("credentials must be CTraderOpenApiCredentials")
         if not isinstance(request_timeout_seconds, float) or request_timeout_seconds <= 0.0:
             raise CTraderOpenApiProtocolError("request_timeout_seconds must be a positive float")
+        if not isinstance(required_permission_scope, CTraderOpenApiPermissionScope):
+            raise CTraderOpenApiProtocolError(
+                "required_permission_scope must be CTraderOpenApiPermissionScope"
+            )
         bindings = _bindings or _SdkBindings()
         self._bindings = bindings
         self._credentials = credentials
         self._access_token = credentials.access_token
         self._refresh_token = credentials.refresh_token
         self._request_timeout_seconds = request_timeout_seconds
+        self._required_permission_scope = required_permission_scope
         self._server_identity_verifier = (
             server_identity_verifier or verify_ctrader_tls_server_identity
         )
@@ -528,10 +575,17 @@ class SpotwareCTraderOpenApiClient:
                 return accounts
         account_entries = getattr(accounts.value, "ctidTraderAccount", None)
         permission_scope = getattr(accounts.value, "permissionScope", None)
-        if permission_scope != 1 or account_entries is None:
+        if (
+            not ctrader_permission_scope_matches(
+                permission_scope,
+                self._required_permission_scope,
+            )
+            or account_entries is None
+        ):
             return Failure(
                 CTraderOpenApiProtocolError(
-                    "cTrader token lacks trading permission or account evidence"
+                    "cTrader token permission scope or account evidence "
+                    "does not match this runtime"
                 )
             )
         selected: object | None = None

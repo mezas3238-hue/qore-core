@@ -1,0 +1,149 @@
+name: QORE Shared X13 Attention Budget Replication
+
+concurrency:
+  group: qore-shared-x13-attention-budget
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/shared_attention_budget.py
+      - tests/infrastructure/test_core_stack_v2_shared_attention_budget.py
+      - scripts/shared_x13_attention_budget_replay.py
+      - .github/workflows/qore-shared-x13-attention-budget.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  replicate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Validate attention-budget engine
+        run: |
+          set -euo pipefail
+          mkdir -p result input/pure input/r8 input/r6 input/r5
+          ruff check             src/qore/infrastructure/core_stack_v2/shared_attention_budget.py             tests/infrastructure/test_core_stack_v2_shared_attention_budget.py             scripts/shared_x13_attention_budget_replay.py
+          mypy src/qore/infrastructure/core_stack_v2/shared_attention_budget.py
+          python -m py_compile             src/qore/infrastructure/core_stack_v2/shared_attention_budget.py             scripts/shared_x13_attention_budget_replay.py
+          pytest -q             tests/infrastructure/test_core_stack_v2_shared_attention_budget.py             --junitxml=result/junit.xml
+
+      - name: Recover immutable position and market evidence
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10799064861/zip" > pure.zip
+          unzip -q pure.zip -d input/pure
+          (cd input/pure && sha256sum -c SHA256SUMS)
+          test -f input/pure/r8.json
+          test -f input/pure/r6.json
+          test -f input/pure/r5.json
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10402199719/zip" > r8.zip
+          unzip -q r8.zip -d input/r8
+          (cd input/r8 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          unzip -q r6.zip -d input/r6
+          (cd input/r6 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" > r5.zip
+          unzip -q r5.zip -d input/r5
+          (cd input/r5 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+      - name: Execute replicated attention proof
+        run: |
+          set -euo pipefail
+          python scripts/shared_x13_attention_budget_replay.py             --r8-trades input/pure/r8.json             --r8-nas input/r8/fresh/NAS100/market-evidence.json             --r8-sp input/r8/fresh/SP500/market-evidence.json             --r8-us input/r8/fresh/US30/market-evidence.json             --r6-trades input/pure/r6.json             --r6-nas input/r6/fresh/NAS100/market-evidence.json             --r6-sp input/r6/fresh/SP500/market-evidence.json             --r6-us input/r6/fresh/US30/market-evidence.json             --r5-trades input/pure/r5.json             --r5-nas input/r5/fresh/NAS100/market-evidence.json             --r5-sp input/r5/fresh/SP500/market-evidence.json             --r5-us input/r5/fresh/US30/market-evidence.json             --output result/x13-attention-budget.json             | tee result/summary.json
+
+      - name: Enforce replicated attention proof
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/x13-attention-budget.json").read_text())
+          assert p["status"] == "X13_COMPLETED_AND_PROVEN_REPLICATED_REAL_POSITIONS"
+          assert p["all_pass"] is True
+          for partition in ("r8","r6","r5"):
+              row=p["partitions"][partition]
+              n=row["source_observation_count"]
+              assert n > 0
+              assert row["open_position_priority_pass_count"] == n
+              assert row["data_health_veto_pass_count"] == n
+              assert row["budget_invariant_pass_count"] == n
+              assert row["causal_cutoff_pass_count"] == n
+              assert row["all_pass"] is True
+          proof=p["proof"]
+          assert proof["owner_priority_law_enforced"] is True
+          assert proof["attention_budget_never_exceeded"] is True
+          assert proof["data_health_can_veto_highest_priority"] is True
+          assert proof["trade_outcome_value_used_for_ranking"] is False
+          g=p["governance"]
+          assert g["protected_certification_holdout_opened"] is False
+          assert g["productive_authority"] is False
+          PY
+
+      - name: Bind evidence
+        run: |
+          set -euo pipefail
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0               | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-x13-attention-budget-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report X13 proof
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p=json.loads(Path("result/x13-attention-budget.json").read_text())
+          observations=sum(
+              int(row["source_observation_count"])
+              for row in p["partitions"].values()
+          )
+          body="\n".join([
+              "## Shared X-13 — Global Attention Budget / Value of Information",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- disposition: **{p['status']}**",
+              f"- real causal position observations: **{observations}** across R8/R6/R5",
+              "- open positions outrank background under scarcity: **PASS**",
+              "- data-health veto overrides priority: **PASS**",
+              "- attention budget never exceeded: **PASS**",
+              "- outcome value used for ranking: **False**",
+              "- protected certification holdout opened: **False**",
+              "- productive authority: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md

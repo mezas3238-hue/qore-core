@@ -1,0 +1,143 @@
+name: QORE Shared WP05 V12 Source Anchors
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - docs/shared/QORE_SHARED_WP05_V12_SOURCE_ONLY_EVALUATION_ANCHOR_PREREGISTRATION.md
+      - src/qore/infrastructure/core_stack_v2/active_perception_v12_source_anchors.py
+      - scripts/shared_wp05_active_perception_v12_source_anchors.py
+      - tests/infrastructure/test_core_stack_v2_active_perception_v12_source_anchors.py
+      - .github/workflows/qore-shared-wp05-active-perception-v12-source-anchors.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+concurrency:
+  group: qore-shared-wp05-v12-source-anchors-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  V12_R8_MARKET_EVIDENCE_ARTIFACT_ID: "10402199719"
+  V12_FROZEN_MANIFEST_SHA256: "2f18b9f11d5893effa46ac85c712edd6646d1d90a9de521b235143e42155d191"
+
+jobs:
+  source-anchors:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Validate source-anchor protocol
+        run: |
+          set -euo pipefail
+          ruff check             src/qore/infrastructure/core_stack_v2/active_perception_v12_source_anchors.py             scripts/shared_wp05_active_perception_v12_source_anchors.py             tests/infrastructure/test_core_stack_v2_active_perception_v12_source_anchors.py
+          mypy             src/qore/infrastructure/core_stack_v2/active_perception_v12_source_anchors.py
+          python -m py_compile             src/qore/infrastructure/core_stack_v2/active_perception_v12_source_anchors.py             scripts/shared_wp05_active_perception_v12_source_anchors.py
+          pytest -q             tests/infrastructure/test_core_stack_v2_active_perception_v12_source_anchors.py
+
+      - name: Recover immutable consumed R8 market evidence
+        run: |
+          set -euo pipefail
+          mkdir -p input/r8 result
+          for attempt in 1 2 3 4; do
+            if gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${V12_R8_MARKET_EVIDENCE_ARTIFACT_ID}/zip" > r8.zip; then
+              break
+            fi
+            rm -f r8.zip
+            sleep $((attempt * 30))
+          done
+          test -s r8.zip
+          unzip -q r8.zip -d input/r8
+          (cd input/r8 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+      - name: Build exact source-only evaluation anchors
+        run: |
+          set -euo pipefail
+          python scripts/shared_wp05_active_perception_v12_source_anchors.py             --r8-nas input/r8/fresh/NAS100/market-evidence.json             --r8-sp input/r8/fresh/SP500/market-evidence.json             --r8-us input/r8/fresh/US30/market-evidence.json             --provider-symbol USTEC             --output result/wp05-v12-source-anchors.json             | tee result/source-anchor-summary.json
+
+      - name: Enforce frozen source-anchor identity
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          p=json.loads(Path("result/wp05-v12-source-anchors.json").read_text())
+          assert p["identity"] == (
+              "QORE_SHARED_WP05_ACTIVE_PERCEPTION_V12_SOURCE_ANCHORS_001"
+          )
+          assert p["partition"] == "r8"
+          assert p["source_count"] == 6804
+          assert p["source_min"] == "2016-04-20T14:00:00.000000+00:00"
+          assert p["source_max"] == "2018-05-18T19:30:00.000000+00:00"
+          assert p["acquisition_manifest_sha256"] == os.environ[
+              "V12_FROZEN_MANIFEST_SHA256"
+          ]
+          assert len(p["source_times"]) == 6804
+          assert p["source_times"] == sorted(set(p["source_times"]))
+          assert len(p["source_anchor_sha256"]) == 64
+          assert p["target_or_outcome_used"] is False
+          assert p["r6_r5_read"] is False
+          assert p["fresh_holdout_opened"] is False
+          assert p["shared_methodology_authority"] is False
+          assert p["shared_sizing_authority"] is False
+          assert p["shared_risk_authority"] is False
+          assert p["shared_order_authority"] is False
+          assert p["shared_execution_authority"] is False
+          PY
+
+      - name: Seal source-anchor artifact
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$GITHUB_SHA" > result/git-sha.txt
+          printf '%s\n' "$GITHUB_RUN_ID" > result/run-id.txt
+          (
+            cd result
+            sha256sum               wp05-v12-source-anchors.json               source-anchor-summary.json               git-sha.txt               run-id.txt > SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-wp05-v12-source-anchors-${{ github.sha }}
+          path: result
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report source-anchor freeze
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          p=json.loads(Path("result/wp05-v12-source-anchors.json").read_text())
+          lines=[
+              "## WP-05 V12 source-only evaluation anchors FROZEN",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- GitHub Actions run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- R8 evaluation anchors: **{p['source_count']}**",
+              f"- range: **{p['source_min']} → {p['source_max']}**",
+              f"- source-anchor SHA256: `{p['source_anchor_sha256']}`",
+              f"- frozen acquisition-manifest SHA256: `{p['acquisition_manifest_sha256']}`",
+              "- target/outcome read: **False**",
+              "- R6/R5 read: **False**",
+              "- fresh holdout opened: **False**",
+              "- anchors freeze evaluation time only; V12 representation admission remains pending",
+          ]
+          Path("result/issue-comment.md").write_text("\n".join(lines)+"\n")
+          PY
+          gh issue comment 643 --body-file result/issue-comment.md

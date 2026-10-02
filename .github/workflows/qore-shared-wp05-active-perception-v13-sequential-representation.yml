@@ -1,0 +1,252 @@
+name: QORE Shared WP05 V13 Sequential Representation Freeze
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - docs/shared/QORE_SHARED_WP05_V13_SEQUENTIAL_ACTIVE_PERCEPTION_PREREGISTRATION.md
+      - src/qore/infrastructure/core_stack_v2/active_perception_v13_sequential_representation.py
+      - scripts/shared_wp05_active_perception_v13_sequential_representation.py
+      - tests/infrastructure/test_core_stack_v2_active_perception_v13_sequential_representation.py
+      - .github/workflows/qore-shared-wp05-active-perception-v13-sequential-representation.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+concurrency:
+  group: qore-shared-wp05-v13-sequential-representation-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  V12_ACQUISITION_RUN_ID: "36454372776"
+  V12_SOURCE_INTEGRITY_RUN_ID: "36465280823"
+  V12_SOURCE_ANCHOR_RUN_ID: "36466493930"
+  V12_OBSERVABILITY_RUN_ID: "36469085575"
+  V12_GLOBAL_DATASET_SHA256: "ebbe30a887867bb917f0992b15e1600f9f06eccb07562b9625fcb9517fb381c8"
+  V12_SOURCE_ANCHOR_SHA256: "d5dda96fbaab9506e77bd803cf8b542250288e7d46091db1630f1fd8fb91839e"
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+      - name: Validate V13 sequential representation protocol
+        run: |
+          set -euo pipefail
+          ruff check             src/qore/infrastructure/core_stack_v2/active_perception_v13_sequential_representation.py             scripts/shared_wp05_active_perception_v13_sequential_representation.py             tests/infrastructure/test_core_stack_v2_active_perception_v13_sequential_representation.py
+          mypy             src/qore/infrastructure/core_stack_v2/active_perception_v13_sequential_representation.py
+          python -m py_compile             src/qore/infrastructure/core_stack_v2/active_perception_v13_sequential_representation.py             scripts/shared_wp05_active_perception_v13_sequential_representation.py
+          pytest -q             tests/infrastructure/test_core_stack_v2_active_perception_v13_sequential_representation.py
+
+  freeze:
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Shared
+        run: pip install -e .
+
+      - name: Download frozen raw BID/ASK acquisition
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ env.V12_ACQUISITION_RUN_ID }}
+          pattern: qore-shared-wp05-v12-full-r8-data-*
+          path: input/raw
+          merge-multiple: false
+
+      - name: Download authoritative source-integrity report
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ env.V12_SOURCE_INTEGRITY_RUN_ID }}
+          name: qore-shared-wp05-v12-source-integrity-746ae62329595f003711fdbbc3957a4e3a0a9989
+          path: input/integrity
+
+      - name: Download frozen source anchors
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ env.V12_SOURCE_ANCHOR_RUN_ID }}
+          name: qore-shared-wp05-v12-source-anchors-364d1725e181e8191fe2dec83b6e4457cb40434e
+          path: input/anchors
+
+      - name: Download frozen anchor observability
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ env.V12_OBSERVABILITY_RUN_ID }}
+          name: qore-shared-wp05-v12-anchor-observability-b061391ff7907b082d75b786a91568d69b9e8723
+          path: input/observability
+
+      - name: Verify immutable upstream evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -d '' sums < <(find input/raw -name SHA256SUMS -print0)
+          test "${#sums[@]}" -eq 16
+          for sumfile in "${sums[@]}"; do
+            (
+              cd "$(dirname "$sumfile")"
+              sha256sum -c SHA256SUMS
+            )
+          done
+          (cd input/anchors && sha256sum -c SHA256SUMS)
+          (cd input/observability && sha256sum -c SHA256SUMS)
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          integrity=json.loads(
+              Path("input/integrity/wp05-v12-source-integrity-report.json").read_text()
+          )
+          assert integrity["status"] == "green_source_integrity"
+          assert integrity["global_dataset_sha256"] == os.environ[
+              "V12_GLOBAL_DATASET_SHA256"
+          ]
+          anchors=json.loads(
+              Path("input/anchors/wp05-v12-source-anchors.json").read_text()
+          )
+          assert anchors["source_count"] == 6804
+          assert anchors["source_anchor_sha256"] == os.environ[
+              "V12_SOURCE_ANCHOR_SHA256"
+          ]
+          observability=json.loads(
+              Path(
+                  "input/observability/wp05-v12-anchor-observability-report.json"
+              ).read_text()
+          )
+          assert observability["status"] == "frozen"
+          assert observability["selected_staleness_limit_ms"] == 30000
+          assert observability["microstructure_windows_ms"] == [1000,5000,15000,60000]
+          assert observability["target_or_outcome_read"] is False
+          assert observability["r6_r5_read"] is False
+          assert observability["fresh_holdout_opened"] is False
+          PY
+
+      - name: Build exact 6804-anchor five-checkpoint trajectory
+        run: |
+          set -euo pipefail
+          mkdir -p result
+          python scripts/shared_wp05_active_perception_v13_sequential_representation.py             --raw-root input/raw             --anchor-manifest input/anchors/wp05-v12-source-anchors.json             --observability-report input/observability/wp05-v12-anchor-observability-report.json             --output result/wp05-v13-sequential-representation.json             | tee result/summary.json
+
+      - name: Validate source-only V13 representation result
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p=json.loads(
+              Path("result/wp05-v13-sequential-representation.json").read_text()
+          )
+          assert p["identity"] == (
+              "QORE_SHARED_WP05_SEQUENTIAL_ACTIVE_PERCEPTION_V13_REPRESENTATION_001"
+          )
+          assert p["status"] in {"source_only_frozen","source_only_rejected"}
+          assert p["partition"] == "r8"
+          assert p["row_count"] == 6804
+          assert len(p["rows"]) == 6804
+          assert p["checkpoints_minutes"] == [0,3,5,10,15]
+          assert p["base_feature_count"] == 46
+          assert p["trajectory_feature_count"] == 230
+          assert p["minimum_checkpoint_coverage_bps"] == 9500
+          assert len(p["checkpoint_usable_pair_count"]) == 5
+          assert len(p["checkpoint_usable_pair_coverage_bps"]) == 5
+          assert len(p["checkpoint_crossed_causal_quote_count"]) == 5
+          assert len(p["contract_fingerprint_sha256"]) == 64
+          assert len(p["rows_sha256"]) == 64
+          assert len(p["representation_artifact_fingerprint_sha256"]) == 64
+          if p["status"] == "source_only_frozen":
+              assert all(
+                  value >= 9500
+                  for value in p["checkpoint_usable_pair_coverage_bps"]
+              )
+          else:
+              assert any(
+                  value < 9500
+                  for value in p["checkpoint_usable_pair_coverage_bps"]
+              )
+          assert p["target_or_outcome_read"] is False
+          assert p["r6_r5_read"] is False
+          assert p["fresh_holdout_opened"] is False
+          assert p["shared_methodology_authority"] is False
+          assert p["shared_sizing_authority"] is False
+          assert p["shared_risk_authority"] is False
+          assert p["shared_order_authority"] is False
+          assert p["shared_execution_authority"] is False
+          PY
+
+      - name: Seal V13 source-only representation
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$GITHUB_SHA" > result/git-sha.txt
+          printf '%s\n' "$GITHUB_RUN_ID" > result/run-id.txt
+          (
+            cd result
+            sha256sum               wp05-v13-sequential-representation.json               summary.json               git-sha.txt               run-id.txt > SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-wp05-v13-sequential-representation-${{ github.sha }}
+          path: result
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report V13 source-only representation
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          p=json.loads(
+              Path("result/wp05-v13-sequential-representation.json").read_text()
+          )
+          lines=[
+              "## WP-05 V13 sequential source-only representation",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- GitHub Actions run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- status: **{p['status']}**",
+              f"- rows: **{p['row_count']} / 6804**",
+              f"- checkpoints: `{p['checkpoints_minutes']}`",
+              f"- usable pair counts: `{p['checkpoint_usable_pair_count']}`",
+              f"- usable coverage bps: `{p['checkpoint_usable_pair_coverage_bps']}`",
+              f"- crossed counts: `{p['checkpoint_crossed_causal_quote_count']}`",
+              f"- contract fingerprint: `{p['contract_fingerprint_sha256']}`",
+              f"- rows SHA256: `{p['rows_sha256']}`",
+              f"- artifact fingerprint: `{p['representation_artifact_fingerprint_sha256']}`",
+              "- target/outcome read: **False**",
+              "- R6/R5 read: **False**",
+              "- fresh holdout opened: **False**",
+          ]
+          if p["status"] == "source_only_frozen":
+              lines.append(
+                  "- all five checkpoint coverage gates passed; V13 target-aware R8 experiment may be bound to this exact artifact"
+              )
+          else:
+              lines.append(
+                  "- at least one checkpoint failed the 9500-bps observability gate; V13 target-aware R8 experiment remains CLOSED"
+              )
+          Path("result/issue-comment.md").write_text("\n".join(lines)+"\n")
+          PY
+          gh issue comment 643 --body-file result/issue-comment.md

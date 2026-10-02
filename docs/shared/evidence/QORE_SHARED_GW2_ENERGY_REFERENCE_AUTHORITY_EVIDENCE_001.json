@@ -1,0 +1,80 @@
+{
+  "identity": "QORE_SHARED_GW2_ENERGY_REFERENCE_AUTHORITY_EVIDENCE_001",
+  "as_of": "2026-09-30",
+  "purpose": "Bind provider-declared energy descriptions to authoritative economic reference objects without inferring tradable product construction.",
+  "authorities": [
+    {
+      "authority_id": "CME_WTI_REFERENCE",
+      "organization": "CME Group",
+      "url": "https://www.cmegroup.com/markets/energy/wti-crude-oil-futures.html",
+      "supports": "WTI is a U.S. oil blend and global oil benchmark; CME lists WTI futures products.",
+      "does_not_support": "That provider symbol XTIUSD is a CME CL/MCL/TCL future or any specific CME product."
+    },
+    {
+      "authority_id": "ICE_BRENT_REFERENCE",
+      "organization": "Intercontinental Exchange / ICE Futures Europe",
+      "url": "https://www.ice.com/brent-crude",
+      "supports": "Brent is a global crude benchmark and ICE administers/listings around the Brent complex.",
+      "does_not_support": "That provider symbol XBRUSD is ICE Brent futures, ICE Brent Index, or any specific ICE product."
+    },
+    {
+      "authority_id": "CME_HENRY_HUB_REFERENCE",
+      "organization": "CME Group / NYMEX",
+      "url": "https://www.cmegroup.com/rulebook/NYMEX/2/220.pdf",
+      "supports": "Henry Hub Natural Gas futures are a specifically located and specified natural-gas contract.",
+      "does_not_support": "That generic provider description Natural Gas means Henry Hub."
+    }
+  ],
+  "bindings": [
+    {
+      "provider_symbol": "XTIUSD",
+      "provider_description_expected": "WTI Light Crude Oil",
+      "reference_identity": "WTI_LIGHT_SWEET_CRUDE_OIL",
+      "reference_identity_status": "SUPPORTED_BY_PROVIDER_DESCRIPTION_AND_EXTERNAL_AUTHORITY",
+      "authority_ids": ["CME_WTI_REFERENCE"],
+      "tradable_product_identity_status": "UNRESOLVED",
+      "venue_status": "UNRESOLVED",
+      "contract_month_status": "NOT_ESTABLISHED",
+      "roll_semantics_status": "UNRESOLVED"
+    },
+    {
+      "provider_symbol": "XBRUSD",
+      "provider_description_expected": "Brent Crude Oil",
+      "reference_identity": "BRENT_CRUDE_OIL_BENCHMARK_FAMILY",
+      "reference_identity_status": "SUPPORTED_BY_PROVIDER_DESCRIPTION_AND_EXTERNAL_AUTHORITY",
+      "authority_ids": ["ICE_BRENT_REFERENCE"],
+      "tradable_product_identity_status": "UNRESOLVED",
+      "venue_status": "UNRESOLVED",
+      "contract_month_status": "NOT_ESTABLISHED",
+      "roll_semantics_status": "UNRESOLVED"
+    },
+    {
+      "provider_symbol": "XNGUSD",
+      "provider_description_expected": "Natural Gas",
+      "reference_identity": "GENERIC_NATURAL_GAS",
+      "reference_identity_status": "GENERIC_REFERENCE_ONLY",
+      "authority_ids": ["CME_HENRY_HUB_REFERENCE"],
+      "henry_hub_mapping_authorized": false,
+      "location_or_benchmark_status": "UNRESOLVED",
+      "tradable_product_identity_status": "UNRESOLVED",
+      "venue_status": "UNRESOLVED",
+      "contract_month_status": "NOT_ESTABLISHED",
+      "roll_semantics_status": "UNRESOLVED"
+    }
+  ],
+  "laws": {
+    "provider_description_is_canonical_product_proof": false,
+    "reference_identity_equals_tradable_product_identity": false,
+    "reference_identity_equals_futures_contract_identity": false,
+    "generic_natural_gas_equals_henry_hub": false,
+    "automatic_roll_inference": false,
+    "automatic_venue_inference": false
+  },
+  "governance": {
+    "historical_market_outcomes_read": false,
+    "protected_certification_holdout_opened": false,
+    "sensor_admission_authorized": false,
+    "relational_claims_authorized": false,
+    "productive_authority": false
+  }
+}

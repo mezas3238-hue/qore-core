@@ -1,0 +1,86 @@
+name: QORE Shared WP04 V3 Holdout Preregistration
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - scripts/shared_wp04_predictive_holdout_probe_v3.py
+      - scripts/shared_wp04_predictive_holdout_eval_v3.py
+      - scripts/shared_wp04_predictive_replication_probe_v3.py
+      - scripts/shared_wp04_predictive_replication_eval_v3.py
+      - .github/workflows/qore-shared-wp04-v3-holdout-preregistration.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  holdout-preregistration:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared without broker acquisition
+        run: pip install -e ".[dev,ctrader]"
+
+      - name: Static-only validation
+        run: |
+          ruff check \
+            scripts/shared_wp04_predictive_holdout_probe_v3.py \
+            scripts/shared_wp04_predictive_holdout_eval_v3.py \
+            scripts/shared_wp04_predictive_replication_probe_v3.py \
+            scripts/shared_wp04_predictive_replication_eval_v3.py
+          python -m py_compile \
+            scripts/shared_wp04_predictive_holdout_probe_v3.py \
+            scripts/shared_wp04_predictive_holdout_eval_v3.py \
+            scripts/shared_wp04_predictive_replication_probe_v3.py \
+            scripts/shared_wp04_predictive_replication_eval_v3.py
+
+      - name: Validate frozen preregistration contracts without data access
+        run: |
+          PYTHONPATH=scripts python - <<'PY'
+          import shared_wp04_predictive_holdout_eval_v3 as holdout_eval
+          import shared_wp04_predictive_holdout_probe_v3 as holdout_probe
+          import shared_wp04_predictive_replication_eval_v3 as repl_eval
+          import shared_wp04_predictive_replication_probe_v3 as repl_probe
+
+          assert holdout_probe.HOLDOUT_START.isoformat() == "2022-07-18T00:00:00+00:00"
+          assert holdout_probe.HOLDOUT_END_EXCLUSIVE.isoformat() == "2023-07-17T00:00:00+00:00"
+          assert holdout_eval.HOLDOUT_START == holdout_probe.HOLDOUT_START
+          assert holdout_eval.HOLDOUT_END_EXCLUSIVE == holdout_probe.HOLDOUT_END_EXCLUSIVE
+          assert holdout_eval.MINIMUM_POOLED_INCREMENTAL_BPS == 100
+          assert holdout_eval.MINIMUM_POSITIVE_TARGETS == 4
+          assert holdout_eval.HOLDOUT_PARTITION == "holdout_a"
+          assert holdout_probe.PURPOSE == "WP04_V3_ONE_SHOT_HOLDOUT_A"
+
+          assert repl_probe.REPLICATION_START.isoformat() == "2023-07-17T00:00:00+00:00"
+          assert repl_probe.REPLICATION_END_EXCLUSIVE.isoformat() == "2024-07-15T00:00:00+00:00"
+          assert repl_eval.REPLICATION_START == repl_probe.REPLICATION_START
+          assert repl_eval.REPLICATION_END_EXCLUSIVE == repl_probe.REPLICATION_END_EXCLUSIVE
+          assert repl_eval.REPLICATION_PARTITION == "replication_b"
+          assert repl_probe.PURPOSE == "WP04_V3_TEMPORAL_REPLICATION_B"
+          PY
+
+      - name: Assert no evidence acquisition in preregistration workflow
+        run: |
+          test -z "${QORE_CTRADER_ACCESS_TOKEN:-}"
+          test -z "${QORE_CTRADER_REFRESH_TOKEN:-}"
+          test -z "${QORE_WP04_HOLDOUT_A_PASS:-}"
+          test ! -d fresh
+          test ! -d input
+          test ! -d result
+
+      - name: Report preregistration GREEN
+        run: |
+          gh issue comment 642 --body "WP-04 V3 independent-evidence preregistration GREEN — Git SHA \`${GITHUB_SHA}\`, run \`${GITHUB_RUN_ID}\`. HOLDOUT_A and REPLICATION_B collectors/evaluators compile; A is locked to 2022-07-18..2023-07-17 and B to 2023-07-17..2024-07-15; gate remains >=100 bps pooled + >=4/8 targets. No cTrader credentials, fresh evidence or outcomes were opened."

@@ -1,0 +1,243 @@
+name: QORE Shared WP05 Sequential ChangePoint V10
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - docs/shared/QORE_SHARED_WP05_V10_CAUSAL_SEQUENTIAL_CHANGEPOINT_PREREGISTRATION.md
+      - src/qore/infrastructure/core_stack_v2/temporal_hierarchy_sequential_changepoint_v10.py
+      - tests/infrastructure/test_core_stack_v2_temporal_hierarchy_sequential_changepoint_v10.py
+      - tests/infrastructure/test_shared_wp05_sequential_changepoint_v10_protocol.py
+      - scripts/shared_wp05_sequential_changepoint_v10.py
+      - scripts/shared_wp05_structural_failure_target_v2.py
+      - .github/workflows/qore-shared-wp05-sequential-changepoint-v10.yml
+  workflow_dispatch:
+
+concurrency:
+  group: qore-shared-wp05-v10-consumed-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  sequential-changepoint-v10:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Announce WP05 V10 pre-consumption validation
+        run: |
+          gh issue comment 643 --body "WP-05 V10 consumed-development workflow started — Git SHA \`${GITHUB_SHA}\`, run \`${GITHUB_RUN_ID}\`. Static/adversarial gates execute before evidence recovery. R8 freezes the 0/3/5/10/15m model before R6/R5; fresh holdout remains CLOSED."
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Pre-consumption static and adversarial gate
+        run: |
+          ruff check             src/qore/infrastructure/core_stack_v2/temporal_hierarchy_sequential_changepoint_v10.py             tests/infrastructure/test_core_stack_v2_temporal_hierarchy_sequential_changepoint_v10.py             tests/infrastructure/test_shared_wp05_sequential_changepoint_v10_protocol.py             scripts/shared_wp05_sequential_changepoint_v10.py
+          mypy src/qore/infrastructure/core_stack_v2/temporal_hierarchy_sequential_changepoint_v10.py
+          python -m py_compile             src/qore/infrastructure/core_stack_v2/temporal_hierarchy_sequential_changepoint_v10.py             scripts/shared_wp05_sequential_changepoint_v10.py
+          pytest -q             tests/infrastructure/test_core_stack_v2_temporal_hierarchy_sequential_changepoint_v10.py             tests/infrastructure/test_shared_wp05_sequential_changepoint_v10_protocol.py             tests/infrastructure/test_core_stack_v2_temporal_hierarchy_target_contract.py             tests/infrastructure/test_shared_wp05_structural_failure_target_v2.py
+
+      - name: Recover immutable consumed R8 R6 R5 market evidence
+        run: |
+          set -euo pipefail
+          mkdir -p input/r8 input/r6 input/r5 result
+
+          download_artifact() {
+            local artifact_id="$1"
+            local output="$2"
+            local tmp="${output}.tmp"
+            rm -f "$tmp"
+            for attempt in 1 2 3 4; do
+              if gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > "$tmp"; then
+                mv "$tmp" "$output"
+                return 0
+              fi
+              rm -f "$tmp"
+              sleep $((attempt * 30))
+            done
+            return 1
+          }
+
+          download_artifact 10402199719 r8.zip
+          unzip -q r8.zip -d input/r8
+          (cd input/r8 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+          download_artifact 10389112524 r6.zip
+          unzip -q r6.zip -d input/r6
+          (cd input/r6 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+          download_artifact 10380044761 r5.zip
+          unzip -q r5.zip -d input/r5
+          (cd input/r5 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+      - name: Run preregistered WP05 V10 consumed falsification
+        run: |
+          python scripts/shared_wp05_sequential_changepoint_v10.py             --r8-nas input/r8/fresh/NAS100/market-evidence.json             --r8-sp input/r8/fresh/SP500/market-evidence.json             --r8-us input/r8/fresh/US30/market-evidence.json             --r6-nas input/r6/fresh/NAS100/market-evidence.json             --r6-sp input/r6/fresh/SP500/market-evidence.json             --r6-us input/r6/fresh/US30/market-evidence.json             --r5-nas input/r5/fresh/NAS100/market-evidence.json             --r5-sp input/r5/fresh/SP500/market-evidence.json             --r5-us input/r5/fresh/US30/market-evidence.json             --output result/wp05-sequential-changepoint-v10.json             | tee result/summary.json
+
+      - name: Validate WP05 V10 scientific protocol
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p=json.loads(Path("result/wp05-sequential-changepoint-v10.json").read_text())
+          assert p["fresh_holdout_opened"] is False
+          assert p["wp05_exit_gate_pass"] is False
+          assert p["target_contract"] == "HIGHER_TIMEFRAME_STRUCTURAL_FAILURE_V2"
+          assert p["representation"] == "CAUSAL_SEQUENTIAL_LLR_EARLY_WARNING_V10_001"
+          assert p["status"] in {
+              "WP05_V10_CAUSAL_SEQUENTIAL_FROZEN_FOR_FRESH_HOLDOUT",
+              "WP05_V10_CAUSAL_SEQUENTIAL_FALSIFIED",
+              "WP05_V10_PROTOCOL_FAILED",
+          }
+
+          if p["status"] == "WP05_V10_PROTOCOL_FAILED":
+              assert p["protocol_pass"] is False
+              raise AssertionError(f"V10 protocol failed closed: {p.get('reason')}")
+
+          assert p["protocol_pass"] is True
+          m=p["model"]
+          assert m["fit_partition"] == "r8"
+          assert m["feature_count"] == 16
+          assert m["checkpoints_minutes"] == [0,3,5,10,15]
+          assert len(m["fingerprint_sha256"]) == 64
+          assert len(m["representation_fingerprint_sha256"]) == 64
+          assert m["fit_terminal_count"] >= 10
+          assert m["fit_nonterminal_count"] >= 10
+          assert m["purged_discovery_count"] >= 0
+          assert m["discovery_observed_max"] < m["calibration_source_min"]
+
+          g=p["governance"]
+          assert g["target_v2_required"] is True
+          assert g["checkpoints_minutes"] == [0,3,5,10,15]
+          assert g["max_decision_latency_minutes"] == 15
+          assert g["unresolved_is_abstention"] is True
+          assert g["terminal_detection_absorbing"] is True
+          assert g["source_only_diagnostic_required"] is True
+          assert g["r8_chronological_discovery_calibration_only"] is True
+          assert g["r6_r5_unread_until_r8_model_frozen"] is True
+          assert g["r6_refit"] is False
+          assert g["r5_refit"] is False
+          assert g["r6_threshold_retuning"] is False
+          assert g["r5_threshold_retuning"] is False
+          assert g["runtime_future_market_used"] is False
+          assert g["trade_pnl_used"] is False
+          assert g["fresh_holdout_opened"] is False
+          assert g["shared_methodology_authority"] is False
+          assert g["shared_sizing_authority"] is False
+          assert g["shared_risk_authority"] is False
+          assert g["shared_order_authority"] is False
+          assert g["shared_execution_authority"] is False
+
+          if m["calibration_gate_pass"]:
+              assert m["calibration_sequential_terminal_preservation_bps"] >= 9800
+              assert p["partition_temporal_order_gate"] is True
+              fingerprints=p["partition_model_fingerprints"]
+              assert fingerprints["r8"] == fingerprints["r6"] == fingerprints["r5"]
+              assert fingerprints["r8"] == m["fingerprint_sha256"]
+              gate=p["frozen_development_gate"]
+              assert gate["minimum_false_declaration_reduction_bps"] == 2000
+              assert gate["minimum_terminal_detection_preservation_bps"] == 9500
+              assert gate["maximum_detection_latency_minutes"] == 15
+              assert gate["must_pass_partitions"] == ["r6","r5"]
+              for partition in ("r8","r6","r5"):
+                  r=p["partition_ranges"][partition]
+                  e=p["evaluations"][partition]
+                  assert r["episode_count"] >= 6000
+                  assert r["eligible_source_count"] >= r["episode_count"]
+                  assert 0 < r["checkpoint_complete_coverage_bps"] <= 10000
+                  assert r["terminal_event_count"] > 0
+                  assert e["terminal_detection_latency_p95_minutes"] <= 15
+          else:
+              assert p["development_gate_pass"] is False
+              assert set(p["partition_ranges"]) == {"r8"}
+              assert set(p["evaluations"]) == {"r8"}
+              assert set(p["partition_model_fingerprints"]) == {"r8"}
+          PY
+
+      - name: Bind result
+        run: |
+          echo "${GITHUB_SHA}" > result/git-sha.txt
+          (
+            cd result
+            find . -type f ! -name SHA256SUMS -print0               | sort -z               | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-wp05-sequential-changepoint-v10-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report WP05 V10 result
+        if: always()
+        run: |
+          if [ ! -f result/wp05-sequential-changepoint-v10.json ]; then
+            gh issue comment 643 --body "WP-05 V10 run \`${GITHUB_RUN_ID}\` produced no scientific payload. No V10 result accepted; fresh holdout remains CLOSED. Inspect technical failure."
+            exit 0
+          fi
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+
+          p=json.loads(Path("result/wp05-sequential-changepoint-v10.json").read_text())
+          lines=[
+              "## WP-05 V10 causal sequential result",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- GitHub Actions run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- status: **{p['status']}**",
+              f"- protocol_pass: **{p['protocol_pass']}**",
+              f"- development_gate_pass: **{p['development_gate_pass']}**",
+              "- target: **HIGHER_TIMEFRAME_STRUCTURAL_FAILURE_V2**",
+              "- checkpoints: **0/3/5/10/15m**",
+              "- UNRESOLVED: **causal abstention; no default failure declaration**",
+              "- fresh holdout opened: **False**",
+          ]
+          if "model" in p:
+              m=p["model"]
+              lines.extend([
+                  f"- model fingerprint: `{m['fingerprint_sha256']}`",
+                  f"- representation fingerprint: `{m['representation_fingerprint_sha256']}`",
+                  f"- R8 sequential calibration terminal preservation: **{m['calibration_sequential_terminal_preservation_bps']} bps**",
+                  f"- R8 sequential calibration false reduction: **{m['calibration_sequential_false_reduction_bps']} bps**",
+                  f"- R8 source-only calibration false reduction: **{m['calibration_source_false_reduction_bps']} bps**",
+              ])
+          lines.append("")
+          lines.append("Partition results:")
+          for partition in ("r8","r6","r5"):
+              if partition not in p.get("evaluations", {}):
+                  continue
+              e=p["evaluations"][partition]
+              gain=(
+                  e["sequential_false_declaration_reduction_bps"]
+                  - e["source_only_false_declaration_reduction_bps"]
+              )
+              lines.append(
+                  f"- {partition.upper()}: source-only={e['source_only_false_declaration_reduction_bps']} bps reduction / {e['source_only_terminal_detection_preservation_bps']} bps preservation; sequential={e['sequential_false_declaration_reduction_bps']} bps reduction / {e['sequential_terminal_detection_preservation_bps']} bps preservation; observability gain={gain} bps; terminal latency p50={e['terminal_detection_latency_p50_minutes']}m p95={e['terminal_detection_latency_p95_minutes']}m"
+              )
+          if p["status"] == "WP05_V10_PROTOCOL_FAILED":
+              lines.append("V10 failed closed at protocol validation. No scientific V10 result is accepted and no development metric may be interpreted. Repair protocol/implementation only; keep R6/R5 and fresh holdout governance unchanged.")
+          elif p["status"] == "WP05_V10_CAUSAL_SEQUENTIAL_FROZEN_FOR_FRESH_HOLDOUT":
+              lines.append("V10 survives consumed development. Freeze this exact identity and preregister one independent fresh WP-05 holdout before acquisition.")
+          else:
+              lines.append("V10 is falsified on consumed development. Do not retune R6/R5. Use the source-vs-sequential observability diagnostic to decide whether the next step is a new sequential state model or an active-perception redesign.")
+          Path("result/wp05-v10-issue-update.md").write_text("\n".join(lines)+"\n")
+          PY
+          gh issue comment 643 --body-file result/wp05-v10-issue-update.md

@@ -1,0 +1,146 @@
+name: QORE Shared STI6 V1 Failure Diagnostic
+
+concurrency:
+  group: qore-shared-sti6-v1-failure-diagnostic
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - scripts/shared_sti6_v1_failure_diagnostic.py
+      - .github/workflows/qore-shared-sti6-v1-failure-diagnostic.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Validate diagnostic
+        run: |
+          set -euo pipefail
+          mkdir -p result input/policy input/pure input/r6
+          ruff check scripts/shared_sti6_v1_failure_diagnostic.py
+          python -m py_compile scripts/shared_sti6_v1_failure_diagnostic.py
+
+      - name: Recover frozen STI-6 policy and consumed R6 evidence
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11065709899/zip" > policy.zip
+          unzip -q policy.zip -d input/policy
+          (cd input/policy && sha256sum -c SHA256SUMS)
+          test -f input/policy/sti6-sti8-source-only-policies.json
+          test -f input/policy/sti6-sti8-causal-position-replay.json
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("input/policy/sti6-sti8-causal-position-replay.json").read_text())
+          assert p["sti6"]["signal_value_status"] == "STI6_V1_FALSIFIED_ON_CONSUMED_R6"
+          assert p["r5_opened"] is False
+          assert p["protected_holdout_opened"] is False
+          PY
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10799064861/zip" > pure.zip
+          unzip -q pure.zip -d input/pure
+          (cd input/pure && sha256sum -c SHA256SUMS)
+          test -f input/pure/r6.json
+          test -f input/pure/r5.json
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          unzip -q r6.zip -d input/r6
+          (cd input/r6 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+      - name: Extract STI-6 V1 failure knowledge
+        run: |
+          set -euo pipefail
+          python scripts/shared_sti6_v1_failure_diagnostic.py             --policy input/policy/sti6-sti8-source-only-policies.json             --r6-trades input/pure/r6.json             --r6-nas input/r6/fresh/NAS100/market-evidence.json             --r6-sp input/r6/fresh/SP500/market-evidence.json             --r6-us input/r6/fresh/US30/market-evidence.json             --output result/sti6-v1-failure-diagnostic.json             | tee result/summary.json
+
+      - name: Validate no V1 rescue and R5 remains closed
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/sti6-v1-failure-diagnostic.json").read_text())
+          assert p["status"] == "STI6_V1_FAILURE_KNOWLEDGE_EXTRACTED_NO_RETUNING"
+          assert p["partition"] == "R6_CONSUMED_ONLY"
+          assert p["trade_count"] > 0
+          assert p["source_observation_count"] > 0
+          assert p["v2_hypothesis_candidates"]
+          g=p["governance"]
+          assert g["v1_policy_changed"] is False
+          assert g["v1_thresholds_changed"] is False
+          assert g["v1_reopened"] is False
+          assert g["v2_policy_selected"] is False
+          assert g["r5_opened"] is False
+          assert g["future_market_used_for_source_trajectory"] is False
+          assert g["terminal_outcome_used_only_after_source_materialization"] is True
+          assert g["protected_certification_holdout_opened"] is False
+          assert g["productive_authority"] is False
+          PY
+
+      - name: Bind diagnostic evidence
+        run: |
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0               | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-sti6-v1-failure-diagnostic-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report STI-6 V1 failure knowledge
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p=json.loads(Path("result/sti6-v1-failure-diagnostic.json").read_text())
+          lines=[
+              "## Shared STI-6 — V1 Failure Knowledge Diagnostic",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- groups: **{p['group_counts']}**",
+              f"- signal histogram: **{p['signal_histogram']}**",
+              "- V1 threshold/policy rescue: **False / False**",
+              "- R5 opened: **False**",
+              "- protected certification holdout opened: **False**",
+              "",
+          ]
+          for item in p["v2_hypothesis_candidates"]:
+              lines.append(
+                  f"- candidate: **{item['hypothesis']}** — {item['meaning']}"
+              )
+          lines.append("")
+          lines.append(
+              "These are mechanism candidates only; no STI-6 V2 policy is selected by this diagnostic."
+          )
+          Path("result/issue-comment.md").write_text("\n".join(lines)+"\n")
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md

@@ -62,6 +62,24 @@ def test_exact_two_year_m1_span_is_required() -> None:
         )
 
 
+def test_bounded_research_window_can_declare_explicit_coverage_floor() -> None:
+    requested = _CHECKED_AT - timedelta(days=365)
+    _validate_m1_coverage(
+        _boundary_bars(age=timedelta(days=340)),
+        requested_opened_at=requested,
+        checked_at=_CHECKED_AT,
+        minimum_coverage_days=340,
+    )
+
+    with pytest.raises(CTraderDemoLabProbeError, match="less than 340"):
+        _validate_m1_coverage(
+            _boundary_bars(age=timedelta(days=340, microseconds=-1)),
+            requested_opened_at=requested,
+            checked_at=_CHECKED_AT,
+            minimum_coverage_days=340,
+        )
+
+
 def test_m1_contract_rejects_wrong_period_and_duplicates() -> None:
     requested = _CHECKED_AT - timedelta(days=760)
     with pytest.raises(CTraderDemoLabProbeError, match="only M1"):

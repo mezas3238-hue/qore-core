@@ -1,0 +1,91 @@
+name: QORE Shared X04 Opportunity Trajectory Superset Audit
+
+concurrency:
+  group: qore-shared-x04-opportunity-trajectory-superset
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - docs/shared/evidence/QORE_SHARED_X04_OPPORTUNITY_TRAJECTORY_VERIFIED_SUPERSET_AUDIT_001.json
+      - .github/workflows/qore-shared-x04-opportunity-trajectory-superset.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify exact scientific evidence
+        run: |
+          set -euo pipefail
+          mkdir -p result
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path(
+            "docs/shared/evidence/"
+            "QORE_SHARED_X04_OPPORTUNITY_TRAJECTORY_VERIFIED_SUPERSET_AUDIT_001.json"
+          ).read_text())
+          assert p["state_if_audit_passes"] == "COMPLETED_AND_PROVEN"
+          t=p["trajectory_properties"]
+          assert all(t[key] for key in (
+            "level_modeled","velocity_modeled","persistence_modeled",
+            "maturity_modeled","deterioration_modeled",
+            "mechanism_specific_heads","causal_source_time_only"
+          ))
+          assert t["creates_trader_setup"] is False
+          limits=p["limits"]
+          assert limits["does_not_close_sti2_full_capability"] is True
+          assert limits["sti2_temporal_replication_still_pending"] is True
+          assert limits["economic_value_not_claimed"] is True
+          assert limits["productive_authority"] is False
+          assert limits["protected_certification_holdout_opened"] is False
+          PY
+
+          check_run () {
+            run_id="$1"
+            expected_sha="$2"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/$run_id" --jq '.status')" = "completed"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/$run_id" --jq '.conclusion')" = "success"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/$run_id" --jq '.head_sha')" = "$expected_sha"
+          }
+
+          check_run 36667303884 1df8be7cfea2621a4bfcf6a7de741aa585a29f35
+          check_run 36685171375 758df9bb227e2d8bfba201f4edc617cb6aeb8da9
+          check_run 36686214891 eb9d45bb1a77ede1e339876bd33e8b5c41b48264
+
+          for artifact in 11076956277 11083990018 11083921981
+          do
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/$artifact" --jq '.expired')" = "false"
+          done
+
+      - name: Seal audit
+        run: |
+          set -euo pipefail
+          cp             docs/shared/evidence/QORE_SHARED_X04_OPPORTUNITY_TRAJECTORY_VERIFIED_SUPERSET_AUDIT_001.json             result/audit.json
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (
+            cd result
+            sha256sum audit.json code-git-sha.txt > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-x04-opportunity-trajectory-superset-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90

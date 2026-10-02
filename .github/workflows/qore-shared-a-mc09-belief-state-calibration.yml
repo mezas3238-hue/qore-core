@@ -1,0 +1,139 @@
+name: QORE Shared A MC09 Belief State Calibration
+
+concurrency:
+  group: qore-shared-a-mc09-belief-state-calibration
+  cancel-in-progress: false
+
+on:
+  push:
+    branches:
+      - agent/shared-a-cognitive-science-001
+    paths:
+      - docs/shared/evidence/QORE_SHARED_MC09_BELIEF_STATE_CALIBRATION_PREREGISTRATION_001.json
+      - scripts/shared_mc09_belief_state_calibration.py
+      - .github/workflows/qore-shared-a-mc09-belief-state-calibration.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  calibration:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Validate preregistration and code
+        run: |
+          set -euo pipefail
+          mkdir -p input/{pure,r6,r5} result
+          ruff check scripts/shared_mc09_belief_state_calibration.py
+          python -m py_compile scripts/shared_mc09_belief_state_calibration.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("docs/shared/evidence/QORE_SHARED_MC09_BELIEF_STATE_CALIBRATION_PREREGISTRATION_001.json").read_text())
+          assert p["status"] == "PREREGISTERED_BEFORE_CALIBRATION_SCORING"
+          assert p["evaluation"]["belief_snapshot"] == "FIFTH_CAUSAL_OBSERVATION_OR_LAST_IF_SEQUENCE_SHORTER"
+          assert p["frozen_gates"]["minimum_positions"] == 150
+          assert p["frozen_gates"]["brier_skill_vs_prevalence_bps_gt"] == 0
+          assert p["frozen_gates"]["maximum_ece_bps"] == 2500
+          assert p["governance"]["protected_certification_holdout_opened"] is False
+          PY
+
+      - name: Recover immutable consumed position evidence
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10799064861/zip" > pure.zip
+          unzip -q pure.zip -d input/pure
+          (cd input/pure && sha256sum -c SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          unzip -q r6.zip -d input/r6
+          (cd input/r6 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" > r5.zip
+          unzip -q r5.zip -d input/r5
+          (cd input/r5 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+      - name: Score frozen belief calibration
+        run: |
+          set -euo pipefail
+          python scripts/shared_mc09_belief_state_calibration.py             --r6-trades input/pure/r6.json             --r6-nas input/r6/fresh/NAS100/market-evidence.json             --r6-sp input/r6/fresh/SP500/market-evidence.json             --r6-us input/r6/fresh/US30/market-evidence.json             --r5-trades input/pure/r5.json             --r5-nas input/r5/fresh/NAS100/market-evidence.json             --r5-sp input/r5/fresh/SP500/market-evidence.json             --r5-us input/r5/fresh/US30/market-evidence.json             --output result/mc09-belief-calibration.json             | tee result/summary.json
+
+      - name: Validate scientific disposition without forcing pass
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/mc09-belief-calibration.json").read_text())
+          assert p["status"] in {
+              "MC09_BELIEF_STATE_CALIBRATION_REPLICATED_PASS",
+              "MC09_BELIEF_STATE_CALIBRATION_FALSIFIED",
+          }
+          assert p["belief_engine_changed"] is False
+          assert p["belief_parameters_retuned"] is False
+          assert p["source_decisions_materialized_before_outcome_scoring"] is True
+          assert p["future_market_used_for_belief"] is False
+          assert p["future_outcome_used_for_belief"] is False
+          assert p["pnl_used_for_belief"] is False
+          assert p["protected_certification_holdout_opened"] is False
+          PY
+
+      - name: Seal result
+        run: |
+          cp docs/shared/evidence/QORE_SHARED_MC09_BELIEF_STATE_CALIBRATION_PREREGISTRATION_001.json result/preregistration.json
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-a-mc09-belief-calibration-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report MC-09 calibration
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p=json.loads(Path("result/mc09-belief-calibration.json").read_text())
+          body="\n".join([
+              "## Shared A MC-09 — Belief State Calibration",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- disposition: **{p['status']}**",
+              f"- R6: **{p['results']['r6']}**",
+              f"- R5: **{p['results']['r5']}**",
+              f"- MC-09 completed-and-proven: **{p['mc09_completed_and_proven']}**",
+              "- engine/parameters retuned: **False / False**",
+              "- protected certification holdout opened: **False**",
+              "- productive authority: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md

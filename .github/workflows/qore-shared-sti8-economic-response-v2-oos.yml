@@ -1,0 +1,236 @@
+name: QORE Shared STI8 Economic Response V2 Fresh Research OOS
+
+concurrency:
+  group: qore-shared-sti8-economic-response-v2-oos
+  cancel-in-progress: false
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - docs/shared/evidence/QORE_SHARED_STI8_ECONOMIC_RESPONSE_V2_PREREGISTRATION_001.json
+      - src/qore/infrastructure/traders/vt31_shared_threat_consumer_v2_research.py
+      - tests/infrastructure/test_vt31_shared_threat_consumer_v2_research.py
+      - scripts/shared_sti8_economic_response_v2_oos_probe.py
+      - scripts/shared_sti8_economic_response_v2_oos_eval.py
+      - .github/workflows/qore-shared-sti8-economic-response-v2-oos.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  QORE_SOFTWARE_SHA: ${{ github.sha }}
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+
+jobs:
+  fresh-research-oos:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install research and cTrader dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,ctrader]"
+
+      - name: Validate frozen V2 before OOS open
+        run: |
+          set -euo pipefail
+          mkdir -p result fresh/{NAS100,SP500,US30} input/policy
+          ruff check             src/qore/infrastructure/traders/vt31_shared_threat_consumer_v2_research.py             tests/infrastructure/test_vt31_shared_threat_consumer_v2_research.py             scripts/shared_sti8_economic_response_v2_oos_probe.py             scripts/shared_sti8_economic_response_v2_oos_eval.py
+          mypy             src/qore/infrastructure/traders/vt31_shared_threat_consumer_v2_research.py
+          python -m py_compile             src/qore/infrastructure/traders/vt31_shared_threat_consumer_v2_research.py             scripts/shared_sti8_economic_response_v2_oos_probe.py             scripts/shared_sti8_economic_response_v2_oos_eval.py
+          pytest -q             tests/infrastructure/test_vt31_shared_threat_consumer_v2_research.py             --junitxml=result/junit.xml
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(
+              Path(
+                  "docs/shared/evidence/"
+                  "QORE_SHARED_STI8_ECONOMIC_RESPONSE_V2_PREREGISTRATION_001.json"
+              ).read_text()
+          )
+          assert p["status"] == "PREREGISTERED_BEFORE_NEW_RESEARCH_OOS"
+          assert p["signal_engine"]["engine_changed"] is False
+          assert p["signal_engine"]["threat_thresholds_changed"] is False
+          assert p["parent_response_v1"]["threshold_rescue_allowed"] is False
+          assert p["failure_knowledge"][
+              "burned_partitions_may_demonstrate_v2_value"
+          ] is False
+          o=p["new_research_oos"]
+          assert o["opened_at_inclusive"] == "2024-07-22T00:00:00+00:00"
+          assert o["checked_at_exclusive"] == "2026-07-22T00:00:00+00:00"
+          assert o["minimum_coverage_days"] == 730
+          assert o["one_shot"] is True
+          assert o["temporally_disjoint_from_prior_research_oos"] is True
+          assert o["protected_certification_holdout"] is False
+          assert p["governance"]["protected_certification_holdout_opened"] is False
+          PY
+
+          SOURCE_SHA="711788d89521e051ab3969a9006830068381693e"
+          for path in             scripts/shared_sti6_sti8_real_position_intelligence.py             src/qore/infrastructure/core_stack_v2/shared_continuation_positive_tail_intelligence.py             src/qore/infrastructure/core_stack_v2/shared_position_threat_intelligence.py             src/qore/infrastructure/traders/vt31_silver_bullet_r2_2.py
+          do
+            test "$(git rev-parse "$SOURCE_SHA:$path")" = "$(git rev-parse "HEAD:$path")"
+          done
+
+      - name: Recover exact frozen STI-8 signal policy
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11065709899/zip" > policy.zip
+          unzip -q policy.zip -d input/policy
+          (cd input/policy && sha256sum -c SHA256SUMS)
+          test "$(cat input/policy/code-git-sha.txt)" = "711788d89521e051ab3969a9006830068381693e"
+
+      - name: Verify DEMO credentials
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN
+          do
+            test -n "${!name:-}"
+          done
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            test -n "$account_id"
+            echo "::add-mask::$account_id"
+            echo "QORE_CTRADER_DEMO_ACCOUNT_ID=$account_id" >> "$GITHUB_ENV"
+          fi
+
+      - name: Enforce one-shot research OOS open
+        run: |
+          set -euo pipefail
+          marker_name="qore-shared-sti8-economic-response-v2-oos-open-marker"
+          count="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${marker_name}" --jq '.artifacts | length')"
+          test "$count" = "0"
+          cat > result/oos-open-marker.json <<'JSON'
+          {
+            "identity": "QORE_SHARED_STI8_ECONOMIC_RESPONSE_V2_RESEARCH_OOS_001",
+            "opened_at_inclusive": "2024-07-22T00:00:00+00:00",
+            "checked_at_exclusive": "2026-07-22T00:00:00+00:00",
+            "response_policy_frozen_before_open": true,
+            "signal_engine_changed": false,
+            "signal_thresholds_changed": false,
+            "protected_certification_holdout": false,
+            "retuning_after_open": false,
+            "productive_authority": false
+          }
+          JSON
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-sti8-economic-response-v2-oos-open-marker
+          path: result/oos-open-marker.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Acquire preregistered OOS evidence once
+        run: |
+          set -euo pipefail
+          for market in NAS100 SP500 US30
+          do
+            QORE_DEMO_LAB_SYMBOL="$market"               python scripts/shared_sti8_economic_response_v2_oos_probe.py               > "fresh/$market/market-evidence.json"
+          done
+          sha256sum fresh/*/market-evidence.json > fresh/EVIDENCE-SHA256SUMS
+
+      - name: Reconstruct source methodology opportunities
+        run: |
+          set -euo pipefail
+          python scripts/vt31_nas100_silver_bullet_native_streak_falsification_v1.py             fresh/NAS100/market-evidence.json             --partition sti8_economic_response_v2_oos             --output result/sti8-v2-oos-trades.json             | tee result/trader-summary.json
+
+      - name: Execute preregistered V2 economic OOS
+        run: |
+          set -euo pipefail
+          python scripts/shared_sti8_economic_response_v2_oos_eval.py             --policy input/policy/sti6-sti8-source-only-policies.json             --trades result/sti8-v2-oos-trades.json             --nas fresh/NAS100/market-evidence.json             --sp fresh/SP500/market-evidence.json             --us fresh/US30/market-evidence.json             --output result/sti8-response-v2-oos.json             | tee result/economic-summary.json
+
+      - name: Validate scientific disposition without forcing PASS
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/sti8-response-v2-oos.json").read_text())
+          assert p["status"] in {
+              "STI8_RESPONSE_V2_RESEARCH_OOS_ECONOMIC_PASS",
+              "STI8_RESPONSE_V2_RESEARCH_OOS_FALSIFIED",
+          }
+          assert p["trade_count"] > 0
+          assert p["source_observation_count"] > 0
+          g=p["governance"]
+          assert g["burned_r6_r5_prior_oos_used_for_v2_value_claim"] is False
+          assert g["all_source_decisions_materialized_before_outcome_scoring"] is True
+          assert g["future_market_used_for_decision"] is False
+          assert g["future_outcome_used_for_decision"] is False
+          assert g["sti8_signal_engine_changed"] is False
+          assert g["sti8_threat_thresholds_changed"] is False
+          assert g["response_policy_retuned_after_oos"] is False
+          assert g["shared_exit_authority"] is False
+          assert g["protected_certification_holdout_opened"] is False
+          assert g["productive_authority"] is False
+          PY
+
+      - name: Bind OOS evidence
+        run: |
+          cp             docs/shared/evidence/QORE_SHARED_STI8_ECONOMIC_RESPONSE_V2_PREREGISTRATION_001.json             result/preregistration.json
+          cp fresh/EVIDENCE-SHA256SUMS result/EVIDENCE-SHA256SUMS
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0               | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-sti8-economic-response-v2-oos-${{ github.sha }}
+          path: |
+            result/
+            fresh/NAS100/market-evidence.json
+            fresh/SP500/market-evidence.json
+            fresh/US30/market-evidence.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report STI-8 response V2 OOS
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p=json.loads(Path("result/sti8-response-v2-oos.json").read_text())
+          e=p["economic_effects"]; w=p["winner_preservation"]
+          body="\n".join([
+              "## Shared STI-8 — Economic Response V2 Fresh Research OOS",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- disposition: **{p['status']}**",
+              f"- trades / observations: **{p['trade_count']} / {p['source_observation_count']}**",
+              f"- control TotalR/PF/DD: **{p['control']['total_r']} / {p['control']['profit_factor']} / {p['control']['max_dd_r']}R**",
+              f"- treatment TotalR/PF/DD: **{p['treatment']['total_r']} / {p['treatment']['profit_factor']} / {p['treatment']['max_dd_r']}R**",
+              f"- loss R avoided / false-threat cost / net utility: **{e['loss_r_avoided']} / {e['false_threat_cost_r']} / {e['net_economic_utility_r']}R**",
+              f"- winner count/R retention: **{w['winner_count_retention']} / {w['winner_r_retention']}**",
+              f"- top decile / top 5% / tail retention: **{w['top_decile_winner_r_retention']} / {w['top_5pct_winner_r_retention']} / {w['positive_tail_r_retention']}**",
+              f"- gates: **{p['gates']}**",
+              "- prior R6/R5/OOS used for V2 value claim: **False**",
+              "- protected certification holdout opened: **False**",
+              "- productive authority: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md

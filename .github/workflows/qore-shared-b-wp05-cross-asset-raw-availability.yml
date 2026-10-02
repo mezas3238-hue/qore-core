@@ -1,0 +1,315 @@
+name: QORE Shared B WP05 Cross-Asset Raw Availability
+
+on:
+  push:
+    branches:
+      - agent/shared-b-global-world-perception-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/shared_b_cross_asset_source_replay.py
+      - scripts/shared_b_wp05_cross_asset_availability_acquire.py
+      - scripts/shared_b_wp05_cross_asset_availability_reduce.py
+      - tests/infrastructure/test_shared_b_cross_asset_source_replay.py
+      - .github/workflows/qore-shared-b-wp05-cross-asset-raw-availability.yml
+  workflow_dispatch:
+
+concurrency:
+  group: qore-shared-b-wp05-cross-asset-raw-availability-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  SOURCE_MANIFEST_SHA256: "2f18b9f11d5893effa46ac85c712edd6646d1d90a9de521b235143e42155d191"
+  SOURCE_MANIFEST_ARTIFACT_ID: "10982052296"
+  SOURCE_MANIFEST_PRODUCER_SHA: "99e60783fb270c40ae23805fbb3d16ae76d9c4f2"
+  PROVIDER_CATALOG_ARTIFACT_ID: "11110976806"
+  PROVIDER_CATALOG_SHA256: "4c10aede99704b937caa772e1ae07257c8e12c3d0644c06ca751b6885b9a363f"
+  PROVIDER_CATALOG_RAW_SHA256: "2cc807599b1afb13b6b6ecf4bb97a165a14ba3d05b66b841a90b61f9e1405b5f"
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+      - name: Validate B raw/replay boundary
+        run: |
+          set -euo pipefail
+          ruff check \
+            src/qore/infrastructure/core_stack_v2/shared_b_cross_asset_source_replay.py \
+            scripts/shared_b_wp05_cross_asset_availability_acquire.py \
+            scripts/shared_b_wp05_cross_asset_availability_reduce.py \
+            tests/infrastructure/test_shared_b_cross_asset_source_replay.py
+          mypy \
+            src/qore/infrastructure/core_stack_v2/shared_b_cross_asset_source_replay.py \
+            scripts/shared_b_wp05_cross_asset_availability_acquire.py \
+            scripts/shared_b_wp05_cross_asset_availability_reduce.py
+          python -m py_compile \
+            src/qore/infrastructure/core_stack_v2/shared_b_cross_asset_source_replay.py \
+            scripts/shared_b_wp05_cross_asset_availability_acquire.py \
+            scripts/shared_b_wp05_cross_asset_availability_reduce.py
+          pytest -q tests/infrastructure/test_shared_b_cross_asset_source_replay.py
+
+  acquire:
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    outputs:
+      raw_artifact_id: ${{ steps.raw_upload.outputs.artifact-id }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+      QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+      QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+      QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+      QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Shared + cTrader runtime
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[ctrader]"
+
+      - name: Verify DEMO secrets without printing values
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in \
+            QORE_CTRADER_CLIENT_ID \
+            QORE_CTRADER_CLIENT_SECRET \
+            QORE_CTRADER_ACCESS_TOKEN \
+            QORE_CTRADER_REFRESH_TOKEN
+          do
+            [ -n "${!name:-}" ] || exit 2
+          done
+
+      - name: Resolve single authorized DEMO account
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            [[ "$account_id" =~ ^[1-9][0-9]*$ ]]
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          else
+            echo "::add-mask::$QORE_CTRADER_DEMO_ACCOUNT_ID"
+          fi
+
+      - name: Recover frozen R8 source manifest
+        run: |
+          set -euo pipefail
+          mkdir -p input/manifest input/catalog result/raw
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${SOURCE_MANIFEST_ARTIFACT_ID}/zip" > manifest.zip
+          unzip -q manifest.zip -d input/manifest
+          (cd input/manifest && sha256sum -c SHA256SUMS)
+          test "$(cat input/manifest/git-sha.txt)" = "$SOURCE_MANIFEST_PRODUCER_SHA"
+          cp input/manifest/wp05-v12-r8-tick-acquisition-manifest.json input/source-manifest.json
+
+      - name: Recover B-frozen provider catalogue
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${PROVIDER_CATALOG_ARTIFACT_ID}/zip" > catalog.zip
+          unzip -q catalog.zip -d input/catalog
+          test "$(sha256sum input/catalog/post-v14-provider-catalog.json | awk '{print $1}')" = "$PROVIDER_CATALOG_RAW_SHA256"
+          cp input/catalog/post-v14-provider-catalog.json input/provider-catalog.json
+          test "$(python -c 'import json; print(json.load(open("input/provider-catalog.json"))["provider_catalog_sha256"])')" = "$PROVIDER_CATALOG_SHA256"
+
+      - name: Acquire sealed raw BID/ASK pilot pages
+        run: |
+          set -euo pipefail
+          python scripts/shared_b_wp05_cross_asset_availability_acquire.py \
+            --manifest input/source-manifest.json \
+            --catalog input/provider-catalog.json \
+            --expected-manifest-sha256 "$SOURCE_MANIFEST_SHA256" \
+            --expected-catalog-sha256 "$PROVIDER_CATALOG_SHA256" \
+            --output-dir result/raw \
+            | tee result/raw/acquisition-summary.json
+          (
+            cd result/raw
+            find . -type f ! -name SHA256SUMS -print0 \
+              | sort -z \
+              | xargs -0 sha256sum > SHA256SUMS
+          )
+
+      - name: Upload sealed raw availability evidence
+        id: raw_upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-b-wp05-cross-asset-raw-${{ github.sha }}
+          path: result/raw
+          if-no-files-found: error
+          retention-days: 90
+
+  replay:
+    needs: acquire
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RAW_ARTIFACT_ID: ${{ needs.acquire.outputs.raw_artifact_id }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Shared without cTrader runtime
+        run: pip install -e ".[dev]"
+
+      - name: Recover raw acquisition artifact
+        run: |
+          set -euo pipefail
+          mkdir -p result/raw result/replay
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${RAW_ARTIFACT_ID}/zip" > raw.zip
+          unzip -q raw.zip -d result/raw
+          (cd result/raw && sha256sum -c SHA256SUMS)
+
+      - name: Offline deterministic availability replay
+        run: |
+          set -euo pipefail
+          python scripts/shared_b_wp05_cross_asset_availability_reduce.py \
+            --raw-root result/raw \
+            --raw-manifest result/raw/shared-b-cross-asset-raw-manifest.json \
+            --output result/replay/shared-b-cross-asset-availability.json \
+            | tee result/replay/replay-summary.json
+
+      - name: Validate replay governance and exact frozen universe
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p=json.loads(
+              Path("result/replay/shared-b-cross-asset-availability.json").read_text()
+          )
+          assert p["identity"] == "SHARED_B_WP05_CROSS_ASSET_AVAILABILITY_REPLAY_001"
+          assert p["partition"] == "r8_source_only"
+          assert p["selected_manifest_indices"] == [0,736,1473,2210,2947]
+          assert p["replay_requires_provider"] is False
+          assert p["raw_evidence_verified"] is True
+          assert [x["provider_symbol"] for x in p["candidate_reports"]] == [
+              "US2000","XAUUSD","XTIUSD"
+          ]
+          allowed={
+              "full_bid_ask_history",
+              "partial_bid_ask_history",
+              "no_history",
+              "technical_error",
+          }
+          assert all(
+              x["coverage_status"] in allowed
+              for x in p["candidate_reports"]
+          )
+          assert p["target_or_outcome_read"] is False
+          assert p["r6_r5_read"] is False
+          assert p["fresh_holdout_opened"] is False
+          assert p["scientific_v15_opened"] is False
+          assert p["broker_mutation"] is False
+          assert p["productive_authority"] is False
+          PY
+
+      - name: Seal replay provenance
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from datetime import UTC, datetime
+          from pathlib import Path
+
+          path=Path("result/replay/shared-b-cross-asset-availability.json")
+          payload=json.loads(path.read_text())
+          evidence={
+              "identity":"SHARED_B_WP05_CROSS_ASSET_EVIDENCE_PACK_001",
+              "git_sha":os.environ["GITHUB_SHA"],
+              "workflow_run_id":int(os.environ["GITHUB_RUN_ID"]),
+              "raw_artifact_id":int(os.environ["RAW_ARTIFACT_ID"]),
+              "replayed_at":datetime.now(UTC).isoformat(),
+              "source_manifest_sha256":payload["source_manifest_sha256"],
+              "provider_catalog_sha256":payload["provider_catalog_sha256"],
+              "replay_sha256":hashlib.sha256(path.read_bytes()).hexdigest(),
+              "candidate_reports":payload["candidate_reports"],
+              "target_or_outcome_read":False,
+              "r6_r5_read":False,
+              "fresh_holdout_opened":False,
+              "broker_mutation":False,
+              "replay_requires_provider":False,
+          }
+          Path("result/replay/shared-b-cross-asset-evidence-pack.json").write_text(
+              json.dumps(evidence,sort_keys=True,indent=2)+"\n"
+          )
+          PY
+
+      - name: Upload replay + evidence pack
+        id: replay_upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-b-wp05-cross-asset-replay-${{ github.sha }}
+          path: result/replay
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report B raw/replay result to WP-05
+        env:
+          REPLAY_ARTIFACT_ID: ${{ steps.replay_upload.outputs.artifact-id }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          p=json.loads(
+              Path("result/replay/shared-b-cross-asset-availability.json").read_text()
+          )
+          lines=[
+              "## Architect B — WP-05 cross-asset raw/replay availability",
+              "",
+              f"- B Git SHA: {os.environ['GITHUB_SHA']}",
+              f"- workflow run: {os.environ['GITHUB_RUN_ID']}",
+              f"- raw artifact ID: {os.environ['RAW_ARTIFACT_ID']}",
+              f"- replay artifact ID: {os.environ['REPLAY_ARTIFACT_ID']}",
+              "- replay requires provider: **False**",
+              "- raw evidence verified: **True**",
+          ]
+          for item in p["candidate_reports"]:
+              lines.append(
+                  f"- {item['provider_symbol']} / {item['semantic_role']}: "
+                  f"**{item['coverage_status']}**; "
+                  f"raw_sha={item['raw_dataset_sha256']}"
+              )
+          lines += [
+              "- target/outcome read: **False**",
+              "- R6/R5 read: **False**",
+              "- fresh holdout opened: **False**",
+              "- broker mutation: **False**",
+          ]
+          Path("result/replay/issue-comment.md").write_text(
+              "\n".join(lines)+"\n"
+          )
+          PY
+          gh issue comment 643 --body-file result/replay/issue-comment.md
+
+  notify:
+    needs: [validate, acquire, replay]
+    if: always()
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Report B raw/replay workflow disposition
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VALIDATE_RESULT: ${{ needs.validate.result }}
+          ACQUIRE_RESULT: ${{ needs.acquire.result }}
+          REPLAY_RESULT: ${{ needs.replay.result }}
+        run: |
+          gh issue comment 643 --repo "$GITHUB_REPOSITORY" --body "Architect B raw/replay workflow ${GITHUB_RUN_ID} on ${GITHUB_SHA}: validate=${VALIDATE_RESULT}, acquire=${ACQUIRE_RESULT}, replay=${REPLAY_RESULT}. This status comment grants no scientific or productive authority."

@@ -1,0 +1,302 @@
+name: QORE Shared WP04 V3 HOLDOUT_A One-Shot
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - .github/workflows/qore-shared-wp04-v3-holdout-one-shot.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  QORE_SOFTWARE_SHA: ${{ github.sha }}
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+  FREEZE_RUN_ID: "36243848068"
+
+jobs:
+  holdout-a-one-shot:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install research and cTrader dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,ctrader]"
+
+      - name: Static validation
+        run: |
+          ruff check \
+            scripts/shared_wp04_predictive_holdout_probe_v3.py \
+            scripts/shared_wp04_predictive_holdout_eval_v3.py
+          python -m py_compile \
+            scripts/shared_wp04_predictive_holdout_probe_v3.py \
+            scripts/shared_wp04_predictive_holdout_eval_v3.py
+
+      - name: Wait for exact V3 probe freeze and require scientific PASS
+        run: |
+          set -euo pipefail
+          mkdir -p input/freeze result fresh
+
+          for attempt in $(seq 1 40); do
+            status="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${FREEZE_RUN_ID}" --jq '.status')"
+            conclusion="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${FREEZE_RUN_ID}" --jq '.conclusion // ""')"
+            if [ "$status" = "completed" ]; then
+              test "$conclusion" = "success"
+              break
+            fi
+            sleep 30
+          done
+
+          status="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${FREEZE_RUN_ID}" --jq '.status')"
+          conclusion="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${FREEZE_RUN_ID}" --jq '.conclusion // ""')"
+          test "$status" = "completed"
+          test "$conclusion" = "success"
+
+          artifact_id="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${FREEZE_RUN_ID}/artifacts" --jq '.artifacts[] | select(.name | startswith("qore-shared-wp04-predictive-probe-freeze-v3-")) | .id' | head -n1)"
+          test -n "$artifact_id"
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > freeze.zip
+          unzip -q freeze.zip -d input/freeze
+          (cd input/freeze && sha256sum -c SHA256SUMS)
+
+          freeze_path="input/freeze/wp04-predictive-probe-freeze-v3.json"
+          test -f "$freeze_path"
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("input/freeze/wp04-predictive-probe-freeze-v3.json").read_text())
+          assert p["status"] == "WP04_V3_PROBE_FROZEN_FOR_ONE_SHOT_HOLDOUT"
+          assert p["protocol_pass"] is True
+          assert p["development_gate_pass"] is True
+          assert p["probe_frozen_for_holdout"] is True
+          assert p["fresh_holdout_opened"] is False
+          assert len(p["final_frozen_probes"]) == 8
+          assert len({x["probe_fingerprint"] for x in p["final_frozen_probes"]}) == 8
+          g=p["governance"]
+          assert g["fresh_holdout_must_not_refit_representation"] is True
+          assert g["fresh_holdout_must_not_refit_probe"] is True
+          assert g["final_wp04_gate_minimum_incremental_bps_unchanged"] == 100
+          assert g["final_wp04_gate_minimum_positive_targets_unchanged"] == 4
+          PY
+
+      - name: Verify one-shot marker has never existed
+        run: |
+          set -euo pipefail
+          marker_name="qore-shared-wp04-v3-holdout-a-open-marker"
+          count="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${marker_name}" --jq '.artifacts | length')"
+          test "$count" = "0"
+
+      - name: Verify DEMO credentials before opening holdout
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN
+          do
+            test -n "${!name:-}"
+          done
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            test -n "$account_id"
+            echo "::add-mask::$account_id"
+            echo "QORE_CTRADER_DEMO_ACCOUNT_ID=$account_id" >> "$GITHUB_ENV"
+          fi
+
+      - name: Mark HOLDOUT_A opened before any data acquisition
+        run: |
+          cat > holdout-a-open-marker.json <<'JSON'
+          {
+            "identity": "QORE_SHARED_WP04_PREDICTIVE_HOLDOUT_A_V3_001",
+            "partition": "ONE_SHOT_HOLDOUT_A",
+            "start_inclusive": "2022-07-18T00:00:00+00:00",
+            "end_exclusive": "2023-07-17T00:00:00+00:00",
+            "freeze_run_id": "36243848068",
+            "minimum_pooled_incremental_bps": 100,
+            "minimum_positive_targets": 4,
+            "representation_refit": false,
+            "probe_refit": false,
+            "threshold_retuning": false,
+            "replication_b_opened": false,
+            "live_authorized": false,
+            "production_authorized": false,
+            "real_capital_authorized": false,
+            "merge_authorized": false
+          }
+          JSON
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-wp04-v3-holdout-a-open-marker
+          path: holdout-a-open-marker.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Recover immutable consumed R8 R6 R5 evidence
+        run: |
+          set -euo pipefail
+          mkdir -p input/r8 input/r6 input/r5
+
+          download_artifact() {
+            local artifact_id="$1"
+            local output="$2"
+            gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > "$output"
+          }
+
+          download_artifact 10402199719 r8.zip
+          unzip -q r8.zip -d input/r8
+          (cd input/r8 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+          download_artifact 10389112524 r6.zip
+          unzip -q r6.zip -d input/r6
+          (cd input/r6 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+          download_artifact 10380044761 r5.zip
+          unzip -q r5.zip -d input/r5
+          (cd input/r5 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+      - name: Acquire preregistered HOLDOUT_A exactly once
+        run: |
+          set -euo pipefail
+          mkdir -p fresh/{NAS100,SP500,US30}
+          for market in NAS100 SP500 US30
+          do
+            QORE_DEMO_LAB_SYMBOL="$market" \
+              python scripts/shared_wp04_predictive_holdout_probe_v3.py \
+              > "fresh/$market/market-evidence.json"
+          done
+          sha256sum fresh/*/market-evidence.json > fresh/EVIDENCE-SHA256SUMS
+
+      - name: Evaluate exact frozen V3 representation and probes
+        run: |
+          python scripts/shared_wp04_predictive_holdout_eval_v3.py \
+            --freeze input/freeze/wp04-predictive-probe-freeze-v3.json \
+            --r8-nas input/r8/fresh/NAS100/market-evidence.json \
+            --r8-sp input/r8/fresh/SP500/market-evidence.json \
+            --r8-us input/r8/fresh/US30/market-evidence.json \
+            --r6-nas input/r6/fresh/NAS100/market-evidence.json \
+            --r6-sp input/r6/fresh/SP500/market-evidence.json \
+            --r6-us input/r6/fresh/US30/market-evidence.json \
+            --r5-nas input/r5/fresh/NAS100/market-evidence.json \
+            --r5-sp input/r5/fresh/SP500/market-evidence.json \
+            --r5-us input/r5/fresh/US30/market-evidence.json \
+            --holdout-nas fresh/NAS100/market-evidence.json \
+            --holdout-sp fresh/SP500/market-evidence.json \
+            --holdout-us fresh/US30/market-evidence.json \
+            --output result/wp04-v3-holdout-a.json \
+            | tee result/summary.json
+
+      - name: Governance validation
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/wp04-v3-holdout-a.json").read_text())
+          assert p["protocol_pass"] is True
+          assert p["wp04_exit_gate_pass"] is False
+          assert p["status"] in {
+              "WP04_V3_HOLDOUT_A_PASS_REPLICATION_REQUIRED",
+              "WP04_V3_HOLDOUT_A_FALSIFIED",
+          }
+          h=p["holdout"]
+          assert h["partition"] == "holdout_a"
+          assert h["preregistered_start_inclusive"] == "2022-07-18T00:00:00+00:00"
+          assert h["preregistered_end_exclusive"] == "2023-07-17T00:00:00+00:00"
+          e=p["evaluation"]
+          assert e["minimum_pooled_incremental_bps"] == 100
+          assert e["minimum_positive_target_count"] == 4
+          assert e["target_count"] == 8
+          for t in e["targets"]:
+              assert t["holdout_refit"] is False
+              assert t["runtime_future_market_used"] is False
+              assert t["identity_used"] is False
+              assert t["knowledge_promotion_authority"] is False
+          g=p["governance"]
+          assert g["holdout_preregistered_before_acquisition"] is True
+          assert g["consumed_representation_refit_on_holdout"] is False
+          assert g["probe_refit_on_holdout"] is False
+          assert g["holdout_used_for_threshold_selection"] is False
+          assert g["runtime_future_market_used"] is False
+          assert g["replication_b_remains_sealed_until_holdout_a_pass"] is True
+          assert g["live_authorized"] is False
+          assert g["production_authorized"] is False
+          assert g["real_capital_authorized"] is False
+          assert g["merge_authorized"] is False
+          PY
+
+      - name: Bind HOLDOUT_A evidence and result
+        run: |
+          echo "${GITHUB_SHA}" > result/git-sha.txt
+          cp holdout-a-open-marker.json result/holdout-a-open-marker.json
+          cp fresh/EVIDENCE-SHA256SUMS result/EVIDENCE-SHA256SUMS
+          (
+            cd result
+            find . -type f ! -name SHA256SUMS -print0 \
+              | sort -z \
+              | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-wp04-v3-holdout-a-${{ github.sha }}
+          path: |
+            result/
+            fresh/NAS100/market-evidence.json
+            fresh/SP500/market-evidence.json
+            fresh/US30/market-evidence.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report HOLDOUT_A result
+        if: always()
+        run: |
+          if [ ! -f result/wp04-v3-holdout-a.json ]; then
+            gh issue comment 642 --body "WP-04 V3 HOLDOUT_A one-shot run \`${GITHUB_RUN_ID}\` did not produce a scientific payload. If the open-marker artifact exists, HOLDOUT_A must be treated as opened/consumed and must not be reacquired."
+            exit 0
+          fi
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=json.loads(Path("result/wp04-v3-holdout-a.json").read_text())
+          e=p["evaluation"]
+          lines=[
+              "## WP-04 V3 ONE_SHOT_HOLDOUT_A result",
+              "",
+              f"- Git SHA: \`{os.environ['GITHUB_SHA']}\`",
+              f"- GitHub Actions run: \`{os.environ['GITHUB_RUN_ID']}\`",
+              f"- status: **{p['status']}**",
+              f"- protocol_pass: **{p['protocol_pass']}**",
+              f"- HOLDOUT_A pass: **{p['holdout_a_pass']}**",
+              f"- pooled incremental information: **{e['pooled_incremental_information_bps']} bps**",
+              f"- positive targets: **{e['positive_target_count']}/{e['target_count']}**",
+              "- frozen gate: **>=100 bps pooled + >=4/8 positive**",
+              "- representation refit: **False**",
+              "- probe refit: **False**",
+              "- threshold retuning: **False**",
+              "- REPLICATION_B opened: **False**",
+          ]
+          if p["holdout_a_pass"]:
+              lines.append("HOLDOUT_A passed; next legal step is TEMPORAL_REPLICATION_B with the exact same frozen fingerprints.")
+          else:
+              lines.append("HOLDOUT_A falsified V3; REPLICATION_B remains sealed and WP-04 stays open.")
+          Path("result/wp04-v3-holdout-a-issue-update.md").write_text(
+              "\n".join(lines)+"\n"
+          )
+          PY
+          gh issue comment 642 --body-file result/wp04-v3-holdout-a-issue-update.md

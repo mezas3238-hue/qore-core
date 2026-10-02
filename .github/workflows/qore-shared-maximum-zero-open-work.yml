@@ -1,0 +1,159 @@
+name: QORE Shared Maximum Zero Open Work Gate
+
+concurrency:
+  group: qore-shared-maximum-zero-open-work-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/shared_zero_open_work.py
+      - tests/infrastructure/test_core_stack_v2_shared_zero_open_work.py
+      - scripts/shared_master_open_work_ledger_v1.py
+      - .github/workflows/qore-shared-maximum-zero-open-work.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  zero-open-work:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Validate zero-open-work implementation
+        run: |
+          set -euo pipefail
+          mkdir -p result
+          ruff check             src/qore/infrastructure/core_stack_v2/shared_zero_open_work.py             tests/infrastructure/test_core_stack_v2_shared_zero_open_work.py             scripts/shared_master_open_work_ledger_v1.py
+          mypy             src/qore/infrastructure/core_stack_v2/shared_zero_open_work.py
+          python -m py_compile             src/qore/infrastructure/core_stack_v2/shared_zero_open_work.py             scripts/shared_master_open_work_ledger_v1.py
+          pytest -q             tests/infrastructure/test_core_stack_v2_shared_zero_open_work.py             --junitxml=result/junit.xml
+
+      - name: Materialize current master ledger
+        run: |
+          set -euo pipefail
+          python scripts/shared_master_open_work_ledger_v1.py             --output result/shared-master-open-work-ledger.json             | tee result/summary.json
+
+      - name: Enforce current certification blockade
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p=json.loads(
+              Path("result/shared-master-open-work-ledger.json").read_text()
+          )
+          a=p["assessment"]
+          ids={row["work_id"] for row in p["items"]}
+
+          assert a["total_items"] == 103
+          assert a["mandatory_items"] == 103
+          assert a["mandatory_closed"] >= 17
+          assert a["blocker_count"] == a["mandatory_items"] - a["mandatory_closed"]
+          assert a["zero_open_required_work"] is False
+          assert a["pre_certification_ready"] is False
+          assert a["final_certification_exam_authorized"] is False
+          assert a["protected_holdout_opening_authorized"] is False
+          assert a["productive_authority"] is False
+
+          assert {f"WP-{i:02d}" for i in range(1,13)} <= ids
+          assert {f"MC-{i:02d}" for i in range(1,29)} <= ids
+          assert {f"STI-{i}" for i in range(17)} <= ids
+          assert {f"GW-{i}" for i in range(24)} <= ids
+
+          states={row["work_id"]:row["state"] for row in p["items"]}
+          assert states["STI-2"] == "RESEARCH_OOS_PASS"
+          assert states["STI-5"] == "EXTERNAL_DEPENDENCY_BLOCKED"
+          assert states["STI-6"] == "EXTERNAL_DEPENDENCY_BLOCKED"
+          assert states["STI-8"] == "RESEARCH_OOS_PASS"
+          assert states["STI-13"] == "COMPLETED_AND_PROVEN"
+          assert states["MC-02"] == "COMPLETED_AND_PROVEN"
+          assert states["MC-03"] == "COMPLETED_AND_PROVEN"
+          assert states["MC-04"] == "COMPLETED_AND_PROVEN"
+          assert states["MC-07"] == "COMPLETED_AND_PROVEN"
+          assert states["MC-15"] == "COMPLETED_AND_PROVEN"
+          assert states["X-04"] == "COMPLETED_AND_PROVEN"
+          assert states["X-11"] == "COMPLETED_AND_PROVEN"
+          assert states["X-13"] == "COMPLETED_AND_PROVEN"
+          assert states["X-17"] == "COMPLETED_AND_PROVEN"
+          assert states["X-18"] == "COMPLETED_AND_PROVEN"
+          assert states["X-19"] == "COMPLETED_AND_PROVEN"
+          assert states["WP-05"] == "RESEARCH_INCOMPLETE"
+          assert states["MC-28"] == "UNRESOLVED_REQUIRED_AUDIT"
+          assert states["GW-1"] == "COMPLETED_AND_PROVEN"
+          assert states["GW-2"] == "RESEARCH_INCOMPLETE"
+
+          laws=p["owner_laws"]
+          assert laws["mandatory_falsified_v1_closes_capability"] is False
+          assert laws["architecture_or_contract_counts_as_completion"] is False
+          assert laws["ci_green_counts_as_certification"] is False
+          assert laws["external_dependency_blocked_counts_as_completion"] is False
+          assert laws["one_successful_sti_can_compensate_for_missing_sti"] is False
+          assert laws["unfinished_work_allows_pre_certification"] is False
+          PY
+
+      - name: Bind evidence
+        run: |
+          set -euo pipefail
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0               | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-maximum-zero-open-work-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report certification blockade
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          p=json.loads(
+              Path("result/shared-master-open-work-ledger.json").read_text()
+          )
+          a=p["assessment"]
+          body="\n".join([
+              "## Shared Maximum Ceiling — Zero Open Work Gate",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- tracked mandatory items: **{a['mandatory_items']}**",
+              f"- completed-and-proven: **{a['mandatory_closed']}**",
+              f"- blockers: **{a['blocker_count']}**",
+              f"- ZERO_OPEN_REQUIRED_WORK: **{a['zero_open_required_work']}**",
+              f"- PRE_CERTIFICATION_READY: **{a['pre_certification_ready']}**",
+              "- final certification exam authorized: **False**",
+              "- protected certification holdout opening authorized: **False**",
+              "",
+              "Mandatory V1 falsification closes only that approach, never the required capability.",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md

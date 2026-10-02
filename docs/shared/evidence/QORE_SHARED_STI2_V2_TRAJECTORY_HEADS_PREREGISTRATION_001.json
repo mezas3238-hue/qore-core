@@ -1,0 +1,114 @@
+{
+  "identity": "QORE_SHARED_STI2_V2_TRAJECTORY_HEADS_PREREGISTRATION_001",
+  "workstream": "STI-2",
+  "capability": "GLOBAL_OPPORTUNITY_DISCOVERY",
+  "generation": "V2",
+  "status": "PREREGISTERED_RESEARCH_ONLY",
+  "parent_v1": {
+    "run_id": 36639842181,
+    "disposition": "STI2_V1_FALSIFIED_ON_CONSUMED_EVIDENCE",
+    "v1_reopened": false,
+    "threshold_rescue_allowed": false
+  },
+  "failure_knowledge": {
+    "diagnostic_run_id": 36665608379,
+    "cross_partition_findings": [
+      "V2_MATURITY_MODEL_MISSES_EARLY_CAUSAL_TRAJECTORY",
+      "V2_TARGET_MECHANISM_SPECIFIC_HEADS"
+    ]
+  },
+  "scientific_hypothesis": {
+    "statement": "Opportunity emergence is better represented as a causal temporal journey inside separate mechanism heads than as one aggregated instantaneous maturity score.",
+    "heads": [
+      "EXPANSION",
+      "CONTINUATION",
+      "REVERSAL",
+      "RELATIONSHIP_TRANSITION"
+    ],
+    "arbitration_after_heads": true,
+    "early_trajectory_detection_required": true,
+    "single_max_score_as_primary_model": false
+  },
+  "source_only_feature_law": {
+    "expansion": [
+      "compression",
+      "liquidity_accumulation",
+      "displacement",
+      "liquidity_vacuum"
+    ],
+    "continuation": [
+      "displacement",
+      "acceptance",
+      "leader_confirmation",
+      "momentum_persistence"
+    ],
+    "reversal": [
+      "failed_auction",
+      "absorption",
+      "leader_divergence",
+      "momentum_decay",
+      "regime_transition"
+    ],
+    "relationship_transition": [
+      "leader_divergence",
+      "structural_fragility",
+      "regime_transition",
+      "anomaly",
+      "momentum_decay"
+    ]
+  },
+  "temporal_hypothesis": {
+    "sequence_window": 6,
+    "uses_level": true,
+    "uses_velocity": true,
+    "uses_persistence": true,
+    "uses_head_coherence": true,
+    "uses_future_market_for_inference": false
+  },
+  "calibration": {
+    "partition": "R8_SOURCE_ONLY",
+    "thresholds": "SOURCE_DISTRIBUTION_QUANTILES_ONLY",
+    "outcomes_allowed_for_threshold_freeze": false,
+    "future_market_allowed_for_threshold_freeze": false,
+    "r6_allowed_for_threshold_fit": false,
+    "r5_allowed_for_threshold_fit": false
+  },
+  "evaluation": {
+    "r6": "CONSUMED_VALIDATION",
+    "r5": "CONSUMED_TEMPORAL_REPLICATION",
+    "overall_metrics": [
+      "PRECISION",
+      "RECALL",
+      "FALSE_ALERT_RATE",
+      "MISSED_OPPORTUNITY_RATE",
+      "LEAD_TIME",
+      "ATTENTION_DENSITY"
+    ],
+    "mechanism_metrics": [
+      "EXPANSION_PRECISION_RECALL",
+      "CONTINUATION_PRECISION_RECALL",
+      "REVERSAL_PRECISION_RECALL",
+      "RELATIONSHIP_TRANSITION_DIAGNOSTIC"
+    ],
+    "negative_result_allowed": true
+  },
+  "frozen_gate_law": {
+    "must_materially_improve_v1_recall_bps_by_at_least": 1500,
+    "minimum_overall_precision_bps": 5000,
+    "minimum_overall_recall_bps": 3500,
+    "maximum_false_alert_rate_bps": 5000,
+    "maximum_missed_opportunity_rate_bps": 6500,
+    "both_r6_and_r5_required": true
+  },
+  "governance": {
+    "future_outcome_in_inference": false,
+    "trader_methodology_used": false,
+    "shared_order_authority": false,
+    "shared_sizing_authority": false,
+    "shared_capital_authority": false,
+    "shared_risk_authority": false,
+    "shared_execution_authority": false,
+    "protected_certification_holdout_opened": false,
+    "productive_authority": false
+  }
+}

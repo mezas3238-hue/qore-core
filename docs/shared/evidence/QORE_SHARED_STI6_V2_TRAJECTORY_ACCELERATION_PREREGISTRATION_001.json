@@ -1,0 +1,47 @@
+{
+  "identity": "QORE_SHARED_STI6_V2_TRAJECTORY_ACCELERATION_PREREGISTRATION_001",
+  "workstream": "STI-6",
+  "generation": "V2",
+  "status": "PREREGISTERED_RESEARCH_ONLY",
+  "parent_v1": {
+    "disposition": "STI6_V1_FALSIFIED_ON_CONSUMED_R6",
+    "threshold_rescue_allowed": false,
+    "r5_opened_by_failure_diagnostic": false
+  },
+  "scientific_hypothesis": {
+    "name": "TRAJECTORY_ACCELERATION_LOCAL_EXPANSION_WITH_FAILURE_VETO",
+    "claims": [
+      "Positive tails are better represented by improving trajectory than one static continuation level.",
+      "Persistent local expansion carries information distinct from generic world support.",
+      "High failure hazard should veto continuation support even when continuation evidence is elevated."
+    ],
+    "new_engine_required": true,
+    "v1_static_score_reused_as_primary_decision": false
+  },
+  "calibration": {
+    "partition": "R8_SOURCE_ONLY",
+    "terminal_outcomes_allowed": false,
+    "thresholds_from_source_distributions_only": true,
+    "sequence_window": 5
+  },
+  "first_validation": {
+    "partition": "R6_CONSUMED",
+    "r5_opening_authorized_before_r6_pass": false,
+    "terminal_outcome_allowed_only_after_source_sequence_materialization": true
+  },
+  "frozen_gates": {
+    "winner_precision_bps_min": 6000,
+    "winner_recall_bps_min": 4000,
+    "positive_tail_precision_bps_min": 6000,
+    "positive_tail_recall_bps_min": 3000,
+    "false_continuation_on_nonwinners_bps_max": 4000
+  },
+  "governance": {
+    "future_market_used_for_inference": false,
+    "outcome_aware_threshold_fit": false,
+    "v1_parameter_rescue": false,
+    "r5_opened": false,
+    "protected_certification_holdout_opened": false,
+    "productive_authority": false
+  }
+}

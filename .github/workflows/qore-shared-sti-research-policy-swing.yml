@@ -1,0 +1,141 @@
+name: QORE Shared STI Research Policy and Swing Support
+
+concurrency:
+  group: qore-shared-sti-research-policy-swing-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/shared_trader_intelligence_research_policy.py
+      - src/qore/infrastructure/core_stack_v2/shared_swing_trader_support.py
+      - tests/infrastructure/test_core_stack_v2_shared_trader_intelligence_research_policy.py
+      - tests/infrastructure/test_core_stack_v2_shared_swing_trader_support.py
+      - docs/shared/QORE_SHARED_TRADER_INTELLIGENCE_GAP_AUDIT_001.md
+      - .github/workflows/qore-shared-sti-research-policy-swing.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Validate research policy and Swing support sovereignty
+        run: |
+          set -euo pipefail
+          mkdir -p result
+          ruff check \
+            src/qore/infrastructure/core_stack_v2/shared_trader_intelligence_research_policy.py \
+            src/qore/infrastructure/core_stack_v2/shared_swing_trader_support.py \
+            tests/infrastructure/test_core_stack_v2_shared_trader_intelligence_research_policy.py \
+            tests/infrastructure/test_core_stack_v2_shared_swing_trader_support.py
+          mypy \
+            src/qore/infrastructure/core_stack_v2/shared_trader_intelligence_research_policy.py \
+            src/qore/infrastructure/core_stack_v2/shared_swing_trader_support.py
+          pytest -q \
+            tests/infrastructure/test_core_stack_v2_shared_trader_intelligence_research_policy.py \
+            tests/infrastructure/test_core_stack_v2_shared_swing_trader_support.py \
+            --junitxml=result/junit.xml
+
+      - name: Seal research-only contract evidence
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          root=ET.parse("result/junit.xml").getroot()
+          suites=(root,) if root.tag == "testsuite" else tuple(root.findall("testsuite"))
+          tests=sum(int(item.attrib.get("tests", "0")) for item in suites)
+          failures=sum(int(item.attrib.get("failures", "0")) for item in suites)
+          errors=sum(int(item.attrib.get("errors", "0")) for item in suites)
+          if tests <= 0:
+              raise SystemExit("STI research policy/Swing lane refuses zero-test evidence")
+          if failures + errors:
+              raise SystemExit("STI research policy/Swing lane refuses failing evidence")
+
+          evidence={
+              "identity":"QORE_SHARED_STI_RESEARCH_POLICY_SWING_EVIDENCE_001",
+              "head":os.environ["GITHUB_SHA"],
+              "run_id":int(os.environ["GITHUB_RUN_ID"]),
+              "test_count":tests,
+              "failure_count":failures+errors,
+              "status":"CONTRACT_LANES_GREEN_RESEARCH_ONLY",
+              "materiality_policy_productive_authority":False,
+              "materiality_assessment_emits_alert_authority":False,
+              "swing_runtime_trader_created":False,
+              "swing_trader_certified":False,
+              "shared_swing_setup_authority":False,
+              "shared_swing_direction_authority":False,
+              "shared_swing_entry_authority":False,
+              "shared_swing_stop_target_authority":False,
+              "shared_swing_position_management_authority":False,
+              "shared_swing_sizing_authority":False,
+              "shared_swing_execution_authority":False,
+              "predictive_value_proven":False,
+              "economic_value_proven":False,
+              "protected_holdout_opened":False,
+              "productive_behavior_authority":False,
+          }
+          Path("result/sti-research-policy-swing-evidence.json").write_text(
+              json.dumps(evidence,sort_keys=True,indent=2)+"\n"
+          )
+          PY
+          printf '%s\n' "$GITHUB_SHA" > result/code-git-sha.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 \
+              | sort -z | xargs -0 sha256sum > SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-sti-research-policy-swing-${{ github.sha }}
+          path: result
+          retention-days: 90
+
+      - name: Report research-only lane state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          evidence=json.loads(
+              Path("result/sti-research-policy-swing-evidence.json").read_text()
+          )
+          body="\n".join([
+              "## Shared STI — Materiality + Swing Support",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- tests: **{evidence['test_count']}** / failures: **{evidence['failure_count']}**",
+              f"- status: **{evidence['status']}**",
+              "- materiality productive authority: **False**",
+              "- Swing runtime Trader created/certified: **False / False**",
+              "- Shared Swing setup/direction/entry/stop/position/sizing/execution authority: **False**",
+              "- predictive/economic value proven: **False / False**",
+              "- protected Shared holdout opened: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md

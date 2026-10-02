@@ -1,0 +1,97 @@
+name: QORE Shared Integrator A MC22 Validation
+
+concurrency:
+  group: qore-shared-integrator-a-mc22-validation-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
+
+
+on:
+  push:
+    branches:
+      - agent/shared-integration-a-mc22-001
+    paths:
+      - "src/qore/infrastructure/core_stack_v2/autonomous_scientific_lab.py"
+      - "tests/infrastructure/test_core_stack_v2_autonomous_scientific_lab.py"
+      - "scripts/shared_mc22_v18_full_reject_loop.py"
+      - ".github/workflows/qore-shared-integrator-a-mc22-validation.yml"
+  pull_request:
+    paths:
+      - "src/qore/infrastructure/core_stack_v2/autonomous_scientific_lab.py"
+      - "tests/infrastructure/test_core_stack_v2_autonomous_scientific_lab.py"
+      - "scripts/shared_mc22_v18_full_reject_loop.py"
+      - ".github/workflows/qore-shared-integrator-a-mc22-validation.yml"
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  validate-mc22:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate isolated MC22 code
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          ruff check             src/qore/infrastructure/core_stack_v2/autonomous_scientific_lab.py             scripts/shared_mc22_v18_full_reject_loop.py             src/qore/infrastructure/core_stack_v2/shared_zero_open_work.py
+          mypy src/qore/infrastructure/core_stack_v2/autonomous_scientific_lab.py
+          pytest -q tests/infrastructure/test_core_stack_v2_autonomous_scientific_lab.py tests/infrastructure/test_core_stack_v2_shared_zero_open_work.py
+          python - <<'PY'
+          from qore.infrastructure.core_stack_v2.shared_zero_open_work import (
+              SharedWorkState,
+              build_shared_master_open_work_ledger,
+          )
+          by_id={item.work_id:item for item in build_shared_master_open_work_ledger()}
+          assert by_id["MC-22"].state is SharedWorkState.COMPLETED_AND_PROVEN
+          assert by_id["MC-23"].state is not SharedWorkState.COMPLETED_AND_PROVEN
+          assert by_id["MC-26"].state is not SharedWorkState.COMPLETED_AND_PROVEN
+          assert by_id["MC-28"].state is not SharedWorkState.COMPLETED_AND_PROVEN
+          assert by_id["WP-10"].state is not SharedWorkState.COMPLETED_AND_PROVEN
+          PY
+
+      - name: Verify immutable Architect A closure evidence
+        run: |
+          set -euo pipefail
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/36782306980" --jq '.status')" = "completed"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/36782306980" --jq '.conclusion')" = "success"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11128791254" --jq '.expired')" = "false"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10870455251" --jq '.expired')" = "false"
+
+      - name: Recover source closure and V18 consumed evidence
+        run: |
+          mkdir -p input/source input/v18 result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11128791254/zip" > source.zip
+          unzip -q source.zip -d input/source
+          (cd input/source && sha256sum -c SHA256SUMS)
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10870455251/zip" > v18.zip
+          unzip -q v18.zip -d input/v18
+          (cd input/v18 && sha256sum -c SHA256SUMS)
+
+      - name: Deterministically replay MC22 closure
+        run: |
+          python scripts/shared_mc22_v18_full_reject_loop.py             --v18 input/v18/shared-autonomous-incremental-defense-v18.json             --output result/replayed-mc22.json
+
+      - name: Prove source/replay identity and authority isolation
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          source=json.loads(Path("input/source/mc22-v18-full-reject-loop.json").read_text())
+          replay=json.loads(Path("result/replayed-mc22.json").read_text())
+          assert replay == source
+          assert replay["mc22_completed_and_proven"] is True
+          assert replay["outcome"] == "REJECT"
+          assert replay["failed_experiment_auto_promoted"] is False
+          assert replay["certified_runtime_mutation"] is False
+          assert replay["promotion_authority"] is False
+          assert replay["protected_certification_holdout_opened"] is False
+          PY

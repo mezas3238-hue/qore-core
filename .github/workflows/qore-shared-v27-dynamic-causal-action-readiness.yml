@@ -1,0 +1,150 @@
+name: QORE Shared V27 Dynamic Causal Action Readiness
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/causal_action_readiness.py
+      - tests/infrastructure/test_core_stack_v2_causal_action_readiness.py
+      - scripts/shared_v27_dynamic_causal_action_readiness.py
+      - .github/workflows/qore-shared-v27-dynamic-causal-action-readiness.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  dynamic-causal-action-readiness:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    steps:
+      - name: Checkout Shared
+        uses: actions/checkout@v4
+        with:
+          path: shared
+
+      - name: Checkout frozen external falsification surface
+        uses: actions/checkout@v4
+        with:
+          ref: agent/vt08-index-deep-behavior-lab-final
+          path: surface
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compose autonomous Shared research surface
+        run: |
+          set -euo pipefail
+          mkdir -p surface/src/qore/infrastructure/core_stack_v2 surface/scripts surface/tests/infrastructure
+          : > surface/src/qore/infrastructure/core_stack_v2/__init__.py
+          for module in             adversity_challenge_intelligence.py             multi_state_competing_hazard.py             causal_path_representation.py             causal_hypothesis_belief.py             causal_state_filter.py             factorized_causal_state.py             multi_horizon_incidence.py             causal_action_readiness.py
+          do
+            cp "shared/src/qore/infrastructure/core_stack_v2/$module"                "surface/src/qore/infrastructure/core_stack_v2/$module"
+          done
+          cp shared/tests/infrastructure/test_core_stack_v2_causal_action_readiness.py              surface/tests/infrastructure/test_core_stack_v2_causal_action_readiness.py
+          for script in             vt08_index_shared_competing_risk_calibration_v9.py             vt08_index_shared_context_conditioned_competing_risk_v15.py             shared_autonomous_nonlinear_loss_risk_ensemble_v19.py             shared_multi_state_competing_hazard_v20.py             shared_relational_adversity_challenge_survival_v21.py             shared_sequence_event_causal_belief_v23.py             shared_v26_r0b_selection_corrected_incidence_forensics.py             shared_v27_dynamic_causal_action_readiness.py
+          do
+            cp "shared/scripts/$script" "surface/scripts/$script"
+          done
+
+      - name: Install composite research tree
+        run: |
+          cd surface
+          pip install -e ".[dev]"
+          pip install "numpy>=2,<3" "scikit-learn>=1.5,<2"
+
+      - name: Static and causal-contract validation
+        run: |
+          set -euo pipefail
+          cd surface
+          ruff check             src/qore/infrastructure/core_stack_v2/causal_action_readiness.py             tests/infrastructure/test_core_stack_v2_causal_action_readiness.py             scripts/shared_v27_dynamic_causal_action_readiness.py
+          python -m py_compile             src/qore/infrastructure/core_stack_v2/causal_action_readiness.py             scripts/shared_v27_dynamic_causal_action_readiness.py
+          pytest -q tests/infrastructure/test_core_stack_v2_causal_action_readiness.py
+
+      - name: Download frozen consumed path ledger
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-shared-vt08-stop-target-discrimination-v6-1a534d0ae735efef4dcbc0c0be4b110ceaa80501
+          path: surface/artifacts/v6
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 36131607443
+
+      - name: Run V27 dynamic causal action readiness
+        run: |
+          set -euo pipefail
+          cd surface
+          mkdir -p artifacts/shared-v27
+          python scripts/shared_v27_dynamic_causal_action_readiness.py             --v6-json artifacts/v6/vt08-index-shared-stop-target-discrimination-v6.json             --out artifacts/shared-v27/shared-v27-dynamic-causal-action-readiness.json             | tee artifacts/shared-v27/summary.json
+
+      - name: Validate governance
+        run: |
+          set -euo pipefail
+          cd surface
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p=json.loads(Path(
+              "artifacts/shared-v27/"
+              "shared-v27-dynamic-causal-action-readiness.json"
+          ).read_text())
+          assert p["identity"] == "QORE_SHARED_V27_DYNAMIC_CAUSAL_ACTION_READINESS"
+          assert p["research_only"] is True
+          assert p["shared_autonomous_model"] is True
+          assert p["cognition_separated_from_action_readiness"] is True
+          assert p["watch_and_defend_have_no_execution_authority"] is True
+          assert p["only_exit_risk_warning_counted_as_hypothetical_intervention"] is True
+          assert p["dynamic_later_confirmation_allowed"] is True
+          assert p["multi_horizon_models_fit_on_five_year_only"] is True
+          assert p["policy_selected_on_five_year_only"] is True
+          assert p["v21_relational_veto_frozen"] is True
+          assert p["fresh_holdout_opened"] is False
+          assert p["runtime_current_position_pnl_used"] is False
+          assert p["runtime_terminal_outcome_used"] is False
+          assert p["runtime_future_market_used"] is False
+          assert p["runtime_symbol_identity_used"] is False
+          assert p["runtime_market_identity_used"] is False
+          assert p["runtime_trader_identity_used"] is False
+          assert p["runtime_methodology_identity_used"] is False
+          assert p["runtime_calendar_identity_used"] is False
+          assert p["runtime_fold_identity_used"] is False
+          assert p["sizing_used"] is False
+          assert p["risk_weighting_used"] is False
+          assert p["runtime_actuation"] is False
+          assert p["closed_outcome_and_exit_distance_used_offline_for_training_and_scoring_only"] is True
+          assert p["scientific_status"] in {"PASS","REJECT"}
+          if p["selected_policy"] is not None:
+              assert p["policy_frozen_across_validation_windows"] is True
+              assert set(p["windows"]) == {
+                  "five_year","recent_two_year","r66_consumed_failed_holdout"
+              }
+          print(json.dumps({
+              "scientific_status":p["scientific_status"],
+              "validation_pass":p["validation_pass"],
+              "rejection_reason":p.get("rejection_reason"),
+              "selected_policy":p["selected_policy"],
+              "windows":p["windows"],
+          },sort_keys=True))
+          PY
+
+      - name: Bind result
+        run: |
+          cd surface/artifacts/shared-v27
+          echo "$GITHUB_SHA" > shared-git-sha.txt
+          echo "36131607443" > source-v6-run.txt
+          echo "36156421332" > source-v21-run.txt
+          echo "36210276127" > source-v26-r0b-run.txt
+          echo "36210719743" > source-v26-r1-run.txt
+          find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+          sha256sum -c SHA256SUMS
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-v27-dynamic-causal-action-readiness-${{ github.sha }}
+          path: surface/artifacts/shared-v27/
+          if-no-files-found: error
+          retention-days: 90

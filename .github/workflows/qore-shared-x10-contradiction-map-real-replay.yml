@@ -1,0 +1,135 @@
+name: QORE Shared X10 Contradiction Map Real Replay
+
+concurrency:
+  group: qore-shared-x10-contradiction-map-real-replay
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/shared_contradiction_map.py
+      - tests/infrastructure/test_core_stack_v2_shared_contradiction_map.py
+      - scripts/shared_x10_contradiction_map_real_replay.py
+      - .github/workflows/qore-shared-x10-contradiction-map-real-replay.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  replay:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Validate contradiction map
+        run: |
+          set -euo pipefail
+          mkdir -p result input/r8 input/r6 input/r5
+          ruff check             src/qore/infrastructure/core_stack_v2/shared_contradiction_map.py             tests/infrastructure/test_core_stack_v2_shared_contradiction_map.py             scripts/shared_x10_contradiction_map_real_replay.py
+          mypy src/qore/infrastructure/core_stack_v2/shared_contradiction_map.py
+          python -m py_compile scripts/shared_x10_contradiction_map_real_replay.py
+          pytest -q tests/infrastructure/test_core_stack_v2_shared_contradiction_map.py             --junitxml=result/junit.xml
+
+      - name: Recover immutable market evidence
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10402199719/zip" > r8.zip
+          unzip -q r8.zip -d input/r8
+          (cd input/r8 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          unzip -q r6.zip -d input/r6
+          (cd input/r6 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" > r5.zip
+          unzip -q r5.zip -d input/r5
+          (cd input/r5 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+      - name: Execute replicated contradiction stress
+        run: |
+          set -euo pipefail
+          python scripts/shared_x10_contradiction_map_real_replay.py             --r8-nas input/r8/fresh/NAS100/market-evidence.json             --r8-sp input/r8/fresh/SP500/market-evidence.json             --r8-us input/r8/fresh/US30/market-evidence.json             --r6-nas input/r6/fresh/NAS100/market-evidence.json             --r6-sp input/r6/fresh/SP500/market-evidence.json             --r6-us input/r6/fresh/US30/market-evidence.json             --r5-nas input/r5/fresh/NAS100/market-evidence.json             --r5-sp input/r5/fresh/SP500/market-evidence.json             --r5-us input/r5/fresh/US30/market-evidence.json             --output result/x10-contradiction-map.json             | tee result/summary.json
+
+      - name: Validate disposition
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/x10-contradiction-map.json").read_text())
+          assert p["status"] in {
+              "X10_CONTRADICTION_MAP_REPLICATED_PASS",
+              "X10_CONTRADICTION_MAP_FALSIFIED",
+          }
+          assert p["engine_implemented"] is True
+          assert p["real_data_bound"] is True
+          assert p["causal_replay_executed"] is True
+          assert p["future_market_used"] is False
+          assert p["outcome_or_pnl_used"] is False
+          assert p["protected_certification_holdout_opened"] is False
+          for partition in ("r8","r6","r5"):
+              row=p["results"][partition]
+              assert row["sample_count"] > 0
+              assert row["baseline_missing_evidence_count"] == 0
+          PY
+
+      - name: Bind evidence
+        run: |
+          set -euo pipefail
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0               | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-x10-contradiction-map-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report X-10
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          p=json.loads(Path("result/x10-contradiction-map.json").read_text())
+          lines=[
+              "## Shared X-10 — Contradiction Map",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- disposition: **{p['status']}**",
+          ]
+          for partition in ("r8","r6","r5"):
+              row=p["results"][partition]
+              lines.append(
+                  f"- {partition.upper()}: contradiction +**{row['contradiction_delta_bps']} bps**, "
+                  f"assertiveness -**{row['assertiveness_reduction_bps']} bps**, "
+                  f"gate **{row['gate_pass']}**"
+              )
+          lines.extend([
+              "- future/outcome/PnL used: **False**",
+              "- productive authority: **False**",
+              "- protected certification holdout opened: **False**",
+          ])
+          Path("result/issue-comment.md").write_text("\n".join(lines)+"\n")
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md

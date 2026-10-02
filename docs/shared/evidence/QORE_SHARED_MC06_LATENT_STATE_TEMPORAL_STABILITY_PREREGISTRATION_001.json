@@ -1,0 +1,32 @@
+{
+  "identity": "QORE_SHARED_MC06_LATENT_STATE_TEMPORAL_STABILITY_PREREGISTRATION_001",
+  "status": "PREREGISTERED_BEFORE_STABILITY_EVALUATION",
+  "objective": "Test source-time latent-state transition stability without outcomes.",
+  "calibration_partition": "R8_SOURCE_ONLY",
+  "evaluation_partitions": [
+    "R6_SOURCE_ONLY",
+    "R5_SOURCE_ONLY"
+  ],
+  "transition_law": {
+    "dominant_state": "maximum weight_bps with state name deterministic tie-break",
+    "adjacency_minutes_min": 20,
+    "adjacency_minutes_max": 40,
+    "distribution": "dominant-state transition frequency normalized to 10000 bps",
+    "distance": "total variation distance in basis points"
+  },
+  "frozen_gate": {
+    "r8_internal_split": "chronological first half versus second half",
+    "tolerance_formula": "max(750, min(10000, 2 * R8_INTERNAL_TVD_BPS + 250))",
+    "minimum_transition_count_per_partition": 100,
+    "required": "R6_TVD <= tolerance AND R5_TVD <= tolerance"
+  },
+  "governance": {
+    "future_market_used": false,
+    "outcome_used": false,
+    "pnl_used": false,
+    "protected_certification_holdout_opened": false,
+    "productive_authority": false,
+    "threshold_rescue_authorized": false,
+    "post_evaluation_retuning_authorized": false
+  }
+}

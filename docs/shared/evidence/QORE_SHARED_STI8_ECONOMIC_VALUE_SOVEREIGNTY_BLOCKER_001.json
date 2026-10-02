@@ -1,0 +1,48 @@
+{
+  "identity": "QORE_SHARED_STI8_ECONOMIC_VALUE_SOVEREIGNTY_BLOCKER_001",
+  "checkpoint_head_before_record": "cf2edaf921f72fe11cb3ec658a53283b2a2758de",
+  "workstream": "STI-8",
+  "capability": "POSITION_THREAT_INTELLIGENCE_ECONOMIC_VALUE",
+  "current_signal_evidence": {
+    "r6_signal_value": "PASS",
+    "r5_replication": "PASS",
+    "source_stress": "PASS",
+    "research_oos": "PASS",
+    "economic_value": "PENDING"
+  },
+  "trader_source_audit": {
+    "trader": "VT31_NAS100",
+    "source_module": "src/qore/infrastructure/traders/vt31_silver_bullet_r2_2.py",
+    "current_position_management": "3R->breakeven",
+    "shared_threat_response_rule_exists_in_source_methodology": false,
+    "shared_may_directly_exit_position": false,
+    "shared_may_directly_modify_stop": false,
+    "shared_may_directly_modify_target": false
+  },
+  "scientific_consequence": {
+    "direct_shared_threat_to_exit_test_valid": false,
+    "direct_shared_threat_to_stop_mutation_test_valid": false,
+    "reason": "Such a treatment would grant Shared position-management authority or invent Trader methodology, violating Owner Directive 007.",
+    "required_bridge": "A Trader-owned, research-only, preregistered position-intelligence consumer policy must exist identically in both study arms; control receives no proactive Shared evidence and treatment receives frozen STI-8 evidence.",
+    "same_initial_setup_entry_stop_target_required": true,
+    "future_outcome_in_decision_forbidden": true,
+    "economic_value_claim_authorized_now": false
+  },
+  "next_gate": {
+    "name": "STI8_TRADER_OWNED_RESPONSE_PREREGISTRATION",
+    "must_freeze_before_counterfactual_outcomes": [
+      "response action semantics",
+      "decision timing",
+      "allowed HOLD_PROTECT_PARTIAL_EXIT_EXIT actions",
+      "same-opportunity-universe rule",
+      "control/treatment policy fingerprints",
+      "winner-preservation gates",
+      "loss-R and drawdown gates",
+      "false-threat cost",
+      "premature-exit regret",
+      "positive-tail preservation"
+    ],
+    "protected_certification_holdout_opening_authorized": false,
+    "productive_authority": false
+  }
+}

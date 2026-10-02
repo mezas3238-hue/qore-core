@@ -1,0 +1,220 @@
+{
+  "identity": "QORE_SHARED_STI_ENGINE_MATURITY_CHECKPOINT_002",
+  "checkpoint_date": "2026-09-29",
+  "primary_pr": 635,
+  "branch": "agent/qore-core-stack-v2-shared-001",
+  "owner_law": {
+    "contract_implemented_is_not_engine_implemented": true,
+    "engine_implemented_is_not_value_demonstrated": true,
+    "value_demonstrated_is_not_certification": true
+  },
+  "engines": [
+    {
+      "workstream": "STI-2",
+      "capability": "GLOBAL_OPPORTUNITY_DISCOVERY",
+      "evidence_run_id": 36639842181,
+      "evidence_git_sha": "63a957cb01c18f51fdde6046b23629a6e9f51bf9",
+      "state": {
+        "CONTRACT_DEFINED": true,
+        "ENGINE_IMPLEMENTED": true,
+        "REAL_DATA_BOUND": true,
+        "CAUSAL_REPLAY_EXECUTED": true,
+        "VALUE_DEMONSTRATED": false,
+        "OOS_PASS": false,
+        "REPLICATION_PASS": false,
+        "CERTIFIED": false
+      },
+      "scientific_disposition": "STI2_V1_FALSIFIED_ON_CONSUMED_EVIDENCE",
+      "protected_holdout_opened": false
+    },
+    {
+      "workstream": "STI-5",
+      "capability": "REGIME_TRANSITION_INTELLIGENCE",
+      "evidence_run_id": 36640098773,
+      "evidence_git_sha": "a6f2855bacc6f472e8fe70267f6b6700a607c423",
+      "state": {
+        "CONTRACT_DEFINED": true,
+        "ENGINE_IMPLEMENTED": true,
+        "REAL_DATA_BOUND": true,
+        "CAUSAL_REPLAY_EXECUTED": true,
+        "VALUE_DEMONSTRATED": false,
+        "OOS_PASS": false,
+        "REPLICATION_PASS": false,
+        "CERTIFIED": false
+      },
+      "scientific_disposition": "STI5_V1_FALSIFIED_ON_CONSUMED_EVIDENCE",
+      "protected_holdout_opened": false
+    },
+    {
+      "workstream": "STI-6",
+      "capability": "CONTINUATION_POSITIVE_TAIL_INTELLIGENCE",
+      "evidence_run_id": 36640907470,
+      "evidence_git_sha": "711788d89521e051ab3969a9006830068381693e",
+      "state": {
+        "CONTRACT_DEFINED": true,
+        "ENGINE_IMPLEMENTED": true,
+        "REAL_DATA_BOUND": true,
+        "CAUSAL_REPLAY_EXECUTED": true,
+        "VALUE_DEMONSTRATED": false,
+        "OOS_PASS": false,
+        "REPLICATION_PASS": false,
+        "CERTIFIED": false
+      },
+      "scientific_disposition": "STI6_V1_FALSIFIED_ON_CONSUMED_R6",
+      "economic_position_management_value_proven": false,
+      "protected_holdout_opened": false
+    },
+    {
+      "workstream": "STI-8",
+      "capability": "POSITION_THREAT_INTELLIGENCE",
+      "evidence_run_id": 36640907470,
+      "evidence_git_sha": "711788d89521e051ab3969a9006830068381693e",
+      "state": {
+        "CONTRACT_DEFINED": true,
+        "ENGINE_IMPLEMENTED": true,
+        "REAL_DATA_BOUND": true,
+        "CAUSAL_REPLAY_EXECUTED": true,
+        "VALUE_DEMONSTRATED": true,
+        "OOS_PASS": false,
+        "REPLICATION_PASS": true,
+        "CERTIFIED": false,
+        "STRESS_PASS": true
+      },
+      "value_scope": "PREDICTIVE_SIGNAL_VALUE_ON_CONSUMED_R6_ONLY",
+      "scientific_disposition": "SIGNAL_VALUE_DEMONSTRATED_R6",
+      "economic_position_management_value_proven": false,
+      "protected_holdout_opened": false,
+      "replication_scope": "CONSUMED_R5_EXACT_FROZEN_REPLICATION",
+      "replication_run_id": 36650551765,
+      "replication_git_sha": "d48427d8e05642f10f7ab778d8e4b9388988af6c",
+      "replication_metrics": {
+        "r5_trade_count": 316,
+        "r5_source_observation_count": 7130,
+        "loss_precision_bps": 8248,
+        "loss_recall_bps": 6509,
+        "false_threat_on_nonlosses_bps": 1751,
+        "missed_loss_bps": 3490,
+        "median_true_threat_lead_minutes": 3
+      },
+      "stress_scope": "CONSUMED_R6_R5_SOURCE_EVIDENCE_PERTURBATION_V1",
+      "stress_run_id": 36651040605,
+      "stress_git_sha": "0af889b1b968d0f2f07a2c76b983bab076a3cdd3",
+      "stress_results": {
+        "all_non_integrity_stresses_pass_frozen_gate": true,
+        "data_integrity_degradation_fails_closed": true,
+        "fresh_oos_evidence": false,
+        "engine_or_threshold_retuning": false
+      }
+    }
+  ],
+  "global_world": {
+    "workstream": "GW-1",
+    "evidence_run_id": 36641140388,
+    "evidence_git_sha": "a86e3571286622e8129e649ec17fea3cf784a6cc",
+    "state": {
+      "PROVIDER_CAPABILITY_AUDIT": true,
+      "REAL_PROVIDER_DATA_BOUND": true,
+      "CANONICAL_IDENTITY_COMPLETE": false,
+      "HISTORICAL_MARKET_DATA_BOUND": false,
+      "RELATIONAL_INTELLIGENCE_READY": false,
+      "CERTIFIED": false
+    },
+    "discovered_provider_candidates": {
+      "FX": 60,
+      "EQUITY_INDICES": 25,
+      "METALS": 16,
+      "ENERGY": 3,
+      "AGRICULTURE": 0,
+      "SOFTS": 0,
+      "LIVESTOCK": 0,
+      "RATES": 0,
+      "VOLATILITY": 0,
+      "CREDIT": 0,
+      "POWER": 0,
+      "FREIGHT": 0,
+      "ENVIRONMENTAL": 0
+    },
+    "gw2": {
+      "workstream": "GW-2",
+      "evidence_run_id": 36650858244,
+      "evidence_git_sha": "6dca87b61404dd95fd7ecbc3714bbc0c8f3a6015",
+      "state": {
+        "REAL_PROVIDER_IDENTITY_EVIDENCE_BOUND": true,
+        "PROVIDER_DESCRIPTOR_COMPLETE_COUNT": 104,
+        "CANONICAL_IDENTITY_VERIFIED_COUNT": 0,
+        "CANONICAL_IDENTITY_UNRESOLVED_COUNT": 104,
+        "CANONICAL_IDENTITY_COMPLETE": false,
+        "AUTOMATIC_IDENTITY_INFERENCE": false,
+        "SENSOR_ADMISSION_AUTHORIZED": false,
+        "RELATIONAL_INTELLIGENCE_READY": false,
+        "CERTIFIED": false
+      },
+      "families": {
+        "FX": 60,
+        "EQUITY_INDICES": 25,
+        "METALS": 16,
+        "ENERGY": 3
+      },
+      "provider_symbol_is_canonical_identity": false,
+      "protected_holdout_opened": false
+    },
+    "gw2_fx_iso4217": {
+      "workstream": "GW-2_FX_CURRENCY_COMPONENT_AUTHORITY",
+      "evidence_run_id": 36652231167,
+      "evidence_git_sha": "27a9004c7feb6bc1985edf119fe7a372811ef29b",
+      "authority": "SIX_FINANCIAL_INFORMATION_AG_ISO4217_MAINTENANCE_AGENCY",
+      "provider_currency_codes": 21,
+      "iso4217_verified_currency_codes": 20,
+      "unresolved_currency_codes": [
+        "CNH"
+      ],
+      "fx_pairs_with_both_currency_components_verified": 59,
+      "fx_pair_count": 60,
+      "cnh_auto_aliased_to_cny": false,
+      "fx_pair_canonical_identity_verified_count": 0,
+      "protected_holdout_opened": false
+    },
+    "gw2_fx_reference_objects": {
+      "workstream": "GW-2_FX_PROVIDER_NEUTRAL_REFERENCE_OBJECTS",
+      "evidence_run_id": 36652443571,
+      "evidence_git_sha": "0fdcb3bceca5a33192dd1a1e966c927e705e0be8",
+      "reference_candidate_count": 59,
+      "unresolved_provider_pair_count": 1,
+      "provider_symbol_to_reference_mapping_authorized": false,
+      "provider_symbol_to_tradable_identity_mapping_authorized": false,
+      "canonical_tradable_identity_verified_count": 0,
+      "protected_holdout_opened": false
+    },
+    "gw2_nonfx_census": {
+      "evidence_run_id": 36652731881,
+      "evidence_git_sha": "399c803ba0485a6cc61754c6c33da33436943c7c",
+      "equity_indices": 25,
+      "metals": 16,
+      "energy": 3,
+      "total_sensor_count": 44,
+      "underlying_canonical_identity_verified_count": 0,
+      "product_construction_verified_count": 0,
+      "provider_symbol_is_canonical_identity": false,
+      "protected_holdout_opened": false
+    },
+    "gw2_metals_iso4217": {
+      "evidence_run_id": 36652921751,
+      "evidence_git_sha": "aa3f343df41b9fcb4e1abc5d53bb968c2f4208e3",
+      "real_metal_sensors": 16,
+      "metal_reference_sensors": 11,
+      "component_verified_references": 11,
+      "gold_futures_deferred_to_contract_lane": 5,
+      "provider_symbol_to_reference_mapping_authorized": false,
+      "tradable_instrument_identity_verified_count": 0,
+      "protected_holdout_opened": false
+    }
+  },
+  "productive_authority": {
+    "shared_order_authority": false,
+    "shared_sizing_authority": false,
+    "shared_capital_authority": false,
+    "shared_risk_authority": false,
+    "shared_execution_authority": false
+  },
+  "protected_shared_certification_holdout_opened": false
+}

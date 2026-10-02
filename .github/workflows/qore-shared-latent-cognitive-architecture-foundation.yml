@@ -1,0 +1,42 @@
+name: QORE Shared Latent Cognitive Architecture Foundation
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/latent_market_state_engine.py
+      - src/qore/infrastructure/core_stack_v2/competitive_hypothesis_engine.py
+      - src/qore/infrastructure/core_stack_v2/scenario_tree.py
+      - tests/infrastructure/test_core_stack_v2_latent_market_state_engine.py
+      - tests/infrastructure/test_core_stack_v2_competitive_hypothesis_engine.py
+      - tests/infrastructure/test_core_stack_v2_scenario_tree.py
+      - .github/workflows/qore-shared-latent-cognitive-architecture-foundation.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  latent-cognitive-foundation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: |
+          pip install -e ".[dev]"
+
+      - name: Static validation
+        run: |
+          ruff check             src/qore/infrastructure/core_stack_v2/latent_market_state_engine.py             src/qore/infrastructure/core_stack_v2/competitive_hypothesis_engine.py             src/qore/infrastructure/core_stack_v2/scenario_tree.py             tests/infrastructure/test_core_stack_v2_latent_market_state_engine.py             tests/infrastructure/test_core_stack_v2_competitive_hypothesis_engine.py             tests/infrastructure/test_core_stack_v2_scenario_tree.py
+          python -m py_compile             src/qore/infrastructure/core_stack_v2/latent_market_state_engine.py             src/qore/infrastructure/core_stack_v2/competitive_hypothesis_engine.py             src/qore/infrastructure/core_stack_v2/scenario_tree.py
+
+      - name: Run cognitive-contract tests
+        run: |
+          pytest -q             tests/infrastructure/test_core_stack_v2_latent_market_state_engine.py             tests/infrastructure/test_core_stack_v2_competitive_hypothesis_engine.py             tests/infrastructure/test_core_stack_v2_scenario_tree.py

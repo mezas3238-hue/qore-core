@@ -1,0 +1,153 @@
+{
+  "schema": "QORE_SHARED_CERTIFICATION_SUPPORT_MATRIX_001",
+  "master_head": "f557698cdce62eb38594d244d39ad9ad53ca9bc8",
+  "intent": "cross-lane evidence reconciliation without stealing A/B ownership",
+  "architect_a": {
+    "current_observed_evidence": [
+      {
+        "capability": "MC09_BELIEF_STATE",
+        "run": 36753425521,
+        "result": "SUCCESS",
+        "support_status": "MASTER_LEDGER_RECONCILIATION_REQUIRED"
+      },
+      {
+        "capability": "MC09_CALIBRATION_V2",
+        "run": 36754966932,
+        "result": "SUCCESS",
+        "support_status": "MASTER_LEDGER_RECONCILIATION_REQUIRED"
+      },
+      {
+        "capability": "MC10_MARKET_PHYSICS",
+        "run": 36754700690,
+        "result": "SUCCESS",
+        "support_status": "MASTER_LEDGER_RECONCILIATION_REQUIRED"
+      },
+      {
+        "capability": "MC10_TRANSITION_STABILITY",
+        "run": 36755380068,
+        "result": "SUCCESS",
+        "support_status": "MASTER_LEDGER_RECONCILIATION_REQUIRED"
+      },
+      {
+        "capability": "MC11_NEURAL_SYMBOLIC",
+        "run": 36757812741,
+        "result": "SUCCESS",
+        "support_status": "MASTER_LEDGER_RECONCILIATION_REQUIRED"
+      },
+      {
+        "capability": "MC16_SCIENTIFIC_MEMORY",
+        "run": 36752791958,
+        "result": "SUCCESS",
+        "support_status": "MASTER_LEDGER_RECONCILIATION_REQUIRED"
+      },
+      {
+        "capability": "WP06_AGENCY_TRAJECTORY_V2",
+        "run": 36757160112,
+        "result": "SUCCESS",
+        "support_status": "CAPABILITY_CLOSURE_AUDIT_REQUIRED"
+      },
+      {
+        "capability": "STI10_VT31_REAL_PROJECTION",
+        "run": 36757202255,
+        "result": "SUCCESS",
+        "support_status": "CAPABILITY_CLOSURE_AUDIT_REQUIRED"
+      },
+      {
+        "capability": "STI11_MATERIALITY",
+        "run": 36747436024,
+        "result": "SUCCESS",
+        "support_status": "CAPABILITY_CLOSURE_AUDIT_REQUIRED"
+      },
+      {
+        "capability": "STI12_SWING_SEMANTICS",
+        "run": 36756749733,
+        "result": "SUCCESS",
+        "support_status": "CAPABILITY_CLOSURE_AUDIT_REQUIRED"
+      },
+      {
+        "capability": "STI7_STI9_POSITION_LINEAGE",
+        "run": 36756533503,
+        "result": "SUCCESS",
+        "support_status": "CAPABILITY_CLOSURE_AUDIT_REQUIRED"
+      },
+      {
+        "capability": "STI14_ATTRIBUTION",
+        "run": 36744108322,
+        "result": "SUCCESS",
+        "support_status": "CAPABILITY_CLOSURE_AUDIT_REQUIRED"
+      }
+    ],
+    "active_frontier": [
+      {
+        "capability": "MC12_FOUNDATION_MODEL",
+        "run": 36763776008,
+        "status": "QUEUED"
+      },
+      {
+        "capability": "MC14_TEMPORAL_CAUSAL",
+        "run": 36763713858,
+        "status": "QUEUED"
+      }
+    ]
+  },
+  "architect_b": {
+    "workstream_status_counts": {
+      "COMPLETE_AND_PROVEN": 7,
+      "IN_PROGRESS": 1,
+      "PARTIAL_EVIDENCE_OPEN": 7,
+      "EXTERNALLY_BLOCKED": 2,
+      "ARCHITECTURE_VALIDATED_EVIDENCE_OPEN": 5,
+      "OPEN": 2
+    },
+    "already_integrated": [
+      "B-02",
+      "B-03",
+      "B-05"
+    ],
+    "support_priority": [
+      {
+        "workstream": "B-04",
+        "reason": "full R8 cross-asset acquisition is an upstream dependency for multiple empirical B closures",
+        "status": "IN_PROGRESS"
+      },
+      {
+        "workstream": "B-09",
+        "reason": "real cross-asset data-health replication unlocks degraded-mode evidence",
+        "status": "PARTIAL_EVIDENCE_OPEN"
+      },
+      {
+        "workstream": "B-19",
+        "reason": "declared-scope blindspot inventory can close second-order coverage evidence",
+        "status": "PARTIAL_EVIDENCE_OPEN"
+      },
+      {
+        "workstream": "B-21",
+        "reason": "total provenance/replay is cross-lane and directly suited to Integrator support",
+        "status": "PARTIAL_EVIDENCE_OPEN"
+      }
+    ],
+    "externally_blocked": [
+      {
+        "workstream": "B-07",
+        "dependency": "canonical calendar registry / distributed OTC FX semantics"
+      },
+      {
+        "workstream": "B-14",
+        "dependency": "authorized provider exposes no agricultural/soft/livestock candidates"
+      }
+    ]
+  },
+  "integrator_owned_support": [
+    "A_EVIDENCE_TO_MASTER_CAPABILITY_RECONCILIATION",
+    "B_EVIDENCE_TO_MASTER_GLOBAL_WORLD_RECONCILIATION",
+    "CROSS_LANE_PROVENANCE_AUDIT",
+    "INTEGRATED_DETERMINISTIC_REPLAY_AUDIT",
+    "MASTER_REGRESSION",
+    "AUTHORITY_ISOLATION_REGRESSION",
+    "ANTI_LEAKAGE_RECONCILIATION",
+    "MASTER_ZERO_OPEN_WORK_RECONCILIATION",
+    "PRE_CERTIFICATION_READINESS_MATRIX"
+  ],
+  "final_holdout_authority": false,
+  "production_authority": false
+}

@@ -1,0 +1,61 @@
+name: QORE Shared WP05 Causal Trajectory V9 Foundation
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - docs/shared/QORE_SHARED_WP05_V9_CAUSAL_TRAJECTORY_DISCRIMINATION_PREREGISTRATION.md
+      - src/qore/infrastructure/core_stack_v2/temporal_hierarchy_causal_trajectory_v9.py
+      - tests/infrastructure/test_core_stack_v2_temporal_hierarchy_causal_trajectory_v9.py
+      - tests/infrastructure/test_shared_wp05_causal_trajectory_v9_protocol.py
+      - scripts/shared_wp05_causal_trajectory_v9.py
+      - .github/workflows/qore-shared-wp05-causal-trajectory-v9-foundation.yml
+  workflow_dispatch:
+
+concurrency:
+  group: qore-shared-wp05-v9-foundation-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  causal-trajectory-v9-foundation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Announce WP05 V9 foundation validation
+        run: |
+          gh issue comment 643 --body "WP-05 V9 foundation validation started — Git SHA \`${GITHUB_SHA}\`, run \`${GITHUB_RUN_ID}\`. Validating preregistered 60-feature causal trajectory, censor-aware eventness/recovery contrast, R8-only freeze and sovereignty. No consumed R8/R6/R5 result accepted by this foundation run; fresh holdout remains CLOSED."
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Static and adversarial validation
+        run: |
+          ruff check             src/qore/infrastructure/core_stack_v2/temporal_hierarchy_causal_trajectory_v9.py             tests/infrastructure/test_core_stack_v2_temporal_hierarchy_causal_trajectory_v9.py             tests/infrastructure/test_shared_wp05_causal_trajectory_v9_protocol.py             scripts/shared_wp05_causal_trajectory_v9.py
+          python -m py_compile             src/qore/infrastructure/core_stack_v2/temporal_hierarchy_causal_trajectory_v9.py             scripts/shared_wp05_causal_trajectory_v9.py
+          mypy             src/qore/infrastructure/core_stack_v2/temporal_hierarchy_causal_trajectory_v9.py
+          pytest -q             tests/infrastructure/test_core_stack_v2_temporal_hierarchy_causal_trajectory_v9.py             tests/infrastructure/test_shared_wp05_causal_trajectory_v9_protocol.py             tests/infrastructure/test_core_stack_v2_temporal_hierarchy_event_manifold_v8.py             tests/infrastructure/test_core_stack_v2_temporal_hierarchy_target_contract.py             tests/infrastructure/test_shared_wp05_structural_failure_target_v2.py
+
+      - name: Report WP05 V9 foundation GREEN
+        if: success()
+        run: |
+          gh issue comment 643 --body "WP-05 V9 foundation GREEN — Git SHA \`${GITHUB_SHA}\`, run \`${GITHUB_RUN_ID}\`. 60-feature pre-source trajectory, future isolation, separate eventness/recovery normalization, censored exclusion from recovery fit, deterministic fingerprints, R8-only fail-closed protocol and no-authority tests passed. Fresh holdout remains CLOSED."
+
+      - name: Report WP05 V9 foundation failure
+        if: failure()
+        run: |
+          gh issue comment 643 --body "WP-05 V9 foundation FAILED technically — Git SHA \`${GITHUB_SHA}\`, run \`${GITHUB_RUN_ID}\`. Do not consume V9 research evidence or alter preregistered gates/ontology. Repair technical defects only; fresh holdout remains CLOSED."

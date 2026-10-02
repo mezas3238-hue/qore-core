@@ -1,0 +1,323 @@
+name: QORE Shared WP05 V14 Source Freeze Chain
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - .github/workflows/qore-shared-wp05-v14-source-freeze-chain.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+concurrency:
+  group: qore-shared-wp05-v14-source-freeze-chain
+  cancel-in-progress: false
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  UPSTREAM_RUN_ID: "36501289744"
+  UPSTREAM_GIT_SHA: "b8cae94dec9028acb5230cb25b034bc25040b920"
+  SOURCE_ANCHOR_RUN_ID: "36466493930"
+  SOURCE_ANCHOR_ARTIFACT: "qore-shared-wp05-v12-source-anchors-364d1725e181e8191fe2dec83b6e4457cb40434e"
+  SOURCE_ANCHOR_SHA256: "d5dda96fbaab9506e77bd803cf8b542250288e7d46091db1630f1fd8fb91839e"
+  SOURCE_CHAIN_REVISION: "V14_PAGINATION_CHRONOLOGY_AUDIT_002"
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+      - name: Validate frozen V14 source-chain code
+        run: |
+          set -euo pipefail
+          ruff check             src/qore/infrastructure/core_stack_v2/active_perception_v14_source_integrity.py             src/qore/infrastructure/core_stack_v2/active_perception_v14_observability.py             src/qore/infrastructure/core_stack_v2/active_perception_v14_representation.py             src/qore/infrastructure/core_stack_v2/active_perception_v14_information_gain.py             scripts/shared_wp05_v14_source_integrity.py             scripts/shared_wp05_v14_cross_peer_observability.py             scripts/shared_wp05_v14_cross_peer_representation.py             scripts/shared_wp05_v14_information_gain.py
+          mypy             src/qore/infrastructure/core_stack_v2/active_perception_v14_source_integrity.py             src/qore/infrastructure/core_stack_v2/active_perception_v14_observability.py             src/qore/infrastructure/core_stack_v2/active_perception_v14_representation.py             src/qore/infrastructure/core_stack_v2/active_perception_v14_information_gain.py
+          python -m py_compile             scripts/shared_wp05_v14_source_integrity.py             scripts/shared_wp05_v14_cross_peer_observability.py             scripts/shared_wp05_v14_cross_peer_representation.py             scripts/shared_wp05_v14_information_gain.py
+          pytest -q             tests/infrastructure/test_shared_wp05_v14_source_integrity.py             tests/infrastructure/test_shared_wp05_v14_observability.py             tests/infrastructure/test_shared_wp05_v14_representation.py             tests/infrastructure/test_shared_wp05_v14_information_gain.py             tests/infrastructure/test_shared_wp05_v14_peer_acquisition.py
+
+  freeze:
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Shared
+        run: pip install -e .
+
+      - name: Bind and await exact authoritative acquisition
+        shell: bash
+        run: |
+          set -euo pipefail
+          head_sha="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${UPSTREAM_RUN_ID}" --jq '.head_sha')"
+          test "$head_sha" = "$UPSTREAM_GIT_SHA"
+          gh run watch "$UPSTREAM_RUN_ID" --repo "$GITHUB_REPOSITORY" --exit-status
+          status="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${UPSTREAM_RUN_ID}" --jq '.status')"
+          conclusion="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${UPSTREAM_RUN_ID}" --jq '.conclusion')"
+          test "$status" = "completed"
+          test "$conclusion" = "success"
+
+      - name: Download exact global source reduction
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ env.UPSTREAM_RUN_ID }}
+          name: qore-shared-wp05-v14-peer-global-${{ env.UPSTREAM_GIT_SHA }}
+          path: input/global
+
+      - name: Download exact SP500 raw artifacts
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ env.UPSTREAM_RUN_ID }}
+          pattern: qore-shared-wp05-v14-peer-data-SP500_PEER-*-${{ env.UPSTREAM_GIT_SHA }}
+          path: input/raw/sp500
+          merge-multiple: false
+
+      - name: Download exact US30 raw artifacts
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ env.UPSTREAM_RUN_ID }}
+          pattern: qore-shared-wp05-v14-peer-data-US30_PEER-*-${{ env.UPSTREAM_GIT_SHA }}
+          path: input/raw/us30
+          merge-multiple: false
+
+      - name: Download frozen source anchors
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_ANCHOR_RUN_ID }}
+          name: ${{ env.SOURCE_ANCHOR_ARTIFACT }}
+          path: input/anchors
+
+      - name: Verify immutable source artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f input/global/wp05-v14-peer-source-acquisition.json
+          test -f input/anchors/wp05-v12-source-anchors.json
+          (cd input/anchors && sha256sum -c SHA256SUMS)
+
+          mapfile -d '' sp_sums < <(find input/raw/sp500 -name SHA256SUMS -print0)
+          mapfile -d '' us_sums < <(find input/raw/us30 -name SHA256SUMS -print0)
+          test "${#sp_sums[@]}" -eq 16
+          test "${#us_sums[@]}" -eq 16
+          for sumfile in "${sp_sums[@]}" "${us_sums[@]}"; do
+            (
+              cd "$(dirname "$sumfile")"
+              sha256sum -c SHA256SUMS
+              test "$(cat git-sha.txt)" = "$UPSTREAM_GIT_SHA"
+            )
+          done
+
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          p=json.loads(Path("input/global/wp05-v14-peer-source-acquisition.json").read_text())
+          assert p["identity"] == "QORE_SHARED_WP05_V14_CROSS_MARKET_SOURCE_ACQUISITION_001"
+          assert p["partition"] == "r8_source_only"
+          assert set(p["peers"]) == {"SP500_PEER","US30_PEER"}
+          for name in ("SP500_PEER","US30_PEER"):
+              peer=p["peers"][name]
+              assert peer["status"] == "source_only_complete"
+              assert peer["window_count"] == 2948
+              assert peer["shard_count"] == 16
+              assert peer["full_bid_ask_window_coverage"] is True
+              assert len(peer["global_dataset_sha256"]) == 64
+          assert p["target_or_outcome_read"] is False
+          assert p["r6_r5_read"] is False
+          assert p["fresh_holdout_opened"] is False
+          assert p["scientific_v14_outcomes_opened"] is False
+
+          a=json.loads(Path("input/anchors/wp05-v12-source-anchors.json").read_text())
+          assert a["source_count"] == 6804
+          assert a["source_anchor_sha256"] == os.environ["SOURCE_ANCHOR_SHA256"]
+          PY
+
+      - name: Audit exact raw peer evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p result
+          SP500_SHA="$(python -c 'import json; p=json.load(open("input/global/wp05-v14-peer-source-acquisition.json")); print(p["peers"]["SP500_PEER"]["global_dataset_sha256"])')"
+          US30_SHA="$(python -c 'import json; p=json.load(open("input/global/wp05-v14-peer-source-acquisition.json")); print(p["peers"]["US30_PEER"]["global_dataset_sha256"])')"
+
+          python scripts/shared_wp05_v14_source_integrity.py             --raw-root input/raw/sp500             --peer SP500_PEER             --expected-git-sha "$UPSTREAM_GIT_SHA"             --expected-global-dataset-sha256 "$SP500_SHA"             --output result/sp500-source-integrity.json             | tee result/sp500-source-integrity-summary.json
+
+          python scripts/shared_wp05_v14_source_integrity.py             --raw-root input/raw/us30             --peer US30_PEER             --expected-git-sha "$UPSTREAM_GIT_SHA"             --expected-global-dataset-sha256 "$US30_SHA"             --output result/us30-source-integrity.json             | tee result/us30-source-integrity-summary.json
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          for name in ("sp500","us30"):
+              p=json.loads(Path(f"result/{name}-source-integrity.json").read_text())
+              assert p["status"] == "green_source_integrity"
+              assert p["raw_artifact_count"] == 16
+              assert p["page_key_duplicate_count"] == 0
+              assert p["page_key_conflict_count"] == 0
+              assert p["strict_page_time_overlap_count"] == 0
+              assert p["exact_boundary_row_repeat_count"] == 0
+              assert p["missing_side_window_count"] == 0
+              assert p["target_or_outcome_read"] is False
+              assert p["r6_r5_read"] is False
+              assert p["fresh_holdout_opened"] is False
+              assert p["scientific_v14_outcomes_opened"] is False
+          PY
+
+      - name: Freeze cross-peer causal staleness
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/shared_wp05_v14_cross_peer_observability.py             --sp500-raw-root input/raw/sp500             --us30-raw-root input/raw/us30             --anchor-manifest input/anchors/wp05-v12-source-anchors.json             --output result/v14-cross-peer-observability.json             | tee result/v14-cross-peer-observability-summary.json
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/v14-cross-peer-observability.json").read_text())
+          assert p["identity"] == "QORE_SHARED_WP05_V14_CROSS_MARKET_OBSERVABILITY_001"
+          assert p["source_count"] == 6804
+          assert p["checkpoints_minutes"] == [0,3,5,10,15]
+          assert p["staleness_candidates_ms"] == [5000,10000,30000,60000,120000]
+          assert p["target_or_outcome_read"] is False
+          assert p["r6_r5_read"] is False
+          assert p["fresh_holdout_opened"] is False
+          assert p["scientific_v14_outcomes_opened"] is False
+          if p["status"] == "source_only_frozen":
+              assert p["selected_staleness_limit_ms"] in p["staleness_candidates_ms"]
+          else:
+              assert p["status"] == "source_only_rejected"
+              assert p["selected_staleness_limit_ms"] is None
+          PY
+
+      - name: Build exact source-only V14 representation
+        if: ${{ success() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          status="$(python -c 'import json; print(json.load(open("result/v14-cross-peer-observability.json"))["status"])')"
+          if [ "$status" != "source_only_frozen" ]; then
+            echo "V14 source observability rejected before outcomes"
+            exit 20
+          fi
+
+          python scripts/shared_wp05_v14_cross_peer_representation.py             --sp500-raw-root input/raw/sp500             --us30-raw-root input/raw/us30             --anchor-manifest input/anchors/wp05-v12-source-anchors.json             --observability-report result/v14-cross-peer-observability.json             --sp500-integrity result/sp500-source-integrity.json             --us30-integrity result/us30-source-integrity.json             --output result/v14-cross-peer-representation.json             | tee result/v14-cross-peer-representation-summary.json
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/v14-cross-peer-representation.json").read_text())
+          assert p["identity"] == "QORE_SHARED_WP05_V14_CROSS_MARKET_MICROSTRUCTURE_REPRESENTATION_001"
+          assert p["status"] == "source_only_frozen"
+          assert p["partition"] == "r8_source_only"
+          assert p["row_count"] == 6804
+          assert len(p["rows"]) == 6804
+          assert p["peer_families"] == ["SP500_PEER","US30_PEER"]
+          assert p["checkpoints_minutes"] == [0,3,5,10,15]
+          assert p["base_feature_count"] == 46
+          assert p["raw_feature_cell_count"] == 460
+          for values in p["peer_checkpoint_coverage_bps"].values():
+              assert all(value >= 9500 for value in values)
+          assert len(p["contract_fingerprint_sha256"]) == 64
+          assert len(p["rows_sha256"]) == 64
+          assert len(p["representation_artifact_fingerprint_sha256"]) == 64
+          assert p["target_or_outcome_read"] is False
+          assert p["r6_r5_read"] is False
+          assert p["fresh_holdout_opened"] is False
+          assert p["scientific_v14_outcomes_opened"] is False
+          PY
+
+      - name: Seal V14 source-only freeze
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p result
+          printf '%s\n' "$GITHUB_SHA" > result/freeze-code-git-sha.txt
+          printf '%s\n' "$GITHUB_RUN_ID" > result/freeze-run-id.txt
+          printf '%s\n' "$UPSTREAM_RUN_ID" > result/upstream-acquisition-run-id.txt
+          printf '%s\n' "$UPSTREAM_GIT_SHA" > result/upstream-acquisition-git-sha.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0               | sort -z | xargs -0 sha256sum > SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-shared-wp05-v14-source-freeze-${{ github.sha }}
+          path: result
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Report V14 source-only freeze state
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -f result/v14-cross-peer-observability.json ]; then
+            gh issue comment 643 --body "WP-05 V14 source-freeze chain run \`${GITHUB_RUN_ID}\` did not reach observability freeze. No V14 outcome, R6/R5 or fresh holdout was opened."
+            exit 0
+          fi
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          o=json.loads(Path("result/v14-cross-peer-observability.json").read_text())
+          lines=[
+            "## WP-05 V14 source-only freeze chain",
+            "",
+            f"- freeze code SHA: `{os.environ['GITHUB_SHA']}`",
+            f"- freeze run: `{os.environ['GITHUB_RUN_ID']}`",
+            f"- authoritative acquisition run: `{os.environ['UPSTREAM_RUN_ID']}`",
+            f"- authoritative acquisition SHA: `{os.environ['UPSTREAM_GIT_SHA']}`",
+            f"- observability status: **{o['status']}**",
+            f"- selected shared staleness ms: **{o['selected_staleness_limit_ms']}**",
+            f"- observability SHA256: `{o['observability_sha256']}`",
+            "- target/outcome read: **False**",
+            "- R6/R5 read: **False**",
+            "- fresh holdout opened: **False**",
+          ]
+          for path in (Path("result/sp500-source-integrity.json"),Path("result/us30-source-integrity.json")):
+              if path.exists():
+                  p=json.loads(path.read_text())
+                  lines.extend([
+                    f"- {p['peer_family']} integrity: **{p['status']}**",
+                    f"  - raw pages: **{p['raw_provider_page_count']}**",
+                    f"  - BID ticks: **{p['raw_bid_tick_count']}**",
+                    f"  - ASK ticks: **{p['raw_ask_tick_count']}**",
+                    f"  - duplicates/conflicts/overlaps/boundary repeats: **{p['page_key_duplicate_count']}/{p['page_key_conflict_count']}/{p['strict_page_time_overlap_count']}/{p['exact_boundary_row_repeat_count']}**",
+                  ])
+          rp=Path("result/v14-cross-peer-representation.json")
+          if rp.exists():
+              p=json.loads(rp.read_text())
+              lines.extend([
+                f"- representation: **{p['status']}**",
+                f"- rows: **{p['row_count']} / 6804**",
+                f"- raw causal cells/row: **{p['raw_feature_cell_count']}**",
+                f"- coverage bps: `{p['peer_checkpoint_coverage_bps']}`",
+                f"- contract fingerprint: `{p['contract_fingerprint_sha256']}`",
+                f"- rows SHA256: `{p['rows_sha256']}`",
+                f"- representation fingerprint: `{p['representation_artifact_fingerprint_sha256']}`",
+                "- next legal step: one-shot R8 Target-V2 information-gain evaluation bound to this exact representation",
+              ])
+          else:
+              lines.append("- representation was not frozen; V14 R8 outcomes remain CLOSED")
+          Path("result/issue-comment.md").write_text("\n".join(lines)+"\n")
+          PY
+          gh issue comment 643 --body-file result/issue-comment.md

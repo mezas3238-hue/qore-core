@@ -1,0 +1,72 @@
+name: QORE Shared WP05 Event Manifold V8 Foundation
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - docs/shared/QORE_SHARED_WP05_V8_EVENT_MANIFOLD_CENSORING_PREREGISTRATION.md
+      - src/qore/infrastructure/core_stack_v2/temporal_hierarchy_event_manifold_v8.py
+      - src/qore/infrastructure/core_stack_v2/temporal_hierarchy_competing_survival_features_v7.py
+      - tests/infrastructure/test_core_stack_v2_temporal_hierarchy_event_manifold_v8.py
+      - tests/infrastructure/test_core_stack_v2_temporal_hierarchy_competing_survival_features_v7.py
+      - tests/infrastructure/test_shared_wp05_event_manifold_v8_protocol.py
+      - scripts/shared_wp05_event_manifold_v8.py
+      - .github/workflows/qore-shared-wp05-event-manifold-v8-foundation.yml
+  workflow_dispatch:
+
+concurrency:
+  group: qore-shared-wp05-v8-foundation-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  event-manifold-v8-foundation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Announce WP05 V8 foundation validation
+        run: |
+          gh issue comment 643 --body "WP-05 V8 foundation validation started — Git SHA \`${GITHUB_SHA}\`, run \`${GITHUB_RUN_ID}\`. Event ontology + censored robust manifolds only; no V8 R8/R6/R5 scientific execution and fresh holdout remains CLOSED."
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Static and adversarial validation
+        run: |
+          ruff check \
+            src/qore/infrastructure/core_stack_v2/temporal_hierarchy_event_manifold_v8.py \
+            tests/infrastructure/test_core_stack_v2_temporal_hierarchy_event_manifold_v8.py \
+            tests/infrastructure/test_shared_wp05_event_manifold_v8_protocol.py \
+            scripts/shared_wp05_event_manifold_v8.py
+          python -m py_compile \
+            src/qore/infrastructure/core_stack_v2/temporal_hierarchy_event_manifold_v8.py \
+            scripts/shared_wp05_event_manifold_v8.py
+          pytest -q \
+            tests/infrastructure/test_core_stack_v2_temporal_hierarchy_event_manifold_v8.py \
+            tests/infrastructure/test_core_stack_v2_temporal_hierarchy_competing_survival_features_v7.py \
+            tests/infrastructure/test_shared_wp05_event_manifold_v8_protocol.py \
+            tests/infrastructure/test_core_stack_v2_temporal_hierarchy_target_contract.py
+
+      - name: Report WP05 V8 foundation GREEN
+        if: success()
+        run: |
+          gh issue comment 643 --body "WP-05 V8 foundation GREEN — Git SHA \`${GITHUB_SHA}\`, run \`${GITHUB_RUN_ID}\`. Explicit TERMINAL_EVENT / VERIFIED_RECOVERY_EVENT / CENSORED_UNKNOWN ontology, robust manifolds, R8-only calibration invariants, deterministic fingerprints, anti-future source isolation and no-authority tests passed. V8 scientific R8/R6/R5 execution has not started; fresh holdout remains CLOSED."
+
+      - name: Report WP05 V8 foundation failure
+        if: failure()
+        run: |
+          gh issue comment 643 --body "WP-05 V8 foundation FAILED technically — Git SHA \`${GITHUB_SHA}\`, run \`${GITHUB_RUN_ID}\`. Do not execute V8 research evidence or alter the preregistered ontology/gates. Fresh holdout remains CLOSED."

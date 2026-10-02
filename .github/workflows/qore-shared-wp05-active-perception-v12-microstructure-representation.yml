@@ -1,0 +1,246 @@
+name: QORE Shared WP05 V12 Microstructure Representation Freeze
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - docs/shared/QORE_SHARED_WP05_V12_MICROSTRUCTURE_REPRESENTATION_PREREGISTRATION.md
+      - src/qore/infrastructure/core_stack_v2/active_perception_v12_microstructure_representation.py
+      - scripts/shared_wp05_active_perception_v12_microstructure_representation.py
+      - tests/infrastructure/test_core_stack_v2_active_perception_v12_microstructure_representation.py
+      - .github/workflows/qore-shared-wp05-active-perception-v12-microstructure-representation.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+concurrency:
+  group: qore-shared-wp05-v12-microstructure-representation-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  V12_ACQUISITION_RUN_ID: "36454372776"
+  V12_SOURCE_ANCHOR_RUN_ID: "36466493930"
+  V12_OBSERVABILITY_RUN_ID: "36469085575"
+  V12_SOURCE_ANCHOR_SHA256: "d5dda96fbaab9506e77bd803cf8b542250288e7d46091db1630f1fd8fb91839e"
+  V12_OBSERVABILITY_SHA256: "fb81d247bd710bc0d544bd70c442d2ced7d494b7e2ff66a86aa0cbfb1268bc15"
+  V12_GLOBAL_DATASET_SHA256: "ebbe30a887867bb917f0992b15e1600f9f06eccb07562b9625fcb9517fb381c8"
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+      - name: Validate frozen representation protocol
+        run: |
+          set -euo pipefail
+          ruff check             src/qore/infrastructure/core_stack_v2/active_perception_v12_microstructure_representation.py             scripts/shared_wp05_active_perception_v12_microstructure_representation.py             tests/infrastructure/test_core_stack_v2_active_perception_v12_microstructure_representation.py
+          mypy             src/qore/infrastructure/core_stack_v2/active_perception_v12_microstructure_representation.py
+          python -m py_compile             src/qore/infrastructure/core_stack_v2/active_perception_v12_microstructure_representation.py             scripts/shared_wp05_active_perception_v12_microstructure_representation.py
+          pytest -q             tests/infrastructure/test_core_stack_v2_active_perception_v12_microstructure_representation.py
+
+  freeze:
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Shared
+        run: pip install -e .
+
+      - name: Download frozen raw BID/ASK acquisition
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ env.V12_ACQUISITION_RUN_ID }}
+          pattern: qore-shared-wp05-v12-full-r8-data-*
+          path: input/raw
+          merge-multiple: false
+
+      - name: Download frozen source anchors
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ env.V12_SOURCE_ANCHOR_RUN_ID }}
+          name: qore-shared-wp05-v12-source-anchors-364d1725e181e8191fe2dec83b6e4457cb40434e
+          path: input/anchors
+
+      - name: Download frozen anchor observability
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ env.V12_OBSERVABILITY_RUN_ID }}
+          name: qore-shared-wp05-v12-anchor-observability-b061391ff7907b082d75b786a91568d69b9e8723
+          path: input/observability
+
+      - name: Verify immutable upstream evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -d '' sums < <(find input/raw -name SHA256SUMS -print0)
+          test "${#sums[@]}" -eq 16
+          for sumfile in "${sums[@]}"; do
+            (
+              cd "$(dirname "$sumfile")"
+              sha256sum -c SHA256SUMS
+            )
+          done
+          (cd input/anchors && sha256sum -c SHA256SUMS)
+          (cd input/observability && sha256sum -c SHA256SUMS)
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          anchors=json.loads(
+              Path("input/anchors/wp05-v12-source-anchors.json").read_text()
+          )
+          assert anchors["source_count"] == 6804
+          assert anchors["source_anchor_sha256"] == os.environ[
+              "V12_SOURCE_ANCHOR_SHA256"
+          ]
+          observability=json.loads(
+              Path(
+                  "input/observability/wp05-v12-anchor-observability-report.json"
+              ).read_text()
+          )
+          assert observability["status"] == "frozen"
+          assert observability["anchor_count"] == 6804
+          assert observability["selected_staleness_limit_ms"] == 30000
+          assert observability["anchor_observability_sha256"] == os.environ[
+              "V12_OBSERVABILITY_SHA256"
+          ]
+          assert observability["global_dataset_sha256"] == os.environ[
+              "V12_GLOBAL_DATASET_SHA256"
+          ]
+          assert observability["target_or_outcome_read"] is False
+          assert observability["r6_r5_read"] is False
+          assert observability["fresh_holdout_opened"] is False
+          PY
+
+      - name: Build exact 6804-anchor source-only representation
+        run: |
+          set -euo pipefail
+          mkdir -p result
+          python scripts/shared_wp05_active_perception_v12_microstructure_representation.py             --raw-root input/raw             --anchor-manifest input/anchors/wp05-v12-source-anchors.json             --observability-report input/observability/wp05-v12-anchor-observability-report.json             --output result/wp05-v12-microstructure-representation.json             | tee result/summary.json
+
+      - name: Enforce frozen representation identity
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          p=json.loads(
+              Path("result/wp05-v12-microstructure-representation.json").read_text()
+          )
+          assert p["identity"] == (
+              "QORE_SHARED_WP05_ACTIVE_PERCEPTION_V12_MICROSTRUCTURE_REPRESENTATION_001"
+          )
+          assert p["status"] == "source_only_frozen"
+          assert p["partition"] == "r8"
+          assert p["row_count"] == 6804
+          assert len(p["rows"]) == 6804
+          assert p["usable_pair_count"] == 6709
+          assert p["usable_pair_coverage_bps"] == 9860
+          assert p["insufficient_pair_count"] == 95
+          assert p["crossed_causal_quote_count"] == 0
+          assert p["staleness_limit_ms"] == 30000
+          assert p["windows_ms"] == [1000,5000,15000,60000]
+          assert p["source_anchor_sha256"] == os.environ["V12_SOURCE_ANCHOR_SHA256"]
+          assert p["anchor_observability_sha256"] == os.environ[
+              "V12_OBSERVABILITY_SHA256"
+          ]
+          assert p["global_dataset_sha256"] == os.environ[
+              "V12_GLOBAL_DATASET_SHA256"
+          ]
+          assert len(p["contract_fingerprint_sha256"]) == 64
+          assert len(p["rows_sha256"]) == 64
+          assert len(p["representation_artifact_fingerprint_sha256"]) == 64
+          assert set(p["candidate_fields"]) == {
+              "M0_QUOTE_STATE",
+              "M1_QUOTE_STATE_UPDATE_INTENSITY",
+              "M2_QUOTE_STATE_PATH_RESPONSE",
+              "M3_FULL_CAUSAL_MICROSTRUCTURE",
+          }
+          assert len(p["candidate_fields"]["M0_QUOTE_STATE"]) == 10
+          assert len(p["candidate_fields"]["M1_QUOTE_STATE_UPDATE_INTENSITY"]) == 26
+          assert len(p["candidate_fields"]["M2_QUOTE_STATE_PATH_RESPONSE"]) == 30
+          assert len(p["candidate_fields"]["M3_FULL_CAUSAL_MICROSTRUCTURE"]) == 46
+          times=[row["evaluation_at"] for row in p["rows"]]
+          assert times == sorted(set(times))
+          assert p["target_or_outcome_read"] is False
+          assert p["r6_r5_read"] is False
+          assert p["fresh_holdout_opened"] is False
+          assert p["shared_methodology_authority"] is False
+          assert p["shared_sizing_authority"] is False
+          assert p["shared_risk_authority"] is False
+          assert p["shared_order_authority"] is False
+          assert p["shared_execution_authority"] is False
+          PY
+
+      - name: Seal frozen representation
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$GITHUB_SHA" > result/git-sha.txt
+          printf '%s\n' "$GITHUB_RUN_ID" > result/run-id.txt
+          (
+            cd result
+            sha256sum               wp05-v12-microstructure-representation.json               summary.json               git-sha.txt               run-id.txt > SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-wp05-v12-microstructure-representation-${{ github.sha }}
+          path: result
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report frozen representation
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          p=json.loads(
+              Path("result/wp05-v12-microstructure-representation.json").read_text()
+          )
+          lines=[
+              "## WP-05 V12 source-only microstructure representation FROZEN",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- GitHub Actions run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- rows: **{p['row_count']} / 6804**",
+              f"- causal pair usable: **{p['usable_pair_count']} / 6804 ({p['usable_pair_coverage_bps']} bps)**",
+              f"- explicit insufficient rows: **{p['insufficient_pair_count']}**",
+              f"- crossed causal quotes: **{p['crossed_causal_quote_count']}**",
+              f"- frozen staleness: **{p['staleness_limit_ms']} ms**",
+              f"- windows: `{p['windows_ms']}`",
+              f"- contract fingerprint: `{p['contract_fingerprint_sha256']}`",
+              f"- rows SHA256: `{p['rows_sha256']}`",
+              f"- representation artifact fingerprint: `{p['representation_artifact_fingerprint_sha256']}`",
+              "- candidate family: **M0 / M1 / M2 / M3 only**",
+              "- target/outcome read: **False**",
+              "- R6/R5 read: **False**",
+              "- fresh holdout opened: **False**",
+              "- if this run is GREEN, source-only representation construction is closed and the preregistered R8 information-gain experiment may be implemented next",
+          ]
+          Path("result/issue-comment.md").write_text("\n".join(lines)+"\n")
+          PY
+          gh issue comment 643 --body-file result/issue-comment.md

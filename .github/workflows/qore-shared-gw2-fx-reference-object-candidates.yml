@@ -1,0 +1,114 @@
+name: QORE Shared GW2 FX Reference Object Candidates
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - scripts/shared_gw2_fx_reference_object_candidates.py
+      - .github/workflows/qore-shared-gw2-fx-reference-object-candidates.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  ISO_RUN_ID: "36652231167"
+  ISO_ARTIFACT_ID: "11070633983"
+  ISO_GIT_SHA: "27a9004c7feb6bc1985edf119fe7a372811ef29b"
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Validate candidate builder
+        run: |
+          set -euo pipefail
+          mkdir -p input result
+          ruff check scripts/shared_gw2_fx_reference_object_candidates.py
+          python -m py_compile scripts/shared_gw2_fx_reference_object_candidates.py
+
+      - name: Recover authoritative FX currency evidence
+        run: |
+          set -euo pipefail
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${ISO_RUN_ID}" --jq '.status')" = "completed"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${ISO_RUN_ID}" --jq '.conclusion')" = "success"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${ISO_RUN_ID}" --jq '.head_sha')" = "$ISO_GIT_SHA"
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ISO_ARTIFACT_ID}/zip" > iso.zip
+          unzip -q iso.zip -d input
+          (cd input && sha256sum -c SHA256SUMS)
+
+      - name: Build provider-neutral reference candidates
+        run: |
+          python scripts/shared_gw2_fx_reference_object_candidates.py             --evidence input/gw2-fx-iso4217-evidence.json             --output result/gw2-fx-reference-object-candidates.json             | tee result/summary.json
+
+      - name: Validate candidate-only semantics
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/gw2-fx-reference-object-candidates.json").read_text())
+          assert p["status"] == "PROVIDER_NEUTRAL_REFERENCE_OBJECT_CANDIDATES_BUILT"
+          assert p["reference_candidate_count"] >= 50
+          assert p["unresolved_provider_pair_count"] >= 1
+          assert p["provider_symbol_to_reference_mapping_authorized"] is False
+          assert p["provider_symbol_to_tradable_identity_mapping_authorized"] is False
+          assert p["canonical_tradable_identity_verified_count"] == 0
+          assert p["historical_market_data_read"] is False
+          assert p["protected_holdout_opened"] is False
+          assert all(
+              row["kind"] == "REFERENCE_OBJECT"
+              and row["provider_neutral"] is True
+              and row["tradable_instrument_claim"] is False
+              for row in p["reference_candidates"]
+          )
+          PY
+
+      - name: Bind evidence
+        run: |
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0               | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-gw2-fx-reference-candidates-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report FX reference state
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p=json.loads(Path("result/gw2-fx-reference-object-candidates.json").read_text())
+          body="\n".join([
+              "## Shared GW-2 — FX Reference Object Candidates",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- provider-neutral reference candidates: **{p['reference_candidate_count']}**",
+              f"- unresolved provider pairs: **{p['unresolved_provider_pair_count']}**",
+              "- provider symbol→reference mapping authorized: **False**",
+              "- tradable instrument canonical identity certified: **0**",
+              "- protected holdout opened: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md

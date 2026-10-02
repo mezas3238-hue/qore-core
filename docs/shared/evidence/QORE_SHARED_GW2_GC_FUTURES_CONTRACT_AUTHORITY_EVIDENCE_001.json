@@ -1,0 +1,103 @@
+{
+  "identity": "QORE_SHARED_GW2_GC_FUTURES_CONTRACT_AUTHORITY_EVIDENCE_001",
+  "as_of": "2026-09-30",
+  "authorities": [
+    {
+      "authority_id": "CME_GOLD_FUTURES",
+      "organization": "CME Group / COMEX",
+      "url": "https://www.cmegroup.com/markets/metals/precious/gold-futures.html",
+      "supports": "GC is the standard Gold futures product; contract size 100 troy ounces."
+    },
+    {
+      "authority_id": "CME_CONTRACT_MONTH_CODES",
+      "organization": "CME Group",
+      "url": "https://www.cmegroup.com/month-codes.html",
+      "supports": "F/G/H/J/K/M/N/Q/U/V/X/Z map to Jan/Feb/Mar/Apr/May/Jun/Jul/Aug/Sep/Oct/Nov/Dec."
+    },
+    {
+      "authority_id": "COMEX_GOLD_RULEBOOK",
+      "organization": "CME Group / COMEX",
+      "url": "https://www.cmegroup.com/content/dam/cmegroup/rulebook/COMEX/1a/113.pdf",
+      "supports": "COMEX Chapter 113 defines Gold futures and a 100 troy ounce contract specification."
+    }
+  ],
+  "provider_contract_bindings": [
+    {
+      "provider_symbol": "GCG26",
+      "expected_provider_description": "Gold Futures - February26",
+      "product_code": "GC",
+      "canonical_product": "COMEX_GOLD_FUTURES_100_TROY_OZ",
+      "contract_month_code": "G",
+      "contract_month": 2,
+      "contract_month_name": "FEBRUARY",
+      "contract_year": 2026
+    },
+    {
+      "provider_symbol": "GCJ26",
+      "expected_provider_description": "Gold Futures - April26",
+      "product_code": "GC",
+      "canonical_product": "COMEX_GOLD_FUTURES_100_TROY_OZ",
+      "contract_month_code": "J",
+      "contract_month": 4,
+      "contract_month_name": "APRIL",
+      "contract_year": 2026
+    },
+    {
+      "provider_symbol": "GCM25",
+      "expected_provider_description": "Gold Futures - June25",
+      "product_code": "GC",
+      "canonical_product": "COMEX_GOLD_FUTURES_100_TROY_OZ",
+      "contract_month_code": "M",
+      "contract_month": 6,
+      "contract_month_name": "JUNE",
+      "contract_year": 2025
+    },
+    {
+      "provider_symbol": "GCM26",
+      "expected_provider_description": "Gold Futures - June26",
+      "product_code": "GC",
+      "canonical_product": "COMEX_GOLD_FUTURES_100_TROY_OZ",
+      "contract_month_code": "M",
+      "contract_month": 6,
+      "contract_month_name": "JUNE",
+      "contract_year": 2026
+    },
+    {
+      "provider_symbol": "GCQ26",
+      "expected_provider_description": "Gold Futures - August26",
+      "product_code": "GC",
+      "canonical_product": "COMEX_GOLD_FUTURES_100_TROY_OZ",
+      "contract_month_code": "Q",
+      "contract_month": 8,
+      "contract_month_name": "AUGUST",
+      "contract_year": 2026
+    }
+  ],
+  "resolved_semantics": {
+    "economic_underlying": "GOLD",
+    "product": "GC_GOLD_FUTURES",
+    "venue": "COMEX",
+    "contract_size": "100_TROY_OUNCES",
+    "pricing_currency": "USD",
+    "month_year_identity": true
+  },
+  "unresolved_semantics": [
+    "PROVIDER_LISTING_TO_EXCHANGE_LISTING_EXTERNAL_IDENTIFIER",
+    "EXACT_LAST_TRADING_DAY_PER_PROVIDER_LISTING",
+    "FRONT_CONTRACT_SELECTION",
+    "MOST_LIQUID_SELECTION",
+    "ROLL_WINDOW",
+    "CONTINUOUS_SERIES_CONSTRUCTION"
+  ],
+  "laws": {
+    "contract_identity_equals_front_contract": false,
+    "contract_identity_equals_continuous_series": false,
+    "provider_symbol_implies_roll_policy": false
+  },
+  "governance": {
+    "sensor_admission_authorized": false,
+    "relational_claims_authorized": false,
+    "protected_certification_holdout_opened": false,
+    "productive_authority": false
+  }
+}

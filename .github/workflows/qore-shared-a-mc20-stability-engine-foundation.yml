@@ -1,0 +1,108 @@
+name: QORE Shared A MC20 Stability Engine Foundation
+
+concurrency:
+  group: qore-shared-a-mc20-stability-engine-foundation
+  cancel-in-progress: false
+
+on:
+  push:
+    branches:
+      - agent/shared-a-cognitive-science-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/stability_engine.py
+      - tests/infrastructure/test_core_stack_v2_stability_engine.py
+      - scripts/shared_mc20_stability_engine_real_replay.py
+      - .github/workflows/qore-shared-a-mc20-stability-engine-foundation.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  foundation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Validate MC20 engine
+        run: |
+          set -euo pipefail
+          mkdir -p input/{r6,r5} result
+          ruff check src/qore/infrastructure/core_stack_v2/stability_engine.py tests/infrastructure/test_core_stack_v2_stability_engine.py scripts/shared_mc20_stability_engine_real_replay.py
+          mypy src/qore/infrastructure/core_stack_v2/stability_engine.py
+          pytest -q tests/infrastructure/test_core_stack_v2_stability_engine.py
+      - name: Recover immutable source evidence
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          unzip -q r6.zip -d input/r6
+          (cd input/r6 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" > r5.zip
+          unzip -q r5.zip -d input/r5
+          (cd input/r5 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+      - name: Replay descriptive stability states
+        run: |
+          set -euo pipefail
+          python scripts/shared_mc20_stability_engine_real_replay.py             --r6-nas input/r6/fresh/NAS100/market-evidence.json             --r6-sp input/r6/fresh/SP500/market-evidence.json             --r6-us input/r6/fresh/US30/market-evidence.json             --r5-nas input/r5/fresh/NAS100/market-evidence.json             --r5-sp input/r5/fresh/SP500/market-evidence.json             --r5-us input/r5/fresh/US30/market-evidence.json             --output result/mc20-stability-engine-real-replay.json             | tee result/summary.json
+      - name: Validate bounded disposition
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/mc20-stability-engine-real-replay.json").read_text())
+          assert p["status"] == "MC20_STABILITY_ENGINE_MARKET_COGNITION_SYSTEMIC_REAL_BOUND_PASS"
+          assert p["domains_distinct"] is True
+          assert p["market_price_used_as_core_health_proxy"] is False
+          assert p["market_price_used_as_provider_health_proxy"] is False
+          assert p["qore_core_operational_telemetry_bound"] is False
+          assert p["provider_broker_operational_telemetry_bound"] is False
+          assert p["states_are_trading_commands"] is False
+          assert p["mc20_completed_and_proven"] is False
+          PY
+      - name: Seal result
+        run: |
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-a-mc20-stability-engine-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Report MC20
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=json.loads(Path("result/mc20-stability-engine-real-replay.json").read_text())
+          body="\n".join([
+              "## Shared A MC-20 — Stability Engine Foundation",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- disposition: **{p['status']}**",
+              "- market/Core/provider/cognition/systemic kept distinct: **True**",
+              "- Core/provider inferred from market prices: **False / False**",
+              "- Core/provider operational telemetry bound: **False / False**",
+              f"- dependency: **{p['dependency']}**",
+              "- MC-20 completed-and-proven: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md

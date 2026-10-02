@@ -1,0 +1,244 @@
+name: QORE Shared WP05 V12 R8 Information Gain
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - docs/shared/QORE_SHARED_WP05_V12_R8_INFORMATION_GAIN_PREREGISTRATION.md
+      - src/qore/infrastructure/core_stack_v2/active_perception_v12_information_gain.py
+      - scripts/shared_wp05_active_perception_v12_r8_information_gain.py
+      - tests/infrastructure/test_core_stack_v2_active_perception_v12_information_gain.py
+      - .github/workflows/qore-shared-wp05-active-perception-v12-r8-information-gain.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+concurrency:
+  group: qore-shared-wp05-v12-r8-information-gain-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  V12_REPRESENTATION_RUN_ID: "36474746502"
+  V12_REPRESENTATION_ARTIFACT_NAME: "qore-shared-wp05-v12-microstructure-representation-223e25873a6665e5a8a171eb5987a14ea222348a"
+  V12_REPRESENTATION_FINGERPRINT: "cbc5b6d997c2a218df8aa76f489d408069ab36e4ccb67569172c92013221baf8"
+  R8_MARKET_EVIDENCE_ARTIFACT_ID: "10402199719"
+  V11_MODEL_FINGERPRINT: "cc74f7d3153dec34ebe8867efc27852ca8d5de95d471394f3d8ac9543147b01d"
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+      - name: Validate information-gain protocol
+        run: |
+          set -euo pipefail
+          ruff check             src/qore/infrastructure/core_stack_v2/active_perception_v12_information_gain.py             scripts/shared_wp05_active_perception_v12_r8_information_gain.py             tests/infrastructure/test_core_stack_v2_active_perception_v12_information_gain.py
+          mypy             src/qore/infrastructure/core_stack_v2/active_perception_v12_information_gain.py
+          python -m py_compile             src/qore/infrastructure/core_stack_v2/active_perception_v12_information_gain.py             scripts/shared_wp05_active_perception_v12_r8_information_gain.py
+          pytest -q             tests/infrastructure/test_core_stack_v2_active_perception_v12_information_gain.py
+
+  r8-information-gain:
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Shared
+        run: pip install -e .
+
+      - name: Download frozen V12 representation
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ env.V12_REPRESENTATION_RUN_ID }}
+          name: ${{ env.V12_REPRESENTATION_ARTIFACT_NAME }}
+          path: input/representation
+
+      - name: Verify frozen representation artifact
+        run: |
+          set -euo pipefail
+          (cd input/representation && sha256sum -c SHA256SUMS)
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          p=json.loads(
+              Path(
+                  "input/representation/wp05-v12-microstructure-representation.json"
+              ).read_text()
+          )
+          assert p["status"] == "source_only_frozen"
+          assert p["row_count"] == 6804
+          assert p["representation_artifact_fingerprint_sha256"] == os.environ[
+              "V12_REPRESENTATION_FINGERPRINT"
+          ]
+          assert p["target_or_outcome_read"] is False
+          assert p["r6_r5_read"] is False
+          assert p["fresh_holdout_opened"] is False
+          PY
+
+      - name: Recover immutable consumed R8 market evidence
+        run: |
+          set -euo pipefail
+          mkdir -p input/r8 result
+          for attempt in 1 2 3 4; do
+            if gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${R8_MARKET_EVIDENCE_ARTIFACT_ID}/zip" > r8.zip; then
+              break
+            fi
+            rm -f r8.zip
+            sleep $((attempt * 30))
+          done
+          test -s r8.zip
+          unzip -q r8.zip -d input/r8
+          (cd input/r8 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+      - name: Run preregistered R8 M0-M3 information-gain experiment
+        run: |
+          set -euo pipefail
+          python scripts/shared_wp05_active_perception_v12_r8_information_gain.py             --representation input/representation/wp05-v12-microstructure-representation.json             --r8-nas input/r8/fresh/NAS100/market-evidence.json             --r8-sp input/r8/fresh/SP500/market-evidence.json             --r8-us input/r8/fresh/US30/market-evidence.json             --output result/wp05-v12-r8-information-gain.json             | tee result/summary.json
+
+      - name: Validate scientific result without forcing a pass
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          p=json.loads(
+              Path("result/wp05-v12-r8-information-gain.json").read_text()
+          )
+          assert p["identity"] == (
+              "QORE_SHARED_WP05_ACTIVE_PERCEPTION_V12_R8_INFORMATION_GAIN_001"
+          )
+          assert p["target_contract"] == "HIGHER_TIMEFRAME_STRUCTURAL_FAILURE_V2"
+          assert p["protocol_pass"] is True
+          assert p["representation_artifact_fingerprint_sha256"] == os.environ[
+              "V12_REPRESENTATION_FINGERPRINT"
+          ]
+          assert p["representation_row_count"] == 6804
+          assert p["authoritative_v11_eligible_source_count"] == 6534
+          assert p["aligned_target_count"] == 6397
+          assert p["representation_only_anchor_count"] == 407
+          assert p["v11_model_fingerprint_sha256"] == os.environ[
+              "V11_MODEL_FINGERPRINT"
+          ]
+          assert len(p["fold_boundaries"]) == 4
+          assert [item["fold_index"] for item in p["fold_boundaries"]] == [0,1,2,3]
+          assert len(p["candidate_results"]) == 4
+          assert [item["candidate"] for item in p["candidate_results"]] == [
+              "M0_QUOTE_STATE",
+              "M1_QUOTE_STATE_UPDATE_INTENSITY",
+              "M2_QUOTE_STATE_PATH_RESPONSE",
+              "M3_FULL_CAUSAL_MICROSTRUCTURE",
+          ]
+          assert all(len(item["folds"]) == 4 for item in p["candidate_results"])
+          assert p["microstructure_veto_threshold_micros"] == 0
+          assert p["r6_r5_read"] is False
+          assert p["fresh_holdout_opened"] is False
+          if p["r8_information_gain_pass"]:
+              assert p["status"] == "WP05_V12_R8_INFORMATION_GAIN_FROZEN"
+              assert p["selected_candidate"] in {
+                  "M0_QUOTE_STATE",
+                  "M1_QUOTE_STATE_UPDATE_INTENSITY",
+                  "M2_QUOTE_STATE_PATH_RESPONSE",
+                  "M3_FULL_CAUSAL_MICROSTRUCTURE",
+              }
+              assert len(p["final_microstructure_density_fingerprint_sha256"]) == 64
+              assert len(p["final_v12_model_fingerprint_sha256"]) == 64
+          else:
+              assert p["status"] == "WP05_V12_R8_INFORMATION_GAIN_FALSIFIED"
+              assert p["selected_candidate"] is None
+              assert "final_v12_model_fingerprint_sha256" not in p
+          PY
+
+      - name: Seal R8 information-gain result
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$GITHUB_SHA" > result/git-sha.txt
+          printf '%s\n' "$GITHUB_RUN_ID" > result/run-id.txt
+          (
+            cd result
+            sha256sum               wp05-v12-r8-information-gain.json               summary.json               git-sha.txt               run-id.txt > SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-wp05-v12-r8-information-gain-${{ github.sha }}
+          path: result
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report V12 R8 scientific result
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          p=json.loads(
+              Path("result/wp05-v12-r8-information-gain.json").read_text()
+          )
+          lines=[
+              "## WP-05 V12 R8 microstructure information-gain result",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- GitHub Actions run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- status: **{p['status']}**",
+              f"- aligned Target-V2 population: **{p['aligned_target_count']}**",
+              f"- V11 model fingerprint verified: `{p['v11_model_fingerprint_sha256']}`",
+              f"- selected candidate: **{p['selected_candidate']}**",
+              "- fixed microstructure veto threshold: **0 micros**",
+              "",
+              "Candidate results:",
+          ]
+          for item in p["candidate_results"]:
+              fold_text=", ".join(
+                  f"F{fold['fold_index']} retention={fold['terminal_confirmation_retention_bps']} "
+                  f"abs_terminal={fold['absolute_terminal_preservation_bps']} "
+                  f"false_veto={fold['incremental_false_confirmation_veto_bps']} "
+                  f"pass={fold['gate_pass']}"
+                  for fold in item["folds"]
+              )
+              lines.append(
+                  f"- {item['candidate']}: pooled false-veto="
+                  f"**{item['pooled_incremental_false_confirmation_veto_bps']} bps**, "
+                  f"eligible=**{item['eligible']}**; {fold_text}"
+              )
+          if p["r8_information_gain_pass"]:
+              lines.extend([
+                  "",
+                  f"- final microstructure density fingerprint: `{p['final_microstructure_density_fingerprint_sha256']}`",
+                  f"- final V12 model fingerprint: `{p['final_v12_model_fingerprint_sha256']}`",
+                  "- R8 gate: **PASS**",
+                  "- next authorized step: source-only BID/ASK acquisition for R6/R5 with their outcomes still CLOSED",
+              ])
+          else:
+              lines.extend([
+                  "",
+                  "- R8 gate: **FALSIFIED**",
+                  "- R6/R5 remain CLOSED; no M4 or threshold/feature rescue is authorized from these consumed R8 outcomes",
+              ])
+          lines.extend([
+              "- R6/R5 read in this run: **False**",
+              "- fresh holdout opened: **False**",
+          ])
+          Path("result/issue-comment.md").write_text("\n".join(lines)+"\n")
+          PY
+          gh issue comment 643 --body-file result/issue-comment.md

@@ -1,0 +1,142 @@
+name: QORE Shared VT31 Realtime Trailing Extension V29
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - scripts/vt31_core_stack_v4_realtime_trailing_extension_v29.py
+      - src/qore/infrastructure/core_stack_v2/realtime_trade_management.py
+      - src/qore/infrastructure/core_stack_v2/instinct_intelligence.py
+      - .github/workflows/qore-shared-vt31-realtime-trailing-extension-v29.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  realtime-trailing-extension:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - name: Static validation
+        run: |
+          ruff check \
+            src/qore/infrastructure/core_stack_v2/realtime_trade_management.py \
+            scripts/vt31_core_stack_v4_realtime_trailing_extension_v29.py
+          python -m py_compile \
+            src/qore/infrastructure/core_stack_v2/realtime_trade_management.py \
+            scripts/vt31_core_stack_v4_realtime_trailing_extension_v29.py
+      - name: Recover immutable R8/R6 three-index evidence
+        run: |
+          set -euo pipefail
+          mkdir -p input/pure input/cibo input/r8 input/r6 result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10799064861/zip" > pure.zip
+          unzip -q pure.zip -d input/pure
+          (cd input/pure && sha256sum -c SHA256SUMS)
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10478487667/zip" > cibo.zip
+          unzip -q cibo.zip -d input/cibo
+          (cd input/cibo && sha256sum -c SHA256SUMS)
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10402199719/zip" > r8.zip
+          unzip -q r8.zip -d input/r8
+          (cd input/r8 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          unzip -q r6.zip -d input/r6
+          (cd input/r6 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+      - name: Run realtime trailing and target extension laboratory
+        run: |
+          python scripts/vt31_core_stack_v4_realtime_trailing_extension_v29.py \
+            --r8-trades input/pure/r8.json \
+            --r6-trades input/pure/r6.json \
+            --r8-nas input/r8/fresh/NAS100/market-evidence.json \
+            --r8-sp input/r8/fresh/SP500/market-evidence.json \
+            --r8-us input/r8/fresh/US30/market-evidence.json \
+            --r6-nas input/r6/fresh/NAS100/market-evidence.json \
+            --r6-sp input/r6/fresh/SP500/market-evidence.json \
+            --r6-us input/r6/fresh/US30/market-evidence.json \
+            --daily-path input/cibo/DAILY_PATH_LEDGER.jsonl \
+            --output result/realtime-trailing-extension-v29.json \
+            | tee result/summary.json
+      - name: Governance and owner-objective validation
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p=json.loads(Path("result/realtime-trailing-extension-v29.json").read_text())
+          assert p["challenge_set"] == {"r8":228,"r6":278}
+          assert p["r5_opened"] is False
+          assert p["new_holdout_opened"] is False
+          assert p["owner_objective"]["profit_factor_must_increase"] is True
+          assert p["owner_objective"]["acceptable_drawdown_r"] == [4,6]
+          assert p["owner_objective"]["exceptional_drawdown_r"] == "<4"
+          assert p["owner_objective"]["density_must_be_preserved"] is True
+          assert p["owner_objective"]["sizing_must_remain_unchanged"] is True
+
+          m=p["management_contract"]
+          assert m["trailing_stop"] is True
+          assert m["loss_compression"] is True
+          assert m["target_extension"] is True
+          assert m["position_size_change"] is False
+          assert m["capital_weighting"] is False
+          assert m["entry_abstention"] is False
+          assert m["stop_widening"] is False
+
+          g=p["governance"]
+          assert g["generic_instinct_engine_used"] is True
+          assert g["generic_realtime_management_engine_used"] is True
+          assert g["closed_m1_decisions_effective_next_m1"] is True
+          assert g["same_initial_position_size"] is True
+          assert g["sizing_changed"] is False
+          assert g["capital_weighting_used"] is False
+          assert g["risk_budget_changed"] is False
+          assert g["every_methodology_entry_preserved"] is True
+          assert g["entry_abstention_used"] is False
+          assert g["stop_can_only_improve"] is True
+          assert g["stop_widening_used"] is False
+          assert g["target_can_only_hold_or_extend"] is True
+          assert g["runtime_terminal_trade_outcome_used"] is False
+          assert g["runtime_prior_trade_pnl_used"] is False
+          assert g["future_m1_used"] is False
+          assert g["live_authorized"] is False
+          assert g["production_authorized"] is False
+          assert g["merge_authorized"] is False
+
+          for fold in ("r8","r6"):
+              e=p[fold]["evaluation"]
+              assert e["density"]["retained"] == "1"
+              assert e["density"]["entry_abstentions"] == 0
+              assert e["density"]["position_size_changed"] is False
+
+          if p["passes_calibration"]:
+              assert p["economic_status"] == "CALIBRATION_PASSED_NEW_HOLDOUT_REQUIRED"
+          else:
+              assert p["economic_status"] == "FALSIFIED_BEFORE_NEW_HOLDOUT"
+
+          print(json.dumps({
+              "economic_status":p["economic_status"],
+              "passes_calibration":p["passes_calibration"],
+              "r8_shared":p["r8"]["evaluation"]["shared_v29"],
+              "r6_shared":p["r6"]["evaluation"]["shared_v29"],
+          },sort_keys=True))
+          PY
+      - name: Bind result
+        run: |
+          echo "$GITHUB_SHA" > result/git-sha.txt
+          (cd result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+          (cd result && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-vt31-realtime-trailing-extension-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90

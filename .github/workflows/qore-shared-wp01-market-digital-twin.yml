@@ -1,0 +1,115 @@
+name: QORE Shared WP01 Probabilistic Market Digital Twin
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/market_digital_twin.py
+      - src/qore/infrastructure/core_stack_v2/market_digital_twin_history.py
+      - src/qore/infrastructure/core_stack_v2/market_digital_twin_runtime.py
+      - tests/infrastructure/test_core_stack_v2_market_digital_twin.py
+      - tests/infrastructure/test_core_stack_v2_market_digital_twin_history.py
+      - tests/infrastructure/test_core_stack_v2_market_digital_twin_runtime.py
+      - .github/workflows/qore-shared-wp01-market-digital-twin.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  wp01-market-digital-twin:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: |
+          pip install -e ".[dev]"
+
+      - name: Static validation
+        run: |
+          ruff check \
+            src/qore/infrastructure/core_stack_v2/market_digital_twin.py \
+            src/qore/infrastructure/core_stack_v2/market_digital_twin_history.py \
+            src/qore/infrastructure/core_stack_v2/market_digital_twin_runtime.py \
+            tests/infrastructure/test_core_stack_v2_market_digital_twin.py \
+            tests/infrastructure/test_core_stack_v2_market_digital_twin_history.py \
+            tests/infrastructure/test_core_stack_v2_market_digital_twin_runtime.py
+          python -m py_compile \
+            src/qore/infrastructure/core_stack_v2/market_digital_twin.py \
+            src/qore/infrastructure/core_stack_v2/market_digital_twin_history.py \
+            src/qore/infrastructure/core_stack_v2/market_digital_twin_runtime.py
+
+      - name: Run WP-01 causal-contract tests
+        run: |
+          pytest -q \
+            tests/infrastructure/test_core_stack_v2_market_digital_twin.py \
+            tests/infrastructure/test_core_stack_v2_market_digital_twin_history.py \
+            tests/infrastructure/test_core_stack_v2_market_digital_twin_runtime.py
+
+      - name: Validate WP-01 architecture contract
+        run: |
+          python - <<'PY'
+          from datetime import UTC, datetime
+
+          from qore.infrastructure.core_stack_v2.market_digital_twin import (
+              BehaviorHypothesis,
+              ExpectedStateTransition,
+              LiquidityTopology,
+              RegimeStructure,
+              TwinStateValue,
+              TwinUncertainty,
+              VolatilityTopology,
+              build_market_digital_twin,
+          )
+
+          now = datetime.now(UTC)
+          twin = build_market_digital_twin(
+              as_of=now,
+              evidence_cutoff_at=now,
+              observable_state=(
+                  TwinStateValue("OBSERVED", 5000, 5000, now),
+              ),
+              latent_state=(
+                  TwinStateValue("LATENT", 5000, 3000, now),
+              ),
+              behavior_hypotheses=(
+                  BehaviorHypothesis("UNKNOWN", 5000, 1000, ()),
+              ),
+              liquidity_topology=LiquidityTopology(
+                  5000, 5000, 5000, 5000, 5000, 10000
+              ),
+              volatility_topology=VolatilityTopology(
+                  5000, 5000, 5000, 5000, 5000, 10000
+              ),
+              cross_market_dependencies=(),
+              regime_structure=RegimeStructure(
+                  "UNKNOWN", 5000, 5000, 5000, 5000
+              ),
+              uncertainty=TwinUncertainty(5000, 5000, 5000, 5000),
+              expected_transitions=(
+                  ExpectedStateTransition(1, "UNKNOWN", 5000, 1000),
+              ),
+          )
+
+          assert twin.execution_authority is False
+          assert twin.risk_authority is False
+          assert twin.sizing_authority is False
+          assert twin.order_authority is False
+          assert twin.stop_authority is False
+          assert twin.target_authority is False
+          assert twin.future_market_used is False
+          assert twin.pnl_used is False
+          assert twin.outcome_used is False
+          print({
+              "fingerprint": twin.fingerprint,
+              "diagnosis": twin.diagnosis.value,
+              "authority_free": True,
+          })
+          PY

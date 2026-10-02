@@ -1,0 +1,134 @@
+name: QORE Shared MC15 Six Source Uncertainty V2
+
+concurrency:
+  group: qore-shared-mc15-six-source-uncertainty-v2
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/uncertainty_decomposition_v2.py
+      - tests/infrastructure/test_core_stack_v2_uncertainty_decomposition_v2.py
+      - scripts/shared_mc15_uncertainty_decomposition_v2_replay.py
+      - .github/workflows/qore-shared-mc15-six-source-uncertainty-v2.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  replicated-stress:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Validate six-source engine
+        run: |
+          set -euo pipefail
+          mkdir -p result input/r6 input/r5
+          ruff check             src/qore/infrastructure/core_stack_v2/uncertainty_decomposition_v2.py             tests/infrastructure/test_core_stack_v2_uncertainty_decomposition_v2.py             scripts/shared_mc15_uncertainty_decomposition_v2_replay.py
+          mypy             src/qore/infrastructure/core_stack_v2/uncertainty_decomposition_v2.py
+          python -m py_compile             src/qore/infrastructure/core_stack_v2/uncertainty_decomposition_v2.py             scripts/shared_mc15_uncertainty_decomposition_v2_replay.py
+          pytest -q             tests/infrastructure/test_core_stack_v2_uncertainty_decomposition_v2.py             --junitxml=result/junit.xml
+
+      - name: Recover immutable R6 and R5 source evidence
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          unzip -q r6.zip -d input/r6
+          (cd input/r6 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" > r5.zip
+          unzip -q r5.zip -d input/r5
+          (cd input/r5 && sha256sum -c fresh/EVIDENCE-SHA256SUMS)
+
+      - name: Execute replicated uncertainty stress
+        run: |
+          set -euo pipefail
+          python scripts/shared_mc15_uncertainty_decomposition_v2_replay.py             --r6-nas input/r6/fresh/NAS100/market-evidence.json             --r6-sp input/r6/fresh/SP500/market-evidence.json             --r6-us input/r6/fresh/US30/market-evidence.json             --r5-nas input/r5/fresh/NAS100/market-evidence.json             --r5-sp input/r5/fresh/SP500/market-evidence.json             --r5-us input/r5/fresh/US30/market-evidence.json             --output result/mc15-six-source-uncertainty-v2.json             | tee result/summary.json
+
+      - name: Validate scientific disposition without forcing PASS
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/mc15-six-source-uncertainty-v2.json").read_text())
+          assert p["status"] in {
+              "MC15_SIX_SOURCE_UNCERTAINTY_REPLICATED_PASS",
+              "MC15_SIX_SOURCE_UNCERTAINTY_STRESS_FALSIFIED",
+          }
+          assert p["engine_implemented"] is True
+          assert p["real_data_bound"] is True
+          assert p["causal_source_replay_executed"] is True
+          assert p["calibration_state"] == "UNCALIBRATED"
+          assert p["future_market_used"] is False
+          assert p["outcome_used"] is False
+          assert p["pnl_used"] is False
+          assert p["protected_certification_holdout_opened"] is False
+          assert p["productive_authority"] is False
+          for partition in ("r6","r5"):
+              row=p["results"][partition]
+              assert row["source_observation_count"] > 0
+              assert set(row["components"]["BASELINE"]) == {
+                  "aleatoric_bps","epistemic_bps","data_bps",
+                  "regime_bps","causal_bps","simulation_bps",
+                  "assertiveness_ceiling_bps"
+              }
+          PY
+
+      - name: Bind evidence
+        run: |
+          set -euo pipefail
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0               | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-mc15-six-source-uncertainty-v2-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report MC-15
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p=json.loads(Path("result/mc15-six-source-uncertainty-v2.json").read_text())
+          body="\n".join([
+              "## Shared MC-15 — Six-Source Uncertainty Decomposition V2",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- disposition: **{p['status']}**",
+              "- dimensions: **ALEATORIC / EPISTEMIC / DATA / REGIME / CAUSAL / SIMULATION**",
+              "- calibration state: **UNCALIBRATED**",
+              f"- R6 gate: **{p['results']['r6']['gate_pass']}**",
+              f"- R5 gate: **{p['results']['r5']['gate_pass']}**",
+              "- future/outcome/PnL used: **False / False / False**",
+              "- protected certification holdout opened: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md

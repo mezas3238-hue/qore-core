@@ -1,0 +1,137 @@
+name: QORE Shared WP04 Bounded Provider Canary
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - scripts/shared_wp04_bounded_provider_canary.py
+      - src/qore/infrastructure/ctrader_demo_lab_vt31_v2_probe.py
+      - .github/workflows/qore-shared-wp04-bounded-provider-canary.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  QORE_SOFTWARE_SHA: ${{ github.sha }}
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+
+jobs:
+  provider-canary:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Announce consumed-evidence provider canary
+        run: |
+          gh issue comment 642 --body "WP-04 bounded provider canary started — Git SHA \`${GITHUB_SHA}\`, run \`${GITHUB_RUN_ID}\`. It reads only a previously consumed R5 week; no fresh holdout or target outcomes are opened."
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install cTrader research dependencies
+        run: pip install -e ".[dev,ctrader]"
+
+      - name: Static validation
+        run: |
+          ruff check \
+            scripts/shared_wp04_bounded_provider_canary.py \
+            src/qore/infrastructure/ctrader_demo_lab_vt31_v2_probe.py
+          python -m py_compile scripts/shared_wp04_bounded_provider_canary.py
+
+      - name: Resolve DEMO account before consumed canary
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN
+          do
+            test -n "${!name:-}"
+          done
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            test -n "$account_id"
+            echo "::add-mask::$account_id"
+            echo "QORE_CTRADER_DEMO_ACCOUNT_ID=$account_id" >> "$GITHUB_ENV"
+          fi
+
+      - name: Run bounded provider canary on consumed R5 week
+        run: |
+          set -euo pipefail
+          mkdir -p result
+          for market in NAS100 SP500 US30
+          do
+            QORE_DEMO_LAB_SYMBOL="$market" \
+              python scripts/shared_wp04_bounded_provider_canary.py \
+              > "result/${market}.json"
+          done
+
+      - name: Validate provider boundary semantics
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          for market in ("NAS100","SP500","US30"):
+              p=json.loads(Path(f"result/{market}.json").read_text())
+              assert p["market"] == market
+              assert p["consumed_r5_evidence_only"] is True
+              assert p["fresh_scientific_evidence_consumed"] is False
+              assert p["model_or_probe_fit"] is False
+              assert p["target_outcomes_read"] is False
+              assert p["boundary_contract_pass"] is True
+              assert p["start_inclusive"] == "2022-06-13T12:00:00+00:00"
+              assert p["end_exclusive"] == "2022-06-20T12:00:00+00:00"
+              assert p["last_closed_at"] <= p["end_exclusive"]
+          PY
+
+      - name: Bind canary result
+        run: |
+          echo "${GITHUB_SHA}" > result/git-sha.txt
+          (
+            cd result
+            sha256sum NAS100.json SP500.json US30.json git-sha.txt > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-wp04-bounded-provider-canary-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report provider canary GREEN
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          rows={
+              m: json.loads(Path(f"result/{m}.json").read_text())
+              for m in ("NAS100","SP500","US30")
+          }
+          exact=[m for m,p in rows.items() if p["last_equals_end_exclusive"]]
+          body=[
+              "## WP-04 bounded provider canary GREEN",
+              "",
+              f"- Git SHA: \`{os.environ['GITHUB_SHA']}\`",
+              f"- run: \`{os.environ['GITHUB_RUN_ID']}\`",
+              "- evidence role: **CONSUMED_R5_TECHNICAL_CANARY_ONLY**",
+              "- fresh scientific evidence consumed: **False**",
+              "- target outcomes read: **False**",
+              "- NAS100/SP500/US30 boundary contract: **PASS**",
+              f"- markets closing exactly at end_exclusive: {exact}",
+              "",
+              "The bounded collector repair is now proven against the real provider. HOLDOUT_E may proceed under its existing preregistration."
+          ]
+          Path("result/issue.md").write_text("\n".join(body)+"\n")
+          PY
+          gh issue comment 642 --body-file result/issue.md

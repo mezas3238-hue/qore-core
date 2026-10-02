@@ -1,0 +1,384 @@
+name: QORE Shared GEN2 Temporal Comparability Foundation
+
+concurrency:
+  group: qore-shared-gen2-temporal-comparability-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - src/qore/infrastructure/market_clock_schedule.py
+      - src/qore/infrastructure/core_stack_v2/global_temporal_comparability.py
+      - src/qore/infrastructure/core_stack_v2/global_observability_matrix.py
+      - src/qore/infrastructure/core_stack_v2/global_market_relational_graph.py
+      - src/qore/infrastructure/core_stack_v2/global_market_intelligence_contract.py
+      - src/qore/infrastructure/ctrader_open_api_client.py
+      - src/qore/infrastructure/ctrader_metadata_read_only.py
+      - scripts/shared_gen2_ctrader_temporal_metadata.py
+      - scripts/shared_gen2_global_observability_matrix.py
+      - tests/infrastructure/test_core_stack_v2_global_temporal_comparability.py
+      - tests/infrastructure/test_core_stack_v2_global_observability_matrix.py
+      - tests/infrastructure/test_ctrader_metadata_read_only.py
+      - tests/infrastructure/test_shared_gen2_ctrader_temporal_metadata.py
+      - tests/infrastructure/test_core_stack_v2_global_market_relational_graph.py
+      - tests/infrastructure/test_core_stack_v2_global_market_intelligence_contract.py
+      - tests/infrastructure/test_market_clock_schedule.py
+      - docs/shared/QORE_SHARED_GEN2_TEMPORAL_COMPARABILITY_CONTRACT_001.md
+      - docs/shared/evidence/QORE_SHARED_GEN2_CANONICAL_MARKET_STRUCTURE_EVIDENCE_001.json
+      - .github/workflows/qore-shared-gen2-temporal-comparability.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  GEN1_RUN_ID: "36566029876"
+  GEN1_ARTIFACT_ID: "11031074951"
+  GEN1_GIT_SHA: "ea0844b7a4354d8447768d4f88030861bffa1fbd"
+  GEN1_REGISTRY_FINGERPRINT: "a306e6422a274c9578b6b439634f40cd48a7f29320c94f7f7003309f3b680c48"
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+      - name: Validate GEN-2 temporal foundation
+        run: |
+          set -euo pipefail
+          mkdir -p validation
+          ruff check             src/qore/infrastructure/market_clock_schedule.py             src/qore/infrastructure/core_stack_v2/global_temporal_comparability.py             src/qore/infrastructure/core_stack_v2/global_observability_matrix.py             src/qore/infrastructure/core_stack_v2/global_market_relational_graph.py             src/qore/infrastructure/core_stack_v2/global_market_intelligence_contract.py             src/qore/infrastructure/ctrader_open_api_client.py             src/qore/infrastructure/ctrader_metadata_read_only.py             scripts/shared_gen2_ctrader_temporal_metadata.py             scripts/shared_gen2_global_observability_matrix.py             tests/infrastructure/test_core_stack_v2_global_temporal_comparability.py             tests/infrastructure/test_core_stack_v2_global_observability_matrix.py             tests/infrastructure/test_ctrader_metadata_read_only.py             tests/infrastructure/test_shared_gen2_ctrader_temporal_metadata.py             tests/infrastructure/test_core_stack_v2_global_market_relational_graph.py             tests/infrastructure/test_core_stack_v2_global_market_intelligence_contract.py             tests/infrastructure/test_market_clock_schedule.py
+          mypy             src/qore/infrastructure/core_stack_v2/global_temporal_comparability.py             src/qore/infrastructure/core_stack_v2/global_observability_matrix.py
+          python -m py_compile             src/qore/infrastructure/ctrader_open_api_client.py             src/qore/infrastructure/ctrader_metadata_read_only.py             scripts/shared_gen2_ctrader_temporal_metadata.py             scripts/shared_gen2_global_observability_matrix.py
+          pytest -q             tests/infrastructure/test_core_stack_v2_global_temporal_comparability.py             tests/infrastructure/test_core_stack_v2_global_observability_matrix.py             tests/infrastructure/test_ctrader_metadata_read_only.py             tests/infrastructure/test_shared_gen2_ctrader_temporal_metadata.py             tests/infrastructure/test_core_stack_v2_global_market_relational_graph.py             tests/infrastructure/test_core_stack_v2_global_market_intelligence_contract.py             tests/infrastructure/test_market_clock_schedule.py             --junitxml=validation/junit.xml
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gen2-temporal-validation
+          path: validation/junit.xml
+          retention-days: 30
+
+  source-census:
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+      QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+      QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+      QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+      QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Shared + cTrader runtime
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[ctrader]"
+
+      - name: Resolve single authorized DEMO account
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            if ! [[ "$account_id" =~ ^[1-9][0-9]*$ ]]; then
+              echo "cTrader DEMO account discovery returned invalid id" >&2
+              exit 3
+            fi
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          else
+            echo "::add-mask::$QORE_CTRADER_DEMO_ACCOUNT_ID"
+          fi
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: gen2-temporal-validation
+          path: validation
+
+      - name: Verify exact GEN-1 upstream
+        run: |
+          set -euo pipefail
+          status="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${GEN1_RUN_ID}" --jq '.status')"
+          conclusion="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${GEN1_RUN_ID}" --jq '.conclusion')"
+          head_sha="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${GEN1_RUN_ID}" --jq '.head_sha')"
+          test "$status" = "completed"
+          test "$conclusion" = "success"
+          test "$head_sha" = "$GEN1_GIT_SHA"
+
+      - name: Recover exact 177-symbol GEN-1 registry
+        run: |
+          set -euo pipefail
+          mkdir -p input result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${GEN1_ARTIFACT_ID}/zip" > gen1.zip
+          unzip -q gen1.zip -d input
+          (cd input && sha256sum -c SHA256SUMS)
+          test "$(cat input/registry-code-git-sha.txt)" = "$GEN1_GIT_SHA"
+          cp input/global-sensor-registry.json result/global-sensor-registry.json
+          test "$(python -c 'import json; print(json.load(open("result/global-sensor-registry.json"))["sensor_registry_fingerprint_sha256"])')" = "$GEN1_REGISTRY_FINGERPRINT"
+
+      - name: Resolve explicit acquisition timestamp
+        run: |
+          set -euo pipefail
+          captured_at="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" --jq '.created_at')"
+          echo "CAPTURED_AT=$captured_at" >> "$GITHUB_ENV"
+
+      - name: Freeze provider schedule and holiday metadata
+        run: |
+          set -euo pipefail
+          python scripts/shared_gen2_ctrader_temporal_metadata.py             --registry result/global-sensor-registry.json             --output result/provider-schedule-catalog.json             --expected-registry-fingerprint "$GEN1_REGISTRY_FINGERPRINT"             --captured-at "$CAPTURED_AT"             --source-run-id "$GEN1_RUN_ID"             --source-artifact-id "$GEN1_ARTIFACT_ID"             --source-git-sha "$GEN1_GIT_SHA"             | tee result/provider-schedule-summary.json
+
+      - name: Build 177-row observability matrix
+        run: |
+          set -euo pipefail
+          python scripts/shared_gen2_global_observability_matrix.py             --registry result/global-sensor-registry.json             --provider-schedule result/provider-schedule-catalog.json             --output result/global-market-observability-matrix.json             --calendar-output result/global-calendar-registry.json             --mapping-output result/canonical-calendar-mapping-registry.json             --market-structure-evidence docs/shared/evidence/QORE_SHARED_GEN2_CANONICAL_MARKET_STRUCTURE_EVIDENCE_001.json             | tee result/global-market-observability-summary.json
+
+      - name: Validate source-only governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          schedule=json.loads(Path("result/provider-schedule-catalog.json").read_text())
+          mapping=json.loads(Path("result/canonical-calendar-mapping-registry.json").read_text())
+          matrix=json.loads(Path("result/global-market-observability-matrix.json").read_text())
+          assert schedule["sensor_count"] == 177
+          assert len(schedule["symbols"]) == 177
+          assert schedule["canonical_calendar_mapping_performed"] is False
+          assert schedule["provider_availability_is_canonical_market_hours"] is False
+          assert schedule["provider_native_identity_metadata_captured"] is True
+          assert schedule["provider_native_identity_metadata_is_not_canonical_identity"] is True
+          assert schedule["provider_native_identity_metadata_coverage_count"] == 177
+          assert schedule["provider_asset_count"] > 0
+          assert schedule["provider_asset_class_count"] > 0
+          assert schedule["provider_symbol_category_count"] > 0
+          assert len(schedule["provider_identity_descriptor_fingerprint_sha256"]) == 64
+          assert schedule["market_history_read"] is False
+          assert schedule["target_or_outcome_read"] is False
+          assert matrix["sensor_count"] == 177
+          assert len(matrix["rows"]) == 177
+          assert matrix["automatic_sensor_admission"] is False
+          assert matrix["relational_claims_authorized"] is False
+          assert matrix["canonical_calendar_mapping_complete"] is False
+          assert mapping["status"] == "UNRESOLVED_BASELINE_FROZEN"
+          assert mapping["record_count"] == 177
+          assert mapping["verified_count"] == 0
+          assert mapping["unresolved_count"] == 177
+          assert mapping["automatic_identity_inference"] is False
+          assert mapping["provider_schedule_is_not_canonical_identity_evidence"] is True
+          assert mapping["noncentralized_markets_do_not_require_single_venue"] is True
+          assert mapping["provider_evidence_worklist_is_not_canonical_mapping"] is True
+          assert mapping["provider_evidence_worklist_count"] == 177
+          assert mapping["market_structure_counts"] == {
+              "DISTRIBUTED_OTC": 60,
+              "UNRESOLVED": 117,
+          }
+          assert mapping["market_structure_evidence_count"] == 60
+          assert mapping["market_structure_unresolved_count"] == 117
+          assert len(mapping["market_structure_evidence_manifest_fingerprint_sha256"]) == 64
+          assert all(
+              row["venue_evidence_rule"] == "REQUIRED_ONLY_FOR_CENTRALIZED_VENUE"
+              for row in mapping["provider_evidence_worklist"]
+          )
+          assert all(
+              row["current_mapping_status"] == "UNRESOLVED"
+              for row in mapping["provider_evidence_worklist"]
+          )
+          assert sum(
+              row["current_market_structure"] == "DISTRIBUTED_OTC"
+              for row in mapping["provider_evidence_worklist"]
+          ) == 60
+          assert all(
+              row["current_market_structure"] == "DISTRIBUTED_OTC"
+              for row in mapping["provider_evidence_worklist"]
+              if row["provider_asset_class_name"] == "Forex"
+          )
+          assert len(mapping["provider_evidence_worklist"]) == 177
+          assert sum(mapping["provider_evidence_worklist_asset_class_counts"].values()) == 177
+          assert sum(mapping["provider_evidence_worklist_schedule_timezone_counts"].values()) == 177
+          assert len(mapping["provider_evidence_worklist_fingerprint_sha256"]) == 64
+          assert matrix["canonical_mapping_governance_status"] == "UNRESOLVED_BASELINE_FROZEN"
+          assert matrix["canonical_mapping_record_count"] == 177
+          assert matrix["canonical_mapping_verified_count"] == 0
+          assert matrix["canonical_mapping_unresolved_count"] == 177
+          assert matrix["canonical_mapping_registry_fingerprint_sha256"] == mapping["canonical_mapping_registry_fingerprint_sha256"]
+          assert matrix["cadence_policy_registry_architecture_status"] == "IMPLEMENTED_NOT_FROZEN"
+          assert matrix["liquidity_policy_architecture_status"] == "IMPLEMENTED_NOT_FROZEN"
+          assert matrix["temporal_skew_policy_registry_architecture_status"] == "IMPLEMENTED_NOT_FROZEN"
+          assert matrix["comparability_policy_registry_architecture_status"] == "IMPLEMENTED_NOT_FROZEN"
+          assert matrix["comparability_policy_registry_status"] == "NOT_FROZEN"
+          assert matrix["target_or_outcome_read"] is False
+          assert all(row["scientific_disposition"] == "DISCOVERED" for row in matrix["rows"])
+          PY
+
+      - name: Build GEN-2 evidence pack
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          from qore.infrastructure.core_stack_v2.global_temporal_comparability import (
+              assess_temporal_governance_closure,
+          )
+
+          schedule=json.loads(Path("result/provider-schedule-catalog.json").read_text())
+          mapping=json.loads(Path("result/canonical-calendar-mapping-registry.json").read_text())
+          matrix=json.loads(Path("result/global-market-observability-matrix.json").read_text())
+          calendar=json.loads(Path("result/global-calendar-registry.json").read_text())
+          root=ET.parse("validation/junit.xml").getroot()
+          suites=(root,) if root.tag == "testsuite" else tuple(root.findall("testsuite"))
+          tests=sum(int(item.attrib.get("tests", "0")) for item in suites)
+          failures=sum(int(item.attrib.get("failures", "0")) for item in suites)
+          errors=sum(int(item.attrib.get("errors", "0")) for item in suites)
+          if tests <= 0:
+              raise SystemExit("GEN-2 evidence pack refuses zero-test JUnit evidence")
+          if failures + errors != 0:
+              raise SystemExit("GEN-2 evidence pack refuses failing JUnit evidence")
+          closure=assess_temporal_governance_closure(
+              sensor_count=matrix["sensor_count"],
+              canonical_mapping_verified_count=matrix["canonical_mapping_verified_count"],
+              calendar_count=calendar["calendar_count"],
+              binding_count=calendar["binding_count"],
+              cadence_policy_registry_frozen=(
+                  matrix["cadence_policy_registry_architecture_status"] == "FROZEN"
+              ),
+              liquidity_policy_registry_frozen=(
+                  matrix["liquidity_policy_architecture_status"] == "FROZEN"
+              ),
+              temporal_skew_policy_registry_frozen=(
+                  matrix["temporal_skew_policy_registry_architecture_status"] == "FROZEN"
+              ),
+              comparability_policy_registry_frozen=(
+                  matrix["comparability_policy_registry_status"] == "FROZEN"
+              ),
+              anti_leakage_pass=(failures + errors == 0),
+              deterministic_validation_pass=(tests > 0 and failures + errors == 0),
+          )
+          pack={
+              "identity":"QORE_SHARED_GEN2_TEMPORAL_COMPARABILITY_EVIDENCE_001",
+              "head":os.environ["GITHUB_SHA"],
+              "run_id":int(os.environ["GITHUB_RUN_ID"]),
+              "upstream_gen1_run_id":int(os.environ["GEN1_RUN_ID"]),
+              "upstream_gen1_artifact_id":int(os.environ["GEN1_ARTIFACT_ID"]),
+              "provider_schedule_catalog_fingerprint":schedule["provider_schedule_catalog_fingerprint_sha256"],
+              "provider_native_identity_metadata_coverage_count":schedule["provider_native_identity_metadata_coverage_count"],
+              "provider_native_identity_metadata_is_not_canonical_identity":schedule["provider_native_identity_metadata_is_not_canonical_identity"],
+              "provider_asset_count":schedule["provider_asset_count"],
+              "provider_asset_class_count":schedule["provider_asset_class_count"],
+              "provider_symbol_category_count":schedule["provider_symbol_category_count"],
+              "provider_identity_descriptor_fingerprint":schedule["provider_identity_descriptor_fingerprint_sha256"],
+              "calendar_registry_fingerprint":calendar["calendar_registry_fingerprint_sha256"],
+              "canonical_mapping_governance_status":matrix["canonical_mapping_governance_status"],
+              "canonical_mapping_registry_fingerprint":mapping["canonical_mapping_registry_fingerprint_sha256"],
+              "canonical_mapping_record_count":mapping["record_count"],
+              "canonical_mapping_verified_count":matrix["canonical_mapping_verified_count"],
+              "canonical_mapping_unresolved_count":mapping["unresolved_count"],
+              "market_structure_evidence_manifest_fingerprint":mapping["market_structure_evidence_manifest_fingerprint_sha256"],
+              "market_structure_counts":mapping["market_structure_counts"],
+              "market_structure_evidence_count":mapping["market_structure_evidence_count"],
+              "market_structure_unresolved_count":mapping["market_structure_unresolved_count"],
+              "provider_evidence_worklist_count":mapping["provider_evidence_worklist_count"],
+              "provider_evidence_worklist_fingerprint":mapping["provider_evidence_worklist_fingerprint_sha256"],
+              "provider_evidence_worklist_asset_class_counts":mapping["provider_evidence_worklist_asset_class_counts"],
+              "provider_evidence_worklist_schedule_timezone_counts":mapping["provider_evidence_worklist_schedule_timezone_counts"],
+              "noncentralized_markets_do_not_require_single_venue":mapping["noncentralized_markets_do_not_require_single_venue"],
+              "cadence_policy_registry_architecture_status":matrix["cadence_policy_registry_architecture_status"],
+              "liquidity_policy_architecture_status":matrix["liquidity_policy_architecture_status"],
+              "temporal_skew_policy_registry_architecture_status":matrix["temporal_skew_policy_registry_architecture_status"],
+              "comparability_policy_registry_architecture_status":matrix["comparability_policy_registry_architecture_status"],
+              "comparability_policy_registry_status":"NOT_FROZEN",
+              "temporal_governance_closure_status":closure.status.value,
+              "temporal_governance_closure_blockers":closure.blockers,
+              "temporal_governance_closure_fingerprint":closure.fingerprint(),
+              "global_observability_matrix_fingerprint":matrix["global_observability_matrix_fingerprint_sha256"],
+              "test_count":tests,
+              "failure_count":failures+errors,
+              "anti_leakage_status":"PASS" if failures+errors == 0 else "FAIL",
+              "future_pairing_forbidden":True,
+              "post_hoc_alignment_forbidden":True,
+              "automatic_sensor_admission":False,
+              "relational_claims_authorized":False,
+              "shared_execution_authority":False,
+              "shared_risk_authority":False,
+              "shared_sizing_authority":False,
+          }
+          assert pack["test_count"] > 0
+          assert pack["failure_count"] == 0
+          Path("result/gen2-evidence-pack.json").write_text(
+              json.dumps(pack,sort_keys=True,indent=2)+"\n"
+          )
+          PY
+          printf '%s\n' "$GITHUB_SHA" > result/gen2-code-git-sha.txt
+          printf '%s\n' "$GITHUB_RUN_ID" > result/gen2-run-id.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0               | sort -z | xargs -0 sha256sum > SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-gen2-temporal-comparability-${{ github.sha }}
+          path: |
+            result
+            validation/junit.xml
+          retention-days: 90
+
+      - name: Report GEN-2 source census
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          schedule=json.loads(Path("result/provider-schedule-catalog.json").read_text())
+          mapping=json.loads(Path("result/canonical-calendar-mapping-registry.json").read_text())
+          matrix=json.loads(Path("result/global-market-observability-matrix.json").read_text())
+          evidence=json.loads(Path("result/gen2-evidence-pack.json").read_text())
+          body="\n".join([
+              "## Shared GEN-2 — Temporal Comparability Source Census",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- provider schedule census: **{schedule['sensor_count']} sensors**",
+              f"- provider schedule fingerprint: `{schedule['provider_schedule_catalog_fingerprint_sha256']}`",
+              f"- provider-native identity descriptors: **{schedule['provider_native_identity_metadata_coverage_count']}/177** (evidence only, not canonical identity)",
+              f"- provider taxonomy: **{schedule['provider_asset_count']} assets / {schedule['provider_asset_class_count']} asset classes / {schedule['provider_symbol_category_count']} symbol categories**",
+              f"- provider identity descriptor fingerprint: `{schedule['provider_identity_descriptor_fingerprint_sha256']}`",
+              f"- observability matrix fingerprint: `{matrix['global_observability_matrix_fingerprint_sha256']}`",
+              f"- readiness: **{matrix['readiness_counts']}**",
+              "- canonical mapping governance: **UNRESOLVED_BASELINE_FROZEN**",
+              f"- canonical mapping registry: **{mapping['record_count']} records** / verified **{mapping['verified_count']}** / unresolved **{mapping['unresolved_count']}**",
+              f"- canonical mapping fingerprint: `{mapping['canonical_mapping_registry_fingerprint_sha256']}`",
+              f"- canonical market structure evidence: **{mapping['market_structure_counts']}**",
+              f"- market structure evidence manifest fingerprint: `{mapping['market_structure_evidence_manifest_fingerprint_sha256']}`",
+              f"- mapping evidence worklist: **{mapping['provider_evidence_worklist_count']} rows** / fingerprint `{mapping['provider_evidence_worklist_fingerprint_sha256']}`",
+              f"- mapping worklist asset classes: **{mapping['provider_evidence_worklist_asset_class_counts']}**",
+              "- non-centralized markets require a fake single venue: **False**",
+              "- cadence/liquidity/skew/comparability policy architecture: **IMPLEMENTED_NOT_FROZEN**",
+              "- canonical calendar mapping complete: **False**",
+              "- comparability policy registry: **NOT_FROZEN**",
+              f"- temporal governance closure: **{evidence['temporal_governance_closure_status']}**",
+              f"- closure blockers: **{', '.join(evidence['temporal_governance_closure_blockers'])}**",
+              f"- validated tests: **{evidence['test_count']}** / failures: **{evidence['failure_count']}**",
+              "- relational claims authorized: **False**",
+              "- automatic sensor admission: **False**",
+              "- Target/R6/R5/fresh holdout opened: **False**",
+              "- Shared execution/Risk/sizing authority: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md

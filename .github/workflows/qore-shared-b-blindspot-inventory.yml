@@ -1,0 +1,168 @@
+name: QORE Shared B Blindspot Declared Scope Inventory
+
+on:
+  push:
+    branches:
+      - agent/shared-b-global-world-perception-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/shared_b_sensor_blindspot_engine.py
+      - tests/infrastructure/test_shared_b_sensor_blindspot_engine.py
+      - scripts/shared_b_blindspot_inventory_audit.py
+      - .github/workflows/qore-shared-b-blindspot-inventory.yml
+  workflow_dispatch:
+
+concurrency:
+  group: qore-shared-b-blindspot-inventory-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  REGISTRY_RUN_ID: "36745412605"
+  REGISTRY_ARTIFACT_ID: "11112621544"
+  REGISTRY_GIT_SHA: "0c85532b650cbb78b061c39f73bc04b4b505830e"
+  GEN2_RUN_ID: "36623131862"
+  GEN2_ARTIFACT_ID: "11059307341"
+  GEN2_GIT_SHA: "f5fcd0c9552466132f6f47bb124805e49e774493"
+  AGRI_RUN_ID: "36623645085"
+  AGRI_ARTIFACT_ID: "11059457712"
+  AGRI_GIT_SHA: "0ce7a2938fa50328d8ab569f47c776852dd5eafe"
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Validate Blindspot inventory code
+        run: |
+          set -euo pipefail
+          ruff check             src/qore/infrastructure/core_stack_v2/shared_b_sensor_blindspot_engine.py             tests/infrastructure/test_shared_b_sensor_blindspot_engine.py             scripts/shared_b_blindspot_inventory_audit.py
+          mypy             src/qore/infrastructure/core_stack_v2/shared_b_sensor_blindspot_engine.py             scripts/shared_b_blindspot_inventory_audit.py
+          pytest -q tests/infrastructure/test_shared_b_sensor_blindspot_engine.py
+
+      - name: Verify sealed upstream lineages
+        run: |
+          set -euo pipefail
+          for spec in             "$REGISTRY_RUN_ID:$REGISTRY_GIT_SHA"             "$GEN2_RUN_ID:$GEN2_GIT_SHA"             "$AGRI_RUN_ID:$AGRI_GIT_SHA"
+          do
+            run_id="${spec%%:*}"
+            sha="${spec#*:}"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq '.status')" = "completed"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq '.conclusion')" = "success"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq '.head_sha')" = "$sha"
+          done
+
+      - name: Recover exact registry, GEN2 and agriculture evidence
+        run: |
+          set -euo pipefail
+          mkdir -p input/registry input/gen2 input/agri result
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${REGISTRY_ARTIFACT_ID}/zip" > registry.zip
+          unzip -q registry.zip -d input/registry
+          registry_sums="$(find input/registry -name SHA256SUMS -print -quit)"
+          test -n "$registry_sums"
+          (cd "$(dirname "$registry_sums")" && sha256sum -c SHA256SUMS)
+          registry_json="$(find input/registry -name global-sensor-registry.json -print -quit)"
+          test -n "$registry_json"
+          cp "$registry_json" result/global-sensor-registry.json
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${GEN2_ARTIFACT_ID}/zip" > gen2.zip
+          unzip -q gen2.zip -d input/gen2
+          gen2_sums="$(find input/gen2 -name SHA256SUMS -print -quit)"
+          test -n "$gen2_sums"
+          (cd "$(dirname "$gen2_sums")" && sha256sum -c SHA256SUMS)
+          gen2_json="$(find input/gen2 -name provider-schedule-catalog.json -print -quit)"
+          test -n "$gen2_json"
+          cp "$gen2_json" result/provider-schedule-catalog.json
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${AGRI_ARTIFACT_ID}/zip" > agri.zip
+          unzip -q agri.zip -d input/agri
+          agri_sums="$(find input/agri -name SHA256SUMS -print -quit)"
+          test -n "$agri_sums"
+          (cd "$(dirname "$agri_sums")" && sha256sum -c SHA256SUMS)
+          agri_json="$(find input/agri -name global-agricultural-sensor-matrix.json -print -quit)"
+          test -n "$agri_json"
+          cp "$agri_json" result/global-agricultural-sensor-matrix.json
+
+      - name: Audit declared-scope coverage inventory
+        run: |
+          set -euo pipefail
+          python scripts/shared_b_blindspot_inventory_audit.py             --registry result/global-sensor-registry.json             --provider-schedule result/provider-schedule-catalog.json             --agriculture-matrix result/global-agricultural-sensor-matrix.json             --output result/shared-b-blindspot-declared-scope-inventory.json             | tee result/summary.json
+
+      - name: Enforce epistemic completion law
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p=json.loads(
+              Path(
+                  "result/shared-b-blindspot-declared-scope-inventory.json"
+              ).read_text()
+          )
+          assert p["identity"] == "SHARED_B_BLINDSPOT_DECLARED_SCOPE_INVENTORY_001"
+          assert p["status"] == "DECLARED_SCOPE_INVENTORY_COMPLETE_OPEN_WORLD_PRESERVED"
+          assert p["provider_sensor_inventory_count"] == 177
+          assert p["agricultural_requirement_count"] == 16
+          assert p["declared_requirement_count"] == 193
+          assert p["declared_coverage_fact_count"] == 177
+          assert p["coverage_inventory_complete"] is True
+          assert p["open_world_boundary"] is True
+          assert p["second_order_blindspot_possible"] is True
+          assert p["current_provider_universe_defines_world_ceiling"] is False
+          assert p["all_unknown_unknowns_eliminated"] is False
+          kinds=p["blindspot_kind_counts"]
+          assert kinds["IDENTITY_UNRESOLVED"] == 177
+          assert kinds["MARKET_HOURS_UNRESOLVED"] == 177
+          assert kinds["DATA_HEALTH_NOT_OBSERVED"] == 177
+          assert kinds["RELATION_COMPARABILITY_UNKNOWN"] == 177
+          assert kinds["SENSOR_FAMILY_ABSENT"] == 16
+          assert kinds["OPEN_WORLD_BOUNDARY"] == 1
+          assert "COVERAGE_INVENTORY_INCOMPLETE" not in kinds
+          assert p["known_missing_blindspot_count"] == 724
+          assert p["sensor_admission_authority"] is False
+          assert p["relation_authority"] is False
+          assert p["productive_authority"] is False
+          assert p["target_or_outcome_read"] is False
+          assert p["r6_r5_read"] is False
+          assert p["fresh_holdout_opened"] is False
+          assert p["broker_mutation"] is False
+          PY
+
+      - name: Seal B-19 inventory evidence
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$GITHUB_SHA" > result/code-git-sha.txt
+          printf '%s\n' "$GITHUB_RUN_ID" > result/run-id.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0               | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - name: Upload B-19 inventory evidence
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-b-blindspot-inventory-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report B-19 inventory result
+        env:
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+        run: |
+          gh issue comment 638 --repo "$GITHUB_REPOSITORY" --body "Architect B B-19 declared-scope inventory: run ${GITHUB_RUN_ID}, SHA ${GITHUB_SHA}, artifact ${ARTIFACT_ID}. Exact inventory covers 177/177 frozen provider sensors plus 16/16 agricultural conceptual requirements. coverage_inventory_complete=True for declared scope; OPEN_WORLD_BOUNDARY=True and unknown-unknowns remain possible outside scope. Provider universe does not define Shared's world ceiling. No outcome/holdout/productive authority."

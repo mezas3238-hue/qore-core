@@ -1,0 +1,148 @@
+name: QORE Shared Autonomous Nonlinear Loss Risk V19
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - scripts/shared_autonomous_nonlinear_loss_risk_ensemble_v19.py
+      - .github/workflows/qore-shared-autonomous-nonlinear-loss-risk-v19.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  autonomous-nonlinear-loss-risk-v19:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - name: Checkout Shared
+        uses: actions/checkout@v4
+        with:
+          path: shared
+
+      - name: Checkout frozen external falsification surface
+        uses: actions/checkout@v4
+        with:
+          ref: agent/vt08-index-deep-behavior-lab-final
+          path: surface
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compose autonomous research scorer
+        run: |
+          set -euo pipefail
+          mkdir -p surface/scripts
+          for script in \
+            vt08_index_shared_cognitive_challenge_v2.py \
+            vt08_index_shared_full_stack_no_sizing_v3.py \
+            vt08_index_shared_stop_target_discrimination_v6.py \
+            vt08_index_shared_terminal_failure_economic_shadow_v7.py \
+            vt08_index_shared_competing_risk_calibration_v9.py \
+            vt08_index_shared_context_conditioned_competing_risk_v15.py \
+            shared_autonomous_nonlinear_loss_risk_ensemble_v19.py
+          do
+            cp "shared/scripts/$script" "surface/scripts/$script"
+          done
+
+      - name: Install research dependencies
+        run: |
+          cd surface
+          pip install -e ".[dev]"
+          pip install "numpy>=2,<3" "scikit-learn>=1.5,<2"
+
+      - name: Static validation
+        run: |
+          set -euo pipefail
+          cd surface
+          ruff check scripts/shared_autonomous_nonlinear_loss_risk_ensemble_v19.py
+          python -m py_compile scripts/shared_autonomous_nonlinear_loss_risk_ensemble_v19.py
+
+      - name: Download frozen consumed causal ledger
+        uses: actions/download-artifact@v4
+        with:
+          name: qore-shared-vt08-stop-target-discrimination-v6-1a534d0ae735efef4dcbc0c0be4b110ceaa80501
+          path: surface/artifacts/v6
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 36131607443
+
+      - name: Run V19 autonomous nonlinear loss-risk research
+        run: |
+          set -euo pipefail
+          cd surface
+          mkdir -p artifacts/shared-v19
+          python scripts/shared_autonomous_nonlinear_loss_risk_ensemble_v19.py \
+            --v6-json artifacts/v6/vt08-index-shared-stop-target-discrimination-v6.json \
+            --out artifacts/shared-v19/shared-autonomous-nonlinear-loss-risk-v19.json \
+            | tee artifacts/shared-v19/summary.json
+
+      - name: Validate autonomous governance
+        run: |
+          set -euo pipefail
+          cd surface
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p=json.loads(
+              Path(
+                  "artifacts/shared-v19/"
+                  "shared-autonomous-nonlinear-loss-risk-v19.json"
+              ).read_text()
+          )
+          assert p["identity"] == "QORE_SHARED_AUTONOMOUS_NONLINEAR_LOSS_RISK_ENSEMBLE_V19"
+          assert p["shared_autonomous_model"] is True
+          assert p["trader_specific_inference"] is False
+          assert p["consumed_evidence_only"] is True
+          assert p["fresh_holdout_opened"] is False
+          assert p["runtime_current_position_pnl_used"] is False
+          assert p["runtime_terminal_outcome_used"] is False
+          assert p["runtime_future_market_used"] is False
+          assert p["runtime_symbol_identity_used"] is False
+          assert p["runtime_methodology_identity_used"] is False
+          assert p["runtime_calendar_identity_used"] is False
+          assert p["runtime_fold_identity_used"] is False
+          assert p["sizing_used"] is False
+          assert p["risk_weighting_used"] is False
+          assert p["runtime_actuation"] is False
+
+          expected={
+              "five_year":2448,
+              "recent_two_year":1017,
+              "r66_consumed_failed_holdout":773,
+          }
+          for key,sample in expected.items():
+              assert p["windows"][key]["sample"] == sample
+              assert p["windows"][key]["status"] in {
+                  "ADMIT_FOR_ECONOMIC_SHADOW",
+                  "REJECT",
+              }
+
+          print(json.dumps({
+              "validation_pass":p["validation_pass"],
+              "threshold":p["model"]["selected_threshold"],
+              "feature_count":p["feature_count"],
+              "windows":p["windows"],
+          },sort_keys=True))
+          PY
+
+      - name: Bind result
+        run: |
+          cd surface/artifacts/shared-v19
+          echo "$GITHUB_SHA" > shared-git-sha.txt
+          echo "36131607443" > source-v6-run.txt
+          echo "36141968333" > source-v15-run.txt
+          find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+          sha256sum -c SHA256SUMS
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-autonomous-nonlinear-loss-risk-v19-${{ github.sha }}
+          path: surface/artifacts/shared-v19/
+          if-no-files-found: error
+          retention-days: 90

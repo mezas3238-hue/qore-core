@@ -1,0 +1,122 @@
+name: QORE Shared GW2 Metals ISO4217 Reference Evidence
+
+on:
+  push:
+    branches:
+      - agent/qore-core-stack-v2-shared-001
+    paths:
+      - scripts/shared_gw2_metals_iso4217_reference_evidence.py
+      - .github/workflows/qore-shared-gw2-metals-iso4217-reference-evidence.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  NONFX_RUN_ID: "36652731881"
+  NONFX_ARTIFACT_ID: "11071337563"
+  NONFX_GIT_SHA: "399c803ba0485a6cc61754c6c33da33436943c7c"
+  SIX_ISO4217_LIST_ONE_URL: "https://www.six-group.com/dam/download/financial-information/data-center/iso-currrency/lists/list-one.xml"
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Validate metals authority binder
+        run: |
+          set -euo pipefail
+          mkdir -p input/census input/authority result
+          ruff check scripts/shared_gw2_metals_iso4217_reference_evidence.py
+          python -m py_compile scripts/shared_gw2_metals_iso4217_reference_evidence.py
+
+      - name: Recover sealed non-FX census
+        run: |
+          set -euo pipefail
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${NONFX_RUN_ID}" --jq '.status')" = "completed"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${NONFX_RUN_ID}" --jq '.conclusion')" = "success"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${NONFX_RUN_ID}" --jq '.head_sha')" = "$NONFX_GIT_SHA"
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${NONFX_ARTIFACT_ID}/zip" > nonfx.zip
+          unzip -q nonfx.zip -d input/census
+          (cd input/census && sha256sum -c SHA256SUMS)
+
+      - name: Acquire current authoritative ISO 4217 List One
+        run: |
+          set -euo pipefail
+          curl --fail --location --silent --show-error             "$SIX_ISO4217_LIST_ONE_URL"             --output input/authority/iso4217-list-one.xml
+          test -s input/authority/iso4217-list-one.xml
+
+      - name: Bind real metal reference components
+        run: |
+          python scripts/shared_gw2_metals_iso4217_reference_evidence.py             --census input/census/gw2-nonfx-identity-evidence-census.json             --iso-xml input/authority/iso4217-list-one.xml             --output result/gw2-metals-iso4217-reference-evidence.json             | tee result/summary.json
+
+      - name: Validate metal/futures semantic separation
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/gw2-metals-iso4217-reference-evidence.json").read_text())
+          assert p["provider_metal_sensor_count"] == 16
+          assert p["metal_reference_sensor_count"] == 11
+          assert p["gold_futures_sensor_count"] == 5
+          assert p["metal_reference_components_verified_count"] == 11
+          assert p["unresolved_reference_count"] == 0
+          assert set(p["gold_futures_deferred_symbols"]) == {
+              "GCG26","GCJ26","GCM25","GCM26","GCQ26"
+          }
+          assert p["gold_futures_require_venue_contract_delivery_evidence"] is True
+          assert p["provider_symbol_to_reference_mapping_authorized"] is False
+          assert p["tradable_instrument_identity_verified_count"] == 0
+          assert p["historical_market_data_read"] is False
+          assert p["protected_holdout_opened"] is False
+          PY
+
+      - name: Bind evidence
+        run: |
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0               | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-gw2-metals-iso4217-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report metals identity state
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p=json.loads(Path("result/gw2-metals-iso4217-reference-evidence.json").read_text())
+          body="\n".join([
+              "## Shared GW-2 — Metals ISO 4217 Reference Binding",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- real metal sensors: **{p['provider_metal_sensor_count']}**",
+              f"- XAU/XAG/XPT/XPD reference sensors: **{p['metal_reference_sensor_count']}**",
+              f"- component-verified references: **{p['metal_reference_components_verified_count']}**",
+              f"- GC futures deferred to contract lane: **{p['gold_futures_sensor_count']}**",
+              "- provider symbol→reference mapping authorized: **False**",
+              "- tradable instrument identity certified: **0**",
+              "- protected holdout opened: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md
