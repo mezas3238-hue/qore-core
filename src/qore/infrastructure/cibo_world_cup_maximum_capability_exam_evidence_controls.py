@@ -19,7 +19,6 @@ from qore.infrastructure.cibo_final_integrated_exam import (
     FinalIntegratedExamReport,
     FinalIntegratedExamStatus,
 )
-from qore.infrastructure.cibo_phase22_v4_governance import V4_CANDIDATE_ID
 from qore.infrastructure.cibo_world_cup_maximum_capability_exam import (
     WorldCupControlReceipt,
     bind_world_cup_control_artifact,
@@ -27,12 +26,7 @@ from qore.infrastructure.cibo_world_cup_maximum_capability_exam import (
     world_cup_policy_identity_sha256,
 )
 
-_PROTECTED_PHASE22_CANDIDATE_IDS = frozenset(
-    {
-        "CIBO_USD60_6M_HOLDOUT_2015-10-19_2016-04-19_V2",
-        V4_CANDIDATE_ID,
-    }
-)
+_PROTECTED_PHASE22_POPULATION_PREFIX = "CIBO_USD60_6M_HOLDOUT_"
 _EVIDENCE_KIND = "WORLD_CUP_MAXIMUM_CAPABILITY_CONTROL"
 _SCHEMA = "qore.cibo.world-cup-evidence-control.v1"
 _SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
@@ -84,7 +78,9 @@ class WorldCupEvidenceBase:
             raise CiboCapitalManagementError(
                 "World Cup competition population identity required"
             )
-        if self.competition_population_id in _PROTECTED_PHASE22_CANDIDATE_IDS:
+        if self.competition_population_id.startswith(
+            _PROTECTED_PHASE22_POPULATION_PREFIX
+        ):
             raise CiboCapitalManagementError(
                 "World Cup cannot reuse a protected Phase22 holdout"
             )
