@@ -16,8 +16,8 @@
   "real_capital_authorized": false,
   "production_authorized": false,
   "merge_authorized": false,
-  "retrigger_for_head": "7b67c4c9dc18c7b33b67e4fbb97ea81f429e9d8f",
-  "retrigger_reason": "Relaunch after moving Owner authorization receipt validation after checkout; prior runs failed before trader execution.",
+  "retrigger_for_head": "d3da00674495fefa04992e9b5c4b45512e9f2506",
+  "retrigger_reason": "Relaunch after clearing final preflight lint blockers; same Owner-authorized capability exam.",
   "launch_authorized_by_owner": true,
-  "launch_authorized_at_utc": "2026-10-02T22:44:00Z"
+  "launch_authorized_at_utc": "2026-10-02T22:45:00Z"
 }
