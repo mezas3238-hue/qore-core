@@ -135,7 +135,7 @@
     {
       "workstream_id": "FRESH_OOS",
       "state": "WAITING_ON_INTEGRATOR_RECEIPT",
-      "remaining_requirement": "AUTHORIZED_PHASE22_V2_FRESH_OUTCOME_RECEIPT"
+      "remaining_requirement": "AUTHORIZED_PHASE22_V2_FRESH_OUTCOME_RECEIPT_WITH_EXACT_OUTCOME_BUNDLE_TO_QUALIFICATION_BINDING"
     }
   ],
   "summary": {
