@@ -12,6 +12,8 @@ on:
       - 'src/qore/infrastructure/cibo_arch2_t11_nonlinear_input_freeze.py'
       - 'src/qore/infrastructure/cibo_arch2_t11_runner_readiness.py'
       - 'src/qore/infrastructure/cibo_arch2_t11_experiment_plan.py'
+      - 'src/qore/infrastructure/cibo_arch2_t11_provider_containment_state.py'
+      - 'tests/infrastructure/test_cibo_arch2_t11_provider_containment_state.py'
   workflow_dispatch:
 
 permissions:
@@ -58,7 +60,8 @@ jobs:
             tests/infrastructure/test_cibo_arch2_t11_market_impact_demo.py \
             tests/infrastructure/test_cibo_arch2_t11_market_impact_evaluator.py \
             tests/infrastructure/test_cibo_arch2_t11_runner_readiness.py \
-            tests/infrastructure/test_cibo_arch2_t11_experiment_plan.py
+            tests/infrastructure/test_cibo_arch2_t11_experiment_plan.py \
+            tests/infrastructure/test_cibo_arch2_t11_provider_containment_state.py
 
       - name: Fail closed unless scientific runner contract is complete
         run: |
@@ -77,6 +80,22 @@ jobs:
               raise SystemExit(
                   "T11 runner contract blocked: "
                   + ",".join(result.missing_markers)
+              )
+          PY
+
+      - name: Fail closed on unresolved prior-run containment
+        run: |
+          python - <<'PY'
+          from qore.infrastructure.cibo_arch2_t11_provider_containment_state import (
+              T11_PROVIDER_CONTAINMENT_STATE,
+          )
+
+          state = T11_PROVIDER_CONTAINMENT_STATE
+          if not state.further_provider_experiment_allowed:
+              raise SystemExit(
+                  "T11 provider experiment blocked: "
+                  + state.block_reason
+                  + f"; open_positions={state.open_position_count}"
               )
           PY
 
