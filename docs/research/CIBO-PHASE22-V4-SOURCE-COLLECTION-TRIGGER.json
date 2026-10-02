@@ -1,0 +1,21 @@
+{
+  "schema": "qore.cibo.phase22.v4-source-collection-trigger.v1",
+  "candidate_id": "CIBO_USD60_6M_HOLDOUT_2014-10-19_2015-04-19_V4",
+  "source_availability_run_id": 37048678560,
+  "source_availability_conclusion": "SUCCESS",
+  "source_availability_head_sha": "aecc88f0da55d420d2a1a9c891ce93d9e0769cee",
+  "source_availability_artifact_id": 11246140100,
+  "source_availability_artifact_digest": "sha256:9586d4c4b03d846e98a8d64dd308cd12d4287807dfb150dca156d4eac2c07d07",
+  "policy_bundle_sha256": "sha256:4c2fbee5d9e6488c2c378eceda6da0a49a415f6af3b3aa29f673bfaa93ee54a4",
+  "advanced_scientific_eligibility_sha256": "sha256:8101c287ba024032c81f97d1768c0380cb061e57de0cb87838e6b032074d610f",
+  "selection_outcomes_inspected": false,
+  "v3_lane_artifact_contents_used": false,
+  "trader_logic_authorized": false,
+  "outcome_inspection_authorized": false,
+  "broker_mutation_authorized": false,
+  "live_authorized": false,
+  "real_capital_authorized": false,
+  "production_authorized": false,
+  "fresh_trader_execution_authorized": false,
+  "productive_authority": false
+}
