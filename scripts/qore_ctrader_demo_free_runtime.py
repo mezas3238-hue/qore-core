@@ -104,6 +104,9 @@ from qore.infrastructure.cibo_ce2i_phase20_m5_shadow_batch import (
     Phase20M5ShadowTerminal,
     build_ctrader_demo_m5_observed_opportunity,
 )
+from qore.infrastructure.ctrader_demo_boundary_account import (
+    BoundaryAccountSampler,
+)
 from qore.infrastructure.ctrader_demo_compat import (
     CTraderDemoAccountState,
     CTraderDemoSymbolSpecification,
@@ -234,9 +237,7 @@ _vt31_adapter = import_module("vt31_nas100_ctrader_demo_adapter")
 evaluate_vt31_boundary = _vt31_adapter.evaluate_boundary
 prepare_vt31_boundary = _vt31_adapter.prepare_boundary
 manage_vt31_open_trade = _vt31_adapter.manage_open_trade
-build_vt31_virtual_order_opportunity = (
-    _vt31_adapter.build_virtual_order_opportunity
-)
+build_vt31_virtual_order_opportunity = _vt31_adapter.build_virtual_order_opportunity
 process_vt31_virtual_oco = _vt31_adapter.process_virtual_oco
 reconcile_vt31_pending = _vt31_adapter.reconcile_pending
 vt31_runtime_started_fields = _vt31_adapter.runtime_started_fields
@@ -285,8 +286,7 @@ class CTraderDemoReadOnlyTransport:
             return None
         point = Decimal(str(info.point))
         spread_points = (
-            (Decimal(str(tick.ask)) - Decimal(str(tick.bid))) / point
-            if point > 0 else Decimal("0")
+            (Decimal(str(tick.ask)) - Decimal(str(tick.bid))) / point if point > 0 else Decimal("0")
         )
         return CTraderDemoSymbolSpecification(
             qore_symbol="NAS100" if provider_symbol == "NDX100" else provider_symbol,
@@ -361,8 +361,7 @@ def _configure_ctrader_demo_free_sink(root: Path) -> CTraderDemoFreeSink:
     raw = json.loads(binding_path.read_text(encoding="utf-8"))
     rows = raw.get("contracts", ())
     source_sizes = {
-        str(row["qore_symbol"]): Decimal(str(row["source_contract_size_units"]))
-        for row in rows
+        str(row["qore_symbol"]): Decimal(str(row["source_contract_size_units"])) for row in rows
     }
     sink = CTraderDemoFreeSink(
         root=root,
@@ -372,16 +371,23 @@ def _configure_ctrader_demo_free_sink(root: Path) -> CTraderDemoFreeSink:
     configure_global_sink(sink)
     return sink
 
-def _account_state_from_demo_api(api: CTraderDemoFullApi, observed_at: datetime) -> CTraderDemoAccountState:
+
+def _account_state_from_demo_api(
+    api: CTraderDemoFullApi,
+    observed_at: datetime,
+) -> CTraderDemoAccountState:
     info = api.account_info()
     if info is None:
         raise RuntimeError("cTrader DEMO account state unavailable")
+    captured_at = getattr(info, "observed_at", None)
+    if not isinstance(captured_at, datetime):
+        captured_at = datetime.now(UTC)
     return CTraderDemoAccountState(
         balance=Decimal(str(info.balance)),
         equity=Decimal(str(info.equity)),
         margin=Decimal(str(info.margin)),
         free_margin=Decimal(str(info.margin_free)),
-        observed_at=observed_at,
+        observed_at=captured_at,
     )
 
 
@@ -500,9 +506,7 @@ def _causal_candidate(symbol: str, anchor: datetime) -> tuple[Vt08B01Candidate |
 
 def _behavior_ledger_for(path: Path) -> CTraderDemoLiveBehaviorLedger:
     normalized_path = (
-        path.parent
-        / "ctrader_demo_live_behavior_lab"
-        / "runtime-events.normalized.jsonl"
+        path.parent / "ctrader_demo_live_behavior_lab" / "runtime-events.normalized.jsonl"
     )
     ledger = _BEHAVIOR_LEDGERS.get(normalized_path)
     if ledger is None:
@@ -529,9 +533,7 @@ def _log(path: Path, event: dict[str, object]) -> None:
             "logged_at": datetime.now(UTC).isoformat(),
         }
         with path.open("a", encoding="utf-8") as handle:
-            handle.write(
-                json.dumps(mirror_error, sort_keys=True, default=str) + "\n"
-            )
+            handle.write(json.dumps(mirror_error, sort_keys=True, default=str) + "\n")
 
 
 def _latency_ms(started_at: datetime, finished_at: datetime) -> int:
@@ -566,9 +568,7 @@ def _log_market_decision_telemetry(
             "strategy_started_at": result.strategy_started_at.isoformat(),
             "strategy_finished_at": result.strategy_finished_at.isoformat(),
             "decision_at_utc": result.strategy_finished_at.astimezone(UTC).isoformat(),
-            "decision_at_new_york": (
-                result.strategy_finished_at.astimezone(_NY).isoformat()
-            ),
+            "decision_at_new_york": (result.strategy_finished_at.astimezone(_NY).isoformat()),
             "strategy_timezone": "America/New_York",
             "feed_latency_ms": _latency_ms(
                 anchor,
@@ -1032,10 +1032,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
         for row in binding_raw["contracts"]
     }
     market_tape = CTraderDemoMarketTape(
-        root
-        / "artifacts"
-        / "ctrader_demo_live_behavior_lab"
-        / "market-tape.jsonl"
+        root / "artifacts" / "ctrader_demo_live_behavior_lab" / "market-tape.jsonl"
     )
 
     def record_market_tick(
@@ -1068,6 +1065,9 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
         raise RuntimeError("cTrader DEMO independent market-data initialization failed")
     if not demo_api.warm_session_schedules():
         raise RuntimeError("cTrader DEMO broker session schedule unavailable")
+    boundary_account_sampler = BoundaryAccountSampler(
+        lambda: _account_state_from_demo_api(demo_api, datetime.now(UTC))
+    )
     mt5 = demo_api
     demo_management_api = demo_api
     account_info = demo_api.account_info()
@@ -1083,16 +1083,10 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
     )
     cibo_account_identity = identity_from_market_test_account(account)
     cibo_capital_mission = derive_cibo_capital_mission(cibo_account_identity)
-    cibo_enabled_ce2i_tools = eligible_ce2i_tool_codes_for_mission(
-        cibo_capital_mission
-    )
+    cibo_enabled_ce2i_tools = eligible_ce2i_tool_codes_for_mission(cibo_capital_mission)
     state_dir = root / "var" / "ctrader_demo_signal_runtime"
-    cma_settlement_store = DurableCmaSettlementStore(
-        state_dir / "cibo-cma-settlements.json"
-    )
-    cma_lifecycle_store = DurableCmaLifecycleStore(
-        state_dir / "cibo-cma-lifecycle.json"
-    )
+    cma_settlement_store = DurableCmaSettlementStore(state_dir / "cibo-cma-settlements.json")
+    cma_lifecycle_store = DurableCmaLifecycleStore(state_dir / "cibo-cma-lifecycle.json")
     # Fail startup if durable CMA evidence is corrupt. Observational CMA must
     # never manufacture fresh capacity by silently discarding restart state.
     cma_settlement_store.load()
@@ -1112,29 +1106,22 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
     phase20_mutation_ledger = JsonFileCTraderDemoMutationLedger(
         root / "var" / "ctrader_demo_free" / "mutations.json"
     )
-    phase20_settlement_cursor_store = (
-        DurablePhase20DemoSettlementCursorStore(
-            state_dir / "cibo-phase20-settlement-cursor.json"
-        )
+    phase20_settlement_cursor_store = DurablePhase20DemoSettlementCursorStore(
+        state_dir / "cibo-phase20-settlement-cursor.json"
     )
     phase20_bootstrap_at = datetime.now(UTC)
     phase20_bootstrap_account = _account_state_from_demo_api(
         demo_api,
         phase20_bootstrap_at,
     )
-    phase20_assigned_base, phase20_capital_state = (
-        bootstrap_phase20_demo_assigned_capital(
-            store=phase20_capital_store,
-            account=account,
-            account_state=phase20_bootstrap_account,
-            activated_at=phase20_bootstrap_at,
-        )
+    phase20_assigned_base, phase20_capital_state = bootstrap_phase20_demo_assigned_capital(
+        store=phase20_capital_store,
+        account=account,
+        account_state=phase20_bootstrap_account,
+        activated_at=phase20_bootstrap_at,
     )
     phase20_known_open_position_ids = tuple(
-        sorted(
-            item.position_id
-            for item in demo_sink.position_service.positions()
-        )
+        sorted(item.position_id for item in demo_sink.position_service.positions())
     )
     # Forward stores are authoritative evidence. Corruption must fail startup.
     phase20_evidence_store.load()
@@ -1258,9 +1245,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             },
         )
 
-    store = DurableCTraderDemoRuntimeStateStore(
-        state_dir / "runtime-state.json"
-    )
+    store = DurableCTraderDemoRuntimeStateStore(state_dir / "runtime-state.json")
     old = store.load()
     phase20_recovery_status_by_signal: dict[str, str] = {}
     now = datetime.now(UTC)
@@ -1283,6 +1268,65 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
     highest = Decimal(str(account_info.balance))
     previous_mll = Decimal(str(account_info.equity))
     log_path = root / "artifacts" / "ctrader_demo_free_runtime_events.jsonl"
+
+    def reconcile_phase20_registry() -> None:
+        """Rebuild exact executed-risk evidence from durable broker fills."""
+
+        try:
+            forward_book = phase20_evidence_store.load()
+            sealed_phase20_signals = {
+                signal
+                for decision in forward_book.decisions
+                for signal in decision.signal_fingerprints
+            }
+            for registry_entry in demo_sink.registry.entries():
+                if (
+                    registry_entry.position_id is None
+                    or registry_entry.signal_fingerprint not in sealed_phase20_signals
+                ):
+                    continue
+                recovery = reconcile_ctrader_demo_phase20_entry(
+                    entry=registry_entry,
+                    account=account,
+                    mutation_ledger=phase20_mutation_ledger,
+                    forward_store=phase20_evidence_store,
+                    executed_risk_store=phase20_executed_risk_store,
+                    settlement_store=cma_settlement_store,
+                    reconciled_at=datetime.now(UTC),
+                )
+                recovery_status = recovery.status.value
+                prior_status = phase20_recovery_status_by_signal.get(
+                    registry_entry.signal_fingerprint
+                )
+                if prior_status == recovery_status:
+                    continue
+                phase20_recovery_status_by_signal[registry_entry.signal_fingerprint] = (
+                    recovery_status
+                )
+                _log(
+                    log_path,
+                    {
+                        "event": "PHASE20D_DEMO_RECOVERY_STATUS",
+                        "signal_fingerprint": (registry_entry.signal_fingerprint),
+                        "position_id": recovery.position_id,
+                        "status": recovery_status,
+                        "executed_risk_evidence_id": (recovery.executed_risk_evidence_id),
+                        "outcome_evidence_id": recovery.outcome_evidence_id,
+                        "broker_mutation_performed": (recovery.broker_mutation_performed),
+                        "execution_authority": recovery.execution_authority,
+                    },
+                )
+        except Exception as recovery_error:
+            _log(
+                log_path,
+                {
+                    "event": "PHASE20D_DEMO_RECOVERY_INELIGIBLE",
+                    "observed_at": datetime.now(UTC).isoformat(),
+                    "reason": type(recovery_error).__name__,
+                    "message": str(recovery_error),
+                    "execution_path_blocked": False,
+                },
+            )
 
     def observe_phase20_single_slot(
         *,
@@ -1310,9 +1354,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
         terminal_at = terminal_observed_at
         decision_at = sealed_at
         if sealed_at > deadline_at or terminal_observed_at > deadline_at:
-            effective_disposition = (
-                Phase20ForwardPopulationDisposition.DEADLINE_MISSED
-            )
+            effective_disposition = Phase20ForwardPopulationDisposition.DEADLINE_MISSED
             effective_reason = "PHASE20D_SHADOW_DEADLINE_MISSED"
             effective_obportunity = None
             effective_provider = None
@@ -1323,15 +1365,11 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             observed_opportunity = None
             if effective_obportunity is not None:
                 if effective_provider is None:
-                    raise RuntimeError(
-                        "phase20-single-slot-provider-evidence-missing"
-                    )
-                observed_opportunity = (
-                    build_ctrader_demo_single_slot_observed_opportunity(
-                        opportunity=effective_obportunity,
-                        provider_spec=effective_provider,
-                        observed_at=terminal_at,
-                    )
+                    raise RuntimeError("phase20-single-slot-provider-evidence-missing")
+                observed_opportunity = build_ctrader_demo_single_slot_observed_opportunity(
+                    opportunity=effective_obportunity,
+                    provider_spec=effective_provider,
+                    observed_at=terminal_at,
                 )
             terminal = Phase20DemoSingleSlotTerminal(
                 trader_id=trader_id,
@@ -1389,9 +1427,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     "disposition": effective_disposition.value,
                     "reason": effective_reason,
                     "known_options_count": len(effective_known_options),
-                    "regime_policy_sha256": (
-                        finalized.regime_policy_sha256
-                    ),
+                    "regime_policy_sha256": (finalized.regime_policy_sha256),
                     "uses_fill_or_outcome_input": False,
                     "execution_path_blocked": False,
                     "broker_mutation_performed": False,
@@ -1466,9 +1502,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             "market_data_provider": "CTRADER_DEMO",
             "cibo_account_context_source": "ACCOUNT_BINDING",
             "cibo_capital_mission": cibo_capital_mission.mission.value,
-            "cibo_capital_primary_objective": (
-                cibo_capital_mission.primary_objective.value
-            ),
+            "cibo_capital_primary_objective": (cibo_capital_mission.primary_objective.value),
             "cibo_ce2i_activation_scope": cibo_capital_mission.ce2i_scope.value,
             "cibo_enabled_ce2i_tools": list(cibo_enabled_ce2i_tools),
             "cibo_capability_measurement_enabled": (
@@ -1517,8 +1551,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             "behavior_lab_active": True,
             "behavior_lab_mode": "CONTINUOUS_SUPERVISION",
             "behavior_lab_runtime_ledger": (
-                "artifacts/ctrader_demo_live_behavior_lab/"
-                "runtime-events.normalized.jsonl"
+                "artifacts/ctrader_demo_live_behavior_lab/runtime-events.normalized.jsonl"
             ),
             "behavior_lab_market_tape": (
                 "artifacts/ctrader_demo_live_behavior_lab/market-tape.jsonl"
@@ -1529,6 +1562,20 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
     )
     last_lifecycle: str | None = None
     last_management_observation: dict[str, str] = {}
+
+    # Restart recovery precedes every market boundary so Risk never consumes
+    # broker exposure before exact fill-derived evidence is rebuilt.
+    reconcile_phase20_registry()
+    startup_risk_book = phase20_executed_risk_store.load()
+    startup_risk_position_ids = {item.position_id for item in startup_risk_book.evidences}
+    missing_startup_risk = tuple(
+        sorted(set(phase20_known_open_position_ids) - startup_risk_position_ids)
+    )
+    if missing_startup_risk:
+        raise RuntimeError(
+            "cTrader DEMO startup has open positions without exact risk "
+            f"evidence: {missing_startup_risk}"
+        )
 
     while True:
         cycle_started = time.monotonic()
@@ -1599,13 +1646,11 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                 "AUDJPY": f"R42_AUDJPY|{audjpy_arm_anchor.isoformat()}",
             }
             audjpy_anchor_key = m5_anchor_keys["AUDJPY"]
-            if any(
-                key not in state.processed_anchors
-                for key in m5_anchor_keys.values()
-            ):
+            if any(key not in state.processed_anchors for key in m5_anchor_keys.values()):
                 m5_fast_processed_keys: list[str] = []
                 audjpy_anchor_processed = False
                 arm_started_at = datetime.now(UTC)
+                boundary_account_sampler.arm(audjpy_arm_anchor)
                 _log(
                     log_path,
                     {
@@ -1629,7 +1674,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     arm_highest = max(highest, arm_account.balance)
                     arm_provider = SimpleNamespace()
                     arm_capital = SimpleNamespace(
-                                                qore_authorizable_headroom=arm_account.equity,
+                        qore_authorizable_headroom=arm_account.equity,
                     )
                     arm_snapshot = None
                     arm_specs = {
@@ -1774,9 +1819,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         opportunity: Any | None = None,
                         _ctx: dict[str, Any] = m5_ctx,
                     ) -> None:
-                        terminals: list[Phase20M5ShadowTerminal] = (
-                            _ctx["phase20_terminals"]
-                        )
+                        terminals: list[Phase20M5ShadowTerminal] = _ctx["phase20_terminals"]
                         if any(item.identity == identity for item in terminals):
                             return
                         terminals.append(
@@ -1847,7 +1890,9 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             record_phase20_terminal(
                                 identity=identity,
                                 symbol=symbol,
-                                observed_at=min(observed_at, boundary_anchor + M5_PROFILE.decision_deadline),
+                                observed_at=min(
+                                    observed_at, boundary_anchor + M5_PROFILE.decision_deadline
+                                ),
                                 disposition=Phase20ForwardPopulationDisposition.FAIL_CLOSED,
                                 reason=reason,
                             )
@@ -1882,9 +1927,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             identity=identity,
                             symbol=symbol,
                             observed_at=session_closed_at,
-                            disposition=(
-                                Phase20ForwardPopulationDisposition.SESSION_CLOSED
-                            ),
+                            disposition=(Phase20ForwardPopulationDisposition.SESSION_CLOSED),
                             reason="BROKER_SESSION_CLOSED",
                         )
                         mark_m5_terminal(identity, symbol)
@@ -1955,9 +1998,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                     boundary_snapshot=snapshot,
                                 )
                             else:
-                                raise RuntimeError(
-                                    f"unsupported resident M5 market:{symbol}"
-                                )
+                                raise RuntimeError(f"unsupported resident M5 market:{symbol}")
                             anchor_keys: dict[str, str] = _ctx["anchor_keys"]
                             runtime_state: CTraderDemoRuntimeState = _ctx["state"]
                             terminal_ids: set[str] = _ctx["terminal_ids"]
@@ -1980,9 +2021,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             boundary_anchor: datetime = _ctx["anchor"]
                             deadline: datetime = _ctx["deadline"]
                             terminal_ids: set[str] = _ctx["terminal_ids"]
-                            snapshots: dict[str, M5BoundarySnapshot] = (
-                                _ctx["ready_snapshots"]
-                            )
+                            snapshots: dict[str, M5BoundarySnapshot] = _ctx["ready_snapshots"]
                             identity = actor_result.identity
                             symbol = actor_result.symbol
                             if identity in terminal_ids:
@@ -2023,9 +2062,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
 
                             signal = actor_result.signal
                             reason = actor_result.reason
-                            latency_ms = int(
-                                (done - boundary_anchor).total_seconds() * 1000
-                            )
+                            latency_ms = int((done - boundary_anchor).total_seconds() * 1000)
                             if signal is None:
                                 if identity == "R42_AUDJPY":
                                     _log(
@@ -2074,17 +2111,15 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                     identity=identity,
                                     symbol=symbol,
                                     observed_at=done,
-                                    disposition=(
-                                        Phase20ForwardPopulationDisposition.ABSTAIN
-                                    ),
+                                    disposition=(Phase20ForwardPopulationDisposition.ABSTAIN),
                                     reason=reason or "CAUSAL_ABSTAIN",
                                 )
                                 mark_m5_terminal(identity, symbol)
                                 return
 
-                            staged_results: list[MarketBoundaryResult] = (
-                                _ctx["phase20_staged_results"]
-                            )
+                            staged_results: list[MarketBoundaryResult] = _ctx[
+                                "phase20_staged_results"
+                            ]
                             staged_results.append(actor_result)
                             try:
                                 observed = build_ctrader_demo_m5_observed_opportunity(
@@ -2097,9 +2132,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                     identity=identity,
                                     symbol=symbol,
                                     observed_at=done,
-                                    disposition=(
-                                        Phase20ForwardPopulationDisposition.CANDIDATE
-                                    ),
+                                    disposition=(Phase20ForwardPopulationDisposition.CANDIDATE),
                                     reason="VALID_TRADER_OPPORTUNITY",
                                     opportunity=observed,
                                 )
@@ -2108,9 +2141,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                 _log(
                                     log_path,
                                     {
-                                        "event": (
-                                            "PHASE20D_SHADOW_TERMINAL_INELIGIBLE"
-                                        ),
+                                        "event": ("PHASE20D_SHADOW_TERMINAL_INELIGIBLE"),
                                         "identity": identity,
                                         "symbol": symbol,
                                         "decision_at": boundary_anchor.isoformat(),
@@ -2160,9 +2191,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                 _log(
                                     log_path,
                                     {
-                                        "event": (
-                                            "RISK_REJECT_MINIMUM_BROKER_VOLUME"
-                                        ),
+                                        "event": ("RISK_REJECT_MINIMUM_BROKER_VOLUME"),
                                         "symbol": symbol,
                                         "decision_at": _ctx["anchor"].isoformat(),
                                         "candidate": True,
@@ -2193,8 +2222,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             symbol: cache
                             for symbol, cache in m5_caches.items()
                             if (
-                                m5_anchor_keys[symbol]
-                                not in state.processed_anchors
+                                m5_anchor_keys[symbol] not in state.processed_anchors
                                 and m5_session_open[symbol]
                             )
                         }
@@ -2212,14 +2240,11 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             armed_m5_snapshots = {}
 
                         while (
-                            market_actors.pending_identities()
-                            and datetime.now(UTC) <= m5_deadline
+                            market_actors.pending_identities() and datetime.now(UTC) <= m5_deadline
                         ):
                             drain_ready_market_results(datetime.now(UTC))
                             if market_actors.pending_identities():
-                                remaining = (
-                                    m5_deadline - datetime.now(UTC)
-                                ).total_seconds()
+                                remaining = (m5_deadline - datetime.now(UTC)).total_seconds()
                                 if remaining > 0:
                                     time.sleep(min(0.005, remaining))
                         drain_ready_market_results(datetime.now(UTC))
@@ -2234,10 +2259,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         final_observed = max(datetime.now(UTC), m5_deadline)
                         for identity, symbol in expected_markets.items():
                             key = m5_anchor_keys[symbol]
-                            if (
-                                key in state.processed_anchors
-                                or identity in m5_terminal_identities
-                            ):
+                            if key in state.processed_anchors or identity in m5_terminal_identities:
                                 continue
                             if symbol not in ready_snapshots:
                                 log_m5_hard_fail(
@@ -2258,63 +2280,61 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             shadow_started_ns = time.perf_counter_ns()
                             try:
                                 terminal_times = tuple(
-                                    item.observed_at
-                                    for item in phase20_terminals
+                                    item.observed_at for item in phase20_terminals
                                 )
                                 last_terminal_at = max(
                                     terminal_times,
                                     default=audjpy_arm_anchor,
                                 )
+                                boundary_account = boundary_account_sampler.resolve(
+                                    audjpy_arm_anchor,
+                                    m5_deadline,
+                                )
                                 shadow_decision_at = max(
                                     audjpy_arm_anchor,
                                     min(
-                                        max(datetime.now(UTC), last_terminal_at),
+                                        max(
+                                            datetime.now(UTC),
+                                            last_terminal_at,
+                                            boundary_account.observed_at,
+                                        ),
                                         m5_deadline,
                                     ),
                                 )
-                                phase20_prepared = (
-                                    prepare_ctrader_demo_m5_phase20_epoch(
-                                        epoch_scope=(
-                                            "ctrader-demo:m5:"
-                                            f"{audjpy_arm_anchor.isoformat()}"
-                                        ),
-                                        opened_at=audjpy_arm_anchor,
-                                        deadline_at=m5_deadline,
-                                        terminals=tuple(phase20_terminals),
-                                        decision_at=shadow_decision_at,
-                                        snapshots=tuple(
-                                            ready_snapshots[symbol]
-                                            for symbol in sorted(ready_snapshots)
-                                        ),
-                                        provider_specs=tuple(
-                                            arm_specs[symbol]
-                                            for symbol in sorted(arm_specs)
-                                        ),
-                                        evidence_store=phase20_evidence_store,
-                                        account_identity=cibo_account_identity,
-                                        account_state=arm_account,
-                                        risk=risk,
-                                        executed_risk_book=(
-                                            phase20_executed_risk_store.load()
-                                        ),
-                                        open_position_ids=(
-                                            m5_ctx["arm_open_position_ids"]
-                                        ),
-                                        pending_broker_worst_case_loss_usd=(
-                                            demo_sink.registry.pending_stop_risk(
-                                                now=arm_account.observed_at,
-                                                provider_order_status=(
-                                                    demo_api.pending_order_status
-                                                ),
-                                            )
-                                        ),
-                                        capital_state=phase20_capital_state,
-                                        highest_closed_balance=arm_highest,
-                                        current_step=int(
-                                            audjpy_arm_anchor.timestamp() // 3600
-                                        ),
-                                        collector_git_sha=sha,
-                                    )
+                                phase20_prepared = prepare_ctrader_demo_m5_phase20_epoch(
+                                    epoch_scope=(
+                                        f"ctrader-demo:m5:{audjpy_arm_anchor.isoformat()}"
+                                    ),
+                                    opened_at=audjpy_arm_anchor,
+                                    deadline_at=m5_deadline,
+                                    terminals=tuple(phase20_terminals),
+                                    decision_at=shadow_decision_at,
+                                    snapshots=tuple(
+                                        ready_snapshots[symbol]
+                                        for symbol in sorted(ready_snapshots)
+                                    ),
+                                    provider_specs=tuple(
+                                        arm_specs[symbol] for symbol in sorted(arm_specs)
+                                    ),
+                                    evidence_store=phase20_evidence_store,
+                                    account_identity=cibo_account_identity,
+                                    account_state=boundary_account,
+                                    risk=risk,
+                                    executed_risk_book=(phase20_executed_risk_store.load()),
+                                    open_position_ids=(m5_ctx["arm_open_position_ids"]),
+                                    pending_broker_worst_case_loss_usd=(
+                                        demo_sink.registry.pending_stop_risk(
+                                            now=boundary_account.observed_at,
+                                            provider_order_status=(demo_api.pending_order_status),
+                                        )
+                                    ),
+                                    capital_state=phase20_capital_state,
+                                    highest_closed_balance=max(
+                                        arm_highest,
+                                        boundary_account.balance,
+                                    ),
+                                    current_step=int(audjpy_arm_anchor.timestamp() // 3600),
+                                    collector_git_sha=sha,
                                 )
                                 shadow_elapsed_ms = (
                                     time.perf_counter_ns() - shadow_started_ns
@@ -2322,9 +2342,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                 _log(
                                     log_path,
                                     {
-                                        "event": (
-                                            "PHASE20D_SHADOW_EVIDENCE_SEALED"
-                                        ),
+                                        "event": ("PHASE20D_SHADOW_EVIDENCE_SEALED"),
                                         "decision_epoch_id": (
                                             phase20_prepared.result.evidence.decision_epoch_id
                                         ),
@@ -2348,24 +2366,23 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                             shadow_elapsed_ms,
                                             3,
                                         ),
-                                        "uses_prearm_account_state": True,
+                                        "uses_prearm_account_state": False,
+                                        "account_observed_at": (
+                                            boundary_account.observed_at.isoformat()
+                                        ),
                                         "uses_fill_or_outcome_input": False,
                                         "execution_authority": False,
                                     },
                                 )
-                                finalized = (
-                                    finalize_ctrader_demo_m5_phase20_policy(
-                                        prepared=phase20_prepared,
-                                        evidence_store=phase20_evidence_store,
-                                        policy_store=phase20_policy_store,
-                                    )
+                                finalized = finalize_ctrader_demo_m5_phase20_policy(
+                                    prepared=phase20_prepared,
+                                    evidence_store=phase20_evidence_store,
+                                    policy_store=phase20_policy_store,
                                 )
                                 _log(
                                     log_path,
                                     {
-                                        "event": (
-                                            "PHASE20D_SHADOW_POLICY_FINALIZED"
-                                        ),
+                                        "event": ("PHASE20D_SHADOW_POLICY_FINALIZED"),
                                         "decision_epoch_id": (
                                             finalized.observation.collected.result.evidence.decision_epoch_id
                                         ),
@@ -2378,27 +2395,17 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                         "broker_mutation_performed": (
                                             finalized.broker_mutation_performed
                                         ),
-                                        "execution_authority": (
-                                            finalized.execution_authority
-                                        ),
+                                        "execution_authority": (finalized.execution_authority),
                                     },
                                 )
                             except Exception as shadow_error:
                                 _log(
                                     log_path,
                                     {
-                                        "event": (
-                                            "PHASE20D_SHADOW_PREPARE_INELIGIBLE"
-                                        ),
-                                        "decision_at": (
-                                            audjpy_arm_anchor.isoformat()
-                                        ),
-                                        "observed_at": (
-                                            datetime.now(UTC).isoformat()
-                                        ),
-                                        "reason": (
-                                            type(shadow_error).__name__
-                                        ),
+                                        "event": ("PHASE20D_SHADOW_PREPARE_INELIGIBLE"),
+                                        "decision_at": (audjpy_arm_anchor.isoformat()),
+                                        "observed_at": (datetime.now(UTC).isoformat()),
+                                        "reason": (type(shadow_error).__name__),
                                         "message": str(shadow_error),
                                         "execution_path_blocked": False,
                                     },
@@ -2409,9 +2416,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         default=datetime.now(UTC),
                     )
                     cycle_at = max(boundary_observed, datetime.now(UTC))
-                    audjpy_anchor_processed = (
-                        "R42_AUDJPY" in m5_terminal_identities
-                    )
+                    audjpy_anchor_processed = "R42_AUDJPY" in m5_terminal_identities
                 except Exception as error:
                     _log(
                         log_path,
@@ -2466,10 +2471,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
         if armed_m5_snapshots is None and any(
             key not in state.processed_anchors for key in m5_portfolio_keys
         ):
-            if (
-                late_delta > M5_PROFILE.order_send_deadline
-                and late_delta <= _ANCHOR_GRACE
-            ):
+            if late_delta > M5_PROFILE.order_send_deadline and late_delta <= _ANCHOR_GRACE:
                 missed_keys: list[str] = []
                 for identity, symbol in m5_portfolio_identities:
                     key = f"{identity}|{current_hour.isoformat()}"
@@ -2489,9 +2491,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             "observed_at": cycle_at.isoformat(),
                             "latency_ms": int(late_delta.total_seconds() * 1000),
                             "reason": "boundary-not-prearmed-within-sla",
-                            "hard_sla_seconds": (
-                                M5_PROFILE.order_send_deadline.total_seconds()
-                            ),
+                            "hard_sla_seconds": (M5_PROFILE.order_send_deadline.total_seconds()),
                             "order_send_called": False,
                         },
                     )
@@ -2511,17 +2511,15 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
         vt31_arm_anchor = vt31_boundary_to_arm(cycle_at)
         if vt31_arm_anchor is not None and _vt31_entry_boundary(vt31_arm_anchor):
             vt31_arm_started_at = datetime.now(UTC)
+            phase20_vt31_deadline = vt31_arm_anchor + VT31_DECISION_DEADLINE
+            boundary_account_sampler.arm(vt31_arm_anchor)
             vt31_prepare_started_ns = time.perf_counter_ns()
             vt31_prepared_context = None
             try:
                 vt31_cache.refresh_incremental(mt5, now=vt31_arm_started_at)
-                vt31_prefix_fingerprint = vt31_cache.prepare_boundary(
-                    anchor=vt31_arm_anchor
-                )
+                vt31_prefix_fingerprint = vt31_cache.prepare_boundary(anchor=vt31_arm_anchor)
                 vt31_prepared_context = prepare_vt31_boundary(
-                    closed_m1=vt31_cache.closed_m1(
-                        through=vt31_arm_anchor - timedelta(minutes=1)
-                    ),
+                    closed_m1=vt31_cache.closed_m1(through=vt31_arm_anchor - timedelta(minutes=1)),
                     evidence_fingerprint=vt31_prefix_fingerprint,
                 )
                 vt31_prepare_elapsed_ms = (
@@ -2532,9 +2530,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     {
                         "event": "VT31_NAS100_BOUNDARY_PREPARED",
                         "boundary_at_utc": vt31_arm_anchor.isoformat(),
-                        "boundary_at_new_york": (
-                            vt31_arm_anchor.astimezone(_NY).isoformat()
-                        ),
+                        "boundary_at_new_york": (vt31_arm_anchor.astimezone(_NY).isoformat()),
                         "elapsed_ms": round(vt31_prepare_elapsed_ms, 3),
                         "strategy_timezone": "America/New_York",
                     },
@@ -2545,9 +2541,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     {
                         "event": "VT31_FAIL_CLOSED",
                         "boundary_at_utc": vt31_arm_anchor.isoformat(),
-                        "boundary_at_new_york": (
-                            vt31_arm_anchor.astimezone(_NY).isoformat()
-                        ),
+                        "boundary_at_new_york": (vt31_arm_anchor.astimezone(_NY).isoformat()),
                         "stage": "prearm",
                         "reason": type(preparation_error).__name__,
                         "message": str(preparation_error),
@@ -2573,7 +2567,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                 vt31_highest = max(highest, vt31_account.balance)
                 vt31_provider = SimpleNamespace()
                 vt31_capital = SimpleNamespace(
-                                        qore_authorizable_headroom=vt31_account.equity,
+                    qore_authorizable_headroom=vt31_account.equity,
                 )
                 vt31_snapshot = None
                 vt31_lifecycle = SimpleNamespace(value="DEMO_FREE")
@@ -2588,18 +2582,13 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     {
                         "event": "VT31_M1_SEEN",
                         "boundary_at_utc": vt31_arm_anchor.isoformat(),
-                        "boundary_at_new_york": (
-                            vt31_arm_anchor.astimezone(_NY).isoformat()
-                        ),
+                        "boundary_at_new_york": (vt31_arm_anchor.astimezone(_NY).isoformat()),
                         "observed_at_utc": vt31_boundary.observed_at.isoformat(),
                         "observed_at_new_york": (
                             vt31_boundary.observed_at.astimezone(_NY).isoformat()
                         ),
                         "feed_latency_ms": int(
-                            (
-                                vt31_boundary.observed_at - vt31_arm_anchor
-                            ).total_seconds()
-                            * 1000
+                            (vt31_boundary.observed_at - vt31_arm_anchor).total_seconds() * 1000
                         ),
                         "strategy_timezone": "America/New_York",
                     },
@@ -2633,19 +2622,11 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         {
                             "event": "VT31_STRATEGY_DECISION",
                             "boundary_at_utc": vt31_arm_anchor.isoformat(),
-                            "boundary_at_new_york": (
-                                vt31_arm_anchor.astimezone(_NY).isoformat()
-                            ),
+                            "boundary_at_new_york": (vt31_arm_anchor.astimezone(_NY).isoformat()),
                             "decision_at_utc": vt31_decided_at.isoformat(),
-                            "decision_at_new_york": (
-                                vt31_decided_at.astimezone(_NY).isoformat()
-                            ),
+                            "decision_at_new_york": (vt31_decided_at.astimezone(_NY).isoformat()),
                             "elapsed_ms": round(vt31_strategy_elapsed_ms, 3),
-                            "result": (
-                                "CANDIDATE"
-                                if vt31_basket is not None
-                                else "ABSTAIN"
-                            ),
+                            "result": ("CANDIDATE" if vt31_basket is not None else "ABSTAIN"),
                             "reason": vt31_reason,
                             "strategy_timezone": "America/New_York",
                         },
@@ -2670,12 +2651,10 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                 "basket_id": vt31_basket.basket_id,
                                 "tier": vt31_basket.tier,
                                 "candidate_ids": [
-                                    item.candidate_id
-                                    for item in vt31_basket.candidates
+                                    item.candidate_id for item in vt31_basket.candidates
                                 ],
                                 "signal_fingerprints": [
-                                    item.signal_fingerprint
-                                    for item in vt31_basket.candidates
+                                    item.signal_fingerprint for item in vt31_basket.candidates
                                 ],
                             },
                         )
@@ -2683,12 +2662,26 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         vt31_execution_equity = demo_account_capital()
                     else:
                         vt31_execution_equity = vt31_account.equity
-                    phase20_vt31_deadline = (
-                        vt31_arm_anchor + VT31_DECISION_DEADLINE
-                    )
-                    phase20_vt31_scope = (
-                        f"ctrader-demo:vt31:{vt31_arm_anchor.isoformat()}"
-                    )
+                    phase20_vt31_scope = f"ctrader-demo:vt31:{vt31_arm_anchor.isoformat()}"
+                    vt31_phase20_account = None
+                    try:
+                        vt31_phase20_account = boundary_account_sampler.resolve(
+                            vt31_arm_anchor,
+                            phase20_vt31_deadline,
+                        )
+                    except Exception as account_error:
+                        _log(
+                            log_path,
+                            {
+                                "event": "PHASE20D_SHADOW_PREPARE_INELIGIBLE",
+                                "decision_at": vt31_arm_anchor.isoformat(),
+                                "observed_at": datetime.now(UTC).isoformat(),
+                                "stage": "boundary-account-snapshot",
+                                "reason": type(account_error).__name__,
+                                "message": str(account_error),
+                                "execution_path_blocked": False,
+                            },
+                        )
                     if vt31_basket is None:
                         _log(
                             log_path,
@@ -2700,20 +2693,20 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                 "observed_at": (vt31_boundary.observed_at.isoformat()),
                             },
                         )
-                        observe_phase20_single_slot(
-                            trader_id=TraderLineage.VT31_NAS100,
-                            qore_symbol="NAS100",
-                            epoch_scope=phase20_vt31_scope,
-                            opened_at=vt31_arm_anchor,
-                            deadline_at=phase20_vt31_deadline,
-                            terminal_observed_at=vt31_decided_at,
-                            disposition=(
-                                Phase20ForwardPopulationDisposition.ABSTAIN
-                            ),
-                            reason=vt31_reason,
-                            account_state_for_shadow=vt31_account,
-                        )
+                        if vt31_phase20_account is not None:
+                            observe_phase20_single_slot(
+                                trader_id=TraderLineage.VT31_NAS100,
+                                qore_symbol="NAS100",
+                                epoch_scope=phase20_vt31_scope,
+                                opened_at=vt31_arm_anchor,
+                                deadline_at=phase20_vt31_deadline,
+                                terminal_observed_at=vt31_decided_at,
+                                disposition=(Phase20ForwardPopulationDisposition.ABSTAIN),
+                                reason=vt31_reason,
+                                account_state_for_shadow=vt31_phase20_account,
+                            )
                     elif len(vt31_basket.candidates) == 1:
+
                         def observe_vt31_phase20_candidate(
                             opportunity: TraderOpportunityEnvelope,
                             spec: CTraderDemoSymbolSpecification,
@@ -2728,9 +2721,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                 opened_at=trigger_at,
                                 deadline_at=trigger_at + VT31_DECISION_DEADLINE,
                                 terminal_observed_at=observed_at,
-                                disposition=(
-                                    Phase20ForwardPopulationDisposition.CANDIDATE
-                                ),
+                                disposition=(Phase20ForwardPopulationDisposition.CANDIDATE),
                                 reason="VALID_TRADER_OPPORTUNITY",
                                 account_state_for_shadow=shadow_account,
                                 opportunity=opportunity,
@@ -2768,10 +2759,13 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                 vt31_decided_at,
                                 vt31_option_spec.observed_at,
                             )
-                            vt31_option_step = max(
-                                0,
-                                int(vt31_arm_anchor.timestamp() // 60),
-                            ) + 1
+                            vt31_option_step = (
+                                max(
+                                    0,
+                                    int(vt31_arm_anchor.timestamp() // 60),
+                                )
+                                + 1
+                            )
                             vt31_known_options = tuple(
                                 build_ctrader_demo_single_slot_known_option(
                                     opportunity=(
@@ -2785,40 +2779,33 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                     provider_spec=vt31_option_spec,
                                     known_as_of=vt31_option_known_at,
                                     decision_step=vt31_option_step,
-                                    expires_at=datetime.fromisoformat(
-                                        item.expires_at
-                                    ),
+                                    expires_at=datetime.fromisoformat(item.expires_at),
                                 )
                                 for item in vt31_basket.candidates
                             )
-                            observe_phase20_single_slot(
-                                trader_id=TraderLineage.VT31_NAS100,
-                                qore_symbol="NAS100",
-                                epoch_scope=phase20_vt31_scope,
-                                opened_at=vt31_arm_anchor,
-                                deadline_at=phase20_vt31_deadline,
-                                terminal_observed_at=vt31_option_known_at,
-                                disposition=(
-                                    Phase20ForwardPopulationDisposition.ABSTAIN
-                                ),
-                                reason="VIRTUAL_OCO_ARMED_AS_KNOWN_OPTIONS",
-                                account_state_for_shadow=vt31_account,
-                                provider_spec=vt31_option_spec,
-                                known_options=vt31_known_options,
-                            )
+                            if vt31_phase20_account is not None:
+                                observe_phase20_single_slot(
+                                    trader_id=TraderLineage.VT31_NAS100,
+                                    qore_symbol="NAS100",
+                                    epoch_scope=phase20_vt31_scope,
+                                    opened_at=vt31_arm_anchor,
+                                    deadline_at=phase20_vt31_deadline,
+                                    terminal_observed_at=vt31_option_known_at,
+                                    disposition=(Phase20ForwardPopulationDisposition.ABSTAIN),
+                                    reason="VIRTUAL_OCO_ARMED_AS_KNOWN_OPTIONS",
+                                    account_state_for_shadow=(vt31_phase20_account),
+                                    provider_spec=vt31_option_spec,
+                                    known_options=vt31_known_options,
+                                )
                         except Exception as phase20_oco_error:
                             _log(
                                 log_path,
                                 {
                                     "event": "PHASE20D_VT31_OCO_ARM_INELIGIBLE",
                                     "symbol": "NAS100",
-                                    "decision_at": (
-                                        vt31_arm_anchor.isoformat()
-                                    ),
+                                    "decision_at": (vt31_arm_anchor.isoformat()),
                                     "basket_id": vt31_basket.basket_id,
-                                    "reason": (
-                                        type(phase20_oco_error).__name__
-                                    ),
+                                    "reason": (type(phase20_oco_error).__name__),
                                     "message": str(phase20_oco_error),
                                     "execution_path_blocked": False,
                                 },
@@ -2854,13 +2841,9 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     {
                         "event": "VT31_FAIL_CLOSED",
                         "boundary_at_utc": vt31_arm_anchor.isoformat(),
-                        "boundary_at_new_york": (
-                            vt31_arm_anchor.astimezone(_NY).isoformat()
-                        ),
+                        "boundary_at_new_york": (vt31_arm_anchor.astimezone(_NY).isoformat()),
                         "logged_at_utc": failed_at.isoformat(),
-                        "logged_at_new_york": (
-                            failed_at.astimezone(_NY).isoformat()
-                        ),
+                        "logged_at_new_york": (failed_at.astimezone(_NY).isoformat()),
                         "reason": type(error).__name__,
                         "message": str(error),
                         "order_send_called": False,
@@ -3043,9 +3026,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         observed_at=datetime.now(UTC),
                     )
                     stable_observation = {
-                        key: value
-                        for key, value in observation.items()
-                        if key != "observed_at"
+                        key: value for key, value in observation.items() if key != "observed_at"
                     }
                     observation_fingerprint = hashlib.sha256(
                         json.dumps(
@@ -3060,9 +3041,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         != observation_fingerprint
                     ):
                         _log(log_path, observation)
-                        last_management_observation[management_trader] = (
-                            observation_fingerprint
-                        )
+                        last_management_observation[management_trader] = observation_fingerprint
 
                 # Certified 24h lifecycle for Turtle Soup lineages.
                 for state_obj, reason, label in (
@@ -3088,7 +3067,8 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                 r34_opened = r34_live_state.open_trade
                 if (
                     r34_opened is not None
-                    and cycle_at >= datetime.fromisoformat(r34_opened.entry_at) + timedelta(hours=24)
+                    and cycle_at
+                    >= datetime.fromisoformat(r34_opened.entry_at) + timedelta(hours=24)
                     and demo_management_api.close_position_for_magic(
                         _magic(r34_opened.client_order_id)
                     )
@@ -3178,8 +3158,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                 observed_at = datetime.now(UTC)
                 side = (
                     "long"
-                    if int(getattr(position, "type"))
-                    == int(demo_management_api.POSITION_TYPE_BUY)
+                    if int(getattr(position, "type")) == int(demo_management_api.POSITION_TYPE_BUY)
                     else "short"
                 )
                 entry_price = Decimal(str(getattr(position, "price_open")))
@@ -3256,27 +3235,17 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                 initial_cursor=phase20_assigned_base.activated_at,
                 observed_at=settlement_observed_at,
             )
-            phase20_known_open_position_ids = (
-                settlement_observation.open_position_ids
-            )
+            phase20_known_open_position_ids = settlement_observation.open_position_ids
             if settlement_observation.applied_deal_ids:
                 _log(
                     log_path,
                     {
                         "event": "PHASE20D_DEMO_SETTLEMENTS_INGESTED",
                         "observed_at": settlement_observed_at.isoformat(),
-                        "cursor_at": (
-                            settlement_observation.cursor_at.isoformat()
-                        ),
-                        "entry_cost_deal_ids": list(
-                            settlement_observation.entry_cost_deal_ids
-                        ),
-                        "partial_deal_ids": list(
-                            settlement_observation.partial_deal_ids
-                        ),
-                        "terminal_deal_ids": list(
-                            settlement_observation.terminal_deal_ids
-                        ),
+                        "cursor_at": (settlement_observation.cursor_at.isoformat()),
+                        "entry_cost_deal_ids": list(settlement_observation.entry_cost_deal_ids),
+                        "partial_deal_ids": list(settlement_observation.partial_deal_ids),
+                        "terminal_deal_ids": list(settlement_observation.terminal_deal_ids),
                         "broker_mutation_performed": False,
                     },
                 )
@@ -3292,71 +3261,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                 },
             )
 
-        try:
-            forward_book = phase20_evidence_store.load()
-            sealed_phase20_signals = {
-                signal
-                for decision in forward_book.decisions
-                for signal in decision.signal_fingerprints
-            }
-            for registry_entry in demo_sink.registry.entries():
-                if (
-                    registry_entry.position_id is None
-                    or registry_entry.signal_fingerprint
-                    not in sealed_phase20_signals
-                ):
-                    continue
-                recovery = reconcile_ctrader_demo_phase20_entry(
-                    entry=registry_entry,
-                    account=account,
-                    mutation_ledger=phase20_mutation_ledger,
-                    forward_store=phase20_evidence_store,
-                    executed_risk_store=phase20_executed_risk_store,
-                    settlement_store=cma_settlement_store,
-                    reconciled_at=datetime.now(UTC),
-                )
-                recovery_status = recovery.status.value
-                prior_status = phase20_recovery_status_by_signal.get(
-                    registry_entry.signal_fingerprint
-                )
-                if prior_status != recovery_status:
-                    phase20_recovery_status_by_signal[
-                        registry_entry.signal_fingerprint
-                    ] = recovery_status
-                    _log(
-                        log_path,
-                        {
-                            "event": "PHASE20D_DEMO_RECOVERY_STATUS",
-                            "signal_fingerprint": (
-                                registry_entry.signal_fingerprint
-                            ),
-                            "position_id": recovery.position_id,
-                            "status": recovery_status,
-                            "executed_risk_evidence_id": (
-                                recovery.executed_risk_evidence_id
-                            ),
-                            "outcome_evidence_id": (
-                                recovery.outcome_evidence_id
-                            ),
-                            "broker_mutation_performed": (
-                                recovery.broker_mutation_performed
-                            ),
-                            "execution_authority": (
-                                recovery.execution_authority
-                            ),
-                        },
-                    )
-        except Exception as recovery_error:
-            _log(
-                log_path,
-                {
-                    "event": "PHASE20D_DEMO_RECOVERY_INELIGIBLE",
-                    "observed_at": datetime.now(UTC).isoformat(),
-                    "reason": type(recovery_error).__name__,
-                    "message": str(recovery_error),
-                    "execution_path_blocked": False,
-                },
-            )
+        reconcile_phase20_registry()
 
         # DEMO_FREE: no FundedNext trailing MLL, prop capital budget, or mission gate.
         highest = max(highest, account_state.balance)
@@ -3370,7 +3275,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
         )
         provider = SimpleNamespace()
         capital = SimpleNamespace(
-                        qore_authorizable_headroom=account_state.equity,
+            qore_authorizable_headroom=account_state.equity,
         )
         lifecycle = SimpleNamespace(value="DEMO_FREE")
         last_lifecycle = "DEMO_FREE"
@@ -3392,9 +3297,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             observe_phase20_single_slot(
                 trader_id=TraderLineage.VT31_NAS100,
                 qore_symbol="NAS100",
-                epoch_scope=(
-                    f"ctrader-demo:vt31-trigger:{trigger_at.isoformat()}"
-                ),
+                epoch_scope=(f"ctrader-demo:vt31-trigger:{trigger_at.isoformat()}"),
                 opened_at=trigger_at,
                 deadline_at=trigger_at + VT31_DECISION_DEADLINE,
                 terminal_observed_at=observed_at,
@@ -3427,9 +3330,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                 try:
                     candidate, reason = _causal_candidate(symbol, anchor)
                     phase20_vt08_deadline = anchor + timedelta(seconds=2)
-                    phase20_vt08_scope = (
-                        f"ctrader-demo:vt08:{symbol}:{anchor.isoformat()}"
-                    )
+                    phase20_vt08_scope = f"ctrader-demo:vt08:{symbol}:{anchor.isoformat()}"
                     if candidate is None:
                         _log(
                             log_path,
@@ -3447,13 +3348,12 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             opened_at=anchor,
                             deadline_at=phase20_vt08_deadline,
                             terminal_observed_at=cycle_at,
-                            disposition=(
-                                Phase20ForwardPopulationDisposition.ABSTAIN
-                            ),
+                            disposition=(Phase20ForwardPopulationDisposition.ABSTAIN),
                             reason=reason,
                             account_state_for_shadow=account_state,
                         )
                     else:
+
                         def observe_vt08_phase20_candidate(
                             opportunity: TraderOpportunityEnvelope,
                             spec: CTraderDemoSymbolSpecification,
@@ -3467,9 +3367,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                                 opened_at=anchor,
                                 deadline_at=phase20_vt08_deadline,
                                 terminal_observed_at=observed_at,
-                                disposition=(
-                                    Phase20ForwardPopulationDisposition.CANDIDATE
-                                ),
+                                disposition=(Phase20ForwardPopulationDisposition.CANDIDATE),
                                 reason="VALID_TRADER_OPPORTUNITY",
                                 account_state_for_shadow=shadow_account,
                                 opportunity=opportunity,
@@ -3808,7 +3706,9 @@ def main() -> None:
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     recovery_log = root / "artifacts" / "ctrader_demo_free_runtime_events.jsonl"
-    lock = CTraderDemoSingleWriterLock(root / "var" / "ctrader_demo_signal_runtime" / "runtime.lock")
+    lock = CTraderDemoSingleWriterLock(
+        root / "var" / "ctrader_demo_signal_runtime" / "runtime.lock"
+    )
     try:
         with lock:
             run(

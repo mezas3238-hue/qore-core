@@ -260,7 +260,7 @@ class SpotwareCTraderOpenApiClient:
         "_connected",
         "_credentials",
         "_disconnected",
-        "_events",
+        "_event_queues",
         "_ready",
         "_access_token",
         "_refresh_token",
@@ -295,7 +295,16 @@ class SpotwareCTraderOpenApiClient:
         self._connected = Event()
         self._disconnected = Event()
         self._ready = False
-        self._events: Queue[object] = Queue()
+        event_names = (
+            "ProtoHeartbeatEvent",
+            "ProtoOAAccountsTokenInvalidatedEvent",
+            "ProtoOASpotEvent",
+            "ProtoOAExecutionEvent",
+            "ProtoOAOrderErrorEvent",
+        )
+        self._event_queues: dict[type[object], Queue[object]] = {
+            bindings.messages[name]: Queue() for name in event_names if name in bindings.messages
+        }
         self._client = bindings.client_type(
             self.DEMO_HOST,
             self.PROTOBUF_PORT,
@@ -336,7 +345,9 @@ class SpotwareCTraderOpenApiClient:
             account_ids = getattr(extracted, "ctidTraderAccountIds", ())
             if self.account_id in account_ids:
                 self._ready = False
-        self._events.put(extracted)
+        event_queue = self._event_queues.get(type(extracted))
+        if event_queue is not None:
+            event_queue.put(extracted)
 
     def _message(self, name: str, fields: Mapping[str, object]) -> object:
         message_type = self._bindings.messages.get(name)
@@ -576,20 +587,25 @@ class SpotwareCTraderOpenApiClient:
         message_type = self._bindings.messages.get(message_name)
         if message_type is None:
             return Failure(CTraderOpenApiProtocolError("unknown cTrader event type"))
+        event_queue = self._event_queues.get(message_type)
+        if event_queue is None:
+            return Failure(
+                CTraderOpenApiProtocolError("cTrader message type is not an asynchronous event")
+            )
         deadline = monotonic() + timeout_seconds
         deferred: list[object] = []
         while monotonic() < deadline:
             try:
-                event = self._events.get(timeout=max(0.01, deadline - monotonic()))
+                event = event_queue.get(timeout=max(0.01, deadline - monotonic()))
             except Empty:
                 break
-            if isinstance(event, message_type) and (predicate is None or predicate(event)):
+            if predicate is None or predicate(event):
                 for item in deferred:
-                    self._events.put(item)
+                    event_queue.put(item)
                 return Success(event)
             deferred.append(event)
         for item in deferred:
-            self._events.put(item)
+            event_queue.put(item)
         return Failure(CTraderOpenApiConnectionError("cTrader event wait timed out"))
 
     def close(self) -> None:

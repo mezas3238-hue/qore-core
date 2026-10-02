@@ -146,14 +146,18 @@ def _submission(
     )
 
 
-def test_limit_plan_carries_exact_absolute_stop_and_take_profit() -> None:
+def test_limit_plan_preserves_protection_geometry_from_actual_fill() -> None:
     built = build_ctrader_demo_order_create_plan(_configuration(), _submission())
 
     assert isinstance(built, Success)
-    assert built.value.stop_loss == "1.09500"
-    assert built.value.take_profit == "1.11000"
-    assert '"stopLoss":"1.09500"' in built.value.body_json
-    assert '"takeProfit":"1.11000"' in built.value.body_json
+    assert built.value.stop_loss is None
+    assert built.value.take_profit is None
+    assert built.value.relative_stop_loss == 500
+    assert built.value.relative_take_profit == 1000
+    assert '"relativeStopLoss":500' in built.value.body_json
+    assert '"relativeTakeProfit":1000' in built.value.body_json
+    assert '"stopLoss"' not in built.value.body_json
+    assert '"takeProfit"' not in built.value.body_json
 
 
 def test_protected_market_order_uses_relative_protection_distances() -> None:
@@ -233,7 +237,7 @@ class _Client:
         return None
 
 
-def test_open_api_transport_sends_limit_protections_on_creation() -> None:
+def test_open_api_transport_sends_relative_limit_protections() -> None:
     plan = build_ctrader_demo_order_create_plan(_configuration(), _submission())
     assert isinstance(plan, Success)
     client = _Client()
@@ -248,8 +252,10 @@ def test_open_api_transport_sends_limit_protections_on_creation() -> None:
     assert isinstance(result, Success)
     assert client.fields is not None
     assert client.fields["limitPrice"] == 1.1
-    assert client.fields["stopLoss"] == 1.095
-    assert client.fields["takeProfit"] == 1.11
+    assert client.fields["relativeStopLoss"] == 500
+    assert client.fields["relativeTakeProfit"] == 1000
+    assert "stopLoss" not in client.fields
+    assert "takeProfit" not in client.fields
 
 
 def test_open_api_transport_sends_relative_market_protections_on_creation() -> None:
@@ -302,8 +308,10 @@ def _discovered_order(client_order_id: str, *, order_id: int = 70001) -> object:
         orderStatus=1,
         orderType=2,
         limitPrice=1.1,
-        stopLoss=1.095,
-        takeProfit=1.11,
+        stopLoss=0.0,
+        takeProfit=0.0,
+        relativeStopLoss=500,
+        relativeTakeProfit=1000,
         utcLastUpdateTimestamp=int(_NOW.timestamp() * 1000),
         tradeData=SimpleNamespace(
             symbolId=1234,

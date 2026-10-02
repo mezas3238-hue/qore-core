@@ -5,14 +5,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Protocol
+from enum import StrEnum
 
 from qore.infrastructure.account_wide_risk import TraderLineage
 from qore.infrastructure.ctrader_demo_execution_configuration import (
     CTraderDemoRuntimeConfiguration,
 )
 from qore.infrastructure.ctrader_open_api_client import (
-    CTraderOpenApiClientError,
     CTraderOpenApiMessageClientBoundary,
 )
 from qore.infrastructure.market_test_environment import MarketRuntimeEnvironment
@@ -26,6 +25,21 @@ class CTraderDemoFreePositionError(InfrastructureError):
     __slots__ = ()
 
 
+class DemoPositionLabelClass(StrEnum):
+    KNOWN_TRADER = "KNOWN_TRADER"
+    KNOWN_SYSTEM = "KNOWN_SYSTEM"
+    KNOWN_TEST = "KNOWN_TEST"
+    EXTERNAL = "EXTERNAL"
+    UNKNOWN_INVALID = "UNKNOWN_INVALID"
+
+
+@dataclass(frozen=True, slots=True)
+class DemoPositionLabel:
+    classification: DemoPositionLabelClass
+    raw: str | None
+    trader_id: TraderLineage | None = None
+
+
 @dataclass(frozen=True, slots=True)
 class DemoAccountSnapshot:
     balance: Decimal
@@ -33,6 +47,7 @@ class DemoAccountSnapshot:
     net_unrealized_pnl: Decimal
     equity: Decimal
     observed_at: datetime
+
     def __post_init__(self) -> None:
         for name, value in (
             ("balance", self.balance),
@@ -71,6 +86,8 @@ class DemoPosition:
         if self.volume_units <= 0 or self.entry_price <= 0:
             raise CTraderDemoFreePositionError("position volume/price must be positive")
         _aware(self.opened_at, "opened_at")
+
+
 @dataclass(frozen=True, slots=True)
 class DemoDeal:
     deal_id: int
@@ -117,16 +134,27 @@ def _timestamp_ms(value: object, name: str) -> datetime:
     return datetime.fromtimestamp(value / 1000, tz=UTC)
 
 
-def _trader_from_label(label: object) -> TraderLineage | None:
+def classify_position_label(label: object) -> DemoPositionLabel:
+    """Classify broker positions before trader attribution."""
+
     if not isinstance(label, str) or not label.startswith("QORE:"):
-        return None
+        return DemoPositionLabel(DemoPositionLabelClass.EXTERNAL, None)
     raw = label.split(":", 1)[1]
     try:
-        return TraderLineage(raw)
-    except ValueError as error:
-        raise CTraderDemoFreePositionError(
-            f"unknown QORE trader label in cTrader DEMO: {raw}"
-        ) from error
+        trader_id = TraderLineage(raw)
+    except ValueError:
+        trader_id = None
+    if trader_id is not None:
+        return DemoPositionLabel(
+            DemoPositionLabelClass.KNOWN_TRADER,
+            raw,
+            trader_id,
+        )
+    if raw.startswith("CIBO-CAL:"):
+        return DemoPositionLabel(DemoPositionLabelClass.KNOWN_SYSTEM, raw)
+    if raw.startswith("CIBO-T16:"):
+        return DemoPositionLabel(DemoPositionLabelClass.KNOWN_TEST, raw)
+    return DemoPositionLabel(DemoPositionLabelClass.UNKNOWN_INVALID, raw)
 
 
 class CTraderDemoFreePositionService:
@@ -179,8 +207,8 @@ class CTraderDemoFreePositionService:
         return result.value
 
     def account_snapshot(self, *, observed_at: datetime | None = None) -> DemoAccountSnapshot:
-        now = observed_at or datetime.now(UTC)
-        _aware(now, "observed_at")
+        if observed_at is not None:
+            _aware(observed_at, "observed_at")
         account_id = self._client.account_id
         trader_res = self._request(
             "ProtoOATraderReq",
@@ -212,12 +240,13 @@ class CTraderDemoFreePositionService:
                 pnl_digits,
                 "net unrealized PnL",
             )
+        captured_at = observed_at or datetime.now(UTC)
         return DemoAccountSnapshot(
             balance=balance,
             gross_unrealized_pnl=gross,
             net_unrealized_pnl=net,
             equity=balance + net,
-            observed_at=now,
+            observed_at=captured_at,
         )
 
     def unrealized_by_position(self) -> dict[int, Decimal]:
@@ -231,13 +260,9 @@ class CTraderDemoFreePositionService:
         for item in tuple(getattr(response, "positionUnrealizedPnL", ())):
             position_id = getattr(item, "positionId", None)
             if type(position_id) is not int or position_id <= 0:
-                raise CTraderDemoFreePositionError(
-                    "invalid unrealized positionId"
-                )
+                raise CTraderDemoFreePositionError("invalid unrealized positionId")
             if position_id in rows:
-                raise CTraderDemoFreePositionError(
-                    "duplicate unrealized positionId"
-                )
+                raise CTraderDemoFreePositionError("duplicate unrealized positionId")
             rows[position_id] = _money(
                 getattr(item, "netUnrealizedPnL", None),
                 digits,
@@ -257,9 +282,20 @@ class CTraderDemoFreePositionService:
             trade = getattr(native, "tradeData", None)
             if trade is None:
                 continue
-            trader_id = _trader_from_label(getattr(trade, "label", None))
-            if trader_id is None:
+            label = classify_position_label(getattr(trade, "label", None))
+            if label.classification in {
+                DemoPositionLabelClass.KNOWN_SYSTEM,
+                DemoPositionLabelClass.KNOWN_TEST,
+                DemoPositionLabelClass.EXTERNAL,
+            }:
                 continue
+            if label.classification is DemoPositionLabelClass.UNKNOWN_INVALID:
+                raise CTraderDemoFreePositionError(
+                    f"unknown QORE position label in cTrader DEMO: {label.raw}"
+                )
+            trader_id = label.trader_id
+            if trader_id is None:
+                raise CTraderDemoFreePositionError("known trader label omitted trader identity")
             symbol_id = getattr(trade, "symbolId", None)
             if type(symbol_id) is not int or symbol_id not in self._symbol_by_id:
                 raise CTraderDemoFreePositionError("QORE position has unknown symbol id")
@@ -286,7 +322,7 @@ class CTraderDemoFreePositionService:
             comment = getattr(trade, "comment", None)
             rows.append(
                 DemoPosition(
-                    position_id=int(getattr(native, "positionId")),
+                    position_id=int(native.positionId),
                     trader_id=trader_id,
                     qore_symbol=qore_symbol,
                     provider_symbol=provider_symbol,
@@ -303,6 +339,7 @@ class CTraderDemoFreePositionService:
                 )
             )
         return tuple(sorted(rows, key=lambda item: item.position_id))
+
     def amend_protection(
         self,
         *,
@@ -470,10 +507,10 @@ class CTraderDemoFreePositionService:
                 raise CTraderDemoFreePositionError("deal volume invalid")
             rows.append(
                 DemoDeal(
-                    deal_id=int(getattr(native, "dealId")),
-                    order_id=int(getattr(native, "orderId")),
-                    position_id=int(getattr(native, "positionId")),
-                    symbol_id=int(getattr(native, "symbolId")),
+                    deal_id=int(native.dealId),
+                    order_id=int(native.orderId),
+                    position_id=int(native.positionId),
+                    symbol_id=int(native.symbolId),
                     side=side,
                     volume_units=Decimal(volume) * _NATIVE_VOLUME_UNIT,
                     filled_units=Decimal(filled) * _NATIVE_VOLUME_UNIT,

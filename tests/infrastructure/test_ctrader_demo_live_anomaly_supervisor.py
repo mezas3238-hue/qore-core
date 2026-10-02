@@ -64,3 +64,30 @@ def test_strategy_invariant_is_never_auto_repaired() -> None:
 
     assert recovered is False
     assert events[-1]["event"] == "CTRADER_DEMO_ANOMALY_ESCALATED"
+
+
+def test_broker_projection_never_invokes_feed_recovery() -> None:
+    events: list[dict[str, object]] = []
+    recovered = False
+
+    def operation() -> None:
+        raise RuntimeError("VT31 broker stop/state drift")
+
+    def recover() -> None:
+        nonlocal recovered
+        recovered = True
+
+    with pytest.raises(RuntimeError, match="stop/state drift"):
+        run_with_bounded_repair(
+            trader="VT31_NAS100",
+            operation=operation,
+            recover=recover,
+            emit=events.append,
+        )
+
+    assert (
+        classify_anomaly(RuntimeError("VT31 broker stop/state drift"))
+        is AnomalyClass.BROKER_PROJECTION
+    )
+    assert recovered is False
+    assert events[-1]["event"] == "CTRADER_DEMO_ANOMALY_ESCALATED"

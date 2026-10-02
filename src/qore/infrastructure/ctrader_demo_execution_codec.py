@@ -329,17 +329,9 @@ class CTraderOrderCreatePlan:
                 raise CTraderDemoExecutionValidationError(
                     "limit order-create plan price must be positive"
                 )
-        if self.order_type is OrderType.MARKET and (
-            self.stop_loss is not None or self.take_profit is not None
-        ):
+        if self.stop_loss is not None or self.take_profit is not None:
             raise CTraderDemoExecutionValidationError(
-                "MARKET protections must use relative cTrader distances"
-            )
-        if self.order_type is OrderType.LIMIT and (
-            self.relative_stop_loss is not None or self.relative_take_profit is not None
-        ):
-            raise CTraderDemoExecutionValidationError(
-                "LIMIT protections must use absolute cTrader prices"
+                "protected orders must use relative cTrader distances"
             )
         for field_name, distance in (
             ("relative_stop_loss", self.relative_stop_loss),
@@ -528,34 +520,45 @@ def build_ctrader_demo_order_create_plan(
     take_profit: str | None = None
     relative_stop_loss: int | None = None
     relative_take_profit: int | None = None
-    if intent.order_type is OrderType.MARKET and (
-        intent.stop_loss is not None or intent.take_profit is not None
-    ):
-        reference_raw = intent.metadata.attributes.get("ctrader_reference_entry")
-        if not isinstance(reference_raw, str):
-            return Failure(
-                CTraderDemoExecutionValidationError(
-                    "protected MARKET order requires ctrader_reference_entry metadata"
+    if intent.stop_loss is not None or intent.take_profit is not None:
+        if intent.order_type is OrderType.LIMIT:
+            assert intent.limit_price is not None
+            reference = intent.limit_price.value
+            order_kind = "LIMIT"
+        else:
+            reference_raw = intent.metadata.attributes.get("ctrader_reference_entry")
+            if not isinstance(reference_raw, str):
+                return Failure(
+                    CTraderDemoExecutionValidationError(
+                        "protected MARKET order requires ctrader_reference_entry metadata"
+                    )
                 )
+            reference_result = _decimal_string(
+                reference_raw,
+                field_name="MARKET reference entry",
             )
-        reference_result = _decimal_string(reference_raw, field_name="MARKET reference entry")
-        if isinstance(reference_result, Failure) or reference_result.value <= 0:
-            return Failure(
-                CTraderDemoExecutionValidationError(
-                    "protected MARKET reference entry must be a positive decimal"
+            if isinstance(reference_result, Failure) or reference_result.value <= 0:
+                return Failure(
+                    CTraderDemoExecutionValidationError(
+                        "protected MARKET reference entry must be a positive decimal"
+                    )
                 )
-            )
-        reference = reference_result.value
+            reference = reference_result.value
+            order_kind = "MARKET"
         if intent.stop_loss is not None:
             stop = intent.stop_loss.value
             valid_stop = stop < reference if intent.side is OrderSide.BUY else stop > reference
             if not valid_stop:
                 return Failure(
                     CTraderDemoExecutionValidationError(
-                        "MARKET stop geometry does not match order side"
+                        f"{order_kind} stop geometry does not match order side"
                     )
                 )
-            relative = _relative_price_distance(reference, stop, field_name="relative stop loss")
+            relative = _relative_price_distance(
+                reference,
+                stop,
+                field_name="relative stop loss",
+            )
             if isinstance(relative, Failure):
                 return relative
             relative_stop_loss = relative.value
@@ -567,43 +570,30 @@ def build_ctrader_demo_order_create_plan(
             if not valid_target:
                 return Failure(
                     CTraderDemoExecutionValidationError(
-                        "MARKET target geometry does not match order side"
+                        f"{order_kind} target geometry does not match order side"
                     )
                 )
             relative = _relative_price_distance(
-                reference, target, field_name="relative take profit"
+                reference,
+                target,
+                field_name="relative take profit",
             )
             if isinstance(relative, Failure):
                 return relative
             relative_take_profit = relative.value
-    else:
-        if intent.stop_loss is not None:
-            stop_result = _exact_price(intent.stop_loss.value, mapping.digits)
-            if isinstance(stop_result, Failure):
-                return stop_result
-            stop_loss = stop_result.value
-        if intent.take_profit is not None:
-            take_result = _exact_price(intent.take_profit.value, mapping.digits)
-            if isinstance(take_result, Failure):
-                return take_result
-            take_profit = take_result.value
     expiration_timestamp_ms: int | None = None
     if intent.order_type is OrderType.LIMIT:
         raw_expiry = intent.metadata.attributes.get("ctrader_order_expires_at")
         if raw_expiry is not None:
             if not isinstance(raw_expiry, str):
                 return Failure(
-                    CTraderDemoExecutionValidationError(
-                        "invalid cTrader LIMIT expiry metadata"
-                    )
+                    CTraderDemoExecutionValidationError("invalid cTrader LIMIT expiry metadata")
                 )
             try:
                 expiry = datetime.fromisoformat(raw_expiry)
             except ValueError:
                 return Failure(
-                    CTraderDemoExecutionValidationError(
-                        "invalid cTrader LIMIT expiry metadata"
-                    )
+                    CTraderDemoExecutionValidationError("invalid cTrader LIMIT expiry metadata")
                 )
             if expiry.tzinfo is None or expiry.utcoffset() is None:
                 return Failure(

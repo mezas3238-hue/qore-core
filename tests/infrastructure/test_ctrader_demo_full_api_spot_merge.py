@@ -31,6 +31,8 @@ def _api(events: list[SimpleNamespace]) -> CTraderDemoFullApi:
     api._client = _SpotClient(events)
     api._stop = Event()
     api._spot_lock = Lock()
+    api._subscription_lock = Lock()
+    api._spot_observer = None
     api._spots = {}
     return api
 

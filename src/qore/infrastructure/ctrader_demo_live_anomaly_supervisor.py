@@ -98,10 +98,14 @@ def classify_anomaly(error: Exception) -> AnomalyClass:
 
 
 def is_auto_repairable(anomaly_class: AnomalyClass) -> bool:
-    return anomaly_class in {
-        AnomalyClass.FEED_OR_CLOCK,
-        AnomalyClass.BROKER_PROJECTION,
-    }
+    """Only feed faults may use the subscription recovery callback.
+
+    Broker projection drift requires a projection-specific reconciliation
+    contract.  Reusing feed resubscription for that class creates request
+    storms without changing broker or durable state.
+    """
+
+    return anomaly_class is AnomalyClass.FEED_OR_CLOCK
 
 
 def run_with_bounded_repair[T](

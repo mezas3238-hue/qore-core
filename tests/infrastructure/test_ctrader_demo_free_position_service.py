@@ -4,6 +4,8 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from types import SimpleNamespace
 
+import pytest
+
 from qore.infrastructure.account_wide_risk import TraderLineage
 from qore.infrastructure.connectivity import ProviderEndpoint
 from qore.infrastructure.ctrader_demo_execution_configuration import (
@@ -14,7 +16,10 @@ from qore.infrastructure.ctrader_demo_execution_configuration import (
     ctrader_demo_secret_requirements,
 )
 from qore.infrastructure.ctrader_demo_free_position_service import (
+    CTraderDemoFreePositionError,
     CTraderDemoFreePositionService,
+    DemoPositionLabelClass,
+    classify_position_label,
 )
 from qore.infrastructure.market_test_environment import (
     MarketRuntimeEnvironment,
@@ -30,6 +35,8 @@ ACCOUNT = MarketTestAccountIdentity(
     account_ref="424242",
     environment=MarketRuntimeEnvironment.DEMO,
 )
+
+
 def _configuration() -> CTraderDemoRuntimeConfiguration:
     return CTraderDemoRuntimeConfiguration(
         provider_key="ctrader-demo",
@@ -71,6 +78,7 @@ class FakeClient:
     @property
     def account_id(self) -> int:
         return 424242
+
     def connect_and_authenticate(self):
         self._ready = True
         return Success(None)
@@ -80,9 +88,7 @@ class FakeClient:
         self.calls.append((message_name, dict(fields)))
         if message_name == "ProtoOATraderReq":
             return Success(
-                SimpleNamespace(
-                    trader=SimpleNamespace(balance=10_000_000, moneyDigits=2)
-                )
+                SimpleNamespace(trader=SimpleNamespace(balance=10_000_000, moneyDigits=2))
             )
         if message_name == "ProtoOAGetPositionUnrealizedPnLReq":
             return Success(
@@ -151,12 +157,114 @@ class FakeClient:
 
 
 def test_account_snapshot_uses_realized_balance_plus_net_unrealized() -> None:
-    service = CTraderDemoFreePositionService(
-        client=FakeClient(), configuration=_configuration()
-    )
+    service = CTraderDemoFreePositionService(client=FakeClient(), configuration=_configuration())
     snapshot = service.account_snapshot(observed_at=NOW)
 
     assert snapshot.balance == Decimal("100000.00")
     assert snapshot.gross_unrealized_pnl == Decimal("25.00")
     assert snapshot.net_unrealized_pnl == Decimal("23.00")
     assert snapshot.equity == Decimal("100023.00")
+
+
+def test_position_labels_have_explicit_non_trader_taxonomy() -> None:
+    trader = classify_position_label("QORE:R38_EURUSD")
+    calibration = classify_position_label("QORE:CIBO-CAL:XAUUSD:probe")
+    test = classify_position_label("QORE:CIBO-T16:US500:BUY:probe")
+    external = classify_position_label("manual-position")
+    invalid = classify_position_label("QORE:NOT-A-QORE-IDENTITY")
+
+    assert trader.classification is DemoPositionLabelClass.KNOWN_TRADER
+    assert trader.trader_id is TraderLineage.R38_EURUSD
+    assert calibration.classification is DemoPositionLabelClass.KNOWN_SYSTEM
+    assert test.classification is DemoPositionLabelClass.KNOWN_TEST
+    assert external.classification is DemoPositionLabelClass.EXTERNAL
+    assert invalid.classification is DemoPositionLabelClass.UNKNOWN_INVALID
+
+
+class AccountCaptureClient(FakeClient):
+    def __init__(self) -> None:
+        super().__init__()
+        self.last_request_completed_at = NOW
+
+    def request(self, *args, **kwargs):
+        result = super().request(*args, **kwargs)
+        self.last_request_completed_at = datetime.now(UTC)
+        return result
+
+
+def test_account_snapshot_timestamp_follows_broker_reads() -> None:
+    client = AccountCaptureClient()
+    service = CTraderDemoFreePositionService(
+        client=client,
+        configuration=_configuration(),
+    )
+
+    snapshot = service.account_snapshot()
+
+    assert snapshot.observed_at >= client.last_request_completed_at
+
+
+class LabelReconcileClient(FakeClient):
+    def __init__(self, labels: tuple[str, ...]) -> None:
+        super().__init__()
+        self._labels = labels
+
+    def request(self, message_name, fields, *, client_msg_id, timeout_seconds):
+        if message_name != "ProtoOAReconcileReq":
+            return super().request(
+                message_name,
+                fields,
+                client_msg_id=client_msg_id,
+                timeout_seconds=timeout_seconds,
+            )
+        positions = tuple(
+            SimpleNamespace(
+                positionId=700 + index,
+                price=1.1001,
+                stopLoss=1.095,
+                takeProfit=1.11,
+                tradeData=SimpleNamespace(
+                    symbolId=1,
+                    volume=500000,
+                    tradeSide=1,
+                    openTimestamp=int(NOW.timestamp() * 1000),
+                    label=label,
+                    comment="qore:test",
+                ),
+            )
+            for index, label in enumerate(self._labels)
+        )
+        return Success(SimpleNamespace(position=positions))
+
+
+def test_positions_exclude_system_test_and_external_labels() -> None:
+    client = LabelReconcileClient(
+        (
+            "QORE:CIBO-CAL:XAUUSD:probe",
+            "QORE:CIBO-T16:US500:BUY:probe",
+            "manual-position",
+            "QORE:R38_EURUSD",
+        )
+    )
+    service = CTraderDemoFreePositionService(
+        client=client,
+        configuration=_configuration(),
+    )
+
+    positions = service.positions()
+
+    assert [item.position_id for item in positions] == [703]
+    assert positions[0].trader_id is TraderLineage.R38_EURUSD
+
+
+def test_positions_fail_closed_for_unknown_qore_identity() -> None:
+    service = CTraderDemoFreePositionService(
+        client=LabelReconcileClient(("QORE:NOT-A-QORE-IDENTITY",)),
+        configuration=_configuration(),
+    )
+
+    with pytest.raises(
+        CTraderDemoFreePositionError,
+        match="unknown QORE position label",
+    ):
+        service.positions()

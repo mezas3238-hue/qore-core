@@ -11,6 +11,7 @@ The certified strategy is not recalibrated here. This adapter owns only:
 Admission and journey execution remain separate code paths but share the same
 resident single writer, broker checks, durable state and Account-Wide Risk.
 """
+
 # ruff: noqa: I001
 from __future__ import annotations
 
@@ -135,12 +136,8 @@ def runtime_started_fields() -> dict[str, object]:
         "vt31_nas100_silver_bullet_source_sha256": SILVER_BULLET_SOURCE_FINGERPRINT,
         "vt31_nas100_service_24_7": SERVICE_24_7,
         "vt31_nas100_timeframe": "M1",
-        "vt31_nas100_decision_deadline_seconds": str(
-            DECISION_DEADLINE.total_seconds()
-        ),
-        "vt31_nas100_tick_max_age_seconds": str(
-            MAX_BROKER_TICK_AGE.total_seconds()
-        ),
+        "vt31_nas100_decision_deadline_seconds": str(DECISION_DEADLINE.total_seconds()),
+        "vt31_nas100_tick_max_age_seconds": str(MAX_BROKER_TICK_AGE.total_seconds()),
         "vt31_nas100_pre_close_spread_exit_lead_minutes": str(
             int(PRE_CLOSE_SPREAD_EXIT_LEAD.total_seconds() // 60)
         ),
@@ -240,9 +237,7 @@ def submit_single_live(
     phase20_after_submit: Phase20AfterSubmit | None = None,
 ) -> None:
     if len(basket.candidates) != 1:
-        raise Vt31Nas100LiveError(
-            "VT31 multi-candidate basket must remain virtual OCO"
-        )
+        raise Vt31Nas100LiveError("VT31 multi-candidate basket must remain virtual OCO")
     try:
         _authorize_and_check(
             order=basket.candidates[0],
@@ -301,16 +296,14 @@ def process_virtual_oco(
     if chosen is None:
         if all(now > item.expires_at for item in candidates):
             store.clear_virtual_basket()
-            log({
-                "event": "VT31_NAS100_VIRTUAL_OCO_EXPIRED",
-                "basket_id": basket.basket_id,
-            })
+            log(
+                {
+                    "event": "VT31_NAS100_VIRTUAL_OCO_EXPIRED",
+                    "basket_id": basket.basket_id,
+                }
+            )
         return
-    raw = next(
-        item
-        for item in basket.candidates
-        if item.candidate_id == chosen.candidate_id
-    )
+    raw = next(item for item in basket.candidates if item.candidate_id == chosen.candidate_id)
     # The trigger is the new execution boundary for the approved M1 5s profile.
     _authorize_and_check(
         order=raw,
@@ -361,9 +354,9 @@ def reconcile_pending(
         filled_at = _position_time(position, now)
         entry = Decimal(str(position.price_open))
         volume = Decimal(str(position.volume))
-        stop = Decimal(str(getattr(position, "sl", pending.stop_loss)))
+        stop = Decimal(str(getattr(position, "sl", 0)))
         if stop <= 0:
-            stop = Decimal(pending.stop_loss)
+            raise Vt31Nas100LiveError("VT31 filled position is missing broker protection")
         opened = Vt31OpenTradeState(
             client_order_id=pending.client_order_id,
             signal_fingerprint=pending.signal_fingerprint,
@@ -374,7 +367,7 @@ def reconcile_pending(
             side=pending.side,
             filled_at=filled_at.isoformat(),
             entry_price=format(entry, "f"),
-            initial_stop=pending.stop_loss,
+            initial_stop=format(stop, "f"),
             current_stop=format(stop, "f"),
             dol1=pending.dol1,
             three_r=pending.three_r,
@@ -395,12 +388,14 @@ def reconcile_pending(
             target_plan=pending.target_plan,
         )
         store.mark_open(opened)
-        log({
-            "event": "VT31_NAS100_DEMO_FILL_CONFIRMED",
-            "signal_fingerprint": pending.signal_fingerprint,
-            "position_ticket": int(position.ticket),
-            "filled_at": filled_at.isoformat(),
-        })
+        log(
+            {
+                "event": "VT31_NAS100_DEMO_FILL_CONFIRMED",
+                "signal_fingerprint": pending.signal_fingerprint,
+                "position_ticket": int(position.ticket),
+                "filled_at": filled_at.isoformat(),
+            }
+        )
         return
 
     if pending.provider_order_ref is None:
@@ -411,15 +406,15 @@ def reconcile_pending(
         mt5_api.cancel_pending_order(pending.provider_order_ref)
         final_status = mt5_api.pending_order_status(pending.provider_order_ref)
         if final_status not in {3, 4, 5}:
-            raise Vt31Nas100LiveError(
-                "VT31 pre-close pending cancel remained nonterminal"
-            )
+            raise Vt31Nas100LiveError("VT31 pre-close pending cancel remained nonterminal")
         store.replace(pending_broker_order=None, virtual_basket=None)
-        log({
-            "event": "VT31_NAS100_PRE_CLOSE_PENDING_CANCELLED",
-            "signal_fingerprint": pending.signal_fingerprint,
-            "pre_close_due_at": pre_close_due.isoformat(),
-        })
+        log(
+            {
+                "event": "VT31_NAS100_PRE_CLOSE_PENDING_CANCELLED",
+                "signal_fingerprint": pending.signal_fingerprint,
+                "pre_close_due_at": pre_close_due.isoformat(),
+            }
+        )
         return
     expires = datetime.fromisoformat(pending.expires_at)
 
@@ -430,11 +425,13 @@ def reconcile_pending(
         return
     if status in {3, 4, 5}:
         store.replace(pending_broker_order=None, virtual_basket=None)
-        log({
-            "event": "VT31_NAS100_DEMO_PENDING_TERMINAL",
-            "signal_fingerprint": pending.signal_fingerprint,
-            "provider_status": status,
-        })
+        log(
+            {
+                "event": "VT31_NAS100_DEMO_PENDING_TERMINAL",
+                "signal_fingerprint": pending.signal_fingerprint,
+                "provider_status": status,
+            }
+        )
         return
 
     if now > expires and status == 1:
@@ -445,11 +442,13 @@ def reconcile_pending(
                 f"VT31 DEMO expired pending remains nonterminal:{final_status}"
             )
         store.replace(pending_broker_order=None, virtual_basket=None)
-        log({
-            "event": "VT31_NAS100_DEMO_PENDING_EXPIRED",
-            "signal_fingerprint": pending.signal_fingerprint,
-            "expires_at": pending.expires_at,
-        })
+        log(
+            {
+                "event": "VT31_NAS100_DEMO_PENDING_EXPIRED",
+                "signal_fingerprint": pending.signal_fingerprint,
+                "expires_at": pending.expires_at,
+            }
+        )
         return
 
     raise Vt31Nas100LiveError(f"VT31 DEMO unsupported pending order status:{status}")
@@ -476,10 +475,7 @@ def manage_open_trade(
     if positions is None:
         raise Vt31Nas100LiveError("VT31 journey position snapshot unavailable")
     magic = _magic(opened.client_order_id)
-    matches = [
-        item for item in positions
-        if int(getattr(item, "magic", -1)) == magic
-    ]
+    matches = [item for item in positions if int(getattr(item, "magic", -1)) == magic]
     if len(matches) > 1:
         raise Vt31Nas100LiveError("VT31 magic resolved to multiple positions")
     if not matches:
@@ -487,18 +483,19 @@ def manage_open_trade(
         deals = mt5_api.history_deals_get(filled_at, now)
         if deals is not None and any(
             int(getattr(item, "magic", -1)) == magic
-            and int(getattr(item, "entry", -1))
-            != int(getattr(mt5_api, "DEAL_ENTRY_IN", 0))
+            and int(getattr(item, "entry", -1)) != int(getattr(mt5_api, "DEAL_ENTRY_IN", 0))
             for item in deals
         ):
             state = store.mark_closed(
                 closed_at=now,
                 reason="broker-terminal-reconcile",
             )
-            log({
-                "event": "VT31_NAS100_POSITION_CLOSED_RECONCILED",
-                "signal_fingerprint": opened.signal_fingerprint,
-            })
+            log(
+                {
+                    "event": "VT31_NAS100_POSITION_CLOSED_RECONCILED",
+                    "signal_fingerprint": opened.signal_fingerprint,
+                }
+            )
             return state, "broker-terminal-reconciled"
         return state, "vt31-position-awaiting-reconcile"
 
@@ -547,11 +544,7 @@ def manage_open_trade(
     base_partial = entry + direction * risk * Decimal("1.25")
     dol2 = dol1 + direction * reference_width * Decimal("0.25")
     three_r = Decimal(opened.three_r)
-    favorable = (
-        Decimal(str(tick.bid))
-        if opened.side == "long"
-        else Decimal(str(tick.ask))
-    )
+    favorable = Decimal(str(tick.bid)) if opened.side == "long" else Decimal(str(tick.ask))
     broker_stop = Decimal(str(position.sl))
     if broker_stop <= 0:
         raise Vt31Nas100LiveError("VT31 broker position has no stop")
@@ -577,14 +570,16 @@ def manage_open_trade(
                 closed_at=now,
                 reason="pre-close-spread",
             )
-            log({
-                "event": "VT31_NAS100_PRE_CLOSE_SPREAD_EXIT_ACCEPTED",
-                "signal_fingerprint": opened.signal_fingerprint,
-                "pre_close_due_at": pre_close_due.isoformat(),
-                "lifecycle_due_at": (
-                    None if lifecycle_due is None else lifecycle_due.isoformat()
-                ),
-            })
+            log(
+                {
+                    "event": "VT31_NAS100_PRE_CLOSE_SPREAD_EXIT_ACCEPTED",
+                    "signal_fingerprint": opened.signal_fingerprint,
+                    "pre_close_due_at": pre_close_due.isoformat(),
+                    "lifecycle_due_at": (
+                        None if lifecycle_due is None else lifecycle_due.isoformat()
+                    ),
+                }
+            )
             return state, "vt31-pre-close-spread-exit"
         return state, "vt31-shadow-pre-close-spread-check-pass"
 
@@ -601,10 +596,12 @@ def manage_open_trade(
                 closed_at=now,
                 reason="16:00-lifecycle",
             )
-            log({
-                "event": "VT31_NAS100_LIFECYCLE_EXIT_ACCEPTED",
-                "signal_fingerprint": opened.signal_fingerprint,
-            })
+            log(
+                {
+                    "event": "VT31_NAS100_LIFECYCLE_EXIT_ACCEPTED",
+                    "signal_fingerprint": opened.signal_fingerprint,
+                }
+            )
             return state, "vt31-16h-lifecycle-exit"
         return state, "vt31-shadow-lifecycle-check-pass"
 
@@ -612,10 +609,7 @@ def manage_open_trade(
     if (
         opened.base_partial_arm_after is not None
         and now >= datetime.fromisoformat(opened.base_partial_arm_after)
-        and (
-            opened.base_partial_done
-            or opened.base_three_r_be_armed
-        )
+        and (opened.base_partial_done or opened.base_three_r_be_armed)
         and not opened.base_runner_be_active
     ):
         if _improves_stop(
@@ -640,22 +634,20 @@ def manage_open_trade(
                 assert opened is not None
                 current_stop = entry
                 broker_stop = entry
-                log({
-                    "event": "VT31_NAS100_BASE_BE_ADVANCED",
-                    "signal_fingerprint": opened.signal_fingerprint,
-                    "stop": format(entry, "f"),
-                })
+                log(
+                    {
+                        "event": "VT31_NAS100_BASE_BE_ADVANCED",
+                        "signal_fingerprint": opened.signal_fingerprint,
+                        "stop": format(entry, "f"),
+                    }
+                )
 
     # DOL1 acceptance is a physical V4 quarter-leg state.
     if opened.dol1_acceptance_pending:
         if opened.dol1_touch_closed_at is None:
             raise Vt31Nas100LiveError("VT31 DOL1 acceptance clock missing")
         touch_close = datetime.fromisoformat(opened.dol1_touch_closed_at)
-        retraced = (
-            favorable < dol1
-            if opened.side == "long"
-            else favorable > dol1
-        )
+        retraced = favorable < dol1 if opened.side == "long" else favorable > dol1
         if now < touch_close and retraced:
             mutated = _close_position(
                 mt5_api,
@@ -669,26 +661,22 @@ def manage_open_trade(
                     closed_at=now,
                     reason="dol1-nonaccept-retrace",
                 )
-                log({
-                    "event": "VT31_NAS100_DOL1_NONACCEPT_RETRACE_EXIT",
-                    "signal_fingerprint": opened.signal_fingerprint,
-                })
+                log(
+                    {
+                        "event": "VT31_NAS100_DOL1_NONACCEPT_RETRACE_EXIT",
+                        "signal_fingerprint": opened.signal_fingerprint,
+                    }
+                )
                 return state, "vt31-dol1-nonaccept-retrace"
             return state, "vt31-shadow-dol1-retrace-check-pass"
 
         if now >= touch_close:
             bar = next(
-                (
-                    item
-                    for item in cache.closed_m1(through=now)
-                    if item.closed_at == touch_close
-                ),
+                (item for item in cache.closed_m1(through=now) if item.closed_at == touch_close),
                 None,
             )
             if bar is None:
-                raise Vt31Nas100LiveError(
-                    "VT31 DOL1 touch M1 unavailable at acceptance boundary"
-                )
+                raise Vt31Nas100LiveError("VT31 DOL1 touch M1 unavailable at acceptance boundary")
             accepts = (
                 Decimal(str(bar.close)) >= dol1
                 if opened.side == "long"
@@ -702,11 +690,13 @@ def manage_open_trade(
                 )
                 opened = state.open_trade
                 assert opened is not None
-                log({
-                    "event": "VT31_NAS100_DOL1_ACCEPTED_RUNNER_ACTIVE",
-                    "signal_fingerprint": opened.signal_fingerprint,
-                    "runner_target": format(dol2, "f"),
-                })
+                log(
+                    {
+                        "event": "VT31_NAS100_DOL1_ACCEPTED_RUNNER_ACTIVE",
+                        "signal_fingerprint": opened.signal_fingerprint,
+                        "runner_target": format(dol2, "f"),
+                    }
+                )
             else:
                 mutated = _close_position(
                     mt5_api,
@@ -720,10 +710,12 @@ def manage_open_trade(
                         closed_at=now,
                         reason="dol1-nonaccept-close",
                     )
-                    log({
-                        "event": "VT31_NAS100_DOL1_NONACCEPT_CLOSE",
-                        "signal_fingerprint": opened.signal_fingerprint,
-                    })
+                    log(
+                        {
+                            "event": "VT31_NAS100_DOL1_NONACCEPT_CLOSE",
+                            "signal_fingerprint": opened.signal_fingerprint,
+                        }
+                    )
                     return state, "vt31-dol1-nonaccept-close"
                 return state, "vt31-shadow-dol1-nonaccept-check-pass"
 
@@ -732,11 +724,7 @@ def manage_open_trade(
     if opened is None:
         return state, "vt31-closed"
     if opened.runner_active:
-        runner_target = (
-            dol2
-            if opened.runner_target is None
-            else Decimal(opened.runner_target)
-        )
+        runner_target = dol2 if opened.runner_target is None else Decimal(opened.runner_target)
         candidate, confirmations = _ps2_candidate(
             cache.closed_m1(through=now),
             opened=opened,
@@ -746,14 +734,11 @@ def manage_open_trade(
             state = store.update_open_trade(ps_confirmations=confirmations)
             opened = state.open_trade
             assert opened is not None
-        if (
-            candidate is not None
-            and _improves_stop(
-                side=opened.side,
-                previous=Decimal(opened.current_stop),
-                candidate=candidate,
-                target=runner_target,
-            )
+        if candidate is not None and _improves_stop(
+            side=opened.side,
+            previous=Decimal(opened.current_stop),
+            candidate=candidate,
+            target=runner_target,
         ):
             mutated = _advance_stop(
                 mt5_api,
@@ -768,20 +753,20 @@ def manage_open_trade(
                     breaker_lock_armed=True,
                     ps_confirmations=max(2, confirmations),
                 )
-                log({
-                    "event": "VT31_NAS100_PS2_STOP_ADVANCED",
-                    "signal_fingerprint": opened.signal_fingerprint,
-                    "stop": format(candidate, "f"),
-                })
+                log(
+                    {
+                        "event": "VT31_NAS100_PS2_STOP_ADVANCED",
+                        "signal_fingerprint": opened.signal_fingerprint,
+                        "stop": format(candidate, "f"),
+                    }
+                )
                 return state, f"vt31-ps2-stop-advanced:{candidate}"
         return state, "vt31-runner-hold"
 
     # Once EQ wins the physical precedence race, V4 owns the remainder.
     if opened.equilibrium_overlay_active:
         if _target_reached(opened.side, favorable, dol1):
-            compressed = (
-                opened.reference_volatility_state.lower() == "compressed"
-            )
+            compressed = opened.reference_volatility_state.lower() == "compressed"
             if compressed:
                 leg = _leg_volume(
                     Decimal(opened.initial_volume),
@@ -789,9 +774,7 @@ def manage_open_trade(
                     step,
                 )
                 if leg <= 0 or leg >= actual_volume:
-                    raise Vt31Nas100LiveError(
-                        "VT31 DOL1 quarter leg cannot be expressed"
-                    )
+                    raise Vt31Nas100LiveError("VT31 DOL1 quarter leg cannot be expressed")
                 mutated = _close_position(
                     mt5_api,
                     position=position,
@@ -808,12 +791,14 @@ def manage_open_trade(
                         dol1_acceptance_pending=True,
                         dol1_touch_closed_at=arm_close.isoformat(),
                     )
-                    log({
-                        "event": "VT31_NAS100_DOL1_QUARTER_BANKED",
-                        "signal_fingerprint": opened.signal_fingerprint,
-                        "remaining_volume": format(remaining, "f"),
-                        "acceptance_at": arm_close.isoformat(),
-                    })
+                    log(
+                        {
+                            "event": "VT31_NAS100_DOL1_QUARTER_BANKED",
+                            "signal_fingerprint": opened.signal_fingerprint,
+                            "remaining_volume": format(remaining, "f"),
+                            "acceptance_at": arm_close.isoformat(),
+                        }
+                    )
                     return state, "vt31-dol1-quarter-banked"
                 return state, "vt31-shadow-dol1-quarter-check-pass"
 
@@ -829,34 +814,25 @@ def manage_open_trade(
                     closed_at=now,
                     reason="eq50-dol1-full-remainder",
                 )
-                log({
-                    "event": "VT31_NAS100_DOL1_FULL_REMAINDER_EXIT",
-                    "signal_fingerprint": opened.signal_fingerprint,
-                })
+                log(
+                    {
+                        "event": "VT31_NAS100_DOL1_FULL_REMAINDER_EXIT",
+                        "signal_fingerprint": opened.signal_fingerprint,
+                    }
+                )
                 return state, "vt31-dol1-full-remainder"
             return state, "vt31-shadow-dol1-full-check-pass"
         return state, "vt31-eq-overlay-hold"
 
-    eq_forward = (
-        equilibrium > entry
-        if opened.side == "long"
-        else equilibrium < entry
-    )
-    eq_hit = (
-        eq_forward
-        and _target_reached(opened.side, favorable, equilibrium)
-    )
+    eq_forward = equilibrium > entry if opened.side == "long" else equilibrium < entry
+    eq_hit = eq_forward and _target_reached(opened.side, favorable, equilibrium)
     partial_hit = _target_reached(opened.side, favorable, base_partial)
     dol1_hit = _target_reached(opened.side, favorable, dol1)
     noncompressed = opened.reference_volatility_state.lower() != "compressed"
 
     # Frozen V2/V4 precedence: CORE non-compressed base partial wins a
     # simultaneous observation; only an earlier EQ observation may reallocate.
-    if (
-        opened.tier == "CORE"
-        and noncompressed
-        and not opened.base_partial_done
-    ):
+    if opened.tier == "CORE" and noncompressed and not opened.base_partial_done:
         if partial_hit:
             leg = _leg_volume(
                 Decimal(opened.initial_volume),
@@ -880,9 +856,7 @@ def manage_open_trade(
                             ),
                             "vt31-base-dol1-full",
                         )
-                raise Vt31Nas100LiveError(
-                    "VT31 base partial cannot be expressed"
-                )
+                raise Vt31Nas100LiveError("VT31 base partial cannot be expressed")
             mutated = _close_position(
                 mt5_api,
                 position=position,
@@ -898,11 +872,13 @@ def manage_open_trade(
                     base_partial_first=True,
                     base_partial_arm_after=_m1_close_after(now).isoformat(),
                 )
-                log({
-                    "event": "VT31_NAS100_BASE_PARTIAL_BANKED",
-                    "signal_fingerprint": opened.signal_fingerprint,
-                    "remaining_volume": format(remaining, "f"),
-                })
+                log(
+                    {
+                        "event": "VT31_NAS100_BASE_PARTIAL_BANKED",
+                        "signal_fingerprint": opened.signal_fingerprint,
+                        "remaining_volume": format(remaining, "f"),
+                    }
+                )
                 return state, "vt31-base-partial-first"
             return state, "vt31-shadow-base-partial-check-pass"
         if eq_hit:
@@ -1020,11 +996,13 @@ def _bank_equilibrium(
         equilibrium_bank_done=True,
         equilibrium_overlay_active=True,
     )
-    log({
-        "event": "VT31_NAS100_EQ50_BANKED",
-        "signal_fingerprint": opened.signal_fingerprint,
-        "remaining_volume": format(remaining, "f"),
-    })
+    log(
+        {
+            "event": "VT31_NAS100_EQ50_BANKED",
+            "signal_fingerprint": opened.signal_fingerprint,
+            "remaining_volume": format(remaining, "f"),
+        }
+    )
     return state, "vt31-eq50-banked"
 
 
@@ -1089,9 +1067,7 @@ def _close_position(
     }
     checked = api.order_check(request)
     if checked is None or int(checked.retcode) != 0:
-        raise Vt31Nas100LiveError(
-            f"VT31 {reason} order_check rejected"
-        )
+        raise Vt31Nas100LiveError(f"VT31 {reason} order_check rejected")
     if not mutations_enabled:
         return False
     result = api.order_send(request)
@@ -1159,11 +1135,7 @@ def _ps2_candidate(
     if opened.dol1_touch_closed_at is None:
         return None, opened.ps_confirmations
     start = datetime.fromisoformat(opened.dol1_touch_closed_at)
-    path = [
-        bar
-        for bar in bars
-        if bar.closed_at >= start
-    ]
+    path = [bar for bar in bars if bar.closed_at >= start]
     if len(path) < 3:
         return None, 0
     working = Decimal(opened.initial_stop)
@@ -1175,16 +1147,10 @@ def _ps2_candidate(
         right = path[index]
         if opened.side == "long":
             candidate = Decimal(str(middle.low))
-            valid = (
-                candidate < Decimal(str(left.low))
-                and candidate < Decimal(str(right.low))
-            )
+            valid = candidate < Decimal(str(left.low)) and candidate < Decimal(str(right.low))
         else:
             candidate = Decimal(str(middle.high))
-            valid = (
-                candidate > Decimal(str(left.high))
-                and candidate > Decimal(str(right.high))
-            )
+            valid = candidate > Decimal(str(left.high)) and candidate > Decimal(str(right.high))
         if not valid:
             continue
         if _improves_stop(
@@ -1237,15 +1203,18 @@ def _authorize_and_check(
     trigger_at = trigger_at.astimezone(UTC)
     pre_close_due = pre_close_spread_exit_at(order.local_date)
     if trigger_at >= pre_close_due:
-        log({
-            "event": "VT31_NAS100_PRE_CLOSE_ENTRY_SKIPPED",
-            "signal_fingerprint": order.signal_fingerprint,
-            "trigger_at": trigger_at.isoformat(),
-            "pre_close_due_at": pre_close_due.isoformat(),
-        })
+        log(
+            {
+                "event": "VT31_NAS100_PRE_CLOSE_ENTRY_SKIPPED",
+                "signal_fingerprint": order.signal_fingerprint,
+                "trigger_at": trigger_at.isoformat(),
+                "pre_close_due_at": pre_close_due.isoformat(),
+            }
+        )
         return
     operation_started_ns = time.perf_counter_ns()
     expires_at = datetime.fromisoformat(order.expires_at)
+
     def stage(stage_name: str) -> datetime:
         observed = datetime.now(UTC)
         assert_deadline(anchor=trigger_at, now=observed, stage=stage_name)
@@ -1290,19 +1259,8 @@ def _authorize_and_check(
         expires_at=expires_at,
     )
     request = seed.request
-    try:
-        demo_result = submit_demo_request(request)
-    except Exception:
-        _observe_phase20_without_execution_authority(
-            callback=phase20_after_submit,
-            opportunity=opportunity,
-            spec=spec,
-            account=account,
-            trigger_at=trigger_at,
-            observed_at=request_at,
-            log=log,
-        )
-        raise
+    # Seal the observational candidate before broker mutation so a later fill
+    # can always be joined to its decision and exact executed-risk evidence.
     _observe_phase20_without_execution_authority(
         callback=phase20_after_submit,
         opportunity=opportunity,
@@ -1312,18 +1270,22 @@ def _authorize_and_check(
         observed_at=request_at,
         log=log,
     )
-    log({
-        "event": "CTRADER_DEMO_FREE_EXECUTION",
-        "trader": "VT31_NAS100",
-        "symbol": request.qore_symbol,
-        "state": demo_result.state,
-        "requested_volume": str(request.requested_volume),
-        "assigned_capital": str(demo_result.assigned_capital),
-        "cibo_sizing_mode": seed.mode.value,
-        "legacy_certified_risk_r": str(legacy_resolution.final_risk_r),
-        "sizing_authority": "CIBO_CMA",
-        "provider_order_ref": demo_result.provider_order_ref,
-    })
+    stage("before-submit")
+    demo_result = submit_demo_request(request)
+    log(
+        {
+            "event": "CTRADER_DEMO_FREE_EXECUTION",
+            "trader": "VT31_NAS100",
+            "symbol": request.qore_symbol,
+            "state": demo_result.state,
+            "requested_volume": str(request.requested_volume),
+            "assigned_capital": str(demo_result.assigned_capital),
+            "cibo_sizing_mode": seed.mode.value,
+            "legacy_certified_risk_r": str(legacy_resolution.final_risk_r),
+            "sizing_authority": "CIBO_CMA",
+            "provider_order_ref": demo_result.provider_order_ref,
+        }
+    )
     if (
         demo_result.state == "SUBMITTED"
         and demo_result.client_order_id is not None
@@ -1361,12 +1323,14 @@ def _authorize_and_check(
             provider_order_ref=demo_result.provider_order_ref,
         )
         store.mark_pending(pending)
-        log({
-            "event": "VT31_NAS100_DEMO_PENDING_ACCEPTED",
-            "signal_fingerprint": order.signal_fingerprint,
-            "provider_order_ref": demo_result.provider_order_ref,
-            "expires_at": order.expires_at,
-        })
+        log(
+            {
+                "event": "VT31_NAS100_DEMO_PENDING_ACCEPTED",
+                "signal_fingerprint": order.signal_fingerprint,
+                "provider_order_ref": demo_result.provider_order_ref,
+                "expires_at": order.expires_at,
+            }
+        )
     return
 
 
@@ -1438,9 +1402,7 @@ def _tick_at(tick: Any) -> datetime:
     raw_msc = int(getattr(tick, "time_msc", 0) or 0)
     if raw_msc > 0:
         raw_seconds, millis = divmod(raw_msc, 1000)
-        return normalise_legacy_server_epoch(raw_seconds) + timedelta(
-            milliseconds=millis
-        )
+        return normalise_legacy_server_epoch(raw_seconds) + timedelta(milliseconds=millis)
     raw = int(getattr(tick, "time", 0) or 0)
     if raw <= 0:
         raise Vt31Nas100LiveError("VT31 broker tick timestamp unavailable")
@@ -1451,9 +1413,7 @@ def _position_time(position: Any, fallback: datetime) -> datetime:
     raw_msc = int(getattr(position, "time_msc", 0) or 0)
     if raw_msc > 0:
         raw_seconds, millis = divmod(raw_msc, 1000)
-        return normalise_legacy_server_epoch(raw_seconds) + timedelta(
-            milliseconds=millis
-        )
+        return normalise_legacy_server_epoch(raw_seconds) + timedelta(milliseconds=millis)
     raw = int(getattr(position, "time", 0) or 0)
     if raw > 0:
         return normalise_legacy_server_epoch(raw)

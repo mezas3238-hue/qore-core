@@ -69,9 +69,9 @@ def test_runtime_wires_passive_cma_position_observer_without_expansion() -> None
 
 
 def test_runtime_cma_observation_has_no_broker_mutation_path() -> None:
-    observer = Path(
-        "src/qore/infrastructure/cibo_cma_runtime_observer.py"
-    ).read_text(encoding="utf-8")
+    observer = Path("src/qore/infrastructure/cibo_cma_runtime_observer.py").read_text(
+        encoding="utf-8"
+    )
 
     forbidden = (
         "order_send(",
@@ -84,7 +84,6 @@ def test_runtime_cma_observation_has_no_broker_mutation_path() -> None:
 
     assert '"mutation_authority": "NONE_OBSERVATIONAL"' in observer
     assert "NETTED_MULTI_LEG_POSITION_REQUIRES_ALLOCATION_DECOMPOSITION" in observer
-
 
 
 def test_demo_runtime_exposes_no_active_trader_risk_fraction_or_private_capital_slice() -> None:
@@ -137,3 +136,38 @@ def test_phase20_single_slot_wires_vt08_and_vt31_without_collapsing_oco() -> Non
         "        )"
     )
     assert callback_invocation in adapter
+
+
+def test_vt31_seals_candidate_and_rechecks_deadline_before_submit() -> None:
+    source = VT31_ADAPTER.read_text(encoding="utf-8")
+    function = source[source.index("def _authorize_and_check(") :]
+
+    observer_at = function.index("_observe_phase20_without_execution_authority(")
+    deadline_at = function.index('stage("before-submit")')
+    submit_at = function.index("submit_demo_request(request)")
+
+    assert observer_at < deadline_at < submit_at
+
+
+def test_restart_recovers_and_requires_exact_open_position_risk() -> None:
+    source = RUNTIME.read_text(encoding="utf-8")
+
+    recovery_at = source.index("    reconcile_phase20_registry()\n")
+    validation_at = source.index("missing_startup_risk = tuple(")
+    loop_at = source.index("while True:", validation_at)
+
+    assert recovery_at < validation_at < loop_at
+    assert "open positions without exact risk " in source
+    assert "evidence: {missing_startup_risk}" in source
+
+
+def test_vt31_promotes_only_broker_protected_fill_state() -> None:
+    source = VT31_ADAPTER.read_text(encoding="utf-8")
+    reconcile = source[
+        source.index("def reconcile_pending(") : source.index("def manage_open_trade(")
+    ]
+
+    assert 'getattr(position, "sl", 0)' in reconcile
+    assert "filled position is missing broker protection" in reconcile
+    assert 'initial_stop=format(stop, "f")' in reconcile
+    assert "stop = Decimal(pending.stop_loss)" not in reconcile
