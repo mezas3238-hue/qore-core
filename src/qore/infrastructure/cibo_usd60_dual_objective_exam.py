@@ -32,7 +32,6 @@ from qore.infrastructure.cibo_reused_holdout_capability_exam import (
     ToolRuntimeStatus,
 )
 
-
 DUAL_OBJECTIVE_EXAM_ID = "CIBO_USD60_DUAL_OBJECTIVE_CAPABILITY_EXAM_V1"
 
 
