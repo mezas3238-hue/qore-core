@@ -1,0 +1,33 @@
+name: QORE CIBO Next Policy Fingerprints
+
+on:
+  push:
+    branches:
+      - agent/cibo-next-policy-sovereign-integration-001
+    paths:
+      - 'scripts/cibo_next_policy_fingerprints.py'
+      - '.github/workflows/cibo-next-policy-fingerprints.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  fingerprints:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Emit exact next-policy fingerprints
+        run: |
+          mkdir -p artifacts
+          python scripts/cibo_next_policy_fingerprints.py | tee artifacts/fingerprints.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-next-policy-fingerprints-${{ github.sha }}
+          path: artifacts/fingerprints.json
+          if-no-files-found: error
+          retention-days: 90
