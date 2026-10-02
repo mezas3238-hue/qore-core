@@ -1,0 +1,108 @@
+name: QORE CIBO Architect2 T11 Orphan Containment Cleanup
+
+on:
+  push:
+    branches:
+      - agent/cibo-external-scientific-closure-001
+    paths:
+      - '.github/workflows/cibo-arch2-t11-orphan-containment-cleanup.yml'
+      - 'scripts/cibo_arch2_t11_orphan_containment_cleanup.py'
+      - 'tests/infrastructure/test_cibo_arch2_t11_orphan_containment_cleanup.py'
+      - 'src/qore/infrastructure/cibo_arch2_t11_execution_claim.py'
+      - 'src/qore/infrastructure/cibo_arch2_t11_provider_containment_state.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qore-cibo-arch2-t11-orphan-containment-cleanup
+  cancel-in-progress: false
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+  QORE_CIBO_ARCH2_T11_CONTAINMENT_AUTHORIZATION: CIBO_ARCH2_T11_ORPHAN_CONTAINMENT_CLEANUP_AUTHORIZED
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install
+        run: python -m pip install -e '.[dev,ctrader]'
+
+      - name: Quality before broker containment
+        run: |
+          ruff check             scripts/cibo_arch2_t11_orphan_containment_cleanup.py             tests/infrastructure/test_cibo_arch2_t11_orphan_containment_cleanup.py
+          mypy --disable-error-code=import-untyped             scripts/cibo_arch2_t11_orphan_containment_cleanup.py
+          pytest -q --no-cov             tests/infrastructure/test_cibo_arch2_t11_orphan_containment_cleanup.py
+
+      - name: Verify DEMO credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in             QORE_CTRADER_CLIENT_ID             QORE_CTRADER_CLIENT_SECRET             QORE_CTRADER_ACCESS_TOKEN             QORE_CTRADER_REFRESH_TOKEN
+          do
+            test -n "${!name:-}" || exit 2
+          done
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
+
+      - name: Close only known orphan T11 DEMO exposure
+        run: |
+          mkdir -p t11-orphan-containment
+          python scripts/cibo_arch2_t11_orphan_containment_cleanup.py             --output t11-orphan-containment/cleanup.json             > t11-orphan-containment/stdout.json
+
+      - name: Enforce clean containment and governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p = json.loads(
+              Path("t11-orphan-containment/cleanup.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          assert p["schema"] == "qore.cibo.arch2.t11-orphan-containment-cleanup.v1"
+          assert p["provider_key"] == "ctrader-demo"
+          assert p["environment"] == "demo"
+          assert p["authorized_run_ids"] == [36945327912, 36946792349]
+          assert p["containment_clean"] is True
+          assert p["remaining_position_count"] == 0
+          assert p["remaining_order_count"] == 0
+          assert p["unknown_t11_labels"] == []
+          assert p["mutation_scope"] == "CTRADER_DEMO_KNOWN_T11_ORPHAN_LABELS_ONLY"
+          assert p["phase22_v2_consumed"] is False
+          assert p["fundednext_touched"] is False
+          assert p["vps_touched"] is False
+          assert p["live_authorized"] is False
+          assert p["real_capital_authorized"] is False
+          assert p["canonical_ledger_modified"] is False
+          assert p["productive_authority"] is False
+          PY
+
+      - name: Seal cleanup evidence
+        run: |
+          printf '%s\n' "$GITHUB_SHA" > t11-orphan-containment/git-sha.txt
+          cd t11-orphan-containment
+          sha256sum cleanup.json stdout.json git-sha.txt > SHA256SUMS.txt
+          sha256sum -c SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-arch2-t11-orphan-containment-${{ github.sha }}
+          path: t11-orphan-containment
+          if-no-files-found: error
+          retention-days: 90
