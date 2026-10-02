@@ -3,12 +3,12 @@ from datetime import timedelta
 from decimal import Decimal
 
 from qore.infrastructure.account_wide_risk import TraderLineage
+from qore.infrastructure.cibo_arch2_t11_experiment_plan import (
+    T11_MARKET_IMPACT_EXPERIMENT_PLAN,
+)
 from qore.infrastructure.cibo_arch2_t11_gross_edge_oos import (
     T11GrossEdgeFreshObservation,
     evaluate_t11_gross_edge_fresh_oos,
-)
-from qore.infrastructure.cibo_arch2_t11_experiment_plan import (
-    T11_MARKET_IMPACT_EXPERIMENT_PLAN,
 )
 from qore.infrastructure.cibo_arch2_t11_market_impact_evaluator import (
     T11MarketImpactEpisode,
@@ -16,17 +16,22 @@ from qore.infrastructure.cibo_arch2_t11_market_impact_evaluator import (
 )
 from qore.infrastructure.cibo_arch2_t11_market_impact_terminal_receipt import (
     COMPLETED as IMPACT_COMPLETED,
+)
+from qore.infrastructure.cibo_arch2_t11_market_impact_terminal_receipt import (
     FALSIFIED as IMPACT_FALSIFIED,
+)
+from qore.infrastructure.cibo_arch2_t11_market_impact_terminal_receipt import (
+    T11MarketImpactTerminalReceipt,
     V3_CANONICAL_HEAD_SHA,
     V3_CANONICAL_RUN_ATTEMPT,
     V3_CANONICAL_RUN_ID,
-    T11MarketImpactTerminalReceipt,
 )
 from qore.infrastructure.cibo_arch2_t11_nonlinear_input_freeze import (
     FROZEN_AT,
     MARKET_IMPACT_CALIBRATION_EPISODES_PER_LEVEL_PER_SYMBOL,
     MARKET_IMPACT_VALIDATION_EPISODES_PER_LEVEL_PER_SYMBOL,
     REQUIRED_SYMBOLS,
+    T11_NONLINEAR_INPUT_FREEZE,
 )
 from qore.infrastructure.cibo_arch2_t11_post_containment_cycle_v3 import (
     CYCLE_ID,
@@ -123,9 +128,6 @@ def _impact_valid():
                     )
                     minute += 1
     return evaluate_t11_market_impact(tuple(episodes))
-
-
-
 
 def _impact_receipt(*, ready: bool) -> T11MarketImpactTerminalReceipt:
     return T11MarketImpactTerminalReceipt(
