@@ -5,6 +5,9 @@ from hashlib import sha256
 
 import pytest
 
+from qore.infrastructure.cibo_arch2_fresh_oos_terminal_intake import (
+    Architect2FreshOOSTerminalIntake,
+)
 from qore.infrastructure.cibo_arch2_t02_terminal_disposition import (
     T02TerminalDispositionAssessment,
 )
@@ -42,6 +45,7 @@ from qore.infrastructure.cibo_scientific_closure_41_adapters import (
     CanonicalScientificBinding,
     Group1V4TerminalEvidenceHandoff,
     Group2CapitalTerminalEvidenceHandoff,
+    adapt_fresh_oos_terminal_intake,
     adapt_group1_fresh_oos_handoff,
     adapt_group2_capital_terminal_batch,
     adapt_group2_capital_terminal_handoff,
@@ -352,6 +356,28 @@ def test_t11_passed_market_impact_still_requires_fresh_gross_edge() -> None:
             market_impact=_t11_market_receipt(passed=True),
             gross_edge=None,
             phase22_manifest_sha256=_sha("manifest"),
+            binding=_binding(),
+        )
+
+
+def test_legacy_v2_fresh_intake_cannot_be_relabelled_as_successor() -> None:
+    intake = Architect2FreshOOSTerminalIntake(
+        candidate_id="CIBO_USD60_6M_HOLDOUT_2015-10-19_2016-04-19_V2",
+        execution_manifest_sha256=_sha("legacy-v2-manifest"),
+        outcome_bundle_sha256=_sha("legacy-v2-outcomes"),
+        qualification_plan_sha256=CANONICAL_QUALIFICATION_PLAN_IDENTITY,
+        qualification_status="PASS",
+        lineage_valid=True,
+        fresh_oos_terminal_ready=True,
+        terminal_recommendation=COMPLETED,
+    )
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="explicitly non-certifiable",
+    ):
+        adapt_fresh_oos_terminal_intake(
+            intake=intake,
+            phase22_manifest_sha256=_sha("successor-manifest"),
             binding=_binding(),
         )
 
