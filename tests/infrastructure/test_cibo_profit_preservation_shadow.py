@@ -579,3 +579,46 @@ def test_genc7_oos_report_rejects_manual_count_or_status_drift(tmp_path) -> None
         match="report status/accounting drift",
     ):
         replace(report, status=Genc7OosBindingStatus.PARTIAL)
+
+
+def test_genc7_population_rejects_manual_partition_or_mean_drift(tmp_path) -> None:
+    decision = evaluate_genc7_profit_preservation_shadow(
+        state=_state(),
+        proposal=_proposal(),
+        decision_id="genc7-population-integrity",
+    )
+    store = DurableGenc7ProfitPreservationShadowStore(
+        tmp_path / "genc7-population-integrity.json"
+    )
+    book = store.seal(
+        decision,
+        sealed_at=T0 + timedelta(seconds=1),
+        expected_generation=0,
+    )
+    population = describe_genc7_fresh_population(book=book)
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="divergence/blocked partition drift",
+    ):
+        replace(population, blocked_decision_count=1)
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="hold/blocked count drift",
+    ):
+        replace(
+            population,
+            blocked_decision_count=1,
+            treatment_control_divergence_count=0,
+        )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="floor-growth mean/count drift",
+    ):
+        replace(
+            population,
+            floor_growth_observed_count=0,
+            mean_floor_growth_rate=Decimal("0.2"),
+        )
