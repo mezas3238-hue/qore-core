@@ -64,11 +64,11 @@ def architect2_active_frontier_v2() -> tuple[Architect2ActiveFront, ...]:
         ),
         Architect2ActiveFront(
             workstream_id="T11",
-            state=Architect2ActiveState.FROZEN_GATE_WAITING_POPULATION,
+            state=Architect2ActiveState.PARTIAL_EVIDENCE_READY,
             remaining_requirement=(
                 "AUTHORIZED_FORWARD_MANIFEST_FOR_GROSS_EDGE_PLUS_"
-                "RUNNER_CONTRACT_READY_THEN_FROZEN_144_EPISODE_216_CHILD_"
-                "MARKET_IMPACT_POPULATION"
+                "FROZEN_144_EPISODE_216_CHILD_MARKET_IMPACT_RUN_"
+                "36945327912_IN_PROGRESS"
             ),
         ),
         Architect2ActiveFront(
