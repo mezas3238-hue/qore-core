@@ -848,6 +848,14 @@ def adapt_fresh_oos_terminal_intake(
         raise CiboCapitalManagementError(
             "Closure 41 fresh-OOS adapter requires canonical intake"
         )
+    validate_certifiable_holdout_id(
+        intake.candidate_id,
+        "legacy fresh-OOS intake candidate identity",
+    )
+    if intake.candidate_id != binding.holdout_id:
+        raise CiboCapitalManagementError(
+            "Closure 41 legacy fresh-OOS intake/holdout lineage drift"
+        )
     if (
         not intake.fresh_oos_terminal_ready
         or intake.terminal_recommendation not in {COMPLETED, FALSIFIED}
