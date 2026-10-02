@@ -28,6 +28,9 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any, cast
 
+from qore.infrastructure.cibo_arch2_t11_experiment_plan import (
+    T11_MARKET_IMPACT_EXPERIMENT_PLAN,
+)
 from qore.infrastructure.cibo_arch2_t11_market_impact_evaluator import (
     T11MarketImpactEpisode,
     evaluate_t11_market_impact,
@@ -741,6 +744,7 @@ def _bundle(
         for label in labels:
             _neutralize_label(client, label=label)
 
+
 def _jsonable(value: Any) -> Any:
     if isinstance(value, Decimal):
         return format(value, "f")
@@ -817,46 +821,44 @@ def run() -> dict[str, object]:
         _validate_contract_binding(binding)
         by_symbol = {item.qore_symbol: item for item in binding.contracts}
 
+        plan = T11_MARKET_IMPACT_EXPERIMENT_PLAN
+        if plan.protocol_sha256 != T11_NONLINEAR_INPUT_FREEZE.fingerprint():
+            raise CiboCapitalManagementError(
+                "T11 market-impact preregistered plan/protocol lineage drift"
+            )
         episodes: list[T11MarketImpactEpisode] = []
         raw_rows: list[dict[str, object]] = []
-        phases = (
-            (
-                "CALIBRATION",
-                MARKET_IMPACT_CALIBRATION_EPISODES_PER_LEVEL_PER_SYMBOL,
-            ),
-            (
-                "VALIDATION",
-                MARKET_IMPACT_VALIDATION_EPISODES_PER_LEVEL_PER_SYMBOL,
-            ),
-        )
-        for symbol in REQUIRED_SYMBOLS:
-            contract = by_symbol[symbol]
-            for phase, pair_count in phases:
-                for pair_index in range(1, pair_count + 1):
-                    side, levels = pair_plan(pair_index)
-                    fold_index = 0 if phase == "CALIBRATION" else pair_index
-                    for order_position, child_count in enumerate(
-                        levels,
-                        start=1,
-                    ):
-                        episode, raw = _bundle(
-                            client,
-                            qore_symbol=symbol,
-                            symbol_id=contract.symbol_id,
-                            native_volume=contract.min_volume_units,
-                            lot_size_units=contract.lot_size_units,
-                            child_count=child_count,
-                            level_order_position=order_position,
-                            side=side,
-                            phase=phase,
-                            pair_index=pair_index,
-                            fold_index=fold_index,
-                            run_key=run_key,
-                            deposit_asset=deposit_asset,
-                        )
-                        episodes.append(episode)
-                        raw_rows.append(raw)
-                        time.sleep(0.25)
+        for planned in plan.episodes:
+            contract = by_symbol[planned.qore_symbol]
+            expected_side, expected_levels = pair_plan(planned.pair_index)
+            if planned.side != expected_side:
+                raise CiboCapitalManagementError(
+                    "T11 market-impact planned side drift"
+                )
+            if planned.child_count != expected_levels[
+                planned.level_order_position - 1
+            ]:
+                raise CiboCapitalManagementError(
+                    "T11 market-impact planned level-order drift"
+                )
+            episode, raw = _bundle(
+                client,
+                qore_symbol=planned.qore_symbol,
+                symbol_id=contract.symbol_id,
+                native_volume=contract.min_volume_units,
+                lot_size_units=contract.lot_size_units,
+                child_count=planned.child_count,
+                level_order_position=planned.level_order_position,
+                side=planned.side,
+                phase=planned.phase,
+                pair_index=planned.pair_index,
+                fold_index=planned.fold_index,
+                run_key=run_key,
+                deposit_asset=deposit_asset,
+            )
+            episodes.append(episode)
+            raw_rows.append(raw)
+            time.sleep(0.25)
 
         evaluation = evaluate_t11_market_impact(tuple(episodes))
         report: dict[str, object] = {
@@ -867,6 +869,7 @@ def run() -> dict[str, object]:
                 else "MARKET_IMPACT_MODEL_FALSIFIED_OR_NOT_READY"
             ),
             "protocol_frozen_at": FROZEN_AT.isoformat(),
+            "experiment_plan_sha256": plan.fingerprint(),
             "provider_key": "ctrader-demo",
             "environment": "demo",
             "account_fingerprint_sha256": account_fingerprint,
@@ -903,11 +906,11 @@ def run() -> dict[str, object]:
             "run_id": os.environ.get("GITHUB_RUN_ID", ""),
             "run_attempt": os.environ.get("GITHUB_RUN_ATTEMPT", ""),
         }
-        if report["episode_count"] != 144:
+        if report["episode_count"] != plan.episode_count:
             raise CiboCapitalManagementError(
                 "T11 market-impact frozen episode-count drift"
             )
-        if report["child_entry_count"] != 216:
+        if report["child_entry_count"] != plan.child_entry_count:
             raise CiboCapitalManagementError(
                 "T11 market-impact frozen child-count drift"
             )
