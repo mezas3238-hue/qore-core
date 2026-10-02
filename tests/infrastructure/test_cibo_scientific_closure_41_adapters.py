@@ -537,7 +537,7 @@ def test_group2_capital_pass_cannot_hide_failed_dimension() -> None:
             source_gate_status="PASS",
             terminal_recommendation=COMPLETED,
             failed_dimensions=("WF4_FAILED",),
-            population_identity="phase22-v4:canonical",
+            population_identity="phase22-v6:canonical",
             policy_identity=CANONICAL_POLICY_IDENTITY,
             qualification_plan_identity=(
                 CANONICAL_QUALIFICATION_PLAN_IDENTITY
@@ -545,5 +545,6 @@ def test_group2_capital_pass_cannot_hide_failed_dimension() -> None:
             provider_identity=CANONICAL_PROVIDER_IDENTITY,
             causal_lineage=_sha("lineage"),
             source_head_sha="b" * 40,
+            evidence_class=CERTIFYING_FRESH_EVIDENCE_CLASS,
             observed_at=datetime(2026, 10, 2, 11, 59, tzinfo=UTC),
         )
