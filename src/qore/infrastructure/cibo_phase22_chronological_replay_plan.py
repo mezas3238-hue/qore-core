@@ -345,10 +345,12 @@ def build_phase22_chronological_replay_plan(
         )
         represented.add(opportunity.trader_id.value)
 
-    if represented != set(CANONICAL_PHASE22_TRADER_IDS):
-        raise CiboCapitalManagementError(
-            "Phase22 chronological replay lost required Trader lineage"
-        )
+    # The claimed batch preserves the exact 7/7 lane surface even when a lane
+    # legitimately emits zero executable opportunities. Population maturity is
+    # preregistered in Phase20/22 qualification readiness (global lineages and
+    # minimum outcomes per lineage); do not turn an insufficient population
+    # into an orchestration crash before NOT_READY can be recorded.
+    _ = represented
 
     epochs = []
     for index, market_at in enumerate(sorted(epoch_rows), start=1):

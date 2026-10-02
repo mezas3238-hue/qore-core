@@ -255,3 +255,44 @@ def test_epoch_payload_contains_no_outcome_fields() -> None:
             assert "gross_structural_outcome_r" not in candidate
             assert "exit_at" not in candidate
             assert "exit_reason" not in candidate
+
+
+def test_zero_opportunity_lanes_reach_readiness_instead_of_crashing_plan() -> None:
+    fresh, projections, _original = _plan()
+    retained_ids = {"VT08_FOREX", "VT31_NAS100"}
+    reduced_traders = tuple(
+        replace(
+            trader,
+            opportunities=(
+                trader.opportunities
+                if trader.trader_id in retained_ids
+                else ()
+            ),
+        )
+        for trader in fresh.batch.traders
+    )
+    reduced_batch = build_phase22_fresh_opportunity_batch(reduced_traders)
+    reduced_fresh = replace(
+        fresh,
+        batch=reduced_batch,
+        declared_batch_sha256=reduced_batch.fingerprint(),
+    )
+    retained_signals = {
+        item.signal_fingerprint for item in reduced_batch.opportunities
+    }
+    reduced_projections = tuple(
+        item
+        for item in projections
+        if item.candidate.capital_input.opportunity.signal_fingerprint
+        in retained_signals
+    )
+
+    plan = build_phase22_chronological_replay_plan(
+        fresh=reduced_fresh,
+        projections=reduced_projections,
+    )
+
+    assert plan.trader_ids == CANONICAL_PHASE22_TRADER_IDS
+    assert {
+        item.trader_id for item in plan.outcome_events
+    } == retained_ids
