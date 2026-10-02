@@ -67,8 +67,9 @@ def architect2_active_frontier_v2() -> tuple[Architect2ActiveFront, ...]:
             state=Architect2ActiveState.PARTIAL_EVIDENCE_READY,
             remaining_requirement=(
                 "AUTHORIZED_FORWARD_MANIFEST_FOR_GROSS_EDGE_PLUS_"
-                "FROZEN_144_EPISODE_216_CHILD_MARKET_IMPACT_RUN_"
-                "36945327912_IN_PROGRESS"
+                "CANONICAL_TECHNICAL_REPLACEMENT_MARKET_IMPACT_RUN_"
+                "36946792349_IN_PROGRESS__INITIAL_RUN_36945327912_"
+                "CANCELLED_ZERO_TERMINAL_ARTIFACTS"
             ),
         ),
         Architect2ActiveFront(
