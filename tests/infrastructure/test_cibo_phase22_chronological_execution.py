@@ -184,13 +184,7 @@ def _execution_inputs():
             volatility=VolatilityState.NORMAL,
             correlation=CorrelationState.NORMAL,
             provider_condition=ProviderCondition.HEALTHY,
-            concentration_limit_by_group=tuple(
-                (
-                    candidate.projection.candidate.capital_input.concentration_group,
-                    Decimal("60"),
-                )
-                for candidate in epoch.candidates
-            ),
+            concentration_limit_by_group=(),
             evidence_sha256=_sha(epoch.decision_epoch_id),
             source_evidence_ids=(_sha("regime-source-" + epoch.decision_epoch_id),),
         )

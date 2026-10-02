@@ -464,13 +464,9 @@ def execute_phase22_chronological_replay(
             raise CiboCapitalManagementError(
                 "Phase22 execution regime evidence postdates decision"
             )
-        groups = {
-            candidate.projection.candidate.capital_input.concentration_group
-            for candidate in epoch.candidates
-        }
-        if {name for name, _ in evidence.concentration_limit_by_group} != groups:
+        if evidence.concentration_limit_by_group:
             raise CiboCapitalManagementError(
-                "Phase22 execution concentration evidence surface drift"
+                "Phase22 historical execution forbids invented concentration limits"
             )
 
         snapshot = _snapshot(
