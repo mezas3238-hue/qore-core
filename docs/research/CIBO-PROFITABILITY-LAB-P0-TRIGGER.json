@@ -13,6 +13,6 @@
   "production": false,
   "merge_authority": false,
   "outcome_aware_tuning": false,
-  "retrigger_for_head": "10ec8e0a10a2fb2fb88cf470ec8b28811033037b",
-  "retrigger_reason": "Relaunch P0 on current reconciled lab allocator/policy HEAD after concurrent integration repairs; Owner authorization and economic treatment remain research-only."
+  "retrigger_for_head": "7f196bc98863b711742dffda19b9cebd4809d790",
+  "retrigger_reason": "Static validation cleanup only: remove obsolete policy-seal import after reconciled allocator integration. No economic behavior changed."
 }
