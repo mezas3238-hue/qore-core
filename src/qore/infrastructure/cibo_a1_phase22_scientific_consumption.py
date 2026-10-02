@@ -217,6 +217,7 @@ def build_a1_phase22_scientific_consumption_manifest(
     _sha256(parameter_sha256, "parameter_sha256")
 
     traders: set[str] = set()
+    candidate_signals_by_decision: dict[str, tuple[str, ...]] = {}
     for decision in ordered:
         payload = _payload(decision.canonical_payload_json)
         raw_candidates = payload.get("candidates")
@@ -224,6 +225,7 @@ def build_a1_phase22_scientific_consumption_manifest(
             raise CiboCapitalManagementError(
                 "A1 Phase22 manifest candidates must be list"
             )
+        candidate_signals: list[str] = []
         for row in raw_candidates:
             if not isinstance(row, dict):
                 raise CiboCapitalManagementError(
@@ -235,8 +237,31 @@ def build_a1_phase22_scientific_consumption_manifest(
                     "A1 Phase22 manifest candidate payload invalid"
                 )
             trader_id = candidate.get("trader_id")
-            if isinstance(trader_id, str) and trader_id:
-                traders.add(trader_id)
+            signal_fingerprint = candidate.get("signal_fingerprint")
+            if not isinstance(trader_id, str) or not trader_id:
+                raise CiboCapitalManagementError(
+                    "A1 Phase22 manifest candidate Trader identity invalid"
+                )
+            if (
+                not isinstance(signal_fingerprint, str)
+                or not signal_fingerprint
+            ):
+                raise CiboCapitalManagementError(
+                    "A1 Phase22 manifest candidate signal identity invalid"
+                )
+            traders.add(trader_id)
+            candidate_signals.append(signal_fingerprint)
+        if len(candidate_signals) != len(set(candidate_signals)):
+            raise CiboCapitalManagementError(
+                "A1 Phase22 manifest duplicate candidate signals"
+            )
+        if set(candidate_signals) != set(decision.signal_fingerprints):
+            raise CiboCapitalManagementError(
+                "A1 Phase22 manifest decision/payload signal drift"
+            )
+        candidate_signals_by_decision[decision.evidence_sha256] = tuple(
+            candidate_signals
+        )
 
     decisions_by_sha = {item.evidence_sha256 for item in ordered}
     policies_by_sha = {item.evidence_sha256 for item in policy_book.decisions}
@@ -246,6 +271,15 @@ def build_a1_phase22_scientific_consumption_manifest(
         )
     for policy in policy_book.decisions:
         _verify_policy(policy)
+        allowed_signals = set(
+            candidate_signals_by_decision[policy.evidence_sha256]
+        )
+        if not set(policy.selected_signal_fingerprints).issubset(
+            allowed_signals
+        ):
+            raise CiboCapitalManagementError(
+                "A1 Phase22 manifest policy selected outside decision candidates"
+            )
 
     required_traders = tuple(
         item.value for item in PHASE19_REQUIRED_TRADERS
@@ -343,6 +377,15 @@ def _verify_policy(policy: Phase20ForwardPolicyDecisionSeal) -> None:
     if record.get("evidence_sha256") != policy.evidence_sha256:
         raise CiboCapitalManagementError(
             "A1 Phase22 manifest policy/evidence binding drift"
+        )
+    selected = record.get("selected_signal_fingerprints")
+    if (
+        not isinstance(selected, list)
+        or tuple(str(item) for item in selected)
+        != policy.selected_signal_fingerprints
+    ):
+        raise CiboCapitalManagementError(
+            "A1 Phase22 manifest policy selected-signal record drift"
         )
 
 
