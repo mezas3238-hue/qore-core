@@ -22,7 +22,10 @@ from qore.infrastructure.cibo_next_policy_code_bundle_lineage import (
     NEXT_POLICY_CODE_BUNDLE_LINEAGE,
 )
 from qore.infrastructure.cibo_phase22_next_exam_governance import (
+    CURRENT_NEXT_PHASE22_EVIDENCE,
     NEXT_CANDIDATE_ID,
+    NextPhase22ReadinessStatus,
+    assess_next_phase22_exam,
 )
 from qore.infrastructure.cibo_phase22_v3_source_receipt import (
     phase22_v3_source_receipt_sha256,
@@ -151,6 +154,26 @@ def build_phase22_v3_execution_authorization(
     owner_authorization_id: str,
     authorized_parent_head_sha: str,
 ) -> Phase22V3ExecutionAuthorization:
+    registered_owner_authorization = (
+        CURRENT_NEXT_PHASE22_EVIDENCE.owner_authorization_id
+    )
+    if registered_owner_authorization is None:
+        raise CiboCapitalManagementError(
+            "V3 execution Owner authorization is not registered"
+        )
+    if owner_authorization_id != registered_owner_authorization:
+        raise CiboCapitalManagementError(
+            "V3 execution Owner authorization identity mismatch"
+        )
+    readiness = assess_next_phase22_exam(CURRENT_NEXT_PHASE22_EVIDENCE)
+    if (
+        readiness.status is not NextPhase22ReadinessStatus.READY
+        or readiness.blockers
+    ):
+        raise CiboCapitalManagementError(
+            "V3 execution authorization requires READY registered governance"
+        )
+
     return Phase22V3ExecutionAuthorization(
         authorization_id=AUTHORIZATION_ID,
         owner_authorization_id=owner_authorization_id,

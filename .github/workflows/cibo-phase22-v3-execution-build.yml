@@ -73,11 +73,16 @@ jobs:
           for name in modules:
               __import__(name)
           PY
-      - name: Prove pre-outcome V3 manifest and authorization
+      - name: Prove pre-outcome V3 manifest remains Owner-gated
         run: |
           python - <<'PY'
+          from qore.infrastructure.cibo_capital_management_authority import (
+              CiboCapitalManagementError,
+          )
           from qore.infrastructure.cibo_phase22_next_exam_governance import (
+              CURRENT_NEXT_PHASE22_READINESS,
               NEXT_CANDIDATE_ID,
+              NextPhase22ReadinessStatus,
           )
           from qore.infrastructure.cibo_phase22_v3_execution_authorization import (
               build_phase22_v3_execution_authorization,
@@ -90,16 +95,23 @@ jobs:
           assert manifest.candidate_id == NEXT_CANDIDATE_ID
           assert manifest.fresh_outcomes_executed is False
           assert manifest.broker_mutation_authorized is False
-          auth = build_phase22_v3_execution_authorization(
-              owner_authorization_id="OWNER_BUILD_TEST",
-              authorized_parent_head_sha="a" * 40,
+          assert CURRENT_NEXT_PHASE22_READINESS.status is (
+              NextPhase22ReadinessStatus.NOT_READY
           )
-          assert auth.fresh_holdout_execution_authorized is True
-          assert auth.one_shot_only is True
-          assert auth.second_execution_authorized is False
-          assert auth.broker_mutation_authorized is False
-          assert auth.live_authorized is False
-          assert auth.real_capital_authorized is False
+          assert CURRENT_NEXT_PHASE22_READINESS.blockers == (
+              "NEW_ONE_SHOT_OWNER_AUTHORIZATION_REQUIRED",
+          )
+          try:
+              build_phase22_v3_execution_authorization(
+                  owner_authorization_id="OWNER_BUILD_TEST",
+                  authorized_parent_head_sha="a" * 40,
+              )
+          except CiboCapitalManagementError as error:
+              assert "Owner authorization is not registered" in str(error)
+          else:
+              raise AssertionError(
+                  "build CI must not mint a V3 execution authorization"
+              )
           PY
       - name: Prove VT31 censored geometry selection is outcome-blind
         run: |

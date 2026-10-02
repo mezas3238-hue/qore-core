@@ -1,20 +1,33 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pytest
 
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
+from qore.infrastructure import cibo_phase22_v3_execution_authorization as v3_auth
 from qore.infrastructure.cibo_phase22_v3_execution_authorization import (
     AUTHORIZATION_ID,
     SOVEREIGN_BRANCH,
-    build_phase22_v3_execution_authorization,
 )
 
 
-def test_v3_authorization_binds_exact_frozen_inputs_and_is_one_shot() -> None:
-    auth = build_phase22_v3_execution_authorization(
-        owner_authorization_id="OWNER_PHASE22_V3_TEST",
+def test_v3_authorization_binds_exact_frozen_inputs_only_after_registered_owner_gate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    owner_id = "OWNER_PHASE22_V3_TEST"
+    monkeypatch.setattr(
+        v3_auth,
+        "CURRENT_NEXT_PHASE22_EVIDENCE",
+        replace(
+            v3_auth.CURRENT_NEXT_PHASE22_EVIDENCE,
+            owner_authorization_id=owner_id,
+        ),
+    )
+    auth = v3_auth.build_phase22_v3_execution_authorization(
+        owner_authorization_id=owner_id,
         authorized_parent_head_sha="a" * 40,
     )
 
@@ -37,12 +50,34 @@ def test_v3_authorization_binds_exact_frozen_inputs_and_is_one_shot() -> None:
     assert auth.productive_authority is False
 
 
-def test_v3_authorization_requires_explicit_owner_identity() -> None:
+def test_v3_authorization_cannot_be_minted_before_owner_registration() -> None:
+    assert v3_auth.CURRENT_NEXT_PHASE22_EVIDENCE.owner_authorization_id is None
     with pytest.raises(
         CiboCapitalManagementError,
-        match="explicit Owner authorization",
+        match="Owner authorization is not registered",
     ):
-        build_phase22_v3_execution_authorization(
-            owner_authorization_id="",
+        v3_auth.build_phase22_v3_execution_authorization(
+            owner_authorization_id="OWNER_PHASE22_V3_TEST",
+            authorized_parent_head_sha="a" * 40,
+        )
+
+
+def test_v3_authorization_rejects_identity_not_equal_to_registered_owner_gate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        v3_auth,
+        "CURRENT_NEXT_PHASE22_EVIDENCE",
+        replace(
+            v3_auth.CURRENT_NEXT_PHASE22_EVIDENCE,
+            owner_authorization_id="OWNER_PHASE22_V3_EXPLICIT",
+        ),
+    )
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="Owner authorization identity mismatch",
+    ):
+        v3_auth.build_phase22_v3_execution_authorization(
+            owner_authorization_id="OWNER_PHASE22_V3_TEST",
             authorized_parent_head_sha="a" * 40,
         )
