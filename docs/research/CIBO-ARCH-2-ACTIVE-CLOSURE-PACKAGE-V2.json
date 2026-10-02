@@ -48,12 +48,13 @@
     },
     {
       "workstream_id": "T11",
-      "state": "EMPIRICAL_PROVIDER_RUN_IN_PROGRESS",
+      "state": "TERMINAL_RECOMMENDATION_READY",
       "resolved_blockers": [
         "REAL_EXECUTION_POPULATION_REQUIRED",
-        "EMPIRICAL_SLIPPAGE_CALIBRATION_REQUIRED"
+        "EMPIRICAL_SLIPPAGE_CALIBRATION_REQUIRED",
+        "REAL_PROVIDER_BOUND_MARKET_IMPACT_MODEL_REQUIRED"
       ],
-      "remaining_requirement": "CANONICAL_V3_MARKET_IMPACT_RUN_36948511045_MUST_TERMINATE_AND_BIND_OUTCOME_BLIND_RECEIPT_PLUS_AUTHORIZED_FORWARD_MANIFEST_FOR_GROSS_EDGE_REQUIRED",
+      "remaining_requirement": "INTEGRATOR_EVIDENCE_AUDIT",
       "evidence": [
         "docs/research/CIBO-ARCH-2-INTEGRATOR-PATCH-REQUEST-001.md",
         "src/qore/infrastructure/cibo_arch2_t11_post_containment_cycle_v3.py",
@@ -64,9 +65,10 @@
         "github-actions://36947985223/SUCCESS",
         "github-artifact://11202788608/sha256:06aaffd5e19f11bb4b9a3f5c6e6d6d0924c52effcce506617e1ccac7f98c0cc0",
         "github-actions://36948338513/PRE_BROKER_QUALITY_FAILURE_ZERO_ARTIFACTS",
-        "github-actions://36948511045/IN_PROGRESS_CANONICAL_V3",
         "github-actions://36948554909/CANCELLED_BEFORE_JOB_DUPLICATE",
-        "docs/research/CIBO-ARCH-2-INTEGRATOR-PATCH-REQUEST-010-T11-GROSS-EDGE-POPULATION.md"
+        "github-actions://36948511045/SUCCESS_CANONICAL_V3",
+        "github-artifact://11204492977/sha256:d4dba464e1f6b42b323bb8cfa9e131d70a351d42e7b8c8e3efbabcb104cfb6fc",
+        "docs/research/CIBO-ARCH-2-T11-V3-TERMINAL-EVIDENCE-V1.json"
       ],
       "execution_lineage": {
         "v1_run_id": 36945327912,
@@ -87,8 +89,15 @@
         "v3_canonical_head_sha": "7b9f6e6c6b4cf385f6df0c87d217b47e6cd12069",
         "v3_duplicate_run_id": 36948554909,
         "v3_duplicate_cancelled_before_job": true,
-        "v3_terminal_receipt_frozen_before_outcome": true
-      }
+        "v3_terminal_receipt_frozen_before_outcome": true,
+        "v3_conclusion": "SUCCESS",
+        "v3_artifact_id": 11204492977,
+        "v3_artifact_digest": "sha256:d4dba464e1f6b42b323bb8cfa9e131d70a351d42e7b8c8e3efbabcb104cfb6fc",
+        "v3_market_impact_model_ready": false,
+        "v3_terminal_recommendation": "FALSIFIED_AND_CLOSED",
+        "gross_edge_required_after_market_impact_falsification": false
+      },
+      "proposed_terminal_disposition": "FALSIFIED_AND_CLOSED"
     },
     {
       "workstream_id": "T16",
@@ -139,13 +148,14 @@
     }
   ],
   "summary": {
-    "terminal_recommendation_ready": 4,
-    "nonterminal_active_fronts": 4,
+    "terminal_recommendation_ready": 5,
+    "nonterminal_active_fronts": 3,
     "terminal_recommendations": {
       "T03": "FALSIFIED_AND_CLOSED",
       "T16": "FALSIFIED_AND_CLOSED",
       "PROVIDER_ECONOMICS": "SUPERSEDED_WITH_PROVEN_LINEAGE",
-      "FORWARD_QUALIFICATION": "SUPERSEDED_WITH_PROVEN_LINEAGE"
+      "FORWARD_QUALIFICATION": "SUPERSEDED_WITH_PROVEN_LINEAGE",
+      "T11": "FALSIFIED_AND_CLOSED"
     },
     "integrator_intake_receipt": "src/qore/infrastructure/cibo_arch2_integrator_intake_receipt.py",
     "scope_count": 8,
@@ -154,9 +164,7 @@
       "T20",
       "FRESH_OOS"
     ],
-    "empirical_fronts_in_progress": [
-      "T11"
-    ],
+    "empirical_fronts_in_progress": [],
     "provider_containment_blocked_fronts": [],
     "ready_for_versioned_provider_evidence": [],
     "scientific_closure_ci_run_id": 36949446474,
