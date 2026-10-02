@@ -92,9 +92,14 @@ class CompoundCausalAblationPair:
             raise CiboCompoundCapitalError(
                 "compound causal ablation root control identity drift"
             )
-        if not self.local_control_policy_id or not self.treatment_policy_id:
+        if (
+            not self.local_control_policy_id
+            or not self.treatment_policy_id
+            or not isinstance(self.population_id, str)
+            or not self.population_id
+        ):
             raise CiboCompoundCapitalError(
-                "compound causal ablation local control/treatment is required"
+                "compound causal ablation local control/treatment/population is required"
             )
         if self.local_control_policy_id == self.treatment_policy_id:
             raise CiboCompoundCapitalError(
@@ -153,6 +158,16 @@ class CompoundCausalAblationPair:
             raise CiboCompoundCapitalError(
                 "compound causal ablation requires FORWARD_OBSERVED evidence"
             )
+        for name in (
+            "sealed_holdout_read",
+            "outcomes_used_to_select_treatment",
+            "weighted_score_used",
+            "productive_authority",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise CiboCompoundCapitalError(
+                    f"compound causal ablation {name} must be bool"
+                )
         if (
             self.sealed_holdout_read
             or self.outcomes_used_to_select_treatment
@@ -272,6 +287,16 @@ class CompoundCausalAblationCoverageReport:
             raise CiboCompoundCapitalError(
                 "compound causal ablation coverage pair-count drift"
             )
+        for name in (
+            "exact_mechanism_surface",
+            "economic_outcomes_evaluated",
+            "scientific_disposition_claimed",
+            "certification_ready",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise CiboCompoundCapitalError(
+                    f"compound causal ablation coverage {name} must be bool"
+                )
         if self.exact_mechanism_surface is not True:
             raise CiboCompoundCapitalError(
                 "compound causal ablation coverage must be exact"
