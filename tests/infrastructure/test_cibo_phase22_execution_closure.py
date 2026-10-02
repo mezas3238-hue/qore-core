@@ -38,9 +38,6 @@ from qore.infrastructure.cibo_phase22_store_contract import (
 from qore.infrastructure.cibo_phase22_trader_parity_manifest import (
     CANONICAL_PHASE22_TRADER_IDS,
 )
-from qore.infrastructure.cibo_phase22_execution_manifest import (
-    build_phase22_execution_manifest,
-)
 from qore.infrastructure.trader_lab.ict_turtle_soup_r4_source_exact import (
     Bar,
     Evidence,
