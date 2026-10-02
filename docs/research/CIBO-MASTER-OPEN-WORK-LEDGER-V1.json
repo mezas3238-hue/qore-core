@@ -1243,7 +1243,7 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "PHASE22_V3_CLAIMED_EXECUTION_INCOMPLETE_NON_TERMINAL",
+      "current_maturity": "PHASE22_V4_SOURCE_VALIDATED_PRE_EXECUTION",
       "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py",
@@ -1268,16 +1268,21 @@
         "docs/research/CIBO-PHASE22-V3-CONSUMPTION-RECEIPT.json",
         "docs/research/CIBO-PHASE22-V3-CLAIMED-FAILURE-FORENSIC-RECEIPT.json",
         "github-actions://37047009381/FAILURE",
-        "github-actions-artifact://11245575444/sha256:d1a0f298b3d55cb916b488ba4739937e85bdab253e9b435dc5a0b45ad32e160b"
+        "github-actions-artifact://11245575444/sha256:d1a0f298b3d55cb916b488ba4739937e85bdab253e9b435dc5a0b45ad32e160b",
+        "docs/research/CIBO-PHASE22-V4-SOURCE-COLLECTION-TRIGGER.json",
+        "docs/research/CIBO-PHASE22-V4-SOURCE-RECEIPT.json",
+        "github-actions://37048678560/SUCCESS",
+        "github-actions-artifact://11246140100/sha256:9586d4c4b03d846e98a8d64dd308cd12d4287807dfb150dca156d4eac2c07d07",
+        "github-actions://37049312208/SUCCESS",
+        "github-actions-artifact://11245897154/sha256:285e0e54c87fab94fd5e51f394b942870844eb51b8b472c02d9337a7d55a15ff"
       ],
       "blockers": [
-        "PHASE22_V3_CLAIMED_ONE_SHOT_INCOMPLETE",
-        "PHASE22_V3_VT31_FROZEN_SOURCE_ABI_FAILURE",
-        "PHASE22_V3_ASSEMBLY_AND_CLOSURE_NOT_RUN",
-        "PHASE22_V3_SECOND_FRESH_EXECUTION_FORBIDDEN",
-        "SUCCESSOR_FRESH_SCIENTIFIC_CYCLE_TERMINAL_EVIDENCE_REQUIRED"
+        "PHASE22_V4_EXECUTION_BUILD_AND_EXACT_HEAD_CI_REQUIRED",
+        "PHASE22_V4_EXPLICIT_OWNER_ONE_SHOT_AUTHORIZATION_REQUIRED",
+        "PHASE22_V4_FRESH_TERMINAL_EVIDENCE_REQUIRED",
+        "PHASE22_V3_SECOND_FRESH_EXECUTION_FORBIDDEN"
       ],
-      "next_gate": "Phase22 V3 is durably CLAIMED and non-rerunnable. Six of seven fresh lanes completed; VT31 failed before emitting its lane artifact because the frozen source adapter returned an incompatible market-evidence ABI. Assembly/closure did not run. Preserve V3 as immutable forensic evidence; do not rerun or rehabilitate it. The next admissible action is a mechanically selected successor fresh cycle under separate governance, frozen policy lineage, and new explicit Owner authorization."
+      "next_gate": "V4 source availability and exact ten-source corpus are sealed read-only with no Trader logic or outcome inspection. Freeze the V4 execution build, prove the VT31 source-ABI repair and all seven lanes pre-outcome, then require a new explicit Owner one-shot authorization before any V4 fresh Trader execution. V3 remains permanently non-rerunnable."
     },
     {
       "id": "TEMPORAL_REPLICATION",
