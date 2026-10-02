@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import importlib.util
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -12,7 +14,20 @@ from qore.infrastructure.cibo_phase22_demo_calibration_contract import (
     REQUIRED_SYMBOLS,
 )
 from qore.kernel.result import Success
-from scripts import cibo_phase22_demo_provider_calibration as calibration
+
+_SCRIPT_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "scripts"
+    / "cibo_phase22_demo_provider_calibration.py"
+)
+_SPEC = importlib.util.spec_from_file_location(
+    "qore_phase22_demo_provider_calibration_under_test",
+    _SCRIPT_PATH,
+)
+assert _SPEC is not None and _SPEC.loader is not None
+calibration = importlib.util.module_from_spec(_SPEC)
+sys.modules[_SPEC.name] = calibration
+_SPEC.loader.exec_module(calibration)
 
 _WORKFLOW = Path(
     ".github/workflows/cibo-phase22-demo-provider-calibration.yml"
