@@ -8,6 +8,7 @@ on:
       - '.github/workflows/cibo-phase22-demo-provider-calibration.yml'
       - 'scripts/cibo_phase22_demo_provider_calibration.py'
       - 'src/qore/infrastructure/cibo_phase22_demo_calibration_contract.py'
+      - 'src/qore/infrastructure/cibo_ctrader_demo_empirical_slippage.py'
       - 'tests/infrastructure/test_cibo_phase22_demo_calibration_contract.py'
       - 'tests/infrastructure/test_cibo_phase22_demo_calibration_workflow.py'
   workflow_dispatch:
