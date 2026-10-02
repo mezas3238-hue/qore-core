@@ -186,6 +186,11 @@ def test_current_ownership_partition_is_exact_28_plus_13() -> None:
     assert len(ARCHITECT_A_35_IDS) == 35
     assert len(SPECIAL_6_IDS) == 6
 
+    manifest = scientific_closure_41_dependency_manifest()
+    assert manifest["required_certifying_evidence_class"] == (
+        CERTIFYING_FRESH_EVIDENCE_CLASS
+    )
+
 
 def test_dependency_manifest_names_all_41_without_fabricating_future_digests() -> None:
     manifest = scientific_closure_41_dependency_manifest()
