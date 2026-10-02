@@ -1244,7 +1244,7 @@
       "mandatory": true,
       "certification_blocking": true,
       "current_maturity": "PHASE22_V2_CONSUMED_QUALIFICATION_INVALID_NON_TERMINAL",
-      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "terminal_disposition": null,
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py",
         "src/qore/infrastructure/cibo_ce2i_pre_holdout_checkpoint.py",
@@ -1268,9 +1268,10 @@
         "PHASE22_V2_QUALIFICATION_INVALID_NON_TERMINAL",
         "PHASE22_V2_ADVANCED_TOOL_EVIDENCE_HARD_INTEGRITY_FAILURE",
         "PHASE22_V2_POPULATION_READINESS_NOT_MET",
-        "PHASE22_V2_SECOND_FRESH_EXECUTION_FORBIDDEN"
+        "PHASE22_V2_SECOND_FRESH_EXECUTION_FORBIDDEN",
+        "SUCCESSOR_FRESH_SCIENTIFIC_CYCLE_TERMINAL_EVIDENCE_REQUIRED"
       ],
-      "next_gate": "Current Phase22 V2 one-shot is durably CONSUMED and qualification is INVALID with valid lineage. Preserve the non-terminal truth; do not rerun, mine another holdout, retune thresholds, or promote INVALID to terminal. Any successor fresh scientific cycle requires new governance and a new candidate/holdout lineage."
+      "next_gate": "Phase22 V2 is durably CONSUMED and scientifically INVALID/non-terminal. FRESH_OOS remains OPEN. Do not rerun or rehabilitate V2. A successor fresh scientific cycle may proceed only under new governance and may close FRESH_OOS only with valid terminal scientific evidence."
     },
     {
       "id": "TEMPORAL_REPLICATION",
@@ -1686,8 +1687,8 @@
   ],
   "current_summary": {
     "mandatory_count": 64,
-    "terminal_count": 62,
-    "open_count": 2,
+    "terminal_count": 61,
+    "open_count": 3,
     "zero_open_work_pass": false,
     "final_certification_candidate": false
   }
