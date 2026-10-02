@@ -161,6 +161,20 @@ def test_restart_recovers_and_requires_exact_open_position_risk() -> None:
     assert "evidence: {missing_startup_risk}" in source
 
 
+def test_phase20_bootstrap_uses_the_broker_snapshot_clock() -> None:
+    source = RUNTIME.read_text(encoding="utf-8")
+
+    capture = "phase20_bootstrap_account = _account_state_from_demo_api(demo_api)"
+    activation = "phase20_bootstrap_at = phase20_bootstrap_account.observed_at"
+    bootstrap = (
+        "phase20_assigned_base, phase20_capital_state = "
+        "bootstrap_phase20_demo_assigned_capital("
+    )
+
+    assert source.index(capture) < source.index(activation) < source.index(bootstrap)
+    assert "phase20_bootstrap_at = datetime.now(UTC)" not in source
+
+
 def test_vt31_promotes_only_broker_protected_fill_state() -> None:
     source = VT31_ADAPTER.read_text(encoding="utf-8")
     reconcile = source[

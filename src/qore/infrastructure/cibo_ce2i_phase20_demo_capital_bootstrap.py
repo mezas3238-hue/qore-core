@@ -87,17 +87,16 @@ def bootstrap_phase20_demo_assigned_capital(
             "Phase20D DEMO capital bootstrap requires canonical account state"
         )
     _aware(activated_at, name="activated_at")
-    if account_state.observed_at > activated_at:
-        raise CiboCapitalManagementError(
-            "Phase20D DEMO assigned base cannot use future account state"
-        )
-    if account_state.balance <= 0:
-        raise CiboCapitalManagementError(
-            "Phase20D DEMO assigned base requires positive broker cash balance"
-        )
-
     current = store.load()
     if current.generation == 0 and not current.ledger.accounts:
+        if account_state.observed_at > activated_at:
+            raise CiboCapitalManagementError(
+                "Phase20D DEMO assigned base cannot use future account state"
+            )
+        if account_state.balance <= 0:
+            raise CiboCapitalManagementError(
+                "Phase20D DEMO assigned base requires positive broker cash balance"
+            )
         source_id = _assigned_base_source_id(
             account=account,
             account_state=account_state,

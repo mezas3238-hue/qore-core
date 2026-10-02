@@ -72,6 +72,58 @@ def test_demo_forward_assigned_base_freezes_once_and_survives_restart(
     assert restarted.assigned_base_usd == Decimal("1000000")
 
 
+def test_demo_forward_restart_does_not_revalidate_frozen_base_against_new_snapshot(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "capital.json"
+    bootstrap_phase20_demo_assigned_capital(
+        store=DurableCapitalSourceLedgerStore(path),
+        account=ACCOUNT,
+        account_state=_account_state(),
+        activated_at=ACTIVATED,
+    )
+
+    later_snapshot = CTraderDemoAccountState(
+        balance=Decimal("1000500"),
+        equity=Decimal("1000500"),
+        margin=Decimal("0"),
+        free_margin=Decimal("1000500"),
+        observed_at=ACTIVATED + timedelta(days=1),
+    )
+    restarted, state = bootstrap_phase20_demo_assigned_capital(
+        store=DurableCapitalSourceLedgerStore(path),
+        account=ACCOUNT,
+        account_state=later_snapshot,
+        activated_at=ACTIVATED,
+    )
+
+    assert state.generation == 1
+    assert restarted.assigned_base_usd == Decimal("1000000")
+
+
+def test_demo_forward_new_base_rejects_snapshot_after_activation(
+    tmp_path: Path,
+) -> None:
+    future_snapshot = CTraderDemoAccountState(
+        balance=Decimal("1000000"),
+        equity=Decimal("1000000"),
+        margin=Decimal("0"),
+        free_margin=Decimal("1000000"),
+        observed_at=ACTIVATED + timedelta(milliseconds=1),
+    )
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="cannot use future account state",
+    ):
+        bootstrap_phase20_demo_assigned_capital(
+            store=DurableCapitalSourceLedgerStore(tmp_path / "capital.json"),
+            account=ACCOUNT,
+            account_state=future_snapshot,
+            activated_at=ACTIVATED,
+        )
+
+
 def test_demo_forward_assigned_base_rejects_preexisting_nonforward_lineage(
     tmp_path: Path,
 ) -> None:

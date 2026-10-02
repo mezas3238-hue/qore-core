@@ -43,6 +43,7 @@ class _Positions:
         return (
             SimpleNamespace(
                 trader_id=TraderLineage.R38_EURUSD,
+                qore_symbol="EURUSD",
                 position_id=9001,
             ),
         )
@@ -75,7 +76,7 @@ def _request(sequence: int, volume: str) -> CiboRiskRequest:
         margin_per_volume=Decimal("1000"),
         requested_at=NOW,
         expires_at=NOW + timedelta(minutes=5),
-        strategy_requested_risk_usd=Decimal("50"),
+        strategy_requested_risk_usd=None,
     )
 
 

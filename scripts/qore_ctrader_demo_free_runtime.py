@@ -277,7 +277,7 @@ class CTraderDemoReadOnlyTransport:
 
     def account_state(self, account_ref: str) -> CTraderDemoAccountState | None:
         del account_ref
-        return _account_state_from_demo_api(self._api, datetime.now(UTC))
+        return _account_state_from_demo_api(self._api)
 
     def symbol_info(self, provider_symbol: str) -> CTraderDemoSymbolSpecification | None:
         info = self._api.symbol_info(provider_symbol)
@@ -335,7 +335,8 @@ class CTraderDemoReadOnlyGateway:
         del now
 
     def read_account(self, *, now: datetime) -> CTraderDemoAccountState:
-        return _account_state_from_demo_api(self._api, now)
+        del now
+        return _account_state_from_demo_api(self._api)
 
     def read_symbol(self, qore_symbol: str, *, now: datetime) -> CTraderDemoSymbolSpecification:
         del now
@@ -374,7 +375,6 @@ def _configure_ctrader_demo_free_sink(root: Path) -> CTraderDemoFreeSink:
 
 def _account_state_from_demo_api(
     api: CTraderDemoFullApi,
-    observed_at: datetime,
 ) -> CTraderDemoAccountState:
     info = api.account_info()
     if info is None:
@@ -1066,7 +1066,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
     if not demo_api.warm_session_schedules():
         raise RuntimeError("cTrader DEMO broker session schedule unavailable")
     boundary_account_sampler = BoundaryAccountSampler(
-        lambda: _account_state_from_demo_api(demo_api, datetime.now(UTC))
+        lambda: _account_state_from_demo_api(demo_api)
     )
     mt5 = demo_api
     demo_management_api = demo_api
@@ -1109,11 +1109,12 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
     phase20_settlement_cursor_store = DurablePhase20DemoSettlementCursorStore(
         state_dir / "cibo-phase20-settlement-cursor.json"
     )
-    phase20_bootstrap_at = datetime.now(UTC)
-    phase20_bootstrap_account = _account_state_from_demo_api(
-        demo_api,
-        phase20_bootstrap_at,
-    )
+    phase20_bootstrap_account = _account_state_from_demo_api(demo_api)
+    # The broker snapshot is the authoritative clock for the initial Phase20
+    # assigned-capital observation. Capturing an activation instant before the
+    # broker read makes the snapshot look artificially "future" and prevents
+    # every clean runtime start.
+    phase20_bootstrap_at = phase20_bootstrap_account.observed_at
     phase20_assigned_base, phase20_capital_state = bootstrap_phase20_demo_assigned_capital(
         store=phase20_capital_store,
         account=account,
@@ -1664,7 +1665,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     },
                 )
                 try:
-                    arm_account = _account_state_from_demo_api(demo_api, arm_started_at)
+                    arm_account = _account_state_from_demo_api(demo_api)
                     # DEMO_FREE: no external reconciliation.
                     arm_r42_state = audjpy_r42_store.load()
                     arm_r34_state = r34_store.load()
@@ -2562,7 +2563,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                 },
             )
             try:
-                vt31_account = _account_state_from_demo_api(demo_api, vt31_arm_started_at)
+                vt31_account = _account_state_from_demo_api(demo_api)
                 # DEMO_FREE: no external reconciliation.
                 vt31_highest = max(highest, vt31_account.balance)
                 vt31_provider = SimpleNamespace()
@@ -2860,7 +2861,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             store.store(state)
             continue
 
-        account_state = _account_state_from_demo_api(demo_api, cycle_at)
+        account_state = _account_state_from_demo_api(demo_api)
         # DEMO_FREE: no FundedNext reconciliation.
         # cTrader DEMO is the only mutation target in this account runtime.
         # The MT5-compatible adapter below translates the frozen Trader lifecycle
