@@ -31,3 +31,29 @@ jobs:
         run: |
           python -m pytest -q \
             tests/infrastructure/test_cibo_phase22_v3_source_receipt.py
+      - name: Emit canonical source receipt fingerprint
+        run: |
+          mkdir -p artifacts
+          python - <<'PY' | tee artifacts/source-receipt-fingerprint.json
+          import json
+          from qore.infrastructure.cibo_phase22_v3_source_receipt import (
+              PHASE22_V3_SOURCE_RECEIPT,
+              phase22_v3_source_receipt_sha256,
+          )
+          print(json.dumps({
+              "schema": "qore.cibo.phase22.v3-source-receipt-fingerprint.v1",
+              "candidate_id": PHASE22_V3_SOURCE_RECEIPT.candidate_id,
+              "source_receipt_sha256": phase22_v3_source_receipt_sha256(),
+              "source_validation_complete": True,
+              "source_outcomes_inspected": False,
+              "trader_logic_executed": False,
+              "broker_mutation": False,
+              "fresh_trader_execution_authorized": False,
+          }, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-phase22-v3-source-receipt-${{ github.sha }}
+          path: artifacts/source-receipt-fingerprint.json
+          if-no-files-found: error
+          retention-days: 90
