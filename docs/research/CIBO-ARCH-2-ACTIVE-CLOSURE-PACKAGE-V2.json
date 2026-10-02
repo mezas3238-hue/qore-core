@@ -44,15 +44,18 @@
     },
     {
       "workstream_id": "T11",
-      "state": "FROZEN_GATE_WAITING_POPULATION",
+      "state": "PARTIAL_EVIDENCE_READY",
       "resolved_blockers": [
         "REAL_EXECUTION_POPULATION_REQUIRED",
         "EMPIRICAL_SLIPPAGE_CALIBRATION_REQUIRED"
       ],
-      "remaining_requirement": "FRESH_OOS_GROSS_EDGE_VALIDATION_AND_MIN_VOLUME_MICROBUNDLE_MARKET_IMPACT_CALIBRATION",
+      "remaining_requirement": "AUTHORIZED_FORWARD_MANIFEST_FOR_GROSS_EDGE_PLUS_FROZEN_144_EPISODE_216_CHILD_MARKET_IMPACT_RUN_36945327912_IN_PROGRESS",
       "evidence": [
         "docs/research/CIBO-ARCH-2-INTEGRATOR-PATCH-REQUEST-001.md",
-        "src/qore/infrastructure/cibo_arch2_t11_nonlinear_input_freeze.py"
+        "src/qore/infrastructure/cibo_arch2_t11_nonlinear_input_freeze.py",
+        "src/qore/infrastructure/cibo_arch2_t11_runner_readiness.py",
+        "src/qore/infrastructure/cibo_arch2_t11_market_impact_terminal_receipt.py",
+        "github-actions://36945327912/IN_PROGRESS"
       ]
     },
     {
