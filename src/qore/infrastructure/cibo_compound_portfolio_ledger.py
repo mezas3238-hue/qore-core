@@ -203,6 +203,7 @@ class CompoundPortfolioLedger:
             )
 
         known_lots = set(lot_ids)
+        lots_by_id = {item.lot_id: item for item in all_lots}
         for event in self.events:
             if not set(event.source_lot_ids).issubset(known_lots):
                 raise CiboCompoundCapitalError(
@@ -211,6 +212,45 @@ class CompoundPortfolioLedger:
             if not set(event.target_lot_ids).issubset(known_lots):
                 raise CiboCompoundCapitalError(
                     "compound event target lot is not in portfolio history"
+                )
+            sources = tuple(
+                lots_by_id[item] for item in event.source_lot_ids
+            )
+            targets = tuple(
+                lots_by_id[item] for item in event.target_lot_ids
+            )
+            if sum(
+                (item.amount_usd for item in sources),
+                Decimal(0),
+            ) != event.source_total_usd:
+                raise CiboCompoundCapitalError(
+                    "compound event source total does not match source lots"
+                )
+            if sum(
+                (item.amount_usd for item in targets),
+                Decimal(0),
+            ) != event.target_total_usd:
+                raise CiboCompoundCapitalError(
+                    "compound event target total does not match target lots"
+                )
+            if any(
+                item.created_at > event.occurred_at
+                for item in targets
+            ):
+                raise CiboCompoundCapitalError(
+                    "compound event cannot predate target lot creation"
+                )
+            if (
+                event.event_type
+                is not CompoundPortfolioEventType.ADMIT_REALIZED_PROFIT
+                and any(
+                    source_id not in target.parent_lot_ids
+                    for source_id in event.source_lot_ids
+                    for target in targets
+                )
+            ):
+                raise CiboCompoundCapitalError(
+                    "compound event target ancestry does not bind source lot"
                 )
 
         admitted = sum(

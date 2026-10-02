@@ -224,8 +224,13 @@ def settle_compound_deployment(
     if loss > deployment.stop_risk_usd:
         if (
             excess_loss_evidence_sha256 is None
+            or not isinstance(excess_loss_evidence_sha256, str)
             or not excess_loss_evidence_sha256.startswith("sha256:")
             or len(excess_loss_evidence_sha256) != 71
+            or any(
+                char not in "0123456789abcdef"
+                for char in excess_loss_evidence_sha256[7:]
+            )
         ):
             raise CiboCompoundCapitalError(
                 "compound settlement loss exceeds sealed stop risk "
