@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
@@ -327,3 +328,105 @@ def test_genc11_world_paths_must_share_synchronized_clock() -> None:
             world_paths=(normal, shifted),
             option_schedules=_schedule(),
         )
+
+
+def test_genc11_plan_rejects_incomplete_world_step_matrix() -> None:
+    plan = plan_genc11_multi_period_capital(
+        plan_id="plan-complete-matrix",
+        twin=_twin(),
+        world_paths=(
+            _path(
+                path_id="balanced",
+                kind=Genc10WorldKind.BALANCED,
+                risk_deltas=("0", "0", "0"),
+                margin_deltas=("0", "0", "0"),
+            ),
+            _path(
+                path_id="crisis",
+                kind=Genc10WorldKind.CRISIS,
+                risk_deltas=("-2", "0", "0"),
+                margin_deltas=("-20", "0", "0"),
+            ),
+        ),
+        option_schedules=_schedule(),
+    )
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="world-step coverage drift",
+    ):
+        replace(plan, world_step_plans=plan.world_step_plans[:-1])
+
+
+def test_genc11_plan_rejects_duplicate_path_ids_and_bad_envelope_steps() -> None:
+    plan = plan_genc11_multi_period_capital(
+        plan_id="plan-identity-check",
+        twin=_twin(),
+        world_paths=(
+            _path(
+                path_id="balanced",
+                kind=Genc10WorldKind.BALANCED,
+                risk_deltas=("0", "0", "0"),
+                margin_deltas=("0", "0", "0"),
+            ),
+            _path(
+                path_id="crisis",
+                kind=Genc10WorldKind.CRISIS,
+                risk_deltas=("-2", "0", "0"),
+                margin_deltas=("-20", "0", "0"),
+            ),
+        ),
+        option_schedules=_schedule(),
+    )
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="path ids must be unique",
+    ):
+        replace(plan, path_ids=("balanced", "balanced"))
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="robust-envelope step identity drift",
+    ):
+        replace(
+            plan,
+            robust_step_envelopes=(
+                replace(plan.robust_step_envelopes[0], step_index=2),
+                *plan.robust_step_envelopes[1:],
+            ),
+        )
+
+
+def test_genc11_rejects_ambiguous_bool_and_counter_types() -> None:
+    path = _path(
+        path_id="balanced",
+        kind=Genc10WorldKind.BALANCED,
+        risk_deltas=("0", "0", "0"),
+        margin_deltas=("0", "0", "0"),
+    )
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="future_outcome_used must be bool",
+    ):
+        replace(path, future_outcome_used=0)
+
+    plan = plan_genc11_multi_period_capital(
+        plan_id="plan-bool-check",
+        twin=_twin(),
+        world_paths=(
+            path,
+            _path(
+                path_id="crisis",
+                kind=Genc10WorldKind.CRISIS,
+                risk_deltas=("-2", "0", "0"),
+                margin_deltas=("-20", "0", "0"),
+            ),
+        ),
+        option_schedules=_schedule(),
+    )
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="plan oos_pass must be bool",
+    ):
+        replace(plan, oos_pass=0)

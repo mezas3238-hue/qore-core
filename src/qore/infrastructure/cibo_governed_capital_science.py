@@ -151,6 +151,13 @@ class Genc14CapitalHypothesis:
                 "GEN-C14 candidate must have distinct semantic identity"
             )
         _aware(self.created_at, "created_at")
+        if self.protected_holdout_ref is not None and (
+            not isinstance(self.protected_holdout_ref, str)
+            or not self.protected_holdout_ref.strip()
+        ):
+            raise CiboCapitalManagementError(
+                "GEN-C14 protected holdout ref must be non-empty when declared"
+            )
         for name in (
             "outcome_selected",
             "world_cup_target_fitted",
@@ -341,6 +348,7 @@ class Genc14ScienceRecord:
             "candidate_policy_sha256": (
                 self.hypothesis.candidate_policy_sha256
             ),
+            "protected_holdout_ref": self.hypothesis.protected_holdout_ref,
             "current_control_policy_sha256": (
                 self.current_control_policy_sha256
             ),
@@ -349,8 +357,14 @@ class Genc14ScienceRecord:
                 {
                     "evidence_id": item.evidence_id,
                     "kind": item.kind.value,
+                    "candidate_policy_sha256": item.candidate_policy_sha256,
+                    "evaluated_at": item.evaluated_at.isoformat(),
                     "evidence_sha256": item.evidence_sha256,
                     "passed": item.passed,
+                    "burned_data_used": item.burned_data_used,
+                    "protected_holdout_used": item.protected_holdout_used,
+                    "future_leakage_used": item.future_leakage_used,
+                    "post_hoc_gate_changed": item.post_hoc_gate_changed,
                 }
                 for item in self.evidence
             ],
@@ -492,6 +506,14 @@ def advance_genc14_science(
     }:
         raise CiboCapitalManagementError(
             "GEN-C14 evidence cannot be reused"
+        )
+    if (
+        evidence.kind is Genc14EvidenceKind.OOS
+        and evidence.protected_holdout_used
+        and record.hypothesis.protected_holdout_ref is None
+    ):
+        raise CiboCapitalManagementError(
+            "GEN-C14 OOS cannot consume an unpreregistered protected holdout"
         )
 
     evidence_rows = record.evidence + (evidence,)

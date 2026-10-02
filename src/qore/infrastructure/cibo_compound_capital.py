@@ -191,11 +191,18 @@ class CompoundCapitalLot:
                 "compound lot origin position must be positive int"
             )
         if (
-            not self.origin_deal_ids
+            not isinstance(self.origin_deal_ids, tuple)
+            or not self.origin_deal_ids
             or len(self.origin_deal_ids) != len(set(self.origin_deal_ids))
+            or any(
+                not isinstance(item, int)
+                or isinstance(item, bool)
+                or item <= 0
+                for item in self.origin_deal_ids
+            )
         ):
             raise CiboCompoundCapitalError(
-                "compound lot origin deal ids must be unique/non-empty"
+                "compound lot origin deal ids must be unique positive ints"
             )
         _aware(self.realized_at, "realized_at")
         _aware(self.created_at, "created_at")
@@ -203,9 +210,16 @@ class CompoundCapitalLot:
             raise CiboCompoundCapitalError(
                 "compound lot cannot predate realized settlement"
             )
-        if len(self.parent_lot_ids) != len(set(self.parent_lot_ids)):
+        if (
+            not isinstance(self.parent_lot_ids, tuple)
+            or any(
+                not isinstance(item, str) or not item
+                for item in self.parent_lot_ids
+            )
+            or len(self.parent_lot_ids) != len(set(self.parent_lot_ids))
+        ):
             raise CiboCompoundCapitalError(
-                "compound lot parent ids must be unique"
+                "compound lot parent ids must be unique non-empty strings"
             )
         if self.lot_id in self.parent_lot_ids:
             raise CiboCompoundCapitalError(

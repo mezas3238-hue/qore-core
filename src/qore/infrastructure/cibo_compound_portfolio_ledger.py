@@ -203,6 +203,7 @@ class CompoundPortfolioLedger:
             )
 
         known_lots = set(lot_ids)
+        lots_by_id = {item.lot_id: item for item in all_lots}
         for event in self.events:
             if not set(event.source_lot_ids).issubset(known_lots):
                 raise CiboCompoundCapitalError(
@@ -211,6 +212,45 @@ class CompoundPortfolioLedger:
             if not set(event.target_lot_ids).issubset(known_lots):
                 raise CiboCompoundCapitalError(
                     "compound event target lot is not in portfolio history"
+                )
+            sources = tuple(
+                lots_by_id[item] for item in event.source_lot_ids
+            )
+            targets = tuple(
+                lots_by_id[item] for item in event.target_lot_ids
+            )
+            if sum(
+                (item.amount_usd for item in sources),
+                Decimal(0),
+            ) != event.source_total_usd:
+                raise CiboCompoundCapitalError(
+                    "compound event source total does not match source lots"
+                )
+            if sum(
+                (item.amount_usd for item in targets),
+                Decimal(0),
+            ) != event.target_total_usd:
+                raise CiboCompoundCapitalError(
+                    "compound event target total does not match target lots"
+                )
+            if any(
+                item.created_at > event.occurred_at
+                for item in targets
+            ):
+                raise CiboCompoundCapitalError(
+                    "compound event cannot predate target lot creation"
+                )
+            if (
+                event.event_type
+                is not CompoundPortfolioEventType.ADMIT_REALIZED_PROFIT
+                and any(
+                    source_id not in target.parent_lot_ids
+                    for source_id in event.source_lot_ids
+                    for target in targets
+                )
+            ):
+                raise CiboCompoundCapitalError(
+                    "compound event target ancestry does not bind source lot"
                 )
 
         admitted = sum(
@@ -311,13 +351,41 @@ class CompoundPortfolioLedger:
             raise CiboCompoundCapitalError(
                 "compound admission cannot predate lot creation"
             )
+        history = self.active_lots + self.archived_lots
         if any(
             item.origin_evidence_id == lot.origin_evidence_id
-            for item in self.active_lots + self.archived_lots
+            for item in history
         ):
             raise CiboCompoundCapitalError(
                 "compound settlement evidence already admitted"
             )
+        if lot.generation == 1:
+            if lot.parent_lot_ids:
+                raise CiboCompoundCapitalError(
+                    "GEN-1 compound lot cannot carry parent lineage"
+                )
+        else:
+            if not lot.parent_lot_ids:
+                raise CiboCompoundCapitalError(
+                    "GEN-N compound lot requires parent lineage"
+                )
+            history_by_id = {item.lot_id: item for item in history}
+            missing_parents = tuple(
+                item for item in lot.parent_lot_ids
+                if item not in history_by_id
+            )
+            if missing_parents:
+                raise CiboCompoundCapitalError(
+                    "GEN-N compound lot parent lineage is missing from portfolio history"
+                )
+            expected_generation = 1 + max(
+                history_by_id[item].generation
+                for item in lot.parent_lot_ids
+            )
+            if lot.generation != expected_generation:
+                raise CiboCompoundCapitalError(
+                    "GEN-N compound lot generation does not match parent lineage"
+                )
         self._require_new_lot_id(lot.lot_id)
         self._require_new_event_id(event_id)
 

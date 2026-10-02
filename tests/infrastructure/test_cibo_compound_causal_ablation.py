@@ -7,12 +7,14 @@ import pytest
 
 from qore.infrastructure.cibo_compound_capital import CiboCompoundCapitalError
 from qore.infrastructure.cibo_compound_causal_ablation import (
+    PHASE22_V2_FRESH_HOLDOUT_ID,
     PROTOCOL_FROZEN_AT,
     ROOT_CONTROL_ID,
     SEALED_HOLDOUT_ID,
     CausalAblationEvidenceKind,
     CompoundCausalAblationPair,
     CompoundCausalMechanism,
+    audit_compound_causal_ablation_full_surface,
     gate_compound_causal_ablation_pairs,
 )
 
@@ -112,11 +114,15 @@ def test_compound_causal_ablation_rejects_pre_registration_decision() -> None:
 
 
 def test_compound_causal_ablation_rejects_holdout_or_outcome_selection() -> None:
-    with pytest.raises(
-        CiboCompoundCapitalError,
-        match="sealed 2017H1 holdout",
+    for holdout_id in (
+        SEALED_HOLDOUT_ID,
+        PHASE22_V2_FRESH_HOLDOUT_ID,
     ):
-        _pair(population_id=SEALED_HOLDOUT_ID)
+        with pytest.raises(
+            CiboCompoundCapitalError,
+            match="protected holdout cannot enter development ablation",
+        ):
+            _pair(population_id=holdout_id)
 
     with pytest.raises(
         CiboCompoundCapitalError,
@@ -167,3 +173,81 @@ def test_compound_causal_ablation_report_rejects_manual_governance_drift() -> No
     ):
         replace(report, economic_outcomes_evaluated=True)
 
+
+
+def _full_surface_pairs() -> tuple[CompoundCausalAblationPair, ...]:
+    rows = []
+    for index, mechanism in enumerate(CompoundCausalMechanism):
+        rows.append(
+            _pair(
+                ablation_id=f"ablation-full-{index:02d}",
+                workstream_id={
+                    CompoundCausalMechanism.PROFIT_GRADUATION: "GEN-C2",
+                    CompoundCausalMechanism.MARGINAL_CAPITAL_UTILITY: "GEN-C4",
+                    CompoundCausalMechanism.SEQUENTIAL_COMPOUNDING: "GEN-C5",
+                    CompoundCausalMechanism.INTERNAL_CAPITAL_MARKET: "GEN-C6",
+                    CompoundCausalMechanism.PROFIT_PRESERVATION: "GEN-C7",
+                    CompoundCausalMechanism.ADAPTIVE_COMPOUND_SPEED: "GEN-C8",
+                    CompoundCausalMechanism.ROBUST_GROWTH_RUIN_CAPACITY: "GEN-C9",
+                    CompoundCausalMechanism.CAPITAL_DIGITAL_TWIN_USAGE: "GEN-C10",
+                    CompoundCausalMechanism.MULTI_PERIOD_MPC: "GEN-C11",
+                    CompoundCausalMechanism.CRISIS_CAPITAL_INTELLIGENCE: "GEN-C12",
+                    CompoundCausalMechanism.META_CAPITAL_MEMORY: "GEN-C13",
+                }[mechanism],
+                local_control_policy_id=f"local-control-{index}",
+                treatment_policy_id=f"treatment-{index}",
+                changed_mechanism=mechanism,
+                qualification_fold_id=("WF1", "WF2", "WF3", "WF4")[index % 4],
+            )
+        )
+    return tuple(rows)
+
+
+def test_compound_causal_ablation_full_surface_requires_all_11_mechanisms() -> None:
+    report = audit_compound_causal_ablation_full_surface(
+        _full_surface_pairs(),
+    )
+
+    assert report.pair_count == 11
+    assert len(report.mechanism_ids) == 11
+    assert len(report.workstream_ids) == 11
+    assert report.exact_mechanism_surface is True
+    assert report.economic_outcomes_evaluated is False
+    assert report.scientific_disposition_claimed is False
+    assert report.certification_ready is False
+
+
+def test_compound_causal_ablation_full_surface_rejects_missing_mechanism() -> None:
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="full surface is incomplete",
+    ):
+        audit_compound_causal_ablation_full_surface(
+            _full_surface_pairs()[:-1],
+        )
+
+
+def test_compound_causal_ablation_rejects_blank_population_or_non_bool_flags() -> None:
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="local control/treatment/population is required",
+    ):
+        _pair(population_id="")
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="sealed_holdout_read must be bool",
+    ):
+        _pair(sealed_holdout_read=0)
+
+
+def test_compound_causal_ablation_coverage_rejects_non_bool_claim_flags() -> None:
+    report = audit_compound_causal_ablation_full_surface(
+        _full_surface_pairs(),
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="scientific_disposition_claimed must be bool",
+    ):
+        replace(report, scientific_disposition_claimed=0)

@@ -113,6 +113,40 @@ class Genc8PopulationReport:
             raise CiboCompoundCapitalError(
                 "GEN-C8 population decision range is incomplete"
             )
+        if self.decision_count == 0:
+            if (
+                self.status is not Genc8PopulationStatus.EMPTY
+                or self.first_decision_at is not None
+                or self.last_decision_at is not None
+                or self.calendar_span_days != 0
+                or self.decision_calendar_days != 0
+                or self.account_keys
+                or self.blocker_counts
+            ):
+                raise CiboCompoundCapitalError(
+                    "GEN-C8 empty population carries descriptive residue"
+                )
+        else:
+            if (
+                self.status is not Genc8PopulationStatus.COLLECTING
+                or self.first_decision_at is None
+                or self.last_decision_at is None
+            ):
+                raise CiboCompoundCapitalError(
+                    "GEN-C8 populated summary requires decision range"
+                )
+            if (
+                self.decision_calendar_days <= 0
+                or self.decision_calendar_days > self.decision_count
+                or self.calendar_span_days < self.decision_calendar_days
+            ):
+                raise CiboCompoundCapitalError(
+                    "GEN-C8 population calendar counts are inconsistent"
+                )
+            if not self.account_keys:
+                raise CiboCompoundCapitalError(
+                    "GEN-C8 populated summary requires account keys"
+                )
         if self.first_decision_at is not None:
             _aware(self.first_decision_at, "first_decision_at")
             assert self.last_decision_at is not None
@@ -125,9 +159,26 @@ class Genc8PopulationReport:
                 raise CiboCompoundCapitalError(
                     "GEN-C8 population decision range is reversed"
                 )
-        if len(self.account_keys) != len(set(self.account_keys)):
+        if (
+            not isinstance(self.account_keys, tuple)
+            or any(
+                not isinstance(item, str) or not item
+                for item in self.account_keys
+            )
+            or len(self.account_keys) != len(set(self.account_keys))
+        ):
             raise CiboCompoundCapitalError(
-                "GEN-C8 population account keys must be unique"
+                "GEN-C8 population account keys must be unique non-empty strings"
+            )
+        if (
+            not isinstance(self.blocker_counts, tuple)
+            or any(
+                not isinstance(item, tuple) or len(item) != 2
+                for item in self.blocker_counts
+            )
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C8 population blocker counts must be canonical pairs"
             )
         blocker_keys = tuple(item[0] for item in self.blocker_counts)
         if len(blocker_keys) != len(set(blocker_keys)):

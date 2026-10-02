@@ -249,3 +249,93 @@ def test_genc14_record_rejects_non_bool_promotion_flag() -> None:
     ):
         replace(record, automatic_promotion=1)
 
+
+
+def test_genc14_rejects_empty_declared_holdout_ref() -> None:
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="protected holdout ref must be non-empty",
+    ):
+        replace(_hypothesis(), protected_holdout_ref="   ")
+
+
+def test_genc14_oos_cannot_consume_unpreregistered_protected_holdout() -> None:
+    hypothesis = replace(_hypothesis(), protected_holdout_ref=None)
+    record = start_genc14_science(
+        science_id="science-unregistered-holdout",
+        hypothesis=hypothesis,
+    )
+    record = advance_genc14_science(
+        record,
+        evidence=_evidence(
+            kind=Genc14EvidenceKind.PREREGISTRATION,
+            minute=1,
+        ),
+        advanced_at=T0 + timedelta(minutes=1),
+    )
+    record = advance_genc14_science(
+        record,
+        evidence=_evidence(
+            kind=Genc14EvidenceKind.SIMULATION,
+            minute=2,
+            digit="4",
+        ),
+        advanced_at=T0 + timedelta(minutes=2),
+    )
+    oos = replace(
+        _evidence(
+            kind=Genc14EvidenceKind.OOS,
+            minute=3,
+            digit="5",
+        ),
+        protected_holdout_used=True,
+    )
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="unpreregistered protected holdout",
+    ):
+        advance_genc14_science(
+            record,
+            evidence=oos,
+            advanced_at=T0 + timedelta(minutes=3),
+        )
+
+
+def test_genc14_science_fingerprint_binds_protected_holdout_identity() -> None:
+    first = start_genc14_science(
+        science_id="science-holdout-fingerprint",
+        hypothesis=_hypothesis(),
+    )
+    second = start_genc14_science(
+        science_id="science-holdout-fingerprint",
+        hypothesis=replace(
+            _hypothesis(),
+            protected_holdout_ref="CIBO_OTHER_FROZEN_HOLDOUT_V1",
+        ),
+    )
+
+    assert first.fingerprint() != second.fingerprint()
+
+
+def test_genc14_science_fingerprint_binds_evidence_chronology() -> None:
+    record = start_genc14_science(
+        science_id="science-fingerprint-chronology",
+        hypothesis=_hypothesis(),
+    )
+    record = advance_genc14_science(
+        record,
+        evidence=_evidence(
+            kind=Genc14EvidenceKind.PREREGISTRATION,
+            minute=1,
+        ),
+        advanced_at=T0 + timedelta(minutes=2),
+    )
+    original = record.fingerprint()
+    shifted = replace(
+        record.evidence[0],
+        evaluated_at=T0 + timedelta(minutes=1, seconds=30),
+    )
+    variant = replace(record, evidence=(shifted,))
+
+    assert variant.fingerprint() != original

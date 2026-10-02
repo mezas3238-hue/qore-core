@@ -323,3 +323,123 @@ def test_genc9_ruin_flag_is_boundary_derived() -> None:
             scenario_evidence_sha256=scenario.scenario_evidence_sha256,
             causal_replay_sha256="sha256:" + "a" * 64,
         )
+
+
+def test_genc9_rejects_drawdown_smaller_than_forced_initial_to_minimum_loss() -> None:
+    scenario = _scenario("drawdown-check", "1")
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="max drawdown is inconsistent with minimum capital",
+    ):
+        Genc9PathEvidence(
+            candidate_id="control",
+            scenario_id=scenario.scenario_id,
+            evaluated_at=T0 + timedelta(minutes=1),
+            numeraire=Genc9Numeraire.NORMALIZED_CAPITAL_UNITS,
+            initial_capital=Decimal("100"),
+            ending_capital=Decimal("120"),
+            minimum_capital=Decimal("80"),
+            max_drawdown=Decimal("19"),
+            max_time_underwater_minutes=Decimal("100"),
+            max_recovery_minutes=Decimal("90"),
+            peak_plausible_loss=Decimal("10"),
+            ruin_boundary=Decimal("20"),
+            ruin_occurred=False,
+            capacity_breach=False,
+            horizon_minutes=Decimal("1000"),
+            scenario_evidence_sha256=scenario.scenario_evidence_sha256,
+            causal_replay_sha256="sha256:" + "b" * 64,
+        )
+
+
+def test_genc9_summary_rejects_impossible_quantiles_or_frequency_drift() -> None:
+    candidates, scenarios, paths = _fixture()
+    report = evaluate_genc9_robust_growth(
+        research_id="GENC9_SUMMARY_INTEGRITY",
+        candidates=candidates,
+        scenarios=scenarios,
+        paths=paths,
+    )
+    summary = report.summaries[0]
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="drawdown quantile order drift",
+    ):
+        replace(
+            summary,
+            p99_max_drawdown=summary.maximum_drawdown + Decimal("1"),
+        )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="empirical frequency/count drift",
+    ):
+        replace(
+            summary,
+            empirical_scenario_ruin_frequency=Decimal("0.5"),
+        )
+
+
+def test_genc9_summary_rejects_ambiguous_path_count_type() -> None:
+    candidates, scenarios, paths = _fixture()
+    report = evaluate_genc9_robust_growth(
+        research_id="GENC9_SUMMARY_TYPES",
+        candidates=candidates,
+        scenarios=scenarios,
+        paths=paths,
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="path/scenario count drift",
+    ):
+        replace(report.summaries[0], path_count=True)
+
+
+def test_genc9_report_rejects_summary_population_or_control_drift() -> None:
+    candidates, scenarios, paths = _fixture()
+    report = evaluate_genc9_robust_growth(
+        research_id="GENC9_REPORT_INTEGRITY",
+        candidates=candidates,
+        scenarios=scenarios,
+        paths=paths,
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="control summary drift",
+    ):
+        replace(report, control_candidate_id="treatment")
+
+    drifted_summary = replace(
+        report.summaries[0],
+        scenario_ids=(
+            *report.summaries[0].scenario_ids[:-1],
+            "different-scenario",
+        ),
+    )
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="summary population/numeraire drift",
+    ):
+        replace(
+            report,
+            summaries=(drifted_summary, report.summaries[1]),
+        )
+
+
+def test_genc9_report_rejects_non_bool_governance_flags() -> None:
+    candidates, scenarios, paths = _fixture()
+    report = evaluate_genc9_robust_growth(
+        research_id="GENC9_REPORT_FLAGS",
+        candidates=candidates,
+        scenarios=scenarios,
+        paths=paths,
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="oos_pass must be bool",
+    ):
+        replace(report, oos_pass=0)

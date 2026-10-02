@@ -108,10 +108,15 @@ class Genc12CrisisFact:
             )
         _aware(self.observed_at, "crisis fact observed_at")
         _sha(self.evidence_sha256, "crisis fact evidence_sha256")
-        if type(self.active) is not bool:
-            raise CiboCapitalManagementError(
-                "GEN-C12 crisis fact active must be bool"
-            )
+        for name in (
+            "active",
+            "future_outcome_present",
+            "market_probability_claimed",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise CiboCapitalManagementError(
+                    f"GEN-C12 crisis fact {name} must be bool"
+                )
         if self.future_outcome_present or self.market_probability_claimed:
             raise CiboCapitalManagementError(
                 "GEN-C12 crisis fact cannot use future/probability claims"
@@ -194,19 +199,74 @@ class Genc12CrisisCapitalPlan:
             raise CiboCapitalManagementError(
                 "GEN-C12 posture is invalid"
             )
-        if len(self.active_factors) != len(set(self.active_factors)):
-            raise CiboCapitalManagementError(
-                "GEN-C12 active factors must be unique"
+        if (
+            not isinstance(self.active_factors, tuple)
+            or any(
+                type(item) is not Genc12CrisisFactor
+                for item in self.active_factors
             )
-        if len(self.responses) != len(set(self.responses)):
+            or len(self.active_factors) != len(set(self.active_factors))
+        ):
             raise CiboCapitalManagementError(
-                "GEN-C12 responses must be unique"
+                "GEN-C12 active factors must be canonical unique factors"
+            )
+        if (
+            not isinstance(self.responses, tuple)
+            or any(
+                type(item) is not Genc12CapitalResponse
+                for item in self.responses
+            )
+            or len(self.responses) != len(set(self.responses))
+        ):
+            raise CiboCapitalManagementError(
+                "GEN-C12 responses must be canonical unique responses"
+            )
+        for values, label in (
+            (self.enabled_ce2i_tools, "enabled tools"),
+            (self.blocked_ce2i_tools, "blocked tools"),
+        ):
+            if (
+                not isinstance(values, tuple)
+                or any(
+                    not isinstance(item, str) or not item
+                    for item in values
+                )
+                or len(values) != len(set(values))
+            ):
+                raise CiboCapitalManagementError(
+                    f"GEN-C12 {label} must be unique non-empty strings"
+                )
+        if set(self.enabled_ce2i_tools) & set(self.blocked_ce2i_tools):
+            raise CiboCapitalManagementError(
+                "GEN-C12 enabled/blocked tool surfaces cannot overlap"
+            )
+        if (
+            not isinstance(self.position_plans, tuple)
+            or any(
+                not isinstance(item, Genc12PositionCapitalPlan)
+                for item in self.position_plans
+            )
+        ):
+            raise CiboCapitalManagementError(
+                "GEN-C12 position plans must be canonical tuple"
             )
         signals = tuple(item.signal_fingerprint for item in self.position_plans)
         if len(signals) != len(set(signals)):
             raise CiboCapitalManagementError(
                 "GEN-C12 position plans must be unique"
             )
+        for name in (
+            "trader_methodology_changed",
+            "risk_boundary_overridden",
+            "market_probability_claimed",
+            "future_outcome_used",
+            "productive_authority",
+            "certification_ready",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise CiboCapitalManagementError(
+                    f"GEN-C12 plan {name} must be bool"
+                )
         if (
             self.trader_methodology_changed
             or self.risk_boundary_overridden
@@ -246,9 +306,12 @@ def plan_genc12_crisis_capital(
         raise CiboCapitalManagementError(
             "GEN-C12 regime state is invalid"
         )
-    if any(
-        not isinstance(item, Genc12CrisisFact)
-        for item in crisis_facts
+    if (
+        not isinstance(crisis_facts, tuple)
+        or any(
+            not isinstance(item, Genc12CrisisFact)
+            for item in crisis_facts
+        )
     ):
         raise CiboCapitalManagementError(
             "GEN-C12 crisis facts are invalid"
@@ -262,9 +325,12 @@ def plan_genc12_crisis_capital(
         raise CiboCapitalManagementError(
             "GEN-C12 crisis factors must be unique"
         )
-    if any(
-        not isinstance(item, Genc12PositionCapitalInput)
-        for item in positions
+    if (
+        not isinstance(positions, tuple)
+        or any(
+            not isinstance(item, Genc12PositionCapitalInput)
+            for item in positions
+        )
     ):
         raise CiboCapitalManagementError(
             "GEN-C12 position inputs are invalid"

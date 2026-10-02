@@ -22,6 +22,9 @@ from qore.infrastructure.cibo_compound_capital import (
     CompoundCapitalState,
 )
 from qore.infrastructure.cibo_compound_cycle_state import (
+    CompoundCycleDeployment,
+    CompoundCycleMarketRecord,
+    CompoundCycleSettlementRecord,
     classify_compound_capital,
     ingest_base_settlement,
     initialize_compound_cycle,
@@ -227,4 +230,61 @@ def test_compound_cycle_cannot_reuse_same_settlement_evidence() -> None:
             occurred_at=T0 + timedelta(seconds=1),
             trader_id=TraderLineage.VT31_NAS100,
             settlement=settlement,
+        )
+
+
+def test_compound_cycle_rejects_noncanonical_provenance_hashes() -> None:
+    invalid = "sha256:" + "z" * 64
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="settlement digest must be canonical SHA-256",
+    ):
+        CompoundCycleSettlementRecord(
+            event_id="bad-settlement",
+            occurred_at=T0,
+            source_kind="BASE_CAPITAL",
+            trader_id=TraderLineage.VT31_NAS100,
+            signal_fingerprint="signal-bad",
+            position_id=1,
+            settlement_sha256=invalid,
+            realized_net_pnl_usd=Decimal("1"),
+        )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="market portfolio_state_sha256 must be canonical SHA-256",
+    ):
+        CompoundCycleMarketRecord(
+            event_id="bad-market",
+            occurred_at=T0,
+            decision_id="decision-bad",
+            action="RESERVE_NO_DEPLOYMENT",
+            candidate_id=None,
+            amount_usd=Decimal("0"),
+            scarcity_event_id="scarcity-bad",
+            portfolio_state_sha256=invalid,
+            t19_ledger_sha256="sha256:" + "a" * 64,
+        )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="deployment settlement digest must be canonical SHA-256",
+    ):
+        CompoundCycleDeployment(
+            deployment_id="bad-deployment",
+            market_event_id="bad-market",
+            decision_id="decision-bad",
+            candidate_id="candidate-bad",
+            deployed_at=T0,
+            trader_id=TraderLineage.VT31_NAS100,
+            signal_fingerprint="signal-bad",
+            source_lot_id="source-lot",
+            deployed_lot_id="deployed-lot",
+            amount_usd=Decimal("1"),
+            source_generation=1,
+            stop_risk_usd=Decimal("0.1"),
+            margin_usd=Decimal("1"),
+            settled=True,
+            settlement_sha256=invalid,
         )

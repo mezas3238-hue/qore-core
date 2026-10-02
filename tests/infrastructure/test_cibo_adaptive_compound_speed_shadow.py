@@ -351,3 +351,94 @@ def test_genc8_empty_population_claims_nothing() -> None:
     assert report.decision_count == 0
     assert report.economic_utility_ready is False
     assert report.certification_ready is False
+
+
+def test_genc8_population_rejects_missing_range_or_account_on_populated_summary(
+    tmp_path,
+) -> None:
+    decision = evaluate_genc8_adaptive_compound_speed(
+        decision_id="genc8-population-integrity",
+        genc5=_genc5(),
+        regime=_regime(),
+        facts=_facts(),
+    )
+    store = DurableGenc8AdaptiveCompoundSpeedStore(
+        tmp_path / "genc8-population-integrity.json"
+    )
+    book = store.seal(
+        decision,
+        sealed_at=T0 + timedelta(seconds=2),
+        expected_generation=0,
+    )
+    report = describe_genc8_population(book=book)
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="populated summary requires decision range",
+    ):
+        replace(
+            report,
+            first_decision_at=None,
+            last_decision_at=None,
+        )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="populated summary requires account keys",
+    ):
+        replace(report, account_keys=())
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="calendar counts are inconsistent",
+    ):
+        replace(report, calendar_span_days=0)
+
+
+def test_genc8_empty_population_rejects_descriptive_residue() -> None:
+    report = describe_genc8_population(
+        book=VersionedGenc8ShadowBook(generation=0)
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="empty population carries descriptive residue",
+    ):
+        replace(
+            report,
+            first_decision_at=T0,
+            last_decision_at=T0,
+        )
+
+
+def test_genc8_decision_requires_exact_mandatory_fact_evidence() -> None:
+    decision = evaluate_genc8_adaptive_compound_speed(
+        decision_id="genc8-evidence-coverage",
+        genc5=_genc5(),
+        regime=_regime(),
+        facts=_facts(),
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="exact mandatory fact set",
+    ):
+        replace(
+            decision,
+            fact_evidence_sha256s=decision.fact_evidence_sha256s[:-1],
+        )
+
+
+def test_genc8_decision_rejects_non_bool_divergence_flag() -> None:
+    decision = evaluate_genc8_adaptive_compound_speed(
+        decision_id="genc8-divergence-type",
+        genc5=_genc5(),
+        regime=_regime(),
+        facts=_facts(),
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="divergence flag must be bool",
+    ):
+        replace(decision, treatment_differs_from_control=1)

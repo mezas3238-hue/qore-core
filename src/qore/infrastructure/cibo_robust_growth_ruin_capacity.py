@@ -222,6 +222,10 @@ class Genc9PathEvidence:
             raise CiboCompoundCapitalError(
                 "GEN-C9 minimum capital is inconsistent"
             )
+        if self.max_drawdown < self.initial_capital - self.minimum_capital:
+            raise CiboCompoundCapitalError(
+                "GEN-C9 max drawdown is inconsistent with minimum capital"
+            )
         if self.ruin_boundary > self.initial_capital:
             raise CiboCompoundCapitalError(
                 "GEN-C9 ruin boundary exceeds initial capital"
@@ -302,10 +306,120 @@ class Genc9CandidateSummary:
     certification_ready: bool = False
 
     def __post_init__(self) -> None:
-        if self.path_count <= 0 or self.path_count != len(self.scenario_ids):
+        if (
+            not self.candidate_id
+            or type(self.role) is not Genc9CandidateRole
+            or type(self.family) is not Genc9GrowthFamily
+            or type(self.numeraire) is not Genc9Numeraire
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C9 summary identity/role/family/numeraire drift"
+            )
+        if (
+            not isinstance(self.path_count, int)
+            or isinstance(self.path_count, bool)
+            or self.path_count <= 0
+            or not isinstance(self.scenario_ids, tuple)
+            or self.path_count != len(self.scenario_ids)
+            or any(
+                not isinstance(item, str) or not item
+                for item in self.scenario_ids
+            )
+            or len(self.scenario_ids) != len(set(self.scenario_ids))
+        ):
             raise CiboCompoundCapitalError(
                 "GEN-C9 summary path/scenario count drift"
             )
+        nonnegative_metrics = (
+            self.minimum_ending_capital,
+            self.median_ending_capital,
+            self.minimum_ending_multiple,
+            self.median_ending_multiple,
+            self.p95_max_drawdown,
+            self.p99_max_drawdown,
+            self.maximum_drawdown,
+            self.maximum_time_underwater_minutes,
+            self.p95_recovery_minutes,
+            self.empirical_scenario_ruin_frequency,
+            self.empirical_capacity_breach_frequency,
+            self.minimum_realized_capital,
+            self.maximum_peak_plausible_loss,
+        )
+        if any(
+            not isinstance(value, Decimal)
+            or not value.is_finite()
+            or value < 0
+            for value in nonnegative_metrics
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C9 summary metrics must be finite non-negative Decimals"
+            )
+        if (
+            not isinstance(
+                self.minimum_return_per_peak_plausible_loss,
+                Decimal,
+            )
+            or not self.minimum_return_per_peak_plausible_loss.is_finite()
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C9 summary return/loss metric must be finite Decimal"
+            )
+        if self.median_ending_capital < self.minimum_ending_capital:
+            raise CiboCompoundCapitalError(
+                "GEN-C9 summary ending-capital order drift"
+            )
+        if self.median_ending_multiple < self.minimum_ending_multiple:
+            raise CiboCompoundCapitalError(
+                "GEN-C9 summary ending-multiple order drift"
+            )
+        if not (
+            self.p95_max_drawdown
+            <= self.p99_max_drawdown
+            <= self.maximum_drawdown
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C9 summary drawdown quantile order drift"
+            )
+        for name in (
+            "ruin_path_count",
+            "capacity_breach_path_count",
+            "positive_ending_delta_paths",
+        ):
+            value = getattr(self, name)
+            if (
+                not isinstance(value, int)
+                or isinstance(value, bool)
+                or value < 0
+                or value > self.path_count
+            ):
+                raise CiboCompoundCapitalError(
+                    f"GEN-C9 summary {name} is invalid"
+                )
+        expected_ruin_frequency = (
+            Decimal(self.ruin_path_count) / Decimal(self.path_count)
+        )
+        expected_capacity_frequency = (
+            Decimal(self.capacity_breach_path_count)
+            / Decimal(self.path_count)
+        )
+        if (
+            self.empirical_scenario_ruin_frequency
+            != expected_ruin_frequency
+            or self.empirical_capacity_breach_frequency
+            != expected_capacity_frequency
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C9 summary empirical frequency/count drift"
+            )
+        for name in (
+            "empirical_frequency_is_market_probability",
+            "economic_value_demonstrated",
+            "certification_ready",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise CiboCompoundCapitalError(
+                    f"GEN-C9 summary {name} must be bool"
+                )
         if (
             self.empirical_frequency_is_market_probability
             or self.economic_value_demonstrated
@@ -338,10 +452,76 @@ class Genc9ResearchReport:
             raise CiboCompoundCapitalError(
                 "GEN-C9 report identity/control is required"
             )
+        if type(self.numeraire) is not Genc9Numeraire:
+            raise CiboCompoundCapitalError(
+                "GEN-C9 report numeraire is invalid"
+            )
+        if (
+            not isinstance(self.scenario_ids, tuple)
+            or not self.scenario_ids
+            or any(
+                not isinstance(item, str) or not item
+                for item in self.scenario_ids
+            )
+            or len(self.scenario_ids) != len(set(self.scenario_ids))
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C9 report scenario ids must be unique non-empty strings"
+            )
+        if (
+            not isinstance(self.summaries, tuple)
+            or not self.summaries
+            or any(
+                not isinstance(item, Genc9CandidateSummary)
+                for item in self.summaries
+            )
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C9 report summaries must be canonical non-empty tuple"
+            )
+        candidate_ids = tuple(item.candidate_id for item in self.summaries)
+        if len(candidate_ids) != len(set(candidate_ids)):
+            raise CiboCompoundCapitalError(
+                "GEN-C9 report candidate summaries must be unique"
+            )
+        controls = tuple(
+            item
+            for item in self.summaries
+            if item.role is Genc9CandidateRole.CONTROL
+        )
+        if (
+            len(controls) != 1
+            or controls[0].candidate_id != self.control_candidate_id
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C9 report control summary drift"
+            )
+        if any(
+            item.numeraire is not self.numeraire
+            or set(item.scenario_ids) != set(self.scenario_ids)
+            for item in self.summaries
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C9 report summary population/numeraire drift"
+            )
         if self.winner_candidate_id is not None:
             raise CiboCompoundCapitalError(
                 "GEN-C9 V1 cannot select a winner"
             )
+        for name in (
+            "weighted_score_used",
+            "production_policy_selected",
+            "economic_gate_preregistered",
+            "value_demonstrated",
+            "oos_pass",
+            "stress_pass",
+            "temporal_replication_pass",
+            "certification_ready",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise CiboCompoundCapitalError(
+                    f"GEN-C9 report {name} must be bool"
+                )
         if any(
             (
                 self.weighted_score_used,

@@ -12,6 +12,7 @@ from qore.infrastructure.cibo_compound_adversarial_stress import (
     CompoundStressKind,
     CompoundStressScenario,
     apply_compound_stress,
+    audit_compound_stress_family_coverage,
     run_compound_adversarial_stress,
 )
 from qore.infrastructure.cibo_compound_capital import CiboCompoundCapitalError
@@ -165,3 +166,28 @@ def test_stress_result_rejects_manual_episode_count_drift() -> None:
     ):
         replace(result, stressed_episode_count=2)
 
+
+
+def test_compound_stress_coverage_requires_all_frozen_families() -> None:
+    scenarios = tuple(_scenario(kind) for kind in CompoundStressKind)
+
+    report = audit_compound_stress_family_coverage(scenarios)
+
+    assert report.represented_kinds == tuple(
+        kind.value for kind in CompoundStressKind
+    )
+    assert report.scenario_count == len(tuple(CompoundStressKind))
+    assert report.all_frozen_stress_families_represented is True
+    assert report.market_probability_claimed is False
+    assert report.scientific_disposition_claimed is False
+    assert report.certification_ready is False
+
+
+def test_compound_stress_coverage_rejects_missing_frozen_family() -> None:
+    scenarios = tuple(_scenario(kind) for kind in CompoundStressKind)[:-1]
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="coverage is incomplete",
+    ):
+        audit_compound_stress_family_coverage(scenarios)

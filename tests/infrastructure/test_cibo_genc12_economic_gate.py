@@ -162,3 +162,28 @@ def test_genc12_row_rejects_manual_status_metric_drift() -> None:
     row = _gate(treatment).rows[1]
     with pytest.raises(CiboCapitalManagementError, match="status/metric drift"):
         replace(row, safety_no_worse=False)
+
+
+def test_genc12_rejects_non_decimal_or_nonfinite_crisis_metrics() -> None:
+    control = _observation(
+        candidate_id="control",
+        role=Genc12EconomicRole.CONTROL,
+    )
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="net delta must be finite Decimal",
+    ):
+        replace(control, net_delta_usd=1.0)
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="metrics must be finite non-negative Decimals",
+    ):
+        replace(control, maximum_drawdown_usd=Decimal("NaN"))
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="loss-cluster count must be non-negative int",
+    ):
+        replace(control, simultaneous_loss_cluster_count=True)

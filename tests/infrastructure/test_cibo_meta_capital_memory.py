@@ -236,3 +236,71 @@ def test_genc13_report_rejects_non_bool_governance_flag() -> None:
     ):
         replace(_report(), automatic_promotion=1)
 
+
+
+def test_genc13_report_cannot_contain_future_phenotype_evidence() -> None:
+    future = replace(
+        _phenotype(),
+        identified_at=T0 + timedelta(minutes=34),
+    )
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="future phenotype evidence",
+    ):
+        Genc13SkepticReport(
+            report_id="future-phenotype",
+            episode=_episode(),
+            phenotypes=(future,),
+            counterfactuals=(),
+            generated_at=T0 + timedelta(minutes=33),
+            hypothesis_worth_preregistering=False,
+        )
+
+
+def test_genc13_report_cannot_contain_future_counterfactual_evidence() -> None:
+    future = replace(
+        _counterfactual(),
+        created_at=T0 + timedelta(minutes=34),
+    )
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="future counterfactual evidence",
+    ):
+        Genc13SkepticReport(
+            report_id="future-counterfactual",
+            episode=_episode(),
+            phenotypes=(),
+            counterfactuals=(future,),
+            generated_at=T0 + timedelta(minutes=33),
+            hypothesis_worth_preregistering=False,
+        )
+
+
+def test_genc13_preregistration_claim_requires_counterfactual_evidence() -> None:
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="requires retrospective counterfactual evidence",
+    ):
+        Genc13SkepticReport(
+            report_id="phenotype-only-hypothesis",
+            episode=_episode(),
+            phenotypes=(_phenotype(),),
+            counterfactuals=(),
+            generated_at=T0 + timedelta(minutes=33),
+            hypothesis_worth_preregistering=True,
+        )
+
+
+def test_genc13_report_requires_canonical_evidence_tuples() -> None:
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="phenotype evidence must be canonical tuple",
+    ):
+        Genc13SkepticReport(
+            report_id="list-phenotypes",
+            episode=_episode(),
+            phenotypes=[_phenotype()],
+            counterfactuals=(_counterfactual(),),
+            generated_at=T0 + timedelta(minutes=33),
+            hypothesis_worth_preregistering=True,
+        )

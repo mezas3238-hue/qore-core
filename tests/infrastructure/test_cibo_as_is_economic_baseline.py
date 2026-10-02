@@ -367,3 +367,51 @@ def test_as_is_measurement_rejects_manual_frozen_identity_drift() -> None:
     ):
         replace(result, control_git_sha="0" * 40)
 
+
+
+def test_as_is_compound_population_digest_binds_provider_and_governance_lineage() -> None:
+    report = _report()
+    records = _compound_records(report)
+    baseline = materialize_as_is_economic_baseline(
+        report=report,
+        compound_records=records,
+    )
+
+    provider_changed = (
+        replace(records[0], provider_economics_sha256=_sha("8")),
+        *records[1:],
+    )
+    provider_variant = materialize_as_is_economic_baseline(
+        report=report,
+        compound_records=provider_changed,
+    )
+    assert (
+        baseline.compound_population_sha256
+        != provider_variant.compound_population_sha256
+    )
+
+    risk_changed = (
+        replace(records[0], risk_lineage_sha256=_sha("7")),
+        *records[1:],
+    )
+    risk_variant = materialize_as_is_economic_baseline(
+        report=report,
+        compound_records=risk_changed,
+    )
+    assert (
+        baseline.compound_population_sha256
+        != risk_variant.compound_population_sha256
+    )
+
+    release_changed = (
+        replace(records[0], release_evidence_sha256=_sha("6")),
+        *records[1:],
+    )
+    release_variant = materialize_as_is_economic_baseline(
+        report=report,
+        compound_records=release_changed,
+    )
+    assert (
+        baseline.compound_population_sha256
+        != release_variant.compound_population_sha256
+    )

@@ -190,6 +190,7 @@ class Genc11Genc13UtilityInput:
             if (
                 not self.prospective_memory_use_ablation
                 or self.memory_hypothesis_sha256 is None
+                or self.transition_uncertainty_calibrated
                 or self.transition_calibration_sha256 is not None
                 or self.transition_calibration_population_sha256 is not None
                 or self.transition_calibration_report is not None
@@ -233,9 +234,12 @@ class Genc11Genc13UtilityReport:
             raise CiboCompoundCapitalError(
                 "GEN-C11/13 utility wrapper workstream is invalid"
             )
-        if type(self.status) is not Genc9EconomicGateStatus:
+        if (
+            type(self.status) is not Genc9EconomicGateStatus
+            or self.status is Genc9EconomicGateStatus.CONTROL
+        ):
             raise CiboCompoundCapitalError(
-                "GEN-C11/13 utility wrapper status is invalid"
+                "GEN-C11/13 utility wrapper treatment status is invalid"
             )
         if (
             not isinstance(self.failed_dimensions, tuple)
@@ -269,6 +273,22 @@ class Genc11Genc13UtilityReport:
         if self.research_eligible and self.failed_dimensions:
             raise CiboCompoundCapitalError(
                 "GEN-C11/13 eligible result cannot carry failed dimensions"
+            )
+        if (
+            self.status
+            is Genc9EconomicGateStatus.REJECTED_SAFETY_DETERIORATION
+            and not self.failed_dimensions
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C11/13 safety rejection requires failed dimensions"
+            )
+        if (
+            self.status
+            is Genc9EconomicGateStatus.REJECTED_NO_STRICT_ECONOMIC_IMPROVEMENT
+            and self.failed_dimensions
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C11/13 no-improvement rejection cannot carry safety failures"
             )
         if (
             self.temporal_replication_claimed

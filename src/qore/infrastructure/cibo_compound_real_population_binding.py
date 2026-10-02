@@ -177,6 +177,15 @@ class ForwardCompoundEconomicRecord:
             raise CiboCompoundCapitalError(
                 "real compound population zero floor graduation cannot carry evidence"
             )
+        for name in (
+            "market_record_present",
+            "terminal_release_present",
+            "future_leakage_used",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise CiboCompoundCapitalError(
+                    f"real compound population {name} must be bool"
+                )
         if (
             not self.market_record_present
             or not self.terminal_release_present
@@ -201,6 +210,22 @@ def bind_forward_compound_population(
     _require_unique(records, "market_event_id")
     _require_unique(records, "decision_id")
     _require_four_non_overlapping_folds(records)
+    accounts = {
+        item.account_identity_fingerprint
+        for item in records
+    }
+    if len(accounts) != 1:
+        raise CiboCompoundCapitalError(
+            "real compound population cannot mix account identities"
+        )
+    manifests = {
+        item.source_manifest_sha256
+        for item in records
+    }
+    if len(manifests) != 1:
+        raise CiboCompoundCapitalError(
+            "real compound population cannot mix source manifests"
+        )
 
     ordered = tuple(
         sorted(

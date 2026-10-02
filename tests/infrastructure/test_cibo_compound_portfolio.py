@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -300,3 +301,70 @@ def test_compound_store_hash_chain_cas_restart_and_account_isolation(
         match="account identity mismatch",
     ):
         other.load()
+
+
+def test_compound_portfolio_rejects_orphan_gen_n_admission() -> None:
+    parent = _lot(lot_id="orphan-parent")
+    child = create_realized_profit_lot(
+        _evidence(evidence_id="orphan-child-evidence", profit="25"),
+        lot_id="orphan-child",
+        created_at=T0 + timedelta(seconds=2),
+        parent_lots=(parent,),
+    )
+    ledger = CompoundPortfolioLedger(account_identity=_identity())
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="parent lineage is missing from portfolio history",
+    ):
+        ledger.admit_realized_profit(
+            child,
+            event_id="admit-orphan-child",
+            occurred_at=T0 + timedelta(seconds=3),
+        )
+
+
+def test_compound_portfolio_rejects_generation_parent_mismatch() -> None:
+    parent = _lot(lot_id="known-parent")
+    ledger = CompoundPortfolioLedger(account_identity=_identity()).admit_realized_profit(
+        parent,
+        event_id="admit-known-parent",
+        occurred_at=T0 + timedelta(seconds=2),
+    )
+    child = create_realized_profit_lot(
+        _evidence(evidence_id="bad-generation-evidence", profit="25"),
+        lot_id="bad-generation-child",
+        created_at=T0 + timedelta(seconds=3),
+        parent_lots=(parent,),
+    )
+    drifted = replace(child, generation=3)
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="generation does not match parent lineage",
+    ):
+        ledger.admit_realized_profit(
+            drifted,
+            event_id="admit-bad-generation-child",
+            occurred_at=T0 + timedelta(seconds=4),
+        )
+
+
+def test_compound_lot_rejects_noncanonical_origin_deal_ids() -> None:
+    lot = _lot(lot_id="bad-deal-provenance")
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="origin deal ids must be unique positive ints",
+    ):
+        replace(lot, origin_deal_ids=(2001, -1))
+
+
+def test_compound_lot_rejects_blank_parent_ids() -> None:
+    lot = _lot(lot_id="bad-parent-provenance")
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="parent ids must be unique non-empty strings",
+    ):
+        replace(lot, parent_lot_ids=("",))
