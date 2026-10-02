@@ -42,6 +42,14 @@ Each row binds:
 
 The receipt is recomputed from canonical disposition content.
 
+The package that carries those dispositions must additionally bind:
+
+- the canonical Phase22 scientific manifest SHA256 used by both A1 and A2;
+- the A1 scientific-consumption manifest SHA256;
+- the canonical A1↔Phase22 bridge SHA256.
+
+A complete A1 handoff without those three identities is invalid.
+
 ## Governance
 
 A1 dispositions always preserve:
