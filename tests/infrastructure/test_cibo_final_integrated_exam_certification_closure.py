@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import importlib.util
 import json
+from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
-from dataclasses import replace
 
 import pytest
 
@@ -21,13 +21,13 @@ from qore.infrastructure.cibo_final_integrated_exam_certification_closure import
     build_cibo_certification_seal,
     promote_certification_candidate_after_seal,
 )
-from qore.infrastructure.cibo_world_cup_maximum_capability_exam_assembly import (
-    assemble_world_cup_control_package,
-    assess_assembled_world_cup_exam,
-)
 from qore.infrastructure.cibo_phase22_v4_governance import V4_CANDIDATE_ID
 from qore.infrastructure.cibo_scientific_closure_41 import (
     CANONICAL_PROVIDER_IDENTITY,
+)
+from qore.infrastructure.cibo_world_cup_maximum_capability_exam_assembly import (
+    assemble_world_cup_control_package,
+    assess_assembled_world_cup_exam,
 )
 
 _FINAL_FIXTURE_PATH = Path(__file__).with_name(
