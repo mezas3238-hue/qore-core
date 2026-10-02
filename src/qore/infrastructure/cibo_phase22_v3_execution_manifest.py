@@ -194,19 +194,18 @@ class Phase22V3ExecutionManifest:
             "production_authorized": False,
             "merge_authorized": False,
             "productive_authority": False,
-            "manifest_sha256": self.fingerprint(),
         }
-
-    def fingerprint(self) -> str:
-        payload = self.payload()
-        payload.pop("manifest_sha256", None)
         raw = json.dumps(
             payload,
             sort_keys=True,
             separators=(",", ":"),
             ensure_ascii=True,
         ).encode("utf-8")
-        return "sha256:" + sha256(raw).hexdigest()
+        payload["manifest_sha256"] = "sha256:" + sha256(raw).hexdigest()
+        return payload
+
+    def fingerprint(self) -> str:
+        return str(self.payload()["manifest_sha256"])
 
 
 def build_phase22_v3_execution_manifest() -> Phase22V3ExecutionManifest:
