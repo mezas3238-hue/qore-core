@@ -12,7 +12,7 @@ permissions:
 
 concurrency:
   group: qore-cibo-arch2-t11-market-impact-v3
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   queue-seal:
