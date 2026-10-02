@@ -45,6 +45,88 @@ def _pairs(value: object) -> dict[str, Decimal]:
     return result
 
 
+def _selection_blockers_by_trader(
+    execution: dict[str, Any],
+) -> dict[str, str]:
+    books = execution.get("books")
+    if not isinstance(books, dict):
+        raise ValueError("execution books missing")
+    evidence_book = books.get("holdout_evidence")
+    policy_book = books.get("holdout_policy")
+    if not isinstance(evidence_book, dict) or not isinstance(policy_book, dict):
+        raise ValueError("execution evidence/policy books missing")
+
+    evidence_by_sha: dict[str, dict[str, Any]] = {}
+    for row in evidence_book.get("decisions", []):
+        if not isinstance(row, dict):
+            continue
+        raw = json.loads(str(row["canonical_payload_json"]))
+        if not isinstance(raw, dict):
+            raise ValueError("holdout evidence payload must be object")
+        evidence_by_sha[str(row["evidence_sha256"])] = raw
+
+    reasons: dict[str, Counter[str]] = defaultdict(Counter)
+    for row in policy_book.get("decisions", []):
+        if not isinstance(row, dict):
+            continue
+        evidence = evidence_by_sha.get(str(row["evidence_sha256"]))
+        if evidence is None:
+            continue
+        selected = {str(item) for item in row.get("selected_signal_fingerprints", [])}
+        policy = json.loads(str(row["canonical_record_json"]))
+        if not isinstance(policy, dict):
+            raise ValueError("holdout policy payload must be object")
+        allocator = policy.get("allocator_decision", {})
+        if not isinstance(allocator, dict):
+            allocator = {}
+        allocation = allocator.get("allocation")
+        allocation_rows = (
+            allocation.get("rows", [])
+            if isinstance(allocation, dict)
+            else []
+        )
+        by_signal = {
+            str(item.get("signal_fingerprint")): item
+            for item in allocation_rows
+            if isinstance(item, dict)
+        }
+        regime = policy.get("full_surface", {}).get("regime", {})
+        if not isinstance(regime, dict):
+            regime = {}
+
+        for candidate_row in evidence.get("candidates", []):
+            if not isinstance(candidate_row, dict):
+                continue
+            candidate = candidate_row.get("candidate")
+            if not isinstance(candidate, dict):
+                continue
+            signal = str(candidate.get("signal_fingerprint", ""))
+            trader = str(candidate.get("trader_id", ""))
+            if not signal or not trader or signal in selected:
+                continue
+            allocation_row = by_signal.get(signal)
+            if isinstance(allocation_row, dict) and allocation_row.get("reason"):
+                reasons[trader][str(allocation_row["reason"])] += 1
+                continue
+            disposition = str(allocator.get("disposition", "NO_DISPOSITION"))
+            allocator_reason = str(
+                allocator.get("reason", "allocator withheld selection")
+            )
+            posture = str(regime.get("posture", "UNKNOWN"))
+            reasons[trader][
+                f"{disposition} under {posture}: {allocator_reason}"
+            ] += 1
+
+    result: dict[str, str] = {}
+    for trader, counter in reasons.items():
+        top = counter.most_common(3)
+        if top:
+            result[trader] = "; ".join(
+                f"{reason} ({count})" for reason, count in top
+            )
+    return result
+
+
 def build_reports(
     *,
     batch: dict[str, Any],
@@ -116,6 +198,7 @@ def build_reports(
     compound_entries = {
         str(k): int(v) for k, v in raw_compound_entries.items()
     }
+    selection_blockers = _selection_blockers_by_trader(execution)
 
     rows: list[dict[str, object]] = []
     for trader in TRADERS:
@@ -130,7 +213,13 @@ def build_reports(
         elif opportunities == 0:
             zero_reason = "NO_OPPORTUNITIES_EMITTED; lane diagnostic required"
         elif selected == 0:
-            zero_reason = "CIBO_SELECTED_ZERO; policy reason required"
+            zero_reason = (
+                "CIBO_SELECTED_ZERO; "
+                + selection_blockers.get(
+                    trader,
+                    "no canonical allocator reason recovered",
+                )
+            )
         elif rejected == selected:
             zero_reason = "QORE_RISK_REJECTED_ALL"
         else:
@@ -196,9 +285,16 @@ def build_reports(
     coverage = capability.get("cognitive_functional_coverage")
     if not isinstance(coverage, dict):
         raise ValueError("cognitive coverage missing")
-    coordinated = tuple(str(x) for x in coverage.get("coordinated_faculties", []))
-    for code in FACULTIES:
-        consulted = code in coordinated
+    coordinated = {
+        str(x) for x in coverage.get("coordinated_faculties", [])
+    }
+    mission_faculties = tuple(
+        str(x) for x in coverage.get("mission_faculties", [])
+    )
+    if len(mission_faculties) != len(FACULTIES):
+        raise ValueError("cognitive coverage requires exact 19 mission faculties")
+    for code, faculty_name in zip(FACULTIES, mission_faculties, strict=True):
+        consulted = faculty_name in coordinated
         function_rows.append(
             {
                 "function_code": code,
@@ -208,9 +304,10 @@ def build_reports(
                 "executed_count": 1 if consulted else 0,
                 "blocked_count": 0 if consulted else 1,
                 "reason": (
-                    "Mission Director + Functional Coordinator consultation recorded"
+                    f"{code}={faculty_name}; Mission Director + Functional "
+                    "Coordinator consultation recorded"
                     if consulted
-                    else "faculty consultation receipt missing"
+                    else f"{code}={faculty_name}; faculty consultation receipt missing"
                 ),
             }
         )
