@@ -1,0 +1,172 @@
+{
+  "schema": "qore.cibo.usd60-capability-exam-reporting-compound-freeze.v1",
+  "freeze_date": "2026-10-02",
+  "owner_directive": "Measure every Trader in columns, account for every CIBO function with reasons, and compare CIBO alone versus CIBO with Compound plus Compound Portfolio.",
+  "candidate_id": "CIBO_USD60_6M_HOLDOUT_2014-10-19_2015-04-19_V4",
+  "validation_mode": "NON_CERTIFYING_REUSED_HOLDOUT",
+  "canonical_traders": [
+    "VT08_FOREX",
+    "R34_XAUUSD",
+    "R38_EURUSD",
+    "R43_GBPUSD",
+    "R38_GBPJPY",
+    "R42_AUDJPY",
+    "VT31_NAS100"
+  ],
+  "economic_lanes": [
+    {
+      "lane_id": "MINIMAL_SEED_ONLY",
+      "role": "CONTROL_ONLY"
+    },
+    {
+      "lane_id": "FULL_CIBO_CORE",
+      "role": "CIBO_SOLO"
+    },
+    {
+      "lane_id": "FULL_CIBO_COMPOUND_PORTFOLIO",
+      "role": "CIBO_PLUS_COMPOUND_AND_PORTFOLIO_COMPOUND"
+    }
+  ],
+  "mandatory_comparisons": [
+    "FULL_CIBO_CORE_MINUS_MINIMAL_SEED_ONLY",
+    "FULL_CIBO_COMPOUND_PORTFOLIO_MINUS_FULL_CIBO_CORE",
+    "FULL_CIBO_COMPOUND_PORTFOLIO_MINUS_MINIMAL_SEED_ONLY"
+  ],
+  "trader_column_metrics": [
+    "raw_setups",
+    "opportunities_emitted",
+    "cibo_selected",
+    "risk_allowed",
+    "risk_reduced",
+    "risk_rejected",
+    "entries_executed",
+    "settlements",
+    "gross_structural_pnl_usd",
+    "provider_execution_cost_usd",
+    "net_realized_pnl_usd_MINIMAL_SEED_ONLY",
+    "net_realized_pnl_usd_FULL_CIBO_CORE",
+    "net_realized_pnl_usd_FULL_CIBO_COMPOUND_PORTFOLIO",
+    "compound_incremental_pnl_usd",
+    "trading_days",
+    "zero_entry_reason"
+  ],
+  "cibo_function_accountability": {
+    "cognitive_faculties": [
+      "CF01",
+      "CF02",
+      "CF03",
+      "CF04",
+      "CF05",
+      "CF06",
+      "CF07",
+      "CF08",
+      "CF09",
+      "CF10",
+      "CF11",
+      "CF12",
+      "CF13",
+      "CF14",
+      "CF15",
+      "CF16",
+      "CF17",
+      "CF18",
+      "CF19"
+    ],
+    "ce2i_tools": [
+      "T01",
+      "T02",
+      "T03",
+      "T04",
+      "T05",
+      "T06",
+      "T07",
+      "T08",
+      "T09",
+      "T10",
+      "T11",
+      "T12",
+      "T13",
+      "T14",
+      "T15",
+      "T16",
+      "T17",
+      "T18",
+      "T19",
+      "T20"
+    ],
+    "compound_surfaces": [
+      "GEN-C1_COMPOUND_CAPITAL",
+      "GEN-C3_CORE_COMPOUND_PORTFOLIO",
+      "GEN-C5_SEQUENTIAL_COMPOUNDING",
+      "GEN-C6_INTERNAL_CAPITAL_MARKET"
+    ],
+    "required_fields": [
+      "function_code",
+      "status",
+      "eligible_epochs",
+      "executed_count",
+      "blocked_count",
+      "reason"
+    ],
+    "allowed_statuses": [
+      "APPLIED",
+      "FAIL_CLOSED",
+      "REGIME_BLOCKED",
+      "JUSTIFIED_NOT_APPLICABLE",
+      "NOT_EXECUTED",
+      "NOT_INTEGRATED"
+    ],
+    "reason_required_when_not_applied": true,
+    "not_integrated_blocks_exam": true
+  },
+  "compound_comparison_law": {
+    "identical_trader_population": true,
+    "identical_market_data": true,
+    "identical_provider_economics": true,
+    "identical_outcome_schedule": true,
+    "identical_qore_risk_sovereignty": true,
+    "trader_edge_unchanged": true,
+    "no_outcome_aware_tuning": true,
+    "no_posthoc_treatment_selection": true,
+    "realized_profit_only_for_compound_funding": true,
+    "floating_pnl_forbidden_as_funding": true,
+    "double_spend_forbidden": true,
+    "capital_conservation_required": true,
+    "compound_increment_is_measured_separately": true
+  },
+  "fail_closed_gates": [
+    "EXACT_7_TRADER_COLUMNS",
+    "EVERY_TRADER_HAS_POPULATION_DIAGNOSTIC",
+    "SETUPS_WITH_ZERO_EPISODE_MATCH_FAILS",
+    "ZERO_ENTRY_REQUIRES_EXPLICIT_REASON",
+    "CF01_CF19_ACCOUNTED",
+    "T01_T20_ACCOUNTED",
+    "COMPOUND_SURFACES_ACCOUNTED",
+    "CIBO_SOLO_METRICS_PRESENT",
+    "CIBO_COMPOUND_PORTFOLIO_METRICS_PRESENT",
+    "COMPOUND_INCREMENT_COMPUTED",
+    "ACCOUNTING_RESIDUAL_ZERO",
+    "NO_BROKER_MUTATION",
+    "NO_LIVE",
+    "NO_REAL_CAPITAL",
+    "NO_PRODUCTION",
+    "NO_MERGE_AUTHORITY"
+  ],
+  "mandatory_artifacts": [
+    "trader-column-report.csv",
+    "trader-column-report.json",
+    "cibo-function-accountability.csv",
+    "cibo-function-accountability.json",
+    "economic-lane-comparison.csv",
+    "economic-lane-comparison.json",
+    "capability-exam-report.json",
+    "execution-report.json"
+  ],
+  "scientific_freshness_claimed": false,
+  "fresh_oos_generalization_claimed": false,
+  "broker_mutation_authorized": false,
+  "live_authorized": false,
+  "real_capital_authorized": false,
+  "production_authorized": false,
+  "merge_authorized": false
+}
