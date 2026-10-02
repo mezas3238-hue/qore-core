@@ -231,11 +231,6 @@ def run_compound_portfolio_lane(
     selected = allowed = reduced = rejected = cross_trader = 0
 
     outcomes = {item.signal_fingerprint: item for item in plan.outcome_events}
-    candidates = {
-        item.signal_fingerprint: item
-        for epoch in plan.epochs
-        for item in epoch.candidates
-    }
     core_settlements = sorted(
         core_execution.books.cma_settlement.settlements,
         key=lambda item: (item.capital_released_at, item.signal_fingerprint),
