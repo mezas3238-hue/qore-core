@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -210,22 +211,32 @@ class CTraderDemoFreePositionService:
         if observed_at is not None:
             _aware(observed_at, "observed_at")
         account_id = self._client.account_id
-        trader_res = self._request(
-            "ProtoOATraderReq",
-            {"ctidTraderAccountId": account_id},
-            client_msg_id="qore-demo-free-account",
-        )
+        self._ready()
+        with ThreadPoolExecutor(
+            max_workers=2,
+            thread_name_prefix="qore-ctrader-demo-account",
+        ) as executor:
+            trader_future = executor.submit(
+                self._request,
+                "ProtoOATraderReq",
+                {"ctidTraderAccountId": account_id},
+                client_msg_id="qore-demo-free-account",
+            )
+            pnl_future = executor.submit(
+                self._request,
+                "ProtoOAGetPositionUnrealizedPnLReq",
+                {"ctidTraderAccountId": account_id},
+                client_msg_id="qore-demo-free-unrealized-pnl",
+            )
+            trader_res = trader_future.result()
+            pnl_res = pnl_future.result()
+
         trader = getattr(trader_res, "trader", None)
         if trader is None:
             raise CTraderDemoFreePositionError("cTrader trader response missing account")
         digits = getattr(trader, "moneyDigits", 0)
         balance = _money(getattr(trader, "balance", None), digits, "balance")
 
-        pnl_res = self._request(
-            "ProtoOAGetPositionUnrealizedPnLReq",
-            {"ctidTraderAccountId": account_id},
-            client_msg_id="qore-demo-free-unrealized-pnl",
-        )
         pnl_digits = getattr(pnl_res, "moneyDigits", 0)
         gross = Decimal("0")
         net = Decimal("0")
@@ -531,3 +542,5 @@ class CTraderDemoFreePositionService:
                 )
             )
         return tuple(sorted(rows, key=lambda item: (item.executed_at, item.deal_id)))
+
+[executed on device: vps-vrix (dc465c7d-1698-4cb8-921f-a008b11315c7)]
