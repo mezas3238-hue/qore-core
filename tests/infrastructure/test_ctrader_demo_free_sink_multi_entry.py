@@ -6,7 +6,22 @@ from pathlib import Path
 from threading import Lock
 from types import SimpleNamespace
 
-from qore.infrastructure.account_wide_risk import CiboRiskRequest, TraderLineage
+from qore.infrastructure.account_wide_risk import (
+    AccountRiskSnapshot,
+    CiboCapitalProvenanceLot,
+    CiboRiskRequest,
+    TraderLineage,
+)
+from qore.infrastructure.account_wide_risk_ledger import (
+    DurableAccountWideRiskEngine,
+    DurableAccountWideRiskLedger,
+)
+from qore.infrastructure.cibo_ce2i_phase20_demo_risk_bridge import (
+    authorize_phase20_demo_request,
+)
+from qore.infrastructure.cibo_ce2i_phase20_demo_shadow_risk import (
+    CiboDemoCapabilitySolvencyBudget,
+)
 from qore.infrastructure.ctrader_demo_allocation_only import equal_active_trader_allocations
 from qore.infrastructure.ctrader_demo_free_sink import CTraderDemoFreeSink
 from qore.kernel.result import Success
@@ -48,6 +63,12 @@ class _Positions:
         )
 
 
+class _Behavior:
+    @staticmethod
+    def record_raw(payload, *, source: str) -> None:
+        del payload, source
+
+
 class _Registry:
     def __init__(self) -> None:
         self.entries: list[object] = []
@@ -75,7 +96,14 @@ def _request(sequence: int, volume: str) -> CiboRiskRequest:
         margin_per_volume=Decimal("1000"),
         requested_at=NOW,
         expires_at=NOW + timedelta(minutes=5),
-        strategy_requested_risk_usd=Decimal("50"),
+        strategy_requested_risk_usd=None,
+        capital_provenance=(
+            CiboCapitalProvenanceLot(
+                source_kind="ORIGINAL_BASE_CAPITAL",
+                source_id=f"demo-base-{sequence}",
+                amount_usd=Decimal(volume) * Decimal("500"),
+            ),
+        ),
     )
 
 
@@ -93,6 +121,7 @@ def _sink(tmp_path: Path) -> tuple[CTraderDemoFreeSink, _Runtime]:
     object.__setattr__(sink, "_runtime", runtime)
     object.__setattr__(sink, "_positions", _Positions())
     object.__setattr__(sink, "_registry", _Registry())
+    object.__setattr__(sink, "_behavior", _Behavior())
     object.__setattr__(
         sink,
         "_source_contract_sizes",
@@ -108,12 +137,44 @@ def test_same_trader_open_position_does_not_block_second_or_third_cibo_entry(
     tmp_path: Path,
 ) -> None:
     sink, runtime = _sink(tmp_path)
-
-    results = (
-        sink.submit(_request(1, "0.10"), now=NOW),
-        sink.submit(_request(2, "0.20"), now=NOW + timedelta(seconds=1)),
-        sink.submit(_request(3, "0.30"), now=NOW + timedelta(seconds=2)),
+    risk = DurableAccountWideRiskEngine(
+        DurableAccountWideRiskLedger(tmp_path / "risk.json")
     )
+    snapshot = AccountRiskSnapshot(
+        account_binding_id="demo-multi-entry",
+        equity=Decimal("100000"),
+        margin_used=Decimal("0"),
+        free_margin=Decimal("100000"),
+        open_stop_worst_case_loss=Decimal("0"),
+        open_floating_loss=Decimal("0"),
+        pending_broker_worst_case_loss=Decimal("0"),
+        qore_authorizable_headroom=Decimal("100000"),
+        provider_budget=CiboDemoCapabilitySolvencyBudget(
+            provider_headroom=Decimal("100000"),
+            max_risk_at_any_time=Decimal("100000"),
+            active_mll=Decimal("0"),
+            hard_breach=False,
+        ),
+        reconciled_at=NOW,
+    )
+
+    results = []
+    for sequence, volume in ((1, "0.10"), (2, "0.20"), (3, "0.30")):
+        request = _request(sequence, volume)
+        decision = authorize_phase20_demo_request(
+            risk=risk,
+            request=request,
+            snapshot=snapshot,
+            observed_at=NOW + timedelta(seconds=sequence),
+        )
+        assert decision.execution_request is not None
+        results.append(
+            sink.submit(
+                request,
+                risk_authorization=decision.authorization,
+                now=NOW + timedelta(seconds=sequence),
+            )
+        )
 
     assert [item.state for item in results] == ["SUBMITTED", "SUBMITTED", "SUBMITTED"]
     assert [item.requested_volume for item in results] == [
