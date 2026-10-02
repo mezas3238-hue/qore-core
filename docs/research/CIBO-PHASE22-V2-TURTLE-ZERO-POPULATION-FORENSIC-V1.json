@@ -1,0 +1,102 @@
+{
+  "schema": "qore.cibo.phase22.turtle-zero-population-forensic.v1",
+  "candidate_id": "CIBO_USD60_6M_HOLDOUT_2015-10-19_2016-04-19_V2",
+  "source_run_id": 37007253157,
+  "source_run_attempt": 1,
+  "requested_window": {
+    "start": "2015-10-19T00:00:00+00:00",
+    "end_exclusive": "2016-04-19T00:00:00+00:00"
+  },
+  "lanes": [
+    {
+      "trader_id": "R34_XAUUSD",
+      "artifact_id": 11225958661,
+      "artifact_digest": "sha256:d67ba0566a10b1cbb8d232f403333444c0a7bdd397f25cf5c98b11513214c0ab",
+      "report_identity": "TURTLE_SOUP_XAUUSD_R34_FROZEN_R33_5Y_VALIDATION_V1",
+      "retained_bars": 35034,
+      "setups_emitted": 0,
+      "geometry_rows": 0,
+      "geometry_file_bytes": 0,
+      "geometry_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "trader_id": "R38_EURUSD",
+      "artifact_id": 11226172630,
+      "artifact_digest": "sha256:9a8443f9f62e8259f541de6a359dc6f505dad4501e78800dd0eea0db328cfd3a",
+      "report_identity": "TURTLE_SOUP_EURUSD_R38_5Y_STRUCTURAL_RISK_CORRECTION_V1",
+      "retained_bars": 37262,
+      "setups_emitted": 0,
+      "geometry_rows": 0,
+      "geometry_file_bytes": 0,
+      "geometry_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "trader_id": "R43_GBPUSD",
+      "artifact_id": 11226556570,
+      "artifact_digest": "sha256:203e3cfb32bbd61af480452696121f6f09e9420854afb722486a701058a13c2f",
+      "report_identity": "CIBO_PHASE18_GBPUSD_R39_GEOMETRY_REPLAY_V1",
+      "retained_bars": 37260,
+      "setups_emitted": 0,
+      "geometry_rows": 0,
+      "geometry_file_bytes": 0,
+      "geometry_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "trader_id": "R38_GBPJPY",
+      "artifact_id": 11226766076,
+      "artifact_digest": "sha256:10a37a616b584eee061ed3f0115f8c5515d5dd510e6fa6111878f9d1f638f872",
+      "report_identity": "CIBO_PHASE18_GBPJPY_R37_GEOMETRY_REPLAY_V1",
+      "retained_bars": 37260,
+      "setups_emitted": 0,
+      "geometry_rows": 0,
+      "geometry_file_bytes": 0,
+      "geometry_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "trader_id": "R42_AUDJPY",
+      "artifact_id": 11226102979,
+      "artifact_digest": "sha256:86dfb68cea7e21009f98bb55642c08995d9b59cd2a0e76db0148557f7b501db4",
+      "report_identity": "TURTLE_SOUP_AUDJPY_R40_FROZEN_R39_5Y_VALIDATION_V1",
+      "retained_bars": 37260,
+      "setups_emitted": 0,
+      "geometry_rows": 0,
+      "geometry_file_bytes": 0,
+      "geometry_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "common_observations": {
+    "requested_window_was_written_to_root_report": true,
+    "source_report_fresh_holdout_flag": false,
+    "source_setup_count_zero_for_all_five_lanes": true,
+    "serialized_geometry_empty_for_all_five_lanes": true,
+    "historical_five_year_diagnostics_remained_in_source_reports": true
+  },
+  "root_cause": {
+    "classification": "FRESH_WINDOW_PROPAGATION_DEFECT",
+    "detail": "The Phase22 adapter changed only the loaded root replay module EVAL_OPEN/EVAL_CLOSE. Frozen Turtle run() functions build their setup population through imported r3._build_setups after assigning r1.EVAL_OPEN/EVAL_CLOSE from r3.EVAL_OPEN/EVAL_CLOSE. The subordinate r3 window therefore remained on the historical 2021-09-17 to 2026-09-17 validation interval while the immutable source corpus was 2015-10-19 to 2016-04-19.",
+    "outcome_aware_inference_used": false,
+    "realized_r_used_for_diagnosis": false
+  },
+  "remediation": {
+    "repair_branch": "agent/cibo-phase22-turtle-window-integrity-001",
+    "bind_root_and_subordinate_setup_windows": true,
+    "preserve_strategy_methodology": true,
+    "rerun_v2_authorized": false,
+    "second_fresh_execution_authorized": false,
+    "v2_population_regeneration_authorized": false,
+    "future_attempt_requires_new_governance": true
+  },
+  "phase22_v2_truth": {
+    "one_shot_consumed": true,
+    "qualification_status": "INVALID",
+    "invalid_result_overridden": false,
+    "certification_claimed": false
+  },
+  "governance": {
+    "broker_mutation": false,
+    "live_authorized": false,
+    "real_capital_authorized": false,
+    "production_authorized": false,
+    "merge_authorized": false
+  }
+}
