@@ -360,3 +360,34 @@ def test_compound_mc_result_rejects_invalid_ending_generation_capacity() -> None
             result,
             ending_generation_capacity_usd=((1, Decimal("-1")),),
         )
+
+
+def test_compound_mc_result_rejects_minimum_above_ending_capital() -> None:
+    episode = _episode(
+        episode_id="min-vs-ending",
+        start_minute=0,
+        duration_minutes=5,
+        generation=1,
+        deployed="5",
+        pnl="2",
+    )
+    summary = run_compound_path_monte_carlo(
+        initial=_initial(),
+        episodes=(episode,),
+        simulations=1,
+        draws_per_path=1,
+        components_per_block=1,
+        base_seed=23,
+    )
+    result = summary.results[0]
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="minimum realized capital exceeds ending capital",
+    ):
+        replace(
+            result,
+            minimum_realized_capital_usd=(
+                result.ending_realized_capital_usd + Decimal("1")
+            ),
+        )
