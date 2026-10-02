@@ -13,11 +13,13 @@ from qore.infrastructure.cibo_arch2_active_scope_v2 import (
 class Architect2ActiveState(StrEnum):
     TERMINAL_RECOMMENDATION_READY = "TERMINAL_RECOMMENDATION_READY"
     PARTIAL_EVIDENCE_READY = "PARTIAL_EVIDENCE_READY"
+    EMPIRICAL_PROVIDER_RUN_IN_PROGRESS = "EMPIRICAL_PROVIDER_RUN_IN_PROGRESS"
     FROZEN_GATE_WAITING_POPULATION = "FROZEN_GATE_WAITING_POPULATION"
     WAITING_ON_AUTHORITATIVE_FORWARD_LIFECYCLE = (
         "WAITING_ON_AUTHORITATIVE_FORWARD_LIFECYCLE"
     )
     WAITING_ON_INTEGRATOR_RECEIPT = "WAITING_ON_INTEGRATOR_RECEIPT"
+    BLOCKED_ON_PROVIDER_CONTAINMENT = "BLOCKED_ON_PROVIDER_CONTAINMENT"
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,8 +54,9 @@ def architect2_active_frontier_v2() -> tuple[Architect2ActiveFront, ...]:
             workstream_id="T02",
             state=Architect2ActiveState.WAITING_ON_AUTHORITATIVE_FORWARD_LIFECYCLE,
             remaining_requirement=(
-                "LIFECYCLE_INTAKE_READY__POST_FREEZE_EXPLICIT_TERMINAL_REASON_"
-                "POPULATION_THEN_PROVIDER_BOUND_ECONOMIC_ABLATION"
+                "AUTHORITATIVE_FORWARD_LIFECYCLE_POPULATION_WITH_EXACT_"
+                "T02_PROVIDER_POSITION_BINDING_THEN_PROVIDER_BOUND_ECONOMIC_"
+                "ABLATION"
             ),
         ),
         Architect2ActiveFront(
@@ -64,12 +67,9 @@ def architect2_active_frontier_v2() -> tuple[Architect2ActiveFront, ...]:
         ),
         Architect2ActiveFront(
             workstream_id="T11",
-            state=Architect2ActiveState.FROZEN_GATE_WAITING_POPULATION,
-            remaining_requirement=(
-                "AUTHORIZED_FORWARD_MANIFEST_FOR_GROSS_EDGE_PLUS_"
-                "RUNNER_CONTRACT_READY_THEN_FROZEN_144_EPISODE_216_CHILD_"
-                "MARKET_IMPACT_POPULATION"
-            ),
+            state=Architect2ActiveState.TERMINAL_RECOMMENDATION_READY,
+            remaining_requirement="INTEGRATOR_EVIDENCE_AUDIT",
+            proposed_terminal_disposition="FALSIFIED_AND_CLOSED",
         ),
         Architect2ActiveFront(
             workstream_id="T16",
@@ -81,8 +81,9 @@ def architect2_active_frontier_v2() -> tuple[Architect2ActiveFront, ...]:
             workstream_id="T20",
             state=Architect2ActiveState.WAITING_ON_AUTHORITATIVE_FORWARD_LIFECYCLE,
             remaining_requirement=(
-                "QUALIFIER_READY__REAL_CIBO_TO_RISK_TO_EXECUTION_TO_SETTLEMENT_"
-                "TO_RELEASE_POPULATION"
+                "ARCH_B_FORWARD_ECONOMIC_MANIFEST_READY_WITH_REAL_CIBO_TO_RISK_"
+                "TO_EXECUTION_TO_SETTLEMENT_TO_RELEASE_POPULATION_AND_FROZEN_"
+                "FOLD_LINEAGE_GATES"
             ),
         ),
         Architect2ActiveFront(
@@ -100,7 +101,10 @@ def architect2_active_frontier_v2() -> tuple[Architect2ActiveFront, ...]:
         Architect2ActiveFront(
             workstream_id="FRESH_OOS",
             state=Architect2ActiveState.WAITING_ON_INTEGRATOR_RECEIPT,
-            remaining_requirement="AUTHORIZED_PHASE22_V2_FRESH_OUTCOME_RECEIPT",
+            remaining_requirement=(
+                "AUTHORIZED_PHASE22_V2_FRESH_OUTCOME_RECEIPT_WITH_EXACT_"
+                "OUTCOME_BUNDLE_TO_QUALIFICATION_BINDING"
+            ),
         ),
     )
     if tuple(item.workstream_id for item in rows) != ARCHITECT2_ACTIVE_OWNERSHIP:
