@@ -52,27 +52,49 @@ jobs:
           mypy src/qore/infrastructure/cibo_phase22_one_shot_source_preflight.py scripts/cibo_phase22_one_shot_source_preflight.py src/qore/infrastructure/cibo_phase22_turtle_auxiliary_manifest.py scripts/cibo_phase22_turtle_auxiliary_manifest.py
           pytest -q --no-cov tests/infrastructure/test_cibo_phase22_one_shot_source_preflight.py tests/infrastructure/test_cibo_phase22_turtle_auxiliary_manifest.py
 
-      - name: Confirm pre-claim guard without fresh outcome authority
+      - name: Confirm one-shot lifecycle guard without fresh replay authority
+        id: guard
         run: |
           mkdir -p preflight
           python - <<'PY'
           import json
+          import os
           from pathlib import Path
           from qore.infrastructure.cibo_phase22_one_shot_guard import (
               Phase22OneShotGuardStatus,
               assess_phase22_one_shot_guard,
           )
           guard = assess_phase22_one_shot_guard()
-          assert guard.status is Phase22OneShotGuardStatus.READY
-          assert guard.blockers == ()
-          assert guard.authorized_to_create_durable_claim is True
-          assert guard.authorized_to_emit_first_fresh_outcome is False
+          if guard.status is Phase22OneShotGuardStatus.READY:
+              assert guard.blockers == ()
+              assert guard.authorized_to_create_durable_claim is True
+              assert guard.authorized_to_emit_first_fresh_outcome is False
+              should_preflight = True
+          elif guard.status in {
+              Phase22OneShotGuardStatus.CLAIMED,
+              Phase22OneShotGuardStatus.CONSUMED,
+          }:
+              assert guard.execution_claimed is True
+              assert guard.authorized_to_create_durable_claim is False
+              assert guard.authorized_to_emit_first_fresh_outcome is False
+              should_preflight = False
+          else:
+              raise SystemExit(
+                  f"unexpected Phase22 one-shot guard state: {guard.status}"
+              )
           Path("preflight/guard.json").write_text(
               json.dumps(guard.payload(), indent=2, sort_keys=True) + "\n"
           )
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
+              handle.write(
+                  "should_preflight="
+                  + ("true" if should_preflight else "false")
+                  + "\n"
+              )
           PY
 
       - name: Verify immutable Turtle auxiliary artifacts still exist
+        if: steps.guard.outputs.should_preflight == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -87,6 +109,7 @@ jobs:
           done < preflight/turtle-auxiliary-manifest.tsv
 
       - name: Download and verify all ten immutable V2 source archives
+        if: steps.guard.outputs.should_preflight == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -118,10 +141,12 @@ jobs:
           done < preflight/source-manifest.tsv
 
       - name: Validate source corpus identities without Trader execution
+        if: steps.guard.outputs.should_preflight == 'true'
         run: |
           python scripts/cibo_phase22_one_shot_source_preflight.py             --sources-root sources             --output preflight/source-preflight.json
 
       - name: Materialize exact frozen replay programs without execution
+        if: steps.guard.outputs.should_preflight == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -164,6 +189,7 @@ jobs:
           done < preflight/frozen-replay-sources.tsv
 
       - name: Validate frozen VT31 identity without fresh execution
+        if: steps.guard.outputs.should_preflight == 'true'
         run: |
           python scripts/cibo_phase22_vt31_v4_fresh_runner.py             --frozen-root frozen/VT31_NAS100             --self-check > preflight/vt31-self-check.json
 
