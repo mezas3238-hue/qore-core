@@ -102,7 +102,10 @@ def architect2_active_frontier_v2() -> tuple[Architect2ActiveFront, ...]:
         Architect2ActiveFront(
             workstream_id="FRESH_OOS",
             state=Architect2ActiveState.WAITING_ON_INTEGRATOR_RECEIPT,
-            remaining_requirement="AUTHORIZED_PHASE22_V2_FRESH_OUTCOME_RECEIPT",
+            remaining_requirement=(
+                "AUTHORIZED_PHASE22_V2_FRESH_OUTCOME_RECEIPT_WITH_EXACT_"
+                "OUTCOME_BUNDLE_TO_QUALIFICATION_BINDING"
+            ),
         ),
     )
     if tuple(item.workstream_id for item in rows) != ARCHITECT2_ACTIVE_OWNERSHIP:
