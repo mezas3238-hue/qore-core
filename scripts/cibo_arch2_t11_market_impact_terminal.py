@@ -8,13 +8,13 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
-from qore.infrastructure.cibo_arch2_t11_market_impact_terminal_receipt import (
-    build_t11_market_impact_terminal_receipt,
+from qore.infrastructure.cibo_arch2_t11_v3_terminal_receipt import (
+    build_t11_v3_terminal_receipt,
 )
 
 
 def build_terminal_payload(report: dict[str, Any]) -> dict[str, object]:
-    receipt = build_t11_market_impact_terminal_receipt(report)
+    receipt = build_t11_v3_terminal_receipt(report)
     payload = asdict(receipt)
     payload["four_of_four_by_symbol"] = [
         [symbol, passed]
