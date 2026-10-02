@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from qore.infrastructure.cibo_phase22_execution_manifest import (
     build_phase22_execution_manifest,
 )
@@ -14,8 +16,25 @@ from qore.infrastructure.cibo_phase22_one_shot_guard import (
 )
 
 
-def test_one_shot_guard_accepts_frozen_dual_evidence_without_fake_history() -> None:
+def test_one_shot_guard_reflects_canonical_consumed_truth() -> None:
     assessment = assess_phase22_one_shot_guard()
+
+    assert assessment.status is Phase22OneShotGuardStatus.CONSUMED
+    assert assessment.execution_claimed is True
+    assert assessment.fresh_outcomes_already_emitted is True
+    assert assessment.authorized_to_create_durable_claim is False
+    assert assessment.authorized_to_emit_first_fresh_outcome is False
+    assert assessment.productive_authority is False
+    assert len(assessment.store_paths) == 5
+
+
+def test_one_shot_guard_ready_fixture_without_canonical_receipt() -> None:
+    with patch(
+        "qore.infrastructure.cibo_phase22_one_shot_guard."
+        "load_phase22_execution_consumption_receipt",
+        return_value=None,
+    ):
+        assessment = assess_phase22_one_shot_guard()
 
     assert assessment.status is Phase22OneShotGuardStatus.READY
     assert EXECUTION_ECONOMICS_BLOCKER not in assessment.blockers
