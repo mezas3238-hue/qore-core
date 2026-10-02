@@ -17,5 +17,6 @@
   "real_capital_authorized": false,
   "production_authorized": false,
   "merge_authorized": false,
-  "productive_authority": false
+  "productive_authority": false,
+  "recovery_retry": "PRESERVED_DURABLE_CLAIM_EVIDENCE_V2"
 }
