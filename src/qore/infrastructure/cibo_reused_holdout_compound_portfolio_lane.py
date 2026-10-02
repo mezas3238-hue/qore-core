@@ -451,6 +451,7 @@ def run_compound_portfolio_lane(
             if any(item != candidate.trader_id for item in source_snapshot):
                 cross_trader += 1
             risk_engine.record_full_fill(auth.authorization_id)
+            risk_engine.reconcile_fill(auth.authorization_id)
             open_rows[signal] = _Open(
                 signal_fingerprint=signal,
                 trader_id=candidate.trader_id,
@@ -466,12 +467,8 @@ def run_compound_portfolio_lane(
                 ),
                 source_traders_before_entry=source_snapshot,
             )
-            risk_engine.record_full_fill(auth.authorization_id)
-            risk_engine.reconcile_fill(auth.authorization_id)
-            # The open position is now represented explicitly in open_rows and
+            # The open position is represented explicitly in open_rows and
             # therefore in subsequent AccountRiskSnapshot open-risk/margin.
-            # Release only QORE's fill shadow to avoid expiry-driven double state.
-            risk_engine.reconcile_fill(auth.authorization_id)
 
     if core_settlements or open_rows:
         final_clock = max(
