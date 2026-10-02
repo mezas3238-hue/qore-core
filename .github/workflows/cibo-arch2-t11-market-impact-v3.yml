@@ -39,7 +39,7 @@ jobs:
         run: |
           ruff check             scripts/cibo_arch2_t11_market_impact_demo.py             scripts/cibo_arch2_t11_global_containment_audit.py             src/qore/infrastructure/cibo_arch2_t11_market_impact_evaluator.py             src/qore/infrastructure/cibo_arch2_t11_nonlinear_input_freeze.py             src/qore/infrastructure/cibo_arch2_t11_runner_readiness.py             src/qore/infrastructure/cibo_arch2_t11_experiment_plan.py             src/qore/infrastructure/cibo_arch2_t11_post_containment_cycle_v3.py             tests/infrastructure/test_cibo_arch2_t11_market_impact_demo.py             tests/infrastructure/test_cibo_arch2_t11_post_containment_cycle_v3.py
           mypy --disable-error-code=import-untyped             scripts/cibo_arch2_t11_market_impact_demo.py             scripts/cibo_arch2_t11_global_containment_audit.py             src/qore/infrastructure/cibo_arch2_t11_market_impact_evaluator.py             src/qore/infrastructure/cibo_arch2_t11_nonlinear_input_freeze.py             src/qore/infrastructure/cibo_arch2_t11_post_containment_cycle_v3.py
-          pytest -q --no-cov             tests/infrastructure/test_cibo_arch2_t11_market_impact_demo.py             tests/infrastructure/test_cibo_arch2_t11_market_impact_evaluator.py             tests/infrastructure/test_cibo_arch2_t11_runner_readiness.py             tests/infrastructure/test_cibo_arch2_t11_experiment_plan.py             tests/infrastructure/test_cibo_arch2_t11_post_containment_cycle_v3.py             tests/infrastructure/test_cibo_arch2_t11_global_containment_audit.py
+          pytest -q --no-cov             tests/infrastructure/test_cibo_arch2_t11_market_impact_demo.py             tests/infrastructure/test_cibo_arch2_t11_market_impact_evaluator.py             tests/infrastructure/test_cibo_arch2_t11_runner_readiness.py             tests/infrastructure/test_cibo_arch2_t11_experiment_plan.py             tests/infrastructure/test_cibo_arch2_t11_post_containment_cycle_v3.py             tests/infrastructure/test_cibo_arch2_t11_v3_retry_claim.py             tests/infrastructure/test_cibo_arch2_t11_global_containment_audit.py
 
       - name: Verify unique V3 trigger and readiness
         run: |
@@ -52,12 +52,20 @@ jobs:
               READY,
               assess_t11_runner_source,
           )
+          from qore.infrastructure.cibo_arch2_t11_v3_retry_claim import (
+              RETRY_TOKEN,
+              T11_V3_TECHNICAL_RETRY_CLAIM,
+          )
 
-          trigger = Path(
+          trigger_lines = Path(
               "docs/research/CIBO-ARCH2-T11-V3-EXECUTION-TRIGGER.txt"
-          ).read_text(encoding="utf-8").strip()
-          expected = "EXECUTE=CIBO_ARCH2_T11_MARKET_IMPACT_EXECUTION_CYCLE_V3"
-          assert trigger == expected
+          ).read_text(encoding="utf-8").splitlines()
+          assert trigger_lines == [
+              "EXECUTE=CIBO_ARCH2_T11_MARKET_IMPACT_EXECUTION_CYCLE_V3",
+              f"RETRY={RETRY_TOKEN}",
+          ]
+          assert T11_V3_TECHNICAL_RETRY_CLAIM.one_retry_allowed is True
+          assert T11_V3_TECHNICAL_RETRY_CLAIM.failed_before_broker_mutation is True
 
           cycle = T11_POST_CONTAINMENT_CYCLE_V3
           assert cycle.ready_for_versioned_execution is True
