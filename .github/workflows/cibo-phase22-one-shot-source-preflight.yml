@@ -64,7 +64,8 @@ jobs:
           guard = assess_phase22_one_shot_guard()
           assert guard.status is Phase22OneShotGuardStatus.READY
           assert guard.blockers == ()
-          assert guard.authorized_to_emit_first_fresh_outcome is True
+          assert guard.authorized_to_create_durable_claim is True
+          assert guard.authorized_to_emit_first_fresh_outcome is False
           Path("preflight").mkdir()
           Path("preflight/guard.json").write_text(
               json.dumps(guard.payload(), indent=2, sort_keys=True) + "\n"

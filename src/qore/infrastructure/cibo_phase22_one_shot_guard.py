@@ -30,6 +30,9 @@ from qore.infrastructure.cibo_phase22_dual_evidence_plan import (
 from qore.infrastructure.cibo_phase22_execution_manifest import (
     build_phase22_execution_manifest,
 )
+from qore.infrastructure.cibo_phase22_git_durable_claim import (
+    Phase22GitDurableClaimEvidence,
+)
 from qore.infrastructure.cibo_phase22_store_contract import (
     PHASE22_STORE_IDENTITIES,
 )
@@ -64,27 +67,39 @@ class Phase22OneShotGuardAssessment:
     blockers: tuple[str, ...]
     execution_claimed: bool
     fresh_outcomes_already_emitted: bool
+    durable_claim_proven: bool
+    authorized_to_create_durable_claim: bool
     authorized_to_emit_first_fresh_outcome: bool
     productive_authority: bool = False
 
     def __post_init__(self) -> None:
-        expected_ready = (
+        preclaim_ready = (
             not self.blockers
             and not self.execution_claimed
             and not self.fresh_outcomes_already_emitted
         )
-        if self.authorized_to_emit_first_fresh_outcome != expected_ready:
-            raise ValueError("Phase22 one-shot authorization drift")
+        expected_create_claim = preclaim_ready
+        expected_emit = (
+            self.execution_claimed
+            and self.durable_claim_proven
+            and not self.fresh_outcomes_already_emitted
+        )
+        if self.authorized_to_create_durable_claim != expected_create_claim:
+            raise ValueError("Phase22 one-shot claim authorization drift")
+        if self.authorized_to_emit_first_fresh_outcome != expected_emit:
+            raise ValueError("Phase22 one-shot fresh authorization drift")
         if self.fresh_outcomes_already_emitted:
             expected_status = Phase22OneShotGuardStatus.CONSUMED
         elif self.execution_claimed:
             expected_status = Phase22OneShotGuardStatus.CLAIMED
-        elif expected_ready:
+        elif preclaim_ready:
             expected_status = Phase22OneShotGuardStatus.READY
         else:
             expected_status = Phase22OneShotGuardStatus.BLOCKED
         if self.status is not expected_status:
             raise ValueError("Phase22 one-shot status drift")
+        if self.durable_claim_proven and not self.execution_claimed:
+            raise ValueError("Phase22 durable proof requires committed claim")
         if self.productive_authority:
             raise ValueError("Phase22 one-shot guard has no productive authority")
 
@@ -97,6 +112,7 @@ class Phase22OneShotGuardAssessment:
 def assess_phase22_one_shot_guard(
     *,
     consumption_receipt: Phase22ExecutionConsumptionReceipt | None = None,
+    durable_claim_evidence: Phase22GitDurableClaimEvidence | None = None,
 ) -> Phase22OneShotGuardAssessment:
     manifest = build_phase22_execution_manifest()
     manifest_sha = manifest.fingerprint()
@@ -107,6 +123,7 @@ def assess_phase22_one_shot_guard(
 
     claimed = False
     already_emitted = False
+    durable_claim_proven = False
     if consumption_receipt is not None:
         if consumption_receipt.candidate_id != manifest.candidate_id:
             blockers.append("PHASE22_CONSUMPTION_CANDIDATE_DRIFT")
@@ -118,6 +135,23 @@ def assess_phase22_one_shot_guard(
             blockers.append(DURABLE_CLAIM_BLOCKER)
         if already_emitted:
             blockers.append("PHASE22_V2_FRESH_OUTCOMES_ALREADY_EMITTED")
+
+    if durable_claim_evidence is not None:
+        if not isinstance(
+            durable_claim_evidence,
+            Phase22GitDurableClaimEvidence,
+        ):
+            raise TypeError("Phase22 durable claim evidence must be canonical")
+        if consumption_receipt is None or not claimed:
+            blockers.append("PHASE22_DURABLE_CLAIM_PROOF_WITHOUT_COMMITTED_CLAIM")
+        elif durable_claim_evidence.source_head_sha != (
+            consumption_receipt.claim_head_sha
+        ):
+            blockers.append("PHASE22_DURABLE_CLAIM_SOURCE_HEAD_DRIFT")
+        elif not durable_claim_evidence.durable_claim_proven:
+            blockers.append("PHASE22_DURABLE_CLAIM_NOT_PROVEN")
+        else:
+            durable_claim_proven = True
 
     phase20 = FROZEN_PHASE20D_QUALIFICATION_PLAN
     phase22 = FROZEN_PHASE22_HOLDOUT_QUALIFICATION_PLAN
@@ -170,7 +204,11 @@ def assess_phase22_one_shot_guard(
         blockers=tuple(blockers),
         execution_claimed=claimed,
         fresh_outcomes_already_emitted=already_emitted,
-        authorized_to_emit_first_fresh_outcome=(
+        durable_claim_proven=durable_claim_proven,
+        authorized_to_create_durable_claim=(
             not blockers and not claimed and not already_emitted
+        ),
+        authorized_to_emit_first_fresh_outcome=(
+            claimed and durable_claim_proven and not already_emitted
         ),
     )
