@@ -1,0 +1,514 @@
+name: QORE CIBO Phase22 V3 Sovereign One-Shot
+
+on:
+  push:
+    branches:
+      - agent/cibo-integrator-ab-001
+    paths:
+      - 'docs/research/CIBO-PHASE22-V3-EXECUTION-AUTHORIZATION.json'
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: qore-cibo-phase22-v3-sovereign-one-shot
+  cancel-in-progress: false
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  SOVEREIGN_BRANCH: agent/cibo-integrator-ab-001
+
+jobs:
+  activate-claim:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    outputs:
+      claim_sha: ${{ steps.claim.outputs.claim_sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Verify exact V3 Owner authorization barrier
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/phase22-v3-preclaim"
+          python - <<'PY'
+          import json, subprocess
+          from pathlib import Path
+          from qore.infrastructure.cibo_phase22_v3_execution_authorization import (
+              AUTHORIZATION_RELATIVE_PATH,
+              load_phase22_v3_execution_authorization,
+          )
+          from qore.infrastructure.cibo_phase22_v3_execution_manifest import (
+              build_phase22_v3_execution_manifest,
+          )
+          auth = load_phase22_v3_execution_authorization(Path(AUTHORIZATION_RELATIVE_PATH))
+          head = subprocess.check_output(["git","rev-parse","HEAD"], text=True).strip()
+          parent = subprocess.check_output(["git","rev-parse","HEAD^"], text=True).strip()
+          changed = tuple(sorted(x for x in subprocess.check_output(
+              ["git","diff-tree","--no-commit-id","--name-only","-r","HEAD"],
+              text=True,
+          ).splitlines() if x))
+          assert parent == auth.authorized_parent_head_sha
+          assert changed == (AUTHORIZATION_RELATIVE_PATH,)
+          assert auth.fresh_holdout_execution_authorized is True
+          assert auth.one_shot_only is True
+          assert auth.second_execution_authorized is False
+          assert auth.broker_mutation_authorized is False
+          assert auth.live_authorized is False
+          assert auth.real_capital_authorized is False
+          assert auth.production_authorized is False
+          assert auth.merge_authorized is False
+          manifest = build_phase22_v3_execution_manifest()
+          Path("$RUNNER_TEMP/phase22-v3-preclaim/authorization-barrier.json").write_text(
+              json.dumps({
+                  "authorization_sha256": auth.fingerprint(),
+                  "manifest_sha256": manifest.fingerprint(),
+                  "authorization_commit_sha": head,
+                  "authorized_parent_head_sha": parent,
+                  "fresh_outcomes_executed": False,
+                  "broker_mutation_authorized": False,
+              }, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+      - name: Require exact authorized-parent V3 build GREEN
+        shell: bash
+        run: |
+          set -euo pipefail
+          parent_sha="$(python - <<'PY'
+          from pathlib import Path
+          from qore.infrastructure.cibo_phase22_v3_execution_authorization import (
+              AUTHORIZATION_RELATIVE_PATH,
+              load_phase22_v3_execution_authorization,
+          )
+          print(load_phase22_v3_execution_authorization(Path(AUTHORIZATION_RELATIVE_PATH)).authorized_parent_head_sha)
+          PY
+          )"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$parent_sha&per_page=100" > "$RUNNER_TEMP/phase22-v3-preclaim/source-runs.json"
+          python - "$RUNNER_TEMP/phase22-v3-preclaim/source-runs.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          rows = json.loads(Path(sys.argv[1]).read_text()).get("workflow_runs", [])
+          ok = any(
+              row.get("name") == "QORE CIBO Phase22 V3 Execution Build"
+              and row.get("status") == "completed"
+              and row.get("conclusion") == "success"
+              for row in rows
+          )
+          if not ok:
+              raise SystemExit("authorized parent V3 execution build not GREEN")
+          PY
+      - name: Verify immutable V3 artifacts and frozen replay commits
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY' > "$RUNNER_TEMP/phase22-v3-preclaim/artifacts.tsv"
+          from qore.infrastructure.cibo_phase22_provider_numeric_execution_receipt import PHASE22_PROVIDER_NUMERIC_EXECUTION_FREEZE_RECEIPT
+          from qore.infrastructure.cibo_phase22_turtle_auxiliary_manifest import PHASE22_TURTLE_AUXILIARY_ARTIFACTS
+          from qore.infrastructure.cibo_phase22_v3_source_receipt import V3_SOURCE_BINDINGS
+          for item in V3_SOURCE_BINDINGS:
+              print(item.artifact_id, item.artifact_digest, "-", sep="\t")
+          for item in PHASE22_TURTLE_AUXILIARY_ARTIFACTS:
+              print(item.artifact_id, item.artifact_digest, item.artifact_name, sep="\t")
+          item = PHASE22_PROVIDER_NUMERIC_EXECUTION_FREEZE_RECEIPT
+          print(item.artifact_id, item.artifact_digest, "-", sep="\t")
+          PY
+          while IFS=$'\t' read -r artifact_id digest expected_name; do
+            payload="$(gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id")"
+            test "$(jq -r '.id' <<<"$payload")" = "$artifact_id"
+            test "$(jq -r '.expired' <<<"$payload")" = "false"
+            test "$(jq -r '.digest' <<<"$payload")" = "$digest"
+            if [ "$expected_name" != "-" ]; then test "$(jq -r '.name' <<<"$payload")" = "$expected_name"; fi
+          done < "$RUNNER_TEMP/phase22-v3-preclaim/artifacts.tsv"
+          python - <<'PY' > "$RUNNER_TEMP/phase22-v3-preclaim/replay-shas.txt"
+          from qore.infrastructure.cibo_phase22_one_shot_source_preflight import FROZEN_TURTLE_REPLAY_SOURCES, FROZEN_VT31_SOURCE_SHA
+          for item in FROZEN_TURTLE_REPLAY_SOURCES: print(item.methodology_git_sha)
+          print(FROZEN_VT31_SOURCE_SHA)
+          PY
+          while read -r sha; do gh api --silent "/repos/$GITHUB_REPOSITORY/commits/$sha"; done < "$RUNNER_TEMP/phase22-v3-preclaim/replay-shas.txt"
+      - name: Commit exact V3 irreversible claim
+        id: claim
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "QORE Phase22 V3 One-Shot"
+          git config user.email "qore-phase22@users.noreply.github.com"
+          started_at="$(date -u '+%Y-%m-%dT%H:%M:%S+00:00')"
+          python scripts/cibo_phase22_v3_git_durable_claim.py prepare --repo-root . --runner-git-sha "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" --run-attempt "$GITHUB_RUN_ATTEMPT" --started-at "$started_at" --store-root "$RUNNER_TEMP/phase22-v3-stores"
+          git add docs/research/CIBO-PHASE22-V3-CONSUMPTION-RECEIPT.json docs/research/CIBO-PHASE22-V3-ONE-SHOT-CLAIM.json
+          actual="$(git diff --cached --name-only | sort)"
+          expected="$(printf '%s\n' docs/research/CIBO-PHASE22-V3-CONSUMPTION-RECEIPT.json docs/research/CIBO-PHASE22-V3-ONE-SHOT-CLAIM.json | sort)"
+          test "$actual" = "$expected"
+          git commit -m "seal(cibo): claim Phase22 V3 one-shot [skip ci]"
+          claim_sha="$(git rev-parse HEAD)"
+          git push origin "HEAD:$SOVEREIGN_BRANCH"
+          echo "claim_sha=$claim_sha" >> "$GITHUB_OUTPUT"
+          python scripts/cibo_phase22_v3_git_durable_claim.py verify --repo-root . --branch "$SOVEREIGN_BRANCH" --expected-run-id "$GITHUB_RUN_ID" --expected-run-attempt "$GITHUB_RUN_ATTEMPT" --output "$RUNNER_TEMP/phase22-v3-preclaim/durable-claim-evidence.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-phase22-v3-activation-claim-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/phase22-v3-preclaim
+          if-no-files-found: error
+          retention-days: 90
+
+  vt08:
+    needs: activate-claim
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.activate-claim.outputs.claim_sha }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Prove durable lease before fresh access
+        run: |
+          python scripts/cibo_phase22_v3_git_durable_claim.py verify             --repo-root . --branch "$SOVEREIGN_BRANCH"             --expected-run-id "$GITHUB_RUN_ID"             --expected-run-attempt "$GITHUB_RUN_ATTEMPT"             --output "$RUNNER_TEMP/vt08-claim-proof.json"
+      - name: Execute frozen VT08 fresh lane
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/sources" "$RUNNER_TEMP/vt08-lane"
+          python - <<'PY' > "$RUNNER_TEMP/vt08-sources.tsv"
+          from qore.infrastructure.cibo_phase22_v3_source_receipt import (
+              V3_SOURCE_BINDINGS,
+              VT08_REQUIRED_MARKETS,
+          )
+          by_key = {(x.symbol, x.timeframe): x for x in V3_SOURCE_BINDINGS}
+          for symbol in VT08_REQUIRED_MARKETS:
+              x = by_key[(symbol, "M5")]
+              print(symbol, x.artifact_id, x.artifact_digest, sep="\t")
+          PY
+          args=()
+          while IFS=$'\t' read -r symbol artifact_id digest; do
+            zip="$RUNNER_TEMP/source-$symbol-M5.zip"
+            root="$RUNNER_TEMP/sources/$symbol-M5"
+            gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" > "$zip"
+            echo "$(cut -d: -f2 <<<"$digest")  $zip" | sha256sum -c -
+            mkdir -p "$root"
+            unzip -q "$zip" -d "$root"
+            args+=(--source "$symbol=$root")
+          done < "$RUNNER_TEMP/vt08-sources.tsv"
+          python -m qore.infrastructure.cibo_phase22_v3_vt08_fresh_runner             "${args[@]}" --output "$RUNNER_TEMP/vt08-lane/vt08.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: phase22-v3-lane-VT08_FOREX
+          path: ${{ runner.temp }}/vt08-lane
+          if-no-files-found: error
+          retention-days: 90
+
+  turtle:
+    needs: activate-claim
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {trader_id: R34_XAUUSD, symbol: XAUUSD, replay_key: XAUUSD_R34}
+          - {trader_id: R38_EURUSD, symbol: EURUSD, replay_key: EURUSD_R38}
+          - {trader_id: R43_GBPUSD, symbol: GBPUSD, replay_key: GBPUSD_R43}
+          - {trader_id: R38_GBPJPY, symbol: GBPJPY, replay_key: GBPJPY_R38}
+          - {trader_id: R42_AUDJPY, symbol: AUDJPY, replay_key: AUDJPY_R42}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.activate-claim.outputs.claim_sha }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Prove durable lease before fresh access
+        run: |
+          python scripts/cibo_phase22_v3_git_durable_claim.py verify             --repo-root . --branch "$SOVEREIGN_BRANCH"             --expected-run-id "$GITHUB_RUN_ID"             --expected-run-attempt "$GITHUB_RUN_ATTEMPT"             --output "$RUNNER_TEMP/turtle-claim-proof.json"
+      - name: Materialize exact frozen replay module
+        shell: bash
+        env:
+          TRADER_ID: ${{ matrix.trader_id }}
+        run: |
+          set -euo pipefail
+          python - "$TRADER_ID" <<'PY' > "$RUNNER_TEMP/replay.env"
+          import shlex
+          import sys
+          from qore.infrastructure.cibo_phase22_one_shot_source_preflight import (
+              FROZEN_TURTLE_REPLAY_SOURCES,
+          )
+          item = next(
+              x for x in FROZEN_TURTLE_REPLAY_SOURCES
+              if x.trader_id == sys.argv[1]
+          )
+          for key, value in {
+              "SOURCE_SHA": item.methodology_git_sha,
+              "SOURCE_MODE": item.source_mode,
+              "SOURCE_PATH": item.source_relative_path,
+              "ADAPTER_PATH": item.parity_adapter_relative_path,
+              "GEOMETRY_PATCH": item.geometry_patch_script or "-",
+          }.items():
+              print(f"{key}={shlex.quote(value)}")
+          PY
+          source "$RUNNER_TEMP/replay.env"
+          base="$RUNNER_TEMP/geometry-base.py"
+          if [ "$SOURCE_MODE" = "IMMUTABLE_SOURCE_PLUS_SERIALIZATION_PATCH" ]; then
+            frozen="$RUNNER_TEMP/frozen-$TRADER_ID"
+            git fetch --no-tags --depth=1 origin "$SOURCE_SHA"
+            git worktree add --detach "$frozen" "$SOURCE_SHA"
+            test "$(git -C "$frozen" rev-parse HEAD)" = "$SOURCE_SHA"
+            python "$GEOMETRY_PATCH" "$frozen/$SOURCE_PATH" "$base"
+          else
+            test "$SOURCE_MODE" = "PARITY_PROVEN_HEAD_ADAPTER"
+            cp "$ADAPTER_PATH" "$base"
+          fi
+          python scripts/cibo_phase22_turtle_fresh_corpus_patch.py             --trader "$TRADER_ID" --source "$base"             --output "$RUNNER_TEMP/fresh-geometry.py"             --report "$RUNNER_TEMP/fresh-corpus-patch.json"
+          python -m py_compile "$RUNNER_TEMP/fresh-geometry.py"
+      - name: Download exact fresh source and immutable auxiliaries
+        shell: bash
+        env:
+          SYMBOL: ${{ matrix.symbol }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/source" "$RUNNER_TEMP/aux"
+          python - "$SYMBOL" <<'PY' > "$RUNNER_TEMP/source.tsv"
+          import sys
+          from qore.infrastructure.cibo_phase22_v3_source_receipt import (
+              V3_SOURCE_BINDINGS,
+          )
+          x = next(
+              row for row in V3_SOURCE_BINDINGS
+              if row.symbol == sys.argv[1] and row.timeframe == "M5"
+          )
+          print(x.artifact_id, x.artifact_digest, sep="\t")
+          PY
+          IFS=$'\t' read -r source_id source_digest < "$RUNNER_TEMP/source.tsv"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$source_id/zip"             > "$RUNNER_TEMP/source.zip"
+          echo "$(cut -d: -f2 <<<"$source_digest")  $RUNNER_TEMP/source.zip"             | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/source.zip" -d "$RUNNER_TEMP/source"
+          python - "$SYMBOL" <<'PY' > "$RUNNER_TEMP/aux.tsv"
+          import sys
+          from qore.infrastructure.cibo_phase22_turtle_auxiliary_manifest import (
+              PHASE22_TURTLE_AUXILIARY_ARTIFACTS,
+          )
+          for x in PHASE22_TURTLE_AUXILIARY_ARTIFACTS:
+              if x.symbol == sys.argv[1]:
+                  print(x.role, x.artifact_id, x.artifact_digest, sep="\t")
+          PY
+          while IFS=$'\t' read -r role artifact_id digest; do
+            zip="$RUNNER_TEMP/aux-$role.zip"
+            root="$RUNNER_TEMP/aux/$role"
+            gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" > "$zip"
+            echo "$(cut -d: -f2 <<<"$digest")  $zip" | sha256sum -c -
+            mkdir -p "$root"
+            unzip -q "$zip" -d "$root"
+          done < "$RUNNER_TEMP/aux.tsv"
+      - name: Execute frozen Turtle V3 fresh lane
+        shell: bash
+        env:
+          TRADER_ID: ${{ matrix.trader_id }}
+        run: |
+          set -euo pipefail
+          lane="$RUNNER_TEMP/turtle-lane"
+          mkdir -p "$lane"
+          python scripts/cibo_phase22_v3_turtle_window_replay.py --trader-id "$TRADER_ID" --module-path "$RUNNER_TEMP/fresh-geometry.py" --raw-root "$RUNNER_TEMP/source" --target-root "$RUNNER_TEMP/aux/TARGET" --cognitive-root "$RUNNER_TEMP/aux/COGNITIVE" --freeze-root "$RUNNER_TEMP/aux/FREEZE" --output "$lane"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: phase22-v3-lane-${{ matrix.trader_id }}
+          path: ${{ runner.temp }}/turtle-lane
+          if-no-files-found: error
+          retention-days: 90
+
+  vt31:
+    needs: activate-claim
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.activate-claim.outputs.claim_sha }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Prove durable lease before fresh access
+        run: |
+          python scripts/cibo_phase22_v3_git_durable_claim.py verify             --repo-root . --branch "$SOVEREIGN_BRANCH"             --expected-run-id "$GITHUB_RUN_ID"             --expected-run-attempt "$GITHUB_RUN_ATTEMPT"             --output "$RUNNER_TEMP/vt31-claim-proof.json"
+      - name: Execute frozen VT31 fresh lane
+        shell: bash
+        run: |
+          set -euo pipefail
+          read -r artifact_id digest < <(python - <<'PY'
+          from qore.infrastructure.cibo_phase22_v3_source_receipt import (
+              V3_SOURCE_BINDINGS,
+          )
+          x = next(
+              row for row in V3_SOURCE_BINDINGS
+              if row.symbol == "NAS100" and row.timeframe == "M1"
+          )
+          print(x.artifact_id, x.artifact_digest)
+          PY
+          )
+          zip="$RUNNER_TEMP/nas100-m1.zip"
+          root="$RUNNER_TEMP/nas100-m1"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" > "$zip"
+          echo "$(cut -d: -f2 <<<"$digest")  $zip" | sha256sum -c -
+          mkdir -p "$root"
+          unzip -q "$zip" -d "$root"
+          vt31_sha="$(python - <<'PY'
+          from qore.infrastructure.cibo_phase22_one_shot_source_preflight import (
+              FROZEN_VT31_SOURCE_SHA,
+          )
+          print(FROZEN_VT31_SOURCE_SHA)
+          PY
+          )"
+          frozen="$RUNNER_TEMP/vt31-frozen"
+          git fetch --no-tags --depth=1 origin "$vt31_sha"
+          git worktree add --detach "$frozen" "$vt31_sha"
+          test "$(git -C "$frozen" rev-parse HEAD)" = "$vt31_sha"
+          mkdir -p "$RUNNER_TEMP/vt31-lane"
+          python scripts/cibo_phase22_v3_vt31_fresh_runner.py             --frozen-root "$frozen" --source-root "$root"             --output "$RUNNER_TEMP/vt31-lane/vt31.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: phase22-v3-lane-VT31_NAS100
+          path: ${{ runner.temp }}/vt31-lane
+          if-no-files-found: error
+          retention-days: 90
+
+  assemble:
+    needs: [activate-claim, vt08, turtle, vt31]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.activate-claim.outputs.claim_sha }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Prove durable lease before reading fresh lane artifacts
+        run: |
+          python scripts/cibo_phase22_v3_git_durable_claim.py verify             --repo-root . --branch "$SOVEREIGN_BRANCH"             --expected-run-id "$GITHUB_RUN_ID"             --expected-run-attempt "$GITHUB_RUN_ATTEMPT"             --output "$RUNNER_TEMP/assembly-claim-proof.json"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: phase22-v3-lane-*
+          path: ${{ runner.temp }}/lanes
+      - name: Assemble exact 7 of 7 fresh batch
+        run: |
+          mkdir -p "$RUNNER_TEMP/fresh-batch"
+          python scripts/cibo_phase22_v3_fresh_batch_assembler.py             --vt08 "$RUNNER_TEMP/lanes/phase22-v3-lane-VT08_FOREX/vt08.json"             --vt31 "$RUNNER_TEMP/lanes/phase22-v3-lane-VT31_NAS100/vt31.json"             --r34-xauusd "$RUNNER_TEMP/lanes/phase22-v3-lane-R34_XAUUSD/phase18-xauusd-r34-geometry-trades.jsonl"             --r38-eurusd "$RUNNER_TEMP/lanes/phase22-v3-lane-R38_EURUSD/phase18-eurusd-r38-geometry-trades.jsonl"             --r43-gbpusd "$RUNNER_TEMP/lanes/phase22-v3-lane-R43_GBPUSD/phase18-gbpusd-r39-geometry-trades.jsonl"             --r38-gbpjpy "$RUNNER_TEMP/lanes/phase22-v3-lane-R38_GBPJPY/phase18-gbpjpy-r37-geometry-trades.jsonl"             --r42-audjpy "$RUNNER_TEMP/lanes/phase22-v3-lane-R42_AUDJPY/phase18-audjpy-r40-geometry-trades.jsonl"             --consumption docs/research/CIBO-PHASE22-V3-CONSUMPTION-RECEIPT.json             --output "$RUNNER_TEMP/fresh-batch/fresh-batch.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: phase22-v3-fresh-batch-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/fresh-batch
+          if-no-files-found: error
+          retention-days: 90
+
+  close:
+    needs: [activate-claim, assemble]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.activate-claim.outputs.claim_sha }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Prove durable lease before reading fresh batch
+        run: |
+          python scripts/cibo_phase22_v3_git_durable_claim.py verify             --repo-root . --branch "$SOVEREIGN_BRANCH"             --expected-run-id "$GITHUB_RUN_ID"             --expected-run-attempt "$GITHUB_RUN_ATTEMPT"             --output "$RUNNER_TEMP/closure-claim-proof.json"
+      - uses: actions/download-artifact@v4
+        with:
+          name: phase22-v3-fresh-batch-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/fresh-batch
+      - name: Recover sealed provider numeric model and five regime corpora
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/provider" "$RUNNER_TEMP/regime"
+          python - <<'PY' > "$RUNNER_TEMP/provider.env"
+          from qore.infrastructure.cibo_phase22_provider_numeric_execution_receipt import (
+              PHASE22_PROVIDER_NUMERIC_EXECUTION_FREEZE_RECEIPT,
+          )
+          x = PHASE22_PROVIDER_NUMERIC_EXECUTION_FREEZE_RECEIPT
+          print(f"PROVIDER_ARTIFACT_ID={x.artifact_id}")
+          print(f"PROVIDER_ARTIFACT_DIGEST={x.artifact_digest}")
+          print(f"PROVIDER_FILE_SHA={x.provider_numeric_freeze_file_sha256}")
+          PY
+          source "$RUNNER_TEMP/provider.env"
+          zip="$RUNNER_TEMP/provider.zip"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$PROVIDER_ARTIFACT_ID/zip" > "$zip"
+          echo "$(cut -d: -f2 <<<"$PROVIDER_ARTIFACT_DIGEST")  $zip" | sha256sum -c -
+          unzip -q "$zip" -d "$RUNNER_TEMP/provider"
+          provider_json="$(find "$RUNNER_TEMP/provider" -name provider-numeric-execution-freeze.json -print -quit)"
+          test -n "$provider_json"
+          echo "$(cut -d: -f2 <<<"$PROVIDER_FILE_SHA")  $provider_json" | sha256sum -c -
+          echo "PROVIDER_JSON=$provider_json" >> "$GITHUB_ENV"
+          echo "PROVIDER_FILE_SHA=$PROVIDER_FILE_SHA" >> "$GITHUB_ENV"
+          python - <<'PY' > "$RUNNER_TEMP/regime.tsv"
+          from qore.infrastructure.cibo_phase22_v3_historical_regime import (
+              PHASE22_REGIME_SYMBOLS,
+          )
+          from qore.infrastructure.cibo_phase22_v3_source_receipt import (
+              V3_SOURCE_BINDINGS,
+          )
+          by_key = {(x.symbol, x.timeframe): x for x in V3_SOURCE_BINDINGS}
+          for symbol in PHASE22_REGIME_SYMBOLS:
+              x = by_key[(symbol, "M5")]
+              print(symbol, x.artifact_id, x.artifact_digest, sep="\t")
+          PY
+          while IFS=$'\t' read -r symbol artifact_id digest; do
+            zip="$RUNNER_TEMP/regime-$symbol.zip"
+            root="$RUNNER_TEMP/regime/$symbol"
+            gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" > "$zip"
+            echo "$(cut -d: -f2 <<<"$digest")  $zip" | sha256sum -c -
+            mkdir -p "$root"
+            unzip -q "$zip" -d "$root"
+          done < "$RUNNER_TEMP/regime.tsv"
+      - name: Execute chronological CIBO Risk settlement release and qualification
+        shell: bash
+        run: |
+          set -euo pipefail
+          replay_started_at="$(date -u '+%Y-%m-%dT%H:%M:%S+00:00')"
+          python scripts/cibo_phase22_v3_execution_closure.py             --repo-root . --branch-name "$SOVEREIGN_BRANCH"             --fresh-batch "$RUNNER_TEMP/fresh-batch/fresh-batch.json"             --provider-numeric "$PROVIDER_JSON"             --provider-numeric-freeze-sha256 "$PROVIDER_FILE_SHA"             --source-root "AUDJPY=$RUNNER_TEMP/regime/AUDJPY"             --source-root "EURUSD=$RUNNER_TEMP/regime/EURUSD"             --source-root "GBPJPY=$RUNNER_TEMP/regime/GBPJPY"             --source-root "GBPUSD=$RUNNER_TEMP/regime/GBPUSD"             --source-root "XAUUSD=$RUNNER_TEMP/regime/XAUUSD"             --store-root "$RUNNER_TEMP/phase22-v3-stores"             --claim docs/research/CIBO-PHASE22-V3-ONE-SHOT-CLAIM.json             --consumption docs/research/CIBO-PHASE22-V3-CONSUMPTION-RECEIPT.json             --replay-started-at "$replay_started_at"             --run-id "$GITHUB_RUN_ID" --run-attempt "$GITHUB_RUN_ATTEMPT"             --output-dir "$RUNNER_TEMP/phase22-closure"
+      - name: Preserve forensic closure artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-phase22-v3-closure-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/phase22-closure
+            ${{ runner.temp }}/phase22-v3-stores
+            ${{ runner.temp }}/closure-claim-proof.json
+          if-no-files-found: warn
+          retention-days: 90
+      - name: Durably seal CLAIMED to CONSUMED
+        shell: bash
+        run: |
+          set -euo pipefail
+          claim_sha="${{ needs.activate-claim.outputs.claim_sha }}"
+          remote_sha="$(git ls-remote origin "refs/heads/$SOVEREIGN_BRANCH" | cut -f1)"
+          test "$remote_sha" = "$claim_sha"
+          actual="$(git status --porcelain --untracked-files=all)"
+          expected=" M docs/research/CIBO-PHASE22-V3-CONSUMPTION-RECEIPT.json"
+          test "$actual" = "$expected"
+          git config user.name "QORE Phase22 One-Shot"
+          git config user.email "qore-phase22@users.noreply.github.com"
+          git add docs/research/CIBO-PHASE22-V3-CONSUMPTION-RECEIPT.json
+          test "$(git diff --cached --name-only)" =             "docs/research/CIBO-PHASE22-V3-CONSUMPTION-RECEIPT.json"
+          git commit -m "seal(cibo): consume Phase22 V3 one-shot [skip ci]"
+          git push origin "HEAD:$SOVEREIGN_BRANCH"

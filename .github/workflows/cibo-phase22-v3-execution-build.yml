@@ -9,6 +9,7 @@ on:
       - 'src/qore/infrastructure/cibo_phase22_v3_*.py'
       - 'scripts/cibo_phase22_v3_*.py'
       - '.github/workflows/cibo-phase22-v3-execution-build.yml'
+      - '.github/workflows/cibo-phase22-v3-sovereign-one-shot.yml'
 
 permissions:
   contents: read
