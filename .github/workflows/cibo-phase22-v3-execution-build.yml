@@ -29,6 +29,14 @@ jobs:
         run: |
           python -m ruff check \
             src/qore/infrastructure/cibo_phase22_v3_execution_manifest.py \
+            src/qore/infrastructure/cibo_phase22_v3_execution_inputs.py \
+            src/qore/infrastructure/cibo_phase22_v3_chronological_replay_plan.py \
+            src/qore/infrastructure/cibo_phase22_v3_historical_policy_replay.py \
+            src/qore/infrastructure/cibo_phase22_v3_historical_replay_sealing.py \
+            src/qore/infrastructure/cibo_phase22_v3_chronological_execution.py \
+            src/qore/infrastructure/cibo_phase22_v3_historical_regime.py \
+            src/qore/infrastructure/cibo_phase22_v3_execution_closure.py \
+            scripts/cibo_phase22_v3_execution_closure.py \
             src/qore/infrastructure/cibo_phase22_v3_execution_authorization.py \
             src/qore/infrastructure/cibo_phase22_v3_one_shot_claim.py \
             src/qore/infrastructure/cibo_phase22_v3_git_durable_claim.py \
@@ -45,6 +53,13 @@ jobs:
           python - <<'PY'
           modules = (
               "qore.infrastructure.cibo_phase22_v3_execution_manifest",
+              "qore.infrastructure.cibo_phase22_v3_execution_inputs",
+              "qore.infrastructure.cibo_phase22_v3_chronological_replay_plan",
+              "qore.infrastructure.cibo_phase22_v3_historical_policy_replay",
+              "qore.infrastructure.cibo_phase22_v3_historical_replay_sealing",
+              "qore.infrastructure.cibo_phase22_v3_chronological_execution",
+              "qore.infrastructure.cibo_phase22_v3_historical_regime",
+              "qore.infrastructure.cibo_phase22_v3_execution_closure",
               "qore.infrastructure.cibo_phase22_v3_execution_authorization",
               "qore.infrastructure.cibo_phase22_v3_one_shot_claim",
               "qore.infrastructure.cibo_phase22_v3_git_durable_claim",
