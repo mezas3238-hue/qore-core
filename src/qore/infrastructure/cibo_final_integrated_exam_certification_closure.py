@@ -30,7 +30,6 @@ from qore.infrastructure.cibo_final_integrated_exam import (
 from qore.infrastructure.cibo_final_integrated_exam_assembly import (
     FinalIntegratedControlPackage,
 )
-from qore.infrastructure.cibo_phase22_v4_governance import V4_CANDIDATE_ID
 from qore.infrastructure.cibo_scientific_closure_41 import (
     CANONICAL_PROVIDER_IDENTITY,
 )
@@ -45,7 +44,6 @@ from qore.infrastructure.cibo_world_cup_maximum_capability_exam_assembly import 
 
 CLOSURE_ID = "CIBO_FINAL_CERTIFICATION_CLOSURE_V1"
 SEAL_ID = "CIBO_CERTIFICATION_SEAL_V1"
-HOLDOUT_CANDIDATE_ID = V4_CANDIDATE_ID
 _LEDGER_SCHEMA = "QORE_CIBO_MASTER_OPEN_WORK_LEDGER_V1"
 _ZERO_OPEN_SCHEMA = "QORE_CIBO_ZERO_OPEN_WORK_GATE_V1"
 _EXAM_IDS = (
@@ -54,6 +52,10 @@ _EXAM_IDS = (
 )
 _SHA1_RE = re.compile(r"^[0-9a-f]{40}$")
 _SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
+_HOLDOUT_ID_RE = re.compile(
+    r"^CIBO_USD60_6M_HOLDOUT_\\d{4}-\\d{2}-\\d{2}_"
+    r"\\d{4}-\\d{2}-\\d{2}_V\\d+$"
+)
 
 
 class CiboCertificationSealStatus(StrEnum):
@@ -83,6 +85,7 @@ def _ledger_sha256(payload: dict[str, Any]) -> str:
 @dataclass(frozen=True, slots=True)
 class CiboCertificationClosureTransition:
     closure_id: str
+    holdout_candidate_id: str
     evidence_head_sha: str
     phase22_qualification_artifact_sha256: str
     final_integrated_package_sha256: str
@@ -107,6 +110,10 @@ class CiboCertificationClosureTransition:
         if self.closure_id != CLOSURE_ID:
             raise CiboCapitalManagementError(
                 "CIBO certification closure identity drift"
+            )
+        if _HOLDOUT_ID_RE.fullmatch(self.holdout_candidate_id) is None:
+            raise CiboCapitalManagementError(
+                "CIBO certification closure holdout identity invalid"
             )
         if _SHA1_RE.fullmatch(self.evidence_head_sha) is None:
             raise CiboCapitalManagementError(
@@ -190,9 +197,9 @@ class CiboCertificationSeal:
             raise CiboCapitalManagementError("CIBO certification seal identity drift")
         if self.status is not CiboCertificationSealStatus.CERTIFIED:
             raise CiboCapitalManagementError("CIBO certification seal status drift")
-        if self.holdout_candidate_id != HOLDOUT_CANDIDATE_ID:
+        if _HOLDOUT_ID_RE.fullmatch(self.holdout_candidate_id) is None:
             raise CiboCapitalManagementError(
-                "CIBO certification seal holdout identity drift"
+                "CIBO certification seal holdout identity invalid"
             )
         for name in ("evidence_head_sha", "closure_head_sha"):
             if _SHA1_RE.fullmatch(getattr(self, name)) is None:
@@ -254,6 +261,7 @@ class CiboCertificationSeal:
 def build_certification_closure_ledger(
     *,
     pre_ledger: dict[str, Any],
+    holdout_candidate_id: str,
     final_package: FinalIntegratedControlPackage,
     final_report: FinalIntegratedExamReport,
     world_cup_package: WorldCupControlPackage,
@@ -261,6 +269,10 @@ def build_certification_closure_ledger(
 ) -> tuple[dict[str, Any], CiboCertificationClosureTransition]:
     """Terminalize only the two exam rows after both receipt-bound exams PASS."""
 
+    if _HOLDOUT_ID_RE.fullmatch(holdout_candidate_id) is None:
+        raise CiboCapitalManagementError(
+            "CIBO certification closure holdout identity invalid"
+        )
     if pre_ledger.get("schema") != _LEDGER_SCHEMA:
         raise CiboCapitalManagementError(
             "CIBO certification closure ledger schema drift"
@@ -412,6 +424,7 @@ def build_certification_closure_ledger(
 
     transition = CiboCertificationClosureTransition(
         closure_id=CLOSURE_ID,
+        holdout_candidate_id=holdout_candidate_id,
         evidence_head_sha=evidence_head,
         phase22_qualification_artifact_sha256=(
             final_package.phase22_qualification_artifact_sha256
@@ -513,7 +526,7 @@ def build_cibo_certification_seal(
     return CiboCertificationSeal(
         seal_id=SEAL_ID,
         status=CiboCertificationSealStatus.CERTIFIED,
-        holdout_candidate_id=HOLDOUT_CANDIDATE_ID,
+        holdout_candidate_id=transition.holdout_candidate_id,
         evidence_head_sha=transition.evidence_head_sha,
         closure_head_sha=closure_head_sha,
         phase22_qualification_artifact_sha256=(
