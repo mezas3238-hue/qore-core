@@ -1,4 +1,3 @@
-from datetime import UTC, datetime
 from decimal import Decimal
 
 from qore.infrastructure.account_wide_risk import TraderLineage
