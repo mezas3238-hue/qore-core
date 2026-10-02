@@ -12,6 +12,7 @@ import json
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from decimal import Decimal
+from pathlib import Path
 from typing import Any
 
 from qore.infrastructure.cibo_capital_management_authority import (
@@ -28,10 +29,26 @@ from qore.infrastructure.cibo_phase22_holdout_v2_source_receipt import (
     V2_SOURCE_BINDINGS,
     phase22_v2_holdout_source_receipt_sha256,
 )
+from qore.infrastructure.cibo_phase22_v4_source_receipt import (
+    load_phase22_v4_source_receipt,
+)
 
 _REPLAY_SCHEMA = "qore.cibo.phase22.historical-replay-settlement.v1"
 _V2_SOURCE_COLLECTOR_GIT_SHAS = tuple(
     sorted({item.collector_git_sha for item in V2_SOURCE_BINDINGS})
+)
+_V4_SOURCE_RECEIPT = load_phase22_v4_source_receipt(
+    Path("docs/research/CIBO-PHASE22-V4-SOURCE-RECEIPT.json")
+)
+_CANONICAL_SOURCE_LINEAGES = (
+    (
+        phase22_v2_holdout_source_receipt_sha256(),
+        _V2_SOURCE_COLLECTOR_GIT_SHAS,
+    ),
+    (
+        _V4_SOURCE_RECEIPT.fingerprint(),
+        (_V4_SOURCE_RECEIPT.corpus_git_sha,),
+    ),
 )
 
 
@@ -224,14 +241,13 @@ class VersionedPhase22HistoricalReplayEvidenceBook:
             raise CiboCapitalManagementError(
                 "Phase22 replay evidence amendment digest invalid"
             )
-        expected_source = phase22_v2_holdout_source_receipt_sha256()
-        if self.source_receipt_sha256 != expected_source:
+        source_lineage = (
+            self.source_receipt_sha256,
+            self.source_collector_git_shas,
+        )
+        if source_lineage not in _CANONICAL_SOURCE_LINEAGES:
             raise CiboCapitalManagementError(
-                "Phase22 replay evidence source receipt lineage drift"
-            )
-        if self.source_collector_git_shas != _V2_SOURCE_COLLECTOR_GIT_SHAS:
-            raise CiboCapitalManagementError(
-                "Phase22 replay evidence source collector lineage drift"
+                "Phase22 replay evidence source lineage drift"
             )
         if self.qualification_time_basis != "SEALED_AT":
             raise CiboCapitalManagementError(
