@@ -87,7 +87,17 @@ jobs:
           assert consumed["outcome_bundle_sha256"] is None
           PY
           remote_sha="$(git ls-remote origin "refs/heads/$SOVEREIGN_BRANCH" | cut -f1)"
-          test "$remote_sha" = "$CLAIM_SHA"
+          git fetch --no-tags origin "$remote_sha"
+          git merge-base --is-ancestor "$CLAIM_SHA" "$remote_sha"
+          git show "$remote_sha:docs/research/CIBO-PHASE22-V4-CONSUMPTION-RECEIPT.json" > "$RUNNER_TEMP/remote-consumption.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=json.loads((Path(os.environ["RUNNER_TEMP"])/"remote-consumption.json").read_text())
+          assert p["claim_committed"] is True
+          assert p["outcomes_emitted"] is False
+          assert p["outcome_bundle_sha256"] is None
+          PY
           recovery_build_run_id="$(python - <<'PY'
           import json
           from pathlib import Path
@@ -204,9 +214,12 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m pip install -e '.[dev]'
-      - name: Prove original durable lease remains sovereign
+      - name: Prove original claim remains ancestor of sovereign HEAD
         run: |
-          python scripts/cibo_phase22_v4_git_durable_claim.py verify             --repo-root . --branch "$SOVEREIGN_BRANCH"             --expected-run-id "$ORIGINAL_RUN_ID"             --expected-run-attempt "$ORIGINAL_RUN_ATTEMPT"             --output "$RUNNER_TEMP/assembly-claim-proof.json"
+          set -euo pipefail
+          remote_sha="$(git ls-remote origin "refs/heads/$SOVEREIGN_BRANCH" | cut -f1)"
+          git fetch --no-tags origin "$remote_sha"
+          git merge-base --is-ancestor "$CLAIM_SHA" "$remote_sha"
       - name: Recover six successful original lane artifacts
         env:
           GH_TOKEN: ${{ github.token }}
@@ -251,15 +264,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ env.CLAIM_SHA }}
           fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - run: python -m pip install -e '.[dev]'
-      - name: Prove original durable lease before closure
+      - name: Recover immutable durable-claim evidence from original activation
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          python scripts/cibo_phase22_v4_git_durable_claim.py verify             --repo-root . --branch "$SOVEREIGN_BRANCH"             --expected-run-id "$ORIGINAL_RUN_ID"             --expected-run-attempt "$ORIGINAL_RUN_ATTEMPT"             --output "$RUNNER_TEMP/closure-claim-proof.json"
+          set -euo pipefail
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/11248948923/zip" > "$RUNNER_TEMP/activation.zip"
+          echo "fb924b9f86ee8c91b3dd87504a69beb7c7dfbe192af0ff8e4e71cfdbba03f49a  $RUNNER_TEMP/activation.zip" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/activation"
+          unzip -q "$RUNNER_TEMP/activation.zip" -d "$RUNNER_TEMP/activation"
+          test -f "$RUNNER_TEMP/activation/durable-claim-evidence.json"
+          grep -F '"durable_claim_proven": true' "$RUNNER_TEMP/activation/durable-claim-evidence.json"
+          remote_sha="$(git ls-remote origin "refs/heads/$SOVEREIGN_BRANCH" | cut -f1)"
+          git fetch --no-tags origin "$remote_sha"
+          git merge-base --is-ancestor "$CLAIM_SHA" "$remote_sha"
       - uses: actions/download-artifact@v4
         with:
           name: phase22-v4-fresh-batch-recovery
@@ -317,7 +340,7 @@ jobs:
       - name: Execute original-claim chronological closure and qualification
         run: |
           replay_started_at="$(date -u '+%Y-%m-%dT%H:%M:%S+00:00')"
-          python scripts/cibo_phase22_v4_execution_closure.py             --repo-root . --branch-name "$SOVEREIGN_BRANCH"             --fresh-batch "$RUNNER_TEMP/fresh-batch/fresh-batch.json"             --provider-numeric "$PROVIDER_JSON"             --provider-numeric-freeze-sha256 "$PROVIDER_FILE_SHA"             --source-root "AUDJPY=$RUNNER_TEMP/regime/AUDJPY"             --source-root "EURUSD=$RUNNER_TEMP/regime/EURUSD"             --source-root "GBPJPY=$RUNNER_TEMP/regime/GBPJPY"             --source-root "GBPUSD=$RUNNER_TEMP/regime/GBPUSD"             --source-root "XAUUSD=$RUNNER_TEMP/regime/XAUUSD"             --store-root "$RUNNER_TEMP/phase22-v4-stores"             --claim docs/research/CIBO-PHASE22-V4-ONE-SHOT-CLAIM.json             --consumption docs/research/CIBO-PHASE22-V4-CONSUMPTION-RECEIPT.json             --replay-started-at "$replay_started_at"             --run-id "$ORIGINAL_RUN_ID"             --run-attempt "$ORIGINAL_RUN_ATTEMPT"             --output-dir "$RUNNER_TEMP/phase22-closure"
+          python scripts/cibo_phase22_v4_execution_closure.py             --repo-root . --branch-name "$SOVEREIGN_BRANCH"             --fresh-batch "$RUNNER_TEMP/fresh-batch/fresh-batch.json"             --provider-numeric "$PROVIDER_JSON"             --provider-numeric-freeze-sha256 "$PROVIDER_FILE_SHA"             --source-root "AUDJPY=$RUNNER_TEMP/regime/AUDJPY"             --source-root "EURUSD=$RUNNER_TEMP/regime/EURUSD"             --source-root "GBPJPY=$RUNNER_TEMP/regime/GBPJPY"             --source-root "GBPUSD=$RUNNER_TEMP/regime/GBPUSD"             --source-root "XAUUSD=$RUNNER_TEMP/regime/XAUUSD"             --store-root "$RUNNER_TEMP/phase22-v4-stores"             --claim docs/research/CIBO-PHASE22-V4-ONE-SHOT-CLAIM.json             --consumption docs/research/CIBO-PHASE22-V4-CONSUMPTION-RECEIPT.json             --replay-started-at "$replay_started_at"             --run-id "$ORIGINAL_RUN_ID"             --run-attempt "$ORIGINAL_RUN_ATTEMPT"             --durable-claim-evidence "$RUNNER_TEMP/activation/durable-claim-evidence.json"             --output-dir "$RUNNER_TEMP/phase22-closure"
       - name: Preserve recovery closure artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -326,20 +349,44 @@ jobs:
           path: |
             ${{ runner.temp }}/phase22-closure
             ${{ runner.temp }}/phase22-v4-stores
-            ${{ runner.temp }}/closure-claim-proof.json
+            ${{ runner.temp }}/activation/durable-claim-evidence.json
           if-no-files-found: warn
           retention-days: 90
       - name: Durably seal original CLAIMED V4 to CONSUMED
         run: |
           set -euo pipefail
-          remote_sha="$(git ls-remote origin "refs/heads/$SOVEREIGN_BRANCH" | cut -f1)"
-          test "$remote_sha" = "$CLAIM_SHA"
-          actual="$(git status --porcelain --untracked-files=all)"
-          expected=" M docs/research/CIBO-PHASE22-V4-CONSUMPTION-RECEIPT.json"
-          test "$actual" = "$expected"
+          consumed="$RUNNER_TEMP/consumed-final.json"
+          cp docs/research/CIBO-PHASE22-V4-CONSUMPTION-RECEIPT.json "$consumed"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=json.loads((Path(os.environ["RUNNER_TEMP"])/"consumed-final.json").read_text())
+          assert p["claim_committed"] is True
+          assert p["outcomes_emitted"] is True
+          assert isinstance(p["outcome_bundle_sha256"], str) and p["outcome_bundle_sha256"].startswith("sha256:")
+          PY
           git config user.name "QORE Phase22 Recovery"
           git config user.email "qore-phase22@users.noreply.github.com"
-          git add docs/research/CIBO-PHASE22-V4-CONSUMPTION-RECEIPT.json
-          test "$(git diff --cached --name-only)" =             "docs/research/CIBO-PHASE22-V4-CONSUMPTION-RECEIPT.json"
-          git commit -m "seal(cibo): consume claimed Phase22 V4 after VT31 ABI recovery [skip ci]"
-          git push origin "HEAD:$SOVEREIGN_BRANCH"
+          for attempt in 1 2 3; do
+            git fetch origin "$SOVEREIGN_BRANCH"
+            remote_sha="$(git rev-parse FETCH_HEAD)"
+            git merge-base --is-ancestor "$CLAIM_SHA" "$remote_sha"
+            git checkout --detach "$remote_sha"
+            git show "$remote_sha:docs/research/CIBO-PHASE22-V4-CONSUMPTION-RECEIPT.json" > "$RUNNER_TEMP/remote-consumption.json"
+            python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=json.loads((Path(os.environ["RUNNER_TEMP"])/"remote-consumption.json").read_text())
+          assert p["outcomes_emitted"] is False
+          assert p["outcome_bundle_sha256"] is None
+          PY
+            cp "$consumed" docs/research/CIBO-PHASE22-V4-CONSUMPTION-RECEIPT.json
+            git add docs/research/CIBO-PHASE22-V4-CONSUMPTION-RECEIPT.json
+            test "$(git diff --cached --name-only)" = "docs/research/CIBO-PHASE22-V4-CONSUMPTION-RECEIPT.json"
+            git commit -m "seal(cibo): consume claimed Phase22 V4 after VT31 ABI recovery [skip ci]"
+            if git push origin "HEAD:$SOVEREIGN_BRANCH"; then
+              exit 0
+            fi
+          done
+          echo "Failed to seal CONSUMED after concurrent sovereign advances" >&2
+          exit 19

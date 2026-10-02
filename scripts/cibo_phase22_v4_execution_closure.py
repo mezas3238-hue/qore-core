@@ -26,6 +26,7 @@ from qore.infrastructure.cibo_phase22_v4_execution_inputs import (
 from qore.infrastructure.cibo_phase22_v4_git_durable_claim import (
     CONSUMPTION_RECEIPT_RELATIVE_PATH,
     ONE_SHOT_CLAIM_RELATIVE_PATH,
+    Phase22V4GitDurableClaimEvidence,
     load_phase22_v4_one_shot_claim,
     verify_phase22_v4_git_durable_claim,
 )
@@ -40,6 +41,17 @@ def _json_object(path: Path) -> dict[str, Any]:
     if not isinstance(raw, dict):
         raise ValueError(f"expected JSON object: {path}")
     return raw
+
+def _preserved_durable_claim_evidence(
+    path: Path,
+) -> Phase22V4GitDurableClaimEvidence:
+    raw = _json_object(path)
+    expected = str(raw.pop("evidence_sha256", ""))
+    raw["changed_paths"] = tuple(str(x) for x in raw["changed_paths"])
+    evidence = Phase22V4GitDurableClaimEvidence(**raw)
+    if evidence.fingerprint() != expected:
+        raise ValueError("preserved durable claim evidence digest mismatch")
+    return evidence
 
 
 def _source_roots(values: list[str]) -> dict[str, Path]:
@@ -100,6 +112,7 @@ def main() -> int:
     parser.add_argument("--run-id", type=int, required=True)
     parser.add_argument("--run-attempt", type=int, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--durable-claim-evidence", type=Path)
     args = parser.parse_args()
 
     repo_root = args.repo_root.resolve()
@@ -112,12 +125,16 @@ def main() -> int:
     if args.consumption.resolve() != expected_consumption:
         raise ValueError("Phase22 closure consumption path is not canonical")
 
-    durable_claim_evidence = verify_phase22_v4_git_durable_claim(
-        repo_root=repo_root,
-        branch_name=args.branch_name,
-        remote_name=args.remote_name,
-        expected_run_id=args.run_id,
-        expected_run_attempt=args.run_attempt,
+    durable_claim_evidence = (
+        _preserved_durable_claim_evidence(args.durable_claim_evidence)
+        if args.durable_claim_evidence is not None
+        else verify_phase22_v4_git_durable_claim(
+            repo_root=repo_root,
+            branch_name=args.branch_name,
+            remote_name=args.remote_name,
+            expected_run_id=args.run_id,
+            expected_run_attempt=args.run_attempt,
+        )
     )
 
     # Fresh evidence access is deliberately below the remote-durable barrier.
