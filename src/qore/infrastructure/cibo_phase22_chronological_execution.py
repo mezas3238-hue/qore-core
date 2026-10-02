@@ -103,6 +103,11 @@ class Phase22HistoricalRegimeEvidence:
     concentration_limit_by_group: tuple[tuple[str, Decimal], ...]
     evidence_sha256: str
     source_evidence_ids: tuple[str, ...]
+    regime_policy_sha256: str
+    provider_numeric_freeze_sha256: str
+    market_history_sufficient: bool
+    counterfactual_provider_model: bool = True
+    historical_provider_state_claimed: bool = False
     position_path_adverse: bool = False
     evidence_stale: bool = False
     outcome_fields_used: bool = False
@@ -141,6 +146,11 @@ class Phase22HistoricalRegimeEvidence:
                     "Phase22 regime concentration limit invalid"
                 )
         _sha256(self.evidence_sha256, "regime evidence_sha256")
+        _sha256(self.regime_policy_sha256, "regime policy SHA")
+        _sha256(
+            self.provider_numeric_freeze_sha256,
+            "provider numeric freeze SHA",
+        )
         if (
             not self.source_evidence_ids
             or len(self.source_evidence_ids) != len(set(self.source_evidence_ids))
@@ -149,8 +159,28 @@ class Phase22HistoricalRegimeEvidence:
             raise CiboCapitalManagementError(
                 "Phase22 regime source evidence required"
             )
+        for name in (
+            "market_history_sufficient",
+            "counterfactual_provider_model",
+            "historical_provider_state_claimed",
+            "position_path_adverse",
+            "evidence_stale",
+            "outcome_fields_used",
+            "target_aware",
+            "productive_authority",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise CiboCapitalManagementError(
+                    f"Phase22 regime {name} must be bool"
+                )
+        if not self.market_history_sufficient and not self.evidence_stale:
+            raise CiboCapitalManagementError(
+                "Phase22 insufficient regime history must fail closed as stale"
+            )
         if (
-            self.outcome_fields_used
+            not self.counterfactual_provider_model
+            or self.historical_provider_state_claimed
+            or self.outcome_fields_used
             or self.target_aware
             or self.productive_authority
         ):

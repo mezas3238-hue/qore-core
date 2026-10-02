@@ -3,16 +3,14 @@ from decimal import Decimal
 from hashlib import sha256
 
 from qore.infrastructure.account_wide_risk import TraderLineage
+from qore.infrastructure.cibo_ce2i_phase20_demo_regime import (
+    phase20_demo_regime_policy_sha256,
+)
 from qore.infrastructure.cibo_ce2i_regime_selector import (
     CorrelationState,
     LiquidityState,
     ProviderCondition,
     VolatilityState,
-)
-from qore.infrastructure.cibo_phase22_chronological_execution import (
-    Phase22HistoricalRegimeEvidence,
-    execute_phase22_chronological_replay,
-    phase22_historical_risk_model_sha256,
 )
 from qore.infrastructure.cibo_phase22_chronological_replay_plan import (
     build_phase22_chronological_replay_plan,
@@ -27,12 +25,20 @@ from qore.infrastructure.cibo_phase22_fresh_opportunity_batch import (
     Phase22FreshTraderEvidence,
     build_phase22_fresh_opportunity_batch,
 )
+from qore.infrastructure.cibo_phase22_historical_regime import (
+    PHASE22_REGIME_SYMBOLS,
+    build_phase22_historical_regime_evidence,
+)
 from qore.infrastructure.cibo_phase22_provider_numeric_execution import (
     Phase22ProviderAccountLineageReceipt,
     Phase22ProviderNumericExecutionSpec,
 )
 from qore.infrastructure.cibo_phase22_trader_parity_manifest import (
     CANONICAL_PHASE22_TRADER_IDS,
+)
+from qore.infrastructure.trader_lab.ict_turtle_soup_r4_source_exact import (
+    Bar,
+    Evidence,
 )
 
 
@@ -41,16 +47,16 @@ def _sha(label: str) -> str:
 
 
 def _fresh(trader_id: str, symbol: str, index: int) -> Phase22FreshOpportunity:
-    signal_at = datetime(2015, 11, 2, 10, tzinfo=UTC) + timedelta(
-        days=index * 3
+    signal_at = datetime(2015, 10, 21, 12, tzinfo=UTC) + timedelta(
+        days=index
     )
     return Phase22FreshOpportunity(
         trader_id=TraderLineage(trader_id),
         qore_symbol=symbol,
-        signal_fingerprint=_sha(f"exec-signal-{trader_id}"),
+        signal_fingerprint=_sha(f"regime-signal-{trader_id}"),
         signal_at=signal_at,
         entry_at=signal_at + timedelta(minutes=5),
-        exit_at=signal_at + timedelta(hours=2),
+        exit_at=signal_at + timedelta(hours=1),
         side="long",
         entry_price=Decimal("100"),
         structural_stop=Decimal("99"),
@@ -116,36 +122,25 @@ def _provider_payload() -> dict[str, object]:
     )
     specs = []
     for symbol in ("AUDJPY", "EURUSD", "GBPJPY", "GBPUSD", "NAS100", "XAUUSD"):
-        is_nas = symbol == "NAS100"
         specs.append(
             Phase22ProviderNumericExecutionSpec(
                 qore_symbol=symbol,
-                provider_symbol="USTEC" if is_nas else symbol,
+                provider_symbol=symbol,
                 observed_at=datetime(2026, 10, 1, 20, tzinfo=UTC),
                 bid=Decimal("100"),
-                ask=Decimal("100"),
+                ask=Decimal("100.01"),
                 display_digits=2,
-                contract_size_per_volume=(
-                    Decimal("1") if is_nas else Decimal("100000")
-                ),
-                minimum_volume=(
-                    Decimal("0.1") if is_nas else Decimal("0.01")
-                ),
+                contract_size_per_volume=Decimal("1"),
+                minimum_volume=Decimal("0.01"),
                 maximum_volume=Decimal("100"),
-                volume_step=(
-                    Decimal("0.1") if is_nas else Decimal("0.01")
-                ),
+                volume_step=Decimal("0.01"),
                 margin_per_volume_usd=Decimal("10"),
                 commission_per_volume_usd=Decimal("0"),
                 worst_adverse_slippage_bps=Decimal("0"),
                 quote_to_usd=Decimal("1"),
-                usd_value_per_price_unit_per_volume=(
-                    Decimal("1") if is_nas else Decimal("100000")
-                ),
+                usd_value_per_price_unit_per_volume=Decimal("1"),
                 derived_price_quantum=Decimal("0.01"),
-                derived_value_per_quantum_usd=(
-                    Decimal("0.01") if is_nas else Decimal("1000")
-                ),
+                derived_value_per_quantum_usd=Decimal("0.01"),
                 source_provider_terms_artifact_sha256=_sha("terms"),
                 source_empirical_execution_artifact_sha256=_sha("empirical"),
             )
@@ -164,7 +159,31 @@ def _provider_payload() -> dict[str, object]:
     }
 
 
-def _execution_inputs():
+def _corpora(*, bar_count: int = 900) -> tuple[Evidence, ...]:
+    start = datetime(2015, 10, 18, tzinfo=UTC)
+    result = []
+    for symbol_index, symbol in enumerate(PHASE22_REGIME_SYMBOLS):
+        bars = []
+        base = Decimal("100") + Decimal(symbol_index)
+        for index in range(bar_count):
+            opened = start + timedelta(minutes=5 * index)
+            center = base + Decimal(index) / Decimal("10000")
+            width = Decimal("0.20")
+            bars.append(
+                Bar(
+                    opened_at=opened,
+                    closed_at=opened + timedelta(minutes=5),
+                    open=center,
+                    high=center + width / Decimal(2),
+                    low=center - width / Decimal(2),
+                    close=center + Decimal("0.01"),
+                )
+            )
+        result.append(Evidence(symbol=symbol, digits=2, bars=tuple(bars)))
+    return tuple(result)
+
+
+def _plan_and_provider():
     fresh = load_phase22_sealed_fresh_batch(_fresh_payload())
     provider = load_phase22_sealed_provider_numeric(_provider_payload())
     projections = project_phase22_execution_inputs(
@@ -172,70 +191,69 @@ def _execution_inputs():
         provider=provider,
         provider_numeric_freeze_sha256=_sha("provider-freeze"),
     )
-    replay = build_phase22_chronological_replay_plan(
+    plan = build_phase22_chronological_replay_plan(
         fresh=fresh,
         projections=projections,
     )
-    regimes = tuple(
-        Phase22HistoricalRegimeEvidence(
-            decision_epoch_id=epoch.decision_epoch_id,
-            observed_at=epoch.market_decision_at,
-            liquidity=LiquidityState.NORMAL,
-            volatility=VolatilityState.NORMAL,
-            correlation=CorrelationState.NORMAL,
-            provider_condition=ProviderCondition.HEALTHY,
-            concentration_limit_by_group=(),
-            evidence_sha256=_sha(epoch.decision_epoch_id),
-            source_evidence_ids=(_sha("regime-source-" + epoch.decision_epoch_id),),
-            regime_policy_sha256=_sha("phase20-regime-policy"),
-            provider_numeric_freeze_sha256=_sha("provider-freeze"),
-            market_history_sufficient=True,
-        )
-        for epoch in replay.epochs
-    )
-    return replay, regimes
+    return plan, provider
 
 
-def test_chronological_execution_preserves_risk_settlement_release_identity() -> None:
-    replay, regimes = _execution_inputs()
-    report = execute_phase22_chronological_replay(
-        plan=replay,
-        regime_evidence=regimes,
-        replay_started_at=datetime(2026, 10, 2, 7, tzinfo=UTC),
+def test_historical_regime_reuses_frozen_phase20_policy_without_history_claims() -> None:
+    plan, provider = _plan_and_provider()
+    evidence = build_phase22_historical_regime_evidence(
+        plan=plan,
+        provider=provider,
+        provider_numeric_freeze_sha256=_sha("provider-freeze"),
+        corpora=_corpora(),
     )
 
-    assert report.initial_realized_capital_usd == Decimal("60")
-    assert report.accounting_residual_usd == 0
-    assert report.selected_count == (
-        report.allowed_count + report.reduced_count + report.rejected_count
+    assert len(evidence) == len(plan.epochs)
+    assert all(
+        item.regime_policy_sha256 == phase20_demo_regime_policy_sha256()
+        for item in evidence
     )
-    assert report.settled_count == report.allowed_count + report.reduced_count
-    assert len(report.books.executed_risk.executed_risk) == report.selected_count
-    assert len(report.books.cma_settlement.settlements) == report.settled_count
-    assert len(report.books.t20_release.release_chain) == report.settled_count
-    assert report.floating_pnl_used_as_funding is False
-    assert report.broker_mutation_performed is False
-    assert report.historical_broker_fills_claimed is False
+    assert all(item.counterfactual_provider_model for item in evidence)
+    assert not any(item.historical_provider_state_claimed for item in evidence)
+    assert not any(item.outcome_fields_used for item in evidence)
+    assert all(item.concentration_limit_by_group == () for item in evidence)
+    assert all(item.market_history_sufficient for item in evidence)
+    assert not any(item.evidence_stale for item in evidence)
+    assert all(item.provider_condition is ProviderCondition.HEALTHY for item in evidence)
 
 
-def test_replay_risk_model_is_stable_and_counterfactual() -> None:
-    first = phase22_historical_risk_model_sha256()
-    second = phase22_historical_risk_model_sha256()
+def test_missing_72_bar_history_fails_closed() -> None:
+    plan, provider = _plan_and_provider()
+    evidence = build_phase22_historical_regime_evidence(
+        plan=plan,
+        provider=provider,
+        provider_numeric_freeze_sha256=_sha("provider-freeze"),
+        corpora=_corpora(bar_count=20),
+    )
+
+    assert all(not item.market_history_sufficient for item in evidence)
+    assert all(item.evidence_stale for item in evidence)
+    assert all(item.liquidity is LiquidityState.STRESSED for item in evidence)
+    assert all(item.volatility is VolatilityState.DISLOCATED for item in evidence)
+    assert all(item.correlation is CorrelationState.BREAK for item in evidence)
+    assert all(item.provider_condition is ProviderCondition.DEGRADED for item in evidence)
+
+
+def test_historical_regime_evidence_is_deterministic() -> None:
+    plan, provider = _plan_and_provider()
+    first = build_phase22_historical_regime_evidence(
+        plan=plan,
+        provider=provider,
+        provider_numeric_freeze_sha256=_sha("provider-freeze"),
+        corpora=_corpora(),
+    )
+    second = build_phase22_historical_regime_evidence(
+        plan=plan,
+        provider=provider,
+        provider_numeric_freeze_sha256=_sha("provider-freeze"),
+        corpora=_corpora(),
+    )
 
     assert first == second
-    assert first.startswith("sha256:")
-
-
-def test_regime_evidence_must_cover_exact_epoch_surface() -> None:
-    replay, regimes = _execution_inputs()
-
-    try:
-        execute_phase22_chronological_replay(
-            plan=replay,
-            regime_evidence=regimes[:-1],
-            replay_started_at=datetime(2026, 10, 2, 7, tzinfo=UTC),
-        )
-    except Exception as error:
-        assert "exact epoch set" in str(error)
-    else:
-        raise AssertionError("missing regime evidence must fail closed")
+    assert tuple(item.evidence_sha256 for item in first) == tuple(
+        item.evidence_sha256 for item in second
+    )
