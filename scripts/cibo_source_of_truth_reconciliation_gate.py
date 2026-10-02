@@ -120,6 +120,20 @@ def validate_reconciliation(repo_root: Path = ROOT) -> list[str]:
         if open_ids and summary.get("final_certification_candidate") is True:
             errors.append("ledger final candidate cannot coexist with open work")
 
+    for row in rows:
+        maturity = row.get("current_maturity")
+        disposition = row.get("terminal_disposition")
+        if (
+            isinstance(maturity, str)
+            and "NON_TERMINAL" in maturity
+            and isinstance(disposition, str)
+            and disposition
+        ):
+            errors.append(
+                f"{row.get('id')} non-terminal maturity cannot have "
+                "terminal disposition"
+            )
+
     by_id = {
         str(row.get("id")): row
         for row in rows
