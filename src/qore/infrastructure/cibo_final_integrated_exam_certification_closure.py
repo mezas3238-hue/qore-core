@@ -258,7 +258,6 @@ class CiboCertificationSeal:
 def build_certification_closure_ledger(
     *,
     pre_ledger: dict[str, Any],
-    holdout_candidate_id: str,
     final_package: FinalIntegratedControlPackage,
     final_report: FinalIntegratedExamReport,
     world_cup_package: WorldCupControlPackage,
@@ -266,10 +265,6 @@ def build_certification_closure_ledger(
 ) -> tuple[dict[str, Any], CiboCertificationClosureTransition]:
     """Terminalize only the two exam rows after both receipt-bound exams PASS."""
 
-    validate_certifiable_holdout_id(
-        holdout_candidate_id,
-        "certification closure holdout identity",
-    )
     if pre_ledger.get("schema") != _LEDGER_SCHEMA:
         raise CiboCapitalManagementError(
             "CIBO certification closure ledger schema drift"
@@ -386,9 +381,36 @@ def build_certification_closure_ledger(
     provider_risk_cma_sha = final_receipts[
         "P4_PROVIDER_RISK_CMA_FORWARD_TRUTH"
     ].source_artifact_sha256
-    scientific_closure_sha = final_receipts[
-        "P7_SCIENTIFIC_CLOSURE"
-    ].source_artifact_sha256
+    p7_receipt = final_receipts["P7_SCIENTIFIC_CLOSURE"]
+    p8_receipt = final_receipts["P8_COMPOUND_CLOSURE"]
+    scientific_closure_sha = p7_receipt.source_artifact_sha256
+    try:
+        p7_artifact = json.loads(p7_receipt.source_artifact_json)
+        p8_artifact = json.loads(p8_receipt.source_artifact_json)
+    except json.JSONDecodeError as error:
+        raise CiboCapitalManagementError(
+            "CIBO certification closure P7/P8 artifact JSON invalid"
+        ) from error
+    p7_details = p7_artifact.get("details")
+    p8_details = p8_artifact.get("details")
+    if not isinstance(p7_details, dict) or not isinstance(p8_details, dict):
+        raise CiboCapitalManagementError(
+            "CIBO certification closure P7/P8 holdout binding missing"
+        )
+    holdout_candidate_id = p7_details.get("holdout_id")
+    p8_holdout_id = p8_details.get("holdout_id")
+    if not isinstance(holdout_candidate_id, str):
+        raise CiboCapitalManagementError(
+            "CIBO certification closure P7 holdout binding invalid"
+        )
+    validate_certifiable_holdout_id(
+        holdout_candidate_id,
+        "certification closure holdout identity",
+    )
+    if p8_holdout_id != holdout_candidate_id:
+        raise CiboCapitalManagementError(
+            "CIBO certification closure P7/P8 holdout lineage drift"
+        )
 
     final_row["current_maturity"] = "COMPLETED_AND_PROVEN_FINAL_INTEGRATED_PASS"
     final_row["terminal_disposition"] = "COMPLETED_AND_PROVEN"
