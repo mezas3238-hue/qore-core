@@ -315,6 +315,25 @@ def test_candidate_cannot_promote_before_certification_seal() -> None:
         )
 
 
+
+def test_certification_closure_rejects_consumed_v4_holdout() -> None:
+    _phase22, final_package, final_report, world_package, world_report = _exam_chain()
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="explicitly non-certifiable",
+    ):
+        build_certification_closure_ledger(
+            pre_ledger=_ledger(),
+            holdout_candidate_id=(
+                "CIBO_USD60_6M_HOLDOUT_2014-10-19_2015-04-19_V4"
+            ),
+            final_package=final_package,
+            final_report=final_report,
+            world_cup_package=world_package,
+            world_cup_report=world_report,
+        )
+
+
 def test_certification_seal_rejects_invalid_holdout_identity_shape() -> None:
     phase22, final_package, final_report, world_package, world_report = _exam_chain()
     closed, transition = build_certification_closure_ledger(
@@ -335,7 +354,7 @@ def test_certification_seal_rejects_invalid_holdout_identity_shape() -> None:
     )
     with pytest.raises(
         CiboCapitalManagementError,
-        match="holdout identity invalid",
+        match="versioned fresh holdout id",
     ):
         replace(
             seal,
