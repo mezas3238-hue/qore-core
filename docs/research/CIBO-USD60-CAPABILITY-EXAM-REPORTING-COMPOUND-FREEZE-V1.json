@@ -176,9 +176,26 @@
   "production_authorized": false,
   "merge_authorized": false,
   "readiness": {
-    "turtle_temporal_alignment_ready": false,
-    "trader_column_reporting_ready": false,
-    "compound_portfolio_lane_ready": false,
-    "launch_ready": false
+    "turtle_temporal_alignment_ready": true,
+    "trader_column_reporting_ready": true,
+    "compound_portfolio_lane_ready": true,
+    "launch_ready": true
+  },
+  "readiness_evidence": {
+    "verified_head_sha": "60f55a5d6baa186563d87936b893d162ea5919a3",
+    "turtle_temporal_alignment": [
+      ".github/workflows/cibo-infrastructure-capability-exam.yml::Build window-aligned Journey and Target Destination",
+      "scripts/cibo_phase22_v4_turtle_window_replay.py::zero episode match fail-closed"
+    ],
+    "trader_column_reporting": [
+      "scripts/cibo_capability_exam_column_report.py",
+      "scripts/cibo_reused_holdout_capability_exam.py::column report invocation"
+    ],
+    "compound_portfolio_lane": [
+      "src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py",
+      "scripts/cibo_reused_holdout_capability_exam.py::run_compound_portfolio_lane"
+    ],
+    "owner_launch_authorized": true,
+    "owner_launch_authorized_at_utc": "2026-10-02T22:00:00Z"
   }
 }
