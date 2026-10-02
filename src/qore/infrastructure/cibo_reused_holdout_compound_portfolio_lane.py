@@ -465,9 +465,9 @@ def run_compound_portfolio_lane(
                     "compound Risk reservation disappeared after fill"
                 )
             state = reservation.state.value
-            if state == "FILLED_UNRECONCILED":
+            if state == "filled-unreconciled":
                 risk_engine.reconcile_fill(auth.authorization_id)
-            elif state != "RELEASED":
+            elif state != "released":
                 raise CiboCapitalManagementError(
                     "compound Risk fill reached unexpected reservation state: "
                     + state
