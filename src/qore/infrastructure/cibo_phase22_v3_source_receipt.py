@@ -601,3 +601,15 @@ ACTIVE_PHASE22_V3_SOURCE_RECEIPT = Phase22V3SourceReceipt(
     ),
     source_validation_complete=True,
 )
+
+
+V3_SOURCE_BINDINGS = PHASE22_V3_SOURCE_RECEIPT.bindings
+VT08_REQUIRED_MARKETS = (
+    "AUDJPY",
+    "AUDUSD",
+    "EURUSD",
+    "GBPJPY",
+    "GBPUSD",
+    "USDCAD",
+    "USDJPY",
+)
