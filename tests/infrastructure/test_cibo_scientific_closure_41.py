@@ -334,6 +334,13 @@ def test_transition_modifies_only_exact_41_and_leaves_exams_open() -> None:
     assert receipt.productive_authority is False
     assert receipt.live_authorized is False
     assert receipt.real_capital_authorized is False
+    assert updated["current_summary"] == {
+        "mandatory_count": 64,
+        "terminal_count": 62,
+        "open_count": 2,
+        "zero_open_work_pass": False,
+        "final_certification_candidate": False,
+    }
 
 
 def test_transition_rejects_reopened_or_preterminal_target() -> None:
