@@ -542,5 +542,3 @@ class CTraderDemoFreePositionService:
                 )
             )
         return tuple(sorted(rows, key=lambda item: (item.executed_at, item.deal_id)))
-
-[executed on device: vps-vrix (dc465c7d-1698-4cb8-921f-a008b11315c7)]
