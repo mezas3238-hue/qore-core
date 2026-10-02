@@ -16,10 +16,6 @@ from qore.infrastructure.cibo_phase22_consumption_ledger import (
     Phase22ExecutionConsumptionReceipt,
     build_phase22_execution_claim,
 )
-from qore.infrastructure.cibo_phase22_v3_store_contract import (
-    PHASE22_V3_STORE_IDENTITIES,
-    assert_phase22_v3_store_pristine,
-)
 from qore.infrastructure.cibo_phase22_trader_parity_manifest import (
     CANONICAL_PHASE22_TRADER_IDS,
 )
@@ -28,6 +24,10 @@ from qore.infrastructure.cibo_phase22_v3_execution_authorization import (
 )
 from qore.infrastructure.cibo_phase22_v3_execution_manifest import (
     build_phase22_v3_execution_manifest,
+)
+from qore.infrastructure.cibo_phase22_v3_store_contract import (
+    PHASE22_V3_STORE_IDENTITIES,
+    assert_phase22_v3_store_pristine,
 )
 
 _SHA_RE = re.compile(r"^[0-9a-f]{40}$")
