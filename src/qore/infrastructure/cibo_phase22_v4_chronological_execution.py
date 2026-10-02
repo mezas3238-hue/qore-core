@@ -368,7 +368,7 @@ def execute_phase22_chronological_replay(
     regime_evidence: tuple[Phase22HistoricalRegimeEvidence, ...],
     replay_started_at: datetime,
     amendment: Phase22HistoricalReplayEconomicsAmendment | None = None,
-    lab_execute_all_candidates: bool = False,
+    lab_allow_nonpositive_expectation: bool = False,
 ) -> Phase22HistoricalExecutionReport:
     """Run the frozen USD60 policy/Risk/settlement path chronologically."""
 
@@ -377,9 +377,9 @@ def execute_phase22_chronological_replay(
             "Phase22 execution requires canonical chronological plan"
         )
     _aware(replay_started_at, "replay_started_at")
-    if type(lab_execute_all_candidates) is not bool:
+    if type(lab_allow_nonpositive_expectation) is not bool:
         raise CiboCapitalManagementError(
-            "lab_execute_all_candidates must be bool"
+            "lab_allow_nonpositive_expectation must be bool"
         )
     if amendment is None:
         amendment = canonical_phase22_historical_economics_amendment()
@@ -414,7 +414,6 @@ def execute_phase22_chronological_replay(
     risk_model_sha = phase22_historical_risk_model_sha256()
 
     pairs: list[Phase22HistoricalReplaySealPair] = []
-    effective_policies: list[Phase20ForwardPolicyDecisionSeal] = []
     risk_seals: list[Phase22HistoricalExecutedRiskSeal] = []
     outcomes = []
     releases: list[Phase22HistoricalT20ReleaseSeal] = []
@@ -544,56 +543,18 @@ def execute_phase22_chronological_replay(
             margin_headroom_usd=constraints.margin_headroom_usd,
             concentration_limit_by_group=evidence.concentration_limit_by_group,
             current_step=index,
+            lab_allow_nonpositive_expectation=(
+                lab_allow_nonpositive_expectation
+            ),
         )
         pairs.append(pair)
 
         by_signal = {
             item.signal_fingerprint: item for item in epoch.candidates
         }
-        execution_signals = (
-            tuple(by_signal)
-            if lab_execute_all_candidates
-            else tuple(pair.policy.selected_signal_fingerprints)
+        execution_signals = tuple(
+            pair.policy.selected_signal_fingerprints
         )
-        if lab_execute_all_candidates:
-            canonical_policy = json.loads(pair.policy.canonical_record_json)
-            canonical_policy["lab_all_trader_overlay"] = {
-                "mode": "ALL_LEGAL_CANDIDATES_TO_CMA_QORE_RISK",
-                "shadow_allocator_disposition": (
-                    pair.policy.allocator_disposition
-                ),
-                "shadow_selected_signal_fingerprints": list(
-                    pair.policy.selected_signal_fingerprints
-                ),
-                "selected_signal_fingerprints": list(execution_signals),
-                "outcome_aware": False,
-                "trader_level_exclusion": False,
-                "risk_authority": False,
-                "execution_authority": False,
-                "productive_authority": False,
-            }
-            canonical_policy_json = json.dumps(
-                canonical_policy,
-                sort_keys=True,
-                separators=(",", ":"),
-                ensure_ascii=True,
-            )
-            effective_policies.append(
-                Phase20ForwardPolicyDecisionSeal(
-                    evidence_sha256=pair.policy.evidence_sha256,
-                    policy_record_sha256=(
-                        "sha256:"
-                        + hashlib.sha256(
-                            canonical_policy_json.encode("utf-8")
-                        ).hexdigest()
-                    ),
-                    allocator_disposition="LAB_ALL_LEGAL_CANDIDATES",
-                    selected_signal_fingerprints=execution_signals,
-                    canonical_record_json=canonical_policy_json,
-                )
-            )
-        else:
-            effective_policies.append(pair.policy)
         for signal in execution_signals:
             selected_count += 1
             candidate = by_signal[signal]
@@ -607,26 +568,6 @@ def execute_phase22_chronological_replay(
                 now=epoch.market_decision_at,
             )
             if realized <= 0:
-                if lab_execute_all_candidates:
-                    requested = (
-                        candidate.projection.candidate.capital_input.minimum_stop_risk_usd
-                    )
-                    risk_seals.append(
-                        build_phase22_historical_risk_seal(
-                            decision=pair.decision,
-                            signal_fingerprint=signal,
-                            trader_id=candidate.trader_id,
-                            qore_symbol=candidate.qore_symbol,
-                            decided_at=epoch.market_decision_at,
-                            risk_decision=RiskDecision.REJECT,
-                            requested_stop_risk_usd=requested,
-                            authorized_stop_risk_usd=Decimal(0),
-                            authorized_margin_usd=Decimal(0),
-                            risk_model_sha256=risk_model_sha,
-                        )
-                    )
-                    rejected_count += 1
-                    continue
                 raise CiboCapitalManagementError(
                     "Phase22 policy selected capital after realized capital exhaustion"
                 )
@@ -651,49 +592,8 @@ def execute_phase22_chronological_replay(
                 cost_reserve_usd=Decimal(0),
             )
             opportunity = candidate.projection.candidate.capital_input.opportunity
-            try:
-                plan_row = plan_minimal_seed(opportunity, capital_state)
-            except CiboCapitalManagementError:
-                if lab_execute_all_candidates:
-                    risk_seals.append(
-                        build_phase22_historical_risk_seal(
-                            decision=pair.decision,
-                            signal_fingerprint=signal,
-                            trader_id=candidate.trader_id,
-                            qore_symbol=candidate.qore_symbol,
-                            decided_at=epoch.market_decision_at,
-                            risk_decision=RiskDecision.REJECT,
-                            requested_stop_risk_usd=(
-                                candidate.projection.candidate.capital_input.minimum_stop_risk_usd
-                            ),
-                            authorized_stop_risk_usd=Decimal(0),
-                            authorized_margin_usd=Decimal(0),
-                            risk_model_sha256=risk_model_sha,
-                        )
-                    )
-                    rejected_count += 1
-                    continue
-                raise
+            plan_row = plan_minimal_seed(opportunity, capital_state)
             if plan_row.volume <= 0:
-                if lab_execute_all_candidates:
-                    risk_seals.append(
-                        build_phase22_historical_risk_seal(
-                            decision=pair.decision,
-                            signal_fingerprint=signal,
-                            trader_id=candidate.trader_id,
-                            qore_symbol=candidate.qore_symbol,
-                            decided_at=epoch.market_decision_at,
-                            risk_decision=RiskDecision.REJECT,
-                            requested_stop_risk_usd=(
-                                candidate.projection.candidate.capital_input.minimum_stop_risk_usd
-                            ),
-                            authorized_stop_risk_usd=Decimal(0),
-                            authorized_margin_usd=Decimal(0),
-                            risk_model_sha256=risk_model_sha,
-                        )
-                    )
-                    rejected_count += 1
-                    continue
                 raise CiboCapitalManagementError(
                     "Phase22 selected signal cannot produce minimum seed"
                 )
@@ -768,7 +668,7 @@ def execute_phase22_chronological_replay(
         )
 
     decisions = tuple(item.decision for item in pairs)
-    policies = tuple(effective_policies)
+    policies = tuple(item.policy for item in pairs)
     evidence_book = VersionedPhase22HistoricalReplayEvidenceBook(
         generation=1,
         amendment_sha256=amendment.fingerprint(),
