@@ -470,7 +470,11 @@ def _generation_edges(
             raise CiboCompoundCapitalError(
                 "compound audit generation parent is missing"
             )
-        if parent.generation >= child.generation:
+        if parent.generation > child.generation:
+            raise CiboCompoundCapitalError(
+                "compound audit generation parent cannot exceed child generation"
+            )
+        if parent.generation == child.generation:
             continue
         edges.append(
             CompoundGenerationLineageEdge(

@@ -115,6 +115,10 @@ class T11MarketImpactFreeze:
     temporally_disjoint_validation_required: bool
     nonnegative_quadratic_coefficient_required: bool
     each_child_order_minimum_volume_required: bool
+    realized_settlement_cost_required: bool
+    deposit_asset_usd_required: bool
+    balanced_long_short_pairs_required: bool
+    alternating_level_order_required: bool
     fundednext_allowed: bool
     vps_allowed: bool
     live_allowed: bool
@@ -151,6 +155,10 @@ class T11MarketImpactFreeze:
             self.temporally_disjoint_validation_required,
             self.nonnegative_quadratic_coefficient_required,
             self.each_child_order_minimum_volume_required,
+            self.realized_settlement_cost_required,
+            self.deposit_asset_usd_required,
+            self.balanced_long_short_pairs_required,
+            self.alternating_level_order_required,
         )
         if not all(required_true):
             raise CiboCapitalManagementError("T11 impact scientific controls weakened")
@@ -237,6 +245,10 @@ T11_NONLINEAR_INPUT_FREEZE = T11NonlinearInputFreeze(
         temporally_disjoint_validation_required=True,
         nonnegative_quadratic_coefficient_required=True,
         each_child_order_minimum_volume_required=True,
+        realized_settlement_cost_required=True,
+        deposit_asset_usd_required=True,
+        balanced_long_short_pairs_required=True,
+        alternating_level_order_required=True,
         fundednext_allowed=False,
         vps_allowed=False,
         live_allowed=False,

@@ -13,6 +13,15 @@ PROTOCOL_ID = "CIBO_COMPOUND_CAUSAL_ABLATION_PROTOCOL_V1"
 PROTOCOL_FROZEN_AT = datetime(2026, 9, 30, 17, 42, 30, tzinfo=UTC)
 ROOT_CONTROL_ID = "CIBO_GENERATION_CURRENT_CONTROL_V1"
 SEALED_HOLDOUT_ID = "CIBO_USD60_6M_HOLDOUT_2017H1_V1"
+PHASE22_V2_FRESH_HOLDOUT_ID = (
+    "CIBO_USD60_6M_HOLDOUT_2015-10-19_2016-04-19_V2"
+)
+_PROTECTED_HOLDOUT_IDS = frozenset(
+    {
+        SEALED_HOLDOUT_ID,
+        PHASE22_V2_FRESH_HOLDOUT_ID,
+    }
+)
 _CANONICAL_FOLDS = ("WF1", "WF2", "WF3", "WF4")
 _SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 
@@ -99,9 +108,9 @@ class CompoundCausalAblationPair:
             raise CiboCompoundCapitalError(
                 "compound causal ablation mechanism/workstream mismatch"
             )
-        if self.population_id == SEALED_HOLDOUT_ID:
+        if self.population_id in _PROTECTED_HOLDOUT_IDS:
             raise CiboCompoundCapitalError(
-                "sealed 2017H1 holdout cannot enter development ablation"
+                "protected holdout cannot enter development ablation"
             )
         for name in (
             "control_population_sha256",
@@ -233,6 +242,79 @@ class CompoundCausalAblationGateReport:
             raise CiboCompoundCapitalError(
                 "compound causal ablation report governance drift"
             )
+
+
+@dataclass(frozen=True, slots=True)
+class CompoundCausalAblationCoverageReport:
+    mechanism_ids: tuple[str, ...]
+    workstream_ids: tuple[str, ...]
+    pair_count: int
+    exact_mechanism_surface: bool
+    economic_outcomes_evaluated: bool = False
+    scientific_disposition_claimed: bool = False
+    certification_ready: bool = False
+
+    def __post_init__(self) -> None:
+        expected_mechanisms = tuple(item.value for item in CompoundCausalMechanism)
+        if self.mechanism_ids != expected_mechanisms:
+            raise CiboCompoundCapitalError(
+                "compound causal ablation coverage mechanism surface drift"
+            )
+        expected_workstreams = tuple(
+            _MECHANISM_WORKSTREAM[item]
+            for item in CompoundCausalMechanism
+        )
+        if self.workstream_ids != expected_workstreams:
+            raise CiboCompoundCapitalError(
+                "compound causal ablation coverage workstream surface drift"
+            )
+        if self.pair_count != len(expected_mechanisms):
+            raise CiboCompoundCapitalError(
+                "compound causal ablation coverage pair-count drift"
+            )
+        if self.exact_mechanism_surface is not True:
+            raise CiboCompoundCapitalError(
+                "compound causal ablation coverage must be exact"
+            )
+        if (
+            self.economic_outcomes_evaluated
+            or self.scientific_disposition_claimed
+            or self.certification_ready
+        ):
+            raise CiboCompoundCapitalError(
+                "compound causal ablation coverage cannot overclaim science"
+            )
+
+
+def audit_compound_causal_ablation_full_surface(
+    pairs: tuple[CompoundCausalAblationPair, ...],
+) -> CompoundCausalAblationCoverageReport:
+    """Prove exact 11-mechanism coverage without evaluating any outcome."""
+
+    gate_compound_causal_ablation_pairs(pairs)
+    by_mechanism: dict[
+        CompoundCausalMechanism,
+        CompoundCausalAblationPair,
+    ] = {}
+    for pair in pairs:
+        if pair.changed_mechanism in by_mechanism:
+            raise CiboCompoundCapitalError(
+                "compound causal ablation full surface duplicates mechanism"
+            )
+        by_mechanism[pair.changed_mechanism] = pair
+    expected = tuple(CompoundCausalMechanism)
+    missing = tuple(item for item in expected if item not in by_mechanism)
+    if missing:
+        raise CiboCompoundCapitalError(
+            "compound causal ablation full surface is incomplete: "
+            + ",".join(item.value for item in missing)
+        )
+    return CompoundCausalAblationCoverageReport(
+        mechanism_ids=tuple(item.value for item in expected),
+        workstream_ids=tuple(_MECHANISM_WORKSTREAM[item] for item in expected),
+        pair_count=len(pairs),
+        exact_mechanism_surface=True,
+    )
 
 
 def gate_compound_causal_ablation_pairs(

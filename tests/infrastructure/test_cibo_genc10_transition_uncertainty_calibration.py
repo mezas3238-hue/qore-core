@@ -189,3 +189,38 @@ def test_genc10_report_rejects_manual_digest_drift() -> None:
     ):
         replace(report, report_sha256=_sha("f"))
 
+
+
+def test_genc10_transition_rejects_non_bool_governance_flags() -> None:
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="future_data_used must be bool",
+    ):
+        replace(_observation(1), future_data_used=0)
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="provider_constraints_changed must be bool",
+    ):
+        replace(_observation(1), provider_constraints_changed=1)
+
+
+def test_genc10_support_rejects_bool_counts() -> None:
+    report = calibrate_genc10_transition_uncertainty(
+        observations=(_observation(1), _observation(2)),
+        source_population_sha256=POPULATION_SHA,
+        calibration_cutoff_at=T0 + timedelta(days=1),
+    )
+    support = report.supports[0]
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="support identity/count invalid",
+    ):
+        replace(support, observation_count=True)
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="provider-change observation count invalid",
+    ):
+        replace(support, provider_constraint_change_observations=False)
