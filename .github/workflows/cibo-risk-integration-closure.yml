@@ -10,11 +10,13 @@ on:
       - 'src/qore/infrastructure/cibo_cma_risk_request.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_demo_risk_bridge.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_demo_shadow_risk.py'
+      - 'src/qore/infrastructure/cibo_demo_risk_reservation_reconciliation.py'
       - 'src/qore/infrastructure/ctrader_demo_free_sink.py'
       - 'scripts/qore_ctrader_demo_free_runtime.py'
       - 'tests/infrastructure/test_ctrader_demo_phase20_risk_sink.py'
       - 'tests/infrastructure/test_ctrader_demo_free_sink_multi_entry.py'
       - 'tests/infrastructure/test_ctrader_demo_sovereign_risk_runtime.py'
+      - 'tests/infrastructure/test_cibo_demo_risk_reservation_reconciliation.py'
       - 'src/qore/infrastructure/cibo_fundednext_seed.py'
       - 'tests/infrastructure/test_cibo_risk_integration_closure.py'
       - 'docs/research/CIBO-RISK-INTEGRATION-CLOSURE-V1.md'
@@ -29,11 +31,13 @@ on:
       - 'src/qore/infrastructure/cibo_cma_risk_request.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_demo_risk_bridge.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_demo_shadow_risk.py'
+      - 'src/qore/infrastructure/cibo_demo_risk_reservation_reconciliation.py'
       - 'src/qore/infrastructure/ctrader_demo_free_sink.py'
       - 'scripts/qore_ctrader_demo_free_runtime.py'
       - 'tests/infrastructure/test_ctrader_demo_phase20_risk_sink.py'
       - 'tests/infrastructure/test_ctrader_demo_free_sink_multi_entry.py'
       - 'tests/infrastructure/test_ctrader_demo_sovereign_risk_runtime.py'
+      - 'tests/infrastructure/test_cibo_demo_risk_reservation_reconciliation.py'
       - 'src/qore/infrastructure/cibo_fundednext_seed.py'
       - 'tests/infrastructure/test_cibo_risk_integration_closure.py'
       - 'docs/research/CIBO-RISK-INTEGRATION-CLOSURE-V1.md'
@@ -63,18 +67,21 @@ jobs:
             src/qore/infrastructure/cibo_cma_risk_request.py \
             src/qore/infrastructure/cibo_ce2i_phase20_demo_risk_bridge.py \
             src/qore/infrastructure/cibo_ce2i_phase20_demo_shadow_risk.py \
+            src/qore/infrastructure/cibo_demo_risk_reservation_reconciliation.py \
             src/qore/infrastructure/ctrader_demo_free_sink.py \
             src/qore/infrastructure/cibo_fundednext_seed.py \
             tests/infrastructure/test_cibo_risk_integration_closure.py \
             tests/infrastructure/test_ctrader_demo_phase20_risk_sink.py \
             tests/infrastructure/test_ctrader_demo_free_sink_multi_entry.py \
-            tests/infrastructure/test_ctrader_demo_sovereign_risk_runtime.py
+            tests/infrastructure/test_ctrader_demo_sovereign_risk_runtime.py \
+            tests/infrastructure/test_cibo_demo_risk_reservation_reconciliation.py
           mypy \
             src/qore/infrastructure/account_wide_risk.py \
             src/qore/infrastructure/account_wide_risk_ledger.py \
             src/qore/infrastructure/cibo_cma_risk_request.py \
             src/qore/infrastructure/cibo_ce2i_phase20_demo_risk_bridge.py \
             src/qore/infrastructure/cibo_ce2i_phase20_demo_shadow_risk.py \
+            src/qore/infrastructure/cibo_demo_risk_reservation_reconciliation.py \
             src/qore/infrastructure/ctrader_demo_free_sink.py \
             src/qore/infrastructure/cibo_fundednext_seed.py
           python -m py_compile \
@@ -88,4 +95,5 @@ jobs:
             tests/infrastructure/test_cibo_risk_integration_closure.py \
             tests/infrastructure/test_ctrader_demo_phase20_risk_sink.py \
             tests/infrastructure/test_ctrader_demo_free_sink_multi_entry.py \
-            tests/infrastructure/test_ctrader_demo_sovereign_risk_runtime.py
+            tests/infrastructure/test_ctrader_demo_sovereign_risk_runtime.py \
+            tests/infrastructure/test_cibo_demo_risk_reservation_reconciliation.py
