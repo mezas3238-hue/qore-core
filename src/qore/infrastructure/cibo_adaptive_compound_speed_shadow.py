@@ -261,11 +261,15 @@ class Genc8AdaptiveCompoundSpeedDecision:
             )
         _sha(self.genc5_decision_sha256, "genc5_decision_sha256")
         _sha(self.regime_evidence_sha256, "regime_evidence_sha256")
-        if len(self.fact_evidence_sha256s) != len(
-            set(self.fact_evidence_sha256s)
+        if (
+            not isinstance(self.fact_evidence_sha256s, tuple)
+            or len(self.fact_evidence_sha256s) != len(_MANDATORY_FACTS)
+            or len(self.fact_evidence_sha256s) != len(
+                set(self.fact_evidence_sha256s)
+            )
         ):
             raise CiboCompoundCapitalError(
-                "GEN-C8 fact evidence SHA list must be unique"
+                "GEN-C8 fact evidence SHA list must cover exact mandatory fact set"
             )
         for item in self.fact_evidence_sha256s:
             _sha(item, "fact_evidence_sha256")
@@ -283,6 +287,10 @@ class Genc8AdaptiveCompoundSpeedDecision:
                 "GEN-C8 V1 treatment must equal non-compensatory ceiling"
             )
         expected_differs = self.treatment_posture is not self.control_posture
+        if type(self.treatment_differs_from_control) is not bool:
+            raise CiboCompoundCapitalError(
+                "GEN-C8 treatment/control divergence flag must be bool"
+            )
         if self.treatment_differs_from_control != expected_differs:
             raise CiboCompoundCapitalError(
                 "GEN-C8 treatment/control divergence flag drift"
