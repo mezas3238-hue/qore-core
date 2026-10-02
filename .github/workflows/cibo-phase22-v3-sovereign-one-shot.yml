@@ -40,7 +40,7 @@ jobs:
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/phase22-v3-preclaim"
           python - <<'PY'
-          import json, subprocess
+          import json, os, subprocess
           from pathlib import Path
           from qore.infrastructure.cibo_phase22_v3_execution_authorization import (
               AUTHORIZATION_RELATIVE_PATH,
@@ -67,7 +67,7 @@ jobs:
           assert auth.production_authorized is False
           assert auth.merge_authorized is False
           manifest = build_phase22_v3_execution_manifest()
-          Path("$RUNNER_TEMP/phase22-v3-preclaim/authorization-barrier.json").write_text(
+          (Path(os.environ["RUNNER_TEMP"]) / "phase22-v3-preclaim" / "authorization-barrier.json").write_text(
               json.dumps({
                   "authorization_sha256": auth.fingerprint(),
                   "manifest_sha256": manifest.fingerprint(),
