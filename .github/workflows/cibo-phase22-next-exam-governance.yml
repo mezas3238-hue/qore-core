@@ -35,7 +35,7 @@ jobs:
           python -m pytest -q \
             tests/infrastructure/test_cibo_phase22_next_exam_governance.py \
             tests/infrastructure/test_cibo_ce2i_holdout_registry.py
-      - name: Require preparation-only governance
+      - name: Require Owner authorization as sole blocker
         run: |
           python - <<'PY'
           import json
@@ -46,11 +46,14 @@ jobs:
                   "docs/research/CIBO-PHASE22-NEXT-EXAM-GOVERNANCE-V1.json"
               ).read_text(encoding="utf-8")
           )
-          assert payload["status"] == "PREPARATION_ONLY"
+          assert payload["status"] == "AWAITING_OWNER_ONE_SHOT_AUTHORIZATION"
           assert payload["consumed_v2"]["second_fresh_execution_authorized"] is False
-          assert payload["provisional_next_candidate"]["status"] == "SOURCE_VALIDATION_PENDING"
-          assert payload["provisional_next_candidate"]["source_validation_complete"] is False
+          assert payload["provisional_next_candidate"]["status"] == "ELIGIBLE_FROZEN"
+          assert payload["provisional_next_candidate"]["source_validation_complete"] is True
           assert payload["provisional_next_candidate"]["execution_authorized"] is False
+          assert payload["blockers"] == [
+              "NEW_ONE_SHOT_OWNER_AUTHORIZATION_REQUIRED"
+          ]
           for key in (
               "broker_mutation_authorized",
               "live_authorized",
