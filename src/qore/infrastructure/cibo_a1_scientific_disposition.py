@@ -192,6 +192,9 @@ class A1ScientificDisposition:
 class A1ScientificDispositionPackage:
     source_branch: str
     source_head: str
+    canonical_phase22_manifest_sha256: str
+    a1_consumption_manifest_sha256: str
+    canonical_manifest_bridge_sha256: str
     dispositions: tuple[A1ScientificDisposition, ...]
     complete_handoff: bool
     integrator_owned_reconciliation: bool = True
@@ -207,6 +210,12 @@ class A1ScientificDispositionPackage:
             raise CiboCapitalManagementError(
                 "A1 disposition package source head invalid"
             )
+        for name in (
+            "canonical_phase22_manifest_sha256",
+            "a1_consumption_manifest_sha256",
+            "canonical_manifest_bridge_sha256",
+        ):
+            _sha256(getattr(self, name), name)
         ids = tuple(item.workstream_id for item in self.dispositions)
         if len(ids) != len(set(ids)):
             raise CiboCapitalManagementError(
@@ -216,6 +225,24 @@ class A1ScientificDispositionPackage:
             raise CiboCapitalManagementError(
                 "A1 disposition package receipt/payload mismatch"
             )
+        if self.dispositions:
+            candidates = {item.candidate_id for item in self.dispositions}
+            code_shas = {item.code_sha for item in self.dispositions}
+            parameter_shas = {
+                item.parameter_sha256 for item in self.dispositions
+            }
+            if len(candidates) != 1:
+                raise CiboCapitalManagementError(
+                    "A1 disposition package candidate identity drift"
+                )
+            if len(code_shas) != 1:
+                raise CiboCapitalManagementError(
+                    "A1 disposition package code SHA drift"
+                )
+            if len(parameter_shas) != 1:
+                raise CiboCapitalManagementError(
+                    "A1 disposition package parameter SHA drift"
+                )
         if self.complete_handoff:
             if set(ids) != set(A1_WORKSTREAMS) or len(ids) != len(A1_WORKSTREAMS):
                 raise CiboCapitalManagementError(
@@ -229,6 +256,39 @@ class A1ScientificDispositionPackage:
             raise CiboCapitalManagementError(
                 "A1 disposition package governance drift"
             )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "source_branch": self.source_branch,
+            "source_head": self.source_head,
+            "canonical_phase22_manifest_sha256": (
+                self.canonical_phase22_manifest_sha256
+            ),
+            "a1_consumption_manifest_sha256": (
+                self.a1_consumption_manifest_sha256
+            ),
+            "canonical_manifest_bridge_sha256": (
+                self.canonical_manifest_bridge_sha256
+            ),
+            "dispositions": [
+                item.canonical_payload() for item in self.dispositions
+            ],
+            "complete_handoff": self.complete_handoff,
+            "integrator_owned_reconciliation": (
+                self.integrator_owned_reconciliation
+            ),
+            "merge_authorized": self.merge_authorized,
+            "certification_authorized": self.certification_authorized,
+        }
+
+    def fingerprint(self) -> str:
+        raw = json.dumps(
+            self.as_dict(),
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=True,
+        ).encode("utf-8")
+        return "sha256:" + hashlib.sha256(raw).hexdigest()
 
     @property
     def terminal_count(self) -> int:
