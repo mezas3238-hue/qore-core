@@ -21,9 +21,6 @@ from qore.infrastructure.cibo_ce2i_phase20_qualification import (
 from qore.infrastructure.cibo_ce2i_phase21_policy_freeze import (
     Phase21PolicyFreezeManifest,
 )
-from qore.infrastructure.cibo_phase21_shadow_qualification_lineage import (
-    Phase21ShadowQualificationLineageReceipt,
-)
 from qore.infrastructure.cibo_ce2i_phase22_holdout_gate import (
     Phase22HoldoutLineageAssessment,
     assess_phase22_holdout_lineage,
@@ -34,6 +31,9 @@ from qore.infrastructure.cibo_ce2i_phase22_qualification_plan import (
 )
 from qore.infrastructure.cibo_ce2i_qualification_evidence_protocol import (
     Phase20QualificationEvidenceBook,
+)
+from qore.infrastructure.cibo_phase21_shadow_qualification_lineage import (
+    Phase21ShadowQualificationLineageReceipt,
 )
 
 
