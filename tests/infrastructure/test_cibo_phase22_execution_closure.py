@@ -14,6 +14,9 @@ from qore.infrastructure.cibo_phase22_execution_inputs import (
     load_phase22_sealed_fresh_batch,
     load_phase22_sealed_provider_numeric,
 )
+from qore.infrastructure.cibo_phase22_execution_manifest import (
+    build_phase22_execution_manifest,
+)
 from qore.infrastructure.cibo_phase22_fresh_opportunity_batch import (
     Phase22FreshOpportunity,
     Phase22FreshTraderEvidence,
