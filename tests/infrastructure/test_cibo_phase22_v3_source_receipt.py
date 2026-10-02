@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
@@ -13,7 +15,6 @@ from qore.infrastructure.cibo_phase22_v3_source_receipt import (
     Phase22V3SourceBinding,
     Phase22V3SourceReceipt,
 )
-import pytest
 
 
 def _binding(
