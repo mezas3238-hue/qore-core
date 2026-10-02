@@ -7,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from qore.infrastructure.cibo_a1_phase22_canonical_manifest_bridge import (
+    A1Phase22ExecutionManifestIdentity,
     bridge_a1_to_canonical_phase22_intake,
 )
 from qore.infrastructure.cibo_a1_phase22_scientific_consumption import (
@@ -63,6 +64,16 @@ def _manifest() -> A1Phase22ScientificConsumptionManifest:
     )
 
 
+def _execution_identity() -> A1Phase22ExecutionManifestIdentity:
+    return A1Phase22ExecutionManifestIdentity(
+        execution_manifest_sha256=_sha("execution_manifest_sha256"),
+        candidate_id=PHASE22_V2_CANDIDATE_ID,
+        candidate_code_sha="a" * 40,
+        candidate_parameter_sha256=_sha("parameters"),
+        trader_ids=PHASE22_V2_REQUIRED_TRADERS,
+    )
+
+
 def _intake() -> ArchitectAPhase22V2ScientificIntakeReport:
     return ArchitectAPhase22V2ScientificIntakeReport(
         schema=PHASE22_V2_INTAKE_SCHEMA,
@@ -95,6 +106,7 @@ def test_a1_bridge_uses_same_canonical_phase22_identity_as_a2() -> None:
     bridge = bridge_a1_to_canonical_phase22_intake(
         manifest=_manifest(),
         intake=_intake(),
+        execution_identity=_execution_identity(),
     )
 
     assert bridge.canonical_phase22_manifest_sha256 == _intake().manifest_sha256
@@ -109,6 +121,7 @@ def test_a1_bridge_accepts_terminal_fail_as_scientifically_consumable() -> None:
     bridge = bridge_a1_to_canonical_phase22_intake(
         manifest=_manifest(),
         intake=replace(_intake(), qualification_status="FAIL"),
+        execution_identity=_execution_identity(),
     )
 
     assert bridge.qualification_status == "FAIL"
@@ -123,6 +136,7 @@ def test_a1_bridge_rejects_decision_population_count_drift() -> None:
         bridge_a1_to_canonical_phase22_intake(
             manifest=_manifest(),
             intake=replace(_intake(), decision_epochs=81),
+            execution_identity=_execution_identity(),
         )
 
 
@@ -132,6 +146,11 @@ def test_a1_bridge_rejects_trader_lineage_drift() -> None:
         trader_ids=PHASE22_V2_REQUIRED_TRADERS[:-1],
     )
 
+    execution = replace(
+        _execution_identity(),
+        trader_ids=manifest.trader_ids,
+    )
+
     with pytest.raises(
         CiboCapitalManagementError,
         match="Trader lineage drift",
@@ -139,6 +158,7 @@ def test_a1_bridge_rejects_trader_lineage_drift() -> None:
         bridge_a1_to_canonical_phase22_intake(
             manifest=manifest,
             intake=_intake(),
+            execution_identity=execution,
         )
 
 
@@ -156,4 +176,22 @@ def test_a1_bridge_rejects_nonadmissible_intake() -> None:
         bridge_a1_to_canonical_phase22_intake(
             manifest=_manifest(),
             intake=intake,
+            execution_identity=_execution_identity(),
+        )
+
+
+def test_a1_bridge_rejects_execution_code_drift() -> None:
+    execution = replace(
+        _execution_identity(),
+        candidate_code_sha="b" * 40,
+    )
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="execution identity drift",
+    ):
+        bridge_a1_to_canonical_phase22_intake(
+            manifest=_manifest(),
+            intake=_intake(),
+            execution_identity=execution,
         )

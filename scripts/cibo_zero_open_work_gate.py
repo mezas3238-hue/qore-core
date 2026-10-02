@@ -101,6 +101,12 @@ _WORKSTREAM_CLASSIFIERS = (
     ("*cibo_a1_phase22_scientific_consumption*", "SOURCE_OF_TRUTH_RECONCILIATION"),
     ("*cibo_a1_t08_phase22_oos_binding*", "T08"),
     ("*cibo_a1_strict_temporal_population_lineage*", "TEMPORAL_REPLICATION"),
+    ("*cibo_arch_a1_integrator_handoff*", "SOURCE_OF_TRUTH_RECONCILIATION"),
+    ("*cibo_arch_a1_internal_readiness*", "SOURCE_OF_TRUTH_RECONCILIATION"),
+    ("*cibo_arch_a1_scientific_closure*", "SOURCE_OF_TRUTH_RECONCILIATION"),
+    ("*cibo-architect-a1-integrator-handoff*", "SOURCE_OF_TRUTH_RECONCILIATION"),
+    ("*cibo-architect-a1-internal-readiness*", "SOURCE_OF_TRUTH_RECONCILIATION"),
+    ("*cibo-architect-a1-scientific-closure*", "SOURCE_OF_TRUTH_RECONCILIATION"),
     ("*cibo_t08_factor_correlation_lineage*", "T08"),
     (
         "*cibo_ce2i_phase20_t09_t18_phase22_true_scarcity_lineage*",
