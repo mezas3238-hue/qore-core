@@ -16,7 +16,7 @@ def test_active_frontier_covers_exact_current_scope() -> None:
     assert all(item.productive_authority is False for item in rows)
 
 
-def test_active_frontier_has_three_terminal_recommendations() -> None:
+def test_active_frontier_has_four_terminal_recommendations() -> None:
     rows = {
         item.workstream_id: item
         for item in architect2_active_frontier_v2()
@@ -33,7 +33,13 @@ def test_active_frontier_has_three_terminal_recommendations() -> None:
         == "SUPERSEDED_WITH_PROVEN_LINEAGE"
     )
 
-    assert rows["T11"].state is Architect2ActiveState.FROZEN_GATE_WAITING_POPULATION
+    assert (
+        rows["T11"].state
+        is Architect2ActiveState.EMPIRICAL_PROVIDER_RUN_IN_PROGRESS
+    )
+    assert "36948511045" in rows["T11"].remaining_requirement
+    assert "OUTCOME_BLIND" in rows["T11"].remaining_requirement
+    assert "GROSS_EDGE" in rows["T11"].remaining_requirement
     assert rows["T16"].state is Architect2ActiveState.TERMINAL_RECOMMENDATION_READY
     assert rows["T16"].proposed_terminal_disposition == "FALSIFIED_AND_CLOSED"
     assert (
