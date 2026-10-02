@@ -48,31 +48,38 @@
     },
     {
       "workstream_id": "T11",
-      "state": "BLOCKED_ON_PROVIDER_CONTAINMENT",
+      "state": "PARTIAL_EVIDENCE_READY",
       "resolved_blockers": [
         "REAL_EXECUTION_POPULATION_REQUIRED",
         "EMPIRICAL_SLIPPAGE_CALIBRATION_REQUIRED"
       ],
-      "remaining_requirement": "EXACT_TWO_CANCELLED_V1_DEMO_POSITIONS_MUST_BE_CLOSED_AND_A_NEW_READ_ONLY_ZERO_CONTAINMENT_RECEIPT_PROVEN_BEFORE_ANY_NEW_VERSIONED_T11_MARKET_IMPACT_CYCLE",
+      "remaining_requirement": "GLOBAL_CONTAINMENT_CLEAN__V3_VERSIONED_CYCLE_READY_WITHOUT_BROKER_AUTHORITY__MARKET_IMPACT_V3_PLUS_AUTHORIZED_FORWARD_MANIFEST_FOR_GROSS_EDGE_REQUIRED",
       "evidence": [
         "docs/research/CIBO-ARCH-2-INTEGRATOR-PATCH-REQUEST-001.md",
-        "src/qore/infrastructure/cibo_arch2_t11_provider_containment_state.py",
-        "github-actions://36947334465/SUCCESS",
-        "github-artifact://11202212072/sha256:15982828e8786065db2e08462f64dd61547d2ebec33772b0666255038fc47f78",
-        "github-actions://36945327912/CANCELLED",
-        "github-actions://36946792349/INVALIDATED_BY_PREEXISTING_ORPHAN_EXPOSURE"
+        "src/qore/infrastructure/cibo_arch2_t11_post_containment_cycle_v3.py",
+        "github-actions://36947869835/SUCCESS",
+        "github-artifact://11203160759/sha256:ef9c0d306fbc50b3218ccc8cd6b63ce2fa98a030039d78afc7f6433016eb10fc",
+        "github-actions://36947985223/SUCCESS",
+        "github-artifact://11202788608/sha256:06aaffd5e19f11bb4b9a3f5c6e6d6d0924c52effcce506617e1ccac7f98c0cc0",
+        "github-actions://36945327912/INADMISSIBLE_CANCELLED",
+        "github-actions://36946792349/INADMISSIBLE_CONTAMINATED_CANCELLED"
       ],
       "execution_lineage": {
-        "initial_run_id": 36945327912,
-        "initial_run_state": "CANCELLED_WITH_TWO_ORPHAN_DEMO_POSITIONS",
-        "containment_audit_run_id": 36947334465,
-        "containment_clean": false,
-        "open_cancelled_run_position_count": 2,
-        "open_cancelled_run_order_count": 0,
-        "contaminated_replacement_run_id": 36946792349,
-        "contaminated_replacement_evidence_admissible": false,
-        "further_provider_experiment_allowed": false,
-        "next_requirement": "ZERO_CONTAINMENT_RECEIPT_THEN_NEW_EXPLICITLY_VERSIONED_RESEARCH_CYCLE"
+        "v1_run_id": 36945327912,
+        "v1_evidence_consumable": false,
+        "v2_run_id": 36946792349,
+        "v2_evidence_consumable": false,
+        "global_cleanup_run_id": 36947869835,
+        "global_cleanup_artifact_id": 11203160759,
+        "global_containment_audit_run_id": 36947985223,
+        "global_containment_audit_artifact_id": 11202788608,
+        "containment_clean": true,
+        "open_t11_position_count": 0,
+        "open_t11_order_count": 0,
+        "new_versioned_cycle_allowed": true,
+        "v3_cycle_contract": "CIBO_ARCH2_T11_MARKET_IMPACT_EXECUTION_CYCLE_V3",
+        "v3_ready_for_versioned_execution": true,
+        "v3_broker_execution_authorized": false
       }
     },
     {
@@ -137,11 +144,11 @@
     "external_dependency_fronts": [
       "T02",
       "T20",
-      "FRESH_OOS",
-      "T11"
+      "FRESH_OOS"
     ],
     "empirical_fronts_in_progress": [],
-    "provider_containment_blocked_fronts": [
+    "provider_containment_blocked_fronts": [],
+    "ready_for_versioned_provider_evidence": [
       "T11"
     ]
   }
