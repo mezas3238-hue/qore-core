@@ -10,6 +10,8 @@ on:
       - 'tests/infrastructure/test_cibo_arch2_t11_market_impact_demo.py'
       - 'src/qore/infrastructure/cibo_arch2_t11_market_impact_evaluator.py'
       - 'src/qore/infrastructure/cibo_arch2_t11_nonlinear_input_freeze.py'
+      - 'src/qore/infrastructure/cibo_arch2_t11_runner_readiness.py'
+      - 'src/qore/infrastructure/cibo_arch2_t11_experiment_plan.py'
   workflow_dispatch:
 
 permissions:
@@ -45,7 +47,9 @@ jobs:
             scripts/cibo_arch2_t11_market_impact_demo.py \
             tests/infrastructure/test_cibo_arch2_t11_market_impact_demo.py \
             src/qore/infrastructure/cibo_arch2_t11_market_impact_evaluator.py \
-            src/qore/infrastructure/cibo_arch2_t11_nonlinear_input_freeze.py
+            src/qore/infrastructure/cibo_arch2_t11_nonlinear_input_freeze.py \
+            src/qore/infrastructure/cibo_arch2_t11_runner_readiness.py \
+            src/qore/infrastructure/cibo_arch2_t11_experiment_plan.py
           mypy --disable-error-code=import-untyped \
             scripts/cibo_arch2_t11_market_impact_demo.py \
             src/qore/infrastructure/cibo_arch2_t11_market_impact_evaluator.py \
