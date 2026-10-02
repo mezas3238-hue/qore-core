@@ -143,6 +143,7 @@ def build_scientific_closure_41_final_exam_controls(
         closure_batch_sha256=package_sha,
         closure_receipt_sha256=package_sha,
         details={
+            "holdout_id": closure_package.holdout_id,
             "workstream_count": 41,
             "completed_ids": list(closure_package.completed_ids),
             "falsified_ids": list(closure_package.falsified_ids),
@@ -160,6 +161,7 @@ def build_scientific_closure_41_final_exam_controls(
         closure_batch_sha256=package_sha,
         closure_receipt_sha256=group2_sha,
         details={
+            "holdout_id": closure_package.holdout_id,
             "workstream_ids": list(GROUP2_CAPITAL_13_IDS),
             "completed_ids": [
                 item.workstream_id
