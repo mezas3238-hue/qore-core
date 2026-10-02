@@ -7,6 +7,7 @@ actual status, and marks the already-burned one-shot consumption as CONSUMED.
 A scientifically valid FAIL/NOT_READY/INVALID is never converted into PASS and
 never authorizes a second fresh execution.
 """
+# ruff: noqa: I001, E402
 
 from __future__ import annotations
 
