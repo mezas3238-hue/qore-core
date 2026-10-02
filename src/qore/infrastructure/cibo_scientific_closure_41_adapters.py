@@ -78,8 +78,8 @@ DEPENDENCY_SCHEMA = "QORE_CIBO_SCIENTIFIC_CLOSURE_41_DEPENDENCIES_V1"
 _SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 _SHA1_RE = re.compile(r"^[0-9a-f]{40}$")
 _HOLDOUT_ID_RE = re.compile(
-    r"^CIBO_USD60_6M_HOLDOUT_\\d{4}-\\d{2}-\\d{2}_"
-    r"\\d{4}-\\d{2}-\\d{2}_V\\d+$"
+    r"^CIBO_USD60_6M_HOLDOUT_\d{4}-\d{2}-\d{2}_"
+    r"\d{4}-\d{2}-\d{2}_V\d+$"
 )
 
 # Legacy source surfaces remain importable because several already-built gates
