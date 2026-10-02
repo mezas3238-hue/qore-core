@@ -28,6 +28,8 @@ _HELSINKI = ZoneInfo("Europe/Helsinki")
 _PERIOD_CODE = {60: 1, 300: 5, 900: 7, 1800: 8, 3600: 9, 14400: 10, 86400: 12}
 _HISTORICAL_PAGE_SIZE = 5_000
 _HISTORICAL_REQUEST_INTERVAL_SECONDS = 0.21
+_HISTORICAL_REQUEST_ATTEMPTS = 3
+_HISTORICAL_RETRY_BACKOFF_SECONDS = 0.5
 
 
 def _norm(value: str) -> str:
@@ -782,34 +784,40 @@ class CTraderDemoFullApi:
             for page in range(page_limit):
                 remaining = max(count_hint - len(observed), 64)
                 request_count = min(_HISTORICAL_PAGE_SIZE, remaining)
-                with self._historical_request_lock:
-                    elapsed = monotonic() - self._last_historical_request_at
-                    wait_seconds = self._historical_request_interval_seconds - elapsed
-                    if wait_seconds > 0:
-                        sleep(wait_seconds)
-                    response = self._client.request(
-                        "ProtoOAGetTrendbarsReq",
-                        {
-                            "ctidTraderAccountId": self.account_id,
-                            "count": request_count,
-                            "fromTimestamp": int(start.timestamp() * 1000),
-                            "period": code,
-                            "symbolId": contract.symbol_id,
-                            "toTimestamp": int(cursor_to.timestamp() * 1000),
-                        },
-                        client_msg_id=(
-                            f"bars:{contract.symbol_id}:{seconds}:"
-                            f"{int(cursor_to.timestamp())}:{page}"
-                        ),
-                        timeout_seconds=15.0,
-                    )
-                    self._last_historical_request_at = monotonic()
-                if isinstance(response, Failure):
-                    # A later page is an optional extension once a usable page
-                    # has already arrived.  Discarding those confirmed rows on
-                    # a transient continuation failure turned a healthy 4,999
-                    # bar preload into an empty result and crash-looped startup.
-                    # The caller still enforces its own minimum history bound.
+                response = None
+                for attempt in range(_HISTORICAL_REQUEST_ATTEMPTS):
+                    with self._historical_request_lock:
+                        elapsed = monotonic() - self._last_historical_request_at
+                        wait_seconds = self._historical_request_interval_seconds - elapsed
+                        if wait_seconds > 0:
+                            sleep(wait_seconds)
+                        response = self._client.request(
+                            "ProtoOAGetTrendbarsReq",
+                            {
+                                "ctidTraderAccountId": self.account_id,
+                                "count": request_count,
+                                "fromTimestamp": int(start.timestamp() * 1000),
+                                "period": code,
+                                "symbolId": contract.symbol_id,
+                                "toTimestamp": int(cursor_to.timestamp() * 1000),
+                            },
+                            client_msg_id=(
+                                f"bars:{contract.symbol_id}:{seconds}:"
+                                f"{int(cursor_to.timestamp())}:{page}:attempt:{attempt + 1}"
+                            ),
+                            timeout_seconds=15.0,
+                        )
+                        self._last_historical_request_at = monotonic()
+                    if not isinstance(response, Failure):
+                        break
+                    if attempt + 1 < _HISTORICAL_REQUEST_ATTEMPTS:
+                        sleep(_HISTORICAL_RETRY_BACKOFF_SECONDS * (attempt + 1))
+                if response is None or isinstance(response, Failure):
+                    # History reads are non-mutating. A bounded retry absorbs
+                    # transient transport/provider failures without widening
+                    # the request timeout or causing a process restart storm.
+                    # If all attempts fail, retain any already-confirmed pages
+                    # and let the caller enforce its minimum history bound.
                     break
                 page_bars = tuple(getattr(response.value, "trendbar", ()))
                 if not page_bars:
