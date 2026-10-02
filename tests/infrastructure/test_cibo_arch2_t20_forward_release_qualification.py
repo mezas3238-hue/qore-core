@@ -130,6 +130,7 @@ def test_t20_uses_frozen_phase20d_population_gates_without_new_thresholds() -> N
     )
     assert result.complete_release_lifecycles == 210
     assert result.release_coverage == Decimal("1")
+    assert result.source_manifest_scientific_ready is True
     assert result.empirical_t20_ready is True
     assert result.recommendation == TERMINAL_RECOMMENDATION
     assert result.canonical_ledger_modified is False
@@ -158,4 +159,17 @@ def test_t20_waits_when_authoritative_release_lineage_is_missing() -> None:
     assert result.empirical_t20_ready is False
     assert result.t20_release_gap_count == 1
     assert result.blocking_gap_count == 1
+    assert result.recommendation == WAITING_RECOMMENDATION
+
+
+def test_t20_waits_when_manifest_is_not_scientifically_ready() -> None:
+    manifest = replace(
+        _ready_manifest(),
+        ready_for_scientific_consumption=False,
+    )
+
+    result = qualify_t20_forward_release_population(manifest)
+
+    assert result.source_manifest_scientific_ready is False
+    assert result.empirical_t20_ready is False
     assert result.recommendation == WAITING_RECOMMENDATION
