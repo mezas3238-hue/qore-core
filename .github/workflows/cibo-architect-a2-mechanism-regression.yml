@@ -32,6 +32,7 @@ jobs:
         run: |
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_adaptive_compound_speed_economic_gate.py \
+            tests/infrastructure/test_cibo_adaptive_compound_speed_shadow.py \
             tests/infrastructure/test_cibo_genc9_economic_gate.py \
             tests/infrastructure/test_cibo_genc10_transition_uncertainty_calibration.py \
             tests/infrastructure/test_cibo_genc11_genc13_utility_gate.py \
