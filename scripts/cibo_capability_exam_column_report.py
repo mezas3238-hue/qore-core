@@ -290,6 +290,22 @@ def main() -> int:
     ):
         _write_csv(args.output_dir / f"{name}.csv", rows)
         _write_json(args.output_dir / f"{name}.json", rows)
+
+    diagnostics = [
+        {
+            "trader_id": row["trader_id"],
+            "opportunities_emitted": row["opportunities_emitted"],
+            "cibo_selected": row["cibo_selected"],
+            "entries_executed_CORE": row["entries_executed_CORE"],
+            "compound_entries_executed": row["compound_entries_executed"],
+            "entries_executed_WITH_COMPOUND": row[
+                "entries_executed_WITH_COMPOUND"
+            ],
+            "zero_entry_reason": row["zero_entry_reason"],
+        }
+        for row in traders
+    ]
+    _write_json(args.output_dir / "lane-diagnostics.json", diagnostics)
     return 0
 
 
