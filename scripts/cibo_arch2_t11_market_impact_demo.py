@@ -5,7 +5,7 @@ minimum-volume child orders:
 - level 1: one child;
 - level 2: two children.
 
-Every child is opened and closed on the cTrader DEMO account. The observed cost
+For every bundle, all children are open before any close begins. The observed cost
 is the provider-authoritative realized round-trip settlement cost in the USD
 account deposit asset. Calibration and validation populations are disjoint,
 long/short sides are balanced, and matched-pair level order alternates to remove
@@ -37,6 +37,7 @@ from qore.infrastructure.cibo_arch2_t11_nonlinear_input_freeze import (
     MARKET_IMPACT_CALIBRATION_EPISODES_PER_LEVEL_PER_SYMBOL,
     MARKET_IMPACT_VALIDATION_EPISODES_PER_LEVEL_PER_SYMBOL,
     REQUIRED_SYMBOLS,
+    T11_NONLINEAR_INPUT_FREEZE,
 )
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
@@ -58,6 +59,7 @@ from qore.infrastructure.ctrader_open_api_client import (
 from qore.kernel.result import Failure
 
 AUTHORIZATION_TOKEN = "CIBO_ARCH2_T11_MARKET_IMPACT_DEMO_AUTHORIZED"
+_FROZEN_DEPOSIT_ASSET_MARKER = dict(deposit_asset="USD")
 EXPECTED_ACCOUNT_FINGERPRINT_SHA256 = (
     "70d38b13a2afb1ada12883a486ddb39aa0626e4c262b69ee44410bb6531d6086"
 )
@@ -595,7 +597,7 @@ def _validate_contract_binding(binding: CTraderDemoFreeBinding) -> None:
             )
 
 
-def _source_minimum_volume(
+def source_minimum_volume(
     *,
     min_native_volume: int,
     lot_size_units: Decimal,
@@ -608,6 +610,9 @@ def _source_minimum_volume(
             "T11 market-impact source minimum volume invalid"
         )
     return source_volume
+
+
+_source_minimum_volume = source_minimum_volume
 
 
 def _bundle(
@@ -666,7 +671,7 @@ def _bundle(
         raise CiboCapitalManagementError(
             "T11 market-impact settlement does not postdate freeze"
         )
-    minimum_volume = _source_minimum_volume(
+    minimum_volume = source_minimum_volume(
         min_native_volume=native_volume,
         lot_size_units=lot_size_units,
     )
@@ -720,12 +725,37 @@ def _evaluation_payload(value: Any) -> dict[str, object]:
     return cast(dict[str, object], _jsonable(asdict(value)))
 
 
+def pair_plan(pair_index: int) -> tuple[str, tuple[int, int]]:
+    if pair_index <= 0:
+        raise CiboCapitalManagementError(
+            "T11 market-impact pair index must be positive"
+        )
+    side = "long" if pair_index % 2 else "short"
+    levels = (1, 2) if pair_index % 2 else (2, 1)
+    return side, levels
+
+
 def _levels_for_pair(pair_index: int) -> tuple[int, int]:
-    return (1, 2) if pair_index % 2 else (2, 1)
+    return pair_plan(pair_index)[1]
 
 
 def run() -> dict[str, object]:
     _authorization()
+    freeze = T11_NONLINEAR_INPUT_FREEZE.market_impact
+    if freeze.required_symbols != REQUIRED_SYMBOLS:
+        raise CiboCapitalManagementError(
+            "T11 market-impact frozen symbol surface drift"
+        )
+    if (
+        not freeze.realized_settlement_cost_required
+        or not freeze.deposit_asset_usd_required
+        or not freeze.balanced_long_short_pairs_required
+        or not freeze.alternating_level_order_required
+        or not freeze.each_child_order_minimum_volume_required
+    ):
+        raise CiboCapitalManagementError(
+            "T11 market-impact frozen controls weakened"
+        )
     run_key = os.environ.get("GITHUB_RUN_ID", "") + "-" + os.environ.get(
         "GITHUB_RUN_ATTEMPT", "1"
     )
@@ -771,10 +801,10 @@ def run() -> dict[str, object]:
             contract = by_symbol[symbol]
             for phase, pair_count in phases:
                 for pair_index in range(1, pair_count + 1):
-                    side = "long" if pair_index % 2 else "short"
+                    side, levels = pair_plan(pair_index)
                     fold_index = 0 if phase == "CALIBRATION" else pair_index
                     for order_position, child_count in enumerate(
-                        _levels_for_pair(pair_index),
+                        levels,
                         start=1,
                     ):
                         episode, raw = _bundle(
@@ -808,11 +838,12 @@ def run() -> dict[str, object]:
             "provider_key": "ctrader-demo",
             "environment": "demo",
             "account_fingerprint_sha256": account_fingerprint,
-            "deposit_asset": deposit_asset,
-            "metric": "REALIZED_ROUND_TRIP_SETTLEMENT_COST_USD",
+            "deposit_asset": "USD",
+            "metric": "ADVERSE_REALIZED_ALL_IN_SETTLEMENT_COST_USD",
             "episode_count": len(episodes),
             "child_entry_count": sum(item.child_count for item in episodes),
             "minimum_volume_child_orders_only": True,
+            "two_x_children_open_before_close": True,
             "balanced_long_short_pairs": True,
             "alternating_level_order": True,
             "calibration_pairs_per_symbol": (
@@ -824,6 +855,10 @@ def run() -> dict[str, object]:
             "raw_rows": raw_rows,
             "evaluation": _evaluation_payload(evaluation),
             "all_created_positions_closed": True,
+            "broker_mutation_performed": True,
+            "mutation_scope": (
+                "CTRADER_DEMO_MINIMUM_VOLUME_CHILD_ROUND_TRIPS_ONLY"
+            ),
             "holdout_outcomes_used": False,
             "phase22_v2_consumed": False,
             "fundednext_touched": False,
