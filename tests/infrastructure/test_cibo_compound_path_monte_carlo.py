@@ -391,3 +391,40 @@ def test_compound_mc_result_rejects_minimum_above_ending_capital() -> None:
                 result.ending_realized_capital_usd + Decimal("1")
             ),
         )
+
+
+def test_compound_mc_episode_rejects_non_bool_provenance_flags() -> None:
+    episode = _episode(
+        episode_id="typed-flags",
+        start_minute=0,
+        duration_minutes=5,
+        generation=1,
+        deployed="5",
+        pnl="1",
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="market_record_present must be bool",
+    ):
+        replace(episode, market_record_present=1)
+
+
+def test_compound_mc_block_rejects_duplicate_episode_or_deployment() -> None:
+    episode = _episode(
+        episode_id="duplicate-block",
+        start_minute=0,
+        duration_minutes=5,
+        generation=1,
+        deployed="5",
+        pnl="1",
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="cannot duplicate episode/deployment",
+    ):
+        CompoundMonteCarloBlock(
+            block_id="duplicate",
+            episodes=(episode, episode),
+        )
