@@ -129,23 +129,12 @@ def test_a1_integrator_handoff_preserves_terminal_falsification() -> None:
     readiness = evaluate_architect_a1_internal_readiness(Path("."))
     package = _package()
     dispositions = tuple(
-        replace(item, scientific_status=A1ScientificStatus.FALSIFIED_AND_CLOSED)
+        _disposition("T08", falsified=True)
         if item.workstream_id == "T08"
         else item
         for item in package.dispositions
     )
-    # Rebuild receipts for any mutated disposition.
-    rebuilt = []
-    for item in dispositions:
-        if item.workstream_id == "T08":
-            item = replace(
-                item,
-                proof_reason=None,
-                failure_reason="T08 frozen hypothesis failed",
-            )
-            item = replace(item, receipt_sha256=item.fingerprint())
-        rebuilt.append(item)
-    package = replace(package, dispositions=tuple(rebuilt))
+    package = replace(package, dispositions=dispositions)
 
     receipt = build_architect_a1_integrator_handoff(
         a1_head_sha="b" * 40,
