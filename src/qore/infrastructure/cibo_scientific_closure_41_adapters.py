@@ -166,7 +166,7 @@ _SPECIAL_REQUIREMENTS: dict[str, tuple[str, ...]] = {
 
 
 @dataclass(frozen=True, slots=True)
-class Group1V4TerminalEvidenceHandoff:
+class Group1FreshTerminalEvidenceHandoff:
     """Immutable downstream envelope for the actual Group-1 fresh successor."""
 
     candidate_id: str
@@ -268,6 +268,10 @@ class Group1V4TerminalEvidenceHandoff:
             )
 
 
+
+
+# Legacy API alias only. V4 itself is explicitly non-certifiable.
+Group1V4TerminalEvidenceHandoff = Group1FreshTerminalEvidenceHandoff
 
 
 @dataclass(frozen=True, slots=True)
@@ -796,12 +800,12 @@ def adapt_t20_terminal_receipt(
 
 def adapt_group1_fresh_oos_handoff(
     *,
-    handoff: Group1V4TerminalEvidenceHandoff,
+    handoff: Group1FreshTerminalEvidenceHandoff,
     binding: CanonicalScientificBinding,
 ) -> ScientificClosure41Evidence:
     """Consume immutable Group-1 successor truth without executing or retuning it."""
 
-    if not isinstance(handoff, Group1V4TerminalEvidenceHandoff):
+    if not isinstance(handoff, Group1FreshTerminalEvidenceHandoff):
         raise CiboCapitalManagementError(
             "Closure 41 successor fresh-OOS adapter requires canonical Group-1 handoff"
         )
@@ -842,7 +846,7 @@ def adapt_group1_fresh_oos_handoff(
 
 def adapt_group1_v4_fresh_oos_handoff(
     *,
-    handoff: Group1V4TerminalEvidenceHandoff,
+    handoff: Group1FreshTerminalEvidenceHandoff,
     binding: CanonicalScientificBinding,
 ) -> ScientificClosure41Evidence:
     """Compatibility alias; V4 itself is no longer assumed canonical."""
