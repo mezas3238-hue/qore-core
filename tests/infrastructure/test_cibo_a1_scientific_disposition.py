@@ -106,6 +106,7 @@ def test_a1_complete_handoff_requires_exactly_eighteen_terminal_rows() -> None:
 
     assert package.terminal_count == 18
     assert package.remaining_workstreams == ()
+    assert package.fingerprint().startswith("sha256:")
 
 
 def test_a1_package_rejects_tampered_receipt() -> None:
@@ -143,5 +144,28 @@ def test_a1_package_requires_canonical_phase22_manifest_digests() -> None:
             a1_consumption_manifest_sha256=_sha("a1-consumption"),
             canonical_manifest_bridge_sha256=_sha("bridge"),
             dispositions=(disposition,),
+            complete_handoff=False,
+        )
+
+
+def test_a1_package_rejects_cross_workstream_candidate_drift() -> None:
+    first = _disposition("T08")
+    second = replace(
+        _disposition("T09"),
+        candidate_id="DIFFERENT_PHASE22_CANDIDATE",
+    )
+    second = replace(second, receipt_sha256=second.fingerprint())
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="candidate identity drift",
+    ):
+        A1ScientificDispositionPackage(
+            source_branch="agent/cibo-architect-a1-causal-science-001",
+            source_head="f" * 40,
+            canonical_phase22_manifest_sha256=_sha("canonical-phase22"),
+            a1_consumption_manifest_sha256=_sha("a1-consumption"),
+            canonical_manifest_bridge_sha256=_sha("bridge"),
+            dispositions=(first, second),
             complete_handoff=False,
         )
