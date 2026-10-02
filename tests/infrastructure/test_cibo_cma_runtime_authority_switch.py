@@ -72,6 +72,18 @@ def test_demo_account_reads_are_isolated_from_market_data_client() -> None:
     assert "_account_state_from_demo_api(" not in source
 
 
+def test_demo_position_management_is_isolated_from_market_data_client() -> None:
+    source = RUNTIME.read_text(encoding="utf-8")
+
+    assert "position_client = SpotwareCTraderOpenApiClient(" in source
+    assert "position_positions = CTraderDemoFreePositionService(" in source
+    assert "client=position_client" in source
+    assert "atexit.register(position_client.close)" in source
+    assert "positions=position_positions" in source
+    assert "position_positions.positions()" in source
+    assert "positions=demo_sink.position_service" not in source
+
+
 def test_runtime_wires_passive_cma_position_observer_without_expansion() -> None:
     source = RUNTIME.read_text(encoding="utf-8")
 
