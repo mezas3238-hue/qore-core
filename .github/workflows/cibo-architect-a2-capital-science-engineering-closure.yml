@@ -7,7 +7,11 @@ on:
     paths:
       - '.github/workflows/cibo-architect-a2-capital-science-engineering-closure.yml'
       - 'src/qore/infrastructure/cibo_arch_a2_integrator_handoff.py'
+      - 'src/qore/infrastructure/cibo_a2_phase22_historical_compound.py'
+      - 'src/qore/infrastructure/cibo_a2_internal_capital_market_phase22_receipt.py'
       - 'tests/infrastructure/test_cibo_arch_a2_integrator_handoff.py'
+      - 'tests/infrastructure/test_cibo_a2_phase22_historical_compound.py'
+      - 'tests/infrastructure/test_cibo_a2_internal_capital_market_phase22_receipt.py'
       - 'docs/research/CIBO-ARCH-A2-CAPITAL-SCIENCE-ENGINEERING-CLOSURE-V1.md'
   pull_request:
     paths:
@@ -34,9 +38,20 @@ jobs:
         run: |
           ruff check \
             src/qore/infrastructure/cibo_arch_a2_integrator_handoff.py \
-            tests/infrastructure/test_cibo_arch_a2_integrator_handoff.py
-          mypy src/qore/infrastructure/cibo_arch_a2_integrator_handoff.py
+            src/qore/infrastructure/cibo_a2_phase22_historical_compound.py \
+            src/qore/infrastructure/cibo_a2_internal_capital_market_phase22_receipt.py \
+            tests/infrastructure/test_cibo_arch_a2_integrator_handoff.py \
+            tests/infrastructure/test_cibo_a2_phase22_historical_compound.py \
+            tests/infrastructure/test_cibo_a2_internal_capital_market_phase22_receipt.py
+          mypy \
+            src/qore/infrastructure/cibo_arch_a2_integrator_handoff.py \
+            src/qore/infrastructure/cibo_a2_phase22_historical_compound.py \
+            src/qore/infrastructure/cibo_a2_internal_capital_market_phase22_receipt.py
           python -m py_compile \
-            src/qore/infrastructure/cibo_arch_a2_integrator_handoff.py
+            src/qore/infrastructure/cibo_arch_a2_integrator_handoff.py \
+            src/qore/infrastructure/cibo_a2_phase22_historical_compound.py \
+            src/qore/infrastructure/cibo_a2_internal_capital_market_phase22_receipt.py
           pytest -q --no-cov \
-            tests/infrastructure/test_cibo_arch_a2_integrator_handoff.py
+            tests/infrastructure/test_cibo_arch_a2_integrator_handoff.py \
+            tests/infrastructure/test_cibo_a2_phase22_historical_compound.py \
+            tests/infrastructure/test_cibo_a2_internal_capital_market_phase22_receipt.py
