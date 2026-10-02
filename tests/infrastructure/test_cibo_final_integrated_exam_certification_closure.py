@@ -21,7 +21,6 @@ from qore.infrastructure.cibo_final_integrated_exam_certification_closure import
     build_cibo_certification_seal,
     promote_certification_candidate_after_seal,
 )
-from qore.infrastructure.cibo_phase22_v4_governance import V4_CANDIDATE_ID
 from qore.infrastructure.cibo_scientific_closure_41 import (
     CANONICAL_PROVIDER_IDENTITY,
 )
@@ -51,6 +50,8 @@ _WORLD_SPEC = importlib.util.spec_from_file_location(
 assert _WORLD_SPEC is not None and _WORLD_SPEC.loader is not None
 _WORLD_FIXTURE = importlib.util.module_from_spec(_WORLD_SPEC)
 _WORLD_SPEC.loader.exec_module(_WORLD_FIXTURE)
+
+SUCCESSOR_HOLDOUT_ID = "CIBO_USD60_6M_HOLDOUT_2013-10-19_2014-04-19_V6"
 
 
 def _exam_chain():
@@ -155,6 +156,7 @@ def test_closure_changes_only_two_exam_rows_and_reaches_64_64() -> None:
     before = _ledger()
     closed, transition = build_certification_closure_ledger(
         pre_ledger=before,
+        holdout_candidate_id=SUCCESSOR_HOLDOUT_ID,
         final_package=final_package,
         final_report=final_report,
         world_cup_package=world_package,
@@ -203,6 +205,7 @@ def test_certification_seal_requires_strict_zero_open_pass() -> None:
     phase22, final_package, final_report, world_package, world_report = _exam_chain()
     closed, transition = build_certification_closure_ledger(
         pre_ledger=_ledger(),
+        holdout_candidate_id=SUCCESSOR_HOLDOUT_ID,
         final_package=final_package,
         final_report=final_report,
         world_cup_package=world_package,
@@ -229,6 +232,7 @@ def test_certification_seal_certifies_science_but_grants_no_operations() -> None
     phase22, final_package, final_report, world_package, world_report = _exam_chain()
     closed, transition = build_certification_closure_ledger(
         pre_ledger=_ledger(),
+        holdout_candidate_id=SUCCESSOR_HOLDOUT_ID,
         final_package=final_package,
         final_report=final_report,
         world_cup_package=world_package,
@@ -243,7 +247,7 @@ def test_certification_seal_certifies_science_but_grants_no_operations() -> None
         certified_at=phase22.qualified_at + timedelta(days=1),
     )
     assert seal.status is CiboCertificationSealStatus.CERTIFIED
-    assert seal.holdout_candidate_id == V4_CANDIDATE_ID
+    assert seal.holdout_candidate_id == SUCCESSOR_HOLDOUT_ID
     assert seal.provider_identity == CANONICAL_PROVIDER_IDENTITY
     assert seal.mandatory_count == 64
     assert seal.terminal_count == 64
@@ -280,6 +284,7 @@ def test_candidate_cannot_promote_before_certification_seal() -> None:
     _phase22, final_package, final_report, world_package, world_report = _exam_chain()
     closed, transition = build_certification_closure_ledger(
         pre_ledger=_ledger(),
+        holdout_candidate_id=SUCCESSOR_HOLDOUT_ID,
         final_package=final_package,
         final_report=final_report,
         world_cup_package=world_package,
@@ -309,10 +314,11 @@ def test_candidate_cannot_promote_before_certification_seal() -> None:
         )
 
 
-def test_certification_seal_rejects_stale_v2_holdout_identity() -> None:
+def test_certification_seal_rejects_invalid_holdout_identity_shape() -> None:
     phase22, final_package, final_report, world_package, world_report = _exam_chain()
     closed, transition = build_certification_closure_ledger(
         pre_ledger=_ledger(),
+        holdout_candidate_id=SUCCESSOR_HOLDOUT_ID,
         final_package=final_package,
         final_report=final_report,
         world_cup_package=world_package,
@@ -328,11 +334,9 @@ def test_certification_seal_rejects_stale_v2_holdout_identity() -> None:
     )
     with pytest.raises(
         CiboCapitalManagementError,
-        match="holdout identity drift",
+        match="holdout identity invalid",
     ):
         replace(
             seal,
-            holdout_candidate_id=(
-                "CIBO_USD60_6M_HOLDOUT_2015-10-19_2016-04-19_V2"
-            ),
+            holdout_candidate_id="CIBO_USD60_6M_HOLDOUT_2017H1_BURNED",
         )
