@@ -36,14 +36,14 @@ NEXT_PHASE22_CANDIDATE = CiboHoldoutCandidate(
     candidate_id=NEXT_CANDIDATE_ID,
     start_at=datetime(2015, 4, 19, tzinfo=UTC),
     end_exclusive_at=datetime(2015, 10, 19, tzinfo=UTC),
-    status=CiboHoldoutCandidateStatus.SOURCE_VALIDATION_PENDING,
+    status=CiboHoldoutCandidateStatus.ELIGIBLE_FROZEN,
     selection_rule=(
         "immediately preceding exact six-calendar-month block ending at the "
         "consumed V2 start boundary; selected mechanically without reading "
         "candidate source data or outcomes"
     ),
     outcome_data_inspected_at_selection=False,
-    source_validation_complete=False,
+    source_validation_complete=True,
 )
 
 _SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
@@ -252,6 +252,17 @@ CURRENT_NEXT_PHASE22_EVIDENCE = NextPhase22ExamEvidence(
     turtle_window_integrity_head_sha=(
         "f8f2bfde3fed00750fd14a226bbb22b09da24bc0"
     ),
+    advanced_predecision_evidence_freeze_sha256=(
+        "sha256:8101c287ba024032c81f97d1768c0380cb061e57de0cb87838e6b032074d610f"
+    ),
+    policy_code_bundle_lineage_sha256=(
+        "sha256:4c2fbee5d9e6488c2c378eceda6da0a49a415f6af3b3aa29f673bfaa93ee54a4"
+    ),
+    source_receipt_sha256=(
+        "sha256:7698562ce68edb166d2b9a407b7d23e02571fb4366c7a96cc15f318c3ac55f02"
+    ),
+    source_validation_complete=True,
+    source_outcomes_inspected=False,
 )
 
 CURRENT_NEXT_PHASE22_READINESS = assess_next_phase22_exam(
@@ -272,7 +283,7 @@ def next_phase22_governance_payload() -> dict[str, object]:
             "status": candidate.status.value,
             "selection_rule": candidate.selection_rule,
             "outcome_data_inspected_at_selection": False,
-            "source_validation_complete": False,
+            "source_validation_complete": candidate.source_validation_complete,
             "burn_clean_against_confirmed_registry": (
                 candidate_is_burn_clean_for_all_lineages(candidate)
             ),
