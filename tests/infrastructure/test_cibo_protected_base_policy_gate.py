@@ -187,3 +187,55 @@ def test_protected_base_row_rejects_manual_status_metric_drift() -> None:
     ):
         replace(row, safety_no_worse=False)
 
+
+
+def test_protected_base_candidate_rejects_malformed_numeric_or_bool_fields() -> None:
+    control = _candidate(
+        candidate_id="control-types",
+        role=ProtectedBaseCandidateRole.CONTROL,
+        amount="0",
+        protection_class=ProtectedBaseClass.ACCOUNTING_PROTECTED,
+    )
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="finite non-negative Decimal",
+    ):
+        replace(control, protected_base_usd=0.0)
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="numeric_candidate_frozen must be bool",
+    ):
+        replace(control, numeric_candidate_frozen=1)
+
+
+def test_protected_base_observation_rejects_nonfinite_or_untyped_metrics() -> None:
+    observation = _control()
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="maximum_drawdown_usd must be finite non-negative Decimal",
+    ):
+        replace(observation, maximum_drawdown_usd=Decimal("NaN"))
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="capital_risk_time_productivity must be finite Decimal",
+    ):
+        replace(
+            observation,
+            capital_risk_time_productivity=Decimal("Infinity"),
+        )
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="fold ids must be non-empty unique strings",
+    ):
+        replace(observation, fold_ids=("WF1", ""))
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="hindsight_retuned must be bool",
+    ):
+        replace(observation, hindsight_retuned=0)
