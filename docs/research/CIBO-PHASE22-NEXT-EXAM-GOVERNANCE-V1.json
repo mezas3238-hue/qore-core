@@ -19,7 +19,6 @@
     "execution_authorized": false
   },
   "blockers": [
-    "TURTLE_SUBORDINATE_WINDOW_INTEGRITY_CI_REQUIRED",
     "ADVANCED_CE2I_PREDECISION_EVIDENCE_OR_ABSTENTION_FREEZE_REQUIRED",
     "FROZEN_POLICY_CODE_BUNDLE_LINEAGE_REQUIRED",
     "NEW_HOLDOUT_SOURCE_VALIDATION_REQUIRED",
@@ -41,5 +40,13 @@
     "production_authorized": false,
     "merge_authorized": false,
     "productive_authority": false
+  },
+  "satisfied_prerequisites": {
+    "turtle_subordinate_window_integrity": {
+      "status": "GREEN",
+      "run_id": 37016818566,
+      "head_sha": "f8f2bfde3fed00750fd14a226bbb22b09da24bc0",
+      "second_fresh_execution": false
+    }
   }
 }
