@@ -306,5 +306,3 @@ def test_positions_fail_closed_for_unknown_qore_identity() -> None:
         match="unknown QORE position label",
     ):
         service.positions()
-
-[executed on device: vps-vrix (dc465c7d-1698-4cb8-921f-a008b11315c7)]
