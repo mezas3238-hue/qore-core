@@ -351,13 +351,41 @@ class CompoundPortfolioLedger:
             raise CiboCompoundCapitalError(
                 "compound admission cannot predate lot creation"
             )
+        history = self.active_lots + self.archived_lots
         if any(
             item.origin_evidence_id == lot.origin_evidence_id
-            for item in self.active_lots + self.archived_lots
+            for item in history
         ):
             raise CiboCompoundCapitalError(
                 "compound settlement evidence already admitted"
             )
+        if lot.generation == 1:
+            if lot.parent_lot_ids:
+                raise CiboCompoundCapitalError(
+                    "GEN-1 compound lot cannot carry parent lineage"
+                )
+        else:
+            if not lot.parent_lot_ids:
+                raise CiboCompoundCapitalError(
+                    "GEN-N compound lot requires parent lineage"
+                )
+            history_by_id = {item.lot_id: item for item in history}
+            missing_parents = tuple(
+                item for item in lot.parent_lot_ids
+                if item not in history_by_id
+            )
+            if missing_parents:
+                raise CiboCompoundCapitalError(
+                    "GEN-N compound lot parent lineage is missing from portfolio history"
+                )
+            expected_generation = 1 + max(
+                history_by_id[item].generation
+                for item in lot.parent_lot_ids
+            )
+            if lot.generation != expected_generation:
+                raise CiboCompoundCapitalError(
+                    "GEN-N compound lot generation does not match parent lineage"
+                )
         self._require_new_lot_id(lot.lot_id)
         self._require_new_event_id(event_id)
 
