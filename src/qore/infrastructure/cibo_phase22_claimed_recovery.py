@@ -69,6 +69,38 @@ def _is_geometry_censored(row: Mapping[str, object]) -> bool:
     return any(row.get(field) is None for field in _REQUIRED_GEOMETRY_FIELDS)
 
 
+def canonicalize_claimed_native_opportunity_order(
+    payload: Mapping[str, object],
+) -> dict[str, Any]:
+    """Canonicalize serialization order only; never select by outcome."""
+
+    opportunities = payload.get("opportunities")
+    if not isinstance(opportunities, list) or any(
+        not isinstance(row, dict) for row in opportunities
+    ):
+        raise CiboCapitalManagementError(
+            "Phase22 claimed native opportunity surface invalid"
+        )
+    projected = copy.deepcopy(dict(payload))
+    rows = [dict(row) for row in opportunities]
+    rows.sort(
+        key=lambda row: (
+            str(row.get("signal_at", "")),
+            str(row.get("trader_id", payload.get("trader_id", ""))),
+            str(row.get("signal_fingerprint", "")),
+        )
+    )
+    if sorted(_canonical_sha(row) for row in rows) != sorted(
+        _canonical_sha(dict(row)) for row in opportunities
+    ):
+        raise CiboCapitalManagementError(
+            "Phase22 claimed native canonicalization changed population"
+        )
+    projected["opportunities"] = rows
+    projected["opportunity_count"] = len(rows)
+    return projected
+
+
 @dataclass(frozen=True, slots=True)
 class Phase22Vt31ClaimedRecoveryReceipt:
     candidate_id: str
