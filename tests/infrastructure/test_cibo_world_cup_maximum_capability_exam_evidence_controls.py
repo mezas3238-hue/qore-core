@@ -14,6 +14,7 @@ from qore.infrastructure.cibo_final_integrated_exam import (
     FinalIntegratedExamReport,
     FinalIntegratedExamStatus,
 )
+from qore.infrastructure.cibo_phase22_v4_governance import V4_CANDIDATE_ID
 from qore.infrastructure.cibo_world_cup_maximum_capability_exam_evidence_controls import (
     WorldCupAsIsControlEvidence,
     WorldCupCausalAttributionEvidence,
@@ -64,6 +65,13 @@ def _evidence():
             capital_conservation_sha256=_sha("capital-conservation"),
             competition_digital_twin_bound=True,
             capital_conservation_proven=True,
+            no_capital_creation=True,
+            no_duplicated_profit=True,
+            no_reused_released_capacity=True,
+            no_double_counted_netting=True,
+            margin_feasible=True,
+            chronology_monotonic=True,
+            future_information_used=False,
         ),
         WorldCupAsIsControlEvidence(
             **common,
@@ -149,13 +157,31 @@ def test_builds_wc03_wc10_only_from_complete_separate_population() -> None:
 def test_rejects_phase22_v2_population_reuse() -> None:
     with pytest.raises(
         CiboCapitalManagementError,
-        match="cannot reuse protected Phase22 V2 holdout",
+        match="cannot reuse a protected Phase22 holdout",
     ):
         replace(
             _evidence()[0],
             competition_population_id=(
                 "CIBO_USD60_6M_HOLDOUT_2015-10-19_2016-04-19_V2"
             ),
+        )
+
+
+
+
+def test_rejects_phase22_v4_population_reuse() -> None:
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="cannot reuse a protected Phase22 holdout",
+    ):
+        WorldCupProviderEvidence(
+            competition_population_id=V4_CANDIDATE_ID,
+            evidence_sha256=_sha("v4-population"),
+            observed_at=T0,
+            provider_adapter_sha256=_sha("provider-adapter-v4"),
+            provider_economics_sha256=_sha("provider-economics-v4"),
+            competition_provider_bound=True,
+            provider_economics_complete=True,
         )
 
 

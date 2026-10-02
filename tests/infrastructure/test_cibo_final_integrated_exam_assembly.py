@@ -31,6 +31,9 @@ _FIXTURE = importlib.util.module_from_spec(_SPEC)
 _SPEC.loader.exec_module(_FIXTURE)
 
 HEAD = "a" * 40
+SUCCESSOR_HOLDOUT_ID = "CIBO_USD60_6M_HOLDOUT_2013-10-19_2014-04-19_V6"
+CLOSURE_MANIFEST_SHA = "sha256:" + "1" * 64
+CLOSURE_BATCH_SHA = "sha256:" + "2" * 64
 _PRODUCERS = {
     "P1_SOURCE_OF_TRUTH_RECONCILED": "CIBO_FINAL_SOURCE_OF_TRUTH_CONTROL_V2",
     "P2_PRE_EXAM_ZERO_OPEN_PASS": "CIBO_PRE_EXAM_ZERO_OPEN_CONTROL_V1",
@@ -38,17 +41,17 @@ _PRODUCERS = {
     "P4_PROVIDER_RISK_CMA_FORWARD_TRUTH": "CIBO_P4_PROVIDER_RISK_CMA_FORWARD_TRUTH_V1",
     "P5_PHASE20D_PASS": "CIBO_P5_PHASE20D_PASS_V1",
     "P6_POLICY_CALIBRATION_FREEZE": "CIBO_P6_POLICY_CALIBRATION_FREEZE_V1",
-    "P7_SCIENTIFIC_CLOSURE": "CIBO_ARCH_A_PHASE22_V2_SCIENTIFIC_CLOSURE",
-    "P8_COMPOUND_CLOSURE": "CIBO_ARCH_A_PHASE22_V2_COMPOUND_CLOSURE",
+    "P7_SCIENTIFIC_CLOSURE": "CIBO_SCIENTIFIC_CLOSURE_41_V1",
+    "P8_COMPOUND_CLOSURE": "CIBO_CAPITAL_COMPOUND_CLOSURE_13_V1",
     "E1_AUTHORITY": "CIBO_ARCH_A_E1_AUTHORITY_V1",
     "E2_CAPITAL_CONSERVATION": "CIBO_ARCH_A_E2_CAPITAL_CONSERVATION_V1",
     "E3_REALIZED_CAPITAL_LAW": "CIBO_ARCH_A_E3_REALIZED_CAPITAL_LAW_V1",
     "E4_PROVIDER_TRUTH": "CIBO_ARCH_A_E4_PROVIDER_TRUTH_V2",
     "E5_RISK_PRECEDENCE": "CIBO_ARCH_A_E5_RISK_PRECEDENCE_V1",
     "E6_CHRONOLOGY_NO_LEAKAGE": "CIBO_ARCH_A_E6_CHRONOLOGY_NO_LEAKAGE_V1",
-    "E7_ECONOMIC_NONCOMPENSATION": "CIBO_ARCH_A_E7_ECONOMIC_NONCOMPENSATION_V1",
-    "E8_STRESS_INTEGRITY": "CIBO_ARCH_A_E8_STRESS_INTEGRITY_V1",
-    "E9_TEMPORAL_REPLICATION": "CIBO_ARCH_A_E9_TEMPORAL_REPLICATION_V1",
+    "E7_ECONOMIC_NONCOMPENSATION": "CIBO_CLOSURE41_E7_ECONOMIC_NONCOMPENSATION_V1",
+    "E8_STRESS_INTEGRITY": "CIBO_CLOSURE41_E8_STRESS_INTEGRITY_V1",
+    "E9_TEMPORAL_REPLICATION": "CIBO_CLOSURE41_E9_TEMPORAL_REPLICATION_V1",
     "E10_DETERMINISTIC_REPLAY": "CIBO_ARCH_A_E10_DETERMINISTIC_REPLAY_V1",
 }
 
@@ -79,6 +82,23 @@ def _chain():
             "outcome_aware_refit": False,
             "operational_authority_claimed": False,
         }
+        if receipt_id in {
+            "P7_SCIENTIFIC_CLOSURE",
+            "P8_COMPOUND_CLOSURE",
+            "E7_ECONOMIC_NONCOMPENSATION",
+            "E8_STRESS_INTEGRITY",
+            "E9_TEMPORAL_REPLICATION",
+        }:
+            payload["phase22_handoff_manifest_sha256"] = CLOSURE_MANIFEST_SHA
+        if receipt_id in {"P7_SCIENTIFIC_CLOSURE", "P8_COMPOUND_CLOSURE"}:
+            payload["closure_batch_sha256"] = CLOSURE_BATCH_SHA
+            payload["details"] = {"holdout_id": SUCCESSOR_HOLDOUT_ID}
+        if receipt_id in {
+            "E7_ECONOMIC_NONCOMPENSATION",
+            "E8_STRESS_INTEGRITY",
+            "E9_TEMPORAL_REPLICATION",
+        }:
+            payload["scientific_closure_41_sha256"] = CLOSURE_BATCH_SHA
         receipts.append(
             bind_final_exam_control_artifact(
                 receipt_id=receipt_id,
@@ -164,6 +184,32 @@ def test_assembly_rejects_wrong_canonical_producer() -> None:
     with pytest.raises(
         CiboCapitalManagementError,
         match="producer-gate drift: P1_SOURCE_OF_TRUTH_RECONCILED",
+    ):
+        assemble_final_integrated_control_package(
+            integrated_git_sha=HEAD,
+            receipts=tuple(altered),
+        )
+
+
+def test_assembly_rejects_mixed_closure41_scientific_batch() -> None:
+    _phase21, _phase22, receipts = _chain()
+    altered = list(receipts)
+    index = next(
+        index
+        for index, receipt in enumerate(altered)
+        if receipt.receipt_id == "E8_STRESS_INTEGRITY"
+    )
+    item = altered[index]
+    payload = json.loads(item.source_artifact_json)
+    payload["scientific_closure_41_sha256"] = "sha256:" + "9" * 64
+    altered[index] = bind_final_exam_control_artifact(
+        receipt_id=item.receipt_id,
+        evidence_kind=item.evidence_kind,
+        source_artifact_json=json.dumps(payload, indent=2, sort_keys=True) + "\n",
+    )
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="scientific assertion/Closure41 drift: E8_STRESS_INTEGRITY",
     ):
         assemble_final_integrated_control_package(
             integrated_git_sha=HEAD,

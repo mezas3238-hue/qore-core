@@ -163,6 +163,7 @@ def assess_assembled_world_cup_exam(
         )
     return assess_receipt_bound_world_cup_maximum_capability_exam(
         integrated_head_sha=package.integrated_git_sha,
+        world_cup_policy_identity_sha256=world_cup_policy_identity_sha256(),
         final_integrated_exam=final_integrated_exam,
         receipts=package.receipts,
         certification_critical_external_blockers=(

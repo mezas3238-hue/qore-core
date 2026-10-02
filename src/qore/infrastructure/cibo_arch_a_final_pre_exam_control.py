@@ -18,6 +18,9 @@ from qore.infrastructure.cibo_final_exam_control_receipt import (
     CiboFinalExamControlReceipt,
     bind_final_exam_control_artifact,
 )
+from qore.infrastructure.cibo_final_integrated_exam_pre_exam_ledger import (
+    validate_pre_exam_reconciled_ledger,
+)
 
 _ZERO_OPEN_SCHEMA = "QORE_CIBO_ZERO_OPEN_WORK_GATE_V1"
 _ARTIFACT_SCHEMA = "qore.cibo.pre-exam-zero-open-control.v1"
@@ -50,6 +53,7 @@ def build_pre_exam_zero_open_control(
     pre_exam_evidence_git_sha: str,
     integrated_git_sha: str,
     phase22_receipt: Phase22QualificationReceipt,
+    reconciled_ledger: dict[str, Any],
     observed_at: datetime,
 ) -> CiboFinalExamControlReceipt:
     if _SHA1_RE.fullmatch(pre_exam_evidence_git_sha) is None:
@@ -73,7 +77,24 @@ def build_pre_exam_zero_open_control(
             "P2 PRE_EXAM must be post-Phase22 qualification"
         )
 
+    validated_ledger = validate_pre_exam_reconciled_ledger(reconciled_ledger)
+    ledger_canonical = json.dumps(
+        validated_ledger,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+    ).encode("utf-8")
+    ledger_sha = "sha256:" + hashlib.sha256(ledger_canonical).hexdigest()
+
     pre = _parse_canonical(pre_exam_artifact_json)
+    if pre.get("evidence_head_sha") != pre_exam_evidence_git_sha:
+        raise CiboCapitalManagementError(
+            "P2 PRE_EXAM artifact/evidence HEAD drift"
+        )
+    if pre.get("ledger_sha256") != ledger_sha:
+        raise CiboCapitalManagementError(
+            "P2 PRE_EXAM artifact/ledger digest drift"
+        )
     expected = {
         "schema": _ZERO_OPEN_SCHEMA,
         "scope": "PRE_EXAM",
@@ -117,8 +138,17 @@ def build_pre_exam_zero_open_control(
         "pre_exam_evidence_git_sha": pre_exam_evidence_git_sha,
         "pre_exam_artifact_sha256": source_sha,
         "pre_exam_scope": "PRE_EXAM",
-        "pre_exam_mandatory_count": 62,
-        "pre_exam_terminal_count": 62,
+        "pre_exam_scoped_mandatory_count": 62,
+        "pre_exam_scoped_terminal_count": 62,
+        "pre_exam_ledger_sha256": ledger_sha,
+        "pre_exam_ledger_mandatory_count": 64,
+        "pre_exam_ledger_terminal_count": 62,
+        "pre_exam_ledger_open_count": 2,
+        "pre_exam_ledger_open_exam_ids": [
+            "FINAL_INTEGRATED_CIBO_EXAM",
+            "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM",
+        ],
+        "pre_exam_external_blocker_count": 0,
     }
     artifact_json = json.dumps(payload, indent=2, sort_keys=True) + "\n"
     return bind_final_exam_control_artifact(
