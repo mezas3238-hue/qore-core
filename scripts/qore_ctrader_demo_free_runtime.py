@@ -644,10 +644,11 @@ def _submit_demo_request_through_qore_risk(
             "qore-risk-reject:"
             f"{decision.authorization.reason}"
         )
+    execution_at = datetime.now(UTC)
     assert_phase20_demo_authorization_active(
         risk=risk,
         authorization=decision.authorization,
-        observed_at=observed_at,
+        observed_at=execution_at,
     )
     return submit_demo_request(
         request,
