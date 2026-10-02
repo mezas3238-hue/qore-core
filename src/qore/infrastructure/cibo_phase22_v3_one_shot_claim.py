@@ -16,8 +16,10 @@ from qore.infrastructure.cibo_phase22_consumption_ledger import (
     Phase22ExecutionConsumptionReceipt,
     build_phase22_execution_claim,
 )
-from qore.infrastructure.cibo_phase22_store_bundle import build_phase22_store_bundle
-from qore.infrastructure.cibo_phase22_store_contract import PHASE22_STORE_IDENTITIES
+from qore.infrastructure.cibo_phase22_v3_store_contract import (
+    PHASE22_V3_STORE_IDENTITIES,
+    assert_phase22_v3_store_pristine,
+)
 from qore.infrastructure.cibo_phase22_trader_parity_manifest import (
     CANONICAL_PHASE22_TRADER_IDS,
 )
@@ -62,7 +64,7 @@ class Phase22V3OneShotClaimReceipt:
             raise CiboCapitalManagementError("V3 claim time must be aware")
         if self.trader_ids != CANONICAL_PHASE22_TRADER_IDS:
             raise CiboCapitalManagementError("V3 claim requires 7/7 Traders")
-        expected = tuple(item.relative_path for item in PHASE22_STORE_IDENTITIES)
+        expected = tuple(item.relative_path for item in PHASE22_V3_STORE_IDENTITIES)
         if self.store_paths != expected:
             raise CiboCapitalManagementError("V3 claim store surface drift")
         if not self.durable_claim_required_before_fresh_access:
@@ -102,7 +104,7 @@ def build_phase22_v3_one_shot_claim_receipt(
 ) -> Phase22V3OneShotClaimReceipt:
     if not isinstance(authorization, Phase22V3ExecutionAuthorization):
         raise CiboCapitalManagementError("canonical V3 authorization required")
-    build_phase22_store_bundle(store_root).assert_pristine()
+    assert_phase22_v3_store_pristine(store_root)
     manifest = build_phase22_v3_execution_manifest()
     return Phase22V3OneShotClaimReceipt(
         candidate_id=manifest.candidate_id,
@@ -114,6 +116,6 @@ def build_phase22_v3_one_shot_claim_receipt(
         started_at=started_at,
         trader_ids=CANONICAL_PHASE22_TRADER_IDS,
         store_paths=tuple(
-            item.relative_path for item in PHASE22_STORE_IDENTITIES
+            item.relative_path for item in PHASE22_V3_STORE_IDENTITIES
         ),
     )
