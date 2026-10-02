@@ -31,6 +31,7 @@ _FIXTURE = importlib.util.module_from_spec(_SPEC)
 _SPEC.loader.exec_module(_FIXTURE)
 
 HEAD = "a" * 40
+SUCCESSOR_HOLDOUT_ID = "CIBO_USD60_6M_HOLDOUT_2013-10-19_2014-04-19_V6"
 _PRODUCERS = {
     "P1_SOURCE_OF_TRUTH_RECONCILED": "CIBO_FINAL_SOURCE_OF_TRUTH_CONTROL_V2",
     "P2_PRE_EXAM_ZERO_OPEN_PASS": "CIBO_PRE_EXAM_ZERO_OPEN_CONTROL_V1",
@@ -79,6 +80,8 @@ def _chain():
             "outcome_aware_refit": False,
             "operational_authority_claimed": False,
         }
+        if receipt_id in {"P7_SCIENTIFIC_CLOSURE", "P8_COMPOUND_CLOSURE"}:
+            payload["details"] = {"holdout_id": SUCCESSOR_HOLDOUT_ID}
         receipts.append(
             bind_final_exam_control_artifact(
                 receipt_id=receipt_id,
