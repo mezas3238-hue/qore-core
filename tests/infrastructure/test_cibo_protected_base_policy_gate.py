@@ -239,3 +239,17 @@ def test_protected_base_observation_rejects_nonfinite_or_untyped_metrics() -> No
         match="hindsight_retuned must be bool",
     ):
         replace(observation, hindsight_retuned=0)
+
+
+def test_protected_base_rejects_p99_drawdown_above_maximum() -> None:
+    observation = _control()
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="p99 drawdown cannot exceed maximum drawdown",
+    ):
+        replace(
+            observation,
+            p99_drawdown_usd=observation.maximum_drawdown_usd
+            + Decimal("0.1"),
+        )
