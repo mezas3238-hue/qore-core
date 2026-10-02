@@ -232,3 +232,114 @@ def test_gate_marks_unclassified_inventory_as_orphan_candidate(
     assert verdict.passed is False
     assert verdict.orphan_candidate_paths == ("src/cibo_unknown.py",)
     assert "UNCLASSIFIED_ORPHAN_CANDIDATE" in verdict.reasons
+
+
+def test_b_surface_classifiers_are_not_orphans() -> None:
+    inventory = (
+        "src/qore/infrastructure/cibo_ce2i_t03_equivalent_expression.py",
+        "src/qore/infrastructure/cibo_ce2i_t11_execution_cost_calibration.py",
+        "src/qore/infrastructure/cibo_ce2i_t11_policy_input_readiness.py",
+        "src/qore/infrastructure/cibo_ce2i_t16_hedge_candidate.py",
+        "src/qore/infrastructure/cibo_ce2i_t16_preregistered_hedge_universe.py",
+        "scripts/cibo_t03_provider_equivalent_candidate_screen.py",
+        "scripts/cibo_t16_ctrader_demo_post_declaration_probe.py",
+        "src/qore/infrastructure/cibo_ce2i_t17_limited_risk_capability.py",
+        "src/qore/infrastructure/cibo_ce2i_t17_structural_disable.py",
+        "scripts/cibo_t17_limited_risk_capability_probe.py",
+        "scripts/cibo_t17_structural_disable_probe.py",
+        "src/qore/infrastructure/cibo_ctrader_demo_capability_registry.py",
+        "src/qore/infrastructure/cibo_ctrader_demo_instrument_taxonomy.py",
+        "src/qore/infrastructure/cibo_integrated_capital_forward_binding.py",
+        "src/qore/infrastructure/cibo_usd60_exam_readiness.py",
+    )
+    ledger_ids = frozenset(
+        {
+            "T03",
+            "T11",
+            "T16",
+            "T17",
+            "PROVIDER_ECONOMICS",
+            "INTEGRATED_CAPITAL_TRUTH",
+            "USD60_CAPABILITY_PROGRAM",
+            "ORPHAN_INVENTORY",
+        }
+    )
+
+    assignments, orphan_candidates = gate._classify_inventory(
+        inventory,
+        ledger_ids=ledger_ids,
+    )
+
+    assert dict(assignments) == {
+        inventory[0]: "T03",
+        inventory[1]: "T11",
+        inventory[2]: "T11",
+        inventory[3]: "T16",
+        inventory[4]: "T16",
+        inventory[5]: "T03",
+        inventory[6]: "T16",
+        inventory[7]: "T17",
+        inventory[8]: "T17",
+        inventory[9]: "T17",
+        inventory[10]: "T17",
+        inventory[11]: "PROVIDER_ECONOMICS",
+        inventory[12]: "PROVIDER_ECONOMICS",
+        inventory[13]: "INTEGRATED_CAPITAL_TRUTH",
+        inventory[14]: "USD60_CAPABILITY_PROGRAM",
+    }
+    assert orphan_candidates == ()
+
+def test_gate_classifies_calibration_freeze_readiness_surface() -> None:
+    assignments, orphans = gate._classify_inventory(
+        ("scripts/cibo_calibration_freeze_readiness.py",),
+        ledger_ids=frozenset(
+            {"CE2I_CALIBRATION_GOVERNANCE", "ORPHAN_INVENTORY"}
+        ),
+    )
+
+    assert assignments == (
+        (
+            "scripts/cibo_calibration_freeze_readiness.py",
+            "CE2I_CALIBRATION_GOVERNANCE",
+        ),
+    )
+    assert orphans == ()
+
+def test_gate_classifies_phase22_v2_source_availability() -> None:
+    assignments, orphans = gate._classify_inventory(
+        (
+            "src/qore/infrastructure/"
+            "cibo_phase22_holdout_v2_source_availability.py",
+        ),
+        ledger_ids=frozenset({"FRESH_OOS", "ORPHAN_INVENTORY"}),
+    )
+
+    assert assignments == (
+        (
+            "src/qore/infrastructure/"
+            "cibo_phase22_holdout_v2_source_availability.py",
+            "FRESH_OOS",
+        ),
+    )
+    assert orphans == ()
+
+def test_gate_classifies_phase22_v2_m5_source_surface() -> None:
+    path = "src/qore/infrastructure/cibo_phase22_holdout_v2_m5_source.py"
+    assignments, orphans = gate._classify_inventory(
+        (path,),
+        ledger_ids=frozenset({"FRESH_OOS", "ORPHAN_INVENTORY"}),
+    )
+
+    assert assignments == ((path, "FRESH_OOS"),)
+    assert orphans == ()
+
+def test_gate_classifies_phase22_v2_m1_source_surface() -> None:
+    path = "src/qore/infrastructure/cibo_phase22_holdout_v2_m1_source.py"
+    assignments, orphans = gate._classify_inventory(
+        (path,),
+        ledger_ids=frozenset({"FRESH_OOS", "ORPHAN_INVENTORY"}),
+    )
+
+    assert assignments == ((path, "FRESH_OOS"),)
+    assert orphans == ()
+

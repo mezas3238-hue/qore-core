@@ -1,0 +1,166 @@
+# CIBO Architect B — Closure Handoff V1
+
+**Status:** B IMPLEMENTATION CHECKPOINT / FINAL A+B RECONCILIATION REQUIRED  
+**B branch:** `agent/cibo-certification-architect-b-integration-001`  
+**B revalidated implementation checkpoint before this closure-package refresh:** `442b9169090c9f5231e8f754dbeaf85dc665acb9`  
+**Child PR:** #661 — DRAFT / UNMERGED  
+**Primary PR:** #651 — remains DRAFT / UNMERGED
+
+## 1. Boundary
+
+Architect B owns provider, QORE Risk, CMA, forward qualification, provider capability,
+Fresh-OOS plumbing, USD60 pre-exam plumbing and integrated capital truth integration.
+Architect B does **not** claim authority over Architect-A GEN-C/Compound science or the
+final canonical certification ledger.
+
+No LIVE/production/VPS/real-capital authority is created. Frozen Phase20 V3 remains
+unchanged. The 2017H1 holdout remains sealed and untouched.
+
+## 2. B workstreams
+
+### Mechanically proven / recommended terminal engineering disposition
+
+- **T01 Minimal Seed** — volume-free Trader opportunity -> CIBO minimum executable
+  seed -> canonical Risk request.
+- **RISK_INTEGRATION** — proves ALLOW for a valid minimum seed, REDUCE for an
+  oversized CIBO request, and REJECT only when the provider minimum cannot fit.
+- **CMA_FOUNDATION_INTEGRATION** — Trader stays volume-free, CIBO owns requested
+  sizing, Risk is independently downstream, and only canonical realized CMA
+  settlement enters Compound.
+- **LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK** — quarantined from current productive
+  runtime while governed research-memory reuse remains explicit.
+
+Final ledger promotion belongs to A/integrator after current-HEAD CI revalidation.
+
+### Implemented but empirically open
+
+- **T02** — fresh forward structural OOS contract added. It never infers stop-hit
+  from negative PnL. Explicit terminal-reason evidence is mandatory. Real
+  post-freeze population and provider-bound leverage ablation remain open.
+- **T03** — current provider margin population engine exists. Real forward coverage
+  and causal equivalent-expression economic utility remain open.
+- **T11** — executed-risk/slippage/latency + spread/commission binding exists, and
+  the provider-bound linear-cost bridge freezes p95 quoted spread + commission +
+  adverse realized slippage when the real forward execution model is ready. Gross-edge,
+  market-impact and historical-2017 execution terms remain independently unresolved.
+- **T16/T17** — cTrader account mode, full symbol catalog, provider-native asset
+  class/category taxonomy and Limited-Risk/GSL evidence paths are implemented. T16 now
+  also has a pre-outcome candidate universe preregistered from the provider catalog:
+  `NAS100->US30` and `NAS100->US500`. No pair returns, correlation, basis residual,
+  hedge cost or OOS utility were consumed to choose them. This preregistration does
+  **not** certify an economic hedge. T17 retains its current-provider structural
+  disposition; no missing label is treated as global-market proof.
+- **T20** — exact requested -> Risk authorized -> executed -> released capacity
+  provenance is implemented and hash-chain protected. Real authoritative release
+  population remains open.
+- **PROVIDER_ECONOMICS** — real cTrader DEMO point-in-time provider terms are now
+  artifact-backed and SHA-verified for AUDJPY/EURUSD/GBPJPY/GBPUSD/NAS100/XAUUSD.
+  The real probe reports `provider_terms_ready=true`, zero probe blockers and
+  `broker_mutation_performed=false`. Empirical slippage remains uncalibrated and
+  historical 2017 USD provider economics are not fabricated. A second read-only
+  account-capability probe is wired into the same secret-backed workflow.
+- **FORWARD_QUALIFICATION** — B->A immutable economic manifest plus durable-store
+  exporter implemented. Frozen Phase20D real population thresholds remain open.
+- **FRESH_OOS** — Phase20D/Phase21/Phase22 plumbing exists; real prerequisites remain
+  blocking and holdout stays sealed.
+- **Calibration Freeze Manifest** — a terminal A+B bridge now preserves the historical
+  calibration matrix while allowing later evidence to supersede historical blockers
+  only after all active T01..T20 tools are terminal, provider-dependent tools are
+  bound, and exact Phase20D/provider-freeze hashes match. T16/T17 alone may remain
+  structurally disabled with explicit provider evidence.
+- **USD60_CAPABILITY_PROGRAM** — robust target-free capacity + frozen six-month
+  protocol + pre-exam readiness gate implemented. The pre-exam gate cannot grant
+  holdout access, certification or productive authority.
+- **INTEGRATED_CAPITAL_TRUTH** — five-store truth/recovery/transaction infrastructure
+  exists. A new forward settlement binding now requires exact equality between the
+  manifest and Compound Cycle settlement populations before Source Ledger <-> GEN-C
+  equivalence is accepted; the real chronological population remains open.
+
+## 3. New hardening added by B
+
+1. Architect-B manifest scientific readiness now requires a non-empty qualified
+   lineage; an empty population cannot self-declare readiness.
+2. Durable-store exporter builds the manifest directly from forward, policy,
+   executed-risk, CMA-settlement and T20-release books.
+3. T02 fresh audit requires explicit structural terminal-reason evidence.
+4. cTrader capability reconciliation converts account mode only into account-mode
+   truth; T16/T17 remain UNKNOWN without the specific required provider evidence.
+5. USD60 pre-exam gate requires every prerequisite and permanently reports
+   `holdout_access_authority=false`, `certification_ready=false`,
+   `productive_authority=false`.
+6. T03/T11 and Risk workflows now type-check their production modules in addition
+   to ruff/pytest.
+7. T11 linear execution-cost calibration is dedicated-CI covered but cannot promote
+   policy readiness without gross-edge, market-impact and historical execution evidence.
+8. Provider-native taxonomy and Limited-Risk/GSL fields are captured read-only for T17;
+   absence of an option label is explicitly insufficient for structural disable.
+9. T16 candidate selection is now preregistered before outcomes. The immutable V1
+   universe contains only `NAS100->US30` and `NAS100->US500`, bound to the account
+   fingerprint and provider-catalog SHA. It grants no policy or runtime authority.
+
+## 4. Real provider evidence already recovered
+
+- Latest read-only revalidation workflow run `36813080437` — SUCCESS on
+  `442b9169090c9f5231e8f754dbeaf85dc665acb9`.
+- Artifact `11140606378`.
+- Artifact ZIP SHA-256:
+  `448027d8b7a7c070886321a668df462f6acc76b5c31b300147ea8ff5d5501ac4`.
+- Provider-economics JSON SHA-256:
+  `e92da319d515c4d8f8eaf645a3d352fab0cb94ca15a20521e5d9d1364017525a`.
+- Provider observation time: `2026-10-01T04:00:53.852820+00:00`.
+- Account catalog observation time: `2026-10-01T04:01:14.559916+00:00`.
+- `provider_terms_ready=true`, `blockers=[]`, no broker mutation.
+- `slippage_empirically_calibrated=false`; therefore T11 economic closure is
+  still open.
+
+Machine metadata:
+`docs/research/CIBO-B-CTRADER-DEMO-PROVIDER-ECONOMICS-EVIDENCE-2026-09-30.json`.
+
+## 5. Real external evidence still missing
+
+B must not manufacture any of the following:
+
+- the real post-freeze Phase20D population to the frozen 80 / 200 / 60 /
+  28-calendar-day / 20-trading-day / 7-lineage thresholds;
+- current-HEAD account-bound cTrader capability/taxonomy/GSL artifact revalidation;
+- empirical slippage/cost calibration not present in observed executions;
+- T16 post-declaration return population, basis-risk/cost/correlation and hedge utility;
+- T02 explicit fresh structural terminal-reason population;
+- T20 authoritative real release population;
+- real chronological binding into Integrated Capital Truth;
+- final USD60 six-month exam evidence.
+
+These are blockers, not reasons to weaken thresholds.
+
+## 6. A/integrator reconciliation required
+
+A/integrator should consume
+`docs/research/CIBO-ARCH-B-CLOSURE-HANDOFF-V1.json` and current B CI, then:
+
+1. classify all B files under their exact workstreams in Zero Open Work;
+2. promote only the B workstreams whose current-HEAD CI and evidence support a
+   terminal disposition;
+3. retain every empirical blocker above;
+4. merge/integrate B only through the governed DRAFT workflow;
+5. perform the final source-of-truth reconciliation after A and B are both complete.
+
+**CIBO is not certified by this handoff.**
+
+## 7. T16 pre-outcome preregistration checkpoint
+
+Machine evidence:
+`docs/research/CIBO-B-T16-HEDGE-PAIR-PREREGISTRATION-V1.json`.
+
+The current cTrader DEMO account catalog proves that `USTEC`, `US30` and
+`US500` are enabled instruments in the provider Indices universe. Before any
+pair returns or hedge-performance measurements were consumed, Architect B froze
+the candidate set to:
+
+- `NAS100 -> US30`;
+- `NAS100 -> US500`.
+
+This closes the **candidate-selection** gap only. T16 remains empirically open
+until post-declaration observations satisfy the sample/fold contract and prove
+(or falsify) basis risk, hedge cost, execution viability, net economic benefit
+and fresh-OOS utility. No holdout data was read and no productive authority was
+granted.

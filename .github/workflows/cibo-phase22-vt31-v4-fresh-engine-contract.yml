@@ -1,0 +1,57 @@
+name: QORE CIBO Phase22 VT31 V4 Fresh Engine Contract
+
+on:
+  push:
+    branches:
+      - agent/cibo-certification-architect-b-integration-001
+    paths:
+      - '.github/workflows/cibo-phase22-vt31-v4-fresh-engine-contract.yml'
+      - 'src/qore/infrastructure/cibo_phase22_vt31_v4_fresh_source.py'
+      - 'scripts/cibo_phase22_vt31_v4_fresh_runner.py'
+      - 'tests/infrastructure/test_cibo_phase22_vt31_v4_fresh_source.py'
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-phase22-vt31-v4-fresh-engine-contract.yml'
+      - 'src/qore/infrastructure/cibo_phase22_vt31_v4_fresh_source.py'
+      - 'scripts/cibo_phase22_vt31_v4_fresh_runner.py'
+      - 'tests/infrastructure/test_cibo_phase22_vt31_v4_fresh_source.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  VT31_SOURCE_SHA: 'cac38ed14f20e066536910145027426fd23f5939'
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Checkout exact frozen VT31 V4 source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.VT31_SOURCE_SHA }}
+          path: vt31-code
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Quality without V2 access
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_phase22_vt31_v4_fresh_source.py \
+            scripts/cibo_phase22_vt31_v4_fresh_runner.py \
+            tests/infrastructure/test_cibo_phase22_vt31_v4_fresh_source.py
+          mypy \
+            src/qore/infrastructure/cibo_phase22_vt31_v4_fresh_source.py \
+            scripts/cibo_phase22_vt31_v4_fresh_runner.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_phase22_vt31_v4_fresh_source.py
+      - name: Verify frozen V4 identity import only
+        run: |
+          test "$(git -C vt31-code rev-parse HEAD)" = "$VT31_SOURCE_SHA"
+          python scripts/cibo_phase22_vt31_v4_fresh_runner.py \
+            --frozen-root vt31-code \
+            --self-check

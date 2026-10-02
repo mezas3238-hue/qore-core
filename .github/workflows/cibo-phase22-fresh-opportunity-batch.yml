@@ -1,0 +1,37 @@
+name: QORE CIBO Phase22 Fresh Opportunity Batch
+
+on:
+  push:
+    branches:
+      - agent/cibo-certification-architect-b-integration-001
+    paths:
+      - '.github/workflows/cibo-phase22-fresh-opportunity-batch.yml'
+      - 'src/qore/infrastructure/cibo_phase22_fresh_opportunity_batch.py'
+      - 'tests/infrastructure/test_cibo_phase22_fresh_opportunity_batch.py'
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-phase22-fresh-opportunity-batch.yml'
+      - 'src/qore/infrastructure/cibo_phase22_fresh_opportunity_batch.py'
+      - 'tests/infrastructure/test_cibo_phase22_fresh_opportunity_batch.py'
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Validate exact 7/7 volume-free fresh batch
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_phase22_fresh_opportunity_batch.py \
+            tests/infrastructure/test_cibo_phase22_fresh_opportunity_batch.py
+          mypy src/qore/infrastructure/cibo_phase22_fresh_opportunity_batch.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_phase22_fresh_opportunity_batch.py

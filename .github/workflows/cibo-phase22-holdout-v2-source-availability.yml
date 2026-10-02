@@ -1,0 +1,102 @@
+name: QORE CIBO Phase22 Holdout V2 Source Availability
+
+on:
+  push:
+    branches:
+      - agent/cibo-certification-architect-b-integration-001
+    paths:
+      - '.github/workflows/cibo-phase22-holdout-v2-source-availability.yml'
+      - 'src/qore/infrastructure/cibo_phase22_holdout_v2_source_availability.py'
+      - 'src/qore/infrastructure/cibo_ce2i_holdout_registry.py'
+      - 'tests/infrastructure/test_cibo_phase22_holdout_v2_source_availability.py'
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-phase22-holdout-v2-source-availability.yml'
+      - 'src/qore/infrastructure/cibo_phase22_holdout_v2_source_availability.py'
+      - 'src/qore/infrastructure/cibo_ce2i_holdout_registry.py'
+      - 'tests/infrastructure/test_cibo_phase22_holdout_v2_source_availability.py'
+  workflow_dispatch:
+
+concurrency:
+  group: cibo-phase22-holdout-v2-source-availability-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+
+jobs:
+  source-availability:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev,ctrader]'
+      - name: Focused quality
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_phase22_holdout_v2_source_availability.py \
+            tests/infrastructure/test_cibo_phase22_holdout_v2_source_availability.py
+          mypy src/qore/infrastructure/cibo_phase22_holdout_v2_source_availability.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_phase22_holdout_v2_source_availability.py
+      - name: Verify DEMO read-only credential inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN; do
+            test -n "${!name:-}" || { echo "missing required DEMO input: $name" >&2; exit 2; }
+          done
+      - name: Discover DEMO account when not configured
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            if ! [[ "$account_id" =~ ^[1-9][0-9]*$ ]]; then
+              echo "cTrader DEMO account discovery returned invalid id" >&2
+              exit 3
+            fi
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
+      - name: Probe V2 source boundaries only
+        run: |
+          mkdir -p artifacts
+          python -m qore.infrastructure.cibo_phase22_holdout_v2_source_availability \
+            artifacts/source-availability.json
+      - name: Enforce source-only governance
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('artifacts/source-availability.json').read_text())
+          assert p['candidate_id'] == 'CIBO_USD60_6M_HOLDOUT_2015-10-19_2016-04-19_V2'
+          assert p['candidate_burn_clean'] is True
+          assert p['probe_count'] == 10
+          assert p['required_surface_count'] == 10
+          assert p['source_available'] is True
+          assert p['status'] == 'SOURCE_AVAILABLE'
+          assert p['trader_logic_executed'] is False
+          assert p['outcomes_inspected'] is False
+          assert p['productive_authority'] is False
+          PY
+          printf '%s\n' "$GITHUB_SHA" > artifacts/git-sha.txt
+          cd artifacts
+          sha256sum source-availability.json git-sha.txt > SHA256SUMS.txt
+          sha256sum -c SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-phase22-holdout-v2-source-availability-${{ github.sha }}
+          path: artifacts
+          if-no-files-found: error
+          retention-days: 90

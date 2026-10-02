@@ -1,0 +1,133 @@
+name: QORE CIBO Provider Economics Core Freeze
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/cibo-certification-architect-b-integration-001
+    paths:
+      - '.github/workflows/cibo-provider-economics-core-freeze.yml'
+      - 'src/qore/infrastructure/cibo_ce2i_provider_stress_bound_freeze.py'
+      - 'src/qore/infrastructure/cibo_ce2i_provider_economics_component_freeze.py'
+      - 'scripts/cibo_provider_economics_core_freeze.py'
+      - 'tests/infrastructure/test_cibo_ce2i_provider_stress_bound_freeze.py'
+      - 'tests/infrastructure/test_cibo_ce2i_provider_economics_component_freeze.py'
+      - 'docs/research/CIBO-PROVIDER-ECONOMICS-STRESS-BOUND-ALTERNATIVE-V1.md'
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-provider-economics-core-freeze.yml'
+      - 'src/qore/infrastructure/cibo_ce2i_provider_stress_bound_freeze.py'
+      - 'src/qore/infrastructure/cibo_ce2i_provider_economics_component_freeze.py'
+      - 'scripts/cibo_provider_economics_core_freeze.py'
+      - 'tests/infrastructure/test_cibo_ce2i_provider_stress_bound_freeze.py'
+      - 'tests/infrastructure/test_cibo_ce2i_provider_economics_component_freeze.py'
+      - 'docs/research/CIBO-PROVIDER-ECONOMICS-STRESS-BOUND-ALTERNATIVE-V1.md'
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  provider-core-freeze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: python -m pip install -e '.[dev]'
+
+      - name: Quality
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_ce2i_provider_stress_bound_freeze.py \
+            src/qore/infrastructure/cibo_ce2i_provider_economics_component_freeze.py \
+            scripts/cibo_provider_economics_core_freeze.py \
+            tests/infrastructure/test_cibo_ce2i_provider_stress_bound_freeze.py \
+            tests/infrastructure/test_cibo_ce2i_provider_economics_component_freeze.py
+          mypy \
+            src/qore/infrastructure/cibo_ce2i_provider_stress_bound_freeze.py \
+            src/qore/infrastructure/cibo_ce2i_provider_economics_component_freeze.py \
+            scripts/cibo_provider_economics_core_freeze.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_ce2i_provider_stress_bound_freeze.py \
+            tests/infrastructure/test_cibo_ce2i_provider_economics_component_freeze.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_provider_stress.py
+
+      - name: Recover immutable empirical inventory
+        run: |
+          set -euo pipefail
+          mkdir -p source provider-core-freeze
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11166344413/zip" \
+            > empirical-inventory.zip
+          echo "56e8752ea87595ecebd5d8f255b50f5e7b7aea1e82927dd36f320b4ec5b8e47f  empirical-inventory.zip" \
+            | sha256sum -c -
+          unzip -q empirical-inventory.zip -d source
+          (cd source && sha256sum -c SHA256SUMS.txt)
+
+      - name: Seal Core provider economics
+        run: |
+          python scripts/cibo_provider_economics_core_freeze.py \
+            --empirical-inventory source/empirical-slippage.json \
+            --output-dir provider-core-freeze \
+            > provider-core-freeze/stdout.json
+
+      - name: Enforce Core/deployment separation
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          stress = json.loads(
+              Path(
+                  "provider-core-freeze/provider-stress-bound-freeze.json"
+              ).read_text(encoding="utf-8")
+          )
+          component = json.loads(
+              Path(
+                  "provider-core-freeze/provider-economics-component-freeze.json"
+              ).read_text(encoding="utf-8")
+          )
+          assert stress["status"] == "CORE_PRE_HOLDOUT_READY"
+          assert stress["core_pre_holdout_ready"] is True
+          assert stress["provider_deployment_ready"] is False
+          assert stress["empirical_slippage_claimed"] is False
+          assert stress["outcome_tuned"] is False
+          assert stress["policy_pass_tuned"] is False
+          assert len(stress["scenario_ids"]) == 9
+          assert component["status"] == "CORE_PRE_HOLDOUT_READY"
+          assert component["pre_holdout_provider_economics_ready"] is True
+          assert component["certification_lane"] == "PREDECLARED_STRESS_BOUND"
+          assert component["empirical_slippage_frozen"] is False
+          assert component["execution_model_frozen"] is False
+          assert component["provider_deployment_ready"] is False
+          assert component["blockers"] == []
+          assert component["provider_stress_bound_sha256"].startswith("sha256:")
+          PY
+
+      - name: Seal artifact
+        run: |
+          printf '%s\n' "$EVIDENCE_SHA" > provider-core-freeze/git-sha.txt
+          cd provider-core-freeze
+          sha256sum \
+            provider-stress-bound-freeze.json \
+            provider-economics-component-freeze.json \
+            stdout.json \
+            git-sha.txt > SHA256SUMS.txt
+          sha256sum -c SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-provider-economics-core-freeze-${{ env.EVIDENCE_SHA }}
+          path: provider-core-freeze
+          if-no-files-found: error
+          retention-days: 90

@@ -15,6 +15,9 @@ from datetime import datetime
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
+from qore.infrastructure.cibo_ce2i_holdout_registry import (
+    ACTIVE_USD60_HOLDOUT_CANDIDATE,
+)
 from qore.infrastructure.cibo_ce2i_phase20_forward_policy_store import (
     VersionedPhase20ForwardPolicyBook,
 )
@@ -128,10 +131,20 @@ def assess_phase22_holdout_lineage(
 
     collector_shas: set[str] = set()
     decision_by_sha = {}
+    holdout = ACTIVE_USD60_HOLDOUT_CANDIDATE
     for decision in decisions:
         decision_by_sha[decision.evidence_sha256] = decision
-        if decision.decision_at <= phase21_manifest.frozen_at:
-            reasons.append("HOLDOUT_DECISION_NOT_POST_PHASE21_FREEZE")
+        if not (
+            holdout.start_at
+            <= decision.decision_at
+            < holdout.end_exclusive_at
+        ):
+            reasons.append("HOLDOUT_DECISION_OUTSIDE_PREREGISTERED_WINDOW")
+        if (
+            decision.sealed_at is None
+            or decision.sealed_at <= phase21_manifest.frozen_at
+        ):
+            reasons.append("HOLDOUT_DECISION_SEAL_NOT_POST_PHASE21_FREEZE")
         if decision.candidate_id != phase21_manifest.candidate_id:
             reasons.append("HOLDOUT_CANDIDATE_IDENTITY_DRIFT")
         if decision.code_sha != phase21_manifest.candidate_code_sha:

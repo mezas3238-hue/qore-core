@@ -1,0 +1,284 @@
+name: QORE CIBO B Actions Queue Cleanup
+
+on:
+  push:
+    branches:
+      - agent/cibo-certification-architect-b-integration-001
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: cibo-b-actions-queue-cleanup-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  prune-obsolete-runs:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - name: Cancel obsolete Architect B runs
+        uses: actions/github-script@v7
+        env:
+          TARGET_BRANCH: agent/cibo-certification-architect-b-integration-001
+          TARGET_HEAD: ${{ github.sha }}
+          MAX_CANCELS: "250"
+        with:
+          script: |
+            const branch = process.env.TARGET_BRANCH;
+            const targetHead = process.env.TARGET_HEAD;
+            const currentRunId = Number(process.env.GITHUB_RUN_ID);
+            const maxCancels = Number(process.env.MAX_CANCELS);
+
+            const keepNames = new Set([
+              "QORE CIBO T02 Forward Structural OOS",
+              "QORE CIBO T20 Capital Release Evidence",
+              "QORE CIBO cTrader DEMO Account Capability",
+              "QORE CIBO cTrader DEMO Provider Economics Calibration",
+              "QORE CIBO Provider Economics Core Freeze",
+              "QORE CIBO cTrader DEMO Empirical Slippage",
+              "QORE CIBO B Provider Forward Tool Readiness",
+              "QORE CIBO Architect B Forward Economic Manifest",
+              "QORE CIBO Integrated Capital Forward Binding",
+              "QORE CIBO Calibration Freeze Manifest",
+              "QORE CIBO Pre-Holdout Checkpoint",
+              "QORE CIBO USD60 Pre-Exam Readiness",
+              "QORE CIBO USD60 Holdout Source Validation",
+              "QORE CIBO Risk Integration Closure",
+              "QORE CIBO CMA Compound Authority Boundary",
+              "QORE CIBO Legacy Stack Quarantine",
+              "QORE CIBO Zero Open Work Gate",
+              "QORE CIBO Architect B Zero Open Work",
+              "QORE CIBO T16 Post-Declaration Market Structure",
+              "QORE CIBO Phase20 Historical Shadow Holdout 1Y",
+              "QORE CIBO Phase21 Shadow Policy Freeze",
+              "QORE CIBO Phase21 Shadow Empirical Screen",
+              "QORE CIBO Phase22 XAUUSD R34 Replay Parity",
+              "QORE CIBO Phase22 AUDJPY R42 Replay Parity",
+              "QORE CIBO Phase22 GBPUSD R43 Replay Parity",
+              "QORE CIBO Phase22 GBPJPY R38 Replay Parity",
+              "QORE CIBO Compound Engine Integrated Cycle",
+              "QORE CIBO Generation Current Control Seal",
+              "QORE CIBO Protected Base Overlay",
+              "QORE CIBO Phase22 V2 Execution Preflight",
+              "QORE CIBO Phase22 V2 Store Bundle",
+              "QORE CIBO Phase22 External Dependency Evidence",
+              "QORE CIBO Phase22 Holdout V2 Source Receipt",
+              "QORE CIBO Phase22 Holdout V2 Source Availability",
+              "QORE CIBO Phase22 Trader Parity Freeze",
+              "QORE CIBO Phase22 VT08 FOREX Exact Parity",
+              "QORE CIBO Phase22 VT31 NAS100 Exact Parity",
+              "QORE CIBO Phase22 VT08 Fresh Engine Contract",
+              "QORE CIBO Phase22 VT31 V4 Fresh Engine Contract",
+              "QORE CIBO Phase22 Turtle Fresh Corpus Contract",
+              "QORE CIBO Phase22 Turtle V2 Dependency Contract",
+              "QORE CIBO Phase22 Turtle Predecision Causality",
+              "QORE CIBO Phase22 Dual-Evidence Protocol",
+            ]);
+
+            const neverCancelNames = new Set([
+              "QORE CIBO Phase22 DEMO Provider Calibration",
+              "QORE CIBO Phase22 DEMO Calibration Cleanup",
+              "QORE CIBO Phase22 cTrader Tick Diagnostic",
+              "QORE CIBO Phase22 Observation Diagnostic",
+            ]);
+
+            const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+            function rateResetDelay(error) {
+              const message = String(error.message || "");
+              const status = Number(error.status || 0);
+              if (status !== 403 || !/rate limit/i.test(message)) return null;
+              const headers = error.response?.headers || {};
+              const raw =
+                headers["x-ratelimit-reset"] ||
+                headers["X-RateLimit-Reset"] ||
+                null;
+              const reset = Number(raw || 0);
+              if (Number.isFinite(reset) && reset > 0) {
+                return Math.max(2000, reset * 1000 - Date.now() + 5000);
+              }
+              return 60000;
+            }
+
+            async function withRateRetry(label, fn) {
+              while (true) {
+                try {
+                  return await fn();
+                } catch (error) {
+                  const delay = rateResetDelay(error);
+                  if (delay === null) throw error;
+                  core.warning(
+                    `${label}: GitHub API rate limit reached; retrying after reset`
+                  );
+                  await sleep(delay);
+                }
+              }
+            }
+
+            async function listActive() {
+              const runs = await withRateRetry(
+                "list workflow runs",
+                () => github.paginate(
+                  github.rest.actions.listWorkflowRunsForRepo,
+                  {
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    branch,
+                    per_page: 100,
+                  }
+                )
+              );
+              return runs.filter(
+                (run) =>
+                  run.status !== "completed" &&
+                  run.id !== currentRunId
+              );
+            }
+
+            async function waitForCurrentHeadRuns() {
+              let active = [];
+              for (let attempt = 0; attempt < 10; attempt += 1) {
+                active = await listActive();
+                const currentNames = new Set(
+                  active
+                    .filter((run) => run.head_sha === targetHead)
+                    .map((run) => run.name)
+                );
+                const usefulPresent = [...keepNames].filter(
+                  (name) => currentNames.has(name)
+                ).length;
+                core.info(
+                  `registration attempt=${attempt + 1} useful_current_head=${usefulPresent}`
+                );
+                if (usefulPresent >= 15 || attempt === 9) return active;
+                await sleep(5000);
+              }
+              return active;
+            }
+
+            let active = await waitForCurrentHeadRuns();
+
+            const keepIds = new Set();
+            for (const name of keepNames) {
+              const candidates = active
+                .filter((run) => run.head_sha === targetHead && run.name === name)
+                .sort((a, b) => {
+                  const eventRank = (run) => run.event === "pull_request" ? 0 : 1;
+                  const rankDelta = eventRank(a) - eventRank(b);
+                  if (rankDelta !== 0) return rankDelta;
+                  return new Date(b.created_at) - new Date(a.created_at);
+                });
+              if (candidates.length) keepIds.add(candidates[0].id);
+            }
+
+            if (keepIds.size < 15) {
+              core.setFailed(
+                `Only ${keepIds.size} protected Architect-B runs registered for current HEAD`
+              );
+              return;
+            }
+
+            const cancel = [];
+            for (const run of active) {
+              if (neverCancelNames.has(run.name)) {
+                continue;
+              }
+              let reason = null;
+              if (run.head_sha !== targetHead) {
+                reason = "obsolete_sha";
+              } else if (!keepNames.has(run.name)) {
+                reason = "not_arch_b_scope";
+              } else if (!keepIds.has(run.id)) {
+                reason = "duplicate_current_head";
+              }
+              if (reason) cancel.push({ run, reason });
+            }
+
+            const selected = cancel.slice(0, maxCancels);
+            const reasonCounts = {};
+            let cancelled = 0;
+            let benignRace = 0;
+            let failed = 0;
+
+            for (const item of selected) {
+              try {
+                await withRateRetry(
+                  `cancel run ${item.run.id}`,
+                  () => github.rest.actions.cancelWorkflowRun({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    run_id: item.run.id,
+                  })
+                );
+                cancelled += 1;
+                reasonCounts[item.reason] = (reasonCounts[item.reason] || 0) + 1;
+              } catch (error) {
+                const message = String(error.message || "");
+                const status = Number(error.status || 0);
+                if (
+                  status === 409 ||
+                  status === 404 ||
+                  /cannot be cancelled|not found|already completed/i.test(message)
+                ) {
+                  benignRace += 1;
+                } else {
+                  failed += 1;
+                  core.warning(
+                    `cancel failed run=${item.run.id} name=${item.run.name}: ${message}`
+                  );
+                }
+              }
+            }
+
+            let remainingBad = [];
+            for (let settleAttempt = 0; settleAttempt < 8; settleAttempt += 1) {
+              active = await listActive();
+              remainingBad = active.filter((run) => {
+                if (neverCancelNames.has(run.name)) return false;
+                if (run.head_sha !== targetHead) return true;
+                if (!keepNames.has(run.name)) return true;
+                return !keepIds.has(run.id);
+              });
+              core.info(
+                `settle attempt=${settleAttempt + 1} remaining_bad=${remainingBad.length}`
+              );
+              if (remainingBad.length === 0) break;
+              await sleep(3000);
+            }
+
+            core.summary
+              .addHeading("Architect B queue cleanup")
+              .addTable([
+                [{data:"Metric",header:true},{data:"Value",header:true}],
+                ["Target HEAD", targetHead],
+                ["Useful runs retained", String(keepIds.size)],
+                ["Eligible at scan", String(cancel.length)],
+                ["Cancelled", String(cancelled)],
+                ["Benign races", String(benignRace)],
+                ["Failed cancellations", String(failed)],
+                ["Remaining non-B/obsolete active", String(remainingBad.length)],
+              ])
+              .addRaw("\nReasons: " + JSON.stringify(reasonCounts))
+              .write();
+
+            core.info(
+              JSON.stringify({
+                targetHead,
+                retainedUsefulRuns: keepIds.size,
+                eligibleAtScan: cancel.length,
+                cancelled,
+                benignRace,
+                failed,
+                remainingBad: remainingBad.length,
+                reasons: reasonCounts,
+              })
+            );
+
+            if (failed > 0 || remainingBad.length > 0) {
+              core.setFailed(
+                `Cleanup incomplete: failed=${failed} remainingBad=${remainingBad.length}`
+              );
+            }

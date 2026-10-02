@@ -1,0 +1,81 @@
+name: QORE CIBO Phase22 External Dependency Evidence
+
+on:
+  push:
+    branches:
+      - agent/cibo-certification-architect-b-integration-001
+    paths:
+      - '.github/workflows/cibo-phase22-external-dependency-evidence.yml'
+      - 'src/qore/infrastructure/cibo_phase22_external_dependency_evidence.py'
+      - 'tests/infrastructure/test_cibo_phase22_external_dependency_evidence.py'
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-phase22-external-dependency-evidence.yml'
+      - 'src/qore/infrastructure/cibo_phase22_external_dependency_evidence.py'
+      - 'tests/infrastructure/test_cibo_phase22_external_dependency_evidence.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Validate external dependency contract
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_phase22_external_dependency_evidence.py \
+            tests/infrastructure/test_cibo_phase22_external_dependency_evidence.py
+          mypy src/qore/infrastructure/cibo_phase22_external_dependency_evidence.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_phase22_external_dependency_evidence.py
+      - name: Emit immutable dependency status evidence
+        run: |
+          mkdir -p phase22-external-dependency
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          from qore.infrastructure.cibo_phase22_external_dependency_evidence import (
+              build_phase22_external_dependency_evidence,
+          )
+
+          payload = build_phase22_external_dependency_evidence().payload()
+          assert payload["disposition"] in {
+              "EXTERNAL_DEPENDENCY_BLOCKED",
+              "DEPENDENCY_RESOLVED_PRE_HOLDOUT",
+          }
+          assert payload["fresh_holdout_consumed"] is False
+          assert payload["productive_authority"] is False
+          Path(
+              "phase22-external-dependency/provider-execution-dependency.json"
+          ).write_text(
+              json.dumps(payload, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+          printf '%s\n' "$EVIDENCE_SHA" \
+            > phase22-external-dependency/git-sha.txt
+          cd phase22-external-dependency
+          sha256sum \
+            provider-execution-dependency.json \
+            git-sha.txt > SHA256SUMS.txt
+          sha256sum -c SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-phase22-external-dependency-${{ env.EVIDENCE_SHA }}
+          path: phase22-external-dependency
+          if-no-files-found: error
+          retention-days: 90

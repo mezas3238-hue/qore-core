@@ -61,7 +61,7 @@ def build_report() -> dict[str, object]:
         else "PROVIDER_TERMS_INCOMPLETE"
     )
     account_fingerprint = hashlib.sha256(
-        probe.account_ref.encode("utf-8")
+        f"ctrader-demo:{probe.account_ref}".encode()
     ).hexdigest()
     return {
         "schema": "qore.cibo.ctrader_demo.provider_economics_probe.v1",

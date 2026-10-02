@@ -13,9 +13,15 @@ on:
       - 'src/qore/infrastructure/cibo_ce2i_burned_lifecycle_calibration.py'
       - 'src/qore/infrastructure/cibo_ce2i_burned_t01_calibration.py'
       - 'src/qore/infrastructure/cibo_ce2i_burned_t07_calibration.py'
-      - 'src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py'
+      - 'src/qore/infrastructure/cibo_ce2i_pre_holdout_freeze_v2.py'
+      - 'src/qore/infrastructure/cibo_phase22_holdout_v2_source_receipt.py'
+      - 'src/qore/infrastructure/cibo_phase22_trader_parity_manifest.py'
       - 'src/qore/infrastructure/cibo_ce2i_holdout_registry.py'
       - 'src/qore/infrastructure/cibo_ce2i_usd60_six_month_certification.py'
+      - 'src/qore/infrastructure/cibo_ce2i_calibration_terminal_evidence.py'
+      - 'src/qore/infrastructure/cibo_ce2i_calibration_freeze_readiness.py'
+      - 'src/qore/infrastructure/cibo_ce2i_calibration_freeze_manifest.py'
+      - 'src/qore/infrastructure/cibo_ce2i_provider_core_freeze_receipt.py'
       - 'src/qore/infrastructure/cibo_ce2i_provider_economics_evidence.py'
       - 'src/qore/infrastructure/cibo_ce2i_provider_economics_provenance.py'
       - 'tests/infrastructure/test_cibo_ce2i_provider_economics_evidence.py'
@@ -30,13 +36,22 @@ on:
       - 'src/qore/infrastructure/cibo_ce2i_burned_lifecycle_calibration.py'
       - 'src/qore/infrastructure/cibo_ce2i_burned_t01_calibration.py'
       - 'src/qore/infrastructure/cibo_ce2i_burned_t07_calibration.py'
-      - 'src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py'
+      - 'src/qore/infrastructure/cibo_ce2i_pre_holdout_freeze_v2.py'
+      - 'src/qore/infrastructure/cibo_phase22_holdout_v2_source_receipt.py'
+      - 'src/qore/infrastructure/cibo_phase22_trader_parity_manifest.py'
       - 'src/qore/infrastructure/cibo_ce2i_holdout_registry.py'
       - 'src/qore/infrastructure/cibo_ce2i_usd60_six_month_certification.py'
+      - 'src/qore/infrastructure/cibo_ce2i_calibration_terminal_evidence.py'
+      - 'src/qore/infrastructure/cibo_ce2i_calibration_freeze_readiness.py'
+      - 'src/qore/infrastructure/cibo_ce2i_calibration_freeze_manifest.py'
+      - 'src/qore/infrastructure/cibo_ce2i_provider_core_freeze_receipt.py'
   workflow_dispatch:
 
 permissions:
   contents: read
+
+env:
+  EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 
 jobs:
   checkpoint:
@@ -44,6 +59,8 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
 
       - uses: actions/setup-python@v5
         with:
@@ -65,10 +82,17 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_burned_lifecycle_calibration.py \
             src/qore/infrastructure/cibo_ce2i_burned_t01_calibration.py \
             src/qore/infrastructure/cibo_ce2i_burned_t07_calibration.py \
-            src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py \
+            src/qore/infrastructure/cibo_ce2i_pre_holdout_freeze_v2.py \
+            src/qore/infrastructure/cibo_phase22_holdout_v2_source_receipt.py \
+            src/qore/infrastructure/cibo_phase22_trader_parity_manifest.py \
             src/qore/infrastructure/cibo_ce2i_holdout_registry.py \
             src/qore/infrastructure/cibo_ce2i_provider_economics_evidence.py \
-            src/qore/infrastructure/cibo_ce2i_provider_economics_provenance.py
+            src/qore/infrastructure/cibo_ce2i_provider_economics_provenance.py \
+            src/qore/infrastructure/cibo_ce2i_provider_core_freeze_receipt.py \
+            src/qore/infrastructure/cibo_ce2i_calibration_freeze_manifest.py \
+            src/qore/infrastructure/cibo_ce2i_calibration_freeze_readiness.py \
+            src/qore/infrastructure/cibo_ce2i_calibration_terminal_evidence.py \
+            src/qore/infrastructure/cibo_ce2i_shadow_certification_receipts.py
           mypy \
             scripts/cibo_pre_holdout_checkpoint.py \
             scripts/cibo_pre_holdout_gate.py \
@@ -78,7 +102,9 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_burned_lifecycle_calibration.py \
             src/qore/infrastructure/cibo_ce2i_burned_t01_calibration.py \
             src/qore/infrastructure/cibo_ce2i_burned_t07_calibration.py \
-            src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py \
+            src/qore/infrastructure/cibo_ce2i_pre_holdout_freeze_v2.py \
+            src/qore/infrastructure/cibo_phase22_holdout_v2_source_receipt.py \
+            src/qore/infrastructure/cibo_phase22_trader_parity_manifest.py \
             src/qore/infrastructure/cibo_ce2i_holdout_registry.py
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_ce2i_burned_calibration.py \
@@ -87,20 +113,22 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_burned_t07_calibration.py \
             tests/infrastructure/test_cibo_ce2i_calibration_registry.py \
             tests/infrastructure/test_cibo_ce2i_calibration_matrix.py \
-            tests/infrastructure/test_cibo_ce2i_pre_holdout_gate.py \
+            tests/infrastructure/test_cibo_ce2i_pre_holdout_freeze_v2.py \
+            tests/infrastructure/test_cibo_phase22_trader_parity_manifest.py \
+            tests/infrastructure/test_cibo_phase22_holdout_v2_source_receipt.py \
             tests/infrastructure/test_cibo_ce2i_holdout_registry.py \
             tests/infrastructure/test_cibo_ce2i_provider_economics_evidence.py \
             tests/infrastructure/test_cibo_ce2i_provider_economics_provenance.py
 
-      - name: Emit checkpoint without reading 2017H1
+      - name: Emit V2 checkpoint without fresh Trader execution
         run: |
           mkdir -p pre-holdout
           python scripts/cibo_pre_holdout_checkpoint.py \
-            --git-sha "$GITHUB_SHA" \
+            --git-sha "$EVIDENCE_SHA" \
             --output pre-holdout/pre-holdout-checkpoint.json \
             > pre-holdout/pre-holdout-checkpoint.stdout.json
 
-      - name: Enforce untouched holdout and not-ready status
+      - name: Enforce V2 freeze after exact 7-of-7 parity
         run: |
           python - <<'PY'
           import json
@@ -109,12 +137,26 @@ jobs:
           p = json.loads(
               Path("pre-holdout/pre-holdout-checkpoint.json").read_text()
           )
-          assert p["status"] == "PRE_HOLDOUT_NOT_READY"
-          assert p["ready_to_unseal_2017h1"] is False
+          assert p["status"] == "PRE_HOLDOUT_FROZEN"
+          assert p["ready_to_unseal_v2"] is True
+          assert p["pre_holdout_blockers"] == []
+          assert p["fresh_holdout"]["candidate_id"] == (
+              "CIBO_USD60_6M_HOLDOUT_2015-10-19_2016-04-19_V2"
+          )
+          assert p["fresh_holdout"]["status"] == "ELIGIBLE_FROZEN"
+          assert p["phase22_v2_source_receipt"]["status"] == "ELIGIBLE_FROZEN"
+          assert p["phase22_v2_source_receipt"]["burn_clean"] is True
+          assert p["phase22_v2_source_receipt"]["outcomes_inspected"] is False
+          assert p["phase22_v2_source_receipt"]["trader_logic_executed"] is False
+          parity_sha = p["phase22_v2_pre_holdout"]["parity_manifest_sha256"]
+          assert isinstance(parity_sha, str)
+          assert parity_sha.startswith("sha256:")
+          assert p["provider_core_freeze_receipt"]["core_pre_holdout_ready"] is True
+          assert p["provider_core_freeze_receipt"]["productive_authority"] is False
           assert p["fresh_holdout"]["outcomes_inspected"] is False
           assert p["fresh_holdout"]["market_data_read_by_this_checkpoint"] is False
-          assert p["fresh_holdout"]["untouched_confirmation"] is True
           assert p["governance"]["holdout_used_for_calibration"] is False
+          assert p["governance"]["live_mutation_performed"] is False
           assert len(p["t01_t20_matrix"]) == 20
           PY
 
@@ -131,7 +173,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: qore-cibo-pre-holdout-checkpoint-${{ github.sha }}
+          name: qore-cibo-pre-holdout-checkpoint-${{ env.EVIDENCE_SHA }}
           path: pre-holdout
           if-no-files-found: error
           retention-days: 90

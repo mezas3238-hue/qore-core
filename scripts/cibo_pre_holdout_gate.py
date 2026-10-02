@@ -1,4 +1,4 @@
-"""Emit the CIBO pre-holdout lock state without reading 2017H1 data."""
+"""Emit the active CIBO Phase22 V2 pre-holdout gate without fresh execution."""
 
 from __future__ import annotations
 
@@ -6,51 +6,34 @@ import argparse
 import json
 from pathlib import Path
 
-from qore.infrastructure.cibo_ce2i_pre_holdout_gate import (
-    CiboPreHoldoutStatus,
-    evaluate_pre_holdout_readiness,
+from qore.infrastructure.cibo_ce2i_holdout_registry import (
+    ACTIVE_USD60_HOLDOUT_CANDIDATE,
 )
-
-# These remain false until an explicit pre-holdout freeze commit seals the
-# provider-economics and calibration manifests. Changing them is a governed
-# freeze action, not a calibration shortcut.
-PROVIDER_ECONOMICS_FROZEN = False
-CALIBRATION_FREEZE_MANIFEST_SEALED = False
-PHASE20D_CAUSAL_TOOL_GATE_PASSED = False
-PHASE21_POLICY_FREEZE_SEALED = False
+from qore.infrastructure.cibo_ce2i_pre_holdout_freeze_v2 import (
+    evaluate_phase22_v2_pre_holdout_readiness,
+)
+from qore.infrastructure.cibo_phase22_holdout_v2_source_receipt import (
+    phase22_v2_holdout_source_receipt_payload,
+)
 
 
 def build_report() -> dict[str, object]:
-    readiness = evaluate_pre_holdout_readiness(
-        provider_economics_frozen=PROVIDER_ECONOMICS_FROZEN,
-        calibration_freeze_manifest_sealed=(
-            CALIBRATION_FREEZE_MANIFEST_SEALED
-        ),
-        phase20d_causal_gate_passed=PHASE20D_CAUSAL_TOOL_GATE_PASSED,
-        phase21_policy_freeze_sealed=PHASE21_POLICY_FREEZE_SEALED,
-    )
-    authorized = readiness.status is CiboPreHoldoutStatus.READY_TO_UNSEAL_2017H1
+    readiness = evaluate_phase22_v2_pre_holdout_readiness()
+    candidate = ACTIVE_USD60_HOLDOUT_CANDIDATE
     return {
-        "schema": "qore.cibo.pre_holdout_gate.v1",
-        "status": (
-            "READY_TO_UNSEAL_2017H1"
-            if authorized
-            else "LOCKED_UNTOUCHED"
-        ),
-        "authorized": authorized,
+        "schema": "qore.cibo.phase22.v2-pre-holdout-gate.v1",
+        "status": readiness.state.value,
+        "authorized": readiness.ready_to_unseal_v2,
         "blockers": list(readiness.blockers),
-        "tool_matrix_sha256": readiness.tool_matrix_sha256,
-        "holdout_candidate_id": readiness.holdout_candidate_id,
-        "holdout_outcomes_inspected": readiness.holdout_outcomes_inspected,
-        "holdout_market_data_read": readiness.holdout_market_data_read,
-        "provider_economics_frozen": PROVIDER_ECONOMICS_FROZEN,
-        "phase20d_causal_tool_gate_passed": (
-            PHASE20D_CAUSAL_TOOL_GATE_PASSED
-        ),
-        "phase21_policy_freeze_sealed": PHASE21_POLICY_FREEZE_SEALED,
-        "calibration_freeze_manifest_sealed": (
-            CALIBRATION_FREEZE_MANIFEST_SEALED
-        ),
+        "holdout_candidate_id": candidate.candidate_id,
+        "window": {
+            "start": candidate.start_at.isoformat(),
+            "end_exclusive": candidate.end_exclusive_at.isoformat(),
+        },
+        "source_receipt": phase22_v2_holdout_source_receipt_payload(),
+        "pre_holdout_v2": readiness.as_dict(),
+        "fresh_outcomes_executed": False,
+        "productive_authority": False,
     }
 
 

@@ -1,0 +1,448 @@
+{
+  "schema": "CIBO_ARCH_B_MASTER_LEDGER_PATCH_REQUEST_V1",
+  "branch": "agent/cibo-certification-architect-b-integration-001",
+  "evidence_base_head": "3c7e8c881fca6f18eab25152460bc96b5d329695",
+  "primary_pr": 651,
+  "child_pr": 661,
+  "master_ledger_owned_by": "ARCHITECT_A_OR_INTEGRATOR",
+  "architect_b_must_not_apply_directly": true,
+  "governance": {
+    "holdout_2017h1_opened": false,
+    "live_authority": false,
+    "productive_authority": false,
+    "real_capital_authority": false,
+    "frozen_phase20_v3_mutated": false
+  },
+  "baseline": {
+    "mandatory_count": 64,
+    "terminal_count": 10,
+    "patch_row_count": 12,
+    "expected_terminal_count_if_no_concurrent_changes": 22
+  },
+  "reconciliation_rule": "Integrator must refresh the canonical ledger first. Apply each row only if current evidence still supports it. EXTERNAL_DEPENDENCY_BLOCKED is terminal classification but remains certification-blocking; it is never equivalent to certification success.",
+  "rows": [
+    {
+      "id": "RISK_INTEGRATION",
+      "from": {
+        "current_maturity": "PARTIAL_INTEGRATION",
+        "terminal_disposition": null,
+        "blockers": [
+          "END_TO_END_DOWNSIZE_MINIMAL_SEED_NO_REJECT_ALL_EVIDENCE_REQUIRED"
+        ]
+      },
+      "to": {
+        "current_maturity": "MECHANICAL_AUTHORITY_AND_DOWNSIZE_CLOSURE_PROVEN",
+        "terminal_disposition": "COMPLETED_AND_PROVEN",
+        "certification_blocking": true,
+        "blockers": [],
+        "evidence_refs": [
+          "tests/infrastructure/test_cibo_risk_integration_closure.py",
+          ".github/workflows/cibo-risk-integration-closure.yml",
+          "docs/research/CIBO-RISK-INTEGRATION-CLOSURE-V1.md",
+          "src/qore/infrastructure/account_wide_risk.py",
+          "src/qore/infrastructure/cibo_fundednext_seed.py"
+        ],
+        "next_gate": "Terminalize mechanical Trader→CIBO→Risk authority/downsize closure; do not reopen absent regression."
+      }
+    },
+    {
+      "id": "T17",
+      "from": {
+        "current_maturity": "FUNDEDNEXT_CFD_OPTIONS_UNAVAILABLE_CTRADER_ACCOUNT_CATALOG_UNKNOWN",
+        "terminal_disposition": null,
+        "blockers": [
+          "CTRADER_DEMO_ACCOUNT_SYMBOL_CATALOG_OBSERVATION_REQUIRED",
+          "T17_ACCOUNT_BOUND_PROVIDER_STATUS_REQUIRED"
+        ]
+      },
+      "to": {
+        "current_maturity": "CURRENT_PROVIDER_UNIVERSE_STRUCTURALLY_UNAVAILABLE",
+        "terminal_disposition": "FALSIFIED_AND_CLOSED",
+        "certification_blocking": true,
+        "blockers": [],
+        "evidence_refs": [
+          "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
+          "src/qore/infrastructure/cibo_ce2i_calibration_registry.py",
+          "src/qore/infrastructure/cibo_instrument_capability_registry.py",
+          "src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py",
+          "docs/research/CIBO-T16-T17-PROVIDER-CAPABILITY-RECONCILIATION-V1.md",
+          "src/qore/infrastructure/cibo_ctrader_demo_account_capability.py",
+          "src/qore/infrastructure/cibo_ctrader_demo_instrument_taxonomy.py",
+          "src/qore/infrastructure/cibo_ctrader_demo_capability_registry.py",
+          "src/qore/infrastructure/cibo_ce2i_t17_limited_risk_capability.py",
+          "scripts/cibo_t17_limited_risk_capability_probe.py",
+          "tests/infrastructure/test_cibo_ce2i_t17_limited_risk_capability.py",
+          "tests/infrastructure/test_cibo_t17_limited_risk_capability_probe.py",
+          ".github/workflows/cibo-ctrader-demo-provider-economics.yml",
+          "docs/research/CIBO-B-CTRADER-DEMO-PROVIDER-EVIDENCE-2026-10-01.json",
+          "docs/research/CIBO-B-T17-STRUCTURAL-DISPOSITION-V1.json",
+          "github-actions://36806511867/SUCCESS",
+          "src/qore/infrastructure/cibo_ce2i_t17_structural_disable.py",
+          "scripts/cibo_t17_structural_disable_probe.py",
+          "tests/infrastructure/test_cibo_ce2i_t17_structural_disable.py",
+          "tests/infrastructure/test_cibo_t17_structural_disable_probe.py"
+        ],
+        "next_gate": "Terminalize current-provider structural unavailability; reopen only if governed provider/account capabilities change."
+      }
+    },
+    {
+      "id": "T02",
+      "from": {
+        "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
+        "terminal_disposition": null,
+        "blockers": [
+          "VALUE_DEMONSTRATION_AND_PROVIDER_BOUND_ECONOMICS_REQUIRED"
+        ]
+      },
+      "to": {
+        "current_maturity": "FORWARD_STRUCTURAL_OOS_CONTRACT_IMPLEMENTED_EXTERNAL_FORWARD_POPULATION_REQUIRED",
+        "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+        "certification_blocking": true,
+        "blockers": [
+          "REAL_POST_FREEZE_STRUCTURAL_TERMINAL_REASON_POPULATION_REQUIRED",
+          "PROVIDER_BOUND_LEVERAGE_ECONOMIC_ABLATION_REQUIRED"
+        ],
+        "evidence_refs": [
+          "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
+          "src/qore/infrastructure/cibo_ce2i_t02_calibration_binding.py",
+          "src/qore/infrastructure/cibo_ce2i_phase20_t02_structural_oos.py",
+          "tests/infrastructure/test_cibo_ce2i_phase20_t02_structural_oos.py",
+          ".github/workflows/cibo-t02-forward-structural-oos.yml",
+          "docs/research/CIBO-B-T02-FORWARD-STRUCTURAL-OOS-V1.md"
+        ],
+        "next_gate": "Await real post-freeze terminal-reason population and provider-bound leverage economic ablation; do not synthesize outcomes."
+      }
+    },
+    {
+      "id": "T03",
+      "from": {
+        "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
+        "terminal_disposition": null,
+        "blockers": [
+          "VALUE_DEMONSTRATION_AND_PROVIDER_BOUND_ECONOMICS_REQUIRED"
+        ]
+      },
+      "to": {
+        "current_maturity": "DIRECT_PROVIDER_UNIVERSE_SCREENED_EXTERNAL_EQUIVALENT_EXPRESSION_DEPENDENCY",
+        "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+        "certification_blocking": true,
+        "blockers": [
+          "CURRENT_CTRADER_DIRECT_SINGLE_INSTRUMENT_CANDIDATE_SCREEN_EXHAUSTED",
+          "MULTI_LEG_OR_ALTERNATE_PROVIDER_EQUIVALENT_EXPRESSION_NOT_PROVEN",
+          "FRESH_OOS_EQUIVALENT_EXPRESSION_UTILITY_REQUIRED_IF_CANDIDATE_APPEARS"
+        ],
+        "evidence_refs": [
+          "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
+          "src/qore/infrastructure/cibo_ce2i_phase20_t03_margin_population.py",
+          "tests/infrastructure/test_cibo_ce2i_phase20_t03_margin_population.py",
+          ".github/workflows/cibo-b-provider-forward-tool-readiness.yml",
+          "docs/research/CIBO-B-T03-T11-FORWARD-EVIDENCE-RECONCILIATION-V1.md",
+          "src/qore/infrastructure/cibo_ce2i_t03_equivalent_expression.py",
+          "tests/infrastructure/test_cibo_ce2i_t03_equivalent_expression.py",
+          "scripts/cibo_t03_provider_equivalent_candidate_screen.py",
+          "tests/infrastructure/test_cibo_t03_provider_equivalent_candidate_screen.py",
+          "github-actions://36814203694/SUCCESS",
+          "github-actions-artifact://11140678987/sha256:b0dc6902b40b8b4ab8998f339db560813ea7fd8f48c37d8fdbbf5dbd1a2134d1"
+        ],
+        "next_gate": "Direct current cTrader single-instrument alternatives are exhausted; await a preregisterable multi-leg/alternate-provider equivalent expression, then require fresh-OOS utility."
+      }
+    },
+    {
+      "id": "T11",
+      "from": {
+        "current_maturity": "CONTRACT_IMPLEMENTED_REGISTRY_RECONCILIATION_REQUIRED",
+        "terminal_disposition": null,
+        "blockers": []
+      },
+      "to": {
+        "current_maturity": "EXECUTION_CALIBRATION_ENGINES_IMPLEMENTED_EXTERNAL_REAL_EXECUTION_POPULATION_REQUIRED",
+        "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+        "certification_blocking": true,
+        "blockers": [
+          "REAL_EXECUTION_POPULATION_REQUIRED",
+          "EMPIRICAL_SLIPPAGE_CALIBRATION_REQUIRED",
+          "REAL_CALIBRATED_FRESH_OOS_GROSS_EDGE_MODEL_REQUIRED",
+          "REAL_PROVIDER_BOUND_MARKET_IMPACT_MODEL_REQUIRED"
+        ],
+        "evidence_refs": [
+          "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
+          "src/qore/infrastructure/cibo_ce2i_execution_efficiency.py",
+          "src/qore/infrastructure/cibo_ce2i_phase20_t11_execution_population.py",
+          "src/qore/infrastructure/cibo_ce2i_phase20_t11_cost_binding.py",
+          "src/qore/infrastructure/cibo_ce2i_t11_execution_cost_calibration.py",
+          "tests/infrastructure/test_cibo_ce2i_t11_execution_cost_calibration.py",
+          ".github/workflows/cibo-b-provider-forward-tool-readiness.yml",
+          "docs/research/CIBO-B-T03-T11-FORWARD-EVIDENCE-RECONCILIATION-V1.md",
+          "src/qore/infrastructure/cibo_ce2i_t11_policy_input_readiness.py",
+          "tests/infrastructure/test_cibo_ce2i_t11_policy_input_readiness.py"
+        ],
+        "next_gate": "Await real reconciled executions for empirical slippage plus independent gross-edge and market-impact models; historical 2017 terms remain unavailable."
+      }
+    },
+    {
+      "id": "T16",
+      "from": {
+        "current_maturity": "PROVIDER_POLICY_RECONCILED_ACCOUNT_SPECIFIC_HEDGE_EVIDENCE_REQUIRED",
+        "terminal_disposition": null,
+        "blockers": [
+          "CTRADER_DEMO_ACCOUNT_TYPE_AND_SYMBOL_CATALOG_OBSERVATION_REQUIRED",
+          "T16_HEDGE_INSTRUMENT_BASIS_RISK_COST_CORRELATION_EVIDENCE_REQUIRED",
+          "T16_PROVIDER_BOUND_OOS_ECONOMIC_UTILITY_REQUIRED"
+        ]
+      },
+      "to": {
+        "current_maturity": "POST_DECLARATION_HEDGE_STRUCTURE_PROVEN_EXTERNAL_COST_EXECUTION_AND_FRESH_OOS_UTILITY_REQUIRED",
+        "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+        "certification_blocking": true,
+        "blockers": [
+          "T16_HEDGE_COST_EVIDENCE_INCOMPLETE",
+          "T16_PROVIDER_EXECUTION_SUPPORT_INCOMPLETE",
+          "T16_NET_ECONOMIC_BENEFIT_NOT_PROVEN",
+          "T16_FRESH_OOS_HEDGE_UTILITY_REQUIRED"
+        ],
+        "evidence_refs": [
+          "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
+          "src/qore/infrastructure/cibo_ce2i_calibration_registry.py",
+          "src/qore/infrastructure/cibo_instrument_capability_registry.py",
+          "src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py",
+          "docs/research/CIBO-T16-T17-PROVIDER-CAPABILITY-RECONCILIATION-V1.md",
+          "src/qore/infrastructure/cibo_ctrader_demo_account_capability.py",
+          "src/qore/infrastructure/cibo_ctrader_demo_instrument_taxonomy.py",
+          "src/qore/infrastructure/cibo_ctrader_demo_capability_registry.py",
+          "tests/infrastructure/test_cibo_ctrader_demo_account_capability.py",
+          "tests/infrastructure/test_cibo_ctrader_demo_instrument_taxonomy.py",
+          "tests/infrastructure/test_cibo_ctrader_demo_capability_registry.py",
+          ".github/workflows/cibo-ctrader-demo-account-capability.yml",
+          "docs/research/CIBO-B-CTRADER-DEMO-PROVIDER-EVIDENCE-2026-10-01.json",
+          "github-actions://36806511867/SUCCESS",
+          "src/qore/infrastructure/cibo_ce2i_t16_hedge_candidate.py",
+          "tests/infrastructure/test_cibo_ce2i_t16_hedge_candidate.py",
+          ".github/workflows/cibo-b-provider-forward-tool-readiness.yml",
+          "src/qore/infrastructure/cibo_ce2i_t16_preregistered_hedge_universe.py",
+          "tests/infrastructure/test_cibo_ce2i_t16_preregistered_hedge_universe.py",
+          "docs/research/CIBO-B-T16-HEDGE-PAIR-PREREGISTRATION-V1.json",
+          "github-actions://36813080437/SUCCESS",
+          "scripts/cibo_t16_ctrader_demo_post_declaration_probe.py",
+          ".github/workflows/cibo-t16-post-declaration-market-structure.yml",
+          "docs/research/CIBO-B-T16-POST-DECLARATION-MARKET-STRUCTURE-V1.md",
+          "github-actions://36815427645/SUCCESS",
+          "github-actions-artifact://11141306779/sha256:9563f7dd32c91a2f4cfaa77fc5902a34e405689251d19ddb89f974e2526946e0",
+          "github-actions://36817089026/SUCCESS",
+          "github-actions-artifact://11141752922/sha256:2c49af854547486de58c358289a7e2db5f8128be4421ad58eb04a0cd06ce90a8"
+        ],
+        "next_gate": "Use observed provider contract/quote terms, but require realized hedge execution/slippage/cost evidence and then prove or falsify net economic benefit plus fresh-OOS utility. Do not reopen candidate selection."
+      }
+    },
+    {
+      "id": "T20",
+      "from": {
+        "current_maturity": "ENGINE_IMPLEMENTED_REAL_DATA_CLOSURE_REQUIRED",
+        "terminal_disposition": null,
+        "blockers": [
+          "FRESH_AUTHORITATIVE_RELEASE_RETURNED_CAPACITY_POPULATION_REQUIRED"
+        ]
+      },
+      "to": {
+        "current_maturity": "MECHANICAL_RELEASE_PROVENANCE_IMPLEMENTED_EXTERNAL_REAL_RELEASE_POPULATION_REQUIRED",
+        "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+        "certification_blocking": true,
+        "blockers": [
+          "REAL_AUTHORITATIVE_FORWARD_RELEASE_POPULATION_REQUIRED"
+        ],
+        "evidence_refs": [
+          "src/qore/infrastructure/cibo_ce2i_tool_registry.py",
+          "src/qore/infrastructure/cibo_t20_capital_release_evidence.py",
+          "tests/infrastructure/test_cibo_t20_capital_release_evidence.py",
+          ".github/workflows/cibo-t20-capital-release.yml",
+          "docs/research/CIBO-B-T20-CAPITAL-RELEASE-MECHANICAL-CLOSURE-V1.md"
+        ],
+        "next_gate": "Await authoritative real terminal releases with exact requested→authorized→executed→settled→released lineage."
+      }
+    },
+    {
+      "id": "PROVIDER_ECONOMICS",
+      "from": {
+        "current_maturity": "POINT_IN_TIME_TERMS_BOUND_PROVIDER_POLICY_RECONCILED_ACCOUNT_CAPABILITY_AND_FORWARD_COST_GAPS_OPEN",
+        "terminal_disposition": null,
+        "blockers": [
+          "HISTORICAL_PROVIDER_USD_ECONOMICS_NOT_AVAILABLE_FOR_LEGACY_REPLAY",
+          "EMPIRICAL_SLIPPAGE_CALIBRATION_REQUIRED_WHERE_USD_CLAIMS_REQUIRE_IT",
+          "CTRADER_DEMO_ACCOUNT_BOUND_CAPABILITY_CATALOG_REQUIRED",
+          "T16_ACCOUNT_BOUND_HEDGE_ECONOMICS_REQUIRED_IF_SUPPORTED"
+        ]
+      },
+      "to": {
+        "current_maturity": "CURRENT_PROVIDER_TERMS_AND_ACCOUNT_CAPABILITY_PROVEN_EXTERNAL_FORWARD_EXECUTION_COST_REQUIRED",
+        "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+        "certification_blocking": true,
+        "blockers": [
+          "REAL_FORWARD_SLIPPAGE_COST_CALIBRATION_REQUIRED",
+          "HISTORICAL_2017_PROVIDER_USD_ECONOMICS_UNAVAILABLE"
+        ],
+        "evidence_refs": [
+          "src/qore/infrastructure/cibo_ctrader_demo_provider_economics.py",
+          "src/qore/infrastructure/cibo_fundednext_provider.py",
+          "src/qore/infrastructure/cibo_instrument_capability_registry.py",
+          "docs/research/CIBO-T16-T17-PROVIDER-CAPABILITY-RECONCILIATION-V1.md",
+          "src/qore/infrastructure/cibo_provider_economic_normalization.py",
+          "src/qore/infrastructure/cibo_ctrader_demo_account_capability.py",
+          "src/qore/infrastructure/cibo_ctrader_demo_instrument_taxonomy.py",
+          "src/qore/infrastructure/cibo_ctrader_demo_capability_registry.py",
+          "docs/research/CIBO-B-CTRADER-DEMO-PROVIDER-ECONOMICS-EVIDENCE-2026-09-30.json",
+          "scripts/cibo_ctrader_demo_account_capability_probe.py",
+          "src/qore/infrastructure/cibo_ce2i_provider_execution_calibration.py",
+          "scripts/cibo_phase20_provider_execution_calibration.py",
+          "tests/infrastructure/test_cibo_ce2i_provider_execution_calibration.py",
+          "tests/infrastructure/test_cibo_phase20_provider_execution_calibration_export.py",
+          "docs/research/CIBO-B-PROVIDER-ECONOMICS-COMPONENT-FREEZE-V1.md",
+          "docs/research/CIBO-B-CTRADER-DEMO-PROVIDER-EVIDENCE-2026-10-01.json",
+          "github-actions://36806511867/SUCCESS",
+          "github-actions://36813080437/SUCCESS"
+        ],
+        "next_gate": "Current provider terms/capabilities are proven; await empirical forward execution/slippage calibration. Do not invent 2017 USD terms."
+      }
+    },
+    {
+      "id": "FORWARD_QUALIFICATION",
+      "from": {
+        "current_maturity": "COLLECTING_ARCH_B_IMMUTABLE_ECONOMIC_MANIFEST_CONTRACT_GREEN",
+        "terminal_disposition": null,
+        "blockers": [
+          "PHASE20D_FRESH_POPULATION_THRESHOLDS_NOT_YET_MET_OR_REVALIDATED",
+          "REAL_PHASE20D_POPULATION_THRESHOLDS_STILL_REQUIRED"
+        ]
+      },
+      "to": {
+        "current_maturity": "HISTORICAL_SHADOW_1Y_POPULATION_GATE_PASSED",
+        "terminal_disposition": "SUPERSEDED_WITH_PROVEN_LINEAGE",
+        "certification_blocking": true,
+        "blockers": [],
+        "evidence_refs": [
+          "src/qore/infrastructure/cibo_arch_b_forward_economic_manifest.py",
+          "docs/research/CIBO-ARCH-B-FORWARD-ECONOMIC-EVIDENCE-MANIFEST-V1.md",
+          "github-actions://36759730229/SUCCESS",
+          "scripts/cibo_phase20_arch_b_forward_economic_manifest.py",
+          "tests/infrastructure/test_cibo_arch_b_forward_economic_manifest.py",
+          "tests/infrastructure/test_cibo_phase20_arch_b_forward_economic_manifest_export.py",
+          ".github/workflows/cibo-arch-b-forward-economic-manifest.yml",
+          "docs/research/CIBO-PHASE20D-HISTORICAL-SHADOW-HOLDOUT-1Y-EVIDENCE-V1.json",
+          "github-actions://36857676494/SUCCESS",
+          "github-actions-artifact://11160430022/sha256:cb5991afd27d2b73f4854c4105699744e2aa3c173a58262305d37d4ad083ddce"
+        ],
+        "next_gate": "Continue directly to provider-aware Phase21 gates; do not wait 28 physical days and do not project current provider USD execution terms backward."
+      }
+    },
+    {
+      "id": "FRESH_OOS",
+      "from": {
+        "current_maturity": "PRE_HOLDOUT_PHASE20D_PHASE21_PHASE22_GATES_IMPLEMENTED_REAL_FORWARD_PREREQUISITES_OPEN",
+        "terminal_disposition": null,
+        "blockers": [
+          "PHASE20D_REAL_FORWARD_POPULATION_THRESHOLDS_NOT_YET_PASSED",
+          "PHASE21_POLICY_FREEZE_CANNOT_SEAL_BEFORE_FORWARD_QUALIFICATION",
+          "PHASE21_FORWARD_EMPIRICAL_VALIDATIONS_REQUIRED",
+          "PROVIDER_ECONOMICS_AND_CALIBRATION_FREEZE_MUST_BE_SEALED",
+          "2017H1_HOLDOUT_MUST_REMAIN_SEALED_UNTOUCHED_UNTIL_ALL_PREREQUISITES_PASS"
+        ]
+      },
+      "to": {
+        "current_maturity": "SHADOW_POPULATION_GATE_PASSED_PHASE21_PREREQUISITES_REQUIRED",
+        "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+        "certification_blocking": true,
+        "blockers": [
+          "PHASE21_EMPIRICAL_VALIDATIONS_REQUIRED",
+          "PHASE21_POLICY_FREEZE_REQUIRED",
+          "HOLDOUT_MUST_REMAIN_SEALED_UNTIL_PREREQUISITES_PASS"
+        ],
+        "evidence_refs": [
+          "src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py",
+          "src/qore/infrastructure/cibo_ce2i_pre_holdout_checkpoint.py",
+          "src/qore/infrastructure/cibo_ce2i_phase21_policy_freeze.py",
+          "src/qore/infrastructure/cibo_ce2i_phase22_holdout_gate.py",
+          "src/qore/infrastructure/cibo_ce2i_phase22_qualification.py",
+          ".github/workflows/cibo-pre-holdout-checkpoint.yml",
+          "src/qore/infrastructure/cibo_ce2i_calibration_freeze_manifest.py",
+          "tests/infrastructure/test_cibo_ce2i_calibration_freeze_manifest.py",
+          ".github/workflows/cibo-calibration-freeze-manifest.yml",
+          "docs/research/CIBO-B-CALIBRATION-FREEZE-MANIFEST-V1.md"
+        ],
+        "next_gate": "Run Phase21 empirical/provider-aware gates and seal policy freeze; only then unseal the final 2017H1 holdout."
+      }
+    },
+    {
+      "id": "USD60_CAPABILITY_PROGRAM",
+      "from": {
+        "current_maturity": "ENGINE_FOUNDATION_IMPLEMENTED_FINAL_CAPABILITY_EXAM_NOT_RUN",
+        "terminal_disposition": null,
+        "blockers": [
+          "PROVIDER_VALID_USD_ECONOMICS_AND_FINAL_FROZEN_EXAM_REQUIRED"
+        ]
+      },
+      "to": {
+        "current_maturity": "ROBUST_CAPACITY_AND_PRE_EXAM_IMPLEMENTED_EXTERNAL_FINAL_EXAM_PREREQUISITES_REQUIRED",
+        "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+        "certification_blocking": true,
+        "blockers": [
+          "FORWARD_MANIFEST_MUST_BECOME_SCIENTIFICALLY_CONSUMABLE",
+          "ALL_PRE_EXAM_PREREQUISITES_MUST_PASS",
+          "FINAL_GOVERNED_SIX_MONTH_EXAM_NOT_RUN"
+        ],
+        "evidence_refs": [
+          "src/qore/infrastructure/cibo_ce2i_usd60_robust_capacity.py",
+          "src/qore/infrastructure/cibo_ce2i_usd60_six_month_certification.py",
+          "src/qore/infrastructure/cibo_usd60_exam_readiness.py",
+          "tests/infrastructure/test_cibo_usd60_exam_readiness.py",
+          ".github/workflows/cibo-usd60-pre-exam-readiness.yml",
+          "docs/research/CIBO-B-USD60-PRE-EXAM-READINESS-V1.md"
+        ],
+        "next_gate": "Await scientifically consumable forward manifest and all pre-exam prerequisites before the governed six-month exam."
+      }
+    },
+    {
+      "id": "INTEGRATED_CAPITAL_TRUTH",
+      "from": {
+        "current_maturity": "ACCOUNT_SCOPED_FIVE_STORE_RECOVERY_ENGINE_IMPLEMENTED_CI_REVALIDATION_REQUIRED",
+        "terminal_disposition": null,
+        "blockers": [
+          "ACCOUNT_SCOPED_FIVE_STORE_RECOVERY_CI_REVALIDATION_REQUIRED",
+          "REAL_CHRONOLOGICAL_POPULATION_BINDING_REQUIRED"
+        ]
+      },
+      "to": {
+        "current_maturity": "FIVE_STORE_AND_FORWARD_SETTLEMENT_BINDING_IMPLEMENTED_EXTERNAL_REAL_CHRONOLOGICAL_POPULATION_REQUIRED",
+        "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+        "certification_blocking": true,
+        "blockers": [
+          "REAL_CHRONOLOGICAL_FORWARD_POPULATION_BINDING_REQUIRED"
+        ],
+        "evidence_refs": [
+          "src/qore/infrastructure/cibo_integrated_capital_truth.py",
+          "tests/infrastructure/test_cibo_integrated_capital_truth.py",
+          ".github/workflows/cibo-compound-engine-integrated-cycle.yml",
+          "src/qore/infrastructure/cibo_capital_source_ledger.py",
+          "src/qore/infrastructure/cibo_compound_cycle_audit.py",
+          "src/qore/infrastructure/cibo_compound_funding_coordination.py",
+          "src/qore/infrastructure/cibo_integrated_capital_transaction_store.py",
+          "tests/infrastructure/test_cibo_integrated_capital_transaction_store.py",
+          "src/qore/infrastructure/cibo_integrated_capital_component_adapter.py",
+          "tests/infrastructure/test_cibo_integrated_capital_component_adapter.py",
+          "tests/infrastructure/test_cibo_integrated_capital_recovery.py",
+          "src/qore/infrastructure/cibo_integrated_capital_scope_store.py",
+          "tests/infrastructure/test_cibo_integrated_capital_scope_store.py",
+          "src/qore/infrastructure/cibo_integrated_capital_forward_binding.py",
+          "tests/infrastructure/test_cibo_integrated_capital_forward_binding.py",
+          ".github/workflows/cibo-integrated-capital-forward-binding.yml",
+          "docs/research/CIBO-B-INTEGRATED-CAPITAL-FORWARD-BINDING-V1.md"
+        ],
+        "next_gate": "Await real chronological forward population and exact settlement/source-ledger/Compound/release reconciliation."
+      }
+    }
+  ],
+  "generated_from_b_zero_open_gate": {
+    "workflow_run_id": 36817089068,
+    "artifact_id": 11141618476,
+    "pass": true,
+    "terminal_count": 15,
+    "open_workstream_ids": []
+  }
+}

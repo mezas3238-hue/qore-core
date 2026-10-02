@@ -3,7 +3,7 @@
 This is the NAS100 analogue of the Turtle Soup XAUUSD dossier bridge.
 
 The full consumed NAS100 CIBO dossier is retained as LONG_TERM_ARCHIVE inside
-CiboMemoryStore. Its decomposed sections are additionally registered as MARKET
+a governed research-memory store that has no executive/runtime authority. Its decomposed sections are additionally registered as MARKET
 or RESEARCH memories with provenance, freshness, evidence references and
 association-only limitations.
 
@@ -22,14 +22,14 @@ from functools import lru_cache
 from typing import Any, cast
 from uuid import NAMESPACE_URL, uuid5
 
-from qore.infrastructure.cibo_executive_memory import (
-    CiboMemoryFreshness,
-    CiboMemoryFreshnessState,
-    CiboMemoryItem,
-    CiboMemoryKind,
-    CiboMemoryProvenance,
-    CiboMemorySourceRef,
-    CiboMemoryStore,
+from qore.infrastructure.cibo_research_memory import (
+    CiboResearchMemoryFreshness,
+    CiboResearchMemoryFreshnessState,
+    CiboResearchMemoryItem,
+    CiboResearchMemoryKind,
+    CiboResearchMemoryProvenance,
+    CiboResearchMemorySourceRef,
+    CiboResearchMemoryStore,
 )
 from qore.kernel.result import Success
 from qore.modules.cibo.cognitive_contracts import CiboCognitiveEvidenceRef
@@ -108,23 +108,23 @@ def _memory_item(
     *,
     section: str,
     value: Any,
-    kind: CiboMemoryKind,
+    kind: CiboResearchMemoryKind,
     evidence_ref: CiboCognitiveEvidenceRef,
-) -> CiboMemoryItem:
-    return CiboMemoryItem(
+) -> CiboResearchMemoryItem:
+    return CiboResearchMemoryItem(
         item_id=uuid5(NAMESPACE_URL, f"{IDENTITY}:{section}"),
         kind=kind,
         subject_code=_subject(section),
         content=json.dumps(value, sort_keys=True, separators=(",", ":")),
-        provenance=CiboMemoryProvenance(
-            source_ref=CiboMemorySourceRef(
+        provenance=CiboResearchMemoryProvenance(
+            source_ref=CiboResearchMemorySourceRef(
                 f"github:artifact:{SOURCE_ARTIFACT_ID}:{section.replace('_', '-')}"
             ),
             effective_at=EFFECTIVE_AT,
             recorded_at=RECORDED_AT,
         ),
-        freshness=CiboMemoryFreshness(
-            state=CiboMemoryFreshnessState.CURRENT,
+        freshness=CiboResearchMemoryFreshness(
+            state=CiboResearchMemoryFreshnessState.CURRENT,
             as_of=RECORDED_AT,
         ),
         evidence_refs=(evidence_ref,),
@@ -137,26 +137,26 @@ def _memory_item(
 
 
 @lru_cache(maxsize=1)
-def build_market_memory_store() -> CiboMemoryStore:
+def build_market_memory_store() -> CiboResearchMemoryStore:
     dossier = dossier_runtime_view()
     evidence_ref = CiboCognitiveEvidenceRef(
         f"cibo:nas100:market-intelligence:v1:artifact:{SOURCE_ARTIFACT_ID}"
     )
-    store = CiboMemoryStore()
-    archive = CiboMemoryItem(
+    store = CiboResearchMemoryStore()
+    archive = CiboResearchMemoryItem(
         item_id=uuid5(NAMESPACE_URL, f"{IDENTITY}:full-dossier"),
-        kind=CiboMemoryKind.LONG_TERM_ARCHIVE,
+        kind=CiboResearchMemoryKind.LONG_TERM_ARCHIVE,
         subject_code="nas100.market.full-dossier",
         content=json.dumps(dossier, sort_keys=True, separators=(",", ":")),
-        provenance=CiboMemoryProvenance(
-            source_ref=CiboMemorySourceRef(
+        provenance=CiboResearchMemoryProvenance(
+            source_ref=CiboResearchMemorySourceRef(
                 f"github:artifact:{SOURCE_ARTIFACT_ID}:full-dossier"
             ),
             effective_at=EFFECTIVE_AT,
             recorded_at=RECORDED_AT,
         ),
-        freshness=CiboMemoryFreshness(
-            state=CiboMemoryFreshnessState.CURRENT,
+        freshness=CiboResearchMemoryFreshness(
+            state=CiboResearchMemoryFreshnessState.CURRENT,
             as_of=RECORDED_AT,
         ),
         evidence_refs=(evidence_ref,),
@@ -176,7 +176,7 @@ def build_market_memory_store() -> CiboMemoryStore:
             _memory_item(
                 section=section,
                 value=dossier[section],
-                kind=CiboMemoryKind.MARKET,
+                kind=CiboResearchMemoryKind.MARKET,
                 evidence_ref=evidence_ref,
             )
         )
@@ -189,7 +189,7 @@ def build_market_memory_store() -> CiboMemoryStore:
             _memory_item(
                 section=section,
                 value=dossier[section],
-                kind=CiboMemoryKind.RESEARCH,
+                kind=CiboResearchMemoryKind.RESEARCH,
                 evidence_ref=evidence_ref,
             )
         )

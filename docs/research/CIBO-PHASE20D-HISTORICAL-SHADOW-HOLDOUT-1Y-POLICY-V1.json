@@ -1,0 +1,132 @@
+{
+  "schema": "CIBO_PHASE20D_HISTORICAL_SHADOW_HOLDOUT_POLICY_V1",
+  "policy_id": "CIBO_PHASE20D_HISTORICAL_SHADOW_HOLDOUT_1Y_V1",
+  "effective_date": "2026-10-01",
+  "purpose": "Replace physical waiting for the Phase20D temporal-population gate with a fixed one-year causal historical shadow qualification while preserving the final 2017H1 fresh holdout.",
+  "shadow_holdout": {
+    "candidate_id": "CIBO_PHASE20D_SHADOW_HOLDOUT_1Y_2021H2_2022H1_V1",
+    "start_at": "2021-07-01T00:00:00+00:00",
+    "end_exclusive_at": "2022-07-01T00:00:00+00:00",
+    "duration": "P1Y",
+    "fresh_holdout_claim": false,
+    "burned_research_reuse_allowed": true,
+    "evidence_kind": "HISTORICAL_SHADOW_HOLDOUT",
+    "certification_role": "PHASE20D_SHADOW_QUALIFICATION_ONLY"
+  },
+  "frozen_candidate": {
+    "candidate_id": "CIBO_PHASE20_FULL_SURFACE_FORWARD_CANDIDATE_V3",
+    "code_sha": "edf96722fd0505711aa88bc1d15296b09e6dba6f",
+    "retuning_after_shadow_outcomes": false,
+    "refit_between_folds": false
+  },
+  "population_gates": {
+    "minimum_decision_epochs": 80,
+    "minimum_candidate_outcomes": 200,
+    "minimum_calendar_span_days": 28,
+    "minimum_distinct_trading_days": 20,
+    "fold_count": 4,
+    "minimum_fold_candidate_outcomes": 40,
+    "minimum_global_lineages": 7,
+    "minimum_outcomes_per_lineage": 8,
+    "minimum_fold_lineages": 4,
+    "minimum_candidate_outcome_coverage": "0.95"
+  },
+  "causal_requirements": [
+    "EVENT_TIME_ORDER_ONLY",
+    "NO_FUTURE_FEATURES",
+    "NO_OUTCOME_AWARE_SELECTION",
+    "NO_POST_OUTCOME_RETUNING",
+    "FROZEN_V3_POLICY",
+    "FOUR_CONTIGUOUS_TEMPORAL_FOLDS",
+    "PROVIDER_ECONOMICS_UNKNOWN_IF_NOT_HISTORICALLY_PROVABLE",
+    "NO_CURRENT_PROVIDER_TERMS_PROJECTED_BACKWARD",
+    "NO_SYNTHETIC_REALIZED_EXECUTION_CLAIMS"
+  ],
+  "final_holdout": {
+    "candidate_id": "CIBO_USD60_6M_HOLDOUT_2017H1_V1",
+    "start_at": "2017-01-01T00:00:00+00:00",
+    "end_exclusive_at": "2017-07-01T00:00:00+00:00",
+    "must_remain_sealed_untouched": true,
+    "shadow_policy_may_read_it": false
+  },
+  "authority": {
+    "live": false,
+    "production": false,
+    "real_capital": false
+  },
+  "status": "PASS_CONSUMED_AND_SEALED",
+  "deferred_provider_aware_gates": {
+    "minimum_selected_outcomes": 60,
+    "required_selected_outcome_coverage": "1.00",
+    "required_baseline_selected_outcome_coverage": "1.00",
+    "reason": "Exact historical provider USD execution economics are not provable; these gates remain downstream and may not be fabricated."
+  },
+  "expected_consumed_population": {
+    "source": "CIBO_PHASE19_INTEGRATED_CHRONOLOGY_REPLAY_V1",
+    "common_observed_start": "2021-09-23T05:00:00+00:00",
+    "common_observed_end": "2022-06-29T09:00:00+00:00",
+    "decision_epochs": 775,
+    "candidate_outcomes": 855,
+    "distinct_trading_days": 214,
+    "calendar_span_days": 279,
+    "represented_lineages": 7,
+    "minimum_outcomes_any_lineage": 45,
+    "folds": [
+      {
+        "fold_id": "WF1",
+        "candidate_outcomes": 216,
+        "represented_lineages": 7
+      },
+      {
+        "fold_id": "WF2",
+        "candidate_outcomes": 216,
+        "represented_lineages": 7
+      },
+      {
+        "fold_id": "WF3",
+        "candidate_outcomes": 213,
+        "represented_lineages": 7
+      },
+      {
+        "fold_id": "WF4",
+        "candidate_outcomes": 210,
+        "represented_lineages": 7
+      }
+    ]
+  },
+  "qualification_effect": {
+    "physical_28_day_wait_removed_on_shadow_pass": true,
+    "phase20d_population_temporal_gate_satisfied_on_shadow_pass": true,
+    "v3_usd_economic_superiority_claimed": false,
+    "phase21_provider_aware_gates_still_required": true,
+    "final_2017h1_exam_still_required": true
+  },
+  "evidence": {
+    "workflow_run_id": 36857676494,
+    "artifact_id": 11160430022,
+    "artifact_digest": "sha256:cb5991afd27d2b73f4854c4105699744e2aa3c173a58262305d37d4ad083ddce",
+    "evidence_head": "3c7e8c881fca6f18eab25152460bc96b5d329695",
+    "status": "PASS",
+    "decision_epochs": 775,
+    "candidate_outcomes": 855,
+    "distinct_trading_days": 214,
+    "calendar_span_days": 279,
+    "represented_lineages": 7,
+    "minimum_outcomes_any_lineage": 45,
+    "fold_candidate_outcomes": [
+      216,
+      216,
+      213,
+      210
+    ],
+    "fold_lineages": [
+      7,
+      7,
+      7,
+      7
+    ],
+    "candidate_outcome_coverage": "1",
+    "physical_28_day_wait_satisfied": true,
+    "final_2017h1_status": "SEALED_UNTOUCHED"
+  }
+}
