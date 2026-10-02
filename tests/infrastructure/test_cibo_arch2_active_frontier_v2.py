@@ -16,7 +16,7 @@ def test_active_frontier_covers_exact_current_scope() -> None:
     assert all(item.productive_authority is False for item in rows)
 
 
-def test_active_frontier_has_three_terminal_recommendations() -> None:
+def test_active_frontier_has_four_terminal_recommendations() -> None:
     rows = {
         item.workstream_id: item
         for item in architect2_active_frontier_v2()
@@ -34,6 +34,10 @@ def test_active_frontier_has_three_terminal_recommendations() -> None:
     )
 
     assert rows["T11"].state is Architect2ActiveState.PARTIAL_EVIDENCE_READY
+    assert "36946792349_IN_PROGRESS" in rows["T11"].remaining_requirement
+    assert "36945327912_CANCELLED_ZERO_TERMINAL_ARTIFACTS" in (
+        rows["T11"].remaining_requirement
+    )
     assert rows["T16"].state is Architect2ActiveState.TERMINAL_RECOMMENDATION_READY
     assert rows["T16"].proposed_terminal_disposition == "FALSIFIED_AND_CLOSED"
     assert (
