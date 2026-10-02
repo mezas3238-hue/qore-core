@@ -349,44 +349,30 @@ def _package_with_holdout(
     )
 
 
-def test_certification_closure_rejects_consumed_v4_holdout() -> None:
-    _phase22, final_package, final_report, world_package, world_report = _exam_chain()
+def test_final_package_rejects_consumed_v4_holdout() -> None:
+    _phase22, final_package, _final_report, _world_package, _world_report = _exam_chain()
     consumed_v4 = "CIBO_USD60_6M_HOLDOUT_2014-10-19_2015-04-19_V4"
-    bad_package = _package_with_holdout(
-        final_package,
-        p7_holdout=consumed_v4,
-        p8_holdout=consumed_v4,
-    )
     with pytest.raises(
         CiboCapitalManagementError,
         match="explicitly non-certifiable",
     ):
-        build_certification_closure_ledger(
-            pre_ledger=_ledger(),
-            final_package=bad_package,
-            final_report=final_report,
-            world_cup_package=world_package,
-            world_cup_report=world_report,
+        _package_with_holdout(
+            final_package,
+            p7_holdout=consumed_v4,
+            p8_holdout=consumed_v4,
         )
 
 
-def test_certification_closure_rejects_p7_p8_holdout_drift() -> None:
-    _phase22, final_package, final_report, world_package, world_report = _exam_chain()
-    bad_package = _package_with_holdout(
-        final_package,
-        p7_holdout=SUCCESSOR_HOLDOUT_ID,
-        p8_holdout="CIBO_USD60_6M_HOLDOUT_2013-04-19_2013-10-19_V7",
-    )
+def test_final_package_rejects_p7_p8_holdout_drift() -> None:
+    _phase22, final_package, _final_report, _world_package, _world_report = _exam_chain()
     with pytest.raises(
         CiboCapitalManagementError,
         match="P7/P8 holdout lineage drift",
     ):
-        build_certification_closure_ledger(
-            pre_ledger=_ledger(),
-            final_package=bad_package,
-            final_report=final_report,
-            world_cup_package=world_package,
-            world_cup_report=world_report,
+        _package_with_holdout(
+            final_package,
+            p7_holdout=SUCCESSOR_HOLDOUT_ID,
+            p8_holdout="CIBO_USD60_6M_HOLDOUT_2013-04-19_2013-10-19_V7",
         )
 
 
