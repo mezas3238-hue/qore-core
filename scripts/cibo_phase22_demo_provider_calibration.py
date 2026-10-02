@@ -31,9 +31,15 @@ from qore.infrastructure.cibo_ctrader_demo_empirical_slippage import (
 from qore.infrastructure.cibo_phase22_demo_calibration_contract import (
     CALIBRATION_AUTHORIZATION_TOKEN,
     CALIBRATION_LABEL_PREFIX,
+    DEMO_ONLY_CONFIRMATION,
+    MANUAL_DISPATCH_EVENT,
+    MAXIMUM_ROUND_TRIPS_PER_MANUAL_DISPATCH,
     MINIMUM_DISTINCT_ENTRY_ORDERS_PER_SYMBOL,
+    OWNER_GITHUB_LOGIN,
     PHASE22_DEMO_CALIBRATION_GOVERNANCE,
     REQUIRED_SYMBOLS,
+    Phase22DemoCalibrationInvocation,
+    plan_missing_execution_slots,
 )
 from qore.infrastructure.ctrader_demo_free_binding import (
     CTraderDemoFreeBinding,
@@ -72,13 +78,31 @@ def _request(
     return result.value
 
 
-def _authorization() -> None:
-    if os.environ.get("QORE_CIBO_PHASE22_DEMO_CALIBRATION_AUTHORIZATION") != (
-        CALIBRATION_AUTHORIZATION_TOKEN
-    ):
-        raise CiboCapitalManagementError(
-            "Phase22 DEMO calibration Owner authorization token missing"
+def _authorization() -> Phase22DemoCalibrationInvocation:
+    try:
+        run_attempt = int(os.environ.get("GITHUB_RUN_ATTEMPT", ""))
+        requested_round_trips = int(
+            os.environ.get("QORE_CIBO_PHASE22_MAX_ROUND_TRIPS", "")
         )
+        return Phase22DemoCalibrationInvocation(
+            event_name=os.environ.get("GITHUB_EVENT_NAME", ""),
+            actor=os.environ.get("GITHUB_ACTOR", ""),
+            run_id=os.environ.get("GITHUB_RUN_ID", ""),
+            run_attempt=run_attempt,
+            owner_authorization=os.environ.get(
+                "QORE_CIBO_PHASE22_DEMO_CALIBRATION_AUTHORIZATION",
+                "",
+            ),
+            demo_only_confirmation=os.environ.get(
+                "QORE_CIBO_PHASE22_DEMO_ONLY_CONFIRMATION",
+                "",
+            ),
+            requested_round_trips=requested_round_trips,
+        )
+    except (TypeError, ValueError) as error:
+        raise CiboCapitalManagementError(
+            "Phase22 broker mutation authorization failed closed"
+        ) from error
 
 
 def _label(symbol: str, ordinal: int, run_key: str) -> str:
@@ -101,6 +125,7 @@ def _history(
     binding: CTraderDemoFreeBinding,
     *,
     observed_at: datetime,
+    reconstruct_causal: bool = True,
 ) -> tuple[
     dict[str, tuple[CTraderEmpiricalSlippageObservation, ...]],
     dict[str, int],
@@ -147,18 +172,23 @@ def _history(
         defaultdict(list)
     )
     invalid: dict[str, int] = defaultdict(int)
-    execution_counts: dict[str, int] = defaultdict(int)
+    execution_order_ids: dict[str, set[int]] = defaultdict(set)
     for deal in tuple(getattr(deals_res, "deal", ())):
         if not _account_entry_deal(deal, contracts):
             continue
-        order = orders.get(int(deal.orderId))
+        order_id = int(deal.orderId)
+        order = orders.get(order_id)
         if not _market_entry_order(order):
             continue
         label = _order_label(order)
         if label is None or not label.startswith(CALIBRATION_LABEL_PREFIX):
             continue
         contract = contracts[int(deal.symbolId)]
-        execution_counts[contract.qore_symbol] += 1
+        # The mutation authority is the broker's executed entry-order set.
+        # Partial fills from one order must never inflate the population.
+        execution_order_ids[contract.qore_symbol].add(order_id)
+        if not reconstruct_causal:
+            continue
         try:
             observation = _deal_observation(
                 client=client,
@@ -176,7 +206,11 @@ def _history(
         )
         for symbol, rows in observations.items()
     }
-    return frozen, dict(invalid), dict(execution_counts)
+    execution_counts = {
+        symbol: len(order_ids)
+        for symbol, order_ids in execution_order_ids.items()
+    }
+    return frozen, dict(invalid), execution_counts
 
 
 def _causal_quote(
@@ -616,20 +650,16 @@ def _jsonable_observation(
 
 
 def run() -> dict[str, object]:
-    _authorization()
+    invocation = _authorization()
     governance = PHASE22_DEMO_CALIBRATION_GOVERNANCE
     if governance.live_allowed or governance.real_capital_allowed:
         raise CiboCapitalManagementError(
             "Phase22 calibration governance unexpectedly widened"
         )
 
-    run_key = os.environ.get("GITHUB_RUN_ID", "") + "-" + os.environ.get(
-        "GITHUB_RUN_ATTEMPT", "1"
-    )
-    if not run_key.strip("-"):
-        raise CiboCapitalManagementError(
-            "Phase22 calibration requires GitHub run identity"
-        )
+    # Stable across attempts. A GitHub retry therefore resolves the same labels
+    # and client-order ids, while its mutation budget is unconditionally zero.
+    run_key = invocation.run_id
     client = SpotwareCTraderOpenApiClient(
         credentials=credentials_from_environment(),
     )
@@ -664,24 +694,40 @@ def run() -> dict[str, object]:
             count >= MINIMUM_DISTINCT_ENTRY_ORDERS_PER_SYMBOL
             for count in before_execution_counts.values()
         )
+        planned_slots = plan_missing_execution_slots(
+            before_execution_counts,
+            invocation=invocation,
+        )
 
-        for symbol in REQUIRED_SYMBOLS:
-            deficit = max(
-                0,
-                MINIMUM_DISTINCT_ENTRY_ORDERS_PER_SYMBOL
-                - before_execution_counts[symbol],
+        for symbol, ordinal in planned_slots:
+            # Re-read the broker immediately before every possible submit. This
+            # closes the race with earlier attempts or other completed runs.
+            _, _, current_execution_counts_raw = _history(
+                client,
+                binding,
+                observed_at=datetime.now(UTC),
+                reconstruct_causal=False,
             )
-            for offset in range(deficit):
-                ordinal = before_execution_counts[symbol] + offset + 1
-                created.append(
-                    _one_round_trip(
-                        client,
-                        by_symbol[symbol],
-                        ordinal=ordinal,
-                        run_key=run_key,
-                    )
+            current_count = current_execution_counts_raw.get(symbol, 0)
+            if current_count >= ordinal:
+                continue
+            if current_count != ordinal - 1:
+                raise CiboCapitalManagementError(
+                    "Phase22 broker execution population changed ambiguously"
                 )
-                time.sleep(0.35)
+            if len(created) >= invocation.mutation_budget:
+                raise CiboCapitalManagementError(
+                    "Phase22 calibration hard mutation budget exhausted"
+                )
+            created.append(
+                _one_round_trip(
+                    client,
+                    by_symbol[symbol],
+                    ordinal=ordinal,
+                    run_key=run_key,
+                )
+            )
+            time.sleep(0.35)
 
         after, after_invalid, after_execution_counts_raw = _history(
             client,
@@ -700,11 +746,7 @@ def run() -> dict[str, object]:
             count >= MINIMUM_DISTINCT_ENTRY_ORDERS_PER_SYMBOL
             for count in after_execution_counts.values()
         )
-        if not population_ready:
-            raise CiboCapitalManagementError(
-                "Phase22 calibration minimum execution population not reached"
-            )
-        causal_ready = (
+        causal_ready = population_ready and (
             all(
                 count >= MINIMUM_DISTINCT_ENTRY_ORDERS_PER_SYMBOL
                 for count in after_valid_counts.values()
@@ -714,11 +756,19 @@ def run() -> dict[str, object]:
                 for symbol in REQUIRED_SYMBOLS
             )
         )
-        blockers = (
-            []
-            if causal_ready
-            else ["CAUSAL_QUOTE_RECONSTRUCTION_PENDING"]
-        )
+        if causal_ready:
+            status = "READY"
+            blockers: list[str] = []
+        elif population_ready:
+            status = "EXECUTION_POPULATION_READY_QUOTE_RECONSTRUCTION_PENDING"
+            blockers = ["CAUSAL_QUOTE_RECONSTRUCTION_PENDING"]
+        else:
+            status = (
+                "EXECUTION_POPULATION_INCOMPLETE_RECONCILE_ONLY"
+                if invocation.mutation_budget == 0
+                else "EXECUTION_POPULATION_INCOMPLETE"
+            )
+            blockers = ["BROKER_EXECUTION_POPULATION_INCOMPLETE"]
 
         observations = [
             _jsonable_observation(item)
@@ -727,11 +777,7 @@ def run() -> dict[str, object]:
         ]
         return {
             "schema": "qore.cibo.phase22.demo-provider-calibration.v1",
-            "status": (
-                "READY"
-                if causal_ready
-                else "EXECUTION_POPULATION_READY_QUOTE_RECONSTRUCTION_PENDING"
-            ),
+            "status": status,
             "provider_key": "ctrader-demo",
             "environment": "demo",
             "endpoint_host": "demo.ctraderapi.com",
@@ -754,6 +800,12 @@ def run() -> dict[str, object]:
             "after_invalid_causal_observations": after_invalid,
             "created_round_trips": created,
             "created_round_trip_count": len(created),
+            "planned_round_trip_count": len(planned_slots),
+            "maximum_round_trips_per_manual_dispatch": (
+                MAXIMUM_ROUND_TRIPS_PER_MANUAL_DISPATCH
+            ),
+            "authorized_mutation_budget": invocation.mutation_budget,
+            "retry_reconciliation_only": invocation.run_attempt != 1,
             "observations": observations,
             "observation_count": len(observations),
             "empirical_slippage_calibrated": causal_ready,
@@ -773,18 +825,46 @@ def run() -> dict[str, object]:
             "real_capital_authorized": False,
             "productive_authority": False,
             "git_sha": os.environ.get("GITHUB_SHA", ""),
-            "run_id": os.environ.get("GITHUB_RUN_ID", ""),
-            "run_attempt": os.environ.get("GITHUB_RUN_ATTEMPT", ""),
+            "run_id": invocation.run_id,
+            "run_attempt": invocation.run_attempt,
         }
     finally:
         client.close()
 
 
+def _validation_report() -> dict[str, object]:
+    """Non-mutating report used by every push validation run."""
+    governance = PHASE22_DEMO_CALIBRATION_GOVERNANCE
+    return {
+        "schema": "qore.cibo.phase22.demo-provider-calibration-validation.v1",
+        "status": "VALIDATION_ONLY",
+        "event_required_for_mutation": MANUAL_DISPATCH_EVENT,
+        "owner_required_for_mutation": OWNER_GITHUB_LOGIN,
+        "authorization_required_for_mutation": CALIBRATION_AUTHORIZATION_TOKEN,
+        "demo_only_confirmation": DEMO_ONLY_CONFIRMATION,
+        "maximum_round_trips_per_manual_dispatch": (
+            MAXIMUM_ROUND_TRIPS_PER_MANUAL_DISPATCH
+        ),
+        "environment": governance.environment,
+        "endpoint_host": governance.endpoint_host,
+        "fundednext_allowed": governance.fundednext_allowed,
+        "live_allowed": governance.live_allowed,
+        "real_capital_allowed": governance.real_capital_allowed,
+        "broker_credentials_loaded": False,
+        "broker_client_constructed": False,
+        "broker_mutation_performed": False,
+        "created_round_trip_count": 0,
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", type=Path, required=True)
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--execute", action="store_true")
+    mode.add_argument("--validate-only", action="store_true")
     args = parser.parse_args()
-    report = run()
+    report = run() if args.execute else _validation_report()
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
         json.dumps(report, indent=2, sort_keys=True) + "\n",
@@ -795,11 +875,8 @@ def main() -> None:
             {
                 "status": report["status"],
                 "created_round_trip_count": report["created_round_trip_count"],
-                "after_execution_entry_orders": report[
-                    "after_execution_entry_orders"
-                ],
-                "after_valid_distinct_orders": report[
-                    "after_valid_distinct_orders"
+                "broker_mutation_performed": report[
+                    "broker_mutation_performed"
                 ],
             },
             sort_keys=True,
