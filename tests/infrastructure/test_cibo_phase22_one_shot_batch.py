@@ -1,5 +1,6 @@
 from datetime import UTC, datetime
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -34,13 +35,18 @@ def _digest(label: str) -> str:
 
 
 def _claim(tmp_path: Path):
-    return build_phase22_one_shot_claim_receipt(
-        runner_git_sha=SHA,
-        run_id=RUN_ID,
-        run_attempt=RUN_ATTEMPT,
-        started_at=NOW,
-        store_root=tmp_path / "phase22-v2-stores",
-    )
+    with patch(
+        "qore.infrastructure.cibo_phase22_one_shot_guard."
+        "load_phase22_execution_consumption_receipt",
+        return_value=None,
+    ):
+        return build_phase22_one_shot_claim_receipt(
+            runner_git_sha=SHA,
+            run_id=RUN_ID,
+            run_attempt=RUN_ATTEMPT,
+            started_at=NOW,
+            store_root=tmp_path / "phase22-v2-stores",
+        )
 
 
 def _completion(claim_sha: str) -> Phase22OneShotBatchCompletionReceipt:
@@ -101,7 +107,14 @@ def test_claim_refuses_non_pristine_store_surface(tmp_path: Path) -> None:
     root.mkdir()
     (root / "holdout-policy.json").write_text("{}\n", encoding="utf-8")
 
-    with pytest.raises(ValueError, match="not pristine"):
+    with (
+        patch(
+            "qore.infrastructure.cibo_phase22_one_shot_guard."
+            "load_phase22_execution_consumption_receipt",
+            return_value=None,
+        ),
+        pytest.raises(ValueError, match="not pristine"),
+    ):
         build_phase22_one_shot_claim_receipt(
             runner_git_sha=SHA,
             run_id=RUN_ID,
