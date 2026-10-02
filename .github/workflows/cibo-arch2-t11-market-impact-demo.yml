@@ -33,6 +33,10 @@ env:
 
 jobs:
   market-impact:
+    # Fail closed: containment audit 36947334465 found two orphan positions
+    # from cancelled run 36945327912. No further market-impact mutation is
+    # admissible until a new versioned cycle is explicitly opened.
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
