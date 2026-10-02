@@ -152,8 +152,8 @@ def bind_replay_evaluation_window(
                     f"Phase22 Turtle replay missing {name} evaluation window"
                 )
             continue
-        opened = getattr(target, "EVAL_OPEN")
-        closed = getattr(target, "EVAL_CLOSE")
+        opened = target.EVAL_OPEN
+        closed = target.EVAL_CLOSE
         if not isinstance(opened, datetime) or not isinstance(closed, datetime):
             raise ValueError(
                 f"Phase22 Turtle replay {name} evaluation window invalid"
