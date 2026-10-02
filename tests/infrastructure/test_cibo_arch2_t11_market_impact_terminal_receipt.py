@@ -2,6 +2,14 @@ from copy import deepcopy
 
 import pytest
 
+from qore.infrastructure.cibo_arch2_t11_execution_claim import (
+    CANONICAL_HEAD_SHA,
+    CANONICAL_RUN_ATTEMPT,
+    CANONICAL_RUN_ID,
+)
+from qore.infrastructure.cibo_arch2_t11_experiment_plan import (
+    T11_MARKET_IMPACT_EXPERIMENT_PLAN,
+)
 from qore.infrastructure.cibo_arch2_t11_market_impact_terminal_receipt import (
     COMPLETED,
     FALSIFIED,
@@ -30,6 +38,10 @@ def _report(*, failed_symbol: str | None = None) -> dict[str, object]:
         "environment": "demo",
         "deposit_asset": "USD",
         "metric": "ADVERSE_REALIZED_ALL_IN_SETTLEMENT_COST_USD",
+        "experiment_plan_sha256": T11_MARKET_IMPACT_EXPERIMENT_PLAN.fingerprint(),
+        "run_id": str(CANONICAL_RUN_ID),
+        "run_attempt": str(CANONICAL_RUN_ATTEMPT),
+        "git_sha": CANONICAL_HEAD_SHA,
         "episode_count": 144,
         "child_entry_count": 216,
         "minimum_volume_child_orders_only": True,
@@ -81,5 +93,16 @@ def test_t11_terminal_receipt_rejects_uncontained_broker_mutation() -> None:
     with pytest.raises(
         CiboCapitalManagementError,
         match="governance drift",
+    ):
+        build_t11_market_impact_terminal_receipt(report)
+
+
+def test_t11_terminal_receipt_rejects_noncanonical_replacement_run() -> None:
+    report = deepcopy(_report())
+    report["run_id"] = str(CANONICAL_RUN_ID + 1)
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="canonical-run lineage drift",
     ):
         build_t11_market_impact_terminal_receipt(report)
