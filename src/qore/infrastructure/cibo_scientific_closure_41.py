@@ -98,10 +98,25 @@ SCIENTIFIC_CLOSURE_EXTERNAL_IDS = tuple(
 )
 PRE_CLOSURE_OPEN_IDS = (FRESH_OOS_ID, *FINAL_EXAM_IDS)
 
-# Compatibility default for legacy builders only. Certification truth is no longer
-# pinned to V4: V4 is CONSUMED_INVALID and successor fresh cycles must bind their
-# actual immutable candidate id into every Closure41 evidence row.
-CANONICAL_HOLDOUT_ID = "CIBO_USD60_6M_HOLDOUT_2014-10-19_2015-04-19_V4"
+CONSUMED_INVALID_V4_HOLDOUT_ID = (
+    "CIBO_USD60_6M_HOLDOUT_2014-10-19_2015-04-19_V4"
+)
+SOURCE_UNAVAILABLE_V5_HOLDOUT_ID = (
+    "CIBO_USD60_6M_HOLDOUT_2014-04-19_2014-10-19_V5"
+)
+LEGACY_V2_HOLDOUT_ID = (
+    "CIBO_USD60_6M_HOLDOUT_2015-10-19_2016-04-19_V2"
+)
+NONCERTIFIABLE_HOLDOUT_IDS = frozenset(
+    {
+        LEGACY_V2_HOLDOUT_ID,
+        CONSUMED_INVALID_V4_HOLDOUT_ID,
+        SOURCE_UNAVAILABLE_V5_HOLDOUT_ID,
+    }
+)
+# Deprecated compatibility export. It is intentionally non-certifiable and
+# must never be used as a default for new evidence.
+CANONICAL_HOLDOUT_ID = CONSUMED_INVALID_V4_HOLDOUT_ID
 CANONICAL_POLICY_IDENTITY = phase20d_qualification_plan_sha256()
 CANONICAL_QUALIFICATION_PLAN_IDENTITY = (
     phase22_holdout_qualification_plan_sha256()
@@ -126,11 +141,22 @@ _HOLDOUT_ID_RE = re.compile(
 )
 
 
-def _require_holdout_id(value: str, label: str) -> None:
+def validate_certifiable_holdout_id(
+    value: str,
+    label: str = "holdout identity",
+) -> None:
     if not isinstance(value, str) or _HOLDOUT_ID_RE.fullmatch(value) is None:
         raise CiboCapitalManagementError(
             f"Scientific closure 41 {label} must be a versioned fresh holdout id"
         )
+    if value in NONCERTIFIABLE_HOLDOUT_IDS:
+        raise CiboCapitalManagementError(
+            f"Scientific closure 41 {label} is explicitly non-certifiable"
+        )
+
+
+def _require_holdout_id(value: str, label: str) -> None:
+    validate_certifiable_holdout_id(value, label)
 
 
 def _require_sha256(value: str, label: str) -> None:
@@ -169,7 +195,7 @@ class ScientificClosure41Evidence:
     terminal_reason: str
     evaluated_at: datetime
     phase22_manifest_sha256: str
-    holdout_id: str = CANONICAL_HOLDOUT_ID
+    holdout_id: str
     qualification_plan_identity: str = CANONICAL_QUALIFICATION_PLAN_IDENTITY
     evidence_origin: str = "CANONICAL_GATE_RECEIPT"
     failed_dimensions: tuple[str, ...] = ()
