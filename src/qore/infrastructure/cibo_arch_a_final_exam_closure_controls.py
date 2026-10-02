@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from datetime import datetime
 from typing import Any
@@ -19,6 +20,12 @@ from qore.infrastructure.cibo_ce2i_final_certification import (
 from qore.infrastructure.cibo_final_exam_control_receipt import (
     CiboFinalExamControlReceipt,
     bind_final_exam_control_artifact,
+)
+from qore.infrastructure.cibo_scientific_closure_41 import (
+    ScientificClosure41Package,
+)
+from qore.infrastructure.cibo_scientific_closure_41_adapters import (
+    GROUP2_CAPITAL_13_IDS,
 )
 
 _EVIDENCE_KIND = "FINAL_INTEGRATED_EXAM_CONTROL"
@@ -61,6 +68,124 @@ def _artifact_json(
         "details": details,
     }
     return json.dumps(payload, indent=2, sort_keys=True) + "\n"
+
+
+
+def _canonical_sha256(payload: Any) -> str:
+    raw = json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+    ).encode("utf-8")
+    return "sha256:" + hashlib.sha256(raw).hexdigest()
+
+
+def build_scientific_closure_41_final_exam_controls(
+    *,
+    integrated_git_sha: str,
+    phase22_receipt: Phase22QualificationReceipt,
+    closure_package: ScientificClosure41Package,
+    observed_at: datetime,
+) -> tuple[CiboFinalExamControlReceipt, CiboFinalExamControlReceipt]:
+    """Bind the exact terminal 41/41 and Capital/Compound 13/13 packages to P7/P8.
+
+    Scientific falsification is terminal evidence, not a reason to fabricate a
+    PASS. P7/P8 prove closure completeness and integrity; downstream exam
+    assertions remain responsible for any separate positive capability gates.
+    """
+
+    if not isinstance(phase22_receipt, Phase22QualificationReceipt):
+        raise CiboCapitalManagementError(
+            "final-exam Closure41 controls require canonical Phase22 receipt"
+        )
+    if not isinstance(closure_package, ScientificClosure41Package):
+        raise CiboCapitalManagementError(
+            "final-exam P7 requires canonical Scientific Closure 41 package"
+        )
+    if observed_at.tzinfo is None or observed_at.utcoffset() is None:
+        raise CiboCapitalManagementError(
+            "final-exam Closure41 observed_at must be timezone-aware"
+        )
+    if observed_at <= phase22_receipt.qualified_at:
+        raise CiboCapitalManagementError(
+            "final-exam Closure41 controls must be post-Phase22 qualification"
+        )
+
+    by_id = {item.workstream_id: item for item in closure_package.workstreams}
+    group2 = tuple(by_id[item] for item in GROUP2_CAPITAL_13_IDS)
+    if len(group2) != 13 or any(
+        item.terminal_disposition not in {
+            "COMPLETED_AND_PROVEN",
+            "FALSIFIED_AND_CLOSED",
+        }
+        for item in group2
+    ):
+        raise CiboCapitalManagementError(
+            "final-exam P8 requires exact terminal Capital/Compound 13"
+        )
+
+    package_sha = closure_package.fingerprint()
+    group2_sha = _canonical_sha256(
+        {
+            "workstream_ids": list(GROUP2_CAPITAL_13_IDS),
+            "evidence_fingerprints": [item.fingerprint() for item in group2],
+        }
+    )
+    p7_json = _artifact_json(
+        receipt_id="P7_SCIENTIFIC_CLOSURE",
+        producer_gate_id="CIBO_SCIENTIFIC_CLOSURE_41_V1",
+        integrated_git_sha=integrated_git_sha,
+        policy_identity_sha256=phase22_receipt.candidate_parameter_sha256,
+        phase22_artifact_sha256=phase22_receipt.qualification_artifact_sha256,
+        observed_at=observed_at,
+        phase22_manifest_sha256=closure_package.phase22_manifest_sha256,
+        closure_batch_sha256=package_sha,
+        closure_receipt_sha256=package_sha,
+        details={
+            "workstream_count": 41,
+            "completed_ids": list(closure_package.completed_ids),
+            "falsified_ids": list(closure_package.falsified_ids),
+            "scientific_closure_terminal": True,
+        },
+    )
+    p8_json = _artifact_json(
+        receipt_id="P8_COMPOUND_CLOSURE",
+        producer_gate_id="CIBO_CAPITAL_COMPOUND_CLOSURE_13_V1",
+        integrated_git_sha=integrated_git_sha,
+        policy_identity_sha256=phase22_receipt.candidate_parameter_sha256,
+        phase22_artifact_sha256=phase22_receipt.qualification_artifact_sha256,
+        observed_at=observed_at,
+        phase22_manifest_sha256=closure_package.phase22_manifest_sha256,
+        closure_batch_sha256=package_sha,
+        closure_receipt_sha256=group2_sha,
+        details={
+            "workstream_ids": list(GROUP2_CAPITAL_13_IDS),
+            "completed_ids": [
+                item.workstream_id
+                for item in group2
+                if item.terminal_disposition == "COMPLETED_AND_PROVEN"
+            ],
+            "falsified_ids": [
+                item.workstream_id
+                for item in group2
+                if item.terminal_disposition == "FALSIFIED_AND_CLOSED"
+            ],
+            "capital_compound_closure_terminal": True,
+        },
+    )
+    return (
+        bind_final_exam_control_artifact(
+            receipt_id="P7_SCIENTIFIC_CLOSURE",
+            evidence_kind=_EVIDENCE_KIND,
+            source_artifact_json=p7_json,
+        ),
+        bind_final_exam_control_artifact(
+            receipt_id="P8_COMPOUND_CLOSURE",
+            evidence_kind=_EVIDENCE_KIND,
+            source_artifact_json=p8_json,
+        ),
+    )
 
 
 def build_architect_a_final_exam_closure_controls(
