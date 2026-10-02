@@ -395,3 +395,49 @@ def test_genc9_summary_rejects_ambiguous_path_count_type() -> None:
         match="path/scenario count drift",
     ):
         replace(report.summaries[0], path_count=True)
+
+
+def test_genc9_report_rejects_summary_population_or_control_drift() -> None:
+    candidates, scenarios, paths = _fixture()
+    report = evaluate_genc9_robust_growth(
+        research_id="GENC9_REPORT_INTEGRITY",
+        candidates=candidates,
+        scenarios=scenarios,
+        paths=paths,
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="control summary drift",
+    ):
+        replace(report, control_candidate_id="treatment")
+
+    drifted_summary = replace(
+        report.summaries[0],
+        scenario_ids=tuple(reversed(report.summaries[0].scenario_ids[:-1])),
+        path_count=3,
+    )
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="summary population/numeraire drift",
+    ):
+        replace(
+            report,
+            summaries=(drifted_summary, report.summaries[1]),
+        )
+
+
+def test_genc9_report_rejects_non_bool_governance_flags() -> None:
+    candidates, scenarios, paths = _fixture()
+    report = evaluate_genc9_robust_growth(
+        research_id="GENC9_REPORT_FLAGS",
+        candidates=candidates,
+        scenarios=scenarios,
+        paths=paths,
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="oos_pass must be bool",
+    ):
+        replace(report, oos_pass=0)
