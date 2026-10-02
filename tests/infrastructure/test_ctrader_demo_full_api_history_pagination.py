@@ -37,13 +37,13 @@ class _PagedClient:
         assert message_name == "ProtoOAGetTrendbarsReq"
         self.fields.append(dict(fields))
         if len(self.fields) == 1:
+            # Live cTrader DEMO can omit hasMore even though older pages exist.
             return Success(
                 SimpleNamespace(
                     trendbar=(
                         _bar(datetime(2026, 10, 2, 11, 58, tzinfo=UTC)),
                         _bar(datetime(2026, 10, 2, 11, 59, tzinfo=UTC)),
                     ),
-                    hasMore=True,
                 )
             )
         return Success(
@@ -90,7 +90,7 @@ def _api(client: _PagedClient) -> CTraderDemoFullApi:
     return api
 
 
-def test_history_preload_sets_count_and_pages_backward_when_provider_has_more() -> None:
+def test_history_preload_pages_backward_when_provider_omits_has_more() -> None:
     client = _PagedClient()
     api = _api(client)
 
