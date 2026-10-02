@@ -175,6 +175,14 @@ def test_phase20_bootstrap_uses_the_broker_snapshot_clock() -> None:
     assert "phase20_bootstrap_at = datetime.now(UTC)" not in source
 
 
+def test_runtime_redeploy_preserves_state_and_only_fences_account_drift() -> None:
+    source = RUNTIME.read_text(encoding="utf-8")
+
+    assert "old.git_sha != sha or old.account_identity_fingerprint" not in source
+    assert "if old.account_identity_fingerprint != fingerprint:" in source
+    assert "state = old.restarted_at(now, git_sha=sha)" in source
+
+
 def test_vt31_promotes_only_broker_protected_fill_state() -> None:
     source = VT31_ADAPTER.read_text(encoding="utf-8")
     reconcile = source[

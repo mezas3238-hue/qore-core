@@ -58,7 +58,7 @@ class CTraderDemoRuntimeState:
         equity: str | None = None,
         highest_closed_balance: str | None = None,
         active_mll: str | None = None,
-    ) -> "CTraderDemoRuntimeState":
+    ) -> CTraderDemoRuntimeState:
         # Legacy argument names are accepted only so the frozen trader loop can be
         # migrated incrementally; they are persisted as DEMO balance/equity.
         new_balance = balance if balance is not None else highest_closed_balance
@@ -81,10 +81,16 @@ class CTraderDemoRuntimeState:
             service_started_at=self.service_started_at,
         )
 
-    def restarted_at(self, started_at: datetime) -> "CTraderDemoRuntimeState":
+    def restarted_at(
+        self,
+        started_at: datetime,
+        *,
+        git_sha: str | None = None,
+    ) -> CTraderDemoRuntimeState:
         _aware(started_at, "started_at")
         return replace(
             self,
+            git_sha=self.git_sha if git_sha is None else git_sha,
             heartbeat_at=started_at,
             last_reconciliation_at=started_at,
             service_started_at=started_at,

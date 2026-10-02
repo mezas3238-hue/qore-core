@@ -1251,9 +1251,13 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
     phase20_recovery_status_by_signal: dict[str, str] = {}
     now = datetime.now(UTC)
     if old is not None:
-        if old.git_sha != sha or old.account_identity_fingerprint != fingerprint:
+        if old.account_identity_fingerprint != fingerprint:
             raise RuntimeError("ctrader-demo-runtime-state-binding-mismatch")
-        state = old.restarted_at(now)
+        # A canonical redeploy must preserve anchors and account history while
+        # advancing the recorded code identity.  Treating every new Git SHA as
+        # an account-binding violation makes all legitimate upgrades
+        # unrestartable and pressures operators to delete durable state.
+        state = old.restarted_at(now, git_sha=sha)
     else:
         state = CTraderDemoRuntimeState(
             git_sha=sha,
