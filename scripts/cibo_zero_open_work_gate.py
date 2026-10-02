@@ -122,6 +122,7 @@ _WORKSTREAM_CLASSIFIERS = (
     ("*cibo_a1_scientific_disposition*", "CE2I_CROSS_TOOL_INFRASTRUCTURE"),
     ("*cibo_a1_phase22_scientific_consumption*", "CE2I_CROSS_TOOL_INFRASTRUCTURE"),
     ("*cibo_a1_phase22_canonical_manifest_bridge*", "CE2I_CROSS_TOOL_INFRASTRUCTURE"),
+    ("*cibo_a1_phase22_external_execution_preflight*", "CE2I_CROSS_TOOL_INFRASTRUCTURE"),
     ("*cibo_a1_a2_scientific_dependency*", "CE2I_CROSS_TOOL_INFRASTRUCTURE"),
     ("*cibo_arch_a1_internal_readiness*", "CE2I_CROSS_TOOL_INFRASTRUCTURE"),
     ("*cibo_arch_a1_integrator_handoff*", "CE2I_CROSS_TOOL_INFRASTRUCTURE"),
