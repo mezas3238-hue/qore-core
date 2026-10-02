@@ -123,6 +123,8 @@ _WORKSTREAM_CLASSIFIERS = (
     ("*cibo-phase22-sealed-execution-inputs*", "FRESH_OOS"),
     ("*cibo-phase22-fresh-capital-projection*", "FRESH_OOS"),
     ("*cibo_phase22_one_shot_source_preflight*", "FRESH_OOS"),
+    ("*cibo_next_policy_advanced_scientific_eligibility*", "FRESH_OOS"),
+    ("*cibo_next_policy_code_bundle_lineage*", "FRESH_OOS"),
     ("*cibo-phase22-one-shot-source-preflight*", "FRESH_OOS"),
     ("*cibo_phase22_vt08_fresh_runner*", "FRESH_OOS"),
     ("*cibo-phase22-fresh-batch-assembly-contract*", "FRESH_OOS"),
