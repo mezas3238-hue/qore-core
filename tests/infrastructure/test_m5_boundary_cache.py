@@ -74,7 +74,7 @@ def test_shared_m5_cache_preloads_once_and_reads_only_recent_at_boundary(
 
     monkeypatch.setattr(
         live,
-        "normalise_fundednext_server_epoch",
+        "normalise_legacy_server_epoch",
         lambda raw: datetime.fromtimestamp(raw, tz=UTC),
     )
     anchor = datetime(2026, 9, 21, 9, 0, tzinfo=UTC)
@@ -131,7 +131,7 @@ def test_shared_m5_boundary_fails_closed_after_two_seconds(
 
     monkeypatch.setattr(
         live,
-        "normalise_fundednext_server_epoch",
+        "normalise_legacy_server_epoch",
         lambda raw: datetime.fromtimestamp(raw, tz=UTC),
     )
     anchor = datetime(2026, 9, 21, 9, 0, tzinfo=UTC)
@@ -161,7 +161,7 @@ def test_ready_market_is_delivered_once_without_waiting_for_delayed_sibling(
 
     monkeypatch.setattr(
         live,
-        "normalise_fundednext_server_epoch",
+        "normalise_legacy_server_epoch",
         lambda raw: datetime.fromtimestamp(raw, tz=UTC),
     )
     anchor = datetime(2026, 9, 21, 9, 0, tzinfo=UTC)
@@ -220,7 +220,7 @@ def test_resident_aggregates_remain_bit_equivalent_across_updates_and_eviction(
 
     monkeypatch.setattr(
         live,
-        "normalise_fundednext_server_epoch",
+        "normalise_legacy_server_epoch",
         lambda raw: datetime.fromtimestamp(raw, tz=UTC),
     )
     start = datetime(2025, 10, 25, 0, 0, tzinfo=UTC)
@@ -282,7 +282,7 @@ def test_all_turtle_live_adapters_consume_resident_frames_without_rebuild(
 
     monkeypatch.setattr(
         cache_module,
-        "normalise_fundednext_server_epoch",
+        "normalise_legacy_server_epoch",
         lambda raw: datetime.fromtimestamp(raw, tz=UTC),
     )
     monkeypatch.setattr(
@@ -293,7 +293,7 @@ def test_all_turtle_live_adapters_consume_resident_frames_without_rebuild(
     for module in (eurusd, gbpusd, gbpjpy, audjpy):
         monkeypatch.setattr(
             module,
-            "normalise_fundednext_server_epoch",
+            "normalise_legacy_server_epoch",
             lambda raw: datetime.fromtimestamp(raw, tz=UTC),
         )
     anchor = datetime(2026, 9, 21, 13, 0, tzinfo=UTC)
@@ -452,7 +452,7 @@ def test_delayed_market_does_not_barrier_ready_sibling(
 
     monkeypatch.setattr(
         live,
-        "normalise_fundednext_server_epoch",
+        "normalise_legacy_server_epoch",
         lambda raw: datetime.fromtimestamp(raw, tz=UTC),
     )
     anchor = datetime(2026, 9, 23, 14, 0, tzinfo=UTC)
@@ -595,7 +595,7 @@ def test_each_market_can_arrive_anytime_inside_full_two_second_sla(
 
     monkeypatch.setattr(
         live,
-        "normalise_fundednext_server_epoch",
+        "normalise_legacy_server_epoch",
         lambda raw: datetime.fromtimestamp(raw, tz=UTC),
     )
     anchor = datetime(2026, 9, 24, 1, 0, tzinfo=UTC)
@@ -629,7 +629,7 @@ def test_market_arriving_after_two_seconds_hard_fails_without_snapshot(
 
     monkeypatch.setattr(
         live,
-        "normalise_fundednext_server_epoch",
+        "normalise_legacy_server_epoch",
         lambda raw: datetime.fromtimestamp(raw, tz=UTC),
     )
     anchor = datetime(2026, 9, 24, 1, 0, tzinfo=UTC)
@@ -656,7 +656,7 @@ def test_owner_20260923_2100_boundary_is_per_symbol_and_exact_m5(
 
     monkeypatch.setattr(
         live,
-        "normalise_fundednext_server_epoch",
+        "normalise_legacy_server_epoch",
         lambda raw: datetime.fromtimestamp(raw, tz=UTC),
     )
     anchor = datetime(2026, 9, 24, 1, 0, tzinfo=UTC)
@@ -704,7 +704,7 @@ def test_owner_boundary_actor_emits_one_terminal_result_per_market(
 
     monkeypatch.setattr(
         live,
-        "normalise_fundednext_server_epoch",
+        "normalise_legacy_server_epoch",
         lambda raw: datetime.fromtimestamp(raw, tz=UTC),
     )
     anchor = datetime(2026, 9, 24, 1, 0, tzinfo=UTC)
@@ -777,7 +777,7 @@ def test_owner_20260923_2100_replays_natural_strategy_outcomes(
 
     monkeypatch.setattr(
         cache_module,
-        "normalise_fundednext_server_epoch",
+        "normalise_legacy_server_epoch",
         lambda raw: datetime.fromtimestamp(raw, tz=UTC),
     )
     monkeypatch.setattr(
@@ -788,7 +788,7 @@ def test_owner_20260923_2100_replays_natural_strategy_outcomes(
     for module in (eurusd, gbpusd, gbpjpy, audjpy):
         monkeypatch.setattr(
             module,
-            "normalise_fundednext_server_epoch",
+            "normalise_legacy_server_epoch",
             lambda raw: datetime.fromtimestamp(raw, tz=UTC),
         )
 

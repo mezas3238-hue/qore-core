@@ -310,7 +310,9 @@ class M5BoundaryCache:
         current = self._bars.get(anchor)
         if prior is None or prior.closed_at != anchor:
             raise RuntimeError(f"{self.error_prefix} exact newly-closed M5 unavailable")
-        if current is not None and current.opened_at != anchor:
+        if current is None:
+            raise RuntimeError(f"{self.error_prefix} current M5 boundary not yet available")
+        if current.opened_at != anchor:
             raise RuntimeError(f"{self.error_prefix} exact new M5 identity drift")
         tick = api.symbol_info_tick(self.symbol)
         if tick is None:
@@ -341,7 +343,7 @@ class M5BoundaryCache:
             symbol=self.symbol,
             anchor=anchor,
             evidence=self.evidence(),
-            current_open=(prior.close if current is None else current.open),
+            current_open=current.open,
             broker_tick_at=broker_tick_at,
             observed_at=observed,
             new_bar_first_seen_at=telemetry.new_bar_first_seen_at,

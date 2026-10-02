@@ -1,0 +1,80 @@
+from __future__ import annotations
+
+from datetime import UTC, datetime
+from threading import Lock
+from types import SimpleNamespace
+
+from qore.infrastructure.ctrader_demo_full_api import CTraderDemoFullApi
+from qore.kernel.result import Success
+
+
+def _bar(opened_at: datetime) -> SimpleNamespace:
+    return SimpleNamespace(
+        utcTimestampInMinutes=int(opened_at.timestamp() // 60),
+        low=100_000,
+        deltaOpen=10,
+        deltaHigh=20,
+        deltaLow=0,
+        deltaClose=15,
+    )
+
+
+class _PagedClient:
+    account_id = 42
+
+    def __init__(self) -> None:
+        self.fields: list[dict[str, object]] = []
+
+    def request(
+        self,
+        message_name: str,
+        fields: dict[str, object],
+        *,
+        client_msg_id: str,
+        timeout_seconds: float,
+    ) -> Success[SimpleNamespace]:
+        del client_msg_id, timeout_seconds
+        assert message_name == "ProtoOAGetTrendbarsReq"
+        self.fields.append(dict(fields))
+        if len(self.fields) == 1:
+            return Success(
+                SimpleNamespace(
+                    trendbar=(
+                        _bar(datetime(2026, 10, 2, 11, 58, tzinfo=UTC)),
+                        _bar(datetime(2026, 10, 2, 11, 59, tzinfo=UTC)),
+                    ),
+                    hasMore=True,
+                )
+            )
+        return Success(
+            SimpleNamespace(
+                trendbar=(
+                    _bar(datetime(2026, 10, 2, 11, 56, tzinfo=UTC)),
+                    _bar(datetime(2026, 10, 2, 11, 57, tzinfo=UTC)),
+                ),
+                hasMore=False,
+            )
+        )
+
+
+def test_history_preload_sets_count_and_pages_backward_when_provider_has_more() -> None:
+    api = object.__new__(CTraderDemoFullApi)
+    client = _PagedClient()
+    api._client = client
+    api._binding = SimpleNamespace(
+        contract=lambda symbol: SimpleNamespace(symbol_id=7)
+    )
+    api._history = {}
+    api._historical_request_lock = Lock()
+    api._last_historical_request_at = 0.0
+    api._historical_request_interval_seconds = 0.0
+
+    rows = api._closed_rows("XAUUSD", api.TIMEFRAME_M1, count_hint=3)
+
+    assert len(rows) == 4
+    assert [row["utc_time"] for row in rows] == sorted(
+        row["utc_time"] for row in rows
+    )
+    assert len(client.fields) == 2
+    assert client.fields[0]["count"] == 64
+    assert client.fields[1]["toTimestamp"] < client.fields[0]["toTimestamp"]

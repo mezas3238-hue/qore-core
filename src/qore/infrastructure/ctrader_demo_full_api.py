@@ -7,25 +7,27 @@ from decimal import Decimal
 from enum import StrEnum
 from pathlib import Path
 from threading import Event, Lock, Thread
-from time import monotonic
+from time import monotonic, sleep
 from types import SimpleNamespace
 from zoneinfo import ZoneInfo
 
+from qore.infrastructure.ctrader_demo_compat import (
+    CTraderDemoAccountState,
+    CTraderDemoSymbolSpecification,
+)
 from qore.infrastructure.ctrader_demo_free_binding import CTraderDemoFreeBinding
 from qore.infrastructure.ctrader_demo_free_position_service import CTraderDemoFreePositionService
 from qore.infrastructure.ctrader_demo_mt5_management_adapter import CTraderDemoMt5ManagementAdapter
 from qore.infrastructure.ctrader_demo_trade_registry import CTraderDemoTradeRegistry
 from qore.infrastructure.ctrader_open_api_client import CTraderOpenApiMessageClientBoundary
-from qore.infrastructure.ctrader_demo_compat import (
-    CTraderDemoAccountState,
-    CTraderDemoSymbolSpecification,
-)
 from qore.kernel.result import Failure
 
 _PRICE_SCALE = Decimal("100000")
 _VOLUME_UNIT = Decimal("0.01")
 _HELSINKI = ZoneInfo("Europe/Helsinki")
 _PERIOD_CODE = {60: 1, 300: 5, 900: 7, 1800: 8, 3600: 9, 14400: 10, 86400: 12}
+_HISTORICAL_PAGE_SIZE = 5_000
+_HISTORICAL_REQUEST_INTERVAL_SECONDS = 0.21
 
 
 def _norm(value: str) -> str:
@@ -128,6 +130,11 @@ class CTraderDemoFullApi:
         )
         self._spot_lock = Lock()
         self._subscription_lock = Lock()
+        self._historical_request_lock = Lock()
+        self._last_historical_request_at = 0.0
+        self._historical_request_interval_seconds = (
+            _HISTORICAL_REQUEST_INTERVAL_SECONDS
+        )
         self._market_data_state = CTraderDemoMarketDataState.DISCONNECTED
         self._last_subscription_attempt = 0.0
         self._subscription_generation = 0
@@ -747,10 +754,12 @@ class CTraderDemoFullApi:
             contract = self._binding.contract(canonical)
             if cached is None:
                 # cTrader history is wall-clock sparse outside trading hours.
-                # Request enough calendar history to satisfy large bar-count preloads
-                # (VT31 requires >=10k M1 bars).
+                # Two wall-clock units per requested bar cover normal weekend
+                # sparsity without sending a multi-year M5 range that the
+                # provider rejects. VT31 and the M5 caches both fit in the
+                # minimum 120-day history window.
                 horizon_seconds = max(
-                    seconds * max(count_hint, 64) * 20,
+                    seconds * max(count_hint, 64) * 2,
                     120 * 86400,
                 )
                 start = now - timedelta(seconds=horizon_seconds)
@@ -760,29 +769,50 @@ class CTraderDemoFullApi:
                     tz=UTC,
                 )
                 start = last_real - timedelta(seconds=seconds)
-            response = self._client.request(
-                "ProtoOAGetTrendbarsReq",
-                {
-                    "ctidTraderAccountId": self.account_id,
-                    "fromTimestamp": int(start.timestamp() * 1000),
-                    "period": code,
-                    "symbolId": contract.symbol_id,
-                    "toTimestamp": int(now.timestamp() * 1000),
-                },
-                client_msg_id=(f"bars:{contract.symbol_id}:{seconds}:{int(now.timestamp())}"),
-                timeout_seconds=15.0,
+            observed: dict[int, dict[str, float | int]] = {}
+            if cached:
+                observed.update({int(row["utc_time"]): row for row in cached})
+            cursor_to = now
+            page_limit = max(
+                1,
+                (max(count_hint, 64) + _HISTORICAL_PAGE_SIZE - 1)
+                // _HISTORICAL_PAGE_SIZE
+                + 1,
             )
-            if isinstance(response, Failure):
-                if cached is None:
-                    return []
-            else:
-                observed: dict[
-                    int,
-                    dict[str, float | int],
-                ] = {}
-                if cached:
-                    observed.update({int(row["utc_time"]): row for row in cached})
-                for bar in tuple(getattr(response.value, "trendbar", ())):
+            initial_load_failed = False
+            for page in range(page_limit):
+                remaining = max(count_hint - len(observed), 64)
+                request_count = min(_HISTORICAL_PAGE_SIZE, remaining)
+                with self._historical_request_lock:
+                    elapsed = monotonic() - self._last_historical_request_at
+                    wait_seconds = self._historical_request_interval_seconds - elapsed
+                    if wait_seconds > 0:
+                        sleep(wait_seconds)
+                    response = self._client.request(
+                        "ProtoOAGetTrendbarsReq",
+                        {
+                            "ctidTraderAccountId": self.account_id,
+                            "count": request_count,
+                            "fromTimestamp": int(start.timestamp() * 1000),
+                            "period": code,
+                            "symbolId": contract.symbol_id,
+                            "toTimestamp": int(cursor_to.timestamp() * 1000),
+                        },
+                        client_msg_id=(
+                            f"bars:{contract.symbol_id}:{seconds}:"
+                            f"{int(cursor_to.timestamp())}:{page}"
+                        ),
+                        timeout_seconds=15.0,
+                    )
+                    self._last_historical_request_at = monotonic()
+                if isinstance(response, Failure):
+                    initial_load_failed = cached is None
+                    break
+                page_bars = tuple(getattr(response.value, "trendbar", ()))
+                if not page_bars:
+                    break
+                oldest_opened: int | None = None
+                for bar in page_bars:
                     opened = (
                         int(
                             getattr(
@@ -792,6 +822,8 @@ class CTraderDemoFullApi:
                         )
                         * 60
                     )
+                    if oldest_opened is None or opened < oldest_opened:
+                        oldest_opened = opened
                     observed[opened] = {
                         "utc_time": opened,
                         "time": _legacy_epoch(
@@ -808,14 +840,28 @@ class CTraderDemoFullApi:
                         "spread": 0,
                         "real_volume": 0,
                     }
-                cached = [observed[k] for k in sorted(observed)]
-                max_keep = max(
-                    50000,
-                    count_hint * 2,
+                if len(observed) >= count_hint:
+                    break
+                if not bool(getattr(response.value, "hasMore", False)):
+                    break
+                if oldest_opened is None:
+                    break
+                next_cursor = datetime.fromtimestamp(oldest_opened, tz=UTC) - timedelta(
+                    milliseconds=1
                 )
-                if len(cached) > max_keep:
-                    cached = cached[-max_keep:]
-                self._history[key] = cached
+                if next_cursor <= start or next_cursor >= cursor_to:
+                    break
+                cursor_to = next_cursor
+            if initial_load_failed:
+                return []
+            cached = [observed[k] for k in sorted(observed)]
+            max_keep = max(
+                50000,
+                count_hint * 2,
+            )
+            if len(cached) > max_keep:
+                cached = cached[-max_keep:]
+            self._history[key] = cached
         return list(
             self._history.get(
                 key,
