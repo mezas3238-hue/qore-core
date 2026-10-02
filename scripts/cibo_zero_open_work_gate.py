@@ -119,6 +119,8 @@ _WORKSTREAM_CLASSIFIERS = (
     ("*cibo_phase22_fresh_batch_assembly*", "FRESH_OOS"),
     ("*cibo_phase22_fresh_capital_projection*", "FRESH_OOS"),
     ("*cibo_phase22_execution_inputs*", "FRESH_OOS"),
+    ("*cibo_phase21_shadow_qualification_lineage*", "FORWARD_QUALIFICATION"),
+    ("*cibo-phase21-shadow-qualification-lineage*", "FORWARD_QUALIFICATION"),
     ("*cibo-phase22-sealed-execution-inputs*", "FRESH_OOS"),
     ("*cibo-phase22-fresh-capital-projection*", "FRESH_OOS"),
     ("*cibo_phase22_one_shot_source_preflight*", "FRESH_OOS"),
@@ -139,6 +141,7 @@ _WORKSTREAM_CLASSIFIERS = (
         "PROVIDER_ECONOMICS",
     ),
     ("*cibo_phase22_provider_numeric_execution*", "PROVIDER_ECONOMICS"),
+    ("*cibo_phase22_provider_numeric_execution_receipt*", "PROVIDER_ECONOMICS"),
     ("*cibo-phase22-provider-numeric-execution-freeze*", "PROVIDER_ECONOMICS"),
     ("*cibo_phase22_provider_account_lineage_probe*", "PROVIDER_ECONOMICS"),
     (
