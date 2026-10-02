@@ -12,8 +12,10 @@ from qore.infrastructure.cibo_next_policy_code_bundle_lineage import (
     NEXT_POLICY_CODE_BUNDLE_LINEAGE,
 )
 from qore.infrastructure.cibo_phase22_v3_source_receipt import (
+    PHASE22_V3_SOURCE_RECEIPT,
     Phase22V3SourceBinding,
     Phase22V3SourceReceipt,
+    phase22_v3_source_receipt_sha256,
 )
 
 
@@ -131,3 +133,18 @@ def test_v3_source_receipt_cannot_authorize_fresh_execution() -> None:
             source_validation_complete=True,
             fresh_trader_execution_authorized=True,
         )
+
+
+
+def test_materialized_v3_source_receipt_is_complete_and_nonexecuting() -> None:
+    receipt = PHASE22_V3_SOURCE_RECEIPT
+
+    assert len(receipt.bindings) == 10
+    assert receipt.source_availability_run_id == 37027014266
+    assert receipt.corpus_run_id == 37027578451
+    assert receipt.source_validation_complete is True
+    assert receipt.source_outcomes_inspected is False
+    assert receipt.trader_logic_executed is False
+    assert receipt.broker_mutation is False
+    assert receipt.fresh_trader_execution_authorized is False
+    assert phase22_v3_source_receipt_sha256().startswith("sha256:")
