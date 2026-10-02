@@ -206,6 +206,17 @@ class Genc7BoundObservedPath:
             raise CiboCompoundCapitalError(
                 "GEN-C7 OOS evaluation horizon must be positive int"
             )
+        expected_window_end = self.decision_at + timedelta(
+            minutes=self.evaluation_horizon_minutes
+        )
+        if self.window_end_at != expected_window_end:
+            raise CiboCompoundCapitalError(
+                "GEN-C7 OOS bound path horizon binding drift"
+            )
+        if self.observed_at < self.window_end_at:
+            raise CiboCompoundCapitalError(
+                "GEN-C7 OOS bound observation cannot predate horizon"
+            )
         for name in (
             "realized_capital_delta_usd",
             "realized_profit_delta_usd",
