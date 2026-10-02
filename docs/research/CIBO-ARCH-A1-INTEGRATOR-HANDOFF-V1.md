@@ -19,7 +19,12 @@ The handoff binds:
 - A1 scientific-consumption manifest SHA256;
 - canonical A1↔Phase22 bridge SHA256;
 - complete disposition-package SHA256;
+- canonical Phase22 scientific-closure packet SHA256;
 - exact completed/falsified partition across the 18 A1 workstreams.
+
+The local A1 disposition package and the canonical Phase22 closure packet must
+agree exactly on manifest identity, completed/falsified partition and terminal
+count.
 
 ## Readiness rule
 
