@@ -17,8 +17,8 @@ from pathlib import Path
 from typing import Any
 
 from qore.infrastructure.cibo_arch2_t11_execution_claim import (
-    RUN_ATTEMPT,
-    RUN_ID,
+    INITIAL_RUN_ATTEMPT,
+    INITIAL_RUN_ID,
 )
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
@@ -38,7 +38,7 @@ _LABEL_PREFIX = "CIBOA2T11:"
 
 
 def claimed_run_suffix() -> str:
-    return f"{RUN_ID}-{RUN_ATTEMPT}"[-6:]
+    return f"{INITIAL_RUN_ID}-{INITIAL_RUN_ATTEMPT}"[-6:]
 
 
 def label_belongs_to_claimed_run(label: object) -> bool:
@@ -126,8 +126,8 @@ def build_report() -> dict[str, Any]:
         clean = not positions and not orders
         return {
             "schema": "qore.cibo.arch2.t11-v1-containment-audit.v1",
-            "claimed_run_id": RUN_ID,
-            "claimed_run_attempt": RUN_ATTEMPT,
+            "claimed_run_id": INITIAL_RUN_ID,
+            "claimed_run_attempt": INITIAL_RUN_ATTEMPT,
             "claimed_run_suffix": claimed_run_suffix(),
             "provider_key": "ctrader-demo",
             "environment": "demo",
