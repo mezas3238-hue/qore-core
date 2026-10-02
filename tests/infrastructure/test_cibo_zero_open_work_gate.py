@@ -559,6 +559,8 @@ def test_integrator_resolves_architect_b_crossboundary_request_002() -> None:
         "scripts/cibo_phase20_provider_execution_calibration.py",
         "src/qore/infrastructure/cibo_t20_capital_release.py",
         "src/qore/infrastructure/cibo_usd60_exam_readiness.py",
+        "src/qore/infrastructure/cibo_arch2_integrator_intake_receipt.py",
+        "tests/infrastructure/test_cibo_arch2_integrator_intake_receipt.py",
         "src/qore/infrastructure/cibo_integrated_capital_forward_binding.py",
         "src/qore/infrastructure/cibo_research_memory.py",
         "tests/infrastructure/test_cibo_risk_integration_closure.py",
@@ -864,6 +866,7 @@ def test_b_surface_classifiers_are_not_orphans() -> None:
             "PROVIDER_ECONOMICS",
             "INTEGRATED_CAPITAL_TRUTH",
             "USD60_CAPABILITY_PROGRAM",
+            "SOURCE_OF_TRUTH_RECONCILIATION",
             "ORPHAN_INVENTORY",
         }
     )
@@ -886,6 +889,8 @@ def test_b_surface_classifiers_are_not_orphans() -> None:
         inventory[9]: "PROVIDER_ECONOMICS",
         inventory[10]: "INTEGRATED_CAPITAL_TRUTH",
         inventory[11]: "USD60_CAPABILITY_PROGRAM",
+        inventory[12]: "SOURCE_OF_TRUTH_RECONCILIATION",
+        inventory[13]: "SOURCE_OF_TRUTH_RECONCILIATION",
     }
     assert orphan_candidates == ()
 
