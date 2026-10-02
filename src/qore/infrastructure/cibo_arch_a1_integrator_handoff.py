@@ -20,6 +20,9 @@ from qore.infrastructure.cibo_a1_scientific_disposition import (
 from qore.infrastructure.cibo_arch_a1_internal_readiness import (
     ArchitectA1InternalReadinessReport,
 )
+from qore.infrastructure.cibo_arch_a1_scientific_closure import (
+    ArchitectA1ScientificClosurePacket,
+)
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
@@ -41,6 +44,7 @@ class ArchitectA1IntegratorHandoffReceipt:
     a1_consumption_manifest_sha256: str
     canonical_manifest_bridge_sha256: str
     disposition_package_sha256: str
+    canonical_closure_packet_sha256: str
     terminal_count: int
     completed_ids: tuple[str, ...]
     falsified_ids: tuple[str, ...]
@@ -73,6 +77,7 @@ class ArchitectA1IntegratorHandoffReceipt:
             "a1_consumption_manifest_sha256",
             "canonical_manifest_bridge_sha256",
             "disposition_package_sha256",
+            "canonical_closure_packet_sha256",
         ):
             if _SHA256_RE.fullmatch(getattr(self, name)) is None:
                 raise CiboCapitalManagementError(
@@ -133,6 +138,7 @@ def build_architect_a1_integrator_handoff(
     a1_head_sha: str,
     readiness: ArchitectA1InternalReadinessReport,
     package: A1ScientificDispositionPackage,
+    canonical_closure: ArchitectA1ScientificClosurePacket,
 ) -> ArchitectA1IntegratorHandoffReceipt:
     """Build the A1 sidecar handoff without changing the canonical ledger."""
 
@@ -143,6 +149,10 @@ def build_architect_a1_integrator_handoff(
     if not isinstance(package, A1ScientificDispositionPackage):
         raise CiboCapitalManagementError(
             "Architect A1 handoff requires canonical disposition package"
+        )
+    if not isinstance(canonical_closure, ArchitectA1ScientificClosurePacket):
+        raise CiboCapitalManagementError(
+            "Architect A1 handoff requires canonical Phase22 closure packet"
         )
     if _GIT_SHA_RE.fullmatch(a1_head_sha) is None:
         raise CiboCapitalManagementError(
@@ -164,6 +174,21 @@ def build_architect_a1_integrator_handoff(
         blockers.append("A1_DISPOSITION_PACKAGE_BRANCH_DRIFT")
     if package.source_head != a1_head_sha:
         blockers.append("A1_DISPOSITION_PACKAGE_HEAD_DRIFT")
+    if (
+        canonical_closure.phase22_manifest_sha256
+        != package.canonical_phase22_manifest_sha256
+    ):
+        blockers.append("A1_CANONICAL_CLOSURE_MANIFEST_DRIFT")
+    if canonical_closure.completed_ids != completed:
+        blockers.append("A1_CANONICAL_CLOSURE_COMPLETED_PARTITION_DRIFT")
+    if canonical_closure.falsified_ids != falsified:
+        blockers.append("A1_CANONICAL_CLOSURE_FALSIFIED_PARTITION_DRIFT")
+    if canonical_closure.terminal_count != package.terminal_count:
+        blockers.append("A1_CANONICAL_CLOSURE_TERMINAL_COUNT_DRIFT")
+    if canonical_closure.missing_ids:
+        blockers.append("A1_CANONICAL_CLOSURE_HAS_MISSING_WORKSTREAMS")
+    if not canonical_closure.ready_for_integrator:
+        blockers.append("A1_CANONICAL_CLOSURE_NOT_READY")
     if not readiness.engineering_ready:
         blockers.append("A1_INTERNAL_READINESS_NOT_GREEN")
     if not package.complete_handoff:
@@ -186,6 +211,7 @@ def build_architect_a1_integrator_handoff(
             package.canonical_manifest_bridge_sha256
         ),
         disposition_package_sha256=package.fingerprint(),
+        canonical_closure_packet_sha256=canonical_closure.fingerprint(),
         terminal_count=package.terminal_count,
         completed_ids=completed,
         falsified_ids=falsified,
