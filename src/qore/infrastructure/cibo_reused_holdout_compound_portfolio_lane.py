@@ -451,7 +451,27 @@ def run_compound_portfolio_lane(
             if any(item != candidate.trader_id for item in source_snapshot):
                 cross_trader += 1
             risk_engine.record_full_fill(auth.authorization_id)
-            risk_engine.reconcile_fill(auth.authorization_id)
+            reservation = next(
+                (
+                    item
+                    for item in risk_engine.reservations()
+                    if item.authorization.authorization_id
+                    == auth.authorization_id
+                ),
+                None,
+            )
+            if reservation is None:
+                raise CiboCapitalManagementError(
+                    "compound Risk reservation disappeared after fill"
+                )
+            state = reservation.state.value
+            if state == "FILLED_UNRECONCILED":
+                risk_engine.reconcile_fill(auth.authorization_id)
+            elif state != "RELEASED":
+                raise CiboCapitalManagementError(
+                    "compound Risk fill reached unexpected reservation state: "
+                    + state
+                )
             open_rows[signal] = _Open(
                 signal_fingerprint=signal,
                 trader_id=candidate.trader_id,
