@@ -173,3 +173,59 @@ def test_t20_waits_when_manifest_is_not_scientifically_ready() -> None:
     assert result.source_manifest_scientific_ready is False
     assert result.empirical_t20_ready is False
     assert result.recommendation == WAITING_RECOMMENDATION
+
+
+def test_t20_rejects_fold_with_too_few_release_lifecycles() -> None:
+    manifest = _ready_manifest()
+    rows = tuple(
+        replace(
+            row,
+            fold_id=(
+                "WF4"
+                if index == 0
+                else f"WF{1 + ((index - 1) % 3)}"
+            ),
+        )
+        for index, row in enumerate(manifest.rows)
+    )
+    incomplete = replace(manifest, rows=rows)
+
+    result = qualify_t20_forward_release_population(incomplete)
+
+    assert result.four_fold_coverage_complete is False
+    assert result.empirical_t20_ready is False
+    assert result.recommendation == WAITING_RECOMMENDATION
+
+
+def test_t20_rejects_fold_with_too_few_lineages() -> None:
+    manifest = _ready_manifest()
+    rows = tuple(
+        replace(row, trader_id="R38_EURUSD")
+        if row.fold_id == "WF4"
+        else row
+        for row in manifest.rows
+    )
+    incomplete = replace(manifest, rows=rows)
+
+    result = qualify_t20_forward_release_population(incomplete)
+
+    assert result.four_fold_coverage_complete is False
+    assert result.empirical_t20_ready is False
+    assert result.recommendation == WAITING_RECOMMENDATION
+
+
+def test_t20_requires_exact_canonical_seven_lineages() -> None:
+    manifest = _ready_manifest()
+    rows = tuple(
+        replace(row, trader_id="NON_CANONICAL_LINEAGE")
+        if row.trader_id == "VT31_NAS100"
+        else row
+        for row in manifest.rows
+    )
+    incomplete = replace(manifest, rows=rows)
+
+    result = qualify_t20_forward_release_population(incomplete)
+
+    assert result.seven_lineage_coverage_complete is False
+    assert result.empirical_t20_ready is False
+    assert result.recommendation == WAITING_RECOMMENDATION
