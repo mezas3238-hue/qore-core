@@ -4,6 +4,10 @@ from qore.infrastructure.cibo_account_capital_mission import (
     CiboAccountCapitalIdentity,
     derive_cibo_capital_mission,
 )
+from qore.infrastructure.cibo_ce2i_full_surface import (
+    AdvancedPortfolioEvidence,
+    evaluate_full_ce2i_surface,
+)
 from qore.infrastructure.cibo_ce2i_regime_selector import (
     CiboCapitalRegimeState,
     CorrelationState,
@@ -16,16 +20,18 @@ from qore.infrastructure.cibo_next_policy_advanced_scientific_eligibility import
     ADVANCED_CODES,
     NEXT_POLICY_ADVANCED_SCIENTIFIC_ELIGIBILITY,
 )
+from qore.infrastructure.account_wide_risk import TraderLineage
+from qore.infrastructure.cibo_capital_management_authority import (
+    TraderOpportunityEnvelope,
+)
 from qore.infrastructure.market_test_environment import MarketRuntimeEnvironment
 
 
 def _selection():
     account = CiboAccountCapitalIdentity(
         provider_key="ctrader-demo",
-        account_id="NEXT_POLICY_TEST",
+        account_ref="next-policy-test",
         environment=MarketRuntimeEnvironment.DEMO,
-        starting_balance_usd=Decimal("60"),
-        current_realized_balance_usd=Decimal("60"),
     )
     mission = derive_cibo_capital_mission(account)
     state = CiboCapitalRegimeState(
@@ -94,3 +100,55 @@ def test_filter_is_deterministic_and_never_reenables_regime_blocked_tool() -> No
 
     assert first == second
     assert set(first.enabled_tools).issubset(set(raw.enabled_tools))
+
+
+
+def test_full_surface_next_freeze_prevents_missing_evidence_fail_closed() -> None:
+    account = CiboAccountCapitalIdentity(
+        provider_key="ctrader-demo",
+        account_ref="next-policy-full-surface",
+        environment=MarketRuntimeEnvironment.DEMO,
+    )
+    mission = derive_cibo_capital_mission(account)
+    state = CiboCapitalRegimeState(
+        liquidity=LiquidityState.NORMAL,
+        volatility=VolatilityState.NORMAL,
+        correlation=CorrelationState.NORMAL,
+        provider_condition=ProviderCondition.HEALTHY,
+        risk_utilization=Decimal("0"),
+        margin_utilization=Decimal("0"),
+        drawdown_utilization=Decimal("0"),
+        opportunity_count=1,
+    )
+    opportunity = TraderOpportunityEnvelope(
+        trader_id=TraderLineage.R34_XAUUSD,
+        signal_fingerprint="next-policy-signal",
+        qore_symbol="XAUUSD",
+        provider_symbol="XAUUSD",
+        side="long",
+        entry_type="market",
+        intended_entry=Decimal("3800"),
+        stop_loss=Decimal("3790"),
+        take_profit=Decimal("3820"),
+        stop_loss_per_volume=Decimal("10"),
+        margin_per_volume=Decimal("25"),
+        volume_step=Decimal("0.01"),
+        minimum_volume=Decimal("0.01"),
+        maximum_volume=Decimal("1"),
+    )
+
+    result = evaluate_full_ce2i_surface(
+        mission=mission,
+        regime_state=state,
+        opportunities=(opportunity,),
+        advanced_evidence=AdvancedPortfolioEvidence(),
+        scientific_eligibility=NEXT_POLICY_ADVANCED_SCIENTIFIC_ELIGIBILITY,
+    )
+
+    assert result.complete_registry is True
+    assert result.registry_codes == tuple(
+        f"T{index:02d}" for index in range(1, 21)
+    )
+    assert result.advanced_decisions == ()
+    assert set(ADVANCED_CODES).issubset(set(result.regime.blocked_tools))
+    assert "scientific eligibility=sha256:" in result.regime.reason
