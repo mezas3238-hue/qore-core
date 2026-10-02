@@ -357,8 +357,14 @@ class Genc14ScienceRecord:
                 {
                     "evidence_id": item.evidence_id,
                     "kind": item.kind.value,
+                    "candidate_policy_sha256": item.candidate_policy_sha256,
+                    "evaluated_at": item.evaluated_at.isoformat(),
                     "evidence_sha256": item.evidence_sha256,
                     "passed": item.passed,
+                    "burned_data_used": item.burned_data_used,
+                    "protected_holdout_used": item.protected_holdout_used,
+                    "future_leakage_used": item.future_leakage_used,
+                    "post_hoc_gate_changed": item.post_hoc_gate_changed,
                 }
                 for item in self.evidence
             ],
