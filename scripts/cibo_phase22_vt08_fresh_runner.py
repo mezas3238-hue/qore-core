@@ -106,7 +106,9 @@ def main() -> int:
                 "candidate_id": CANDIDATE_ID,
                 "trader_id": "VT08_FOREX",
                 "markets": len(AUTHORIZED_FOREX_MARKETS),
-                "opportunities": len(payload["opportunities"]),
+                "opportunities": sum(
+                    len(result.opportunities) for result in results
+                ),
             },
             sort_keys=True,
         )
