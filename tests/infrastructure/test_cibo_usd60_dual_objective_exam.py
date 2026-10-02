@@ -18,7 +18,6 @@ from qore.infrastructure.cibo_usd60_dual_objective_exam import (
     assess_cibo_usd60_dual_objective_exam,
 )
 
-
 NOW = datetime(2026, 10, 2, 20, 0, tzinfo=UTC)
 
 
