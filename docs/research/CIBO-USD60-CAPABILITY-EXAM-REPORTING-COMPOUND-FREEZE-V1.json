@@ -168,5 +168,11 @@
   "live_authorized": false,
   "real_capital_authorized": false,
   "production_authorized": false,
-  "merge_authorized": false
+  "merge_authorized": false,
+  "readiness": {
+    "turtle_temporal_alignment_ready": false,
+    "trader_column_reporting_ready": false,
+    "compound_portfolio_lane_ready": false,
+    "launch_ready": false
+  }
 }
