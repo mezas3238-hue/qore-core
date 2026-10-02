@@ -38,10 +38,14 @@ from qore.infrastructure.cibo_world_cup_maximum_capability_exam import (
 from qore.infrastructure.cibo_world_cup_maximum_capability_exam_assembly import (
     WorldCupControlPackage,
 )
+from qore.infrastructure.cibo_phase22_v4_governance import V4_CANDIDATE_ID
+from qore.infrastructure.cibo_scientific_closure_41 import (
+    CANONICAL_PROVIDER_IDENTITY,
+)
 
 CLOSURE_ID = "CIBO_FINAL_CERTIFICATION_CLOSURE_V1"
 SEAL_ID = "CIBO_CERTIFICATION_SEAL_V1"
-HOLDOUT_CANDIDATE_ID = "CIBO_USD60_6M_HOLDOUT_2015-10-19_2016-04-19_V2"
+HOLDOUT_CANDIDATE_ID = V4_CANDIDATE_ID
 _LEDGER_SCHEMA = "QORE_CIBO_MASTER_OPEN_WORK_LEDGER_V1"
 _ZERO_OPEN_SCHEMA = "QORE_CIBO_ZERO_OPEN_WORK_GATE_V1"
 _EXAM_IDS = (
@@ -85,6 +89,11 @@ class CiboCertificationClosureTransition:
     final_integrated_report_sha256: str
     world_cup_package_sha256: str
     world_cup_report_sha256: str
+    source_truth_receipt_sha256: str
+    provider_risk_cma_receipt_sha256: str
+    scientific_closure_receipt_sha256: str
+    policy_identity_sha256: str
+    provider_identity: str
     pre_ledger_sha256: str
     closed_ledger_sha256: str
     changed_workstream_ids: tuple[str, ...]
@@ -109,6 +118,10 @@ class CiboCertificationClosureTransition:
             "final_integrated_report_sha256",
             "world_cup_package_sha256",
             "world_cup_report_sha256",
+            "source_truth_receipt_sha256",
+            "provider_risk_cma_receipt_sha256",
+            "scientific_closure_receipt_sha256",
+            "policy_identity_sha256",
             "pre_ledger_sha256",
             "closed_ledger_sha256",
         ):
@@ -116,6 +129,10 @@ class CiboCertificationClosureTransition:
                 raise CiboCapitalManagementError(
                     f"CIBO certification closure {name} invalid"
                 )
+        if self.provider_identity != CANONICAL_PROVIDER_IDENTITY:
+            raise CiboCapitalManagementError(
+                "CIBO certification closure provider identity drift"
+            )
         if self.changed_workstream_ids != _EXAM_IDS:
             raise CiboCapitalManagementError(
                 "CIBO certification closure may change only the two exam rows"
@@ -149,11 +166,22 @@ class CiboCertificationSeal:
     closure_transition_sha256: str
     closed_ledger_sha256: str
     strict_zero_open_artifact_sha256: str
+    source_truth_receipt_sha256: str
+    provider_risk_cma_receipt_sha256: str
+    scientific_closure_receipt_sha256: str
+    final_integrated_package_sha256: str
     final_integrated_report_sha256: str
+    world_cup_package_sha256: str
     world_cup_report_sha256: str
+    policy_identity_sha256: str
+    provider_identity: str
+    mandatory_count: int
+    terminal_count: int
+    open_count: int
     certified_at: datetime
     live_authorized: bool = False
     real_capital_authorized: bool = False
+    production_authorized: bool = False
     merge_authorized: bool = False
     production_authority: bool = False
 
@@ -176,13 +204,31 @@ class CiboCertificationSeal:
             "closure_transition_sha256",
             "closed_ledger_sha256",
             "strict_zero_open_artifact_sha256",
+            "source_truth_receipt_sha256",
+            "provider_risk_cma_receipt_sha256",
+            "scientific_closure_receipt_sha256",
+            "final_integrated_package_sha256",
             "final_integrated_report_sha256",
+            "world_cup_package_sha256",
             "world_cup_report_sha256",
+            "policy_identity_sha256",
         ):
             if _SHA256_RE.fullmatch(getattr(self, name)) is None:
                 raise CiboCapitalManagementError(
                     f"CIBO certification seal {name} invalid"
                 )
+        if self.provider_identity != CANONICAL_PROVIDER_IDENTITY:
+            raise CiboCapitalManagementError(
+                "CIBO certification seal provider identity drift"
+            )
+        if (
+            self.mandatory_count != 64
+            or self.terminal_count != 64
+            or self.open_count != 0
+        ):
+            raise CiboCapitalManagementError(
+                "CIBO certification seal requires explicit 64/64/0 topology"
+            )
         if self.certified_at.tzinfo is None or self.certified_at.utcoffset() is None:
             raise CiboCapitalManagementError(
                 "CIBO certification seal certified_at must be timezone-aware"
@@ -190,6 +236,7 @@ class CiboCertificationSeal:
         if (
             self.live_authorized
             or self.real_capital_authorized
+            or self.production_authorized
             or self.merge_authorized
             or self.production_authority
         ):
@@ -320,6 +367,19 @@ def build_certification_closure_ledger(
     final_package_sha = final_package.fingerprint()
     world_package_sha = world_cup_package.fingerprint()
     world_report_sha = _world_report_sha256(world_cup_report)
+    final_receipts = {
+        receipt.receipt_id: receipt
+        for receipt in final_package.receipts
+    }
+    source_truth_sha = final_receipts[
+        "P1_SOURCE_OF_TRUTH_RECONCILED"
+    ].source_artifact_sha256
+    provider_risk_cma_sha = final_receipts[
+        "P4_PROVIDER_RISK_CMA_FORWARD_TRUTH"
+    ].source_artifact_sha256
+    scientific_closure_sha = final_receipts[
+        "P7_SCIENTIFIC_CLOSURE"
+    ].source_artifact_sha256
 
     final_row["current_maturity"] = "COMPLETED_AND_PROVEN_FINAL_INTEGRATED_PASS"
     final_row["terminal_disposition"] = "COMPLETED_AND_PROVEN"
@@ -360,6 +420,11 @@ def build_certification_closure_ledger(
         final_integrated_report_sha256=final_report_sha,
         world_cup_package_sha256=world_package_sha,
         world_cup_report_sha256=world_report_sha,
+        source_truth_receipt_sha256=source_truth_sha,
+        provider_risk_cma_receipt_sha256=provider_risk_cma_sha,
+        scientific_closure_receipt_sha256=scientific_closure_sha,
+        policy_identity_sha256=final_package.policy_identity_sha256,
+        provider_identity=CANONICAL_PROVIDER_IDENTITY,
         pre_ledger_sha256=_ledger_sha256(pre_ledger),
         closed_ledger_sha256=_ledger_sha256(closed),
         changed_workstream_ids=_EXAM_IDS,
@@ -457,10 +522,26 @@ def build_cibo_certification_seal(
         closure_transition_sha256=transition.fingerprint(),
         closed_ledger_sha256=transition.closed_ledger_sha256,
         strict_zero_open_artifact_sha256=strict_sha,
+        source_truth_receipt_sha256=transition.source_truth_receipt_sha256,
+        provider_risk_cma_receipt_sha256=(
+            transition.provider_risk_cma_receipt_sha256
+        ),
+        scientific_closure_receipt_sha256=(
+            transition.scientific_closure_receipt_sha256
+        ),
+        final_integrated_package_sha256=(
+            transition.final_integrated_package_sha256
+        ),
         final_integrated_report_sha256=(
             transition.final_integrated_report_sha256
         ),
+        world_cup_package_sha256=transition.world_cup_package_sha256,
         world_cup_report_sha256=transition.world_cup_report_sha256,
+        policy_identity_sha256=transition.policy_identity_sha256,
+        provider_identity=transition.provider_identity,
+        mandatory_count=64,
+        terminal_count=64,
+        open_count=0,
         certified_at=certified_at,
     )
 
