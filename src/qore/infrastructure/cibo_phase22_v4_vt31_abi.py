@@ -41,6 +41,8 @@ def adapt_v4_vt31_market_evidence(
 ]:
     series = source.series
     evidence_fingerprint = source.fingerprint
+    if evidence_fingerprint.startswith("sha256:"):
+        evidence_fingerprint = evidence_fingerprint.removeprefix("sha256:")
     checked_at = source.last_closed_at
     collector_git_sha = source.corpus_git_sha
     provider_symbol = source.provider_symbol
