@@ -367,6 +367,7 @@ def execute_phase22_chronological_replay(
     regime_evidence: tuple[Phase22HistoricalRegimeEvidence, ...],
     replay_started_at: datetime,
     amendment: Phase22HistoricalReplayEconomicsAmendment | None = None,
+    lab_execute_all_candidates: bool = False,
 ) -> Phase22HistoricalExecutionReport:
     """Run the frozen USD60 policy/Risk/settlement path chronologically."""
 
@@ -375,6 +376,10 @@ def execute_phase22_chronological_replay(
             "Phase22 execution requires canonical chronological plan"
         )
     _aware(replay_started_at, "replay_started_at")
+    if type(lab_execute_all_candidates) is not bool:
+        raise CiboCapitalManagementError(
+            "lab_execute_all_candidates must be bool"
+        )
     if amendment is None:
         amendment = canonical_phase22_historical_economics_amendment()
     if not isinstance(amendment, Phase22HistoricalReplayEconomicsAmendment):
@@ -543,7 +548,12 @@ def execute_phase22_chronological_replay(
         by_signal = {
             item.signal_fingerprint: item for item in epoch.candidates
         }
-        for signal in pair.policy.selected_signal_fingerprints:
+        execution_signals = (
+            tuple(by_signal)
+            if lab_execute_all_candidates
+            else tuple(pair.policy.selected_signal_fingerprints)
+        )
+        for signal in execution_signals:
             selected_count += 1
             candidate = by_signal[signal]
             snapshot = _snapshot(
