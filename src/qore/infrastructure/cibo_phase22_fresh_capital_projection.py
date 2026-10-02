@@ -38,7 +38,6 @@ from qore.infrastructure.cibo_provider_economic_normalization import (
 )
 
 _BPS = Decimal("10000")
-_VT31_MINIMUM_EXECUTION_STEPS = 4
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,9 +70,15 @@ class Phase22FreshCapitalProjection:
         return self.provider_envelope.minimum_execution_cost_usd
 
 
-def _minimum_execution_steps(trader_id: TraderLineage) -> int:
-    if trader_id is TraderLineage.VT31_NAS100:
-        return _VT31_MINIMUM_EXECUTION_STEPS
+def _minimum_execution_steps(_trader_id: TraderLineage) -> int:
+    """Keep Trader methodology volume-free; CIBO owns capital expression.
+
+    A Trader contributes entry/stop/target geometry only. The executable seed is
+    therefore one provider minimum step for every Trader. Multi-leg or larger
+    exposure is a downstream CIBO/CE2I/CMA decision and must never be smuggled
+    into the opportunity envelope as a Trader-owned sizing floor.
+    """
+
     return 1
 
 
@@ -167,7 +172,9 @@ def project_phase22_fresh_capital_input(
         maximum_volume=spec.maximum_volume,
         minimum_execution_steps=steps,
         decision_context=(
-            ("phase22_candidate", "V2"),
+            ("phase22_candidate", "V4_REUSED_CAPABILITY_EXAM"),
+            ("sizing_authority", "CIBO_CMA"),
+            ("trader_sizing_authority", "NONE"),
             ("provider_numeric_freeze", provider_numeric_freeze_sha256),
         ),
     )
