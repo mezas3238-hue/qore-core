@@ -57,6 +57,21 @@ def test_runtime_records_cibo_seed_risk_as_position_base_risk() -> None:
     assert source.count("base_risk_usd = seed.plan.stop_risk_usd") == 5
 
 
+def test_demo_account_reads_are_isolated_from_market_data_client() -> None:
+    source = RUNTIME.read_text(encoding="utf-8")
+
+    assert "account_client = SpotwareCTraderOpenApiClient(" in source
+    assert "account_positions = CTraderDemoFreePositionService(" in source
+    assert "client=account_client" in source
+    assert "atexit.register(account_client.close)" in source
+    assert "transport = CTraderDemoReadOnlyTransport(" in source
+    assert "gateway = CTraderDemoReadOnlyGateway(" in source
+    assert source.count(
+        "_account_state_from_position_service(account_positions)"
+    ) == 5
+    assert "_account_state_from_demo_api(" not in source
+
+
 def test_runtime_wires_passive_cma_position_observer_without_expansion() -> None:
     source = RUNTIME.read_text(encoding="utf-8")
 
@@ -164,7 +179,10 @@ def test_restart_recovers_and_requires_exact_open_position_risk() -> None:
 def test_phase20_bootstrap_uses_the_broker_snapshot_clock() -> None:
     source = RUNTIME.read_text(encoding="utf-8")
 
-    capture = "phase20_bootstrap_account = _account_state_from_demo_api(demo_api)"
+    capture = (
+        "phase20_bootstrap_account = "
+        "_account_state_from_position_service(account_positions)"
+    )
     activation = "phase20_bootstrap_at = phase20_bootstrap_account.observed_at"
     bootstrap = (
         "phase20_assigned_base, phase20_capital_state = "
