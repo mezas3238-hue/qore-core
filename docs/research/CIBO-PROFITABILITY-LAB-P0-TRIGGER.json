@@ -13,6 +13,6 @@
   "production": false,
   "merge_authority": false,
   "outcome_aware_tuning": false,
-  "retrigger_for_head": "1ba1b903488a85a354e13a620220fe13ca7c1472",
-  "retrigger_reason": "Chronological Decimal accounting reconstruction only; no selection, Risk, sizing, Trader edge, provider economics, or outcomes changed."
+  "retrigger_for_head": "bd928bb0713f0a547a67848cb45f50168b729011",
+  "retrigger_reason": "Remove duplicate Compound Risk record_full_fill/reconcile_fill calls only; no economics or selection changed."
 }
