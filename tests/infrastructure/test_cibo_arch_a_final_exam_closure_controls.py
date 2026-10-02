@@ -162,5 +162,6 @@ def test_closure41_p7_p8_accept_terminal_scientific_falsification() -> None:
     assert p8.producer_gate_id == "CIBO_CAPITAL_COMPOUND_CLOSURE_13_V1"
     assert p7.receipt_id == "P7_SCIENTIFIC_CLOSURE"
     assert p8.receipt_id == "P8_COMPOUND_CLOSURE"
-    assert "ADVERSARIAL_STRESS" in p8.source_artifact_json
-    assert "FALSIFIED_AND_CLOSED" in p8.source_artifact_json
+    p8_payload = json.loads(p8.source_artifact_json)
+    assert p8_payload["falsified_ids"] == ["ADVERSARIAL_STRESS"]
+    assert p8_payload["capital_compound_closure_terminal"] is True
