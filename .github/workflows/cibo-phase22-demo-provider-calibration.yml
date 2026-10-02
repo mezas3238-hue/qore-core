@@ -1,0 +1,202 @@
+name: QORE CIBO Phase22 DEMO Provider Calibration
+
+on:
+  push:
+    branches:
+      - agent/cibo-integrator-ab-001
+    paths:
+      - '.github/workflows/cibo-phase22-demo-provider-calibration.yml'
+      - 'scripts/cibo_phase22_demo_provider_calibration.py'
+      - 'src/qore/infrastructure/cibo_phase22_demo_calibration_contract.py'
+      - 'tests/infrastructure/test_cibo_phase22_demo_calibration_contract.py'
+      - 'tests/infrastructure/test_cibo_phase22_demo_calibration_workflow.py'
+  workflow_dispatch:
+    inputs:
+      owner_authorization:
+        description: 'Exact Owner authorization token'
+        required: true
+        type: string
+      demo_only_confirmation:
+        description: 'Confirm cTrader DEMO only; LIVE and FundedNext prohibited'
+        required: true
+        type: choice
+        options:
+          - DEMO_ONLY_NO_LIVE_NO_FUNDEDNEXT
+      max_round_trips:
+        description: 'Hard maximum new DEMO round trips for this dispatch'
+        required: true
+        default: '1'
+        type: choice
+        options:
+          - '1'
+          - '2'
+          - '3'
+          - '4'
+          - '5'
+          - '6'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qore-cibo-phase22-demo-provider-calibration-${{ github.event_name }}
+  cancel-in-progress: false
+
+jobs:
+  validate-no-mutation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev,ctrader]'
+
+      - name: Quality and immutable DEMO-only contract
+        run: |
+          ruff check \
+            scripts/cibo_phase22_demo_provider_calibration.py \
+            src/qore/infrastructure/cibo_phase22_demo_calibration_contract.py \
+            tests/infrastructure/test_cibo_phase22_demo_calibration_contract.py \
+            tests/infrastructure/test_cibo_phase22_demo_calibration_workflow.py
+          mypy --disable-error-code=import-untyped \
+            scripts/cibo_phase22_demo_provider_calibration.py \
+            src/qore/infrastructure/cibo_phase22_demo_calibration_contract.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_phase22_demo_calibration_contract.py \
+            tests/infrastructure/test_cibo_phase22_demo_calibration_workflow.py \
+            tests/infrastructure/test_ctrader_demo_operational_runtime.py
+
+      - name: Prove validation mode has no broker surface
+        run: |
+          mkdir -p phase22-demo-provider-validation
+          python scripts/cibo_phase22_demo_provider_calibration.py \
+            --validate-only \
+            --output phase22-demo-provider-validation/validation.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p = json.loads(
+              Path(
+                  "phase22-demo-provider-validation/validation.json"
+              ).read_text(encoding="utf-8")
+          )
+          assert p["status"] == "VALIDATION_ONLY"
+          assert p["broker_credentials_loaded"] is False
+          assert p["broker_client_constructed"] is False
+          assert p["broker_mutation_performed"] is False
+          assert p["created_round_trip_count"] == 0
+          assert p["environment"] == "demo"
+          assert p["fundednext_allowed"] is False
+          assert p["live_allowed"] is False
+          assert p["real_capital_allowed"] is False
+          PY
+
+  manual-demo-calibration:
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.repository == 'mezas3238-hue/qore-core'
+    needs: validate-no-mutation
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: ctrader-demo-broker-mutation
+    env:
+      QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+      QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+      QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+      QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+      QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID }}
+      QORE_CIBO_PHASE22_DEMO_CALIBRATION_AUTHORIZATION: ${{ inputs.owner_authorization }}
+      QORE_CIBO_PHASE22_DEMO_ONLY_CONFIRMATION: ${{ inputs.demo_only_confirmation }}
+      QORE_CIBO_PHASE22_MAX_ROUND_TRIPS: ${{ inputs.max_round_trips }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[ctrader]'
+
+      - name: Fail-closed manual Owner and DEMO-only preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_EVENT_NAME" = "workflow_dispatch"
+          test "$GITHUB_ACTOR" = "mezas3238-hue"
+          test "$QORE_CIBO_PHASE22_DEMO_CALIBRATION_AUTHORIZATION" = \
+            "CIBO_PHASE22_DEMO_EXECUTION_CALIBRATION_AUTHORIZED"
+          test "$QORE_CIBO_PHASE22_DEMO_ONLY_CONFIRMATION" = \
+            "DEMO_ONLY_NO_LIVE_NO_FUNDEDNEXT"
+          case "$QORE_CIBO_PHASE22_MAX_ROUND_TRIPS" in
+            1|2|3|4|5|6) ;;
+            *) exit 3 ;;
+          esac
+          for name in \
+            QORE_CTRADER_CLIENT_ID \
+            QORE_CTRADER_CLIENT_SECRET \
+            QORE_CTRADER_ACCESS_TOKEN \
+            QORE_CTRADER_REFRESH_TOKEN \
+            QORE_CTRADER_DEMO_ACCOUNT_ID
+          do
+            test -n "${!name:-}" || exit 4
+          done
+
+      - name: Execute bounded cTrader DEMO calibration
+        run: |
+          mkdir -p phase22-demo-provider-calibration
+          python scripts/cibo_phase22_demo_provider_calibration.py \
+            --execute \
+            --output phase22-demo-provider-calibration/calibration.json \
+            > phase22-demo-provider-calibration/stdout.json
+
+      - name: Enforce terminal DEMO-only and retry invariants
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p = json.loads(
+              Path(
+                  "phase22-demo-provider-calibration/calibration.json"
+              ).read_text(encoding="utf-8")
+          )
+          assert p["status"] in {
+              "READY",
+              "EXECUTION_POPULATION_READY_QUOTE_RECONSTRUCTION_PENDING",
+              "EXECUTION_POPULATION_INCOMPLETE",
+              "EXECUTION_POPULATION_INCOMPLETE_RECONCILE_ONLY",
+          }
+          assert p["provider_key"] == "ctrader-demo"
+          assert p["environment"] == "demo"
+          assert p["endpoint_host"] == "demo.ctraderapi.com"
+          assert p["fundednext_touched"] is False
+          assert p["live_authorized"] is False
+          assert p["real_capital_authorized"] is False
+          assert p["productive_authority"] is False
+          assert p["maximum_round_trips_per_manual_dispatch"] == 6
+          assert 0 <= p["authorized_mutation_budget"] <= 6
+          assert p["created_round_trip_count"] <= p["authorized_mutation_budget"]
+          if p["population_already_sufficient_before_run"]:
+              assert p["created_round_trip_count"] == 0
+              assert p["broker_mutation_performed"] is False
+          if p["retry_reconciliation_only"]:
+              assert p["authorized_mutation_budget"] == 0
+              assert p["created_round_trip_count"] == 0
+              assert p["broker_mutation_performed"] is False
+          PY
+
+      - name: Seal manual calibration evidence
+        run: |
+          printf '%s\n' "$GITHUB_SHA" \
+            > phase22-demo-provider-calibration/git-sha.txt
+          cd phase22-demo-provider-calibration
+          sha256sum calibration.json stdout.json git-sha.txt > SHA256SUMS.txt
+          sha256sum -c SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-phase22-demo-provider-calibration-${{ github.run_id }}
+          path: phase22-demo-provider-calibration
+          if-no-files-found: error
+          retention-days: 90
