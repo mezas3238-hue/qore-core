@@ -15,6 +15,7 @@ from qore.infrastructure.cibo_capital_management_authority import (
 )
 from qore.infrastructure.cibo_phase22_holdout_v2_source_receipt import (
     V2_SOURCE_BINDINGS,
+    Phase22V2SourceBinding,
 )
 from qore.infrastructure.cibo_phase22_trader_parity_manifest import (
     ACTIVE_PHASE22_TRADER_PARITY_MANIFEST,
@@ -121,7 +122,7 @@ def expected_source_archive_rows() -> tuple[
     )
 
 
-def _binding(symbol: str, timeframe: str):
+def _binding(symbol: str, timeframe: str) -> Phase22V2SourceBinding:
     matches = tuple(
         item
         for item in V2_SOURCE_BINDINGS
