@@ -24,3 +24,23 @@ def test_sink_helper_requires_explicit_risk_authorization() -> None:
 
     assert "risk_authorization: RiskAuthorization," in text
     assert "risk_authorization: RiskAuthorization | None" not in text
+
+
+def test_runtime_reconciles_durable_risk_before_new_authorization() -> None:
+    text = RUNTIME.read_text(encoding="utf-8")
+
+    assert "def reconcile_execution_risk_reservations(" in text
+    assert "confirmed_fill_authorization_ids(" in text
+    assert "reconcile_demo_risk_reservations(" in text
+    assert "risk.complete_boot_reconciliation(" in text
+    assert "CTRADER_DEMO_RISK_BOOT_RECONCILED" in text
+    snapshot_definition = text.index("def current_execution_risk_snapshot(")
+    reconcile_call = text.index(
+        "reconcile_execution_risk_reservations(observed_at=observed_at)",
+        snapshot_definition,
+    )
+    account_read = text.index(
+        "account_state = _account_state_from_demo_api(",
+        snapshot_definition,
+    )
+    assert reconcile_call < account_read
