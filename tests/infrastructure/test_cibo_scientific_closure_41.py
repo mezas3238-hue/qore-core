@@ -17,7 +17,11 @@ from qore.infrastructure.cibo_scientific_closure_41 import (
     COMPLETED,
     FALSIFIED,
     FINAL_EXAM_IDS,
+    FRESH_OOS_ID,
+    OPEN_PREIMAGE,
+    PRE_CLOSURE_OPEN_IDS,
     SCIENTIFIC_CLOSURE_41_IDS,
+    SCIENTIFIC_CLOSURE_EXTERNAL_IDS,
     ScientificClosure41Evidence,
     apply_scientific_closure_41_to_ledger_copy,
     build_scientific_closure_41_package,
@@ -48,7 +52,11 @@ def _evidence(
 ) -> ScientificClosure41Evidence:
     return ScientificClosure41Evidence(
         workstream_id=workstream_id,
-        previous_disposition="EXTERNAL_DEPENDENCY_BLOCKED",
+        previous_disposition=(
+            OPEN_PREIMAGE
+            if workstream_id == FRESH_OOS_ID
+            else "EXTERNAL_DEPENDENCY_BLOCKED"
+        ),
         scientific_hypothesis=f"Frozen hypothesis for {workstream_id}",
         evidence_refs=(f"artifact://{workstream_id}",),
         evidence_sha256s=(
@@ -56,7 +64,7 @@ def _evidence(
             if evidence_sha256s is None
             else evidence_sha256s
         ),
-        population_identity=f"phase22-v2:{workstream_id}",
+        population_identity=f"phase22-v4:{workstream_id}",
         policy_identity=policy_identity,
         provider_identity=provider_identity,
         causal_lineage=causal_lineage or _sha(f"lineage:{workstream_id}"),
@@ -104,7 +112,10 @@ def test_exact_41_workstream_ownership_matches_current_ledger() -> None:
 
     assert len(SCIENTIFIC_CLOSURE_41_IDS) == 41
     assert len(set(SCIENTIFIC_CLOSURE_41_IDS)) == 41
-    assert summary["external_dependency_blocked"] == 41
+    assert len(SCIENTIFIC_CLOSURE_EXTERNAL_IDS) == 40
+    assert summary["external_dependency_blocked"] == 40
+    assert summary["fresh_oos_open"] is True
+    assert tuple(summary["open_workstream_ids"]) == PRE_CLOSURE_OPEN_IDS
     assert tuple(summary["open_exam_ids"]) == FINAL_EXAM_IDS
 
 
