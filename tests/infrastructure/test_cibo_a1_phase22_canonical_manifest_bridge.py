@@ -146,6 +146,11 @@ def test_a1_bridge_rejects_trader_lineage_drift() -> None:
         trader_ids=PHASE22_V2_REQUIRED_TRADERS[:-1],
     )
 
+    execution = replace(
+        _execution_identity(),
+        trader_ids=manifest.trader_ids,
+    )
+
     with pytest.raises(
         CiboCapitalManagementError,
         match="Trader lineage drift",
@@ -153,7 +158,7 @@ def test_a1_bridge_rejects_trader_lineage_drift() -> None:
         bridge_a1_to_canonical_phase22_intake(
             manifest=manifest,
             intake=_intake(),
-            execution_identity=_execution_identity(),
+            execution_identity=execution,
         )
 
 
