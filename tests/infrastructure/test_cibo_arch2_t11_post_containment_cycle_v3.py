@@ -12,14 +12,14 @@ from qore.infrastructure.cibo_arch2_t11_post_containment_cycle_v3 import (
 )
 
 
-def test_t11_v3_is_ready_after_independent_clean_global_audit() -> None:
+def test_t11_v3_is_ready_only_after_global_clean_containment_proof() -> None:
     cycle = T11_POST_CONTAINMENT_CYCLE_V3
 
     assert cycle.cycle_id == CYCLE_ID
     assert cycle.v1_run_id == V1_RUN_ID == 36945327912
     assert cycle.v2_run_id == V2_RUN_ID == 36946792349
-    assert cycle.cleanup_run_id == CLEANUP_RUN_ID == 36947697015
-    assert cycle.cleanup_artifact_id == CLEANUP_ARTIFACT_ID == 11202798042
+    assert cycle.cleanup_run_id == CLEANUP_RUN_ID == 36947869835
+    assert cycle.cleanup_artifact_id == CLEANUP_ARTIFACT_ID == 11203160759
     assert cycle.cleanup_artifact_digest == CLEANUP_ARTIFACT_DIGEST
     assert cycle.clean_audit_run_id == CLEAN_AUDIT_RUN_ID == 36947985223
     assert cycle.clean_audit_artifact_id == CLEAN_AUDIT_ARTIFACT_ID == 11202788608
