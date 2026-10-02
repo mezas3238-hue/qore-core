@@ -31,7 +31,6 @@ from qore.infrastructure.cibo_ce2i_phase22_qualification_plan import (
 from qore.infrastructure.cibo_phase22_demo_empirical_provider_receipt import (
     PHASE22_DEMO_EMPIRICAL_PROVIDER_RECEIPT,
 )
-from qore.infrastructure.cibo_phase22_v4_governance import V4_CANDIDATE_ID
 
 PACKAGE_SCHEMA = "QORE_CIBO_SCIENTIFIC_CLOSURE_41_PACKAGE_V1"
 EVIDENCE_SCHEMA = "QORE_CIBO_SCIENTIFIC_CLOSURE_41_EVIDENCE_V1"
@@ -99,7 +98,10 @@ SCIENTIFIC_CLOSURE_EXTERNAL_IDS = tuple(
 )
 PRE_CLOSURE_OPEN_IDS = (FRESH_OOS_ID, *FINAL_EXAM_IDS)
 
-CANONICAL_HOLDOUT_ID = V4_CANDIDATE_ID
+# Compatibility default for legacy builders only. Certification truth is no longer
+# pinned to V4: V4 is CONSUMED_INVALID and successor fresh cycles must bind their
+# actual immutable candidate id into every Closure41 evidence row.
+CANONICAL_HOLDOUT_ID = "CIBO_USD60_6M_HOLDOUT_2014-10-19_2015-04-19_V4"
 CANONICAL_POLICY_IDENTITY = phase20d_qualification_plan_sha256()
 CANONICAL_QUALIFICATION_PLAN_IDENTITY = (
     phase22_holdout_qualification_plan_sha256()
@@ -118,6 +120,17 @@ _ALLOWED_ORIGINS = {
 }
 _RESULT_VALUES = {"PASS", "FAIL", "NOT_APPLICABLE"}
 _SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
+_HOLDOUT_ID_RE = re.compile(
+    r"^CIBO_USD60_6M_HOLDOUT_\\d{4}-\\d{2}-\\d{2}_"
+    r"\\d{4}-\\d{2}-\\d{2}_V\\d+$"
+)
+
+
+def _require_holdout_id(value: str, label: str) -> None:
+    if not isinstance(value, str) or _HOLDOUT_ID_RE.fullmatch(value) is None:
+        raise CiboCapitalManagementError(
+            f"Scientific closure 41 {label} must be a versioned fresh holdout id"
+        )
 
 
 def _require_sha256(value: str, label: str) -> None:
@@ -216,10 +229,7 @@ class ScientificClosure41Evidence:
             )
         _require_sha256(self.causal_lineage, "causal lineage")
         _require_sha256(self.phase22_manifest_sha256, "Phase22 manifest")
-        if self.holdout_id != CANONICAL_HOLDOUT_ID:
-            raise CiboCapitalManagementError(
-                "Scientific closure 41 holdout identity drift"
-            )
+        _require_holdout_id(self.holdout_id, "holdout identity")
         if (
             self.qualification_plan_identity
             != CANONICAL_QUALIFICATION_PLAN_IDENTITY
@@ -330,10 +340,7 @@ class ScientificClosure41Package:
                 "Scientific closure 41 package schema drift"
             )
         _require_sha256(self.phase22_manifest_sha256, "package Phase22 manifest")
-        if self.holdout_id != CANONICAL_HOLDOUT_ID:
-            raise CiboCapitalManagementError(
-                "Scientific closure 41 package holdout drift"
-            )
+        _require_holdout_id(self.holdout_id, "package holdout")
         if self.policy_identity != CANONICAL_POLICY_IDENTITY:
             raise CiboCapitalManagementError(
                 "Scientific closure 41 package policy drift"
@@ -361,6 +368,10 @@ class ScientificClosure41Package:
         ):
             raise CiboCapitalManagementError(
                 "Scientific closure 41 package Phase22 lineage drift"
+            )
+        if any(item.holdout_id != self.holdout_id for item in self.workstreams):
+            raise CiboCapitalManagementError(
+                "Scientific closure 41 package cross-holdout lineage drift"
             )
         expected_completed = tuple(
             item.workstream_id
@@ -456,10 +467,17 @@ def build_scientific_closure_41_package(
         raise CiboCapitalManagementError(
             "Scientific closure 41 evidence/manifest mismatch"
         )
+    holdout_ids = {item.holdout_id for item in ordered}
+    if len(holdout_ids) != 1:
+        raise CiboCapitalManagementError(
+            "Scientific closure 41 evidence spans multiple fresh holdouts"
+        )
+    holdout_id = next(iter(holdout_ids))
+    _require_holdout_id(holdout_id, "package holdout")
     return ScientificClosure41Package(
         schema=PACKAGE_SCHEMA,
         phase22_manifest_sha256=phase22_manifest_sha256,
-        holdout_id=CANONICAL_HOLDOUT_ID,
+        holdout_id=holdout_id,
         policy_identity=CANONICAL_POLICY_IDENTITY,
         provider_identity=CANONICAL_PROVIDER_IDENTITY,
         workstreams=ordered,
