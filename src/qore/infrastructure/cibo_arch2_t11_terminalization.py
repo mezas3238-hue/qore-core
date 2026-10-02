@@ -23,6 +23,9 @@ from qore.infrastructure.cibo_arch2_t11_gross_edge_oos import (
 from qore.infrastructure.cibo_arch2_t11_market_impact_evaluator import (
     T11MarketImpactEvaluation,
 )
+from qore.infrastructure.cibo_arch2_t11_market_impact_terminal_receipt import (
+    T11MarketImpactTerminalReceipt,
+)
 
 COMPLETED = "COMPLETED_AND_PROVEN"
 FALSIFIED = "FALSIFIED_AND_CLOSED"
@@ -124,6 +127,68 @@ def terminalize_t11(
     return T11TerminalRecommendation(
         recommendation=recommendation,
         market_impact_evidence_present=market_impact is not None,
+        market_impact_model_ready=impact_ready,
+        gross_edge_evidence_present=gross_edge is not None,
+        gross_edge_fresh_oos_validated=gross_ready,
+        unresolved_requirements=tuple(unresolved),
+        falsification_reasons=tuple(falsified),
+        canonical_ledger_modified=False,
+        phase22_v2_consumed=False,
+        productive_authority=False,
+    )
+
+
+def terminalize_t11_from_receipt(
+    *,
+    market_impact_receipt: T11MarketImpactTerminalReceipt | None,
+    gross_edge: T11GrossEdgeFreshOOSResult | None,
+) -> T11TerminalRecommendation:
+    """Terminalize T11 from the immutable sealed market-impact receipt.
+
+    This is the Integrator-facing path. It never re-evaluates broker rows or
+    changes the frozen market-impact decision.
+    """
+
+    unresolved: list[str] = []
+    falsified: list[str] = []
+
+    impact_ready: bool | None = None
+    if market_impact_receipt is None:
+        unresolved.append("REAL_PROVIDER_BOUND_MARKET_IMPACT_MODEL_REQUIRED")
+    else:
+        if not isinstance(
+            market_impact_receipt,
+            T11MarketImpactTerminalReceipt,
+        ):
+            raise ValueError("T11 market-impact terminal receipt type invalid")
+        impact_ready = market_impact_receipt.market_impact_model_ready
+        if not impact_ready:
+            falsified.append(
+                "FROZEN_PROVIDER_BOUND_MARKET_IMPACT_MODEL_FAILED_4_OF_4_VALIDATION"
+            )
+
+    gross_ready: bool | None = None
+    if gross_edge is None:
+        unresolved.append("REAL_CALIBRATED_FRESH_OOS_GROSS_EDGE_MODEL_REQUIRED")
+    else:
+        gross_ready = gross_edge.fresh_oos_validated
+        if not gross_ready:
+            falsified.append(
+                "FROZEN_TRAIN_GROSS_EDGE_PRIOR_FAILED_FRESH_OOS_4_OF_4_VALIDATION"
+            )
+
+    if falsified:
+        recommendation = FALSIFIED
+        unresolved = []
+    elif impact_ready is True and gross_ready is True:
+        recommendation = COMPLETED
+        unresolved = []
+    else:
+        recommendation = WAITING
+
+    return T11TerminalRecommendation(
+        recommendation=recommendation,
+        market_impact_evidence_present=market_impact_receipt is not None,
         market_impact_model_ready=impact_ready,
         gross_edge_evidence_present=gross_edge is not None,
         gross_edge_fresh_oos_validated=gross_ready,
