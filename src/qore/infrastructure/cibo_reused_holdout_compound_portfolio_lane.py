@@ -293,7 +293,6 @@ def run_compound_portfolio_lane(
                 raise CiboCapitalManagementError(
                     "compound pool became negative despite fail-closed funding"
                 )
-            risk_engine.reconcile_terminal_release(item.authorization_id)
             cross = any(
                 source != item.trader_id
                 for source in item.source_traders_before_entry
@@ -337,8 +336,14 @@ def run_compound_portfolio_lane(
                 candidate.projection.provider_envelope.execution_cost_per_volume_usd
                 * volume
             )
-            reserved = risk_engine.active_reserved_stop_risk()
-            available = max(Decimal(0), pool - reserved)
+            committed_loss = sum(
+                (
+                    item.authorized_stop_risk_usd + item.provider_cost_usd
+                    for item in open_rows.values()
+                ),
+                Decimal(0),
+            )
+            available = max(Decimal(0), pool - committed_loss)
             if risk + cost > available:
                 blockers["REALIZED_PROFIT_POOL_BELOW_MINIMUM_SEED_PLUS_COST"] += 1
                 rejected += 1
@@ -379,13 +384,23 @@ def run_compound_portfolio_lane(
             core_open_risk, core_open_margin = core_open_capacity(
                 epoch.market_decision_at
             )
-            external_headroom = max(Decimal(0), equity - core_open_risk)
+            compound_open_risk = sum(
+                (item.authorized_stop_risk_usd for item in open_rows.values()),
+                Decimal(0),
+            )
+            compound_open_margin = sum(
+                (item.authorized_margin_usd for item in open_rows.values()),
+                Decimal(0),
+            )
+            total_open_risk = core_open_risk + compound_open_risk
+            total_open_margin = core_open_margin + compound_open_margin
+            external_headroom = max(Decimal(0), equity - total_open_risk)
             snapshot = AccountRiskSnapshot(
                 account_binding_id="phase22-v4-compound-shadow",
                 equity=equity,
-                margin_used=core_open_margin,
-                free_margin=max(Decimal(0), equity - core_open_margin),
-                open_stop_worst_case_loss=core_open_risk,
+                margin_used=total_open_margin,
+                free_margin=max(Decimal(0), equity - total_open_margin),
+                open_stop_worst_case_loss=total_open_risk,
                 open_floating_loss=Decimal(0),
                 pending_broker_worst_case_loss=Decimal(0),
                 qore_authorizable_headroom=min(headroom, external_headroom),
@@ -414,6 +429,7 @@ def run_compound_portfolio_lane(
             source_snapshot = tuple(sorted(source_traders))
             if any(item != candidate.trader_id for item in source_snapshot):
                 cross_trader += 1
+            risk_engine.record_full_fill(auth.authorization_id)
             open_rows[signal] = _Open(
                 signal_fingerprint=signal,
                 trader_id=candidate.trader_id,
@@ -429,6 +445,10 @@ def run_compound_portfolio_lane(
                 ),
                 source_traders_before_entry=source_snapshot,
             )
+            # The open position is now represented explicitly in open_rows and
+            # therefore in subsequent AccountRiskSnapshot open-risk/margin.
+            # Release only QORE's fill shadow to avoid expiry-driven double state.
+            risk_engine.reconcile_fill(auth.authorization_id)
 
     if core_settlements or open_rows:
         final_clock = max(
