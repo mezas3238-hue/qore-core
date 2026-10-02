@@ -39,16 +39,20 @@
     "risk_allowed",
     "risk_reduced",
     "risk_rejected",
-    "entries_executed",
-    "settlements",
-    "gross_structural_pnl_usd",
-    "provider_execution_cost_usd",
+    "entries_executed_FULL_CIBO_CORE",
+    "entries_executed_FULL_CIBO_COMPOUND_PORTFOLIO",
+    "settlements_FULL_CIBO_CORE",
+    "settlements_FULL_CIBO_COMPOUND_PORTFOLIO",
+    "gross_structural_pnl_usd_FULL_CIBO_CORE",
+    "provider_execution_cost_usd_FULL_CIBO_CORE",
     "net_realized_pnl_usd_MINIMAL_SEED_ONLY",
     "net_realized_pnl_usd_FULL_CIBO_CORE",
     "net_realized_pnl_usd_FULL_CIBO_COMPOUND_PORTFOLIO",
     "compound_incremental_pnl_usd",
-    "trading_days",
-    "zero_entry_reason"
+    "trading_days_FULL_CIBO_CORE",
+    "trading_days_FULL_CIBO_COMPOUND_PORTFOLIO",
+    "zero_entry_reason_FULL_CIBO_CORE",
+    "zero_entry_reason_FULL_CIBO_COMPOUND_PORTFOLIO"
   ],
   "cibo_function_accountability": {
     "cognitive_faculties": [
@@ -153,6 +157,8 @@
     "NO_MERGE_AUTHORITY"
   ],
   "mandatory_artifacts": [
+    "lane-diagnostics.json",
+    "compound-portfolio-lane-report.json",
     "trader-column-report.csv",
     "trader-column-report.json",
     "cibo-function-accountability.csv",
