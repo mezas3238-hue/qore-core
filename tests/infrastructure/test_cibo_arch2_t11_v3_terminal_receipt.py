@@ -13,7 +13,6 @@ from qore.infrastructure.cibo_arch2_t11_v3_terminal_receipt import (
     V3_CANONICAL_RUN_ID,
     build_t11_v3_terminal_receipt,
 )
-
 from scripts.cibo_arch2_t11_market_impact_terminal import build_terminal_payload
 
 
