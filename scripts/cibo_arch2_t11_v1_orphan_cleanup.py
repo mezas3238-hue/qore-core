@@ -109,7 +109,7 @@ def run_cleanup() -> dict[str, Any]:
     try:
         binding = discover_free_account_binding(client)
         account_fingerprint = hashlib.sha256(
-            binding.account.account_ref.encode("utf-8")
+            binding.account.account_ref.encode()
         ).hexdigest()
         if account_fingerprint != EXPECTED_ACCOUNT_FINGERPRINT_SHA256:
             raise CiboCapitalManagementError(
