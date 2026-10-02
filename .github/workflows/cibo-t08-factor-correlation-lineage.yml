@@ -1,0 +1,43 @@
+name: QORE CIBO T08 Factor Correlation Lineage
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-t08-factor-correlation-lineage.yml'
+      - 'src/qore/infrastructure/cibo_t08_factor_correlation_lineage.py'
+      - 'tests/infrastructure/test_cibo_t08_factor_correlation_lineage.py'
+      - 'docs/research/CIBO-T08-FACTOR-CORRELATION-LINEAGE-V1.md'
+
+permissions:
+  contents: read
+
+env:
+  EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  t08-factor-correlation-lineage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: T08 factor correlation lineage
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_t08_factor_correlation_lineage.py \
+            tests/infrastructure/test_cibo_t08_factor_correlation_lineage.py
+          mypy \
+            src/qore/infrastructure/cibo_t08_factor_correlation_lineage.py
+          python -m py_compile \
+            src/qore/infrastructure/cibo_t08_factor_correlation_lineage.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_t08_factor_correlation_lineage.py
