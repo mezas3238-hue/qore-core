@@ -33,26 +33,23 @@
     "FULL_CIBO_COMPOUND_PORTFOLIO_MINUS_MINIMAL_SEED_ONLY"
   ],
   "trader_column_metrics": [
-    "raw_setups",
     "opportunities_emitted",
     "cibo_selected",
     "risk_allowed",
     "risk_reduced",
     "risk_rejected",
-    "entries_executed_FULL_CIBO_CORE",
-    "entries_executed_FULL_CIBO_COMPOUND_PORTFOLIO",
-    "settlements_FULL_CIBO_CORE",
-    "settlements_FULL_CIBO_COMPOUND_PORTFOLIO",
-    "gross_structural_pnl_usd_FULL_CIBO_CORE",
-    "provider_execution_cost_usd_FULL_CIBO_CORE",
+    "entries_executed_CORE",
+    "compound_entries_executed",
+    "entries_executed_WITH_COMPOUND",
+    "settlements_CORE",
+    "gross_structural_pnl_usd",
+    "provider_execution_cost_usd",
     "net_realized_pnl_usd_MINIMAL_SEED_ONLY",
     "net_realized_pnl_usd_FULL_CIBO_CORE",
-    "net_realized_pnl_usd_FULL_CIBO_COMPOUND_PORTFOLIO",
     "compound_incremental_pnl_usd",
-    "trading_days_FULL_CIBO_CORE",
-    "trading_days_FULL_CIBO_COMPOUND_PORTFOLIO",
-    "zero_entry_reason_FULL_CIBO_CORE",
-    "zero_entry_reason_FULL_CIBO_COMPOUND_PORTFOLIO"
+    "net_realized_pnl_usd_FULL_CIBO_COMPOUND_PORTFOLIO",
+    "trading_days",
+    "zero_entry_reason"
   ],
   "cibo_function_accountability": {
     "cognitive_faculties": [
