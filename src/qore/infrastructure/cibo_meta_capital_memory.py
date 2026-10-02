@@ -338,12 +338,15 @@ class Genc13SkepticReport:
             raise CiboCapitalManagementError(
                 "GEN-C13 skeptic report must be post-outcome"
             )
-        if any(
-            not isinstance(item, Genc13PhenotypeEvidence)
-            for item in self.phenotypes
+        if (
+            not isinstance(self.phenotypes, tuple)
+            or any(
+                not isinstance(item, Genc13PhenotypeEvidence)
+                for item in self.phenotypes
+            )
         ):
             raise CiboCapitalManagementError(
-                "GEN-C13 skeptic phenotype evidence is invalid"
+                "GEN-C13 skeptic phenotype evidence must be canonical tuple"
             )
         phenotype_ids = tuple(item.phenotype for item in self.phenotypes)
         if len(phenotype_ids) != len(set(phenotype_ids)):
@@ -364,12 +367,15 @@ class Genc13SkepticReport:
             raise CiboCapitalManagementError(
                 "GEN-C13 report cannot contain future phenotype evidence"
             )
-        if any(
-            not isinstance(item, Genc13CounterfactualStudy)
-            for item in self.counterfactuals
+        if (
+            not isinstance(self.counterfactuals, tuple)
+            or any(
+                not isinstance(item, Genc13CounterfactualStudy)
+                for item in self.counterfactuals
+            )
         ):
             raise CiboCapitalManagementError(
-                "GEN-C13 skeptic counterfactual is invalid"
+                "GEN-C13 skeptic counterfactuals must be canonical tuple"
             )
         study_ids = tuple(item.study_id for item in self.counterfactuals)
         if len(study_ids) != len(set(study_ids)):
@@ -394,6 +400,13 @@ class Genc13SkepticReport:
         if type(self.hypothesis_worth_preregistering) is not bool:
             raise CiboCapitalManagementError(
                 "GEN-C13 preregistration flag must be bool"
+            )
+        if (
+            self.hypothesis_worth_preregistering
+            and not self.counterfactuals
+        ):
+            raise CiboCapitalManagementError(
+                "GEN-C13 preregistration hypothesis requires retrospective counterfactual evidence"
             )
         for name in (
             "historical_policy_mutated",
