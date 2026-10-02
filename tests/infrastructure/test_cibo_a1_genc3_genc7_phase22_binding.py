@@ -7,10 +7,17 @@ from decimal import Decimal
 
 import pytest
 
+from qore.infrastructure.cibo_a1_a2_scientific_dependency import (
+    CONTRACT_ID as A1_A2_DEPENDENCY_CONTRACT_ID,
+    A1A2ScientificDependencyAdmission,
+)
 from qore.infrastructure.cibo_a1_genc3_genc7_phase22_binding import (
-    A1Genc6ExternalEngineReceipt,
     bind_genc3_to6_to_phase22,
     bind_genc7_to_phase22,
+)
+from qore.infrastructure.cibo_a1_phase22_canonical_manifest_bridge import (
+    BRIDGE_ID,
+    A1Phase22CanonicalScientificManifestBridge,
 )
 from qore.infrastructure.cibo_a1_phase22_scientific_consumption import (
     MANIFEST_ID,
@@ -67,6 +74,43 @@ def _manifest() -> A1Phase22ScientificConsumptionManifest:
         exact_policy_coverage=True,
         historical_replay_only=True,
         folds_defined_without_outcomes=True,
+    )
+
+
+
+def _canonical_bridge() -> A1Phase22CanonicalScientificManifestBridge:
+    manifest = _manifest()
+    return A1Phase22CanonicalScientificManifestBridge(
+        bridge_id=BRIDGE_ID,
+        canonical_phase22_manifest_sha256=_sha("canonical-phase22"),
+        a1_consumption_manifest_sha256=manifest.fingerprint(),
+        candidate_id=manifest.candidate_id,
+        decision_epochs=manifest.decision_count,
+        trader_ids=manifest.trader_ids,
+        fold_ids=FOLDS,
+        qualification_status="PASS",
+        ready_for_scientific_reentry=True,
+        exact_candidate_binding=True,
+        exact_decision_population_count=True,
+        exact_trader_lineage=True,
+        exact_fold_lineage=True,
+        a2_compatible_manifest_identity=True,
+    )
+
+
+def _genc6_dependency() -> A1A2ScientificDependencyAdmission:
+    bridge = _canonical_bridge()
+    return A1A2ScientificDependencyAdmission(
+        contract_id=A1_A2_DEPENDENCY_CONTRACT_ID,
+        a2_workstream_id="INTERNAL_CAPITAL_MARKET",
+        canonical_phase22_manifest_sha256=bridge.canonical_phase22_manifest_sha256,
+        a1_manifest_bridge_sha256=bridge.fingerprint(),
+        a2_source_head="b" * 40,
+        a2_source_gate_id="INTERNAL_CAPITAL_MARKET_PHASE22_GATE_V1",
+        a2_source_gate_evidence_sha256=_sha("a2-internal-capital-market"),
+        a2_disposition_receipt_sha256=_sha("a2-disposition"),
+        recommended_disposition="COMPLETED_AND_PROVEN",
+        admitted_for_a1_consumption=True,
     )
 
 
@@ -199,34 +243,47 @@ def test_genc3_binding_rejects_one_fold_population_drift() -> None:
         )
 
 
-def test_genc6_requires_read_only_a2_engine_receipt() -> None:
+def test_genc6_requires_canonical_proven_a2_dependency() -> None:
     observations = _genc3_to6_observations(Genc3To6Workstream.GENC6)
 
     with pytest.raises(
         CiboCompoundCapitalError,
-        match="requires A2 engine receipt",
+        match="requires canonical Phase22 bridge",
     ):
         bind_genc3_to6_to_phase22(
             manifest=_manifest(),
             observations=observations,
         )
 
-    receipt = A1Genc6ExternalEngineReceipt(
-        source_workstream="INTERNAL_CAPITAL_MARKET",
-        source_head="b" * 40,
-        artifact_sha256=_sha("a2-engine"),
-        source_population_sha256=_manifest().source_population_sha256,
-        policy_identity="CIBO_GENC6_A2_ENGINE_V1",
-        true_scarcity_bound=True,
-        capital_conservation_proven=True,
-    )
+    bridge = _canonical_bridge()
+    dependency = _genc6_dependency()
     report = bind_genc3_to6_to_phase22(
         manifest=_manifest(),
         observations=observations,
-        genc6_external_receipt=receipt,
+        canonical_bridge=bridge,
+        genc6_a2_dependency=dependency,
     )
-    assert report.genc6_external_receipt_sha256 == receipt.fingerprint()
+    assert report.genc6_external_receipt_sha256 == dependency.fingerprint()
     assert report.a2_workstream_modified is False
+
+
+def test_genc6_rejects_wrong_a2_workstream_dependency() -> None:
+    observations = _genc3_to6_observations(Genc3To6Workstream.GENC6)
+    dependency = replace(
+        _genc6_dependency(),
+        a2_workstream_id="PROTECTED_BASE_CAPITAL",
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="must be INTERNAL_CAPITAL_MARKET",
+    ):
+        bind_genc3_to6_to_phase22(
+            manifest=_manifest(),
+            observations=observations,
+            canonical_bridge=_canonical_bridge(),
+            genc6_a2_dependency=dependency,
+        )
 
 
 def test_genc7_gate_is_bound_to_full_phase22_population_and_four_folds() -> None:
