@@ -1,3 +1,7 @@
+from qore.infrastructure import (
+    cibo_ce2i_t04_t10_economic_gate as t0410_gate,
+    cibo_t09_t18_scarcity_safety_gate as t0918_gate,
+)
 from qore.infrastructure.cibo_arch2_ce2i_external_gate_terminalization import (
     COMPLETED,
     FALSIFIED,
