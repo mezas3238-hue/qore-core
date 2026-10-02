@@ -174,6 +174,15 @@ class CompoundMonteCarloEpisode:
             raise CiboCompoundCapitalError(
                 "compound Monte Carlo zero floor graduation cannot carry evidence"
             )
+        for name in (
+            "market_record_present",
+            "terminal_release_present",
+            "future_leakage_used",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise CiboCompoundCapitalError(
+                    f"compound Monte Carlo episode {name} must be bool"
+                )
         if (
             not self.market_record_present
             or not self.terminal_release_present
@@ -190,9 +199,27 @@ class CompoundMonteCarloBlock:
     episodes: tuple[CompoundMonteCarloEpisode, ...]
 
     def __post_init__(self) -> None:
-        if not self.block_id or not self.episodes:
+        if (
+            not isinstance(self.block_id, str)
+            or not self.block_id
+            or not isinstance(self.episodes, tuple)
+            or not self.episodes
+            or any(
+                not isinstance(item, CompoundMonteCarloEpisode)
+                for item in self.episodes
+            )
+        ):
             raise CiboCompoundCapitalError(
                 "compound Monte Carlo block identity/episodes are required"
+            )
+        episode_ids = tuple(item.episode_id for item in self.episodes)
+        deployment_ids = tuple(item.deployment_id for item in self.episodes)
+        if (
+            len(episode_ids) != len(set(episode_ids))
+            or len(deployment_ids) != len(set(deployment_ids))
+        ):
+            raise CiboCompoundCapitalError(
+                "compound Monte Carlo block cannot duplicate episode/deployment"
             )
         ordered = tuple(
             sorted(
@@ -290,6 +317,40 @@ class CompoundMonteCarloPathResult:
             "peak_margin_usd",
         ):
             _money(getattr(self, name), name)
+        generations = tuple(
+            generation for generation, _amount in self.ending_generation_capacity_usd
+        )
+        if len(generations) != len(set(generations)):
+            raise CiboCompoundCapitalError(
+                "compound Monte Carlo ending generations must be unique"
+            )
+        for generation, amount in self.ending_generation_capacity_usd:
+            if (
+                not isinstance(generation, int)
+                or isinstance(generation, bool)
+                or generation < 1
+            ):
+                raise CiboCompoundCapitalError(
+                    "compound Monte Carlo ending generation id must be positive int"
+                )
+            _money(amount, "ending generation capacity")
+        expected_ending = (
+            self.ending_original_base_usd
+            + self.protected_floor_usd
+            + sum(
+                (amount for _, amount in self.ending_generation_capacity_usd),
+                Decimal(0),
+            )
+        )
+        if self.ending_realized_capital_usd != expected_ending:
+            raise CiboCompoundCapitalError(
+                "compound Monte Carlo ending realized-capital identity drift"
+            )
+        if self.minimum_realized_capital_usd > self.ending_realized_capital_usd:
+            raise CiboCompoundCapitalError(
+                "compound Monte Carlo minimum realized capital exceeds ending capital"
+            )
+
         for name in (
             "dependency_breach_count",
             "capacity_breach_count",
