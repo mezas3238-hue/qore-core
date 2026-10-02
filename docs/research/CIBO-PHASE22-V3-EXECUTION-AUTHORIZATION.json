@@ -1,0 +1,20 @@
+{
+  "schema": "qore.cibo.phase22.v3-execution-authorization.v1",
+  "authorization_id": "CIBO_PHASE22_V3_ONE_SHOT_OWNER_AUTHORIZATION_V1",
+  "owner_authorization_id": "OWNER_CHAT_2026-10-02_CONTINUE_UNTIL_CIBO_CERTIFIED_V1",
+  "candidate_id": "CIBO_USD60_6M_HOLDOUT_2015-04-19_2015-10-19_V3",
+  "authorized_parent_head_sha": "7cfc26cf43c5b6651df3eaa575d6f54ea491a2fd",
+  "target_branch": "agent/cibo-integrator-ab-001",
+  "source_receipt_sha256": "sha256:7698562ce68edb166d2b9a407b7d23e02571fb4366c7a96cc15f318c3ac55f02",
+  "policy_bundle_sha256": "sha256:4c2fbee5d9e6488c2c378eceda6da0a49a415f6af3b3aa29f673bfaa93ee54a4",
+  "advanced_scientific_eligibility_sha256": "sha256:8101c287ba024032c81f97d1768c0380cb061e57de0cb87838e6b032074d610f",
+  "fresh_holdout_execution_authorized": true,
+  "one_shot_only": true,
+  "second_execution_authorized": false,
+  "broker_mutation_authorized": false,
+  "live_authorized": false,
+  "real_capital_authorized": false,
+  "production_authorized": false,
+  "merge_authorized": false,
+  "productive_authority": false
+}
