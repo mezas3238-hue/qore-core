@@ -1,0 +1,104 @@
+{
+  "advanced_scientific_eligibility_frozen": true,
+  "broker_mutation_authorized": false,
+  "candidate_id": "CIBO_USD60_6M_HOLDOUT_2014-10-19_2015-04-19_V4",
+  "exact_seven_trader_bindings": true,
+  "execution_manifest": {
+    "advanced_scientific_eligibility_sha256": "sha256:8101c287ba024032c81f97d1768c0380cb061e57de0cb87838e6b032074d610f",
+    "broker_mutation_authorized": false,
+    "candidate_id": "CIBO_USD60_6M_HOLDOUT_2014-10-19_2015-04-19_V4",
+    "fresh_outcomes_executed": false,
+    "live_authorized": false,
+    "manifest_sha256": "sha256:39e22b8727dad571375741ea8710181f6b5bf25c7a54b6fc68046ee906936f77",
+    "merge_authorized": false,
+    "parity_manifest_sha256": "sha256:f402540c300efda695120eb747d8ee60740296cf500fca499ac0ed8b8c0b04b9",
+    "policy_bundle_sha256": "sha256:4c2fbee5d9e6488c2c378eceda6da0a49a415f6af3b3aa29f673bfaa93ee54a4",
+    "production_authorized": false,
+    "productive_authority": false,
+    "provider_execution_calibration_receipt_sha256": "sha256:45f692eb88f15ab89dbb380f26309af81ae4022405908dd671fa8dbbee8d9959",
+    "provider_numeric_execution_freeze_receipt_sha256": "sha256:1e483878ef669284487873034eb0a523bce94d9f9085d7e83decec5ab96c804e",
+    "real_capital_authorized": false,
+    "schema": "qore.cibo.phase22.v4-execution-manifest.v1",
+    "source_receipt_sha256": "sha256:0d9c2b8c406b41b6072152a8d8bde05e8a1f01a083199a22cccbd2f5eea50f5a",
+    "trader_bindings": [
+      {
+        "methodology_git_sha": "64bc2ab4809c39e4a2b2c72aa8c0e8ec1c709222",
+        "parameter_sha256": "sha256:0c3fe8e1353386f7384a8532c7fe71bbbe9fcfdf1da7530be4b53e01bc59de0d",
+        "parity_artifact_digest": "sha256:3f76be54849ee9b08c49f1ac1c63196a722358d554165792fb1c6683f494dcea",
+        "parity_artifact_ref": "github-actions-artifact://11182702511",
+        "replay_engine_sha256": "sha256:fedc34479059d058400961f02a6b1477ee8d538311f3a1fe9a628ebba41978a7",
+        "trader_id": "VT08_FOREX"
+      },
+      {
+        "methodology_git_sha": "56ef138ee5ea1cde6d0bcf4c9e25e8b661c04e84",
+        "parameter_sha256": "sha256:1439d47e69c7c23a7354b8c70cc1519807ae711ab9da002d3eb220dbed4279a6",
+        "parity_artifact_digest": "sha256:555e9461964afcf5e55408469d938f28d5be5ab3b6dcd103c5e6073addec84c2",
+        "parity_artifact_ref": "github-actions-artifact://11181833135",
+        "replay_engine_sha256": "sha256:e1cf7c5cf10cc4820bd363dd460700699ae024574680b2febb1656021f5b15db",
+        "trader_id": "R34_XAUUSD"
+      },
+      {
+        "methodology_git_sha": "324fb91d44a6fa328e66de2e22ace7386630c7aa",
+        "parameter_sha256": "sha256:68b007942b1e8583bfaed2568661cbd01142902d169fb5344a423bb960aa2aa8",
+        "parity_artifact_digest": "sha256:5b9857edaf33060349b8d087adc3ca92b442509169f1342c3b7abb12e2d71ba8",
+        "parity_artifact_ref": "github-actions-artifact://11182303601",
+        "replay_engine_sha256": "sha256:baafaaf385a91b17d9427ba56dc563ab30e453f065fe84d88436a7ba6c402b27",
+        "trader_id": "R38_EURUSD"
+      },
+      {
+        "methodology_git_sha": "e02d9384fbe6521040fc2779a085c43b8d5f0f92",
+        "parameter_sha256": "sha256:c86c10d7bdfc6e226c1005791a05d9257472915bbf117a7ee7344572af85614b",
+        "parity_artifact_digest": "sha256:6df15ca07027b91915372046979f5d70dd62d63580ee64141494ee16a9edefba",
+        "parity_artifact_ref": "github-actions-artifact://11182151896",
+        "replay_engine_sha256": "sha256:1dc90f9fe97e153817502c988d03768c4d15e8e4eb01a8424efa764d3a984404",
+        "trader_id": "R43_GBPUSD"
+      },
+      {
+        "methodology_git_sha": "eb62226e05f63cf94c1940634de676c55285e6dd",
+        "parameter_sha256": "sha256:5c3a9d899827773fa84db8166f63ac669284b161c3fd572b953a73d2dfd7f3f4",
+        "parity_artifact_digest": "sha256:e0911a2e75ca6837a013f927e8cbaeeb275f1890ea0589828fc28b408b78fc27",
+        "parity_artifact_ref": "github-actions-artifact://11181798303",
+        "replay_engine_sha256": "sha256:a503ee2edae98910c2c46d4734c5dc07a17acce33115fab7166d63ba343fe6f0",
+        "trader_id": "R38_GBPJPY"
+      },
+      {
+        "methodology_git_sha": "a332b077598e070a42b2497b3766d55e731f7dca",
+        "parameter_sha256": "sha256:94b7f28c0bf3ed8793019a1fc27e5db9a52d86194897583376719b040fcc6037",
+        "parity_artifact_digest": "sha256:77ab74f059c27b2f792c23758707133a544d3ac5f0604e353a26f711746672a6",
+        "parity_artifact_ref": "github-actions-artifact://11182541377",
+        "replay_engine_sha256": "sha256:2ea67b9007d94c1eef52c7575b0bf72c9e30ee2ca1a1f9881b2e3deed5ef2204",
+        "trader_id": "R42_AUDJPY"
+      },
+      {
+        "methodology_git_sha": "cac38ed14f20e066536910145027426fd23f5939",
+        "parameter_sha256": "sha256:089c41f98a72295278063cfc29caf8419538f68315d9f5e57be144fbdae15e08",
+        "parity_artifact_digest": "sha256:dc27de2c99c42c1fa5be2e35efb141cc155dba795d21cdd80479c2100480df08",
+        "parity_artifact_ref": "github-actions-artifact://11182901805",
+        "replay_engine_sha256": "sha256:9b5ae633d9392dc3f74dfaa5688124f97017872f24a105f6f6cf5ad4a959ab9c",
+        "trader_id": "VT31_NAS100"
+      }
+    ],
+    "vt31_source_abi_sha256": "sha256:fb9f49d525e9b4b71841a7f8d164004c8dd96d2034f153f5f3dd9f60ea1bbf18"
+  },
+  "execution_manifest_sha256": "sha256:39e22b8727dad571375741ea8710181f6b5bf25c7a54b6fc68046ee906936f77",
+  "freeze_sha256": "sha256:d2bfabc66da8bea88aa8225774df148aeb49606d73ac47e4a450e9cf6ca1537c",
+  "fresh_outcomes_executed": false,
+  "live_authorized": false,
+  "merge_authorized": false,
+  "owner_authorization_present": false,
+  "parity_manifest_bound": true,
+  "policy_frozen": true,
+  "production_authorized": false,
+  "productive_authority": false,
+  "provider_calibration_bound": true,
+  "provider_numeric_freeze_bound": true,
+  "real_capital_authorized": false,
+  "schema": "qore.cibo.phase22.v4-execution-manifest-freeze.v1",
+  "source_head_sha": "2f4908321255cf894003ef063c16e3eb834a88e8",
+  "source_receipt_bound": true,
+  "target_branch": "agent/cibo-integrator-ab-001",
+  "v2_store_reuse_authorized": false,
+  "v3_store_reuse_authorized": false,
+  "v4_store_namespace_required": true,
+  "vt31_six_field_abi_bound": true
+}
