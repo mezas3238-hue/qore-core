@@ -101,14 +101,11 @@ def build_report() -> dict[str, Any]:
             "cibo-arch2-t11-cancelled-replacement-audit",
         )
 
-        run_rows = {
-            suffix: {
-                "position_count": 0,
-                "order_count": 0,
-                "positions": [],
-                "orders": [],
-            }
-            for suffix in AUDITED_SUFFIXES
+        position_rows: dict[str, list[dict[str, str]]] = {
+            suffix: [] for suffix in AUDITED_SUFFIXES
+        }
+        order_rows: dict[str, list[dict[str, str]]] = {
+            suffix: [] for suffix in AUDITED_SUFFIXES
         }
 
         for item in tuple(getattr(response, "position", ())):
@@ -117,9 +114,7 @@ def build_report() -> dict[str, Any]:
             suffix = label_run_suffix(label)
             if suffix is None:
                 continue
-            row = run_rows[suffix]
-            row["position_count"] += 1
-            row["positions"].append(
+            position_rows[suffix].append(
                 {
                     "label": str(label),
                     "position_ref_sha256": _hash(
@@ -135,9 +130,7 @@ def build_report() -> dict[str, Any]:
             suffix = label_run_suffix(label)
             if suffix is None:
                 continue
-            row = run_rows[suffix]
-            row["order_count"] += 1
-            row["orders"].append(
+            order_rows[suffix].append(
                 {
                     "label": str(label),
                     "order_ref_sha256": _hash(
@@ -147,8 +140,17 @@ def build_report() -> dict[str, Any]:
                 }
             )
 
-        total_positions = sum(int(row["position_count"]) for row in run_rows.values())
-        total_orders = sum(int(row["order_count"]) for row in run_rows.values())
+        run_rows = {
+            suffix: {
+                "position_count": len(position_rows[suffix]),
+                "order_count": len(order_rows[suffix]),
+                "positions": position_rows[suffix],
+                "orders": order_rows[suffix],
+            }
+            for suffix in AUDITED_SUFFIXES
+        }
+        total_positions = sum(len(rows) for rows in position_rows.values())
+        total_orders = sum(len(rows) for rows in order_rows.values())
         return {
             "schema": "qore.cibo.arch2.t11-cancelled-replacement-audit.v1",
             "audited_runs": [
