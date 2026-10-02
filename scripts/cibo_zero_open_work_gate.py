@@ -131,6 +131,9 @@ _WORKSTREAM_CLASSIFIERS = (
         "*cibo_arch2_provider_economics_terminal_recommendation*",
         "PROVIDER_ECONOMICS",
     ),
+    ("*cibo_phase22_provider_numeric_execution*", "PROVIDER_ECONOMICS"),
+    ("*cibo-phase22-provider-numeric-execution-freeze*", "PROVIDER_ECONOMICS"),
+    ("*cibo_phase22_provider_account_lineage_probe*", "PROVIDER_ECONOMICS"),
     (
         "*cibo_arch2_forward_qualification_reconciliation*",
         "FORWARD_QUALIFICATION",
