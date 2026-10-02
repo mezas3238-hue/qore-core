@@ -29,8 +29,8 @@ from qore.infrastructure.cibo_account_capital_mission import (
     CiboAccountCapitalIdentity,
 )
 from qore.infrastructure.cibo_capital_management_authority import (
-    CiboCapitalState,
     CiboCapitalManagementError,
+    CiboCapitalState,
     plan_minimal_seed,
 )
 from qore.infrastructure.cibo_ce2i_phase20_forward_policy_store import (
@@ -523,8 +523,12 @@ def execute_phase22_chronological_replay(
                 snapshot,
                 now=epoch.market_decision_at,
             )
+            if realized <= 0:
+                raise CiboCapitalManagementError(
+                    "Phase22 policy selected capital after realized capital exhaustion"
+                )
             capital_state = CiboCapitalState(
-                assigned_capital_usd=max(realized, Decimal("0.00000001")),
+                assigned_capital_usd=realized,
                 hard_risk_headroom_usd=constraints.hard_risk_headroom_usd,
                 margin_headroom_usd=constraints.margin_headroom_usd,
                 base_capital_at_risk_usd=min(
