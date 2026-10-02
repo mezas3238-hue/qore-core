@@ -18,6 +18,7 @@ from qore.infrastructure.cibo_phase22_holdout_v2_source_receipt import (
 )
 from qore.infrastructure.cibo_phase22_trader_parity_manifest import (
     ACTIVE_PHASE22_TRADER_PARITY_MANIFEST,
+    Phase22TraderParityReceipt,
 )
 from qore.infrastructure.cibo_phase22_vt31_v4_fresh_source import (
     load_phase22_vt31_m1,
@@ -70,7 +71,7 @@ FROZEN_TURTLE_REPLAY_SOURCES = (
 FROZEN_VT31_SOURCE_SHA = "cac38ed14f20e066536910145027426fd23f5939"
 
 
-def _parity_by_id() -> dict[str, object]:
+def _parity_by_id() -> dict[str, Phase22TraderParityReceipt]:
     parity = ACTIVE_PHASE22_TRADER_PARITY_MANIFEST
     if parity is None:
         raise CiboCapitalManagementError(
@@ -83,7 +84,7 @@ def validate_frozen_replay_source_manifest() -> None:
     parity = _parity_by_id()
     for item in FROZEN_TURTLE_REPLAY_SOURCES:
         receipt = parity[item.trader_id]
-        if getattr(receipt, "methodology_git_sha") != item.methodology_git_sha:
+        if receipt.methodology_git_sha != item.methodology_git_sha:
             raise CiboCapitalManagementError(
                 f"Phase22 frozen source SHA drift: {item.trader_id}"
             )
@@ -92,11 +93,11 @@ def validate_frozen_replay_source_manifest() -> None:
                 f"Phase22 frozen module path invalid: {item.trader_id}"
             )
     if (
-        getattr(parity["VT31_NAS100"], "methodology_git_sha")
+        parity["VT31_NAS100"].methodology_git_sha
         != FROZEN_VT31_SOURCE_SHA
     ):
         raise CiboCapitalManagementError("Phase22 VT31 frozen source SHA drift")
-    vt08_expected = getattr(parity["VT08_FOREX"], "parameter_sha256")
+    vt08_expected = parity["VT08_FOREX"].parameter_sha256
     if vt08_expected != "sha256:" + methodology_fingerprint():
         raise CiboCapitalManagementError(
             "Phase22 VT08 frozen methodology fingerprint drift"
