@@ -18,6 +18,7 @@ class Architect2ActiveState(StrEnum):
         "WAITING_ON_AUTHORITATIVE_FORWARD_LIFECYCLE"
     )
     WAITING_ON_INTEGRATOR_RECEIPT = "WAITING_ON_INTEGRATOR_RECEIPT"
+    BLOCKED_ON_PROVIDER_CONTAINMENT = "BLOCKED_ON_PROVIDER_CONTAINMENT"
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,12 +65,11 @@ def architect2_active_frontier_v2() -> tuple[Architect2ActiveFront, ...]:
         ),
         Architect2ActiveFront(
             workstream_id="T11",
-            state=Architect2ActiveState.PARTIAL_EVIDENCE_READY,
+            state=Architect2ActiveState.BLOCKED_ON_PROVIDER_CONTAINMENT,
             remaining_requirement=(
-                "AUTHORIZED_FORWARD_MANIFEST_FOR_GROSS_EDGE_PLUS_"
-                "CANONICAL_TECHNICAL_REPLACEMENT_MARKET_IMPACT_RUN_"
-                "36946792349_IN_PROGRESS__INITIAL_RUN_36945327912_"
-                "CANCELLED_ZERO_TERMINAL_ARTIFACTS"
+                "CLOSE_EXACT_TWO_CANCELLED_V1_DEMO_POSITIONS_THEN_"
+                "READ_ONLY_ZERO_CONTAINMENT_RECEIPT_BEFORE_NEW_VERSIONED_"
+                "MARKET_IMPACT_CYCLE__RUN_36946792349_EVIDENCE_INADMISSIBLE"
             ),
         ),
         Architect2ActiveFront(
