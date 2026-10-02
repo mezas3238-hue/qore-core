@@ -499,6 +499,7 @@ def scientific_closure_41_dependency_manifest() -> dict[str, object]:
         "legacy_special_canonical_adapter_count": 6,
         "workstreams": rows,
         "group2_evidence_state": "WAITING_FOR_GROUP1_IMMUTABLE_EVIDENCE",
+        "required_certifying_evidence_class": CERTIFYING_FRESH_EVIDENCE_CLASS,
         "unknown_future_digests_fabricated": False,
         "productive_authority": False,
     }
