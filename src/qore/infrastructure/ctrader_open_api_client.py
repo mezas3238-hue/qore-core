@@ -276,6 +276,7 @@ class SpotwareCTraderOpenApiClient:
         *,
         credentials: CTraderOpenApiCredentials,
         request_timeout_seconds: float = 10.0,
+        messages_per_second: int = 5,
         server_identity_verifier: CTraderTlsServerIdentityVerifier | None = None,
         _bindings: _SdkBindings | None = None,
     ) -> None:
@@ -283,6 +284,10 @@ class SpotwareCTraderOpenApiClient:
             raise CTraderOpenApiProtocolError("credentials must be CTraderOpenApiCredentials")
         if not isinstance(request_timeout_seconds, float) or request_timeout_seconds <= 0.0:
             raise CTraderOpenApiProtocolError("request_timeout_seconds must be a positive float")
+        if type(messages_per_second) is not int or not 1 <= messages_per_second <= 50:
+            raise CTraderOpenApiProtocolError(
+                "messages_per_second must be an int in [1,50]"
+            )
         bindings = _bindings or _SdkBindings()
         self._bindings = bindings
         self._credentials = credentials
@@ -309,7 +314,7 @@ class SpotwareCTraderOpenApiClient:
             self.DEMO_HOST,
             self.PROTOBUF_PORT,
             bindings.tcp_protocol,
-            numberOfMessagesToSendPerSecond=5,
+            numberOfMessagesToSendPerSecond=messages_per_second,
         )
         _method(self._client, "setConnectedCallback")(self._on_connected)
         _method(self._client, "setDisconnectedCallback")(self._on_disconnected)
