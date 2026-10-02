@@ -7,9 +7,20 @@ from qore.infrastructure.cibo_arch2_t11_gross_edge_oos import (
     T11GrossEdgeFreshObservation,
     evaluate_t11_gross_edge_fresh_oos,
 )
+from qore.infrastructure.cibo_arch2_t11_experiment_plan import (
+    T11_MARKET_IMPACT_EXPERIMENT_PLAN,
+)
 from qore.infrastructure.cibo_arch2_t11_market_impact_evaluator import (
     T11MarketImpactEpisode,
     evaluate_t11_market_impact,
+)
+from qore.infrastructure.cibo_arch2_t11_market_impact_terminal_receipt import (
+    COMPLETED as IMPACT_COMPLETED,
+    FALSIFIED as IMPACT_FALSIFIED,
+    V3_CANONICAL_HEAD_SHA,
+    V3_CANONICAL_RUN_ATTEMPT,
+    V3_CANONICAL_RUN_ID,
+    T11MarketImpactTerminalReceipt,
 )
 from qore.infrastructure.cibo_arch2_t11_nonlinear_input_freeze import (
     FROZEN_AT,
@@ -17,11 +28,15 @@ from qore.infrastructure.cibo_arch2_t11_nonlinear_input_freeze import (
     MARKET_IMPACT_VALIDATION_EPISODES_PER_LEVEL_PER_SYMBOL,
     REQUIRED_SYMBOLS,
 )
+from qore.infrastructure.cibo_arch2_t11_post_containment_cycle_v3 import (
+    CYCLE_ID,
+)
 from qore.infrastructure.cibo_arch2_t11_terminalization import (
     COMPLETED,
     FALSIFIED,
     WAITING,
     terminalize_t11,
+    terminalize_t11_from_receipt,
 )
 from qore.infrastructure.cibo_ce2i_phase20_train_prior import (
     frozen_train_prior_for,
@@ -110,6 +125,35 @@ def _impact_valid():
     return evaluate_t11_market_impact(tuple(episodes))
 
 
+
+
+def _impact_receipt(*, ready: bool) -> T11MarketImpactTerminalReceipt:
+    return T11MarketImpactTerminalReceipt(
+        report_sha256="sha256:" + "a" * 64,
+        protocol_sha256=T11_NONLINEAR_INPUT_FREEZE.fingerprint(),
+        experiment_plan_sha256=T11_MARKET_IMPACT_EXPERIMENT_PLAN.fingerprint(),
+        execution_cycle_id=CYCLE_ID,
+        canonical_run_id=V3_CANONICAL_RUN_ID,
+        canonical_run_attempt=V3_CANONICAL_RUN_ATTEMPT,
+        canonical_head_sha=V3_CANONICAL_HEAD_SHA,
+        symbol_count=len(REQUIRED_SYMBOLS),
+        episode_count=144,
+        child_entry_count=216,
+        four_of_four_by_symbol=tuple(
+            (symbol, ready) for symbol in REQUIRED_SYMBOLS
+        ),
+        market_impact_model_ready=ready,
+        terminal_recommendation=(
+            IMPACT_COMPLETED if ready else IMPACT_FALSIFIED
+        ),
+        broker_mutation_performed=True,
+        all_created_positions_closed=True,
+        phase22_v2_consumed=False,
+        canonical_ledger_modified=False,
+        productive_authority=False,
+    )
+
+
 def test_t11_waits_when_required_evidence_is_missing() -> None:
     result = terminalize_t11(market_impact=None, gross_edge=None)
 
@@ -153,4 +197,29 @@ def test_t11_falsifies_when_frozen_market_impact_component_fails() -> None:
     assert result.unresolved_requirements == ()
     assert result.falsification_reasons == (
         "FROZEN_PROVIDER_BOUND_MARKET_IMPACT_MODEL_FAILED_4_OF_4_VALIDATION",
+    )
+
+
+def test_t11_receipt_path_falsifies_without_waiting_for_gross_edge() -> None:
+    result = terminalize_t11_from_receipt(
+        market_impact_receipt=_impact_receipt(ready=False),
+        gross_edge=None,
+    )
+
+    assert result.recommendation == FALSIFIED
+    assert result.unresolved_requirements == ()
+    assert result.falsification_reasons == (
+        "FROZEN_PROVIDER_BOUND_MARKET_IMPACT_MODEL_FAILED_4_OF_4_VALIDATION",
+    )
+
+
+def test_t11_receipt_path_waits_only_for_gross_edge_after_market_impact_pass() -> None:
+    result = terminalize_t11_from_receipt(
+        market_impact_receipt=_impact_receipt(ready=True),
+        gross_edge=None,
+    )
+
+    assert result.recommendation == WAITING
+    assert result.unresolved_requirements == (
+        "REAL_CALIBRATED_FRESH_OOS_GROSS_EDGE_MODEL_REQUIRED",
     )
