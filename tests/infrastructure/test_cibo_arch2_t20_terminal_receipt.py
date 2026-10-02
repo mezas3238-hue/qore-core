@@ -23,6 +23,7 @@ def _qualification(*, ready: bool) -> T20ForwardReleaseQualification:
         four_fold_coverage_complete=ready,
         seven_lineage_coverage_complete=ready,
         population_minimum_met=True,
+        source_manifest_scientific_ready=ready,
         empirical_t20_ready=ready,
         recommendation=(
             TERMINAL_RECOMMENDATION if ready else WAITING_RECOMMENDATION
