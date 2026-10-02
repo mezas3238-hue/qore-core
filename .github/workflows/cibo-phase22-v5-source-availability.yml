@@ -76,16 +76,25 @@ jobs:
             printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
           fi
       - name: Probe V5 boundaries read-only
+        shell: bash
         run: |
+          set -uo pipefail
           mkdir -p artifacts
-          python -m qore.infrastructure.cibo_phase22_v5_source_availability             artifacts/v4-source-availability.json             > artifacts/v4-source-availability.stdout.json
+          set +e
+          python -m qore.infrastructure.cibo_phase22_v5_source_availability \
+            artifacts/v5-source-availability.json \
+            > artifacts/v5-source-availability.stdout.json
+          code=$?
+          set -e
+          printf 'V5_PROBE_EXIT_CODE=%s\n' "$code" >> "$GITHUB_ENV"
+          exit 0
       - name: Enforce non-mutating V5 truth
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
           p = json.loads(
-              Path("artifacts/v4-source-availability.json").read_text()
+              Path("artifacts/v5-source-availability.json").read_text()
           )
           assert p["candidate_id"] == (
               "CIBO_USD60_6M_HOLDOUT_2014-04-19_2014-10-19_V5"
@@ -94,7 +103,8 @@ jobs:
           assert p["window"]["end_exclusive"] == "2014-10-19T00:00:00+00:00"
           assert p["probe_count"] == 10
           assert p["required_surface_count"] == 10
-          assert p["source_available"] is True
+          assert p["status"] in {"SOURCE_AVAILABLE", "SOURCE_UNAVAILABLE"}
+          assert p["source_available"] in {True, False}
           assert p["trader_logic_executed"] is False
           assert p["outcomes_inspected"] is False
           assert p["broker_mutation"] is False
@@ -109,3 +119,17 @@ jobs:
           path: artifacts
           if-no-files-found: error
           retention-days: 90
+      - name: Fail closed if V5 source is unavailable
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${V5_PROBE_EXIT_CODE:-99}" = "0"
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          payload = json.loads(
+              Path("artifacts/v5-source-availability.json").read_text()
+          )
+          assert payload["source_available"] is True
+          assert payload["status"] == "SOURCE_AVAILABLE"
+          PY
