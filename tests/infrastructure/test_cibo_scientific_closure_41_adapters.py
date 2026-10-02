@@ -55,7 +55,6 @@ from qore.infrastructure.cibo_scientific_closure_41_adapters import (
     scientific_closure_41_dependency_manifest,
 )
 
-
 SUCCESSOR_HOLDOUT_ID = "CIBO_USD60_6M_HOLDOUT_2013-10-19_2014-04-19_V6"
 
 
