@@ -1,4 +1,5 @@
 name: QORE CIBO Phase22 V3 Execution Build
+# exact-head pre-outcome revalidation after V3 CLI smoke repairs
 
 on:
   push:
