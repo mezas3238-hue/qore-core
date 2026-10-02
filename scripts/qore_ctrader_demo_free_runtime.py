@@ -81,6 +81,7 @@ from qore.infrastructure.cibo_ce2i_phase20_demo_capital_bootstrap import (
     bootstrap_phase20_demo_assigned_capital,
 )
 from qore.infrastructure.cibo_ce2i_phase20_demo_risk_bridge import (
+    assert_phase20_demo_authorization_active,
     authorize_phase20_demo_request,
 )
 from qore.infrastructure.cibo_ce2i_phase20_demo_shadow_risk import (
@@ -643,6 +644,11 @@ def _submit_demo_request_through_qore_risk(
             "qore-risk-reject:"
             f"{decision.authorization.reason}"
         )
+    assert_phase20_demo_authorization_active(
+        risk=risk,
+        authorization=decision.authorization,
+        observed_at=observed_at,
+    )
     return submit_demo_request(
         request,
         risk_authorization=decision.authorization,
