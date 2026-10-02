@@ -262,6 +262,124 @@ class Group1V4TerminalEvidenceHandoff:
             )
 
 
+
+
+@dataclass(frozen=True, slots=True)
+class Group2CapitalTerminalEvidenceHandoff:
+    """Version-neutral terminal source envelope for one Capital/Compound gate."""
+
+    workstream_id: str
+    candidate_id: str
+    phase22_manifest_sha256: str
+    source_gate_id: str
+    source_gate_evidence_sha256: str
+    source_gate_status: str
+    terminal_recommendation: str
+    failed_dimensions: tuple[str, ...]
+    population_identity: str
+    policy_identity: str
+    qualification_plan_identity: str
+    provider_identity: str
+    causal_lineage: str
+    source_head_sha: str
+    observed_at: datetime
+    synthetic_evidence_used: bool = False
+    future_leakage_detected: bool = False
+    outcome_aware_evidence: bool = False
+    post_outcome_retuning_detected: bool = False
+    productive_authority: bool = False
+    live_authorized: bool = False
+    real_capital_authorized: bool = False
+    production_authorized: bool = False
+    merge_authorized: bool = False
+
+    def __post_init__(self) -> None:
+        if self.workstream_id not in _GROUP2_SET:
+            raise CiboCapitalManagementError(
+                "Group-2 capital handoff ownership drift"
+            )
+        if self.candidate_id != CANONICAL_HOLDOUT_ID:
+            raise CiboCapitalManagementError(
+                "Group-2 capital handoff candidate identity drift"
+            )
+        for name in (
+            "phase22_manifest_sha256",
+            "source_gate_evidence_sha256",
+            "causal_lineage",
+        ):
+            if _SHA256_RE.fullmatch(getattr(self, name)) is None:
+                raise CiboCapitalManagementError(
+                    f"Group-2 capital handoff {name} invalid"
+                )
+        if not self.source_gate_id:
+            raise CiboCapitalManagementError(
+                "Group-2 capital handoff source gate required"
+            )
+        if self.source_gate_status not in {"PASS", "FAIL"}:
+            raise CiboCapitalManagementError(
+                "Group-2 capital handoff source gate is not terminal"
+            )
+        expected = COMPLETED if self.source_gate_status == "PASS" else FALSIFIED
+        if self.terminal_recommendation != expected:
+            raise CiboCapitalManagementError(
+                "Group-2 capital handoff status/disposition drift"
+            )
+        if self.source_gate_status == "PASS" and self.failed_dimensions:
+            raise CiboCapitalManagementError(
+                "Group-2 capital PASS cannot retain failed dimensions"
+            )
+        if (
+            self.source_gate_status == "FAIL"
+            and not self.failed_dimensions
+        ):
+            raise CiboCapitalManagementError(
+                "Group-2 capital FAIL requires failed dimensions"
+            )
+        if not self.population_identity.strip():
+            raise CiboCapitalManagementError(
+                "Group-2 capital handoff population identity required"
+            )
+        if self.policy_identity != CANONICAL_POLICY_IDENTITY:
+            raise CiboCapitalManagementError(
+                "Group-2 capital handoff policy identity drift"
+            )
+        if (
+            self.qualification_plan_identity
+            != CANONICAL_QUALIFICATION_PLAN_IDENTITY
+        ):
+            raise CiboCapitalManagementError(
+                "Group-2 capital handoff qualification-plan drift"
+            )
+        if self.provider_identity != CANONICAL_PROVIDER_IDENTITY:
+            raise CiboCapitalManagementError(
+                "Group-2 capital handoff provider identity drift"
+            )
+        if _SHA1_RE.fullmatch(self.source_head_sha) is None:
+            raise CiboCapitalManagementError(
+                "Group-2 capital handoff source HEAD invalid"
+            )
+        if self.observed_at.tzinfo is None or self.observed_at.utcoffset() is None:
+            raise CiboCapitalManagementError(
+                "Group-2 capital handoff observed_at must be timezone-aware"
+            )
+        if any(
+            (
+                self.synthetic_evidence_used,
+                self.future_leakage_detected,
+                self.outcome_aware_evidence,
+                self.post_outcome_retuning_detected,
+                self.productive_authority,
+                self.live_authorized,
+                self.real_capital_authorized,
+                self.production_authorized,
+                self.merge_authorized,
+            )
+        ):
+            raise CiboCapitalManagementError(
+                "Group-2 capital handoff contains contamination or authority"
+            )
+
+
 @dataclass(frozen=True, slots=True)
 class CanonicalScientificBinding:
     """Immutable artifact metadata shared by one canonical source adapter."""
@@ -364,9 +482,108 @@ def scientific_closure_41_dependency_manifest() -> dict[str, object]:
         "legacy_architect_a_existing_consumer_count": 35,
         "legacy_special_canonical_adapter_count": 6,
         "workstreams": rows,
+        "group2_evidence_state": "WAITING_FOR_GROUP1_IMMUTABLE_EVIDENCE",
         "unknown_future_digests_fabricated": False,
         "productive_authority": False,
     }
+
+
+
+
+def adapt_group2_capital_terminal_handoff(
+    *,
+    handoff: Group2CapitalTerminalEvidenceHandoff,
+    binding: CanonicalScientificBinding,
+) -> ScientificClosure41Evidence:
+    """Convert one real terminal Capital/Compound source gate without retuning."""
+
+    if not isinstance(handoff, Group2CapitalTerminalEvidenceHandoff):
+        raise CiboCapitalManagementError(
+            "Closure 41 Group-2 adapter requires canonical terminal handoff"
+        )
+    if not isinstance(binding, CanonicalScientificBinding):
+        raise CiboCapitalManagementError(
+            "Closure 41 Group-2 adapter requires canonical scientific binding"
+        )
+    if binding.population_identity != handoff.population_identity:
+        raise CiboCapitalManagementError(
+            "Closure 41 Group-2 population identity drift"
+        )
+    if binding.causal_lineage != handoff.causal_lineage:
+        raise CiboCapitalManagementError(
+            "Closure 41 Group-2 causal-lineage drift"
+        )
+    if binding.evaluated_at < handoff.observed_at:
+        raise CiboCapitalManagementError(
+            "Closure 41 Group-2 chronology drift"
+        )
+    return _build_evidence(
+        workstream_id=handoff.workstream_id,
+        phase22_manifest_sha256=handoff.phase22_manifest_sha256,
+        source_gate_status=handoff.source_gate_status,
+        recommendation=handoff.terminal_recommendation,
+        terminal_reason=(
+            "Canonical Group-2 Capital/Compound terminal scientific gate."
+        ),
+        failed_dimensions=handoff.failed_dimensions,
+        source_kind="GROUP2_CAPITAL_COMPOUND_TERMINAL_HANDOFF",
+        source_object=handoff,
+        source_refs=(handoff.source_gate_id,),
+        source_digests=(handoff.source_gate_evidence_sha256,),
+        binding=binding,
+    )
+
+
+def adapt_group2_capital_terminal_batch(
+    *,
+    handoffs: tuple[Group2CapitalTerminalEvidenceHandoff, ...],
+    bindings: dict[str, CanonicalScientificBinding],
+) -> tuple[ScientificClosure41Evidence, ...]:
+    """Require exact 13/13 Group-2 source handoffs and preserve canonical order."""
+
+    if (
+        not isinstance(handoffs, tuple)
+        or any(
+            not isinstance(item, Group2CapitalTerminalEvidenceHandoff)
+            for item in handoffs
+        )
+    ):
+        raise CiboCapitalManagementError(
+            "Closure 41 Group-2 batch requires canonical handoff tuple"
+        )
+    by_id: dict[str, Group2CapitalTerminalEvidenceHandoff] = {}
+    for item in handoffs:
+        if item.workstream_id in by_id:
+            raise CiboCapitalManagementError(
+                "Closure 41 Group-2 duplicate handoff id"
+            )
+        by_id[item.workstream_id] = item
+    if set(by_id) != _GROUP2_SET:
+        missing = tuple(
+            item for item in GROUP2_CAPITAL_13_IDS if item not in by_id
+        )
+        extras = tuple(sorted(set(by_id) - _GROUP2_SET))
+        raise CiboCapitalManagementError(
+            "Closure 41 Group-2 handoff coverage mismatch: "
+            f"missing={missing}, extra={extras}"
+        )
+    if set(bindings) != _GROUP2_SET:
+        raise CiboCapitalManagementError(
+            "Closure 41 Group-2 binding coverage mismatch"
+        )
+    manifests = {item.phase22_manifest_sha256 for item in handoffs}
+    populations = {item.population_identity for item in handoffs}
+    if len(manifests) != 1 or len(populations) != 1:
+        raise CiboCapitalManagementError(
+            "Closure 41 Group-2 batch cross-population or manifest drift"
+        )
+    return tuple(
+        adapt_group2_capital_terminal_handoff(
+            handoff=by_id[workstream_id],
+            binding=bindings[workstream_id],
+        )
+        for workstream_id in GROUP2_CAPITAL_13_IDS
+    )
 
 
 def adapt_architect_a_scientific_receipt(
