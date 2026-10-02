@@ -3,6 +3,8 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
+import pytest
+
 from qore.infrastructure.account_wide_risk import (
     AccountRiskSnapshot,
     AccountWideRiskEngine,
