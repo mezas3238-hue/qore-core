@@ -12,11 +12,15 @@ receipt and never implements or closes that A2 workstream here.
 
 from __future__ import annotations
 
-import hashlib
-import json
 import re
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 
+from qore.infrastructure.cibo_a1_a2_scientific_dependency import (
+    A1A2ScientificDependencyAdmission,
+)
+from qore.infrastructure.cibo_a1_phase22_canonical_manifest_bridge import (
+    A1Phase22CanonicalScientificManifestBridge,
+)
 from qore.infrastructure.cibo_a1_phase22_scientific_consumption import (
     A1Phase22ScientificConsumptionManifest,
 )
@@ -35,63 +39,7 @@ from qore.infrastructure.cibo_profit_preservation_economic_gate import (
 
 GATE_ID = "CIBO_A1_GENC3_GENC7_PHASE22_POPULATION_BINDING_V1"
 _CANONICAL_FOLDS = ("WF1", "WF2", "WF3", "WF4")
-_SHA1_RE = re.compile(r"^[0-9a-f]{40}$")
 _SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
-
-
-@dataclass(frozen=True, slots=True)
-class A1Genc6ExternalEngineReceipt:
-    """Read-only A2 handoff contract consumed by the GEN-C6 A1 hypothesis."""
-
-    source_workstream: str
-    source_head: str
-    artifact_sha256: str
-    source_population_sha256: str
-    policy_identity: str
-    true_scarcity_bound: bool
-    capital_conservation_proven: bool
-    productive_authority: bool = False
-    live_authorized: bool = False
-    real_capital_authorized: bool = False
-    a1_closes_source_workstream: bool = False
-
-    def __post_init__(self) -> None:
-        if self.source_workstream != "INTERNAL_CAPITAL_MARKET":
-            raise CiboCompoundCapitalError(
-                "GEN-C6 A1 receipt must come from INTERNAL_CAPITAL_MARKET"
-            )
-        if _SHA1_RE.fullmatch(self.source_head) is None:
-            raise CiboCompoundCapitalError(
-                "GEN-C6 A1 external source head invalid"
-            )
-        for name in ("artifact_sha256", "source_population_sha256"):
-            _sha(getattr(self, name), name)
-        if not self.policy_identity:
-            raise CiboCompoundCapitalError(
-                "GEN-C6 A1 external policy identity required"
-            )
-        if not self.true_scarcity_bound or not self.capital_conservation_proven:
-            raise CiboCompoundCapitalError(
-                "GEN-C6 A1 external receipt lacks required scientific facts"
-            )
-        if (
-            self.productive_authority
-            or self.live_authorized
-            or self.real_capital_authorized
-            or self.a1_closes_source_workstream
-        ):
-            raise CiboCompoundCapitalError(
-                "GEN-C6 A1 external receipt violates ownership/governance"
-            )
-
-    def fingerprint(self) -> str:
-        raw = json.dumps(
-            asdict(self),
-            sort_keys=True,
-            separators=(",", ":"),
-            ensure_ascii=True,
-        ).encode("utf-8")
-        return "sha256:" + hashlib.sha256(raw).hexdigest()
 
 
 @dataclass(frozen=True, slots=True)
@@ -178,7 +126,8 @@ def bind_genc3_to6_to_phase22(
     *,
     manifest: A1Phase22ScientificConsumptionManifest,
     observations: tuple[Genc3To6FoldEconomicObservation, ...],
-    genc6_external_receipt: A1Genc6ExternalEngineReceipt | None = None,
+    canonical_bridge: A1Phase22CanonicalScientificManifestBridge | None = None,
+    genc6_a2_dependency: A1A2ScientificDependencyAdmission | None = None,
 ) -> A1Genc3To6Phase22BindingReport:
     """Evaluate GEN-C3..C6 only after exact manifest-fold binding."""
 
@@ -211,23 +160,41 @@ def bind_genc3_to6_to_phase22(
     receipt_sha: str | None = None
     if has_genc6:
         if not isinstance(
-            genc6_external_receipt,
-            A1Genc6ExternalEngineReceipt,
+            canonical_bridge,
+            A1Phase22CanonicalScientificManifestBridge,
         ):
             raise CiboCompoundCapitalError(
-                "GEN-C6 A1 hypothesis requires A2 engine receipt"
+                "GEN-C6 A1 hypothesis requires canonical Phase22 bridge"
             )
         if (
-            genc6_external_receipt.source_population_sha256
-            != manifest.source_population_sha256
+            canonical_bridge.a1_consumption_manifest_sha256
+            != manifest.fingerprint()
         ):
             raise CiboCompoundCapitalError(
-                "GEN-C6 A2 receipt population differs from A1 Phase22 manifest"
+                "GEN-C6 canonical bridge/A1 consumption manifest drift"
             )
-        receipt_sha = genc6_external_receipt.fingerprint()
-    elif genc6_external_receipt is not None:
+        if not isinstance(
+            genc6_a2_dependency,
+            A1A2ScientificDependencyAdmission,
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C6 A1 hypothesis requires proven A2 dependency admission"
+            )
+        if genc6_a2_dependency.a2_workstream_id != "INTERNAL_CAPITAL_MARKET":
+            raise CiboCompoundCapitalError(
+                "GEN-C6 A2 dependency must be INTERNAL_CAPITAL_MARKET"
+            )
+        if (
+            genc6_a2_dependency.a1_manifest_bridge_sha256
+            != canonical_bridge.fingerprint()
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C6 A2 dependency/canonical bridge drift"
+            )
+        receipt_sha = genc6_a2_dependency.fingerprint()
+    elif canonical_bridge is not None or genc6_a2_dependency is not None:
         raise CiboCompoundCapitalError(
-            "GEN-C6 external receipt supplied without GEN-C6 observations"
+            "GEN-C6 dependency supplied without GEN-C6 observations"
         )
 
     economic = evaluate_genc3_genc6_economic_gate(observations)
