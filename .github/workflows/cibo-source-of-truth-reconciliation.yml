@@ -33,6 +33,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 env:
   EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -54,6 +55,52 @@ jobs:
         run: mypy scripts/cibo_source_of_truth_reconciliation_gate.py
       - name: pytest
         run: pytest -q --no-cov tests/infrastructure/test_cibo_source_of_truth_reconciliation_gate.py
+      - name: Verify live producer HEADs are reconciled
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPOSITORY: ${{ github.repository }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import urllib.request
+          from pathlib import Path
+
+          acceptance = json.loads(
+              Path("docs/research/CIBO-AB-INTEGRATION-ACCEPTANCE-V1.json")
+              .read_text(encoding="utf-8")
+          )
+          repository = os.environ["GH_REPOSITORY"]
+          token = os.environ["GH_TOKEN"]
+          errors = []
+          for matrix_key, pr_number in (
+              ("architect_a", 660),
+              ("architect_b", 661),
+          ):
+              request = urllib.request.Request(
+                  f"https://api.github.com/repos/{repository}/pulls/{pr_number}",
+                  headers={
+                      "Authorization": f"Bearer {token}",
+                      "Accept": "application/vnd.github+json",
+                      "X-GitHub-Api-Version": "2022-11-28",
+                  },
+              )
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  pull = json.load(response)
+              live_head = str(pull["head"]["sha"])
+              reconciled_head = str(
+                  acceptance[matrix_key]["latest_observed_head_sha"]
+              )
+              if live_head != reconciled_head:
+                  errors.append(
+                      f"{matrix_key} PR #{pr_number} live HEAD {live_head} "
+                      f"!= reconciled HEAD {reconciled_head}"
+                  )
+          if errors:
+              raise SystemExit(
+                  "UNRECONCILED_PRODUCER_HEAD_DRIFT\n" + "\n".join(errors)
+              )
+          PY
       - name: Emit reconciliation evidence
         run: python scripts/cibo_source_of_truth_reconciliation_gate.py --git-sha "${{ env.EVIDENCE_SHA }}"
       - uses: actions/upload-artifact@v4
