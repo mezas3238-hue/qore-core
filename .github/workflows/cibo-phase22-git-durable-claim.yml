@@ -1,0 +1,52 @@
+name: QORE CIBO Phase22 Git Durable Claim Contract
+
+on:
+  push:
+    branches:
+      - agent/cibo-integrator-ab-001
+    paths:
+      - '.github/workflows/cibo-phase22-git-durable-claim.yml'
+      - 'src/qore/infrastructure/cibo_phase22_git_durable_claim.py'
+      - 'src/qore/infrastructure/cibo_phase22_consumption_ledger.py'
+      - 'src/qore/infrastructure/cibo_phase22_one_shot_batch.py'
+      - 'scripts/cibo_phase22_git_durable_claim.py'
+      - 'tests/infrastructure/test_cibo_phase22_git_durable_claim.py'
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-phase22-git-durable-claim.yml'
+      - 'src/qore/infrastructure/cibo_phase22_git_durable_claim.py'
+      - 'src/qore/infrastructure/cibo_phase22_consumption_ledger.py'
+      - 'src/qore/infrastructure/cibo_phase22_one_shot_batch.py'
+      - 'scripts/cibo_phase22_git_durable_claim.py'
+      - 'tests/infrastructure/test_cibo_phase22_git_durable_claim.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Validate remote-durable one-shot claim contract
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_phase22_git_durable_claim.py \
+            scripts/cibo_phase22_git_durable_claim.py \
+            tests/infrastructure/test_cibo_phase22_git_durable_claim.py
+          mypy \
+            src/qore/infrastructure/cibo_phase22_git_durable_claim.py \
+            scripts/cibo_phase22_git_durable_claim.py
+          python -m py_compile \
+            src/qore/infrastructure/cibo_phase22_git_durable_claim.py \
+            scripts/cibo_phase22_git_durable_claim.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_phase22_git_durable_claim.py

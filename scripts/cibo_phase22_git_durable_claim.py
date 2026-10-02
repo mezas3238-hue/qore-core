@@ -1,0 +1,85 @@
+from __future__ import annotations
+
+import argparse
+import json
+from datetime import datetime
+from pathlib import Path
+
+from qore.infrastructure.cibo_phase22_git_durable_claim import (
+    durable_claim_evidence_payload,
+    prepare_phase22_git_claim_files,
+    verify_phase22_git_durable_claim,
+)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    prepare = sub.add_parser("prepare")
+    prepare.add_argument("--repo-root", type=Path, required=True)
+    prepare.add_argument("--runner-git-sha", required=True)
+    prepare.add_argument("--run-id", type=int, required=True)
+    prepare.add_argument("--run-attempt", type=int, required=True)
+    prepare.add_argument("--started-at", required=True)
+    prepare.add_argument("--store-root", type=Path, required=True)
+
+    verify = sub.add_parser("verify")
+    verify.add_argument("--repo-root", type=Path, required=True)
+    verify.add_argument("--branch", required=True)
+    verify.add_argument("--remote", default="origin")
+    verify.add_argument("--output", type=Path, required=True)
+
+    args = parser.parse_args()
+    if args.command == "prepare":
+        claim, consumption = prepare_phase22_git_claim_files(
+            repo_root=args.repo_root,
+            runner_git_sha=args.runner_git_sha,
+            run_id=args.run_id,
+            run_attempt=args.run_attempt,
+            started_at=datetime.fromisoformat(args.started_at),
+            store_root=args.store_root,
+        )
+        print(
+            json.dumps(
+                {
+                    "candidate_id": claim.candidate_id,
+                    "claim_receipt_sha256": claim.fingerprint(),
+                    "claim_committed": consumption.claim_committed,
+                    "outcomes_emitted": consumption.outcomes_emitted,
+                    "fresh_access_authorized": False,
+                },
+                sort_keys=True,
+            )
+        )
+        return
+
+    evidence = verify_phase22_git_durable_claim(
+        repo_root=args.repo_root,
+        branch_name=args.branch,
+        remote_name=args.remote,
+    )
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    args.output.write_text(
+        json.dumps(
+            durable_claim_evidence_payload(evidence),
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    print(
+        json.dumps(
+            {
+                "claim_commit_sha": evidence.claim_commit_sha,
+                "source_head_sha": evidence.source_head_sha,
+                "durable_claim_proven": evidence.durable_claim_proven,
+            },
+            sort_keys=True,
+        )
+    )
+
+
+if __name__ == "__main__":
+    main()
