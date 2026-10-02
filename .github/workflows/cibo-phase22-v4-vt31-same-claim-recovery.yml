@@ -1,0 +1,205 @@
+name: QORE CIBO Phase22 V4 VT31 Same-Claim Recovery
+
+on:
+  push:
+    branches:
+      - agent/cibo-phase22-v4-vt31-recovery-001
+    paths:
+      - 'docs/research/CIBO-PHASE22-V4-VT31-SAME-CLAIM-RECOVERY.json'
+      - '.github/workflows/cibo-phase22-v4-vt31-same-claim-recovery.yml'
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: qore-cibo-phase22-v4-vt31-same-claim-recovery
+  cancel-in-progress: false
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  SOVEREIGN_BRANCH: agent/cibo-integrator-ab-001
+  CLAIM_SHA: 2b1e3288bdad5f1521ec693c9ea7e6ed744132c0
+  ORIGINAL_RUN_ID: '37059089221'
+  ORIGINAL_RUN_ATTEMPT: '1'
+
+jobs:
+  recover-close:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.CLAIM_SHA }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Prove original durable claim and pristine recovery preconditions
+        shell: bash
+        run: |
+          set -euo pipefail
+          remote_sha="$(git ls-remote origin "refs/heads/$SOVEREIGN_BRANCH" | cut -f1)"
+          test "$remote_sha" = "$CLAIM_SHA"
+          python scripts/cibo_phase22_v4_git_durable_claim.py verify             --repo-root . --branch "$SOVEREIGN_BRANCH"             --expected-run-id "$ORIGINAL_RUN_ID"             --expected-run-attempt "$ORIGINAL_RUN_ATTEMPT"             --output "$RUNNER_TEMP/recovery-claim-proof.json"
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("docs/research/CIBO-PHASE22-V4-CONSUMPTION-RECEIPT.json").read_text())
+          assert p["claim_run_id"] == 37059089221
+          assert p["claim_run_attempt"] == 1
+          assert p["outcomes_emitted"] is False
+          assert p["outcome_bundle_sha256"] is None
+          PY
+      - name: Materialize frozen VT31 methodology
+        shell: bash
+        run: |
+          set -euo pipefail
+          vt31_sha="$(python - <<'PY'
+          from qore.infrastructure.cibo_phase22_one_shot_source_preflight import FROZEN_VT31_SOURCE_SHA
+          print(FROZEN_VT31_SOURCE_SHA)
+          PY
+          )"
+          frozen="$RUNNER_TEMP/vt31-frozen"
+          git fetch --no-tags --depth=1 origin "$vt31_sha"
+          git worktree add --detach "$frozen" "$vt31_sha"
+          test "$(git -C "$frozen" rev-parse HEAD)" = "$vt31_sha"
+          python scripts/cibo_phase22_v4_vt31_fresh_runner.py --frozen-root "$frozen" --self-check             > "$RUNNER_TEMP/vt31-self-check.json"
+      - name: Apply ABI-only runtime normalization
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          p=Path("src/qore/infrastructure/cibo_phase22_v4_vt31_abi.py")
+          s=p.read_text(encoding="utf-8")
+          old="evidence_fingerprint = source.fingerprint"
+          new='evidence_fingerprint = source.fingerprint.removeprefix("sha256:")'
+          assert s.count(old) == 1
+          p.write_text(s.replace(old,new), encoding="utf-8")
+          PY
+          git diff -- src/qore/infrastructure/cibo_phase22_v4_vt31_abi.py             > "$RUNNER_TEMP/vt31-abi-runtime-normalization.patch"
+          grep -F 'removeprefix("sha256:")' "$RUNNER_TEMP/vt31-abi-runtime-normalization.patch"
+      - name: Recover VT31 from exact sealed M1 artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          read -r artifact_id digest < <(python - <<'PY'
+          from pathlib import Path
+          from qore.infrastructure.cibo_phase22_v4_source_receipt import load_phase22_v4_source_receipt
+          receipt=load_phase22_v4_source_receipt(Path("docs/research/CIBO-PHASE22-V4-SOURCE-RECEIPT.json"))
+          x=next(row for row in receipt.bindings if row.symbol=="NAS100" and row.timeframe=="M1")
+          assert x.artifact_id == 11245896861
+          assert x.artifact_digest == "sha256:4827b87ac41f3f260541992a102988dec6c29016b37a07aa3aeb1c5b026a7ade"
+          print(x.artifact_id, x.artifact_digest)
+          PY
+          )
+          zip="$RUNNER_TEMP/nas100-m1.zip"
+          root="$RUNNER_TEMP/nas100-m1"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" > "$zip"
+          echo "$(cut -d: -f2 <<<"$digest")  $zip" | sha256sum -c -
+          mkdir -p "$root" "$RUNNER_TEMP/lanes/phase22-v4-lane-VT31_NAS100"
+          unzip -q "$zip" -d "$root"
+          python scripts/cibo_phase22_v4_vt31_fresh_runner.py             --frozen-root "$RUNNER_TEMP/vt31-frozen" --source-root "$root"             --output "$RUNNER_TEMP/lanes/phase22-v4-lane-VT31_NAS100/vt31.json"
+      - name: Restore exact frozen code before assembly and closure
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout -- src/qore/infrastructure/cibo_phase22_v4_vt31_abi.py
+          test -z "$(git status --porcelain --untracked-files=all)"
+          remote_sha="$(git ls-remote origin "refs/heads/$SOVEREIGN_BRANCH" | cut -f1)"
+          test "$remote_sha" = "$CLAIM_SHA"
+      - name: Recover six successful lanes from original one-shot
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in             phase22-v4-lane-VT08_FOREX             phase22-v4-lane-R34_XAUUSD             phase22-v4-lane-R38_EURUSD             phase22-v4-lane-R43_GBPUSD             phase22-v4-lane-R38_GBPJPY             phase22-v4-lane-R42_AUDJPY
+          do
+            artifact_id="$(gh api "/repos/$GITHUB_REPOSITORY/actions/runs/$ORIGINAL_RUN_ID/artifacts?per_page=100"               --jq ".artifacts[] | select(.name==\"$name\") | .id")"
+            test -n "$artifact_id"
+            mkdir -p "$RUNNER_TEMP/lanes/$name"
+            gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" > "$RUNNER_TEMP/$name.zip"
+            unzip -q "$RUNNER_TEMP/$name.zip" -d "$RUNNER_TEMP/lanes/$name"
+          done
+      - name: Assemble exact seven-lane batch under original claim
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/fresh-batch"
+          python scripts/cibo_phase22_v4_fresh_batch_assembler.py             --vt08 "$RUNNER_TEMP/lanes/phase22-v4-lane-VT08_FOREX/vt08.json"             --vt31 "$RUNNER_TEMP/lanes/phase22-v4-lane-VT31_NAS100/vt31.json"             --r34-xauusd "$RUNNER_TEMP/lanes/phase22-v4-lane-R34_XAUUSD/phase18-xauusd-r34-geometry-trades.jsonl"             --r38-eurusd "$RUNNER_TEMP/lanes/phase22-v4-lane-R38_EURUSD/phase18-eurusd-r38-geometry-trades.jsonl"             --r43-gbpusd "$RUNNER_TEMP/lanes/phase22-v4-lane-R43_GBPUSD/phase18-gbpusd-r39-geometry-trades.jsonl"             --r38-gbpjpy "$RUNNER_TEMP/lanes/phase22-v4-lane-R38_GBPJPY/phase18-gbpjpy-r37-geometry-trades.jsonl"             --r42-audjpy "$RUNNER_TEMP/lanes/phase22-v4-lane-R42_AUDJPY/phase18-audjpy-r40-geometry-trades.jsonl"             --consumption docs/research/CIBO-PHASE22-V4-CONSUMPTION-RECEIPT.json             --output "$RUNNER_TEMP/fresh-batch/fresh-batch.json"
+      - name: Recover sealed provider numeric model and regime corpora
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/provider" "$RUNNER_TEMP/regime"
+          python - <<'PY' > "$RUNNER_TEMP/provider.env"
+          from qore.infrastructure.cibo_phase22_provider_numeric_execution_receipt import PHASE22_PROVIDER_NUMERIC_EXECUTION_FREEZE_RECEIPT
+          x=PHASE22_PROVIDER_NUMERIC_EXECUTION_FREEZE_RECEIPT
+          print(f"PROVIDER_ARTIFACT_ID={x.artifact_id}")
+          print(f"PROVIDER_ARTIFACT_DIGEST={x.artifact_digest}")
+          print(f"PROVIDER_FILE_SHA={x.provider_numeric_freeze_file_sha256}")
+          PY
+          source "$RUNNER_TEMP/provider.env"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$PROVIDER_ARTIFACT_ID/zip" > "$RUNNER_TEMP/provider.zip"
+          echo "$(cut -d: -f2 <<<"$PROVIDER_ARTIFACT_DIGEST")  $RUNNER_TEMP/provider.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/provider.zip" -d "$RUNNER_TEMP/provider"
+          provider_json="$(find "$RUNNER_TEMP/provider" -name provider-numeric-execution-freeze.json -print -quit)"
+          test -n "$provider_json"
+          echo "$(cut -d: -f2 <<<"$PROVIDER_FILE_SHA")  $provider_json" | sha256sum -c -
+          echo "PROVIDER_JSON=$provider_json" >> "$GITHUB_ENV"
+          echo "PROVIDER_FILE_SHA=$PROVIDER_FILE_SHA" >> "$GITHUB_ENV"
+          python - <<'PY' > "$RUNNER_TEMP/regime.tsv"
+          from pathlib import Path
+          from qore.infrastructure.cibo_phase22_v4_historical_regime import PHASE22_REGIME_SYMBOLS
+          from qore.infrastructure.cibo_phase22_v4_source_receipt import load_phase22_v4_source_receipt
+          receipt=load_phase22_v4_source_receipt(Path("docs/research/CIBO-PHASE22-V4-SOURCE-RECEIPT.json"))
+          by_key={(x.symbol,x.timeframe):x for x in receipt.bindings}
+          for symbol in PHASE22_REGIME_SYMBOLS:
+              x=by_key[(symbol,"M5")]
+              print(symbol,x.artifact_id,x.artifact_digest,sep="\t")
+          PY
+          while IFS=$'\t' read -r symbol artifact_id digest; do
+            zip="$RUNNER_TEMP/regime-$symbol.zip"
+            root="$RUNNER_TEMP/regime/$symbol"
+            gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" > "$zip"
+            echo "$(cut -d: -f2 <<<"$digest")  $zip" | sha256sum -c -
+            mkdir -p "$root"
+            unzip -q "$zip" -d "$root"
+          done < "$RUNNER_TEMP/regime.tsv"
+      - name: Execute original-claim chronological closure
+        shell: bash
+        run: |
+          set -euo pipefail
+          replay_started_at="$(date -u '+%Y-%m-%dT%H:%M:%S+00:00')"
+          python scripts/cibo_phase22_v4_execution_closure.py             --repo-root . --branch-name "$SOVEREIGN_BRANCH"             --fresh-batch "$RUNNER_TEMP/fresh-batch/fresh-batch.json"             --provider-numeric "$PROVIDER_JSON"             --provider-numeric-freeze-sha256 "$PROVIDER_FILE_SHA"             --source-root "AUDJPY=$RUNNER_TEMP/regime/AUDJPY"             --source-root "EURUSD=$RUNNER_TEMP/regime/EURUSD"             --source-root "GBPJPY=$RUNNER_TEMP/regime/GBPJPY"             --source-root "GBPUSD=$RUNNER_TEMP/regime/GBPUSD"             --source-root "XAUUSD=$RUNNER_TEMP/regime/XAUUSD"             --store-root "$RUNNER_TEMP/phase22-v4-stores"             --claim docs/research/CIBO-PHASE22-V4-ONE-SHOT-CLAIM.json             --consumption docs/research/CIBO-PHASE22-V4-CONSUMPTION-RECEIPT.json             --replay-started-at "$replay_started_at"             --run-id "$ORIGINAL_RUN_ID" --run-attempt "$ORIGINAL_RUN_ATTEMPT"             --output-dir "$RUNNER_TEMP/phase22-closure"
+      - name: Preserve recovery and closure evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-phase22-v4-vt31-same-claim-recovery-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/vt31-abi-runtime-normalization.patch
+            ${{ runner.temp }}/vt31-self-check.json
+            ${{ runner.temp }}/lanes/phase22-v4-lane-VT31_NAS100
+            ${{ runner.temp }}/fresh-batch
+            ${{ runner.temp }}/phase22-closure
+            ${{ runner.temp }}/phase22-v4-stores
+            ${{ runner.temp }}/recovery-claim-proof.json
+          if-no-files-found: warn
+          retention-days: 90
+      - name: Durably seal original claim to CONSUMED
+        shell: bash
+        run: |
+          set -euo pipefail
+          remote_sha="$(git ls-remote origin "refs/heads/$SOVEREIGN_BRANCH" | cut -f1)"
+          test "$remote_sha" = "$CLAIM_SHA"
+          actual="$(git status --porcelain --untracked-files=all)"
+          expected=" M docs/research/CIBO-PHASE22-V4-CONSUMPTION-RECEIPT.json"
+          test "$actual" = "$expected"
+          git config user.name "QORE Phase22 V4 Recovery"
+          git config user.email "qore-phase22@users.noreply.github.com"
+          git add docs/research/CIBO-PHASE22-V4-CONSUMPTION-RECEIPT.json
+          test "$(git diff --cached --name-only)" = "docs/research/CIBO-PHASE22-V4-CONSUMPTION-RECEIPT.json"
+          git commit -m "seal(cibo): consume Phase22 V4 recovered one-shot [skip ci]"
+          git push origin "HEAD:$SOVEREIGN_BRANCH"
