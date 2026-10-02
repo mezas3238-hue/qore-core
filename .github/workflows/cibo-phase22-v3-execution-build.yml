@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - agent/cibo-v3-execution-build-001
+      - agent/cibo-integrator-ab-001
     paths:
       - 'src/qore/infrastructure/cibo_phase22_v3_*.py'
       - 'scripts/cibo_phase22_v3_*.py'
