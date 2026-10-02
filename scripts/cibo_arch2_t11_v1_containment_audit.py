@@ -74,7 +74,7 @@ def _hashed_identity(kind: str, value: object) -> str:
             f"T11 containment audit invalid {kind} identity"
         )
     return "sha256:" + hashlib.sha256(
-        f"{kind}|{value}".encode("utf-8")
+        f"{kind}|{value}".encode()
     ).hexdigest()
 
 
