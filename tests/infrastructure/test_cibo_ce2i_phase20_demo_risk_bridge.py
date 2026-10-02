@@ -4,6 +4,11 @@ from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
+import pytest
+
+from qore.infrastructure.cibo_capital_management_authority import (
+    CiboCapitalManagementError,
+)
 from qore.infrastructure.account_wide_risk import (
     AccountRiskSnapshot,
     CiboCapitalProvenanceLot,
@@ -16,6 +21,7 @@ from qore.infrastructure.account_wide_risk_ledger import (
     DurableAccountWideRiskLedger,
 )
 from qore.infrastructure.cibo_ce2i_phase20_demo_risk_bridge import (
+    assert_phase20_demo_authorization_active,
     authorize_phase20_demo_request,
 )
 from qore.infrastructure.cibo_ce2i_phase20_demo_shadow_risk import (
@@ -187,3 +193,51 @@ def test_restart_reconciliation_occurs_before_new_authorization(tmp_path) -> Non
         RiskDecision.REDUCE,
         RiskDecision.REJECT,
     }
+
+def test_execution_boundary_requires_live_reserved_authorization(tmp_path) -> None:
+    risk = _risk(tmp_path)
+    report = authorize_phase20_demo_request(
+        risk=risk,
+        request=_request(volume="5"),
+        snapshot=_snapshot(),
+        observed_at=NOW,
+    )
+
+    assert_phase20_demo_authorization_active(
+        risk=risk,
+        authorization=report.authorization,
+        observed_at=NOW,
+    )
+
+    risk.cancel(report.authorization.authorization_id)
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="reservation is not executable",
+    ):
+        assert_phase20_demo_authorization_active(
+            risk=risk,
+            authorization=report.authorization,
+            observed_at=NOW,
+        )
+
+
+def test_execution_boundary_rejects_expired_reservation(tmp_path) -> None:
+    risk = _risk(tmp_path)
+    report = authorize_phase20_demo_request(
+        risk=risk,
+        request=_request(volume="5"),
+        snapshot=_snapshot(),
+        observed_at=NOW,
+    )
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="reservation is not executable",
+    ):
+        assert_phase20_demo_authorization_active(
+            risk=risk,
+            authorization=report.authorization,
+            observed_at=NOW + timedelta(minutes=6),
+        )
+
