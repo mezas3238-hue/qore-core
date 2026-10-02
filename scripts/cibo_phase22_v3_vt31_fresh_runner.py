@@ -7,7 +7,7 @@ import importlib
 import json
 import sys
 from collections import defaultdict
-from datetime import date
+from datetime import date, datetime
 from hashlib import sha256
 from pathlib import Path
 from typing import Any, cast
@@ -92,6 +92,49 @@ def _partition_executable_geometry(
     return executable, censored
 
 
+
+def _frozen_market_evidence_tuple(
+    source: object,
+) -> tuple[
+    tuple[OhlcSnapshot, ...],
+    str,
+    str,
+    datetime,
+    str,
+    str,
+]:
+    """Adapt the sealed V3 source to the frozen six-field evidence ABI.
+
+    Only source identity metadata is supplied. The account field is explicitly
+    non-claimed because the V3 source receipt does not certify a historical
+    account fingerprint. Strategy decisions consume only the series and the
+    deterministic evidence fingerprint.
+    """
+
+    series = getattr(source, "series")
+    evidence_fingerprint = str(getattr(source, "fingerprint"))
+    checked_at = getattr(source, "last_closed_at")
+    collector_git_sha = str(getattr(source, "collector_git_sha"))
+    provider_symbol = str(getattr(source, "provider_symbol"))
+    if (
+        not isinstance(series, tuple)
+        or not evidence_fingerprint
+        or not isinstance(checked_at, datetime)
+        or checked_at.tzinfo is None
+        or checked_at.utcoffset() is None
+        or len(collector_git_sha) != 40
+        or not provider_symbol
+    ):
+        raise ValueError("VT31 V3 frozen evidence adapter metadata invalid")
+    return (
+        series,
+        "PHASE22_V3_HISTORICAL_ACCOUNT_NOT_CLAIMED",
+        evidence_fingerprint,
+        checked_at,
+        collector_git_sha,
+        provider_symbol,
+    )
+
 def run_fresh(
     *,
     frozen_root: Path,
@@ -107,8 +150,17 @@ def run_fresh(
 
     source = load_phase22_v3_vt31_m1(source_root)
 
-    def loader(_path: Path) -> tuple[OhlcSnapshot, ...]:
-        return source.series
+    def loader(
+        _path: Path,
+    ) -> tuple[
+        tuple[OhlcSnapshot, ...],
+        str,
+        str,
+        datetime,
+        str,
+        str,
+    ]:
+        return _frozen_market_evidence_tuple(source)
 
     original_residual = residual.load_market_evidence
     original_physical = physical.load_market_evidence
@@ -218,6 +270,8 @@ def run_fresh(
         "source_stats": stats,
         "binding_diagnostics": binding_diag,
         "methodology_changed": False,
+        "source_abi_recovery_only": True,
+        "historical_account_identity_claimed": False,
         "geometry_reconstructed": False,
         "selection_uses_realized_r": False,
         "legacy_trader_sizing_used_for_cibo": False,
