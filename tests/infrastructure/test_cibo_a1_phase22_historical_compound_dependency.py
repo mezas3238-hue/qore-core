@@ -6,6 +6,14 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from qore.infrastructure.cibo_a1_a2_scientific_dependency import (
+    CONTRACT_ID as A1_A2_DEPENDENCY_CONTRACT_ID,
+    A1A2ScientificDependencyAdmission,
+)
+from qore.infrastructure.cibo_a1_phase22_canonical_manifest_bridge import (
+    BRIDGE_ID,
+    A1Phase22CanonicalScientificManifestBridge,
+)
 from qore.infrastructure.cibo_a1_phase22_historical_compound_dependency import (
     CONTRACT_ID,
     A1HistoricalCompoundLineageReceipt,
@@ -55,6 +63,42 @@ def _manifest() -> A1Phase22ScientificConsumptionManifest:
     )
 
 
+def _bridge() -> A1Phase22CanonicalScientificManifestBridge:
+    manifest = _manifest()
+    return A1Phase22CanonicalScientificManifestBridge(
+        bridge_id=BRIDGE_ID,
+        canonical_phase22_manifest_sha256=_sha("canonical-phase22"),
+        a1_consumption_manifest_sha256=manifest.fingerprint(),
+        candidate_id=manifest.candidate_id,
+        decision_epochs=manifest.decision_count,
+        trader_ids=manifest.trader_ids,
+        fold_ids=("WF1", "WF2", "WF3", "WF4"),
+        qualification_status="PASS",
+        ready_for_scientific_reentry=True,
+        exact_candidate_binding=True,
+        exact_decision_population_count=True,
+        exact_trader_lineage=True,
+        exact_fold_lineage=True,
+        a2_compatible_manifest_identity=True,
+    )
+
+
+def _a2_dependency() -> A1A2ScientificDependencyAdmission:
+    bridge = _bridge()
+    return A1A2ScientificDependencyAdmission(
+        contract_id=A1_A2_DEPENDENCY_CONTRACT_ID,
+        a2_workstream_id="COMPOUND_ENGINE",
+        canonical_phase22_manifest_sha256=bridge.canonical_phase22_manifest_sha256,
+        a1_manifest_bridge_sha256=bridge.fingerprint(),
+        a2_source_head="b" * 40,
+        a2_source_gate_id="COMPOUND_ENGINE_PHASE22_GATE_V1",
+        a2_source_gate_evidence_sha256=_sha("compound-engine-evidence"),
+        a2_disposition_receipt_sha256=_sha("compound-engine-disposition"),
+        recommended_disposition="COMPLETED_AND_PROVEN",
+        admitted_for_a1_consumption=True,
+    )
+
+
 def _receipt() -> A1HistoricalCompoundLineageReceipt:
     manifest = _manifest()
     return A1HistoricalCompoundLineageReceipt(
@@ -82,6 +126,8 @@ def _receipt() -> A1HistoricalCompoundLineageReceipt:
 def test_a1_admits_nonfabricated_historical_compound_receipt() -> None:
     admission = admit_historical_compound_lineage_for_a1(
         manifest=_manifest(),
+        canonical_bridge=_bridge(),
+        a2_dependency=_a2_dependency(),
         receipt=_receipt(),
     )
 
@@ -122,6 +168,8 @@ def test_a1_rejects_compound_population_drift() -> None:
     ):
         admit_historical_compound_lineage_for_a1(
             manifest=_manifest(),
+            canonical_bridge=_bridge(),
+            a2_dependency=_a2_dependency(),
             receipt=receipt,
         )
 
@@ -132,3 +180,21 @@ def test_a1_never_closes_a2_compound_engine() -> None:
         match="violates replay/governance law",
     ):
         replace(_receipt(), a1_closes_source_workstream=True)
+
+
+def test_a1_historical_compound_rejects_wrong_a2_dependency() -> None:
+    dependency = replace(
+        _a2_dependency(),
+        a2_workstream_id="INTERNAL_CAPITAL_MARKET",
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="requires COMPOUND_ENGINE A2 dependency",
+    ):
+        admit_historical_compound_lineage_for_a1(
+            manifest=_manifest(),
+            canonical_bridge=_bridge(),
+            a2_dependency=dependency,
+            receipt=_receipt(),
+        )
