@@ -93,6 +93,7 @@ jobs:
           required = {
               "QORE CIBO Source of Truth Reconciliation",
               "QORE CIBO Phase22 V2 Execution Preflight",
+              "QORE CIBO Phase22 One-Shot Source Preflight",
               "QORE CIBO Phase22 Git Durable Claim Contract",
               "QORE CIBO Phase22 Execution Closure Contract",
               "QORE CIBO Phase22 Chronological Execution",
