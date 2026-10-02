@@ -45,7 +45,7 @@ class T11GrossEdgeFreshObservation:
     stop_risk_per_volume_usd: Decimal
     outcome_reconciled: bool
     provider_bound: bool
-    holdout_receipt_authorized: bool
+    fresh_oos_source_authorized: bool
     model_refit_performed: bool = False
     productive_authority: bool = False
 
@@ -88,7 +88,7 @@ class T11GrossEdgeFreshObservation:
         if (
             not self.outcome_reconciled
             or not self.provider_bound
-            or not self.holdout_receipt_authorized
+            or not self.fresh_oos_source_authorized
             or self.model_refit_performed
             or self.productive_authority
         ):
