@@ -541,3 +541,41 @@ def test_genc7_bound_path_rejects_manual_horizon_or_observation_drift(
             row,
             observed_at=row.window_end_at - timedelta(seconds=1),
         )
+
+
+def test_genc7_oos_rejects_outcome_for_unsealed_decision(tmp_path) -> None:
+    book = _oos_book(tmp_path)
+    extra = replace(
+        _outcome_for_book(book),
+        outcome_id="genc7-outcome-extra",
+        decision_sha256="sha256:" + "f" * 64,
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="outcome population contains unsealed decisions",
+    ):
+        bind_genc7_to_observed_paths(
+            book=book,
+            outcomes=(extra,),
+        )
+
+
+def test_genc7_oos_report_rejects_manual_count_or_status_drift(tmp_path) -> None:
+    book = _oos_book(tmp_path)
+    report = bind_genc7_to_observed_paths(
+        book=book,
+        outcomes=(_outcome_for_book(book),),
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="bound count/row count drift",
+    ):
+        replace(report, bound_count=0)
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="report status/accounting drift",
+    ):
+        replace(report, status=Genc7OosBindingStatus.PARTIAL)
