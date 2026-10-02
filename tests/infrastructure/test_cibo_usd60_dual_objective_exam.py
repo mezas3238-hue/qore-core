@@ -3,9 +3,9 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 from qore.infrastructure.cibo_capability_exam_cognitive_coverage import (
-    CiboCapabilityCognitiveCoverageReceipt,
     EXPECTED_FACULTIES,
     EXPECTED_TOOLS,
+    CiboCapabilityCognitiveCoverageReceipt,
 )
 from qore.infrastructure.cibo_reused_holdout_capability_exam import (
     InfrastructureCapabilityExamReport,
