@@ -193,6 +193,10 @@ class ProtectedBaseEconomicObservation:
             raise CiboCapitalManagementError(
                 "protected-base capital_risk_time_productivity must be finite Decimal"
             )
+        if self.p99_drawdown_usd > self.maximum_drawdown_usd:
+            raise CiboCapitalManagementError(
+                "protected-base p99 drawdown cannot exceed maximum drawdown"
+            )
         if self.provider_failure_incidence > Decimal(1):
             raise CiboCapitalManagementError(
                 "protected-base provider failure incidence must be <= 1"
