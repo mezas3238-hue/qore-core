@@ -116,6 +116,32 @@ Compound increment:
 
 Removing provider costs would improve results but would not make either treatment positive.
 
+## Finding F07 — the reused 2014-2015 profitability replay is temporally anachronistic for learned expectation
+
+The active expectation prior is `CIBO_PHASE20_TRAIN_PRIOR_V1`.
+
+Its code declares the TRAIN window:
+
+- start: `2021-09-23T05:00:00+00:00`
+- end: `2022-03-09T17:00:00+00:00`
+
+The reused capability replay evaluates decisions in:
+
+- `2014-10-19 -> 2015-04-19`.
+
+Therefore the expectation model used by the allocator was learned more than six years after the historical decisions it is being asked to score.
+
+The contract correctly prevents reading the 2014-2015 outcome during the decision itself, but setting `expectation.as_of` to the historical decision timestamp does not make a 2021-2022 learned parameter historically available in 2014.
+
+Disposition:
+
+- run #28 remains valid evidence that the software stack can execute end-to-end under a non-certifying backcast;
+- run #28 is not valid evidence of causal economic profitability for the complete learned CIBO stack;
+- no profitability treatment may be selected from its economic outcome;
+- Profitability Lab must use chronological train -> forward validation order for every learned CIBO component.
+
+The same temporal-availability audit must be applied to cognitive memory, regime models and any other learned/frozen artifact before economic conclusions are accepted.
+
 ## Laboratory workstreams
 
 ### L1 — Opportunity-specific expectation science
