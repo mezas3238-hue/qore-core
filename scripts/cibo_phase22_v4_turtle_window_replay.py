@@ -134,6 +134,27 @@ def run_v4(
     rows = _rows(geometry_path)
     _validate(rows, trader_id)
 
+    counts = report.get("decision_counts", {})
+    if not isinstance(counts, dict):
+        raise ValueError("V4 Turtle replay decision_counts missing")
+    no_episode = int(counts.get("ABSTAIN_NO_CIBO_EPISODE", 0))
+    matched_episode = sum(
+        int(counts.get(key, 0))
+        for key in (
+            "EXECUTE",
+            "ABSTAIN_NO_ENTRY",
+            "ABSTAIN_NO_ACTIVE_DOL",
+            "ABSTAIN_NO_AUTHORITY_OR_SUBFAMILY",
+            "ABSTAIN_INVALID_GEOMETRY",
+            "ABSTAIN_SINGLE_POSITION_BUSY",
+        )
+    )
+    episode_lookup_attempts = no_episode + matched_episode
+    if episode_lookup_attempts > 0 and matched_episode == 0:
+        raise ValueError(
+            f"{trader_id} setups reached CIBO episode lookup but match rate is zero"
+        )
+
     payload = {
         "schema": "qore.cibo.phase22.v4-turtle-window-replay.v1",
         "candidate_id": V4_CANDIDATE_ID,
@@ -144,6 +165,15 @@ def run_v4(
             "end_exclusive": _END.isoformat(),
         },
         "row_count": len(rows),
+        "episode_lookup_attempts": episode_lookup_attempts,
+        "episode_matches": matched_episode,
+        "episode_misses": no_episode,
+        "episode_match_rate": (
+            None
+            if episode_lookup_attempts == 0
+            else matched_episode / episode_lookup_attempts
+        ),
+        "cognitive_policy_temporal_mode": "FROZEN_BACKCAST_RESEARCH_ONLY",
         "geometry_filename": geometry_name,
         "geometry_sha256": (
             "sha256:" + hashlib.sha256(geometry_path.read_bytes()).hexdigest()
