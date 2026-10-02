@@ -241,6 +241,8 @@ def test_phase22_t12_rejects_stale_snapshot_binding() -> None:
     )
     report = assess_phase22_t12_t13_causal_population(
         VersionedPhase22HistoricalReplayEvidenceBook(
+            source_receipt_sha256=book.source_receipt_sha256,
+            source_collector_git_shas=book.source_collector_git_shas,
             generation=book.generation,
             amendment_sha256=book.amendment_sha256,
             decisions=(modified,) + book.decisions[1:],
