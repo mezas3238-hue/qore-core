@@ -1,6 +1,13 @@
+from datetime import UTC, datetime
+from decimal import Decimal
 from pathlib import Path
 
+from qore.infrastructure.account_wide_risk import TraderLineage
 from qore.infrastructure.cibo_ce2i_tool_registry import CE2I_TOOL_REGISTRY
+from qore.infrastructure.cibo_phase22_fresh_opportunity_batch import (
+    Phase22FreshOpportunity,
+    Phase22FreshTraderEvidence,
+)
 from qore.infrastructure.cibo_phase22_historical_replay_settlement import (
     VersionedPhase22HistoricalReplayEvidenceBook,
 )
@@ -10,6 +17,9 @@ from qore.infrastructure.cibo_phase22_v4_source_receipt import (
 from qore.infrastructure.cibo_reused_holdout_capability_exam import (
     EXAM_ID,
     VALIDATION_MODE,
+)
+from scripts.cibo_phase22_reused_holdout_batch_assembler import (
+    _canonicalize_evidence,
 )
 
 
@@ -53,3 +63,40 @@ def test_capability_exam_sources_cannot_mutate_broker() -> None:
         source = path.read_text(encoding="utf-8")
         for token in forbidden:
             assert token not in source
+
+
+def _opportunity(*, signal_hour: int, fingerprint_char: str) -> Phase22FreshOpportunity:
+    return Phase22FreshOpportunity(
+        trader_id=TraderLineage.VT08_FOREX,
+        qore_symbol="EURUSD",
+        signal_fingerprint="sha256:" + fingerprint_char * 64,
+        signal_at=datetime(2015, 1, 2, signal_hour, tzinfo=UTC),
+        entry_at=datetime(2015, 1, 2, signal_hour, 1, tzinfo=UTC),
+        exit_at=datetime(2015, 1, 2, signal_hour, 2, tzinfo=UTC),
+        side="long",
+        entry_price=Decimal("1.10"),
+        structural_stop=Decimal("1.09"),
+        technical_target=Decimal("1.12"),
+        exit_reason="TARGET",
+        gross_structural_outcome_r=Decimal("1"),
+        methodology_sha256="sha256:" + "c" * 64,
+        source_evidence_ids=("sha256:" + "d" * 64,),
+    )
+
+
+def test_reused_batch_canonicalizes_per_trader_opportunity_order() -> None:
+    later = _opportunity(signal_hour=12, fingerprint_char="a")
+    earlier = _opportunity(signal_hour=10, fingerprint_char="b")
+    evidence = Phase22FreshTraderEvidence(
+        trader_id="VT08_FOREX",
+        source_artifact_sha256="sha256:" + "e" * 64,
+        opportunities=(later, earlier),
+        fresh_outcomes_executed=True,
+        methodology_changed=False,
+        legacy_trader_sizing_used_for_cibo=False,
+    )
+
+    canonical = _canonicalize_evidence(evidence)
+
+    assert canonical.opportunities == (earlier, later)
+    assert canonical.source_artifact_sha256 == evidence.source_artifact_sha256

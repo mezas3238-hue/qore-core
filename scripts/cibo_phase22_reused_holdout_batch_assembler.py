@@ -14,6 +14,9 @@ import json
 from pathlib import Path
 from typing import Any
 
+from qore.infrastructure.cibo_phase22_fresh_opportunity_batch import (
+    Phase22FreshTraderEvidence,
+)
 from qore.infrastructure.cibo_phase22_trader_parity_manifest import (
     CANONICAL_PHASE22_TRADER_IDS,
 )
@@ -51,6 +54,29 @@ def _jsonl(path: Path) -> tuple[dict[str, object], ...]:
     return tuple(rows)
 
 
+def _canonicalize_evidence(
+    evidence: Phase22FreshTraderEvidence,
+) -> Phase22FreshTraderEvidence:
+    opportunities = tuple(
+        sorted(
+            evidence.opportunities,
+            key=lambda item: (
+                item.signal_at,
+                item.trader_id.value,
+                item.signal_fingerprint,
+            ),
+        )
+    )
+    return Phase22FreshTraderEvidence(
+        trader_id=evidence.trader_id,
+        source_artifact_sha256=evidence.source_artifact_sha256,
+        opportunities=opportunities,
+        fresh_outcomes_executed=True,
+        methodology_changed=False,
+        legacy_trader_sizing_used_for_cibo=False,
+    )
+
+
 def assemble(
     *,
     vt08: Path,
@@ -85,7 +111,10 @@ def assemble(
             lane_artifact_sha256=lane_sha256s[trader_id],
         )
 
-    traders = tuple(by_id[item] for item in CANONICAL_PHASE22_TRADER_IDS)
+    traders = tuple(
+        _canonicalize_evidence(by_id[item])
+        for item in CANONICAL_PHASE22_TRADER_IDS
+    )
     batch = build_phase22_v4_fresh_batch(traders)
     return {
         "schema": "qore.cibo.phase22.v4-fresh-batch-assembly.v1",
