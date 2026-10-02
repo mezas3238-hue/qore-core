@@ -22,6 +22,9 @@ from qore.infrastructure.cibo_phase22_v4_historical_regime import (
 from qore.infrastructure.cibo_reused_holdout_capability_exam import (
     run_reused_holdout_infrastructure_exam,
 )
+from qore.infrastructure.cibo_usd60_dual_objective_exam import (
+    assess_cibo_usd60_dual_objective_exam,
+)
 
 
 def _json_object(path: Path) -> dict[str, Any]:
@@ -101,6 +104,7 @@ def main() -> int:
         corpora=corpora,
         replay_started_at=datetime.fromisoformat(args.replay_started_at),
     )
+    dual_objective = assess_cibo_usd60_dual_objective_exam(report)
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
     (args.output_dir / "capability-exam-report.json").write_text(
@@ -120,11 +124,29 @@ def main() -> int:
         + "\n",
         encoding="utf-8",
     )
+    (args.output_dir / "usd60-dual-objective-exam.json").write_text(
+        json.dumps(
+            _canonical(dual_objective),
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
     print(
         json.dumps(
             {
                 "exam_sha256": report.fingerprint(),
                 "infrastructure_certified": report.infrastructure_certified,
+                "usd60_survival_passed": dual_objective.survival.passed,
+                "maximum_capability_passed": (
+                    dual_objective.maximum_capability.passed
+                ),
+                "dual_objective_status": dual_objective.status.value,
+                "survival_blockers": list(dual_objective.survival.blockers),
+                "maximum_capability_blockers": list(
+                    dual_objective.maximum_capability.blockers
+                ),
                 "baseline_ending_capital_usd": format(
                     report.minimal_seed_baseline.ending_capital_usd, "f"
                 ),
