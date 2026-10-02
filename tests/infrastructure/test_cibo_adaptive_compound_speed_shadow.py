@@ -409,3 +409,36 @@ def test_genc8_empty_population_rejects_descriptive_residue() -> None:
             first_decision_at=T0,
             last_decision_at=T0,
         )
+
+
+def test_genc8_decision_requires_exact_mandatory_fact_evidence() -> None:
+    decision = evaluate_genc8_adaptive_compound_speed(
+        decision_id="genc8-evidence-coverage",
+        genc5=_genc5(),
+        regime=_regime(),
+        facts=_facts(),
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="exact mandatory fact set",
+    ):
+        replace(
+            decision,
+            fact_evidence_sha256s=decision.fact_evidence_sha256s[:-1],
+        )
+
+
+def test_genc8_decision_rejects_non_bool_divergence_flag() -> None:
+    decision = evaluate_genc8_adaptive_compound_speed(
+        decision_id="genc8-divergence-type",
+        genc5=_genc5(),
+        regime=_regime(),
+        facts=_facts(),
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="divergence flag must be bool",
+    ):
+        replace(decision, treatment_differs_from_control=1)
