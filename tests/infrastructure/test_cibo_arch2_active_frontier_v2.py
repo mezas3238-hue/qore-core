@@ -33,9 +33,14 @@ def test_active_frontier_has_four_terminal_recommendations() -> None:
         == "SUPERSEDED_WITH_PROVEN_LINEAGE"
     )
 
-    assert rows["T11"].state is Architect2ActiveState.PARTIAL_EVIDENCE_READY
-    assert "36946792349_IN_PROGRESS" in rows["T11"].remaining_requirement
-    assert "36945327912_CANCELLED_ZERO_TERMINAL_ARTIFACTS" in (
+    assert (
+        rows["T11"].state
+        is Architect2ActiveState.BLOCKED_ON_PROVIDER_CONTAINMENT
+    )
+    assert "EXACT_TWO_CANCELLED_V1_DEMO_POSITIONS" in (
+        rows["T11"].remaining_requirement
+    )
+    assert "36946792349_EVIDENCE_INADMISSIBLE" in (
         rows["T11"].remaining_requirement
     )
     assert rows["T16"].state is Architect2ActiveState.TERMINAL_RECOMMENDATION_READY
