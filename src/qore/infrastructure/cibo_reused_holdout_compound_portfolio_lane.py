@@ -245,6 +245,28 @@ def run_compound_portfolio_lane(
         item.decision_epoch_id: item
         for item in core_execution.books.holdout_evidence.decisions
     }
+    core_release_by_signal = {
+        item.signal_fingerprint: item.capital_released_at
+        for item in core_execution.books.cma_settlement.settlements
+    }
+    core_risk_rows = tuple(
+        item
+        for item in core_execution.books.executed_risk.executed_risk
+        if item.risk_decision is not RiskDecision.REJECT
+    )
+
+    def core_open_capacity(clock: datetime) -> tuple[Decimal, Decimal]:
+        rows = tuple(
+            item
+            for item in core_risk_rows
+            if item.decided_at <= clock
+            and item.signal_fingerprint in core_release_by_signal
+            and clock < core_release_by_signal[item.signal_fingerprint]
+        )
+        return (
+            sum((item.authorized_stop_risk_usd for item in rows), Decimal(0)),
+            sum((item.authorized_margin_usd for item in rows), Decimal(0)),
+        )
 
     def settle_until(clock: datetime) -> None:
         nonlocal core_index, core_realized, pool, incremental
@@ -359,20 +381,24 @@ def run_compound_portfolio_lane(
                 ),
                 capital_source_id=f"compound-realized-profit-pool:{signal}",
             )
+            core_open_risk, core_open_margin = core_open_capacity(
+                epoch.market_decision_at
+            )
+            external_headroom = max(Decimal(0), equity - core_open_risk)
             snapshot = AccountRiskSnapshot(
                 account_binding_id="phase22-v4-compound-shadow",
                 equity=equity,
-                margin_used=Decimal(0),
-                free_margin=headroom,
-                open_stop_worst_case_loss=Decimal(0),
+                margin_used=core_open_margin,
+                free_margin=max(Decimal(0), equity - core_open_margin),
+                open_stop_worst_case_loss=core_open_risk,
                 open_floating_loss=Decimal(0),
                 pending_broker_worst_case_loss=Decimal(0),
-                qore_authorizable_headroom=headroom,
+                qore_authorizable_headroom=min(headroom, external_headroom),
                 provider_budget=_Budget(
-                    provider_headroom=headroom,
-                    max_risk_at_any_time=headroom,
+                    provider_headroom=equity,
+                    max_risk_at_any_time=equity,
                     active_mll=Decimal(0),
-                    hard_breach=headroom <= 0,
+                    hard_breach=equity <= 0,
                 ),
                 reconciled_at=epoch.market_decision_at,
             )
