@@ -42,6 +42,7 @@ class T20ForwardReleaseQualification:
     four_fold_coverage_complete: bool
     seven_lineage_coverage_complete: bool
     population_minimum_met: bool
+    source_manifest_scientific_ready: bool
     empirical_t20_ready: bool
     recommendation: str
     canonical_ledger_modified: bool = False
@@ -81,6 +82,7 @@ class T20ForwardReleaseQualification:
             "four_fold_coverage_complete",
             "seven_lineage_coverage_complete",
             "population_minimum_met",
+            "source_manifest_scientific_ready",
             "empirical_t20_ready",
             "canonical_ledger_modified",
             "phase22_v2_consumed",
@@ -100,6 +102,7 @@ class T20ForwardReleaseQualification:
         expected_ready = all(
             (
                 self.population_minimum_met,
+                self.source_manifest_scientific_ready,
                 self.release_coverage >= self.required_candidate_coverage,
                 self.blocking_gap_count == 0,
                 self.t20_release_gap_count == 0,
@@ -185,6 +188,7 @@ def qualify_t20_forward_release_population(
     ready = all(
         (
             population_minimum,
+            manifest.ready_for_scientific_consumption,
             coverage >= plan.minimum_candidate_outcome_coverage,
             not blocking,
             not release_gaps,
@@ -205,6 +209,7 @@ def qualify_t20_forward_release_population(
         four_fold_coverage_complete=four_folds,
         seven_lineage_coverage_complete=seven_lineages,
         population_minimum_met=population_minimum,
+        source_manifest_scientific_ready=manifest.ready_for_scientific_consumption,
         empirical_t20_ready=ready,
         recommendation=(
             TERMINAL_RECOMMENDATION if ready else WAITING_RECOMMENDATION
