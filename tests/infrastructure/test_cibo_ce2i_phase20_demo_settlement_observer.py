@@ -71,6 +71,9 @@ def _entry(
         submitted_at=(START + timedelta(seconds=1)).isoformat(),
         expires_at=(START + timedelta(minutes=1)).isoformat(),
         position_id=POSITION_ID,
+        authorized_source_volume="1",
+        source_contract_size_units="1",
+        ctrader_lot_size_units="1",
     )
 
 
@@ -87,6 +90,7 @@ def _deal(
     commission: str,
     gross: str | None,
     net: str | None,
+    filled_units: str = "1",
 ) -> DemoDeal:
     return DemoDeal(
         deal_id=deal_id,
@@ -95,7 +99,7 @@ def _deal(
         symbol_id=1,
         side="long",
         volume_units=Decimal("1"),
-        filled_units=Decimal("1"),
+        filled_units=Decimal(filled_units),
         execution_price=Decimal("100"),
         executed_at=START + timedelta(seconds=at_seconds),
         gross_profit=None if gross is None else Decimal(gross),
@@ -134,8 +138,22 @@ def test_settlement_observer_accumulates_entry_partial_and_terminal_cash(
         positions=(),
         deals=(
             _deal(1, at_seconds=1, commission="-2", gross=None, net=None),
-            _deal(2, at_seconds=20, commission="-1", gross="6", net="5"),
-            _deal(3, at_seconds=40, commission="-1", gross="21", net="20"),
+            _deal(
+                2,
+                at_seconds=20,
+                commission="-1",
+                gross="6",
+                net="5",
+                filled_units="0.4",
+            ),
+            _deal(
+                3,
+                at_seconds=40,
+                commission="-1",
+                gross="21",
+                net="20",
+                filled_units="0.6",
+            ),
         ),
     )
 
@@ -169,6 +187,88 @@ def test_settlement_observer_accumulates_entry_partial_and_terminal_cash(
         now=START + timedelta(minutes=1),
         provider_order_status=lambda _provider_order_ref: 3,
     ) == Decimal("0")
+
+
+def test_settlement_observer_uses_volume_proof_when_position_snapshot_lags(
+    tmp_path: Path,
+) -> None:
+    settlement_store = DurableCmaSettlementStore(tmp_path / "settlements.json")
+    cursor_store = DurablePhase20DemoSettlementCursorStore(
+        tmp_path / "cursor.json"
+    )
+    registry = _registry(tmp_path / "registry.json")
+    source = _Source(
+        positions=(_open_position(),),
+        deals=(
+            _deal(41, at_seconds=1, commission="-2", gross=None, net=None),
+            _deal(
+                42,
+                at_seconds=40,
+                commission="-1",
+                gross="21",
+                net="20",
+                filled_units="1",
+            ),
+        ),
+    )
+
+    observed = observe_ctrader_demo_phase20_settlements(
+        source=source,
+        registry=registry,
+        settlement_store=settlement_store,
+        cursor_store=cursor_store,
+        initial_cursor=START,
+        observed_at=START + timedelta(minutes=1),
+    )
+
+    assert observed.terminal_deal_ids == (42,)
+    assert observed.partial_deal_ids == ()
+    state = settlement_store.load().state_for(
+        signal_fingerprint="signal-901",
+        position_id=POSITION_ID,
+    )
+    assert state is not None
+    assert state.position_closed is True
+    assert state.records[-1].event == "CTRADER_DEMO_EXIT_SETTLEMENT"
+    assert registry.entries_by_position(POSITION_ID)[0].closed_at is not None
+
+
+def test_settlement_observer_fails_closed_on_absent_position_volume_gap(
+    tmp_path: Path,
+) -> None:
+    settlement_store = DurableCmaSettlementStore(tmp_path / "settlements.json")
+    cursor_store = DurablePhase20DemoSettlementCursorStore(
+        tmp_path / "cursor.json"
+    )
+    source = _Source(
+        positions=(),
+        deals=(
+            _deal(51, at_seconds=1, commission="-2", gross=None, net=None),
+            _deal(
+                52,
+                at_seconds=40,
+                commission="-1",
+                gross="9",
+                net="8",
+                filled_units="0.4",
+            ),
+        ),
+    )
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="absent before authorized execution volume is fully reconciled",
+    ):
+        observe_ctrader_demo_phase20_settlements(
+            source=source,
+            registry=_registry(tmp_path / "registry.json"),
+            settlement_store=settlement_store,
+            cursor_store=cursor_store,
+            initial_cursor=START,
+            observed_at=START + timedelta(minutes=1),
+        )
+
+    assert settlement_store.load().states == ()
 
 
 def test_settlement_observer_restart_is_idempotent(tmp_path: Path) -> None:
