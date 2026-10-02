@@ -39,6 +39,7 @@ from qore.infrastructure.cibo_scientific_closure_41 import (
 from qore.infrastructure.cibo_scientific_closure_41_adapters import (
     ARCHITECT_A_35_IDS,
     ARCHITECT_A_GROUP2_11_IDS,
+    CERTIFYING_FRESH_EVIDENCE_CLASS,
     GROUP1_28_IDS,
     GROUP2_CAPITAL_13_IDS,
     SPECIAL_6_IDS,
@@ -88,6 +89,7 @@ def _v4_handoff(
     *,
     candidate_id: str = SUCCESSOR_HOLDOUT_ID,
     population_identity: str = "phase22-v6:canonical",
+    evidence_class: str = CERTIFYING_FRESH_EVIDENCE_CLASS,
     trader_ids: tuple[str, ...] = (
         "VT08_FOREX",
         "R34_XAUUSD",
@@ -112,6 +114,7 @@ def _v4_handoff(
         trader_ids=trader_ids,
         qualification_status="PASS",
         terminal_recommendation=COMPLETED,
+        evidence_class=evidence_class,
         observed_at=datetime(2026, 10, 2, 11, 59, tzinfo=UTC),
     )
 
@@ -124,6 +127,7 @@ def _group2_handoff(
     status: str = "PASS",
     manifest: str | None = None,
     population: str = "phase22-v6:canonical",
+    evidence_class: str = CERTIFYING_FRESH_EVIDENCE_CLASS,
 ) -> Group2CapitalTerminalEvidenceHandoff:
     passed = status == "PASS"
     return Group2CapitalTerminalEvidenceHandoff(
@@ -141,6 +145,7 @@ def _group2_handoff(
         provider_identity=CANONICAL_PROVIDER_IDENTITY,
         causal_lineage=_sha("lineage"),
         source_head_sha="b" * 40,
+        evidence_class=evidence_class,
         observed_at=datetime(2026, 10, 2, 11, 59, tzinfo=UTC),
     )
 
@@ -409,6 +414,25 @@ def test_successor_fresh_handoff_accepts_exact_v6_identity() -> None:
     )
     assert evidence.holdout_id == successor
     assert evidence.terminal_disposition == COMPLETED
+
+
+def test_group1_rejects_noncertifying_reused_holdout_evidence_class() -> None:
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="evidence class is not certifying fresh OOS",
+    ):
+        _v4_handoff(evidence_class="NON_CERTIFYING_REUSED_HOLDOUT")
+
+
+def test_group2_rejects_noncertifying_reused_holdout_evidence_class() -> None:
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="evidence class is not certifying fresh OOS",
+    ):
+        _group2_handoff(
+            "COMPOUND_ENGINE",
+            evidence_class="NON_CERTIFYING_REUSED_HOLDOUT",
+        )
 
 
 def test_successor_fresh_handoff_rejects_cross_holdout_binding() -> None:
