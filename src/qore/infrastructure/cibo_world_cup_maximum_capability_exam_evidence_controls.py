@@ -19,6 +19,7 @@ from qore.infrastructure.cibo_final_integrated_exam import (
     FinalIntegratedExamReport,
     FinalIntegratedExamStatus,
 )
+from qore.infrastructure.cibo_phase22_v4_governance import V4_CANDIDATE_ID
 from qore.infrastructure.cibo_world_cup_maximum_capability_exam import (
     WorldCupControlReceipt,
     bind_world_cup_control_artifact,
@@ -26,8 +27,11 @@ from qore.infrastructure.cibo_world_cup_maximum_capability_exam import (
     world_cup_policy_identity_sha256,
 )
 
-_PHASE22_V2_CANDIDATE_ID = (
-    "CIBO_USD60_6M_HOLDOUT_2015-10-19_2016-04-19_V2"
+_PROTECTED_PHASE22_CANDIDATE_IDS = frozenset(
+    {
+        "CIBO_USD60_6M_HOLDOUT_2015-10-19_2016-04-19_V2",
+        V4_CANDIDATE_ID,
+    }
 )
 _EVIDENCE_KIND = "WORLD_CUP_MAXIMUM_CAPABILITY_CONTROL"
 _SCHEMA = "qore.cibo.world-cup-evidence-control.v1"
@@ -80,9 +84,9 @@ class WorldCupEvidenceBase:
             raise CiboCapitalManagementError(
                 "World Cup competition population identity required"
             )
-        if self.competition_population_id == _PHASE22_V2_CANDIDATE_ID:
+        if self.competition_population_id in _PROTECTED_PHASE22_CANDIDATE_IDS:
             raise CiboCapitalManagementError(
-                "World Cup cannot reuse protected Phase22 V2 holdout"
+                "World Cup cannot reuse a protected Phase22 holdout"
             )
         _sha(self.evidence_sha256, "evidence_sha256")
         if self.observed_at.tzinfo is None or self.observed_at.utcoffset() is None:
