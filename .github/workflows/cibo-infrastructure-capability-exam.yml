@@ -35,17 +35,7 @@ jobs:
           if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
             test "${{ inputs.owner_authorized }}" = "true"
           else
-            python - <<'PY'
-            import json
-            from pathlib import Path
-            p = json.loads(
-                Path(
-                    "docs/research/"
-                    "CIBO-INFRASTRUCTURE-CAPABILITY-EXAM-TRIGGER.json"
-                ).read_text(encoding="utf-8")
-            )
-            assert p["launch_authorized_by_owner"] is True
-            PY
+            python -c 'import json; from pathlib import Path; p=json.loads(Path("docs/research/CIBO-INFRASTRUCTURE-CAPABILITY-EXAM-TRIGGER.json").read_text(encoding="utf-8")); assert p["launch_authorized_by_owner"] is True'
           fi
       - uses: actions/checkout@v4
         with:
