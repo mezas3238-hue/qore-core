@@ -46,6 +46,7 @@ jobs:
             tests/infrastructure/test_cibo_generation_current_control.py \
             tests/infrastructure/test_cibo_protected_base_policy_gate.py \
             tests/infrastructure/test_cibo_protected_base_overlay.py \
+            tests/infrastructure/test_cibo_profit_preservation_shadow.py \
             tests/infrastructure/test_cibo_profit_preservation_economic_gate.py \
             tests/infrastructure/test_cibo_compound_path_monte_carlo.py \
             tests/infrastructure/test_cibo_compound_adversarial_stress.py \
