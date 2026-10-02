@@ -85,7 +85,6 @@
     "FORWARD_QUALIFICATION",
     "PATH_DEPENDENT_MONTE_CARLO",
     "ADVERSARIAL_STRESS",
-    "FRESH_OOS",
     "TEMPORAL_REPLICATION",
     "RISK_INTEGRATION",
     "CAPITAL_AMPLIFICATION",
@@ -150,10 +149,10 @@
     "certification_claim": false
   },
   "terminal_disposition_reconciliation": {
-    "source_head": "5146077c41ccb7cfdda319162ef6c5f34d55f478",
-    "terminal_count": 62,
-    "open_count": 2,
-    "external_dependency_terminal_count": 45,
+    "source_head": "355fdf4a28d4031c950baf9408efe17f0853e10f",
+    "terminal_count": 61,
+    "open_count": 3,
+    "external_dependency_terminal_count": 40,
     "completed_and_proven_terminal_count": 16,
     "certification_blocking_external_ids": [
       "T02",
@@ -195,7 +194,6 @@
       "FORWARD_QUALIFICATION",
       "PATH_DEPENDENT_MONTE_CARLO",
       "ADVERSARIAL_STRESS",
-      "FRESH_OOS",
       "TEMPORAL_REPLICATION",
       "CAPITAL_AMPLIFICATION",
       "USD60_CAPABILITY_PROGRAM",
@@ -206,7 +204,10 @@
       "FINAL_INTEGRATED_CIBO_EXAM",
       "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM"
     ],
-    "productive_authority": false
+    "productive_authority": false,
+    "open_non_exam_ids": [
+      "FRESH_OOS"
+    ]
   },
   "post_snapshot_integration": {
     "source_integrator_head": "c2f584c701fb05b5dbe151f47e3a8e253bcf559c",
