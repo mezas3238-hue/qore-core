@@ -1,1 +1,0 @@
-"""CIBO module foundation."""

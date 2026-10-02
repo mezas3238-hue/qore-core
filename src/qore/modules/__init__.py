@@ -1,1 +1,0 @@
-"""Módulos funcionales de QORE."""

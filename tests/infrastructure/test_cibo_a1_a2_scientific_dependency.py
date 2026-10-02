@@ -30,6 +30,7 @@ def _bridge() -> A1Phase22CanonicalScientificManifestBridge:
     return A1Phase22CanonicalScientificManifestBridge(
         bridge_id=BRIDGE_ID,
         canonical_phase22_manifest_sha256=_sha("canonical-phase22"),
+        canonical_execution_manifest_sha256=_sha("execution-manifest"),
         a1_consumption_manifest_sha256=_sha("a1-consumption"),
         candidate_id="CIBO_USD60_6M_HOLDOUT_2015-10-19_2016-04-19_V2",
         decision_epochs=100,
@@ -46,6 +47,7 @@ def _bridge() -> A1Phase22CanonicalScientificManifestBridge:
         qualification_status="PASS",
         ready_for_scientific_reentry=True,
         exact_candidate_binding=True,
+        exact_execution_identity_binding=True,
         exact_decision_population_count=True,
         exact_trader_lineage=True,
         exact_fold_lineage=True,
