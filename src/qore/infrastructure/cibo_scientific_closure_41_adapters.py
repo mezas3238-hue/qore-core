@@ -75,6 +75,7 @@ from qore.infrastructure.cibo_scientific_closure_41 import (
 )
 
 DEPENDENCY_SCHEMA = "QORE_CIBO_SCIENTIFIC_CLOSURE_41_DEPENDENCIES_V1"
+CERTIFYING_FRESH_EVIDENCE_CLASS = "FORWARD_EMPIRICAL_HOLDOUT"
 _SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 _SHA1_RE = re.compile(r"^[0-9a-f]{40}$")
 
@@ -181,6 +182,7 @@ class Group1V4TerminalEvidenceHandoff:
     trader_ids: tuple[str, ...]
     qualification_status: str
     terminal_recommendation: str
+    evidence_class: str
     observed_at: datetime
     synthetic_evidence_used: bool = False
     future_leakage_detected: bool = False
@@ -230,6 +232,10 @@ class Group1V4TerminalEvidenceHandoff:
         if self.trader_ids != CANONICAL_PHASE22_TRADER_IDS:
             raise CiboCapitalManagementError(
                 "Group-1 fresh handoff requires exact ordered 7/7 Traders"
+            )
+        if self.evidence_class != CERTIFYING_FRESH_EVIDENCE_CLASS:
+            raise CiboCapitalManagementError(
+                "Group-1 fresh handoff evidence class is not certifying fresh OOS"
             )
         if self.qualification_status not in {"PASS", "FAIL"}:
             raise CiboCapitalManagementError(
@@ -282,6 +288,7 @@ class Group2CapitalTerminalEvidenceHandoff:
     provider_identity: str
     causal_lineage: str
     source_head_sha: str
+    evidence_class: str
     observed_at: datetime
     synthetic_evidence_used: bool = False
     future_leakage_detected: bool = False
@@ -311,6 +318,10 @@ class Group2CapitalTerminalEvidenceHandoff:
                 raise CiboCapitalManagementError(
                     f"Group-2 capital handoff {name} invalid"
                 )
+        if self.evidence_class != CERTIFYING_FRESH_EVIDENCE_CLASS:
+            raise CiboCapitalManagementError(
+                "Group-2 capital handoff evidence class is not certifying fresh OOS"
+            )
         if not self.source_gate_id:
             raise CiboCapitalManagementError(
                 "Group-2 capital handoff source gate required"
