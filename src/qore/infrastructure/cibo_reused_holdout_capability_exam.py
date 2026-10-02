@@ -618,10 +618,6 @@ def _tool_audit(
         if len({candidate.trader_id for candidate in item.candidates}) > 1
     )
     release_count = len(execution.books.t20_release.release_chain)
-    profit_available = execution.peak_realized_capital_usd > (
-        execution.initial_realized_capital_usd
-    )
-
     candidate_by_signal = {
         candidate.signal_fingerprint: candidate
         for epoch in plan.epochs
