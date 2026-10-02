@@ -108,6 +108,7 @@ def test_p2_rejects_failed_pre_exam() -> None:
             pre_exam_evidence_git_sha=HEAD,
             integrated_git_sha=HEAD,
             phase22_receipt=phase22,
+            reconciled_ledger=_reconciled_ledger(),
             observed_at=phase22.qualified_at + timedelta(minutes=1),
         )
 
@@ -121,6 +122,7 @@ def test_p2_rejects_cross_head_reuse() -> None:
             pre_exam_evidence_git_sha="b" * 40,
             integrated_git_sha=HEAD,
             phase22_receipt=phase22,
+            reconciled_ledger=_reconciled_ledger(),
             observed_at=phase22.qualified_at + timedelta(minutes=1),
         )
 
