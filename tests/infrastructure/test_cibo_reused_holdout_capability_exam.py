@@ -3,6 +3,11 @@ from decimal import Decimal
 from pathlib import Path
 
 from qore.infrastructure.account_wide_risk import TraderLineage
+from qore.infrastructure.cibo_capability_exam_cognitive_coverage import (
+    EXPECTED_FACULTIES,
+    EXPECTED_TOOLS,
+    build_cibo_capability_cognitive_coverage,
+)
 from qore.infrastructure.cibo_ce2i_tool_registry import CE2I_TOOL_REGISTRY
 from qore.infrastructure.cibo_phase22_fresh_opportunity_batch import (
     Phase22FreshOpportunity,
@@ -100,3 +105,29 @@ def test_reused_batch_canonicalizes_per_trader_opportunity_order() -> None:
 
     assert canonical.opportunities == (earlier, later)
     assert canonical.source_artifact_sha256 == evidence.source_artifact_sha256
+
+
+def test_capability_exam_requires_cognitive_cf01_cf19_and_cibo_sizing_authority() -> None:
+    receipt = build_cibo_capability_cognitive_coverage(
+        source_batch_sha256="sha256:" + "a" * 64,
+        observed_at=datetime(2026, 10, 2, 20, tzinfo=UTC),
+    )
+
+    assert receipt.complete is True
+    assert receipt.cognitive_used is True
+    assert receipt.mission_faculties == tuple(
+        item.value for item in EXPECTED_FACULTIES
+    )
+    assert receipt.coordinated_faculties == tuple(
+        item.value for item in EXPECTED_FACULTIES
+    )
+    assert receipt.ce2i_tool_codes == EXPECTED_TOOLS
+    assert receipt.trader_sizing_authority == "NONE"
+    assert receipt.cibo_sizing_authority == "CIBO_CMA"
+    assert receipt.qore_risk_sovereign is True
+
+
+def test_capability_exam_function_and_tool_surfaces_are_exact() -> None:
+    assert len(EXPECTED_FACULTIES) == 19
+    assert len(set(EXPECTED_FACULTIES)) == 19
+    assert EXPECTED_TOOLS == tuple(f"T{i:02d}" for i in range(1, 21))
