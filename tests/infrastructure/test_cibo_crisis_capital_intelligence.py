@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
@@ -335,3 +336,57 @@ def test_genc12_rejects_future_crisis_fact() -> None:
             regime_state=regime,
             crisis_facts=(future,),
         )
+
+
+def test_genc12_crisis_fact_rejects_ambiguous_governance_flags() -> None:
+    fact = _fact(Genc12CrisisFactor.CAPITAL_LOCKUP)
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="future_outcome_present must be bool",
+    ):
+        replace(fact, future_outcome_present=0)
+
+
+def test_genc12_plan_rejects_tool_overlap_and_non_bool_flags() -> None:
+    twin = _twin()
+    regime = CiboCapitalRegimeState(
+        liquidity=LiquidityState.NORMAL,
+        volatility=VolatilityState.NORMAL,
+        correlation=CorrelationState.NORMAL,
+        provider_condition=ProviderCondition.HEALTHY,
+        risk_utilization=Decimal("0.2"),
+        margin_utilization=Decimal("0.2"),
+        drawdown_utilization=Decimal("0.55"),
+        opportunity_count=2,
+        position_path_adverse=False,
+    )
+    plan = plan_genc12_crisis_capital(
+        plan_id="plan-integrity",
+        evaluated_at=T0,
+        twin=twin,
+        regime_state=regime,
+        crisis_facts=(
+            _fact(Genc12CrisisFactor.DRAWDOWN_ACCELERATION),
+        ),
+    )
+
+    overlapping = (
+        plan.blocked_ce2i_tools[0]
+        if plan.blocked_ce2i_tools
+        else plan.enabled_ce2i_tools[0]
+    )
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="enabled/blocked tool surfaces cannot overlap",
+    ):
+        replace(
+            plan,
+            enabled_ce2i_tools=plan.enabled_ce2i_tools + (overlapping,),
+        )
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="future_outcome_used must be bool",
+    ):
+        replace(plan, future_outcome_used=0)
