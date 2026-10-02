@@ -192,6 +192,9 @@ class A1ScientificDisposition:
 class A1ScientificDispositionPackage:
     source_branch: str
     source_head: str
+    canonical_phase22_manifest_sha256: str
+    a1_consumption_manifest_sha256: str
+    canonical_manifest_bridge_sha256: str
     dispositions: tuple[A1ScientificDisposition, ...]
     complete_handoff: bool
     integrator_owned_reconciliation: bool = True
@@ -207,6 +210,12 @@ class A1ScientificDispositionPackage:
             raise CiboCapitalManagementError(
                 "A1 disposition package source head invalid"
             )
+        for name in (
+            "canonical_phase22_manifest_sha256",
+            "a1_consumption_manifest_sha256",
+            "canonical_manifest_bridge_sha256",
+        ):
+            _sha256(getattr(self, name), name)
         ids = tuple(item.workstream_id for item in self.dispositions)
         if len(ids) != len(set(ids)):
             raise CiboCapitalManagementError(
