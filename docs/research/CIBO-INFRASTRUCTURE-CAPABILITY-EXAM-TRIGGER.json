@@ -15,5 +15,7 @@
   "live_authorized": false,
   "real_capital_authorized": false,
   "production_authorized": false,
-  "merge_authorized": false
+  "merge_authorized": false,
+  "retrigger_for_head": "070c6282d3cde556f36930abfa0d1129aa1b5c72",
+  "retrigger_reason": "rerun USD60 capability exam after import-order repairs; no governance or productive authority change"
 }
