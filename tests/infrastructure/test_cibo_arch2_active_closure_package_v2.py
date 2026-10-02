@@ -1,9 +1,7 @@
 import json
 from pathlib import Path
 
-from qore.infrastructure.cibo_arch2_active_frontier_v2 import (
-    architect2_active_frontier_v2,
-)
+from qore.infrastructure.cibo_arch2_active_frontier_v2 import architect2_active_frontier_v2
 
 
 _PACKAGE = Path("docs/research/CIBO-ARCH-2-ACTIVE-CLOSURE-PACKAGE-V2.json")
