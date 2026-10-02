@@ -41,6 +41,7 @@ from qore.infrastructure.cibo_scientific_closure_41_adapters import (
     CanonicalScientificBinding,
     Group1V4TerminalEvidenceHandoff,
     Group2CapitalTerminalEvidenceHandoff,
+    adapt_group1_fresh_oos_handoff,
     adapt_group1_v4_fresh_oos_handoff,
     adapt_group2_capital_terminal_batch,
     adapt_group2_capital_terminal_handoff,
@@ -55,18 +56,24 @@ def _sha(label: str) -> str:
     return "sha256:" + sha256(label.encode("utf-8")).hexdigest()
 
 
-def _binding(*, integrity: str = "PASS") -> CanonicalScientificBinding:
+def _binding(
+    *,
+    integrity: str = "PASS",
+    holdout_id: str = CANONICAL_HOLDOUT_ID,
+    population_identity: str = "phase22-v4:canonical",
+) -> CanonicalScientificBinding:
     return CanonicalScientificBinding(
         scientific_hypothesis="Frozen preregistered hypothesis",
         evidence_refs=("artifact://immutable",),
         evidence_sha256s=(_sha("artifact"),),
-        population_identity="phase22-v4:canonical",
+        population_identity=population_identity,
         causal_lineage=_sha("lineage"),
         economic_result="PASS",
         stress_result="PASS",
         temporal_replication_result="PASS",
         integrity_result=integrity,
         evaluated_at=datetime(2026, 10, 2, 12, 0, tzinfo=UTC),
+        holdout_id=holdout_id,
     )
 
 
@@ -172,7 +179,7 @@ def test_dependency_manifest_names_all_41_without_fabricating_future_digests() -
     manifest = scientific_closure_41_dependency_manifest()
 
     assert manifest["workstream_count"] == 41
-    assert manifest["group1_v4_fresh_ce2i_genc_count"] == 28
+    assert manifest["group1_successor_fresh_ce2i_genc_count"] == 28
     assert manifest["group2_capital_compound_count"] == 13
     assert (
         manifest["group2_evidence_state"]
@@ -345,7 +352,7 @@ def test_t11_passed_market_impact_still_requires_fresh_gross_edge() -> None:
         )
 
 
-def test_v4_fresh_handoff_adapts_only_exact_immutable_identity() -> None:
+def test_legacy_v4_fresh_handoff_adapter_remains_compatible() -> None:
     evidence = adapt_group1_v4_fresh_oos_handoff(
         handoff=_v4_handoff(),
         binding=_binding(),
@@ -356,15 +363,32 @@ def test_v4_fresh_handoff_adapts_only_exact_immutable_identity() -> None:
     assert evidence.terminal_disposition == COMPLETED
 
 
-def test_v4_fresh_handoff_rejects_stale_v2_candidate() -> None:
+def test_successor_fresh_handoff_accepts_exact_v6_identity() -> None:
+    successor = "CIBO_USD60_6M_HOLDOUT_2013-10-19_2014-04-19_V6"
+    population = "phase22-v6:canonical"
+    handoff = _v4_handoff(candidate_id=successor)
+    object.__setattr__(handoff, "population_identity", population)
+    evidence = adapt_group1_fresh_oos_handoff(
+        handoff=handoff,
+        binding=_binding(
+            holdout_id=successor,
+            population_identity=population,
+        ),
+    )
+    assert evidence.holdout_id == successor
+    assert evidence.terminal_disposition == COMPLETED
+
+
+def test_successor_fresh_handoff_rejects_cross_holdout_binding() -> None:
+    successor = "CIBO_USD60_6M_HOLDOUT_2013-10-19_2014-04-19_V6"
+    handoff = _v4_handoff(candidate_id=successor)
     with pytest.raises(
         CiboCapitalManagementError,
-        match="candidate identity drift",
+        match="holdout identity drift",
     ):
-        _v4_handoff(
-            candidate_id=(
-                "CIBO_USD60_6M_HOLDOUT_2015-10-19_2016-04-19_V2"
-            )
+        adapt_group1_fresh_oos_handoff(
+            handoff=handoff,
+            binding=_binding(),
         )
 
 
