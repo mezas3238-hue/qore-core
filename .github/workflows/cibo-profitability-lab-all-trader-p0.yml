@@ -1,0 +1,169 @@
+name: QORE CIBO Profitability Lab P0 All Trader
+
+on:
+  workflow_dispatch:
+    inputs:
+      owner_authorized:
+        description: 'Explicit Owner authorization for research-only P0 lab run'
+        required: true
+        type: boolean
+        default: false
+  push:
+    branches:
+      - agent/cibo-profitability-lab-001
+    paths:
+      - 'docs/research/CIBO-PROFITABILITY-LAB-P0-TRIGGER.json'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-cibo-profitability-lab-p0
+  cancel-in-progress: false
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  lab:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Verify Owner authorization and research governance
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            test "${{ inputs.owner_authorized }}" = "true"
+          else
+            python - <<'PY'
+          import json
+          from pathlib import Path
+          p = json.loads(
+              Path("docs/research/CIBO-PROFITABILITY-LAB-P0-TRIGGER.json")
+              .read_text(encoding="utf-8")
+          )
+          assert p["owner_authorized"] is True
+          assert p["research_only"] is True
+          assert p["broker_mutation"] is False
+          assert p["live"] is False
+          assert p["real_capital"] is False
+          assert p["production"] is False
+          assert p["merge_authority"] is False
+          PY
+          fi
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: python -m pip install -e '.[dev]'
+
+      - name: Static validation
+        run: |
+          python -m compileall -q             scripts/cibo_profitability_lab_all_trader.py             src/qore/infrastructure/cibo_phase22_v4_chronological_execution.py             src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py
+          python -m ruff check             scripts/cibo_profitability_lab_all_trader.py             src/qore/infrastructure/cibo_phase22_v4_chronological_execution.py             src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py
+
+      - name: Recover frozen 7-of-7 batch from successful run 28
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/batch"
+          gh api             "/repos/$GITHUB_REPOSITORY/actions/artifacts/11256450732/zip"             > "$RUNNER_TEMP/batch.zip"
+          unzip -q "$RUNNER_TEMP/batch.zip" -d "$RUNNER_TEMP/batch"
+          test -s "$RUNNER_TEMP/batch/reused-batch.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p = json.loads(
+              (Path(os.environ["RUNNER_TEMP"]) / "batch" / "reused-batch.json")
+              .read_text(encoding="utf-8")
+          )
+          assert p["validation_mode"] == "NON_CERTIFYING_REUSED_HOLDOUT"
+          assert len(p["traders"]) == 7
+          assert sum(int(x["opportunity_count"]) for x in p["traders"]) > 0
+          PY
+
+      - name: Recover provider numeric model and regime corpora
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/provider" "$RUNNER_TEMP/regime"
+          python - <<'PY' > "$RUNNER_TEMP/provider.env"
+          from qore.infrastructure.cibo_phase22_provider_numeric_execution_receipt import (
+              PHASE22_PROVIDER_NUMERIC_EXECUTION_FREEZE_RECEIPT,
+          )
+          x = PHASE22_PROVIDER_NUMERIC_EXECUTION_FREEZE_RECEIPT
+          print(f"PROVIDER_ARTIFACT_ID={x.artifact_id}")
+          print(f"PROVIDER_ARTIFACT_DIGEST={x.artifact_digest}")
+          print(f"PROVIDER_FILE_SHA={x.provider_numeric_freeze_file_sha256}")
+          PY
+          source "$RUNNER_TEMP/provider.env"
+          zip="$RUNNER_TEMP/provider.zip"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$PROVIDER_ARTIFACT_ID/zip" > "$zip"
+          echo "$(cut -d: -f2 <<<"$PROVIDER_ARTIFACT_DIGEST")  $zip" | sha256sum -c -
+          unzip -q "$zip" -d "$RUNNER_TEMP/provider"
+          provider_json="$(find "$RUNNER_TEMP/provider" -name provider-numeric-execution-freeze.json -print -quit)"
+          test -n "$provider_json"
+          echo "$(cut -d: -f2 <<<"$PROVIDER_FILE_SHA")  $provider_json" | sha256sum -c -
+          echo "PROVIDER_JSON=$provider_json" >> "$GITHUB_ENV"
+          echo "PROVIDER_FILE_SHA=$PROVIDER_FILE_SHA" >> "$GITHUB_ENV"
+
+          python - <<'PY' > "$RUNNER_TEMP/regime.tsv"
+          from pathlib import Path
+          from qore.infrastructure.cibo_phase22_v4_historical_regime import (
+              PHASE22_REGIME_SYMBOLS,
+          )
+          from qore.infrastructure.cibo_phase22_v4_source_receipt import (
+              load_phase22_v4_source_receipt,
+          )
+          receipt = load_phase22_v4_source_receipt(
+              Path("docs/research/CIBO-PHASE22-V4-SOURCE-RECEIPT.json")
+          )
+          by_key = {(x.symbol, x.timeframe): x for x in receipt.bindings}
+          for symbol in PHASE22_REGIME_SYMBOLS:
+              x = by_key[(symbol, "M5")]
+              print(symbol, x.artifact_id, x.artifact_digest, sep="\t")
+          PY
+          while IFS=$'\t' read -r symbol artifact_id digest; do
+            zip="$RUNNER_TEMP/regime-$symbol.zip"
+            root="$RUNNER_TEMP/regime/$symbol"
+            gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" > "$zip"
+            echo "$(cut -d: -f2 <<<"$digest")  $zip" | sha256sum -c -
+            mkdir -p "$root"
+            unzip -q "$zip" -d "$root"
+          done < "$RUNNER_TEMP/regime.tsv"
+
+      - name: Execute P0 all-Trader laboratory
+        shell: bash
+        run: |
+          set -euo pipefail
+          replay_started_at="$(date -u '+%Y-%m-%dT%H:%M:%S+00:00')"
+          python scripts/cibo_profitability_lab_all_trader.py             --batch "$RUNNER_TEMP/batch/reused-batch.json"             --provider-numeric "$PROVIDER_JSON"             --provider-numeric-freeze-sha256 "$PROVIDER_FILE_SHA"             --source-root "AUDJPY=$RUNNER_TEMP/regime/AUDJPY"             --source-root "EURUSD=$RUNNER_TEMP/regime/EURUSD"             --source-root "GBPJPY=$RUNNER_TEMP/regime/GBPJPY"             --source-root "GBPUSD=$RUNNER_TEMP/regime/GBPUSD"             --source-root "XAUUSD=$RUNNER_TEMP/regime/XAUUSD"             --replay-started-at "$replay_started_at"             --output-dir "$RUNNER_TEMP/cibo-lab-p0"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-cibo-profitability-lab-p0-${{ github.run_id }}
+          path: ${{ runner.temp }}/cibo-lab-p0
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Enforce seven-of-seven participation gate
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p = json.loads(
+              (Path(os.environ["RUNNER_TEMP"]) / "cibo-lab-p0" / "lab-result.json")
+              .read_text(encoding="utf-8")
+          )
+          assert p["seven_of_seven_participation_pass"] is True
+          PY
