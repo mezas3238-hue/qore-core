@@ -35,11 +35,10 @@ def test_active_frontier_has_four_terminal_recommendations() -> None:
 
     assert (
         rows["T11"].state
-        is Architect2ActiveState.EMPIRICAL_PROVIDER_RUN_IN_PROGRESS
+        is Architect2ActiveState.TERMINAL_RECOMMENDATION_READY
     )
-    assert "36948511045" in rows["T11"].remaining_requirement
-    assert "OUTCOME_BLIND" in rows["T11"].remaining_requirement
-    assert "GROSS_EDGE" in rows["T11"].remaining_requirement
+    assert rows["T11"].proposed_terminal_disposition == "FALSIFIED_AND_CLOSED"
+    assert rows["T11"].remaining_requirement == "INTEGRATOR_EVIDENCE_AUDIT"
     assert rows["T16"].state is Architect2ActiveState.TERMINAL_RECOMMENDATION_READY
     assert rows["T16"].proposed_terminal_disposition == "FALSIFIED_AND_CLOSED"
     assert (
