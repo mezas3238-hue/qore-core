@@ -1,25 +1,13 @@
 name: QORE CIBO Reused Holdout Infrastructure Capability Exam
 
 on:
-  push:
-    branches:
-      - agent/cibo-integrator-ab-001
-    paths:
-      - 'docs/research/CIBO-INFRASTRUCTURE-CAPABILITY-EXAM-TRIGGER.json'
-      - 'src/qore/infrastructure/cibo_reused_holdout_capability_exam.py'
-      - 'src/qore/infrastructure/cibo_usd60_dual_objective_exam.py'
-      - 'src/qore/infrastructure/cibo_usd60_capability_certification.py'
-      - 'src/qore/infrastructure/cibo_capability_exam_cognitive_coverage.py'
-      - 'src/qore/infrastructure/cibo_ce2i_t11_runtime_guard.py'
-      - 'src/qore/infrastructure/cibo_phase22_fresh_capital_projection.py'
-      - 'tests/infrastructure/test_cibo_phase22_fresh_capital_projection.py'
-      - 'src/qore/infrastructure/cibo_phase22_historical_replay_settlement.py'
-      - 'scripts/cibo_phase22_reused_holdout_batch_assembler.py'
-      - 'scripts/cibo_reused_holdout_capability_exam.py'
-      - 'tests/infrastructure/test_cibo_reused_holdout_capability_exam.py'
-      - 'tests/infrastructure/test_cibo_usd60_dual_objective_exam.py'
-      - 'tests/infrastructure/test_cibo_usd60_capability_certification.py'
-      - '.github/workflows/cibo-infrastructure-capability-exam.yml'
+  workflow_dispatch:
+    inputs:
+      owner_authorized:
+        description: 'Explicit Owner authorization to launch the capability exam'
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -37,6 +25,9 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
+      - name: Verify explicit Owner launch authorization
+        run: |
+          test "${{ inputs.owner_authorized }}" = "true"
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
