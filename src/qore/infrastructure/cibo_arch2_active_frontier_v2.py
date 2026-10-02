@@ -65,11 +65,11 @@ def architect2_active_frontier_v2() -> tuple[Architect2ActiveFront, ...]:
         ),
         Architect2ActiveFront(
             workstream_id="T11",
-            state=Architect2ActiveState.BLOCKED_ON_PROVIDER_CONTAINMENT,
+            state=Architect2ActiveState.PARTIAL_EVIDENCE_READY,
             remaining_requirement=(
-                "CLOSE_EXACT_TWO_CANCELLED_V1_DEMO_POSITIONS_THEN_"
-                "READ_ONLY_ZERO_CONTAINMENT_RECEIPT_BEFORE_NEW_VERSIONED_"
-                "MARKET_IMPACT_CYCLE__RUN_36946792349_EVIDENCE_INADMISSIBLE"
+                "GLOBAL_CONTAINMENT_CLEAN__V3_VERSIONED_CYCLE_READY_"
+                "WITHOUT_BROKER_AUTHORITY__MARKET_IMPACT_V3_PLUS_"
+                "AUTHORIZED_FORWARD_MANIFEST_FOR_GROSS_EDGE_REQUIRED"
             ),
         ),
         Architect2ActiveFront(
