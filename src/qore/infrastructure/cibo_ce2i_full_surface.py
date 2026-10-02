@@ -39,6 +39,9 @@ from qore.infrastructure.cibo_ce2i_tool_registry import (
     CE2I_TOOL_REGISTRY,
     ToolMaturity,
 )
+from qore.infrastructure.cibo_next_policy_advanced_scientific_eligibility import (
+    AdvancedScientificEligibilityFreeze,
+)
 
 _OPPORTUNITY_ADVANCED = ("T02", "T03", "T04", "T17")
 _PORTFOLIO_ADVANCED = ("T08", "T10", "T16")
@@ -149,6 +152,7 @@ def evaluate_full_ce2i_surface(
     regime_state: CiboCapitalRegimeState,
     opportunities: tuple[TraderOpportunityEnvelope, ...],
     advanced_evidence: AdvancedPortfolioEvidence,
+    scientific_eligibility: AdvancedScientificEligibilityFreeze | None = None,
 ) -> FullCe2iSurfaceAssessment:
     """Bind all 20 tool contracts and evaluate enabled advanced engines."""
 
@@ -196,6 +200,15 @@ def evaluate_full_ce2i_surface(
         mission=mission,
         state=regime_state,
     )
+    if scientific_eligibility is not None:
+        if not isinstance(
+            scientific_eligibility,
+            AdvancedScientificEligibilityFreeze,
+        ):
+            raise CiboCapitalManagementError(
+                "scientific_eligibility must be canonical freeze"
+            )
+        regime = scientific_eligibility.filter_regime_selection(regime)
     evidence_by_signal = {
         item.signal_fingerprint: item
         for item in advanced_evidence.opportunities
