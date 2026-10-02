@@ -48,7 +48,7 @@
     },
     {
       "workstream_id": "T11",
-      "state": "EMPIRICAL_V3_IN_PROGRESS",
+      "state": "EMPIRICAL_PROVIDER_RUN_IN_PROGRESS",
       "resolved_blockers": [
         "REAL_EXECUTION_POPULATION_REQUIRED",
         "EMPIRICAL_SLIPPAGE_CALIBRATION_REQUIRED"
@@ -65,7 +65,8 @@
         "github-artifact://11202788608/sha256:06aaffd5e19f11bb4b9a3f5c6e6d6d0924c52effcce506617e1ccac7f98c0cc0",
         "github-actions://36948338513/PRE_BROKER_QUALITY_FAILURE_ZERO_ARTIFACTS",
         "github-actions://36948511045/IN_PROGRESS_CANONICAL_V3",
-        "github-actions://36948554909/CANCELLED_BEFORE_JOB_DUPLICATE"
+        "github-actions://36948554909/CANCELLED_BEFORE_JOB_DUPLICATE",
+        "docs/research/CIBO-ARCH-2-INTEGRATOR-PATCH-REQUEST-010-T11-GROSS-EDGE-POPULATION.md"
       ],
       "execution_lineage": {
         "v1_run_id": 36945327912,
@@ -158,7 +159,7 @@
     ],
     "provider_containment_blocked_fronts": [],
     "ready_for_versioned_provider_evidence": [],
-    "scientific_closure_ci_run_id": 36948542828,
+    "scientific_closure_ci_run_id": 36949446474,
     "scientific_closure_ci_status": "SUCCESS"
   }
 }
