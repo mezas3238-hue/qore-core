@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 from datetime import timedelta
@@ -60,10 +61,30 @@ def _reconciled_ledger() -> dict[str, object]:
     }
 
 
-def _pre_exam(*, passed: bool = True) -> str:
+def _pre_exam(
+    *,
+    passed: bool = True,
+    ledger: dict[str, object] | None = None,
+    evidence_head_sha: str = HEAD,
+    ledger_sha256: str | None = None,
+) -> str:
+    resolved_ledger = _reconciled_ledger() if ledger is None else ledger
+    encoded = json.dumps(
+        resolved_ledger,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+    ).encode("utf-8")
+    resolved_ledger_sha = (
+        "sha256:" + hashlib.sha256(encoded).hexdigest()
+        if ledger_sha256 is None
+        else ledger_sha256
+    )
     payload = {
         "schema": "QORE_CIBO_ZERO_OPEN_WORK_GATE_V1",
         "scope": "PRE_EXAM",
+        "evidence_head_sha": evidence_head_sha,
+        "ledger_sha256": resolved_ledger_sha,
         "pass": passed,
         "mandatory_workstream_count": 62,
         "terminal_workstream_count": 62,
@@ -113,6 +134,42 @@ def test_p2_rejects_failed_pre_exam() -> None:
         )
 
 
+def test_p2_rejects_detached_pre_exam_artifact_head() -> None:
+    phase21 = _FIXTURE._phase21_manifest()
+    phase22 = _FIXTURE._receipt(phase21_sha=phase21.manifest_sha256())
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="artifact/evidence HEAD drift",
+    ):
+        build_pre_exam_zero_open_control(
+            pre_exam_artifact_json=_pre_exam(evidence_head_sha="b" * 40),
+            pre_exam_evidence_git_sha=HEAD,
+            integrated_git_sha=HEAD,
+            phase22_receipt=phase22,
+            reconciled_ledger=_reconciled_ledger(),
+            observed_at=phase22.qualified_at + timedelta(minutes=1),
+        )
+
+
+def test_p2_rejects_detached_pre_exam_artifact_ledger() -> None:
+    phase21 = _FIXTURE._phase21_manifest()
+    phase22 = _FIXTURE._receipt(phase21_sha=phase21.manifest_sha256())
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="artifact/ledger digest drift",
+    ):
+        build_pre_exam_zero_open_control(
+            pre_exam_artifact_json=_pre_exam(
+                ledger_sha256="sha256:" + "9" * 64,
+            ),
+            pre_exam_evidence_git_sha=HEAD,
+            integrated_git_sha=HEAD,
+            phase22_receipt=phase22,
+            reconciled_ledger=_reconciled_ledger(),
+            observed_at=phase22.qualified_at + timedelta(minutes=1),
+        )
+
+
 def test_p2_rejects_cross_head_reuse() -> None:
     phase21 = _FIXTURE._phase21_manifest()
     phase22 = _FIXTURE._receipt(phase21_sha=phase21.manifest_sha256())
@@ -144,7 +201,7 @@ def test_p2_rejects_ledger_that_is_not_exact_64_62_2() -> None:
         match="topology drift",
     ):
         build_pre_exam_zero_open_control(
-            pre_exam_artifact_json=_pre_exam(),
+            pre_exam_artifact_json=_pre_exam(ledger=bad),
             pre_exam_evidence_git_sha=HEAD,
             integrated_git_sha=HEAD,
             phase22_receipt=phase22,
