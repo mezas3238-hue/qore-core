@@ -25,13 +25,13 @@ from qore.infrastructure.cibo_ce2i_usd60_six_month_certification import (
     CiboMaximumCapabilityGateSet,
 )
 from qore.infrastructure.cibo_scientific_closure_41 import (
-    CONSUMED_INVALID_V4_HOLDOUT_ID,
-    SOURCE_UNAVAILABLE_V5_HOLDOUT_ID,
     CANONICAL_POLICY_IDENTITY,
     CANONICAL_PROVIDER_IDENTITY,
     CANONICAL_QUALIFICATION_PLAN_IDENTITY,
     COMPLETED,
+    CONSUMED_INVALID_V4_HOLDOUT_ID,
     FALSIFIED,
+    SOURCE_UNAVAILABLE_V5_HOLDOUT_ID,
 )
 from qore.infrastructure.cibo_scientific_closure_41_adapters import (
     ARCHITECT_A_35_IDS,
@@ -43,7 +43,6 @@ from qore.infrastructure.cibo_scientific_closure_41_adapters import (
     Group1V4TerminalEvidenceHandoff,
     Group2CapitalTerminalEvidenceHandoff,
     adapt_group1_fresh_oos_handoff,
-    adapt_group1_v4_fresh_oos_handoff,
     adapt_group2_capital_terminal_batch,
     adapt_group2_capital_terminal_handoff,
     adapt_t02_terminal_assessment,
