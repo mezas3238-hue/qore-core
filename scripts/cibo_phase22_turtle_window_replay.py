@@ -15,7 +15,8 @@ import hashlib
 import importlib.util
 import json
 import sys
-from contextlib import nullcontext
+from collections.abc import Iterator
+from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -115,6 +116,99 @@ def _timestamp(row: dict[str, Any], key: str) -> datetime:
     return value.astimezone(UTC)
 
 
+@contextmanager
+def bind_replay_evaluation_window(
+    module: ModuleType,
+    *,
+    start: datetime,
+    end: datetime,
+) -> Iterator[tuple[str, ...]]:
+    """Bind root and subordinate setup builders to one evaluation window.
+
+    Frozen Turtle replay programs build their setup population through the
+    imported r3 module. Updating only the root module's EVAL_OPEN/EVAL_CLOSE
+    leaves r3 on its historical five-year window and can silently emit an empty
+    population when the source corpus is from another period.
+    """
+
+    for value, name in ((start, "start"), (end, "end")):
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ValueError(f"Phase22 Turtle {name} must be timezone-aware")
+    if end <= start:
+        raise ValueError("Phase22 Turtle evaluation window must be positive")
+
+    bound: list[tuple[Any, str, datetime, datetime]] = []
+    seen: set[int] = set()
+    for name, target in (
+        ("module", module),
+        ("r1", getattr(module, "r1", None)),
+        ("r3", getattr(module, "r3", None)),
+    ):
+        if target is None or id(target) in seen:
+            continue
+        if not hasattr(target, "EVAL_OPEN") or not hasattr(target, "EVAL_CLOSE"):
+            if name in {"module", "r3"}:
+                raise ValueError(
+                    f"Phase22 Turtle replay missing {name} evaluation window"
+                )
+            continue
+        opened = getattr(target, "EVAL_OPEN")
+        closed = getattr(target, "EVAL_CLOSE")
+        if not isinstance(opened, datetime) or not isinstance(closed, datetime):
+            raise ValueError(
+                f"Phase22 Turtle replay {name} evaluation window invalid"
+            )
+        bound.append((target, name, opened, closed))
+        seen.add(id(target))
+
+    names = tuple(item[1] for item in bound)
+    if "module" not in names or "r3" not in names:
+        raise ValueError(
+            "Phase22 Turtle replay requires root and r3 window bindings"
+        )
+
+    try:
+        for target, _name, _opened, _closed in bound:
+            target.EVAL_OPEN = start
+            target.EVAL_CLOSE = end
+        if any(
+            target.EVAL_OPEN != start or target.EVAL_CLOSE != end
+            for target, _name, _opened, _closed in bound
+        ):
+            raise ValueError("Phase22 Turtle replay evaluation binding drift")
+        yield names
+    finally:
+        for target, _name, opened, closed in reversed(bound):
+            target.EVAL_OPEN = opened
+            target.EVAL_CLOSE = closed
+
+
+def validate_source_report_window(
+    *,
+    report: object,
+    start: datetime,
+    end: datetime,
+) -> None:
+    """Require the engine report to identify the requested evaluation window."""
+
+    if not isinstance(report, dict):
+        raise ValueError("Phase22 Turtle replay source report must be object")
+    raw_window = report.get("window")
+    if not isinstance(raw_window, dict):
+        raise ValueError("Phase22 Turtle replay source report window missing")
+    try:
+        opened = datetime.fromisoformat(str(raw_window["open"]))
+        closed = datetime.fromisoformat(str(raw_window["close"]))
+    except (KeyError, ValueError) as error:
+        raise ValueError(
+            "Phase22 Turtle replay source report window invalid"
+        ) from error
+    if opened != start or closed != end:
+        raise ValueError(
+            "Phase22 Turtle replay source report window drift"
+        )
+
+
 def validate_window_rows(
     *,
     rows: tuple[dict[str, Any], ...],
@@ -182,17 +276,17 @@ def run_window_replay(
         raise ValueError("frozen replay module has no evaluation window")
     window_module = cast(Any, module)
 
-    original_open = window_module.EVAL_OPEN
-    original_close = window_module.EVAL_CLOSE
     output.mkdir(parents=True, exist_ok=True)
     causal_scope = (
         fresh_causal_active_ladder(module)
         if mode == "FRESH"
         else nullcontext()
     )
-    try:
-        window_module.EVAL_OPEN = start
-        window_module.EVAL_CLOSE = end
+    with bind_replay_evaluation_window(
+        window_module,
+        start=start,
+        end=end,
+    ) as bound_eval_surfaces:
         with causal_scope:
             report = run(
                 raw_root,
@@ -201,9 +295,11 @@ def run_window_replay(
                 freeze_root,
                 output,
             )
-    finally:
-        window_module.EVAL_OPEN = original_open
-        window_module.EVAL_CLOSE = original_close
+    validate_source_report_window(
+        report=report,
+        start=start,
+        end=end,
+    )
 
     geometry_path = output / config.geometry_filename
     if not geometry_path.is_file():
@@ -232,6 +328,8 @@ def run_window_replay(
         "source_report_identity": (
             report.get("identity") if isinstance(report, dict) else None
         ),
+        "bound_eval_surfaces": list(bound_eval_surfaces),
+        "subordinate_setup_window_bound": "r3" in bound_eval_surfaces,
         "methodology_parameters_changed": False,
         "fresh_predecision_future_outcomes_masked": mode == "FRESH",
         "legacy_trader_sizing_used_for_cibo": False,
