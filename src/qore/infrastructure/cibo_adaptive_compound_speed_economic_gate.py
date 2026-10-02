@@ -125,6 +125,14 @@ class Genc8EconomicObservation:
             raise CiboCompoundCapitalError(
                 "GEN-C8 economic metrics must be finite non-negative Decimals"
             )
+        if not (
+            self.p95_drawdown_usd
+            <= self.p99_drawdown_usd
+            <= self.maximum_drawdown_usd
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C8 economic drawdown quantiles are inconsistent"
+            )
         if (
             not isinstance(self.capital_risk_time_productivity, Decimal)
             or not self.capital_risk_time_productivity.is_finite()
