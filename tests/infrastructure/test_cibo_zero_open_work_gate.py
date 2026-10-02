@@ -1031,3 +1031,36 @@ def test_t16_post_declaration_surfaces_belong_to_t16() -> None:
 
     assert set(assignments) == {(path, "T16") for path in inventory}
     assert orphan_candidates == ()
+
+
+def test_a2_closure_intake_surfaces_have_explicit_ownership() -> None:
+    inventory = (
+        "src/qore/infrastructure/cibo_a2_internal_capital_market_phase22_receipt.py",
+        "tests/infrastructure/test_cibo_a2_internal_capital_market_phase22_receipt.py",
+        "src/qore/infrastructure/cibo_a2_phase22_historical_compound.py",
+        "tests/infrastructure/test_cibo_a2_phase22_historical_compound.py",
+        ".github/workflows/cibo-architect-a2-capital-science-engineering-closure.yml",
+        "docs/research/CIBO-ARCH-A2-CAPITAL-SCIENCE-ENGINEERING-CLOSURE-V1.md",
+    )
+
+    assignments, orphan_candidates = gate._classify_inventory(
+        inventory,
+        ledger_ids=frozenset(
+            {
+                "INTERNAL_CAPITAL_MARKET",
+                "COMPOUND_ENGINE",
+                "SOURCE_OF_TRUTH_RECONCILIATION",
+                "ORPHAN_INVENTORY",
+            }
+        ),
+    )
+
+    assert dict(assignments) == {
+        inventory[0]: "INTERNAL_CAPITAL_MARKET",
+        inventory[1]: "INTERNAL_CAPITAL_MARKET",
+        inventory[2]: "COMPOUND_ENGINE",
+        inventory[3]: "COMPOUND_ENGINE",
+        inventory[4]: "SOURCE_OF_TRUTH_RECONCILIATION",
+        inventory[5]: "SOURCE_OF_TRUTH_RECONCILIATION",
+    }
+    assert orphan_candidates == ()
