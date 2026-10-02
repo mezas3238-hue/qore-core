@@ -114,6 +114,8 @@ _WORKSTREAM_CLASSIFIERS = (
     ("*cibo_arch2_active_frontier_v2*", "SOURCE_OF_TRUTH_RECONCILIATION"),
     ("*cibo_arch2_fresh_oos_terminal_intake*", "FRESH_OOS"),
     ("*cibo_phase22_fresh_batch_assembly*", "FRESH_OOS"),
+    ("*cibo_phase22_fresh_capital_projection*", "FRESH_OOS"),
+    ("*cibo-phase22-fresh-capital-projection*", "FRESH_OOS"),
     ("*cibo_phase22_one_shot_source_preflight*", "FRESH_OOS"),
     ("*cibo-phase22-one-shot-source-preflight*", "FRESH_OOS"),
     ("*cibo_phase22_vt08_fresh_runner*", "FRESH_OOS"),
