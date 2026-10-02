@@ -12,6 +12,8 @@ from qore.infrastructure.cibo_a2_internal_capital_market_phase22_receipt import 
 )
 from qore.infrastructure.cibo_a2_phase22_historical_compound import (
     A1_CONSUMER_CONTRACT_ID as HISTORICAL_COMPOUND_CONTRACT_ID,
+)
+from qore.infrastructure.cibo_a2_phase22_historical_compound import (
     ADAPTER_ID as HISTORICAL_COMPOUND_ADAPTER_ID,
 )
 from qore.infrastructure.cibo_arch_a2_internal_readiness import (
