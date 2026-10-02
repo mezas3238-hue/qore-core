@@ -31,6 +31,7 @@ from qore.infrastructure.cibo_ce2i_opportunity_competition import (
     CapitalOpportunityCandidate,
     OpportunityAllocationBudget,
     OpportunityAllocationDecision,
+    OpportunityAllocationRow,
     allocate_competing_opportunities,
 )
 from qore.infrastructure.cibo_ce2i_optionality import (
@@ -158,6 +159,68 @@ def _empty_decision() -> OpportunityAllocationDecision:
         used_stop_risk_usd=Decimal(0),
         used_margin_usd=Decimal(0),
         concentration_used_by_group=(),
+    )
+
+
+def _allocate_single_candidate_direct(
+    *,
+    candidate: CapitalOpportunityCandidate,
+    budget: OpportunityAllocationBudget,
+) -> OpportunityAllocationDecision:
+    """Evaluate one valid Trader opportunity only against capacity constraints.
+
+    T09/T18 expectation ranking exists to choose among competing opportunities.
+    A lone Trader opportunity is already strategy-valid upstream, so CIBO must
+    not manufacture a strategy veto from a ranking prior when no competition
+    exists. Risk, margin and concentration limits remain hard fail-closed gates.
+    """
+
+    group_limit = budget.concentration_limit(candidate.concentration_group)
+    selected = False
+    reason: str
+    if candidate.stop_risk_usd > budget.stop_risk_headroom_usd:
+        reason = "shared stop-risk headroom exhausted"
+    elif candidate.margin_usd > budget.margin_headroom_usd:
+        reason = "shared margin headroom exhausted"
+    elif (
+        group_limit is not None
+        and candidate.concentration_risk_usd > group_limit
+    ):
+        reason = "concentration-group risk limit exceeded"
+    else:
+        selected = True
+        reason = "single valid opportunity fits T01 capacity gates"
+
+    row = OpportunityAllocationRow(
+        rank=1,
+        signal_fingerprint=candidate.signal_fingerprint,
+        trader_id=candidate.trader_id,
+        qore_symbol=candidate.qore_symbol,
+        selected=selected,
+        adjusted_net_value_usd=candidate.adjusted_net_value_usd,
+        net_value_per_risk_usd=candidate.net_value_per_risk_usd,
+        net_value_per_risk_minute=candidate.net_value_per_risk_minute,
+        reason=reason,
+    )
+    return OpportunityAllocationDecision(
+        rows=(row,),
+        selected_signal_fingerprints=(
+            (candidate.signal_fingerprint,) if selected else ()
+        ),
+        used_stop_risk_usd=(
+            candidate.stop_risk_usd if selected else Decimal(0)
+        ),
+        used_margin_usd=candidate.margin_usd if selected else Decimal(0),
+        concentration_used_by_group=(
+            (
+                (
+                    candidate.concentration_group,
+                    candidate.concentration_risk_usd,
+                ),
+            )
+            if selected
+            else ()
+        ),
     )
 
 
@@ -318,7 +381,13 @@ def propose_phase20h_robust_allocation(
         margin_headroom_usd=deployable_margin,
         concentration_limit_by_group=concentration_limit_by_group,
     )
-    allocation = allocate_competing_opportunities(candidates, budget)
+    if single_candidate_direct:
+        allocation = _allocate_single_candidate_direct(
+            candidate=candidates[0],
+            budget=budget,
+        )
+    else:
+        allocation = allocate_competing_opportunities(candidates, budget)
     if len(candidates) > 1:
         applied.extend(("T09", "T18"))
     disposition = (
@@ -338,8 +407,8 @@ def propose_phase20h_robust_allocation(
         reserved_for_opportunity_ids=reserved_ids,
         allocation=allocation,
         reason=(
-            "single causal candidate allocated without unnecessary competition "
-            "tooling"
+            "single causal candidate evaluated directly against T01 capacity "
+            "gates without T09/T18 competition"
             if len(candidates) == 1
             else (
                 "causal candidates allocated only inside mission/regime, "
