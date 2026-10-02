@@ -306,8 +306,16 @@ class RiskAuthorization:
             raise AccountWideRiskError("ALLOW must preserve requested volume")
         if self.decision is RiskDecision.REDUCE and self.authorized_volume >= self.requested_volume:
             raise AccountWideRiskError("REDUCE must lower requested volume")
-        if len(self.authorization_fingerprint) != 64:
-            raise AccountWideRiskError("authorization_fingerprint must be SHA-256")
+        if (
+            len(self.authorization_fingerprint) != 64
+            or any(
+                char not in "0123456789abcdef"
+                for char in self.authorization_fingerprint
+            )
+        ):
+            raise AccountWideRiskError(
+                "authorization_fingerprint must be lowercase SHA-256"
+            )
         if not isinstance(self.capital_provenance, tuple):
             raise AccountWideRiskError(
                 "authorization capital_provenance must be tuple"
@@ -334,6 +342,49 @@ class RiskAuthorization:
                 )
         _aware(self.issued_at, "issued_at")
         _aware(self.expires_at, "expires_at")
+        if self.expires_at <= self.issued_at:
+            raise AccountWideRiskError(
+                "Risk authorization expiry must follow issuance"
+            )
+        expected_fingerprint = _risk_authorization_fingerprint(self)
+        if self.authorization_fingerprint != expected_fingerprint:
+            raise AccountWideRiskError(
+                "Risk authorization fingerprint/content drift"
+            )
+        if self.authorization_id != f"risk-{expected_fingerprint[:24]}":
+            raise AccountWideRiskError(
+                "Risk authorization id/fingerprint drift"
+            )
+
+
+def _risk_authorization_fingerprint(
+    authorization: RiskAuthorization,
+) -> str:
+    """Recompute the legacy canonical identity of one Risk authorization."""
+
+    provenance_material = ";".join(
+        f"{item.source_kind}:{item.source_id}:{item.amount_usd}"
+        for item in authorization.capital_provenance
+    )
+    canonical = "|".join(
+        (
+            authorization.account_binding_id,
+            authorization.trader_id.value,
+            authorization.signal_fingerprint,
+            authorization.provider_symbol,
+            authorization.side,
+            authorization.entry_type,
+            str(authorization.intended_entry),
+            str(authorization.stop_loss),
+            str(authorization.take_profit),
+            str(authorization.authorized_volume),
+            provenance_material,
+            authorization.issued_at.astimezone(UTC).isoformat(
+                timespec="microseconds"
+            ),
+        )
+    )
+    return sha256(canonical.encode("utf-8")).hexdigest()
 
 
 @dataclass(frozen=True, slots=True)
