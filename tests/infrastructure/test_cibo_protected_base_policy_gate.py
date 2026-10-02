@@ -120,6 +120,7 @@ def test_more_base_protection_cannot_compensate_lower_ending_capital() -> None:
         ending="109",
         minimum_base="85",
         max_dd="4",
+        p99_dd="3.9",
     )
     row = evaluate_protected_base_gate((_control(), treatment)).rows[1]
     assert row.status is ProtectedBaseGateStatus.REJECTED_SAFETY_DETERIORATION
