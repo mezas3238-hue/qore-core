@@ -16,6 +16,7 @@ import json
 import os
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from threading import RLock
 from typing import Protocol
@@ -33,6 +34,7 @@ from qore.infrastructure.ctrader_demo_free_position_service import (
 )
 from qore.infrastructure.ctrader_demo_trade_registry import (
     CTraderDemoTradeRegistry,
+    DemoTradeRegistryEntry,
 )
 
 _SCHEMA = "CIBO_PHASE20D_DEMO_SETTLEMENT_CURSOR_V1"
@@ -210,7 +212,10 @@ def observe_ctrader_demo_phase20_settlements(
         for state in book.states
         for record in state.records
     }
-    grouped: dict[int, list[tuple[DemoDeal, str]]] = {}
+    grouped: dict[
+        int,
+        list[tuple[DemoDeal, DemoTradeRegistryEntry]],
+    ] = {}
     unresolved_at: list[datetime] = []
 
     for deal in deals:
@@ -229,7 +234,7 @@ def observe_ctrader_demo_phase20_settlements(
             unresolved_at.append(deal.executed_at)
             continue
         grouped.setdefault(deal.position_id, []).append(
-            (deal, registry_entry.signal_fingerprint)
+            (deal, registry_entry)
         )
 
     entry_costs: list[int] = []
@@ -242,6 +247,11 @@ def observe_ctrader_demo_phase20_settlements(
             grouped[position_id],
             key=lambda item: (item[0].executed_at, item[0].deal_id),
         )
+        registry_entry = rows[0][1]
+        if any(item[1] != registry_entry for item in rows):
+            raise CiboCapitalManagementError(
+                "Phase20D settlement registry identity changed within position"
+            )
         existing_states = tuple(
             state for state in current.states if state.position_id == position_id
         )
@@ -252,12 +262,36 @@ def observe_ctrader_demo_phase20_settlements(
         closing_indexes = tuple(
             index for index, (deal, _) in enumerate(rows) if deal.is_closing
         )
-        final_closing_index = (
-            None
-            if position_id in open_ids or not closing_indexes
-            else closing_indexes[-1]
+        volume_terminal = _volume_terminality(
+            source=source,
+            registry_entry=registry_entry,
+            position_id=position_id,
+            observed_at=observed_at,
         )
-        for index, (deal, signal_fingerprint) in enumerate(rows):
+        if (
+            volume_terminal is False
+            and closing_indexes
+            and position_id not in open_ids
+        ):
+            raise CiboCapitalManagementError(
+                "Phase20D broker position absent before authorized execution "
+                "volume is fully reconciled"
+            )
+        final_closing_index = (
+            closing_indexes[-1]
+            if closing_indexes and volume_terminal is True
+            else (
+                None
+                if (
+                    not closing_indexes
+                    or volume_terminal is False
+                    or position_id in open_ids
+                )
+                else closing_indexes[-1]
+            )
+        )
+        for index, (deal, entry) in enumerate(rows):
+            signal_fingerprint = entry.signal_fingerprint
             if not deal.is_closing:
                 event = "CTRADER_DEMO_ENTRY_COST_SETTLEMENT"
                 net_profit = deal.commission
@@ -306,6 +340,78 @@ def observe_ctrader_demo_phase20_settlements(
         partial_deal_ids=tuple(partials),
         terminal_deal_ids=tuple(terminals),
     )
+
+
+def _authorized_execution_units(
+    entry: DemoTradeRegistryEntry,
+) -> Decimal | None:
+    """Return source-equivalent executed units when registry lineage is complete."""
+
+    if (
+        entry.authorized_source_volume is None
+        or entry.source_contract_size_units is None
+    ):
+        return None
+    try:
+        source_volume = Decimal(entry.authorized_source_volume)
+        contract_size = Decimal(entry.source_contract_size_units)
+    except (InvalidOperation, ValueError) as error:
+        raise CiboCapitalManagementError(
+            "Phase20D settlement registry execution volume is invalid"
+        ) from error
+    if (
+        not source_volume.is_finite()
+        or not contract_size.is_finite()
+        or source_volume <= 0
+        or contract_size <= 0
+    ):
+        raise CiboCapitalManagementError(
+            "Phase20D settlement registry execution volume must be positive"
+        )
+    return source_volume * contract_size
+
+
+def _volume_terminality(
+    *,
+    source: Phase20DemoSettlementSource,
+    registry_entry: DemoTradeRegistryEntry,
+    position_id: int,
+    observed_at: datetime,
+) -> bool | None:
+    """Prove full closure from broker deal volume, independent of snapshot lag."""
+
+    expected_units = _authorized_execution_units(registry_entry)
+    if expected_units is None:
+        return None
+    try:
+        submitted_at = datetime.fromisoformat(registry_entry.submitted_at)
+    except ValueError as error:
+        raise CiboCapitalManagementError(
+            "Phase20D settlement registry submitted_at is invalid"
+        ) from error
+    _aware(submitted_at, name="registry submitted_at")
+    lifecycle = source.deals(
+        opened_at=submitted_at,
+        closed_at=observed_at,
+        max_rows=_MAX_ROWS,
+    )
+    if len(lifecycle) >= _MAX_ROWS:
+        raise CiboCapitalManagementError(
+            "Phase20D lifecycle deal page saturated; terminality is ambiguous"
+        )
+    closed_units = sum(
+        (
+            deal.filled_units
+            for deal in lifecycle
+            if deal.position_id == position_id and deal.is_closing
+        ),
+        Decimal(0),
+    )
+    if closed_units > expected_units:
+        raise CiboCapitalManagementError(
+            "Phase20D closing volume exceeds authorized execution volume"
+        )
+    return closed_units == expected_units
 
 
 def _aware(value: datetime, *, name: str) -> None:
