@@ -10,6 +10,7 @@ on:
       - 'src/qore/infrastructure/cibo_phase22_demo_calibration_contract.py'
       - 'src/qore/infrastructure/cibo_ctrader_demo_empirical_slippage.py'
       - 'tests/infrastructure/test_cibo_phase22_demo_calibration_contract.py'
+      - 'tests/infrastructure/test_cibo_ctrader_demo_empirical_slippage.py'
       - 'tests/infrastructure/test_cibo_phase22_demo_calibration_workflow.py'
   workflow_dispatch:
     inputs:
@@ -58,13 +59,16 @@ jobs:
         run: |
           ruff check \
             scripts/cibo_phase22_demo_provider_calibration.py \
+            src/qore/infrastructure/cibo_ctrader_demo_empirical_slippage.py \
             src/qore/infrastructure/cibo_phase22_demo_calibration_contract.py \
+            tests/infrastructure/test_cibo_ctrader_demo_empirical_slippage.py \
             tests/infrastructure/test_cibo_phase22_demo_calibration_contract.py \
             tests/infrastructure/test_cibo_phase22_demo_calibration_workflow.py
           mypy --disable-error-code=import-untyped \
             scripts/cibo_phase22_demo_provider_calibration.py \
             src/qore/infrastructure/cibo_phase22_demo_calibration_contract.py
           pytest -q --no-cov \
+            tests/infrastructure/test_cibo_ctrader_demo_empirical_slippage.py \
             tests/infrastructure/test_cibo_phase22_demo_calibration_contract.py \
             tests/infrastructure/test_cibo_phase22_demo_calibration_workflow.py \
             tests/infrastructure/test_ctrader_demo_operational_runtime.py
