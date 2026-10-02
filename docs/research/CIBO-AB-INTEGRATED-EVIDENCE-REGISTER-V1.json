@@ -978,17 +978,45 @@
       ],
       "productive_authority": false,
       "certification_claim": false
+    },
+    {
+      "owner": "INTEGRATOR_LIVE_CHILD_HEAD_RECONCILIATION_2026_10_02",
+      "source_head_sha": "7060cc1ccbd58014e05c1f6d9728bfb118c7ed66",
+      "items": [
+        {
+          "owner": "ARCHITECT_A",
+          "child_head_sha": "84801346dd7b551b226b624657d6b56622e16bfa",
+          "changed_files": 268,
+          "exact_integrated": 142,
+          "sovereign_overrides": 102,
+          "noncanonical": 24,
+          "unaccounted": 0,
+          "status": "FULLY_ACCOUNTED"
+        },
+        {
+          "owner": "ARCHITECT_B",
+          "child_head_sha": "74981eb8cf6203f9a4a330d2d0ed1b4f99090ab0",
+          "changed_files": 252,
+          "exact_integrated": 149,
+          "sovereign_overrides": 55,
+          "noncanonical": 48,
+          "unaccounted": 0,
+          "status": "FULLY_ACCOUNTED"
+        }
+      ],
+      "note": "Per-file accounting distinguishes byte-integrated evidence, explicit sovereign overrides, and child-only noncanonical surfaces. Broker-mutating cleanup is explicitly excluded. Integration truth only; no scientific certification claim.",
+      "productive_authority": false,
+      "certification_claim": false
     }
   ],
   "pending_candidates": [
     {
       "owner": "ARCHITECT_A",
-      "latest_head_sha": "7eebf1056eeb0d5d94685bd649439c8fb94ea455",
+      "latest_head_sha": "84801346dd7b551b226b624657d6b56622e16bfa",
       "reasons": [
-        "CURRENT_HEAD_CI_PENDING",
-        "A_SUPPORT_002_MANDATORY_WORKSTREAM_DRIFT_UPSTREAM",
-        "REAL_FORWARD_COMPOUND_POPULATION_OPEN",
-        "A_SUPPORT_001_RECEIPT_BOUND_REPAIR_PROVEN_IN_INTEGRATOR"
+        "LIVE_CHILD_HEAD_FULLY_ACCOUNTED_BY_INTEGRATOR",
+        "FRESH_OOS_SUCCESSOR_TERMINAL_EVIDENCE_REQUIRED",
+        "REAL_FORWARD_COMPOUND_AND_TEMPORAL_EVIDENCE_REMAINS_CERTIFICATION_BLOCKING"
       ],
       "engineering_green_not_accepted_as_certification_gate": [
         {
@@ -1012,14 +1040,11 @@
     },
     {
       "owner": "ARCHITECT_B",
-      "latest_head_sha": "ce721778184312c68698ed1f14c573b670eb2327",
+      "latest_head_sha": "74981eb8cf6203f9a4a330d2d0ed1b4f99090ab0",
       "reasons": [
-        "CURRENT_HEAD_CI_PENDING",
-        "B_SUPPORT_001_USD60_READINESS_SELF_ATTESTATION_UPSTREAM",
-        "REAL_FORWARD_PROVIDER_AND_CAPITAL_POPULATION_OPEN",
-        "B_SUPPORT_002_UPSTREAM_LEDGER_DRIFT_RECONCILED_IN_INTEGRATOR",
-        "B_SUPPORT_003_RECEIPT_BOUND_FREEZE_PROVEN_IN_INTEGRATOR",
-        "B_SUPPORT_006_TYPED_STRUCTURAL_DISABLEMENT_REPAIR_PROVEN_IN_INTEGRATOR"
+        "LIVE_CHILD_HEAD_FULLY_ACCOUNTED_BY_INTEGRATOR",
+        "FRESH_OOS_SUCCESSOR_TERMINAL_EVIDENCE_REQUIRED",
+        "REAL_FORWARD_PROVIDER_AND_CAPITAL_EVIDENCE_REMAINS_CERTIFICATION_BLOCKING"
       ],
       "candidate_workflow_runs": {
         "risk_integration": 36778702336,
@@ -1051,14 +1076,13 @@
   "certification_claim": false,
   "productive_authority": false,
   "integrator_pending": {
-    "head_sha": "09994eb5d4b6e26f12b356168d6d657942404cf4",
+    "head_sha": "7060cc1ccbd58014e05c1f6d9728bfb118c7ed66",
     "reasons": [
-      "PHASE20D_BOUNDED_GITHUB_RUNTIME_EXACT_HEAD_CI_REQUIRED",
-      "EXPLICIT_OWNER_DEMO_EXECUTION_ACTIVATION_NOT_PRESENT",
-      "REAL_PHASE20D_FORWARD_POPULATION_NOT_YET_AVAILABLE",
-      "EMPIRICAL_SLIPPAGE_AND_REAL_EXECUTION_POPULATION_NOT_YET_AVAILABLE",
+      "FRESH_OOS_SUCCESSOR_TERMINAL_EVIDENCE_REQUIRED",
+      "CERTIFICATION_BLOCKING_EXTERNAL_SCIENTIFIC_DEPENDENCIES_REMAIN",
       "FINAL_INTEGRATED_CIBO_EXAM_REAL_EXECUTION_OPEN",
-      "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM_REAL_EXECUTION_OPEN"
+      "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM_REAL_EXECUTION_OPEN",
+      "PHASE22_V3_OWNER_EXECUTION_AUTHORIZATION_NOT_PRESENT"
     ],
     "staged_components": [
       "CROSSBOUNDARY_SOURCE_BOUND_RECEIPTS",

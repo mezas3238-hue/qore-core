@@ -5,21 +5,22 @@
   "integrator_branch": "agent/cibo-integrator-ab-001",
   "architect_a": {
     "pr": 660,
-    "accepted_head_sha": "9f7a24a86c04a1d0554996ab57523e7338465002",
-    "latest_observed_head_sha": "7eebf1056eeb0d5d94685bd649439c8fb94ea455",
+    "accepted_head_sha": "84801346dd7b551b226b624657d6b56622e16bfa",
+    "latest_observed_head_sha": "84801346dd7b551b226b624657d6b56622e16bfa",
     "support_blockers": [
       "A-SUPPORT-001_FINAL_EXAM_SELF_ATTESTATION",
       "A-SUPPORT-002_MANDATORY_WORKSTREAM_DRIFT"
     ],
     "integrator_staged_repair_blockers": [],
     "integrator_resolved_support_blockers": [
-      "A-SUPPORT-001_FINAL_EXAM_SELF_ATTESTATION"
+      "A-SUPPORT-001_FINAL_EXAM_SELF_ATTESTATION",
+      "A-SUPPORT-002_MANDATORY_WORKSTREAM_DRIFT"
     ]
   },
   "architect_b": {
     "pr": 661,
-    "accepted_head_sha": "5d028b1ebc76a98db36d26f86bc872e2f60c5541",
-    "latest_observed_head_sha": "ce721778184312c68698ed1f14c573b670eb2327",
+    "accepted_head_sha": "74981eb8cf6203f9a4a330d2d0ed1b4f99090ab0",
+    "latest_observed_head_sha": "74981eb8cf6203f9a4a330d2d0ed1b4f99090ab0",
     "support_blockers": [
       "B-SUPPORT-001_USD60_READINESS_SELF_ATTESTATION",
       "B-SUPPORT-002_RISK_HANDOFF_LEDGER_DRIFT",
@@ -102,7 +103,7 @@
     "INTEGRATED_CAPITAL_TRUTH",
     "AS_IS_ECONOMIC_BASELINE"
   ],
-  "integration_ready": false,
+  "integration_ready": true,
   "certification_ready": false,
   "productive_authority": false,
   "shared_support_primitive": {
@@ -211,10 +212,10 @@
   },
   "post_snapshot_integration": {
     "source_integrator_head": "c2f584c701fb05b5dbe151f47e3a8e253bcf559c",
-    "architect_a_head_sha": "7eebf1056eeb0d5d94685bd649439c8fb94ea455",
-    "architect_b_head_sha": "ce721778184312c68698ed1f14c573b670eb2327",
-    "architect_a_byte_integrated_files": 105,
-    "architect_b_byte_integrated_files": 84,
+    "architect_a_head_sha": "84801346dd7b551b226b624657d6b56622e16bfa",
+    "architect_b_head_sha": "74981eb8cf6203f9a4a330d2d0ed1b4f99090ab0",
+    "architect_a_byte_integrated_files": 142,
+    "architect_b_byte_integrated_files": 149,
     "architect_a_hardening_modules_and_tests_staged": true,
     "architect_b_t16_provider_native_lane_staged": true,
     "legacy_stack_import_repair_staged": true,
@@ -236,5 +237,29 @@
     "phase20d_bounded_github_runtime_staged": true,
     "phase20d_demo_execution_owner_activation_required": true,
     "phase20d_demo_execution_owner_activation_present": false
+  },
+  "live_child_head_reconciliation": {
+    "observed_at": "2026-10-02",
+    "source_integrator_head": "7060cc1ccbd58014e05c1f6d9728bfb118c7ed66",
+    "architect_a": {
+      "head_sha": "84801346dd7b551b226b624657d6b56622e16bfa",
+      "changed_files": 268,
+      "exact_integrated": 142,
+      "sovereign_overrides": 102,
+      "noncanonical": 24,
+      "unaccounted": 0
+    },
+    "architect_b": {
+      "head_sha": "74981eb8cf6203f9a4a330d2d0ed1b4f99090ab0",
+      "changed_files": 252,
+      "exact_integrated": 149,
+      "sovereign_overrides": 55,
+      "noncanonical": 48,
+      "unaccounted": 0
+    },
+    "phase22_v2_rerun_authorized": false,
+    "phase22_v3_execution_authorized": false,
+    "productive_authority": false,
+    "certification_claim": false
   }
 }

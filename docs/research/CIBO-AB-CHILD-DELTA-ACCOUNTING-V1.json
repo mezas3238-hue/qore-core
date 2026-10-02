@@ -1,387 +1,1237 @@
 {
   "schema": "CIBO_AB_CHILD_DELTA_ACCOUNTING_V1",
-  "observed_at": "2026-10-01",
+  "observed_at": "2026-10-02",
   "integrator_pr": 670,
   "architect_a": {
     "pr": 660,
-    "head_sha": "7eebf1056eeb0d5d94685bd649439c8fb94ea455",
-    "changed_files": 175,
-    "files_present_in_integrator_delta": 105,
+    "head_sha": "84801346dd7b551b226b624657d6b56622e16bfa",
+    "changed_files": 268,
+    "files_present_in_integrator_delta": 142,
+    "exact_integrated_paths": [
+      ".github/workflows/cibo-legacy-stack-quarantine.yml",
+      "docs/research/CIBO-ARCH-A-CI-RECONCILIATION-V1.md",
+      "docs/research/CIBO-ARCH-A-GENC2-GENC7-ENGINE-RECONCILIATION-V1.md",
+      "docs/research/CIBO-ARCH-A-INTERNAL-READINESS-GATE-V1.md",
+      "docs/research/CIBO-ARCH-A-MECHANISM-ADVERSARIAL-STRESS-ADMISSION-V1.md",
+      "docs/research/CIBO-AS-IS-ECONOMIC-BASELINE-BINDING-PLAN-V1.md",
+      "docs/research/CIBO-AS-IS-ECONOMIC-BASELINE-MATERIALIZATION-V1.md",
+      "docs/research/CIBO-CE2I-OOS-MECHANISM-STRESS-ADMISSION-V1.md",
+      "docs/research/CIBO-CE2I-STRICT-FOUR-FOLD-UTILITY-REPLICATION-V1.md",
+      "docs/research/CIBO-CE2I-T01-T11-REGISTRY-RECONCILIATION-V1.md",
+      "docs/research/CIBO-CE2I-T04-T10-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
+      "docs/research/CIBO-CE2I-T05-T19-MECHANICAL-CLOSURE-V1.md",
+      "docs/research/CIBO-CMA-COMPOUND-AUTHORITY-BOUNDARY-V1.md",
+      "docs/research/CIBO-COMPOUND-CAUSAL-ABLATION-PROTOCOL-V1.md",
+      "docs/research/CIBO-COMPOUND-REAL-POPULATION-BINDING-V1.md",
+      "docs/research/CIBO-COMPOUND-TEMPORAL-ECONOMIC-REPLICATION-CRITERION-V1.md",
+      "docs/research/CIBO-GEN-C10-TRANSITION-UNCERTAINTY-CALIBRATION-PROTOCOL-V1.md",
+      "docs/research/CIBO-GEN-C11-GEN-C13-NONCOMPENSATORY-UTILITY-WRAPPER-V1.md",
+      "docs/research/CIBO-GEN-C11-NONCOMPENSATORY-UTILITY-GATE-V1.md",
+      "docs/research/CIBO-GEN-C12-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
+      "docs/research/CIBO-GEN-C13-CAUSAL-IDENTIFICATION-PROTOCOL-V1.md",
+      "docs/research/CIBO-GEN-C3-GEN-C6-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
+      "docs/research/CIBO-GEN-C7-PROFIT-PRESERVATION-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
+      "docs/research/CIBO-GEN-C8-ADAPTIVE-COMPOUND-SPEED-NONCOMPENSATORY-ECONOMIC-GATE-V1.md",
+      "docs/research/CIBO-GENC-STRICT-FOUR-FOLD-TEMPORAL-REPLICATION-V1.md",
+      "docs/research/CIBO-GENC1-MATHEMATICAL-RECONCILIATION-CLOSURE-V1.md",
+      "docs/research/CIBO-PROTECTED-BASE-NONCOMPENSATORY-NUMERIC-POLICY-GATE-V1.md",
+      "docs/research/CIBO-PROTECTED-BASE-POLICY-BEHAVIOR-PREREGISTRATION-V1.md",
+      "docs/research/CIBO-PROTECTED-BASE-STRICT-FOUR-FOLD-TEMPORAL-REPLICATION-V1.md",
+      "docs/research/CIBO-T06-T07-EXPANSION-UTILITY-GATE-V1.md",
+      "docs/research/CIBO-T09-T18-NONCOMPENSATORY-SCARCITY-SAFETY-GATE-V1.md",
+      "docs/research/CIBO-T14-T15-CAUSAL-PARETO-UTILITY-GATE-V1.md",
+      "scripts/cibo_legacy_stack_quarantine.py",
+      "src/qore/infrastructure/cibo_adaptive_compound_speed_economic_gate.py",
+      "src/qore/infrastructure/cibo_arch_a_final_exam_closure_controls.py",
+      "src/qore/infrastructure/cibo_arch_a_final_exam_scientific_controls.py",
+      "src/qore/infrastructure/cibo_arch_a_final_exam_system_controls.py",
+      "src/qore/infrastructure/cibo_arch_a_final_pre_exam_control.py",
+      "src/qore/infrastructure/cibo_arch_a_final_source_truth_control.py",
+      "src/qore/infrastructure/cibo_arch_a_internal_readiness.py",
+      "src/qore/infrastructure/cibo_arch_a_mechanism_stress_gate.py",
+      "src/qore/infrastructure/cibo_arch_a_phase22_pre_outcome.py",
+      "src/qore/infrastructure/cibo_ce2i_holdout_registry.py",
+      "src/qore/infrastructure/cibo_ce2i_oos_stress_admission.py",
+      "src/qore/infrastructure/cibo_ce2i_phase20_qualification.py",
+      "src/qore/infrastructure/cibo_ce2i_phase20_qualification_readiness.py",
+      "src/qore/infrastructure/cibo_ce2i_phase20_t08_oos_ablation.py",
+      "src/qore/infrastructure/cibo_ce2i_phase20_t09_t18_scarcity_utility.py",
+      "src/qore/infrastructure/cibo_ce2i_phase20_t12_oos_utility.py",
+      "src/qore/infrastructure/cibo_ce2i_phase20_t13_oos_utility.py",
+      "src/qore/infrastructure/cibo_ce2i_qualification_evidence_protocol.py",
+      "src/qore/infrastructure/cibo_ce2i_t04_t10_economic_gate.py",
+      "src/qore/infrastructure/cibo_ce2i_temporal_utility_replication.py",
+      "src/qore/infrastructure/cibo_compound_temporal_replication_gate.py",
+      "src/qore/infrastructure/cibo_expansion_utility_gate.py",
+      "src/qore/infrastructure/cibo_final_exam_control_receipt.py",
+      "src/qore/infrastructure/cibo_final_integrated_exam.py",
+      "src/qore/infrastructure/cibo_final_integrated_exam_arch_b_ledger_reconciliation.py",
+      "src/qore/infrastructure/cibo_final_integrated_exam_assembly.py",
+      "src/qore/infrastructure/cibo_final_integrated_exam_certification_closure.py",
+      "src/qore/infrastructure/cibo_final_integrated_exam_certification_transition.py",
+      "src/qore/infrastructure/cibo_final_integrated_exam_ci_control.py",
+      "src/qore/infrastructure/cibo_final_integrated_exam_phase22_prerequisites.py",
+      "src/qore/infrastructure/cibo_final_integrated_exam_pre_exam_ledger.py",
+      "src/qore/infrastructure/cibo_final_integrated_exam_provider_truth_control.py",
+      "src/qore/infrastructure/cibo_final_integrated_exam_scientific_ledger_reconciliation.py",
+      "src/qore/infrastructure/cibo_final_integrated_exam_source_truth_audit.py",
+      "src/qore/infrastructure/cibo_genc11_genc13_utility_gate.py",
+      "src/qore/infrastructure/cibo_genc12_economic_gate.py",
+      "src/qore/infrastructure/cibo_genc3_genc6_economic_gate.py",
+      "src/qore/infrastructure/cibo_genc9_economic_gate.py",
+      "src/qore/infrastructure/cibo_genc_strict_temporal_replication.py",
+      "src/qore/infrastructure/cibo_governed_capital_science.py",
+      "src/qore/infrastructure/cibo_meta_capital_memory.py",
+      "src/qore/infrastructure/cibo_phase22_historical_replay_economics_amendment.py",
+      "src/qore/infrastructure/cibo_profit_preservation_economic_gate.py",
+      "src/qore/infrastructure/cibo_protected_base_policy_gate.py",
+      "src/qore/infrastructure/cibo_protected_base_temporal_replication.py",
+      "src/qore/infrastructure/cibo_receipt_bound_final_integrated_exam_v2.py",
+      "src/qore/infrastructure/cibo_research_memory.py",
+      "src/qore/infrastructure/cibo_t09_t18_scarcity_safety_gate.py",
+      "src/qore/infrastructure/cibo_t14_t15_utility_gate.py",
+      "src/qore/infrastructure/cibo_world_cup_entry_controls.py",
+      "src/qore/infrastructure/cibo_world_cup_maximum_capability_exam_assembly.py",
+      "src/qore/infrastructure/cibo_world_cup_maximum_capability_exam_evidence_controls.py",
+      "src/qore/infrastructure/traders/vt31_nas100_cibo_market_memory.py",
+      "tests/infrastructure/test_cibo_adaptive_compound_speed_economic_gate.py",
+      "tests/infrastructure/test_cibo_arch_a_final_exam_closure_controls.py",
+      "tests/infrastructure/test_cibo_arch_a_final_exam_scientific_controls.py",
+      "tests/infrastructure/test_cibo_arch_a_final_exam_system_controls.py",
+      "tests/infrastructure/test_cibo_arch_a_final_pre_exam_control.py",
+      "tests/infrastructure/test_cibo_arch_a_final_source_truth_control.py",
+      "tests/infrastructure/test_cibo_arch_a_mechanism_stress_gate.py",
+      "tests/infrastructure/test_cibo_arch_a_phase22_pre_outcome.py",
+      "tests/infrastructure/test_cibo_ce2i_oos_stress_admission.py",
+      "tests/infrastructure/test_cibo_ce2i_phase20_causal_tool_readiness.py",
+      "tests/infrastructure/test_cibo_ce2i_phase20_t08_oos_ablation.py",
+      "tests/infrastructure/test_cibo_ce2i_phase20_t09_t18_scarcity_utility.py",
+      "tests/infrastructure/test_cibo_ce2i_phase20_t12_oos_utility.py",
+      "tests/infrastructure/test_cibo_ce2i_phase20_t12_oos_utility_ready.py",
+      "tests/infrastructure/test_cibo_ce2i_phase20_t13_oos_utility.py",
+      "tests/infrastructure/test_cibo_ce2i_phase22_holdout_gate.py",
+      "tests/infrastructure/test_cibo_ce2i_qualification_evidence_protocol.py",
+      "tests/infrastructure/test_cibo_ce2i_t04_t10_economic_gate.py",
+      "tests/infrastructure/test_cibo_ce2i_temporal_utility_replication.py",
+      "tests/infrastructure/test_cibo_cma_compound_authority_boundary.py",
+      "tests/infrastructure/test_cibo_compound_cycle_replay.py",
+      "tests/infrastructure/test_cibo_compound_temporal_replication_gate.py",
+      "tests/infrastructure/test_cibo_expansion_utility_gate.py",
+      "tests/infrastructure/test_cibo_final_exam_control_receipt.py",
+      "tests/infrastructure/test_cibo_final_integrated_exam.py",
+      "tests/infrastructure/test_cibo_final_integrated_exam_arch_b_ledger_reconciliation.py",
+      "tests/infrastructure/test_cibo_final_integrated_exam_arch_b_ledger_transition.py",
+      "tests/infrastructure/test_cibo_final_integrated_exam_assembly.py",
+      "tests/infrastructure/test_cibo_final_integrated_exam_certification_closure.py",
+      "tests/infrastructure/test_cibo_final_integrated_exam_certification_transition.py",
+      "tests/infrastructure/test_cibo_final_integrated_exam_ci_control.py",
+      "tests/infrastructure/test_cibo_final_integrated_exam_phase22_prerequisites.py",
+      "tests/infrastructure/test_cibo_final_integrated_exam_pre_exam_ledger.py",
+      "tests/infrastructure/test_cibo_final_integrated_exam_provider_truth_control.py",
+      "tests/infrastructure/test_cibo_final_integrated_exam_scientific_ledger_reconciliation.py",
+      "tests/infrastructure/test_cibo_final_integrated_exam_scientific_ledger_transition.py",
+      "tests/infrastructure/test_cibo_final_integrated_exam_source_truth_audit.py",
+      "tests/infrastructure/test_cibo_genc11_genc13_utility_gate.py",
+      "tests/infrastructure/test_cibo_genc12_economic_gate.py",
+      "tests/infrastructure/test_cibo_genc3_genc6_economic_gate.py",
+      "tests/infrastructure/test_cibo_genc9_economic_gate.py",
+      "tests/infrastructure/test_cibo_genc_strict_temporal_replication.py",
+      "tests/infrastructure/test_cibo_governed_capital_science.py",
+      "tests/infrastructure/test_cibo_marginal_leverage_utility.py",
+      "tests/infrastructure/test_cibo_meta_capital_memory.py",
+      "tests/infrastructure/test_cibo_phase22_historical_replay_economics_amendment.py",
+      "tests/infrastructure/test_cibo_profit_preservation_economic_gate.py",
+      "tests/infrastructure/test_cibo_protected_base_policy_gate.py",
+      "tests/infrastructure/test_cibo_protected_base_temporal_replication.py",
+      "tests/infrastructure/test_cibo_receipt_bound_final_integrated_exam_v2.py",
+      "tests/infrastructure/test_cibo_t09_t18_scarcity_safety_gate.py",
+      "tests/infrastructure/test_cibo_t14_t15_utility_gate.py",
+      "tests/infrastructure/test_cibo_world_cup_entry_controls.py",
+      "tests/infrastructure/test_cibo_world_cup_maximum_capability_exam_assembly.py",
+      "tests/infrastructure/test_cibo_world_cup_maximum_capability_exam_evidence_controls.py",
+      "tests/infrastructure/test_vt31_cibo_market_memory_quarantine.py"
+    ],
     "deliberate_overrides": [
       {
         "path": ".github/workflows/cibo-architect-a-ce2i-registry-reconciliation.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-architect-a-internal-readiness.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-architect-a-mechanism-stress-admission.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-as-is-economic-baseline.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-burned-calibration-pack.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-capital-efficiency-sizing-lab.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-ce2i-oos-stress-admission.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-ce2i-strict-four-fold-replication.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-cma-compound-boundary.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-compound-accounting-foundation.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-compound-causal-ablation.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-compound-engine-integrated-cycle.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-compound-protected-floor.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-core-compound-portfolio.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-ctrader-demo-provider-economics.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-final-integrated-exam.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-genc-strict-four-fold-replication.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-genc10-capital-digital-twin.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-genc11-genc13-utility-wrapper.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-genc11-multi-period-mpc.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-genc12-crisis-capital.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-genc13-meta-capital-memory.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-genc14-autonomous-capital-science.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-genc3-genc6-economic-gate.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-genc7-profit-preservation.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-genc8-adaptive-compound-speed.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-genc9-robust-growth.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-generation-current-control.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-internal-capital-market.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
-      },
-      {
-        "path": ".github/workflows/cibo-legacy-stack-quarantine.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-marginal-capital-utility-evidence.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-phase18-audjpy-r42-replay.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-phase18-eurusd-r38-replay.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-phase18-gbpjpy-r38-replay.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-phase18-gbpusd-r43-replay.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-phase18-vt08-forex-r315-replay.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-phase18-vt31-nas100-v4-replay.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-phase18-xauusd-r34-replay.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-phase19-burned-calibration.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-phase19-integrated-chronology.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-phase19k-temporal-concordance.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-phase19l-competition-identifiability.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-phase19m-regime-identifiability.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-phase19n-factor-topology.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-phase20-demo-execution-arm.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-phase20-forward-bootstrap.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-phase20-provider-uncertainty.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-pre-holdout-checkpoint.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-protected-base-overlay.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-protected-base-strict-four-fold.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-provider-instrument-capability.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-sequential-compounding-shadow.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-t02-burned-structural-calibration.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-t04-t10-economic-gate.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-t06-t07-expansion-utility.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-t09-t18-scarcity-safety.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-t12-regime-oos-utility.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-t13-drawdown-reserve-oos-utility.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-t14-t15-causal-utility.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-usd60-holdout-source-validation.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-zero-open-work-gate.yml",
-        "reason": "Integrator retains reconciled workflow authority; child workflow variants are not canonical."
-      },
-      {
-        "path": "docs/research/CIBO-A-B-SOURCE-OF-TRUTH-RECONCILIATION-V1.md",
-        "reason": "Integrator retains canonical 64-workstream/two-exam governance or treats this A status document as non-authoritative."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_A; the child workflow blob is explicitly superseded."
       },
       {
         "path": "docs/research/CIBO-ARCH-A-CROSSBOUNDARY-REQUEST-001.md",
-        "reason": "Integrator retains canonical 64-workstream/two-exam governance or treats this A status document as non-authoritative."
+        "reason": "Integrator retains a later reconciled canonical implementation; ARCHITECT_A child blob is explicitly superseded rather than copied blindly."
       },
       {
-        "path": "docs/research/CIBO-ARCH-A-EXTERNAL-DEPENDENCY-TERMINAL-CLOSURE-V1.md",
-        "reason": "Integrator retains canonical 64-workstream/two-exam governance or treats this A status document as non-authoritative."
+        "path": "docs/research/CIBO-CE2I-ECONOMIC-CLOSURE-PROTOCOL-V1.md",
+        "reason": "Integrator retains a later reconciled canonical implementation; ARCHITECT_A child blob is explicitly superseded rather than copied blindly."
+      },
+      {
+        "path": "docs/research/CIBO-FINAL-INTEGRATED-CERTIFICATION-EXAM-PROTOCOL-V1.md",
+        "reason": "Integrator retains a later reconciled canonical implementation; ARCHITECT_A child blob is explicitly superseded rather than copied blindly."
+      },
+      {
+        "path": "docs/research/CIBO-INTEGRATED-CERTIFICATION-SEQUENCE-AMENDMENT-V1.md",
+        "reason": "Integrator retains a later reconciled canonical implementation; ARCHITECT_A child blob is explicitly superseded rather than copied blindly."
       },
       {
         "path": "docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json",
-        "reason": "Integrator retains canonical 64-workstream/two-exam governance or treats this A status document as non-authoritative."
+        "reason": "Sovereign ledger preserves the current 64-workstream law, V2 INVALID/non-terminal truth, FRESH_OOS OPEN, and V3 successor governance."
       },
       {
         "path": "docs/research/CIBO-SOURCE-OF-TRUTH-RECONCILIATION-V1.md",
-        "reason": "Integrator retains canonical 64-workstream/two-exam governance or treats this A status document as non-authoritative."
+        "reason": "Integrator retains the later sovereign reconciliation/readiness implementation with current FRESH_OOS and V3 semantics."
+      },
+      {
+        "path": "docs/research/CIBO-SOVEREIGN-CAPITAL-AMPLIFICATION-WORLD-CUP-MISSION-V1.md",
+        "reason": "Integrator retains the later sovereign Final Exam/World Cup implementation after child evidence intake."
       },
       {
         "path": "docs/research/CIBO-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING-MASTER-ROADMAP-V3.md",
-        "reason": "Integrator retains canonical 64-workstream/two-exam governance or treats this A status document as non-authoritative."
+        "reason": "Integrator retains a later reconciled canonical implementation; ARCHITECT_A child blob is explicitly superseded rather than copied blindly."
+      },
+      {
+        "path": "docs/research/CIBO-WORLD-CUP-MAXIMUM-CAPABILITY-EXAM-PROTOCOL-V1.md",
+        "reason": "Integrator retains the later sovereign Final Exam/World Cup implementation after child evidence intake."
       },
       {
         "path": "docs/research/CIBO-WORLD-CUP-SOVEREIGN-CAPITAL-AMPLIFICATION-GAP-MATRIX-V1.md",
-        "reason": "Integrator retains canonical 64-workstream/two-exam governance or treats this A status document as non-authoritative."
+        "reason": "Integrator retains the later sovereign Final Exam/World Cup implementation after child evidence intake."
+      },
+      {
+        "path": "scripts/cibo_arch_a_internal_readiness_gate.py",
+        "reason": "Integrator retains the later sovereign reconciliation/readiness implementation with current FRESH_OOS and V3 semantics."
       },
       {
         "path": "scripts/cibo_zero_open_work_gate.py",
-        "reason": "Integrator retains canonical 64-workstream/two-exam governance or treats this A status document as non-authoritative."
+        "reason": "Integrator retains the later sovereign reconciliation/readiness implementation with current FRESH_OOS and V3 semantics."
+      },
+      {
+        "path": "src/qore/infrastructure/cibo_as_is_economic_baseline.py",
+        "reason": "Integrator retains a later reconciled canonical implementation; ARCHITECT_A child blob is explicitly superseded rather than copied blindly."
+      },
+      {
+        "path": "src/qore/infrastructure/cibo_ce2i_phase22_holdout_gate.py",
+        "reason": "Integrator retains the later reconciled Phase22 implementation after V2 consumption/INVALID disposition and V3 successor governance."
+      },
+      {
+        "path": "src/qore/infrastructure/cibo_ce2i_phase22_qualification.py",
+        "reason": "Integrator retains the later reconciled Phase22 implementation after V2 consumption/INVALID disposition and V3 successor governance."
+      },
+      {
+        "path": "src/qore/infrastructure/cibo_compound_adversarial_stress.py",
+        "reason": "Integrator retains a later reconciled canonical implementation; ARCHITECT_A child blob is explicitly superseded rather than copied blindly."
+      },
+      {
+        "path": "src/qore/infrastructure/cibo_compound_causal_ablation.py",
+        "reason": "Integrator retains a later reconciled canonical implementation; ARCHITECT_A child blob is explicitly superseded rather than copied blindly."
+      },
+      {
+        "path": "src/qore/infrastructure/cibo_compound_cycle_audit.py",
+        "reason": "Integrator retains a later reconciled canonical implementation; ARCHITECT_A child blob is explicitly superseded rather than copied blindly."
+      },
+      {
+        "path": "src/qore/infrastructure/cibo_compound_path_monte_carlo.py",
+        "reason": "Integrator retains a later reconciled canonical implementation; ARCHITECT_A child blob is explicitly superseded rather than copied blindly."
+      },
+      {
+        "path": "src/qore/infrastructure/cibo_compound_real_population_binding.py",
+        "reason": "Integrator retains a later reconciled canonical implementation; ARCHITECT_A child blob is explicitly superseded rather than copied blindly."
+      },
+      {
+        "path": "src/qore/infrastructure/cibo_final_integrated_exam_arch_b_ledger_transition.py",
+        "reason": "Integrator retains the later sovereign Final Exam/World Cup implementation after child evidence intake."
+      },
+      {
+        "path": "src/qore/infrastructure/cibo_final_integrated_exam_external_blocker_reconciliation.py",
+        "reason": "Integrator retains the later sovereign Final Exam/World Cup implementation after child evidence intake."
+      },
+      {
+        "path": "src/qore/infrastructure/cibo_final_integrated_exam_scientific_ledger_transition.py",
+        "reason": "Integrator retains the later sovereign Final Exam/World Cup implementation after child evidence intake."
+      },
+      {
+        "path": "src/qore/infrastructure/cibo_genc10_transition_uncertainty_calibration.py",
+        "reason": "Integrator retains the hardened provider/Risk version with current DEMO mutation and reconciliation invariants."
+      },
+      {
+        "path": "src/qore/infrastructure/cibo_phase22_historical_replay_settlement.py",
+        "reason": "Integrator retains the later reconciled Phase22 implementation after V2 consumption/INVALID disposition and V3 successor governance."
+      },
+      {
+        "path": "src/qore/infrastructure/cibo_profit_preservation_population.py",
+        "reason": "Integrator retains a later reconciled canonical implementation; ARCHITECT_A child blob is explicitly superseded rather than copied blindly."
+      },
+      {
+        "path": "src/qore/infrastructure/cibo_world_cup_maximum_capability_exam.py",
+        "reason": "Integrator retains the later sovereign Final Exam/World Cup implementation after child evidence intake."
+      },
+      {
+        "path": "tests/infrastructure/test_cibo_arch_a_internal_readiness_gate.py",
+        "reason": "Integrator retains the later sovereign reconciliation/readiness implementation with current FRESH_OOS and V3 semantics."
+      },
+      {
+        "path": "tests/infrastructure/test_cibo_as_is_economic_baseline.py",
+        "reason": "Integrator retains a later reconciled canonical implementation; ARCHITECT_A child blob is explicitly superseded rather than copied blindly."
+      },
+      {
+        "path": "tests/infrastructure/test_cibo_ce2i_holdout_registry.py",
+        "reason": "Integrator retains the later reconciled Phase22 implementation after V2 consumption/INVALID disposition and V3 successor governance."
+      },
+      {
+        "path": "tests/infrastructure/test_cibo_ce2i_phase22_qualification.py",
+        "reason": "Integrator retains the later reconciled Phase22 implementation after V2 consumption/INVALID disposition and V3 successor governance."
+      },
+      {
+        "path": "tests/infrastructure/test_cibo_compound_adversarial_stress.py",
+        "reason": "Integrator retains a later reconciled canonical implementation; ARCHITECT_A child blob is explicitly superseded rather than copied blindly."
+      },
+      {
+        "path": "tests/infrastructure/test_cibo_compound_causal_ablation.py",
+        "reason": "Integrator retains a later reconciled canonical implementation; ARCHITECT_A child blob is explicitly superseded rather than copied blindly."
+      },
+      {
+        "path": "tests/infrastructure/test_cibo_compound_market_cycle.py",
+        "reason": "Integrator retains a later reconciled canonical implementation; ARCHITECT_A child blob is explicitly superseded rather than copied blindly."
+      },
+      {
+        "path": "tests/infrastructure/test_cibo_compound_path_monte_carlo.py",
+        "reason": "Integrator retains a later reconciled canonical implementation; ARCHITECT_A child blob is explicitly superseded rather than copied blindly."
+      },
+      {
+        "path": "tests/infrastructure/test_cibo_compound_real_population_binding.py",
+        "reason": "Integrator retains a later reconciled canonical implementation; ARCHITECT_A child blob is explicitly superseded rather than copied blindly."
+      },
+      {
+        "path": "tests/infrastructure/test_cibo_final_integrated_exam_external_blocker_reconciliation.py",
+        "reason": "Integrator retains the later sovereign Final Exam/World Cup implementation after child evidence intake."
+      },
+      {
+        "path": "tests/infrastructure/test_cibo_genc10_transition_uncertainty_calibration.py",
+        "reason": "Integrator retains the hardened provider/Risk version with current DEMO mutation and reconciliation invariants."
+      },
+      {
+        "path": "tests/infrastructure/test_cibo_phase22_historical_replay_settlement.py",
+        "reason": "Integrator retains the later reconciled Phase22 implementation after V2 consumption/INVALID disposition and V3 successor governance."
+      },
+      {
+        "path": "tests/infrastructure/test_cibo_profit_preservation_shadow.py",
+        "reason": "Integrator retains a later reconciled canonical implementation; ARCHITECT_A child blob is explicitly superseded rather than copied blindly."
+      },
+      {
+        "path": "tests/infrastructure/test_cibo_world_cup_maximum_capability_exam.py",
+        "reason": "Integrator retains the later sovereign Final Exam/World Cup implementation after child evidence intake."
       },
       {
         "path": "tests/infrastructure/test_cibo_zero_open_work_gate.py",
-        "reason": "Integrator retains canonical 64-workstream/two-exam governance or treats this A status document as non-authoritative."
+        "reason": "Integrator retains the later sovereign reconciliation/readiness implementation with current FRESH_OOS and V3 semantics."
       }
     ],
-    "deliberate_noncanonical_snapshots": [],
+    "deliberate_noncanonical_snapshots": [
+      {
+        "path": ".github/workflows/cibo-final-exam-control-receipt-v2.yml",
+        "reason": "Child-only historical/V2 validation workflow; sovereign V2 disposition and V3 successor workflows are canonical."
+      },
+      {
+        "path": ".github/workflows/cibo-final-integrated-exam-arch-b-ledger-reconciliation.yml",
+        "reason": "Child-only ARCHITECT_A validation workflow; CI authority remains consolidated in #670."
+      },
+      {
+        "path": ".github/workflows/cibo-final-integrated-exam-arch-b-ledger-transition.yml",
+        "reason": "Child-only ARCHITECT_A validation workflow; CI authority remains consolidated in #670."
+      },
+      {
+        "path": ".github/workflows/cibo-final-integrated-exam-assembly.yml",
+        "reason": "Child-only ARCHITECT_A validation workflow; CI authority remains consolidated in #670."
+      },
+      {
+        "path": ".github/workflows/cibo-final-integrated-exam-certification-closure.yml",
+        "reason": "Child-only ARCHITECT_A validation workflow; CI authority remains consolidated in #670."
+      },
+      {
+        "path": ".github/workflows/cibo-final-integrated-exam-certification-transition.yml",
+        "reason": "Child-only ARCHITECT_A validation workflow; CI authority remains consolidated in #670."
+      },
+      {
+        "path": ".github/workflows/cibo-final-integrated-exam-ci-control.yml",
+        "reason": "Child-only ARCHITECT_A validation workflow; CI authority remains consolidated in #670."
+      },
+      {
+        "path": ".github/workflows/cibo-final-integrated-exam-external-blocker-reconciliation.yml",
+        "reason": "Child-only ARCHITECT_A validation workflow; CI authority remains consolidated in #670."
+      },
+      {
+        "path": ".github/workflows/cibo-final-integrated-exam-phase22-prerequisites.yml",
+        "reason": "Child-only historical/V2 validation workflow; sovereign V2 disposition and V3 successor workflows are canonical."
+      },
+      {
+        "path": ".github/workflows/cibo-final-integrated-exam-pre-exam-ledger.yml",
+        "reason": "Child-only ARCHITECT_A validation workflow; CI authority remains consolidated in #670."
+      },
+      {
+        "path": ".github/workflows/cibo-final-integrated-exam-provider-truth-control.yml",
+        "reason": "Child-only ARCHITECT_A validation workflow; CI authority remains consolidated in #670."
+      },
+      {
+        "path": ".github/workflows/cibo-final-integrated-exam-scientific-ledger-reconciliation.yml",
+        "reason": "Child-only ARCHITECT_A validation workflow; CI authority remains consolidated in #670."
+      },
+      {
+        "path": ".github/workflows/cibo-final-integrated-exam-scientific-ledger-transition.yml",
+        "reason": "Child-only ARCHITECT_A validation workflow; CI authority remains consolidated in #670."
+      },
+      {
+        "path": ".github/workflows/cibo-final-integrated-exam-source-truth-audit.yml",
+        "reason": "Child-only ARCHITECT_A validation workflow; CI authority remains consolidated in #670."
+      },
+      {
+        "path": ".github/workflows/cibo-phase22-historical-replay-economics-amendment.yml",
+        "reason": "Child-only historical/V2 validation workflow; sovereign V2 disposition and V3 successor workflows are canonical."
+      },
+      {
+        "path": ".github/workflows/cibo-phase22-historical-replay-settlement.yml",
+        "reason": "Child-only historical/V2 validation workflow; sovereign V2 disposition and V3 successor workflows are canonical."
+      },
+      {
+        "path": ".github/workflows/cibo-qualification-evidence-protocol.yml",
+        "reason": "Child-only ARCHITECT_A validation workflow; CI authority remains consolidated in #670."
+      },
+      {
+        "path": ".github/workflows/cibo-world-cup-maximum-capability-exam-assembly.yml",
+        "reason": "Child-only ARCHITECT_A validation workflow; CI authority remains consolidated in #670."
+      },
+      {
+        "path": ".github/workflows/cibo-world-cup-maximum-capability-exam-evidence-controls.yml",
+        "reason": "Child-only ARCHITECT_A validation workflow; CI authority remains consolidated in #670."
+      },
+      {
+        "path": ".github/workflows/cibo-world-cup-maximum-capability-exam.yml",
+        "reason": "Child-only ARCHITECT_A validation workflow; CI authority remains consolidated in #670."
+      },
+      {
+        "path": "docs/research/CIBO-A-B-SOURCE-OF-TRUTH-RECONCILIATION-V1.md",
+        "reason": "Branch-local ARCHITECT_A handoff/snapshot; not canonical source-of-truth."
+      },
+      {
+        "path": "docs/research/CIBO-ARCH-A-EXTERNAL-DEPENDENCY-TERMINAL-CLOSURE-V1.md",
+        "reason": "Branch-local ARCHITECT_A documentation snapshot superseded by the sovereign Integrator record."
+      },
+      {
+        "path": "docs/research/CIBO-FINAL-SOURCE-OF-TRUTH-CONTROL-V2.md",
+        "reason": "Branch-local ARCHITECT_A documentation snapshot superseded by the sovereign Integrator record."
+      },
+      {
+        "path": "docs/research/CIBO-PHASE22-HISTORICAL-REPLAY-ECONOMICS-AMENDMENT-V1.md",
+        "reason": "Branch-local ARCHITECT_A documentation snapshot superseded by the sovereign Integrator record."
+      }
+    ],
     "unaccounted_files": []
   },
   "architect_b": {
     "pr": 661,
-    "head_sha": "ce721778184312c68698ed1f14c573b670eb2327",
-    "changed_files": 112,
-    "files_present_in_integrator_delta": 84,
+    "head_sha": "74981eb8cf6203f9a4a330d2d0ed1b4f99090ab0",
+    "changed_files": 252,
+    "files_present_in_integrator_delta": 149,
+    "exact_integrated_paths": [
+      ".github/workflows/cibo-ctrader-demo-provider-economics.yml",
+      ".github/workflows/cibo-legacy-stack-quarantine.yml",
+      ".github/workflows/cibo-t02-forward-structural-oos.yml",
+      ".github/workflows/cibo-t16-post-declaration-market-structure.yml",
+      "docs/research/CIBO-ARCH-B-CROSSBOUNDARY-REQUEST-001.md",
+      "docs/research/CIBO-ARCH-B-FORWARD-ECONOMIC-EVIDENCE-MANIFEST-V1.md",
+      "docs/research/CIBO-ARCH-B-T01-MINIMAL-SEED-MECHANICAL-CLOSURE-V1.md",
+      "docs/research/CIBO-B-CALIBRATION-FREEZE-MANIFEST-V1.md",
+      "docs/research/CIBO-B-CTRADER-DEMO-EMPIRICAL-SLIPPAGE-V1.md",
+      "docs/research/CIBO-B-CTRADER-DEMO-PROVIDER-ECONOMICS-EVIDENCE-2026-09-30.json",
+      "docs/research/CIBO-B-CTRADER-DEMO-PROVIDER-EVIDENCE-2026-10-01.json",
+      "docs/research/CIBO-B-INTEGRATED-CAPITAL-FORWARD-BINDING-V1.md",
+      "docs/research/CIBO-B-PROVIDER-ECONOMICS-COMPONENT-FREEZE-V1.md",
+      "docs/research/CIBO-B-T02-FORWARD-STRUCTURAL-OOS-V1.md",
+      "docs/research/CIBO-B-T03-T11-FORWARD-EVIDENCE-RECONCILIATION-V1.md",
+      "docs/research/CIBO-B-T16-HEDGE-PAIR-PREREGISTRATION-V1.json",
+      "docs/research/CIBO-B-T16-POST-DECLARATION-MARKET-STRUCTURE-V1.md",
+      "docs/research/CIBO-B-T17-STRUCTURAL-DISPOSITION-V1.json",
+      "docs/research/CIBO-B-T20-CAPITAL-RELEASE-MECHANICAL-CLOSURE-V1.md",
+      "docs/research/CIBO-B-USD60-PRE-EXAM-READINESS-V1.md",
+      "docs/research/CIBO-CTRADER-DEMO-ACCOUNT-CAPABILITY-V1.md",
+      "docs/research/CIBO-LEGACY-STACK-QUARANTINE-V1.md",
+      "docs/research/CIBO-PHASE20D-HISTORICAL-SHADOW-HOLDOUT-1Y-EVIDENCE-V1.json",
+      "docs/research/CIBO-PHASE20D-HISTORICAL-SHADOW-HOLDOUT-1Y-POLICY-V1.json",
+      "docs/research/CIBO-PHASE20D-HISTORICAL-SHADOW-HOLDOUT-1Y-POLICY-V1.md",
+      "docs/research/CIBO-PHASE21-HISTORICAL-SHADOW-SCREEN-V1.md",
+      "docs/research/CIBO-PHASE21-SHADOW-POLICY-FREEZE-V1.md",
+      "docs/research/CIBO-PHASE22-HOLDOUT-V1-BURN-FORENSICS.md",
+      "docs/research/CIBO-PROVIDER-ECONOMICS-STRESS-BOUND-ALTERNATIVE-V1.md",
+      "docs/research/CIBO-RISK-INTEGRATION-CLOSURE-V1.md",
+      "docs/research/CIBO-T16-T17-PROVIDER-CAPABILITY-RECONCILIATION-V1.md",
+      "scripts/cibo_calibration_freeze_readiness.py",
+      "scripts/cibo_calibration_terminal_evidence.py",
+      "scripts/cibo_ctrader_demo_empirical_slippage_probe.py",
+      "scripts/cibo_legacy_stack_quarantine.py",
+      "scripts/cibo_phase20_arch_b_forward_economic_manifest.py",
+      "scripts/cibo_phase20_historical_shadow_1y.py",
+      "scripts/cibo_phase20_provider_execution_calibration.py",
+      "scripts/cibo_phase21_historical_shadow_empirical.py",
+      "scripts/cibo_phase21_shadow_policy_freeze.py",
+      "scripts/cibo_phase22_ctrader_tick_diagnostic.py",
+      "scripts/cibo_phase22_demo_provider_calibration.py",
+      "scripts/cibo_phase22_observation_diagnostic.py",
+      "scripts/cibo_phase22_turtle_fresh_corpus_patch.py",
+      "scripts/cibo_phase22_vt31_v4_fresh_runner.py",
+      "scripts/cibo_provider_economics_core_freeze.py",
+      "scripts/cibo_t03_provider_equivalent_candidate_screen.py",
+      "scripts/cibo_t16_ctrader_demo_post_declaration_probe.py",
+      "scripts/cibo_t17_limited_risk_capability_probe.py",
+      "scripts/cibo_t17_structural_disable_probe.py",
+      "src/qore/infrastructure/cibo_arch_b_forward_economic_manifest.py",
+      "src/qore/infrastructure/cibo_ce2i_holdout_registry.py",
+      "src/qore/infrastructure/cibo_ce2i_phase20_t02_structural_oos.py",
+      "src/qore/infrastructure/cibo_ce2i_phase21_historical_shadow.py",
+      "src/qore/infrastructure/cibo_ce2i_phase21_shadow_policy_freeze.py",
+      "src/qore/infrastructure/cibo_ce2i_pre_holdout_freeze_v2.py",
+      "src/qore/infrastructure/cibo_ce2i_provider_core_freeze_receipt.py",
+      "src/qore/infrastructure/cibo_ce2i_provider_economics_component_freeze.py",
+      "src/qore/infrastructure/cibo_ce2i_provider_economics_evidence.py",
+      "src/qore/infrastructure/cibo_ce2i_provider_economics_provenance.py",
+      "src/qore/infrastructure/cibo_ce2i_provider_execution_calibration.py",
+      "src/qore/infrastructure/cibo_ce2i_provider_stress_bound_freeze.py",
+      "src/qore/infrastructure/cibo_ce2i_shadow_certification_receipts.py",
+      "src/qore/infrastructure/cibo_ce2i_t02_terminal_reason_evidence.py",
+      "src/qore/infrastructure/cibo_ce2i_t03_equivalent_expression.py",
+      "src/qore/infrastructure/cibo_ce2i_t11_execution_cost_calibration.py",
+      "src/qore/infrastructure/cibo_ce2i_t11_policy_input_readiness.py",
+      "src/qore/infrastructure/cibo_ce2i_t16_hedge_candidate.py",
+      "src/qore/infrastructure/cibo_ce2i_t16_preregistered_hedge_universe.py",
+      "src/qore/infrastructure/cibo_ce2i_t17_limited_risk_capability.py",
+      "src/qore/infrastructure/cibo_ce2i_t17_structural_disable.py",
+      "src/qore/infrastructure/cibo_ctrader_demo_account_capability.py",
+      "src/qore/infrastructure/cibo_ctrader_demo_capability_registry.py",
+      "src/qore/infrastructure/cibo_ctrader_demo_empirical_slippage.py",
+      "src/qore/infrastructure/cibo_ctrader_demo_instrument_taxonomy.py",
+      "src/qore/infrastructure/cibo_ctrader_demo_provider_economics.py",
+      "src/qore/infrastructure/cibo_integrated_capital_forward_binding.py",
+      "src/qore/infrastructure/cibo_phase22_demo_calibration_contract.py",
+      "src/qore/infrastructure/cibo_phase22_demo_empirical_provider_receipt.py",
+      "src/qore/infrastructure/cibo_phase22_demo_execution_population_receipt.py",
+      "src/qore/infrastructure/cibo_phase22_dual_evidence_plan.py",
+      "src/qore/infrastructure/cibo_phase22_external_dependency_evidence.py",
+      "src/qore/infrastructure/cibo_phase22_historical_store.py",
+      "src/qore/infrastructure/cibo_phase22_holdout_source_receipt.py",
+      "src/qore/infrastructure/cibo_phase22_holdout_v2_source_receipt.py",
+      "src/qore/infrastructure/cibo_phase22_parity_lane_evidence.py",
+      "src/qore/infrastructure/cibo_phase22_provider_execution_calibration_receipt.py",
+      "src/qore/infrastructure/cibo_phase22_trader_parity_manifest.py",
+      "src/qore/infrastructure/cibo_phase22_turtle_predecision_projection.py",
+      "src/qore/infrastructure/cibo_phase22_turtle_v2_dependencies.py",
+      "src/qore/infrastructure/cibo_phase22_vt08_fresh_engine.py",
+      "src/qore/infrastructure/cibo_phase22_vt31_v4_fresh_source.py",
+      "src/qore/infrastructure/cibo_research_memory.py",
+      "src/qore/infrastructure/cibo_usd60_exam_readiness.py",
+      "src/qore/infrastructure/ctrader_open_api_client.py",
+      "src/qore/infrastructure/traders/vt31_nas100_cibo_market_memory.py",
+      "tests/infrastructure/test_cibo_arch_b_forward_economic_manifest.py",
+      "tests/infrastructure/test_cibo_ce2i_calibration_terminal_evidence.py",
+      "tests/infrastructure/test_cibo_ce2i_phase20_t02_structural_oos.py",
+      "tests/infrastructure/test_cibo_ce2i_phase21_historical_shadow.py",
+      "tests/infrastructure/test_cibo_ce2i_phase21_shadow_policy_freeze.py",
+      "tests/infrastructure/test_cibo_ce2i_phase22_holdout_gate.py",
+      "tests/infrastructure/test_cibo_ce2i_pre_holdout_freeze_v2.py",
+      "tests/infrastructure/test_cibo_ce2i_provider_core_freeze_receipt.py",
+      "tests/infrastructure/test_cibo_ce2i_provider_economics_evidence.py",
+      "tests/infrastructure/test_cibo_ce2i_provider_execution_calibration.py",
+      "tests/infrastructure/test_cibo_ce2i_provider_stress_bound_freeze.py",
+      "tests/infrastructure/test_cibo_ce2i_shadow_certification_receipts.py",
+      "tests/infrastructure/test_cibo_ce2i_t02_terminal_reason_evidence.py",
+      "tests/infrastructure/test_cibo_ce2i_t03_equivalent_expression.py",
+      "tests/infrastructure/test_cibo_ce2i_t11_policy_input_readiness.py",
+      "tests/infrastructure/test_cibo_ce2i_t16_hedge_candidate.py",
+      "tests/infrastructure/test_cibo_ce2i_t16_preregistered_hedge_universe.py",
+      "tests/infrastructure/test_cibo_ce2i_t17_limited_risk_capability.py",
+      "tests/infrastructure/test_cibo_ce2i_t17_structural_disable.py",
+      "tests/infrastructure/test_cibo_cma_compound_authority_boundary.py",
+      "tests/infrastructure/test_cibo_ctrader_demo_account_capability.py",
+      "tests/infrastructure/test_cibo_ctrader_demo_account_capability_probe.py",
+      "tests/infrastructure/test_cibo_ctrader_demo_empirical_slippage.py",
+      "tests/infrastructure/test_cibo_ctrader_demo_instrument_taxonomy.py",
+      "tests/infrastructure/test_cibo_ctrader_demo_provider_economics.py",
+      "tests/infrastructure/test_cibo_phase20_arch_b_forward_economic_manifest_export.py",
+      "tests/infrastructure/test_cibo_phase20_provider_execution_calibration_export.py",
+      "tests/infrastructure/test_cibo_phase22_demo_calibration_contract.py",
+      "tests/infrastructure/test_cibo_phase22_demo_calibration_workflow.py",
+      "tests/infrastructure/test_cibo_phase22_dual_evidence_plan.py",
+      "tests/infrastructure/test_cibo_phase22_eurusd_r38_window_replay.py",
+      "tests/infrastructure/test_cibo_phase22_external_dependency_evidence.py",
+      "tests/infrastructure/test_cibo_phase22_fresh_opportunity_batch.py",
+      "tests/infrastructure/test_cibo_phase22_historical_policy_replay.py",
+      "tests/infrastructure/test_cibo_phase22_holdout_source_receipt.py",
+      "tests/infrastructure/test_cibo_phase22_holdout_v2_source_receipt.py",
+      "tests/infrastructure/test_cibo_phase22_parity_lane_evidence.py",
+      "tests/infrastructure/test_cibo_phase22_provider_execution_calibration_receipt.py",
+      "tests/infrastructure/test_cibo_phase22_store_bundle.py",
+      "tests/infrastructure/test_cibo_phase22_store_contract.py",
+      "tests/infrastructure/test_cibo_phase22_trader_parity_manifest.py",
+      "tests/infrastructure/test_cibo_phase22_turtle_fresh_corpus_patch.py",
+      "tests/infrastructure/test_cibo_phase22_turtle_predecision_projection.py",
+      "tests/infrastructure/test_cibo_phase22_turtle_v2_dependencies.py",
+      "tests/infrastructure/test_cibo_phase22_vt08_fresh_engine.py",
+      "tests/infrastructure/test_cibo_phase22_vt31_v4_fresh_source.py",
+      "tests/infrastructure/test_cibo_risk_integration_closure.py",
+      "tests/infrastructure/test_cibo_t03_provider_equivalent_candidate_screen.py",
+      "tests/infrastructure/test_cibo_t16_ctrader_demo_post_declaration_probe.py",
+      "tests/infrastructure/test_cibo_t17_limited_risk_capability_probe.py",
+      "tests/infrastructure/test_cibo_t17_structural_disable_probe.py",
+      "tests/infrastructure/test_cibo_usd60_exam_readiness.py",
+      "tests/infrastructure/test_vt31_cibo_market_memory_quarantine.py"
+    ],
     "deliberate_overrides": [
       {
         "path": ".github/workflows/cibo-arch-b-forward-economic-manifest.yml",
-        "reason": "Integrator retains canonical/repaired workflow, ledger, or test authority for this child path."
-      },
-      {
-        "path": ".github/workflows/cibo-arch-b-zero-open-work.yml",
-        "reason": "Integrator retains canonical/repaired workflow, ledger, or test authority for this child path."
-      },
-      {
-        "path": ".github/workflows/cibo-b-actions-queue-cleanup.yml",
-        "reason": "Integrator retains canonical/repaired workflow, ledger, or test authority for this child path."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_B; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-b-provider-forward-tool-readiness.yml",
-        "reason": "Integrator retains canonical/repaired workflow, ledger, or test authority for this child path."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_B; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-calibration-freeze-manifest.yml",
-        "reason": "Integrator retains canonical/repaired workflow, ledger, or test authority for this child path."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_B; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-ctrader-demo-account-capability.yml",
-        "reason": "Integrator retains canonical/repaired workflow, ledger, or test authority for this child path."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_B; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-integrated-capital-forward-binding.yml",
-        "reason": "Integrator retains canonical/repaired workflow, ledger, or test authority for this child path."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_B; the child workflow blob is explicitly superseded."
+      },
+      {
+        "path": ".github/workflows/cibo-phase22-demo-provider-calibration.yml",
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_B; the child workflow blob is explicitly superseded."
+      },
+      {
+        "path": ".github/workflows/cibo-phase22-dual-evidence-protocol.yml",
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_B; the child workflow blob is explicitly superseded."
+      },
+      {
+        "path": ".github/workflows/cibo-phase22-v2-execution-preflight.yml",
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_B; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-pre-holdout-checkpoint.yml",
-        "reason": "Integrator retains canonical/repaired workflow, ledger, or test authority for this child path."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_B; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-risk-integration-closure.yml",
-        "reason": "Integrator retains canonical/repaired workflow, ledger, or test authority for this child path."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_B; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-t20-capital-release.yml",
-        "reason": "Integrator retains canonical/repaired workflow, ledger, or test authority for this child path."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_B; the child workflow blob is explicitly superseded."
+      },
+      {
+        "path": ".github/workflows/cibo-usd60-holdout-source-validation.yml",
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_B; the child workflow blob is explicitly superseded."
       },
       {
         "path": ".github/workflows/cibo-usd60-pre-exam-readiness.yml",
-        "reason": "Integrator retains canonical/repaired workflow, ledger, or test authority for this child path."
+        "reason": "Integrator retains consolidated sovereign CI for ARCHITECT_B; the child workflow blob is explicitly superseded."
+      },
+      {
+        "path": "docs/research/CIBO-ARCH-B-CROSSBOUNDARY-REQUEST-002.md",
+        "reason": "Integrator retains a later reconciled canonical implementation; ARCHITECT_B child blob is explicitly superseded rather than copied blindly."
+      },
+      {
+        "path": "docs/research/CIBO-ARCH-B-TERMINAL-DISPOSITION-PACKAGE-V1.json",
+        "reason": "Integrator retains a later reconciled canonical implementation; ARCHITECT_B child blob is explicitly superseded rather than copied blindly."
       },
       {
         "path": "docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json",
-        "reason": "Integrator retains canonical/repaired workflow, ledger, or test authority for this child path."
+        "reason": "Sovereign ledger preserves the current 64-workstream law, V2 INVALID/non-terminal truth, FRESH_OOS OPEN, and V3 successor governance."
+      },
+      {
+        "path": "scripts/cibo_ctrader_demo_account_capability_probe.py",
+        "reason": "Integrator retains the hardened provider/Risk version with current DEMO mutation and reconciliation invariants."
+      },
+      {
+        "path": "scripts/cibo_ctrader_demo_provider_economics_probe.py",
+        "reason": "Integrator retains the hardened provider/Risk version with current DEMO mutation and reconciliation invariants."
+      },
+      {
+        "path": "scripts/cibo_phase22_eurusd_r38_window_replay.py",
+        "reason": "Integrator retains the later reconciled Phase22 implementation after V2 consumption/INVALID disposition and V3 successor governance."
+      },
+      {
+        "path": "scripts/cibo_phase22_turtle_window_replay.py",
+        "reason": "Integrator retains the later reconciled Phase22 implementation after V2 consumption/INVALID disposition and V3 successor governance."
+      },
+      {
+        "path": "scripts/cibo_pre_holdout_checkpoint.py",
+        "reason": "Integrator retains the later reconciled Phase22 implementation after V2 consumption/INVALID disposition and V3 successor governance."
+      },
+      {
+        "path": "scripts/cibo_pre_holdout_gate.py",
+        "reason": "Integrator retains the later reconciled Phase22 implementation after V2 consumption/INVALID disposition and V3 successor governance."
+      },
+      {
+        "path": "scripts/cibo_usd60_holdout_source_validation.py",
+        "reason": "Integrator retains the later reconciled Phase22 implementation after V2 consumption/INVALID disposition and V3 successor governance."
       },
       {
         "path": "scripts/cibo_zero_open_work_gate.py",
-        "reason": "Integrator retains canonical/repaired workflow, ledger, or test authority for this child path."
+        "reason": "Integrator retains the later sovereign reconciliation/readiness implementation with current FRESH_OOS and V3 semantics."
+      },
+      {
+        "path": "src/qore/infrastructure/cibo_ce2i_calibration_freeze_manifest.py",
+        "reason": "Integrator retains the hardened provider/Risk version with current DEMO mutation and reconciliation invariants."
+      },
+      {
+        "path": "src/qore/infrastructure/cibo_ce2i_calibration_freeze_readiness.py",
+        "reason": "Integrator retains the hardened provider/Risk version with current DEMO mutation and reconciliation invariants."
+      },
+      {
+        "path": "src/qore/infrastructure/cibo_ce2i_calibration_terminal_evidence.py",
+        "reason": "Integrator retains the hardened provider/Risk version with current DEMO mutation and reconciliation invariants."
+      },
+      {
+        "path": "src/qore/infrastructure/cibo_ce2i_phase20_historical_shadow.py",
+        "reason": "Integrator retains a later reconciled canonical implementation; ARCHITECT_B child blob is explicitly superseded rather than copied blindly."
+      },
+      {
+        "path": "src/qore/infrastructure/cibo_ce2i_phase22_holdout_gate.py",
+        "reason": "Integrator retains the later reconciled Phase22 implementation after V2 consumption/INVALID disposition and V3 successor governance."
+      },
+      {
+        "path": "src/qore/infrastructure/cibo_ce2i_pre_holdout_freeze.py",
+        "reason": "Integrator retains the later reconciled Phase22 implementation after V2 consumption/INVALID disposition and V3 successor governance."
+      },
+      {
+        "path": "src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py",
+        "reason": "Integrator retains the later reconciled Phase22 implementation after V2 consumption/INVALID disposition and V3 successor governance."
+      },
+      {
+        "path": "src/qore/infrastructure/cibo_phase22_execution_manifest.py",
+        "reason": "Integrator retains the later reconciled Phase22 implementation after V2 consumption/INVALID disposition and V3 successor governance."
+      },
+      {
+        "path": "src/qore/infrastructure/cibo_phase22_fresh_opportunity_batch.py",
+        "reason": "Integrator retains the later reconciled Phase22 implementation after V2 consumption/INVALID disposition and V3 successor governance."
+      },
+      {
+        "path": "src/qore/infrastructure/cibo_phase22_historical_policy_replay.py",
+        "reason": "Integrator retains the later reconciled Phase22 implementation after V2 consumption/INVALID disposition and V3 successor governance."
+      },
+      {
+        "path": "src/qore/infrastructure/cibo_phase22_one_shot_batch.py",
+        "reason": "Integrator retains the later reconciled Phase22 implementation after V2 consumption/INVALID disposition and V3 successor governance."
+      },
+      {
+        "path": "src/qore/infrastructure/cibo_phase22_one_shot_guard.py",
+        "reason": "Integrator retains the later reconciled Phase22 implementation after V2 consumption/INVALID disposition and V3 successor governance."
+      },
+      {
+        "path": "src/qore/infrastructure/cibo_phase22_store_bundle.py",
+        "reason": "Integrator retains the later reconciled Phase22 implementation after V2 consumption/INVALID disposition and V3 successor governance."
+      },
+      {
+        "path": "src/qore/infrastructure/cibo_phase22_store_contract.py",
+        "reason": "Integrator retains the later reconciled Phase22 implementation after V2 consumption/INVALID disposition and V3 successor governance."
+      },
+      {
+        "path": "tests/infrastructure/test_cibo_ce2i_calibration_freeze_manifest.py",
+        "reason": "Integrator retains the hardened provider/Risk version with current DEMO mutation and reconciliation invariants."
+      },
+      {
+        "path": "tests/infrastructure/test_cibo_ce2i_calibration_freeze_readiness.py",
+        "reason": "Integrator retains the hardened provider/Risk version with current DEMO mutation and reconciliation invariants."
+      },
+      {
+        "path": "tests/infrastructure/test_cibo_ce2i_holdout_registry.py",
+        "reason": "Integrator retains the later reconciled Phase22 implementation after V2 consumption/INVALID disposition and V3 successor governance."
+      },
+      {
+        "path": "tests/infrastructure/test_cibo_ce2i_phase20_historical_shadow.py",
+        "reason": "Integrator retains a later reconciled canonical implementation; ARCHITECT_B child blob is explicitly superseded rather than copied blindly."
+      },
+      {
+        "path": "tests/infrastructure/test_cibo_ce2i_phase22_qualification.py",
+        "reason": "Integrator retains the later reconciled Phase22 implementation after V2 consumption/INVALID disposition and V3 successor governance."
+      },
+      {
+        "path": "tests/infrastructure/test_cibo_ce2i_pre_holdout_freeze.py",
+        "reason": "Integrator retains the later reconciled Phase22 implementation after V2 consumption/INVALID disposition and V3 successor governance."
+      },
+      {
+        "path": "tests/infrastructure/test_cibo_ce2i_pre_holdout_gate.py",
+        "reason": "Integrator retains the later reconciled Phase22 implementation after V2 consumption/INVALID disposition and V3 successor governance."
+      },
+      {
+        "path": "tests/infrastructure/test_cibo_ce2i_provider_economics_component_freeze.py",
+        "reason": "Integrator retains the hardened provider/Risk version with current DEMO mutation and reconciliation invariants."
       },
       {
         "path": "tests/infrastructure/test_cibo_ce2i_t11_execution_cost_calibration.py",
-        "reason": "Integrator retains canonical/repaired workflow, ledger, or test authority for this child path."
+        "reason": "Integrator retains the hardened provider/Risk version with current DEMO mutation and reconciliation invariants."
       },
       {
         "path": "tests/infrastructure/test_cibo_ctrader_demo_capability_registry.py",
-        "reason": "Integrator retains canonical/repaired workflow, ledger, or test authority for this child path."
+        "reason": "Integrator retains the hardened provider/Risk version with current DEMO mutation and reconciliation invariants."
       },
       {
         "path": "tests/infrastructure/test_cibo_integrated_capital_forward_binding.py",
-        "reason": "Integrator retains canonical/repaired workflow, ledger, or test authority for this child path."
+        "reason": "Integrator retains a later reconciled canonical implementation; ARCHITECT_B child blob is explicitly superseded rather than copied blindly."
       },
       {
         "path": "tests/infrastructure/test_cibo_legacy_stack_quarantine.py",
-        "reason": "Integrator retains canonical/repaired workflow, ledger, or test authority for this child path."
+        "reason": "Integrator retains a later reconciled canonical implementation; ARCHITECT_B child blob is explicitly superseded rather than copied blindly."
+      },
+      {
+        "path": "tests/infrastructure/test_cibo_phase22_execution_manifest.py",
+        "reason": "Integrator retains the later reconciled Phase22 implementation after V2 consumption/INVALID disposition and V3 successor governance."
+      },
+      {
+        "path": "tests/infrastructure/test_cibo_phase22_one_shot_batch.py",
+        "reason": "Integrator retains the later reconciled Phase22 implementation after V2 consumption/INVALID disposition and V3 successor governance."
+      },
+      {
+        "path": "tests/infrastructure/test_cibo_phase22_one_shot_guard.py",
+        "reason": "Integrator retains the later reconciled Phase22 implementation after V2 consumption/INVALID disposition and V3 successor governance."
+      },
+      {
+        "path": "tests/infrastructure/test_cibo_phase22_turtle_window_replay.py",
+        "reason": "Integrator retains the later reconciled Phase22 implementation after V2 consumption/INVALID disposition and V3 successor governance."
       },
       {
         "path": "tests/infrastructure/test_cibo_zero_open_work_gate.py",
-        "reason": "Integrator retains canonical/repaired workflow, ledger, or test authority for this child path."
+        "reason": "Integrator retains the later sovereign reconciliation/readiness implementation with current FRESH_OOS and V3 semantics."
       }
     ],
     "deliberate_noncanonical_snapshots": [
-      "docs/research/CIBO-ARCH-B-CLOSURE-HANDOFF-V1.json",
-      "docs/research/CIBO-ARCH-B-CLOSURE-HANDOFF-V1.md",
-      "docs/research/CIBO-ARCH-B-CROSSBOUNDARY-REQUEST-002.md",
-      "docs/research/CIBO-ARCH-B-HANDOFF-MAESTRO-CONTINUIDAD-2026-09-30.md",
-      "docs/research/CIBO-ARCH-B-MASTER-LEDGER-PATCH-REQUEST-V1.json",
-      "docs/research/CIBO-ARCH-B-MASTER-LEDGER-PATCH-REQUEST-V1.md",
-      "docs/research/CIBO-ARCH-B-TERMINAL-DISPOSITION-PACKAGE-V1.json",
-      "docs/research/CIBO-ARCH-B-ZERO-OPEN-WORK-GATE-V1.md",
-      "scripts/cibo_arch_b_zero_open_work_gate.py",
-      "tests/infrastructure/test_cibo_arch_b_zero_open_work_gate.py"
+      {
+        "path": ".github/workflows/cibo-arch-b-zero-open-work.yml",
+        "reason": "Child-only ARCHITECT_B validation workflow; CI authority remains consolidated in #670."
+      },
+      {
+        "path": ".github/workflows/cibo-b-actions-queue-cleanup.yml",
+        "reason": "Child-only ARCHITECT_B validation workflow; CI authority remains consolidated in #670."
+      },
+      {
+        "path": ".github/workflows/cibo-ctrader-demo-empirical-slippage.yml",
+        "reason": "Child-only ARCHITECT_B validation workflow; CI authority remains consolidated in #670."
+      },
+      {
+        "path": ".github/workflows/cibo-phase20-historical-shadow-1y.yml",
+        "reason": "Child-only ARCHITECT_B validation workflow; CI authority remains consolidated in #670."
+      },
+      {
+        "path": ".github/workflows/cibo-phase21-shadow-empirical.yml",
+        "reason": "Child-only ARCHITECT_B validation workflow; CI authority remains consolidated in #670."
+      },
+      {
+        "path": ".github/workflows/cibo-phase21-shadow-policy-freeze.yml",
+        "reason": "Child-only ARCHITECT_B validation workflow; CI authority remains consolidated in #670."
+      },
+      {
+        "path": ".github/workflows/cibo-phase22-audjpy-r42-replay-parity.yml",
+        "reason": "Child-only historical/V2 validation workflow; sovereign V2 disposition and V3 successor workflows are canonical."
+      },
+      {
+        "path": ".github/workflows/cibo-phase22-ctrader-tick-diagnostic.yml",
+        "reason": "Child-only historical/V2 validation workflow; sovereign V2 disposition and V3 successor workflows are canonical."
+      },
+      {
+        "path": ".github/workflows/cibo-phase22-demo-calibration-cleanup.yml",
+        "reason": "Child-only historical/V2 validation workflow; sovereign V2 disposition and V3 successor workflows are canonical."
+      },
+      {
+        "path": ".github/workflows/cibo-phase22-eurusd-r38-replay-freeze.yml",
+        "reason": "Child-only historical/V2 validation workflow; sovereign V2 disposition and V3 successor workflows are canonical."
+      },
+      {
+        "path": ".github/workflows/cibo-phase22-external-dependency-evidence.yml",
+        "reason": "Child-only historical/V2 validation workflow; sovereign V2 disposition and V3 successor workflows are canonical."
+      },
+      {
+        "path": ".github/workflows/cibo-phase22-fresh-opportunity-batch.yml",
+        "reason": "Child-only historical/V2 validation workflow; sovereign V2 disposition and V3 successor workflows are canonical."
+      },
+      {
+        "path": ".github/workflows/cibo-phase22-gbpjpy-r38-replay-parity.yml",
+        "reason": "Child-only historical/V2 validation workflow; sovereign V2 disposition and V3 successor workflows are canonical."
+      },
+      {
+        "path": ".github/workflows/cibo-phase22-gbpusd-r43-replay-parity.yml",
+        "reason": "Child-only historical/V2 validation workflow; sovereign V2 disposition and V3 successor workflows are canonical."
+      },
+      {
+        "path": ".github/workflows/cibo-phase22-historical-policy-replay.yml",
+        "reason": "Child-only historical/V2 validation workflow; sovereign V2 disposition and V3 successor workflows are canonical."
+      },
+      {
+        "path": ".github/workflows/cibo-phase22-holdout-source-receipt.yml",
+        "reason": "Child-only historical/V2 validation workflow; sovereign V2 disposition and V3 successor workflows are canonical."
+      },
+      {
+        "path": ".github/workflows/cibo-phase22-holdout-v2-m1-source.yml",
+        "reason": "Child-only historical/V2 validation workflow; sovereign V2 disposition and V3 successor workflows are canonical."
+      },
+      {
+        "path": ".github/workflows/cibo-phase22-holdout-v2-m5-source.yml",
+        "reason": "Child-only historical/V2 validation workflow; sovereign V2 disposition and V3 successor workflows are canonical."
+      },
+      {
+        "path": ".github/workflows/cibo-phase22-holdout-v2-source-availability.yml",
+        "reason": "Child-only historical/V2 validation workflow; sovereign V2 disposition and V3 successor workflows are canonical."
+      },
+      {
+        "path": ".github/workflows/cibo-phase22-holdout-v2-source-receipt.yml",
+        "reason": "Child-only historical/V2 validation workflow; sovereign V2 disposition and V3 successor workflows are canonical."
+      },
+      {
+        "path": ".github/workflows/cibo-phase22-observation-diagnostic.yml",
+        "reason": "Child-only historical/V2 validation workflow; sovereign V2 disposition and V3 successor workflows are canonical."
+      },
+      {
+        "path": ".github/workflows/cibo-phase22-one-shot-batch-contract.yml",
+        "reason": "Child-only historical/V2 validation workflow; sovereign V2 disposition and V3 successor workflows are canonical."
+      },
+      {
+        "path": ".github/workflows/cibo-phase22-trader-parity-freeze.yml",
+        "reason": "Child-only historical/V2 validation workflow; sovereign V2 disposition and V3 successor workflows are canonical."
+      },
+      {
+        "path": ".github/workflows/cibo-phase22-turtle-fresh-corpus-contract.yml",
+        "reason": "Child-only historical/V2 validation workflow; sovereign V2 disposition and V3 successor workflows are canonical."
+      },
+      {
+        "path": ".github/workflows/cibo-phase22-turtle-predecision-causality.yml",
+        "reason": "Child-only historical/V2 validation workflow; sovereign V2 disposition and V3 successor workflows are canonical."
+      },
+      {
+        "path": ".github/workflows/cibo-phase22-turtle-v2-dependency-contract.yml",
+        "reason": "Child-only historical/V2 validation workflow; sovereign V2 disposition and V3 successor workflows are canonical."
+      },
+      {
+        "path": ".github/workflows/cibo-phase22-v2-store-bundle.yml",
+        "reason": "Child-only historical/V2 validation workflow; sovereign V2 disposition and V3 successor workflows are canonical."
+      },
+      {
+        "path": ".github/workflows/cibo-phase22-vt08-forex-parity.yml",
+        "reason": "Child-only historical/V2 validation workflow; sovereign V2 disposition and V3 successor workflows are canonical."
+      },
+      {
+        "path": ".github/workflows/cibo-phase22-vt08-fresh-engine-contract.yml",
+        "reason": "Child-only historical/V2 validation workflow; sovereign V2 disposition and V3 successor workflows are canonical."
+      },
+      {
+        "path": ".github/workflows/cibo-phase22-vt31-nas100-parity.yml",
+        "reason": "Child-only historical/V2 validation workflow; sovereign V2 disposition and V3 successor workflows are canonical."
+      },
+      {
+        "path": ".github/workflows/cibo-phase22-vt31-v4-fresh-engine-contract.yml",
+        "reason": "Child-only historical/V2 validation workflow; sovereign V2 disposition and V3 successor workflows are canonical."
+      },
+      {
+        "path": ".github/workflows/cibo-phase22-xauusd-r34-replay-parity.yml",
+        "reason": "Child-only historical/V2 validation workflow; sovereign V2 disposition and V3 successor workflows are canonical."
+      },
+      {
+        "path": ".github/workflows/cibo-provider-economics-core-freeze.yml",
+        "reason": "Child-only ARCHITECT_B validation workflow; CI authority remains consolidated in #670."
+      },
+      {
+        "path": "docs/research/CIBO-ARCH-B-CLOSURE-HANDOFF-V1.json",
+        "reason": "Branch-local ARCHITECT_B handoff/snapshot; not canonical source-of-truth."
+      },
+      {
+        "path": "docs/research/CIBO-ARCH-B-CLOSURE-HANDOFF-V1.md",
+        "reason": "Branch-local ARCHITECT_B handoff/snapshot; not canonical source-of-truth."
+      },
+      {
+        "path": "docs/research/CIBO-ARCH-B-HANDOFF-MAESTRO-CONTINUIDAD-2026-09-30.md",
+        "reason": "Branch-local ARCHITECT_B handoff/snapshot; not canonical source-of-truth."
+      },
+      {
+        "path": "docs/research/CIBO-ARCH-B-MASTER-LEDGER-PATCH-REQUEST-V1.json",
+        "reason": "Branch-local ARCHITECT_B handoff/snapshot; not canonical source-of-truth."
+      },
+      {
+        "path": "docs/research/CIBO-ARCH-B-MASTER-LEDGER-PATCH-REQUEST-V1.md",
+        "reason": "Branch-local ARCHITECT_B handoff/snapshot; not canonical source-of-truth."
+      },
+      {
+        "path": "docs/research/CIBO-ARCH-B-ZERO-OPEN-WORK-GATE-V1.md",
+        "reason": "Branch-local ARCHITECT_B handoff/snapshot; not canonical source-of-truth."
+      },
+      {
+        "path": "scripts/cibo_arch_b_zero_open_work_gate.py",
+        "reason": "Architect-B-local gate is noncanonical; sovereign Zero Open authority belongs to #670."
+      },
+      {
+        "path": "scripts/cibo_phase22_demo_calibration_cleanup.py",
+        "reason": "EXCLUDED_MUTATION_SURFACE: can close broker positions; no automatic cleanup mutation authority is accepted."
+      },
+      {
+        "path": "src/qore/infrastructure/cibo_phase22_holdout_v2_m1_source.py",
+        "reason": "Historical V2 acquisition/test surface is noncanonical after V2 was consumed and scientifically INVALID; successor V3 governance is canonical."
+      },
+      {
+        "path": "src/qore/infrastructure/cibo_phase22_holdout_v2_m5_source.py",
+        "reason": "Historical V2 acquisition/test surface is noncanonical after V2 was consumed and scientifically INVALID; successor V3 governance is canonical."
+      },
+      {
+        "path": "src/qore/infrastructure/cibo_phase22_holdout_v2_source_availability.py",
+        "reason": "Historical V2 acquisition/test surface is noncanonical after V2 was consumed and scientifically INVALID; successor V3 governance is canonical."
+      },
+      {
+        "path": "tests/infrastructure/test_cibo_arch_b_zero_open_work_gate.py",
+        "reason": "Architect-B-local gate is noncanonical; sovereign Zero Open authority belongs to #670."
+      },
+      {
+        "path": "tests/infrastructure/test_cibo_phase22_holdout_v2_m1_source.py",
+        "reason": "Historical V2 acquisition/test surface is noncanonical after V2 was consumed and scientifically INVALID; successor V3 governance is canonical."
+      },
+      {
+        "path": "tests/infrastructure/test_cibo_phase22_holdout_v2_m5_source.py",
+        "reason": "Historical V2 acquisition/test surface is noncanonical after V2 was consumed and scientifically INVALID; successor V3 governance is canonical."
+      },
+      {
+        "path": "tests/infrastructure/test_cibo_phase22_holdout_v2_source_availability.py",
+        "reason": "Historical V2 acquisition/test surface is noncanonical after V2 was consumed and scientifically INVALID; successor V3 governance is canonical."
+      }
     ],
     "unaccounted_files": []
   },
