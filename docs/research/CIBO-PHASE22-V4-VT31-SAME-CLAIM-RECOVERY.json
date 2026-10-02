@@ -22,5 +22,6 @@
   "real_capital_authorized": false,
   "production_authorized": false,
   "merge_authorized": false,
-  "productive_authority": false
+  "productive_authority": false,
+  "activation_nonce": "RUN_AFTER_WORKFLOW_REGISTRATION_1"
 }
