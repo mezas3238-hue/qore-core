@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from enum import StrEnum
+from typing import Protocol, runtime_checkable
 
 from qore.infrastructure.cibo_ce2i_phase20_qualification_plan import (
     FROZEN_PHASE20D_QUALIFICATION_PLAN,
@@ -30,9 +31,6 @@ from qore.infrastructure.cibo_phase22_dual_evidence_plan import (
 from qore.infrastructure.cibo_phase22_execution_manifest import (
     build_phase22_execution_manifest,
 )
-from qore.infrastructure.cibo_phase22_git_durable_claim import (
-    Phase22GitDurableClaimEvidence,
-)
 from qore.infrastructure.cibo_phase22_store_contract import (
     PHASE22_STORE_IDENTITIES,
 )
@@ -50,6 +48,12 @@ PROVIDER_COST_BOUND_NOT_READY_BLOCKER = (
     "PHASE22_PREDECLARED_PROVIDER_COST_BOUND_NOT_READY"
 )
 DURABLE_CLAIM_BLOCKER = "PHASE22_V2_EXECUTION_ALREADY_DURABLY_CLAIMED"
+
+
+@runtime_checkable
+class Phase22DurableClaimEvidence(Protocol):
+    source_head_sha: str
+    durable_claim_proven: bool
 
 
 class Phase22OneShotGuardStatus(StrEnum):
@@ -112,7 +116,7 @@ class Phase22OneShotGuardAssessment:
 def assess_phase22_one_shot_guard(
     *,
     consumption_receipt: Phase22ExecutionConsumptionReceipt | None = None,
-    durable_claim_evidence: Phase22GitDurableClaimEvidence | None = None,
+    durable_claim_evidence: Phase22DurableClaimEvidence | None = None,
 ) -> Phase22OneShotGuardAssessment:
     manifest = build_phase22_execution_manifest()
     manifest_sha = manifest.fingerprint()
@@ -139,7 +143,7 @@ def assess_phase22_one_shot_guard(
     if durable_claim_evidence is not None:
         if not isinstance(
             durable_claim_evidence,
-            Phase22GitDurableClaimEvidence,
+            Phase22DurableClaimEvidence,
         ):
             raise TypeError("Phase22 durable claim evidence must be canonical")
         if consumption_receipt is None or not claimed:
