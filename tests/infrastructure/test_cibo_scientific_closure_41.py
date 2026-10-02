@@ -11,11 +11,10 @@ from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
 from qore.infrastructure.cibo_scientific_closure_41 import (
-    CONSUMED_INVALID_V4_HOLDOUT_ID,
-    SOURCE_UNAVAILABLE_V5_HOLDOUT_ID,
     CANONICAL_POLICY_IDENTITY,
     CANONICAL_PROVIDER_IDENTITY,
     COMPLETED,
+    CONSUMED_INVALID_V4_HOLDOUT_ID,
     FALSIFIED,
     FINAL_EXAM_IDS,
     FRESH_OOS_ID,
@@ -23,6 +22,7 @@ from qore.infrastructure.cibo_scientific_closure_41 import (
     PRE_CLOSURE_OPEN_IDS,
     SCIENTIFIC_CLOSURE_41_IDS,
     SCIENTIFIC_CLOSURE_EXTERNAL_IDS,
+    SOURCE_UNAVAILABLE_V5_HOLDOUT_ID,
     ScientificClosure41Evidence,
     apply_scientific_closure_41_to_ledger_copy,
     build_scientific_closure_41_package,
