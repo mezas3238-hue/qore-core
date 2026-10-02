@@ -31,9 +31,7 @@ from qore.infrastructure.cibo_ce2i_phase22_qualification_plan import (
 from qore.infrastructure.cibo_phase22_demo_empirical_provider_receipt import (
     PHASE22_DEMO_EMPIRICAL_PROVIDER_RECEIPT,
 )
-from qore.infrastructure.cibo_phase22_holdout_v2_source_receipt import (
-    CANDIDATE_ID,
-)
+from qore.infrastructure.cibo_phase22_v4_governance import V4_CANDIDATE_ID
 
 PACKAGE_SCHEMA = "QORE_CIBO_SCIENTIFIC_CLOSURE_41_PACKAGE_V1"
 EVIDENCE_SCHEMA = "QORE_CIBO_SCIENTIFIC_CLOSURE_41_EVIDENCE_V1"
@@ -43,6 +41,7 @@ LEDGER_SCHEMA = "QORE_CIBO_MASTER_OPEN_WORK_LEDGER_V1"
 COMPLETED = "COMPLETED_AND_PROVEN"
 FALSIFIED = "FALSIFIED_AND_CLOSED"
 EXTERNAL = "EXTERNAL_DEPENDENCY_BLOCKED"
+OPEN_PREIMAGE = "OPEN"
 
 SCIENTIFIC_CLOSURE_41_IDS = (
     "T02",
@@ -92,8 +91,15 @@ FINAL_EXAM_IDS = (
     "FINAL_INTEGRATED_CIBO_EXAM",
     "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM",
 )
+FRESH_OOS_ID = "FRESH_OOS"
+SCIENTIFIC_CLOSURE_EXTERNAL_IDS = tuple(
+    workstream_id
+    for workstream_id in SCIENTIFIC_CLOSURE_41_IDS
+    if workstream_id != FRESH_OOS_ID
+)
+PRE_CLOSURE_OPEN_IDS = (FRESH_OOS_ID, *FINAL_EXAM_IDS)
 
-CANONICAL_HOLDOUT_ID = CANDIDATE_ID
+CANONICAL_HOLDOUT_ID = V4_CANDIDATE_ID
 CANONICAL_POLICY_IDENTITY = phase20d_qualification_plan_sha256()
 CANONICAL_QUALIFICATION_PLAN_IDENTITY = (
     phase22_holdout_qualification_plan_sha256()
@@ -168,9 +174,12 @@ class ScientificClosure41Evidence:
             raise CiboCapitalManagementError(
                 "Scientific closure 41 workstream outside exact ownership"
             )
-        if self.previous_disposition != EXTERNAL:
+        expected_preimage = (
+            OPEN_PREIMAGE if self.workstream_id == FRESH_OOS_ID else EXTERNAL
+        )
+        if self.previous_disposition != expected_preimage:
             raise CiboCapitalManagementError(
-                "Scientific closure 41 requires external-blocked preimage"
+                "Scientific closure 41 previous-disposition preimage drift"
             )
         if not self.scientific_hypothesis.strip():
             raise CiboCapitalManagementError(
@@ -559,7 +568,7 @@ def validate_scientific_closure_41_preimage(
         for row in mandatory
         if row.get("terminal_disposition") == EXTERNAL
     )
-    if set(external_ids) != set(SCIENTIFIC_CLOSURE_41_IDS):
+    if set(external_ids) != set(SCIENTIFIC_CLOSURE_EXTERNAL_IDS):
         raise CiboCapitalManagementError(
             "Scientific closure 41 ledger external surface is not exact"
         )
@@ -568,15 +577,17 @@ def validate_scientific_closure_41_preimage(
         for row in mandatory
         if not row.get("terminal_disposition")
     )
-    if open_ids != FINAL_EXAM_IDS:
+    if open_ids != PRE_CLOSURE_OPEN_IDS:
         raise CiboCapitalManagementError(
-            "Scientific closure 41 preimage final-exam topology drift"
+            "Scientific closure 41 preimage open-work topology drift"
         )
     return {
         "mandatory_count": len(mandatory),
         "external_dependency_blocked": len(external_ids),
         "external_ids": list(external_ids),
-        "open_exam_ids": list(open_ids),
+        "fresh_oos_open": FRESH_OOS_ID in open_ids,
+        "open_workstream_ids": list(open_ids),
+        "open_exam_ids": list(FINAL_EXAM_IDS),
         "certification": False,
         "productive_authority": False,
     }
@@ -609,11 +620,16 @@ def apply_scientific_closure_41_to_ledger_copy(
 
     for workstream_id in SCIENTIFIC_CLOSURE_41_IDS:
         row = by_id[workstream_id]
-        if row.get("terminal_disposition") != EXTERNAL:
+        evidence = evidence_by_id[workstream_id]
+        if workstream_id == FRESH_OOS_ID:
+            if row.get("terminal_disposition") not in {None, ""}:
+                raise CiboCapitalManagementError(
+                    "Scientific closure 41 fresh-OOS preimage is not OPEN"
+                )
+        elif row.get("terminal_disposition") != EXTERNAL:
             raise CiboCapitalManagementError(
                 "Scientific closure 41 cannot reopen or overwrite terminal row"
             )
-        evidence = evidence_by_id[workstream_id]
         row["terminal_disposition"] = evidence.terminal_disposition
         row["current_maturity"] = (
             "SCIENTIFIC_CLOSURE_41_" + evidence.terminal_disposition
