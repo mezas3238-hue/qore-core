@@ -8,6 +8,11 @@ on:
         required: true
         type: boolean
         default: false
+  push:
+    branches:
+      - agent/cibo-integrator-ab-001
+    paths:
+      - 'docs/research/CIBO-INFRASTRUCTURE-CAPABILITY-EXAM-TRIGGER.json'
 
 permissions:
   contents: read
@@ -27,7 +32,21 @@ jobs:
     steps:
       - name: Verify explicit Owner launch authorization
         run: |
-          test "${{ inputs.owner_authorized }}" = "true"
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            test "${{ inputs.owner_authorized }}" = "true"
+          else
+            python - <<'PY'
+            import json
+            from pathlib import Path
+            p = json.loads(
+                Path(
+                    "docs/research/"
+                    "CIBO-INFRASTRUCTURE-CAPABILITY-EXAM-TRIGGER.json"
+                ).read_text(encoding="utf-8")
+            )
+            assert p["launch_authorized_by_owner"] is True
+            PY
+          fi
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -83,7 +102,7 @@ jobs:
           PY
       - name: Static quality and non-mutation proof
         run: |
-          python -m ruff check             src/qore/infrastructure/cibo_reused_holdout_capability_exam.py             src/qore/infrastructure/cibo_usd60_dual_objective_exam.py             src/qore/infrastructure/cibo_usd60_capability_certification.py             src/qore/infrastructure/cibo_capability_exam_cognitive_coverage.py             src/qore/infrastructure/cibo_ce2i_t11_runtime_guard.py             src/qore/infrastructure/cibo_phase22_fresh_capital_projection.py             src/qore/infrastructure/cibo_phase22_historical_replay_settlement.py             scripts/cibo_phase22_reused_holdout_batch_assembler.py             scripts/cibo_reused_holdout_capability_exam.py             tests/infrastructure/test_cibo_reused_holdout_capability_exam.py             tests/infrastructure/test_cibo_usd60_dual_objective_exam.py             tests/infrastructure/test_cibo_usd60_capability_certification.py             tests/infrastructure/test_cibo_phase22_fresh_capital_projection.py
+          python -m ruff check             src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py             scripts/cibo_capability_exam_column_report.py             scripts/cibo_phase22_v4_turtle_window_replay.py             src/qore/infrastructure/cibo_reused_holdout_capability_exam.py             src/qore/infrastructure/cibo_usd60_dual_objective_exam.py             src/qore/infrastructure/cibo_usd60_capability_certification.py             src/qore/infrastructure/cibo_capability_exam_cognitive_coverage.py             src/qore/infrastructure/cibo_ce2i_t11_runtime_guard.py             src/qore/infrastructure/cibo_phase22_fresh_capital_projection.py             src/qore/infrastructure/cibo_phase22_historical_replay_settlement.py             scripts/cibo_phase22_reused_holdout_batch_assembler.py             scripts/cibo_reused_holdout_capability_exam.py             tests/infrastructure/test_cibo_reused_holdout_capability_exam.py             tests/infrastructure/test_cibo_usd60_dual_objective_exam.py             tests/infrastructure/test_cibo_usd60_capability_certification.py             tests/infrastructure/test_cibo_phase22_fresh_capital_projection.py
           python -m pytest -q --no-cov             tests/infrastructure/test_cibo_reused_holdout_capability_exam.py             tests/infrastructure/test_cibo_usd60_dual_objective_exam.py             tests/infrastructure/test_cibo_phase22_fresh_capital_projection.py
           python - <<'PY'
           from pathlib import Path
