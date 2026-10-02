@@ -56,6 +56,9 @@ from qore.infrastructure.cibo_integrated_capital_truth import (
 from qore.infrastructure.cibo_phase22_demo_empirical_provider_receipt import (
     ARTIFACT_DIGEST as PROVIDER_ARTIFACT_DIGEST,
 )
+from qore.infrastructure.cibo_phase22_trader_parity_manifest import (
+    CANONICAL_PHASE22_TRADER_IDS,
+)
 from qore.infrastructure.cibo_scientific_closure_41 import (
     CANONICAL_HOLDOUT_ID,
     CANONICAL_POLICY_IDENTITY,
@@ -69,9 +72,6 @@ from qore.infrastructure.cibo_scientific_closure_41 import (
     ScientificClosure41Evidence,
     ScientificClosure41Package,
     build_scientific_closure_41_package,
-)
-from qore.infrastructure.cibo_phase22_trader_parity_manifest import (
-    CANONICAL_PHASE22_TRADER_IDS,
 )
 
 DEPENDENCY_SCHEMA = "QORE_CIBO_SCIENTIFIC_CLOSURE_41_DEPENDENCIES_V1"
