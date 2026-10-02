@@ -225,3 +225,29 @@ def test_compound_causal_ablation_full_surface_rejects_missing_mechanism() -> No
         audit_compound_causal_ablation_full_surface(
             _full_surface_pairs()[:-1],
         )
+
+
+def test_compound_causal_ablation_rejects_blank_population_or_non_bool_flags() -> None:
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="local control/treatment/population is required",
+    ):
+        _pair(population_id="")
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="sealed_holdout_read must be bool",
+    ):
+        _pair(sealed_holdout_read=0)
+
+
+def test_compound_causal_ablation_coverage_rejects_non_bool_claim_flags() -> None:
+    report = audit_compound_causal_ablation_full_surface(
+        _full_surface_pairs(),
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="scientific_disposition_claimed must be bool",
+    ):
+        replace(report, scientific_disposition_claimed=0)
