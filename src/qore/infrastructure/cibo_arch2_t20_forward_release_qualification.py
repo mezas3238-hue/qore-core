@@ -15,6 +15,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
 
+from qore.infrastructure.account_wide_risk import TraderLineage
 from qore.infrastructure.cibo_arch_b_forward_economic_manifest import (
     ArchBForwardEconomicManifest,
 )
@@ -27,6 +28,19 @@ from qore.infrastructure.cibo_ce2i_phase20_qualification_plan import (
 
 TERMINAL_RECOMMENDATION = "COMPLETED_AND_PROVEN"
 WAITING_RECOMMENDATION = "WAITING_ON_AUTHORITATIVE_FORWARD_LIFECYCLE"
+
+_REQUIRED_TRADER_IDS = frozenset(
+    {
+        TraderLineage.R38_GBPJPY.value,
+        TraderLineage.R43_GBPUSD.value,
+        TraderLineage.R42_AUDJPY.value,
+        TraderLineage.R38_EURUSD.value,
+        TraderLineage.R34_XAUUSD.value,
+        TraderLineage.VT08_FOREX.value,
+        TraderLineage.VT31_NAS100.value,
+    }
+)
+_REQUIRED_FOLDS = frozenset({"WF1", "WF2", "WF3", "WF4"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,6 +56,7 @@ class T20ForwardReleaseQualification:
     four_fold_coverage_complete: bool
     seven_lineage_coverage_complete: bool
     population_minimum_met: bool
+    source_manifest_scientific_ready: bool
     empirical_t20_ready: bool
     recommendation: str
     canonical_ledger_modified: bool = False
@@ -81,6 +96,7 @@ class T20ForwardReleaseQualification:
             "four_fold_coverage_complete",
             "seven_lineage_coverage_complete",
             "population_minimum_met",
+            "source_manifest_scientific_ready",
             "empirical_t20_ready",
             "canonical_ledger_modified",
             "phase22_v2_consumed",
@@ -100,6 +116,7 @@ class T20ForwardReleaseQualification:
         expected_ready = all(
             (
                 self.population_minimum_met,
+                self.source_manifest_scientific_ready,
                 self.release_coverage >= self.required_candidate_coverage,
                 self.blocking_gap_count == 0,
                 self.t20_release_gap_count == 0,
@@ -167,17 +184,29 @@ def qualify_t20_forward_release_population(
         and row.capital_minutes > 0
         for row in rows
     )
-    folds = {row.fold_id for row in rows}
-    four_folds = folds == {"WF1", "WF2", "WF3", "WF4"}
+    fold_rows = {
+        fold: tuple(row for row in rows if row.fold_id == fold)
+        for fold in _REQUIRED_FOLDS
+    }
+    four_folds = (
+        {row.fold_id for row in rows} == _REQUIRED_FOLDS
+        and all(
+            len(items) >= plan.minimum_fold_candidate_outcomes
+            and len({row.trader_id for row in items})
+            >= plan.minimum_fold_lineages
+            for items in fold_rows.values()
+        )
+    )
 
     lineage_counts: dict[str, int] = {}
     for row in rows:
         lineage_counts[row.trader_id] = lineage_counts.get(row.trader_id, 0) + 1
     seven_lineages = (
-        len(lineage_counts) >= plan.minimum_global_lineages
+        set(lineage_counts) == _REQUIRED_TRADER_IDS
+        and len(lineage_counts) == plan.minimum_global_lineages
         and all(
-            count >= plan.minimum_outcomes_per_lineage
-            for count in lineage_counts.values()
+            lineage_counts[lineage] >= plan.minimum_outcomes_per_lineage
+            for lineage in _REQUIRED_TRADER_IDS
         )
     )
 
@@ -185,6 +214,7 @@ def qualify_t20_forward_release_population(
     ready = all(
         (
             population_minimum,
+            manifest.ready_for_scientific_consumption,
             coverage >= plan.minimum_candidate_outcome_coverage,
             not blocking,
             not release_gaps,
@@ -205,6 +235,7 @@ def qualify_t20_forward_release_population(
         four_fold_coverage_complete=four_folds,
         seven_lineage_coverage_complete=seven_lineages,
         population_minimum_met=population_minimum,
+        source_manifest_scientific_ready=manifest.ready_for_scientific_consumption,
         empirical_t20_ready=ready,
         recommendation=(
             TERMINAL_RECOMMENDATION if ready else WAITING_RECOMMENDATION
