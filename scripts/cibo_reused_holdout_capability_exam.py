@@ -159,7 +159,7 @@ def main() -> int:
         + "\n",
         encoding="utf-8",
     )
-    compound_path = args.output_dir / "compound-portfolio-report.json"
+    compound_path = args.output_dir / "compound-portfolio-lane-report.json"
     compound_path.write_text(
         json.dumps(
             compound.payload(core_executed_count=execution.settled_count),
