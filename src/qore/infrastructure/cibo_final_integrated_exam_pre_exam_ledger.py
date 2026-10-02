@@ -99,10 +99,21 @@ def reconcile_pre_exam_ledger_from_scientific_closure_41(
         raise CiboCapitalManagementError(
             "PRE_EXAM requires canonical Scientific Closure 41 package"
         )
-    reconciled = apply_scientific_closure_41_to_ledger_copy(
+    reconciled, transition = apply_scientific_closure_41_to_ledger_copy(
         ledger=ledger,
         package=closure_package,
     )
+    if transition.open_exam_ids != (
+        "FINAL_INTEGRATED_CIBO_EXAM",
+        "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM",
+    ):
+        raise CiboCapitalManagementError(
+            "PRE_EXAM Closure41 transition exam topology drift"
+        )
+    if transition.residual_external_ids:
+        raise CiboCapitalManagementError(
+            "PRE_EXAM Closure41 transition retains external blockers"
+        )
     return validate_pre_exam_reconciled_ledger(reconciled)
 
 
