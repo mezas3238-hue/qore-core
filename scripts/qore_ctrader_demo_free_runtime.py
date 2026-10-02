@@ -9,6 +9,7 @@ survivability governor.
 from __future__ import annotations
 
 import argparse
+import atexit
 import hashlib
 import json
 import subprocess
@@ -39,6 +40,12 @@ from qore.infrastructure.ctrader_demo_free_sink import (
     demo_account_capital,
     demo_committed_stop_risk,
     submit_demo_request,
+)
+from qore.infrastructure.ctrader_demo_free_position_service import (
+    CTraderDemoFreePositionService,
+)
+from qore.infrastructure.ctrader_open_api_client import (
+    SpotwareCTraderOpenApiClient,
 )
 from qore.infrastructure.account_wide_risk import (
     AccountRiskSnapshot,
@@ -266,8 +273,13 @@ class _NoopExitLedger:
 class CTraderDemoReadOnlyTransport:
     """Risk-observation surface backed only by cTrader DEMO."""
 
-    def __init__(self, api: CTraderDemoFullApi) -> None:
+    def __init__(
+        self,
+        api: CTraderDemoFullApi,
+        account_positions: CTraderDemoFreePositionService,
+    ) -> None:
         self._api = api
+        self._account_positions = account_positions
 
     def connected(self) -> bool:
         return self._api.terminal_info().connected
@@ -277,7 +289,7 @@ class CTraderDemoReadOnlyTransport:
 
     def account_state(self, account_ref: str) -> CTraderDemoAccountState | None:
         del account_ref
-        return _account_state_from_demo_api(self._api)
+        return _account_state_from_position_service(self._account_positions)
 
     def symbol_info(self, provider_symbol: str) -> CTraderDemoSymbolSpecification | None:
         info = self._api.symbol_info(provider_symbol)
@@ -324,8 +336,13 @@ class CTraderDemoReadOnlyTransport:
 class CTraderDemoReadOnlyGateway:
     """Legacy Trader gateway interface with no broker mutation methods."""
 
-    def __init__(self, api: CTraderDemoFullApi) -> None:
+    def __init__(
+        self,
+        api: CTraderDemoFullApi,
+        account_positions: CTraderDemoFreePositionService,
+    ) -> None:
         self._api = api
+        self._account_positions = account_positions
 
     @property
     def has_unresolved_mutations(self) -> bool:
@@ -336,7 +353,7 @@ class CTraderDemoReadOnlyGateway:
 
     def read_account(self, *, now: datetime) -> CTraderDemoAccountState:
         del now
-        return _account_state_from_demo_api(self._api)
+        return _account_state_from_position_service(self._account_positions)
 
     def read_symbol(self, qore_symbol: str, *, now: datetime) -> CTraderDemoSymbolSpecification:
         del now
@@ -373,21 +390,16 @@ def _configure_ctrader_demo_free_sink(root: Path) -> CTraderDemoFreeSink:
     return sink
 
 
-def _account_state_from_demo_api(
-    api: CTraderDemoFullApi,
+def _account_state_from_position_service(
+    positions: CTraderDemoFreePositionService,
 ) -> CTraderDemoAccountState:
-    info = api.account_info()
-    if info is None:
-        raise RuntimeError("cTrader DEMO account state unavailable")
-    captured_at = getattr(info, "observed_at", None)
-    if not isinstance(captured_at, datetime):
-        captured_at = datetime.now(UTC)
+    snapshot = positions.account_snapshot()
     return CTraderDemoAccountState(
-        balance=Decimal(str(info.balance)),
-        equity=Decimal(str(info.equity)),
-        margin=Decimal(str(info.margin)),
-        free_margin=Decimal(str(info.margin_free)),
-        observed_at=captured_at,
+        balance=snapshot.balance,
+        equity=snapshot.equity,
+        margin=Decimal("0"),
+        free_margin=snapshot.equity,
+        observed_at=snapshot.observed_at,
     )
 
 
@@ -1065,8 +1077,21 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
         raise RuntimeError("cTrader DEMO independent market-data initialization failed")
     if not demo_api.warm_session_schedules():
         raise RuntimeError("cTrader DEMO broker session schedule unavailable")
+
+    # Keep broker account/equity reads on an independent DEMO connection.
+    # Account snapshots require two Open API requests; sharing the market-data
+    # connection can consume its provider message budget exactly at M1/M5
+    # decision boundaries and make otherwise-fresh bars miss the hard SLA.
+    account_client = SpotwareCTraderOpenApiClient(
+        credentials=credentials_from_environment(),
+    )
+    atexit.register(account_client.close)
+    account_positions = CTraderDemoFreePositionService(
+        client=account_client,
+        configuration=demo_sink.binding.configuration,
+    )
     boundary_account_sampler = BoundaryAccountSampler(
-        lambda: _account_state_from_demo_api(demo_api)
+        lambda: _account_state_from_position_service(account_positions)
     )
     mt5 = demo_api
     demo_management_api = demo_api
@@ -1109,7 +1134,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
     phase20_settlement_cursor_store = DurablePhase20DemoSettlementCursorStore(
         state_dir / "cibo-phase20-settlement-cursor.json"
     )
-    phase20_bootstrap_account = _account_state_from_demo_api(demo_api)
+    phase20_bootstrap_account = _account_state_from_position_service(account_positions)
     # The broker snapshot is the authoritative clock for the initial Phase20
     # assigned-capital observation. Capturing an activation instant before the
     # broker read makes the snapshot look artificially "future" and prevents
@@ -1219,11 +1244,17 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
     # cTrader DEMO is fully independent from FundedNext after startup.
     # The legacy variable names remain only to satisfy frozen Trader function
     # signatures; every market/account read is backed by cTrader DEMO.
-    transport = CTraderDemoReadTransport(demo_api, account_ref=_ACCOUNT_REF)
+    transport = CTraderDemoReadOnlyTransport(
+        demo_api,
+        account_positions,
+    )
     risk_ledger = DurableAccountWideRiskLedger(state_dir / "demo-risk-observation.json")
     exit_ledger = _NoopExitLedger()
     risk = DurableAccountWideRiskEngine(risk_ledger)
-    gateway = CTraderDemoReadOnlyGateway(demo_api)
+    gateway = CTraderDemoReadOnlyGateway(
+        demo_api,
+        account_positions,
+    )
 
     def recover_demo_market_state(
         *,
@@ -1669,7 +1700,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     },
                 )
                 try:
-                    arm_account = _account_state_from_demo_api(demo_api)
+                    arm_account = _account_state_from_position_service(account_positions)
                     # DEMO_FREE: no external reconciliation.
                     arm_r42_state = audjpy_r42_store.load()
                     arm_r34_state = r34_store.load()
@@ -2567,7 +2598,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                 },
             )
             try:
-                vt31_account = _account_state_from_demo_api(demo_api)
+                vt31_account = _account_state_from_position_service(account_positions)
                 # DEMO_FREE: no external reconciliation.
                 vt31_highest = max(highest, vt31_account.balance)
                 vt31_provider = SimpleNamespace()
@@ -2865,7 +2896,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             store.store(state)
             continue
 
-        account_state = _account_state_from_demo_api(demo_api)
+        account_state = _account_state_from_position_service(account_positions)
         # DEMO_FREE: no FundedNext reconciliation.
         # cTrader DEMO is the only mutation target in this account runtime.
         # The MT5-compatible adapter below translates the frozen Trader lifecycle
