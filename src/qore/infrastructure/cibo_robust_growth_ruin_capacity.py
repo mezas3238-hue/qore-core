@@ -452,10 +452,76 @@ class Genc9ResearchReport:
             raise CiboCompoundCapitalError(
                 "GEN-C9 report identity/control is required"
             )
+        if type(self.numeraire) is not Genc9Numeraire:
+            raise CiboCompoundCapitalError(
+                "GEN-C9 report numeraire is invalid"
+            )
+        if (
+            not isinstance(self.scenario_ids, tuple)
+            or not self.scenario_ids
+            or any(
+                not isinstance(item, str) or not item
+                for item in self.scenario_ids
+            )
+            or len(self.scenario_ids) != len(set(self.scenario_ids))
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C9 report scenario ids must be unique non-empty strings"
+            )
+        if (
+            not isinstance(self.summaries, tuple)
+            or not self.summaries
+            or any(
+                not isinstance(item, Genc9CandidateSummary)
+                for item in self.summaries
+            )
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C9 report summaries must be canonical non-empty tuple"
+            )
+        candidate_ids = tuple(item.candidate_id for item in self.summaries)
+        if len(candidate_ids) != len(set(candidate_ids)):
+            raise CiboCompoundCapitalError(
+                "GEN-C9 report candidate summaries must be unique"
+            )
+        controls = tuple(
+            item
+            for item in self.summaries
+            if item.role is Genc9CandidateRole.CONTROL
+        )
+        if (
+            len(controls) != 1
+            or controls[0].candidate_id != self.control_candidate_id
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C9 report control summary drift"
+            )
+        if any(
+            item.numeraire is not self.numeraire
+            or set(item.scenario_ids) != set(self.scenario_ids)
+            for item in self.summaries
+        ):
+            raise CiboCompoundCapitalError(
+                "GEN-C9 report summary population/numeraire drift"
+            )
         if self.winner_candidate_id is not None:
             raise CiboCompoundCapitalError(
                 "GEN-C9 V1 cannot select a winner"
             )
+        for name in (
+            "weighted_score_used",
+            "production_policy_selected",
+            "economic_gate_preregistered",
+            "value_demonstrated",
+            "oos_pass",
+            "stress_pass",
+            "temporal_replication_pass",
+            "certification_ready",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise CiboCompoundCapitalError(
+                    f"GEN-C9 report {name} must be bool"
+                )
         if any(
             (
                 self.weighted_score_used,
