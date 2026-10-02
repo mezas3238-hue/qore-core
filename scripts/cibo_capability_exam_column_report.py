@@ -203,7 +203,7 @@ def build_reports(
             {
                 "function_code": code,
                 "function_type": "COGNITIVE_FACULTY",
-                "status": "CONSULTED" if consulted else "NOT_EXECUTED",
+                "status": "APPLIED" if consulted else "NOT_EXECUTED",
                 "eligible_epochs": 1,
                 "executed_count": 1 if consulted else 0,
                 "blocked_count": 0 if consulted else 1,
