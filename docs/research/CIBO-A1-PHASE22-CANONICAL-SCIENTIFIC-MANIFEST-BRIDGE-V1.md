@@ -26,6 +26,11 @@ A1 local manifest and canonical Phase22 intake must agree on:
 - exact ordered 7/7 Trader lineage;
 - exact ordered WF1..WF4 lineage.
 
+A1 also consumes a read-only identity projection of B's frozen pre-outcome
+Phase22 execution manifest. Its digest must equal the canonical intake's
+`execution_manifest_sha256` receipt, and its candidate code SHA, parameter
+SHA256 and 7/7 Trader lineage must match the A1 consumption manifest exactly.
+
 The canonical intake may be terminal PASS or terminal FAIL. Both remain
 scientifically consumable; neither is rewritten.
 
