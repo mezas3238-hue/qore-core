@@ -142,6 +142,7 @@ def seal_phase22_historical_replay_epoch(
     current_step: int,
     advanced_evidence: AdvancedPortfolioEvidence | None = None,
     known_options: tuple[Phase20MpcKnownOption, ...] = (),
+    lab_allow_nonpositive_expectation: bool = False,
 ) -> Phase22HistoricalReplaySealPair:
     """Seal one historical epoch using the frozen policy and current provider model."""
 
@@ -201,6 +202,7 @@ def seal_phase22_historical_replay_epoch(
         current_step=current_step,
         advanced_evidence=effective_advanced_evidence,
         known_options=known_options,
+        lab_allow_nonpositive_expectation=lab_allow_nonpositive_expectation,
     )
 
     candidate_rows: list[dict[str, object]] = []
