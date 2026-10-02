@@ -512,6 +512,33 @@ def build_cibo_certification_seal(
         raise CiboCapitalManagementError(
             "CIBO certification seal STRICT artifact must be object"
         )
+    canonical_strict_json = json.dumps(
+        strict,
+        indent=2,
+        sort_keys=True,
+    ) + "\n"
+    if strict_zero_open_artifact_json != canonical_strict_json:
+        raise CiboCapitalManagementError(
+            "CIBO certification seal STRICT artifact must use canonical JSON"
+        )
+    strict_head_sha = strict.get("evidence_head_sha")
+    if (
+        not isinstance(strict_head_sha, str)
+        or _SHA1_RE.fullmatch(strict_head_sha) is None
+        or strict_head_sha != closure_head_sha
+    ):
+        raise CiboCapitalManagementError(
+            "CIBO certification seal STRICT/closure HEAD drift"
+        )
+    strict_ledger_sha = strict.get("ledger_sha256")
+    if (
+        not isinstance(strict_ledger_sha, str)
+        or _SHA256_RE.fullmatch(strict_ledger_sha) is None
+        or strict_ledger_sha != transition.closed_ledger_sha256
+    ):
+        raise CiboCapitalManagementError(
+            "CIBO certification seal STRICT/ledger digest drift"
+        )
     expected_strict = {
         "schema": _ZERO_OPEN_SCHEMA,
         "scope": "STRICT",
