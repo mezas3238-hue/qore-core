@@ -13,6 +13,6 @@
   "production": false,
   "merge_authority": false,
   "outcome_aware_tuning": false,
-  "retrigger_for_head": "d996b38480e1ccb75b3685d450dbca2adf37b987",
-  "retrigger_reason": "Bind lab all-Trader policy surface one-to-one with durable Risk decisions, including explicit REJECT for CMA-unexpressible opportunities. No economic parameters changed."
+  "retrigger_for_head": "1ba1b903488a85a354e13a620220fe13ca7c1472",
+  "retrigger_reason": "Chronological Decimal accounting reconstruction only; no selection, Risk, sizing, Trader edge, provider economics, or outcomes changed."
 }
