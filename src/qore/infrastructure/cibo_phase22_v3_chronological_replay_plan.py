@@ -10,6 +10,7 @@ execution, but it produces two disjoint surfaces:
 
 Changing a future outcome must never change a decision-epoch fingerprint.
 """
+# ruff: noqa: I001, E402
 
 from __future__ import annotations
 
