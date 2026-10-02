@@ -187,3 +187,55 @@ def test_real_population_rejects_missing_provider_economics_hash() -> None:
             _record(1),
             provider_economics_sha256="",
         )
+
+
+def test_real_population_cannot_mix_account_identities() -> None:
+    records = _population()
+    mixed = replace(
+        records[2],
+        account_identity_fingerprint="ctrader:demo:account-b",
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="cannot mix account identities",
+    ):
+        bind_forward_compound_population(
+            (records[0], records[1], mixed, records[3])
+        )
+
+
+def test_real_population_cannot_mix_source_manifests() -> None:
+    records = _population()
+    mixed = replace(
+        records[2],
+        source_manifest_sha256=_sha("9"),
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="cannot mix source manifests",
+    ):
+        bind_forward_compound_population(
+            (records[0], records[1], mixed, records[3])
+        )
+
+
+def test_real_population_rejects_non_bool_provenance_flags() -> None:
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="market_record_present must be bool",
+    ):
+        replace(_record(1), market_record_present=1)
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="terminal_release_present must be bool",
+    ):
+        replace(_record(1), terminal_release_present=1)
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="future_leakage_used must be bool",
+    ):
+        replace(_record(1), future_leakage_used=0)
