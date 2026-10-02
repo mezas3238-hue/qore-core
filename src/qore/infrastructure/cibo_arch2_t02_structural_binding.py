@@ -35,6 +35,7 @@ from qore.infrastructure.cibo_ce2i_phase20_t02_structural_oos import (
 class T02StructuralLineageBinding:
     structural_outcome: T02ForwardStructuralOutcome
     provider_position_binding_ref: str
+    provider_position_binding_sha256: str
     manifest_decision_sha256: str
     manifest_settlement_sha256: str
     outcome_position_id: int
@@ -54,6 +55,13 @@ class T02StructuralLineageBinding:
         if not self.provider_position_binding_ref:
             raise CiboCapitalManagementError(
                 "T02 structural binding provider position ref required"
+            )
+        if (
+            not self.provider_position_binding_sha256.startswith("sha256:")
+            or len(self.provider_position_binding_sha256) != 71
+        ):
+            raise CiboCapitalManagementError(
+                "T02 structural binding provider-position SHA invalid"
             )
         if (
             not self.manifest_decision_sha256.startswith("sha256:")
@@ -164,9 +172,20 @@ def bind_t02_structural_outcome(
         raise CiboCapitalManagementError(
             "T02 structural manifest/outcome executed-risk amount drift"
         )
-    if not terminal_intake.provider_position_binding_verified:
+    if (
+        terminal_intake.execution_risk_evidence_id
+        != manifest_row.execution_risk_evidence_id
+    ):
         raise CiboCapitalManagementError(
-            "T02 structural provider-position binding is unverified"
+            "T02 structural lifecycle/manifest execution-risk identity drift"
+        )
+    if terminal_intake.executed_risk_sha256 != manifest_row.executed_risk_sha256:
+        raise CiboCapitalManagementError(
+            "T02 structural lifecycle/manifest executed-risk SHA drift"
+        )
+    if terminal_intake.settlement_sha256 != manifest_row.settlement_sha256:
+        raise CiboCapitalManagementError(
+            "T02 structural lifecycle/manifest settlement SHA drift"
         )
     try:
         lineage = TraderLineage(manifest_row.trader_id)
@@ -188,6 +207,9 @@ def bind_t02_structural_outcome(
         structural_outcome=structural,
         provider_position_binding_ref=(
             terminal_intake.provider_position_binding_ref
+        ),
+        provider_position_binding_sha256=(
+            terminal_intake.provider_position_binding_sha256
         ),
         manifest_decision_sha256=manifest_row.decision_evidence_sha256,
         manifest_settlement_sha256=manifest_row.settlement_sha256,
