@@ -55,6 +55,7 @@ def test_non_terminal_maturity_cannot_be_counted_terminal(
         for item in payload["workstreams"]
         if item["id"] == "FRESH_OOS"
     )
+    row["current_maturity"] = "TEST_NON_TERMINAL"
     row["terminal_disposition"] = "EXTERNAL_DEPENDENCY_BLOCKED"
     payload["current_summary"]["terminal_count"] += 1
     payload["current_summary"]["open_count"] -= 1
