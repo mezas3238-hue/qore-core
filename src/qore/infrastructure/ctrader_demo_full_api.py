@@ -779,7 +779,6 @@ class CTraderDemoFullApi:
                 // _HISTORICAL_PAGE_SIZE
                 + 1,
             )
-            initial_load_failed = False
             for page in range(page_limit):
                 remaining = max(count_hint - len(observed), 64)
                 request_count = min(_HISTORICAL_PAGE_SIZE, remaining)
@@ -806,7 +805,11 @@ class CTraderDemoFullApi:
                     )
                     self._last_historical_request_at = monotonic()
                 if isinstance(response, Failure):
-                    initial_load_failed = cached is None
+                    # A later page is an optional extension once a usable page
+                    # has already arrived.  Discarding those confirmed rows on
+                    # a transient continuation failure turned a healthy 4,999
+                    # bar preload into an empty result and crash-looped startup.
+                    # The caller still enforces its own minimum history bound.
                     break
                 page_bars = tuple(getattr(response.value, "trendbar", ()))
                 if not page_bars:
@@ -852,7 +855,7 @@ class CTraderDemoFullApi:
                 if next_cursor <= start or next_cursor >= cursor_to:
                     break
                 cursor_to = next_cursor
-            if initial_load_failed:
+            if not observed:
                 return []
             cached = [observed[k] for k in sorted(observed)]
             max_keep = max(

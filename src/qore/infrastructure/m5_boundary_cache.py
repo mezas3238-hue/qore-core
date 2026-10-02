@@ -216,7 +216,11 @@ class M5BoundaryCache:
             self._max_bars,
         )
         if rows is None or len(rows) < MIN_HISTORY_M5_BARS:
-            raise RuntimeError(f"{self.error_prefix} M5 preload unavailable")
+            received = 0 if rows is None else len(rows)
+            raise RuntimeError(
+                f"{self.error_prefix} M5 preload unavailable: "
+                f"received {received}, required {MIN_HISTORY_M5_BARS}"
+            )
         info = api.symbol_info(self.symbol)
         if info is None:
             raise RuntimeError(f"{self.error_prefix} symbol info unavailable")
