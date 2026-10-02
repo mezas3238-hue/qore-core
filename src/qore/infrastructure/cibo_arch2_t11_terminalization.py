@@ -26,6 +26,9 @@ from qore.infrastructure.cibo_arch2_t11_market_impact_evaluator import (
 from qore.infrastructure.cibo_arch2_t11_market_impact_terminal_receipt import (
     T11MarketImpactTerminalReceipt,
 )
+from qore.infrastructure.cibo_arch2_t11_v3_terminal_receipt import (
+    T11V3TerminalReceipt,
+)
 
 COMPLETED = "COMPLETED_AND_PROVEN"
 FALSIFIED = "FALSIFIED_AND_CLOSED"
@@ -140,7 +143,7 @@ def terminalize_t11(
 
 def terminalize_t11_from_receipt(
     *,
-    market_impact_receipt: T11MarketImpactTerminalReceipt | None,
+    market_impact_receipt: T11MarketImpactTerminalReceipt | T11V3TerminalReceipt | None,
     gross_edge: T11GrossEdgeFreshOOSResult | None,
 ) -> T11TerminalRecommendation:
     """Terminalize T11 from the immutable sealed market-impact receipt.
@@ -158,7 +161,7 @@ def terminalize_t11_from_receipt(
     else:
         if not isinstance(
             market_impact_receipt,
-            T11MarketImpactTerminalReceipt,
+            (T11MarketImpactTerminalReceipt, T11V3TerminalReceipt),
         ):
             raise ValueError("T11 market-impact terminal receipt type invalid")
         impact_ready = market_impact_receipt.market_impact_model_ready
