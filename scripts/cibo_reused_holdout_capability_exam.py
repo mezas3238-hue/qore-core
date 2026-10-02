@@ -22,6 +22,10 @@ from qore.infrastructure.cibo_phase22_v4_historical_regime import (
 from qore.infrastructure.cibo_reused_holdout_capability_exam import (
     run_reused_holdout_infrastructure_exam,
 )
+from qore.infrastructure.cibo_usd60_capability_certification import (
+    assess_cibo_capability_economic_certification,
+    build_cibo_usd60_capability_certification_receipt,
+)
 from qore.infrastructure.cibo_usd60_dual_objective_exam import (
     assess_cibo_usd60_dual_objective_exam,
 )
@@ -79,6 +83,8 @@ def main() -> int:
     parser.add_argument("--provider-numeric-freeze-sha256", required=True)
     parser.add_argument("--source-root", action="append", required=True)
     parser.add_argument("--replay-started-at", required=True)
+    parser.add_argument("--integrated-git-sha", required=True)
+    parser.add_argument("--workflow-run-id", type=int, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
 
@@ -105,6 +111,15 @@ def main() -> int:
         replay_started_at=datetime.fromisoformat(args.replay_started_at),
     )
     dual_objective = assess_cibo_usd60_dual_objective_exam(report)
+    capability_receipt = build_cibo_usd60_capability_certification_receipt(
+        report=report,
+        integrated_git_sha=args.integrated_git_sha,
+        workflow_run_id=args.workflow_run_id,
+        qualified_at=datetime.now().astimezone(),
+    )
+    economic_decision = assess_cibo_capability_economic_certification(
+        capability_receipt
+    )
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
     (args.output_dir / "capability-exam-report.json").write_text(
@@ -133,6 +148,14 @@ def main() -> int:
         + "\n",
         encoding="utf-8",
     )
+    (args.output_dir / "usd60-capability-certification-receipt.json").write_text(
+        json.dumps(capability_receipt.payload(), indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    (args.output_dir / "usd60-capability-economic-certification.json").write_text(
+        json.dumps(economic_decision.payload(), indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
     print(
         json.dumps(
             {
@@ -159,6 +182,12 @@ def main() -> int:
                     if item.status.value == "NOT_INTEGRATED"
                 ],
                 "scientific_freshness_claimed": False,
+                "capability_certification_receipt_sha256": (
+                    capability_receipt.fingerprint()
+                ),
+                "capability_economic_certification": (
+                    economic_decision.status.value
+                ),
             },
             sort_keys=True,
         )
