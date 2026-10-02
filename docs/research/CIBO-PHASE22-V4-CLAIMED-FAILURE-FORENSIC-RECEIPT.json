@@ -1,0 +1,96 @@
+{
+  "schema": "QORE_CIBO_PHASE22_V4_CLAIMED_FAILURE_FORENSIC_RECEIPT_V1",
+  "candidate_id": "CIBO_USD60_6M_HOLDOUT_2014-10-19_2015-04-19_V4",
+  "observed_at": "2026-10-02T20:17:40Z",
+  "one_shot": {
+    "workflow_run_id": 37059089221,
+    "workflow_conclusion": "failure",
+    "run_attempt": 1,
+    "authorization_head_sha": "68dab32f4fb9d2b95f502044d7ef241b583ce33a",
+    "claim_commit_sha": "2b1e3288bdad5f1521ec693c9ea7e6ed744132c0",
+    "claim_committed": true,
+    "fresh_replay_count": 1,
+    "second_fresh_execution_authorized": false,
+    "rerun_authorized": false
+  },
+  "consumption": {
+    "state": "CLAIMED",
+    "outcomes_emitted": false,
+    "outcome_bundle_sha256": null,
+    "assembly_executed": false,
+    "closure_executed": false,
+    "successful_lane_artifacts_emitted": 6,
+    "missing_lane_artifacts": [
+      "VT31_NAS100"
+    ]
+  },
+  "lanes": {
+    "VT08_FOREX": {
+      "status": "SUCCESS",
+      "artifact_id": 11250267299,
+      "artifact_digest": "sha256:be061931bf6e8712a8c531f8917928dd96f36a1ea975175c1fa9fa44ce03ccc1"
+    },
+    "R34_XAUUSD": {
+      "status": "SUCCESS",
+      "artifact_id": 11248934407,
+      "artifact_digest": "sha256:4dd3f400318838b95013c810e6448463dec2e49823e1383dc019f89bff58a742"
+    },
+    "R38_EURUSD": {
+      "status": "SUCCESS",
+      "artifact_id": 11249692411,
+      "artifact_digest": "sha256:10f403843fffb38c568c367e8b249bcc61b32714debe7d87d0302a6d94a4090d"
+    },
+    "R43_GBPUSD": {
+      "status": "SUCCESS",
+      "artifact_id": 11249758090,
+      "artifact_digest": "sha256:394472dbfef2bac4fc5dfcba3a07738dbc7acb94b39a30308f761f52b071a150"
+    },
+    "R38_GBPJPY": {
+      "status": "SUCCESS",
+      "artifact_id": 11249277723,
+      "artifact_digest": "sha256:643cc159c9e04d3b93985d10200cbd4337421ec8edbef9a6e026c947a7310432"
+    },
+    "R42_AUDJPY": {
+      "status": "SUCCESS",
+      "artifact_id": 11249938049,
+      "artifact_digest": "sha256:9b99805e2f551efcfe08fb48c684b9c3ae5a2daad12f688a86d6816ac5a63df1"
+    },
+    "VT31_NAS100": {
+      "status": "FAILURE_BEFORE_FRESH_ACCESS",
+      "job_id": 111012653743,
+      "lane_artifact_emitted": false,
+      "forensic_artifact_id": 11249287657,
+      "forensic_artifact_digest": "sha256:af216e993bafe49e1ddbd7b7962e8d83d645f905e1f45d04d4e056af01e3396a",
+      "failure_stage": "DURABLE_LEASE_VERIFICATION_BEFORE_FRESH_ACCESS",
+      "failure_type": "EXECUTION_LEASE_MISMATCH",
+      "error": "qore.infrastructure.cibo_capital_management_authority.CiboCapitalManagementError: V4 execution lease mismatch",
+      "fresh_source_accessed": false
+    }
+  },
+  "post_claim_changes": {
+    "technical_abi_normalization_commit": "28ebaa00fd70bd7ea51f90b2152d6e5455735350",
+    "regression_gate_commit": "9a8a75e09dab4b40facbfb3060b7e59df04a5570",
+    "build_claimed_state_commit": "dcbf2a1fd7d8010c3de359b42f3db576b42698c5",
+    "policy_changed": false,
+    "thresholds_changed": false,
+    "trader_parameters_changed": false,
+    "technical_change_used_to_rerun_fresh_lane": false
+  },
+  "scientific_integrity": {
+    "lane_artifact_contents_inspected_by_integrator": false,
+    "outcome_aware_retuning_performed": false,
+    "policy_changed_after_fresh_results": false,
+    "broker_mutation_performed": false,
+    "live_authorized": false,
+    "real_capital_authorized": false,
+    "production_authorized": false,
+    "merge_authorized": false,
+    "v4_reexecution_forbidden": true
+  },
+  "terminal_assessment": {
+    "status": "INVALID_NON_TERMINAL",
+    "fresh_oos_terminal_ready": false,
+    "terminal_recommendation": null,
+    "implication": "SUCCESSOR_FRESH_SCIENTIFIC_CYCLE_REQUIRED"
+  }
+}
