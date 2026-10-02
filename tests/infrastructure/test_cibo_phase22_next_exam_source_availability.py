@@ -5,13 +5,13 @@ import pytest
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
+from qore.infrastructure.cibo_phase22_next_exam_governance import (
+    NEXT_PHASE22_CANDIDATE,
+)
 from qore.infrastructure.cibo_phase22_next_exam_source_availability import (
     REQUIRED_M5_SYMBOLS,
     assess_boundary_probe,
     probe_windows,
-)
-from qore.infrastructure.cibo_phase22_next_exam_governance import (
-    NEXT_PHASE22_CANDIDATE,
 )
 
 
