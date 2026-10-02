@@ -54,8 +54,9 @@ def architect2_active_frontier_v2() -> tuple[Architect2ActiveFront, ...]:
             workstream_id="T02",
             state=Architect2ActiveState.WAITING_ON_AUTHORITATIVE_FORWARD_LIFECYCLE,
             remaining_requirement=(
-                "LIFECYCLE_INTAKE_READY__POST_FREEZE_EXPLICIT_TERMINAL_REASON_"
-                "POPULATION_THEN_PROVIDER_BOUND_ECONOMIC_ABLATION"
+                "AUTHORITATIVE_FORWARD_LIFECYCLE_POPULATION_WITH_EXACT_"
+                "T02_PROVIDER_POSITION_BINDING_THEN_PROVIDER_BOUND_ECONOMIC_"
+                "ABLATION"
             ),
         ),
         Architect2ActiveFront(
@@ -80,8 +81,9 @@ def architect2_active_frontier_v2() -> tuple[Architect2ActiveFront, ...]:
             workstream_id="T20",
             state=Architect2ActiveState.WAITING_ON_AUTHORITATIVE_FORWARD_LIFECYCLE,
             remaining_requirement=(
-                "QUALIFIER_READY__REAL_CIBO_TO_RISK_TO_EXECUTION_TO_SETTLEMENT_"
-                "TO_RELEASE_POPULATION"
+                "ARCH_B_FORWARD_ECONOMIC_MANIFEST_READY_WITH_REAL_CIBO_TO_RISK_"
+                "TO_EXECUTION_TO_SETTLEMENT_TO_RELEASE_POPULATION_AND_FROZEN_"
+                "FOLD_LINEAGE_GATES"
             ),
         ),
         Architect2ActiveFront(

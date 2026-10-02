@@ -34,6 +34,7 @@ class Architect2IntegratorIntakeReceipt:
     nonterminal_count: int
     external_dependency_count: int
     integrator_receipt_dependency_count: int
+    local_actionable_blocker_count: int
     canonical_ledger_modified: bool = False
     phase22_v2_consumed: bool = False
     merge_authority: bool = False
@@ -71,6 +72,18 @@ class Architect2IntegratorIntakeReceipt:
         if self.integrator_receipt_dependency_count != integrator:
             raise ValueError("Architect-2 intake Integrator dependency count drift")
 
+        local_actionable = sum(
+            item.state
+            not in {
+                Architect2ActiveState.TERMINAL_RECOMMENDATION_READY,
+                Architect2ActiveState.WAITING_ON_AUTHORITATIVE_FORWARD_LIFECYCLE,
+                Architect2ActiveState.WAITING_ON_INTEGRATOR_RECEIPT,
+            }
+            for item in self.workstreams
+        )
+        if self.local_actionable_blocker_count != local_actionable:
+            raise ValueError("Architect-2 intake local blocker count drift")
+
         if (
             self.canonical_ledger_modified
             or self.phase22_v2_consumed
@@ -106,6 +119,15 @@ def build_architect2_integrator_intake_receipt() -> Architect2IntegratorIntakeRe
         item.state is Architect2ActiveState.WAITING_ON_INTEGRATOR_RECEIPT
         for item in rows
     )
+    local_actionable = sum(
+        item.state
+        not in {
+            Architect2ActiveState.TERMINAL_RECOMMENDATION_READY,
+            Architect2ActiveState.WAITING_ON_AUTHORITATIVE_FORWARD_LIFECYCLE,
+            Architect2ActiveState.WAITING_ON_INTEGRATOR_RECEIPT,
+        }
+        for item in rows
+    )
     return Architect2IntegratorIntakeReceipt(
         workstreams=rows,
         scope_count=len(rows),
@@ -113,6 +135,7 @@ def build_architect2_integrator_intake_receipt() -> Architect2IntegratorIntakeRe
         nonterminal_count=len(rows) - terminal,
         external_dependency_count=external,
         integrator_receipt_dependency_count=integrator,
+        local_actionable_blocker_count=local_actionable,
         canonical_ledger_modified=False,
         phase22_v2_consumed=False,
         merge_authority=False,

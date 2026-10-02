@@ -17,6 +17,7 @@ def test_integrator_intake_covers_only_current_eight_front_scope() -> None:
     assert receipt.nonterminal_count == 3
     assert receipt.external_dependency_count == 2
     assert receipt.integrator_receipt_dependency_count == 1
+    assert receipt.local_actionable_blocker_count == 0
 
 
 def test_integrator_intake_has_no_authority_and_is_fingerprintable() -> None:
