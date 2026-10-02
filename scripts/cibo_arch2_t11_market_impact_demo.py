@@ -635,79 +635,211 @@ def _bundle(
         raise CiboCapitalManagementError(
             "T11 market-impact frozen bundle geometry invalid"
         )
+    if deposit_asset != "USD":
+        raise CiboCapitalManagementError(
+            "T11 market-impact bundle requires USD deposit asset"
+        )
     side_code = _BUY if side == "long" else _SELL
     pair_id = f"{qore_symbol}-{phase}-{pair_index:02d}"
     bundle_id = f"{pair_id}-L{child_count}"
 
-    children: list[dict[str, object]] = []
-    total_cost = Decimal(0)
-    for child_index in range(1, child_count + 1):
-        label = (
-            f"{_LABEL_PREFIX}{qore_symbol}:{run_key[-6:]}:"
-            f"{phase[0]}{pair_index:02d}:L{child_count}:C{child_index}"
-        )
-        child_id = (
-            f"cibo-a2-t11-{run_key[-10:]}-{qore_symbol.lower()}-"
-            f"{phase[0].lower()}{pair_index:02d}-"
-            f"l{child_count}-c{child_index}"
-        )
-        child = _submit_round_trip(
-            client,
-            symbol_id=symbol_id,
-            native_volume=native_volume,
-            side_code=side_code,
-            label=label,
-            child_id=child_id,
-        )
-        total_cost += cast(Decimal, child["realized_settlement_cost_usd"])
-        children.append(child)
-        time.sleep(0.15)
+    opened_children: list[dict[str, object]] = []
+    labels: list[str] = []
+    try:
+        # Frozen invariant: all children are open before any close begins.
+        for child_index in range(1, child_count + 1):
+            label = (
+                f"{_LABEL_PREFIX}{qore_symbol}:{run_key[-6:]}:"
+                f"{phase[0]}{pair_index:02d}:L{child_count}:C{child_index}"
+            )
+            child_id = (
+                f"cibo-a2-t11-{run_key[-10:]}-{qore_symbol.lower()}-"
+                f"{phase[0].lower()}{pair_index:02d}-"
+                f"l{child_count}-c{child_index}"
+            )
+            opened_at = datetime.now(UTC)
+            opened = _request(
+                client,
+                "ProtoOANewOrderReq",
+                {
+                    "ctidTraderAccountId": client.account_id,
+                    "clientOrderId": child_id,
+                    "orderType": _MARKET,
+                    "symbolId": symbol_id,
+                    "tradeSide": side_code,
+                    "volume": native_volume,
+                    "label": label,
+                    "comment": "cibo-arch2-t11-settlement-impact",
+                },
+                child_id,
+            )
+            order = getattr(opened, "order", None)
+            order_id = (
+                getattr(order, "orderId", None)
+                if order is not None
+                else None
+            )
+            if type(order_id) is not int or order_id <= 0:
+                raise CiboCapitalManagementError(
+                    "T11 market-impact submit returned no order id"
+                )
+            entry_deal, position_id, position_volume = _wait_entry(
+                client,
+                opened,
+                order_id=order_id,
+                label=label,
+            )
+            entry_deal_id = getattr(entry_deal, "dealId", None)
+            if type(entry_deal_id) is not int or entry_deal_id <= 0:
+                raise CiboCapitalManagementError(
+                    "T11 market-impact entry deal identity invalid"
+                )
+            opened_children.append(
+                {
+                    "label": label,
+                    "opened_at": opened_at,
+                    "order_id": order_id,
+                    "entry_deal": entry_deal,
+                    "entry_deal_id": entry_deal_id,
+                    "position_id": position_id,
+                    "position_volume": position_volume,
+                }
+            )
+            labels.append(label)
+            time.sleep(0.10)
 
-    observed_at = max(
-        cast(datetime, item["settled_at"])
-        for item in children
-    )
-    if observed_at <= FROZEN_AT:
-        raise CiboCapitalManagementError(
-            "T11 market-impact settlement does not postdate freeze"
-        )
-    minimum_volume = source_minimum_volume(
-        min_native_volume=native_volume,
-        lot_size_units=lot_size_units,
-    )
-    episode = T11MarketImpactEpisode(
-        evidence_id=(
-            "t11-impact:"
-            + hashlib.sha256(
-                (
-                    f"{run_key}|{bundle_id}|{observed_at.isoformat()}|"
-                    f"{total_cost}|{level_order_position}"
-                ).encode()
-            ).hexdigest()
-        ),
-        qore_symbol=qore_symbol,
-        pair_id=pair_id,
-        phase=phase,
-        fold_index=fold_index,
-        side=side,
-        child_count=child_count,
-        level_order_position=level_order_position,
-        minimum_volume=minimum_volume,
-        aggregate_volume=minimum_volume * child_count,
-        realized_settlement_cost_total_usd=total_cost,
-        deposit_asset=deposit_asset,
-        observed_at=observed_at,
-        provider_bound=True,
-        every_child_order_minimum_volume=True,
-        holdout_outcomes_used=False,
-        target_aware=False,
-        productive_authority=False,
-    )
-    return episode, {
-        "episode": _jsonable(asdict(episode)),
-        "children": _jsonable(children),
-    }
+        if len(opened_children) != child_count:
+            raise CiboCapitalManagementError(
+                "T11 market-impact child-open accounting drift"
+            )
 
+        children: list[dict[str, object]] = []
+        total_cost = Decimal(0)
+        for child in opened_children:
+            position_id = cast(int, child["position_id"])
+            position_volume = cast(int, child["position_volume"])
+            _request(
+                client,
+                "ProtoOAClosePositionReq",
+                {
+                    "ctidTraderAccountId": client.account_id,
+                    "positionId": position_id,
+                    "volume": position_volume,
+                },
+                f"t11-close:{position_id}",
+            )
+            close_deal = _closing_deal(
+                client,
+                position_id=position_id,
+                opened_at=cast(datetime, child["opened_at"]),
+            )
+            close_deal_id = getattr(close_deal, "dealId", None)
+            close_ms = getattr(close_deal, "executionTimestamp", None)
+            if (
+                type(close_deal_id) is not int
+                or close_deal_id <= 0
+                or type(close_ms) is not int
+                or close_ms <= 0
+            ):
+                raise CiboCapitalManagementError(
+                    "T11 market-impact close deal identity invalid"
+                )
+            components = _settlement_components(
+                entry_deal=child["entry_deal"],
+                close_deal=close_deal,
+            )
+            cost = realized_settlement_cost_usd(
+                entry_commission_usd=components[0],
+                gross_profit_usd=components[1],
+                swap_usd=components[2],
+                close_commission_usd=components[3],
+                pnl_conversion_fee_usd=components[4],
+            )
+            total_cost += cost
+            children.append(
+                {
+                    "order_ref_sha256": _hash_ref(
+                        "order",
+                        cast(int, child["order_id"]),
+                    ),
+                    "entry_deal_ref_sha256": _hash_ref(
+                        "deal",
+                        cast(int, child["entry_deal_id"]),
+                    ),
+                    "close_deal_ref_sha256": _hash_ref(
+                        "deal",
+                        close_deal_id,
+                    ),
+                    "position_ref_sha256": _hash_ref(
+                        "position",
+                        position_id,
+                    ),
+                    "entry_commission_usd": components[0],
+                    "gross_profit_usd": components[1],
+                    "swap_usd": components[2],
+                    "close_commission_usd": components[3],
+                    "pnl_conversion_fee_usd": components[4],
+                    "realized_settlement_cost_usd": cost,
+                    "settled_at": datetime.fromtimestamp(
+                        close_ms / 1000,
+                        tz=UTC,
+                    ),
+                    "position_closed": True,
+                }
+            )
+            time.sleep(0.10)
+
+        for label in labels:
+            _neutralize_label(client, label=label)
+
+        observed_at = max(
+            cast(datetime, item["settled_at"])
+            for item in children
+        )
+        if observed_at <= FROZEN_AT:
+            raise CiboCapitalManagementError(
+                "T11 market-impact settlement does not postdate freeze"
+            )
+        minimum_volume = source_minimum_volume(
+            min_native_volume=native_volume,
+            lot_size_units=lot_size_units,
+        )
+        episode = T11MarketImpactEpisode(
+            evidence_id=(
+                "t11-impact:"
+                + hashlib.sha256(
+                    (
+                        f"{run_key}|{bundle_id}|{observed_at.isoformat()}|"
+                        f"{total_cost}|{level_order_position}"
+                    ).encode()
+                ).hexdigest()
+            ),
+            qore_symbol=qore_symbol,
+            pair_id=pair_id,
+            phase=phase,
+            fold_index=fold_index,
+            side=side,
+            child_count=child_count,
+            level_order_position=level_order_position,
+            minimum_volume=minimum_volume,
+            aggregate_volume=minimum_volume * child_count,
+            realized_settlement_cost_total_usd=total_cost,
+            deposit_asset="USD",
+            observed_at=observed_at,
+            provider_bound=True,
+            every_child_order_minimum_volume=True,
+            holdout_outcomes_used=False,
+            target_aware=False,
+            productive_authority=False,
+        )
+        return episode, {
+            "episode": _jsonable(asdict(episode)),
+            "children": _jsonable(children),
+            "two_x_children_open_before_close": True,
+        }
+    finally:
+        for label in labels:
+            _neutralize_label(client, label=label)
 
 def _jsonable(value: Any) -> Any:
     if isinstance(value, Decimal):
