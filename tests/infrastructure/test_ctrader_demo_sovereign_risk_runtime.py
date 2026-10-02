@@ -10,6 +10,7 @@ def test_runtime_routes_every_direct_demo_submit_through_qore_risk() -> None:
 
     assert "def _submit_demo_request_through_qore_risk(" in text
     assert "authorize_phase20_demo_request(" in text
+    assert "assert_phase20_demo_authorization_active(" in text
     assert "demo_result = submit_demo_request(request)" not in text
     assert text.count("_submit_demo_request_through_qore_risk(") >= 7
     assert '"account_wide_risk_active": True' in text
