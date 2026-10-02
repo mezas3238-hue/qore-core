@@ -19,7 +19,7 @@ from qore.infrastructure.cibo_phase22_next_exam_governance import (
 from qore.infrastructure.cibo_phase22_turtle_predecision_projection import (
     fresh_causal_active_ladder,
 )
-from scripts.cibo_phase22_turtle_window_replay import (
+from cibo_phase22_turtle_window_replay import (
     bind_replay_evaluation_window,
     validate_source_report_window,
 )
