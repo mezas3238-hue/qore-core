@@ -7,6 +7,7 @@ on:
     paths:
       - 'src/qore/infrastructure/cibo_phase22_fresh_batch_assembly.py'
       - 'scripts/cibo_phase22_fresh_batch_assembler.py'
+      - 'src/qore/infrastructure/cibo_phase22_vt08_fresh_runner.py'
       - 'scripts/cibo_phase22_vt08_fresh_runner.py'
       - 'tests/infrastructure/test_cibo_phase22_vt08_fresh_runner.py'
       - 'tests/infrastructure/test_cibo_phase22_fresh_batch_assembly.py'
@@ -36,12 +37,14 @@ jobs:
           ruff check \
             src/qore/infrastructure/cibo_phase22_fresh_batch_assembly.py \
             scripts/cibo_phase22_fresh_batch_assembler.py \
+            src/qore/infrastructure/cibo_phase22_vt08_fresh_runner.py \
             scripts/cibo_phase22_vt08_fresh_runner.py \
             tests/infrastructure/test_cibo_phase22_fresh_batch_assembly.py \
             tests/infrastructure/test_cibo_phase22_vt08_fresh_runner.py
           mypy \
             src/qore/infrastructure/cibo_phase22_fresh_batch_assembly.py \
             scripts/cibo_phase22_fresh_batch_assembler.py \
+            src/qore/infrastructure/cibo_phase22_vt08_fresh_runner.py \
             scripts/cibo_phase22_vt08_fresh_runner.py
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_phase22_fresh_batch_assembly.py \

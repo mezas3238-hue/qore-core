@@ -10,7 +10,7 @@ from qore.infrastructure.cibo_phase22_vt08_fresh_engine import (
     Phase22Vt08SymbolResult,
 )
 from qore.infrastructure.traders.vt08_b01_r3_8 import AUTHORIZED_FOREX_MARKETS
-from scripts.cibo_phase22_vt08_fresh_runner import (
+from qore.infrastructure.cibo_phase22_vt08_fresh_runner import (
     build_vt08_phase22_fresh_payload,
     parse_sources,
 )
