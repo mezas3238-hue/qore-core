@@ -8,6 +8,8 @@ import pytest
 
 from qore.infrastructure.cibo_a1_a2_scientific_dependency import (
     CONTRACT_ID as A1_A2_DEPENDENCY_CONTRACT_ID,
+)
+from qore.infrastructure.cibo_a1_a2_scientific_dependency import (
     A1A2ScientificDependencyAdmission,
 )
 from qore.infrastructure.cibo_a1_phase22_canonical_manifest_bridge import (
