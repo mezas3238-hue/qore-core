@@ -113,6 +113,8 @@ _WORKSTREAM_CLASSIFIERS = (
     ("*cibo_arch2_active_scope_v2*", "SOURCE_OF_TRUTH_RECONCILIATION"),
     ("*cibo_arch2_active_frontier_v2*", "SOURCE_OF_TRUTH_RECONCILIATION"),
     ("*cibo_arch2_fresh_oos_terminal_intake*", "FRESH_OOS"),
+    ("*cibo_scientific_closure_41*", "SOURCE_OF_TRUTH_RECONCILIATION"),
+    ("*cibo-scientific-closure-41*", "SOURCE_OF_TRUTH_RECONCILIATION"),
     ("*cibo_phase22_fresh_batch_assembly*", "FRESH_OOS"),
     ("*cibo_phase22_fresh_capital_projection*", "FRESH_OOS"),
     ("*cibo_phase22_execution_inputs*", "FRESH_OOS"),
