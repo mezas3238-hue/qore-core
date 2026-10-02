@@ -19,14 +19,15 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import cast
 
-from qore.infrastructure.cibo_capital_management_authority import (
-    CiboCapitalManagementError,
-)
 from qore.infrastructure.cibo_ctrader_demo_empirical_slippage import (
     CTraderEmpiricalSlippageObservation,
     _account_entry_deal,
     _deal_observation,
     _market_entry_order,
+)
+
+from qore.infrastructure.cibo_capital_management_authority import (
+    CiboCapitalManagementError,
 )
 from qore.infrastructure.cibo_phase22_demo_calibration_contract import (
     CALIBRATION_AUTHORIZATION_TOKEN,
