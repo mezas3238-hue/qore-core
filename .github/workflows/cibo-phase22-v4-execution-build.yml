@@ -9,6 +9,7 @@ on:
       - 'scripts/cibo_phase22_v4_*.py'
       - 'tests/infrastructure/test_cibo_phase22_v4_*.py'
       - '.github/workflows/cibo-phase22-v4-execution-build.yml'
+      - '.github/workflows/cibo-phase22-v4-sovereign-one-shot.yml'
 
 permissions:
   contents: read
@@ -16,7 +17,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
         with:
@@ -27,7 +28,7 @@ jobs:
       - run: python -m pip install -e '.[dev]'
       - name: Static quality
         run: |
-          python -m ruff check             src/qore/infrastructure/cibo_phase22_v4_execution_manifest.py             src/qore/infrastructure/cibo_phase22_v4_execution_authorization.py             src/qore/infrastructure/cibo_phase22_v4_store_contract.py             src/qore/infrastructure/cibo_phase22_v4_vt31_abi.py             src/qore/infrastructure/cibo_phase22_v4_vt31_source.py             src/qore/infrastructure/cibo_phase22_v4_one_shot_claim.py             src/qore/infrastructure/cibo_phase22_v4_git_durable_claim.py             scripts/cibo_phase22_v4_git_durable_claim.py             tests/infrastructure/test_cibo_phase22_v4_execution_build.py             tests/infrastructure/test_cibo_phase22_v4_m1_source.py
+          python -m ruff check             src/qore/infrastructure/cibo_phase22_v4_execution_manifest.py             src/qore/infrastructure/cibo_phase22_v4_execution_authorization.py             src/qore/infrastructure/cibo_phase22_v4_store_contract.py             src/qore/infrastructure/cibo_phase22_v4_vt31_abi.py             src/qore/infrastructure/cibo_phase22_v4_vt31_source.py             src/qore/infrastructure/cibo_phase22_v4_one_shot_claim.py             src/qore/infrastructure/cibo_phase22_v4_git_durable_claim.py             src/qore/infrastructure/cibo_phase22_v4_fresh_batch.py             src/qore/infrastructure/cibo_phase22_v4_fresh_evidence.py             src/qore/infrastructure/cibo_phase22_v4_fresh_batch_assembly.py             src/qore/infrastructure/cibo_phase22_v4_vt08_fresh_runner.py             scripts/cibo_phase22_v4_git_durable_claim.py             scripts/cibo_phase22_v4_turtle_window_replay.py             scripts/cibo_phase22_v4_vt31_fresh_runner.py             scripts/cibo_phase22_v4_fresh_batch_assembler.py             tests/infrastructure/test_cibo_phase22_v4_execution_build.py             tests/infrastructure/test_cibo_phase22_v4_fresh_execution_contract.py             tests/infrastructure/test_cibo_phase22_v4_m1_source.py
       - name: Import V4 pre-outcome execution surfaces
         run: |
           python - <<'PY'
@@ -39,6 +40,10 @@ jobs:
               "qore.infrastructure.cibo_phase22_v4_vt31_source",
               "qore.infrastructure.cibo_phase22_v4_one_shot_claim",
               "qore.infrastructure.cibo_phase22_v4_git_durable_claim",
+              "qore.infrastructure.cibo_phase22_v4_fresh_batch",
+              "qore.infrastructure.cibo_phase22_v4_fresh_evidence",
+              "qore.infrastructure.cibo_phase22_v4_fresh_batch_assembly",
+              "qore.infrastructure.cibo_phase22_v4_vt08_fresh_runner",
           )
           for name in modules:
               __import__(name)
@@ -68,12 +73,31 @@ jobs:
           assert manifest.productive_authority is False
           assert not Path(AUTHORIZATION_RELATIVE_PATH).exists()
           PY
+      - name: Prove VT31 frozen source ABI is exactly six fields
+        run: |
+          python - <<'PY'
+          from datetime import UTC, datetime
+          from qore.infrastructure.cibo_phase22_v4_vt31_abi import (
+              adapt_v4_vt31_market_evidence,
+          )
+
+          class Source:
+              series = (object(),)
+              fingerprint = "sha256:" + "a" * 64
+              last_closed_at = datetime(2015, 4, 19, tzinfo=UTC)
+              corpus_git_sha = "b" * 40
+              provider_symbol = "USTEC"
+
+          result = adapt_v4_vt31_market_evidence(Source())
+          assert len(result) == 6
+          PY
       - name: Prove V4 source and execution code contains no broker mutation primitive
         run: |
           python - <<'PY'
           from pathlib import Path
 
           paths = tuple(Path("src/qore/infrastructure").glob("cibo_phase22_v4_*.py"))
+          paths += tuple(Path("scripts").glob("cibo_phase22_v4_*.py"))
           forbidden = (
               "ProtoOANewOrderReq",
               "ProtoOAClosePositionReq",
@@ -88,7 +112,41 @@ jobs:
           PY
       - name: V4 pre-outcome regression
         run: |
-          python -m pytest -q             tests/infrastructure/test_cibo_phase22_v4_execution_build.py             tests/infrastructure/test_cibo_phase22_v4_source_receipt.py             tests/infrastructure/test_cibo_phase22_v4_source_availability.py             tests/infrastructure/test_cibo_phase22_v4_m1_source.py             tests/infrastructure/test_cibo_phase22_v4_m5_source.py
+          python -m pytest -q             tests/infrastructure/test_cibo_phase22_v4_execution_build.py             tests/infrastructure/test_cibo_phase22_v4_fresh_execution_contract.py             tests/infrastructure/test_cibo_phase22_v4_source_receipt.py             tests/infrastructure/test_cibo_phase22_v4_source_availability.py             tests/infrastructure/test_cibo_phase22_v4_m1_source.py             tests/infrastructure/test_cibo_phase22_v4_m5_source.py
       - name: CLI smoke without fresh access
         run: |
           python scripts/cibo_phase22_v4_git_durable_claim.py --help
+          python scripts/cibo_phase22_v4_fresh_batch_assembler.py --help
+          python scripts/cibo_phase22_v4_turtle_window_replay.py --help
+          python scripts/cibo_phase22_v4_vt31_fresh_runner.py --help
+          python -m qore.infrastructure.cibo_phase22_v4_vt08_fresh_runner --help
+      - name: Prove VT31 censored geometry selection is outcome-blind
+        run: |
+          python - <<'PY'
+          from scripts.cibo_phase22_v4_vt31_fresh_runner import (
+              _partition_executable_geometry,
+          )
+
+          rows = [
+              {
+                  "entry": None,
+                  "initial_stop": None,
+                  "structural_target": None,
+                  "r_multiple": "999",
+              },
+              {
+                  "entry": "100",
+                  "initial_stop": "99",
+                  "structural_target": "102",
+                  "r_multiple": "-999",
+              },
+          ]
+          selected, censored = _partition_executable_geometry(rows)
+          assert censored == 1
+          assert len(selected) == 1
+          rows[0]["r_multiple"] = "-999999"
+          rows[1]["r_multiple"] = "999999"
+          selected2, censored2 = _partition_executable_geometry(rows)
+          assert censored2 == 1
+          assert len(selected2) == 1
+          PY
