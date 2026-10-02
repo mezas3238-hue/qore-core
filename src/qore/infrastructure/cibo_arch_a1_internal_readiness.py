@@ -35,6 +35,8 @@ A1_REQUIRED_ARTIFACTS = (
     "src/qore/infrastructure/cibo_a1_genc2_phase22_profit_graduation.py",
     "src/qore/infrastructure/cibo_a1_genc3_genc7_phase22_binding.py",
     "src/qore/infrastructure/cibo_a1_scientific_disposition.py",
+    "src/qore/infrastructure/cibo_arch_a1_internal_readiness.py",
+    "src/qore/infrastructure/cibo_arch_a1_integrator_handoff.py",
 )
 
 A1_REQUIRED_WORKFLOWS = (
@@ -52,6 +54,8 @@ A1_REQUIRED_WORKFLOWS = (
     ".github/workflows/cibo-a1-genc2-phase22-profit-graduation.yml",
     ".github/workflows/cibo-a1-genc3-genc7-phase22-binding.yml",
     ".github/workflows/cibo-a1-scientific-disposition.yml",
+    ".github/workflows/cibo-architect-a1-internal-readiness.yml",
+    ".github/workflows/cibo-architect-a1-integrator-handoff.yml",
 )
 
 EXPECTED_EXTERNAL_DEPENDENCIES = (
