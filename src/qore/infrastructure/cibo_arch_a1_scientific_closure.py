@@ -300,12 +300,12 @@ def evaluate_architect_a1_scientific_outcomes(
 
     receipts: list[ArchitectAPhase22V2ScientificDispositionReceipt] = []
     for workstream_id in A1_WORKSTREAMS:
-        payload = by_id.get(workstream_id)
-        if payload is None:
+        outcome_payload = by_id.get(workstream_id)
+        if outcome_payload is None:
             continue
         receipts.append(
             evaluate_architect_a_phase22_v2_scientific_outcome(
-                payload,
+                outcome_payload,
                 matrix,
             )
         )
@@ -446,13 +446,16 @@ def reconcile_architect_a1_scientific_dispositions(
     falsified: list[str] = []
     missing: list[str] = []
     for workstream_id in A1_WORKSTREAMS:
-        receipt = by_id.get(workstream_id)
-        if receipt is None:
+        terminal_receipt = by_id.get(workstream_id)
+        if terminal_receipt is None:
             missing.append(workstream_id)
             continue
-        if receipt.recommended_disposition == "COMPLETED_AND_PROVEN":
+        if terminal_receipt.recommended_disposition == "COMPLETED_AND_PROVEN":
             completed.append(workstream_id)
-        elif receipt.recommended_disposition == "FALSIFIED_AND_CLOSED":
+        elif (
+            terminal_receipt.recommended_disposition
+            == "FALSIFIED_AND_CLOSED"
+        ):
             falsified.append(workstream_id)
         else:
             raise ArchitectAReadinessError(
