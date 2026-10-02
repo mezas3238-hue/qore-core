@@ -76,7 +76,7 @@ def _request(
 
 def _hash(kind: str, value: int) -> str:
     return "sha256:" + hashlib.sha256(
-        f"{kind}|{value}".encode("utf-8")
+        f"{kind}|{value}".encode()
     ).hexdigest()
 
 
