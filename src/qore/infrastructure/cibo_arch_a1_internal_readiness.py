@@ -37,6 +37,7 @@ A1_REQUIRED_ARTIFACTS = (
     "src/qore/infrastructure/cibo_a1_scientific_disposition.py",
     "src/qore/infrastructure/cibo_arch_a1_internal_readiness.py",
     "src/qore/infrastructure/cibo_arch_a1_integrator_handoff.py",
+    "src/qore/infrastructure/cibo_arch_a1_scientific_closure.py",
 )
 
 A1_REQUIRED_WORKFLOWS = (
@@ -56,6 +57,7 @@ A1_REQUIRED_WORKFLOWS = (
     ".github/workflows/cibo-a1-scientific-disposition.yml",
     ".github/workflows/cibo-architect-a1-internal-readiness.yml",
     ".github/workflows/cibo-architect-a1-integrator-handoff.yml",
+    ".github/workflows/cibo-architect-a1-scientific-closure.yml",
 )
 
 EXPECTED_EXTERNAL_DEPENDENCIES = (
