@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - 'agent/cibo-scientific-closure-41-001'
+      - 'agent/cibo-scientific-closure-41-002'
+      - 'agent/cibo-integrator-ab-001'
     paths:
       - '.github/workflows/cibo-scientific-closure-41.yml'
       - 'src/qore/infrastructure/cibo_scientific_closure_41.py'
