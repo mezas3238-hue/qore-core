@@ -1,4 +1,5 @@
 """Assemble sealed Phase22 fresh lane files after the durable claim exists."""
+# ruff: noqa: I001
 
 from __future__ import annotations
 
