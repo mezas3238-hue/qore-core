@@ -21,10 +21,12 @@ from qore.infrastructure.cibo_arch_a_internal_readiness import (
 )
 
 _SCHEMA = "QORE_CIBO_ARCH_A2_INTERNAL_READINESS_V1"
-_EXPECTED_MATURITY = (
-    "TERMINAL_EXTERNAL_DEPENDENCY_BLOCKED_"
-    "REAL_PHASE20D_SCIENTIFIC_EVIDENCE_REQUIRED"
-)
+_TERMINAL_DISPOSITIONS = {
+    "COMPLETED_AND_PROVEN",
+    "FALSIFIED_AND_CLOSED",
+    "SUPERSEDED_WITH_PROVEN_LINEAGE",
+    "EXTERNAL_DEPENDENCY_BLOCKED",
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,9 +86,9 @@ class ArchitectA2InternalReadinessReport:
             raise ArchitectAReadinessError(
                 "Architect A2 internal-readiness pass/debt drift"
             )
-        if self.passed and self.externally_blocked_count != self.workstream_count:
+        if self.passed and self.externally_blocked_count > self.workstream_count:
             raise ArchitectAReadinessError(
-                "Architect A2 ready state must remain exact 17 external blockers"
+                "Architect A2 external blocker count exceeds owned surface"
             )
         if any(
             (
@@ -140,13 +142,12 @@ def evaluate_architect_a2_internal_readiness(
         if row.get("mandatory") is not True:
             internally_open.append(workstream_id)
             continue
-        if (
-            row.get("terminal_disposition") != "EXTERNAL_DEPENDENCY_BLOCKED"
-            or row.get("current_maturity") != _EXPECTED_MATURITY
-        ):
+        disposition = row.get("terminal_disposition")
+        if disposition not in _TERMINAL_DISPOSITIONS:
             internally_open.append(workstream_id)
             continue
-        externally_blocked += 1
+        if disposition == "EXTERNAL_DEPENDENCY_BLOCKED":
+            externally_blocked += 1
 
         evidence = row.get("evidence_refs")
         if (
@@ -157,12 +158,14 @@ def evaluate_architect_a2_internal_readiness(
             evidence_missing.append(workstream_id)
 
         blockers = row.get("blockers")
-        if (
-            not isinstance(blockers, list)
-            or not blockers
-            or any(not isinstance(item, str) or not item for item in blockers)
+        if not isinstance(blockers, list) or any(
+            not isinstance(item, str) or not item for item in blockers
         ):
             blocker_missing.append(workstream_id)
+        elif disposition == "EXTERNAL_DEPENDENCY_BLOCKED" and not blockers:
+            blocker_missing.append(workstream_id)
+        elif disposition != "EXTERNAL_DEPENDENCY_BLOCKED" and blockers:
+            internally_open.append(workstream_id)
 
     passed = not (
         internally_open

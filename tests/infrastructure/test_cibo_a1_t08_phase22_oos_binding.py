@@ -29,6 +29,10 @@ from qore.infrastructure.cibo_ce2i_phase20_t08_oos_ablation import (
 from qore.infrastructure.cibo_phase22_historical_replay_economics_amendment import (
     EXECUTION_ECONOMICS_KIND,
 )
+from qore.infrastructure.cibo_phase22_holdout_v2_source_receipt import (
+    V2_SOURCE_BINDINGS,
+    phase22_v2_holdout_source_receipt_sha256,
+)
 from qore.infrastructure.cibo_phase22_historical_replay_settlement import (
     Phase22HistoricalReplayOutcomeSeal,
     VersionedPhase22HistoricalReplayEvidenceBook,
@@ -37,6 +41,10 @@ from qore.infrastructure.cibo_phase22_historical_replay_settlement import (
 BASE = datetime(2015, 10, 20, 12, 0, tzinfo=UTC)
 CANDIDATE_ID = "CIBO_USD60_6M_HOLDOUT_2015-10-19_2016-04-19_V2"
 FOLDS = ("WF1", "WF2", "WF3", "WF4")
+
+SOURCE_COLLECTOR_GIT_SHAS = tuple(
+    sorted({item.collector_git_sha for item in V2_SOURCE_BINDINGS})
+)
 
 
 def _sha(label: str) -> str:
@@ -200,6 +208,8 @@ def _fixture() -> tuple[
         folds_defined_without_outcomes=True,
     )
     evidence_book = VersionedPhase22HistoricalReplayEvidenceBook(
+        source_receipt_sha256=phase22_v2_holdout_source_receipt_sha256(),
+        source_collector_git_shas=SOURCE_COLLECTOR_GIT_SHAS,
         generation=1,
         amendment_sha256=_sha("amendment"),
         decisions=decisions,

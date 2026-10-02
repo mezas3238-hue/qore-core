@@ -23,6 +23,10 @@ from qore.infrastructure.cibo_ce2i_phase20_t15_reservation_counterfactual import
 from qore.infrastructure.cibo_phase22_historical_replay_economics_amendment import (
     EXECUTION_ECONOMICS_KIND,
 )
+from qore.infrastructure.cibo_phase22_holdout_v2_source_receipt import (
+    V2_SOURCE_BINDINGS,
+    phase22_v2_holdout_source_receipt_sha256,
+)
 from qore.infrastructure.cibo_phase22_historical_replay_settlement import (
     Phase22HistoricalReplayOutcomeSeal,
     VersionedPhase22HistoricalReplayEvidenceBook,
@@ -30,6 +34,10 @@ from qore.infrastructure.cibo_phase22_historical_replay_settlement import (
 
 BASE = datetime(2015, 10, 20, 12, 0, tzinfo=UTC)
 OPTION_ID = "known-option:VT31_NAS100:future-signal"
+
+SOURCE_COLLECTOR_GIT_SHAS = tuple(
+    sorted({item.collector_git_sha for item in V2_SOURCE_BINDINGS})
+)
 
 
 def _sha(label: str) -> str:
@@ -134,6 +142,8 @@ def _book(
     outcomes: tuple[Phase22HistoricalReplayOutcomeSeal, ...] | None = None,
 ) -> VersionedPhase22HistoricalReplayEvidenceBook:
     return VersionedPhase22HistoricalReplayEvidenceBook(
+        source_receipt_sha256=phase22_v2_holdout_source_receipt_sha256(),
+        source_collector_git_shas=SOURCE_COLLECTOR_GIT_SHAS,
         generation=1,
         amendment_sha256=_sha("amendment"),
         decisions=(origin or _origin(), _future()),

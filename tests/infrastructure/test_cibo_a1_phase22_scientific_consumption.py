@@ -20,12 +20,20 @@ from qore.infrastructure.cibo_ce2i_phase20_forward_policy_store import (
 from qore.infrastructure.cibo_ce2i_phase20_forward_store import (
     Phase20ForwardDecisionSeal,
 )
+from qore.infrastructure.cibo_phase22_holdout_v2_source_receipt import (
+    V2_SOURCE_BINDINGS,
+    phase22_v2_holdout_source_receipt_sha256,
+)
 from qore.infrastructure.cibo_phase22_historical_replay_settlement import (
     VersionedPhase22HistoricalReplayEvidenceBook,
 )
 
 BASE = datetime(2015, 10, 20, 12, 0, tzinfo=UTC)
 CANDIDATE_ID = "CIBO_USD60_6M_HOLDOUT_2015-10-19_2016-04-19_V2"
+
+SOURCE_COLLECTOR_GIT_SHAS = tuple(
+    sorted({item.collector_git_sha for item in V2_SOURCE_BINDINGS})
+)
 
 
 def _sha(label: str) -> str:
@@ -94,6 +102,8 @@ def _books() -> tuple[
     policies = tuple(_policy(item) for item in decisions)
     return (
         VersionedPhase22HistoricalReplayEvidenceBook(
+        source_receipt_sha256=phase22_v2_holdout_source_receipt_sha256(),
+        source_collector_git_shas=SOURCE_COLLECTOR_GIT_SHAS,
             generation=1,
             amendment_sha256=_sha("amendment"),
             decisions=decisions,
@@ -140,6 +150,8 @@ def test_a1_phase22_manifest_rejects_code_drift() -> None:
     ):
         build_a1_phase22_scientific_consumption_manifest(
             evidence_book=VersionedPhase22HistoricalReplayEvidenceBook(
+        source_receipt_sha256=phase22_v2_holdout_source_receipt_sha256(),
+        source_collector_git_shas=SOURCE_COLLECTOR_GIT_SHAS,
                 generation=1,
                 amendment_sha256=evidence.amendment_sha256,
                 decisions=evidence.decisions[:-1] + (modified,),
@@ -181,6 +193,8 @@ def test_a1_phase22_manifest_rejects_non_historical_evidence_kind() -> None:
     ):
         build_a1_phase22_scientific_consumption_manifest(
             evidence_book=VersionedPhase22HistoricalReplayEvidenceBook(
+        source_receipt_sha256=phase22_v2_holdout_source_receipt_sha256(),
+        source_collector_git_shas=SOURCE_COLLECTOR_GIT_SHAS,
                 generation=1,
                 amendment_sha256=evidence.amendment_sha256,
                 decisions=(modified,) + evidence.decisions[1:],
