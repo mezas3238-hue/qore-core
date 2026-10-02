@@ -20,6 +20,7 @@ from datetime import datetime
 from qore.infrastructure.account_wide_risk import (
     AccountRiskSnapshot,
     CiboRiskRequest,
+    ReservationState,
     RiskAuthorization,
     RiskDecision,
 )
@@ -55,6 +56,47 @@ class Phase20DemoRiskAuthorizationResult:
             raise CiboCapitalManagementError(
                 "Phase20D approved Risk result requires execution request"
             )
+
+
+def assert_phase20_demo_authorization_active(
+    *,
+    risk: DurableAccountWideRiskEngine,
+    authorization: RiskAuthorization,
+    observed_at: datetime,
+) -> None:
+    """Require the exact durable Risk reservation immediately before mutation."""
+
+    if not isinstance(risk, DurableAccountWideRiskEngine):
+        raise CiboCapitalManagementError(
+            "Phase20D DEMO execution requires durable QORE Risk"
+        )
+    if not isinstance(authorization, RiskAuthorization):
+        raise CiboCapitalManagementError(
+            "Phase20D DEMO execution requires canonical RiskAuthorization"
+        )
+    if observed_at.tzinfo is None or observed_at.utcoffset() is None:
+        raise CiboCapitalManagementError(
+            "Phase20D DEMO execution observed_at must be timezone-aware"
+        )
+
+    risk.expire(now=observed_at)
+    reservation = risk.reservation_for(authorization.authorization_id)
+    if reservation is None:
+        raise CiboCapitalManagementError(
+            "Phase20D DEMO Risk reservation is missing"
+        )
+    if reservation.authorization != authorization:
+        raise CiboCapitalManagementError(
+            "Phase20D DEMO Risk authorization/reservation drift"
+        )
+    if reservation.state is not ReservationState.RESERVED:
+        raise CiboCapitalManagementError(
+            "Phase20D DEMO Risk reservation is not executable"
+        )
+    if observed_at > authorization.expires_at:
+        raise CiboCapitalManagementError(
+            "Phase20D DEMO Risk authorization expired before execution"
+        )
 
 
 def authorize_phase20_demo_request(
