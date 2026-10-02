@@ -25,16 +25,10 @@ from dataclasses import dataclass
 from datetime import datetime
 from uuid import NAMESPACE_URL, uuid5
 
-from qore.infrastructure.cibo_capital_management_authority import CiboCapitalManagementError
-from qore.infrastructure.cibo_ce2i_tool_registry import CE2I_TOOL_REGISTRY
 from qore.infrastructure.cibo.contracts import (
     CiboEvidenceStatus,
     CiboFunctionalAuthority,
     CiboFunctionalEvidence,
-)
-from qore.infrastructure.cibo_executive_brain import (
-    CiboExecutiveBrain,
-    CiboExecutiveDirectiveKind,
 )
 from qore.infrastructure.cibo.functional_coordinator import (
     CiboFacultyDomain,
@@ -44,6 +38,12 @@ from qore.infrastructure.cibo.functional_coordinator import (
 from qore.infrastructure.cibo.mission_director import (
     CiboMissionDirector,
     CiboMissionDisposition,
+)
+from qore.infrastructure.cibo_capital_management_authority import CiboCapitalManagementError
+from qore.infrastructure.cibo_ce2i_tool_registry import CE2I_TOOL_REGISTRY
+from qore.infrastructure.cibo_executive_brain import (
+    CiboExecutiveBrain,
+    CiboExecutiveDirectiveKind,
 )
 from qore.infrastructure.cibo_reasoning_policy import (
     CiboReasoningEpisodeState,
