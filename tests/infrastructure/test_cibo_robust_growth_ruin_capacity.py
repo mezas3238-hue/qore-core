@@ -414,8 +414,10 @@ def test_genc9_report_rejects_summary_population_or_control_drift() -> None:
 
     drifted_summary = replace(
         report.summaries[0],
-        scenario_ids=tuple(reversed(report.summaries[0].scenario_ids[:-1])),
-        path_count=3,
+        scenario_ids=(
+            *report.summaries[0].scenario_ids[:-1],
+            "different-scenario",
+        ),
     )
     with pytest.raises(
         CiboCompoundCapitalError,
