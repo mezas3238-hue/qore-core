@@ -1,0 +1,339 @@
+name: QORE CIBO Phase22 V3 Full Source Collection
+
+on:
+  push:
+    branches:
+      - agent/cibo-next-policy-sovereign-integration-001
+    paths:
+      - 'docs/research/CIBO-PHASE22-V3-SOURCE-COLLECTION-TRIGGER.json'
+
+concurrency:
+  group: cibo-phase22-v3-full-source-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+
+jobs:
+  preflight:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev,ctrader]'
+      - name: Verify trigger is source-only and bound to GREEN availability
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from qore.infrastructure.cibo_next_policy_advanced_scientific_eligibility import (
+              NEXT_POLICY_ADVANCED_SCIENTIFIC_ELIGIBILITY,
+          )
+          from qore.infrastructure.cibo_next_policy_code_bundle_lineage import (
+              NEXT_POLICY_CODE_BUNDLE_LINEAGE,
+          )
+          from qore.infrastructure.cibo_phase22_next_exam_governance import (
+              NEXT_CANDIDATE_ID,
+          )
+
+          trigger = json.loads(
+              Path(
+                  "docs/research/"
+                  "CIBO-PHASE22-V3-SOURCE-COLLECTION-TRIGGER.json"
+              ).read_text(encoding="utf-8")
+          )
+          assert trigger["schema"] == (
+              "qore.cibo.phase22.v3-source-collection-trigger.v1"
+          )
+          assert trigger["candidate_id"] == NEXT_CANDIDATE_ID
+          assert trigger["source_availability_conclusion"] == "SUCCESS"
+          assert isinstance(trigger["source_availability_run_id"], int)
+          assert trigger["source_availability_run_id"] > 0
+          assert trigger["source_availability_artifact_digest"].startswith(
+              "sha256:"
+          )
+          assert trigger["policy_bundle_sha256"] == (
+              NEXT_POLICY_CODE_BUNDLE_LINEAGE.fingerprint()
+          )
+          assert trigger["advanced_scientific_eligibility_sha256"] == (
+              NEXT_POLICY_ADVANCED_SCIENTIFIC_ELIGIBILITY.fingerprint()
+          )
+          assert trigger["trader_logic_authorized"] is False
+          assert trigger["outcome_inspection_authorized"] is False
+          assert trigger["broker_mutation_authorized"] is False
+          assert trigger["live_authorized"] is False
+          assert trigger["real_capital_authorized"] is False
+          assert trigger["production_authorized"] is False
+          assert trigger["fresh_trader_execution_authorized"] is False
+          PY
+      - name: Static proof collectors contain no broker mutation request
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          paths = (
+              Path("src/qore/infrastructure/cibo_phase22_next_exam_m5_source.py"),
+              Path("src/qore/infrastructure/cibo_phase22_next_exam_m1_source.py"),
+          )
+          forbidden = (
+              "ProtoOANewOrderReq",
+              "ProtoOAClosePositionReq",
+              "ProtoOACancelOrderReq",
+              "ProtoOAAmendOrderReq",
+              "ProtoOAAmendPositionSLTPReq",
+          )
+          for path in paths:
+              text = path.read_text(encoding="utf-8")
+              for token in forbidden:
+                  assert token not in text, (path, token)
+          PY
+      - name: Collector quality
+        run: |
+          python -m ruff check \
+            src/qore/infrastructure/cibo_phase22_next_exam_m5_source.py \
+            src/qore/infrastructure/cibo_phase22_next_exam_m1_source.py \
+            tests/infrastructure/test_cibo_phase22_next_exam_m5_source.py \
+            tests/infrastructure/test_cibo_phase22_next_exam_m1_source.py
+          python -m pytest -q \
+            tests/infrastructure/test_cibo_phase22_next_exam_m5_source.py \
+            tests/infrastructure/test_cibo_phase22_next_exam_m1_source.py
+      - name: Verify DEMO read-only credential inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in QORE_CTRADER_CLIENT_ID QORE_CTRADER_CLIENT_SECRET QORE_CTRADER_ACCESS_TOKEN QORE_CTRADER_REFRESH_TOKEN; do
+            test -n "${!name:-}" || { echo "missing required DEMO input: $name" >&2; exit 2; }
+          done
+
+  collect-m5:
+    needs: preflight
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        symbol:
+          - AUDJPY
+          - AUDUSD
+          - EURUSD
+          - GBPJPY
+          - GBPUSD
+          - NAS100
+          - USDCAD
+          - USDJPY
+          - XAUUSD
+    env:
+      QORE_SYMBOL: ${{ matrix.symbol }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[ctrader]'
+      - name: Discover DEMO account when not configured
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            [[ "$account_id" =~ ^[1-9][0-9]*$ ]] || exit 3
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
+      - name: Collect V3 M5 market source only
+        run: |
+          mkdir -p "artifacts/${QORE_SYMBOL}"
+          python -m qore.infrastructure.cibo_phase22_next_exam_m5_source \
+            "${QORE_SYMBOL}" "artifacts/${QORE_SYMBOL}" \
+            > "artifacts/${QORE_SYMBOL}/stdout.json"
+      - name: Enforce source-only manifest
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path("artifacts") / os.environ["QORE_SYMBOL"]
+          payload = json.loads(
+              (root / "phase22-v3-source-manifest.json").read_text()
+          )
+          assert payload["candidate_id"] == (
+              "CIBO_USD60_6M_HOLDOUT_2015-04-19_2015-10-19_V3"
+          )
+          assert payload["raw_integrity_status"] == "CLEAN_PROVIDER_PAYLOAD"
+          assert payload["retained_bars"] > 0
+          assert payload["trader_logic_executed"] is False
+          assert payload["outcomes_inspected"] is False
+          assert payload["broker_mutation"] is False
+          assert payload["live_authorized"] is False
+          assert payload["real_capital_authorized"] is False
+          assert payload["production_authorized"] is False
+          PY
+          printf '%s\n' "$GITHUB_SHA" > "artifacts/${QORE_SYMBOL}/git-sha.txt"
+          cd "artifacts/${QORE_SYMBOL}"
+          sha256sum -c PHASE22_SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-phase22-v3-source-m5-${{ matrix.symbol }}-${{ github.sha }}
+          path: artifacts/${{ matrix.symbol }}
+          if-no-files-found: error
+          retention-days: 90
+
+  collect-m1:
+    needs: preflight
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[ctrader]'
+      - name: Discover DEMO account when not configured
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            [[ "$account_id" =~ ^[1-9][0-9]*$ ]] || exit 3
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
+      - name: Collect V3 NAS100 M1 market source only
+        run: |
+          mkdir -p artifacts/NAS100-M1
+          python -m qore.infrastructure.cibo_phase22_next_exam_m1_source \
+            artifacts/NAS100-M1 \
+            > artifacts/NAS100-M1/stdout.json
+      - name: Enforce source-only manifest
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("artifacts/NAS100-M1")
+          payload = json.loads(
+              (root / "phase22-v3-nas100-m1-manifest.json").read_text()
+          )
+          assert payload["candidate_id"] == (
+              "CIBO_USD60_6M_HOLDOUT_2015-04-19_2015-10-19_V3"
+          )
+          assert payload["period_minutes"] == 1
+          assert payload["retained_bars"] > 0
+          assert payload["trader_logic_executed"] is False
+          assert payload["outcomes_inspected"] is False
+          assert payload["broker_mutation"] is False
+          assert payload["live_authorized"] is False
+          assert payload["real_capital_authorized"] is False
+          assert payload["production_authorized"] is False
+          PY
+          printf '%s\n' "$GITHUB_SHA" > artifacts/NAS100-M1/git-sha.txt
+          cd artifacts/NAS100-M1
+          sha256sum -c SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-phase22-v3-source-m1-NAS100-${{ github.sha }}
+          path: artifacts/NAS100-M1
+          if-no-files-found: error
+          retention-days: 90
+
+  seal:
+    needs:
+      - collect-m5
+      - collect-m1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-cibo-phase22-v3-source-*
+          path: downloaded
+      - name: Seal complete source corpus hashes
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          root = Path("downloaded")
+          manifests = sorted(
+              path
+              for path in root.rglob("*.json")
+              if path.name in {
+                  "phase22-v3-source-manifest.json",
+                  "phase22-v3-nas100-m1-manifest.json",
+              }
+          )
+          assert len(manifests) == 10, [str(path) for path in manifests]
+          rows = []
+          symbols = set()
+          for path in manifests:
+              raw = path.read_bytes()
+              payload = json.loads(raw)
+              symbol = payload["symbol"] if "symbol" in payload else payload["canonical_symbol"]
+              timeframe = "M1" if payload.get("period_minutes") == 1 else "M5"
+              symbols.add((symbol, timeframe))
+              rows.append(
+                  {
+                      "symbol": symbol,
+                      "timeframe": timeframe,
+                      "manifest_path": str(path.relative_to(root)),
+                      "manifest_sha256": "sha256:" + hashlib.sha256(raw).hexdigest(),
+                      "retained_bars": int(payload["retained_bars"]),
+                  }
+              )
+          expected = {
+              ("AUDJPY", "M5"),
+              ("AUDUSD", "M5"),
+              ("EURUSD", "M5"),
+              ("GBPJPY", "M5"),
+              ("GBPUSD", "M5"),
+              ("NAS100", "M5"),
+              ("USDCAD", "M5"),
+              ("USDJPY", "M5"),
+              ("XAUUSD", "M5"),
+              ("NAS100", "M1"),
+          }
+          assert symbols == expected
+          seal = {
+              "schema": "qore.cibo.phase22.v3-source-corpus-seal.v1",
+              "candidate_id": (
+                  "CIBO_USD60_6M_HOLDOUT_2015-04-19_2015-10-19_V3"
+              ),
+              "source_count": 10,
+              "sources": rows,
+              "trader_logic_executed": False,
+              "outcomes_inspected": False,
+              "broker_mutation": False,
+              "fresh_trader_execution_authorized": False,
+              "productive_authority": False,
+          }
+          out = Path("source-seal")
+          out.mkdir()
+          (out / "source-corpus-seal.json").write_text(
+              json.dumps(seal, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+          printf '%s\n' "$GITHUB_SHA" > source-seal/git-sha.txt
+          cd source-seal
+          sha256sum source-corpus-seal.json git-sha.txt > SHA256SUMS.txt
+          sha256sum -c SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-phase22-v3-source-corpus-seal-${{ github.sha }}
+          path: source-seal
+          if-no-files-found: error
+          retention-days: 90
