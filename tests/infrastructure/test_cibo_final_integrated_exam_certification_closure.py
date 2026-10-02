@@ -4,6 +4,7 @@ import importlib.util
 import json
 from datetime import timedelta
 from pathlib import Path
+from dataclasses import replace
 
 import pytest
 
@@ -23,6 +24,10 @@ from qore.infrastructure.cibo_final_integrated_exam_certification_closure import
 from qore.infrastructure.cibo_world_cup_maximum_capability_exam_assembly import (
     assemble_world_cup_control_package,
     assess_assembled_world_cup_exam,
+)
+from qore.infrastructure.cibo_phase22_v4_governance import V4_CANDIDATE_ID
+from qore.infrastructure.cibo_scientific_closure_41 import (
+    CANONICAL_PROVIDER_IDENTITY,
 )
 
 _FINAL_FIXTURE_PATH = Path(__file__).with_name(
@@ -238,8 +243,20 @@ def test_certification_seal_certifies_science_but_grants_no_operations() -> None
         certified_at=phase22.qualified_at + timedelta(days=1),
     )
     assert seal.status is CiboCertificationSealStatus.CERTIFIED
+    assert seal.holdout_candidate_id == V4_CANDIDATE_ID
+    assert seal.provider_identity == CANONICAL_PROVIDER_IDENTITY
+    assert seal.mandatory_count == 64
+    assert seal.terminal_count == 64
+    assert seal.open_count == 0
+    assert seal.source_truth_receipt_sha256.startswith("sha256:")
+    assert seal.provider_risk_cma_receipt_sha256.startswith("sha256:")
+    assert seal.scientific_closure_receipt_sha256.startswith("sha256:")
+    assert seal.final_integrated_package_sha256.startswith("sha256:")
+    assert seal.world_cup_package_sha256.startswith("sha256:")
+    assert seal.policy_identity_sha256.startswith("sha256:")
     assert seal.live_authorized is False
     assert seal.real_capital_authorized is False
+    assert seal.production_authorized is False
     assert seal.merge_authorized is False
     assert seal.production_authority is False
     assert seal.fingerprint().startswith("sha256:")
@@ -289,4 +306,33 @@ def test_candidate_cannot_promote_before_certification_seal() -> None:
             closed_ledger=tampered,
             transition=transition,
             seal=seal,
+        )
+
+
+def test_certification_seal_rejects_stale_v2_holdout_identity() -> None:
+    phase22, final_package, final_report, world_package, world_report = _exam_chain()
+    closed, transition = build_certification_closure_ledger(
+        pre_ledger=_ledger(),
+        final_package=final_package,
+        final_report=final_report,
+        world_cup_package=world_package,
+        world_cup_report=world_report,
+    )
+    seal = build_cibo_certification_seal(
+        transition=transition,
+        closed_ledger=closed,
+        strict_zero_open_artifact_json=_strict_artifact(),
+        closure_head_sha="c" * 40,
+        phase22_receipt=phase22,
+        certified_at=phase22.qualified_at + timedelta(days=1),
+    )
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="holdout identity drift",
+    ):
+        replace(
+            seal,
+            holdout_candidate_id=(
+                "CIBO_USD60_6M_HOLDOUT_2015-10-19_2016-04-19_V2"
+            ),
         )
