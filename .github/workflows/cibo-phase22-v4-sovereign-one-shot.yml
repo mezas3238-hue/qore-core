@@ -160,6 +160,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          remote_before="$(git ls-remote origin "refs/heads/$SOVEREIGN_BRANCH" | cut -f1)"
+          test "$remote_before" = "$GITHUB_SHA" || {
+            echo "V4 branch advanced before claim; one-shot activation refused" >&2
+            exit 17
+          }
           git config user.name "QORE Phase22 V4 One-Shot"
           git config user.email "qore-phase22@users.noreply.github.com"
           started_at="$(date -u '+%Y-%m-%dT%H:%M:%S+00:00')"
@@ -229,10 +234,18 @@ jobs:
           done < "$RUNNER_TEMP/vt08-sources.tsv"
           python -m qore.infrastructure.cibo_phase22_v4_vt08_fresh_runner             "${args[@]}" --output "$RUNNER_TEMP/vt08-lane/vt08.json"
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: phase22-v4-lane-VT08_FOREX
           path: ${{ runner.temp }}/vt08-lane
-          if-no-files-found: error
+          if-no-files-found: warn
+          retention-days: 90
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: phase22-v4-forensic-VT08_FOREX-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/vt08-claim-proof.json
+          if-no-files-found: warn
           retention-days: 90
 
   turtle:
@@ -352,10 +365,20 @@ jobs:
           mkdir -p "$lane"
           python scripts/cibo_phase22_v4_turtle_window_replay.py --trader-id "$TRADER_ID" --module-path "$RUNNER_TEMP/fresh-geometry.py" --raw-root "$RUNNER_TEMP/source" --target-root "$RUNNER_TEMP/aux/TARGET" --cognitive-root "$RUNNER_TEMP/aux/COGNITIVE" --freeze-root "$RUNNER_TEMP/aux/FREEZE" --output "$lane"
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: phase22-v4-lane-${{ matrix.trader_id }}
           path: ${{ runner.temp }}/turtle-lane
-          if-no-files-found: error
+          if-no-files-found: warn
+          retention-days: 90
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: phase22-v4-forensic-${{ matrix.trader_id }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/turtle-claim-proof.json
+            ${{ runner.temp }}/fresh-corpus-patch.json
+          if-no-files-found: warn
           retention-days: 90
 
   vt31:
@@ -419,10 +442,20 @@ jobs:
           mkdir -p "$RUNNER_TEMP/vt31-lane"
           python scripts/cibo_phase22_v4_vt31_fresh_runner.py             --frozen-root "$frozen" --source-root "$root"             --output "$RUNNER_TEMP/vt31-lane/vt31.json"
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: phase22-v4-lane-VT31_NAS100
           path: ${{ runner.temp }}/vt31-lane
-          if-no-files-found: error
+          if-no-files-found: warn
+          retention-days: 90
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: phase22-v4-forensic-VT31_NAS100-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/vt31-claim-proof.json
+            ${{ runner.temp }}/vt31-self-check.json
+          if-no-files-found: warn
           retention-days: 90
 
   assemble:
