@@ -350,3 +350,48 @@ def test_genc9_rejects_drawdown_smaller_than_forced_initial_to_minimum_loss() ->
             scenario_evidence_sha256=scenario.scenario_evidence_sha256,
             causal_replay_sha256="sha256:" + "b" * 64,
         )
+
+
+def test_genc9_summary_rejects_impossible_quantiles_or_frequency_drift() -> None:
+    candidates, scenarios, paths = _fixture()
+    report = evaluate_genc9_robust_growth(
+        research_id="GENC9_SUMMARY_INTEGRITY",
+        candidates=candidates,
+        scenarios=scenarios,
+        paths=paths,
+    )
+    summary = report.summaries[0]
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="drawdown quantile order drift",
+    ):
+        replace(
+            summary,
+            p99_max_drawdown=summary.maximum_drawdown + Decimal("1"),
+        )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="empirical frequency/count drift",
+    ):
+        replace(
+            summary,
+            empirical_scenario_ruin_frequency=Decimal("0.5"),
+        )
+
+
+def test_genc9_summary_rejects_ambiguous_path_count_type() -> None:
+    candidates, scenarios, paths = _fixture()
+    report = evaluate_genc9_robust_growth(
+        research_id="GENC9_SUMMARY_TYPES",
+        candidates=candidates,
+        scenarios=scenarios,
+        paths=paths,
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="path/scenario count drift",
+    ):
+        replace(report.summaries[0], path_count=True)
