@@ -13,11 +13,13 @@ from qore.infrastructure.cibo_arch2_active_scope_v2 import (
 class Architect2ActiveState(StrEnum):
     TERMINAL_RECOMMENDATION_READY = "TERMINAL_RECOMMENDATION_READY"
     PARTIAL_EVIDENCE_READY = "PARTIAL_EVIDENCE_READY"
+    EMPIRICAL_PROVIDER_RUN_IN_PROGRESS = "EMPIRICAL_PROVIDER_RUN_IN_PROGRESS"
     FROZEN_GATE_WAITING_POPULATION = "FROZEN_GATE_WAITING_POPULATION"
     WAITING_ON_AUTHORITATIVE_FORWARD_LIFECYCLE = (
         "WAITING_ON_AUTHORITATIVE_FORWARD_LIFECYCLE"
     )
     WAITING_ON_INTEGRATOR_RECEIPT = "WAITING_ON_INTEGRATOR_RECEIPT"
+    BLOCKED_ON_PROVIDER_CONTAINMENT = "BLOCKED_ON_PROVIDER_CONTAINMENT"
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,11 +66,11 @@ def architect2_active_frontier_v2() -> tuple[Architect2ActiveFront, ...]:
         ),
         Architect2ActiveFront(
             workstream_id="T11",
-            state=Architect2ActiveState.FROZEN_GATE_WAITING_POPULATION,
+            state=Architect2ActiveState.EMPIRICAL_PROVIDER_RUN_IN_PROGRESS,
             remaining_requirement=(
-                "AUTHORIZED_FORWARD_MANIFEST_FOR_GROSS_EDGE_PLUS_"
-                "RUNNER_CONTRACT_READY_THEN_FROZEN_144_EPISODE_216_CHILD_"
-                "MARKET_IMPACT_POPULATION"
+                "CANONICAL_V3_RUN_36948511045_MUST_TERMINATE_AND_BIND_"
+                "OUTCOME_BLIND_MARKET_IMPACT_RECEIPT__IF_MARKET_IMPACT_PASSES_"
+                "AUTHORIZED_REAL_FORWARD_MANIFEST_FOR_GROSS_EDGE_REMAINS_REQUIRED"
             ),
         ),
         Architect2ActiveFront(
