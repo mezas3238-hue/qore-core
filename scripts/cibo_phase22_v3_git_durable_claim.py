@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import argparse
 import json
+from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
 
 from qore.infrastructure.cibo_phase22_v3_git_durable_claim import (
-    durable_claim_evidence_payload,
     prepare_phase22_v3_git_claim_files,
     verify_phase22_v3_git_durable_claim,
 )
@@ -34,7 +34,7 @@ def main() -> None:
 
     args = parser.parse_args()
     if args.command == "prepare":
-        claim, consumption = prepare_phase22_v3_git_claim_files(
+        claim = prepare_phase22_v3_git_claim_files(
             repo_root=args.repo_root,
             runner_git_sha=args.runner_git_sha,
             run_id=args.run_id,
@@ -47,8 +47,8 @@ def main() -> None:
                 {
                     "candidate_id": claim.candidate_id,
                     "claim_receipt_sha256": claim.fingerprint(),
-                    "claim_committed": consumption.claim_committed,
-                    "outcomes_emitted": consumption.outcomes_emitted,
+                    "claim_committed": claim.consumption_claim().claim_committed,
+                    "outcomes_emitted": claim.consumption_claim().outcomes_emitted,
                     "fresh_access_authorized": False,
                 },
                 sort_keys=True,
@@ -64,13 +64,13 @@ def main() -> None:
         expected_run_attempt=args.expected_run_attempt,
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "schema": "qore.cibo.phase22.v3-git-durable-claim-evidence.v1",
+        **asdict(evidence),
+        "fingerprint": evidence.fingerprint(),
+    }
     args.output.write_text(
-        json.dumps(
-            durable_claim_evidence_payload(evidence),
-            indent=2,
-            sort_keys=True,
-        )
-        + "\n",
+        json.dumps(payload, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
     print(
