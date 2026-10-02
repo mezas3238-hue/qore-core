@@ -3,6 +3,7 @@ from __future__ import annotations
 import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -47,14 +48,19 @@ def _repo(tmp_path: Path) -> tuple[Path, str]:
 
 
 def _commit_claim(repo: Path, source_head: str) -> str:
-    claim, consumption = prepare_phase22_git_claim_files(
-        repo_root=repo,
-        runner_git_sha=source_head,
-        run_id=123456,
-        run_attempt=1,
-        started_at=NOW,
-        store_root=repo / "phase22-v2-stores",
-    )
+    with patch(
+        "qore.infrastructure.cibo_phase22_one_shot_guard."
+        "load_phase22_execution_consumption_receipt",
+        return_value=None,
+    ):
+        claim, consumption = prepare_phase22_git_claim_files(
+            repo_root=repo,
+            runner_git_sha=source_head,
+            run_id=123456,
+            run_attempt=1,
+            started_at=NOW,
+            store_root=repo / "phase22-v2-stores",
+        )
     assert claim.runner_git_sha == source_head
     assert consumption.claim_committed is True
     assert consumption.outcomes_emitted is False
