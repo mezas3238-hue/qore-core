@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from dataclasses import dataclass
 
 from qore.infrastructure.cibo_capital_management_authority import (
@@ -26,6 +27,113 @@ from qore.infrastructure.cibo_receipt_bound_final_integrated_exam_v2 import (
     expected_final_exam_control_producer_gate_id,
     required_final_exam_control_ids,
 )
+from qore.infrastructure.cibo_scientific_closure_41 import (
+    validate_certifiable_holdout_id,
+)
+
+_SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
+_CLOSURE41_RECEIPT_IDS = (
+    "P7_SCIENTIFIC_CLOSURE",
+    "P8_COMPOUND_CLOSURE",
+    "E7_ECONOMIC_NONCOMPENSATION",
+    "E8_STRESS_INTEGRITY",
+    "E9_TEMPORAL_REPLICATION",
+)
+
+
+def _parse_receipt_artifact(
+    receipt: CiboFinalExamControlReceipt,
+) -> dict[str, object]:
+    try:
+        payload = json.loads(receipt.source_artifact_json)
+    except json.JSONDecodeError as error:
+        raise CiboCapitalManagementError(
+            "final integrated package Closure41 artifact JSON invalid"
+        ) from error
+    if not isinstance(payload, dict):
+        raise CiboCapitalManagementError(
+            "final integrated package Closure41 artifact must be object"
+        )
+    return payload
+
+
+def _require_artifact_sha256(
+    payload: dict[str, object],
+    key: str,
+) -> str:
+    value = payload.get(key)
+    if not isinstance(value, str) or _SHA256_RE.fullmatch(value) is None:
+        raise CiboCapitalManagementError(
+            "final integrated package Closure41 lineage field invalid: " + key
+        )
+    return value
+
+
+def _validate_closure41_receipt_lineage(
+    receipts: tuple[CiboFinalExamControlReceipt, ...],
+) -> None:
+    by_id = {item.receipt_id: item for item in receipts}
+    artifacts = {
+        receipt_id: _parse_receipt_artifact(by_id[receipt_id])
+        for receipt_id in _CLOSURE41_RECEIPT_IDS
+    }
+    manifests = {
+        _require_artifact_sha256(
+            artifacts[receipt_id],
+            "phase22_handoff_manifest_sha256",
+        )
+        for receipt_id in _CLOSURE41_RECEIPT_IDS
+    }
+    if len(manifests) != 1:
+        raise CiboCapitalManagementError(
+            "final integrated package Closure41 manifest lineage drift"
+        )
+
+    p7 = artifacts["P7_SCIENTIFIC_CLOSURE"]
+    p8 = artifacts["P8_COMPOUND_CLOSURE"]
+    closure_batch = _require_artifact_sha256(p7, "closure_batch_sha256")
+    if _require_artifact_sha256(p8, "closure_batch_sha256") != closure_batch:
+        raise CiboCapitalManagementError(
+            "final integrated package P7/P8 closure batch drift"
+        )
+    for receipt_id in (
+        "E7_ECONOMIC_NONCOMPENSATION",
+        "E8_STRESS_INTEGRITY",
+        "E9_TEMPORAL_REPLICATION",
+    ):
+        if (
+            _require_artifact_sha256(
+                artifacts[receipt_id],
+                "scientific_closure_41_sha256",
+            )
+            != closure_batch
+        ):
+            raise CiboCapitalManagementError(
+                "final integrated package scientific assertion/Closure41 drift: "
+                + receipt_id
+            )
+
+    p7_details = p7.get("details")
+    p8_details = p8.get("details")
+    if not isinstance(p7_details, dict) or not isinstance(p8_details, dict):
+        raise CiboCapitalManagementError(
+            "final integrated package P7/P8 holdout binding missing"
+        )
+    p7_holdout = p7_details.get("holdout_id")
+    p8_holdout = p8_details.get("holdout_id")
+    if not isinstance(p7_holdout, str):
+        raise CiboCapitalManagementError(
+            "final integrated package P7 holdout binding invalid"
+        )
+    validate_certifiable_holdout_id(
+        p7_holdout,
+        "Final Integrated Exam Closure41 holdout",
+    )
+    if p8_holdout != p7_holdout:
+        raise CiboCapitalManagementError(
+            "final integrated package P7/P8 holdout lineage drift"
+        )
+
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,6 +173,7 @@ class FinalIntegratedControlPackage:
                     "final integrated package producer-gate drift: "
                     + item.receipt_id
                 )
+        _validate_closure41_receipt_lineage(self.receipts)
         if any(
             item.integrated_git_sha != self.integrated_git_sha
             for item in self.receipts
