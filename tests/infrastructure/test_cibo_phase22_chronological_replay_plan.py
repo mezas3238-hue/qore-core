@@ -194,9 +194,36 @@ def test_future_outcome_change_cannot_change_predecision_fingerprint() -> None:
         exit_reason="changed-after-decision",
         exit_at=first.exit_at + timedelta(hours=2),
     )
+    changed_traders = tuple(
+        replace(
+            trader,
+            opportunities=tuple(
+                changed_first
+                if item.signal_fingerprint == first.signal_fingerprint
+                else item
+                for item in trader.opportunities
+            ),
+        )
+        for trader in fresh.batch.traders
+    )
+    changed_opportunities = tuple(
+        sorted(
+            (
+                item
+                for trader in changed_traders
+                for item in trader.opportunities
+            ),
+            key=lambda item: (
+                item.signal_at,
+                item.trader_id.value,
+                item.signal_fingerprint,
+            ),
+        )
+    )
     changed_batch = replace(
         fresh.batch,
-        opportunities=(changed_first,) + fresh.batch.opportunities[1:],
+        traders=changed_traders,
+        opportunities=changed_opportunities,
     )
     changed_fresh = replace(
         fresh,
