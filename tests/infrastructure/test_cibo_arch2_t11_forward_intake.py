@@ -136,7 +136,7 @@ def test_t11_forward_intake_derives_structural_r_without_refit_or_v2() -> None:
     assert first.stop_risk_per_volume_usd == Decimal("200")
     assert first.outcome_reconciled is True
     assert first.provider_bound is True
-    assert first.holdout_receipt_authorized is True
+    assert first.fresh_oos_source_authorized is True
     assert first.model_refit_performed is False
     assert intake.phase22_v2_consumed is False
     assert intake.canonical_ledger_modified is False
