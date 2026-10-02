@@ -36,6 +36,14 @@ from qore.infrastructure.cibo_arch2_t11_nonlinear_input_freeze import (
 from qore.infrastructure.cibo_arch2_t11_post_containment_cycle_v3 import (
     CYCLE_ID,
 )
+from qore.infrastructure.cibo_arch2_t11_v3_retry_claim import (
+    FAILED_RUN_ID,
+    RETRY_TOKEN,
+)
+from qore.infrastructure.cibo_arch2_t11_v3_terminal_receipt import (
+    V3_CANCELLED_DUPLICATE_RUN_ID,
+    T11V3TerminalReceipt,
+)
 from qore.infrastructure.cibo_arch2_t11_terminalization import (
     COMPLETED,
     FALSIFIED,
@@ -157,6 +165,37 @@ def _impact_receipt(*, ready: bool) -> T11MarketImpactTerminalReceipt:
     )
 
 
+def _v3_receipt(*, ready: bool) -> T11V3TerminalReceipt:
+    return T11V3TerminalReceipt(
+        cycle_id=CYCLE_ID,
+        report_sha256="sha256:" + "b" * 64,
+        protocol_sha256=T11_NONLINEAR_INPUT_FREEZE.fingerprint(),
+        experiment_plan_sha256=T11_MARKET_IMPACT_EXPERIMENT_PLAN.fingerprint(),
+        canonical_run_id=V3_CANONICAL_RUN_ID,
+        canonical_run_attempt=V3_CANONICAL_RUN_ATTEMPT,
+        canonical_head_sha=V3_CANONICAL_HEAD_SHA,
+        precursor_failed_run_id=FAILED_RUN_ID,
+        retry_token=RETRY_TOKEN,
+        cancelled_duplicate_run_id=V3_CANCELLED_DUPLICATE_RUN_ID,
+        symbol_count=len(REQUIRED_SYMBOLS),
+        episode_count=144,
+        child_entry_count=216,
+        four_of_four_by_symbol=tuple(
+            (symbol, ready) for symbol in REQUIRED_SYMBOLS
+        ),
+        market_impact_model_ready=ready,
+        terminal_recommendation=(
+            IMPACT_COMPLETED if ready else IMPACT_FALSIFIED
+        ),
+        broker_mutation_performed=True,
+        all_created_positions_closed=True,
+        holdout_outcomes_used=False,
+        phase22_v2_consumed=False,
+        canonical_ledger_modified=False,
+        productive_authority=False,
+    )
+
+
 def test_t11_waits_when_required_evidence_is_missing() -> None:
     result = terminalize_t11(market_impact=None, gross_edge=None)
 
@@ -225,4 +264,17 @@ def test_t11_receipt_path_waits_only_for_gross_edge_after_market_impact_pass() -
     assert result.recommendation == WAITING
     assert result.unresolved_requirements == (
         "REAL_CALIBRATED_FRESH_OOS_GROSS_EDGE_MODEL_REQUIRED",
+    )
+
+
+def test_t11_v3_receipt_path_is_accepted_by_terminalization() -> None:
+    result = terminalize_t11_from_receipt(
+        market_impact_receipt=_v3_receipt(ready=False),
+        gross_edge=None,
+    )
+
+    assert result.recommendation == FALSIFIED
+    assert result.unresolved_requirements == ()
+    assert result.falsification_reasons == (
+        "FROZEN_PROVIDER_BOUND_MARKET_IMPACT_MODEL_FAILED_4_OF_4_VALIDATION",
     )
