@@ -21,6 +21,10 @@ from decimal import Decimal
 from enum import StrEnum
 from typing import Any
 
+from qore.infrastructure.cibo_capability_exam_cognitive_coverage import (
+    CiboCapabilityCognitiveCoverageReceipt,
+    build_cibo_capability_cognitive_coverage,
+)
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
     CiboCapitalState,
@@ -163,6 +167,7 @@ class InfrastructureCapabilityExamReport:
     candidate_id: str
     source_batch_sha256: str
     replay_started_at: datetime
+    cognitive_functional_coverage: CiboCapabilityCognitiveCoverageReceipt
     minimal_seed_baseline: PerformanceMetrics
     full_cibo: PerformanceMetrics
     ending_capital_delta_usd: Decimal
@@ -186,6 +191,16 @@ class InfrastructureCapabilityExamReport:
         if self.replay_started_at.tzinfo is None:
             raise CiboCapitalManagementError(
                 "capability exam replay_started_at must be aware"
+            )
+        if (
+            not isinstance(
+                self.cognitive_functional_coverage,
+                CiboCapabilityCognitiveCoverageReceipt,
+            )
+            or not self.cognitive_functional_coverage.complete
+        ):
+            raise CiboCapitalManagementError(
+                "capability exam cognitive/function coverage incomplete"
             )
         expected_codes = tuple(f"T{i:02d}" for i in range(1, 21))
         if tuple(item.tool_code for item in self.tool_audit) != expected_codes:
@@ -252,6 +267,10 @@ def run_reused_holdout_infrastructure_exam(
         raise CiboCapitalManagementError(
             "capability exam is bound to reused V4 holdout"
         )
+    cognitive_coverage = build_cibo_capability_cognitive_coverage(
+        source_batch_sha256=fresh.declared_batch_sha256,
+        observed_at=replay_started_at,
+    )
     projections = project_phase22_execution_inputs(
         fresh=fresh,
         provider=provider,
@@ -285,6 +304,20 @@ def run_reused_holdout_infrastructure_exam(
 
     gates = (
         ("EXACT_USD60_INITIAL_CAPITAL", full.initial_capital_usd == Decimal("60")),
+        ("COGNITIVE_EXECUTIVE_USED", cognitive_coverage.cognitive_used),
+        (
+            "CF01_CF19_FUNCTIONAL_COVERAGE_COMPLETE",
+            cognitive_coverage.all_functional_faculties_consulted,
+        ),
+        (
+            "CE2I_T01_T20_REGISTRY_COVERAGE_COMPLETE",
+            cognitive_coverage.all_ce2i_tools_registered,
+        ),
+        (
+            "CIBO_SOLE_SIZING_AUTHORITY",
+            cognitive_coverage.cibo_sizing_authority == "CIBO_CMA"
+            and cognitive_coverage.trader_sizing_authority == "NONE",
+        ),
         ("EXACT_SEVEN_TRADER_LANES", len(fresh.batch.traders) == 7),
         (
             "SIX_MONTH_PROTOCOL_SURFACE",
@@ -328,6 +361,7 @@ def run_reused_holdout_infrastructure_exam(
         candidate_id=fresh.batch.candidate_id,
         source_batch_sha256=fresh.declared_batch_sha256,
         replay_started_at=replay_started_at,
+        cognitive_functional_coverage=cognitive_coverage,
         minimal_seed_baseline=baseline,
         full_cibo=full,
         ending_capital_delta_usd=(
