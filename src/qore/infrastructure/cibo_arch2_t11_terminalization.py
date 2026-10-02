@@ -143,7 +143,9 @@ def terminalize_t11(
 
 def terminalize_t11_from_receipt(
     *,
-    market_impact_receipt: T11MarketImpactTerminalReceipt | T11V3TerminalReceipt | None,
+    market_impact_receipt: (
+        T11MarketImpactTerminalReceipt | T11V3TerminalReceipt | None
+    ),
     gross_edge: T11GrossEdgeFreshOOSResult | None,
 ) -> T11TerminalRecommendation:
     """Terminalize T11 from the immutable sealed market-impact receipt.
