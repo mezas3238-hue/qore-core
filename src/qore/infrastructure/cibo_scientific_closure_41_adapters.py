@@ -357,7 +357,7 @@ def adapt_t11_terminal_receipts(
             "Closure 41 T11 market-impact receipt disposition invalid"
         )
 
-    source_digests = (
+    source_digests: tuple[str, ...] = (
         PROVIDER_ARTIFACT_DIGEST,
         market_impact.report_sha256,
         market_impact.protocol_sha256,
