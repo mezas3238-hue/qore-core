@@ -25,12 +25,12 @@ from qore.infrastructure.cibo_ce2i_phase20_forward_policy_store import (
 from qore.infrastructure.cibo_ce2i_phase21_policy_freeze import (
     Phase21PolicyFreezeManifest,
 )
-from qore.infrastructure.cibo_phase21_shadow_qualification_lineage import (
-    Phase21ShadowQualificationLineageReceipt,
-)
 from qore.infrastructure.cibo_ce2i_qualification_evidence_protocol import (
     Phase20QualificationEvidenceBook,
     require_qualification_evidence_book,
+)
+from qore.infrastructure.cibo_phase21_shadow_qualification_lineage import (
+    Phase21ShadowQualificationLineageReceipt,
 )
 from qore.infrastructure.cibo_phase22_holdout_v2_source_receipt import (
     V2_SOURCE_BINDINGS,
