@@ -38,6 +38,12 @@ _FIELDS = {
     "WC04_WORLD_CUP_DIGITAL_TWIN": (
         "competition_digital_twin_bound",
         "capital_conservation_proven",
+        "no_capital_creation",
+        "no_duplicated_profit",
+        "no_reused_released_capacity",
+        "no_double_counted_netting",
+        "margin_feasible",
+        "chronology_monotonic",
     ),
     "WC05_AS_IS_CONTROL": ("as_is_control_frozen",),
     "WC06_AMPLIFICATION_CAUSAL_ATTRIBUTION": (
@@ -89,6 +95,7 @@ def _receipts(final: FinalIntegratedExamReport):
             "aspirational_return_target_used": False,
             "hidden_leverage_used": False,
             "protected_holdout_reused": False,
+            "future_information_used": False,
             "operational_authority_claimed": False,
         }
         for field in _FIELDS[receipt_id]:
