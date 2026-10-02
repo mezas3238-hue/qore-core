@@ -445,6 +445,8 @@ def run_compound_portfolio_lane(
                 ),
                 source_traders_before_entry=source_snapshot,
             )
+            risk_engine.record_full_fill(auth.authorization_id)
+            risk_engine.reconcile_fill(auth.authorization_id)
             # The open position is now represented explicitly in open_rows and
             # therefore in subsequent AccountRiskSnapshot open-risk/margin.
             # Release only QORE's fill shadow to avoid expiry-driven double state.
