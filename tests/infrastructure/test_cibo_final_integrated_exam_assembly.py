@@ -32,6 +32,8 @@ _SPEC.loader.exec_module(_FIXTURE)
 
 HEAD = "a" * 40
 SUCCESSOR_HOLDOUT_ID = "CIBO_USD60_6M_HOLDOUT_2013-10-19_2014-04-19_V6"
+CLOSURE_MANIFEST_SHA = "sha256:" + "1" * 64
+CLOSURE_BATCH_SHA = "sha256:" + "2" * 64
 _PRODUCERS = {
     "P1_SOURCE_OF_TRUTH_RECONCILED": "CIBO_FINAL_SOURCE_OF_TRUTH_CONTROL_V2",
     "P2_PRE_EXAM_ZERO_OPEN_PASS": "CIBO_PRE_EXAM_ZERO_OPEN_CONTROL_V1",
@@ -80,8 +82,23 @@ def _chain():
             "outcome_aware_refit": False,
             "operational_authority_claimed": False,
         }
+        if receipt_id in {
+            "P7_SCIENTIFIC_CLOSURE",
+            "P8_COMPOUND_CLOSURE",
+            "E7_ECONOMIC_NONCOMPENSATION",
+            "E8_STRESS_INTEGRITY",
+            "E9_TEMPORAL_REPLICATION",
+        }:
+            payload["phase22_handoff_manifest_sha256"] = CLOSURE_MANIFEST_SHA
         if receipt_id in {"P7_SCIENTIFIC_CLOSURE", "P8_COMPOUND_CLOSURE"}:
+            payload["closure_batch_sha256"] = CLOSURE_BATCH_SHA
             payload["details"] = {"holdout_id": SUCCESSOR_HOLDOUT_ID}
+        if receipt_id in {
+            "E7_ECONOMIC_NONCOMPENSATION",
+            "E8_STRESS_INTEGRITY",
+            "E9_TEMPORAL_REPLICATION",
+        }:
+            payload["scientific_closure_41_sha256"] = CLOSURE_BATCH_SHA
         receipts.append(
             bind_final_exam_control_artifact(
                 receipt_id=receipt_id,
@@ -167,6 +184,32 @@ def test_assembly_rejects_wrong_canonical_producer() -> None:
     with pytest.raises(
         CiboCapitalManagementError,
         match="producer-gate drift: P1_SOURCE_OF_TRUTH_RECONCILED",
+    ):
+        assemble_final_integrated_control_package(
+            integrated_git_sha=HEAD,
+            receipts=tuple(altered),
+        )
+
+
+def test_assembly_rejects_mixed_closure41_scientific_batch() -> None:
+    _phase21, _phase22, receipts = _chain()
+    altered = list(receipts)
+    index = next(
+        index
+        for index, receipt in enumerate(altered)
+        if receipt.receipt_id == "E8_STRESS_INTEGRITY"
+    )
+    item = altered[index]
+    payload = json.loads(item.source_artifact_json)
+    payload["scientific_closure_41_sha256"] = "sha256:" + "9" * 64
+    altered[index] = bind_final_exam_control_artifact(
+        receipt_id=item.receipt_id,
+        evidence_kind=item.evidence_kind,
+        source_artifact_json=json.dumps(payload, indent=2, sort_keys=True) + "\n",
+    )
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="scientific assertion/Closure41 drift: E8_STRESS_INTEGRITY",
     ):
         assemble_final_integrated_control_package(
             integrated_git_sha=HEAD,
