@@ -3,8 +3,8 @@ import sys
 from pathlib import Path
 
 from qore.infrastructure.cibo_arch2_t11_execution_claim import (
-    RUN_ATTEMPT,
-    RUN_ID,
+    INITIAL_RUN_ATTEMPT,
+    INITIAL_RUN_ID,
 )
 
 
