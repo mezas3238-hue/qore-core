@@ -33,10 +33,13 @@ def test_active_frontier_has_four_terminal_recommendations() -> None:
         == "SUPERSEDED_WITH_PROVEN_LINEAGE"
     )
 
-    assert rows["T11"].state is Architect2ActiveState.PARTIAL_EVIDENCE_READY
-    assert "GLOBAL_CONTAINMENT_CLEAN" in rows["T11"].remaining_requirement
-    assert "V3_VERSIONED_CYCLE_READY" in rows["T11"].remaining_requirement
-    assert "WITHOUT_BROKER_AUTHORITY" in rows["T11"].remaining_requirement
+    assert (
+        rows["T11"].state
+        is Architect2ActiveState.EMPIRICAL_PROVIDER_RUN_IN_PROGRESS
+    )
+    assert "36948511045" in rows["T11"].remaining_requirement
+    assert "OUTCOME_BLIND" in rows["T11"].remaining_requirement
+    assert "GROSS_EDGE" in rows["T11"].remaining_requirement
     assert rows["T16"].state is Architect2ActiveState.TERMINAL_RECOMMENDATION_READY
     assert rows["T16"].proposed_terminal_disposition == "FALSIFIED_AND_CLOSED"
     assert (
