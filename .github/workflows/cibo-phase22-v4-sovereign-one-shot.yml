@@ -49,15 +49,28 @@ jobs:
           from qore.infrastructure.cibo_phase22_v4_execution_manifest import (
               build_phase22_v4_execution_manifest,
           )
+          from qore.infrastructure.cibo_phase22_v4_execution_manifest_freeze import (
+              FREEZE_RELATIVE_PATH,
+              load_phase22_v4_execution_manifest_freeze,
+          )
           auth = load_phase22_v4_execution_authorization(Path(AUTHORIZATION_RELATIVE_PATH))
+          freeze = load_phase22_v4_execution_manifest_freeze(Path(FREEZE_RELATIVE_PATH))
           head = subprocess.check_output(["git","rev-parse","HEAD"], text=True).strip()
           parent = subprocess.check_output(["git","rev-parse","HEAD^"], text=True).strip()
+          code_parent = subprocess.check_output(["git","rev-parse","HEAD^^"], text=True).strip()
           changed = tuple(sorted(x for x in subprocess.check_output(
               ["git","diff-tree","--no-commit-id","--name-only","-r","HEAD"],
               text=True,
           ).splitlines() if x))
+          freeze_changed = tuple(sorted(x for x in subprocess.check_output(
+              ["git","diff-tree","--no-commit-id","--name-only","-r","HEAD^"],
+              text=True,
+          ).splitlines() if x))
           assert parent == auth.authorized_parent_head_sha
           assert changed == (AUTHORIZATION_RELATIVE_PATH,)
+          assert freeze_changed == (FREEZE_RELATIVE_PATH,)
+          assert freeze["source_head_sha"] == code_parent
+          assert auth.execution_manifest_sha256 == freeze["execution_manifest_sha256"]
           assert auth.fresh_holdout_execution_authorized is True
           assert auth.one_shot_only is True
           assert auth.second_execution_authorized is False
@@ -73,6 +86,8 @@ jobs:
                   "manifest_sha256": manifest.fingerprint(),
                   "authorization_commit_sha": head,
                   "authorized_parent_head_sha": parent,
+                  "manifest_source_head_sha": code_parent,
+                  "manifest_freeze_sha256": freeze["freeze_sha256"],
                   "fresh_outcomes_executed": False,
                   "broker_mutation_authorized": False,
               }, indent=2, sort_keys=True) + "\n",
