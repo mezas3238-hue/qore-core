@@ -9,8 +9,8 @@ from decimal import Decimal
 import pytest
 
 from qore.infrastructure.cibo_a2_phase22_historical_compound import (
-    ADAPTER_ID,
     A1_CONSUMER_CONTRACT_ID,
+    ADAPTER_ID,
     build_a1_historical_compound_lineage_receipt,
     build_phase22_historical_compound_ledger,
 )
