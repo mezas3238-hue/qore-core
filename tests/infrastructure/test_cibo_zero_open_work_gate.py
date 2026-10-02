@@ -1031,3 +1031,24 @@ def test_t16_post_declaration_surfaces_belong_to_t16() -> None:
 
     assert set(assignments) == {(path, "T16") for path in inventory}
     assert orphan_candidates == ()
+
+
+def test_scientific_closure_41_inventory_is_not_orphaned() -> None:
+    inventory = (
+        "scripts/cibo_scientific_closure_41_semantic_gate.py",
+        "src/qore/infrastructure/cibo_scientific_closure_41.py",
+        "src/qore/infrastructure/cibo_scientific_closure_41_adapters.py",
+        "tests/infrastructure/test_cibo_scientific_closure_41.py",
+        "tests/infrastructure/test_cibo_scientific_closure_41_adapters.py",
+        ".github/workflows/cibo-scientific-closure-41.yml",
+    )
+    assignments, orphans = gate._classify_inventory(
+        inventory,
+        ledger_ids=frozenset({"SOURCE_OF_TRUTH_RECONCILIATION"}),
+    )
+
+    assert orphans == ()
+    assert len(assignments) == len(inventory)
+    assert {workstream_id for _path, workstream_id in assignments} == {
+        "SOURCE_OF_TRUTH_RECONCILIATION"
+    }
