@@ -5,6 +5,7 @@ on:
     branches:
       - agent/cibo-phase22-next-exam-governance-001
       - agent/cibo-integrator-ab-001
+      - agent/cibo-next-policy-sovereign-integration-001
     paths:
       - 'src/qore/infrastructure/cibo_phase22_next_exam_governance.py'
       - 'tests/infrastructure/test_cibo_phase22_next_exam_governance.py'
