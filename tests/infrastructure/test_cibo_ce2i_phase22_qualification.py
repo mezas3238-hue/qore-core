@@ -36,6 +36,9 @@ from qore.infrastructure.cibo_ce2i_phase22_qualification_plan import (
     FROZEN_PHASE22_HOLDOUT_QUALIFICATION_PLAN,
     phase22_holdout_qualification_plan_sha256,
 )
+from qore.infrastructure.cibo_phase21_shadow_qualification_lineage import (
+    PHASE21_SHADOW_QUALIFICATION_LINEAGE_RECEIPT,
+)
 from qore.infrastructure.cibo_phase22_historical_replay_settlement import (
     VersionedPhase22HistoricalReplayEvidenceBook,
 )
@@ -415,3 +418,89 @@ def test_phase22_reused_qualification_decision_is_invalid_before_economics() -> 
     assert report.economic_report is None
     assert "QUALIFICATION_DECISION_REUSED_IN_HOLDOUT" in report.failures
     assert report.economically_certified is False
+
+
+
+def test_phase22_shadow_lineage_remains_explicit_and_can_reach_economics() -> None:
+    holdout_decision = _historical_holdout_decision(
+        evidence_sha=_sha(802),
+        decision_at=datetime(2015, 10, 20, 12, 0, tzinfo=UTC),
+        sealed_at=(
+            PHASE21_SHADOW_QUALIFICATION_LINEAGE_RECEIPT.frozen_at
+            + timedelta(seconds=1)
+        ),
+    )
+
+    report = run_phase22_holdout_qualification(
+        phase21_manifest=PHASE21_SHADOW_QUALIFICATION_LINEAGE_RECEIPT,
+        qualification_evidence_book=None,
+        holdout_evidence_book=VersionedPhase22HistoricalReplayEvidenceBook(
+            generation=1,
+            amendment_sha256=_sha(803),
+            decisions=(holdout_decision,),
+            outcomes=(),
+            source_receipt_sha256=phase22_v2_holdout_source_receipt_sha256(),
+            source_collector_git_shas=tuple(
+                sorted({item.collector_git_sha for item in V2_SOURCE_BINDINGS})
+            ),
+        ),
+        holdout_policy_book=VersionedPhase20ForwardPolicyBook(
+            generation=1,
+            decisions=(_policy(holdout_decision.evidence_sha256),),
+        ),
+        qualification_evidence_store_sha256=None,
+        qualification_policy_store_sha256=None,
+        holdout_evidence_store_sha256=_sha(811),
+        holdout_policy_store_sha256=_sha(812),
+    )
+
+    assert report.lineage.lineage_valid is True
+    assert report.status is Phase22HoldoutQualificationStatus.NOT_READY
+    assert report.economically_certified is False
+
+
+def test_phase22_shadow_lineage_forbids_forward_qualification_relabelling() -> None:
+    holdout_decision = _historical_holdout_decision(
+        evidence_sha=_sha(804),
+        decision_at=datetime(2015, 10, 20, 12, 0, tzinfo=UTC),
+        sealed_at=(
+            PHASE21_SHADOW_QUALIFICATION_LINEAGE_RECEIPT.frozen_at
+            + timedelta(seconds=1)
+        ),
+    )
+
+    try:
+        run_phase22_holdout_qualification(
+            phase21_manifest=PHASE21_SHADOW_QUALIFICATION_LINEAGE_RECEIPT,
+            qualification_evidence_book=VersionedPhase20ForwardEvidenceBook(
+                generation=0,
+                decisions=(),
+            ),
+            holdout_evidence_book=VersionedPhase22HistoricalReplayEvidenceBook(
+                generation=1,
+                amendment_sha256=_sha(805),
+                decisions=(holdout_decision,),
+                outcomes=(),
+                source_receipt_sha256=phase22_v2_holdout_source_receipt_sha256(),
+                source_collector_git_shas=tuple(
+                    sorted(
+                        {
+                            item.collector_git_sha
+                            for item in V2_SOURCE_BINDINGS
+                        }
+                    )
+                ),
+            ),
+            holdout_policy_book=VersionedPhase20ForwardPolicyBook(
+                generation=1,
+                decisions=(_policy(holdout_decision.evidence_sha256),),
+            ),
+            qualification_evidence_store_sha256=_sha(1),
+            qualification_policy_store_sha256=_sha(2),
+            holdout_evidence_store_sha256=_sha(813),
+            holdout_policy_store_sha256=_sha(814),
+        )
+    except Exception as error:
+        assert "forbids forward qualification relabelling" in str(error)
+    else:
+        raise AssertionError("shadow Phase21 lineage accepted forward relabelling")

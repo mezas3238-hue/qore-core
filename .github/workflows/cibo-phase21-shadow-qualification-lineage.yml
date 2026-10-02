@@ -1,0 +1,50 @@
+name: QORE CIBO Phase21 Shadow Qualification Lineage
+
+on:
+  push:
+    branches:
+      - agent/cibo-integrator-ab-001
+    paths:
+      - '.github/workflows/cibo-phase21-shadow-qualification-lineage.yml'
+      - 'src/qore/infrastructure/cibo_phase21_shadow_qualification_lineage.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase22_holdout_gate.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase22_qualification.py'
+      - 'tests/infrastructure/test_cibo_phase21_shadow_qualification_lineage.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase22_qualification.py'
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-phase21-shadow-qualification-lineage.yml'
+      - 'src/qore/infrastructure/cibo_phase21_shadow_qualification_lineage.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase22_holdout_gate.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase22_qualification.py'
+      - 'tests/infrastructure/test_cibo_phase21_shadow_qualification_lineage.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase22_qualification.py'
+
+permissions:
+  contents: read
+
+jobs:
+  lineage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Validate explicit shadow lineage without forward relabelling
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_phase21_shadow_qualification_lineage.py \
+            src/qore/infrastructure/cibo_ce2i_phase22_holdout_gate.py \
+            src/qore/infrastructure/cibo_ce2i_phase22_qualification.py \
+            tests/infrastructure/test_cibo_phase21_shadow_qualification_lineage.py \
+            tests/infrastructure/test_cibo_ce2i_phase22_qualification.py
+          mypy \
+            src/qore/infrastructure/cibo_phase21_shadow_qualification_lineage.py \
+            src/qore/infrastructure/cibo_ce2i_phase22_holdout_gate.py \
+            src/qore/infrastructure/cibo_ce2i_phase22_qualification.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_phase21_shadow_qualification_lineage.py \
+            tests/infrastructure/test_cibo_ce2i_phase22_qualification.py
