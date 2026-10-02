@@ -162,7 +162,7 @@ def build_t11_gross_edge_forward_intake(
                 stop_risk_per_volume_usd=stop_risk_per_volume,
                 outcome_reconciled=True,
                 provider_bound=True,
-                holdout_receipt_authorized=True,
+                fresh_oos_source_authorized=True,
                 model_refit_performed=False,
                 productive_authority=False,
             )
