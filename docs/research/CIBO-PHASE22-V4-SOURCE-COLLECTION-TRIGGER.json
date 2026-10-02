@@ -17,5 +17,12 @@
   "real_capital_authorized": false,
   "production_authorized": false,
   "fresh_trader_execution_authorized": false,
-  "productive_authority": false
+  "productive_authority": false,
+  "preflight_retry_generation": 1,
+  "prior_failed_workflow_run_id": 37049023747,
+  "prior_failure_stage": "COLLECTOR_QUALITY_TEST_BEFORE_SOURCE_ACCESS",
+  "prior_source_access_occurred": false,
+  "retry_changes_policy": false,
+  "retry_changes_candidate": false,
+  "retry_changes_scientific_eligibility": false
 }
