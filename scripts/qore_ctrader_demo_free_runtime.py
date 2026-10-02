@@ -42,6 +42,7 @@ from qore.infrastructure.ctrader_demo_free_sink import (
 )
 from qore.infrastructure.account_wide_risk import (
     AccountRiskSnapshot,
+    CiboRiskRequest,
     TraderLineage,
 )
 from qore.infrastructure.broker_risk_sizing import BrokerMinimumVolumeRiskRejectError
@@ -74,6 +75,12 @@ from qore.infrastructure.cibo_ce2i_phase20_ctrader_recovery import (
 )
 from qore.infrastructure.cibo_ce2i_phase20_demo_capital_bootstrap import (
     bootstrap_phase20_demo_assigned_capital,
+)
+from qore.infrastructure.cibo_ce2i_phase20_demo_risk_bridge import (
+    authorize_phase20_demo_request,
+)
+from qore.infrastructure.cibo_ce2i_phase20_demo_shadow_risk import (
+    CiboDemoCapabilitySolvencyBudget,
 )
 from qore.infrastructure.cibo_ce2i_phase20_demo_runtime_bridge import (
     finalize_ctrader_demo_m5_phase20_policy,
@@ -612,6 +619,32 @@ def _signal_anchor(accepted_at: datetime) -> datetime:
     return local.astimezone(UTC)
 
 
+def _submit_demo_request_through_qore_risk(
+    *,
+    risk: DurableAccountWideRiskEngine,
+    request: CiboRiskRequest,
+    snapshot: AccountRiskSnapshot | None,
+    observed_at: datetime,
+):
+    if snapshot is None:
+        raise RuntimeError("qore-risk-snapshot-required-before-demo-submit")
+    decision = authorize_phase20_demo_request(
+        risk=risk,
+        request=request,
+        snapshot=snapshot,
+        observed_at=observed_at,
+    )
+    if decision.execution_request is None:
+        raise RuntimeError(
+            "qore-risk-reject:"
+            f"{decision.authorization.reason}"
+        )
+    return submit_demo_request(
+        request,
+        risk_authorization=decision.authorization,
+    )
+
+
 def _process_candidate(
     *,
     candidate: Vt08B01Candidate,
@@ -625,6 +658,7 @@ def _process_candidate(
     capital_budget: Any,
     account_equity: Decimal,
     log_path: Path,
+    preflight_snapshot: AccountRiskSnapshot | None = None,
     phase20_after_submit: Callable[
         [
             TraderOpportunityEnvelope,
@@ -692,7 +726,12 @@ def _process_candidate(
         expires_at=setup.expires_at,
     )
     request = seed.request
-    demo_result = submit_demo_request(request)
+    demo_result = _submit_demo_request_through_qore_risk(
+        risk=risk,
+        request=request,
+        snapshot=preflight_snapshot,
+        observed_at=request_at,
+    )
     if phase20_after_submit is not None:
         phase20_after_submit(
             opportunity,
@@ -749,7 +788,12 @@ def _process_r34_candidate(
     )
     request = seed.request
     base_risk_usd = seed.plan.stop_risk_usd
-    demo_result = submit_demo_request(request)
+    demo_result = _submit_demo_request_through_qore_risk(
+        risk=risk,
+        request=request,
+        snapshot=preflight_snapshot,
+        observed_at=request_at,
+    )
     if demo_result.state == "SUBMITTED" and demo_result.client_order_id is not None:
         r34_store.mark_open(
             client_order_id=demo_result.client_order_id,
@@ -805,7 +849,12 @@ def _process_r38_candidate(
     )
     request = seed.request
     base_risk_usd = seed.plan.stop_risk_usd
-    demo_result = submit_demo_request(request)
+    demo_result = _submit_demo_request_through_qore_risk(
+        risk=risk,
+        request=request,
+        snapshot=preflight_snapshot,
+        observed_at=request_at,
+    )
     if demo_result.state == "SUBMITTED" and demo_result.client_order_id is not None:
         r38_store.mark_open(
             client_order_id=demo_result.client_order_id,
@@ -861,7 +910,12 @@ def _process_r43_candidate(
     )
     request = seed.request
     base_risk_usd = seed.plan.stop_risk_usd
-    demo_result = submit_demo_request(request)
+    demo_result = _submit_demo_request_through_qore_risk(
+        risk=risk,
+        request=request,
+        snapshot=preflight_snapshot,
+        observed_at=request_at,
+    )
     if demo_result.state == "SUBMITTED" and demo_result.client_order_id is not None:
         r43_store.mark_open(
             client_order_id=demo_result.client_order_id,
@@ -917,7 +971,12 @@ def _process_gbpjpy_r38_candidate(
     )
     request = seed.request
     base_risk_usd = seed.plan.stop_risk_usd
-    demo_result = submit_demo_request(request)
+    demo_result = _submit_demo_request_through_qore_risk(
+        risk=risk,
+        request=request,
+        snapshot=preflight_snapshot,
+        observed_at=request_at,
+    )
     if demo_result.state == "SUBMITTED" and demo_result.client_order_id is not None:
         gbpjpy_r38_store.mark_open(
             client_order_id=demo_result.client_order_id,
@@ -1006,7 +1065,12 @@ def _process_audjpy_r42_candidate(
     request = seed.request
     base_risk_usd = seed.plan.stop_risk_usd
 
-    demo_result = submit_demo_request(request)
+    demo_result = _submit_demo_request_through_qore_risk(
+        risk=risk,
+        request=request,
+        snapshot=preflight_snapshot,
+        observed_at=request_at,
+    )
     if demo_result.state == "SUBMITTED" and demo_result.client_order_id is not None:
         audjpy_r42_store.mark_open(
             client_order_id=demo_result.client_order_id,
@@ -1267,6 +1331,49 @@ def run(
     exit_ledger = _NoopExitLedger()
     risk = DurableAccountWideRiskEngine(risk_ledger)
     gateway = CTraderDemoReadOnlyGateway(demo_api)
+
+    def current_execution_risk_snapshot(
+        *,
+        observed_at: datetime,
+    ) -> AccountRiskSnapshot:
+        account_state = _account_state_from_demo_api(
+            demo_api,
+            observed_at,
+        )
+        pending_stop_risk = demo_sink.registry.pending_stop_risk(
+            now=observed_at,
+            provider_order_status=demo_api.pending_order_status,
+        )
+        committed_stop_risk = demo_sink.registry.committed_stop_risk(
+            now=observed_at,
+            provider_order_status=demo_api.pending_order_status,
+        )
+        if committed_stop_risk < pending_stop_risk:
+            raise RuntimeError(
+                "ctrader-demo-risk-registry-committed-below-pending"
+            )
+        open_stop_risk = committed_stop_risk - pending_stop_risk
+        provider_budget = CiboDemoCapabilitySolvencyBudget(
+            provider_headroom=account_state.equity,
+            max_risk_at_any_time=account_state.equity,
+            active_mll=Decimal(0),
+            hard_breach=account_state.equity <= 0,
+        )
+        return AccountRiskSnapshot(
+            account_binding_id=fingerprint,
+            equity=account_state.equity,
+            margin_used=account_state.margin,
+            free_margin=account_state.free_margin,
+            open_stop_worst_case_loss=open_stop_risk,
+            open_floating_loss=max(
+                Decimal(0),
+                account_state.balance - account_state.equity,
+            ),
+            pending_broker_worst_case_loss=pending_stop_risk,
+            qore_authorizable_headroom=account_state.equity,
+            provider_budget=provider_budget,
+            reconciled_at=account_state.observed_at,
+        )
 
     def recover_demo_market_state(
         *,
@@ -1541,8 +1648,8 @@ def run(
                 cibo_capital_mission.capability_measurement_enabled
             ),
             "ctrader_demo_writer": True,
-            "account_wide_risk_active": False,
-            "risk_role": "CAPITAL_ALLOCATOR_ONLY",
+            "account_wide_risk_active": True,
+            "risk_role": "SOVEREIGN_HARD_GOVERNOR",
             "prop_firm_policy_active": False,
             "gbpjpy_r38_enabled": True,
             "gbpjpy_r38_identity": "TURTLE_SOUP_GBPJPY_R38",
@@ -1590,7 +1697,7 @@ def run(
                 "artifacts/ctrader_demo_live_behavior_lab/market-tape.jsonl"
             ),
             "behavior_lab_market_tape_mode": "EVERY_VALID_BROKER_SPOT_EVENT",
-            "risk_role": "CAPITAL_ALLOCATOR_ONLY",
+            "risk_role": "SOVEREIGN_HARD_GOVERNOR",
         },
     )
     last_lifecycle: str | None = None
@@ -1697,7 +1804,9 @@ def run(
                     arm_capital = SimpleNamespace(
                                                 qore_authorizable_headroom=arm_account.equity,
                     )
-                    arm_snapshot = None
+                    arm_snapshot = current_execution_risk_snapshot(
+                        observed_at=arm_started_at,
+                    )
                     arm_specs = {
                         symbol: gateway.read_symbol(symbol, now=arm_started_at)
                         for symbol in ("XAUUSD", "EURUSD", "GBPUSD", "GBPJPY", "AUDJPY")
@@ -2680,7 +2789,9 @@ def run(
                 vt31_capital = SimpleNamespace(
                                         qore_authorizable_headroom=vt31_account.equity,
                 )
-                vt31_snapshot = None
+                vt31_snapshot = current_execution_risk_snapshot(
+                    observed_at=vt31_arm_started_at,
+                )
                 vt31_lifecycle = SimpleNamespace(value="DEMO_FREE")
                 vt31_blocked = False
                 vt31_boundary = await_vt31_boundary_snapshot(
@@ -3593,6 +3704,9 @@ def run(
                             capital_budget=capital,
                             account_equity=account_state.equity,
                             log_path=log_path,
+                            preflight_snapshot=current_execution_risk_snapshot(
+                                observed_at=cycle_at,
+                            ),
                             phase20_after_submit=observe_vt08_phase20_candidate,
                         )
                     processed_anchor = anchor_key
@@ -3657,6 +3771,9 @@ def run(
                             account_equity=account_state.equity,
                             r34_store=r34_store,
                             log_path=log_path,
+                            preflight_snapshot=current_execution_risk_snapshot(
+                                observed_at=cycle_at,
+                            ),
                         )
                     processed_anchor = r34_anchor_key
                     state = state.with_cycle(
@@ -3724,6 +3841,9 @@ def run(
                             account_equity=account_state.equity,
                             r38_store=r38_store,
                             log_path=log_path,
+                            preflight_snapshot=current_execution_risk_snapshot(
+                                observed_at=cycle_at,
+                            ),
                         )
                     processed_anchor = r38_anchor_key
                     state = state.with_cycle(
@@ -3793,6 +3913,9 @@ def run(
                             account_equity=account_state.equity,
                             r43_store=r43_store,
                             log_path=log_path,
+                            preflight_snapshot=current_execution_risk_snapshot(
+                                observed_at=cycle_at,
+                            ),
                         )
                     processed_anchor = r43_anchor_key
                     state = state.with_cycle(
@@ -3866,6 +3989,9 @@ def run(
                             account_equity=account_state.equity,
                             gbpjpy_r38_store=gbpjpy_r38_store,
                             log_path=log_path,
+                            preflight_snapshot=current_execution_risk_snapshot(
+                                observed_at=cycle_at,
+                            ),
                         )
                     processed_anchor = gbpjpy_r38_anchor_key
                     state = state.with_cycle(
