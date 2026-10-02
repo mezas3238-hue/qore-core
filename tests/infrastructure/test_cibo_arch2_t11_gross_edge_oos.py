@@ -53,7 +53,7 @@ def _population() -> tuple[T11GrossEdgeFreshObservation, ...]:
                     stop_risk_per_volume_usd=Decimal("10"),
                     outcome_reconciled=True,
                     provider_bound=True,
-                    holdout_receipt_authorized=True,
+                    fresh_oos_source_authorized=True,
                 )
             )
             minute += 1
