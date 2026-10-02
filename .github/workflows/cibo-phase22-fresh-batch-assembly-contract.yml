@@ -7,6 +7,8 @@ on:
     paths:
       - 'src/qore/infrastructure/cibo_phase22_fresh_batch_assembly.py'
       - 'scripts/cibo_phase22_fresh_batch_assembler.py'
+      - 'scripts/cibo_phase22_vt08_fresh_runner.py'
+      - 'tests/infrastructure/test_cibo_phase22_vt08_fresh_runner.py'
       - 'tests/infrastructure/test_cibo_phase22_fresh_batch_assembly.py'
       - '.github/workflows/cibo-phase22-fresh-batch-assembly-contract.yml'
   pull_request:
@@ -34,9 +36,13 @@ jobs:
           ruff check \
             src/qore/infrastructure/cibo_phase22_fresh_batch_assembly.py \
             scripts/cibo_phase22_fresh_batch_assembler.py \
-            tests/infrastructure/test_cibo_phase22_fresh_batch_assembly.py
+            scripts/cibo_phase22_vt08_fresh_runner.py \
+            tests/infrastructure/test_cibo_phase22_fresh_batch_assembly.py \
+            tests/infrastructure/test_cibo_phase22_vt08_fresh_runner.py
           mypy \
             src/qore/infrastructure/cibo_phase22_fresh_batch_assembly.py \
-            scripts/cibo_phase22_fresh_batch_assembler.py
+            scripts/cibo_phase22_fresh_batch_assembler.py \
+            scripts/cibo_phase22_vt08_fresh_runner.py
           pytest -q --no-cov \
-            tests/infrastructure/test_cibo_phase22_fresh_batch_assembly.py
+            tests/infrastructure/test_cibo_phase22_fresh_batch_assembly.py \
+            tests/infrastructure/test_cibo_phase22_vt08_fresh_runner.py

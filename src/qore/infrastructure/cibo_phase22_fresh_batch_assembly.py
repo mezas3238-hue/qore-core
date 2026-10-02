@@ -31,11 +31,13 @@ from qore.infrastructure.cibo_phase22_fresh_opportunity_batch import (
 from qore.infrastructure.cibo_phase22_holdout_v2_source_receipt import (
     CANDIDATE_ID,
     V2_SOURCE_BINDINGS,
+    Phase22V2SourceBinding,
     phase22_v2_holdout_source_receipt_sha256,
 )
 from qore.infrastructure.cibo_phase22_trader_parity_manifest import (
     ACTIVE_PHASE22_TRADER_PARITY_MANIFEST,
     CANONICAL_PHASE22_TRADER_IDS,
+    Phase22TraderParityReceipt,
 )
 
 _SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
@@ -60,7 +62,7 @@ def _require_sha256(value: str, name: str) -> str:
     return value
 
 
-def _parity_receipt(trader_id: str):
+def _parity_receipt(trader_id: str) -> Phase22TraderParityReceipt:
     parity = ACTIVE_PHASE22_TRADER_PARITY_MANIFEST
     if parity is None:
         raise CiboCapitalManagementError(
@@ -74,7 +76,7 @@ def _parity_receipt(trader_id: str):
     )
 
 
-def _source_binding(symbol: str, *, timeframe: str):
+def _source_binding(symbol: str, *, timeframe: str) -> Phase22V2SourceBinding:
     matches = tuple(
         item
         for item in V2_SOURCE_BINDINGS
