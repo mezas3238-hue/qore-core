@@ -42,31 +42,31 @@ FROZEN_TURTLE_REPLAY_SOURCES = (
         "R34_XAUUSD",
         "56ef138ee5ea1cde6d0bcf4c9e25e8b661c04e84",
         "src/qore/infrastructure/trader_lab/"
-        "cibo_phase18_xauusd_r34_geometry_replay.py",
+        "turtle_soup_xauusd_r34_frozen_r33_5y_validation.py",
     ),
     FrozenFreshReplaySource(
         "R38_EURUSD",
         "324fb91d44a6fa328e66de2e22ace7386630c7aa",
         "src/qore/infrastructure/trader_lab/"
-        "cibo_phase18_eurusd_r38_geometry_replay.py",
+        "turtle_soup_eurusd_r38_5y_structural_risk_correction.py",
     ),
     FrozenFreshReplaySource(
         "R43_GBPUSD",
         "e02d9384fbe6521040fc2779a085c43b8d5f0f92",
         "src/qore/infrastructure/trader_lab/"
-        "cibo_phase18_gbpusd_r39_geometry_replay.py",
+        "turtle_soup_gbpusd_r39_frozen_r37_5y_validation.py",
     ),
     FrozenFreshReplaySource(
         "R38_GBPJPY",
         "eb62226e05f63cf94c1940634de676c55285e6dd",
         "src/qore/infrastructure/trader_lab/"
-        "cibo_phase18_gbpjpy_r37_geometry_replay.py",
+        "turtle_soup_gbpjpy_r37_frozen_r36_5y_validation.py",
     ),
     FrozenFreshReplaySource(
         "R42_AUDJPY",
         "a332b077598e070a42b2497b3766d55e731f7dca",
         "src/qore/infrastructure/trader_lab/"
-        "cibo_phase18_audjpy_r40_geometry_replay.py",
+        "turtle_soup_audjpy_r40_frozen_r39_5y_validation.py",
     ),
 )
 FROZEN_VT31_SOURCE_SHA = "cac38ed14f20e066536910145027426fd23f5939"
