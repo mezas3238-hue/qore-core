@@ -23,13 +23,13 @@ from qore.infrastructure.cibo_ce2i_phase20_t09_t18_phase22_true_scarcity_lineage
 from qore.infrastructure.cibo_phase22_historical_replay_economics_amendment import (
     EXECUTION_ECONOMICS_KIND,
 )
-from qore.infrastructure.cibo_phase22_holdout_v2_source_receipt import (
-    V2_SOURCE_BINDINGS,
-    phase22_v2_holdout_source_receipt_sha256,
-)
 from qore.infrastructure.cibo_phase22_historical_replay_settlement import (
     Phase22HistoricalReplayOutcomeSeal,
     VersionedPhase22HistoricalReplayEvidenceBook,
+)
+from qore.infrastructure.cibo_phase22_holdout_v2_source_receipt import (
+    V2_SOURCE_BINDINGS,
+    phase22_v2_holdout_source_receipt_sha256,
 )
 
 BASE = datetime(2015, 10, 20, 12, 0, tzinfo=UTC)
