@@ -248,3 +248,29 @@ def test_genc8_rejects_non_datetime_horizon_and_non_string_digest() -> None:
         match="population_sha256 must be canonical SHA-256",
     ):
         replace(control, population_sha256=None)
+
+
+def test_genc8_rejects_inconsistent_drawdown_quantiles() -> None:
+    control = _observation(
+        candidate_id="control",
+        role=Genc8EconomicRole.CONTROL,
+    )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="drawdown quantiles are inconsistent",
+    ):
+        replace(
+            control,
+            p95_drawdown_usd=Decimal("4.8"),
+            p99_drawdown_usd=Decimal("4.7"),
+        )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="drawdown quantiles are inconsistent",
+    ):
+        replace(
+            control,
+            p99_drawdown_usd=Decimal("5.1"),
+        )
