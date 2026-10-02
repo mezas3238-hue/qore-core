@@ -160,6 +160,10 @@ def build_architect_a1_integrator_handoff(
         if item.scientific_status is A1ScientificStatus.FALSIFIED_AND_CLOSED
     )
     blockers: list[str] = []
+    if package.source_branch != A1_BRANCH:
+        blockers.append("A1_DISPOSITION_PACKAGE_BRANCH_DRIFT")
+    if package.source_head != a1_head_sha:
+        blockers.append("A1_DISPOSITION_PACKAGE_HEAD_DRIFT")
     if not readiness.engineering_ready:
         blockers.append("A1_INTERNAL_READINESS_NOT_GREEN")
     if not package.complete_handoff:
