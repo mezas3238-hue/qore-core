@@ -32,6 +32,7 @@ from qore.infrastructure.cibo_final_integrated_exam_assembly import (
 )
 from qore.infrastructure.cibo_scientific_closure_41 import (
     CANONICAL_PROVIDER_IDENTITY,
+    validate_certifiable_holdout_id,
 )
 from qore.infrastructure.cibo_world_cup_maximum_capability_exam import (
     WorldCupMaximumCapabilityReport,
@@ -52,10 +53,6 @@ _EXAM_IDS = (
 )
 _SHA1_RE = re.compile(r"^[0-9a-f]{40}$")
 _SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
-_HOLDOUT_ID_RE = re.compile(
-    r"^CIBO_USD60_6M_HOLDOUT_\d{4}-\d{2}-\d{2}_"
-    r"\d{4}-\d{2}-\d{2}_V\d+$"
-)
 
 
 class CiboCertificationSealStatus(StrEnum):
@@ -111,10 +108,10 @@ class CiboCertificationClosureTransition:
             raise CiboCapitalManagementError(
                 "CIBO certification closure identity drift"
             )
-        if _HOLDOUT_ID_RE.fullmatch(self.holdout_candidate_id) is None:
-            raise CiboCapitalManagementError(
-                "CIBO certification closure holdout identity invalid"
-            )
+        validate_certifiable_holdout_id(
+            self.holdout_candidate_id,
+            "certification closure holdout identity",
+        )
         if _SHA1_RE.fullmatch(self.evidence_head_sha) is None:
             raise CiboCapitalManagementError(
                 "CIBO certification closure evidence HEAD invalid"
@@ -197,10 +194,10 @@ class CiboCertificationSeal:
             raise CiboCapitalManagementError("CIBO certification seal identity drift")
         if self.status is not CiboCertificationSealStatus.CERTIFIED:
             raise CiboCapitalManagementError("CIBO certification seal status drift")
-        if _HOLDOUT_ID_RE.fullmatch(self.holdout_candidate_id) is None:
-            raise CiboCapitalManagementError(
-                "CIBO certification seal holdout identity invalid"
-            )
+        validate_certifiable_holdout_id(
+            self.holdout_candidate_id,
+            "certification seal holdout identity",
+        )
         for name in ("evidence_head_sha", "closure_head_sha"):
             if _SHA1_RE.fullmatch(getattr(self, name)) is None:
                 raise CiboCapitalManagementError(
@@ -269,10 +266,10 @@ def build_certification_closure_ledger(
 ) -> tuple[dict[str, Any], CiboCertificationClosureTransition]:
     """Terminalize only the two exam rows after both receipt-bound exams PASS."""
 
-    if _HOLDOUT_ID_RE.fullmatch(holdout_candidate_id) is None:
-        raise CiboCapitalManagementError(
-            "CIBO certification closure holdout identity invalid"
-        )
+    validate_certifiable_holdout_id(
+        holdout_candidate_id,
+        "certification closure holdout identity",
+    )
     if pre_ledger.get("schema") != _LEDGER_SCHEMA:
         raise CiboCapitalManagementError(
             "CIBO certification closure ledger schema drift"
