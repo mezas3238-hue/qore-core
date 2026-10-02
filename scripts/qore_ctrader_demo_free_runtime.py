@@ -70,6 +70,10 @@ from qore.infrastructure.cibo_phase20_bounded_runtime import (
 from qore.infrastructure.cibo_ctrader_demo_sizing import (
     build_ctrader_demo_cibo_sizing,
 )
+from qore.infrastructure.cibo_demo_risk_reservation_reconciliation import (
+    confirmed_fill_authorization_ids,
+    reconcile_demo_risk_reservations,
+)
 from qore.infrastructure.cibo_ce2i_phase20_ctrader_recovery import (
     reconcile_ctrader_demo_phase20_entry,
 )
@@ -1332,10 +1336,46 @@ def run(
     risk = DurableAccountWideRiskEngine(risk_ledger)
     gateway = CTraderDemoReadOnlyGateway(demo_api)
 
+    def reconcile_execution_risk_reservations(
+        *,
+        observed_at: datetime,
+    ):
+        registry_entries = demo_sink.registry.entries()
+        confirmed = confirmed_fill_authorization_ids(
+            registry_entries=registry_entries,
+            mutation_records=phase20_mutation_ledger.records(),
+        )
+        settlement_book = cma_settlement_store.load()
+        terminal_keys = frozenset(
+            (item.signal_fingerprint, item.position_id)
+            for item in settlement_book.states
+            if item.position_closed
+        )
+        open_position_ids = frozenset(
+            item.position_id
+            for item in demo_sink.position_service.positions()
+        )
+        report = reconcile_demo_risk_reservations(
+            risk=risk,
+            registry_entries=registry_entries,
+            confirmed_fill_authorization_ids=confirmed,
+            terminal_settlement_keys=terminal_keys,
+            broker_open_position_ids=open_position_ids,
+            provider_order_status=demo_api.pending_order_status,
+            observed_at=observed_at,
+        )
+        if report.blockers:
+            raise RuntimeError(
+                "ctrader-demo-risk-reservation-reconciliation-blocked:"
+                + "|".join(report.blockers)
+            )
+        return report
+
     def current_execution_risk_snapshot(
         *,
         observed_at: datetime,
     ) -> AccountRiskSnapshot:
+        reconcile_execution_risk_reservations(observed_at=observed_at)
         account_state = _account_state_from_demo_api(
             demo_api,
             observed_at,
@@ -1421,6 +1461,27 @@ def run(
     highest = Decimal(str(account_info.balance))
     previous_mll = Decimal(str(account_info.equity))
     log_path = root / "artifacts" / "ctrader_demo_free_runtime_events.jsonl"
+
+    risk_boot_at = datetime.now(UTC)
+    risk_boot_snapshot = current_execution_risk_snapshot(
+        observed_at=risk_boot_at,
+    )
+    risk.complete_boot_reconciliation(
+        risk_boot_snapshot,
+        now=risk_boot_at,
+    )
+    _log(
+        log_path,
+        {
+            "event": "CTRADER_DEMO_RISK_BOOT_RECONCILED",
+            "observed_at": risk_boot_at.isoformat(),
+            "active_reserved_stop_risk_usd": format(
+                risk.active_reserved_stop_risk(),
+                "f",
+            ),
+            "broker_mutation_performed": False,
+        },
+    )
 
     def observe_phase20_single_slot(
         *,
