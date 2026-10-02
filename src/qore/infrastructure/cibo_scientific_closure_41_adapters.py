@@ -60,7 +60,6 @@ from qore.infrastructure.cibo_phase22_trader_parity_manifest import (
     CANONICAL_PHASE22_TRADER_IDS,
 )
 from qore.infrastructure.cibo_scientific_closure_41 import (
-    CANONICAL_HOLDOUT_ID,
     CANONICAL_POLICY_IDENTITY,
     CANONICAL_PROVIDER_IDENTITY,
     CANONICAL_QUALIFICATION_PLAN_IDENTITY,
