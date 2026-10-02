@@ -25,7 +25,8 @@ from qore.infrastructure.cibo_ce2i_usd60_six_month_certification import (
     CiboMaximumCapabilityGateSet,
 )
 from qore.infrastructure.cibo_scientific_closure_41 import (
-    CANONICAL_HOLDOUT_ID,
+    CONSUMED_INVALID_V4_HOLDOUT_ID,
+    SOURCE_UNAVAILABLE_V5_HOLDOUT_ID,
     CANONICAL_POLICY_IDENTITY,
     CANONICAL_PROVIDER_IDENTITY,
     CANONICAL_QUALIFICATION_PLAN_IDENTITY,
@@ -52,6 +53,9 @@ from qore.infrastructure.cibo_scientific_closure_41_adapters import (
 )
 
 
+SUCCESSOR_HOLDOUT_ID = "CIBO_USD60_6M_HOLDOUT_2013-10-19_2014-04-19_V6"
+
+
 def _sha(label: str) -> str:
     return "sha256:" + sha256(label.encode("utf-8")).hexdigest()
 
@@ -59,8 +63,8 @@ def _sha(label: str) -> str:
 def _binding(
     *,
     integrity: str = "PASS",
-    holdout_id: str = CANONICAL_HOLDOUT_ID,
-    population_identity: str = "phase22-v4:canonical",
+    holdout_id: str = SUCCESSOR_HOLDOUT_ID,
+    population_identity: str = "phase22-v6:canonical",
 ) -> CanonicalScientificBinding:
     return CanonicalScientificBinding(
         scientific_hypothesis="Frozen preregistered hypothesis",
@@ -80,8 +84,8 @@ def _binding(
 
 def _v4_handoff(
     *,
-    candidate_id: str = CANONICAL_HOLDOUT_ID,
-    population_identity: str = "phase22-v4:canonical",
+    candidate_id: str = SUCCESSOR_HOLDOUT_ID,
+    population_identity: str = "phase22-v6:canonical",
     trader_ids: tuple[str, ...] = (
         "VT08_FOREX",
         "R34_XAUUSD",
@@ -94,9 +98,9 @@ def _v4_handoff(
 ) -> Group1V4TerminalEvidenceHandoff:
     return Group1V4TerminalEvidenceHandoff(
         candidate_id=candidate_id,
-        phase22_manifest_sha256=_sha("v4-manifest"),
-        outcome_bundle_sha256=_sha("v4-outcomes"),
-        qualification_artifact_sha256=_sha("v4-qualification"),
+        phase22_manifest_sha256=_sha("successor-manifest"),
+        outcome_bundle_sha256=_sha("successor-outcomes"),
+        qualification_artifact_sha256=_sha("successor-qualification"),
         population_identity=population_identity,
         policy_identity=CANONICAL_POLICY_IDENTITY,
         qualification_plan_identity=CANONICAL_QUALIFICATION_PLAN_IDENTITY,
@@ -117,13 +121,13 @@ def _group2_handoff(
     *,
     status: str = "PASS",
     manifest: str | None = None,
-    population: str = "phase22-v4:canonical",
+    population: str = "phase22-v6:canonical",
 ) -> Group2CapitalTerminalEvidenceHandoff:
     passed = status == "PASS"
     return Group2CapitalTerminalEvidenceHandoff(
         workstream_id=workstream_id,
-        candidate_id=CANONICAL_HOLDOUT_ID,
-        phase22_manifest_sha256=manifest or _sha("v4-manifest"),
+        candidate_id=SUCCESSOR_HOLDOUT_ID,
+        phase22_manifest_sha256=manifest or _sha("successor-manifest"),
         source_gate_id=f"gate:{workstream_id}",
         source_gate_evidence_sha256=_sha(f"evidence:{workstream_id}"),
         source_gate_status=status,
@@ -353,15 +357,16 @@ def test_t11_passed_market_impact_still_requires_fresh_gross_edge() -> None:
         )
 
 
-def test_legacy_v4_fresh_handoff_adapter_remains_compatible() -> None:
-    evidence = adapt_group1_v4_fresh_oos_handoff(
-        handoff=_v4_handoff(),
-        binding=_binding(),
-    )
-    assert evidence.workstream_id == "FRESH_OOS"
-    assert evidence.previous_disposition == "OPEN"
-    assert evidence.holdout_id == CANONICAL_HOLDOUT_ID
-    assert evidence.terminal_disposition == COMPLETED
+@pytest.mark.parametrize(
+    "holdout_id",
+    [CONSUMED_INVALID_V4_HOLDOUT_ID, SOURCE_UNAVAILABLE_V5_HOLDOUT_ID],
+)
+def test_noncertifiable_fresh_handoff_is_rejected(holdout_id: str) -> None:
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="explicitly non-certifiable",
+    ):
+        _v4_handoff(candidate_id=holdout_id)
 
 
 def test_successor_fresh_handoff_accepts_exact_v6_identity() -> None:
@@ -473,8 +478,8 @@ def test_group2_capital_pass_cannot_hide_failed_dimension() -> None:
     ):
         Group2CapitalTerminalEvidenceHandoff(
             workstream_id="TEMPORAL_REPLICATION",
-            candidate_id=CANONICAL_HOLDOUT_ID,
-            phase22_manifest_sha256=_sha("v4-manifest"),
+            candidate_id=SUCCESSOR_HOLDOUT_ID,
+            phase22_manifest_sha256=_sha("successor-manifest"),
             source_gate_id="gate:TEMPORAL_REPLICATION",
             source_gate_evidence_sha256=_sha("temporal"),
             source_gate_status="PASS",
