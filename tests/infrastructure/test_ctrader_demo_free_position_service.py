@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from threading import Event
 from types import SimpleNamespace
 
 import pytest
@@ -204,6 +205,43 @@ def test_account_snapshot_timestamp_follows_broker_reads() -> None:
     assert snapshot.observed_at >= client.last_request_completed_at
 
 
+class ConcurrentAccountClient(FakeClient):
+    def __init__(self) -> None:
+        super().__init__()
+        self.trader_started = Event()
+        self.pnl_started = Event()
+
+    def request(self, message_name, fields, *, client_msg_id, timeout_seconds):
+        if message_name == "ProtoOATraderReq":
+            self.trader_started.set()
+            if not self.pnl_started.wait(timeout=0.5):
+                raise AssertionError("account requests executed serially")
+        elif message_name == "ProtoOAGetPositionUnrealizedPnLReq":
+            self.pnl_started.set()
+            if not self.trader_started.wait(timeout=0.5):
+                raise AssertionError("account requests executed serially")
+        return super().request(
+            message_name,
+            fields,
+            client_msg_id=client_msg_id,
+            timeout_seconds=timeout_seconds,
+        )
+
+
+def test_account_snapshot_reads_balance_and_pnl_concurrently() -> None:
+    client = ConcurrentAccountClient()
+    service = CTraderDemoFreePositionService(
+        client=client,
+        configuration=_configuration(),
+    )
+
+    snapshot = service.account_snapshot(observed_at=NOW)
+
+    assert snapshot.equity == Decimal("100023.00")
+    assert client.trader_started.is_set()
+    assert client.pnl_started.is_set()
+
+
 class LabelReconcileClient(FakeClient):
     def __init__(self, labels: tuple[str, ...]) -> None:
         super().__init__()
@@ -268,3 +306,5 @@ def test_positions_fail_closed_for_unknown_qore_identity() -> None:
         match="unknown QORE position label",
     ):
         service.positions()
+
+[executed on device: vps-vrix (dc465c7d-1698-4cb8-921f-a008b11315c7)]
