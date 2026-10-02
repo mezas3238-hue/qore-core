@@ -11,7 +11,8 @@ from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
 from qore.infrastructure.cibo_scientific_closure_41 import (
-    CANONICAL_HOLDOUT_ID,
+    CONSUMED_INVALID_V4_HOLDOUT_ID,
+    SOURCE_UNAVAILABLE_V5_HOLDOUT_ID,
     CANONICAL_POLICY_IDENTITY,
     CANONICAL_PROVIDER_IDENTITY,
     COMPLETED,
@@ -29,6 +30,7 @@ from qore.infrastructure.cibo_scientific_closure_41 import (
 )
 
 LEDGER_PATH = Path("docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json")
+SUCCESSOR_HOLDOUT_ID = "CIBO_USD60_6M_HOLDOUT_2013-10-19_2014-04-19_V6"
 
 
 def _sha(label: str) -> str:
@@ -42,7 +44,7 @@ def _evidence(
     manifest: str | None = None,
     policy_identity: str = CANONICAL_POLICY_IDENTITY,
     provider_identity: str = CANONICAL_PROVIDER_IDENTITY,
-    holdout_id: str = CANONICAL_HOLDOUT_ID,
+    holdout_id: str = SUCCESSOR_HOLDOUT_ID,
     causal_lineage: str | None = None,
     evidence_sha256s: tuple[str, ...] | None = None,
     synthetic: bool = False,
@@ -64,7 +66,7 @@ def _evidence(
             if evidence_sha256s is None
             else evidence_sha256s
         ),
-        population_identity=f"phase22-v4:{workstream_id}",
+        population_identity=f"phase22-v6:{workstream_id}",
         policy_identity=policy_identity,
         provider_identity=provider_identity,
         causal_lineage=causal_lineage or _sha(f"lineage:{workstream_id}"),
@@ -196,6 +198,18 @@ def test_holdout_mismatch_fails_closed() -> None:
 
 
 @pytest.mark.parametrize(
+    "holdout_id",
+    [CONSUMED_INVALID_V4_HOLDOUT_ID, SOURCE_UNAVAILABLE_V5_HOLDOUT_ID],
+)
+def test_known_noncertifiable_holdouts_fail_closed(holdout_id: str) -> None:
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="explicitly non-certifiable",
+    ):
+        _evidence("T02", holdout_id=holdout_id)
+
+
+@pytest.mark.parametrize(
     ("kwargs", "message"),
     [
         ({"future_leakage": True}, "contaminated evidence"),
@@ -251,7 +265,7 @@ def test_package_accepts_one_successor_holdout_and_rejects_cross_holdout_mix() -
     mixed = (*evidence[:-1], _evidence(
         SCIENTIFIC_CLOSURE_41_IDS[-1],
         manifest=manifest,
-        holdout_id=CANONICAL_HOLDOUT_ID,
+        holdout_id="CIBO_USD60_6M_HOLDOUT_2013-04-19_2013-10-19_V7",
     ))
     with pytest.raises(
         CiboCapitalManagementError,
