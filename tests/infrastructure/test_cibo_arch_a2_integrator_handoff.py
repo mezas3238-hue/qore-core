@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from qore.infrastructure.cibo_arch_a2_integrator_handoff import (
-    ARCH_A_BASE_SHA,
     A2_BRANCH,
+    ARCH_A_BASE_SHA,
     CAPITAL_SCIENCE_ENGINEERING_CLOSURE_SCHEMA,
     HISTORICAL_COMPOUND_ADAPTER_ID,
     HISTORICAL_COMPOUND_CONTRACT_ID,
