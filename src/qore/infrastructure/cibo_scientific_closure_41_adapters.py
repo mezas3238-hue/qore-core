@@ -72,15 +72,12 @@ from qore.infrastructure.cibo_scientific_closure_41 import (
     ScientificClosure41Evidence,
     ScientificClosure41Package,
     build_scientific_closure_41_package,
+    validate_certifiable_holdout_id,
 )
 
 DEPENDENCY_SCHEMA = "QORE_CIBO_SCIENTIFIC_CLOSURE_41_DEPENDENCIES_V1"
 _SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 _SHA1_RE = re.compile(r"^[0-9a-f]{40}$")
-_HOLDOUT_ID_RE = re.compile(
-    r"^CIBO_USD60_6M_HOLDOUT_\d{4}-\d{2}-\d{2}_"
-    r"\d{4}-\d{2}-\d{2}_V\d+$"
-)
 
 # Legacy source surfaces remain importable because several already-built gates
 # still emit these canonical receipt types. They are not the current ownership
@@ -197,10 +194,10 @@ class Group1V4TerminalEvidenceHandoff:
     merge_authorized: bool = False
 
     def __post_init__(self) -> None:
-        if _HOLDOUT_ID_RE.fullmatch(self.candidate_id) is None:
-            raise CiboCapitalManagementError(
-                "Group-1 fresh handoff candidate identity invalid"
-            )
+        validate_certifiable_holdout_id(
+            self.candidate_id,
+            "Group-1 fresh handoff candidate identity",
+        )
         for name in (
             "phase22_manifest_sha256",
             "outcome_bundle_sha256",
@@ -302,10 +299,10 @@ class Group2CapitalTerminalEvidenceHandoff:
             raise CiboCapitalManagementError(
                 "Group-2 capital handoff ownership drift"
             )
-        if _HOLDOUT_ID_RE.fullmatch(self.candidate_id) is None:
-            raise CiboCapitalManagementError(
-                "Group-2 capital handoff candidate identity invalid"
-            )
+        validate_certifiable_holdout_id(
+            self.candidate_id,
+            "Group-2 capital handoff candidate identity",
+        )
         for name in (
             "phase22_manifest_sha256",
             "source_gate_evidence_sha256",
@@ -398,7 +395,7 @@ class CanonicalScientificBinding:
     temporal_replication_result: str
     integrity_result: str
     evaluated_at: datetime
-    holdout_id: str = CANONICAL_HOLDOUT_ID
+    holdout_id: str
     evidence_origin: str = "CANONICAL_GATE_RECEIPT"
 
     def __post_init__(self) -> None:
@@ -427,10 +424,10 @@ class CanonicalScientificBinding:
             raise CiboCapitalManagementError(
                 "Canonical scientific binding population identity required"
             )
-        if _HOLDOUT_ID_RE.fullmatch(self.holdout_id) is None:
-            raise CiboCapitalManagementError(
-                "Canonical scientific binding holdout identity invalid"
-            )
+        validate_certifiable_holdout_id(
+            self.holdout_id,
+            "Canonical scientific binding holdout identity",
+        )
         if _SHA256_RE.fullmatch(self.causal_lineage) is None:
             raise CiboCapitalManagementError(
                 "Canonical scientific binding causal lineage invalid"
