@@ -465,6 +465,10 @@ def assess_receipt_bound_world_cup_maximum_capability_exam(
     final_report_sha = final_integrated_exam_report_sha256(
         final_integrated_exam
     )
+    by_id: dict[
+        str,
+        WorldCupControlReceipt | CiboCrossBoundaryEvidenceReceipt,
+    ] = {}
     if receipts and all(
         isinstance(item, WorldCupControlReceipt) for item in receipts
     ):
@@ -475,7 +479,7 @@ def assess_receipt_bound_world_cup_maximum_capability_exam(
             raise CiboCapitalManagementError(
                 "World Cup canonical receipt policy identity drift"
             )
-        by_id = _require_world_cup_control_receipts(
+        by_id.update(_require_world_cup_control_receipts(
             receipts=tuple(
                 item
                 for item in receipts
@@ -483,7 +487,7 @@ def assess_receipt_bound_world_cup_maximum_capability_exam(
             ),
             integrated_git_sha=integrated_head_sha,
             final_report_sha256=final_report_sha,
-        )
+        ))
     else:
         if any(
             not isinstance(item, CiboCrossBoundaryEvidenceReceipt)
@@ -492,7 +496,7 @@ def assess_receipt_bound_world_cup_maximum_capability_exam(
             raise CiboCapitalManagementError(
                 "World Cup receipt surface cannot mix receipt types"
             )
-        by_id = require_cross_boundary_receipts(
+        by_id.update(require_cross_boundary_receipts(
             receipts=tuple(
                 item
                 for item in receipts
@@ -501,7 +505,7 @@ def assess_receipt_bound_world_cup_maximum_capability_exam(
             required_receipt_ids=_REQUIRED_RECEIPT_IDS,
             integrated_git_sha=integrated_head_sha,
             policy_identity_sha256=world_cup_policy_identity_sha256,
-        )
+        ))
 
     blockers: list[str] = []
     evidence_sha256s: list[str] = []
