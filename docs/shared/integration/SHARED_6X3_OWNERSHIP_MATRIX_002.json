@@ -8,7 +8,7 @@
     "merged": false
   },
   "checkpoints": {
-    "shared_topology_a": "274d2f5793c04aa197a58484f62774fa84b176b6a",
+    "shared_topology_a": "274d2f5793c04aa197a58484f62774fa84b176b6",
     "architect_b": "fbf40f35f2c662dbe55930e59ac4dab4937f5b6a",
     "checkpoint_only": true
   },
