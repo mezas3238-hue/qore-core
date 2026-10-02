@@ -15,8 +15,6 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass
-from decimal import Decimal
-
 from qore.infrastructure.account_wide_risk import TraderLineage
 from qore.infrastructure.cibo_arch2_t11_gross_edge_oos import (
     T11GrossEdgeFreshObservation,
