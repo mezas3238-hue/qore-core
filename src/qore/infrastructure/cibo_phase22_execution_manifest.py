@@ -30,12 +30,15 @@ from qore.infrastructure.cibo_phase22_holdout_v2_source_receipt import (
 from qore.infrastructure.cibo_phase22_provider_execution_calibration_receipt import (
     PHASE22_PROVIDER_EXECUTION_CALIBRATION_RECEIPT,
 )
+from qore.infrastructure.cibo_phase22_provider_numeric_execution_receipt import (
+    PHASE22_PROVIDER_NUMERIC_EXECUTION_FREEZE_RECEIPT,
+)
 from qore.infrastructure.cibo_phase22_trader_parity_manifest import (
     ACTIVE_PHASE22_TRADER_PARITY_MANIFEST,
     CANONICAL_PHASE22_TRADER_IDS,
 )
 
-SCHEMA = "qore.cibo.phase22.execution-manifest.v4"
+SCHEMA = "qore.cibo.phase22.execution-manifest.v5"
 
 
 @dataclass(frozen=True, slots=True)
@@ -82,6 +85,7 @@ class CiboPhase22ExecutionManifest:
     provider_core_freeze_sha256: str
     dual_evidence_plan_sha256: str
     provider_execution_calibration_receipt_sha256: str
+    provider_numeric_execution_freeze_receipt_sha256: str
     candidate_code_sha: str
     candidate_parameter_sha256: str
     qualification_plan_sha256: str
@@ -132,6 +136,10 @@ class CiboPhase22ExecutionManifest:
             (
                 "provider_execution_calibration_receipt_sha256",
                 PHASE22_PROVIDER_EXECUTION_CALIBRATION_RECEIPT.fingerprint(),
+            ),
+            (
+                "provider_numeric_execution_freeze_receipt_sha256",
+                PHASE22_PROVIDER_NUMERIC_EXECUTION_FREEZE_RECEIPT.fingerprint(),
             ),
             ("candidate_code_sha", readiness.candidate_code_sha),
             (
@@ -199,6 +207,9 @@ class CiboPhase22ExecutionManifest:
             "provider_execution_calibration_receipt_sha256": (
                 self.provider_execution_calibration_receipt_sha256
             ),
+            "provider_numeric_execution_freeze_receipt_sha256": (
+                self.provider_numeric_execution_freeze_receipt_sha256
+            ),
             "candidate_code_sha": self.candidate_code_sha,
             "candidate_parameter_sha256": self.candidate_parameter_sha256,
             "qualification_plan_sha256": self.qualification_plan_sha256,
@@ -225,6 +236,9 @@ class CiboPhase22ExecutionManifest:
             "dual_evidence_plan_sha256": self.dual_evidence_plan_sha256,
             "provider_execution_calibration_receipt_sha256": (
                 self.provider_execution_calibration_receipt_sha256
+            ),
+            "provider_numeric_execution_freeze_receipt_sha256": (
+                self.provider_numeric_execution_freeze_receipt_sha256
             ),
             "candidate_code_sha": self.candidate_code_sha,
             "candidate_parameter_sha256": self.candidate_parameter_sha256,
@@ -274,6 +288,9 @@ def build_phase22_execution_manifest() -> CiboPhase22ExecutionManifest:
         dual_evidence_plan_sha256=PHASE22_DUAL_EVIDENCE_PLAN.fingerprint(),
         provider_execution_calibration_receipt_sha256=(
             PHASE22_PROVIDER_EXECUTION_CALIBRATION_RECEIPT.fingerprint()
+        ),
+        provider_numeric_execution_freeze_receipt_sha256=(
+            PHASE22_PROVIDER_NUMERIC_EXECUTION_FREEZE_RECEIPT.fingerprint()
         ),
         candidate_code_sha=readiness.candidate_code_sha,
         candidate_parameter_sha256=readiness.candidate_parameter_sha256,

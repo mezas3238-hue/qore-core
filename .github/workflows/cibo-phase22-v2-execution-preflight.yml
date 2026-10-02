@@ -10,6 +10,7 @@ on:
       - 'src/qore/infrastructure/cibo_phase22_dual_evidence_plan.py'
       - 'src/qore/infrastructure/cibo_phase22_demo_empirical_provider_receipt.py'
       - 'src/qore/infrastructure/cibo_phase22_provider_execution_calibration_receipt.py'
+      - 'src/qore/infrastructure/cibo_phase22_provider_numeric_execution_receipt.py'
       - 'src/qore/infrastructure/cibo_phase22_store_contract.py'
       - 'src/qore/infrastructure/cibo_phase22_one_shot_guard.py'
       - 'tests/infrastructure/test_cibo_phase22_execution_manifest.py'
@@ -53,20 +54,24 @@ jobs:
           ruff check \
             src/qore/infrastructure/cibo_phase22_execution_manifest.py \
             src/qore/infrastructure/cibo_phase22_provider_execution_calibration_receipt.py \
+            src/qore/infrastructure/cibo_phase22_provider_numeric_execution_receipt.py \
             src/qore/infrastructure/cibo_phase22_store_contract.py \
             src/qore/infrastructure/cibo_phase22_one_shot_guard.py \
             tests/infrastructure/test_cibo_phase22_execution_manifest.py \
             tests/infrastructure/test_cibo_phase22_provider_execution_calibration_receipt.py \
+            tests/infrastructure/test_cibo_phase22_provider_numeric_execution_receipt.py \
             tests/infrastructure/test_cibo_phase22_store_contract.py \
             tests/infrastructure/test_cibo_phase22_one_shot_guard.py
           mypy \
             src/qore/infrastructure/cibo_phase22_execution_manifest.py \
             src/qore/infrastructure/cibo_phase22_provider_execution_calibration_receipt.py \
+            src/qore/infrastructure/cibo_phase22_provider_numeric_execution_receipt.py \
             src/qore/infrastructure/cibo_phase22_store_contract.py \
             src/qore/infrastructure/cibo_phase22_one_shot_guard.py
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_phase22_execution_manifest.py \
             tests/infrastructure/test_cibo_phase22_provider_execution_calibration_receipt.py \
+            tests/infrastructure/test_cibo_phase22_provider_numeric_execution_receipt.py \
             tests/infrastructure/test_cibo_phase22_store_contract.py \
             tests/infrastructure/test_cibo_phase22_one_shot_guard.py
 

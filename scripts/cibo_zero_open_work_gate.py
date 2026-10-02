@@ -136,6 +136,7 @@ _WORKSTREAM_CLASSIFIERS = (
         "PROVIDER_ECONOMICS",
     ),
     ("*cibo_phase22_provider_numeric_execution*", "PROVIDER_ECONOMICS"),
+    ("*cibo_phase22_provider_numeric_execution_receipt*", "PROVIDER_ECONOMICS"),
     ("*cibo-phase22-provider-numeric-execution-freeze*", "PROVIDER_ECONOMICS"),
     ("*cibo_phase22_provider_account_lineage_probe*", "PROVIDER_ECONOMICS"),
     (

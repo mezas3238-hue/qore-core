@@ -21,6 +21,9 @@ def test_execution_manifest_binds_exact_frozen_7_of_7_surface() -> None:
     assert manifest.provider_execution_calibration_receipt_sha256.startswith(
         "sha256:"
     )
+    assert manifest.provider_numeric_execution_freeze_receipt_sha256.startswith(
+        "sha256:"
+    )
     assert manifest.fresh_outcomes_executed is False
     assert manifest.productive_authority is False
     assert manifest.fingerprint().startswith("sha256:")
