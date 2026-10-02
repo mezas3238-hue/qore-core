@@ -1,8 +1,12 @@
 from decimal import Decimal
 
+from qore.infrastructure.account_wide_risk import TraderLineage
 from qore.infrastructure.cibo_account_capital_mission import (
     CiboAccountCapitalIdentity,
     derive_cibo_capital_mission,
+)
+from qore.infrastructure.cibo_capital_management_authority import (
+    TraderOpportunityEnvelope,
 )
 from qore.infrastructure.cibo_ce2i_full_surface import (
     AdvancedPortfolioEvidence,
@@ -20,12 +24,7 @@ from qore.infrastructure.cibo_next_policy_advanced_scientific_eligibility import
     ADVANCED_CODES,
     NEXT_POLICY_ADVANCED_SCIENTIFIC_ELIGIBILITY,
 )
-from qore.infrastructure.account_wide_risk import TraderLineage
-from qore.infrastructure.cibo_capital_management_authority import (
-    TraderOpportunityEnvelope,
-)
 from qore.infrastructure.market_test_environment import MarketRuntimeEnvironment
-
 
 def _selection():
     account = CiboAccountCapitalIdentity(
