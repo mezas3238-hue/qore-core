@@ -16,6 +16,8 @@
   "real_capital_authorized": false,
   "production_authorized": false,
   "merge_authorized": false,
-  "retrigger_for_head": "070c6282d3cde556f36930abfa0d1129aa1b5c72",
-  "retrigger_reason": "rerun USD60 capability exam after import-order repairs; no governance or productive authority change"
+  "retrigger_for_head": "8b704b5dab7ac2777e8e70ff559608624b58dde4",
+  "retrigger_reason": "Owner explicitly ordered launch after 7/7 temporal alignment, trader-column reporting, and compound/portfolio lane were wired and readiness gates opened.",
+  "launch_authorized_by_owner": true,
+  "launch_authorized_at_utc": "2026-10-02T22:00:00Z"
 }
