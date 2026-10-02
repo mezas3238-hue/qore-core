@@ -52,6 +52,12 @@ _REQUIRED_RECEIPT_FIELDS: dict[str, tuple[str, ...]] = {
     "WC04_WORLD_CUP_DIGITAL_TWIN": (
         "competition_digital_twin_bound",
         "capital_conservation_proven",
+        "no_capital_creation",
+        "no_duplicated_profit",
+        "no_reused_released_capacity",
+        "no_double_counted_netting",
+        "margin_feasible",
+        "chronology_monotonic",
     ),
     "WC05_AS_IS_CONTROL": (
         "as_is_control_frozen",
@@ -84,6 +90,7 @@ _GOVERNANCE_FALSE = (
     "aspirational_return_target_used",
     "hidden_leverage_used",
     "protected_holdout_reused",
+    "future_information_used",
     "operational_authority_claimed",
 )
 
