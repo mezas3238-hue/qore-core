@@ -5,15 +5,15 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from qore.infrastructure.cibo_scientific_closure_41_adapters import (
-    scientific_closure_41_dependency_manifest,
-)
 from qore.infrastructure.cibo_scientific_closure_41 import (
     CANONICAL_HOLDOUT_ID,
     CANONICAL_POLICY_IDENTITY,
     CANONICAL_PROVIDER_IDENTITY,
     PACKAGE_SCHEMA,
     validate_scientific_closure_41_preimage,
+)
+from qore.infrastructure.cibo_scientific_closure_41_adapters import (
+    scientific_closure_41_dependency_manifest,
 )
 
 LEDGER_PATH = Path("docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json")
