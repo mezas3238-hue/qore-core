@@ -61,8 +61,15 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           from qore.infrastructure.cibo_phase22_trader_parity_manifest import CANONICAL_PHASE22_TRADER_IDS
-          from qore.infrastructure.cibo_phase22_v4_execution_authorization import AUTHORIZATION_RELATIVE_PATH
+          from qore.infrastructure.cibo_phase22_v4_execution_authorization import (
+              AUTHORIZATION_RELATIVE_PATH,
+              load_phase22_v4_execution_authorization,
+          )
           from qore.infrastructure.cibo_phase22_v4_execution_manifest import build_phase22_v4_execution_manifest
+          from qore.infrastructure.cibo_phase22_v4_git_durable_claim import (
+              ONE_SHOT_CLAIM_RELATIVE_PATH,
+              CONSUMPTION_RECEIPT_RELATIVE_PATH,
+          )
           manifest = build_phase22_v4_execution_manifest()
           assert tuple(x.trader_id for x in manifest.trader_bindings) == CANONICAL_PHASE22_TRADER_IDS
           assert manifest.fresh_outcomes_executed is False
@@ -72,7 +79,23 @@ jobs:
           assert manifest.production_authorized is False
           assert manifest.merge_authorized is False
           assert manifest.productive_authority is False
-          assert not Path(AUTHORIZATION_RELATIVE_PATH).exists()
+          auth_path = Path(AUTHORIZATION_RELATIVE_PATH)
+          claim_path = Path(ONE_SHOT_CLAIM_RELATIVE_PATH)
+          consumption_path = Path(CONSUMPTION_RECEIPT_RELATIVE_PATH)
+          if not auth_path.exists():
+              assert not claim_path.exists()
+              assert not consumption_path.exists()
+          else:
+              auth = load_phase22_v4_execution_authorization(auth_path)
+              assert auth.execution_manifest_sha256 == manifest.fingerprint()
+              assert claim_path.exists()
+              assert consumption_path.exists()
+              assert auth.broker_mutation_authorized is False
+              assert auth.live_authorized is False
+              assert auth.real_capital_authorized is False
+              assert auth.production_authorized is False
+              assert auth.merge_authorized is False
+              assert auth.productive_authority is False
           PY
       - name: Prove VT31 frozen source ABI is exactly six fields
         run: |
