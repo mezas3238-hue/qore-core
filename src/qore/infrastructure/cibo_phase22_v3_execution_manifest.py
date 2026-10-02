@@ -171,7 +171,7 @@ class Phase22V3ExecutionManifest:
             )
 
     def payload(self) -> dict[str, object]:
-        return {
+        payload: dict[str, object] = {
             "schema": SCHEMA,
             "candidate_id": self.candidate_id,
             "source_receipt_sha256": self.source_receipt_sha256,
