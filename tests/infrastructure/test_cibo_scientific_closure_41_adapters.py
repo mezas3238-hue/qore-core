@@ -30,6 +30,9 @@ from qore.infrastructure.cibo_scientific_closure_41 import (
 )
 from qore.infrastructure.cibo_scientific_closure_41_adapters import (
     ARCHITECT_A_35_IDS,
+    ARCHITECT_A_GROUP2_11_IDS,
+    GROUP1_28_IDS,
+    GROUP2_CAPITAL_13_IDS,
     SPECIAL_6_IDS,
     CanonicalScientificBinding,
     adapt_t02_terminal_assessment,
@@ -84,16 +87,23 @@ def _all_pass_gates() -> CiboMaximumCapabilityGateSet:
     )
 
 
-def test_canonical_source_partition_is_exact_35_plus_6() -> None:
+def test_current_ownership_partition_is_exact_28_plus_13() -> None:
+    assert len(GROUP1_28_IDS) == 28
+    assert len(GROUP2_CAPITAL_13_IDS) == 13
+    assert len(ARCHITECT_A_GROUP2_11_IDS) == 11
+    assert not set(GROUP1_28_IDS) & set(GROUP2_CAPITAL_13_IDS)
+
+    # Legacy producer surfaces stay known only as source compatibility.
     assert len(ARCHITECT_A_35_IDS) == 35
     assert len(SPECIAL_6_IDS) == 6
-    assert not set(ARCHITECT_A_35_IDS) & set(SPECIAL_6_IDS)
 
 
 def test_dependency_manifest_names_all_41_without_fabricating_future_digests() -> None:
     manifest = scientific_closure_41_dependency_manifest()
 
     assert manifest["workstream_count"] == 41
+    assert manifest["group1_v4_fresh_ce2i_genc_count"] == 28
+    assert manifest["group2_capital_compound_count"] == 13
     assert manifest["unknown_future_digests_fabricated"] is False
     rows = manifest["workstreams"]
     assert isinstance(rows, list)
