@@ -14,6 +14,7 @@ from typing import Any, cast
 
 from qore.infrastructure.cibo_phase22_next_exam_governance import NEXT_CANDIDATE_ID
 from qore.infrastructure.cibo_phase22_v3_vt31_source import (
+    Phase22V3Vt31M1Source,
     load_phase22_v3_vt31_m1,
 )
 from qore.infrastructure.market_data import OhlcSnapshot
@@ -94,7 +95,7 @@ def _partition_executable_geometry(
 
 
 def _frozen_market_evidence_tuple(
-    source: object,
+    source: Phase22V3Vt31M1Source,
 ) -> tuple[
     tuple[OhlcSnapshot, ...],
     str,
@@ -111,11 +112,11 @@ def _frozen_market_evidence_tuple(
     deterministic evidence fingerprint.
     """
 
-    series = getattr(source, "series")
-    evidence_fingerprint = str(getattr(source, "fingerprint"))
-    checked_at = getattr(source, "last_closed_at")
-    collector_git_sha = str(getattr(source, "collector_git_sha"))
-    provider_symbol = str(getattr(source, "provider_symbol"))
+    series = source.series
+    evidence_fingerprint = str(source.fingerprint)
+    checked_at = source.last_closed_at
+    collector_git_sha = str(source.collector_git_sha)
+    provider_symbol = str(source.provider_symbol)
     if (
         not isinstance(series, tuple)
         or not evidence_fingerprint
