@@ -77,6 +77,36 @@ class _SecondPageFailureClient(_PagedClient):
         )
 
 
+class _FirstRequestFailureClient(_PagedClient):
+    def __init__(self) -> None:
+        super().__init__()
+        self.failed_once = False
+
+    def request(
+        self,
+        message_name: str,
+        fields: dict[str, object],
+        *,
+        client_msg_id: str,
+        timeout_seconds: float,
+    ) -> Success[SimpleNamespace] | Failure[RuntimeError]:
+        del client_msg_id, timeout_seconds
+        assert message_name == "ProtoOAGetTrendbarsReq"
+        self.fields.append(dict(fields))
+        if not self.failed_once:
+            self.failed_once = True
+            return Failure(RuntimeError("transient first-page failure"))
+        return Success(
+            SimpleNamespace(
+                trendbar=(
+                    _bar(datetime(2026, 10, 2, 11, 58, tzinfo=UTC)),
+                    _bar(datetime(2026, 10, 2, 11, 59, tzinfo=UTC)),
+                ),
+                hasMore=False,
+            )
+        )
+
+
 def _api(client: _PagedClient) -> CTraderDemoFullApi:
     api = object.__new__(CTraderDemoFullApi)
     api._client = client
@@ -105,6 +135,17 @@ def test_history_preload_pages_backward_when_provider_omits_has_more() -> None:
     assert client.fields[1]["toTimestamp"] < client.fields[0]["toTimestamp"]
 
 
+def test_history_preload_retries_transient_first_page_failure() -> None:
+    client = _FirstRequestFailureClient()
+    api = _api(client)
+
+    rows = api._closed_rows("XAUUSD", api.TIMEFRAME_M1, count_hint=1)
+
+    assert len(rows) == 2
+    assert len(client.fields) == 2
+    assert client.fields[0]["toTimestamp"] == client.fields[1]["toTimestamp"]
+
+
 def test_history_preload_retains_confirmed_page_when_continuation_fails() -> None:
     client = _SecondPageFailureClient()
     api = _api(client)
@@ -112,4 +153,4 @@ def test_history_preload_retains_confirmed_page_when_continuation_fails() -> Non
     rows = api._closed_rows("XAUUSD", api.TIMEFRAME_M1, count_hint=3)
 
     assert len(rows) == 2
-    assert len(client.fields) == 2
+    assert len(client.fields) == 4
