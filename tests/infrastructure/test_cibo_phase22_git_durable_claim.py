@@ -141,3 +141,37 @@ def test_git_claim_files_are_create_once(tmp_path: Path) -> None:
             started_at=NOW,
             store_root=repo / "phase22-v2-stores",
         )
+
+def test_git_claim_execution_lease_refuses_rerun_attempt(
+    tmp_path: Path,
+) -> None:
+    repo, source_head = _repo(tmp_path)
+    _commit_claim(repo, source_head)
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="execution lease mismatch",
+    ):
+        verify_phase22_git_durable_claim(
+            repo_root=repo,
+            branch_name=BRANCH,
+            expected_run_id=123456,
+            expected_run_attempt=2,
+        )
+
+
+def test_git_claim_execution_lease_accepts_original_attempt(
+    tmp_path: Path,
+) -> None:
+    repo, source_head = _repo(tmp_path)
+    _commit_claim(repo, source_head)
+
+    evidence = verify_phase22_git_durable_claim(
+        repo_root=repo,
+        branch_name=BRANCH,
+        expected_run_id=123456,
+        expected_run_attempt=1,
+    )
+
+    assert evidence.durable_claim_proven is True
+

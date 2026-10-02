@@ -181,6 +181,8 @@ def verify_phase22_git_durable_claim(
     repo_root: Path,
     branch_name: str,
     remote_name: str = "origin",
+    expected_run_id: int | None = None,
+    expected_run_attempt: int | None = None,
 ) -> Phase22GitDurableClaimEvidence:
     """Prove the claim is an immutable remote Git barrier before fresh access."""
 
@@ -188,6 +190,29 @@ def verify_phase22_git_durable_claim(
     claim_path = repo_root / ONE_SHOT_CLAIM_RELATIVE_PATH
     consumption_path = repo_root / CONSUMPTION_RECEIPT_RELATIVE_PATH
     claim = load_phase22_one_shot_claim_receipt(claim_path)
+    if (expected_run_id is None) != (expected_run_attempt is None):
+        raise CiboCapitalManagementError(
+            "Phase22 Git durable claim execution lease requires run id and attempt"
+        )
+    if expected_run_id is not None and expected_run_attempt is not None:
+        if (
+            not isinstance(expected_run_id, int)
+            or isinstance(expected_run_id, bool)
+            or expected_run_id <= 0
+            or not isinstance(expected_run_attempt, int)
+            or isinstance(expected_run_attempt, bool)
+            or expected_run_attempt <= 0
+        ):
+            raise CiboCapitalManagementError(
+                "Phase22 Git durable claim execution lease values invalid"
+            )
+        if (
+            claim.run_id != expected_run_id
+            or claim.run_attempt != expected_run_attempt
+        ):
+            raise CiboCapitalManagementError(
+                "Phase22 Git durable claim execution lease mismatch"
+            )
     consumption = load_phase22_execution_consumption_receipt(consumption_path)
     if consumption is None:
         raise CiboCapitalManagementError(

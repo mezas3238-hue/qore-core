@@ -29,6 +29,8 @@ def main() -> None:
     verify.add_argument("--branch", required=True)
     verify.add_argument("--remote", default="origin")
     verify.add_argument("--output", type=Path, required=True)
+    verify.add_argument("--expected-run-id", type=int)
+    verify.add_argument("--expected-run-attempt", type=int)
 
     args = parser.parse_args()
     if args.command == "prepare":
@@ -58,6 +60,8 @@ def main() -> None:
         repo_root=args.repo_root,
         branch_name=args.branch,
         remote_name=args.remote,
+        expected_run_id=args.expected_run_id,
+        expected_run_attempt=args.expected_run_attempt,
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(

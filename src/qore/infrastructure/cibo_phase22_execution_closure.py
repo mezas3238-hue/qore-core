@@ -11,7 +11,7 @@ never authorizes a second fresh execution.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 from qore.infrastructure.cibo_capital_management_authority import (
@@ -126,13 +126,33 @@ def close_phase22_one_shot_execution(
     corpora: tuple[Evidence, ...],
     store_root: Path,
     replay_started_at: datetime,
-    completed_at: datetime,
+    completed_at: datetime | None,
     claim: Phase22OneShotClaimReceipt,
     consumption_claim: Phase22ExecutionConsumptionReceipt,
     durable_claim_evidence: Phase22GitDurableClaimEvidence,
+    execution_run_id: int,
+    execution_run_attempt: int,
 ) -> Phase22ExecutionClosure:
     """Persist actual Phase22 evidence and record qualification without override."""
 
+    if (
+        not isinstance(execution_run_id, int)
+        or isinstance(execution_run_id, bool)
+        or execution_run_id <= 0
+        or not isinstance(execution_run_attempt, int)
+        or isinstance(execution_run_attempt, bool)
+        or execution_run_attempt <= 0
+    ):
+        raise CiboCapitalManagementError(
+            "Phase22 closure execution lease values invalid"
+        )
+    if (
+        claim.run_id != execution_run_id
+        or claim.run_attempt != execution_run_attempt
+    ):
+        raise CiboCapitalManagementError(
+            "Phase22 closure execution lease mismatch"
+        )
     if not isinstance(durable_claim_evidence, Phase22GitDurableClaimEvidence):
         raise CiboCapitalManagementError(
             "Phase22 closure requires canonical durable claim evidence"
@@ -157,7 +177,7 @@ def close_phase22_one_shot_execution(
         raise CiboCapitalManagementError(
             "Phase22 closure cannot rerun consumed holdout"
         )
-    if completed_at < replay_started_at:
+    if completed_at is not None and completed_at < replay_started_at:
         raise CiboCapitalManagementError(
             "Phase22 closure completion cannot predate replay start"
         )
@@ -209,11 +229,18 @@ def close_phase22_one_shot_execution(
         (item.trader_id, item.source_artifact_sha256)
         for item in fresh.batch.traders
     )
+    resolved_completed_at = (
+        datetime.now(UTC) if completed_at is None else completed_at
+    )
+    if resolved_completed_at < replay_started_at:
+        raise CiboCapitalManagementError(
+            "Phase22 closure completion cannot predate replay start"
+        )
     completion = Phase22OneShotBatchCompletionReceipt(
         claim_receipt_sha256=claim.fingerprint(),
         trader_artifact_sha256s=trader_sha256s,
         store_sha256s=store_sha256s,
-        completed_at=completed_at,
+        completed_at=resolved_completed_at,
         all_traders_completed=True,
         all_stores_sealed=True,
         fresh_outcomes_emitted=True,
