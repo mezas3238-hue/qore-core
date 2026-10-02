@@ -53,6 +53,7 @@ def _artifact_json(
         "aspirational_return_target_used": False,
         "hidden_leverage_used": False,
         "protected_holdout_reused": False,
+        "future_information_used": False,
         "operational_authority_claimed": False,
         control_field: True,
     }
