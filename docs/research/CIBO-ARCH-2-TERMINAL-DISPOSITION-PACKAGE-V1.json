@@ -161,6 +161,13 @@
     "docs/research/CIBO-ARCH-2-INTEGRATOR-PATCH-REQUEST-004.md",
     "docs/research/CIBO-ARCH-2-INTEGRATOR-PATCH-REQUEST-006.md",
     "docs/research/CIBO-ARCH-2-INTEGRATOR-PATCH-REQUEST-007.md",
-    "docs/research/CIBO-ARCH-2-INTEGRATOR-PATCH-REQUEST-010-T11-GROSS-EDGE-POPULATION.md"
-  ]
+    "docs/research/CIBO-ARCH-2-INTEGRATOR-PATCH-REQUEST-010-T11-GROSS-EDGE-POPULATION.md",
+    "docs/research/CIBO-ARCH-2-INTEGRATOR-PATCH-REQUEST-011-T02-T20-FORWARD-POPULATION.md",
+    "docs/research/CIBO-ARCH-2-INTEGRATOR-PATCH-REQUEST-012-FRESH-OOS-ONE-SHOT.md"
+  ],
+  "verification_checkpoint_before_exact_head_ci": {
+    "head_sha": "ac96bd59477b311b806d9fdc27e1892b7feaca9c",
+    "head_message": "fix(cibo-arch2): normalize package-frontier test import spacing",
+    "requested_reason": "VERIFY_CURRENT_EIGHT_FRONT_PACKAGE_AND_CONSUMERS_AFTER_SCOPE_RECONCILIATION"
+  }
 }
