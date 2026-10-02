@@ -194,6 +194,7 @@ def test_closure_refuses_external_blocker_before_exam_terminalization() -> None:
     ):
         build_certification_closure_ledger(
             pre_ledger=before,
+            holdout_candidate_id=SUCCESSOR_HOLDOUT_ID,
             final_package=final_package,
             final_report=final_report,
             world_cup_package=world_package,
