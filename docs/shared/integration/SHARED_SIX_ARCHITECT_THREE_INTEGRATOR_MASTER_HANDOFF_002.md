@@ -15,9 +15,9 @@
 - Arquitecto 6 — B Active Perception + Provenance/Freeze — Integrador 3
 
 Pairs:
-- Integrador 1 = A1 + A2
-- Integrador 2 = A3 + A4
-- Integrador 3 = A5 + A6
+- Integrador 1 = Arquitecto 1 + Arquitecto 2
+- Integrador 2 = Arquitecto 3 + Arquitecto 4
+- Integrador 3 = Arquitecto 5 + Arquitecto 6
 
 Todos los integradores tienen la misma misión: **INTEGRAR · REPARAR · AVANZAR**.
 
