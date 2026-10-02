@@ -1,0 +1,94 @@
+name: QORE CIBO Phase22 V4 Execution Build
+
+on:
+  push:
+    branches:
+      - agent/cibo-integrator-ab-001
+    paths:
+      - 'src/qore/infrastructure/cibo_phase22_v4_*.py'
+      - 'scripts/cibo_phase22_v4_*.py'
+      - 'tests/infrastructure/test_cibo_phase22_v4_*.py'
+      - '.github/workflows/cibo-phase22-v4-execution-build.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Static quality
+        run: |
+          python -m ruff check             src/qore/infrastructure/cibo_phase22_v4_execution_manifest.py             src/qore/infrastructure/cibo_phase22_v4_execution_authorization.py             src/qore/infrastructure/cibo_phase22_v4_store_contract.py             src/qore/infrastructure/cibo_phase22_v4_vt31_abi.py             src/qore/infrastructure/cibo_phase22_v4_vt31_source.py             src/qore/infrastructure/cibo_phase22_v4_one_shot_claim.py             src/qore/infrastructure/cibo_phase22_v4_git_durable_claim.py             scripts/cibo_phase22_v4_git_durable_claim.py             tests/infrastructure/test_cibo_phase22_v4_execution_build.py             tests/infrastructure/test_cibo_phase22_v4_m1_source.py
+      - name: Import V4 pre-outcome execution surfaces
+        run: |
+          python - <<'PY'
+          modules = (
+              "qore.infrastructure.cibo_phase22_v4_execution_manifest",
+              "qore.infrastructure.cibo_phase22_v4_execution_authorization",
+              "qore.infrastructure.cibo_phase22_v4_store_contract",
+              "qore.infrastructure.cibo_phase22_v4_vt31_abi",
+              "qore.infrastructure.cibo_phase22_v4_vt31_source",
+              "qore.infrastructure.cibo_phase22_v4_one_shot_claim",
+              "qore.infrastructure.cibo_phase22_v4_git_durable_claim",
+          )
+          for name in modules:
+              __import__(name)
+          PY
+      - name: Prove manifest is frozen, exact 7/7 and nonexecuting
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from qore.infrastructure.cibo_phase22_trader_parity_manifest import (
+              CANONICAL_PHASE22_TRADER_IDS,
+          )
+          from qore.infrastructure.cibo_phase22_v4_execution_authorization import (
+              AUTHORIZATION_RELATIVE_PATH,
+          )
+          from qore.infrastructure.cibo_phase22_v4_execution_manifest import (
+              build_phase22_v4_execution_manifest,
+          )
+
+          manifest = build_phase22_v4_execution_manifest()
+          assert tuple(x.trader_id for x in manifest.trader_bindings) == CANONICAL_PHASE22_TRADER_IDS
+          assert manifest.fresh_outcomes_executed is False
+          assert manifest.broker_mutation_authorized is False
+          assert manifest.live_authorized is False
+          assert manifest.real_capital_authorized is False
+          assert manifest.production_authorized is False
+          assert manifest.merge_authorized is False
+          assert manifest.productive_authority is False
+          assert not Path(AUTHORIZATION_RELATIVE_PATH).exists()
+          PY
+      - name: Prove V4 source and execution code contains no broker mutation primitive
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          paths = tuple(Path("src/qore/infrastructure").glob("cibo_phase22_v4_*.py"))
+          forbidden = (
+              "ProtoOANewOrderReq",
+              "ProtoOAClosePositionReq",
+              "ProtoOACancelOrderReq",
+              "ProtoOAAmendOrderReq",
+              "ProtoOAAmendPositionSLTPReq",
+          )
+          for path in paths:
+              text = path.read_text(encoding="utf-8")
+              for token in forbidden:
+                  assert token not in text, (path, token)
+          PY
+      - name: V4 pre-outcome regression
+        run: |
+          python -m pytest -q             tests/infrastructure/test_cibo_phase22_v4_execution_build.py             tests/infrastructure/test_cibo_phase22_v4_source_receipt.py             tests/infrastructure/test_cibo_phase22_v4_source_availability.py             tests/infrastructure/test_cibo_phase22_v4_m1_source.py             tests/infrastructure/test_cibo_phase22_v4_m5_source.py
+      - name: CLI smoke without fresh access
+        run: |
+          python scripts/cibo_phase22_v4_git_durable_claim.py --help
