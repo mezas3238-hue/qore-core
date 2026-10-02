@@ -44,7 +44,7 @@ from qore.infrastructure.cibo_scientific_closure_41_adapters import (
     GROUP2_CAPITAL_13_IDS,
     SPECIAL_6_IDS,
     CanonicalScientificBinding,
-    Group1V4TerminalEvidenceHandoff,
+    Group1FreshTerminalEvidenceHandoff,
     Group2CapitalTerminalEvidenceHandoff,
     adapt_fresh_oos_terminal_intake,
     adapt_group1_fresh_oos_handoff,
@@ -99,8 +99,8 @@ def _v4_handoff(
         "R42_AUDJPY",
         "VT31_NAS100",
     ),
-) -> Group1V4TerminalEvidenceHandoff:
-    return Group1V4TerminalEvidenceHandoff(
+) -> Group1FreshTerminalEvidenceHandoff:
+    return Group1FreshTerminalEvidenceHandoff(
         candidate_id=candidate_id,
         phase22_manifest_sha256=_sha("successor-manifest"),
         outcome_bundle_sha256=_sha("successor-outcomes"),
