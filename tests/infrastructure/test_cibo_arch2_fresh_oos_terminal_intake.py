@@ -1,7 +1,14 @@
+from dataclasses import replace
 from types import SimpleNamespace
 
 import pytest
 
+from qore.infrastructure.cibo_arch2_fresh_oos_binding import (
+    BINDING_ID,
+    SOURCE_KIND,
+    Phase22OutcomeQualificationBindingReceipt,
+    phase22_report_fingerprint,
+)
 from qore.infrastructure.cibo_arch2_fresh_oos_terminal_intake import (
     COMPLETED,
     FALSIFIED,
@@ -104,11 +111,55 @@ def _report(
     return report
 
 
-def test_fresh_oos_pass_recommends_completed_without_rerun() -> None:
-    result = build_arch2_fresh_oos_terminal_intake(
-        consumption=_consumption(),
-        qualification=_report(Phase22HoldoutQualificationStatus.PASS),
+def _binding(
+    *,
+    consumption: Phase22ExecutionConsumptionReceipt,
+    report: Phase22HoldoutQualificationReport,
+) -> Phase22OutcomeQualificationBindingReceipt:
+    assert consumption.outcome_bundle_sha256 is not None
+    assert consumption.claim_head_sha is not None
+    assert consumption.claim_run_id is not None
+    assert consumption.claim_run_attempt is not None
+    return Phase22OutcomeQualificationBindingReceipt(
+        binding_id=BINDING_ID,
+        source_kind=SOURCE_KIND,
+        candidate_id=consumption.candidate_id,
+        execution_manifest_sha256=consumption.execution_manifest_sha256,
+        claim_head_sha=consumption.claim_head_sha,
+        claim_run_id=consumption.claim_run_id,
+        claim_run_attempt=consumption.claim_run_attempt,
+        outcome_bundle_sha256=consumption.outcome_bundle_sha256,
+        holdout_evidence_store_sha256="sha256:" + "5" * 64,
+        holdout_policy_store_sha256="sha256:" + "6" * 64,
+        outcome_to_store_binding_sha256="sha256:" + "7" * 64,
+        qualification_plan_sha256=report.plan_sha256,
+        qualification_report_sha256=phase22_report_fingerprint(report),
+        qualification_artifact_sha256="sha256:" + "8" * 64,
+        qualification_status=report.status.value,
+        lineage_valid=report.lineage.lineage_valid,
+        rerun_used=False,
+        holdout_mining_used=False,
+        outcome_aware_refit=False,
+        canonical_ledger_modified=False,
+        productive_authority=False,
     )
+
+
+def _build(
+    status: Phase22HoldoutQualificationStatus,
+):
+    consumption = _consumption()
+    report = _report(status)
+    binding = _binding(consumption=consumption, report=report)
+    return build_arch2_fresh_oos_terminal_intake(
+        consumption=consumption,
+        qualification=report,
+        binding=binding,
+    )
+
+
+def test_fresh_oos_pass_recommends_completed_without_rerun() -> None:
+    result = _build(Phase22HoldoutQualificationStatus.PASS)
 
     assert result.fresh_oos_terminal_ready is True
     assert result.terminal_recommendation == COMPLETED
@@ -118,10 +169,7 @@ def test_fresh_oos_pass_recommends_completed_without_rerun() -> None:
 
 
 def test_fresh_oos_fail_recommends_falsified_without_rescue() -> None:
-    result = build_arch2_fresh_oos_terminal_intake(
-        consumption=_consumption(),
-        qualification=_report(Phase22HoldoutQualificationStatus.FAIL),
-    )
+    result = _build(Phase22HoldoutQualificationStatus.FAIL)
 
     assert result.fresh_oos_terminal_ready is True
     assert result.terminal_recommendation == FALSIFIED
@@ -129,21 +177,77 @@ def test_fresh_oos_fail_recommends_falsified_without_rescue() -> None:
 
 
 def test_fresh_oos_not_ready_remains_nonterminal() -> None:
-    result = build_arch2_fresh_oos_terminal_intake(
-        consumption=_consumption(),
-        qualification=_report(Phase22HoldoutQualificationStatus.NOT_READY),
-    )
+    result = _build(Phase22HoldoutQualificationStatus.NOT_READY)
 
     assert result.fresh_oos_terminal_ready is False
     assert result.terminal_recommendation is None
 
 
 def test_fresh_oos_requires_consumed_one_shot() -> None:
+    consumption = _consumption(outcomes_emitted=False)
+    report = _report(Phase22HoldoutQualificationStatus.PASS)
+
     with pytest.raises(
         CiboCapitalManagementError,
         match="emitted fresh outcomes",
     ):
         build_arch2_fresh_oos_terminal_intake(
-            consumption=_consumption(outcomes_emitted=False),
-            qualification=_report(Phase22HoldoutQualificationStatus.PASS),
+            consumption=consumption,
+            qualification=report,
+            binding=Phase22OutcomeQualificationBindingReceipt(
+                binding_id=BINDING_ID,
+                source_kind=SOURCE_KIND,
+                candidate_id=CANDIDATE_ID,
+                execution_manifest_sha256=consumption.execution_manifest_sha256,
+                claim_head_sha="2" * 40,
+                claim_run_id=123,
+                claim_run_attempt=1,
+                outcome_bundle_sha256="sha256:" + "3" * 64,
+                holdout_evidence_store_sha256="sha256:" + "5" * 64,
+                holdout_policy_store_sha256="sha256:" + "6" * 64,
+                outcome_to_store_binding_sha256="sha256:" + "7" * 64,
+                qualification_plan_sha256=report.plan_sha256,
+                qualification_report_sha256=phase22_report_fingerprint(report),
+                qualification_artifact_sha256="sha256:" + "8" * 64,
+                qualification_status=report.status.value,
+                lineage_valid=report.lineage.lineage_valid,
+            ),
+        )
+
+
+def test_fresh_oos_rejects_outcome_bundle_binding_drift() -> None:
+    consumption = _consumption()
+    report = _report(Phase22HoldoutQualificationStatus.PASS)
+    binding = replace(
+        _binding(consumption=consumption, report=report),
+        outcome_bundle_sha256="sha256:" + "9" * 64,
+    )
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="outcome_bundle_sha256",
+    ):
+        build_arch2_fresh_oos_terminal_intake(
+            consumption=consumption,
+            qualification=report,
+            binding=binding,
+        )
+
+
+def test_fresh_oos_rejects_qualification_report_binding_drift() -> None:
+    consumption = _consumption()
+    report = _report(Phase22HoldoutQualificationStatus.PASS)
+    binding = replace(
+        _binding(consumption=consumption, report=report),
+        qualification_report_sha256="sha256:" + "9" * 64,
+    )
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="qualification_report_sha256",
+    ):
+        build_arch2_fresh_oos_terminal_intake(
+            consumption=consumption,
+            qualification=report,
+            binding=binding,
         )
