@@ -7,10 +7,8 @@ from qore.infrastructure.cibo_arch2_ce2i_external_gate_terminalization import (
     terminalize_t09_t18,
     terminalize_t14_t15,
 )
+import qore.infrastructure.cibo_ce2i_t04_t10_economic_gate as t0410
 from qore.infrastructure.cibo_ce2i_t04_t10_economic_gate import (
-    GATE_FROZEN_AT as T0410_FROZEN,
-    GATE_ID as T0410_GATE_ID,
-    GATE_SHA256 as T0410_SHA,
     Ce2iT04T10CandidateVerdict,
     Ce2iT04T10EconomicGateReport,
     Ce2iT04T10Status,
@@ -23,10 +21,8 @@ from qore.infrastructure.cibo_expansion_utility_gate import (
     ExpansionUtilityKind,
     ExpansionUtilityStatus,
 )
+import qore.infrastructure.cibo_t09_t18_scarcity_safety_gate as t0918
 from qore.infrastructure.cibo_t09_t18_scarcity_safety_gate import (
-    GATE_FROZEN_AT as T0918_FROZEN,
-    GATE_ID as T0918_GATE_ID,
-    GATE_SHA256 as T0918_SHA,
     T09T18ScarcityCandidateVerdict,
     T09T18ScarcityGateReport,
     T09T18ScarcityStatus,
@@ -85,9 +81,9 @@ def _t0410_verdict(
 
 def test_t04_t10_terminalize_without_pooled_rescue() -> None:
     report = Ce2iT04T10EconomicGateReport(
-        gate_id=T0410_GATE_ID,
-        gate_sha256=T0410_SHA,
-        gate_frozen_at=T0410_FROZEN,
+        gate_id=t0410.GATE_ID,
+        gate_sha256=t0410.GATE_SHA256,
+        gate_frozen_at=t0410.GATE_FROZEN_AT,
         verdicts=(
             *_t0410_verdict(Ce2iT04T10Tool.T04, eligible=True),
             *_t0410_verdict(Ce2iT04T10Tool.T10, eligible=False),
@@ -164,9 +160,9 @@ def _scarcity_verdict(
 
 def test_t09_t18_all_rejected_is_terminal_falsification() -> None:
     report = T09T18ScarcityGateReport(
-        gate_id=T0918_GATE_ID,
-        gate_sha256=T0918_SHA,
-        gate_frozen_at=T0918_FROZEN,
+        gate_id=t0918.GATE_ID,
+        gate_sha256=t0918.GATE_SHA256,
+        gate_frozen_at=t0918.GATE_FROZEN_AT,
         verdicts=(
             *_scarcity_verdict(T09T18ScarcityTool.T09),
             *_scarcity_verdict(T09T18ScarcityTool.T18),
