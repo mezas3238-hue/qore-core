@@ -202,6 +202,10 @@ class DurableAccountWideRiskEngine(AccountWideRiskEngine):
         super().reconcile_fill(authorization_id)
         self._persist()
 
+    def reconcile_terminal_release(self, authorization_id: str) -> None:
+        super().reconcile_terminal_release(authorization_id)
+        self._persist()
+
     def expire(self, *, now: datetime) -> None:
         super().expire(now=now)
         self._persist()
