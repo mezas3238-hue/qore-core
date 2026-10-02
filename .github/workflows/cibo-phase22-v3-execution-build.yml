@@ -93,6 +93,8 @@ jobs:
 
           manifest = build_phase22_v3_execution_manifest()
           assert manifest.candidate_id == NEXT_CANDIDATE_ID
+          assert manifest.fingerprint().startswith("sha256:")
+          assert manifest.payload()["manifest_sha256"] == manifest.fingerprint()
           assert manifest.fresh_outcomes_executed is False
           assert manifest.broker_mutation_authorized is False
           assert CURRENT_NEXT_PHASE22_READINESS.status is (
@@ -113,6 +115,15 @@ jobs:
                   "build CI must not mint a V3 execution authorization"
               )
           PY
+      - name: CLI smoke without fresh access
+        run: |
+          python scripts/cibo_phase22_v3_git_durable_claim.py --help
+          python scripts/cibo_phase22_v3_fresh_batch_assembler.py --help
+          python scripts/cibo_phase22_v3_execution_closure.py --help
+          python scripts/cibo_phase22_v3_turtle_window_replay.py --help
+          python scripts/cibo_phase22_v3_vt31_fresh_runner.py --help
+          python -m qore.infrastructure.cibo_phase22_v3_vt08_fresh_runner --help
+
       - name: Prove VT31 censored geometry selection is outcome-blind
         run: |
           python - <<'PY'
