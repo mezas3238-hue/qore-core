@@ -671,6 +671,99 @@ def _build_evidence(
     )
 
 
+
+def _validate_group_evidence_batch(
+    *,
+    evidence: tuple[ScientificClosure41Evidence, ...],
+    expected_ids: tuple[str, ...],
+    phase22_manifest_sha256: str,
+    label: str,
+) -> tuple[ScientificClosure41Evidence, ...]:
+    if not isinstance(evidence, tuple) or any(
+        not isinstance(item, ScientificClosure41Evidence) for item in evidence
+    ):
+        raise CiboCapitalManagementError(
+            f"Closure 41 {label} evidence must be canonical tuple"
+        )
+    by_id: dict[str, ScientificClosure41Evidence] = {}
+    for item in evidence:
+        if item.workstream_id in by_id:
+            raise CiboCapitalManagementError(
+                f"Closure 41 {label} duplicate evidence id"
+            )
+        by_id[item.workstream_id] = item
+    if set(by_id) != set(expected_ids):
+        missing = tuple(item for item in expected_ids if item not in by_id)
+        extras = tuple(sorted(set(by_id) - set(expected_ids)))
+        raise CiboCapitalManagementError(
+            f"Closure 41 {label} ownership mismatch: "
+            f"missing={missing}, extra={extras}"
+        )
+    ordered = tuple(by_id[item] for item in expected_ids)
+    if any(
+        item.phase22_manifest_sha256 != phase22_manifest_sha256
+        for item in ordered
+    ):
+        raise CiboCapitalManagementError(
+            f"Closure 41 {label} Phase22 manifest drift"
+        )
+    return ordered
+
+
+def validate_group1_immutable_evidence_batch(
+    *,
+    evidence: tuple[ScientificClosure41Evidence, ...],
+    phase22_manifest_sha256: str,
+) -> tuple[ScientificClosure41Evidence, ...]:
+    """Validate the immutable V4/FRESH_OOS + CE2I + GEN-C handoff."""
+
+    return _validate_group_evidence_batch(
+        evidence=evidence,
+        expected_ids=GROUP1_28_IDS,
+        phase22_manifest_sha256=phase22_manifest_sha256,
+        label="Group-1",
+    )
+
+
+def validate_group2_capital_evidence_batch(
+    *,
+    evidence: tuple[ScientificClosure41Evidence, ...],
+    phase22_manifest_sha256: str,
+) -> tuple[ScientificClosure41Evidence, ...]:
+    """Validate the exact thirteen Capital/Compound terminal dispositions."""
+
+    return _validate_group_evidence_batch(
+        evidence=evidence,
+        expected_ids=GROUP2_CAPITAL_13_IDS,
+        phase22_manifest_sha256=phase22_manifest_sha256,
+        label="Group-2",
+    )
+
+
+def assemble_scientific_closure_41_from_groups(
+    *,
+    group1_evidence: tuple[ScientificClosure41Evidence, ...],
+    group2_evidence: tuple[ScientificClosure41Evidence, ...],
+    phase22_manifest_sha256: str,
+) -> ScientificClosure41Package:
+    """Join the disjoint 28/13 handoffs into the exact 41/41 package."""
+
+    group1 = validate_group1_immutable_evidence_batch(
+        evidence=group1_evidence,
+        phase22_manifest_sha256=phase22_manifest_sha256,
+    )
+    group2 = validate_group2_capital_evidence_batch(
+        evidence=group2_evidence,
+        phase22_manifest_sha256=phase22_manifest_sha256,
+    )
+    by_id = {item.workstream_id: item for item in (*group1, *group2)}
+    ordered = tuple(by_id[item] for item in SCIENTIFIC_CLOSURE_41_IDS)
+    return build_scientific_closure_41_package(
+        phase22_manifest_sha256=phase22_manifest_sha256,
+        evidence=ordered,
+    )
+
+
 def _source_sha256(value: object) -> str:
     raw = json.dumps(
         _jsonable(value),
