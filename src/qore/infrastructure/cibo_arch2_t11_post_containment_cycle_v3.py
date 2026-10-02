@@ -29,10 +29,15 @@ V1_DIRTY_CONTAINMENT_ARTIFACT_ID = 11202212072
 V1_DIRTY_CONTAINMENT_DIGEST = (
     "sha256:15982828e8786065db2e08462f64dd61547d2ebec33772b0666255038fc47f78"
 )
-CLEANUP_RUN_ID = 36947697015
-CLEANUP_ARTIFACT_ID = 11202798042
+CLEANUP_RUN_ID = 36947869835
+CLEANUP_ARTIFACT_ID = 11203160759
 CLEANUP_ARTIFACT_DIGEST = (
-    "sha256:9a5929eb455bef83b3f54a0f57b89e7006b10765182c9ce67b366c740b415280"
+    "sha256:ef9c0d306fbc50b3218ccc8cd6b63ce2fa98a030039d78afc7f6433016eb10fc"
+)
+CLEAN_AUDIT_RUN_ID = 36947985223
+CLEAN_AUDIT_ARTIFACT_ID = 11202788608
+CLEAN_AUDIT_ARTIFACT_DIGEST = (
+    "sha256:06aaffd5e19f11bb4b9a3f5c6e6d6d0924c52effcce506617e1ccac7f98c0cc0"
 )
 CLEAN_AUDIT_RUN_ID = 36947985223
 CLEAN_AUDIT_HEAD_SHA = "af330950773aa89183839ef1810d2feaa9855d7e"
@@ -99,6 +104,12 @@ class T11PostContainmentCycleV3:
         if (
             self.clean_audit_run_id != CLEAN_AUDIT_RUN_ID
             or self.clean_audit_head_sha != CLEAN_AUDIT_HEAD_SHA
+            or self.clean_audit_artifact_id != CLEAN_AUDIT_ARTIFACT_ID
+            or self.clean_audit_artifact_digest != CLEAN_AUDIT_ARTIFACT_DIGEST
+        ):
+            raise ValueError("T11 V3 clean-audit lineage drift")
+        if (
+            self.clean_audit_run_id != CLEAN_AUDIT_RUN_ID
             or self.clean_audit_artifact_id != CLEAN_AUDIT_ARTIFACT_ID
             or self.clean_audit_artifact_digest != CLEAN_AUDIT_ARTIFACT_DIGEST
         ):
