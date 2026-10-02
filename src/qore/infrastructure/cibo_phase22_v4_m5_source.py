@@ -68,7 +68,7 @@ def v4_partition_grid() -> tuple[base.Partition, ...]:
     boundary = datetime(2015, 1, 1, tzinfo=UTC)
     return (
         base.Partition(
-            "2015-v4-a",
+            "2014-v4-a",
             candidate.start_at,
             boundary,
         ),
