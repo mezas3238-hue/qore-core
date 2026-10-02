@@ -6,6 +6,8 @@ on:
       - agent/cibo-integrator-ab-001
     paths:
       - 'src/qore/infrastructure/cibo_phase22_fresh_batch_assembly.py'
+      - 'src/qore/infrastructure/cibo_phase22_fresh_opportunity_batch.py'
+      - 'tests/infrastructure/test_cibo_phase22_fresh_opportunity_batch.py'
       - 'scripts/cibo_phase22_fresh_batch_assembler.py'
       - 'src/qore/infrastructure/cibo_phase22_vt08_fresh_runner.py'
       - 'scripts/cibo_phase22_vt08_fresh_runner.py'
@@ -15,6 +17,8 @@ on:
   pull_request:
     paths:
       - 'src/qore/infrastructure/cibo_phase22_fresh_batch_assembly.py'
+      - 'src/qore/infrastructure/cibo_phase22_fresh_opportunity_batch.py'
+      - 'tests/infrastructure/test_cibo_phase22_fresh_opportunity_batch.py'
       - 'scripts/cibo_phase22_fresh_batch_assembler.py'
       - 'tests/infrastructure/test_cibo_phase22_fresh_batch_assembly.py'
       - '.github/workflows/cibo-phase22-fresh-batch-assembly-contract.yml'
@@ -36,13 +40,16 @@ jobs:
         run: |
           ruff check \
             src/qore/infrastructure/cibo_phase22_fresh_batch_assembly.py \
+            src/qore/infrastructure/cibo_phase22_fresh_opportunity_batch.py \
             scripts/cibo_phase22_fresh_batch_assembler.py \
             src/qore/infrastructure/cibo_phase22_vt08_fresh_runner.py \
             scripts/cibo_phase22_vt08_fresh_runner.py \
             tests/infrastructure/test_cibo_phase22_fresh_batch_assembly.py \
+            tests/infrastructure/test_cibo_phase22_fresh_opportunity_batch.py \
             tests/infrastructure/test_cibo_phase22_vt08_fresh_runner.py
           mypy \
             src/qore/infrastructure/cibo_phase22_fresh_batch_assembly.py \
+            src/qore/infrastructure/cibo_phase22_fresh_opportunity_batch.py \
             scripts/cibo_phase22_fresh_batch_assembler.py \
             src/qore/infrastructure/cibo_phase22_vt08_fresh_runner.py \
             scripts/cibo_phase22_vt08_fresh_runner.py
