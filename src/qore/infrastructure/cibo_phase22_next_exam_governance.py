@@ -252,6 +252,12 @@ CURRENT_NEXT_PHASE22_EVIDENCE = NextPhase22ExamEvidence(
     turtle_window_integrity_head_sha=(
         "f8f2bfde3fed00750fd14a226bbb22b09da24bc0"
     ),
+    advanced_predecision_evidence_freeze_sha256=(
+        "sha256:8101c287ba024032c81f97d1768c0380cb061e57de0cb87838e6b032074d610f"
+    ),
+    policy_code_bundle_lineage_sha256=(
+        "sha256:4c2fbee5d9e6488c2c378eceda6da0a49a415f6af3b3aa29f673bfaa93ee54a4"
+    ),
 )
 
 CURRENT_NEXT_PHASE22_READINESS = assess_next_phase22_exam(
