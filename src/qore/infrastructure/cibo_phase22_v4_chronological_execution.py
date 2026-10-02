@@ -566,6 +566,9 @@ def execute_phase22_chronological_replay(
                 now=epoch.market_decision_at,
             )
             if realized <= 0:
+                if lab_execute_all_candidates:
+                    rejected_count += 1
+                    continue
                 raise CiboCapitalManagementError(
                     "Phase22 policy selected capital after realized capital exhaustion"
                 )
@@ -590,8 +593,17 @@ def execute_phase22_chronological_replay(
                 cost_reserve_usd=Decimal(0),
             )
             opportunity = candidate.projection.candidate.capital_input.opportunity
-            plan_row = plan_minimal_seed(opportunity, capital_state)
+            try:
+                plan_row = plan_minimal_seed(opportunity, capital_state)
+            except CiboCapitalManagementError:
+                if lab_execute_all_candidates:
+                    rejected_count += 1
+                    continue
+                raise
             if plan_row.volume <= 0:
+                if lab_execute_all_candidates:
+                    rejected_count += 1
+                    continue
                 raise CiboCapitalManagementError(
                     "Phase22 selected signal cannot produce minimum seed"
                 )
