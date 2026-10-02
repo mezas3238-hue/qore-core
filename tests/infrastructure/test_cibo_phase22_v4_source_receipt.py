@@ -36,6 +36,7 @@ def _receipt() -> Phase22V4SourceReceipt:
         source_availability_artifact_id=2,
         source_availability_artifact_digest="sha256:" + "a" * 64,
         corpus_run_id=3,
+        corpus_git_sha="c" * 40,
         corpus_seal_artifact_id=4,
         corpus_seal_artifact_digest="sha256:" + "b" * 64,
         bindings=bindings,

@@ -20,6 +20,7 @@ from qore.infrastructure.cibo_capital_management_authority import (
 from qore.infrastructure.cibo_phase22_v4_governance import V4_CANDIDATE_ID
 
 _SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
+_SHA1_RE = re.compile(r"^[0-9a-f]{40}$")
 EXPECTED_SOURCE_KEYS = (
     ("AUDJPY", "M5"),
     ("AUDUSD", "M5"),
@@ -75,6 +76,7 @@ class Phase22V4SourceReceipt:
     source_availability_artifact_id: int
     source_availability_artifact_digest: str
     corpus_run_id: int
+    corpus_git_sha: str
     corpus_seal_artifact_id: int
     corpus_seal_artifact_digest: str
     bindings: tuple[Phase22V4SourceBinding, ...]
@@ -105,6 +107,8 @@ class Phase22V4SourceReceipt:
             self.source_availability_artifact_digest,
             "availability artifact digest",
         )
+        if _SHA1_RE.fullmatch(self.corpus_git_sha) is None:
+            raise CiboCapitalManagementError("V4 source receipt corpus Git SHA invalid")
         _sha(self.corpus_seal_artifact_digest, "corpus seal digest")
         if self.policy_bundle_sha256 != FROZEN_V4_POLICY_BUNDLE_SHA256:
             raise CiboCapitalManagementError(
@@ -147,6 +151,7 @@ class Phase22V4SourceReceipt:
                 self.source_availability_artifact_digest
             ),
             "corpus_run_id": self.corpus_run_id,
+            "corpus_git_sha": self.corpus_git_sha,
             "corpus_seal_artifact_id": self.corpus_seal_artifact_id,
             "corpus_seal_artifact_digest": self.corpus_seal_artifact_digest,
             "bindings": [asdict(item) for item in self.bindings],

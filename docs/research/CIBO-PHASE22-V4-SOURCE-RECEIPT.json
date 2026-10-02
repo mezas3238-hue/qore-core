@@ -96,5 +96,6 @@
   "trader_logic_executed": false,
   "broker_mutation": false,
   "fresh_trader_execution_authorized": false,
-  "productive_authority": false
+  "productive_authority": false,
+  "corpus_git_sha": "98eb0d453b45a996cce142aa0b4460e8333fffec"
 }
