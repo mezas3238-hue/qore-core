@@ -36,7 +36,6 @@ from qore.infrastructure.cibo_capital_management_authority import (
     plan_minimal_seed,
 )
 from qore.infrastructure.cibo_ce2i_phase20_forward_policy_store import (
-    Phase20ForwardPolicyDecisionSeal,
     VersionedPhase20ForwardPolicyBook,
 )
 from qore.infrastructure.cibo_ce2i_regime_selector import (
