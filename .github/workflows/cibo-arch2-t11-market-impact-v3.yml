@@ -14,173 +14,22 @@ concurrency:
   group: qore-cibo-arch2-t11-market-impact-v3
   cancel-in-progress: false
 
-env:
-  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
-  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
-  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
-  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
-  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
-  QORE_CIBO_ARCH2_T11_MARKET_IMPACT_AUTHORIZATION: CIBO_ARCH2_T11_MARKET_IMPACT_DEMO_AUTHORIZED
-
 jobs:
-  market-impact-v3:
+  queue-seal:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Consolidation guard before any broker-capable setup
-        run: |
-          if grep -qx 'CONSOLIDATE_PENDING_DUPLICATE=NO_BROKER' \
-            docs/research/CIBO-ARCH2-T11-V3-EXECUTION-TRIGGER.txt
-          then
-            echo "::notice::duplicate pending V3 replaced by fail-closed no-broker run"
-            exit 1
-          fi
-
-      - name: Install
-        run: python -m pip install -e '.[dev,ctrader]'
-
-      - name: Quality and V3 contract
-        run: |
-          ruff check             scripts/cibo_arch2_t11_market_impact_demo.py             scripts/cibo_arch2_t11_global_containment_audit.py             src/qore/infrastructure/cibo_arch2_t11_market_impact_evaluator.py             src/qore/infrastructure/cibo_arch2_t11_nonlinear_input_freeze.py             src/qore/infrastructure/cibo_arch2_t11_runner_readiness.py             src/qore/infrastructure/cibo_arch2_t11_experiment_plan.py             src/qore/infrastructure/cibo_arch2_t11_post_containment_cycle_v3.py             tests/infrastructure/test_cibo_arch2_t11_market_impact_demo.py             tests/infrastructure/test_cibo_arch2_t11_post_containment_cycle_v3.py
-          mypy --disable-error-code=import-untyped             scripts/cibo_arch2_t11_market_impact_demo.py             scripts/cibo_arch2_t11_global_containment_audit.py             src/qore/infrastructure/cibo_arch2_t11_market_impact_evaluator.py             src/qore/infrastructure/cibo_arch2_t11_nonlinear_input_freeze.py             src/qore/infrastructure/cibo_arch2_t11_post_containment_cycle_v3.py
-          pytest -q --no-cov             tests/infrastructure/test_cibo_arch2_t11_market_impact_demo.py             tests/infrastructure/test_cibo_arch2_t11_market_impact_evaluator.py             tests/infrastructure/test_cibo_arch2_t11_runner_readiness.py             tests/infrastructure/test_cibo_arch2_t11_experiment_plan.py             tests/infrastructure/test_cibo_arch2_t11_post_containment_cycle_v3.py             tests/infrastructure/test_cibo_arch2_t11_v3_retry_claim.py             tests/infrastructure/test_cibo_arch2_t11_global_containment_audit.py
-
-      - name: Verify unique V3 trigger and readiness
+      - name: Fail closed against any additional V3 broker population
         run: |
           python - <<'PY'
           from pathlib import Path
-          from qore.infrastructure.cibo_arch2_t11_post_containment_cycle_v3 import (
-              T11_POST_CONTAINMENT_CYCLE_V3,
-          )
-          from qore.infrastructure.cibo_arch2_t11_runner_readiness import (
-              READY,
-              assess_t11_runner_source,
-          )
-          from qore.infrastructure.cibo_arch2_t11_v3_retry_claim import (
-              RETRY_TOKEN,
-              T11_V3_TECHNICAL_RETRY_CLAIM,
-          )
-
-          trigger_lines = Path(
+          lines = Path(
               "docs/research/CIBO-ARCH2-T11-V3-EXECUTION-TRIGGER.txt"
           ).read_text(encoding="utf-8").splitlines()
-          assert trigger_lines == [
+          assert lines == [
               "EXECUTE=CIBO_ARCH2_T11_MARKET_IMPACT_EXECUTION_CYCLE_V3",
-              f"RETRY={RETRY_TOKEN}",
+              "QUEUE_SEAL=NO_ADDITIONAL_BROKER_POPULATION",
           ]
-          assert T11_V3_TECHNICAL_RETRY_CLAIM.one_retry_allowed is True
-          assert T11_V3_TECHNICAL_RETRY_CLAIM.failed_before_broker_mutation is True
-
-          cycle = T11_POST_CONTAINMENT_CYCLE_V3
-          assert cycle.ready_for_versioned_execution is True
-          assert cycle.independent_clean_audit_bound is True
-          assert cycle.v1_outcomes_consumable is False
-          assert cycle.v2_outcomes_consumable is False
-          assert cycle.changed_scientific_model is False
-          assert cycle.changed_thresholds is False
-          assert cycle.outcome_aware_repair is False
-          assert cycle.phase22_v2_consumed is False
-          assert cycle.canonical_ledger_modified is False
-          assert cycle.productive_authority is False
-
-          source = Path(
-              "scripts/cibo_arch2_t11_market_impact_demo.py"
-          ).read_text(encoding="utf-8")
-          assert assess_t11_runner_source(source).status == READY
+          print("T11 V3 queue sealed: no broker mutation authorized.")
           PY
-
-      - name: Verify DEMO credentials
-        shell: bash
-        run: |
-          set -euo pipefail
-          for name in             QORE_CTRADER_CLIENT_ID             QORE_CTRADER_CLIENT_SECRET             QORE_CTRADER_ACCESS_TOKEN             QORE_CTRADER_REFRESH_TOKEN
-          do
-            test -n "${!name:-}" || exit 2
-          done
-          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
-            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
-            echo "::add-mask::$account_id"
-            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
-          fi
-
-      - name: Fresh global containment check before broker mutation
-        run: |
-          mkdir -p t11-v3-preflight
-          python scripts/cibo_arch2_t11_global_containment_audit.py             --output t11-v3-preflight/containment.json             > t11-v3-preflight/containment-stdout.json
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          p = json.loads(
-              Path("t11-v3-preflight/containment.json").read_text()
-          )
-          assert p["containment_clean"] is True
-          assert p["open_t11_position_count"] == 0
-          assert p["open_t11_order_count"] == 0
-          assert p["new_versioned_cycle_allowed"] is True
-          assert p["broker_mutation_performed"] is False
-          PY
-
-      - name: Run frozen V3 minimum-volume micro-bundle experiment
-        run: |
-          mkdir -p t11-market-impact-v3
-          python scripts/cibo_arch2_t11_market_impact_demo.py             --output t11-market-impact-v3/market-impact.json             > t11-market-impact-v3/stdout.json
-
-      - name: Enforce frozen V3 population and governance
-        run: |
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          p = json.loads(
-              Path("t11-market-impact-v3/market-impact.json").read_text()
-          )
-          assert p["status"] in {
-              "MARKET_IMPACT_MODEL_READY",
-              "MARKET_IMPACT_MODEL_FALSIFIED_OR_NOT_READY",
-          }
-          assert p["provider_key"] == "ctrader-demo"
-          assert p["environment"] == "demo"
-          assert p["episode_count"] == 144
-          assert p["child_entry_count"] == 216
-          assert p["minimum_volume_child_orders_only"] is True
-          assert p["two_x_children_open_before_close"] is True
-          assert p["balanced_long_short_pairs"] is True
-          assert p["alternating_level_order"] is True
-          assert p["deposit_asset"] == "USD"
-          assert p["metric"] == "ADVERSE_REALIZED_ALL_IN_SETTLEMENT_COST_USD"
-          assert p["calibration_pairs_per_symbol"] == 8
-          assert p["validation_pairs_per_symbol"] == 4
-          assert p["all_created_positions_closed"] is True
-          assert p["broker_mutation_performed"] is True
-          assert p["holdout_outcomes_used"] is False
-          assert p["phase22_v2_consumed"] is False
-          assert p["fundednext_touched"] is False
-          assert p["vps_touched"] is False
-          assert p["live_authorized"] is False
-          assert p["real_capital_authorized"] is False
-          assert p["canonical_ledger_modified"] is False
-          assert p["productive_authority"] is False
-          assert len(p["evaluation"]["symbols"]) == 6
-          PY
-
-      - name: Seal V3 evidence
-        run: |
-          printf '%s\n' "$GITHUB_SHA" > t11-market-impact-v3/git-sha.txt
-          printf '%s\n' "$GITHUB_RUN_ID" > t11-market-impact-v3/run-id.txt
-          printf '%s\n' "$GITHUB_RUN_ATTEMPT" > t11-market-impact-v3/run-attempt.txt
-          cd t11-market-impact-v3
-          sha256sum             market-impact.json stdout.json git-sha.txt run-id.txt run-attempt.txt             > SHA256SUMS.txt
-          sha256sum -c SHA256SUMS.txt
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: qore-cibo-arch2-t11-market-impact-v3-${{ github.sha }}
-          path: |
-            t11-market-impact-v3
-            t11-v3-preflight
-          if-no-files-found: error
-          retention-days: 90
