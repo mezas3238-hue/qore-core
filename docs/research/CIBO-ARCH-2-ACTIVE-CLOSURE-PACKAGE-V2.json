@@ -29,10 +29,15 @@
     {
       "workstream_id": "T02",
       "state": "WAITING_ON_AUTHORITATIVE_FORWARD_LIFECYCLE",
-      "remaining_requirement": "POST_FREEZE_EXPLICIT_TERMINAL_REASON_POPULATION_THEN_CIBO_ARCH2_T02_PROVIDER_BOUND_ECONOMIC_ABLATION_V1",
+      "remaining_requirement": "AUTHORITATIVE_FORWARD_LIFECYCLE_POPULATION_WITH_EXACT_T02_PROVIDER_POSITION_BINDING_THEN_PROVIDER_BOUND_ECONOMIC_ABLATION",
       "evidence": [
         "src/qore/infrastructure/cibo_ce2i_phase20_t02_structural_oos.py",
-        "src/qore/infrastructure/cibo_arch2_t02_economic_ablation.py"
+        "src/qore/infrastructure/cibo_arch2_t02_provider_position_binding.py",
+        "src/qore/infrastructure/cibo_arch2_t02_lifecycle_intake.py",
+        "src/qore/infrastructure/cibo_arch2_t02_structural_binding.py",
+        "src/qore/infrastructure/cibo_arch2_t02_economic_ablation.py",
+        "docs/research/CIBO-ARCH-2-INTEGRATOR-PATCH-REQUEST-016-T02-CANONICAL-PROVIDER-POSITION-BINDING.md",
+        "github-actions://36953297742/SUCCESS"
       ]
     },
     {
@@ -121,7 +126,13 @@
     {
       "workstream_id": "T20",
       "state": "WAITING_ON_AUTHORITATIVE_FORWARD_LIFECYCLE",
-      "remaining_requirement": "REAL_CIBO_TO_RISK_TO_EXECUTION_TO_SETTLEMENT_TO_RELEASE_POPULATION"
+      "remaining_requirement": "ARCH_B_FORWARD_ECONOMIC_MANIFEST_READY_WITH_REAL_CIBO_TO_RISK_TO_EXECUTION_TO_SETTLEMENT_TO_RELEASE_POPULATION_AND_FROZEN_FOLD_LINEAGE_GATES",
+      "evidence": [
+        "src/qore/infrastructure/cibo_arch2_t20_forward_release_qualification.py",
+        "src/qore/infrastructure/cibo_arch2_t20_terminal_receipt.py",
+        "docs/research/CIBO-ARCH-2-INTEGRATOR-PATCH-REQUEST-011-T02-T20-FORWARD-POPULATION.md",
+        "github-actions://36953414666/SUCCESS"
+      ]
     },
     {
       "workstream_id": "PROVIDER_ECONOMICS",
@@ -144,7 +155,13 @@
     {
       "workstream_id": "FRESH_OOS",
       "state": "WAITING_ON_INTEGRATOR_RECEIPT",
-      "remaining_requirement": "AUTHORIZED_PHASE22_V2_FRESH_OUTCOME_RECEIPT_WITH_EXACT_OUTCOME_BUNDLE_TO_QUALIFICATION_BINDING"
+      "remaining_requirement": "AUTHORIZED_PHASE22_V2_FRESH_OUTCOME_RECEIPT_WITH_EXACT_OUTCOME_BUNDLE_TO_QUALIFICATION_BINDING",
+      "evidence": [
+        "src/qore/infrastructure/cibo_arch2_fresh_oos_binding.py",
+        "src/qore/infrastructure/cibo_arch2_fresh_oos_terminal_intake.py",
+        "docs/research/CIBO-ARCH-2-INTEGRATOR-PATCH-REQUEST-014-FRESH-OOS-BUNDLE-QUALIFICATION-BINDING.md",
+        "github-actions://36953614306/SUCCESS"
+      ]
     }
   ],
   "summary": {
@@ -167,7 +184,16 @@
     "empirical_fronts_in_progress": [],
     "provider_containment_blocked_fronts": [],
     "ready_for_versioned_provider_evidence": [],
-    "scientific_closure_ci_run_id": 36949446474,
-    "scientific_closure_ci_status": "SUCCESS"
+    "scientific_closure_ci_run_id": 36953726867,
+    "scientific_closure_ci_status": "SUCCESS",
+    "local_actionable_blockers": 0,
+    "external_dependency_count": 2,
+    "integrator_receipt_dependency_count": 1,
+    "current_head_sha": "2abd8c9a08e4b5de330f47a6df90f186d11b4325",
+    "last_local_hardening": {
+      "T02": "SELF_ATTESTED_PROVIDER_BINDING_REMOVED",
+      "T20": "FROZEN_PER_FOLD_AND_EXACT_SEVEN_LINEAGE_GATES_ENFORCED",
+      "FRESH_OOS": "EXACT_OUTCOME_BUNDLE_TO_QUALIFICATION_BINDING_REQUIRED"
+    }
   }
 }

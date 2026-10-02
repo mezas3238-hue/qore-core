@@ -86,3 +86,37 @@ PASS and terminal FAIL without weakening the one-shot rules.
 - holdout outcomes inspected by Architect-2: **false**;
 - rerun authorized: **false**;
 - productive authority: **false**.
+
+
+## Architect-2 acceptance contract now implemented
+
+Architect-2 now contains the concrete fail-closed boundary:
+
+- `src/qore/infrastructure/cibo_arch2_fresh_oos_binding.py`
+- `Phase22OutcomeQualificationBindingReceipt`
+- `phase22_report_fingerprint(...)`
+- `src/qore/infrastructure/cibo_arch2_fresh_oos_terminal_intake.py`
+
+Validated by:
+
+`36953614306 = SUCCESS`
+
+The intake now refuses to terminalize from independent `consumption` and
+`qualification` objects.  A third Integrator binding is mandatory and must
+match exactly:
+
+- candidate id;
+- execution-manifest SHA;
+- durable claim HEAD/run/attempt;
+- outcome-bundle SHA;
+- holdout evidence-store SHA;
+- holdout policy-store SHA;
+- outcome-to-store reconciliation SHA;
+- Phase22 qualification-plan SHA;
+- exact qualification-report fingerprint;
+- canonical qualification-artifact SHA;
+- qualification status;
+- lineage validity.
+
+Any mismatch fails closed before PASS/FAIL can become an Architect-2 terminal
+recommendation.
