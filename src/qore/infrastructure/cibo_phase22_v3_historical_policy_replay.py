@@ -9,6 +9,7 @@ Provider-specific economics must already be normalized into each
 TraderOpportunityEnvelope by a separately artifact-bound Phase22 provider model.
 QORE Risk remains downstream and independent.
 """
+# ruff: noqa: I001, E402
 
 from __future__ import annotations
 
@@ -255,7 +256,7 @@ def evaluate_phase22_historical_policy(
     margin_headroom_usd: Decimal,
     concentration_limit_by_group: tuple[tuple[str, Decimal], ...],
     current_step: int,
-    advanced_evidence: AdvancedPortfolioEvidence = AdvancedPortfolioEvidence(),
+    advanced_evidence: AdvancedPortfolioEvidence | None = None,
     known_options: tuple[Phase20MpcKnownOption, ...] = (),
 ) -> Phase22HistoricalPolicyDecisionRecord:
     """Evaluate frozen V3 composition without falsifying historical timestamps."""
@@ -264,6 +265,8 @@ def evaluate_phase22_historical_policy(
         raise CiboCapitalManagementError(
             "Phase22 historical policy requires at least one candidate"
         )
+    if advanced_evidence is None:
+        advanced_evidence = AdvancedPortfolioEvidence()
     provider_digests = {item.provider_model_sha256 for item in inputs}
     if len(provider_digests) != 1:
         raise CiboCapitalManagementError(
