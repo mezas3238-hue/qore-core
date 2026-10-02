@@ -16,8 +16,8 @@
   "real_capital_authorized": false,
   "production_authorized": false,
   "merge_authorized": false,
-  "retrigger_for_head": "85bfebd677acdb5d4b7f37a008cdada0b4123f88",
-  "retrigger_reason": "Relaunch after canonical Compound Risk fill/reconciliation lifecycle repair; no Trader edge, selection, sizing, target, or outcome logic changed.",
+  "retrigger_for_head": "22fc6fdff53ff5fc2a9dcbdf23991fdd9ae2960c",
+  "retrigger_reason": "Reporting-only relaunch: map CF01-CF19 to the 19 consulted mission faculties and emit canonical zero-selection allocator reasons for VT08/EURUSD. Economic/trader logic unchanged.",
   "launch_authorized_by_owner": true,
   "launch_authorized_at_utc": "2026-10-02T22:45:00Z"
 }
