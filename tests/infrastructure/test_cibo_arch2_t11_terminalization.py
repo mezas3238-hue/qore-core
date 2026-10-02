@@ -81,7 +81,7 @@ def _gross_edge_valid():
                     stop_risk_per_volume_usd=Decimal("10"),
                     outcome_reconciled=True,
                     provider_bound=True,
-                    holdout_receipt_authorized=True,
+                    fresh_oos_source_authorized=True,
                 )
             )
             minute += 1
@@ -124,6 +124,7 @@ def _impact_valid():
                     )
                     minute += 1
     return evaluate_t11_market_impact(tuple(episodes))
+
 
 def _impact_receipt(*, ready: bool) -> T11MarketImpactTerminalReceipt:
     return T11MarketImpactTerminalReceipt(
