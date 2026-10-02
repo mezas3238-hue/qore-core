@@ -65,11 +65,16 @@ from qore.infrastructure.cibo_scientific_closure_41 import (
     OPEN_PREIMAGE,
     SCIENTIFIC_CLOSURE_41_IDS,
     ScientificClosure41Evidence,
+    ScientificClosure41Package,
+    build_scientific_closure_41_package,
 )
 
 DEPENDENCY_SCHEMA = "QORE_CIBO_SCIENTIFIC_CLOSURE_41_DEPENDENCIES_V1"
 _SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 
+# Legacy source surfaces remain importable because several already-built gates
+# still emit these canonical receipt types. They are not the current ownership
+# split for certification closure.
 ARCHITECT_A_35_IDS = tuple(
     _PHASE22_V2_EVIDENCE_REQUIREMENTS_BY_WORKSTREAM
 )
@@ -82,14 +87,42 @@ SPECIAL_6_IDS = (
     "INTEGRATED_CAPITAL_TRUTH",
 )
 
+GROUP2_CAPITAL_13_IDS = (
+    "COMPOUND_ENGINE",
+    "COMPOUND_PORTFOLIO",
+    "INTERNAL_CAPITAL_MARKET",
+    "CAPITAL_GENERATIONS",
+    "PROTECTED_BASE_CAPITAL",
+    "PROFIT_PROTECTION",
+    "PATH_DEPENDENT_MONTE_CARLO",
+    "ADVERSARIAL_STRESS",
+    "TEMPORAL_REPLICATION",
+    "CAPITAL_AMPLIFICATION",
+    "AS_IS_ECONOMIC_BASELINE",
+    "USD60_CAPABILITY_PROGRAM",
+    "INTEGRATED_CAPITAL_TRUTH",
+)
+_GROUP2_SET = frozenset(GROUP2_CAPITAL_13_IDS)
+GROUP1_28_IDS = tuple(
+    workstream_id
+    for workstream_id in SCIENTIFIC_CLOSURE_41_IDS
+    if workstream_id not in _GROUP2_SET
+)
+ARCHITECT_A_GROUP2_11_IDS = tuple(
+    workstream_id
+    for workstream_id in GROUP2_CAPITAL_13_IDS
+    if workstream_id in _PHASE22_V2_EVIDENCE_REQUIREMENTS_BY_WORKSTREAM
+)
+
 if (
-    len(ARCHITECT_A_35_IDS) != 35
-    or len(SPECIAL_6_IDS) != 6
-    or set(ARCHITECT_A_35_IDS) & set(SPECIAL_6_IDS)
-    or set(ARCHITECT_A_35_IDS) | set(SPECIAL_6_IDS)
+    len(GROUP1_28_IDS) != 28
+    or len(GROUP2_CAPITAL_13_IDS) != 13
+    or set(GROUP1_28_IDS) & set(GROUP2_CAPITAL_13_IDS)
+    or set(GROUP1_28_IDS) | set(GROUP2_CAPITAL_13_IDS)
     != set(SCIENTIFIC_CLOSURE_41_IDS)
+    or len(ARCHITECT_A_GROUP2_11_IDS) != 11
 ):
-    raise RuntimeError("Scientific closure 41 canonical source partition drift")
+    raise RuntimeError("Scientific closure 41 group ownership partition drift")
 
 _SPECIAL_REQUIREMENTS: dict[str, tuple[str, ...]] = {
     "T02": (
@@ -204,6 +237,11 @@ def scientific_closure_41_dependency_manifest() -> dict[str, object]:
             requirements = _SPECIAL_REQUIREMENTS[workstream_id]
         row: dict[str, object] = {
             "workstream_id": workstream_id,
+            "owner_group": (
+                "GROUP2_CAPITAL_COMPOUND"
+                if workstream_id in _GROUP2_SET
+                else "GROUP1_V4_FRESH_CE2I_GENC"
+            ),
             "required_evidence_kinds": list(requirements),
             "future_artifact_digest_policy": "REQUIRED_AT_INTAKE",
         }
@@ -215,8 +253,10 @@ def scientific_closure_41_dependency_manifest() -> dict[str, object]:
     return {
         "schema": DEPENDENCY_SCHEMA,
         "workstream_count": 41,
-        "architect_a_existing_consumer_count": 35,
-        "special_canonical_adapter_count": 6,
+        "group1_v4_fresh_ce2i_genc_count": 28,
+        "group2_capital_compound_count": 13,
+        "legacy_architect_a_existing_consumer_count": 35,
+        "legacy_special_canonical_adapter_count": 6,
         "workstreams": rows,
         "unknown_future_digests_fabricated": False,
         "productive_authority": False,
@@ -235,9 +275,9 @@ def adapt_architect_a_scientific_receipt(
         raise CiboCapitalManagementError(
             "Closure 41 Architect-A adapter requires canonical receipt"
         )
-    if receipt.workstream_id not in ARCHITECT_A_35_IDS:
+    if receipt.workstream_id not in ARCHITECT_A_GROUP2_11_IDS:
         raise CiboCapitalManagementError(
-            "Closure 41 Architect-A adapter ownership drift"
+            "Closure 41 Group-2 capital adapter ownership drift"
         )
     if receipt.recommended_disposition not in {COMPLETED, FALSIFIED}:
         raise CiboCapitalManagementError(
