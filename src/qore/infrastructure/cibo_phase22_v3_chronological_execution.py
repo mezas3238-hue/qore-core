@@ -10,6 +10,7 @@ counterfactuals applied exactly once at settlement. Floating PnL never funds new
 capital. Regime/concentration evidence must be supplied explicitly and source-
 bound; the executor does not invent those inputs.
 """
+# ruff: noqa: I001, E402
 
 from __future__ import annotations
 
