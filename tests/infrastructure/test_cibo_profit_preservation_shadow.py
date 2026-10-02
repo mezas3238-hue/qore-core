@@ -512,3 +512,32 @@ def test_genc7_oos_refuses_counterfactual_effect_claim(tmp_path) -> None:
             book,
             treatment_effect_identified=True,
         )
+
+
+def test_genc7_bound_path_rejects_manual_horizon_or_observation_drift(
+    tmp_path,
+) -> None:
+    book = _oos_book(tmp_path)
+    report = bind_genc7_to_observed_paths(
+        book=book,
+        outcomes=(_outcome_for_book(book),),
+    )
+    row = report.rows[0]
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="bound path horizon binding drift",
+    ):
+        replace(
+            row,
+            window_end_at=row.window_end_at + timedelta(minutes=1),
+        )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="bound observation cannot predate horizon",
+    ):
+        replace(
+            row,
+            observed_at=row.window_end_at - timedelta(seconds=1),
+        )
