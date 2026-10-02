@@ -30,8 +30,8 @@
   },
   "counts": {
     "assigned": 8,
-    "terminal_recommendation_ready": 4,
-    "empirical_provider_run_in_progress": 1,
+    "terminal_recommendation_ready": 5,
+    "empirical_provider_run_in_progress": 0,
     "waiting_on_authoritative_forward_lifecycle": 2,
     "waiting_on_integrator_receipt": 1,
     "unexplained": 0
@@ -64,9 +64,8 @@
     },
     {
       "workstream_id": "T11",
-      "architect2_local_status": "EMPIRICAL_PROVIDER_RUN_IN_PROGRESS",
-      "remaining_requirement": "CANONICAL_V3_RUN_36948511045_TERMINAL_ARTIFACT_THEN_OUTCOME_BLIND_RECEIPT; IF_MARKET_IMPACT_PASSES_REAL_AUTHORIZED_FORWARD_MANIFEST_FOR_GROSS_EDGE_REMAINS_REQUIRED",
-      "proposed_terminal_disposition": null,
+      "architect2_local_status": "TERMINAL_RECOMMENDATION_READY",
+      "proposed_terminal_disposition": "FALSIFIED_AND_CLOSED",
       "execution_lineage": {
         "v1_run_id": 36945327912,
         "v1_consumable": false,
@@ -83,14 +82,22 @@
         "canonical_v3_head_sha": "7b9f6e6c6b4cf385f6df0c87d217b47e6cd12069",
         "v3_prebroker_failure_run_id": 36948338513,
         "duplicate_run_id": 36948554909,
-        "duplicate_cancelled_before_job": true
+        "duplicate_cancelled_before_job": true,
+        "canonical_v3_conclusion": "SUCCESS",
+        "canonical_v3_artifact_id": 11204492977,
+        "canonical_v3_artifact_digest": "sha256:d4dba464e1f6b42b323bb8cfa9e131d70a351d42e7b8c8e3efbabcb104cfb6fc",
+        "market_impact_model_ready": false,
+        "gross_edge_required_after_market_impact_falsification": false
       },
       "evidence": [
         "src/qore/infrastructure/cibo_arch2_t11_post_containment_cycle_v3.py",
         "src/qore/infrastructure/cibo_arch2_t11_v3_retry_claim.py",
-        "src/qore/infrastructure/cibo_arch2_t11_market_impact_terminal_receipt.py",
+        "src/qore/infrastructure/cibo_arch2_t11_v3_terminal_receipt.py",
         "src/qore/infrastructure/cibo_arch2_t11_terminalization.py",
-        "docs/research/CIBO-ARCH-2-INTEGRATOR-PATCH-REQUEST-010-T11-GROSS-EDGE-POPULATION.md"
+        "docs/research/CIBO-ARCH-2-T11-V3-TERMINAL-EVIDENCE-V1.json",
+        "docs/research/CIBO-ARCH-2-INTEGRATOR-PATCH-REQUEST-015-T11-V3-TERMINAL-FALSIFICATION.md",
+        "github-actions://36948511045/SUCCESS",
+        "github-artifact://11204492977/sha256:d4dba464e1f6b42b323bb8cfa9e131d70a351d42e7b8c8e3efbabcb104cfb6fc"
       ],
       "productive_authority": false
     },
@@ -150,9 +157,9 @@
     }
   ],
   "latest_scientific_closure": {
-    "run_id": 36949602774,
+    "run_id": 36953726867,
     "conclusion": "SUCCESS",
-    "head_sha": "0bb292cb368660c5326a322e7d31f27f509fea35"
+    "head_sha": "2abd8c9a08e4b5de330f47a6df90f186d11b4325"
   },
   "integrator_patch_requests": [
     "docs/research/CIBO-ARCH-2-INTEGRATOR-PATCH-REQUEST-001.md",
@@ -163,11 +170,15 @@
     "docs/research/CIBO-ARCH-2-INTEGRATOR-PATCH-REQUEST-007.md",
     "docs/research/CIBO-ARCH-2-INTEGRATOR-PATCH-REQUEST-010-T11-GROSS-EDGE-POPULATION.md",
     "docs/research/CIBO-ARCH-2-INTEGRATOR-PATCH-REQUEST-011-T02-T20-FORWARD-POPULATION.md",
-    "docs/research/CIBO-ARCH-2-INTEGRATOR-PATCH-REQUEST-012-FRESH-OOS-ONE-SHOT.md"
+    "docs/research/CIBO-ARCH-2-INTEGRATOR-PATCH-REQUEST-012-FRESH-OOS-ONE-SHOT.md",
+    "docs/research/CIBO-ARCH-2-INTEGRATOR-PATCH-REQUEST-014-FRESH-OOS-BUNDLE-QUALIFICATION-BINDING.md",
+    "docs/research/CIBO-ARCH-2-INTEGRATOR-PATCH-REQUEST-015-T11-V3-TERMINAL-FALSIFICATION.md",
+    "docs/research/CIBO-ARCH-2-INTEGRATOR-PATCH-REQUEST-016-T02-CANONICAL-PROVIDER-POSITION-BINDING.md"
   ],
   "verification_checkpoint_before_exact_head_ci": {
     "head_sha": "ac96bd59477b311b806d9fdc27e1892b7feaca9c",
     "head_message": "fix(cibo-arch2): normalize package-frontier test import spacing",
     "requested_reason": "VERIFY_CURRENT_EIGHT_FRONT_PACKAGE_AND_CONSUMERS_AFTER_SCOPE_RECONCILIATION"
-  }
+  },
+  "current_state_note": "SYNCHRONIZED_WITH_CIBO_ARCH2_ACTIVE_CLOSURE_PACKAGE_V2__5_OF_8_TERMINAL__3_EXTERNAL_DEPENDENCIES__LOCAL_ACTIONABLE_BLOCKERS_0"
 }
