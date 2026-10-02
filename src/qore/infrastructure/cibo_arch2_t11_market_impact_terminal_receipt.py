@@ -17,6 +17,11 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
+from qore.infrastructure.cibo_arch2_t11_execution_claim import (
+    CANONICAL_HEAD_SHA,
+    CANONICAL_RUN_ATTEMPT,
+    CANONICAL_RUN_ID,
+)
 from qore.infrastructure.cibo_arch2_t11_experiment_plan import (
     T11_MARKET_IMPACT_EXPERIMENT_PLAN,
 )
@@ -37,6 +42,9 @@ class T11MarketImpactTerminalReceipt:
     report_sha256: str
     protocol_sha256: str
     experiment_plan_sha256: str
+    canonical_run_id: int
+    canonical_run_attempt: int
+    canonical_head_sha: str
     symbol_count: int
     episode_count: int
     child_entry_count: int
@@ -63,6 +71,14 @@ class T11MarketImpactTerminalReceipt:
                 raise CiboCapitalManagementError(
                     f"T11 terminal receipt {name} invalid"
                 )
+        if (
+            self.canonical_run_id != CANONICAL_RUN_ID
+            or self.canonical_run_attempt != CANONICAL_RUN_ATTEMPT
+            or self.canonical_head_sha != CANONICAL_HEAD_SHA
+        ):
+            raise CiboCapitalManagementError(
+                "T11 terminal receipt canonical execution lineage drift"
+            )
         if self.protocol_sha256 != T11_NONLINEAR_INPUT_FREEZE.fingerprint():
             raise CiboCapitalManagementError(
                 "T11 terminal receipt protocol lineage drift"
@@ -143,6 +159,20 @@ def build_t11_market_impact_terminal_receipt(
         raise CiboCapitalManagementError(
             "T11 terminal receipt report population drift"
         )
+    if report.get("experiment_plan_sha256") != (
+        T11_MARKET_IMPACT_EXPERIMENT_PLAN.fingerprint()
+    ):
+        raise CiboCapitalManagementError(
+            "T11 terminal receipt report experiment-plan lineage drift"
+        )
+    if (
+        str(report.get("run_id", "")) != str(CANONICAL_RUN_ID)
+        or str(report.get("run_attempt", "")) != str(CANONICAL_RUN_ATTEMPT)
+        or report.get("git_sha") != CANONICAL_HEAD_SHA
+    ):
+        raise CiboCapitalManagementError(
+            "T11 terminal receipt report canonical-run lineage drift"
+        )
 
     evaluation = report.get("evaluation")
     if not isinstance(evaluation, dict):
@@ -195,6 +225,9 @@ def build_t11_market_impact_terminal_receipt(
         report_sha256=digest,
         protocol_sha256=T11_NONLINEAR_INPUT_FREEZE.fingerprint(),
         experiment_plan_sha256=T11_MARKET_IMPACT_EXPERIMENT_PLAN.fingerprint(),
+        canonical_run_id=CANONICAL_RUN_ID,
+        canonical_run_attempt=CANONICAL_RUN_ATTEMPT,
+        canonical_head_sha=CANONICAL_HEAD_SHA,
         symbol_count=len(ordered),
         episode_count=144,
         child_entry_count=216,
