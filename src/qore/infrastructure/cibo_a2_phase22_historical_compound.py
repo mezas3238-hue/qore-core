@@ -57,7 +57,7 @@ class Phase22HistoricalCompoundLot:
     realized_at: datetime
     generation: int = 1
     broker_position_id: None = None
-    broker_deal_ids: tuple[()] = ()
+    broker_deal_ids: tuple[int, ...] = ()
     runtime_authority: bool = False
 
     def __post_init__(self) -> None:
