@@ -13,6 +13,7 @@ Market dimensions:
 Exactly the five-market M5 surface used by the canonical Phase20 DEMO runtime
 is retained. Missing causal history fails closed rather than being backfilled.
 """
+# ruff: noqa: I001, E402
 
 from __future__ import annotations
 
