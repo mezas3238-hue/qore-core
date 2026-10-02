@@ -16,6 +16,12 @@ import json
 import re
 from dataclasses import asdict, dataclass
 
+from qore.infrastructure.cibo_a1_a2_scientific_dependency import (
+    A1A2ScientificDependencyAdmission,
+)
+from qore.infrastructure.cibo_a1_phase22_canonical_manifest_bridge import (
+    A1Phase22CanonicalScientificManifestBridge,
+)
 from qore.infrastructure.cibo_a1_phase22_scientific_consumption import (
     A1Phase22ScientificConsumptionManifest,
 )
@@ -118,6 +124,9 @@ class A1HistoricalCompoundLineageReceipt:
 class A1HistoricalCompoundDependencyAdmission:
     contract_id: str
     manifest_sha256: str
+    canonical_phase22_manifest_sha256: str
+    canonical_bridge_sha256: str
+    a2_dependency_sha256: str
     receipt_sha256: str
     source_workstream: str
     source_head: str
@@ -131,7 +140,13 @@ class A1HistoricalCompoundDependencyAdmission:
             raise CiboCompoundCapitalError(
                 "A1 historical Compound admission identity drift"
             )
-        for name in ("manifest_sha256", "receipt_sha256"):
+        for name in (
+            "manifest_sha256",
+            "canonical_phase22_manifest_sha256",
+            "canonical_bridge_sha256",
+            "a2_dependency_sha256",
+            "receipt_sha256",
+        ):
             _sha(getattr(self, name), name)
         if self.source_workstream != "COMPOUND_ENGINE":
             raise CiboCompoundCapitalError(
@@ -158,6 +173,8 @@ class A1HistoricalCompoundDependencyAdmission:
 def admit_historical_compound_lineage_for_a1(
     *,
     manifest: A1Phase22ScientificConsumptionManifest,
+    canonical_bridge: A1Phase22CanonicalScientificManifestBridge,
+    a2_dependency: A1A2ScientificDependencyAdmission,
     receipt: A1HistoricalCompoundLineageReceipt,
 ) -> A1HistoricalCompoundDependencyAdmission:
     """Admit only an exact-population, non-fabricated A2 Compound adapter."""
@@ -166,11 +183,48 @@ def admit_historical_compound_lineage_for_a1(
         raise CiboCompoundCapitalError(
             "A1 historical Compound dependency requires canonical manifest"
         )
+    if not isinstance(
+        canonical_bridge,
+        A1Phase22CanonicalScientificManifestBridge,
+    ):
+        raise CiboCompoundCapitalError(
+            "A1 historical Compound dependency requires canonical Phase22 bridge"
+        )
+    if not isinstance(a2_dependency, A1A2ScientificDependencyAdmission):
+        raise CiboCompoundCapitalError(
+            "A1 historical Compound dependency requires proven A2 admission"
+        )
     if not isinstance(receipt, A1HistoricalCompoundLineageReceipt):
         raise CiboCompoundCapitalError(
             "A1 historical Compound dependency requires canonical receipt"
         )
     manifest_sha = manifest.fingerprint()
+    if canonical_bridge.a1_consumption_manifest_sha256 != manifest_sha:
+        raise CiboCompoundCapitalError(
+            "A1 historical Compound bridge/manifest drift"
+        )
+    if a2_dependency.a2_workstream_id != "COMPOUND_ENGINE":
+        raise CiboCompoundCapitalError(
+            "A1 historical Compound requires COMPOUND_ENGINE A2 dependency"
+        )
+    if (
+        a2_dependency.canonical_phase22_manifest_sha256
+        != canonical_bridge.canonical_phase22_manifest_sha256
+    ):
+        raise CiboCompoundCapitalError(
+            "A1 historical Compound A2/canonical manifest drift"
+        )
+    if (
+        a2_dependency.a1_manifest_bridge_sha256
+        != canonical_bridge.fingerprint()
+    ):
+        raise CiboCompoundCapitalError(
+            "A1 historical Compound A2/bridge drift"
+        )
+    if a2_dependency.a2_source_head != receipt.source_head:
+        raise CiboCompoundCapitalError(
+            "A1 historical Compound A2 source HEAD drift"
+        )
     if receipt.a1_manifest_sha256 != manifest_sha:
         raise CiboCompoundCapitalError(
             "A1 historical Compound receipt/manifest digest drift"
@@ -183,6 +237,11 @@ def admit_historical_compound_lineage_for_a1(
     return A1HistoricalCompoundDependencyAdmission(
         contract_id=CONTRACT_ID,
         manifest_sha256=manifest_sha,
+        canonical_phase22_manifest_sha256=(
+            canonical_bridge.canonical_phase22_manifest_sha256
+        ),
+        canonical_bridge_sha256=canonical_bridge.fingerprint(),
+        a2_dependency_sha256=a2_dependency.fingerprint(),
         receipt_sha256=receipt.fingerprint(),
         source_workstream=receipt.source_workstream,
         source_head=receipt.source_head,
