@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 WORKFLOW = Path(".github/workflows/cibo-phase22-sovereign-one-shot.yml")
 
 
