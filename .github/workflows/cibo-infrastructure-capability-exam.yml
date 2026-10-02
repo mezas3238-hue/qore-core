@@ -35,6 +35,27 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m pip install -e '.[dev]'
+      - name: Verify exam readiness freeze
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p = json.loads(
+              Path(
+                  "docs/research/"
+                  "CIBO-USD60-CAPABILITY-EXAM-REPORTING-COMPOUND-FREEZE-V1.json"
+              ).read_text(encoding="utf-8")
+          )
+          assert p["schema"] == (
+              "qore.cibo.usd60-capability-exam-reporting-compound-freeze.v1"
+          )
+          readiness = p["readiness"]
+          assert readiness["turtle_temporal_alignment_ready"] is True
+          assert readiness["trader_column_reporting_ready"] is True
+          assert readiness["compound_portfolio_lane_ready"] is True
+          assert readiness["launch_ready"] is True
+          PY
       - name: Verify reused-holdout Owner directive
         run: |
           python - <<'PY'
