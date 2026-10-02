@@ -13,6 +13,6 @@
   "production": false,
   "merge_authority": false,
   "outcome_aware_tuning": false,
-  "retrigger_for_head": "7f196bc98863b711742dffda19b9cebd4809d790",
-  "retrigger_reason": "Static validation cleanup only: remove obsolete policy-seal import after reconciled allocator integration. No economic behavior changed."
+  "retrigger_for_head": "695f576ab8368b98c39c7756e935ebbc18005d05",
+  "retrigger_reason": "Relaunch after P0 allocator-policy reconciliation and canonical lowercase Compound Risk reservation-state repair."
 }
