@@ -248,6 +248,10 @@ def assess_next_phase22_exam(
 
 CURRENT_NEXT_PHASE22_EVIDENCE = NextPhase22ExamEvidence(
     candidate_id=NEXT_CANDIDATE_ID,
+    turtle_window_integrity_run_id=37016818566,
+    turtle_window_integrity_head_sha=(
+        "f8f2bfde3fed00750fd14a226bbb22b09da24bc0"
+    ),
 )
 
 CURRENT_NEXT_PHASE22_READINESS = assess_next_phase22_exam(
