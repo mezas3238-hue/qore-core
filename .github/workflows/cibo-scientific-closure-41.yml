@@ -7,8 +7,10 @@ on:
     paths:
       - '.github/workflows/cibo-scientific-closure-41.yml'
       - 'src/qore/infrastructure/cibo_scientific_closure_41.py'
+      - 'src/qore/infrastructure/cibo_scientific_closure_41_adapters.py'
       - 'scripts/cibo_scientific_closure_41_semantic_gate.py'
       - 'tests/infrastructure/test_cibo_scientific_closure_41.py'
+      - 'tests/infrastructure/test_cibo_scientific_closure_41_adapters.py'
       - 'docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json'
   pull_request:
     branches:
@@ -16,8 +18,10 @@ on:
     paths:
       - '.github/workflows/cibo-scientific-closure-41.yml'
       - 'src/qore/infrastructure/cibo_scientific_closure_41.py'
+      - 'src/qore/infrastructure/cibo_scientific_closure_41_adapters.py'
       - 'scripts/cibo_scientific_closure_41_semantic_gate.py'
       - 'tests/infrastructure/test_cibo_scientific_closure_41.py'
+      - 'tests/infrastructure/test_cibo_scientific_closure_41_adapters.py'
       - 'docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json'
 
 permissions:
@@ -41,13 +45,17 @@ jobs:
         run: |
           ruff check \
             src/qore/infrastructure/cibo_scientific_closure_41.py \
+            src/qore/infrastructure/cibo_scientific_closure_41_adapters.py \
             scripts/cibo_scientific_closure_41_semantic_gate.py \
-            tests/infrastructure/test_cibo_scientific_closure_41.py
+            tests/infrastructure/test_cibo_scientific_closure_41.py \
+            tests/infrastructure/test_cibo_scientific_closure_41_adapters.py
           mypy \
             src/qore/infrastructure/cibo_scientific_closure_41.py \
+            src/qore/infrastructure/cibo_scientific_closure_41_adapters.py \
             scripts/cibo_scientific_closure_41_semantic_gate.py
           pytest -q --no-cov \
-            tests/infrastructure/test_cibo_scientific_closure_41.py
+            tests/infrastructure/test_cibo_scientific_closure_41.py \
+            tests/infrastructure/test_cibo_scientific_closure_41_adapters.py
           python scripts/cibo_scientific_closure_41_semantic_gate.py
       - uses: actions/upload-artifact@v4
         with:

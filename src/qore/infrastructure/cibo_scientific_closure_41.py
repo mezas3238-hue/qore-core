@@ -231,19 +231,23 @@ class ScientificClosure41Evidence:
                 raise CiboCapitalManagementError(
                     f"Scientific closure 41 {name} invalid"
                 )
-        if self.integrity_result != "PASS":
+        if self.integrity_result not in {"PASS", "FAIL"}:
             raise CiboCapitalManagementError(
-                "Scientific closure 41 hard integrity must PASS"
+                "Scientific closure 41 integrity result invalid"
             )
         if self.source_gate_status not in {"PASS", "FAIL"}:
             raise CiboCapitalManagementError(
                 "Scientific closure 41 NOT_READY/INVALID cannot be terminal"
             )
-        if self.source_gate_status == "PASS" and "FAIL" in {
-            self.economic_result,
-            self.stress_result,
-            self.temporal_replication_result,
-        }:
+        if self.source_gate_status == "PASS" and (
+            self.integrity_result != "PASS"
+            or "FAIL"
+            in {
+                self.economic_result,
+                self.stress_result,
+                self.temporal_replication_result,
+            }
+        ):
             raise CiboCapitalManagementError(
                 "Scientific closure 41 PASS cannot hide failed dimensions"
             )

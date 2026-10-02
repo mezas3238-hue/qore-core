@@ -20,14 +20,14 @@ from qore.infrastructure.cibo_phase22_execution_inputs import (
 from qore.infrastructure.cibo_phase22_execution_manifest import (
     build_phase22_execution_manifest,
 )
-from qore.infrastructure.cibo_phase22_git_durable_claim import (
-    EXACT_CLAIM_PATHS,
-    Phase22GitDurableClaimEvidence,
-)
 from qore.infrastructure.cibo_phase22_fresh_opportunity_batch import (
     Phase22FreshOpportunity,
     Phase22FreshTraderEvidence,
     build_phase22_fresh_opportunity_batch,
+)
+from qore.infrastructure.cibo_phase22_git_durable_claim import (
+    EXACT_CLAIM_PATHS,
+    Phase22GitDurableClaimEvidence,
 )
 from qore.infrastructure.cibo_phase22_one_shot_batch import (
     Phase22OneShotClaimReceipt,
@@ -249,6 +249,8 @@ def test_closure_burns_one_shot_even_when_qualification_not_ready(
         claim=claim,
         consumption_claim=claim.consumption_claim(),
         durable_claim_evidence=_durable_claim(claim),
+        execution_run_id=123,
+        execution_run_attempt=1,
     )
 
     assert closure.qualification.status in {
@@ -287,6 +289,8 @@ def test_closure_store_set_is_create_once(tmp_path: Path) -> None:
         claim=claim,
         consumption_claim=claim.consumption_claim(),
         durable_claim_evidence=_durable_claim(claim),
+        execution_run_id=123,
+        execution_run_attempt=1,
     )
     close_phase22_one_shot_execution(**kwargs)
 
@@ -323,6 +327,37 @@ def test_closure_rejects_durable_claim_lineage_drift_before_store_write(
                 claim,
                 source_head_sha="f" * 40,
             ),
+            execution_run_id=123,
+            execution_run_attempt=1,
+        )
+
+    assert not store_root.exists()
+
+def test_closure_refuses_rerun_attempt_before_store_write(
+    tmp_path: Path,
+) -> None:
+    fresh = load_phase22_sealed_fresh_batch(_fresh_payload())
+    provider = load_phase22_sealed_provider_numeric(_provider_payload())
+    store_root = tmp_path / "phase22-v2-stores"
+    claim = _claim(store_root)
+
+    with pytest.raises(
+        Exception,
+        match="execution lease mismatch",
+    ):
+        close_phase22_one_shot_execution(
+            fresh=fresh,
+            provider=provider,
+            provider_numeric_freeze_sha256=_sha("provider-freeze"),
+            corpora=_corpora(),
+            store_root=store_root,
+            replay_started_at=datetime(2026, 10, 2, 7, tzinfo=UTC),
+            completed_at=None,
+            claim=claim,
+            consumption_claim=claim.consumption_claim(),
+            durable_claim_evidence=_durable_claim(claim),
+            execution_run_id=123,
+            execution_run_attempt=2,
         )
 
     assert not store_root.exists()

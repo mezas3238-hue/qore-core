@@ -44,6 +44,7 @@ def _evidence(
     synthetic: bool = False,
     future_leakage: bool = False,
     outcome_aware: bool = False,
+    integrity_result: str = "PASS",
 ) -> ScientificClosure41Evidence:
     return ScientificClosure41Evidence(
         workstream_id=workstream_id,
@@ -62,7 +63,7 @@ def _evidence(
         economic_result="PASS" if status == "PASS" else "FAIL",
         stress_result="PASS",
         temporal_replication_result="PASS",
-        integrity_result="PASS",
+        integrity_result=integrity_result,
         source_gate_status=status,
         terminal_reason=f"Frozen gate result for {workstream_id}",
         evaluated_at=datetime(2026, 10, 2, 12, 0, tzinfo=UTC),
@@ -296,4 +297,26 @@ def test_transition_rejects_reopened_or_preterminal_target() -> None:
         apply_scientific_closure_41_to_ledger_copy(
             ledger=ledger,
             package=_package(),
+        )
+
+
+def test_legitimate_integrity_failure_can_be_terminal_falsification() -> None:
+    evidence = _evidence(
+        "T02",
+        status="FAIL",
+        integrity_result="FAIL",
+    )
+
+    assert evidence.terminal_disposition == FALSIFIED
+
+
+def test_integrity_failure_can_never_hide_under_pass() -> None:
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="PASS cannot hide failed dimensions",
+    ):
+        _evidence(
+            "T02",
+            status="PASS",
+            integrity_result="FAIL",
         )

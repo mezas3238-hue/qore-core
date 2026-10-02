@@ -5,6 +5,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from qore.infrastructure.cibo_scientific_closure_41_adapters import (
+    scientific_closure_41_dependency_manifest,
+)
 from qore.infrastructure.cibo_scientific_closure_41 import (
     CANONICAL_HOLDOUT_ID,
     CANONICAL_POLICY_IDENTITY,
@@ -30,6 +33,7 @@ def main() -> int:
         "policy_identity": CANONICAL_POLICY_IDENTITY,
         "provider_identity": CANONICAL_PROVIDER_IDENTITY,
         **summary,
+        "dependency_manifest": scientific_closure_41_dependency_manifest(),
         "phase22_execution_authority": False,
         "canonical_ledger_write_authority": False,
         "final_exam_authority": False,

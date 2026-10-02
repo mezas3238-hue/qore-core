@@ -96,7 +96,9 @@ def main() -> int:
     parser.add_argument("--claim", type=Path, required=True)
     parser.add_argument("--consumption", type=Path, required=True)
     parser.add_argument("--replay-started-at", required=True)
-    parser.add_argument("--completed-at", required=True)
+    parser.add_argument("--completed-at")
+    parser.add_argument("--run-id", type=int, required=True)
+    parser.add_argument("--run-attempt", type=int, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
 
@@ -114,6 +116,8 @@ def main() -> int:
         repo_root=repo_root,
         branch_name=args.branch_name,
         remote_name=args.remote_name,
+        expected_run_id=args.run_id,
+        expected_run_attempt=args.run_attempt,
     )
 
     # Fresh evidence access is deliberately below the remote-durable barrier.
@@ -138,14 +142,21 @@ def main() -> int:
         corpora=corpora,
         store_root=args.store_root,
         replay_started_at=datetime.fromisoformat(args.replay_started_at),
-        completed_at=datetime.fromisoformat(args.completed_at),
+        completed_at=(
+            None
+            if args.completed_at is None
+            else datetime.fromisoformat(args.completed_at)
+        ),
         claim=claim,
         consumption_claim=consumption,
         durable_claim_evidence=durable_claim_evidence,
+        execution_run_id=args.run_id,
+        execution_run_attempt=args.run_attempt,
     )
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
     outputs = {
+        "durable-claim-evidence.json": closure.durable_claim_evidence,
         "execution-report.json": closure.execution,
         "qualification-report.json": closure.qualification,
         "completion-receipt.json": closure.completion,
