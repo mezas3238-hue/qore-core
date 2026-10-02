@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from datetime import UTC, datetime, timedelta
 from types import ModuleType
 
@@ -11,6 +10,8 @@ from scripts.cibo_phase22_turtle_window_replay import (
     FRESH_CANDIDATE_ID,
     FRESH_CLOSE,
     FRESH_OPEN,
+    PARITY_CLOSE,
+    PARITY_OPEN,
     TurtleReplayConfig,
     bind_replay_evaluation_window,
     validate_source_report_window,
