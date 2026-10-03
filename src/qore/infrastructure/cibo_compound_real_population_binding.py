@@ -14,7 +14,10 @@ from datetime import datetime
 from decimal import Decimal
 from enum import StrEnum
 
-from qore.infrastructure.account_wide_risk import TraderLineage
+from qore.infrastructure.account_wide_risk import (
+    TraderIdentity,
+    canonical_trader_identity,
+)
 from qore.infrastructure.cibo_ce2i_phase20_policy_candidate import (
     FROZEN_PHASE20_POLICY_CANDIDATE,
 )
@@ -48,7 +51,7 @@ class ForwardCompoundEconomicRecord:
     market_event_id: str
     decision_id: str
     candidate_id: str
-    trader_id: TraderLineage
+    trader_id: TraderIdentity
     signal_fingerprint: str
     account_identity_fingerprint: str
     qualification_fold_id: str
@@ -90,7 +93,7 @@ class ForwardCompoundEconomicRecord:
                 raise CiboCompoundCapitalError(
                     f"real compound population {name} is required"
                 )
-        if type(self.trader_id) is not TraderLineage:
+        if type(self.trader_id) is not TraderIdentity:
             raise CiboCompoundCapitalError(
                 "real compound population Trader is invalid"
             )
@@ -355,7 +358,7 @@ class TraderLabBurnedResearchCompoundRecord:
     """
 
     episode_id: str
-    trader_id: TraderLineage
+    trader_id: TraderIdentity
     signal_fingerprint: str
     account_identity_fingerprint: str
     decision_at: datetime
@@ -384,7 +387,7 @@ class TraderLabBurnedResearchCompoundRecord:
                 raise CiboCompoundCapitalError(
                     f"Trader Lab burned-research {name} is required"
                 )
-        if type(self.trader_id) is not TraderLineage:
+        if type(self.trader_id) is not TraderIdentity:
             raise CiboCompoundCapitalError(
                 "Trader Lab burned-research Trader is invalid"
             )
