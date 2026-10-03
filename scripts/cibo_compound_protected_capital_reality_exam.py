@@ -235,8 +235,12 @@ def _simulate_observed(
     max_capital_need_to_current_capital_ratio: Decimal = (
         MAX_CAPITAL_NEED_TO_CURRENT_CAPITAL_RATIO
     ),
+    long_min_expected_net_value_usd: Decimal | None = None,
     short_required_regime: str | None = None,
+    short_required_entry_type: str | None = None,
+    short_min_expected_net_value_usd: Decimal | None = None,
     short_max_expected_capital_minutes: Decimal | None = None,
+    short_max_dynamic_limit_utilization: Decimal | None = None,
 ) -> tuple[ReinvestmentEpisode, ...]:
     """Chronological protected-only incremental seed replay.
 
@@ -258,8 +262,18 @@ def _simulate_observed(
         or max_capital_need_to_current_capital_ratio <= 0
     ):
         raise ValueError("reinvestment ratio must be finite positive Decimal")
+    for name, value in (
+        ("long minimum expected net", long_min_expected_net_value_usd),
+        ("short minimum expected net", short_min_expected_net_value_usd),
+    ):
+        if value is not None and (
+            not isinstance(value, Decimal) or not value.is_finite()
+        ):
+            raise ValueError(f"{name} must be finite Decimal")
     if short_required_regime is not None and not short_required_regime:
         raise ValueError("short_required_regime cannot be empty")
+    if short_required_entry_type is not None and not short_required_entry_type:
+        raise ValueError("short_required_entry_type cannot be empty")
     if short_max_expected_capital_minutes is not None and (
         not isinstance(short_max_expected_capital_minutes, Decimal)
         or not short_max_expected_capital_minutes.is_finite()
@@ -267,6 +281,15 @@ def _simulate_observed(
     ):
         raise ValueError(
             "short expected-capital-minutes limit must be finite positive Decimal"
+        )
+    if short_max_dynamic_limit_utilization is not None and (
+        not isinstance(short_max_dynamic_limit_utilization, Decimal)
+        or not short_max_dynamic_limit_utilization.is_finite()
+        or short_max_dynamic_limit_utilization <= 0
+        or short_max_dynamic_limit_utilization > 1
+    ):
+        raise ValueError(
+            "short dynamic-limit utilization must be Decimal in (0, 1]"
         )
 
     core_settlements = sorted(
@@ -365,6 +388,23 @@ def _simulate_observed(
                 protected[trader] += realized
                 inflow_since_episode[trader] += realized
 
+        expectation = row.get("expectation")
+        expected_net = (
+            None
+            if not isinstance(expectation, dict)
+            or expectation.get("expected_net_value_usd") is None
+            else _d(expectation["expected_net_value_usd"])
+        )
+        if candidate.side == "long":
+            if (
+                long_min_expected_net_value_usd is not None
+                and (
+                    expected_net is None
+                    or expected_net < long_min_expected_net_value_usd
+                )
+            ):
+                continue
+
         if candidate.side == "short":
             if short_required_regime is not None:
                 regime = row["market_predecision_state"].get("regime")
@@ -375,8 +415,21 @@ def _simulate_observed(
                 )
                 if posture != short_required_regime:
                     continue
+            if (
+                short_required_entry_type is not None
+                and str(row["trader_opportunity"].get("entry_type"))
+                != short_required_entry_type
+            ):
+                continue
+            if (
+                short_min_expected_net_value_usd is not None
+                and (
+                    expected_net is None
+                    or expected_net < short_min_expected_net_value_usd
+                )
+            ):
+                continue
             if short_max_expected_capital_minutes is not None:
-                expectation = row.get("expectation")
                 if not isinstance(expectation, dict):
                     continue
                 raw_minutes = expectation.get("expected_capital_minutes")
@@ -394,6 +447,15 @@ def _simulate_observed(
         if candidate.side not in normalized_sides:
             continue
         if candidate.capital_need_usd > dynamic_limit:
+            continue
+        if (
+            candidate.side == "short"
+            and short_max_dynamic_limit_utilization is not None
+            and (
+                candidate.capital_need_usd / dynamic_limit
+                > short_max_dynamic_limit_utilization
+            )
+        ):
             continue
 
         key = scope_key(candidate.trader_id)
@@ -828,8 +890,12 @@ def _surface(
     max_capital_need_to_current_capital_ratio: Decimal = (
         MAX_CAPITAL_NEED_TO_CURRENT_CAPITAL_RATIO
     ),
+    long_min_expected_net_value_usd: Decimal | None = None,
     short_required_regime: str | None = None,
+    short_required_entry_type: str | None = None,
+    short_min_expected_net_value_usd: Decimal | None = None,
     short_max_expected_capital_minutes: Decimal | None = None,
+    short_max_dynamic_limit_utilization: Decimal | None = None,
 ) -> dict[str, Any]:
     label = "COMPOUND_PORTFOLIO" if shared else "CIBO_COMPOUND"
     episodes = _simulate_observed(
@@ -839,9 +905,15 @@ def _surface(
         max_capital_need_to_current_capital_ratio=(
             max_capital_need_to_current_capital_ratio
         ),
+        long_min_expected_net_value_usd=long_min_expected_net_value_usd,
         short_required_regime=short_required_regime,
+        short_required_entry_type=short_required_entry_type,
+        short_min_expected_net_value_usd=short_min_expected_net_value_usd,
         short_max_expected_capital_minutes=(
             short_max_expected_capital_minutes
+        ),
+        short_max_dynamic_limit_utilization=(
+            short_max_dynamic_limit_utilization
         ),
     )
     return {
@@ -851,12 +923,28 @@ def _surface(
         "max_capital_need_to_current_capital_ratio": _fmt(
             max_capital_need_to_current_capital_ratio
         ),
-        "short_predecision_gate": {
-            "required_regime": short_required_regime,
-            "max_expected_capital_minutes": (
+        "side_predecision_gate": {
+            "long_min_expected_net_value_usd": (
+                None
+                if long_min_expected_net_value_usd is None
+                else _fmt(long_min_expected_net_value_usd)
+            ),
+            "short_required_regime": short_required_regime,
+            "short_required_entry_type": short_required_entry_type,
+            "short_min_expected_net_value_usd": (
+                None
+                if short_min_expected_net_value_usd is None
+                else _fmt(short_min_expected_net_value_usd)
+            ),
+            "short_max_expected_capital_minutes": (
                 None
                 if short_max_expected_capital_minutes is None
                 else _fmt(short_max_expected_capital_minutes)
+            ),
+            "short_max_dynamic_limit_utilization": (
+                None
+                if short_max_dynamic_limit_utilization is None
+                else _fmt(short_max_dynamic_limit_utilization)
             ),
         },
         "observed": _metrics(episodes, label=label),
