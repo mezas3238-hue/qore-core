@@ -1,0 +1,219 @@
+name: QORE CIBO T02 Integrated Replay Research Stage2
+
+on:
+  push:
+    branches:
+      - agent/cibo-profitability-lab-001
+    paths:
+      - '.github/workflows/cibo-t02-integrated-replay-research-stage2.yml'
+      - 'scripts/cibo_profitability_lab_all_trader.py'
+      - 'src/qore/infrastructure/cibo_phase22_v4_chronological_execution.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  integrated-t02-research:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: python -m pip install -e '.[dev]'
+
+      - name: Static validation
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/cibo_profitability_lab_all_trader.py \
+            scripts/cibo_trader_lab_phase3_ce2i_audit.py
+          ruff check \
+            scripts/cibo_profitability_lab_all_trader.py \
+            scripts/cibo_trader_lab_phase3_ce2i_audit.py \
+            src/qore/infrastructure/cibo_phase22_v4_chronological_execution.py
+
+      - name: Recover reused batch
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/batch"
+          gh api             "/repos/$GITHUB_REPOSITORY/actions/artifacts/11256450732/zip"             > "$RUNNER_TEMP/batch.zip"
+          unzip -q "$RUNNER_TEMP/batch.zip" -d "$RUNNER_TEMP/batch"
+          test -s "$RUNNER_TEMP/batch/reused-batch.json"
+
+      - name: Reconstruct exact causal context
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/native" "$RUNNER_TEMP/context"
+          fetch_lane() {
+            local artifact_id="$1"
+            local digest="$2"
+            local name="$3"
+            local zip="$RUNNER_TEMP/native-$name.zip"
+            local root="$RUNNER_TEMP/native/$name"
+            gh api               "/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip"               > "$zip"
+            echo "$(cut -d: -f2 <<<"$digest")  $zip" | sha256sum -c -
+            mkdir -p "$root"
+            unzip -q "$zip" -d "$root"
+          }
+          fetch_lane 11255538834 sha256:33d1b29ef4912cb2a34dddaec7b4c3fe6967f3ea8fa70758fca48363f1f18a55 r34
+          fetch_lane 11256765185 sha256:0a8e15d97765ff86b7c621eb75ab53eab760206f60014eb098d11f04e584d304 eurusd
+          fetch_lane 11256465614 sha256:63b1d1fb2f1a1d9e9a43e4748bac0917e5f06aab09f6b28d52df12c3869ae739 gbpusd
+          fetch_lane 11255244229 sha256:7fdc519990e3cd6e2f721f4de121e5c3d3f85dc59125795fc796410f7b796c2c gbpjpy
+          fetch_lane 11256249712 sha256:7c3fc149ac53e6de336a2ec2c6ba37b82ecca8cf327ecee66ee7398e89853582 audjpy
+          python scripts/cibo_phase22_reused_context_map.py             --batch "$RUNNER_TEMP/batch/reused-batch.json"             --native-root "$RUNNER_TEMP/native"             --output "$RUNNER_TEMP/context/context-map.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p = json.loads(
+              (Path(os.environ["RUNNER_TEMP"]) / "context" / "context-map.json")
+              .read_text(encoding="utf-8")
+          )
+          assert p["matched_turtle_opportunity_count"] == 486
+          assert p["governance"]["outcome_fields_used_for_context"] is False
+          PY
+          echo "CONTEXT_MAP=$RUNNER_TEMP/context/context-map.json" >> "$GITHUB_ENV"
+
+      - name: Recover provider numeric model and regime corpora
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/provider" "$RUNNER_TEMP/regime"
+          python - <<'PY' > "$RUNNER_TEMP/provider.env"
+          from qore.infrastructure.cibo_phase22_provider_numeric_execution_receipt import (
+              PHASE22_PROVIDER_NUMERIC_EXECUTION_FREEZE_RECEIPT,
+          )
+          x = PHASE22_PROVIDER_NUMERIC_EXECUTION_FREEZE_RECEIPT
+          print(f"PROVIDER_ARTIFACT_ID={x.artifact_id}")
+          print(f"PROVIDER_ARTIFACT_DIGEST={x.artifact_digest}")
+          print(f"PROVIDER_FILE_SHA={x.provider_numeric_freeze_file_sha256}")
+          PY
+          source "$RUNNER_TEMP/provider.env"
+          zip="$RUNNER_TEMP/provider.zip"
+          gh api             "/repos/$GITHUB_REPOSITORY/actions/artifacts/$PROVIDER_ARTIFACT_ID/zip"             > "$zip"
+          echo "$(cut -d: -f2 <<<"$PROVIDER_ARTIFACT_DIGEST")  $zip" | sha256sum -c -
+          unzip -q "$zip" -d "$RUNNER_TEMP/provider"
+          provider_json="$(find "$RUNNER_TEMP/provider" -name provider-numeric-execution-freeze.json -print -quit)"
+          test -n "$provider_json"
+          echo "$(cut -d: -f2 <<<"$PROVIDER_FILE_SHA")  $provider_json" | sha256sum -c -
+          echo "PROVIDER_JSON=$provider_json" >> "$GITHUB_ENV"
+          echo "PROVIDER_FILE_SHA=$PROVIDER_FILE_SHA" >> "$GITHUB_ENV"
+
+          python - <<'PY' > "$RUNNER_TEMP/regime.tsv"
+          from pathlib import Path
+          from qore.infrastructure.cibo_phase22_v4_historical_regime import (
+              PHASE22_REGIME_SYMBOLS,
+          )
+          from qore.infrastructure.cibo_phase22_v4_source_receipt import (
+              load_phase22_v4_source_receipt,
+          )
+          receipt = load_phase22_v4_source_receipt(
+              Path("docs/research/CIBO-PHASE22-V4-SOURCE-RECEIPT.json")
+          )
+          by_key = {(x.symbol, x.timeframe): x for x in receipt.bindings}
+          for symbol in PHASE22_REGIME_SYMBOLS:
+              x = by_key[(symbol, "M5")]
+              print(symbol, x.artifact_id, x.artifact_digest, sep="\t")
+          PY
+          while IFS=$'\t' read -r symbol artifact_id digest; do
+            zip="$RUNNER_TEMP/regime-$symbol.zip"
+            root="$RUNNER_TEMP/regime/$symbol"
+            gh api               "/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip"               > "$zip"
+            echo "$(cut -d: -f2 <<<"$digest")  $zip" | sha256sum -c -
+            mkdir -p "$root"
+            unzip -q "$zip" -d "$root"
+          done < "$RUNNER_TEMP/regime.tsv"
+
+      - name: Execute preregistered integrated T02 family
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/t02-integrated"
+          for rule in             NONE             H1_OPPOSED             H1_OPPOSED_M5_LOW             H1_OPPOSED_D1_OPPOSED             M5_LOW_REJECTION_Q3
+          do
+            out="$RUNNER_TEMP/t02-integrated/$rule"
+            mkdir -p "$out"
+            replay_started_at="$(date -u '+%Y-%m-%dT%H:%M:%S+00:00')"
+            python scripts/cibo_profitability_lab_all_trader.py               --batch "$RUNNER_TEMP/batch/reused-batch.json"               --context-map "$CONTEXT_MAP"               --t02-research-rule "$rule"               --provider-numeric "$PROVIDER_JSON"               --provider-numeric-freeze-sha256 "$PROVIDER_FILE_SHA"               --source-root "AUDJPY=$RUNNER_TEMP/regime/AUDJPY"               --source-root "EURUSD=$RUNNER_TEMP/regime/EURUSD"               --source-root "GBPJPY=$RUNNER_TEMP/regime/GBPJPY"               --source-root "GBPUSD=$RUNNER_TEMP/regime/GBPUSD"               --source-root "XAUUSD=$RUNNER_TEMP/regime/XAUUSD"               --replay-started-at "$replay_started_at"               --output-dir "$out"
+            python scripts/cibo_trader_lab_phase3_ce2i_audit.py               --decision-trace "$out/decision-trace.json"               --source-head "$GITHUB_SHA"               --output "$out/phase3-report.json"
+          done
+
+      - name: Summarize integrated economics
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+
+          root = Path(os.environ["RUNNER_TEMP"]) / "t02-integrated"
+          rules = (
+              "TRAIN_ROR_GE_0025",
+              "TRAIN_ROR_GE_0050",
+              "TRAIN_ROR_GE_0100",
+              "TRAIN_ROR_GE_0050_D1_NOT_EXTREME",
+              "TRAIN_ROR_GE_0050_RECLAIM_LE_5M",
+              "TRAIN_ROR_GE_0050_D1_NOT_EXTREME_RECLAIM_LE_5M",
+          )
+          rows = []
+          for rule in rules:
+              p = json.loads((root / rule / "phase3-report.json").read_text())
+              t02 = next(x for x in p["tools"] if x["tool_code"] == "T02")
+              econ = t02.get("incremental_economics", {})
+              rows.append(
+                  {
+                      "rule": rule,
+                      "status": t02["status"],
+                      "applied_count": t02.get("dispositions", {}).get("APPLIED", 0),
+                      "incremental_realized_pnl_usd": econ.get(
+                          "incremental_realized_pnl_usd"
+                      ),
+                      "chronological_fold_pnl_usd": econ.get(
+                          "chronological_fold_pnl_usd", []
+                      ),
+                      "four_of_four_folds_positive": econ.get(
+                          "four_of_four_folds_positive", False
+                      ),
+                      "failure_reasons": t02.get("failure_reasons", []),
+                  }
+              )
+          passed = [x["rule"] for x in rows if x["status"] == "PASS"]
+          report = {
+              "schema": "qore.cibo.t02-integrated-replay-research-stage2.v1",
+              "mode": "NON_CERTIFYING_REUSED_HOLDOUT",
+              "source_head_sha": os.environ["GITHUB_SHA"],
+              "preregistered_rules": list(rules),
+              "results": rows,
+              "phase3_pass_candidates": passed,
+              "promotion_authorized": False,
+              "governance": {
+                  "runtime_policy_changed": False,
+                  "outcome_aware_admission": False,
+                  "fresh_oos_claimed": False,
+                  "certification_claimed": False,
+                  "broker_mutation": False,
+                  "live": False,
+                  "production": False,
+                  "real_capital": False,
+                  "merge_authority": False,
+              },
+          }
+          (root / "summary.json").write_text(
+              json.dumps(report, indent=2, sort_keys=True) + "\n"
+          )
+          print(json.dumps(report, sort_keys=True))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-cibo-t02-integrated-replay-research-stage2-${{ github.run_id }}
+          path: ${{ runner.temp }}/t02-integrated
+          if-no-files-found: error
+          retention-days: 90
