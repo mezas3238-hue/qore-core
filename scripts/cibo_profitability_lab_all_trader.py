@@ -179,13 +179,15 @@ def _coverage(
         for row in trace_rows
     )
     runtime_cognitive_complete = runtime_cf_complete and all(
-        row["cognitive_orchestration"].get("reasoning_route_selected") is True
-        and row["cognitive_orchestration"].get("mission_director_invoked") is True
+        row["cognitive_orchestration"].get("mission_director_invoked") is True
         and row["cognitive_orchestration"].get("functional_coordinator_invoked") is True
-        and row["cognitive_orchestration"].get("executive_brain_invoked") is True
-        and row["cognitive_orchestration"].get("executive_directive")
-        == "request-evidence"
+        and row["cognitive_orchestration"].get("mission_disposition") == "continue"
         and len(row["cognitive_orchestration"].get("mission_faculties", [])) == 19
+        and row["cognitive_orchestration"].get("executive_brain_invoked") is False
+        and row["cognitive_orchestration"].get("executive_brain_status")
+        == "QUARANTINED_RESEARCH_ONLY"
+        and row["cognitive_orchestration"].get("legacy_stack_quarantine_preserved")
+        is True
         for row in trace_rows
     )
     cf_rows = [
@@ -194,8 +196,8 @@ def _coverage(
             "stage": "COGNITIVE",
             "status": "APPLIED" if runtime_cognitive_complete else "NOT_INTEGRATED",
             "reason": (
-                "governed route, Mission Director, CF01-CF19 Coordinator, and "
-                "Executive Brain are on the causal predecision economic path"
+                "Mission Director plus CF01-CF19 Coordinator are on the causal "
+                "predecision path while legacy Executive Brain remains quarantined"
                 if runtime_cognitive_complete
                 else "runtime cognitive orchestration incomplete"
             ),
