@@ -67,8 +67,10 @@ jobs:
 
       - name: Static and focused causal validation
         run: |
+          set -euo pipefail
           python -m compileall -q \
             scripts/cibo_profitability_lab_all_trader.py \
+            scripts/cibo_phase22_reused_context_map.py \
             scripts/cibo_legacy_stack_quarantine.py \
             src/qore/infrastructure/cibo_ce2i_advanced_capital_tools.py \
             src/qore/infrastructure/cibo_ce2i_full_surface.py \
@@ -76,12 +78,16 @@ jobs:
             src/qore/infrastructure/cibo_profitability_lab_t03_predecision_adapter.py \
             src/qore/infrastructure/cibo_profitability_lab_economic_consultation.py \
             src/qore/infrastructure/cibo_profitability_lab_decision_trace.py \
+            src/qore/infrastructure/cibo_phase22_fresh_opportunity_batch.py \
+            src/qore/infrastructure/cibo_phase22_fresh_capital_projection.py \
+            src/qore/infrastructure/cibo_phase22_v4_execution_inputs.py \
             src/qore/infrastructure/cibo_phase22_v4_historical_policy_replay.py \
             src/qore/infrastructure/cibo_phase22_v4_chronological_execution.py \
             src/qore/infrastructure/cibo_protected_reinvestment_policy.py \
             src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py
           python -m ruff check \
             scripts/cibo_profitability_lab_all_trader.py \
+            scripts/cibo_phase22_reused_context_map.py \
             scripts/cibo_legacy_stack_quarantine.py \
             src/qore/infrastructure/cibo_ce2i_advanced_capital_tools.py \
             src/qore/infrastructure/cibo_ce2i_full_surface.py \
@@ -89,6 +95,9 @@ jobs:
             src/qore/infrastructure/cibo_profitability_lab_t03_predecision_adapter.py \
             src/qore/infrastructure/cibo_profitability_lab_economic_consultation.py \
             src/qore/infrastructure/cibo_profitability_lab_decision_trace.py \
+            src/qore/infrastructure/cibo_phase22_fresh_opportunity_batch.py \
+            src/qore/infrastructure/cibo_phase22_fresh_capital_projection.py \
+            src/qore/infrastructure/cibo_phase22_v4_execution_inputs.py \
             src/qore/infrastructure/cibo_phase22_v4_historical_policy_replay.py \
             src/qore/infrastructure/cibo_protected_reinvestment_policy.py \
             src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py \
@@ -96,7 +105,10 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_advanced_evidence_causal_time.py \
             tests/infrastructure/test_cibo_profitability_lab_t03_predecision_adapter.py \
             tests/infrastructure/test_cibo_profitability_lab_economic_consultation.py \
-            tests/infrastructure/test_cibo_phase22_historical_policy_replay.py
+            tests/infrastructure/test_cibo_phase22_historical_policy_replay.py \
+            tests/infrastructure/test_cibo_phase22_fresh_opportunity_batch.py \
+            tests/infrastructure/test_cibo_phase22_fresh_capital_projection.py \
+            tests/infrastructure/test_cibo_phase22_execution_inputs.py
           mypy \
             src/qore/infrastructure/cibo_ce2i_full_surface.py \
             src/qore/infrastructure/cibo_ce2i_economic_effects.py \
@@ -108,6 +120,9 @@ jobs:
             tests/infrastructure/test_cibo_profitability_lab_t03_predecision_adapter.py \
             tests/infrastructure/test_cibo_profitability_lab_economic_consultation.py \
             tests/infrastructure/test_cibo_phase22_historical_policy_replay.py \
+            tests/infrastructure/test_cibo_phase22_fresh_opportunity_batch.py \
+            tests/infrastructure/test_cibo_phase22_fresh_capital_projection.py \
+            tests/infrastructure/test_cibo_phase22_execution_inputs.py \
             tests/infrastructure/test_cibo_protected_reinvestment_policy.py \
             tests/infrastructure/test_cibo_ce2i_advanced_capital_tools.py \
             tests/infrastructure/test_cibo_legacy_stack_quarantine.py
@@ -117,7 +132,9 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/batch"
-          gh api             "/repos/$GITHUB_REPOSITORY/actions/artifacts/11256450732/zip"             > "$RUNNER_TEMP/batch.zip"
+          gh api \
+            "/repos/$GITHUB_REPOSITORY/actions/artifacts/11256450732/zip" \
+            > "$RUNNER_TEMP/batch.zip"
           unzip -q "$RUNNER_TEMP/batch.zip" -d "$RUNNER_TEMP/batch"
           test -s "$RUNNER_TEMP/batch/reused-batch.json"
           python - <<'PY'
@@ -131,6 +148,54 @@ jobs:
           assert len(p["traders"]) == 7
           assert sum(int(x["opportunity_count"]) for x in p["traders"]) > 0
           PY
+
+      - name: Reconstruct causal Trader context for reused-holdout
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/native" "$RUNNER_TEMP/context"
+          fetch_lane() {
+            local artifact_id="$1"
+            local digest="$2"
+            local name="$3"
+            local zip="$RUNNER_TEMP/native-$name.zip"
+            local root="$RUNNER_TEMP/native/$name"
+            gh api \
+              "/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" \
+              > "$zip"
+            echo "$(cut -d: -f2 <<<"$digest")  $zip" | sha256sum -c -
+            mkdir -p "$root"
+            unzip -q "$zip" -d "$root"
+          }
+          fetch_lane 11255538834 sha256:33d1b29ef4912cb2a34dddaec7b4c3fe6967f3ea8fa70758fca48363f1f18a55 r34
+          fetch_lane 11256765185 sha256:0a8e15d97765ff86b7c621eb75ab53eab760206f60014eb098d11f04e584d304 eurusd
+          fetch_lane 11256465614 sha256:63b1d1fb2f1a1d9e9a43e4748bac0917e5f06aab09f6b28d52df12c3869ae739 gbpusd
+          fetch_lane 11255244229 sha256:7fdc519990e3cd6e2f721f4de121e5c3d3f85dc59125795fc796410f7b796c2c gbpjpy
+          fetch_lane 11256249712 sha256:7c3fc149ac53e6de336a2ec2c6ba37b82ecca8cf327ecee66ee7398e89853582 audjpy
+
+          python scripts/cibo_phase22_reused_context_map.py \
+            --batch "$RUNNER_TEMP/batch/reused-batch.json" \
+            --native-root "$RUNNER_TEMP/native" \
+            --output "$RUNNER_TEMP/context/context-map.json"
+
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p = json.loads(
+              (
+                  Path(os.environ["RUNNER_TEMP"])
+                  / "context"
+                  / "context-map.json"
+              ).read_text(encoding="utf-8")
+          )
+          assert p["matched_turtle_opportunity_count"] == 486
+          assert sum(p["matched_by_trader"].values()) == 486
+          assert p["governance"]["source_batch_mutated"] is False
+          assert p["governance"]["outcome_fields_used_for_context"] is False
+          assert p["governance"]["fresh_oos_claimed"] is False
+          assert p["governance"]["broker_mutation"] is False
+          PY
+          echo "CONTEXT_MAP=$RUNNER_TEMP/context/context-map.json" >> "$GITHUB_ENV"
 
       - name: Recover provider numeric model and regime corpora
         shell: bash
@@ -148,7 +213,9 @@ jobs:
           PY
           source "$RUNNER_TEMP/provider.env"
           zip="$RUNNER_TEMP/provider.zip"
-          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$PROVIDER_ARTIFACT_ID/zip" > "$zip"
+          gh api \
+            "/repos/$GITHUB_REPOSITORY/actions/artifacts/$PROVIDER_ARTIFACT_ID/zip" \
+            > "$zip"
           echo "$(cut -d: -f2 <<<"$PROVIDER_ARTIFACT_DIGEST")  $zip" | sha256sum -c -
           unzip -q "$zip" -d "$RUNNER_TEMP/provider"
           provider_json="$(find "$RUNNER_TEMP/provider" -name provider-numeric-execution-freeze.json -print -quit)"
@@ -176,7 +243,9 @@ jobs:
           while IFS=$'\t' read -r symbol artifact_id digest; do
             zip="$RUNNER_TEMP/regime-$symbol.zip"
             root="$RUNNER_TEMP/regime/$symbol"
-            gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" > "$zip"
+            gh api \
+              "/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" \
+              > "$zip"
             echo "$(cut -d: -f2 <<<"$digest")  $zip" | sha256sum -c -
             mkdir -p "$root"
             unzip -q "$zip" -d "$root"
@@ -187,7 +256,18 @@ jobs:
         run: |
           set -euo pipefail
           replay_started_at="$(date -u '+%Y-%m-%dT%H:%M:%S+00:00')"
-          python scripts/cibo_profitability_lab_all_trader.py             --batch "$RUNNER_TEMP/batch/reused-batch.json"             --provider-numeric "$PROVIDER_JSON"             --provider-numeric-freeze-sha256 "$PROVIDER_FILE_SHA"             --source-root "AUDJPY=$RUNNER_TEMP/regime/AUDJPY"             --source-root "EURUSD=$RUNNER_TEMP/regime/EURUSD"             --source-root "GBPJPY=$RUNNER_TEMP/regime/GBPJPY"             --source-root "GBPUSD=$RUNNER_TEMP/regime/GBPUSD"             --source-root "XAUUSD=$RUNNER_TEMP/regime/XAUUSD"             --replay-started-at "$replay_started_at"             --output-dir "$RUNNER_TEMP/cibo-lab-p0"
+          python scripts/cibo_profitability_lab_all_trader.py \
+            --batch "$RUNNER_TEMP/batch/reused-batch.json" \
+            --context-map "$CONTEXT_MAP" \
+            --provider-numeric "$PROVIDER_JSON" \
+            --provider-numeric-freeze-sha256 "$PROVIDER_FILE_SHA" \
+            --source-root "AUDJPY=$RUNNER_TEMP/regime/AUDJPY" \
+            --source-root "EURUSD=$RUNNER_TEMP/regime/EURUSD" \
+            --source-root "GBPJPY=$RUNNER_TEMP/regime/GBPJPY" \
+            --source-root "GBPUSD=$RUNNER_TEMP/regime/GBPUSD" \
+            --source-root "XAUUSD=$RUNNER_TEMP/regime/XAUUSD" \
+            --replay-started-at "$replay_started_at" \
+            --output-dir "$RUNNER_TEMP/cibo-lab-p0"
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -209,6 +289,12 @@ jobs:
               .read_text(encoding="utf-8")
           )
           assert p["seven_of_seven_participation_pass"] is True
+          assert p["governance"]["reused_context_map_applied"] is True
+          context = p["causal_context_reconstruction"]
+          assert context["matched_turtle_opportunity_count"] == 486
+          assert context["source_batch_mutated"] is False
+          assert context["outcome_fields_used_for_context"] is False
+
           trace = p["decision_trace"]
           assert trace["status"] == "OBSERVATIONAL"
           assert trace["opportunity_count"] == len(trace["opportunities"])
@@ -254,6 +340,7 @@ jobs:
               "cf01_cf19_runtime_economic_consultation_complete"
           ] is True
           assert p["coverage"]["cognitive_runtime_orchestration_complete"] is True
+
           compound = p["all_trader_cibo_compound_portfolio"]
           assert compound["rational_redeploy_gate_enabled"] is True
           assert compound["noncertifying_research_redeploy_enabled"] is True
