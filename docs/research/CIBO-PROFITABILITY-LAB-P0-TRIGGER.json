@@ -13,9 +13,9 @@
   "production": false,
   "merge_authority": false,
   "outcome_aware_tuning": false,
-  "retrigger_for_head": "262289ff39adcf3cb3c1fdb1086bd36e927119e9",
-  "retrigger_reason": "Phase 3 CE2I T02 functional repair: inject frozen structural evidence from causally prior T20 released-risk capacity, materialize T02 candidate economics, route the resulting provider-step exposure through CMA and sovereign QORE Risk, then re-measure integrated Compound V2.",
-  "mode": "CIBO_PHASE3_CE2I_T02_FUNCTIONAL_REPAIR",
+  "retrigger_for_head": "97760ef2376b0ce02230f3366bfcee1fd6838ac2",
+  "retrigger_reason": "Phase 3 T02 causal-context transport retest: reconstruct exact native predecision context for 486 Turtle opportunities without mutating the consumed Phase22 batch, inject it only into reused-holdout research projections, and re-evaluate T02 through CMA, sovereign QORE Risk, settlement, and Compound V2.",
+  "mode": "CIBO_PHASE3_T02_CAUSAL_CONTEXT_TRANSPORT_RETEST",
   "replay_tool_eligibility_authority": false,
-  "reason": "Owner-directed phase-by-phase capability audit. T02 must prove causal evidence -> economic effect -> CMA/QORE Risk -> settlement before T03 can unlock. Reused-holdout research only; Fresh-OOS=false; no broker mutation/LIVE/real capital/production/merge/outcome-aware predecision tuning."
+  "reason": "Owner-directed phase-by-phase functionality repair. This run tests whether restoring native predecision context changes T02 eligibility/economics while preserving the original consumed batch and all research-only governance. Fresh-OOS=false; no broker mutation/LIVE/real capital/production/merge/outcome-aware admission."
 }
