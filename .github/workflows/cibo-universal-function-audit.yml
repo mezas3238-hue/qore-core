@@ -97,7 +97,24 @@ jobs:
         run: |
           set -euo pipefail
           python -m pytest -q --no-cov \
-            tests/infrastructure/trader_lab/test_cibo_cognitive_cf01_cf19_functional_probe.py
+            tests/infrastructure/trader_lab/test_cibo_cognitive_cf01_cf19_manifest.py \
+            tests/infrastructure/trader_lab/test_cibo_cognitive_cf01_cf19_functional_probe.py \
+            tests/infrastructure/test_cibo/test_market_monitoring.py \
+            tests/infrastructure/test_cibo/test_specialist_mesh.py \
+            tests/infrastructure/test_cibo_trader_manager.py \
+            tests/infrastructure/test_cibo_trader_development_review.py \
+            tests/infrastructure/test_cibo/test_trader_academy.py \
+            tests/infrastructure/test_cibo/test_opportunity_search.py \
+            tests/infrastructure/test_cibo/test_portfolio_intelligence.py \
+            tests/infrastructure/test_cibo/test_economic_journals.py \
+            tests/infrastructure/test_cibo/test_quantitative_intelligence.py \
+            tests/infrastructure/test_cibo/test_research_director.py \
+            tests/infrastructure/test_cibo/test_executive_recommendation.py \
+            tests/infrastructure/test_cibo/test_core_health.py \
+            tests/infrastructure/test_cibo/test_executive_planner.py \
+            tests/governance/test_cibo/test_ceo_dialogue.py \
+            tests/infrastructure/test_cibo/test_trader_voice.py \
+            tests/infrastructure/test_cibo/test_self_evaluation_learning.py
           echo "PHASE_02_TRADER_LAB=PASS"
 
   phase-03-cma-risk-settlement:
