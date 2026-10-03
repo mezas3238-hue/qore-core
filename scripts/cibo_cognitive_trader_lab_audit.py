@@ -1166,7 +1166,9 @@ class Audit:
         now = _dt(str(ctx.row["market_decision_at"]))
         evaluator = ResearchDecisionEvaluatorIdentity(
             family=ResearchDecisionEvaluatorFamily(
-                "virtual.trader." + ctx.trader.lower()
+                "virtual.trader." + "".join(
+                    ch.lower() for ch in ctx.trader if ch.isalnum()
+                )
             ),
             schema_version=ResearchDecisionEvaluatorSchemaVersion("v1"),
             software_revision=ResearchSoftwareRevision(self.source_head),
