@@ -35,7 +35,8 @@ body{max-width:1200px;margin:24px auto;padding:0 16px;background:#0b0d10;color:#
 button{padding:10px 14px;border:1px solid #525b66;background:#151a20;color:#fff;border-radius:8px}
 .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:16px 0}
 .card{border:1px solid #303741;border-radius:10px;padding:14px;background:#11151a}
-pre{white-space:pre-wrap;word-break:break-word;background:#080a0d;padding:12px;\nborder-radius:8px;max-height:420px;overflow:auto}
+pre{white-space:pre-wrap;word-break:break-word;background:#080a0d;padding:12px;
+border-radius:8px;max-height:420px;overflow:auto}
 .ok{color:#83e38c}.bad{color:#ff8585}.run{color:#ffd166}
 @media(max-width:800px){.grid{grid-template-columns:1fr}}
 </style>
