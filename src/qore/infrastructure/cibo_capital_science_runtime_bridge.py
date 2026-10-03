@@ -85,7 +85,6 @@ from qore.infrastructure.cibo_profit_preservation_shadow import (
     Genc7Action,
     Genc7CapitalStateEvidence,
     Genc7PreservationProposalEvidence,
-    Genc7SourceBucket,
     evaluate_genc7_profit_preservation_shadow,
 )
 from qore.infrastructure.cibo_sequential_compounding_shadow_policy import (
@@ -198,12 +197,14 @@ class CapitalSciencePredecisionInput:
     hard_risk_headroom_usd: Decimal
     margin_headroom_usd: Decimal
     competing_candidates: int
+    deployed_profit_usd: Decimal = Decimal(0)
     capital_source: str = "REALIZED_PROFIT"
     qore_symbol: str = "UNSPECIFIED"
     account_identity: CiboAccountCapitalIdentity | None = None
     regime_state: CiboCapitalRegimeState | None = None
     known_simultaneous_opportunities: tuple[CapitalScienceKnownOpportunity, ...] = ()
     open_positions: tuple[Genc12PositionCapitalInput, ...] = ()
+    genc7_proposal: Genc7PreservationProposalEvidence | None = None
 
     def __post_init__(self) -> None:
         if (
@@ -220,6 +221,7 @@ class CapitalSciencePredecisionInput:
             "peak_realized_capital_usd",
             "realized_profit_pool_usd",
             "protected_capacity_usd",
+            "deployed_profit_usd",
             "open_stop_risk_usd",
             "open_margin_usd",
             "requested_stop_risk_usd",
@@ -249,6 +251,14 @@ class CapitalSciencePredecisionInput:
         if self.protected_capacity_usd > self.realized_profit_pool_usd:
             raise CiboCapitalManagementError(
                 "Capital Science protected capacity cannot exceed realized-profit pool"
+            )
+        if (
+            self.protected_capacity_usd + self.deployed_profit_usd
+            > self.realized_profit_pool_usd
+        ):
+            raise CiboCapitalManagementError(
+                "Capital Science protected plus deployed profit cannot exceed "
+                "realized-profit pool"
             )
         if (
             not isinstance(self.competing_candidates, int)
@@ -286,12 +296,26 @@ class CapitalSciencePredecisionInput:
             raise CiboCapitalManagementError(
                 "Capital Science open positions must be canonical T14 inputs"
             )
+        if self.genc7_proposal is not None:
+            if not isinstance(
+                self.genc7_proposal,
+                Genc7PreservationProposalEvidence,
+            ):
+                raise CiboCapitalManagementError(
+                    "Capital Science GEN-C7 proposal must be canonical"
+                )
+            if self.genc7_proposal.decision_at != self.decision_at:
+                raise CiboCapitalManagementError(
+                    "Capital Science GEN-C7 proposal decision time drift"
+                )
 
     @property
     def deployable_profit_usd(self) -> Decimal:
         return max(
             Decimal(0),
-            self.realized_profit_pool_usd - self.protected_capacity_usd,
+            self.realized_profit_pool_usd
+            - self.protected_capacity_usd
+            - self.deployed_profit_usd,
         )
 
     @property
@@ -337,6 +361,23 @@ class CapitalSciencePredecisionInput:
             }
             for item in self.open_positions
         ]
+        payload["genc7_proposal"] = (
+            {
+                "proposal_id": self.genc7_proposal.proposal_id,
+                "action": self.genc7_proposal.action.value,
+                "source_bucket": self.genc7_proposal.source_bucket.value,
+                "amount_usd": format(self.genc7_proposal.amount_usd, "f"),
+                "evidence_sha256": self.genc7_proposal.evidence_sha256,
+                "rationale_code": self.genc7_proposal.rationale_code,
+                "evaluation_horizon_minutes": (
+                    self.genc7_proposal.evaluation_horizon_minutes
+                ),
+                "calibrated": self.genc7_proposal.calibrated,
+                "capital_eligible": self.genc7_proposal.capital_eligible,
+            }
+            if self.genc7_proposal is not None
+            else None
+        )
         for key, value in tuple(payload.items()):
             if isinstance(value, Decimal):
                 payload[key] = format(value, "f")
@@ -719,9 +760,13 @@ def _capital_twin(
         state.realized_capital_usd,
     )
     protected_profit = min(state.protected_capacity_usd, profit_total)
+    deployed_profit = min(
+        state.deployed_profit_usd,
+        profit_total - protected_profit,
+    )
     with localcontext() as context:
         context.prec = 80
-        deployable_profit = profit_total - protected_profit
+        deployable_profit = profit_total - protected_profit - deployed_profit
         original_base = state.realized_capital_usd - profit_total
     buckets = tuple(
         (
@@ -730,9 +775,11 @@ def _capital_twin(
                 original_base
                 if bucket is Genc10EconomicBucket.ORIGINAL_BASE
                 else deployable_profit
-                if bucket is Genc10EconomicBucket.REALIZED_PROFIT
+                if bucket is Genc10EconomicBucket.COMPOUNDABLE
+                else deployed_profit
+                if bucket is Genc10EconomicBucket.DEPLOYED_COMPOUND_CAPITAL
                 else protected_profit
-                if bucket is Genc10EconomicBucket.PROTECTED_PROFIT
+                if bucket is Genc10EconomicBucket.RETIRED_TO_PROTECTED_FLOOR
                 else Decimal(0)
             ),
         )
@@ -798,8 +845,8 @@ def _capital_twin(
         total_realized_capital_usd=state.realized_capital_usd,
         original_base_usd=original_base,
         compound_economic_value_usd=profit_total,
-        protected_floor_usd=Decimal(0),
-        policy_protected_floor_usd=Decimal(0),
+        protected_floor_usd=protected_profit,
+        policy_protected_floor_usd=protected_profit,
         broker_guaranteed_floor_usd=Decimal(0),
         economic_buckets=buckets,
         generation_balances=((1, profit_total),) if profit_total > 0 else (),
@@ -830,7 +877,11 @@ def _native_genc5_inputs(
         state.realized_capital_usd,
     )
     protected_profit = min(state.protected_capacity_usd, profit_total)
-    deployable_profit = profit_total - protected_profit
+    deployed_profit = min(
+        state.deployed_profit_usd,
+        profit_total - protected_profit,
+    )
+    deployable_profit = profit_total - protected_profit - deployed_profit
     requested = state.requested_stop_risk_usd + state.provider_cost_usd
     if profit_total <= 0 or deployable_profit <= 0 or requested > deployable_profit:
         return None
@@ -1069,67 +1120,117 @@ def evaluate_capital_science_predecision(
         current_compound_capital_usd=current_profit,
         peak_compound_capital_usd=peak_profit,
         protected_profit_usd=min(state.protected_capacity_usd, current_profit),
-        protected_floor_usd=Decimal(0),
-        previous_protected_floor_usd=Decimal(0),
+        protected_floor_usd=min(state.protected_capacity_usd, current_profit),
+        previous_protected_floor_usd=min(state.protected_capacity_usd, current_profit),
         strategic_reserve_usd=Decimal(0),
         opportunity_reserve_usd=Decimal(0),
         compoundable_usd=state.deployable_profit_usd,
         released_compound_capital_usd=Decimal(0),
         source_evidence_sha256=state.fingerprint(),
     )
-    genc7_proposal = Genc7PreservationProposalEvidence(
-        proposal_id=f"runtime-proposal:{state.decision_epoch_id}:{state.signal_fingerprint}",
-        decision_at=state.decision_at,
-        account_identity=identity,
-        action=Genc7Action.COMPOUND,
-        source_bucket=Genc7SourceBucket.COMPOUNDABLE_OR_RELEASED_CAPACITY,
-        amount_usd=request_capital,
-        evidence_sha256=_runtime_sha("genc7-proposal", state.payload()),
-        rationale_code="EXACT_EXISTING_INCREMENTAL_REQUEST",
-        evaluation_horizon_minutes=max(1, int(state.expected_capital_minutes) + 1),
-        calibrated=True,
-        capital_eligible=c4_allows,
+    genc7_proposal = state.genc7_proposal
+    if genc7_proposal is not None and genc7_proposal.account_identity != identity:
+        raise CiboCapitalManagementError(
+            "Capital Science GEN-C7 proposal/account identity drift"
+        )
+    if (
+        genc7_proposal is not None
+        and genc7_proposal.action is Genc7Action.COMPOUND
+        and genc7_proposal.amount_usd != request_capital
+    ):
+        raise CiboCapitalManagementError(
+            "Capital Science GEN-C7 compound proposal must bind the exact request"
+        )
+    genc7 = (
+        evaluate_genc7_profit_preservation_shadow(
+            state=genc7_state,
+            proposal=genc7_proposal,
+            decision_id=f"genc7:{state.decision_epoch_id}:{state.signal_fingerprint}",
+        )
+        if genc7_proposal is not None
+        else None
     )
-    genc7 = evaluate_genc7_profit_preservation_shadow(
-        state=genc7_state,
-        proposal=genc7_proposal,
-        decision_id=f"genc7:{state.decision_epoch_id}:{state.signal_fingerprint}",
+    c7_allows = (
+        genc7 is not None and genc7.treatment_action is Genc7Action.COMPOUND
     )
-    c7_allows = genc7.treatment_action is Genc7Action.COMPOUND
     receipts.append(
         _receipt(
             state=state,
             function_code="GEN-C7",
             disposition=(
                 CapitalScienceDisposition.APPLIED
-                if genc7.treatment_differs_from_control
+                if genc7 is not None and genc7.treatment_differs_from_control
                 else CapitalScienceDisposition.FAIL_CLOSED
             ),
             reason=(
-                "native GEN-C7 engine authorized the exact preregistered compound request"
+                "native GEN-C7 engine consumed the upstream causal proposal"
                 if c7_allows
-                else "native GEN-C7 engine held the capital state"
+                else "GEN-C7 proposal evidence was absent or did not authorize compound"
             ),
             downstream_consumer="CIBO_COMPOUND_CAPITAL_STATE",
-            consumer_action=genc7.treatment_action.value,
-            decision_changed=genc7.treatment_differs_from_control,
+            consumer_action=(
+                genc7.treatment_action.value
+                if genc7 is not None
+                else "UNAVAILABLE_MISSING_EVIDENCE"
+            ),
+            decision_changed=(
+                genc7.treatment_differs_from_control if genc7 is not None else False
+            ),
             capital_source_usage=(state.capital_source,),
             output_details={
-                "engine": "evaluate_genc7_profit_preservation_shadow",
-                "treatment_action": genc7.treatment_action.value,
-                "treatment_amount_usd": format(genc7.treatment_amount_usd, "f"),
-                "blocker_codes": list(genc7.blocker_codes),
-                "giveback_amount_usd": format(genc7.giveback_amount_usd, "f"),
-                "profit_retention_ratio": format(genc7.profit_retention_ratio, "f"),
+                "engine": (
+                    "evaluate_genc7_profit_preservation_shadow"
+                    if genc7 is not None
+                    else None
+                ),
+                "treatment_action": (
+                    genc7.treatment_action.value if genc7 is not None else None
+                ),
+                "treatment_amount_usd": (
+                    format(genc7.treatment_amount_usd, "f")
+                    if genc7 is not None
+                    else "0"
+                ),
+                "blocker_codes": (
+                    list(genc7.blocker_codes)
+                    if genc7 is not None
+                    else ["MISSING_GENC7_PROPOSAL_EVIDENCE"]
+                ),
+                "giveback_amount_usd": (
+                    format(genc7.giveback_amount_usd, "f")
+                    if genc7 is not None
+                    else format(genc7_state.giveback_amount_usd, "f")
+                ),
+                "profit_retention_ratio": (
+                    format(genc7.profit_retention_ratio, "f")
+                    if genc7 is not None
+                    else format(genc7_state.profit_retention_ratio, "f")
+                ),
             },
             typed_engine_input={
                 "capital_state_evidence_id": genc7_state.evidence_id,
-                "proposal_id": genc7_proposal.proposal_id,
-                "proposal_action": genc7_proposal.action.value,
-                "proposal_amount_usd": format(genc7_proposal.amount_usd, "f"),
-                "proposal_source_bucket": genc7_proposal.source_bucket.value,
+                "proposal_id": (
+                    genc7_proposal.proposal_id if genc7_proposal is not None else None
+                ),
+                "proposal_action": (
+                    genc7_proposal.action.value if genc7_proposal is not None else None
+                ),
+                "proposal_amount_usd": (
+                    format(genc7_proposal.amount_usd, "f")
+                    if genc7_proposal is not None
+                    else None
+                ),
+                "proposal_source_bucket": (
+                    genc7_proposal.source_bucket.value
+                    if genc7_proposal is not None
+                    else None
+                ),
             },
-            native_engine_name="evaluate_genc7_profit_preservation_shadow",
+            native_engine_name=(
+                "evaluate_genc7_profit_preservation_shadow"
+                if genc7 is not None
+                else None
+            ),
         )
     )
 

@@ -2,6 +2,11 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 from qore.infrastructure import cibo_capital_science_runtime_bridge as runtime
+from qore.infrastructure.cibo_profit_preservation_shadow import (
+    Genc7Action,
+    Genc7PreservationProposalEvidence,
+    Genc7SourceBucket,
+)
 
 NOW = datetime(2026, 10, 3, 12, 0, tzinfo=UTC)
 
@@ -27,6 +32,11 @@ def _state(**overrides: object) -> runtime.CapitalSciencePredecisionInput:
         "hard_risk_headroom_usd": Decimal("68"),
         "margin_headroom_usd": Decimal("67"),
         "competing_candidates": 2,
+        "account_identity": runtime.CiboAccountCapitalIdentity(
+            provider_key="trader-lab",
+            account_ref="cibo-capital-science-replay",
+            environment=runtime.MarketRuntimeEnvironment.TEST,
+        ),
     }
     values.update(overrides)
     if "regime_state" not in overrides:
@@ -60,7 +70,54 @@ def _state(**overrides: object) -> runtime.CapitalSciencePredecisionInput:
             drawdown_utilization=(Decimal(0) if peak <= 0 else (peak - current) / peak),
             opportunity_count=max(1, int(values["competing_candidates"])),
         )
+    if "genc7_proposal" not in overrides:
+        account_identity = values["account_identity"]
+        assert isinstance(account_identity, runtime.CiboAccountCapitalIdentity)
+        values["genc7_proposal"] = Genc7PreservationProposalEvidence(
+            proposal_id="proposal-1",
+            decision_at=NOW,
+            account_identity=account_identity,
+            action=Genc7Action.COMPOUND,
+            source_bucket=Genc7SourceBucket.COMPOUNDABLE_OR_RELEASED_CAPACITY,
+            amount_usd=(
+                values["requested_stop_risk_usd"] + values["provider_cost_usd"]
+            ),
+            evidence_sha256="sha256:" + "a" * 64,
+            rationale_code="CAUSAL_TEST_PROPOSAL",
+            evaluation_horizon_minutes=46,
+            calibrated=True,
+            capital_eligible=True,
+        )
     return runtime.CapitalSciencePredecisionInput(**values)  # type: ignore[arg-type]
+
+
+def _genc7_proposal(
+    action: Genc7Action,
+    *,
+    calibrated: bool = True,
+) -> Genc7PreservationProposalEvidence:
+    source = (
+        Genc7SourceBucket.REALIZED_UNPROTECTED_PROFIT
+        if action in {Genc7Action.PROTECT, Genc7Action.HARVEST_TO_STRATEGIC_RESERVE}
+        else Genc7SourceBucket.COMPOUNDABLE_OR_RELEASED_CAPACITY
+    )
+    return Genc7PreservationProposalEvidence(
+        proposal_id=f"proposal-{action.value.lower()}",
+        decision_at=NOW,
+        account_identity=runtime.CiboAccountCapitalIdentity(
+            provider_key="trader-lab",
+            account_ref="cibo-capital-science-replay",
+            environment=runtime.MarketRuntimeEnvironment.TEST,
+        ),
+        action=action,
+        source_bucket=source,
+        amount_usd=(Decimal("1.60") if action is Genc7Action.COMPOUND else Decimal("1")),
+        evidence_sha256="sha256:" + "b" * 64,
+        rationale_code="CAUSAL_BRANCH_EVIDENCE",
+        evaluation_horizon_minutes=46,
+        calibrated=calibrated,
+        capital_eligible=True,
+    )
 
 
 def test_predecision_bridge_invokes_exact_mandatory_causal_surface() -> None:
@@ -268,3 +325,38 @@ def test_unseen_trader_and_symbol_use_the_same_native_capability_path() -> None:
         assert native == {"GEN-C5", "GEN-C7", "GEN-C8", "GEN-C10", "GEN-C11", "GEN-C12"}
         assert all(item.trader_id == trader_id for item in directive.receipts)
         assert all(item.qore_symbol == qore_symbol for item in directive.receipts)
+
+
+def test_genc7_native_branch_diversity_is_driven_by_upstream_proposals() -> None:
+    expected = (
+        Genc7Action.PROTECT,
+        Genc7Action.HARVEST_TO_STRATEGIC_RESERVE,
+        Genc7Action.RESERVE_OPPORTUNITY_CAPACITY,
+        Genc7Action.COMPOUND,
+    )
+    observed: list[str] = []
+    for action in expected:
+        directive = runtime.evaluate_capital_science_predecision(
+            _state(genc7_proposal=_genc7_proposal(action))
+        )
+        receipt = next(item for item in directive.receipts if item.function_code == "GEN-C7")
+        observed.append(receipt.consumer_action)
+        assert receipt.native_engine_called is True
+        assert receipt.output_payload["engine_output"]["treatment_action"] == action.value
+
+    held = runtime.evaluate_capital_science_predecision(
+        _state(genc7_proposal=_genc7_proposal(Genc7Action.PROTECT, calibrated=False))
+    )
+    held_receipt = next(item for item in held.receipts if item.function_code == "GEN-C7")
+    assert held_receipt.consumer_action == Genc7Action.HOLD_CURRENT_CAPITAL_STATE.value
+    assert tuple(observed) == tuple(action.value for action in expected)
+
+
+def test_genc7_missing_proposal_fails_closed_without_false_native_receipt() -> None:
+    directive = runtime.evaluate_capital_science_predecision(_state(genc7_proposal=None))
+    receipt = next(item for item in directive.receipts if item.function_code == "GEN-C7")
+
+    assert directive.allow_incremental_compound is False
+    assert receipt.consumer_action == "UNAVAILABLE_MISSING_EVIDENCE"
+    assert receipt.native_engine_called is False
+    assert receipt.native_engine_name is None

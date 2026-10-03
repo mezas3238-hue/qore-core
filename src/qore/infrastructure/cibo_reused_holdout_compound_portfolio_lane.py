@@ -63,6 +63,11 @@ from qore.infrastructure.cibo_phase22_v4_chronological_execution import (
 from qore.infrastructure.cibo_phase22_v4_chronological_replay_plan import (
     Phase22ChronologicalReplayPlan,
 )
+from qore.infrastructure.cibo_profit_preservation_shadow import (
+    Genc7Action,
+    Genc7PreservationProposalEvidence,
+    Genc7SourceBucket,
+)
 from qore.infrastructure.cibo_protected_reinvestment_policy import (
     POLICY_ID,
     maximum_reinvestment_capital_need_usd,
@@ -656,6 +661,17 @@ def run_compound_portfolio_lane(
                 ),
                 Decimal(0),
             )
+            committed_deployed_profit = sum(
+                (
+                    item.authorized_stop_risk_usd + item.provider_cost_usd
+                    for item in committed_rows
+                ),
+                Decimal(0),
+            )
+            committed_protected_reserve = sum(
+                (item.protected_loss_reserve_usd for item in committed_rows),
+                Decimal(0),
+            )
             funding_pool = (
                 pool_by_trader[candidate.trader_id]
                 if lab_pool_scope == POOL_SCOPE_TRADER_LOCAL
@@ -727,7 +743,17 @@ def run_compound_portfolio_lane(
                         equity,
                     ),
                     realized_profit_pool_usd=funding_pool,
-                    protected_capacity_usd=min(funding_pool, committed_loss),
+                    protected_capacity_usd=min(
+                        funding_pool,
+                        committed_protected_reserve + loss_reserve,
+                    ),
+                    deployed_profit_usd=min(
+                        max(
+                            Decimal(0),
+                            funding_pool - committed_protected_reserve - loss_reserve,
+                        ),
+                        committed_deployed_profit,
+                    ),
                     open_stop_risk_usd=total_open_risk_cs,
                     open_margin_usd=total_open_margin_cs,
                     requested_stop_risk_usd=risk,
@@ -751,6 +777,28 @@ def run_compound_portfolio_lane(
                     ),
                     regime_state=regime_state,
                     known_simultaneous_opportunities=tuple(known_epoch_options),
+                    genc7_proposal=Genc7PreservationProposalEvidence(
+                        proposal_id=f"compound-redeploy:{epoch.decision_epoch_id}:{signal}",
+                        decision_at=epoch.market_decision_at,
+                        account_identity=CiboAccountCapitalIdentity(
+                            provider_key="ctrader-demo",
+                            account_ref="phase22-v4-counterfactual-usd60",
+                            environment=MarketRuntimeEnvironment.DEMO,
+                        ),
+                        action=Genc7Action.COMPOUND,
+                        source_bucket=(
+                            Genc7SourceBucket.COMPOUNDABLE_OR_RELEASED_CAPACITY
+                        ),
+                        amount_usd=risk + cost,
+                        evidence_sha256=candidate.fingerprint(),
+                        rationale_code="PROTECTED_REINVESTMENT_V2_CANDIDATE",
+                        evaluation_horizon_minutes=max(
+                            1,
+                            int(expectation.expected_capital_minutes) + 1,
+                        ),
+                        calibrated=True,
+                        capital_eligible=True,
+                    ),
                 )
             )
             capital_science_receipts.extend(capital_science.receipts)
