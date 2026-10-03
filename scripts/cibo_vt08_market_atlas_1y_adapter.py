@@ -56,12 +56,16 @@ def _account_fingerprint(
     source_root: Path,
     group_id: str,
 ) -> str:
+    manifests = tuple(source_root.rglob("symbol-consumption-manifest.json"))
+    if len(manifests) != 1:
+        raise ValueError("exact one Market Atlas symbol manifest required")
+    manifest_sha = hashlib.sha256(manifests[0].read_bytes()).hexdigest()
     material = "|".join(
         (
             "CIBO_TRADER_LAB_3X1Y_VT08_RESEARCH",
             symbol,
             group_id,
-            str(source_root),
+            manifest_sha,
         )
     ).encode()
     return hashlib.sha256(material).hexdigest()
