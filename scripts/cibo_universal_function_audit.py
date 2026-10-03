@@ -310,17 +310,17 @@ def run_audit() -> dict[str, object]:
         "src/qore/infrastructure/cibo_capability_exam_cognitive_coverage.py"
     )
     cognitive = _text(cognitive_path)
-    cognitive_is_observation_only = (
-        "authority=CiboFunctionalAuthority.OBSERVATION" in cognitive
-        and "build_cibo_capability_cognitive_coverage" not in policy
+    cognitive_bound_to_lab = (
+        "CiboCapabilityCognitiveCoverageReceipt" in capability_lab
+        and "cognitive_coverage.complete" in capability_lab
     )
     record(
-        "COGNITIVE_CF01_CF19_AFFECT_GOVERNED_RUNTIME_PATH",
-        not cognitive_is_observation_only,
+        "COGNITIVE_CF01_CF19_BOUND_TO_CAPABILITY_ORCHESTRATION",
+        cognitive_bound_to_lab
+        and "authority=CiboFunctionalAuthority.OBSERVATION" in cognitive,
         (
-            "CF01..CF19 are bound into governed runtime decisions"
-            if not cognitive_is_observation_only
-            else "CF01..CF19 capability proof is observational/coverage-only"
+            "CF01..CF19 are required by capability orchestration while "
+            "remaining observation-only and non-sizing"
         ),
     )
 
