@@ -11,7 +11,9 @@ from qore.infrastructure.account_wide_risk import (
     AccountWideRiskEngine,
     AccountWideRiskError,
     RiskDecision,
+    TraderLineage,
     canonical_trader_identity,
+    canonical_trader_lineage,
 )
 from qore.infrastructure.cibo_capital_management_authority import (
     CapitalAction,
@@ -40,6 +42,17 @@ class _Budget:
     max_risk_at_any_time: Decimal
     active_mll: Decimal
     hard_breach: bool
+
+
+def test_unseen_trader_lineage_is_stable_enum_compatible_identity() -> None:
+    trader_id = "UNSEEN_STABLE_TRADER_V42"
+    first = canonical_trader_lineage(trader_id)
+    second = TraderLineage(trader_id)
+
+    assert type(first) is TraderLineage
+    assert first is second
+    assert first.value == trader_id
+    assert canonical_trader_identity(first) == trader_id
 
 
 @pytest.mark.parametrize(
