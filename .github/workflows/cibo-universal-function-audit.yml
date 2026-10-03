@@ -8,6 +8,7 @@ on:
       - 'src/qore/infrastructure/**'
       - 'scripts/cibo_universal_function_audit.py'
       - 'tests/infrastructure/test_cibo_*.py'
+      - 'tests/infrastructure/trader_lab/test_cibo_*.py'
       - '.github/workflows/cibo-universal-function-audit.yml'
   pull_request:
     branches:
@@ -16,6 +17,7 @@ on:
       - 'src/qore/infrastructure/**'
       - 'scripts/cibo_universal_function_audit.py'
       - 'tests/infrastructure/test_cibo_*.py'
+      - 'tests/infrastructure/trader_lab/test_cibo_*.py'
       - '.github/workflows/cibo-universal-function-audit.yml'
   workflow_dispatch:
 
