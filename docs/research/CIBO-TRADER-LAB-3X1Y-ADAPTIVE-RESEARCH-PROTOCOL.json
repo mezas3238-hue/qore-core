@@ -76,7 +76,10 @@
       "winner_concentration_stress",
       "protected_capital_breaches",
       "timeframe_reports",
-      "leverage_report"
+      "leverage_report",
+      "cross_trader_overlap",
+      "shared_capital_contention",
+      "integrated_chronology"
     ],
     "cibo_function_behavior_required": true
   },
@@ -109,7 +112,8 @@
     "required_identical_configuration_fingerprints_across_all_groups": 3,
     "per_group_minimum_full_pass_candidates": 3,
     "stop_state": "STOP_THREE_CROSS_HOLDOUT_FULL_PASS",
-    "continue_state": "CONTINUE_SEARCH"
+    "continue_state": "CONTINUE_SEARCH",
+    "input_requirement": "Only integrated 7-Trader group results are admissible. SOURCE_ONLY per-Trader results are forbidden."
   },
   "automation": {
     "adaptive_outcome_aware_search": true,
@@ -154,5 +158,21 @@
     "fresh_oos_claimed": false,
     "certification_claimed": false,
     "adaptive_search_burns_all_three_holdouts": true
+  },
+  "execution_topology": {
+    "unit_of_test": "ONE_INTEGRATED_7_TRADER_PORTFOLIO_PER_1Y_GROUP",
+    "group_jobs": [
+      "GROUP_1: seven Traders together -> one chronological timeline -> one shared CIBO/capital state",
+      "GROUP_2: seven Traders together -> one chronological timeline -> one shared CIBO/capital state",
+      "GROUP_3: seven Traders together -> one chronological timeline -> one shared CIBO/capital state"
+    ],
+    "per_trader_replays": "SOURCE_PREPARATION_ONLY",
+    "per_trader_results_may_trigger_stop_sensor": false,
+    "shared_initial_capital_usd": "60",
+    "shared_qore_risk_state": true,
+    "shared_cibo_capital_state": true,
+    "cross_trader_overlap_and_competition_required": true,
+    "compound_portfolio_cross_trader_pool_required": true,
+    "chronological_merge_before_cibo": true
   }
 }
