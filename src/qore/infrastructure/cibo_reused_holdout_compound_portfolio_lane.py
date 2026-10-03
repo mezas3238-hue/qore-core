@@ -6,9 +6,11 @@ realized before the decision epoch. Positive Core settlements and earlier
 compound settlements form one account-local pool, so capital can be redeployed
 across Traders without changing Trader edge or the Core selection.
 
-QORE Risk remains sovereign over every incremental request. This is a
-NON_CERTIFYING_REUSED_HOLDOUT research lane and grants no broker/LIVE/real/
-production/merge authority.
+QORE Risk remains sovereign over every incremental request. Capital Science
+predecision evaluation consumes the enabled native GEN-C engines from the
+runtime bridge; no function is hidden by historical replay time or TEST mission.
+This is a NON_CERTIFYING_REUSED_HOLDOUT research lane and grants no
+broker/LIVE/real/production/merge authority.
 """
 
 from __future__ import annotations
