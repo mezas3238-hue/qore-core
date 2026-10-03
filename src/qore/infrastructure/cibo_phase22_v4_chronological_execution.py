@@ -103,6 +103,10 @@ from qore.infrastructure.cibo_phase22_provider_execution_calibration_receipt imp
     PHASE22_PROVIDER_EXECUTION_CALIBRATION_RECEIPT,
 )
 from qore.infrastructure.market_test_environment import MarketRuntimeEnvironment
+from qore.infrastructure.trader_lab.cibo_three_holdout_admission import (
+    cibo_admission_accepts,
+    normalize_cibo_admission_rules,
+)
 
 
 class Phase22HistoricalExecutionState(StrEnum):
@@ -383,6 +387,9 @@ def execute_phase22_chronological_replay(
     lab_allow_nonpositive_expectation: bool = False,
     lab_cibo_free_tool_choice: bool = False,
     lab_enable_t02_released_capacity: bool = False,
+    lab_admission_rules_by_trader: (
+        dict[str, tuple[tuple[str, str], ...]] | None
+    ) = None,
 ) -> Phase22HistoricalExecutionReport:
     """Run the frozen USD60 policy/Risk/settlement path chronologically."""
 
@@ -403,6 +410,9 @@ def execute_phase22_chronological_replay(
         raise CiboCapitalManagementError(
             "lab_enable_t02_released_capacity must be bool"
         )
+    admission_rules = normalize_cibo_admission_rules(
+        lab_admission_rules_by_trader
+    )
     if amendment is None:
         amendment = canonical_phase22_historical_economics_amendment()
     if not isinstance(amendment, Phase22HistoricalReplayEconomicsAmendment):
@@ -526,6 +536,18 @@ def execute_phase22_chronological_replay(
 
     for index, epoch in enumerate(plan.epochs):
         _advance(epoch.market_decision_at)
+        eligible_candidates = tuple(
+            candidate
+            for candidate in epoch.candidates
+            if cibo_admission_accepts(candidate, admission_rules)
+        )
+        if not eligible_candidates:
+            continue
+        effective_epoch = Phase22DecisionEpochPlan(
+            decision_epoch_id=epoch.decision_epoch_id,
+            market_decision_at=epoch.market_decision_at,
+            candidates=eligible_candidates,
+        )
         evidence = evidence_by_epoch[epoch.decision_epoch_id]
         if evidence.observed_at > epoch.market_decision_at:
             raise CiboCapitalManagementError(
@@ -547,7 +569,7 @@ def execute_phase22_chronological_replay(
         )
         regime = _regime_state(
             evidence=evidence,
-            epoch=epoch,
+            epoch=effective_epoch,
             realized_capital_usd=realized,
             peak_realized_capital_usd=peak,
             open_risk_usd=snapshot.open_stop_worst_case_loss,
@@ -558,7 +580,7 @@ def execute_phase22_chronological_replay(
             remaining_released = released_risk_capacity
             evidence_rows: list[AdvancedOpportunityEvidence] = []
             for candidate in sorted(
-                epoch.candidates,
+                effective_epoch.candidates,
                 key=lambda item: (
                     item.trader_id,
                     item.qore_symbol,
@@ -603,7 +625,8 @@ def execute_phase22_chronological_replay(
             seal_deadline_at=sealed_at + timedelta(seconds=2),
             account_identity=account_identity,
             candidates=tuple(
-                item.projection.candidate for item in epoch.candidates
+                item.projection.candidate
+                for item in effective_epoch.candidates
             ),
             regime_state=regime,
             hard_risk_headroom_usd=constraints.hard_risk_headroom_usd,
@@ -619,7 +642,8 @@ def execute_phase22_chronological_replay(
         pairs.append(pair)
 
         by_signal = {
-            item.signal_fingerprint: item for item in epoch.candidates
+            item.signal_fingerprint: item
+            for item in effective_epoch.candidates
         }
         execution_signals = tuple(
             pair.policy.selected_signal_fingerprints
