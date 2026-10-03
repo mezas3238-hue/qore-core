@@ -1126,7 +1126,7 @@ class Audit:
             "sha256:" + ctx.phase_tokens[PHASES[14]]
         )
         integrated = build_integrated_episode(
-            integration_id=_u(ctx.trader + ":integrated"),
+            integration_id=ctx.replay.episode_id,
             reasoning_mode=CiboReasoningMode.MAX,
             evidence_bindings=(evidence_binding,),
             recorded_at=recorded_at,
