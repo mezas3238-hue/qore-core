@@ -36,6 +36,9 @@ from qore.infrastructure.cibo_ce2i_usd60_six_month_certification import (
     FROZEN_CIBO_USD60_SIX_MONTH_PROTOCOL,
 )
 from qore.infrastructure.cibo_cma_risk_request import build_cma_risk_request
+from qore.infrastructure.cibo_protected_reinvestment_policy import (
+    maximum_reinvestment_capital_need_usd,
+)
 from qore.infrastructure.cibo_phase22_v4_chronological_execution import (
     Phase22HistoricalExecutionReport,
 )
@@ -453,6 +456,17 @@ def run_compound_portfolio_lane(
                 rejected += 1
                 continue
             equity = max(Decimal(0), core_realized + incremental)
+            if equity <= 0:
+                blockers["CURRENT_REALIZED_CAPITAL_NOT_POSITIVE"] += 1
+                rejected += 1
+                continue
+            dynamic_limit = maximum_reinvestment_capital_need_usd(equity)
+            if risk + cost > dynamic_limit:
+                blockers[
+                    "DYNAMIC_CURRENT_CAPITAL_REINVESTMENT_LIMIT_EXCEEDED"
+                ] += 1
+                rejected += 1
+                continue
             headroom = min(equity, max(Decimal(0), available - cost))
             if risk > headroom or margin > headroom:
                 blockers["COMPOUND_RISK_OR_MARGIN_HEADROOM_INSUFFICIENT"] += 1
