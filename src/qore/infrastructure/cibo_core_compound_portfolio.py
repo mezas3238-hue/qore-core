@@ -17,6 +17,7 @@ from decimal import Decimal
 from qore.infrastructure.account_wide_risk import (
     TraderIdentity,
     canonical_trader_identity,
+    canonical_trader_lineage,
 )
 from qore.infrastructure.cibo_account_capital_mission import (
     CiboAccountCapitalIdentity,
@@ -50,7 +51,14 @@ class CompoundPortfolioAttributionRow:
             raise CiboCompoundCapitalError(
                 "compound attribution account identity is invalid"
             )
-        canonical_trader_identity(self.origin_trader, field_name="origin_trader")
+        object.__setattr__(
+            self,
+            "origin_trader",
+            canonical_trader_lineage(
+                self.origin_trader,
+                field_name="origin_trader",
+            ),
+        )
         if (
             not isinstance(self.generation, int)
             or isinstance(self.generation, bool)
