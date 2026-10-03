@@ -134,16 +134,17 @@ jobs:
                   if token in text:
                       violations.append(f"{path}:{token}")
 
-          runtime_paths = (
-              Path("src/qore/infrastructure/cibo_capital_management_authority.py"),
-              Path("src/qore/infrastructure/cibo_cma_risk_request.py"),
-              Path("src/qore/infrastructure/cibo_compound_capital.py"),
-              Path("src/qore/infrastructure/cibo_compound_path_monte_carlo.py"),
-              Path("src/qore/infrastructure/cibo_compound_real_population_binding.py"),
-              Path("src/qore/infrastructure/cibo_core_compound_portfolio.py"),
-              Path("src/qore/infrastructure/cibo_internal_capital_market.py"),
-              Path("src/qore/infrastructure/cibo_marginal_capital_utility_evidence.py"),
-              Path("src/qore/infrastructure/cibo_meta_capital_memory.py"),
+          runtime_paths = tuple(
+              sorted(
+                  {
+                      *(
+                          path
+                          for path in Path("src/qore/infrastructure").rglob("*.py")
+                          if "cibo" in path.as_posix().lower()
+                      ),
+                      Path("src/qore/infrastructure/account_wide_risk.py"),
+                  }
+              )
           )
           for path in runtime_paths:
               text = path.read_text(encoding="utf-8")
@@ -152,6 +153,14 @@ jobs:
                   "type(self.origin_trader) is not TraderLineage",
                   ".trader_id.value",
                   ".origin_trader.value",
+                  "TraderLineage(trader)",
+                  "TraderLineage(value)",
+                  "qore_symbol in {",
+                  "qore_symbol not in {",
+                  "market_symbol in {",
+                  "market_symbol not in {",
+                  "trader_id in {",
+                  "trader_id not in {",
               ):
                   if token in text:
                       violations.append(f"{path}:{token}")
