@@ -28,6 +28,10 @@ from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
     TraderOpportunityEnvelope,
 )
+from qore.infrastructure.cibo_ce2i_economic_effects import (
+    AdvancedCe2iEconomicApplication,
+    apply_advanced_ce2i_economic_effects,
+)
 from qore.infrastructure.cibo_ce2i_full_surface import (
     AdvancedPortfolioEvidence,
     FullCe2iSurfaceAssessment,
@@ -135,6 +139,7 @@ class Phase22HistoricalPolicyDecisionRecord:
     margin_headroom_usd: Decimal
     concentration_limit_by_group: tuple[tuple[str, Decimal], ...]
     full_surface: FullCe2iSurfaceAssessment
+    advanced_economic_application: AdvancedCe2iEconomicApplication
     mpc_plan: Phase20MpcCapacityPlan
     allocator_decision: Phase20RobustAllocatorDecision
     counterfactual_historical_replay: bool = True
@@ -217,6 +222,40 @@ class Phase22HistoricalPolicyDecisionRecord:
                 for name, value in self.concentration_limit_by_group
             ],
             "regime_posture": self.full_surface.regime.posture.value,
+            "advanced_economic_application": {
+                "effective_hard_risk_headroom_usd": format(
+                    self.advanced_economic_application.effective_hard_risk_headroom_usd,
+                    "f",
+                ),
+                "effective_margin_headroom_usd": format(
+                    self.advanced_economic_application.effective_margin_headroom_usd,
+                    "f",
+                ),
+                "conservative_portfolio_credit_usd": format(
+                    self.advanced_economic_application.conservative_portfolio_credit_usd,
+                    "f",
+                ),
+                "candidate_effects": [
+                    {
+                        "signal_fingerprint": item.signal_fingerprint,
+                        "tool_code": item.tool_code,
+                        "field_name": item.field_name,
+                        "before_usd": format(item.before_usd, "f"),
+                        "after_usd": format(item.after_usd, "f"),
+                    }
+                    for item in self.advanced_economic_application.candidate_effects
+                ],
+                "portfolio_effects": [
+                    {
+                        "tool_code": item.tool_code,
+                        "released_risk_capacity_usd": format(
+                            item.released_risk_capacity_usd,
+                            "f",
+                        ),
+                    }
+                    for item in self.advanced_economic_application.portfolio_effects
+                ],
+            },
             "allocator_disposition": self.allocator_decision.disposition.value,
             "selected_signal_fingerprints": (
                 []
@@ -327,6 +366,16 @@ def evaluate_phase22_historical_policy(
             else NEXT_POLICY_ADVANCED_SCIENTIFIC_ELIGIBILITY
         ),
     )
+    advanced_application = apply_advanced_ce2i_economic_effects(
+        candidates=candidates,
+        full_surface=full_surface,
+        hard_risk_headroom_usd=(
+            advanced_application.effective_hard_risk_headroom_usd
+        ),
+        margin_headroom_usd=(
+            advanced_application.effective_margin_headroom_usd
+        ),
+    )
     mpc = plan_phase20i_receding_horizon_capacity(
         current_step=current_step,
         horizon_steps=FROZEN_PHASE20_POLICY_CANDIDATE.mpc_horizon_steps,
@@ -341,7 +390,7 @@ def evaluate_phase22_historical_policy(
         hard_risk_headroom_usd=mpc.deployable_stop_risk_usd,
         margin_headroom_usd=mpc.deployable_margin_usd,
         concentration_limit_by_group=concentration_limit_by_group,
-        candidates=candidates,
+        candidates=advanced_application.candidates,
         known_options=(),
         lab_allow_nonpositive_expectation=lab_allow_nonpositive_expectation,
     )
@@ -355,6 +404,7 @@ def evaluate_phase22_historical_policy(
         margin_headroom_usd=margin_headroom_usd,
         concentration_limit_by_group=concentration_limit_by_group,
         full_surface=full_surface,
+        advanced_economic_application=advanced_application,
         mpc_plan=mpc,
         allocator_decision=allocator,
     )
