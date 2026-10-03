@@ -4,6 +4,7 @@ from pathlib import Path
 from qore.infrastructure.cibo_account_capital_mission import (
     Ce2iActivationScope,
     CiboAccountCapitalIdentity,
+    available_ce2i_tool_codes_for_mission,
     CiboCapitalMission,
     CiboCapitalObjective,
     ce2i_tool_allowed_for_mission,
@@ -257,3 +258,58 @@ def test_demo_tool_surface_is_not_reduced_by_base_protection_flag() -> None:
         policy,
         base_protected=True,
     )
+
+def test_every_implemented_ce2i_engine_is_available_in_every_mission() -> None:
+    identities = (
+        CiboAccountCapitalIdentity(
+            provider_key="ctrader-demo",
+            account_ref="demo-any",
+            environment=MarketRuntimeEnvironment.DEMO,
+        ),
+        CiboAccountCapitalIdentity(
+            provider_key="validation",
+            account_ref="test-any",
+            environment=MarketRuntimeEnvironment.TEST,
+        ),
+        CiboAccountCapitalIdentity(
+            provider_key="sandbox",
+            account_ref="sandbox-any",
+            environment=MarketRuntimeEnvironment.SANDBOX,
+        ),
+        CiboAccountCapitalIdentity(
+            provider_key="broker-x",
+            account_ref="production-any",
+            environment=MarketRuntimeEnvironment.PRODUCTION,
+        ),
+        fundednext_stellar_instant_identity(
+            account_ref="stellar-instant-any"
+        ),
+    )
+    expected = tuple(
+        tool.code
+        for tool in CE2I_TOOL_REGISTRY
+        if tool.maturity not in {
+            ToolMaturity.ARCHITECTURE_ONLY,
+            ToolMaturity.REJECTED,
+        }
+    )
+    assert expected == tuple(f"T{index:02d}" for index in range(1, 21))
+
+    for identity in identities:
+        policy = derive_cibo_capital_mission(identity)
+        assert available_ce2i_tool_codes_for_mission(policy) == expected
+
+
+def test_action_authority_never_hides_engine_availability() -> None:
+    policy = derive_cibo_capital_mission(
+        fundednext_stellar_instant_identity(
+            account_ref="stellar-instant-any"
+        )
+    )
+    available = set(available_ce2i_tool_codes_for_mission(policy))
+    actionable = set(eligible_ce2i_tool_codes_for_mission(policy))
+
+    assert available == {f"T{index:02d}" for index in range(1, 21)}
+    assert actionable.issubset(available)
+    assert "T06" in available
+
