@@ -95,19 +95,23 @@ jobs:
           assert p["merge_authority"] is False
           expected = {
               Decimal("1.80416946006494203648874011988"),
-              Decimal("2.00"),
-              Decimal("2.50"),
-              Decimal("3.00"),
+              *(Decimal(f"{value / 10:.2f}") for value in range(19, 31)),
           }
           observed = {
-              Decimal(item["usd60_reference_limit_usd"])
-              for item in p["limits"]
+              Decimal(item)
+              for item in p["grid"]["usd60_reference_limits_usd"]
           }
           assert observed == expected
-          assert len(p["variants"]) == 12
+          assert len(p["variants"]) == 65
           assert {
               item["side_mode"] for item in p["variants"]
           } == {"LONG", "SHORT", "BOTH"}
+          assert {
+              item["short_gate_id"]
+              for item in p["variants"]
+              if item["side_mode"] != "LONG"
+          } == {"NONE", "STABLE_EXPECTED_MINUTES_LE_30"}
+          assert len(p["candidate_groups"]) == 26
           for item in p["variants"]:
               assert item["cibo_compound"]["stress"]["scenario_count"] in (0, 7)
               assert item["compound_portfolio"]["stress"]["scenario_count"] in (0, 7)
