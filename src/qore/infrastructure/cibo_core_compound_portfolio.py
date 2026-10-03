@@ -50,10 +50,7 @@ class CompoundPortfolioAttributionRow:
             raise CiboCompoundCapitalError(
                 "compound attribution account identity is invalid"
             )
-        if type(self.origin_trader) is not TraderIdentity:
-            raise CiboCompoundCapitalError(
-                "compound attribution origin Trader is invalid"
-            )
+        canonical_trader_identity(self.origin_trader, field_name="origin_trader")
         if (
             not isinstance(self.generation, int)
             or isinstance(self.generation, bool)
