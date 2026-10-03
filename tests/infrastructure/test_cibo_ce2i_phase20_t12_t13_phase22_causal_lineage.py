@@ -164,6 +164,8 @@ def _book(
         amendment_sha256=_sha("amendment"),
         decisions=decisions,
         outcomes=outcomes,
+        source_receipt_sha256=_sha("source-receipt"),
+        source_collector_git_shas=(_sha("source-collector"),),
     )
 
 
