@@ -68,6 +68,10 @@ jobs:
         run: pytest -q --no-cov tests/infrastructure/test_cibo/test_functional_coordinator.py tests/infrastructure/test_cibo_profitability_lab_economic_consultation.py
       - name: P14B full-CF01-CF20-functional-regression
         run: pytest -q --no-cov tests/infrastructure/test_cibo tests/infrastructure/test_cibo_trader_manager.py tests/governance/test_cibo_executive_dialogue.py
+      - name: P14C legacy-cognitive-quarantine
+        run: |
+          python scripts/cibo_legacy_stack_quarantine.py
+          pytest -q --no-cov tests/infrastructure/test_cibo_legacy_stack_quarantine.py
       - name: P15 static-integrity
         run: |
           python -m compileall -q src/qore/infrastructure/cibo_cognitive_*.py src/qore/infrastructure/cibo_executive_*.py src/qore/infrastructure/cibo_reasoning_runtime.py src/qore/infrastructure/cibo_adaptive_reasoning_runtime.py
