@@ -1,3 +1,5 @@
+import pytest
+
 from decimal import Decimal
 
 from qore.infrastructure.account_wide_risk import TraderLineage
@@ -51,12 +53,16 @@ def _state() -> CiboCapitalRegimeState:
     )
 
 
-def _opportunity() -> TraderOpportunityEnvelope:
+def _opportunity(
+    *,
+    qore_symbol: str = "XAUUSD",
+    provider_symbol: str = "XAUUSD",
+) -> TraderOpportunityEnvelope:
     return TraderOpportunityEnvelope(
         trader_id=TraderLineage.R34_XAUUSD,
         signal_fingerprint="signal-001",
-        qore_symbol="XAUUSD",
-        provider_symbol="XAUUSD",
+        qore_symbol=qore_symbol,
+        provider_symbol=provider_symbol,
         side="long",
         entry_type="market",
         intended_entry=Decimal("3800"),
@@ -97,3 +103,25 @@ def test_full_surface_binds_all_twenty_tools_and_all_advanced_scopes() -> None:
         item.disposition is AdvancedToolDisposition.FAIL_CLOSED
         for item in result.advanced_decisions
     )
+
+
+@pytest.mark.parametrize("symbol", ("BTCUSD", "USDCAD", "EURAUD"))
+def test_full_ce2i_surface_is_asset_agnostic(symbol: str) -> None:
+    result = evaluate_full_ce2i_surface(
+        mission=_mission(),
+        regime_state=_state(),
+        opportunities=(
+            _opportunity(
+                qore_symbol=symbol,
+                provider_symbol=symbol,
+            ),
+        ),
+        advanced_evidence=AdvancedPortfolioEvidence(),
+    )
+
+    assert result.complete_registry is True
+    assert result.registry_codes == tuple(
+        f"T{index:02d}" for index in range(1, 21)
+    )
+    assert len(result.opportunity_assessments) == 1
+    assert result.opportunity_assessments[0].signal_fingerprint == "signal-001"
