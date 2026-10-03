@@ -38,6 +38,12 @@ RETAINED_SHARED_SUBSTRATE = frozenset({"cibo_executive_memory"})
 ALLOWED_CURRENT_CONSUMERS = frozenset(
     {"src/qore/infrastructure/cibo_meta_capital_memory.py"}
 )
+ALLOWED_RESEARCH_ONLY_CONSUMERS = frozenset(
+    {"src/qore/infrastructure/cibo_capability_exam_cognitive_coverage.py"}
+)
+ALLOWED_RESEARCH_ONLY_MODULES = frozenset(
+    {"cibo_executive_brain", "cibo_reasoning_policy"}
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -116,8 +122,16 @@ def build_quarantine_report() -> dict[str, object]:
         if edge.importer in ALLOWED_CURRENT_CONSUMERS
         and edge.imported_module in RETAINED_SHARED_SUBSTRATE
     )
+    allowed_research_only = tuple(
+        edge
+        for edge in external_edges
+        if edge.importer in ALLOWED_RESEARCH_ONLY_CONSUMERS
+        and edge.imported_module in ALLOWED_RESEARCH_ONLY_MODULES
+    )
     forbidden_external = tuple(
-        edge for edge in external_edges if edge not in allowed_external
+        edge
+        for edge in external_edges
+        if edge not in allowed_external and edge not in allowed_research_only
     )
 
     present_legacy = tuple(
@@ -146,6 +160,13 @@ def build_quarantine_report() -> dict[str, object]:
                 "imported_module": edge.imported_module,
             }
             for edge in allowed_external
+        ],
+        "allowed_research_only_edges": [
+            {
+                "importer": edge.importer,
+                "imported_module": edge.imported_module,
+            }
+            for edge in allowed_research_only
         ],
         "forbidden_external_edges": [
             {
