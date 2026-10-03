@@ -235,6 +235,8 @@ def _simulate_observed(
     max_capital_need_to_current_capital_ratio: Decimal = (
         MAX_CAPITAL_NEED_TO_CURRENT_CAPITAL_RATIO
     ),
+    short_required_regime: str | None = None,
+    short_max_expected_capital_minutes: Decimal | None = None,
 ) -> tuple[ReinvestmentEpisode, ...]:
     """Chronological protected-only incremental seed replay.
 
@@ -256,6 +258,16 @@ def _simulate_observed(
         or max_capital_need_to_current_capital_ratio <= 0
     ):
         raise ValueError("reinvestment ratio must be finite positive Decimal")
+    if short_required_regime is not None and not short_required_regime:
+        raise ValueError("short_required_regime cannot be empty")
+    if short_max_expected_capital_minutes is not None and (
+        not isinstance(short_max_expected_capital_minutes, Decimal)
+        or not short_max_expected_capital_minutes.is_finite()
+        or short_max_expected_capital_minutes <= 0
+    ):
+        raise ValueError(
+            "short expected-capital-minutes limit must be finite positive Decimal"
+        )
 
     core_settlements = sorted(
         rows,
@@ -352,6 +364,26 @@ def _simulate_observed(
             else:
                 protected[trader] += realized
                 inflow_since_episode[trader] += realized
+
+        if candidate.side == "short":
+            if short_required_regime is not None:
+                regime = row["market_predecision_state"].get("regime")
+                posture = (
+                    regime.get("posture")
+                    if isinstance(regime, dict)
+                    else None
+                )
+                if posture != short_required_regime:
+                    continue
+            if short_max_expected_capital_minutes is not None:
+                expectation = row.get("expectation")
+                if not isinstance(expectation, dict):
+                    continue
+                raw_minutes = expectation.get("expected_capital_minutes")
+                if raw_minutes is None:
+                    continue
+                if _d(raw_minutes) > short_max_expected_capital_minutes:
+                    continue
 
         if realized_account_capital <= 0:
             continue
@@ -796,6 +828,8 @@ def _surface(
     max_capital_need_to_current_capital_ratio: Decimal = (
         MAX_CAPITAL_NEED_TO_CURRENT_CAPITAL_RATIO
     ),
+    short_required_regime: str | None = None,
+    short_max_expected_capital_minutes: Decimal | None = None,
 ) -> dict[str, Any]:
     label = "COMPOUND_PORTFOLIO" if shared else "CIBO_COMPOUND"
     episodes = _simulate_observed(
@@ -805,6 +839,10 @@ def _surface(
         max_capital_need_to_current_capital_ratio=(
             max_capital_need_to_current_capital_ratio
         ),
+        short_required_regime=short_required_regime,
+        short_max_expected_capital_minutes=(
+            short_max_expected_capital_minutes
+        ),
     )
     return {
         "surface": label,
@@ -813,6 +851,14 @@ def _surface(
         "max_capital_need_to_current_capital_ratio": _fmt(
             max_capital_need_to_current_capital_ratio
         ),
+        "short_predecision_gate": {
+            "required_regime": short_required_regime,
+            "max_expected_capital_minutes": (
+                None
+                if short_max_expected_capital_minutes is None
+                else _fmt(short_max_expected_capital_minutes)
+            ),
+        },
         "observed": _metrics(episodes, label=label),
         "walk_forward": _walk_forward(episodes, label=label),
         "monte_carlo": _block_bootstrap(episodes, label=label),
