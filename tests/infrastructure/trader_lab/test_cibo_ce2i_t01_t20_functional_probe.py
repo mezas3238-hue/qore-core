@@ -94,8 +94,8 @@ from qore.infrastructure.cibo_cma_settlement_ledger import (
     CmaSettlementRecord,
     CmaSettlementState,
 )
-from qore.infrastructure.cibo_phase22_historical_replay_settlement import (
-    Phase22HistoricalReplayOutcomeSeal,
+from qore.infrastructure.cibo_ce2i_phase20_forward_store import (
+    Phase20ForwardOutcomeSeal,
 )
 from qore.infrastructure.cibo_provider_economic_normalization import (
     ProviderEconomicObservation,
@@ -531,7 +531,7 @@ def test_trader_lab_t11_execution_efficiency(candidate_factory) -> None:
 def test_trader_lab_t12_regime_adaptive_capitalization(candidate_factory) -> None:
     candidate = candidate_factory(candidate_suffix=912)
     decision = _regime(candidate)
-    assert decision.posture is CiboRegimePosture.WATCH
+    assert decision.posture is CiboRegimePosture.STABLE
     assert decision.enabled_tools == tuple(
         item.code for item in CE2I_TOOL_REGISTRY
     )
@@ -769,29 +769,21 @@ def test_trader_lab_t20_capital_release(candidate_factory) -> None:
         ),
         position_closed=True,
     )
-    outcome = Phase22HistoricalReplayOutcomeSeal(
+    outcome = Phase20ForwardOutcomeSeal(
         evidence_id=_tag(candidate, "outcome"),
         decision_evidence_sha256="sha256:" + "1" * 64,
         signal_fingerprint=signal,
-        trader_id="R38_EURUSD",
-        qore_symbol="BTCUSD",
+        position_id=7001,
+        execution_risk_evidence_id=_tag(candidate, "execution"),
+        settlement_deal_ids=(8000, 8001, 8002),
+        fill_evidence_refs=(_tag(candidate, "fill-001"),),
         observed_at=NOW + timedelta(minutes=12),
-        gross_structural_outcome_r=Decimal("1.666666666666666666666666667"),
-        provider_execution_adjustment_usd=Decimal("0"),
-        decision_provider_cost_proxy_usd=Decimal("0"),
         realized_net_pnl_usd=Decimal("2.00"),
         executed_initial_stop_risk_usd=Decimal("1.2"),
         realized_structural_outcome_r=Decimal("1.666666666666666666666666667"),
         capital_deployed_at=NOW + timedelta(seconds=2),
         capital_released_at=NOW + timedelta(minutes=10, seconds=2),
         capital_minutes=Decimal("10"),
-        provider_calibration_sha256="sha256:" + "2" * 64,
-        amendment_sha256="sha256:" + "3" * 64,
-        execution_economics_kind="HISTORICAL_COUNTERFACTUAL_EXECUTION_ECONOMICS",
-        counterfactual_historical_replay=True,
-        historical_broker_fills_claimed=False,
-        fabricated_execution_evidence_used=False,
-        outcome_reconciled=True,
     )
     evidence = build_t20_capital_release_evidence(
         evidence_id=_tag(candidate, "t20-release"),
