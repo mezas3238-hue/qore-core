@@ -7,6 +7,8 @@ on:
     paths:
       - '.github/workflows/cibo-compound-protected-capital-reality-exam.yml'
       - 'scripts/cibo_compound_protected_capital_reality_exam.py'
+      - 'src/qore/infrastructure/cibo_protected_reinvestment_policy.py'
+      - 'tests/infrastructure/test_cibo_protected_reinvestment_policy.py'
   workflow_dispatch:
 
 permissions:
@@ -62,23 +64,45 @@ jobs:
           assert p["governance"]["protected_capital_required_before_reinvestment"] is True
           assert p["governance"]["core_losses_create_compound_capital"] is False
           assert p["governance"]["outcome_used_for_admission"] is False
+          assert p["governance"]["dynamic_current_capital_scaling"] is True
+          assert p["governance"]["opening_base_capital_used_as_static_reinvestment_basis"] is False
+          assert p["calibrated_reinvestment_policy"]["dynamic_scaling"] is True
+          assert p["calibrated_reinvestment_policy"]["opening_balance_is_static_basis"] is False
           for key in ("cibo_compound", "compound_portfolio"):
               surface = p[key]
               observed = surface["observed"]
               assert observed["status"] == "MEASURED"
               assert observed["episode_count"] > 0
+              assert Decimal(observed["incremental_realized_pnl_usd"]) > 0
+              assert Decimal(observed["weighted_average_roi"]) > 0
               assert surface["walk_forward"]["fold_count"] > 0
+              assert all(
+                  Decimal(fold["weighted_average_roi"]) > 0
+                  for fold in surface["walk_forward"]["folds"]
+              )
               assert surface["monte_carlo"]["simulation_count"] == 1000
+              assert Decimal(surface["monte_carlo"]["median_incremental_pnl_usd"]) > 0
+              assert surface["monte_carlo"]["protected_pool_breach_paths"] == 0
               assert surface["stress"]["scenario_count"] == 7
               mn = Decimal(observed["minimum_roi"])
               wa = Decimal(observed["weighted_average_roi"])
               mx = Decimal(observed["maximum_roi"])
               assert mn <= wa <= mx
+              mnm = Decimal(observed["minimum_capital_multiplier"])
+              wam = Decimal(observed["weighted_average_capital_multiplier"])
+              mxm = Decimal(observed["maximum_capital_multiplier"])
+              assert mnm <= wam <= mxm
           PY
-      - name: Static integrity
+      - name: Static integrity and dynamic policy tests
         run: |
-          python -m py_compile scripts/cibo_compound_protected_capital_reality_exam.py
-          ruff check scripts/cibo_compound_protected_capital_reality_exam.py
+          pytest -q --no-cov tests/infrastructure/test_cibo_protected_reinvestment_policy.py
+          python -m py_compile \
+            scripts/cibo_compound_protected_capital_reality_exam.py \
+            src/qore/infrastructure/cibo_protected_reinvestment_policy.py
+          ruff check \
+            scripts/cibo_compound_protected_capital_reality_exam.py \
+            src/qore/infrastructure/cibo_protected_reinvestment_policy.py \
+            tests/infrastructure/test_cibo_protected_reinvestment_policy.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
