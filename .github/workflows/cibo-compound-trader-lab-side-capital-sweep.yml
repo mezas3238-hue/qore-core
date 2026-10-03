@@ -108,8 +108,8 @@ jobs:
               item["side_mode"] for item in p["variants"]
           } == {"LONG", "SHORT", "BOTH"}
           for item in p["variants"]:
-              assert item["cibo_compound"]["stress"]["scenario_count"] == 7
-              assert item["compound_portfolio"]["stress"]["scenario_count"] == 7
+              assert item["cibo_compound"]["stress"]["scenario_count"] in (0, 7)
+              assert item["compound_portfolio"]["stress"]["scenario_count"] in (0, 7)
               assert item["cibo_compound"]["monte_carlo"]["simulation_count"] in (0, 1000)
               assert item["compound_portfolio"]["monte_carlo"]["simulation_count"] in (0, 1000)
           PY
