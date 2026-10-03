@@ -13,9 +13,9 @@
   "production": false,
   "merge_authority": false,
   "outcome_aware_tuning": false,
-  "retrigger_for_head": "8eb4d0ff53d7f127c1ff611e51dd9d560d763744",
-  "retrigger_reason": "Re-run integrated Compound Portfolio V2 acceptance after the import-order-only CI repair; no economic rule changed.",
-  "mode": "CIBO_COMPOUND_PORTFOLIO_V2_INTEGRATED_ACCEPTANCE",
+  "retrigger_for_head": "4205d64241a1c5ec72f1eadd4054a7dfb9220d95",
+  "retrigger_reason": "Execute integrated V2 Compound Portfolio with explicit NON_CERTIFYING_REUSED_HOLDOUT research redeploy authorization; do not claim Fresh OOS marginal utility or productive authority.",
+  "mode": "CIBO_COMPOUND_PORTFOLIO_V2_RESEARCH_REDEPLOY_ACCEPTANCE",
   "replay_tool_eligibility_authority": false,
-  "reason": "Owner-directed reused-holdout capability validation of the integrated Compound/Compound Portfolio V2 policy. Research-only; no broker mutation, LIVE, real capital, production, merge authority, or outcome-aware admission."
+  "reason": "Owner-directed capability proof of actual protected-capital redeployment in the integrated research lane. Research authorization is predecision-only and explicitly Fresh-OOS=false; CMA/QORE Risk remain sovereign; no broker mutation/LIVE/real capital/production/merge/outcome-aware admission."
 }
