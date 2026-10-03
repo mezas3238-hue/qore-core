@@ -1,0 +1,242 @@
+name: QORE CIBO Post-Repair 3x1Y Integrated Replay
+
+on:
+  push:
+    branches:
+      - agent/cibo-post-repair-3x1y-validation-001
+    paths:
+      - '.github/workflows/cibo-trader-lab-3x1y-integrated-cibo.yml'
+      - 'scripts/cibo_t02_three_lane_capital_lab_arch2.py'
+      - 'scripts/cibo_three_holdout_group_report.py'
+      - 'scripts/cibo_three_holdout_1y_sensor.py'
+      - 'src/qore/infrastructure/trader_lab/cibo_three_holdout_1y_contract.py'
+      - 'src/qore/infrastructure/cibo_phase22_v4_historical_regime.py'
+      - 'src/qore/infrastructure/cibo_phase22_v4_chronological_execution.py'
+      - 'src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py'
+      - 'src/qore/infrastructure/cibo_universal_capital_science_registry.py'
+      - 'tests/infrastructure/test_cibo_universal_capital_science_registry.py'
+      - 'tests/infrastructure/test_cibo_phase22_v4_t02_volume_alignment.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-cibo-trader-lab-3x1y-integrated-cibo-parallel-v3
+  cancel-in-progress: true
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  ASSEMBLY_ARTIFACT_ID: '11281285816'
+  ASSEMBLY_ARTIFACT_DIGEST: 'sha256:1ce78890e4f255cf68ce327d53029db5a34ea464b16df7e75228a8ac0a7dde9e'
+  ATLAS_RUN_ID: '35166210458'
+  ATLAS_SHA: 'ab782b8e9f890f86a2b6500070f0556b4b685e3d'
+  REPLAY_STARTED_AT: '2026-10-03T18:15:00+00:00'
+
+jobs:
+  integrated-cibo:
+    name: integrated-cibo-${{ matrix.group }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        group:
+          - GROUP_1
+          - GROUP_2
+          - GROUP_3
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: python -m pip install -e '.[dev]'
+
+      - name: Validate integrated replay code
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/cibo_t02_three_lane_capital_lab_arch2.py \
+            scripts/cibo_three_holdout_group_report.py \
+            src/qore/infrastructure/cibo_phase22_v4_chronological_execution.py \
+            src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py \
+            src/qore/infrastructure/cibo_universal_capital_science_registry.py
+          ruff check \
+            scripts/cibo_t02_three_lane_capital_lab_arch2.py \
+            scripts/cibo_three_holdout_group_report.py \
+            src/qore/infrastructure/cibo_phase22_v4_chronological_execution.py \
+            src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py \
+            src/qore/infrastructure/cibo_universal_capital_science_registry.py \
+            tests/infrastructure/test_cibo_phase22_v4_t02_volume_alignment.py \
+            tests/infrastructure/test_cibo_universal_capital_science_registry.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_phase22_v4_t02_volume_alignment.py \
+            tests/infrastructure/test_cibo_universal_capital_science_registry.py
+
+      - name: Recover immutable seven-Trader assembly
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/assembly-root"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$ASSEMBLY_ARTIFACT_ID" > "$RUNNER_TEMP/assembly.meta.json"
+          jq -e --arg digest "$ASSEMBLY_ARTIFACT_DIGEST" '.expired == false and .digest == $digest' "$RUNNER_TEMP/assembly.meta.json"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$ASSEMBLY_ARTIFACT_ID/zip" > "$RUNNER_TEMP/assembly.zip"
+          echo "${ASSEMBLY_ARTIFACT_DIGEST#sha256:}  $RUNNER_TEMP/assembly.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/assembly.zip" -d "$RUNNER_TEMP/assembly-root"
+          test -s "$RUNNER_TEMP/assembly-root/assembly/${{ matrix.group }}/seven-trader-cibo-batch.json"
+
+      - name: Recover provider numeric model
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/provider"
+          python - <<'PY' > "$RUNNER_TEMP/provider.env"
+          from qore.infrastructure.cibo_phase22_provider_numeric_execution_receipt import PHASE22_PROVIDER_NUMERIC_EXECUTION_FREEZE_RECEIPT
+          x=PHASE22_PROVIDER_NUMERIC_EXECUTION_FREEZE_RECEIPT
+          print(f'PROVIDER_ARTIFACT_ID={x.artifact_id}')
+          print(f'PROVIDER_FILE_SHA={x.provider_numeric_freeze_file_sha256}')
+          PY
+          source "$RUNNER_TEMP/provider.env"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$PROVIDER_ARTIFACT_ID/zip" > "$RUNNER_TEMP/provider.zip"
+          unzip -q "$RUNNER_TEMP/provider.zip" -d "$RUNNER_TEMP/provider"
+          provider_json="$(find "$RUNNER_TEMP/provider" -name provider-numeric-execution-freeze.json -print -quit)"
+          test -n "$provider_json"
+          echo "PROVIDER_JSON=$provider_json" >> "$GITHUB_ENV"
+          echo "PROVIDER_FILE_SHA=$PROVIDER_FILE_SHA" >> "$GITHUB_ENV"
+
+      - name: Recover five Market Atlas 10Y regime corpora
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/regime"
+          for symbol in AUDJPY EURUSD GBPJPY GBPUSD XAUUSD; do
+            artifact="qore-cibo-market-atlas-10y-windowed-$symbol-$ATLAS_SHA"
+            gh run download "$ATLAS_RUN_ID" \
+              --name "$artifact" \
+              --dir "$RUNNER_TEMP/regime/$symbol"
+            test -s "$RUNNER_TEMP/regime/$symbol/symbol-consumption-manifest.json"
+          done
+
+      - name: Execute integrated seven-Trader CIBO holdout
+        run: |
+          set -euo pipefail
+          group="${{ matrix.group }}"
+          mkdir -p "$RUNNER_TEMP/results/$group/lab"
+          python scripts/cibo_t02_three_lane_capital_lab_arch2.py \
+            --batch "$RUNNER_TEMP/assembly-root/assembly/$group/seven-trader-cibo-batch.json" \
+            --provider-numeric "$PROVIDER_JSON" \
+            --provider-numeric-freeze-sha256 "$PROVIDER_FILE_SHA" \
+            --source-root "AUDJPY=$RUNNER_TEMP/regime/AUDJPY" \
+            --source-root "EURUSD=$RUNNER_TEMP/regime/EURUSD" \
+            --source-root "GBPJPY=$RUNNER_TEMP/regime/GBPJPY" \
+            --source-root "GBPUSD=$RUNNER_TEMP/regime/GBPUSD" \
+            --source-root "XAUUSD=$RUNNER_TEMP/regime/XAUUSD" \
+            --replay-started-at "$REPLAY_STARTED_AT" \
+            --output-dir "$RUNNER_TEMP/results/$group/lab"
+          python scripts/cibo_three_holdout_group_report.py \
+            --three-lane "$RUNNER_TEMP/results/$group/lab/three-lane-result.json" \
+            --output "$RUNNER_TEMP/results/$group/group-result.json"
+
+      - name: Enforce integrated group topology
+        run: |
+          set -euo pipefail
+          group="${{ matrix.group }}"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          group=os.environ['MATRIX_GROUP']
+          p=json.loads((Path(os.environ['RUNNER_TEMP'])/'results'/group/'group-result.json').read_text())
+          assert p['group_id']==group
+          assert p['execution_topology']=='SINGLE_INTEGRATED_7_TRADER_PORTFOLIO'
+          assert p['shared_initial_capital_usd']=='60'
+          assert p['shared_cibo_state'] is True
+          assert p['shared_qore_risk_state'] is True
+          assert len(p['traders'])==7
+          assert len(p['candidates'])==4
+          for candidate in p['candidates']:
+              assert candidate['configuration_scope']=='CIBO_ONLY'
+              assert candidate['trader_parameters_changed'] is False
+              assert candidate['trader_profitability_used_for_gate'] is True
+              assert len(candidate['measurements']['per_trader_under_cibo'])==7
+              behavior=candidate['measurements']['cibo_function_behavior']
+              assert behavior['not_integrated'] == []
+              rows=behavior['rows']
+              genc=[row for row in rows if row['stage']=='CAPITAL_SCIENCE']
+              assert [row['capability'] for row in genc] == [f'GEN-C{i}' for i in range(1,15)]
+          PY
+        env:
+          MATRIX_GROUP: ${{ matrix.group }}
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-cibo-trader-lab-3x1y-${{ matrix.group }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/results/${{ matrix.group }}
+          if-no-files-found: warn
+          retention-days: 90
+
+  sensor:
+    name: all-seven-positive-sensor
+    needs: integrated-cibo
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: python -m pip install -e '.[dev]'
+
+      - name: Recover all three parallel group results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qore-cibo-trader-lab-3x1y-GROUP_*-${{ github.run_id }}
+          path: ${{ runner.temp }}/parallel-results
+
+      - name: Normalize group result paths
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/results"
+          for group in GROUP_1 GROUP_2 GROUP_3; do
+            source_dir="$(find "$RUNNER_TEMP/parallel-results" -maxdepth 1 -type d -name "qore-cibo-trader-lab-3x1y-$group-*" -print -quit)"
+            test -n "$source_dir"
+            mkdir -p "$RUNNER_TEMP/results/$group"
+            cp -R "$source_dir/." "$RUNNER_TEMP/results/$group/"
+            test -s "$RUNNER_TEMP/results/$group/group-result.json"
+          done
+
+      - name: Run all-seven positive stop sensor
+        run: |
+          set -euo pipefail
+          python scripts/cibo_three_holdout_1y_sensor.py \
+            --group1 "$RUNNER_TEMP/results/GROUP_1/group-result.json" \
+            --group2 "$RUNNER_TEMP/results/GROUP_2/group-result.json" \
+            --group3 "$RUNNER_TEMP/results/GROUP_3/group-result.json" \
+            --output "$RUNNER_TEMP/results/sensor.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          root=Path(os.environ['RUNNER_TEMP'])/'results'
+          sensor=json.loads((root/'sensor.json').read_text())
+          assert sensor['research_only'] is True
+          assert sensor['fresh_oos_claimed'] is False
+          assert sensor['certification_claimed'] is False
+          print(json.dumps({
+              'status':sensor['status'],
+              'cross_holdout_full_pass_count':sensor['cross_holdout_full_pass_count'],
+              'cross_holdout_full_pass_fingerprints':sensor['cross_holdout_full_pass_fingerprints'],
+              'per_group_full_pass_counts':sensor['per_group_full_pass_counts'],
+          },sort_keys=True))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-cibo-trader-lab-3x1y-sensor-${{ github.run_id }}
+          path: ${{ runner.temp }}/results
+          if-no-files-found: error
+          retention-days: 90
