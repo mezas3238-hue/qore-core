@@ -13,6 +13,7 @@ from decimal import Decimal
 
 from qore.infrastructure.cibo_account_capital_mission import (
     CiboCapitalMissionPolicy,
+    available_ce2i_tool_codes_for_mission,
     eligible_ce2i_tool_codes_for_mission,
 )
 from qore.infrastructure.cibo_capital_management_authority import (
@@ -201,11 +202,18 @@ def evaluate_full_ce2i_surface(
             "CIBO full-surface evaluation requires 20/20 executable contracts"
         )
 
-    mission_tools = eligible_ce2i_tool_codes_for_mission(mission)
+    mission_tools = available_ce2i_tool_codes_for_mission(mission)
+    action_authorized_tools = set(
+        eligible_ce2i_tool_codes_for_mission(mission)
+    )
     regime = select_ce2i_tools_for_regime(
         mission=mission,
         state=regime_state,
     )
+    if not set(action_authorized_tools).issubset(set(mission_tools)):
+        raise CiboCapitalManagementError(
+            "CE2I action authority cannot exceed universal engine availability"
+        )
     if scientific_eligibility is not None:
         if not isinstance(
             scientific_eligibility,
@@ -219,9 +227,11 @@ def evaluate_full_ce2i_surface(
         item.signal_fingerprint: item
         for item in advanced_evidence.opportunities
     }
+    # Engine invocation is universal. Regime/mission restrictions belong to
+    # downstream action authority, never to motor availability.
     opportunity_tools = tuple(
         code for code in _OPPORTUNITY_ADVANCED
-        if code in regime.enabled_tools
+        if code in mission_tools
     )
     assessments: list[AdvancedOpportunityAssessment] = []
     for opportunity in sorted(
@@ -269,7 +279,7 @@ def evaluate_full_ce2i_surface(
 
     portfolio_tools = tuple(
         code for code in _PORTFOLIO_ADVANCED
-        if code in regime.enabled_tools
+        if code in mission_tools
     )
     portfolio_decisions = evaluate_advanced_ce2i_surface(
         enabled_tools=portfolio_tools,
