@@ -131,20 +131,147 @@ def monte_carlo(rows: list[dict[str, Any]], salt: str) -> dict[str, str | int]:
     }
 
 
-def stress(rows: list[dict[str, Any]]) -> dict[str, str]:
+def profit_factor_gt_one(rows: list[dict[str, Any]]) -> bool:
+    result = stats(rows)
+    pf = result["profit_factor"]
+    if pf is None:
+        return dec(result["gross_profit_usd"]) > 0 and dec(
+            result["gross_loss_usd"]
+        ) == 0
+    return dec(pf) > 1
+
+
+def chronological_wfo(
+    rows: list[dict[str, Any]],
+    *,
+    folds: int,
+) -> dict[str, Any]:
+    if folds < 2:
+        raise ValueError("WFO folds must be >= 2")
+    tests: list[dict[str, Any]] = []
+    for fold in range(1, folds):
+        train_end = fold * len(rows) // folds
+        test_end = (fold + 1) * len(rows) // folds
+        train_rows = rows[:train_end]
+        test_rows = rows[train_end:test_end]
+        test_stats = stats(test_rows)
+        tests.append(
+            {
+                "fold": fold,
+                "train_n": len(train_rows),
+                "test_n": len(test_rows),
+                "test": test_stats,
+                "test_positive": (
+                    dec(test_stats["net_pnl_usd"]) > 0
+                    and dec(test_stats["expectancy_usd"]) > 0
+                    and profit_factor_gt_one(test_rows)
+                ),
+            }
+        )
+    return {
+        "mode": "EXPANDING_TRAIN_FIXED_CIBO_CONFIG",
+        "fold_count": folds,
+        "selection_uses_test_outcomes": False,
+        "tests": tests,
+        "all_tests_positive": bool(tests)
+        and all(item["test_positive"] for item in tests),
+    }
+
+
+def stress(rows: list[dict[str, Any]]) -> dict[str, Any]:
     values = [row["pnl"] for row in rows]
     ordered = sorted(values, reverse=True)
-    provider_x2 = sum(
-        (row["gross"] - row["provider_cost"] * Decimal(2) for row in rows),
-        Decimal(0),
+    provider_cost_multipliers = (
+        Decimal("1.25"),
+        Decimal("1.50"),
+        Decimal("2.00"),
     )
+    provider_cost_stress = {
+        fmt(multiplier): fmt(
+            sum(
+                (
+                    row["gross"] - row["provider_cost"] * multiplier
+                    for row in rows
+                ),
+                Decimal(0),
+            )
+        )
+        for multiplier in provider_cost_multipliers
+    }
+
+    # Slippage stress is incremental adverse execution cost on top of the
+    # frozen provider model. It is expressed as a fraction of each event's
+    # frozen provider cost so no symbol-specific pip assumption is invented.
+    slippage_adders = (
+        Decimal("0.25"),
+        Decimal("0.50"),
+        Decimal("1.00"),
+    )
+    slippage_stress = {
+        fmt(adder): fmt(
+            sum(
+                (
+                    row["pnl"] - row["provider_cost"] * adder
+                    for row in rows
+                ),
+                Decimal(0),
+            )
+        )
+        for adder in slippage_adders
+    }
+
     return {
-        "provider_cost_x2_pnl_usd": fmt(provider_x2),
-        "remove_best_3_pnl_usd": fmt(
-            sum(ordered[3:], Decimal(0))
-            if len(ordered) > 3
+        "provider_cost_multiplier_pnl_usd": provider_cost_stress,
+        "provider_cost_x2_pnl_usd": provider_cost_stress["2.00"],
+        "adverse_slippage_provider_cost_fraction_pnl_usd": slippage_stress,
+        "slippage_plus_100pct_provider_cost_pnl_usd": slippage_stress["1.00"],
+        "remove_best_1_pnl_usd": fmt(
+            sum(ordered[1:], Decimal(0))
+            if ordered
             else Decimal(0)
         ),
+        "remove_best_2_pnl_usd": fmt(
+            sum(ordered[2:], Decimal(0))
+            if len(ordered) > 1
+            else Decimal(0)
+        ),
+        "remove_best_3_pnl_usd": fmt(
+            sum(ordered[3:], Decimal(0))
+            if len(ordered) > 2
+            else Decimal(0)
+        ),
+        "losses_first_drawdown_usd": fmt(max_drawdown(sorted(values))),
+        "winners_first_drawdown_usd": fmt(
+            max_drawdown(sorted(values, reverse=True))
+        ),
+    }
+
+
+def scientific_battery(
+    rows: list[dict[str, Any]],
+    *,
+    salt: str,
+) -> dict[str, Any]:
+    b5 = blocks(rows, 5)
+    b6 = blocks(rows, 6)
+    return {
+        "metrics": stats(rows),
+        "chronological_blocks": {
+            "5": {
+                "pnl_usd": [fmt(x) for x in b5],
+                "all_positive": bool(b5) and all(x > 0 for x in b5),
+            },
+            "6": {
+                "pnl_usd": [fmt(x) for x in b6],
+                "all_positive": bool(b6) and all(x > 0 for x in b6),
+            },
+        },
+        "walk_forward": {
+            "5": chronological_wfo(rows, folds=5),
+            "6": chronological_wfo(rows, folds=6),
+        },
+        "monte_carlo": monte_carlo(rows, salt),
+        "stress": stress(rows),
     }
 
 
@@ -238,15 +365,20 @@ def candidate(
     portfolio: dict[str, Any],
     coverage: dict[str, Any],
 ) -> dict[str, Any]:
-    extra = compound_events(portfolio)
-    combined = sorted(
-        [*core, *extra],
+    local_extra = compound_events(local)
+    portfolio_extra = compound_events(portfolio)
+    local_combined = sorted(
+        [*core, *local_extra],
+        key=lambda row: (row["time"], row["signal"], row["kind"]),
+    )
+    portfolio_combined = sorted(
+        [*core, *portfolio_extra],
         key=lambda row: (row["time"], row["signal"], row["kind"]),
     )
     core_stats = stats(core)
-    combined_stats = stats(combined)
+    combined_stats = stats(portfolio_combined)
     by_trader: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    for row in combined:
+    for row in portfolio_combined:
         by_trader[row["trader"]].append(row)
     per_trader = {
         trader: stats(by_trader.get(trader, []))
@@ -255,8 +387,26 @@ def candidate(
     all_participate = all(
         row["settled_count"] > 0 for row in per_trader.values()
     )
-    b5 = blocks(combined, 5)
-    b6 = blocks(combined, 6)
+    core_battery = scientific_battery(
+        core,
+        salt=f"{group_id}:{multiplier}:CORE",
+    )
+    compound_incremental_battery = scientific_battery(
+        local_extra,
+        salt=f"{group_id}:{multiplier}:COMPOUND_INCREMENTAL",
+    )
+    compound_total_battery = scientific_battery(
+        local_combined,
+        salt=f"{group_id}:{multiplier}:COMPOUND_TOTAL",
+    )
+    portfolio_incremental_battery = scientific_battery(
+        portfolio_extra,
+        salt=f"{group_id}:{multiplier}:PORTFOLIO_INCREMENTAL",
+    )
+    portfolio_total_battery = scientific_battery(
+        portfolio_combined,
+        salt=f"{group_id}:{multiplier}:PORTFOLIO_TOTAL",
+    )
     behavior = cibo_behavior(coverage)
     config = {
         "schema": "qore.cibo.trader-lab.3x1y-cibo-config.v1",
@@ -296,17 +446,39 @@ def candidate(
                 ),
             },
             "final_ending_capital_usd": portfolio["ending_capital_usd"],
-            "chronological_5_blocks": [fmt(x) for x in b5],
-            "chronological_6_blocks": [fmt(x) for x in b6],
+            "scientific_battery": {
+                "CORE": core_battery,
+                "COMPOUND_INCREMENTAL": compound_incremental_battery,
+                "COMPOUND_TOTAL": compound_total_battery,
+                "COMPOUND_PORTFOLIO_INCREMENTAL": (
+                    portfolio_incremental_battery
+                ),
+                "COMPOUND_PORTFOLIO_TOTAL": portfolio_total_battery,
+            },
+            "chronological_5_blocks": (
+                portfolio_total_battery["chronological_blocks"]["5"][
+                    "pnl_usd"
+                ]
+            ),
+            "chronological_6_blocks": (
+                portfolio_total_battery["chronological_blocks"]["6"][
+                    "pnl_usd"
+                ]
+            ),
             "chronological_folds_all_positive": (
-                all(x > 0 for x in b5) and all(x > 0 for x in b6)
+                portfolio_total_battery["chronological_blocks"]["5"][
+                    "all_positive"
+                ]
+                and portfolio_total_battery["chronological_blocks"]["6"][
+                    "all_positive"
+                ]
             ),
-            "monte_carlo": monte_carlo(
-                combined,
-                f"{group_id}:{multiplier}",
+            "walk_forward": portfolio_total_battery["walk_forward"],
+            "monte_carlo": portfolio_total_battery["monte_carlo"],
+            "stress": portfolio_total_battery["stress"],
+            "protected_capital_breaches": capital_breaches(
+                portfolio_combined
             ),
-            "stress": stress(combined),
-            "protected_capital_breaches": capital_breaches(combined),
             "all_required_cibo_functions_accounted_for": coverage[
                 "full_stack_runtime_coverage_complete"
             ],
@@ -314,6 +486,23 @@ def candidate(
             "trader_profitability_used_for_gate": True,
             "qore_risk_sovereign": True,
             "combined": combined_stats,
+            "full_battery_complete": True,
+            "battery_components": [
+                "CORE",
+                "COMPOUND_INCREMENTAL",
+                "COMPOUND_TOTAL",
+                "COMPOUND_PORTFOLIO_INCREMENTAL",
+                "COMPOUND_PORTFOLIO_TOTAL",
+                "WFO_5",
+                "WFO_6",
+                "MONTE_CARLO",
+                "PROVIDER_COST_STRESS",
+                "SLIPPAGE_STRESS",
+                "WINNER_CONCENTRATION_STRESS",
+                "LEVERAGE_1X_2X_3X_4X",
+                "CIBO_FUNCTION_BEHAVIOR",
+                "PER_TRADER_CIBO_ECONOMICS",
+            ],
         },
     }
 
