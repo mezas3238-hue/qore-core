@@ -167,11 +167,39 @@ def derive_cibo_capital_mission(
     raise CiboAccountMissionError("unsupported account environment")
 
 
+def ce2i_tool_available_for_mission(
+    tool: Ce2iToolContract,
+    policy: CiboCapitalMissionPolicy,
+) -> bool:
+    """Return whether the CE2I engine itself is callable under this mission.
+
+    Availability is universal for every implemented, non-rejected engine.
+    Mission, account state, provider state and scientific readiness may constrain
+    what the engine returns or whether a downstream capital action is
+    authorized, but they must never hide or disable the engine itself.
+    """
+    if not isinstance(tool, Ce2iToolContract):
+        raise CiboAccountMissionError("tool must be Ce2iToolContract")
+    if not isinstance(policy, CiboCapitalMissionPolicy):
+        raise CiboAccountMissionError(
+            "policy must be CiboCapitalMissionPolicy"
+        )
+    return tool.maturity not in {
+        ToolMaturity.ARCHITECTURE_ONLY,
+        ToolMaturity.REJECTED,
+    }
+
+
 def ce2i_tool_allowed_for_mission(
     tool: Ce2iToolContract,
     policy: CiboCapitalMissionPolicy,
 ) -> bool:
-    """Return whether an implemented CE2I tool may execute under this mission."""
+    """Return downstream capital-action eligibility, not engine availability.
+
+    Every implemented engine remains callable through
+    ce2i_tool_available_for_mission. This function only constrains whether an
+    engine result may proceed toward capital mutation in the current mission.
+    """
 
     if not isinstance(tool, Ce2iToolContract):
         raise CiboAccountMissionError("tool must be Ce2iToolContract")
@@ -393,10 +421,31 @@ def eligible_ce2i_tool_codes_for_account_state(
     return mission_codes
 
 
+def available_ce2i_tool_codes_for_mission(
+    policy: CiboCapitalMissionPolicy,
+) -> tuple[str, ...]:
+    """Return every implemented CE2I engine available for evaluation."""
+
+    if not isinstance(policy, CiboCapitalMissionPolicy):
+        raise CiboAccountMissionError(
+            "policy must be CiboCapitalMissionPolicy"
+        )
+    return tuple(
+        tool.code
+        for tool in CE2I_TOOL_REGISTRY
+        if ce2i_tool_available_for_mission(tool, policy)
+    )
+
+
 def eligible_ce2i_tool_codes_for_mission(
     policy: CiboCapitalMissionPolicy,
 ) -> tuple[str, ...]:
-    """Return the deterministic executable CE2I tool surface for one account mission."""
+    """Return the downstream capital-action surface for one account mission.
+
+    This is deliberately distinct from engine availability. A tool omitted here
+    is still callable/evaluable; only its capital action is not authorized by
+    this mission.
+    """
 
     if not isinstance(policy, CiboCapitalMissionPolicy):
         raise CiboAccountMissionError(
