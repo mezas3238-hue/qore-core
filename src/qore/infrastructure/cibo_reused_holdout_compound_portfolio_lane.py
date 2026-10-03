@@ -847,11 +847,9 @@ def run_compound_portfolio_lane(
     applied = len(trades)
 
     final_observed_at = max(
-        (
-            [epoch.market_decision_at for epoch in plan.epochs]
-            + [item.capital_released_at for item in core_settlements]
-            + [item.exit_at for item in trades]
-        )
+        [epoch.market_decision_at for epoch in plan.epochs]
+        + [item.capital_released_at for item in core_settlements]
+        + [item.exit_at for item in trades]
     )
     postrun_receipts = build_capital_science_postrun_receipts(
         observed_at=final_observed_at,
