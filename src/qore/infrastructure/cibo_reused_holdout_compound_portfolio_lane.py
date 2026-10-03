@@ -13,7 +13,7 @@ This is a NON_CERTIFYING_REUSED_HOLDOUT research lane and grants no
 broker/LIVE/real/production/merge authority. GEN-C10 conservation checks are
 precision-safe so high-precision replay balances do not disable native engines;
 the runtime bridge preserves those balances and utilization ratios with expanded
-Decimal precision.
+Decimal precision, including GEN-C10 world-projection conservation.
 """
 
 from __future__ import annotations
