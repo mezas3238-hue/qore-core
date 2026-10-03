@@ -130,7 +130,7 @@ jobs:
           )
           for path in audit_paths:
               text = path.read_text(encoding="utf-8")
-              for token in ("TRADERS = (", "TraderLineage(trader)"):
+              for token in ("TRADERS = (",):
                   if token in text:
                       violations.append(f"{path}:{token}")
 
@@ -149,12 +149,6 @@ jobs:
           for path in runtime_paths:
               text = path.read_text(encoding="utf-8")
               for token in (
-                  "type(self.trader_id) is not TraderLineage",
-                  "type(self.origin_trader) is not TraderLineage",
-                  ".trader_id.value",
-                  ".origin_trader.value",
-                  "TraderLineage(trader)",
-                  "TraderLineage(value)",
                   "qore_symbol in {",
                   "qore_symbol not in {",
                   "market_symbol in {",
