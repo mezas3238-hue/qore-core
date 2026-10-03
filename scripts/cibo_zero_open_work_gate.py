@@ -92,6 +92,42 @@ _INTERNAL_EXTERNAL_BLOCKER_MARKERS = (
 )
 
 _WORKSTREAM_CLASSIFIERS = (
+    ("*cibo_profitability_lab*", "SOURCE_OF_TRUTH_RECONCILIATION"),
+    (
+        "*cibo_compound_protected_capital_reality_exam*",
+        "COMPOUND_ENGINE",
+    ),
+    ("*cibo_compound_strict_walk_forward*", "COMPOUND_ENGINE"),
+    ("*cibo_compound_trader_lab_audit*", "COMPOUND_ENGINE"),
+    (
+        "*cibo_compound_trader_lab_completion_audit*",
+        "COMPOUND_ENGINE",
+    ),
+    (
+        "*cibo_compound_trader_lab_directional_refinement*",
+        "COMPOUND_ENGINE",
+    ),
+    (
+        "*cibo_compound_trader_lab_side_capital_sweep*",
+        "COMPOUND_ENGINE",
+    ),
+    ("*cibo_compound_constant_statistics*", "COMPOUND_ENGINE"),
+    (
+        "*cibo_compound_temporal_population_assessment*",
+        "TEMPORAL_REPLICATION",
+    ),
+    ("*cibo_protected_reinvestment_policy*", "COMPOUND_ENGINE"),
+    (
+        "*cibo_full_function_trader_lab_audit*",
+        "SOURCE_OF_TRUTH_RECONCILIATION",
+    ),
+    ("*cibo_capability_exam_reporting*", "SOURCE_OF_TRUTH_RECONCILIATION"),
+    ("*cibo_capability_exam_column_report*", "SOURCE_OF_TRUTH_RECONCILIATION"),
+    ("*cibo_capability_exam_cognitive_coverage*", "SOURCE_OF_TRUTH_RECONCILIATION"),
+    ("*cibo_ce2i_economic_effects*", "CE2I_CROSS_TOOL_INFRASTRUCTURE"),
+    ("*cibo_ce2i_t11_runtime_guard*", "T11"),
+    ("*cibo_usd60_capability_certification*", "USD60_CAPABILITY_PROGRAM"),
+    ("*cibo_usd60_dual_objective_exam*", "USD60_CAPABILITY_PROGRAM"),
     ("*cibo_a1_scientific_disposition*", "SOURCE_OF_TRUTH_RECONCILIATION"),
     ("*cibo_a1_a2_scientific_dependency*", "SOURCE_OF_TRUTH_RECONCILIATION"),
     ("*cibo_a1_ce2i_phase22_population_binding*", "CE2I_CROSS_TOOL_INFRASTRUCTURE"),

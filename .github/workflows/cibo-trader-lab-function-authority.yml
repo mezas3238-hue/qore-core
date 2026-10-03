@@ -1,0 +1,33 @@
+name: QORE CIBO Trader Lab Function Authority
+
+on:
+  push:
+    branches:
+      - agent/cibo-profitability-lab-001
+    paths:
+      - '.github/workflows/cibo-trader-lab-function-authority.yml'
+      - 'src/qore/infrastructure/trader_lab/cibo_functional_receipt.py'
+      - 'src/qore/infrastructure/cibo/contracts.py'
+      - 'src/qore/infrastructure/cibo/opportunity_search.py'
+      - 'src/qore/infrastructure/cibo/functional_coordinator.py'
+      - 'tests/infrastructure/trader_lab/test_cibo_functional_receipt.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  authority-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Trader Lab authority receipt tests
+        run: pytest -q --no-cov tests/infrastructure/trader_lab/test_cibo_functional_receipt.py
+      - name: Revalidate affected CIBO fail-closed contracts
+        run: |
+          pytest -q --no-cov             tests/infrastructure/test_cibo/test_ia_residuals_adversarial.py             tests/infrastructure/test_cibo/test_opportunity_search.py             tests/infrastructure/test_cibo/test_functional_coordinator.py             tests/infrastructure/test_cibo/test_quantitative_intelligence.py             tests/infrastructure/test_cibo/test_portfolio_intelligence.py             tests/infrastructure/test_cibo/test_economic_journals.py             tests/infrastructure/test_cibo/test_self_evaluation_learning.py             tests/infrastructure/test_cibo/test_research_director.py             tests/infrastructure/test_cibo/test_executive_recommendation.py             tests/infrastructure/test_cibo/test_core_health.py

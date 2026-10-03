@@ -9,6 +9,14 @@ from qore.infrastructure.cibo_account_capital_mission import (
 from qore.infrastructure.cibo_capital_management_authority import (
     TraderOpportunityEnvelope,
 )
+from qore.infrastructure.cibo_ce2i_advanced_capital_tools import (
+    MarginEfficiencyEvidence,
+    MarginExpression,
+)
+from qore.infrastructure.cibo_ce2i_full_surface import (
+    AdvancedOpportunityEvidence,
+    AdvancedPortfolioEvidence,
+)
 from qore.infrastructure.cibo_ce2i_phase20_robust_allocator import (
     Phase20AllocatorDisposition,
 )
@@ -22,6 +30,12 @@ from qore.infrastructure.cibo_ce2i_regime_selector import (
 from qore.infrastructure.cibo_phase22_historical_policy_replay import (
     Phase22HistoricalCapitalInput,
     evaluate_phase22_historical_policy,
+)
+from qore.infrastructure.cibo_phase22_v4_historical_policy_replay import (
+    Phase22HistoricalCapitalInput as Phase22V4HistoricalCapitalInput,
+)
+from qore.infrastructure.cibo_phase22_v4_historical_policy_replay import (
+    evaluate_phase22_historical_policy as evaluate_phase22_v4_historical_policy,
 )
 from qore.infrastructure.market_test_environment import MarketRuntimeEnvironment
 
@@ -78,6 +92,24 @@ def _input(
         provider_model_sha256=_sha("provider-model"),
     )
 
+
+
+
+
+def _v4_input(
+    trader_id: TraderLineage,
+    signal: str,
+    symbol: str,
+) -> Phase22V4HistoricalCapitalInput:
+    opportunity = _opportunity(trader_id, signal, symbol)
+    return Phase22V4HistoricalCapitalInput(
+        opportunity=opportunity,
+        minimum_stop_risk_usd=Decimal("0.10"),
+        minimum_margin_usd=Decimal("0.20"),
+        concentration_group=symbol,
+        concentration_risk_usd=Decimal("0.10"),
+        provider_model_sha256=_sha("provider-model"),
+    )
 
 def _regime(count: int) -> CiboCapitalRegimeState:
     return CiboCapitalRegimeState(
@@ -152,3 +184,133 @@ def test_negative_frozen_prior_can_abstain_without_retuning() -> None:
         record.allocator_decision.allocation.selected_signal_fingerprints
         == ()
     )
+
+
+
+def test_authorized_t03_changes_allocator_margin_before_allocation() -> None:
+    signal = _sha("t03-causal-economic-effect")
+    inputs = (
+        _v4_input(TraderLineage.R34_XAUUSD, signal, "XAUUSD"),
+    )
+    evidence = AdvancedPortfolioEvidence(
+        opportunities=(
+            AdvancedOpportunityEvidence(
+                signal_fingerprint=signal,
+                margin_efficiency=MarginEfficiencyEvidence(
+                    evidence_id="t03-policy-ready",
+                    observed_at=MARKET_AT,
+                    baseline_expression_id="spot",
+                    expressions=(
+                        MarginExpression(
+                            expression_id="spot",
+                            normalized_exposure=Decimal("1"),
+                            stop_risk_usd=Decimal("0.10"),
+                            margin_usd=Decimal("0.20"),
+                            all_in_cost_usd=Decimal("0.01"),
+                            executable=True,
+                            economics_verified=True,
+                        ),
+                        MarginExpression(
+                            expression_id="equivalent",
+                            normalized_exposure=Decimal("1"),
+                            stop_risk_usd=Decimal("0.10"),
+                            margin_usd=Decimal("0.10"),
+                            all_in_cost_usd=Decimal("0.01"),
+                            executable=True,
+                            economics_verified=True,
+                        ),
+                    ),
+                    fresh_oos_utility_demonstrated=True,
+                    policy_authorized=True,
+                ),
+            ),
+        )
+    )
+
+    record = evaluate_phase22_v4_historical_policy(
+        market_decision_at=MARKET_AT,
+        replay_sealed_at=SEALED_AT,
+        account_identity=_account(),
+        inputs=inputs,
+        regime_state=_regime(1),
+        hard_risk_headroom_usd=Decimal("3.60"),
+        margin_headroom_usd=Decimal("60"),
+        concentration_limit_by_group=(("XAUUSD", Decimal("1.80")),),
+        current_step=0,
+        advanced_evidence=evidence,
+        lab_cibo_free_tool_choice=True,
+        lab_allow_nonpositive_expectation=True,
+    )
+
+    effects = record.advanced_economic_application.candidate_effects
+    assert len(effects) == 1
+    assert effects[0].tool_code == "T03"
+    assert effects[0].field_name == "margin_usd"
+    assert effects[0].before_usd == Decimal("0.20")
+    assert effects[0].after_usd == Decimal("0.10")
+    assert record.advanced_economic_application.candidates[0].margin_usd == Decimal(
+        "0.10"
+    )
+    assert record.allocator_decision.allocation is not None
+    assert record.allocator_decision.allocation.used_margin_usd == Decimal("0.10")
+
+
+def test_t03_shadow_measurement_cannot_change_allocator_economics() -> None:
+    signal = _sha("t03-shadow-no-authority")
+    inputs = (
+        _input(TraderLineage.R34_XAUUSD, signal, "XAUUSD"),
+    )
+    evidence = AdvancedPortfolioEvidence(
+        opportunities=(
+            AdvancedOpportunityEvidence(
+                signal_fingerprint=signal,
+                margin_efficiency=MarginEfficiencyEvidence(
+                    evidence_id="t03-shadow",
+                    observed_at=MARKET_AT,
+                    baseline_expression_id="spot",
+                    expressions=(
+                        MarginExpression(
+                            expression_id="spot",
+                            normalized_exposure=Decimal("1"),
+                            stop_risk_usd=Decimal("0.10"),
+                            margin_usd=Decimal("0.20"),
+                            all_in_cost_usd=Decimal("0.01"),
+                            executable=True,
+                            economics_verified=True,
+                        ),
+                        MarginExpression(
+                            expression_id="equivalent",
+                            normalized_exposure=Decimal("1"),
+                            stop_risk_usd=Decimal("0.10"),
+                            margin_usd=Decimal("0.10"),
+                            all_in_cost_usd=Decimal("0.01"),
+                            executable=True,
+                            economics_verified=True,
+                        ),
+                    ),
+                ),
+            ),
+        )
+    )
+
+    record = evaluate_phase22_v4_historical_policy(
+        market_decision_at=MARKET_AT,
+        replay_sealed_at=SEALED_AT,
+        account_identity=_account(),
+        inputs=inputs,
+        regime_state=_regime(1),
+        hard_risk_headroom_usd=Decimal("3.60"),
+        margin_headroom_usd=Decimal("60"),
+        concentration_limit_by_group=(("XAUUSD", Decimal("1.80")),),
+        current_step=0,
+        advanced_evidence=evidence,
+        lab_cibo_free_tool_choice=True,
+        lab_allow_nonpositive_expectation=True,
+    )
+
+    assert record.advanced_economic_application.candidate_effects == ()
+    assert record.advanced_economic_application.candidates[0].margin_usd == Decimal(
+        "0.20"
+    )
+    assert record.allocator_decision.allocation is not None
+    assert record.allocator_decision.allocation.used_margin_usd == Decimal("0.20")

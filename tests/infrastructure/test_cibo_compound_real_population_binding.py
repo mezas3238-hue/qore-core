@@ -16,7 +16,9 @@ from qore.infrastructure.cibo_compound_capital import (
 from qore.infrastructure.cibo_compound_real_population_binding import (
     CompoundPopulationEvidenceKind,
     ForwardCompoundEconomicRecord,
+    TraderLabBurnedResearchCompoundRecord,
     bind_forward_compound_population,
+    bind_trader_lab_burned_research_population,
 )
 
 T0 = datetime(2026, 9, 29, 0, 0, tzinfo=UTC)
@@ -239,3 +241,95 @@ def test_real_population_rejects_non_bool_provenance_flags() -> None:
         match="future_leakage_used must be bool",
     ):
         replace(_record(1), future_leakage_used=0)
+
+
+
+def _burned_record(
+    index: int,
+    *,
+    account: str = "ctrader:test:burned-a",
+    trace: str = "a",
+    trader: TraderLineage = TraderLineage.VT31_NAS100,
+) -> TraderLabBurnedResearchCompoundRecord:
+    decision_at = datetime(2014, 1, index, tzinfo=UTC)
+    return TraderLabBurnedResearchCompoundRecord(
+        episode_id=f"burned-{index}",
+        trader_id=trader,
+        signal_fingerprint=f"burned-signal-{index}",
+        account_identity_fingerprint=account,
+        decision_at=decision_at,
+        deployed_at=decision_at + timedelta(seconds=1),
+        settled_at=decision_at + timedelta(minutes=30),
+        source_generation=1,
+        deployed_capital_usd=Decimal("10"),
+        stop_risk_usd=Decimal("1"),
+        margin_usd=Decimal("2"),
+        realized_pnl_usd=Decimal("3"),
+        source_trace_sha256=_sha(trace),
+    )
+
+
+def test_trader_lab_burned_research_accepts_used_pre_freeze_holdout_without_laundering() -> None:
+    binding = bind_trader_lab_burned_research_population(
+        (_burned_record(1), _burned_record(2))
+    )
+
+    assert binding.evidence_kind is CompoundPopulationEvidenceKind.BURNED_RESEARCH
+    assert binding.descriptive_only is True
+    assert binding.forward_observed is False
+    assert binding.economic_replication_claimed is False
+    assert binding.certification_ready is False
+    assert binding.productive_authority is False
+    assert tuple(item.episode_id for item in binding.episodes) == (
+        "burned-1",
+        "burned-2",
+    )
+    assert all(item.market_record_present for item in binding.episodes)
+    assert all(item.terminal_release_present for item in binding.episodes)
+    assert all(not item.future_leakage_used for item in binding.episodes)
+
+
+def test_trader_lab_burned_research_rejects_kind_laundering() -> None:
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="requires BURNED_RESEARCH evidence",
+    ):
+        replace(
+            _burned_record(1),
+            evidence_kind=CompoundPopulationEvidenceKind.FORWARD_OBSERVED,
+        )
+
+
+def test_trader_lab_burned_research_rejects_mixed_trace_or_account() -> None:
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="cannot mix source traces",
+    ):
+        bind_trader_lab_burned_research_population(
+            (
+                _burned_record(1, trace="a"),
+                _burned_record(2, trace="b"),
+            )
+        )
+
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="cannot mix account identities",
+    ):
+        bind_trader_lab_burned_research_population(
+            (
+                _burned_record(1, account="ctrader:test:a"),
+                _burned_record(2, account="ctrader:test:b"),
+            )
+        )
+
+
+def test_strict_forward_binder_still_rejects_burned_research() -> None:
+    with pytest.raises(
+        CiboCompoundCapitalError,
+        match="requires FORWARD_OBSERVED evidence",
+    ):
+        replace(
+            _record(1),
+            evidence_kind=CompoundPopulationEvidenceKind.BURNED_RESEARCH,
+        )

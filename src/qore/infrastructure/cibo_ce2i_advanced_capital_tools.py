@@ -186,6 +186,8 @@ class MarginEfficiencyEvidence:
     baseline_expression_id: str
     expressions: tuple[MarginExpression, ...]
     max_exposure_drift_fraction: Decimal = Decimal("0.001")
+    fresh_oos_utility_demonstrated: bool = False
+    policy_authorized: bool = False
 
     def __post_init__(self) -> None:
         _id(self.evidence_id, "evidence_id")
@@ -199,6 +201,13 @@ class MarginEfficiencyEvidence:
             raise CiboCapitalManagementError("margin expression ids must be unique")
         if self.baseline_expression_id not in ids:
             raise CiboCapitalManagementError("baseline margin expression is missing")
+        for name in ("fresh_oos_utility_demonstrated", "policy_authorized"):
+            if type(getattr(self, name)) is not bool:
+                raise CiboCapitalManagementError(f"{name} must be bool")
+        if self.policy_authorized and not self.fresh_oos_utility_demonstrated:
+            raise CiboCapitalManagementError(
+                "T03 policy authorization requires fresh OOS utility"
+            )
 
 
 def evaluate_margin_efficiency(
@@ -208,6 +217,10 @@ def evaluate_margin_efficiency(
         raise CiboCapitalManagementError(
             "evidence must be MarginEfficiencyEvidence"
         )
+    if not evidence.fresh_oos_utility_demonstrated:
+        return _fail("T03", "T03 fresh OOS utility is not demonstrated")
+    if not evidence.policy_authorized:
+        return _fail("T03", "T03 policy is not authorized")
     baseline = next(
         item
         for item in evidence.expressions
@@ -629,6 +642,8 @@ class HedgedExposureEvidence:
     instruments: tuple[HedgeInstrumentEvidence, ...]
     minimum_correlation_abs: Decimal = Decimal("0.70")
     minimum_correlation_stability: Decimal = Decimal("0.70")
+    fresh_oos_utility_demonstrated: bool = False
+    policy_authorized: bool = False
 
     def __post_init__(self) -> None:
         _id(self.evidence_id, "evidence_id")
@@ -641,6 +656,13 @@ class HedgedExposureEvidence:
         ids = tuple(item.instrument_id for item in self.instruments)
         if len(ids) != len(set(ids)):
             raise CiboCapitalManagementError("hedge instrument ids must be unique")
+        for name in ("fresh_oos_utility_demonstrated", "policy_authorized"):
+            if type(getattr(self, name)) is not bool:
+                raise CiboCapitalManagementError(f"{name} must be bool")
+        if self.policy_authorized and not self.fresh_oos_utility_demonstrated:
+            raise CiboCapitalManagementError(
+                "T16 policy authorization requires fresh OOS utility"
+            )
 
 
 def evaluate_hedged_exposure(
@@ -650,6 +672,10 @@ def evaluate_hedged_exposure(
         raise CiboCapitalManagementError(
             "evidence must be HedgedExposureEvidence"
         )
+    if not evidence.fresh_oos_utility_demonstrated:
+        return _fail("T16", "T16 fresh OOS hedge utility is not demonstrated")
+    if not evidence.policy_authorized:
+        return _fail("T16", "T16 policy is not authorized")
     eligible: list[tuple[Decimal, HedgeInstrumentEvidence]] = []
     for item in evidence.instruments:
         if not item.instrument_certified or not item.execution_supported:
@@ -722,6 +748,8 @@ class ConvexExposureEvidence:
     observed_at: datetime
     available_limited_downside_capacity_usd: Decimal
     instruments: tuple[ConvexInstrumentEvidence, ...]
+    fresh_oos_utility_demonstrated: bool = False
+    policy_authorized: bool = False
 
     def __post_init__(self) -> None:
         _id(self.evidence_id, "evidence_id")
@@ -733,6 +761,13 @@ class ConvexExposureEvidence:
         ids = tuple(item.instrument_id for item in self.instruments)
         if len(ids) != len(set(ids)):
             raise CiboCapitalManagementError("convex instrument ids must be unique")
+        for name in ("fresh_oos_utility_demonstrated", "policy_authorized"):
+            if type(getattr(self, name)) is not bool:
+                raise CiboCapitalManagementError(f"{name} must be bool")
+        if self.policy_authorized and not self.fresh_oos_utility_demonstrated:
+            raise CiboCapitalManagementError(
+                "T17 policy authorization requires fresh OOS utility"
+            )
 
 
 def evaluate_convex_exposure(
@@ -742,6 +777,10 @@ def evaluate_convex_exposure(
         raise CiboCapitalManagementError(
             "evidence must be ConvexExposureEvidence"
         )
+    if not evidence.fresh_oos_utility_demonstrated:
+        return _fail("T17", "T17 fresh OOS utility is not demonstrated")
+    if not evidence.policy_authorized:
+        return _fail("T17", "T17 policy is not authorized")
     eligible = tuple(
         item
         for item in evidence.instruments

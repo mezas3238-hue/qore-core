@@ -1,0 +1,197 @@
+{
+  "schema": "qore.cibo.profitability-lab.all-trader-full-stack-experiment.v1",
+  "status": "PREREGISTERED_RESEARCH_ONLY",
+  "created_at_utc": "2026-10-02T23:20:00Z",
+  "owner_directive": "All seven Traders must operate so CIBO capability is measured across the complete population. The object of study is CIBO, not Trader exclusion.",
+  "source_pr": 712,
+  "source_branch": "agent/cibo-profitability-lab-001",
+  "observed_diagnostic_run": 37075080556,
+  "observed_run_role": "DIAGNOSTIC_ONLY_NOT_TREATMENT_SELECTION",
+  "canonical_traders": [
+    "VT08_FOREX",
+    "R34_XAUUSD",
+    "R38_EURUSD",
+    "R43_GBPUSD",
+    "R38_GBPJPY",
+    "R42_AUDJPY",
+    "VT31_NAS100"
+  ],
+  "participation_law": {
+    "trader_level_exclusion_forbidden": true,
+    "static_trader_prior_may_not_zero_entire_lane": true,
+    "opportunity_level_decision_required": true,
+    "qore_risk_remains_sovereign": true,
+    "unsafe_trade_forcing_forbidden": true,
+    "zero_execution_with_legal_opportunities": "LAB_FAILURE_CAPACITY_NOT_DEMONSTRATED",
+    "all_seven_must_have_nonzero_execution_for_capability_pass": true
+  },
+  "full_stack_surface": {
+    "cognitive": [
+      "CF01",
+      "CF02",
+      "CF03",
+      "CF04",
+      "CF05",
+      "CF06",
+      "CF07",
+      "CF08",
+      "CF09",
+      "CF10",
+      "CF11",
+      "CF12",
+      "CF13",
+      "CF14",
+      "CF15",
+      "CF16",
+      "CF17",
+      "CF18",
+      "CF19"
+    ],
+    "ce2i": [
+      "T01",
+      "T02",
+      "T03",
+      "T04",
+      "T05",
+      "T06",
+      "T07",
+      "T08",
+      "T09",
+      "T10",
+      "T11",
+      "T12",
+      "T13",
+      "T14",
+      "T15",
+      "T16",
+      "T17",
+      "T18",
+      "T19",
+      "T20"
+    ],
+    "capital_science": [
+      "GEN-C1",
+      "GEN-C2",
+      "GEN-C3",
+      "GEN-C4",
+      "GEN-C5",
+      "GEN-C6",
+      "GEN-C7",
+      "GEN-C8",
+      "GEN-C9",
+      "GEN-C10",
+      "GEN-C11",
+      "GEN-C12",
+      "GEN-C13",
+      "GEN-C14"
+    ],
+    "governance": [
+      "CIBO_COGNITIVE_ROUTING",
+      "CMA_SOLE_SIZING_AUTHORITY",
+      "QORE_RISK",
+      "PROVIDER_ECONOMICS",
+      "SETTLEMENT",
+      "CAPITAL_RELEASE"
+    ],
+    "runtime_dispositions": [
+      "APPLIED",
+      "REGIME_BLOCKED",
+      "FAIL_CLOSED",
+      "JUSTIFIED_NOT_APPLICABLE",
+      "NOT_INTEGRATED"
+    ],
+    "silent_bypass_forbidden": true,
+    "not_integrated_is_lab_failure": true
+  },
+  "current_run28_gap": {
+    "compound_runtime_surface_observed": [
+      "GEN-C1_COMPOUND_CAPITAL",
+      "GEN-C3_CORE_COMPOUND_PORTFOLIO",
+      "GEN-C5_SEQUENTIAL_COMPOUNDING",
+      "GEN-C6_INTERNAL_CAPITAL_MARKET:JUSTIFIED_NOT_APPLICABLE"
+    ],
+    "missing_integrated_economic_surface": [
+      "GEN-C2",
+      "GEN-C4",
+      "GEN-C7",
+      "GEN-C8",
+      "GEN-C9",
+      "GEN-C10",
+      "GEN-C11",
+      "GEN-C12",
+      "GEN-C13",
+      "GEN-C14"
+    ],
+    "conclusion": "RUN28_FULL_CIBO_LABEL_OVERSHOOTS_ACTUAL_RUNTIME_CAPABILITY_COVERAGE"
+  },
+  "adjustment_workstreams": [
+    {
+      "id": "A1_EXPECTATION",
+      "question": "Can CIBO replace trader-level static exclusion with causal opportunity-specific expectation?",
+      "change_scope": "CIBO_ONLY",
+      "no_outcome_aware": true
+    },
+    {
+      "id": "A2_PARTICIPATION_ORCHESTRATION",
+      "question": "Can all seven Trader lanes receive nonzero legal execution without overriding QORE Risk?",
+      "change_scope": "CIBO_ALLOCATION_ONLY",
+      "no_outcome_aware": true
+    },
+    {
+      "id": "A3_CAPITAL_EXPRESSION",
+      "question": "Can CMA reduce dollar-risk distortion caused by minimum volume and heterogeneous structural stops without mutating Trader geometry?",
+      "change_scope": "CIBO_CMA_ONLY",
+      "no_outcome_aware": true
+    },
+    {
+      "id": "A4_FULL_GENC_ORCHESTRATION",
+      "question": "What is the incremental economic effect of GEN-C1 through GEN-C14 when actually wired into the same causal replay?",
+      "change_scope": "CIBO_CAPITAL_SCIENCE_ONLY",
+      "one_mechanism_at_a_time": true,
+      "no_outcome_aware": true
+    },
+    {
+      "id": "A5_PROFIT_PRESERVATION",
+      "question": "Can CIBO preserve realized gains and prevent Compound from redeploying into negative expected surfaces?",
+      "change_scope": "CIBO_COMPOUND_POLICY_ONLY",
+      "no_outcome_aware": true
+    },
+    {
+      "id": "A6_PROVIDER_ECONOMICS",
+      "question": "Can CIBO account for provider cost before capital deployment so execution cost cannot turn marginal opportunities uneconomic?",
+      "change_scope": "CIBO_T11_CMA_ONLY",
+      "no_outcome_aware": true
+    }
+  ],
+  "experimental_law": {
+    "chronological_train_then_forward_only": true,
+    "reused_run28_for_parameter_fit": false,
+    "identical_trader_methodology_across_treatments": true,
+    "identical_market_population_per_pair": true,
+    "identical_provider_economics_per_pair": true,
+    "identical_qore_risk_per_pair": true,
+    "one_cibo_mechanism_change_per_ablation": true,
+    "no_trader_tuning": true,
+    "no_posthoc_trader_removal": true,
+    "no_posthoc_winner_selection": true
+  },
+  "success_reporting": {
+    "per_trader_columns": true,
+    "per_opportunity_capability_matrix": true,
+    "cibo_core_pnl": true,
+    "cibo_full_stack_pnl": true,
+    "compound_incremental_pnl": true,
+    "provider_cost_separate": true,
+    "drawdown": true,
+    "survival": true,
+    "capability_utilization_rates": true
+  },
+  "governance": {
+    "research_only": true,
+    "broker_mutation": false,
+    "live": false,
+    "real_capital": false,
+    "production": false,
+    "merge_authority": false
+  }
+}

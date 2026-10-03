@@ -28,6 +28,10 @@ from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
     TraderOpportunityEnvelope,
 )
+from qore.infrastructure.cibo_ce2i_economic_effects import (
+    AdvancedCe2iEconomicApplication,
+    apply_advanced_ce2i_economic_effects,
+)
 from qore.infrastructure.cibo_ce2i_full_surface import (
     AdvancedPortfolioEvidence,
     FullCe2iSurfaceAssessment,
@@ -53,6 +57,10 @@ from qore.infrastructure.cibo_ce2i_phase20_train_prior import (
 )
 from qore.infrastructure.cibo_ce2i_regime_selector import (
     CiboCapitalRegimeState,
+)
+from qore.infrastructure.cibo_profitability_lab_economic_consultation import (
+    CiboEconomicConsultationReceipt,
+    consult_cibo_economic_faculties,
 )
 from qore.infrastructure.cibo_phase22_v4_governance import (
     V4_CANDIDATE_ID,
@@ -134,7 +142,9 @@ class Phase22HistoricalPolicyDecisionRecord:
     hard_risk_headroom_usd: Decimal
     margin_headroom_usd: Decimal
     concentration_limit_by_group: tuple[tuple[str, Decimal], ...]
+    economic_consultation: CiboEconomicConsultationReceipt
     full_surface: FullCe2iSurfaceAssessment
+    advanced_economic_application: AdvancedCe2iEconomicApplication
     mpc_plan: Phase20MpcCapacityPlan
     allocator_decision: Phase20RobustAllocatorDecision
     counterfactual_historical_replay: bool = True
@@ -216,7 +226,68 @@ class Phase22HistoricalPolicyDecisionRecord:
                 [name, format(value, "f")]
                 for name, value in self.concentration_limit_by_group
             ],
+            "economic_consultation": {
+                "consultation_id": self.economic_consultation.consultation_id,
+                "consulted_faculties": list(
+                    self.economic_consultation.consulted_faculties
+                ),
+                "coordination_disposition": (
+                    self.economic_consultation.coordination_disposition
+                ),
+                "coordination_request_code": (
+                    self.economic_consultation.coordination_request_code
+                ),
+                "mission_code": self.economic_consultation.mission_code,
+                "mission_faculties": list(
+                    self.economic_consultation.mission_faculties
+                ),
+                "mission_disposition": (
+                    self.economic_consultation.mission_disposition
+                ),
+                "mission_director_invoked": (
+                    self.economic_consultation.mission_director_invoked
+                ),
+                "functional_coordinator_invoked": (
+                    self.economic_consultation.functional_coordinator_invoked
+                ),
+                "causal_predecision": self.economic_consultation.causal_predecision,
+                "outcome_used": self.economic_consultation.outcome_used,
+            },
             "regime_posture": self.full_surface.regime.posture.value,
+            "advanced_economic_application": {
+                "effective_hard_risk_headroom_usd": format(
+                    self.advanced_economic_application.effective_hard_risk_headroom_usd,
+                    "f",
+                ),
+                "effective_margin_headroom_usd": format(
+                    self.advanced_economic_application.effective_margin_headroom_usd,
+                    "f",
+                ),
+                "conservative_portfolio_credit_usd": format(
+                    self.advanced_economic_application.conservative_portfolio_credit_usd,
+                    "f",
+                ),
+                "candidate_effects": [
+                    {
+                        "signal_fingerprint": item.signal_fingerprint,
+                        "tool_code": item.tool_code,
+                        "field_name": item.field_name,
+                        "before_usd": format(item.before_usd, "f"),
+                        "after_usd": format(item.after_usd, "f"),
+                    }
+                    for item in self.advanced_economic_application.candidate_effects
+                ],
+                "portfolio_effects": [
+                    {
+                        "tool_code": item.tool_code,
+                        "released_risk_capacity_usd": format(
+                            item.released_risk_capacity_usd,
+                            "f",
+                        ),
+                    }
+                    for item in self.advanced_economic_application.portfolio_effects
+                ],
+            },
             "allocator_disposition": self.allocator_decision.disposition.value,
             "selected_signal_fingerprints": (
                 []
@@ -258,9 +329,19 @@ def evaluate_phase22_historical_policy(
     current_step: int,
     advanced_evidence: AdvancedPortfolioEvidence | None = None,
     known_options: tuple[Phase20MpcKnownOption, ...] = (),
+    lab_allow_nonpositive_expectation: bool = False,
+    lab_cibo_free_tool_choice: bool = False,
 ) -> Phase22HistoricalPolicyDecisionRecord:
     """Evaluate frozen V4 composition without falsifying historical timestamps."""
 
+    if type(lab_allow_nonpositive_expectation) is not bool:
+        raise CiboCapitalManagementError(
+            "lab_allow_nonpositive_expectation must be bool"
+        )
+    if type(lab_cibo_free_tool_choice) is not bool:
+        raise CiboCapitalManagementError(
+            "lab_cibo_free_tool_choice must be bool"
+        )
     if not inputs:
         raise CiboCapitalManagementError(
             "Phase22 historical policy requires at least one candidate"
@@ -305,21 +386,39 @@ def evaluate_phase22_historical_policy(
         for item in inputs
     )
     opportunities = tuple(item.opportunity for item in inputs)
+    economic_consultation = consult_cibo_economic_faculties(
+        decision_at=market_decision_at,
+        opportunities=opportunities,
+        regime_state=regime_state,
+    )
     full_surface = evaluate_full_ce2i_surface(
         mission=mission,
         regime_state=regime_state,
         opportunities=opportunities,
         advanced_evidence=advanced_evidence,
+        decision_at=market_decision_at,
         scientific_eligibility=(
-            NEXT_POLICY_ADVANCED_SCIENTIFIC_ELIGIBILITY
+            None
+            if lab_cibo_free_tool_choice
+            else NEXT_POLICY_ADVANCED_SCIENTIFIC_ELIGIBILITY
         ),
+    )
+    advanced_application = apply_advanced_ce2i_economic_effects(
+        candidates=candidates,
+        full_surface=full_surface,
+        hard_risk_headroom_usd=hard_risk_headroom_usd,
+        margin_headroom_usd=margin_headroom_usd,
     )
     mpc = plan_phase20i_receding_horizon_capacity(
         current_step=current_step,
         horizon_steps=FROZEN_PHASE20_POLICY_CANDIDATE.mpc_horizon_steps,
         posture=full_surface.regime.posture,
-        hard_risk_headroom_usd=hard_risk_headroom_usd,
-        margin_headroom_usd=margin_headroom_usd,
+        hard_risk_headroom_usd=(
+            advanced_application.effective_hard_risk_headroom_usd
+        ),
+        margin_headroom_usd=(
+            advanced_application.effective_margin_headroom_usd
+        ),
         known_options=known_options,
     )
     allocator = propose_phase20h_robust_allocation(
@@ -328,8 +427,9 @@ def evaluate_phase22_historical_policy(
         hard_risk_headroom_usd=mpc.deployable_stop_risk_usd,
         margin_headroom_usd=mpc.deployable_margin_usd,
         concentration_limit_by_group=concentration_limit_by_group,
-        candidates=candidates,
+        candidates=advanced_application.candidates,
         known_options=(),
+        lab_allow_nonpositive_expectation=lab_allow_nonpositive_expectation,
     )
     return Phase22HistoricalPolicyDecisionRecord(
         candidate_id=V4_CANDIDATE_ID,
@@ -340,7 +440,9 @@ def evaluate_phase22_historical_policy(
         hard_risk_headroom_usd=hard_risk_headroom_usd,
         margin_headroom_usd=margin_headroom_usd,
         concentration_limit_by_group=concentration_limit_by_group,
+        economic_consultation=economic_consultation,
         full_surface=full_surface,
+        advanced_economic_application=advanced_application,
         mpc_plan=mpc,
         allocator_decision=allocator,
     )

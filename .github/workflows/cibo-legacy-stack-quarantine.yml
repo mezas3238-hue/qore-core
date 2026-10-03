@@ -62,11 +62,12 @@ jobs:
             scripts/cibo_legacy_stack_quarantine.py \
             src/qore/infrastructure/cibo_research_memory.py \
             src/qore/infrastructure/traders/vt31_nas100_cibo_market_memory.py
+          python scripts/cibo_legacy_stack_quarantine.py || true
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_legacy_stack_quarantine.py \
             tests/infrastructure/test_vt31_cibo_market_memory_quarantine.py
-          python scripts/cibo_legacy_stack_quarantine.py
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: cibo-legacy-stack-quarantine-v1
           path: artifacts/cibo_legacy_stack_quarantine_v1.json

@@ -170,6 +170,7 @@ def propose_phase20h_robust_allocation(
     concentration_limit_by_group: tuple[tuple[str, Decimal], ...],
     candidates: tuple[CapitalOpportunityCandidate, ...],
     known_options: tuple[KnownCapitalOption, ...] = (),
+    lab_allow_nonpositive_expectation: bool = False,
 ) -> Phase20RobustAllocatorDecision:
     """Compose causal CE2I constraints without using post-trade outcomes."""
 
@@ -180,6 +181,10 @@ def propose_phase20h_robust_allocation(
     if not isinstance(regime, CiboRegimeToolSelection):
         raise CiboCapitalManagementError(
             "Phase20H regime must be CiboRegimeToolSelection"
+        )
+    if type(lab_allow_nonpositive_expectation) is not bool:
+        raise CiboCapitalManagementError(
+            "lab_allow_nonpositive_expectation must be bool"
         )
     _validate_headroom(
         hard_risk_headroom_usd,
@@ -318,7 +323,11 @@ def propose_phase20h_robust_allocation(
         margin_headroom_usd=deployable_margin,
         concentration_limit_by_group=concentration_limit_by_group,
     )
-    allocation = allocate_competing_opportunities(candidates, budget)
+    allocation = allocate_competing_opportunities(
+        candidates,
+        budget,
+        lab_allow_nonpositive_expectation=lab_allow_nonpositive_expectation,
+    )
     if len(candidates) > 1:
         applied.extend(("T09", "T18"))
     disposition = (

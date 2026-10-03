@@ -31,6 +31,21 @@ from qore.infrastructure.cibo_phase22_trader_parity_manifest import (
 )
 
 _SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
+_PREDECISION_TOP_LEVEL_CONTEXT_FIELDS = (
+    "family",
+    "target_route",
+    "fragility_flag_count",
+    "posture",
+    "risk_ref_bucket",
+)
+_FORBIDDEN_CONTEXT_KEY_PARTS = (
+    "exit",
+    "realized",
+    "outcome",
+    "pnl",
+    "raw_net",
+    "scaled_net",
+)
 
 
 def _aware(value: datetime, name: str) -> None:
@@ -54,6 +69,39 @@ def _decimal(value: object, name: str) -> Decimal:
     return parsed
 
 
+def predecision_context_from_native_row(row: dict[str, object]) -> tuple[tuple[str, str], ...]:
+    """Keep only explicitly causal Trader context; never copy outcome fields."""
+
+    values: dict[str, str] = {}
+    for key in _PREDECISION_TOP_LEVEL_CONTEXT_FIELDS:
+        value = row.get(key)
+        if value is not None:
+            values[key] = str(value)
+
+    for prefix, field in (("ctx_", "setup_context"), ("reg_", "regime")):
+        raw = row.get(field)
+        if raw is None:
+            continue
+        if not isinstance(raw, dict):
+            raise CiboCapitalManagementError(
+                f"Phase22 fresh opportunity {field} must be object when present"
+            )
+        for key, value in raw.items():
+            if value is None:
+                continue
+            normalized_key = prefix + str(key)
+            if any(
+                token in normalized_key.lower()
+                for token in _FORBIDDEN_CONTEXT_KEY_PARTS
+            ):
+                raise CiboCapitalManagementError(
+                    "Phase22 fresh opportunity causal context contains outcome field"
+                )
+            values[normalized_key] = str(value)
+
+    return tuple(sorted(values.items()))
+
+
 @dataclass(frozen=True, slots=True)
 class Phase22FreshOpportunity:
     trader_id: TraderLineage
@@ -70,6 +118,7 @@ class Phase22FreshOpportunity:
     gross_structural_outcome_r: Decimal
     methodology_sha256: str
     source_evidence_ids: tuple[str, ...]
+    decision_context: tuple[tuple[str, str], ...] = ()
 
     def __post_init__(self) -> None:
         if not isinstance(self.trader_id, TraderLineage):
@@ -142,9 +191,41 @@ class Phase22FreshOpportunity:
             raise CiboCapitalManagementError(
                 "Phase22 fresh source evidence cannot duplicate"
             )
+        if not isinstance(self.decision_context, tuple):
+            raise CiboCapitalManagementError(
+                "Phase22 fresh decision_context must be tuple"
+            )
+        context_keys: list[str] = []
+        for item in self.decision_context:
+            if not isinstance(item, tuple) or len(item) != 2:
+                raise CiboCapitalManagementError(
+                    "Phase22 fresh decision_context entries must be key/value tuples"
+                )
+            key, value = item
+            if (
+                not isinstance(key, str)
+                or not key
+                or not isinstance(value, str)
+                or not value
+            ):
+                raise CiboCapitalManagementError(
+                    "Phase22 fresh decision_context values must be non-empty strings"
+                )
+            if any(
+                token in key.lower()
+                for token in _FORBIDDEN_CONTEXT_KEY_PARTS
+            ):
+                raise CiboCapitalManagementError(
+                    "Phase22 fresh decision_context cannot contain outcome fields"
+                )
+            context_keys.append(key)
+        if len(context_keys) != len(set(context_keys)):
+            raise CiboCapitalManagementError(
+                "Phase22 fresh decision_context keys must be unique"
+            )
 
     def payload(self) -> dict[str, object]:
-        return {
+        payload: dict[str, object] = {
             "trader_id": self.trader_id.value,
             "qore_symbol": self.qore_symbol,
             "signal_fingerprint": self.signal_fingerprint,
@@ -165,6 +246,11 @@ class Phase22FreshOpportunity:
             "volume": None,
             "legacy_trader_sizing_used_for_cibo": False,
         }
+        if self.decision_context:
+            payload["decision_context"] = [
+                [key, value] for key, value in self.decision_context
+            ]
+        return payload
 
     def fingerprint(self) -> str:
         raw = json.dumps(
@@ -227,6 +313,7 @@ def turtle_geometry_opportunity(
         ),
         methodology_sha256=methodology_sha256,
         source_evidence_ids=source_evidence_ids,
+        decision_context=predecision_context_from_native_row(row),
     )
 
 
@@ -263,6 +350,7 @@ def native_fresh_opportunity(
         ),
         methodology_sha256=methodology,
         source_evidence_ids=source_evidence_ids,
+        decision_context=predecision_context_from_native_row(row),
     )
 
 

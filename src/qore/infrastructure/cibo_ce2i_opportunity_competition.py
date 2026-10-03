@@ -184,6 +184,8 @@ class OpportunityAllocationDecision:
 def allocate_competing_opportunities(
     candidates: tuple[CapitalOpportunityCandidate, ...],
     budget: OpportunityAllocationBudget,
+    *,
+    lab_allow_nonpositive_expectation: bool = False,
 ) -> OpportunityAllocationDecision:
     """Greedy V1 allocation by positive net value per risk-minute.
 
@@ -191,6 +193,10 @@ def allocate_competing_opportunities(
     knapsack solver. Later Capital Opportunity Graph work may replace it.
     """
 
+    if type(lab_allow_nonpositive_expectation) is not bool:
+        raise CiboCapitalManagementError(
+            "lab_allow_nonpositive_expectation must be bool"
+        )
     if not candidates:
         return OpportunityAllocationDecision(
             rows=(),
@@ -235,7 +241,10 @@ def allocate_competing_opportunities(
             candidate.concentration_group
         )
 
-        if candidate.adjusted_net_value_usd <= 0:
+        if (
+            candidate.adjusted_net_value_usd <= 0
+            and not lab_allow_nonpositive_expectation
+        ):
             reason = "non-positive adjusted expected net value"
         elif used_risk + candidate.stop_risk_usd > budget.stop_risk_headroom_usd:
             reason = "shared stop-risk headroom exhausted"
@@ -248,7 +257,12 @@ def allocate_competing_opportunities(
             reason = "concentration-group risk limit exceeded"
         else:
             selected = True
-            reason = "selected by positive net value per risk-minute"
+            reason = (
+                "LAB_P0 admitted despite non-positive static Trader prior; "
+                "budget/regime constraints still satisfied"
+                if candidate.adjusted_net_value_usd <= 0
+                else "selected by positive net value per risk-minute"
+            )
             used_risk += candidate.stop_risk_usd
             used_margin += candidate.margin_usd
             concentration_used[candidate.concentration_group] = (

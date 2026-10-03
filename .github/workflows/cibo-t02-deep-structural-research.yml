@@ -1,0 +1,95 @@
+name: QORE CIBO T02 Deep Structural Research
+# protocol-revision: syntax-repair-1
+
+on:
+  push:
+    branches:
+      - agent/cibo-profitability-lab-001
+    paths:
+      - '.github/workflows/cibo-t02-deep-structural-research.yml'
+      - 'scripts/cibo_t02_deep_structural_research.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  t02-deep-research:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      P0_ARTIFACT_ID: '11275124190'
+      R34_ARTIFACT_ID: '11255538834'
+      EURUSD_ARTIFACT_ID: '11256765185'
+      GBPUSD_ARTIFACT_ID: '11256465614'
+      GBPJPY_ARTIFACT_ID: '11255244229'
+      AUDJPY_ARTIFACT_ID: '11256249712'
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: python -m pip install -e '.[dev]'
+
+      - name: Static validation
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/cibo_t02_deep_structural_research.py
+          ruff check scripts/cibo_t02_deep_structural_research.py
+
+      - name: Recover exact P0 and native Trader artifacts
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/p0" "$RUNNER_TEMP/native"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$P0_ARTIFACT_ID/zip" > "$RUNNER_TEMP/p0.zip"
+          unzip -q "$RUNNER_TEMP/p0.zip" -d "$RUNNER_TEMP/p0"
+          for pair in             "$R34_ARTIFACT_ID:r34"             "$EURUSD_ARTIFACT_ID:eurusd"             "$GBPUSD_ARTIFACT_ID:gbpusd"             "$GBPJPY_ARTIFACT_ID:gbpjpy"             "$AUDJPY_ARTIFACT_ID:audjpy"
+          do
+            id="${pair%%:*}"
+            name="${pair##*:}"
+            mkdir -p "$RUNNER_TEMP/native/$name"
+            gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$id/zip" > "$RUNNER_TEMP/$name.zip"
+            unzip -q "$RUNNER_TEMP/$name.zip" -d "$RUNNER_TEMP/native/$name"
+          done
+          test -s "$RUNNER_TEMP/p0/decision-trace.json"
+
+      - name: Execute deep T02 study
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/report"
+          python scripts/cibo_t02_deep_structural_research.py             --decision-trace "$RUNNER_TEMP/p0/decision-trace.json"             --native-root "$RUNNER_TEMP/native"             --output "$RUNNER_TEMP/report/t02-deep-research.json"
+
+      - name: Verify research governance
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p = json.loads(
+              (
+                  Path(os.environ["RUNNER_TEMP"])
+                  / "report"
+                  / "t02-deep-research.json"
+              ).read_text()
+          )
+          assert p["mode"] == "NON_CERTIFYING_REUSED_HOLDOUT"
+          assert p["governance"]["runtime_policy_changed"] is False
+          assert p["governance"]["fresh_oos_claimed"] is False
+          assert p["governance"]["broker_mutation"] is False
+          assert p["governance"]["live"] is False
+          assert p["governance"]["real_capital"] is False
+          assert sum(p["native_context_match_counts"].values()) == 486
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-cibo-t02-deep-structural-research-${{ github.run_id }}
+          path: ${{ runner.temp }}/report
+          if-no-files-found: error
+          retention-days: 90

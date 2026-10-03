@@ -1,0 +1,17 @@
+{
+  "schema": "qore.cibo.cognitive-trader-lab-audit.trigger.v1",
+  "source_run_id": 37090249725,
+  "source_artifact_id": 11261743257,
+  "source_artifact_name": "qore-cibo-profitability-lab-p0-37090249725",
+  "source_head_sha": "bc7909f2f28fbfa1bef1b83768499a28f634409a",
+  "expected_traders": 7,
+  "reused_holdout": true,
+  "research_only": true,
+  "certification_claimed": false,
+  "broker_mutation": false,
+  "live": false,
+  "real_capital": false,
+  "production": false,
+  "merge_authority": false,
+  "acceptance": "A cognitive phase passes only after executing against a genuine Trader Lab candidate built from retained P0 evidence, emitting an observable result, and having that result consumed by the next audit phase."
+}
