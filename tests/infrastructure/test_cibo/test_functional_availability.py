@@ -3,11 +3,10 @@ from __future__ import annotations
 import pytest
 
 from qore.infrastructure.cibo.functional_availability import (
-    cibo_function_availability,
     CiboFunctionAvailabilityState,
+    cibo_function_availability,
 )
 from qore.infrastructure.trader_lab import cibo_functional_receipt
-
 
 _MARKETS = (
     "EURUSD",
