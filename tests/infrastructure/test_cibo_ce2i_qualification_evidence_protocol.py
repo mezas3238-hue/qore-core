@@ -42,6 +42,8 @@ def test_historical_replay_book_enters_same_math_without_type_impersonation() ->
         amendment_sha256=_sha("amendment"),
         decisions=(),
         outcomes=(),
+        source_receipt_sha256=_sha("source-receipt"),
+        source_collector_git_shas=(_sha("source-collector"),),
     )
     accepted = require_qualification_evidence_book(
         book,
@@ -72,6 +74,8 @@ def test_historical_replay_uses_seal_time_not_market_time_for_freeze() -> None:
         amendment_sha256=_sha("amendment"),
         decisions=(),
         outcomes=(),
+        source_receipt_sha256=_sha("source-receipt"),
+        source_collector_git_shas=(_sha("source-collector"),),
     )
     assert book.qualification_time_basis == "SEALED_AT"
     assert book.qualification_evidence_kind == "HISTORICAL_REPLAY_OBSERVED"
