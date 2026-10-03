@@ -10,7 +10,11 @@ from qore.infrastructure.cibo.contracts import (
     CiboFunctionalEvidence,
     CiboFunctionalValidationError,
 )
-from qore.infrastructure.trader_lab.candidate import TraderLabCandidateBinding
+from qore.infrastructure.cibo_trader_capability_profile import CiboEvidenceRef
+from qore.infrastructure.trader_lab.candidate import (
+    TraderLabCandidateBinding,
+    TraderLabValidationError,
+)
 from qore.infrastructure.trader_lab.cibo_functional_receipt import (
     CiboTraderLabExecutionStatus,
     CiboTraderLabFunctionGate,
@@ -235,7 +239,7 @@ def test_receipt_cannot_be_directly_constructed(
         CiboTraderLabFunctionGate.CF01_FINANCIAL_WORLD_MONITORING,
     )
     tail = lifecycle.qualifications[-1]
-    with pytest.raises(Exception):
+    with pytest.raises(TraderLabValidationError):
         TraderLabCiboFunctionPassReceipt(
             candidate=candidate,
             function=execution.function,
@@ -245,7 +249,5 @@ def test_receipt_cannot_be_directly_constructed(
             previous_receipt=None,
             approved_at=execution.executed_at,
             receipt_sha256="3" * 64,
-            evidence_ref=pytest.importorskip(
-                "qore.infrastructure.cibo_trader_capability_profile"
-            ).CiboEvidenceRef("trader-lab:forged"),
+            evidence_ref=CiboEvidenceRef("trader-lab:forged"),
         )
