@@ -1,0 +1,141 @@
+name: QORE CIBO T02 Multitimeframe Trader Lab Architect 2
+
+on:
+  push:
+    branches:
+      - agent/cibo-t02-science-architect-2-001
+    paths:
+      - '.github/workflows/cibo-t02-multitimeframe-trader-lab-arch2.yml'
+      - 'scripts/cibo_t02_multitimeframe_trader_lab_arch2.py'
+      - 'scripts/cibo_t02_deep_science_arch2.py'
+      - 'docs/research/CIBO-T02-MULTITIMEFRAME-TRADER-LAB-ARCH2-PROTOCOL.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  multitimeframe-trader-lab:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      P0_ARTIFACT_ID: '11275124190'
+      R34_ARTIFACT_ID: '11255538834'
+      EURUSD_ARTIFACT_ID: '11256765185'
+      GBPUSD_ARTIFACT_ID: '11256465614'
+      GBPJPY_ARTIFACT_ID: '11255244229'
+      AUDJPY_ARTIFACT_ID: '11256249712'
+      SOURCE_HEAD_SHA: '3e2e6ca898d400d8ed8359659ed032708cf7eeb3'
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: python -m pip install -e '.[dev]'
+
+      - name: Static validation
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/cibo_t02_deep_science_arch2.py \
+            scripts/cibo_t02_multitimeframe_trader_lab_arch2.py
+          ruff check \
+            scripts/cibo_t02_deep_science_arch2.py \
+            scripts/cibo_t02_multitimeframe_trader_lab_arch2.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('docs/research/CIBO-T02-MULTITIMEFRAME-TRADER-LAB-ARCH2-PROTOCOL.json').read_text())
+          assert p['mode'] == 'NON_CERTIFYING_REUSED_HOLDOUT_RESEARCH'
+          assert p['timeframes']['required_from_current_native_evidence'] == ['D1','H4','H1','M5']
+          assert p['trader_lab']['require_real_candidate_binding'] is True
+          assert p['governance']['no_broker_mutation'] is True
+          PY
+
+      - name: Recover exact retained P0 and native Trader evidence
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/p0" "$RUNNER_TEMP/native"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$P0_ARTIFACT_ID/zip" > "$RUNNER_TEMP/p0.zip"
+          unzip -q "$RUNNER_TEMP/p0.zip" -d "$RUNNER_TEMP/p0"
+          for pair in \
+            "$R34_ARTIFACT_ID:r34" \
+            "$EURUSD_ARTIFACT_ID:eurusd" \
+            "$GBPUSD_ARTIFACT_ID:gbpusd" \
+            "$GBPJPY_ARTIFACT_ID:gbpjpy" \
+            "$AUDJPY_ARTIFACT_ID:audjpy"
+          do
+            id="${pair%%:*}"
+            name="${pair##*:}"
+            mkdir -p "$RUNNER_TEMP/native/$name"
+            gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$id/zip" > "$RUNNER_TEMP/$name.zip"
+            unzip -q "$RUNNER_TEMP/$name.zip" -d "$RUNNER_TEMP/native/$name"
+          done
+          test -s "$RUNNER_TEMP/p0/decision-trace.json"
+          test -s "$RUNNER_TEMP/p0/lab-result.json"
+
+      - name: Bind seven real Trader Lab candidates
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/trader-lab"
+          python scripts/cibo_cognitive_trader_lab_audit.py \
+            --decision-trace "$RUNNER_TEMP/p0/decision-trace.json" \
+            --source-head "$SOURCE_HEAD_SHA" \
+            --output "$RUNNER_TEMP/trader-lab/audit.json"
+
+      - name: Reconstruct causal T02 dataset
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/t02-base"
+          python scripts/cibo_t02_deep_science_arch2.py \
+            --decision-trace "$RUNNER_TEMP/p0/decision-trace.json" \
+            --native-root "$RUNNER_TEMP/native" \
+            --lab-result "$RUNNER_TEMP/p0/lab-result.json" \
+            --output-dir "$RUNNER_TEMP/t02-base"
+
+      - name: Execute multitimeframe Explorer and frozen Validator
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/t02-multitimeframe"
+          python scripts/cibo_t02_multitimeframe_trader_lab_arch2.py \
+            --causal-dataset "$RUNNER_TEMP/t02-base/t02-causal-dataset-arch2.jsonl" \
+            --trader-lab-audit "$RUNNER_TEMP/trader-lab/audit.json" \
+            --output-dir "$RUNNER_TEMP/t02-multitimeframe"
+
+      - name: Enforce scientific boundaries
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          root=Path(os.environ['RUNNER_TEMP'])/'t02-multitimeframe'
+          p=json.loads((root/'t02-multitimeframe-trader-lab-report.json').read_text())
+          assert p['population']['candidate_binding_count'] == 7
+          assert p['population']['rich_context_core_selected_count'] == 127
+          assert p['population']['available_timeframes'] == ['D1','H4','H1','M5']
+          assert p['population']['missing_timeframes_are_never_invented'] is True
+          assert p['explorer']['training_feature_policy'] == 'X_PREDECISION_ONLY'
+          assert p['explorer']['outcome_features_forbidden_as_rule_inputs'] is True
+          assert p['explorer']['trader_or_symbol_predicate_forbidden'] is True
+          assert p['validator']['hard_gate'] == 'every chronological TEST > 0; no pooled rescue'
+          assert p['conclusion'] in {'T02_SCIENTIFIC_CANDIDATE_PASS','T02_MORE_RESEARCH_REQUIRED','T02_FALSIFIED_ON_CURRENT_EVIDENCE'}
+          g=p['governance']
+          assert not any(g.values())
+          assert (root/'t02-positive-dashboard.json').stat().st_size > 0
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-cibo-t02-multitimeframe-trader-lab-arch2-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/trader-lab/audit.json
+            ${{ runner.temp }}/t02-base/t02-causal-dataset-arch2.jsonl
+            ${{ runner.temp }}/t02-multitimeframe
+          if-no-files-found: error
+          retention-days: 90
