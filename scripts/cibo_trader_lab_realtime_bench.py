@@ -461,7 +461,6 @@ def main() -> int:
     parser.add_argument(
         "--config",
         type=Path,
-        required=True,
         help="Standalone bench JSON config with local evidence paths.",
     )
     sub = parser.add_subparsers(dest="command", required=True)
@@ -477,12 +476,14 @@ def main() -> int:
     serve_parser.add_argument("--port", type=int, default=8765)
 
     args = parser.parse_args()
+    if args.command == "selftest":
+        return command_selftest()
+    if args.config is None:
+        parser.error("--config is required for doctor, run and serve")
     config = RealtimeBenchConfig.load(args.config)
 
     if args.command == "doctor":
         return command_doctor(config)
-    if args.command == "selftest":
-        return command_selftest()
     if args.command == "run":
         return command_run(config, args.run_id)
     if args.command == "serve":
