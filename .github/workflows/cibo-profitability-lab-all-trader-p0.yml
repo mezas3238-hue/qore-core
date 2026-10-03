@@ -42,6 +42,7 @@ jobs:
           if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
             test "${{ inputs.owner_authorized }}" = "true"
             echo "T02_POOLED_ARG=" >> "$GITHUB_ENV"
+            echo "T02_FAST_TAIL_ARG=" >> "$GITHUB_ENV"
           else
             python - <<'PY'
           import json
@@ -59,11 +60,18 @@ jobs:
           assert p["production"] is False
           assert p["merge_authority"] is False
           pooled = bool(p.get("t02_pooled_evidence", False))
+          fast_tail = bool(p.get("t02_fast_tail_evidence", False))
+          assert not (pooled and fast_tail)
           with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as handle:
               handle.write(
                   "T02_POOLED_ARG=--t02-pooled-evidence\n"
                   if pooled
                   else "T02_POOLED_ARG=\n"
+              )
+              handle.write(
+                  "T02_FAST_TAIL_ARG=--t02-fast-tail-evidence\n"
+                  if fast_tail
+                  else "T02_FAST_TAIL_ARG=\n"
               )
           PY
           fi
@@ -269,6 +277,7 @@ jobs:
             --batch "$RUNNER_TEMP/batch/reused-batch.json" \
             --context-map "$CONTEXT_MAP" \
             $T02_POOLED_ARG \
+            $T02_FAST_TAIL_ARG \
             --provider-numeric "$PROVIDER_JSON" \
             --provider-numeric-freeze-sha256 "$PROVIDER_FILE_SHA" \
             --source-root "AUDJPY=$RUNNER_TEMP/regime/AUDJPY" \
@@ -304,6 +313,11 @@ jobs:
               assert p["governance"]["t02_pooled_evidence_applied"] is True
               assert p["t02_pooled_evidence"]["selected_rule_id"] == (
                   "ROR_0050_D1_NOT_EXTREME"
+              )
+          if os.environ.get("T02_FAST_TAIL_ARG"):
+              assert p["governance"]["t02_fast_tail_evidence_applied"] is True
+              assert p["t02_fast_tail_evidence"]["selected_rule_id"] == (
+                  "FVG_EXCLUDE_NY_LOW_EFF_LARGE_WICK"
               )
           context = p["causal_context_reconstruction"]
           assert context["matched_turtle_opportunity_count"] == 486
