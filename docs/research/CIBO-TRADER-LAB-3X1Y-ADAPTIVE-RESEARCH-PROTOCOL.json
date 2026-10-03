@@ -1,0 +1,158 @@
+{
+  "schema": "qore.cibo.trader-lab.three-holdout-1y-adaptive-research.v1",
+  "owner_authorized": true,
+  "mode": "NON_CERTIFYING_BURNED_ADAPTIVE_RESEARCH",
+  "purpose": "Run the exact seven-Trader cohort with CIBO through three fixed non-overlapping one-year research holdouts and search a preregistered finite candidate space until at least three identical configuration fingerprints pass every required scientific/economic gate in all three groups.",
+  "cohort": [
+    "VT08_FOREX",
+    "R34_XAUUSD",
+    "R38_EURUSD",
+    "R43_GBPUSD",
+    "R38_GBPJPY",
+    "R42_AUDJPY",
+    "VT31_NAS100"
+  ],
+  "groups": [
+    {
+      "group_id": "GROUP_1",
+      "start_at": "2019-06-30T00:00:00+00:00",
+      "end_exclusive_at": "2020-06-30T00:00:00+00:00",
+      "duration": "P1Y"
+    },
+    {
+      "group_id": "GROUP_2",
+      "start_at": "2020-06-30T00:00:00+00:00",
+      "end_exclusive_at": "2021-06-30T00:00:00+00:00",
+      "duration": "P1Y"
+    },
+    {
+      "group_id": "GROUP_3",
+      "start_at": "2021-06-30T00:00:00+00:00",
+      "end_exclusive_at": "2022-06-30T00:00:00+00:00",
+      "duration": "P1Y"
+    }
+  ],
+  "market_context": {
+    "timeframes": [
+      "H4",
+      "H1",
+      "M15",
+      "M5",
+      "M1"
+    ],
+    "excluded": [
+      "D1",
+      "D",
+      "DAILY"
+    ],
+    "m15_derivation": "closed 3xM5 only",
+    "m1_required_for": [
+      "VT31_NAS100"
+    ]
+  },
+  "measurements": {
+    "lanes": [
+      "CORE",
+      "COMPOUND",
+      "COMPOUND_PORTFOLIO"
+    ],
+    "leverage_seed_multipliers": [
+      "1",
+      "2",
+      "3",
+      "4"
+    ],
+    "required_scientific_outputs": [
+      "net_pnl_usd",
+      "ending_capital_usd",
+      "profit_factor",
+      "expectancy_usd",
+      "max_drawdown_usd",
+      "trader_participation",
+      "function_accountability",
+      "chronological_folds",
+      "monte_carlo",
+      "provider_cost_stress",
+      "winner_concentration_stress",
+      "protected_capital_breaches",
+      "timeframe_reports",
+      "leverage_report"
+    ],
+    "cibo_function_behavior_required": true
+  },
+  "candidate_pass_gate": {
+    "all_7_traders_participate": true,
+    "required_timeframes": [
+      "H4",
+      "H1",
+      "M15",
+      "M5",
+      "M1"
+    ],
+    "core_net_pnl_usd_gt": "0",
+    "core_profit_factor_gt": "1",
+    "core_expectancy_usd_gt": "0",
+    "compound_incremental_pnl_usd_gt": "0",
+    "compound_portfolio_incremental_pnl_usd_gt": "0",
+    "portfolio_value_add_vs_compound_usd_gt": "0",
+    "final_ending_capital_usd_gt": "60",
+    "chronological_folds_all_positive": true,
+    "monte_carlo_median_pnl_usd_gt": "0",
+    "monte_carlo_p05_pnl_usd_gt": "0",
+    "provider_cost_x2_pnl_usd_gt": "0",
+    "remove_best_3_pnl_usd_gt": "0",
+    "protected_capital_breaches_eq": 0,
+    "all_required_cibo_functions_accounted_for": true,
+    "qore_risk_sovereign": true
+  },
+  "stop_sensor": {
+    "required_identical_configuration_fingerprints_across_all_groups": 3,
+    "per_group_minimum_full_pass_candidates": 3,
+    "stop_state": "STOP_THREE_CROSS_HOLDOUT_FULL_PASS",
+    "continue_state": "CONTINUE_SEARCH"
+  },
+  "automation": {
+    "adaptive_outcome_aware_search": true,
+    "outcomes_may_drive_next_research_candidate": true,
+    "certification_claim_from_these_holdouts": false,
+    "finite_preregistered_search_space_required": true,
+    "no_unbounded_self_dispatch": true,
+    "resume_cursor_supported": true,
+    "candidates_per_cycle": 250,
+    "max_cycles_per_workflow": 50,
+    "exhaustion_state": "SEARCH_SPACE_EXHAUSTED_NO_THREE_PASS"
+  },
+  "source_readiness": {
+    "market_atlas_m5_range": [
+      "2016-09-17T00:00:00+00:00",
+      "2026-09-17T00:00:00+00:00"
+    ],
+    "phase18_existing_common_7_trader_window": [
+      "2021-09-23T05:00:00+00:00",
+      "2022-06-29T09:00:00+00:00"
+    ],
+    "phase18_existing_common_window_insufficient_for_1y": true,
+    "required_action": "REPLAY_FROZEN_SEVEN_TRADER_METHODOLOGIES_ON_GROUP_WINDOWS",
+    "vt31_existing_trade_evidence_range": [
+      "2017-07-03T14:08:00+00:00",
+      "2022-06-30T14:15:00+00:00"
+    ],
+    "vt08_existing_trade_evidence_range": [
+      "2020-07-01T09:00:00+00:00",
+      "2022-06-29T05:00:00+00:00"
+    ],
+    "vt08_requires_market_atlas_regeneration_for_full_three_groups": true
+  },
+  "governance": {
+    "trader_logic_frozen_during_evaluation": true,
+    "no_live": true,
+    "no_production": true,
+    "no_real_capital": true,
+    "no_broker_mutation": true,
+    "no_merge": true,
+    "no_vps": true,
+    "fresh_oos_claimed": false,
+    "certification_claimed": false,
+    "adaptive_search_burns_all_three_holdouts": true
+  }
+}
