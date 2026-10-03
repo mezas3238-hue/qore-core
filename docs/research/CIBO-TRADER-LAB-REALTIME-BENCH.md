@@ -64,9 +64,7 @@ consumed by the canonical historical-regime loader.
 Run the bench's own workflow-independent self-test:
 
 ```bash
-python scripts/cibo_trader_lab_realtime_bench.py \
-  --config docs/research/CIBO-TRADER-LAB-REALTIME-BENCH-CONFIG.json \
-  selftest
+python scripts/cibo_trader_lab_realtime_bench.py selftest
 ```
 
 The self-test does not execute market evidence. It validates the local runner,
