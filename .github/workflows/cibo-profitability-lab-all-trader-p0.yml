@@ -41,9 +41,11 @@ jobs:
           set -euo pipefail
           if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
             test "${{ inputs.owner_authorized }}" = "true"
+            echo "T02_POOLED_ARG=" >> "$GITHUB_ENV"
           else
             python - <<'PY'
           import json
+          import os
           from pathlib import Path
           p = json.loads(
               Path("docs/research/CIBO-PROFITABILITY-LAB-P0-TRIGGER.json")
@@ -56,6 +58,13 @@ jobs:
           assert p["real_capital"] is False
           assert p["production"] is False
           assert p["merge_authority"] is False
+          pooled = bool(p.get("t02_pooled_evidence", False))
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as handle:
+              handle.write(
+                  "T02_POOLED_ARG=--t02-pooled-evidence\n"
+                  if pooled
+                  else "T02_POOLED_ARG=\n"
+              )
           PY
           fi
 
@@ -259,6 +268,7 @@ jobs:
           python scripts/cibo_profitability_lab_all_trader.py \
             --batch "$RUNNER_TEMP/batch/reused-batch.json" \
             --context-map "$CONTEXT_MAP" \
+            $T02_POOLED_ARG \
             --provider-numeric "$PROVIDER_JSON" \
             --provider-numeric-freeze-sha256 "$PROVIDER_FILE_SHA" \
             --source-root "AUDJPY=$RUNNER_TEMP/regime/AUDJPY" \
@@ -290,6 +300,11 @@ jobs:
           )
           assert p["seven_of_seven_participation_pass"] is True
           assert p["governance"]["reused_context_map_applied"] is True
+          if os.environ.get("T02_POOLED_ARG"):
+              assert p["governance"]["t02_pooled_evidence_applied"] is True
+              assert p["t02_pooled_evidence"]["selected_rule_id"] == (
+                  "ROR_0050_D1_NOT_EXTREME"
+              )
           context = p["causal_context_reconstruction"]
           assert context["matched_turtle_opportunity_count"] == 486
           assert context["source_batch_mutated"] is False
