@@ -248,6 +248,41 @@ def run_audit() -> dict[str, object]:
         "CMA and CE2I are explicitly probed on BTCUSD, USDCAD and EURAUD",
     )
 
+    capability_runtime_sources = "\n".join(
+        (
+            _text(
+                "src/qore/infrastructure/"
+                "cibo_phase22_v4_historical_policy_replay.py"
+            ),
+            _text(
+                "src/qore/infrastructure/"
+                "cibo_phase22_v4_chronological_execution.py"
+            ),
+            _text(
+                "src/qore/infrastructure/"
+                "cibo_ce2i_phase20_robust_allocator.py"
+            ),
+        )
+    )
+    runtime_tool_bindings = {
+        "T06_T07": "plan_self_financing_expansion(",
+        "T11": "evaluate_t11_runtime_exposure_guard(",
+        "T14": "plan_dynamic_derisking(",
+    }
+    for code, token in runtime_tool_bindings.items():
+        record(
+            f"CE2I_{code}_AUTHORITATIVE_CAPABILITY_PATH",
+            token in capability_runtime_sources,
+            (
+                f"{code} has an authoritative predecision capability path"
+                if token in capability_runtime_sources
+                else (
+                    f"{code} mechanical engine exists but is not consumed by "
+                    "the authoritative capability decision path"
+                )
+            ),
+        )
+
     cognitive_path = (
         "src/qore/infrastructure/cibo_capability_exam_cognitive_coverage.py"
     )
