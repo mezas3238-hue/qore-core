@@ -57,7 +57,15 @@ document.getElementById('groups').innerHTML=['GROUP_1','GROUP_2','GROUP_3'].map(
 function showStatus(s){
   document.getElementById('state').textContent=' '+s.status+' · '+s.run_id;
   for(const [id,row] of Object.entries(s.groups||{})){
-    document.getElementById(id).textContent=row.status+' / '+row.stage;
+    const target=document.getElementById(id);
+    let text=row.status+' / '+row.stage;
+    if(row.result){
+      text+='\n'+JSON.stringify(row.result,null,2);
+    }
+    if(row.error){
+      text+='\nERROR: '+row.error;
+    }
+    target.textContent=text;
   }
   document.getElementById('sensor').textContent=JSON.stringify(s.sensor||{},null,2);
 }
@@ -216,6 +224,29 @@ def make_handler(registry: BenchRegistry) -> type[BaseHTTPRequestHandler]:
                         self._json(
                             HTTPStatus.OK,
                             json.loads(sensor.read_text(encoding="utf-8")),
+                        )
+                    return
+                if (
+                    len(parts) == 5
+                    and parts[3] == "groups"
+                    and parts[4] in {"GROUP_1", "GROUP_2", "GROUP_3"}
+                ):
+                    result = (
+                        registry.config.workspace
+                        / "runs"
+                        / run_id
+                        / parts[4]
+                        / "group-result.json"
+                    )
+                    if not result.is_file():
+                        self._json(
+                            HTTPStatus.NOT_FOUND,
+                            {"error": "group result not available yet"},
+                        )
+                    else:
+                        self._json(
+                            HTTPStatus.OK,
+                            json.loads(result.read_text(encoding="utf-8")),
                         )
                     return
             self._json(HTTPStatus.NOT_FOUND, {"error": "not found"})
