@@ -32,23 +32,23 @@ from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
     minimum_seed_volume,
 )
+from qore.infrastructure.cibo_ce2i_phase20_train_prior import (
+    build_frozen_train_expectation,
+)
 from qore.infrastructure.cibo_ce2i_usd60_six_month_certification import (
     FROZEN_CIBO_USD60_SIX_MONTH_PROTOCOL,
 )
 from qore.infrastructure.cibo_cma_risk_request import build_cma_risk_request
-from qore.infrastructure.cibo_ce2i_phase20_train_prior import (
-    build_frozen_train_expectation,
-)
-from qore.infrastructure.cibo_protected_reinvestment_policy import (
-    maximum_reinvestment_capital_need_usd,
-    protected_loss_reserve_usd,
-    protected_reinvestment_candidate_allowed,
-)
 from qore.infrastructure.cibo_phase22_v4_chronological_execution import (
     Phase22HistoricalExecutionReport,
 )
 from qore.infrastructure.cibo_phase22_v4_chronological_replay_plan import (
     Phase22ChronologicalReplayPlan,
+)
+from qore.infrastructure.cibo_protected_reinvestment_policy import (
+    maximum_reinvestment_capital_need_usd,
+    protected_loss_reserve_usd,
+    protected_reinvestment_candidate_allowed,
 )
 
 LANE_ID = "FULL_CIBO_COMPOUND_PORTFOLIO"
