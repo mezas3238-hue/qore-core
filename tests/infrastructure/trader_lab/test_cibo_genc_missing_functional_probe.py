@@ -442,6 +442,9 @@ def _genc10_twin(
     candidate: TraderLabCandidateBinding,
     *,
     environment: MarketRuntimeEnvironment = MarketRuntimeEnvironment.TEST,
+    used_risk: Decimal = Decimal("0"),
+    used_margin: Decimal = Decimal("0"),
+    active_deployment_count: int = 0,
 ) -> Genc10ObservedCapitalTwin:
     buckets = tuple(
         (bucket, Decimal("100") if bucket is Genc10EconomicBucket.ORIGINAL_BASE else Decimal(0))
@@ -470,12 +473,12 @@ def _genc10_twin(
         generation_balances=(),
         source_capacities=(),
         total_stop_risk_capacity_usd=Decimal("10"),
-        used_stop_risk_usd=Decimal("0"),
-        stop_risk_headroom_usd=Decimal("10"),
+        used_stop_risk_usd=used_risk,
+        stop_risk_headroom_usd=Decimal("10") - used_risk,
         total_margin_capacity_usd=Decimal("100"),
-        used_margin_usd=Decimal("0"),
-        margin_headroom_usd=Decimal("100"),
-        active_deployment_count=0,
+        used_margin_usd=used_margin,
+        margin_headroom_usd=Decimal("100") - used_margin,
+        active_deployment_count=active_deployment_count,
         provider_capability_counts=(),
         known_options=(
             Genc10KnownCapitalOption(
@@ -613,14 +616,17 @@ def test_trader_lab_genc12_crisis_intelligence_executes(candidate_factory) -> No
     twin = _genc10_twin(
         candidate,
         environment=MarketRuntimeEnvironment.DEMO,
+        used_risk=Decimal("2"),
+        used_margin=Decimal("20"),
+        active_deployment_count=1,
     )
     regime = CiboCapitalRegimeState(
         liquidity=LiquidityState.NORMAL,
         volatility=VolatilityState.NORMAL,
         correlation=CorrelationState.NORMAL,
         provider_condition=ProviderCondition.UNAVAILABLE,
-        risk_utilization=Decimal("0"),
-        margin_utilization=Decimal("0"),
+        risk_utilization=Decimal("0.20"),
+        margin_utilization=Decimal("0.20"),
         drawdown_utilization=Decimal("0.20"),
         opportunity_count=3,
     )
