@@ -9,6 +9,8 @@ on:
       - 'docs/research/CIBO-TRADER-LAB-3X1Y-ADAPTIVE-RESEARCH-PROTOCOL.json'
       - 'src/qore/infrastructure/trader_lab/cibo_three_holdout_1y_contract.py'
       - 'scripts/cibo_three_holdout_1y_sensor.py'
+      - 'scripts/cibo_three_holdout_turtle_eval_window_patch.py'
+      - 'scripts/cibo_three_holdout_integrated_batch.py'
       - 'tests/infrastructure/trader_lab/test_cibo_three_holdout_1y_contract.py'
   workflow_dispatch:
 
@@ -49,6 +51,11 @@ jobs:
           assert p['market_context']['excluded'] == ['D1','D','DAILY']
           assert p['measurements']['leverage_seed_multipliers'] == ['1','2','3','4']
           assert p['stop_sensor']['required_identical_configuration_fingerprints_across_all_groups'] == 3
+          assert p['execution_topology']['unit_of_test'] == 'ONE_INTEGRATED_7_TRADER_PORTFOLIO_PER_1Y_GROUP'
+          assert p['execution_topology']['per_trader_results_may_trigger_stop_sensor'] is False
+          assert p['execution_topology']['shared_initial_capital_usd'] == '60'
+          assert p['execution_topology']['shared_qore_risk_state'] is True
+          assert p['execution_topology']['shared_cibo_capital_state'] is True
           assert p['automation']['adaptive_outcome_aware_search'] is True
           assert p['automation']['certification_claim_from_these_holdouts'] is False
           assert p['automation']['finite_preregistered_search_space_required'] is True
