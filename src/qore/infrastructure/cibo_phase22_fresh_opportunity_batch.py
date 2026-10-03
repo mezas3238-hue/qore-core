@@ -69,7 +69,7 @@ def _decimal(value: object, name: str) -> Decimal:
     return parsed
 
 
-def _predecision_context(row: dict[str, object]) -> tuple[tuple[str, str], ...]:
+def predecision_context_from_native_row(row: dict[str, object]) -> tuple[tuple[str, str], ...]:
     """Keep only explicitly causal Trader context; never copy outcome fields."""
 
     values: dict[str, str] = {}
@@ -313,7 +313,7 @@ def turtle_geometry_opportunity(
         ),
         methodology_sha256=methodology_sha256,
         source_evidence_ids=source_evidence_ids,
-        decision_context=_predecision_context(row),
+        decision_context=predecision_context_from_native_row(row),
     )
 
 
@@ -350,7 +350,7 @@ def native_fresh_opportunity(
         ),
         methodology_sha256=methodology,
         source_evidence_ids=source_evidence_ids,
-        decision_context=_predecision_context(row),
+        decision_context=predecision_context_from_native_row(row),
     )
 
 
