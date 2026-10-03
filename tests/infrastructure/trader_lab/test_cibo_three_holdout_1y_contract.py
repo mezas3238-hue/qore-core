@@ -52,6 +52,11 @@ def _group(group_id: str, start: str, end: str) -> dict[str, object]:
         "end_exclusive_at": end,
         "traders": list(REQUIRED_TRADERS),
         "adaptive_research_only": True,
+        "execution_topology": "SINGLE_INTEGRATED_7_TRADER_PORTFOLIO",
+        "shared_cibo_state": True,
+        "shared_qore_risk_state": True,
+        "shared_initial_capital_usd": "60",
+        "per_trader_results_source_only": True,
         "candidates": [
             _candidate("cfg-a"),
             _candidate("cfg-b"),
@@ -88,3 +93,15 @@ def test_one_negative_gate_fails_candidate() -> None:
     result = evaluate_candidate(candidate)
     assert result.passed is False
     assert "MC_P05" in result.failed_gates
+
+
+def test_per_trader_only_group_is_rejected() -> None:
+    payloads = [_group(*window) for window in GROUP_WINDOWS]
+    payloads[0] = deepcopy(payloads[0])
+    payloads[0]["execution_topology"] = "SEPARATE_TRADER_REPLAYS"
+    try:
+        evaluate_three_groups(tuple(payloads))
+    except ValueError as error:
+        assert "integrated 7-Trader portfolio" in str(error)
+    else:
+        raise AssertionError("separate Trader replays must never satisfy group sensor")
