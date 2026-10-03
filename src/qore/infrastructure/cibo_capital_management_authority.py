@@ -11,7 +11,10 @@ from dataclasses import dataclass
 from decimal import ROUND_CEILING, ROUND_FLOOR, Decimal
 from enum import StrEnum
 
-from qore.infrastructure.account_wide_risk import TraderLineage
+from qore.infrastructure.account_wide_risk import (
+    TraderIdentity,
+    canonical_trader_identity,
+)
 
 
 class CiboCapitalManagementError(ValueError):
@@ -88,7 +91,7 @@ def capital_source_dimension(source: CapitalSource) -> CapitalCapacityDimension:
 class TraderOpportunityEnvelope:
     """Trader-owned opportunity facts with intentionally no sizing field."""
 
-    trader_id: TraderLineage
+    trader_id: TraderIdentity
     signal_fingerprint: str
     qore_symbol: str
     provider_symbol: str
@@ -106,8 +109,7 @@ class TraderOpportunityEnvelope:
     decision_context: tuple[tuple[str, str], ...] = ()
 
     def __post_init__(self) -> None:
-        if type(self.trader_id) is not TraderLineage:
-            raise CiboCapitalManagementError("trader_id must be TraderLineage")
+        canonical_trader_identity(self.trader_id)
         for name in (
             "signal_fingerprint",
             "qore_symbol",
@@ -244,7 +246,7 @@ class CiboCapitalState:
 
 @dataclass(frozen=True, slots=True)
 class CiboCapitalActionPlan:
-    trader_id: TraderLineage
+    trader_id: TraderIdentity
     qore_symbol: str
     stage: CapitalStage
     action: CapitalAction
@@ -257,6 +259,9 @@ class CiboCapitalActionPlan:
     capital_source_lots: tuple[CapitalSourceLot, ...] = ()
 
     def __post_init__(self) -> None:
+        canonical_trader_identity(self.trader_id)
+        if not isinstance(self.qore_symbol, str) or not self.qore_symbol.strip():
+            raise CiboCapitalManagementError("qore_symbol must be non-empty")
         for name in ("volume", "stop_risk_usd", "margin_usd", "capital_source_amount_usd"):
             _nonnegative(getattr(self, name), name)
         if self.action in {
