@@ -91,7 +91,14 @@ jobs:
           test -f src/qore/infrastructure/cibo_capability_exam_cognitive_coverage.py
           test -f tests/infrastructure/test_cibo_universal_capability_runtime.py
           python -m pytest -q --no-cov             tests/infrastructure/test_cibo_cognitive_*.py             tests/infrastructure/test_cibo_reused_holdout_capability_exam.py             tests/infrastructure/test_cibo_universal_capability_runtime.py
-          echo "PHASE_02=PASS"
+          echo "PHASE_02_INTERNAL=PASS"
+      - name: Trader Lab functional run CF01-CF19
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_cibo_cognitive_cf01_cf19_functional_probe.py
+          echo "PHASE_02_TRADER_LAB=PASS"
 
   phase-03-cma-risk-settlement:
     name: "03 AUDIT+TEST CMA + QORE Risk + Settlement"
