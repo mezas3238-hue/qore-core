@@ -157,7 +157,9 @@ def _provider_payload(
                 volume_step=(
                     Decimal("0.1") if is_nas else Decimal("0.01")
                 ),
-                margin_per_volume_usd=Decimal("10"),
+                margin_per_volume_usd=(
+                    Decimal("1") if low_risk_economics else Decimal("10")
+                ),
                 commission_per_volume_usd=Decimal("0"),
                 worst_adverse_slippage_bps=Decimal("0"),
                 quote_to_usd=Decimal("1"),
