@@ -114,6 +114,7 @@ class CandidateEconomics:
     exit_at: datetime
     signal_fingerprint: str
     trader_id: str
+    side: str
     volume: Decimal
     stop_risk_usd: Decimal
     margin_usd: Decimal
@@ -132,6 +133,7 @@ class ReinvestmentEpisode:
     exit_at: datetime
     signal_fingerprint: str
     trader_id: str
+    side: str
     protected_inflow_since_prior_episode_usd: Decimal
     protected_before_usd: Decimal
     committed_before_usd: Decimal
@@ -189,6 +191,7 @@ def _candidate(row: dict[str, Any]) -> CandidateEconomics:
         exit_at=_dt(settlement["capital_released_at"]),
         signal_fingerprint=str(row["signal_fingerprint"]),
         trader_id=str(row["trader_id"]),
+        side=str(opportunity["side"]).lower(),
         volume=volume,
         stop_risk_usd=stop_risk,
         margin_usd=margin,
@@ -225,8 +228,31 @@ def _simulate_observed(
     rows: tuple[dict[str, Any], ...],
     *,
     shared: bool,
+    eligible_sides: tuple[str, ...] = (ELIGIBLE_SIDE,),
+    max_capital_need_to_current_capital_ratio: Decimal = (
+        MAX_CAPITAL_NEED_TO_CURRENT_CAPITAL_RATIO
+    ),
 ) -> tuple[ReinvestmentEpisode, ...]:
-    """Chronological protected-only incremental seed replay."""
+    """Chronological protected-only incremental seed replay.
+
+    Research callers may supply a preregistered side set and reinvestment ratio.
+    The default remains the frozen CIBO policy. No candidate outcome is used by
+    the admission decision.
+    """
+
+    normalized_sides = tuple(side.lower() for side in eligible_sides)
+    if not normalized_sides or any(
+        side not in ("long", "short") for side in normalized_sides
+    ):
+        raise ValueError("eligible_sides must contain only long/short")
+    if len(set(normalized_sides)) != len(normalized_sides):
+        raise ValueError("eligible_sides must not contain duplicates")
+    if (
+        not isinstance(max_capital_need_to_current_capital_ratio, Decimal)
+        or not max_capital_need_to_current_capital_ratio.is_finite()
+        or max_capital_need_to_current_capital_ratio <= 0
+    ):
+        raise ValueError("reinvestment ratio must be finite positive Decimal")
 
     core_settlements = sorted(
         rows,
@@ -326,14 +352,13 @@ def _simulate_observed(
 
         if realized_account_capital <= 0:
             continue
-        dynamic_limit = maximum_reinvestment_capital_need_usd(
+        dynamic_limit = (
             realized_account_capital
+            * max_capital_need_to_current_capital_ratio
         )
-        if not protected_reinvestment_candidate_allowed(
-            side=str(row["trader_opportunity"]["side"]),
-            capital_need_usd=candidate.capital_need_usd,
-            eligible_current_capital_usd=realized_account_capital,
-        ):
+        if candidate.side not in normalized_sides:
+            continue
+        if candidate.capital_need_usd > dynamic_limit:
             continue
 
         key = scope_key(candidate.trader_id)
@@ -372,6 +397,7 @@ def _simulate_observed(
             exit_at=candidate.exit_at,
             signal_fingerprint=candidate.signal_fingerprint,
             trader_id=candidate.trader_id,
+            side=candidate.side,
             protected_inflow_since_prior_episode_usd=inflow,
             protected_before_usd=available,
             committed_before_usd=committed,
@@ -432,9 +458,13 @@ def _metrics(
 
     by_trader: dict[str, Decimal] = defaultdict(Decimal)
     entries: dict[str, int] = defaultdict(int)
+    by_side: dict[str, Decimal] = defaultdict(Decimal)
+    side_entries: dict[str, int] = defaultdict(int)
     for item in episodes:
         by_trader[item.trader_id] += item.incremental_pnl_usd
         entries[item.trader_id] += 1
+        by_side[item.side] += item.incremental_pnl_usd
+        side_entries[item.side] += 1
 
     return {
         "label": label,
@@ -486,6 +516,11 @@ def _metrics(
             for trader, value in sorted(by_trader.items())
         },
         "trader_reinvestment_entries": dict(sorted(entries.items())),
+        "side_incremental_pnl_usd": {
+            side: _fmt(value)
+            for side, value in sorted(by_side.items())
+        },
+        "side_reinvestment_entries": dict(sorted(side_entries.items())),
     }
 
 
@@ -738,12 +773,27 @@ def _surface(
     rows: tuple[dict[str, Any], ...],
     *,
     shared: bool,
+    eligible_sides: tuple[str, ...] = (ELIGIBLE_SIDE,),
+    max_capital_need_to_current_capital_ratio: Decimal = (
+        MAX_CAPITAL_NEED_TO_CURRENT_CAPITAL_RATIO
+    ),
 ) -> dict[str, Any]:
     label = "COMPOUND_PORTFOLIO" if shared else "CIBO_COMPOUND"
-    episodes = _simulate_observed(rows, shared=shared)
+    episodes = _simulate_observed(
+        rows,
+        shared=shared,
+        eligible_sides=eligible_sides,
+        max_capital_need_to_current_capital_ratio=(
+            max_capital_need_to_current_capital_ratio
+        ),
+    )
     return {
         "surface": label,
         "trigger": "CAUSALLY_PRIOR_PROTECTED_REALIZED_CAPITAL_ONLY",
+        "eligible_sides": list(eligible_sides),
+        "max_capital_need_to_current_capital_ratio": _fmt(
+            max_capital_need_to_current_capital_ratio
+        ),
         "observed": _metrics(episodes, label=label),
         "walk_forward": _walk_forward(episodes, label=label),
         "monte_carlo": _block_bootstrap(episodes, label=label),
