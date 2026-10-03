@@ -663,6 +663,40 @@ def main() -> int:
         json.dumps(decision_trace, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
+    capital_science_io = {
+        "schema": "qore.cibo.capital-science.per-call-io.v1",
+        "lane": "COMPOUND_PORTFOLIO_ACCOUNT_1X",
+        "calls": list(compound_portfolio.capital_science_receipts),
+        "summary": list(compound_portfolio.function_accountability),
+        "call_count": len(compound_portfolio.capital_science_receipts),
+        "functions": sorted(
+            {
+                str(row["function_code"])
+                for row in compound_portfolio.capital_science_receipts
+            }
+        ),
+        "all_calls_have_input_output": all(
+            isinstance(row.get("input_payload"), dict)
+            and bool(row["input_payload"])
+            and isinstance(row.get("output_payload"), dict)
+            and bool(row["output_payload"])
+            for row in compound_portfolio.capital_science_receipts
+        ),
+        "governance": {
+            "outcome_aware_tuning": False,
+            "broker_mutation": False,
+            "live": False,
+            "real_capital": False,
+            "production": False,
+            "certification_claimed": False,
+        },
+    }
+    if not capital_science_io["all_calls_have_input_output"]:
+        raise ValueError("Capital Science per-call input/output telemetry is incomplete")
+    (args.output_dir / "capital-science-per-call-io.json").write_text(
+        json.dumps(capital_science_io, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
     print(json.dumps({
         "seven_of_seven_participation_pass": participation_pass,
         "all_trader_core_ending_capital_usd": format(
@@ -691,6 +725,12 @@ def main() -> int:
             coverage["full_stack_runtime_coverage_complete"]
         ),
         "decision_trace_sha256": decision_trace["trace_sha256"],
+        "capital_science_call_count": len(
+            compound_portfolio.capital_science_receipts
+        ),
+        "capital_science_all_calls_have_input_output": (
+            capital_science_io["all_calls_have_input_output"]
+        ),
     }, sort_keys=True))
     return 0
 
