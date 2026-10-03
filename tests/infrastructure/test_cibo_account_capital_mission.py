@@ -313,3 +313,19 @@ def test_action_authority_never_hides_engine_availability() -> None:
     assert actionable.issubset(available)
     assert "T06" in available
 
+def test_test_validation_can_execute_every_implemented_engine() -> None:
+    policy = derive_cibo_capital_mission(
+        CiboAccountCapitalIdentity(
+            provider_key="validation",
+            account_ref="test-any",
+            environment=MarketRuntimeEnvironment.TEST,
+        )
+    )
+
+    assert policy.allow_research_tool_execution is True
+    assert policy.allow_multi_tool_experiments is True
+    assert policy.allow_original_base_capital_reallocation is True
+    assert eligible_ce2i_tool_codes_for_mission(policy) == tuple(
+        f"T{index:02d}" for index in range(1, 21)
+    )
+
