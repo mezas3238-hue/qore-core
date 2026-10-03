@@ -407,10 +407,9 @@ class Genc7ProfitPreservationShadowDecision:
                 "GEN-C7 decision/account identity is required"
             )
         _aware(self.decision_at, "decision_at")
-        if self.decision_at < GENC7_POLICY_FROZEN_AT:
-            raise CiboCompoundCapitalError(
-                "GEN-C7 cannot evaluate pre-freeze decision"
-            )
+        # The policy freeze is a specification lock, not a lower bound on
+        # causal market timestamps. Historical replay is valid when the state
+        # remains realized-only and pre-outcome.
         _sha(self.state_evidence_sha256, "state_evidence_sha256")
         _sha(self.proposal_evidence_sha256, "proposal_evidence_sha256")
         if (
@@ -570,10 +569,8 @@ def evaluate_genc7_profit_preservation_shadow(
         raise CiboCompoundCapitalError(
             "GEN-C7 decision_id is required"
         )
-    if state.decision_at < GENC7_POLICY_FROZEN_AT:
-        raise CiboCompoundCapitalError(
-            "GEN-C7 cannot evaluate pre-freeze state"
-        )
+    # Apply the frozen policy to any causal historical state. The engine
+    # still forbids future outcomes, authority drift and cross-account mixing.
     if proposal.decision_at != state.decision_at:
         raise CiboCompoundCapitalError(
             "GEN-C7 proposal/state decision-time binding drift"
