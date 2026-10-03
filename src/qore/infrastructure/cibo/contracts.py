@@ -163,20 +163,67 @@ def _validate_evidence_refs(
     return tuple(sorted(values, key=lambda item: item.value))
 
 
+def _validate_trader_lab_pass_receipts(
+    values: tuple[object, ...],
+    *,
+    as_of: datetime,
+) -> tuple[object, ...]:
+    """Validate external Trader Lab PASS receipts without creating an import cycle."""
+
+    if not isinstance(values, tuple):
+        raise CiboFunctionalValidationError(
+            "Trader Lab PASS receipts must be an immutable tuple"
+        )
+    from qore.infrastructure.trader_lab.cibo_functional_receipt import (
+        TraderLabCiboFunctionPassReceipt,
+        validate_trader_lab_cibo_function_pass_receipt,
+    )
+
+    normalized: dict[str, TraderLabCiboFunctionPassReceipt] = {}
+    for receipt in values:
+        if type(receipt) is not TraderLabCiboFunctionPassReceipt:
+            raise CiboFunctionalValidationError(
+                "functional evidence accepts only exact Trader Lab PASS receipts"
+            )
+        try:
+            validate_trader_lab_cibo_function_pass_receipt(receipt)
+        except Exception as error:
+            raise CiboFunctionalValidationError(
+                "invalid Trader Lab PASS receipt"
+            ) from error
+        if receipt.approved_at > as_of:
+            raise CiboFunctionalValidationError(
+                "Trader Lab PASS receipt cannot postdate functional evidence as_of"
+            )
+        existing = normalized.get(receipt.receipt_sha256)
+        if existing is not None and existing.logical_values() != receipt.logical_values():
+            raise CiboFunctionalValidationError(
+                "duplicate Trader Lab PASS fingerprint with differing material"
+            )
+        normalized[receipt.receipt_sha256] = receipt
+    return tuple(
+        sorted(
+            normalized.values(),
+            key=lambda item: (
+                item.candidate.fingerprint.value,
+                item.function.value,
+                item.receipt_sha256,
+            ),
+        )
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class CiboFunctionalEvidence:
-    """Explicit evidence assessment bound to refs, freshness, and authority dependency.
+    """Evidence assessment with an external Trader-Lab authority seam.
 
-    ``SUFFICIENT`` is the only status under which a downstream functional step may
-    treat a fact as authoritative, and it requires an external authority-rooted
-    receipt. CIBO Functions are not certification authorities and expose no such
-    receipt, so ``CiboFunctionalEvidence`` refuses to construct SUFFICIENT: a caller
-    can never manufacture governed sufficiency. Every evidence-bearing conclusion
-    is instead ``EVIDENCE_DEPENDENT`` (explicit dependency kind + seam reasons) or a
-    fail-closed negative status.
+    CIBO still cannot self-certify. SUFFICIENT is constructible only when at
+    least one sealed Trader Lab PASS receipt is supplied and revalidated. A plain
+    ref, UUID, timestamp, public value record, or CIBO-produced object can never
+    manufacture sufficiency.
 
-    Temporal provenance is enforced here: evidence is assessed at an explicit
-    timezone-aware ``as_of`` instant; no hidden clock is ever consulted.
+    Owner authority remains above Trader Lab; this type only models the technical
+    Trader-Lab to CIBO evidence boundary.
     """
 
     status: CiboEvidenceStatus
@@ -184,20 +231,12 @@ class CiboFunctionalEvidence:
     as_of: datetime
     dependency_kind: CiboGovernedEvidenceKind | None = None
     reasons: tuple[str, ...] = ()
+    trader_lab_pass_receipts: tuple[object, ...] = ()
 
     def __post_init__(self) -> None:
-        # Exact runtime enum type: no StrEnum subclass / value-equal laundering.
         if type(self.status) is not CiboEvidenceStatus:
             raise CiboFunctionalValidationError(
                 "functional evidence requires exact CiboEvidenceStatus"
-            )
-        # Authority-root law: CIBO is not a certification authority, so it cannot
-        # manufacture SUFFICIENT governed evidence.
-        if self.status is CiboEvidenceStatus.SUFFICIENT:
-            raise CiboFunctionalValidationError(
-                "CIBO functions are not certification authorities; SUFFICIENT "
-                "requires an external authority-rooted receipt that CIBO cannot "
-                "manufacture"
             )
         object.__setattr__(
             self,
@@ -218,19 +257,49 @@ class CiboFunctionalEvidence:
             "reasons",
             _validate_codes(self.reasons, field_name="evidence reasons"),
         )
-        if self.status is CiboEvidenceStatus.EVIDENCE_DEPENDENT:
-            if self.dependency_kind is None:
+        receipts = _validate_trader_lab_pass_receipts(
+            self.trader_lab_pass_receipts,
+            as_of=self.as_of,
+        )
+        object.__setattr__(self, "trader_lab_pass_receipts", receipts)
+
+        if self.status is CiboEvidenceStatus.SUFFICIENT:
+            if not receipts:
                 raise CiboFunctionalValidationError(
-                    "evidence-dependent evidence requires an explicit dependency kind"
+                    "SUFFICIENT requires a sealed Trader Lab PASS receipt"
                 )
-            if not self.reasons:
+            if self.dependency_kind is not None:
                 raise CiboFunctionalValidationError(
-                    "evidence-dependent evidence requires an explicit seam reason"
+                    "SUFFICIENT evidence cannot carry an unresolved dependency kind"
                 )
-        elif self.dependency_kind is not None:
-            raise CiboFunctionalValidationError(
-                "dependency kind is only valid for evidence-dependent evidence"
-            )
+            if self.reasons:
+                raise CiboFunctionalValidationError(
+                    "SUFFICIENT evidence cannot carry unresolved seam reasons"
+                )
+            receipt_refs = {receipt.evidence_ref for receipt in receipts}
+            if not receipt_refs.issubset(set(self.evidence_refs)):
+                raise CiboFunctionalValidationError(
+                    "SUFFICIENT evidence refs must include every Trader Lab PASS receipt"
+                )
+        else:
+            if receipts:
+                raise CiboFunctionalValidationError(
+                    "Trader Lab PASS receipts are only valid with SUFFICIENT evidence"
+                )
+            if self.status is CiboEvidenceStatus.EVIDENCE_DEPENDENT:
+                if self.dependency_kind is None:
+                    raise CiboFunctionalValidationError(
+                        "evidence-dependent evidence requires an explicit dependency kind"
+                    )
+                if not self.reasons:
+                    raise CiboFunctionalValidationError(
+                        "evidence-dependent evidence requires an explicit seam reason"
+                    )
+            elif self.dependency_kind is not None:
+                raise CiboFunctionalValidationError(
+                    "dependency kind is only valid for evidence-dependent evidence"
+                )
+
         if (
             self.status is not CiboEvidenceStatus.CONTRADICTORY
             and not self.evidence_refs
@@ -247,6 +316,10 @@ class CiboFunctionalEvidence:
             self.as_of.isoformat(),
             None if self.dependency_kind is None else self.dependency_kind.value,
             self.reasons,
+            tuple(
+                receipt.logical_values()
+                for receipt in self.trader_lab_pass_receipts
+            ),
         )
 
 
@@ -255,13 +328,11 @@ def synthesize_evidence(
     *,
     as_of: datetime,
 ) -> CiboFunctionalEvidence:
-    """Deterministically reduce a set of evidence assessments to one conclusion.
+    """Reduce evidence while preserving external Trader Lab authority.
 
-    Every nested assessment is reconstructed (recursively revalidated) before its
-    status, refs, and dependency are consumed, so reflective corruption or
-    malformed nested material fails closed instead of being trusted. Contradiction
-    dominates; then stale/evidence-dependent/missing/insufficient. SUFFICIENT is
-    never synthesized because a CIBO Function cannot manufacture it.
+    Negative or blocked evidence dominates. SUFFICIENT is synthesized only when
+    every input is already SUFFICIENT and every carried Trader Lab PASS receipt
+    revalidates. CIBO combines external approval; it never manufactures approval.
     """
 
     if not isinstance(assessments, tuple) or any(
@@ -277,6 +348,7 @@ def synthesize_evidence(
             as_of=item.as_of,
             dependency_kind=item.dependency_kind,
             reasons=item.reasons,
+            trader_lab_pass_receipts=item.trader_lab_pass_receipts,
         )
         for item in assessments
     )
@@ -295,11 +367,8 @@ def synthesize_evidence(
     elif not assessments:
         status = CiboEvidenceStatus.MISSING
     else:
-        # Unreachable: a non-empty assessment set without any negative status would
-        # be all-SUFFICIENT, which a CIBO Function cannot manufacture.
-        raise CiboFunctionalValidationError(
-            "synthesize_evidence cannot conclude SUFFICIENT without an authority root"
-        )
+        status = CiboEvidenceStatus.SUFFICIENT
+
     dependency_kind: CiboGovernedEvidenceKind | None = None
     if status is CiboEvidenceStatus.EVIDENCE_DEPENDENT:
         kinds = {
@@ -313,6 +382,7 @@ def synthesize_evidence(
                 "dependency kind"
             )
         dependency_kind = next(iter(kinds))
+
     refs = tuple(
         sorted(
             {ref for item in revalidated for ref in item.evidence_refs},
@@ -322,10 +392,30 @@ def synthesize_evidence(
     reasons = tuple(
         sorted({reason for item in revalidated for reason in item.reasons})
     )
+    receipts: tuple[object, ...] = ()
+    if status is CiboEvidenceStatus.SUFFICIENT:
+        by_fingerprint = {
+            receipt.receipt_sha256: receipt
+            for item in revalidated
+            for receipt in item.trader_lab_pass_receipts
+        }
+        receipts = tuple(
+            sorted(
+                by_fingerprint.values(),
+                key=lambda item: (
+                    item.candidate.fingerprint.value,
+                    item.function.value,
+                    item.receipt_sha256,
+                ),
+            )
+        )
+        reasons = ()
+
     return CiboFunctionalEvidence(
         status=status,
         evidence_refs=refs,
         as_of=as_of,
         dependency_kind=dependency_kind,
         reasons=reasons,
+        trader_lab_pass_receipts=receipts,
     )
