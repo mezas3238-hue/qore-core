@@ -188,14 +188,65 @@ def evaluate_candidate(candidate: dict[str, Any]) -> CandidateGateResult:
         failed.append("PORTFOLIO_VALUE_ADD")
     if _decimal(m["final_ending_capital_usd"], "ending capital") <= 60:
         failed.append("ENDING_CAPITAL")
+    if m.get("full_battery_complete") is not True:
+        failed.append("FULL_SCIENTIFIC_BATTERY")
+    scientific_battery = m.get("scientific_battery")
+    if not isinstance(scientific_battery, dict):
+        raise ThreeHoldoutResearchError("scientific battery missing")
+    required_battery_lanes = (
+        "CORE",
+        "COMPOUND_INCREMENTAL",
+        "COMPOUND_TOTAL",
+        "COMPOUND_PORTFOLIO_INCREMENTAL",
+        "COMPOUND_PORTFOLIO_TOTAL",
+    )
+    if tuple(scientific_battery) != required_battery_lanes:
+        failed.append("SCIENTIFIC_BATTERY_LANE_SURFACE")
+    else:
+        for lane_name in required_battery_lanes:
+            lane = scientific_battery[lane_name]
+            if not isinstance(lane, dict):
+                raise ThreeHoldoutResearchError(
+                    f"{lane_name}: scientific battery lane missing"
+                )
+            for key in (
+                "metrics",
+                "chronological_blocks",
+                "walk_forward",
+                "monte_carlo",
+                "stress",
+            ):
+                if key not in lane:
+                    failed.append(f"{lane_name}:{key.upper()}")
+
     if m.get("chronological_folds_all_positive") is not True:
         failed.append("CHRONOLOGICAL_FOLDS")
+
+    walk_forward = m.get("walk_forward")
+    if not isinstance(walk_forward, dict):
+        raise ThreeHoldoutResearchError("walk-forward report missing")
+    for fold_count in ("5", "6"):
+        row = walk_forward.get(fold_count)
+        if not isinstance(row, dict):
+            failed.append(f"WFO_{fold_count}_MISSING")
+        elif row.get("all_tests_positive") is not True:
+            failed.append(f"WFO_{fold_count}")
+
     if _decimal(mc["median_pnl_usd"], "MC median") <= 0:
         failed.append("MC_MEDIAN")
     if _decimal(mc["p05_pnl_usd"], "MC p05") <= 0:
         failed.append("MC_P05")
     if _decimal(stress["provider_cost_x2_pnl_usd"], "provider cost x2") <= 0:
         failed.append("PROVIDER_COST_X2")
+    if _decimal(
+        stress["slippage_plus_100pct_provider_cost_pnl_usd"],
+        "slippage plus 100pct provider cost",
+    ) <= 0:
+        failed.append("SLIPPAGE_STRESS")
+    if _decimal(stress["remove_best_1_pnl_usd"], "remove best 1") <= 0:
+        failed.append("REMOVE_BEST_1")
+    if _decimal(stress["remove_best_2_pnl_usd"], "remove best 2") <= 0:
+        failed.append("REMOVE_BEST_2")
     if _decimal(stress["remove_best_3_pnl_usd"], "remove best 3") <= 0:
         failed.append("REMOVE_BEST_3")
     if int(m.get("protected_capital_breaches", -1)) != 0:
