@@ -9,6 +9,7 @@ on:
       - 'scripts/cibo_t02_three_lane_capital_lab_arch2.py'
       - 'scripts/cibo_phase22_reused_context_map.py'
       - 'src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py'
+      - 'src/qore/infrastructure/cibo_universal_capital_science_registry.py'
       - 'src/qore/infrastructure/cibo_phase22_fresh_opportunity_batch.py'
       - 'docs/research/CIBO-T02-THREE-LANE-CAPITAL-LAB-ARCH2-PROTOCOL.json'
   workflow_dispatch:
@@ -169,7 +170,16 @@ jobs:
           oldp=old['all_trader_cibo_compound_portfolio']
           newp=new['all_trader_cibo_compound_portfolio']
           for key,value in oldp.items():
+              if key == 'function_accountability':
+                  continue
               assert newp[key] == value, (key,newp.get(key),value)
+          functions=newp['function_accountability']
+          assert [row['function_code'] for row in functions] == [
+              f'GEN-C{i}' for i in range(1,15)
+          ]
+          assert all(row['universal_contract'] is True for row in functions)
+          assert all(row['identity_predicate_used'] is False for row in functions)
+          assert all(row['status'] != 'NOT_INTEGRATED' for row in functions)
           local=new['all_trader_cibo_compound']
           assert local['pool_scope'] == 'TRADER_LOCAL'
           assert local['cross_trader_compound_deployments'] == 0
