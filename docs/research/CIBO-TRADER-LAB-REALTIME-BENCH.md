@@ -61,6 +61,18 @@ consumed by the canonical historical-regime loader.
 
 ## Commands
 
+Run the bench's own workflow-independent self-test:
+
+```bash
+python scripts/cibo_trader_lab_realtime_bench.py \
+  --config docs/research/CIBO-TRADER-LAB-REALTIME-BENCH-CONFIG.json \
+  selftest
+```
+
+The self-test does not execute market evidence. It validates the local runner,
+event persistence, three-way parallel topology and the absence of GitHub,
+Actions or broker commands from the execution path.
+
 Validate all local dependencies:
 
 ```bash
