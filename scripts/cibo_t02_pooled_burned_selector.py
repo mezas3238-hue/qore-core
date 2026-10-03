@@ -16,10 +16,10 @@ import json
 import math
 import random
 import zipfile
-from collections import Counter
 from decimal import Decimal
 from pathlib import Path
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from qore.infrastructure.account_wide_risk import TraderLineage
 from qore.infrastructure.cibo_ce2i_phase20_train_prior import (
