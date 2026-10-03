@@ -25,12 +25,12 @@ jobs:
       GBPUSD_ARTIFACT_ID: '11256465614'
       GBPJPY_ARTIFACT_ID: '11255244229'
       AUDJPY_ARTIFACT_ID: '11256249712'
-      GH_TOKEN: \${{ github.token }}
+      GH_TOKEN: ${{ github.token }}
 
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: \${{ github.sha }}
+          ref: ${{ github.sha }}
 
       - uses: actions/setup-python@v5
         with:
@@ -71,8 +71,8 @@ jobs:
             "$GBPJPY_ARTIFACT_ID:gbpjpy" \
             "$AUDJPY_ARTIFACT_ID:audjpy"
           do
-            id="\${pair%%:*}"
-            name="\${pair##*:}"
+            id="${pair%%:*}"
+            name="${pair##*:}"
             mkdir -p "$RUNNER_TEMP/native/$name"
             gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$id/zip" \
               > "$RUNNER_TEMP/$name.zip"
@@ -153,7 +153,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: qore-cibo-t02-deep-science-arch2-\${{ github.run_id }}
-          path: \${{ runner.temp }}/t02-arch2
+          name: qore-cibo-t02-deep-science-arch2-${{ github.run_id }}
+          path: ${{ runner.temp }}/t02-arch2
           if-no-files-found: error
           retention-days: 90
