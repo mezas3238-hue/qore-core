@@ -17,10 +17,21 @@ LIVE, Production, real-capital, certification, or merge authority.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from decimal import Decimal
+from decimal import ROUND_HALF_EVEN, Decimal, localcontext
 from enum import StrEnum
 
 from qore.infrastructure.cibo_compound_capital import CiboCompoundCapitalError
+
+COMPOUND_CONSTANT_QUANTUM = Decimal("0.000000000001")
+
+
+def _constant_ratio(output: Decimal, source: Decimal) -> Decimal:
+    with localcontext() as context:
+        context.prec = 80
+        return (output / source).quantize(
+            COMPOUND_CONSTANT_QUANTUM,
+            rounding=ROUND_HALF_EVEN,
+        )
 
 
 class CompoundConstantSystem(StrEnum):
@@ -56,7 +67,10 @@ class CompoundConstantObservation:
 
     @property
     def constant(self) -> Decimal:
-        return self.useful_output_capital_usd / self.source_capital_usd
+        return _constant_ratio(
+            self.useful_output_capital_usd,
+            self.source_capital_usd,
+        )
 
     def logical_values(self) -> tuple[object, ...]:
         return (
@@ -113,7 +127,7 @@ class CompoundConstantSummary:
             (item.useful_output_capital_usd for item in self.observations),
             Decimal(0),
         )
-        expected_weighted = expected_output / expected_source
+        expected_weighted = _constant_ratio(expected_output, expected_source)
         if self.minimum_constant != expected_min:
             raise CiboCompoundCapitalError("compound constant minimum identity drift")
         if self.maximum_constant != expected_max:
@@ -185,7 +199,7 @@ def summarize_compound_constants(
     maximum = max(item.constant for item in ordered)
     source = sum((item.source_capital_usd for item in ordered), Decimal(0))
     output = sum((item.useful_output_capital_usd for item in ordered), Decimal(0))
-    weighted = output / source
+    weighted = _constant_ratio(output, source)
     return CompoundConstantSummary(
         system=system,
         observations=ordered,
