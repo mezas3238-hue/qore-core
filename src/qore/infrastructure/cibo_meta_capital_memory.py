@@ -19,7 +19,10 @@ from decimal import Decimal
 from enum import StrEnum
 from uuid import NAMESPACE_URL, uuid5
 
-from qore.infrastructure.account_wide_risk import TraderLineage
+from qore.infrastructure.account_wide_risk import (
+    TraderIdentity,
+    canonical_trader_identity,
+)
 from qore.infrastructure.cibo_account_capital_mission import (
     CiboAccountCapitalIdentity,
 )
@@ -114,7 +117,7 @@ def _nonnegative(value: Decimal, name: str) -> None:
 class Genc13CapitalEpisode:
     episode_id: str
     account_identity: CiboAccountCapitalIdentity
-    trader_id: TraderLineage
+    trader_id: TraderIdentity
     decision_id: str
     decision_sha256: str
     decision_at: datetime
@@ -144,7 +147,7 @@ class Genc13CapitalEpisode:
             raise CiboCapitalManagementError(
                 "GEN-C13 episode account identity is invalid"
             )
-        if type(self.trader_id) is not TraderLineage:
+        if type(self.trader_id) is not TraderIdentity:
             raise CiboCapitalManagementError(
                 "GEN-C13 episode Trader lineage is invalid"
             )
@@ -201,7 +204,7 @@ class Genc13CapitalEpisode:
                 "environment": self.account_identity.environment.value,
                 "provider_program": self.account_identity.provider_program,
             },
-            "trader_id": self.trader_id.value,
+            "trader_id": canonical_trader_identity(self.trader_id),
             "decision_id": self.decision_id,
             "decision_sha256": self.decision_sha256,
             "decision_at": self.decision_at.isoformat(),
