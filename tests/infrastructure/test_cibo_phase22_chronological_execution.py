@@ -257,7 +257,8 @@ def test_regime_evidence_must_cover_exact_epoch_surface() -> None:
         raise AssertionError("missing regime evidence must fail closed")
 
 
-def test_compound_portfolio_lane_executes_realized_profit_path_without_risk_state_duplication() -> None:
+def test_compound_portfolio_lane_executes_realized_profit_path_without_risk_state_duplication(
+) -> None:
     replay, regimes = _execution_inputs(gross_r=Decimal("100"))
     core = execute_phase22_chronological_replay(
         plan=replay,
