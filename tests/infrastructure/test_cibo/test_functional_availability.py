@@ -3,8 +3,8 @@ from __future__ import annotations
 import pytest
 
 from qore.infrastructure.cibo.functional_availability import (
-    CiboFunctionAvailabilityState,
     cibo_function_availability,
+    CiboFunctionAvailabilityState,
 )
 from qore.infrastructure.trader_lab import cibo_functional_receipt
 
