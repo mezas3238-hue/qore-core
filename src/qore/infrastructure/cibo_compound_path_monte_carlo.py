@@ -21,6 +21,7 @@ from decimal import Decimal
 from qore.infrastructure.account_wide_risk import (
     TraderIdentity,
     canonical_trader_identity,
+    canonical_trader_lineage,
 )
 from qore.infrastructure.cibo_compound_capital import CiboCompoundCapitalError
 from qore.infrastructure.cibo_compound_cycle_state import CiboCompoundCycleState
@@ -122,7 +123,11 @@ class CompoundMonteCarloEpisode:
                 raise CiboCompoundCapitalError(
                     f"compound Monte Carlo episode {name} is required"
                 )
-        canonical_trader_identity(self.trader_id)
+        object.__setattr__(
+            self,
+            "trader_id",
+            canonical_trader_lineage(self.trader_id),
+        )
         _aware(self.deployed_at, "episode deployed_at")
         _aware(self.settled_at, "episode settled_at")
         if self.settled_at <= self.deployed_at:
