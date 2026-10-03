@@ -232,6 +232,7 @@ class CompoundPortfolioLaneResult:
     noncertifying_research_redeploy_enabled: bool = False
     protected_reinvestment_policy_id: str = ""
     pool_scope: str = POOL_SCOPE_ACCOUNT
+    seed_multiplier: Decimal = Decimal("1")
     lane_id: str = LANE_ID
     same_core_selection_surface: bool = True
     realized_profit_only: bool = True
@@ -281,6 +282,15 @@ class CompoundPortfolioLaneResult:
         if self.pool_scope == POOL_SCOPE_TRADER_LOCAL and self.cross_trader_compound_deployments:
             raise CiboCapitalManagementError(
                 "trader-local compound cannot report cross-Trader deployment"
+            )
+        if (
+            not isinstance(self.seed_multiplier, Decimal)
+            or not self.seed_multiplier.is_finite()
+            or self.seed_multiplier < 1
+            or self.seed_multiplier != self.seed_multiplier.to_integral_value()
+        ):
+            raise CiboCapitalManagementError(
+                "compound seed multiplier must be finite integer Decimal >= 1"
             )
         if not all(
             (
@@ -347,6 +357,7 @@ class CompoundPortfolioLaneResult:
                 self.protected_reinvestment_policy_id
             ),
             "pool_scope": self.pool_scope,
+            "seed_multiplier": format(self.seed_multiplier, "f"),
             "same_core_selection_surface": self.same_core_selection_surface,
             "realized_profit_only": self.realized_profit_only,
             "floating_pnl_used_as_funding": self.floating_pnl_used_as_funding,
@@ -372,6 +383,7 @@ def run_compound_portfolio_lane(
         CompoundResearchRedeployAuthorization, ...
     ] = (),
     lab_pool_scope: str = POOL_SCOPE_ACCOUNT,
+    lab_seed_multiplier: Decimal = Decimal("1"),
 ) -> CompoundPortfolioLaneResult:
     """Add causal profit-funded seeds without changing Core policy selection."""
 
@@ -389,6 +401,15 @@ def run_compound_portfolio_lane(
         )
     if lab_pool_scope not in {POOL_SCOPE_ACCOUNT, POOL_SCOPE_TRADER_LOCAL}:
         raise CiboCapitalManagementError("lab_pool_scope is invalid")
+    if (
+        not isinstance(lab_seed_multiplier, Decimal)
+        or not lab_seed_multiplier.is_finite()
+        or lab_seed_multiplier < 1
+        or lab_seed_multiplier != lab_seed_multiplier.to_integral_value()
+    ):
+        raise CiboCapitalManagementError(
+            "lab_seed_multiplier must be finite integer Decimal >= 1"
+        )
     if any(
         not isinstance(item, CompoundRedeployAuthorization)
         for item in redeploy_authorizations
@@ -590,7 +611,11 @@ def run_compound_portfolio_lane(
                     continue
             candidate = by_signal[signal]
             opportunity = candidate.projection.candidate.capital_input.opportunity
-            volume = minimum_seed_volume(opportunity)
+            volume = minimum_seed_volume(opportunity) * lab_seed_multiplier
+            if volume > opportunity.maximum_volume:
+                blockers["SHADOW_SEED_MULTIPLIER_EXCEEDS_MAXIMUM_VOLUME"] += 1
+                rejected += 1
+                continue
             risk = volume * opportunity.stop_loss_per_volume
             margin = volume * opportunity.margin_per_volume
             cost = (
@@ -920,6 +945,7 @@ def run_compound_portfolio_lane(
         ),
         protected_reinvestment_policy_id=POLICY_ID,
         pool_scope=lab_pool_scope,
+        seed_multiplier=lab_seed_multiplier,
         lane_id=(
             "FULL_CIBO_COMPOUND"
             if lab_pool_scope == POOL_SCOPE_TRADER_LOCAL
