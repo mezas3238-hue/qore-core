@@ -38,7 +38,7 @@ import random
 from collections import defaultdict
 from dataclasses import asdict, dataclass, replace
 from datetime import datetime
-from decimal import ROUND_CEILING, Decimal
+from decimal import Decimal, ROUND_CEILING
 from pathlib import Path
 from typing import Any
 
