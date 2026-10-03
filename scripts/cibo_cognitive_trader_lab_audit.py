@@ -1036,7 +1036,14 @@ class Audit:
         self.record(
             ctx,
             PHASES[13],
-            _token(ctx.phase_tokens[PHASES[12]], record.logical_values()),
+            _token(
+                ctx.phase_tokens[PHASES[12]],
+                str(record.record_id),
+                record.decision_time.isoformat(),
+                record.actual_result_reference.reference,
+                record.actual_result_reference.observed_at.isoformat(),
+                record.error_attribution,
+            ),
             {
                 "decision_time": decision_time.isoformat(),
                 "outcome_time": observed_at.isoformat(),
