@@ -10,8 +10,10 @@ on:
       - 'scripts/cibo_full_function_trader_lab_audit.py'
       - 'src/qore/infrastructure/cibo_compound_*.py'
       - 'src/qore/infrastructure/cibo_core_compound_portfolio.py'
+      - 'src/qore/infrastructure/cibo_compound_constant_statistics.py'
       - 'src/qore/infrastructure/trader_lab/cibo_functional_receipt.py'
       - 'tests/infrastructure/test_cibo_compound_real_population_binding.py'
+      - 'tests/infrastructure/test_cibo_compound_constant_statistics.py'
   workflow_dispatch:
 
 permissions:
@@ -41,9 +43,11 @@ jobs:
           gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$SOURCE_ARTIFACT_ID/zip" > "$RUNNER_TEMP/source.zip"
           unzip -q "$RUNNER_TEMP/source.zip" -d "$RUNNER_TEMP/source"
           test -s "$RUNNER_TEMP/source/decision-trace.json"
-      - name: Revalidate burned-research boundary
+      - name: Revalidate burned-research boundary and exact constant math
         run: |
-          pytest -q --no-cov tests/infrastructure/test_cibo_compound_real_population_binding.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_compound_real_population_binding.py \
+            tests/infrastructure/test_cibo_compound_constant_statistics.py
       - name: Execute CF01-CF20 prerequisite then CC01-CC09
         run: |
           set -euo pipefail
@@ -53,12 +57,24 @@ jobs:
         run: |
           python - <<'PY'
           import json, os
+          from decimal import Decimal
           from pathlib import Path
           p=json.loads((Path(os.environ['RUNNER_TEMP'])/'compound-trader-lab'/'audit.json').read_text())
           assert p['candidate_count'] == 7
           assert p['compound_gate_count'] == 9
           assert p['all_cc01_cc09_pass'] is True
           assert p['next_stage_unlocked'] == 'CC10_TEMPORAL_REPLICATION_TRADER_LAB'
+          stats = p['compound_constant_summary']
+          assert stats['system'] == 'CIBO_COMPOUND'
+          assert stats['observation_count'] == 7
+          assert stats['descriptive_only'] is True
+          assert stats['runtime_authority'] is False
+          mn = Decimal(stats['minimum_constant'])
+          mx = Decimal(stats['maximum_constant'])
+          wa = Decimal(stats['weighted_average_constant'])
+          assert Decimal('0') <= mn <= wa <= mx
+          assert Decimal(stats['total_source_capital_usd']) > 0
+          assert Decimal(stats['total_useful_output_capital_usd']) >= 0
           assert p['governance']['burned_research'] is True
           assert p['governance']['forward_observed_claimed'] is False
           assert p['governance']['certification_claimed'] is False
