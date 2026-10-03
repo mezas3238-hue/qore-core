@@ -1,8 +1,7 @@
-from decimal import Decimal
 from datetime import UTC, datetime
+from decimal import Decimal
 
 from qore.infrastructure import cibo_capital_science_runtime_bridge as runtime
-
 
 NOW = datetime(2026, 10, 3, 12, 0, tzinfo=UTC)
 
