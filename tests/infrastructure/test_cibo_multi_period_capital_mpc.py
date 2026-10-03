@@ -430,3 +430,68 @@ def test_genc11_rejects_ambiguous_bool_and_counter_types() -> None:
         match="plan oos_pass must be bool",
     ):
         replace(plan, oos_pass=0)
+
+def test_genc11_frozen_planner_accepts_historical_twin_and_worlds() -> None:
+    historical_at = datetime(2021, 1, 4, 12, 0, tzinfo=UTC)
+    option = Genc10KnownCapitalOption(
+        option_id="historical-a",
+        known_at=historical_at,
+        earliest_action_at=historical_at + timedelta(minutes=5),
+        expires_at=historical_at + timedelta(minutes=40),
+        requested_capital_usd=Decimal("5"),
+        stop_risk_usd=Decimal("1"),
+        margin_usd=Decimal("2"),
+        evidence_sha256="sha256:" + "c" * 64,
+    )
+    twin = replace(
+        _twin(),
+        captured_at=historical_at,
+        known_options=(option,),
+    )
+
+    def historical_path(path_id: str, kind: Genc10WorldKind) -> Genc11WorldPath:
+        steps = tuple(
+            Genc11WorldStep(
+                step_index=index,
+                projected_at=historical_at + timedelta(minutes=5 * index),
+                posture=CiboRegimePosture.STABLE,
+                scenario=Genc10WorldScenario(
+                    scenario_id=f"{path_id}-{index}",
+                    kind=kind,
+                    declared_at=historical_at,
+                    scenario_evidence_sha256="sha256:" + "d" * 64,
+                    transition_uncertainty_evidence_sha256="sha256:" + "e" * 64,
+                    surviving_known_option_ids=("historical-a",),
+                ),
+            )
+            for index in range(1, 3)
+        )
+        return Genc11WorldPath(
+            path_id=path_id,
+            world_kind=kind,
+            steps=steps,
+            factor_interaction_evidence_sha256="sha256:" + "f" * 64,
+            optionality_evidence_sha256="sha256:" + "1" * 64,
+            reserve_need_evidence_sha256="sha256:" + "2" * 64,
+        )
+
+    plan = plan_genc11_multi_period_capital(
+        plan_id="historical-plan",
+        twin=twin,
+        world_paths=(
+            historical_path("balanced-h", Genc10WorldKind.BALANCED),
+            historical_path("defensive-h", Genc10WorldKind.DEFENSIVE),
+        ),
+        option_schedules=(
+            Genc11KnownOptionSchedule(
+                option_id="historical-a",
+                decision_step=1,
+                schedule_evidence_sha256="sha256:" + "3" * 64,
+            ),
+        ),
+    )
+
+    assert plan.twin_id == twin.twin_id
+    assert plan.horizon_steps == 2
+    assert plan.oracle_arrivals_used is False
+
