@@ -19,6 +19,7 @@ from enum import StrEnum
 from qore.infrastructure.account_wide_risk import (
     TraderIdentity,
     canonical_trader_identity,
+    canonical_trader_lineage,
 )
 from qore.infrastructure.cibo_account_capital_mission import (
     CiboAccountCapitalIdentity,
@@ -77,7 +78,14 @@ class CompoundRealizedProfitEvidence:
             raise CiboCompoundCapitalError(
                 "compound evidence account identity is invalid"
             )
-        canonical_trader_identity(self.origin_trader, field_name="origin_trader")
+        object.__setattr__(
+            self,
+            "origin_trader",
+            canonical_trader_lineage(
+                self.origin_trader,
+                field_name="origin_trader",
+            ),
+        )
         if (
             not isinstance(self.position_id, int)
             or isinstance(self.position_id, bool)
@@ -174,7 +182,14 @@ class CompoundCapitalLot:
             raise CiboCompoundCapitalError(
                 "compound lot generation must be positive int"
             )
-        canonical_trader_identity(self.origin_trader, field_name="origin_trader")
+        object.__setattr__(
+            self,
+            "origin_trader",
+            canonical_trader_lineage(
+                self.origin_trader,
+                field_name="origin_trader",
+            ),
+        )
         if not self.origin_signal_fingerprint:
             raise CiboCompoundCapitalError(
                 "compound lot origin signal is required"
