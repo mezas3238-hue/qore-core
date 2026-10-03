@@ -70,6 +70,41 @@ TRADERS = (
     "VT31_NAS100",
 )
 GENC = tuple(f"GEN-C{i}" for i in range(1, 15))
+T02_RESEARCH_RULES = (
+    "NONE",
+    "H1_OPPOSED",
+    "H1_OPPOSED_M5_LOW",
+    "H1_OPPOSED_D1_OPPOSED",
+    "M5_LOW_REJECTION_Q3",
+)
+
+
+def _t02_research_filter(rule_id: str):
+    if rule_id not in T02_RESEARCH_RULES:
+        raise ValueError(f"unknown T02 research rule: {rule_id}")
+    if rule_id == "NONE":
+        return None
+
+    def allows(opportunity: Any, _decision_at: datetime) -> bool:
+        if rule_id == "H1_OPPOSED":
+            return opportunity.context_value("reg_h1_body_alignment") == "opposed"
+        if rule_id == "H1_OPPOSED_M5_LOW":
+            return (
+                opportunity.context_value("reg_h1_body_alignment") == "opposed"
+                and opportunity.context_value("reg_m5_efficiency_state") == "low"
+            )
+        if rule_id == "H1_OPPOSED_D1_OPPOSED":
+            return (
+                opportunity.context_value("reg_h1_body_alignment") == "opposed"
+                and opportunity.context_value("reg_d1_body_alignment") == "opposed"
+            )
+        return (
+            opportunity.context_value("reg_m5_efficiency_state") == "low"
+            and opportunity.context_value("ctx_rejection_wick_bucket")
+            == "q3:<=0.50"
+        )
+
+    return allows
 
 
 def _json_object(path: Path) -> dict[str, Any]:
@@ -376,6 +411,11 @@ def main() -> int:
     parser.add_argument("--batch", type=Path, required=True)
     parser.add_argument("--provider-numeric", type=Path, required=True)
     parser.add_argument("--context-map", type=Path)
+    parser.add_argument(
+        "--t02-research-rule",
+        choices=T02_RESEARCH_RULES,
+        default="NONE",
+    )
     parser.add_argument("--provider-numeric-freeze-sha256", required=True)
     parser.add_argument("--source-root", action="append", required=True)
     parser.add_argument("--replay-started-at", required=True)
@@ -448,6 +488,9 @@ def main() -> int:
         lab_allow_nonpositive_expectation=True,
         lab_cibo_free_tool_choice=True,
         lab_enable_t02_released_capacity=True,
+        lab_t02_research_admission_filter=_t02_research_filter(
+            args.t02_research_rule
+        ),
     )
     compound = run_compound_portfolio_lane(
         plan=plan,
@@ -501,6 +544,7 @@ def main() -> int:
         "replay_tool_eligibility_authority": False,
         "cibo_free_tool_choice": True,
         "compound_rational_redeploy_gate_preregistered": True,
+        "t02_research_rule": args.t02_research_rule,
         "causal_context_reconstruction": context_summary,
         "seven_of_seven_participation_pass": participation_pass,
         "baseline_minimal_seed": _canonical(baseline_metrics),
@@ -515,6 +559,8 @@ def main() -> int:
         "governance": {
             "trader_edge_changed": False,
             "outcome_aware_tuning": False,
+            "t02_runtime_policy_changed": False,
+            "t02_research_rule": args.t02_research_rule,
             "reused_context_map_applied": context_summary is not None,
             "qore_risk_sovereign": True,
             "broker_mutation": False,
