@@ -92,6 +92,37 @@ def build_cibo_profitability_decision_trace(
             "portfolio_decisions",
         )
         allocation_rows = _allocation_rows(policy_payload)
+        consultation = _object(
+            policy_payload.get("economic_consultation"),
+            "economic_consultation",
+        )
+        consulted_faculties = _string_tuple(
+            consultation.get("consulted_faculties"),
+            "consulted_faculties",
+        )
+        if len(consulted_faculties) != 19:
+            raise CiboCapitalManagementError(
+                "profitability trace requires exact runtime CF01-CF19 consultation"
+            )
+        economic_application = _object(
+            policy_payload.get("advanced_economic_application"),
+            "advanced_economic_application",
+        )
+        effective_candidates = {
+            _required_string(item.get("signal_fingerprint"), "signal_fingerprint"): item
+            for item in _list_of_objects(
+                economic_application.get("candidates", []),
+                "advanced economic candidates",
+            )
+        }
+        candidate_effects = _list_of_objects(
+            economic_application.get("candidate_effects", []),
+            "advanced candidate effects",
+        )
+        portfolio_effects = _list_of_objects(
+            economic_application.get("portfolio_effects", []),
+            "advanced portfolio effects",
+        )
 
         for raw_candidate in candidate_rows:
             candidate_row = _object(raw_candidate, "candidate row")
@@ -117,6 +148,16 @@ def build_cibo_profitability_decision_trace(
             settlement = settlements.get(key)
             release = releases.get(key)
             allocation = allocation_rows.get(signal)
+            effective_candidate = effective_candidates.get(signal)
+            if effective_candidate is None:
+                raise CiboCapitalManagementError(
+                    "profitability trace missing effective economic candidate"
+                )
+            signal_effects = [
+                item
+                for item in candidate_effects
+                if item.get("signal_fingerprint") == signal
+            ]
             selected = signal in policy.selected_signal_fingerprints
 
             if selected != (risk is not None):
@@ -163,15 +204,24 @@ def build_cibo_profitability_decision_trace(
                         "cf01_cf19_registered_in_separate_capability_exam": list(
                             _CF_CODES
                         ),
-                        "runtime_economic_consultation": "ABSENT",
-                        "runtime_consulted_faculties": [],
+                        "runtime_economic_consultation": "PRESENT",
+                        "runtime_consulted_faculties": list(consulted_faculties),
+                        "consultation_id": consultation.get("consultation_id"),
+                        "coordination_disposition": consultation.get(
+                            "coordination_disposition"
+                        ),
+                        "coordination_request_code": consultation.get(
+                            "coordination_request_code"
+                        ),
+                        "causal_predecision": consultation.get("causal_predecision"),
+                        "outcome_used": consultation.get("outcome_used"),
                         "executive_brain_invoked": False,
                         "mission_director_invoked": False,
-                        "functional_coordinator_invoked": False,
+                        "functional_coordinator_invoked": True,
                         "reason": (
-                            "Phase22 historical economic replay proceeds directly "
-                            "from frozen expectation to CE2I/MPC/allocator; the "
-                            "CF coverage receipt is a separate capability exam"
+                            "CF01-CF19 functional consultation is now a required "
+                            "predecision prerequisite before CE2I evaluation; the "
+                            "legacy executive brain remains quarantined"
                         ),
                     },
                     "expectation": candidate.get("expectation"),
@@ -183,7 +233,21 @@ def build_cibo_profitability_decision_trace(
                         ),
                         "portfolio_advanced_decisions": portfolio_decisions,
                         "evidence_transport": (
-                            "EMPTY_ADVANCED_PORTFOLIO_EVIDENCE"
+                            "CAUSAL_TIME_GUARDED_ADVANCED_EVIDENCE"
+                            if signal_effects or portfolio_effects
+                            else "EMPTY_OR_NONAUTHORIZED_ADVANCED_EVIDENCE"
+                        ),
+                        "candidate_economic_effects": signal_effects,
+                        "portfolio_economic_effects": portfolio_effects,
+                        "effective_hard_risk_headroom_usd": (
+                            economic_application.get(
+                                "effective_hard_risk_headroom_usd"
+                            )
+                        ),
+                        "effective_margin_headroom_usd": (
+                            economic_application.get(
+                                "effective_margin_headroom_usd"
+                            )
                         ),
                     },
                     "capital_science": {
@@ -197,10 +261,14 @@ def build_cibo_profitability_decision_trace(
                     },
                     "cma": {
                         "sizing_authority": "CIBO_CMA",
-                        "candidate_stop_risk_usd": candidate.get(
+                        "candidate_stop_risk_usd": effective_candidate.get(
                             "stop_risk_usd"
                         ),
-                        "candidate_margin_usd": candidate.get("margin_usd"),
+                        "candidate_margin_usd": effective_candidate.get(
+                            "margin_usd"
+                        ),
+                        "pre_ce2i_stop_risk_usd": candidate.get("stop_risk_usd"),
+                        "pre_ce2i_margin_usd": candidate.get("margin_usd"),
                         "risk_request_emitted": risk is not None,
                         "requested_stop_risk_usd": (
                             None
