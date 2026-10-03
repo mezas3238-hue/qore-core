@@ -872,17 +872,21 @@ def _native_genc5_inputs(
 ) -> tuple[AccountCoreCompoundPortfolio, MarginalCapitalUtilityEvidence, str] | None:
     """Materialize the canonical GEN-C1/C2/C4 contracts from causal state."""
 
-    profit_total = min(
-        state.realized_profit_pool_usd,
-        state.realized_capital_usd,
-    )
-    protected_profit = min(state.protected_capacity_usd, profit_total)
-    deployed_profit = min(
-        state.deployed_profit_usd,
-        profit_total - protected_profit,
-    )
-    deployable_profit = profit_total - protected_profit - deployed_profit
-    requested = state.requested_stop_risk_usd + state.provider_cost_usd
+    with localcontext() as context:
+        context.prec = 80
+        profit_total = min(
+            state.realized_profit_pool_usd,
+            state.realized_capital_usd,
+        )
+        protected_profit = min(state.protected_capacity_usd, profit_total)
+        unprotected_profit = profit_total - protected_profit
+        deployed_profit = min(
+            state.deployed_profit_usd,
+            unprotected_profit,
+        )
+        deployable_profit = unprotected_profit - deployed_profit
+        combined_compound_capacity = unprotected_profit
+        requested = state.requested_stop_risk_usd + state.provider_cost_usd
     if profit_total <= 0 or deployable_profit <= 0 or requested > deployable_profit:
         return None
 
@@ -955,7 +959,7 @@ def _native_genc5_inputs(
         ledger = ledger.transition(
             source_lot_id=source_id,
             to_state=CompoundCapitalState.COMPOUNDABLE,
-            amount_usd=deployable_profit + deployed_profit,
+            amount_usd=combined_compound_capacity,
             moved_lot_id=combined_id,
             event_id=f"genc5-compound-capacity-event-{prefix}",
             occurred_at=state.decision_at - timedelta(microseconds=3),

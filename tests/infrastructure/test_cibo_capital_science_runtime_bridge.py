@@ -373,3 +373,36 @@ def test_deployed_profit_is_conserved_and_excluded_from_new_compound_capacity() 
     assert genc5.native_engine_called is True
     assert genc5.consumer_action == "REQUEST_DOWNSTREAM_RISK_REVIEW"
     assert twin.output_payload["engine_output"]["deployed_profit_usd"] == "3"
+
+
+def test_high_precision_profit_partition_conserves_native_genc5_lineage() -> None:
+    directive = runtime.evaluate_capital_science_predecision(
+        _state(
+            realized_capital_usd=Decimal(
+                "72.123456789012345678901234567890123456"
+            ),
+            peak_realized_capital_usd=Decimal(
+                "75.123456789012345678901234567890123456"
+            ),
+            realized_profit_pool_usd=Decimal(
+                "12.123456789012345678901234567890123456"
+            ),
+            protected_capacity_usd=Decimal(
+                "2.111111111111111111111111111111111111"
+            ),
+            deployed_profit_usd=Decimal(
+                "3.222222222222222222222222222222222222"
+            ),
+        )
+    )
+    by_code = {item.function_code: item for item in directive.receipts}
+
+    assert by_code["GEN-C5"].native_engine_called is True
+    assert by_code["GEN-C10"].native_engine_called is True
+    assert directive.deployable_profit_usd == Decimal(
+        "6.790123455679012345567901234556790123"
+    )
+    assert (
+        by_code["GEN-C10"].output_payload["engine_output"]["deployed_profit_usd"]
+        == "3.222222222222222222222222222222222222"
+    )

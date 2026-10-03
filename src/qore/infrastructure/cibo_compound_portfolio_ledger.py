@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from datetime import datetime
-from decimal import Decimal
+from decimal import Decimal, localcontext
 from enum import StrEnum
 
 from qore.infrastructure.cibo_account_capital_mission import (
@@ -219,16 +219,14 @@ class CompoundPortfolioLedger:
             targets = tuple(
                 lots_by_id[item] for item in event.target_lot_ids
             )
-            if sum(
-                (item.amount_usd for item in sources),
-                Decimal(0),
+            if _exact_sum(
+                tuple(item.amount_usd for item in sources)
             ) != event.source_total_usd:
                 raise CiboCompoundCapitalError(
                     "compound event source total does not match source lots"
                 )
-            if sum(
-                (item.amount_usd for item in targets),
-                Decimal(0),
+            if _exact_sum(
+                tuple(item.amount_usd for item in targets)
             ) != event.target_total_usd:
                 raise CiboCompoundCapitalError(
                     "compound event target total does not match target lots"
@@ -253,18 +251,16 @@ class CompoundPortfolioLedger:
                     "compound event target ancestry does not bind source lot"
                 )
 
-        admitted = sum(
-            (
+        admitted = _exact_sum(
+            tuple(
                 event.target_total_usd
                 for event in self.events
                 if event.event_type
                 is CompoundPortfolioEventType.ADMIT_REALIZED_PROFIT
-            ),
-            Decimal(0),
+            )
         )
-        current_partition = sum(
-            (item.amount_usd for item in self.active_lots),
-            Decimal(0),
+        current_partition = _exact_sum(
+            tuple(item.amount_usd for item in self.active_lots)
         )
         if current_partition != admitted:
             raise CiboCompoundCapitalError(
@@ -273,32 +269,29 @@ class CompoundPortfolioLedger:
 
     @property
     def admitted_realized_profit_usd(self) -> Decimal:
-        return sum(
-            (
+        return _exact_sum(
+            tuple(
                 item.target_total_usd
                 for item in self.events
                 if item.event_type
                 is CompoundPortfolioEventType.ADMIT_REALIZED_PROFIT
-            ),
-            Decimal(0),
+            )
         )
 
     @property
     def current_partition_usd(self) -> Decimal:
-        return sum(
-            (item.amount_usd for item in self.active_lots),
-            Decimal(0),
+        return _exact_sum(
+            tuple(item.amount_usd for item in self.active_lots)
         )
 
     @property
     def current_economic_value_usd(self) -> Decimal:
-        return sum(
-            (
+        return _exact_sum(
+            tuple(
                 item.amount_usd
                 for item in self.active_lots
                 if item.state is not CompoundCapitalState.CONSUMED
-            ),
-            Decimal(0),
+            )
         )
 
     def balance(self, state: CompoundCapitalState) -> Decimal:
@@ -306,13 +299,12 @@ class CompoundPortfolioLedger:
             raise CiboCompoundCapitalError(
                 "compound balance state is invalid"
             )
-        return sum(
-            (
+        return _exact_sum(
+            tuple(
                 item.amount_usd
                 for item in self.active_lots
                 if item.state is state
-            ),
-            Decimal(0),
+            )
         )
 
     def lot(self, lot_id: str) -> CompoundCapitalLot:
@@ -417,7 +409,7 @@ class CompoundPortfolioLedger:
         self._require_new_event_id(event_id)
         self._require_new_lot_id(moved_lot_id)
 
-        remainder = source.amount_usd - amount_usd
+        remainder = _exact_sub(source.amount_usd, amount_usd)
         if remainder == 0 and remainder_lot_id is not None:
             raise CiboCompoundCapitalError(
                 "full compound transition cannot create remainder"
@@ -462,9 +454,8 @@ class CompoundPortfolioLedger:
             source_lot_ids=(source.lot_id,),
             target_lot_ids=tuple(item.lot_id for item in children),
             source_total_usd=source.amount_usd,
-            target_total_usd=sum(
-                (item.amount_usd for item in children),
-                Decimal(0),
+            target_total_usd=_exact_sum(
+                tuple(item.amount_usd for item in children)
             ),
             detail=f"compound state transition to {to_state.value}",
         )
@@ -510,7 +501,7 @@ class CompoundPortfolioLedger:
             )
         self._require_new_event_id(event_id)
 
-        consumed = source.amount_usd - returned_capacity_usd
+        consumed = _exact_sub(source.amount_usd, returned_capacity_usd)
         if returned_capacity_usd > 0:
             if returned_lot_id is None:
                 raise CiboCompoundCapitalError(
@@ -576,9 +567,8 @@ class CompoundPortfolioLedger:
             source_lot_ids=(source.lot_id,),
             target_lot_ids=tuple(item.lot_id for item in children),
             source_total_usd=source.amount_usd,
-            target_total_usd=sum(
-                (item.amount_usd for item in children),
-                Decimal(0),
+            target_total_usd=_exact_sum(
+                tuple(item.amount_usd for item in children)
             ),
             detail="deployed compound capital reconciled",
         )
@@ -629,6 +619,36 @@ class CompoundPortfolioLedger:
                 "compound event id already exists"
             )
 
+
+
+def _exact_precision(values: tuple[Decimal, ...]) -> int:
+    """Return enough precision to conserve finite Decimal partitions exactly."""
+
+    if not values:
+        return 80
+    exponents = tuple(int(value.as_tuple().exponent) for value in values)
+    minimum_exponent = min(exponents)
+    aligned_width = max(
+        len(value.as_tuple().digits)
+        + int(value.as_tuple().exponent)
+        - minimum_exponent
+        for value in values
+    )
+    return max(80, aligned_width + 4)
+
+
+def _exact_sum(values: tuple[Decimal, ...]) -> Decimal:
+    if not values:
+        return Decimal(0)
+    with localcontext() as context:
+        context.prec = _exact_precision(values)
+        return sum(values, Decimal(0))
+
+
+def _exact_sub(left: Decimal, right: Decimal) -> Decimal:
+    with localcontext() as context:
+        context.prec = _exact_precision((left, right))
+        return left - right
 
 def _positive(value: Decimal, name: str) -> None:
     if (
