@@ -30,6 +30,94 @@ class CompoundTemporalEconomicVerdict(StrEnum):
     FALSIFIED = "FALSIFIED"
 
 
+class CompoundTemporalPopulationDisposition(StrEnum):
+    ELIGIBLE_FORWARD_UNPOOLED = "ELIGIBLE_FORWARD_UNPOOLED"
+    INELIGIBLE_NOT_FORWARD = "INELIGIBLE_NOT_FORWARD"
+    INELIGIBLE_OUTCOMES_POOLED = "INELIGIBLE_OUTCOMES_POOLED"
+
+
+@dataclass(frozen=True, slots=True)
+class CompoundTemporalPopulationAssessment:
+    """Universal input assessment before the strict economic replication gate."""
+
+    source_population_sha256: str
+    provider_economics_sha256: str
+    forward_observed: bool
+    outcomes_pooled: bool
+    disposition: CompoundTemporalPopulationDisposition
+    eligible_for_strict_replication_gate: bool
+    certification_ready: bool = False
+    productive_authority: bool = False
+
+    def __post_init__(self) -> None:
+        _sha(self.source_population_sha256, "source_population_sha256")
+        _sha(self.provider_economics_sha256, "provider_economics_sha256")
+        if type(self.forward_observed) is not bool or type(self.outcomes_pooled) is not bool:
+            raise CiboCompoundCapitalError(
+                "compound temporal population flags must be bool"
+            )
+        if type(self.disposition) is not CompoundTemporalPopulationDisposition:
+            raise CiboCompoundCapitalError(
+                "compound temporal population disposition is invalid"
+            )
+        expected = (
+            CompoundTemporalPopulationDisposition.INELIGIBLE_OUTCOMES_POOLED
+            if self.outcomes_pooled
+            else (
+                CompoundTemporalPopulationDisposition.ELIGIBLE_FORWARD_UNPOOLED
+                if self.forward_observed
+                else CompoundTemporalPopulationDisposition.INELIGIBLE_NOT_FORWARD
+            )
+        )
+        if self.disposition is not expected:
+            raise CiboCompoundCapitalError(
+                "compound temporal population disposition/flags drift"
+            )
+        expected_eligible = expected is (
+            CompoundTemporalPopulationDisposition.ELIGIBLE_FORWARD_UNPOOLED
+        )
+        if self.eligible_for_strict_replication_gate != expected_eligible:
+            raise CiboCompoundCapitalError(
+                "compound temporal population eligibility drift"
+            )
+        if self.certification_ready or self.productive_authority:
+            raise CiboCompoundCapitalError(
+                "compound temporal population assessment grants no certification/authority"
+            )
+
+
+def assess_compound_temporal_population(
+    *,
+    source_population_sha256: str,
+    provider_economics_sha256: str,
+    forward_observed: bool,
+    outcomes_pooled: bool = False,
+) -> CompoundTemporalPopulationAssessment:
+    """Classify any canonical population without relabelling its evidence quality."""
+
+    if type(forward_observed) is not bool or type(outcomes_pooled) is not bool:
+        raise CiboCompoundCapitalError(
+            "compound temporal population flags must be bool"
+        )
+    if outcomes_pooled:
+        disposition = CompoundTemporalPopulationDisposition.INELIGIBLE_OUTCOMES_POOLED
+    elif forward_observed:
+        disposition = CompoundTemporalPopulationDisposition.ELIGIBLE_FORWARD_UNPOOLED
+    else:
+        disposition = CompoundTemporalPopulationDisposition.INELIGIBLE_NOT_FORWARD
+    return CompoundTemporalPopulationAssessment(
+        source_population_sha256=source_population_sha256,
+        provider_economics_sha256=provider_economics_sha256,
+        forward_observed=forward_observed,
+        outcomes_pooled=outcomes_pooled,
+        disposition=disposition,
+        eligible_for_strict_replication_gate=(
+            disposition
+            is CompoundTemporalPopulationDisposition.ELIGIBLE_FORWARD_UNPOOLED
+        ),
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class CompoundTemporalEconomicFoldEvidence:
     fold_id: str
