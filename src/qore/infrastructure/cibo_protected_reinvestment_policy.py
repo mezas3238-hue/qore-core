@@ -1,38 +1,50 @@
 """Frozen Trader Lab policy for protected-capital reinvestment.
 
 Derived only in NON_CERTIFYING_REUSED_HOLDOUT Trader Lab calibration.
-The policy is then consumed as a fixed predecision rule. It never inspects the
-current candidate outcome and grants no Risk, sizing, broker, LIVE, Production,
-real-capital, certification, deployment, or merge authority.
+The policy consumes only facts known before the candidate outcome. It grants no
+Risk, sizing, broker, LIVE, Production, real-capital, certification, deployment,
+or merge authority.
 
-The calibrated ratio is applied to causally-known CURRENT realized economic
-capital at decision time. It is not frozen to the account's opening balance.
-Protected-capital availability, QORE Risk and provider/margin constraints remain
-independent hard ceilings.
+Trader Lab V2 selected the first preregistered candidate that passed LONG,
+SHORT and BOTH on both CIBO_COMPOUND and COMPOUND_PORTFOLIO with:
+- 4/4 positive chronological folds;
+- positive Monte Carlo median and p05;
+- zero Monte Carlo protected-pool breaches;
+- all adversarial stresses except WINNER_DROUGHT positive;
+- zero protected-pool breach in every stress.
+
+The capital limit scales with causally-known CURRENT realized account capital.
 """
 
 from __future__ import annotations
 
 from decimal import Decimal
 
-POLICY_ID = "CIBO_PROTECTED_REINVESTMENT_TRADER_LAB_V1"
+POLICY_ID = "CIBO_PROTECTED_REINVESTMENT_TRADER_LAB_V2"
 CALIBRATION_MODE = "NON_CERTIFYING_REUSED_HOLDOUT"
+
+ELIGIBLE_SIDES = ("long", "short")
+# Compatibility alias only. New code must use ELIGIBLE_SIDES.
 ELIGIBLE_SIDE = "long"
-MAX_CAPITAL_NEED_TO_CURRENT_CAPITAL_RATIO = Decimal(
-    "0.030069491001082367274812335331333333333333333333333"
-)
-# Compatibility alias for retained reports. New code must use the CURRENT-capital
-# name and must never interpret this ratio as permanently bound to opening capital.
+
+MAX_CAPITAL_NEED_TO_CURRENT_CAPITAL_RATIO = Decimal("0.04")
 MAX_CAPITAL_NEED_TO_BASE_RATIO = MAX_CAPITAL_NEED_TO_CURRENT_CAPITAL_RATIO
-USD60_MAX_CAPITAL_NEED_USD = Decimal(
-    "1.80416946006494203648874011988"
-)
+USD60_MAX_CAPITAL_NEED_USD = Decimal("2.40")
+
+LONG_REQUIRED_ENTRY_TYPE = "market"
+LONG_MIN_EXPECTED_NET_VALUE_USD = Decimal("-0.075")
+LONG_MAX_EXPECTED_CAPITAL_MINUTES = Decimal("55")
+
+SHORT_REQUIRED_ENTRY_TYPE = "market"
+SHORT_MIN_EXPECTED_NET_VALUE_USD = Decimal("0.045")
+SHORT_MAX_EXPECTED_CAPITAL_MINUTES = Decimal("45")
 
 POPULATION_GATE_USED = False
 OUTCOME_USED_AT_DECISION = False
 FORWARD_GENERALIZATION_CLAIMED = False
 RUNTIME_AUTHORITY = False
 DYNAMIC_CURRENT_CAPITAL_SCALING = True
+
 # Predecision reserve only: this capital remains protected and is not deployed.
 # The ratio matches the preregistered GAP_AND_SLIPPAGE_25PCT_RISK stress family.
 PROTECTED_LOSS_RESERVE_STOP_RISK_RATIO = Decimal("0.25")
@@ -68,7 +80,16 @@ def protected_reinvestment_candidate_allowed(
     side: str,
     capital_need_usd: Decimal,
     eligible_current_capital_usd: Decimal,
+    entry_type: str | None = None,
+    expected_net_value_usd: Decimal | None = None,
+    expected_capital_minutes: Decimal | None = None,
 ) -> bool:
+    """Apply the frozen V2 causal admission rule.
+
+    Missing causal inputs fail closed rather than falling back to the old
+    LONG-only policy.
+    """
+
     if not isinstance(side, str) or not side:
         raise ValueError("side is required")
     if (
@@ -77,10 +98,36 @@ def protected_reinvestment_candidate_allowed(
         or capital_need_usd < 0
     ):
         raise ValueError("capital need must be finite non-negative Decimal")
-    return (
-        side == ELIGIBLE_SIDE
-        and capital_need_usd
-        <= maximum_reinvestment_capital_need_usd(
-            eligible_current_capital_usd
+    if entry_type is not None and not isinstance(entry_type, str):
+        raise ValueError("entry type must be str or None")
+    for name, value in (
+        ("expected net value", expected_net_value_usd),
+        ("expected capital minutes", expected_capital_minutes),
+    ):
+        if value is not None and (
+            not isinstance(value, Decimal) or not value.is_finite()
+        ):
+            raise ValueError(f"{name} must be finite Decimal or None")
+
+    if side not in ELIGIBLE_SIDES:
+        return False
+    if entry_type != "market":
+        return False
+    if expected_net_value_usd is None or expected_capital_minutes is None:
+        return False
+    if expected_capital_minutes <= 0:
+        return False
+    if capital_need_usd > maximum_reinvestment_capital_need_usd(
+        eligible_current_capital_usd
+    ):
+        return False
+
+    if side == "long":
+        return (
+            expected_net_value_usd >= LONG_MIN_EXPECTED_NET_VALUE_USD
+            and expected_capital_minutes <= LONG_MAX_EXPECTED_CAPITAL_MINUTES
         )
+    return (
+        expected_net_value_usd >= SHORT_MIN_EXPECTED_NET_VALUE_USD
+        and expected_capital_minutes <= SHORT_MAX_EXPECTED_CAPITAL_MINUTES
     )
