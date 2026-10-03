@@ -25,7 +25,14 @@ Inside each group:
   → Compound
   → Compound Portfolio
   → leverage 1x/2x/3x/4x
+  → WFO 5-fold + 6-fold
+  → Monte Carlo
+  → provider-cost stress
+  → adverse-slippage stress
+  → remove-best-1/2/3 concentration stress
+  → chronological block stability
   → per-Trader + portfolio scientific report
+  → CIBO function-behavior report
 
 After all three groups:
 canonical all-seven-positive 3x1Y sensor
@@ -151,3 +158,29 @@ The bench owns execution and observability locally:
 
 GitHub remains source control, but GitHub Actions is not part of the execution
 path.
+
+
+## Mandatory scientific battery per CIBO candidate
+
+Every leverage candidate in every group must emit the same complete battery for:
+
+- CORE;
+- COMPOUND_INCREMENTAL;
+- COMPOUND_TOTAL;
+- COMPOUND_PORTFOLIO_INCREMENTAL;
+- COMPOUND_PORTFOLIO_TOTAL.
+
+Each lane includes:
+
+- P/L, Profit Factor, expectancy and max drawdown;
+- chronological five-block and six-block stability;
+- expanding chronological WFO with five and six folds;
+- Monte Carlo with deterministic seed;
+- provider-cost stress at 1.25x, 1.50x and 2.00x;
+- adverse-slippage stress at +25%, +50% and +100% of frozen provider cost;
+- remove-best-1, remove-best-2 and remove-best-3 concentration stress;
+- losses-first and winners-first drawdown ordering stress.
+
+The final sensor is fail-closed if the complete battery is missing. Leverage is
+only one dimension of the experiment; it never substitutes for Compound,
+Portfolio, WFO, Monte Carlo or stress testing.
