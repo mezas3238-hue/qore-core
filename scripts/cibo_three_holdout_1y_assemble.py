@@ -367,7 +367,16 @@ def assemble_group(
 
     traders = []
     for trader_id in CANONICAL_PHASE22_TRADER_IDS:
-        rows = tuple(opportunity_by_trader[trader_id])
+        rows = tuple(
+            sorted(
+                opportunity_by_trader[trader_id],
+                key=lambda item: (
+                    item.signal_at,
+                    item.trader_id.value,
+                    item.signal_fingerprint,
+                ),
+            )
+        )
         if not rows:
             raise ValueError(f"{group_id}:{trader_id}: zero opportunities")
         digest = _artifact_digest(artifacts[trader_id][1])
