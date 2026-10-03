@@ -12,6 +12,9 @@ on:
       - 'src/qore/infrastructure/trader_lab/cibo_three_holdout_1y_contract.py'
       - 'src/qore/infrastructure/cibo_phase22_v4_historical_regime.py'
       - 'src/qore/infrastructure/cibo_phase22_v4_chronological_execution.py'
+      - 'src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py'
+      - 'src/qore/infrastructure/cibo_universal_capital_science_registry.py'
+      - 'tests/infrastructure/test_cibo_universal_capital_science_registry.py'
       - 'tests/infrastructure/test_cibo_phase22_v4_t02_volume_alignment.py'
   workflow_dispatch:
 
@@ -59,14 +62,20 @@ jobs:
           python -m py_compile \
             scripts/cibo_t02_three_lane_capital_lab_arch2.py \
             scripts/cibo_three_holdout_group_report.py \
-            src/qore/infrastructure/cibo_phase22_v4_chronological_execution.py
+            src/qore/infrastructure/cibo_phase22_v4_chronological_execution.py \
+            src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py \
+            src/qore/infrastructure/cibo_universal_capital_science_registry.py
           ruff check \
             scripts/cibo_t02_three_lane_capital_lab_arch2.py \
             scripts/cibo_three_holdout_group_report.py \
             src/qore/infrastructure/cibo_phase22_v4_chronological_execution.py \
-            tests/infrastructure/test_cibo_phase22_v4_t02_volume_alignment.py
+            src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py \
+            src/qore/infrastructure/cibo_universal_capital_science_registry.py \
+            tests/infrastructure/test_cibo_phase22_v4_t02_volume_alignment.py \
+            tests/infrastructure/test_cibo_universal_capital_science_registry.py
           pytest -q --no-cov \
-            tests/infrastructure/test_cibo_phase22_v4_t02_volume_alignment.py
+            tests/infrastructure/test_cibo_phase22_v4_t02_volume_alignment.py \
+            tests/infrastructure/test_cibo_universal_capital_science_registry.py
 
       - name: Recover immutable seven-Trader assembly
         run: |
@@ -150,6 +159,11 @@ jobs:
               assert candidate['trader_parameters_changed'] is False
               assert candidate['trader_profitability_used_for_gate'] is True
               assert len(candidate['measurements']['per_trader_under_cibo'])==7
+              behavior=candidate['measurements']['cibo_function_behavior']
+              assert behavior['not_integrated'] == []
+              rows=behavior['rows']
+              genc=[row for row in rows if row['stage']=='CAPITAL_SCIENCE']
+              assert [row['capability'] for row in genc] == [f'GEN-C{i}' for i in range(1,15)]
           PY
         env:
           MATRIX_GROUP: ${{ matrix.group }}
