@@ -78,6 +78,7 @@ jobs:
             src/qore/infrastructure/cibo_profitability_lab_decision_trace.py \
             src/qore/infrastructure/cibo_phase22_v4_historical_policy_replay.py \
             src/qore/infrastructure/cibo_phase22_v4_chronological_execution.py \
+            src/qore/infrastructure/cibo_protected_reinvestment_policy.py \
             src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py
           python -m ruff check \
             scripts/cibo_profitability_lab_all_trader.py \
@@ -89,7 +90,9 @@ jobs:
             src/qore/infrastructure/cibo_profitability_lab_economic_consultation.py \
             src/qore/infrastructure/cibo_profitability_lab_decision_trace.py \
             src/qore/infrastructure/cibo_phase22_v4_historical_policy_replay.py \
+            src/qore/infrastructure/cibo_protected_reinvestment_policy.py \
             src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py \
+            tests/infrastructure/test_cibo_protected_reinvestment_policy.py \
             tests/infrastructure/test_cibo_ce2i_advanced_evidence_causal_time.py \
             tests/infrastructure/test_cibo_profitability_lab_t03_predecision_adapter.py \
             tests/infrastructure/test_cibo_profitability_lab_economic_consultation.py \
@@ -105,6 +108,7 @@ jobs:
             tests/infrastructure/test_cibo_profitability_lab_t03_predecision_adapter.py \
             tests/infrastructure/test_cibo_profitability_lab_economic_consultation.py \
             tests/infrastructure/test_cibo_phase22_historical_policy_replay.py \
+            tests/infrastructure/test_cibo_protected_reinvestment_policy.py \
             tests/infrastructure/test_cibo_ce2i_advanced_capital_tools.py \
             tests/infrastructure/test_cibo_legacy_stack_quarantine.py
 
