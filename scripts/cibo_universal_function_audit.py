@@ -93,7 +93,7 @@ def run_audit() -> dict[str, object]:
             "tests/infrastructure/test_cibo_internal_capital_market.py",
         ),
         "CAPITAL_GENERATIONS": (
-            "tests/infrastructure/test_cibo_generation_current_control.py",
+            "tests/infrastructure/test_cibo_compound_market_cycle.py",
         ),
         "CE2I_CROSS_TOOL_INFRASTRUCTURE": (
             "tests/infrastructure/test_cibo_ce2i_full_surface.py",
