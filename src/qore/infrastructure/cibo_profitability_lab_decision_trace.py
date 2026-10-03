@@ -112,10 +112,6 @@ def build_cibo_profitability_decision_trace(
             raise CiboCapitalManagementError(
                 "profitability trace Mission Director/Coordinator faculty drift"
             )
-        if consultation.get("reasoning_route_selected") is not True:
-            raise CiboCapitalManagementError(
-                "profitability trace reasoning route was not selected"
-            )
         if consultation.get("mission_director_invoked") is not True:
             raise CiboCapitalManagementError(
                 "profitability trace Mission Director was not invoked"
@@ -124,20 +120,9 @@ def build_cibo_profitability_decision_trace(
             raise CiboCapitalManagementError(
                 "profitability trace Functional Coordinator was not invoked"
             )
-        if consultation.get("executive_brain_invoked") is not True:
+        if consultation.get("mission_disposition") != "continue":
             raise CiboCapitalManagementError(
-                "profitability trace Executive Brain was not invoked"
-            )
-        if consultation.get("executive_directive") != "request-evidence":
-            raise CiboCapitalManagementError(
-                "profitability trace Executive Brain directive drift"
-            )
-        if (
-            consultation.get("executive_request_code")
-            != consultation.get("coordination_request_code")
-        ):
-            raise CiboCapitalManagementError(
-                "profitability trace executive/coordinator request drift"
+                "profitability trace Mission Director disposition drift"
             )
         economic_application = _object(
             policy_payload.get("advanced_economic_application"),
@@ -248,39 +233,26 @@ def build_cibo_profitability_decision_trace(
                         "coordination_request_code": consultation.get(
                             "coordination_request_code"
                         ),
-                        "reasoning_route_tier": consultation.get(
-                            "reasoning_route_tier"
-                        ),
-                        "reasoning_mode": consultation.get("reasoning_mode"),
-                        "reasoning_route_reason": consultation.get(
-                            "reasoning_route_reason"
-                        ),
-                        "reasoning_route_selected": consultation.get(
-                            "reasoning_route_selected"
-                        ),
                         "mission_code": consultation.get("mission_code"),
                         "mission_faculties": list(mission_faculties),
+                        "mission_disposition": consultation.get(
+                            "mission_disposition"
+                        ),
                         "mission_director_invoked": consultation.get(
                             "mission_director_invoked"
                         ),
                         "functional_coordinator_invoked": consultation.get(
                             "functional_coordinator_invoked"
                         ),
-                        "executive_directive": consultation.get(
-                            "executive_directive"
-                        ),
-                        "executive_request_code": consultation.get(
-                            "executive_request_code"
-                        ),
-                        "executive_brain_invoked": consultation.get(
-                            "executive_brain_invoked"
-                        ),
+                        "executive_brain_invoked": False,
+                        "executive_brain_status": "QUARANTINED_RESEARCH_ONLY",
+                        "legacy_stack_quarantine_preserved": True,
                         "causal_predecision": consultation.get("causal_predecision"),
                         "outcome_used": consultation.get("outcome_used"),
                         "reason": (
-                            "governed reasoning route, Mission Director, CF01-CF19 "
-                            "Functional Coordinator, and Executive Brain all execute "
-                            "predecision and remain evidence-request/advisory only"
+                            "current runtime uses Mission Director plus CF01-CF19 "
+                            "Functional Coordinator predecision; legacy Executive Brain "
+                            "remains research-only and quarantined"
                         ),
                     },
                     "expectation": candidate.get("expectation"),
