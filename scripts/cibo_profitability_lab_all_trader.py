@@ -48,7 +48,12 @@ from qore.infrastructure.cibo_reused_holdout_capability_exam import (
     _run_minimal_seed_baseline,
     _tool_audit,
 )
+from qore.infrastructure.cibo_protected_reinvestment_policy import (
+    CALIBRATION_MODE,
+    POLICY_ID,
+)
 from qore.infrastructure.cibo_reused_holdout_compound_portfolio_lane import (
+    CompoundResearchRedeployAuthorization,
     run_compound_portfolio_lane,
 )
 
@@ -270,6 +275,32 @@ def _coverage(
     }
 
 
+def _compound_research_authorizations(
+    plan: Any,
+) -> tuple[CompoundResearchRedeployAuthorization, ...]:
+    """Predeclare research-only redeploy permission without claiming Fresh OOS.
+
+    This helper reads decision-epoch identity only. It never reads outcome events
+    or settlement results. Candidate-level economics remain governed downstream
+    by the frozen V2 policy, CMA and sovereign QORE Risk.
+    """
+
+    return tuple(
+        CompoundResearchRedeployAuthorization(
+            signal_fingerprint=candidate.signal_fingerprint,
+            known_at=epoch.market_decision_at,
+            evidence_id=(
+                f"compound-research:{POLICY_ID}:"
+                f"{epoch.decision_epoch_id}:{candidate.signal_fingerprint}"
+            ),
+            policy_id=POLICY_ID,
+            calibration_mode=CALIBRATION_MODE,
+        )
+        for epoch in plan.epochs
+        for candidate in epoch.candidates
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--batch", type=Path, required=True)
@@ -324,6 +355,10 @@ def main() -> int:
         core_execution=treatment,
         lab_use_executed_core_surface=True,
         lab_require_rational_redeploy=True,
+        lab_allow_noncertifying_research_redeploy=True,
+        research_redeploy_authorizations=(
+            _compound_research_authorizations(plan)
+        ),
     )
 
     baseline_metrics = _run_minimal_seed_baseline(plan)
