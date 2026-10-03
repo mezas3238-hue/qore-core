@@ -524,27 +524,40 @@ class RealtimeBenchRunner:
                 config = candidate.get("configuration", {})
                 if not isinstance(config, dict):
                     config = {}
+                battery = measurements.get("scientific_battery", {})
+                total_battery = (
+                    battery.get("COMPOUND_PORTFOLIO_TOTAL", {})
+                    if isinstance(battery, dict)
+                    else {}
+                )
+                wfo = measurements.get("walk_forward", {})
+                mc = measurements.get("monte_carlo", {})
+                stress = measurements.get("stress", {})
+                behavior = measurements.get("cibo_function_behavior", {})
                 candidate_summaries[fingerprint] = {
                     "leverage": config.get("compound_seed_multiplier"),
                     "final_ending_capital_usd": measurements.get(
                         "final_ending_capital_usd"
                     ),
-                    "core_net_pnl_usd": (
-                        measurements.get("core", {}).get("net_pnl_usd")
-                        if isinstance(measurements.get("core"), dict)
-                        else None
+                    "core": measurements.get("core"),
+                    "compound": measurements.get("compound"),
+                    "compound_portfolio": measurements.get(
+                        "compound_portfolio"
                     ),
-                    "compound_incremental_pnl_usd": (
-                        measurements.get("compound", {}).get("incremental_pnl_usd")
-                        if isinstance(measurements.get("compound"), dict)
-                        else None
+                    "walk_forward": wfo,
+                    "monte_carlo": mc,
+                    "stress": stress,
+                    "scientific_battery_complete": measurements.get(
+                        "full_battery_complete"
                     ),
-                    "portfolio_incremental_pnl_usd": (
-                        measurements.get("compound_portfolio", {}).get(
-                            "incremental_pnl_usd"
-                        )
-                        if isinstance(measurements.get("compound_portfolio"), dict)
-                        else None
+                    "scientific_battery_lanes": (
+                        sorted(battery) if isinstance(battery, dict) else []
+                    ),
+                    "portfolio_total_battery": total_battery,
+                    "cibo_not_integrated": (
+                        behavior.get("not_integrated", [])
+                        if isinstance(behavior, dict)
+                        else []
                     ),
                     "all_7_positive": all(
                         Decimal(str(row.get("final_pnl_usd", "0"))) > 0
