@@ -237,7 +237,17 @@ jobs:
         run: |
           set -euo pipefail
           python -m pytest -q --no-cov             tests/infrastructure/test_cibo_compound_cycle_state.py             tests/infrastructure/test_cibo_compound_market_cycle.py             tests/infrastructure/test_cibo_compound_causal_ablation.py             tests/infrastructure/test_cibo_compound_path_monte_carlo.py             tests/infrastructure/test_cibo_compound_adversarial_stress.py             tests/infrastructure/test_cibo_compound_temporal_replication.py
-          echo "PHASE_06=PASS"
+          echo "PHASE_06_INTERNAL=PASS"
+      - name: Trader Lab functional run Generations + MC + Stress + Replication
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_cibo_economic_systems_functional_probe.py \
+            tests/infrastructure/test_cibo_compound_path_monte_carlo.py \
+            tests/infrastructure/test_cibo_compound_adversarial_stress.py \
+            tests/infrastructure/test_cibo_compound_temporal_replication.py
+          echo "PHASE_06_TRADER_LAB=PASS"
 
   phase-07-protection-truth:
     name: "07 AUDIT+TEST Protected Base + Profit Protection + Capital Truth"
