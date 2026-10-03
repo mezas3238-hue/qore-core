@@ -438,7 +438,11 @@ def test_trader_lab_genc8_adaptive_speed_gate_executes(candidate_factory) -> Non
 
 # GEN-C10 / C11 / C12 -------------------------------------------------------
 
-def _genc10_twin(candidate: TraderLabCandidateBinding) -> Genc10ObservedCapitalTwin:
+def _genc10_twin(
+    candidate: TraderLabCandidateBinding,
+    *,
+    environment: MarketRuntimeEnvironment = MarketRuntimeEnvironment.TEST,
+) -> Genc10ObservedCapitalTwin:
     buckets = tuple(
         (bucket, Decimal("100") if bucket is Genc10EconomicBucket.ORIGINAL_BASE else Decimal(0))
         for bucket in Genc10EconomicBucket
@@ -446,7 +450,11 @@ def _genc10_twin(candidate: TraderLabCandidateBinding) -> Genc10ObservedCapitalT
     option_id = _tag(candidate, "known-option")
     return Genc10ObservedCapitalTwin(
         twin_id=_tag(candidate, "genc10-twin"),
-        account_identity=_identity(candidate, "genc10-account"),
+        account_identity=CiboAccountCapitalIdentity(
+            provider_key="trader-lab",
+            account_ref=_tag(candidate, "genc10-account"),
+            environment=environment,
+        ),
         captured_at=NOW,
         capital_truth_sha256=_sha(candidate, "genc10-truth"),
         compound_cycle_sha256=_sha(candidate, "genc10-cycle"),
@@ -602,7 +610,10 @@ def test_trader_lab_genc11_multi_period_mpc_executes(candidate_factory) -> None:
 
 def test_trader_lab_genc12_crisis_intelligence_executes(candidate_factory) -> None:
     candidate = candidate_factory(candidate_suffix=987)
-    twin = _genc10_twin(candidate)
+    twin = _genc10_twin(
+        candidate,
+        environment=MarketRuntimeEnvironment.DEMO,
+    )
     regime = CiboCapitalRegimeState(
         liquidity=LiquidityState.NORMAL,
         volatility=VolatilityState.NORMAL,
