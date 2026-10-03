@@ -20,7 +20,7 @@ from collections import Counter, defaultdict
 from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
-from decimal import Decimal
+from decimal import Decimal, localcontext
 from enum import StrEnum
 
 from qore.infrastructure.cibo_account_capital_mission import (
@@ -490,8 +490,10 @@ def _capital_twin(
         state.realized_capital_usd,
     )
     protected_profit = min(state.protected_capacity_usd, profit_total)
-    deployable_profit = profit_total - protected_profit
-    original_base = state.realized_capital_usd - profit_total
+    with localcontext() as context:
+        context.prec = 80
+        deployable_profit = profit_total - protected_profit
+        original_base = state.realized_capital_usd - profit_total
     buckets = tuple(
         (
             bucket,
@@ -527,8 +529,12 @@ def _capital_twin(
                 evidence_sha256=_runtime_sha("known-option", state.payload()),
             ),
         )
-    risk_capacity = state.open_stop_risk_usd + state.hard_risk_headroom_usd
-    margin_capacity = state.open_margin_usd + state.margin_headroom_usd
+    with localcontext() as context:
+        context.prec = 80
+        risk_capacity = (
+            state.open_stop_risk_usd + state.hard_risk_headroom_usd
+        )
+        margin_capacity = state.open_margin_usd + state.margin_headroom_usd
     return Genc10ObservedCapitalTwin(
         twin_id=f"capital-science:{state.decision_epoch_id}:{state.signal_fingerprint}",
         account_identity=identity,
@@ -644,8 +650,10 @@ def evaluate_capital_science_predecision(
         state.realized_profit_pool_usd,
         state.realized_capital_usd,
     )
-    peak_profit = current_profit + state.giveback_usd
-    base_capital = state.realized_capital_usd - current_profit
+    with localcontext() as context:
+        context.prec = 80
+        peak_profit = current_profit + state.giveback_usd
+        base_capital = state.realized_capital_usd - current_profit
     genc7_state = Genc7CapitalStateEvidence(
         evidence_id=f"runtime-state:{state.decision_epoch_id}:{state.signal_fingerprint}",
         decision_at=state.decision_at,
