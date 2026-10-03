@@ -116,7 +116,10 @@ def evaluate_candidate(candidate: dict[str, Any]) -> CandidateGateResult:
         raise ThreeHoldoutResearchError(
             "per-Trader CIBO economic measurements are required"
         )
-    if tuple(per_trader) != REQUIRED_TRADERS:
+    if (
+        len(per_trader) != len(REQUIRED_TRADERS)
+        or set(per_trader) != set(REQUIRED_TRADERS)
+    ):
         failed.append("ALL_7_TRADERS_EXACT_SURFACE")
     else:
         for trader_id in REQUIRED_TRADERS:
