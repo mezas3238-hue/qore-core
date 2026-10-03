@@ -349,6 +349,7 @@ def main() -> int:
         replay_started_at=replay_started_at,
         lab_allow_nonpositive_expectation=True,
         lab_cibo_free_tool_choice=True,
+        lab_enable_t02_released_capacity=True,
     )
     compound = run_compound_portfolio_lane(
         plan=plan,
