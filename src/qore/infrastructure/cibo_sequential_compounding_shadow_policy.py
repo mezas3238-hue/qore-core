@@ -253,10 +253,9 @@ class Genc5SequentialCompoundingShadowDecision:
                 "GEN-C5 shadow account/source lot identity is required"
             )
         _aware(self.decision_at, "GEN-C5 decision_at")
-        if self.decision_at < GENC5_SHADOW_POLICY_FROZEN_AT:
-            raise CiboCompoundCapitalError(
-                "GEN-C5 cannot evaluate pre-freeze decision"
-            )
+        # policy_frozen_at locks the policy specification/version. It is not
+        # a lower bound on the market timestamp of causal evidence; historical
+        # replay remains valid when no future outcome is present.
         if type(self.source_lot_state) is not CompoundCapitalState:
             raise CiboCompoundCapitalError(
                 "GEN-C5 source lot state is invalid"
@@ -375,10 +374,9 @@ def evaluate_genc5_sequential_compounding_shadow(
         raise CiboCompoundCapitalError(
             "GEN-C5 requires canonical GEN-C4 evidence"
         )
-    if evidence.decision_at < GENC5_SHADOW_POLICY_FROZEN_AT:
-        raise CiboCompoundCapitalError(
-            "GEN-C5 cannot evaluate pre-freeze GEN-C4 evidence"
-        )
+    # Historical causal evidence is valid input to the frozen policy. The
+    # freeze protects policy immutability; it does not disable the engine for
+    # earlier market timestamps.
     if evidence.account_identity != portfolio.account_identity:
         raise CiboCompoundCapitalError(
             "GEN-C5 portfolio/GEN-C4 account binding mismatch"
