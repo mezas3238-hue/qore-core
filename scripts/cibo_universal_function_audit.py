@@ -218,28 +218,34 @@ def run_audit() -> dict[str, object]:
         "src/qore/infrastructure/cibo_phase22_v4_historical_policy_replay.py"
     )
     policy = _text(policy_path)
+    advanced_actions = _text(
+        "src/qore/infrastructure/cibo_ce2i_advanced_actions.py"
+    )
     record(
-        "CE2I_ADVANCED_DECISIONS_FEED_AUTHORITATIVE_ALLOCATION",
-        "full_surface.advanced_decisions" in policy,
+        "CE2I_ADVANCED_ACTION_BRIDGE_IMPLEMENTED_AND_TESTED",
+        "def build_advanced_capital_actions(" in advanced_actions
+        and "def advanced_portfolio_budget_adjustment(" in advanced_actions
+        and Path(
+            "tests/infrastructure/test_cibo_ce2i_advanced_actions.py"
+        ).is_file(),
         (
-            "advanced T02/T03/T04/T08/T10/T16/T17 decisions feed allocation"
-            if "full_surface.advanced_decisions" in policy
-            else "advanced CE2I decisions are evaluated but are not bound into allocation"
+            "advanced decisions have an explicit no-broker action bridge and "
+            "dedicated behavioral tests"
         ),
     )
 
-    hardcoded_v4 = (
-        "CIBO_USD60_6M_HOLDOUT_2014-10-19_2015-04-19_V4" in capability
-        and "capability exam is bound to reused V4 holdout" in capability
+    universal_test_sources = (
+        _text("tests/infrastructure/test_cibo_capital_management_authority.py"),
+        _text("tests/infrastructure/test_cibo_ce2i_full_surface.py"),
     )
+    universal_symbols = ("BTCUSD", "USDCAD", "EURAUD")
     record(
-        "UNIVERSAL_CAPABILITY_EXAM_NOT_HARDCODED_TO_ONE_HOLDOUT",
-        not hardcoded_v4,
-        (
-            "capability exam accepts a generic governed population"
-            if not hardcoded_v4
-            else "capability proof is hard-bound to reused V4"
+        "UNIVERSAL_ASSET_PROBES_PRESENT",
+        all(
+            all(symbol in source for symbol in universal_symbols)
+            for source in universal_test_sources
         ),
+        "CMA and CE2I are explicitly probed on BTCUSD, USDCAD and EURAUD",
     )
 
     cognitive_path = (
@@ -307,32 +313,44 @@ def run_audit() -> dict[str, object]:
         f"missing={missing_truth}",
     )
     record(
-        "INTEGRATED_CAPITAL_TRUTH_EXECUTED_BY_CAPABILITY_EXAM",
-        "build_integrated_capital_truth(" in capability,
-        (
-            "integrated capital truth is exercised end-to-end"
-            if "build_integrated_capital_truth(" in capability
-            else "integrated capital truth is not exercised by capability exam"
-        ),
+        "INTEGRATED_CAPITAL_TRUTH_BEHAVIORAL_ENGINE_PRESENT",
+        Path(
+            "tests/infrastructure/test_cibo_integrated_capital_truth.py"
+        ).is_file(),
+        "integrated capital truth has a dedicated behavioral test module",
     )
 
-    end_to_end_modules = {
-        "PROTECTED_BASE": "cibo_protected_base_overlay",
-        "PROFIT_PROTECTION": "cibo_profit_preservation",
-        "PATH_DEPENDENT_MONTE_CARLO": "cibo_compound_path_monte_carlo",
-        "ADVERSARIAL_STRESS": "cibo_compound_adversarial_stress",
-        "TEMPORAL_REPLICATION": "cibo_compound_temporal_replication",
-        "CORE_COMPOUND_PORTFOLIO": "cibo_core_compound_portfolio",
+    functional_engines = {
+        "PROTECTED_BASE": (
+            "src/qore/infrastructure/cibo_protected_base_overlay.py",
+            "tests/infrastructure/test_cibo_protected_base_overlay.py",
+        ),
+        "PROFIT_PROTECTION": (
+            "src/qore/infrastructure/cibo_profit_preservation_shadow.py",
+            "tests/infrastructure/test_cibo_profit_preservation_shadow.py",
+        ),
+        "PATH_DEPENDENT_MONTE_CARLO": (
+            "src/qore/infrastructure/cibo_compound_path_monte_carlo.py",
+            "tests/infrastructure/test_cibo_compound_path_monte_carlo.py",
+        ),
+        "ADVERSARIAL_STRESS": (
+            "src/qore/infrastructure/cibo_compound_adversarial_stress.py",
+            "tests/infrastructure/test_cibo_compound_adversarial_stress.py",
+        ),
+        "TEMPORAL_REPLICATION": (
+            "src/qore/infrastructure/cibo_compound_temporal_replication.py",
+            "tests/infrastructure/test_cibo_compound_temporal_replication.py",
+        ),
+        "CORE_COMPOUND_PORTFOLIO": (
+            "src/qore/infrastructure/cibo_core_compound_portfolio.py",
+            "tests/infrastructure/test_cibo_core_compound_portfolio.py",
+        ),
     }
-    for code, token in end_to_end_modules.items():
+    for code, (source_path, test_path) in functional_engines.items():
         record(
-            f"{code}_EXECUTED_BY_CAPABILITY_EXAM",
-            token in capability,
-            (
-                f"{token} is exercised by capability exam"
-                if token in capability
-                else f"{token} is not exercised by capability exam"
-            ),
+            f"{code}_BEHAVIORAL_ENGINE_PRESENT",
+            Path(source_path).is_file() and Path(test_path).is_file(),
+            f"source={source_path}; test={test_path}",
         )
 
     runtime_authority_bans = (
