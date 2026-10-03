@@ -40,8 +40,16 @@ def _context(row: dict[str, Any]) -> Context:
         "fvg": None if setup.get("fvg_before_entry") is None else str(setup["fvg_before_entry"]),
         "d1_range": None if regime.get("d1_range_state") is None else str(regime["d1_range_state"]),
         "h4_range": None if regime.get("h4_range_state") is None else str(regime["h4_range_state"]),
-        "m5_vol": None if regime.get("m5_volatility_state") is None else str(regime["m5_volatility_state"]),
-        "reclaim": None if setup.get("reclaim_latency_bucket") is None else str(setup["reclaim_latency_bucket"]),
+        "m5_vol": (
+            None
+            if regime.get("m5_volatility_state") is None
+            else str(regime["m5_volatility_state"])
+        ),
+        "reclaim": (
+            None
+            if setup.get("reclaim_latency_bucket") is None
+            else str(setup["reclaim_latency_bucket"])
+        ),
     }
 
 
