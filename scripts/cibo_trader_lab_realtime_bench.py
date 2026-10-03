@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import queue
+import tempfile
 import threading
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -316,6 +317,100 @@ def _print_event(event: BenchEvent) -> None:
     print(json.dumps(event.as_dict(), sort_keys=True), flush=True)
 
 
+def command_selftest() -> int:
+    with tempfile.TemporaryDirectory(prefix="qore-cibo-bench-") as raw_root:
+        root = Path(raw_root)
+        repo = root / "repo"
+        scripts = repo / "scripts"
+        scripts.mkdir(parents=True)
+
+        def write(path: Path, text: str = "{}\n") -> None:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(text, encoding="utf-8")
+
+        write(
+            scripts / "cibo_t02_three_lane_capital_lab_arch2.py",
+            "pass\n",
+        )
+        write(
+            scripts / "cibo_three_holdout_group_report.py",
+            "pass\n",
+        )
+        assembly = root / "assembly"
+        for group in ("GROUP_1", "GROUP_2", "GROUP_3"):
+            write(assembly / group / "seven-trader-cibo-batch.json")
+
+        provider = root / "provider" / "provider.json"
+        write(provider)
+
+        regime: dict[str, str] = {}
+        for symbol in ("AUDJPY", "EURUSD", "GBPJPY", "GBPUSD", "XAUUSD"):
+            symbol_root = root / "regime" / symbol
+            write(symbol_root / "symbol-consumption-manifest.json")
+            regime[symbol] = str(symbol_root)
+
+        raw_config = {
+            "schema": "qore.cibo.trader-lab.realtime-bench-config.v1",
+            "repository_root": str(repo),
+            "workspace": str(root / "workspace"),
+            "assembly_root": str(assembly),
+            "provider_numeric": str(provider),
+            "provider_numeric_freeze_sha256": "sha256:" + "a" * 64,
+            "regime_roots": regime,
+            "replay_started_at": "2026-10-03T18:15:00+00:00",
+            "max_parallel_groups": 3,
+        }
+        config_path = root / "bench.json"
+        config_path.write_text(
+            json.dumps(raw_config),
+            encoding="utf-8",
+        )
+        config = RealtimeBenchConfig.load(config_path)
+        doctor = config.doctor()
+        if doctor["ready"] is not True:
+            raise RealtimeBenchError("selftest doctor failed")
+
+        config.workspace.mkdir(parents=True)
+        (config.workspace / "runs").mkdir()
+        run = BenchRun(config=config, run_id="selftest")
+        event = run.emit(
+            "selftest.event",
+            {"parallel_groups": 3},
+            group_id="GROUP_1",
+        )
+        if event.seq != 1 or not run.events_path.is_file():
+            raise RealtimeBenchError("selftest event persistence failed")
+
+        runner = RealtimeBenchRunner(config=config)
+        lab, report = runner._group_commands(  # noqa: SLF001
+            group_id="GROUP_1",
+            group_root=root / "result" / "GROUP_1",
+        )
+        command_text = " ".join((*lab, *report)).lower()
+        forbidden = ("github", "gh ", "actions", "ctrader", "broker")
+        hits = [token for token in forbidden if token in command_text]
+        if hits:
+            raise RealtimeBenchError(
+                "selftest found forbidden runtime dependencies: "
+                + ", ".join(hits)
+            )
+        if config.max_parallel_groups != 3:
+            raise RealtimeBenchError("selftest parallelism drift")
+
+        result = {
+            "schema": "qore.cibo.trader-lab.realtime-bench-selftest.v1",
+            "pass": True,
+            "doctor_ready": True,
+            "event_persistence": True,
+            "parallel_groups": 3,
+            "workflow_dependency": False,
+            "broker_dependency": False,
+            "forbidden_dependency_hits": [],
+        }
+        print(json.dumps(result, indent=2, sort_keys=True))
+        return 0
+
+
 def command_doctor(config: RealtimeBenchConfig) -> int:
     result = config.doctor()
     print(json.dumps(result, indent=2, sort_keys=True))
@@ -372,6 +467,7 @@ def main() -> int:
     sub = parser.add_subparsers(dest="command", required=True)
 
     sub.add_parser("doctor")
+    sub.add_parser("selftest")
 
     run_parser = sub.add_parser("run")
     run_parser.add_argument("--run-id")
@@ -385,6 +481,8 @@ def main() -> int:
 
     if args.command == "doctor":
         return command_doctor(config)
+    if args.command == "selftest":
+        return command_selftest()
     if args.command == "run":
         return command_run(config, args.run_id)
     if args.command == "serve":
