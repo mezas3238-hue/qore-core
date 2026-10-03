@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from re import fullmatch
 
+from qore.infrastructure.account_wide_risk import canonical_trader_identity
 from qore.infrastructure.trader_lab.candidate import TraderLabValidationError
 from qore.infrastructure.trader_lab.cibo_functional_receipt import (
     CiboTraderLabFunctionGate,
@@ -35,6 +36,7 @@ class CiboUniversalEvaluationScope:
 
     market_symbol: str
     population: str
+    trader_id: str | None = None
 
     def __post_init__(self) -> None:
         if (
@@ -51,9 +53,16 @@ class CiboUniversalEvaluationScope:
             raise TraderLabValidationError(
                 "population must use canonical lowercase research syntax"
             )
+        if self.trader_id is not None:
+            try:
+                canonical_trader_identity(self.trader_id)
+            except ValueError as error:
+                raise TraderLabValidationError(
+                    "trader_id must use canonical universal Trader syntax"
+                ) from error
 
-    def logical_values(self) -> tuple[str, str]:
-        return (self.market_symbol, self.population)
+    def logical_values(self) -> tuple[str, str, str | None]:
+        return (self.market_symbol, self.population, self.trader_id)
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,6 +97,7 @@ def cibo_function_availability(
     *,
     market_symbol: str,
     population: str,
+    trader_id: str | None = None,
 ) -> CiboFunctionAvailability:
     """Return permanent availability for any canonical symbol/population.
 
@@ -99,5 +109,6 @@ def cibo_function_availability(
         scope=CiboUniversalEvaluationScope(
             market_symbol=market_symbol,
             population=population,
+            trader_id=trader_id,
         ),
     )
