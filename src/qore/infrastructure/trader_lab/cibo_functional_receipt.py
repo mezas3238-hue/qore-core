@@ -16,11 +16,11 @@ broker, LIVE, Production, capital-mutation, merge, or deployment authority.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
 from hashlib import sha256
-import json
 from re import fullmatch
 
 from qore.infrastructure.cibo_trader_capability_profile import CiboEvidenceRef
