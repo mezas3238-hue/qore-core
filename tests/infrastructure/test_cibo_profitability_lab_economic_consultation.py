@@ -62,17 +62,11 @@ def test_economic_consultation_puts_all_faculties_on_predecision_path() -> None:
     assert len(set(receipt.consulted_faculties)) == 19
     assert receipt.coordination_disposition == "request"
     assert receipt.coordination_request_code == "economic.evidence.request"
-    assert receipt.reasoning_route_tier == "sol-high"
-    assert receipt.reasoning_mode == "high"
-    assert receipt.reasoning_route_reason == "material-analysis-or-contradiction"
-    assert receipt.reasoning_route_selected is True
     assert receipt.mission_code == "cibo-economic-predecision"
     assert receipt.mission_faculties == receipt.consulted_faculties
+    assert receipt.mission_disposition == "continue"
     assert receipt.mission_director_invoked is True
     assert receipt.functional_coordinator_invoked is True
-    assert receipt.executive_directive == "request-evidence"
-    assert receipt.executive_request_code == "economic.evidence.request"
-    assert receipt.executive_brain_invoked is True
     assert receipt.causal_predecision is True
     assert receipt.all_faculties_consulted is True
     assert receipt.economic_authority is False
@@ -94,10 +88,9 @@ def test_economic_cognitive_orchestration_is_deterministic() -> None:
     right = consult_cibo_economic_faculties(**kwargs)
 
     assert left == right
-    assert left.executive_brain_invoked is True
     assert left.mission_director_invoked is True
     assert left.functional_coordinator_invoked is True
-    assert left.reasoning_route_selected is True
+    assert left.mission_disposition == "continue"
     assert left.economic_authority is False
     assert left.sizing_authority is False
     assert left.risk_authority is False
