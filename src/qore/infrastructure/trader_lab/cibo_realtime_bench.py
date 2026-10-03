@@ -509,20 +509,64 @@ class RealtimeBenchRunner:
             )
             result = _json(group_root / "group-result.json")
             elapsed = time.monotonic() - started
+            candidate_summaries: dict[str, Any] = {}
+            for candidate in result.get("candidates", []):
+                if not isinstance(candidate, dict):
+                    continue
+                fingerprint = str(candidate.get("configuration_fingerprint"))
+                measurements = candidate.get("measurements", {})
+                if not isinstance(measurements, dict):
+                    continue
+                per_trader = measurements.get("per_trader_under_cibo", {})
+                if not isinstance(per_trader, dict):
+                    per_trader = {}
+                config = candidate.get("configuration", {})
+                if not isinstance(config, dict):
+                    config = {}
+                candidate_summaries[fingerprint] = {
+                    "leverage": config.get("compound_seed_multiplier"),
+                    "final_ending_capital_usd": measurements.get(
+                        "final_ending_capital_usd"
+                    ),
+                    "core_net_pnl_usd": (
+                        measurements.get("core", {}).get("net_pnl_usd")
+                        if isinstance(measurements.get("core"), dict)
+                        else None
+                    ),
+                    "compound_incremental_pnl_usd": (
+                        measurements.get("compound", {}).get("incremental_pnl_usd")
+                        if isinstance(measurements.get("compound"), dict)
+                        else None
+                    ),
+                    "portfolio_incremental_pnl_usd": (
+                        measurements.get("compound_portfolio", {}).get(
+                            "incremental_pnl_usd"
+                        )
+                        if isinstance(measurements.get("compound_portfolio"), dict)
+                        else None
+                    ),
+                    "all_7_positive": all(
+                        Decimal(str(row.get("final_pnl_usd", "0"))) > 0
+                        for row in per_trader.values()
+                        if isinstance(row, dict)
+                    )
+                    and len(per_trader) == 7,
+                    "per_trader": {
+                        trader: {
+                            "pnl_usd": row.get("final_pnl_usd"),
+                            "profit_factor": row.get("profit_factor"),
+                            "expectancy_usd": row.get("expectancy_usd"),
+                            "settled_count": row.get("settled_count"),
+                        }
+                        for trader, row in per_trader.items()
+                        if isinstance(row, dict)
+                    },
+                }
             summary = {
                 "group_id": group_id,
                 "elapsed_seconds": round(elapsed, 3),
                 "candidate_count": len(result.get("candidates", [])),
-                "all_7_positive_by_candidate": {
-                    str(candidate.get("configuration_fingerprint")): all(
-                        float(row.get("final_pnl_usd", 0)) > 0
-                        for row in candidate.get("measurements", {})
-                        .get("per_trader_under_cibo", {})
-                        .values()
-                    )
-                    for candidate in result.get("candidates", [])
-                    if isinstance(candidate, dict)
-                },
+                "candidates": candidate_summaries,
             }
             run.set_group(
                 group_id,
