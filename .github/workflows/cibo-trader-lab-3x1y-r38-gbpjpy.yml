@@ -1,0 +1,91 @@
+name: QORE CIBO Trader Lab 3x1Y R38_GBPJPY GBPJPY
+
+on:
+  push:
+    branches:
+      - agent/cibo-t02-science-architect-2-001
+    paths:
+      - '.github/workflows/cibo-trader-lab-3x1y-r38-gbpjpy.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  SOURCE_RUN_ID: '35166210458'
+  SOURCE_ARTIFACT: 'qore-cibo-market-atlas-10y-windowed-GBPJPY-ab782b8e9f890f86a2b6500070f0556b4b685e3d'
+  TARGET_RUN_ID: '35204892665'
+  TARGET_ARTIFACT: 'qore-cibo-target-destination-v2-GBPJPY-2f510461b3360e91d5ee70a72716a76cd6561f16'
+  MEMORY_RUN_ID: '35349300927'
+  MEMORY_ARTIFACT: 'qore-turtle-soup-gbpjpy-structural-specialist-v2-r27-00fb870826e0cbd30179fe44cbdd6707448be0da'
+  FREEZE_RUN_ID: '35371045165'
+  FREEZE_ARTIFACT: 'qore-turtle-soup-gbpjpy-r36-candidate-freeze-035b8772a023fc0a57697aecbcb1a302173491cd'
+
+jobs:
+  replay:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Validate research module
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/cibo_turtle_1y_window_invoke.py src/qore/infrastructure/trader_lab/cibo_phase18_gbpjpy_r37_geometry_replay.py
+          ruff check scripts/cibo_turtle_1y_window_invoke.py src/qore/infrastructure/trader_lab/cibo_phase18_gbpjpy_r37_geometry_replay.py
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.SOURCE_ARTIFACT }}
+          path: source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_RUN_ID }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.TARGET_ARTIFACT }}
+          path: target
+          github-token: ${{ github.token }}
+          run-id: ${{ env.TARGET_RUN_ID }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.MEMORY_ARTIFACT }}
+          path: memory
+          github-token: ${{ github.token }}
+          run-id: ${{ env.MEMORY_RUN_ID }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.FREEZE_ARTIFACT }}
+          path: freeze
+          github-token: ${{ github.token }}
+          run-id: ${{ env.FREEZE_RUN_ID }}
+      - name: Execute three independent one-year windows
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          for group in GROUP_1 GROUP_2 GROUP_3; do
+            python scripts/cibo_turtle_1y_window_invoke.py               --module qore.infrastructure.trader_lab.cibo_phase18_gbpjpy_r37_geometry_replay               --trader-id R38_GBPJPY               --symbol GBPJPY               --group-id "$group"               --raw-root source               --target-root target               --memory-root memory               --freeze-root freeze               --output "out/$group"
+          done
+      - name: Enforce group invariants
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          for group in ('GROUP_1','GROUP_2','GROUP_3'):
+              p=json.loads(Path(f'out/{group}/trader-lab-1y-group-lane.json').read_text())
+              assert p['trader_id']=='R38_GBPJPY'
+              assert p['symbol']=='GBPJPY'
+              assert p['sample_size'] > 0
+              assert p['governance']['window_only_parameterized'] is True
+              assert p['governance']['trader_methodology_changed'] is False
+              assert p['governance']['trader_legacy_sizing_used_for_cibo'] is False
+              assert p['governance']['outcome_aware_selection'] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-trader-lab-3x1y-r38-gbpjpy-${{ github.run_id }}
+          path: out
+          if-no-files-found: error
+          retention-days: 90
