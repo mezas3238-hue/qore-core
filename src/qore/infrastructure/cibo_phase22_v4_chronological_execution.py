@@ -16,10 +16,9 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from decimal import Decimal
+from decimal import ROUND_FLOOR, Decimal
 from enum import StrEnum
 from pathlib import Path
 
@@ -39,12 +38,8 @@ from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalActionPlan,
     CiboCapitalManagementError,
     CiboCapitalState,
-    TraderOpportunityEnvelope,
     minimum_seed_volume,
     plan_minimal_seed,
-)
-from qore.infrastructure.cibo_ce2i_advanced_capital_tools import (
-    StructuralLeverageEvidence,
 )
 from qore.infrastructure.cibo_ce2i_full_surface import (
     AdvancedOpportunityEvidence,
@@ -108,6 +103,10 @@ from qore.infrastructure.cibo_phase22_provider_execution_calibration_receipt imp
     PHASE22_PROVIDER_EXECUTION_CALIBRATION_RECEIPT,
 )
 from qore.infrastructure.market_test_environment import MarketRuntimeEnvironment
+from qore.infrastructure.trader_lab.cibo_three_holdout_admission import (
+    cibo_admission_accepts,
+    normalize_cibo_admission_rules,
+)
 
 
 class Phase22HistoricalExecutionState(StrEnum):
@@ -388,15 +387,8 @@ def execute_phase22_chronological_replay(
     lab_allow_nonpositive_expectation: bool = False,
     lab_cibo_free_tool_choice: bool = False,
     lab_enable_t02_released_capacity: bool = False,
-    lab_t02_research_admission_filter: (
-        Callable[[TraderOpportunityEnvelope, datetime], bool] | None
-    ) = None,
-    lab_t02_research_evidence_builder: (
-        Callable[
-            [TraderOpportunityEnvelope, datetime, Decimal],
-            StructuralLeverageEvidence | None,
-        ]
-        | None
+    lab_admission_rules_by_trader: (
+        dict[str, tuple[tuple[str, str], ...]] | None
     ) = None,
 ) -> Phase22HistoricalExecutionReport:
     """Run the frozen USD60 policy/Risk/settlement path chronologically."""
@@ -418,24 +410,9 @@ def execute_phase22_chronological_replay(
         raise CiboCapitalManagementError(
             "lab_enable_t02_released_capacity must be bool"
         )
-    if lab_t02_research_admission_filter is not None:
-        if not lab_enable_t02_released_capacity:
-            raise CiboCapitalManagementError(
-                "T02 research admission filter requires T02 lab capacity mode"
-            )
-        if not callable(lab_t02_research_admission_filter):
-            raise CiboCapitalManagementError(
-                "T02 research admission filter must be callable"
-            )
-    if lab_t02_research_evidence_builder is not None:
-        if not lab_enable_t02_released_capacity:
-            raise CiboCapitalManagementError(
-                "T02 research evidence builder requires T02 lab capacity mode"
-            )
-        if not callable(lab_t02_research_evidence_builder):
-            raise CiboCapitalManagementError(
-                "T02 research evidence builder must be callable"
-            )
+    admission_rules = normalize_cibo_admission_rules(
+        lab_admission_rules_by_trader
+    )
     if amendment is None:
         amendment = canonical_phase22_historical_economics_amendment()
     if not isinstance(amendment, Phase22HistoricalReplayEconomicsAmendment):
@@ -559,6 +536,18 @@ def execute_phase22_chronological_replay(
 
     for index, epoch in enumerate(plan.epochs):
         _advance(epoch.market_decision_at)
+        eligible_candidates = tuple(
+            candidate
+            for candidate in epoch.candidates
+            if cibo_admission_accepts(candidate, admission_rules)
+        )
+        if not eligible_candidates:
+            continue
+        effective_epoch = Phase22DecisionEpochPlan(
+            decision_epoch_id=epoch.decision_epoch_id,
+            market_decision_at=epoch.market_decision_at,
+            candidates=eligible_candidates,
+        )
         evidence = evidence_by_epoch[epoch.decision_epoch_id]
         if evidence.observed_at > epoch.market_decision_at:
             raise CiboCapitalManagementError(
@@ -580,7 +569,7 @@ def execute_phase22_chronological_replay(
         )
         regime = _regime_state(
             evidence=evidence,
-            epoch=epoch,
+            epoch=effective_epoch,
             realized_capital_usd=realized,
             peak_realized_capital_usd=peak,
             open_risk_usd=snapshot.open_stop_worst_case_loss,
@@ -591,7 +580,7 @@ def execute_phase22_chronological_replay(
             remaining_released = released_risk_capacity
             evidence_rows: list[AdvancedOpportunityEvidence] = []
             for candidate in sorted(
-                epoch.candidates,
+                effective_epoch.candidates,
                 key=lambda item: (
                     item.trader_id,
                     item.qore_symbol,
@@ -608,27 +597,12 @@ def execute_phase22_chronological_replay(
                 )
                 if incremental_risk <= 0 or remaining_released < incremental_risk:
                     continue
-                if lab_t02_research_evidence_builder is None:
-                    structural = build_t02_structural_leverage_evidence(
-                        opportunity=opportunity,
-                        observed_at=epoch.market_decision_at,
-                        released_risk_capacity_usd=incremental_risk,
-                    )
-                else:
-                    structural = lab_t02_research_evidence_builder(
-                        opportunity,
-                        epoch.market_decision_at,
-                        incremental_risk,
-                    )
+                structural = build_t02_structural_leverage_evidence(
+                    opportunity=opportunity,
+                    observed_at=epoch.market_decision_at,
+                    released_risk_capacity_usd=incremental_risk,
+                )
                 if structural is None:
-                    continue
-                if (
-                    lab_t02_research_admission_filter is not None
-                    and not lab_t02_research_admission_filter(
-                        opportunity,
-                        epoch.market_decision_at,
-                    )
-                ):
                     continue
                 evidence_rows.append(
                     AdvancedOpportunityEvidence(
@@ -651,7 +625,8 @@ def execute_phase22_chronological_replay(
             seal_deadline_at=sealed_at + timedelta(seconds=2),
             account_identity=account_identity,
             candidates=tuple(
-                item.projection.candidate for item in epoch.candidates
+                item.projection.candidate
+                for item in effective_epoch.candidates
             ),
             regime_state=regime,
             hard_risk_headroom_usd=constraints.hard_risk_headroom_usd,
@@ -667,7 +642,8 @@ def execute_phase22_chronological_replay(
         pairs.append(pair)
 
         by_signal = {
-            item.signal_fingerprint: item for item in epoch.candidates
+            item.signal_fingerprint: item
+            for item in effective_epoch.candidates
         }
         execution_signals = tuple(
             pair.policy.selected_signal_fingerprints
@@ -722,89 +698,59 @@ def execute_phase22_chronological_replay(
                 and effective_candidate.stop_risk_usd
                 > baseline_plan.stop_risk_usd
             ):
-                incremental_risk = (
+                requested_volume = (
                     effective_candidate.stop_risk_usd
-                    - baseline_plan.stop_risk_usd
+                    / opportunity.stop_loss_per_volume
                 )
-                if incremental_risk > released_risk_capacity:
-                    raise CiboCapitalManagementError(
-                        "T02 requested released risk capacity beyond causal pool"
-                    )
-                t02_decisions = tuple(
-                    decision
-                    for assessment in (
-                        pair.policy_record.full_surface.opportunity_assessments
-                    )
-                    if assessment.signal_fingerprint == signal
-                    for decision in assessment.decisions
-                    if (
-                        decision.tool_code == "T02"
-                        and decision.target_stop_risk_usd is not None
-                    )
+                volume = _floor_provider_volume(
+                    requested_volume=requested_volume,
+                    volume_step=opportunity.volume_step,
+                    maximum_volume=opportunity.maximum_volume,
                 )
-                if len(t02_decisions) != 1:
-                    raise CiboCapitalManagementError(
-                        "T02 effective candidate requires one applied volume decision"
+                if volume > baseline_plan.volume:
+                    aligned_stop_risk = (
+                        volume * opportunity.stop_loss_per_volume
                     )
-                t02_decision = t02_decisions[0]
-                volume = t02_decision.approved_volume
-                if volume <= baseline_plan.volume:
-                    raise CiboCapitalManagementError(
-                        "T02 approved volume must exceed baseline seed"
+                    if aligned_stop_risk > effective_candidate.stop_risk_usd:
+                        raise CiboCapitalManagementError(
+                            "T02 aligned stop risk exceeds requested risk"
+                        )
+                    incremental_risk = (
+                        aligned_stop_risk - baseline_plan.stop_risk_usd
                     )
-                if volume > opportunity.maximum_volume:
-                    raise CiboCapitalManagementError(
-                        "T02 effective volume exceeds provider maximum"
-                    )
-                step_ratio = volume / opportunity.volume_step
-                if step_ratio != step_ratio.to_integral_value():
-                    raise CiboCapitalManagementError(
-                        "T02 approved volume is not provider-step aligned"
-                    )
-                exact_stop_risk = (
-                    opportunity.stop_loss_per_volume * volume
-                )
-                if exact_stop_risk != effective_candidate.stop_risk_usd:
-                    raise CiboCapitalManagementError(
-                        "T02 approved volume/stop-risk identity drift"
-                    )
-                policy_ratio = (
-                    effective_candidate.stop_risk_usd
-                    / baseline_plan.stop_risk_usd
-                )
-                policy_margin = baseline_plan.margin_usd * policy_ratio
-                if policy_margin != effective_candidate.margin_usd:
-                    raise CiboCapitalManagementError(
-                        "T02 policy margin scaling identity drift"
-                    )
-                margin = volume * opportunity.margin_per_volume
-                plan_row = CiboCapitalActionPlan(
-                    trader_id=opportunity.trader_id,
-                    qore_symbol=opportunity.qore_symbol,
-                    stage=CapitalStage.CAPITALIZE,
-                    action=CapitalAction.OPEN_CAPABILITY_MAX,
-                    volume=volume,
-                    stop_risk_usd=effective_candidate.stop_risk_usd,
-                    margin_usd=margin,
-                    capital_source=None,
-                    capital_source_amount_usd=effective_candidate.stop_risk_usd,
-                    capital_source_lots=(
-                        CapitalSourceLot(
-                            source=CapitalSource.ORIGINAL_BASE_CAPITAL,
-                            amount_usd=baseline_plan.stop_risk_usd,
-                            source_id=f"phase22-base:{signal}",
+                    if incremental_risk > released_risk_capacity:
+                        raise CiboCapitalManagementError(
+                            "T02 aligned released risk exceeds causal pool"
+                        )
+                    margin = volume * opportunity.margin_per_volume
+                    plan_row = CiboCapitalActionPlan(
+                        trader_id=opportunity.trader_id,
+                        qore_symbol=opportunity.qore_symbol,
+                        stage=CapitalStage.CAPITALIZE,
+                        action=CapitalAction.OPEN_CAPABILITY_MAX,
+                        volume=volume,
+                        stop_risk_usd=aligned_stop_risk,
+                        margin_usd=margin,
+                        capital_source=None,
+                        capital_source_amount_usd=aligned_stop_risk,
+                        capital_source_lots=(
+                            CapitalSourceLot(
+                                source=CapitalSource.ORIGINAL_BASE_CAPITAL,
+                                amount_usd=baseline_plan.stop_risk_usd,
+                                source_id=f"phase22-base:{signal}",
+                            ),
+                            CapitalSourceLot(
+                                source=CapitalSource.RELEASED_RISK_CAPACITY,
+                                amount_usd=incremental_risk,
+                                source_id=f"phase22-t20-released-risk:{signal}",
+                            ),
                         ),
-                        CapitalSourceLot(
-                            source=CapitalSource.RELEASED_RISK_CAPACITY,
-                            amount_usd=incremental_risk,
-                            source_id=f"phase22-t20-released-risk:{signal}",
+                        reason=(
+                            "T02 structural leverage is floored to the largest "
+                            "legal provider volume step not exceeding the causal "
+                            "risk target; QORE Risk remains sovereign"
                         ),
-                    ),
-                    reason=(
-                        "T02 one-step structural leverage consumes only causally "
-                        "prior T20 released risk capacity; QORE Risk remains sovereign"
-                    ),
-                )
+                    )
             if plan_row.volume <= 0:
                 raise CiboCapitalManagementError(
                     "Phase22 selected signal cannot produce minimum seed"
@@ -945,6 +891,32 @@ def execute_phase22_chronological_replay(
         ),
         accounting_residual_usd=residual,
     )
+
+
+def _floor_provider_volume(
+    *,
+    requested_volume: Decimal,
+    volume_step: Decimal,
+    maximum_volume: Decimal,
+) -> Decimal:
+    """Return the largest legal provider-step volume not above the request."""
+
+    for name, value in (
+        ("requested_volume", requested_volume),
+        ("volume_step", volume_step),
+        ("maximum_volume", maximum_volume),
+    ):
+        if (
+            not isinstance(value, Decimal)
+            or not value.is_finite()
+            or value <= 0
+        ):
+            raise CiboCapitalManagementError(
+                f"T02 {name} must be finite positive Decimal"
+            )
+    capped = min(requested_volume, maximum_volume)
+    steps = (capped / volume_step).to_integral_value(rounding=ROUND_FLOOR)
+    return steps * volume_step
 
 
 def _snapshot(
