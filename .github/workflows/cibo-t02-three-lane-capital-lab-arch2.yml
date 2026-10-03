@@ -54,7 +54,7 @@ jobs:
           assert p['leverage']['linear_posthoc_scaling'] is False
           assert p['leverage']['qore_risk_sovereign'] is True
           assert p['timeframe_context'] == ['H4','H1','M15','M5','M1']
-          assert not any(p['governance'].values())
+          assert all(p['governance'].values())
           PY
 
       - name: Recover archived P0 reference
