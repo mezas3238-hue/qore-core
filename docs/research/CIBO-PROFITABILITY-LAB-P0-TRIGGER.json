@@ -13,9 +13,10 @@
   "production": false,
   "merge_authority": false,
   "outcome_aware_tuning": false,
-  "retrigger_for_head": "97760ef2376b0ce02230f3366bfcee1fd6838ac2",
-  "retrigger_reason": "Phase 3 T02 causal-context transport retest: reconstruct exact native predecision context for 486 Turtle opportunities without mutating the consumed Phase22 batch, inject it only into reused-holdout research projections, and re-evaluate T02 through CMA, sovereign QORE Risk, settlement, and Compound V2.",
-  "mode": "CIBO_PHASE3_T02_CAUSAL_CONTEXT_TRANSPORT_RETEST",
+  "retrigger_for_head": "4045d7fd0525237dd69a20b7c725a58e36f1e83d",
+  "retrigger_reason": "Trader Lab fast-lab promotion exam for T02: consume the frozen pooled burned TRAIN-selected then independently VALIDATION-passed rule ROR_0050_D1_NOT_EXTREME through the reused-holdout integrated P0 path, with causal context, released capacity, CMA, sovereign QORE Risk, settlement, Compound V2, and Phase 3 economic gate.",
+  "mode": "CIBO_PHASE3_T02_POOLED_TRADER_LAB_INTEGRATED_EXAM",
   "replay_tool_eligibility_authority": false,
-  "reason": "Owner-directed phase-by-phase functionality repair. This run tests whether restoring native predecision context changes T02 eligibility/economics while preserving the original consumed batch and all research-only governance. Fresh-OOS=false; no broker mutation/LIVE/real capital/production/merge/outcome-aware admission."
+  "reason": "Owner-directed phase-by-phase functionality repair using Trader Lab laboratories. The candidate was selected on burned TRAIN only and validated before this reused-holdout replay. This run does not authorize promotion by itself; T02 still requires positive incremental economics and chronological gate compliance. No broker mutation/LIVE/real capital/production/merge/Fresh-OOS claim.",
+  "t02_pooled_evidence": true
 }
