@@ -2,8 +2,9 @@
 
 This module is the causal seam that was missing from the historical replay:
 advanced CE2I decisions were previously recorded but did not modify the
-candidate/budget actually seen by MPC/T09/T18.  Only decisions already marked
-APPLIED by their evidence contracts are allowed to change economics here.
+candidate/budget actually seen by MPC/T09/T18. Only decisions already marked
+APPLIED by their evidence contracts and with a safe economic binding are allowed
+to change economics here.
 
 No Trader logic, QORE Risk authority, broker state, or outcome-aware tuning is
 introduced.  Capacity releases are conservatively non-additive across portfolio
@@ -105,7 +106,13 @@ def apply_advanced_ce2i_economic_effects(
     hard_risk_headroom_usd: Decimal,
     margin_headroom_usd: Decimal,
 ) -> AdvancedCe2iEconomicApplication:
-    """Bind authorized T03/T04/T08/T16 effects into allocation economics."""
+    """Bind authorized T03/T08/T16 effects into allocation economics.
+
+    T04 remains observational here because changing true stop risk without
+    rebuilding the causal expectation would create an internally inconsistent
+    candidate.  It may be promoted only with an explicit expectation-repricing
+    contract.
+    """
 
     if not isinstance(full_surface, FullCe2iSurfaceAssessment):
         raise CiboCapitalManagementError(
@@ -158,48 +165,6 @@ def apply_advanced_ce2i_economic_effects(
                         )
                     )
                     candidate = replace(candidate, margin_usd=target)
-            elif decision.tool_code == "T04":
-                target_risk = decision.target_stop_risk_usd
-                target_margin = decision.target_margin_usd
-                if target_risk is None or target_margin is None:
-                    raise CiboCapitalManagementError(
-                        "applied T04 must carry target risk and margin"
-                    )
-                if target_risk > candidate.stop_risk_usd:
-                    raise CiboCapitalManagementError(
-                        "T04 economic reducer cannot increase true stop risk"
-                    )
-                if target_risk < candidate.stop_risk_usd:
-                    effects.append(
-                        AdvancedCe2iCandidateEconomicEffect(
-                            signal_fingerprint=candidate.signal_fingerprint,
-                            tool_code="T04",
-                            field_name="stop_risk_usd",
-                            before_usd=candidate.stop_risk_usd,
-                            after_usd=target_risk,
-                            reason=decision.reason,
-                        )
-                    )
-                if target_margin != candidate.margin_usd:
-                    effects.append(
-                        AdvancedCe2iCandidateEconomicEffect(
-                            signal_fingerprint=candidate.signal_fingerprint,
-                            tool_code="T04",
-                            field_name="margin_usd",
-                            before_usd=candidate.margin_usd,
-                            after_usd=target_margin,
-                            reason=decision.reason,
-                        )
-                    )
-                candidate = replace(
-                    candidate,
-                    stop_risk_usd=target_risk,
-                    margin_usd=target_margin,
-                    concentration_risk_usd=min(
-                        candidate.concentration_risk_usd,
-                        target_risk,
-                    ),
-                )
         adjusted[candidate.signal_fingerprint] = candidate
 
     portfolio_effects: list[AdvancedCe2iPortfolioEconomicEffect] = []
