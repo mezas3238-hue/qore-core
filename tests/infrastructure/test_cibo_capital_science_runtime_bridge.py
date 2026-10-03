@@ -2,10 +2,10 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 from qore.infrastructure.cibo_capital_science_runtime_bridge import (
-    CapitalScienceDisposition,
-    CapitalSciencePredecisionInput,
     MANDATORY_RUNTIME_GENC,
     RESEARCH_MODE,
+    CapitalScienceDisposition,
+    CapitalSciencePredecisionInput,
     aggregate_capital_science_receipts,
     build_capital_science_postrun_receipts,
     evaluate_capital_science_predecision,
