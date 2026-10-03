@@ -19,7 +19,6 @@ import argparse
 import hashlib
 import itertools
 import json
-import math
 import random
 from collections import Counter
 from dataclasses import dataclass
@@ -52,6 +51,8 @@ CAT_FIELDS = (
     "reg_m5_displacement_alignment",
     "reg_m5_efficiency_state",
     "reg_m5_volatility_state",
+    "reg_m1_last_body_alignment",
+    "reg_m1_raid_state",
     "ctx_session",
     "ctx_timeframe",
     "ctx_prior_body_alignment",
@@ -70,6 +71,18 @@ NUM_FIELDS = (
     "pre_ce2i_margin_usd",
     "hard_risk_headroom_usd",
     "margin_headroom_usd",
+    "m1_last_body_efficiency",
+    "m1_last_range_to_60_avg",
+    "m1_range_5_to_60_avg",
+    "m1_range_15_to_60_avg",
+    "m1_return_5_in_60_avg_range",
+    "m1_return_15_in_60_avg_range",
+    "m1_position_in_60_range",
+    "m1_reference_range_width_in_stop_units",
+    "m1_entry_to_reference_high_in_stop_units",
+    "m1_entry_to_reference_low_in_stop_units",
+    "m1_minutes_from_ny_1000",
+    "m1_closed_bar_count_predecision",
 )
 
 REQUIRED_TIMEFRAME_KEYS = {
@@ -80,6 +93,14 @@ REQUIRED_TIMEFRAME_KEYS = {
         "reg_m5_displacement_alignment",
         "reg_m5_efficiency_state",
         "reg_m5_volatility_state",
+    ),
+    "M1": (
+        "reg_m1_last_body_alignment",
+        "reg_m1_raid_state",
+        "m1_last_body_efficiency",
+        "m1_last_range_to_60_avg",
+        "m1_position_in_60_range",
+        "m1_reference_range_width_in_stop_units",
     ),
 }
 
@@ -301,7 +322,7 @@ def explorer(
     )
     unique: dict[tuple[tuple[str, str, str], ...], tuple[Atom, ...]] = {}
     for rule in rules:
-        key = tuple(sorted((atom.key() for atom in rule)))
+        key = tuple(sorted(atom.key() for atom in rule))
         unique[key] = tuple(sorted(rule, key=Atom.key))
         if len(unique) >= max_rules:
             break
@@ -350,6 +371,10 @@ def serial_rule(item: dict[str, Any]) -> dict[str, Any]:
         "train_max_drawdown_usd": fmt(m["dd"]),
         "train_trader_diversity": m["trader_count"],
         "train_score": fmt(item["score"]),
+        "uses_m1_features": any(
+            atom.field.startswith("m1_") or atom.field.startswith("reg_m1_")
+            for atom in atoms
+        ),
     }
 
 
@@ -502,8 +527,10 @@ def main() -> int:
 
     candidate_fps = load_trader_lab(args.trader_lab_audit)
     rows = load_rows(args.causal_dataset, candidate_fps)
-    if len(rows) != 127:
-        raise RuntimeError(f"expected 127 rich-context Core-selected rows, got {len(rows)}")
+    if len(rows) != 145:
+        raise RuntimeError(
+            f"expected 145 rich-context Core-selected rows after VT31 M1 augmentation, got {len(rows)}"
+        )
 
     board, searched = explorer(rows, leaderboard_n=50)
     live_board = [serial_rule(item) for item in board]
@@ -512,6 +539,12 @@ def main() -> int:
     terminal = terminal_freeze(rows)
 
     mc = terminal.get("validation_monte_carlo", {})
+    validation_blocks = terminal.get("validation_blocks", [])
+    universality_proven = bool(
+        terminal.get("frozen_rule", {}).get("train_trader_diversity", 0) >= 2
+        and validation_blocks
+        and all(block.get("trader_diversity", 0) >= 2 for block in validation_blocks)
+    )
     scientific_pass = bool(
         wfo5["all_tests_positive"]
         and wfo6["all_tests_positive"]
@@ -519,6 +552,7 @@ def main() -> int:
         and terminal.get("validation_candidate_n", 0) >= 20
         and dec(mc.get("median_incremental_pnl_usd", "0")) > 0
         and dec(mc.get("p05_incremental_pnl_usd", "0")) > 0
+        and universality_proven
     )
     has_positive_exploration = bool(live_board)
     conclusion = (
@@ -555,6 +589,12 @@ def main() -> int:
             "rolling_6": wfo6,
             "terminal_freeze_60_40": terminal,
             "hard_gate": "every chronological TEST > 0; no pooled rescue",
+            "universality_gate_proven": universality_proven,
+            "universality_rule": (
+                "No trader/symbol predicate. A final rule must span at least two "
+                "Trader lineages in TRAIN and every terminal validation block. "
+                "M1-only VT31 signals remain exploratory until cross-lineage evidence exists."
+            ),
         },
         "governance": {
             "runtime_policy_changed": False,
