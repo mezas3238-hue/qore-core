@@ -62,6 +62,8 @@ def _surface_pass(surface: dict[str, Any]) -> tuple[bool, list[str]]:
         failures.append("OBSERVED_PNL_NON_POSITIVE")
     if _d(observed["weighted_average_roi"]) <= 0:
         failures.append("OBSERVED_WEIGHTED_ROI_NON_POSITIVE")
+    if observed["protected_pool_breach_count"] != 0:
+        failures.append("OBSERVED_PROTECTED_POOL_BREACH")
 
     wfo = surface["walk_forward"]
     if wfo["fold_count"] != WFO_FOLDS:
@@ -243,6 +245,7 @@ def main() -> int:
             "required_for_each_side_mode": [
                 "CIBO_COMPOUND observed PnL > 0",
                 "CIBO_COMPOUND weighted ROI > 0",
+                "CIBO_COMPOUND observed protected-pool breaches = 0",
                 "CIBO_COMPOUND 4/4 WFO folds positive",
                 "CIBO_COMPOUND Monte Carlo median PnL > 0",
                 "CIBO_COMPOUND Monte Carlo protected-pool breach paths = 0",
