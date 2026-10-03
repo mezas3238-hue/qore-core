@@ -420,7 +420,7 @@ def marginal_capital_utility_evidence_json(
             "environment": evidence.account_identity.environment.value,
             "provider_program": evidence.account_identity.provider_program,
         },
-        "trader_id": evidence.trader_id.value,
+        "trader_id": canonical_trader_identity(evidence.trader_id),
         "signal_fingerprint": evidence.signal_fingerprint,
         "source_opportunity_decision_sha256": (
             evidence.source_opportunity_decision_sha256
