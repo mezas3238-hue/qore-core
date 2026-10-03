@@ -1,0 +1,72 @@
+{
+  "schema": "qore.cibo.t02-deep-science-arch2-protocol.v1",
+  "owner": "Sergio Meza",
+  "mission": "CE2I T02 Structural Leverage deep scientific research",
+  "branch": "agent/cibo-t02-science-architect-2-001",
+  "source": {
+    "p0_workflow_run_id": 37127302531,
+    "p0_artifact_id": 11275124190,
+    "p0_head_sha": "3e2e6ca898d400d8ed8359659ed032708cf7eeb3",
+    "native_artifact_ids": [
+      11255538834,
+      11256765185,
+      11256465614,
+      11255244229,
+      11256249712
+    ]
+  },
+  "mode": "NON_CERTIFYING_REUSED_HOLDOUT_RESEARCH",
+  "population": {
+    "decision_population": "CIBO Core-selected T02 decision surface",
+    "rich_context_population": "five Turtle lineages with deterministic native-context join",
+    "symbol_blacklist_forbidden": true,
+    "trader_blacklist_forbidden": true
+  },
+  "family": [
+    {
+      "id": "H1_STRUCTURAL_OPPOSED",
+      "formula": "reg_h1_body_alignment == 'opposed'"
+    },
+    {
+      "id": "H2_STRUCTURAL_OPPOSED_M5_LOW",
+      "formula": "reg_h1_body_alignment == 'opposed' and reg_m5_efficiency_state == 'low'"
+    },
+    {
+      "id": "H3_H2_EXPECTED_NET_POSITIVE",
+      "formula": "H2 and expected_net_value_usd > 0"
+    },
+    {
+      "id": "H4_H2_CAPITAL_DURATION_LE_60M",
+      "formula": "H2 and expected_capital_minutes <= 60"
+    },
+    {
+      "id": "H5_H2_PROVIDER_COST_RISK_LE_025",
+      "formula": "H2 and provider_cost_to_extra_risk <= 0.25"
+    }
+  ],
+  "gates": {
+    "aggregate_incremental_pnl_usd": "> 0",
+    "aggregate_incremental_return_on_extra_risk": "> 0",
+    "minimum_candidate_n": 20,
+    "walk_forward": "every TEST > 0; no pooled rescue",
+    "monte_carlo_median_incremental_pnl_usd": "> 0",
+    "monte_carlo_p05_incremental_pnl_usd": "preferred > 0",
+    "protected_capital_breach_paths": 0,
+    "temporal_blocks": "report 4/5/6 and stress 7/8",
+    "universal_rule": "no trader or symbol predicate"
+  },
+  "governance": {
+    "no_merge": true,
+    "no_live": true,
+    "no_production": true,
+    "no_real_capital": true,
+    "no_fundednext_live": true,
+    "no_broker_mutation": true,
+    "no_vps": true,
+    "no_outcome_aware_admission": true,
+    "no_trader_edge_edit": true,
+    "qore_risk_sovereign": true,
+    "no_fresh_oos_claim": true,
+    "no_certification_claim": true
+  }
+}
