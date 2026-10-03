@@ -285,6 +285,7 @@ def main() -> int:
         plan=plan,
         core_execution=treatment,
         lab_use_executed_core_surface=True,
+        lab_require_rational_redeploy=True,
     )
 
     baseline_metrics = _run_minimal_seed_baseline(plan)
@@ -315,8 +316,8 @@ def main() -> int:
         "status": "COMPLETE",
         "validation_mode": "NON_CERTIFYING_REUSED_HOLDOUT_DIAGNOSTIC",
         "treatment": (
-            "ALL_TRADER_CIBO_FREE_TOOL_CHOICE_"
-            "CMA_QORE_RISK_PLUS_CURRENT_COMPOUND"
+            "ALL_TRADER_CIBO_FREE_TOOL_CHOICE_CMA_QORE_RISK_"
+            "PLUS_FAIL_CLOSED_RATIONAL_COMPOUND_GATE"
         ),
         "allocator_role": (
             "LAB_P0_STATIC_TRADER_PRIOR_SIGN_GATE_DISABLED; "
@@ -326,6 +327,7 @@ def main() -> int:
         "all_eligible_candidates_reach_cma_qore_risk": True,
         "replay_tool_eligibility_authority": False,
         "cibo_free_tool_choice": True,
+        "compound_rational_redeploy_gate_preregistered": True,
         "seven_of_seven_participation_pass": participation_pass,
         "baseline_minimal_seed": _canonical(baseline_metrics),
         "frozen_cibo_control": _canonical(control_metrics),
