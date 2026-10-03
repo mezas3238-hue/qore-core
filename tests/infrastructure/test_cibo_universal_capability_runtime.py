@@ -29,6 +29,7 @@ from qore.infrastructure.cibo_provider_economic_normalization import (
     ProviderEconomicEnvelope,
 )
 from qore.infrastructure.cibo_universal_capability_runtime import (
+    CapabilityLabToolReceipt,
     CAPABILITY_LAB,
     CapabilityLabRuntimeInputs,
     evaluate_universal_capability_lab,
@@ -212,3 +213,14 @@ def test_capability_lab_is_asset_agnostic_for_noncanonical_symbols() -> None:
         assert all(
             receipt.functional_pass for receipt in result.runtime_tool_receipts
         )
+
+
+def test_runtime_tool_receipt_rejects_partial_success() -> None:
+    receipt = CapabilityLabToolReceipt(
+        tool_code="T11",
+        applied_count=1,
+        fail_closed_count=1,
+        detail="mixed success must not pass",
+    )
+
+    assert receipt.functional_pass is False
