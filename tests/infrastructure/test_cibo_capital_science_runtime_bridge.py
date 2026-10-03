@@ -360,3 +360,16 @@ def test_genc7_missing_proposal_fails_closed_without_false_native_receipt() -> N
     assert receipt.consumer_action == "UNAVAILABLE_MISSING_EVIDENCE"
     assert receipt.native_engine_called is False
     assert receipt.native_engine_name is None
+
+
+def test_deployed_profit_is_conserved_and_excluded_from_new_compound_capacity() -> None:
+    directive = runtime.evaluate_capital_science_predecision(
+        _state(deployed_profit_usd=Decimal("3"))
+    )
+    genc5 = next(item for item in directive.receipts if item.function_code == "GEN-C5")
+    twin = next(item for item in directive.receipts if item.function_code == "GEN-C10")
+
+    assert directive.deployable_profit_usd == Decimal("7")
+    assert genc5.native_engine_called is True
+    assert genc5.consumer_action == "REQUEST_DOWNSTREAM_RISK_REVIEW"
+    assert twin.output_payload["engine_output"]["deployed_profit_usd"] == "3"

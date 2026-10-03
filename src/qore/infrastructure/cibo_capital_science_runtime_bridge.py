@@ -950,14 +950,43 @@ def _native_genc5_inputs(
         source_id = remainder_id or realized_id
 
     compoundable_id = f"genc5-compoundable-{prefix}"
-    ledger = ledger.transition(
-        source_lot_id=source_id,
-        to_state=CompoundCapitalState.COMPOUNDABLE,
-        amount_usd=deployable_profit,
-        moved_lot_id=compoundable_id,
-        event_id=f"genc5-compoundable-event-{prefix}",
-        occurred_at=state.decision_at - timedelta(microseconds=2),
-    )
+    if deployed_profit > 0:
+        combined_id = f"genc5-compound-capacity-{prefix}"
+        ledger = ledger.transition(
+            source_lot_id=source_id,
+            to_state=CompoundCapitalState.COMPOUNDABLE,
+            amount_usd=deployable_profit + deployed_profit,
+            moved_lot_id=combined_id,
+            event_id=f"genc5-compound-capacity-event-{prefix}",
+            occurred_at=state.decision_at - timedelta(microseconds=3),
+        )
+        active_id = f"genc5-active-{prefix}"
+        ledger = ledger.transition(
+            source_lot_id=combined_id,
+            to_state=CompoundCapitalState.ACTIVE_COMPOUND_CAPACITY,
+            amount_usd=deployed_profit,
+            moved_lot_id=active_id,
+            remainder_lot_id=compoundable_id,
+            event_id=f"genc5-active-event-{prefix}",
+            occurred_at=state.decision_at - timedelta(microseconds=2),
+        )
+        ledger = ledger.transition(
+            source_lot_id=active_id,
+            to_state=CompoundCapitalState.DEPLOYED_COMPOUND_CAPITAL,
+            amount_usd=deployed_profit,
+            moved_lot_id=f"genc5-deployed-{prefix}",
+            event_id=f"genc5-deployed-event-{prefix}",
+            occurred_at=state.decision_at - timedelta(microseconds=1),
+        )
+    else:
+        ledger = ledger.transition(
+            source_lot_id=source_id,
+            to_state=CompoundCapitalState.COMPOUNDABLE,
+            amount_usd=deployable_profit,
+            moved_lot_id=compoundable_id,
+            event_id=f"genc5-compoundable-event-{prefix}",
+            occurred_at=state.decision_at - timedelta(microseconds=2),
+        )
     portfolio = AccountCoreCompoundPortfolio(
         account_identity=identity,
         compound_ledger=ledger,
@@ -1443,6 +1472,18 @@ def evaluate_capital_science_predecision(
                 "total_realized_capital_usd": format(twin.total_realized_capital_usd, "f"),
                 "stop_risk_headroom_usd": format(twin.stop_risk_headroom_usd, "f"),
                 "margin_headroom_usd": format(twin.margin_headroom_usd, "f"),
+                "deployed_profit_usd": format(
+                    twin.bucket(Genc10EconomicBucket.DEPLOYED_COMPOUND_CAPITAL),
+                    "f",
+                ),
+                "policy_protected_floor_usd": format(
+                    twin.policy_protected_floor_usd,
+                    "f",
+                ),
+                "compoundable_profit_usd": format(
+                    twin.bucket(Genc10EconomicBucket.COMPOUNDABLE),
+                    "f",
+                ),
                 "known_option_count": len(twin.known_options),
                 "known_option_ids": [item.option_id for item in twin.known_options],
             },
