@@ -450,7 +450,7 @@ class Audit:
                 ),
                 frozen_at=t1 + timedelta(seconds=2),
                 evidence_ref=ResearchStrategyFreezeEvidenceReference(
-                    "evidence:cibo-trader-lab-strategy-freeze"
+                    _u(ctx.trader + ":strategy-freeze-evidence")
                 ),
             ),
             "strategy configuration freeze",
