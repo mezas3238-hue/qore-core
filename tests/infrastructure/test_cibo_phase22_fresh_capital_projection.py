@@ -40,6 +40,10 @@ def _fresh(
         gross_structural_outcome_r=Decimal("2"),
         methodology_sha256=_sha("method"),
         source_evidence_ids=(_sha("source"),),
+        decision_context=(
+            ("family", "LONG_DELAYED_RECLAIM_MEDIUM_BODY"),
+            ("reg_h1_body_alignment", "opposed"),
+        ),
     )
 
 
@@ -86,6 +90,12 @@ def test_projection_separates_structural_risk_from_provider_cost() -> None:
     assert provider.commission_per_volume_usd == Decimal("3")
     assert provider.slippage_reserve_per_volume_usd == Decimal("13.20000")
     assert projection.decision_provider_cost_proxy_usd > Decimal(0)
+    assert (
+        capital.opportunity.context_value("family")
+        == "LONG_DELAYED_RECLAIM_MEDIUM_BODY"
+    )
+    assert capital.opportunity.context_value("reg_h1_body_alignment") == "opposed"
+    assert capital.opportunity.context_value("sizing_authority") == "CIBO_CMA"
 
 
 def test_future_outcome_changes_cannot_change_predecision_projection() -> None:
