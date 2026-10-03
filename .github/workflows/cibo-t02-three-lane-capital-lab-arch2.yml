@@ -7,6 +7,7 @@ on:
     paths:
       - '.github/workflows/cibo-t02-three-lane-capital-lab-arch2.yml'
       - 'scripts/cibo_t02_three_lane_capital_lab_arch2.py'
+      - 'scripts/cibo_phase22_reused_context_map.py'
       - 'src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py'
       - 'docs/research/CIBO-T02-THREE-LANE-CAPITAL-LAB-ARCH2-PROTOCOL.json'
   workflow_dispatch:
@@ -40,9 +41,11 @@ jobs:
           set -euo pipefail
           python -m py_compile \
             scripts/cibo_t02_three_lane_capital_lab_arch2.py \
+            scripts/cibo_phase22_reused_context_map.py \
             src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py
           ruff check \
             scripts/cibo_t02_three_lane_capital_lab_arch2.py \
+            scripts/cibo_phase22_reused_context_map.py \
             src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py
           python - <<'PY'
           import json
