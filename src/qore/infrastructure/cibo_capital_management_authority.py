@@ -13,7 +13,6 @@ from enum import StrEnum
 
 from qore.infrastructure.account_wide_risk import (
     TraderIdentity,
-    canonical_trader_identity,
     canonical_trader_lineage,
 )
 
