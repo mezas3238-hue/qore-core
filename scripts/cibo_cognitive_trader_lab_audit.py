@@ -467,7 +467,7 @@ class Audit:
                 software_revision=ResearchSoftwareRevision(self.source_head),
                 execution_model_id=None,
                 transaction_cost_model_id=None,
-                randomness_mode=ResearchRandomnessMode.DISABLED,
+                randomness_mode=ResearchRandomnessMode.DETERMINISTIC,
                 random_seed=None,
             ),
             "research run",
