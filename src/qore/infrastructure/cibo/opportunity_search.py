@@ -183,6 +183,7 @@ class CiboOpportunitySearch:
                 as_of=hypothesis.evidence.as_of,
                 dependency_kind=hypothesis.evidence.dependency_kind,
                 reasons=hypothesis.evidence.reasons,
+                trader_lab_pass_receipts=hypothesis.evidence.trader_lab_pass_receipts,
             )
             revalidated = CiboOpportunityHypothesis(
                 opportunity_code=hypothesis.opportunity_code,
