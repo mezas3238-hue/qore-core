@@ -79,7 +79,22 @@
     ],
     "categorical_rule_depth_max": 3,
     "numeric_thresholds": "TRAIN-only quartiles",
-    "search_policy": "Broad TRAIN exploration is permitted; nothing discovered on TRAIN is approved until frozen and evaluated on untouched chronological TEST."
+    "search_policy": "Broad TRAIN exploration is permitted; nothing discovered on TRAIN is approved until frozen and evaluated on untouched chronological TEST.",
+    "shadow_size_step_multipliers": [
+      "1",
+      "2",
+      "3",
+      "4"
+    ],
+    "shadow_size_leverage_rule": "Incremental volume/risk/cost/margin scale together. Candidate is feasible only when scaled stop-risk <= hard_risk_headroom_usd and scaled margin <= margin_headroom_usd at the decision epoch.",
+    "broker_margin_leverage_stress_multipliers": [
+      "1",
+      "2",
+      "3",
+      "5"
+    ],
+    "broker_margin_leverage_rule": "Broker leverage stress changes required margin only; fixed-volume P/L and stop-risk do not change. This is reported separately from size leverage.",
+    "leverage_results_are_research_only": true
   },
   "validator": {
     "chronological_partitions": [
