@@ -218,6 +218,29 @@ def run_audit() -> dict[str, object]:
         "src/qore/infrastructure/cibo_phase22_v4_historical_policy_replay.py"
     )
     policy = _text(policy_path)
+    capability_lab_path = Path(
+        "src/qore/infrastructure/cibo_universal_capability_runtime.py"
+    )
+    capability_lab = (
+        capability_lab_path.read_text(encoding="utf-8")
+        if capability_lab_path.is_file()
+        else ""
+    )
+    record(
+        "CE2I_ADVANCED_TOOLS_CAPABILITY_LAB_AVAILABLE",
+        "CAPABILITY_LAB" in capability_lab
+        and "scientific_eligibility=None" in capability_lab
+        and "productive_authority=False" in capability_lab,
+        (
+            "advanced tools have an explicit non-certifying capability-lab path"
+            if capability_lab
+            else (
+                "advanced tools remain filtered by certification scientific "
+                "eligibility; no separate capability-lab path exists"
+            )
+        ),
+    )
+
     advanced_actions = _text(
         "src/qore/infrastructure/cibo_ce2i_advanced_actions.py"
     )
