@@ -173,7 +173,7 @@ jobs:
             tests/governance/test_cibo_executive_dialogue.py
       - name: Static integrity
         run: |
-          ruff check --diff \
+          ruff check \
             src/qore/infrastructure/cibo/contracts.py \
             src/qore/infrastructure/cibo/functional_availability.py \
             src/qore/infrastructure/account_wide_risk.py \
