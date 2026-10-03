@@ -814,34 +814,41 @@ def main() -> int:
         },
     }
 
+    violations: list[str] = []
     for name, surface in (
         ("CIBO_COMPOUND", local),
         ("COMPOUND_PORTFOLIO", portfolio),
     ):
         observed = surface["observed"]
         if observed["status"] != "MEASURED":
-            raise RuntimeError(f"{name} produced no protected-capital reinvestments")
+            violations.append(f"{name}:NO_PROTECTED_REINVESTMENTS")
         if observed["episode_count"] <= 0:
-            raise RuntimeError(f"{name} episode count is zero")
+            violations.append(f"{name}:ZERO_EPISODES")
         if surface["walk_forward"]["fold_count"] <= 0:
-            raise RuntimeError(f"{name} WFO did not run")
+            violations.append(f"{name}:WFO_NOT_RUN")
         if surface["monte_carlo"]["simulation_count"] != SIMULATIONS:
-            raise RuntimeError(f"{name} Monte Carlo did not run {SIMULATIONS} paths")
+            violations.append(f"{name}:MONTE_CARLO_COUNT_DRIFT")
         if surface["stress"]["scenario_count"] != 7:
-            raise RuntimeError(f"{name} stress family count drift")
+            violations.append(f"{name}:STRESS_FAMILY_COUNT_DRIFT")
         if _d(observed["incremental_realized_pnl_usd"]) <= 0:
-            raise RuntimeError(f"{name} calibrated observed PnL is not positive")
+            violations.append(f"{name}:OBSERVED_PNL_NON_POSITIVE")
         if _d(observed["weighted_average_roi"]) <= 0:
-            raise RuntimeError(f"{name} calibrated weighted ROI is not positive")
+            violations.append(f"{name}:OBSERVED_WEIGHTED_ROI_NON_POSITIVE")
         if any(
             _d(fold["weighted_average_roi"]) <= 0
             for fold in surface["walk_forward"]["folds"]
         ):
-            raise RuntimeError(f"{name} has non-positive calibrated WFO fold")
+            violations.append(f"{name}:NON_POSITIVE_WFO_FOLD")
         if _d(surface["monte_carlo"]["median_incremental_pnl_usd"]) <= 0:
-            raise RuntimeError(f"{name} calibrated Monte Carlo median is not positive")
+            violations.append(f"{name}:MONTE_CARLO_MEDIAN_NON_POSITIVE")
         if surface["monte_carlo"]["protected_pool_breach_paths"] != 0:
-            raise RuntimeError(f"{name} calibrated Monte Carlo breached protected pool")
+            violations.append(f"{name}:MONTE_CARLO_PROTECTED_POOL_BREACH")
+
+    report["gate_verdict"] = {
+        "status": "PASS" if not violations else "REJECT",
+        "violations": violations,
+        "artifact_emitted_before_failure": True,
+    }
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
@@ -851,6 +858,7 @@ def main() -> int:
     print(
         json.dumps(
             {
+                "gate_verdict": report["gate_verdict"],
                 "cibo_compound": local["observed"],
                 "compound_portfolio": portfolio["observed"],
                 "cibo_compound_mc": local["monte_carlo"],
@@ -862,6 +870,8 @@ def main() -> int:
             sort_keys=True,
         )
     )
+    if violations:
+        raise RuntimeError("compound reality gate rejected: " + ", ".join(violations))
     return 0
 
 
