@@ -14,7 +14,7 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter, defaultdict
-from dataclasses import fields, is_dataclass
+from dataclasses import fields, is_dataclass, replace
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
@@ -23,6 +23,9 @@ from typing import Any
 
 from qore.infrastructure.cibo_capability_exam_cognitive_coverage import (
     build_cibo_capability_cognitive_coverage,
+)
+from qore.infrastructure.cibo_phase22_fresh_capital_projection import (
+    project_phase22_fresh_capital_input,
 )
 from qore.infrastructure.cibo_phase22_v4_chronological_execution import (
     execute_phase22_chronological_replay,
@@ -74,6 +77,73 @@ def _json_object(path: Path) -> dict[str, Any]:
     if not isinstance(raw, dict):
         raise ValueError(f"expected JSON object: {path}")
     return raw
+
+
+def _research_context_by_signal(
+    path: Path,
+    *,
+    source_batch_sha256: str,
+    allowed_signals: set[str],
+) -> tuple[dict[str, tuple[tuple[str, str], ...]], dict[str, Any]]:
+    payload = _json_object(path)
+    if payload.get("schema") != "qore.cibo.phase22.reused-context-map.v1":
+        raise ValueError("unexpected reused context-map schema")
+    if payload.get("mode") != "NON_CERTIFYING_REUSED_HOLDOUT":
+        raise ValueError("reused context map must be non-certifying")
+    if payload.get("source_batch_sha256") != source_batch_sha256:
+        raise ValueError("reused context map source batch drift")
+    governance = payload.get("governance")
+    if not isinstance(governance, dict):
+        raise ValueError("reused context map governance missing")
+    for key in (
+        "source_batch_mutated",
+        "fresh_oos_claimed",
+        "certification_claimed",
+        "outcome_fields_used_for_context",
+        "broker_mutation",
+        "live",
+        "production",
+        "real_capital",
+        "merge_authority",
+    ):
+        if governance.get(key) is not False:
+            raise ValueError(f"reused context map governance drift: {key}")
+
+    raw_rows = payload.get("context_rows")
+    if not isinstance(raw_rows, dict) or not raw_rows:
+        raise ValueError("reused context map rows missing")
+    contexts: dict[str, tuple[tuple[str, str], ...]] = {}
+    for signal, raw in raw_rows.items():
+        if signal not in allowed_signals:
+            raise ValueError("reused context map contains foreign signal")
+        if not isinstance(raw, dict):
+            raise ValueError("reused context map row must be object")
+        items = raw.get("decision_context")
+        if not isinstance(items, list) or not items:
+            raise ValueError("reused context map decision_context missing")
+        context: list[tuple[str, str]] = []
+        for item in items:
+            if (
+                not isinstance(item, list)
+                or len(item) != 2
+                or not isinstance(item[0], str)
+                or not isinstance(item[1], str)
+            ):
+                raise ValueError("reused context map entry invalid")
+            context.append((item[0], item[1]))
+        contexts[str(signal)] = tuple(context)
+
+    expected = int(payload.get("matched_turtle_opportunity_count", 0))
+    if expected != len(contexts) or expected != 486:
+        raise ValueError("reused context map must cover exact 486 Turtle rows")
+    return contexts, {
+        "schema": payload["schema"],
+        "source_batch_sha256": payload["source_batch_sha256"],
+        "matched_turtle_opportunity_count": expected,
+        "matched_by_trader": payload.get("matched_by_trader"),
+        "source_batch_mutated": False,
+        "outcome_fields_used_for_context": False,
+    }
 
 
 def _source_roots(values: list[str]) -> dict[str, Path]:
@@ -305,6 +375,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--batch", type=Path, required=True)
     parser.add_argument("--provider-numeric", type=Path, required=True)
+    parser.add_argument("--context-map", type=Path)
     parser.add_argument("--provider-numeric-freeze-sha256", required=True)
     parser.add_argument("--source-root", action="append", required=True)
     parser.add_argument("--replay-started-at", required=True)
@@ -318,11 +389,38 @@ def main() -> int:
     provider = load_phase22_sealed_provider_numeric(
         _json_object(args.provider_numeric)
     )
-    projections = project_phase22_execution_inputs(
-        fresh=fresh,
-        provider=provider,
-        provider_numeric_freeze_sha256=args.provider_numeric_freeze_sha256,
-    )
+    context_summary: dict[str, Any] | None = None
+    if args.context_map is None:
+        projections = project_phase22_execution_inputs(
+            fresh=fresh,
+            provider=provider,
+            provider_numeric_freeze_sha256=args.provider_numeric_freeze_sha256,
+        )
+    else:
+        allowed_signals = {
+            item.signal_fingerprint for item in fresh.batch.opportunities
+        }
+        context_by_signal, context_summary = _research_context_by_signal(
+            args.context_map,
+            source_batch_sha256=fresh.declared_batch_sha256,
+            allowed_signals=allowed_signals,
+        )
+        projections = tuple(
+            project_phase22_fresh_capital_input(
+                fresh=replace(
+                    opportunity,
+                    decision_context=context_by_signal.get(
+                        opportunity.signal_fingerprint,
+                        opportunity.decision_context,
+                    ),
+                ),
+                spec=provider.spec_for(opportunity.qore_symbol),
+                provider_numeric_freeze_sha256=(
+                    args.provider_numeric_freeze_sha256
+                ),
+            )
+            for opportunity in fresh.batch.opportunities
+        )
     plan = build_phase22_chronological_replay_plan(
         fresh=fresh,
         projections=projections,
@@ -403,6 +501,7 @@ def main() -> int:
         "replay_tool_eligibility_authority": False,
         "cibo_free_tool_choice": True,
         "compound_rational_redeploy_gate_preregistered": True,
+        "causal_context_reconstruction": context_summary,
         "seven_of_seven_participation_pass": participation_pass,
         "baseline_minimal_seed": _canonical(baseline_metrics),
         "frozen_cibo_control": _canonical(control_metrics),
@@ -416,6 +515,7 @@ def main() -> int:
         "governance": {
             "trader_edge_changed": False,
             "outcome_aware_tuning": False,
+            "reused_context_map_applied": context_summary is not None,
             "qore_risk_sovereign": True,
             "broker_mutation": False,
             "live": False,
