@@ -14,7 +14,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from decimal import Decimal
+from decimal import Decimal, localcontext
 from enum import StrEnum
 from fractions import Fraction
 
@@ -787,9 +787,11 @@ def project_genc10_world(
             _consume_bucket(balances, flow.source_bucket, flow.amount_usd)
             loss += flow.amount_usd
 
-    ending_total = sum(balances.values(), Decimal(0))
-    expected_total = twin.total_realized_capital_usd + gain - loss
-    residual = ending_total - expected_total
+    with localcontext() as context:
+        context.prec = 100
+        ending_total = sum(balances.values(), Decimal(0))
+        expected_total = twin.total_realized_capital_usd + gain - loss
+        residual = ending_total - expected_total
     if residual != 0:
         raise CiboCompoundCapitalError(
             "GEN-C10 scenario violates realized-capital conservation"
@@ -802,16 +804,18 @@ def project_genc10_world(
             "GEN-C10 scenario cannot reduce protected floor"
         )
 
-    total_stop = (
-        twin.total_stop_risk_capacity_usd
-        + scenario.stop_risk_capacity_delta_usd
-    )
-    used_stop = twin.used_stop_risk_usd + scenario.stop_risk_usage_delta_usd
-    total_margin = (
-        twin.total_margin_capacity_usd
-        + scenario.margin_capacity_delta_usd
-    )
-    used_margin = twin.used_margin_usd + scenario.margin_usage_delta_usd
+    with localcontext() as context:
+        context.prec = 100
+        total_stop = (
+            twin.total_stop_risk_capacity_usd
+            + scenario.stop_risk_capacity_delta_usd
+        )
+        used_stop = twin.used_stop_risk_usd + scenario.stop_risk_usage_delta_usd
+        total_margin = (
+            twin.total_margin_capacity_usd
+            + scenario.margin_capacity_delta_usd
+        )
+        used_margin = twin.used_margin_usd + scenario.margin_usage_delta_usd
     for value, name in (
         (total_stop, "projected total stop risk"),
         (used_stop, "projected used stop risk"),
