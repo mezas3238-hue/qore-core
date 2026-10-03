@@ -29,14 +29,6 @@ from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
     CiboCapitalState,
     plan_minimal_seed,
-    plan_self_financing_expansion,
-)
-from qore.infrastructure.cibo_ce2i_dynamic_derisking import (
-    CiboDeRiskingInput,
-    plan_dynamic_derisking,
-)
-from qore.infrastructure.cibo_ce2i_t11_runtime_guard import (
-    evaluate_t11_runtime_exposure_guard,
 )
 from qore.infrastructure.cibo_ce2i_tool_registry import CE2I_TOOL_REGISTRY
 from qore.infrastructure.cibo_ce2i_usd60_six_month_certification import (
@@ -649,121 +641,7 @@ def _tool_audit(
                     counters[code]["applied"] += 1
                     reasons[code].append("allocator applied tool")
 
-    multi_candidate_epochs = sum(
-        1 for item in plan.epochs if len(item.candidates) > 1
-    )
-    multi_trader_epochs = sum(
-        1
-        for item in plan.epochs
-        if len({candidate.trader_id for candidate in item.candidates}) > 1
-    )
     release_count = len(execution.books.t20_release.release_chain)
-    candidate_by_signal = {
-        candidate.signal_fingerprint: candidate
-        for epoch in plan.epochs
-        for candidate in epoch.candidates
-    }
-
-    # Shadow-only post-run consultations. These calls never feed back into the
-    # historical capital decision; they prove the engines are integrated and
-    # explain why they did or did not have authority under the observed state.
-    if counters["T11"]["enabled"] > 0:
-        for candidate in candidate_by_signal.values():
-            opportunity = candidate.projection.candidate.capital_input.opportunity
-            t11 = evaluate_t11_runtime_exposure_guard(
-                qore_symbol=opportunity.qore_symbol,
-                requested_volume=opportunity.minimum_volume,
-                provider_envelope=candidate.projection.provider_envelope,
-            )
-            if t11.advanced_exposure_authorized:
-                counters["T11"]["applied"] += 1
-            else:
-                counters["T11"]["fail_closed"] += 1
-                reasons["T11"].extend(t11.blockers)
-
-    accepted_risk = tuple(
-        item
-        for item in execution.books.executed_risk.executed_risk
-        if item.authorized_stop_risk_usd > 0 and item.authorized_margin_usd > 0
-    )
-    if counters["T14"]["enabled"] > 0:
-        for risk in accepted_risk:
-            candidate = candidate_by_signal.get(risk.signal_fingerprint)
-            if candidate is None:
-                continue
-            opportunity = candidate.projection.candidate.capital_input.opportunity
-            current_volume = (
-                risk.authorized_stop_risk_usd
-                / opportunity.stop_loss_per_volume
-            )
-            decision = plan_dynamic_derisking(
-                CiboDeRiskingInput(
-                    current_volume=current_volume,
-                    minimum_retained_volume=opportunity.minimum_volume,
-                    volume_step=opportunity.volume_step,
-                    stop_risk_per_volume_usd=opportunity.stop_loss_per_volume,
-                    margin_per_volume_usd=opportunity.margin_per_volume,
-                    maximum_retained_stop_risk_usd=(
-                        risk.authorized_stop_risk_usd
-                    ),
-                    maximum_retained_margin_usd=risk.authorized_margin_usd,
-                    methodology_position_valid=True,
-                )
-            )
-            counters["T14"]["applied"] += 1
-            reasons["T14"].append(decision.reason)
-
-    representative = next(iter(candidate_by_signal.values()), None)
-    if representative is not None and execution.final_realized_capital_usd > 0:
-        opportunity = representative.projection.candidate.capital_input.opportunity
-        final_capital = execution.final_realized_capital_usd
-        realized_profit = max(
-            Decimal(0),
-            final_capital - execution.initial_realized_capital_usd,
-        )
-        observed_capital = CiboCapitalState(
-            assigned_capital_usd=final_capital,
-            hard_risk_headroom_usd=final_capital,
-            margin_headroom_usd=final_capital,
-            base_capital_at_risk_usd=min(
-                execution.initial_realized_capital_usd,
-                final_capital,
-            ),
-            realized_net_profit_usd=realized_profit,
-            protected_open_economic_floor_usd=Decimal(0),
-            proven_self_financing_capacity_usd=realized_profit,
-            reserved_expansion_risk_usd=Decimal(0),
-            cost_reserve_usd=Decimal(0),
-        )
-        if counters["T06"]["enabled"] > 0:
-            t06 = plan_self_financing_expansion(opportunity, observed_capital)
-            if t06.volume > 0:
-                counters["T06"]["applied"] += 1
-            else:
-                counters["T06"]["fail_closed"] += 1
-            reasons["T06"].append(t06.reason)
-        if counters["T07"]["enabled"] > 0:
-            protected_only = CiboCapitalState(
-                assigned_capital_usd=final_capital,
-                hard_risk_headroom_usd=final_capital,
-                margin_headroom_usd=final_capital,
-                base_capital_at_risk_usd=min(
-                    execution.initial_realized_capital_usd,
-                    final_capital,
-                ),
-                realized_net_profit_usd=Decimal(0),
-                protected_open_economic_floor_usd=Decimal(0),
-                proven_self_financing_capacity_usd=Decimal(0),
-                reserved_expansion_risk_usd=Decimal(0),
-                cost_reserve_usd=Decimal(0),
-            )
-            t07 = plan_self_financing_expansion(opportunity, protected_only)
-            if t07.volume > 0:
-                counters["T07"]["applied"] += 1
-            else:
-                counters["T07"]["fail_closed"] += 1
-            reasons["T07"].append(t07.reason)
-
     contracts = {item.code: item for item in CE2I_TOOL_REGISTRY}
     rows: list[ToolAuditRow] = []
     for code in tuple(f"T{i:02d}" for i in range(1, 21)):
@@ -825,6 +703,12 @@ def _tool_audit(
             elif stat["enabled"] == 0 and stat["blocked"] > 0:
                 status = ToolRuntimeStatus.REGIME_BLOCKED
                 reason = "mission/regime blocked profit-funded expansion"
+            elif stat["enabled"] > 0:
+                status = ToolRuntimeStatus.NOT_INTEGRATED
+                reason = (
+                    "T06 was enabled but no authoritative expansion action "
+                    "receipt was observed"
+                )
             else:
                 status = ToolRuntimeStatus.JUSTIFIED_NOT_APPLICABLE
                 reason = (
@@ -846,16 +730,27 @@ def _tool_audit(
             elif stat["enabled"] == 0 and stat["blocked"] > 0:
                 status = ToolRuntimeStatus.REGIME_BLOCKED
                 reason = "mission/regime blocked protected-capacity expansion"
+            elif stat["enabled"] > 0:
+                status = ToolRuntimeStatus.NOT_INTEGRATED
+                reason = (
+                    "T07 was enabled but no authoritative protected-capacity "
+                    "action receipt was observed"
+                )
             else:
                 status = ToolRuntimeStatus.JUSTIFIED_NOT_APPLICABLE
                 reason = (
                     "no broker-confirmed protected economic floor was available"
                 )
         elif code == "T09":
-            if stat["applied"] > 0 or multi_candidate_epochs > 0:
+            if stat["applied"] > 0:
                 status = ToolRuntimeStatus.APPLIED
-                stat["applied"] = max(stat["applied"], multi_candidate_epochs)
-                reason = "robust allocator evaluated simultaneous opportunity competition"
+                reason = "robust allocator applied simultaneous opportunity competition"
+            elif stat["enabled"] > 0:
+                status = ToolRuntimeStatus.NOT_INTEGRATED
+                reason = (
+                    "T09 was enabled but no authoritative allocator action "
+                    "receipt was observed"
+                )
             else:
                 status = ToolRuntimeStatus.JUSTIFIED_NOT_APPLICABLE
                 reason = "no simultaneous multi-candidate epoch required competition"
@@ -875,6 +770,12 @@ def _tool_audit(
             elif stat["enabled"] == 0 and stat["blocked"] > 0:
                 status = ToolRuntimeStatus.REGIME_BLOCKED
                 reason = "regime/mission did not enable execution-efficient exposure"
+            elif stat["enabled"] > 0:
+                status = ToolRuntimeStatus.NOT_INTEGRATED
+                reason = (
+                    "T11 was enabled but no authoritative execution-efficient "
+                    "exposure receipt was observed"
+                )
             else:
                 status = ToolRuntimeStatus.JUSTIFIED_NOT_APPLICABLE
                 reason = "no T11-eligible opportunity was observed"
@@ -902,6 +803,12 @@ def _tool_audit(
             elif stat["enabled"] == 0 and stat["blocked"] > 0:
                 status = ToolRuntimeStatus.REGIME_BLOCKED
                 reason = "mission/regime blocked dynamic de-risking"
+            elif stat["enabled"] > 0:
+                status = ToolRuntimeStatus.NOT_INTEGRATED
+                reason = (
+                    "T14 was enabled but no authoritative dynamic de-risking "
+                    "receipt was observed"
+                )
             else:
                 status = ToolRuntimeStatus.JUSTIFIED_NOT_APPLICABLE
                 reason = "no accepted position existed for T14 evaluation"
@@ -916,10 +823,18 @@ def _tool_audit(
                 status = ToolRuntimeStatus.REGIME_BLOCKED
                 reason = "mission/regime blocked optionality"
         elif code == "T18":
-            if stat["applied"] > 0 or multi_trader_epochs > 0:
+            if stat["applied"] > 0:
                 status = ToolRuntimeStatus.APPLIED
-                stat["applied"] = max(stat["applied"], multi_trader_epochs)
-                reason = "robust allocator compared simultaneous cross-Trader opportunities"
+                reason = (
+                    "robust allocator applied simultaneous cross-Trader "
+                    "opportunity competition"
+                )
+            elif stat["enabled"] > 0:
+                status = ToolRuntimeStatus.NOT_INTEGRATED
+                reason = (
+                    "T18 was enabled but no authoritative cross-Trader "
+                    "allocator action receipt was observed"
+                )
             else:
                 status = ToolRuntimeStatus.JUSTIFIED_NOT_APPLICABLE
                 reason = "no simultaneous cross-Trader opportunity set occurred"
