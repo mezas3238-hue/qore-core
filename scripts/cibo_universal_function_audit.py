@@ -40,6 +40,79 @@ def run_audit() -> dict[str, object]:
     def record(code: str, passed: bool, detail: str) -> None:
         findings.append(AuditFinding(code=code, passed=passed, detail=detail))
 
+    ledger = json.loads(
+        _text("docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json")
+    )
+    workstreams = tuple(ledger["workstreams"])
+    canonical_ids = tuple(item["id"] for item in workstreams)
+    record(
+        "CANONICAL_MANDATORY_SURFACE_EXACT_64",
+        len(workstreams) == 64
+        and len(set(canonical_ids)) == 64
+        and all(item.get("mandatory") is True for item in workstreams),
+        f"count={len(workstreams)} unique={len(set(canonical_ids))}",
+    )
+
+    functional_ids = tuple(
+        item["id"]
+        for item in workstreams
+        if (
+            item["kind"] in {"CE2I_TOOL", "SYSTEM", "LEGACY_PROGRAM"}
+            or (
+                item["kind"] == "GEN_C"
+                and item["id"] != "GEN-C0"
+            )
+            or item["id"] in {
+                "USD60_CAPABILITY_PROGRAM",
+                "AS_IS_ECONOMIC_BASELINE",
+            }
+        )
+        and item["id"] != "FRESH_OOS"
+    )
+    functional_evidence_rows: list[dict[str, object]] = []
+    for item in workstreams:
+        workstream_id = item["id"]
+        if workstream_id not in functional_ids:
+            continue
+        refs = tuple(str(ref) for ref in item.get("evidence_refs", ()))
+        source_refs = tuple(
+            ref
+            for ref in refs
+            if ref.startswith("src/") or ref.startswith("scripts/")
+        )
+        test_refs = tuple(
+            ref for ref in refs if ref.startswith("tests/")
+        )
+        functional_evidence_rows.append(
+            {
+                "id": workstream_id,
+                "kind": item["kind"],
+                "terminal_disposition": item.get("terminal_disposition"),
+                "source_ref_count": len(source_refs),
+                "test_ref_count": len(test_refs),
+                "source_refs": source_refs,
+                "test_refs": test_refs,
+            }
+        )
+        record(
+            f"{workstream_id}_EXECUTABLE_EVIDENCE_PRESENT",
+            bool(source_refs),
+            (
+                f"source_refs={source_refs}"
+                if source_refs
+                else "no executable source evidence bound in canonical ledger"
+            ),
+        )
+        record(
+            f"{workstream_id}_BEHAVIOR_TEST_EVIDENCE_PRESENT",
+            bool(test_refs),
+            (
+                f"test_refs={test_refs}"
+                if test_refs
+                else "no behavioral test evidence bound in canonical ledger"
+            ),
+        )
+
     expected_tools = tuple(f"T{i:02d}" for i in range(1, 21))
     actual_tools = tuple(item.code for item in CE2I_TOOL_REGISTRY)
     record(
@@ -236,6 +309,11 @@ def run_audit() -> dict[str, object]:
         "approval_allowed": all_passed,
         "function_gate_pass": all_passed,
         "failed_checks": failed,
+        "canonical_workstream_count": len(workstreams),
+        "canonical_workstream_ids": canonical_ids,
+        "functional_scope_count": len(functional_ids),
+        "functional_scope_ids": functional_ids,
+        "functional_evidence_rows": functional_evidence_rows,
         "finding_count": len(findings),
         "pass_count": sum(item.passed for item in findings),
         "fail_count": sum(not item.passed for item in findings),
