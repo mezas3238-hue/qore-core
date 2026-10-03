@@ -65,7 +65,7 @@ jobs:
           - domain: COGNITIVE_CF01_CF19
             tests: >-
               tests/infrastructure/test_cibo_cognitive_*.py
-              tests/infrastructure/test_cibo_capability_exam_cognitive_coverage.py
+              tests/infrastructure/test_cibo_reused_holdout_capability_exam.py
           - domain: CMA_RISK_SETTLEMENT
             tests: >-
               tests/infrastructure/test_cibo_capital_management_authority.py
@@ -78,8 +78,8 @@ jobs:
           - domain: COMPOUND_PORTFOLIO
             tests: >-
               tests/infrastructure/test_cibo_core_compound_portfolio.py
-              tests/infrastructure/test_cibo_reused_holdout_compound_portfolio_lane.py
               tests/infrastructure/test_cibo_compound_portfolio.py
+              tests/infrastructure/test_cibo_phase22_chronological_execution.py
           - domain: PROTECTION_AND_TRUTH
             tests: >-
               tests/infrastructure/test_cibo_integrated_capital_*.py
