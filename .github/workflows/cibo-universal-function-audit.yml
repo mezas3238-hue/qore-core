@@ -297,7 +297,36 @@ jobs:
         run: |
           set -euo pipefail
           python -m pytest -q --no-cov             tests/infrastructure/test_cibo_genc*.py             tests/infrastructure/test_cibo_generation_current_control.py
-          echo "PHASE_08=PASS"
+          echo "PHASE_08_INTERNAL=PASS"
+      - name: Trader Lab functional run exact GEN-C2-GEN-C14
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_cibo_genc_surface_functional_probe.py
+          python - <<'PY' > "$RUNNER_TEMP/genc-tests.txt"
+          import json
+          from pathlib import Path
+
+          payload = json.loads(
+              Path("docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json")
+              .read_text(encoding="utf-8")
+          )
+          expected = {f"GEN-C{index}" for index in range(2, 15)}
+          targets = set()
+          for row in payload["workstreams"]:
+              if row["id"] not in expected:
+                  continue
+              for ref in row.get("evidence_refs", ()):
+                  if str(ref).startswith("tests/"):
+                      targets.add(str(ref))
+          for target in sorted(targets):
+              print(target)
+          PY
+          mapfile -t genc_targets < "$RUNNER_TEMP/genc-tests.txt"
+          test "${#genc_targets[@]}" -gt 0
+          python -m pytest -q --no-cov "${genc_targets[@]}"
+          echo "PHASE_08_TRADER_LAB=PASS"
 
   phase-09-end-to-end:
     name: "09 AUDIT+TEST End-to-End CIBO Capability"
