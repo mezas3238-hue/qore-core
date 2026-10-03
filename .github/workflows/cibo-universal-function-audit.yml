@@ -1,0 +1,131 @@
+name: QORE CIBO Universal Function Audit
+
+on:
+  push:
+    branches:
+      - agent/cibo-universal-tool-runtime-repair-001
+    paths:
+      - 'src/qore/infrastructure/**'
+      - 'scripts/cibo_universal_function_audit.py'
+      - 'tests/infrastructure/test_cibo_*.py'
+      - '.github/workflows/cibo-universal-function-audit.yml'
+  pull_request:
+    branches:
+      - agent/cibo-integrator-ab-001
+    paths:
+      - 'src/qore/infrastructure/**'
+      - 'scripts/cibo_universal_function_audit.py'
+      - 'tests/infrastructure/test_cibo_*.py'
+      - '.github/workflows/cibo-universal-function-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  runtime-truth:
+    name: Runtime truth gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Audit authoritative runtime integration
+        shell: bash
+        run: |
+          set +e
+          python scripts/cibo_universal_function_audit.py             --output "$RUNNER_TEMP/cibo-universal-function-audit.json"
+          rc=$?
+          cat "$RUNNER_TEMP/cibo-universal-function-audit.json"
+          exit "$rc"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cibo-universal-function-audit-${{ github.run_id }}
+          path: ${{ runner.temp }}/cibo-universal-function-audit.json
+          if-no-files-found: error
+          retention-days: 90
+
+  behavioral:
+    name: Behavioral / ${{ matrix.domain }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - domain: CE2I_T01_T20
+            tests: >-
+              tests/infrastructure/test_cibo_ce2i_*.py
+          - domain: COGNITIVE_CF01_CF19
+            tests: >-
+              tests/infrastructure/test_cibo_cognitive_*.py
+              tests/infrastructure/test_cibo_capability_exam_cognitive_coverage.py
+          - domain: CMA_RISK_SETTLEMENT
+            tests: >-
+              tests/infrastructure/test_cibo_capital_management_authority.py
+              tests/infrastructure/test_cibo_cma_*.py
+              tests/infrastructure/test_cibo_risk_*.py
+              tests/infrastructure/test_cibo_risk_integration_closure.py
+          - domain: COMPOUND
+            tests: >-
+              tests/infrastructure/test_cibo_compound_*.py
+          - domain: COMPOUND_PORTFOLIO
+            tests: >-
+              tests/infrastructure/test_cibo_core_compound_portfolio.py
+              tests/infrastructure/test_cibo_reused_holdout_compound_portfolio_lane.py
+              tests/infrastructure/test_cibo_compound_portfolio.py
+          - domain: PROTECTION_AND_TRUTH
+            tests: >-
+              tests/infrastructure/test_cibo_integrated_capital_*.py
+              tests/infrastructure/test_cibo_protected_base_*.py
+              tests/infrastructure/test_cibo_profit_preservation_*.py
+          - domain: GENC_ECONOMIC_CONTROLS
+            tests: >-
+              tests/infrastructure/test_cibo_genc*.py
+              tests/infrastructure/test_cibo_generation_current_control.py
+          - domain: END_TO_END_CAPABILITY
+            tests: >-
+              tests/infrastructure/test_cibo_reused_holdout_capability_exam.py
+              tests/infrastructure/test_cibo_phase22_chronological_execution.py
+              tests/infrastructure/test_cibo_phase22_historical_policy_replay.py
+              tests/infrastructure/test_cibo_phase22_fresh_capital_projection.py
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Run behavioral domain
+        env:
+          TEST_TARGETS: ${{ matrix.tests }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pytest -q --no-cov $TEST_TARGETS
+
+  approval:
+    name: CIBO all-or-nothing approval
+    needs: [runtime-truth, behavioral]
+    if: always()
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Enforce global AND
+        env:
+          RUNTIME_RESULT: ${{ needs.runtime-truth.result }}
+          BEHAVIORAL_RESULT: ${{ needs.behavioral.result }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "runtime-truth=$RUNTIME_RESULT"
+          echo "behavioral=$BEHAVIORAL_RESULT"
+          test "$RUNTIME_RESULT" = "success"
+          test "$BEHAVIORAL_RESULT" = "success"
+          echo "APPROVAL_ALLOWED=true"
