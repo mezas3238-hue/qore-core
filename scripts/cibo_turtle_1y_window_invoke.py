@@ -11,21 +11,33 @@ from __future__ import annotations
 import argparse
 import importlib
 import json
+import sys
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-from qore.infrastructure.trader_lab.cibo_three_holdout_1y_contract import (
-    expected_windows,
-)
+GROUP_WINDOWS = {
+    "GROUP_1": (
+        datetime.fromisoformat("2019-06-30T00:00:00+00:00"),
+        datetime.fromisoformat("2020-06-30T00:00:00+00:00"),
+    ),
+    "GROUP_2": (
+        datetime.fromisoformat("2020-06-30T00:00:00+00:00"),
+        datetime.fromisoformat("2021-06-30T00:00:00+00:00"),
+    ),
+    "GROUP_3": (
+        datetime.fromisoformat("2021-06-30T00:00:00+00:00"),
+        datetime.fromisoformat("2022-06-30T00:00:00+00:00"),
+    ),
+}
 
 
 def _window(group_id: str) -> tuple[datetime, datetime]:
-    for item in expected_windows():
-        if item.group_id == group_id:
-            return item.start_at, item.end_exclusive_at
-    raise ValueError(group_id)
+    try:
+        return GROUP_WINDOWS[group_id]
+    except KeyError as error:
+        raise ValueError(group_id) from error
 
 
 def _pf(values: list[Decimal]) -> Decimal | None:
@@ -54,8 +66,11 @@ def invoke(
     memory_root: Path,
     freeze_root: Path,
     output: Path,
+    source_code_root: Path | None = None,
 ) -> dict[str, Any]:
     start_at, end_at = _window(group_id)
+    if source_code_root is not None:
+        sys.path.insert(0, str(source_code_root))
     module = importlib.import_module(module_name)
 
     if not hasattr(module, "EVAL_OPEN") or not hasattr(module, "EVAL_CLOSE"):
@@ -177,6 +192,7 @@ def main() -> int:
     parser.add_argument("--memory-root", type=Path, required=True)
     parser.add_argument("--freeze-root", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--source-code-root", type=Path)
     args = parser.parse_args()
     lane = invoke(
         module_name=args.module,
@@ -188,6 +204,7 @@ def main() -> int:
         memory_root=args.memory_root,
         freeze_root=args.freeze_root,
         output=args.output,
+        source_code_root=args.source_code_root,
     )
     print(
         json.dumps(
