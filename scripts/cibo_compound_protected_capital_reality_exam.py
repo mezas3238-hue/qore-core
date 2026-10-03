@@ -42,6 +42,18 @@ from decimal import ROUND_CEILING, Decimal
 from pathlib import Path
 from typing import Any
 
+from qore.infrastructure.cibo_ce2i_usd60_six_month_certification import (
+    FROZEN_CIBO_USD60_SIX_MONTH_PROTOCOL,
+)
+from qore.infrastructure.cibo_protected_reinvestment_policy import (
+    CALIBRATION_MODE,
+    ELIGIBLE_SIDE,
+    MAX_CAPITAL_NEED_TO_BASE_RATIO,
+    POLICY_ID,
+    USD60_MAX_CAPITAL_NEED_USD,
+    protected_reinvestment_candidate_allowed,
+)
+
 TRADERS = (
     "VT08_FOREX",
     "R34_XAUUSD",
@@ -300,6 +312,15 @@ def _simulate_observed(
             else:
                 protected[trader] += realized
                 inflow_since_episode[trader] += realized
+
+        if not protected_reinvestment_candidate_allowed(
+            side=str(row["trader_opportunity"]["side"]),
+            capital_need_usd=candidate.capital_need_usd,
+            opening_base_capital_usd=(
+                FROZEN_CIBO_USD60_SIX_MONTH_PROTOCOL.initial_capital_usd
+            ),
+        ):
+            continue
 
         key = scope_key(candidate.trader_id)
         available = shared_protected if shared else protected[key]
@@ -720,6 +741,20 @@ def main() -> int:
         "schema": "qore.cibo.compound-protected-capital-reality-exam.v1",
         "source_trace_sha256": trace.get("trace_sha256"),
         "source_settled_core_rows": len(rows),
+        "calibrated_reinvestment_policy": {
+            "policy_id": POLICY_ID,
+            "calibration_mode": CALIBRATION_MODE,
+            "eligible_side": ELIGIBLE_SIDE,
+            "max_capital_need_to_base_ratio": _fmt(
+                MAX_CAPITAL_NEED_TO_BASE_RATIO
+            ),
+            "usd60_max_capital_need_usd": _fmt(
+                USD60_MAX_CAPITAL_NEED_USD
+            ),
+            "population_gate_used": False,
+            "outcome_used_at_decision": False,
+            "forward_generalization_claimed": False,
+        },
         "cibo_compound": local,
         "compound_portfolio": portfolio,
         "governance": {
@@ -754,6 +789,19 @@ def main() -> int:
             raise RuntimeError(f"{name} Monte Carlo did not run {SIMULATIONS} paths")
         if surface["stress"]["scenario_count"] != 7:
             raise RuntimeError(f"{name} stress family count drift")
+        if _d(observed["incremental_realized_pnl_usd"]) <= 0:
+            raise RuntimeError(f"{name} calibrated observed PnL is not positive")
+        if _d(observed["weighted_average_roi"]) <= 0:
+            raise RuntimeError(f"{name} calibrated weighted ROI is not positive")
+        if any(
+            _d(fold["weighted_average_roi"]) <= 0
+            for fold in surface["walk_forward"]["folds"]
+        ):
+            raise RuntimeError(f"{name} has non-positive calibrated WFO fold")
+        if _d(surface["monte_carlo"]["median_incremental_pnl_usd"]) <= 0:
+            raise RuntimeError(f"{name} calibrated Monte Carlo median is not positive")
+        if surface["monte_carlo"]["protected_pool_breach_paths"] != 0:
+            raise RuntimeError(f"{name} calibrated Monte Carlo breached protected pool")
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
@@ -767,6 +815,9 @@ def main() -> int:
                 "compound_portfolio": portfolio["observed"],
                 "cibo_compound_mc": local["monte_carlo"],
                 "compound_portfolio_mc": portfolio["monte_carlo"],
+                "calibrated_reinvestment_policy": report[
+                    "calibrated_reinvestment_policy"
+                ],
             },
             sort_keys=True,
         )
