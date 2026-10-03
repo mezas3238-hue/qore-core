@@ -51,6 +51,7 @@ jobs:
               "src/qore/infrastructure/cibo_ce2i_advanced_actions.py",
               "tests/infrastructure/test_cibo_universal_capability_runtime.py",
               "tests/infrastructure/test_cibo_ce2i_advanced_actions.py",
+              "tests/infrastructure/trader_lab/test_cibo_ce2i_t01_t20_functional_probe.py",
           )
           for path in required:
               assert Path(path).is_file(), path
@@ -62,6 +63,13 @@ jobs:
           set -euo pipefail
           python -m pytest -q --no-cov             tests/infrastructure/test_cibo_ce2i_*.py             tests/infrastructure/test_cibo_universal_capability_runtime.py             tests/infrastructure/test_cibo_capital_management_authority.py             tests/infrastructure/test_cibo_phase22_historical_policy_replay.py
           echo "PHASE_01_BEHAVIOR=PASS"
+      - name: Trader Lab functional run T01-T20
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_cibo_ce2i_t01_t20_functional_probe.py
+          echo "PHASE_01_TRADER_LAB=PASS"
 
   phase-02-cognitive:
     name: "02 AUDIT+TEST Cognitive CF01-CF19"
