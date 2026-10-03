@@ -8,6 +8,9 @@ on:
       - '.github/workflows/cibo-trader-lab-3x1y-control-plane.yml'
       - 'docs/research/CIBO-TRADER-LAB-3X1Y-ADAPTIVE-RESEARCH-PROTOCOL.json'
       - 'src/qore/infrastructure/trader_lab/cibo_three_holdout_1y_contract.py'
+      - 'src/qore/infrastructure/cibo_universal_capital_science_registry.py'
+      - 'src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py'
+      - 'tests/infrastructure/test_cibo_universal_capital_science_registry.py'
       - 'scripts/cibo_three_holdout_1y_sensor.py'
       - 'scripts/cibo_three_holdout_turtle_eval_window_patch.py'
       - 'scripts/cibo_three_holdout_integrated_batch.py'
@@ -33,9 +36,21 @@ jobs:
       - name: Static validation
         run: |
           set -euo pipefail
-          python -m py_compile             src/qore/infrastructure/trader_lab/cibo_three_holdout_1y_contract.py             scripts/cibo_three_holdout_1y_sensor.py
-          ruff check             src/qore/infrastructure/trader_lab/cibo_three_holdout_1y_contract.py             scripts/cibo_three_holdout_1y_sensor.py             tests/infrastructure/trader_lab/test_cibo_three_holdout_1y_contract.py
-          pytest -q --no-cov             tests/infrastructure/trader_lab/test_cibo_three_holdout_1y_contract.py
+          python -m py_compile \
+            src/qore/infrastructure/trader_lab/cibo_three_holdout_1y_contract.py \
+            src/qore/infrastructure/cibo_universal_capital_science_registry.py \
+            src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py \
+            scripts/cibo_three_holdout_1y_sensor.py
+          ruff check \
+            src/qore/infrastructure/trader_lab/cibo_three_holdout_1y_contract.py \
+            src/qore/infrastructure/cibo_universal_capital_science_registry.py \
+            src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py \
+            scripts/cibo_three_holdout_1y_sensor.py \
+            tests/infrastructure/trader_lab/test_cibo_three_holdout_1y_contract.py \
+            tests/infrastructure/test_cibo_universal_capital_science_registry.py
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_cibo_three_holdout_1y_contract.py \
+            tests/infrastructure/test_cibo_universal_capital_science_registry.py
 
       - name: Validate frozen protocol
         run: |
