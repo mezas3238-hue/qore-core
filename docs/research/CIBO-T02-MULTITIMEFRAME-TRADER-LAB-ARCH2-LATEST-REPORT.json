@@ -1,0 +1,102 @@
+{
+  "schema": "qore.cibo.t02-multitimeframe-trader-lab-arch2-latest-report.v1",
+  "generated_from": {
+    "workflow_run_id": 37133396249,
+    "artifact_id": 11277518751,
+    "head_sha": "be517afaaba3ab1ce9835b6d080df6875cd9be11"
+  },
+  "conclusion": "T02_MORE_RESEARCH_REQUIRED",
+  "population": {
+    "core_selected_rich_context": 145,
+    "timeframes": {
+      "D1": 127,
+      "H4": 127,
+      "H1": 127,
+      "M5": 127,
+      "M1": 18
+    }
+  },
+  "explorer": {
+    "searched_rule_fraction_count": 4756,
+    "global_best": {
+      "formula": "ctx_reclaim_latency_bucket == <=5m AND reg_m5_displacement_alignment == opposed",
+      "n": 25,
+      "incremental_pnl_usd": "11.85433053874214766797966327",
+      "incremental_return_on_extra_risk": "0.5108639529933488493826263324",
+      "max_drawdown_usd": "2.285527984482622875724991232",
+      "trader_diversity": 5
+    },
+    "timeframe_summary": {
+      "D1": {
+        "positive_rules_reported": 20,
+        "best_pnl_usd": "7.167142120946789043357517599"
+      },
+      "H1": {
+        "positive_rules_reported": 20,
+        "best_pnl_usd": "11.85433053874214766797966327"
+      },
+      "H4": {
+        "positive_rules_reported": 0
+      },
+      "M5": {
+        "positive_rules_reported": 20,
+        "best_pnl_usd": "11.85433053874214766797966327"
+      },
+      "M1": {
+        "positive_rules_reported": 0,
+        "population_n": 18,
+        "single_lineage": true
+      }
+    }
+  },
+  "validator": {
+    "rolling_5_all_tests_positive": false,
+    "rolling_5_test_pnl_usd": [
+      "-2.994799457464397592229859499",
+      "1.459525791913499688650412867",
+      "0.2186886766568927549786111183",
+      "-5.241651402981798574710778899"
+    ],
+    "rolling_6_all_tests_positive": false,
+    "rolling_6_test_pnl_usd": [
+      "-7.291347303903441069038490444",
+      "1.887469820562433346137237173",
+      "-1.464000000000000000000000000",
+      "2.926712148359867634673607814",
+      "-4.090342274593635107827161613"
+    ],
+    "terminal_rule": "ctx_reclaim_latency_bucket == <=5m AND pre_ce2i_stop_risk_usd >= 1.164086922601594205318948426 AND provider_cost_to_extra_risk <= 0.04240335630806113275397063230",
+    "terminal_validation_blocks": [
+      {
+        "n": 4,
+        "incremental_pnl_usd": "0.2186886766568927549786111183",
+        "positive": true
+      },
+      {
+        "n": 3,
+        "incremental_pnl_usd": "-3.903453957241323366965450932",
+        "positive": false
+      }
+    ],
+    "monte_carlo": {
+      "simulation_count": 5000,
+      "median_incremental_pnl_usd": "-3.556582407436125618225760660",
+      "p05_incremental_pnl_usd": "-13.02709543043782193666600660"
+    }
+  },
+  "interpretation": [
+    "H1 and M5 opposed-state signals are the strongest exploratory surfaces and appear highly correlated.",
+    "D1 contains positive exploratory subregions but weaker than H1/M5.",
+    "No positive H4-using rule entered the dedicated positive report under current search constraints.",
+    "No positive M1-using rule entered the dedicated VT31 report under current search constraints; this is not a falsification because M1 currently has only 18 Core-selected cases from one lineage.",
+    "Mandatory chronological validation remains failed, so no runtime T02 policy promotion is justified."
+  ],
+  "governance": {
+    "runtime_policy_changed": false,
+    "merge_authorized": false,
+    "live": false,
+    "production": false,
+    "real_capital": false,
+    "broker_mutation": false
+  }
+}
