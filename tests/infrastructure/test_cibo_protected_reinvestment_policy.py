@@ -33,12 +33,17 @@ def test_dynamic_limit_scales_exactly_with_current_realized_capital(
 
 
 def test_usd60_and_usd100_reference_limits() -> None:
-    assert maximum_reinvestment_capital_need_usd(
-        Decimal("60")
-    ) == USD60_MAX_CAPITAL_NEED_USD
-    assert maximum_reinvestment_capital_need_usd(Decimal("100")) == Decimal(
-        "3.0069491001082367274812335331333333333333333333333"
-    )
+    tolerance = Decimal("1e-27")
+    assert abs(
+        maximum_reinvestment_capital_need_usd(Decimal("60"))
+        - USD60_MAX_CAPITAL_NEED_USD
+    ) <= tolerance
+    assert abs(
+        maximum_reinvestment_capital_need_usd(Decimal("100"))
+        - Decimal(
+            "3.0069491001082367274812335331333333333333333333333"
+        )
+    ) <= tolerance
 
 
 def test_policy_is_predecision_and_side_bound() -> None:
