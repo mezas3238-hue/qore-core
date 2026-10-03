@@ -335,3 +335,36 @@ def test_genc12_rejects_future_crisis_fact() -> None:
             regime_state=regime,
             crisis_facts=(future,),
         )
+
+def test_genc12_frozen_engine_accepts_historical_causal_regime() -> None:
+    from dataclasses import replace
+
+    historical_at = datetime(2021, 1, 4, 12, 0, tzinfo=UTC)
+    twin = replace(_twin(), captured_at=historical_at)
+    regime = CiboCapitalRegimeState(
+        liquidity=LiquidityState.NORMAL,
+        volatility=VolatilityState.NORMAL,
+        correlation=CorrelationState.NORMAL,
+        provider_condition=ProviderCondition.HEALTHY,
+        risk_utilization=Decimal("0.2"),
+        margin_utilization=Decimal("0.2"),
+        drawdown_utilization=Decimal("0.55"),
+        opportunity_count=2,
+    )
+    fact = replace(
+        _fact(Genc12CrisisFactor.DRAWDOWN_ACCELERATION),
+        observed_at=historical_at,
+    )
+
+    plan = plan_genc12_crisis_capital(
+        plan_id="historical-crisis",
+        evaluated_at=historical_at,
+        twin=twin,
+        regime_state=regime,
+        crisis_facts=(fact,),
+    )
+
+    assert plan.evaluated_at == historical_at
+    assert plan.posture is CiboRegimePosture.DEFENSIVE
+    assert plan.future_outcome_used is False
+
