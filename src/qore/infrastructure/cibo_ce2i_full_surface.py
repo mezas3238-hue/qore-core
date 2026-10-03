@@ -8,6 +8,7 @@ It performs no broker mutation and grants no Risk/execution authority.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from decimal import Decimal
 
 from qore.infrastructure.cibo_account_capital_mission import (
@@ -152,6 +153,7 @@ def evaluate_full_ce2i_surface(
     regime_state: CiboCapitalRegimeState,
     opportunities: tuple[TraderOpportunityEnvelope, ...],
     advanced_evidence: AdvancedPortfolioEvidence,
+    decision_at: datetime | None = None,
     scientific_eligibility: AdvancedScientificEligibilityFreeze | None = None,
 ) -> FullCe2iSurfaceAssessment:
     """Bind all 20 tool contracts and evaluate enabled advanced engines."""
@@ -168,6 +170,10 @@ def evaluate_full_ce2i_surface(
         raise CiboCapitalManagementError(
             "advanced_evidence must be AdvancedPortfolioEvidence"
         )
+    _validate_advanced_evidence_time(
+        advanced_evidence=advanced_evidence,
+        decision_at=decision_at,
+    )
     if regime_state.opportunity_count != len(opportunities):
         raise CiboCapitalManagementError(
             "regime opportunity_count must match opportunity set"
@@ -282,3 +288,54 @@ def evaluate_full_ce2i_surface(
         registry_codes=registry_codes,
         complete_registry=True,
     )
+
+
+def _validate_advanced_evidence_time(
+    *,
+    advanced_evidence: AdvancedPortfolioEvidence,
+    decision_at: datetime | None,
+) -> None:
+    """Reject advanced evidence that was not knowable at the decision epoch."""
+
+    evidence_rows: list[tuple[str, object]] = []
+    for row in advanced_evidence.opportunities:
+        for label, evidence in (
+            ("T02", row.structural_leverage),
+            ("T03", row.margin_efficiency),
+            ("T04", row.risk_efficiency),
+            ("T17", row.convex_exposure),
+        ):
+            if evidence is not None:
+                evidence_rows.append((label, evidence))
+    for label, evidence in (
+        ("T08", advanced_evidence.portfolio_netting),
+        ("T10", advanced_evidence.capital_velocity),
+        ("T16", advanced_evidence.hedged_exposure),
+    ):
+        if evidence is not None:
+            evidence_rows.append((label, evidence))
+
+    if not evidence_rows:
+        return
+    if decision_at is None:
+        raise CiboCapitalManagementError(
+            "advanced CE2I evidence requires explicit decision_at"
+        )
+    if decision_at.tzinfo is None or decision_at.utcoffset() is None:
+        raise CiboCapitalManagementError(
+            "advanced CE2I decision_at must be timezone-aware"
+        )
+    for tool_code, evidence in evidence_rows:
+        observed_at = getattr(evidence, "observed_at", None)
+        if not isinstance(observed_at, datetime):
+            raise CiboCapitalManagementError(
+                f"{tool_code} advanced evidence missing observed_at"
+            )
+        if observed_at.tzinfo is None or observed_at.utcoffset() is None:
+            raise CiboCapitalManagementError(
+                f"{tool_code} advanced evidence observed_at must be timezone-aware"
+            )
+        if observed_at > decision_at:
+            raise CiboCapitalManagementError(
+                f"{tool_code} advanced evidence is future-known relative to decision_at"
+            )
