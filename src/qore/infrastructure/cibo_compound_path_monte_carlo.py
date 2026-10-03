@@ -122,10 +122,7 @@ class CompoundMonteCarloEpisode:
                 raise CiboCompoundCapitalError(
                     f"compound Monte Carlo episode {name} is required"
                 )
-        if type(self.trader_id) is not TraderIdentity:
-            raise CiboCompoundCapitalError(
-                "compound Monte Carlo episode Trader is invalid"
-            )
+        canonical_trader_identity(self.trader_id)
         _aware(self.deployed_at, "episode deployed_at")
         _aware(self.settled_at, "episode settled_at")
         if self.settled_at <= self.deployed_at:
