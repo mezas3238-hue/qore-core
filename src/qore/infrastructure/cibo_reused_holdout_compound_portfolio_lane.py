@@ -53,6 +53,8 @@ from qore.infrastructure.cibo_protected_reinvestment_policy import (
 )
 
 LANE_ID = "FULL_CIBO_COMPOUND_PORTFOLIO"
+POOL_SCOPE_ACCOUNT = "ACCOUNT"
+POOL_SCOPE_TRADER_LOCAL = "TRADER_LOCAL"
 
 
 
@@ -229,6 +231,7 @@ class CompoundPortfolioLaneResult:
     rational_redeploy_gate_enabled: bool = False
     noncertifying_research_redeploy_enabled: bool = False
     protected_reinvestment_policy_id: str = ""
+    pool_scope: str = POOL_SCOPE_ACCOUNT
     lane_id: str = LANE_ID
     same_core_selection_surface: bool = True
     realized_profit_only: bool = True
@@ -272,6 +275,12 @@ class CompoundPortfolioLaneResult:
         if not isinstance(self.protected_reinvestment_policy_id, str):
             raise CiboCapitalManagementError(
                 "compound protected reinvestment policy id must be str"
+            )
+        if self.pool_scope not in {POOL_SCOPE_ACCOUNT, POOL_SCOPE_TRADER_LOCAL}:
+            raise CiboCapitalManagementError("compound pool scope invalid")
+        if self.pool_scope == POOL_SCOPE_TRADER_LOCAL and self.cross_trader_compound_deployments:
+            raise CiboCapitalManagementError(
+                "trader-local compound cannot report cross-Trader deployment"
             )
         if not all(
             (
@@ -337,6 +346,7 @@ class CompoundPortfolioLaneResult:
             "protected_reinvestment_policy_id": (
                 self.protected_reinvestment_policy_id
             ),
+            "pool_scope": self.pool_scope,
             "same_core_selection_surface": self.same_core_selection_surface,
             "realized_profit_only": self.realized_profit_only,
             "floating_pnl_used_as_funding": self.floating_pnl_used_as_funding,
@@ -361,6 +371,7 @@ def run_compound_portfolio_lane(
     research_redeploy_authorizations: tuple[
         CompoundResearchRedeployAuthorization, ...
     ] = (),
+    lab_pool_scope: str = POOL_SCOPE_ACCOUNT,
 ) -> CompoundPortfolioLaneResult:
     """Add causal profit-funded seeds without changing Core policy selection."""
 
@@ -376,6 +387,8 @@ def run_compound_portfolio_lane(
         raise CiboCapitalManagementError(
             "lab_allow_noncertifying_research_redeploy must be bool"
         )
+    if lab_pool_scope not in {POOL_SCOPE_ACCOUNT, POOL_SCOPE_TRADER_LOCAL}:
+        raise CiboCapitalManagementError("lab_pool_scope is invalid")
     if any(
         not isinstance(item, CompoundRedeployAuthorization)
         for item in redeploy_authorizations
@@ -418,6 +431,7 @@ def run_compound_portfolio_lane(
     initial = FROZEN_CIBO_USD60_SIX_MONTH_PROTOCOL.initial_capital_usd
     core_realized = initial
     pool = Decimal(0)
+    pool_by_trader: dict[str, Decimal] = defaultdict(Decimal)
     incremental = Decimal(0)
     source_traders: set[str] = set()
     risk_engine = AccountWideRiskEngine()
@@ -478,8 +492,11 @@ def run_compound_portfolio_lane(
             item = core_settlements[core_index]
             core_realized += item.realized_net_pnl_usd
             if item.realized_net_pnl_usd > 0:
-                pool += item.realized_net_pnl_usd
-                source_traders.add(item.trader_id)
+                if lab_pool_scope == POOL_SCOPE_TRADER_LOCAL:
+                    pool_by_trader[item.trader_id] += item.realized_net_pnl_usd
+                else:
+                    pool += item.realized_net_pnl_usd
+                    source_traders.add(item.trader_id)
             core_index += 1
 
         due = sorted(
@@ -493,12 +510,19 @@ def run_compound_portfolio_lane(
                 * item.authorized_stop_risk_usd
                 - item.provider_cost_usd
             )
-            pool += pnl
+            if lab_pool_scope == POOL_SCOPE_TRADER_LOCAL:
+                pool_by_trader[item.trader_id] += pnl
+                if pool_by_trader[item.trader_id] < 0:
+                    raise CiboCapitalManagementError(
+                        "trader-local compound pool became negative"
+                    )
+            else:
+                pool += pnl
+                if pool < 0:
+                    raise CiboCapitalManagementError(
+                        "compound pool became negative despite fail-closed funding"
+                    )
             incremental += pnl
-            if pool < 0:
-                raise CiboCapitalManagementError(
-                    "compound pool became negative despite fail-closed funding"
-                )
             cross = any(
                 source != item.trader_id
                 for source in item.source_traders_before_entry
@@ -574,16 +598,30 @@ def run_compound_portfolio_lane(
                 * volume
             )
             loss_reserve = protected_loss_reserve_usd(risk)
+            committed_rows = (
+                tuple(
+                    item
+                    for item in open_rows.values()
+                    if item.trader_id == candidate.trader_id
+                )
+                if lab_pool_scope == POOL_SCOPE_TRADER_LOCAL
+                else tuple(open_rows.values())
+            )
             committed_loss = sum(
                 (
                     item.authorized_stop_risk_usd
                     + item.provider_cost_usd
                     + item.protected_loss_reserve_usd
-                    for item in open_rows.values()
+                    for item in committed_rows
                 ),
                 Decimal(0),
             )
-            available = max(Decimal(0), pool - committed_loss)
+            funding_pool = (
+                pool_by_trader[candidate.trader_id]
+                if lab_pool_scope == POOL_SCOPE_TRADER_LOCAL
+                else pool
+            )
+            available = max(Decimal(0), funding_pool - committed_loss)
             if risk + cost + loss_reserve > available:
                 blockers[
                     "REALIZED_PROFIT_POOL_BELOW_SEED_COST_AND_LOSS_RESERVE"
@@ -698,7 +736,12 @@ def run_compound_portfolio_lane(
             else:
                 reduced += 1
             event = outcomes[signal]
-            source_snapshot = tuple(sorted(source_traders))
+            source_snapshot = (
+                (candidate.trader_id,)
+                if lab_pool_scope == POOL_SCOPE_TRADER_LOCAL
+                and pool_by_trader[candidate.trader_id] > 0
+                else tuple(sorted(source_traders))
+            )
             if any(item != candidate.trader_id for item in source_snapshot):
                 cross_trader += 1
             risk_engine.record_full_fill(auth.authorization_id)
@@ -788,19 +831,34 @@ def run_compound_portfolio_lane(
         {
             "function_code": "GEN-C3_CORE_COMPOUND_PORTFOLIO",
             "function_type": "COMPOUND_PORTFOLIO",
-            "status": "APPLIED" if applied else "FAIL_CLOSED",
-            "eligible_epochs": selected,
-            "executed_count": applied,
-            "blocked_count": rejected,
+            "status": (
+                "JUSTIFIED_NOT_APPLICABLE"
+                if lab_pool_scope == POOL_SCOPE_TRADER_LOCAL
+                else "APPLIED" if applied else "FAIL_CLOSED"
+            ),
+            "eligible_epochs": (
+                0 if lab_pool_scope == POOL_SCOPE_TRADER_LOCAL else selected
+            ),
+            "executed_count": (
+                0 if lab_pool_scope == POOL_SCOPE_TRADER_LOCAL else applied
+            ),
+            "blocked_count": (
+                0 if lab_pool_scope == POOL_SCOPE_TRADER_LOCAL else rejected
+            ),
             "reason": (
-                "account-local realized-profit pool was redeployed across the "
-                f"Core selection surface; cross-Trader deployments={cross_trader}"
-                if applied
+                "Trader-local Compound counterfactual intentionally disables "
+                "cross-Trader pooling"
+                if lab_pool_scope == POOL_SCOPE_TRADER_LOCAL
                 else (
-                    "rational redeploy utility/preservation/governance evidence "
-                    "did not authorize incremental capital"
-                    if lab_require_rational_redeploy
-                    else "realized-profit pool never reached one legal minimum seed"
+                    "account-local realized-profit pool was redeployed across the "
+                    f"Core selection surface; cross-Trader deployments={cross_trader}"
+                    if applied
+                    else (
+                        "rational redeploy utility/preservation/governance evidence "
+                        "did not authorize incremental capital"
+                        if lab_require_rational_redeploy
+                        else "realized-profit pool never reached one legal minimum seed"
+                    )
                 )
             ),
         },
@@ -861,4 +919,10 @@ def run_compound_portfolio_lane(
             lab_allow_noncertifying_research_redeploy
         ),
         protected_reinvestment_policy_id=POLICY_ID,
+        pool_scope=lab_pool_scope,
+        lane_id=(
+            "FULL_CIBO_COMPOUND"
+            if lab_pool_scope == POOL_SCOPE_TRADER_LOCAL
+            else LANE_ID
+        ),
     )
