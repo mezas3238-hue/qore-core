@@ -123,6 +123,23 @@ def _fresh_from_payload(raw: dict[str, Any]) -> Phase22FreshOpportunity:
         raw.get("source_evidence_ids"),
         "source_evidence_ids",
     ))
+    context_rows = raw.get("decision_context", [])
+    if not isinstance(context_rows, list):
+        raise CiboCapitalManagementError(
+            "Phase22 serialized fresh decision_context must be list"
+        )
+    decision_context: list[tuple[str, str]] = []
+    for item in context_rows:
+        if (
+            not isinstance(item, list)
+            or len(item) != 2
+            or not isinstance(item[0], str)
+            or not isinstance(item[1], str)
+        ):
+            raise CiboCapitalManagementError(
+                "Phase22 serialized fresh decision_context entry invalid"
+            )
+        decision_context.append((item[0], item[1]))
     return Phase22FreshOpportunity(
         trader_id=TraderLineage(str(raw["trader_id"])),
         qore_symbol=str(raw["qore_symbol"]),
@@ -141,6 +158,7 @@ def _fresh_from_payload(raw: dict[str, Any]) -> Phase22FreshOpportunity:
         ),
         methodology_sha256=str(raw["methodology_sha256"]),
         source_evidence_ids=evidence,
+        decision_context=tuple(decision_context),
     )
 
 
