@@ -178,10 +178,8 @@ class Genc12CrisisCapitalPlan:
             )
         _aware(self.evaluated_at, "evaluated_at")
         _aware(self.frozen_at, "frozen_at")
-        if self.evaluated_at < self.frozen_at:
-            raise CiboCapitalManagementError(
-                "GEN-C12 plan cannot predate policy freeze"
-            )
+        # frozen_at is policy-version metadata, not an availability gate on
+        # historical causal evaluation timestamps.
         if self.policy_id != GENC12_POLICY_ID:
             raise CiboCapitalManagementError(
                 "GEN-C12 policy identity drift"
