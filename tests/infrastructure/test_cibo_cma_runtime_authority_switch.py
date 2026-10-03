@@ -106,7 +106,10 @@ def test_phase20_runtime_never_assumes_zero_pending_broker_risk() -> None:
     source = RUNTIME.read_text(encoding="utf-8")
 
     assert 'pending_broker_worst_case_loss_usd=Decimal("0")' not in source
-    assert source.count("demo_sink.registry.pending_stop_risk(") == 2
+    pending_bindings = source.count("pending_broker_worst_case_loss_usd=(")
+    registry_reads = source.count("demo_sink.registry.pending_stop_risk(")
+    assert pending_bindings > 0
+    assert registry_reads == pending_bindings + 1
 
 
 def test_phase20_single_slot_wires_vt08_and_vt31_without_collapsing_oco() -> None:
