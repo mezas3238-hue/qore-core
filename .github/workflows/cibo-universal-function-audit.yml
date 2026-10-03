@@ -107,6 +107,7 @@ jobs:
           - domain: END_TO_END_CAPABILITY
             tests: >-
               tests/infrastructure/test_cibo_reused_holdout_capability_exam.py
+              tests/infrastructure/test_cibo_universal_capability_runtime.py
               tests/infrastructure/test_cibo_phase22_chronological_execution.py
               tests/infrastructure/test_cibo_phase22_historical_policy_replay.py
               tests/infrastructure/test_cibo_phase22_fresh_capital_projection.py
