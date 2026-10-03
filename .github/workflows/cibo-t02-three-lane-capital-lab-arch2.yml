@@ -1,0 +1,207 @@
+name: QORE CIBO T02 Three Lane Capital Lab Architect 2
+
+on:
+  push:
+    branches:
+      - agent/cibo-t02-science-architect-2-001
+    paths:
+      - '.github/workflows/cibo-t02-three-lane-capital-lab-arch2.yml'
+      - 'scripts/cibo_t02_three_lane_capital_lab_arch2.py'
+      - 'src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py'
+      - 'docs/research/CIBO-T02-THREE-LANE-CAPITAL-LAB-ARCH2-PROTOCOL.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-cibo-t02-three-lane-capital-lab-arch2
+  cancel-in-progress: false
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  three-lane-capital:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: python -m pip install -e '.[dev]'
+
+      - name: Validate research contract and code
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/cibo_t02_three_lane_capital_lab_arch2.py \
+            src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py
+          ruff check \
+            scripts/cibo_t02_three_lane_capital_lab_arch2.py \
+            src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('docs/research/CIBO-T02-THREE-LANE-CAPITAL-LAB-ARCH2-PROTOCOL.json').read_text())
+          assert p['owner_authorized'] is True
+          assert p['mode'] == 'NON_CERTIFYING_REUSED_HOLDOUT_RESEARCH'
+          assert p['leverage']['seed_multipliers'] == ['1','2','3','4']
+          assert p['leverage']['linear_posthoc_scaling'] is False
+          assert p['leverage']['qore_risk_sovereign'] is True
+          assert p['timeframe_context'] == ['H4','H1','M15','M5','M1']
+          assert not any(p['governance'].values())
+          PY
+
+      - name: Recover archived P0 reference
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/reference"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/11275124190/zip" > "$RUNNER_TEMP/reference.zip"
+          unzip -q "$RUNNER_TEMP/reference.zip" -d "$RUNNER_TEMP/reference"
+          test -s "$RUNNER_TEMP/reference/lab-result.json"
+
+      - name: Recover frozen seven-Trader batch
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/batch"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/11256450732/zip" > "$RUNNER_TEMP/batch.zip"
+          unzip -q "$RUNNER_TEMP/batch.zip" -d "$RUNNER_TEMP/batch"
+          test -s "$RUNNER_TEMP/batch/reused-batch.json"
+
+      - name: Reconstruct exact reused-holdout causal context
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/native" "$RUNNER_TEMP/context"
+          fetch_lane() {
+            local artifact_id="$1"
+            local name="$2"
+            local zip="$RUNNER_TEMP/native-$name.zip"
+            local root="$RUNNER_TEMP/native/$name"
+            gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" > "$zip"
+            mkdir -p "$root"
+            unzip -q "$zip" -d "$root"
+          }
+          fetch_lane 11255538834 r34
+          fetch_lane 11256765185 eurusd
+          fetch_lane 11256465614 gbpusd
+          fetch_lane 11255244229 gbpjpy
+          fetch_lane 11256249712 audjpy
+          python scripts/cibo_phase22_reused_context_map.py \
+            --batch "$RUNNER_TEMP/batch/reused-batch.json" \
+            --native-root "$RUNNER_TEMP/native" \
+            --output "$RUNNER_TEMP/context/context-map.json"
+          test -s "$RUNNER_TEMP/context/context-map.json"
+
+      - name: Recover provider numeric model and regime corpora
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/provider" "$RUNNER_TEMP/regime"
+          python - <<'PY' > "$RUNNER_TEMP/provider.env"
+          from qore.infrastructure.cibo_phase22_provider_numeric_execution_receipt import PHASE22_PROVIDER_NUMERIC_EXECUTION_FREEZE_RECEIPT
+          x=PHASE22_PROVIDER_NUMERIC_EXECUTION_FREEZE_RECEIPT
+          print(f'PROVIDER_ARTIFACT_ID={x.artifact_id}')
+          print(f'PROVIDER_FILE_SHA={x.provider_numeric_freeze_file_sha256}')
+          PY
+          source "$RUNNER_TEMP/provider.env"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$PROVIDER_ARTIFACT_ID/zip" > "$RUNNER_TEMP/provider.zip"
+          unzip -q "$RUNNER_TEMP/provider.zip" -d "$RUNNER_TEMP/provider"
+          provider_json="$(find "$RUNNER_TEMP/provider" -name provider-numeric-execution-freeze.json -print -quit)"
+          test -n "$provider_json"
+          echo "PROVIDER_JSON=$provider_json" >> "$GITHUB_ENV"
+          echo "PROVIDER_FILE_SHA=$PROVIDER_FILE_SHA" >> "$GITHUB_ENV"
+          python - <<'PY' > "$RUNNER_TEMP/regime.tsv"
+          from pathlib import Path
+          from qore.infrastructure.cibo_phase22_v4_historical_regime import PHASE22_REGIME_SYMBOLS
+          from qore.infrastructure.cibo_phase22_v4_source_receipt import load_phase22_v4_source_receipt
+          receipt=load_phase22_v4_source_receipt(Path('docs/research/CIBO-PHASE22-V4-SOURCE-RECEIPT.json'))
+          by_key={(x.symbol,x.timeframe):x for x in receipt.bindings}
+          for symbol in PHASE22_REGIME_SYMBOLS:
+              x=by_key[(symbol,'M5')]
+              print(symbol,x.artifact_id,sep='\t')
+          PY
+          while IFS=$'\t' read -r symbol artifact_id; do
+            zip="$RUNNER_TEMP/regime-$symbol.zip"
+            root="$RUNNER_TEMP/regime/$symbol"
+            gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" > "$zip"
+            mkdir -p "$root"
+            unzip -q "$zip" -d "$root"
+          done < "$RUNNER_TEMP/regime.tsv"
+
+      - name: Execute exact Core Compound and Compound Portfolio replays
+        run: |
+          set -euo pipefail
+          replay_started_at="$(date -u '+%Y-%m-%dT%H:%M:%S+00:00')"
+          mkdir -p "$RUNNER_TEMP/three-lane"
+          python scripts/cibo_t02_three_lane_capital_lab_arch2.py \
+            --batch "$RUNNER_TEMP/batch/reused-batch.json" \
+            --context-map "$RUNNER_TEMP/context/context-map.json" \
+            --provider-numeric "$PROVIDER_JSON" \
+            --provider-numeric-freeze-sha256 "$PROVIDER_FILE_SHA" \
+            --source-root "AUDJPY=$RUNNER_TEMP/regime/AUDJPY" \
+            --source-root "EURUSD=$RUNNER_TEMP/regime/EURUSD" \
+            --source-root "GBPJPY=$RUNNER_TEMP/regime/GBPJPY" \
+            --source-root "GBPUSD=$RUNNER_TEMP/regime/GBPUSD" \
+            --source-root "XAUUSD=$RUNNER_TEMP/regime/XAUUSD" \
+            --replay-started-at "$replay_started_at" \
+            --output-dir "$RUNNER_TEMP/three-lane"
+
+      - name: Prove 1x parity and three-lane separation
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os
+          from decimal import Decimal
+          from pathlib import Path
+          root=Path(os.environ['RUNNER_TEMP'])
+          old=json.loads((root/'reference'/'lab-result.json').read_text())
+          new=json.loads((root/'three-lane'/'three-lane-result.json').read_text())
+          assert new['all_trader_cibo_core'] == old['all_trader_cibo_core']
+          oldp=old['all_trader_cibo_compound_portfolio']
+          newp=new['all_trader_cibo_compound_portfolio']
+          for key,value in oldp.items():
+              assert newp[key] == value, (key,newp.get(key),value)
+          local=new['all_trader_cibo_compound']
+          assert local['pool_scope'] == 'TRADER_LOCAL'
+          assert local['cross_trader_compound_deployments'] == 0
+          assert newp['pool_scope'] == 'ACCOUNT'
+          assert local['seed_multiplier'] == '1'
+          assert newp['seed_multiplier'] == '1'
+          assert set(new['compound_leverage_sweep']) == {'1','2','3','4'}
+          assert set(new['compound_portfolio_leverage_sweep']) == {'1','2','3','4'}
+          assert new['compound_leverage_sweep']['1'] == local
+          assert new['compound_portfolio_leverage_sweep']['1'] == newp
+          assert all(
+              lane['qore_risk_sovereign'] is True
+              for lane in new['compound_leverage_sweep'].values()
+          )
+          assert all(
+              lane['qore_risk_sovereign'] is True
+              for lane in new['compound_portfolio_leverage_sweep'].values()
+          )
+          assert new['governance']['outcome_aware_tuning'] is False
+          assert new['governance']['broker_mutation'] is False
+          assert new['governance']['live'] is False
+          assert new['governance']['real_capital'] is False
+          assert new['governance']['production'] is False
+          print(json.dumps({
+              'core_ending':new['all_trader_cibo_core']['ending_capital_usd'],
+              'compound_1x_ending':local['ending_capital_usd'],
+              'portfolio_1x_ending':newp['ending_capital_usd'],
+              'portfolio_value_add':new['portfolio_incremental_over_local_compound']['ending_capital_delta_usd'],
+              'compound_leverage':{k:v['ending_capital_usd'] for k,v in new['compound_leverage_sweep'].items()},
+              'portfolio_leverage':{k:v['ending_capital_usd'] for k,v in new['compound_portfolio_leverage_sweep'].items()},
+          },sort_keys=True))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-cibo-t02-three-lane-capital-lab-arch2-${{ github.run_id }}
+          path: ${{ runner.temp }}/three-lane
+          if-no-files-found: error
+          retention-days: 90
