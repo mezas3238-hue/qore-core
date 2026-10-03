@@ -286,24 +286,24 @@ def test_genc5_requires_exact_gen_c4_portfolio_capacity_binding() -> None:
         )
 
 
-def test_genc5_rejects_pre_freeze_evidence() -> None:
+def test_genc5_frozen_policy_accepts_historical_causal_evidence() -> None:
     portfolio, source = _portfolio(policy_protected=True)
     evidence = _evidence(
         portfolio,
         decision_at=GENC5_SHADOW_POLICY_FROZEN_AT
-        - timedelta(microseconds=1),
+        - timedelta(days=365 * 5),
     )
 
-    with pytest.raises(
-        CiboCompoundCapitalError,
-        match="pre-freeze",
-    ):
-        evaluate_genc5_sequential_compounding_shadow(
-            portfolio=portfolio,
-            evidence=evidence,
-            source_lot_id=source,
-            decision_id="decision-pre-freeze",
-        )
+    decision = evaluate_genc5_sequential_compounding_shadow(
+        portfolio=portfolio,
+        evidence=evidence,
+        source_lot_id=source,
+        decision_id="decision-historical",
+    )
+
+    assert decision.decision_at == evidence.decision_at
+    assert decision.policy_frozen_at == GENC5_SHADOW_POLICY_FROZEN_AT
+    assert decision.outcome_present_at_seal is False
 
 
 def test_genc5_rejects_outcome_aware_gen_c4_contract() -> None:
