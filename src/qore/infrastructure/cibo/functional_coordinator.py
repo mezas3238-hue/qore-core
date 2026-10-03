@@ -182,7 +182,9 @@ def _revalidate_contribution(
             as_of=contribution.evidence.as_of,
             dependency_kind=contribution.evidence.dependency_kind,
             reasons=contribution.evidence.reasons,
-            trader_lab_pass_receipts=contribution.evidence.trader_lab_pass_receipts,
+            trader_lab_pass_receipts=getattr(
+                contribution.evidence, "trader_lab_pass_receipts", ()
+            ),
         ),
         authored_at=contribution.authored_at,
         provenance=contribution.provenance,
