@@ -259,12 +259,17 @@ def evaluate_phase22_historical_policy(
     advanced_evidence: AdvancedPortfolioEvidence | None = None,
     known_options: tuple[Phase20MpcKnownOption, ...] = (),
     lab_allow_nonpositive_expectation: bool = False,
+    lab_cibo_free_tool_choice: bool = False,
 ) -> Phase22HistoricalPolicyDecisionRecord:
     """Evaluate frozen V4 composition without falsifying historical timestamps."""
 
     if type(lab_allow_nonpositive_expectation) is not bool:
         raise CiboCapitalManagementError(
             "lab_allow_nonpositive_expectation must be bool"
+        )
+    if type(lab_cibo_free_tool_choice) is not bool:
+        raise CiboCapitalManagementError(
+            "lab_cibo_free_tool_choice must be bool"
         )
     if not inputs:
         raise CiboCapitalManagementError(
@@ -316,7 +321,9 @@ def evaluate_phase22_historical_policy(
         opportunities=opportunities,
         advanced_evidence=advanced_evidence,
         scientific_eligibility=(
-            NEXT_POLICY_ADVANCED_SCIENTIFIC_ELIGIBILITY
+            None
+            if lab_cibo_free_tool_choice
+            else NEXT_POLICY_ADVANCED_SCIENTIFIC_ELIGIBILITY
         ),
     )
     mpc = plan_phase20i_receding_horizon_capacity(
