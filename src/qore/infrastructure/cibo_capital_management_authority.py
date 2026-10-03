@@ -14,6 +14,7 @@ from enum import StrEnum
 from qore.infrastructure.account_wide_risk import (
     TraderIdentity,
     canonical_trader_identity,
+    canonical_trader_lineage,
 )
 
 
@@ -109,7 +110,11 @@ class TraderOpportunityEnvelope:
     decision_context: tuple[tuple[str, str], ...] = ()
 
     def __post_init__(self) -> None:
-        canonical_trader_identity(self.trader_id)
+        object.__setattr__(
+            self,
+            "trader_id",
+            canonical_trader_lineage(self.trader_id),
+        )
         for name in (
             "signal_fingerprint",
             "qore_symbol",
@@ -259,7 +264,11 @@ class CiboCapitalActionPlan:
     capital_source_lots: tuple[CapitalSourceLot, ...] = ()
 
     def __post_init__(self) -> None:
-        canonical_trader_identity(self.trader_id)
+        object.__setattr__(
+            self,
+            "trader_id",
+            canonical_trader_lineage(self.trader_id),
+        )
         if not isinstance(self.qore_symbol, str) or not self.qore_symbol.strip():
             raise CiboCapitalManagementError("qore_symbol must be non-empty")
         for name in ("volume", "stop_risk_usd", "margin_usd", "capital_source_amount_usd"):
