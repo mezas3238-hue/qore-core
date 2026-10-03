@@ -51,8 +51,10 @@ from qore.infrastructure.cibo_protected_reinvestment_policy import (
     MAX_CAPITAL_NEED_TO_BASE_RATIO,
     MAX_CAPITAL_NEED_TO_CURRENT_CAPITAL_RATIO,
     POLICY_ID,
+    PROTECTED_LOSS_RESERVE_STOP_RISK_RATIO,
     USD60_MAX_CAPITAL_NEED_USD,
     maximum_reinvestment_capital_need_usd,
+    protected_loss_reserve_usd,
 )
 
 TRADERS = (
@@ -139,6 +141,7 @@ class ReinvestmentEpisode:
     eligible_current_capital_usd: Decimal
     dynamic_capital_need_limit_usd: Decimal
     deployed_capital_usd: Decimal
+    protected_loss_reserve_usd: Decimal
     stop_risk_usd: Decimal
     margin_usd: Decimal
     provider_cost_usd: Decimal
@@ -364,17 +367,21 @@ def _simulate_observed(
         key = scope_key(candidate.trader_id)
         available = shared_protected if shared else protected[key]
         committed = sum(
-            item[0].capital_need_usd
+            (
+                item[0].capital_need_usd
+                + protected_loss_reserve_usd(item[0].stop_risk_usd)
+            )
             for item in open_rows.values()
             if shared or item[1] == key
         )
         free_protected = max(Decimal(0), available - committed)
+        loss_reserve = protected_loss_reserve_usd(candidate.stop_risk_usd)
 
         if candidate.stop_risk_usd > candidate.hard_risk_headroom_usd:
             continue
         if candidate.margin_usd > candidate.margin_headroom_usd:
             continue
-        if candidate.capital_need_usd > free_protected:
+        if candidate.capital_need_usd + loss_reserve > free_protected:
             continue
 
         inflow = (
@@ -404,6 +411,7 @@ def _simulate_observed(
             eligible_current_capital_usd=realized_account_capital,
             dynamic_capital_need_limit_usd=dynamic_limit,
             deployed_capital_usd=candidate.capital_need_usd,
+            protected_loss_reserve_usd=loss_reserve,
             stop_risk_usd=candidate.stop_risk_usd,
             margin_usd=candidate.margin_usd,
             provider_cost_usd=candidate.provider_cost_usd,
@@ -623,7 +631,11 @@ def _block_bootstrap(
         breached = False
         for item in sample:
             protected += item.protected_inflow_since_prior_episode_usd
-            if protected < item.deployed_capital_usd:
+            required_protected = (
+                item.deployed_capital_usd
+                + item.protected_loss_reserve_usd
+            )
+            if protected < required_protected:
                 continue
             executed += 1
             pnl_total += item.incremental_pnl_usd
@@ -681,7 +693,10 @@ def _stress(
         breach = False
         for item in rows:
             protected += item.protected_inflow_since_prior_episode_usd
-            need = item.deployed_capital_usd * need_multiplier
+            need = (
+                item.deployed_capital_usd * need_multiplier
+                + item.protected_loss_reserve_usd
+            )
             if item.margin_usd * margin_multiplier > (
                 item.margin_usd + item.protected_before_usd
             ):
@@ -836,6 +851,10 @@ def main() -> int:
             "ratio_basis": "CURRENT_REALIZED_ACCOUNT_CAPITAL_BEFORE_DECISION",
             "dynamic_scaling": True,
             "opening_balance_is_static_basis": False,
+            "protected_loss_reserve_stop_risk_ratio": _fmt(
+                PROTECTED_LOSS_RESERVE_STOP_RISK_RATIO
+            ),
+            "protected_loss_reserve_is_deployed_capital": False,
             "usd60_reference_max_capital_need_usd": _fmt(
                 USD60_MAX_CAPITAL_NEED_USD
             ),
@@ -854,6 +873,8 @@ def main() -> int:
             "function_availability_conditioned_on_population": False,
             "core_losses_create_compound_capital": False,
             "protected_capital_required_before_reinvestment": True,
+            "protected_loss_reserve_required_before_reinvestment": True,
+            "protected_loss_reserve_is_deployed_capital": False,
             "outcome_used_for_admission": False,
             "broker_mutation": False,
             "orders": False,
