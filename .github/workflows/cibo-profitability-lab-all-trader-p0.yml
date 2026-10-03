@@ -233,14 +233,16 @@ jobs:
               for row in trace["opportunities"]
           )
           assert all(
-              row["cognitive_orchestration"]["reasoning_route_selected"] is True
-              and row["cognitive_orchestration"]["mission_director_invoked"] is True
+              row["cognitive_orchestration"]["mission_director_invoked"] is True
               and row["cognitive_orchestration"]["functional_coordinator_invoked"]
               is True
-              and row["cognitive_orchestration"]["executive_brain_invoked"] is True
-              and row["cognitive_orchestration"]["executive_directive"]
-              == "request-evidence"
+              and row["cognitive_orchestration"]["mission_disposition"] == "continue"
               and len(row["cognitive_orchestration"]["mission_faculties"]) == 19
+              and row["cognitive_orchestration"]["executive_brain_invoked"] is False
+              and row["cognitive_orchestration"]["executive_brain_status"]
+              == "QUARANTINED_RESEARCH_ONLY"
+              and row["cognitive_orchestration"]["legacy_stack_quarantine_preserved"]
+              is True
               for row in trace["opportunities"]
           )
           assert p["coverage"][
