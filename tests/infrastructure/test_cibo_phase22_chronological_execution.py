@@ -43,7 +43,13 @@ def _sha(label: str) -> str:
     return "sha256:" + sha256(label.encode()).hexdigest()
 
 
-def _fresh(trader_id: str, symbol: str, index: int) -> Phase22FreshOpportunity:
+def _fresh(
+    trader_id: str,
+    symbol: str,
+    index: int,
+    *,
+    gross_r: Decimal = Decimal("2"),
+) -> Phase22FreshOpportunity:
     signal_at = datetime(2015, 11, 2, 10, tzinfo=UTC) + timedelta(
         days=index * 3
     )
@@ -59,13 +65,13 @@ def _fresh(trader_id: str, symbol: str, index: int) -> Phase22FreshOpportunity:
         structural_stop=Decimal("99"),
         technical_target=Decimal("102"),
         exit_reason="target",
-        gross_structural_outcome_r=Decimal("2"),
+        gross_structural_outcome_r=gross_r,
         methodology_sha256=_sha(f"method-{trader_id}"),
         source_evidence_ids=(_sha(f"source-{trader_id}"),),
     )
 
 
-def _fresh_payload() -> dict[str, object]:
+def _fresh_payload(*, gross_r: Decimal = Decimal("2")) -> dict[str, object]:
     symbols = {
         "VT08_FOREX": "GBPUSD",
         "R34_XAUUSD": "XAUUSD",
@@ -79,7 +85,14 @@ def _fresh_payload() -> dict[str, object]:
         Phase22FreshTraderEvidence(
             trader_id=trader_id,
             source_artifact_sha256=_sha(f"lane-{trader_id}"),
-            opportunities=(_fresh(trader_id, symbols[trader_id], index),),
+            opportunities=(
+                _fresh(
+                    trader_id,
+                    symbols[trader_id],
+                    index,
+                    gross_r=gross_r,
+                ),
+            ),
             fresh_outcomes_executed=True,
             methodology_changed=False,
             legacy_trader_sizing_used_for_cibo=False,
@@ -167,8 +180,8 @@ def _provider_payload() -> dict[str, object]:
     }
 
 
-def _execution_inputs():
-    fresh = load_phase22_sealed_fresh_batch(_fresh_payload())
+def _execution_inputs(*, gross_r: Decimal = Decimal("2")):
+    fresh = load_phase22_sealed_fresh_batch(_fresh_payload(gross_r=gross_r))
     provider = load_phase22_sealed_provider_numeric(_provider_payload())
     projections = project_phase22_execution_inputs(
         fresh=fresh,
@@ -245,7 +258,7 @@ def test_regime_evidence_must_cover_exact_epoch_surface() -> None:
 
 
 def test_compound_portfolio_lane_executes_realized_profit_path_without_risk_state_duplication() -> None:
-    replay, regimes = _execution_inputs()
+    replay, regimes = _execution_inputs(gross_r=Decimal("100"))
     core = execute_phase22_chronological_replay(
         plan=replay,
         regime_evidence=regimes,
