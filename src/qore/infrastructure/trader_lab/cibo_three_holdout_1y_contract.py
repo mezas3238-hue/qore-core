@@ -99,9 +99,9 @@ def evaluate_candidate(candidate: dict[str, Any]) -> CandidateGateResult:
         raise ThreeHoldoutResearchError(
             "Trader parameters must remain frozen during CIBO research"
         )
-    if candidate.get("trader_profitability_used_for_gate") is not False:
+    if candidate.get("trader_profitability_used_for_gate") is not True:
         raise ThreeHoldoutResearchError(
-            "per-Trader profitability cannot gate CIBO candidates"
+            "all-seven Trader profitability must gate CIBO candidates"
         )
 
     m = candidate.get("measurements")
@@ -111,6 +111,37 @@ def evaluate_candidate(candidate: dict[str, Any]) -> CandidateGateResult:
     failed: list[str] = []
     if m.get("all_7_traders_participate") is not True:
         failed.append("ALL_7_TRADERS")
+    per_trader = m.get("per_trader_under_cibo")
+    if not isinstance(per_trader, dict):
+        raise ThreeHoldoutResearchError(
+            "per-Trader CIBO economic measurements are required"
+        )
+    if tuple(per_trader) != REQUIRED_TRADERS:
+        failed.append("ALL_7_TRADERS_EXACT_SURFACE")
+    else:
+        for trader_id in REQUIRED_TRADERS:
+            row = per_trader[trader_id]
+            if not isinstance(row, dict):
+                raise ThreeHoldoutResearchError(
+                    f"{trader_id}: CIBO measurement row missing"
+                )
+            if int(row.get("settled_count", 0)) <= 0:
+                failed.append(f"{trader_id}:NO_SETTLEMENT")
+            if _decimal(
+                row.get("final_pnl_usd", "0"),
+                f"{trader_id} final pnl",
+            ) <= 0:
+                failed.append(f"{trader_id}:PNL")
+            if _decimal(
+                row.get("profit_factor", "0"),
+                f"{trader_id} profit factor",
+            ) <= 1:
+                failed.append(f"{trader_id}:PF")
+            if _decimal(
+                row.get("expectancy_usd", "0"),
+                f"{trader_id} expectancy",
+            ) <= 0:
+                failed.append(f"{trader_id}:EXPECTANCY")
     if tuple(m.get("timeframes", ())) != REQUIRED_TIMEFRAMES:
         failed.append("TIMEFRAME_SURFACE")
 
@@ -171,8 +202,8 @@ def evaluate_candidate(candidate: dict[str, Any]) -> CandidateGateResult:
         failed.append("GENC01_GENC14_ACCOUNTABILITY")
     if function_behavior.get("per_function_observability_complete") is not True:
         failed.append("PER_FUNCTION_OBSERVABILITY")
-    if m.get("trader_profitability_used_for_gate") is not False:
-        failed.append("TRADER_PROFITABILITY_GATE_FORBIDDEN")
+    if m.get("trader_profitability_used_for_gate") is not True:
+        failed.append("ALL_7_TRADER_PROFITABILITY_GATE_REQUIRED")
     if m.get("qore_risk_sovereign") is not True:
         failed.append("QORE_RISK_SOVEREIGN")
 
