@@ -137,7 +137,14 @@ jobs:
           test -f src/qore/infrastructure/cibo_capital_management_authority.py
           test -f src/qore/infrastructure/account_wide_risk.py
           python -m pytest -q --no-cov             tests/infrastructure/test_cibo_capital_management_authority.py             tests/infrastructure/test_cibo_cma_*.py             tests/infrastructure/test_cibo_risk_*.py             tests/infrastructure/test_cibo_risk_integration_closure.py
-          echo "PHASE_03=PASS"
+          echo "PHASE_03_INTERNAL=PASS"
+      - name: Trader Lab functional run CMA + QORE Risk + Settlement
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_cibo_cma_risk_settlement_functional_probe.py
+          echo "PHASE_03_TRADER_LAB=PASS"
 
   phase-04-compound:
     name: "04 AUDIT+TEST CIBO Compound"
