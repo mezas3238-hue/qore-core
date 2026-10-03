@@ -408,7 +408,7 @@ class Audit:
             available_at=t1,
             availability_basis=ReplayAvailabilityBasis.STRUCTURAL_BOUNDARY,
             availability_evidence_ref=ReplayAvailabilityEvidenceReference(
-                "evidence:cibo-trader-lab-audit"
+                _u(ctx.trader + ":availability-evidence")
             ),
         )
         scope = HistoricalOhlcDatasetScope(
