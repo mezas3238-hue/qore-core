@@ -58,6 +58,10 @@ from qore.infrastructure.cibo_ce2i_phase20_train_prior import (
 from qore.infrastructure.cibo_ce2i_regime_selector import (
     CiboCapitalRegimeState,
 )
+from qore.infrastructure.cibo_profitability_lab_economic_consultation import (
+    CiboEconomicConsultationReceipt,
+    consult_cibo_economic_faculties,
+)
 from qore.infrastructure.cibo_phase22_v4_governance import (
     V4_CANDIDATE_ID,
 )
@@ -138,6 +142,7 @@ class Phase22HistoricalPolicyDecisionRecord:
     hard_risk_headroom_usd: Decimal
     margin_headroom_usd: Decimal
     concentration_limit_by_group: tuple[tuple[str, Decimal], ...]
+    economic_consultation: CiboEconomicConsultationReceipt
     full_surface: FullCe2iSurfaceAssessment
     advanced_economic_application: AdvancedCe2iEconomicApplication
     mpc_plan: Phase20MpcCapacityPlan
@@ -221,6 +226,20 @@ class Phase22HistoricalPolicyDecisionRecord:
                 [name, format(value, "f")]
                 for name, value in self.concentration_limit_by_group
             ],
+            "economic_consultation": {
+                "consultation_id": self.economic_consultation.consultation_id,
+                "consulted_faculties": list(
+                    self.economic_consultation.consulted_faculties
+                ),
+                "coordination_disposition": (
+                    self.economic_consultation.coordination_disposition
+                ),
+                "coordination_request_code": (
+                    self.economic_consultation.coordination_request_code
+                ),
+                "causal_predecision": self.economic_consultation.causal_predecision,
+                "outcome_used": self.economic_consultation.outcome_used,
+            },
             "regime_posture": self.full_surface.regime.posture.value,
             "advanced_economic_application": {
                 "effective_hard_risk_headroom_usd": format(
@@ -354,6 +373,11 @@ def evaluate_phase22_historical_policy(
         for item in inputs
     )
     opportunities = tuple(item.opportunity for item in inputs)
+    economic_consultation = consult_cibo_economic_faculties(
+        decision_at=market_decision_at,
+        opportunities=opportunities,
+        regime_state=regime_state,
+    )
     full_surface = evaluate_full_ce2i_surface(
         mission=mission,
         regime_state=regime_state,
@@ -403,6 +427,7 @@ def evaluate_phase22_historical_policy(
         hard_risk_headroom_usd=hard_risk_headroom_usd,
         margin_headroom_usd=margin_headroom_usd,
         concentration_limit_by_group=concentration_limit_by_group,
+        economic_consultation=economic_consultation,
         full_surface=full_surface,
         advanced_economic_application=advanced_application,
         mpc_plan=mpc,
