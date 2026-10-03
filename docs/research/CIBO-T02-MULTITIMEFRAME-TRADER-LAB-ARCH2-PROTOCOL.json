@@ -1,0 +1,84 @@
+{
+  "schema": "qore.cibo.t02-multitimeframe-trader-lab-arch2-protocol.v1",
+  "mode": "NON_CERTIFYING_REUSED_HOLDOUT_RESEARCH",
+  "purpose": "Connect real Trader Lab candidate bindings to a predecision-only multi-timeframe T02 Explorer/Validator laboratory.",
+  "source_branch": "agent/cibo-t02-science-architect-2-001",
+  "timeframes": {
+    "required_from_current_native_evidence": [
+      "D1",
+      "H4",
+      "H1",
+      "M5"
+    ],
+    "never_invent_missing_timeframes": true,
+    "future_extension": "Additional predecision timeframes may enter only when retained native evidence contains them."
+  },
+  "explorer": {
+    "train_only": true,
+    "features": [
+      "D1/H4/H1 body alignment and range state",
+      "M5 displacement alignment, efficiency and volatility",
+      "session",
+      "setup timeframe",
+      "side",
+      "family",
+      "target_route",
+      "fragility",
+      "expected_net_value_usd",
+      "expected_capital_minutes",
+      "provider_cost_to_extra_risk",
+      "pre_ce2i_stop_risk_usd",
+      "pre_ce2i_margin_usd",
+      "hard_risk_headroom_usd",
+      "margin_headroom_usd"
+    ],
+    "forbidden_features": [
+      "trader_id",
+      "symbol",
+      "realized P/L",
+      "exit reason",
+      "raw realized R",
+      "settlement result",
+      "post-entry path",
+      "future market"
+    ],
+    "leverage_fractions": [
+      "0.25",
+      "0.50",
+      "0.75",
+      "1.00"
+    ],
+    "categorical_rule_depth_max": 3,
+    "numeric_thresholds": "TRAIN-only quartiles",
+    "search_policy": "Broad TRAIN exploration is permitted; nothing discovered on TRAIN is approved until frozen and evaluated on untouched chronological TEST."
+  },
+  "validator": {
+    "chronological_partitions": [
+      5,
+      6
+    ],
+    "hard_gate": "EVERY TEST > 0; no pooled rescue",
+    "minimum_test_population": 1,
+    "final_candidate_minimum_population": 20,
+    "monte_carlo_required": true,
+    "stress_required": true
+  },
+  "trader_lab": {
+    "require_real_candidate_binding": true,
+    "require_state": "research_ready",
+    "expected_candidate_count": 7,
+    "candidate_fingerprint_attached_to_research_rows": true
+  },
+  "governance": {
+    "no_merge": true,
+    "no_live": true,
+    "no_production": true,
+    "no_real_capital": true,
+    "no_broker_mutation": true,
+    "no_vps": true,
+    "no_outcome_feature_admission": true,
+    "qore_risk_sovereign": true,
+    "no_fresh_oos_claim": true,
+    "no_certification_claim": true
+  }
+}
