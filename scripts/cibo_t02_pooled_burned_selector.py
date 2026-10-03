@@ -16,9 +16,9 @@ import json
 import math
 import random
 import zipfile
+from collections.abc import Callable
 from decimal import Decimal
 from pathlib import Path
-from collections.abc import Callable
 from typing import Any
 
 from qore.infrastructure.account_wide_risk import TraderLineage
