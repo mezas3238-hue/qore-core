@@ -172,6 +172,16 @@ def evaluate_three_groups(
             raise ThreeHoldoutResearchError("seven-Trader cohort drift")
         if payload.get("adaptive_research_only") is not True:
             raise ThreeHoldoutResearchError("group must be adaptive research-only")
+        if payload.get("execution_topology") != "SINGLE_INTEGRATED_7_TRADER_PORTFOLIO":
+            raise ThreeHoldoutResearchError("group must be one integrated 7-Trader portfolio")
+        if payload.get("shared_cibo_state") is not True:
+            raise ThreeHoldoutResearchError("group must use one shared CIBO state")
+        if payload.get("shared_qore_risk_state") is not True:
+            raise ThreeHoldoutResearchError("group must use one shared QORE Risk state")
+        if str(payload.get("shared_initial_capital_usd")) != "60":
+            raise ThreeHoldoutResearchError("group shared initial capital must be USD60")
+        if payload.get("per_trader_results_source_only") is not True:
+            raise ThreeHoldoutResearchError("per-Trader results must remain SOURCE_ONLY")
 
         candidates = payload.get("candidates")
         if not isinstance(candidates, list):
