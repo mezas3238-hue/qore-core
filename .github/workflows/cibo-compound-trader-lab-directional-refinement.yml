@@ -1,0 +1,139 @@
+name: QORE CIBO Compound Trader Lab Directional Refinement
+
+on:
+  push:
+    branches:
+      - agent/cibo-profitability-lab-001
+    paths:
+      - '.github/workflows/cibo-compound-trader-lab-directional-refinement.yml'
+      - 'scripts/cibo_compound_trader_lab_directional_refinement.py'
+      - 'scripts/cibo_compound_protected_capital_reality_exam.py'
+      - 'src/qore/infrastructure/cibo_protected_reinvestment_policy.py'
+      - 'tests/infrastructure/test_cibo_protected_reinvestment_policy.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  directional-refinement:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SOURCE_ARTIFACT_ID: '11261743257'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: python -m pip install -e '.[dev]'
+
+      - name: Static validation
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/cibo_compound_protected_capital_reality_exam.py \
+            scripts/cibo_compound_trader_lab_directional_refinement.py
+          ruff check \
+            scripts/cibo_compound_protected_capital_reality_exam.py \
+            scripts/cibo_compound_trader_lab_directional_refinement.py \
+            src/qore/infrastructure/cibo_protected_reinvestment_policy.py \
+            tests/infrastructure/test_cibo_protected_reinvestment_policy.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_protected_reinvestment_policy.py
+
+      - name: Recover retained Trader Lab decision trace
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/source"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$SOURCE_ARTIFACT_ID/zip" \
+            > "$RUNNER_TEMP/source.zip"
+          unzip -q "$RUNNER_TEMP/source.zip" -d "$RUNNER_TEMP/source"
+          test -s "$RUNNER_TEMP/source/decision-trace.json"
+
+      - name: Execute directional refinement
+        id: refinement
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/directional-refinement"
+          python scripts/cibo_compound_trader_lab_directional_refinement.py \
+            --decision-trace "$RUNNER_TEMP/source/decision-trace.json" \
+            --output "$RUNNER_TEMP/directional-refinement/report.json"
+
+      - name: Verify retained research artifact
+        if: always()
+        run: |
+          set -euo pipefail
+          test -s "$RUNNER_TEMP/directional-refinement/report.json"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          p = json.loads(
+              (
+                  Path(os.environ["RUNNER_TEMP"])
+                  / "directional-refinement"
+                  / "report.json"
+              ).read_text()
+          )
+          assert p["source_settled_core_rows"] == 155
+          assert p["governance"]["population_gate_used"] is False
+          assert p["governance"]["outcome_used_at_candidate_decision"] is False
+          assert p["governance"]["future_market_used_at_candidate_decision"] is False
+          assert p["governance"]["forward_generalization_claimed"] is False
+          assert p["governance"]["reused_holdout_calibration"] is True
+          assert p["governance"]["broker_mutation"] is False
+          assert p["governance"]["live"] is False
+          assert p["governance"]["real_capital"] is False
+          assert p["governance"]["certification_claimed"] is False
+          assert p["governance"]["merge_authority"] is False
+          assert len(p["candidates"]) == 9
+          for candidate in p["candidates"]:
+              assert set(candidate["results"]) == {"LONG", "SHORT", "BOTH"}
+              for mode in ("LONG", "SHORT", "BOTH"):
+                  for surface in ("cibo_compound", "compound_portfolio"):
+                      raw = candidate["results"][mode][surface]["surface"]
+                      assert raw["stress"]["scenario_count"] in (0, 7)
+                      assert raw["monte_carlo"]["simulation_count"] in (0, 1000)
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-cibo-compound-directional-refinement-${{ github.run_id }}
+          path: ${{ runner.temp }}/directional-refinement
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Enforce fully positive LONG SHORT BOTH candidate
+        if: always()
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          p = json.loads(
+              (
+                  Path(os.environ["RUNNER_TEMP"])
+                  / "directional-refinement"
+                  / "report.json"
+              ).read_text()
+          )
+          assert p["gate_verdict"] == "PASS_DIRECTIONALLY_COMPLETE"
+          selected = p["selected_candidate"]
+          assert selected is not None
+          assert selected["directionally_complete"] is True
+          for mode in ("LONG", "SHORT", "BOTH"):
+              for surface in ("cibo_compound", "compound_portfolio"):
+                  assert selected["results"][mode][surface]["qualified"] is True
+          PY
