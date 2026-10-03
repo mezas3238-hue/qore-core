@@ -1,0 +1,16 @@
+{
+  "schema": "qore.cibo.trader-lab.realtime-bench-config.v1",
+  "repository_root": "../..",
+  "workspace": "../../.qore-cibo-realtime-bench",
+  "assembly_root": "../../bench-data/assembly",
+  "provider_numeric": "../../bench-data/provider/provider-numeric-execution-freeze.json",
+  "regime_roots": {
+    "AUDJPY": "../../bench-data/regime/AUDJPY",
+    "EURUSD": "../../bench-data/regime/EURUSD",
+    "GBPJPY": "../../bench-data/regime/GBPJPY",
+    "GBPUSD": "../../bench-data/regime/GBPUSD",
+    "XAUUSD": "../../bench-data/regime/XAUUSD"
+  },
+  "replay_started_at": "2026-10-03T18:15:00+00:00",
+  "max_parallel_groups": 3
+}
