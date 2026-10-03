@@ -48,10 +48,17 @@ from qore.infrastructure.cibo_ce2i_usd60_six_month_certification import (
 from qore.infrastructure.cibo_protected_reinvestment_policy import (
     CALIBRATION_MODE,
     ELIGIBLE_SIDE,
+    ELIGIBLE_SIDES,
+    LONG_MAX_EXPECTED_CAPITAL_MINUTES,
+    LONG_MIN_EXPECTED_NET_VALUE_USD,
+    LONG_REQUIRED_ENTRY_TYPE,
     MAX_CAPITAL_NEED_TO_BASE_RATIO,
     MAX_CAPITAL_NEED_TO_CURRENT_CAPITAL_RATIO,
     POLICY_ID,
     PROTECTED_LOSS_RESERVE_STOP_RISK_RATIO,
+    SHORT_MAX_EXPECTED_CAPITAL_MINUTES,
+    SHORT_MIN_EXPECTED_NET_VALUE_USD,
+    SHORT_REQUIRED_ENTRY_TYPE,
     USD60_MAX_CAPITAL_NEED_USD,
     maximum_reinvestment_capital_need_usd,
     protected_loss_reserve_usd,
@@ -231,19 +238,27 @@ def _simulate_observed(
     rows: tuple[dict[str, Any], ...],
     *,
     shared: bool,
-    eligible_sides: tuple[str, ...] = (ELIGIBLE_SIDE,),
+    eligible_sides: tuple[str, ...] = ELIGIBLE_SIDES,
     max_capital_need_to_current_capital_ratio: Decimal = (
         MAX_CAPITAL_NEED_TO_CURRENT_CAPITAL_RATIO
     ),
     long_required_regime: str | None = None,
-    long_required_entry_type: str | None = None,
-    long_min_expected_net_value_usd: Decimal | None = None,
-    long_max_expected_capital_minutes: Decimal | None = None,
+    long_required_entry_type: str | None = LONG_REQUIRED_ENTRY_TYPE,
+    long_min_expected_net_value_usd: Decimal | None = (
+        LONG_MIN_EXPECTED_NET_VALUE_USD
+    ),
+    long_max_expected_capital_minutes: Decimal | None = (
+        LONG_MAX_EXPECTED_CAPITAL_MINUTES
+    ),
     long_max_dynamic_limit_utilization: Decimal | None = None,
     short_required_regime: str | None = None,
-    short_required_entry_type: str | None = None,
-    short_min_expected_net_value_usd: Decimal | None = None,
-    short_max_expected_capital_minutes: Decimal | None = None,
+    short_required_entry_type: str | None = SHORT_REQUIRED_ENTRY_TYPE,
+    short_min_expected_net_value_usd: Decimal | None = (
+        SHORT_MIN_EXPECTED_NET_VALUE_USD
+    ),
+    short_max_expected_capital_minutes: Decimal | None = (
+        SHORT_MAX_EXPECTED_CAPITAL_MINUTES
+    ),
     short_max_dynamic_limit_utilization: Decimal | None = None,
 ) -> tuple[ReinvestmentEpisode, ...]:
     """Chronological protected-only incremental seed replay.
@@ -943,19 +958,27 @@ def _surface(
     rows: tuple[dict[str, Any], ...],
     *,
     shared: bool,
-    eligible_sides: tuple[str, ...] = (ELIGIBLE_SIDE,),
+    eligible_sides: tuple[str, ...] = ELIGIBLE_SIDES,
     max_capital_need_to_current_capital_ratio: Decimal = (
         MAX_CAPITAL_NEED_TO_CURRENT_CAPITAL_RATIO
     ),
     long_required_regime: str | None = None,
-    long_required_entry_type: str | None = None,
-    long_min_expected_net_value_usd: Decimal | None = None,
-    long_max_expected_capital_minutes: Decimal | None = None,
+    long_required_entry_type: str | None = LONG_REQUIRED_ENTRY_TYPE,
+    long_min_expected_net_value_usd: Decimal | None = (
+        LONG_MIN_EXPECTED_NET_VALUE_USD
+    ),
+    long_max_expected_capital_minutes: Decimal | None = (
+        LONG_MAX_EXPECTED_CAPITAL_MINUTES
+    ),
     long_max_dynamic_limit_utilization: Decimal | None = None,
     short_required_regime: str | None = None,
-    short_required_entry_type: str | None = None,
-    short_min_expected_net_value_usd: Decimal | None = None,
-    short_max_expected_capital_minutes: Decimal | None = None,
+    short_required_entry_type: str | None = SHORT_REQUIRED_ENTRY_TYPE,
+    short_min_expected_net_value_usd: Decimal | None = (
+        SHORT_MIN_EXPECTED_NET_VALUE_USD
+    ),
+    short_max_expected_capital_minutes: Decimal | None = (
+        SHORT_MAX_EXPECTED_CAPITAL_MINUTES
+    ),
     short_max_dynamic_limit_utilization: Decimal | None = None,
 ) -> dict[str, Any]:
     label = "COMPOUND_PORTFOLIO" if shared else "CIBO_COMPOUND"
@@ -1054,7 +1077,22 @@ def main() -> int:
         "calibrated_reinvestment_policy": {
             "policy_id": POLICY_ID,
             "calibration_mode": CALIBRATION_MODE,
-            "eligible_side": ELIGIBLE_SIDE,
+            "eligible_side_compatibility_alias": ELIGIBLE_SIDE,
+            "eligible_sides": list(ELIGIBLE_SIDES),
+            "long_required_entry_type": LONG_REQUIRED_ENTRY_TYPE,
+            "long_min_expected_net_value_usd": _fmt(
+                LONG_MIN_EXPECTED_NET_VALUE_USD
+            ),
+            "long_max_expected_capital_minutes": _fmt(
+                LONG_MAX_EXPECTED_CAPITAL_MINUTES
+            ),
+            "short_required_entry_type": SHORT_REQUIRED_ENTRY_TYPE,
+            "short_min_expected_net_value_usd": _fmt(
+                SHORT_MIN_EXPECTED_NET_VALUE_USD
+            ),
+            "short_max_expected_capital_minutes": _fmt(
+                SHORT_MAX_EXPECTED_CAPITAL_MINUTES
+            ),
             "max_capital_need_to_current_capital_ratio": _fmt(
                 MAX_CAPITAL_NEED_TO_CURRENT_CAPITAL_RATIO
             ),
