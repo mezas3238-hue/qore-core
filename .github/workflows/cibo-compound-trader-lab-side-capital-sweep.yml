@@ -1,0 +1,146 @@
+name: QORE CIBO Compound Trader Lab Side Capital Sweep
+
+on:
+  push:
+    branches:
+      - agent/cibo-profitability-lab-001
+    paths:
+      - '.github/workflows/cibo-compound-trader-lab-side-capital-sweep.yml'
+      - 'scripts/cibo_compound_trader_lab_side_capital_sweep.py'
+      - 'scripts/cibo_compound_protected_capital_reality_exam.py'
+      - 'src/qore/infrastructure/cibo_protected_reinvestment_policy.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  side-capital-sweep:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SOURCE_ARTIFACT_ID: '11261743257'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: python -m pip install -e '.[dev]'
+
+      - name: Static validation
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/cibo_compound_protected_capital_reality_exam.py \
+            scripts/cibo_compound_trader_lab_side_capital_sweep.py
+          ruff check \
+            scripts/cibo_compound_protected_capital_reality_exam.py \
+            scripts/cibo_compound_trader_lab_side_capital_sweep.py \
+            src/qore/infrastructure/cibo_protected_reinvestment_policy.py \
+            tests/infrastructure/test_cibo_protected_reinvestment_policy.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_protected_reinvestment_policy.py
+
+      - name: Recover retained Trader Lab decision trace
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/source"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$SOURCE_ARTIFACT_ID/zip" \
+            > "$RUNNER_TEMP/source.zip"
+          unzip -q "$RUNNER_TEMP/source.zip" -d "$RUNNER_TEMP/source"
+          test -s "$RUNNER_TEMP/source/decision-trace.json"
+
+      - name: Execute preregistered LONG SHORT BOTH capital sweep
+        id: sweep
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/side-capital-sweep"
+          python scripts/cibo_compound_trader_lab_side_capital_sweep.py \
+            --decision-trace "$RUNNER_TEMP/source/decision-trace.json" \
+            --output "$RUNNER_TEMP/side-capital-sweep/report.json"
+
+      - name: Verify complete matrix artifact
+        if: always()
+        run: |
+          set -euo pipefail
+          test -s "$RUNNER_TEMP/side-capital-sweep/report.json"
+          python - <<'PY'
+          import json
+          import os
+          from decimal import Decimal
+          from pathlib import Path
+
+          p = json.loads(
+              (
+                  Path(os.environ["RUNNER_TEMP"])
+                  / "side-capital-sweep"
+                  / "report.json"
+              ).read_text()
+          )
+          assert p["population_gate_used"] is False
+          assert p["outcome_used_at_candidate_decision"] is False
+          assert p["forward_generalization_claimed"] is False
+          assert p["broker_mutation"] is False
+          assert p["live"] is False
+          assert p["production"] is False
+          assert p["real_capital"] is False
+          assert p["merge_authority"] is False
+          expected = {
+              Decimal("1.80416946006494203648874011988"),
+              Decimal("2.00"),
+              Decimal("2.50"),
+              Decimal("3.00"),
+          }
+          observed = {
+              Decimal(item["usd60_reference_limit_usd"])
+              for item in p["limits"]
+          }
+          assert observed == expected
+          assert len(p["variants"]) == 12
+          assert {
+              item["side_mode"] for item in p["variants"]
+          } == {"LONG", "SHORT", "BOTH"}
+          for item in p["variants"]:
+              assert item["cibo_compound"]["stress"]["scenario_count"] == 7
+              assert item["compound_portfolio"]["stress"]["scenario_count"] == 7
+              assert item["cibo_compound"]["monte_carlo"]["simulation_count"] in (0, 1000)
+              assert item["compound_portfolio"]["monte_carlo"]["simulation_count"] in (0, 1000)
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-cibo-compound-trader-lab-side-capital-sweep-${{ github.run_id }}
+          path: ${{ runner.temp }}/side-capital-sweep
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Enforce directionally complete positive candidate
+        if: always()
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          p = json.loads(
+              (
+                  Path(os.environ["RUNNER_TEMP"])
+                  / "side-capital-sweep"
+                  / "report.json"
+              ).read_text()
+          )
+          assert p["gate_verdict"] == "PASS_DIRECTIONALLY_COMPLETE", p["limits"]
+          assert p["selected_candidate"] is not None
+          assert p["selected_candidate"]["long_qualified"] is True
+          assert p["selected_candidate"]["short_qualified"] is True
+          assert p["selected_candidate"]["both_qualified"] is True
+          PY
