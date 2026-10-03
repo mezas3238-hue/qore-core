@@ -14,7 +14,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
 
-from qore.infrastructure.account_wide_risk import TraderLineage
+from qore.infrastructure.account_wide_risk import (
+    TraderIdentity,
+    canonical_trader_identity,
+)
 from qore.infrastructure.cibo_account_capital_mission import (
     CiboAccountCapitalIdentity,
 )
@@ -33,7 +36,7 @@ from qore.infrastructure.cibo_compound_portfolio_ledger import (
 @dataclass(frozen=True, slots=True)
 class CompoundPortfolioAttributionRow:
     account_identity: CiboAccountCapitalIdentity
-    origin_trader: TraderLineage
+    origin_trader: TraderIdentity
     generation: int
     state: CompoundCapitalState
     amount_usd: Decimal
@@ -47,7 +50,7 @@ class CompoundPortfolioAttributionRow:
             raise CiboCompoundCapitalError(
                 "compound attribution account identity is invalid"
             )
-        if type(self.origin_trader) is not TraderLineage:
+        if type(self.origin_trader) is not TraderIdentity:
             raise CiboCompoundCapitalError(
                 "compound attribution origin Trader is invalid"
             )
@@ -334,8 +337,8 @@ class QoreCoreCompoundPortfolio:
 
     def attributed_value_by_trader(
         self,
-    ) -> tuple[tuple[TraderLineage, Decimal], ...]:
-        totals: dict[TraderLineage, Decimal] = {}
+    ) -> tuple[tuple[TraderIdentity, Decimal], ...]:
+        totals: dict[TraderIdentity, Decimal] = {}
         for row in self.attribution:
             totals[row.origin_trader] = (
                 totals.get(row.origin_trader, Decimal(0))
