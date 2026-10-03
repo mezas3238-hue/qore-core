@@ -8,16 +8,25 @@
       "D1",
       "H4",
       "H1",
-      "M5"
+      "M5",
+      "M1"
     ],
     "never_invent_missing_timeframes": true,
-    "future_extension": "Additional predecision timeframes may enter only when retained native evidence contains them."
+    "future_extension": "Additional predecision timeframes may enter only when retained native evidence contains them.",
+    "m1_binding": {
+      "trader": "VT31_NAS100",
+      "capability_artifact_id": 11255438950,
+      "retained_m1_source_artifact_id": 11245896861,
+      "retained_m1_bars": 158005,
+      "causality": "Only M1 candles closed at or before decision timestamp may contribute features."
+    }
   },
   "explorer": {
     "train_only": true,
     "features": [
       "D1/H4/H1 body alignment and range state",
       "M5 displacement alignment, efficiency and volatility",
+      "M1 last-body alignment, body efficiency, volatility/range ratios, 5m/15m displacement, 60m position, 09:00-10:00 NY reference-range/raid state",
       "session",
       "setup timeframe",
       "side",
@@ -61,7 +70,8 @@
     "minimum_test_population": 1,
     "final_candidate_minimum_population": 20,
     "monte_carlo_required": true,
-    "stress_required": true
+    "stress_required": true,
+    "universality_gate": "No symbol/trader predicate; M1-only signals from one current lineage may be exploratory but cannot by themselves establish cross-asset universality."
   },
   "trader_lab": {
     "require_real_candidate_binding": true,
