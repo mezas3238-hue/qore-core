@@ -299,21 +299,23 @@ def _validate_advanced_evidence_time(
 
     evidence_rows: list[tuple[str, object]] = []
     for row in advanced_evidence.opportunities:
-        for label, evidence in (
+        opportunity_rows: tuple[tuple[str, object | None], ...] = (
             ("T02", row.structural_leverage),
             ("T03", row.margin_efficiency),
             ("T04", row.risk_efficiency),
             ("T17", row.convex_exposure),
-        ):
-            if evidence is not None:
-                evidence_rows.append((label, evidence))
-    for label, evidence in (
+        )
+        for label, item in opportunity_rows:
+            if item is not None:
+                evidence_rows.append((label, item))
+    portfolio_rows: tuple[tuple[str, object | None], ...] = (
         ("T08", advanced_evidence.portfolio_netting),
         ("T10", advanced_evidence.capital_velocity),
         ("T16", advanced_evidence.hedged_exposure),
-    ):
-        if evidence is not None:
-            evidence_rows.append((label, evidence))
+    )
+    for label, item in portfolio_rows:
+        if item is not None:
+            evidence_rows.append((label, item))
 
     if not evidence_rows:
         return
