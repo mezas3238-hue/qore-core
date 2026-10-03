@@ -58,6 +58,10 @@ from qore.infrastructure.cibo_phase22_v4_execution_inputs import (
 from qore.infrastructure.cibo_phase22_v4_historical_regime import (
     build_phase22_historical_regime_evidence,
 )
+from qore.infrastructure.cibo_reused_holdout_compound_portfolio_lane import (
+    CompoundPortfolioLaneResult,
+    run_compound_portfolio_lane,
+)
 from qore.infrastructure.trader_lab.ict_turtle_soup_r4_source_exact import (
     Evidence,
 )
@@ -176,6 +180,7 @@ class InfrastructureCapabilityExamReport:
     source_batch_sha256: str
     replay_started_at: datetime
     cognitive_functional_coverage: CiboCapabilityCognitiveCoverageReceipt
+    compound_portfolio: CompoundPortfolioLaneResult
     minimal_seed_baseline: PerformanceMetrics
     full_cibo: PerformanceMetrics
     ending_capital_delta_usd: Decimal
@@ -209,6 +214,13 @@ class InfrastructureCapabilityExamReport:
         ):
             raise CiboCapitalManagementError(
                 "capability exam cognitive/function coverage incomplete"
+            )
+        if not isinstance(
+            self.compound_portfolio,
+            CompoundPortfolioLaneResult,
+        ):
+            raise CiboCapitalManagementError(
+                "capability exam compound portfolio result is invalid"
             )
         expected_codes = tuple(f"T{i:02d}" for i in range(1, 21))
         if tuple(item.tool_code for item in self.tool_audit) != expected_codes:
@@ -299,6 +311,10 @@ def run_reused_holdout_infrastructure_exam(
         regime_evidence=regimes,
         replay_started_at=replay_started_at,
     )
+    compound_portfolio = run_compound_portfolio_lane(
+        plan=plan,
+        core_execution=execution,
+    )
     baseline = _run_minimal_seed_baseline(plan)
     full = _full_metrics(
         execution,
@@ -362,6 +378,29 @@ def run_reused_holdout_infrastructure_exam(
             "T01_T20_RUNTIME_INTEGRATION_COMPLETE",
             all(item.integration_complete for item in audit),
         ),
+        (
+            "COMPOUND_PORTFOLIO_ACCOUNTABILITY_COMPLETE",
+            len(compound_portfolio.function_accountability) == 4
+            and all(
+                item.get("status")
+                in {
+                    "APPLIED",
+                    "FAIL_CLOSED",
+                    "REGIME_BLOCKED",
+                    "JUSTIFIED_NOT_APPLICABLE",
+                }
+                for item in compound_portfolio.function_accountability
+            ),
+        ),
+        (
+            "COMPOUND_PORTFOLIO_RISK_SOVEREIGNTY",
+            compound_portfolio.qore_risk_sovereign
+            and compound_portfolio.realized_profit_only,
+        ),
+        (
+            "COMPOUND_PORTFOLIO_BROKER_MUTATION_ZERO",
+            compound_portfolio.broker_mutation_performed is False,
+        ),
     )
     report = InfrastructureCapabilityExamReport(
         exam_id=EXAM_ID,
@@ -370,6 +409,7 @@ def run_reused_holdout_infrastructure_exam(
         source_batch_sha256=fresh.declared_batch_sha256,
         replay_started_at=replay_started_at,
         cognitive_functional_coverage=cognitive_coverage,
+        compound_portfolio=compound_portfolio,
         minimal_seed_baseline=baseline,
         full_cibo=full,
         ending_capital_delta_usd=(
