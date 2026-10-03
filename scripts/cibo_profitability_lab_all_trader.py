@@ -27,6 +27,9 @@ from qore.infrastructure.cibo_capability_exam_cognitive_coverage import (
 from qore.infrastructure.cibo_phase22_v4_chronological_execution import (
     execute_phase22_chronological_replay,
 )
+from qore.infrastructure.cibo_profitability_lab_decision_trace import (
+    build_cibo_profitability_decision_trace,
+)
 from qore.infrastructure.cibo_phase22_v4_chronological_replay_plan import (
     build_phase22_chronological_replay_plan,
 )
@@ -301,6 +304,10 @@ def main() -> int:
         tool_audit=audit,
         compound=compound,
     )
+    decision_trace = build_cibo_profitability_decision_trace(
+        execution=treatment,
+        compound_function_accountability=compound.function_accountability,
+    )
     participation_pass = all(row["participation_pass"] for row in trader_rows)
 
     result = {
@@ -328,6 +335,7 @@ def main() -> int:
         ),
         "traders": trader_rows,
         "coverage": coverage,
+        "decision_trace": decision_trace,
         "governance": {
             "trader_edge_changed": False,
             "outcome_aware_tuning": False,
@@ -353,6 +361,10 @@ def main() -> int:
         json.dumps(coverage, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
+    (args.output_dir / "decision-trace.json").write_text(
+        json.dumps(decision_trace, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
     print(json.dumps({
         "seven_of_seven_participation_pass": participation_pass,
         "all_trader_core_ending_capital_usd": format(
@@ -364,6 +376,7 @@ def main() -> int:
         "full_stack_runtime_coverage_complete": (
             coverage["full_stack_runtime_coverage_complete"]
         ),
+        "decision_trace_sha256": decision_trace["trace_sha256"],
     }, sort_keys=True))
     return 0
 
