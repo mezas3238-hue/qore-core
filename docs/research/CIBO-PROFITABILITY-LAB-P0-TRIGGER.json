@@ -1,7 +1,7 @@
 {
   "schema": "qore.cibo.profitability-lab.p0-trigger.v1",
   "owner_authorized": true,
-  "authorized_at_utc": "2026-10-03T02:29:00Z",
+  "authorized_at_utc": "2026-10-03T02:31:00Z",
   "objective": "Re-run the non-certifying reused-holdout Profitability Lab after causal-time, runtime CF01-CF19 consultation, advanced-CE2I economic-binding, T03/T16/T17 policy-readiness, and rational Compound redeploy repairs.",
   "source_population_run": 37075080556,
   "source_batch_artifact_id": 11256450732,
@@ -13,9 +13,9 @@
   "production": false,
   "merge_authority": false,
   "outcome_aware_tuning": false,
-  "retrigger_for_head": "7ec13a45c75bc0d292716b35efda4234063ae217",
-  "retrigger_reason": "End-to-end cognitive runtime repair validation after wiring governed route, Mission Director, CF01-CF19 Coordinator, and Executive Brain into every predecision epoch.",
-  "mode": "CIBO_COGNITIVE_RUNTIME_REPAIR_VALIDATION",
+  "retrigger_for_head": "94e619c077334f284ad8fcd2772fee2fb6ec9470",
+  "retrigger_reason": "Strict cognitive E2E acceptance: runtime coverage and P0 gate now require route + Mission Director + CF01-CF19 Coordinator + Executive Brain on every opportunity.",
+  "mode": "CIBO_COGNITIVE_STRICT_E2E_ACCEPTANCE",
   "replay_tool_eligibility_authority": false,
-  "reason": "Owner-directed reused-holdout cognitive validation. Prove complete predecision cognitive orchestration on all opportunities with no broker mutation, LIVE, real capital, production, merge, or outcome-aware tuning."
+  "reason": "Owner-directed reused-holdout proof after cognitive orchestration repair. Fail closed if any opportunity lacks route, Mission Director, Coordinator, or Executive Brain; no broker mutation/LIVE/real capital/production/merge/outcome-aware tuning."
 }
