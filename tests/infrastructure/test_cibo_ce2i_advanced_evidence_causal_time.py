@@ -80,6 +80,8 @@ def _t03(observed_at: datetime) -> MarginEfficiencyEvidence:
         evidence_id="t03-causal-time",
         observed_at=observed_at,
         baseline_expression_id="baseline",
+        fresh_oos_utility_demonstrated=True,
+        policy_authorized=True,
         expressions=(
             MarginExpression(
                 expression_id="baseline",
