@@ -5,9 +5,9 @@
   "source_branch": "agent/cibo-t02-science-architect-2-001",
   "timeframes": {
     "required_from_current_native_evidence": [
-      "D1",
       "H4",
       "H1",
+      "M15",
       "M5",
       "M1"
     ],
@@ -19,12 +19,32 @@
       "retained_m1_source_artifact_id": 11245896861,
       "retained_m1_bars": 158005,
       "causality": "Only M1 candles closed at or before decision timestamp may contribute features."
-    }
+    },
+    "m15_binding": {
+      "source": "Phase22 V4 retained M5 ledgers",
+      "derivation": "Closed-candle-only aggregation of exact 3xM5 buckets into M15. No partial bucket may be used at a decision epoch.",
+      "source_artifacts": {
+        "AUDJPY": 11244904532,
+        "EURUSD": 11245936688,
+        "GBPJPY": 11245976856,
+        "GBPUSD": 11245826923,
+        "NAS100": 11245574432,
+        "XAUUSD": 11244949765
+      },
+      "outcome_fields_used": false
+    },
+    "excluded": [
+      "D1",
+      "D",
+      "DAILY"
+    ],
+    "rationale": "No current certified Trader in this seven-Trader cohort operates on a daily decision timeframe; laboratory surface is H4/H1/M15/M5/M1."
   },
   "explorer": {
     "train_only": true,
     "features": [
-      "D1/H4/H1 body alignment and range state",
+      "H4/H1 structural context",
+      "M15 closed-candle aggregation: body alignment, efficiency, volatility/range, displacement and local position",
       "M5 displacement alignment, efficiency and volatility",
       "M1 last-body alignment, body efficiency, volatility/range ratios, 5m/15m displacement, 60m position, 09:00-10:00 NY reference-range/raid state",
       "session",
