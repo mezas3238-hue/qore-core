@@ -254,7 +254,7 @@ class CiboFunctionalEvidence:
             _validate_codes(self.reasons, field_name="evidence reasons"),
         )
         receipts = _validate_trader_lab_pass_receipts(
-            self.trader_lab_pass_receipts,
+            getattr(self, "trader_lab_pass_receipts", ()),
             as_of=self.as_of,
         )
         object.__setattr__(self, "trader_lab_pass_receipts", receipts)
@@ -344,7 +344,7 @@ def synthesize_evidence(
             as_of=item.as_of,
             dependency_kind=item.dependency_kind,
             reasons=item.reasons,
-            trader_lab_pass_receipts=item.trader_lab_pass_receipts,
+            trader_lab_pass_receipts=getattr(item, "trader_lab_pass_receipts", ()),
         )
         for item in assessments
     )
