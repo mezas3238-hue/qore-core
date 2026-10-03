@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from qore.infrastructure.account_wide_risk import TraderLineage
@@ -7,6 +8,9 @@ from qore.infrastructure.cibo_account_capital_mission import (
 )
 from qore.infrastructure.cibo_capital_management_authority import (
     TraderOpportunityEnvelope,
+)
+from qore.infrastructure.cibo_capability_exam_cognitive_coverage import (
+    build_cibo_capability_cognitive_coverage,
 )
 from qore.infrastructure.cibo_ce2i_advanced_capital_tools import (
     AdvancedToolDisposition,
@@ -35,6 +39,13 @@ def _mission():
         )
     )
 
+
+
+def _cognitive():
+    return build_cibo_capability_cognitive_coverage(
+        source_batch_sha256="sha256:" + "a" * 64,
+        observed_at=datetime(2026, 10, 3, 2, tzinfo=UTC),
+    )
 
 def _regime() -> CiboCapitalRegimeState:
     return CiboCapitalRegimeState(
@@ -74,9 +85,12 @@ def test_capability_lab_exposes_all_advanced_engines_without_certification_filte
         regime_state=_regime(),
         opportunities=(_opportunity("BTCUSD"),),
         advanced_evidence=AdvancedPortfolioEvidence(),
+        cognitive_coverage=_cognitive(),
     )
 
     assert result.capability_lab_id == CAPABILITY_LAB
+    assert result.cognitive_coverage.complete is True
+    assert result.cognitive_coverage.cognitive_used is True
     assert tuple(
         decision.tool_code
         for decision in result.surface.advanced_decisions
