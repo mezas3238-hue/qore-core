@@ -22,7 +22,10 @@ from datetime import datetime
 from decimal import Decimal
 from enum import StrEnum
 
-from qore.infrastructure.account_wide_risk import TraderLineage
+from qore.infrastructure.account_wide_risk import (
+    TraderIdentity,
+    canonical_trader_identity,
+)
 from qore.infrastructure.cibo_account_capital_mission import (
     CiboAccountCapitalIdentity,
 )
@@ -236,7 +239,7 @@ class MarginalCapitalUtilityEvidence:
     evidence_id: str
     decision_at: datetime
     account_identity: CiboAccountCapitalIdentity
-    trader_id: TraderLineage
+    trader_id: TraderIdentity
     signal_fingerprint: str
     source_opportunity_decision_sha256: str
     source_baseline_policy_record_sha256: str
@@ -279,10 +282,7 @@ class MarginalCapitalUtilityEvidence:
             raise CiboCompoundCapitalError(
                 "marginal capital account identity is invalid"
             )
-        if type(self.trader_id) is not TraderLineage:
-            raise CiboCompoundCapitalError(
-                "marginal capital Trader identity is invalid"
-            )
+        canonical_trader_identity(self.trader_id)
         for name in (
             "current_compound_capacity_usd",
             "requested_incremental_capital_usd",
