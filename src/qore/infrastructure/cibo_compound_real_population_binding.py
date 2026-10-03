@@ -343,3 +343,224 @@ def _sha(value: str, name: str) -> None:
         raise CiboCompoundCapitalError(
             f"real compound population {name} must be canonical SHA-256"
         )
+
+
+@dataclass(frozen=True, slots=True)
+class TraderLabBurnedResearchCompoundRecord:
+    """Historical/reused-holdout episode input for capability testing only.
+
+    This contract is intentionally separate from ForwardCompoundEconomicRecord.
+    It cannot satisfy forward-observed, qualification, economic-replication, or
+    certification evidence requirements.
+    """
+
+    episode_id: str
+    trader_id: TraderLineage
+    signal_fingerprint: str
+    account_identity_fingerprint: str
+    decision_at: datetime
+    deployed_at: datetime
+    settled_at: datetime
+    source_generation: int
+    deployed_capital_usd: Decimal
+    stop_risk_usd: Decimal
+    margin_usd: Decimal
+    realized_pnl_usd: Decimal
+    source_trace_sha256: str
+    evidence_kind: CompoundPopulationEvidenceKind = (
+        CompoundPopulationEvidenceKind.BURNED_RESEARCH
+    )
+    future_leakage_used: bool = False
+    productive_authority: bool = False
+    certification_ready: bool = False
+
+    def __post_init__(self) -> None:
+        for name in (
+            "episode_id",
+            "signal_fingerprint",
+            "account_identity_fingerprint",
+        ):
+            if not getattr(self, name):
+                raise CiboCompoundCapitalError(
+                    f"Trader Lab burned-research {name} is required"
+                )
+        if type(self.trader_id) is not TraderLineage:
+            raise CiboCompoundCapitalError(
+                "Trader Lab burned-research Trader is invalid"
+            )
+        for name in ("decision_at", "deployed_at", "settled_at"):
+            _aware(getattr(self, name), name)
+        if self.decision_at > self.deployed_at:
+            raise CiboCompoundCapitalError(
+                "Trader Lab burned-research decision follows deployment"
+            )
+        if self.settled_at <= self.deployed_at:
+            raise CiboCompoundCapitalError(
+                "Trader Lab burned-research settlement must follow deployment"
+            )
+        if (
+            not isinstance(self.source_generation, int)
+            or isinstance(self.source_generation, bool)
+            or self.source_generation < 1
+        ):
+            raise CiboCompoundCapitalError(
+                "Trader Lab burned-research source generation must be positive int"
+            )
+        for name in (
+            "deployed_capital_usd",
+            "stop_risk_usd",
+            "margin_usd",
+        ):
+            _money(getattr(self, name), name, positive=True)
+        if (
+            not isinstance(self.realized_pnl_usd, Decimal)
+            or not self.realized_pnl_usd.is_finite()
+        ):
+            raise CiboCompoundCapitalError(
+                "Trader Lab burned-research realized PnL must be finite Decimal"
+            )
+        _sha(self.source_trace_sha256, "source_trace_sha256")
+        if self.evidence_kind is not CompoundPopulationEvidenceKind.BURNED_RESEARCH:
+            raise CiboCompoundCapitalError(
+                "Trader Lab reused-holdout binding requires BURNED_RESEARCH evidence"
+            )
+        for name in (
+            "future_leakage_used",
+            "productive_authority",
+            "certification_ready",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise CiboCompoundCapitalError(
+                    f"Trader Lab burned-research {name} must be bool"
+                )
+        if (
+            self.future_leakage_used
+            or self.productive_authority
+            or self.certification_ready
+        ):
+            raise CiboCompoundCapitalError(
+                "Trader Lab burned-research evidence cannot claim future leakage, "
+                "productive authority, or certification readiness"
+            )
+
+
+@dataclass(frozen=True, slots=True)
+class TraderLabBurnedResearchPopulationBinding:
+    """Canonical MC bridge for a reused holdout; never certification evidence."""
+
+    episodes: tuple[CompoundMonteCarloEpisode, ...]
+    source_trace_sha256: str
+    evidence_kind: CompoundPopulationEvidenceKind = (
+        CompoundPopulationEvidenceKind.BURNED_RESEARCH
+    )
+    descriptive_only: bool = True
+    forward_observed: bool = False
+    economic_replication_claimed: bool = False
+    certification_ready: bool = False
+    productive_authority: bool = False
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.episodes, tuple) or not self.episodes:
+            raise CiboCompoundCapitalError(
+                "Trader Lab burned-research binding requires episodes"
+            )
+        if any(
+            not isinstance(item, CompoundMonteCarloEpisode)
+            for item in self.episodes
+        ):
+            raise CiboCompoundCapitalError(
+                "Trader Lab burned-research binding requires canonical MC episodes"
+            )
+        _sha(self.source_trace_sha256, "source_trace_sha256")
+        if self.evidence_kind is not CompoundPopulationEvidenceKind.BURNED_RESEARCH:
+            raise CiboCompoundCapitalError(
+                "Trader Lab burned-research binding kind drift"
+            )
+        if not self.descriptive_only:
+            raise CiboCompoundCapitalError(
+                "Trader Lab burned-research binding must remain descriptive"
+            )
+        for name in (
+            "forward_observed",
+            "economic_replication_claimed",
+            "certification_ready",
+            "productive_authority",
+        ):
+            if type(getattr(self, name)) is not bool or getattr(self, name):
+                raise CiboCompoundCapitalError(
+                    "Trader Lab burned-research binding cannot claim forward, "
+                    "economic, certification, or productive authority"
+                )
+
+
+def bind_trader_lab_burned_research_population(
+    records: tuple[TraderLabBurnedResearchCompoundRecord, ...],
+) -> TraderLabBurnedResearchPopulationBinding:
+    """Bind a used holdout into MC episodes without laundering it as forward evidence."""
+
+    if not isinstance(records, tuple) or not records:
+        raise CiboCompoundCapitalError(
+            "Trader Lab burned-research population cannot be empty"
+        )
+    if any(
+        type(item) is not TraderLabBurnedResearchCompoundRecord
+        for item in records
+    ):
+        raise CiboCompoundCapitalError(
+            "Trader Lab burned-research population requires exact research records"
+        )
+    for item in records:
+        item.__post_init__()
+    episode_ids = tuple(item.episode_id for item in records)
+    if len(episode_ids) != len(set(episode_ids)):
+        raise CiboCompoundCapitalError(
+            "Trader Lab burned-research population duplicate episode_id"
+        )
+    accounts = {item.account_identity_fingerprint for item in records}
+    if len(accounts) != 1:
+        raise CiboCompoundCapitalError(
+            "Trader Lab burned-research population cannot mix account identities"
+        )
+    traces = {item.source_trace_sha256 for item in records}
+    if len(traces) != 1:
+        raise CiboCompoundCapitalError(
+            "Trader Lab burned-research population cannot mix source traces"
+        )
+    ordered = tuple(
+        sorted(
+            records,
+            key=lambda item: (
+                item.deployed_at,
+                item.settled_at,
+                item.episode_id,
+            ),
+        )
+    )
+    episodes = tuple(
+        CompoundMonteCarloEpisode(
+            episode_id=item.episode_id,
+            deployment_id=f"{item.episode_id}:research-deployment",
+            market_event_id=f"{item.episode_id}:research-market",
+            decision_id=f"{item.episode_id}:research-decision",
+            candidate_id=f"{item.episode_id}:research-candidate",
+            trader_id=item.trader_id,
+            signal_fingerprint=item.signal_fingerprint,
+            deployed_at=item.deployed_at,
+            settled_at=item.settled_at,
+            source_generation=item.source_generation,
+            deployed_capital_usd=item.deployed_capital_usd,
+            stop_risk_usd=item.stop_risk_usd,
+            margin_usd=item.margin_usd,
+            realized_pnl_usd=item.realized_pnl_usd,
+            protected_floor_graduation_usd=Decimal(0),
+            floor_evidence_sha256=None,
+            market_record_present=True,
+            terminal_release_present=True,
+            future_leakage_used=False,
+        )
+        for item in ordered
+    )
+    return TraderLabBurnedResearchPopulationBinding(
+        episodes=episodes,
+        source_trace_sha256=next(iter(traces)),
+    )
