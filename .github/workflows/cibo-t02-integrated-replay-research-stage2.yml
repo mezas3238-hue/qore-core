@@ -136,7 +136,13 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/t02-integrated"
-          for rule in             NONE             H1_OPPOSED             H1_OPPOSED_M5_LOW             H1_OPPOSED_D1_OPPOSED             M5_LOW_REJECTION_Q3
+          for rule in \
+            TRAIN_ROR_GE_0025 \
+            TRAIN_ROR_GE_0050 \
+            TRAIN_ROR_GE_0100 \
+            TRAIN_ROR_GE_0050_D1_NOT_EXTREME \
+            TRAIN_ROR_GE_0050_RECLAIM_LE_5M \
+            TRAIN_ROR_GE_0050_D1_NOT_EXTREME_RECLAIM_LE_5M
           do
             out="$RUNNER_TEMP/t02-integrated/$rule"
             mkdir -p "$out"
