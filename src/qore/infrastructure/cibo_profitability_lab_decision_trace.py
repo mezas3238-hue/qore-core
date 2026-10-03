@@ -104,6 +104,41 @@ def build_cibo_profitability_decision_trace(
             raise CiboCapitalManagementError(
                 "profitability trace requires exact runtime CF01-CF19 consultation"
             )
+        mission_faculties = _string_tuple(
+            consultation.get("mission_faculties"),
+            "mission_faculties",
+        )
+        if mission_faculties != consulted_faculties:
+            raise CiboCapitalManagementError(
+                "profitability trace Mission Director/Coordinator faculty drift"
+            )
+        if consultation.get("reasoning_route_selected") is not True:
+            raise CiboCapitalManagementError(
+                "profitability trace reasoning route was not selected"
+            )
+        if consultation.get("mission_director_invoked") is not True:
+            raise CiboCapitalManagementError(
+                "profitability trace Mission Director was not invoked"
+            )
+        if consultation.get("functional_coordinator_invoked") is not True:
+            raise CiboCapitalManagementError(
+                "profitability trace Functional Coordinator was not invoked"
+            )
+        if consultation.get("executive_brain_invoked") is not True:
+            raise CiboCapitalManagementError(
+                "profitability trace Executive Brain was not invoked"
+            )
+        if consultation.get("executive_directive") != "request-evidence":
+            raise CiboCapitalManagementError(
+                "profitability trace Executive Brain directive drift"
+            )
+        if (
+            consultation.get("executive_request_code")
+            != consultation.get("coordination_request_code")
+        ):
+            raise CiboCapitalManagementError(
+                "profitability trace executive/coordinator request drift"
+            )
         economic_application = _object(
             policy_payload.get("advanced_economic_application"),
             "advanced_economic_application",
@@ -213,15 +248,39 @@ def build_cibo_profitability_decision_trace(
                         "coordination_request_code": consultation.get(
                             "coordination_request_code"
                         ),
+                        "reasoning_route_tier": consultation.get(
+                            "reasoning_route_tier"
+                        ),
+                        "reasoning_mode": consultation.get("reasoning_mode"),
+                        "reasoning_route_reason": consultation.get(
+                            "reasoning_route_reason"
+                        ),
+                        "reasoning_route_selected": consultation.get(
+                            "reasoning_route_selected"
+                        ),
+                        "mission_code": consultation.get("mission_code"),
+                        "mission_faculties": list(mission_faculties),
+                        "mission_director_invoked": consultation.get(
+                            "mission_director_invoked"
+                        ),
+                        "functional_coordinator_invoked": consultation.get(
+                            "functional_coordinator_invoked"
+                        ),
+                        "executive_directive": consultation.get(
+                            "executive_directive"
+                        ),
+                        "executive_request_code": consultation.get(
+                            "executive_request_code"
+                        ),
+                        "executive_brain_invoked": consultation.get(
+                            "executive_brain_invoked"
+                        ),
                         "causal_predecision": consultation.get("causal_predecision"),
                         "outcome_used": consultation.get("outcome_used"),
-                        "executive_brain_invoked": False,
-                        "mission_director_invoked": False,
-                        "functional_coordinator_invoked": True,
                         "reason": (
-                            "CF01-CF19 functional consultation is now a required "
-                            "predecision prerequisite before CE2I evaluation; the "
-                            "legacy executive brain remains quarantined"
+                            "governed reasoning route, Mission Director, CF01-CF19 "
+                            "Functional Coordinator, and Executive Brain all execute "
+                            "predecision and remain evidence-request/advisory only"
                         ),
                     },
                     "expectation": candidate.get("expectation"),
