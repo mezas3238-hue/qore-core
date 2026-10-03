@@ -393,19 +393,19 @@ def evaluate_phase22_historical_policy(
     advanced_application = apply_advanced_ce2i_economic_effects(
         candidates=candidates,
         full_surface=full_surface,
+        hard_risk_headroom_usd=hard_risk_headroom_usd,
+        margin_headroom_usd=margin_headroom_usd,
+    )
+    mpc = plan_phase20i_receding_horizon_capacity(
+        current_step=current_step,
+        horizon_steps=FROZEN_PHASE20_POLICY_CANDIDATE.mpc_horizon_steps,
+        posture=full_surface.regime.posture,
         hard_risk_headroom_usd=(
             advanced_application.effective_hard_risk_headroom_usd
         ),
         margin_headroom_usd=(
             advanced_application.effective_margin_headroom_usd
         ),
-    )
-    mpc = plan_phase20i_receding_horizon_capacity(
-        current_step=current_step,
-        horizon_steps=FROZEN_PHASE20_POLICY_CANDIDATE.mpc_horizon_steps,
-        posture=full_surface.regime.posture,
-        hard_risk_headroom_usd=hard_risk_headroom_usd,
-        margin_headroom_usd=margin_headroom_usd,
         known_options=known_options,
     )
     allocator = propose_phase20h_robust_allocation(
