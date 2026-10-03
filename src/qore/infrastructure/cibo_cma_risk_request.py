@@ -12,6 +12,7 @@ from datetime import datetime
 from qore.infrastructure.account_wide_risk import (
     CiboCapitalProvenanceLot,
     CiboRiskRequest,
+    canonical_trader_identity,
 )
 from qore.infrastructure.cibo_capital_management_authority import (
     CapitalAction,
@@ -44,7 +45,9 @@ def build_cma_risk_request(
         CapitalAction.EXPAND,
     }:
         raise CiboCapitalManagementError("only capital-deployment plans can reach Risk")
-    if plan.trader_id is not opportunity.trader_id:
+    if canonical_trader_identity(plan.trader_id) != canonical_trader_identity(
+        opportunity.trader_id
+    ):
         raise CiboCapitalManagementError("plan/opportunity trader mismatch")
     if plan.qore_symbol != opportunity.qore_symbol:
         raise CiboCapitalManagementError("plan/opportunity symbol mismatch")
@@ -108,7 +111,8 @@ def _capital_provenance(
         )
     source_id = capital_source_id or (
         f"cibo:{plan.capital_source.value}:"
-        f"{opportunity.trader_id.value}:{opportunity.signal_fingerprint}"
+        f"{canonical_trader_identity(opportunity.trader_id)}:"
+        f"{opportunity.signal_fingerprint}"
     )
     return (
         CiboCapitalProvenanceLot(
