@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from bisect import bisect_right
 from collections.abc import Mapping
 from datetime import datetime
 from decimal import Decimal
@@ -145,25 +146,40 @@ def build_phase22_historical_regime_evidence(
         source_receipt_sha=source_receipt_sha,
         provider_numeric_freeze_sha256=provider_numeric_freeze_sha256,
     )
+    bars_by_symbol = {
+        symbol: by_symbol[symbol].bars
+        for symbol in PHASE22_REGIME_SYMBOLS
+    }
+    closed_at_by_symbol = {
+        symbol: tuple(bar.closed_at for bar in bars_by_symbol[symbol])
+        for symbol in PHASE22_REGIME_SYMBOLS
+    }
+
     result = []
     for epoch in plan.epochs:
-        histories = {
-            symbol: tuple(
-                bar
-                for bar in by_symbol[symbol].bars
-                if bar.closed_at <= epoch.market_decision_at
+        history_counts = {
+            symbol: bisect_right(
+                closed_at_by_symbol[symbol],
+                epoch.market_decision_at,
             )
             for symbol in PHASE22_REGIME_SYMBOLS
         }
+        history_tails = {
+            symbol: bars_by_symbol[symbol][
+                max(0, history_counts[symbol] - _REQUIRED_HISTORY):
+                history_counts[symbol]
+            ]
+            for symbol in PHASE22_REGIME_SYMBOLS
+        }
         sufficient = all(
-            len(histories[symbol]) >= _REQUIRED_HISTORY
+            history_counts[symbol] >= _REQUIRED_HISTORY
             for symbol in PHASE22_REGIME_SYMBOLS
         )
         if sufficient:
             snapshots = tuple(
                 _snapshot(
                     corpus=by_symbol[symbol],
-                    bars=histories[symbol],
+                    bars=history_tails[symbol],
                     decision_at=epoch.market_decision_at,
                 )
                 for symbol in PHASE22_REGIME_SYMBOLS
@@ -192,7 +208,8 @@ def build_phase22_historical_regime_evidence(
         evidence_sha = _epoch_evidence_sha(
             decision_epoch_id=epoch.decision_epoch_id,
             market_decision_at=epoch.market_decision_at,
-            histories=histories,
+            history_counts=history_counts,
+            history_tails=history_tails,
             policy_sha=policy_sha,
             source_receipt_sha=source_receipt_sha,
             provider_numeric_freeze_sha256=provider_numeric_freeze_sha256,
@@ -331,7 +348,8 @@ def _epoch_evidence_sha(
     *,
     decision_epoch_id: str,
     market_decision_at: datetime,
-    histories: dict[str, tuple[Bar, ...]],
+    history_counts: dict[str, int],
+    history_tails: dict[str, tuple[Bar, ...]],
     policy_sha: str,
     source_receipt_sha: str,
     provider_numeric_freeze_sha256: str,
@@ -364,9 +382,9 @@ def _epoch_evidence_sha(
         "concentration_limit_by_group": [],
         "history": {
             symbol: {
-                "bar_count_before_decision": len(histories[symbol]),
+                "bar_count_before_decision": history_counts[symbol],
                 "causal_tail_sha256": _bars_sha(
-                    histories[symbol][-_REQUIRED_HISTORY:]
+                    history_tails[symbol]
                 ),
             }
             for symbol in PHASE22_REGIME_SYMBOLS
