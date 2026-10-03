@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from typing import Any, Iterable
+from collections.abc import Iterable
 
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
