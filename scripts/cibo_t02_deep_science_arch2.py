@@ -16,9 +16,10 @@ import hashlib
 import json
 import random
 from collections import Counter
+from collections.abc import Callable
 from decimal import Decimal, getcontext
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 getcontext().prec = 50
 
