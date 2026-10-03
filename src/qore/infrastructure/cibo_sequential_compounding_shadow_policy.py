@@ -20,7 +20,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from decimal import Decimal
+from decimal import Decimal, localcontext
 from enum import StrEnum
 
 from qore.infrastructure.cibo_compound_capital import (
@@ -391,11 +391,13 @@ def evaluate_genc5_sequential_compounding_shadow(
         )
 
     source = portfolio.compound_ledger.lot(source_lot_id)
-    candidate_capacity = (
-        portfolio.compoundable_usd
-        + portfolio.active_compound_capacity_usd
-        + portfolio.released_compound_capital_usd
-    )
+    with localcontext() as context:
+        context.prec = 80
+        candidate_capacity = (
+            portfolio.compoundable_usd
+            + portfolio.active_compound_capacity_usd
+            + portfolio.released_compound_capital_usd
+        )
     if evidence.current_compound_capacity_usd != candidate_capacity:
         raise CiboCompoundCapitalError(
             "GEN-C5 GEN-C4/portfolio compound capacity binding drift"

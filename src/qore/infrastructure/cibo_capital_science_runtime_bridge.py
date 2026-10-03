@@ -311,16 +311,20 @@ class CapitalSciencePredecisionInput:
 
     @property
     def deployable_profit_usd(self) -> Decimal:
-        return max(
-            Decimal(0),
-            self.realized_profit_pool_usd
-            - self.protected_capacity_usd
-            - self.deployed_profit_usd,
-        )
+        with localcontext() as context:
+            context.prec = 80
+            return max(
+                Decimal(0),
+                self.realized_profit_pool_usd
+                - self.protected_capacity_usd
+                - self.deployed_profit_usd,
+            )
 
     @property
     def giveback_usd(self) -> Decimal:
-        return self.peak_realized_capital_usd - self.realized_capital_usd
+        with localcontext() as context:
+            context.prec = 80
+            return self.peak_realized_capital_usd - self.realized_capital_usd
 
     def payload(self) -> dict[str, object]:
         payload = asdict(self)
