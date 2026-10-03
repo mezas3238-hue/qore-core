@@ -24,7 +24,6 @@ from decimal import Decimal
 from pathlib import Path
 
 from cibo_compound_trader_lab_audit import (
-    TRADERS,
     CompoundTraderLabAudit,
     _canonical_sha,
     _constant_summary_payload,
@@ -161,10 +160,7 @@ def _episode_from_row(
         market_event_id=f"{trader}:{suffix}:market",
         decision_id=f"{trader}:{suffix}:decision",
         candidate_id=f"{trader}:{suffix}:candidate",
-        trader_id=__import__(
-            "qore.infrastructure.account_wide_risk",
-            fromlist=["TraderLineage"],
-        ).TraderLineage(trader),
+        trader_id=trader,
         signal_fingerprint=str(row["signal_fingerprint"]),
         deployed_at=_dt(str(settlement["capital_deployed_at"])),
         settled_at=_dt(str(settlement["capital_released_at"])),
@@ -254,6 +250,7 @@ class CompletionAudit:
         if prerequisite["all_cc01_cc09_pass"] is not True:
             raise RuntimeError("CC10 blocked: CC01-CC09 did not all PASS")
         self.contexts = self.base.contexts
+        self.traders = self.base.traders
         self.lanes = self.base.lanes
         self.temporal_reports: dict[str, object] = {}
         self.genc5_seals: dict[str, Genc5ShadowDecisionSeal] = {}
@@ -337,7 +334,7 @@ class CompletionAudit:
             simulations_per_fold=2,
             draws_per_path=1,
             components_per_block=1,
-            base_seed=31 + TRADERS.index(trader),
+            base_seed=31 + self.traders.index(trader),
         )
         if (
             report.fold_count != 2
@@ -577,7 +574,7 @@ class CompletionAudit:
             opening_original_base_usd=Decimal("100"),
             t19_ledger=_t19(row),
         )
-        cma = _settlement_state(row, lane_index=TRADERS.index(trader) + 1)
+        cma = _settlement_state(row, lane_index=self.traders.index(trader) + 1)
         amount = cma.realized_net_pnl_usd
         protected = amount / Decimal(4)
         remainder = amount - protected
@@ -641,10 +638,10 @@ class CompletionAudit:
     def pc01(self) -> tuple[QoreCoreCompoundPortfolio, object]:
         accounts = tuple(
             self.lanes[trader].cycle.core_portfolio
-            for trader in TRADERS
+            for trader in self.traders
             if self.lanes[trader].cycle is not None
         )
-        if len(accounts) != len(TRADERS):
+        if len(accounts) != len(self.traders):
             raise RuntimeError("PC01 blocked: missing account portfolio")
         global_portfolio = QoreCoreCompoundPortfolio(accounts=accounts)
         observations = tuple(
@@ -667,7 +664,7 @@ class CompletionAudit:
             raise RuntimeError("PC01 portfolio source-capital aggregate drift")
         if global_portfolio.read_only is not True:
             raise RuntimeError("PC01 global portfolio must remain read-only")
-        for trader in TRADERS:
+        for trader in self.traders:
             self._issue(
                 trader,
                 PORTFOLIO_GATE,
@@ -678,8 +675,8 @@ class CompletionAudit:
                     summary.logical_values(),
                 ),
                 (
-                    "global Core Compound Portfolio aggregated all seven account "
-                    "domains without cross-account transfer authority"
+                    "global Core Compound Portfolio aggregated every discovered account "
+                    "domain without cross-account transfer authority"
                 ),
                 domain_verdict="GLOBAL_PORTFOLIO_RECONCILED",
             )
@@ -696,7 +693,7 @@ class CompletionAudit:
             self.cc16,
         )
         for gate, method in zip(REMAINING_COMPOUND_GATES, methods, strict=True):
-            for trader in TRADERS:
+            for trader in self.traders:
                 before = self.lanes[trader].previous_receipt
                 method(trader)
                 after = self.lanes[trader].previous_receipt
@@ -707,7 +704,7 @@ class CompletionAudit:
 
         global_portfolio, portfolio_summary = self.pc01()
         lanes: dict[str, object] = {}
-        for trader in TRADERS:
+        for trader in self.traders:
             lane = self.lanes[trader]
             if len(lane.reports) != 17:
                 raise RuntimeError(
@@ -727,7 +724,7 @@ class CompletionAudit:
             "schema": "qore.cibo.compound-trader-lab-completion.v1",
             "source_trace_sha256": self.trace["trace_sha256"],
             "source_head_sha": self.source_head,
-            "candidate_count": len(TRADERS),
+            "candidate_count": len(self.traders),
             "all_cc01_cc16_pass": True,
             "all_pc01_pass": True,
             "all_compound_and_portfolio_functions_pass": True,
