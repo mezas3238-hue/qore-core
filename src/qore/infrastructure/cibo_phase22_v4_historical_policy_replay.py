@@ -237,34 +237,18 @@ class Phase22HistoricalPolicyDecisionRecord:
                 "coordination_request_code": (
                     self.economic_consultation.coordination_request_code
                 ),
-                "reasoning_route_tier": (
-                    self.economic_consultation.reasoning_route_tier
-                ),
-                "reasoning_mode": self.economic_consultation.reasoning_mode,
-                "reasoning_route_reason": (
-                    self.economic_consultation.reasoning_route_reason
-                ),
                 "mission_code": self.economic_consultation.mission_code,
                 "mission_faculties": list(
                     self.economic_consultation.mission_faculties
                 ),
-                "executive_directive": (
-                    self.economic_consultation.executive_directive
-                ),
-                "executive_request_code": (
-                    self.economic_consultation.executive_request_code
-                ),
-                "reasoning_route_selected": (
-                    self.economic_consultation.reasoning_route_selected
+                "mission_disposition": (
+                    self.economic_consultation.mission_disposition
                 ),
                 "mission_director_invoked": (
                     self.economic_consultation.mission_director_invoked
                 ),
                 "functional_coordinator_invoked": (
                     self.economic_consultation.functional_coordinator_invoked
-                ),
-                "executive_brain_invoked": (
-                    self.economic_consultation.executive_brain_invoked
                 ),
                 "causal_predecision": self.economic_consultation.causal_predecision,
                 "outcome_used": self.economic_consultation.outcome_used,
