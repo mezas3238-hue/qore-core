@@ -51,15 +51,43 @@ USD60_LIMIT_GRID = (
 LONG_GATES: tuple[dict[str, Any], ...] = (
     {
         "id": "NONE",
+        "required_regime": None,
+        "required_entry_type": None,
         "min_expected_net_value_usd": None,
-    },
-    {
-        "id": "EV_GE_NEG_010",
-        "min_expected_net_value_usd": Decimal("-0.10"),
+        "max_expected_capital_minutes": None,
+        "max_dynamic_limit_utilization": None,
     },
     {
         "id": "EV_GE_NEG_0075",
+        "required_regime": None,
+        "required_entry_type": None,
         "min_expected_net_value_usd": Decimal("-0.075"),
+        "max_expected_capital_minutes": None,
+        "max_dynamic_limit_utilization": None,
+    },
+    {
+        "id": "MARKET_EV_GE_NEG_0075_MINUTES_LE_55",
+        "required_regime": None,
+        "required_entry_type": "market",
+        "min_expected_net_value_usd": Decimal("-0.075"),
+        "max_expected_capital_minutes": Decimal("55"),
+        "max_dynamic_limit_utilization": None,
+    },
+    {
+        "id": "MARKET_EV_GE_NEG_0075_MINUTES_LE_55_UTIL_LE_080",
+        "required_regime": None,
+        "required_entry_type": "market",
+        "min_expected_net_value_usd": Decimal("-0.075"),
+        "max_expected_capital_minutes": Decimal("55"),
+        "max_dynamic_limit_utilization": Decimal("0.80"),
+    },
+    {
+        "id": "MARKET_EV_GE_0_MINUTES_LE_55_UTIL_LE_080",
+        "required_regime": None,
+        "required_entry_type": "market",
+        "min_expected_net_value_usd": Decimal("0"),
+        "max_expected_capital_minutes": Decimal("55"),
+        "max_dynamic_limit_utilization": Decimal("0.80"),
     },
 )
 
@@ -166,8 +194,16 @@ def _kwargs(
     return {
         "eligible_sides": sides,
         "max_capital_need_to_current_capital_ratio": ratio,
+        "long_required_regime": long_gate["required_regime"],
+        "long_required_entry_type": long_gate["required_entry_type"],
         "long_min_expected_net_value_usd": (
             long_gate["min_expected_net_value_usd"]
+        ),
+        "long_max_expected_capital_minutes": (
+            long_gate["max_expected_capital_minutes"]
+        ),
+        "long_max_dynamic_limit_utilization": (
+            long_gate["max_dynamic_limit_utilization"]
         ),
         "short_required_regime": short_gate["required_regime"],
         "short_required_entry_type": short_gate["required_entry_type"],
@@ -214,11 +250,14 @@ def _variant(
         "eligible_sides": list(sides),
         "long_gate_id": long_gate["id"],
         "short_gate_id": short_gate["id"],
-        "long_min_expected_net_value_usd": (
-            None
-            if long_gate["min_expected_net_value_usd"] is None
-            else _fmt(long_gate["min_expected_net_value_usd"])
-        ),
+        "long_gate": {
+            key: (
+                _fmt(value)
+                if isinstance(value, Decimal)
+                else value
+            )
+            for key, value in long_gate.items()
+        },
         "short_gate": {
             key: (
                 _fmt(value)
