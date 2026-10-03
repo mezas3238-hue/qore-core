@@ -67,8 +67,8 @@ jobs:
 
       - name: Static validation
         run: |
-          python -m compileall -q             scripts/cibo_profitability_lab_all_trader.py             src/qore/infrastructure/cibo_phase22_v4_chronological_execution.py             src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py
-          python -m ruff check             scripts/cibo_profitability_lab_all_trader.py             src/qore/infrastructure/cibo_phase22_v4_chronological_execution.py             src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py
+          python -m compileall -q             scripts/cibo_profitability_lab_all_trader.py             src/qore/infrastructure/cibo_profitability_lab_decision_trace.py             src/qore/infrastructure/cibo_phase22_v4_chronological_execution.py             src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py
+          python -m ruff check             scripts/cibo_profitability_lab_all_trader.py             src/qore/infrastructure/cibo_profitability_lab_decision_trace.py             src/qore/infrastructure/cibo_phase22_v4_chronological_execution.py             src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py
 
       - name: Recover frozen 7-of-7 batch from successful run 28
         shell: bash
@@ -166,4 +166,30 @@ jobs:
               .read_text(encoding="utf-8")
           )
           assert p["seven_of_seven_participation_pass"] is True
+          trace = p["decision_trace"]
+          assert trace["status"] == "OBSERVATIONAL"
+          assert trace["opportunity_count"] == len(trace["opportunities"])
+          assert trace["opportunity_count"] > 0
+          assert trace["trace_sha256"].startswith("sha256:")
+          assert trace["governance"] == {
+              "policy_mutated": False,
+              "trader_logic_mutated": False,
+              "cma_authority_mutated": False,
+              "qore_risk_authority_mutated": False,
+              "outcome_aware_tuning_used": False,
+              "broker_mutation": False,
+              "live": False,
+              "real_capital": False,
+              "production": False,
+              "merge_authority": False,
+          }
+          assert all(
+              row["cognitive_orchestration"]["runtime_economic_consultation"]
+              == "ABSENT"
+              for row in trace["opportunities"]
+          )
+          assert all(
+              row["cognitive_orchestration"]["runtime_consulted_faculties"] == []
+              for row in trace["opportunities"]
+          )
           PY
