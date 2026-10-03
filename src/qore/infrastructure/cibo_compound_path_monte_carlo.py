@@ -18,7 +18,10 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from decimal import Decimal
 
-from qore.infrastructure.account_wide_risk import TraderLineage
+from qore.infrastructure.account_wide_risk import (
+    TraderIdentity,
+    canonical_trader_identity,
+)
 from qore.infrastructure.cibo_compound_capital import CiboCompoundCapitalError
 from qore.infrastructure.cibo_compound_cycle_state import CiboCompoundCycleState
 from qore.infrastructure.cibo_robust_growth_ruin_capacity import (
@@ -91,7 +94,7 @@ class CompoundMonteCarloEpisode:
     market_event_id: str
     decision_id: str
     candidate_id: str
-    trader_id: TraderLineage
+    trader_id: TraderIdentity
     signal_fingerprint: str
     deployed_at: datetime
     settled_at: datetime
@@ -119,7 +122,7 @@ class CompoundMonteCarloEpisode:
                 raise CiboCompoundCapitalError(
                     f"compound Monte Carlo episode {name} is required"
                 )
-        if type(self.trader_id) is not TraderLineage:
+        if type(self.trader_id) is not TraderIdentity:
             raise CiboCompoundCapitalError(
                 "compound Monte Carlo episode Trader is invalid"
             )
