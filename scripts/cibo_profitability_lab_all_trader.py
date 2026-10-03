@@ -178,16 +178,26 @@ def _coverage(
         == 19
         for row in trace_rows
     )
+    runtime_cognitive_complete = runtime_cf_complete and all(
+        row["cognitive_orchestration"].get("reasoning_route_selected") is True
+        and row["cognitive_orchestration"].get("mission_director_invoked") is True
+        and row["cognitive_orchestration"].get("functional_coordinator_invoked") is True
+        and row["cognitive_orchestration"].get("executive_brain_invoked") is True
+        and row["cognitive_orchestration"].get("executive_directive")
+        == "request-evidence"
+        and len(row["cognitive_orchestration"].get("mission_faculties", [])) == 19
+        for row in trace_rows
+    )
     cf_rows = [
         {
             "capability": f"CF{i:02d}",
             "stage": "COGNITIVE",
-            "status": "APPLIED" if runtime_cf_complete else "NOT_INTEGRATED",
+            "status": "APPLIED" if runtime_cognitive_complete else "NOT_INTEGRATED",
             "reason": (
-                "required causal predecision functional consultation is on the "
-                "economic policy path"
-                if runtime_cf_complete
-                else "runtime economic faculty consultation incomplete"
+                "governed route, Mission Director, CF01-CF19 Coordinator, and "
+                "Executive Brain are on the causal predecision economic path"
+                if runtime_cognitive_complete
+                else "runtime cognitive orchestration incomplete"
             ),
         }
         for i in range(1, 20)
@@ -238,7 +248,7 @@ def _coverage(
 
     full_complete = (
         cognitive.all_functional_faculties_consulted
-        and runtime_cf_complete
+        and runtime_cognitive_complete
         and all(row["status"] != "NOT_INTEGRATED" for row in t_rows)
         and all(row["status"] != "NOT_INTEGRATED" for row in genc_rows)
     )
@@ -246,6 +256,7 @@ def _coverage(
         "schema": "qore.cibo.profitability-lab.full-stack-coverage.p0.v1",
         "cf01_cf19_complete": cognitive.all_functional_faculties_consulted,
         "cf01_cf19_runtime_economic_consultation_complete": runtime_cf_complete,
+        "cognitive_runtime_orchestration_complete": runtime_cognitive_complete,
         "t01_t20_registered": cognitive.all_ce2i_tools_registered,
         "full_stack_runtime_coverage_complete": full_complete,
         "rows": cf_rows + t_rows + genc_rows,
