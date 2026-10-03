@@ -147,10 +147,7 @@ class Genc13CapitalEpisode:
             raise CiboCapitalManagementError(
                 "GEN-C13 episode account identity is invalid"
             )
-        if type(self.trader_id) is not TraderIdentity:
-            raise CiboCapitalManagementError(
-                "GEN-C13 episode Trader lineage is invalid"
-            )
+        canonical_trader_identity(self.trader_id)
         _aware(self.decision_at, "decision_at")
         _aware(self.outcome_at, "outcome_at")
         if self.outcome_at <= self.decision_at:
