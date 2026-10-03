@@ -51,7 +51,6 @@ POOLED_T02_VALIDATION_SUM_R = Decimal(
 
 
 def build_pooled_t02_research_evidence(
-    *,
     opportunity: TraderOpportunityEnvelope,
     observed_at: datetime,
     released_risk_capacity_usd: Decimal,
