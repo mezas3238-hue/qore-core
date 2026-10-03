@@ -24,6 +24,12 @@ from typing import Any
 from qore.infrastructure.cibo_capability_exam_cognitive_coverage import (
     build_cibo_capability_cognitive_coverage,
 )
+from qore.infrastructure.cibo_capital_management_authority import (
+    minimum_seed_volume,
+)
+from qore.infrastructure.cibo_ce2i_phase20_train_prior import (
+    build_frozen_train_expectation,
+)
 from qore.infrastructure.cibo_phase22_fresh_capital_projection import (
     project_phase22_fresh_capital_input,
 )
@@ -76,6 +82,12 @@ T02_RESEARCH_RULES = (
     "H1_OPPOSED_M5_LOW",
     "H1_OPPOSED_D1_OPPOSED",
     "M5_LOW_REJECTION_Q3",
+    "TRAIN_ROR_GE_0025",
+    "TRAIN_ROR_GE_0050",
+    "TRAIN_ROR_GE_0100",
+    "TRAIN_ROR_GE_0050_D1_NOT_EXTREME",
+    "TRAIN_ROR_GE_0050_RECLAIM_LE_5M",
+    "TRAIN_ROR_GE_0050_D1_NOT_EXTREME_RECLAIM_LE_5M",
 )
 
 
@@ -86,6 +98,38 @@ def _t02_research_filter(rule_id: str):
         return None
 
     def allows(opportunity: Any, _decision_at: datetime) -> bool:
+        minimum_risk = (
+            minimum_seed_volume(opportunity)
+            * opportunity.stop_loss_per_volume
+        )
+        expectation = build_frozen_train_expectation(
+            trader_id=opportunity.trader_id,
+            stop_risk_usd=minimum_risk,
+            as_of=_decision_at,
+        )
+        train_return_on_risk = (
+            expectation.expected_net_value_usd / minimum_risk
+        )
+        if rule_id.startswith("TRAIN_ROR_GE_"):
+            threshold = {
+                "TRAIN_ROR_GE_0025": Decimal("0.025"),
+                "TRAIN_ROR_GE_0050": Decimal("0.05"),
+                "TRAIN_ROR_GE_0100": Decimal("0.10"),
+                "TRAIN_ROR_GE_0050_D1_NOT_EXTREME": Decimal("0.05"),
+                "TRAIN_ROR_GE_0050_RECLAIM_LE_5M": Decimal("0.05"),
+                (
+                    "TRAIN_ROR_GE_0050_D1_NOT_EXTREME_RECLAIM_LE_5M"
+                ): Decimal("0.05"),
+            }[rule_id]
+            if train_return_on_risk < threshold:
+                return False
+            if "D1_NOT_EXTREME" in rule_id:
+                if opportunity.context_value("reg_d1_range_state") == "extreme":
+                    return False
+            if "RECLAIM_LE_5M" in rule_id:
+                if opportunity.context_value("ctx_reclaim_latency_bucket") != "<=5m":
+                    return False
+            return True
         if rule_id == "H1_OPPOSED":
             return opportunity.context_value("reg_h1_body_alignment") == "opposed"
         if rule_id == "H1_OPPOSED_M5_LOW":
