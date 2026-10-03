@@ -267,7 +267,17 @@ jobs:
         run: |
           set -euo pipefail
           python -m pytest -q --no-cov             tests/infrastructure/test_cibo_integrated_capital_*.py             tests/infrastructure/test_cibo_protected_base_*.py             tests/infrastructure/test_cibo_profit_preservation_*.py
-          echo "PHASE_07=PASS"
+          echo "PHASE_07_INTERNAL=PASS"
+      - name: Trader Lab functional run Protected Base + Profit Protection + Capital Truth
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_cibo_protection_truth_functional_probe.py \
+            tests/infrastructure/test_cibo_integrated_capital_truth.py \
+            tests/infrastructure/test_cibo_protected_base_overlay.py \
+            tests/infrastructure/test_cibo_profit_preservation_shadow.py
+          echo "PHASE_07_TRADER_LAB=PASS"
 
   phase-08-genc:
     name: "08 AUDIT+TEST GEN-C economic controls"
