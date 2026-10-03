@@ -205,7 +205,14 @@ jobs:
           test -f src/qore/infrastructure/cibo_core_compound_portfolio.py
           test -f src/qore/infrastructure/cibo_internal_capital_market.py
           python -m pytest -q --no-cov             tests/infrastructure/test_cibo_core_compound_portfolio.py             tests/infrastructure/test_cibo_compound_portfolio.py             tests/infrastructure/test_cibo_internal_capital_market.py             tests/infrastructure/test_cibo_phase22_chronological_execution.py
-          echo "PHASE_05=PASS"
+          echo "PHASE_05_INTERNAL=PASS"
+      - name: Trader Lab functional run Compound Portfolio + Internal Capital Market
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_cibo_compound_portfolio_icm_functional_probe.py
+          echo "PHASE_05_TRADER_LAB=PASS"
 
   phase-06-economic-systems:
     name: "06 AUDIT+TEST Capital generations + MC + Stress + Replication"
