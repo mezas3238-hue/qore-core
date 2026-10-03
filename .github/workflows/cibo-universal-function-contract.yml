@@ -1,6 +1,7 @@
 name: QORE CIBO Universal Function Contract
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - agent/cibo-profitability-lab-001
