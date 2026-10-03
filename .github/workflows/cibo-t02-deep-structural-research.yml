@@ -1,4 +1,5 @@
 name: QORE CIBO T02 Deep Structural Research
+# protocol-revision: syntax-repair-1
 
 on:
   push:
