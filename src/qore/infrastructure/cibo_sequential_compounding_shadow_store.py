@@ -83,10 +83,9 @@ class Genc5ShadowDecisionSeal:
             )
         _aware(self.decision_at, "decision_at")
         _aware(self.sealed_at, "sealed_at")
-        if self.decision_at < GENC5_SHADOW_POLICY_FROZEN_AT:
-            raise CiboCompoundCapitalError(
-                "GEN-C5 store cannot seal pre-freeze decision"
-            )
+        # Historical market decisions may be sealed under the currently
+        # frozen research policy. Freeze time identifies the immutable policy
+        # version and is not a market-data availability boundary.
         if self.sealed_at < self.decision_at:
             raise CiboCompoundCapitalError(
                 "GEN-C5 store seal cannot predate decision"
