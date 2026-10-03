@@ -59,6 +59,12 @@ def test_predecision_bridge_invokes_exact_mandatory_causal_surface() -> None:
     assert all(item.outcome_used_for_same_decision is False for item in directive.receipts)
     assert all(item.qore_risk_bypassed is False for item in directive.receipts)
     assert all(item.productive_authority is False for item in directive.receipts)
+    assert all(item.input_payload for item in directive.receipts)
+    assert all(item.output_payload for item in directive.receipts)
+    assert all(
+        item.output_payload["consumer_action"] == item.consumer_action
+        for item in directive.receipts
+    )
 
 
 def test_nonpositive_marginal_value_abstains_before_cma_and_risk() -> None:
@@ -97,6 +103,9 @@ def test_postrun_receipts_complete_c9_c13_c14_without_same_trade_mutation() -> N
     assert all(row["status"] != "NOT_INTEGRATED" for row in aggregate)
     assert all(row["invoked_count"] > 0 for row in aggregate)
     assert all(row["causal_trace_count"] > 0 for row in aggregate)
+    assert all(row["input_output_trace_count"] == row["invoked_count"] for row in aggregate)
+    assert all(row["unique_input_count"] > 0 for row in aggregate)
+    assert all(row["unique_output_count"] > 0 for row in aggregate)
     assert all(row["research_mode"] == runtime.RESEARCH_MODE for row in aggregate)
 
     by_code = {
@@ -138,3 +147,41 @@ def test_exhausted_headroom_fail_closes_c8_and_c12() -> None:
     assert by_code["GEN-C12"].disposition is runtime.CapitalScienceDisposition.FAIL_CLOSED
     assert by_code["GEN-C8"].decision_changed is True
     assert by_code["GEN-C12"].decision_changed is True
+
+
+def test_c7_c8_c11_c12_research_diagnostics_are_observable_per_call() -> None:
+    normal = runtime.evaluate_capital_science_predecision(_state())
+    normal_by = {item.function_code: item for item in normal.receipts}
+
+    assert normal_by["GEN-C7"].consumer_action == "HOLD_CURRENT_CAPITAL_STATE"
+    assert normal_by["GEN-C7"].decision_changed is False
+    assert normal_by["GEN-C7"].input_payload["realized_profit_pool_usd"] == "12"
+    assert normal_by["GEN-C8"].consumer_action == "NORMAL_OR_EXISTING_PACE"
+    assert normal_by["GEN-C8"].decision_changed is False
+    assert normal_by["GEN-C11"].consumer_action == (
+        "PRESERVE_CURRENT_SELECTION_AND_RESERVE_OPTIONALITY"
+    )
+    assert normal_by["GEN-C11"].decision_changed is False
+    assert normal_by["GEN-C12"].consumer_action == "NO_CRISIS_OVERRIDE"
+    assert normal_by["GEN-C12"].decision_changed is False
+
+    stressed = runtime.evaluate_capital_science_predecision(
+        _state(
+            hard_risk_headroom_usd=Decimal("0"),
+            margin_headroom_usd=Decimal("0"),
+        )
+    )
+    stressed_by = {item.function_code: item for item in stressed.receipts}
+    assert stressed_by["GEN-C8"].consumer_action == "PAUSE_INCREMENTAL_COMPOUND"
+    assert stressed_by["GEN-C8"].decision_changed is True
+    assert stressed_by["GEN-C12"].consumer_action == "PAUSE_NEW_CAPITAL"
+    assert stressed_by["GEN-C12"].decision_changed is True
+
+    single = runtime.evaluate_capital_science_predecision(
+        _state(competing_candidates=1)
+    )
+    single_c11 = next(
+        item for item in single.receipts if item.function_code == "GEN-C11"
+    )
+    assert single_c11.consumer_action == "NO_MULTI_PERIOD_REALLOCATION_REQUIRED"
+    assert single_c11.output_payload["disposition"] == "JUSTIFIED_NOT_APPLICABLE"
