@@ -52,7 +52,7 @@ class TraderLineage(StrEnum):
     VT31_NAS100 = "VT31_NAS100"
 
     @classmethod
-    def _missing_(cls, value: object) -> "TraderLineage | None":
+    def _missing_(cls, value: object) -> TraderLineage | None:
         if not isinstance(value, str) or fullmatch(_TRADER_ID_RE, value) is None:
             return None
         member = str.__new__(cls, value)
