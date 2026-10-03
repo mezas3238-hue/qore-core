@@ -295,6 +295,7 @@ def explorer(
     *,
     max_rules: int = 12000,
     leaderboard_n: int = 50,
+    required_fields: set[str] | None = None,
 ) -> tuple[list[dict[str, Any]], int]:
     atoms = build_atoms(train)
     min_n = max(6, len(train) // 12)
@@ -330,6 +331,8 @@ def explorer(
 
     scored = []
     for rule in unique.values():
+        if required_fields and not any(atom.field in required_fields for atom in rule):
+            continue
         for fraction in LEVERAGE_FRACTIONS:
             m = rule_metrics(train, rule, fraction)
             if m["n"] < min_n or m["pnl"] <= 0 or m["ror"] <= 0:
@@ -519,6 +522,53 @@ def timeframe_coverage(rows: list[dict[str, Any]]) -> dict[str, Any]:
     return out
 
 
+def timeframe_field_set(timeframe: str) -> set[str]:
+    if timeframe == "D1":
+        return {field for field in CAT_FIELDS if field.startswith("reg_d1_")}
+    if timeframe == "H4":
+        return {field for field in CAT_FIELDS if field.startswith("reg_h4_")}
+    if timeframe == "H1":
+        return {field for field in CAT_FIELDS if field.startswith("reg_h1_")}
+    if timeframe == "M5":
+        return {field for field in CAT_FIELDS if field.startswith("reg_m5_")}
+    if timeframe == "M1":
+        return {
+            field
+            for field in (*CAT_FIELDS, *NUM_FIELDS)
+            if field.startswith("reg_m1_") or field.startswith("m1_")
+        }
+    raise KeyError(timeframe)
+
+
+def timeframe_lab_reports(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    reports: dict[str, Any] = {}
+    for timeframe, keys in REQUIRED_TIMEFRAME_KEYS.items():
+        focused = [
+            row for row in rows
+            if all(row.get(key) is not None for key in keys)
+        ]
+        required_fields = timeframe_field_set(timeframe)
+        board, searched = explorer(
+            focused,
+            leaderboard_n=20,
+            required_fields=required_fields,
+        )
+        serialized = [serial_rule(item) for item in board]
+        reports[timeframe] = {
+            "population_n": len(focused),
+            "trader_diversity": len(
+                {row["trader_measurement_only"] for row in focused}
+            ),
+            "searched_rule_fraction_count": searched,
+            "positive_rules_using_timeframe": serialized,
+            "single_lineage_exploration_only": (
+                len({row["trader_measurement_only"] for row in focused}) < 2
+            ),
+            "scientific_promotion_authorized_from_this_report": False,
+        }
+    return reports
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--causal-dataset", type=Path, required=True)
@@ -536,6 +586,7 @@ def main() -> int:
 
     board, searched = explorer(rows, leaderboard_n=50)
     live_board = [serial_rule(item) for item in board]
+    timeframe_reports = timeframe_lab_reports(rows)
     wfo5 = rolling(rows, 5)
     wfo6 = rolling(rows, 6)
     terminal = terminal_freeze(rows)
@@ -585,6 +636,7 @@ def main() -> int:
             "searched_rule_fraction_count": searched,
             "leaderboard_is_exploratory_not_validation": True,
             "positive_leaderboard": live_board,
+            "timeframe_reports": timeframe_reports,
         },
         "validator": {
             "rolling_5": wfo5,
@@ -625,6 +677,10 @@ def main() -> int:
                 "available_timeframes": list(REQUIRED_TIMEFRAME_KEYS),
                 "searched_rule_fraction_count": searched,
                 "top_positive_rules": live_board[:20],
+                "top_positive_by_timeframe": {
+                    timeframe: payload["positive_rules_using_timeframe"][:5]
+                    for timeframe, payload in timeframe_reports.items()
+                },
                 "rolling_5_all_tests_positive": wfo5["all_tests_positive"],
                 "rolling_6_all_tests_positive": wfo6["all_tests_positive"],
                 "terminal_validation_all_positive": terminal.get(
@@ -644,6 +700,10 @@ def main() -> int:
                 "rows": len(rows),
                 "searched_rule_fraction_count": searched,
                 "positive_dashboard_rows": len(live_board),
+                "timeframe_positive_counts": {
+                    timeframe: len(payload["positive_rules_using_timeframe"])
+                    for timeframe, payload in timeframe_reports.items()
+                },
                 "rolling_5_all_positive": wfo5["all_tests_positive"],
                 "rolling_6_all_positive": wfo6["all_tests_positive"],
                 "terminal_all_positive": terminal.get(
