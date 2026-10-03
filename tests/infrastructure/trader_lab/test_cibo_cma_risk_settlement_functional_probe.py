@@ -222,3 +222,31 @@ def test_trader_lab_qore_risk_fails_closed_when_minimum_cannot_fit(
     assert authorization.authorized_volume == 0
     assert authorization.monetary_stop_loss == 0
     assert risk.active_reserved_stop_risk() == 0
+
+
+def test_trader_lab_qore_risk_reduces_to_available_headroom(
+    candidate_factory,
+) -> None:
+    candidate = candidate_factory(candidate_suffix=932)
+    opportunity = _opportunity(candidate)
+    risk = AccountWideRiskEngine()
+
+    authorization = risk.authorize(
+        _request(
+            candidate,
+            opportunity,
+            requested_volume=Decimal("0.10"),
+        ),
+        _snapshot(candidate, headroom=Decimal("0.05")),
+        now=NOW,
+    )
+
+    assert authorization.decision is RiskDecision.REDUCE
+    assert authorization.requested_volume == Decimal("0.10")
+    assert authorization.authorized_volume == Decimal("0.05")
+    assert authorization.authorized_volume < authorization.requested_volume
+    assert authorization.monetary_stop_loss == Decimal("0.05")
+    assert risk.active_reserved_stop_risk() == Decimal("0.05")
+
+    risk.cancel(authorization.authorization_id)
+    assert risk.active_reserved_stop_risk() == 0
