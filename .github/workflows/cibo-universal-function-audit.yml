@@ -346,7 +346,24 @@ jobs:
         run: |
           set -euo pipefail
           python -m pytest -q --no-cov             tests/infrastructure/test_cibo_reused_holdout_capability_exam.py             tests/infrastructure/test_cibo_universal_capability_runtime.py             tests/infrastructure/test_cibo_phase22_chronological_execution.py             tests/infrastructure/test_cibo_phase22_historical_policy_replay.py             tests/infrastructure/test_cibo_phase22_fresh_capital_projection.py
-          echo "PHASE_09=PASS"
+          echo "PHASE_09_INTERNAL=PASS"
+      - name: Trader Lab end-to-end chain 01-08
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_cibo_ce2i_t01_t20_functional_probe.py \
+            tests/infrastructure/trader_lab/test_cibo_cognitive_cf01_cf19_manifest.py \
+            tests/infrastructure/trader_lab/test_cibo_cognitive_cf01_cf19_functional_probe.py \
+            tests/infrastructure/trader_lab/test_cibo_cma_risk_settlement_functional_probe.py \
+            tests/infrastructure/trader_lab/test_cibo_compound_functional_probe.py \
+            tests/infrastructure/trader_lab/test_cibo_compound_core_functional_probe.py \
+            tests/infrastructure/trader_lab/test_cibo_compound_portfolio_icm_functional_probe.py \
+            tests/infrastructure/trader_lab/test_cibo_compound_portfolio_functional_probe.py \
+            tests/infrastructure/trader_lab/test_cibo_economic_systems_functional_probe.py \
+            tests/infrastructure/trader_lab/test_cibo_protection_truth_functional_probe.py \
+            tests/infrastructure/trader_lab/test_cibo_genc_surface_functional_probe.py
+          echo "PHASE_09_TRADER_LAB=PASS"
 
   runtime-truth:
     name: "10 Global runtime truth audit"
@@ -369,6 +386,22 @@ jobs:
           rc=$?
           cat "$RUNNER_TEMP/cibo-universal-function-audit.json"
           exit "$rc"
+      - name: Trader Lab runtime truth surface
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_cibo_ce2i_t01_t20_functional_probe.py \
+            tests/infrastructure/trader_lab/test_cibo_cognitive_cf01_cf19_functional_probe.py \
+            tests/infrastructure/trader_lab/test_cibo_cma_risk_settlement_functional_probe.py \
+            tests/infrastructure/trader_lab/test_cibo_compound_functional_probe.py \
+            tests/infrastructure/trader_lab/test_cibo_compound_core_functional_probe.py \
+            tests/infrastructure/trader_lab/test_cibo_compound_portfolio_icm_functional_probe.py \
+            tests/infrastructure/trader_lab/test_cibo_compound_portfolio_functional_probe.py \
+            tests/infrastructure/trader_lab/test_cibo_economic_systems_functional_probe.py \
+            tests/infrastructure/trader_lab/test_cibo_protection_truth_functional_probe.py \
+            tests/infrastructure/trader_lab/test_cibo_genc_surface_functional_probe.py
+          echo "PHASE_10_TRADER_LAB_RUNTIME_TRUTH=PASS"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -381,10 +414,35 @@ jobs:
     name: "11 CIBO all-or-nothing approval"
     needs: runtime-truth
     runs-on: ubuntu-24.04
+    timeout-minutes: 60
     steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Final Trader Lab all-or-nothing replay
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_cibo_ce2i_t01_t20_functional_probe.py \
+            tests/infrastructure/trader_lab/test_cibo_cognitive_cf01_cf19_manifest.py \
+            tests/infrastructure/trader_lab/test_cibo_cognitive_cf01_cf19_functional_probe.py \
+            tests/infrastructure/trader_lab/test_cibo_cma_risk_settlement_functional_probe.py \
+            tests/infrastructure/trader_lab/test_cibo_compound_functional_probe.py \
+            tests/infrastructure/trader_lab/test_cibo_compound_core_functional_probe.py \
+            tests/infrastructure/trader_lab/test_cibo_compound_portfolio_icm_functional_probe.py \
+            tests/infrastructure/trader_lab/test_cibo_compound_portfolio_functional_probe.py \
+            tests/infrastructure/trader_lab/test_cibo_economic_systems_functional_probe.py \
+            tests/infrastructure/trader_lab/test_cibo_protection_truth_functional_probe.py \
+            tests/infrastructure/trader_lab/test_cibo_genc_surface_functional_probe.py
+          echo "PHASE_11_TRADER_LAB_ALL_OR_NOTHING=PASS"
       - name: Enforce global AND
         shell: bash
         run: |
           set -euo pipefail
-          echo "ALL_PHASES_AND_RUNTIME_TRUTH=PASS"
+          echo "ALL_PHASES_AND_RUNTIME_TRUTH_AND_TRADER_LAB=PASS"
           echo "APPROVAL_ALLOWED=true"
