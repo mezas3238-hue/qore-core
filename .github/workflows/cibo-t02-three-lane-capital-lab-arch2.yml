@@ -9,6 +9,7 @@ on:
       - 'scripts/cibo_t02_three_lane_capital_lab_arch2.py'
       - 'scripts/cibo_phase22_reused_context_map.py'
       - 'src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py'
+      - 'src/qore/infrastructure/cibo_phase22_fresh_opportunity_batch.py'
       - 'docs/research/CIBO-T02-THREE-LANE-CAPITAL-LAB-ARCH2-PROTOCOL.json'
   workflow_dispatch:
 
@@ -42,7 +43,8 @@ jobs:
           python -m py_compile \
             scripts/cibo_t02_three_lane_capital_lab_arch2.py \
             scripts/cibo_phase22_reused_context_map.py \
-            src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py
+            src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py \
+            src/qore/infrastructure/cibo_phase22_fresh_opportunity_batch.py
           ruff check \
             scripts/cibo_t02_three_lane_capital_lab_arch2.py \
             scripts/cibo_phase22_reused_context_map.py \
