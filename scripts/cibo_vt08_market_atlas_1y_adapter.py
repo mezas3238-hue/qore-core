@@ -45,9 +45,13 @@ def _group(group_id: str) -> tuple[datetime, datetime]:
 
 def _warmup_start(start_at: datetime) -> datetime:
     try:
-        return start_at.replace(year=start_at.year - 1)
+        one_year = start_at.replace(year=start_at.year - 1)
     except ValueError:
-        return start_at.replace(year=start_at.year - 1, day=28)
+        one_year = start_at.replace(year=start_at.year - 1, day=28)
+    # The frozen VT08 source contract requires >=730 elapsed days between
+    # first and last retained M15 bars. A calendar boundary may fall on a
+    # weekend/holiday, so add causal pre-evaluation session padding.
+    return one_year - timedelta(days=14)
 
 
 def _account_fingerprint(
