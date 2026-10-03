@@ -33,6 +33,19 @@ OUTCOME_USED_AT_DECISION = False
 FORWARD_GENERALIZATION_CLAIMED = False
 RUNTIME_AUTHORITY = False
 DYNAMIC_CURRENT_CAPITAL_SCALING = True
+# Predecision reserve only: this capital remains protected and is not deployed.
+# The ratio matches the preregistered GAP_AND_SLIPPAGE_25PCT_RISK stress family.
+PROTECTED_LOSS_RESERVE_STOP_RISK_RATIO = Decimal("0.25")
+
+
+def protected_loss_reserve_usd(stop_risk_usd: Decimal) -> Decimal:
+    if (
+        not isinstance(stop_risk_usd, Decimal)
+        or not stop_risk_usd.is_finite()
+        or stop_risk_usd < 0
+    ):
+        raise ValueError("stop risk must be finite non-negative Decimal")
+    return stop_risk_usd * PROTECTED_LOSS_RESERVE_STOP_RISK_RATIO
 
 
 def maximum_reinvestment_capital_need_usd(
