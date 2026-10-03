@@ -174,7 +174,15 @@ jobs:
         run: |
           set -euo pipefail
           python -m pytest -q --no-cov \
-            tests/infrastructure/trader_lab/test_cibo_compound_functional_probe.py
+            tests/infrastructure/trader_lab/test_cibo_compound_functional_probe.py \
+            tests/infrastructure/trader_lab/test_cibo_compound_core_functional_probe.py \
+            tests/infrastructure/test_cibo_compound_cycle_state.py \
+            tests/infrastructure/test_cibo_compound_floor.py \
+            tests/infrastructure/test_cibo_compound_floor_store.py \
+            tests/infrastructure/test_cibo_compound_market_cycle.py \
+            tests/infrastructure/test_cibo_compound_cycle_replay.py \
+            tests/infrastructure/test_cibo_compound_causal_ablation.py \
+            tests/infrastructure/test_cibo_compound_real_population_binding.py
           echo "PHASE_04_TRADER_LAB=PASS"
 
   phase-05-compound-portfolio:
