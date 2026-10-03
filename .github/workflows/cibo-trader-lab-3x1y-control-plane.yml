@@ -54,12 +54,15 @@ jobs:
           assert p['study_target']['trader_role'] == 'FROZEN_OPPORTUNITY_AND_OUTCOME_PRODUCERS_ONLY'
           assert p['study_target']['trader_logic_tunable'] is False
           assert p['study_target']['trader_profitability_is_optimization_target'] is False
-          assert p['study_target']['trader_profitability_is_stop_gate'] is False
-          assert p['automation']['search_target'] == 'CIBO_CONFIGURATION_ONLY'
+          assert p['study_target']['trader_profitability_is_stop_gate'] is True
+          assert p['automation']['search_target'] == 'CIBO_CONFIGURATION_ONLY_WITH_ALL_7_TRADERS_POSITIVE_GATE'
           assert p['automation']['trader_parameters_mutable'] is False
           assert p['stop_sensor']['required_identical_configuration_fingerprints_across_all_groups'] == 3
           assert p['execution_topology']['unit_of_test'] == 'ONE_INTEGRATED_7_TRADER_PORTFOLIO_PER_1Y_GROUP'
           assert p['execution_topology']['per_trader_results_may_trigger_stop_sensor'] is False
+          assert p['candidate_pass_gate']['zero_trader_exceptions'] is True
+          assert p['candidate_pass_gate']['reject_if_any_trader_nonpositive'] is True
+          assert p['candidate_pass_gate']['per_trader_profitability_is_cibo_outcome_gate'] is True
           assert p['execution_topology']['shared_initial_capital_usd'] == '60'
           assert p['execution_topology']['shared_qore_risk_state'] is True
           assert p['execution_topology']['shared_cibo_capital_state'] is True
