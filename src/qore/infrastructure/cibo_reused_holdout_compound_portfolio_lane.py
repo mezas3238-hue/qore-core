@@ -625,7 +625,12 @@ def run_compound_portfolio_lane(
                 "account-local realized-profit pool was redeployed across the "
                 f"Core selection surface; cross-Trader deployments={cross_trader}"
                 if applied
-                else "realized-profit pool never reached one legal minimum seed"
+                else (
+                    "rational redeploy utility/preservation/governance evidence "
+                    "did not authorize incremental capital"
+                    if lab_require_rational_redeploy
+                    else "realized-profit pool never reached one legal minimum seed"
+                )
             ),
         },
         {
@@ -638,7 +643,12 @@ def run_compound_portfolio_lane(
             "reason": (
                 "causally prior realized profit funded later incremental seeds"
                 if applied
-                else "no later selected opportunity could consume realized-profit capacity"
+                else (
+                    "sequential compound remained fail-closed because rational "
+                    "redeploy policy authorization was absent"
+                    if lab_require_rational_redeploy
+                    else "no later selected opportunity could consume realized-profit capacity"
+                )
             ),
         },
         {
@@ -675,4 +685,5 @@ def run_compound_portfolio_lane(
         trades=tuple(trades),
         blocker_reasons=tuple(sorted(blockers.items())),
         function_accountability=functions,
+        rational_redeploy_gate_enabled=lab_require_rational_redeploy,
     )
