@@ -566,7 +566,9 @@ class Genc6MarginalCapitalCandidate:
             raise CiboCompoundCapitalError(
                 "GEN-C6 candidate GEN-C4 account binding drift"
             )
-        if self.marginal_evidence.trader_id is not self.trader_id:
+        if canonical_trader_identity(
+            self.marginal_evidence.trader_id
+        ) != canonical_trader_identity(self.trader_id):
             raise CiboCompoundCapitalError(
                 "GEN-C6 candidate GEN-C4 Trader binding drift"
             )
@@ -1516,7 +1518,7 @@ def genc6_candidate_set_sha256(
                 "provider_key": item.account_identity.provider_key,
                 "account_ref": item.account_identity.account_ref,
             },
-            "trader_id": item.trader_id.value,
+            "trader_id": canonical_trader_identity(item.trader_id),
             "qore_symbol": item.qore_symbol,
             "provider_symbol": item.provider_symbol,
             "signal_fingerprint": item.signal_fingerprint,
@@ -1866,7 +1868,7 @@ def _t19_ledger_sha256(ledger: PortfolioAllocationLedger) -> str:
         "reservations": [
             {
                 "signal_fingerprint": item.signal_fingerprint,
-                "trader_id": item.trader_id.value,
+                "trader_id": canonical_trader_identity(item.trader_id),
                 "qore_symbol": item.qore_symbol,
                 "stop_risk_usd": str(item.stop_risk_usd),
                 "margin_usd": str(item.margin_usd),
