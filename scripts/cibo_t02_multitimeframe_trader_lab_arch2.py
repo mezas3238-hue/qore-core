@@ -42,12 +42,13 @@ CAT_FIELDS = (
     "target_route",
     "fragility_flag_count",
     "posture",
-    "reg_d1_body_alignment",
-    "reg_d1_range_state",
     "reg_h4_body_alignment",
     "reg_h4_range_state",
     "reg_h1_body_alignment",
     "reg_h1_range_state",
+    "reg_m15_last_body_alignment",
+    "reg_m15_displacement_alignment",
+    "reg_m15_volatility_state",
     "reg_m5_displacement_alignment",
     "reg_m5_efficiency_state",
     "reg_m5_volatility_state",
@@ -71,6 +72,12 @@ NUM_FIELDS = (
     "pre_ce2i_margin_usd",
     "hard_risk_headroom_usd",
     "margin_headroom_usd",
+    "m15_last_body_efficiency",
+    "m15_last_range_to_16_avg",
+    "m15_return_2_in_16_avg_range",
+    "m15_return_4_in_16_avg_range",
+    "m15_position_in_16_range",
+    "m15_closed_bar_count_predecision",
     "m1_last_body_efficiency",
     "m1_last_range_to_60_avg",
     "m1_range_5_to_60_avg",
@@ -86,9 +93,16 @@ NUM_FIELDS = (
 )
 
 REQUIRED_TIMEFRAME_KEYS = {
-    "D1": ("reg_d1_body_alignment", "reg_d1_range_state"),
     "H4": ("reg_h4_body_alignment", "reg_h4_range_state"),
     "H1": ("reg_h1_body_alignment", "reg_h1_range_state"),
+    "M15": (
+        "reg_m15_last_body_alignment",
+        "reg_m15_displacement_alignment",
+        "reg_m15_volatility_state",
+        "m15_last_body_efficiency",
+        "m15_last_range_to_16_avg",
+        "m15_position_in_16_range",
+    ),
     "M5": (
         "reg_m5_displacement_alignment",
         "reg_m5_efficiency_state",
@@ -523,12 +537,16 @@ def timeframe_coverage(rows: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def timeframe_field_set(timeframe: str) -> set[str]:
-    if timeframe == "D1":
-        return {field for field in CAT_FIELDS if field.startswith("reg_d1_")}
     if timeframe == "H4":
         return {field for field in CAT_FIELDS if field.startswith("reg_h4_")}
     if timeframe == "H1":
         return {field for field in CAT_FIELDS if field.startswith("reg_h1_")}
+    if timeframe == "M15":
+        return {
+            field
+            for field in (*CAT_FIELDS, *NUM_FIELDS)
+            if field.startswith("reg_m15_") or field.startswith("m15_")
+        }
     if timeframe == "M5":
         return {field for field in CAT_FIELDS if field.startswith("reg_m5_")}
     if timeframe == "M1":
@@ -580,7 +598,7 @@ def main() -> int:
     rows = load_rows(args.causal_dataset, candidate_fps)
     if len(rows) != 145:
         raise RuntimeError(
-            "expected 145 rich-context Core-selected rows after VT31 M1 "
+            "expected 145 rich-context Core-selected rows after M15/M1 "
             f"augmentation, got {len(rows)}"
         )
 
