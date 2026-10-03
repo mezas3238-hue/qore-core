@@ -21,6 +21,14 @@ from qore.infrastructure.cibo_capital_management_authority import (
     TraderOpportunityEnvelope,
 )
 from qore.infrastructure.cibo_cma_risk_request import build_cma_risk_request
+from qore.infrastructure.cibo_account_capital_mission import CiboAccountCapitalIdentity
+from qore.infrastructure.cibo_compound_capital import (
+    CompoundRealizedProfitEvidence,
+    create_realized_profit_lot,
+)
+from qore.infrastructure.cibo_compound_path_monte_carlo import CompoundMonteCarloEpisode
+from qore.infrastructure.cibo_meta_capital_memory import Genc13CapitalEpisode
+from qore.infrastructure.market_test_environment import MarketRuntimeEnvironment
 
 
 NOW = datetime(2026, 10, 3, 12, 0, tzinfo=UTC)
@@ -123,3 +131,79 @@ def test_universal_trader_identity_still_fails_closed_on_noncanonical_input(
 ) -> None:
     with pytest.raises(AccountWideRiskError):
         canonical_trader_identity(trader_id)
+
+
+def _account() -> CiboAccountCapitalIdentity:
+    return CiboAccountCapitalIdentity(
+        provider_key="universal-test",
+        account_ref="universal-runtime",
+        environment=MarketRuntimeEnvironment.TEST,
+    )
+
+
+def test_unseen_trader_identity_survives_compound_monte_carlo_and_genc13() -> None:
+    trader_id = "UNSEEN_CRYPTO_SCALPER_V9"
+    settlement_sha = "sha256:" + "a" * 64
+    evidence = CompoundRealizedProfitEvidence(
+        evidence_id="unseen-profit-evidence",
+        account_identity=_account(),
+        origin_trader=trader_id,
+        signal_fingerprint="unseen-signal",
+        position_id=1001,
+        settlement_deal_ids=(2001,),
+        realized_net_profit_usd=Decimal("2.50"),
+        realized_at=NOW,
+        source_settlement_sha256=settlement_sha,
+        settlement_reconciled=True,
+        position_closed=True,
+        floating_pnl_used_as_capital=False,
+    )
+    lot = create_realized_profit_lot(
+        evidence,
+        lot_id="unseen-profit-lot",
+        created_at=NOW + timedelta(seconds=1),
+    )
+    assert canonical_trader_identity(lot.origin_trader) == trader_id
+
+    episode = CompoundMonteCarloEpisode(
+        episode_id="unseen-mc-episode",
+        deployment_id="unseen-deployment",
+        market_event_id="unseen-market-event",
+        decision_id="unseen-decision",
+        candidate_id="unseen-candidate",
+        trader_id=trader_id,
+        signal_fingerprint="unseen-signal",
+        deployed_at=NOW,
+        settled_at=NOW + timedelta(minutes=10),
+        source_generation=1,
+        deployed_capital_usd=Decimal("1"),
+        stop_risk_usd=Decimal("0.25"),
+        margin_usd=Decimal("0.50"),
+        realized_pnl_usd=Decimal("0.20"),
+        protected_floor_graduation_usd=Decimal("0"),
+        floor_evidence_sha256=None,
+        market_record_present=True,
+        terminal_release_present=True,
+        future_leakage_used=False,
+    )
+    assert canonical_trader_identity(episode.trader_id) == trader_id
+
+    memory = Genc13CapitalEpisode(
+        episode_id="unseen-memory-episode",
+        account_identity=_account(),
+        trader_id=trader_id,
+        decision_id="unseen-decision",
+        decision_sha256="sha256:" + "b" * 64,
+        decision_at=NOW,
+        outcome_at=NOW + timedelta(minutes=10),
+        outcome_sha256="sha256:" + "c" * 64,
+        capital_state_before_sha256="sha256:" + "d" * 64,
+        capital_state_after_sha256="sha256:" + "e" * 64,
+        action_code="COMPOUND",
+        allocated_capital_usd=Decimal("1"),
+        peak_plausible_loss_usd=Decimal("0.25"),
+        capital_minutes=Decimal("10"),
+        realized_pnl_usd=Decimal("0.20"),
+    )
+    assert canonical_trader_identity(memory.trader_id) == trader_id
+    assert memory.fingerprint().startswith("sha256:")
