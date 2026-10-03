@@ -14,9 +14,11 @@ on:
       - 'src/qore/infrastructure/cibo_internal_capital_market.py'
       - 'src/qore/infrastructure/cibo_sequential_compounding_*.py'
       - 'src/qore/infrastructure/cibo_adaptive_compound_speed_shadow.py'
+      - 'src/qore/infrastructure/cibo_protected_reinvestment_policy.py'
       - 'src/qore/infrastructure/trader_lab/cibo_functional_receipt.py'
       - 'tests/infrastructure/test_cibo_compound_constant_statistics.py'
       - 'tests/infrastructure/test_cibo_compound_temporal_population_assessment.py'
+      - 'tests/infrastructure/test_cibo_protected_reinvestment_policy.py'
   workflow_dispatch:
 
 permissions:
@@ -50,7 +52,8 @@ jobs:
         run: |
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_compound_constant_statistics.py \
-            tests/infrastructure/test_cibo_compound_temporal_population_assessment.py
+            tests/infrastructure/test_cibo_compound_temporal_population_assessment.py \
+            tests/infrastructure/test_cibo_protected_reinvestment_policy.py
       - name: Execute full prerequisite chain then CC10-CC16 and PC01
         run: |
           set -euo pipefail
@@ -108,13 +111,16 @@ jobs:
           python -m compileall -q \
             scripts/cibo_compound_trader_lab_completion_audit.py \
             src/qore/infrastructure/cibo_compound_constant_statistics.py \
-            src/qore/infrastructure/cibo_compound_temporal_replication_gate.py
+            src/qore/infrastructure/cibo_compound_temporal_replication_gate.py \
+            src/qore/infrastructure/cibo_protected_reinvestment_policy.py
           ruff check \
             scripts/cibo_compound_trader_lab_completion_audit.py \
             src/qore/infrastructure/cibo_compound_constant_statistics.py \
             src/qore/infrastructure/cibo_compound_temporal_replication_gate.py \
+            src/qore/infrastructure/cibo_protected_reinvestment_policy.py \
             tests/infrastructure/test_cibo_compound_constant_statistics.py \
-            tests/infrastructure/test_cibo_compound_temporal_population_assessment.py
+            tests/infrastructure/test_cibo_compound_temporal_population_assessment.py \
+            tests/infrastructure/test_cibo_protected_reinvestment_policy.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
