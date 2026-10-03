@@ -128,7 +128,7 @@ def incremental(trace: dict[str, Any], native: dict[str, Any]) -> Decimal:
     return dec(native["raw_net_010_r"]) * extra_risk - cost
 
 
-def dataset(trace: dict[str, Any], native_root: Path) -> tuple[list[dict[str, Any]], dict[str, int]]:
+def dataset(\n    trace: dict[str, Any],\n    native_root: Path,\n) -> tuple[list[dict[str, Any]], dict[str, int]]:
     native = load_native(native_root)
     matched = Counter()
     rows = []
@@ -161,7 +161,7 @@ def dataset(trace: dict[str, Any], native_root: Path) -> tuple[list[dict[str, An
     return sorted(rows, key=lambda x: x["time"]), dict(sorted(matched.items()))
 
 
-def selected(rows: list[dict[str, Any]], conds: tuple[tuple[str, str], ...]) -> list[dict[str, Any]]:
+def selected(\n    rows: list[dict[str, Any]],\n    conds: tuple[tuple[str, str], ...],\n) -> list[dict[str, Any]]:
     return [
         row for row in rows
         if all(row["context"].get(k) == v for k, v in conds)
@@ -191,7 +191,7 @@ def bootstrap_p05(rows: list[dict[str, Any]]) -> Decimal:
     return totals[int(Decimal("0.05") * Decimal(SIMS - 1))]
 
 
-def candidate(rows: list[dict[str, Any]], name: str, conds: tuple[tuple[str, str], ...]) -> dict[str, Any]:
+def candidate(\n    rows: list[dict[str, Any]],\n    name: str,\n    conds: tuple[tuple[str, str], ...],\n) -> dict[str, Any]:
     chosen = selected(rows, conds)
     partition_results = {}
     stable = True
