@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -99,6 +100,67 @@ def _economic_effect_count(
     return len(seen)
 
 
+def _t02_incremental_economics(
+    rows: list[dict[str, Any]],
+) -> dict[str, Any]:
+    samples: list[tuple[str, Decimal]] = []
+    for row in rows:
+        ce2i = row.get("ce2i")
+        if not isinstance(ce2i, dict):
+            continue
+        decisions = ce2i.get("opportunity_advanced_decisions", [])
+        if not isinstance(decisions, list):
+            continue
+        applied = any(
+            isinstance(item, dict)
+            and item.get("tool_code") == "T02"
+            and item.get("disposition") == "APPLIED"
+            for item in decisions
+        )
+        if not applied:
+            continue
+        cma = row.get("cma")
+        risk = row.get("qore_risk")
+        settlement = row.get("settlement")
+        if (
+            not isinstance(cma, dict)
+            or not isinstance(risk, dict)
+            or not isinstance(settlement, dict)
+            or risk.get("status") not in {"ALLOW", "REDUCE"}
+        ):
+            continue
+        baseline = Decimal(str(cma["pre_ce2i_stop_risk_usd"]))
+        authorized = Decimal(str(risk["authorized_stop_risk_usd"]))
+        realized = Decimal(str(settlement["realized_net_pnl_usd"]))
+        if authorized <= baseline or authorized <= 0:
+            continue
+        incremental = realized * (authorized - baseline) / authorized
+        samples.append((str(row["market_decision_at"]), incremental))
+
+    samples.sort(key=lambda item: item[0])
+    total = sum((value for _, value in samples), Decimal(0))
+    fold_pnl: list[Decimal] = []
+    if len(samples) >= 4:
+        for index in range(4):
+            start = index * len(samples) // 4
+            end = (index + 1) * len(samples) // 4
+            fold = samples[start:end]
+            fold_pnl.append(
+                sum((value for _, value in fold), Decimal(0))
+            )
+    folds_positive = (
+        len(fold_pnl) == 4 and all(value > 0 for value in fold_pnl)
+    )
+    return {
+        "settled_incremental_count": len(samples),
+        "incremental_realized_pnl_usd": format(total, "f"),
+        "chronological_fold_pnl_usd": [
+            format(value, "f") for value in fold_pnl
+        ],
+        "four_of_four_folds_positive": folds_positive,
+    }
+
+
 def _t01(rows: list[dict[str, Any]]) -> dict[str, Any]:
     enabled = _enabled_count(rows, "T01")
     selected = 0
@@ -164,6 +226,17 @@ def _advanced(rows: list[dict[str, Any]], code: str) -> dict[str, Any]:
     if code in ECONOMIC_EFFECT_REQUIRED and effects <= 0:
         failures.append(f"{code}_NO_OBSERVABLE_ECONOMIC_EFFECT")
         passed = False
+
+    incremental: dict[str, Any] | None = None
+    if code == "T02":
+        incremental = _t02_incremental_economics(rows)
+        if Decimal(incremental["incremental_realized_pnl_usd"]) <= 0:
+            failures.append("T02_INCREMENTAL_REALIZED_PNL_NON_POSITIVE")
+            passed = False
+        if not incremental["four_of_four_folds_positive"]:
+            failures.append("T02_NON_POSITIVE_CHRONOLOGICAL_FOLD")
+            passed = False
+
     return {
         "tool_code": code,
         "status": "PASS" if passed else "FAIL",
@@ -172,8 +245,15 @@ def _advanced(rows: list[dict[str, Any]], code: str) -> dict[str, Any]:
         "dispositions": dict(sorted(dispositions.items())),
         "decision_reasons": dict(sorted(reasons.items())),
         "observable_economic_effect_count": effects,
+        "incremental_economics": incremental,
         "required_observation": (
             "causal evidence -> runtime decision -> observable economic effect"
+            + (
+                " -> positive realized incremental PnL with 4/4 positive "
+                "chronological folds"
+                if code == "T02"
+                else ""
+            )
         ),
         "failure_reasons": failures,
     }
