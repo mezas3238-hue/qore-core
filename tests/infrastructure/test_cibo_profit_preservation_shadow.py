@@ -252,24 +252,26 @@ def test_genc7_rejects_protected_floor_ratchet_down() -> None:
         )
 
 
-def test_genc7_rejects_pre_freeze_decision() -> None:
+def test_genc7_frozen_policy_accepts_historical_causal_state() -> None:
     state = replace(
         _state(),
-        decision_at=GENC7_POLICY_FROZEN_AT - timedelta(seconds=1),
+        decision_at=GENC7_POLICY_FROZEN_AT - timedelta(days=365 * 5),
     )
     proposal = replace(
         _proposal(),
         decision_at=state.decision_at,
     )
-    with pytest.raises(
-        CiboCompoundCapitalError,
-        match="pre-freeze state",
-    ):
-        evaluate_genc7_profit_preservation_shadow(
-            state=state,
-            proposal=proposal,
-            decision_id="genc7-pre-freeze",
-        )
+
+    decision = evaluate_genc7_profit_preservation_shadow(
+        state=state,
+        proposal=proposal,
+        decision_id="genc7-historical",
+    )
+
+    assert decision.decision_at == state.decision_at
+    assert decision.policy_frozen_at == GENC7_POLICY_FROZEN_AT
+    assert decision.treatment_action is Genc7Action.PROTECT
+    assert decision.outcome_present_at_seal is False
 
 
 def test_genc7_store_hash_chain_restart_cas_and_conflict(tmp_path) -> None:
