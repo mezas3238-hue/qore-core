@@ -46,6 +46,49 @@ from qore.infrastructure.cibo_phase22_v4_chronological_replay_plan import (
 LANE_ID = "FULL_CIBO_COMPOUND_PORTFOLIO"
 
 
+
+@dataclass(frozen=True, slots=True)
+class CompoundRedeployAuthorization:
+    """Predecision evidence that incremental capital is rationally redeployable."""
+
+    signal_fingerprint: str
+    known_at: datetime
+    evidence_id: str
+    marginal_utility_oos: bool
+    profit_preservation_ready: bool
+    adaptive_speed_ready: bool
+    growth_ruin_ready: bool
+    forward_controller_ready: bool
+    crisis_governance_ready: bool
+    policy_authorized: bool
+
+    def __post_init__(self) -> None:
+        if not self.signal_fingerprint or not self.evidence_id:
+            raise CiboCapitalManagementError(
+                "compound redeploy authorization identity required"
+            )
+        if self.known_at.tzinfo is None or self.known_at.utcoffset() is None:
+            raise CiboCapitalManagementError(
+                "compound redeploy authorization known_at must be timezone-aware"
+            )
+        prerequisites = (
+            self.marginal_utility_oos,
+            self.profit_preservation_ready,
+            self.adaptive_speed_ready,
+            self.growth_ruin_ready,
+            self.forward_controller_ready,
+            self.crisis_governance_ready,
+        )
+        if any(type(item) is not bool for item in (*prerequisites, self.policy_authorized)):
+            raise CiboCapitalManagementError(
+                "compound redeploy authorization flags must be bool"
+            )
+        if self.policy_authorized and not all(prerequisites):
+            raise CiboCapitalManagementError(
+                "compound redeploy policy cannot outrun GEN-C readiness"
+            )
+
+
 @dataclass(frozen=True, slots=True)
 class _Budget:
     provider_headroom: Decimal
@@ -110,6 +153,7 @@ class CompoundPortfolioLaneResult:
     trades: tuple[CompoundPortfolioTrade, ...]
     blocker_reasons: tuple[tuple[str, int], ...]
     function_accountability: tuple[dict[str, object], ...]
+    rational_redeploy_gate_enabled: bool = False
     lane_id: str = LANE_ID
     same_core_selection_surface: bool = True
     realized_profit_only: bool = True
@@ -142,6 +186,10 @@ class CompoundPortfolioLaneResult:
             raise CiboCapitalManagementError("compound lane settlement count drift")
         if self.compound_settled_count != len(self.trades):
             raise CiboCapitalManagementError("compound lane trade count drift")
+        if type(self.rational_redeploy_gate_enabled) is not bool:
+            raise CiboCapitalManagementError(
+                "compound rational redeploy gate flag must be bool"
+            )
         if not all(
             (
                 self.same_core_selection_surface,
@@ -199,6 +247,7 @@ class CompoundPortfolioLaneResult:
                 for reason, count in self.blocker_reasons
             ],
             "function_accountability": list(self.function_accountability),
+            "rational_redeploy_gate_enabled": self.rational_redeploy_gate_enabled,
             "same_core_selection_surface": self.same_core_selection_surface,
             "realized_profit_only": self.realized_profit_only,
             "floating_pnl_used_as_funding": self.floating_pnl_used_as_funding,
@@ -217,12 +266,32 @@ def run_compound_portfolio_lane(
     plan: Phase22ChronologicalReplayPlan,
     core_execution: Phase22HistoricalExecutionReport,
     lab_use_executed_core_surface: bool = False,
+    lab_require_rational_redeploy: bool = False,
+    redeploy_authorizations: tuple[CompoundRedeployAuthorization, ...] = (),
 ) -> CompoundPortfolioLaneResult:
     """Add causal profit-funded seeds without changing Core policy selection."""
 
     if type(lab_use_executed_core_surface) is not bool:
         raise CiboCapitalManagementError(
             "lab_use_executed_core_surface must be bool"
+        )
+    if type(lab_require_rational_redeploy) is not bool:
+        raise CiboCapitalManagementError(
+            "lab_require_rational_redeploy must be bool"
+        )
+    if any(
+        not isinstance(item, CompoundRedeployAuthorization)
+        for item in redeploy_authorizations
+    ):
+        raise CiboCapitalManagementError(
+            "compound redeploy authorizations must use canonical contract"
+        )
+    authorization_by_signal = {
+        item.signal_fingerprint: item for item in redeploy_authorizations
+    }
+    if len(authorization_by_signal) != len(redeploy_authorizations):
+        raise CiboCapitalManagementError(
+            "compound redeploy authorization fingerprints must be unique"
         )
 
     initial = FROZEN_CIBO_USD60_SIX_MONTH_PROTOCOL.initial_capital_usd
@@ -348,6 +417,20 @@ def run_compound_portfolio_lane(
 
         for signal in selected_signals:
             selected += 1
+            if lab_require_rational_redeploy:
+                redeploy = authorization_by_signal.get(signal)
+                if redeploy is None:
+                    blockers["COMPOUND_REDEPLOY_UTILITY_NOT_AUTHORIZED"] += 1
+                    rejected += 1
+                    continue
+                if redeploy.known_at > epoch.market_decision_at:
+                    blockers["COMPOUND_REDEPLOY_EVIDENCE_FUTURE_KNOWN"] += 1
+                    rejected += 1
+                    continue
+                if not redeploy.policy_authorized:
+                    blockers["COMPOUND_REDEPLOY_UTILITY_NOT_AUTHORIZED"] += 1
+                    rejected += 1
+                    continue
             candidate = by_signal[signal]
             opportunity = candidate.projection.candidate.capital_input.opportunity
             volume = minimum_seed_volume(opportunity)
