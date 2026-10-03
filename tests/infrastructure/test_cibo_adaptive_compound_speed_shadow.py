@@ -230,11 +230,12 @@ def test_genc8_requires_exact_mandatory_fact_set() -> None:
         )
 
 
-def test_genc8_rejects_pre_freeze_genc5_decision() -> None:
+def test_genc8_frozen_policy_accepts_historical_genc5_decision() -> None:
+    historical_at = GENC8_POLICY_FROZEN_AT - timedelta(days=365 * 5)
     genc5 = replace(
         _genc5(),
-        decision_at=GENC8_POLICY_FROZEN_AT - timedelta(seconds=1),
-        sealed_at=GENC8_POLICY_FROZEN_AT,
+        decision_at=historical_at,
+        sealed_at=historical_at + timedelta(seconds=1),
     )
     regime = replace(
         _regime(),
@@ -245,16 +246,17 @@ def test_genc8_rejects_pre_freeze_genc5_decision() -> None:
         for item in _facts()
     )
 
-    with pytest.raises(
-        CiboCompoundCapitalError,
-        match="pre-freeze GEN-C5 decision",
-    ):
-        evaluate_genc8_adaptive_compound_speed(
-            decision_id="genc8-pre-freeze",
-            genc5=genc5,
-            regime=regime,
-            facts=facts,
-        )
+    decision = evaluate_genc8_adaptive_compound_speed(
+        decision_id="genc8-historical",
+        genc5=genc5,
+        regime=regime,
+        facts=facts,
+    )
+
+    assert decision.decision_at == historical_at
+    assert decision.policy_frozen_at == GENC8_POLICY_FROZEN_AT
+    assert decision.treatment_posture is Genc8SpeedPosture.ACCELERATED
+    assert decision.outcome_present_at_seal is False
 
 
 def test_genc8_store_is_restart_cas_and_conflict_safe(tmp_path) -> None:
