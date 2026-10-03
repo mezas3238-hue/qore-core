@@ -172,6 +172,7 @@ def project_phase22_fresh_capital_input(
         maximum_volume=spec.maximum_volume,
         minimum_execution_steps=steps,
         decision_context=(
+            *fresh.decision_context,
             ("phase22_candidate", "V4_REUSED_CAPABILITY_EXAM"),
             ("sizing_authority", "CIBO_CMA"),
             ("trader_sizing_authority", "NONE"),
