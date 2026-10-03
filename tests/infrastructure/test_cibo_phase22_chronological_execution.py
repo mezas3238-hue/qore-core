@@ -34,6 +34,9 @@ from qore.infrastructure.cibo_phase22_provider_numeric_execution import (
 from qore.infrastructure.cibo_phase22_trader_parity_manifest import (
     CANONICAL_PHASE22_TRADER_IDS,
 )
+from qore.infrastructure.cibo_reused_holdout_compound_portfolio_lane import (
+    run_compound_portfolio_lane,
+)
 
 
 def _sha(label: str) -> str:
@@ -239,3 +242,34 @@ def test_regime_evidence_must_cover_exact_epoch_surface() -> None:
         assert "exact epoch set" in str(error)
     else:
         raise AssertionError("missing regime evidence must fail closed")
+
+
+def test_compound_portfolio_lane_executes_realized_profit_path_without_risk_state_duplication() -> None:
+    replay, regimes = _execution_inputs()
+    core = execute_phase22_chronological_replay(
+        plan=replay,
+        regime_evidence=regimes,
+        replay_started_at=datetime(2026, 10, 2, 7, tzinfo=UTC),
+    )
+
+    result = run_compound_portfolio_lane(
+        plan=replay,
+        core_execution=core,
+    )
+
+    assert result.compound_selected_count > 0
+    assert result.compound_settled_count > 0
+    assert result.compound_settled_count == (
+        result.compound_allowed_count + result.compound_reduced_count
+    )
+    assert result.compound_selected_count == (
+        result.compound_allowed_count
+        + result.compound_reduced_count
+        + result.compound_rejected_count
+    )
+    assert result.ending_capital_usd == (
+        result.core_ending_capital_usd + result.compound_incremental_pnl_usd
+    )
+    assert result.realized_profit_only is True
+    assert result.qore_risk_sovereign is True
+    assert result.broker_mutation_performed is False
