@@ -144,6 +144,7 @@ class ReinvestmentEpisode:
     provider_cost_usd: Decimal
     incremental_pnl_usd: Decimal
     protected_after_settlement_usd: Decimal
+    protected_pool_breach: bool
     source_scope: str
 
     @property
@@ -296,21 +297,20 @@ def _simulate_observed(
             del open_rows[signal]
             if shared:
                 before = shared_protected
-                after = before + candidate.incremental_pnl_usd
-                if after < 0:
-                    raise RuntimeError(
-                        "Compound settlement would consume original/base capital"
-                    )
-                shared_protected = after
             else:
                 before = protected[key]
-                after = before + candidate.incremental_pnl_usd
-                if after < 0:
-                    raise RuntimeError(
-                        "Compound settlement would consume original/base capital"
-                    )
+            raw_after = before + candidate.incremental_pnl_usd
+            breached = raw_after < 0
+            after = max(Decimal(0), raw_after)
+            if shared:
+                shared_protected = after
+            else:
                 protected[key] = after
-            realized_account_capital += candidate.incremental_pnl_usd
+            protected_applied_pnl = max(
+                candidate.incremental_pnl_usd,
+                -before,
+            )
+            realized_account_capital += protected_applied_pnl
 
             for index in range(len(episodes) - 1, -1, -1):
                 episode = episodes[index]
@@ -318,6 +318,7 @@ def _simulate_observed(
                     episodes[index] = replace(
                         episode,
                         protected_after_settlement_usd=after,
+                        protected_pool_breach=breached,
                     )
                     break
 
@@ -408,6 +409,7 @@ def _simulate_observed(
             provider_cost_usd=candidate.provider_cost_usd,
             incremental_pnl_usd=candidate.incremental_pnl_usd,
             protected_after_settlement_usd=available,
+            protected_pool_breach=False,
             source_scope=key,
         )
         episodes.append(episode)
@@ -486,6 +488,9 @@ def _metrics(
         "gross_loss_usd": _fmt(losses),
         "profit_factor": None if losses == 0 else _fmt(positives / losses),
         "max_incremental_drawdown_usd": _fmt(max_dd),
+        "protected_pool_breach_count": sum(
+            int(item.protected_pool_breach) for item in episodes
+        ),
         "minimum_eligible_current_capital_usd": _fmt(
             min(item.eligible_current_capital_usd for item in episodes)
         ),
@@ -883,6 +888,8 @@ def main() -> int:
             violations.append(f"{name}:OBSERVED_PNL_NON_POSITIVE")
         if _d(observed["weighted_average_roi"]) <= 0:
             violations.append(f"{name}:OBSERVED_WEIGHTED_ROI_NON_POSITIVE")
+        if observed["protected_pool_breach_count"] != 0:
+            violations.append(f"{name}:OBSERVED_PROTECTED_POOL_BREACH")
         if any(
             _d(fold["weighted_average_roi"]) <= 0
             for fold in surface["walk_forward"]["folds"]
