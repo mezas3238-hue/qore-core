@@ -42,7 +42,6 @@ from decimal import ROUND_CEILING, Decimal
 from pathlib import Path
 from typing import Any
 
-
 TRADERS = (
     "VT08_FOREX",
     "R34_XAUUSD",
