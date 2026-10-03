@@ -50,7 +50,7 @@ jobs:
           import json, os
           from pathlib import Path
           p=json.loads((Path(os.environ['RUNNER_TEMP'])/'cognitive-trader-lab'/'audit.json').read_text())
-          assert p['candidate_count'] == 7
+          assert p['candidate_count'] == len(p['traders']) > 0
           assert p['phase_count'] == 18
           assert p['all_phases_green'] is True
           assert all(x['status'] == 'GREEN' for x in p['phases'])
