@@ -6,9 +6,7 @@ from qore.infrastructure.cibo.functional_availability import (
     CiboFunctionAvailabilityState,
     cibo_function_availability,
 )
-from qore.infrastructure.trader_lab.cibo_functional_receipt import (
-    CIBO_TRADER_LAB_FUNCTION_SEQUENCE,
-)
+from qore.infrastructure.trader_lab.cibo_functional_receipt import CIBO_TRADER_LAB_FUNCTION_SEQUENCE
 
 
 _MARKETS = (
