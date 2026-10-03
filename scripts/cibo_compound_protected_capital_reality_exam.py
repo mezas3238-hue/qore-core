@@ -32,14 +32,14 @@ merge authority.
 from __future__ import annotations
 
 import argparse
+import json
+import math
+import random
 from collections import defaultdict
 from dataclasses import asdict, dataclass, replace
 from datetime import datetime
 from decimal import ROUND_CEILING, Decimal
-import json
-import math
 from pathlib import Path
-import random
 from typing import Any
 
 
