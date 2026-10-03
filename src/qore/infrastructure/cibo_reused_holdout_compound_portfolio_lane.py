@@ -233,7 +233,7 @@ class CompoundPortfolioLaneResult:
     trades: tuple[CompoundPortfolioTrade, ...]
     blocker_reasons: tuple[tuple[str, int], ...]
     function_accountability: tuple[dict[str, object], ...]
-    capital_science_receipts: tuple[dict[str, object], ...]
+    capital_science_receipts: tuple[dict[str, object], ...] = ()
     rational_redeploy_gate_enabled: bool = False
     noncertifying_research_redeploy_enabled: bool = False
     protected_reinvestment_policy_id: str = ""
