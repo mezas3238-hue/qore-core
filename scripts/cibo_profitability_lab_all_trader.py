@@ -276,6 +276,7 @@ def main() -> int:
         regime_evidence=regimes,
         replay_started_at=replay_started_at,
         lab_allow_nonpositive_expectation=True,
+        lab_cibo_free_tool_choice=True,
     )
     compound = run_compound_portfolio_lane(
         plan=plan,
@@ -306,13 +307,18 @@ def main() -> int:
         "schema": "qore.cibo.profitability-lab.all-trader-p0.v1",
         "status": "COMPLETE",
         "validation_mode": "NON_CERTIFYING_REUSED_HOLDOUT_DIAGNOSTIC",
-        "treatment": "ALL_TRADER_CMA_QORE_RISK_PLUS_CURRENT_COMPOUND",
+        "treatment": (
+            "ALL_TRADER_CIBO_FREE_TOOL_CHOICE_"
+            "CMA_QORE_RISK_PLUS_CURRENT_COMPOUND"
+        ),
         "allocator_role": (
             "LAB_P0_STATIC_TRADER_PRIOR_SIGN_GATE_DISABLED; "
             "REGIME_CAPITAL_MARGIN_CONCENTRATION_AND_QORE_RISK_REMAIN_ACTIVE"
         ),
         "all_candidates_reach_cma_qore_risk": False,
         "all_eligible_candidates_reach_cma_qore_risk": True,
+        "replay_tool_eligibility_authority": False,
+        "cibo_free_tool_choice": True,
         "seven_of_seven_participation_pass": participation_pass,
         "baseline_minimal_seed": _canonical(baseline_metrics),
         "frozen_cibo_control": _canonical(control_metrics),
