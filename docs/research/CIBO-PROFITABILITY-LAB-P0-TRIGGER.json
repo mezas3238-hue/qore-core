@@ -13,9 +13,9 @@
   "production": false,
   "merge_authority": false,
   "outcome_aware_tuning": false,
-  "retrigger_for_head": "2a8710daa88d9c5a96e9c01db5f7f4a48d4569d2",
-  "retrigger_reason": "Final cognitive audit acceptance after preserving legacy quarantine and wiring current Mission Director + CF01-CF19 Coordinator into every predecision epoch.",
-  "mode": "CIBO_CURRENT_COGNITIVE_E2E_FINAL_ACCEPTANCE",
+  "retrigger_for_head": "74924c2b8e4b666aca6db6b879791b5ede5bb8d4",
+  "retrigger_reason": "Validate frozen Trader Lab V2 protected-reinvestment policy in the integrated FULL_CIBO_COMPOUND_PORTFOLIO lane, including LONG+SHORT causal gates, 4% dynamic current-capital cap, and 25% protected loss reserve.",
+  "mode": "CIBO_COMPOUND_PORTFOLIO_V2_INTEGRATED_ACCEPTANCE",
   "replay_tool_eligibility_authority": false,
-  "reason": "Owner-directed reused-holdout cognitive proof. Require current Mission Director + CF01-CF19 Coordinator on every opportunity and prove legacy Executive Brain remains research-only/quarantined; no broker mutation/LIVE/real capital/production/merge/outcome-aware tuning."
+  "reason": "Owner-directed reused-holdout capability validation of the integrated Compound/Compound Portfolio V2 policy. Research-only; no broker mutation, LIVE, real capital, production, merge authority, or outcome-aware admission."
 }
