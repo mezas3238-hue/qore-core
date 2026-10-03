@@ -211,7 +211,12 @@ jobs:
         run: |
           set -euo pipefail
           python -m pytest -q --no-cov \
-            tests/infrastructure/trader_lab/test_cibo_compound_portfolio_icm_functional_probe.py
+            tests/infrastructure/trader_lab/test_cibo_compound_portfolio_icm_functional_probe.py \
+            tests/infrastructure/trader_lab/test_cibo_compound_portfolio_functional_probe.py \
+            tests/infrastructure/test_cibo_core_compound_portfolio.py \
+            tests/infrastructure/test_cibo_compound_portfolio.py \
+            tests/infrastructure/test_cibo_internal_capital_market.py \
+            tests/infrastructure/test_cibo_phase22_chronological_execution.py
           echo "PHASE_05_TRADER_LAB=PASS"
 
   phase-06-economic-systems:
