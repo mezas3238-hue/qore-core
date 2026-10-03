@@ -12,6 +12,7 @@ sovereign QORE Risk so no Trader lane can be eliminated by a Trader-level prior.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from collections import Counter, defaultdict
 from dataclasses import fields, is_dataclass, replace
@@ -146,6 +147,49 @@ def _research_context_by_signal(
         "source_batch_mutated": False,
         "outcome_fields_used_for_context": False,
     }
+
+
+def _research_regime_source_ids(source_roots: dict[str, Path]) -> tuple[str, ...]:
+    values = []
+    for symbol in PHASE22_REGIME_SYMBOLS:
+        manifests = tuple(
+            source_roots[symbol].rglob("symbol-consumption-manifest.json")
+        )
+        if len(manifests) != 1:
+            raise ValueError(
+                f"{symbol}: exact one Market Atlas manifest is required"
+            )
+        digest = hashlib.sha256(manifests[0].read_bytes()).hexdigest()
+        values.append("sha256:" + digest)
+    return tuple(values)
+
+
+def _rebind_research_regime_sources(
+    regimes: tuple[Any, ...],
+    *,
+    source_roots: dict[str, Path],
+) -> tuple[Any, ...]:
+    source_ids = _research_regime_source_ids(source_roots)
+    result = []
+    for item in regimes:
+        material = {
+            "base_regime_evidence_sha256": item.evidence_sha256,
+            "source_evidence_ids": source_ids,
+            "mode": "NON_CERTIFYING_BURNED_ADAPTIVE_RESEARCH",
+        }
+        raw = json.dumps(
+            material,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode()
+        result.append(
+            replace(
+                item,
+                evidence_sha256="sha256:" + hashlib.sha256(raw).hexdigest(),
+                source_evidence_ids=source_ids,
+            )
+        )
+    return tuple(result)
 
 
 def _source_roots(values: list[str]) -> dict[str, Path]:
@@ -385,8 +429,12 @@ def main() -> int:
     args = parser.parse_args()
 
     batch_raw = _json_object(args.batch)
-    if batch_raw.get("validation_mode") != "NON_CERTIFYING_REUSED_HOLDOUT":
-        raise ValueError("lab requires the frozen reused V4 population")
+    validation_mode = batch_raw.get("validation_mode")
+    if validation_mode not in {
+        "NON_CERTIFYING_REUSED_HOLDOUT",
+        "NON_CERTIFYING_BURNED_ADAPTIVE_RESEARCH",
+    }:
+        raise ValueError("lab requires an authorized non-certifying research population")
     fresh = load_phase22_sealed_fresh_batch(batch_raw)
     provider = load_phase22_sealed_provider_numeric(
         _json_object(args.provider_numeric)
@@ -427,15 +475,19 @@ def main() -> int:
         fresh=fresh,
         projections=projections,
     )
-    corpora = load_phase22_historical_regime_corpora(
-        _source_roots(args.source_root)
-    )
+    source_roots = _source_roots(args.source_root)
+    corpora = load_phase22_historical_regime_corpora(source_roots)
     regimes = build_phase22_historical_regime_evidence(
         plan=plan,
         provider=provider,
         provider_numeric_freeze_sha256=args.provider_numeric_freeze_sha256,
         corpora=corpora,
     )
+    if validation_mode == "NON_CERTIFYING_BURNED_ADAPTIVE_RESEARCH":
+        regimes = _rebind_research_regime_sources(
+            regimes,
+            source_roots=source_roots,
+        )
     replay_started_at = datetime.fromisoformat(args.replay_started_at)
 
     control = execute_phase22_chronological_replay(
@@ -515,7 +567,13 @@ def main() -> int:
     result = {
         "schema": "qore.cibo.t02-three-lane-capital-lab-arch2.v1",
         "status": "COMPLETE",
-        "validation_mode": "NON_CERTIFYING_REUSED_HOLDOUT_DIAGNOSTIC",
+        "validation_mode": validation_mode,
+        "research_group_id": batch_raw.get("research_group_id"),
+        "regime_source_evidence_ids": (
+            list(_research_regime_source_ids(source_roots))
+            if validation_mode == "NON_CERTIFYING_BURNED_ADAPTIVE_RESEARCH"
+            else None
+        ),
         "treatment": (
             "ALL_TRADER_CIBO_FREE_TOOL_CHOICE_CMA_QORE_RISK_"
             "PLUS_FAIL_CLOSED_RATIONAL_COMPOUND_GATE"
