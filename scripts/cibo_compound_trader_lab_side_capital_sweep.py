@@ -165,8 +165,22 @@ def _surface_pass(surface: dict[str, Any]) -> tuple[bool, list[str]]:
         failures.append("MONTE_CARLO_COUNT_DRIFT")
     if _d(mc["median_incremental_pnl_usd"]) <= 0:
         failures.append("MONTE_CARLO_MEDIAN_NON_POSITIVE")
+    if _d(mc["p05_incremental_pnl_usd"]) <= 0:
+        failures.append("MONTE_CARLO_P05_NON_POSITIVE")
     if mc["protected_pool_breach_paths"] != 0:
         failures.append("MONTE_CARLO_PROTECTED_POOL_BREACH")
+
+    stress = surface["stress"]
+    for scenario_name, scenario in stress.get("scenarios", {}).items():
+        if bool(scenario["protected_pool_breach"]):
+            failures.append(
+                f"STRESS_{scenario_name}_PROTECTED_POOL_BREACH"
+            )
+        if (
+            scenario_name != "WINNER_DROUGHT"
+            and _d(scenario["incremental_pnl_usd"]) <= 0
+        ):
+            failures.append(f"STRESS_{scenario_name}_PNL_NON_POSITIVE")
     return not failures, failures
 
 
@@ -380,7 +394,7 @@ def main() -> int:
     selected = qualified[0] if qualified else None
 
     report = {
-        "schema": "qore.cibo.compound-trader-lab-side-capital-sweep.v3",
+        "schema": "qore.cibo.compound-trader-lab-side-capital-sweep.v4",
         "source_trace_sha256": trace.get("trace_sha256"),
         "source_settled_core_rows": len(rows),
         "calibration_mode": "NON_CERTIFYING_REUSED_HOLDOUT",
@@ -421,10 +435,15 @@ def main() -> int:
                 "CIBO_COMPOUND observed protected-pool breaches = 0",
                 "CIBO_COMPOUND 4/4 chronological folds positive",
                 "CIBO_COMPOUND Monte Carlo median PnL > 0",
+                "CIBO_COMPOUND Monte Carlo p05 PnL > 0",
                 "CIBO_COMPOUND Monte Carlo protected-pool breach paths = 0",
-                "COMPOUND_PORTFOLIO same six gates",
+                "all stresses except WINNER_DROUGHT PnL > 0",
+                "all stresses including WINNER_DROUGHT protected-pool breaches = 0",
+                "COMPOUND_PORTFOLIO same robustness gates",
             ],
-            "stress_is_retained_measurement": True,
+            "winner_drought_interpretation": (
+                "SURVIVAL_STRESS_NO_POSITIVE_PNL_REQUIREMENT"
+            ),
             "strict_train_test_roll": "OPEN_FOLLOWUP",
         },
         "candidate_groups": groups,
