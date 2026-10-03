@@ -97,7 +97,6 @@ from qore.infrastructure.trader_lab.cibo_functional_receipt import (
     build_cibo_function_execution,
     issue_trader_lab_cibo_function_pass,
 )
-from qore.kernel.result import Failure, Success
 
 POLICY_CAPABILITY_REPLAY_AT = datetime(2026, 10, 1, 12, 0, tzinfo=UTC)
 
@@ -462,7 +461,10 @@ class CompletionAudit:
             trader,
             CiboTraderLabFunctionGate.CC12_SEQUENTIAL_COMPOUNDING,
             decision,
-            "post-freeze counterfactual capability replay used only predecision/unknown facts and no retained outcome",
+            (
+                "post-freeze counterfactual capability replay used only "
+                "predecision/unknown facts and no retained outcome"
+            ),
             domain_verdict=decision.treatment_action.value,
             counterfactual_policy_epoch_replay=True,
         )
@@ -482,7 +484,10 @@ class CompletionAudit:
             trader,
             CiboTraderLabFunctionGate.CC13_INTERNAL_CAPITAL_MARKET,
             decision,
-            "internal capital market evaluated the retained account state and preserved reserve with no legal candidate",
+            (
+                "internal capital market evaluated the retained account state "
+                "and preserved reserve with no legal candidate"
+            ),
             domain_verdict=decision.treatment_action.value,
         )
 
@@ -531,7 +536,10 @@ class CompletionAudit:
             trader,
             CiboTraderLabFunctionGate.CC14_ADAPTIVE_COMPOUND_SPEED,
             decision,
-            "adaptive speed consumed canonical post-freeze GEN-C5 seal and conservatively paused on stale/unknown research evidence",
+            (
+                "adaptive speed consumed canonical post-freeze GEN-C5 seal and "
+                "conservatively paused on stale/unknown research evidence"
+            ),
             domain_verdict=decision.treatment_posture.value,
             counterfactual_policy_epoch_replay=True,
         )
@@ -551,7 +559,10 @@ class CompletionAudit:
             trader,
             CiboTraderLabFunctionGate.CC15_ACCOUNT_CORE_COMPOUND_PORTFOLIO,
             portfolio,
-            "canonical account Core Compound Portfolio reconciled ledger and protected floor as read-only economic view",
+            (
+                "canonical account Core Compound Portfolio reconciled ledger "
+                "and protected floor as read-only economic view"
+            ),
             domain_verdict="ACCOUNT_PORTFOLIO_RECONCILED",
         )
 
@@ -620,7 +631,10 @@ class CompletionAudit:
             trader,
             CiboTraderLabFunctionGate.CC16_COMPOUND_CYCLE_REPLAY,
             replay,
-            "exact chronological replay reproduced retained settlement -> floor -> active compound path with zero accounting residual",
+            (
+                "exact chronological replay reproduced retained settlement -> "
+                "floor -> active compound path with zero accounting residual"
+            ),
             domain_verdict="REPLAY_RECONCILED",
         )
 
@@ -663,7 +677,10 @@ class CompletionAudit:
                     global_portfolio.total_protected_floor_usd,
                     summary.logical_values(),
                 ),
-                "global Core Compound Portfolio aggregated all seven account domains without cross-account transfer authority",
+                (
+                    "global Core Compound Portfolio aggregated all seven account "
+                    "domains without cross-account transfer authority"
+                ),
                 domain_verdict="GLOBAL_PORTFOLIO_RECONCILED",
             )
         return global_portfolio, summary
