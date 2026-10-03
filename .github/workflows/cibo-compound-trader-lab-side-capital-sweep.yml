@@ -9,6 +9,7 @@ on:
       - 'scripts/cibo_compound_trader_lab_side_capital_sweep.py'
       - 'scripts/cibo_compound_protected_capital_reality_exam.py'
       - 'src/qore/infrastructure/cibo_protected_reinvestment_policy.py'
+      - 'src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py'
       - 'tests/infrastructure/test_cibo_protected_reinvestment_policy.py'
   workflow_dispatch:
 
@@ -39,11 +40,13 @@ jobs:
           set -euo pipefail
           python -m py_compile \
             scripts/cibo_compound_protected_capital_reality_exam.py \
-            scripts/cibo_compound_trader_lab_side_capital_sweep.py
+            scripts/cibo_compound_trader_lab_side_capital_sweep.py \
+            src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py
           ruff check \
             scripts/cibo_compound_protected_capital_reality_exam.py \
             scripts/cibo_compound_trader_lab_side_capital_sweep.py \
             src/qore/infrastructure/cibo_protected_reinvestment_policy.py \
+            src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py \
             tests/infrastructure/test_cibo_protected_reinvestment_policy.py
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_protected_reinvestment_policy.py
