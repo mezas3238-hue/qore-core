@@ -200,7 +200,7 @@ def build_report(
             post_learning[str(learning.get("status", "UNKNOWN"))] += 1
 
     coverage = lab_result.get("coverage", {})
-    capabilities = coverage.get("capabilities", [])
+    capabilities = coverage.get("rows", [])
     if not isinstance(capabilities, list):
         capabilities = []
     ce2i = [
