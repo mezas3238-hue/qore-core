@@ -40,13 +40,37 @@ def _candidate(fingerprint: str, *, positive: bool = True) -> dict[str, object]:
                 "value_add_vs_compound_usd": sign,
             },
             "final_ending_capital_usd": "61" if positive else "59",
+            "full_battery_complete": True,
+            "scientific_battery": {
+                lane: {
+                    "metrics": {},
+                    "chronological_blocks": {},
+                    "walk_forward": {},
+                    "monte_carlo": {},
+                    "stress": {},
+                }
+                for lane in (
+                    "CORE",
+                    "COMPOUND_INCREMENTAL",
+                    "COMPOUND_TOTAL",
+                    "COMPOUND_PORTFOLIO_INCREMENTAL",
+                    "COMPOUND_PORTFOLIO_TOTAL",
+                )
+            },
             "chronological_folds_all_positive": positive,
+            "walk_forward": {
+                "5": {"all_tests_positive": positive},
+                "6": {"all_tests_positive": positive},
+            },
             "monte_carlo": {
                 "median_pnl_usd": sign,
                 "p05_pnl_usd": sign,
             },
             "stress": {
                 "provider_cost_x2_pnl_usd": sign,
+                "slippage_plus_100pct_provider_cost_pnl_usd": sign,
+                "remove_best_1_pnl_usd": sign,
+                "remove_best_2_pnl_usd": sign,
                 "remove_best_3_pnl_usd": sign,
             },
             "protected_capital_breaches": 0,
@@ -168,3 +192,29 @@ def test_candidate_scope_must_be_cibo_only() -> None:
         assert "CIBO-only" in str(error)
     else:
         raise AssertionError("only CIBO configurations may enter adaptive search")
+
+
+def test_missing_full_scientific_battery_rejects_candidate() -> None:
+    candidate = _candidate("cfg")
+    candidate["measurements"]["full_battery_complete"] = False
+    result = evaluate_candidate(candidate)
+    assert result.passed is False
+    assert "FULL_SCIENTIFIC_BATTERY" in result.failed_gates
+
+
+def test_negative_wfo_rejects_candidate() -> None:
+    candidate = _candidate("cfg")
+    candidate["measurements"]["walk_forward"]["5"]["all_tests_positive"] = False
+    result = evaluate_candidate(candidate)
+    assert result.passed is False
+    assert "WFO_5" in result.failed_gates
+
+
+def test_negative_slippage_stress_rejects_candidate() -> None:
+    candidate = _candidate("cfg")
+    candidate["measurements"]["stress"][
+        "slippage_plus_100pct_provider_cost_pnl_usd"
+    ] = "-0.01"
+    result = evaluate_candidate(candidate)
+    assert result.passed is False
+    assert "SLIPPAGE_STRESS" in result.failed_gates
