@@ -84,8 +84,11 @@ def _surface_pass(surface: dict[str, Any]) -> tuple[bool, list[str]]:
 
 
 def _adverse_stress(surface: dict[str, Any]) -> list[str]:
+    scenarios = surface["stress"].get("scenarios", {})
+    if not isinstance(scenarios, dict):
+        return ["NO_STRESS_POPULATION"]
     result: list[str] = []
-    for name, row in surface["stress"]["scenarios"].items():
+    for name, row in scenarios.items():
         if (
             _d(row["incremental_pnl_usd"]) <= 0
             or bool(row["protected_pool_breach"])
