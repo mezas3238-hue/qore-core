@@ -74,6 +74,7 @@ jobs:
               assert s['stress']['scenario_count']==7
           PY
       - name: Static integrity and dynamic policy tests
+        if: always()
         run: |
           pytest -q --no-cov tests/infrastructure/test_cibo_protected_reinvestment_policy.py
           python -m py_compile \
