@@ -423,3 +423,17 @@ def test_genc10_observed_twin_rejects_future_known_option() -> None:
             provider_registry=_registry(),
             known_options=(option,),
         )
+
+def test_genc10_frozen_contract_accepts_historical_observed_state() -> None:
+    historical_at = datetime(2021, 1, 4, 12, 0, tzinfo=UTC)
+    twin = _twin()
+    historical = __import__("dataclasses").replace(
+        twin,
+        captured_at=historical_at,
+        known_options=(),
+    )
+
+    assert historical.captured_at == historical_at
+    assert historical.policy_sha256 == GENC10_POLICY_SHA256
+    assert historical.future_leakage_used is False
+
