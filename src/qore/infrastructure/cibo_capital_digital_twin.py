@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
 from enum import StrEnum
+from fractions import Fraction
 
 from qore.infrastructure.cibo_account_capital_mission import (
     CiboAccountCapitalIdentity,
@@ -135,6 +136,12 @@ def _signed(value: Decimal, name: str) -> None:
         raise CiboCompoundCapitalError(
             f"GEN-C10 {name} must be finite Decimal"
         )
+
+
+def _exact_sum_equals(total: Decimal, values: tuple[Decimal, ...]) -> bool:
+    """Compare Decimal conservation identities without context rounding."""
+
+    return sum((Fraction(item) for item in values), Fraction(0)) == Fraction(total)
 
 
 def _sha(value: str, name: str) -> None:
@@ -305,23 +312,23 @@ class Genc10ObservedCapitalTwin:
             "margin_headroom_usd",
         ):
             _money(getattr(self, name), name)
-        if (
-            self.original_base_usd + self.compound_economic_value_usd
-            != self.total_realized_capital_usd
+        if not _exact_sum_equals(
+            self.total_realized_capital_usd,
+            (self.original_base_usd, self.compound_economic_value_usd),
         ):
             raise CiboCompoundCapitalError(
                 "GEN-C10 realized capital identity drift"
             )
-        if (
-            self.used_stop_risk_usd + self.stop_risk_headroom_usd
-            != self.total_stop_risk_capacity_usd
+        if not _exact_sum_equals(
+            self.total_stop_risk_capacity_usd,
+            (self.used_stop_risk_usd, self.stop_risk_headroom_usd),
         ):
             raise CiboCompoundCapitalError(
                 "GEN-C10 stop-risk capacity identity drift"
             )
-        if (
-            self.used_margin_usd + self.margin_headroom_usd
-            != self.total_margin_capacity_usd
+        if not _exact_sum_equals(
+            self.total_margin_capacity_usd,
+            (self.used_margin_usd, self.margin_headroom_usd),
         ):
             raise CiboCompoundCapitalError(
                 "GEN-C10 margin capacity identity drift"
@@ -335,11 +342,10 @@ class Genc10ObservedCapitalTwin:
             raise CiboCompoundCapitalError(
                 "GEN-C10 observed twin requires every economic bucket"
             )
-        bucket_total = sum(
-            (amount for _, amount in self.economic_buckets),
-            Decimal(0),
-        )
-        if bucket_total != self.total_realized_capital_usd:
+        if not _exact_sum_equals(
+            self.total_realized_capital_usd,
+            tuple(amount for _, amount in self.economic_buckets),
+        ):
             raise CiboCompoundCapitalError(
                 "GEN-C10 economic buckets do not conserve realized capital"
             )
@@ -361,11 +367,10 @@ class Genc10ObservedCapitalTwin:
             raise CiboCompoundCapitalError(
                 "GEN-C10 compound generations must be positive"
             )
-        generation_total = sum(
-            (amount for _, amount in self.generation_balances),
-            Decimal(0),
-        )
-        if generation_total != self.compound_economic_value_usd:
+        if not _exact_sum_equals(
+            self.compound_economic_value_usd,
+            tuple(amount for _, amount in self.generation_balances),
+        ):
             raise CiboCompoundCapitalError(
                 "GEN-C10 generation balances do not conserve compound value"
             )
