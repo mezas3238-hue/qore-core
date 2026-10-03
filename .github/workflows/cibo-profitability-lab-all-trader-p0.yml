@@ -202,6 +202,7 @@ jobs:
         run: |
           python - <<'PY'
           import json, os
+          from decimal import Decimal
           from pathlib import Path
           p = json.loads(
               (Path(os.environ["RUNNER_TEMP"]) / "cibo-lab-p0" / "lab-result.json")
@@ -253,8 +254,23 @@ jobs:
               "cf01_cf19_runtime_economic_consultation_complete"
           ] is True
           assert p["coverage"]["cognitive_runtime_orchestration_complete"] is True
-          assert p["all_trader_cibo_compound_portfolio"][
-              "rational_redeploy_gate_enabled"
-          ] is True
+          compound = p["all_trader_cibo_compound_portfolio"]
+          assert compound["rational_redeploy_gate_enabled"] is True
+          assert compound["noncertifying_research_redeploy_enabled"] is True
+          assert compound["protected_reinvestment_policy_id"] == (
+              "CIBO_PROTECTED_REINVESTMENT_TRADER_LAB_V2"
+          )
+          assert compound["compound_settled_count"] > 0
+          assert (
+              compound["compound_allowed_count"]
+              + compound["compound_reduced_count"]
+          ) == compound["compound_settled_count"]
+          assert Decimal(compound["compound_incremental_pnl_usd"]) > 0
+          assert compound["outcome_aware_tuning_used"] is False
+          assert compound["broker_mutation_performed"] is False
+          assert compound["live_authorized"] is False
+          assert compound["real_capital_authorized"] is False
+          assert compound["production_authorized"] is False
+          assert compound["merge_authorized"] is False
           assert p["compound_rational_redeploy_gate_preregistered"] is True
           PY
