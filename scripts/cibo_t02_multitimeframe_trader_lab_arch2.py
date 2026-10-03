@@ -529,7 +529,8 @@ def main() -> int:
     rows = load_rows(args.causal_dataset, candidate_fps)
     if len(rows) != 145:
         raise RuntimeError(
-            f"expected 145 rich-context Core-selected rows after VT31 M1 augmentation, got {len(rows)}"
+            "expected 145 rich-context Core-selected rows after VT31 M1 "
+            f"augmentation, got {len(rows)}"
         )
 
     board, searched = explorer(rows, leaderboard_n=50)
