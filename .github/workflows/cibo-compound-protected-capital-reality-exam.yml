@@ -1,0 +1,88 @@
+name: QORE CIBO Compound Protected-Capital Reality Exam
+
+on:
+  push:
+    branches:
+      - agent/cibo-profitability-lab-001
+    paths:
+      - '.github/workflows/cibo-compound-protected-capital-reality-exam.yml'
+      - 'scripts/cibo_compound_protected_capital_reality_exam.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  protected-capital-reality:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SOURCE_ARTIFACT_ID: '11261743257'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Recover retained Trader Lab decision trace
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/source"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$SOURCE_ARTIFACT_ID/zip" > "$RUNNER_TEMP/source.zip"
+          unzip -q "$RUNNER_TEMP/source.zip" -d "$RUNNER_TEMP/source"
+          test -s "$RUNNER_TEMP/source/decision-trace.json"
+      - name: Execute protected-capital WFO Monte Carlo and stress exam
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/compound-reality"
+          python scripts/cibo_compound_protected_capital_reality_exam.py \
+            --decision-trace "$RUNNER_TEMP/source/decision-trace.json" \
+            --output "$RUNNER_TEMP/compound-reality/report.json"
+      - name: Enforce measurement surface
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from decimal import Decimal
+          from pathlib import Path
+
+          p = json.loads(
+              (
+                  Path(os.environ["RUNNER_TEMP"])
+                  / "compound-reality"
+                  / "report.json"
+              ).read_text()
+          )
+          assert p["governance"]["measurement_only"] is True
+          assert p["governance"]["population_gate_used"] is False
+          assert p["governance"]["protected_capital_required_before_reinvestment"] is True
+          assert p["governance"]["core_losses_create_compound_capital"] is False
+          assert p["governance"]["outcome_used_for_admission"] is False
+          for key in ("cibo_compound", "compound_portfolio"):
+              surface = p[key]
+              observed = surface["observed"]
+              assert observed["status"] == "MEASURED"
+              assert observed["episode_count"] > 0
+              assert surface["walk_forward"]["fold_count"] > 0
+              assert surface["monte_carlo"]["simulation_count"] == 1000
+              assert surface["stress"]["scenario_count"] == 7
+              mn = Decimal(observed["minimum_roi"])
+              wa = Decimal(observed["weighted_average_roi"])
+              mx = Decimal(observed["maximum_roi"])
+              assert mn <= wa <= mx
+          PY
+      - name: Static integrity
+        run: |
+          python -m py_compile scripts/cibo_compound_protected_capital_reality_exam.py
+          ruff check scripts/cibo_compound_protected_capital_reality_exam.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-cibo-compound-protected-capital-reality-${{ github.run_id }}
+          path: ${{ runner.temp }}/compound-reality
+          if-no-files-found: warn
+          retention-days: 90
