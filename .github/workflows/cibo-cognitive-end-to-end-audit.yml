@@ -1,0 +1,72 @@
+name: QORE CIBO Cognitive End-to-End Audit
+
+on:
+  push:
+    branches:
+      - agent/cibo-profitability-lab-001
+    paths:
+      - '.github/workflows/cibo-cognitive-end-to-end-audit.yml'
+      - 'src/qore/infrastructure/cibo_cognitive_*.py'
+      - 'src/qore/infrastructure/cibo_executive_*.py'
+      - 'src/qore/infrastructure/cibo_reasoning_*.py'
+      - 'src/qore/infrastructure/cibo_adaptive_reasoning_runtime.py'
+      - 'src/qore/infrastructure/cibo/**'
+      - 'src/qore/modules/cibo/**'
+      - 'src/qore/infrastructure/cibo_profitability_lab_economic_consultation.py'
+      - 'tests/infrastructure/test_cibo_cognitive_*.py'
+      - 'tests/infrastructure/test_cibo_executive_*.py'
+      - 'tests/infrastructure/test_cibo_reasoning_runtime.py'
+      - 'tests/infrastructure/test_cibo_adaptive_reasoning.py'
+      - 'tests/infrastructure/test_cibo_adaptive_router_492.py'
+      - 'tests/infrastructure/test_cibo/**'
+      - 'tests/modules/cibo/**'
+      - 'tests/infrastructure/test_cibo_profitability_lab_economic_consultation.py'
+
+permissions:
+  contents: read
+
+jobs:
+  cognitive-audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+
+      - name: P01 contracts-common-boundaries
+        run: pytest -q --no-cov tests/infrastructure/test_cibo_cognitive_common.py tests/infrastructure/test_cibo_cognitive_boundaries.py tests/modules/cibo/test_cibo_cognitive_contracts.py
+      - name: P02 executive-memory-deliberation-brain
+        run: pytest -q --no-cov tests/infrastructure/test_cibo_executive_memory.py tests/infrastructure/test_cibo_executive_journal.py tests/infrastructure/test_cibo_executive_deliberation.py tests/infrastructure/test_cibo_executive_brain.py
+      - name: P03 world-model
+        run: pytest -q --no-cov tests/infrastructure/test_cibo_cognitive_world_model.py
+      - name: P04 attention-and-routing
+        run: pytest -q --no-cov tests/infrastructure/test_cibo_cognitive_attention.py tests/infrastructure/test_cibo_reasoning_runtime.py tests/infrastructure/test_cibo_adaptive_reasoning.py tests/infrastructure/test_cibo_adaptive_router_492.py
+      - name: P05 planning-learning
+        run: pytest -q --no-cov tests/infrastructure/test_cibo_cognitive_planning.py
+      - name: P06 tools-faculty-bus
+        run: pytest -q --no-cov tests/infrastructure/test_cibo_cognitive_tools.py
+      - name: P07 causality
+        run: pytest -q --no-cov tests/infrastructure/test_cibo_cognitive_causality.py
+      - name: P08 scenarios
+        run: pytest -q --no-cov tests/infrastructure/test_cibo_cognitive_scenarios.py
+      - name: P09 hypotheses
+        run: pytest -q --no-cov tests/infrastructure/test_cibo_cognitive_hypotheses.py
+      - name: P10 metacognition
+        run: pytest -q --no-cov tests/infrastructure/test_cibo_cognitive_metacognition.py
+      - name: P11 replay-handoff
+        run: pytest -q --no-cov tests/infrastructure/test_cibo_cognitive_replay.py
+      - name: P12 evaluation
+        run: pytest -q --no-cov tests/infrastructure/test_cibo_cognitive_evaluation.py
+      - name: P13 integrated-cognitive-episode
+        run: pytest -q --no-cov tests/infrastructure/test_cibo_cognitive_integration.py
+      - name: P14 functional-faculties-and-economic-consultation
+        run: pytest -q --no-cov tests/infrastructure/test_cibo/test_functional_coordinator.py tests/infrastructure/test_cibo_profitability_lab_economic_consultation.py
+      - name: P15 static-integrity
+        run: |
+          python -m compileall -q src/qore/infrastructure/cibo_cognitive_*.py src/qore/infrastructure/cibo_executive_*.py src/qore/infrastructure/cibo_reasoning_runtime.py src/qore/infrastructure/cibo_adaptive_reasoning_runtime.py
+          ruff check src/qore/infrastructure/cibo_cognitive_*.py src/qore/infrastructure/cibo_executive_*.py src/qore/infrastructure/cibo_reasoning_runtime.py src/qore/infrastructure/cibo_adaptive_reasoning_runtime.py tests/infrastructure/test_cibo_cognitive_*.py tests/infrastructure/test_cibo_executive_*.py
