@@ -15,6 +15,7 @@ from qore.infrastructure.account_wide_risk import (
     canonical_trader_identity,
     canonical_trader_lineage,
 )
+from qore.infrastructure.cibo_account_capital_mission import CiboAccountCapitalIdentity
 from qore.infrastructure.cibo_capital_management_authority import (
     CapitalAction,
     CapitalSource,
@@ -23,7 +24,6 @@ from qore.infrastructure.cibo_capital_management_authority import (
     TraderOpportunityEnvelope,
 )
 from qore.infrastructure.cibo_cma_risk_request import build_cma_risk_request
-from qore.infrastructure.cibo_account_capital_mission import CiboAccountCapitalIdentity
 from qore.infrastructure.cibo_compound_capital import (
     CompoundRealizedProfitEvidence,
     create_realized_profit_lot,
