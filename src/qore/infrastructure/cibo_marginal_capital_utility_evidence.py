@@ -25,6 +25,7 @@ from enum import StrEnum
 from qore.infrastructure.account_wide_risk import (
     TraderIdentity,
     canonical_trader_identity,
+    canonical_trader_lineage,
 )
 from qore.infrastructure.cibo_account_capital_mission import (
     CiboAccountCapitalIdentity,
@@ -282,7 +283,11 @@ class MarginalCapitalUtilityEvidence:
             raise CiboCompoundCapitalError(
                 "marginal capital account identity is invalid"
             )
-        canonical_trader_identity(self.trader_id)
+        object.__setattr__(
+            self,
+            "trader_id",
+            canonical_trader_lineage(self.trader_id),
+        )
         for name in (
             "current_compound_capacity_usd",
             "requested_incremental_capital_usd",
