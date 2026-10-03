@@ -31,8 +31,16 @@ class ProviderRiskBudget(Protocol):
     hard_breach: bool
 
 
+_TRADER_ID_RE = r"[A-Z0-9][A-Z0-9._/-]*"
+
+
 class TraderLineage(StrEnum):
-    """Legacy named lineages retained for compatibility, never an allowlist."""
+    """Universal Trader identity with legacy names retained as conveniences.
+
+    Enumeration members are known historical lineages, not an admission list.
+    Any canonical uppercase identity is accepted and cached as a stable
+    pseudo-member so existing enum consumers keep working.
+    """
 
     VT08_FOREX = "VT08_FOREX"
     VT08_INDEX = "VT08_INDEX"
@@ -43,27 +51,45 @@ class TraderLineage(StrEnum):
     R42_AUDJPY = "R42_AUDJPY"
     VT31_NAS100 = "VT31_NAS100"
 
+    @classmethod
+    def _missing_(cls, value: object) -> "TraderLineage | None":
+        if not isinstance(value, str) or fullmatch(_TRADER_ID_RE, value) is None:
+            return None
+        member = str.__new__(cls, value)
+        member._name_ = value
+        member._value_ = value
+        cls._value2member_map_[value] = member
+        return member
 
-TraderIdentity = TraderLineage | str
-_TRADER_ID_RE = r"[A-Z0-9][A-Z0-9._/-]*"
+
+TraderIdentity = TraderLineage
+
+
+def canonical_trader_lineage(
+    value: TraderLineage | str,
+    *,
+    field_name: str = "trader_id",
+) -> TraderLineage:
+    """Return a stable universal TraderLineage for any canonical identity."""
+
+    if isinstance(value, TraderLineage):
+        return value
+    try:
+        return TraderLineage(value)
+    except (TypeError, ValueError) as error:
+        raise AccountWideRiskError(
+            f"{field_name} must use canonical uppercase Trader identity syntax"
+        ) from error
 
 
 def canonical_trader_identity(
-    value: TraderIdentity,
+    value: TraderLineage | str,
     *,
     field_name: str = "trader_id",
 ) -> str:
-    """Validate one universal provider-neutral Trader identity.
+    """Return canonical text without restricting the Trader universe."""
 
-    Known legacy members and arbitrary canonical identities are equally valid.
-    Identity carries provenance only and grants no Risk or execution authority.
-    """
-
-    if not isinstance(value, str) or fullmatch(_TRADER_ID_RE, str(value)) is None:
-        raise AccountWideRiskError(
-            f"{field_name} must use canonical uppercase Trader identity syntax"
-        )
-    return str(value)
+    return canonical_trader_lineage(value, field_name=field_name).value
 
 
 class RiskDecision(StrEnum):
@@ -222,7 +248,11 @@ class CiboRiskRequest:
         ):
             if not text_value:
                 raise AccountWideRiskError(f"{name} must be non-empty")
-        canonical_trader_identity(self.trader_id)
+        object.__setattr__(
+            self,
+            "trader_id",
+            canonical_trader_lineage(self.trader_id),
+        )
         for name, decimal_value in (
             ("intended_entry", self.intended_entry),
             ("stop_loss", self.stop_loss),
@@ -318,7 +348,11 @@ class RiskAuthorization:
     capital_provenance: tuple[CiboCapitalProvenanceLot, ...] = ()
 
     def __post_init__(self) -> None:
-        canonical_trader_identity(self.trader_id)
+        object.__setattr__(
+            self,
+            "trader_id",
+            canonical_trader_lineage(self.trader_id),
+        )
         if type(self.decision) is not RiskDecision:
             raise AccountWideRiskError("decision must be canonical")
         if self.decision is RiskDecision.REJECT:
