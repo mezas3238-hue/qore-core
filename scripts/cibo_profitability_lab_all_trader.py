@@ -65,6 +65,11 @@ from qore.infrastructure.cibo_reused_holdout_compound_portfolio_lane import (
     CompoundResearchRedeployAuthorization,
     run_compound_portfolio_lane,
 )
+from qore.infrastructure.cibo_t02_fast_tail_research_evidence import (
+    T02_FAST_TAIL_RESEARCH_EVIDENCE_ID,
+    T02_FAST_TAIL_SELECTED_RULE_ID,
+    build_fast_tail_t02_research_evidence,
+)
 from qore.infrastructure.cibo_t02_pooled_research_evidence import (
     POOLED_T02_RESEARCH_EVIDENCE_ID,
     POOLED_T02_SELECTED_RULE_ID,
@@ -479,15 +484,27 @@ def main() -> int:
         default="NONE",
     )
     parser.add_argument("--t02-pooled-evidence", action="store_true")
+    parser.add_argument("--t02-fast-tail-evidence", action="store_true")
     parser.add_argument("--provider-numeric-freeze-sha256", required=True)
     parser.add_argument("--source-root", action="append", required=True)
     parser.add_argument("--replay-started-at", required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
 
-    if args.t02_pooled_evidence and args.t02_research_rule != "NONE":
+    selected_evidence_modes = sum(
+        (
+            bool(args.t02_pooled_evidence),
+            bool(args.t02_fast_tail_evidence),
+        )
+    )
+    if selected_evidence_modes > 1:
+        raise ValueError("T02 research evidence modes are mutually exclusive")
+    if (
+        selected_evidence_modes
+        and args.t02_research_rule != "NONE"
+    ):
         raise ValueError(
-            "pooled T02 evidence cannot be combined with ad-hoc research filter"
+            "T02 frozen evidence cannot be combined with ad-hoc research filter"
         )
 
     batch_raw = _json_object(args.batch)
@@ -560,9 +577,13 @@ def main() -> int:
             args.t02_research_rule
         ),
         lab_t02_research_evidence_builder=(
-            build_pooled_t02_research_evidence
-            if args.t02_pooled_evidence
-            else None
+            build_fast_tail_t02_research_evidence
+            if args.t02_fast_tail_evidence
+            else (
+                build_pooled_t02_research_evidence
+                if args.t02_pooled_evidence
+                else None
+            )
         ),
     )
     compound = run_compound_portfolio_lane(
@@ -626,6 +647,14 @@ def main() -> int:
             if args.t02_pooled_evidence
             else None
         ),
+        "t02_fast_tail_evidence": (
+            {
+                "evidence_id": T02_FAST_TAIL_RESEARCH_EVIDENCE_ID,
+                "selected_rule_id": T02_FAST_TAIL_SELECTED_RULE_ID,
+            }
+            if args.t02_fast_tail_evidence
+            else None
+        ),
         "causal_context_reconstruction": context_summary,
         "seven_of_seven_participation_pass": participation_pass,
         "baseline_minimal_seed": _canonical(baseline_metrics),
@@ -643,6 +672,7 @@ def main() -> int:
             "t02_runtime_policy_changed": False,
             "t02_research_rule": args.t02_research_rule,
             "t02_pooled_evidence_applied": args.t02_pooled_evidence,
+            "t02_fast_tail_evidence_applied": args.t02_fast_tail_evidence,
             "reused_context_map_applied": context_summary is not None,
             "qore_risk_sovereign": True,
             "broker_mutation": False,
