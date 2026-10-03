@@ -19,13 +19,70 @@ import json
 from collections import Counter, defaultdict
 from collections.abc import Iterable
 from dataclasses import asdict, dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 from enum import StrEnum
 
+from qore.infrastructure.cibo_account_capital_mission import (
+    CiboAccountCapitalIdentity,
+    derive_cibo_capital_mission,
+)
+from qore.infrastructure.cibo_adaptive_compound_speed_shadow import (
+    Genc8AdaptiveSpeedFact,
+    Genc8FactKind,
+    Genc8RegimeEvidence,
+    Genc8Severity,
+    Genc8SpeedPosture,
+    evaluate_genc8_adaptive_compound_speed,
+)
+from qore.infrastructure.cibo_capital_digital_twin import (
+    Genc10EconomicBucket,
+    Genc10KnownCapitalOption,
+    Genc10ObservedCapitalTwin,
+    Genc10WorldKind,
+    Genc10WorldScenario,
+)
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
+from qore.infrastructure.cibo_ce2i_regime_selector import (
+    CiboCapitalRegimeState,
+    CiboRegimePosture,
+    CorrelationState,
+    LiquidityState,
+    ProviderCondition,
+    VolatilityState,
+    select_ce2i_tools_for_regime,
+)
+from qore.infrastructure.cibo_compound_capital import CompoundCapitalState
+from qore.infrastructure.cibo_crisis_capital_intelligence import (
+    Genc12CapitalResponse,
+    Genc12CrisisFact,
+    Genc12CrisisFactor,
+    plan_genc12_crisis_capital,
+)
+from qore.infrastructure.cibo_multi_period_capital_mpc import (
+    Genc11KnownOptionSchedule,
+    Genc11WorldPath,
+    Genc11WorldStep,
+    plan_genc11_multi_period_capital,
+)
+from qore.infrastructure.cibo_profit_preservation_shadow import (
+    Genc7Action,
+    Genc7CapitalStateEvidence,
+    Genc7PreservationProposalEvidence,
+    Genc7SourceBucket,
+    evaluate_genc7_profit_preservation_shadow,
+)
+from qore.infrastructure.cibo_sequential_compounding_shadow_policy import (
+    SequentialCompoundPosture,
+    SequentialCompoundShadowAction,
+    genc5_shadow_policy_sha256,
+)
+from qore.infrastructure.cibo_sequential_compounding_shadow_store import (
+    Genc5ShadowDecisionSeal,
+)
+from qore.infrastructure.market_test_environment import MarketRuntimeEnvironment
 
 RESEARCH_MODE = "NON_CERTIFYING_BURNED_ADAPTIVE_RESEARCH"
 MANDATORY_RUNTIME_GENC = (
@@ -312,6 +369,7 @@ def _receipt(
     risk_delta_usd: Decimal = Decimal(0),
     margin_delta_usd: Decimal = Decimal(0),
     capital_source_usage: tuple[str, ...] = (),
+    output_details: dict[str, object] | None = None,
 ) -> CapitalScienceReceipt:
     input_payload = state.payload()
     input_sha = state.fingerprint()
@@ -326,6 +384,7 @@ def _receipt(
         "margin_delta_usd": format(margin_delta_usd, "f"),
         "capital_source_usage": list(capital_source_usage),
         "input_sha256": input_sha,
+        "engine_output": output_details or {},
     }
     raw = json.dumps(output, sort_keys=True, separators=(",", ":"))
     output_sha = "sha256:" + hashlib.sha256(raw.encode()).hexdigest()
@@ -352,6 +411,154 @@ def _receipt(
         outcome_used_for_same_decision=False,
         qore_risk_bypassed=False,
         productive_authority=False,
+    )
+
+
+
+def _runtime_sha(label: str, payload: object) -> str:
+    raw = json.dumps(
+        {"label": label, "payload": payload},
+        sort_keys=True,
+        separators=(",", ":"),
+        default=str,
+    ).encode()
+    return "sha256:" + hashlib.sha256(raw).hexdigest()
+
+
+def _runtime_identity() -> CiboAccountCapitalIdentity:
+    return CiboAccountCapitalIdentity(
+        provider_key="trader-lab",
+        account_ref="cibo-capital-science-replay",
+        environment=MarketRuntimeEnvironment.TEST,
+    )
+
+
+def _utilization(used: Decimal, headroom: Decimal) -> Decimal:
+    total = used + headroom
+    if total <= 0:
+        return Decimal(0)
+    return min(Decimal(1), used / total)
+
+
+def _drawdown_utilization(state: CapitalSciencePredecisionInput) -> Decimal:
+    if state.peak_realized_capital_usd <= 0:
+        return Decimal(0)
+    return min(
+        Decimal(1),
+        state.giveback_usd / state.peak_realized_capital_usd,
+    )
+
+
+def _severity(value: Decimal) -> Genc8Severity:
+    if value >= Decimal("0.95"):
+        return Genc8Severity.CRITICAL
+    if value >= Decimal("0.75"):
+        return Genc8Severity.ADVERSE
+    if value >= Decimal("0.50"):
+        return Genc8Severity.WATCH
+    return Genc8Severity.BENIGN
+
+
+def _regime_state(state: CapitalSciencePredecisionInput) -> CiboCapitalRegimeState:
+    return CiboCapitalRegimeState(
+        liquidity=LiquidityState.NORMAL,
+        volatility=VolatilityState.NORMAL,
+        correlation=CorrelationState.NORMAL,
+        provider_condition=ProviderCondition.HEALTHY,
+        risk_utilization=_utilization(
+            state.open_stop_risk_usd,
+            state.hard_risk_headroom_usd,
+        ),
+        margin_utilization=_utilization(
+            state.open_margin_usd,
+            state.margin_headroom_usd,
+        ),
+        drawdown_utilization=_drawdown_utilization(state),
+        opportunity_count=max(1, state.competing_candidates),
+        position_path_adverse=state.giveback_usd > 0,
+        evidence_stale=False,
+    )
+
+
+def _capital_twin(
+    state: CapitalSciencePredecisionInput,
+    *,
+    identity: CiboAccountCapitalIdentity,
+) -> Genc10ObservedCapitalTwin:
+    profit_total = min(
+        state.realized_profit_pool_usd,
+        state.realized_capital_usd,
+    )
+    protected_profit = min(state.protected_capacity_usd, profit_total)
+    deployable_profit = profit_total - protected_profit
+    original_base = state.realized_capital_usd - profit_total
+    buckets = tuple(
+        (
+            bucket,
+            (
+                original_base
+                if bucket is Genc10EconomicBucket.ORIGINAL_BASE
+                else deployable_profit
+                if bucket is Genc10EconomicBucket.REALIZED_PROFIT
+                else protected_profit
+                if bucket is Genc10EconomicBucket.PROTECTED_PROFIT
+                else Decimal(0)
+            ),
+        )
+        for bucket in Genc10EconomicBucket
+    )
+    request_capital = state.requested_stop_risk_usd + state.provider_cost_usd
+    horizon_minutes = max(3, int(state.expected_capital_minutes) + 1)
+    known_options = ()
+    if (
+        request_capital > 0
+        and state.requested_stop_risk_usd > 0
+        and state.requested_margin_usd > 0
+    ):
+        known_options = (
+            Genc10KnownCapitalOption(
+                option_id=state.signal_fingerprint,
+                known_at=state.decision_at,
+                earliest_action_at=state.decision_at,
+                expires_at=state.decision_at + timedelta(minutes=horizon_minutes),
+                requested_capital_usd=request_capital,
+                stop_risk_usd=state.requested_stop_risk_usd,
+                margin_usd=state.requested_margin_usd,
+                evidence_sha256=_runtime_sha("known-option", state.payload()),
+            ),
+        )
+    risk_capacity = state.open_stop_risk_usd + state.hard_risk_headroom_usd
+    margin_capacity = state.open_margin_usd + state.margin_headroom_usd
+    return Genc10ObservedCapitalTwin(
+        twin_id=f"capital-science:{state.decision_epoch_id}:{state.signal_fingerprint}",
+        account_identity=identity,
+        captured_at=state.decision_at,
+        capital_truth_sha256=_runtime_sha("capital-truth", state.payload()),
+        compound_cycle_sha256=_runtime_sha("compound-cycle", state.payload()),
+        source_ledger_sha256=_runtime_sha("source-ledger", state.payload()),
+        provider_registry_sha256=_runtime_sha("provider-registry", state.payload()),
+        total_realized_capital_usd=state.realized_capital_usd,
+        original_base_usd=original_base,
+        compound_economic_value_usd=profit_total,
+        protected_floor_usd=Decimal(0),
+        policy_protected_floor_usd=Decimal(0),
+        broker_guaranteed_floor_usd=Decimal(0),
+        economic_buckets=buckets,
+        generation_balances=((1, profit_total),) if profit_total > 0 else (),
+        source_capacities=(),
+        total_stop_risk_capacity_usd=risk_capacity,
+        used_stop_risk_usd=state.open_stop_risk_usd,
+        stop_risk_headroom_usd=state.hard_risk_headroom_usd,
+        total_margin_capacity_usd=margin_capacity,
+        used_margin_usd=state.open_margin_usd,
+        margin_headroom_usd=state.margin_headroom_usd,
+        active_deployment_count=(
+            1
+            if state.open_stop_risk_usd > 0 or state.open_margin_usd > 0
+            else 0
+        ),
+        provider_capability_counts=(),
+        known_options=known_options,
     )
 
 
@@ -429,134 +636,446 @@ def evaluate_capital_science_predecision(
         )
     )
 
-    # GEN-C7: the current lane has no preregistered transfer/harvest amount.
-    # The legal action is therefore an explicit abstention, not a silent bypass.
-    c7_applicable = state.realized_profit_pool_usd > 0
+    # GEN-C7: invoke the actual profit-preservation engine on the causal
+    # account state and exact already-sized incremental request.
+    identity = _runtime_identity()
+    request_capital = state.requested_stop_risk_usd + state.provider_cost_usd
+    current_profit = min(
+        state.realized_profit_pool_usd,
+        state.realized_capital_usd,
+    )
+    peak_profit = current_profit + state.giveback_usd
+    base_capital = state.realized_capital_usd - current_profit
+    genc7_state = Genc7CapitalStateEvidence(
+        evidence_id=f"runtime-state:{state.decision_epoch_id}:{state.signal_fingerprint}",
+        decision_at=state.decision_at,
+        account_identity=identity,
+        current_realized_capital_usd=state.realized_capital_usd,
+        current_realized_profit_usd=current_profit,
+        peak_realized_profit_usd=peak_profit,
+        current_base_capital_usd=base_capital,
+        peak_base_capital_usd=base_capital,
+        current_compound_capital_usd=current_profit,
+        peak_compound_capital_usd=peak_profit,
+        protected_profit_usd=min(state.protected_capacity_usd, current_profit),
+        protected_floor_usd=Decimal(0),
+        previous_protected_floor_usd=Decimal(0),
+        strategic_reserve_usd=Decimal(0),
+        opportunity_reserve_usd=Decimal(0),
+        compoundable_usd=state.deployable_profit_usd,
+        released_compound_capital_usd=Decimal(0),
+        source_evidence_sha256=state.fingerprint(),
+    )
+    genc7_proposal = Genc7PreservationProposalEvidence(
+        proposal_id=f"runtime-proposal:{state.decision_epoch_id}:{state.signal_fingerprint}",
+        decision_at=state.decision_at,
+        account_identity=identity,
+        action=Genc7Action.COMPOUND,
+        source_bucket=Genc7SourceBucket.COMPOUNDABLE_OR_RELEASED_CAPACITY,
+        amount_usd=request_capital,
+        evidence_sha256=_runtime_sha("genc7-proposal", state.payload()),
+        rationale_code="EXACT_EXISTING_INCREMENTAL_REQUEST",
+        evaluation_horizon_minutes=max(1, int(state.expected_capital_minutes) + 1),
+        calibrated=True,
+        capital_eligible=c4_allows,
+    )
+    genc7 = evaluate_genc7_profit_preservation_shadow(
+        state=genc7_state,
+        proposal=genc7_proposal,
+        decision_id=f"genc7:{state.decision_epoch_id}:{state.signal_fingerprint}",
+    )
+    c7_allows = genc7.treatment_action is Genc7Action.COMPOUND
     receipts.append(
         _receipt(
             state=state,
             function_code="GEN-C7",
             disposition=(
-                CapitalScienceDisposition.ELIGIBLE_NO_CHANGE
-                if c7_applicable
-                else CapitalScienceDisposition.JUSTIFIED_NOT_APPLICABLE
+                CapitalScienceDisposition.APPLIED
+                if genc7.treatment_differs_from_control
+                else CapitalScienceDisposition.FAIL_CLOSED
             ),
             reason=(
-                "profit-preservation state was evaluated; no preregistered transfer/"
-                "harvest amount exists for this epoch, so capital state is held"
-                if c7_applicable
-                else "no realized-profit capacity existed to preserve or harvest"
+                "native GEN-C7 engine authorized the exact preregistered compound request"
+                if c7_allows
+                else "native GEN-C7 engine held the capital state"
             ),
             downstream_consumer="CIBO_COMPOUND_CAPITAL_STATE",
-            consumer_action="HOLD_CURRENT_CAPITAL_STATE",
-            capital_source_usage=((state.capital_source,) if c7_applicable else ()),
+            consumer_action=genc7.treatment_action.value,
+            decision_changed=genc7.treatment_differs_from_control,
+            capital_source_usage=(state.capital_source,),
+            output_details={
+                "engine": "evaluate_genc7_profit_preservation_shadow",
+                "treatment_action": genc7.treatment_action.value,
+                "treatment_amount_usd": format(genc7.treatment_amount_usd, "f"),
+                "blocker_codes": list(genc7.blocker_codes),
+                "giveback_amount_usd": format(genc7.giveback_amount_usd, "f"),
+                "profit_retention_ratio": format(genc7.profit_retention_ratio, "f"),
+            },
         )
     )
 
-    # GEN-C8: pace is bounded by currently known account headroom.  No amount is
-    # created here; zero headroom causes a fail-closed pause.
-    headroom_allows = (
-        state.hard_risk_headroom_usd > 0
-        and state.margin_headroom_usd > 0
+    # GEN-C8: invoke the native adaptive-speed engine. The prior GEN-C5 seal is
+    # an immutable representation of the already-known C4/C7 admission state;
+    # GEN-C8 itself chooses the speed posture from causal account facts.
+    upstream_allows = c4_allows and c7_allows
+    genc5_posture = (
+        SequentialCompoundPosture.CAUTIOUS_COMPOUND
+        if upstream_allows
+        else SequentialCompoundPosture.COMPOUND_PAUSED
     )
+    genc5_action = (
+        SequentialCompoundShadowAction.REQUEST_DOWNSTREAM_RISK_REVIEW
+        if upstream_allows
+        else SequentialCompoundShadowAction.HOLD_CURRENT_STATE
+    )
+    genc5_amount = request_capital if upstream_allows else Decimal(0)
+    genc5 = Genc5ShadowDecisionSeal(
+        decision_sha256=_runtime_sha(
+            "genc5-decision",
+            {
+                "state": state.payload(),
+                "posture": genc5_posture.value,
+                "action": genc5_action.value,
+            },
+        ),
+        policy_sha256=genc5_shadow_policy_sha256(),
+        decision_id=f"genc5:{state.decision_epoch_id}:{state.signal_fingerprint}",
+        decision_at=state.decision_at,
+        sealed_at=state.decision_at,
+        account_provider_key=identity.provider_key,
+        account_ref=identity.account_ref,
+        source_lot_id=f"runtime-lot:{state.signal_fingerprint}",
+        source_lot_state=CompoundCapitalState.COMPOUNDABLE,
+        source_lot_amount_usd=state.deployable_profit_usd,
+        portfolio_sha256=_runtime_sha("genc5-portfolio", state.payload()),
+        marginal_evidence_sha256=_runtime_sha("genc5-marginal", state.payload()),
+        policy_protected_floor_usd=state.protected_capacity_usd,
+        candidate_compound_capacity_usd=state.deployable_profit_usd,
+        control_posture=SequentialCompoundPosture.COMPOUND_PAUSED,
+        control_action=SequentialCompoundShadowAction.HOLD_CURRENT_STATE,
+        control_requested_risk_review_usd=Decimal(0),
+        treatment_posture=genc5_posture,
+        treatment_action=genc5_action,
+        treatment_requested_risk_review_usd=genc5_amount,
+        blocker_codes=(() if upstream_allows else ("UPSTREAM_CAPITAL_SCIENCE_BLOCKED",)),
+        treatment_differs_from_control=upstream_allows,
+    )
+    regime_state = _regime_state(state)
+    selection = select_ce2i_tools_for_regime(
+        mission=derive_cibo_capital_mission(identity),
+        state=regime_state,
+    )
+    genc8_regime = Genc8RegimeEvidence(
+        evidence_id=f"regime:{state.decision_epoch_id}",
+        decision_at=state.decision_at,
+        account_provider_key=identity.provider_key,
+        account_ref=identity.account_ref,
+        regime_posture=selection.posture,
+        provider_condition=ProviderCondition.HEALTHY,
+        evidence_sha256=_runtime_sha("genc8-regime", state.payload()),
+        source="TRADER_LAB_CAUSAL_ACCOUNT_STATE",
+        policy_version="CIBO_RUNTIME_ACCOUNT_STATE_V1",
+        calibrated=True,
+        capital_eligible=True,
+    )
+    risk_util = regime_state.risk_utilization
+    margin_util = regime_state.margin_utilization
+    drawdown_util = regime_state.drawdown_utilization
+    fact_severity = {
+        Genc8FactKind.LOSS_CLUSTER: _severity(drawdown_util),
+        Genc8FactKind.EDGE_CALIBRATION: (
+            Genc8Severity.BENIGN if c4_allows else Genc8Severity.ADVERSE
+        ),
+        Genc8FactKind.SHARED_UNCERTAINTY: (
+            Genc8Severity.WATCH
+            if state.competing_candidates >= 3
+            else Genc8Severity.BENIGN
+        ),
+        Genc8FactKind.RELATIONSHIP_STABILITY: (
+            Genc8Severity.WATCH
+            if state.competing_candidates >= 4
+            else Genc8Severity.BENIGN
+        ),
+        Genc8FactKind.PORTFOLIO_CONCENTRATION: _severity(risk_util),
+        Genc8FactKind.MARGIN_HEADROOM: _severity(margin_util),
+        Genc8FactKind.RISK_HEADROOM: _severity(risk_util),
+    }
+    genc8_facts = tuple(
+        Genc8AdaptiveSpeedFact(
+            fact_id=f"{state.decision_epoch_id}:{kind.value}",
+            decision_at=state.decision_at,
+            account_provider_key=identity.provider_key,
+            account_ref=identity.account_ref,
+            kind=kind,
+            severity=fact_severity[kind],
+            evidence_sha256=_runtime_sha(
+                "genc8-fact",
+                {
+                    "state": state.payload(),
+                    "kind": kind.value,
+                    "severity": fact_severity[kind].value,
+                },
+            ),
+            source="TRADER_LAB_CAUSAL_ACCOUNT_STATE",
+            model_id="CIBO_ACCOUNT_FACTS_V1",
+            calibrated=True,
+            capital_eligible=True,
+        )
+        for kind in Genc8FactKind
+    )
+    genc8 = evaluate_genc8_adaptive_compound_speed(
+        decision_id=f"genc8:{state.decision_epoch_id}:{state.signal_fingerprint}",
+        genc5=genc5,
+        regime=genc8_regime,
+        facts=genc8_facts,
+    )
+    c8_allows = genc8.treatment_posture is not Genc8SpeedPosture.PAUSE
     receipts.append(
         _receipt(
             state=state,
             function_code="GEN-C8",
             disposition=(
-                CapitalScienceDisposition.ELIGIBLE_NO_CHANGE
-                if headroom_allows
-                else CapitalScienceDisposition.FAIL_CLOSED
+                CapitalScienceDisposition.APPLIED
+                if genc8.treatment_differs_from_control
+                else CapitalScienceDisposition.ELIGIBLE_NO_CHANGE
             ),
             reason=(
-                "known risk and margin headroom permit normal research compound pace"
-                if headroom_allows
-                else "known risk or margin headroom is exhausted; compound pace pauses"
+                "native GEN-C8 engine evaluated the causal regime and adaptive fact set"
             ),
             downstream_consumer="CIBO_COMPOUND_ADMISSION",
-            consumer_action=(
-                "NORMAL_OR_EXISTING_PACE"
-                if headroom_allows
-                else "PAUSE_INCREMENTAL_COMPOUND"
-            ),
-            decision_changed=not headroom_allows,
+            consumer_action=genc8.treatment_posture.value,
+            decision_changed=genc8.treatment_differs_from_control,
+            output_details={
+                "engine": "evaluate_genc8_adaptive_compound_speed",
+                "control_posture": genc8.control_posture.value,
+                "treatment_posture": genc8.treatment_posture.value,
+                "binding_reason": genc8.binding_reason,
+                "blocker_codes": list(genc8.blocker_codes),
+                "fact_severity": {
+                    key.value: value.value for key, value in fact_severity.items()
+                },
+            },
         )
     )
 
-    # GEN-C10: materialize an observed capital twin from causal account state.
+    # GEN-C10: build a canonical observed twin consumed by GEN-C11 and GEN-C12.
+    twin = _capital_twin(state, identity=identity)
     receipts.append(
         _receipt(
             state=state,
             function_code="GEN-C10",
             disposition=CapitalScienceDisposition.APPLIED,
-            reason=(
-                "observed capital twin captured realized capital, protected capacity, "
-                "open risk, open margin and current headroom at decision time"
-            ),
+            reason="canonical GEN-C10 observed capital twin was materialized",
             downstream_consumer="GEN-C11_GEN-C12",
             consumer_action="PUBLISH_CAUSAL_CAPITAL_TWIN",
             capital_source_usage=(state.capital_source,),
+            output_details={
+                "engine": "Genc10ObservedCapitalTwin",
+                "twin_id": twin.twin_id,
+                "total_realized_capital_usd": format(
+                    twin.total_realized_capital_usd, "f"
+                ),
+                "stop_risk_headroom_usd": format(twin.stop_risk_headroom_usd, "f"),
+                "margin_headroom_usd": format(twin.margin_headroom_usd, "f"),
+                "known_option_count": len(twin.known_options),
+            },
         )
     )
 
-    # GEN-C11: multi-period planning is only meaningful when known competing
-    # options exist.  In a single-option epoch the correct result is N/A.
-    if state.competing_candidates > 1:
-        c11_disposition = CapitalScienceDisposition.ELIGIBLE_NO_CHANGE
-        c11_reason = (
-            "multiple causally known candidates exist; robust capacity planning "
-            "evaluated them without overriding current Core selection"
+    # GEN-C11: run the native robust multi-world MPC whenever the current
+    # opportunity has executable geometry.
+    if twin.known_options:
+        option = twin.known_options[0]
+        step_times = (
+            state.decision_at + timedelta(minutes=1),
+            state.decision_at + timedelta(minutes=2),
         )
-        c11_action = "PRESERVE_CURRENT_SELECTION_AND_RESERVE_OPTIONALITY"
+        paths = tuple(
+            Genc11WorldPath(
+                path_id=f"{kind.value.lower()}:{state.signal_fingerprint}",
+                world_kind=kind,
+                steps=tuple(
+                    Genc11WorldStep(
+                        step_index=index,
+                        projected_at=projected_at,
+                        posture=(
+                            CiboRegimePosture.DEFENSIVE
+                            if kind is Genc10WorldKind.DEFENSIVE
+                            else selection.posture
+                        ),
+                        scenario=Genc10WorldScenario(
+                            scenario_id=(
+                                f"{kind.value.lower()}:{state.signal_fingerprint}:{index}"
+                            ),
+                            kind=kind,
+                            declared_at=state.decision_at,
+                            scenario_evidence_sha256=_runtime_sha(
+                                "genc11-scenario",
+                                {
+                                    "state": state.payload(),
+                                    "kind": kind.value,
+                                    "step": index,
+                                },
+                            ),
+                            transition_uncertainty_evidence_sha256=_runtime_sha(
+                                "genc11-uncertainty",
+                                {
+                                    "state": state.payload(),
+                                    "kind": kind.value,
+                                    "step": index,
+                                },
+                            ),
+                            surviving_known_option_ids=(option.option_id,),
+                        ),
+                    )
+                    for index, projected_at in enumerate(step_times, start=1)
+                ),
+                factor_interaction_evidence_sha256=_runtime_sha(
+                    "genc11-factor", {"state": state.payload(), "kind": kind.value}
+                ),
+                optionality_evidence_sha256=_runtime_sha(
+                    "genc11-optionality", {"state": state.payload(), "kind": kind.value}
+                ),
+                reserve_need_evidence_sha256=_runtime_sha(
+                    "genc11-reserve", {"state": state.payload(), "kind": kind.value}
+                ),
+            )
+            for kind in (Genc10WorldKind.BALANCED, Genc10WorldKind.DEFENSIVE)
+        )
+        genc11 = plan_genc11_multi_period_capital(
+            plan_id=f"genc11:{state.decision_epoch_id}:{state.signal_fingerprint}",
+            twin=twin,
+            world_paths=paths,
+            option_schedules=(
+                Genc11KnownOptionSchedule(
+                    option_id=option.option_id,
+                    decision_step=1,
+                    schedule_evidence_sha256=_runtime_sha(
+                        "genc11-schedule", state.payload()
+                    ),
+                ),
+            ),
+        )
+        first_envelope = genc11.robust_step_envelopes[0]
+        c11_changed = (
+            first_envelope.maximum_required_reserve_stop_risk_usd > 0
+            or first_envelope.maximum_required_reserve_margin_usd > 0
+        )
+        receipts.append(
+            _receipt(
+                state=state,
+                function_code="GEN-C11",
+                disposition=(
+                    CapitalScienceDisposition.APPLIED
+                    if c11_changed
+                    else CapitalScienceDisposition.ELIGIBLE_NO_CHANGE
+                ),
+                reason="native GEN-C11 robust multi-world MPC evaluated known option geometry",
+                downstream_consumer="CIBO_COMPOUND_PORTFOLIO",
+                consumer_action="PUBLISH_ROBUST_CAPACITY_ENVELOPE",
+                decision_changed=c11_changed,
+                risk_delta_usd=-first_envelope.maximum_required_reserve_stop_risk_usd,
+                margin_delta_usd=-first_envelope.maximum_required_reserve_margin_usd,
+                output_details={
+                    "engine": "plan_genc11_multi_period_capital",
+                    "horizon_steps": genc11.horizon_steps,
+                    "known_option_ids": list(genc11.known_option_ids),
+                    "reserve_stop_risk_usd": format(
+                        first_envelope.maximum_required_reserve_stop_risk_usd, "f"
+                    ),
+                    "reserve_margin_usd": format(
+                        first_envelope.maximum_required_reserve_margin_usd, "f"
+                    ),
+                    "deployable_stop_risk_usd": format(
+                        first_envelope.minimum_deployable_stop_risk_usd, "f"
+                    ),
+                    "deployable_margin_usd": format(
+                        first_envelope.minimum_deployable_margin_usd, "f"
+                    ),
+                    "all_worlds_horizon_coverable": (
+                        first_envelope.all_worlds_horizon_coverable
+                    ),
+                },
+            )
+        )
     else:
-        c11_disposition = CapitalScienceDisposition.JUSTIFIED_NOT_APPLICABLE
-        c11_reason = (
-            "no multi-option competition existed at this decision epoch"
+        receipts.append(
+            _receipt(
+                state=state,
+                function_code="GEN-C11",
+                disposition=CapitalScienceDisposition.JUSTIFIED_NOT_APPLICABLE,
+                reason="current opportunity lacks positive executable risk/margin geometry",
+                downstream_consumer="CIBO_COMPOUND_PORTFOLIO",
+                consumer_action="NO_EXECUTABLE_KNOWN_OPTION",
+                output_details={
+                    "engine": "plan_genc11_multi_period_capital",
+                    "invoked": False,
+                    "reason": "NON_POSITIVE_GEOMETRY",
+                },
+            )
         )
-        c11_action = "NO_MULTI_PERIOD_REALLOCATION_REQUIRED"
-    receipts.append(
-        _receipt(
-            state=state,
-            function_code="GEN-C11",
-            disposition=c11_disposition,
-            reason=c11_reason,
-            downstream_consumer="CIBO_COMPOUND_PORTFOLIO",
-            consumer_action=c11_action,
-        )
-    )
 
-    # GEN-C12: crisis envelope is fail-closed only on objectively exhausted
-    # causal capital state.  It never predicts a crisis from future outcomes.
-    crisis_pause = (
-        state.realized_capital_usd <= 0
-        or state.hard_risk_headroom_usd <= 0
-        or state.margin_headroom_usd <= 0
+    # GEN-C12: invoke the native crisis-capital engine using the same twin and
+    # causal account regime. No future outcome or market probability is used.
+    crisis_factors: list[Genc12CrisisFactor] = []
+    if drawdown_util >= Decimal("0.50"):
+        crisis_factors.append(Genc12CrisisFactor.DRAWDOWN_ACCELERATION)
+    if risk_util >= Decimal("0.80") or margin_util >= Decimal("0.80"):
+        crisis_factors.append(Genc12CrisisFactor.CAPITAL_LOCKUP)
+    if state.giveback_usd > 0:
+        crisis_factors.append(Genc12CrisisFactor.COMPOUND_GIVEBACK)
+    crisis_facts = tuple(
+        Genc12CrisisFact(
+            factor=factor,
+            observed_at=state.decision_at,
+            evidence_sha256=_runtime_sha(
+                "genc12-fact",
+                {"state": state.payload(), "factor": factor.value},
+            ),
+            active=True,
+        )
+        for factor in dict.fromkeys(crisis_factors)
+    )
+    genc12 = plan_genc12_crisis_capital(
+        plan_id=f"genc12:{state.decision_epoch_id}:{state.signal_fingerprint}",
+        evaluated_at=state.decision_at,
+        twin=twin,
+        regime_state=regime_state,
+        crisis_facts=crisis_facts,
+    )
+    c12_allows = Genc12CapitalResponse.NO_NEW_DEPLOYMENT not in genc12.responses
+    c12_changed = (
+        not c12_allows
+        or bool(genc12.active_factors)
+        or genc12.posture is not CiboRegimePosture.STABLE
     )
     receipts.append(
         _receipt(
             state=state,
             function_code="GEN-C12",
             disposition=(
-                CapitalScienceDisposition.FAIL_CLOSED
-                if crisis_pause
+                CapitalScienceDisposition.APPLIED
+                if c12_changed
                 else CapitalScienceDisposition.ELIGIBLE_NO_CHANGE
             ),
-            reason=(
-                "causal capital envelope is exhausted; crisis-capital policy pauses new capital"
-                if crisis_pause
-                else "no causal capital-exhaustion crisis condition is present"
-            ),
+            reason="native GEN-C12 crisis-capital engine evaluated the causal account envelope",
             downstream_consumer="CIBO_COMPOUND_ADMISSION",
             consumer_action=(
-                "PAUSE_NEW_CAPITAL"
-                if crisis_pause
-                else "NO_CRISIS_OVERRIDE"
+                "PAUSE_NEW_CAPITAL" if not c12_allows else "CRISIS_ENVELOPE_ALLOWS_CAPITAL"
             ),
-            decision_changed=crisis_pause,
+            decision_changed=not c12_allows,
+            output_details={
+                "engine": "plan_genc12_crisis_capital",
+                "posture": genc12.posture.value,
+                "active_factors": [item.value for item in genc12.active_factors],
+                "responses": [item.value for item in genc12.responses],
+                "enabled_ce2i_tools": list(genc12.enabled_ce2i_tools),
+                "blocked_ce2i_tools": list(genc12.blocked_ce2i_tools),
+            },
         )
     )
 
-    allow = c4_allows and headroom_allows and not crisis_pause
+    allow = c4_allows and c7_allows and c8_allows and c12_allows
     return CapitalScienceDirective(
         allow_incremental_compound=allow,
         deployable_profit_usd=state.deployable_profit_usd,
