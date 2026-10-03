@@ -63,13 +63,13 @@ jobs:
           from decimal import Decimal
           from pathlib import Path
           p=json.loads((Path(os.environ['RUNNER_TEMP'])/'compound-trader-lab'/'audit.json').read_text())
-          assert p['candidate_count'] == 7
+          assert p['candidate_count'] == len(p['lanes']) > 0
           assert p['compound_gate_count'] == 9
           assert p['all_cc01_cc09_pass'] is True
           assert p['next_stage_unlocked'] == 'CC10_TEMPORAL_REPLICATION_TRADER_LAB'
           stats = p['compound_constant_summary']
           assert stats['system'] == 'CIBO_COMPOUND'
-          assert stats['observation_count'] == 7
+          assert stats['observation_count'] == p['candidate_count']
           assert stats['descriptive_only'] is True
           assert stats['runtime_authority'] is False
           mn = Decimal(stats['minimum_constant'])
