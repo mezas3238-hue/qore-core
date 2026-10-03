@@ -320,6 +320,7 @@ def evaluate_phase22_historical_policy(
         regime_state=regime_state,
         opportunities=opportunities,
         advanced_evidence=advanced_evidence,
+        decision_at=market_decision_at,
         scientific_eligibility=(
             None
             if lab_cibo_free_tool_choice
