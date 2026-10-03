@@ -27,6 +27,9 @@ REQUIRED_TRADERS = (
 )
 REQUIRED_TIMEFRAMES = ("H4", "H1", "M15", "M5", "M1")
 REQUIRED_CROSS_HOLDOUT_PASS_COUNT = 3
+REQUIRED_COGNITIVE_FACULTIES = tuple(f"CF{i:02d}" for i in range(1, 20))
+REQUIRED_CE2I_TOOLS = tuple(f"T{i:02d}" for i in range(1, 21))
+REQUIRED_CAPITAL_SCIENCE = tuple(f"GEN-C{i}" for i in range(1, 15))
 
 
 class ThreeHoldoutResearchError(ValueError):
@@ -88,6 +91,19 @@ def evaluate_candidate(candidate: dict[str, Any]) -> CandidateGateResult:
     fingerprint = candidate.get("configuration_fingerprint")
     if not isinstance(fingerprint, str) or not fingerprint:
         raise ThreeHoldoutResearchError("configuration fingerprint required")
+    if candidate.get("configuration_scope") != "CIBO_ONLY":
+        raise ThreeHoldoutResearchError(
+            "candidate configuration fingerprint must be CIBO-only"
+        )
+    if candidate.get("trader_parameters_changed") is not False:
+        raise ThreeHoldoutResearchError(
+            "Trader parameters must remain frozen during CIBO research"
+        )
+    if candidate.get("trader_profitability_used_for_gate") is not False:
+        raise ThreeHoldoutResearchError(
+            "per-Trader profitability cannot gate CIBO candidates"
+        )
+
     m = candidate.get("measurements")
     if not isinstance(m, dict):
         raise ThreeHoldoutResearchError("candidate measurements required")
@@ -140,6 +156,23 @@ def evaluate_candidate(candidate: dict[str, Any]) -> CandidateGateResult:
         failed.append("PROTECTED_CAPITAL")
     if m.get("all_required_cibo_functions_accounted_for") is not True:
         failed.append("CIBO_FUNCTION_ACCOUNTABILITY")
+    function_behavior = m.get("cibo_function_behavior")
+    if not isinstance(function_behavior, dict):
+        raise ThreeHoldoutResearchError("CIBO function behavior report missing")
+    if tuple(function_behavior.get("cognitive_faculties", ())) != (
+        REQUIRED_COGNITIVE_FACULTIES
+    ):
+        failed.append("CF01_CF19_ACCOUNTABILITY")
+    if tuple(function_behavior.get("ce2i_tools", ())) != REQUIRED_CE2I_TOOLS:
+        failed.append("T01_T20_ACCOUNTABILITY")
+    if tuple(function_behavior.get("capital_science", ())) != (
+        REQUIRED_CAPITAL_SCIENCE
+    ):
+        failed.append("GENC01_GENC14_ACCOUNTABILITY")
+    if function_behavior.get("per_function_observability_complete") is not True:
+        failed.append("PER_FUNCTION_OBSERVABILITY")
+    if m.get("trader_profitability_used_for_gate") is not False:
+        failed.append("TRADER_PROFITABILITY_GATE_FORBIDDEN")
     if m.get("qore_risk_sovereign") is not True:
         failed.append("QORE_RISK_SOVEREIGN")
 
