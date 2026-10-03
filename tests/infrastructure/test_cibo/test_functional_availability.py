@@ -20,6 +20,14 @@ _MARKETS = (
     "ZZZXYZ",
 )
 
+_TRADERS = (
+    "VT31_NAS100",
+    "SCALPER_BTCUSD_V1",
+    "CIBO.USDCAD.RESEARCH",
+    "GENERIC-EURAUD",
+    "PORTFOLIO/CRYPTO_BTC",
+)
+
 _POPULATIONS = (
     "used-holdout",
     "fresh-oos",
@@ -54,3 +62,21 @@ def test_universal_availability_includes_functions_compound_and_portfolio() -> N
     assert any(value.startswith("cc01.") for value in values)
     assert any(value.startswith("cc16.") for value in values)
     assert values[-1].startswith("pc01.")
+
+
+@pytest.mark.parametrize("trader_id", _TRADERS)
+@pytest.mark.parametrize("market_symbol", ("BTCUSD", "USDCAD", "EURAUD", "ZZZXYZ"))
+def test_every_cibo_capability_is_universal_across_trader_and_market_identity(
+    trader_id: str,
+    market_symbol: str,
+) -> None:
+    for function in cibo_functional_receipt.CIBO_TRADER_LAB_FUNCTION_SEQUENCE:
+        availability = cibo_function_availability(
+            function,
+            market_symbol=market_symbol,
+            population="custom-research-v9",
+            trader_id=trader_id,
+        )
+        assert availability.state is CiboFunctionAvailabilityState.UNLOCKED
+        assert availability.scope.trader_id == trader_id
+        assert availability.scope.market_symbol == market_symbol

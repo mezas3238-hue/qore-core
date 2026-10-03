@@ -45,20 +45,17 @@ jobs:
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/full-function-trader-lab"
           python scripts/cibo_full_function_trader_lab_audit.py             --decision-trace "$RUNNER_TEMP/source/decision-trace.json"             --source-head "$SOURCE_HEAD_SHA"             --output "$RUNNER_TEMP/full-function-trader-lab/audit.json"
-      - name: Enforce 20 gates x 7 retained Trader lanes
+      - name: Enforce 20 gates across every retained Trader lane
         run: |
           python - <<'PY'
           import json, os
           from pathlib import Path
           p=json.loads((Path(os.environ['RUNNER_TEMP'])/'full-function-trader-lab'/'audit.json').read_text())
-          assert p['candidate_count'] == 7
+          assert p['candidate_count'] == len(p['lanes']) > 0
           assert p['function_gate_count'] == 20
           assert p['all_functions_pass'] is True
           assert p['next_stage_unlocked'] == 'CIBO_COMPOUND_TRADER_LAB'
-          assert set(p['lanes']) == {
-              'VT08_FOREX','R34_XAUUSD','R38_EURUSD','R43_GBPUSD',
-              'R38_GBPJPY','R42_AUDJPY','VT31_NAS100'
-          }
+          assert all(isinstance(name, str) and name for name in p['lanes'])
           for lane in p['lanes'].values():
               assert lane['status'] == 'PASS'
               assert lane['gate_count'] == 20

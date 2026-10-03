@@ -11,6 +11,7 @@ from datetime import UTC, datetime
 from decimal import ROUND_FLOOR, Decimal
 from enum import StrEnum
 from hashlib import sha256
+from re import fullmatch
 from threading import RLock
 from typing import Protocol
 
@@ -30,7 +31,17 @@ class ProviderRiskBudget(Protocol):
     hard_breach: bool
 
 
+_TRADER_ID_RE = r"[A-Z0-9][A-Z0-9._/-]*"
+
+
 class TraderLineage(StrEnum):
+    """Universal Trader identity with legacy names retained as conveniences.
+
+    Enumeration members are known historical lineages, not an admission list.
+    Any canonical uppercase identity is accepted and cached as a stable
+    pseudo-member so existing enum consumers keep working.
+    """
+
     VT08_FOREX = "VT08_FOREX"
     VT08_INDEX = "VT08_INDEX"
     R34_XAUUSD = "R34_XAUUSD"
@@ -39,6 +50,46 @@ class TraderLineage(StrEnum):
     R38_GBPJPY = "R38_GBPJPY"
     R42_AUDJPY = "R42_AUDJPY"
     VT31_NAS100 = "VT31_NAS100"
+
+    @classmethod
+    def _missing_(cls, value: object) -> TraderLineage | None:
+        if not isinstance(value, str) or fullmatch(_TRADER_ID_RE, value) is None:
+            return None
+        member = str.__new__(cls, value)
+        member._name_ = value
+        member._value_ = value
+        cls._value2member_map_[value] = member
+        return member
+
+
+TraderIdentity = TraderLineage
+
+
+def canonical_trader_lineage(
+    value: TraderLineage | str,
+    *,
+    field_name: str = "trader_id",
+) -> TraderLineage:
+    """Return a stable universal TraderLineage for any canonical identity."""
+
+    if isinstance(value, TraderLineage):
+        return value
+    try:
+        return TraderLineage(value)
+    except (TypeError, ValueError) as error:
+        raise AccountWideRiskError(
+            f"{field_name} must use canonical uppercase Trader identity syntax"
+        ) from error
+
+
+def canonical_trader_identity(
+    value: TraderLineage | str,
+    *,
+    field_name: str = "trader_id",
+) -> str:
+    """Return canonical text without restricting the Trader universe."""
+
+    return canonical_trader_lineage(value, field_name=field_name).value
 
 
 class RiskDecision(StrEnum):
@@ -166,7 +217,7 @@ class CiboCapitalProvenanceLot:
 @dataclass(frozen=True, slots=True)
 class CiboRiskRequest:
     request_id: str
-    trader_id: TraderLineage
+    trader_id: TraderIdentity
     signal_fingerprint: str
     qore_symbol: str
     provider_symbol: str
@@ -197,8 +248,11 @@ class CiboRiskRequest:
         ):
             if not text_value:
                 raise AccountWideRiskError(f"{name} must be non-empty")
-        if type(self.trader_id) is not TraderLineage:
-            raise AccountWideRiskError("trader_id must be a frozen pilot lineage")
+        object.__setattr__(
+            self,
+            "trader_id",
+            canonical_trader_lineage(self.trader_id),
+        )
         for name, decimal_value in (
             ("intended_entry", self.intended_entry),
             ("stop_loss", self.stop_loss),
@@ -266,7 +320,7 @@ class CiboRiskRequest:
 class RiskAuthorization:
     authorization_id: str
     account_binding_id: str
-    trader_id: TraderLineage
+    trader_id: TraderIdentity
     request_id: str
     signal_fingerprint: str
     qore_symbol: str
@@ -294,6 +348,11 @@ class RiskAuthorization:
     capital_provenance: tuple[CiboCapitalProvenanceLot, ...] = ()
 
     def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "trader_id",
+            canonical_trader_lineage(self.trader_id),
+        )
         if type(self.decision) is not RiskDecision:
             raise AccountWideRiskError("decision must be canonical")
         if self.decision is RiskDecision.REJECT:
@@ -369,7 +428,7 @@ def _risk_authorization_fingerprint(
     canonical = "|".join(
         (
             authorization.account_binding_id,
-            authorization.trader_id.value,
+            canonical_trader_identity(authorization.trader_id),
             authorization.signal_fingerprint,
             authorization.provider_symbol,
             authorization.side,
@@ -788,7 +847,7 @@ def _authorization(
     canonical = "|".join(
         (
             snapshot.account_binding_id,
-            request.trader_id.value,
+            canonical_trader_identity(request.trader_id),
             request.signal_fingerprint,
             request.provider_symbol,
             request.side,

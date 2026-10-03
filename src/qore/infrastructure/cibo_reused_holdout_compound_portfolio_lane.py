@@ -32,6 +32,13 @@ from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
     minimum_seed_volume,
 )
+from qore.infrastructure.cibo_capital_science_runtime_bridge import (
+    CapitalSciencePredecisionInput,
+    CapitalScienceReceipt,
+    aggregate_capital_science_receipts,
+    build_capital_science_postrun_receipts,
+    evaluate_capital_science_predecision,
+)
 from qore.infrastructure.cibo_ce2i_phase20_train_prior import (
     build_frozen_train_expectation,
 )
@@ -53,7 +60,8 @@ from qore.infrastructure.cibo_protected_reinvestment_policy import (
 )
 
 LANE_ID = "FULL_CIBO_COMPOUND_PORTFOLIO"
-
+POOL_SCOPE_ACCOUNT = "ACCOUNT"
+POOL_SCOPE_TRADER_LOCAL = "TRADER_LOCAL"
 
 
 @dataclass(frozen=True, slots=True)
@@ -226,9 +234,12 @@ class CompoundPortfolioLaneResult:
     trades: tuple[CompoundPortfolioTrade, ...]
     blocker_reasons: tuple[tuple[str, int], ...]
     function_accountability: tuple[dict[str, object], ...]
+    capital_science_receipts: tuple[dict[str, object], ...] = ()
     rational_redeploy_gate_enabled: bool = False
     noncertifying_research_redeploy_enabled: bool = False
     protected_reinvestment_policy_id: str = ""
+    pool_scope: str = POOL_SCOPE_ACCOUNT
+    seed_multiplier: Decimal = Decimal("1")
     lane_id: str = LANE_ID
     same_core_selection_surface: bool = True
     realized_profit_only: bool = True
@@ -272,6 +283,24 @@ class CompoundPortfolioLaneResult:
         if not isinstance(self.protected_reinvestment_policy_id, str):
             raise CiboCapitalManagementError(
                 "compound protected reinvestment policy id must be str"
+            )
+        if self.pool_scope not in {POOL_SCOPE_ACCOUNT, POOL_SCOPE_TRADER_LOCAL}:
+            raise CiboCapitalManagementError("compound pool scope invalid")
+        if (
+            self.pool_scope == POOL_SCOPE_TRADER_LOCAL
+            and self.cross_trader_compound_deployments
+        ):
+            raise CiboCapitalManagementError(
+                "trader-local compound cannot report cross-Trader deployment"
+            )
+        if (
+            not isinstance(self.seed_multiplier, Decimal)
+            or not self.seed_multiplier.is_finite()
+            or self.seed_multiplier < 1
+            or self.seed_multiplier != self.seed_multiplier.to_integral_value()
+        ):
+            raise CiboCapitalManagementError(
+                "compound seed multiplier must be finite integer Decimal >= 1"
             )
         if not all(
             (
@@ -330,6 +359,7 @@ class CompoundPortfolioLaneResult:
                 for reason, count in self.blocker_reasons
             ],
             "function_accountability": list(self.function_accountability),
+            "capital_science_receipts": list(self.capital_science_receipts),
             "rational_redeploy_gate_enabled": self.rational_redeploy_gate_enabled,
             "noncertifying_research_redeploy_enabled": (
                 self.noncertifying_research_redeploy_enabled
@@ -337,6 +367,8 @@ class CompoundPortfolioLaneResult:
             "protected_reinvestment_policy_id": (
                 self.protected_reinvestment_policy_id
             ),
+            "pool_scope": self.pool_scope,
+            "seed_multiplier": format(self.seed_multiplier, "f"),
             "same_core_selection_surface": self.same_core_selection_surface,
             "realized_profit_only": self.realized_profit_only,
             "floating_pnl_used_as_funding": self.floating_pnl_used_as_funding,
@@ -361,6 +393,8 @@ def run_compound_portfolio_lane(
     research_redeploy_authorizations: tuple[
         CompoundResearchRedeployAuthorization, ...
     ] = (),
+    lab_pool_scope: str = POOL_SCOPE_ACCOUNT,
+    lab_seed_multiplier: Decimal = Decimal("1"),
 ) -> CompoundPortfolioLaneResult:
     """Add causal profit-funded seeds without changing Core policy selection."""
 
@@ -375,6 +409,17 @@ def run_compound_portfolio_lane(
     if type(lab_allow_noncertifying_research_redeploy) is not bool:
         raise CiboCapitalManagementError(
             "lab_allow_noncertifying_research_redeploy must be bool"
+        )
+    if lab_pool_scope not in {POOL_SCOPE_ACCOUNT, POOL_SCOPE_TRADER_LOCAL}:
+        raise CiboCapitalManagementError("lab_pool_scope is invalid")
+    if (
+        not isinstance(lab_seed_multiplier, Decimal)
+        or not lab_seed_multiplier.is_finite()
+        or lab_seed_multiplier < 1
+        or lab_seed_multiplier != lab_seed_multiplier.to_integral_value()
+    ):
+        raise CiboCapitalManagementError(
+            "lab_seed_multiplier must be finite integer Decimal >= 1"
         )
     if any(
         not isinstance(item, CompoundRedeployAuthorization)
@@ -418,13 +463,16 @@ def run_compound_portfolio_lane(
     initial = FROZEN_CIBO_USD60_SIX_MONTH_PROTOCOL.initial_capital_usd
     core_realized = initial
     pool = Decimal(0)
+    pool_by_trader: dict[str, Decimal] = defaultdict(Decimal)
     incremental = Decimal(0)
     source_traders: set[str] = set()
     risk_engine = AccountWideRiskEngine()
     open_rows: dict[str, _Open] = {}
     trades: list[CompoundPortfolioTrade] = []
     blockers: Counter[str] = Counter()
+    capital_science_receipts: list[CapitalScienceReceipt] = []
     selected = allowed = reduced = rejected = cross_trader = 0
+    peak_realized_capital = initial
 
     outcomes = {item.signal_fingerprint: item for item in plan.outcome_events}
     core_settlements = sorted(
@@ -470,16 +518,23 @@ def run_compound_portfolio_lane(
         )
 
     def settle_until(clock: datetime) -> None:
-        nonlocal core_index, core_realized, pool, incremental
+        nonlocal core_index, core_realized, pool, incremental, peak_realized_capital
         while (
             core_index < len(core_settlements)
             and core_settlements[core_index].capital_released_at <= clock
         ):
             item = core_settlements[core_index]
             core_realized += item.realized_net_pnl_usd
+            peak_realized_capital = max(
+                peak_realized_capital,
+                core_realized + incremental,
+            )
             if item.realized_net_pnl_usd > 0:
-                pool += item.realized_net_pnl_usd
-                source_traders.add(item.trader_id)
+                if lab_pool_scope == POOL_SCOPE_TRADER_LOCAL:
+                    pool_by_trader[item.trader_id] += item.realized_net_pnl_usd
+                else:
+                    pool += item.realized_net_pnl_usd
+                    source_traders.add(item.trader_id)
             core_index += 1
 
         due = sorted(
@@ -493,12 +548,23 @@ def run_compound_portfolio_lane(
                 * item.authorized_stop_risk_usd
                 - item.provider_cost_usd
             )
-            pool += pnl
+            if lab_pool_scope == POOL_SCOPE_TRADER_LOCAL:
+                pool_by_trader[item.trader_id] += pnl
+                if pool_by_trader[item.trader_id] < 0:
+                    raise CiboCapitalManagementError(
+                        "trader-local compound pool became negative"
+                    )
+            else:
+                pool += pnl
+                if pool < 0:
+                    raise CiboCapitalManagementError(
+                        "compound pool became negative despite fail-closed funding"
+                    )
             incremental += pnl
-            if pool < 0:
-                raise CiboCapitalManagementError(
-                    "compound pool became negative despite fail-closed funding"
-                )
+            peak_realized_capital = max(
+                peak_realized_capital,
+                core_realized + incremental,
+            )
             cross = any(
                 source != item.trader_id
                 for source in item.source_traders_before_entry
@@ -566,7 +632,11 @@ def run_compound_portfolio_lane(
                     continue
             candidate = by_signal[signal]
             opportunity = candidate.projection.candidate.capital_input.opportunity
-            volume = minimum_seed_volume(opportunity)
+            volume = minimum_seed_volume(opportunity) * lab_seed_multiplier
+            if volume > opportunity.maximum_volume:
+                blockers["SHADOW_SEED_MULTIPLIER_EXCEEDS_MAXIMUM_VOLUME"] += 1
+                rejected += 1
+                continue
             risk = volume * opportunity.stop_loss_per_volume
             margin = volume * opportunity.margin_per_volume
             cost = (
@@ -574,39 +644,109 @@ def run_compound_portfolio_lane(
                 * volume
             )
             loss_reserve = protected_loss_reserve_usd(risk)
+            committed_rows = (
+                tuple(
+                    item
+                    for item in open_rows.values()
+                    if item.trader_id == candidate.trader_id
+                )
+                if lab_pool_scope == POOL_SCOPE_TRADER_LOCAL
+                else tuple(open_rows.values())
+            )
             committed_loss = sum(
                 (
                     item.authorized_stop_risk_usd
                     + item.provider_cost_usd
                     + item.protected_loss_reserve_usd
-                    for item in open_rows.values()
+                    for item in committed_rows
                 ),
                 Decimal(0),
             )
-            available = max(Decimal(0), pool - committed_loss)
-            if risk + cost + loss_reserve > available:
-                blockers[
-                    "REALIZED_PROFIT_POOL_BELOW_SEED_COST_AND_LOSS_RESERVE"
-                ] += 1
-                rejected += 1
-                continue
+            funding_pool = (
+                pool_by_trader[candidate.trader_id]
+                if lab_pool_scope == POOL_SCOPE_TRADER_LOCAL
+                else pool
+            )
+            available = max(Decimal(0), funding_pool - committed_loss)
             equity = max(Decimal(0), core_realized + incremental)
             if equity <= 0:
                 blockers["CURRENT_REALIZED_CAPITAL_NOT_POSITIVE"] += 1
                 rejected += 1
                 continue
             dynamic_limit = maximum_reinvestment_capital_need_usd(equity)
+            expectation = build_frozen_train_expectation(
+                trader_id=opportunity.trader_id,
+                stop_risk_usd=risk,
+                as_of=epoch.market_decision_at,
+            )
+
+            core_open_risk_cs, core_open_margin_cs = core_open_capacity(
+                epoch.market_decision_at
+            )
+            compound_open_risk_cs = sum(
+                (item.authorized_stop_risk_usd for item in open_rows.values()),
+                Decimal(0),
+            )
+            compound_open_margin_cs = sum(
+                (item.authorized_margin_usd for item in open_rows.values()),
+                Decimal(0),
+            )
+            total_open_risk_cs = core_open_risk_cs + compound_open_risk_cs
+            total_open_margin_cs = core_open_margin_cs + compound_open_margin_cs
+            capital_science = evaluate_capital_science_predecision(
+                CapitalSciencePredecisionInput(
+                    decision_epoch_id=epoch.decision_epoch_id,
+                    signal_fingerprint=signal,
+                    trader_id=candidate.trader_id,
+                    decision_at=epoch.market_decision_at,
+                    realized_capital_usd=equity,
+                    peak_realized_capital_usd=max(
+                        peak_realized_capital,
+                        equity,
+                    ),
+                    realized_profit_pool_usd=funding_pool,
+                    protected_capacity_usd=min(funding_pool, committed_loss),
+                    open_stop_risk_usd=total_open_risk_cs,
+                    open_margin_usd=total_open_margin_cs,
+                    requested_stop_risk_usd=risk,
+                    requested_margin_usd=margin,
+                    provider_cost_usd=cost,
+                    expected_net_value_usd=expectation.expected_net_value_usd,
+                    expected_capital_minutes=expectation.expected_capital_minutes,
+                    hard_risk_headroom_usd=max(
+                        Decimal(0),
+                        equity - total_open_risk_cs,
+                    ),
+                    margin_headroom_usd=max(
+                        Decimal(0),
+                        equity - total_open_margin_cs,
+                    ),
+                    competing_candidates=len(selected_signals),
+                )
+            )
+            capital_science_receipts.extend(capital_science.receipts)
+            available = min(
+                available,
+                capital_science.deployable_profit_usd,
+            )
+            if not capital_science.allow_incremental_compound:
+                blockers[
+                    "CAPITAL_SCIENCE_PREDECISION_ABSTAINED_OR_FAIL_CLOSED"
+                ] += 1
+                rejected += 1
+                continue
+            if risk + cost + loss_reserve > available:
+                blockers[
+                    "REALIZED_PROFIT_POOL_BELOW_SEED_COST_AND_LOSS_RESERVE"
+                ] += 1
+                rejected += 1
+                continue
             if risk + cost > dynamic_limit:
                 blockers[
                     "DYNAMIC_CURRENT_CAPITAL_REINVESTMENT_LIMIT_EXCEEDED"
                 ] += 1
                 rejected += 1
                 continue
-            expectation = build_frozen_train_expectation(
-                trader_id=opportunity.trader_id,
-                stop_risk_usd=risk,
-                as_of=epoch.market_decision_at,
-            )
             if not protected_reinvestment_candidate_allowed(
                 side=opportunity.side,
                 capital_need_usd=risk + cost,
@@ -698,7 +838,12 @@ def run_compound_portfolio_lane(
             else:
                 reduced += 1
             event = outcomes[signal]
-            source_snapshot = tuple(sorted(source_traders))
+            source_snapshot = (
+                (candidate.trader_id,)
+                if lab_pool_scope == POOL_SCOPE_TRADER_LOCAL
+                and pool_by_trader[candidate.trader_id] > 0
+                else tuple(sorted(source_traders))
+            )
             if any(item != candidate.trader_id for item in source_snapshot):
                 cross_trader += 1
             risk_engine.record_full_fill(auth.authorization_id)
@@ -770,12 +915,47 @@ def run_compound_portfolio_lane(
         if item.realized_net_pnl_usd > 0
     )
     applied = len(trades)
+
+    final_observed_at = max(
+        [epoch.market_decision_at for epoch in plan.epochs]
+        + [item.capital_released_at for item in core_settlements]
+        + [item.exit_at for item in trades]
+    )
+    postrun_receipts = build_capital_science_postrun_receipts(
+        observed_at=final_observed_at,
+        ending_capital_usd=core_execution.final_realized_capital_usd + incremental,
+        net_realized_pnl_usd=(
+            core_execution.final_realized_capital_usd + incremental - initial
+        ),
+        settlement_rows=tuple(
+            (
+                item.signal_fingerprint,
+                item.trader_id,
+                item.realized_net_pnl_usd,
+            )
+            for item in core_execution.books.cma_settlement.settlements
+        )
+        + tuple(
+            (
+                item.signal_fingerprint,
+                item.trader_id,
+                item.incremental_realized_pnl_usd,
+            )
+            for item in trades
+        ),
+    )
+    capital_science_receipts.extend(postrun_receipts)
+    capital_science_functions = aggregate_capital_science_receipts(
+        capital_science_receipts
+    )
+
     functions = (
         {
             "function_code": "GEN-C1_COMPOUND_CAPITAL",
             "function_type": "COMPOUND",
             "status": "APPLIED" if admitted else "FAIL_CLOSED",
             "eligible_epochs": len(plan.epochs),
+            "invoked_count": len(plan.epochs),
             "executed_count": admitted,
             "blocked_count": 0 if admitted else len(plan.epochs),
             "reason": (
@@ -790,6 +970,7 @@ def run_compound_portfolio_lane(
             "function_type": "COMPOUND_PORTFOLIO",
             "status": "APPLIED" if applied else "FAIL_CLOSED",
             "eligible_epochs": selected,
+            "invoked_count": selected,
             "executed_count": applied,
             "blocked_count": rejected,
             "reason": (
@@ -809,6 +990,7 @@ def run_compound_portfolio_lane(
             "function_type": "COMPOUND",
             "status": "APPLIED" if applied else "FAIL_CLOSED",
             "eligible_epochs": selected,
+            "invoked_count": selected,
             "executed_count": applied,
             "blocked_count": rejected,
             "reason": (
@@ -827,6 +1009,7 @@ def run_compound_portfolio_lane(
             "function_type": "COMPOUND_PORTFOLIO",
             "status": "JUSTIFIED_NOT_APPLICABLE",
             "eligible_epochs": 0,
+            "invoked_count": len(plan.epochs),
             "executed_count": 0,
             "blocked_count": 0,
             "reason": (
@@ -835,7 +1018,7 @@ def run_compound_portfolio_lane(
                 "new scarcity-ranking policy"
             ),
         },
-    )
+    ) + capital_science_functions
 
     return CompoundPortfolioLaneResult(
         core_ending_capital_usd=core_execution.final_realized_capital_usd,
@@ -856,9 +1039,14 @@ def run_compound_portfolio_lane(
         trades=tuple(trades),
         blocker_reasons=tuple(sorted(blockers.items())),
         function_accountability=functions,
+        capital_science_receipts=tuple(
+            item.payload() for item in capital_science_receipts
+        ),
         rational_redeploy_gate_enabled=lab_require_rational_redeploy,
         noncertifying_research_redeploy_enabled=(
             lab_allow_noncertifying_research_redeploy
         ),
         protected_reinvestment_policy_id=POLICY_ID,
+        pool_scope=lab_pool_scope,
+        seed_multiplier=lab_seed_multiplier,
     )

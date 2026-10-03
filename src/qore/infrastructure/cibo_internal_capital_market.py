@@ -22,7 +22,11 @@ from decimal import Decimal
 from enum import StrEnum
 from itertools import combinations
 
-from qore.infrastructure.account_wide_risk import TraderLineage
+from qore.infrastructure.account_wide_risk import (
+    TraderIdentity,
+    canonical_trader_identity,
+    canonical_trader_lineage,
+)
 from qore.infrastructure.cibo_account_capital_mission import (
     CiboAccountCapitalIdentity,
 )
@@ -486,7 +490,7 @@ class Genc6PortfolioStateSnapshot:
 class Genc6MarginalCapitalCandidate:
     candidate_id: str
     account_identity: CiboAccountCapitalIdentity
-    trader_id: TraderLineage
+    trader_id: TraderIdentity
     qore_symbol: str
     provider_symbol: str
     signal_fingerprint: str
@@ -521,10 +525,11 @@ class Genc6MarginalCapitalCandidate:
             raise CiboCompoundCapitalError(
                 "GEN-C6 candidate account identity is invalid"
             )
-        if type(self.trader_id) is not TraderLineage:
-            raise CiboCompoundCapitalError(
-                "GEN-C6 candidate Trader identity is invalid"
-            )
+        object.__setattr__(
+            self,
+            "trader_id",
+            canonical_trader_lineage(self.trader_id),
+        )
         for name in ("decision_at", "valid_from", "valid_until"):
             _aware(getattr(self, name), f"candidate {name}")
         if self.valid_until < self.valid_from:
@@ -566,7 +571,9 @@ class Genc6MarginalCapitalCandidate:
             raise CiboCompoundCapitalError(
                 "GEN-C6 candidate GEN-C4 account binding drift"
             )
-        if self.marginal_evidence.trader_id is not self.trader_id:
+        if canonical_trader_identity(
+            self.marginal_evidence.trader_id
+        ) != canonical_trader_identity(self.trader_id):
             raise CiboCompoundCapitalError(
                 "GEN-C6 candidate GEN-C4 Trader binding drift"
             )
@@ -1516,7 +1523,7 @@ def genc6_candidate_set_sha256(
                 "provider_key": item.account_identity.provider_key,
                 "account_ref": item.account_identity.account_ref,
             },
-            "trader_id": item.trader_id.value,
+            "trader_id": canonical_trader_identity(item.trader_id),
             "qore_symbol": item.qore_symbol,
             "provider_symbol": item.provider_symbol,
             "signal_fingerprint": item.signal_fingerprint,
@@ -1866,7 +1873,7 @@ def _t19_ledger_sha256(ledger: PortfolioAllocationLedger) -> str:
         "reservations": [
             {
                 "signal_fingerprint": item.signal_fingerprint,
-                "trader_id": item.trader_id.value,
+                "trader_id": canonical_trader_identity(item.trader_id),
                 "qore_symbol": item.qore_symbol,
                 "stop_risk_usd": str(item.stop_risk_usd),
                 "margin_usd": str(item.margin_usd),

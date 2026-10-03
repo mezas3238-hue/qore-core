@@ -28,6 +28,7 @@ def build_cibo_profitability_decision_trace(
     *,
     execution: Phase22HistoricalExecutionReport,
     compound_function_accountability: Iterable[dict[str, object]] = (),
+    capital_science_receipts: Iterable[dict[str, object]] = (),
 ) -> dict[str, object]:
     """Reconstruct the observed economic path without changing it."""
 
@@ -53,6 +54,7 @@ def build_cibo_profitability_decision_trace(
         for item in books.t20_release.release_chain
     }
     genc = _genc_accountability(compound_function_accountability)
+    genc_runtime_by_signal = _genc_runtime_by_signal(capital_science_receipts)
 
     rows: list[dict[str, object]] = []
     for decision in sorted(
@@ -282,8 +284,9 @@ def build_cibo_profitability_decision_trace(
                         ),
                     },
                     "capital_science": {
-                        "scope": "LANE_LEVEL_STATUS_NOT_PER_OPPORTUNITY",
+                        "scope": "RUNTIME_RECEIPTS_PLUS_LANE_AGGREGATION",
                         "capabilities": genc,
+                        "runtime_receipts": genc_runtime_by_signal.get(signal, []),
                     },
                     "allocation": {
                         "selected_by_cibo_policy": selected,
@@ -387,7 +390,15 @@ def build_cibo_profitability_decision_trace(
                         }
                     ),
                     "post_outcome_learning": {
-                        "status": "NOT_INTEGRATED_IN_CURRENT_ECONOMIC_REPLAY",
+                        "status": (
+                            "INTEGRATED_POST_OUTCOME_MEMORY"
+                            if any(
+                                item.get("function_code") == "GEN-C13"
+                                and item.get("stage") == "POST_OUTCOME"
+                                for item in genc_runtime_by_signal.get(signal, [])
+                            )
+                            else "NO_SETTLED_GEN_C13_EPISODE_FOR_SIGNAL"
+                        ),
                         "same_trade_decision_mutated": False,
                     },
                 }
@@ -417,11 +428,58 @@ def build_cibo_profitability_decision_trace(
             "real_capital": False,
             "production": False,
             "merge_authority": False,
+            "capital_science_runtime_receipts_bound": True,
         },
         "opportunities": rows,
     }
     payload["trace_sha256"] = _fingerprint(payload)
     return payload
+
+
+
+def _genc_runtime_by_signal(
+    rows: Iterable[dict[str, object]],
+) -> dict[str, list[dict[str, object]]]:
+    """Validate and group durable GEN-C runtime receipts by opportunity."""
+
+    out: dict[str, list[dict[str, object]]] = {}
+    for raw in rows:
+        if not isinstance(raw, dict):
+            raise CiboCapitalManagementError(
+                "profitability trace Capital Science runtime receipt invalid"
+            )
+        function_code = raw.get("function_code")
+        signal = raw.get("signal_fingerprint")
+        if function_code not in _GENC_CODES:
+            raise CiboCapitalManagementError(
+                "profitability trace Capital Science function code invalid"
+            )
+        if not isinstance(signal, str) or not signal:
+            raise CiboCapitalManagementError(
+                "profitability trace Capital Science signal identity missing"
+            )
+        if raw.get("outcome_used_for_same_decision") is not False:
+            raise CiboCapitalManagementError(
+                "profitability trace rejects outcome-aware Capital Science receipt"
+            )
+        if raw.get("qore_risk_bypassed") is not False:
+            raise CiboCapitalManagementError(
+                "profitability trace rejects Capital Science Risk bypass"
+            )
+        if raw.get("productive_authority") is not False:
+            raise CiboCapitalManagementError(
+                "profitability trace rejects productive Capital Science authority"
+            )
+        out.setdefault(signal, []).append(dict(raw))
+    for signal in out:
+        out[signal].sort(
+            key=lambda item: (
+                str(item.get("stage")),
+                str(item.get("function_code")),
+                str(item.get("output_sha256")),
+            )
+        )
+    return out
 
 
 def _genc_accountability(

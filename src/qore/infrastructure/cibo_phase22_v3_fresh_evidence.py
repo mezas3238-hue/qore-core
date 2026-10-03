@@ -61,14 +61,26 @@ def source_binding(symbol: str, timeframe: str) -> Phase22V3SourceBinding:
     return matches[0]
 
 
+def _unique_source_binding_for_symbol(symbol: str) -> Phase22V3SourceBinding:
+    matches = tuple(
+        item
+        for item in PHASE22_V3_SOURCE_RECEIPT.bindings
+        if item.symbol == symbol
+    )
+    if len(matches) != 1:
+        raise CiboCapitalManagementError(
+            "V3 source binding missing or ambiguous for symbol"
+        )
+    return matches[0]
+
+
 def source_evidence_ids(
     *,
     trader_id: str,
     symbol: str,
 ) -> tuple[str, ...]:
     parity = parity_receipt(trader_id)
-    timeframe = "M1" if trader_id == "VT31_NAS100" else "M5"
-    source = source_binding(symbol, timeframe)
+    source = _unique_source_binding_for_symbol(symbol)
     values = (
         phase22_v3_source_receipt_sha256(),
         source.artifact_digest,
@@ -86,8 +98,6 @@ def native_trader_evidence(
     payload: Mapping[str, object],
     lane_artifact_sha256: str,
 ) -> Phase22FreshTraderEvidence:
-    if trader_id not in {"VT08_FOREX", "VT31_NAS100"}:
-        raise CiboCapitalManagementError("V3 native Trader drift")
     if (
         payload.get("candidate_id") != NEXT_CANDIDATE_ID
         or payload.get("trader_id") != trader_id
@@ -109,10 +119,8 @@ def native_trader_evidence(
     for raw in rows:
         row = dict(raw)
         symbol = str(row.get("symbol", ""))
-        if not symbol or (
-            trader_id == "VT31_NAS100" and symbol != "NAS100"
-        ):
-            raise CiboCapitalManagementError("V3 native symbol drift")
+        if not symbol:
+            raise CiboCapitalManagementError("V3 native symbol missing")
         if str(row.get("methodology_sha256", "")) != parity.parameter_sha256:
             raise CiboCapitalManagementError("V3 native methodology drift")
         opportunities.append(

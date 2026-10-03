@@ -26,7 +26,6 @@ from pathlib import Path
 from cibo_cognitive_trader_lab_audit import (
     Audit as CognitiveAudit,
     PHASES as COGNITIVE_PHASES,
-    TRADERS,
 )
 
 from qore.governance.cibo.ceo_dialogue import CiboCeoDialogue, CiboCeoMode
@@ -212,7 +211,8 @@ class FullFunctionAudit:
         bootstrap = CognitiveAudit(trace, source_head)
         bootstrap.run_phase(COGNITIVE_PHASES[0], bootstrap.p01)
         self.contexts = bootstrap.contexts
-        self.lanes = {trader: LaneState() for trader in TRADERS}
+        self.traders = bootstrap.traders
+        self.lanes = {trader: LaneState() for trader in self.traders}
 
     def _gate_time(self, ctx: object, gate: CiboTraderLabFunctionGate):
         lifecycle = ctx.lifecycle
@@ -238,7 +238,7 @@ class FullFunctionAudit:
     def _run_gate(self, gate: CiboTraderLabFunctionGate, executor) -> None:
         if gate not in FUNCTION_GATES:
             raise RuntimeError(f"{gate.value} is not a CF gate")
-        for trader in TRADERS:
+        for trader in self.traders:
             ctx = self.contexts[trader]
             lane = self.lanes[trader]
             now = self._gate_time(ctx, gate)
@@ -794,7 +794,7 @@ class FullFunctionAudit:
             self._run_gate(gate, method)
 
         lanes: dict[str, object] = {}
-        for trader in TRADERS:
+        for trader in self.traders:
             lane = self.lanes[trader]
             passed = tuple(item["gate"] for item in lane.reports if item["status"] == "PASS")
             if len(passed) != 20:
@@ -813,7 +813,7 @@ class FullFunctionAudit:
             "schema": "qore.cibo.full-function-trader-lab-audit.v1",
             "source_trace_sha256": self.trace.get("trace_sha256"),
             "source_head_sha": self.source_head,
-            "candidate_count": len(TRADERS),
+            "candidate_count": len(self.traders),
             "function_gate_count": len(FUNCTION_GATES),
             "all_functions_pass": True,
             "lanes": lanes,
