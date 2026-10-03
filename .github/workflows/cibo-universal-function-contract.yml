@@ -1,0 +1,66 @@
+name: QORE CIBO Universal Function Contract
+
+on:
+  push:
+    branches:
+      - agent/cibo-profitability-lab-001
+    paths:
+      - '.github/workflows/cibo-universal-function-contract.yml'
+      - 'src/qore/infrastructure/cibo/**'
+      - 'src/qore/infrastructure/trader_lab/cibo_functional_receipt.py'
+      - 'tests/infrastructure/test_cibo/**'
+      - 'tests/infrastructure/trader_lab/test_cibo_functional_receipt.py'
+      - 'tests/infrastructure/test_cibo_trader_manager.py'
+      - 'tests/governance/test_cibo_executive_dialogue.py'
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-universal-function-contract.yml'
+      - 'src/qore/infrastructure/cibo/**'
+      - 'src/qore/infrastructure/trader_lab/cibo_functional_receipt.py'
+      - 'tests/infrastructure/test_cibo/**'
+      - 'tests/infrastructure/trader_lab/test_cibo_functional_receipt.py'
+      - 'tests/infrastructure/test_cibo_trader_manager.py'
+      - 'tests/governance/test_cibo_executive_dialogue.py'
+
+permissions:
+  contents: read
+
+jobs:
+  universal-function-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Compile universal authority boundary
+        run: |
+          python -m compileall -q \
+            src/qore/infrastructure/cibo \
+            src/qore/infrastructure/trader_lab/cibo_functional_receipt.py
+      - name: Prove permanent universal availability
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo/test_functional_availability.py
+      - name: Prove Trader Lab authority and no gate skipping
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_cibo_functional_receipt.py
+      - name: Regress full CF01-CF20 implementation surface
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo \
+            tests/infrastructure/test_cibo_trader_manager.py \
+            tests/governance/test_cibo_executive_dialogue.py
+      - name: Static integrity
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo/contracts.py \
+            src/qore/infrastructure/cibo/functional_availability.py \
+            src/qore/infrastructure/trader_lab/cibo_functional_receipt.py \
+            tests/infrastructure/test_cibo/test_functional_availability.py \
+            tests/infrastructure/trader_lab/test_cibo_functional_receipt.py
