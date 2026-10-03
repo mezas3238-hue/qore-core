@@ -106,9 +106,11 @@ def apply_advanced_ce2i_economic_effects(
     hard_risk_headroom_usd: Decimal,
     margin_headroom_usd: Decimal,
 ) -> AdvancedCe2iEconomicApplication:
-    """Bind authorized T03/T08/T16 effects into allocation economics.
+    """Bind authorized T02/T03/T08/T16 effects into allocation economics.
 
-    T04 remains observational here because changing true stop risk without
+    T02 keeps the Trader stop geometry unchanged and scales the frozen causal
+    structural expectation proportionally with provider-step exposure. T04
+    remains observational here because changing true stop risk without
     rebuilding the causal expectation would create an internally inconsistent
     candidate.  It may be promoted only with an explicit expectation-repricing
     contract.
@@ -143,6 +145,61 @@ def apply_advanced_ce2i_economic_effects(
         for decision in assessment.decisions:
             if decision.disposition is not AdvancedToolDisposition.APPLIED:
                 continue
+            if decision.tool_code == "T02":
+                target = decision.target_stop_risk_usd
+                if target is None:
+                    raise CiboCapitalManagementError(
+                        "applied T02 must carry target_stop_risk_usd"
+                    )
+                if target < candidate.stop_risk_usd:
+                    raise CiboCapitalManagementError(
+                        "T02 cannot reduce candidate stop risk in leverage reducer"
+                    )
+                if target > candidate.stop_risk_usd:
+                    ratio = target / candidate.stop_risk_usd
+                    target_margin = candidate.margin_usd * ratio
+                    target_concentration = (
+                        candidate.concentration_risk_usd * ratio
+                    )
+                    expectation = replace(
+                        candidate.expectation,
+                        evidence_id=(
+                            candidate.expectation.evidence_id
+                            + ":t02:"
+                            + str(decision.selected_id)
+                        ),
+                        expected_net_value_usd=(
+                            candidate.expectation.expected_net_value_usd
+                            * ratio
+                        ),
+                    )
+                    effects.extend(
+                        (
+                            AdvancedCe2iCandidateEconomicEffect(
+                                signal_fingerprint=candidate.signal_fingerprint,
+                                tool_code="T02",
+                                field_name="stop_risk_usd",
+                                before_usd=candidate.stop_risk_usd,
+                                after_usd=target,
+                                reason=decision.reason,
+                            ),
+                            AdvancedCe2iCandidateEconomicEffect(
+                                signal_fingerprint=candidate.signal_fingerprint,
+                                tool_code="T02",
+                                field_name="margin_usd",
+                                before_usd=candidate.margin_usd,
+                                after_usd=target_margin,
+                                reason=decision.reason,
+                            ),
+                        )
+                    )
+                    candidate = replace(
+                        candidate,
+                        expectation=expectation,
+                        stop_risk_usd=target,
+                        margin_usd=target_margin,
+                        concentration_risk_usd=target_concentration,
+                    )
             if decision.tool_code == "T03":
                 target = decision.target_margin_usd
                 if target is None:
