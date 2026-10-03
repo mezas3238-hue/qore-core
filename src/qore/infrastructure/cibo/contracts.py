@@ -9,16 +9,14 @@ Authority-root law (Correction 003):
 
 - ``PUBLICLY CONSTRUCTIBLE RECORD != AUTHORITY-ROOTED ATTESTATION``
 - ``TYPE VALIDITY != PROVENANCE AUTHENTICITY``
-- ``CIBO FUNCTIONS != RISK / MARKET / ECONOMIC / LAB CERTIFICATION AUTHORITY``
-- ``NO AUTHORITY ROOT -> EVIDENCE_DEPENDENT / FAIL CLOSED``
+- ``CIBO FUNCTIONS != TRADER LAB APPROVAL AUTHORITY``
+- ``NO TRADER LAB PASS RECEIPT -> EVIDENCE_DEPENDENT / FAIL CLOSED``
 
-A well-typed producer value record (a resolved ``risk.`` ``FunctionalDecision``, a
-qualified market observation, or a research economic result) is a *public value
-record*, not a receipt proving the owning authority emitted it. QORE currently
-exposes no authority-rooted issuance/receipt/verifier boundary for any of the four
-governed kinds, so CIBO Functions cannot establish provenance and therefore cannot
-manufacture ``SUFFICIENT`` governed evidence. Every such kind surfaces through the
-explicit fail-closed ``EVIDENCE_DEPENDENT`` seam instead.
+A well-typed producer value record is still only a public value record.  CIBO may
+treat evidence as ``SUFFICIENT`` only when Trader Lab has executed the exact CIBO
+function gate, observed PASS, and issued a sealed chained receipt.  CIBO cannot
+mint that receipt, skip the preceding function, or convert FAIL into PASS.  Owner
+authority remains above Trader Lab.
 """
 
 from __future__ import annotations
@@ -80,12 +78,10 @@ class CiboFunctionalAuthority(StrEnum):
 class CiboEvidenceStatus(StrEnum):
     """Evidence-sufficiency status a functional step may conclude.
 
-    ``SUFFICIENT`` remains in the catalog only as the *external-authority-injected*
-    outcome: a CIBO Function is not a Risk / Market / Economic / Lab certification
-    authority and has no authority-rooted receipt, so ``CiboFunctionalEvidence``
-    refuses to construct a SUFFICIENT assessment. Every CIBO-manufacturable
-    evidence-bearing conclusion is therefore ``EVIDENCE_DEPENDENT`` (an explicit
-    external-authority dependency seam) or a fail-closed negative status.
+    ``SUFFICIENT`` is an external-authority-injected outcome.  It is valid only
+    with a sealed Trader Lab PASS receipt for the exact sequential CIBO function
+    gate.  CIBO cannot self-mint such a receipt; without it, evidence remains
+    ``EVIDENCE_DEPENDENT`` or a fail-closed negative status.
     """
 
     SUFFICIENT = "sufficient"
