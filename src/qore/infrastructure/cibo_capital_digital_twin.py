@@ -273,10 +273,8 @@ class Genc10ObservedCapitalTwin:
             )
         _aware(self.captured_at, "captured_at")
         _aware(self.frozen_at, "frozen_at")
-        if self.captured_at < self.frozen_at:
-            raise CiboCompoundCapitalError(
-                "GEN-C10 observed twin cannot predate policy freeze"
-            )
+        # frozen_at versions the Digital Twin contract; it does not forbid
+        # representing an earlier causal account state during historical replay.
         if self.policy_id != GENC10_POLICY_ID:
             raise CiboCompoundCapitalError(
                 "GEN-C10 twin policy identity drift"
