@@ -43,6 +43,9 @@ from qore.infrastructure.cibo_capital_management_authority import (
     minimum_seed_volume,
     plan_minimal_seed,
 )
+from qore.infrastructure.cibo_ce2i_advanced_capital_tools import (
+    StructuralLeverageEvidence,
+)
 from qore.infrastructure.cibo_ce2i_full_surface import (
     AdvancedOpportunityEvidence,
     AdvancedPortfolioEvidence,
@@ -388,6 +391,13 @@ def execute_phase22_chronological_replay(
     lab_t02_research_admission_filter: (
         Callable[[TraderOpportunityEnvelope, datetime], bool] | None
     ) = None,
+    lab_t02_research_evidence_builder: (
+        Callable[
+            [TraderOpportunityEnvelope, datetime, Decimal],
+            StructuralLeverageEvidence | None,
+        ]
+        | None
+    ) = None,
 ) -> Phase22HistoricalExecutionReport:
     """Run the frozen USD60 policy/Risk/settlement path chronologically."""
 
@@ -416,6 +426,15 @@ def execute_phase22_chronological_replay(
         if not callable(lab_t02_research_admission_filter):
             raise CiboCapitalManagementError(
                 "T02 research admission filter must be callable"
+            )
+    if lab_t02_research_evidence_builder is not None:
+        if not lab_enable_t02_released_capacity:
+            raise CiboCapitalManagementError(
+                "T02 research evidence builder requires T02 lab capacity mode"
+            )
+        if not callable(lab_t02_research_evidence_builder):
+            raise CiboCapitalManagementError(
+                "T02 research evidence builder must be callable"
             )
     if amendment is None:
         amendment = canonical_phase22_historical_economics_amendment()
@@ -589,11 +608,18 @@ def execute_phase22_chronological_replay(
                 )
                 if incremental_risk <= 0 or remaining_released < incremental_risk:
                     continue
-                structural = build_t02_structural_leverage_evidence(
-                    opportunity=opportunity,
-                    observed_at=epoch.market_decision_at,
-                    released_risk_capacity_usd=incremental_risk,
-                )
+                if lab_t02_research_evidence_builder is None:
+                    structural = build_t02_structural_leverage_evidence(
+                        opportunity=opportunity,
+                        observed_at=epoch.market_decision_at,
+                        released_risk_capacity_usd=incremental_risk,
+                    )
+                else:
+                    structural = lab_t02_research_evidence_builder(
+                        opportunity,
+                        epoch.market_decision_at,
+                        incremental_risk,
+                    )
                 if structural is None:
                     continue
                 if (
