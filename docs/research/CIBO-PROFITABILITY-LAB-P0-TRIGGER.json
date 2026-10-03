@@ -13,8 +13,8 @@
   "production": false,
   "merge_authority": false,
   "outcome_aware_tuning": false,
-  "retrigger_for_head": "3922a7348b9b33eae8ceb92ec0a9ba5dceb19785",
-  "retrigger_reason": "Re-run V2 noncertifying research redeploy after import-order-only static repair; economic policy and authorization semantics unchanged.",
+  "retrigger_for_head": "eabec8b2ecfc875d91a493346dfbde104fba73a8",
+  "retrigger_reason": "Final integrated V2 P0 acceptance with hard gate requiring nonzero Compound settlements, positive incremental Compound PnL, exact V2 policy identity, and research-only governance.",
   "mode": "CIBO_COMPOUND_PORTFOLIO_V2_RESEARCH_REDEPLOY_ACCEPTANCE",
   "replay_tool_eligibility_authority": false,
   "reason": "Owner-directed capability proof of actual protected-capital redeployment in the integrated research lane. Research authorization is predecision-only and explicitly Fresh-OOS=false; CMA/QORE Risk remain sovereign; no broker mutation/LIVE/real capital/production/merge/outcome-aware admission."
