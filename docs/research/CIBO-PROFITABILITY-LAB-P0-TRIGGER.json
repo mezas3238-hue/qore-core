@@ -1,7 +1,7 @@
 {
   "schema": "qore.cibo.profitability-lab.p0-trigger.v1",
   "owner_authorized": true,
-  "authorized_at_utc": "2026-10-03T00:10:00Z",
+  "authorized_at_utc": "2026-10-03T00:22:00Z",
   "objective": "Re-run the unchanged all-Trader CIBO-free-tool-choice economics while emitting a read-only per-opportunity Decision Trace that exposes actual CF, CE2I, GEN-C, CMA, QORE Risk, provider, settlement and T20 participation.",
   "source_population_run": 37075080556,
   "source_batch_artifact_id": 11256450732,
@@ -13,8 +13,8 @@
   "production": false,
   "merge_authority": false,
   "outcome_aware_tuning": false,
-  "retrigger_for_head": "81cbf2d932e91fefabb0ab09b375516187925f32",
-  "retrigger_reason": "Validate observational CIBO Decision Trace after root-cause audit; no economic mechanism, Trader, CMA, QORE Risk, provider model, or outcome-derived parameter changed.",
+  "retrigger_for_head": "66bc7c9a7be0adb5a8c32074e124152074fa9e9e",
+  "retrigger_reason": "Re-run observational Decision Trace after static-only lint repair; economic path remains unchanged.",
   "mode": "CIBO_FREE_TOOL_CHOICE",
   "replay_tool_eligibility_authority": false,
   "reason": "Owner ordered replay authority removed so CIBO cognition decides which available capabilities to use."
