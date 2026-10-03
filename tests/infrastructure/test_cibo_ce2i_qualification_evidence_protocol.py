@@ -18,6 +18,10 @@ from qore.infrastructure.cibo_ce2i_phase20_qualification_readiness import (
 from qore.infrastructure.cibo_ce2i_qualification_evidence_protocol import (
     require_qualification_evidence_book,
 )
+from qore.infrastructure.cibo_phase22_holdout_v2_source_receipt import (
+    V2_SOURCE_BINDINGS,
+    phase22_v2_holdout_source_receipt_sha256,
+)
 from qore.infrastructure.cibo_phase22_historical_replay_settlement import (
     VersionedPhase22HistoricalReplayEvidenceBook,
 )
@@ -42,6 +46,10 @@ def test_historical_replay_book_enters_same_math_without_type_impersonation() ->
         amendment_sha256=_sha("amendment"),
         decisions=(),
         outcomes=(),
+        source_receipt_sha256=phase22_v2_holdout_source_receipt_sha256(),
+        source_collector_git_shas=tuple(
+            sorted({item.collector_git_sha for item in V2_SOURCE_BINDINGS})
+        ),
     )
     accepted = require_qualification_evidence_book(
         book,
@@ -72,6 +80,10 @@ def test_historical_replay_uses_seal_time_not_market_time_for_freeze() -> None:
         amendment_sha256=_sha("amendment"),
         decisions=(),
         outcomes=(),
+        source_receipt_sha256=phase22_v2_holdout_source_receipt_sha256(),
+        source_collector_git_shas=tuple(
+            sorted({item.collector_git_sha for item in V2_SOURCE_BINDINGS})
+        ),
     )
     assert book.qualification_time_basis == "SEALED_AT"
     assert book.qualification_evidence_kind == "HISTORICAL_REPLAY_OBSERVED"
