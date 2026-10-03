@@ -32,7 +32,7 @@ NOW = datetime(2026, 10, 3, 3, 0, tzinfo=UTC)
 class _ProviderBudget:
     provider_headroom: Decimal = Decimal("100")
     max_risk_at_any_time: Decimal = Decimal("100")
-    active_mll: Decimal = Decimal("100")
+    active_mll: Decimal = Decimal("50")
     hard_breach: bool = False
 
 
