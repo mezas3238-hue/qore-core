@@ -21,6 +21,9 @@ from qore.infrastructure.cibo_account_capital_mission import (
 from qore.infrastructure.cibo_capital_management_authority import (
     TraderOpportunityEnvelope,
 )
+from qore.infrastructure.cibo_capability_exam_cognitive_coverage import (
+    CiboCapabilityCognitiveCoverageReceipt,
+)
 from qore.infrastructure.cibo_ce2i_advanced_actions import (
     AdvancedCapitalActionProposal,
     AdvancedCapitalBudgetAdjustment,
@@ -41,6 +44,7 @@ CAPABILITY_LAB = "CIBO_UNIVERSAL_CAPABILITY_LAB_V1"
 
 @dataclass(frozen=True, slots=True)
 class UniversalCapabilityLabResult:
+    cognitive_coverage: CiboCapabilityCognitiveCoverageReceipt
     surface: FullCe2iSurfaceAssessment
     advanced_actions: tuple[AdvancedCapitalActionProposal, ...]
     portfolio_budget_adjustment: AdvancedCapitalBudgetAdjustment
@@ -57,6 +61,14 @@ class UniversalCapabilityLabResult:
     def __post_init__(self) -> None:
         if self.capability_lab_id != CAPABILITY_LAB:
             raise ValueError("capability lab identity drift")
+        if (
+            not isinstance(
+                self.cognitive_coverage,
+                CiboCapabilityCognitiveCoverageReceipt,
+            )
+            or not self.cognitive_coverage.complete
+        ):
+            raise ValueError("capability lab requires complete CF01..CF19 coverage")
         if any(
             (
                 self.scientific_certification_claimed,
@@ -78,8 +90,18 @@ def evaluate_universal_capability_lab(
     regime_state: CiboCapitalRegimeState,
     opportunities: tuple[TraderOpportunityEnvelope, ...],
     advanced_evidence: AdvancedPortfolioEvidence,
+    cognitive_coverage: CiboCapabilityCognitiveCoverageReceipt,
 ) -> UniversalCapabilityLabResult:
     """Exercise the complete advanced CE2I surface outside certification gates."""
+
+    if (
+        not isinstance(
+            cognitive_coverage,
+            CiboCapabilityCognitiveCoverageReceipt,
+        )
+        or not cognitive_coverage.complete
+    ):
+        raise ValueError("capability lab requires complete cognitive coverage")
 
     surface = evaluate_full_ce2i_surface(
         mission=mission,
@@ -91,6 +113,7 @@ def evaluate_universal_capability_lab(
     actions = build_advanced_capital_actions(surface)
     adjustment = advanced_portfolio_budget_adjustment(actions)
     return UniversalCapabilityLabResult(
+        cognitive_coverage=cognitive_coverage,
         surface=surface,
         advanced_actions=actions,
         portfolio_budget_adjustment=adjustment,
