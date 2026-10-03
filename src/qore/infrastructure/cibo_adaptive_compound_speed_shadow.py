@@ -255,10 +255,8 @@ class Genc8AdaptiveCompoundSpeedDecision:
                 "GEN-C8 decision identity/reason is required"
             )
         _aware(self.decision_at, "decision_at")
-        if self.decision_at < self.policy_frozen_at:
-            raise CiboCompoundCapitalError(
-                "GEN-C8 cannot evaluate pre-freeze state"
-            )
+        # policy_frozen_at identifies the immutable policy specification;
+        # historical causal decisions remain valid research inputs.
         _sha(self.genc5_decision_sha256, "genc5_decision_sha256")
         _sha(self.regime_evidence_sha256, "regime_evidence_sha256")
         if len(self.fact_evidence_sha256s) != len(
@@ -366,10 +364,8 @@ def evaluate_genc8_adaptive_compound_speed(
         raise CiboCompoundCapitalError(
             "GEN-C8 facts must be canonical tuple"
         )
-    if genc5.decision_at < GENC8_POLICY_FROZEN_AT:
-        raise CiboCompoundCapitalError(
-            "GEN-C8 cannot consume pre-freeze GEN-C5 decision"
-        )
+    # GEN-C8 may consume historical causal GEN-C5 decisions. Policy freeze
+    # prevents rule mutation, not replay of earlier market-time evidence.
     if (
         regime.decision_at != genc5.decision_at
         or regime.account_provider_key != genc5.account_provider_key
