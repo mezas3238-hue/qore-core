@@ -88,6 +88,10 @@ T02_RESEARCH_RULES = (
     "TRAIN_ROR_GE_0050_D1_NOT_EXTREME",
     "TRAIN_ROR_GE_0050_RECLAIM_LE_5M",
     "TRAIN_ROR_GE_0050_D1_NOT_EXTREME_RECLAIM_LE_5M",
+    "TRAIN_ROR_GE_0050_NON_ASIA",
+    "TRAIN_ROR_GE_0050_D1_NOT_EXTREME_NON_ASIA",
+    "TRAIN_ROR_GE_0050_NON_ASIA_RECLAIM_LE_5M",
+    "TRAIN_ROR_GE_0050_D1_NOT_EXTREME_NON_ASIA_RECLAIM_LE_5M",
 )
 
 
@@ -120,11 +124,20 @@ def _t02_research_filter(rule_id: str):
                 (
                     "TRAIN_ROR_GE_0050_D1_NOT_EXTREME_RECLAIM_LE_5M"
                 ): Decimal("0.05"),
+                "TRAIN_ROR_GE_0050_NON_ASIA": Decimal("0.05"),
+                "TRAIN_ROR_GE_0050_D1_NOT_EXTREME_NON_ASIA": Decimal("0.05"),
+                "TRAIN_ROR_GE_0050_NON_ASIA_RECLAIM_LE_5M": Decimal("0.05"),
+                (
+                    "TRAIN_ROR_GE_0050_D1_NOT_EXTREME_NON_ASIA_RECLAIM_LE_5M"
+                ): Decimal("0.05"),
             }[rule_id]
             if train_return_on_risk < threshold:
                 return False
             if "D1_NOT_EXTREME" in rule_id:
                 if opportunity.context_value("reg_d1_range_state") == "extreme":
+                    return False
+            if "NON_ASIA" in rule_id:
+                if opportunity.context_value("ctx_session") == "asia":
                     return False
             if "RECLAIM_LE_5M" in rule_id:
                 if opportunity.context_value("ctx_reclaim_latency_bucket") != "<=5m":
