@@ -835,7 +835,9 @@ def evaluate_capital_science_predecision(
             state=state,
             function_code="GEN-C8",
             disposition=(
-                CapitalScienceDisposition.APPLIED
+                CapitalScienceDisposition.FAIL_CLOSED
+                if not c8_allows
+                else CapitalScienceDisposition.APPLIED
                 if genc8.treatment_differs_from_control
                 else CapitalScienceDisposition.ELIGIBLE_NO_CHANGE
             ),
@@ -1054,7 +1056,9 @@ def evaluate_capital_science_predecision(
             state=state,
             function_code="GEN-C12",
             disposition=(
-                CapitalScienceDisposition.APPLIED
+                CapitalScienceDisposition.FAIL_CLOSED
+                if not c12_allows
+                else CapitalScienceDisposition.APPLIED
                 if c12_changed
                 else CapitalScienceDisposition.ELIGIBLE_NO_CHANGE
             ),
