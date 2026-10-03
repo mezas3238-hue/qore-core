@@ -100,7 +100,7 @@ class CapabilityLabToolReceipt:
 
     @property
     def functional_pass(self) -> bool:
-        return self.applied_count > 0
+        return self.applied_count > 0 and self.fail_closed_count == 0
 
 
 @dataclass(frozen=True, slots=True)
