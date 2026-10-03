@@ -14,6 +14,9 @@ def _candidate(fingerprint: str, *, positive: bool = True) -> dict[str, object]:
     sign = "1" if positive else "-1"
     return {
         "configuration_fingerprint": fingerprint,
+        "configuration_scope": "CIBO_ONLY",
+        "trader_parameters_changed": False,
+        "trader_profitability_used_for_gate": False,
         "measurements": {
             "all_7_traders_participate": True,
             "timeframes": ["H4", "H1", "M15", "M5", "M1"],
@@ -39,6 +42,15 @@ def _candidate(fingerprint: str, *, positive: bool = True) -> dict[str, object]:
             },
             "protected_capital_breaches": 0,
             "all_required_cibo_functions_accounted_for": True,
+            "cibo_function_behavior": {
+                "cognitive_faculties": [
+                    f"CF{i:02d}" for i in range(1, 20)
+                ],
+                "ce2i_tools": [f"T{i:02d}" for i in range(1, 21)],
+                "capital_science": [f"GEN-C{i}" for i in range(1, 15)],
+                "per_function_observability_complete": True,
+            },
+            "trader_profitability_used_for_gate": False,
             "qore_risk_sovereign": True,
         },
     }
@@ -105,3 +117,25 @@ def test_per_trader_only_group_is_rejected() -> None:
         assert "integrated 7-Trader portfolio" in str(error)
     else:
         raise AssertionError("separate Trader replays must never satisfy group sensor")
+
+
+def test_trader_profitability_cannot_gate_cibo_candidate() -> None:
+    candidate = _candidate("cfg")
+    candidate["trader_profitability_used_for_gate"] = True
+    try:
+        evaluate_candidate(candidate)
+    except ValueError as error:
+        assert "per-Trader profitability" in str(error)
+    else:
+        raise AssertionError("Trader profitability must never gate CIBO research")
+
+
+def test_candidate_scope_must_be_cibo_only() -> None:
+    candidate = _candidate("cfg")
+    candidate["configuration_scope"] = "TRADER_AND_CIBO"
+    try:
+        evaluate_candidate(candidate)
+    except ValueError as error:
+        assert "CIBO-only" in str(error)
+    else:
+        raise AssertionError("only CIBO configurations may enter adaptive search")
