@@ -36,8 +36,13 @@ from qore.infrastructure.cibo_ce2i_usd60_six_month_certification import (
     FROZEN_CIBO_USD60_SIX_MONTH_PROTOCOL,
 )
 from qore.infrastructure.cibo_cma_risk_request import build_cma_risk_request
+from qore.infrastructure.cibo_ce2i_phase20_train_prior import (
+    build_frozen_train_expectation,
+)
 from qore.infrastructure.cibo_protected_reinvestment_policy import (
     maximum_reinvestment_capital_need_usd,
+    protected_loss_reserve_usd,
+    protected_reinvestment_candidate_allowed,
 )
 from qore.infrastructure.cibo_phase22_v4_chronological_execution import (
     Phase22HistoricalExecutionReport,
@@ -111,6 +116,7 @@ class _Open:
     authorized_margin_usd: Decimal
     gross_structural_outcome_r: Decimal
     provider_cost_usd: Decimal
+    protected_loss_reserve_usd: Decimal
     source_traders_before_entry: tuple[str, ...]
 
 
@@ -443,16 +449,21 @@ def run_compound_portfolio_lane(
                 candidate.projection.provider_envelope.execution_cost_per_volume_usd
                 * volume
             )
+            loss_reserve = protected_loss_reserve_usd(risk)
             committed_loss = sum(
                 (
-                    item.authorized_stop_risk_usd + item.provider_cost_usd
+                    item.authorized_stop_risk_usd
+                    + item.provider_cost_usd
+                    + item.protected_loss_reserve_usd
                     for item in open_rows.values()
                 ),
                 Decimal(0),
             )
             available = max(Decimal(0), pool - committed_loss)
-            if risk + cost > available:
-                blockers["REALIZED_PROFIT_POOL_BELOW_MINIMUM_SEED_PLUS_COST"] += 1
+            if risk + cost + loss_reserve > available:
+                blockers[
+                    "REALIZED_PROFIT_POOL_BELOW_SEED_COST_AND_LOSS_RESERVE"
+                ] += 1
                 rejected += 1
                 continue
             equity = max(Decimal(0), core_realized + incremental)
@@ -467,7 +478,26 @@ def run_compound_portfolio_lane(
                 ] += 1
                 rejected += 1
                 continue
-            headroom = min(equity, max(Decimal(0), available - cost))
+            expectation = build_frozen_train_expectation(
+                trader_id=opportunity.trader_id,
+                stop_risk_usd=risk,
+                as_of=epoch.market_decision_at,
+            )
+            if not protected_reinvestment_candidate_allowed(
+                side=opportunity.side,
+                capital_need_usd=risk + cost,
+                eligible_current_capital_usd=equity,
+                entry_type=opportunity.entry_type,
+                expected_net_value_usd=expectation.expected_net_value_usd,
+                expected_capital_minutes=expectation.expected_capital_minutes,
+            ):
+                blockers["PROTECTED_REINVESTMENT_V2_CAUSAL_GATE_REJECTED"] += 1
+                rejected += 1
+                continue
+            headroom = min(
+                equity,
+                max(Decimal(0), available - cost - loss_reserve),
+            )
             if risk > headroom or margin > headroom:
                 blockers["COMPOUND_RISK_OR_MARGIN_HEADROOM_INSUFFICIENT"] += 1
                 rejected += 1
@@ -581,6 +611,9 @@ def run_compound_portfolio_lane(
                 provider_cost_usd=(
                     candidate.projection.provider_envelope.execution_cost_per_volume_usd
                     * auth.authorized_volume
+                ),
+                protected_loss_reserve_usd=protected_loss_reserve_usd(
+                    auth.monetary_stop_loss
                 ),
                 source_traders_before_entry=source_snapshot,
             )
