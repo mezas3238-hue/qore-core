@@ -409,6 +409,36 @@ def _coverage(
                     "status": raw["status"],
                     "reason": raw["reason"],
                     "executed_count": raw["executed_count"],
+                    "eligible_epochs": raw.get("eligible_epochs", 0),
+                    "invoked_count": raw.get(
+                        "invoked_count",
+                        raw.get("executed_count", 0),
+                    ),
+                    "applied_count": raw.get("applied_count", 0),
+                    "fail_closed_count": raw.get("fail_closed_count", 0),
+                    "not_applicable_count": raw.get(
+                        "not_applicable_count",
+                        0,
+                    ),
+                    "decision_changed_count": raw.get(
+                        "decision_changed_count",
+                        0,
+                    ),
+                    "risk_delta_usd": raw.get("risk_delta_usd", "0"),
+                    "margin_delta_usd": raw.get("margin_delta_usd", "0"),
+                    "capital_source_usage": raw.get(
+                        "capital_source_usage",
+                        [],
+                    ),
+                    "incremental_pnl_attribution_usd": raw.get(
+                        "incremental_pnl_attribution_usd",
+                        "0",
+                    ),
+                    "reason_distribution": raw.get(
+                        "reason_distribution",
+                        [],
+                    ),
+                    "causal_trace_count": raw.get("causal_trace_count", 0),
                 }
             )
         else:
@@ -422,14 +452,47 @@ def _coverage(
                         "capability into the economic replay"
                     ),
                     "executed_count": 0,
+                    "eligible_epochs": 0,
+                    "invoked_count": 0,
+                    "applied_count": 0,
+                    "fail_closed_count": 0,
+                    "not_applicable_count": 0,
+                    "decision_changed_count": 0,
+                    "risk_delta_usd": "0",
+                    "margin_delta_usd": "0",
+                    "capital_source_usage": [],
+                    "incremental_pnl_attribution_usd": "0",
+                    "reason_distribution": [],
+                    "causal_trace_count": 0,
                 }
             )
 
+    mandatory_runtime_codes = {
+        "GEN-C2",
+        "GEN-C4",
+        "GEN-C7",
+        "GEN-C8",
+        "GEN-C9",
+        "GEN-C10",
+        "GEN-C11",
+        "GEN-C12",
+        "GEN-C13",
+        "GEN-C14",
+    }
+    capital_science_runtime_receipts_complete = all(
+        row["status"] != "NOT_INTEGRATED"
+        and row["invoked_count"] > 0
+        and (
+            row["capability"] not in mandatory_runtime_codes
+            or row["causal_trace_count"] > 0
+        )
+        for row in genc_rows
+    )
     full_complete = (
         cognitive.all_functional_faculties_consulted
         and runtime_cognitive_complete
         and all(row["status"] != "NOT_INTEGRATED" for row in t_rows)
-        and all(row["status"] != "NOT_INTEGRATED" for row in genc_rows)
+        and capital_science_runtime_receipts_complete
     )
     return {
         "schema": "qore.cibo.profitability-lab.full-stack-coverage.p0.v1",
@@ -437,6 +500,9 @@ def _coverage(
         "cf01_cf19_runtime_economic_consultation_complete": runtime_cf_complete,
         "cognitive_runtime_orchestration_complete": runtime_cognitive_complete,
         "t01_t20_registered": cognitive.all_ce2i_tools_registered,
+        "capital_science_runtime_receipts_complete": (
+            capital_science_runtime_receipts_complete
+        ),
         "full_stack_runtime_coverage_complete": full_complete,
         "rows": cf_rows + t_rows + genc_rows,
         "broker_mutation": False,
@@ -611,6 +677,7 @@ def main() -> int:
     decision_trace = build_cibo_profitability_decision_trace(
         execution=treatment,
         compound_function_accountability=compound.function_accountability,
+        capital_science_receipts=compound.capital_science_receipts,
     )
     coverage = _coverage(
         fresh=fresh,
