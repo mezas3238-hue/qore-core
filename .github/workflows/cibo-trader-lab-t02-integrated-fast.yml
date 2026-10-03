@@ -1,0 +1,89 @@
+name: QORE CIBO Trader Lab T02 Integrated Fast
+
+on:
+  push:
+    branches:
+      - agent/cibo-profitability-lab-001
+    paths:
+      - '.github/workflows/cibo-trader-lab-t02-integrated-fast.yml'
+      - 'src/qore/infrastructure/trader_lab/cibo_t02_integrated_fast_lab.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  integrated-fast:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SOURCE_P0_ARTIFACT_ID: '11281624630'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: python -m pip install -e '.[dev]'
+
+      - name: Static validation
+        run: |
+          set -euo pipefail
+          python -m py_compile             src/qore/infrastructure/trader_lab/cibo_t02_integrated_fast_lab.py
+          ruff check             src/qore/infrastructure/trader_lab/cibo_t02_integrated_fast_lab.py
+
+      - name: Recover exact integrated T02-enabled surface
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/p0" "$RUNNER_TEMP/result"
+          gh api             "/repos/$GITHUB_REPOSITORY/actions/artifacts/$SOURCE_P0_ARTIFACT_ID/zip"             > "$RUNNER_TEMP/p0.zip"
+          unzip -q "$RUNNER_TEMP/p0.zip" -d "$RUNNER_TEMP/p0"
+          test -s "$RUNNER_TEMP/p0/decision-trace.json"
+
+      - name: Run TRAIN selection then sealed integrated VALIDATION
+        run: |
+          set -euo pipefail
+          python -m qore.infrastructure.trader_lab.cibo_t02_integrated_fast_lab             --decision-trace "$RUNNER_TEMP/p0/decision-trace.json"             --output "$RUNNER_TEMP/result/report.json"
+
+      - name: Enforce research governance
+        if: always()
+        run: |
+          set -euo pipefail
+          test -s "$RUNNER_TEMP/result/report.json"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p = json.loads(
+              (
+                  Path(os.environ["RUNNER_TEMP"])
+                  / "result"
+                  / "report.json"
+              ).read_text(encoding="utf-8")
+          )
+          assert p["schema"] == "qore.trader-lab.cibo-t02-integrated-fast.v1"
+          assert p["promotion_authorized"] is False
+          g = p["governance"]
+          assert g["selection_used_validation_outcomes"] is False
+          assert g["candidate_inputs_predecision_only"] is True
+          assert g["symbol_or_trader_blacklist"] is False
+          assert g["fresh_oos_claimed"] is False
+          assert g["broker_mutation"] is False
+          assert g["live"] is False
+          assert g["production"] is False
+          assert g["real_capital"] is False
+          assert g["merge_authority"] is False
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-cibo-trader-lab-t02-integrated-fast-${{ github.run_id }}
+          path: ${{ runner.temp }}/result
+          if-no-files-found: error
+          retention-days: 90
