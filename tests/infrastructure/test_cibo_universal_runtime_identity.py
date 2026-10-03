@@ -40,7 +40,6 @@ from qore.infrastructure.market_test_environment import (
     MarketRuntimeEnvironment,
 )
 
-
 NOW = datetime(2026, 10, 3, 12, 0, tzinfo=UTC)
 
 
