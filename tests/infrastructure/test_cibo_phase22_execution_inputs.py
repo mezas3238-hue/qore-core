@@ -43,6 +43,10 @@ def _fresh(trader_id: str, symbol: str, index: int) -> Phase22FreshOpportunity:
         gross_structural_outcome_r=Decimal("2"),
         methodology_sha256=_sha(f"method-{trader_id}"),
         source_evidence_ids=(_sha(f"source-{trader_id}"),),
+        decision_context=(
+            ("family", f"family-{trader_id}"),
+            ("reg_h1_body_alignment", "opposed"),
+        ),
     )
 
 
@@ -154,6 +158,11 @@ def test_sealed_inputs_recompute_batch_and_provider_contracts() -> None:
     provider = load_phase22_sealed_provider_numeric(_provider_payload())
 
     assert fresh.batch.fingerprint() == fresh.declared_batch_sha256
+    assert all(item.decision_context for item in fresh.batch.opportunities)
+    assert (
+        fresh.batch.opportunities[0].decision_context[0][0]
+        == "family"
+    )
     assert tuple(item.qore_symbol for item in provider.specs) == (
         "AUDJPY",
         "EURUSD",
@@ -175,6 +184,13 @@ def test_sealed_inputs_project_all_fresh_opportunities() -> None:
     )
 
     assert len(projected) == len(fresh.batch.opportunities) == 7
+    assert all(
+        item.candidate.capital_input.opportunity.context_value(
+            "reg_h1_body_alignment"
+        )
+        == "opposed"
+        for item in projected
+    )
     assert tuple(
         item.candidate.capital_input.opportunity.signal_fingerprint
         for item in projected
