@@ -31,6 +31,12 @@ from qore.infrastructure.cibo_phase22_historical_policy_replay import (
     Phase22HistoricalCapitalInput,
     evaluate_phase22_historical_policy,
 )
+from qore.infrastructure.cibo_phase22_v4_historical_policy_replay import (
+    Phase22HistoricalCapitalInput as Phase22V4HistoricalCapitalInput,
+)
+from qore.infrastructure.cibo_phase22_v4_historical_policy_replay import (
+    evaluate_phase22_historical_policy as evaluate_phase22_v4_historical_policy,
+)
 from qore.infrastructure.market_test_environment import MarketRuntimeEnvironment
 
 MARKET_AT = datetime(2015, 10, 20, 12, 0, tzinfo=UTC)
@@ -86,6 +92,24 @@ def _input(
         provider_model_sha256=_sha("provider-model"),
     )
 
+
+
+
+
+def _v4_input(
+    trader_id: TraderLineage,
+    signal: str,
+    symbol: str,
+) -> Phase22V4HistoricalCapitalInput:
+    opportunity = _opportunity(trader_id, signal, symbol)
+    return Phase22V4HistoricalCapitalInput(
+        opportunity=opportunity,
+        minimum_stop_risk_usd=Decimal("0.10"),
+        minimum_margin_usd=Decimal("0.20"),
+        concentration_group=symbol,
+        concentration_risk_usd=Decimal("0.10"),
+        provider_model_sha256=_sha("provider-model"),
+    )
 
 def _regime(count: int) -> CiboCapitalRegimeState:
     return CiboCapitalRegimeState(
@@ -166,7 +190,7 @@ def test_negative_frozen_prior_can_abstain_without_retuning() -> None:
 def test_authorized_t03_changes_allocator_margin_before_allocation() -> None:
     signal = _sha("t03-causal-economic-effect")
     inputs = (
-        _input(TraderLineage.R34_XAUUSD, signal, "XAUUSD"),
+        _v4_input(TraderLineage.R34_XAUUSD, signal, "XAUUSD"),
     )
     evidence = AdvancedPortfolioEvidence(
         opportunities=(
@@ -203,7 +227,7 @@ def test_authorized_t03_changes_allocator_margin_before_allocation() -> None:
         )
     )
 
-    record = evaluate_phase22_historical_policy(
+    record = evaluate_phase22_v4_historical_policy(
         market_decision_at=MARKET_AT,
         replay_sealed_at=SEALED_AT,
         account_identity=_account(),
@@ -269,7 +293,7 @@ def test_t03_shadow_measurement_cannot_change_allocator_economics() -> None:
         )
     )
 
-    record = evaluate_phase22_historical_policy(
+    record = evaluate_phase22_v4_historical_policy(
         market_decision_at=MARKET_AT,
         replay_sealed_at=SEALED_AT,
         account_identity=_account(),
