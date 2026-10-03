@@ -1,0 +1,79 @@
+name: QORE CIBO Compound Trader Lab CC01-CC09
+
+on:
+  push:
+    branches:
+      - agent/cibo-profitability-lab-001
+    paths:
+      - '.github/workflows/cibo-compound-trader-lab-cc01-cc09.yml'
+      - 'scripts/cibo_compound_trader_lab_audit.py'
+      - 'scripts/cibo_full_function_trader_lab_audit.py'
+      - 'src/qore/infrastructure/cibo_compound_*.py'
+      - 'src/qore/infrastructure/cibo_core_compound_portfolio.py'
+      - 'src/qore/infrastructure/trader_lab/cibo_functional_receipt.py'
+      - 'tests/infrastructure/test_cibo_compound_real_population_binding.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  cc01-cc09:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SOURCE_ARTIFACT_ID: '11261743257'
+      SOURCE_HEAD_SHA: 'bc7909f2f28fbfa1bef1b83768499a28f634409a'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Recover retained Trader Lab population
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/source"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$SOURCE_ARTIFACT_ID/zip" > "$RUNNER_TEMP/source.zip"
+          unzip -q "$RUNNER_TEMP/source.zip" -d "$RUNNER_TEMP/source"
+          test -s "$RUNNER_TEMP/source/decision-trace.json"
+      - name: Revalidate burned-research boundary
+        run: |
+          pytest -q --no-cov tests/infrastructure/test_cibo_compound_real_population_binding.py
+      - name: Execute CF01-CF20 prerequisite then CC01-CC09
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/compound-trader-lab"
+          python scripts/cibo_compound_trader_lab_audit.py             --decision-trace "$RUNNER_TEMP/source/decision-trace.json"             --source-head "$SOURCE_HEAD_SHA"             --output "$RUNNER_TEMP/compound-trader-lab/audit.json"
+      - name: Enforce 9 compound gates x 7 lanes
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=json.loads((Path(os.environ['RUNNER_TEMP'])/'compound-trader-lab'/'audit.json').read_text())
+          assert p['candidate_count'] == 7
+          assert p['compound_gate_count'] == 9
+          assert p['all_cc01_cc09_pass'] is True
+          assert p['next_stage_unlocked'] == 'CC10_TEMPORAL_REPLICATION_TRADER_LAB'
+          assert p['governance']['burned_research'] is True
+          assert p['governance']['forward_observed_claimed'] is False
+          assert p['governance']['certification_claimed'] is False
+          for lane in p['lanes'].values():
+              assert lane['status'] == 'PASS'
+              assert lane['gate_count'] == 9
+              assert all(g['technical_status'] == 'PASS' for g in lane['gates'])
+              assert all(g['forward_observed_claimed'] is False for g in lane['gates'])
+              assert all(g['certification_claimed'] is False for g in lane['gates'])
+              assert all(g['broker_mutation'] is False for g in lane['gates'])
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-cibo-compound-trader-lab-cc01-cc09-${{ github.run_id }}
+          path: ${{ runner.temp }}/compound-trader-lab
+          if-no-files-found: warn
+          retention-days: 90
