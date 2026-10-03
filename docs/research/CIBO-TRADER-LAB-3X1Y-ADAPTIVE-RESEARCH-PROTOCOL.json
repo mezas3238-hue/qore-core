@@ -144,6 +144,40 @@
       "profitability_may_be_reported_for_attribution": true,
       "profitability_must_gate_candidate": true,
       "trader_logic_remains_frozen": true
+    },
+    "full_scientific_battery": {
+      "mandatory": true,
+      "lanes": [
+        "CORE",
+        "COMPOUND_INCREMENTAL",
+        "COMPOUND_TOTAL",
+        "COMPOUND_PORTFOLIO_INCREMENTAL",
+        "COMPOUND_PORTFOLIO_TOTAL"
+      ],
+      "per_lane": [
+        "net_pnl_usd",
+        "profit_factor",
+        "expectancy_usd",
+        "max_drawdown_usd",
+        "chronological_5_blocks",
+        "chronological_6_blocks",
+        "WFO_5",
+        "WFO_6",
+        "monte_carlo",
+        "provider_cost_stress_1.25x_1.50x_2.00x",
+        "adverse_slippage_stress_plus25_plus50_plus100pct_provider_cost",
+        "remove_best_1_2_3",
+        "losses_first_drawdown",
+        "winners_first_drawdown"
+      ],
+      "leverage_is_only_one_dimension": true,
+      "leverage_multipliers": [
+        "1",
+        "2",
+        "3",
+        "4"
+      ],
+      "missing_component_behavior": "FAIL_CLOSED"
     }
   },
   "candidate_pass_gate": {
@@ -178,7 +212,13 @@
     "all_7_traders_expectancy_usd_gt": "0",
     "zero_trader_exceptions": true,
     "reject_if_any_trader_nonpositive": true,
-    "per_trader_profitability_is_cibo_outcome_gate": true
+    "per_trader_profitability_is_cibo_outcome_gate": true,
+    "full_scientific_battery_required": true,
+    "wfo_5_all_tests_positive": true,
+    "wfo_6_all_tests_positive": true,
+    "slippage_plus_100pct_provider_cost_pnl_usd_gt": "0",
+    "remove_best_1_pnl_usd_gt": "0",
+    "remove_best_2_pnl_usd_gt": "0"
   },
   "stop_sensor": {
     "required_identical_configuration_fingerprints_across_all_groups": 3,
