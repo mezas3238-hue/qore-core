@@ -2,7 +2,7 @@
 """Artifact-backed Trader Lab audit for CIBO cognition.
 
 Acceptance is intentionally stronger than unit-test GREEN:
-- all seven retained P0 Trader lanes must become genuine TraderLabCandidateBinding values;
+- every retained Trader lane must become a genuine TraderLabCandidateBinding value;
 - every candidate must advance through the real Trader Lab RESEARCH stage;
 - each cognitive phase executes against that exact candidate plus retained P0 evidence;
 - every phase emits an observable deterministic token that the next phase consumes;
@@ -230,16 +230,6 @@ from qore.modules.cibo.cognitive_contracts import (
     CiboUncertaintyKind,
 )
 
-TRADERS = (
-    "VT08_FOREX",
-    "R34_XAUUSD",
-    "R38_EURUSD",
-    "R43_GBPUSD",
-    "R38_GBPJPY",
-    "R42_AUDJPY",
-    "VT31_NAS100",
-)
-
 PHASES = (
     "P01_TRADER_LAB_RESEARCH",
     "P02_WORLD_MODEL",
@@ -326,13 +316,27 @@ class Audit:
             raise ValueError("decision-trace opportunities missing")
         if trace.get("governance", {}).get("broker_mutation") is not False:  # type: ignore[union-attr]
             raise ValueError("source trace must be non-mutating")
+        raw_traders = [
+            row.get("trader_id")
+            for row in rows
+            if isinstance(row, dict)
+        ]
+        if any(
+            not isinstance(trader, str) or not trader.strip()
+            for trader in raw_traders
+        ):
+            raise ValueError("decision-trace trader_id must be non-empty strings")
+        self.traders = tuple(sorted(set(raw_traders)))
+        if not self.traders:
+            raise ValueError("decision-trace contains no Trader identities")
+
         self.trace = trace
         self.source_head = source_head
         self.contexts: dict[str, TraderContext] = {}
         self.report_rows: dict[str, dict[str, dict[str, object]]] = {
             phase: {} for phase in PHASES
         }
-        for trader in TRADERS:
+        for trader in self.traders:
             trader_rows = [r for r in rows if isinstance(r, dict) and r.get("trader_id") == trader]
             if not trader_rows:
                 raise ValueError(f"missing source population for {trader}")
@@ -369,10 +373,15 @@ class Audit:
         }
 
     def run_phase(self, phase: str, fn) -> None:
-        for trader in TRADERS:
+        for trader in self.traders:
             fn(self.contexts[trader])
-        if any(self.report_rows[phase].get(t, {}).get("status") != "GREEN" for t in TRADERS):
-            raise RuntimeError(f"{phase} did not pass all seven Trader Lab candidates")
+        if any(
+            self.report_rows[phase].get(t, {}).get("status") != "GREEN"
+            for t in self.traders
+        ):
+            raise RuntimeError(
+                f"{phase} did not pass every retained Trader Lab candidate"
+            )
 
     def p01(self, ctx: TraderContext) -> None:
         row = ctx.row
@@ -1303,7 +1312,7 @@ class Audit:
         # The final phase consumes P17; it has no downstream phase by definition.
         phase_results = []
         for phase in PHASES:
-            rows = [self.report_rows[phase][t] for t in TRADERS]
+            rows = [self.report_rows[phase][t] for t in self.traders]
             all_green = all(row["status"] == "GREEN" for row in rows)
             consumed = (
                 True
@@ -1314,10 +1323,14 @@ class Audit:
                 {
                     "phase": phase,
                     "status": "GREEN" if all_green and consumed else "FAIL",
-                    "all_7_traders_green": all_green,
+                    "all_traders_green": all_green,
+                    "all_7_traders_green": (
+                        all_green if len(self.traders) == 7 else None
+                    ),
                     "outputs_consumed_by_next_phase": consumed,
                     "traders": {
-                        trader: self.report_rows[phase][trader] for trader in TRADERS
+                        trader: self.report_rows[phase][trader]
+                        for trader in self.traders
                     },
                 }
             )
@@ -1327,7 +1340,7 @@ class Audit:
             "source_trace_sha256": self.trace.get("trace_sha256"),
             "source_head_sha": self.source_head,
             "candidate_count": len(self.contexts),
-            "traders": list(TRADERS),
+            "traders": list(self.traders),
             "phase_count": len(PHASES),
             "phase_order": list(PHASES),
             "phases": phase_results,
