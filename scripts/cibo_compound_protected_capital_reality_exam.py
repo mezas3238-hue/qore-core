@@ -49,8 +49,10 @@ from qore.infrastructure.cibo_protected_reinvestment_policy import (
     CALIBRATION_MODE,
     ELIGIBLE_SIDE,
     MAX_CAPITAL_NEED_TO_BASE_RATIO,
+    MAX_CAPITAL_NEED_TO_CURRENT_CAPITAL_RATIO,
     POLICY_ID,
     USD60_MAX_CAPITAL_NEED_USD,
+    maximum_reinvestment_capital_need_usd,
     protected_reinvestment_candidate_allowed,
 )
 
@@ -133,6 +135,8 @@ class ReinvestmentEpisode:
     protected_inflow_since_prior_episode_usd: Decimal
     protected_before_usd: Decimal
     committed_before_usd: Decimal
+    eligible_current_capital_usd: Decimal
+    dynamic_capital_need_limit_usd: Decimal
     deployed_capital_usd: Decimal
     stop_risk_usd: Decimal
     margin_usd: Decimal
@@ -239,6 +243,9 @@ def _simulate_observed(
         ),
     )
     core_index = 0
+    realized_account_capital = (
+        FROZEN_CIBO_USD60_SIX_MONTH_PROTOCOL.initial_capital_usd
+    )
 
     protected: dict[str, Decimal] = defaultdict(Decimal)
     shared_protected = Decimal(0)
@@ -251,7 +258,7 @@ def _simulate_observed(
         return "ACCOUNT_WIDE" if shared else trader
 
     def settle_incremental_until(clock: datetime) -> None:
-        nonlocal shared_protected
+        nonlocal shared_protected, realized_account_capital
         due = sorted(
             (
                 (signal, item)
@@ -266,16 +273,19 @@ def _simulate_observed(
                 before = shared_protected
                 after = before + candidate.incremental_pnl_usd
                 if after < 0:
-                    # Protected-only principle: original/base capital is never
-                    # charged. Exhaust the protected pool and expose the breach.
-                    after = Decimal(0)
+                    raise RuntimeError(
+                        "Compound settlement would consume original/base capital"
+                    )
                 shared_protected = after
             else:
                 before = protected[key]
                 after = before + candidate.incremental_pnl_usd
                 if after < 0:
-                    after = Decimal(0)
+                    raise RuntimeError(
+                        "Compound settlement would consume original/base capital"
+                    )
                 protected[key] = after
+            realized_account_capital += candidate.incremental_pnl_usd
 
             for index in range(len(episodes) - 1, -1, -1):
                 episode = episodes[index]
@@ -301,6 +311,7 @@ def _simulate_observed(
             core = core_settlements[core_index]
             core_index += 1
             realized = _d(core["settlement"]["realized_net_pnl_usd"])
+            realized_account_capital += realized
             if realized <= 0:
                 # Core losses are irrelevant to Compound activation. They do not
                 # create protected capital and are not counted as Compound loss.
@@ -313,12 +324,15 @@ def _simulate_observed(
                 protected[trader] += realized
                 inflow_since_episode[trader] += realized
 
+        if realized_account_capital <= 0:
+            continue
+        dynamic_limit = maximum_reinvestment_capital_need_usd(
+            realized_account_capital
+        )
         if not protected_reinvestment_candidate_allowed(
             side=str(row["trader_opportunity"]["side"]),
             capital_need_usd=candidate.capital_need_usd,
-            opening_base_capital_usd=(
-                FROZEN_CIBO_USD60_SIX_MONTH_PROTOCOL.initial_capital_usd
-            ),
+            eligible_current_capital_usd=realized_account_capital,
         ):
             continue
 
@@ -361,6 +375,8 @@ def _simulate_observed(
             protected_inflow_since_prior_episode_usd=inflow,
             protected_before_usd=available,
             committed_before_usd=committed,
+            eligible_current_capital_usd=realized_account_capital,
+            dynamic_capital_need_limit_usd=dynamic_limit,
             deployed_capital_usd=candidate.capital_need_usd,
             stop_risk_usd=candidate.stop_risk_usd,
             margin_usd=candidate.margin_usd,
@@ -441,6 +457,18 @@ def _metrics(
         "gross_loss_usd": _fmt(losses),
         "profit_factor": None if losses == 0 else _fmt(positives / losses),
         "max_incremental_drawdown_usd": _fmt(max_dd),
+        "minimum_eligible_current_capital_usd": _fmt(
+            min(item.eligible_current_capital_usd for item in episodes)
+        ),
+        "maximum_eligible_current_capital_usd": _fmt(
+            max(item.eligible_current_capital_usd for item in episodes)
+        ),
+        "minimum_dynamic_capital_need_limit_usd": _fmt(
+            min(item.dynamic_capital_need_limit_usd for item in episodes)
+        ),
+        "maximum_dynamic_capital_need_limit_usd": _fmt(
+            max(item.dynamic_capital_need_limit_usd for item in episodes)
+        ),
         "minimum_roi": _fmt(min(rois)),
         "maximum_roi": _fmt(max(rois)),
         "weighted_average_roi": _fmt(weighted_roi),
@@ -745,11 +773,20 @@ def main() -> int:
             "policy_id": POLICY_ID,
             "calibration_mode": CALIBRATION_MODE,
             "eligible_side": ELIGIBLE_SIDE,
+            "max_capital_need_to_current_capital_ratio": _fmt(
+                MAX_CAPITAL_NEED_TO_CURRENT_CAPITAL_RATIO
+            ),
             "max_capital_need_to_base_ratio": _fmt(
                 MAX_CAPITAL_NEED_TO_BASE_RATIO
             ),
-            "usd60_max_capital_need_usd": _fmt(
+            "ratio_basis": "CURRENT_REALIZED_ACCOUNT_CAPITAL_BEFORE_DECISION",
+            "dynamic_scaling": True,
+            "opening_balance_is_static_basis": False,
+            "usd60_reference_max_capital_need_usd": _fmt(
                 USD60_MAX_CAPITAL_NEED_USD
+            ),
+            "usd100_reference_max_capital_need_usd": _fmt(
+                maximum_reinvestment_capital_need_usd(Decimal("100"))
             ),
             "population_gate_used": False,
             "outcome_used_at_decision": False,
@@ -771,6 +808,9 @@ def main() -> int:
             "real_capital": False,
             "certification_claimed": False,
             "merge_authority": False,
+            "dynamic_current_capital_scaling": True,
+            "opening_base_capital_used_as_static_reinvestment_basis": False,
+            "owner_global_status": "REJECT",
         },
     }
 
