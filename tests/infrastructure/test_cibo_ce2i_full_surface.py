@@ -1,6 +1,6 @@
-import pytest
-
 from decimal import Decimal
+
+import pytest
 
 from qore.infrastructure.account_wide_risk import TraderLineage
 from qore.infrastructure.cibo_account_capital_mission import (
