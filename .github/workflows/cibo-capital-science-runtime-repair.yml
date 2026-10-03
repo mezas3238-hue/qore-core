@@ -1,0 +1,79 @@
+name: QORE CIBO Capital Science Runtime Repair
+
+on:
+  push:
+    branches:
+      - agent/cibo-capital-science-runtime-repair-001
+    paths:
+      - '.github/workflows/cibo-capital-science-runtime-repair.yml'
+      - 'src/qore/infrastructure/cibo_capital_science_runtime_bridge.py'
+      - 'src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py'
+      - 'src/qore/infrastructure/cibo_profitability_lab_decision_trace.py'
+      - 'scripts/cibo_profitability_lab_all_trader.py'
+      - 'tests/infrastructure/test_cibo_capital_science_runtime_bridge.py'
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-capital-science-runtime-repair.yml'
+      - 'src/qore/infrastructure/cibo_capital_science_runtime_bridge.py'
+      - 'src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py'
+      - 'src/qore/infrastructure/cibo_profitability_lab_decision_trace.py'
+      - 'scripts/cibo_profitability_lab_all_trader.py'
+      - 'tests/infrastructure/test_cibo_capital_science_runtime_bridge.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  runtime-repair:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Compile repaired runtime
+        run: |
+          python -m compileall -q \
+            src/qore/infrastructure/cibo_capital_science_runtime_bridge.py \
+            src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py \
+            src/qore/infrastructure/cibo_profitability_lab_decision_trace.py \
+            scripts/cibo_profitability_lab_all_trader.py \
+            tests/infrastructure/test_cibo_capital_science_runtime_bridge.py
+      - name: Static integrity
+        run: |
+          python -m ruff check \
+            src/qore/infrastructure/cibo_capital_science_runtime_bridge.py \
+            src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py \
+            src/qore/infrastructure/cibo_profitability_lab_decision_trace.py \
+            scripts/cibo_profitability_lab_all_trader.py \
+            tests/infrastructure/test_cibo_capital_science_runtime_bridge.py
+      - name: Capital Science causal runtime tests
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_capital_science_runtime_bridge.py \
+            tests/infrastructure/test_cibo_reused_holdout_capability_exam.py \
+            tests/infrastructure/test_cibo_profitability_lab_economic_consultation.py
+      - name: Governance source scan
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          paths = (
+              Path('src/qore/infrastructure/cibo_capital_science_runtime_bridge.py'),
+              Path('src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py'),
+          )
+          forbidden = (
+              'ProtoOANewOrderReq',
+              'ProtoOAClosePositionReq',
+              'ProtoOACancelOrderReq',
+              'ProtoOAAmendOrderReq',
+              'ProtoOAAmendPositionSLTPReq',
+          )
+          for path in paths:
+              source = path.read_text(encoding='utf-8')
+              assert all(token not in source for token in forbidden)
+          PY
