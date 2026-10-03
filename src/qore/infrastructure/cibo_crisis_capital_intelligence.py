@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from decimal import Decimal
+from decimal import Decimal, localcontext
 from enum import StrEnum
 
 from qore.infrastructure.cibo_account_capital_mission import (
@@ -340,7 +340,9 @@ def plan_genc12_crisis_capital(
 def _utilization(used: Decimal, total: Decimal) -> Decimal:
     if total == 0:
         return Decimal(0)
-    return used / total
+    with localcontext() as context:
+        context.prec = 80
+        return used / total
 
 
 def _require_regime_fact_coverage(
