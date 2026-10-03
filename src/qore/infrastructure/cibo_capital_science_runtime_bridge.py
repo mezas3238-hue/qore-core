@@ -21,7 +21,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime
 from decimal import Decimal
 from enum import StrEnum
-from typing import Iterable
+from collections.abc import Iterable
 
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
@@ -395,7 +395,10 @@ def evaluate_capital_science_predecision(
             reason=(
                 "predecision marginal expected value remained positive after known provider cost"
                 if c4_allows
-                else "predecision marginal expected value was non-positive after known provider cost"
+                else (
+                    "predecision marginal expected value was non-positive after "
+                    "known provider cost"
+                )
             ),
             downstream_consumer="CIBO_COMPOUND_ADMISSION",
             consumer_action=(
