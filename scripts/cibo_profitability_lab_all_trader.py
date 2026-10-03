@@ -43,14 +43,14 @@ from qore.infrastructure.cibo_phase22_v4_historical_regime import (
 from qore.infrastructure.cibo_profitability_lab_decision_trace import (
     build_cibo_profitability_decision_trace,
 )
+from qore.infrastructure.cibo_protected_reinvestment_policy import (
+    CALIBRATION_MODE,
+    POLICY_ID,
+)
 from qore.infrastructure.cibo_reused_holdout_capability_exam import (
     _full_metrics,
     _run_minimal_seed_baseline,
     _tool_audit,
-)
-from qore.infrastructure.cibo_protected_reinvestment_policy import (
-    CALIBRATION_MODE,
-    POLICY_ID,
 )
 from qore.infrastructure.cibo_reused_holdout_compound_portfolio_lane import (
     CompoundResearchRedeployAuthorization,
