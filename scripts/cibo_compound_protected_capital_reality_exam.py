@@ -53,7 +53,6 @@ from qore.infrastructure.cibo_protected_reinvestment_policy import (
     POLICY_ID,
     USD60_MAX_CAPITAL_NEED_USD,
     maximum_reinvestment_capital_need_usd,
-    protected_reinvestment_candidate_allowed,
 )
 
 TRADERS = (
