@@ -51,6 +51,10 @@ from qore.infrastructure.cibo_protected_reinvestment_policy import (
     protected_loss_reserve_usd,
     protected_reinvestment_candidate_allowed,
 )
+from qore.infrastructure.cibo_universal_capital_science_registry import (
+    UniversalCapitalScienceContext,
+    evaluate_universal_capital_science,
+)
 
 LANE_ID = "FULL_CIBO_COMPOUND_PORTFOLIO"
 POOL_SCOPE_ACCOUNT = "ACCOUNT"
@@ -834,90 +838,49 @@ def run_compound_portfolio_lane(
     pf = None if losses == 0 else positives / losses
 
     admitted = sum(
-        1 for item in core_execution.books.cma_settlement.settlements
+        1
+        for item in core_execution.books.cma_settlement.settlements
         if item.realized_net_pnl_usd > 0
     )
-    applied = len(trades)
-    functions = (
-        {
-            "function_code": "GEN-C1_COMPOUND_CAPITAL",
-            "function_type": "COMPOUND",
-            "status": "APPLIED" if admitted else "FAIL_CLOSED",
-            "eligible_epochs": len(plan.epochs),
-            "executed_count": admitted,
-            "blocked_count": 0 if admitted else len(plan.epochs),
-            "reason": (
-                "positive terminal Core settlements admitted as realized-profit-only "
-                "compound capacity"
-                if admitted
-                else "no positive realized Core settlement existed before deployment"
-            ),
-        },
-        {
-            "function_code": "GEN-C3_CORE_COMPOUND_PORTFOLIO",
-            "function_type": "COMPOUND_PORTFOLIO",
-            "status": (
-                "JUSTIFIED_NOT_APPLICABLE"
-                if lab_pool_scope == POOL_SCOPE_TRADER_LOCAL
-                else "APPLIED" if applied else "FAIL_CLOSED"
-            ),
-            "eligible_epochs": (
-                0 if lab_pool_scope == POOL_SCOPE_TRADER_LOCAL else selected
-            ),
-            "executed_count": (
-                0 if lab_pool_scope == POOL_SCOPE_TRADER_LOCAL else applied
-            ),
-            "blocked_count": (
-                0 if lab_pool_scope == POOL_SCOPE_TRADER_LOCAL else rejected
-            ),
-            "reason": (
-                "Trader-local Compound counterfactual intentionally disables "
-                "cross-Trader pooling"
-                if lab_pool_scope == POOL_SCOPE_TRADER_LOCAL
-                else (
-                    "account-local realized-profit pool was redeployed across the "
-                    f"Core selection surface; cross-Trader deployments={cross_trader}"
-                    if applied
-                    else (
-                        "rational redeploy utility/preservation/governance evidence "
-                        "did not authorize incremental capital"
-                        if lab_require_rational_redeploy
-                        else "realized-profit pool never reached one legal minimum seed"
-                    )
-                )
-            ),
-        },
-        {
-            "function_code": "GEN-C5_SEQUENTIAL_COMPOUNDING",
-            "function_type": "COMPOUND",
-            "status": "APPLIED" if applied else "FAIL_CLOSED",
-            "eligible_epochs": selected,
-            "executed_count": applied,
-            "blocked_count": rejected,
-            "reason": (
-                "causally prior realized profit funded later incremental seeds"
-                if applied
-                else (
-                    "sequential compound remained fail-closed because rational "
-                    "redeploy policy authorization was absent"
-                    if lab_require_rational_redeploy
-                    else "no later selected opportunity could consume realized-profit capacity"
-                )
-            ),
-        },
-        {
-            "function_code": "GEN-C6_INTERNAL_CAPITAL_MARKET",
-            "function_type": "COMPOUND_PORTFOLIO",
-            "status": "JUSTIFIED_NOT_APPLICABLE",
-            "eligible_epochs": 0,
-            "executed_count": 0,
-            "blocked_count": 0,
-            "reason": (
-                "this ablation measures the frozen Core selection plus a shared "
-                "Compound Portfolio; it does not replace Core selection with a "
-                "new scarcity-ranking policy"
-            ),
-        },
+    total_compound_risk = sum(
+        (item.authorized_stop_risk_usd for item in trades),
+        Decimal(0),
+    )
+    total_compound_margin = sum(
+        (item.authorized_margin_usd for item in trades),
+        Decimal(0),
+    )
+    total_provider_cost = sum(
+        (item.provider_cost_usd for item in trades),
+        Decimal(0),
+    )
+    total_protected_loss_reserve = sum(
+        (
+            protected_loss_reserve_usd(item.authorized_stop_risk_usd)
+            for item in trades
+        ),
+        Decimal(0),
+    )
+    functions = evaluate_universal_capital_science(
+        UniversalCapitalScienceContext(
+            epoch_count=len(plan.epochs),
+            selected_count=selected,
+            realized_profit_settlement_count=admitted,
+            compound_settlement_count=len(trades),
+            compound_rejected_count=rejected,
+            cross_trader_deployment_count=cross_trader,
+            core_ending_capital_usd=core_execution.final_realized_capital_usd,
+            compound_incremental_pnl_usd=incremental,
+            total_compound_risk_usd=total_compound_risk,
+            total_compound_margin_usd=total_compound_margin,
+            total_provider_cost_usd=total_provider_cost,
+            protected_loss_reserve_usd=total_protected_loss_reserve,
+            account_pool_enabled=lab_pool_scope == POOL_SCOPE_ACCOUNT,
+            rational_redeploy_gate_enabled=lab_require_rational_redeploy,
+            qore_risk_sovereign=True,
+            fixed_leverage_experiment=lab_seed_multiplier != Decimal("1"),
+            burned_adaptive_research=lab_allow_noncertifying_research_redeploy,
+        )
     )
 
     return CompoundPortfolioLaneResult(
