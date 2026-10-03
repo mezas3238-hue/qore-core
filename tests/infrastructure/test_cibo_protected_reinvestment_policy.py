@@ -6,8 +6,10 @@ from qore.infrastructure.cibo_protected_reinvestment_policy import (
     DYNAMIC_CURRENT_CAPITAL_SCALING,
     ELIGIBLE_SIDE,
     MAX_CAPITAL_NEED_TO_CURRENT_CAPITAL_RATIO,
+    PROTECTED_LOSS_RESERVE_STOP_RISK_RATIO,
     USD60_MAX_CAPITAL_NEED_USD,
     maximum_reinvestment_capital_need_usd,
+    protected_loss_reserve_usd,
     protected_reinvestment_candidate_allowed,
 )
 
@@ -68,6 +70,23 @@ def test_policy_is_predecision_and_side_bound() -> None:
         capital_need_usd=Decimal("3"),
         eligible_current_capital_usd=Decimal("100"),
     )
+
+
+def test_protected_loss_reserve_is_not_deployed_capital() -> None:
+    assert PROTECTED_LOSS_RESERVE_STOP_RISK_RATIO == Decimal("0.25")
+    assert protected_loss_reserve_usd(Decimal("1.21")) == Decimal("0.3025")
+    assert protected_loss_reserve_usd(Decimal("0")) == Decimal("0.00")
+
+
+@pytest.mark.parametrize(
+    "value",
+    (Decimal("-1"), Decimal("NaN"), Decimal("Infinity")),
+)
+def test_protected_loss_reserve_rejects_invalid_stop_risk(
+    value: Decimal,
+) -> None:
+    with pytest.raises(ValueError, match="stop risk"):
+        protected_loss_reserve_usd(value)
 
 
 @pytest.mark.parametrize(
