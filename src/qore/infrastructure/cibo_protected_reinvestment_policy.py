@@ -4,6 +4,11 @@ Derived only in NON_CERTIFYING_REUSED_HOLDOUT Trader Lab calibration.
 The policy is then consumed as a fixed predecision rule. It never inspects the
 current candidate outcome and grants no Risk, sizing, broker, LIVE, Production,
 real-capital, certification, deployment, or merge authority.
+
+The calibrated ratio is applied to causally-known CURRENT realized economic
+capital at decision time. It is not frozen to the account's opening balance.
+Protected-capital availability, QORE Risk and provider/margin constraints remain
+independent hard ceilings.
 """
 
 from __future__ import annotations
@@ -13,9 +18,12 @@ from decimal import Decimal
 POLICY_ID = "CIBO_PROTECTED_REINVESTMENT_TRADER_LAB_V1"
 CALIBRATION_MODE = "NON_CERTIFYING_REUSED_HOLDOUT"
 ELIGIBLE_SIDE = "long"
-MAX_CAPITAL_NEED_TO_BASE_RATIO = Decimal(
+MAX_CAPITAL_NEED_TO_CURRENT_CAPITAL_RATIO = Decimal(
     "0.030069491001082367274812335331333333333333333333333"
 )
+# Compatibility alias for retained reports. New code must use the CURRENT-capital
+# name and must never interpret this ratio as permanently bound to opening capital.
+MAX_CAPITAL_NEED_TO_BASE_RATIO = MAX_CAPITAL_NEED_TO_CURRENT_CAPITAL_RATIO
 USD60_MAX_CAPITAL_NEED_USD = Decimal(
     "1.80416946006494203648874011988"
 )
@@ -24,25 +32,29 @@ POPULATION_GATE_USED = False
 OUTCOME_USED_AT_DECISION = False
 FORWARD_GENERALIZATION_CLAIMED = False
 RUNTIME_AUTHORITY = False
+DYNAMIC_CURRENT_CAPITAL_SCALING = True
 
 
 def maximum_reinvestment_capital_need_usd(
-    opening_base_capital_usd: Decimal,
+    eligible_current_capital_usd: Decimal,
 ) -> Decimal:
     if (
-        not isinstance(opening_base_capital_usd, Decimal)
-        or not opening_base_capital_usd.is_finite()
-        or opening_base_capital_usd <= 0
+        not isinstance(eligible_current_capital_usd, Decimal)
+        or not eligible_current_capital_usd.is_finite()
+        or eligible_current_capital_usd <= 0
     ):
-        raise ValueError("opening base capital must be finite positive Decimal")
-    return opening_base_capital_usd * MAX_CAPITAL_NEED_TO_BASE_RATIO
+        raise ValueError("eligible current capital must be finite positive Decimal")
+    return (
+        eligible_current_capital_usd
+        * MAX_CAPITAL_NEED_TO_CURRENT_CAPITAL_RATIO
+    )
 
 
 def protected_reinvestment_candidate_allowed(
     *,
     side: str,
     capital_need_usd: Decimal,
-    opening_base_capital_usd: Decimal,
+    eligible_current_capital_usd: Decimal,
 ) -> bool:
     if not isinstance(side, str) or not side:
         raise ValueError("side is required")
@@ -55,5 +67,7 @@ def protected_reinvestment_candidate_allowed(
     return (
         side == ELIGIBLE_SIDE
         and capital_need_usd
-        <= maximum_reinvestment_capital_need_usd(opening_base_capital_usd)
+        <= maximum_reinvestment_capital_need_usd(
+            eligible_current_capital_usd
+        )
     )
