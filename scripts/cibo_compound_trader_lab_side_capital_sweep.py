@@ -31,6 +31,7 @@ from cibo_compound_protected_capital_reality_exam import (
     _settled_rows,
     _surface,
 )
+
 from qore.infrastructure.cibo_protected_reinvestment_policy import (
     USD60_MAX_CAPITAL_NEED_USD,
 )
