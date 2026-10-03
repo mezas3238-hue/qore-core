@@ -13,10 +13,11 @@
   "production": false,
   "merge_authority": false,
   "outcome_aware_tuning": false,
-  "retrigger_for_head": "4045d7fd0525237dd69a20b7c725a58e36f1e83d",
-  "retrigger_reason": "Trader Lab fast-lab promotion exam for T02: consume the frozen pooled burned TRAIN-selected then independently VALIDATION-passed rule ROR_0050_D1_NOT_EXTREME through the reused-holdout integrated P0 path, with causal context, released capacity, CMA, sovereign QORE Risk, settlement, Compound V2, and Phase 3 economic gate.",
-  "mode": "CIBO_PHASE3_T02_POOLED_TRADER_LAB_INTEGRATED_EXAM",
+  "retrigger_for_head": "35d479ce2d10ede42a2ae3296cea96fad18767b8",
+  "retrigger_reason": "Trader Lab V5 fast-tail integrated T02 exam: consume only the frozen TRAIN-selected and sealed-VALIDATION-passed FVG_EXCLUDE_NY_LOW_EFF_LARGE_WICK evidence through reused-holdout P0, released capacity, CMA, sovereign QORE Risk, settlement, Compound V2, and Phase3 economic gates.",
+  "mode": "CIBO_PHASE3_T02_TRADER_LAB_V5_FAST_TAIL_INTEGRATED_EXAM",
   "replay_tool_eligibility_authority": false,
-  "reason": "Owner-directed phase-by-phase functionality repair using Trader Lab laboratories. The candidate was selected on burned TRAIN only and validated before this reused-holdout replay. This run does not authorize promotion by itself; T02 still requires positive incremental economics and chronological gate compliance. No broker mutation/LIVE/real capital/production/merge/Fresh-OOS claim.",
-  "t02_pooled_evidence": true
+  "reason": "Owner-directed phase-by-phase repair using Trader Lab fast laboratories. V5 passed TRAIN and sealed burned VALIDATION with positive 4/4 folds, positive bootstrap p05, baseline-compatible aggregate p95 loss and improved stop rate. This integrated exam still grants no Fresh-OOS/certification/LIVE/Production/real-capital/broker/merge authority.",
+  "t02_pooled_evidence": false,
+  "t02_fast_tail_evidence": true
 }
