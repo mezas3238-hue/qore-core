@@ -7,6 +7,8 @@ on:
     paths:
       - '.github/workflows/cibo-protected-compound-reality-exam.yml'
       - 'scripts/cibo_compound_protected_capital_reality_exam.py'
+      - 'src/qore/infrastructure/cibo_protected_reinvestment_policy.py'
+      - 'tests/infrastructure/test_cibo_protected_reinvestment_policy.py'
   workflow_dispatch:
 
 permissions:
@@ -46,23 +48,41 @@ jobs:
         run: |
           python - <<'PY'
           import json, os
+          from decimal import Decimal
           from pathlib import Path
           p=json.loads((Path(os.environ['RUNNER_TEMP'])/'reality'/'report.json').read_text())
           assert p['governance']['population_gate_used'] is False
           assert p['governance']['protected_capital_required_before_reinvestment'] is True
           assert p['governance']['core_losses_create_compound_capital'] is False
+          assert p['governance']['dynamic_current_capital_scaling'] is True
+          assert p['governance']['opening_base_capital_used_as_static_reinvestment_basis'] is False
+          assert p['calibrated_reinvestment_policy']['dynamic_scaling'] is True
           for key in ('cibo_compound','compound_portfolio'):
               s=p[key]
               assert s['observed']['status']=='MEASURED'
               assert s['observed']['episode_count']>0
+              assert Decimal(s['observed']['incremental_realized_pnl_usd'])>0
+              assert Decimal(s['observed']['weighted_average_roi'])>0
               assert s['walk_forward']['fold_count']>0
+              assert all(
+                  Decimal(f['weighted_average_roi'])>0
+                  for f in s['walk_forward']['folds']
+              )
               assert s['monte_carlo']['simulation_count']==1000
+              assert Decimal(s['monte_carlo']['median_incremental_pnl_usd'])>0
+              assert s['monte_carlo']['protected_pool_breach_paths']==0
               assert s['stress']['scenario_count']==7
           PY
-      - name: Static integrity
+      - name: Static integrity and dynamic policy tests
         run: |
-          python -m py_compile scripts/cibo_compound_protected_capital_reality_exam.py
-          ruff check scripts/cibo_compound_protected_capital_reality_exam.py
+          pytest -q --no-cov tests/infrastructure/test_cibo_protected_reinvestment_policy.py
+          python -m py_compile \
+            scripts/cibo_compound_protected_capital_reality_exam.py \
+            src/qore/infrastructure/cibo_protected_reinvestment_policy.py
+          ruff check \
+            scripts/cibo_compound_protected_capital_reality_exam.py \
+            src/qore/infrastructure/cibo_protected_reinvestment_policy.py \
+            tests/infrastructure/test_cibo_protected_reinvestment_policy.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
