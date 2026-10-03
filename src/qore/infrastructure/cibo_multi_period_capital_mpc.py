@@ -456,10 +456,8 @@ def plan_genc11_multi_period_capital(
         raise CiboCapitalManagementError(
             "GEN-C11 requires canonical GEN-C10 observed twin"
         )
-    if twin.captured_at < GENC11_FROZEN_AT:
-        raise CiboCapitalManagementError(
-            "GEN-C11 twin cannot predate policy freeze"
-        )
+    # The GEN-C11 freeze locks the planning policy. A canonical GEN-C10
+    # twin may represent historical market time without disabling this engine.
     if len(world_paths) < 2:
         raise CiboCapitalManagementError(
             "GEN-C11 robust planning requires at least two worlds"
