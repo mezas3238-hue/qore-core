@@ -93,6 +93,34 @@ _INTERNAL_EXTERNAL_BLOCKER_MARKERS = (
 
 _WORKSTREAM_CLASSIFIERS = (
     ("*cibo_profitability_lab*", "SOURCE_OF_TRUTH_RECONCILIATION"),
+    (
+        "*cibo_compound_protected_capital_reality_exam*",
+        "COMPOUND_ENGINE",
+    ),
+    ("*cibo_compound_strict_walk_forward*", "COMPOUND_ENGINE"),
+    ("*cibo_compound_trader_lab_audit*", "COMPOUND_ENGINE"),
+    (
+        "*cibo_compound_trader_lab_completion_audit*",
+        "COMPOUND_ENGINE",
+    ),
+    (
+        "*cibo_compound_trader_lab_directional_refinement*",
+        "COMPOUND_ENGINE",
+    ),
+    (
+        "*cibo_compound_trader_lab_side_capital_sweep*",
+        "COMPOUND_ENGINE",
+    ),
+    ("*cibo_compound_constant_statistics*", "COMPOUND_ENGINE"),
+    (
+        "*cibo_compound_temporal_population_assessment*",
+        "TEMPORAL_REPLICATION",
+    ),
+    ("*cibo_protected_reinvestment_policy*", "COMPOUND_ENGINE"),
+    (
+        "*cibo_full_function_trader_lab_audit*",
+        "SOURCE_OF_TRUTH_RECONCILIATION",
+    ),
     ("*cibo_capability_exam_reporting*", "SOURCE_OF_TRUTH_RECONCILIATION"),
     ("*cibo_capability_exam_column_report*", "SOURCE_OF_TRUTH_RECONCILIATION"),
     ("*cibo_capability_exam_cognitive_coverage*", "SOURCE_OF_TRUTH_RECONCILIATION"),
