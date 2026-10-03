@@ -110,6 +110,8 @@ def test_t03_selects_only_verified_equivalent_lower_margin_expression() -> None:
             evidence_id="t03",
             observed_at=_NOW,
             baseline_expression_id="spot",
+            fresh_oos_utility_demonstrated=True,
+            policy_authorized=True,
             expressions=(
                 MarginExpression(
                     expression_id="spot",
@@ -279,6 +281,8 @@ def test_t16_abstains_without_certified_hedge_and_applies_positive_net_transfer(
             evidence_id="t16-none",
             observed_at=_NOW,
             instruments=(),
+            fresh_oos_utility_demonstrated=True,
+            policy_authorized=True,
         )
     )
     assert none.disposition is AdvancedToolDisposition.ABSTAIN
@@ -288,6 +292,8 @@ def test_t16_abstains_without_certified_hedge_and_applies_positive_net_transfer(
         HedgedExposureEvidence(
             evidence_id="t16",
             observed_at=_NOW,
+            fresh_oos_utility_demonstrated=True,
+            policy_authorized=True,
             instruments=(
                 HedgeInstrumentEvidence(
                     instrument_id="hedge-1",
@@ -315,6 +321,8 @@ def test_t17_never_invents_convexity_without_certified_instrument() -> None:
             observed_at=_NOW,
             available_limited_downside_capacity_usd=Decimal("20"),
             instruments=(),
+            fresh_oos_utility_demonstrated=True,
+            policy_authorized=True,
         )
     )
     assert none.disposition is AdvancedToolDisposition.ABSTAIN
@@ -325,6 +333,8 @@ def test_t17_never_invents_convexity_without_certified_instrument() -> None:
             evidence_id="t17",
             observed_at=_NOW,
             available_limited_downside_capacity_usd=Decimal("20"),
+            fresh_oos_utility_demonstrated=True,
+            policy_authorized=True,
             instruments=(
                 ConvexInstrumentEvidence(
                     instrument_id="convex-1",
@@ -364,3 +374,46 @@ def test_full_advanced_surface_fails_closed_when_enabled_evidence_is_missing() -
         item.disposition is AdvancedToolDisposition.FAIL_CLOSED
         for item in decisions
     )
+
+
+def test_t03_t16_t17_measurement_cannot_self_promote_policy() -> None:
+    t03 = evaluate_margin_efficiency(
+        MarginEfficiencyEvidence(
+            evidence_id="t03-shadow",
+            observed_at=_NOW,
+            baseline_expression_id="spot",
+            expressions=(
+                MarginExpression(
+                    expression_id="spot",
+                    normalized_exposure=Decimal("100"),
+                    stop_risk_usd=Decimal("10"),
+                    margin_usd=Decimal("50"),
+                    all_in_cost_usd=Decimal("2"),
+                    executable=True,
+                    economics_verified=True,
+                ),
+            ),
+        )
+    )
+    t16 = evaluate_hedged_exposure(
+        HedgedExposureEvidence(
+            evidence_id="t16-shadow",
+            observed_at=_NOW,
+            instruments=(),
+        )
+    )
+    t17 = evaluate_convex_exposure(
+        ConvexExposureEvidence(
+            evidence_id="t17-shadow",
+            observed_at=_NOW,
+            available_limited_downside_capacity_usd=Decimal("20"),
+            instruments=(),
+        )
+    )
+
+    assert t03.disposition is AdvancedToolDisposition.FAIL_CLOSED
+    assert "fresh OOS" in t03.reason
+    assert t16.disposition is AdvancedToolDisposition.FAIL_CLOSED
+    assert "fresh OOS" in t16.reason
+    assert t17.disposition is AdvancedToolDisposition.FAIL_CLOSED
+    assert "fresh OOS" in t17.reason
