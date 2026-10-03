@@ -155,17 +155,40 @@ def _coverage(
     replay_started_at: datetime,
     tool_audit: Any,
     compound: Any,
+    decision_trace: dict[str, object],
 ) -> dict[str, Any]:
     cognitive = build_cibo_capability_cognitive_coverage(
         source_batch_sha256=fresh.declared_batch_sha256,
         observed_at=replay_started_at,
     )
+    trace_rows = decision_trace.get("opportunities")
+    if not isinstance(trace_rows, list) or not trace_rows:
+        raise ValueError("runtime decision trace is required for CF coverage")
+    runtime_cf_complete = all(
+        isinstance(row, dict)
+        and isinstance(row.get("cognitive_orchestration"), dict)
+        and row["cognitive_orchestration"].get("runtime_economic_consultation")
+        == "PRESENT"
+        and len(
+            row["cognitive_orchestration"].get(
+                "runtime_consulted_faculties",
+                [],
+            )
+        )
+        == 19
+        for row in trace_rows
+    )
     cf_rows = [
         {
             "capability": f"CF{i:02d}",
             "stage": "COGNITIVE",
-            "status": "APPLIED",
-            "reason": "capability-exam cognitive coordinator consultation receipt",
+            "status": "APPLIED" if runtime_cf_complete else "NOT_INTEGRATED",
+            "reason": (
+                "required causal predecision functional consultation is on the "
+                "economic policy path"
+                if runtime_cf_complete
+                else "runtime economic faculty consultation incomplete"
+            ),
         }
         for i in range(1, 20)
     ]
@@ -215,12 +238,14 @@ def _coverage(
 
     full_complete = (
         cognitive.all_functional_faculties_consulted
+        and runtime_cf_complete
         and all(row["status"] != "NOT_INTEGRATED" for row in t_rows)
         and all(row["status"] != "NOT_INTEGRATED" for row in genc_rows)
     )
     return {
         "schema": "qore.cibo.profitability-lab.full-stack-coverage.p0.v1",
         "cf01_cf19_complete": cognitive.all_functional_faculties_consulted,
+        "cf01_cf19_runtime_economic_consultation_complete": runtime_cf_complete,
         "t01_t20_registered": cognitive.all_ce2i_tools_registered,
         "full_stack_runtime_coverage_complete": full_complete,
         "rows": cf_rows + t_rows + genc_rows,
@@ -299,15 +324,16 @@ def main() -> int:
     )
     audit = _tool_audit(plan=plan, execution=treatment)
     trader_rows = _trader_rows(execution=treatment, compound=compound)
+    decision_trace = build_cibo_profitability_decision_trace(
+        execution=treatment,
+        compound_function_accountability=compound.function_accountability,
+    )
     coverage = _coverage(
         fresh=fresh,
         replay_started_at=replay_started_at,
         tool_audit=audit,
         compound=compound,
-    )
-    decision_trace = build_cibo_profitability_decision_trace(
-        execution=treatment,
-        compound_function_accountability=compound.function_accountability,
+        decision_trace=decision_trace,
     )
     participation_pass = all(row["participation_pass"] for row in trader_rows)
 
