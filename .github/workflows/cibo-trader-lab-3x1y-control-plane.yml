@@ -1,0 +1,119 @@
+name: QORE CIBO Trader Lab 3x1Y Control Plane
+
+on:
+  push:
+    branches:
+      - agent/cibo-t02-science-architect-2-001
+    paths:
+      - '.github/workflows/cibo-trader-lab-3x1y-control-plane.yml'
+      - 'docs/research/CIBO-TRADER-LAB-3X1Y-ADAPTIVE-RESEARCH-PROTOCOL.json'
+      - 'src/qore/infrastructure/trader_lab/cibo_three_holdout_1y_contract.py'
+      - 'scripts/cibo_three_holdout_1y_sensor.py'
+      - 'scripts/cibo_three_holdout_turtle_eval_window_patch.py'
+      - 'scripts/cibo_three_holdout_integrated_batch.py'
+      - 'tests/infrastructure/trader_lab/test_cibo_three_holdout_1y_contract.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  control-plane:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: python -m pip install -e '.[dev]'
+
+      - name: Static validation
+        run: |
+          set -euo pipefail
+          python -m py_compile             src/qore/infrastructure/trader_lab/cibo_three_holdout_1y_contract.py             scripts/cibo_three_holdout_1y_sensor.py
+          ruff check             src/qore/infrastructure/trader_lab/cibo_three_holdout_1y_contract.py             scripts/cibo_three_holdout_1y_sensor.py             tests/infrastructure/trader_lab/test_cibo_three_holdout_1y_contract.py
+          pytest -q --no-cov             tests/infrastructure/trader_lab/test_cibo_three_holdout_1y_contract.py
+
+      - name: Validate frozen protocol
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('docs/research/CIBO-TRADER-LAB-3X1Y-ADAPTIVE-RESEARCH-PROTOCOL.json').read_text())
+          assert p['owner_authorized'] is True
+          assert p['mode'] == 'NON_CERTIFYING_BURNED_ADAPTIVE_RESEARCH'
+          assert [x['group_id'] for x in p['groups']] == ['GROUP_1','GROUP_2','GROUP_3']
+          assert p['market_context']['timeframes'] == ['H4','H1','M15','M5','M1']
+          assert p['market_context']['excluded'] == ['D1','D','DAILY']
+          assert p['measurements']['leverage_seed_multipliers'] == ['1','2','3','4']
+          assert p['study_target']['primary_subject'] == 'CIBO'
+          assert p['study_target']['trader_role'] == 'FROZEN_OPPORTUNITY_AND_OUTCOME_PRODUCERS_ONLY'
+          assert p['study_target']['trader_logic_tunable'] is False
+          assert p['study_target']['trader_profitability_is_optimization_target'] is False
+          assert p['study_target']['trader_profitability_is_stop_gate'] is True
+          assert p['automation']['search_target'] == 'CIBO_CONFIGURATION_ONLY_WITH_ALL_7_TRADERS_POSITIVE_GATE'
+          assert p['automation']['trader_parameters_mutable'] is False
+          assert p['stop_sensor']['required_identical_configuration_fingerprints_across_all_groups'] == 3
+          assert p['execution_topology']['unit_of_test'] == 'ONE_INTEGRATED_7_TRADER_PORTFOLIO_PER_1Y_GROUP'
+          assert p['execution_topology']['per_trader_results_may_trigger_stop_sensor'] is False
+          assert p['candidate_pass_gate']['zero_trader_exceptions'] is True
+          assert p['candidate_pass_gate']['reject_if_any_trader_nonpositive'] is True
+          assert p['candidate_pass_gate']['per_trader_profitability_is_cibo_outcome_gate'] is True
+          assert p['execution_topology']['shared_initial_capital_usd'] == '60'
+          assert p['execution_topology']['shared_qore_risk_state'] is True
+          assert p['execution_topology']['shared_cibo_capital_state'] is True
+          assert p['automation']['adaptive_outcome_aware_search'] is True
+          assert p['automation']['certification_claim_from_these_holdouts'] is False
+          assert p['automation']['finite_preregistered_search_space_required'] is True
+          assert p['automation']['no_unbounded_self_dispatch'] is True
+          g=p['governance']
+          assert g['adaptive_search_burns_all_three_holdouts'] is True
+          assert g['fresh_oos_claimed'] is False
+          assert g['certification_claimed'] is False
+          for key in ('no_live','no_production','no_real_capital','no_broker_mutation','no_merge','no_vps'):
+              assert g[key] is True, key
+          PY
+
+      - name: Emit source readiness receipt
+        run: |
+          mkdir -p "$RUNNER_TEMP/three-holdout"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=json.loads(Path('docs/research/CIBO-TRADER-LAB-3X1Y-ADAPTIVE-RESEARCH-PROTOCOL.json').read_text())
+          receipt={
+            'schema':'qore.cibo.trader-lab.3x1y-source-readiness.v1',
+            'status':'REPLAY_SOURCE_BUILD_REQUIRED',
+            'groups':p['groups'],
+            'cohort':p['cohort'],
+            'timeframes':p['market_context']['timeframes'],
+            'existing_phase18_common_window':p['source_readiness']['phase18_existing_common_7_trader_window'],
+            'existing_common_window_insufficient_for_1y':True,
+            'market_atlas_m5_available_for_group_windows':True,
+            'vt31_existing_trade_evidence_covers_group_windows':True,
+            'vt08_requires_regeneration':True,
+            'seven_trader_1y_group_results_ready':False,
+            'next_required_stage':'BUILD_FROZEN_7_TRADER_WINDOW_REPLAY_ADAPTERS',
+            'adaptive_search_started':False,
+            'reason':'Do not start outcome-driven search before exact 7/7 one-year replay inputs exist for every group.',
+            'broker_mutation':False,
+            'live':False,
+            'production':False,
+            'real_capital':False,
+            'certification_claimed':False,
+          }
+          out=Path(os.environ['RUNNER_TEMP'])/'three-holdout'/'source-readiness.json'
+          out.write_text(json.dumps(receipt,indent=2,sort_keys=True)+'\n')
+          print(json.dumps(receipt,sort_keys=True))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-trader-lab-3x1y-control-plane-${{ github.run_id }}
+          path: ${{ runner.temp }}/three-holdout
+          if-no-files-found: error
+          retention-days: 90

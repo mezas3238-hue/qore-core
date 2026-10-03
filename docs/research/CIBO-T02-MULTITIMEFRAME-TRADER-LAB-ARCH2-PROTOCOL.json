@@ -1,0 +1,129 @@
+{
+  "schema": "qore.cibo.t02-multitimeframe-trader-lab-arch2-protocol.v1",
+  "mode": "NON_CERTIFYING_REUSED_HOLDOUT_RESEARCH",
+  "purpose": "Connect real Trader Lab candidate bindings to a predecision-only multi-timeframe T02 Explorer/Validator laboratory.",
+  "source_branch": "agent/cibo-t02-science-architect-2-001",
+  "timeframes": {
+    "required_from_current_native_evidence": [
+      "H4",
+      "H1",
+      "M15",
+      "M5",
+      "M1"
+    ],
+    "never_invent_missing_timeframes": true,
+    "future_extension": "Additional predecision timeframes may enter only when retained native evidence contains them.",
+    "m1_binding": {
+      "trader": "VT31_NAS100",
+      "capability_artifact_id": 11255438950,
+      "retained_m1_source_artifact_id": 11245896861,
+      "retained_m1_bars": 158005,
+      "causality": "Only M1 candles closed at or before decision timestamp may contribute features."
+    },
+    "m15_binding": {
+      "source": "Phase22 V4 retained M5 ledgers",
+      "derivation": "Closed-candle-only aggregation of exact 3xM5 buckets into M15. No partial bucket may be used at a decision epoch.",
+      "source_artifacts": {
+        "AUDJPY": 11244904532,
+        "EURUSD": 11245936688,
+        "GBPJPY": 11245976856,
+        "GBPUSD": 11245826923,
+        "NAS100": 11245574432,
+        "XAUUSD": 11244949765
+      },
+      "outcome_fields_used": false
+    },
+    "excluded": [
+      "D1",
+      "D",
+      "DAILY"
+    ],
+    "rationale": "No current certified Trader in this seven-Trader cohort operates on a daily decision timeframe; laboratory surface is H4/H1/M15/M5/M1."
+  },
+  "explorer": {
+    "train_only": true,
+    "features": [
+      "H4/H1 structural context",
+      "M15 closed-candle aggregation: body alignment, efficiency, volatility/range, displacement and local position",
+      "M5 displacement alignment, efficiency and volatility",
+      "M1 last-body alignment, body efficiency, volatility/range ratios, 5m/15m displacement, 60m position, 09:00-10:00 NY reference-range/raid state",
+      "session",
+      "setup timeframe",
+      "side",
+      "family",
+      "target_route",
+      "fragility",
+      "expected_net_value_usd",
+      "expected_capital_minutes",
+      "provider_cost_to_extra_risk",
+      "pre_ce2i_stop_risk_usd",
+      "pre_ce2i_margin_usd",
+      "hard_risk_headroom_usd",
+      "margin_headroom_usd"
+    ],
+    "forbidden_features": [
+      "trader_id",
+      "symbol",
+      "realized P/L",
+      "exit reason",
+      "raw realized R",
+      "settlement result",
+      "post-entry path",
+      "future market"
+    ],
+    "leverage_fractions": [
+      "0.25",
+      "0.50",
+      "0.75",
+      "1.00"
+    ],
+    "categorical_rule_depth_max": 3,
+    "numeric_thresholds": "TRAIN-only quartiles",
+    "search_policy": "Broad TRAIN exploration is permitted; nothing discovered on TRAIN is approved until frozen and evaluated on untouched chronological TEST.",
+    "shadow_size_step_multipliers": [
+      "1",
+      "2",
+      "3",
+      "4"
+    ],
+    "shadow_size_leverage_rule": "Incremental volume/risk/cost/margin scale together. Candidate is feasible only when scaled stop-risk <= hard_risk_headroom_usd and scaled margin <= margin_headroom_usd at the decision epoch.",
+    "broker_margin_leverage_stress_multipliers": [
+      "1",
+      "2",
+      "3",
+      "5"
+    ],
+    "broker_margin_leverage_rule": "Broker leverage stress changes required margin only; fixed-volume P/L and stop-risk do not change. This is reported separately from size leverage.",
+    "leverage_results_are_research_only": true
+  },
+  "validator": {
+    "chronological_partitions": [
+      5,
+      6
+    ],
+    "hard_gate": "EVERY TEST > 0; no pooled rescue",
+    "minimum_test_population": 1,
+    "final_candidate_minimum_population": 20,
+    "monte_carlo_required": true,
+    "stress_required": true,
+    "universality_gate": "No symbol/trader predicate; M1-only signals from one current lineage may be exploratory but cannot by themselves establish cross-asset universality."
+  },
+  "trader_lab": {
+    "require_real_candidate_binding": true,
+    "require_state": "research_ready",
+    "expected_candidate_count": 7,
+    "candidate_fingerprint_attached_to_research_rows": true
+  },
+  "governance": {
+    "no_merge": true,
+    "no_live": true,
+    "no_production": true,
+    "no_real_capital": true,
+    "no_broker_mutation": true,
+    "no_vps": true,
+    "no_outcome_feature_admission": true,
+    "qore_risk_sovereign": true,
+    "no_fresh_oos_claim": true,
+    "no_certification_claim": true
+  }
+}

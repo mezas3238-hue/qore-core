@@ -1,0 +1,110 @@
+name: QORE CIBO Trader Lab 3x1Y Seven Trader Assembly
+
+on:
+  push:
+    branches:
+      - agent/cibo-t02-science-architect-2-001
+    paths:
+      - '.github/workflows/cibo-trader-lab-3x1y-seven-trader-assembly.yml'
+      - 'scripts/cibo_three_holdout_1y_assemble.py'
+      - 'src/qore/infrastructure/cibo_phase22_v4_execution_inputs.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  P0_ARTIFACT_ID: '11275124190'
+
+jobs:
+  assemble:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+
+      - name: Validate assembler
+        run: |
+          set -euo pipefail
+          python -m py_compile             scripts/cibo_three_holdout_1y_assemble.py             scripts/cibo_cognitive_trader_lab_audit.py             src/qore/infrastructure/cibo_phase22_v4_execution_inputs.py
+          ruff check             scripts/cibo_three_holdout_1y_assemble.py             src/qore/infrastructure/cibo_phase22_v4_execution_inputs.py
+
+      - name: Recover seven immutable 3x1Y lane artifacts
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/lanes"
+          cat > "$RUNNER_TEMP/lanes.tsv" <<'EOF'
+          VT08_FOREX	11281150915	sha256:57975822953a2781fb39a6af882a5b72ef71e8ca0eea515ce5dcc32b59d1dfc5
+          R34_XAUUSD	11280762772	sha256:0a555da40fe205a9af2d62215a93cd73f20564c7e1db1a92b88c597f1178f98a
+          R38_EURUSD	11280163752	sha256:0bd6d999a7a6a460d07a8b6dc2fb2b34a9d6c43ddfba8238b657917cf8c78514
+          R43_GBPUSD	11280274495	sha256:b14dc190cfe501e69198faa1dcc455f8dc4fccd451bb6933cc6367e24d77c752
+          R38_GBPJPY	11280940997	sha256:3a1b09f2238e973f48990c8a49dc85743ec787a25d80e4368c4b9544f189e9db
+          R42_AUDJPY	11280264195	sha256:665a1854248da1b6322c46c7fa14713ffec8a3e7863c3f61ee81b53984ff99fa
+          VT31_NAS100	11279809824	sha256:95c22ded93067331a937f623b33a0dd35c56190d2198caf7ec423cd99a109037
+          EOF
+          while IFS=$'\t' read -r trader artifact_id digest; do
+            root="$RUNNER_TEMP/lanes/$trader"
+            zip="$RUNNER_TEMP/$trader.zip"
+            gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id" > "$RUNNER_TEMP/$trader.meta.json"
+            jq -e --arg digest "$digest" '.expired == false and .digest == $digest' "$RUNNER_TEMP/$trader.meta.json"
+            gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" > "$zip"
+            echo "${digest#sha256:}  $zip" | sha256sum -c -
+            mkdir -p "$root"
+            unzip -q "$zip" -d "$root"
+          done < "$RUNNER_TEMP/lanes.tsv"
+
+      - name: Rebuild genuine seven-Trader Trader Lab bindings
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/p0" "$RUNNER_TEMP/trader-lab"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$P0_ARTIFACT_ID/zip" > "$RUNNER_TEMP/p0.zip"
+          unzip -q "$RUNNER_TEMP/p0.zip" -d "$RUNNER_TEMP/p0"
+          test -s "$RUNNER_TEMP/p0/decision-trace.json"
+          python scripts/cibo_cognitive_trader_lab_audit.py             --decision-trace "$RUNNER_TEMP/p0/decision-trace.json"             --source-head "$GITHUB_SHA"             --output "$RUNNER_TEMP/trader-lab/audit.json"
+
+      - name: Assemble exact 7/7 group batches
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/assembly"
+          python scripts/cibo_three_holdout_1y_assemble.py             --trader-lab-audit "$RUNNER_TEMP/trader-lab/audit.json"             --lane "VT08_FOREX=$RUNNER_TEMP/lanes/VT08_FOREX,11281150915,sha256:57975822953a2781fb39a6af882a5b72ef71e8ca0eea515ce5dcc32b59d1dfc5"             --lane "R34_XAUUSD=$RUNNER_TEMP/lanes/R34_XAUUSD,11280762772,sha256:0a555da40fe205a9af2d62215a93cd73f20564c7e1db1a92b88c597f1178f98a"             --lane "R38_EURUSD=$RUNNER_TEMP/lanes/R38_EURUSD,11280163752,sha256:0bd6d999a7a6a460d07a8b6dc2fb2b34a9d6c43ddfba8238b657917cf8c78514"             --lane "R43_GBPUSD=$RUNNER_TEMP/lanes/R43_GBPUSD,11280274495,sha256:b14dc190cfe501e69198faa1dcc455f8dc4fccd451bb6933cc6367e24d77c752"             --lane "R38_GBPJPY=$RUNNER_TEMP/lanes/R38_GBPJPY,11280940997,sha256:3a1b09f2238e973f48990c8a49dc85743ec787a25d80e4368c4b9544f189e9db"             --lane "R42_AUDJPY=$RUNNER_TEMP/lanes/R42_AUDJPY,11280264195,sha256:665a1854248da1b6322c46c7fa14713ffec8a3e7863c3f61ee81b53984ff99fa"             --lane "VT31_NAS100=$RUNNER_TEMP/lanes/VT31_NAS100,11279809824,sha256:95c22ded93067331a937f623b33a0dd35c56190d2198caf7ec423cd99a109037"             --output-root "$RUNNER_TEMP/assembly"
+
+      - name: Rehydrate every batch with canonical CIBO loader
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          from qore.infrastructure.cibo_phase22_v4_execution_inputs import load_phase22_sealed_fresh_batch
+          root=Path(os.environ['RUNNER_TEMP'])/'assembly'
+          report=json.loads((root/'assembly-report.json').read_text())
+          assert report['status']=='READY_FOR_CIBO_REPLAY'
+          assert report['all_groups_exact_7_traders'] is True
+          assert report['all_traders_research_ready'] is True
+          for group in ('GROUP_1','GROUP_2','GROUP_3'):
+              p=json.loads((root/group/'seven-trader-cibo-batch.json').read_text())
+              assert p['validation_mode']=='NON_CERTIFYING_BURNED_ADAPTIVE_RESEARCH'
+              assert p['adaptive_search_holdout_burned'] is True
+              assert p['fresh_oos_claimed'] is False
+              assert p['certification_claimed'] is False
+              sealed=load_phase22_sealed_fresh_batch(p)
+              assert sealed.declared_batch_sha256 == p['batch_sha256']
+              assert len(sealed.batch.traders)==7
+              assert len(sealed.batch.opportunities)>0
+              assert all(row['trader_lab_state']=='research_ready' for row in p['traders'])
+              assert all(len(row['trader_lab_candidate_fingerprint'])==64 for row in p['traders'])
+              print(group,len(sealed.batch.opportunities),{x['trader_id']:x['opportunity_count'] for x in p['traders']})
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-trader-lab-3x1y-seven-trader-assembly-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/assembly
+            ${{ runner.temp }}/trader-lab/audit.json
+          if-no-files-found: error
+          retention-days: 90

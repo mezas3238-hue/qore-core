@@ -1,0 +1,269 @@
+{
+  "schema": "qore.cibo.trader-lab.three-holdout-1y-adaptive-research.v1",
+  "owner_authorized": true,
+  "mode": "NON_CERTIFYING_BURNED_ADAPTIVE_RESEARCH",
+  "purpose": "Run the exact seven-Trader cohort with CIBO through three fixed non-overlapping one-year research holdouts and search a preregistered finite candidate space until at least three identical configuration fingerprints pass every required scientific/economic gate in all three groups.",
+  "cohort": [
+    "VT08_FOREX",
+    "R34_XAUUSD",
+    "R38_EURUSD",
+    "R43_GBPUSD",
+    "R38_GBPJPY",
+    "R42_AUDJPY",
+    "VT31_NAS100"
+  ],
+  "groups": [
+    {
+      "group_id": "GROUP_1",
+      "start_at": "2019-06-30T00:00:00+00:00",
+      "end_exclusive_at": "2020-06-30T00:00:00+00:00",
+      "duration": "P1Y"
+    },
+    {
+      "group_id": "GROUP_2",
+      "start_at": "2020-06-30T00:00:00+00:00",
+      "end_exclusive_at": "2021-06-30T00:00:00+00:00",
+      "duration": "P1Y"
+    },
+    {
+      "group_id": "GROUP_3",
+      "start_at": "2021-06-30T00:00:00+00:00",
+      "end_exclusive_at": "2022-06-30T00:00:00+00:00",
+      "duration": "P1Y"
+    }
+  ],
+  "market_context": {
+    "timeframes": [
+      "H4",
+      "H1",
+      "M15",
+      "M5",
+      "M1"
+    ],
+    "excluded": [
+      "D1",
+      "D",
+      "DAILY"
+    ],
+    "m15_derivation": "closed 3xM5 only",
+    "m1_required_for": [
+      "VT31_NAS100"
+    ]
+  },
+  "measurements": {
+    "lanes": [
+      "CORE",
+      "COMPOUND",
+      "COMPOUND_PORTFOLIO"
+    ],
+    "leverage_seed_multipliers": [
+      "1",
+      "2",
+      "3",
+      "4"
+    ],
+    "required_scientific_outputs": [
+      "net_pnl_usd",
+      "ending_capital_usd",
+      "profit_factor",
+      "expectancy_usd",
+      "max_drawdown_usd",
+      "trader_participation",
+      "function_accountability",
+      "chronological_folds",
+      "monte_carlo",
+      "provider_cost_stress",
+      "winner_concentration_stress",
+      "protected_capital_breaches",
+      "timeframe_reports",
+      "leverage_report",
+      "cross_trader_overlap",
+      "shared_capital_contention",
+      "integrated_chronology"
+    ],
+    "cibo_function_behavior_required": true,
+    "primary_subject": "CIBO",
+    "cibo_behavior": {
+      "cognitive_faculties": "CF01-CF19",
+      "ce2i_tools": "T01-T20",
+      "capital_science": "GEN-C1-GEN-C14",
+      "per_function_fields": [
+        "eligible_epochs",
+        "invoked_count",
+        "applied_count",
+        "fail_closed_count",
+        "not_applicable_count",
+        "decision_changed_count",
+        "risk_delta_usd",
+        "margin_delta_usd",
+        "capital_source_usage",
+        "incremental_pnl_attribution_usd",
+        "reason_distribution"
+      ],
+      "decision_flow": [
+        "opportunities_seen",
+        "selected",
+        "qore_allow",
+        "qore_reduce",
+        "qore_reject",
+        "settled"
+      ],
+      "capital_behavior": [
+        "realized_capital_curve",
+        "peak_capital",
+        "drawdown",
+        "hard_risk_headroom",
+        "margin_headroom",
+        "released_risk_capacity",
+        "released_margin_capacity",
+        "protected_economic_floor",
+        "compound_pool",
+        "cross_trader_portfolio_pool"
+      ]
+    },
+    "trader_measurements": {
+      "role": "FROZEN_EXECUTION_SOURCES_WITH_CIBO_OUTCOME_GATE",
+      "fields": [
+        "source_present",
+        "opportunity_count",
+        "cibo_selected_count",
+        "qore_allow_count",
+        "qore_reduce_count",
+        "qore_reject_count",
+        "entry_count",
+        "exit_count",
+        "settled_count",
+        "core_pnl_usd",
+        "compound_incremental_pnl_usd",
+        "compound_portfolio_incremental_pnl_usd",
+        "final_pnl_usd",
+        "profit_factor",
+        "expectancy_usd",
+        "max_drawdown_usd"
+      ],
+      "profitability_may_be_reported_for_attribution": true,
+      "profitability_must_gate_candidate": true,
+      "trader_logic_remains_frozen": true
+    }
+  },
+  "candidate_pass_gate": {
+    "all_7_traders_participate": "REQUIRED_ACTUAL_CIBO_SETTLEMENTS_FOR_EVERY_TRADER",
+    "required_timeframes": [
+      "H4",
+      "H1",
+      "M15",
+      "M5",
+      "M1"
+    ],
+    "core_net_pnl_usd_gt": "0",
+    "core_profit_factor_gt": "1",
+    "core_expectancy_usd_gt": "0",
+    "compound_incremental_pnl_usd_gt": "0",
+    "compound_portfolio_incremental_pnl_usd_gt": "0",
+    "portfolio_value_add_vs_compound_usd_gt": "0",
+    "final_ending_capital_usd_gt": "60",
+    "chronological_folds_all_positive": true,
+    "monte_carlo_median_pnl_usd_gt": "0",
+    "monte_carlo_p05_pnl_usd_gt": "0",
+    "provider_cost_x2_pnl_usd_gt": "0",
+    "remove_best_3_pnl_usd_gt": "0",
+    "protected_capital_breaches_eq": 0,
+    "all_required_cibo_functions_accounted_for": true,
+    "qore_risk_sovereign": true,
+    "configuration_scope": "CIBO_ONLY",
+    "trader_logic_fingerprint_must_remain_constant": true,
+    "no_per_trader_profitability_gate": false,
+    "all_7_traders_final_pnl_usd_gt": "0",
+    "all_7_traders_profit_factor_gt": "1",
+    "all_7_traders_expectancy_usd_gt": "0",
+    "zero_trader_exceptions": true,
+    "reject_if_any_trader_nonpositive": true,
+    "per_trader_profitability_is_cibo_outcome_gate": true
+  },
+  "stop_sensor": {
+    "required_identical_configuration_fingerprints_across_all_groups": 3,
+    "per_group_minimum_full_pass_candidates": 3,
+    "stop_state": "STOP_THREE_CROSS_HOLDOUT_FULL_PASS",
+    "continue_state": "CONTINUE_SEARCH",
+    "input_requirement": "Only integrated 7-Trader group results are admissible. Every Trader must have actual CIBO settlements and positive final CIBO economics; any nonpositive Trader rejects that configuration for the group."
+  },
+  "automation": {
+    "adaptive_outcome_aware_search": true,
+    "outcomes_may_drive_next_research_candidate": true,
+    "certification_claim_from_these_holdouts": false,
+    "finite_preregistered_search_space_required": true,
+    "no_unbounded_self_dispatch": true,
+    "resume_cursor_supported": true,
+    "candidates_per_cycle": 250,
+    "max_cycles_per_workflow": 50,
+    "exhaustion_state": "REJECT_NO_CIBO_CONFIGURATION_MAKES_ALL_7_TRADERS_POSITIVE_ACROSS_3X1Y",
+    "search_target": "CIBO_CONFIGURATION_ONLY_WITH_ALL_7_TRADERS_POSITIVE_GATE",
+    "trader_parameters_mutable": false,
+    "trader_outcomes_may_select_trader_logic": false
+  },
+  "source_readiness": {
+    "market_atlas_m5_range": [
+      "2016-09-17T00:00:00+00:00",
+      "2026-09-17T00:00:00+00:00"
+    ],
+    "phase18_existing_common_7_trader_window": [
+      "2021-09-23T05:00:00+00:00",
+      "2022-06-29T09:00:00+00:00"
+    ],
+    "phase18_existing_common_window_insufficient_for_1y": true,
+    "required_action": "REPLAY_FROZEN_SEVEN_TRADER_METHODOLOGIES_ON_GROUP_WINDOWS",
+    "vt31_existing_trade_evidence_range": [
+      "2017-07-03T14:08:00+00:00",
+      "2022-06-30T14:15:00+00:00"
+    ],
+    "vt08_existing_trade_evidence_range": [
+      "2020-07-01T09:00:00+00:00",
+      "2022-06-29T05:00:00+00:00"
+    ],
+    "vt08_requires_market_atlas_regeneration_for_full_three_groups": true
+  },
+  "governance": {
+    "trader_logic_frozen_during_evaluation": true,
+    "no_live": true,
+    "no_production": true,
+    "no_real_capital": true,
+    "no_broker_mutation": true,
+    "no_merge": true,
+    "no_vps": true,
+    "fresh_oos_claimed": false,
+    "certification_claimed": false,
+    "adaptive_search_burns_all_three_holdouts": true
+  },
+  "execution_topology": {
+    "unit_of_test": "ONE_INTEGRATED_7_TRADER_PORTFOLIO_PER_1Y_GROUP",
+    "group_jobs": [
+      "GROUP_1: seven Traders together -> one chronological timeline -> one shared CIBO/capital state",
+      "GROUP_2: seven Traders together -> one chronological timeline -> one shared CIBO/capital state",
+      "GROUP_3: seven Traders together -> one chronological timeline -> one shared CIBO/capital state"
+    ],
+    "per_trader_replays": "SOURCE_PREPARATION_ONLY",
+    "per_trader_results_may_trigger_stop_sensor": false,
+    "shared_initial_capital_usd": "60",
+    "shared_qore_risk_state": true,
+    "shared_cibo_capital_state": true,
+    "cross_trader_overlap_and_competition_required": true,
+    "compound_portfolio_cross_trader_pool_required": true,
+    "chronological_merge_before_cibo": true
+  },
+  "study_target": {
+    "primary_subject": "CIBO",
+    "trader_role": "FROZEN_OPPORTUNITY_AND_OUTCOME_PRODUCERS_ONLY",
+    "trader_actions": [
+      "emit_signal",
+      "enter",
+      "exit",
+      "emit_structural_outcome"
+    ],
+    "trader_logic_tunable": false,
+    "trader_profitability_is_optimization_target": false,
+    "trader_profitability_is_stop_gate": true,
+    "per_trader_pnl_use": "CIBO_RESULT_GATE_AND_ATTRIBUTION",
+    "cibo_configuration_is_search_target": true,
+    "certification_semantics": "CIBO configuration passes only when all seven frozen Traders actually settle trades and each Trader is positive under the integrated CIBO result in every 1Y group."
+  }
+}

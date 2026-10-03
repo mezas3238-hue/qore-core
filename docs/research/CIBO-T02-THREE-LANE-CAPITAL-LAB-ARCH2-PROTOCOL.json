@@ -1,0 +1,43 @@
+{
+  "schema": "qore.cibo.t02-three-lane-capital-lab-arch2-protocol.v1",
+  "owner_authorized": true,
+  "mode": "NON_CERTIFYING_REUSED_HOLDOUT_RESEARCH",
+  "lanes": {
+    "CORE": "Exact FULL_CIBO_CORE treatment; no new sizing mutation.",
+    "COMPOUND": "Same-Trader realized-profit-only reinvestment. Cross-Trader pool disabled.",
+    "COMPOUND_PORTFOLIO": "Account-local realized-profit pool may redeploy across Traders."
+  },
+  "leverage": {
+    "seed_multipliers": [
+      "1",
+      "2",
+      "3",
+      "4"
+    ],
+    "application": "Applied inside causal Compound replay before funding, headroom and QORE Risk gates.",
+    "linear_posthoc_scaling": false,
+    "qore_risk_sovereign": true
+  },
+  "parity": {
+    "reference_p0_artifact_id": 11275124190,
+    "require_portfolio_1x_exact_match": true,
+    "require_core_1x_exact_match": true
+  },
+  "timeframe_context": [
+    "H4",
+    "H1",
+    "M15",
+    "M5",
+    "M1"
+  ],
+  "governance": {
+    "no_merge": true,
+    "no_live": true,
+    "no_production": true,
+    "no_real_capital": true,
+    "no_broker_mutation": true,
+    "no_vps": true,
+    "no_outcome_aware_admission": true,
+    "reused_holdout_noncertifying": true
+  }
+}

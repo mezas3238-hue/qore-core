@@ -1,0 +1,128 @@
+name: QORE CIBO Trader Lab 3x1Y VT08 Replay
+
+on:
+  push:
+    branches:
+      - agent/cibo-t02-science-architect-2-001
+    paths:
+      - '.github/workflows/cibo-trader-lab-3x1y-vt08-replay.yml'
+      - 'scripts/cibo_vt08_market_atlas_1y_adapter.py'
+      - 'scripts/cibo_vt08_1y_group_aggregate.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  VT08_SOURCE_SHA: '64bc2ab4809c39e4a2b2c72aa8c0e8ec1c709222'
+
+jobs:
+  vt08-three-groups:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.VT08_SOURCE_SHA }}
+          path: vt08-code
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: python -m pip install -e '.[dev]'
+
+      - name: Validate adapters
+        run: |
+          set -euo pipefail
+          python -m py_compile             scripts/cibo_vt08_market_atlas_1y_adapter.py             scripts/cibo_vt08_1y_group_aggregate.py
+          ruff check             scripts/cibo_vt08_market_atlas_1y_adapter.py             scripts/cibo_vt08_1y_group_aggregate.py
+
+      - name: Verify immutable VT08 methodology source
+        run: |
+          set -euo pipefail
+          test "$(git -C vt08-code rev-parse HEAD)" = "$VT08_SOURCE_SHA"
+          PYTHONPATH="$GITHUB_WORKSPACE/vt08-code/src" python - <<'PY'
+          from qore.infrastructure.traders.vt08_b01_r3_8 import methodology_fingerprint
+          value=methodology_fingerprint()
+          assert isinstance(value,str) and len(value)==64
+          print(value)
+          PY
+
+      - name: Recover seven immutable Market Atlas symbols
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/atlas"
+          cat > "$RUNNER_TEMP/atlas.tsv" <<'EOF'
+          AUDJPY	10476530915	sha256:a416085cfcef04003ae89debaad360304a0c4c8bac65b3bf2b439a8a4b7098bf
+          AUDUSD	10475697610	sha256:ac72aaf438c164cd79691a7cf1f3f0a68f4c65aa6a91a921a721c7a04ebdc2f0
+          EURUSD	10475354631	sha256:e0fa9e316b79ba61c338161a57508359d4c6afe2fbf97d3f50f1e27c2d359a86
+          GBPJPY	10475453293	sha256:b68e74b2afa54295f891c11cde19e12e92db4192930496036c7ebb372474e415
+          GBPUSD	10475449182	sha256:77d5b65ce3c6763e3ac5f620e4167d4ef071bfe1c13746cd5ca7ad9788268dcf
+          USDCAD	10475972108	sha256:35d57d024121dcfbbbfd201bd6bfd5f5250895cdfe7c47a817e58de32392ee50
+          USDJPY	10475389415	sha256:e3ac9a45f3000c3e3bd93e50c730c952ddd08f77f1c857b5c4b3a67679fcaa51
+          EOF
+          while IFS=$'\t' read -r symbol artifact_id digest; do
+            zip="$RUNNER_TEMP/$symbol.zip"
+            root="$RUNNER_TEMP/atlas/$symbol"
+            gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id" > "$RUNNER_TEMP/$symbol.meta.json"
+            jq -e --arg digest "$digest" '.expired == false and .digest == $digest' "$RUNNER_TEMP/$symbol.meta.json"
+            gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" > "$zip"
+            echo "${digest#sha256:}  $zip" | sha256sum -c -
+            mkdir -p "$root"
+            unzip -q "$zip" -d "$root"
+            test -s "$root/symbol-consumption-manifest.json"
+          done < "$RUNNER_TEMP/atlas.tsv"
+
+      - name: Build three one-year VT08 research groups
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/vt08"
+          for group in GROUP_1 GROUP_2 GROUP_3; do
+            mkdir -p "$RUNNER_TEMP/vt08/$group"
+            reports=()
+            while IFS=$'\t' read -r symbol artifact_id digest; do
+              root="$RUNNER_TEMP/vt08/$group/$symbol"
+              mkdir -p "$root"
+              python scripts/cibo_vt08_market_atlas_1y_adapter.py                 --source-root "$RUNNER_TEMP/atlas/$symbol"                 --symbol "$symbol"                 --group-id "$group"                 --software-sha "$VT08_SOURCE_SHA"                 --output "$root/evidence.json"
+              PYTHONPATH="$GITHUB_WORKSPACE/vt08-code/src"                 python -m qore.infrastructure.trader_lab.vt08_b01_backtest_r3_8                 "$root/evidence.json" > "$root/backtest.json"
+              reports+=("--report" "$root/backtest.json")
+            done < "$RUNNER_TEMP/atlas.tsv"
+            python scripts/cibo_vt08_1y_group_aggregate.py               --group-id "$group"               "${reports[@]}"               --output "$RUNNER_TEMP/vt08/$group/vt08-group-lane.json"
+          done
+
+      - name: Enforce VT08 3x1Y lane invariants
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          root=Path(os.environ['RUNNER_TEMP'])/'vt08'
+          fps=set()
+          for group in ('GROUP_1','GROUP_2','GROUP_3'):
+              p=json.loads((root/group/'vt08-group-lane.json').read_text())
+              assert p['schema']=='qore.cibo.trader-lab.vt08-1y-group-lane.v1'
+              assert p['group_id']==group
+              assert p['trader_id']=='VT08_FOREX'
+              assert p['market_count']==7
+              assert p['sample_size'] > 0
+              fps.add(p['methodology_fingerprint'])
+              g=p['governance']
+              assert g['methodology_changed'] is False
+              assert g['outcome_aware_selection'] is False
+              assert g['adaptive_research_only'] is True
+              for key in ('fresh_oos_claimed','certification_claimed','broker_mutation','live','production','real_capital'):
+                  assert g[key] is False, key
+          assert len(fps)==1
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-trader-lab-3x1y-vt08-${{ github.run_id }}
+          path: ${{ runner.temp }}/vt08
+          if-no-files-found: error
+          retention-days: 90

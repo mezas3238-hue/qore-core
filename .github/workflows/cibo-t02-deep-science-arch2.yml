@@ -1,0 +1,159 @@
+name: QORE CIBO T02 Deep Science Architect 2
+
+on:
+  push:
+    branches:
+      - agent/cibo-t02-science-architect-2-001
+    paths:
+      - '.github/workflows/cibo-t02-deep-science-arch2.yml'
+      - 'scripts/cibo_t02_deep_science_arch2.py'
+      - 'docs/research/CIBO-T02-DEEP-SCIENCE-ARCH2-PROTOCOL.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  t02-deep-science-arch2:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      P0_ARTIFACT_ID: '11275124190'
+      R34_ARTIFACT_ID: '11255538834'
+      EURUSD_ARTIFACT_ID: '11256765185'
+      GBPUSD_ARTIFACT_ID: '11256465614'
+      GBPJPY_ARTIFACT_ID: '11255244229'
+      AUDJPY_ARTIFACT_ID: '11256249712'
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Static validation
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/cibo_t02_deep_science_arch2.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p = json.loads(
+              Path("docs/research/CIBO-T02-DEEP-SCIENCE-ARCH2-PROTOCOL.json").read_text()
+          )
+          assert p["mode"] == "NON_CERTIFYING_REUSED_HOLDOUT_RESEARCH"
+          assert p["population"]["symbol_blacklist_forbidden"] is True
+          assert p["population"]["trader_blacklist_forbidden"] is True
+          assert len(p["family"]) == 5
+          assert p["governance"]["no_merge"] is True
+          assert p["governance"]["no_broker_mutation"] is True
+          assert p["governance"]["no_outcome_aware_admission"] is True
+          PY
+
+      - name: Recover exact P0 and native Trader artifacts
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/p0" "$RUNNER_TEMP/native"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$P0_ARTIFACT_ID/zip" \
+            > "$RUNNER_TEMP/p0.zip"
+          unzip -q "$RUNNER_TEMP/p0.zip" -d "$RUNNER_TEMP/p0"
+
+          for pair in \
+            "$R34_ARTIFACT_ID:r34" \
+            "$EURUSD_ARTIFACT_ID:eurusd" \
+            "$GBPUSD_ARTIFACT_ID:gbpusd" \
+            "$GBPJPY_ARTIFACT_ID:gbpjpy" \
+            "$AUDJPY_ARTIFACT_ID:audjpy"
+          do
+            id="${pair%%:*}"
+            name="${pair##*:}"
+            mkdir -p "$RUNNER_TEMP/native/$name"
+            gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$id/zip" \
+              > "$RUNNER_TEMP/$name.zip"
+            unzip -q "$RUNNER_TEMP/$name.zip" -d "$RUNNER_TEMP/native/$name"
+          done
+
+          test -s "$RUNNER_TEMP/p0/decision-trace.json"
+          test -s "$RUNNER_TEMP/p0/lab-result.json"
+
+      - name: Execute causal dataset, ablation, rolling, MC and stress
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/t02-arch2"
+          python scripts/cibo_t02_deep_science_arch2.py \
+            --decision-trace "$RUNNER_TEMP/p0/decision-trace.json" \
+            --native-root "$RUNNER_TEMP/native" \
+            --lab-result "$RUNNER_TEMP/p0/lab-result.json" \
+            --output-dir "$RUNNER_TEMP/t02-arch2"
+
+      - name: Enforce evidence and governance
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from decimal import Decimal
+          from pathlib import Path
+
+          root = Path(os.environ["RUNNER_TEMP"]) / "t02-arch2"
+          p = json.loads((root / "t02-deep-science-arch2-report.json").read_text())
+
+          assert p["mode"] == "NON_CERTIFYING_REUSED_HOLDOUT_RESEARCH"
+          assert p["population"]["native_match_total"] == 486
+          assert p["population"]["t02_decision_population_all_traders"] == 150
+          assert p["population"]["current_t02_applied_all_traders"] == 15
+          assert p["population"]["rich_context_core_selected_count"] == 127
+
+          current = p["current_t02"]
+          assert current["applied_count_rich_context"] == 15
+          assert Decimal(current["incremental_pnl_usd"]) < 0
+          assert current["economic_status"] == "FAIL"
+
+          assert len(p["preregistered_family"]) == 5
+          assert p["causal_separation"]["symbol_used_as_primary_rule"] is False
+          assert p["causal_separation"]["trader_id_used_as_primary_rule"] is False
+          assert p["causal_separation"]["outcome_used_for_admission"] is False
+          assert p["causal_separation"]["future_market_used_for_admission"] is False
+
+          assert p["conclusion"] in {
+              "T02_SCIENTIFIC_CANDIDATE_PASS",
+              "T02_MORE_RESEARCH_REQUIRED",
+              "T02_FALSIFIED_ON_CURRENT_EVIDENCE",
+          }
+
+          g = p["governance"]
+          for key in (
+              "runtime_policy_changed",
+              "productive_t02_policy_edited",
+              "phase22_transport_edited",
+              "cma_edited",
+              "qore_risk_edited",
+              "settlement_edited",
+              "broker_mutation",
+              "vps_used",
+              "live",
+              "production",
+              "real_capital",
+              "fundednext_live",
+              "merge_authority",
+              "fresh_oos_claimed",
+              "certification_claimed",
+          ):
+              assert g[key] is False
+
+          assert (root / "t02-causal-dataset-arch2.jsonl").stat().st_size > 0
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-cibo-t02-deep-science-arch2-${{ github.run_id }}
+          path: ${{ runner.temp }}/t02-arch2
+          if-no-files-found: error
+          retention-days: 90
