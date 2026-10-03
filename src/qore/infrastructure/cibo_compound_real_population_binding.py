@@ -93,10 +93,7 @@ class ForwardCompoundEconomicRecord:
                 raise CiboCompoundCapitalError(
                     f"real compound population {name} is required"
                 )
-        if type(self.trader_id) is not TraderIdentity:
-            raise CiboCompoundCapitalError(
-                "real compound population Trader is invalid"
-            )
+        canonical_trader_identity(self.trader_id)
         if self.qualification_fold_id not in _FOLD_ORDER:
             raise CiboCompoundCapitalError(
                 "real compound population requires canonical WF1..WF4"
@@ -387,10 +384,7 @@ class TraderLabBurnedResearchCompoundRecord:
                 raise CiboCompoundCapitalError(
                     f"Trader Lab burned-research {name} is required"
                 )
-        if type(self.trader_id) is not TraderIdentity:
-            raise CiboCompoundCapitalError(
-                "Trader Lab burned-research Trader is invalid"
-            )
+        canonical_trader_identity(self.trader_id)
         for name in ("decision_at", "deployed_at", "settled_at"):
             _aware(getattr(self, name), name)
         if self.decision_at > self.deployed_at:
