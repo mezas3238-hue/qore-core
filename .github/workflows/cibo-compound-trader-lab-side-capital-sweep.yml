@@ -95,23 +95,38 @@ jobs:
           assert p["merge_authority"] is False
           expected = {
               Decimal("1.80416946006494203648874011988"),
-              *(Decimal(f"{value / 10:.2f}") for value in range(19, 31)),
+              Decimal("2.40"),
+              Decimal("2.50"),
+              Decimal("2.55"),
+              Decimal("2.60"),
+              Decimal("2.65"),
+              Decimal("2.70"),
+              Decimal("3.00"),
           }
           observed = {
               Decimal(item)
               for item in p["grid"]["usd60_reference_limits_usd"]
           }
           assert observed == expected
-          assert len(p["variants"]) == 65
+          assert len(p["variants"]) == 360
           assert {
               item["side_mode"] for item in p["variants"]
           } == {"LONG", "SHORT", "BOTH"}
-          assert {
-              item["short_gate_id"]
-              for item in p["variants"]
-              if item["side_mode"] != "LONG"
-          } == {"NONE", "STABLE_EXPECTED_MINUTES_LE_30"}
-          assert len(p["candidate_groups"]) == 26
+          assert set(p["grid"]["long_gate_ids"]) == {
+              "NONE",
+              "EV_GE_NEG_010",
+              "EV_GE_NEG_0075",
+          }
+          assert set(p["grid"]["short_gate_ids"]) == {
+              "NONE",
+              "STABLE_MINUTES_LE_30",
+              "MARKET_EV_GE_0045_MINUTES_LE_45",
+              "MARKET_EV_GE_0045_MINUTES_LE_45_UTIL_LE_085",
+              "MARKET_EV_GE_0050_MINUTES_LE_45",
+          }
+          assert len(p["candidate_groups"]) == 120
+          assert p["hypothesis_governance"]["all_gate_inputs_are_predecision"] is True
+          assert p["hypothesis_governance"]["failed_variants_retained"] is True
           for item in p["variants"]:
               assert item["cibo_compound"]["stress"]["scenario_count"] in (0, 7)
               assert item["compound_portfolio"]["stress"]["scenario_count"] in (0, 7)
@@ -143,7 +158,7 @@ jobs:
                   / "report.json"
               ).read_text()
           )
-          assert p["gate_verdict"] == "PASS_DIRECTIONALLY_COMPLETE", p["limits"]
+          assert p["gate_verdict"] == "PASS_DIRECTIONALLY_COMPLETE", p["candidate_groups"]
           assert p["selected_candidate"] is not None
           assert p["selected_candidate"]["long_qualified"] is True
           assert p["selected_candidate"]["short_qualified"] is True
