@@ -25,6 +25,7 @@ from itertools import combinations
 from qore.infrastructure.account_wide_risk import (
     TraderIdentity,
     canonical_trader_identity,
+    canonical_trader_lineage,
 )
 from qore.infrastructure.cibo_account_capital_mission import (
     CiboAccountCapitalIdentity,
@@ -524,7 +525,11 @@ class Genc6MarginalCapitalCandidate:
             raise CiboCompoundCapitalError(
                 "GEN-C6 candidate account identity is invalid"
             )
-        canonical_trader_identity(self.trader_id)
+        object.__setattr__(
+            self,
+            "trader_id",
+            canonical_trader_lineage(self.trader_id),
+        )
         for name in ("decision_at", "valid_from", "valid_until"):
             _aware(getattr(self, name), f"candidate {name}")
         if self.valid_until < self.valid_from:
