@@ -27,9 +27,6 @@ from qore.infrastructure.cibo_capability_exam_cognitive_coverage import (
 from qore.infrastructure.cibo_phase22_v4_chronological_execution import (
     execute_phase22_chronological_replay,
 )
-from qore.infrastructure.cibo_profitability_lab_decision_trace import (
-    build_cibo_profitability_decision_trace,
-)
 from qore.infrastructure.cibo_phase22_v4_chronological_replay_plan import (
     build_phase22_chronological_replay_plan,
 )
@@ -42,6 +39,9 @@ from qore.infrastructure.cibo_phase22_v4_historical_regime import (
     PHASE22_REGIME_SYMBOLS,
     build_phase22_historical_regime_evidence,
     load_phase22_historical_regime_corpora,
+)
+from qore.infrastructure.cibo_profitability_lab_decision_trace import (
+    build_cibo_profitability_decision_trace,
 )
 from qore.infrastructure.cibo_reused_holdout_capability_exam import (
     _full_metrics,
