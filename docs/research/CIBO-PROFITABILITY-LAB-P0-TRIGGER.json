@@ -13,6 +13,9 @@
   "production": false,
   "merge_authority": false,
   "outcome_aware_tuning": false,
-  "retrigger_for_head": "695f576ab8368b98c39c7756e935ebbc18005d05",
-  "retrigger_reason": "Relaunch after P0 allocator-policy reconciliation and canonical lowercase Compound Risk reservation-state repair."
+  "retrigger_for_head": "3be30d651a532fea5cce7e9348950ba334cb3d93",
+  "retrigger_reason": "Relaunch after P0 allocator-policy reconciliation and canonical lowercase Compound Risk reservation-state repair.",
+  "mode": "CIBO_FREE_TOOL_CHOICE",
+  "replay_tool_eligibility_authority": false,
+  "reason": "Owner ordered replay authority removed so CIBO cognition decides which available capabilities to use."
 }
