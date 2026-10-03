@@ -35,6 +35,18 @@ LEVERAGE_FRACTIONS = (
     Decimal("0.75"),
     Decimal("1.00"),
 )
+SHADOW_SIZE_STEP_MULTIPLIERS = (
+    Decimal("1"),
+    Decimal("2"),
+    Decimal("3"),
+    Decimal("4"),
+)
+BROKER_MARGIN_LEVERAGE_MULTIPLIERS = (
+    Decimal("1"),
+    Decimal("2"),
+    Decimal("3"),
+    Decimal("5"),
+)
 
 CAT_FIELDS = (
     "side",
@@ -208,6 +220,7 @@ def load_rows(dataset_path: Path, candidate_fps: dict[str, str]) -> list[dict[st
             "pnl": dec(y["one_step_incremental_pnl_usd"]),
             "gross": dec(y["one_step_gross_incremental_usd"]),
             "extra_risk": dec(x["extra_step_stop_risk_usd"]),
+            "extra_margin": dec(x["extra_step_margin_usd"]),
             "provider_cost": dec(x["provider_total_cost_usd"]),
             "spread_cost": dec(x["provider_spread_cost_usd"]),
         }
@@ -371,6 +384,162 @@ def explorer(
         reverse=True,
     )
     return scored[:leaderboard_n], len(unique) * len(LEVERAGE_FRACTIONS)
+
+
+def shadow_size_metrics(
+    rows: list[dict[str, Any]],
+    atoms: tuple[Atom, ...],
+    multiplier: Decimal,
+) -> dict[str, Any]:
+    selected = apply_rule(rows, atoms)
+    feasible = []
+    rejected = []
+    for row in selected:
+        hard_risk_headroom = row.get("hard_risk_headroom_usd")
+        margin_headroom = row.get("margin_headroom_usd")
+        risk_need = row["extra_risk"] * multiplier
+        margin_need = row["extra_margin"] * multiplier
+        if (
+            hard_risk_headroom is not None
+            and margin_headroom is not None
+            and risk_need <= dec(hard_risk_headroom)
+            and margin_need <= dec(margin_headroom)
+        ):
+            feasible.append(row)
+        else:
+            rejected.append(row)
+
+    pnl_values = [row["pnl"] * multiplier for row in feasible]
+    pnl = sum(pnl_values, Decimal(0))
+    risk = sum(
+        (row["extra_risk"] * multiplier for row in feasible),
+        Decimal(0),
+    )
+    margin = sum(
+        (row["extra_margin"] * multiplier for row in feasible),
+        Decimal(0),
+    )
+    return {
+        "multiplier": fmt(multiplier),
+        "selected_n": len(selected),
+        "headroom_feasible_n": len(feasible),
+        "headroom_rejected_n": len(rejected),
+        "headroom_feasible_ratio": fmt(
+            Decimal(len(feasible)) / Decimal(len(selected))
+            if selected
+            else Decimal(0)
+        ),
+        "incremental_pnl_usd": fmt(pnl),
+        "incremental_return_on_extra_risk": (
+            fmt(pnl / risk) if risk > 0 else "0"
+        ),
+        "scaled_stop_risk_usd": fmt(risk),
+        "scaled_margin_usd": fmt(margin),
+        "max_drawdown_usd": fmt(max_drawdown(pnl_values)),
+        "qore_risk_authorized": False,
+        "interpretation": (
+            "PRE_QORE_HEADROOM_FEASIBILITY_ONLY; QORE Risk remains sovereign"
+        ),
+    }
+
+
+def shadow_leverage_report(
+    rows: list[dict[str, Any]],
+    board: list[dict[str, Any]],
+) -> dict[str, Any]:
+    candidates = []
+    for item in board[:10]:
+        candidates.append(
+            {
+                "rule": serial_rule(item),
+                "size_step_sweep": [
+                    shadow_size_metrics(rows, item["rule"], multiplier)
+                    for multiplier in SHADOW_SIZE_STEP_MULTIPLIERS
+                ],
+            }
+        )
+
+    broker_margin = []
+    if board:
+        top = board[0]
+        selected = apply_rule(rows, top["rule"])
+        for multiplier in BROKER_MARGIN_LEVERAGE_MULTIPLIERS:
+            fixed_size_margin = sum(
+                (row["extra_margin"] / multiplier for row in selected),
+                Decimal(0),
+            )
+            fixed_size_pnl = sum(
+                (row["pnl"] for row in selected),
+                Decimal(0),
+            )
+            broker_margin.append(
+                {
+                    "broker_margin_leverage_multiplier": fmt(multiplier),
+                    "fixed_volume_selected_n": len(selected),
+                    "required_margin_usd": fmt(fixed_size_margin),
+                    "incremental_pnl_usd": fmt(fixed_size_pnl),
+                    "pnl_changes_from_broker_leverage_alone": False,
+                }
+            )
+
+    return {
+        "mode": "SHADOW_RESEARCH_ONLY",
+        "size_step_multipliers": [
+            fmt(item) for item in SHADOW_SIZE_STEP_MULTIPLIERS
+        ],
+        "broker_margin_leverage_multipliers": [
+            fmt(item) for item in BROKER_MARGIN_LEVERAGE_MULTIPLIERS
+        ],
+        "qore_risk_authority_preserved": True,
+        "runtime_authority": False,
+        "candidate_rule_sweeps": candidates,
+        "top_rule_broker_margin_stress": broker_margin,
+    }
+
+
+def terminal_shadow_leverage(
+    rows: list[dict[str, Any]],
+    terminal: dict[str, Any],
+) -> dict[str, Any]:
+    frozen = terminal.get("frozen_rule")
+    if not isinstance(frozen, dict):
+        return {"status": "NO_FROZEN_RULE"}
+    conditions = frozen.get("conditions")
+    if not isinstance(conditions, list):
+        return {"status": "NO_FROZEN_RULE"}
+    atoms = tuple(
+        Atom(
+            field=str(item["field"]),
+            op=str(item["op"]),
+            value=str(item["value"]),
+        )
+        for item in conditions
+    )
+    cut = len(rows) * 3 // 5
+    untouched = rows[cut:]
+    validation_blocks = blocks(untouched, 2)
+    results = []
+    for multiplier in SHADOW_SIZE_STEP_MULTIPLIERS:
+        block_results = [
+            shadow_size_metrics(block, atoms, multiplier)
+            for block in validation_blocks
+        ]
+        results.append(
+            {
+                "multiplier": fmt(multiplier),
+                "validation_blocks": block_results,
+                "all_blocks_positive": all(
+                    dec(block["incremental_pnl_usd"]) > 0
+                    and block["headroom_feasible_n"] > 0
+                    for block in block_results
+                ),
+            }
+        )
+    return {
+        "status": "FROZEN_RULE_SHADOW_LEVERAGE_EVALUATED",
+        "selection_used_test_outcomes": False,
+        "results": results,
+    }
 
 
 def serial_rule(item: dict[str, Any]) -> dict[str, Any]:
@@ -608,6 +777,8 @@ def main() -> int:
     wfo5 = rolling(rows, 5)
     wfo6 = rolling(rows, 6)
     terminal = terminal_freeze(rows)
+    shadow_leverage = shadow_leverage_report(rows, board)
+    terminal_leverage = terminal_shadow_leverage(rows, terminal)
 
     mc = terminal.get("validation_monte_carlo", {})
     validation_blocks = terminal.get("validation_blocks", [])
@@ -655,6 +826,7 @@ def main() -> int:
             "leaderboard_is_exploratory_not_validation": True,
             "positive_leaderboard": live_board,
             "timeframe_reports": timeframe_reports,
+            "shadow_leverage": shadow_leverage,
         },
         "validator": {
             "rolling_5": wfo5,
@@ -662,6 +834,7 @@ def main() -> int:
             "terminal_freeze_60_40": terminal,
             "hard_gate": "every chronological TEST > 0; no pooled rescue",
             "universality_gate_proven": universality_proven,
+            "terminal_shadow_leverage": terminal_leverage,
             "universality_rule": (
                 "No trader/symbol predicate. A final rule must span at least two "
                 "Trader lineages in TRAIN and every terminal validation block. "
@@ -695,6 +868,8 @@ def main() -> int:
                 "available_timeframes": list(REQUIRED_TIMEFRAME_KEYS),
                 "searched_rule_fraction_count": searched,
                 "top_positive_rules": live_board[:20],
+                "shadow_leverage": shadow_leverage,
+                "terminal_shadow_leverage": terminal_leverage,
                 "top_positive_by_timeframe": {
                     timeframe: payload["positive_rules_using_timeframe"][:5]
                     for timeframe, payload in timeframe_reports.items()
