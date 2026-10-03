@@ -17,11 +17,11 @@ from __future__ import annotations
 import hashlib
 import json
 from collections import Counter, defaultdict
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from decimal import Decimal
 from enum import StrEnum
-from collections.abc import Iterable
 
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
