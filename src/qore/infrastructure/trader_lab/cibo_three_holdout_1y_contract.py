@@ -36,6 +36,21 @@ class ThreeHoldoutResearchError(ValueError):
     pass
 
 
+def _profit_factor_gt_one(row: dict[str, Any], name: str) -> bool:
+    value = row.get("profit_factor")
+    if value is None:
+        gross_profit = _decimal(
+            row.get("gross_profit_usd", "0"),
+            f"{name} gross profit",
+        )
+        gross_loss = _decimal(
+            row.get("gross_loss_usd", "0"),
+            f"{name} gross loss",
+        )
+        return gross_profit > 0 and gross_loss == 0
+    return _decimal(value, f"{name} profit factor") > 1
+
+
 def _decimal(value: object, name: str) -> Decimal:
     try:
         result = Decimal(str(value))
@@ -135,10 +150,7 @@ def evaluate_candidate(candidate: dict[str, Any]) -> CandidateGateResult:
                 f"{trader_id} final pnl",
             ) <= 0:
                 failed.append(f"{trader_id}:PNL")
-            if _decimal(
-                row.get("profit_factor", "0"),
-                f"{trader_id} profit factor",
-            ) <= 1:
+            if not _profit_factor_gt_one(row, trader_id):
                 failed.append(f"{trader_id}:PF")
             if _decimal(
                 row.get("expectancy_usd", "0"),
@@ -158,7 +170,7 @@ def evaluate_candidate(candidate: dict[str, Any]) -> CandidateGateResult:
 
     if _decimal(core["net_pnl_usd"], "core net pnl") <= 0:
         failed.append("CORE_PNL")
-    if _decimal(core["profit_factor"], "core profit factor") <= 1:
+    if not _profit_factor_gt_one(core, "core"):
         failed.append("CORE_PF")
     if _decimal(core["expectancy_usd"], "core expectancy") <= 0:
         failed.append("CORE_EXPECTANCY")
