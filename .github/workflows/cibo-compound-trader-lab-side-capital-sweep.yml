@@ -108,14 +108,16 @@ jobs:
               for item in p["grid"]["usd60_reference_limits_usd"]
           }
           assert observed == expected
-          assert len(p["variants"]) == 360
+          assert len(p["variants"]) == 600
           assert {
               item["side_mode"] for item in p["variants"]
           } == {"LONG", "SHORT", "BOTH"}
           assert set(p["grid"]["long_gate_ids"]) == {
               "NONE",
-              "EV_GE_NEG_010",
               "EV_GE_NEG_0075",
+              "MARKET_EV_GE_NEG_0075_MINUTES_LE_55",
+              "MARKET_EV_GE_NEG_0075_MINUTES_LE_55_UTIL_LE_080",
+              "MARKET_EV_GE_0_MINUTES_LE_55_UTIL_LE_080",
           }
           assert set(p["grid"]["short_gate_ids"]) == {
               "NONE",
@@ -124,7 +126,7 @@ jobs:
               "MARKET_EV_GE_0045_MINUTES_LE_45_UTIL_LE_085",
               "MARKET_EV_GE_0050_MINUTES_LE_45",
           }
-          assert len(p["candidate_groups"]) == 120
+          assert len(p["candidate_groups"]) == 200
           assert p["hypothesis_governance"]["all_gate_inputs_are_predecision"] is True
           assert p["hypothesis_governance"]["failed_variants_retained"] is True
           for item in p["variants"]:
