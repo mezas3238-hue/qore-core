@@ -43,6 +43,11 @@ from qore.infrastructure.cibo_compound_capital import (
     CompoundRealizedProfitEvidence,
     create_realized_profit_lot,
 )
+from qore.infrastructure.cibo_compound_constant_statistics import (
+    CompoundConstantObservation,
+    CompoundConstantSystem,
+    summarize_compound_constants,
+)
 from qore.infrastructure.cibo_compound_cycle_replay import (
     BaseSettlementEvent,
     ClassificationEvent,
@@ -243,6 +248,48 @@ def _research_capital_proxy(row: dict[str, object]) -> Decimal:
     if value <= 0:
         raise RuntimeError("retained candidate margin must be positive")
     return value
+
+
+_COMPOUND_USEFUL_STATES = (
+    CompoundCapitalState.COMPOUNDABLE,
+    CompoundCapitalState.STRATEGIC_RESERVE,
+    CompoundCapitalState.OPPORTUNITY_RESERVE,
+    CompoundCapitalState.ACTIVE_COMPOUND_CAPACITY,
+    CompoundCapitalState.DEPLOYED_COMPOUND_CAPITAL,
+    CompoundCapitalState.RELEASED_COMPOUND_CAPITAL,
+)
+
+
+def _useful_compound_capital_usd(ledger: CompoundPortfolioLedger) -> Decimal:
+    return sum(
+        (ledger.balance(state) for state in _COMPOUND_USEFUL_STATES),
+        Decimal(0),
+    )
+
+
+def _constant_summary_payload(summary: object) -> dict[str, object]:
+    return {
+        "system": summary.system.value,
+        "minimum_constant": format(summary.minimum_constant, "f"),
+        "maximum_constant": format(summary.maximum_constant, "f"),
+        "weighted_average_constant": format(
+            summary.weighted_average_constant,
+            "f",
+        ),
+        "minimum_observation_ids": list(summary.minimum_observation_ids),
+        "maximum_observation_ids": list(summary.maximum_observation_ids),
+        "total_source_capital_usd": format(
+            summary.total_source_capital_usd,
+            "f",
+        ),
+        "total_useful_output_capital_usd": format(
+            summary.total_useful_output_capital_usd,
+            "f",
+        ),
+        "observation_count": len(summary.observations),
+        "descriptive_only": summary.descriptive_only,
+        "runtime_authority": summary.runtime_authority,
+    }
 
 
 @dataclass
@@ -835,17 +882,39 @@ class CompoundTraderLabAudit:
                     raise RuntimeError(f"{trader} {gate.value} did not consume prior receipt")
 
         lanes: dict[str, object] = {}
+        constant_observations: list[CompoundConstantObservation] = []
         for trader in TRADERS:
             lane = self.lanes[trader]
             if len(lane.reports) != 9:
                 raise RuntimeError(f"{trader} has {len(lane.reports)} compound PASS gates")
+            if lane.cycle is None:
+                raise RuntimeError(f"{trader} compound cycle missing after CC09")
+            source_capital = lane.cycle.compound_ledger.admitted_realized_profit_usd
+            useful_output = _useful_compound_capital_usd(
+                lane.cycle.compound_ledger
+            )
+            constant_observation = CompoundConstantObservation(
+                observation_id=trader,
+                source_capital_usd=source_capital,
+                useful_output_capital_usd=useful_output,
+            )
+            constant_observations.append(constant_observation)
             lanes[trader] = {
                 "status": "PASS",
                 "gate_count": len(lane.reports),
                 "gates": lane.reports,
                 "final_receipt_sha256": lane.previous_receipt.receipt_sha256,
                 "retained_settlement_evidence_id": lane.row["settlement"]["evidence_id"],
+                "compound_constant": {
+                    "source_capital_usd": format(source_capital, "f"),
+                    "useful_output_capital_usd": format(useful_output, "f"),
+                    "constant": format(constant_observation.constant, "f"),
+                },
             }
+        compound_constant_summary = summarize_compound_constants(
+            system=CompoundConstantSystem.CIBO_COMPOUND,
+            observations=tuple(constant_observations),
+        )
         return {
             "schema": "qore.cibo.compound-trader-lab-audit.v1",
             "source_trace_sha256": self.trace["trace_sha256"],
@@ -854,6 +923,9 @@ class CompoundTraderLabAudit:
             "compound_gate_count": 9,
             "all_cc01_cc09_pass": True,
             "next_stage_unlocked": "CC10_TEMPORAL_REPLICATION_TRADER_LAB",
+            "compound_constant_summary": _constant_summary_payload(
+                compound_constant_summary
+            ),
             "lanes": lanes,
             "authority_chain": ["OWNER", "TRADER_LAB", "CIBO"],
             "governance": {
@@ -898,6 +970,7 @@ def main() -> int:
                 "candidate_count": report["candidate_count"],
                 "compound_gate_count": report["compound_gate_count"],
                 "next_stage_unlocked": report["next_stage_unlocked"],
+                "compound_constant_summary": report["compound_constant_summary"],
             },
             sort_keys=True,
         )
