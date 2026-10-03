@@ -233,13 +233,20 @@ jobs:
               for row in trace["opportunities"]
           )
           assert all(
-              row["cognitive_orchestration"]["functional_coordinator_invoked"]
+              row["cognitive_orchestration"]["reasoning_route_selected"] is True
+              and row["cognitive_orchestration"]["mission_director_invoked"] is True
+              and row["cognitive_orchestration"]["functional_coordinator_invoked"]
               is True
+              and row["cognitive_orchestration"]["executive_brain_invoked"] is True
+              and row["cognitive_orchestration"]["executive_directive"]
+              == "request-evidence"
+              and len(row["cognitive_orchestration"]["mission_faculties"]) == 19
               for row in trace["opportunities"]
           )
           assert p["coverage"][
               "cf01_cf19_runtime_economic_consultation_complete"
           ] is True
+          assert p["coverage"]["cognitive_runtime_orchestration_complete"] is True
           assert p["all_trader_cibo_compound_portfolio"][
               "rational_redeploy_gate_enabled"
           ] is True
