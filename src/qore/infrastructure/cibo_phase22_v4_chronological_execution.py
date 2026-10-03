@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -38,6 +39,7 @@ from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalActionPlan,
     CiboCapitalManagementError,
     CiboCapitalState,
+    TraderOpportunityEnvelope,
     minimum_seed_volume,
     plan_minimal_seed,
 )
@@ -383,6 +385,9 @@ def execute_phase22_chronological_replay(
     lab_allow_nonpositive_expectation: bool = False,
     lab_cibo_free_tool_choice: bool = False,
     lab_enable_t02_released_capacity: bool = False,
+    lab_t02_research_admission_filter: (
+        Callable[[TraderOpportunityEnvelope, datetime], bool] | None
+    ) = None,
 ) -> Phase22HistoricalExecutionReport:
     """Run the frozen USD60 policy/Risk/settlement path chronologically."""
 
@@ -403,6 +408,15 @@ def execute_phase22_chronological_replay(
         raise CiboCapitalManagementError(
             "lab_enable_t02_released_capacity must be bool"
         )
+    if lab_t02_research_admission_filter is not None:
+        if not lab_enable_t02_released_capacity:
+            raise CiboCapitalManagementError(
+                "T02 research admission filter requires T02 lab capacity mode"
+            )
+        if not callable(lab_t02_research_admission_filter):
+            raise CiboCapitalManagementError(
+                "T02 research admission filter must be callable"
+            )
     if amendment is None:
         amendment = canonical_phase22_historical_economics_amendment()
     if not isinstance(amendment, Phase22HistoricalReplayEconomicsAmendment):
@@ -581,6 +595,14 @@ def execute_phase22_chronological_replay(
                     released_risk_capacity_usd=incremental_risk,
                 )
                 if structural is None:
+                    continue
+                if (
+                    lab_t02_research_admission_filter is not None
+                    and not lab_t02_research_admission_filter(
+                        opportunity,
+                        epoch.market_decision_at,
+                    )
+                ):
                     continue
                 evidence_rows.append(
                     AdvancedOpportunityEvidence(
