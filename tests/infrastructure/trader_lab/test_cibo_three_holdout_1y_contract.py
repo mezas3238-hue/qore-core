@@ -16,9 +16,18 @@ def _candidate(fingerprint: str, *, positive: bool = True) -> dict[str, object]:
         "configuration_fingerprint": fingerprint,
         "configuration_scope": "CIBO_ONLY",
         "trader_parameters_changed": False,
-        "trader_profitability_used_for_gate": False,
+        "trader_profitability_used_for_gate": True,
         "measurements": {
             "all_7_traders_participate": True,
+            "per_trader_under_cibo": {
+                trader: {
+                    "settled_count": 5 if positive else 1,
+                    "final_pnl_usd": sign,
+                    "profit_factor": "1.5" if positive else "0.9",
+                    "expectancy_usd": sign,
+                }
+                for trader in REQUIRED_TRADERS
+            },
             "timeframes": ["H4", "H1", "M15", "M5", "M1"],
             "core": {
                 "net_pnl_usd": sign,
@@ -50,7 +59,7 @@ def _candidate(fingerprint: str, *, positive: bool = True) -> dict[str, object]:
                 "capital_science": [f"GEN-C{i}" for i in range(1, 15)],
                 "per_function_observability_complete": True,
             },
-            "trader_profitability_used_for_gate": False,
+            "trader_profitability_used_for_gate": True,
             "qore_risk_sovereign": True,
         },
     }
@@ -119,15 +128,35 @@ def test_per_trader_only_group_is_rejected() -> None:
         raise AssertionError("separate Trader replays must never satisfy group sensor")
 
 
-def test_trader_profitability_cannot_gate_cibo_candidate() -> None:
+def test_all_seven_trader_profitability_must_gate_cibo_candidate() -> None:
     candidate = _candidate("cfg")
-    candidate["trader_profitability_used_for_gate"] = True
+    candidate["trader_profitability_used_for_gate"] = False
     try:
         evaluate_candidate(candidate)
     except ValueError as error:
-        assert "per-Trader profitability" in str(error)
+        assert "all-seven Trader profitability" in str(error)
     else:
-        raise AssertionError("Trader profitability must never gate CIBO research")
+        raise AssertionError("all-seven Trader profitability must gate CIBO research")
+
+
+def test_one_nonpositive_trader_rejects_cibo_candidate() -> None:
+    candidate = _candidate("cfg")
+    candidate["measurements"]["per_trader_under_cibo"]["R43_GBPUSD"][
+        "final_pnl_usd"
+    ] = "-0.01"
+    result = evaluate_candidate(candidate)
+    assert result.passed is False
+    assert "R43_GBPUSD:PNL" in result.failed_gates
+
+
+def test_zero_settlement_trader_rejects_cibo_candidate() -> None:
+    candidate = _candidate("cfg")
+    candidate["measurements"]["per_trader_under_cibo"]["VT31_NAS100"][
+        "settled_count"
+    ] = 0
+    result = evaluate_candidate(candidate)
+    assert result.passed is False
+    assert "VT31_NAS100:NO_SETTLEMENT" in result.failed_gates
 
 
 def test_candidate_scope_must_be_cibo_only() -> None:
