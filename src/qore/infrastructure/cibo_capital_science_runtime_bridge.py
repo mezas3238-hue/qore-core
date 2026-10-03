@@ -434,10 +434,12 @@ def _runtime_identity() -> CiboAccountCapitalIdentity:
 
 
 def _utilization(used: Decimal, headroom: Decimal) -> Decimal:
-    total = used + headroom
-    if total <= 0:
-        return Decimal(0)
-    return min(Decimal(1), used / total)
+    with localcontext() as context:
+        context.prec = 80
+        total = used + headroom
+        if total <= 0:
+            return Decimal(0)
+        return min(Decimal(1), used / total)
 
 
 def _drawdown_utilization(state: CapitalSciencePredecisionInput) -> Decimal:
