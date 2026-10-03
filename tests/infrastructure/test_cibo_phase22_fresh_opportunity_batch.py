@@ -37,6 +37,18 @@ def _turtle_row() -> dict[str, object]:
         "raw_net_010_r": "2",
         "scaled_net_010_r": "0.10",
         "risk_scale": "0.05",
+        "family": "LONG_DELAYED_RECLAIM_MEDIUM_BODY",
+        "target_route": "PRIOR_CANDLE_DIRECTIONAL_BOUNDARY:H1",
+        "fragility_flag_count": 2,
+        "posture": "STATIC",
+        "setup_context": {
+            "session": "london",
+            "rejection_wick_bucket": "q3:<=0.50",
+        },
+        "regime": {
+            "h1_body_alignment": "opposed",
+            "m5_efficiency_state": "low",
+        },
     }
 
 
@@ -52,6 +64,24 @@ def test_turtle_normalization_uses_raw_structural_r_not_legacy_scale() -> None:
     assert opportunity.gross_structural_outcome_r == Decimal("2")
     assert opportunity.payload()["legacy_trader_sizing_used_for_cibo"] is False
     assert opportunity.payload()["volume"] is None
+    assert opportunity.decision_context == (
+        ("ctx_rejection_wick_bucket", "q3:<=0.50"),
+        ("ctx_session", "london"),
+        ("family", "LONG_DELAYED_RECLAIM_MEDIUM_BODY"),
+        ("fragility_flag_count", "2"),
+        ("posture", "STATIC"),
+        ("reg_h1_body_alignment", "opposed"),
+        ("reg_m5_efficiency_state", "low"),
+        ("target_route", "PRIOR_CANDLE_DIRECTIONAL_BOUNDARY:H1"),
+    )
+    serialized = dict(opportunity.payload())
+    assert serialized["decision_context"] == [
+        list(item) for item in opportunity.decision_context
+    ]
+    flattened_keys = {key for key, _ in opportunity.decision_context}
+    assert "exit_reason" not in flattened_keys
+    assert "raw_net_010_r" not in flattened_keys
+    assert "scaled_net_010_r" not in flattened_keys
 
 
 def test_native_vt31_vt08_surface_is_volume_free() -> None:
