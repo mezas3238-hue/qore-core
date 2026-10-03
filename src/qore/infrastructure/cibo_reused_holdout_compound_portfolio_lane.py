@@ -10,7 +10,8 @@ QORE Risk remains sovereign over every incremental request. Capital Science
 predecision evaluation consumes the enabled native GEN-C engines from the
 runtime bridge; no function is hidden by historical replay time or TEST mission.
 This is a NON_CERTIFYING_REUSED_HOLDOUT research lane and grants no
-broker/LIVE/real/production/merge authority.
+broker/LIVE/real/production/merge authority. GEN-C10 conservation checks are
+precision-safe so high-precision replay balances do not disable native engines.
 """
 
 from __future__ import annotations
