@@ -92,6 +92,9 @@ _INTERNAL_EXTERNAL_BLOCKER_MARKERS = (
 )
 
 _WORKSTREAM_CLASSIFIERS = (
+    ("*cibo_capital_science_runtime_bridge*", "CAPITAL_AMPLIFICATION"),
+    ("*cibo_universal_runtime_identity*", "SOURCE_OF_TRUTH_RECONCILIATION"),
+    ("*cibo_trader_lab_phase3_ce2i_audit*", "CE2I_CROSS_TOOL_INFRASTRUCTURE"),
     ("*cibo_profitability_lab*", "SOURCE_OF_TRUTH_RECONCILIATION"),
     (
         "*cibo_compound_protected_capital_reality_exam*",
