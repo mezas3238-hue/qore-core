@@ -11,6 +11,7 @@ from datetime import UTC, datetime
 from decimal import ROUND_FLOOR, Decimal
 from enum import StrEnum
 from hashlib import sha256
+from re import fullmatch
 from threading import RLock
 from typing import Protocol
 
@@ -31,6 +32,8 @@ class ProviderRiskBudget(Protocol):
 
 
 class TraderLineage(StrEnum):
+    """Legacy named lineages retained for compatibility, never an allowlist."""
+
     VT08_FOREX = "VT08_FOREX"
     VT08_INDEX = "VT08_INDEX"
     R34_XAUUSD = "R34_XAUUSD"
@@ -39,6 +42,28 @@ class TraderLineage(StrEnum):
     R38_GBPJPY = "R38_GBPJPY"
     R42_AUDJPY = "R42_AUDJPY"
     VT31_NAS100 = "VT31_NAS100"
+
+
+TraderIdentity = TraderLineage | str
+_TRADER_ID_RE = r"[A-Z0-9][A-Z0-9._/-]*"
+
+
+def canonical_trader_identity(
+    value: TraderIdentity,
+    *,
+    field_name: str = "trader_id",
+) -> str:
+    """Validate one universal provider-neutral Trader identity.
+
+    Known legacy members and arbitrary canonical identities are equally valid.
+    Identity carries provenance only and grants no Risk or execution authority.
+    """
+
+    if not isinstance(value, str) or fullmatch(_TRADER_ID_RE, str(value)) is None:
+        raise AccountWideRiskError(
+            f"{field_name} must use canonical uppercase Trader identity syntax"
+        )
+    return str(value)
 
 
 class RiskDecision(StrEnum):
@@ -166,7 +191,7 @@ class CiboCapitalProvenanceLot:
 @dataclass(frozen=True, slots=True)
 class CiboRiskRequest:
     request_id: str
-    trader_id: TraderLineage
+    trader_id: TraderIdentity
     signal_fingerprint: str
     qore_symbol: str
     provider_symbol: str
@@ -197,8 +222,7 @@ class CiboRiskRequest:
         ):
             if not text_value:
                 raise AccountWideRiskError(f"{name} must be non-empty")
-        if type(self.trader_id) is not TraderLineage:
-            raise AccountWideRiskError("trader_id must be a frozen pilot lineage")
+        canonical_trader_identity(self.trader_id)
         for name, decimal_value in (
             ("intended_entry", self.intended_entry),
             ("stop_loss", self.stop_loss),
@@ -266,7 +290,7 @@ class CiboRiskRequest:
 class RiskAuthorization:
     authorization_id: str
     account_binding_id: str
-    trader_id: TraderLineage
+    trader_id: TraderIdentity
     request_id: str
     signal_fingerprint: str
     qore_symbol: str
@@ -294,6 +318,7 @@ class RiskAuthorization:
     capital_provenance: tuple[CiboCapitalProvenanceLot, ...] = ()
 
     def __post_init__(self) -> None:
+        canonical_trader_identity(self.trader_id)
         if type(self.decision) is not RiskDecision:
             raise AccountWideRiskError("decision must be canonical")
         if self.decision is RiskDecision.REJECT:
@@ -369,7 +394,7 @@ def _risk_authorization_fingerprint(
     canonical = "|".join(
         (
             authorization.account_binding_id,
-            authorization.trader_id.value,
+            canonical_trader_identity(authorization.trader_id),
             authorization.signal_fingerprint,
             authorization.provider_symbol,
             authorization.side,
@@ -788,7 +813,7 @@ def _authorization(
     canonical = "|".join(
         (
             snapshot.account_binding_id,
-            request.trader_id.value,
+            canonical_trader_identity(request.trader_id),
             request.signal_fingerprint,
             request.provider_symbol,
             request.side,
