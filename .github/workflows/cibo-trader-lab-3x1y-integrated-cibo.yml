@@ -10,6 +10,7 @@ on:
       - 'scripts/cibo_three_holdout_group_report.py'
       - 'scripts/cibo_three_holdout_1y_sensor.py'
       - 'src/qore/infrastructure/trader_lab/cibo_three_holdout_1y_contract.py'
+      - 'src/qore/infrastructure/cibo_phase22_v4_historical_regime.py'
   workflow_dispatch:
 
 permissions:
@@ -17,7 +18,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: qore-cibo-trader-lab-3x1y-integrated-cibo
+  group: qore-cibo-trader-lab-3x1y-integrated-cibo-v2
   cancel-in-progress: false
 
 env:
@@ -47,11 +48,13 @@ jobs:
           python -m py_compile \
             scripts/cibo_t02_three_lane_capital_lab_arch2.py \
             scripts/cibo_three_holdout_group_report.py \
-            scripts/cibo_three_holdout_1y_sensor.py
+            scripts/cibo_three_holdout_1y_sensor.py \
+            src/qore/infrastructure/cibo_phase22_v4_historical_regime.py
           ruff check \
             scripts/cibo_t02_three_lane_capital_lab_arch2.py \
             scripts/cibo_three_holdout_group_report.py \
-            scripts/cibo_three_holdout_1y_sensor.py
+            scripts/cibo_three_holdout_1y_sensor.py \
+            src/qore/infrastructure/cibo_phase22_v4_historical_regime.py
 
       - name: Recover immutable seven-Trader assembly
         run: |
