@@ -32,13 +32,12 @@ from cibo_compound_protected_capital_reality_exam import (
     _surface,
 )
 
-from qore.infrastructure.cibo_protected_reinvestment_policy import (
-    USD60_MAX_CAPITAL_NEED_USD,
-)
-
 BASE_REFERENCE_CAPITAL_USD = Decimal("60")
+LEGACY_V1_USD60_REFERENCE_LIMIT_USD = Decimal(
+    "1.80416946006494203648874011988"
+)
 USD60_LIMIT_GRID = (
-    USD60_MAX_CAPITAL_NEED_USD,
+    LEGACY_V1_USD60_REFERENCE_LIMIT_USD,
     Decimal("2.40"),
     Decimal("2.50"),
     Decimal("2.55"),
@@ -420,6 +419,10 @@ def main() -> int:
             "selection_rule": (
                 "FIRST_QUALIFYING_PREREGISTERED_CANDIDATE_NOT_PNL_RANKED"
             ),
+            "legacy_v1_reference_limit_usd": _fmt(
+                LEGACY_V1_USD60_REFERENCE_LIMIT_USD
+            ),
+            "frozen_v2_reference_limit_usd": "2.40",
         },
         "hypothesis_governance": {
             "all_gate_inputs_are_predecision": True,
