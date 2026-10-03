@@ -1,8 +1,8 @@
 {
   "schema": "qore.cibo.profitability-lab.p0-trigger.v1",
   "owner_authorized": true,
-  "authorized_at_utc": "2026-10-03T00:22:00Z",
-  "objective": "Re-run the unchanged all-Trader CIBO-free-tool-choice economics while emitting a read-only per-opportunity Decision Trace that exposes actual CF, CE2I, GEN-C, CMA, QORE Risk, provider, settlement and T20 participation.",
+  "authorized_at_utc": "2026-10-03T01:40:00Z",
+  "objective": "Re-run the non-certifying reused-holdout Profitability Lab after causal-time, runtime CF01-CF19 consultation, advanced-CE2I economic-binding, T03/T16/T17 policy-readiness, and rational Compound redeploy repairs.",
   "source_population_run": 37075080556,
   "source_batch_artifact_id": 11256450732,
   "research_only": true,
@@ -13,9 +13,9 @@
   "production": false,
   "merge_authority": false,
   "outcome_aware_tuning": false,
-  "retrigger_for_head": "66bc7c9a7be0adb5a8c32074e124152074fa9e9e",
-  "retrigger_reason": "Re-run observational Decision Trace after static-only lint repair; economic path remains unchanged.",
-  "mode": "CIBO_FREE_TOOL_CHOICE",
+  "retrigger_for_head": "424581bdc8ad7bf0c5e6cca8626677067a681c84",
+  "retrigger_reason": "Owner ordered ChatGPT to repair the Profitability Lab directly after Work changes were not materialized. Validate architecture first; do not consume Fresh OOS.",
+  "mode": "CIBO_FREE_TOOL_CHOICE_CAUSAL_REPAIR_ABLATION",
   "replay_tool_eligibility_authority": false,
-  "reason": "Owner ordered replay authority removed so CIBO cognition decides which available capabilities to use."
+  "reason": "Research-only reused-holdout ablation. Fresh OOS remains untouched; no Trader changes, no broker mutation, no LIVE/real capital, no merge."
 }
