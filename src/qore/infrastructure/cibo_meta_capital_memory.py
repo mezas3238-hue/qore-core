@@ -22,6 +22,7 @@ from uuid import NAMESPACE_URL, uuid5
 from qore.infrastructure.account_wide_risk import (
     TraderIdentity,
     canonical_trader_identity,
+    canonical_trader_lineage,
 )
 from qore.infrastructure.cibo_account_capital_mission import (
     CiboAccountCapitalIdentity,
@@ -147,7 +148,11 @@ class Genc13CapitalEpisode:
             raise CiboCapitalManagementError(
                 "GEN-C13 episode account identity is invalid"
             )
-        canonical_trader_identity(self.trader_id)
+        object.__setattr__(
+            self,
+            "trader_id",
+            canonical_trader_lineage(self.trader_id),
+        )
         _aware(self.decision_at, "decision_at")
         _aware(self.outcome_at, "outcome_at")
         if self.outcome_at <= self.decision_at:
