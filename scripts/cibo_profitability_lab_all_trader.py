@@ -65,6 +65,11 @@ from qore.infrastructure.cibo_reused_holdout_compound_portfolio_lane import (
     CompoundResearchRedeployAuthorization,
     run_compound_portfolio_lane,
 )
+from qore.infrastructure.cibo_t02_pooled_research_evidence import (
+    POOLED_T02_RESEARCH_EVIDENCE_ID,
+    POOLED_T02_SELECTED_RULE_ID,
+    build_pooled_t02_research_evidence,
+)
 
 TRADERS = (
     "VT08_FOREX",
@@ -473,11 +478,17 @@ def main() -> int:
         choices=T02_RESEARCH_RULES,
         default="NONE",
     )
+    parser.add_argument("--t02-pooled-evidence", action="store_true")
     parser.add_argument("--provider-numeric-freeze-sha256", required=True)
     parser.add_argument("--source-root", action="append", required=True)
     parser.add_argument("--replay-started-at", required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
+
+    if args.t02_pooled_evidence and args.t02_research_rule != "NONE":
+        raise ValueError(
+            "pooled T02 evidence cannot be combined with ad-hoc research filter"
+        )
 
     batch_raw = _json_object(args.batch)
     if batch_raw.get("validation_mode") != "NON_CERTIFYING_REUSED_HOLDOUT":
@@ -548,6 +559,11 @@ def main() -> int:
         lab_t02_research_admission_filter=_t02_research_filter(
             args.t02_research_rule
         ),
+        lab_t02_research_evidence_builder=(
+            build_pooled_t02_research_evidence
+            if args.t02_pooled_evidence
+            else None
+        ),
     )
     compound = run_compound_portfolio_lane(
         plan=plan,
@@ -602,6 +618,14 @@ def main() -> int:
         "cibo_free_tool_choice": True,
         "compound_rational_redeploy_gate_preregistered": True,
         "t02_research_rule": args.t02_research_rule,
+        "t02_pooled_evidence": (
+            {
+                "evidence_id": POOLED_T02_RESEARCH_EVIDENCE_ID,
+                "selected_rule_id": POOLED_T02_SELECTED_RULE_ID,
+            }
+            if args.t02_pooled_evidence
+            else None
+        ),
         "causal_context_reconstruction": context_summary,
         "seven_of_seven_participation_pass": participation_pass,
         "baseline_minimal_seed": _canonical(baseline_metrics),
@@ -618,6 +642,7 @@ def main() -> int:
             "outcome_aware_tuning": False,
             "t02_runtime_policy_changed": False,
             "t02_research_rule": args.t02_research_rule,
+            "t02_pooled_evidence_applied": args.t02_pooled_evidence,
             "reused_context_map_applied": context_summary is not None,
             "qore_risk_sovereign": True,
             "broker_mutation": False,
