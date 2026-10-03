@@ -152,13 +152,9 @@ def _research_context_by_signal(
 def _research_regime_source_ids(source_roots: dict[str, Path]) -> tuple[str, ...]:
     values = []
     for symbol in PHASE22_REGIME_SYMBOLS:
-        manifests = tuple(
-            source_roots[symbol].rglob("symbol-consumption-manifest.json")
-        )
+        manifests = tuple(source_roots[symbol].rglob("symbol-consumption-manifest.json"))
         if len(manifests) != 1:
-            raise ValueError(
-                f"{symbol}: exact one Market Atlas manifest is required"
-            )
+            raise ValueError(f"{symbol}: exact one Market Atlas manifest is required")
         digest = hashlib.sha256(manifests[0].read_bytes()).hexdigest()
         values.append("sha256:" + digest)
     return tuple(values)
@@ -214,10 +210,7 @@ def _canonical(value: Any) -> Any:
     if isinstance(value, Enum):
         return value.value
     if is_dataclass(value) and not isinstance(value, type):
-        return {
-            field.name: _canonical(getattr(value, field.name))
-            for field in fields(value)
-        }
+        return {field.name: _canonical(getattr(value, field.name)) for field in fields(value)}
     if isinstance(value, tuple):
         return [_canonical(item) for item in value]
     if isinstance(value, list):
@@ -258,12 +251,8 @@ def _trader_rows(*, execution: Any, compound: Any) -> list[dict[str, Any]]:
                 "compound_entries": c_count,
                 "total_entries": core_count + c_count,
                 "core_pnl_usd": format(pnl[trader], "f"),
-                "compound_incremental_pnl_usd": format(
-                    compound_pnl.get(trader, Decimal(0)), "f"
-                ),
-                "full_pnl_usd": format(
-                    pnl[trader] + compound_pnl.get(trader, Decimal(0)), "f"
-                ),
+                "compound_incremental_pnl_usd": format(compound_pnl.get(trader, Decimal(0)), "f"),
+                "full_pnl_usd": format(pnl[trader] + compound_pnl.get(trader, Decimal(0)), "f"),
                 "participation_pass": core_count > 0,
             }
         )
@@ -288,8 +277,7 @@ def _coverage(
     runtime_cf_complete = all(
         isinstance(row, dict)
         and isinstance(row.get("cognitive_orchestration"), dict)
-        and row["cognitive_orchestration"].get("runtime_economic_consultation")
-        == "PRESENT"
+        and row["cognitive_orchestration"].get("runtime_economic_consultation") == "PRESENT"
         and len(
             row["cognitive_orchestration"].get(
                 "runtime_consulted_faculties",
@@ -307,8 +295,7 @@ def _coverage(
         and row["cognitive_orchestration"].get("executive_brain_invoked") is False
         and row["cognitive_orchestration"].get("executive_brain_status")
         == "QUARANTINED_RESEARCH_ONLY"
-        and row["cognitive_orchestration"].get("legacy_stack_quarantine_preserved")
-        is True
+        and row["cognitive_orchestration"].get("legacy_stack_quarantine_preserved") is True
         for row in trace_rows
     )
     cf_rows = [
@@ -339,8 +326,7 @@ def _coverage(
     ]
 
     compound_by = {
-        str(row["function_code"]).split("_", 1)[0]: row
-        for row in compound.function_accountability
+        str(row["function_code"]).split("_", 1)[0]: row for row in compound.function_accountability
     }
     genc_rows: list[dict[str, Any]] = []
     for code in GENC:
@@ -436,9 +422,7 @@ def main() -> int:
     }:
         raise ValueError("lab requires an authorized non-certifying research population")
     fresh = load_phase22_sealed_fresh_batch(batch_raw)
-    provider = load_phase22_sealed_provider_numeric(
-        _json_object(args.provider_numeric)
-    )
+    provider = load_phase22_sealed_provider_numeric(_json_object(args.provider_numeric))
     context_summary: dict[str, Any] | None = None
     if args.context_map is None:
         projections = project_phase22_execution_inputs(
@@ -447,9 +431,7 @@ def main() -> int:
             provider_numeric_freeze_sha256=args.provider_numeric_freeze_sha256,
         )
     else:
-        allowed_signals = {
-            item.signal_fingerprint for item in fresh.batch.opportunities
-        }
+        allowed_signals = {item.signal_fingerprint for item in fresh.batch.opportunities}
         context_by_signal, context_summary = _research_context_by_signal(
             args.context_map,
             source_batch_sha256=fresh.declared_batch_sha256,
@@ -465,9 +447,7 @@ def main() -> int:
                     ),
                 ),
                 spec=provider.spec_for(opportunity.qore_symbol),
-                provider_numeric_freeze_sha256=(
-                    args.provider_numeric_freeze_sha256
-                ),
+                provider_numeric_freeze_sha256=(args.provider_numeric_freeze_sha256),
             )
             for opportunity in fresh.batch.opportunities
         )
@@ -515,6 +495,7 @@ def main() -> int:
             research_redeploy_authorizations=research_authorizations,
             lab_pool_scope=POOL_SCOPE_TRADER_LOCAL,
             lab_seed_multiplier=multiplier,
+            regime_evidence=regimes,
         )
         for multiplier in leverage_multipliers
     }
@@ -528,6 +509,7 @@ def main() -> int:
             research_redeploy_authorizations=research_authorizations,
             lab_pool_scope=POOL_SCOPE_ACCOUNT,
             lab_seed_multiplier=multiplier,
+            regime_evidence=regimes,
         )
         for multiplier in leverage_multipliers
     }
@@ -560,9 +542,7 @@ def main() -> int:
         compound=compound_portfolio,
         decision_trace=decision_trace,
     )
-    participation_pass = all(
-        row["participation_pass"] for row in trader_rows_portfolio
-    )
+    participation_pass = all(row["participation_pass"] for row in trader_rows_portfolio)
 
     result = {
         "schema": "qore.cibo.t02-three-lane-capital-lab-arch2.v1",
@@ -575,8 +555,7 @@ def main() -> int:
             else None
         ),
         "treatment": (
-            "ALL_TRADER_CIBO_FREE_TOOL_CHOICE_CMA_QORE_RISK_"
-            "PLUS_FAIL_CLOSED_RATIONAL_COMPOUND_GATE"
+            "ALL_TRADER_CIBO_FREE_TOOL_CHOICE_CMA_QORE_RISK_PLUS_FAIL_CLOSED_RATIONAL_COMPOUND_GATE"
         ),
         "allocator_role": (
             "LAB_P0_STATIC_TRADER_PRIOR_SIGN_GATE_DISABLED; "
@@ -599,21 +578,16 @@ def main() -> int:
             core_executed_count=treatment.settled_count
         ),
         "compound_leverage_sweep": {
-            format(multiplier, "f"): result.payload(
-                core_executed_count=treatment.settled_count
-            )
+            format(multiplier, "f"): result.payload(core_executed_count=treatment.settled_count)
             for multiplier, result in local_by_multiplier.items()
         },
         "compound_portfolio_leverage_sweep": {
-            format(multiplier, "f"): result.payload(
-                core_executed_count=treatment.settled_count
-            )
+            format(multiplier, "f"): result.payload(core_executed_count=treatment.settled_count)
             for multiplier, result in portfolio_by_multiplier.items()
         },
         "portfolio_incremental_over_local_compound": {
             "ending_capital_delta_usd": format(
-                compound_portfolio.ending_capital_usd
-                - compound_local.ending_capital_usd,
+                compound_portfolio.ending_capital_usd - compound_local.ending_capital_usd,
                 "f",
             ),
             "incremental_pnl_delta_usd": format(
@@ -622,12 +596,9 @@ def main() -> int:
                 "f",
             ),
             "additional_settlements": (
-                compound_portfolio.compound_settled_count
-                - compound_local.compound_settled_count
+                compound_portfolio.compound_settled_count - compound_local.compound_settled_count
             ),
-            "cross_trader_deployments": (
-                compound_portfolio.cross_trader_compound_deployments
-            ),
+            "cross_trader_deployments": (compound_portfolio.cross_trader_compound_deployments),
         },
         "traders_compound": trader_rows_compound,
         "traders_compound_portfolio": trader_rows_portfolio,
@@ -670,10 +641,7 @@ def main() -> int:
         "summary": list(compound_portfolio.function_accountability),
         "call_count": len(compound_portfolio.capital_science_receipts),
         "functions": sorted(
-            {
-                str(row["function_code"])
-                for row in compound_portfolio.capital_science_receipts
-            }
+            {str(row["function_code"]) for row in compound_portfolio.capital_science_receipts}
         ),
         "all_calls_have_input_output": all(
             isinstance(row.get("input_payload"), dict)
@@ -697,41 +665,43 @@ def main() -> int:
         json.dumps(capital_science_io, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
-    print(json.dumps({
-        "seven_of_seven_participation_pass": participation_pass,
-        "all_trader_core_ending_capital_usd": format(
-            treatment_metrics.ending_capital_usd, "f"
-        ),
-        "all_trader_compound_ending_capital_usd": format(
-            compound_local.ending_capital_usd, "f"
-        ),
-        "all_trader_compound_portfolio_ending_capital_usd": format(
-            compound_portfolio.ending_capital_usd, "f"
-        ),
-        "portfolio_incremental_over_local_compound_usd": format(
-            compound_portfolio.ending_capital_usd
-            - compound_local.ending_capital_usd,
-            "f",
-        ),
-        "compound_leverage_ending_capital_usd": {
-            format(multiplier, "f"): format(result.ending_capital_usd, "f")
-            for multiplier, result in local_by_multiplier.items()
-        },
-        "compound_portfolio_leverage_ending_capital_usd": {
-            format(multiplier, "f"): format(result.ending_capital_usd, "f")
-            for multiplier, result in portfolio_by_multiplier.items()
-        },
-        "full_stack_runtime_coverage_complete": (
-            coverage["full_stack_runtime_coverage_complete"]
-        ),
-        "decision_trace_sha256": decision_trace["trace_sha256"],
-        "capital_science_call_count": len(
-            compound_portfolio.capital_science_receipts
-        ),
-        "capital_science_all_calls_have_input_output": (
-            capital_science_io["all_calls_have_input_output"]
-        ),
-    }, sort_keys=True))
+    print(
+        json.dumps(
+            {
+                "seven_of_seven_participation_pass": participation_pass,
+                "all_trader_core_ending_capital_usd": format(
+                    treatment_metrics.ending_capital_usd, "f"
+                ),
+                "all_trader_compound_ending_capital_usd": format(
+                    compound_local.ending_capital_usd, "f"
+                ),
+                "all_trader_compound_portfolio_ending_capital_usd": format(
+                    compound_portfolio.ending_capital_usd, "f"
+                ),
+                "portfolio_incremental_over_local_compound_usd": format(
+                    compound_portfolio.ending_capital_usd - compound_local.ending_capital_usd,
+                    "f",
+                ),
+                "compound_leverage_ending_capital_usd": {
+                    format(multiplier, "f"): format(result.ending_capital_usd, "f")
+                    for multiplier, result in local_by_multiplier.items()
+                },
+                "compound_portfolio_leverage_ending_capital_usd": {
+                    format(multiplier, "f"): format(result.ending_capital_usd, "f")
+                    for multiplier, result in portfolio_by_multiplier.items()
+                },
+                "full_stack_runtime_coverage_complete": (
+                    coverage["full_stack_runtime_coverage_complete"]
+                ),
+                "decision_trace_sha256": decision_trace["trace_sha256"],
+                "capital_science_call_count": len(compound_portfolio.capital_science_receipts),
+                "capital_science_all_calls_have_input_output": (
+                    capital_science_io["all_calls_have_input_output"]
+                ),
+            },
+            sort_keys=True,
+        )
+    )
     return 0
 
 

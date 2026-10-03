@@ -112,18 +112,13 @@ def _t02_research_filter(rule_id: str):
         return None
 
     def allows(opportunity: Any, _decision_at: datetime) -> bool:
-        minimum_risk = (
-            minimum_seed_volume(opportunity)
-            * opportunity.stop_loss_per_volume
-        )
+        minimum_risk = minimum_seed_volume(opportunity) * opportunity.stop_loss_per_volume
         expectation = build_frozen_train_expectation(
             trader_id=opportunity.trader_id,
             stop_risk_usd=minimum_risk,
             as_of=_decision_at,
         )
-        train_return_on_risk = (
-            expectation.expected_net_value_usd / minimum_risk
-        )
+        train_return_on_risk = expectation.expected_net_value_usd / minimum_risk
         if rule_id.startswith("TRAIN_ROR_GE_"):
             threshold = {
                 "TRAIN_ROR_GE_0025": Decimal("0.025"),
@@ -131,15 +126,11 @@ def _t02_research_filter(rule_id: str):
                 "TRAIN_ROR_GE_0100": Decimal("0.10"),
                 "TRAIN_ROR_GE_0050_D1_NOT_EXTREME": Decimal("0.05"),
                 "TRAIN_ROR_GE_0050_RECLAIM_LE_5M": Decimal("0.05"),
-                (
-                    "TRAIN_ROR_GE_0050_D1_NOT_EXTREME_RECLAIM_LE_5M"
-                ): Decimal("0.05"),
+                ("TRAIN_ROR_GE_0050_D1_NOT_EXTREME_RECLAIM_LE_5M"): Decimal("0.05"),
                 "TRAIN_ROR_GE_0050_NON_ASIA": Decimal("0.05"),
                 "TRAIN_ROR_GE_0050_D1_NOT_EXTREME_NON_ASIA": Decimal("0.05"),
                 "TRAIN_ROR_GE_0050_NON_ASIA_RECLAIM_LE_5M": Decimal("0.05"),
-                (
-                    "TRAIN_ROR_GE_0050_D1_NOT_EXTREME_NON_ASIA_RECLAIM_LE_5M"
-                ): Decimal("0.05"),
+                ("TRAIN_ROR_GE_0050_D1_NOT_EXTREME_NON_ASIA_RECLAIM_LE_5M"): Decimal("0.05"),
             }[rule_id]
             if train_return_on_risk < threshold:
                 return False
@@ -167,8 +158,7 @@ def _t02_research_filter(rule_id: str):
             )
         return (
             opportunity.context_value("reg_m5_efficiency_state") == "low"
-            and opportunity.context_value("ctx_rejection_wick_bucket")
-            == "q3:<=0.50"
+            and opportunity.context_value("ctx_rejection_wick_bucket") == "q3:<=0.50"
         )
 
     return allows
@@ -270,10 +260,7 @@ def _canonical(value: Any) -> Any:
     if isinstance(value, Enum):
         return value.value
     if is_dataclass(value) and not isinstance(value, type):
-        return {
-            field.name: _canonical(getattr(value, field.name))
-            for field in fields(value)
-        }
+        return {field.name: _canonical(getattr(value, field.name)) for field in fields(value)}
     if isinstance(value, tuple):
         return [_canonical(item) for item in value]
     if isinstance(value, list):
@@ -314,12 +301,8 @@ def _trader_rows(*, execution: Any, compound: Any) -> list[dict[str, Any]]:
                 "compound_entries": c_count,
                 "total_entries": core_count + c_count,
                 "core_pnl_usd": format(pnl[trader], "f"),
-                "compound_incremental_pnl_usd": format(
-                    compound_pnl.get(trader, Decimal(0)), "f"
-                ),
-                "full_pnl_usd": format(
-                    pnl[trader] + compound_pnl.get(trader, Decimal(0)), "f"
-                ),
+                "compound_incremental_pnl_usd": format(compound_pnl.get(trader, Decimal(0)), "f"),
+                "full_pnl_usd": format(pnl[trader] + compound_pnl.get(trader, Decimal(0)), "f"),
                 "participation_pass": core_count > 0,
             }
         )
@@ -344,8 +327,7 @@ def _coverage(
     runtime_cf_complete = all(
         isinstance(row, dict)
         and isinstance(row.get("cognitive_orchestration"), dict)
-        and row["cognitive_orchestration"].get("runtime_economic_consultation")
-        == "PRESENT"
+        and row["cognitive_orchestration"].get("runtime_economic_consultation") == "PRESENT"
         and len(
             row["cognitive_orchestration"].get(
                 "runtime_consulted_faculties",
@@ -363,8 +345,7 @@ def _coverage(
         and row["cognitive_orchestration"].get("executive_brain_invoked") is False
         and row["cognitive_orchestration"].get("executive_brain_status")
         == "QUARANTINED_RESEARCH_ONLY"
-        and row["cognitive_orchestration"].get("legacy_stack_quarantine_preserved")
-        is True
+        and row["cognitive_orchestration"].get("legacy_stack_quarantine_preserved") is True
         for row in trace_rows
     )
     cf_rows = [
@@ -395,8 +376,7 @@ def _coverage(
     ]
 
     compound_by = {
-        str(row["function_code"]).split("_", 1)[0]: row
-        for row in compound.function_accountability
+        str(row["function_code"]).split("_", 1)[0]: row for row in compound.function_accountability
     }
     genc_rows: list[dict[str, Any]] = []
     for code in GENC:
@@ -482,10 +462,7 @@ def _coverage(
     capital_science_runtime_receipts_complete = all(
         row["status"] != "NOT_INTEGRATED"
         and row["invoked_count"] > 0
-        and (
-            row["capability"] not in mandatory_runtime_codes
-            or row["causal_trace_count"] > 0
-        )
+        and (row["capability"] not in mandatory_runtime_codes or row["causal_trace_count"] > 0)
         for row in genc_rows
     )
     full_complete = (
@@ -500,9 +477,7 @@ def _coverage(
         "cf01_cf19_runtime_economic_consultation_complete": runtime_cf_complete,
         "cognitive_runtime_orchestration_complete": runtime_cognitive_complete,
         "t01_t20_registered": cognitive.all_ce2i_tools_registered,
-        "capital_science_runtime_receipts_complete": (
-            capital_science_runtime_receipts_complete
-        ),
+        "capital_science_runtime_receipts_complete": (capital_science_runtime_receipts_complete),
         "full_stack_runtime_coverage_complete": full_complete,
         "rows": cf_rows + t_rows + genc_rows,
         "broker_mutation": False,
@@ -565,21 +540,14 @@ def main() -> int:
     )
     if selected_evidence_modes > 1:
         raise ValueError("T02 research evidence modes are mutually exclusive")
-    if (
-        selected_evidence_modes
-        and args.t02_research_rule != "NONE"
-    ):
-        raise ValueError(
-            "T02 frozen evidence cannot be combined with ad-hoc research filter"
-        )
+    if selected_evidence_modes and args.t02_research_rule != "NONE":
+        raise ValueError("T02 frozen evidence cannot be combined with ad-hoc research filter")
 
     batch_raw = _json_object(args.batch)
     if batch_raw.get("validation_mode") != "NON_CERTIFYING_REUSED_HOLDOUT":
         raise ValueError("lab requires the frozen reused V4 population")
     fresh = load_phase22_sealed_fresh_batch(batch_raw)
-    provider = load_phase22_sealed_provider_numeric(
-        _json_object(args.provider_numeric)
-    )
+    provider = load_phase22_sealed_provider_numeric(_json_object(args.provider_numeric))
     context_summary: dict[str, Any] | None = None
     if args.context_map is None:
         projections = project_phase22_execution_inputs(
@@ -588,9 +556,7 @@ def main() -> int:
             provider_numeric_freeze_sha256=args.provider_numeric_freeze_sha256,
         )
     else:
-        allowed_signals = {
-            item.signal_fingerprint for item in fresh.batch.opportunities
-        }
+        allowed_signals = {item.signal_fingerprint for item in fresh.batch.opportunities}
         context_by_signal, context_summary = _research_context_by_signal(
             args.context_map,
             source_batch_sha256=fresh.declared_batch_sha256,
@@ -606,9 +572,7 @@ def main() -> int:
                     ),
                 ),
                 spec=provider.spec_for(opportunity.qore_symbol),
-                provider_numeric_freeze_sha256=(
-                    args.provider_numeric_freeze_sha256
-                ),
+                provider_numeric_freeze_sha256=(args.provider_numeric_freeze_sha256),
             )
             for opportunity in fresh.batch.opportunities
         )
@@ -616,9 +580,7 @@ def main() -> int:
         fresh=fresh,
         projections=projections,
     )
-    corpora = load_phase22_historical_regime_corpora(
-        _source_roots(args.source_root)
-    )
+    corpora = load_phase22_historical_regime_corpora(_source_roots(args.source_root))
     regimes = build_phase22_historical_regime_evidence(
         plan=plan,
         provider=provider,
@@ -639,28 +601,21 @@ def main() -> int:
         lab_allow_nonpositive_expectation=True,
         lab_cibo_free_tool_choice=True,
         lab_enable_t02_released_capacity=True,
-        lab_t02_research_admission_filter=_t02_research_filter(
-            args.t02_research_rule
-        ),
+        lab_t02_research_admission_filter=_t02_research_filter(args.t02_research_rule),
         lab_t02_research_evidence_builder=(
             build_fast_tail_t02_research_evidence
             if args.t02_fast_tail_evidence
-            else (
-                build_pooled_t02_research_evidence
-                if args.t02_pooled_evidence
-                else None
-            )
+            else (build_pooled_t02_research_evidence if args.t02_pooled_evidence else None)
         ),
     )
     compound = run_compound_portfolio_lane(
         plan=plan,
         core_execution=treatment,
+        regime_evidence=regimes,
         lab_use_executed_core_surface=True,
         lab_require_rational_redeploy=True,
         lab_allow_noncertifying_research_redeploy=True,
-        research_redeploy_authorizations=(
-            _compound_research_authorizations(plan)
-        ),
+        research_redeploy_authorizations=(_compound_research_authorizations(plan)),
     )
 
     baseline_metrics = _run_minimal_seed_baseline(plan)
@@ -693,8 +648,7 @@ def main() -> int:
         "status": "COMPLETE",
         "validation_mode": "NON_CERTIFYING_REUSED_HOLDOUT_DIAGNOSTIC",
         "treatment": (
-            "ALL_TRADER_CIBO_FREE_TOOL_CHOICE_CMA_QORE_RISK_"
-            "PLUS_FAIL_CLOSED_RATIONAL_COMPOUND_GATE"
+            "ALL_TRADER_CIBO_FREE_TOOL_CHOICE_CMA_QORE_RISK_PLUS_FAIL_CLOSED_RATIONAL_COMPOUND_GATE"
         ),
         "allocator_role": (
             "LAB_P0_STATIC_TRADER_PRIOR_SIGN_GATE_DISABLED; "
@@ -767,19 +721,22 @@ def main() -> int:
         json.dumps(decision_trace, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
-    print(json.dumps({
-        "seven_of_seven_participation_pass": participation_pass,
-        "all_trader_core_ending_capital_usd": format(
-            treatment_metrics.ending_capital_usd, "f"
-        ),
-        "all_trader_compound_ending_capital_usd": format(
-            compound.ending_capital_usd, "f"
-        ),
-        "full_stack_runtime_coverage_complete": (
-            coverage["full_stack_runtime_coverage_complete"]
-        ),
-        "decision_trace_sha256": decision_trace["trace_sha256"],
-    }, sort_keys=True))
+    print(
+        json.dumps(
+            {
+                "seven_of_seven_participation_pass": participation_pass,
+                "all_trader_core_ending_capital_usd": format(
+                    treatment_metrics.ending_capital_usd, "f"
+                ),
+                "all_trader_compound_ending_capital_usd": format(compound.ending_capital_usd, "f"),
+                "full_stack_runtime_coverage_complete": (
+                    coverage["full_stack_runtime_coverage_complete"]
+                ),
+                "decision_trace_sha256": decision_trace["trace_sha256"],
+            },
+            sort_keys=True,
+        )
+    )
     return 0
 
 

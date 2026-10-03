@@ -11,6 +11,7 @@ def _state(**overrides: object) -> runtime.CapitalSciencePredecisionInput:
         "decision_epoch_id": "epoch-1",
         "signal_fingerprint": "signal-1",
         "trader_id": "VT31_NAS100",
+        "qore_symbol": "NAS100",
         "decision_at": NOW,
         "realized_capital_usd": Decimal("72"),
         "peak_realized_capital_usd": Decimal("75"),
@@ -28,6 +29,37 @@ def _state(**overrides: object) -> runtime.CapitalSciencePredecisionInput:
         "competing_candidates": 2,
     }
     values.update(overrides)
+    if "regime_state" not in overrides:
+        used_risk = values["open_stop_risk_usd"]
+        risk_headroom = values["hard_risk_headroom_usd"]
+        used_margin = values["open_margin_usd"]
+        margin_headroom = values["margin_headroom_usd"]
+        peak = values["peak_realized_capital_usd"]
+        current = values["realized_capital_usd"]
+        assert isinstance(used_risk, Decimal)
+        assert isinstance(risk_headroom, Decimal)
+        assert isinstance(used_margin, Decimal)
+        assert isinstance(margin_headroom, Decimal)
+        assert isinstance(peak, Decimal)
+        assert isinstance(current, Decimal)
+        values["regime_state"] = runtime.CiboCapitalRegimeState(
+            liquidity=runtime.LiquidityState.NORMAL,
+            volatility=runtime.VolatilityState.NORMAL,
+            correlation=runtime.CorrelationState.NORMAL,
+            provider_condition=runtime.ProviderCondition.HEALTHY,
+            risk_utilization=(
+                Decimal(0)
+                if used_risk + risk_headroom <= 0
+                else used_risk / (used_risk + risk_headroom)
+            ),
+            margin_utilization=(
+                Decimal(0)
+                if used_margin + margin_headroom <= 0
+                else used_margin / (used_margin + margin_headroom)
+            ),
+            drawdown_utilization=(Decimal(0) if peak <= 0 else (peak - current) / peak),
+            opportunity_count=max(1, int(values["competing_candidates"])),
+        )
     return runtime.CapitalSciencePredecisionInput(**values)  # type: ignore[arg-type]
 
 
@@ -39,6 +71,7 @@ def test_predecision_bridge_invokes_exact_mandatory_causal_surface() -> None:
     assert {item.function_code for item in directive.receipts} == {
         "GEN-C2",
         "GEN-C4",
+        "GEN-C5",
         "GEN-C7",
         "GEN-C8",
         "GEN-C10",
@@ -48,14 +81,8 @@ def test_predecision_bridge_invokes_exact_mandatory_causal_surface() -> None:
 
     by_code = {item.function_code: item for item in directive.receipts}
     assert by_code["GEN-C2"].disposition is runtime.CapitalScienceDisposition.APPLIED
-    assert (
-        by_code["GEN-C10"].disposition
-        is runtime.CapitalScienceDisposition.APPLIED
-    )
-    assert (
-        by_code["GEN-C11"].disposition
-        is runtime.CapitalScienceDisposition.APPLIED
-    )
+    assert by_code["GEN-C10"].disposition is runtime.CapitalScienceDisposition.APPLIED
+    assert by_code["GEN-C11"].disposition is runtime.CapitalScienceDisposition.APPLIED
     assert by_code["GEN-C7"].output_payload["engine_output"]["engine"] == (
         "evaluate_genc7_profit_preservation_shadow"
     )
@@ -68,6 +95,12 @@ def test_predecision_bridge_invokes_exact_mandatory_causal_surface() -> None:
     assert by_code["GEN-C12"].output_payload["engine_output"]["engine"] == (
         "plan_genc12_crisis_capital"
     )
+    assert by_code["GEN-C5"].native_engine_called is True
+    assert by_code["GEN-C7"].native_engine_called is True
+    assert by_code["GEN-C8"].native_engine_called is True
+    assert by_code["GEN-C10"].native_engine_called is True
+    assert by_code["GEN-C11"].native_engine_called is True
+    assert by_code["GEN-C12"].native_engine_called is True
     assert all(item.outcome_used_for_same_decision is False for item in directive.receipts)
     assert all(item.qore_risk_bypassed is False for item in directive.receipts)
     assert all(item.productive_authority is False for item in directive.receipts)
@@ -87,9 +120,7 @@ def test_nonpositive_marginal_value_abstains_before_cma_and_risk() -> None:
         )
     )
 
-    c4 = next(
-        item for item in directive.receipts if item.function_code == "GEN-C4"
-    )
+    c4 = next(item for item in directive.receipts if item.function_code == "GEN-C4")
     assert directive.allow_incremental_compound is False
     assert c4.disposition is runtime.CapitalScienceDisposition.APPLIED
     assert c4.decision_changed is True
@@ -103,9 +134,7 @@ def test_postrun_receipts_complete_c9_c13_c14_without_same_trade_mutation() -> N
         observed_at=NOW,
         ending_capital_usd=Decimal("66"),
         net_realized_pnl_usd=Decimal("6"),
-        settlement_rows=(
-            ("signal-1", "VT31_NAS100", Decimal("1.25")),
-        ),
+        settlement_rows=(("signal-1", "VT31_NAS100", Decimal("1.25")),),
     )
     aggregate = runtime.aggregate_capital_science_receipts(pre + post)
 
@@ -120,10 +149,7 @@ def test_postrun_receipts_complete_c9_c13_c14_without_same_trade_mutation() -> N
     assert all(row["unique_output_count"] > 0 for row in aggregate)
     assert all(row["research_mode"] == runtime.RESEARCH_MODE for row in aggregate)
 
-    by_code = {
-        item.function_code: item
-        for item in post
-    }
+    by_code = {item.function_code: item for item in post}
     assert by_code["GEN-C9"].stage == "POST_SEGMENT"
     assert by_code["GEN-C13"].stage == "POST_OUTCOME"
     assert by_code["GEN-C14"].stage == "RESEARCH_GOVERNANCE"
@@ -132,14 +158,10 @@ def test_postrun_receipts_complete_c9_c13_c14_without_same_trade_mutation() -> N
 
 
 def test_c11_runs_on_current_known_option_even_without_peer_competition() -> None:
-    directive = runtime.evaluate_capital_science_predecision(
-        _state(competing_candidates=1)
-    )
-    c11 = next(
-        item for item in directive.receipts if item.function_code == "GEN-C11"
-    )
+    directive = runtime.evaluate_capital_science_predecision(_state(competing_candidates=1))
+    c11 = next(item for item in directive.receipts if item.function_code == "GEN-C11")
     assert c11.disposition is runtime.CapitalScienceDisposition.APPLIED
-    assert c11.consumer_action == "PUBLISH_ROBUST_CAPACITY_ENVELOPE"
+    assert c11.consumer_action == "CONSUME_ROBUST_CAPACITY_ENVELOPE"
     details = c11.output_payload["engine_output"]
     assert details["engine"] == "plan_genc11_multi_period_capital"
     assert details["known_option_ids"] == ["signal-1"]
@@ -170,7 +192,7 @@ def test_c7_c8_c11_c12_research_diagnostics_are_observable_per_call() -> None:
     assert normal_by["GEN-C7"].input_payload["realized_profit_pool_usd"] == "12"
     assert normal_by["GEN-C8"].consumer_action == "ACCELERATED"
     assert normal_by["GEN-C8"].decision_changed is True
-    assert normal_by["GEN-C11"].consumer_action == "PUBLISH_ROBUST_CAPACITY_ENVELOPE"
+    assert normal_by["GEN-C11"].consumer_action == "CONSUME_ROBUST_CAPACITY_ENVELOPE"
     assert normal_by["GEN-C11"].decision_changed is True
     assert normal_by["GEN-C12"].consumer_action == "CRISIS_ENVELOPE_ALLOWS_CAPITAL"
     assert normal_by["GEN-C12"].output_payload["engine_output"]["posture"] in {
@@ -186,16 +208,63 @@ def test_c7_c8_c11_c12_research_diagnostics_are_observable_per_call() -> None:
         )
     )
     stressed_by = {item.function_code: item for item in stressed.receipts}
-    assert stressed_by["GEN-C8"].consumer_action == "PAUSE_INCREMENTAL_COMPOUND"
+    assert stressed_by["GEN-C8"].consumer_action == "PAUSE"
     assert stressed_by["GEN-C8"].decision_changed is True
     assert stressed_by["GEN-C12"].consumer_action == "PAUSE_NEW_CAPITAL"
     assert stressed_by["GEN-C12"].decision_changed is True
 
-    single = runtime.evaluate_capital_science_predecision(
-        _state(competing_candidates=1)
-    )
-    single_c11 = next(
-        item for item in single.receipts if item.function_code == "GEN-C11"
-    )
-    assert single_c11.consumer_action == "PUBLISH_ROBUST_CAPACITY_ENVELOPE"
+    single = runtime.evaluate_capital_science_predecision(_state(competing_candidates=1))
+    single_c11 = next(item for item in single.receipts if item.function_code == "GEN-C11")
+    assert single_c11.consumer_action == "CONSUME_ROBUST_CAPACITY_ENVELOPE"
     assert single_c11.output_payload["disposition"] == "APPLIED"
+
+
+def test_genc11_consumes_every_simultaneously_known_option() -> None:
+    peer = runtime.CapitalScienceKnownOpportunity(
+        option_id="peer-signal",
+        trader_id="GENERIC_USDCAD_R1",
+        qore_symbol="USDCAD",
+        known_at=NOW,
+        earliest_action_at=NOW,
+        expires_at=NOW.replace(hour=13),
+        requested_capital_usd=Decimal("1.10"),
+        stop_risk_usd=Decimal("1.00"),
+        margin_usd=Decimal("0.80"),
+        evidence_sha256="sha256:" + "a" * 64,
+    )
+    directive = runtime.evaluate_capital_science_predecision(
+        _state(
+            competing_candidates=2,
+            known_simultaneous_opportunities=(peer,),
+        )
+    )
+    c10 = next(item for item in directive.receipts if item.function_code == "GEN-C10")
+    c11 = next(item for item in directive.receipts if item.function_code == "GEN-C11")
+
+    assert c10.output_payload["engine_output"]["known_option_count"] == 2
+    assert set(c11.output_payload["engine_output"]["known_option_ids"]) == {
+        "signal-1",
+        "peer-signal",
+    }
+    schedules = c11.input_payload["typed_engine_input"]["option_schedules"]
+    assert {item["option_id"] for item in schedules} == {
+        "signal-1",
+        "peer-signal",
+    }
+
+
+def test_unseen_trader_and_symbol_use_the_same_native_capability_path() -> None:
+    identities = (
+        ("SCALPER_BTCUSD_V1", "BTCUSD"),
+        ("GENERIC_USDCAD_R1", "USDCAD"),
+        ("PORTFOLIO.EURAUD/R2", "EURAUD"),
+        ("FUTURE_SYNTHETIC_TRADER_2040", "SYNTH-2040"),
+    )
+    for trader_id, qore_symbol in identities:
+        directive = runtime.evaluate_capital_science_predecision(
+            _state(trader_id=trader_id, qore_symbol=qore_symbol)
+        )
+        native = {item.function_code for item in directive.receipts if item.native_engine_called}
+        assert native == {"GEN-C5", "GEN-C7", "GEN-C8", "GEN-C10", "GEN-C11", "GEN-C12"}
+        assert all(item.trader_id == trader_id for item in directive.receipts)
+        assert all(item.qore_symbol == qore_symbol for item in directive.receipts)

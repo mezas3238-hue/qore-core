@@ -23,6 +23,7 @@ from qore.infrastructure.cibo_phase22_v4_execution_inputs import (
 )
 from qore.infrastructure.cibo_phase22_v4_historical_regime import (
     PHASE22_REGIME_SYMBOLS,
+    build_phase22_historical_regime_evidence,
     load_phase22_historical_regime_corpora,
 )
 from qore.infrastructure.cibo_reused_holdout_capability_exam import (
@@ -65,10 +66,7 @@ def _canonical(value: Any) -> Any:
     if isinstance(value, Enum):
         return value.value
     if is_dataclass(value) and not isinstance(value, type):
-        return {
-            field.name: _canonical(getattr(value, field.name))
-            for field in fields(value)
-        }
+        return {field.name: _canonical(getattr(value, field.name)) for field in fields(value)}
     if isinstance(value, tuple):
         return [_canonical(item) for item in value]
     if isinstance(value, list):
@@ -100,18 +98,12 @@ def main() -> int:
         raise ValueError("capability exam cannot claim scientific freshness")
 
     fresh = load_phase22_sealed_fresh_batch(batch_raw)
-    provider = load_phase22_sealed_provider_numeric(
-        _json_object(args.provider_numeric)
-    )
-    corpora = load_phase22_historical_regime_corpora(
-        _source_roots(args.source_root)
-    )
+    provider = load_phase22_sealed_provider_numeric(_json_object(args.provider_numeric))
+    corpora = load_phase22_historical_regime_corpora(_source_roots(args.source_root))
     report, execution = run_reused_holdout_infrastructure_exam(
         fresh=fresh,
         provider=provider,
-        provider_numeric_freeze_sha256=(
-            args.provider_numeric_freeze_sha256
-        ),
+        provider_numeric_freeze_sha256=(args.provider_numeric_freeze_sha256),
         corpora=corpora,
         replay_started_at=datetime.fromisoformat(args.replay_started_at),
     )
@@ -125,9 +117,16 @@ def main() -> int:
         fresh=fresh,
         projections=projections,
     )
+    regimes = build_phase22_historical_regime_evidence(
+        plan=plan,
+        provider=provider,
+        provider_numeric_freeze_sha256=args.provider_numeric_freeze_sha256,
+        corpora=corpora,
+    )
     compound = run_compound_portfolio_lane(
         plan=plan,
         core_execution=execution,
+        regime_evidence=regimes,
     )
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
@@ -177,9 +176,7 @@ def main() -> int:
             )
             else "REJECTED_FOR_CERTIFICATION"
         ),
-        "full_cibo_net_realized_pnl_usd": format(
-            report.full_cibo.net_realized_pnl_usd, "f"
-        ),
+        "full_cibo_net_realized_pnl_usd": format(report.full_cibo.net_realized_pnl_usd, "f"),
         "full_cibo_compound_portfolio_net_realized_pnl_usd": format(
             compound.net_realized_pnl_usd, "f"
         ),
@@ -216,31 +213,21 @@ def main() -> int:
                 "exam_sha256": report.fingerprint(),
                 "infrastructure_certified": report.infrastructure_certified,
                 "usd60_survival_passed": dual_objective.survival.passed,
-                "maximum_capability_passed": (
-                    dual_objective.maximum_capability.passed
-                ),
+                "maximum_capability_passed": (dual_objective.maximum_capability.passed),
                 "dual_objective_status": dual_objective.status.value,
                 "survival_blockers": list(dual_objective.survival.blockers),
-                "maximum_capability_blockers": list(
-                    dual_objective.maximum_capability.blockers
-                ),
+                "maximum_capability_blockers": list(dual_objective.maximum_capability.blockers),
                 "baseline_ending_capital_usd": format(
                     report.minimal_seed_baseline.ending_capital_usd, "f"
                 ),
-                "full_cibo_ending_capital_usd": format(
-                    report.full_cibo.ending_capital_usd, "f"
-                ),
+                "full_cibo_ending_capital_usd": format(report.full_cibo.ending_capital_usd, "f"),
                 "not_integrated_tools": [
                     item.tool_code
                     for item in report.tool_audit
                     if item.status.value == "NOT_INTEGRATED"
                 ],
-                "compound_portfolio_ending_capital_usd": format(
-                    compound.ending_capital_usd, "f"
-                ),
-                "compound_incremental_pnl_usd": format(
-                    compound.compound_incremental_pnl_usd, "f"
-                ),
+                "compound_portfolio_ending_capital_usd": format(compound.ending_capital_usd, "f"),
+                "compound_incremental_pnl_usd": format(compound.compound_incremental_pnl_usd, "f"),
                 "exam_disposition": disposition["status"],
                 "scientific_freshness_claimed": False,
                 "certification_claimed": False,

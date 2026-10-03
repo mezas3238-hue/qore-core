@@ -13,8 +13,10 @@ on:
       - 'src/qore/infrastructure/cibo_phase22_v4_historical_regime.py'
       - 'src/qore/infrastructure/cibo_phase22_v4_chronological_execution.py'
       - 'src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py'
+      - 'src/qore/infrastructure/cibo_capital_science_runtime_bridge.py'
       - 'src/qore/infrastructure/cibo_universal_capital_science_registry.py'
       - 'tests/infrastructure/test_cibo_universal_capital_science_registry.py'
+      - 'tests/infrastructure/test_cibo_capital_science_runtime_bridge.py'
       - 'tests/infrastructure/test_cibo_phase22_v4_t02_volume_alignment.py'
   workflow_dispatch:
 
@@ -63,19 +65,23 @@ jobs:
             scripts/cibo_t02_three_lane_capital_lab_arch2.py \
             scripts/cibo_three_holdout_group_report.py \
             src/qore/infrastructure/cibo_phase22_v4_chronological_execution.py \
+            src/qore/infrastructure/cibo_capital_science_runtime_bridge.py \
             src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py \
             src/qore/infrastructure/cibo_universal_capital_science_registry.py
           ruff check \
             scripts/cibo_t02_three_lane_capital_lab_arch2.py \
             scripts/cibo_three_holdout_group_report.py \
             src/qore/infrastructure/cibo_phase22_v4_chronological_execution.py \
+            src/qore/infrastructure/cibo_capital_science_runtime_bridge.py \
             src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py \
             src/qore/infrastructure/cibo_universal_capital_science_registry.py \
             tests/infrastructure/test_cibo_phase22_v4_t02_volume_alignment.py \
-            tests/infrastructure/test_cibo_universal_capital_science_registry.py
+            tests/infrastructure/test_cibo_universal_capital_science_registry.py \
+            tests/infrastructure/test_cibo_capital_science_runtime_bridge.py
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_phase22_v4_t02_volume_alignment.py \
-            tests/infrastructure/test_cibo_universal_capital_science_registry.py
+            tests/infrastructure/test_cibo_universal_capital_science_registry.py \
+            tests/infrastructure/test_cibo_capital_science_runtime_bridge.py
 
       - name: Recover immutable seven-Trader assembly
         run: |

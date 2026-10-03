@@ -18,11 +18,12 @@ import hashlib
 import json
 from collections import Counter, defaultdict
 from collections.abc import Iterable
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import datetime, timedelta
 from decimal import Decimal, localcontext
 from enum import StrEnum
 
+from qore.infrastructure.account_wide_risk import canonical_trader_lineage
 from qore.infrastructure.cibo_account_capital_mission import (
     CiboAccountCapitalIdentity,
     derive_cibo_capital_mission,
@@ -54,12 +55,25 @@ from qore.infrastructure.cibo_ce2i_regime_selector import (
     VolatilityState,
     select_ce2i_tools_for_regime,
 )
-from qore.infrastructure.cibo_compound_capital import CompoundCapitalState
+from qore.infrastructure.cibo_compound_capital import (
+    CompoundCapitalState,
+    CompoundRealizedProfitEvidence,
+    create_realized_profit_lot,
+)
+from qore.infrastructure.cibo_compound_floor import ProtectedCapitalFloorLedger
+from qore.infrastructure.cibo_compound_portfolio_ledger import CompoundPortfolioLedger
+from qore.infrastructure.cibo_core_compound_portfolio import (
+    AccountCoreCompoundPortfolio,
+)
 from qore.infrastructure.cibo_crisis_capital_intelligence import (
     Genc12CapitalResponse,
     Genc12CrisisFact,
     Genc12CrisisFactor,
+    Genc12PositionCapitalInput,
     plan_genc12_crisis_capital,
+)
+from qore.infrastructure.cibo_marginal_capital_utility_evidence import (
+    MarginalCapitalUtilityEvidence,
 )
 from qore.infrastructure.cibo_multi_period_capital_mpc import (
     Genc11KnownOptionSchedule,
@@ -75,12 +89,13 @@ from qore.infrastructure.cibo_profit_preservation_shadow import (
     evaluate_genc7_profit_preservation_shadow,
 )
 from qore.infrastructure.cibo_sequential_compounding_shadow_policy import (
-    SequentialCompoundPosture,
+    Genc5SequentialCompoundingShadowDecision,
     SequentialCompoundShadowAction,
-    genc5_shadow_policy_sha256,
+    evaluate_genc5_sequential_compounding_shadow,
 )
 from qore.infrastructure.cibo_sequential_compounding_shadow_store import (
     Genc5ShadowDecisionSeal,
+    genc5_shadow_decision_sha256,
 )
 from qore.infrastructure.market_test_environment import MarketRuntimeEnvironment
 
@@ -88,6 +103,7 @@ RESEARCH_MODE = "NON_CERTIFYING_BURNED_ADAPTIVE_RESEARCH"
 MANDATORY_RUNTIME_GENC = (
     "GEN-C2",
     "GEN-C4",
+    "GEN-C5",
     "GEN-C7",
     "GEN-C8",
     "GEN-C9",
@@ -104,6 +120,62 @@ class CapitalScienceDisposition(StrEnum):
     ELIGIBLE_NO_CHANGE = "ELIGIBLE_NO_CHANGE"
     FAIL_CLOSED = "FAIL_CLOSED"
     JUSTIFIED_NOT_APPLICABLE = "JUSTIFIED_NOT_APPLICABLE"
+
+
+@dataclass(frozen=True, slots=True)
+class CapitalScienceKnownOpportunity:
+    """One opportunity already knowable at the current decision epoch."""
+
+    option_id: str
+    trader_id: str
+    qore_symbol: str
+    known_at: datetime
+    earliest_action_at: datetime
+    expires_at: datetime
+    requested_capital_usd: Decimal
+    stop_risk_usd: Decimal
+    margin_usd: Decimal
+    evidence_sha256: str
+
+    def __post_init__(self) -> None:
+        if not self.option_id or not self.trader_id or not self.qore_symbol:
+            raise CiboCapitalManagementError(
+                "Capital Science known opportunity identity is required"
+            )
+        for name in ("known_at", "earliest_action_at", "expires_at"):
+            value = getattr(self, name)
+            if value.tzinfo is None or value.utcoffset() is None:
+                raise CiboCapitalManagementError(
+                    f"Capital Science known opportunity {name} must be timezone-aware"
+                )
+        if self.earliest_action_at < self.known_at or self.expires_at <= self.known_at:
+            raise CiboCapitalManagementError(
+                "Capital Science known opportunity time ordering is invalid"
+            )
+        for name in ("requested_capital_usd", "stop_risk_usd", "margin_usd"):
+            value = getattr(self, name)
+            if not isinstance(value, Decimal) or not value.is_finite() or value <= 0:
+                raise CiboCapitalManagementError(
+                    f"Capital Science known opportunity {name} must be positive Decimal"
+                )
+        if not self.evidence_sha256.startswith("sha256:") or len(self.evidence_sha256) != 71:
+            raise CiboCapitalManagementError(
+                "Capital Science known opportunity evidence digest is invalid"
+            )
+
+    def payload(self) -> dict[str, object]:
+        return {
+            "option_id": self.option_id,
+            "trader_id": self.trader_id,
+            "qore_symbol": self.qore_symbol,
+            "known_at": self.known_at.isoformat(),
+            "earliest_action_at": self.earliest_action_at.isoformat(),
+            "expires_at": self.expires_at.isoformat(),
+            "requested_capital_usd": format(self.requested_capital_usd, "f"),
+            "stop_risk_usd": format(self.stop_risk_usd, "f"),
+            "margin_usd": format(self.margin_usd, "f"),
+            "evidence_sha256": self.evidence_sha256,
+        }
 
 
 @dataclass(frozen=True, slots=True)
@@ -127,16 +199,22 @@ class CapitalSciencePredecisionInput:
     margin_headroom_usd: Decimal
     competing_candidates: int
     capital_source: str = "REALIZED_PROFIT"
+    qore_symbol: str = "UNSPECIFIED"
+    account_identity: CiboAccountCapitalIdentity | None = None
+    regime_state: CiboCapitalRegimeState | None = None
+    known_simultaneous_opportunities: tuple[CapitalScienceKnownOpportunity, ...] = ()
+    open_positions: tuple[Genc12PositionCapitalInput, ...] = ()
 
     def __post_init__(self) -> None:
-        if not self.decision_epoch_id or not self.signal_fingerprint or not self.trader_id:
-            raise CiboCapitalManagementError(
-                "Capital Science predecision identity is required"
-            )
+        if (
+            not self.decision_epoch_id
+            or not self.signal_fingerprint
+            or not self.trader_id
+            or not self.qore_symbol
+        ):
+            raise CiboCapitalManagementError("Capital Science predecision identity is required")
         if self.decision_at.tzinfo is None or self.decision_at.utcoffset() is None:
-            raise CiboCapitalManagementError(
-                "Capital Science decision_at must be timezone-aware"
-            )
+            raise CiboCapitalManagementError("Capital Science decision_at must be timezone-aware")
         nonnegative = (
             "realized_capital_usd",
             "peak_realized_capital_usd",
@@ -181,8 +259,32 @@ class CapitalSciencePredecisionInput:
                 "Capital Science competing_candidates must be non-negative int"
             )
         if not self.capital_source:
+            raise CiboCapitalManagementError("Capital Science capital_source is required")
+        if self.account_identity is not None and not isinstance(
+            self.account_identity, CiboAccountCapitalIdentity
+        ):
+            raise CiboCapitalManagementError("Capital Science account_identity must be canonical")
+        if self.regime_state is not None and not isinstance(
+            self.regime_state, CiboCapitalRegimeState
+        ):
+            raise CiboCapitalManagementError("Capital Science regime_state must be canonical")
+        if any(
+            not isinstance(item, CapitalScienceKnownOpportunity)
+            for item in self.known_simultaneous_opportunities
+        ):
             raise CiboCapitalManagementError(
-                "Capital Science capital_source is required"
+                "Capital Science known opportunities must be canonical"
+            )
+        option_ids = tuple(item.option_id for item in self.known_simultaneous_opportunities)
+        if len(option_ids) != len(set(option_ids)):
+            raise CiboCapitalManagementError("Capital Science known opportunity ids must be unique")
+        if any(item.known_at > self.decision_at for item in self.known_simultaneous_opportunities):
+            raise CiboCapitalManagementError(
+                "Capital Science cannot consume future-known opportunities"
+            )
+        if any(not isinstance(item, Genc12PositionCapitalInput) for item in self.open_positions):
+            raise CiboCapitalManagementError(
+                "Capital Science open positions must be canonical T14 inputs"
             )
 
     @property
@@ -199,6 +301,42 @@ class CapitalSciencePredecisionInput:
     def payload(self) -> dict[str, object]:
         payload = asdict(self)
         payload["decision_at"] = self.decision_at.isoformat()
+        payload["account_identity"] = (
+            {
+                "provider_key": self.account_identity.provider_key,
+                "account_ref": self.account_identity.account_ref,
+                "environment": self.account_identity.environment.value,
+                "provider_program": self.account_identity.provider_program,
+            }
+            if self.account_identity is not None
+            else None
+        )
+        payload["regime_state"] = (
+            {
+                "liquidity": self.regime_state.liquidity.value,
+                "volatility": self.regime_state.volatility.value,
+                "correlation": self.regime_state.correlation.value,
+                "provider_condition": self.regime_state.provider_condition.value,
+                "risk_utilization": format(self.regime_state.risk_utilization, "f"),
+                "margin_utilization": format(self.regime_state.margin_utilization, "f"),
+                "drawdown_utilization": format(self.regime_state.drawdown_utilization, "f"),
+                "opportunity_count": self.regime_state.opportunity_count,
+                "position_path_adverse": self.regime_state.position_path_adverse,
+                "evidence_stale": self.regime_state.evidence_stale,
+            }
+            if self.regime_state is not None
+            else None
+        )
+        payload["known_simultaneous_opportunities"] = [
+            item.payload() for item in self.known_simultaneous_opportunities
+        ]
+        payload["open_positions"] = [
+            {
+                "signal_fingerprint": item.signal_fingerprint,
+                "evidence_sha256": _runtime_sha("t14-position-input", asdict(item.evidence)),
+            }
+            for item in self.open_positions
+        ]
         for key, value in tuple(payload.items()):
             if isinstance(value, Decimal):
                 payload[key] = format(value, "f")
@@ -211,13 +349,16 @@ class CapitalSciencePredecisionInput:
 
 @dataclass(frozen=True, slots=True)
 class CapitalScienceReceipt:
+    call_id: str
     function_code: str
     stage: str
     disposition: CapitalScienceDisposition
     decision_epoch_id: str
     signal_fingerprint: str
     trader_id: str
+    qore_symbol: str
     observed_at: datetime
+    market_time: datetime
     reason: str
     downstream_consumer: str
     consumer_action: str
@@ -233,6 +374,8 @@ class CapitalScienceReceipt:
     outcome_used_for_same_decision: bool = False
     qore_risk_bypassed: bool = False
     productive_authority: bool = False
+    native_engine_called: bool = False
+    native_engine_name: str | None = None
 
     def __post_init__(self) -> None:
         if self.function_code not in MANDATORY_RUNTIME_GENC:
@@ -243,14 +386,20 @@ class CapitalScienceReceipt:
             raise CiboCapitalManagementError(
                 "Capital Science receipt stage/reason/consumer is required"
             )
-        if not self.decision_epoch_id or not self.signal_fingerprint or not self.trader_id:
-            raise CiboCapitalManagementError(
-                "Capital Science receipt identity is required"
-            )
-        if self.observed_at.tzinfo is None or self.observed_at.utcoffset() is None:
-            raise CiboCapitalManagementError(
-                "Capital Science receipt observed_at must be timezone-aware"
-            )
+        if (
+            not self.call_id
+            or not self.decision_epoch_id
+            or not self.signal_fingerprint
+            or not self.trader_id
+            or not self.qore_symbol
+        ):
+            raise CiboCapitalManagementError("Capital Science receipt identity is required")
+        for name in ("observed_at", "market_time"):
+            value = getattr(self, name)
+            if value.tzinfo is None or value.utcoffset() is None:
+                raise CiboCapitalManagementError(
+                    f"Capital Science receipt {name} must be timezone-aware"
+                )
         for name in (
             "risk_delta_usd",
             "margin_delta_usd",
@@ -262,19 +411,16 @@ class CapitalScienceReceipt:
                     f"Capital Science receipt {name} must be finite Decimal"
                 )
         if len(self.capital_source_usage) != len(set(self.capital_source_usage)):
-            raise CiboCapitalManagementError(
-                "Capital Science capital-source usage must be unique"
-            )
+            raise CiboCapitalManagementError("Capital Science capital-source usage must be unique")
         for name in (
             "decision_changed",
             "outcome_used_for_same_decision",
             "qore_risk_bypassed",
             "productive_authority",
+            "native_engine_called",
         ):
             if type(getattr(self, name)) is not bool:
-                raise CiboCapitalManagementError(
-                    f"Capital Science receipt {name} must be bool"
-                )
+                raise CiboCapitalManagementError(f"Capital Science receipt {name} must be bool")
         if (
             self.outcome_used_for_same_decision
             or self.qore_risk_bypassed
@@ -284,31 +430,43 @@ class CapitalScienceReceipt:
                 "Capital Science receipt violates causal/authority boundary"
             )
         if not self.input_sha256.startswith("sha256:"):
-            raise CiboCapitalManagementError(
-                "Capital Science receipt input_sha256 is required"
-            )
+            raise CiboCapitalManagementError("Capital Science receipt input_sha256 is required")
         if not self.output_sha256.startswith("sha256:"):
-            raise CiboCapitalManagementError(
-                "Capital Science receipt output_sha256 is required"
-            )
+            raise CiboCapitalManagementError("Capital Science receipt output_sha256 is required")
         if not isinstance(self.input_payload, dict) or not self.input_payload:
-            raise CiboCapitalManagementError(
-                "Capital Science receipt input_payload is required"
-            )
+            raise CiboCapitalManagementError("Capital Science receipt input_payload is required")
         if not isinstance(self.output_payload, dict) or not self.output_payload:
+            raise CiboCapitalManagementError("Capital Science receipt output_payload is required")
+        engine_output = self.output_payload.get("engine_output")
+        if self.native_engine_called:
+            if not self.native_engine_name:
+                raise CiboCapitalManagementError(
+                    "Capital Science native invocation requires engine name"
+                )
+            if (
+                not isinstance(engine_output, dict)
+                or engine_output.get("engine") != self.native_engine_name
+            ):
+                raise CiboCapitalManagementError(
+                    "Capital Science native invocation lacks matching typed output"
+                )
+        elif self.native_engine_name is not None:
             raise CiboCapitalManagementError(
-                "Capital Science receipt output_payload is required"
+                "Capital Science cannot name a native engine that was not called"
             )
 
     def payload(self) -> dict[str, object]:
         return {
+            "call_id": self.call_id,
             "function_code": self.function_code,
             "stage": self.stage,
             "disposition": self.disposition.value,
             "decision_epoch_id": self.decision_epoch_id,
             "signal_fingerprint": self.signal_fingerprint,
             "trader_id": self.trader_id,
+            "qore_symbol": self.qore_symbol,
             "observed_at": self.observed_at.isoformat(),
+            "market_time": self.market_time.isoformat(),
             "reason": self.reason,
             "downstream_consumer": self.downstream_consumer,
             "consumer_action": self.consumer_action,
@@ -316,9 +474,7 @@ class CapitalScienceReceipt:
             "risk_delta_usd": format(self.risk_delta_usd, "f"),
             "margin_delta_usd": format(self.margin_delta_usd, "f"),
             "capital_source_usage": list(self.capital_source_usage),
-            "incremental_pnl_attribution_usd": format(
-                self.incremental_pnl_attribution_usd, "f"
-            ),
+            "incremental_pnl_attribution_usd": format(self.incremental_pnl_attribution_usd, "f"),
             "input_sha256": self.input_sha256,
             "output_sha256": self.output_sha256,
             "input_payload": self.input_payload,
@@ -326,6 +482,8 @@ class CapitalScienceReceipt:
             "outcome_used_for_same_decision": self.outcome_used_for_same_decision,
             "qore_risk_bypassed": self.qore_risk_bypassed,
             "productive_authority": self.productive_authority,
+            "native_engine_called": self.native_engine_called,
+            "native_engine_name": self.native_engine_name,
             "research_mode": RESEARCH_MODE,
         }
 
@@ -338,9 +496,7 @@ class CapitalScienceDirective:
 
     def __post_init__(self) -> None:
         if type(self.allow_incremental_compound) is not bool:
-            raise CiboCapitalManagementError(
-                "Capital Science directive allow flag must be bool"
-            )
+            raise CiboCapitalManagementError("Capital Science directive allow flag must be bool")
         if (
             not isinstance(self.deployable_profit_usd, Decimal)
             or not self.deployable_profit_usd.is_finite()
@@ -349,7 +505,16 @@ class CapitalScienceDirective:
             raise CiboCapitalManagementError(
                 "Capital Science deployable profit must be finite non-negative"
             )
-        expected = {"GEN-C2", "GEN-C4", "GEN-C7", "GEN-C8", "GEN-C10", "GEN-C11", "GEN-C12"}
+        expected = {
+            "GEN-C2",
+            "GEN-C4",
+            "GEN-C5",
+            "GEN-C7",
+            "GEN-C8",
+            "GEN-C10",
+            "GEN-C11",
+            "GEN-C12",
+        }
         actual = {item.function_code for item in self.receipts}
         if actual != expected:
             raise CiboCapitalManagementError(
@@ -370,10 +535,23 @@ def _receipt(
     margin_delta_usd: Decimal = Decimal(0),
     capital_source_usage: tuple[str, ...] = (),
     output_details: dict[str, object] | None = None,
+    typed_engine_input: dict[str, object] | None = None,
+    native_engine_name: str | None = None,
 ) -> CapitalScienceReceipt:
     input_payload = state.payload()
-    input_sha = state.fingerprint()
-    output = {
+    if typed_engine_input is not None:
+        input_payload = {
+            **input_payload,
+            "typed_engine_input": typed_engine_input,
+        }
+    raw_input = json.dumps(
+        input_payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        default=str,
+    )
+    input_sha = "sha256:" + hashlib.sha256(raw_input.encode()).hexdigest()
+    output: dict[str, object] = {
         "function_code": function_code,
         "disposition": disposition.value,
         "reason": reason,
@@ -389,13 +567,23 @@ def _receipt(
     raw = json.dumps(output, sort_keys=True, separators=(",", ":"))
     output_sha = "sha256:" + hashlib.sha256(raw.encode()).hexdigest()
     return CapitalScienceReceipt(
+        call_id=_runtime_sha(
+            "capital-science-call",
+            {
+                "decision_epoch_id": state.decision_epoch_id,
+                "signal_fingerprint": state.signal_fingerprint,
+                "function_code": function_code,
+            },
+        ),
         function_code=function_code,
         stage="PREDECISION",
         disposition=disposition,
         decision_epoch_id=state.decision_epoch_id,
         signal_fingerprint=state.signal_fingerprint,
         trader_id=state.trader_id,
+        qore_symbol=state.qore_symbol,
         observed_at=state.decision_at,
+        market_time=state.decision_at,
         reason=reason,
         downstream_consumer=downstream_consumer,
         consumer_action=consumer_action,
@@ -411,8 +599,9 @@ def _receipt(
         outcome_used_for_same_decision=False,
         qore_risk_bypassed=False,
         productive_authority=False,
+        native_engine_called=native_engine_name is not None,
+        native_engine_name=native_engine_name,
     )
-
 
 
 def _runtime_sha(label: str, payload: object) -> str:
@@ -425,7 +614,11 @@ def _runtime_sha(label: str, payload: object) -> str:
     return "sha256:" + hashlib.sha256(raw).hexdigest()
 
 
-def _runtime_identity() -> CiboAccountCapitalIdentity:
+def _runtime_identity(
+    state: CapitalSciencePredecisionInput,
+) -> CiboAccountCapitalIdentity:
+    if state.account_identity is not None:
+        return state.account_identity
     return CiboAccountCapitalIdentity(
         provider_key="trader-lab",
         account_ref="cibo-capital-science-replay",
@@ -462,6 +655,40 @@ def _severity(value: Decimal) -> Genc8Severity:
 
 
 def _regime_state(state: CapitalSciencePredecisionInput) -> CiboCapitalRegimeState:
+    if state.regime_state is not None:
+        expected_risk = _utilization(
+            state.open_stop_risk_usd,
+            state.hard_risk_headroom_usd,
+        )
+        expected_margin = _utilization(
+            state.open_margin_usd,
+            state.margin_headroom_usd,
+        )
+        if abs(state.regime_state.risk_utilization - expected_risk) > Decimal("1e-24"):
+            raise CiboCapitalManagementError(
+                "Capital Science regime risk utilization/account state drift"
+            )
+        if abs(state.regime_state.margin_utilization - expected_margin) > Decimal("1e-24"):
+            raise CiboCapitalManagementError(
+                "Capital Science regime margin utilization/account state drift"
+            )
+        known_option_ids = {item.option_id for item in state.known_simultaneous_opportunities}
+        if state.requested_stop_risk_usd > 0 and state.requested_margin_usd > 0:
+            known_option_ids.add(state.signal_fingerprint)
+        expected_opportunity_count = max(
+            1,
+            state.competing_candidates,
+            len(known_option_ids),
+        )
+        if state.regime_state.opportunity_count != expected_opportunity_count:
+            raise CiboCapitalManagementError(
+                "Capital Science regime opportunity count/known options drift"
+            )
+        return replace(
+            state.regime_state,
+            risk_utilization=expected_risk,
+            margin_utilization=expected_margin,
+        )
     return CiboCapitalRegimeState(
         liquidity=LiquidityState.NORMAL,
         volatility=VolatilityState.NORMAL,
@@ -513,29 +740,52 @@ def _capital_twin(
     )
     request_capital = state.requested_stop_risk_usd + state.provider_cost_usd
     horizon_minutes = max(3, int(state.expected_capital_minutes) + 1)
-    known_options = ()
-    if (
-        request_capital > 0
+    current_option = (
+        CapitalScienceKnownOpportunity(
+            option_id=state.signal_fingerprint,
+            trader_id=state.trader_id,
+            qore_symbol=state.qore_symbol,
+            known_at=state.decision_at,
+            earliest_action_at=state.decision_at,
+            expires_at=state.decision_at + timedelta(minutes=horizon_minutes),
+            requested_capital_usd=request_capital,
+            stop_risk_usd=state.requested_stop_risk_usd,
+            margin_usd=state.requested_margin_usd,
+            evidence_sha256=_runtime_sha("known-option", state.payload()),
+        )
+        if request_capital > 0
         and state.requested_stop_risk_usd > 0
         and state.requested_margin_usd > 0
-    ):
-        known_options = (
-            Genc10KnownCapitalOption(
-                option_id=state.signal_fingerprint,
-                known_at=state.decision_at,
-                earliest_action_at=state.decision_at,
-                expires_at=state.decision_at + timedelta(minutes=horizon_minutes),
-                requested_capital_usd=request_capital,
-                stop_risk_usd=state.requested_stop_risk_usd,
-                margin_usd=state.requested_margin_usd,
-                evidence_sha256=_runtime_sha("known-option", state.payload()),
-            ),
+        else None
+    )
+    known_by_id = {item.option_id: item for item in state.known_simultaneous_opportunities}
+    if current_option is not None:
+        previous = known_by_id.get(current_option.option_id)
+        if previous is not None and (
+            previous.stop_risk_usd != current_option.stop_risk_usd
+            or previous.margin_usd != current_option.margin_usd
+            or previous.requested_capital_usd != current_option.requested_capital_usd
+        ):
+            raise CiboCapitalManagementError(
+                "Capital Science current option geometry conflicts with epoch option set"
+            )
+        known_by_id[current_option.option_id] = previous or current_option
+    known_options = tuple(
+        Genc10KnownCapitalOption(
+            option_id=item.option_id,
+            known_at=item.known_at,
+            earliest_action_at=item.earliest_action_at,
+            expires_at=item.expires_at,
+            requested_capital_usd=item.requested_capital_usd,
+            stop_risk_usd=item.stop_risk_usd,
+            margin_usd=item.margin_usd,
+            evidence_sha256=item.evidence_sha256,
         )
+        for item in sorted(known_by_id.values(), key=lambda row: row.option_id)
+    )
     with localcontext() as context:
         context.prec = 80
-        risk_capacity = (
-            state.open_stop_risk_usd + state.hard_risk_headroom_usd
-        )
+        risk_capacity = state.open_stop_risk_usd + state.hard_risk_headroom_usd
         margin_capacity = state.open_margin_usd + state.margin_headroom_usd
     return Genc10ObservedCapitalTwin(
         twin_id=f"capital-science:{state.decision_epoch_id}:{state.signal_fingerprint}",
@@ -561,12 +811,164 @@ def _capital_twin(
         used_margin_usd=state.open_margin_usd,
         margin_headroom_usd=state.margin_headroom_usd,
         active_deployment_count=(
-            1
-            if state.open_stop_risk_usd > 0 or state.open_margin_usd > 0
-            else 0
+            1 if state.open_stop_risk_usd > 0 or state.open_margin_usd > 0 else 0
         ),
         provider_capability_counts=(),
         known_options=known_options,
+    )
+
+
+def _native_genc5_inputs(
+    state: CapitalSciencePredecisionInput,
+    *,
+    identity: CiboAccountCapitalIdentity,
+) -> tuple[AccountCoreCompoundPortfolio, MarginalCapitalUtilityEvidence, str] | None:
+    """Materialize the canonical GEN-C1/C2/C4 contracts from causal state."""
+
+    profit_total = min(
+        state.realized_profit_pool_usd,
+        state.realized_capital_usd,
+    )
+    protected_profit = min(state.protected_capacity_usd, profit_total)
+    deployable_profit = profit_total - protected_profit
+    requested = state.requested_stop_risk_usd + state.provider_cost_usd
+    if profit_total <= 0 or deployable_profit <= 0 or requested > deployable_profit:
+        return None
+
+    realized_at = state.decision_at - timedelta(microseconds=6)
+    created_at = state.decision_at - timedelta(microseconds=5)
+    prefix = _runtime_sha(
+        "genc5-runtime-lineage",
+        {
+            "epoch": state.decision_epoch_id,
+            "signal": state.signal_fingerprint,
+        },
+    )[7:23]
+    realized_id = f"genc5-realized-{prefix}"
+    evidence = CompoundRealizedProfitEvidence(
+        evidence_id=f"genc5-settlement-{prefix}",
+        account_identity=identity,
+        origin_trader=canonical_trader_lineage(state.trader_id),
+        signal_fingerprint=f"prior-realized:{state.signal_fingerprint}",
+        position_id=int(prefix[:8], 16) + 1,
+        settlement_deal_ids=(int(prefix[8:16], 16) + 1,),
+        realized_net_profit_usd=profit_total,
+        realized_at=realized_at,
+        source_settlement_sha256=_runtime_sha("genc5-prior-settlement", state.payload()),
+        settlement_reconciled=True,
+        position_closed=True,
+        floating_pnl_used_as_capital=False,
+    )
+    lot = create_realized_profit_lot(
+        evidence,
+        lot_id=realized_id,
+        created_at=created_at,
+    )
+    ledger = CompoundPortfolioLedger(account_identity=identity).admit_realized_profit(
+        lot,
+        event_id=f"genc5-admit-{prefix}",
+        occurred_at=created_at,
+    )
+    floor = ProtectedCapitalFloorLedger(account_identity=identity)
+    source_id = realized_id
+    transition_at = state.decision_at - timedelta(microseconds=4)
+    if protected_profit > 0:
+        retired_id = f"genc5-floor-{prefix}"
+        remainder_id = f"genc5-deployable-source-{prefix}" if deployable_profit > 0 else None
+        ledger = ledger.transition(
+            source_lot_id=realized_id,
+            to_state=CompoundCapitalState.RETIRED_TO_PROTECTED_FLOOR,
+            amount_usd=protected_profit,
+            moved_lot_id=retired_id,
+            remainder_lot_id=remainder_id,
+            event_id=f"genc5-protect-{prefix}",
+            occurred_at=transition_at,
+        )
+        floor = floor.admit_retired_lot(
+            ledger.lot(retired_id),
+            tranche_id=f"genc5-tranche-{prefix}",
+            event_id=f"genc5-floor-admit-{prefix}",
+            admitted_at=transition_at,
+        ).upgrade_to_policy_protected(
+            tranche_id=f"genc5-tranche-{prefix}",
+            event_id=f"genc5-floor-policy-{prefix}",
+            occurred_at=state.decision_at - timedelta(microseconds=3),
+            policy_id="CIBO_RUNTIME_CAUSAL_PROTECTED_CAPACITY_V1",
+            policy_sha256=_runtime_sha("genc5-protected-capacity-policy", state.payload()),
+        )
+        source_id = remainder_id or realized_id
+
+    compoundable_id = f"genc5-compoundable-{prefix}"
+    ledger = ledger.transition(
+        source_lot_id=source_id,
+        to_state=CompoundCapitalState.COMPOUNDABLE,
+        amount_usd=deployable_profit,
+        moved_lot_id=compoundable_id,
+        event_id=f"genc5-compoundable-event-{prefix}",
+        occurred_at=state.decision_at - timedelta(microseconds=2),
+    )
+    portfolio = AccountCoreCompoundPortfolio(
+        account_identity=identity,
+        compound_ledger=ledger,
+        protected_floor_ledger=floor,
+    )
+    marginal = MarginalCapitalUtilityEvidence(
+        evidence_id=f"genc5-marginal-{prefix}",
+        decision_at=state.decision_at,
+        account_identity=identity,
+        trader_id=canonical_trader_lineage(state.trader_id),
+        signal_fingerprint=state.signal_fingerprint,
+        source_opportunity_decision_sha256=_runtime_sha("genc5-opportunity", state.payload()),
+        source_baseline_policy_record_sha256=_runtime_sha("genc5-baseline-policy", state.payload()),
+        current_compound_capacity_usd=deployable_profit,
+        requested_incremental_capital_usd=requested,
+        expected_incremental_return_usd=state.expected_net_value_usd,
+        incremental_stop_risk_usd=state.requested_stop_risk_usd,
+        incremental_margin_usd=state.requested_margin_usd,
+        incremental_execution_cost_usd=state.provider_cost_usd,
+        incremental_concentration_risk_usd=state.requested_stop_risk_usd,
+        incremental_drawdown_risk_proxy_usd=state.giveback_usd,
+        incremental_optionality_consumed_usd=state.requested_margin_usd,
+        expected_capital_minutes=max(Decimal(1), state.expected_capital_minutes),
+        epistemic_uncertainty=Decimal(1) if state.regime_state is None else Decimal(0),
+        provider_evidence_sha256=_runtime_sha("genc5-provider", state.payload()),
+        expectation_evidence_sha256=_runtime_sha("genc5-expectation", state.payload()),
+        factor_evidence_sha256=_runtime_sha("genc5-factors", state.payload()),
+        duration_evidence_sha256=_runtime_sha("genc5-duration", state.payload()),
+        execution_evidence_sha256=_runtime_sha("genc5-execution", state.payload()),
+        optionality_evidence_sha256=_runtime_sha("genc5-optionality", state.payload()),
+    )
+    return portfolio, marginal, compoundable_id
+
+
+def _genc5_seal(
+    decision: Genc5SequentialCompoundingShadowDecision,
+) -> Genc5ShadowDecisionSeal:
+    """Convert the actual native GEN-C5 result into GEN-C8's canonical seal."""
+
+    return Genc5ShadowDecisionSeal(
+        decision_sha256=genc5_shadow_decision_sha256(decision),
+        policy_sha256=decision.policy_sha256,
+        decision_id=decision.decision_id,
+        decision_at=decision.decision_at,
+        sealed_at=decision.decision_at,
+        account_provider_key=decision.account_provider_key,
+        account_ref=decision.account_ref,
+        source_lot_id=decision.source_lot_id,
+        source_lot_state=decision.source_lot_state,
+        source_lot_amount_usd=decision.source_lot_amount_usd,
+        portfolio_sha256=decision.portfolio_sha256,
+        marginal_evidence_sha256=decision.marginal_evidence_sha256,
+        policy_protected_floor_usd=decision.policy_protected_floor_usd,
+        candidate_compound_capacity_usd=decision.candidate_compound_capacity_usd,
+        control_posture=decision.control_posture,
+        control_action=decision.control_action,
+        control_requested_risk_review_usd=(decision.control_requested_risk_review_usd),
+        treatment_posture=decision.treatment_posture,
+        treatment_action=decision.treatment_action,
+        treatment_requested_risk_review_usd=(decision.treatment_requested_risk_review_usd),
+        blocker_codes=decision.blocker_codes,
+        treatment_differs_from_control=decision.treatment_differs_from_control,
     )
 
 
@@ -629,8 +1031,7 @@ def evaluate_capital_science_predecision(
                 "predecision marginal expected value remained positive after known provider cost"
                 if c4_allows
                 else (
-                    "predecision marginal expected value was non-positive after "
-                    "known provider cost"
+                    "predecision marginal expected value was non-positive after known provider cost"
                 )
             ),
             downstream_consumer="CIBO_COMPOUND_ADMISSION",
@@ -646,7 +1047,7 @@ def evaluate_capital_science_predecision(
 
     # GEN-C7: invoke the actual profit-preservation engine on the causal
     # account state and exact already-sized incremental request.
-    identity = _runtime_identity()
+    identity = _runtime_identity(state)
     request_capital = state.requested_stop_risk_usd + state.provider_cost_usd
     current_profit = min(
         state.realized_profit_pool_usd,
@@ -721,55 +1122,85 @@ def evaluate_capital_science_predecision(
                 "giveback_amount_usd": format(genc7.giveback_amount_usd, "f"),
                 "profit_retention_ratio": format(genc7.profit_retention_ratio, "f"),
             },
+            typed_engine_input={
+                "capital_state_evidence_id": genc7_state.evidence_id,
+                "proposal_id": genc7_proposal.proposal_id,
+                "proposal_action": genc7_proposal.action.value,
+                "proposal_amount_usd": format(genc7_proposal.amount_usd, "f"),
+                "proposal_source_bucket": genc7_proposal.source_bucket.value,
+            },
+            native_engine_name="evaluate_genc7_profit_preservation_shadow",
         )
     )
 
-    # GEN-C8: invoke the native adaptive-speed engine. The prior GEN-C5 seal is
-    # an immutable representation of the already-known C4/C7 admission state;
-    # GEN-C8 itself chooses the speed posture from causal account facts.
-    upstream_allows = c4_allows and c7_allows
-    genc5_posture = (
-        SequentialCompoundPosture.CAUTIOUS_COMPOUND
-        if upstream_allows
-        else SequentialCompoundPosture.COMPOUND_PAUSED
-    )
-    genc5_action = (
-        SequentialCompoundShadowAction.REQUEST_DOWNSTREAM_RISK_REVIEW
-        if upstream_allows
-        else SequentialCompoundShadowAction.HOLD_CURRENT_STATE
-    )
-    genc5_amount = request_capital if upstream_allows else Decimal(0)
-    genc5 = Genc5ShadowDecisionSeal(
-        decision_sha256=_runtime_sha(
-            "genc5-decision",
-            {
-                "state": state.payload(),
-                "posture": genc5_posture.value,
-                "action": genc5_action.value,
-            },
-        ),
-        policy_sha256=genc5_shadow_policy_sha256(),
-        decision_id=f"genc5:{state.decision_epoch_id}:{state.signal_fingerprint}",
-        decision_at=state.decision_at,
-        sealed_at=state.decision_at,
-        account_provider_key=identity.provider_key,
-        account_ref=identity.account_ref,
-        source_lot_id=f"runtime-lot:{state.signal_fingerprint}",
-        source_lot_state=CompoundCapitalState.COMPOUNDABLE,
-        source_lot_amount_usd=state.deployable_profit_usd,
-        portfolio_sha256=_runtime_sha("genc5-portfolio", state.payload()),
-        marginal_evidence_sha256=_runtime_sha("genc5-marginal", state.payload()),
-        policy_protected_floor_usd=state.protected_capacity_usd,
-        candidate_compound_capacity_usd=state.deployable_profit_usd,
-        control_posture=SequentialCompoundPosture.COMPOUND_PAUSED,
-        control_action=SequentialCompoundShadowAction.HOLD_CURRENT_STATE,
-        control_requested_risk_review_usd=Decimal(0),
-        treatment_posture=genc5_posture,
-        treatment_action=genc5_action,
-        treatment_requested_risk_review_usd=genc5_amount,
-        blocker_codes=(() if upstream_allows else ("UPSTREAM_CAPITAL_SCIENCE_BLOCKED",)),
-        treatment_differs_from_control=upstream_allows,
-    )
+    # GEN-C5: materialize real GEN-C1/C2/C4 contracts and execute the native
+    # sequential-compounding evaluator. No hand-built decision may substitute it.
+    genc5_inputs = _native_genc5_inputs(state, identity=identity)
+    genc5: Genc5ShadowDecisionSeal | None = None
+    genc5_allows = False
+    if genc5_inputs is not None:
+        genc5_portfolio, genc5_evidence, genc5_source_lot_id = genc5_inputs
+        genc5_native = evaluate_genc5_sequential_compounding_shadow(
+            portfolio=genc5_portfolio,
+            evidence=genc5_evidence,
+            source_lot_id=genc5_source_lot_id,
+            decision_id=f"genc5:{state.decision_epoch_id}:{state.signal_fingerprint}",
+        )
+        genc5 = _genc5_seal(genc5_native)
+        genc5_allows = (
+            genc5_native.treatment_action
+            is SequentialCompoundShadowAction.REQUEST_DOWNSTREAM_RISK_REVIEW
+        )
+        receipts.append(
+            _receipt(
+                state=state,
+                function_code="GEN-C5",
+                disposition=(
+                    CapitalScienceDisposition.APPLIED
+                    if genc5_allows
+                    else CapitalScienceDisposition.FAIL_CLOSED
+                ),
+                reason="native GEN-C5 evaluated canonical realized-profit lineage",
+                downstream_consumer="GEN-C8_ADAPTIVE_COMPOUND_SPEED",
+                consumer_action=genc5_native.treatment_action.value,
+                decision_changed=genc5_native.treatment_differs_from_control,
+                capital_source_usage=(state.capital_source,),
+                typed_engine_input={
+                    "portfolio_sha256": genc5_native.portfolio_sha256,
+                    "marginal_evidence_sha256": (genc5_native.marginal_evidence_sha256),
+                    "source_lot_id": genc5_native.source_lot_id,
+                    "source_lot_state": genc5_native.source_lot_state.value,
+                },
+                output_details={
+                    "engine": "evaluate_genc5_sequential_compounding_shadow",
+                    "treatment_posture": genc5_native.treatment_posture.value,
+                    "treatment_action": genc5_native.treatment_action.value,
+                    "treatment_requested_risk_review_usd": format(
+                        genc5_native.treatment_requested_risk_review_usd, "f"
+                    ),
+                    "blocker_codes": list(genc5_native.blocker_codes),
+                },
+                native_engine_name="evaluate_genc5_sequential_compounding_shadow",
+            )
+        )
+    else:
+        receipts.append(
+            _receipt(
+                state=state,
+                function_code="GEN-C5",
+                disposition=CapitalScienceDisposition.JUSTIFIED_NOT_APPLICABLE,
+                reason=(
+                    "canonical realized-profit capacity could not fund the exact "
+                    "incremental request"
+                ),
+                downstream_consumer="GEN-C8_ADAPTIVE_COMPOUND_SPEED",
+                consumer_action="INSUFFICIENT_REALIZED_PROFIT_CAPACITY",
+                decision_changed=True,
+                capital_source_usage=(state.capital_source,),
+            )
+        )
+
+    # GEN-C8: consume only a seal derived from the real native GEN-C5 result.
     regime_state = _regime_state(state)
     selection = select_ce2i_tools_for_regime(
         mission=derive_cibo_capital_mission(identity),
@@ -781,12 +1212,12 @@ def evaluate_capital_science_predecision(
         account_provider_key=identity.provider_key,
         account_ref=identity.account_ref,
         regime_posture=selection.posture,
-        provider_condition=ProviderCondition.HEALTHY,
+        provider_condition=regime_state.provider_condition,
         evidence_sha256=_runtime_sha("genc8-regime", state.payload()),
         source="TRADER_LAB_CAUSAL_ACCOUNT_STATE",
         policy_version="CIBO_RUNTIME_ACCOUNT_STATE_V1",
-        calibrated=True,
-        capital_eligible=True,
+        calibrated=state.regime_state is not None,
+        capital_eligible=state.regime_state is not None,
     )
     risk_util = regime_state.risk_utilization
     margin_util = regime_state.margin_utilization
@@ -797,14 +1228,10 @@ def evaluate_capital_science_predecision(
             Genc8Severity.BENIGN if c4_allows else Genc8Severity.ADVERSE
         ),
         Genc8FactKind.SHARED_UNCERTAINTY: (
-            Genc8Severity.WATCH
-            if state.competing_candidates >= 3
-            else Genc8Severity.BENIGN
+            Genc8Severity.WATCH if state.competing_candidates >= 3 else Genc8Severity.BENIGN
         ),
         Genc8FactKind.RELATIONSHIP_STABILITY: (
-            Genc8Severity.WATCH
-            if state.competing_candidates >= 4
-            else Genc8Severity.BENIGN
+            Genc8Severity.WATCH if state.competing_candidates >= 4 else Genc8Severity.BENIGN
         ),
         Genc8FactKind.PORTFOLIO_CONCENTRATION: _severity(risk_util),
         Genc8FactKind.MARGIN_HEADROOM: _severity(margin_util),
@@ -828,18 +1255,22 @@ def evaluate_capital_science_predecision(
             ),
             source="TRADER_LAB_CAUSAL_ACCOUNT_STATE",
             model_id="CIBO_ACCOUNT_FACTS_V1",
-            calibrated=True,
-            capital_eligible=True,
+            calibrated=state.regime_state is not None,
+            capital_eligible=state.regime_state is not None,
         )
         for kind in Genc8FactKind
     )
-    genc8 = evaluate_genc8_adaptive_compound_speed(
-        decision_id=f"genc8:{state.decision_epoch_id}:{state.signal_fingerprint}",
-        genc5=genc5,
-        regime=genc8_regime,
-        facts=genc8_facts,
+    genc8 = (
+        evaluate_genc8_adaptive_compound_speed(
+            decision_id=f"genc8:{state.decision_epoch_id}:{state.signal_fingerprint}",
+            genc5=genc5,
+            regime=genc8_regime,
+            facts=genc8_facts,
+        )
+        if genc5 is not None
+        else None
     )
-    c8_allows = genc8.treatment_posture is not Genc8SpeedPosture.PAUSE
+    c8_allows = genc8 is not None and genc8.treatment_posture is not Genc8SpeedPosture.PAUSE
     receipts.append(
         _receipt(
             state=state,
@@ -848,25 +1279,49 @@ def evaluate_capital_science_predecision(
                 CapitalScienceDisposition.FAIL_CLOSED
                 if not c8_allows
                 else CapitalScienceDisposition.APPLIED
-                if genc8.treatment_differs_from_control
+                if genc8 is not None and genc8.treatment_differs_from_control
                 else CapitalScienceDisposition.ELIGIBLE_NO_CHANGE
             ),
-            reason=(
-                "native GEN-C8 engine evaluated the causal regime and adaptive fact set"
-            ),
+            reason=("native GEN-C8 engine evaluated the causal regime and adaptive fact set"),
             downstream_consumer="CIBO_COMPOUND_ADMISSION",
-            consumer_action=genc8.treatment_posture.value,
-            decision_changed=genc8.treatment_differs_from_control,
+            consumer_action=(
+                genc8.treatment_posture.value
+                if genc8 is not None
+                else "GENC5_CANONICAL_INPUT_UNAVAILABLE"
+            ),
+            decision_changed=(genc8.treatment_differs_from_control if genc8 is not None else True),
+            typed_engine_input=(
+                {
+                    "genc5_decision_sha256": genc5.decision_sha256,
+                    "regime_evidence_sha256": genc8_regime.evidence_sha256,
+                    "fact_evidence_sha256s": [item.evidence_sha256 for item in genc8_facts],
+                }
+                if genc5 is not None
+                else None
+            ),
             output_details={
-                "engine": "evaluate_genc8_adaptive_compound_speed",
-                "control_posture": genc8.control_posture.value,
-                "treatment_posture": genc8.treatment_posture.value,
-                "binding_reason": genc8.binding_reason,
-                "blocker_codes": list(genc8.blocker_codes),
-                "fact_severity": {
-                    key.value: value.value for key, value in fact_severity.items()
-                },
+                "engine": (
+                    "evaluate_genc8_adaptive_compound_speed"
+                    if genc8 is not None
+                    else None
+                ),
+                "control_posture": (genc8.control_posture.value if genc8 is not None else None),
+                "treatment_posture": (genc8.treatment_posture.value if genc8 is not None else None),
+                "binding_reason": (
+                    genc8.binding_reason
+                    if genc8 is not None
+                    else "canonical GEN-C5 input unavailable"
+                ),
+                "blocker_codes": (
+                    list(genc8.blocker_codes)
+                    if genc8 is not None
+                    else ["GENC5_CANONICAL_INPUT_UNAVAILABLE"]
+                ),
+                "fact_severity": {key.value: value.value for key, value in fact_severity.items()},
             },
+            native_engine_name=(
+                "evaluate_genc8_adaptive_compound_speed" if genc8 is not None else None
+            ),
         )
     )
 
@@ -884,24 +1339,33 @@ def evaluate_capital_science_predecision(
             output_details={
                 "engine": "Genc10ObservedCapitalTwin",
                 "twin_id": twin.twin_id,
-                "total_realized_capital_usd": format(
-                    twin.total_realized_capital_usd, "f"
-                ),
+                "total_realized_capital_usd": format(twin.total_realized_capital_usd, "f"),
                 "stop_risk_headroom_usd": format(twin.stop_risk_headroom_usd, "f"),
                 "margin_headroom_usd": format(twin.margin_headroom_usd, "f"),
                 "known_option_count": len(twin.known_options),
+                "known_option_ids": [item.option_id for item in twin.known_options],
             },
+            typed_engine_input={
+                "capital_truth_sha256": twin.capital_truth_sha256,
+                "compound_cycle_sha256": twin.compound_cycle_sha256,
+                "source_ledger_sha256": twin.source_ledger_sha256,
+                "provider_registry_sha256": twin.provider_registry_sha256,
+            },
+            native_engine_name="Genc10ObservedCapitalTwin",
         )
     )
 
     # GEN-C11: run the native robust multi-world MPC whenever the current
     # opportunity has executable geometry.
+    c11_allows = False
     if twin.known_options:
-        option = twin.known_options[0]
-        step_times = (
-            state.decision_at + timedelta(minutes=1),
-            state.decision_at + timedelta(minutes=2),
+        option_ids = tuple(item.option_id for item in twin.known_options)
+        first_step = state.decision_at + timedelta(minutes=1)
+        second_step = max(
+            first_step + timedelta(minutes=1),
+            max(item.earliest_action_at for item in twin.known_options),
         )
+        step_times = (first_step, second_step)
         paths = tuple(
             Genc11WorldPath(
                 path_id=f"{kind.value.lower()}:{state.signal_fingerprint}",
@@ -937,7 +1401,7 @@ def evaluate_capital_science_predecision(
                                     "step": index,
                                 },
                             ),
-                            surviving_known_option_ids=(option.option_id,),
+                            surviving_known_option_ids=option_ids,
                         ),
                     )
                     for index, projected_at in enumerate(step_times, start=1)
@@ -954,24 +1418,33 @@ def evaluate_capital_science_predecision(
             )
             for kind in (Genc10WorldKind.BALANCED, Genc10WorldKind.DEFENSIVE)
         )
+        option_schedules = tuple(
+            Genc11KnownOptionSchedule(
+                option_id=option.option_id,
+                decision_step=(1 if option.earliest_action_at <= step_times[0] else 2),
+                schedule_evidence_sha256=_runtime_sha(
+                    "genc11-schedule",
+                    {
+                        "state": state.payload(),
+                        "option_id": option.option_id,
+                        "earliest_action_at": option.earliest_action_at.isoformat(),
+                    },
+                ),
+            )
+            for option in twin.known_options
+        )
         genc11 = plan_genc11_multi_period_capital(
             plan_id=f"genc11:{state.decision_epoch_id}:{state.signal_fingerprint}",
             twin=twin,
             world_paths=paths,
-            option_schedules=(
-                Genc11KnownOptionSchedule(
-                    option_id=option.option_id,
-                    decision_step=1,
-                    schedule_evidence_sha256=_runtime_sha(
-                        "genc11-schedule", state.payload()
-                    ),
-                ),
-            ),
+            option_schedules=option_schedules,
         )
         first_envelope = genc11.robust_step_envelopes[0]
+        c11_allows = first_envelope.all_worlds_horizon_coverable
         c11_changed = (
             first_envelope.maximum_required_reserve_stop_risk_usd > 0
             or first_envelope.maximum_required_reserve_margin_usd > 0
+            or not c11_allows
         )
         receipts.append(
             _receipt(
@@ -984,7 +1457,11 @@ def evaluate_capital_science_predecision(
                 ),
                 reason="native GEN-C11 robust multi-world MPC evaluated known option geometry",
                 downstream_consumer="CIBO_COMPOUND_PORTFOLIO",
-                consumer_action="PUBLISH_ROBUST_CAPACITY_ENVELOPE",
+                consumer_action=(
+                    "CONSUME_ROBUST_CAPACITY_ENVELOPE"
+                    if c11_allows
+                    else "ABSTAIN_HORIZON_NOT_COVERABLE"
+                ),
                 decision_changed=c11_changed,
                 risk_delta_usd=-first_envelope.maximum_required_reserve_stop_risk_usd,
                 margin_delta_usd=-first_envelope.maximum_required_reserve_margin_usd,
@@ -1004,10 +1481,21 @@ def evaluate_capital_science_predecision(
                     "deployable_margin_usd": format(
                         first_envelope.minimum_deployable_margin_usd, "f"
                     ),
-                    "all_worlds_horizon_coverable": (
-                        first_envelope.all_worlds_horizon_coverable
-                    ),
+                    "all_worlds_horizon_coverable": (first_envelope.all_worlds_horizon_coverable),
                 },
+                typed_engine_input={
+                    "twin_id": twin.twin_id,
+                    "path_ids": [item.path_id for item in paths],
+                    "option_schedules": [
+                        {
+                            "option_id": item.option_id,
+                            "decision_step": item.decision_step,
+                            "schedule_evidence_sha256": (item.schedule_evidence_sha256),
+                        }
+                        for item in option_schedules
+                    ],
+                },
+                native_engine_name="plan_genc11_multi_period_capital",
             )
         )
     else:
@@ -1020,7 +1508,7 @@ def evaluate_capital_science_predecision(
                 downstream_consumer="CIBO_COMPOUND_PORTFOLIO",
                 consumer_action="NO_EXECUTABLE_KNOWN_OPTION",
                 output_details={
-                    "engine": "plan_genc11_multi_period_capital",
+                    "engine": None,
                     "invoked": False,
                     "reason": "NON_POSITIVE_GEOMETRY",
                 },
@@ -1054,6 +1542,7 @@ def evaluate_capital_science_predecision(
         twin=twin,
         regime_state=regime_state,
         crisis_facts=crisis_facts,
+        positions=state.open_positions,
     )
     c12_allows = Genc12CapitalResponse.NO_NEW_DEPLOYMENT not in genc12.responses
     c12_changed = (
@@ -1085,11 +1574,33 @@ def evaluate_capital_science_predecision(
                 "responses": [item.value for item in genc12.responses],
                 "enabled_ce2i_tools": list(genc12.enabled_ce2i_tools),
                 "blocked_ce2i_tools": list(genc12.blocked_ce2i_tools),
+                "position_plans": [
+                    {
+                        "signal_fingerprint": item.signal_fingerprint,
+                        "action": item.decision.action.value,
+                    }
+                    for item in genc12.position_plans
+                ],
             },
+            typed_engine_input={
+                "twin_id": twin.twin_id,
+                "regime": {
+                    "liquidity": regime_state.liquidity.value,
+                    "volatility": regime_state.volatility.value,
+                    "correlation": regime_state.correlation.value,
+                    "provider_condition": regime_state.provider_condition.value,
+                    "risk_utilization": format(regime_state.risk_utilization, "f"),
+                    "margin_utilization": format(regime_state.margin_utilization, "f"),
+                    "drawdown_utilization": format(regime_state.drawdown_utilization, "f"),
+                },
+                "crisis_factors": [item.factor.value for item in crisis_facts],
+                "t14_position_count": len(state.open_positions),
+            },
+            native_engine_name="plan_genc12_crisis_capital",
         )
     )
 
-    allow = c4_allows and c7_allows and c8_allows and c12_allows
+    allow = c4_allows and c7_allows and genc5_allows and c8_allows and c11_allows and c12_allows
     return CapitalScienceDirective(
         allow_incremental_compound=allow,
         deployable_profit_usd=state.deployable_profit_usd,
@@ -1112,7 +1623,7 @@ def _post_receipt(
 ) -> CapitalScienceReceipt:
     raw_in = json.dumps(input_payload, sort_keys=True, separators=(",", ":"))
     input_sha = "sha256:" + hashlib.sha256(raw_in.encode()).hexdigest()
-    output_payload = {
+    output_payload: dict[str, object] = {
         "function_code": function_code,
         "disposition": disposition.value,
         "reason": reason,
@@ -1122,13 +1633,25 @@ def _post_receipt(
     raw_out = json.dumps(output_payload, sort_keys=True, separators=(",", ":"))
     output_sha = "sha256:" + hashlib.sha256(raw_out.encode()).hexdigest()
     return CapitalScienceReceipt(
+        call_id=_runtime_sha(
+            "capital-science-post-call",
+            {
+                "function_code": function_code,
+                "stage": stage,
+                "signal_fingerprint": signal_fingerprint,
+                "trader_id": trader_id,
+                "observed_at": observed_at.isoformat(),
+            },
+        ),
         function_code=function_code,
         stage=stage,
         disposition=disposition,
         decision_epoch_id="SEGMENT_FINALIZATION",
         signal_fingerprint=signal_fingerprint,
         trader_id=trader_id,
+        qore_symbol="PORTFOLIO",
         observed_at=observed_at,
+        market_time=observed_at,
         reason=reason,
         downstream_consumer=downstream_consumer,
         consumer_action=consumer_action,
@@ -1256,9 +1779,7 @@ def aggregate_capital_science_receipts(
 
     rows = tuple(receipts)
     if any(not isinstance(item, CapitalScienceReceipt) for item in rows):
-        raise CiboCapitalManagementError(
-            "Capital Science aggregation requires canonical receipts"
-        )
+        raise CiboCapitalManagementError("Capital Science aggregation requires canonical receipts")
     grouped: dict[str, list[CapitalScienceReceipt]] = defaultdict(list)
     for item in rows:
         grouped[item.function_code].append(item)
@@ -1282,13 +1803,7 @@ def aggregate_capital_science_receipts(
         else:
             status = CapitalScienceDisposition.JUSTIFIED_NOT_APPLICABLE.value
         reasons = Counter(item.reason for item in items)
-        sources = sorted(
-            {
-                source
-                for item in items
-                for source in item.capital_source_usage
-            }
-        )
+        sources = sorted({source for item in items for source in item.capital_source_usage})
         out.append(
             {
                 "function_code": code + "_RUNTIME",
@@ -1297,25 +1812,37 @@ def aggregate_capital_science_receipts(
                 "eligible_epochs": sum(
                     1
                     for item in items
-                    if item.disposition
-                    is not CapitalScienceDisposition.JUSTIFIED_NOT_APPLICABLE
+                    if item.disposition is not CapitalScienceDisposition.JUSTIFIED_NOT_APPLICABLE
                 ),
                 "invoked_count": len(items),
                 "executed_count": len(items),
                 "applied_count": sum(
-                    item.disposition is CapitalScienceDisposition.APPLIED
-                    for item in items
+                    item.disposition is CapitalScienceDisposition.APPLIED for item in items
                 ),
                 "fail_closed_count": sum(
-                    item.disposition is CapitalScienceDisposition.FAIL_CLOSED
-                    for item in items
+                    item.disposition is CapitalScienceDisposition.FAIL_CLOSED for item in items
                 ),
                 "not_applicable_count": sum(
-                    item.disposition
-                    is CapitalScienceDisposition.JUSTIFIED_NOT_APPLICABLE
+                    item.disposition is CapitalScienceDisposition.JUSTIFIED_NOT_APPLICABLE
                     for item in items
                 ),
                 "decision_changed_count": sum(item.decision_changed for item in items),
+                "native_engine_call_count": sum(item.native_engine_called for item in items),
+                "native_engine_call_rate": format(
+                    Decimal(sum(item.native_engine_called for item in items)) / Decimal(len(items)),
+                    "f",
+                ),
+                "native_engine_names": sorted(
+                    {
+                        item.native_engine_name
+                        for item in items
+                        if item.native_engine_name is not None
+                    }
+                ),
+                "outcome_aware_decision_count": sum(
+                    item.outcome_used_for_same_decision for item in items
+                ),
+                "qore_risk_bypass_count": sum(item.qore_risk_bypassed for item in items),
                 "risk_delta_usd": format(
                     sum((item.risk_delta_usd for item in items), Decimal(0)),
                     "f",
@@ -1327,17 +1854,13 @@ def aggregate_capital_science_receipts(
                 "capital_source_usage": sources,
                 "incremental_pnl_attribution_usd": format(
                     sum(
-                        (
-                            item.incremental_pnl_attribution_usd
-                            for item in items
-                        ),
+                        (item.incremental_pnl_attribution_usd for item in items),
                         Decimal(0),
                     ),
                     "f",
                 ),
                 "reason_distribution": [
-                    {"reason": reason, "count": count}
-                    for reason, count in sorted(reasons.items())
+                    {"reason": reason, "count": count} for reason, count in sorted(reasons.items())
                 ],
                 "causal_trace_count": len(items),
                 "input_output_trace_count": len(items),
