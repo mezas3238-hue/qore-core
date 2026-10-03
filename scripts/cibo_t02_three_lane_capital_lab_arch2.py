@@ -452,24 +452,35 @@ def main() -> int:
         lab_enable_t02_released_capacity=True,
     )
     research_authorizations = _compound_research_authorizations(plan)
-    compound_local = run_compound_portfolio_lane(
-        plan=plan,
-        core_execution=treatment,
-        lab_use_executed_core_surface=True,
-        lab_require_rational_redeploy=True,
-        lab_allow_noncertifying_research_redeploy=True,
-        research_redeploy_authorizations=research_authorizations,
-        lab_pool_scope=POOL_SCOPE_TRADER_LOCAL,
-    )
-    compound_portfolio = run_compound_portfolio_lane(
-        plan=plan,
-        core_execution=treatment,
-        lab_use_executed_core_surface=True,
-        lab_require_rational_redeploy=True,
-        lab_allow_noncertifying_research_redeploy=True,
-        research_redeploy_authorizations=research_authorizations,
-        lab_pool_scope=POOL_SCOPE_ACCOUNT,
-    )
+    leverage_multipliers = tuple(Decimal(str(value)) for value in (1, 2, 3, 4))
+    local_by_multiplier = {
+        multiplier: run_compound_portfolio_lane(
+            plan=plan,
+            core_execution=treatment,
+            lab_use_executed_core_surface=True,
+            lab_require_rational_redeploy=True,
+            lab_allow_noncertifying_research_redeploy=True,
+            research_redeploy_authorizations=research_authorizations,
+            lab_pool_scope=POOL_SCOPE_TRADER_LOCAL,
+            lab_seed_multiplier=multiplier,
+        )
+        for multiplier in leverage_multipliers
+    }
+    portfolio_by_multiplier = {
+        multiplier: run_compound_portfolio_lane(
+            plan=plan,
+            core_execution=treatment,
+            lab_use_executed_core_surface=True,
+            lab_require_rational_redeploy=True,
+            lab_allow_noncertifying_research_redeploy=True,
+            research_redeploy_authorizations=research_authorizations,
+            lab_pool_scope=POOL_SCOPE_ACCOUNT,
+            lab_seed_multiplier=multiplier,
+        )
+        for multiplier in leverage_multipliers
+    }
+    compound_local = local_by_multiplier[Decimal("1")]
+    compound_portfolio = portfolio_by_multiplier[Decimal("1")]
 
     baseline_metrics = _run_minimal_seed_baseline(plan)
     control_metrics = _full_metrics(
@@ -529,6 +540,18 @@ def main() -> int:
         "all_trader_cibo_compound_portfolio": compound_portfolio.payload(
             core_executed_count=treatment.settled_count
         ),
+        "compound_leverage_sweep": {
+            format(multiplier, "f"): result.payload(
+                core_executed_count=treatment.settled_count
+            )
+            for multiplier, result in local_by_multiplier.items()
+        },
+        "compound_portfolio_leverage_sweep": {
+            format(multiplier, "f"): result.payload(
+                core_executed_count=treatment.settled_count
+            )
+            for multiplier, result in portfolio_by_multiplier.items()
+        },
         "portfolio_incremental_over_local_compound": {
             "ending_capital_delta_usd": format(
                 compound_portfolio.ending_capital_usd
@@ -598,6 +621,14 @@ def main() -> int:
             - compound_local.ending_capital_usd,
             "f",
         ),
+        "compound_leverage_ending_capital_usd": {
+            format(multiplier, "f"): format(result.ending_capital_usd, "f")
+            for multiplier, result in local_by_multiplier.items()
+        },
+        "compound_portfolio_leverage_ending_capital_usd": {
+            format(multiplier, "f"): format(result.ending_capital_usd, "f")
+            for multiplier, result in portfolio_by_multiplier.items()
+        },
         "full_stack_runtime_coverage_complete": (
             coverage["full_stack_runtime_coverage_complete"]
         ),
