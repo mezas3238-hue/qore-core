@@ -24,8 +24,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
-      SOURCE_P0_ARTIFACT_ID: '11273814372'
-      SOURCE_P0_HEAD_SHA: '0a6fd45ed9ecbac379c80a78090afbb87bd9f47c'
+      SOURCE_P0_ARTIFACT_ID: '11276801896'
+      SOURCE_P0_HEAD_SHA: 'a33115b631a9addfcd7f270e3c1913ecc6f03e9c'
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
