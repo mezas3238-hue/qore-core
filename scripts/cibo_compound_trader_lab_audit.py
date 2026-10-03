@@ -24,9 +24,12 @@ from hashlib import sha256
 import json
 from pathlib import Path
 
-from cibo_full_function_trader_lab_audit import FullFunctionAudit, TRADERS
+from cibo_full_function_trader_lab_audit import FullFunctionAudit
 
-from qore.infrastructure.account_wide_risk import TraderLineage
+from qore.infrastructure.account_wide_risk import (
+    TraderIdentity,
+    canonical_trader_identity,
+)
 from qore.infrastructure.cibo_account_capital_mission import CiboAccountCapitalIdentity
 from qore.infrastructure.cibo_capital_management_authority import CapitalSource
 from qore.infrastructure.cibo_capital_source_ledger import CapitalSourceLedger
@@ -163,11 +166,14 @@ def _output_sha(value: object) -> str:
     return _bare_sha(_logical(value))
 
 
-def _trader(value: str) -> TraderLineage:
-    return TraderLineage(value)
+def _trader(value: str) -> TraderIdentity:
+    return canonical_trader_identity(value)
 
 
-def _positive_rows(trace: dict[str, object]) -> dict[str, dict[str, object]]:
+def _positive_rows(
+    trace: dict[str, object],
+    traders: tuple[str, ...],
+) -> dict[str, dict[str, object]]:
     result: dict[str, dict[str, object]] = {}
     rows = trace.get("opportunities")
     if not isinstance(rows, list):
@@ -178,13 +184,13 @@ def _positive_rows(trace: dict[str, object]) -> dict[str, dict[str, object]]:
         trader = row.get("trader_id")
         settlement = row.get("settlement")
         if (
-            trader in TRADERS
+            trader in traders
             and isinstance(settlement, dict)
             and Decimal(str(settlement.get("realized_net_pnl_usd", "0"))) > 0
             and trader not in result
         ):
             result[str(trader)] = row
-    missing = tuple(trader for trader in TRADERS if trader not in result)
+    missing = tuple(trader for trader in traders if trader not in result)
     if missing:
         raise RuntimeError("positive retained settlement missing for " + ",".join(missing))
     return result
@@ -313,14 +319,15 @@ class CompoundTraderLabAudit:
         functional_report = functional.execute()
         if functional_report["all_functions_pass"] is not True:
             raise RuntimeError("compound chain blocked: CF01-CF20 are not all PASS")
-        positives = _positive_rows(trace)
+        self.traders = functional.traders
+        positives = _positive_rows(trace, self.traders)
         self.contexts = functional.contexts
         self.lanes = {
             trader: CompoundLane(
                 previous_receipt=functional.lanes[trader].previous_receipt,
                 row=positives[trader],
             )
-            for trader in TRADERS
+            for trader in self.traders
         }
 
     def _approval_time(self, trader: str, gate: CiboTraderLabFunctionGate) -> datetime:
@@ -399,7 +406,7 @@ class CompoundTraderLabAudit:
         assert isinstance(settlement, dict)
         account = _test_identity(trader)
         realized_at = _dt(str(settlement["observed_at"]))
-        ordinal = TRADERS.index(trader) + 1
+        ordinal = self.traders.index(trader) + 1
         evidence = CompoundRealizedProfitEvidence(
             evidence_id=str(settlement["evidence_id"]),
             account_identity=account,
@@ -435,7 +442,7 @@ class CompoundTraderLabAudit:
         assert isinstance(settlement, dict)
         account = _test_identity(trader)
         realized_at = _dt(str(settlement["observed_at"]))
-        ordinal = TRADERS.index(trader) + 1
+        ordinal = self.traders.index(trader) + 1
         evidence = CompoundRealizedProfitEvidence(
             evidence_id=str(settlement["evidence_id"]),
             account_identity=account,
@@ -534,7 +541,7 @@ class CompoundTraderLabAudit:
             opening_original_base_usd=Decimal("100"),
             t19_ledger=_t19(row),
         )
-        cma = _settlement_state(row, lane_index=TRADERS.index(trader) + 1)
+        cma = _settlement_state(row, lane_index=self.traders.index(trader) + 1)
         state = ingest_base_settlement(
             state,
             event_id=f"{trader}:cc04:origin",
@@ -717,7 +724,7 @@ class CompoundTraderLabAudit:
             opening_original_base_usd=Decimal("100"),
             t19_ledger=_t19(row),
         )
-        cma = _settlement_state(row, lane_index=TRADERS.index(trader) + 1)
+        cma = _settlement_state(row, lane_index=self.traders.index(trader) + 1)
         amount = cma.realized_net_pnl_usd
         protect = amount / Decimal(4)
         events = (
@@ -872,7 +879,7 @@ class CompoundTraderLabAudit:
         if len(methods) != len(COMPOUND_GATES):
             raise RuntimeError("CC01-CC09 gate count mismatch")
         for gate, method in zip(COMPOUND_GATES, methods, strict=True):
-            for trader in TRADERS:
+            for trader in self.traders:
                 before = self.lanes[trader].previous_receipt
                 method(trader)
                 after = self.lanes[trader].previous_receipt
@@ -883,7 +890,7 @@ class CompoundTraderLabAudit:
 
         lanes: dict[str, object] = {}
         constant_observations: list[CompoundConstantObservation] = []
-        for trader in TRADERS:
+        for trader in self.traders:
             lane = self.lanes[trader]
             if len(lane.reports) != 9:
                 raise RuntimeError(f"{trader} has {len(lane.reports)} compound PASS gates")
@@ -919,7 +926,7 @@ class CompoundTraderLabAudit:
             "schema": "qore.cibo.compound-trader-lab-audit.v1",
             "source_trace_sha256": self.trace["trace_sha256"],
             "source_head_sha": self.source_head,
-            "candidate_count": len(TRADERS),
+            "candidate_count": len(self.traders),
             "compound_gate_count": 9,
             "all_cc01_cc09_pass": True,
             "next_stage_unlocked": "CC10_TEMPORAL_REPLICATION_TRADER_LAB",
