@@ -1241,8 +1241,16 @@ class Audit:
             PHASES[16],
             _token(
                 ctx.phase_tokens[PHASES[15]],
-                mission.logical_values(),
-                coordination.logical_values(),
+                mission.mission_code,
+                mission.objective_code,
+                mission.disposition.value,
+                tuple(item.value for item in mission.assigned_functions),
+                coordination.disposition.value,
+                coordination.request_code,
+                tuple(
+                    item.faculty.value
+                    for item in coordination.contributions
+                ),
             ),
             {
                 "mission_disposition": mission.disposition.value,
@@ -1256,16 +1264,18 @@ class Audit:
         coordination = ctx.coordination
         if integrated is None or coordination is None:
             raise RuntimeError("determinism prerequisites missing")
-        first = _token(
+        final_material = (
             integrated.fingerprint.value,
             ctx.phase_tokens[PHASES[16]],
-            coordination.logical_values(),
+            coordination.disposition.value,
+            coordination.request_code,
+            tuple(
+                item.faculty.value
+                for item in coordination.contributions
+            ),
         )
-        second = _token(
-            integrated.fingerprint.value,
-            ctx.phase_tokens[PHASES[16]],
-            coordination.logical_values(),
-        )
+        first = _token(*final_material)
+        second = _token(*final_material)
         if first != second:
             raise RuntimeError("final Trader Lab cognitive chain is not deterministic")
         self.record(
