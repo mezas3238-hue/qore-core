@@ -200,7 +200,8 @@ def load_rows(dataset_path: Path, candidate_fps: dict[str, str]) -> list[dict[st
         for key, value in context.items():
             row[key] = value
         for key in NUM_FIELDS:
-            row[key] = dec(x[key])
+            raw_value = x.get(key, context.get(key))
+            row[key] = None if raw_value is None else dec(raw_value)
         out.append(row)
     return sorted(out, key=lambda row: row["time"])
 
