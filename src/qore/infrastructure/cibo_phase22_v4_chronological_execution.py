@@ -18,7 +18,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from decimal import Decimal
+from decimal import ROUND_FLOOR, Decimal
 from enum import StrEnum
 from pathlib import Path
 
@@ -674,62 +674,59 @@ def execute_phase22_chronological_replay(
                 and effective_candidate.stop_risk_usd
                 > baseline_plan.stop_risk_usd
             ):
-                incremental_risk = (
-                    effective_candidate.stop_risk_usd
-                    - baseline_plan.stop_risk_usd
-                )
-                if incremental_risk > released_risk_capacity:
-                    raise CiboCapitalManagementError(
-                        "T02 requested released risk capacity beyond causal pool"
-                    )
-                volume = (
+                requested_volume = (
                     effective_candidate.stop_risk_usd
                     / opportunity.stop_loss_per_volume
                 )
-                if volume > opportunity.maximum_volume:
-                    raise CiboCapitalManagementError(
-                        "T02 effective volume exceeds provider maximum"
-                    )
-                if (
-                    volume / opportunity.volume_step
-                ) != (
-                    volume / opportunity.volume_step
-                ).to_integral_value():
-                    raise CiboCapitalManagementError(
-                        "T02 effective volume is not provider-step aligned"
-                    )
-                margin = volume * opportunity.margin_per_volume
-                if margin != effective_candidate.margin_usd:
-                    raise CiboCapitalManagementError(
-                        "T02 effective margin/volume identity drift"
-                    )
-                plan_row = CiboCapitalActionPlan(
-                    trader_id=opportunity.trader_id,
-                    qore_symbol=opportunity.qore_symbol,
-                    stage=CapitalStage.CAPITALIZE,
-                    action=CapitalAction.OPEN_CAPABILITY_MAX,
-                    volume=volume,
-                    stop_risk_usd=effective_candidate.stop_risk_usd,
-                    margin_usd=margin,
-                    capital_source=None,
-                    capital_source_amount_usd=effective_candidate.stop_risk_usd,
-                    capital_source_lots=(
-                        CapitalSourceLot(
-                            source=CapitalSource.ORIGINAL_BASE_CAPITAL,
-                            amount_usd=baseline_plan.stop_risk_usd,
-                            source_id=f"phase22-base:{signal}",
-                        ),
-                        CapitalSourceLot(
-                            source=CapitalSource.RELEASED_RISK_CAPACITY,
-                            amount_usd=incremental_risk,
-                            source_id=f"phase22-t20-released-risk:{signal}",
-                        ),
-                    ),
-                    reason=(
-                        "T02 one-step structural leverage consumes only causally "
-                        "prior T20 released risk capacity; QORE Risk remains sovereign"
-                    ),
+                volume = _floor_provider_volume(
+                    requested_volume=requested_volume,
+                    volume_step=opportunity.volume_step,
+                    maximum_volume=opportunity.maximum_volume,
                 )
+                if volume > baseline_plan.volume:
+                    aligned_stop_risk = (
+                        volume * opportunity.stop_loss_per_volume
+                    )
+                    if aligned_stop_risk > effective_candidate.stop_risk_usd:
+                        raise CiboCapitalManagementError(
+                            "T02 aligned stop risk exceeds requested risk"
+                        )
+                    incremental_risk = (
+                        aligned_stop_risk - baseline_plan.stop_risk_usd
+                    )
+                    if incremental_risk > released_risk_capacity:
+                        raise CiboCapitalManagementError(
+                            "T02 aligned released risk exceeds causal pool"
+                        )
+                    margin = volume * opportunity.margin_per_volume
+                    plan_row = CiboCapitalActionPlan(
+                        trader_id=opportunity.trader_id,
+                        qore_symbol=opportunity.qore_symbol,
+                        stage=CapitalStage.CAPITALIZE,
+                        action=CapitalAction.OPEN_CAPABILITY_MAX,
+                        volume=volume,
+                        stop_risk_usd=aligned_stop_risk,
+                        margin_usd=margin,
+                        capital_source=None,
+                        capital_source_amount_usd=aligned_stop_risk,
+                        capital_source_lots=(
+                            CapitalSourceLot(
+                                source=CapitalSource.ORIGINAL_BASE_CAPITAL,
+                                amount_usd=baseline_plan.stop_risk_usd,
+                                source_id=f"phase22-base:{signal}",
+                            ),
+                            CapitalSourceLot(
+                                source=CapitalSource.RELEASED_RISK_CAPACITY,
+                                amount_usd=incremental_risk,
+                                source_id=f"phase22-t20-released-risk:{signal}",
+                            ),
+                        ),
+                        reason=(
+                            "T02 structural leverage is floored to the largest "
+                            "legal provider volume step not exceeding the causal "
+                            "risk target; QORE Risk remains sovereign"
+                        ),
+                    )
             if plan_row.volume <= 0:
                 raise CiboCapitalManagementError(
                     "Phase22 selected signal cannot produce minimum seed"
@@ -870,6 +867,32 @@ def execute_phase22_chronological_replay(
         ),
         accounting_residual_usd=residual,
     )
+
+
+def _floor_provider_volume(
+    *,
+    requested_volume: Decimal,
+    volume_step: Decimal,
+    maximum_volume: Decimal,
+) -> Decimal:
+    """Return the largest legal provider-step volume not above the request."""
+
+    for name, value in (
+        ("requested_volume", requested_volume),
+        ("volume_step", volume_step),
+        ("maximum_volume", maximum_volume),
+    ):
+        if (
+            not isinstance(value, Decimal)
+            or not value.is_finite()
+            or value <= 0
+        ):
+            raise CiboCapitalManagementError(
+                f"T02 {name} must be finite positive Decimal"
+            )
+    capped = min(requested_volume, maximum_volume)
+    steps = (capped / volume_step).to_integral_value(rounding=ROUND_FLOOR)
+    return steps * volume_step
 
 
 def _snapshot(
