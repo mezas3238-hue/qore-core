@@ -232,7 +232,11 @@ def ce2i_tool_allowed_for_mission(
         return tool.maturity is ToolMaturity.SHADOW_VALIDATED
 
     if policy.ce2i_scope is Ce2iActivationScope.VALIDATION_ONLY:
+        # TEST is an evaluation environment: every implemented engine must be
+        # callable/actionable inside the non-production validation harness.
+        # Scientific maturity constrains claims/promotion, not engine execution.
         return tool.maturity in {
+            ToolMaturity.CONTRACT_IMPLEMENTED,
             ToolMaturity.RESEARCH_VALIDATED,
             ToolMaturity.HOLDOUT_VALIDATED,
             ToolMaturity.SHADOW_VALIDATED,
@@ -326,11 +330,11 @@ def _test_validation_policy() -> CiboCapitalMissionPolicy:
         sovereign_risk_required=True,
         provider_constraints_required=True,
         durable_capital_accounting_required=True,
-        allow_research_tool_execution=False,
-        allow_multi_tool_experiments=False,
+        allow_research_tool_execution=True,
+        allow_multi_tool_experiments=True,
         allow_cross_trader_competition=True,
         allow_self_financing_expansion=True,
-        allow_original_base_capital_reallocation=False,
+        allow_original_base_capital_reallocation=True,
         capability_measurement_enabled=True,
         preserve_optionality_priority=True,
         rationale="TEST environment validates evidence before broader deployment",
