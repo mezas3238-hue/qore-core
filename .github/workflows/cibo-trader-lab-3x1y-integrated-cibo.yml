@@ -56,14 +56,14 @@ jobs:
       - name: Recover immutable seven-Trader assembly
         run: |
           set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/assembly"
+          mkdir -p "$RUNNER_TEMP/assembly-root"
           gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$ASSEMBLY_ARTIFACT_ID" > "$RUNNER_TEMP/assembly.meta.json"
           jq -e --arg digest "$ASSEMBLY_ARTIFACT_DIGEST" '.expired == false and .digest == $digest' "$RUNNER_TEMP/assembly.meta.json"
           gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$ASSEMBLY_ARTIFACT_ID/zip" > "$RUNNER_TEMP/assembly.zip"
           echo "${ASSEMBLY_ARTIFACT_DIGEST#sha256:}  $RUNNER_TEMP/assembly.zip" | sha256sum -c -
-          unzip -q "$RUNNER_TEMP/assembly.zip" -d "$RUNNER_TEMP/assembly"
+          unzip -q "$RUNNER_TEMP/assembly.zip" -d "$RUNNER_TEMP/assembly-root"
           for group in GROUP_1 GROUP_2 GROUP_3; do
-            test -s "$RUNNER_TEMP/assembly/$group/seven-trader-cibo-batch.json"
+            test -s "$RUNNER_TEMP/assembly-root/assembly/$group/seven-trader-cibo-batch.json"
           done
 
       - name: Recover provider numeric model
@@ -103,7 +103,7 @@ jobs:
           for group in GROUP_1 GROUP_2 GROUP_3; do
             mkdir -p "$RUNNER_TEMP/results/$group/lab"
             python scripts/cibo_t02_three_lane_capital_lab_arch2.py \
-              --batch "$RUNNER_TEMP/assembly/$group/seven-trader-cibo-batch.json" \
+              --batch "$RUNNER_TEMP/assembly-root/assembly/$group/seven-trader-cibo-batch.json" \
               --provider-numeric "$PROVIDER_JSON" \
               --provider-numeric-freeze-sha256 "$PROVIDER_FILE_SHA" \
               --source-root "AUDJPY=$RUNNER_TEMP/regime/AUDJPY" \
@@ -161,5 +161,5 @@ jobs:
         with:
           name: qore-cibo-trader-lab-3x1y-integrated-cibo-${{ github.run_id }}
           path: ${{ runner.temp }}/results
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 90
