@@ -704,27 +704,54 @@ def execute_phase22_chronological_replay(
                     raise CiboCapitalManagementError(
                         "T02 requested released risk capacity beyond causal pool"
                     )
-                volume = (
-                    effective_candidate.stop_risk_usd
-                    / opportunity.stop_loss_per_volume
+                t02_decisions = tuple(
+                    decision
+                    for assessment in (
+                        pair.policy_record.full_surface.opportunity_assessments
+                    )
+                    if assessment.signal_fingerprint == signal
+                    for decision in assessment.decisions
+                    if (
+                        decision.tool_code == "T02"
+                        and decision.target_stop_risk_usd is not None
+                    )
                 )
+                if len(t02_decisions) != 1:
+                    raise CiboCapitalManagementError(
+                        "T02 effective candidate requires one applied volume decision"
+                    )
+                t02_decision = t02_decisions[0]
+                volume = t02_decision.approved_volume
+                if volume <= baseline_plan.volume:
+                    raise CiboCapitalManagementError(
+                        "T02 approved volume must exceed baseline seed"
+                    )
                 if volume > opportunity.maximum_volume:
                     raise CiboCapitalManagementError(
                         "T02 effective volume exceeds provider maximum"
                     )
-                if (
-                    volume / opportunity.volume_step
-                ) != (
-                    volume / opportunity.volume_step
-                ).to_integral_value():
+                step_ratio = volume / opportunity.volume_step
+                if step_ratio != step_ratio.to_integral_value():
                     raise CiboCapitalManagementError(
-                        "T02 effective volume is not provider-step aligned"
+                        "T02 approved volume is not provider-step aligned"
+                    )
+                exact_stop_risk = (
+                    opportunity.stop_loss_per_volume * volume
+                )
+                if exact_stop_risk != effective_candidate.stop_risk_usd:
+                    raise CiboCapitalManagementError(
+                        "T02 approved volume/stop-risk identity drift"
+                    )
+                policy_ratio = (
+                    effective_candidate.stop_risk_usd
+                    / baseline_plan.stop_risk_usd
+                )
+                policy_margin = baseline_plan.margin_usd * policy_ratio
+                if policy_margin != effective_candidate.margin_usd:
+                    raise CiboCapitalManagementError(
+                        "T02 policy margin scaling identity drift"
                     )
                 margin = volume * opportunity.margin_per_volume
-                if margin != effective_candidate.margin_usd:
-                    raise CiboCapitalManagementError(
-                        "T02 effective margin/volume identity drift"
-                    )
                 plan_row = CiboCapitalActionPlan(
                     trader_id=opportunity.trader_id,
                     qore_symbol=opportunity.qore_symbol,
