@@ -368,6 +368,7 @@ def execute_phase22_chronological_replay(
     replay_started_at: datetime,
     amendment: Phase22HistoricalReplayEconomicsAmendment | None = None,
     lab_allow_nonpositive_expectation: bool = False,
+    lab_cibo_free_tool_choice: bool = False,
 ) -> Phase22HistoricalExecutionReport:
     """Run the frozen USD60 policy/Risk/settlement path chronologically."""
 
@@ -379,6 +380,10 @@ def execute_phase22_chronological_replay(
     if type(lab_allow_nonpositive_expectation) is not bool:
         raise CiboCapitalManagementError(
             "lab_allow_nonpositive_expectation must be bool"
+        )
+    if type(lab_cibo_free_tool_choice) is not bool:
+        raise CiboCapitalManagementError(
+            "lab_cibo_free_tool_choice must be bool"
         )
     if amendment is None:
         amendment = canonical_phase22_historical_economics_amendment()
@@ -545,6 +550,7 @@ def execute_phase22_chronological_replay(
             lab_allow_nonpositive_expectation=(
                 lab_allow_nonpositive_expectation
             ),
+            lab_cibo_free_tool_choice=lab_cibo_free_tool_choice,
         )
         pairs.append(pair)
 
