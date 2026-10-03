@@ -79,6 +79,7 @@ jobs:
             tests: >-
               tests/infrastructure/test_cibo_core_compound_portfolio.py
               tests/infrastructure/test_cibo_compound_portfolio.py
+              tests/infrastructure/test_cibo_internal_capital_market.py
               tests/infrastructure/test_cibo_phase22_chronological_execution.py
           - domain: PROTECTION_AND_TRUTH
             tests: >-
