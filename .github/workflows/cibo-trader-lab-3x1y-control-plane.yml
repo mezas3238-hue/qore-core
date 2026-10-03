@@ -50,6 +50,13 @@ jobs:
           assert p['market_context']['timeframes'] == ['H4','H1','M15','M5','M1']
           assert p['market_context']['excluded'] == ['D1','D','DAILY']
           assert p['measurements']['leverage_seed_multipliers'] == ['1','2','3','4']
+          assert p['study_target']['primary_subject'] == 'CIBO'
+          assert p['study_target']['trader_role'] == 'FROZEN_OPPORTUNITY_AND_OUTCOME_PRODUCERS_ONLY'
+          assert p['study_target']['trader_logic_tunable'] is False
+          assert p['study_target']['trader_profitability_is_optimization_target'] is False
+          assert p['study_target']['trader_profitability_is_stop_gate'] is False
+          assert p['automation']['search_target'] == 'CIBO_CONFIGURATION_ONLY'
+          assert p['automation']['trader_parameters_mutable'] is False
           assert p['stop_sensor']['required_identical_configuration_fingerprints_across_all_groups'] == 3
           assert p['execution_topology']['unit_of_test'] == 'ONE_INTEGRATED_7_TRADER_PORTFOLIO_PER_1Y_GROUP'
           assert p['execution_topology']['per_trader_results_may_trigger_stop_sensor'] is False
