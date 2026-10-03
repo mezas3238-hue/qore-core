@@ -16,7 +16,10 @@ from datetime import datetime
 from decimal import Decimal
 from enum import StrEnum
 
-from qore.infrastructure.account_wide_risk import TraderLineage
+from qore.infrastructure.account_wide_risk import (
+    TraderIdentity,
+    canonical_trader_identity,
+)
 from qore.infrastructure.cibo_account_capital_mission import (
     CiboAccountCapitalIdentity,
 )
@@ -51,7 +54,7 @@ class CompoundProtectionClass(StrEnum):
 class CompoundRealizedProfitEvidence:
     evidence_id: str
     account_identity: CiboAccountCapitalIdentity
-    origin_trader: TraderLineage
+    origin_trader: TraderIdentity
     signal_fingerprint: str
     position_id: int
     settlement_deal_ids: tuple[int, ...]
@@ -74,10 +77,7 @@ class CompoundRealizedProfitEvidence:
             raise CiboCompoundCapitalError(
                 "compound evidence account identity is invalid"
             )
-        if type(self.origin_trader) is not TraderLineage:
-            raise CiboCompoundCapitalError(
-                "compound evidence origin Trader is invalid"
-            )
+        canonical_trader_identity(self.origin_trader, field_name="origin_trader")
         if (
             not isinstance(self.position_id, int)
             or isinstance(self.position_id, bool)
@@ -132,7 +132,7 @@ class CompoundCapitalLot:
     state: CompoundCapitalState
     generation: int
     origin_evidence_id: str
-    origin_trader: TraderLineage
+    origin_trader: TraderIdentity
     origin_signal_fingerprint: str
     origin_position_id: int
     origin_deal_ids: tuple[int, ...]
@@ -174,10 +174,7 @@ class CompoundCapitalLot:
             raise CiboCompoundCapitalError(
                 "compound lot generation must be positive int"
             )
-        if type(self.origin_trader) is not TraderLineage:
-            raise CiboCompoundCapitalError(
-                "compound lot origin Trader is invalid"
-            )
+        canonical_trader_identity(self.origin_trader, field_name="origin_trader")
         if not self.origin_signal_fingerprint:
             raise CiboCompoundCapitalError(
                 "compound lot origin signal is required"
