@@ -1,0 +1,90 @@
+name: QORE CIBO T02 Three Lane Scientific Report Architect 2
+
+on:
+  push:
+    branches:
+      - agent/cibo-t02-science-architect-2-001
+    paths:
+      - '.github/workflows/cibo-t02-three-lane-scientific-report-arch2.yml'
+      - 'scripts/cibo_t02_three_lane_scientific_report_arch2.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  THREE_LANE_ARTIFACT_ID: '11278986565'
+  MULTITIMEFRAME_ARTIFACT_ID: '11278316141'
+
+jobs:
+  scientific-report:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: python -m pip install -e '.[dev]'
+
+      - name: Validate reporter
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/cibo_t02_three_lane_scientific_report_arch2.py
+          ruff check scripts/cibo_t02_three_lane_scientific_report_arch2.py
+
+      - name: Recover immutable source artifacts
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/three" "$RUNNER_TEMP/multi"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$THREE_LANE_ARTIFACT_ID/zip" > "$RUNNER_TEMP/three.zip"
+          unzip -q "$RUNNER_TEMP/three.zip" -d "$RUNNER_TEMP/three"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$MULTITIMEFRAME_ARTIFACT_ID/zip" > "$RUNNER_TEMP/multi.zip"
+          unzip -q "$RUNNER_TEMP/multi.zip" -d "$RUNNER_TEMP/multi"
+          test -s "$RUNNER_TEMP/three/three-lane-result.json"
+          test -s "$RUNNER_TEMP/multi/t02-multitimeframe/t02-multitimeframe-trader-lab-report.json"
+
+      - name: Build unified scientific report
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/report"
+          python scripts/cibo_t02_three_lane_scientific_report_arch2.py \
+            --three-lane "$RUNNER_TEMP/three/three-lane-result.json" \
+            --multitimeframe "$RUNNER_TEMP/multi/t02-multitimeframe/t02-multitimeframe-trader-lab-report.json" \
+            --output "$RUNNER_TEMP/report/CIBO-T02-THREE-LANE-SCIENTIFIC-ARCH2-LATEST-REPORT.json"
+
+      - name: Enforce report invariants
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os
+          from decimal import Decimal
+          from pathlib import Path
+          p=json.loads((Path(os.environ['RUNNER_TEMP'])/'report'/'CIBO-T02-THREE-LANE-SCIENTIFIC-ARCH2-LATEST-REPORT.json').read_text())
+          assert p['mode'] == 'NON_CERTIFYING_REUSED_HOLDOUT_RESEARCH'
+          assert p['market_context_lab']['timeframes'] == ['H4','H1','M15','M5','M1']
+          assert p['market_context_lab']['D1_excluded'] is True
+          assert p['CORE']['exact_1x']['ending_capital_usd'] == '29.80884570003554872680684158'
+          assert set(p['COMPOUND']) == {'1','2','3','4'}
+          assert set(p['COMPOUND_PORTFOLIO']) == {'1','2','3','4'}
+          assert Decimal(p['COMPOUND']['1']['exact_replay']['compound_incremental_pnl_usd']) > 0
+          assert Decimal(p['COMPOUND_PORTFOLIO']['1']['exact_replay']['compound_incremental_pnl_usd']) > 0
+          assert Decimal(p['portfolio_value_add_at_1x']['ending_capital_delta_usd']) > 0
+          assert p['scientific_findings']['any_total_lane_above_initial_usd60'] is False
+          assert p['scientific_findings']['promotion_authorized'] is False
+          g=p['governance']
+          assert g['qore_risk_sovereign'] is True
+          for key in ('runtime_policy_changed','productive_sizing_changed','broker_mutation','live','production','real_capital','merge_authority','fresh_oos_claimed','certification_claimed'):
+              assert g[key] is False, key
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-t02-three-lane-scientific-report-arch2-${{ github.run_id }}
+          path: ${{ runner.temp }}/report
+          if-no-files-found: error
+          retention-days: 90
