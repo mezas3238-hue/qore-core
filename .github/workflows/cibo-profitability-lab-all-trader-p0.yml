@@ -65,10 +65,48 @@ jobs:
 
       - run: python -m pip install -e '.[dev]'
 
-      - name: Static validation
+      - name: Static and focused causal validation
         run: |
-          python -m compileall -q             scripts/cibo_profitability_lab_all_trader.py             src/qore/infrastructure/cibo_profitability_lab_decision_trace.py             src/qore/infrastructure/cibo_phase22_v4_chronological_execution.py             src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py
-          python -m ruff check             scripts/cibo_profitability_lab_all_trader.py             src/qore/infrastructure/cibo_profitability_lab_decision_trace.py             src/qore/infrastructure/cibo_phase22_v4_chronological_execution.py             src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py
+          python -m compileall -q \
+            scripts/cibo_profitability_lab_all_trader.py \
+            scripts/cibo_legacy_stack_quarantine.py \
+            src/qore/infrastructure/cibo_ce2i_advanced_capital_tools.py \
+            src/qore/infrastructure/cibo_ce2i_full_surface.py \
+            src/qore/infrastructure/cibo_ce2i_economic_effects.py \
+            src/qore/infrastructure/cibo_profitability_lab_t03_predecision_adapter.py \
+            src/qore/infrastructure/cibo_profitability_lab_economic_consultation.py \
+            src/qore/infrastructure/cibo_profitability_lab_decision_trace.py \
+            src/qore/infrastructure/cibo_phase22_v4_historical_policy_replay.py \
+            src/qore/infrastructure/cibo_phase22_v4_chronological_execution.py \
+            src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py
+          python -m ruff check \
+            scripts/cibo_profitability_lab_all_trader.py \
+            scripts/cibo_legacy_stack_quarantine.py \
+            src/qore/infrastructure/cibo_ce2i_advanced_capital_tools.py \
+            src/qore/infrastructure/cibo_ce2i_full_surface.py \
+            src/qore/infrastructure/cibo_ce2i_economic_effects.py \
+            src/qore/infrastructure/cibo_profitability_lab_t03_predecision_adapter.py \
+            src/qore/infrastructure/cibo_profitability_lab_economic_consultation.py \
+            src/qore/infrastructure/cibo_profitability_lab_decision_trace.py \
+            src/qore/infrastructure/cibo_phase22_v4_historical_policy_replay.py \
+            src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py \
+            tests/infrastructure/test_cibo_ce2i_advanced_evidence_causal_time.py \
+            tests/infrastructure/test_cibo_profitability_lab_t03_predecision_adapter.py \
+            tests/infrastructure/test_cibo_profitability_lab_economic_consultation.py \
+            tests/infrastructure/test_cibo_phase22_historical_policy_replay.py
+          mypy \
+            src/qore/infrastructure/cibo_ce2i_full_surface.py \
+            src/qore/infrastructure/cibo_ce2i_economic_effects.py \
+            src/qore/infrastructure/cibo_profitability_lab_t03_predecision_adapter.py \
+            src/qore/infrastructure/cibo_profitability_lab_economic_consultation.py \
+            src/qore/infrastructure/cibo_phase22_v4_historical_policy_replay.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_ce2i_advanced_evidence_causal_time.py \
+            tests/infrastructure/test_cibo_profitability_lab_t03_predecision_adapter.py \
+            tests/infrastructure/test_cibo_profitability_lab_economic_consultation.py \
+            tests/infrastructure/test_cibo_phase22_historical_policy_replay.py \
+            tests/infrastructure/test_cibo_ce2i_advanced_capital_tools.py \
+            tests/infrastructure/test_cibo_legacy_stack_quarantine.py
 
       - name: Recover frozen 7-of-7 batch from successful run 28
         shell: bash
@@ -185,11 +223,25 @@ jobs:
           }
           assert all(
               row["cognitive_orchestration"]["runtime_economic_consultation"]
-              == "ABSENT"
+              == "PRESENT"
               for row in trace["opportunities"]
           )
           assert all(
-              row["cognitive_orchestration"]["runtime_consulted_faculties"] == []
+              len(
+                  row["cognitive_orchestration"]["runtime_consulted_faculties"]
+              ) == 19
               for row in trace["opportunities"]
           )
+          assert all(
+              row["cognitive_orchestration"]["functional_coordinator_invoked"]
+              is True
+              for row in trace["opportunities"]
+          )
+          assert p["coverage"][
+              "cf01_cf19_runtime_economic_consultation_complete"
+          ] is True
+          assert p["all_trader_cibo_compound_portfolio"][
+              "rational_redeploy_gate_enabled"
+          ] is True
+          assert p["compound_rational_redeploy_gate_preregistered"] is True
           PY
