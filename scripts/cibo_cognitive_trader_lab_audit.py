@@ -1081,7 +1081,18 @@ class Audit:
         self.record(
             ctx,
             PHASES[14],
-            _token(ctx.phase_tokens[PHASES[13]], evaluation.logical_values()),
+            _token(
+                ctx.phase_tokens[PHASES[13]],
+                str(evaluation.evaluation_id),
+                evaluation.evaluated_reference,
+                evaluation.status.value,
+                tuple(
+                    (d.dimension.value, d.score, d.note)
+                    for d in evaluation.dimensions
+                ),
+                evaluation.evidence_refs,
+                evaluation.contradiction_refs,
+            ),
             {"evaluation_status": evaluation.status.value},
         )
 
