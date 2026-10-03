@@ -139,13 +139,16 @@ class CapitalSciencePredecisionInput:
     def giveback_usd(self) -> Decimal:
         return self.peak_realized_capital_usd - self.realized_capital_usd
 
-    def fingerprint(self) -> str:
+    def payload(self) -> dict[str, object]:
         payload = asdict(self)
         payload["decision_at"] = self.decision_at.isoformat()
         for key, value in tuple(payload.items()):
             if isinstance(value, Decimal):
                 payload[key] = format(value, "f")
-        raw = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+        return payload
+
+    def fingerprint(self) -> str:
+        raw = json.dumps(self.payload(), sort_keys=True, separators=(",", ":"))
         return "sha256:" + hashlib.sha256(raw.encode()).hexdigest()
 
 
@@ -168,6 +171,8 @@ class CapitalScienceReceipt:
     incremental_pnl_attribution_usd: Decimal = Decimal(0)
     input_sha256: str = ""
     output_sha256: str = ""
+    input_payload: dict[str, object] | None = None
+    output_payload: dict[str, object] | None = None
     outcome_used_for_same_decision: bool = False
     qore_risk_bypassed: bool = False
     productive_authority: bool = False
@@ -229,6 +234,14 @@ class CapitalScienceReceipt:
             raise CiboCapitalManagementError(
                 "Capital Science receipt output_sha256 is required"
             )
+        if not isinstance(self.input_payload, dict) or not self.input_payload:
+            raise CiboCapitalManagementError(
+                "Capital Science receipt input_payload is required"
+            )
+        if not isinstance(self.output_payload, dict) or not self.output_payload:
+            raise CiboCapitalManagementError(
+                "Capital Science receipt output_payload is required"
+            )
 
     def payload(self) -> dict[str, object]:
         return {
@@ -251,6 +264,8 @@ class CapitalScienceReceipt:
             ),
             "input_sha256": self.input_sha256,
             "output_sha256": self.output_sha256,
+            "input_payload": self.input_payload,
+            "output_payload": self.output_payload,
             "outcome_used_for_same_decision": self.outcome_used_for_same_decision,
             "qore_risk_bypassed": self.qore_risk_bypassed,
             "productive_authority": self.productive_authority,
@@ -298,6 +313,7 @@ def _receipt(
     margin_delta_usd: Decimal = Decimal(0),
     capital_source_usage: tuple[str, ...] = (),
 ) -> CapitalScienceReceipt:
+    input_payload = state.payload()
     input_sha = state.fingerprint()
     output = {
         "function_code": function_code,
@@ -331,6 +347,8 @@ def _receipt(
         incremental_pnl_attribution_usd=Decimal(0),
         input_sha256=input_sha,
         output_sha256=output_sha,
+        input_payload=input_payload,
+        output_payload=output,
         outcome_used_for_same_decision=False,
         qore_risk_bypassed=False,
         productive_authority=False,
@@ -583,6 +601,8 @@ def _post_receipt(
         consumer_action=consumer_action,
         input_sha256=input_sha,
         output_sha256=output_sha,
+        input_payload=input_payload,
+        output_payload=output_payload,
     )
 
 
@@ -787,6 +807,15 @@ def aggregate_capital_science_receipts(
                     for reason, count in sorted(reasons.items())
                 ],
                 "causal_trace_count": len(items),
+                "input_output_trace_count": len(items),
+                "unique_input_count": len({item.input_sha256 for item in items}),
+                "unique_output_count": len({item.output_sha256 for item in items}),
+                "consumer_action_distribution": [
+                    {"consumer_action": action, "count": count}
+                    for action, count in sorted(
+                        Counter(item.consumer_action for item in items).items()
+                    )
+                ],
                 "reason": (
                     "runtime receipts prove causal invocation and downstream "
                     "consumption; status is aggregated from observed dispositions"
