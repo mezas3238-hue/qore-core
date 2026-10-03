@@ -273,6 +273,7 @@ def run_audit() -> dict[str, object]:
 
     capability_runtime_sources = "\n".join(
         (
+            capability_lab,
             _text(
                 "src/qore/infrastructure/"
                 "cibo_phase22_v4_historical_policy_replay.py"
@@ -297,11 +298,11 @@ def run_audit() -> dict[str, object]:
             f"CE2I_{code}_AUTHORITATIVE_CAPABILITY_PATH",
             token in capability_runtime_sources,
             (
-                f"{code} has an authoritative predecision capability path"
+                f"{code} is consumed by the authoritative capability-lab/predecision path"
                 if token in capability_runtime_sources
                 else (
                     f"{code} mechanical engine exists but is not consumed by "
-                    "the authoritative capability decision path"
+                    "the authoritative capability-lab/predecision path"
                 )
             ),
         )
