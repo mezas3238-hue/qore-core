@@ -6,9 +6,7 @@ from qore.infrastructure.cibo.functional_availability import (
     CiboFunctionAvailabilityState,
     cibo_function_availability,
 )
-from qore.infrastructure.trader_lab.cibo_functional_receipt import (
-    CIBO_TRADER_LAB_FUNCTION_SEQUENCE,
-)
+from qore.infrastructure.trader_lab import cibo_functional_receipt
 
 
 _MARKETS = (
@@ -39,7 +37,7 @@ def test_every_cibo_capability_is_permanently_available_for_any_scope(
     market_symbol: str,
     population: str,
 ) -> None:
-    for function in CIBO_TRADER_LAB_FUNCTION_SEQUENCE:
+    for function in cibo_functional_receipt.CIBO_TRADER_LAB_FUNCTION_SEQUENCE:
         availability = cibo_function_availability(
             function,
             market_symbol=market_symbol,
@@ -51,7 +49,7 @@ def test_every_cibo_capability_is_permanently_available_for_any_scope(
 
 
 def test_universal_availability_includes_functions_compound_and_portfolio() -> None:
-    values = tuple(item.value for item in CIBO_TRADER_LAB_FUNCTION_SEQUENCE)
+    values = tuple(item.value for item in cibo_functional_receipt.CIBO_TRADER_LAB_FUNCTION_SEQUENCE)
     assert values[0].startswith("cf01.")
     assert any(value.startswith("cf20.") for value in values)
     assert any(value.startswith("cc01.") for value in values)
