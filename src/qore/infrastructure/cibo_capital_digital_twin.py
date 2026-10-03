@@ -608,16 +608,16 @@ class Genc10ProjectedTwinState:
             raise CiboCompoundCapitalError(
                 "GEN-C10 projected capital conservation residual must be zero"
             )
-        if (
-            self.used_stop_risk_usd + self.stop_risk_headroom_usd
-            != self.total_stop_risk_capacity_usd
+        if not _exact_sum_equals(
+            self.total_stop_risk_capacity_usd,
+            (self.used_stop_risk_usd, self.stop_risk_headroom_usd),
         ):
             raise CiboCompoundCapitalError(
                 "GEN-C10 projected stop-risk identity drift"
             )
-        if (
-            self.used_margin_usd + self.margin_headroom_usd
-            != self.total_margin_capacity_usd
+        if not _exact_sum_equals(
+            self.total_margin_capacity_usd,
+            (self.used_margin_usd, self.margin_headroom_usd),
         ):
             raise CiboCompoundCapitalError(
                 "GEN-C10 projected margin identity drift"
