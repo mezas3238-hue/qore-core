@@ -54,7 +54,19 @@ def test_predecision_bridge_invokes_exact_mandatory_causal_surface() -> None:
     )
     assert (
         by_code["GEN-C11"].disposition
-        is runtime.CapitalScienceDisposition.ELIGIBLE_NO_CHANGE
+        is runtime.CapitalScienceDisposition.APPLIED
+    )
+    assert by_code["GEN-C7"].output_payload["engine_output"]["engine"] == (
+        "evaluate_genc7_profit_preservation_shadow"
+    )
+    assert by_code["GEN-C8"].output_payload["engine_output"]["engine"] == (
+        "evaluate_genc8_adaptive_compound_speed"
+    )
+    assert by_code["GEN-C11"].output_payload["engine_output"]["engine"] == (
+        "plan_genc11_multi_period_capital"
+    )
+    assert by_code["GEN-C12"].output_payload["engine_output"]["engine"] == (
+        "plan_genc12_crisis_capital"
     )
     assert all(item.outcome_used_for_same_decision is False for item in directive.receipts)
     assert all(item.qore_risk_bypassed is False for item in directive.receipts)
@@ -119,18 +131,18 @@ def test_postrun_receipts_complete_c9_c13_c14_without_same_trade_mutation() -> N
     assert all(item.qore_risk_bypassed is False for item in post)
 
 
-def test_c11_is_explicitly_not_applicable_without_competing_known_options() -> None:
+def test_c11_runs_on_current_known_option_even_without_peer_competition() -> None:
     directive = runtime.evaluate_capital_science_predecision(
         _state(competing_candidates=1)
     )
     c11 = next(
         item for item in directive.receipts if item.function_code == "GEN-C11"
     )
-    assert (
-        c11.disposition
-        is runtime.CapitalScienceDisposition.JUSTIFIED_NOT_APPLICABLE
-    )
-    assert c11.consumer_action == "NO_MULTI_PERIOD_REALLOCATION_REQUIRED"
+    assert c11.disposition is runtime.CapitalScienceDisposition.APPLIED
+    assert c11.consumer_action == "PUBLISH_ROBUST_CAPACITY_ENVELOPE"
+    details = c11.output_payload["engine_output"]
+    assert details["engine"] == "plan_genc11_multi_period_capital"
+    assert details["known_option_ids"] == ["signal-1"]
 
 
 def test_exhausted_headroom_fail_closes_c8_and_c12() -> None:
@@ -153,17 +165,19 @@ def test_c7_c8_c11_c12_research_diagnostics_are_observable_per_call() -> None:
     normal = runtime.evaluate_capital_science_predecision(_state())
     normal_by = {item.function_code: item for item in normal.receipts}
 
-    assert normal_by["GEN-C7"].consumer_action == "HOLD_CURRENT_CAPITAL_STATE"
-    assert normal_by["GEN-C7"].decision_changed is False
+    assert normal_by["GEN-C7"].consumer_action == "COMPOUND"
+    assert normal_by["GEN-C7"].decision_changed is True
     assert normal_by["GEN-C7"].input_payload["realized_profit_pool_usd"] == "12"
-    assert normal_by["GEN-C8"].consumer_action == "NORMAL_OR_EXISTING_PACE"
-    assert normal_by["GEN-C8"].decision_changed is False
-    assert normal_by["GEN-C11"].consumer_action == (
-        "PRESERVE_CURRENT_SELECTION_AND_RESERVE_OPTIONALITY"
-    )
-    assert normal_by["GEN-C11"].decision_changed is False
-    assert normal_by["GEN-C12"].consumer_action == "NO_CRISIS_OVERRIDE"
-    assert normal_by["GEN-C12"].decision_changed is False
+    assert normal_by["GEN-C8"].consumer_action == "ACCELERATED"
+    assert normal_by["GEN-C8"].decision_changed is True
+    assert normal_by["GEN-C11"].consumer_action == "PUBLISH_ROBUST_CAPACITY_ENVELOPE"
+    assert normal_by["GEN-C11"].decision_changed is True
+    assert normal_by["GEN-C12"].consumer_action == "CRISIS_ENVELOPE_ALLOWS_CAPITAL"
+    assert normal_by["GEN-C12"].output_payload["engine_output"]["posture"] in {
+        "STABLE",
+        "WATCH",
+        "DEFENSIVE",
+    }
 
     stressed = runtime.evaluate_capital_science_predecision(
         _state(
@@ -183,5 +197,5 @@ def test_c7_c8_c11_c12_research_diagnostics_are_observable_per_call() -> None:
     single_c11 = next(
         item for item in single.receipts if item.function_code == "GEN-C11"
     )
-    assert single_c11.consumer_action == "NO_MULTI_PERIOD_REALLOCATION_REQUIRED"
-    assert single_c11.output_payload["disposition"] == "JUSTIFIED_NOT_APPLICABLE"
+    assert single_c11.consumer_action == "PUBLISH_ROBUST_CAPACITY_ENVELOPE"
+    assert single_c11.output_payload["disposition"] == "APPLIED"
