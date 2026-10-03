@@ -8,6 +8,21 @@ on:
     paths:
       - '.github/workflows/cibo-universal-function-contract.yml'
       - 'src/qore/infrastructure/cibo/**'
+      - 'src/qore/infrastructure/account_wide_risk.py'
+      - 'src/qore/infrastructure/cibo_capital_management_authority.py'
+      - 'src/qore/infrastructure/cibo_cma_risk_request.py'
+      - 'src/qore/infrastructure/cibo_compound_capital.py'
+      - 'src/qore/infrastructure/cibo_compound_path_monte_carlo.py'
+      - 'src/qore/infrastructure/cibo_compound_real_population_binding.py'
+      - 'src/qore/infrastructure/cibo_core_compound_portfolio.py'
+      - 'src/qore/infrastructure/cibo_internal_capital_market.py'
+      - 'src/qore/infrastructure/cibo_marginal_capital_utility_evidence.py'
+      - 'src/qore/infrastructure/cibo_meta_capital_memory.py'
+      - 'scripts/cibo_cognitive_trader_lab_audit.py'
+      - 'scripts/cibo_full_function_trader_lab_audit.py'
+      - 'scripts/cibo_compound_trader_lab_audit.py'
+      - 'scripts/cibo_compound_trader_lab_completion_audit.py'
+      - 'tests/infrastructure/test_cibo_universal_runtime_identity.py'
       - 'src/qore/infrastructure/trader_lab/cibo_functional_receipt.py'
       - 'tests/infrastructure/test_cibo/**'
       - 'tests/infrastructure/trader_lab/test_cibo_functional_receipt.py'
@@ -17,6 +32,21 @@ on:
     paths:
       - '.github/workflows/cibo-universal-function-contract.yml'
       - 'src/qore/infrastructure/cibo/**'
+      - 'src/qore/infrastructure/account_wide_risk.py'
+      - 'src/qore/infrastructure/cibo_capital_management_authority.py'
+      - 'src/qore/infrastructure/cibo_cma_risk_request.py'
+      - 'src/qore/infrastructure/cibo_compound_capital.py'
+      - 'src/qore/infrastructure/cibo_compound_path_monte_carlo.py'
+      - 'src/qore/infrastructure/cibo_compound_real_population_binding.py'
+      - 'src/qore/infrastructure/cibo_core_compound_portfolio.py'
+      - 'src/qore/infrastructure/cibo_internal_capital_market.py'
+      - 'src/qore/infrastructure/cibo_marginal_capital_utility_evidence.py'
+      - 'src/qore/infrastructure/cibo_meta_capital_memory.py'
+      - 'scripts/cibo_cognitive_trader_lab_audit.py'
+      - 'scripts/cibo_full_function_trader_lab_audit.py'
+      - 'scripts/cibo_compound_trader_lab_audit.py'
+      - 'scripts/cibo_compound_trader_lab_completion_audit.py'
+      - 'tests/infrastructure/test_cibo_universal_runtime_identity.py'
       - 'src/qore/infrastructure/trader_lab/cibo_functional_receipt.py'
       - 'tests/infrastructure/test_cibo/**'
       - 'tests/infrastructure/trader_lab/test_cibo_functional_receipt.py'
@@ -42,11 +72,92 @@ jobs:
         run: |
           python -m compileall -q \
             src/qore/infrastructure/cibo \
-            src/qore/infrastructure/trader_lab/cibo_functional_receipt.py
+            src/qore/infrastructure/account_wide_risk.py \
+            src/qore/infrastructure/cibo_capital_management_authority.py \
+            src/qore/infrastructure/cibo_cma_risk_request.py \
+            src/qore/infrastructure/cibo_compound_capital.py \
+            src/qore/infrastructure/cibo_compound_path_monte_carlo.py \
+            src/qore/infrastructure/cibo_compound_real_population_binding.py \
+            src/qore/infrastructure/cibo_core_compound_portfolio.py \
+            src/qore/infrastructure/cibo_internal_capital_market.py \
+            src/qore/infrastructure/cibo_marginal_capital_utility_evidence.py \
+            src/qore/infrastructure/cibo_meta_capital_memory.py \
+            src/qore/infrastructure/trader_lab/cibo_functional_receipt.py \
+            scripts/cibo_cognitive_trader_lab_audit.py \
+            scripts/cibo_full_function_trader_lab_audit.py \
+            scripts/cibo_compound_trader_lab_audit.py \
+            scripts/cibo_compound_trader_lab_completion_audit.py
       - name: Prove permanent universal availability
         run: |
           pytest -q --no-cov \
             tests/infrastructure/test_cibo/test_functional_availability.py
+      - name: Prove arbitrary Trader and symbol runtime identity
+        run: |
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_universal_runtime_identity.py \
+            tests/infrastructure/test_account_wide_risk.py \
+            tests/infrastructure/test_cibo_capital_management_authority.py \
+            tests/infrastructure/test_cibo_cma_risk_request.py \
+            tests/infrastructure/test_cibo_compound_path_monte_carlo.py \
+            tests/infrastructure/test_cibo_compound_real_population_binding.py \
+            tests/infrastructure/test_cibo_core_compound_portfolio.py \
+            tests/infrastructure/test_cibo_internal_capital_market.py \
+            tests/infrastructure/test_cibo_meta_capital_memory.py
+      - name: Reject semantic Trader or symbol allowlists
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          cognitive = Path("src/qore/infrastructure/cibo")
+          forbidden_market_tokens = (
+              "VT08_FOREX", "R34_XAUUSD", "R38_EURUSD", "R43_GBPUSD",
+              "R38_GBPJPY", "R42_AUDJPY", "VT31_NAS100",
+              '"EURUSD"', '"XAUUSD"', '"GBPUSD"', '"GBPJPY"',
+              '"AUDJPY"', '"NAS100"', '"BTCUSD"', '"USDCAD"', '"EURAUD"',
+          )
+          violations = []
+          for path in sorted(cognitive.glob("*.py")):
+              text = path.read_text(encoding="utf-8")
+              for token in forbidden_market_tokens:
+                  if token in text:
+                      violations.append(f"{path}:{token}")
+
+          audit_paths = (
+              Path("scripts/cibo_cognitive_trader_lab_audit.py"),
+              Path("scripts/cibo_full_function_trader_lab_audit.py"),
+              Path("scripts/cibo_compound_trader_lab_audit.py"),
+              Path("scripts/cibo_compound_trader_lab_completion_audit.py"),
+          )
+          for path in audit_paths:
+              text = path.read_text(encoding="utf-8")
+              for token in ("TRADERS = (", "TraderLineage(trader)"):
+                  if token in text:
+                      violations.append(f"{path}:{token}")
+
+          runtime_paths = (
+              Path("src/qore/infrastructure/cibo_capital_management_authority.py"),
+              Path("src/qore/infrastructure/cibo_cma_risk_request.py"),
+              Path("src/qore/infrastructure/cibo_compound_capital.py"),
+              Path("src/qore/infrastructure/cibo_compound_path_monte_carlo.py"),
+              Path("src/qore/infrastructure/cibo_compound_real_population_binding.py"),
+              Path("src/qore/infrastructure/cibo_core_compound_portfolio.py"),
+              Path("src/qore/infrastructure/cibo_internal_capital_market.py"),
+              Path("src/qore/infrastructure/cibo_marginal_capital_utility_evidence.py"),
+              Path("src/qore/infrastructure/cibo_meta_capital_memory.py"),
+          )
+          for path in runtime_paths:
+              text = path.read_text(encoding="utf-8")
+              for token in (
+                  "type(self.trader_id) is not TraderLineage",
+                  "type(self.origin_trader) is not TraderLineage",
+                  ".trader_id.value",
+                  ".origin_trader.value",
+              ):
+                  if token in text:
+                      violations.append(f"{path}:{token}")
+
+          assert not violations, "non-universal CIBO contracts: " + ", ".join(violations)
+          PY
       - name: Prove Trader Lab authority and no gate skipping
         run: |
           pytest -q --no-cov \
@@ -62,6 +173,10 @@ jobs:
           ruff check \
             src/qore/infrastructure/cibo/contracts.py \
             src/qore/infrastructure/cibo/functional_availability.py \
+            src/qore/infrastructure/account_wide_risk.py \
+            src/qore/infrastructure/cibo_capital_management_authority.py \
+            src/qore/infrastructure/cibo_cma_risk_request.py \
+            tests/infrastructure/test_cibo_universal_runtime_identity.py \
             src/qore/infrastructure/trader_lab/cibo_functional_receipt.py \
             tests/infrastructure/test_cibo/test_functional_availability.py \
             tests/infrastructure/trader_lab/test_cibo_functional_receipt.py
