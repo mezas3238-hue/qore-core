@@ -7,6 +7,7 @@ on:
     paths:
       - '.github/workflows/cibo-t02-multitimeframe-trader-lab-arch2.yml'
       - 'scripts/cibo_t02_multitimeframe_trader_lab_arch2.py'
+      - 'scripts/cibo_t02_vt31_m1_context_arch2.py'
       - 'scripts/cibo_t02_deep_science_arch2.py'
       - 'docs/research/CIBO-T02-MULTITIMEFRAME-TRADER-LAB-ARCH2-PROTOCOL.json'
   workflow_dispatch:
@@ -26,6 +27,8 @@ jobs:
       GBPUSD_ARTIFACT_ID: '11256465614'
       GBPJPY_ARTIFACT_ID: '11255244229'
       AUDJPY_ARTIFACT_ID: '11256249712'
+      VT31_ARTIFACT_ID: '11255438950'
+      VT31_M1_SOURCE_ARTIFACT_ID: '11245896861'
       SOURCE_HEAD_SHA: '3e2e6ca898d400d8ed8359659ed032708cf7eeb3'
       GH_TOKEN: ${{ github.token }}
 
@@ -43,16 +46,19 @@ jobs:
           set -euo pipefail
           python -m py_compile \
             scripts/cibo_t02_deep_science_arch2.py \
+            scripts/cibo_t02_vt31_m1_context_arch2.py \
             scripts/cibo_t02_multitimeframe_trader_lab_arch2.py
           ruff check \
             scripts/cibo_t02_deep_science_arch2.py \
+            scripts/cibo_t02_vt31_m1_context_arch2.py \
             scripts/cibo_t02_multitimeframe_trader_lab_arch2.py
           python - <<'PY'
           import json
           from pathlib import Path
           p=json.loads(Path('docs/research/CIBO-T02-MULTITIMEFRAME-TRADER-LAB-ARCH2-PROTOCOL.json').read_text())
           assert p['mode'] == 'NON_CERTIFYING_REUSED_HOLDOUT_RESEARCH'
-          assert p['timeframes']['required_from_current_native_evidence'] == ['D1','H4','H1','M5']
+          assert p['timeframes']['required_from_current_native_evidence'] == ['D1','H4','H1','M5','M1']
+          assert p['timeframes']['m1_binding']['retained_m1_bars'] == 158005
           assert p['trader_lab']['require_real_candidate_binding'] is True
           assert p['governance']['no_broker_mutation'] is True
           PY
@@ -76,6 +82,13 @@ jobs:
             gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$id/zip" > "$RUNNER_TEMP/$name.zip"
             unzip -q "$RUNNER_TEMP/$name.zip" -d "$RUNNER_TEMP/native/$name"
           done
+          mkdir -p "$RUNNER_TEMP/native/vt31" "$RUNNER_TEMP/m1-source"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$VT31_ARTIFACT_ID/zip" > "$RUNNER_TEMP/vt31.zip"
+          unzip -q "$RUNNER_TEMP/vt31.zip" -d "$RUNNER_TEMP/native/vt31"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$VT31_M1_SOURCE_ARTIFACT_ID/zip" > "$RUNNER_TEMP/vt31-m1.zip"
+          unzip -q "$RUNNER_TEMP/vt31-m1.zip" -d "$RUNNER_TEMP/m1-source"
+          test -s "$RUNNER_TEMP/native/vt31/vt31.json"
+          test -s "$RUNNER_TEMP/m1-source/RAW_M1_LEDGER/holdout-v4.jsonl"
           test -s "$RUNNER_TEMP/p0/decision-trace.json"
           test -s "$RUNNER_TEMP/p0/lab-result.json"
 
@@ -98,12 +111,22 @@ jobs:
             --lab-result "$RUNNER_TEMP/p0/lab-result.json" \
             --output-dir "$RUNNER_TEMP/t02-base"
 
+      - name: Augment causal dataset with VT31 M1 predecision context
+        run: |
+          set -euo pipefail
+          python scripts/cibo_t02_vt31_m1_context_arch2.py \
+            --base-causal-dataset "$RUNNER_TEMP/t02-base/t02-causal-dataset-arch2.jsonl" \
+            --decision-trace "$RUNNER_TEMP/p0/decision-trace.json" \
+            --vt31-native "$RUNNER_TEMP/native/vt31/vt31.json" \
+            --m1-ledger "$RUNNER_TEMP/m1-source/RAW_M1_LEDGER/holdout-v4.jsonl" \
+            --output "$RUNNER_TEMP/t02-base/t02-causal-dataset-m1-augmented-arch2.jsonl"
+
       - name: Execute multitimeframe Explorer and frozen Validator
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/t02-multitimeframe"
           python scripts/cibo_t02_multitimeframe_trader_lab_arch2.py \
-            --causal-dataset "$RUNNER_TEMP/t02-base/t02-causal-dataset-arch2.jsonl" \
+            --causal-dataset "$RUNNER_TEMP/t02-base/t02-causal-dataset-m1-augmented-arch2.jsonl" \
             --trader-lab-audit "$RUNNER_TEMP/trader-lab/audit.json" \
             --output-dir "$RUNNER_TEMP/t02-multitimeframe"
 
@@ -116,8 +139,9 @@ jobs:
           root=Path(os.environ['RUNNER_TEMP'])/'t02-multitimeframe'
           p=json.loads((root/'t02-multitimeframe-trader-lab-report.json').read_text())
           assert p['population']['candidate_binding_count'] == 7
-          assert p['population']['rich_context_core_selected_count'] == 127
-          assert p['population']['available_timeframes'] == ['D1','H4','H1','M5']
+          assert p['population']['rich_context_core_selected_count'] == 145
+          assert p['population']['available_timeframes'] == ['D1','H4','H1','M5','M1']
+          assert p['population']['timeframe_coverage']['M1']['rows_with_all_keys'] == 18
           assert p['population']['missing_timeframes_are_never_invented'] is True
           assert p['explorer']['training_feature_policy'] == 'X_PREDECISION_ONLY'
           assert p['explorer']['outcome_features_forbidden_as_rule_inputs'] is True
@@ -136,6 +160,7 @@ jobs:
           path: |
             ${{ runner.temp }}/trader-lab/audit.json
             ${{ runner.temp }}/t02-base/t02-causal-dataset-arch2.jsonl
+            ${{ runner.temp }}/t02-base/t02-causal-dataset-m1-augmented-arch2.jsonl
             ${{ runner.temp }}/t02-multitimeframe
           if-no-files-found: error
           retention-days: 90
