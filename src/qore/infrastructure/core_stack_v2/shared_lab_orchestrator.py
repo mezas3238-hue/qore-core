@@ -15,6 +15,7 @@ from dataclasses import asdict, replace
 from pathlib import Path
 from typing import Any
 
+from qore.infrastructure.core_stack_v2.shared_lab_cancel import CancellationToken
 from qore.infrastructure.core_stack_v2.shared_lab_manifest import LAB_VERSION
 from qore.infrastructure.core_stack_v2.shared_lab_native_model import (
     CacheKey,
@@ -101,6 +102,10 @@ def _request_payload(request: RunRequest) -> dict[str, Any]:
         "scenario": request.scenario,
         "use_cache": request.use_cache,
         "reproduces_run_id": request.reproduces_run_id,
+        "submitted_by": request.submitted_by,
+        "submitted_role": request.submitted_role,
+        "dependency_hashes": request.dependency_hashes,
+        "exclusive_locks": request.exclusive_locks,
     }
 
 
@@ -143,8 +148,15 @@ class NativeLabOrchestrator:
         self.registry = registry or default_native_suite_registry()
         self.registry.load_plugins(self.state_dir / "plugins")
 
-    def run(self, request: RunRequest) -> RunSummary:
+    def run(
+        self,
+        request: RunRequest,
+        cancellation_token: CancellationToken | None = None,
+    ) -> RunSummary:
         started_at_ns = time.time_ns()
+        token = cancellation_token or CancellationToken()
+        if token.cancelled:
+            raise RuntimeError("native lab run cancelled before preparation")
         runtime = RepositoryRuntime(Path(request.repo_path))
         snapshot = runtime.resolve(
             repository=request.repository,
@@ -192,6 +204,7 @@ class NativeLabOrchestrator:
                 run_dir=run_dir,
                 pending=pending,
                 completed=completed,
+                cancellation_token=token,
             )
 
         disposition = self._final_disposition(tuple(completed.values()))
@@ -239,6 +252,7 @@ class NativeLabOrchestrator:
         run_dir: Path,
         pending: dict[str, TaskSpec],
         completed: dict[str, TaskResult],
+        cancellation_token: CancellationToken,
     ) -> None:
         worker_index = 0
         with ThreadPoolExecutor(
@@ -246,6 +260,14 @@ class NativeLabOrchestrator:
             thread_name_prefix="shared-lab-worker",
         ) as executor:
             while pending:
+                if cancellation_token.cancelled:
+                    now = time.time_ns()
+                    for task in tuple(pending.values()):
+                        result = self._cancelled_result(task, now)
+                        completed[task.task_id] = result
+                        self.evidence_store.write_task_result(identity.run_id, result)
+                        del pending[task.task_id]
+                    break
                 progress = False
                 blocked = [
                     task
@@ -296,6 +318,7 @@ class NativeLabOrchestrator:
                         task,
                         worker_id,
                         completed.copy(),
+                        cancellation_token,
                     )
                     futures[future] = (task, worker_id)
                     del pending[task.task_id]
@@ -344,6 +367,7 @@ class NativeLabOrchestrator:
         task: TaskSpec,
         worker_id: str,
         completed: dict[str, TaskResult],
+        cancellation_token: CancellationToken,
     ) -> TaskResult:
         started = time.time_ns()
         component_hash = _component_hash(worktree, task.component_globs)
@@ -400,6 +424,10 @@ class NativeLabOrchestrator:
         limits_applied = False
         returncode = 1
         while attempts <= task.retries:
+            if cancellation_token.cancelled:
+                state = TaskState.CANCELLED
+                reason = "cancelled before process start"
+                break
             attempts += 1
             process = subprocess.Popen(
                 command,
@@ -420,19 +448,41 @@ class NativeLabOrchestrator:
                 state = TaskState.INCOMPLETE
                 reason = "resource limits could not be applied; fail-closed"
                 break
-            try:
-                final_stdout, final_stderr = process.communicate(
-                    timeout=task.timeout_seconds
-                )
-                returncode = process.returncode
-            except subprocess.TimeoutExpired:
-                process.kill()
-                out, err = process.communicate()
-                final_stdout += out
-                final_stderr += err
-                state = TaskState.INCOMPLETE
-                reason = f"timeout after {task.timeout_seconds}s"
+            deadline = time.monotonic() + task.timeout_seconds
+            while True:
+                if cancellation_token.cancelled:
+                    process.kill()
+                    out, err = process.communicate()
+                    final_stdout += out
+                    final_stderr += err
+                    returncode = process.returncode
+                    state = TaskState.CANCELLED
+                    reason = "cancelled by scheduler"
+                    break
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    process.kill()
+                    out, err = process.communicate()
+                    final_stdout += out
+                    final_stderr += err
+                    returncode = process.returncode
+                    state = TaskState.TIMEOUT
+                    reason = f"timeout after {task.timeout_seconds}s"
+                    break
+                try:
+                    final_stdout, final_stderr = process.communicate(
+                        timeout=min(0.1, remaining)
+                    )
+                    returncode = process.returncode
+                    break
+                except subprocess.TimeoutExpired:
+                    continue
+            if state is TaskState.CANCELLED:
+                break
+            if state is TaskState.TIMEOUT:
                 if attempts <= task.retries:
+                    state = TaskState.FAIL
+                    reason = None
                     continue
                 break
             if returncode == 0:
@@ -536,6 +586,31 @@ class NativeLabOrchestrator:
         )
 
     @staticmethod
+    def _cancelled_result(task: TaskSpec, now: int) -> TaskResult:
+        reason = "cancelled before task execution"
+        return TaskResult(
+            task_id=task.task_id,
+            suite=task.suite,
+            scope=task.scope,
+            state=TaskState.CANCELLED,
+            worker_id="CANCELLED",
+            started_at_ns=now,
+            ended_at_ns=now,
+            duration_ms=0.0,
+            attempts=0,
+            cache_hit=False,
+            tests_total=0,
+            tests_passed=0,
+            tests_failed=0,
+            stdout_path="",
+            stderr_path="",
+            artifact_hash=sha256_bytes(reason.encode()),
+            failure_reason=reason,
+            resource_limits_applied=False,
+            cache_key="",
+        )
+
+    @staticmethod
     def _final_disposition(
         results: tuple[TaskResult, ...],
     ) -> RunDisposition:
@@ -544,6 +619,10 @@ class NativeLabOrchestrator:
             return RunDisposition.INVALID_EVIDENCE
         if TaskState.INVALID_EVIDENCE in states:
             return RunDisposition.INVALID_EVIDENCE
+        if TaskState.CANCELLED in states:
+            return RunDisposition.CANCELLED
+        if TaskState.TIMEOUT in states:
+            return RunDisposition.TIMEOUT
         if TaskState.FAIL in states:
             return RunDisposition.FAIL
         if TaskState.INCOMPLETE in states:
@@ -563,6 +642,8 @@ class NativeLabOrchestrator:
             "python_executable": sys.executable,
             "platform": platform.platform(),
             "lab_version": LAB_VERSION,
+            "submitted_by": "",
+            "submitted_role": "",
             "execution_engine": "QORE_SHARED_LAB_NATIVE",
             "github_actions_detected": os.environ.get("GITHUB_ACTIONS") == "true",
             "github_actions_required": False,
