@@ -237,6 +237,12 @@ class CompoundLeverageDecision:
     requested_multiplier: Decimal
     effective_multiplier: Decimal
     genc8_posture: str
+    t11_requested_volume: Decimal
+    t11_gross_edge_per_volume_usd: Decimal
+    t11_spread_cost_per_volume_usd: Decimal
+    t11_commission_cost_per_volume_usd: Decimal
+    t11_slippage_cost_per_volume_usd: Decimal
+    t11_impact_cost_per_volume_squared_usd: Decimal
     t11_execution_cap_volume: Decimal
     t11_allows_compound: bool
     reason: str
@@ -253,6 +259,11 @@ class CompoundLeverageDecision:
         for name in (
             "requested_multiplier",
             "effective_multiplier",
+            "t11_requested_volume",
+            "t11_spread_cost_per_volume_usd",
+            "t11_commission_cost_per_volume_usd",
+            "t11_slippage_cost_per_volume_usd",
+            "t11_impact_cost_per_volume_squared_usd",
             "t11_execution_cap_volume",
         ):
             value = getattr(self, name)
@@ -264,6 +275,13 @@ class CompoundLeverageDecision:
                 raise CiboCapitalManagementError(
                     f"compound leverage {name} must be finite non-negative Decimal"
                 )
+        if (
+            not isinstance(self.t11_gross_edge_per_volume_usd, Decimal)
+            or not self.t11_gross_edge_per_volume_usd.is_finite()
+        ):
+            raise CiboCapitalManagementError(
+                "compound leverage T11 gross edge must be finite Decimal"
+            )
         if self.effective_multiplier > self.requested_multiplier:
             raise CiboCapitalManagementError(
                 "compound leverage cannot exceed requested multiplier"
@@ -292,6 +310,27 @@ class CompoundLeverageDecision:
             "requested_multiplier": format(self.requested_multiplier, "f"),
             "effective_multiplier": format(self.effective_multiplier, "f"),
             "genc8_posture": self.genc8_posture,
+            "t11_requested_volume": format(self.t11_requested_volume, "f"),
+            "t11_gross_edge_per_volume_usd": format(
+                self.t11_gross_edge_per_volume_usd,
+                "f",
+            ),
+            "t11_spread_cost_per_volume_usd": format(
+                self.t11_spread_cost_per_volume_usd,
+                "f",
+            ),
+            "t11_commission_cost_per_volume_usd": format(
+                self.t11_commission_cost_per_volume_usd,
+                "f",
+            ),
+            "t11_slippage_cost_per_volume_usd": format(
+                self.t11_slippage_cost_per_volume_usd,
+                "f",
+            ),
+            "t11_impact_cost_per_volume_squared_usd": format(
+                self.t11_impact_cost_per_volume_squared_usd,
+                "f",
+            ),
             "t11_execution_cap_volume": format(
                 self.t11_execution_cap_volume,
                 "f",
@@ -516,42 +555,68 @@ def _t11_execution_cap(
     requested_volume: Decimal,
     expected_structural_value_usd: Decimal,
     provider_envelope: object,
-) -> tuple[Decimal, str]:
-    """Apply causal linear execution economics without inventing market impact."""
+) -> tuple[Decimal, str, dict[str, Decimal]]:
+    """Apply causal execution economics and expose the exact consumed inputs."""
 
     if requested_volume <= 0:
-        return Decimal(0), "T11 requested volume is non-positive"
+        return (
+            Decimal(0),
+            "T11 requested volume is non-positive",
+            {
+                "requested_volume": requested_volume,
+                "gross_edge_per_volume_usd": Decimal(0),
+                "spread_cost_per_volume_usd": Decimal(0),
+                "commission_cost_per_volume_usd": Decimal(0),
+                "slippage_cost_per_volume_usd": Decimal(0),
+                "impact_cost_per_volume_squared_usd": Decimal(0),
+            },
+        )
     structural_edge_per_volume = (
         expected_structural_value_usd / requested_volume
     )
+    spread = provider_envelope.spread_cost_per_volume_usd
+    commission = provider_envelope.commission_per_volume_usd
+    slippage = provider_envelope.slippage_reserve_per_volume_usd
+    impact = (
+        slippage
+        / max(
+            provider_envelope.maximum_volume,
+            provider_envelope.volume_step,
+        )
+    )
+    inputs = {
+        "requested_volume": requested_volume,
+        "gross_edge_per_volume_usd": structural_edge_per_volume,
+        "spread_cost_per_volume_usd": spread,
+        "commission_cost_per_volume_usd": commission,
+        "slippage_cost_per_volume_usd": slippage,
+        "impact_cost_per_volume_squared_usd": impact,
+    }
     if structural_edge_per_volume <= 0:
         return (
             Decimal(0),
             "T11 frozen structural expectation is non-positive before execution cost",
+            inputs,
         )
     curve = ExecutionCostCurveInput(
         evidence_id="cibo-burned-research-linear-provider-economics",
         volume_step=provider_envelope.volume_step,
         maximum_volume=requested_volume,
         gross_edge_per_volume_usd=structural_edge_per_volume,
-        spread_cost_per_volume_usd=provider_envelope.spread_cost_per_volume_usd,
-        commission_cost_per_volume_usd=provider_envelope.commission_per_volume_usd,
-        slippage_cost_per_volume_usd=(
-            provider_envelope.slippage_reserve_per_volume_usd
-        ),
-        impact_cost_per_volume_squared_usd=(
-            provider_envelope.slippage_reserve_per_volume_usd
-            / max(
-                provider_envelope.maximum_volume,
-                provider_envelope.volume_step,
-            )
-        ),
+        spread_cost_per_volume_usd=spread,
+        commission_cost_per_volume_usd=commission,
+        slippage_cost_per_volume_usd=slippage,
+        impact_cost_per_volume_squared_usd=impact,
     )
     cap = execution_efficient_volume_cap(curve)
-    return cap.volume_cap, (
-        cap.reason
-        + "; nonlinear impact uses the preregistered provider-slippage upper-bound "
-        "proxy and carries no empirical-certification claim"
+    return (
+        cap.volume_cap,
+        (
+            cap.reason
+            + "; nonlinear impact uses the preregistered provider-slippage upper-bound "
+            "proxy and carries no empirical-certification claim"
+        ),
+        inputs,
     )
 
 
@@ -1208,11 +1273,23 @@ def run_compound_portfolio_lane(
                 effective_multiplier = requested_multiplier
                 final_t11_cap = volume
                 final_t11_reason = "T11 not yet evaluated"
+                final_t11_inputs = {
+                    "requested_volume": volume,
+                    "gross_edge_per_volume_usd": Decimal(0),
+                    "spread_cost_per_volume_usd": Decimal(0),
+                    "commission_cost_per_volume_usd": Decimal(0),
+                    "slippage_cost_per_volume_usd": Decimal(0),
+                    "impact_cost_per_volume_squared_usd": Decimal(0),
+                }
                 final_posture = _genc8_posture(capital_science)
                 for _iteration in range(4):
                     final_posture = _genc8_posture(capital_science)
                     genc8_cap = _GENC8_MULTIPLIER_CAP[final_posture]
-                    final_t11_cap, final_t11_reason = _t11_execution_cap(
+                    (
+                        final_t11_cap,
+                        final_t11_reason,
+                        final_t11_inputs,
+                    ) = _t11_execution_cap(
                         requested_volume=volume,
                         expected_structural_value_usd=(
                             expectation.expected_net_value_usd
@@ -1302,6 +1379,24 @@ def run_compound_portfolio_lane(
                         requested_multiplier=requested_multiplier,
                         effective_multiplier=effective_multiplier,
                         genc8_posture=final_posture,
+                        t11_requested_volume=final_t11_inputs[
+                            "requested_volume"
+                        ],
+                        t11_gross_edge_per_volume_usd=final_t11_inputs[
+                            "gross_edge_per_volume_usd"
+                        ],
+                        t11_spread_cost_per_volume_usd=final_t11_inputs[
+                            "spread_cost_per_volume_usd"
+                        ],
+                        t11_commission_cost_per_volume_usd=final_t11_inputs[
+                            "commission_cost_per_volume_usd"
+                        ],
+                        t11_slippage_cost_per_volume_usd=final_t11_inputs[
+                            "slippage_cost_per_volume_usd"
+                        ],
+                        t11_impact_cost_per_volume_squared_usd=final_t11_inputs[
+                            "impact_cost_per_volume_squared_usd"
+                        ],
                         t11_execution_cap_volume=final_t11_cap,
                         t11_allows_compound=(effective_multiplier > 0),
                         reason=(
