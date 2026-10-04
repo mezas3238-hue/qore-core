@@ -11,8 +11,6 @@ import urllib.request
 from dataclasses import dataclass
 from typing import Any
 
-from qore.infrastructure.core_stack_v2.shared_lab_native_model import RunSummary
-
 
 @dataclass(frozen=True, slots=True)
 class PublicationReceipt:
@@ -27,30 +25,37 @@ class GitHubResultPublisher:
             raise ValueError("GitHub publication token is required")
         self.token = token
 
-    def publish(
+    def publish_evidence(
         self,
         *,
         repository: str,
-        summary: RunSummary,
+        evidence: dict[str, Any],
     ) -> PublicationReceipt:
+        identity = dict(evidence["identity"])
+        sha = str(identity["commit_sha"])
+        tasks = dict(evidence.get("tasks", {}))
         contexts: list[str] = []
-        for result in summary.task_results:
-            context = f"Shared Lab / {result.suite.value} / {result.scope.value}"
+        for task_id, raw in sorted(tasks.items()):
+            task = dict(raw)
+            suite = str(task["suite"])
+            scope = str(task["scope"])
+            state = str(task["state"])
+            context = f"Shared Lab / {suite} / {scope}"
             self._post_status(
                 repository=repository,
-                sha=summary.identity.commit_sha,
+                sha=sha,
                 context=context,
-                success=result.passed,
+                success=state == "PASS",
                 description=(
                     "PASS from native QORE Shared Lab"
-                    if result.passed
-                    else f"{result.state.value}: {result.failure_reason or 'no reason'}"
+                    if state == "PASS"
+                    else f"{state}: {task.get('failure_reason') or task_id}"
                 )[:140],
             )
             contexts.append(context)
         return PublicationReceipt(
             repository=repository,
-            commit_sha=summary.identity.commit_sha,
+            commit_sha=sha,
             contexts_published=tuple(contexts),
         )
 
