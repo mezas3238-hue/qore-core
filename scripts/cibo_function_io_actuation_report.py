@@ -524,6 +524,7 @@ def _ce2i_rows(
     opportunities: list[dict[str, Any]],
     coverage: dict[str, dict[str, Any]],
     group: dict[str, Any],
+    three_lane: dict[str, Any],
 ) -> list[dict[str, Any]]:
     decisions: dict[str, list[dict[str, Any]]] = {code: [] for code in T_CODES}
     effects: Counter[str] = Counter()
@@ -933,7 +934,7 @@ def main() -> int:
 
     rows = (
         _cognitive_rows(opportunities)
-        + _ce2i_rows(opportunities, coverage, group)
+        + _ce2i_rows(opportunities, coverage, group, three_lane)
         + _genc_rows(capital)
     )
     runtime_ok = {
