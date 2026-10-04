@@ -171,6 +171,14 @@ def build_cibo_profitability_decision_trace(
             raise CiboCapitalManagementError(
                 "profitability trace faculty I/O/authority receipt drift"
             )
+        context_quality_rows = _list_of_objects(
+            policy_payload.get("context_quality_decisions", []),
+            "context quality decisions",
+        )
+        context_quality_by_signal = {
+            _required_string(item.get("signal_fingerprint"), "signal_fingerprint"): item
+            for item in context_quality_rows
+        }
         economic_application = _object(
             policy_payload.get("advanced_economic_application"),
             "advanced_economic_application",
@@ -304,6 +312,7 @@ def build_cibo_profitability_decision_trace(
                         ),
                     },
                     "expectation": candidate.get("expectation"),
+                    "context_quality": context_quality_by_signal.get(signal),
                     "ce2i": {
                         "registered_tools": list(_T_CODES),
                         "enabled_tools": list(enabled_tools),
