@@ -6,8 +6,9 @@ import hashlib
 import json
 from dataclasses import dataclass
 from enum import StrEnum
+from collections.abc import Iterable, Mapping
 from itertools import product
-from typing import Any, Iterable, Mapping
+from typing import Any
 
 from qore.infrastructure.core_stack_v2.shared_lab import LabFault
 
