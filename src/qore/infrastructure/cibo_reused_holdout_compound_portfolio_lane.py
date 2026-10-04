@@ -50,6 +50,11 @@ from qore.infrastructure.cibo_capital_science_runtime_bridge import (
     build_capital_science_postrun_receipts,
     evaluate_capital_science_predecision,
 )
+from qore.infrastructure.cibo_ce2i_dynamic_derisking import (
+    CiboDeRiskAction,
+    CiboDeRiskingInput,
+    plan_dynamic_derisking,
+)
 from qore.infrastructure.cibo_ce2i_execution_efficiency import (
     ExecutionCostCurveInput,
     execution_efficient_volume_cap,
@@ -230,6 +235,84 @@ class CompoundPortfolioTrade:
 
 
 @dataclass(frozen=True, slots=True)
+class CompoundT14DeRiskDecision:
+    signal_fingerprint: str
+    trader_id: str
+    decision_at: datetime
+    pre_volume: Decimal
+    retained_volume: Decimal
+    reduction_volume: Decimal
+    released_stop_risk_usd: Decimal
+    released_margin_usd: Decimal
+    retention_factor: Decimal
+    action: str
+    reason: str
+
+    def __post_init__(self) -> None:
+        if not self.signal_fingerprint or not self.trader_id or not self.reason:
+            raise CiboCapitalManagementError(
+                "compound T14 decision identity/reason required"
+            )
+        if self.decision_at.tzinfo is None or self.decision_at.utcoffset() is None:
+            raise CiboCapitalManagementError(
+                "compound T14 decision_at must be timezone-aware"
+            )
+        for name in (
+            "pre_volume",
+            "retained_volume",
+            "reduction_volume",
+            "released_stop_risk_usd",
+            "released_margin_usd",
+            "retention_factor",
+        ):
+            value = getattr(self, name)
+            if (
+                not isinstance(value, Decimal)
+                or not value.is_finite()
+                or value < 0
+            ):
+                raise CiboCapitalManagementError(
+                    f"compound T14 {name} must be finite non-negative Decimal"
+                )
+        if self.retention_factor > 1:
+            raise CiboCapitalManagementError(
+                "compound T14 retention factor cannot exceed one"
+            )
+        if self.action not in {
+            CiboDeRiskAction.HOLD.value,
+            CiboDeRiskAction.REDUCE.value,
+            CiboDeRiskAction.RELEASE_ALL.value,
+        }:
+            raise CiboCapitalManagementError("compound T14 action invalid")
+        if self.retained_volume + self.reduction_volume != self.pre_volume:
+            raise CiboCapitalManagementError(
+                "compound T14 volume conservation drift"
+            )
+
+    def payload(self) -> dict[str, object]:
+        return {
+            "signal_fingerprint": self.signal_fingerprint,
+            "trader_id": self.trader_id,
+            "decision_at": self.decision_at.isoformat(),
+            "pre_volume": format(self.pre_volume, "f"),
+            "retained_volume": format(self.retained_volume, "f"),
+            "reduction_volume": format(self.reduction_volume, "f"),
+            "released_stop_risk_usd": format(
+                self.released_stop_risk_usd,
+                "f",
+            ),
+            "released_margin_usd": format(self.released_margin_usd, "f"),
+            "retention_factor": format(self.retention_factor, "f"),
+            "action": self.action,
+            "reason": self.reason,
+            "causal_predecision": True,
+            "outcome_used": False,
+            "broker_mutation": False,
+            "risk_authority": False,
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class CompoundLeverageDecision:
     signal_fingerprint: str
     trader_id: str
@@ -340,6 +423,41 @@ class CompoundLeverageDecision:
             "causal_predecision": True,
             "outcome_used": False,
         }
+
+
+def _t14_compound_retention_factor(
+    regime_state: CiboCapitalRegimeState | None,
+) -> Decimal:
+    """Return a causal retention factor for incremental compound exposure."""
+
+    if regime_state is None:
+        return Decimal(1)
+    if regime_state.evidence_stale:
+        return Decimal(0)
+    factor = Decimal(1)
+    if regime_state.provider_condition.value == "UNAVAILABLE":
+        return Decimal(0)
+    if regime_state.provider_condition.value == "DEGRADED":
+        factor = min(factor, Decimal("0.50"))
+    if regime_state.liquidity.value == "STRESSED":
+        factor = min(factor, Decimal("0.50"))
+    elif regime_state.liquidity.value == "THIN":
+        factor = min(factor, Decimal("0.75"))
+    if regime_state.volatility.value == "DISLOCATED":
+        factor = min(factor, Decimal("0.50"))
+    elif regime_state.volatility.value == "ELEVATED":
+        factor = min(factor, Decimal("0.75"))
+    if regime_state.correlation.value == "BREAK":
+        factor = min(factor, Decimal("0.50"))
+    elif regime_state.correlation.value == "CONCENTRATED":
+        factor = min(factor, Decimal("0.75"))
+    if regime_state.drawdown_utilization >= Decimal("0.50"):
+        factor = min(factor, Decimal("0.50"))
+    elif regime_state.drawdown_utilization >= Decimal("0.25"):
+        factor = min(factor, Decimal("0.75"))
+    if regime_state.position_path_adverse:
+        factor = min(factor, Decimal("0.50"))
+    return factor
 
 
 _GENC8_MULTIPLIER_CAP = {
@@ -640,6 +758,7 @@ class CompoundPortfolioLaneResult:
     function_accountability: tuple[dict[str, object], ...]
     capital_science_receipts: tuple[dict[str, object], ...] = ()
     leverage_decisions: tuple[CompoundLeverageDecision, ...] = ()
+    t14_derisk_decisions: tuple[CompoundT14DeRiskDecision, ...] = ()
     dynamic_leverage_enabled: bool = False
     rational_redeploy_gate_enabled: bool = False
     noncertifying_research_redeploy_enabled: bool = False
@@ -686,6 +805,13 @@ class CompoundPortfolioLaneResult:
         ):
             raise CiboCapitalManagementError(
                 "compound leverage decisions must be canonical"
+            )
+        if any(
+            not isinstance(item, CompoundT14DeRiskDecision)
+            for item in self.t14_derisk_decisions
+        ):
+            raise CiboCapitalManagementError(
+                "compound T14 decisions must be canonical"
             )
         if type(self.rational_redeploy_gate_enabled) is not bool:
             raise CiboCapitalManagementError("compound rational redeploy gate flag must be bool")
@@ -764,6 +890,9 @@ class CompoundPortfolioLaneResult:
             "capital_science_receipts": list(self.capital_science_receipts),
             "leverage_decisions": [
                 item.payload() for item in self.leverage_decisions
+            ],
+            "t14_derisk_decisions": [
+                item.payload() for item in self.t14_derisk_decisions
             ],
             "dynamic_leverage_enabled": self.dynamic_leverage_enabled,
             "rational_redeploy_gate_enabled": self.rational_redeploy_gate_enabled,
@@ -868,6 +997,7 @@ def run_compound_portfolio_lane(
     blockers: Counter[str] = Counter()
     capital_science_receipts: list[CapitalScienceReceipt] = []
     leverage_decisions: list[CompoundLeverageDecision] = []
+    t14_derisk_decisions: list[CompoundT14DeRiskDecision] = []
     selected = allowed = reduced = rejected = cross_trader = 0
     peak_realized_capital = initial
 
@@ -1429,6 +1559,99 @@ def run_compound_portfolio_lane(
                         blockers["T11_EXECUTION_EFFICIENCY_REJECTED_COMPOUND"] += 1
                     rejected += 1
                     continue
+            t14_factor = _t14_compound_retention_factor(regime_state)
+            t14_pre_volume = volume
+            t14_decision = plan_dynamic_derisking(
+                CiboDeRiskingInput(
+                    current_volume=volume,
+                    minimum_retained_volume=base_volume,
+                    volume_step=opportunity.volume_step,
+                    stop_risk_per_volume_usd=opportunity.stop_loss_per_volume,
+                    margin_per_volume_usd=opportunity.margin_per_volume,
+                    maximum_retained_stop_risk_usd=risk * t14_factor,
+                    maximum_retained_margin_usd=margin * t14_factor,
+                    methodology_position_valid=True,
+                )
+            )
+            t14_derisk_decisions.append(
+                CompoundT14DeRiskDecision(
+                    signal_fingerprint=signal,
+                    trader_id=candidate.trader_id,
+                    decision_at=epoch.market_decision_at,
+                    pre_volume=t14_pre_volume,
+                    retained_volume=t14_decision.retained_volume,
+                    reduction_volume=t14_decision.reduction_volume,
+                    released_stop_risk_usd=(
+                        t14_decision.released_stop_risk_usd
+                    ),
+                    released_margin_usd=t14_decision.released_margin_usd,
+                    retention_factor=t14_factor,
+                    action=t14_decision.action.value,
+                    reason=t14_decision.reason,
+                )
+            )
+            if t14_decision.action is CiboDeRiskAction.RELEASE_ALL:
+                blockers["T14_DYNAMIC_DERISK_RELEASE_ALL"] += 1
+                rejected += 1
+                continue
+            if t14_decision.action is CiboDeRiskAction.REDUCE:
+                volume = t14_decision.retained_volume
+                risk = t14_decision.retained_stop_risk_usd
+                margin = t14_decision.retained_margin_usd
+                cost = (
+                    candidate.projection.provider_envelope.execution_cost_per_volume_usd
+                    * volume
+                )
+                loss_reserve = protected_loss_reserve_usd(risk)
+                expectation = build_frozen_train_expectation(
+                    trader_id=opportunity.trader_id,
+                    stop_risk_usd=risk,
+                    as_of=epoch.market_decision_at,
+                )
+                genc7 = capital_science_state.genc7_proposal
+                assert genc7 is not None
+                capital_science_state = replace(
+                    capital_science_state,
+                    protected_capacity_usd=min(
+                        funding_pool,
+                        committed_protected_reserve + loss_reserve,
+                    ),
+                    deployed_profit_usd=min(
+                        max(
+                            Decimal(0),
+                            funding_pool
+                            - committed_protected_reserve
+                            - loss_reserve,
+                        ),
+                        committed_deployed_profit,
+                    ),
+                    requested_stop_risk_usd=risk,
+                    requested_margin_usd=margin,
+                    provider_cost_usd=cost,
+                    expected_net_value_usd=expectation.expected_net_value_usd,
+                    expected_capital_minutes=expectation.expected_capital_minutes,
+                    known_simultaneous_opportunities=(
+                        _known_options_with_current_geometry(
+                            tuple(known_epoch_options),
+                            signal_fingerprint=signal,
+                            stop_risk_usd=risk,
+                            margin_usd=margin,
+                            provider_cost_usd=cost,
+                        )
+                    ),
+                    genc7_proposal=replace(
+                        genc7,
+                        amount_usd=risk + cost,
+                        evaluation_horizon_minutes=max(
+                            1,
+                            int(expectation.expected_capital_minutes) + 1,
+                        ),
+                    ),
+                )
+                capital_science = evaluate_capital_science_predecision(
+                    capital_science_state
+                )
+
             lane_receipts = _lane_owned_capital_science_receipts(
                 state=capital_science_state,
                 funding_pool_usd=funding_pool,
@@ -1740,6 +1963,7 @@ def run_compound_portfolio_lane(
         function_accountability=functions,
         capital_science_receipts=tuple(item.payload() for item in capital_science_receipts),
         leverage_decisions=tuple(leverage_decisions),
+        t14_derisk_decisions=tuple(t14_derisk_decisions),
         dynamic_leverage_enabled=lab_dynamic_leverage,
         rational_redeploy_gate_enabled=lab_require_rational_redeploy,
         noncertifying_research_redeploy_enabled=(lab_allow_noncertifying_research_redeploy),
