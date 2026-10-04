@@ -333,7 +333,7 @@ def test_partial_then_horizon_uses_original_settlement_not_last_close() -> None:
     )
 
     assert result.actions == (
-        "PARTIAL_REALIZATION_1R",
+        "PARTIAL_REALIZATION_AT_CLOSE",
         "HORIZON_ORIGINAL_SETTLEMENT",
     )
     assert result.gross_r == Decimal("-0.50")
