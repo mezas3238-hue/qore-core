@@ -66,3 +66,24 @@ def test_complete_evidence_items_have_no_blockers() -> None:
     ]
     assert complete
     assert all(not item.blockers for item in complete)
+
+
+def test_b6_progress_is_recorded_without_premature_freeze() -> None:
+    payload=build_shared_b_open_work_ledger()
+    items={item["work_id"]:item for item in payload["items"]}
+
+    b16=items["B-16"]
+    assert b16["status"] == "PARTIAL_EVIDENCE_OPEN"
+    assert "run:37228391397" in b16["evidence_refs"]
+    assert "artifact:11313231357" in b16["evidence_refs"]
+
+    b21=items["B-21"]
+    assert b21["status"] == "PARTIAL_EVIDENCE_OPEN"
+    assert "run:37228503625" in b21["evidence_refs"]
+    assert "artifact:11313306408" in b21["evidence_refs"]
+    assert any("22/24" in blocker for blocker in b21["blockers"])
+
+    assert items["B-22"]["status"] == "OPEN"
+    assert items["B-22"]["evidence_refs"] == ()
+    assert items["B-24"]["status"] == "OPEN"
+    assert items["B-24"]["evidence_refs"] == ()
