@@ -102,7 +102,7 @@ jobs:
             tests/infrastructure/test_core_stack_v2_shared_lab_seven_trader.py \
             tests/infrastructure/test_core_stack_v2_shared_lab_authority.py \
             tests/infrastructure/test_core_stack_v2_shared_lab_readiness.py \
-            tests/infrastructure/test_core_stack_v2_shared_lab_manifest.py \
+            tests/infrastructure/test_core_stack_v2_shared_lab_manifest.py
       - name: Mypy
         run: |
           mypy \
@@ -124,7 +124,7 @@ jobs:
             src/qore/infrastructure/core_stack_v2/shared_lab_seven_trader.py \
             src/qore/infrastructure/core_stack_v2/shared_lab_authority.py \
             src/qore/infrastructure/core_stack_v2/shared_lab_readiness.py \
-            src/qore/infrastructure/core_stack_v2/shared_lab_manifest.py \
+            src/qore/infrastructure/core_stack_v2/shared_lab_manifest.py
       - name: L0-L10 laboratory truth checks
         run: |
           pytest -q \
@@ -146,4 +146,4 @@ jobs:
             tests/infrastructure/test_core_stack_v2_shared_lab_seven_trader.py \
             tests/infrastructure/test_core_stack_v2_shared_lab_authority.py \
             tests/infrastructure/test_core_stack_v2_shared_lab_readiness.py \
-            tests/infrastructure/test_core_stack_v2_shared_lab_manifest.py \
+            tests/infrastructure/test_core_stack_v2_shared_lab_manifest.py
