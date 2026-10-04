@@ -1,0 +1,213 @@
+{
+  "identity": "QORE_SHARED_A3_INTEGRATION_MANIFEST_001",
+  "generated_for": "INTEGRATOR_2_A3_B4",
+  "repository": "mezas3238-hue/qore-core",
+  "branch": "agent/shared-architect-3-transversal-seam-001",
+  "manifest_parent_head": "9eaaec154674ad88e467e114e359abf9a21de751",
+  "shared_master_observed_head": "55144bb92abdc5135521f545667b94dcad555bb1",
+  "architect_a_source_head": "6b74c3cafc959deec2f37e98139b7e56f40af94f",
+  "architect_4_observed_head": "3757ab54c979977d1eb30874c7c8f33220e50f56",
+  "source_handoff_commit": "cc8c0953e54bdc60213831b417a1473b100b80cf",
+  "role": "ARCHITECT_3_CROSS_SYSTEM_CLOSURE_GLOBAL_COVERAGE_META_COGNITION",
+  "governance": {
+    "github_source_of_truth": true,
+    "pr_635_merge_authorized": false,
+    "live_authorized": false,
+    "production_authorized": false,
+    "real_capital_authorized": false,
+    "vps_changes_authorized": false,
+    "broker_mutation_authorized": false,
+    "shared_sizing_authority": false,
+    "shared_risk_authority": false,
+    "shared_execution_authority": false,
+    "protected_final_shared_holdout_opened": false,
+    "outcome_aware_gate_rescue_allowed": false,
+    "producer_master_zero_open_ledger_write_allowed": false,
+    "preferred_validation_plane": "QORE_SHARED_LAB",
+    "legacy_github_workflow_spam_allowed": false
+  },
+  "extraction": {
+    "seed_commit": "9eaaec154674ad88e467e114e359abf9a21de751",
+    "a3_owned_files_imported": 44,
+    "legacy_workflow_files_imported": 0,
+    "full_architect_a_branch_merge_performed": false,
+    "selective_ownership_extraction": true,
+    "clock_drift_known_ruff_i001_repaired": true
+  },
+  "workstreams": {
+    "A3-01_STI3_GLOBAL_ATTENTION": {
+      "disposition": "EXTERNAL_DEPENDENCY_BLOCKED_AFTER_LOCAL_FOUNDATION",
+      "sealed_local_evidence": [
+        "run:36785002617"
+      ],
+      "local_truth": [
+        "real board replay proven",
+        "source stress proven",
+        "scarcity exercised",
+        "deterministic scarce epochs proven",
+        "dropped signals remain observable",
+        "no downstream authority"
+      ],
+      "blockers": [
+        "global multi-family coverage not proven",
+        "7-Trader coverage not proven",
+        "requires A4 canonical identities and temporal comparability"
+      ]
+    },
+    "A3-02_STI10_GLOBAL_7_OF_7_PROJECTION": {
+      "disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "local_truth": [
+        "VT31 projection engineering/evidence inherited from Architect-A lane",
+        "VT31-only projection is not global 7/7 completion"
+      ],
+      "blockers": [
+        "B-06 canonical identity incomplete",
+        "B-07 canonical calendar bindings incomplete",
+        "B-08 temporal comparability not ready"
+      ]
+    },
+    "A3-03_MC05_HIERARCHICAL_WORLD_TEMPORAL_BRAIN": {
+      "disposition": "FOUNDATION_PROVEN_GLOBAL_COMPLETION_BLOCKED",
+      "sealed_local_evidence": [
+        "run:36774921202"
+      ],
+      "local_truth": [
+        "hierarchical world foundation proven",
+        "CROSS_MARKET_REGIME is treated as higher-timeframe context in A3-owned hierarchy"
+      ],
+      "blockers": [
+        "broader globally bound clocks require legitimate A4 observable-world temporal evidence",
+        "no unsupported global clock completion may be inferred"
+      ]
+    },
+    "A3-04_MC12_MARKET_FOUNDATION_MODEL": {
+      "disposition": "PARTIAL_GLOBAL_EVIDENCE_OPEN",
+      "local_truth": [
+        "foundation evidence contract and audit surfaces are present",
+        "single-family evidence cannot prove global market foundation-model completion"
+      ],
+      "blockers": [
+        "requires multiple legitimate market families/modalities",
+        "requires canonical B provenance and point-in-time semantics",
+        "B-06/B-07/B-08 global bindings remain incomplete"
+      ]
+    },
+    "A3-05_MC27_META_COGNITIVE_SCIENTIFIC_INTELLIGENCE": {
+      "disposition": "FUTURE_EVIDENCE_BLOCKED",
+      "preregistration": "docs/shared/evidence/QORE_SHARED_MC27_PROSPECTIVE_META_COGNITIVE_RESEARCH_CYCLE_001.json",
+      "future_research_oos": {
+        "start": "2026-10-01T00:00:00Z",
+        "end": "2026-11-01T00:00:00Z",
+        "minimum_trading_days": 20,
+        "minimum_scored_observations": 500,
+        "protected_final_certification_holdout": false
+      },
+      "blockers": [
+        "full preregistered future window not mature",
+        "future OOS improvement cannot be fabricated before maturity"
+      ]
+    },
+    "A3-06_MC28_STANDARD_006_DIAGNOSTICS": {
+      "disposition": "PARTIAL_DIAGNOSTIC_CLOSURE",
+      "completed_diagnostics": {
+        "mapping_errors": "run:36784125359",
+        "model_runtime_instability": "run:36784322253",
+        "broker_provider_mismatch": "run:36796674458"
+      },
+      "clock_drift": {
+        "disposition": "ENGINEERING_REPAIRED_SCIENTIFIC_OUTCOME_NOT_YET_OBSERVED",
+        "historical_failed_runs": [
+          "run:36805294495",
+          "run:36806044876",
+          "run:36806291534"
+        ],
+        "latest_failure_job": "job:110191250531",
+        "latest_failure_cause": "RUFF_I001_IMPORT_ORDER_BEFORE_REAL_EXPERIMENT",
+        "repair_commit": "9eaaec154674ad88e467e114e359abf9a21de751",
+        "experiment_policy": "READ_ONLY_CTRADER_DEMO_SPOT_TIMESTAMP_OBSERVATION",
+        "broker_mutation_allowed": false
+      },
+      "execution_quality_deterioration": {
+        "disposition": "SEALED_REAL_DEMO_POPULATION_REQUIRED",
+        "preregistration": "docs/shared/evidence/QORE_SHARED_MC28_EXECUTION_QUALITY_DETERIORATION_PREREGISTRATION_001.json",
+        "create_orders_to_populate_evidence_allowed": false,
+        "insufficient_population_disposition": "INSUFFICIENT"
+      }
+    },
+    "A3-07_WP10_WP12": {
+      "disposition": "INFRASTRUCTURE_READY_SCIENTIFIC_CLOSURE_OPEN",
+      "wp10_sealed_evidence": [
+        "run:36783698654"
+      ],
+      "wp10_truth": "infrastructure GREEN but scientific maturity waits for MC27 prospective evidence",
+      "wp12_truth": "refresh only from sealed evidence; future MC27 blocker must remain until maturity"
+    }
+  },
+  "architect_4_dependency_snapshot": {
+    "source": "src/qore/infrastructure/core_stack_v2/shared_b_open_work_ledger.py",
+    "B-06": {
+      "status": "PARTIAL_EVIDENCE_OPEN",
+      "blockers": [
+        "85/177 sensors have current reference mappings but not full tradable/listing/calendar/historical identity",
+        "5/177 GC dated contracts verified but front/roll/continuous identity unresolved",
+        "2/25 index sensors are legacy lineages without current automatic binding",
+        "12/25 index sensors lack explicit provider-to-official-index binding",
+        "73 crypto sensors have unit/scale semantics but provider-neutral identity remains unproven"
+      ]
+    },
+    "B-07": {
+      "status": "EXTERNALLY_BLOCKED",
+      "blockers": [
+        "verified canonical calendar bindings remain 0/177",
+        "FX requires distributed OTC weekly-state semantics",
+        "index, legacy-index, crypto and futures calendar requirements remain"
+      ]
+    },
+    "B-08": {
+      "status": "PARTIAL_EVIDENCE_OPEN",
+      "blockers": [
+        "B-08 readiness is NOT_READY",
+        "cadence/comparability/liquidity/temporal-skew registries are not frozen",
+        "canonical calendar binding incomplete"
+      ]
+    },
+    "B-09": {
+      "status": "PARTIAL_EVIDENCE_OPEN",
+      "blockers": [
+        "empirical stale-relation isolation waits for B-07/B-08 canonical comparability"
+      ]
+    },
+    "B-10": {
+      "status": "ARCHITECTURE_VALIDATED_EVIDENCE_OPEN",
+      "blockers": [
+        "empirical global relation population waits for canonical temporal comparability"
+      ]
+    }
+  },
+  "integration_contract": {
+    "architect_3_does_not_integrate_architect_4": true,
+    "integrator_2_is_only_pair_integrator": true,
+    "a3_may_consume": [
+      "canonical identity or UNKNOWN",
+      "calendar/temporal semantics",
+      "data-health/comparability",
+      "global world coverage",
+      "provider provenance",
+      "timestamped uncertainty"
+    ],
+    "a3_must_not_reimplement": [
+      "B acquisition",
+      "B identity resolution",
+      "B calendar authority",
+      "B relational population"
+    ],
+    "insufficient_b_evidence_behavior": "EXTERNAL_DEPENDENCY_BLOCKED_OR_UNKNOWN"
+  },
+  "next_local_actions": [
+    "validate imported A3 unit surfaces in QORE Shared Lab",
+    "run repaired MC28 CLOCK_DRIFT only through the governed read-only test plane when required secrets/runtime are available",
+    "evaluate sealed DEMO execution population for MC28 execution-quality deterioration without creating broker activity",
+    "prepare MC27 collection/validation infrastructure without scoring immature future OOS",
+    "refresh WP12 only after new sealed A3 evidence exists"
+  ]
+}
