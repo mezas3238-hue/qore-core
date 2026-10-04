@@ -3,6 +3,11 @@
 Combines discovery, identity, calendar and real sensor-side acquisition
 evidence. The frontier is descriptive only: it cannot admit a sensor, select
 trading features, or create predictive/economic authority.
+
+B-16 is deliberately progressive: upstream identity/calendar/source evidence may
+improve over time. Legitimate upstream progress must be consumed rather than
+rejected merely because an older checkpoint had smaller counts. Scientific
+admission remains fail-closed until scientific value is separately proven.
 """
 
 from __future__ import annotations
@@ -21,6 +26,14 @@ _IDENTITY_NEXT_STEP_READY = {
     "CURRENT_REFERENCE_OBJECT_MAPPED",
     "CURRENT_OFFICIAL_REFERENCE_MAPPED",
     "DATED_CONTRACT_DESCRIPTOR_VERIFIED",
+}
+_FULL_HISTORY = "full_bid_ask_history"
+_PARTIAL_HISTORY = "partial_bid_ask_history"
+_NO_HISTORY = "no_history"
+_ALLOWED_SOURCE_STATUSES = {
+    _FULL_HISTORY,
+    _PARTIAL_HISTORY,
+    _NO_HISTORY,
 }
 
 
@@ -100,9 +113,16 @@ def build_sensor_qualification_frontier(
         raise SharedBSensorQualificationFrontierError(
             "discovery disposition drift"
         )
-    if calendar_worklist.get("canonical_calendar_verified_count") != 0:
+
+    declared_calendar_verified_count = calendar_worklist.get(
+        "canonical_calendar_verified_count"
+    )
+    if (
+        type(declared_calendar_verified_count) is not int
+        or not 0 <= declared_calendar_verified_count <= 177
+    ):
         raise SharedBSensorQualificationFrontierError(
-            "calendar authority unexpectedly widened"
+            "canonical calendar verified count invalid"
         )
 
     identity_by_key: dict[tuple[str, int], dict[str, object]] = {}
@@ -139,14 +159,19 @@ def build_sensor_qualification_frontier(
             "active-perception sensor side missing"
         )
     statuses = active.get("real_sensor_statuses")
-    if statuses != {
-        "US2000": "full_bid_ask_history",
-        "XAUUSD": "full_bid_ask_history",
-        "XTIUSD": "partial_bid_ask_history",
-    }:
+    if not isinstance(statuses, dict):
         raise SharedBSensorQualificationFrontierError(
-            "real sensor evidence drift"
+            "real sensor statuses must be an object"
         )
+    for symbol, status in statuses.items():
+        if not isinstance(symbol, str) or not symbol.strip():
+            raise SharedBSensorQualificationFrontierError(
+                "real sensor status key invalid"
+            )
+        if status not in _ALLOWED_SOURCE_STATUSES:
+            raise SharedBSensorQualificationFrontierError(
+                f"unsupported real sensor evidence status: {status}"
+            )
     if active_perception_boundary.get(
         "full_global_sensor_universe_active_perception_complete"
     ) is not False:
@@ -154,11 +179,24 @@ def build_sensor_qualification_frontier(
             "active perception illegally claims global completion"
         )
 
+    registry_symbols = {
+        str(cast(dict[str, object], raw).get("provider_symbol"))
+        for raw in sensors
+        if isinstance(raw, dict)
+    }
+    unknown_status_symbols = sorted(set(statuses) - registry_symbols)
+    if unknown_status_symbols:
+        raise SharedBSensorQualificationFrontierError(
+            "real sensor evidence references unknown sensor"
+        )
+
     output: list[dict[str, object]] = []
     reference_ready_count = 0
+    calendar_verified_count = 0
     full_source_count = 0
     partial_source_count = 0
     no_bound_source_count = 0
+    prerequisites_satisfied_count = 0
 
     for raw in sensors:
         if not isinstance(raw, dict):
@@ -187,22 +225,38 @@ def build_sensor_qualification_frontier(
         if identity_next_step_ready:
             reference_ready_count += 1
 
+        calendar_verified = calendar_row.get("calendar_binding_verified")
+        if type(calendar_verified) is not bool:
+            raise SharedBSensorQualificationFrontierError(
+                "calendar_binding_verified must be bool"
+            )
+        if calendar_verified:
+            calendar_verified_count += 1
+
         symbol = str(sensor.get("provider_symbol"))
         source_status = statuses.get(symbol)
-        if source_status == "full_bid_ask_history":
+        if source_status == _FULL_HISTORY:
             source_evidence = "FULL_REAL_BID_ASK_HISTORY_EVIDENCE"
             full_source_count += 1
-        elif source_status == "partial_bid_ask_history":
+        elif source_status == _PARTIAL_HISTORY:
             source_evidence = "PARTIAL_REAL_BID_ASK_HISTORY_EVIDENCE"
             partial_source_count += 1
         else:
             source_evidence = "NO_BOUND_REAL_CAUSAL_HISTORY_EVIDENCE"
             no_bound_source_count += 1
 
+        prerequisites_satisfied = (
+            identity_next_step_ready
+            and calendar_verified
+            and source_evidence == "FULL_REAL_BID_ASK_HISTORY_EVIDENCE"
+        )
+        if prerequisites_satisfied:
+            prerequisites_satisfied_count += 1
+
         reasons: list[str] = []
         if not identity_next_step_ready:
             reasons.append("IDENTITY_QUALIFICATION_PREREQUISITE_OPEN")
-        if calendar_row.get("calendar_binding_verified") is not True:
+        if not calendar_verified:
             reasons.append("CANONICAL_CALENDAR_BINDING_UNVERIFIED")
         if source_evidence == "NO_BOUND_REAL_CAUSAL_HISTORY_EVIDENCE":
             reasons.append("REAL_CAUSAL_SOURCE_EVIDENCE_NOT_BOUND")
@@ -223,9 +277,14 @@ def build_sensor_qualification_frontier(
                 "calendar_work_category": calendar_row.get(
                     "calendar_work_category"
                 ),
-                "canonical_calendar_binding_verified": False,
+                "canonical_calendar_binding_verified": calendar_verified,
                 "real_source_evidence_status": source_evidence,
-                "qualification_status": "NOT_ADMITTED_PREREQUISITES_OPEN",
+                "qualification_prerequisites_satisfied": prerequisites_satisfied,
+                "qualification_status": (
+                    "PREREQUISITES_SATISFIED_SCIENTIFIC_VALUE_OPEN"
+                    if prerequisites_satisfied
+                    else "NOT_ADMITTED_PREREQUISITES_OPEN"
+                ),
                 "scientific_value_proven": False,
                 "causal_qualification_complete": False,
                 "sensor_admitted": False,
@@ -238,24 +297,24 @@ def build_sensor_qualification_frontier(
             }
         )
 
+    if calendar_verified_count != declared_calendar_verified_count:
+        raise SharedBSensorQualificationFrontierError(
+            "calendar verified count disagrees with row evidence"
+        )
+    if (
+        full_source_count + partial_source_count + no_bound_source_count
+        != 177
+    ):
+        raise SharedBSensorQualificationFrontierError(
+            "real-source qualification counts lost sensors"
+        )
+
     output.sort(
         key=lambda item: (
             str(item["provider"]),
             int(cast(int, item["provider_symbol_id"])),
         )
     )
-    if reference_ready_count != 90:
-        raise SharedBSensorQualificationFrontierError(
-            f"expected 90 identity-next-step rows, got {reference_ready_count}"
-        )
-    if (full_source_count, partial_source_count, no_bound_source_count) != (
-        2,
-        1,
-        174,
-    ):
-        raise SharedBSensorQualificationFrontierError(
-            "real-source qualification counts drift"
-        )
     if len(output) != 177:
         raise SharedBSensorQualificationFrontierError(
             "qualification frontier lost sensors"
@@ -267,10 +326,13 @@ def build_sensor_qualification_frontier(
         "sensor_count": 177,
         "discovered_count": 177,
         "identity_next_step_ready_count": reference_ready_count,
-        "canonical_calendar_binding_verified_count": 0,
+        "canonical_calendar_binding_verified_count": calendar_verified_count,
         "full_real_source_evidence_count": full_source_count,
         "partial_real_source_evidence_count": partial_source_count,
         "no_bound_real_source_evidence_count": no_bound_source_count,
+        "qualification_prerequisites_satisfied_count": (
+            prerequisites_satisfied_count
+        ),
         "scientific_value_proven_count": 0,
         "causal_qualification_complete_count": 0,
         "admitted_count": 0,
