@@ -128,6 +128,8 @@ class NativeSuiteRegistry:
             }
         if request.mode is ExecutionMode.REPLAY:
             return {"replay", "determinism"}
+        if request.mode is ExecutionMode.REGRESSION:
+            return {"regression"}
         if request.mode is ExecutionMode.QUICK:
             selected = {"unit", "contract"}
             if request.scope is not LabScope.FULL_STACK:
@@ -161,6 +163,7 @@ class NativeSuiteRegistry:
             LabScope.COGNITION: {"functional", "causality"},
             LabScope.DECISION: {"consumer-validation", "end-to-end"},
             LabScope.MC18: {"mc18-functional", "causality"},
+            LabScope.MC23: {"mc23-functional", "causality"},
             LabScope.FULL_STACK: {"full-stack"},
         }
         return set(mapping[scope])
