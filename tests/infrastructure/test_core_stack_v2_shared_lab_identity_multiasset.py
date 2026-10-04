@@ -25,3 +25,33 @@ def test_futures_roll_identity_distinguishes_contract_months() -> None:
     assert dec.economic_id != mar.economic_id
     assert validate_contract_identity(dec, requires_maturity=True, requires_venue=True, requires_multiplier=True)
     assert validate_contract_identity(mar, requires_maturity=True, requires_venue=True, requires_multiplier=True)
+
+
+
+@pytest.mark.parametrize(
+    ("provider_symbol", "normalized_key", "identity"),
+    [
+        ("EURUSD.m", "EURUSDM", CanonicalIdentity("FX:EURUSD", "FX", "EUR", quote_currency="USD")),
+        ("m.EURUSD", "MEURUSD", CanonicalIdentity("FX:EURUSD", "FX", "EUR", quote_currency="USD")),
+        ("US100.cash", "US100CASH", CanonicalIdentity("INDEX:NAS100", "INDEX", "NAS100", quote_currency="USD")),
+        ("XAUUSD.pro", "XAUUSDPRO", CanonicalIdentity("METAL:XAUUSD", "METALS", "XAU", quote_currency="USD")),
+    ],
+)
+def test_provider_specific_prefix_suffix_aliases_require_explicit_mapping(
+    provider_symbol: str,
+    normalized_key: str,
+    identity: CanonicalIdentity,
+) -> None:
+    receipt = assess_identity(
+        provider_symbol,
+        identity.asset_class,
+        {normalized_key: (identity,)},
+    )
+    assert receipt.passed
+    assert receipt.canonical_economic_id == identity.economic_id
+
+
+def test_provider_specific_alias_does_not_silently_map_without_contract() -> None:
+    identity = CanonicalIdentity("INDEX:NAS100", "INDEX", "NAS100", quote_currency="USD")
+    receipt = assess_identity("US100.cash", "INDEX", {"NAS100": (identity,)})
+    assert not receipt.passed
