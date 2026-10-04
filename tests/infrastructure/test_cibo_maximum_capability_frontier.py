@@ -187,7 +187,7 @@ def test_position_lifecycle_uses_closed_post_entry_bars_and_releases_risk() -> N
     assert result.risk_released_before_exit_fraction > 0
 
 
-def test_same_bar_stop_is_conservative_before_favorable_trigger() -> None:
+def test_same_bar_ambiguous_base_path_does_not_invent_intrabar_order() -> None:
     opportunity = _opportunity()
     bar = Bar(
         opened_at=opportunity.entry_at,
@@ -204,8 +204,9 @@ def test_same_bar_stop_is_conservative_before_favorable_trigger() -> None:
         features=FULL_LIFECYCLE_FEATURES,
     )
 
-    assert result.actions[0] == "STOP_OR_PROTECTED_STOP"
-    assert result.gross_r == Decimal("-1")
+    assert result.gross_r == opportunity.fallback_gross_r
+    assert "STOP_OR_PROTECTED_STOP" not in result.actions
+    assert result.actions[-1] == "HORIZON_ORIGINAL_SETTLEMENT"
 
 
 def test_lifecycle_off_is_exact_original_settlement_identity() -> None:
