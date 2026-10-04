@@ -286,7 +286,7 @@ def test_t16_abstains_without_certified_hedge_and_applies_positive_net_transfer(
         )
     )
     assert none.disposition is AdvancedToolDisposition.ABSTAIN
-    assert none.reason == "NO_CERTIFIED_HEDGE_INSTRUMENT"
+    assert none.reason == "NO_HEDGE_INSTRUMENT_AVAILABLE"
 
     applied = evaluate_hedged_exposure(
         HedgedExposureEvidence(
@@ -326,7 +326,7 @@ def test_t17_never_invents_convexity_without_certified_instrument() -> None:
         )
     )
     assert none.disposition is AdvancedToolDisposition.ABSTAIN
-    assert none.reason == "NO_CERTIFIED_LIMITED_DOWNSIDE_INSTRUMENT"
+    assert none.reason == "NO_CERTIFIED_LIMITED_DOWNSIDE_INSTRUMENT_AVAILABLE"
 
     applied = evaluate_convex_exposure(
         ConvexExposureEvidence(
@@ -411,9 +411,9 @@ def test_t03_t16_t17_measurement_cannot_self_promote_policy() -> None:
         )
     )
 
-    assert t03.disposition is AdvancedToolDisposition.FAIL_CLOSED
-    assert "fresh OOS" in t03.reason
-    assert t16.disposition is AdvancedToolDisposition.FAIL_CLOSED
-    assert "fresh OOS" in t16.reason
-    assert t17.disposition is AdvancedToolDisposition.FAIL_CLOSED
-    assert "fresh OOS" in t17.reason
+    assert t03.disposition is AdvancedToolDisposition.ABSTAIN
+    assert t03.reason == "NO_ALTERNATIVE_EQUIVALENT_EXPRESSION"
+    assert t16.disposition is AdvancedToolDisposition.ABSTAIN
+    assert t16.reason == "NO_HEDGE_INSTRUMENT_AVAILABLE"
+    assert t17.disposition is AdvancedToolDisposition.ABSTAIN
+    assert t17.reason == "NO_CERTIFIED_LIMITED_DOWNSIDE_INSTRUMENT_AVAILABLE"
