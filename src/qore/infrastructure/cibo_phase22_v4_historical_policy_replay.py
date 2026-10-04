@@ -58,6 +58,7 @@ from qore.infrastructure.cibo_ce2i_phase20_train_prior import (
 )
 from qore.infrastructure.cibo_ce2i_regime_selector import (
     CiboCapitalRegimeState,
+    CiboRegimePosture,
 )
 from qore.infrastructure.cibo_profitability_lab_context_quality import (
     ContextQualityDecision,
