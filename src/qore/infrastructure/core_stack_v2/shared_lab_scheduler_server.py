@@ -1,5 +1,7 @@
 """Local multiuser API for the QORE Shared Lab scheduler."""
 
+# ruff: noqa: I001
+
 from __future__ import annotations
 
 import argparse
