@@ -138,6 +138,8 @@ class CapitalScienceKnownOpportunity:
     stop_risk_usd: Decimal
     margin_usd: Decimal
     evidence_sha256: str
+    expected_net_value_usd: Decimal = Decimal(0)
+    expected_capital_minutes: Decimal = Decimal(1)
 
     def __post_init__(self) -> None:
         if not self.option_id or not self.trader_id or not self.qore_symbol:
@@ -160,6 +162,21 @@ class CapitalScienceKnownOpportunity:
                 raise CiboCapitalManagementError(
                     f"Capital Science known opportunity {name} must be positive Decimal"
                 )
+        if (
+            not isinstance(self.expected_net_value_usd, Decimal)
+            or not self.expected_net_value_usd.is_finite()
+        ):
+            raise CiboCapitalManagementError(
+                "Capital Science known opportunity expected_net_value_usd must be finite Decimal"
+            )
+        if (
+            not isinstance(self.expected_capital_minutes, Decimal)
+            or not self.expected_capital_minutes.is_finite()
+            or self.expected_capital_minutes <= 0
+        ):
+            raise CiboCapitalManagementError(
+                "Capital Science known opportunity expected_capital_minutes must be positive Decimal"
+            )
         if not self.evidence_sha256.startswith("sha256:") or len(self.evidence_sha256) != 71:
             raise CiboCapitalManagementError(
                 "Capital Science known opportunity evidence digest is invalid"
@@ -176,6 +193,8 @@ class CapitalScienceKnownOpportunity:
             "requested_capital_usd": format(self.requested_capital_usd, "f"),
             "stop_risk_usd": format(self.stop_risk_usd, "f"),
             "margin_usd": format(self.margin_usd, "f"),
+            "expected_net_value_usd": format(self.expected_net_value_usd, "f"),
+            "expected_capital_minutes": format(self.expected_capital_minutes, "f"),
             "evidence_sha256": self.evidence_sha256,
         }
 
