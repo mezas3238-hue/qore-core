@@ -1,0 +1,59 @@
+{
+  "identity": "QORE_SHARED_MC28_EXECUTION_QUALITY_DETERIORATION_PREREGISTRATION_001",
+  "status": "FROZEN_BEFORE_REAL_DEMO_FILL_REJECTION_EVALUATION",
+  "owner_lane": "ARCHITECT_A",
+  "standard_requirement": "MC28_EXECUTION_QUALITY_DETERIORATION",
+  "scope": {
+    "provider_environment": "CTRADER_DEMO",
+    "per_instrument_only": true,
+    "required_dimensions": [
+      "MEDIAN_EXECUTABLE_SPREAD",
+      "P90_ADVERSE_SLIPPAGE",
+      "REJECTION_RATE"
+    ],
+    "synthetic_or_simulated_closure_allowed": false,
+    "real_provider_fill_and_rejection_evidence_required": true
+  },
+  "minimum_real_population": {
+    "attempts_per_window": 30,
+    "fills_per_window": 20
+  },
+  "frozen_deterioration_limits": {
+    "median_spread_recent_to_baseline_ratio_bps": 15000,
+    "minimum_absolute_median_spread_uplift_bps": 1,
+    "maximum_p90_adverse_slippage_uplift_bps": 5,
+    "maximum_rejection_rate_uplift_bps": 500
+  },
+  "measurement_contract": {
+    "spread": "(ask-bid)/midpoint in bps from pre-submit executable quote",
+    "buy_adverse_slippage": "(fill-ask)/ask in bps",
+    "sell_adverse_slippage": "(bid-fill)/bid in bps",
+    "rejection_rate": "provider-rejected attempts / total attempts",
+    "baseline_and_recent_must_share_instrument": true,
+    "fill_price_must_be_provider_originated": true,
+    "rejection_must_be_provider_originated": true
+  },
+  "disposition": {
+    "PASS": "all three dimensions remain within frozen limits with sufficient real population",
+    "DETERIORATED": "one or more frozen deterioration limits are exceeded",
+    "INSUFFICIENT": "real population is below the frozen minimums"
+  },
+  "current_evidence_census": {
+    "real_sealed_demo_fill_population_found_in_shared_a": false,
+    "real_sealed_demo_rejection_population_found_in_shared_a": false,
+    "cibo_forward_tool_run_36797507213_contains_fill_artifact": false,
+    "cibo_provider_economics_run_36797507111_reached_collection": false,
+    "closure_claim_allowed_now": false
+  },
+  "governance": {
+    "broker_mutation": false,
+    "new_order_submission_for_this_diagnostic": false,
+    "order_authority": false,
+    "risk_authority": false,
+    "sizing_authority": false,
+    "capital_authority": false,
+    "master_ledger_mutation": false,
+    "protected_certification_holdout_opened": false
+  },
+  "next_gate": "BIND_EXISTING_REAL_SEALED_DEMO_EXECUTION_EVIDENCE_OR_REMAIN_INSUFFICIENT"
+}

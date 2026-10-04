@@ -138,6 +138,7 @@ def reconcile_world_levels(
             WorldScale.H1,
             WorldScale.H4,
             WorldScale.DAILY,
+            WorldScale.CROSS_MARKET_REGIME,
             WorldScale.WEEKLY,
             WorldScale.MACRO_REGIME,
         }:

@@ -1,0 +1,65 @@
+{
+  "identity": "QORE_SHARED_MC27_PROSPECTIVE_META_COGNITIVE_RESEARCH_CYCLE_001",
+  "status": "PREREGISTERED_BEFORE_FUTURE_RESEARCH_OOS",
+  "created_date": "2026-09-30",
+  "source_evidence": {
+    "mc18_run_id": 36764204066,
+    "mc18_artifact_id": 11119876541,
+    "mc28_run_id": 36777388801,
+    "mc28_artifact_id": 11126275619
+  },
+  "detected_weakness": {
+    "expected_top_concern": "UNKNOWN_UNKNOWN",
+    "reason": [
+      "MC18 counterfactual probabilities are real-data-bound but uncalibrated",
+      "MC18 has no fresh OOS path-distribution value proof",
+      "MC28 retains five mandatory Standard 006 diagnostics open"
+    ]
+  },
+  "research_question": "Can a frozen calibration layer for MC18 counterfactual world probabilities improve probabilistic accuracy on a later independent research OOS window without reducing unknown-shock coverage or acquiring productive authority?",
+  "calibration_fit": {
+    "partitions": [
+      "R6_CONSUMED",
+      "R5_CONSUMED"
+    ],
+    "future_oos_used_for_fit": false,
+    "representation_retune": false,
+    "world_engine_retune": false,
+    "threshold_retune": false
+  },
+  "future_research_oos": {
+    "start_inclusive": "2026-10-01T00:00:00+00:00",
+    "end_exclusive": "2026-11-01T00:00:00+00:00",
+    "minimum_trading_days": 20,
+    "minimum_scored_observations": 500,
+    "protected_certification_holdout": false,
+    "opened": false
+  },
+  "frozen_metrics": {
+    "primary": "MULTICLASS_BRIER_SCORE",
+    "secondary": [
+      "EXPECTED_CALIBRATION_ERROR_BPS",
+      "LOG_LOSS",
+      "TOP_PATH_ACCURACY_BPS",
+      "UNKNOWN_SHOCK_COVERAGE_BPS"
+    ]
+  },
+  "frozen_gates": {
+    "calibrated_brier_lt_raw": true,
+    "calibrated_ece_lt_raw": true,
+    "calibrated_ece_max_bps": 2500,
+    "calibrated_log_loss_lte_raw": true,
+    "unknown_shock_coverage_not_lower": true,
+    "no_future_fit": true,
+    "no_threshold_rescue": true
+  },
+  "governance": {
+    "protected_certification_holdout_opened": false,
+    "production_authority": false,
+    "trading_authority": false,
+    "sizing_authority": false,
+    "risk_authority": false,
+    "broker_authority": false,
+    "master_ledger_mutation": false
+  }
+}

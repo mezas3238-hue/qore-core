@@ -1,0 +1,75 @@
+{
+  "identity": "QORE_SHARED_MC28_RUNTIME_CLOCK_DRIFT_PREREGISTRATION_001",
+  "status": "FROZEN_BEFORE_REAL_RUNTIME_CLOCK_OBSERVATION",
+  "owner_lane": "ARCHITECT_A",
+  "standard_requirement": "MC28_CLOCK_DRIFT",
+  "measurement": {
+    "provider_environment": "CTRADER_DEMO",
+    "message": "ProtoOASpotEvent",
+    "provider_timestamp_field": "timestamp",
+    "subscription": "ProtoOASubscribeSpotsReq",
+    "subscribe_to_spot_timestamp": true,
+    "first_technical_event_discarded": true,
+    "preferred_provider_symbols": [
+      "EURUSD",
+      "GBPUSD",
+      "XAUUSD"
+    ],
+    "minimum_real_samples": 5,
+    "reference_rtt_sample_count": 3
+  },
+  "frozen_limits": {
+    "maximum_absolute_clock_offset_ms": 1000,
+    "maximum_wall_monotonic_divergence_ms": 100,
+    "transport_jitter_margin_ms": 250
+  },
+  "inference_contract": {
+    "network_delay_assumed_zero": false,
+    "provider_minus_local_receive": "d",
+    "transport_upper_bound": "R",
+    "per_sample_clock_offset_interval": "[d, d + R]",
+    "aggregate_interval": "intersection of all per-sample intervals",
+    "pass": "aggregate interval wholly inside [-1000,+1000] ms",
+    "drift": "aggregate interval wholly outside [-1000,+1000] ms OR local wall-vs-monotonic instability",
+    "insufficient": "fewer than 5 samples, non-increasing provider clock, inconsistent transport bounds, or aggregate interval overlaps the limit"
+  },
+  "threshold_rationale": {
+    "runtime_sla_ms": 2000,
+    "clock_limit_relation": "clock offset ceiling is one half of the hard 2.0s runtime SLA so temporal uncertainty cannot consume most of the decision budget",
+    "selected_before_real_clock_outcome": true
+  },
+  "official_provider_semantics": {
+    "documentation": "https://help.ctrader.com/open-api/messages/",
+    "spot_event_timestamp": "Unix time for spot",
+    "subscribe_to_spot_timestamp": "when true, ProtoOASpotEvent includes timestamp",
+    "first_event_note": "first event may be the latest spot price even if market is closed"
+  },
+  "falsification_cases": [
+    "POSITIVE_PROVIDER_CLOCK_DRIFT",
+    "NEGATIVE_PROVIDER_CLOCK_DRIFT",
+    "LOCAL_WALL_CLOCK_JUMP",
+    "TRANSPORT_BOUND_INCONSISTENT",
+    "INSUFFICIENT_REAL_EVENTS"
+  ],
+  "governance": {
+    "read_only_message_firewall": true,
+    "broker_mutation": false,
+    "restart_authority": false,
+    "order_authority": false,
+    "risk_authority": false,
+    "sizing_authority": false,
+    "capital_authority": false,
+    "target_or_outcome_read": false,
+    "r6_r5_read": false,
+    "protected_holdout_opened": false,
+    "master_ledger_mutation": false
+  },
+  "closure_rule": {
+    "clock_drift_completed_and_proven": "real DEMO assessment PASS plus injected drift tests PASS",
+    "mc28_completed_and_proven": false,
+    "remaining_after_clock_pass": [
+      "EXECUTION_QUALITY_DETERIORATION"
+    ]
+  },
+  "next_gate": "ADD_ONE_GOVERNED_WORKFLOW_ONLY_AFTER_ACTIONS_QUEUE_RECOVERS"
+}
