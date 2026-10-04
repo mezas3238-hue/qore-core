@@ -15,11 +15,6 @@ from decimal import ROUND_FLOOR, Decimal
 from enum import StrEnum
 from itertools import product
 
-from qore.infrastructure.cibo_position_lifecycle import (
-    CiboLifecycleFeature,
-    CiboPositionLifecycleInput,
-    run_cibo_position_lifecycle,
-)
 from qore.infrastructure.trader_lab.ict_turtle_soup_r4_source_exact import Bar
 
 
@@ -505,66 +500,3 @@ def optimize_epoch_multipliers(
     if best is None:
         return tuple(0 for _ in options)
     return tuple(-value for value in best[4])
-
-
-def simulate_position_lifecycle(
-    opportunity: CausalFrontierOpportunity,
-    bars: Sequence[Bar],
-    *,
-    features: frozenset[
-        LifecycleFeature
-    ] = FULL_LIFECYCLE_FEATURES,
-) -> PositionLifecycleResult:
-    """Research adapter over the universal causal CIBO lifecycle engine."""
-
-    feature_map = {
-        LifecycleFeature.BREAKEVEN: CiboLifecycleFeature.BREAKEVEN,
-        LifecycleFeature.PROFIT_LOCK: CiboLifecycleFeature.PROFIT_LOCK,
-        LifecycleFeature.TRAILING: CiboLifecycleFeature.TRAILING,
-        LifecycleFeature.PARTIAL_REALIZATION:
-            CiboLifecycleFeature.PARTIAL_REALIZATION,
-        LifecycleFeature.EXTENDED_TARGET: CiboLifecycleFeature.EXTENDED_TARGET,
-    }
-    universal = run_cibo_position_lifecycle(
-        CiboPositionLifecycleInput(
-            signal_fingerprint=opportunity.signal_fingerprint,
-            side=opportunity.side,
-            entry_at=opportunity.entry_at,
-            horizon_at=opportunity.horizon_at,
-            entry_price=opportunity.entry_price,
-            structural_stop=opportunity.structural_stop,
-            technical_target=opportunity.technical_target,
-            provider_cost_per_volume_usd=(
-                opportunity.provider_cost_per_volume_usd
-            ),
-            stop_risk_per_volume_usd=opportunity.stop_risk_per_volume_usd,
-            original_settlement_gross_r=opportunity.fallback_gross_r,
-        ),
-        bars,
-        features=frozenset(feature_map[item] for item in features),
-    )
-    events = tuple(
-        LifecycleEvent(
-            occurred_at=item.occurred_at,
-            action=item.action,
-            realized_r_delta=item.realized_r_delta,
-            remaining_volume_fraction=item.remaining_volume_fraction,
-            risk_fraction_remaining=item.risk_fraction_remaining,
-            margin_fraction_remaining=item.margin_fraction_remaining,
-        )
-        for item in universal.events
-    )
-    return PositionLifecycleResult(
-        signal_fingerprint=universal.signal_fingerprint,
-        data_available=universal.data_available,
-        gross_r=universal.gross_r,
-        exit_at=universal.exit_at,
-        events=events,
-        risk_released_before_exit_fraction=(
-            universal.risk_released_before_exit_fraction
-        ),
-        margin_released_before_exit_fraction=(
-            universal.margin_released_before_exit_fraction
-        ),
-        actions=universal.actions,
-    )
