@@ -1,0 +1,45 @@
+{
+  "schema": "QORE_SHARED_INTEGRATOR_1_PRODUCER_BLOB_PRESERVATION_AUDIT_001",
+  "generated_at": "2026-10-04",
+  "common_baseline": "cc8c0953e54bdc60213831b417a1473b100b80cf",
+  "integrator_head_audited": "c7b89a33e2e35b1710c838d6a42b7011b574587d",
+  "architect_1": {
+    "producer_head": "6ad93e8d493e13e588d9f7dc726fc061768a7c80",
+    "producer_changed_files": 54,
+    "exact_blob_matches_in_integrator": 54,
+    "mismatches": 0,
+    "missing": 0,
+    "status": "EXACT_PRESERVATION_PASS"
+  },
+  "architect_2": {
+    "producer_head": "7f3c3e6f19028d3c41dd91ab2588efd628198d34",
+    "producer_changed_files": 47,
+    "exact_blob_matches_in_integrator": 44,
+    "mismatches": 3,
+    "missing": 0,
+    "mismatch_classification": "INTEGRATOR_OWNED_SHARED_LAB_GLUE_ONLY",
+    "mismatch_paths": [
+      ".qore-shared-lab/plugins/shared-a2-mc23-one-shot-adaptation.json",
+      ".qore-shared-lab/plugins/shared-a2-mc24-half-life.json",
+      ".qore-shared-lab/plugins/shared-a2-mc25-performance.json"
+    ],
+    "scientific_implementation_blobs_modified_by_integrator": false,
+    "capsule_canonical_source_blob_matches": 5,
+    "capsule_canonical_source_blob_mismatches": 0,
+    "status": "SCIENTIFIC_BLOBS_PRESERVED_INTEGRATION_GLUE_EXPLICITLY_DIVERGED"
+  },
+  "integration_glue_changes": {
+    "mc23_plugin": "route frozen one-shot execution through producer capsule after mandatory capsule self-test",
+    "mc24_plugin": "route empirical half-life through same producer capsule and require MC23 one-shot plus regression",
+    "mc25_plugin": "require MC24 half-life before MC25 mechanics",
+    "producer_thresholds_changed": false,
+    "producer_scientific_hypotheses_changed": false
+  },
+  "governance": {
+    "pr_635_merged": false,
+    "github_actions_used_as_validation_fallback": false,
+    "vps_used": false,
+    "protected_final_holdout_opened": false,
+    "productive_authority_introduced": false
+  }
+}
