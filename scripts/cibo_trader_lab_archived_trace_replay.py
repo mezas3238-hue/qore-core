@@ -212,6 +212,10 @@ def group_replay(payload: dict[str, Any], *, group: str) -> dict[str, Any]:
     selected_positive = []
     recovery_misses = []
     portfolio_competitions = 0
+    portfolio_fit_without_release = 0
+    portfolio_capacity_constrained = 0
+    portfolio_release_capacity_sufficient = 0
+    portfolio_nonpositive_replacement = 0
     portfolio_release_proposals = 0
     portfolio_positive_replacements = 0
     portfolio_shadow_incremental_utility = ZERO
@@ -269,8 +273,10 @@ def group_replay(payload: dict[str, Any], *, group: str) -> dict[str, Any]:
         need_margin = max(ZERO, candidate_margin - headroom_margin)
 
         if need_risk <= 0 and need_margin <= 0:
+            portfolio_fit_without_release += 1
             continue
 
+        portfolio_capacity_constrained += 1
         release_candidates = []
         for position in active:
             continuation, utility_per_minute = continuation_value(position, observed_at)
@@ -298,6 +304,8 @@ def group_replay(payload: dict[str, Any], *, group: str) -> dict[str, Any]:
             displaced += max(ZERO, continuation)
 
         enough = released_risk >= need_risk and released_margin >= need_margin
+        if enough:
+            portfolio_release_capacity_sufficient += 1
         incremental = ev - displaced
         if enough and incremental > 0:
             portfolio_positive_replacements += 1
@@ -307,6 +315,8 @@ def group_replay(payload: dict[str, Any], *, group: str) -> dict[str, Any]:
             proposed_release_margin += released_margin
             # Archived #107 trace has no causal current mark per open position.
             mark_blocked_release_proposals += 1
+        elif enough:
+            portfolio_nonpositive_replacement += 1
 
     allowed_count = len(positive_allowed)
     selected_count = len(selected_positive)
@@ -348,6 +358,14 @@ def group_replay(payload: dict[str, Any], *, group: str) -> dict[str, Any]:
             recovery_value_ceiling - baseline_value_eff, "f"
         ),
         "portfolio_open_position_competition_count": portfolio_competitions,
+        "portfolio_fit_without_release_count": portfolio_fit_without_release,
+        "portfolio_capacity_constrained_count": portfolio_capacity_constrained,
+        "portfolio_release_capacity_sufficient_count": (
+            portfolio_release_capacity_sufficient
+        ),
+        "portfolio_nonpositive_replacement_count": (
+            portfolio_nonpositive_replacement
+        ),
         "portfolio_positive_replacement_count": portfolio_positive_replacements,
         "portfolio_shadow_release_proposal_count": portfolio_release_proposals,
         "portfolio_shadow_incremental_utility_usd": format(
@@ -409,6 +427,18 @@ def main() -> int:
             ),
             "portfolio_open_position_competition_count": sum(
                 x["portfolio_open_position_competition_count"] for x in groups
+            ),
+            "portfolio_fit_without_release_count": sum(
+                x["portfolio_fit_without_release_count"] for x in groups
+            ),
+            "portfolio_capacity_constrained_count": sum(
+                x["portfolio_capacity_constrained_count"] for x in groups
+            ),
+            "portfolio_release_capacity_sufficient_count": sum(
+                x["portfolio_release_capacity_sufficient_count"] for x in groups
+            ),
+            "portfolio_nonpositive_replacement_count": sum(
+                x["portfolio_nonpositive_replacement_count"] for x in groups
             ),
             "portfolio_positive_replacement_count": sum(
                 x["portfolio_positive_replacement_count"] for x in groups
