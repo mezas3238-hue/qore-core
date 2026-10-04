@@ -3,7 +3,14 @@ from __future__ import annotations
 from qore.infrastructure.cibo_arch_a2_integrator_handoff import (
     A2_BRANCH,
     ARCH_A_BASE_SHA,
+    CAPITAL_SCIENCE_ENGINEERING_CLOSURE_SCHEMA,
+    HISTORICAL_COMPOUND_ADAPTER_ID,
+    HISTORICAL_COMPOUND_CONTRACT_ID,
+    INTERNAL_CAPITAL_MARKET_DELIVERY_ID,
     SCHEMA,
+    A2HistoricalCompoundLineageDelivery,
+    A2InternalCapitalMarketDelivery,
+    build_architect_a2_capital_science_engineering_closure,
     build_architect_a2_integrator_handoff,
 )
 from qore.infrastructure.cibo_arch_a2_internal_readiness import (
@@ -98,3 +105,74 @@ def test_a2_integrator_handoff_blocks_incomplete_science() -> None:
     assert receipt.terminal_count == 0
     assert receipt.ready_for_integrator is False
     assert receipt.blockers == ("A2_SCIENTIFIC_CLOSURE_INCOMPLETE",)
+
+
+
+def test_a2_historical_compound_crosslane_delivery_is_replay_safe() -> None:
+    delivery = A2HistoricalCompoundLineageDelivery(
+        contract_id=HISTORICAL_COMPOUND_CONTRACT_ID,
+        source_workstream="COMPOUND_ENGINE",
+        source_head=HEAD,
+        artifact_sha256="sha256:" + "3" * 64,
+        source_population_sha256="sha256:" + "4" * 64,
+        a1_manifest_sha256="sha256:" + "5" * 64,
+        adapter_identity=HISTORICAL_COMPOUND_ADAPTER_ID,
+        historical_replay_supported=True,
+        historical_broker_ids_required=False,
+        historical_broker_ids_emitted=False,
+        current_demo_ids_relabelled_as_historical=False,
+        fabricated_execution_ids_used=False,
+        realized_profit_only=True,
+        floating_pnl_used_as_capital=False,
+        capital_conservation_proven=True,
+        double_spend_detected=False,
+        decision_before_outcome_preserved=True,
+        deterministic_replay=True,
+    )
+
+    assert delivery.source_workstream == "COMPOUND_ENGINE"
+    assert delivery.historical_broker_ids_emitted is False
+    assert delivery.floating_pnl_used_as_capital is False
+    assert delivery.capital_conservation_proven is True
+    assert delivery.fingerprint().startswith("sha256:")
+
+
+def test_a2_internal_capital_market_crosslane_delivery_is_complete() -> None:
+    delivery = A2InternalCapitalMarketDelivery(
+        contract_id=INTERNAL_CAPITAL_MARKET_DELIVERY_ID,
+        source_workstream="INTERNAL_CAPITAL_MARKET",
+        source_head=HEAD,
+        artifact_sha256="sha256:" + "6" * 64,
+        source_population_sha256="sha256:" + "7" * 64,
+        policy_identity=(
+            "CIBO_GENC6_ROBUST_PARETO_MARGINAL_CAPITAL_MARKET_SHADOW_V1"
+        ),
+        true_scarcity_bound=True,
+        capital_conservation_proven=True,
+    )
+
+    assert delivery.source_workstream == "INTERNAL_CAPITAL_MARKET"
+    assert delivery.true_scarcity_bound is True
+    assert delivery.capital_conservation_proven is True
+    assert delivery.fingerprint().startswith("sha256:")
+
+
+def test_a2_capital_science_engineering_closes_with_phase22_external() -> None:
+    receipt = build_architect_a2_capital_science_engineering_closure(
+        a2_head_sha=HEAD,
+        readiness=evaluate_architect_a2_internal_readiness(),
+        closure=_closure(incomplete=True),
+    )
+
+    assert receipt.schema == CAPITAL_SCIENCE_ENGINEERING_CLOSURE_SCHEMA
+    assert receipt.owned_workstream_count == 17
+    assert receipt.internal_readiness_passed is True
+    assert receipt.crosslane_contracts_complete is True
+    assert receipt.local_actionable_blocker_count == 0
+    assert receipt.phase22_scientific_terminal_count == 0
+    assert receipt.phase22_scientific_pending_count == 17
+    assert receipt.phase22_scientific_evidence_external is True
+    assert receipt.lane_engineering_closed is True
+    assert receipt.ready_for_integrator_engineering_handoff is True
+    assert receipt.certification_claimed is False
+    assert receipt.productive_authority is False
