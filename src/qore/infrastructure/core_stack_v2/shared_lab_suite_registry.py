@@ -130,7 +130,8 @@ class NativeSuiteRegistry:
             return {"replay", "determinism"}
         if request.mode is ExecutionMode.QUICK:
             selected = {"unit", "contract"}
-            selected.update(self._scope_primary_ids(request.scope))
+            if request.scope is not LabScope.FULL_STACK:
+                selected.update(self._scope_primary_ids(request.scope))
             return selected
         if request.mode is ExecutionMode.COMPONENT:
             impacted = set(self.impacted_task_ids(changed_paths))
