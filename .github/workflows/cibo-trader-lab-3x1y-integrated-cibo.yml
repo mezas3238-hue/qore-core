@@ -230,6 +230,7 @@ jobs:
             --decision-trace "$RUNNER_TEMP/results/$group/lab/decision-trace.json" \
             --coverage "$RUNNER_TEMP/results/$group/lab/full-stack-coverage.json" \
             --capital-science-io "$RUNNER_TEMP/results/$group/lab/capital-science-per-call-io.json" \
+            --three-lane "$RUNNER_TEMP/results/$group/lab/three-lane-result.json" \
             --group-result "$RUNNER_TEMP/results/$group/group-result.json" \
             --output "$RUNNER_TEMP/results/$group/lab/function-io-actuation.json"
           python scripts/cibo_function_utilization_sensor.py \
