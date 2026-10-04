@@ -86,20 +86,23 @@ def assess_a3_b4_scope(
     ready: list[str] = []
     blocked: list[tuple[str, tuple[SharedA3B4ScopeBlocker, ...]]] = []
     for key in required:
-        fact = by_key.get(key)
+        scope_fact = by_key.get(key)
         reasons: list[SharedA3B4ScopeBlocker] = []
-        if fact is None:
+        if scope_fact is None:
             reasons.append(SharedA3B4ScopeBlocker.MISSING_FACT)
         else:
-            if not fact.identity_resolved:
+            if not scope_fact.identity_resolved:
                 reasons.append(SharedA3B4ScopeBlocker.IDENTITY_UNRESOLVED)
-            if fact.calendar_status is not SharedA3B4CalendarStatus.VERIFIED_CANONICAL:
+            if (
+                scope_fact.calendar_status
+                is not SharedA3B4CalendarStatus.VERIFIED_CANONICAL
+            ):
                 reasons.append(SharedA3B4ScopeBlocker.MARKET_TIME_UNRESOLVED)
-            if fact.temporal_status is not SharedA3B4TemporalStatus.COMPARABLE:
+            if scope_fact.temporal_status is not SharedA3B4TemporalStatus.COMPARABLE:
                 reasons.append(SharedA3B4ScopeBlocker.TEMPORAL_NOT_COMPARABLE)
-            if fact.data_health_state != "HEALTHY":
+            if scope_fact.data_health_state != "HEALTHY":
                 reasons.append(SharedA3B4ScopeBlocker.DATA_HEALTH_NOT_READY)
-            if require_relation_claims and not fact.relation_claim_allowed:
+            if require_relation_claims and not scope_fact.relation_claim_allowed:
                 reasons.append(SharedA3B4ScopeBlocker.RELATION_INELIGIBLE)
         if reasons:
             blocked.append((key, tuple(reasons)))
