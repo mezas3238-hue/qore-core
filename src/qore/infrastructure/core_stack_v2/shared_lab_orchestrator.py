@@ -189,7 +189,7 @@ class NativeLabOrchestrator:
         run_dir = self.evidence_store.start_run(
             identity=identity,
             request=_request_payload(plan_request),
-            environment=self._environment(),
+            environment=self._environment(plan_request),
             started_at_ns=started_at_ns,
         )
 
@@ -636,14 +636,14 @@ class NativeLabOrchestrator:
         return f"SL-{time.time_ns()}-{commit_sha[:8]}-{uuid.uuid4().hex[:8]}"
 
     @staticmethod
-    def _environment() -> dict[str, Any]:
+    def _environment(request: RunRequest) -> dict[str, Any]:
         return {
             "python": sys.version,
             "python_executable": sys.executable,
             "platform": platform.platform(),
             "lab_version": LAB_VERSION,
-            "submitted_by": "",
-            "submitted_role": "",
+            "submitted_by": request.submitted_by,
+            "submitted_role": request.submitted_role,
             "execution_engine": "QORE_SHARED_LAB_NATIVE",
             "github_actions_detected": os.environ.get("GITHUB_ACTIONS") == "true",
             "github_actions_required": False,
