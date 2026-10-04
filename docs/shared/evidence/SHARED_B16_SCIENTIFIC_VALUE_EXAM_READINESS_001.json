@@ -1,0 +1,58 @@
+{
+  "identity": "QORE_SHARED_B16_SCIENTIFIC_VALUE_EXAM_READINESS_001",
+  "created_at": "2026-10-04",
+  "repository": "mezas3238-hue/qore-core",
+  "branch": "agent/shared-architect-6-provenance-freeze-001",
+  "code_head": "36a1bd3866b052a1f374c71a21f76c4244c097f3",
+  "test_plane": "QORE_SHARED_LAB_ISOLATED_B6_WORKTREE",
+  "source_worklist": {
+    "evidence": "docs/shared/evidence/SHARED_B16_SENSOR_QUALIFICATION_WORKLIST_001.json",
+    "worklist_fingerprint_sha256": "d4dd62fd439b7ffbb0eda67d524c34d693be9b5175767f4a8615b0536e08afb1"
+  },
+  "scientific_exam_contract": {
+    "preregistration_required": true,
+    "minimum_validation_folds": 4,
+    "fold_compensation_allowed": false,
+    "stress_required": true,
+    "temporal_replication_required": true,
+    "labels_must_open_after_preregistration": true,
+    "final_shared_holdout_forbidden": true,
+    "pnl_target_forbidden": true,
+    "trader_methodology_target_forbidden": true,
+    "scientific_value_pass_grants_sensor_admission_authority": false,
+    "productive_authority": false
+  },
+  "current_readiness": {
+    "sensor_count": 177,
+    "ready_for_scientific_value_exam_count": 0,
+    "ready_symbols": [],
+    "research_labels_opened": false,
+    "exam_executed": false,
+    "automatic_admission": false,
+    "result_sha256": "39d9929b81b0c7ac73bde6dd0a0e22e07774e78d287b645e3fdfd58d97857ab5"
+  },
+  "validation": {
+    "ruff": "PASS",
+    "mypy": "PASS",
+    "contract_tests": "5/5 PASS"
+  },
+  "disposition": {
+    "b16_complete": false,
+    "scientific_exam_started": false,
+    "reason": "No B16 sensor currently satisfies identity + canonical calendar + full real causal history prerequisites. The exam machinery is ready but remains sealed."
+  },
+  "governance": {
+    "outcome_aware_sensor_selection": false,
+    "final_shared_holdout_opened": false,
+    "broker_mutation": false,
+    "live": false,
+    "production": false,
+    "real_capital": false,
+    "productive_authority": false,
+    "sensor_admission_authority": false,
+    "sizing_authority": false,
+    "risk_authority": false,
+    "cibo_authority": false,
+    "execution_authority": false
+  }
+}
