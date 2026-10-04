@@ -465,6 +465,7 @@ def _cognitive_rows(opportunities: list[dict[str, Any]]) -> list[dict[str, Any]]
 def _ce2i_rows(
     opportunities: list[dict[str, Any]],
     coverage: dict[str, dict[str, Any]],
+    group: dict[str, Any],
 ) -> list[dict[str, Any]]:
     decisions: dict[str, list[dict[str, Any]]] = {code: [] for code in T_CODES}
     effects: Counter[str] = Counter()
@@ -474,6 +475,69 @@ def _ce2i_rows(
     direct_trace_evidence: dict[str, list[dict[str, Any]]] = {
         code: [] for code in T_CODES
     }
+    dynamic_rows = group.get("dynamic_leverage_decisions", [])
+    if not isinstance(dynamic_rows, list):
+        raise ValueError("dynamic leverage decisions must be a list")
+    for item in dynamic_rows:
+        if not isinstance(item, dict):
+            raise ValueError("dynamic leverage decision must be an object")
+        requested_volume = _dec(item.get("t11_requested_volume"))
+        cap_volume = _dec(item.get("t11_execution_cap_volume"))
+        requested_multiplier = _dec(item.get("requested_multiplier"))
+        effective_multiplier = _dec(item.get("effective_multiplier"))
+        if (
+            requested_volume is None
+            or cap_volume is None
+            or requested_multiplier is None
+            or effective_multiplier is None
+        ):
+            raise ValueError("dynamic T11 decision is missing numeric evidence")
+        direct_trace_evidence["T11"].append(
+            {
+                "input_payload": {
+                    "signal_fingerprint": item.get("signal_fingerprint"),
+                    "trader_id": item.get("trader_id"),
+                    "decision_at": item.get("decision_at"),
+                    "requested_volume": str(requested_volume),
+                    "gross_edge_per_volume_usd": item.get(
+                        "t11_gross_edge_per_volume_usd"
+                    ),
+                    "spread_cost_per_volume_usd": item.get(
+                        "t11_spread_cost_per_volume_usd"
+                    ),
+                    "commission_cost_per_volume_usd": item.get(
+                        "t11_commission_cost_per_volume_usd"
+                    ),
+                    "slippage_cost_per_volume_usd": item.get(
+                        "t11_slippage_cost_per_volume_usd"
+                    ),
+                    "impact_cost_per_volume_squared_usd": item.get(
+                        "t11_impact_cost_per_volume_squared_usd"
+                    ),
+                },
+                "output_payload": {
+                    "execution_cap_volume": str(cap_volume),
+                    "t11_allows_compound": item.get(
+                        "t11_allows_compound"
+                    ),
+                    "effective_multiplier": str(effective_multiplier),
+                    "reason": item.get("reason"),
+                    "market_impact_semantics": (
+                        "PREREGISTERED_PROVIDER_SLIPPAGE_UPPER_BOUND_PROXY"
+                    ),
+                },
+                "downstream_consumer": "dynamic-compound-leverage-controller",
+                "consumer_action": "execution-efficient-cap-consumed",
+                "decision_changed": (
+                    cap_volume < requested_volume
+                    or effective_multiplier < requested_multiplier
+                ),
+                "economic_effect_observable": (
+                    cap_volume < requested_volume
+                    or effective_multiplier < requested_multiplier
+                ),
+            }
+        )
     ordered_rows = sorted(
         opportunities,
         key=lambda item: (
@@ -806,7 +870,7 @@ def main() -> int:
 
     rows = (
         _cognitive_rows(opportunities)
-        + _ce2i_rows(opportunities, coverage)
+        + _ce2i_rows(opportunities, coverage, group)
         + _genc_rows(capital)
     )
     runtime_ok = {
