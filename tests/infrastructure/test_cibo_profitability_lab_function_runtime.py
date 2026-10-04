@@ -77,11 +77,13 @@ def test_native_faculty_runtime_calls_real_engines_or_justifies_temporal_na() ->
         by_code[code].status == "JUSTIFIED_NOT_APPLICABLE"
         for code in ("CF08", "CF18", "CF19")
     )
-    assert by_code["CF01"].status == "FAIL_CLOSED"
-    assert by_code["CF10"].status == "FAIL_CLOSED"
-    assert by_code["CF03"].status == "DEPENDENCY_BLOCKED"
+    assert by_code["CF01"].status == "SUCCESS"
+    assert by_code["CF10"].status == "DEPENDENCY_BLOCKED"
+    assert by_code["CF03"].status == "SUCCESS"
     for code in (
+        "CF01",
         "CF02",
+        "CF03",
         "CF04",
         "CF05",
         "CF06",
