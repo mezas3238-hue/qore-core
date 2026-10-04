@@ -115,9 +115,9 @@ jobs:
           assert set(p["results"]) == {"HOLDOUT_E", "REPLICATION_D"}
 
           if p["performance_stress_pass"]:
-              assert p["formal_stress_stage_completed"] is True
-              assert p["highest_formal_stage"] == "STRESS"
-              assert p["next_gate"] == "WP04_V3B_GOVERNED_SHADOW"
+              assert p["formal_stress_stage_completed"] is False
+              assert p["highest_formal_stage"] == "PERFORMANCE_STRESS"
+              assert p["next_gate"] == "WP04_V3B_GOVERNED_FORMAL_STRESS"
           else:
               assert p["formal_stress_stage_completed"] is False
               assert p["highest_formal_stage"] == "HOLDOUT"
