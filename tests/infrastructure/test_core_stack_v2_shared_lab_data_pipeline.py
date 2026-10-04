@@ -66,7 +66,7 @@ def test_future_leakage_blocks_output_not_merely_warns() -> None:
 
 def test_uncertainty_rises_under_noncritical_degradation() -> None:
     assert uncertainty_after_degradation(base_uncertainty=0.1, missing_required_fraction=0.4, provider_conflict=False, stale=False) > 0.1
-    assert uncertainty_after_degradation(base_uncertainty=0.1, missing_required_fraction=0.4, provider_conflict=True, stale=True) == 0.8
+    assert abs(uncertainty_after_degradation(base_uncertainty=0.1, missing_required_fraction=0.4, provider_conflict=True, stale=True) - 0.8) < 1e-12
 
 
 def test_continuity_classification_detects_duplicate_gap_and_reconnect() -> None:
