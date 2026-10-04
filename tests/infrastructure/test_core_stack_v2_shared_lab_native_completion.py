@@ -7,6 +7,7 @@ from qore.infrastructure.core_stack_v2.shared_lab_native_completion import (
 def receipt(*, github_required: bool = False) -> MultiuserNativeAcceptance:
     return MultiuserNativeAcceptance(
         commit_sha="a" * 40,
+        direct_cli_validate_pass=True,
         nine_concurrent_clients_pass=True,
         queue_32_pass=True,
         dynamic_worker_pool_pass=True,
@@ -17,7 +18,9 @@ def receipt(*, github_required: bool = False) -> MultiuserNativeAcceptance:
         failure_isolation_pass=True,
         evidence_ownership_pass=True,
         cancellation_pass=True,
+        status_observability_pass=True,
         native_replay_pass=True,
+        reproduce_pass=True,
         exact_sha_pass=True,
         persistent_dataset_pass=True,
         github_actions_required=github_required,
