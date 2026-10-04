@@ -1,0 +1,163 @@
+{
+  "schema": "QORE_SHARED_INTEGRATOR_2_A3_B4_SHARED_LAB_EVIDENCE_001",
+  "observed_at": "2026-10-04T19:44:00Z",
+  "repository": "mezas3238-hue/qore-core",
+  "shared_master": {
+    "branch": "agent/qore-core-stack-v2-shared-001",
+    "observed_head": "55144bb92abdc5135521f545667b94dcad555bb1",
+    "pr": 635,
+    "merged": false
+  },
+  "source_heads": {
+    "shared_lab": "f9792cd95553b5663383b0b3474e5be2e2bda789",
+    "architect_3": "bf8a7526a82831ae9b62b1351dfe416b3b287f36",
+    "architect_4": "6a361d0b85aff4333db2842d73b5f683167ca2fe",
+    "integrator_2_before_receipt": "b04e49b5a56555e3d2eb87ba0c9a0e490a12fa58"
+  },
+  "validation_plane": {
+    "name": "QORE_SHARED_LAB",
+    "mode": "ISOLATED_SHARED_LAB_WORKTREE_DIRECT_HARNESS",
+    "lab_base_sha": "f9792cd95553b5663383b0b3474e5be2e2bda789",
+    "github_actions_started_by_integrator_2": false,
+    "native_scheduler_status": "ENGINEERING_BLOCKED_ON_WINDOWS_POSIX_ONLY_RESOURCE_LIMIT_ENFORCEMENT",
+    "native_scheduler_blocker": "shared_lab_orchestrator._apply_limits returns false when os.name != posix and execution fails closed",
+    "direct_harness_used_to_preserve_shared_lab_only_validation": true
+  },
+  "static_gate": {
+    "ruff": "PASS",
+    "mypy": "PASS_NO_ISSUES_6_SOURCE_FILES",
+    "initial_defects_found_and_repaired": 4
+  },
+  "regression": {
+    "seam_identity_temporal_tests": {
+      "passed": 48,
+      "failed": 0,
+      "duration_seconds": 21.7
+    },
+    "architect_3_functional_plugins": {
+      "passed": 135,
+      "failed": 0,
+      "duration_seconds": 6.8
+    }
+  },
+  "sealed_inputs": {
+    "b06_frontier_v3": {
+      "run_id": 36775635034,
+      "artifact_id": 11125412870,
+      "code_sha": "d4956bd7fa02830be56648338c871a78c00374bd",
+      "sha256_manifest": "PASS_4_FILES"
+    },
+    "b07_calendar_worklist": {
+      "run_id": 36782105126,
+      "artifact_id": 11128361589,
+      "code_sha": "512a007e1ba72e97bea397906b99423d6469bca6",
+      "sha256_manifest": "PASS_4_FILES"
+    },
+    "r8_calendar_frontier": {
+      "run_id": 36805285335,
+      "artifact_id": 11137557201,
+      "code_sha": "41f697b8eb208167da78db4710e69ff85ed74bac",
+      "sha256_manifest": "PASS_5_FILES"
+    },
+    "wp12_mc26": {
+      "run_id": 36778113179,
+      "artifact_id": 11126331852,
+      "sha256_manifest": "PASS"
+    },
+    "wp12_mc27": {
+      "run_id": 36782066174,
+      "artifact_id": 11128321427,
+      "sha256_manifest": "PASS"
+    },
+    "wp12_mc28_broker_provider": {
+      "run_id": 36796674458,
+      "artifact_id": 11134473860,
+      "sha256_manifest": "PASS"
+    }
+  },
+  "regenerated_b4_truth": {
+    "b06": {
+      "status": "B06_EPISTEMIC_IDENTITY_DISPOSITION_CLOSED",
+      "sensor_count": 177,
+      "disposition_counts": {
+        "CURRENT_REFERENCE_VERIFIED": 85,
+        "VERSIONED_CONTRACT_VERIFIED": 5,
+        "LEGACY_LINEAGE_ONLY": 2,
+        "PROVIDER_BINDING_UNKNOWN": 12,
+        "PROVIDER_ATTESTED_ONLY": 73
+      },
+      "resolved_for_seam": 90,
+      "unknown_or_limited": 87,
+      "fingerprint": "c41a2499af771980b7b98eb026b18f7574dc82d7b3d47560631d4302af6a41fa",
+      "admission": "ADMITTED_AT_EPISTEMIC_LAYER"
+    },
+    "b07": {
+      "status": "B07_EPISTEMIC_TEMPORAL_DISPOSITION_CLOSED",
+      "sensor_count": 177,
+      "canonical_calendar_verified_count": 0,
+      "calendar_binding_verified_count": 0,
+      "comparability_eligible_count": 0,
+      "r8_historical_session_partial_count": 1,
+      "fingerprint": "c29967b7e1127d355e815ae45b9d53c7b8b989251faa5c1b2e389ed5a1b6183a",
+      "admission": "ADMITTED_AT_EPISTEMIC_LAYER"
+    }
+  },
+  "seam_intake": {
+    "fact_count": 177,
+    "resolved_identity_count": 90,
+    "unknown_identity_count": 87,
+    "comparable_count": 0,
+    "relation_eligible_count": 0,
+    "a3_certainty_count": 0,
+    "productive_authority": false,
+    "fingerprint": "7b489c809c11587de9664bb1be9a41a74b5ffcdd28f4c830c866b0aeebcc8baa",
+    "disposition": "HONEST_PARTIAL_INTEGRATION_B08_REQUIRED"
+  },
+  "architect_3_truth": {
+    "local_functional_surfaces": "PASS_135_OF_135",
+    "mc27_audit_status": "MC27_META_COGNITIVE_FOUNDATION_PASS",
+    "mc27_completed_and_proven": false,
+    "mc28_taxonomy_status": "MC28_STANDARD_006_DIAGNOSTIC_CONTRACT_PASS_OPEN_5",
+    "taxonomy_interpretation": "CONTRACT_INVENTORY_NOT_CURRENT_SEALED_CLOSURE_LEDGER",
+    "wp12_status": "WP12_COGNITIVE_ARBITRATION_META_COGNITION_OPEN_EXACT_BLOCKERS",
+    "wp12_blockers": [
+      "MC27_COMPLETED_AND_PROVEN",
+      "MC27_PROSPECTIVE_FUTURE_OOS_IMPROVEMENT",
+      "MC28_COMPLETED_AND_PROVEN",
+      "MC28_DIAGNOSTIC_CLOCK_DRIFT",
+      "MC28_DIAGNOSTIC_EXECUTION_QUALITY_DETERIORATION"
+    ],
+    "clock_drift": {
+      "disposition": "ENGINEERING_BLOCKED_MISSING_DEMO_CREDENTIAL_INJECTION",
+      "missing_input": "QORE_CTRADER_CLIENT_ID",
+      "provider_connection_started": false,
+      "broker_mutation": false
+    },
+    "execution_quality_deterioration": {
+      "disposition": "INSUFFICIENT_REAL_SEALED_DEMO_POPULATION",
+      "new_order_submission_for_evidence": false
+    }
+  },
+  "seam_remaining": {
+    "b08": "OPEN_TEMPORAL_COMPARABILITY_POLICY_AND_BINDINGS",
+    "b09": "BLOCKED_UNTIL_B08_COMPARABILITY",
+    "b10": "BLOCKED_UNTIL_B08_AND_B09_CAUSAL_RELATIONAL_ELIGIBILITY",
+    "a3_global_promotion": "BLOCKED_ZERO_COMPARABLE_FACTS",
+    "mc27": "FUTURE_EVIDENCE_BLOCKED_UNTIL_PREREGISTERED_WINDOW_MATURES",
+    "mc28_clock_drift": "ENGINEERING_BLOCKED_DEMO_CREDENTIAL_INJECTION",
+    "mc28_execution_quality": "INSUFFICIENT_REAL_SEALED_DEMO_EXECUTION_POPULATION"
+  },
+  "governance": {
+    "protected_final_holdout_opened": false,
+    "live": false,
+    "production": false,
+    "real_capital": false,
+    "broker_mutation": false,
+    "sizing_authority": false,
+    "risk_authority": false,
+    "cibo_authority": false,
+    "execution_authority": false,
+    "pr_635_merge_authorized": false
+  },
+  "next_gate": "B4_B08_COMPARABILITY_THEN_B09_DATA_HEALTH_THEN_B10_RELATIONAL_ELIGIBILITY_THEN_A3_CONSUMER_BINDING"
+}
