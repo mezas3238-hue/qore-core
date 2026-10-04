@@ -1,5 +1,7 @@
 """Exact-SHA repository and isolated worktree runtime for QORE Shared Lab."""
 
+# ruff: noqa: I001
+
 from __future__ import annotations
 
 import shutil
