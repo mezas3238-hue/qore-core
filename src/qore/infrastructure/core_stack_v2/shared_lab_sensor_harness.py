@@ -20,6 +20,12 @@ class SensorFault(StrEnum):
     DISCONNECTED_PROVIDER = "DISCONNECTED_PROVIDER"
     DELAYED = "DELAYED"
     INTERMITTENT = "INTERMITTENT"
+    PARTIAL_HISTORY = "PARTIAL_HISTORY"
+    RECONNECT_GAP = "RECONNECT_GAP"
+    SPREAD_ANOMALY = "SPREAD_ANOMALY"
+    TIMESTAMP_DRIFT = "TIMESTAMP_DRIFT"
+    SENSOR_STARVATION = "SENSOR_STARVATION"
+    ALIAS_COLLISION = "ALIAS_COLLISION"
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,6 +70,22 @@ def inject_fault(data: tuple[ProviderDatum, ...], fault: SensorFault, amount_ns:
         return tuple(replace(x, available_at_ns=x.available_at_ns + amount_ns) for x in items)
     if fault is SensorFault.INTERMITTENT:
         return tuple(item for index, item in enumerate(items) if index % 2 == 0)
+    if fault is SensorFault.PARTIAL_HISTORY:
+        return tuple(items[: max(1, len(items) // 2)])
+    if fault is SensorFault.RECONNECT_GAP:
+        if len(items) > 1:
+            items[1] = replace(items[1], sequence=items[0].sequence + 2)
+        return tuple(items)
+    if fault is SensorFault.SPREAD_ANOMALY:
+        items[0] = replace(items[0], ask=(items[0].bid or 1.0) * 10.0)
+        return tuple(items)
+    if fault is SensorFault.TIMESTAMP_DRIFT:
+        return tuple(replace(x, observed_at_ns=x.observed_at_ns + amount_ns) for x in items)
+    if fault is SensorFault.SENSOR_STARVATION:
+        return ()
+    if fault is SensorFault.ALIAS_COLLISION:
+        items[0] = replace(items[0], provider_symbol="AMBIGUOUS_ALIAS")
+        return tuple(items)
     return tuple(items)
 
 
