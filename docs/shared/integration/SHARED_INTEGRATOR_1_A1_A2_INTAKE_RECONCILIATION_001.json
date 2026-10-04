@@ -1,0 +1,100 @@
+{
+  "schema": "QORE_SHARED_INTEGRATOR_1_A1_A2_INTAKE_RECONCILIATION_001",
+  "generated_at": "2026-10-04",
+  "repository": "mezas3238-hue/qore-core",
+  "shared_pr": 635,
+  "branch": "agent/shared-integrator-1-a1-a2-001",
+  "common_producer_baseline": "cc8c0953e54bdc60213831b417a1473b100b80cf",
+  "shared_master_intake_head": "55144bb92abdc5135521f545667b94dcad555bb1",
+  "producer_intake": {
+    "architect_1": {
+      "branch": "agent/shared-architect-1-cognitive-core-001",
+      "head": "feb5bd5315525908485e69e61e39abb730d42bad",
+      "changed_file_count": 27,
+      "workflow_runs_at_head": 0,
+      "intake_commit": "1bcbd4f12a7e854ba76149f510f3037b72906d2b",
+      "status": "INGESTED_EXACT_BLOBS_VALIDATION_PENDING"
+    },
+    "architect_2": {
+      "branch": "agent/shared-architect-2-sti-001",
+      "head": "47fd3593b4cc8c0da0c11c52ccf8de86a3d939d9",
+      "changed_file_count": 34,
+      "workflow_runs_at_observed_heads": 0,
+      "intake_commits": [
+        "5590e9ebaa57c87f188c75e532cb8aa6abec7259",
+        "74a1c3c18c0a866ab0f7e27438a3b0e0d2b8c3f1",
+        "2757dec119db7f0925f0029deded5a6b4902499c"
+      ],
+      "status": "INGESTED_LATEST_EXACT_BLOBS_VALIDATION_PENDING"
+    }
+  },
+  "integrator_glue": {
+    "a1_shared_lab_plugin_commit": "f7a7796dc9f1679b711078edd52f49383296d1c8",
+    "pair_shared_lab_plugin_commit": "98347c193188e08a486a0b5afde030f7e831b2c1",
+    "a1_task_id": "i1-a1-core",
+    "pair_task_id": "i1-a1-a2-pair",
+    "shared_lab_branch_observed": "agent/qore-shared-lab-001",
+    "shared_lab_head_observed": "f9792cd95553b5663383b0b3474e5be2e2bda789"
+  },
+  "reconciliation": {
+    "a1_a2_path_overlap_observed": 0,
+    "master_files_overwritten_during_intake": 0,
+    "a1_sensitive_governance_scan": {
+      "authority_true_hits": 0,
+      "protected_holdout_occurrences_are_false_guards": true,
+      "live_production_real_capital_occurrences_are_false_guards": true,
+      "broker_mutation_occurrences_are_false_guards": true,
+      "outcome_aware_occurrences_are_false_guards_or_explicit_prohibitions": true
+    },
+    "a2_sensitive_governance_scan": {
+      "authority_true_hits": 0,
+      "restricted_authority_hits": 0
+    }
+  },
+  "formal_validation": {
+    "policy": "QORE_SHARED_LAB_ONLY_FOR_SHARED_TESTS",
+    "github_actions_dispatched_by_integrator_1": false,
+    "shared_lab_exact_sha_run_completed": false,
+    "reason": "Native Shared Lab service is a separate exact-SHA runtime; this intake prepares its plugin DAG but no run identifier has yet been observed through the available GitHub interface.",
+    "required_next_gate": [
+      "run i1-a1-core in QORE Shared Lab against exact Integrator-1 SHA",
+      "run A2 chain through a2-wp11-closure",
+      "run i1-a1-a2-pair combined integration gate",
+      "record exact lab run IDs and dispositions before scientific closure"
+    ]
+  },
+  "scientific_status": {
+    "pair_package_terminal": false,
+    "technical_ci_green_claimed": false,
+    "scientific_completion_claimed": false,
+    "remaining_a1_unproven_or_future_bound": [
+      "MC14_B04_REAL_SCIENTIFIC_DISPOSITION",
+      "STI5_NEW_MECHANISM",
+      "STI6_NEW_MECHANISM",
+      "STI8_V4_FUTURE_OOS_MATURITY",
+      "MC17_REPLICATED_MECHANISM_EVIDENCE",
+      "MC18_CALIBRATION_AND_PROSPECTIVE_VALUE",
+      "MC19_TRAJECTORY_CLOSURE"
+    ],
+    "remaining_a2_unproven_or_stage_bound": [
+      "MC23_VALIDATED_REAL_NOVEL_REGIME_ADAPTATION",
+      "MC24_EMPIRICAL_KNOWLEDGE_HALF_LIFE_AND_NON_DEGRADATION",
+      "MC25_FORMAL_STRESS_SHADOW_CERTIFICATION_PROMOTION_CHAIN",
+      "WP11_EXACT_TERMINAL_RECONCILIATION"
+    ]
+  },
+  "governance": {
+    "pr_635_merged": false,
+    "final_shared_holdout_opened": false,
+    "live_authorized": false,
+    "production_authorized": false,
+    "real_capital_authorized": false,
+    "vps_changes_authorized": false,
+    "broker_mutation_authorized": false,
+    "shared_sizing_authority": false,
+    "shared_risk_authority": false,
+    "shared_order_authority": false,
+    "shared_execution_authority": false,
+    "outcome_aware_gate_rescue_authorized": false
+  }
+}
