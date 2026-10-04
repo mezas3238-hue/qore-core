@@ -1,0 +1,48 @@
+{
+  "identity": "QORE_SHARED_STI8_ECONOMIC_RESPONSE_V3_ENGINEERING_RECOVERY_AMENDMENT_001",
+  "status": "ENGINEERING_RECOVERY_ONLY",
+  "parent_preregistration": "QORE_SHARED_STI8_ECONOMIC_RESPONSE_V3_PREREGISTRATION_001",
+  "failed_run": {
+    "run_id": 36740059589,
+    "head_sha": "4a526c5dbd7c3f91d7061e93728f0b3ec15af064",
+    "failure_stage": "RECONSTRUCT_FROZEN_TRADER_SOURCE_OPPORTUNITIES",
+    "cause": "FROZEN_VT31_RECONSTRUCTOR_REQUIRES_AT_LEAST_730_DAYS_OF_M1_EVIDENCE",
+    "provider_acquisition_completed": true,
+    "economic_evaluation_started": false,
+    "economic_outcomes_scored_by_v3": false,
+    "persisted_artifacts": [
+      "qore-shared-a-sti8-economic-response-v3-oos-open-marker"
+    ]
+  },
+  "scientific_invariants_unchanged": {
+    "v3_policy": true,
+    "v3_hypothesis": true,
+    "sti8_signal_engine": true,
+    "sti8_thresholds": true,
+    "economic_gates": true,
+    "evaluation_opened_at_inclusive": "2026-07-22T00:00:00+00:00",
+    "evaluation_checked_at_exclusive": "2026-09-29T00:00:00+00:00",
+    "minimum_trade_count": 20,
+    "protected_certification_holdout": false
+  },
+  "engineering_recovery": {
+    "source_reconstruction_opened_at_inclusive": "2024-09-29T00:00:00+00:00",
+    "source_reconstruction_checked_at_exclusive": "2026-09-29T00:00:00+00:00",
+    "minimum_source_span_days": 730,
+    "reason": "SATISFY_FROZEN_TRADER_RECONSTRUCTION_CONTRACT_WITHOUT_MUTATING_TRADER",
+    "fresh_evidence_reacquisition_authorized": true,
+    "reason_reacquisition": "FIRST_RUN_EVIDENCE_WAS_NOT_PERSISTED_BEFORE_PRE_EVALUATION_ENGINEERING_FAILURE",
+    "full_reconstruction_rows_may_be_materialized": true,
+    "pre_oos_rows_must_be_mechanically_discarded_before_sti8_sequence_builder": true,
+    "full_reconstruction_file_must_be_deleted_before_economic_evaluation": true,
+    "only_fresh_window_rows_may_reach_sti8_evaluator": true
+  },
+  "anti_leakage": {
+    "parent_v2_outcomes_allowed_for_v3_policy_change": false,
+    "reconstruction_summary_allowed_for_v3_policy_change": false,
+    "fresh_oos_outcomes_allowed_before_source_decisions": false,
+    "outcome_aware_retuning_authorized": false,
+    "recovery_may_claim_temporal_replication": false,
+    "recovery_may_open_certification_holdout": false
+  }
+}

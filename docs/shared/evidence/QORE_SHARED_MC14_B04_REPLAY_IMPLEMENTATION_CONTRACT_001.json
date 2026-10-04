@@ -1,0 +1,59 @@
+{
+  "identity": "QORE_SHARED_MC14_B04_REPLAY_IMPLEMENTATION_CONTRACT_001",
+  "status": "FROZEN_BEFORE_B04_TARGET_EVALUATION",
+  "preregistration_identity": "QORE_SHARED_MC14_B04_NEW_INFORMATION_TEMPORAL_CAUSAL_PREREGISTRATION_001",
+  "upstream": {
+    "run_id": 36765098842,
+    "global_artifact_id": 11129732922,
+    "git_sha": "aec788d073aedc31f609c1609af3f7d4d8e5ae30"
+  },
+  "source_cutoff_semantics": {
+    "rule": "MAX_REQUEST_TO_AT_MINUS_15_MINUTES",
+    "rationale": "B04 windows are merged from source-60m through source+15m. The maximum request_to_at minus the frozen 15m post-source horizon reconstructs the latest causal source cutoff deterministically.",
+    "post_source_ticks_used": false,
+    "merged_window_prior_sources_may_remain_in_history": true
+  },
+  "source_threshold_semantics": {
+    "fit_partition": "DISCOVERY_ONLY_0_1768",
+    "target_blind": true,
+    "low_quantile": 0.45,
+    "high_quantile": 0.55,
+    "rationale": "Broad symmetric source-only tails preserve the frozen 250-per-group gate in 590-window validation and replication without relaxing the gate.",
+    "retune_after_validation": false
+  },
+  "future_target_semantics": {
+    "canonical_function": "shared_wp03_historical_causal_discovery._target_state",
+    "target": "max(REVERSAL, STRUCTURAL_FAILURE, ANOMALY)",
+    "lineage": "same canonical regime-transition target used by STI5 V1",
+    "feature_construction_uses_future_market": false,
+    "future_market_offline_evaluation_only": true
+  },
+  "coverage_semantics": {
+    "exact_window_count": 2948,
+    "missing_required_quote_side": "INSUFFICIENT_DO_NOT_INFER",
+    "missing_target_alignment": "INSUFFICIENT_DO_NOT_INFER",
+    "source_time_disagreement_between_families": "INSUFFICIENT_DO_NOT_INFER",
+    "minimum_group_count_not_met": "INSUFFICIENT_DO_NOT_INFER"
+  },
+  "governance": {
+    "r6_r5_read": false,
+    "protected_certification_holdout_opened": false,
+    "trade_pnl_used": false,
+    "gate_relaxation": false,
+    "target_threshold_rescue": false,
+    "knowledge_auto_promotion": false,
+    "shared_methodology_authority": false,
+    "shared_sizing_authority": false,
+    "shared_risk_authority": false,
+    "shared_order_authority": false,
+    "shared_execution_authority": false,
+    "master_ledger_mutation": false
+  },
+  "next_gate": "STATIC_REVIEW_COMPLETE_THEN_SINGLE_GOVERNED_REPLAY_WHEN_ACTIONS_CAPACITY_IS_AVAILABLE",
+  "sequential_evaluation": {
+    "discovery_required_before_validation": true,
+    "validation_required_before_replication": true,
+    "later_partition_read_after_prior_gate_failure": false,
+    "insufficient_feature_prevents_family_falsification_unless_another_frozen_relation_replicates": true
+  }
+}
