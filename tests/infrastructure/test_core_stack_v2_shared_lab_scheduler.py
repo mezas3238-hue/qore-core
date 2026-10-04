@@ -190,6 +190,7 @@ def request(
     mode: ExecutionMode,
     scope: LabScope,
     dependency_hash: str,
+    workers: int = 1,
 ) -> RunRequest:
     return RunRequest(
         repository="owner/repo",
@@ -200,7 +201,7 @@ def request(
         dataset_version="1",
         mode=mode,
         scope=scope,
-        workers=1,
+        workers=workers,
         policy=ResourcePolicy(
             timeout_seconds=20,
             retries=0,
@@ -498,5 +499,77 @@ def test_granular_lock_does_not_block_unrelated_quick_job(tmp_path: Path) -> Non
         assert lab.wait(unrelated.scheduler_job_id, timeout=10).state is SchedulerState.PASS
         assert lab.wait(locked_one.scheduler_job_id, timeout=10).state is SchedulerState.PASS
         assert lab.wait(locked_two.scheduler_job_id, timeout=10).state is SchedulerState.PASS
+    finally:
+        lab.shutdown()
+
+
+
+def test_scheduler_enforces_central_worker_slot_capacity(tmp_path: Path) -> None:
+    repo, sha = make_repo(tmp_path)
+    lab = scheduler(tmp_path, workers=4, delay=0.8)
+    try:
+        three_slots = lab.submit(
+            JobSubmission(
+                "Architect-1",
+                ClientRole.ARCHITECT,
+                request(
+                    repo,
+                    sha,
+                    client="Architect-1",
+                    mode=ExecutionMode.QUICK,
+                    scope=LabScope.FULL_STACK,
+                    dependency_hash="three-slots",
+                    workers=3,
+                ),
+                PriorityLane.QUICK,
+            )
+        )
+        wait_for_running(lab, 1)
+        two_slots = lab.submit(
+            JobSubmission(
+                "Architect-2",
+                ClientRole.ARCHITECT,
+                request(
+                    repo,
+                    sha,
+                    client="Architect-2",
+                    mode=ExecutionMode.QUICK,
+                    scope=LabScope.FULL_STACK,
+                    dependency_hash="two-slots",
+                    workers=2,
+                ),
+                PriorityLane.QUICK,
+            )
+        )
+        one_slot = lab.submit(
+            JobSubmission(
+                "Architect-3",
+                ClientRole.ARCHITECT,
+                request(
+                    repo,
+                    sha,
+                    client="Architect-3",
+                    mode=ExecutionMode.QUICK,
+                    scope=LabScope.FULL_STACK,
+                    dependency_hash="one-slot",
+                    workers=1,
+                ),
+                PriorityLane.NORMAL,
+            )
+        )
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            snapshot = lab.status()
+            if snapshot["worker_slots_in_use"] == 4:
+                break
+            time.sleep(0.02)
+        snapshot = lab.status()
+        assert snapshot["worker_slots_in_use"] == 4
+        assert snapshot["worker_slots_available"] == 0
+        assert two_slots.state is SchedulerState.QUEUED
+        assert one_slot.state in {SchedulerState.RUNNING, SchedulerState.PASS}
+        assert lab.wait(three_slots.scheduler_job_id, timeout=15).state is SchedulerState.PASS
+        assert lab.wait(one_slot.scheduler_job_id, timeout=15).state is SchedulerState.PASS
+        assert lab.wait(two_slots.scheduler_job_id, timeout=15).state is SchedulerState.PASS
     finally:
         lab.shutdown()
