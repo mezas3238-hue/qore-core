@@ -1,8 +1,8 @@
 from decimal import Decimal
 
 from qore.infrastructure.cibo_maximum_capability_efficiency import (
-    CiboMaximumCapabilityEvidence,
     MANDATORY_EFFICIENCY_DIMENSIONS,
+    CiboMaximumCapabilityEvidence,
     build_maximum_capability_scorecard,
 )
 
