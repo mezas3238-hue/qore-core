@@ -1,0 +1,107 @@
+{
+  "identity": "QORE_SHARED_B16_PIPELINE_READINESS_001",
+  "created_at": "2026-10-04",
+  "repository": "mezas3238-hue/qore-core",
+  "branch": "agent/shared-architect-6-provenance-freeze-001",
+  "code_head": "83aabd7fdecdb95668ce3ee6ab0d5b0a3920085c",
+  "test_plane": "QORE_SHARED_LAB_ISOLATED_B6_WORKTREE",
+  "pipeline": [
+    {
+      "stage": "QUALIFICATION_FRONTIER",
+      "state": "SEALED_PROGRESSIVE_FAIL_CLOSED",
+      "source_run_id": 37228391397,
+      "source_artifact_id": 11313231357,
+      "frontier_fingerprint_sha256": "ee9b84abfed7c2b924e77aadae61ff4174116615c7afe1323efa161226e557cc"
+    },
+    {
+      "stage": "QUALIFICATION_WORKLIST",
+      "state": "COMPLETE",
+      "sensor_count": 177,
+      "evidence_completion_required_count": 177,
+      "worklist_fingerprint_sha256": "d4dd62fd439b7ffbb0eda67d524c34d693be9b5175767f4a8615b0536e08afb1"
+    },
+    {
+      "stage": "SCIENTIFIC_VALUE_EXAM_GATE",
+      "state": "READY_BUT_NO_SENSOR_ELIGIBLE",
+      "ready_for_exam_count": 0,
+      "research_labels_opened": false,
+      "exam_executed": false
+    },
+    {
+      "stage": "SOURCE_ACQUISITION_QUEUE",
+      "state": "COMPLETE",
+      "source_complete_count": 2,
+      "partial_source_blindspot_count": 1,
+      "ready_for_source_acquisition_count": 87,
+      "identity_blocked_do_not_acquire_count": 87,
+      "queue_fingerprint_sha256": "a4a144f7fddaddf40fa3cf94d25f047e7645dae861aa225189c527ea704bdca6"
+    },
+    {
+      "stage": "SOURCE_ACQUISITION_PREREGISTRATION",
+      "state": "FROZEN_PRE_OBSERVATION",
+      "candidate_count": 87,
+      "candidate_set_sha256": "aaaebe328d1fb8d1e771aa5e8dd2276007b7c4c34889ce4931e53d8c6e806a08",
+      "pilot_indices": [
+        0,
+        736,
+        1473,
+        2210,
+        2947
+      ],
+      "preregistration_fingerprint_sha256": "8cc19a5ec21341d295a94e1671251e17be7278a266e2b9977385ec89d07c8324"
+    },
+    {
+      "stage": "SOURCE_PILOT_REDUCER",
+      "state": "IMPLEMENTED_AND_ADVERSARIAL_TESTED",
+      "full_only_authorizes_full_r8": true,
+      "technical_error_as_absence": false,
+      "partial_history_auto_retry": false,
+      "real_provider_pilot_executed": false
+    }
+  ],
+  "blockers": [
+    {
+      "blocker_id": "B16_PROVIDER_CREDENTIALS_NOT_INJECTED_IN_SHARED_LAB",
+      "owner_surface": "SHARED_LAB_PROVIDER_ENVIRONMENT",
+      "observed_required_credential_groups": 5,
+      "available_groups": 0,
+      "effect": "87 frozen source candidates cannot execute read-only provider pilot"
+    },
+    {
+      "blocker_id": "B16_CANONICAL_CALENDAR_OPEN",
+      "owner_surface": "B4",
+      "affected_sensor_count": 177,
+      "effect": "0 sensors may enter scientific-value exam"
+    },
+    {
+      "blocker_id": "B16_CANONICAL_IDENTITY_OPEN",
+      "owner_surface": "B4",
+      "affected_sensor_count": 87,
+      "effect": "identity-blocked sensors are forbidden from provider-name acquisition"
+    }
+  ],
+  "validation": {
+    "b16_pipeline_tests": "25/25 PASS",
+    "ruff": "PASS",
+    "mypy": "PASS"
+  },
+  "governance": {
+    "target_or_outcome_read": false,
+    "outcome_aware_selection": false,
+    "research_labels_opened": false,
+    "final_shared_holdout_opened": false,
+    "broker_mutation": false,
+    "live": false,
+    "production": false,
+    "real_capital": false,
+    "scientific_value_decided": false,
+    "sensor_admission_authority": false,
+    "trade_priority_authority": false,
+    "sizing_authority": false,
+    "risk_authority": false,
+    "cibo_authority": false,
+    "execution_authority": false,
+    "productive_authority": false
+  },
+  "b16_complete": false
+}
