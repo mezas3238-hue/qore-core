@@ -493,6 +493,7 @@ def evaluate_phase22_historical_policy(
         candidates=allocator_candidates,
         known_options=(),
         lab_allow_nonpositive_expectation=lab_allow_nonpositive_expectation,
+        runtime_scope_id=f"phase22:{market_decision_at.isoformat()}",
     )
     return Phase22HistoricalPolicyDecisionRecord(
         candidate_id=V4_CANDIDATE_ID,

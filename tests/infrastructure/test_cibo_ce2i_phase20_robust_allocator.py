@@ -135,6 +135,7 @@ def test_phase20h_stable_demo_allocates_inside_shared_headroom() -> None:
         margin_headroom_usd=Decimal("100"),
         concentration_limit_by_group=(("USD", Decimal("100")),),
         candidates=(slow, fast),
+        runtime_scope_id="test:stable-demo",
     )
 
     assert decision.disposition is Phase20AllocatorDisposition.ALLOCATE
@@ -156,6 +157,10 @@ def test_phase20h_stable_demo_allocates_inside_shared_headroom() -> None:
     )
     assert all(item.outcome_used is False for item in decision.runtime_receipts)
     assert all(item.risk_authority is False for item in decision.runtime_receipts)
+    assert all(
+        item.scope_id == "test:stable-demo"
+        for item in decision.runtime_receipts
+    )
     assert decision.runtime_receipts[1].economic_effect_observable is True
     assert decision.runtime_receipts[2].economic_effect_observable is True
 

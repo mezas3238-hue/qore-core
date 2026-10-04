@@ -183,6 +183,7 @@ def propose_phase20h_robust_allocation(
     candidates: tuple[CapitalOpportunityCandidate, ...],
     known_options: tuple[KnownCapitalOption, ...] = (),
     lab_allow_nonpositive_expectation: bool = False,
+    runtime_scope_id: str = "phase20h-allocator",
 ) -> Phase20RobustAllocatorDecision:
     """Compose causal CE2I constraints without using post-trade outcomes."""
 
@@ -197,6 +198,10 @@ def propose_phase20h_robust_allocation(
     if type(lab_allow_nonpositive_expectation) is not bool:
         raise CiboCapitalManagementError(
             "lab_allow_nonpositive_expectation must be bool"
+        )
+    if not isinstance(runtime_scope_id, str) or not runtime_scope_id:
+        raise CiboCapitalManagementError(
+            "Phase20H runtime_scope_id must be non-empty string"
         )
     _validate_headroom(
         hard_risk_headroom_usd,
@@ -271,7 +276,7 @@ def propose_phase20h_robust_allocation(
                 tool_code="T15",
                 engine_name="plan_capital_optionality",
                 stage="PREDECISION",
-                scope_id="phase20h-allocator",
+                scope_id=runtime_scope_id,
                 input_payload={
                     "hard_risk_headroom_usd": str(hard_risk_headroom_usd),
                     "margin_headroom_usd": str(margin_headroom_usd),
@@ -315,7 +320,7 @@ def propose_phase20h_robust_allocation(
                     tool_code="T13",
                     engine_name="plan_capital_optionality",
                     stage="PREDECISION",
-                    scope_id="phase20h-allocator",
+                    scope_id=runtime_scope_id,
                     input_payload={
                         "drawdown_posture": regime.posture.value,
                         "hard_risk_headroom_usd": str(hard_risk_headroom_usd),
@@ -454,7 +459,7 @@ def propose_phase20h_robust_allocation(
                     tool_code=tool_code,
                     engine_name="allocate_competing_opportunities",
                     stage="PREDECISION",
-                    scope_id="phase20h-allocator",
+                    scope_id=runtime_scope_id,
                     input_payload=allocation_input,
                     output_payload=allocation_output,
                     downstream_consumer="phase20h-allocator-selection",
