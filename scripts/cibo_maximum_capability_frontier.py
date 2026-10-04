@@ -2255,7 +2255,7 @@ def main() -> int:
             "evaluation_outcomes_not_available_to_decision": True,
             "closed_m5_path_consumed_sequentially_after_entry": True,
             "same_bar_ambiguity_ordering": (
-                "CONSERVATIVE_STOP_FIRST"
+                "NO_INVENTED_INTRABAR_ORDER; ORIGINAL_SETTLEMENT_PRESERVED"
             ),
             "outcome_aware_tuning": False,
             "trader_logic_changed": False,
