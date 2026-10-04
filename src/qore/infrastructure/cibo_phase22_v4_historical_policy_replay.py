@@ -531,13 +531,21 @@ def evaluate_phase22_historical_policy(
             else recovery_probe.margin_usd
         ),
     )
+    effective_allocator_candidates = (
+        recovery_probe_candidates
+        if (
+            mission.capability_measurement_enabled
+            and full_surface.regime.posture is CiboRegimePosture.RECOVERY
+        )
+        else allocator_candidates
+    )
     allocator = propose_phase20h_robust_allocation(
         mission=mission,
         regime=full_surface.regime,
         hard_risk_headroom_usd=mpc.deployable_stop_risk_usd,
         margin_headroom_usd=mpc.deployable_margin_usd,
         concentration_limit_by_group=concentration_limit_by_group,
-        candidates=allocator_candidates,
+        candidates=effective_allocator_candidates,
         known_options=(),
         lab_allow_nonpositive_expectation=lab_allow_nonpositive_expectation,
         runtime_scope_id=f"phase22:{market_decision_at.isoformat()}",
