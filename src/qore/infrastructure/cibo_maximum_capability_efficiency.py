@@ -16,7 +16,6 @@ from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
 
-
 MANDATORY_EFFICIENCY_DIMENSIONS = (
     "EX_ANTE_CAUSAL_EFFICIENCY",
     "REALIZED_ECONOMIC_CAPTURE",
