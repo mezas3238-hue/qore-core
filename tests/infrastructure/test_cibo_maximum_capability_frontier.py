@@ -2,13 +2,17 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from qore.infrastructure.cibo_maximum_capability_frontier import (
-    FULL_LIFECYCLE_FEATURES,
+    frozenset(CiboLifecycleFeature),
     CausalFrontierOpportunity,
     EpochOption,
     LifecycleFeature,
     cognitive_multiplier_cap,
     optimize_epoch_multipliers,
-    simulate_position_lifecycle,
+)
+from qore.infrastructure.cibo_position_lifecycle import (
+    CiboLifecycleFeature,
+    CiboPositionLifecycleInput,
+    run_cibo_position_lifecycle,
 )
 from qore.infrastructure.trader_lab.ict_turtle_soup_r4_source_exact import Bar
 
@@ -94,6 +98,26 @@ def _opportunity() -> CausalFrontierOpportunity:
     )
 
 
+def _lifecycle_input() -> CiboPositionLifecycleInput:
+    opportunity = _opportunity()
+    return CiboPositionLifecycleInput(
+        signal_fingerprint=opportunity.signal_fingerprint,
+        side=opportunity.side,
+        entry_at=opportunity.entry_at,
+        horizon_at=opportunity.horizon_at,
+        entry_price=opportunity.entry_price,
+        structural_stop=opportunity.structural_stop,
+        technical_target=opportunity.technical_target,
+        provider_cost_per_volume_usd=(
+            opportunity.provider_cost_per_volume_usd
+        ),
+        stop_risk_per_volume_usd=(
+            opportunity.stop_risk_per_volume_usd
+        ),
+        original_settlement_gross_r=opportunity.fallback_gross_r,
+    )
+
+
 def test_cognitive_cap_consumes_real_cf_inputs_without_outcomes() -> None:
     cap, codes, reason = cognitive_multiplier_cap(_cognitive())
 
@@ -169,14 +193,14 @@ def test_position_lifecycle_uses_closed_post_entry_bars_and_releases_risk() -> N
         ),
     )
 
-    result = simulate_position_lifecycle(
-        opportunity,
+    result = run_cibo_position_lifecycle(
+        _lifecycle_input(),
         bars,
         features=frozenset(
             {
-                LifecycleFeature.BREAKEVEN,
-                LifecycleFeature.PARTIAL_REALIZATION,
-                LifecycleFeature.PROFIT_LOCK,
+                CiboLifecycleFeature.BREAKEVEN,
+                CiboLifecycleFeature.PARTIAL_REALIZATION,
+                CiboLifecycleFeature.PROFIT_LOCK,
             }
         ),
     )
@@ -198,10 +222,10 @@ def test_same_bar_ambiguous_base_path_does_not_invent_intrabar_order() -> None:
         close=Decimal("102"),
     )
 
-    result = simulate_position_lifecycle(
-        opportunity,
+    result = run_cibo_position_lifecycle(
+        _lifecycle_input(),
         (bar,),
-        features=FULL_LIFECYCLE_FEATURES,
+        features=frozenset(CiboLifecycleFeature),
     )
 
     assert result.gross_r == opportunity.fallback_gross_r
@@ -220,8 +244,8 @@ def test_lifecycle_off_is_exact_original_settlement_identity() -> None:
         close=Decimal("102.5"),
     )
 
-    result = simulate_position_lifecycle(
-        opportunity,
+    result = run_cibo_position_lifecycle(
+        _lifecycle_input(),
         (bar,),
         features=frozenset(),
     )
@@ -252,11 +276,11 @@ def test_new_breakeven_protection_only_applies_from_next_bar() -> None:
         close=Decimal("100"),
     )
 
-    result = simulate_position_lifecycle(
-        opportunity,
+    result = run_cibo_position_lifecycle(
+        _lifecycle_input(),
         (first, second),
         features=frozenset(
-            {LifecycleFeature.BREAKEVEN}
+            {CiboLifecycleFeature.BREAKEVEN}
         ),
     )
 
@@ -278,11 +302,11 @@ def test_same_bar_new_protection_is_not_retroactive() -> None:
         close=Decimal("101"),
     )
 
-    result = simulate_position_lifecycle(
-        opportunity,
+    result = run_cibo_position_lifecycle(
+        _lifecycle_input(),
         (bar,),
         features=frozenset(
-            {LifecycleFeature.BREAKEVEN}
+            {CiboLifecycleFeature.BREAKEVEN}
         ),
     )
 
@@ -302,11 +326,11 @@ def test_partial_then_horizon_uses_original_settlement_not_last_close() -> None:
         close=Decimal("101.1"),
     )
 
-    result = simulate_position_lifecycle(
-        opportunity,
+    result = run_cibo_position_lifecycle(
+        _lifecycle_input(),
         (bar,),
         features=frozenset(
-            {LifecycleFeature.PARTIAL_REALIZATION}
+            {CiboLifecycleFeature.PARTIAL_REALIZATION}
         ),
     )
 
