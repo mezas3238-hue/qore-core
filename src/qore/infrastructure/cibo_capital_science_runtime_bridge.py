@@ -87,6 +87,12 @@ from qore.infrastructure.cibo_position_continuation_intelligence import (
     CiboPositionContinuationInput,
     estimate_position_continuation,
 )
+from qore.infrastructure.cibo_portfolio_allocation_engine import (
+    CiboPortfolioAllocationPlan,
+    CiboPositionOpportunityCompetitionPlan,
+    plan_account_wide_capital_allocation,
+    plan_position_opportunity_competition,
+)
 from qore.infrastructure.cibo_multi_period_capital_mpc import (
     Genc11KnownOptionSchedule,
     Genc11WorldPath,
@@ -671,6 +677,8 @@ class CapitalScienceDirective:
     allow_incremental_compound: bool
     deployable_profit_usd: Decimal
     receipts: tuple[CapitalScienceReceipt, ...]
+    portfolio_allocation_plan: CiboPortfolioAllocationPlan | None = None
+    position_competition_plan: CiboPositionOpportunityCompetitionPlan | None = None
 
     def __post_init__(self) -> None:
         if type(self.allow_incremental_compound) is not bool:
@@ -693,6 +701,26 @@ class CapitalScienceDirective:
             "GEN-C11",
             "GEN-C12",
         }
+        if (
+            self.portfolio_allocation_plan is not None
+            and not isinstance(
+                self.portfolio_allocation_plan,
+                CiboPortfolioAllocationPlan,
+            )
+        ):
+            raise CiboCapitalManagementError(
+                "Capital Science portfolio allocation plan must be canonical"
+            )
+        if (
+            self.position_competition_plan is not None
+            and not isinstance(
+                self.position_competition_plan,
+                CiboPositionOpportunityCompetitionPlan,
+            )
+        ):
+            raise CiboCapitalManagementError(
+                "Capital Science position competition plan must be canonical"
+            )
         actual = {item.function_code for item in self.receipts}
         if actual != expected:
             raise CiboCapitalManagementError(
@@ -1829,6 +1857,29 @@ def evaluate_capital_science_predecision(
                     }
                     for item in economic_twin.opportunities
                 ],
+                "economic_position_count": len(economic_twin.positions),
+                "economic_positions": [
+                    {
+                        "signal_fingerprint": item.signal_fingerprint,
+                        "entry_expected_net_value_usd": format(
+                            item.entry_expected_net_value_usd,
+                            "f",
+                        ),
+                        "expected_continuation_net_value_usd": format(
+                            item.expected_continuation_net_value_usd,
+                            "f",
+                        ),
+                        "expected_remaining_capital_minutes": format(
+                            item.expected_remaining_capital_minutes,
+                            "f",
+                        ),
+                        "continuation_value_identified": (
+                            item.continuation_value_identified
+                        ),
+                        "releasable": item.releasable,
+                    }
+                    for item in economic_twin.positions
+                ],
             },
             typed_engine_input={
                 "capital_truth_sha256": twin.capital_truth_sha256,
@@ -2086,11 +2137,29 @@ def evaluate_capital_science_predecision(
         )
     )
 
+    portfolio_allocation_plan = plan_account_wide_capital_allocation(
+        economic_twin
+    )
+    position_competition_plan = (
+        plan_position_opportunity_competition(
+            economic_twin,
+            opportunity_id=state.signal_fingerprint,
+        )
+        if economic_twin.positions
+        and any(
+            item.option_id == state.signal_fingerprint
+            for item in economic_twin.opportunities
+        )
+        else None
+    )
+
     allow = c4_allows and c7_allows and genc5_allows and c8_allows and c11_allows and c12_allows
     return CapitalScienceDirective(
         allow_incremental_compound=allow,
         deployable_profit_usd=state.deployable_profit_usd,
         receipts=tuple(receipts),
+        portfolio_allocation_plan=portfolio_allocation_plan,
+        position_competition_plan=position_competition_plan,
     )
 
 
