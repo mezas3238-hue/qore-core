@@ -805,8 +805,18 @@ def run_compound_portfolio_lane(
                     continue
             candidate = by_signal[signal]
             opportunity = candidate.projection.candidate.capital_input.opportunity
-            volume = minimum_seed_volume(opportunity) * lab_seed_multiplier
-            if volume > opportunity.maximum_volume:
+            base_volume = minimum_seed_volume(opportunity)
+            requested_multiplier = lab_seed_multiplier
+            if lab_dynamic_leverage:
+                maximum_multiplier = (
+                    opportunity.maximum_volume / base_volume
+                ).to_integral_value(rounding="ROUND_FLOOR")
+                requested_multiplier = min(
+                    requested_multiplier,
+                    maximum_multiplier,
+                )
+            volume = base_volume * requested_multiplier
+            if requested_multiplier < 1 or volume > opportunity.maximum_volume:
                 blockers["SHADOW_SEED_MULTIPLIER_EXCEEDS_MAXIMUM_VOLUME"] += 1
                 rejected += 1
                 continue
