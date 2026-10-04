@@ -15,6 +15,10 @@ from decimal import ROUND_FLOOR, Decimal
 from enum import StrEnum
 from itertools import product
 
+from qore.infrastructure.cibo_full_economic_digital_twin import (
+    CiboObservedEconomicTwin,
+    observed_twin_constraints,
+)
 from qore.infrastructure.trader_lab.ict_turtle_soup_r4_source_exact import Bar
 
 
@@ -500,6 +504,86 @@ def optimize_epoch_multipliers(
     if best is None:
         return tuple(0 for _ in options)
     return tuple(-value for value in best[4])
+
+
+def optimize_epoch_from_economic_twin(
+    twin: CiboObservedEconomicTwin,
+    *,
+    fixed_multiplier: int | None = None,
+    portfolio_competition: bool = True,
+) -> tuple[tuple[str, int], ...]:
+    """Optimize the current causal opportunity surface from the canonical Twin.
+
+    This is a research frontier consumer only.  It does not mutate the Twin,
+    authorize capital, bypass QORE Risk or use realized future outcomes.
+    """
+
+    if not isinstance(twin, CiboObservedEconomicTwin):
+        raise CiboMaximumCapabilityError(
+            "frontier requires canonical Full Economic Twin"
+        )
+    constraints = observed_twin_constraints(twin)
+    cognitive = dict(twin.cognitive_constraints)
+    raw_cap = cognitive.get("capital_intensity_cap", "4")
+    try:
+        cognitive_cap = int(raw_cap)
+    except (TypeError, ValueError) as error:
+        raise CiboMaximumCapabilityError(
+            "Full Economic Twin capital_intensity_cap must be integer 0..4"
+        ) from error
+    if cognitive_cap not in {0, 1, 2, 3, 4}:
+        raise CiboMaximumCapabilityError(
+            "Full Economic Twin capital_intensity_cap outside 0..4"
+        )
+
+    options: list[EpochOption] = []
+    ordered = tuple(
+        sorted(
+            twin.opportunities,
+            key=lambda item: (
+                item.earliest_action_at,
+                item.option_id,
+            ),
+        )
+    )
+    for item in ordered:
+        eligible = (
+            item.known_at <= twin.captured_at
+            and item.earliest_action_at <= twin.captured_at
+            and item.expires_at > twin.captured_at
+            and item.context_allowed
+            and item.provider_viable
+            and item.capital_source_eligible
+        )
+        cap = min(item.maximum_multiplier, cognitive_cap) if eligible else 0
+        # Uncertainty is an ex-ante penalty, not an outcome filter.
+        net_value = (
+            item.expected_net_value_usd
+            - item.provider_cost_usd
+            - item.uncertainty_penalty
+        )
+        options.append(
+            EpochOption(
+                signal_fingerprint=item.option_id,
+                multiplier_cap=cap,
+                expected_net_value_usd=net_value,
+                expected_capital_minutes=item.expected_capital_minutes,
+                risk_per_multiplier_usd=item.stop_risk_usd,
+                margin_per_multiplier_usd=item.margin_usd,
+            )
+        )
+
+    multipliers = optimize_epoch_multipliers(
+        tuple(options),
+        risk_headroom_usd=constraints["stop_risk_headroom_usd"],
+        margin_headroom_usd=constraints["margin_headroom_usd"],
+        fixed_multiplier=fixed_multiplier,
+        portfolio_competition=portfolio_competition,
+    )
+    return tuple(
+        (item.option_id, multiplier)
+        for item, multiplier in zip(ordered, multipliers, strict=True)
+    )
 
 
 def simulate_position_lifecycle(
