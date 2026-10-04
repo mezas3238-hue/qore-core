@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -138,9 +139,10 @@ def test_one_failed_fold_cannot_be_compensated() -> None:
 
 def test_labels_cannot_precede_preregistration_or_use_final_holdout() -> None:
     with pytest.raises(ValueError, match="before preregistration"):
-        SensorScientificValuePreregistration(
-            **{
-                **_prereg().__dict__,
-                "research_labels_opened_at": NOW - timedelta(seconds=1),
-            }
+        replace(
+            _prereg(),
+            research_labels_opened_at=NOW - timedelta(seconds=1),
         )
+
+    with pytest.raises(ValueError, match="forbidden target/holdout state"):
+        replace(_prereg(), final_shared_holdout_opened=True)
