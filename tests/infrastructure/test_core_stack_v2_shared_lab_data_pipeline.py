@@ -3,8 +3,10 @@ from dataclasses import replace
 from qore.infrastructure.core_stack_v2.shared_lab_data_pipeline import (
     ContinuityEvent,
     ObservationDisposition,
+    bind_next_consumer,
     build_validated_sensor_receipt,
     classify_continuity,
+    deterministic_replay_equal,
     uncertainty_after_degradation,
 )
 from qore.infrastructure.core_stack_v2.shared_lab_data_reality import (
@@ -72,3 +74,45 @@ def test_continuity_classification_detects_duplicate_gap_and_reconnect() -> None
     assert classify_continuity((1, 2, 2)) is ContinuityEvent.DUPLICATE_EVENT
     assert classify_continuity((1, 3)) is ContinuityEvent.SEQUENCE_GAP
     assert classify_continuity((1, 2), reconnected=True) is ContinuityEvent.RECONNECT
+
+
+def test_deterministic_replay_and_exact_next_consumer_lineage() -> None:
+    datum = _datum()
+    kwargs = dict(
+        datum=datum,
+        sensor_id="sensor.fx.microstructure",
+        sensor_output=0.75,
+        alias_map={"EURUSD": (datum.canonical_identity,)},
+        expected_market_open=True,
+        decision_at_ns=1_020,
+        consumed_at_ns=1_030,
+        now_ns=1_020,
+        freshness_limit_ns=100,
+        quality_metrics=_metrics(),
+        quality_thresholds=DataQualityThresholds(),
+    )
+    observation_1, receipt_1 = build_validated_sensor_receipt(**kwargs)
+    observation_2, receipt_2 = build_validated_sensor_receipt(**kwargs)
+    assert deterministic_replay_equal(observation_1, receipt_1, observation_2, receipt_2)
+    assert receipt_1.sensor_output_fingerprint is not None
+    bound = bind_next_consumer(receipt_1, receipt_1.sensor_output_fingerprint)
+    assert bound.lineage_exact_to_next_consumer
+
+
+def test_wrong_next_consumer_parent_is_detected() -> None:
+    datum = _datum()
+    _, receipt = build_validated_sensor_receipt(
+        datum=datum,
+        sensor_id="s",
+        sensor_output=0.5,
+        alias_map={"EURUSD": (datum.canonical_identity,)},
+        expected_market_open=True,
+        decision_at_ns=1_020,
+        consumed_at_ns=1_030,
+        now_ns=1_020,
+        freshness_limit_ns=100,
+        quality_metrics=_metrics(),
+        quality_thresholds=DataQualityThresholds(),
+    )
+    bound = bind_next_consumer(receipt, "0" * 64)
+    assert not bound.lineage_exact_to_next_consumer
