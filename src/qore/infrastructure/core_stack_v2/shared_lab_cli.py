@@ -185,12 +185,13 @@ def _run_publish(args: argparse.Namespace) -> int:
     token = os.environ.get("GITHUB_TOKEN", "")
     if not token:
         raise RuntimeError("GITHUB_TOKEN is required only for publish")
-    tasks = evidence["tasks"]
-    raise RuntimeError(
-        "publish requires an in-memory RunSummary; use native run --publish in next revision"
-        if tasks
-        else "run contains no task evidence"
+    repository = str(evidence["identity"]["repository"])
+    receipt = GitHubResultPublisher(token).publish_evidence(
+        repository=repository,
+        evidence=evidence,
     )
+    print(json.dumps(asdict(receipt), sort_keys=True, indent=2))
+    return 0
 
 
 def build_parser() -> argparse.ArgumentParser:
