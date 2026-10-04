@@ -22,10 +22,14 @@ from qore.infrastructure.cibo_ce2i_phase20_robust_allocator import (
 )
 from qore.infrastructure.cibo_ce2i_regime_selector import (
     CiboCapitalRegimeState,
+    CiboRegimePosture,
     CorrelationState,
     LiquidityState,
     ProviderCondition,
     VolatilityState,
+)
+from qore.infrastructure.cibo_ce2i_t02_calibration_binding import (
+    build_t02_structural_leverage_evidence,
 )
 from qore.infrastructure.cibo_phase22_historical_policy_replay import (
     Phase22HistoricalCapitalInput,
@@ -314,3 +318,61 @@ def test_t03_shadow_measurement_cannot_change_allocator_economics() -> None:
     )
     assert record.allocator_decision.allocation is not None
     assert record.allocator_decision.allocation.used_margin_usd == Decimal("0.20")
+
+
+def test_recovery_regime_blocks_t02_economic_actuation_but_keeps_engine_observable() -> None:
+    signal = _sha("recovery-t02-no-economic-authority")
+    input_row = _v4_input(TraderLineage.R43_GBPUSD, signal, "GBPUSD")
+    evidence = build_t02_structural_leverage_evidence(
+        opportunity=input_row.opportunity,
+        observed_at=MARKET_AT,
+        released_risk_capacity_usd=Decimal("0.10"),
+    )
+    assert evidence is not None
+    advanced = AdvancedPortfolioEvidence(
+        opportunities=(
+            AdvancedOpportunityEvidence(
+                signal_fingerprint=signal,
+                current_volume=Decimal("0.01"),
+                maximum_additional_volume=Decimal("0.01"),
+                structural_leverage=evidence,
+            ),
+        )
+    )
+    recovery = CiboCapitalRegimeState(
+        liquidity=LiquidityState.NORMAL,
+        volatility=VolatilityState.NORMAL,
+        correlation=CorrelationState.NORMAL,
+        provider_condition=ProviderCondition.HEALTHY,
+        risk_utilization=Decimal("0"),
+        margin_utilization=Decimal("0"),
+        drawdown_utilization=Decimal("0.80"),
+        opportunity_count=1,
+    )
+    record = evaluate_phase22_v4_historical_policy(
+        market_decision_at=MARKET_AT,
+        replay_sealed_at=SEALED_AT,
+        account_identity=_account(),
+        inputs=(input_row,),
+        regime_state=recovery,
+        hard_risk_headroom_usd=Decimal("3.60"),
+        margin_headroom_usd=Decimal("60"),
+        concentration_limit_by_group=(("GBPUSD", Decimal("1.80")),),
+        current_step=0,
+        advanced_evidence=advanced,
+        lab_cibo_free_tool_choice=True,
+        lab_allow_nonpositive_expectation=True,
+    )
+    assert record.full_surface.regime.posture is CiboRegimePosture.RECOVERY
+    assert "T02" not in record.full_surface.regime.enabled_tools
+    t02_decisions = [
+        decision
+        for assessment in record.full_surface.opportunity_assessments
+        for decision in assessment.decisions
+        if decision.tool_code == "T02"
+    ]
+    assert len(t02_decisions) == 1
+    assert record.advanced_economic_application.candidate_effects == ()
+    candidate = record.advanced_economic_application.candidates[0]
+    assert candidate.stop_risk_usd == input_row.minimum_stop_risk_usd
+    assert candidate.margin_usd == input_row.minimum_margin_usd

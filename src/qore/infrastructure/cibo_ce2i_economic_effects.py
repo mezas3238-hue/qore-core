@@ -145,6 +145,11 @@ def apply_advanced_ce2i_economic_effects(
         for decision in assessment.decisions:
             if decision.disposition is not AdvancedToolDisposition.APPLIED:
                 continue
+            # Engines remain universally observable, but regime selection is
+            # the downstream action-authority boundary. A tool blocked by the
+            # current causal regime must never alter allocator economics.
+            if decision.tool_code not in full_surface.regime.enabled_tools:
+                continue
             if decision.tool_code == "T02":
                 target = decision.target_stop_risk_usd
                 if target is None:
@@ -228,6 +233,8 @@ def apply_advanced_ce2i_economic_effects(
     credits: list[Decimal] = []
     for decision in full_surface.portfolio_decisions:
         if decision.disposition is not AdvancedToolDisposition.APPLIED:
+            continue
+        if decision.tool_code not in full_surface.regime.enabled_tools:
             continue
         if decision.tool_code not in {"T08", "T16"}:
             continue
