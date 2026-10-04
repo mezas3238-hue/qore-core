@@ -383,6 +383,7 @@ def _selection_diagnostics(
     peak = equity
     peak_index = -1
     peak_time = None
+    dd_peak_time = None
     max_dd = Decimal(0)
     dd_start_index = -1
     dd_end_index = -1
@@ -397,6 +398,7 @@ def _selection_diagnostics(
             max_dd = dd
             dd_start_index = peak_index
             dd_end_index = index
+            dd_peak_time = peak_time
 
     window = (
         ordered[dd_start_index + 1 : dd_end_index + 1]
@@ -416,11 +418,76 @@ def _selection_diagnostics(
             + item.realized_net_pnl_usd
         )
 
+    trace_by_signal = {
+        str(row["signal_fingerprint"]): row
+        for row in trace["opportunities"]
+    }
+    newly_selected_rows = []
+    for signal in sorted(newly_selected):
+        settlement = settlements.get(signal)
+        trace_row = trace_by_signal.get(signal)
+        if settlement is None or trace_row is None:
+            continue
+        expectation = trace_row["expectation"]
+        market = trace_row["market_predecision_state"]
+        opportunity = trace_row["trader_opportunity"]
+        cma = trace_row["cma"]
+        risk = _dec(cma["candidate_stop_risk_usd"])
+        margin = _dec(cma["candidate_margin_usd"])
+        ev = _dec(expectation["expected_net_value_usd"])
+        minutes = _dec(expectation["expected_capital_minutes"])
+        regime_input = _regime_input(trace_row)
+        context = {
+            str(item[0]): str(item[1])
+            for item in opportunity.get("decision_context", [])
+            if isinstance(item, list)
+            and len(item) == 2
+            and item[0] is not None
+            and item[1] is not None
+        }
+        newly_selected_rows.append(
+            {
+                "signal_fingerprint": signal,
+                "trader_id": settlement.trader_id,
+                "qore_symbol": settlement.qore_symbol,
+                "market_decision_at": trace_row["market_decision_at"],
+                "expected_net_value_usd": format(ev, "f"),
+                "expected_capital_minutes": format(minutes, "f"),
+                "candidate_stop_risk_usd": format(risk, "f"),
+                "candidate_margin_usd": format(margin, "f"),
+                "expected_value_per_risk": format(
+                    Decimal(0) if risk <= 0 else ev / risk,
+                    "f",
+                ),
+                "expected_value_per_risk_minute": format(
+                    Decimal(0)
+                    if risk <= 0 or minutes <= 0
+                    else ev / risk / minutes,
+                    "f",
+                ),
+                "posture": market["regime"]["posture"],
+                "liquidity": regime_input.get("liquidity"),
+                "volatility": regime_input.get("volatility"),
+                "correlation": regime_input.get("correlation"),
+                "provider_condition": regime_input.get("provider_condition"),
+                "decision_context": context,
+                "gross_structural_outcome_r": format(
+                    settlement.gross_structural_outcome_r,
+                    "f",
+                ),
+                "realized_net_pnl_usd": format(
+                    settlement.realized_net_pnl_usd,
+                    "f",
+                ),
+            }
+        )
+
     return {
         "baseline_selected_count": len(baseline_selected),
         "current_selected_count": len(current_selected),
         "newly_selected_count": len(newly_selected),
         "dropped_count": len(dropped),
+        "newly_selected_rows": newly_selected_rows,
         "newly_selected_realized_pnl_usd": format(
             sum(
                 (
@@ -444,7 +511,7 @@ def _selection_diagnostics(
         "current_max_drawdown_window": {
             "max_drawdown_usd": format(max_dd, "f"),
             "peak_released_at": (
-                None if peak_time is None else peak_time.isoformat()
+                None if dd_peak_time is None else dd_peak_time.isoformat()
             ),
             "trough_released_at": (
                 None
@@ -496,6 +563,25 @@ def main() -> int:
     )
 
     baseline = _baseline_metrics(baseline_payload)
+    settlement_rows = execution.books.cma_settlement.settlements
+    gross_profit = sum(
+        (max(Decimal(0), item.realized_net_pnl_usd) for item in settlement_rows),
+        Decimal(0),
+    )
+    gross_loss = sum(
+        (max(Decimal(0), -item.realized_net_pnl_usd) for item in settlement_rows),
+        Decimal(0),
+    )
+    profit_factor = (
+        Decimal("Infinity") if gross_loss == 0 else gross_profit / gross_loss
+    )
+    per_trader: dict[str, Decimal] = {}
+    for item in settlement_rows:
+        per_trader[item.trader_id] = (
+            per_trader.get(item.trader_id, Decimal(0))
+            + item.realized_net_pnl_usd
+        )
+
     current = {
         "initial_capital_usd": format(
             execution.initial_realized_capital_usd, "f"
@@ -508,6 +594,16 @@ def main() -> int:
             - execution.initial_realized_capital_usd,
             "f",
         ),
+        "gross_profit_usd": format(gross_profit, "f"),
+        "gross_loss_usd": format(gross_loss, "f"),
+        "profit_factor": (
+            "Infinity" if not profit_factor.is_finite()
+            else format(profit_factor, "f")
+        ),
+        "trader_pnl_usd": [
+            [trader, format(value, "f")]
+            for trader, value in sorted(per_trader.items())
+        ],
         "max_realized_drawdown_usd": format(
             execution.max_realized_capital_drawdown_usd,
             "f",
