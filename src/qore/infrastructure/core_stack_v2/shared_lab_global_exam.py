@@ -1,5 +1,7 @@
 """Sovereign end-to-end self exam for the complete QORE Shared Lab."""
 
+# ruff: noqa: I001
+
 from __future__ import annotations
 
 import json
