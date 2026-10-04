@@ -317,17 +317,21 @@ B_WORK_ITEMS: Final = (
             "artifact:11127854507",
             "artifact:11313231357",
             "doc:docs/shared/evidence/SHARED_B16_SENSOR_QUALIFICATION_WORKLIST_001.json",
+            "doc:docs/shared/evidence/SHARED_B16_SCIENTIFIC_VALUE_EXAM_READINESS_001.json",
+            "doc:docs/shared/evidence/SHARED_B16_SOURCE_ACQUISITION_PREREGISTRATION_001.json",
+            "doc:docs/shared/evidence/SHARED_B16_PIPELINE_READINESS_001.json",
             "run:36757173753",
             "run:36783433192",
             "run:37228391397",
         ),
         (
-            "Shared Lab worklist evidence proves 177/177 sensors still require "
-            "evidence completion: calendar 177, identity 87, full causal history 175, "
-            "scientific-value proof 177; automatic admission remains zero",
-            "XAUUSD and US2000 are the nearest evidence-completion rows because identity "
-            "and full BID/ASK history are present, but canonical calendar and scientific "
-            "value remain open; this is research sequencing only, never trade priority",
+            "Shared Lab B16 pipeline regression is 25/25 PASS: 177-sensor "
+            "qualification/worklist, preregistered scientific exam gate, source queue, "
+            "frozen 87-sensor pilot protocol and deterministic reducer are implemented",
+            "provider read-only pilot for the frozen 87 identity-ready candidates is "
+            "externally blocked because Shared Lab exposes 0/5 required cTrader DEMO "
+            "credential groups; B4 also leaves calendar open for 177 and identity open "
+            "for 87, so scientific-value exam eligibility remains 0/177",
         ),
     ),
     SharedBWorkItem(
