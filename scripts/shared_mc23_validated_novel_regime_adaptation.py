@@ -282,23 +282,11 @@ def main() -> None:
         json.dumps(payload, sort_keys=True, indent=2) + "\n",
         encoding="utf-8",
     )
-    print(
-        json.dumps(
-            {
-                "identity": payload["identity"],
-                "status": payload["status"],
-                "r5_scored": payload["r5"]["scored_novel_or_near_count"],
-                "pooled_incremental_information_bps": (
-                    payload["validation"]["pooled_incremental_information_bps"]
-                ),
-                "positive_target_count": payload["validation"]["positive_target_count"],
-                "maximum_target_regression_bps": (
-                    payload["validation"]["maximum_target_regression_bps"]
-                ),
-                "deterministic_repeat_pass": payload["deterministic_repeat_pass"],
-            },
-            sort_keys=True,
-        )
+    # Shared Lab persists stdout after its isolated worktree is removed, so the
+    # full scientific evidence payload is emitted into the native Lab evidence.
+    print(json.dumps(payload, sort_keys=True))
+    raise SystemExit(
+        0 if payload["real_novel_regime_validated_adaptation"] else 2
     )
 
 
