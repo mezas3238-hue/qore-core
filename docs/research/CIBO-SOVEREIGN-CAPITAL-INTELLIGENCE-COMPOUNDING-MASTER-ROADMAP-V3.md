@@ -17,7 +17,7 @@ That roadmap is additive to this V3 program and is binding for the current burne
 
 ```text
 FULL FUNCTION MASTERY
--> CF10 OWNER-RESEARCH UNLOCK
+-> CF10 UNIVERSAL AVAILABILITY
 -> T14 REAL ACTUATION
 -> ZERO UNEXPLAINED FUNCTION LOCKS
 -> COGNITIVE ECONOMIC ACTUATION
@@ -27,8 +27,10 @@ FULL FUNCTION MASTERY
 -> TRADER RESCUE + ROBUSTNESS
 ```
 
-It grants no LIVE, Production, real-capital, broker-mutation, merge or
-certification authority.
+Function availability in the successor roadmap is environment-neutral, including
+LIVE and Production consumers. Risk, execution, broker mutation, merge and
+certification authority remain separate concerns and are not granted merely by
+calling a CIBO function.
 
 ## 0. Dual-track law
 

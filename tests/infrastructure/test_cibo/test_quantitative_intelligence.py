@@ -15,7 +15,6 @@ from qore.infrastructure.cibo.contracts import (
     CiboGovernedEvidenceKind,
 )
 from qore.infrastructure.cibo.quantitative_intelligence import (
-    CIBO_OWNER_RESEARCH_UNLOCK_V1,
     CiboQuantitativeIntelligence,
     CiboQuantRequest,
     CiboQuantResult,
@@ -80,10 +79,7 @@ def test_quant_tool_catalog_is_complete() -> None:
     assert {tool.value for tool in CiboQuantTool} == expected
 
 
-def test_dispatch_rejects_dependent_evidence() -> None:
-    # Correction 003: an authoritative quant result requires SUFFICIENT
-    # (authority-rooted) evidence, which CIBO cannot manufacture; the dispatcher
-    # fails closed on evidence-dependent input.
+def test_dispatch_executes_with_dependent_evidence_and_preserves_provenance() -> None:
     result = _INTEL.dispatch(
         _request(),
         result_code="quant.result.volatility",
@@ -91,8 +87,10 @@ def test_dispatch_rejects_dependent_evidence() -> None:
         evidence=_dependent_evidence(),
         computed_at=_NOW,
     )
-    assert isinstance(result, Failure)
-    assert isinstance(result.error, CiboFunctionalValidationError)
+    assert isinstance(result, Success)
+    assert result.value.exact_value == Decimal("0.0421")
+    assert result.value.evidence.status is CiboEvidenceStatus.EVIDENCE_DEPENDENT
+    assert result.value.evidence.dependency_kind is CiboGovernedEvidenceKind.ECONOMIC
 
 
 @pytest.mark.parametrize("key", ["provider", "model", "rng", "seed", "retry", "sleep"])
@@ -101,7 +99,7 @@ def test_request_rejects_forbidden_parameter_key(key: str) -> None:
         _request(parameters=((key, "value"),))
 
 
-def test_dispatch_rejects_insufficient_evidence() -> None:
+def test_dispatch_executes_with_insufficient_evidence_without_upgrading_it() -> None:
     result = _INTEL.dispatch(
         _request(),
         result_code="quant.result.volatility",
@@ -109,8 +107,9 @@ def test_dispatch_rejects_insufficient_evidence() -> None:
         evidence=_insufficient_evidence(),
         computed_at=_NOW,
     )
-    assert isinstance(result, Failure)
-    assert isinstance(result.error, CiboFunctionalValidationError)
+    assert isinstance(result, Success)
+    assert result.value.exact_value == Decimal("0.0421")
+    assert result.value.evidence.status is CiboEvidenceStatus.INSUFFICIENT
 
 
 def test_dispatch_rejects_wrong_request_type() -> None:
@@ -125,52 +124,16 @@ def test_dispatch_rejects_wrong_request_type() -> None:
     assert isinstance(result.error, CiboFunctionalValidationError)
 
 
-def test_result_requires_authority_rooted_evidence() -> None:
-    # A quant result cannot be minted without SUFFICIENT evidence; the only
-    # evidence-bearing conclusion CIBO can construct is EVIDENCE_DEPENDENT.
-    with pytest.raises(CiboFunctionalValidationError):
-        CiboQuantResult(
-            request=_request(),
-            result_code="quant.result.volatility",
-            exact_value=Decimal("0.0421"),
-            evidence=_dependent_evidence(),
-            computed_at=_NOW,
-        )
-
-
-def test_owner_authorized_research_dispatch_bypasses_trader_lab_only_for_research() -> None:
-    result = _INTEL.dispatch_owner_authorized_research(
-        _request(),
+def test_result_accepts_typed_evidence_without_environment_or_trader_lab_gate() -> None:
+    value = CiboQuantResult(
+        request=_request(),
         result_code="quant.result.volatility",
         exact_value=Decimal("0.0421"),
-        evidence_refs=(_ref(),),
+        evidence=_dependent_evidence(),
         computed_at=_NOW,
-        authorization_id=CIBO_OWNER_RESEARCH_UNLOCK_V1,
     )
-
-    assert isinstance(result, Success)
-    value = result.value
     assert value.exact_value == Decimal("0.0421")
-    assert value.research_only is True
-    assert value.trader_lab_pass_required is False
-    assert value.productive_authority is False
-    assert value.risk_authority is False
-    assert value.execution_authority is False
-    assert value.broker_mutation is False
-    assert value.outcome_used is False
-
-
-def test_owner_authorized_research_dispatch_rejects_wrong_unlock() -> None:
-    result = _INTEL.dispatch_owner_authorized_research(
-        _request(),
-        result_code="quant.result.volatility",
-        exact_value=Decimal("0.0421"),
-        evidence_refs=(_ref(),),
-        computed_at=_NOW,
-        authorization_id="wrong-unlock",
-    )
-    assert isinstance(result, Failure)
-    assert isinstance(result.error, CiboFunctionalValidationError)
+    assert value.evidence.status is CiboEvidenceStatus.EVIDENCE_DEPENDENT
 
 
 def test_request_has_no_provider_or_model_field() -> None:

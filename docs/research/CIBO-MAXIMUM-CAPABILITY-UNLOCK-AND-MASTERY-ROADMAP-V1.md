@@ -1,6 +1,6 @@
 # CIBO MAXIMUM CAPABILITY UNLOCK + MASTERY ROADMAP V1
 
-**Status:** ACTIVE / OWNER-AUTHORIZED / RESEARCH ONLY / UNMERGED  
+**Status:** ACTIVE / OWNER-AUTHORIZED / UNIVERSAL FUNCTION AVAILABILITY / UNMERGED  
 **Effective date:** 04-OCT-2026  
 **Repository source of truth:** `mezas3238-hue/qore-core`  
 **Current research lane:** `agent/cibo-post-repair-3x1y-validation-001`
@@ -24,40 +24,43 @@ ALL CIBO FUNCTIONS FUNCTIONALLY EXERCISED
 Only after the full-function mastery gate is closed may the program move to
 maximum-capability economic research.
 
-## 1. Owner research-unlock authorization
+## 1. Owner universal-function authorization
 
-The Owner explicitly authorizes a maximum-capability research unlock for burned
-historical replay.
+The Owner establishes **universal availability** as a CIBO architectural law.
+A CIBO function must not exist in separate holdout/research/DEMO/LIVE
+implementations and must not become unavailable merely because the caller is in a
+different environment.
 
-This authorization supersedes Trader Lab dependency only where that dependency
-exists solely as a governance/authority gate preventing a function from being
-observed and studied in the non-productive burned replay.
+The same native function contract must be callable from:
 
-The unlock is binding for the research lane and has these invariants:
+- historical holdout / replay;
+- TEST and validation;
+- DEMO;
+- LIVE;
+- Production;
+- any future provider/account environment.
 
-- burned/adaptive replay only;
-- no LIVE;
-- no Production;
-- no FundedNext LIVE;
-- no real capital;
-- no broker mutation;
-- no merge authority;
-- no QORE Risk bypass;
-- no current/future outcome may enter a predecision function;
-- no Trader methodology mutation;
-- no Trader/symbol identity blacklist or whitelist;
-- no fabricated market, provider, hedge, convexity, correlation or outcome evidence;
-- owner unlock may remove an authority dependency but may not manufacture a
-  scientific fact that is not present in the causal record.
-
-Therefore:
+Availability does **not** mean that a function owns order, Risk, capital-transfer,
+or broker authority. Those are separate downstream authorities. The function must
+still execute, preserve causal provenance and expose its output; the consumer then
+applies the authority appropriate to its environment.
 
 ```text
-OWNER RESEARCH UNLOCK != PRODUCTION AUTHORITY
-OWNER RESEARCH UNLOCK != QORE RISK AUTHORITY
-OWNER RESEARCH UNLOCK != FAKE EVIDENCE
-OWNER RESEARCH UNLOCK != CERTIFICATION
+FUNCTION AVAILABILITY != EXECUTION AUTHORITY
+FUNCTION AVAILABILITY != RISK AUTHORITY
+FUNCTION AVAILABILITY != BROKER MUTATION
+EVIDENCE QUALITY != ENGINE AVAILABILITY
+INSUFFICIENT EVIDENCE -> EXPLICIT OUTPUT / ABSTENTION / QUALITY FLAG
+INSUFFICIENT EVIDENCE != HIDDEN OR DISABLED FUNCTION
 ```
+
+Trader Lab remains a validation/certification consumer where applicable, but it is
+not a runtime availability switch for CIBO functions. No function may depend on a
+Trader Lab PASS merely to run and expose its deterministic output.
+
+Causal integrity remains mandatory: no current/future outcome may enter a
+predecision function, no fabricated market/provider evidence is allowed, and no
+Trader methodology is mutated to improve replay results.
 
 ## 2. Absolute first priority — Full Function Mastery Gate
 
@@ -119,27 +122,27 @@ but normal authoritative result requires Trader Lab PASS
 
 Owner decision:
 
-CF10 no longer depends on Trader Lab PASS inside the burned maximum-capability
-research replay.
+CF10 no longer depends on Trader Lab PASS for engine availability in **any**
+environment.
 
 Required implementation:
 
-1. preserve the normal production/governed CF10 path unchanged;
-2. add a separate owner-authorized research-only CF10 result;
-3. require deterministic exact Decimal output;
-4. bind every result to the current causal predecision evidence refs;
-5. expose input/output/result value to replay telemetry;
-6. keep Productive/Risk/Execution/Broker authority false;
-7. keep outcome_used=false;
-8. reject the research path outside the explicit owner-research authorization.
+1. one universal CF10 engine path, not separate research/LIVE implementations;
+2. deterministic exact Decimal output;
+3. retain typed evidence and its quality/provenance in the result;
+4. never upgrade INSUFFICIENT/EVIDENCE_DEPENDENT evidence merely to run CF10;
+5. expose input/output/result value to telemetry;
+6. keep Risk/Execution/Broker authority outside CF10;
+7. allow holdout, TEST, DEMO, LIVE and Production consumers to call the same API.
 
 Exit gate:
 
 - CF10 native status SUCCESS in G1/G2/G3;
-- zero Trader Lab dependency in this burned replay path;
+- zero Trader Lab dependency for CF10 execution;
 - exact result visible in telemetry;
+- evidence quality preserved rather than fabricated;
 - downstream consumer observed;
-- no productive authority introduced.
+- same native API is environment-neutral.
 
 ## 4. Immediate repair B — T14 Dynamic De-risking
 
@@ -175,7 +178,7 @@ Exit gate:
 - no double release;
 - no outcome-aware action.
 
-## 5. Owner-unlock sweep for every remaining lock
+## 5. Universal-availability sweep for every remaining lock
 
 After CF10/T14, inspect every function still classified AUTHORITY_LOCKED,
 SCIENCE_LOCKED, BLOCKED or SHADOW_ONLY.
@@ -184,10 +187,10 @@ For each function:
 
 1. determine whether the lock is authority-only, data/science, safety, temporal
    not-applicability, or actual engine defect;
-2. authority-only locks are removed in the burned owner-authorized research lane;
-3. data/science locks must be bound to real causal evidence before actuation;
-4. safety locks remain fail-closed unless the causal preconditions genuinely
-   become true;
+2. authority-only locks must not disable engine execution in any environment;
+3. data/science insufficiency must become explicit output/abstention/quality
+   telemetry rather than making the native function unavailable;
+4. Risk/execution safety remains a separate downstream authority boundary;
 5. temporally post-outcome functions must be exercised in their correct
    post-settlement phase, not forced into predecision;
 6. no function is marked MASTERED merely because it was called.
@@ -400,5 +403,7 @@ CIBO may be called functionally mastered only when:
 + MAXIMUM-CAPABILITY FRONTIER GAP EXPLAINED
 ```
 
-This roadmap grants no certification, LIVE, Production, real-capital, merge or
-broker-mutation authority.
+This roadmap grants no automatic certification, merge, Risk, execution or broker
+authority. It establishes that the same CIBO function implementations are
+available to holdout, TEST, DEMO, LIVE and Production consumers; those consumers
+remain responsible for their own authority gates.
