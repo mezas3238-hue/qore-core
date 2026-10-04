@@ -43,6 +43,7 @@ from qore.infrastructure.cibo_capital_management_authority import (
 )
 from qore.infrastructure.cibo_capital_science_runtime_bridge import (
     CapitalScienceDisposition,
+    CapitalScienceDirective,
     CapitalScienceKnownOpportunity,
     CapitalScienceOpenEconomicPosition,
     CapitalSciencePredecisionInput,
@@ -834,6 +835,165 @@ def _t11_execution_cap(
 
 
 @dataclass(frozen=True, slots=True)
+class CompoundPortfolioShadowDecision:
+    signal_fingerprint: str
+    trader_id: str
+    decision_at: datetime
+    open_position_count: int
+    allocation_multiplier: int
+    allocation_expected_net_utility_usd: Decimal
+    position_competition_observed: bool
+    fits_without_release: bool
+    release_proposed: bool
+    proposed_released_stop_risk_usd: Decimal
+    proposed_released_margin_usd: Decimal
+    net_incremental_utility_usd: Decimal
+    admit_opportunity: bool
+
+    def __post_init__(self) -> None:
+        if not self.signal_fingerprint or not self.trader_id:
+            raise CiboCapitalManagementError(
+                "portfolio shadow identity required"
+            )
+        if self.decision_at.tzinfo is None or self.decision_at.utcoffset() is None:
+            raise CiboCapitalManagementError(
+                "portfolio shadow decision_at must be timezone-aware"
+            )
+        if (
+            not isinstance(self.open_position_count, int)
+            or isinstance(self.open_position_count, bool)
+            or self.open_position_count < 0
+        ):
+            raise CiboCapitalManagementError(
+                "portfolio shadow open_position_count invalid"
+            )
+        if self.allocation_multiplier not in {0, 1, 2, 3, 4}:
+            raise CiboCapitalManagementError(
+                "portfolio shadow allocation multiplier outside 0..4"
+            )
+        for name in (
+            "allocation_expected_net_utility_usd",
+            "proposed_released_stop_risk_usd",
+            "proposed_released_margin_usd",
+            "net_incremental_utility_usd",
+        ):
+            value = getattr(self, name)
+            if not isinstance(value, Decimal) or not value.is_finite():
+                raise CiboCapitalManagementError(
+                    f"portfolio shadow {name} must be finite Decimal"
+                )
+        if (
+            self.proposed_released_stop_risk_usd < 0
+            or self.proposed_released_margin_usd < 0
+        ):
+            raise CiboCapitalManagementError(
+                "portfolio shadow release capacity cannot be negative"
+            )
+
+    def payload(self) -> dict[str, object]:
+        return {
+            "signal_fingerprint": self.signal_fingerprint,
+            "trader_id": self.trader_id,
+            "decision_at": self.decision_at.isoformat(),
+            "open_position_count": self.open_position_count,
+            "allocation_multiplier": self.allocation_multiplier,
+            "allocation_expected_net_utility_usd": format(
+                self.allocation_expected_net_utility_usd,
+                "f",
+            ),
+            "position_competition_observed": self.position_competition_observed,
+            "fits_without_release": self.fits_without_release,
+            "release_proposed": self.release_proposed,
+            "proposed_released_stop_risk_usd": format(
+                self.proposed_released_stop_risk_usd,
+                "f",
+            ),
+            "proposed_released_margin_usd": format(
+                self.proposed_released_margin_usd,
+                "f",
+            ),
+            "net_incremental_utility_usd": format(
+                self.net_incremental_utility_usd,
+                "f",
+            ),
+            "admit_opportunity": self.admit_opportunity,
+            "shadow_only": True,
+            "risk_authority": False,
+            "execution_authority": False,
+        }
+
+
+def _portfolio_shadow_decision(
+    *,
+    state: CapitalSciencePredecisionInput,
+    directive: CapitalScienceDirective,
+) -> CompoundPortfolioShadowDecision:
+    allocation_line = next(
+        (
+            item
+            for item in (
+                directive.portfolio_allocation_plan.lines
+                if directive.portfolio_allocation_plan is not None
+                else ()
+            )
+            if item.option_id == state.signal_fingerprint
+        ),
+        None,
+    )
+    competition = directive.position_competition_plan
+    release_proposed = bool(
+        competition is not None
+        and competition.admit_opportunity
+        and any(
+            item.proposed_action == "RELEASE"
+            for item in competition.position_lines
+        )
+    )
+    return CompoundPortfolioShadowDecision(
+        signal_fingerprint=state.signal_fingerprint,
+        trader_id=state.trader_id,
+        decision_at=state.decision_at,
+        open_position_count=len(state.open_economic_positions),
+        allocation_multiplier=(
+            0 if allocation_line is None else allocation_line.multiplier
+        ),
+        allocation_expected_net_utility_usd=(
+            Decimal(0)
+            if allocation_line is None
+            else allocation_line.expected_net_utility_usd
+        ),
+        position_competition_observed=competition is not None,
+        fits_without_release=(
+            False if competition is None else competition.fits_without_release
+        ),
+        release_proposed=release_proposed,
+        proposed_released_stop_risk_usd=(
+            Decimal(0)
+            if competition is None
+            else competition.released_stop_risk_usd
+        ),
+        proposed_released_margin_usd=(
+            Decimal(0)
+            if competition is None
+            else competition.released_margin_usd
+        ),
+        net_incremental_utility_usd=(
+            Decimal(0)
+            if competition is None
+            else competition.net_incremental_utility_usd
+        ),
+        admit_opportunity=(
+            allocation_line is not None
+            and allocation_line.multiplier > 0
+            and (
+                competition is None
+                or competition.admit_opportunity
+            )
+        ),
+    )
+
+
+@dataclass(frozen=True, slots=True)
 class CompoundPortfolioLaneResult:
     core_ending_capital_usd: Decimal
     compound_incremental_pnl_usd: Decimal
@@ -855,6 +1015,7 @@ class CompoundPortfolioLaneResult:
     leverage_decisions: tuple[CompoundLeverageDecision, ...] = ()
     t06_expansion_decisions: tuple[CompoundT06ExpansionDecision, ...] = ()
     t14_derisk_decisions: tuple[CompoundT14DeRiskDecision, ...] = ()
+    portfolio_shadow_decisions: tuple[CompoundPortfolioShadowDecision, ...] = ()
     dynamic_leverage_enabled: bool = False
     rational_redeploy_gate_enabled: bool = False
     noncertifying_research_redeploy_enabled: bool = False
@@ -915,6 +1076,13 @@ class CompoundPortfolioLaneResult:
         ):
             raise CiboCapitalManagementError(
                 "compound T14 decisions must be canonical"
+            )
+        if any(
+            not isinstance(item, CompoundPortfolioShadowDecision)
+            for item in self.portfolio_shadow_decisions
+        ):
+            raise CiboCapitalManagementError(
+                "compound portfolio shadow decisions must be canonical"
             )
         if type(self.rational_redeploy_gate_enabled) is not bool:
             raise CiboCapitalManagementError("compound rational redeploy gate flag must be bool")
@@ -999,6 +1167,9 @@ class CompoundPortfolioLaneResult:
             ],
             "t14_derisk_decisions": [
                 item.payload() for item in self.t14_derisk_decisions
+            ],
+            "portfolio_shadow_decisions": [
+                item.payload() for item in self.portfolio_shadow_decisions
             ],
             "dynamic_leverage_enabled": self.dynamic_leverage_enabled,
             "rational_redeploy_gate_enabled": self.rational_redeploy_gate_enabled,
@@ -1105,6 +1276,10 @@ def run_compound_portfolio_lane(
     leverage_decisions: list[CompoundLeverageDecision] = []
     t06_expansion_decisions: list[CompoundT06ExpansionDecision] = []
     t14_derisk_decisions: list[CompoundT14DeRiskDecision] = []
+    portfolio_shadow_by_signal: dict[
+        str,
+        CompoundPortfolioShadowDecision,
+    ] = {}
     selected = allowed = reduced = rejected = cross_trader = 0
     peak_realized_capital = initial
 
@@ -1532,6 +1707,10 @@ def run_compound_portfolio_lane(
                 )
             capital_science = evaluate_capital_science_predecision(
                 capital_science_state
+            )
+            portfolio_shadow_by_signal[signal] = _portfolio_shadow_decision(
+                state=capital_science_state,
+                directive=capital_science,
             )
             if lab_dynamic_leverage:
                 effective_multiplier = requested_multiplier
@@ -2147,6 +2326,10 @@ def run_compound_portfolio_lane(
         leverage_decisions=tuple(leverage_decisions),
         t06_expansion_decisions=tuple(t06_expansion_decisions),
         t14_derisk_decisions=tuple(t14_derisk_decisions),
+        portfolio_shadow_decisions=tuple(
+            portfolio_shadow_by_signal[key]
+            for key in sorted(portfolio_shadow_by_signal)
+        ),
         dynamic_leverage_enabled=lab_dynamic_leverage,
         rational_redeploy_gate_enabled=lab_require_rational_redeploy,
         noncertifying_research_redeploy_enabled=(lab_allow_noncertifying_research_redeploy),
