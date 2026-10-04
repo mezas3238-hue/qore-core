@@ -13,6 +13,11 @@ on:
       - src/qore/infrastructure/core_stack_v2/shared_lab_ledger.py
       - src/qore/infrastructure/core_stack_v2/shared_lab_cognition.py
       - src/qore/infrastructure/core_stack_v2/shared_lab_operational.py
+      - src/qore/infrastructure/core_stack_v2/shared_lab_runtime_probe.py
+      - src/qore/infrastructure/core_stack_v2/shared_lab_organism.py
+      - src/qore/infrastructure/core_stack_v2/shared_lab_counterfactual.py
+      - src/qore/infrastructure/core_stack_v2/shared_lab_replay.py
+      - src/qore/infrastructure/core_stack_v2/shared_lab_scientific.py
       - tests/infrastructure/test_core_stack_v2_shared_lab.py
       - tests/infrastructure/test_core_stack_v2_shared_lab_tools.py
       - tests/infrastructure/test_core_stack_v2_shared_lab_influence.py
@@ -21,10 +26,11 @@ on:
       - tests/infrastructure/test_core_stack_v2_shared_lab_ledger.py
       - tests/infrastructure/test_core_stack_v2_shared_lab_cognition.py
       - tests/infrastructure/test_core_stack_v2_shared_lab_operational.py
-      - src/qore/infrastructure/core_stack_v2/shared_lab_runtime_probe.py
-      - src/qore/infrastructure/core_stack_v2/shared_lab_organism.py
       - tests/infrastructure/test_core_stack_v2_shared_lab_runtime_probe.py
       - tests/infrastructure/test_core_stack_v2_shared_lab_organism.py
+      - tests/infrastructure/test_core_stack_v2_shared_lab_counterfactual.py
+      - tests/infrastructure/test_core_stack_v2_shared_lab_replay.py
+      - tests/infrastructure/test_core_stack_v2_shared_lab_scientific.py
       - .github/workflows/qore-shared-lab-core-integrity.yml
   workflow_dispatch:
 
@@ -44,7 +50,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
-      - name: Static checks
+      - name: Ruff
         run: |
           ruff check \
             src/qore/infrastructure/core_stack_v2/shared_lab.py \
@@ -57,6 +63,9 @@ jobs:
             src/qore/infrastructure/core_stack_v2/shared_lab_operational.py \
             src/qore/infrastructure/core_stack_v2/shared_lab_runtime_probe.py \
             src/qore/infrastructure/core_stack_v2/shared_lab_organism.py \
+            src/qore/infrastructure/core_stack_v2/shared_lab_counterfactual.py \
+            src/qore/infrastructure/core_stack_v2/shared_lab_replay.py \
+            src/qore/infrastructure/core_stack_v2/shared_lab_scientific.py \
             tests/infrastructure/test_core_stack_v2_shared_lab.py \
             tests/infrastructure/test_core_stack_v2_shared_lab_tools.py \
             tests/infrastructure/test_core_stack_v2_shared_lab_influence.py \
@@ -66,7 +75,12 @@ jobs:
             tests/infrastructure/test_core_stack_v2_shared_lab_cognition.py \
             tests/infrastructure/test_core_stack_v2_shared_lab_operational.py \
             tests/infrastructure/test_core_stack_v2_shared_lab_runtime_probe.py \
-            tests/infrastructure/test_core_stack_v2_shared_lab_organism.py
+            tests/infrastructure/test_core_stack_v2_shared_lab_organism.py \
+            tests/infrastructure/test_core_stack_v2_shared_lab_counterfactual.py \
+            tests/infrastructure/test_core_stack_v2_shared_lab_replay.py \
+            tests/infrastructure/test_core_stack_v2_shared_lab_scientific.py \
+      - name: Mypy
+        run: |
           mypy \
             src/qore/infrastructure/core_stack_v2/shared_lab.py \
             src/qore/infrastructure/core_stack_v2/shared_lab_tools.py \
@@ -75,8 +89,13 @@ jobs:
             src/qore/infrastructure/core_stack_v2/shared_lab_integrity.py \
             src/qore/infrastructure/core_stack_v2/shared_lab_ledger.py \
             src/qore/infrastructure/core_stack_v2/shared_lab_cognition.py \
-            src/qore/infrastructure/core_stack_v2/shared_lab_operational.py
-      - name: L0/L5/L10 laboratory truth checks
+            src/qore/infrastructure/core_stack_v2/shared_lab_operational.py \
+            src/qore/infrastructure/core_stack_v2/shared_lab_runtime_probe.py \
+            src/qore/infrastructure/core_stack_v2/shared_lab_organism.py \
+            src/qore/infrastructure/core_stack_v2/shared_lab_counterfactual.py \
+            src/qore/infrastructure/core_stack_v2/shared_lab_replay.py \
+            src/qore/infrastructure/core_stack_v2/shared_lab_scientific.py \
+      - name: L0-L10 laboratory truth checks
         run: |
           pytest -q \
             tests/infrastructure/test_core_stack_v2_shared_lab.py \
@@ -86,4 +105,9 @@ jobs:
             tests/infrastructure/test_core_stack_v2_shared_lab_integrity.py \
             tests/infrastructure/test_core_stack_v2_shared_lab_ledger.py \
             tests/infrastructure/test_core_stack_v2_shared_lab_cognition.py \
-            tests/infrastructure/test_core_stack_v2_shared_lab_operational.py
+            tests/infrastructure/test_core_stack_v2_shared_lab_operational.py \
+            tests/infrastructure/test_core_stack_v2_shared_lab_runtime_probe.py \
+            tests/infrastructure/test_core_stack_v2_shared_lab_organism.py \
+            tests/infrastructure/test_core_stack_v2_shared_lab_counterfactual.py \
+            tests/infrastructure/test_core_stack_v2_shared_lab_replay.py \
+            tests/infrastructure/test_core_stack_v2_shared_lab_scientific.py \
