@@ -34,6 +34,9 @@ from qore.infrastructure.cibo_compound_cycle_state import (
     policy_protect_floor,
     protect_compound_capital,
 )
+from qore.infrastructure.cibo_engine_challenger_lab import (
+    compare_allocation_paths,
+)
 from qore.infrastructure.cibo_full_economic_digital_twin import (
     CiboCapitalVelocityState,
     CiboCounterfactualEconomicWorld,
@@ -53,6 +56,10 @@ from qore.infrastructure.cibo_instrument_capability_registry import (
 from qore.infrastructure.cibo_integrated_capital_truth import (
     RealizedProfitEquivalenceBinding,
     build_integrated_capital_truth,
+)
+from qore.infrastructure.cibo_maximum_capability_diagnostics import (
+    CiboDiagnosticGapKind,
+    build_maximum_capability_diagnostics,
 )
 from qore.infrastructure.cibo_portfolio_allocation_engine import (
     plan_account_wide_capital_allocation,
@@ -375,3 +382,42 @@ def test_frontier_consumes_full_twin_for_portfolio_competition_and_leverage() ->
     )
     assert twin.risk_authority is False
     assert twin.execution_authority is False
+
+
+
+def test_maximum_capability_diagnostics_rank_actionable_gaps() -> None:
+    twin = _full_twin()
+    challenger = compare_allocation_paths(twin)
+
+    report = build_maximum_capability_diagnostics(
+        twin=twin,
+        challenger=challenger,
+    )
+
+    assert report.twin_id == twin.twin_id
+    assert report.positive_eligible_opportunities == 1
+    assert report.productive_authority is False
+    assert report.worst_gap is not None
+    assert any(
+        gap.kind is CiboDiagnosticGapKind.LEVERAGE_HEADROOM_GAP
+        for gap in report.gaps
+    )
+
+
+def test_diagnostics_do_not_call_optionality_reserve_waste() -> None:
+    twin = _full_twin()
+    challenger = compare_allocation_paths(twin)
+
+    report = build_maximum_capability_diagnostics(
+        twin=twin,
+        challenger=challenger,
+    )
+
+    assert all(
+        gap.kind
+        not in {
+            CiboDiagnosticGapKind.UNNECESSARY_IDLE_RISK,
+            CiboDiagnosticGapKind.UNNECESSARY_IDLE_MARGIN,
+        }
+        for gap in report.gaps
+    )
