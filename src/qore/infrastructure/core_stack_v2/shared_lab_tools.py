@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import dataclass
 from enum import StrEnum
 from itertools import product
@@ -162,3 +164,18 @@ def validate_l10_tool_coverage(registry: SharedLabToolRegistry) -> tuple[LabFaul
         fault for fault, required_family in FAULT_TO_REQUIRED_TOOL.items()
         if required_family not in families
     )
+
+
+
+def registry_fingerprint(registry: SharedLabToolRegistry) -> str:
+    payload = [
+        {
+            "tool_id": spec.tool_id,
+            "family": spec.family.value,
+            "description": spec.description,
+            "parameter_names": spec.parameter_names,
+        }
+        for spec in registry.list_tools()
+    ]
+    raw = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(raw.encode()).hexdigest()
