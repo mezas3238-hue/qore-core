@@ -545,6 +545,56 @@ def _genc_rows(capital: dict[str, Any]) -> list[dict[str, Any]]:
                 "incremental_pnl_attribution_usd",
             )
         )
+        stages = Counter(str(row.get("stage")) for row in rows)
+        consumer_actions = Counter(
+            str(row.get("consumer_action")) for row in rows
+        )
+        healthy_no_change = (
+            bool(rows)
+            and changed == 0
+            and economic_delta == 0
+            and (
+                set(dispositions).issubset(
+                    {"ELIGIBLE_NO_CHANGE", "JUSTIFIED_NOT_APPLICABLE"}
+                )
+                or (
+                    code == "GEN-C9"
+                    and set(stages) == {"POST_SEGMENT"}
+                    and set(consumer_actions)
+                    == {"EVALUATE_COMPLETED_CAPITAL_PATH"}
+                )
+                or (
+                    code == "GEN-C10"
+                    and set(stages) == {"PREDECISION"}
+                    and set(consumer_actions)
+                    == {"PUBLISH_CAUSAL_CAPITAL_TWIN"}
+                )
+                or (
+                    code == "GEN-C12"
+                    and set(stages) == {"PREDECISION"}
+                    and set(consumer_actions)
+                    == {"CRISIS_ENVELOPE_ALLOWS_CAPITAL"}
+                )
+                or (
+                    code == "GEN-C13"
+                    and set(stages) == {"POST_OUTCOME"}
+                    and set(consumer_actions)
+                    == {"INGEST_SETTLED_CAPITAL_EPISODE"}
+                )
+                or (
+                    code == "GEN-C14"
+                    and set(stages) == {"RESEARCH_GOVERNANCE"}
+                    and set(consumer_actions)
+                    == {"SEAL_NON_CERTIFYING_RESEARCH_LINEAGE"}
+                )
+                or (
+                    code == "GEN-C2"
+                    and set(stages) == {"PREDECISION"}
+                    and set(consumer_actions)
+                    == {"USE_DEPLOYABLE_PROFIT_ONLY"}
+                )
+            )
+        )
         if not rows:
             diagnosis = "NO_PER_CALL_RUNTIME_RECEIPTS"
         elif not all_io:
@@ -557,6 +607,8 @@ def _genc_rows(capital: dict[str, Any]) -> list[dict[str, Any]]:
             diagnosis = "JUSTIFIED_NOT_APPLICABLE"
         elif changed > 0 or economic_delta > 0:
             diagnosis = "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED"
+        elif healthy_no_change:
+            diagnosis = "INPUT_OUTPUT_CONSUMER_OBSERVED_NO_CHANGE"
         elif dispositions.get("APPLIED", 0) > 0:
             diagnosis = "APPLIED_WITHOUT_OBSERVABLE_ACTUATION"
         elif dispositions.get("FAIL_CLOSED", 0) == len(rows):
@@ -574,6 +626,8 @@ def _genc_rows(capital: dict[str, Any]) -> list[dict[str, Any]]:
                 "native_engine_called_count": native,
                 "economic_delta_field_count": economic_delta,
                 "dispositions": dict(dispositions),
+                "stage_distribution": dict(stages),
+                "consumer_action_distribution": dict(consumer_actions),
                 "diagnosis": diagnosis,
             }
         )
