@@ -50,9 +50,9 @@ from qore.infrastructure.cibo.opportunity_search import (
 )
 from qore.infrastructure.cibo.portfolio_intelligence import CiboPortfolioIntelligence
 from qore.infrastructure.cibo.quantitative_intelligence import (
+    CiboQuantitativeIntelligence,
     CiboQuantRequest,
     CiboQuantTool,
-    CiboQuantitativeIntelligence,
 )
 from qore.infrastructure.cibo.research_director import (
     CiboResearchDirector,
