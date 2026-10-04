@@ -149,6 +149,7 @@ class CiboObservedOpportunityState:
     context_allowed: bool
     provider_viable: bool
     capital_source_eligible: bool
+    evidence_sha256: str
     maximum_multiplier: int = 4
     future_outcome_used: bool = False
 
@@ -191,6 +192,14 @@ class CiboObservedOpportunityState:
         if self.stop_risk_usd <= 0 or self.margin_usd <= 0:
             raise CiboCapitalManagementError(
                 "Full Economic Twin opportunity geometry must be positive"
+            )
+        if (
+            not isinstance(self.evidence_sha256, str)
+            or not self.evidence_sha256.startswith("sha256:")
+            or len(self.evidence_sha256) != 71
+        ):
+            raise CiboCapitalManagementError(
+                "Full Economic Twin opportunity evidence_sha256 invalid"
             )
         if (
             not isinstance(self.maximum_multiplier, int)
