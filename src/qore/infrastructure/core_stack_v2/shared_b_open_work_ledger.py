@@ -316,17 +316,18 @@ B_WORK_ITEMS: Final = (
             "artifact:11116986748",
             "artifact:11127854507",
             "artifact:11313231357",
+            "doc:docs/shared/evidence/SHARED_B16_SENSOR_QUALIFICATION_WORKLIST_001.json",
             "run:36757173753",
             "run:36783433192",
             "run:37228391397",
         ),
         (
-            "B-16 qualification is now progressive and consumes newer governed "
-            "identity/calendar/source evidence without automatic admission; the "
-            "current sealed snapshot still has 0 admissions and no scientific-value proof",
-            "current sealed upstream evidence still leaves canonical calendar/source "
-            "prerequisites incomplete across the 177-sensor universe; B-16 cannot "
-            "close until causal qualification and scientific value are actually proven",
+            "Shared Lab worklist evidence proves 177/177 sensors still require "
+            "evidence completion: calendar 177, identity 87, full causal history 175, "
+            "scientific-value proof 177; automatic admission remains zero",
+            "XAUUSD and US2000 are the nearest evidence-completion rows because identity "
+            "and full BID/ASK history are present, but canonical calendar and scientific "
+            "value remain open; this is research sequencing only, never trade priority",
         ),
     ),
     SharedBWorkItem(
