@@ -13,6 +13,7 @@ class MultiuserNativeAcceptance:
     queue_32_pass: bool
     dynamic_worker_pool_pass: bool
     run_isolation_pass: bool
+    run_id_unification_pass: bool
     deduplication_pass: bool
     causal_cache_pass: bool
     granular_lock_pass: bool
@@ -36,6 +37,7 @@ class MultiuserNativeAcceptance:
             and self.queue_32_pass
             and self.dynamic_worker_pool_pass
             and self.run_isolation_pass
+            and self.run_id_unification_pass
             and self.deduplication_pass
             and self.causal_cache_pass
             and self.granular_lock_pass
