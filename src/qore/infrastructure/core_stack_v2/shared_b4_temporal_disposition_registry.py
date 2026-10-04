@@ -101,11 +101,11 @@ def build_temporal_disposition_registry(
         raise SharedB4TemporalDispositionError("unexpected calendar worklist")
     if r8_historical_frontier.get("identity") != EXPECTED_R8:
         raise SharedB4TemporalDispositionError("unexpected R8 calendar frontier")
-    for payload, label in (
+    for source_payload, label in (
         (calendar_worklist, "calendar worklist"),
         (r8_historical_frontier, "R8 frontier"),
     ):
-        if payload.get("sensor_count") != EXPECTED_SENSOR_COUNT:
+        if source_payload.get("sensor_count") != EXPECTED_SENSOR_COUNT:
             raise SharedB4TemporalDispositionError(f"{label} is not exact 177")
         if source_payload.get("canonical_calendar_verified_count") != 0:
             raise SharedB4TemporalDispositionError(
