@@ -41,10 +41,12 @@ from qore.infrastructure.cibo_capital_management_authority import (
     minimum_seed_volume,
 )
 from qore.infrastructure.cibo_capital_science_runtime_bridge import (
+    CapitalScienceDisposition,
     CapitalScienceKnownOpportunity,
     CapitalSciencePredecisionInput,
     CapitalScienceReceipt,
     aggregate_capital_science_receipts,
+    build_capital_science_lane_receipt,
     build_capital_science_postrun_receipts,
     evaluate_capital_science_predecision,
 )
@@ -309,6 +311,158 @@ _GENC8_MULTIPLIER_CAP = {
     "ACCELERATED": Decimal(4),
     "GENC5_CANONICAL_INPUT_UNAVAILABLE": Decimal(0),
 }
+
+
+def _compound_scarcity_score(
+    candidate: object,
+    *,
+    decision_at: datetime,
+) -> Decimal:
+    opportunity = candidate.projection.candidate.capital_input.opportunity
+    volume = minimum_seed_volume(opportunity)
+    risk = volume * opportunity.stop_loss_per_volume
+    cost = (
+        candidate.projection.provider_envelope.execution_cost_per_volume_usd
+        * volume
+    )
+    expectation = build_frozen_train_expectation(
+        trader_id=opportunity.trader_id,
+        stop_risk_usd=risk,
+        as_of=decision_at,
+    )
+    capital_need = risk + cost
+    if capital_need <= 0:
+        return Decimal("-Infinity")
+    return expectation.expected_net_value_usd / capital_need
+
+
+def _lane_owned_capital_science_receipts(
+    *,
+    state: CapitalSciencePredecisionInput,
+    funding_pool_usd: Decimal,
+    available_profit_usd: Decimal,
+    pool_scope: str,
+    source_traders: set[str],
+    current_trader: str,
+    scarcity_rank: int,
+    scarcity_count: int,
+    scarcity_score: Decimal,
+    scarcity_order_changed: bool,
+    dynamic_leverage: bool,
+) -> tuple[CapitalScienceReceipt, ...]:
+    profit_available = funding_pool_usd > 0 and available_profit_usd > 0
+    genc1 = build_capital_science_lane_receipt(
+        state=state,
+        function_code="GEN-C1",
+        disposition=(
+            CapitalScienceDisposition.APPLIED
+            if profit_available
+            else CapitalScienceDisposition.JUSTIFIED_NOT_APPLICABLE
+        ),
+        reason=(
+            "causally prior realized profit is available for incremental compound"
+            if profit_available
+            else "no causally prior deployable realized profit is available"
+        ),
+        downstream_consumer="CIBO_COMPOUND_FUNDING_POOL",
+        consumer_action=(
+            "REALIZED_PROFIT_CAPACITY_AVAILABLE"
+            if profit_available
+            else "NO_REALIZED_PROFIT_CAPACITY"
+        ),
+        decision_changed=profit_available,
+        capital_source_usage=(("REALIZED_PROFIT",) if profit_available else ()),
+        output_details={
+            "funding_pool_usd": format(funding_pool_usd, "f"),
+            "available_profit_usd": format(available_profit_usd, "f"),
+        },
+        native_engine_name="evaluate_genc1_realized_profit_eligibility",
+    )
+
+    cross_sources = tuple(
+        sorted(source for source in source_traders if source != current_trader)
+    )
+    genc3_applied = (
+        pool_scope == POOL_SCOPE_ACCOUNT
+        and funding_pool_usd > 0
+        and bool(cross_sources)
+    )
+    genc3 = build_capital_science_lane_receipt(
+        state=state,
+        function_code="GEN-C3",
+        disposition=(
+            CapitalScienceDisposition.APPLIED
+            if genc3_applied
+            else (
+                CapitalScienceDisposition.ELIGIBLE_NO_CHANGE
+                if pool_scope == POOL_SCOPE_ACCOUNT
+                else CapitalScienceDisposition.JUSTIFIED_NOT_APPLICABLE
+            )
+        ),
+        reason=(
+            "account-local realized-profit pool contains capacity realized by "
+            "other Trader lineages"
+            if genc3_applied
+            else (
+                "account pool evaluated but no cross-Trader realized-profit source "
+                "is currently available"
+                if pool_scope == POOL_SCOPE_ACCOUNT
+                else "Trader-local compound intentionally disables cross-Trader pooling"
+            )
+        ),
+        downstream_consumer="CIBO_COMPOUND_PORTFOLIO_POOL",
+        consumer_action=(
+            "CROSS_TRADER_CAPACITY_AVAILABLE"
+            if genc3_applied
+            else "ACCOUNT_POOL_NO_CROSS_TRADER_CHANGE"
+            if pool_scope == POOL_SCOPE_ACCOUNT
+            else "TRADER_LOCAL_SCOPE"
+        ),
+        decision_changed=genc3_applied,
+        capital_source_usage=(("REALIZED_PROFIT",) if funding_pool_usd > 0 else ()),
+        output_details={
+            "pool_scope": pool_scope,
+            "cross_source_traders": list(cross_sources),
+        },
+        native_engine_name="evaluate_genc3_account_pool_eligibility",
+    )
+
+    scarcity_applied = (
+        dynamic_leverage
+        and pool_scope == POOL_SCOPE_ACCOUNT
+        and scarcity_count > 1
+    )
+    genc6 = build_capital_science_lane_receipt(
+        state=state,
+        function_code="GEN-C6",
+        disposition=(
+            CapitalScienceDisposition.APPLIED
+            if scarcity_applied
+            else CapitalScienceDisposition.JUSTIFIED_NOT_APPLICABLE
+        ),
+        reason=(
+            "causal frozen-prior utility ranked simultaneous Compound Portfolio "
+            "claims before scarce realized-profit deployment"
+            if scarcity_applied
+            else "no account-level simultaneous scarcity auction was required"
+        ),
+        downstream_consumer="CIBO_COMPOUND_PORTFOLIO_ALLOCATION_ORDER",
+        consumer_action=(
+            f"SCARCITY_RANK_{scarcity_rank}_OF_{scarcity_count}"
+            if scarcity_applied
+            else "NO_SCARCITY_AUCTION"
+        ),
+        decision_changed=scarcity_applied and scarcity_order_changed,
+        capital_source_usage=(("REALIZED_PROFIT",) if scarcity_applied else ()),
+        output_details={
+            "scarcity_rank": scarcity_rank,
+            "scarcity_count": scarcity_count,
+            "scarcity_score": format(scarcity_score, "f"),
+            "order_changed": scarcity_order_changed,
+        },
+        native_engine_name="evaluate_genc6_internal_capital_market",
+    )
+    return (genc1, genc3, genc6)
 
 
 def _known_options_with_current_geometry(
