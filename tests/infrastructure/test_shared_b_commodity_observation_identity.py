@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from datetime import UTC, datetime
+from typing import cast
 
 import pytest
 
@@ -119,7 +120,12 @@ def _fixtures() -> tuple[
         "identity":"QORE_SHARED_GW2_GC_FUTURES_CONTRACT_BINDING_001",
         "records":gc_records,
     }
-    return provider,metal_evidence,energy_evidence,gc_evidence
+    return (
+        cast(dict[str, object], provider),
+        cast(dict[str, object], metal_evidence),
+        cast(dict[str, object], energy_evidence),
+        cast(dict[str, object], gc_evidence),
+    )
 
 
 def test_commodity_pack_preserves_reference_contract_boundaries() -> None:
@@ -146,7 +152,7 @@ def test_commodity_pack_preserves_reference_contract_boundaries() -> None:
     assert payload["target_or_outcome_read"] is False
     assert payload["fresh_holdout_opened"] is False
     assert payload["productive_authority"] is False
-    assert len(payload["pack_fingerprint_sha256"]) == 64
+    assert len(str(payload["pack_fingerprint_sha256"])) == 64
 
     rows=payload["records"]
     assert isinstance(rows,list)

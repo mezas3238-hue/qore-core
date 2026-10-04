@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import cast
+
 from qore.infrastructure.core_stack_v2.shared_b5_handoff import build_b5_handoff
 
 
@@ -22,7 +24,10 @@ def test_b5_handoff_matches_current_b4_temporal_truth_without_overclaim() -> Non
     assert receipt["execution_authority"] is False
     assert len(str(receipt["handoff_fingerprint_sha256"])) == 64
 
-    items = {item["work_id"]: item for item in receipt["items"]}
+    items = {
+        item["work_id"]: item
+        for item in cast(list[dict[str, object]], receipt["items"])
+    }
     for work_id in ("B-11", "B-12", "B-13"):
         assert items[work_id]["disposition"] == "DEPENDENCY_BLOCKED"
         assert items[work_id]["empirical_population_complete"] is False

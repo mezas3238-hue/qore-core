@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from datetime import UTC, datetime
+from typing import cast
 
 import pytest
 
@@ -98,13 +99,13 @@ def test_all_five_observed_gc_contracts_are_expired_by_sep_2026() -> None:
     assert payload["roll_semantics_complete"] is False
     assert payload["continuous_series_semantics_complete"] is False
     assert payload["b15_complete"] is False
-    assert len(payload["lifecycle_fingerprint_sha256"]) == 64
+    assert len(str(payload["lifecycle_fingerprint_sha256"])) == 64
     assert all(
         row["lifecycle_status"] == "EXPIRED_BEFORE_ASSESSMENT_MONTH"
         and row["front_contract_verified"] is False
         and row["roll_semantics_verified"] is False
         and row["continuous_series_verified"] is False
-        for row in payload["records"]
+        for row in cast(list[dict[str, object]], payload["records"])
     )
 
 
@@ -152,7 +153,7 @@ def test_future_contract_does_not_prove_front_contract() -> None:
         assessed_at=datetime(2026, 9, 30, 21, 42, tzinfo=UTC),
     )
     assert payload["future_contract_count"] == 1
-    future = payload["records"][-1]
+    future = cast(list[dict[str, object]], payload["records"])[-1]
     assert future["lifecycle_status"] == "FUTURE_CONTRACT_NOT_FRONT_PROOF"
     assert future["front_contract_verified"] is False
     assert payload["observed_set_can_prove_current_gc_chain"] is False

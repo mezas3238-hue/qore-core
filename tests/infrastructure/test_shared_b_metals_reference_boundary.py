@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from typing import cast
 
 import pytest
 
@@ -63,7 +64,7 @@ def test_exact_eleven_metals_preserve_unknown_identity() -> None:
     assert all(
         row["provider_neutral_reference_identity"] is None
         and row["unknown_identity_preserved"] is True
-        for row in payload["records"]
+        for row in cast(list[dict[str, object]], payload["records"])
     )
 
 

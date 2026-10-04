@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from typing import cast
 
 import pytest
 
@@ -83,7 +84,7 @@ def test_exact_eleven_components_are_explicit_not_benchmarks() -> None:
         row["economic_components_verified"] is True
         and row["provider_neutral_benchmark_identity"] is None
         and row["provider_neutral_benchmark_identity_verified"] is False
-        for row in payload["records"]
+        for row in cast(list[dict[str, object]], payload["records"])
     )
 
 
