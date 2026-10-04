@@ -678,7 +678,7 @@ def main() -> int:
             and bool(row["input_payload"])
             and isinstance(row.get("output_payload"), dict)
             and bool(row["output_payload"])
-            for row in compound_portfolio.capital_science_receipts
+            for row in dynamic_portfolio.capital_science_receipts
         ),
         "governance": {
             "outcome_aware_tuning": False,
