@@ -90,7 +90,120 @@ def active_positions(rows: list[dict[str, Any]], observed_at: datetime, exclude:
     return out
 
 
-def group_replay(payload: dict[str, Any]) -> dict[str, Any]:
+def _compact_raw_trace(payload: dict[str, Any], *, group: str) -> dict[str, Any]:
+    opportunities = payload.get("opportunities")
+    if not isinstance(opportunities, list):
+        raise ValueError("raw decision trace requires opportunities")
+    rows = []
+    for row in opportunities:
+        ce2i = row.get("ce2i") or {}
+        receipts = ce2i.get("runtime_receipts") or []
+        posture = None
+        t14 = []
+        for receipt in receipts:
+            if not isinstance(receipt, dict):
+                continue
+            if receipt.get("engine_name") == "select_ce2i_tools_for_regime":
+                output = receipt.get("output_payload") or {}
+                posture = output.get("posture") or posture
+            if (
+                receipt.get("tool_code") == "T14"
+                or receipt.get("engine_name") == "dynamic_derisk"
+            ):
+                t14.append(
+                    {
+                        "tool_code": receipt.get("tool_code"),
+                        "engine_name": receipt.get("engine_name"),
+                        "decision_changed": receipt.get("decision_changed"),
+                        "economic_effect_observable": receipt.get(
+                            "economic_effect_observable"
+                        ),
+                        "output_payload": receipt.get("output_payload"),
+                    }
+                )
+        allocation = row.get("allocation") or {}
+        qore_risk = row.get("qore_risk") or {}
+        settlement = row.get("settlement") or {}
+        expectation = row.get("expectation") or {}
+        context = row.get("context_quality") or {}
+        market_state = row.get("market_predecision_state") or {}
+        trader = row.get("trader_opportunity") or {}
+        cma = row.get("cma") or {}
+        rows.append(
+            {
+                "signal_fingerprint": row.get("signal_fingerprint"),
+                "trader_id": row.get("trader_id"),
+                "qore_symbol": row.get("qore_symbol"),
+                "decision_epoch_id": row.get("decision_epoch_id"),
+                "market_decision_at": row.get("market_decision_at"),
+                "expected_net_value_usd": expectation.get(
+                    "expected_net_value_usd"
+                ),
+                "expected_capital_minutes": expectation.get(
+                    "expected_capital_minutes"
+                ),
+                "context_disposition": context.get("disposition"),
+                "context_rules": context.get("matched_rule_ids") or [],
+                "allocator_disposition": allocation.get(
+                    "allocator_disposition"
+                ),
+                "selected": bool(
+                    allocation.get("selected_by_cibo_policy")
+                ),
+                "regime_posture": posture
+                or (market_state.get("regime") or {}).get("posture"),
+                "hard_risk_headroom_usd": market_state.get(
+                    "hard_risk_headroom_usd"
+                ),
+                "margin_headroom_usd": market_state.get(
+                    "margin_headroom_usd"
+                ),
+                "requested_stop_risk_usd": cma.get(
+                    "requested_stop_risk_usd"
+                ),
+                "candidate_stop_risk_usd": cma.get(
+                    "candidate_stop_risk_usd"
+                ),
+                "candidate_margin_usd": cma.get("candidate_margin_usd"),
+                "qore_risk_status": qore_risk.get("status"),
+                "authorized_stop_risk_usd": qore_risk.get(
+                    "authorized_stop_risk_usd"
+                ),
+                "authorized_margin_usd": qore_risk.get(
+                    "authorized_margin_usd"
+                ),
+                "capital_deployed_at": settlement.get(
+                    "capital_deployed_at"
+                ),
+                "capital_released_at": settlement.get(
+                    "capital_released_at"
+                ),
+                "entry_at": (row.get("evaluation_outcome") or {}).get(
+                    "entry_at"
+                ),
+                "exit_at": (row.get("evaluation_outcome") or {}).get(
+                    "exit_at"
+                ),
+                "intended_entry": trader.get("intended_entry"),
+                "stop_loss": trader.get("stop_loss"),
+                "take_profit": trader.get("take_profit"),
+                "provider_cost_proxy_usd": (
+                    row.get("provider_economics_and_execution") or {}
+                ).get("decision_provider_cost_proxy_usd"),
+                "t14_receipts": t14,
+            }
+        )
+    return {
+        "schema": "qore.cibo.archived-trace-compact.v1",
+        "source_trace_sha256": payload.get("trace_sha256"),
+        "group": group,
+        "rows": rows,
+    }
+
+
+def group_replay(payload: dict[str, Any], *, group: str) -> dict[str, Any]:
+    if "rows" not in payload and "opportunities" in payload:
+        payload = _compact_raw_trace(payload, group=group)
     rows = payload.get("rows")
     if not isinstance(rows, list):
         raise ValueError("archived trace payload requires rows")
@@ -261,8 +374,11 @@ def main() -> int:
     args = parser.parse_args()
 
     groups = [
-        group_replay(json.loads(path.read_text(encoding="utf-8")))
-        for path in args.input
+        group_replay(
+            json.loads(path.read_text(encoding="utf-8")),
+            group=f"GROUP_{index}",
+        )
+        for index, path in enumerate(args.input, start=1)
     ]
     aggregate = {
         "schema": "qore.cibo.trader-lab.archived-trace-replay.v1",
