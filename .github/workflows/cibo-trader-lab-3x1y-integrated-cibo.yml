@@ -9,6 +9,7 @@ on:
       - 'scripts/cibo_t02_three_lane_capital_lab_arch2.py'
       - 'scripts/cibo_three_holdout_group_report.py'
       - 'scripts/cibo_function_io_actuation_report.py'
+      - 'scripts/cibo_function_utilization_sensor.py'
       - 'scripts/cibo_full_function_trader_lab_audit.py'
       - 'scripts/cibo_cognitive_trader_lab_audit.py'
       - 'scripts/cibo_three_holdout_1y_sensor.py'
