@@ -11,20 +11,35 @@
     "pytest",
     "-q",
     "tests/infrastructure/test_core_stack_v2_mc14_b04_cross_asset_causal.py",
+    "tests/infrastructure/test_core_stack_v2_mc14_b04_source_preflight.py",
     "tests/infrastructure/test_core_stack_v2_market_agency_model.py",
-    "tests/infrastructure/test_core_stack_v2_counterfactual_world_engine.py"
+    "tests/infrastructure/test_core_stack_v2_counterfactual_world_engine.py",
+    "tests/infrastructure/test_core_stack_v2_counterfactual_world_calibration.py",
+    "tests/infrastructure/test_core_stack_v2_shared_a1_causal_trajectory_chain.py",
+    "tests/infrastructure/test_vt31_shared_threat_consumer_v3_research.py",
+    "tests/infrastructure/test_vt31_shared_threat_consumer_v4_research.py"
   ],
   "component_globs": [
     "src/qore/infrastructure/core_stack_v2/mc14_b04_cross_asset_causal.py",
+    "src/qore/infrastructure/core_stack_v2/mc14_b04_source_preflight.py",
     "src/qore/infrastructure/core_stack_v2/market_agency_model.py",
     "src/qore/infrastructure/core_stack_v2/counterfactual_world_engine.py",
+    "src/qore/infrastructure/core_stack_v2/counterfactual_world_calibration.py",
+    "src/qore/infrastructure/core_stack_v2/shared_trajectory_intelligence.py",
+    "src/qore/infrastructure/traders/vt31_shared_threat_consumer_v3_research.py",
+    "src/qore/infrastructure/traders/vt31_shared_threat_consumer_v4_research.py",
     "scripts/shared_mc14_*.py",
     "scripts/shared_wp06_*.py",
     "scripts/shared_mc18_*.py",
     "scripts/shared_mc19_*.py",
     "scripts/shared_sti8_*.py",
     "tests/infrastructure/test_core_stack_v2_mc14_b04_cross_asset_causal.py",
+    "tests/infrastructure/test_core_stack_v2_mc14_b04_source_preflight.py",
     "tests/infrastructure/test_core_stack_v2_market_agency_model.py",
-    "tests/infrastructure/test_core_stack_v2_counterfactual_world_engine.py"
+    "tests/infrastructure/test_core_stack_v2_counterfactual_world_engine.py",
+    "tests/infrastructure/test_core_stack_v2_counterfactual_world_calibration.py",
+    "tests/infrastructure/test_core_stack_v2_shared_a1_causal_trajectory_chain.py",
+    "tests/infrastructure/test_vt31_shared_threat_consumer_v3_research.py",
+    "tests/infrastructure/test_vt31_shared_threat_consumer_v4_research.py"
   ]
 }
