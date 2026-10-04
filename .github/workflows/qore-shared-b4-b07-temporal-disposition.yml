@@ -1,0 +1,163 @@
+name: QORE Shared B4 B07 Temporal Disposition Closure
+
+on:
+  push:
+    branches:
+      - agent/shared-architect-b4-world-foundation-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/shared_b4_temporal_disposition_registry.py
+      - scripts/shared_b4_temporal_disposition_registry.py
+      - tests/infrastructure/test_shared_b4_temporal_disposition_registry.py
+      - .github/workflows/qore-shared-b4-b07-temporal-disposition.yml
+  workflow_dispatch:
+
+concurrency:
+  group: qore-shared-b4-b07-temporal-disposition-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  B07_RUN_ID: "36782105126"
+  B07_ARTIFACT_ID: "11128361589"
+  B07_GIT_SHA: "512a007e1ba72e97bea397906b99423d6469bca6"
+  R8_CAL_RUN_ID: "36805285335"
+  R8_CAL_ARTIFACT_ID: "11137557201"
+  R8_CAL_GIT_SHA: "41f697b8eb208167da78db4710e69ff85ed74bac"
+
+jobs:
+  close-b07:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Validate B4 B-07 closure
+        run: |
+          set -euo pipefail
+          ruff check \
+            src/qore/infrastructure/core_stack_v2/shared_b4_temporal_disposition_registry.py \
+            scripts/shared_b4_temporal_disposition_registry.py \
+            tests/infrastructure/test_shared_b4_temporal_disposition_registry.py
+          mypy \
+            src/qore/infrastructure/core_stack_v2/shared_b4_temporal_disposition_registry.py \
+            scripts/shared_b4_temporal_disposition_registry.py
+          pytest -q tests/infrastructure/test_shared_b4_temporal_disposition_registry.py
+
+      - name: Verify exact sealed upstream lineages
+        run: |
+          set -euo pipefail
+          for spec in \
+            "${B07_RUN_ID}:${B07_GIT_SHA}" \
+            "${R8_CAL_RUN_ID}:${R8_CAL_GIT_SHA}"
+          do
+            run_id="${spec%%:*}"
+            sha="${spec#*:}"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq '.status')" = "completed"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq '.conclusion')" = "success"
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq '.head_sha')" = "${sha}"
+          done
+
+      - name: Recover sealed B-07 and R8 temporal evidence
+        run: |
+          set -euo pipefail
+          mkdir -p input/b07 input/r8 result
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${B07_ARTIFACT_ID}/zip" > b07.zip
+          unzip -q b07.zip -d input/b07
+          sums="$(find input/b07 -name SHA256SUMS -print -quit)"
+          test -n "$sums"
+          (cd "$(dirname "$sums")" && sha256sum -c SHA256SUMS)
+          b07_file="$(find input/b07 -name shared-b-canonical-calendar-worklist.json -print -quit)"
+          test -n "$b07_file"
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${R8_CAL_ARTIFACT_ID}/zip" > r8.zip
+          unzip -q r8.zip -d input/r8
+          sums="$(find input/r8 -name SHA256SUMS -print -quit)"
+          test -n "$sums"
+          (cd "$(dirname "$sums")" && sha256sum -c SHA256SUMS)
+          r8_file="$(find input/r8 -name shared-b-r8-historical-calendar-frontier.json -print -quit)"
+          test -n "$r8_file"
+
+          printf 'B07_FILE=%s\n' "$b07_file" >> "$GITHUB_ENV"
+          printf 'R8_FILE=%s\n' "$r8_file" >> "$GITHUB_ENV"
+
+      - name: Materialize exact B-07 temporal dispositions
+        run: |
+          set -euo pipefail
+          python scripts/shared_b4_temporal_disposition_registry.py \
+            --calendar-worklist "$B07_FILE" \
+            --r8-historical-frontier "$R8_FILE" \
+            --output result/shared-b4-temporal-disposition-registry.json \
+            | tee result/summary.json
+
+      - name: Enforce honest B-07 closure
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p=json.loads(
+              Path("result/shared-b4-temporal-disposition-registry.json").read_text()
+          )
+          assert p["identity"] == "SHARED_B4_TEMPORAL_DISPOSITION_REGISTRY_001"
+          assert p["status"] == "B07_EPISTEMIC_TEMPORAL_DISPOSITION_CLOSED"
+          assert p["sensor_count"] == 177
+          assert p["temporal_disposition_complete_count"] == 177
+          assert p["temporal_disposition_coverage_complete"] is True
+          assert p["r8_historical_session_partial_count"] == 1
+          assert p["canonical_calendar_verified_count"] == 0
+          assert p["calendar_binding_verified_count"] == 0
+          assert p["comparability_eligible_count"] == 0
+          assert p["unknown_or_blocked_temporal_state_is_valid"] is True
+          assert p["provider_schedule_is_canonical_calendar"] is False
+          assert p["current_schedule_backfilled_into_history"] is False
+          assert p["automatic_calendar_inference"] is False
+          assert p["relational_comparability_authorized"] is False
+          assert p["target_or_outcome_read"] is False
+          assert p["fresh_holdout_opened"] is False
+          assert p["broker_mutation"] is False
+          assert p["productive_authority"] is False
+          assert p["b07_epistemic_closure_complete"] is True
+          assert p["b07_all_canonical_calendars_verified"] is False
+          assert len(p["registry_fingerprint_sha256"]) == 64
+          PY
+
+      - name: Seal B-07 closure evidence
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$GITHUB_SHA" > result/code-git-sha.txt
+          printf '%s\n' "$GITHUB_RUN_ID" > result/run-id.txt
+          printf '%s\n' "$B07_RUN_ID" > result/upstream-b07-run-id.txt
+          printf '%s\n' "$R8_CAL_RUN_ID" > result/upstream-r8-run-id.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 \
+              | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - name: Upload B-07 closure evidence
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-b4-b07-temporal-disposition-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report B4 B-07 closure
+        env:
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+        run: |
+          gh issue comment 638 --repo "$GITHUB_REPOSITORY" --body "Architect B4 B-07 temporal disposition closure: run ${GITHUB_RUN_ID}, SHA ${GITHUB_SHA}, artifact ${ARTIFACT_ID}. Exact 177/177 sensors now have governed terminal temporal dispositions without promoting provider schedules. Canonical calendars/bindings remain 0 because evidence does not support promotion; JP225 retains one R8 historical session PARTIAL binding only, with extraordinary closures unresolved. UNKNOWN/BLOCKED temporal state is explicit and non-authoritative; relational comparability remains closed."
