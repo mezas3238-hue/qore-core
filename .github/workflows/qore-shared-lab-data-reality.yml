@@ -32,3 +32,7 @@ jobs:
           tests/infrastructure/test_core_stack_v2_shared_lab_temporal_harness.py
           tests/infrastructure/test_core_stack_v2_shared_lab_data_reality.py
           tests/infrastructure/test_core_stack_v2_shared_lab_sensor_harness.py
+          tests/infrastructure/test_core_stack_v2_shared_lab_provider_harness.py
+          tests/infrastructure/test_core_stack_v2_shared_lab_identity_harness.py
+          tests/infrastructure/test_core_stack_v2_shared_lab_market_hours.py
+          tests/infrastructure/test_core_stack_v2_shared_lab_data_l10.py
