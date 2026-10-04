@@ -1,0 +1,53 @@
+{
+  "task_id": "i1-a1-a2-pair",
+  "suite": "INTEGRATION",
+  "scope": "cognition",
+  "dependencies": [
+    "i1-a1-core",
+    "a2-wp11-closure"
+  ],
+  "command": [
+    "python",
+    "-m",
+    "pytest",
+    "-q",
+    "tests/infrastructure/test_core_stack_v2_mc14_b04_cross_asset_causal.py",
+    "tests/infrastructure/test_core_stack_v2_market_agency_model.py",
+    "tests/infrastructure/test_core_stack_v2_counterfactual_world_engine.py",
+    "tests/infrastructure/test_core_stack_v2_neural_symbolic_brain.py",
+    "tests/infrastructure/test_core_stack_v2_meta_learning_regime_adaptation.py",
+    "tests/infrastructure/test_core_stack_v2_continual_learning_governance.py",
+    "tests/infrastructure/test_core_stack_v2_mc25_v3b_performance_stress.py",
+    "tests/infrastructure/test_core_stack_v2_mc25_governed_lifecycle.py",
+    "tests/infrastructure/test_shared_wp11_exact_blocker_audit.py"
+  ],
+  "component_globs": [
+    "src/qore/infrastructure/core_stack_v2/mc14_b04_cross_asset_causal.py",
+    "src/qore/infrastructure/core_stack_v2/market_agency_model.py",
+    "src/qore/infrastructure/core_stack_v2/counterfactual_world_engine.py",
+    "src/qore/infrastructure/core_stack_v2/neural_symbolic_brain.py",
+    "src/qore/infrastructure/core_stack_v2/meta_learning_regime_adaptation.py",
+    "src/qore/infrastructure/core_stack_v2/continual_learning_governance.py",
+    "src/qore/infrastructure/core_stack_v2/mc25_v3b_performance_stress.py",
+    "src/qore/infrastructure/core_stack_v2/mc25_governed_lifecycle.py",
+    "scripts/shared_mc14_*.py",
+    "scripts/shared_wp06_*.py",
+    "scripts/shared_mc18_*.py",
+    "scripts/shared_mc19_*.py",
+    "scripts/shared_sti8_*.py",
+    "scripts/shared_mc11_*.py",
+    "scripts/shared_mc23_*.py",
+    "scripts/shared_mc24_*.py",
+    "scripts/shared_mc25_*.py",
+    "scripts/shared_wp11_*.py",
+    "tests/infrastructure/test_core_stack_v2_mc14_b04_cross_asset_causal.py",
+    "tests/infrastructure/test_core_stack_v2_market_agency_model.py",
+    "tests/infrastructure/test_core_stack_v2_counterfactual_world_engine.py",
+    "tests/infrastructure/test_core_stack_v2_neural_symbolic_brain.py",
+    "tests/infrastructure/test_core_stack_v2_meta_learning_regime_adaptation.py",
+    "tests/infrastructure/test_core_stack_v2_continual_learning_governance.py",
+    "tests/infrastructure/test_core_stack_v2_mc25_v3b_performance_stress.py",
+    "tests/infrastructure/test_core_stack_v2_mc25_governed_lifecycle.py",
+    "tests/infrastructure/test_shared_wp11_exact_blocker_audit.py"
+  ]
+}
