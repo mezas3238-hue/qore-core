@@ -24,10 +24,14 @@ from qore.infrastructure.cibo_ce2i_advanced_capital_tools import (
     AdvancedCe2iEvidenceBundle,
     AdvancedToolDecision,
     CapitalVelocityEvidence,
+    CapitalVelocityPolicy,
     ConvexExposureEvidence,
+    FactorExposure,
     HedgedExposureEvidence,
     MarginEfficiencyEvidence,
+    MarginExpression,
     PortfolioNettingEvidence,
+    RiskEfficiencyCandidate,
     RiskEfficiencyEvidence,
     StructuralLeverageEvidence,
     evaluate_advanced_ce2i_surface,
@@ -93,6 +97,189 @@ class AdvancedPortfolioEvidence:
             raise CiboCapitalManagementError(
                 "advanced opportunity evidence fingerprints must be unique"
             )
+
+
+def build_causal_baseline_advanced_evidence(
+    *,
+    opportunities: tuple[TraderOpportunityEnvelope, ...],
+    decision_at: datetime,
+    existing: AdvancedPortfolioEvidence | None = None,
+) -> AdvancedPortfolioEvidence:
+    """Fill absent advanced-tool inputs with explicit causal baseline evidence.
+
+    The baseline never claims OOS utility, provider alternatives, hedges, convex
+    instruments, or statistical netting that are not actually present.  Its job is
+    to let each native engine answer ABSTAIN/FAIL_CLOSED for a concrete reason
+    instead of appearing disconnected through a missing-input placeholder.
+    """
+
+    if decision_at.tzinfo is None or decision_at.utcoffset() is None:
+        raise CiboCapitalManagementError(
+            "advanced causal baseline decision_at must be timezone-aware"
+        )
+    if not opportunities or any(
+        not isinstance(item, TraderOpportunityEnvelope) for item in opportunities
+    ):
+        raise CiboCapitalManagementError(
+            "advanced causal baseline requires TraderOpportunityEnvelope inputs"
+        )
+    existing = existing or AdvancedPortfolioEvidence()
+    by_signal = {item.signal_fingerprint: item for item in existing.opportunities}
+    if len(by_signal) != len(existing.opportunities):
+        raise CiboCapitalManagementError(
+            "advanced causal baseline existing evidence duplicates signal"
+        )
+
+    rows: list[AdvancedOpportunityEvidence] = []
+    factor_rows: list[FactorExposure] = []
+    baseline_risks: list[Decimal] = []
+    for opportunity in sorted(
+        opportunities,
+        key=lambda item: (
+            item.trader_id.value,
+            item.qore_symbol,
+            item.signal_fingerprint,
+        ),
+    ):
+        prior = by_signal.get(opportunity.signal_fingerprint)
+        minimum_volume = (
+            opportunity.minimum_volume
+            * Decimal(opportunity.minimum_execution_steps)
+        )
+        current_volume = (
+            prior.current_volume if prior is not None and prior.current_volume > 0
+            else minimum_volume
+        )
+        maximum_additional_volume = (
+            prior.maximum_additional_volume
+            if prior is not None and prior.maximum_additional_volume > 0
+            else max(Decimal(0), opportunity.maximum_volume - current_volume)
+        )
+        stop_risk = current_volume * opportunity.stop_loss_per_volume
+        margin = current_volume * opportunity.margin_per_volume
+        baseline_risks.append(stop_risk)
+        expression_id = "baseline:" + opportunity.signal_fingerprint
+        risk_policy_id = "baseline-risk:" + opportunity.signal_fingerprint
+
+        rows.append(
+            AdvancedOpportunityEvidence(
+                signal_fingerprint=opportunity.signal_fingerprint,
+                current_volume=current_volume,
+                maximum_additional_volume=maximum_additional_volume,
+                structural_leverage=(
+                    None if prior is None else prior.structural_leverage
+                ),
+                margin_efficiency=(
+                    prior.margin_efficiency
+                    if prior is not None and prior.margin_efficiency is not None
+                    else MarginEfficiencyEvidence(
+                        evidence_id="causal-margin:" + opportunity.signal_fingerprint,
+                        observed_at=decision_at,
+                        baseline_expression_id=expression_id,
+                        expressions=(
+                            MarginExpression(
+                                expression_id=expression_id,
+                                normalized_exposure=current_volume,
+                                stop_risk_usd=stop_risk,
+                                margin_usd=margin,
+                                all_in_cost_usd=Decimal(0),
+                                executable=True,
+                                economics_verified=False,
+                            ),
+                        ),
+                    )
+                ),
+                risk_efficiency=(
+                    prior.risk_efficiency
+                    if prior is not None and prior.risk_efficiency is not None
+                    else RiskEfficiencyEvidence(
+                        evidence_id="causal-risk:" + opportunity.signal_fingerprint,
+                        observed_at=decision_at,
+                        baseline_candidate_id=risk_policy_id,
+                        candidates=(
+                            RiskEfficiencyCandidate(
+                                candidate_id=risk_policy_id,
+                                expected_net_output_usd=Decimal(0),
+                                true_stop_risk_usd=stop_risk,
+                                p95_drawdown_usd=stop_risk,
+                                tail_loss_usd=stop_risk,
+                                margin_usd=max(margin, Decimal("0.00000001")),
+                                sample_size=1,
+                                evidence_oos=False,
+                            ),
+                        ),
+                    )
+                ),
+                convex_exposure=(
+                    prior.convex_exposure
+                    if prior is not None and prior.convex_exposure is not None
+                    else ConvexExposureEvidence(
+                        evidence_id="causal-convex:" + opportunity.signal_fingerprint,
+                        observed_at=decision_at,
+                        available_limited_downside_capacity_usd=Decimal(0),
+                        instruments=(),
+                    )
+                ),
+            )
+        )
+        factor_rows.append(
+            FactorExposure(
+                position_id=opportunity.signal_fingerprint,
+                factor_id="symbol:" + opportunity.qore_symbol,
+                signed_risk_usd=(
+                    stop_risk if opportunity.side == "long" else -stop_risk
+                ),
+            )
+        )
+
+    aggregate_risk = max(
+        sum(baseline_risks, Decimal(0)),
+        Decimal("0.00000001"),
+    )
+    return AdvancedPortfolioEvidence(
+        opportunities=tuple(rows),
+        portfolio_netting=(
+            existing.portfolio_netting
+            if existing.portfolio_netting is not None
+            else PortfolioNettingEvidence(
+                evidence_id="causal-netting:" + decision_at.isoformat(),
+                observed_at=decision_at,
+                exposures=tuple(factor_rows),
+                correlation_state_id="unverified-causal-symbol-map",
+                correlation_stable=False,
+                factor_map_verified=False,
+            )
+        ),
+        capital_velocity=(
+            existing.capital_velocity
+            if existing.capital_velocity is not None
+            else CapitalVelocityEvidence(
+                evidence_id="causal-velocity:" + decision_at.isoformat(),
+                observed_at=decision_at,
+                baseline_policy_id="baseline-current-capital-path",
+                policies=(
+                    CapitalVelocityPolicy(
+                        policy_id="baseline-current-capital-path",
+                        realized_net_output_usd=Decimal(0),
+                        capital_minutes=Decimal(1),
+                        p95_drawdown_usd=aggregate_risk,
+                        tail_loss_usd=aggregate_risk,
+                        sample_size=1,
+                        evidence_oos=False,
+                    ),
+                ),
+            )
+        ),
+        hedged_exposure=(
+            existing.hedged_exposure
+            if existing.hedged_exposure is not None
+            else HedgedExposureEvidence(
+                evidence_id="causal-hedge:" + decision_at.isoformat(),
+                observed_at=decision_at,
+                instruments=(),
+            )
+        ),
+    )
 
 
 @dataclass(frozen=True, slots=True)
