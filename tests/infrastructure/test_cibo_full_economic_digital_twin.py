@@ -59,7 +59,6 @@ from qore.infrastructure.cibo_portfolio_allocation_engine import (
 )
 from qore.infrastructure.market_test_environment import MarketRuntimeEnvironment
 
-
 T0 = datetime(2026, 10, 4, 12, 0, tzinfo=UTC)
 
 
