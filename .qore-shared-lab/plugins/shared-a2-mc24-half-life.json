@@ -8,7 +8,9 @@
   ],
   "command": [
     "python",
-    "scripts/shared_mc24_empirical_knowledge_half_life.py",
+    "a2_lab_capsule/capsule.py",
+    "--mode",
+    "mc24",
     "--dataset",
     "{dataset_path}",
     "--mc23-result",
@@ -17,10 +19,9 @@
     "result/mc24-empirical-knowledge-half-life.json"
   ],
   "component_globs": [
+    "a2_lab_capsule/capsule.py",
+    "a2_lab_capsule/manifest.json",
     "docs/shared/evidence/QORE_SHARED_MC24_EMPIRICAL_KNOWLEDGE_HALF_LIFE_PREREGISTRATION_001.json",
-    "src/qore/infrastructure/core_stack_v2/mc24_empirical_half_life.py",
-    "src/qore/infrastructure/core_stack_v2/continual_learning_governance.py",
-    "scripts/shared_mc24_empirical_knowledge_half_life.py",
-    "tests/infrastructure/test_core_stack_v2_mc24_empirical_half_life.py"
+    "docs/shared/evidence/QORE_SHARED_LAB_A2_R6_R5_DATASET_MANIFEST_001.json"
   ]
 }
