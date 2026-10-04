@@ -1,0 +1,106 @@
+{
+  "schema": "QORE_SHARED_MC23_VALIDATED_NOVEL_REGIME_ADAPTATION_PREREGISTRATION_001",
+  "created_at": "2026-10-04",
+  "owner": "Sergio Meza",
+  "architect": "A2",
+  "source_of_truth": "mezas3238-hue/qore-core",
+  "branch": "agent/shared-architect-2-sti-001",
+  "purpose": "Validate a frozen representation adaptation on real NOVEL/NEAR_KNOWN source-time regimes without protected holdout access.",
+  "evidence": {
+    "construction_partition": "R6",
+    "independent_validation_partition": "R5",
+    "markets": [
+      "NAS100",
+      "SP500",
+      "US30"
+    ],
+    "source_timeframe": "M1",
+    "source_window_minutes": 90,
+    "sampling_minutes": [
+      0,
+      30
+    ],
+    "validation_horizon_minutes": 30,
+    "protected_final_holdout_opened": false,
+    "pnl_used": false,
+    "trader_methodology_used": false
+  },
+  "source_population": {
+    "allowed_states": [
+      "NOVEL",
+      "NEAR_KNOWN"
+    ],
+    "novelty_rule": {
+      "novel": "max(novelty_bps,historical_distance_bps,regime_unfamiliarity_bps) >= 7000",
+      "near_known": "composite >= 4000 OR model_disagreement_bps >= 5000",
+      "data_missingness_unresolved_gate_bps": 6500
+    },
+    "frozen_detection_identity": "QORE_SHARED_MC23_REAL_NOVELTY_DETECTION_001",
+    "sealed_detection_artifact_id": 11128786574
+  },
+  "features": {
+    "baseline": [
+      "compression",
+      "liquidity_accumulation",
+      "failed_auction",
+      "displacement",
+      "acceptance",
+      "absorption",
+      "leader_confirmation",
+      "leader_divergence",
+      "momentum_persistence",
+      "momentum_decay",
+      "structural_fragility",
+      "liquidity_vacuum",
+      "regime_transition",
+      "anomaly"
+    ],
+    "adaptive_interactions": [
+      "anomaly_x_regime_transition",
+      "leader_divergence_x_structural_fragility",
+      "liquidity_vacuum_x_anomaly",
+      "momentum_persistence_x_inverse_momentum_decay",
+      "displacement_x_acceptance",
+      "compression_x_liquidity_accumulation"
+    ],
+    "scaling": "R6_MEAN_STD_ONLY",
+    "intercept": true,
+    "ridge_lambda": 1,
+    "target_blind_feature_construction": true
+  },
+  "targets": [
+    "NAS100_FUTURE_30M_NET_RETURN_Z",
+    "NAS100_FUTURE_30M_ABS_RETURN_Z",
+    "NAS100_FUTURE_30M_MEAN_RANGE_Z",
+    "NAS100_FUTURE_30M_PATH_EFFICIENCY_Z"
+  ],
+  "fit": {
+    "train_partition": "R6_ONLY",
+    "validation_partition": "R5_ONLY",
+    "refit_on_R5": false,
+    "feature_selection_on_R5": false,
+    "threshold_retuning_after_R5": false
+  },
+  "frozen_gates": {
+    "minimum_r5_scored_observations": 5000,
+    "minimum_positive_targets": 3,
+    "minimum_pooled_incremental_information_bps": 100,
+    "minimum_each_positive_target_incremental_bps": 1,
+    "maximum_target_regression_bps": 500,
+    "temporal_order_required": true,
+    "deterministic_repeat_required": true
+  },
+  "disposition": {
+    "pass": "MC23_VALIDATED_REAL_NOVEL_REGIME_ADAPTATION_PASS",
+    "fail": "MC23_VALIDATED_REAL_NOVEL_REGIME_ADAPTATION_FALSIFIED_AND_CLOSED_FOR_THIS_MECHANISM",
+    "insufficient": "MC23_VALIDATED_REAL_NOVEL_REGIME_ADAPTATION_INSUFFICIENT_EVIDENCE"
+  },
+  "authority": {
+    "productive_authority": false,
+    "execution_authority": false,
+    "risk_authority": false,
+    "sizing_authority": false,
+    "capital_authority": false,
+    "certified_knowledge_auto_mutation": false
+  }
+}

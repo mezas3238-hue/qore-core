@@ -1,0 +1,26 @@
+{
+  "task_id": "a2-mc24-half-life",
+  "suite": "REGRESSION",
+  "scope": "mc23",
+  "dependencies": [
+    "a2-mc23-one-shot-adaptation",
+    "a2-mc24-regression"
+  ],
+  "command": [
+    "python",
+    "scripts/shared_mc24_empirical_knowledge_half_life.py",
+    "--dataset",
+    "{dataset_path}",
+    "--mc23-result",
+    "result/mc23-validated-novel-regime-adaptation.json",
+    "--output",
+    "result/mc24-empirical-knowledge-half-life.json"
+  ],
+  "component_globs": [
+    "docs/shared/evidence/QORE_SHARED_MC24_EMPIRICAL_KNOWLEDGE_HALF_LIFE_PREREGISTRATION_001.json",
+    "src/qore/infrastructure/core_stack_v2/mc24_empirical_half_life.py",
+    "src/qore/infrastructure/core_stack_v2/continual_learning_governance.py",
+    "scripts/shared_mc24_empirical_knowledge_half_life.py",
+    "tests/infrastructure/test_core_stack_v2_mc24_empirical_half_life.py"
+  ]
+}

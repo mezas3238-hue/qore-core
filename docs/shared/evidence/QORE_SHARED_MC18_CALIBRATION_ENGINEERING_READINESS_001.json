@@ -1,0 +1,23 @@
+{
+  "identity": "QORE_SHARED_MC18_CALIBRATION_ENGINEERING_READINESS_001",
+  "status": "ENGINEERING_READY_REQUIRES_CONSUMED_DEVELOPMENT_REPLAY",
+  "owner_lane": "SHARED_ARCHITECT_1",
+  "implementation": [
+    "src/qore/infrastructure/core_stack_v2/counterfactual_world_calibration.py",
+    "scripts/shared_mc18_counterfactual_failure_calibration.py",
+    "tests/infrastructure/test_core_stack_v2_counterfactual_world_calibration.py"
+  ],
+  "preregistration": "QORE_SHARED_MC18_COUNTERFACTUAL_FAILURE_CALIBRATION_PREREGISTRATION_001",
+  "execution_completed": false,
+  "calibration_frozen": false,
+  "scientific_value_proven": false,
+  "next_gate": "EXECUTE_PREREGISTERED_R6_FIT_R5_VALIDATION_IN_QORE_SHARED_LAB_AFTER_EXACT_SHA_HARNESS_BLOCKER_IS_REPAIRED",
+  "governance": {
+    "engine_changed": false,
+    "future_oos_opened": false,
+    "protected_final_holdout_opened": false,
+    "live": false,
+    "broker_mutation": false,
+    "productive_authority": false
+  }
+}

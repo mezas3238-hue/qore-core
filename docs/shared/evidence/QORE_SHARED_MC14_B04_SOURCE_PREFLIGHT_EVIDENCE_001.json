@@ -1,0 +1,52 @@
+{
+  "identity": "QORE_SHARED_MC14_B04_SOURCE_PREFLIGHT_EVIDENCE_001",
+  "status": "SOURCE_ONLY_PREFLIGHT_COMPLETE_TARGET_REPLAY_NOT_EXECUTED",
+  "owner_lane": "SHARED_ARCHITECT_1",
+  "observed_date": "2026-10-04",
+  "source": {
+    "workflow_run_id": 36765098842,
+    "conclusion": "success",
+    "acquisition_sha": "aec788d073aedc31f609c1609af3f7d4d8e5ae30",
+    "global_artifact_id": 11129732922,
+    "global_artifact_name": "qore-shared-b-wp05-full-r8-global-aec788d073aedc31f609c1609af3f7d4d8e5ae30",
+    "artifact_expired": false,
+    "artifact_zip_sha256": "7365280e8fd684ab1c8feafc93dbe87265f3b3d65649a12b9a602d8f64ca8d92",
+    "sensor_pack_file_sha256": "d509c2c5d1d306b24840a5214c41ff1a24c3a9418803d4f2d2ce56c9a4e341d4",
+    "reduced_evidence_sha256": "f60309f92b9ea462d2bab0b275f9262013e6c248e877d91f3fd3e2c5f4405d82",
+    "source_manifest_sha256": "2f18b9f11d5893effa46ac85c712edd6646d1d90a9de521b235143e42155d191"
+  },
+  "family_dispositions": {
+    "US2000_BREADTH_PROXY": {
+      "window_count": 2948,
+      "empty_bid_window_count": 23,
+      "empty_ask_window_count": 23,
+      "full_bid_ask_window_coverage": false,
+      "disposition": "INSUFFICIENT_DO_NOT_INFER",
+      "reason": "FROZEN_CONTRACT_REQUIRES_COMPARABLE_COMPLETE_SOURCE_WINDOWS"
+    },
+    "XAUUSD_DEFENSIVE_PROXY": {
+      "window_count": 2948,
+      "empty_bid_window_count": 0,
+      "empty_ask_window_count": 0,
+      "full_bid_ask_window_coverage": true,
+      "disposition": "READY_FOR_SINGLE_GOVERNED_REPLAY"
+    }
+  },
+  "governance": {
+    "target_or_outcome_read": false,
+    "r6_r5_read": false,
+    "protected_final_holdout_opened": false,
+    "broker_mutation": false,
+    "productive_authority": false,
+    "gate_relaxation": false,
+    "missing_data_imputation": false
+  },
+  "scientific_interpretation": {
+    "us2000_family_falsified": false,
+    "us2000_family_proven": false,
+    "xauusd_family_proven": false,
+    "mc14_completed_and_proven": false,
+    "target_replay_executed": false
+  },
+  "next_gate": "RUN_ONLY_XAUUSD_EVALUABLE_FAMILY_THROUGH_FROZEN_MC14_TARGET_REPLAY_WHILE_PRESERVING_US2000_AS_INSUFFICIENT"
+}

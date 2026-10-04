@@ -1,0 +1,41 @@
+{
+  "identity": "QORE_SHARED_STI8_V4_ENGINEERING_READINESS_001",
+  "status": "ENGINEERING_READY_AWAITING_FUTURE_DISJOINT_OOS",
+  "owner_lane": "SHARED_ARCHITECT_1",
+  "preregistration": "QORE_SHARED_STI8_ECONOMIC_RESPONSE_V4_PREREGISTRATION_001",
+  "mechanism": "V4_ONE_STEP_RECOVERY_VETO",
+  "implementation": {
+    "module": "src/qore/infrastructure/traders/vt31_shared_threat_consumer_v4_research.py",
+    "test": "tests/infrastructure/test_vt31_shared_threat_consumer_v4_research.py",
+    "parent_v3_module": "src/qore/infrastructure/traders/vt31_shared_threat_consumer_v3_research.py",
+    "parent_v3_reopened": false,
+    "parent_v3_policy_changed": false
+  },
+  "frozen_rule": {
+    "step_1": "MATERIALIZE_V3_DECISION_AT_T_MINUS_1",
+    "step_2": "OBSERVE_NEXT_CAUSAL_SOURCE_STATE_AT_T",
+    "recovery_veto": "HOLD_IF_LOCAL_MARGIN_LTE_ZERO_OR_HAZARD_MARGIN_LTE_ZERO",
+    "otherwise": "EXIT_NEXT_M1_OPEN",
+    "numeric_rescue_threshold_added": false
+  },
+  "scientific_status": {
+    "value_demonstrated": false,
+    "future_oos_opened": false,
+    "burned_v2_v3_used_for_value_claim": false,
+    "completed_and_proven": false
+  },
+  "governance": {
+    "future_market_used_for_decision": false,
+    "future_outcome_used_for_decision": false,
+    "same_initial_entry_stop_target": true,
+    "same_sizing": true,
+    "shared_exit_authority": false,
+    "shared_stop_authority": false,
+    "shared_target_authority": false,
+    "protected_certification_holdout_opened": false,
+    "live_authorized": false,
+    "broker_mutation": false,
+    "productive_authority": false
+  },
+  "next_gate": "WAIT_FOR_PREREGISTERED_TEMPORALLY_DISJOINT_FUTURE_OOS_MATURITY_THEN_ONE_SHOT_SHARED_LAB_EVALUATION"
+}
