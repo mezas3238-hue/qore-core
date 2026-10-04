@@ -504,6 +504,44 @@ class CapitalSciencePredecisionInput:
             }
             for item in self.open_positions
         ]
+        payload["open_economic_positions"] = [
+            {
+                "signal_fingerprint": item.signal_fingerprint,
+                "trader_id": item.trader_id,
+                "qore_symbol": item.qore_symbol,
+                "side": item.side,
+                "entry_at": item.entry_at.isoformat(),
+                "planned_exit_at": item.planned_exit_at.isoformat(),
+                "current_volume": format(item.current_volume, "f"),
+                "current_stop_risk_usd": format(
+                    item.current_stop_risk_usd,
+                    "f",
+                ),
+                "current_margin_usd": format(
+                    item.current_margin_usd,
+                    "f",
+                ),
+                "provider_cost_usd": format(
+                    item.provider_cost_usd,
+                    "f",
+                ),
+                "entry_expected_net_value_usd": format(
+                    item.entry_expected_net_value_usd,
+                    "f",
+                ),
+                "entry_expected_capital_minutes": format(
+                    item.entry_expected_capital_minutes,
+                    "f",
+                ),
+                "expectation_evidence_sha256": (
+                    item.expectation_evidence_sha256
+                ),
+                "continuation_value_identified": (
+                    item.continuation_value_identified
+                ),
+            }
+            for item in self.open_economic_positions
+        ]
         payload["genc7_proposal"] = (
             {
                 "proposal_id": self.genc7_proposal.proposal_id,
