@@ -1,0 +1,50 @@
+{
+  "schema": "QORE_SHARED_MC24_EMPIRICAL_KNOWLEDGE_HALF_LIFE_PREREGISTRATION_001",
+  "created_at": "2026-10-04",
+  "owner": "Sergio Meza",
+  "architect": "A2",
+  "source_of_truth": "mezas3238-hue/qore-core",
+  "branch": "agent/shared-architect-2-sti-001",
+  "dependency": {
+    "required_mc23_status": "MC23_VALIDATED_REAL_NOVEL_REGIME_ADAPTATION_PASS",
+    "mc23_preregistration": "QORE_SHARED_MC23_VALIDATED_NOVEL_REGIME_ADAPTATION_PREREGISTRATION_001",
+    "no_mc23_refit": true
+  },
+  "population": {
+    "validation_partition": "R5",
+    "source_population": [
+      "NOVEL",
+      "NEAR_KNOWN"
+    ],
+    "temporal_bin_days": 90,
+    "minimum_scored_observations_per_bin": 500,
+    "minimum_eligible_bins": 4,
+    "protected_final_holdout_opened": false
+  },
+  "metric": {
+    "per_bin": "POOLED_INCREMENTAL_INFORMATION_BPS_ADAPTIVE_VS_BASELINE",
+    "reference": "FIRST_ELIGIBLE_BIN_POSITIVE_INCREMENTAL_BPS",
+    "half_life_threshold_fraction": 0.5,
+    "confirmation_bins": 2,
+    "definition": "first of two consecutive eligible bins at or below 50% of the first eligible positive-bin benefit",
+    "no_cross_bin_refit": true,
+    "no_gate_retuning": true
+  },
+  "retained_knowledge": {
+    "maximum_target_regression_bps": 500,
+    "catastrophic_forgetting_forbidden": true,
+    "certified_knowledge_overwrite": false
+  },
+  "outcomes": {
+    "measured": "MC24_EMPIRICAL_KNOWLEDGE_HALF_LIFE_MEASURED",
+    "lower_bound": "MC24_EMPIRICAL_KNOWLEDGE_HALF_LIFE_LOWER_BOUND",
+    "insufficient": "MC24_EMPIRICAL_KNOWLEDGE_HALF_LIFE_INSUFFICIENT_EVIDENCE"
+  },
+  "authority": {
+    "productive_authority": false,
+    "execution_authority": false,
+    "risk_authority": false,
+    "sizing_authority": false,
+    "capital_authority": false
+  }
+}
