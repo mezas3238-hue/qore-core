@@ -206,6 +206,9 @@ class _Open:
     side: str
     entry_at: datetime
     exit_at: datetime
+    entry_price: Decimal
+    structural_stop: Decimal
+    technical_target: Decimal
     authorization_id: str
     authorized_volume: Decimal
     authorized_stop_risk_usd: Decimal
@@ -1668,6 +1671,9 @@ def run_compound_portfolio_lane(
                             current_volume=item.authorized_volume,
                             current_stop_risk_usd=item.authorized_stop_risk_usd,
                             current_margin_usd=item.authorized_margin_usd,
+                            entry_price=item.entry_price,
+                            structural_stop=item.structural_stop,
+                            technical_target=item.technical_target,
                             provider_cost_usd=item.provider_cost_usd,
                             entry_expected_net_value_usd=(
                                 item.entry_expected_net_value_usd
@@ -2156,6 +2162,9 @@ def run_compound_portfolio_lane(
                 side=opportunity.side,
                 entry_at=epoch.market_decision_at,
                 exit_at=event.exit_at,
+                entry_price=Decimal(str(opportunity.intended_entry)),
+                structural_stop=Decimal(str(opportunity.stop_loss)),
+                technical_target=Decimal(str(opportunity.take_profit)),
                 authorization_id=auth.authorization_id,
                 authorized_volume=auth.authorized_volume,
                 authorized_stop_risk_usd=auth.monetary_stop_loss,
