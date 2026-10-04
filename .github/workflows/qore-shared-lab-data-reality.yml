@@ -17,6 +17,8 @@ permissions:
 jobs:
   data-reality:
     runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: src
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
