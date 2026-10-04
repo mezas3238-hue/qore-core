@@ -209,7 +209,10 @@ def _row_probe(row: dict[str, Any]) -> dict[str, Any]:
         consumer_observed = bool(row.get("downstream_consumer_observable"))
         decision_changed = bool(row.get("decision_change_observable"))
         economic_effect = bool(row.get("economic_effect_observable"))
-        native_called_count = int(row.get("runtime_receipt_count") or 0)
+        native_called_count = (
+            int(row.get("runtime_receipt_count") or 0)
+            + int(row.get("direct_trace_native_called_count") or 0)
+        )
         direct_trace_evidence_count = int(
             row.get("direct_trace_evidence_count") or 0
         )

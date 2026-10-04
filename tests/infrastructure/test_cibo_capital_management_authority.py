@@ -91,7 +91,7 @@ def test_seed_holds_when_even_minimum_exceeds_hard_risk_headroom() -> None:
     assert "hard risk headroom" in plan.reason
 
 
-def test_expansion_is_locked_while_base_capital_remains_at_risk() -> None:
+def test_expansion_engine_remains_available_while_base_capital_is_at_risk() -> None:
     plan = plan_self_financing_expansion(
         _opportunity(),
         _capital(
@@ -101,8 +101,11 @@ def test_expansion_is_locked_while_base_capital_remains_at_risk() -> None:
         ),
     )
 
-    assert plan.action is CapitalAction.HOLD
-    assert plan.stage is CapitalStage.PROTECT_BASE
+    assert plan.action is CapitalAction.EXPAND
+    assert plan.stage is CapitalStage.CAPITALIZE
+    assert plan.stop_risk_usd == Decimal("20")
+    assert plan.capital_source is CapitalSource.REALIZED_PROFIT
+    assert plan.capital_source is not CapitalSource.ORIGINAL_BASE_CAPITAL
 
 
 def test_realized_profit_can_fund_expansion_after_base_recovery() -> None:

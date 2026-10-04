@@ -105,8 +105,15 @@ function_count = 53
 repair_required_count = 0
 unexplained_shadow_count = 0
 unexplained_authority_lock_count = 0
+safety_locked_count = 0
+science_locked_count = 0
+blocked_count = 0
 unobservable_count = 0
 ```
+
+A contextual no-change is valid only when the native engine was actually called,
+its input/output is observable, and a downstream consumer received the result.
+A zero-call `SAFETY_LOCKED` state is not Full Function Mastery.
 
 A GREEN workflow alone does not satisfy this gate.
 
@@ -407,3 +414,15 @@ This roadmap grants no automatic certification, merge, Risk, execution or broker
 authority. It establishes that the same CIBO function implementations are
 available to holdout, TEST, DEMO, LIVE and Production consumers; those consumers
 remain responsible for their own authority gates.
+
+## 16. Zero-lock closure amendment — T06
+
+The last observed post-T14 lock was T06 Self-Financing Expansion:
+`SAFETY_LOCKED / base capital remains at risk`.
+
+Owner ruling: base-capital exposure may constrain downstream Risk policy, but may
+not disable the T06 engine. T06 must remain callable in every environment and may
+propose only from proven non-base economic capacity. ORIGINAL_BASE_CAPITAL remains
+forbidden as an expansion source. The Compound Portfolio must consume the real T06
+plan before emitting its CMA Risk request so replay telemetry proves:
+INPUT -> T06 -> OUTPUT -> CMA CONSUMER -> QORE RISK.

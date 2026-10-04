@@ -364,14 +364,14 @@ def plan_self_financing_expansion(
     opportunity: TraderOpportunityEnvelope,
     capital: CiboCapitalState,
 ) -> CiboCapitalActionPlan:
-    """Expand only from proven economic capacity after base-capital recovery."""
+    """Propose expansion only from proven non-base economic capacity.
 
-    if not capital.base_recovered:
-        return _hold(
-            opportunity,
-            CapitalStage.PROTECT_BASE,
-            "base capital remains at risk; expansion locked",
-        )
+    T06 engine availability is universal. Base-capital recovery is therefore not
+    an engine on/off switch: the function may compute a proposal while original
+    base capital remains exposed, but the proposal can consume only proven
+    REALIZED_PROFIT or PROTECTED_ECONOMIC_FLOOR capacity. Sovereign QORE Risk and
+    the downstream account policy remain responsible for authorizing deployment.
+    """
 
     capacity = min(
         capital.available_self_financing_capacity_usd,
@@ -380,8 +380,12 @@ def plan_self_financing_expansion(
     if capacity <= 0:
         return _hold(
             opportunity,
-            CapitalStage.BASE_RECOVERED,
-            "base recovered but no proven self-financing capacity",
+            (
+                CapitalStage.BASE_RECOVERED
+                if capital.base_recovered
+                else CapitalStage.PROTECT_BASE
+            ),
+            "no proven non-base self-financing capacity is currently available",
         )
 
     by_risk = capacity / opportunity.stop_loss_per_volume

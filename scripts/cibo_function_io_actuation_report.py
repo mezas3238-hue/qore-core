@@ -289,6 +289,68 @@ def _direct_ce2i_trace_evidence(
     return result
 
 
+def _compound_t06_evidence(
+    three_lane: dict[str, Any],
+) -> list[dict[str, Any]]:
+    lane = three_lane.get("all_trader_cibo_compound_portfolio_dynamic")
+    if not isinstance(lane, dict):
+        return []
+    rows = lane.get("t06_expansion_decisions")
+    if not isinstance(rows, list):
+        return []
+    result: list[dict[str, Any]] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        requested_volume = _dec(row.get("requested_volume"))
+        authorized_volume = _dec(row.get("authorized_volume"))
+        authorized_risk = _dec(row.get("authorized_stop_risk_usd"))
+        authorized_margin = _dec(row.get("authorized_margin_usd"))
+        if (
+            requested_volume is None
+            or authorized_volume is None
+            or authorized_risk is None
+            or authorized_margin is None
+        ):
+            continue
+        action = str(row.get("action"))
+        result.append(
+            {
+                "input_payload": {
+                    "signal_fingerprint": row.get("signal_fingerprint"),
+                    "trader_id": row.get("trader_id"),
+                    "decision_at": row.get("decision_at"),
+                    "requested_volume": row.get("requested_volume"),
+                    "requested_stop_risk_usd": row.get(
+                        "requested_stop_risk_usd"
+                    ),
+                    "requested_margin_usd": row.get("requested_margin_usd"),
+                },
+                "output_payload": {
+                    "action": action,
+                    "authorized_volume": row.get("authorized_volume"),
+                    "authorized_stop_risk_usd": row.get(
+                        "authorized_stop_risk_usd"
+                    ),
+                    "authorized_margin_usd": row.get(
+                        "authorized_margin_usd"
+                    ),
+                    "capital_source": row.get("capital_source"),
+                    "reason": row.get("reason"),
+                },
+                "downstream_consumer": "compound-cma-risk-request",
+                "consumer_action": "profit-funded-expansion-plan-consumed",
+                "decision_changed": authorized_volume < requested_volume,
+                "economic_effect_observable": False,
+                "native_engine_called": True,
+                "outcome_used": False,
+                "broker_mutation": False,
+                "risk_authority": False,
+            }
+        )
+    return result
+
+
 def _compound_t14_evidence(
     three_lane: dict[str, Any],
 ) -> list[dict[str, Any]]:
@@ -340,6 +402,7 @@ def _compound_t14_evidence(
                     and (released_risk > 0 or released_margin > 0)
                 ),
                 "research_only": True,
+                "native_engine_called": True,
                 "broker_mutation": False,
                 "outcome_used": False,
             }
@@ -534,6 +597,9 @@ def _ce2i_rows(
     direct_trace_evidence: dict[str, list[dict[str, Any]]] = {
         code: [] for code in T_CODES
     }
+    direct_trace_evidence["T06"].extend(
+        _compound_t06_evidence(three_lane)
+    )
     direct_trace_evidence["T14"].extend(
         _compound_t14_evidence(three_lane)
     )
@@ -691,6 +757,10 @@ def _ce2i_rows(
             item.get("diagnostic_only") is True
             for item in direct_rows
         )
+        direct_native_called_count = sum(
+            item.get("native_engine_called") is True
+            for item in direct_rows
+        )
         shadow_only_direct = (
             bool(direct_rows)
             and direct_diagnostic_only_count == len(direct_rows)
@@ -783,6 +853,7 @@ def _ce2i_rows(
                 "direct_trace_diagnostic_only_count": (
                     direct_diagnostic_only_count
                 ),
+                "direct_trace_native_called_count": direct_native_called_count,
                 "runtime_actuation_count": runtime_changed,
                 "economic_effect_count": effect_count,
                 "dispositions": dict(dispositions),

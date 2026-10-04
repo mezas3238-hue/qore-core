@@ -33,6 +33,8 @@ on:
       - 'src/qore/infrastructure/cibo_profitability_lab_context_quality.py'
       - 'src/qore/infrastructure/cibo_profitability_lab_decision_trace.py'
       - 'src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py'
+      - 'src/qore/infrastructure/cibo_capital_management_authority.py'
+      - 'tests/infrastructure/test_cibo_capital_management_authority.py'
       - 'src/qore/infrastructure/cibo_capital_science_runtime_bridge.py'
       - 'src/qore/infrastructure/cibo_universal_capital_science_registry.py'
       - 'tests/infrastructure/test_cibo_universal_capital_science_registry.py'
@@ -117,6 +119,8 @@ jobs:
             src/qore/infrastructure/cibo_profitability_lab_decision_trace.py \
             src/qore/infrastructure/cibo_capital_science_runtime_bridge.py \
             src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py \
+            src/qore/infrastructure/cibo_capital_management_authority.py \
+            src/qore/infrastructure/cibo_capital_management_authority.py \
             src/qore/infrastructure/cibo_universal_capital_science_registry.py
           ruff check \
             scripts/cibo_t02_three_lane_capital_lab_arch2.py \
@@ -141,6 +145,7 @@ jobs:
             tests/infrastructure/test_cibo_phase22_v4_t02_volume_alignment.py \
             tests/infrastructure/test_cibo_universal_capital_science_registry.py \
             tests/infrastructure/test_cibo_capital_science_runtime_bridge.py \
+            tests/infrastructure/test_cibo_capital_management_authority.py \
             tests/infrastructure/test_cibo_profitability_lab_economic_consultation.py \
             tests/infrastructure/test_cibo_profitability_lab_function_runtime.py \
             tests/infrastructure/test_cibo/test_quantitative_intelligence.py \

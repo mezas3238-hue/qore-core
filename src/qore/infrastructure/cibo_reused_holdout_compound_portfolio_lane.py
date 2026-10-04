@@ -38,7 +38,9 @@ from qore.infrastructure.cibo_capital_management_authority import (
     CapitalStage,
     CiboCapitalActionPlan,
     CiboCapitalManagementError,
+    CiboCapitalState,
     minimum_seed_volume,
+    plan_self_financing_expansion,
 )
 from qore.infrastructure.cibo_capital_science_runtime_bridge import (
     CapitalScienceDisposition,
@@ -232,6 +234,93 @@ class CompoundPortfolioTrade:
             elif isinstance(value, datetime):
                 raw[key] = value.isoformat()
         return raw
+
+
+@dataclass(frozen=True, slots=True)
+class CompoundT06ExpansionDecision:
+    signal_fingerprint: str
+    trader_id: str
+    decision_at: datetime
+    requested_volume: Decimal
+    authorized_volume: Decimal
+    requested_stop_risk_usd: Decimal
+    authorized_stop_risk_usd: Decimal
+    requested_margin_usd: Decimal
+    authorized_margin_usd: Decimal
+    action: str
+    capital_source: str | None
+    reason: str
+
+    def __post_init__(self) -> None:
+        if not self.signal_fingerprint or not self.trader_id or not self.reason:
+            raise CiboCapitalManagementError(
+                "compound T06 decision identity/reason required"
+            )
+        if self.decision_at.tzinfo is None or self.decision_at.utcoffset() is None:
+            raise CiboCapitalManagementError(
+                "compound T06 decision_at must be timezone-aware"
+            )
+        for name in (
+            "requested_volume",
+            "authorized_volume",
+            "requested_stop_risk_usd",
+            "authorized_stop_risk_usd",
+            "requested_margin_usd",
+            "authorized_margin_usd",
+        ):
+            value = getattr(self, name)
+            if (
+                not isinstance(value, Decimal)
+                or not value.is_finite()
+                or value < 0
+            ):
+                raise CiboCapitalManagementError(
+                    f"compound T06 {name} must be finite non-negative Decimal"
+                )
+        if self.authorized_volume > self.requested_volume:
+            raise CiboCapitalManagementError(
+                "compound T06 may not increase the requested exposure"
+            )
+        if self.action not in {
+            CapitalAction.EXPAND.value,
+            CapitalAction.HOLD.value,
+        }:
+            raise CiboCapitalManagementError("compound T06 action invalid")
+        if (
+            self.action == CapitalAction.EXPAND.value
+            and self.capital_source
+            not in {
+                CapitalSource.REALIZED_PROFIT.value,
+                CapitalSource.PROTECTED_ECONOMIC_FLOOR.value,
+            }
+        ):
+            raise CiboCapitalManagementError(
+                "compound T06 expansion must use proven non-base capital"
+            )
+
+    def payload(self) -> dict[str, object]:
+        return {
+            "signal_fingerprint": self.signal_fingerprint,
+            "trader_id": self.trader_id,
+            "decision_at": self.decision_at.isoformat(),
+            "requested_volume": format(self.requested_volume, "f"),
+            "authorized_volume": format(self.authorized_volume, "f"),
+            "requested_stop_risk_usd": format(
+                self.requested_stop_risk_usd, "f"
+            ),
+            "authorized_stop_risk_usd": format(
+                self.authorized_stop_risk_usd, "f"
+            ),
+            "requested_margin_usd": format(self.requested_margin_usd, "f"),
+            "authorized_margin_usd": format(self.authorized_margin_usd, "f"),
+            "action": self.action,
+            "capital_source": self.capital_source,
+            "reason": self.reason,
+            "causal_predecision": True,
+            "outcome_used": False,
+            "broker_mutation": False,
+            "risk_authority": False,
+        }
 
 
 @dataclass(frozen=True, slots=True)
@@ -758,6 +847,7 @@ class CompoundPortfolioLaneResult:
     function_accountability: tuple[dict[str, object], ...]
     capital_science_receipts: tuple[dict[str, object], ...] = ()
     leverage_decisions: tuple[CompoundLeverageDecision, ...] = ()
+    t06_expansion_decisions: tuple[CompoundT06ExpansionDecision, ...] = ()
     t14_derisk_decisions: tuple[CompoundT14DeRiskDecision, ...] = ()
     dynamic_leverage_enabled: bool = False
     rational_redeploy_gate_enabled: bool = False
@@ -805,6 +895,13 @@ class CompoundPortfolioLaneResult:
         ):
             raise CiboCapitalManagementError(
                 "compound leverage decisions must be canonical"
+            )
+        if any(
+            not isinstance(item, CompoundT06ExpansionDecision)
+            for item in self.t06_expansion_decisions
+        ):
+            raise CiboCapitalManagementError(
+                "compound T06 decisions must be canonical"
             )
         if any(
             not isinstance(item, CompoundT14DeRiskDecision)
@@ -890,6 +987,9 @@ class CompoundPortfolioLaneResult:
             "capital_science_receipts": list(self.capital_science_receipts),
             "leverage_decisions": [
                 item.payload() for item in self.leverage_decisions
+            ],
+            "t06_expansion_decisions": [
+                item.payload() for item in self.t06_expansion_decisions
             ],
             "t14_derisk_decisions": [
                 item.payload() for item in self.t14_derisk_decisions
@@ -997,6 +1097,7 @@ def run_compound_portfolio_lane(
     blockers: Counter[str] = Counter()
     capital_science_receipts: list[CapitalScienceReceipt] = []
     leverage_decisions: list[CompoundLeverageDecision] = []
+    t06_expansion_decisions: list[CompoundT06ExpansionDecision] = []
     t14_derisk_decisions: list[CompoundT14DeRiskDecision] = []
     selected = allowed = reduced = rejected = cross_trader = 0
     peak_realized_capital = initial
@@ -1703,21 +1804,59 @@ def run_compound_portfolio_lane(
                 rejected += 1
                 continue
 
-            plan_row = CiboCapitalActionPlan(
-                trader_id=opportunity.trader_id,
-                qore_symbol=opportunity.qore_symbol,
-                stage=CapitalStage.CAPITALIZE,
-                action=CapitalAction.EXPAND,
-                volume=volume,
-                stop_risk_usd=risk,
-                margin_usd=margin,
-                capital_source=CapitalSource.REALIZED_PROFIT,
-                capital_source_amount_usd=risk,
-                reason=(
-                    "incremental seed funded only by causally prior realized "
-                    "profit in the account-local Compound Portfolio"
-                ),
+            t06_requested_volume = volume
+            t06_requested_risk = risk
+            t06_requested_margin = margin
+            t06_state = CiboCapitalState(
+                assigned_capital_usd=equity,
+                hard_risk_headroom_usd=risk,
+                margin_headroom_usd=margin,
+                base_capital_at_risk_usd=min(initial, equity),
+                realized_net_profit_usd=funding_pool,
+                protected_open_economic_floor_usd=Decimal(0),
+                proven_self_financing_capacity_usd=risk,
+                reserved_expansion_risk_usd=Decimal(0),
+                cost_reserve_usd=cost + loss_reserve,
             )
+            plan_row = plan_self_financing_expansion(
+                opportunity,
+                t06_state,
+            )
+            t06_expansion_decisions.append(
+                CompoundT06ExpansionDecision(
+                    signal_fingerprint=signal,
+                    trader_id=candidate.trader_id,
+                    decision_at=epoch.market_decision_at,
+                    requested_volume=t06_requested_volume,
+                    authorized_volume=plan_row.volume,
+                    requested_stop_risk_usd=t06_requested_risk,
+                    authorized_stop_risk_usd=plan_row.stop_risk_usd,
+                    requested_margin_usd=t06_requested_margin,
+                    authorized_margin_usd=plan_row.margin_usd,
+                    action=plan_row.action.value,
+                    capital_source=(
+                        None
+                        if plan_row.capital_source is None
+                        else plan_row.capital_source.value
+                    ),
+                    reason=plan_row.reason,
+                )
+            )
+            if plan_row.action is not CapitalAction.EXPAND:
+                blockers["T06_SELF_FINANCING_EXPANSION_NO_CHANGE"] += 1
+                rejected += 1
+                continue
+            if (
+                plan_row.capital_source is CapitalSource.ORIGINAL_BASE_CAPITAL
+                or plan_row.stop_risk_usd > t06_requested_risk
+                or plan_row.margin_usd > t06_requested_margin
+            ):
+                raise CiboCapitalManagementError(
+                    "T06 universal expansion violated non-base or no-increase invariant"
+                )
+            volume = plan_row.volume
+            risk = plan_row.stop_risk_usd
+            margin = plan_row.margin_usd
             request = build_cma_risk_request(
                 request_id=f"compound:{epoch.decision_epoch_id}:{signal}",
                 opportunity=opportunity,
@@ -1963,6 +2102,7 @@ def run_compound_portfolio_lane(
         function_accountability=functions,
         capital_science_receipts=tuple(item.payload() for item in capital_science_receipts),
         leverage_decisions=tuple(leverage_decisions),
+        t06_expansion_decisions=tuple(t06_expansion_decisions),
         t14_derisk_decisions=tuple(t14_derisk_decisions),
         dynamic_leverage_enabled=lab_dynamic_leverage,
         rational_redeploy_gate_enabled=lab_require_rational_redeploy,
