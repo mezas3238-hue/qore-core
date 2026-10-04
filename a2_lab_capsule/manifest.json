@@ -1,0 +1,32 @@
+{
+  "schema": "QORE_SHARED_A2_LAB_CAPSULE_MANIFEST_001",
+  "capsule_id": "QORE_SHARED_A2_LAB_CAPSULE_001",
+  "owner": "Sergio Meza",
+  "architect": "A2",
+  "purpose": [
+    "MC23_VALIDATED_REAL_NOVEL_REGIME_ADAPTATION",
+    "MC24_EMPIRICAL_KNOWLEDGE_HALF_LIFE"
+  ],
+  "dataset_sha256": "15575cd662b92e736fe53f59fbad50c42d244e29180cfb10fa8b6c7a87c560d0",
+  "preregistrations": [
+    "QORE_SHARED_MC23_VALIDATED_NOVEL_REGIME_ADAPTATION_PREREGISTRATION_001",
+    "QORE_SHARED_MC24_EMPIRICAL_KNOWLEDGE_HALF_LIFE_PREREGISTRATION_001"
+  ],
+  "canonical_source_blobs": {
+    "scripts/shared_wp03_historical_causal_discovery.py": "151cfca3a7566a1a989f104f86aea5305bc44b41",
+    "scripts/shared_sti2_real_opportunity_discovery.py": "cd9fc2b95e925ae5aab58ab9ec35c13cac69bb1c",
+    "scripts/shared_mc23_real_novelty_detection.py": "e7a42c519020ea570b24b95a39493c769220971f",
+    "src/qore/infrastructure/core_stack_v2/mc23_validated_novel_regime_adaptation.py": "b3fe16454cc9c01c041ab11f27ab9e17d0c701f5",
+    "src/qore/infrastructure/core_stack_v2/mc24_empirical_half_life.py": "f4adec6ad1ea6067b6d9239bcae5195db24d3094"
+  },
+  "constraints": {
+    "self_contained": true,
+    "github_access_required_at_runtime": false,
+    "github_actions_required": false,
+    "protected_final_holdout_opened": false,
+    "pnl_used": false,
+    "trader_methodology_used": false,
+    "broker_mutation": false,
+    "productive_authority": false
+  }
+}
