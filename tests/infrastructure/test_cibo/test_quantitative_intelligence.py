@@ -15,13 +15,14 @@ from qore.infrastructure.cibo.contracts import (
     CiboGovernedEvidenceKind,
 )
 from qore.infrastructure.cibo.quantitative_intelligence import (
+    CIBO_OWNER_RESEARCH_UNLOCK_V1,
     CiboQuantitativeIntelligence,
     CiboQuantRequest,
     CiboQuantResult,
     CiboQuantTool,
 )
 from qore.infrastructure.cibo_trader_capability_profile import CiboEvidenceRef
-from qore.kernel.result import Failure
+from qore.kernel.result import Failure, Success
 
 _NOW = datetime(2026, 8, 9, 0, 0, tzinfo=UTC)
 _INTEL = CiboQuantitativeIntelligence()
@@ -135,6 +136,41 @@ def test_result_requires_authority_rooted_evidence() -> None:
             evidence=_dependent_evidence(),
             computed_at=_NOW,
         )
+
+
+def test_owner_authorized_research_dispatch_bypasses_trader_lab_only_for_research() -> None:
+    result = _INTEL.dispatch_owner_authorized_research(
+        _request(),
+        result_code="quant.result.volatility",
+        exact_value=Decimal("0.0421"),
+        evidence_refs=(_ref(),),
+        computed_at=_NOW,
+        authorization_id=CIBO_OWNER_RESEARCH_UNLOCK_V1,
+    )
+
+    assert isinstance(result, Success)
+    value = result.value
+    assert value.exact_value == Decimal("0.0421")
+    assert value.research_only is True
+    assert value.trader_lab_pass_required is False
+    assert value.productive_authority is False
+    assert value.risk_authority is False
+    assert value.execution_authority is False
+    assert value.broker_mutation is False
+    assert value.outcome_used is False
+
+
+def test_owner_authorized_research_dispatch_rejects_wrong_unlock() -> None:
+    result = _INTEL.dispatch_owner_authorized_research(
+        _request(),
+        result_code="quant.result.volatility",
+        exact_value=Decimal("0.0421"),
+        evidence_refs=(_ref(),),
+        computed_at=_NOW,
+        authorization_id="wrong-unlock",
+    )
+    assert isinstance(result, Failure)
+    assert isinstance(result.error, CiboFunctionalValidationError)
 
 
 def test_request_has_no_provider_or_model_field() -> None:
