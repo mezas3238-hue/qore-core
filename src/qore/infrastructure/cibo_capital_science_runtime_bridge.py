@@ -65,6 +65,13 @@ from qore.infrastructure.cibo_compound_portfolio_ledger import CompoundPortfolio
 from qore.infrastructure.cibo_core_compound_portfolio import (
     AccountCoreCompoundPortfolio,
 )
+from qore.infrastructure.cibo_full_economic_digital_twin import (
+    CiboCapitalVelocityState,
+    CiboIdleCapitalClass,
+    CiboObservedEconomicTwin,
+    CiboObservedOpportunityState,
+    CiboObservedPortfolioState,
+)
 from qore.infrastructure.cibo_crisis_capital_intelligence import (
     Genc12CapitalResponse,
     Genc12CrisisFact,
@@ -818,6 +825,114 @@ def _regime_state(state: CapitalSciencePredecisionInput) -> CiboCapitalRegimeSta
     )
 
 
+def _known_economic_options(
+    state: CapitalSciencePredecisionInput,
+) -> tuple[CapitalScienceKnownOpportunity, ...]:
+    request_capital = state.requested_stop_risk_usd + state.provider_cost_usd
+    horizon_minutes = max(3, int(state.expected_capital_minutes) + 1)
+    current_option = (
+        CapitalScienceKnownOpportunity(
+            option_id=state.signal_fingerprint,
+            trader_id=state.trader_id,
+            qore_symbol=state.qore_symbol,
+            known_at=state.decision_at,
+            earliest_action_at=state.decision_at,
+            expires_at=state.decision_at + timedelta(minutes=horizon_minutes),
+            requested_capital_usd=request_capital,
+            stop_risk_usd=state.requested_stop_risk_usd,
+            margin_usd=state.requested_margin_usd,
+            evidence_sha256=_runtime_sha("known-option", state.payload()),
+            expected_net_value_usd=state.expected_net_value_usd,
+            expected_capital_minutes=state.expected_capital_minutes,
+        )
+        if request_capital > 0
+        and state.requested_stop_risk_usd > 0
+        and state.requested_margin_usd > 0
+        else None
+    )
+    known_by_id = {
+        item.option_id: item
+        for item in state.known_simultaneous_opportunities
+    }
+    if current_option is not None:
+        previous = known_by_id.get(current_option.option_id)
+        if previous is not None and (
+            previous.stop_risk_usd != current_option.stop_risk_usd
+            or previous.margin_usd != current_option.margin_usd
+            or previous.requested_capital_usd != current_option.requested_capital_usd
+            or previous.expected_net_value_usd != current_option.expected_net_value_usd
+            or previous.expected_capital_minutes != current_option.expected_capital_minutes
+        ):
+            raise CiboCapitalManagementError(
+                "Capital Science current option geometry/economics conflicts with epoch option set"
+            )
+        known_by_id[current_option.option_id] = previous or current_option
+    return tuple(
+        sorted(known_by_id.values(), key=lambda row: row.option_id)
+    )
+
+
+def _full_economic_twin(
+    state: CapitalSciencePredecisionInput,
+    *,
+    capital_twin: Genc10ObservedCapitalTwin,
+) -> CiboObservedEconomicTwin:
+    opportunities = tuple(
+        CiboObservedOpportunityState(
+            option_id=item.option_id,
+            trader_id=item.trader_id,
+            qore_symbol=item.qore_symbol,
+            known_at=item.known_at,
+            earliest_action_at=item.earliest_action_at,
+            expires_at=item.expires_at,
+            requested_capital_usd=item.requested_capital_usd,
+            expected_net_value_usd=item.expected_net_value_usd,
+            expected_capital_minutes=item.expected_capital_minutes,
+            stop_risk_usd=item.stop_risk_usd,
+            margin_usd=item.margin_usd,
+            provider_cost_usd=max(
+                Decimal(0),
+                item.requested_capital_usd - item.stop_risk_usd,
+            ),
+            uncertainty_penalty=Decimal(0),
+            context_allowed=True,
+            provider_viable=True,
+            capital_source_eligible=True,
+            evidence_sha256=item.evidence_sha256,
+        )
+        for item in _known_economic_options(state)
+    )
+    return CiboObservedEconomicTwin(
+        twin_id=f"economic:{capital_twin.twin_id}",
+        captured_at=state.decision_at,
+        capital_twin=capital_twin,
+        positions=(),
+        opportunities=opportunities,
+        portfolio=CiboObservedPortfolioState(
+            observed_at=state.decision_at,
+            active_position_ids=(),
+            opportunity_ids=tuple(item.option_id for item in opportunities),
+            concentration_utilization=Decimal(0),
+            correlation_utilization=Decimal(0),
+            reserved_stop_risk_usd=Decimal(0),
+            reserved_margin_usd=Decimal(0),
+        ),
+        velocity=CiboCapitalVelocityState(
+            observed_at=state.decision_at,
+            released_stop_risk_usd=Decimal(0),
+            released_margin_usd=Decimal(0),
+            waiting_stop_risk_usd=Decimal(0),
+            waiting_margin_usd=Decimal(0),
+            oldest_release_age_minutes=Decimal(0),
+            idle_classification=(
+                CiboIdleCapitalClass.OPTIONALITY_RESERVE
+                if opportunities
+                else CiboIdleCapitalClass.NO_VALID_OPPORTUNITY
+            ),
+        ),
+    )
+
+
 def _capital_twin(
     state: CapitalSciencePredecisionInput,
     *,
@@ -853,40 +968,7 @@ def _capital_twin(
         )
         for bucket in Genc10EconomicBucket
     )
-    request_capital = state.requested_stop_risk_usd + state.provider_cost_usd
-    horizon_minutes = max(3, int(state.expected_capital_minutes) + 1)
-    current_option = (
-        CapitalScienceKnownOpportunity(
-            option_id=state.signal_fingerprint,
-            trader_id=state.trader_id,
-            qore_symbol=state.qore_symbol,
-            known_at=state.decision_at,
-            earliest_action_at=state.decision_at,
-            expires_at=state.decision_at + timedelta(minutes=horizon_minutes),
-            requested_capital_usd=request_capital,
-            stop_risk_usd=state.requested_stop_risk_usd,
-            margin_usd=state.requested_margin_usd,
-            evidence_sha256=_runtime_sha("known-option", state.payload()),
-            expected_net_value_usd=state.expected_net_value_usd,
-            expected_capital_minutes=state.expected_capital_minutes,
-        )
-        if request_capital > 0
-        and state.requested_stop_risk_usd > 0
-        and state.requested_margin_usd > 0
-        else None
-    )
-    known_by_id = {item.option_id: item for item in state.known_simultaneous_opportunities}
-    if current_option is not None:
-        previous = known_by_id.get(current_option.option_id)
-        if previous is not None and (
-            previous.stop_risk_usd != current_option.stop_risk_usd
-            or previous.margin_usd != current_option.margin_usd
-            or previous.requested_capital_usd != current_option.requested_capital_usd
-        ):
-            raise CiboCapitalManagementError(
-                "Capital Science current option geometry conflicts with epoch option set"
-            )
-        known_by_id[current_option.option_id] = previous or current_option
+    economic_options = _known_economic_options(state)
     known_options = tuple(
         Genc10KnownCapitalOption(
             option_id=item.option_id,
@@ -898,7 +980,7 @@ def _capital_twin(
             margin_usd=item.margin_usd,
             evidence_sha256=item.evidence_sha256,
         )
-        for item in sorted(known_by_id.values(), key=lambda row: row.option_id)
+        for item in economic_options
     )
     with localcontext() as context:
         context.prec = 80
