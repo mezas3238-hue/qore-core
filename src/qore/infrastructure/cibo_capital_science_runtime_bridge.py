@@ -207,6 +207,74 @@ class CapitalScienceKnownOpportunity:
 
 
 @dataclass(frozen=True, slots=True)
+class CapitalScienceOpenEconomicPosition:
+    """Observed open-position economics available at the decision epoch."""
+
+    signal_fingerprint: str
+    trader_id: str
+    qore_symbol: str
+    side: str
+    entry_at: datetime
+    current_volume: Decimal
+    current_stop_risk_usd: Decimal
+    current_margin_usd: Decimal
+    provider_cost_usd: Decimal
+    entry_expected_net_value_usd: Decimal
+    entry_expected_capital_minutes: Decimal
+    expectation_evidence_sha256: str
+    continuation_value_identified: bool = False
+
+    def __post_init__(self) -> None:
+        if not self.signal_fingerprint or not self.trader_id or not self.qore_symbol:
+            raise CiboCapitalManagementError(
+                "Capital Science open economic position identity is required"
+            )
+        if self.side not in {"long", "short"}:
+            raise CiboCapitalManagementError(
+                "Capital Science open economic position side must be long/short"
+            )
+        if self.entry_at.tzinfo is None or self.entry_at.utcoffset() is None:
+            raise CiboCapitalManagementError(
+                "Capital Science open economic position entry_at must be timezone-aware"
+            )
+        for name in (
+            "current_volume",
+            "current_stop_risk_usd",
+            "current_margin_usd",
+            "entry_expected_capital_minutes",
+        ):
+            value = getattr(self, name)
+            if not isinstance(value, Decimal) or not value.is_finite() or value <= 0:
+                raise CiboCapitalManagementError(
+                    f"Capital Science open economic position {name} must be positive Decimal"
+                )
+        for name in (
+            "provider_cost_usd",
+            "entry_expected_net_value_usd",
+        ):
+            value = getattr(self, name)
+            if not isinstance(value, Decimal) or not value.is_finite():
+                raise CiboCapitalManagementError(
+                    f"Capital Science open economic position {name} must be finite Decimal"
+                )
+        if self.provider_cost_usd < 0:
+            raise CiboCapitalManagementError(
+                "Capital Science open economic position provider cost cannot be negative"
+            )
+        if (
+            not self.expectation_evidence_sha256.startswith("sha256:")
+            or len(self.expectation_evidence_sha256) != 71
+        ):
+            raise CiboCapitalManagementError(
+                "Capital Science open economic position expectation digest is invalid"
+            )
+        if type(self.continuation_value_identified) is not bool:
+            raise CiboCapitalManagementError(
+                "Capital Science continuation identification must be bool"
+            )
+
+
+@dataclass(frozen=True, slots=True)
 class CapitalSciencePredecisionInput:
     decision_epoch_id: str
     signal_fingerprint: str
@@ -233,6 +301,7 @@ class CapitalSciencePredecisionInput:
     regime_state: CiboCapitalRegimeState | None = None
     known_simultaneous_opportunities: tuple[CapitalScienceKnownOpportunity, ...] = ()
     open_positions: tuple[Genc12PositionCapitalInput, ...] = ()
+    open_economic_positions: tuple[CapitalScienceOpenEconomicPosition, ...] = ()
     genc7_proposal: Genc7PreservationProposalEvidence | None = None
 
     def __post_init__(self) -> None:
@@ -324,6 +393,27 @@ class CapitalSciencePredecisionInput:
         if any(not isinstance(item, Genc12PositionCapitalInput) for item in self.open_positions):
             raise CiboCapitalManagementError(
                 "Capital Science open positions must be canonical T14 inputs"
+            )
+        if any(
+            not isinstance(item, CapitalScienceOpenEconomicPosition)
+            for item in self.open_economic_positions
+        ):
+            raise CiboCapitalManagementError(
+                "Capital Science open economic positions must be canonical"
+            )
+        economic_position_ids = tuple(
+            item.signal_fingerprint for item in self.open_economic_positions
+        )
+        if len(economic_position_ids) != len(set(economic_position_ids)):
+            raise CiboCapitalManagementError(
+                "Capital Science open economic position ids must be unique"
+            )
+        if any(
+            item.entry_at > self.decision_at
+            for item in self.open_economic_positions
+        ):
+            raise CiboCapitalManagementError(
+                "Capital Science cannot consume future open-position state"
             )
         if self.genc7_proposal is not None:
             if not isinstance(
