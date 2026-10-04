@@ -9,7 +9,7 @@ at least 99.99%.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from decimal import Decimal
 
 from qore.infrastructure.cibo_capital_management_authority import (
@@ -81,14 +81,15 @@ class CiboMaximumCapabilityEvidence:
     t14_redeployable_value: Decimal
 
     def __post_init__(self) -> None:
-        for name, value in self.__dict__.items():
+        for item in fields(self):
+            value = getattr(self, item.name)
             if (
                 not isinstance(value, Decimal)
                 or not value.is_finite()
                 or value < 0
             ):
                 raise CiboCapitalManagementError(
-                    f"Maximum Capability evidence {name} must be finite non-negative Decimal"
+                    f"Maximum Capability evidence {item.name} must be finite non-negative Decimal"
                 )
 
 
