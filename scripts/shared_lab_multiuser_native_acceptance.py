@@ -433,6 +433,10 @@ def run_acceptance(state_dir: Path) -> dict[str, Any]:
             if item["evidence_path"] is not None
         }
         run_isolation = len(evidence_paths) == 9
+        run_id_unified = all(
+            item["run_id"] == item["scheduler_job_id"]
+            for item in finished
+        )
         evidence_ownership = all(
             item["submitted_by"]
             in Path(str(item["evidence_path"])).read_text()
@@ -664,6 +668,7 @@ def run_acceptance(state_dir: Path) -> dict[str, Any]:
             queue_32_pass=queue_32,
             dynamic_worker_pool_pass=dynamic_pool,
             run_isolation_pass=run_isolation,
+            run_id_unification_pass=run_id_unified,
             deduplication_pass=dedup_pass,
             causal_cache_pass=causal_cache,
             granular_lock_pass=granular_lock,
