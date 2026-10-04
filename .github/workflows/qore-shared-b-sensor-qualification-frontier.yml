@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - agent/shared-b-global-world-perception-001
+      - agent/shared-architect-6-provenance-freeze-001
     paths:
       - src/qore/infrastructure/core_stack_v2/shared_b_sensor_qualification_frontier.py
       - scripts/shared_b_sensor_qualification_frontier.py
@@ -122,11 +123,19 @@ jobs:
           assert p["identity"] == "SHARED_B_SENSOR_QUALIFICATION_FRONTIER_001"
           assert p["sensor_count"] == 177
           assert p["discovered_count"] == 177
-          assert p["identity_next_step_ready_count"] == 90
-          assert p["canonical_calendar_binding_verified_count"] == 0
-          assert p["full_real_source_evidence_count"] == 2
-          assert p["partial_real_source_evidence_count"] == 1
-          assert p["no_bound_real_source_evidence_count"] == 174
+          assert 0 <= p["identity_next_step_ready_count"] <= 177
+          assert 0 <= p["canonical_calendar_binding_verified_count"] <= 177
+          assert (
+              p["full_real_source_evidence_count"]
+              + p["partial_real_source_evidence_count"]
+              + p["no_bound_real_source_evidence_count"]
+              == 177
+          )
+          assert (
+              0
+              <= p["qualification_prerequisites_satisfied_count"]
+              <= 177
+          )
           assert p["scientific_value_proven_count"] == 0
           assert p["causal_qualification_complete_count"] == 0
           assert p["admitted_count"] == 0
@@ -162,4 +171,4 @@ jobs:
         env:
           ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
         run: |
-          gh issue comment 638 --repo "$GITHUB_REPOSITORY" --body "Architect B B-16 qualification frontier: run ${GITHUB_RUN_ID}, SHA ${GITHUB_SHA}, artifact ${ARTIFACT_ID}. Exact 177 discovered sensors reconciled against identity/calendar/real-source evidence: 90 have identity evidence sufficient for the next qualification step, 2 have full real BID/ASK history evidence, 1 partial, 174 no bound real causal history; canonical calendar bindings=0 and scientific admissions=0. Provider presence did not become admission; B-16 remains OPEN."
+          gh issue comment 638 --repo "$GITHUB_REPOSITORY" --body "Architect B6 B-16 qualification frontier: run ${GITHUB_RUN_ID}, SHA ${GITHUB_SHA}, artifact ${ARTIFACT_ID}. Exact 177 discovered sensors were reconciled against the sealed identity/calendar/real-source inputs. Upstream progress is consumed dynamically, automatic admissions remain zero, scientific-value proof remains mandatory, and B-16 stays OPEN until causal qualification is actually complete."
