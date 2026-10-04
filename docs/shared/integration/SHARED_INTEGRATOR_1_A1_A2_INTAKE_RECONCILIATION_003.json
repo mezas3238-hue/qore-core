@@ -1,0 +1,95 @@
+{
+  "schema": "QORE_SHARED_INTEGRATOR_1_A1_A2_INTAKE_RECONCILIATION_003",
+  "generated_at": "2026-10-04",
+  "repository": "mezas3238-hue/qore-core",
+  "shared_pr": 635,
+  "branch": "agent/shared-integrator-1-a1-a2-001",
+  "common_producer_baseline": "cc8c0953e54bdc60213831b417a1473b100b80cf",
+  "shared_master_intake_head": "55144bb92abdc5135521f545667b94dcad555bb1",
+  "integrator_code_head_before_v3_manifests": "30c3c90c3988cdab6d98427a88f130a5d246d57e",
+  "producer_intake": {
+    "architect_1": {
+      "head": "6ad93e8d493e13e588d9f7dc726fc061768a7c80",
+      "commits_after_common_baseline": 11,
+      "changed_file_count_after_common_baseline": 54,
+      "status": "INGESTED_EXACT_BLOBS"
+    },
+    "architect_2": {
+      "head": "7f3c3e6f19028d3c41dd91ab2588efd628198d34",
+      "commits_after_common_baseline": 27,
+      "changed_file_count_after_common_baseline": 47,
+      "capsule_id": "QORE_SHARED_A2_LAB_CAPSULE_001",
+      "capsule_files": [
+        "a2_lab_capsule/capsule.py",
+        "a2_lab_capsule/manifest.json"
+      ],
+      "dataset_id": "shared-a2-consumed-r6-r5",
+      "dataset_version": "1",
+      "dataset_sha256": "15575cd662b92e736fe53f59fbad50c42d244e29180cfb10fa8b6c7a87c560d0",
+      "canonical_source_blob_lineage": "5_OF_5_EXACT_MATCH",
+      "status": "INGESTED_EXACT_BLOBS"
+    }
+  },
+  "integration_repairs": {
+    "a1_shared_lab_coverage_expanded": true,
+    "a2_capsule_self_test_added": true,
+    "a2_mc23_scientific_runner_moved_to_capsule": true,
+    "a2_mc24_scientific_runner_moved_to_same_capsule": true,
+    "a2_half_life_is_non_skippable_before_mc25": true,
+    "a2_wp11_is_non_skippable_before_pair_gate": true,
+    "pair_cache_surface_includes_capsule": true,
+    "plugin_dag_audit": "docs/shared/integration/SHARED_INTEGRATOR_1_SHARED_LAB_PLUGIN_DAG_AUDIT_003.json"
+  },
+  "formal_validation": {
+    "static_integration_dag": "PASS",
+    "capsule_lineage": "PASS",
+    "native_shared_lab_execution": "BLOCKED",
+    "blocking_seam": "EXTERNAL_HARNESS_TARGET_SHA_SEAM",
+    "shared_lab_head_observed": "f9792cd95553b5663383b0b3474e5be2e2bda789",
+    "lab_pr": 716,
+    "integrator_lab_comment_id": 5983802293,
+    "actions_fallback_used": false,
+    "vps_fallback_used": false
+  },
+  "scientific_status": {
+    "pair_package_terminal": false,
+    "technical_green_claimed": false,
+    "scientific_completion_claimed": false,
+    "a1": {
+      "local_hidden_implementation_work_known": false,
+      "remaining_dependencies": [
+        "Shared Lab harness/target seam repair",
+        "MC14 XAUUSD single governed replay",
+        "genuinely new non-outcome-selected information for STI5/STI6/MC17",
+        "future disjoint OOS for STI8 V4",
+        "consumed-development MC18 calibration then future MC27 independent evidence",
+        "MC19 functional causality plus future economic evidence"
+      ]
+    },
+    "a2": {
+      "local_execution_path_frozen": true,
+      "remaining_dependencies": [
+        "Shared Lab harness/target seam repair",
+        "Dataset Store must contain frozen shared-a2-consumed-r6-r5 v1 with exact sha256",
+        "one-shot MC23 disposition",
+        "conditional MC24 half-life if MC23 passes",
+        "conditional MC25 performance -> formal STRESS -> SHADOW -> CERTIFICATION -> governed PROMOTION",
+        "WP11 terminal reconciliation"
+      ]
+    }
+  },
+  "governance": {
+    "pr_635_merged": false,
+    "final_shared_holdout_opened": false,
+    "live_authorized": false,
+    "production_authorized": false,
+    "real_capital_authorized": false,
+    "vps_changes_authorized": false,
+    "broker_mutation_authorized": false,
+    "shared_sizing_authority": false,
+    "shared_risk_authority": false,
+    "shared_order_authority": false,
+    "shared_execution_authority": false,
+    "outcome_aware_gate_rescue_authorized": false
+  }
+}
