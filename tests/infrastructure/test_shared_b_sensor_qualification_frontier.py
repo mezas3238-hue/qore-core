@@ -98,6 +98,7 @@ def test_exact_177_frontier_admits_nothing_without_prerequisites() -> None:
     assert payload["full_real_source_evidence_count"] == 2
     assert payload["partial_real_source_evidence_count"] == 1
     assert payload["no_bound_real_source_evidence_count"] == 174
+    assert payload["qualification_prerequisites_satisfied_count"] == 0
     assert payload["scientific_value_proven_count"] == 0
     assert payload["causal_qualification_complete_count"] == 0
     assert payload["admitted_count"] == 0
@@ -105,6 +106,75 @@ def test_exact_177_frontier_admits_nothing_without_prerequisites() -> None:
     assert payload["b16_complete"] is False
     assert len(payload["frontier_fingerprint_sha256"]) == 64
     assert all(row["sensor_admitted"] is False for row in payload["records"])
+
+
+def test_legitimate_upstream_progress_is_consumed_not_rejected() -> None:
+    registry, frontier, calendar, active = _inputs()
+    identities = frontier["records"]
+    calendars = calendar["records"]
+    assert isinstance(identities, list)
+    assert isinstance(calendars, list)
+
+    identities[90]["resolution_stage"] = "CURRENT_REFERENCE_OBJECT_MAPPED"
+    calendars[0]["calendar_binding_verified"] = True
+    calendar["canonical_calendar_verified_count"] = 1
+
+    payload = build_sensor_qualification_frontier(
+        sensor_registry=registry,
+        identity_frontier=frontier,
+        calendar_worklist=calendar,
+        active_perception_boundary=active,
+    )
+    assert payload["identity_next_step_ready_count"] == 91
+    assert payload["canonical_calendar_binding_verified_count"] == 1
+    assert payload["qualification_prerequisites_satisfied_count"] == 1
+
+    first = payload["records"][0]
+    assert first["provider_symbol"] == "US2000"
+    assert first["qualification_prerequisites_satisfied"] is True
+    assert (
+        first["qualification_status"]
+        == "PREREQUISITES_SATISFIED_SCIENTIFIC_VALUE_OPEN"
+    )
+    assert first["scientific_value_proven"] is False
+    assert first["sensor_admitted"] is False
+    assert "SCIENTIFIC_VALUE_NOT_YET_PROVEN" in first["reason_codes"]
+
+
+def test_declared_calendar_count_must_match_row_evidence() -> None:
+    registry, frontier, calendar, active = _inputs()
+    calendars = calendar["records"]
+    assert isinstance(calendars, list)
+    calendars[0]["calendar_binding_verified"] = True
+    with pytest.raises(
+        SharedBSensorQualificationFrontierError,
+        match="disagrees with row evidence",
+    ):
+        build_sensor_qualification_frontier(
+            sensor_registry=registry,
+            identity_frontier=frontier,
+            calendar_worklist=calendar,
+            active_perception_boundary=active,
+        )
+
+
+def test_unknown_real_source_status_fails_closed() -> None:
+    registry, frontier, calendar, active = _inputs()
+    sensor_side = active["active_perception_sensor_side"]
+    assert isinstance(sensor_side, dict)
+    statuses = sensor_side["real_sensor_statuses"]
+    assert isinstance(statuses, dict)
+    statuses["US2000"] = "fabricated_history"
+    with pytest.raises(
+        SharedBSensorQualificationFrontierError,
+        match="unsupported real sensor evidence status",
+    ):
+        build_sensor_qualification_frontier(
+            sensor_registry=registry,
+            identity_frontier=frontier,
+            calendar_worklist=calendar,
+            active_perception_boundary=active,
+        )
 
 
 def test_provider_presence_cannot_promote_admission() -> None:
@@ -131,13 +201,13 @@ def test_provider_presence_cannot_promote_admission() -> None:
         )
 
 
-def test_calendar_authority_widening_fails_closed() -> None:
+def test_active_perception_completion_widening_fails_closed() -> None:
     registry, frontier, calendar, active = _inputs()
-    calendar = deepcopy(calendar)
-    calendar["canonical_calendar_verified_count"] = 1
+    active = deepcopy(active)
+    active["full_global_sensor_universe_active_perception_complete"] = True
     with pytest.raises(
         SharedBSensorQualificationFrontierError,
-        match="calendar authority unexpectedly widened",
+        match="illegally claims global completion",
     ):
         build_sensor_qualification_frontier(
             sensor_registry=registry,
