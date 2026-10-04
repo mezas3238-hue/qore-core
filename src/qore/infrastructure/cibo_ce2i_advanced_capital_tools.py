@@ -217,6 +217,11 @@ def evaluate_margin_efficiency(
         raise CiboCapitalManagementError(
             "evidence must be MarginEfficiencyEvidence"
         )
+    if len(evidence.expressions) == 1:
+        return _abstain(
+            "T03",
+            "NO_ALTERNATIVE_EQUIVALENT_EXPRESSION",
+        )
     if not evidence.fresh_oos_utility_demonstrated:
         return _fail("T03", "T03 fresh OOS utility is not demonstrated")
     if not evidence.policy_authorized:
@@ -331,6 +336,8 @@ def evaluate_risk_efficiency(
         for item in evidence.candidates
         if item.candidate_id == evidence.baseline_candidate_id
     )
+    if len(evidence.candidates) == 1:
+        return _abstain("T04", "NO_ALTERNATIVE_RISK_POLICY")
     if not baseline.evidence_oos or baseline.sample_size < evidence.minimum_oos_sample:
         return _fail("T04", "baseline risk-efficiency evidence is not sufficiently OOS")
     eligible = tuple(
@@ -459,6 +466,15 @@ def evaluate_portfolio_netting(
         raise CiboCapitalManagementError(
             "evidence must be PortfolioNettingEvidence"
         )
+    by_factor_signs: dict[str, set[int]] = {}
+    for item in evidence.exposures:
+        if item.signed_risk_usd == 0:
+            continue
+        by_factor_signs.setdefault(item.factor_id, set()).add(
+            1 if item.signed_risk_usd > 0 else -1
+        )
+    if not any(len(signs) > 1 for signs in by_factor_signs.values()):
+        return _abstain("T08", "NO_POTENTIAL_FACTOR_OFFSET")
     if not evidence.factor_map_verified:
         return _fail("T08", "factor map is not verified")
     if (
@@ -570,6 +586,8 @@ def evaluate_capital_velocity(
         item for item in evidence.policies
         if item.policy_id == evidence.baseline_policy_id
     )
+    if len(evidence.policies) == 1:
+        return _abstain("T10", "NO_ALTERNATIVE_VELOCITY_POLICY")
     if not baseline.evidence_oos or baseline.sample_size < evidence.minimum_oos_sample:
         return _fail("T10", "capital velocity baseline is not sufficiently OOS")
     baseline_score = baseline.realized_net_output_usd / baseline.capital_minutes
@@ -672,6 +690,8 @@ def evaluate_hedged_exposure(
         raise CiboCapitalManagementError(
             "evidence must be HedgedExposureEvidence"
         )
+    if not evidence.instruments:
+        return _abstain("T16", "NO_HEDGE_INSTRUMENT_AVAILABLE")
     if not evidence.fresh_oos_utility_demonstrated:
         return _fail("T16", "T16 fresh OOS hedge utility is not demonstrated")
     if not evidence.policy_authorized:
@@ -776,6 +796,14 @@ def evaluate_convex_exposure(
     if not isinstance(evidence, ConvexExposureEvidence):
         raise CiboCapitalManagementError(
             "evidence must be ConvexExposureEvidence"
+        )
+    if (
+        not evidence.instruments
+        or evidence.available_limited_downside_capacity_usd <= 0
+    ):
+        return _abstain(
+            "T17",
+            "NO_CERTIFIED_LIMITED_DOWNSIDE_INSTRUMENT_AVAILABLE",
         )
     if not evidence.fresh_oos_utility_demonstrated:
         return _fail("T17", "T17 fresh OOS utility is not demonstrated")
