@@ -87,6 +87,7 @@ jobs:
             scripts/cibo_t02_three_lane_capital_lab_arch2.py \
             scripts/cibo_three_holdout_group_report.py \
             scripts/cibo_function_io_actuation_report.py \
+            scripts/cibo_function_utilization_sensor.py \
             src/qore/infrastructure/cibo_ce2i_full_surface.py \
             src/qore/infrastructure/cibo_ce2i_regime_selector.py \
             src/qore/infrastructure/cibo_ce2i_optionality.py \
@@ -110,6 +111,7 @@ jobs:
             scripts/cibo_t02_three_lane_capital_lab_arch2.py \
             scripts/cibo_three_holdout_group_report.py \
             scripts/cibo_function_io_actuation_report.py \
+            scripts/cibo_function_utilization_sensor.py \
             src/qore/infrastructure/cibo_phase22_v4_chronological_execution.py \
             src/qore/infrastructure/cibo_phase22_v4_historical_policy_replay.py \
             src/qore/infrastructure/cibo_phase22_v4_historical_replay_sealing.py \
@@ -211,6 +213,10 @@ jobs:
             --capital-science-io "$RUNNER_TEMP/results/$group/lab/capital-science-per-call-io.json" \
             --group-result "$RUNNER_TEMP/results/$group/group-result.json" \
             --output "$RUNNER_TEMP/results/$group/lab/function-io-actuation.json"
+          python scripts/cibo_function_utilization_sensor.py \
+            --function-io "$RUNNER_TEMP/results/$group/lab/function-io-actuation.json" \
+            --group-result "$RUNNER_TEMP/results/$group/group-result.json" \
+            --output "$RUNNER_TEMP/results/$group/lab/function-utilization-sensor.json"
           python scripts/cibo_full_function_trader_lab_audit.py \
             --decision-trace "$RUNNER_TEMP/results/$group/lab/decision-trace.json" \
             --source-head "$GITHUB_SHA" \
@@ -237,6 +243,14 @@ jobs:
           assert io['schema']=='qore.cibo.function-io-actuation.v1'
           assert io['group_id']==group
           assert io['function_count']==53
+          sensor_path=Path(os.environ['RUNNER_TEMP'])/'results'/group/'lab'/'function-utilization-sensor.json'
+          utilization=json.loads(sensor_path.read_text())
+          assert utilization['schema']=='qore.cibo.function-utilization-sensor.v1'
+          assert utilization['group_id']==group
+          assert utilization['summary']['function_count']==53
+          assert len(utilization['functions'])==53
+          assert utilization['summary']['repair_required_count']==len(utilization['repair_queue'])
+          assert utilization['economic_capability_probe']['dynamic_leverage_candidate_present'] is True
           audit_path=Path(os.environ['RUNNER_TEMP'])/'results'/group/'lab'/'full-function-trader-lab-audit.json'
           audit=json.loads(audit_path.read_text())
           assert audit['candidate_count']==7
