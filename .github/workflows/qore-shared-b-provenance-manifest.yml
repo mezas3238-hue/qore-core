@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - agent/shared-b-global-world-perception-001
+      - agent/shared-architect-6-provenance-freeze-001
     paths:
       - src/qore/infrastructure/core_stack_v2/shared_b_provenance_manifest.py
       - tests/infrastructure/test_shared_b_provenance_manifest.py
@@ -21,7 +22,10 @@ permissions:
 
 env:
   GH_TOKEN: ${{ github.token }}
-  B_BRANCH: agent/shared-b-global-world-perception-001
+  LEGACY_B_BRANCH: agent/shared-b-global-world-perception-001
+  B4_BRANCH: agent/shared-architect-4-world-foundation-001
+  B5_BRANCH: agent/shared-architect-5-relational-assets-001
+  B6_BRANCH: agent/shared-architect-6-provenance-freeze-001
 
 jobs:
   audit:
@@ -115,7 +119,11 @@ jobs:
               ]))
               assert run["status"]=="completed"
               assert run["conclusion"]=="success"
-              assert run["head_branch"]==os.environ["B_BRANCH"]
+              expected_source_branch=spec.get(
+                  "source_branch",
+                  os.environ["LEGACY_B_BRANCH"],
+              )
+              assert run["head_branch"]==expected_source_branch
               assert artifact["expired"] is False
               assert artifact["workflow_run"]["id"]==run_id
               assert artifact["workflow_run"]["head_sha"]==run["head_sha"]
@@ -139,6 +147,7 @@ jobs:
         run: |
           python - <<'PY'
           import json
+          import os
           from pathlib import Path
 
           from qore.infrastructure.core_stack_v2.shared_b_provenance_manifest import (
@@ -166,7 +175,13 @@ jobs:
           )
           payload=build_shared_b_provenance_manifest(
               pointers,
-              expected_branch="agent/shared-b-global-world-perception-001",
+              expected_branch=os.environ["GITHUB_REF_NAME"],
+              allowed_source_branches=(
+                  os.environ["LEGACY_B_BRANCH"],
+                  os.environ["B4_BRANCH"],
+                  os.environ["B5_BRANCH"],
+                  os.environ["B6_BRANCH"],
+              ),
               coverage_complete=False,
               open_coverage_reasons=(
                   "B-06/B-07/B-08 global identity/calendar/temporal closure remains incomplete",
@@ -213,4 +228,4 @@ jobs:
         env:
           ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
         run: |
-          gh issue comment 638 --repo "$GITHUB_REPOSITORY" --body "Architect B B-21 provenance manifest: run ${GITHUB_RUN_ID}, SHA ${GITHUB_SHA}, artifact ${ARTIFACT_ID}. Exact GitHub run↔artifact↔B-branch↔HEAD↔artifact-SHA256 lineage verified for the current sealed B evidence population. coverage_complete=False remains mandatory until final B-21/B-22/B-24 provenance closure; current upstream evidence is recorded without holdout/broker/productive authority."
+          gh issue comment 638 --repo "$GITHUB_REPOSITORY" --body "Architect B B-21 provenance manifest: run ${GITHUB_RUN_ID}, SHA ${GITHUB_SHA}, artifact ${ARTIFACT_ID}. Exact GitHub run↔artifact↔producer-branch↔HEAD↔artifact-SHA256 lineage verified for the current sealed B evidence population. coverage_complete=False remains mandatory until final B-21/B-22/B-24 provenance closure; current upstream evidence is recorded without holdout/broker/productive authority."
