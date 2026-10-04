@@ -40,13 +40,19 @@ def _cognitive_rows(opportunities: list[dict[str, Any]]) -> list[dict[str, Any]]
     result = []
     for code in CF_CODES:
         calls = 0
+        expected_rows = 0
         shared_outputs: Counter[str] = Counter()
+        function_outputs: Counter[str] = Counter()
+        complete_io = True
+        consumer_bound = True
+        advisory_boundary = True
+        context_effect = True
         for row in opportunities:
             cog = row.get("cognitive_orchestration")
             if not isinstance(cog, dict):
                 continue
             if code in cog.get("cf01_cf19_registered_in_separate_capability_exam", []):
-                calls += 1
+                expected_rows += 1
             shared_outputs[
                 "|".join(
                     str(cog.get(name))
@@ -57,27 +63,99 @@ def _cognitive_rows(opportunities: list[dict[str, Any]]) -> list[dict[str, Any]]
                     )
                 )
             ] += 1
+            receipts = cog.get("faculty_receipts", [])
+            if not isinstance(receipts, list):
+                complete_io = False
+                consumer_bound = False
+                advisory_boundary = False
+                context_effect = False
+                continue
+            matching = [
+                item
+                for item in receipts
+                if isinstance(item, dict) and item.get("function_code") == code
+            ]
+            if len(matching) != 1:
+                complete_io = False
+                consumer_bound = False
+                advisory_boundary = False
+                context_effect = False
+                continue
+            receipt = matching[0]
+            calls += 1
+            input_payload = receipt.get("input_payload")
+            output_payload = receipt.get("output_payload")
+            output_code = (
+                output_payload.get("contribution_code")
+                if isinstance(output_payload, dict)
+                else None
+            )
+            function_outputs[str(output_code)] += 1
+            complete_io = complete_io and (
+                isinstance(input_payload, dict)
+                and bool(input_payload)
+                and isinstance(output_payload, dict)
+                and bool(output_payload)
+                and isinstance(receipt.get("input_sha256"), str)
+                and str(receipt["input_sha256"]).startswith("sha256:")
+                and isinstance(receipt.get("output_sha256"), str)
+                and str(receipt["output_sha256"]).startswith("sha256:")
+            )
+            consumer_bound = consumer_bound and (
+                receipt.get("downstream_consumer") == "cibo-functional-coordinator"
+                and receipt.get("consumer_action") == "contribution-coordinated"
+            )
+            advisory_boundary = advisory_boundary and (
+                receipt.get("advisory_only") is True
+                and receipt.get("economic_authority") is False
+                and receipt.get("sizing_authority") is False
+                and receipt.get("risk_authority") is False
+                and receipt.get("execution_authority") is False
+                and receipt.get("outcome_used") is False
+            )
+            context_effect = context_effect and (
+                receipt.get("decision_context_effect") == "evidence-request-context"
+            )
+
+        observed = (
+            expected_rows > 0
+            and calls == expected_rows
+            and complete_io
+            and consumer_bound
+            and advisory_boundary
+            and context_effect
+        )
         result.append(
             {
                 "function_code": code,
                 "stage": "COGNITIVE",
                 "call_count": calls,
-                "per_function_input_observable": False,
-                "per_function_output_observable": False,
-                "downstream_consumer_observable": False,
+                "expected_trace_rows": expected_rows,
+                "per_function_input_observable": observed,
+                "per_function_output_observable": observed,
+                "downstream_consumer_observable": observed,
+                "advisory_consumption_observable": observed,
                 "decision_change_observable": False,
                 "economic_effect_observable": False,
+                "authority_boundary_preserved": advisory_boundary,
                 "shared_coordinator_output_distribution": dict(shared_outputs),
-                "status": "OBSERVABILITY_GAP",
+                "function_output_distribution": dict(function_outputs),
+                "status": (
+                    "INPUT_OUTPUT_CONSUMER_OBSERVED_ADVISORY"
+                    if observed
+                    else "OBSERVABILITY_GAP"
+                ),
                 "diagnosis": (
-                    "faculty is consulted, but the replay exposes only one shared "
-                    "Mission Director/Functional Coordinator result; no faculty-specific "
-                    "input, output, consumer, or economic actuation is observable"
+                    "INPUT_OUTPUT_CONSUMER_OBSERVED_ADVISORY"
+                    if observed
+                    else (
+                        "faculty consultation lacks complete function-specific "
+                        "input/output/consumer evidence on the runtime decision path"
+                    )
                 ),
             }
         )
     return result
-
 
 def _ce2i_rows(
     opportunities: list[dict[str, Any]],
@@ -235,6 +313,7 @@ def main() -> int:
         not in {
             "OUTPUT_AND_ECONOMIC_EFFECT_OBSERVED",
             "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED",
+            "INPUT_OUTPUT_CONSUMER_OBSERVED_ADVISORY",
         }
     ]
     payload = {
