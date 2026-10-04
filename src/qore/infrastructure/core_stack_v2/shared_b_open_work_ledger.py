@@ -402,8 +402,14 @@ B_WORK_ITEMS: Final = (
         "B-22",
         "Global World Perception freeze",
         SharedBWorkStatus.OPEN,
-        (),
-        ("all mandatory B work must close before freeze",),
+        (
+            "doc:docs/shared/evidence/SHARED_B22_WORLD_PERCEPTION_FREEZE_READINESS_001.json",
+        ),
+        (
+            "Shared Lab readiness proves pre-freeze provenance complete and deterministic "
+            "replay verified, but B-06 B-07 B-08 B-09 B-10 B-11 B-12 B-13 B-14 "
+            "B-15 B-16 B-21 remain nonterminal; WORLD_PERCEPTION_FREEZE must not emit",
+        ),
     ),
     SharedBWorkItem(
         "B-23",
