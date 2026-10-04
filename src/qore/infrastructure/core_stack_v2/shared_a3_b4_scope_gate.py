@@ -6,9 +6,9 @@ inferred from unrelated healthy facts or from partial coverage elsewhere.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Iterable
 
 from qore.infrastructure.core_stack_v2.shared_a3_b4_seam_contract import (
     SharedA3B4CalendarStatus,
