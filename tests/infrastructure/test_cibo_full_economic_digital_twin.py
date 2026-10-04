@@ -200,6 +200,7 @@ def _opportunity(*, known_at: datetime = T0) -> CiboObservedOpportunityState:
         known_at=known_at,
         earliest_action_at=max(known_at, T0),
         expires_at=max(known_at, T0) + timedelta(minutes=20),
+        requested_capital_usd=Decimal("5"),
         expected_net_value_usd=Decimal("0.40"),
         expected_capital_minutes=Decimal("20"),
         stop_risk_usd=Decimal("1"),
