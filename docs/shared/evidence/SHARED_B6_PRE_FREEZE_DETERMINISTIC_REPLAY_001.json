@@ -1,0 +1,75 @@
+{
+  "identity": "QORE_SHARED_B6_PRE_FREEZE_DETERMINISTIC_REPLAY_EVIDENCE_001",
+  "created_at": "2026-10-04",
+  "repository": "mezas3238-hue/qore-core",
+  "branch": "agent/shared-architect-6-provenance-freeze-001",
+  "code_head": "fd19a93c47e77ab50864e0fa687d0f9f35a8ba4d",
+  "test_plane": "QORE_SHARED_LAB_ISOLATED_B6_WORKTREE",
+  "source_artifacts": [
+    {
+      "purpose": "B16_SENSOR_QUALIFICATION_FRONTIER",
+      "workflow_run_id": 37228391397,
+      "artifact_id": 11313231357,
+      "artifact_zip_sha256": "354c70a3d3c6ef4a843fb0949bd7e5ec3369542db750a9a8ceddf6caa8577903",
+      "embedded_frontier_fingerprint_sha256": "ee9b84abfed7c2b924e77aadae61ff4174116615c7afe1323efa161226e557cc"
+    },
+    {
+      "purpose": "B21_PROVENANCE_MANIFEST_22_OF_24",
+      "workflow_run_id": 37228503625,
+      "artifact_id": 11313306408,
+      "artifact_zip_sha256": "498c37118f6df847f54901926fa35cb2da335fe7993ca4f3b5d31efcbcc6a3e3",
+      "embedded_manifest_fingerprint_sha256": "7726ee345b137eeb77640706e87b69c9e10f4a8855cc06980e24a632c1cea2a4"
+    }
+  ],
+  "replay": {
+    "deterministic_replay_verified": true,
+    "replay_fingerprint_sha256": "7240bae4b569c1bcce8c159b1f71ea7de0b09bfb3541273e085d433959a3c7da",
+    "provenance_covered_count": 22,
+    "provenance_missing_ids": [
+      "B-22",
+      "B-24"
+    ],
+    "pre_freeze_provenance_complete": true,
+    "shared_lab_result_sha256": "7c95765482aaf5ae7c70870d2fd7bf4142969469e9387e858415bd98d61ae8f0",
+    "unit_tests": "3/3 PASS",
+    "ruff": "PASS",
+    "mypy": "PASS"
+  },
+  "b16_snapshot": {
+    "sensor_count": 177,
+    "identity_ready_count": 90,
+    "canonical_calendar_verified_count": 0,
+    "full_real_bid_ask_history_symbols": [
+      "US2000",
+      "XAUUSD"
+    ],
+    "partial_real_bid_ask_history_symbols": [
+      "XTIUSD"
+    ],
+    "no_bound_real_causal_history_count": 174,
+    "qualification_prerequisites_satisfied_count": 0,
+    "admitted_count": 0
+  },
+  "disposition": {
+    "b21_complete_claim": false,
+    "b22_freeze_authorized": false,
+    "reason": "B6 evidence-layer determinism and pre-freeze provenance topology are proven. Final B21 closure remains gated by terminal upstream B4/B5/B6 scientific surface and final integrated deterministic replay."
+  },
+  "shared_lab_native_orchestrator": {
+    "current_windows_status": "BLOCKED_BY_RESOURCE_PRLIMIT_FAIL_CLOSED",
+    "scientific_interpretation": "LAB_HARNESS_ENVIRONMENT_BLOCKER_NOT_B6_CAPABILITY_FAILURE",
+    "direct_isolated_worktree_execution_used": true
+  },
+  "governance": {
+    "final_shared_holdout_opened": false,
+    "broker_mutation": false,
+    "live": false,
+    "production": false,
+    "real_capital": false,
+    "sizing_authority": false,
+    "risk_authority": false,
+    "cibo_authority": false,
+    "execution_authority": false,
+    "certification_authority": false
+  }
+}
