@@ -52,3 +52,13 @@ def test_acyclic_live_graph_passes():
     nodes = tuple(CapabilityNode(name, True, True, True, True) for name in ("A", "B", "C"))
     result = assess_influence_graph(nodes, (_edge("A", "B"), _edge("B", "C")))
     assert result.graph_proven is True
+
+
+def test_graph_detects_duplicate_intelligence():
+    nodes = (
+        CapabilityNode("MC09", True, True, True, True, "same-intelligence"),
+        CapabilityNode("MC18", True, True, True, True, "same-intelligence"),
+    )
+    result = assess_influence_graph(nodes, (_edge("MC09", "MC18"),))
+    assert result.duplicate_intelligence_groups == (("MC09", "MC18"),)
+    assert result.graph_proven is False
