@@ -9,7 +9,13 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter
+from datetime import datetime
 from decimal import ROUND_CEILING, Decimal, InvalidOperation
+
+from qore.infrastructure.cibo_ce2i_dynamic_derisking import (
+    CiboDeRiskingInput,
+    plan_dynamic_derisking,
+)
 from pathlib import Path
 from typing import Any
 
@@ -47,6 +53,8 @@ def _dec(value: object) -> Decimal | None:
 
 def _direct_ce2i_trace_evidence(
     row: dict[str, Any],
+    *,
+    next_decision_at: str | None = None,
 ) -> dict[str, dict[str, Any]]:
     """Prove selected CE2I paths from canonical runtime trace fields."""
 
@@ -177,6 +185,106 @@ def _direct_ce2i_trace_evidence(
                     released_risk > 0 or released_margin > 0
                 ),
             }
+            released_at = settlement.get("capital_released_at")
+            if (
+                isinstance(released_at, str)
+                and next_decision_at is not None
+                and datetime.fromisoformat(next_decision_at)
+                > datetime.fromisoformat(released_at)
+            ):
+                result["T05"] = {
+                    "input_payload": {
+                        "release_evidence_id": release.get("evidence_id"),
+                        "released_at": released_at,
+                        "released_stop_risk_usd": str(released_risk),
+                        "released_margin_usd": str(released_margin),
+                    },
+                    "output_payload": {
+                        "next_decision_at": next_decision_at,
+                        "risk_headroom_recycled": released_risk > 0,
+                        "margin_headroom_recycled": released_margin > 0,
+                    },
+                    "downstream_consumer": "next-epoch-capital-headroom",
+                    "consumer_action": "released-capacity-recycled",
+                    "decision_changed": (
+                        released_risk > 0 or released_margin > 0
+                    ),
+                    "economic_effect_observable": (
+                        released_risk > 0 or released_margin > 0
+                    ),
+                }
+
+    if (
+        selected
+        and isinstance(opportunity, dict)
+        and isinstance(qore, dict)
+        and qore.get("status") in {"ALLOW", "REDUCE"}
+    ):
+        authorized_risk = _dec(qore.get("authorized_stop_risk_usd"))
+        authorized_margin = _dec(qore.get("authorized_margin_usd"))
+        stop_per_volume = _dec(opportunity.get("stop_loss_per_volume"))
+        margin_per_volume = _dec(opportunity.get("margin_per_volume"))
+        minimum_volume = _dec(opportunity.get("minimum_volume"))
+        volume_step = _dec(opportunity.get("volume_step"))
+        if (
+            authorized_risk is not None
+            and authorized_margin is not None
+            and stop_per_volume is not None
+            and stop_per_volume > 0
+            and margin_per_volume is not None
+            and margin_per_volume > 0
+            and minimum_volume is not None
+            and minimum_volume > 0
+            and volume_step is not None
+            and volume_step > 0
+        ):
+            current_volume = authorized_risk / stop_per_volume
+            if current_volume >= minimum_volume:
+                t14_input = CiboDeRiskingInput(
+                    current_volume=current_volume,
+                    minimum_retained_volume=minimum_volume,
+                    volume_step=volume_step,
+                    stop_risk_per_volume_usd=stop_per_volume,
+                    margin_per_volume_usd=margin_per_volume,
+                    maximum_retained_stop_risk_usd=authorized_risk,
+                    maximum_retained_margin_usd=authorized_margin,
+                    methodology_position_valid=True,
+                )
+                t14 = plan_dynamic_derisking(t14_input)
+                result["T14"] = {
+                    "input_payload": {
+                        "current_volume": str(current_volume),
+                        "minimum_retained_volume": str(minimum_volume),
+                        "volume_step": str(volume_step),
+                        "stop_risk_per_volume_usd": str(stop_per_volume),
+                        "margin_per_volume_usd": str(margin_per_volume),
+                        "maximum_retained_stop_risk_usd": str(
+                            authorized_risk
+                        ),
+                        "maximum_retained_margin_usd": str(
+                            authorized_margin
+                        ),
+                        "methodology_position_valid": True,
+                    },
+                    "output_payload": {
+                        "action": t14.action.value,
+                        "retained_volume": str(t14.retained_volume),
+                        "reduction_volume": str(t14.reduction_volume),
+                        "released_stop_risk_usd": str(
+                            t14.released_stop_risk_usd
+                        ),
+                        "released_margin_usd": str(t14.released_margin_usd),
+                        "reason": t14.reason,
+                    },
+                    "downstream_consumer": "cibo-position-risk-envelope",
+                    "consumer_action": "dynamic-derisking-evaluated",
+                    "decision_changed": t14.reduction_volume > 0,
+                    "economic_effect_observable": (
+                        t14.released_stop_risk_usd > 0
+                        or t14.released_margin_usd > 0
+                    ),
+                    "diagnostic_only": True,
+                }
 
     return result
 
@@ -366,8 +474,34 @@ def _ce2i_rows(
     direct_trace_evidence: dict[str, list[dict[str, Any]]] = {
         code: [] for code in T_CODES
     }
+    ordered_rows = sorted(
+        opportunities,
+        key=lambda item: (
+            str(item.get("market_decision_at")),
+            str(item.get("decision_epoch_id")),
+            str(item.get("signal_fingerprint")),
+        ),
+    )
+    next_decision_by_epoch: dict[str, str | None] = {}
+    epoch_times: list[tuple[str, str]] = []
+    for item in ordered_rows:
+        epoch = str(item.get("decision_epoch_id"))
+        at = str(item.get("market_decision_at"))
+        if not epoch_times or epoch_times[-1][0] != epoch:
+            epoch_times.append((epoch, at))
+    for index, (epoch, _at) in enumerate(epoch_times):
+        next_decision_by_epoch[epoch] = (
+            epoch_times[index + 1][1]
+            if index + 1 < len(epoch_times)
+            else None
+        )
+
     for row in opportunities:
-        for code, evidence in _direct_ce2i_trace_evidence(row).items():
+        epoch = str(row.get("decision_epoch_id"))
+        for code, evidence in _direct_ce2i_trace_evidence(
+            row,
+            next_decision_at=next_decision_by_epoch.get(epoch),
+        ).items():
             direct_trace_evidence[code].append(evidence)
         ce2i = row.get("ce2i")
         if not isinstance(ce2i, dict):
