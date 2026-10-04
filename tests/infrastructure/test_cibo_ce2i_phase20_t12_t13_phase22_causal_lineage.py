@@ -18,6 +18,10 @@ from qore.infrastructure.cibo_ce2i_phase20_t12_t13_phase22_causal_lineage import
 from qore.infrastructure.cibo_phase22_historical_replay_economics_amendment import (
     EXECUTION_ECONOMICS_KIND,
 )
+from qore.infrastructure.cibo_phase22_holdout_v2_source_receipt import (
+    V2_SOURCE_BINDINGS,
+    phase22_v2_holdout_source_receipt_sha256,
+)
 from qore.infrastructure.cibo_phase22_historical_replay_settlement import (
     Phase22HistoricalReplayOutcomeSeal,
     VersionedPhase22HistoricalReplayEvidenceBook,
@@ -164,6 +168,10 @@ def _book(
         amendment_sha256=_sha("amendment"),
         decisions=decisions,
         outcomes=outcomes,
+        source_receipt_sha256=phase22_v2_holdout_source_receipt_sha256(),
+        source_collector_git_shas=tuple(
+            sorted({item.collector_git_sha for item in V2_SOURCE_BINDINGS})
+        ),
     )
 
 
@@ -235,6 +243,8 @@ def test_phase22_t12_rejects_stale_snapshot_binding() -> None:
             amendment_sha256=book.amendment_sha256,
             decisions=(modified,) + book.decisions[1:],
             outcomes=book.outcomes,
+            source_receipt_sha256=book.source_receipt_sha256,
+            source_collector_git_shas=book.source_collector_git_shas,
         )
     )
 

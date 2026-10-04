@@ -34,13 +34,22 @@ from qore.infrastructure.cibo_phase22_provider_numeric_execution import (
 from qore.infrastructure.cibo_phase22_trader_parity_manifest import (
     CANONICAL_PHASE22_TRADER_IDS,
 )
+from qore.infrastructure.cibo_reused_holdout_compound_portfolio_lane import (
+    run_compound_portfolio_lane,
+)
 
 
 def _sha(label: str) -> str:
     return "sha256:" + sha256(label.encode()).hexdigest()
 
 
-def _fresh(trader_id: str, symbol: str, index: int) -> Phase22FreshOpportunity:
+def _fresh(
+    trader_id: str,
+    symbol: str,
+    index: int,
+    *,
+    gross_r: Decimal = Decimal("2"),
+) -> Phase22FreshOpportunity:
     signal_at = datetime(2015, 11, 2, 10, tzinfo=UTC) + timedelta(
         days=index * 3
     )
@@ -56,13 +65,13 @@ def _fresh(trader_id: str, symbol: str, index: int) -> Phase22FreshOpportunity:
         structural_stop=Decimal("99"),
         technical_target=Decimal("102"),
         exit_reason="target",
-        gross_structural_outcome_r=Decimal("2"),
+        gross_structural_outcome_r=gross_r,
         methodology_sha256=_sha(f"method-{trader_id}"),
         source_evidence_ids=(_sha(f"source-{trader_id}"),),
     )
 
 
-def _fresh_payload() -> dict[str, object]:
+def _fresh_payload(*, gross_r: Decimal = Decimal("2")) -> dict[str, object]:
     symbols = {
         "VT08_FOREX": "GBPUSD",
         "R34_XAUUSD": "XAUUSD",
@@ -76,7 +85,14 @@ def _fresh_payload() -> dict[str, object]:
         Phase22FreshTraderEvidence(
             trader_id=trader_id,
             source_artifact_sha256=_sha(f"lane-{trader_id}"),
-            opportunities=(_fresh(trader_id, symbols[trader_id], index),),
+            opportunities=(
+                _fresh(
+                    trader_id,
+                    symbols[trader_id],
+                    index,
+                    gross_r=gross_r,
+                ),
+            ),
             fresh_outcomes_executed=True,
             methodology_changed=False,
             legacy_trader_sizing_used_for_cibo=False,
@@ -103,7 +119,10 @@ def _fresh_payload() -> dict[str, object]:
     }
 
 
-def _provider_payload() -> dict[str, object]:
+def _provider_payload(
+    *,
+    low_risk_economics: bool = False,
+) -> dict[str, object]:
     lineage = Phase22ProviderAccountLineageReceipt(
         provider_key="ctrader-demo",
         legacy_account_fingerprint_sha256=(
@@ -117,6 +136,7 @@ def _provider_payload() -> dict[str, object]:
     specs = []
     for symbol in ("AUDJPY", "EURUSD", "GBPJPY", "GBPUSD", "NAS100", "XAUUSD"):
         is_nas = symbol == "NAS100"
+        low_risk = low_risk_economics and not is_nas
         specs.append(
             Phase22ProviderNumericExecutionSpec(
                 qore_symbol=symbol,
@@ -126,7 +146,9 @@ def _provider_payload() -> dict[str, object]:
                 ask=Decimal("100"),
                 display_digits=2,
                 contract_size_per_volume=(
-                    Decimal("1") if is_nas else Decimal("100000")
+                    Decimal("1")
+                    if is_nas or low_risk
+                    else Decimal("100000")
                 ),
                 minimum_volume=(
                     Decimal("0.1") if is_nas else Decimal("0.01")
@@ -135,16 +157,22 @@ def _provider_payload() -> dict[str, object]:
                 volume_step=(
                     Decimal("0.1") if is_nas else Decimal("0.01")
                 ),
-                margin_per_volume_usd=Decimal("10"),
+                margin_per_volume_usd=(
+                    Decimal("1") if low_risk_economics else Decimal("10")
+                ),
                 commission_per_volume_usd=Decimal("0"),
                 worst_adverse_slippage_bps=Decimal("0"),
                 quote_to_usd=Decimal("1"),
                 usd_value_per_price_unit_per_volume=(
-                    Decimal("1") if is_nas else Decimal("100000")
+                    Decimal("1")
+                    if is_nas or low_risk
+                    else Decimal("100000")
                 ),
                 derived_price_quantum=Decimal("0.01"),
                 derived_value_per_quantum_usd=(
-                    Decimal("0.01") if is_nas else Decimal("1000")
+                    Decimal("0.01")
+                    if is_nas or low_risk
+                    else Decimal("1000")
                 ),
                 source_provider_terms_artifact_sha256=_sha("terms"),
                 source_empirical_execution_artifact_sha256=_sha("empirical"),
@@ -164,9 +192,15 @@ def _provider_payload() -> dict[str, object]:
     }
 
 
-def _execution_inputs():
-    fresh = load_phase22_sealed_fresh_batch(_fresh_payload())
-    provider = load_phase22_sealed_provider_numeric(_provider_payload())
+def _execution_inputs(
+    *,
+    gross_r: Decimal = Decimal("2"),
+    low_risk_economics: bool = False,
+):
+    fresh = load_phase22_sealed_fresh_batch(_fresh_payload(gross_r=gross_r))
+    provider = load_phase22_sealed_provider_numeric(
+        _provider_payload(low_risk_economics=low_risk_economics)
+    )
     projections = project_phase22_execution_inputs(
         fresh=fresh,
         provider=provider,
@@ -239,3 +273,38 @@ def test_regime_evidence_must_cover_exact_epoch_surface() -> None:
         assert "exact epoch set" in str(error)
     else:
         raise AssertionError("missing regime evidence must fail closed")
+
+
+def test_compound_portfolio_lane_executes_realized_profit_path_without_risk_state_duplication(
+) -> None:
+    replay, regimes = _execution_inputs(
+        gross_r=Decimal("2"),
+        low_risk_economics=True,
+    )
+    core = execute_phase22_chronological_replay(
+        plan=replay,
+        regime_evidence=regimes,
+        replay_started_at=datetime(2026, 10, 2, 7, tzinfo=UTC),
+    )
+
+    result = run_compound_portfolio_lane(
+        plan=replay,
+        core_execution=core,
+    )
+
+    assert result.compound_selected_count > 0
+    assert result.compound_settled_count > 0
+    assert result.compound_settled_count == (
+        result.compound_allowed_count + result.compound_reduced_count
+    )
+    assert result.compound_selected_count == (
+        result.compound_allowed_count
+        + result.compound_reduced_count
+        + result.compound_rejected_count
+    )
+    assert result.ending_capital_usd == (
+        result.core_ending_capital_usd + result.compound_incremental_pnl_usd
+    )
+    assert result.realized_profit_only is True
+    assert result.qore_risk_sovereign is True
+    assert result.broker_mutation_performed is False

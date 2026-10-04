@@ -1,0 +1,47 @@
+name: QORE CIBO Trader Lab GEN-C Functional Gate
+
+on:
+  push:
+    branches:
+      - agent/cibo-universal-tool-runtime-repair-001
+    paths:
+      - 'src/qore/infrastructure/cibo_*.py'
+      - 'tests/infrastructure/trader_lab/test_cibo_genc_*.py'
+      - 'tests/infrastructure/trader_lab/test_cibo_compound_functional_probe.py'
+      - 'tests/infrastructure/trader_lab/test_cibo_compound_portfolio_icm_functional_probe.py'
+      - 'tests/infrastructure/trader_lab/test_cibo_protection_truth_functional_probe.py'
+      - 'tests/infrastructure/trader_lab/test_cibo_economic_systems_functional_probe.py'
+      - '.github/workflows/cibo-trader-lab-genc-functional.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  genc-trader-lab:
+    name: Trader Lab GEN-C1-GEN-C14 all-or-nothing
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Execute GEN-C candidate-bound functional probes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_cibo_compound_functional_probe.py \
+            tests/infrastructure/trader_lab/test_cibo_compound_portfolio_icm_functional_probe.py \
+            tests/infrastructure/trader_lab/test_cibo_protection_truth_functional_probe.py \
+            tests/infrastructure/trader_lab/test_cibo_economic_systems_functional_probe.py \
+            tests/infrastructure/trader_lab/test_cibo_genc_missing_functional_probe.py
+          echo "GENC_TRADER_LAB_FUNCTIONAL_PASS=true"
+          echo "BROKER_MUTATION_AUTHORIZED=false"
+          echo "LIVE_AUTHORIZED=false"
+          echo "REAL_CAPITAL_AUTHORIZED=false"
+          echo "PRODUCTION_AUTHORIZED=false"

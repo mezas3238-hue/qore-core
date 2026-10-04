@@ -23,12 +23,14 @@ def _opportunity(
     *,
     trader: TraderLineage = TraderLineage.R38_EURUSD,
     min_steps: int = 1,
+    qore_symbol: str = "EURUSD",
+    provider_symbol: str = "EURUSD",
 ) -> TraderOpportunityEnvelope:
     return TraderOpportunityEnvelope(
         trader_id=trader,
         signal_fingerprint="signal-1",
-        qore_symbol="EURUSD",
-        provider_symbol="EURUSD",
+        qore_symbol=qore_symbol,
+        provider_symbol=provider_symbol,
         side="long",
         entry_type="MARKET",
         intended_entry=Decimal("1.1000"),
@@ -218,3 +220,18 @@ def test_capital_source_dimensions_are_nonfungible() -> None:
         capital_source_dimension(CapitalSource.TRUE_PORTFOLIO_NETTING)
         is CapitalCapacityDimension.PORTFOLIO_OFFSET
     )
+
+
+@pytest.mark.parametrize("symbol", ("BTCUSD", "USDCAD", "EURAUD"))
+def test_cma_minimal_seed_is_asset_agnostic(symbol: str) -> None:
+    opportunity = _opportunity(
+        qore_symbol=symbol,
+        provider_symbol=symbol,
+    )
+
+    plan = plan_minimal_seed(opportunity, _capital())
+
+    assert plan.action is CapitalAction.OPEN_MINIMAL_SEED
+    assert plan.qore_symbol == symbol
+    assert plan.volume == Decimal("0.01")
+    assert plan.stop_risk_usd == Decimal("1.00")
