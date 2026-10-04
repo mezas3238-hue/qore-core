@@ -12,6 +12,7 @@ from qore.infrastructure.core_stack_v2.shared_lab import (
     CapabilityLabRecord,
     EfficiencyReceipt,
     EngineKind,
+    InfluenceEdge,
     LabFault,
     NativeEngineReceipt,
     SharedLabLevel,
@@ -107,6 +108,19 @@ def main() -> None:
         FaultScenario(
             LabFault.ADAPTER_SUBSTITUTED_FOR_ENGINE,
             record=_record(native=False),
+        ),
+        FaultScenario(
+            LabFault.FAKE_CONSUMER,
+            edge=InfluenceEdge(
+                producer="SELF_EXAM_PRODUCER",
+                consumer="SELF_EXAM_CONSUMER",
+                real=True,
+                tested=True,
+                observed=True,
+                consumed=True,
+                value_proven=False,
+                fingerprint_match=False,
+            ),
         ),
         FaultScenario(LabFault.FUTURE_LEAKAGE, record=_record(future=True)),
         FaultScenario(LabFault.DUPLICATED_OUTPUT, duplicate_output_count=2),
