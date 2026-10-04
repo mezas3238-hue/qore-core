@@ -1,0 +1,62 @@
+{
+  "schema": "QORE_SHARED_INTEGRATOR_1_SHARED_LAB_PLUGIN_DAG_AUDIT_002",
+  "generated_at": "2026-10-04",
+  "integrator_branch": "agent/shared-integrator-1-a1-a2-001",
+  "integrator_head_under_audit": "03103fd187dbc02046c57bc0c24277272756512f",
+  "shared_lab_branch": "agent/qore-shared-lab-001",
+  "shared_lab_head": "f9792cd95553b5663383b0b3474e5be2e2bda789",
+  "plugin_count": 8,
+  "default_registry_task_count": 22,
+  "checks": {
+    "duplicate_task_ids": [],
+    "missing_dependencies": [],
+    "missing_command_paths": [],
+    "dependency_cycles": [],
+    "dag_contract_status": "PASS"
+  },
+  "mandatory_pair_chain": [
+    "contract",
+    "i1-a1-core",
+    "mc23-functional",
+    "a2-mc23-one-shot-adaptation",
+    "a2-mc24-regression",
+    "a2-mc24-half-life",
+    "a2-mc25-performance",
+    "a2-wp11-closure",
+    "i1-a1-a2-pair"
+  ],
+  "repair_applied": {
+    "a1_core_expanded_for_new_mc14_mc18_trajectory_and_threat_consumer_tests": true,
+    "mc25_now_requires_mc24_half_life": true,
+    "mc24_half_life_requires_mc23_one_shot_and_mc24_regression": true,
+    "pair_gate_expanded_for_new_a1_a2_tests": true
+  },
+  "shared_lab_execution": {
+    "completed": false,
+    "blocker": "EXTERNAL_HARNESS_TARGET_SHA_SEAM",
+    "blocker_evidence": "docs/shared/evidence/QORE_SHARED_A1_SHARED_LAB_EXACT_SHA_BLOCKER_001.json",
+    "lab_pr": 716,
+    "lab_issue_comment_id": 5983660147,
+    "reason": "Current Shared Lab executes default harness globs/tests from the exact target worktree. Shared/I1 target SHAs predate PR716 harness files, so validation can fail before target functionality executes.",
+    "required_repair": [
+      "versioned Lab harness separate from target SHA",
+      "target code imported strictly from requested exact-SHA worktree",
+      "record target_sha and lab_harness_sha_or_hash",
+      "separate target and harness component hashes",
+      "fail closed on provenance ambiguity"
+    ]
+  },
+  "limitations": {
+    "pytest_results_claimed": false,
+    "scientific_completion_claimed": false,
+    "github_actions_used_as_fallback": false,
+    "vps_used_as_fallback": false
+  },
+  "governance": {
+    "pr_635_merged": false,
+    "final_holdout_opened": false,
+    "live_or_production_authority_introduced": false,
+    "broker_mutation_authority_introduced": false,
+    "outcome_aware_gate_rescue_used": false
+  }
+}
