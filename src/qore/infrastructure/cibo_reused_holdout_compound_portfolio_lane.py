@@ -19,6 +19,7 @@ Decimal precision, including GEN-C10 observed and projected world-capacity conse
 from __future__ import annotations
 
 from collections import Counter, defaultdict
+from hashlib import sha256
 from dataclasses import asdict, dataclass, replace
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -43,6 +44,7 @@ from qore.infrastructure.cibo_capital_management_authority import (
 from qore.infrastructure.cibo_capital_science_runtime_bridge import (
     CapitalScienceDisposition,
     CapitalScienceKnownOpportunity,
+    CapitalScienceOpenEconomicPosition,
     CapitalSciencePredecisionInput,
     CapitalScienceReceipt,
     aggregate_capital_science_receipts,
@@ -199,6 +201,9 @@ class _Budget:
 class _Open:
     signal_fingerprint: str
     trader_id: str
+    qore_symbol: str
+    side: str
+    entry_at: datetime
     exit_at: datetime
     authorization_id: str
     authorized_volume: Decimal
@@ -206,6 +211,9 @@ class _Open:
     authorized_margin_usd: Decimal
     gross_structural_outcome_r: Decimal
     provider_cost_usd: Decimal
+    entry_expected_net_value_usd: Decimal
+    entry_expected_capital_minutes: Decimal
+    expectation_evidence_sha256: str
     protected_loss_reserve_usd: Decimal
     source_traders_before_entry: tuple[str, ...]
 
@@ -1474,6 +1482,30 @@ def run_compound_portfolio_lane(
                             provider_cost_usd=cost,
                         )
                     ),
+                    open_economic_positions=tuple(
+                        CapitalScienceOpenEconomicPosition(
+                            signal_fingerprint=item.signal_fingerprint,
+                            trader_id=item.trader_id,
+                            qore_symbol=item.qore_symbol,
+                            side=item.side,
+                            entry_at=item.entry_at,
+                            current_volume=item.authorized_volume,
+                            current_stop_risk_usd=item.authorized_stop_risk_usd,
+                            current_margin_usd=item.authorized_margin_usd,
+                            provider_cost_usd=item.provider_cost_usd,
+                            entry_expected_net_value_usd=(
+                                item.entry_expected_net_value_usd
+                            ),
+                            entry_expected_capital_minutes=(
+                                item.entry_expected_capital_minutes
+                            ),
+                            expectation_evidence_sha256=(
+                                item.expectation_evidence_sha256
+                            ),
+                            continuation_value_identified=False,
+                        )
+                        for item in open_rows.values()
+                    ),
                     genc7_proposal=Genc7PreservationProposalEvidence(
                         proposal_id=f"compound-redeploy:{epoch.decision_epoch_id}:{signal}",
                         decision_at=epoch.market_decision_at,
@@ -1940,6 +1972,9 @@ def run_compound_portfolio_lane(
             open_rows[signal] = _Open(
                 signal_fingerprint=signal,
                 trader_id=candidate.trader_id,
+                qore_symbol=candidate.qore_symbol,
+                side=opportunity.side,
+                entry_at=epoch.market_decision_at,
                 exit_at=event.exit_at,
                 authorization_id=auth.authorization_id,
                 authorized_volume=auth.authorized_volume,
@@ -1949,6 +1984,13 @@ def run_compound_portfolio_lane(
                 provider_cost_usd=(
                     candidate.projection.provider_envelope.execution_cost_per_volume_usd
                     * auth.authorized_volume
+                ),
+                entry_expected_net_value_usd=expectation.expected_net_value_usd,
+                entry_expected_capital_minutes=expectation.expected_capital_minutes,
+                expectation_evidence_sha256=(
+                    "sha256:" + sha256(
+                        expectation.evidence_id.encode("utf-8")
+                    ).hexdigest()
                 ),
                 protected_loss_reserve_usd=protected_loss_reserve_usd(auth.monetary_stop_loss),
                 source_traders_before_entry=source_snapshot,
