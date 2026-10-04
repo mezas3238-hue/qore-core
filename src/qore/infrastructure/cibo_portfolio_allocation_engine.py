@@ -239,3 +239,274 @@ def plan_account_wide_capital_allocation(
             Decimal(0),
         ),
     )
+
+
+
+@dataclass(frozen=True, slots=True)
+class CiboPositionOpportunityCompetitionLine:
+    position_id: str
+    continuation_utility_per_minute: Decimal
+    releasable_stop_risk_usd: Decimal
+    releasable_margin_usd: Decimal
+    release_cost_usd: Decimal
+    proposed_action: str
+
+    def __post_init__(self) -> None:
+        if not self.position_id:
+            raise CiboCapitalManagementError(
+                "position competition identity required"
+            )
+        if self.proposed_action not in {"KEEP", "RELEASE"}:
+            raise CiboCapitalManagementError(
+                "position competition action must be KEEP/RELEASE"
+            )
+        for name in (
+            "continuation_utility_per_minute",
+            "releasable_stop_risk_usd",
+            "releasable_margin_usd",
+            "release_cost_usd",
+        ):
+            value = getattr(self, name)
+            if not isinstance(value, Decimal) or not value.is_finite():
+                raise CiboCapitalManagementError(
+                    f"position competition {name} must be finite Decimal"
+                )
+        if (
+            self.releasable_stop_risk_usd < 0
+            or self.releasable_margin_usd < 0
+            or self.release_cost_usd < 0
+        ):
+            raise CiboCapitalManagementError(
+                "position competition capacity/cost cannot be negative"
+            )
+
+
+@dataclass(frozen=True, slots=True)
+class CiboPositionOpportunityCompetitionPlan:
+    twin_id: str
+    opportunity_id: str
+    fits_without_release: bool
+    position_lines: tuple[CiboPositionOpportunityCompetitionLine, ...]
+    released_stop_risk_usd: Decimal
+    released_margin_usd: Decimal
+    opportunity_net_utility_usd: Decimal
+    displaced_continuation_value_usd: Decimal
+    release_cost_usd: Decimal
+    net_incremental_utility_usd: Decimal
+    admit_opportunity: bool
+    allocation_authority: bool = False
+    risk_authority: bool = False
+    execution_authority: bool = False
+
+    def __post_init__(self) -> None:
+        if not self.twin_id or not self.opportunity_id:
+            raise CiboCapitalManagementError(
+                "position competition plan identity required"
+            )
+        if (
+            self.allocation_authority
+            or self.risk_authority
+            or self.execution_authority
+        ):
+            raise CiboCapitalManagementError(
+                "position competition cannot acquire downstream authority"
+            )
+        if self.net_incremental_utility_usd != (
+            self.opportunity_net_utility_usd
+            - self.displaced_continuation_value_usd
+            - self.release_cost_usd
+        ):
+            raise CiboCapitalManagementError(
+                "position competition net utility identity drift"
+            )
+
+
+def plan_position_opportunity_competition(
+    twin: CiboObservedEconomicTwin,
+    *,
+    opportunity_id: str,
+) -> CiboPositionOpportunityCompetitionPlan:
+    """Compare a new causal opportunity against currently occupied capital."""
+
+    if not isinstance(twin, CiboObservedEconomicTwin):
+        raise CiboCapitalManagementError(
+            "position competition requires canonical Full Economic Twin"
+        )
+    opportunity = next(
+        (item for item in twin.opportunities if item.option_id == opportunity_id),
+        None,
+    )
+    if opportunity is None:
+        raise CiboCapitalManagementError(
+            "position competition opportunity not found"
+        )
+    eligible = (
+        opportunity.known_at <= twin.captured_at
+        and opportunity.earliest_action_at <= twin.captured_at
+        and opportunity.expires_at > twin.captured_at
+        and opportunity.context_allowed
+        and opportunity.provider_viable
+        and opportunity.capital_source_eligible
+    )
+    net_utility = (
+        opportunity.expected_net_value_usd
+        - opportunity.provider_cost_usd
+        - opportunity.uncertainty_penalty
+    )
+    if not eligible or net_utility <= 0:
+        return CiboPositionOpportunityCompetitionPlan(
+            twin_id=twin.twin_id,
+            opportunity_id=opportunity.option_id,
+            fits_without_release=False,
+            position_lines=tuple(
+                CiboPositionOpportunityCompetitionLine(
+                    position_id=item.signal_fingerprint,
+                    continuation_utility_per_minute=(
+                        item.expected_continuation_net_value_usd
+                        - item.provider_cost_usd
+                        - item.uncertainty_penalty
+                    )
+                    / item.expected_remaining_capital_minutes,
+                    releasable_stop_risk_usd=Decimal(0),
+                    releasable_margin_usd=Decimal(0),
+                    release_cost_usd=item.release_cost_usd,
+                    proposed_action="KEEP",
+                )
+                for item in twin.positions
+            ),
+            released_stop_risk_usd=Decimal(0),
+            released_margin_usd=Decimal(0),
+            opportunity_net_utility_usd=max(Decimal(0), net_utility),
+            displaced_continuation_value_usd=Decimal(0),
+            release_cost_usd=Decimal(0),
+            net_incremental_utility_usd=max(Decimal(0), net_utility),
+            admit_opportunity=False,
+        )
+
+    constraints = observed_twin_constraints(twin)
+    need_risk = max(
+        Decimal(0),
+        opportunity.stop_risk_usd - constraints["stop_risk_headroom_usd"],
+    )
+    need_margin = max(
+        Decimal(0),
+        opportunity.margin_usd - constraints["margin_headroom_usd"],
+    )
+    fits = need_risk == 0 and need_margin == 0
+    if fits:
+        return CiboPositionOpportunityCompetitionPlan(
+            twin_id=twin.twin_id,
+            opportunity_id=opportunity.option_id,
+            fits_without_release=True,
+            position_lines=tuple(
+                CiboPositionOpportunityCompetitionLine(
+                    position_id=item.signal_fingerprint,
+                    continuation_utility_per_minute=(
+                        item.expected_continuation_net_value_usd
+                        - item.provider_cost_usd
+                        - item.uncertainty_penalty
+                    )
+                    / item.expected_remaining_capital_minutes,
+                    releasable_stop_risk_usd=Decimal(0),
+                    releasable_margin_usd=Decimal(0),
+                    release_cost_usd=item.release_cost_usd,
+                    proposed_action="KEEP",
+                )
+                for item in twin.positions
+            ),
+            released_stop_risk_usd=Decimal(0),
+            released_margin_usd=Decimal(0),
+            opportunity_net_utility_usd=net_utility,
+            displaced_continuation_value_usd=Decimal(0),
+            release_cost_usd=Decimal(0),
+            net_incremental_utility_usd=net_utility,
+            admit_opportunity=True,
+        )
+
+    candidates = []
+    for item in twin.positions:
+        continuation_value = (
+            item.expected_continuation_net_value_usd
+            - item.provider_cost_usd
+            - item.uncertainty_penalty
+        )
+        per_minute = (
+            continuation_value / item.expected_remaining_capital_minutes
+        )
+        if item.releasable:
+            candidates.append((per_minute, continuation_value, item))
+
+    candidates.sort(
+        key=lambda row: (
+            row[0],
+            row[1],
+            row[2].signal_fingerprint,
+        )
+    )
+
+    released_risk = Decimal(0)
+    released_margin = Decimal(0)
+    displaced = Decimal(0)
+    release_cost = Decimal(0)
+    released_ids: set[str] = set()
+    for _, continuation_value, item in candidates:
+        if released_risk >= need_risk and released_margin >= need_margin:
+            break
+        released_risk += item.current_stop_risk_usd
+        released_margin += item.current_margin_usd
+        displaced += max(Decimal(0), continuation_value)
+        release_cost += item.release_cost_usd
+        released_ids.add(item.signal_fingerprint)
+
+    enough = released_risk >= need_risk and released_margin >= need_margin
+    net_incremental = net_utility - displaced - release_cost
+    admit = enough and net_incremental > 0
+
+    lines = tuple(
+        CiboPositionOpportunityCompetitionLine(
+            position_id=item.signal_fingerprint,
+            continuation_utility_per_minute=(
+                item.expected_continuation_net_value_usd
+                - item.provider_cost_usd
+                - item.uncertainty_penalty
+            )
+            / item.expected_remaining_capital_minutes,
+            releasable_stop_risk_usd=(
+                item.current_stop_risk_usd
+                if item.signal_fingerprint in released_ids and admit
+                else Decimal(0)
+            ),
+            releasable_margin_usd=(
+                item.current_margin_usd
+                if item.signal_fingerprint in released_ids and admit
+                else Decimal(0)
+            ),
+            release_cost_usd=(
+                item.release_cost_usd
+                if item.signal_fingerprint in released_ids and admit
+                else Decimal(0)
+            ),
+            proposed_action=(
+                "RELEASE"
+                if item.signal_fingerprint in released_ids and admit
+                else "KEEP"
+            ),
+        )
+        for item in twin.positions
+    )
+
+    return CiboPositionOpportunityCompetitionPlan(
+        twin_id=twin.twin_id,
+        opportunity_id=opportunity.option_id,
+        fits_without_release=False,
+        position_lines=lines,
+        released_stop_risk_usd=released_risk if admit else Decimal(0),
+        released_margin_usd=released_margin if admit else Decimal(0),
+        opportunity_net_utility_usd=net_utility,
+        displaced_continuation_value_usd=displaced if enough else Decimal(0),
+        release_cost_usd=release_cost if enough else Decimal(0),
+        net_incremental_utility_usd=(
+            net_incremental if enough else net_utility
+        ),
+        admit_opportunity=admit,
+    )
