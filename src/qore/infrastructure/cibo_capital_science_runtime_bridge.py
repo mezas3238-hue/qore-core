@@ -237,6 +237,9 @@ class CapitalScienceOpenEconomicPosition:
     entry_expected_net_value_usd: Decimal
     entry_expected_capital_minutes: Decimal
     expectation_evidence_sha256: str
+    current_mark_price: Decimal | None = None
+    market_state_observed_at: datetime | None = None
+    mark_to_market_identified: bool = False
     continuation_value_identified: bool = False
 
     def __post_init__(self) -> None:
@@ -304,6 +307,36 @@ class CapitalScienceOpenEconomicPosition:
         ):
             raise CiboCapitalManagementError(
                 "Capital Science open economic position expectation digest is invalid"
+            )
+        if type(self.mark_to_market_identified) is not bool:
+            raise CiboCapitalManagementError(
+                "Capital Science mark-to-market identification must be bool"
+            )
+        if self.mark_to_market_identified:
+            if (
+                self.current_mark_price is None
+                or self.market_state_observed_at is None
+            ):
+                raise CiboCapitalManagementError(
+                    "Capital Science identified mark requires price and observed_at"
+                )
+            if (
+                not isinstance(self.current_mark_price, Decimal)
+                or not self.current_mark_price.is_finite()
+            ):
+                raise CiboCapitalManagementError(
+                    "Capital Science current mark must be finite Decimal"
+                )
+            if (
+                self.market_state_observed_at.tzinfo is None
+                or self.market_state_observed_at.utcoffset() is None
+            ):
+                raise CiboCapitalManagementError(
+                    "Capital Science market state time must be timezone-aware"
+                )
+        elif self.current_mark_price is not None:
+            raise CiboCapitalManagementError(
+                "Capital Science unidentified mark cannot carry current price"
             )
         if type(self.continuation_value_identified) is not bool:
             raise CiboCapitalManagementError(
@@ -452,6 +485,14 @@ class CapitalSciencePredecisionInput:
             raise CiboCapitalManagementError(
                 "Capital Science cannot consume future open-position state"
             )
+        if any(
+            item.market_state_observed_at is not None
+            and item.market_state_observed_at > self.decision_at
+            for item in self.open_economic_positions
+        ):
+            raise CiboCapitalManagementError(
+                "Capital Science cannot consume future position mark state"
+            )
         if self.genc7_proposal is not None:
             if not isinstance(
                 self.genc7_proposal,
@@ -555,6 +596,19 @@ class CapitalSciencePredecisionInput:
                 ),
                 "expectation_evidence_sha256": (
                     item.expectation_evidence_sha256
+                ),
+                "current_mark_price": (
+                    None
+                    if item.current_mark_price is None
+                    else format(item.current_mark_price, "f")
+                ),
+                "market_state_observed_at": (
+                    None
+                    if item.market_state_observed_at is None
+                    else item.market_state_observed_at.isoformat()
+                ),
+                "mark_to_market_identified": (
+                    item.mark_to_market_identified
                 ),
                 "continuation_value_identified": (
                     item.continuation_value_identified
@@ -1130,9 +1184,9 @@ def _full_economic_twin(
                 entry_price=item.entry_price,
                 structural_stop=item.structural_stop,
                 technical_target=item.technical_target,
-                current_mark_price=None,
-                market_state_observed_at=None,
-                mark_to_market_identified=False,
+                current_mark_price=item.current_mark_price,
+                market_state_observed_at=item.market_state_observed_at,
+                mark_to_market_identified=item.mark_to_market_identified,
                 entry_expected_net_value_usd=(
                     item.entry_expected_net_value_usd
                 ),
