@@ -1,0 +1,45 @@
+{
+  "identity": "QORE_SHARED_WP06_MARKET_AGENCY_CALIBRATION_PREREGISTRATION_001",
+  "work_package": "WP-06",
+  "capability": "MC-17_MARKET_AGENCY_MODEL",
+  "status": "PREREGISTERED_BEFORE_OUTCOME_SCORING",
+  "engine": {
+    "module": "src/qore/infrastructure/core_stack_v2/market_agency_model.py",
+    "engine_changed": false,
+    "actor_identity_claims_allowed": false
+  },
+  "scientific_question": "Do source-time agency-state features improve future scenario discrimination and probability calibration beyond the raw source observation representation?",
+  "dataset_protocol": {
+    "train": "FIRST_70_PERCENT_OF_R6_CHRONOLOGICAL",
+    "validation_1": "LAST_30_PERCENT_OF_R6_CHRONOLOGICAL",
+    "validation_2": "FULL_R5_TEMPORAL_VALIDATION",
+    "r5_used_for_fit": false,
+    "future_target_horizon_minutes": 30
+  },
+  "target": {
+    "classes": ["CONTINUATION", "EXPANSION", "NO_MATERIAL", "RELATIONSHIP_TRANSITION", "REVERSAL"],
+    "material_floor_bps": 6500,
+    "label_rule": "ARGMAX_FUTURE_MECHANISM_IF_MAX_GTE_6500_ELSE_NO_MATERIAL"
+  },
+  "models": {
+    "family": "FIXED_MULTINOMIAL_LOGISTIC_REGRESSION",
+    "baseline": "RAW_SOURCE_OBSERVATION_ONLY",
+    "treatment": "RAW_SOURCE_OBSERVATION_PLUS_AGENCY_HYPOTHESES",
+    "hyperparameter_search": false,
+    "random_state": 638
+  },
+  "frozen_gates": {
+    "treatment_log_loss_lt_baseline": true,
+    "treatment_multiclass_brier_lt_baseline": true,
+    "treatment_accuracy_gte_baseline": true,
+    "all_validation_partitions_required": true
+  },
+  "governance": {
+    "wp05_dependency_closed": false,
+    "wp06_can_close_if_scientific_gate_passes_before_wp05": false,
+    "protected_certification_holdout_opened": false,
+    "future_market_used_for_inference": false,
+    "outcome_used_for_agency_engine": false,
+    "productive_authority": false
+  }
+}

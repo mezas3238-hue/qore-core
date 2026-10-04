@@ -1,0 +1,65 @@
+{
+  "identity": "QORE_SHARED_WP06_MARKET_AGENCY_TRAJECTORY_V2_PREREGISTRATION_001",
+  "work_package": "WP-06",
+  "capability": "MC-17_MARKET_AGENCY_MODEL",
+  "generation": "V2_AGENCY_TRAJECTORY",
+  "status": "PREREGISTERED_BEFORE_TEMPORAL_OOS_SCORING",
+  "parent_v1": {
+    "run_id": 36754970934,
+    "status": "WP06_MARKET_AGENCY_CALIBRATION_OOS_FALSIFIED",
+    "reopened": false
+  },
+  "failure_knowledge": {
+    "run_id": 36755588250,
+    "v2_candidate": "AGENCY_TRAJECTORY_STATE",
+    "burned_r6_r5_may_demonstrate_v2_value": false
+  },
+  "scientific_hypothesis": {
+    "statement": "The incremental value of agency is temporal rather than static: persistence, mechanism transition and dominant support-minus-contradiction trajectory may discriminate future scenarios beyond two consecutive raw source snapshots.",
+    "new_information_mechanism": "AGENCY_MECHANISM_TRAJECTORY",
+    "numeric_rescue_threshold_added": false
+  },
+  "development": {
+    "partitions": ["R6_BURNED", "R5_BURNED"],
+    "use": "MODEL_FIT_ONLY"
+  },
+  "temporal_oos": {
+    "window": "2022-07-18T00:00:00Z_TO_2024-07-18T00:00:00Z",
+    "artifact_id": 11070988924,
+    "used_for_fit": false,
+    "protected_certification_holdout": false
+  },
+  "comparison": {
+    "baseline": "CURRENT_AND_PREVIOUS_RAW_SOURCE_SNAPSHOTS",
+    "treatment": "SAME_RAW_HISTORY_PLUS_AGENCY_TRAJECTORY_STATE",
+    "same_target": true,
+    "same_training_rows": true,
+    "same_oos_rows": true
+  },
+  "model": {
+    "family": "FIXED_MULTINOMIAL_LOGISTIC_REGRESSION",
+    "C": 1.0,
+    "solver": "lbfgs",
+    "random_state": 638,
+    "hyperparameter_search": false
+  },
+  "target": {
+    "future_horizon_minutes": 30,
+    "material_floor_bps": 6500,
+    "classes": ["CONTINUATION", "EXPANSION", "NO_MATERIAL", "RELATIONSHIP_TRANSITION", "REVERSAL"]
+  },
+  "frozen_gates": {
+    "treatment_log_loss_lt_baseline": true,
+    "treatment_multiclass_brier_lt_baseline": true,
+    "treatment_accuracy_gte_baseline": true,
+    "all_required": true
+  },
+  "governance": {
+    "oos_used_for_fit": false,
+    "outcome_used_for_agency_inference": false,
+    "future_market_used_for_agency_inference": false,
+    "wp05_dependency_closed": false,
+    "protected_certification_holdout_opened": false,
+    "productive_authority": false
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "identity": "QORE_SHARED_STI8_ECONOMIC_RESPONSE_V3_ENGINEERING_RECOVERY_AMENDMENT_002",
+  "status": "ENGINEERING_RECOVERY_ONLY",
+  "parent_preregistration": "QORE_SHARED_STI8_ECONOMIC_RESPONSE_V3_PREREGISTRATION_001",
+  "supersedes_recovery_amendment": "QORE_SHARED_STI8_ECONOMIC_RESPONSE_V3_ENGINEERING_RECOVERY_AMENDMENT_001",
+  "failed_runs": [
+    {
+      "run_id": 36740059589,
+      "failure_stage": "RECONSTRUCT_FROZEN_TRADER_SOURCE_OPPORTUNITIES",
+      "cause": "FROZEN_VT31_RECONSTRUCTOR_REQUIRES_AT_LEAST_730_DAYS_OF_M1_EVIDENCE",
+      "economic_evaluation_started": false
+    },
+    {
+      "run_id": 36741493431,
+      "failure_stage": "REACQUIRE_RECONSTRUCTION_ENVELOPE",
+      "cause": "REQUESTED_730_CALENDAR_DAYS_PRODUCED_LESS_THAN_730_DAYS_BETWEEN_ACTUAL_PROVIDER_BARS",
+      "economic_evaluation_started": false
+    }
+  ],
+  "scientific_invariants_unchanged": {
+    "v3_policy": true,
+    "v3_hypothesis": true,
+    "sti8_signal_engine": true,
+    "sti8_thresholds": true,
+    "economic_gates": true,
+    "evaluation_opened_at_inclusive": "2026-07-22T00:00:00+00:00",
+    "evaluation_checked_at_exclusive": "2026-09-29T00:00:00+00:00",
+    "minimum_trade_count": 20,
+    "protected_certification_holdout": false
+  },
+  "engineering_recovery": {
+    "source_reconstruction_opened_at_inclusive": "2024-09-19T00:00:00+00:00",
+    "source_reconstruction_checked_at_exclusive": "2026-09-29T00:00:00+00:00",
+    "requested_calendar_span_days": 740,
+    "minimum_actual_bar_span_days": 730,
+    "fixed_calendar_boundary_padding_days": 10,
+    "padding_reason": "SATISFY_EXISTING_730_DAY_ACTUAL_BAR_SPAN_CONTRACT_WITHOUT_CHANGING_EVALUATION_WINDOW",
+    "pre_evaluation_source_context_is_warmup_only": true,
+    "pre_evaluation_terminal_trade_outcomes_may_reach_v3_evaluator": false,
+    "fresh_evidence_reacquisition_authorized": true,
+    "full_reconstruction_rows_may_be_materialized": true,
+    "pre_oos_rows_must_be_mechanically_discarded_before_sti8_sequence_builder": true,
+    "full_reconstruction_file_must_be_deleted_before_economic_evaluation": true,
+    "only_2026_07_22_to_2026_09_29_rows_may_reach_sti8_evaluator": true
+  },
+  "anti_leakage": {
+    "parent_v2_outcomes_allowed_for_v3_policy_change": false,
+    "recovery_source_padding_selected_from_v3_outcomes": false,
+    "fresh_oos_outcomes_allowed_before_source_decisions": false,
+    "outcome_aware_retuning_authorized": false,
+    "economic_gates_changed": false,
+    "v3_policy_changed": false,
+    "v3_hypothesis_changed": false,
+    "recovery_may_claim_temporal_replication": false,
+    "recovery_may_open_certification_holdout": false
+  }
+}
