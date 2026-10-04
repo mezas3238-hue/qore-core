@@ -12,6 +12,7 @@ on:
       - src/qore/infrastructure/core_stack_v2/shared_lab_integrity.py
       - src/qore/infrastructure/core_stack_v2/shared_lab_ledger.py
       - src/qore/infrastructure/core_stack_v2/shared_lab_cognition.py
+      - src/qore/infrastructure/core_stack_v2/shared_lab_operational.py
       - tests/infrastructure/test_core_stack_v2_shared_lab.py
       - tests/infrastructure/test_core_stack_v2_shared_lab_tools.py
       - tests/infrastructure/test_core_stack_v2_shared_lab_influence.py
@@ -19,6 +20,7 @@ on:
       - tests/infrastructure/test_core_stack_v2_shared_lab_integrity.py
       - tests/infrastructure/test_core_stack_v2_shared_lab_ledger.py
       - tests/infrastructure/test_core_stack_v2_shared_lab_cognition.py
+      - tests/infrastructure/test_core_stack_v2_shared_lab_operational.py
       - .github/workflows/qore-shared-lab-core-integrity.yml
   workflow_dispatch:
 
@@ -48,13 +50,15 @@ jobs:
             src/qore/infrastructure/core_stack_v2/shared_lab_integrity.py \
             src/qore/infrastructure/core_stack_v2/shared_lab_ledger.py \
             src/qore/infrastructure/core_stack_v2/shared_lab_cognition.py \
+            src/qore/infrastructure/core_stack_v2/shared_lab_operational.py \
             tests/infrastructure/test_core_stack_v2_shared_lab.py \
             tests/infrastructure/test_core_stack_v2_shared_lab_tools.py \
             tests/infrastructure/test_core_stack_v2_shared_lab_influence.py \
             tests/infrastructure/test_core_stack_v2_shared_lab_experiments.py \
             tests/infrastructure/test_core_stack_v2_shared_lab_integrity.py \
             tests/infrastructure/test_core_stack_v2_shared_lab_ledger.py \
-            tests/infrastructure/test_core_stack_v2_shared_lab_cognition.py
+            tests/infrastructure/test_core_stack_v2_shared_lab_cognition.py \
+            tests/infrastructure/test_core_stack_v2_shared_lab_operational.py
           mypy \
             src/qore/infrastructure/core_stack_v2/shared_lab.py \
             src/qore/infrastructure/core_stack_v2/shared_lab_tools.py \
@@ -62,7 +66,8 @@ jobs:
             src/qore/infrastructure/core_stack_v2/shared_lab_experiments.py \
             src/qore/infrastructure/core_stack_v2/shared_lab_integrity.py \
             src/qore/infrastructure/core_stack_v2/shared_lab_ledger.py \
-            src/qore/infrastructure/core_stack_v2/shared_lab_cognition.py
+            src/qore/infrastructure/core_stack_v2/shared_lab_cognition.py \
+            src/qore/infrastructure/core_stack_v2/shared_lab_operational.py
       - name: L0/L5/L10 laboratory truth checks
         run: |
           pytest -q \
@@ -72,4 +77,5 @@ jobs:
             tests/infrastructure/test_core_stack_v2_shared_lab_experiments.py \
             tests/infrastructure/test_core_stack_v2_shared_lab_integrity.py \
             tests/infrastructure/test_core_stack_v2_shared_lab_ledger.py \
-            tests/infrastructure/test_core_stack_v2_shared_lab_cognition.py
+            tests/infrastructure/test_core_stack_v2_shared_lab_cognition.py \
+            tests/infrastructure/test_core_stack_v2_shared_lab_operational.py
