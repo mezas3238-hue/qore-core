@@ -979,6 +979,113 @@ def run_compound_portfolio_lane(
             capital_science = evaluate_capital_science_predecision(
                 capital_science_state
             )
+            if lab_dynamic_leverage:
+                effective_multiplier = requested_multiplier
+                final_t11_cap = volume
+                final_t11_reason = "T11 not yet evaluated"
+                final_posture = _genc8_posture(capital_science)
+                for _iteration in range(4):
+                    final_posture = _genc8_posture(capital_science)
+                    genc8_cap = _GENC8_MULTIPLIER_CAP[final_posture]
+                    final_t11_cap, final_t11_reason = _t11_execution_cap(
+                        requested_volume=volume,
+                        expected_structural_value_usd=(
+                            expectation.expected_net_value_usd
+                        ),
+                        provider_envelope=candidate.projection.provider_envelope,
+                    )
+                    t11_multiplier_cap = (
+                        final_t11_cap / base_volume
+                    ).to_integral_value(rounding="ROUND_FLOOR")
+                    next_multiplier = min(
+                        effective_multiplier,
+                        genc8_cap,
+                        t11_multiplier_cap,
+                    )
+                    if next_multiplier == effective_multiplier:
+                        break
+                    if next_multiplier <= 0:
+                        effective_multiplier = Decimal(0)
+                        break
+                    effective_multiplier = next_multiplier
+                    volume = base_volume * effective_multiplier
+                    risk = volume * opportunity.stop_loss_per_volume
+                    margin = volume * opportunity.margin_per_volume
+                    cost = (
+                        candidate.projection.provider_envelope.execution_cost_per_volume_usd
+                        * volume
+                    )
+                    loss_reserve = protected_loss_reserve_usd(risk)
+                    expectation = build_frozen_train_expectation(
+                        trader_id=opportunity.trader_id,
+                        stop_risk_usd=risk,
+                        as_of=epoch.market_decision_at,
+                    )
+                    genc7 = capital_science_state.genc7_proposal
+                    assert genc7 is not None
+                    capital_science_state = replace(
+                        capital_science_state,
+                        protected_capacity_usd=min(
+                            funding_pool,
+                            committed_protected_reserve + loss_reserve,
+                        ),
+                        deployed_profit_usd=min(
+                            max(
+                                Decimal(0),
+                                funding_pool
+                                - committed_protected_reserve
+                                - loss_reserve,
+                            ),
+                            committed_deployed_profit,
+                        ),
+                        requested_stop_risk_usd=risk,
+                        requested_margin_usd=margin,
+                        provider_cost_usd=cost,
+                        expected_net_value_usd=(
+                            expectation.expected_net_value_usd
+                        ),
+                        expected_capital_minutes=(
+                            expectation.expected_capital_minutes
+                        ),
+                        genc7_proposal=replace(
+                            genc7,
+                            amount_usd=risk + cost,
+                            evaluation_horizon_minutes=max(
+                                1,
+                                int(expectation.expected_capital_minutes) + 1,
+                            ),
+                        ),
+                    )
+                    capital_science = evaluate_capital_science_predecision(
+                        capital_science_state
+                    )
+
+                leverage_decisions.append(
+                    CompoundLeverageDecision(
+                        signal_fingerprint=signal,
+                        trader_id=candidate.trader_id,
+                        decision_at=epoch.market_decision_at,
+                        requested_multiplier=requested_multiplier,
+                        effective_multiplier=effective_multiplier,
+                        genc8_posture=final_posture,
+                        t11_execution_cap_volume=final_t11_cap,
+                        t11_allows_compound=(effective_multiplier > 0),
+                        reason=(
+                            f"GEN-C8 posture={final_posture}; "
+                            + final_t11_reason
+                        ),
+                    )
+                )
+                if effective_multiplier <= 0:
+                    capital_science_receipts.extend(
+                        capital_science.receipts
+                    )
+                    if _GENC8_MULTIPLIER_CAP[final_posture] <= 0:
+                        blockers["GENC8_DYNAMIC_LEVERAGE_PAUSED"] += 1
+                    else:
+                        blockers["T11_EXECUTION_EFFICIENCY_REJECTED_COMPOUND"] += 1
+                    rejected += 1
+                    continue
             capital_science_receipts.extend(capital_science.receipts)
             available = min(
                 available,
