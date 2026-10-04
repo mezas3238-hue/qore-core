@@ -21,3 +21,29 @@ def test_missing_duplicate_and_out_of_order_detection() -> None:
     failures = assess_sequence((1, 2, 2, 1))
     assert TemporalFailure.DUPLICATE_TIMESTAMP in failures
     assert TemporalFailure.OUT_OF_ORDER_SEQUENCE in failures
+
+
+
+def test_negative_offset_fails_chronology() -> None:
+    receipt = assess_temporal(
+        datum_id="negative",
+        observed_at_ns=100,
+        available_at_ns=90,
+        decision_at_ns=110,
+        consumed_at_ns=120,
+    )
+    assert not receipt.passed
+    assert TemporalFailure.NEGATIVE_OFFSET in receipt.failures
+
+
+def test_clock_drift_above_bound_is_detected() -> None:
+    receipt = assess_temporal(
+        datum_id="drift",
+        observed_at_ns=0,
+        available_at_ns=101,
+        decision_at_ns=200,
+        consumed_at_ns=201,
+        max_clock_drift_ns=100,
+    )
+    assert not receipt.passed
+    assert TemporalFailure.CLOCK_DRIFT in receipt.failures
