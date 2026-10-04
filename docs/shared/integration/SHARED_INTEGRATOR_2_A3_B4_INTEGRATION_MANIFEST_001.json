@@ -1,0 +1,117 @@
+{
+  "schema": "QORE_SHARED_INTEGRATOR_2_A3_B4_INTEGRATION_MANIFEST_001",
+  "observed_at": "2026-10-04T19:58:00Z",
+  "role": "SHARED_INTEGRATOR_2",
+  "pair": [
+    "ARCHITECT_3",
+    "ARCHITECT_4"
+  ],
+  "repository": "mezas3238-hue/qore-core",
+  "source_heads": {
+    "shared_master": "55144bb92abdc5135521f545667b94dcad555bb1",
+    "shared_lab": "f9792cd95553b5663383b0b3474e5be2e2bda789",
+    "architect_3": "bf8a7526a82831ae9b62b1351dfe416b3b287f36",
+    "architect_4": "6a361d0b85aff4333db2842d73b5f683167ca2fe",
+    "integrator_2_before_manifest": "25a15691a0a2bb9ace7946909c17a6c385362484"
+  },
+  "admitted_layers": {
+    "B06": {
+      "source_lane": "agent/shared-architect-b4-world-foundation-001",
+      "source_cut": "6a361d0b85aff4333db2842d73b5f683167ca2fe",
+      "admission": "EPISTEMIC_FACT_CONTRACT_ONLY",
+      "closure": "B06_EPISTEMIC_IDENTITY_DISPOSITION_CLOSED",
+      "sensor_count": 177,
+      "resolved_identity_count": 90,
+      "unknown_or_limited_count": 87,
+      "global_canonical_identity_claim": false
+    },
+    "B07": {
+      "source_lane": "agent/shared-architect-b4-world-foundation-001",
+      "source_cut": "6a361d0b85aff4333db2842d73b5f683167ca2fe",
+      "admission": "EPISTEMIC_FACT_CONTRACT_ONLY",
+      "closure": "B07_EPISTEMIC_TEMPORAL_DISPOSITION_CLOSED",
+      "sensor_count": 177,
+      "canonical_calendar_verified_count": 0,
+      "comparability_eligible_count": 0,
+      "global_temporal_comparability_claim": false
+    }
+  },
+  "not_admitted": {
+    "B08": "OPEN_NO_COMPARABILITY_POLICY_OR_BINDINGS",
+    "B09": "BLOCKED_BY_B08",
+    "B10": "BLOCKED_BY_B08_B09",
+    "A3_GLOBAL": "BLOCKED_ZERO_CONSUMABLE_REAL_SCOPE_FACTS",
+    "MC27": "FUTURE_EVIDENCE_BLOCKED",
+    "MC28_CLOCK_DRIFT": "ENGINEERING_BLOCKED_MISSING_DEMO_CREDENTIAL_INJECTION",
+    "MC28_EXECUTION_QUALITY": "INSUFFICIENT_REAL_SEALED_DEMO_POPULATION"
+  },
+  "integrator_files": [
+    "src/qore/infrastructure/core_stack_v2/shared_a3_b4_seam_contract.py",
+    "src/qore/infrastructure/core_stack_v2/shared_a3_b4_b4_intake.py",
+    "src/qore/infrastructure/core_stack_v2/shared_a3_b4_scope_gate.py",
+    "src/qore/infrastructure/core_stack_v2/shared_a3_b4_health_relation_bridge.py",
+    "tests/infrastructure/test_shared_a3_b4_seam_contract.py",
+    "tests/infrastructure/test_shared_a3_b4_b4_intake.py",
+    "tests/infrastructure/test_shared_a3_b4_scope_gate.py",
+    "tests/infrastructure/test_shared_a3_b4_health_relation_bridge.py",
+    "docs/shared/integration/SHARED_INTEGRATOR_2_A3_B4_INTAKE_STATUS_001.json",
+    "docs/shared/integration/SHARED_INTEGRATOR_2_A3_B4_SHARED_LAB_EVIDENCE_001.json"
+  ],
+  "shared_lab_validation": {
+    "github_actions_started_by_integrator_2": false,
+    "initial_identity_temporal_regression": "48_PASS_0_FAIL",
+    "post_scope_gate_regression": "53_PASS_0_FAIL",
+    "architect_3_functional_plugins": "135_PASS_0_FAIL",
+    "b09_b10_bridge_targeted": "17_PASS_0_FAIL",
+    "ruff": "PASS",
+    "mypy": "PASS",
+    "deterministic_replay": {
+      "b06": "BYTE_IDENTICAL_PASS",
+      "b07": "BYTE_IDENTICAL_PASS"
+    },
+    "failure_injection": {
+      "authority_widening": "FAIL_CLOSED_PASS",
+      "identity_proof_removal": "FAIL_CLOSED_PASS",
+      "future_fact_timestamp": "FAIL_CLOSED_PASS",
+      "total": "3_OF_3"
+    },
+    "real_scope_gate": {
+      "required_count": 177,
+      "ready_count": 0,
+      "blocked_count": 177,
+      "blocker_code_counts": {
+        "IDENTITY_UNRESOLVED": 87,
+        "MARKET_TIME_UNRESOLVED": 177,
+        "TEMPORAL_NOT_COMPARABLE": 177,
+        "DATA_HEALTH_NOT_READY": 177,
+        "RELATION_INELIGIBLE": 177
+      }
+    },
+    "native_scheduler_status": "ENGINEERING_BLOCKED_WINDOWS_POSIX_RESOURCE_LIMITS"
+  },
+  "evidence_fingerprints": {
+    "b06_registry": "c41a2499af771980b7b98eb026b18f7574dc82d7b3d47560631d4302af6a41fa",
+    "b07_registry": "c29967b7e1127d355e815ae45b9d53c7b8b989251faa5c1b2e389ed5a1b6183a",
+    "identity_frontier_v3": "41f79df7ba10bc7eccf13b6fd8c336b8aa8dcbe31d8636ebf2cefb691035ed8b",
+    "real_intake": "7b489c809c11587de9664bb1be9a41a74b5ffcdd28f4c830c866b0aeebcc8baa"
+  },
+  "seam_laws": [
+    "UNKNOWN_UNRESOLVED_NOT_COMPARABLE_REMAIN_FIRST_CLASS",
+    "EXPLICIT_IDENTITY_PROOF_REQUIRED",
+    "FACT_TIMESTAMP_LE_DECISION_TIMESTAMP",
+    "A3_CERTAINTY_REQUIRES_IDENTITY_CANONICAL_TIME_COMPARABILITY_AND_B09_HEALTH",
+    "B09_CANNOT_GRANT_B10_RELATION_AUTHORITY",
+    "B10_CANNOT_BYPASS_IDENTITY_TIME_COMPARABILITY_OR_HEALTH",
+    "A3_SCOPE_MUST_BE_EXPLICIT_NO_GLOBAL_INFERENCE_FROM_UNREQUESTED_FACTS",
+    "NO_TRADER_METHODOLOGY",
+    "NO_HIDDEN_TRADE_FILTERS",
+    "NO_SIZING_RISK_CIBO_EXECUTION_CAPITAL_AUTHORITY"
+  ],
+  "master_convergence": {
+    "shared_master_modified": false,
+    "pr_635_merged": false,
+    "merge_authority": false,
+    "disposition": "INTEGRATOR_LANE_READY_FOR_NEXT_B4_EVIDENCE_NOT_MASTER_MERGE"
+  },
+  "next_gate": "WAIT_FOR_B4_B08_EVIDENCE_OR_REPAIR_SHARED_LAB_NATIVE_WINDOWS_PORTABILITY_IN_LAB_OWNER_LANE"
+}
