@@ -2,6 +2,7 @@ from qore.infrastructure.core_stack_v2.shared_lab import LabFault
 from qore.infrastructure.core_stack_v2.shared_lab_tools import (
     ToolFamily,
     default_shared_lab_registry,
+    registry_fingerprint,
     validate_l10_tool_coverage,
 )
 
@@ -34,3 +35,10 @@ def test_registry_contains_cross_layer_failure_families():
     assert ToolFamily.CABLE_LINEAGE_BREAK in families
     assert ToolFamily.LEAKAGE_INJECTION in families
     assert ToolFamily.COGNITIVE_MUTATION in families
+
+
+def test_registry_fingerprint_is_deterministic():
+    first = registry_fingerprint(default_shared_lab_registry())
+    second = registry_fingerprint(default_shared_lab_registry())
+    assert first == second
+    assert len(first) == 64
