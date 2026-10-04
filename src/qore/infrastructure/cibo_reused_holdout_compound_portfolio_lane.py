@@ -357,13 +357,19 @@ def _t11_execution_cap(
         slippage_cost_per_volume_usd=(
             provider_envelope.slippage_reserve_per_volume_usd
         ),
-        impact_cost_per_volume_squared_usd=Decimal(0),
+        impact_cost_per_volume_squared_usd=(
+            provider_envelope.slippage_reserve_per_volume_usd
+            / max(
+                provider_envelope.maximum_volume,
+                provider_envelope.volume_step,
+            )
+        ),
     )
     cap = execution_efficient_volume_cap(curve)
     return cap.volume_cap, (
         cap.reason
-        + "; nonlinear market impact is unclaimed and fixed to zero in this "
-        "non-certifying burned-holdout calibration"
+        + "; nonlinear impact uses the preregistered provider-slippage upper-bound "
+        "proxy and carries no empirical-certification claim"
     )
 
 
