@@ -38,3 +38,7 @@ jobs:
           tests/infrastructure/test_core_stack_v2_shared_lab_identity_harness.py
           tests/infrastructure/test_core_stack_v2_shared_lab_market_hours.py
           tests/infrastructure/test_core_stack_v2_shared_lab_data_l10.py
+          tests/infrastructure/test_core_stack_v2_shared_lab_data_pipeline.py
+          tests/infrastructure/test_core_stack_v2_shared_lab_provider_scenarios.py
+          tests/infrastructure/test_core_stack_v2_shared_lab_identity_multiasset.py
+          tests/infrastructure/test_core_stack_v2_shared_lab_completeness_thresholds.py
