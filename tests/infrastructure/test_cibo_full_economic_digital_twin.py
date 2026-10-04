@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
@@ -63,6 +64,7 @@ from qore.infrastructure.cibo_maximum_capability_diagnostics import (
 )
 from qore.infrastructure.cibo_portfolio_allocation_engine import (
     plan_account_wide_capital_allocation,
+    plan_position_opportunity_competition,
 )
 from qore.infrastructure.market_test_environment import MarketRuntimeEnvironment
 
@@ -421,3 +423,139 @@ def test_diagnostics_do_not_call_optionality_reserve_waste() -> None:
         }
         for gap in report.gaps
     )
+
+
+
+def _position_competition_twin(
+    *,
+    continuation_value: Decimal,
+    headroom_risk: Decimal,
+    headroom_margin: Decimal,
+) -> CiboObservedEconomicTwin:
+    capital = replace(
+        _capital_twin(),
+        used_stop_risk_usd=Decimal("10") - headroom_risk,
+        stop_risk_headroom_usd=headroom_risk,
+        used_margin_usd=Decimal("100") - headroom_margin,
+        margin_headroom_usd=headroom_margin,
+    )
+    position = CiboObservedPositionState(
+        signal_fingerprint="open-low-utility",
+        qore_symbol="EURUSD",
+        side="long",
+        entry_at=T0 - timedelta(minutes=30),
+        observed_at=T0,
+        current_volume=Decimal("1"),
+        current_stop_risk_usd=Decimal("4"),
+        current_margin_usd=Decimal("30"),
+        released_stop_risk_usd=Decimal("0"),
+        released_margin_usd=Decimal("0"),
+        remaining_reward_r=Decimal("1"),
+        provider_cost_usd=Decimal("0"),
+        expected_continuation_net_value_usd=continuation_value,
+        expected_remaining_capital_minutes=Decimal("30"),
+        release_cost_usd=Decimal("0.05"),
+        uncertainty_penalty=Decimal("0"),
+        releasable=True,
+    )
+    opportunity = CiboObservedOpportunityState(
+        option_id="superior-new",
+        trader_id="R34_XAUUSD",
+        qore_symbol="XAUUSD",
+        known_at=T0,
+        earliest_action_at=T0,
+        expires_at=T0 + timedelta(minutes=20),
+        requested_capital_usd=Decimal("5"),
+        expected_net_value_usd=Decimal("2.2"),
+        expected_capital_minutes=Decimal("15"),
+        stop_risk_usd=Decimal("3"),
+        margin_usd=Decimal("20"),
+        provider_cost_usd=Decimal("0.1"),
+        uncertainty_penalty=Decimal("0.1"),
+        context_allowed=True,
+        provider_viable=True,
+        capital_source_eligible=True,
+        evidence_sha256="sha256:" + "9" * 64,
+    )
+    return CiboObservedEconomicTwin(
+        twin_id="position-competition",
+        captured_at=T0,
+        capital_twin=capital,
+        positions=(position,),
+        opportunities=(opportunity,),
+        portfolio=CiboObservedPortfolioState(
+            observed_at=T0,
+            active_position_ids=(position.signal_fingerprint,),
+            opportunity_ids=(opportunity.option_id,),
+            concentration_utilization=Decimal("0.2"),
+            correlation_utilization=Decimal("0.2"),
+            reserved_stop_risk_usd=Decimal("0"),
+            reserved_margin_usd=Decimal("0"),
+        ),
+        velocity=CiboCapitalVelocityState(
+            observed_at=T0,
+            released_stop_risk_usd=Decimal("0"),
+            released_margin_usd=Decimal("0"),
+            waiting_stop_risk_usd=Decimal("0"),
+            waiting_margin_usd=Decimal("0"),
+            oldest_release_age_minutes=Decimal("0"),
+            idle_classification=CiboIdleCapitalClass.OPTIONALITY_RESERVE,
+        ),
+    )
+
+
+def test_position_competition_releases_low_utility_position_for_superior_use() -> None:
+    twin = _position_competition_twin(
+        continuation_value=Decimal("0.2"),
+        headroom_risk=Decimal("1"),
+        headroom_margin=Decimal("10"),
+    )
+
+    plan = plan_position_opportunity_competition(
+        twin,
+        opportunity_id="superior-new",
+    )
+
+    assert plan.admit_opportunity is True
+    assert plan.released_stop_risk_usd == Decimal("4")
+    assert plan.released_margin_usd == Decimal("30")
+    assert plan.net_incremental_utility_usd == Decimal("1.75")
+    assert plan.position_lines[0].proposed_action == "RELEASE"
+    assert plan.risk_authority is False
+    assert plan.execution_authority is False
+
+
+def test_position_competition_preserves_high_utility_position() -> None:
+    twin = _position_competition_twin(
+        continuation_value=Decimal("3"),
+        headroom_risk=Decimal("1"),
+        headroom_margin=Decimal("10"),
+    )
+
+    plan = plan_position_opportunity_competition(
+        twin,
+        opportunity_id="superior-new",
+    )
+
+    assert plan.admit_opportunity is False
+    assert plan.released_stop_risk_usd == Decimal("0")
+    assert plan.position_lines[0].proposed_action == "KEEP"
+    assert plan.net_incremental_utility_usd == Decimal("-1.05")
+
+
+def test_position_competition_does_not_release_when_new_opportunity_already_fits() -> None:
+    twin = _position_competition_twin(
+        continuation_value=Decimal("0.2"),
+        headroom_risk=Decimal("4"),
+        headroom_margin=Decimal("30"),
+    )
+
+    plan = plan_position_opportunity_competition(
+        twin,
+        opportunity_id="superior-new",
+    )
+
+    assert plan.fits_without_release is True
+    assert plan.admit_opportunity is True
+    assert plan.released_stop_risk_usd == Decimal("0")
+    assert plan.position_lines[0].proposed_action == "KEEP"
