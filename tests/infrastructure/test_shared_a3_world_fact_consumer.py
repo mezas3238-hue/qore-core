@@ -4,15 +4,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from qore.infrastructure.core_stack_v2.shared_a3_world_fact_consumer import (
-    A3ComparabilityState,
-    A3DataHealthState,
-    A3IdentityStatus,
-    A3WorldFactEnvelope,
-    A3WorldFactError,
-    A3WorldKnowledgeState,
-    consume_a4_world_fact,
-)
+from qore.infrastructure.core_stack_v2 import shared_a3_world_fact_consumer as seam
 
 
 NOW = datetime(2026, 10, 4, 19, 50, tzinfo=UTC)
@@ -22,11 +14,11 @@ def _fact(**overrides):
     values = dict(
         fact_id="B4:USTEC:world:001",
         instrument_key="provider:USTEC:10014",
-        identity_status=A3IdentityStatus.VERIFIED,
+        identity_status=seam.A3IdentityStatus.VERIFIED,
         canonical_identity="INDEX:NASDAQ_100",
-        knowledge_state=A3WorldKnowledgeState.OBSERVED,
-        comparability_state=A3ComparabilityState.COMPARABLE,
-        data_health_state=A3DataHealthState.HEALTHY,
+        knowledge_state=seam.A3WorldKnowledgeState.OBSERVED,
+        comparability_state=seam.A3ComparabilityState.COMPARABLE,
+        data_health_state=seam.A3DataHealthState.HEALTHY,
         relational_eligible=True,
         observed_at=NOW - timedelta(seconds=2),
         available_at=NOW - timedelta(seconds=1),
@@ -36,11 +28,11 @@ def _fact(**overrides):
         reason_codes=("B4_FACTUAL_WORLD_INPUT",),
     )
     values.update(overrides)
-    return A3WorldFactEnvelope(**values)
+    return seam.A3WorldFactEnvelope(**values)
 
 
 def test_verified_observed_comparable_fact_is_consumable() -> None:
-    consumed = consume_a4_world_fact(_fact())
+    consumed = seam.consume_a4_world_fact(_fact())
     assert consumed.usable_for_global_cognition is True
     assert consumed.usable_for_relational_claim is True
     assert consumed.abstain is False
@@ -52,11 +44,11 @@ def test_verified_observed_comparable_fact_is_consumable() -> None:
 
 def test_unknown_identity_is_preserved_and_abstains() -> None:
     fact = _fact(
-        identity_status=A3IdentityStatus.UNKNOWN,
+        identity_status=seam.A3IdentityStatus.UNKNOWN,
         canonical_identity=None,
         relational_eligible=False,
     )
-    consumed = consume_a4_world_fact(fact)
+    consumed = seam.consume_a4_world_fact(fact)
     assert consumed.canonical_identity is None
     assert consumed.abstain is True
     assert consumed.usable_for_global_cognition is False
@@ -65,10 +57,10 @@ def test_unknown_identity_is_preserved_and_abstains() -> None:
 
 def test_not_comparable_fact_cannot_create_relation_claim() -> None:
     fact = _fact(
-        comparability_state=A3ComparabilityState.NOT_COMPARABLE,
+        comparability_state=seam.A3ComparabilityState.NOT_COMPARABLE,
         relational_eligible=False,
     )
-    consumed = consume_a4_world_fact(fact)
+    consumed = seam.consume_a4_world_fact(fact)
     assert consumed.usable_for_global_cognition is True
     assert consumed.usable_for_relational_claim is False
     assert consumed.abstain is False
@@ -76,7 +68,7 @@ def test_not_comparable_fact_cannot_create_relation_claim() -> None:
 
 
 def test_future_available_fact_fails_closed() -> None:
-    with pytest.raises(A3WorldFactError, match="future fact availability"):
+    with pytest.raises(seam.A3WorldFactError, match="future fact availability"):
         _fact(available_at=NOW + timedelta(milliseconds=1))
 
 
@@ -91,20 +83,20 @@ def test_future_available_fact_fails_closed() -> None:
     ),
 )
 def test_sovereign_or_methodology_hints_are_rejected(field: str) -> None:
-    with pytest.raises(A3WorldFactError, match="sovereign action hints"):
+    with pytest.raises(seam.A3WorldFactError, match="sovereign action hints"):
         _fact(**{field: True})
 
 
 def test_relational_eligible_requires_verified_healthy_comparable_world() -> None:
-    with pytest.raises(A3WorldFactError, match="verified identity"):
+    with pytest.raises(seam.A3WorldFactError, match="verified identity"):
         _fact(
-            identity_status=A3IdentityStatus.UNKNOWN,
+            identity_status=seam.A3IdentityStatus.UNKNOWN,
             canonical_identity=None,
         )
-    with pytest.raises(A3WorldFactError, match="explicit comparability"):
-        _fact(comparability_state=A3ComparabilityState.UNKNOWN)
-    with pytest.raises(A3WorldFactError, match="healthy data"):
-        _fact(data_health_state=A3DataHealthState.DEGRADED)
+    with pytest.raises(seam.A3WorldFactError, match="explicit comparability"):
+        _fact(comparability_state=seam.A3ComparabilityState.UNKNOWN)
+    with pytest.raises(seam.A3WorldFactError, match="healthy data"):
+        _fact(data_health_state=seam.A3DataHealthState.DEGRADED)
 
 
 def test_fingerprint_is_deterministic() -> None:
