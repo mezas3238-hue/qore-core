@@ -54,8 +54,8 @@ from qore.infrastructure.cibo_integrated_capital_truth import (
     RealizedProfitEquivalenceBinding,
     build_integrated_capital_truth,
 )
-from qore.infrastructure.cibo_maximum_capability_frontier import (
-    optimize_epoch_from_economic_twin,
+from qore.infrastructure.cibo_portfolio_allocation_engine import (
+    plan_account_wide_capital_allocation,
 )
 from qore.infrastructure.market_test_environment import MarketRuntimeEnvironment
 
@@ -369,8 +369,10 @@ def test_counterfactual_world_is_separate_and_non_authoritative() -> None:
 def test_frontier_consumes_full_twin_for_portfolio_competition_and_leverage() -> None:
     twin = _full_twin()
 
-    decision = optimize_epoch_from_economic_twin(twin)
+    plan = plan_account_wide_capital_allocation(twin)
 
-    assert decision == (("known-r34", 3),)
+    assert tuple((item.option_id, item.multiplier) for item in plan.lines) == (
+        ("known-r34", 3),
+    )
     assert twin.risk_authority is False
     assert twin.execution_authority is False
