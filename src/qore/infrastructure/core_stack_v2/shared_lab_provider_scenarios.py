@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from enum import StrEnum
+import math
 
 from qore.infrastructure.core_stack_v2.shared_lab_data_reality import ProviderDatum, ProviderProvenance
 
@@ -78,3 +79,71 @@ def apply_provider_scenario(
             items[-1] = replace(items[-1], sequence=items[-2].sequence + 2)
         return tuple(items)
     return tuple(items)
+
+
+
+@dataclass(frozen=True, slots=True)
+class ProviderScenarioReceipt:
+    scenario: ProviderScenario
+    input_count: int
+    output_count: int
+    detected: bool
+    classification: str
+    productive_authority: bool = False
+
+    def __post_init__(self) -> None:
+        if self.productive_authority:
+            raise ValueError("provider laboratory grants no productive authority")
+
+
+def detect_provider_scenario(
+    base: tuple[ProviderDatum, ...],
+    mutated: tuple[ProviderDatum, ...],
+    scenario: ProviderScenario,
+) -> bool:
+    if scenario is ProviderScenario.MISSING:
+        return bool(base) and not mutated
+    if scenario in {ProviderScenario.PARTIAL, ProviderScenario.DROPPED_EVENT}:
+        return len(mutated) < len(base)
+    if scenario is ProviderScenario.DUPLICATE_EVENT:
+        return len(mutated) > len(base)
+    if not base or not mutated:
+        return False
+    if scenario is ProviderScenario.DELAYED:
+        return all(m.available_at_ns > b.available_at_ns for b, m in zip(base, mutated))
+    if scenario is ProviderScenario.STALE:
+        return all(m.available_at_ns <= b.available_at_ns for b, m in zip(base, mutated))
+    if scenario is ProviderScenario.CONFLICT:
+        return mutated[0].bid != base[0].bid
+    if scenario is ProviderScenario.CORRUPTED_PAYLOAD:
+        return mutated[0].bid is not None and not math.isfinite(mutated[0].bid)
+    if scenario is ProviderScenario.INCOMPLETE_METADATA:
+        return not mutated[0].metadata_asset_class
+    if scenario is ProviderScenario.WRONG_SYMBOL_METADATA:
+        return mutated[0].provider_symbol == "WRONG"
+    if scenario is ProviderScenario.DIFFERENT_DECIMALS:
+        return mutated[0].bid != base[0].bid or mutated[0].ask != base[0].ask
+    if scenario is ProviderScenario.CHANGED_SYMBOL:
+        return mutated[0].provider_symbol != base[0].provider_symbol
+    if scenario is ProviderScenario.CHANGED_MAPPING:
+        return mutated[0].provenance.mapping_revision != base[0].provenance.mapping_revision
+    if scenario in {ProviderScenario.RECONNECT_EVENT, ProviderScenario.SEQUENCE_GAP}:
+        return any(b.sequence != a.sequence + 1 for a, b in zip(mutated, mutated[1:]))
+    return mutated != base
+
+
+def run_provider_scenario_probe(
+    data: tuple[ProviderDatum, ...],
+    scenario: ProviderScenario,
+    *,
+    delay_ns: int = 1_000_000_000,
+) -> ProviderScenarioReceipt:
+    mutated = apply_provider_scenario(data, scenario, delay_ns=delay_ns)
+    detected = detect_provider_scenario(data, mutated, scenario)
+    return ProviderScenarioReceipt(
+        scenario=scenario,
+        input_count=len(data),
+        output_count=len(mutated),
+        detected=detected,
+        classification=scenario.value if detected else "UNDETECTED",
+    )
