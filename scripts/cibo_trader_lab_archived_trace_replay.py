@@ -248,6 +248,15 @@ def group_replay(payload: dict[str, Any], *, group: str) -> dict[str, Any]:
             continue
         portfolio_competitions += 1
         continuation_positions_seen += len(active)
+        continuation_positions_identified += sum(
+            dt(
+                position.get("capital_released_at")
+                or position.get("exit_at")
+            )
+            is not None
+            and dec(position.get("expected_capital_minutes")) > 0
+            for position in active
+        )
 
         candidate_risk = dec(
             row.get("candidate_stop_risk_usd"),
@@ -265,8 +274,6 @@ def group_replay(payload: dict[str, Any], *, group: str) -> dict[str, Any]:
         release_candidates = []
         for position in active:
             continuation, utility_per_minute = continuation_value(position, observed_at)
-            if dt(position.get("capital_released_at") or position.get("exit_at")) is not None:
-                continuation_positions_identified += 1
             risk = dec(position.get("authorized_stop_risk_usd"))
             margin = dec(position.get("authorized_margin_usd"))
             release_candidates.append(
