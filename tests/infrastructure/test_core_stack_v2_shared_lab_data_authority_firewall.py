@@ -20,6 +20,8 @@ OWNED_MODULES = (
     "shared_lab_data_exam.py",
     "shared_lab_data_provenance.py",
     "shared_lab_data_authority_firewall.py",
+    "shared_lab_universe_completeness.py",
+    "shared_lab_resilience.py",
 )
 
 
