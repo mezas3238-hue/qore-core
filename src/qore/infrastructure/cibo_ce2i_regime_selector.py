@@ -159,9 +159,22 @@ def select_ce2i_tools_for_regime(
     if posture is CiboRegimePosture.HALT_NEW_CAPITAL:
         enabled &= {"T20"}
     elif posture is CiboRegimePosture.RECOVERY:
-        enabled &= _RECOVERY_SAFE_TOOLS
+        if mission.capability_measurement_enabled:
+            # DEMO capability discovery must still be able to express one
+            # minimum-risk probe and let scarce-capital competition choose it.
+            # Expansion/hedge/convex tools remain blocked; QORE Risk and
+            # provider/liquidity guards remain downstream and sovereign.
+            enabled &= _RECOVERY_SAFE_TOOLS | {"T01", "T09", "T18"}
+        else:
+            enabled &= _RECOVERY_SAFE_TOOLS
     elif posture is CiboRegimePosture.DEFENSIVE:
-        enabled -= _EXPANSION_TOOLS
+        if mission.capability_measurement_enabled:
+            # T09/T18 allocate already-valid minimum seeds; they are not
+            # themselves leverage/expansion. Keeping them available prevents
+            # defensive DEMO research from silently discarding every candidate.
+            enabled -= _EXPANSION_TOOLS - {"T09", "T18"}
+        else:
+            enabled -= _EXPANSION_TOOLS
 
     if (
         state.provider_condition is not ProviderCondition.HEALTHY
