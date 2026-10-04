@@ -82,6 +82,15 @@ def test_unknown_identity_is_preserved_and_not_consumable_as_certainty():
     assert fact.relation_claim_allowed is False
 
 
+def test_noncomparable_fact_can_still_be_factual_but_not_relational():
+    fact = _fact(
+        temporal_status=SharedA3B4TemporalStatus.NOT_COMPARABLE,
+        relation_eligibility=SharedA3B4RelationEligibility.INELIGIBLE,
+    )
+    assert fact.a3_consumable_as_certainty is True
+    assert fact.relation_claim_allowed is False
+
+
 def test_future_fact_is_rejected():
     with pytest.raises(SharedA3B4SeamValidationError):
         _fact(fact_timestamp=NOW + timedelta(microseconds=1))
