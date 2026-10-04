@@ -65,7 +65,11 @@ class SharedLabToolRegistry:
     def list_tools(self) -> tuple[LabToolSpec, ...]:
         return tuple(self._tools[key] for key in sorted(self._tools))
 
-    def expand(self, tool_id: str, parameter_grid: Mapping[str, Iterable[Any]]) -> tuple[ProbeCase, ...]:
+    def expand(
+        self,
+        tool_id: str,
+        parameter_grid: Mapping[str, Iterable[Any]],
+    ) -> tuple[ProbeCase, ...]:
         spec = self.get(tool_id)
         if set(parameter_grid) != set(spec.parameter_names):
             raise ValueError("parameter grid must exactly match tool specification")
