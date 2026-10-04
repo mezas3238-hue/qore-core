@@ -417,6 +417,8 @@ def candidate(
         "genc01_genc14": True,
         "compound_seed_multiplier": multiplier,
         "compound_portfolio_seed_multiplier": multiplier,
+        "dynamic_leverage": multiplier == "DYNAMIC",
+        "dynamic_leverage_max_multiplier": "4" if multiplier == "DYNAMIC" else None,
         "qore_risk_sovereign": True,
     }
     return {
@@ -499,7 +501,7 @@ def candidate(
                 "PROVIDER_COST_STRESS",
                 "SLIPPAGE_STRESS",
                 "WINNER_CONCENTRATION_STRESS",
-                "LEVERAGE_1X_2X_3X_4X",
+                "LEVERAGE_1X_2X_3X_4X_PLUS_DYNAMIC",
                 "CIBO_FUNCTION_BEHAVIOR",
                 "PER_TRADER_CIBO_ECONOMICS",
             ],
@@ -536,6 +538,16 @@ def main() -> int:
                 coverage=coverage,
             )
         )
+    candidates.append(
+        candidate(
+            group_id=group_id,
+            multiplier="DYNAMIC",
+            core=core,
+            local=raw["all_trader_cibo_compound_dynamic"],
+            portfolio=raw["all_trader_cibo_compound_portfolio_dynamic"],
+            coverage=coverage,
+        )
+    )
 
     payload = {
         "schema": "qore.cibo.trader-lab.1y-group-result.v1",
