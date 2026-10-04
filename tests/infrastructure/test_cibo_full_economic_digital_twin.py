@@ -457,6 +457,7 @@ def _position_competition_twin(
         release_cost_usd=Decimal("0.05"),
         uncertainty_penalty=Decimal("0"),
         releasable=True,
+        continuation_value_identified=True,
     )
     opportunity = CiboObservedOpportunityState(
         option_id="superior-new",
@@ -557,5 +558,31 @@ def test_position_competition_does_not_release_when_new_opportunity_already_fits
 
     assert plan.fits_without_release is True
     assert plan.admit_opportunity is True
+    assert plan.released_stop_risk_usd == Decimal("0")
+    assert plan.position_lines[0].proposed_action == "KEEP"
+
+
+
+def test_position_competition_preserves_unidentified_position_value() -> None:
+    twin = _position_competition_twin(
+        continuation_value=Decimal("0"),
+        headroom_risk=Decimal("1"),
+        headroom_margin=Decimal("10"),
+    )
+    position = replace(
+        twin.positions[0],
+        continuation_value_identified=False,
+    )
+    twin = replace(
+        twin,
+        positions=(position,),
+    )
+
+    plan = plan_position_opportunity_competition(
+        twin,
+        opportunity_id="superior-new",
+    )
+
+    assert plan.admit_opportunity is False
     assert plan.released_stop_risk_usd == Decimal("0")
     assert plan.position_lines[0].proposed_action == "KEEP"
