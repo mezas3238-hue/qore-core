@@ -41,6 +41,7 @@ class CiboEngineEfficiencyEvidence:
     latency_observations: int = 0
     destructive_value_usd: Decimal = Decimal(0)
     unidentified_value_usd: Decimal = Decimal(0)
+    value_identified: bool = True
 
     def __post_init__(self) -> None:
         if not self.engine_id:
@@ -71,6 +72,10 @@ class CiboEngineEfficiencyEvidence:
                 raise CiboCapitalManagementError(
                     f"engine efficiency {name} must be finite non-negative Decimal"
                 )
+        if type(self.value_identified) is not bool:
+            raise CiboCapitalManagementError(
+                "engine efficiency value_identified must be bool"
+            )
         if self.invoked_count > self.eligible_count:
             raise CiboCapitalManagementError(
                 "engine invoked_count cannot exceed eligible_count"
@@ -203,9 +208,9 @@ def measure_engine_efficiency(
     elif evidence.blocked_count and evidence.invoked_count == 0:
         classification = CiboEngineEfficiencyClass.BLOCKED
         cause = "engine is eligible but blocked before native invocation"
-    elif evidence.unidentified_value_usd > 0:
+    elif not evidence.value_identified or evidence.unidentified_value_usd > 0:
         classification = CiboEngineEfficiencyClass.UNIDENTIFIED
-        cause = "engine value exists but marginal attribution is unresolved"
+        cause = "engine marginal economic value is not yet identified"
     elif engine_efficiency <= Decimal("0.01"):
         classification = CiboEngineEfficiencyClass.NEAR_ZERO
         cause = "engine contributes near-zero end-to-end economic efficiency"
