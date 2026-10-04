@@ -83,6 +83,10 @@ from qore.infrastructure.cibo_crisis_capital_intelligence import (
 from qore.infrastructure.cibo_marginal_capital_utility_evidence import (
     MarginalCapitalUtilityEvidence,
 )
+from qore.infrastructure.cibo_position_continuation_intelligence import (
+    CiboPositionContinuationInput,
+    estimate_position_continuation,
+)
 from qore.infrastructure.cibo_multi_period_capital_mpc import (
     Genc11KnownOptionSchedule,
     Genc11WorldPath,
@@ -216,6 +220,7 @@ class CapitalScienceOpenEconomicPosition:
     qore_symbol: str
     side: str
     entry_at: datetime
+    planned_exit_at: datetime
     current_volume: Decimal
     current_stop_risk_usd: Decimal
     current_margin_usd: Decimal
@@ -237,6 +242,14 @@ class CapitalScienceOpenEconomicPosition:
         if self.entry_at.tzinfo is None or self.entry_at.utcoffset() is None:
             raise CiboCapitalManagementError(
                 "Capital Science open economic position entry_at must be timezone-aware"
+            )
+        if (
+            self.planned_exit_at.tzinfo is None
+            or self.planned_exit_at.utcoffset() is None
+            or self.planned_exit_at <= self.entry_at
+        ):
+            raise CiboCapitalManagementError(
+                "Capital Science open economic position planned_exit_at invalid"
             )
         for name in (
             "current_volume",
@@ -993,37 +1006,67 @@ def _full_economic_twin(
         )
         for item in _known_economic_options(state)
     )
-    positions = tuple(
-        CiboObservedPositionState(
-            signal_fingerprint=item.signal_fingerprint,
-            qore_symbol=item.qore_symbol,
-            side=item.side,
-            entry_at=item.entry_at,
-            observed_at=state.decision_at,
-            current_volume=item.current_volume,
-            current_stop_risk_usd=item.current_stop_risk_usd,
-            current_margin_usd=item.current_margin_usd,
-            released_stop_risk_usd=Decimal(0),
-            released_margin_usd=Decimal(0),
-            remaining_reward_r=Decimal(0),
-            provider_cost_usd=item.provider_cost_usd,
-            entry_expected_net_value_usd=item.entry_expected_net_value_usd,
-            entry_expected_capital_minutes=item.entry_expected_capital_minutes,
-            expectation_evidence_sha256=item.expectation_evidence_sha256,
-            remaining_reward_identified=False,
-            expected_continuation_net_value_usd=Decimal(0),
-            expected_remaining_capital_minutes=(
-                item.entry_expected_capital_minutes
-            ),
-            release_cost_usd=Decimal(0),
-            uncertainty_penalty=Decimal(0),
-            releasable=True,
-            continuation_value_identified=(
-                item.continuation_value_identified
-            ),
+    positions = []
+    for item in state.open_economic_positions:
+        continuation = estimate_position_continuation(
+            CiboPositionContinuationInput(
+                signal_fingerprint=item.signal_fingerprint,
+                observed_at=state.decision_at,
+                entry_at=item.entry_at,
+                planned_exit_at=item.planned_exit_at,
+                entry_expected_net_value_usd=(
+                    item.entry_expected_net_value_usd
+                ),
+                entry_expected_capital_minutes=(
+                    item.entry_expected_capital_minutes
+                ),
+                current_stop_risk_usd=item.current_stop_risk_usd,
+                current_margin_usd=item.current_margin_usd,
+                expectation_evidence_sha256=(
+                    item.expectation_evidence_sha256
+                ),
+            )
         )
-        for item in state.open_economic_positions
-    )
+        positions.append(
+            CiboObservedPositionState(
+                signal_fingerprint=item.signal_fingerprint,
+                qore_symbol=item.qore_symbol,
+                side=item.side,
+                entry_at=item.entry_at,
+                observed_at=state.decision_at,
+                current_volume=item.current_volume,
+                current_stop_risk_usd=item.current_stop_risk_usd,
+                current_margin_usd=item.current_margin_usd,
+                released_stop_risk_usd=Decimal(0),
+                released_margin_usd=Decimal(0),
+                remaining_reward_r=Decimal(0),
+                provider_cost_usd=item.provider_cost_usd,
+                entry_expected_net_value_usd=(
+                    item.entry_expected_net_value_usd
+                ),
+                entry_expected_capital_minutes=(
+                    item.entry_expected_capital_minutes
+                ),
+                expectation_evidence_sha256=(
+                    item.expectation_evidence_sha256
+                ),
+                remaining_reward_identified=False,
+                expected_continuation_net_value_usd=(
+                    continuation.expected_continuation_net_value_usd
+                ),
+                expected_remaining_capital_minutes=max(
+                    Decimal("0.000001"),
+                    continuation.remaining_capital_minutes,
+                ),
+                release_cost_usd=Decimal(0),
+                uncertainty_penalty=Decimal(0),
+                releasable=continuation.value_identified,
+                continuation_value_identified=(
+                    continuation.value_identified
+                ),
+            )
+        )
+    positions = tuple(positions)
     return CiboObservedEconomicTwin(
         twin_id=f"economic:{capital_twin.twin_id}",
         captured_at=state.decision_at,
