@@ -18,12 +18,6 @@ import json
 from dataclasses import dataclass
 from datetime import datetime
 
-from qore.infrastructure.cibo_capital_management_authority import (
-    CiboCapitalManagementError,
-    TraderOpportunityEnvelope,
-)
-from qore.infrastructure.cibo_ce2i_regime_selector import CiboCapitalRegimeState
-from qore.infrastructure.cibo_trader_capability_profile import CiboEvidenceRef
 from qore.infrastructure.cibo.contracts import (
     CiboEvidenceStatus,
     CiboFunctionalAuthority,
@@ -39,8 +33,13 @@ from qore.infrastructure.cibo.mission_director import (
     CiboMissionDirector,
     CiboMissionDisposition,
 )
+from qore.infrastructure.cibo_capital_management_authority import (
+    CiboCapitalManagementError,
+    TraderOpportunityEnvelope,
+)
+from qore.infrastructure.cibo_ce2i_regime_selector import CiboCapitalRegimeState
+from qore.infrastructure.cibo_trader_capability_profile import CiboEvidenceRef
 from qore.kernel.result import Success
-
 
 _FACULTY_SEQUENCE = (
     ("CF01", CiboFacultyDomain.FINANCIAL_WORLD_MONITORING, "financial-world-state-observed"),
