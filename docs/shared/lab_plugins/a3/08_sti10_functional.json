@@ -7,6 +7,7 @@
     "{python}",
     "-m",
     "pytest",
+    "--no-cov",
     "-q",
     "tests/infrastructure/test_core_stack_v2_shared_trader_intelligence.py",
     "tests/infrastructure/test_core_stack_v2_shared_trader_intelligence_lifecycle.py",
@@ -18,5 +19,7 @@
     "src/qore/infrastructure/core_stack_v2/shared_trader_intelligence*.py",
     "tests/infrastructure/test_core_stack_v2_shared_trader_intelligence*.py",
     "scripts/shared_sti10_*.py"
-  ]
+  ],
+  "lab_fix": "DISABLE_SHARED_COVERAGE_DB_FOR_CONCURRENT_COMPONENT_TASK",
+  "previous_run": "37228777615"
 }

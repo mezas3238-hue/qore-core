@@ -7,6 +7,7 @@
     "{python}",
     "-m",
     "pytest",
+    "--no-cov",
     "-q",
     "tests/infrastructure/test_core_stack_v2_hierarchical_world_model.py"
   ],
@@ -14,5 +15,7 @@
     "src/qore/infrastructure/core_stack_v2/hierarchical_world_model.py",
     "tests/infrastructure/test_core_stack_v2_hierarchical_world_model.py",
     "scripts/shared_mc05_hierarchical_world_real_replay.py"
-  ]
+  ],
+  "lab_fix": "DISABLE_SHARED_COVERAGE_DB_FOR_CONCURRENT_COMPONENT_TASK",
+  "previous_run": "37228777615"
 }

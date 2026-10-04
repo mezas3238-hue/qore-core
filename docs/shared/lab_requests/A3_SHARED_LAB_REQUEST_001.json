@@ -1,10 +1,11 @@
 {
   "identity": "QORE_SHARED_A3_SHARED_LAB_REQUEST_001",
+  "request_revision": 2,
   "requested_by": "Architect-A3",
   "role": "ARCHITECT",
   "repository": "mezas3238-hue/qore-core",
   "branch": "agent/shared-architect-3-transversal-seam-001",
-  "requested_target_parent_head": "a4c97ad47f462775f61aba3a23874beb057c990e",
+  "requested_target_parent_head": "c6150ae9a2f0b28e8c134205813252918ea1a4aa",
   "execution_target": "PUSH_COMMIT_SHA_CONTAINING_THIS_REQUEST",
   "shared_lab_ref": "agent/qore-shared-lab-001",
   "shared_lab_observed_head": "f9792cd95553b5663383b0b3474e5be2e2bda789",
@@ -15,17 +16,18 @@
   "github_actions_role": "COMPUTE_HOST_ONLY",
   "github_actions_scientific_authority": false,
   "legacy_scientific_workflows_used": false,
-  "task_ids": [
-    "a3-mc05-functional",
-    "a3-mc12-functional",
-    "a3-mc27-functional",
-    "a3-mc27-audit",
-    "a3-mc28-functional",
-    "a3-mc28-taxonomy",
-    "a3-sti3-functional",
-    "a3-sti10-functional",
-    "a3-wp10-functional",
-    "a3-mc28-clock-drift-readonly"
+  "previous_run_id": 37228777615,
+  "previous_run_artifact_id": 11312343673,
+  "previous_run_findings": {
+    "functional_tasks_green_except_mc12_infrastructure_collision": true,
+    "mc12_tests_passed": "4/4",
+    "mc12_failure_class": "SHARED_LAB_CONCURRENT_COVERAGE_DB_COLLISION",
+    "clock_drift_failure_class": "MISSING_DEMO_ACCOUNT_ID_BEFORE_REAL_OBSERVATION",
+    "scientific_clock_drift_outcome_observed": false
+  },
+  "repairs_requested": [
+    "pytest tasks use --no-cov to avoid concurrent coverage sqlite collision",
+    "clock drift task discovers DEMO account read-only inside Shared Lab"
   ],
   "governance": {
     "broker_mutation": false,

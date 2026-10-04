@@ -7,6 +7,7 @@
     "{python}",
     "-m",
     "pytest",
+    "--no-cov",
     "-q",
     "tests/infrastructure/test_core_stack_v2_autonomous_scientific_lab.py"
   ],
@@ -14,5 +15,7 @@
     "src/qore/infrastructure/core_stack_v2/autonomous_scientific_lab.py",
     "tests/infrastructure/test_core_stack_v2_autonomous_scientific_lab.py",
     "scripts/shared_wp10_*.py"
-  ]
+  ],
+  "lab_fix": "DISABLE_SHARED_COVERAGE_DB_FOR_CONCURRENT_COMPONENT_TASK",
+  "previous_run": "37228777615"
 }

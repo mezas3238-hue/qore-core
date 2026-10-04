@@ -7,6 +7,7 @@
     "{python}",
     "-m",
     "pytest",
+    "--no-cov",
     "-q",
     "tests/infrastructure/test_core_stack_v2_market_foundation_model_evidence.py"
   ],
@@ -14,5 +15,7 @@
     "src/qore/infrastructure/core_stack_v2/market_foundation_model_evidence.py",
     "tests/infrastructure/test_core_stack_v2_market_foundation_model_evidence.py",
     "scripts/shared_mc12_market_foundation_model_audit.py"
-  ]
+  ],
+  "lab_fix": "DISABLE_SHARED_COVERAGE_DB_FOR_CONCURRENT_COMPONENT_TASK",
+  "previous_run": "37228777615"
 }

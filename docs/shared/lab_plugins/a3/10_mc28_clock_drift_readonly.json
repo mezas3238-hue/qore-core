@@ -7,15 +7,17 @@
     "a3-mc28-taxonomy"
   ],
   "command": [
-    "{python}",
-    "scripts/shared_mc28_runtime_clock_drift.py",
-    "--output",
-    "result/a3-mc28-runtime-clock-drift.json"
+    "bash",
+    "-lc",
+    "set -euo pipefail; if [ -z \"${QORE_CTRADER_DEMO_ACCOUNT_ID:-}\" ]; then account_id=\"$(python -m qore.infrastructure.ctrader_demo_account_discovery)\"; [[ \"$account_id\" =~ ^[1-9][0-9]*$ ]]; export QORE_CTRADER_DEMO_ACCOUNT_ID=\"$account_id\"; fi; python scripts/shared_mc28_runtime_clock_drift.py --output result/a3-mc28-runtime-clock-drift.json"
   ],
   "component_globs": [
     "src/qore/infrastructure/core_stack_v2/runtime_clock_drift_diagnostic.py",
     "tests/infrastructure/test_core_stack_v2_runtime_clock_drift_diagnostic.py",
     "scripts/shared_mc28_runtime_clock_drift.py",
     "docs/shared/evidence/QORE_SHARED_MC28_RUNTIME_CLOCK_DRIFT_PREREGISTRATION_001.json"
-  ]
+  ],
+  "lab_fix": "DISCOVER_DEMO_ACCOUNT_READ_ONLY_INSIDE_SHARED_LAB_TASK",
+  "previous_run": "37228777615",
+  "previous_disposition": "ENGINEERING_BLOCKED_MISSING_DEMO_ACCOUNT_ID"
 }

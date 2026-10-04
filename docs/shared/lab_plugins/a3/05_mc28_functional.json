@@ -7,6 +7,7 @@
     "{python}",
     "-m",
     "pytest",
+    "--no-cov",
     "-q",
     "tests/infrastructure/test_core_stack_v2_mapping_error_diagnostic.py",
     "tests/infrastructure/test_core_stack_v2_runtime_instability_diagnostic.py",
@@ -24,5 +25,7 @@
     "tests/infrastructure/test_core_stack_v2_*blindspot*.py",
     "scripts/shared_mc28_*.py",
     "docs/shared/evidence/QORE_SHARED_MC28_*.json"
-  ]
+  ],
+  "lab_fix": "DISABLE_SHARED_COVERAGE_DB_FOR_CONCURRENT_COMPONENT_TASK",
+  "previous_run": "37228777615"
 }

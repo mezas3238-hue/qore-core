@@ -7,6 +7,7 @@
     "{python}",
     "-m",
     "pytest",
+    "--no-cov",
     "-q",
     "tests/infrastructure/test_core_stack_v2_meta_cognitive_scientific_intelligence.py"
   ],
@@ -15,5 +16,7 @@
     "tests/infrastructure/test_core_stack_v2_meta_cognitive_scientific_intelligence.py",
     "scripts/shared_mc27_*.py",
     "docs/shared/evidence/QORE_SHARED_MC27_*.json"
-  ]
+  ],
+  "lab_fix": "DISABLE_SHARED_COVERAGE_DB_FOR_CONCURRENT_COMPONENT_TASK",
+  "previous_run": "37228777615"
 }
