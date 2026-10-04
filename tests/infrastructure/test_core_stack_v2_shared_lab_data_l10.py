@@ -9,6 +9,8 @@ def test_l10_known_failures_are_detected() -> None:
         duplicate_detected=True,
         fake_provider_detected=True,
         temporal_probe=(0, 11, 10, 12),
+        missing_observation_detected=True,
+        provider_conflict_detected=True,
     )
     assert receipt.passed
     assert set(receipt.injected) == set(receipt.detected)
