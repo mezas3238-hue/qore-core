@@ -87,7 +87,11 @@ def reduce_b16_source_pilot(
     )
     if _sha256(sorted_candidates) != expected_set_hash:
         raise B16SourcePilotReducerError("candidate set hash mismatch")
-    if tuple(preregistration.get("pilot_indices", ())) != FROZEN_PILOT_INDICES:
+    prereg_pilot_indices = preregistration.get("pilot_indices")
+    if (
+        not isinstance(prereg_pilot_indices, (list, tuple))
+        or tuple(prereg_pilot_indices) != FROZEN_PILOT_INDICES
+    ):
         raise B16SourcePilotReducerError("pilot indices drift")
     for key in (
         "target_or_outcome_read",
@@ -106,7 +110,11 @@ def reduce_b16_source_pilot(
         raise B16SourcePilotReducerError("unexpected raw pilot identity")
     if raw_report.get("candidate_set_sha256") != expected_set_hash:
         raise B16SourcePilotReducerError("raw pilot candidate-set drift")
-    if tuple(raw_report.get("pilot_indices", ())) != FROZEN_PILOT_INDICES:
+    raw_pilot_indices = raw_report.get("pilot_indices")
+    if (
+        not isinstance(raw_pilot_indices, (list, tuple))
+        or tuple(raw_pilot_indices) != FROZEN_PILOT_INDICES
+    ):
         raise B16SourcePilotReducerError("raw pilot indices drift")
     for key in (
         "target_or_outcome_read",
@@ -132,16 +140,16 @@ def reduce_b16_source_pilot(
         if not isinstance(raw, dict):
             raise B16SourcePilotReducerError("raw candidate report invalid")
         row = cast(dict[str, Any], raw)
-        key = _candidate_key(row)
-        if key not in expected:
+        candidate_key = _candidate_key(row)
+        if candidate_key not in expected:
             raise B16SourcePilotReducerError(
                 "raw report contains unpreregistered candidate"
             )
-        if key in seen:
+        if candidate_key in seen:
             raise B16SourcePilotReducerError(
                 "raw report duplicates candidate"
             )
-        seen.add(key)
+        seen.add(candidate_key)
 
         technical = row.get("technical_error")
         if type(technical) is not bool:
@@ -199,9 +207,9 @@ def reduce_b16_source_pilot(
         counts[state.value] += 1
         reduced.append(
             {
-                "provider": key[0],
-                "provider_symbol_id": key[1],
-                "provider_symbol": key[2],
+                "provider": candidate_key[0],
+                "provider_symbol_id": candidate_key[1],
+                "provider_symbol": candidate_key[2],
                 "pilot_coverage_state": state.value,
                 "full_r8_source_acquisition_authorized": (
                     state is B16PilotCoverageState.FULL_PILOT_HISTORY
