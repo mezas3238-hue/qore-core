@@ -1,6 +1,6 @@
 {
   "identity": "QORE_SHARED_A3_SHARED_LAB_REQUEST_001",
-  "request_revision": 3,
+  "request_revision": 4,
   "requested_by": "Architect-A3",
   "role": "ARCHITECT",
   "repository": "mezas3238-hue/qore-core",
@@ -41,8 +41,8 @@
     "shared_risk_authority": false,
     "shared_execution_authority": false
   },
-  "previous_success_run_id": 37229054096,
-  "previous_success_artifact_id": 11313112974,
+  "previous_success_run_id": 37229359593,
+  "previous_success_artifact_id": 11312893864,
   "wp12_refresh": {
     "reason": "BROKER_PROVIDER_MISMATCH_CLOSED_AFTER_WP12_AUDIT_002",
     "expected_blocker_count": 5,
@@ -55,6 +55,21 @@
     ]
   },
   "task_ids": [
-    "a3-wp12-sealed-refresh"
-  ]
+    "a3-mc28-execution-quality-census"
+  ],
+  "execution_scope": "SELECTED_TASKS_PLUS_TRANSITIVE_DEPENDENCIES",
+  "execution_quality_census": {
+    "source_run_id": 36927602692,
+    "source_artifact_id": 11194039517,
+    "expected_scientific_disposition": "INSUFFICIENT",
+    "reasons_expected": [
+      "NO_PROVIDER_REJECTION_POPULATION",
+      "NO_PRE_SUBMIT_EXECUTABLE_BID_ASK",
+      "NO_BASELINE_RECENT_WINDOW_SPLIT",
+      "PER_INSTRUMENT_FILL_POPULATION_BELOW_20_PER_WINDOW",
+      "ATTEMPT_POPULATION_30_PER_WINDOW_NOT_OBSERVABLE"
+    ],
+    "new_order_submission": false,
+    "test_plane": "QORE_SHARED_LAB"
+  }
 }

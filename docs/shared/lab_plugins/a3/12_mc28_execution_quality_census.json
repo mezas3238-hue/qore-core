@@ -1,0 +1,24 @@
+{
+  "task_id": "a3-mc28-execution-quality-census",
+  "suite": "PROVIDER_REALITY",
+  "scope": "provider",
+  "dependencies": [],
+  "command": [
+    "bash",
+    "-lc",
+    "set -euo pipefail; root=\"${QORE_SHARED_A3_SEALED_INPUT_ROOT:-$PWD/result/a3-execution-quality-sealed}\"; rm -rf \"$root\" \"$root.zip\"; mkdir -p \"$root\"; gh api \"/repos/${GITHUB_REPOSITORY}/actions/artifacts/11194039517/zip\" > \"$root.zip\"; unzip -q \"$root.zip\" -d \"$root\"; (cd \"$root\" && sha256sum -c SHA256SUMS.txt); python scripts/shared_mc28_execution_quality_evidence_census.py --evidence \"$root/empirical-slippage.json\" --output result/a3-mc28-execution-quality-evidence-census.json; cat result/a3-mc28-execution-quality-evidence-census.json"
+  ],
+  "component_globs": [
+    "scripts/shared_mc28_execution_quality_evidence_census.py",
+    "docs/shared/evidence/QORE_SHARED_MC28_EXECUTION_QUALITY_DETERIORATION_PREREGISTRATION_001.json"
+  ],
+  "sealed_source": {
+    "run_id": 36927602692,
+    "artifact_id": 11194039517,
+    "schema": "qore.cibo.ctrader_demo.empirical_slippage.v1"
+  },
+  "expected_scientific_disposition": "INSUFFICIENT",
+  "new_order_submission_for_this_diagnostic": false,
+  "broker_mutation": false,
+  "protected_holdout_opened": false
+}

@@ -72,8 +72,42 @@ jobs:
 
           repo = Path.cwd()
           state = repo / "result" / "shared-lab-a3"
+          all_registry = NativeSuiteRegistry()
+          all_registry.load_plugins(
+              repo / "docs" / "shared" / "lab_plugins" / "a3"
+          )
+          request_payload = json.loads(
+              (
+                  repo
+                  / "docs"
+                  / "shared"
+                  / "lab_requests"
+                  / "A3_SHARED_LAB_REQUEST_001.json"
+              ).read_text(encoding="utf-8")
+          )
+          requested = {str(item) for item in request_payload["task_ids"]}
+          known = {item.task_id for item in all_registry.definitions()}
+          unknown = requested - known
+          if unknown:
+              raise RuntimeError(
+                  f"unknown A3 Shared Lab task ids: {sorted(unknown)}"
+              )
+          selected = set(requested)
+          pending = list(requested)
+          while pending:
+              task_id = pending.pop()
+              for dependency in all_registry.get(task_id).dependencies:
+                  if dependency not in selected:
+                      selected.add(dependency)
+                      pending.append(dependency)
+
           registry = NativeSuiteRegistry()
-          registry.load_plugins(repo / "docs" / "shared" / "lab_plugins" / "a3")
+          for definition in all_registry.definitions():
+              if definition.task_id in selected:
+                  registry.register(definition)
+          if not registry.definitions():
+              raise RuntimeError("A3 Shared Lab request selected no tasks")
+
           request = RunRequest(
               repository="mezas3238-hue/qore-core",
               repo_path=str(repo),
