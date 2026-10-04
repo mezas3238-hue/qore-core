@@ -465,7 +465,9 @@ def test_runtime_full_twin_identifies_open_position_continuation_for_portfolio()
     assert positions[0]["signal_fingerprint"] == "open-position-1"
     assert positions[0]["entry_expected_net_value_usd"] == "6"
     assert positions[0]["expected_continuation_net_value_usd"] == "4.50"
-    assert positions[0]["expected_remaining_capital_minutes"] == "45"
+    assert Decimal(
+        positions[0]["expected_remaining_capital_minutes"]
+    ) == Decimal("45")
     assert positions[0]["continuation_value_identified"] is True
     assert positions[0]["releasable"] is True
 
