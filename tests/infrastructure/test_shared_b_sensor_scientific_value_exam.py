@@ -13,7 +13,6 @@ from qore.infrastructure.core_stack_v2.shared_b_sensor_scientific_value_exam imp
     evaluate_sensor_scientific_value,
 )
 
-
 NOW = datetime(2026, 10, 4, 18, 0, tzinfo=UTC)
 
 
