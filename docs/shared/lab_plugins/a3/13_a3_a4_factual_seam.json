@@ -1,12 +1,12 @@
 {
-  "task_id": "a3-a4-factual-seam-contract",
+  "task_id": "a3-a4-factual-seam-import-diagnostic",
   "suite": "CONTRACT",
   "scope": "cognition",
   "dependencies": [],
   "command": [
     "bash",
     "-lc",
-    "set -euo pipefail; ruff check src/qore/infrastructure/core_stack_v2/shared_a3_world_fact_consumer.py tests/infrastructure/test_shared_a3_world_fact_consumer.py; mypy src/qore/infrastructure/core_stack_v2/shared_a3_world_fact_consumer.py; python -m pytest --no-cov -q tests/infrastructure/test_shared_a3_world_fact_consumer.py"
+    "set -euo pipefail; target=tests/infrastructure/test_shared_a3_world_fact_consumer.py; cp \"$target\" /tmp/a3-seam-before.py; ruff check --fix src/qore/infrastructure/core_stack_v2/shared_a3_world_fact_consumer.py \"$target\" || true; echo '--- RUFF FIX DIFF ---'; diff -u /tmp/a3-seam-before.py \"$target\" || true; echo '--- RUFF FIXED FILE ---'; cat \"$target\"; exit 3"
   ],
   "component_globs": [
     "src/qore/infrastructure/core_stack_v2/shared_a3_world_fact_consumer.py",
@@ -20,5 +20,8 @@
     "NO_DIRECTIONAL_ACTION_HINT",
     "NO_SIZING_RISK_EXECUTION_AUTHORITY"
   ],
-  "integrator_2_owns_mapping_to_b4": true
+  "integrator_2_owns_mapping_to_b4": true,
+  "diagnostic_only": true,
+  "expected_exit_code": 3,
+  "contract_pass_claim_allowed": false
 }
