@@ -98,7 +98,11 @@ def assess_a3_b4_scope(
                 is not SharedA3B4CalendarStatus.VERIFIED_CANONICAL
             ):
                 reasons.append(SharedA3B4ScopeBlocker.MARKET_TIME_UNRESOLVED)
-            if scope_fact.temporal_status is not SharedA3B4TemporalStatus.COMPARABLE:
+            if (
+                require_relation_claims
+                and scope_fact.temporal_status
+                is not SharedA3B4TemporalStatus.COMPARABLE
+            ):
                 reasons.append(SharedA3B4ScopeBlocker.TEMPORAL_NOT_COMPARABLE)
             if scope_fact.data_health_state != "HEALTHY":
                 reasons.append(SharedA3B4ScopeBlocker.DATA_HEALTH_NOT_READY)
@@ -110,9 +114,8 @@ def assess_a3_b4_scope(
             ready.append(key)
 
     consumption_allowed = not blocked and len(ready) == len(required)
-    relation_allowed = consumption_allowed and (
-        not require_relation_claims
-        or all(by_key[key].relation_claim_allowed for key in required)
+    relation_allowed = consumption_allowed and all(
+        by_key[key].relation_claim_allowed for key in required
     )
     return SharedA3B4ScopeResult(
         required_instrument_keys=required,
