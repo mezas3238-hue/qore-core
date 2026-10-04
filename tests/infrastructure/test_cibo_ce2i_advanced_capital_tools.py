@@ -241,6 +241,40 @@ def test_t08_fails_closed_without_causal_risk_mapping_and_oos_utility() -> None:
     assert "risk mapping" in decision.reason
 
 
+
+def test_t08_exact_same_instrument_offset_needs_no_correlation_model() -> None:
+    decision = evaluate_portfolio_netting(
+        PortfolioNettingEvidence(
+            evidence_id="t08-exact-symbol",
+            observed_at=_NOW,
+            correlation_state_id="exact-qore-symbol-identity-map",
+            correlation_stable=False,
+            factor_map_verified=True,
+            risk_mapping_evidence_id="direct-stop-risk-map",
+            risk_mapping_verified=True,
+            exact_instrument_identity_verified=True,
+            exact_instrument_evidence_id="qore-symbol-identity",
+            exposures=(
+                FactorExposure(
+                    position_id="long",
+                    factor_id="symbol:EURUSD",
+                    signed_risk_usd=Decimal("10"),
+                ),
+                FactorExposure(
+                    position_id="short",
+                    factor_id="symbol:EURUSD",
+                    signed_risk_usd=Decimal("-6"),
+                ),
+            ),
+        )
+    )
+
+    assert decision.disposition is AdvancedToolDisposition.APPLIED
+    assert decision.released_capacity_usd == Decimal("8")
+    assert "same-instrument" in decision.reason
+
+
+
 def test_t10_uses_oos_output_per_capital_minute_without_worse_tail() -> None:
     decision = evaluate_capital_velocity(
         CapitalVelocityEvidence(
