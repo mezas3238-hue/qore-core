@@ -187,7 +187,7 @@ def test_phase20h_single_stable_candidate_does_not_require_competition() -> None
     )
 
 
-def test_phase20h_recovery_preserves_all_new_capital() -> None:
+def test_phase20h_demo_recovery_allocates_one_bounded_minimum_probe() -> None:
     mission = _demo_mission()
     decision = propose_phase20h_robust_allocation(
         mission=mission,
@@ -207,11 +207,13 @@ def test_phase20h_recovery_preserves_all_new_capital() -> None:
     )
 
     assert decision.regime_posture is CiboRegimePosture.RECOVERY
-    assert decision.disposition is Phase20AllocatorDisposition.PRESERVE_CAPACITY
-    assert decision.reserve_stop_risk_usd == Decimal("60")
-    assert decision.reserve_margin_usd == Decimal("500")
-    assert decision.deployable_stop_risk_usd == 0
-    assert decision.allocation is None
+    assert decision.disposition is Phase20AllocatorDisposition.ALLOCATE
+    assert decision.reserve_stop_risk_usd == Decimal("55")
+    assert decision.reserve_margin_usd == Decimal("490")
+    assert decision.deployable_stop_risk_usd == Decimal("5")
+    assert decision.deployable_margin_usd == Decimal("10")
+    assert decision.allocation is not None
+    assert decision.allocation.selected_signal_fingerprints == ("fast",)
     assert decision.applied_tools == ("T15", "T13")
 
 
@@ -235,7 +237,7 @@ def test_phase20h_stale_regime_halts_without_invoking_blocked_tools() -> None:
     assert decision.allocation is None
 
 
-def test_phase20h_defensive_reserves_option_and_blocks_competition() -> None:
+def test_phase20h_demo_defensive_reserves_option_and_still_measures_seed() -> None:
     mission = _demo_mission()
     decision = propose_phase20h_robust_allocation(
         mission=mission,
@@ -255,12 +257,13 @@ def test_phase20h_defensive_reserves_option_and_blocks_competition() -> None:
     )
 
     assert decision.regime_posture is CiboRegimePosture.DEFENSIVE
-    assert decision.disposition is Phase20AllocatorDisposition.NO_ELIGIBLE_ALLOCATION
+    assert decision.disposition is Phase20AllocatorDisposition.ALLOCATE
     assert decision.reserve_stop_risk_usd == Decimal("4")
     assert decision.reserve_margin_usd == Decimal("20")
     assert decision.reserved_for_opportunity_ids == ("future-small",)
     assert decision.applied_tools == ("T15",)
-    assert decision.allocation is None
+    assert decision.allocation is not None
+    assert decision.allocation.selected_signal_fingerprints == ("fast",)
     assert tuple(item.tool_code for item in decision.runtime_receipts) == ("T15",)
     assert decision.runtime_receipts[0].decision_changed is True
     assert decision.runtime_receipts[0].economic_effect_observable is True
