@@ -1,0 +1,90 @@
+{
+  "schema": "QORE_SHARED_INTEGRATOR_1_A1_A2_INTAKE_RECONCILIATION_002",
+  "generated_at": "2026-10-04",
+  "repository": "mezas3238-hue/qore-core",
+  "shared_pr": 635,
+  "branch": "agent/shared-integrator-1-a1-a2-001",
+  "common_producer_baseline": "cc8c0953e54bdc60213831b417a1473b100b80cf",
+  "shared_master_intake_head": "55144bb92abdc5135521f545667b94dcad555bb1",
+  "integrator_code_head_before_manifest": "03103fd187dbc02046c57bc0c24277272756512f",
+  "producer_intake": {
+    "architect_1": {
+      "branch": "agent/shared-architect-1-cognitive-core-001",
+      "head": "6ad93e8d493e13e588d9f7dc726fc061768a7c80",
+      "commits_after_common_baseline": 11,
+      "changed_file_count_after_common_baseline": 54,
+      "latest_intake_commit": "03103fd187dbc02046c57bc0c24277272756512f",
+      "evidence_manifest": "docs/shared/integration/SHARED_ARCHITECT_1_EVIDENCE_INTAKE_MANIFEST_001.md",
+      "status": "INGESTED_EXACT_BLOBS_SHARED_LAB_EXECUTION_BLOCKED"
+    },
+    "architect_2": {
+      "branch": "agent/shared-architect-2-sti-001",
+      "head": "5803ea6442c6ba7be8a8c0cedd5fd804a362c411",
+      "commits_after_common_baseline": 25,
+      "changed_file_count_after_common_baseline": 45,
+      "dataset_manifest": "docs/shared/evidence/QORE_SHARED_LAB_A2_R6_R5_DATASET_MANIFEST_001.json",
+      "dataset_sha256": "15575cd662b92e736fe53f59fbad50c42d244e29180cfb10fa8b6c7a87c560d0",
+      "status": "INGESTED_EXACT_BLOBS_SHARED_LAB_EXECUTION_BLOCKED"
+    }
+  },
+  "integration_repairs": {
+    "producer_path_overlap_in_latest_unabsorbed_deltas": 0,
+    "a1_lab_gate_expanded": true,
+    "a2_scientific_chain_made_non_skippable": true,
+    "pair_gate_expanded": true,
+    "plugin_dag_audit": "docs/shared/integration/SHARED_INTEGRATOR_1_SHARED_LAB_PLUGIN_DAG_AUDIT_002.json"
+  },
+  "pair_scientific_chain": {
+    "a1": [
+      "MC14_B04_SOURCE_PREFLIGHT",
+      "MC14_GOVERNED_REPLAY_PENDING",
+      "STI5_NEW_INFORMATION_PENDING",
+      "STI6_NEW_INFORMATION_PENDING",
+      "STI8_V4_FUTURE_OOS_PENDING",
+      "MC17_NEW_REPLICATED_MECHANISM_PENDING",
+      "MC18_CONSUMED_DEVELOPMENT_CALIBRATION_PENDING",
+      "MC19_FUNCTIONAL_CAUSALITY_AND_FUTURE_VALUE_PENDING"
+    ],
+    "a2": [
+      "MC23_VALIDATED_NOVEL_REGIME_ADAPTATION",
+      "MC24_REGRESSION_NON_DEGRADATION",
+      "MC24_EMPIRICAL_KNOWLEDGE_HALF_LIFE",
+      "MC25_PERFORMANCE_STRESS",
+      "MC25_FORMAL_STRESS",
+      "MC25_SAME_LINEAGE_SHADOW",
+      "MC25_CERTIFICATION",
+      "MC25_GOVERNED_PROMOTION",
+      "WP11_EXACT_TERMINAL_RECONCILIATION"
+    ]
+  },
+  "formal_validation": {
+    "policy": "QORE_SHARED_LAB_ONLY_FOR_SHARED_TESTS",
+    "github_actions_dispatched_by_integrator_1": false,
+    "shared_lab_exact_sha_run_completed": false,
+    "shared_lab_head_observed": "f9792cd95553b5663383b0b3474e5be2e2bda789",
+    "blocking_seam": "EXTERNAL_HARNESS_TARGET_SHA_SEAM",
+    "a1_blocker_evidence": "docs/shared/evidence/QORE_SHARED_A1_SHARED_LAB_EXACT_SHA_BLOCKER_001.json",
+    "lab_pr_comment": 5983660147,
+    "dataset_runtime_dependency": "A2 consumed R6/R5 ZIP must exist in the Shared Lab Dataset Store under dataset_id shared-a2-consumed-r6-r5 version 1 with the frozen sha256 before one-shot execution."
+  },
+  "scientific_status": {
+    "pair_package_terminal": false,
+    "technical_green_claimed": false,
+    "scientific_completion_claimed": false,
+    "reason": "Static integration and DAG correctness are repaired, but Owner-mandated native Shared Lab exact-SHA execution is blocked by the current Lab harness/target seam."
+  },
+  "governance": {
+    "pr_635_merged": false,
+    "final_shared_holdout_opened": false,
+    "live_authorized": false,
+    "production_authorized": false,
+    "real_capital_authorized": false,
+    "vps_changes_authorized": false,
+    "broker_mutation_authorized": false,
+    "shared_sizing_authority": false,
+    "shared_risk_authority": false,
+    "shared_order_authority": false,
+    "shared_execution_authority": false,
+    "outcome_aware_gate_rescue_authorized": false
+  }
+}
