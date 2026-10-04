@@ -18,10 +18,11 @@ from typing import Any
 EXPECTED_FUNCTIONS = 53
 REPAIR_SEVERITY = {
     "UNOBSERVABLE": 0,
-    "AUTHORITY_LOCKED": 1,
-    "SCIENCE_LOCKED": 2,
-    "BLOCKED": 3,
-    "DEGRADED": 4,
+    "SHADOW_ONLY": 1,
+    "AUTHORITY_LOCKED": 2,
+    "SCIENCE_LOCKED": 3,
+    "BLOCKED": 4,
+    "DEGRADED": 5,
 }
 
 
@@ -94,6 +95,14 @@ def _classify(row: dict[str, Any]) -> tuple[str, bool, str]:
                 "runtime input/output and consumer were observed; "
                 "this call legitimately made no change"
             ),
+        )
+
+    if diagnosis == "SHADOW_ONLY_ENGINE_OBSERVED":
+        return (
+            "SHADOW_ONLY",
+            True,
+            "native engine is exercised diagnostically but its output does "
+            "not participate in the economic decision/lifecycle path",
         )
 
     if diagnosis in {
@@ -440,6 +449,10 @@ def build(
             "SAFETY_LOCKED": (
                 "healthy fail-closed safety behavior while expansion "
                 "preconditions are not satisfied"
+            ),
+            "SHADOW_ONLY": (
+                "engine is exercised diagnostically but is not yet wired "
+                "into the economic decision/lifecycle path"
             ),
             "AUTHORITY_LOCKED": (
                 "engine executes but a required external authority receipt "

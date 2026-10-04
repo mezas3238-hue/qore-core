@@ -561,6 +561,14 @@ def _ce2i_rows(
             and item.get("broker_mutation") is False
             for item in receipts
         )
+        direct_diagnostic_only_count = sum(
+            item.get("diagnostic_only") is True
+            for item in direct_rows
+        )
+        shadow_only_direct = (
+            bool(direct_rows)
+            and direct_diagnostic_only_count == len(direct_rows)
+        )
         direct_io_complete = bool(direct_rows) and all(
             isinstance(item.get("input_payload"), dict)
             and bool(item["input_payload"])
@@ -582,7 +590,14 @@ def _ce2i_rows(
         )
         status = str(cov.get("status", "UNKNOWN"))
         coverage_reason = str(cov.get("reason", ""))
-        if runtime_io_complete and runtime_changed > 0:
+        if (
+            code == "T14"
+            and shadow_only_direct
+            and not receipts
+            and effect_count == 0
+        ):
+            diagnosis = "SHADOW_ONLY_ENGINE_OBSERVED"
+        elif runtime_io_complete and runtime_changed > 0:
             diagnosis = "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED"
         elif runtime_io_complete and (
             status == "JUSTIFIED_NOT_APPLICABLE"
@@ -639,6 +654,9 @@ def _ce2i_rows(
                 "advanced_call_count": len(rows),
                 "runtime_receipt_count": len(receipts),
                 "direct_trace_evidence_count": len(direct_rows),
+                "direct_trace_diagnostic_only_count": (
+                    direct_diagnostic_only_count
+                ),
                 "runtime_actuation_count": runtime_changed,
                 "economic_effect_count": effect_count,
                 "dispositions": dict(dispositions),
