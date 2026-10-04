@@ -1,0 +1,43 @@
+{
+  "identity": "QORE_SHARED_B5_SHARED_LAB_REQUEST_001",
+  "requested_by": "Architect-B5",
+  "role": "ARCHITECT",
+  "repository": "mezas3238-hue/qore-core",
+  "branch": "agent/shared-architect-b5-relational-asset-world-001",
+  "execution_target": "PUSH_COMMIT_SHA_CONTAINING_THIS_REQUEST",
+  "shared_lab_ref": "agent/qore-shared-lab-001",
+  "shared_lab_observed_head": "f9792cd95553b5663383b0b3474e5be2e2bda789",
+  "execution_mode": "COMPONENT_WITH_B5_PLUGIN_REGISTRY",
+  "dataset": "builtin-engineering@1",
+  "tests_must_run_in_shared_lab": true,
+  "github_actions_scientific_authority": false,
+  "final_protected_holdout_opened": false,
+  "owned_work_ids": [
+    "B-11",
+    "B-12",
+    "B-13",
+    "B-14",
+    "B-15"
+  ],
+  "current_dependency_truth": {
+    "b11_b12_b13": "EMPIRICAL_POPULATION_BLOCKED_UNTIL_B08_RELATIONAL_COMPARABILITY_AUTHORIZED",
+    "b14": "KNOWN_BLINDSPOT_ZERO_CURRENT_AGRICULTURAL_SOFT_LIVESTOCK_CANDIDATES",
+    "b15": "GOVERNED_UNKNOWN_NO_PRODUCT_VENUE_FRONT_ROLL_CONTINUOUS_INFERENCE"
+  },
+  "task_ids": [
+    "b5-relational-science-functional",
+    "b5-asset-worlds-functional",
+    "b5-handoff-determinism"
+  ],
+  "governance": {
+    "broker_mutation": false,
+    "order_create_modify_close": false,
+    "live": false,
+    "production": false,
+    "real_capital": false,
+    "final_holdout_opened": false,
+    "shared_sizing_authority": false,
+    "shared_risk_authority": false,
+    "shared_execution_authority": false
+  }
+}

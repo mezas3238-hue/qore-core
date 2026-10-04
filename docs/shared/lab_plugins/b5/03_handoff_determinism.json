@@ -1,0 +1,23 @@
+{
+  "task_id": "b5-handoff-determinism",
+  "suite": "DETERMINISM",
+  "scope": "full-stack",
+  "dependencies": [
+    "b5-relational-science-functional",
+    "b5-asset-worlds-functional"
+  ],
+  "command": [
+    "{python}",
+    "-m",
+    "pytest",
+    "--no-cov",
+    "-q",
+    "tests/infrastructure/test_shared_b5_handoff.py"
+  ],
+  "component_globs": [
+    "src/qore/infrastructure/core_stack_v2/shared_b5_handoff.py",
+    "scripts/shared_b5_handoff.py",
+    "tests/infrastructure/test_shared_b5_handoff.py",
+    "docs/shared/evidence/SHARED_ARCHITECT_B5_RELATIONAL_ASSET_WORLD_RESULT_001.json"
+  ]
+}
