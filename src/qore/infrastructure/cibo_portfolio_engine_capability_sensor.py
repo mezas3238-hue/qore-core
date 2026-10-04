@@ -82,11 +82,12 @@ def measure_portfolio_engine_capability(
     if shadow.open_position_competition_count == 0:
         shadow_efficiency = Decimal(1)
     elif shadow.release_proposal_count == 0:
-        # A valid KEEP decision is not a failure. Shadow actuation is complete
-        # when the engine observed the competition surface and made a decision.
+        # A valid KEEP decision is complete without a mutation path.
         shadow_efficiency = Decimal(1)
     else:
-        shadow_efficiency = shadow.shadow_actuation_rate
+        # RELEASE is still shadow-only. Proposal frequency must never be
+        # misreported as real economic actuation.
+        shadow_efficiency = Decimal(0)
 
     capability = min(
         continuation_efficiency,
