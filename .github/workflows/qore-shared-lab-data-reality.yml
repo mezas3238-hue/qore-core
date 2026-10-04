@@ -12,6 +12,8 @@ on:
       - "src/qore/infrastructure/core_stack_v2/shared_lab_identity_*.py"
       - "src/qore/infrastructure/core_stack_v2/shared_lab_market_*.py"
       - "src/qore/infrastructure/core_stack_v2/shared_lab_temporal_*.py"
+      - "src/qore/infrastructure/core_stack_v2/shared_lab_universe_*.py"
+      - "src/qore/infrastructure/core_stack_v2/shared_lab_resilience.py"
       - "tests/infrastructure/test_core_stack_v2_shared_lab_*"
       - ".github/workflows/qore-shared-lab-data-reality.yml"
   workflow_dispatch:
@@ -53,6 +55,8 @@ jobs:
           tests/infrastructure/test_core_stack_v2_shared_lab_data_exam.py
           tests/infrastructure/test_core_stack_v2_shared_lab_data_provenance.py
           tests/infrastructure/test_core_stack_v2_shared_lab_data_authority_firewall.py
+          tests/infrastructure/test_core_stack_v2_shared_lab_universe_completeness.py
+          tests/infrastructure/test_core_stack_v2_shared_lab_resilience.py
       - name: Emit full Data Reality exam receipt
         run: |
           python -m qore.infrastructure.core_stack_v2.shared_lab_data_exam > shared-lab-data-reality-exam.json
