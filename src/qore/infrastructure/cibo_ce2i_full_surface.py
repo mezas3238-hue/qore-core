@@ -236,28 +236,36 @@ def build_causal_baseline_advanced_evidence(
         sum(baseline_risks, Decimal(0)),
         Decimal("0.00000001"),
     )
+    causal_portfolio_netting = PortfolioNettingEvidence(
+        evidence_id="causal-netting:" + decision_at.isoformat(),
+        observed_at=decision_at,
+        exposures=tuple(factor_rows),
+        correlation_state_id="exact-qore-symbol-identity-map",
+        correlation_stable=False,
+        factor_map_verified=True,
+        risk_mapping_evidence_id=(
+            "direct-stop-risk-map:" + decision_at.isoformat()
+        ),
+        risk_mapping_verified=True,
+        exact_instrument_identity_verified=True,
+        exact_instrument_evidence_id=(
+            "qore-symbol-identity:" + decision_at.isoformat()
+        ),
+    )
+    existing_portfolio_netting = existing.portfolio_netting
+    if (
+        existing_portfolio_netting is not None
+        and _portfolio_netting_evidence_is_actionable(existing_portfolio_netting)
+    ):
+        portfolio_netting = existing_portfolio_netting
+    else:
+        # Exact same-QORE-symbol identity is observable at decision time and
+        # must not be hidden by an older, weaker unverified factor map.
+        portfolio_netting = causal_portfolio_netting
+
     return AdvancedPortfolioEvidence(
         opportunities=tuple(rows),
-        portfolio_netting=(
-            existing.portfolio_netting
-            if existing.portfolio_netting is not None
-            else PortfolioNettingEvidence(
-                evidence_id="causal-netting:" + decision_at.isoformat(),
-                observed_at=decision_at,
-                exposures=tuple(factor_rows),
-                correlation_state_id="exact-qore-symbol-identity-map",
-                correlation_stable=False,
-                factor_map_verified=True,
-                risk_mapping_evidence_id=(
-                    "direct-stop-risk-map:" + decision_at.isoformat()
-                ),
-                risk_mapping_verified=True,
-                exact_instrument_identity_verified=True,
-                exact_instrument_evidence_id=(
-                    "qore-symbol-identity:" + decision_at.isoformat()
-                ),
-            )
-        ),
+        portfolio_netting=portfolio_netting,
         capital_velocity=(
             existing.capital_velocity
             if existing.capital_velocity is not None
@@ -287,6 +295,34 @@ def build_causal_baseline_advanced_evidence(
                 instruments=(),
             )
         ),
+    )
+
+
+def _portfolio_netting_evidence_is_actionable(
+    evidence: PortfolioNettingEvidence,
+) -> bool:
+    """Return whether pre-existing T08 evidence can safely outrank exact identity."""
+
+    if (
+        not evidence.factor_map_verified
+        or not evidence.risk_mapping_verified
+        or evidence.risk_mapping_evidence_id is None
+    ):
+        return False
+    if evidence.exact_instrument_identity_verified:
+        return evidence.exact_instrument_evidence_id is not None
+    return (
+        evidence.correlation_stable
+        and evidence.correlation_oos
+        and evidence.correlation_evidence_id is not None
+        and evidence.correlation_sample_size
+        >= evidence.minimum_correlation_sample
+        and evidence.correlation_stability_folds
+        >= evidence.minimum_correlation_folds
+        and evidence.netting_utility_oos
+        and evidence.netting_utility_evidence_id is not None
+        and evidence.netting_utility_sample_size
+        >= evidence.minimum_netting_utility_sample
     )
 
 

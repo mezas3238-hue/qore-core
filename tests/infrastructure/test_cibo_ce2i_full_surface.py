@@ -12,6 +12,8 @@ from qore.infrastructure.cibo_capital_management_authority import (
 )
 from qore.infrastructure.cibo_ce2i_advanced_capital_tools import (
     AdvancedToolDisposition,
+    FactorExposure,
+    PortfolioNettingEvidence,
 )
 from qore.infrastructure.cibo_ce2i_full_surface import (
     AdvancedPortfolioEvidence,
@@ -156,3 +158,93 @@ def test_causal_baseline_feeds_advanced_engines_without_inventing_oos() -> None:
     assert by_code["T16"].disposition is AdvancedToolDisposition.ABSTAIN
     assert by_code["T17"].disposition is AdvancedToolDisposition.ABSTAIN
     assert by_code["T02"].disposition is AdvancedToolDisposition.FAIL_CLOSED
+
+def test_causal_baseline_replaces_unverified_t08_map_with_exact_symbol_identity() -> None:
+    observed_at = datetime(2021, 8, 30, 13, tzinfo=UTC)
+    short = TraderOpportunityEnvelope(
+        trader_id=TraderLineage.R38_GBPJPY,
+        signal_fingerprint="gbpjpy-short",
+        qore_symbol="GBPJPY",
+        provider_symbol="GBPJPY",
+        side="short",
+        entry_type="market",
+        intended_entry=Decimal("151.000"),
+        stop_loss=Decimal("151.500"),
+        take_profit=Decimal("150.000"),
+        stop_loss_per_volume=Decimal("1.25"),
+        margin_per_volume=Decimal("2"),
+        volume_step=Decimal("0.01"),
+        minimum_volume=Decimal("0.01"),
+        maximum_volume=Decimal("1"),
+    )
+    long = TraderOpportunityEnvelope(
+        trader_id=TraderLineage.VT08_FOREX,
+        signal_fingerprint="gbpjpy-long",
+        qore_symbol="GBPJPY",
+        provider_symbol="GBPJPY",
+        side="long",
+        entry_type="market",
+        intended_entry=Decimal("151.000"),
+        stop_loss=Decimal("150.500"),
+        take_profit=Decimal("152.000"),
+        stop_loss_per_volume=Decimal("0.35"),
+        margin_per_volume=Decimal("2"),
+        volume_step=Decimal("0.01"),
+        minimum_volume=Decimal("0.01"),
+        maximum_volume=Decimal("1"),
+    )
+    weak = PortfolioNettingEvidence(
+        evidence_id="older-unverified-factor-map",
+        observed_at=observed_at,
+        exposures=(
+            FactorExposure(
+                position_id="gbpjpy-short",
+                factor_id="opaque-gbpjpy",
+                signed_risk_usd=Decimal("-1.25"),
+            ),
+            FactorExposure(
+                position_id="gbpjpy-long",
+                factor_id="opaque-gbpjpy",
+                signed_risk_usd=Decimal("0.35"),
+            ),
+        ),
+        correlation_state_id="unverified-map",
+        correlation_stable=False,
+        factor_map_verified=False,
+    )
+
+    evidence = build_causal_baseline_advanced_evidence(
+        opportunities=(short, long),
+        decision_at=observed_at,
+        existing=AdvancedPortfolioEvidence(portfolio_netting=weak),
+    )
+
+    assert evidence.portfolio_netting is not None
+    assert evidence.portfolio_netting.factor_map_verified is True
+    assert evidence.portfolio_netting.risk_mapping_verified is True
+    assert evidence.portfolio_netting.exact_instrument_identity_verified is True
+    assert {
+        item.factor_id for item in evidence.portfolio_netting.exposures
+    } == {"symbol:GBPJPY"}
+
+    result = evaluate_full_ce2i_surface(
+        mission=_mission(),
+        regime_state=CiboCapitalRegimeState(
+            liquidity=LiquidityState.NORMAL,
+            volatility=VolatilityState.NORMAL,
+            correlation=CorrelationState.NORMAL,
+            provider_condition=ProviderCondition.HEALTHY,
+            risk_utilization=Decimal("0.20"),
+            margin_utilization=Decimal("0.20"),
+            drawdown_utilization=Decimal("0.20"),
+            opportunity_count=2,
+        ),
+        opportunities=(short, long),
+        advanced_evidence=evidence,
+        decision_at=observed_at,
+    )
+    by_code = {item.tool_code: item for item in result.portfolio_decisions}
+    assert by_code["T08"].disposition is AdvancedToolDisposition.APPLIED
+    assert by_code["T08"].released_capacity_usd is not None
+    assert by_code["T08"].released_capacity_usd > 0
+
