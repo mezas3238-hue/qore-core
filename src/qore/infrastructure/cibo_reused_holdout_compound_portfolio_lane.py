@@ -70,6 +70,9 @@ from qore.infrastructure.cibo_ce2i_usd60_six_month_certification import (
     FROZEN_CIBO_USD60_SIX_MONTH_PROTOCOL,
 )
 from qore.infrastructure.cibo_cma_risk_request import build_cma_risk_request
+from qore.infrastructure.cibo_open_position_mark_intelligence import (
+    CiboPositionMarkEvidence,
+)
 from qore.infrastructure.cibo_phase22_v4_chronological_execution import (
     Phase22HistoricalExecutionReport,
     Phase22HistoricalRegimeEvidence,
@@ -1208,6 +1211,7 @@ def run_compound_portfolio_lane(
     lab_seed_multiplier: Decimal = Decimal("1"),
     lab_dynamic_leverage: bool = False,
     regime_evidence: tuple[Phase22HistoricalRegimeEvidence, ...] = (),
+    position_mark_evidence: tuple[CiboPositionMarkEvidence, ...] = (),
 ) -> CompoundPortfolioLaneResult:
     """Add causal profit-funded seeds without changing Core policy selection."""
 
@@ -1253,6 +1257,29 @@ def run_compound_portfolio_lane(
         raise CiboCapitalManagementError(
             "compound regime evidence must use canonical Phase22 contracts"
         )
+    if any(
+        not isinstance(item, CiboPositionMarkEvidence)
+        for item in position_mark_evidence
+    ):
+        raise CiboCapitalManagementError(
+            "compound position marks must use canonical causal evidence"
+        )
+    marks_by_signal: dict[str, tuple[CiboPositionMarkEvidence, ...]] = {}
+    mark_groups: defaultdict[str, list[CiboPositionMarkEvidence]] = defaultdict(list)
+    for item in position_mark_evidence:
+        mark_groups[item.signal_fingerprint].append(item)
+    for signal_fingerprint, rows in mark_groups.items():
+        marks_by_signal[signal_fingerprint] = tuple(
+            sorted(
+                rows,
+                key=lambda item: (
+                    item.observed_at,
+                    item.source_bar_closed_at,
+                    item.evidence_sha256,
+                ),
+            )
+        )
+
     regime_by_epoch = {item.decision_epoch_id: item for item in regime_evidence}
     if len(regime_by_epoch) != len(regime_evidence):
         raise CiboCapitalManagementError("compound regime evidence epoch ids must be unique")
@@ -1684,6 +1711,27 @@ def run_compound_portfolio_lane(
                             expectation_evidence_sha256=(
                                 item.expectation_evidence_sha256
                             ),
+                            current_mark_price=(
+                                None
+                                if not (
+                                    causal_marks := tuple(
+                                        mark
+                                        for mark in marks_by_signal.get(
+                                            item.signal_fingerprint,
+                                            (),
+                                        )
+                                        if mark.observed_at
+                                        <= epoch.market_decision_at
+                                    )
+                                )
+                                else causal_marks[-1].mark_price
+                            ),
+                            market_state_observed_at=(
+                                None
+                                if not causal_marks
+                                else causal_marks[-1].observed_at
+                            ),
+                            mark_to_market_identified=bool(causal_marks),
                             continuation_value_identified=False,
                         )
                         for item in open_rows.values()
