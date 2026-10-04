@@ -16,7 +16,6 @@ from qore.infrastructure.cibo_capital_velocity_redeployment import (
 from qore.infrastructure.cibo_full_economic_digital_twin import (
     CiboIdleCapitalClass,
 )
-
 from tests.infrastructure.test_cibo_full_economic_digital_twin import T0, _full_twin
 
 
