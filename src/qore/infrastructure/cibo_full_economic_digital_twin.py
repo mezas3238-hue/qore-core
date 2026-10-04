@@ -148,6 +148,7 @@ class CiboObservedOpportunityState:
     context_allowed: bool
     provider_viable: bool
     capital_source_eligible: bool
+    maximum_multiplier: int = 4
     future_outcome_used: bool = False
 
     def __post_init__(self) -> None:
@@ -184,6 +185,14 @@ class CiboObservedOpportunityState:
         if self.stop_risk_usd <= 0 or self.margin_usd <= 0:
             raise CiboCapitalManagementError(
                 "Full Economic Twin opportunity geometry must be positive"
+            )
+        if (
+            not isinstance(self.maximum_multiplier, int)
+            or isinstance(self.maximum_multiplier, bool)
+            or self.maximum_multiplier not in {0, 1, 2, 3, 4}
+        ):
+            raise CiboCapitalManagementError(
+                "Full Economic Twin maximum_multiplier must be 0..4"
             )
         if self.future_outcome_used:
             raise CiboCapitalManagementError(
