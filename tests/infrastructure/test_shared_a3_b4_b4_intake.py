@@ -8,7 +8,6 @@ from qore.infrastructure.core_stack_v2.shared_a3_b4_b4_intake import (
     build_b4_intake_batch,
 )
 
-
 NOW = datetime(2026, 10, 4, 19, 35, tzinfo=UTC)
 
 
