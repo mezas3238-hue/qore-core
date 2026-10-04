@@ -921,6 +921,35 @@ def run_compound_portfolio_lane(
             if lab_use_executed_core_surface
             else tuple(policy.selected_signal_fingerprints)
         )
+        scarcity_scores = {
+            signal: _compound_scarcity_score(
+                by_signal[signal],
+                decision_at=epoch.market_decision_at,
+            )
+            for signal in selected_signals
+        }
+        compound_signal_order = (
+            tuple(
+                sorted(
+                    selected_signals,
+                    key=lambda signal: (
+                        -scarcity_scores[signal],
+                        signal,
+                    ),
+                )
+            )
+            if (
+                lab_dynamic_leverage
+                and lab_pool_scope == POOL_SCOPE_ACCOUNT
+                and len(selected_signals) > 1
+            )
+            else tuple(selected_signals)
+        )
+        scarcity_rank_by_signal = {
+            signal: index + 1
+            for index, signal in enumerate(compound_signal_order)
+        }
+        scarcity_order_changed = compound_signal_order != tuple(selected_signals)
         known_epoch_options: list[CapitalScienceKnownOpportunity] = []
         for known_signal in selected_signals:
             known_candidate = by_signal[known_signal]
@@ -968,7 +997,7 @@ def run_compound_portfolio_lane(
                 )
             )
 
-        for signal in selected_signals:
+        for signal in compound_signal_order:
             selected += 1
             if lab_require_rational_redeploy:
                 redeploy = authorization_by_signal.get(signal)
@@ -1282,6 +1311,20 @@ def run_compound_portfolio_lane(
                     )
                 )
                 if effective_multiplier <= 0:
+                    lane_receipts = _lane_owned_capital_science_receipts(
+                        state=capital_science_state,
+                        funding_pool_usd=funding_pool,
+                        available_profit_usd=available,
+                        pool_scope=lab_pool_scope,
+                        source_traders=source_traders,
+                        current_trader=candidate.trader_id,
+                        scarcity_rank=scarcity_rank_by_signal[signal],
+                        scarcity_count=len(compound_signal_order),
+                        scarcity_score=scarcity_scores[signal],
+                        scarcity_order_changed=scarcity_order_changed,
+                        dynamic_leverage=lab_dynamic_leverage,
+                    )
+                    capital_science_receipts.extend(lane_receipts)
                     capital_science_receipts.extend(
                         capital_science.receipts
                     )
@@ -1291,6 +1334,20 @@ def run_compound_portfolio_lane(
                         blockers["T11_EXECUTION_EFFICIENCY_REJECTED_COMPOUND"] += 1
                     rejected += 1
                     continue
+            lane_receipts = _lane_owned_capital_science_receipts(
+                state=capital_science_state,
+                funding_pool_usd=funding_pool,
+                available_profit_usd=available,
+                pool_scope=lab_pool_scope,
+                source_traders=source_traders,
+                current_trader=candidate.trader_id,
+                scarcity_rank=scarcity_rank_by_signal[signal],
+                scarcity_count=len(compound_signal_order),
+                scarcity_score=scarcity_scores[signal],
+                scarcity_order_changed=scarcity_order_changed,
+                dynamic_leverage=lab_dynamic_leverage,
+            )
+            capital_science_receipts.extend(lane_receipts)
             capital_science_receipts.extend(capital_science.receipts)
             available = min(
                 available,
