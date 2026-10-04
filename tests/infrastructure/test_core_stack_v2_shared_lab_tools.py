@@ -42,3 +42,29 @@ def test_registry_fingerprint_is_deterministic():
     second = registry_fingerprint(default_shared_lab_registry())
     assert first == second
     assert len(first) == 64
+
+
+def test_registry_has_broad_cross_layer_tool_catalog():
+    registry = default_shared_lab_registry()
+    families = {spec.family for spec in registry.list_tools()}
+    assert len(families) >= 45
+    assert ToolFamily.COUNTERFACTUAL_WORLD in families
+    assert ToolFamily.MONTE_CARLO in families
+    assert ToolFamily.WALK_FORWARD in families
+    assert ToolFamily.AUTHORITY_ISOLATION in families
+    assert ToolFamily.REDUNDANCY_RESILIENCE in families
+
+
+def test_parameterized_family_can_generate_thousands_of_probes():
+    registry = default_shared_lab_registry()
+    cases = registry.expand(
+        "timestamp-perturbation",
+        {
+            "sensor": tuple(f"S{index:03d}" for index in range(10)),
+            "asset": ("EURUSD", "NAS100", "XAUUSD", "BTCUSD", "USDCAD"),
+            "offset": ("+1ms", "+10ms", "+1s", "+30s", "DST_BOUNDARY"),
+            "regime": ("CALM", "TREND", "SHOCK", "TRANSITION"),
+        },
+    )
+    assert len(cases) == 1000
+    assert len({case.case_id for case in cases}) == 1000
