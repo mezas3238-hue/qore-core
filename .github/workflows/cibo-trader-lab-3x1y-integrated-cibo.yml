@@ -9,6 +9,8 @@ on:
       - 'scripts/cibo_t02_three_lane_capital_lab_arch2.py'
       - 'scripts/cibo_three_holdout_group_report.py'
       - 'scripts/cibo_function_io_actuation_report.py'
+      - 'scripts/cibo_full_function_trader_lab_audit.py'
+      - 'scripts/cibo_cognitive_trader_lab_audit.py'
       - 'scripts/cibo_three_holdout_1y_sensor.py'
       - 'src/qore/infrastructure/trader_lab/cibo_three_holdout_1y_contract.py'
       - 'src/qore/infrastructure/cibo_phase22_v4_historical_regime.py'
@@ -170,6 +172,10 @@ jobs:
             --capital-science-io "$RUNNER_TEMP/results/$group/lab/capital-science-per-call-io.json" \
             --group-result "$RUNNER_TEMP/results/$group/group-result.json" \
             --output "$RUNNER_TEMP/results/$group/lab/function-io-actuation.json"
+          python scripts/cibo_full_function_trader_lab_audit.py \
+            --decision-trace "$RUNNER_TEMP/results/$group/lab/decision-trace.json" \
+            --source-head "$GITHUB_SHA" \
+            --output "$RUNNER_TEMP/results/$group/lab/full-function-trader-lab-audit.json"
 
       - name: Enforce integrated group topology
         run: |
@@ -192,6 +198,13 @@ jobs:
           assert io['schema']=='qore.cibo.function-io-actuation.v1'
           assert io['group_id']==group
           assert io['function_count']==53
+          audit_path=Path(os.environ['RUNNER_TEMP'])/'results'/group/'lab'/'full-function-trader-lab-audit.json'
+          audit=json.loads(audit_path.read_text())
+          assert audit['candidate_count']==7
+          assert audit['function_gate_count']==20
+          assert audit['all_functions_pass'] is True
+          assert len(audit['lanes'])==7
+          assert all(lane['status']=='PASS' and lane['gate_count']==20 for lane in audit['lanes'].values())
           for candidate in p['candidates']:
               assert candidate['configuration_scope']=='CIBO_ONLY'
               assert candidate['trader_parameters_changed'] is False
