@@ -63,6 +63,9 @@ from qore.infrastructure.cibo_ce2i_regime_selector import (
 from qore.infrastructure.cibo_recovery_probe_efficiency_guard import (
     evaluate_recovery_probe_efficiency,
 )
+from qore.infrastructure.cibo_recovery_probe_fragility_guard import (
+    evaluate_recovery_probe_fragility,
+)
 from qore.infrastructure.cibo_profitability_lab_context_quality import (
     ContextQualityDecision,
     ContextQualityDisposition,
@@ -476,6 +479,9 @@ def evaluate_phase22_historical_policy(
         if lab_burned_context_quality_gate
         else advanced_application.candidates
     )
+    opportunity_by_signal = {
+        item.signal_fingerprint: item for item in opportunities
+    }
     recovery_probe_candidates = tuple(
         item
         for item in allocator_candidates
@@ -489,6 +495,11 @@ def evaluate_phase22_historical_policy(
                 stop_risk_usd=item.stop_risk_usd,
                 hard_risk_headroom_usd=(
                     advanced_application.effective_hard_risk_headroom_usd
+                ),
+            ).admitted
+            and evaluate_recovery_probe_fragility(
+                decision_context=(
+                    opportunity_by_signal[item.signal_fingerprint].decision_context
                 ),
             ).admitted
         )
