@@ -8,6 +8,7 @@ from dataclasses import dataclass
 @dataclass(frozen=True, slots=True)
 class MultiuserNativeAcceptance:
     commit_sha: str
+    direct_cli_validate_pass: bool
     nine_concurrent_clients_pass: bool
     queue_32_pass: bool
     dynamic_worker_pool_pass: bool
@@ -18,7 +19,9 @@ class MultiuserNativeAcceptance:
     failure_isolation_pass: bool
     evidence_ownership_pass: bool
     cancellation_pass: bool
+    status_observability_pass: bool
     native_replay_pass: bool
+    reproduce_pass: bool
     exact_sha_pass: bool
     persistent_dataset_pass: bool
     github_actions_required: bool
@@ -28,6 +31,7 @@ class MultiuserNativeAcceptance:
     def passed(self) -> bool:
         return (
             len(self.commit_sha) == 40
+            and self.direct_cli_validate_pass
             and self.nine_concurrent_clients_pass
             and self.queue_32_pass
             and self.dynamic_worker_pool_pass
@@ -38,7 +42,9 @@ class MultiuserNativeAcceptance:
             and self.failure_isolation_pass
             and self.evidence_ownership_pass
             and self.cancellation_pass
+            and self.status_observability_pass
             and self.native_replay_pass
+            and self.reproduce_pass
             and self.exact_sha_pass
             and self.persistent_dataset_pass
             and not self.github_actions_required
