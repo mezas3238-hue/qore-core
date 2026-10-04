@@ -60,6 +60,9 @@ from qore.infrastructure.cibo_ce2i_regime_selector import (
     CiboCapitalRegimeState,
     CiboRegimePosture,
 )
+from qore.infrastructure.cibo_recovery_probe_efficiency_guard import (
+    evaluate_recovery_probe_efficiency,
+)
 from qore.infrastructure.cibo_profitability_lab_context_quality import (
     ContextQualityDecision,
     ContextQualityDisposition,
@@ -477,8 +480,17 @@ def evaluate_phase22_historical_policy(
         item
         for item in allocator_candidates
         if (
-            lab_allow_nonpositive_expectation
-            or item.expectation.expected_net_value_usd > 0
+            (
+                lab_allow_nonpositive_expectation
+                or item.expectation.expected_net_value_usd > 0
+            )
+            and evaluate_recovery_probe_efficiency(
+                expected_net_value_usd=item.expectation.expected_net_value_usd,
+                stop_risk_usd=item.stop_risk_usd,
+                hard_risk_headroom_usd=(
+                    advanced_application.effective_hard_risk_headroom_usd
+                ),
+            ).admitted
         )
     )
     recovery_probe = (
