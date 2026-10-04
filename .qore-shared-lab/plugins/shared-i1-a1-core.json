@@ -1,0 +1,30 @@
+{
+  "task_id": "i1-a1-core",
+  "suite": "FUNCTIONAL",
+  "scope": "cognition",
+  "dependencies": [
+    "contract"
+  ],
+  "command": [
+    "python",
+    "-m",
+    "pytest",
+    "-q",
+    "tests/infrastructure/test_core_stack_v2_mc14_b04_cross_asset_causal.py",
+    "tests/infrastructure/test_core_stack_v2_market_agency_model.py",
+    "tests/infrastructure/test_core_stack_v2_counterfactual_world_engine.py"
+  ],
+  "component_globs": [
+    "src/qore/infrastructure/core_stack_v2/mc14_b04_cross_asset_causal.py",
+    "src/qore/infrastructure/core_stack_v2/market_agency_model.py",
+    "src/qore/infrastructure/core_stack_v2/counterfactual_world_engine.py",
+    "scripts/shared_mc14_*.py",
+    "scripts/shared_wp06_*.py",
+    "scripts/shared_mc18_*.py",
+    "scripts/shared_mc19_*.py",
+    "scripts/shared_sti8_*.py",
+    "tests/infrastructure/test_core_stack_v2_mc14_b04_cross_asset_causal.py",
+    "tests/infrastructure/test_core_stack_v2_market_agency_model.py",
+    "tests/infrastructure/test_core_stack_v2_counterfactual_world_engine.py"
+  ]
+}
