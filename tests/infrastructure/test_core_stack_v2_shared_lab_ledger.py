@@ -29,7 +29,17 @@ def _record(capability_id: str, *, changed: int = 2) -> CapabilityLabRecord:
             typed_output_emitted=True,
             downstream_native_consumer=f"{capability_id}-consumer",
         ),
-        cables=(CableRealityReceipt(capability_id, f"{capability_id}-consumer", fp, fp, True, True, changed > 0),),
+        cables=(
+            CableRealityReceipt(
+                capability_id,
+                f"{capability_id}-consumer",
+                fp,
+                fp,
+                True,
+                True,
+                changed > 0,
+            ),
+        ),
         efficiency=EfficiencyReceipt(
             capability_id,
             10,
