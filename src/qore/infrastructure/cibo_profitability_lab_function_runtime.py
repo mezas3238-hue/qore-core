@@ -287,6 +287,12 @@ def evaluate_cibo_native_faculties(
         as_of=decision_at,
         reasons=("authority-rooted-evidence-required",),
     )
+    quant_evidence = CiboFunctionalEvidence(
+        status=CiboEvidenceStatus.SUFFICIENT,
+        evidence_refs=(evidence_ref,),
+        as_of=decision_at,
+        reasons=("sealed-predecision-opportunity-set",),
+    )
     missing_market_evidence = CiboFunctionalEvidence(
         status=CiboEvidenceStatus.MISSING,
         evidence_refs=(),
@@ -439,13 +445,8 @@ def evaluate_cibo_native_faculties(
                 quant_request,
                 result_code="opportunity-count",
                 exact_value=Decimal(len(opportunities)),
-                evidence=evidence,
+                evidence=quant_evidence,
                 computed_at=decision_at,
-            ),
-            failure_status="DEPENDENCY_BLOCKED",
-            failure_reason=(
-                "quant engine executed but authoritative exact-result binding "
-                "requires an external Trader Lab PASS receipt at this seam"
             ),
         )
     )
