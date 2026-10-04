@@ -64,3 +64,16 @@ def test_provider_disagreement_participates_in_quality_gate() -> None:
     assert metrics.provider_disagreement_count == 1
     assert metrics.provider_disagreement_ratio > 0
     assert not metrics.passes(DataQualityThresholds(max_provider_disagreement_ratio=0.01))
+
+
+
+def test_freshness_and_continuity_are_first_class_metrics() -> None:
+    data = (_datum(1), _datum(2), _datum(3))
+    metrics = compute_quality_metrics(
+        data,
+        expected_observations=3,
+        freshness_limit_ns=10_000,
+        now_ns=3_100,
+    )
+    assert metrics.freshness == 1.0
+    assert metrics.continuity == 1.0
