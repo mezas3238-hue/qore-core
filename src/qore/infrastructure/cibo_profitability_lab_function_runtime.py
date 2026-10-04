@@ -13,6 +13,8 @@ failure.
 
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import dataclass, fields, is_dataclass
 from datetime import datetime
 from decimal import Decimal
@@ -165,15 +167,28 @@ def _success(
     status: str = "SUCCESS",
     reason: str | None = None,
 ) -> CiboNativeFacultyRuntimeObservation:
+    canonical = _canonical(value)
+    raw = json.dumps(
+        canonical,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+        default=str,
+    ).encode()
+    payload: dict[str, object] = {
+        "result_type": type(value).__name__,
+        "result_sha256": "sha256:" + hashlib.sha256(raw).hexdigest(),
+    }
+    if isinstance(canonical, (str, int, float, bool)) or canonical is None:
+        payload["result_value"] = canonical
+    elif isinstance(canonical, dict) and "response_count" in canonical:
+        payload["response_count"] = canonical["response_count"]
     return CiboNativeFacultyRuntimeObservation(
         function_code=function_code,
         engine_name=engine_name,
         engine_called=True,
         status=status,
-        output_payload={
-            "result_type": type(value).__name__,
-            "result": _canonical(value),
-        },
+        output_payload=payload,
         reason=reason,
     )
 
