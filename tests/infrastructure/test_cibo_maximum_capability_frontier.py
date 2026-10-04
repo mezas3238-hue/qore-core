@@ -206,3 +206,111 @@ def test_same_bar_stop_is_conservative_before_favorable_trigger() -> None:
 
     assert result.actions[0] == "STOP_OR_PROTECTED_STOP"
     assert result.gross_r == Decimal("-1")
+
+
+def test_lifecycle_off_is_exact_original_settlement_identity() -> None:
+    opportunity = _opportunity()
+    bar = Bar(
+        opened_at=opportunity.entry_at,
+        closed_at=opportunity.entry_at + timedelta(minutes=5),
+        open=Decimal("100"),
+        high=Decimal("103"),
+        low=Decimal("98"),
+        close=Decimal("102.5"),
+    )
+
+    result = simulate_position_lifecycle(
+        opportunity,
+        (bar,),
+        features=frozenset(),
+    )
+
+    assert result.gross_r == opportunity.fallback_gross_r
+    assert result.exit_at == opportunity.horizon_at
+    assert result.actions == (
+        "LIFECYCLE_OFF_ORIGINAL_SETTLEMENT",
+    )
+
+
+def test_new_breakeven_protection_only_applies_from_next_bar() -> None:
+    opportunity = _opportunity()
+    first = Bar(
+        opened_at=opportunity.entry_at,
+        closed_at=opportunity.entry_at + timedelta(minutes=5),
+        open=Decimal("100"),
+        high=Decimal("101.2"),
+        low=Decimal("99.8"),
+        close=Decimal("101"),
+    )
+    second = Bar(
+        opened_at=opportunity.entry_at + timedelta(minutes=5),
+        closed_at=opportunity.entry_at + timedelta(minutes=10),
+        open=Decimal("101"),
+        high=Decimal("101.1"),
+        low=Decimal("99.9"),
+        close=Decimal("100"),
+    )
+
+    result = simulate_position_lifecycle(
+        opportunity,
+        (first, second),
+        features=frozenset(
+            {LifecycleFeature.BREAKEVEN}
+        ),
+    )
+
+    assert result.actions[:2] == (
+        "MOVE_TO_BREAKEVEN",
+        "STOP_OR_PROTECTED_STOP",
+    )
+    assert result.gross_r == Decimal("0.05")
+
+
+def test_same_bar_new_protection_is_not_retroactive() -> None:
+    opportunity = _opportunity()
+    bar = Bar(
+        opened_at=opportunity.entry_at,
+        closed_at=opportunity.entry_at + timedelta(minutes=5),
+        open=Decimal("100"),
+        high=Decimal("101.2"),
+        low=Decimal("99.8"),
+        close=Decimal("101"),
+    )
+
+    result = simulate_position_lifecycle(
+        opportunity,
+        (bar,),
+        features=frozenset(
+            {LifecycleFeature.BREAKEVEN}
+        ),
+    )
+
+    assert "STOP_OR_PROTECTED_STOP" not in result.actions
+    assert result.actions[0] == "MOVE_TO_BREAKEVEN"
+    assert result.actions[-1] == "HORIZON_ORIGINAL_SETTLEMENT"
+
+
+def test_partial_then_horizon_uses_original_settlement_not_last_close() -> None:
+    opportunity = _opportunity()
+    bar = Bar(
+        opened_at=opportunity.entry_at,
+        closed_at=opportunity.entry_at + timedelta(minutes=5),
+        open=Decimal("100"),
+        high=Decimal("101.2"),
+        low=Decimal("99.8"),
+        close=Decimal("101.1"),
+    )
+
+    result = simulate_position_lifecycle(
+        opportunity,
+        (bar,),
+        features=frozenset(
+            {LifecycleFeature.PARTIAL_REALIZATION}
+        ),
+    )
+
+    assert result.actions == (
+        "PARTIAL_REALIZATION_1R",
+        "HORIZON_ORIGINAL_SETTLEMENT",
+    )
+    assert result.gross_r == Decimal("-0.50")
