@@ -8,7 +8,7 @@ import threading
 import time
 import uuid
 from concurrent.futures import Future, ThreadPoolExecutor
-from dataclasses import asdict, dataclass, field, replace
+from dataclasses import dataclass, field, replace
 from enum import IntEnum, StrEnum
 from pathlib import Path
 from typing import Any
