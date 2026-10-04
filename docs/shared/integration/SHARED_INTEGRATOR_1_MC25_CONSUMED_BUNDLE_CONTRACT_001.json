@@ -3,7 +3,7 @@
   "generated_at": "2026-10-04",
   "dataset_id": "shared-a2-mc25-v3b-consumed-lineage",
   "dataset_version": "1",
-  "status": "BUNDLE_SPEC_READY_NOT_YET_MATERIALIZED",
+  "status": "BUNDLE_MATERIALIZED_LOCAL_READY_FOR_SHARED_LAB_DATASET_STORE",
   "purpose": [
     "MC25_WP04_V3B_LINEAGE_INTEGRITY_BINDING",
     "MC25_WP04_V3B_SAME_LINEAGE_PERFORMANCE_STRESS"
@@ -64,7 +64,8 @@
     "require_lineage_integrity_status": "MC25_WP04_V3B_LINEAGE_INTEGRITY_STRESS_PASS",
     "require_lineage_integrity_pass": true,
     "require_exact_source_artifact_ids": true,
-    "bundle_sha256_frozen_after_materialization": true
+    "bundle_sha256_frozen_after_materialization": true,
+    "all_available_embedded_checksums_verified": true
   },
   "separation": {
     "may_replace_mc23_mc24_dataset": false,
@@ -79,5 +80,15 @@
     "trader_methodology_used": false,
     "broker_mutation": false,
     "productive_authority": false
+  },
+  "bundle": {
+    "file_name": "shared-a2-mc25-v3b-consumed-lineage-v1.zip",
+    "sha256": "7c5d217b7fbe312e9c556de152a5840def925d90933f461af6bf1e9a65479088",
+    "size_bytes": 111733277,
+    "uncompressed_bytes": 1343880525,
+    "file_count": 51,
+    "deterministic_zip_timestamp": "2026-10-04T12:00:00",
+    "dataset_store_registered": false,
+    "native_shared_lab_execution_completed": false
   }
 }
