@@ -404,6 +404,8 @@ class PortfolioNettingEvidence:
     correlation_stability_folds: int = 0
     netting_utility_oos: bool = False
     netting_utility_sample_size: int = 0
+    exact_instrument_identity_verified: bool = False
+    exact_instrument_evidence_id: str | None = None
     minimum_correlation_sample: int = 30
     minimum_correlation_folds: int = 4
     minimum_netting_utility_sample: int = 30
@@ -421,6 +423,7 @@ class PortfolioNettingEvidence:
             "risk_mapping_verified",
             "correlation_oos",
             "netting_utility_oos",
+            "exact_instrument_identity_verified",
         ):
             if type(getattr(self, name)) is not bool:
                 raise CiboCapitalManagementError(f"{name} must be bool")
@@ -448,6 +451,10 @@ class PortfolioNettingEvidence:
             ("risk_mapping_verified", "risk_mapping_evidence_id"),
             ("correlation_oos", "correlation_evidence_id"),
             ("netting_utility_oos", "netting_utility_evidence_id"),
+            (
+                "exact_instrument_identity_verified",
+                "exact_instrument_evidence_id",
+            ),
         ):
             evidence_id = getattr(self, evidence_name)
             if evidence_id is not None:
@@ -473,8 +480,62 @@ def evaluate_portfolio_netting(
         by_factor_signs.setdefault(item.factor_id, set()).add(
             1 if item.signed_risk_usd > 0 else -1
         )
-    if not any(len(signs) > 1 for signs in by_factor_signs.values()):
+    offset_factors = tuple(
+        factor_id
+        for factor_id, signs in by_factor_signs.items()
+        if len(signs) > 1
+    )
+    if not offset_factors:
         return _abstain("T08", "NO_POTENTIAL_FACTOR_OFFSET")
+    exact_instrument_offset = (
+        evidence.exact_instrument_identity_verified
+        and evidence.exact_instrument_evidence_id is not None
+        and all(
+            factor_id.startswith("symbol:")
+            for factor_id in offset_factors
+        )
+    )
+    if exact_instrument_offset:
+        if (
+            not evidence.factor_map_verified
+            or not evidence.risk_mapping_verified
+            or evidence.risk_mapping_evidence_id is None
+        ):
+            return _fail(
+                "T08",
+                "exact-instrument netting requires verified symbol/risk mapping",
+            )
+        gross = sum(
+            (abs(item.signed_risk_usd) for item in evidence.exposures),
+            Decimal(0),
+        )
+        by_factor: dict[str, Decimal] = {}
+        for item in evidence.exposures:
+            by_factor[item.factor_id] = (
+                by_factor.get(item.factor_id, Decimal(0))
+                + item.signed_risk_usd
+            )
+        net = sum((abs(value) for value in by_factor.values()), Decimal(0))
+        if gross <= 0 or net >= gross:
+            return _abstain("T08", "no verified factor offset exists")
+        theoretical = gross - net
+        credit = min(
+            theoretical,
+            gross * evidence.maximum_credit_fraction,
+        )
+        if credit <= 0:
+            return _abstain("T08", "netting credit is zero after safety cap")
+        return AdvancedToolDecision(
+            tool_code="T08",
+            disposition=AdvancedToolDisposition.APPLIED,
+            selected_id=evidence.correlation_state_id,
+            released_capacity_usd=credit,
+            score=net / gross,
+            reason=(
+                "exact same-instrument opposing exposures support deterministic "
+                "capped netting credit without a correlation-model claim"
+            ),
+        )
     if not evidence.factor_map_verified:
         return _fail("T08", "factor map is not verified")
     if (
