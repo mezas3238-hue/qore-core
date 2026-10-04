@@ -10,11 +10,14 @@
     "-m",
     "pytest",
     "-q",
-    "tests/infrastructure/test_core_stack_v2_mc25_v3b_performance_stress.py"
+    "tests/infrastructure/test_core_stack_v2_mc25_v3b_performance_stress.py",
+    "tests/infrastructure/test_core_stack_v2_mc25_governed_lifecycle.py"
   ],
   "component_globs": [
     "src/qore/infrastructure/core_stack_v2/mc25_v3b_performance_stress.py",
     "scripts/shared_mc25_*.py",
-    "tests/infrastructure/test_core_stack_v2_mc25_v3b_performance_stress.py"
+    "tests/infrastructure/test_core_stack_v2_mc25_v3b_performance_stress.py",
+    "src/qore/infrastructure/core_stack_v2/mc25_governed_lifecycle.py",
+    "tests/infrastructure/test_core_stack_v2_mc25_governed_lifecycle.py"
   ]
 }
