@@ -84,6 +84,18 @@ def test_b6_progress_is_recorded_without_premature_freeze() -> None:
     assert any("22/24" in blocker for blocker in b21["blockers"])
 
     assert items["B-22"]["status"] == "OPEN"
-    assert items["B-22"]["evidence_refs"] == ()
+    assert items["B-22"]["evidence_refs"] == (
+        "doc:docs/shared/evidence/SHARED_B22_WORLD_PERCEPTION_FREEZE_READINESS_001.json",
+    )
+    assert not any(
+        ref.startswith(("run:", "artifact:"))
+        for ref in items["B-22"]["evidence_refs"]
+    )
     assert items["B-24"]["status"] == "OPEN"
-    assert items["B-24"]["evidence_refs"] == ()
+    assert items["B-24"]["evidence_refs"] == (
+        "doc:docs/shared/evidence/SHARED_B24_FINAL_HANDOFF_READINESS_001.json",
+    )
+    assert not any(
+        ref.startswith(("run:", "artifact:"))
+        for ref in items["B-24"]["evidence_refs"]
+    )
