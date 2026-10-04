@@ -15,6 +15,10 @@ from qore.infrastructure.core_stack_v2.shared_lab_data_assessment import (
     assess_data_reality,
 )
 from qore.infrastructure.core_stack_v2.shared_lab_data_l10 import run_data_l10
+from qore.infrastructure.core_stack_v2.shared_lab_data_provenance import (
+    RawProviderEvidence,
+    verify_decode_lineage,
+)
 from qore.infrastructure.core_stack_v2.shared_lab_data_pipeline import (
     bind_next_consumer,
     build_validated_sensor_receipt,
@@ -74,13 +78,28 @@ def _evidence(gate: DataRealityGate, passed: bool, payload: object) -> GateEvide
 
 def run_engineering_data_reality_exam() -> DataRealityExamResult:
     identity = CanonicalIdentity("FX:EURUSD", "FX", "EUR", quote_currency="USD")
-    provenance = ProviderProvenance("fixture-provider", "feed-A", "a" * 64, "decoder-v1", "map-v1")
+    raw_evidence = RawProviderEvidence(
+        "fixture-provider",
+        "feed-A",
+        b"EUR/USD,1.1000,1.1002",
+        1_000_100,
+        "text/csv",
+        1,
+    )
+    provenance = ProviderProvenance(
+        "fixture-provider",
+        "feed-A",
+        raw_evidence.raw_sha256,
+        "decoder-v1",
+        "map-v1",
+    )
     datum = ProviderDatum(
         "exam-d1", "EUR/USD", "fixture-provider", 1,
         1_000_000, 1_000_100, 1.1000, 1.1002, "FX",
         provenance, identity, True, "LONDON",
     )
     aliases = {"EURUSD": (identity,)}
+    decode_lineage = verify_decode_lineage(raw_evidence, datum)
 
     trace = GoldenTrace(
         trace_id="exam-golden-001",
@@ -187,7 +206,12 @@ def run_engineering_data_reality_exam() -> DataRealityExamResult:
         _evidence(DataRealityGate.MARKET_HOURS, market_state in {SessionState.OPEN, SessionState.OVERNIGHT}, market_state.value),
         _evidence(DataRealityGate.DATA_COMPLETENESS, receipt1.completeness_pass, asdict(metrics)),
         _evidence(DataRealityGate.DATA_QUALITY, receipt1.quality_pass, asdict(metrics)),
-        _evidence(DataRealityGate.PROVENANCE, receipt1.raw_parent_fingerprint == (obs1.parent_fingerprint if obs1 else None), asdict(receipt1)),
+        _evidence(
+            DataRealityGate.PROVENANCE,
+            decode_lineage.passed
+            and receipt1.raw_parent_fingerprint == (obs1.parent_fingerprint if obs1 else None),
+            {"decode_lineage": asdict(decode_lineage), "receipt": asdict(receipt1)},
+        ),
         _evidence(DataRealityGate.REDUNDANCY_RESILIENCE, redundancy.value == "DEGRADED_BUT_USABLE", redundancy.value),
         _evidence(DataRealityGate.FAIL_DEGRADED, critical.value == "ABSTENTION_REQUIRED", critical.value),
         _evidence(DataRealityGate.LEAKAGE_FIREWALL, leakage_probe.detected_future_leakage and not leakage_probe.passed, asdict(leakage_probe)),
