@@ -413,6 +413,8 @@ class NativeLabOrchestrator:
                 "QORE_SHARED_LAB_COMMIT_SHA": identity.commit_sha,
                 "QORE_SHARED_LAB_DATASET_HASH": dataset.content_hash,
                 "QORE_SHARED_LAB_VERSION": LAB_VERSION,
+                "QORE_SHARED_LAB_SUBMITTED_BY": request.submitted_by,
+                "QORE_SHARED_LAB_SUBMITTED_ROLE": request.submitted_role,
             }
         )
 
