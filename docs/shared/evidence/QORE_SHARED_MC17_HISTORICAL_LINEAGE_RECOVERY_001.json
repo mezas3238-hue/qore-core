@@ -1,0 +1,50 @@
+{
+  "identity": "QORE_SHARED_MC17_HISTORICAL_LINEAGE_RECOVERY_001",
+  "owner_lane": "SHARED_ARCHITECT_1",
+  "status": "HISTORICAL_LINEAGE_RECOVERED_PRIOR_MECHANISMS_REMAIN_CLOSED",
+  "source_branch": "agent/shared-a-cognitive-science-001",
+  "source_head": "6b74c3cafc959deec2f37e98139b7e56f40af94f",
+  "v1": {
+    "run_id": 36754970934,
+    "disposition": "WP06_MARKET_AGENCY_CALIBRATION_OOS_FALSIFIED",
+    "reopened": false,
+    "result_summary": {
+      "r6_tail_all_gates_pass": false,
+      "r5_all_gates_pass": false,
+      "calibration_improved": false,
+      "scenario_discrimination_improved": false
+    }
+  },
+  "failure_knowledge": {
+    "run_id": 36755588250,
+    "status": "WP06_V1_FAILURE_KNOWLEDGE_COMPLETE",
+    "candidate": "AGENCY_TRAJECTORY_STATE",
+    "burned_r6_r5_used_for_failure_knowledge_only": true
+  },
+  "v2": {
+    "run_id": 36757160112,
+    "git_sha": "124d061f632f75a270c37261605097d971c129d5",
+    "disposition": "WP06_AGENCY_TRAJECTORY_V2_TEMPORAL_OOS_FALSIFIED",
+    "reopened": false,
+    "gates": {
+      "treatment_accuracy_gte_baseline": true,
+      "treatment_log_loss_lt_baseline": false,
+      "treatment_multiclass_brier_lt_baseline": false
+    },
+    "oos_used_for_fit": false
+  },
+  "current_engineering": {
+    "source_only_market_agency_engine_present": true,
+    "mc17_mc18_mc19_chain_present": true,
+    "new_scientific_value_claim": false
+  },
+  "next_dependency": "NEW_NON_OUTCOME_SELECTED_INFORMATION_OR_REPRESENTATION; MC14_B04_XAUUSD_IS_CURRENT_CANDIDATE_AFTER_GOVERNED_REPLAY",
+  "governance": {
+    "threshold_rescue": false,
+    "burned_population_reuse_for_value_claim": false,
+    "protected_final_holdout_opened": false,
+    "live": false,
+    "broker_mutation": false,
+    "productive_authority": false
+  }
+}
