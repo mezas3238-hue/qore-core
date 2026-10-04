@@ -131,7 +131,8 @@ def test_native_orchestrator_executes_exact_sha_dag_and_reuses_safe_cache(
     evidence = EvidenceStore(state / "evidence").read_run(first.identity.run_id)
     assert evidence["final_disposition"] == "PASS"
     assert evidence["identity"]["commit_sha"] == sha
-    assert evidence["environment"]["github_actions"] in {True, False}
+    assert evidence["environment"]["github_actions_detected"] in {True, False}
+    assert evidence["environment"]["github_actions_required"] is False
 
     second = orchestrator.run(run_request(repo, sha))
     assert second.disposition is RunDisposition.PASS
