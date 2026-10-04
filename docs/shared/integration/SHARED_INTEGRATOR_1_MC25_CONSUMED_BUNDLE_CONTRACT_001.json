@@ -1,0 +1,83 @@
+{
+  "schema": "QORE_SHARED_INTEGRATOR_1_MC25_CONSUMED_BUNDLE_CONTRACT_001",
+  "generated_at": "2026-10-04",
+  "dataset_id": "shared-a2-mc25-v3b-consumed-lineage",
+  "dataset_version": "1",
+  "status": "BUNDLE_SPEC_READY_NOT_YET_MATERIALIZED",
+  "purpose": [
+    "MC25_WP04_V3B_LINEAGE_INTEGRITY_BINDING",
+    "MC25_WP04_V3B_SAME_LINEAGE_PERFORMANCE_STRESS"
+  ],
+  "source_artifacts": {
+    "freeze": 10906064254,
+    "holdout_e": 10908500161,
+    "replication_d": 10908077821,
+    "r8_consumed_market_evidence": 10402199719,
+    "r6_consumed_market_evidence": 10389112524,
+    "r5_consumed_market_evidence": 10380044761,
+    "lineage_integrity_stress": 11128707360
+  },
+  "known_source_runs": {
+    "freeze": 36244726347,
+    "holdout_e": 36247407353,
+    "replication_d": 36248025384
+  },
+  "bundle_layout": {
+    "manifest": "MC25-BUNDLE-MANIFEST.json",
+    "freeze": "freeze/",
+    "holdout_e": "holdout/",
+    "replication_d": "replication/",
+    "r8": "r8/",
+    "r6": "r6/",
+    "r5": "r5/",
+    "lineage_integrity": "lineage/"
+  },
+  "required_files": [
+    "freeze/wp04-predictive-nonlinear-probe-v3b.json",
+    "freeze/SHA256SUMS",
+    "holdout/result/wp04-v3b-holdout-e.json",
+    "holdout/result/SHA256SUMS",
+    "holdout/fresh/NAS100/market-evidence.json",
+    "holdout/fresh/SP500/market-evidence.json",
+    "holdout/fresh/US30/market-evidence.json",
+    "replication/result/wp04-v3b-replication-d.json",
+    "replication/result/SHA256SUMS",
+    "replication/fresh/NAS100/market-evidence.json",
+    "replication/fresh/SP500/market-evidence.json",
+    "replication/fresh/US30/market-evidence.json",
+    "r8/fresh/EVIDENCE-SHA256SUMS",
+    "r8/fresh/NAS100/market-evidence.json",
+    "r8/fresh/SP500/market-evidence.json",
+    "r8/fresh/US30/market-evidence.json",
+    "r6/fresh/EVIDENCE-SHA256SUMS",
+    "r6/fresh/NAS100/market-evidence.json",
+    "r6/fresh/SP500/market-evidence.json",
+    "r6/fresh/US30/market-evidence.json",
+    "r5/fresh/EVIDENCE-SHA256SUMS",
+    "r5/fresh/NAS100/market-evidence.json",
+    "r5/fresh/SP500/market-evidence.json",
+    "r5/fresh/US30/market-evidence.json",
+    "lineage/result/mc25-wp04-v3b-lineage-integrity-stress.json"
+  ],
+  "validation": {
+    "verify_embedded_sha256sums": true,
+    "require_lineage_integrity_status": "MC25_WP04_V3B_LINEAGE_INTEGRITY_STRESS_PASS",
+    "require_lineage_integrity_pass": true,
+    "require_exact_source_artifact_ids": true,
+    "bundle_sha256_frozen_after_materialization": true
+  },
+  "separation": {
+    "may_replace_mc23_mc24_dataset": false,
+    "mc23_mc24_dataset_id": "shared-a2-consumed-r6-r5",
+    "mc23_mc24_dataset_sha256": "15575cd662b92e736fe53f59fbad50c42d244e29180cfb10fa8b6c7a87c560d0"
+  },
+  "governance": {
+    "consumed_evidence_only": true,
+    "protected_final_holdout_included": false,
+    "github_actions_required_at_execution": false,
+    "pnl_used": false,
+    "trader_methodology_used": false,
+    "broker_mutation": false,
+    "productive_authority": false
+  }
+}
