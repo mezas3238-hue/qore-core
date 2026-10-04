@@ -91,12 +91,12 @@ jobs:
             tests/infrastructure/test_cibo_phase22_v4_t02_volume_alignment.py \
             tests/infrastructure/test_cibo_universal_capital_science_registry.py \
             tests/infrastructure/test_cibo_capital_science_runtime_bridge.py \
-            tests/infrastructure/test_cibo_profitability_lab_economic_consultation.py \
             tests/infrastructure/test_cibo_profitability_lab_economic_consultation.py
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_phase22_v4_t02_volume_alignment.py \
             tests/infrastructure/test_cibo_universal_capital_science_registry.py \
-            tests/infrastructure/test_cibo_capital_science_runtime_bridge.py
+            tests/infrastructure/test_cibo_capital_science_runtime_bridge.py \
+            tests/infrastructure/test_cibo_profitability_lab_economic_consultation.py
 
       - name: Recover immutable seven-Trader assembly
         run: |
