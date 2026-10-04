@@ -1,0 +1,201 @@
+{
+  "schema": "QORE_SHARED_INTEGRATOR_2_A3_B4_SHARED_LAB_EVIDENCE_002",
+  "observed_at": "2026-10-04T20:07:00Z",
+  "repository": "mezas3238-hue/qore-core",
+  "heads": {
+    "shared_master": "55144bb92abdc5135521f545667b94dcad555bb1",
+    "shared_lab": "f9792cd95553b5663383b0b3474e5be2e2bda789",
+    "architect_3": "88d3fc18795c83154a92124577d044c54e06cd17",
+    "architect_4": "6a361d0b85aff4333db2842d73b5f683167ca2fe",
+    "integrator_2_before_receipt": "3e1d677908282258333345264674422d9e7e3d42"
+  },
+  "validation_plane": {
+    "name": "QORE_SHARED_LAB",
+    "host": "vps-vrix",
+    "mode": "ISOLATED_SHARED_LAB_WORKTREE_DIRECT_HARNESS",
+    "github_actions_started_by_integrator_2": false,
+    "native_scheduler_status": "ENGINEERING_BLOCKED_WINDOWS_POSIX_ONLY_RESOURCE_LIMIT_ENFORCEMENT",
+    "direct_harness_used": true
+  },
+  "b4_real_evidence": {
+    "b06": {
+      "sealed_artifact_id": 11125412870,
+      "sealed_run_id": 36775635034,
+      "sealed_code_sha": "d4956bd7fa02830be56648338c871a78c00374bd",
+      "sha256_manifest": "PASS",
+      "regenerated_status": "B06_EPISTEMIC_IDENTITY_DISPOSITION_CLOSED",
+      "sensor_count": 177,
+      "resolved_identity_count": 90,
+      "unknown_or_limited_count": 87,
+      "fingerprint": "c41a2499af771980b7b98eb026b18f7574dc82d7b3d47560631d4302af6a41fa"
+    },
+    "b07": {
+      "sealed_artifact_id": 11128361589,
+      "sealed_run_id": 36782105126,
+      "sealed_code_sha": "512a007e1ba72e97bea397906b99423d6469bca6",
+      "sha256_manifest": "PASS",
+      "r8_artifact_id": 11137557201,
+      "r8_run_id": 36805285335,
+      "regenerated_status": "B07_EPISTEMIC_TEMPORAL_DISPOSITION_CLOSED",
+      "sensor_count": 177,
+      "canonical_calendar_verified_count": 0,
+      "calendar_binding_verified_count": 0,
+      "comparability_eligible_count": 0,
+      "fingerprint": "c29967b7e1127d355e815ae45b9d53c7b8b989251faa5c1b2e389ed5a1b6183a"
+    },
+    "deterministic_replay": {
+      "b06": "BYTE_IDENTICAL_PASS",
+      "b06_sha256": "75a9cd34aa08fb8cfa36e5c90c1a193d239d86f53abf8a99c0909e824cea1fbc",
+      "b07": "BYTE_IDENTICAL_PASS",
+      "b07_sha256": "dda9c947681672f676f41789d65762726cba80a8c54f1d77733f2497045ca3b3"
+    },
+    "failure_injection": {
+      "authority_widening": "FAIL_CLOSED_PASS",
+      "identity_proof_removal": "FAIL_CLOSED_PASS",
+      "future_fact_timestamp": "FAIL_CLOSED_PASS",
+      "total": "3_OF_3"
+    }
+  },
+  "integrator_seam_validation": {
+    "first_identity_temporal_regression": {
+      "passed": 48,
+      "failed": 0
+    },
+    "scope_gate_regression": {
+      "passed": 53,
+      "failed": 0
+    },
+    "b09_b10_bridge_regression": {
+      "passed": 17,
+      "failed": 0
+    },
+    "a3_b4_mapper_joint_regression": {
+      "passed": 40,
+      "failed": 0
+    },
+    "ruff": "PASS",
+    "mypy": "PASS_6_SOURCE_FILES"
+  },
+  "architect_3": {
+    "functional_suite": {
+      "passed": 135,
+      "failed": 0
+    },
+    "factual_consumer": {
+      "module_source_head": "88d3fc18795c83154a92124577d044c54e06cd17",
+      "child_branch_gate": "FAIL_RUFF_I001",
+      "child_failure": "tests/infrastructure/test_shared_a3_world_fact_consumer.py import block formatting",
+      "integrator_repaired_copy": {
+        "ruff": "PASS",
+        "mypy": "PASS",
+        "pytest": {
+          "passed": 11,
+          "failed": 0
+        }
+      },
+      "admission": "ADMITTED_IN_INTEGRATOR_LANE_WITH_DOCUMENTED_MINIMAL_TEST_REPAIR_NOT_CHILD_GREEN"
+    },
+    "mc27": {
+      "status": "MC27_META_COGNITIVE_FOUNDATION_PASS",
+      "completed_and_proven": false,
+      "blocker": "PREREGISTERED_FUTURE_OOS_NOT_MATURE"
+    },
+    "wp12": {
+      "status": "WP12_COGNITIVE_ARBITRATION_META_COGNITION_OPEN_EXACT_BLOCKERS",
+      "blockers": [
+        "MC27_COMPLETED_AND_PROVEN",
+        "MC27_PROSPECTIVE_FUTURE_OOS_IMPROVEMENT",
+        "MC28_COMPLETED_AND_PROVEN",
+        "MC28_DIAGNOSTIC_CLOCK_DRIFT",
+        "MC28_DIAGNOSTIC_EXECUTION_QUALITY_DETERIORATION"
+      ]
+    },
+    "mc28_clock_drift": {
+      "disposition": "ENGINEERING_BLOCKED_MISSING_DEMO_CREDENTIAL_INJECTION",
+      "missing_input": "QORE_CTRADER_CLIENT_ID",
+      "provider_connection_started": false,
+      "broker_mutation": false
+    },
+    "mc28_execution_quality": {
+      "source_run_id": 36927602692,
+      "source_artifact_id": 11194039517,
+      "sealed_source_sha256": "PASS",
+      "source_code_sha": "9896fd96c95480744b2de123d42f1f7848993537",
+      "disposition": "INSUFFICIENT_REAL_DEMO_EXECUTION_EVIDENCE",
+      "real_fill_observation_count": 53,
+      "per_instrument_fill_counts": {
+        "AUDJPY": 12,
+        "EURUSD": 9,
+        "GBPJPY": 8,
+        "GBPUSD": 8,
+        "NAS100": 8,
+        "XAUUSD": 8
+      },
+      "provider_rejection_population_found": false,
+      "pre_submit_executable_bid_ask_found": false,
+      "baseline_recent_window_split_found": false,
+      "attempt_population_observable": false,
+      "new_order_submission_for_diagnostic": false,
+      "broker_mutation": false
+    }
+  },
+  "b4_to_a3_real_mapping": {
+    "input_fact_count": 177,
+    "mapped_count": 177,
+    "consumed_count": 177,
+    "identity_status_counts": {
+      "VERIFIED": 90,
+      "UNKNOWN": 87
+    },
+    "canonical_identity_retained_count": 90,
+    "knowledge_state_counts": {
+      "NOT_OBSERVED": 177
+    },
+    "comparability_state_counts": {
+      "NOT_COMPARABLE": 177
+    },
+    "data_health_state_counts": {
+      "UNKNOWN": 177
+    },
+    "usable_for_global_cognition_count": 0,
+    "usable_for_relational_claim_count": 0,
+    "abstain_count": 177,
+    "authority_free": true,
+    "input_batch_fingerprint": "f839926d52130525dc964d37dc49ac5e595c7c8ce15bb2e01ee8fede49a1366b",
+    "disposition": "FAIL_CLOSED_EXPECTED_B07_B09_INCOMPLETE"
+  },
+  "semantic_reconciliation": {
+    "factual_use_requires": [
+      "RESOLVED_IDENTITY",
+      "CANONICAL_MARKET_TIME",
+      "B09_HEALTHY"
+    ],
+    "relational_use_additionally_requires": [
+      "B08_TEMPORAL_COMPARABILITY",
+      "B10_RELATION_ELIGIBLE"
+    ],
+    "rule": "TEMPORAL_COMPARABILITY_BLOCKS_RELATIONAL_CLAIMS_NOT_ALL_FACTUAL_COGNITION"
+  },
+  "remaining": {
+    "B08": "NO_PUBLISHED_B4_SLICE_YET",
+    "B09": "BLOCKED_BY_B08_FOR_EMPIRICAL_STALE_RELATION_ISOLATION",
+    "B10": "BLOCKED_BY_B08_B09",
+    "A3_GLOBAL": "ZERO_REAL_FACTS_CURRENTLY_CONSUMABLE",
+    "MC27": "FUTURE_EVIDENCE_BLOCKED",
+    "MC28_CLOCK_DRIFT": "ENGINEERING_BLOCKED_CREDENTIAL_INJECTION",
+    "MC28_EXECUTION_QUALITY": "INSUFFICIENT_SEALED_REAL_DEMO_POPULATION"
+  },
+  "governance": {
+    "pr_635_merged": false,
+    "shared_master_modified": false,
+    "protected_final_holdout_opened": false,
+    "live": false,
+    "production": false,
+    "real_capital": false,
+    "broker_mutation": false,
+    "sizing_authority": false,
+    "risk_authority": false,
+    "cibo_authority": false,
+    "execution_authority": false
+  }
+}
