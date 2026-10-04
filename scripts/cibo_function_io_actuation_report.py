@@ -1,0 +1,278 @@
+"""Build explicit CIBO function input/output/consumer/actuation telemetry.
+
+Research-only diagnostic. It does not alter CIBO decisions, Trader logic, Risk,
+execution, broker state, or certification state.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+from collections import Counter
+from pathlib import Path
+from typing import Any
+
+CF_CODES = tuple(f"CF{i:02d}" for i in range(1, 20))
+T_CODES = tuple(f"T{i:02d}" for i in range(1, 21))
+GENC_CODES = tuple(f"GEN-C{i}" for i in range(1, 15))
+ADVANCED = {"T02", "T03", "T04", "T08", "T10", "T16", "T17"}
+
+
+def _load(path: Path) -> dict[str, Any]:
+    value = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(value, dict):
+        raise ValueError(f"expected JSON object: {path}")
+    return value
+
+
+def _coverage_by_code(coverage: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    rows = coverage.get("rows")
+    if not isinstance(rows, list):
+        raise ValueError("coverage rows missing")
+    return {
+        str(row["capability"]): row
+        for row in rows
+        if isinstance(row, dict) and row.get("capability")
+    }
+
+
+def _cognitive_rows(opportunities: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    result = []
+    for code in CF_CODES:
+        calls = 0
+        shared_outputs: Counter[str] = Counter()
+        for row in opportunities:
+            cog = row.get("cognitive_orchestration")
+            if not isinstance(cog, dict):
+                continue
+            if code in cog.get("cf01_cf19_registered_in_separate_capability_exam", []):
+                calls += 1
+            shared_outputs[
+                "|".join(
+                    str(cog.get(name))
+                    for name in (
+                        "mission_disposition",
+                        "coordination_disposition",
+                        "coordination_request_code",
+                    )
+                )
+            ] += 1
+        result.append(
+            {
+                "function_code": code,
+                "stage": "COGNITIVE",
+                "call_count": calls,
+                "per_function_input_observable": False,
+                "per_function_output_observable": False,
+                "downstream_consumer_observable": False,
+                "decision_change_observable": False,
+                "economic_effect_observable": False,
+                "shared_coordinator_output_distribution": dict(shared_outputs),
+                "status": "OBSERVABILITY_GAP",
+                "diagnosis": (
+                    "faculty is consulted, but the replay exposes only one shared "
+                    "Mission Director/Functional Coordinator result; no faculty-specific "
+                    "input, output, consumer, or economic actuation is observable"
+                ),
+            }
+        )
+    return result
+
+
+def _ce2i_rows(
+    opportunities: list[dict[str, Any]],
+    coverage: dict[str, dict[str, Any]],
+) -> list[dict[str, Any]]:
+    decisions: dict[str, list[dict[str, Any]]] = {code: [] for code in T_CODES}
+    effects: Counter[str] = Counter()
+    for row in opportunities:
+        ce2i = row.get("ce2i")
+        if not isinstance(ce2i, dict):
+            continue
+        for decision in (
+            list(ce2i.get("opportunity_advanced_decisions", []))
+            + list(ce2i.get("portfolio_advanced_decisions", []))
+        ):
+            if isinstance(decision, dict) and decision.get("tool_code") in decisions:
+                decisions[str(decision["tool_code"])].append(decision)
+        for effect in (
+            list(ce2i.get("candidate_economic_effects", []))
+            + list(ce2i.get("portfolio_economic_effects", []))
+        ):
+            if isinstance(effect, dict) and effect.get("tool_code"):
+                effects[str(effect["tool_code"])] += 1
+
+    result = []
+    for code in T_CODES:
+        cov = coverage.get(code, {})
+        rows = decisions[code]
+        dispositions = Counter(str(row.get("disposition")) for row in rows)
+        reasons = Counter(str(row.get("reason")) for row in rows)
+        per_call_output = bool(rows) if code in ADVANCED else False
+        effect_count = effects[code]
+        status = str(cov.get("status", "UNKNOWN"))
+        if code in ADVANCED and rows:
+            if dispositions.get("FAIL_CLOSED", 0) == len(rows):
+                diagnosis = "ALL_CALLS_FAIL_CLOSED"
+            elif effect_count > 0:
+                diagnosis = "OUTPUT_AND_ECONOMIC_EFFECT_OBSERVED"
+            else:
+                diagnosis = "OUTPUT_OBSERVED_NO_ECONOMIC_EFFECT"
+        elif status == "APPLIED":
+            diagnosis = "AGGREGATE_ONLY_PER_CALL_IO_MISSING"
+        else:
+            diagnosis = "FAIL_CLOSED_OR_UNAVAILABLE"
+        result.append(
+            {
+                "function_code": code,
+                "stage": "CE2I",
+                "coverage_status": status,
+                "enabled_epochs": cov.get("enabled_epochs"),
+                "applied_count": cov.get("applied_count"),
+                "per_call_input_observable": False,
+                "per_call_output_observable": per_call_output,
+                "downstream_consumer_observable": effect_count > 0,
+                "decision_change_observable": effect_count > 0,
+                "economic_effect_observable": effect_count > 0,
+                "advanced_call_count": len(rows),
+                "economic_effect_count": effect_count,
+                "dispositions": dict(dispositions),
+                "reason_distribution": dict(reasons),
+                "diagnosis": diagnosis,
+            }
+        )
+    return result
+
+
+def _genc_rows(capital: dict[str, Any]) -> list[dict[str, Any]]:
+    calls = capital.get("calls")
+    if not isinstance(calls, list):
+        raise ValueError("Capital Science calls missing")
+    result = []
+    for code in GENC_CODES:
+        rows = [row for row in calls if row.get("function_code") == code]
+        dispositions = Counter(str(row.get("disposition")) for row in rows)
+        all_io = bool(rows) and all(
+            isinstance(row.get("input_payload"), dict)
+            and bool(row["input_payload"])
+            and isinstance(row.get("output_payload"), dict)
+            and bool(row["output_payload"])
+            for row in rows
+        )
+        consumer_count = sum(
+            bool(row.get("downstream_consumer")) and bool(row.get("consumer_action"))
+            for row in rows
+        )
+        changed = sum(bool(row.get("decision_changed")) for row in rows)
+        native = sum(bool(row.get("native_engine_called")) for row in rows)
+        economic_delta = sum(
+            str(row.get(name, "0")) not in {"0", "0.0", "None"}
+            for row in rows
+            for name in (
+                "risk_delta_usd",
+                "margin_delta_usd",
+                "incremental_pnl_attribution_usd",
+            )
+        )
+        if not rows:
+            diagnosis = "NO_PER_CALL_RUNTIME_RECEIPTS"
+        elif not all_io:
+            diagnosis = "INPUT_OUTPUT_INCOMPLETE"
+        elif consumer_count != len(rows):
+            diagnosis = "CONSUMER_BINDING_INCOMPLETE"
+        elif changed == 0 and economic_delta == 0:
+            diagnosis = "OBSERVATIONAL_OR_NO_CHANGE_ONLY"
+        else:
+            diagnosis = "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED"
+        result.append(
+            {
+                "function_code": code,
+                "stage": "CAPITAL_SCIENCE",
+                "call_count": len(rows),
+                "input_output_complete": all_io,
+                "consumer_bound_count": consumer_count,
+                "decision_changed_count": changed,
+                "native_engine_called_count": native,
+                "economic_delta_field_count": economic_delta,
+                "dispositions": dict(dispositions),
+                "diagnosis": diagnosis,
+            }
+        )
+    return result
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--decision-trace", type=Path, required=True)
+    parser.add_argument("--coverage", type=Path, required=True)
+    parser.add_argument("--capital-science-io", type=Path, required=True)
+    parser.add_argument("--group-result", type=Path, required=True)
+    parser.add_argument("--output", type=Path, required=True)
+    args = parser.parse_args()
+
+    trace = _load(args.decision_trace)
+    coverage_raw = _load(args.coverage)
+    capital = _load(args.capital_science_io)
+    group = _load(args.group_result)
+    opportunities = trace.get("opportunities")
+    if not isinstance(opportunities, list) or not opportunities:
+        raise ValueError("decision trace opportunities missing")
+    coverage = _coverage_by_code(coverage_raw)
+
+    rows = (
+        _cognitive_rows(opportunities)
+        + _ce2i_rows(opportunities, coverage)
+        + _genc_rows(capital)
+    )
+    blockers = [
+        {
+            "function_code": row["function_code"],
+            "stage": row["stage"],
+            "diagnosis": row["diagnosis"],
+        }
+        for row in rows
+        if row["diagnosis"]
+        not in {
+            "OUTPUT_AND_ECONOMIC_EFFECT_OBSERVED",
+            "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED",
+        }
+    ]
+    payload = {
+        "schema": "qore.cibo.function-io-actuation.v1",
+        "group_id": group.get("group_id"),
+        "function_count": len(rows),
+        "functions": rows,
+        "economic_actuation_coverage_complete": not blockers,
+        "blocker_count": len(blockers),
+        "blockers": blockers,
+        "governance": {
+            "diagnostic_only": True,
+            "outcome_aware_tuning": False,
+            "broker_mutation": False,
+            "live": False,
+            "production": False,
+            "real_capital": False,
+            "certification_claimed": False,
+        },
+    }
+    args.output.write_text(
+        json.dumps(payload, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    print(
+        json.dumps(
+            {
+                "group_id": payload["group_id"],
+                "economic_actuation_coverage_complete": payload[
+                    "economic_actuation_coverage_complete"
+                ],
+                "blocker_count": payload["blocker_count"],
+            },
+            sort_keys=True,
+        )
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
