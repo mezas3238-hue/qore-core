@@ -38,6 +38,10 @@ from qore.infrastructure.cibo_capital_management_authority import (
     TraderOpportunityEnvelope,
 )
 from qore.infrastructure.cibo_ce2i_regime_selector import CiboCapitalRegimeState
+from qore.infrastructure.cibo_profitability_lab_function_runtime import (
+    CiboNativeFacultyRuntimeObservation,
+    evaluate_cibo_native_faculties,
+)
 from qore.infrastructure.cibo_trader_capability_profile import CiboEvidenceRef
 from qore.kernel.result import Success
 
@@ -123,6 +127,46 @@ class CiboFacultyEconomicConsultationReceipt:
         if self.output_payload.get("contribution_code") != expected_output:
             raise CiboCapitalManagementError(
                 "faculty consultation output-code mapping drift"
+            )
+        native_called = self.output_payload.get("native_engine_called")
+        native_name = self.output_payload.get("native_engine_name")
+        native_status = self.output_payload.get("native_engine_status")
+        native_output = self.output_payload.get("native_engine_output")
+        native_reason = self.output_payload.get("native_engine_reason")
+        if type(native_called) is not bool:
+            raise CiboCapitalManagementError(
+                "faculty consultation native engine-called flag invalid"
+            )
+        if not isinstance(native_name, str) or not native_name:
+            raise CiboCapitalManagementError(
+                "faculty consultation native engine name missing"
+            )
+        if native_status not in {
+            "SUCCESS",
+            "FAIL_CLOSED",
+            "DEPENDENCY_BLOCKED",
+            "JUSTIFIED_NOT_APPLICABLE",
+        }:
+            raise CiboCapitalManagementError(
+                "faculty consultation native engine status invalid"
+            )
+        if not isinstance(native_output, dict):
+            raise CiboCapitalManagementError(
+                "faculty consultation native engine output invalid"
+            )
+        if native_reason is not None and (
+            not isinstance(native_reason, str) or not native_reason
+        ):
+            raise CiboCapitalManagementError(
+                "faculty consultation native engine reason invalid"
+            )
+        if native_status == "JUSTIFIED_NOT_APPLICABLE" and native_called:
+            raise CiboCapitalManagementError(
+                "not-applicable faculty cannot claim native engine execution"
+            )
+        if native_status != "JUSTIFIED_NOT_APPLICABLE" and not native_called:
+            raise CiboCapitalManagementError(
+                "applicable faculty must execute its native engine"
             )
         if self.input_sha256 != _payload_sha256(self.input_payload):
             raise CiboCapitalManagementError(
@@ -369,6 +413,18 @@ def consult_cibo_economic_faculties(
             "economic Mission Director faculty assignment drift"
         )
 
+    native_rows = evaluate_cibo_native_faculties(
+        decision_at=decision_at,
+        opportunities=opportunities,
+        regime_state=regime_state,
+        evidence_ref=evidence_ref,
+    )
+    native_by_code = {item.function_code: item for item in native_rows}
+    expected_codes = tuple(item[0] for item in _FACULTY_SEQUENCE)
+    if tuple(native_by_code) != expected_codes:
+        raise CiboCapitalManagementError(
+            "economic consultation native CF01-CF19 surface drift"
+        )
     faculty_receipts = tuple(
         _build_faculty_receipt(
             function_code=function_code,
@@ -377,6 +433,7 @@ def consult_cibo_economic_faculties(
             decision_at=decision_at,
             opportunities=opportunities,
             regime_state=regime_state,
+            native_observation=native_by_code[function_code],
         )
         for function_code, faculty, output_code in _FACULTY_SEQUENCE
     )
@@ -439,6 +496,7 @@ def _build_faculty_receipt(
     decision_at: datetime,
     opportunities: tuple[TraderOpportunityEnvelope, ...],
     regime_state: CiboCapitalRegimeState,
+    native_observation: CiboNativeFacultyRuntimeObservation,
 ) -> CiboFacultyEconomicConsultationReceipt:
     input_payload = _faculty_input_payload(
         faculty=faculty,
@@ -446,12 +504,21 @@ def _build_faculty_receipt(
         opportunities=opportunities,
         regime_state=regime_state,
     )
+    if native_observation.function_code != function_code:
+        raise CiboCapitalManagementError(
+            "faculty consultation/native runtime function-code drift"
+        )
     output_payload: dict[str, object] = {
         "contribution_code": output_code,
         "evidence_status": CiboEvidenceStatus.INSUFFICIENT.value,
         "evidence_reason": "authority-rooted-evidence-required",
         "request_code": "economic.evidence.request",
         "advisory_only": True,
+        "native_engine_called": native_observation.engine_called,
+        "native_engine_name": native_observation.engine_name,
+        "native_engine_status": native_observation.status,
+        "native_engine_output": native_observation.output_payload,
+        "native_engine_reason": native_observation.reason,
     }
     return CiboFacultyEconomicConsultationReceipt(
         function_code=function_code,
