@@ -1,0 +1,120 @@
+{
+  "schema": "QORE_SHARED_ARCHITECT_6_PROGRESS_HANDOFF_002",
+  "created_at": "2026-10-04",
+  "repository": "mezas3238-hue/qore-core",
+  "architect": "Architect-B6",
+  "branch": "agent/shared-architect-6-provenance-freeze-001",
+  "source_head_before_handoff": "7ea63819306f83e480f0b7d2deb0491be89f8ea2",
+  "integrator": "Integrator-3",
+  "ownership": [
+    "B-16",
+    "B-21",
+    "B-22",
+    "B-24"
+  ],
+  "status": "READY_FOR_INCREMENTAL_INTEGRATOR3_INTAKE__NOT_TERMINAL",
+  "b16": {
+    "status": "PARTIAL_EVIDENCE_OPEN",
+    "progressive_frontier": true,
+    "sensor_count": 177,
+    "identity_ready_count": 90,
+    "canonical_calendar_verified_count": 0,
+    "full_real_history_symbols": [
+      "XAUUSD",
+      "US2000"
+    ],
+    "partial_real_history_symbols": [
+      "XTIUSD"
+    ],
+    "no_bound_real_history_count": 174,
+    "ready_for_scientific_value_exam_count": 0,
+    "admitted_count": 0,
+    "worklist_fingerprint_sha256": "d4dd62fd439b7ffbb0eda67d524c34d693be9b5175767f4a8615b0536e08afb1",
+    "evidence": [
+      "docs/shared/evidence/SHARED_B16_SENSOR_QUALIFICATION_WORKLIST_001.json"
+    ]
+  },
+  "b21": {
+    "status": "PARTIAL_EVIDENCE_OPEN",
+    "pre_freeze_provenance_covered_count": 22,
+    "pre_freeze_provenance_missing_ids": [
+      "B-22",
+      "B-24"
+    ],
+    "pre_freeze_provenance_complete": true,
+    "b6_evidence_layer_deterministic_replay_verified": true,
+    "replay_fingerprint_sha256": "7240bae4b569c1bcce8c159b1f71ea7de0b09bfb3541273e085d433959a3c7da",
+    "remaining_requirement": "REPEAT_FINAL_INTEGRATED_DETERMINISTIC_REPLAY_AFTER_UPSTREAM_B4_B5_B6_SURFACE_IS_TERMINAL",
+    "evidence": [
+      "docs/shared/evidence/SHARED_B6_PRE_FREEZE_DETERMINISTIC_REPLAY_001.json"
+    ]
+  },
+  "b22": {
+    "status": "OPEN_BLOCKED_DO_NOT_EMIT",
+    "pre_freeze_provenance_complete": true,
+    "deterministic_replay_verified": true,
+    "freeze_authorized": false,
+    "upstream_nonterminal_ids": [
+      "B-06",
+      "B-07",
+      "B-08",
+      "B-09",
+      "B-10",
+      "B-11",
+      "B-12",
+      "B-13",
+      "B-14",
+      "B-15",
+      "B-16",
+      "B-21"
+    ],
+    "evidence": [
+      "docs/shared/evidence/SHARED_B22_WORLD_PERCEPTION_FREEZE_READINESS_001.json"
+    ]
+  },
+  "b24": {
+    "status": "OPEN_BLOCKED_DO_NOT_EMIT",
+    "handoff_authorized": false,
+    "world_perception_freeze_present": false,
+    "pre_handoff_provenance_complete": false,
+    "evidence": [
+      "docs/shared/evidence/SHARED_B24_FINAL_HANDOFF_READINESS_001.json"
+    ]
+  },
+  "shared_lab": {
+    "isolated_worktree": "QORE_SHARED_LAB_B6",
+    "latest_full_b6_regression": "31/31 PASS",
+    "b24_gate_tests": "5/5 PASS",
+    "ruff": "PASS",
+    "mypy": "PASS",
+    "native_orchestrator_windows_resource_limit_issue": "RESOURCE_PRLIMIT_FAIL_CLOSED_ON_WINDOWS",
+    "direct_isolated_worktree_execution_validated": true
+  },
+  "observed_dependencies": {
+    "architect4_head": "3757ab54c979977d1eb30874c7c8f33220e50f56",
+    "architect5_head": "3757ab54c979977d1eb30874c7c8f33220e50f56",
+    "integrator3_head": "3757ab54c979977d1eb30874c7c8f33220e50f56",
+    "note": "No newer B4/B5/Integrator3 commits were observable at handoff creation."
+  },
+  "integrator3_intake_rules": [
+    "Consume B6 evidence exactly; do not rewrite producer provenance.",
+    "Do not mark B-16 complete while scientific qualification remains 0/177.",
+    "Treat 22/24 provenance as PRE_FREEZE topology complete, not final 24/24 provenance.",
+    "Do not emit B-22 while any upstream required B workstream is nonterminal.",
+    "Do not emit B-24 before B-22 exists and provenance covers through B-22.",
+    "After B4/B5 become terminal, rerun final integrated B21 deterministic replay before freeze."
+  ],
+  "governance": {
+    "merge_authority": false,
+    "final_shared_holdout_opened": false,
+    "live": false,
+    "production": false,
+    "real_capital": false,
+    "broker_mutation": false,
+    "sizing_authority": false,
+    "risk_authority": false,
+    "cibo_authority": false,
+    "execution_authority": false,
+    "certification_authority": false
+  }
+}
