@@ -377,6 +377,7 @@ B_WORK_ITEMS: Final = (
             "artifact:11127424217",
             "artifact:11312932170",
             "artifact:11313306408",
+            "doc:docs/shared/evidence/SHARED_B6_PRE_FREEZE_DETERMINISTIC_REPLAY_001.json",
             "run:36746337433",
             "run:36758248635",
             "run:36765319771",
@@ -390,9 +391,10 @@ B_WORK_ITEMS: Final = (
             "run 37228503625 verifies exact run/artifact/producer-branch/SHA/digest "
             "provenance coverage for 22/24 B workstream IDs; only downstream B-22 "
             "and B-24 are intentionally absent, so pre-freeze provenance topology is complete",
-            "B-21 remains partial because final deterministic replay over the terminal "
-            "B surface is not yet sealed and upstream B work remains nonterminal; "
-            "future B-22/B-24 self-provenance is not a prerequisite for B-22 readiness",
+            "Shared Lab replay evidence SHARED_B6_PRE_FREEZE_DETERMINISTIC_REPLAY_001 "
+            "proves B6 evidence-layer determinism and exact 22/24 pre-freeze provenance; "
+            "B-21 remains partial only until the terminal upstream B surface exists "
+            "and final integrated deterministic replay can be sealed",
         ),
     ),
     SharedBWorkItem(
