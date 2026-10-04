@@ -174,6 +174,8 @@ def run_engineering_data_reality_exam() -> DataRealityExamResult:
         duplicate_detected=True,
         fake_provider_detected=True,
         temporal_probe=(0, 11, 10, 12),
+        missing_observation_detected=True,
+        provider_conflict_detected=True,
     )
 
     evidence = (
@@ -190,7 +192,18 @@ def run_engineering_data_reality_exam() -> DataRealityExamResult:
         _evidence(DataRealityGate.FAIL_DEGRADED, critical.value == "ABSTENTION_REQUIRED", critical.value),
         _evidence(DataRealityGate.LEAKAGE_FIREWALL, leakage_probe.detected_future_leakage and not leakage_probe.passed, asdict(leakage_probe)),
         _evidence(DataRealityGate.DETERMINISTIC_REPLAY, deterministic_replay_equal(obs1, receipt1, obs2, receipt2) and bound.lineage_exact_to_next_consumer, {"replay_equal": True, "lineage": bound.lineage_exact_to_next_consumer}),
-        _evidence(DataRealityGate.L10_KNOWN_FAILURE_DETECTION, l10.passed and set(l10.injected) == set(l10.detected), {"injected": [x.value for x in l10.injected], "detected": [x.value for x in l10.detected]}),
+        _evidence(
+            DataRealityGate.L10_KNOWN_FAILURE_DETECTION,
+            l10.passed
+            and set(l10.injected) == set(l10.detected)
+            and set(l10.data_injected) == set(l10.data_detected),
+            {
+                "injected": [x.value for x in l10.injected],
+                "detected": [x.value for x in l10.detected],
+                "data_injected": [x.value for x in l10.data_injected],
+                "data_detected": [x.value for x in l10.data_detected],
+            },
+        ),
     )
 
     assessment = assess_data_reality(evidence)
