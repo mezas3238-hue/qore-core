@@ -210,6 +210,7 @@ def _opportunity(*, known_at: datetime = T0) -> CiboObservedOpportunityState:
         context_allowed=True,
         provider_viable=True,
         capital_source_eligible=True,
+        evidence_sha256="sha256:" + "e" * 64,
     )
 
 
