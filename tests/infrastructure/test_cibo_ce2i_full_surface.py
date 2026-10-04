@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from qore.infrastructure.account_wide_risk import TraderLineage
@@ -14,6 +15,7 @@ from qore.infrastructure.cibo_ce2i_advanced_capital_tools import (
 )
 from qore.infrastructure.cibo_ce2i_full_surface import (
     AdvancedPortfolioEvidence,
+    build_causal_baseline_advanced_evidence,
     evaluate_full_ce2i_surface,
 )
 from qore.infrastructure.cibo_ce2i_regime_selector import (
@@ -107,3 +109,46 @@ def test_full_surface_binds_all_twenty_tools_and_all_advanced_scopes() -> None:
     assert receipt.outcome_used is False
     assert receipt.risk_authority is False
     assert receipt.execution_authority is False
+
+
+
+def test_causal_baseline_feeds_advanced_engines_without_inventing_oos() -> None:
+    observed_at = datetime(2020, 1, 2, 12, tzinfo=UTC)
+    opportunity = _opportunity()
+    evidence = build_causal_baseline_advanced_evidence(
+        opportunities=(opportunity,),
+        decision_at=observed_at,
+    )
+
+    assert len(evidence.opportunities) == 1
+    row = evidence.opportunities[0]
+    assert row.margin_efficiency is not None
+    assert row.margin_efficiency.fresh_oos_utility_demonstrated is False
+    assert len(row.margin_efficiency.expressions) == 1
+    assert row.risk_efficiency is not None
+    assert len(row.risk_efficiency.candidates) == 1
+    assert row.risk_efficiency.candidates[0].evidence_oos is False
+    assert row.convex_exposure is not None
+    assert row.convex_exposure.instruments == ()
+    assert evidence.portfolio_netting is not None
+    assert evidence.portfolio_netting.factor_map_verified is False
+    assert evidence.capital_velocity is not None
+    assert len(evidence.capital_velocity.policies) == 1
+    assert evidence.hedged_exposure is not None
+    assert evidence.hedged_exposure.instruments == ()
+
+    result = evaluate_full_ce2i_surface(
+        mission=_mission(),
+        regime_state=_state(),
+        opportunities=(opportunity,),
+        advanced_evidence=evidence,
+        decision_at=observed_at,
+    )
+    by_code = {item.tool_code: item for item in result.advanced_decisions}
+    assert by_code["T03"].disposition is AdvancedToolDisposition.ABSTAIN
+    assert by_code["T04"].disposition is AdvancedToolDisposition.ABSTAIN
+    assert by_code["T08"].disposition is AdvancedToolDisposition.ABSTAIN
+    assert by_code["T10"].disposition is AdvancedToolDisposition.ABSTAIN
+    assert by_code["T16"].disposition is AdvancedToolDisposition.ABSTAIN
+    assert by_code["T17"].disposition is AdvancedToolDisposition.ABSTAIN
+    assert by_code["T02"].disposition is AdvancedToolDisposition.FAIL_CLOSED
