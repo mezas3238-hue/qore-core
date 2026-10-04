@@ -244,6 +244,10 @@ class Phase22HistoricalPolicyDecisionRecord:
                 "mission_disposition": (
                     self.economic_consultation.mission_disposition
                 ),
+                "faculty_receipts": [
+                    asdict(item)
+                    for item in self.economic_consultation.faculty_receipts
+                ],
                 "mission_director_invoked": (
                     self.economic_consultation.mission_director_invoked
                 ),
