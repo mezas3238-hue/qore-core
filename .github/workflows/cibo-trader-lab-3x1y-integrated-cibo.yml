@@ -8,6 +8,7 @@ on:
       - '.github/workflows/cibo-trader-lab-3x1y-integrated-cibo.yml'
       - 'scripts/cibo_t02_three_lane_capital_lab_arch2.py'
       - 'scripts/cibo_three_holdout_group_report.py'
+      - 'scripts/cibo_function_io_actuation_report.py'
       - 'scripts/cibo_three_holdout_1y_sensor.py'
       - 'src/qore/infrastructure/trader_lab/cibo_three_holdout_1y_contract.py'
       - 'src/qore/infrastructure/cibo_phase22_v4_historical_regime.py'
@@ -64,6 +65,7 @@ jobs:
           python -m py_compile \
             scripts/cibo_t02_three_lane_capital_lab_arch2.py \
             scripts/cibo_three_holdout_group_report.py \
+            scripts/cibo_function_io_actuation_report.py \
             src/qore/infrastructure/cibo_phase22_v4_chronological_execution.py \
             src/qore/infrastructure/cibo_capital_science_runtime_bridge.py \
             src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py \
@@ -71,6 +73,7 @@ jobs:
           ruff check \
             scripts/cibo_t02_three_lane_capital_lab_arch2.py \
             scripts/cibo_three_holdout_group_report.py \
+            scripts/cibo_function_io_actuation_report.py \
             src/qore/infrastructure/cibo_phase22_v4_chronological_execution.py \
             src/qore/infrastructure/cibo_capital_science_runtime_bridge.py \
             src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py \
@@ -143,6 +146,12 @@ jobs:
           python scripts/cibo_three_holdout_group_report.py \
             --three-lane "$RUNNER_TEMP/results/$group/lab/three-lane-result.json" \
             --output "$RUNNER_TEMP/results/$group/group-result.json"
+          python scripts/cibo_function_io_actuation_report.py \
+            --decision-trace "$RUNNER_TEMP/results/$group/lab/decision-trace.json" \
+            --coverage "$RUNNER_TEMP/results/$group/lab/full-stack-coverage.json" \
+            --capital-science-io "$RUNNER_TEMP/results/$group/lab/capital-science-per-call-io.json" \
+            --group-result "$RUNNER_TEMP/results/$group/group-result.json" \
+            --output "$RUNNER_TEMP/results/$group/lab/function-io-actuation.json"
 
       - name: Enforce integrated group topology
         run: |
@@ -160,6 +169,11 @@ jobs:
           assert p['shared_qore_risk_state'] is True
           assert len(p['traders'])==7
           assert len(p['candidates'])==4
+          io_path=Path(os.environ['RUNNER_TEMP'])/'results'/group/'lab'/'function-io-actuation.json'
+          io=json.loads(io_path.read_text())
+          assert io['schema']=='qore.cibo.function-io-actuation.v1'
+          assert io['group_id']==group
+          assert io['function_count']==53
           for candidate in p['candidates']:
               assert candidate['configuration_scope']=='CIBO_ONLY'
               assert candidate['trader_parameters_changed'] is False
