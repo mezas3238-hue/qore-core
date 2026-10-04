@@ -370,7 +370,20 @@ class NativeLabOrchestrator:
         cancellation_token: CancellationToken,
     ) -> TaskResult:
         started = time.time_ns()
-        component_hash = _component_hash(worktree, task.component_globs)
+        raw_component_hash = _component_hash(
+            worktree,
+            task.component_globs,
+        )
+        component_hash = hashlib.sha256(
+            canonical_json(
+                {
+                    "content_hash": raw_component_hash,
+                    "task_id": task.task_id,
+                    "suite": task.suite.value,
+                    "scope": task.scope.value,
+                }
+            ).encode()
+        ).hexdigest()
         dependency_hash = _dependency_hash(task, completed)
         key = CacheKey(
             code_hash=identity.commit_sha,
