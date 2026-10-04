@@ -200,6 +200,8 @@ def _capture(
     *,
     success_status: str = "SUCCESS",
     success_reason: str | None = None,
+    failure_status: str = "FAIL_CLOSED",
+    failure_reason: str = "native engine rejected the admitted predecision evidence",
 ) -> CiboNativeFacultyRuntimeObservation:
     if isinstance(result, Success):
         return _success(
@@ -214,12 +216,12 @@ def _capture(
         function_code=function_code,
         engine_name=engine_name,
         engine_called=True,
-        status="FAIL_CLOSED",
+        status=failure_status,
         output_payload={
             "error_type": type(error).__name__ if error is not None else type(result).__name__,
             "error": "" if error is None else str(error),
         },
-        reason="native engine rejected the admitted predecision evidence",
+        reason=failure_reason,
     )
 
 
@@ -285,6 +287,12 @@ def evaluate_cibo_native_faculties(
         as_of=decision_at,
         reasons=("authority-rooted-evidence-required",),
     )
+    missing_market_evidence = CiboFunctionalEvidence(
+        status=CiboEvidenceStatus.MISSING,
+        evidence_refs=(),
+        as_of=decision_at,
+        reasons=("market-authority-evidence-gap",),
+    )
     identities = tuple(
         _identity(trader_id)
         for trader_id in sorted({item.trader_id.value for item in opportunities})
@@ -297,9 +305,9 @@ def evaluate_cibo_native_faculties(
             "CF01",
             "CiboWorldMonitor.observe",
             CiboWorldMonitor().observe(
-                (evidence,),
+                (missing_market_evidence,),
                 observed_at=decision_at,
-                subject_refs=(evidence_ref,),
+                subject_refs=(),
             ),
         )
     )
@@ -334,10 +342,9 @@ def evaluate_cibo_native_faculties(
                 formed_at=decision_at,
                 provenance=("profitability-lab", "predecision"),
             ),
-            success_status="DEPENDENCY_BLOCKED",
             success_reason=(
-                "exact Trader capability profiles are not injected into this "
-                "historical policy seam; native team logic dissolved safely"
+                "native Trader Director executed the safe no-member dissolution "
+                "path without fabricating certified capability profiles"
             ),
         )
     )
@@ -434,6 +441,11 @@ def evaluate_cibo_native_faculties(
                 exact_value=Decimal(len(opportunities)),
                 evidence=evidence,
                 computed_at=decision_at,
+            ),
+            failure_status="DEPENDENCY_BLOCKED",
+            failure_reason=(
+                "quant engine executed but authoritative exact-result binding "
+                "requires an external Trader Lab PASS receipt at this seam"
             ),
         )
     )
