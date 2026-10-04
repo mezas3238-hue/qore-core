@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter
+from decimal import ROUND_CEILING, Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
@@ -34,6 +35,150 @@ def _coverage_by_code(coverage: dict[str, Any]) -> dict[str, dict[str, Any]]:
         for row in rows
         if isinstance(row, dict) and row.get("capability")
     }
+
+
+def _dec(value: object) -> Decimal | None:
+    try:
+        result = Decimal(str(value))
+    except (InvalidOperation, ValueError):
+        return None
+    return result if result.is_finite() else None
+
+
+def _direct_ce2i_trace_evidence(
+    row: dict[str, Any],
+) -> dict[str, dict[str, Any]]:
+    """Prove selected CE2I paths from canonical runtime trace fields."""
+
+    result: dict[str, dict[str, Any]] = {}
+    allocation = row.get("allocation")
+    selected = (
+        isinstance(allocation, dict)
+        and allocation.get("selected_by_cibo_policy") is True
+    )
+    opportunity = row.get("trader_opportunity")
+    cma = row.get("cma")
+    qore = row.get("qore_risk")
+    release = row.get("capital_release")
+    settlement = row.get("settlement")
+
+    if selected and isinstance(opportunity, dict) and isinstance(cma, dict):
+        minimum = _dec(opportunity.get("minimum_volume"))
+        step = _dec(opportunity.get("volume_step"))
+        stop_per_volume = _dec(opportunity.get("stop_loss_per_volume"))
+        margin_per_volume = _dec(opportunity.get("margin_per_volume"))
+        execution_steps = opportunity.get("minimum_execution_steps")
+        pre_risk = _dec(cma.get("pre_ce2i_stop_risk_usd"))
+        pre_margin = _dec(cma.get("pre_ce2i_margin_usd"))
+        if (
+            minimum is not None
+            and step is not None
+            and step > 0
+            and stop_per_volume is not None
+            and margin_per_volume is not None
+            and pre_risk is not None
+            and pre_margin is not None
+            and isinstance(execution_steps, int)
+            and not isinstance(execution_steps, bool)
+            and execution_steps >= 1
+            and cma.get("sizing_authority") == "CIBO_CMA"
+            and cma.get("risk_request_emitted") is True
+        ):
+            lifecycle_floor = minimum * Decimal(execution_steps)
+            raw = max(minimum, lifecycle_floor)
+            aligned_steps = (raw / step).to_integral_value(
+                rounding=ROUND_CEILING
+            )
+            volume = aligned_steps * step
+            expected_risk = volume * stop_per_volume
+            expected_margin = volume * margin_per_volume
+            if pre_risk == expected_risk and pre_margin == expected_margin:
+                result["T01"] = {
+                    "input_payload": {
+                        "minimum_volume": str(minimum),
+                        "minimum_execution_steps": execution_steps,
+                        "volume_step": str(step),
+                        "stop_loss_per_volume": str(stop_per_volume),
+                        "margin_per_volume": str(margin_per_volume),
+                    },
+                    "output_payload": {
+                        "minimal_seed_volume": str(volume),
+                        "stop_risk_usd": str(pre_risk),
+                        "margin_usd": str(pre_margin),
+                    },
+                    "downstream_consumer": "cma-risk-request",
+                    "consumer_action": "minimal-seed-consumed",
+                    "decision_changed": True,
+                    "economic_effect_observable": pre_risk > 0,
+                }
+
+    if (
+        selected
+        and isinstance(cma, dict)
+        and cma.get("risk_request_emitted") is True
+        and isinstance(qore, dict)
+        and qore.get("status") in {"ALLOW", "REDUCE"}
+        and isinstance(qore.get("evidence_id"), str)
+        and qore.get("evidence_id")
+    ):
+        requested = _dec(cma.get("requested_stop_risk_usd"))
+        authorized_risk = _dec(qore.get("authorized_stop_risk_usd"))
+        authorized_margin = _dec(qore.get("authorized_margin_usd"))
+        if (
+            requested is not None
+            and authorized_risk is not None
+            and authorized_margin is not None
+        ):
+            result["T19"] = {
+                "input_payload": {
+                    "requested_stop_risk_usd": str(requested),
+                    "signal_fingerprint": row.get("signal_fingerprint"),
+                },
+                "output_payload": {
+                    "risk_evidence_id": qore.get("evidence_id"),
+                    "risk_disposition": qore.get("status"),
+                    "reserved_stop_risk_usd": str(authorized_risk),
+                    "reserved_margin_usd": str(authorized_margin),
+                },
+                "downstream_consumer": "qore-risk-reservation",
+                "consumer_action": "capacity-reservation-consumed",
+                "decision_changed": True,
+                "economic_effect_observable": (
+                    authorized_risk > 0 or authorized_margin > 0
+                ),
+            }
+
+    if isinstance(release, dict) and isinstance(settlement, dict):
+        released_risk = _dec(release.get("released_stop_risk_usd"))
+        released_margin = _dec(release.get("released_margin_usd"))
+        if (
+            release.get("tool_code") == "T20"
+            and isinstance(release.get("evidence_id"), str)
+            and release.get("evidence_id")
+            and released_risk is not None
+            and released_margin is not None
+        ):
+            result["T20"] = {
+                "input_payload": {
+                    "settlement_evidence_id": settlement.get("evidence_id"),
+                    "capital_released_at": settlement.get(
+                        "capital_released_at"
+                    ),
+                },
+                "output_payload": {
+                    "release_evidence_id": release.get("evidence_id"),
+                    "released_stop_risk_usd": str(released_risk),
+                    "released_margin_usd": str(released_margin),
+                },
+                "downstream_consumer": "capital-headroom-reconciliation",
+                "consumer_action": "released-capacity-restored",
+                "decision_changed": True,
+                "economic_effect_observable": (
+                    released_risk > 0 or released_margin > 0
+                ),
+            }
+
+    return result
 
 
 def _cognitive_rows(opportunities: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -218,7 +363,12 @@ def _ce2i_rows(
     runtime_receipts: dict[str, dict[tuple[str, str, str, str], dict[str, Any]]] = {
         code: {} for code in T_CODES
     }
+    direct_trace_evidence: dict[str, list[dict[str, Any]]] = {
+        code: [] for code in T_CODES
+    }
     for row in opportunities:
+        for code, evidence in _direct_ce2i_trace_evidence(row).items():
+            direct_trace_evidence[code].append(evidence)
         ce2i = row.get("ce2i")
         if not isinstance(ce2i, dict):
             continue
@@ -257,7 +407,8 @@ def _ce2i_rows(
         per_call_output = bool(rows) if code in ADVANCED else False
         effect_count = effects[code]
         receipts = list(runtime_receipts[code].values())
-        runtime_io_complete = bool(receipts) and all(
+        direct_rows = direct_trace_evidence[code]
+        receipt_io_complete = bool(receipts) and all(
             isinstance(item.get("input_payload"), dict)
             and bool(item["input_payload"])
             and isinstance(item.get("output_payload"), dict)
@@ -276,10 +427,24 @@ def _ce2i_rows(
             and item.get("broker_mutation") is False
             for item in receipts
         )
+        direct_io_complete = bool(direct_rows) and all(
+            isinstance(item.get("input_payload"), dict)
+            and bool(item["input_payload"])
+            and isinstance(item.get("output_payload"), dict)
+            and bool(item["output_payload"])
+            and bool(item.get("downstream_consumer"))
+            and bool(item.get("consumer_action"))
+            for item in direct_rows
+        )
+        runtime_io_complete = receipt_io_complete or direct_io_complete
         runtime_changed = sum(
             item.get("decision_changed") is True
             or item.get("economic_effect_observable") is True
             for item in receipts
+        ) + sum(
+            item.get("decision_changed") is True
+            or item.get("economic_effect_observable") is True
+            for item in direct_rows
         )
         status = str(cov.get("status", "UNKNOWN"))
         coverage_reason = str(cov.get("reason", ""))
@@ -332,9 +497,14 @@ def _ce2i_rows(
                         item.get("economic_effect_observable") is True
                         for item in receipts
                     )
+                    or any(
+                        item.get("economic_effect_observable") is True
+                        for item in direct_rows
+                    )
                 ),
                 "advanced_call_count": len(rows),
                 "runtime_receipt_count": len(receipts),
+                "direct_trace_evidence_count": len(direct_rows),
                 "runtime_actuation_count": runtime_changed,
                 "economic_effect_count": effect_count,
                 "dispositions": dict(dispositions),
