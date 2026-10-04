@@ -9,7 +9,7 @@ from bisect import bisect_left, bisect_right
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from datetime import datetime
-from decimal import Decimal, ROUND_CEILING
+from decimal import ROUND_CEILING, Decimal
 from pathlib import Path
 from statistics import median
 from typing import Any

@@ -8,12 +8,12 @@ evaluate the chosen action and position-lifecycle rules.
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
-from decimal import Decimal, ROUND_FLOOR
+from decimal import ROUND_FLOOR, Decimal
 from enum import StrEnum
 from itertools import product
-from typing import Mapping, Sequence
 
 from qore.infrastructure.trader_lab.ict_turtle_soup_r4_source_exact import Bar
 
