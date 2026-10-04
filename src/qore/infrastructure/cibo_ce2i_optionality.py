@@ -117,10 +117,7 @@ def plan_capital_optionality(
             "known optionality opportunity ids must be unique"
         )
 
-    if regime.posture in {
-        CiboRegimePosture.RECOVERY,
-        CiboRegimePosture.HALT_NEW_CAPITAL,
-    }:
+    if regime.posture is CiboRegimePosture.HALT_NEW_CAPITAL:
         return CiboOptionalityDecision(
             reserve_stop_risk_usd=hard_risk_headroom_usd,
             reserve_margin_usd=margin_headroom_usd,
@@ -128,7 +125,50 @@ def plan_capital_optionality(
             deployable_margin_usd=Decimal(0),
             reserved_for_opportunity_ids=ids,
             preserve_new_capital=True,
-            reason="recovery/halt posture preserves all remaining new-capital capacity",
+            reason="halt posture preserves all remaining new-capital capacity",
+        )
+
+    if regime.posture is CiboRegimePosture.RECOVERY:
+        if mission.capability_measurement_enabled and known_options:
+            cheapest = min(
+                known_options,
+                key=lambda item: (
+                    item.minimum_stop_risk_usd,
+                    item.minimum_margin_usd,
+                    item.opportunity_id,
+                ),
+            )
+            probe_risk = min(
+                hard_risk_headroom_usd,
+                cheapest.minimum_stop_risk_usd,
+            )
+            probe_margin = min(
+                margin_headroom_usd,
+                cheapest.minimum_margin_usd,
+            )
+            return CiboOptionalityDecision(
+                reserve_stop_risk_usd=hard_risk_headroom_usd - probe_risk,
+                reserve_margin_usd=margin_headroom_usd - probe_margin,
+                deployable_stop_risk_usd=probe_risk,
+                deployable_margin_usd=probe_margin,
+                reserved_for_opportunity_ids=(cheapest.opportunity_id,),
+                preserve_new_capital=True,
+                reason=(
+                    "DEMO recovery preserves the account envelope while leaving "
+                    "exactly one cheapest known minimum seed measurable"
+                ),
+            )
+        return CiboOptionalityDecision(
+            reserve_stop_risk_usd=hard_risk_headroom_usd,
+            reserve_margin_usd=margin_headroom_usd,
+            deployable_stop_risk_usd=Decimal(0),
+            deployable_margin_usd=Decimal(0),
+            reserved_for_opportunity_ids=ids,
+            preserve_new_capital=True,
+            reason=(
+                "recovery posture preserves all remaining new-capital capacity "
+                "outside capability-measurement research"
+            ),
         )
 
     if not known_options:
