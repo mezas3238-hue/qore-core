@@ -107,11 +107,11 @@ def build_temporal_disposition_registry(
     ):
         if payload.get("sensor_count") != EXPECTED_SENSOR_COUNT:
             raise SharedB4TemporalDispositionError(f"{label} is not exact 177")
-        if payload.get("canonical_calendar_verified_count") != 0:
+        if source_payload.get("canonical_calendar_verified_count") != 0:
             raise SharedB4TemporalDispositionError(
                 f"{label} unexpectedly claims canonical calendars"
             )
-        if payload.get("calendar_binding_verified_count") != 0:
+        if source_payload.get("calendar_binding_verified_count") != 0:
             raise SharedB4TemporalDispositionError(
                 f"{label} unexpectedly claims calendar bindings"
             )
