@@ -570,6 +570,9 @@ def main() -> int:
         "shared_initial_capital_usd": "60",
         "per_trader_results_source_only": True,
         "integrated_per_trader_cibo_economics_required": True,
+        "dynamic_leverage_decisions": raw[
+            "all_trader_cibo_compound_portfolio_dynamic"
+        ].get("leverage_decisions", []),
         "candidates": candidates,
         "source_three_lane_trace_sha256": raw["decision_trace"]["trace_sha256"],
         "fresh_oos_claimed": False,
