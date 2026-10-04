@@ -18,6 +18,7 @@ class CapabilityNode:
     meaningful_output: bool
     downstream_consumed: bool
     downstream_changed: bool
+    intelligence_fingerprint: str | None = None
 
     @property
     def dead_node(self) -> bool:
@@ -32,6 +33,7 @@ class CapabilityNode:
 class InfluenceGraphAssessment:
     dead_nodes: tuple[str, ...]
     decorative_nodes: tuple[str, ...]
+    duplicate_intelligence_groups: tuple[tuple[str, ...], ...]
     dead_edges: tuple[tuple[str, str], ...]
     cycle_paths: tuple[tuple[str, ...], ...]
     graph_proven: bool
@@ -65,6 +67,20 @@ def _find_cycles(edges: tuple[InfluenceEdge, ...]) -> tuple[tuple[str, ...], ...
     return tuple(sorted(cycles))
 
 
+def _duplicate_intelligence(nodes: tuple[CapabilityNode, ...]) -> tuple[tuple[str, ...], ...]:
+    groups: dict[str, list[str]] = {}
+    for node in nodes:
+        if node.intelligence_fingerprint:
+            groups.setdefault(node.intelligence_fingerprint, []).append(node.capability_id)
+    return tuple(
+        sorted(
+            tuple(sorted(ids))
+            for ids in groups.values()
+            if len(ids) > 1
+        )
+    )
+
+
 def assess_influence_graph(
     nodes: tuple[CapabilityNode, ...],
     edges: tuple[InfluenceEdge, ...],
@@ -79,14 +95,23 @@ def assess_influence_graph(
 
     dead_nodes = tuple(sorted(node.capability_id for node in nodes if node.dead_node))
     decorative = tuple(sorted(node.capability_id for node in nodes if node.decorative))
+    duplicates = _duplicate_intelligence(nodes)
     dead_edges = tuple(
         sorted((edge.producer, edge.consumer) for edge in edges if edge.dead)
     )
     cycles = _find_cycles(edges)
-    proven = bool(nodes) and not dead_nodes and not decorative and not dead_edges and not cycles
+    proven = (
+        bool(nodes)
+        and not dead_nodes
+        and not decorative
+        and not duplicates
+        and not dead_edges
+        and not cycles
+    )
     return InfluenceGraphAssessment(
         dead_nodes=dead_nodes,
         decorative_nodes=decorative,
+        duplicate_intelligence_groups=duplicates,
         dead_edges=dead_edges,
         cycle_paths=cycles,
         graph_proven=proven,
