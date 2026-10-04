@@ -1,0 +1,31 @@
+{
+  "schema": "QORE_SHARED_A2_MC23_INTERRUPTED_ATTEMPT_001",
+  "created_at": "2026-10-04",
+  "architect": "A2",
+  "branch": "agent/shared-architect-2-sti-001",
+  "pre_attempt_commit": "7f3c3e6f19028d3c41dd91ab2588efd628198d34",
+  "shared_lab_run_id": "SL-A2-1791144262538519345-7f3c3e6f-2b87cf87",
+  "dataset_sha256": "15575cd662b92e736fe53f59fbad50c42d244e29180cfb10fa8b6c7a87c560d0",
+  "disposition": "ENGINEERING_INTERRUPTED_NO_SCIENTIFIC_OUTCOME",
+  "facts": {
+    "self_test": "PASS",
+    "r6_parity": "PASS",
+    "r6_source_observation_count": 21121,
+    "r6_scored_novel_or_near_count": 8010,
+    "mc23_task_started": true,
+    "mc23_result_file_created": false,
+    "mc23_stdout_created": false,
+    "mc23_stderr_created": false,
+    "scientific_disposition_observed": false,
+    "interruption_source": "external container execution wall-time",
+    "protected_final_holdout_opened": false
+  },
+  "governance": {
+    "hypothesis_changed": false,
+    "features_changed": false,
+    "gates_changed": false,
+    "r5_refit_authorized": false,
+    "outcome_aware_tuning": false,
+    "exact_mechanism_rerun_permitted_only_to_obtain_first_scientific_disposition": true
+  }
+}
