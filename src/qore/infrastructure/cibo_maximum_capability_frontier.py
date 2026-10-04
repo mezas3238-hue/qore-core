@@ -510,7 +510,14 @@ def simulate_position_lifecycle(
         LifecycleFeature
     ] = FULL_LIFECYCLE_FEATURES,
 ) -> PositionLifecycleResult:
-    """Apply fixed closed-M5 lifecycle rules inside the trade horizon."""
+    """Apply causal closed-bar lifecycle rules inside the original horizon.
+
+    The original settlement timestamp is the evaluation horizon.  Lifecycle
+    state derived from bar N becomes executable protection only from bar N+1.
+    When lifecycle is disabled, or when the remaining position reaches the
+    original horizon, the original structural settlement is reused exactly
+    instead of synthesizing a mark-to-market outcome.
+    """
 
     risk_distance = abs(
         opportunity.entry_price
@@ -540,10 +547,15 @@ def simulate_position_lifecycle(
             and bar.closed_at <= opportunity.horizon_at
         )
     )
-    if not causal_bars:
+
+    def original_settlement(
+        *,
+        data_available: bool,
+        action: str,
+    ) -> PositionLifecycleResult:
         close = LifecycleEvent(
             occurred_at=opportunity.horizon_at,
-            action="FALLBACK_ORIGINAL_SETTLEMENT",
+            action=action,
             realized_r_delta=opportunity.fallback_gross_r,
             remaining_volume_fraction=Decimal(0),
             risk_fraction_remaining=Decimal(0),
@@ -551,7 +563,7 @@ def simulate_position_lifecycle(
         )
         return PositionLifecycleResult(
             signal_fingerprint=opportunity.signal_fingerprint,
-            data_available=False,
+            data_available=data_available,
             gross_r=opportunity.fallback_gross_r,
             exit_at=opportunity.horizon_at,
             events=(close,),
@@ -560,10 +572,26 @@ def simulate_position_lifecycle(
             actions=(close.action,),
         )
 
+    if not causal_bars:
+        return original_settlement(
+            data_available=False,
+            action="FALLBACK_ORIGINAL_SETTLEMENT",
+        )
+
+    # Settlement identity is a hard invariant.  Turning lifecycle off must
+    # reproduce the original outcome exactly, irrespective of M5 geometry.
+    if not features:
+        return original_settlement(
+            data_available=True,
+            action="LIFECYCLE_OFF_ORIGINAL_SETTLEMENT",
+        )
+
     remaining = Decimal(1)
+    # -1R is the original structural stop.  It is not re-simulated as a new
+    # lifecycle decision; the original settlement remains authoritative at
+    # horizon.  Only a protection stricter than the original stop can create
+    # an earlier lifecycle exit.
     stop_r = Decimal(-1)
-    active_target_r = target_r
-    extended = False
     partial_done = False
     be_done = False
     lock_done = False
@@ -637,12 +665,14 @@ def simulate_position_lifecycle(
         )
 
     for bar in causal_bars:
-        favorable, adverse, _close_r = (
-            favorable_and_adverse(bar)
-        )
+        favorable, adverse, _close_r = favorable_and_adverse(bar)
 
-        if adverse <= stop_r:
-            delta = remaining * stop_r
+        # Only protection that existed at BAR N START may stop the position
+        # inside BAR N.  A protection first derived from this bar cannot be
+        # compared retroactively against this bar's LOW/HIGH.
+        active_stop_r = stop_r
+        if active_stop_r > Decimal(-1) and adverse <= active_stop_r:
+            delta = remaining * active_stop_r
             remaining = Decimal(0)
             append_event(
                 bar.closed_at,
@@ -652,65 +682,14 @@ def simulate_position_lifecycle(
             )
             break
 
-        if favorable >= active_target_r:
-            if (
-                LifecycleFeature.EXTENDED_TARGET
-                in features
-                and not extended
-                and active_target_r == target_r
-                and target_r >= Decimal(1)
-            ):
-                close_fraction = (
-                    remaining / Decimal(2)
-                )
-                remaining -= close_fraction
-                delta = close_fraction * target_r
-                stop_r = max(
-                    stop_r,
-                    max(
-                        cost_r,
-                        target_r - Decimal("0.5"),
-                    ),
-                )
-                extended = True
-                active_target_r = target_r + Decimal(1)
-                append_event(
-                    bar.closed_at,
-                    "TARGET_PARTIAL_AND_EXTEND",
-                    delta,
-                )
-                if remaining <= 0:
-                    break
-                if adverse <= stop_r:
-                    delta = remaining * stop_r
-                    remaining = Decimal(0)
-                    append_event(
-                        bar.closed_at,
-                        (
-                            "PROTECTED_STOP_AFTER_"
-                            "TARGET_EXTENSION"
-                        ),
-                        delta,
-                        force_close=True,
-                    )
-                    break
-                continue
-            delta = remaining * active_target_r
-            remaining = Decimal(0)
-            append_event(
-                bar.closed_at,
-                "TARGET_EXIT",
-                delta,
-                force_close=True,
-            )
-            break
-
+        # Partial realization is an action at the closed-bar decision clock.
         if (
             LifecycleFeature.PARTIAL_REALIZATION
             in features
             and not partial_done
             and favorable >= Decimal(1)
             and target_r > Decimal(1)
+            and bar.closed_at < opportunity.horizon_at
         ):
             close_fraction = min(
                 Decimal("0.25"), remaining
@@ -723,77 +702,80 @@ def simulate_position_lifecycle(
                 close_fraction,
             )
 
+        # Build the next-bar protection from information frozen at BAR N
+        # close.  Do not evaluate the new stop against BAR N extremes.
+        next_stop_r = stop_r
+        actions_at_close: list[tuple[str, Decimal]] = []
+
         if (
             LifecycleFeature.BREAKEVEN in features
             and not be_done
             and favorable >= Decimal(1)
+            and bar.closed_at < opportunity.horizon_at
         ):
-            stop_r = max(stop_r, cost_r)
+            proposed = max(next_stop_r, cost_r)
+            if proposed > next_stop_r:
+                next_stop_r = proposed
+                actions_at_close.append(
+                    ("MOVE_TO_BREAKEVEN", next_stop_r)
+                )
             be_done = True
-            append_event(
-                bar.closed_at,
-                "MOVE_TO_BREAKEVEN",
-            )
 
         if (
             LifecycleFeature.PROFIT_LOCK in features
             and not lock_done
             and favorable >= Decimal("1.5")
+            and bar.closed_at < opportunity.horizon_at
         ):
-            stop_r = max(
-                stop_r, Decimal("0.5")
+            proposed = max(
+                next_stop_r, Decimal("0.5")
             )
+            if proposed > next_stop_r:
+                next_stop_r = proposed
+                actions_at_close.append(
+                    ("PROFIT_LOCK", next_stop_r)
+                )
             lock_done = True
-            append_event(
-                bar.closed_at,
-                "PROFIT_LOCK",
-            )
 
         if (
             LifecycleFeature.TRAILING in features
             and favorable >= Decimal(2)
+            and bar.closed_at < opportunity.horizon_at
         ):
-            stop_r = max(
-                stop_r, favorable - Decimal(1)
+            proposed = max(
+                next_stop_r, favorable - Decimal(1)
             )
+            if proposed > next_stop_r:
+                next_stop_r = proposed
+                actions_at_close.append(
+                    ("TRAIL_STOP", next_stop_r)
+                )
             trail_active = True
-            append_event(
-                bar.closed_at,
-                "TRAIL_STOP",
-            )
 
-        if (
-            remaining > 0
-            and adverse <= stop_r
-            and (
-                be_done
-                or lock_done
-                or trail_active
-            )
-        ):
-            delta = remaining * stop_r
-            remaining = Decimal(0)
-            append_event(
-                bar.closed_at,
-                (
-                    "CONSERVATIVE_SAME_BAR_"
-                    "PROTECTED_STOP"
-                ),
-                delta,
-                force_close=True,
-            )
-            break
+        # EXTENDED_TARGET cannot be truthfully executed from this M5-only
+        # surface because horizon_at is the original settlement time and no
+        # post-horizon path is supplied.  The feature therefore remains
+        # available but intentionally makes no fabricated same-bar extension.
+        # A future universal lifecycle engine may actuate it only with
+        # pre-target evidence plus real post-horizon path coverage.
+
+        if actions_at_close:
+            stop_r = next_stop_r
+            for action, _new_stop in actions_at_close:
+                append_event(
+                    bar.closed_at,
+                    action,
+                )
 
     if remaining > 0:
-        last = causal_bars[-1]
-        _fav, _adv, close_r = (
-            favorable_and_adverse(last)
-        )
-        delta = remaining * close_r
+        # Preserve the exact original settlement for the still-open fraction.
+        # Outcome is consumed only now, after all lifecycle decisions in the
+        # original trade horizon have been frozen.
+        delta = remaining * opportunity.fallback_gross_r
         remaining = Decimal(0)
         append_event(
             opportunity.horizon_at,
-            "HORIZON_MARK_TO_MARKET",
+            "HORIZON_ORIGINAL_SETTLEMENT",
             delta,
             force_close=True,
         )
