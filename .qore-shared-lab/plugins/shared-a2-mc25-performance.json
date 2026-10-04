@@ -1,0 +1,20 @@
+{
+  "task_id": "a2-mc25-performance",
+  "suite": "PERFORMANCE",
+  "scope": "mc23",
+  "dependencies": [
+    "a2-mc24-regression"
+  ],
+  "command": [
+    "python",
+    "-m",
+    "pytest",
+    "-q",
+    "tests/infrastructure/test_core_stack_v2_mc25_v3b_performance_stress.py"
+  ],
+  "component_globs": [
+    "src/qore/infrastructure/core_stack_v2/mc25_v3b_performance_stress.py",
+    "scripts/shared_mc25_*.py",
+    "tests/infrastructure/test_core_stack_v2_mc25_v3b_performance_stress.py"
+  ]
+}
