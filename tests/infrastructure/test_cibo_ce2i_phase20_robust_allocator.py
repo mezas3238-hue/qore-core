@@ -16,6 +16,9 @@ from qore.infrastructure.cibo_ce2i_opportunity_competition import (
     CapitalOpportunityCandidate,
 )
 from qore.infrastructure.cibo_ce2i_optionality import KnownCapitalOption
+from qore.infrastructure.cibo_ce2i_phase20_mpc import (
+    plan_phase20i_receding_horizon_capacity,
+)
 from qore.infrastructure.cibo_ce2i_phase20_robust_allocator import (
     Phase20AllocatorDisposition,
     propose_phase20h_robust_allocation,
@@ -372,3 +375,48 @@ def test_phase20h_candidate_grants_no_policy_or_runtime_authority() -> None:
     assert decision.live_authorized is False
     assert decision.real_capital_authorized is False
     assert decision.merge_authorized is False
+
+
+
+def test_recovery_mpc_probe_reaches_allocator_without_capacity_disappearing() -> None:
+    mission = _demo_mission()
+    regime = _regime(mission, drawdown="0.80", opportunity_count=1)
+    candidate = _candidate(
+        "recovery-probe",
+        TraderLineage.R43_GBPUSD,
+        net="8",
+        minutes="5",
+    )
+
+    mpc = plan_phase20i_receding_horizon_capacity(
+        current_step=10,
+        horizon_steps=3,
+        posture=regime.posture,
+        hard_risk_headroom_usd=Decimal("60"),
+        margin_headroom_usd=Decimal("500"),
+        known_options=(),
+        recovery_probe_stop_risk_usd=candidate.stop_risk_usd,
+        recovery_probe_margin_usd=candidate.margin_usd,
+    )
+    decision = propose_phase20h_robust_allocation(
+        mission=mission,
+        regime=regime,
+        hard_risk_headroom_usd=mpc.deployable_stop_risk_usd,
+        margin_headroom_usd=mpc.deployable_margin_usd,
+        concentration_limit_by_group=(("USD", Decimal("100")),),
+        candidates=(candidate,),
+        known_options=(),
+        runtime_scope_id="test:recovery-mpc-wire",
+    )
+
+    assert mpc.reserve_stop_risk_usd == Decimal("55")
+    assert mpc.reserve_margin_usd == Decimal("490")
+    assert mpc.deployable_stop_risk_usd == Decimal("5")
+    assert mpc.deployable_margin_usd == Decimal("10")
+    assert decision.disposition is Phase20AllocatorDisposition.ALLOCATE
+    assert decision.allocation is not None
+    assert decision.allocation.selected_signal_fingerprints == (
+        "recovery-probe",
+    )
+    assert decision.deployable_stop_risk_usd == Decimal("5")
+    assert decision.deployable_margin_usd == Decimal("10")
