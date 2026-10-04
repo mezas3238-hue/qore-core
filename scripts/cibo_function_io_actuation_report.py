@@ -284,11 +284,21 @@ def _ce2i_rows(
         status = str(cov.get("status", "UNKNOWN"))
         if runtime_io_complete and runtime_changed > 0:
             diagnosis = "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED"
+        elif runtime_io_complete and (
+            status == "JUSTIFIED_NOT_APPLICABLE"
+            or (
+                rows
+                and dispositions.get("ABSTAIN", 0) == len(rows)
+            )
+        ):
+            diagnosis = "JUSTIFIED_NOT_APPLICABLE"
         elif runtime_io_complete:
             diagnosis = "INPUT_OUTPUT_CONSUMER_OBSERVED_NO_CHANGE"
         elif code in ADVANCED and rows:
             if dispositions.get("FAIL_CLOSED", 0) == len(rows):
                 diagnosis = "ALL_CALLS_FAIL_CLOSED"
+            elif dispositions.get("ABSTAIN", 0) == len(rows):
+                diagnosis = "JUSTIFIED_NOT_APPLICABLE"
             elif effect_count > 0:
                 diagnosis = "OUTPUT_AND_ECONOMIC_EFFECT_OBSERVED"
             else:
@@ -367,10 +377,18 @@ def _genc_rows(capital: dict[str, Any]) -> list[dict[str, Any]]:
             diagnosis = "INPUT_OUTPUT_INCOMPLETE"
         elif consumer_count != len(rows):
             diagnosis = "CONSUMER_BINDING_INCOMPLETE"
-        elif changed == 0 and economic_delta == 0:
-            diagnosis = "OBSERVATIONAL_OR_NO_CHANGE_ONLY"
-        else:
+        elif (
+            dispositions.get("JUSTIFIED_NOT_APPLICABLE", 0) == len(rows)
+        ):
+            diagnosis = "JUSTIFIED_NOT_APPLICABLE"
+        elif changed > 0 or economic_delta > 0:
             diagnosis = "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED"
+        elif dispositions.get("APPLIED", 0) > 0:
+            diagnosis = "APPLIED_WITHOUT_OBSERVABLE_ACTUATION"
+        elif dispositions.get("FAIL_CLOSED", 0) == len(rows):
+            diagnosis = "ALL_CALLS_FAIL_CLOSED"
+        else:
+            diagnosis = "INPUT_OUTPUT_CONSUMER_OBSERVED_NO_CHANGE"
         result.append(
             {
                 "function_code": code,
@@ -411,26 +429,65 @@ def main() -> int:
         + _ce2i_rows(opportunities, coverage)
         + _genc_rows(capital)
     )
-    blockers = [
+    runtime_ok = {
+        "OUTPUT_AND_ECONOMIC_EFFECT_OBSERVED",
+        "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED",
+        "INPUT_OUTPUT_CONSUMER_OBSERVED_ADVISORY",
+        "INPUT_OUTPUT_CONSUMER_OBSERVED_NO_CHANGE",
+        "NATIVE_ENGINE_SUCCESS_CONSUMED_NO_ECONOMIC_ACTUATION",
+        "JUSTIFIED_NOT_APPLICABLE_PREDECISION",
+        "JUSTIFIED_NOT_APPLICABLE",
+    }
+    actuation_ok = {
+        "OUTPUT_AND_ECONOMIC_EFFECT_OBSERVED",
+        "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED",
+        "JUSTIFIED_NOT_APPLICABLE_PREDECISION",
+        "JUSTIFIED_NOT_APPLICABLE",
+    }
+    runtime_blockers = [
         {
             "function_code": row["function_code"],
             "stage": row["stage"],
             "diagnosis": row["diagnosis"],
         }
         for row in rows
-        if row["diagnosis"]
-        not in {
-            "OUTPUT_AND_ECONOMIC_EFFECT_OBSERVED",
-            "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED",
-            "INPUT_OUTPUT_CONSUMER_OBSERVED_ADVISORY",
+        if row["diagnosis"] not in runtime_ok
+    ]
+    actuation_gaps = [
+        {
+            "function_code": row["function_code"],
+            "stage": row["stage"],
+            "diagnosis": row["diagnosis"],
+        }
+        for row in rows
+        if row["diagnosis"] not in actuation_ok
+        and row["diagnosis"] not in {
+            "NATIVE_ENGINE_FAIL_CLOSED",
+            "NATIVE_ENGINE_DEPENDENCY_BLOCKED",
+            "ALL_CALLS_FAIL_CLOSED",
+            "FAIL_CLOSED_OR_UNAVAILABLE",
+            "NO_PER_CALL_RUNTIME_RECEIPTS",
+            "INPUT_OUTPUT_INCOMPLETE",
+            "CONSUMER_BINDING_INCOMPLETE",
+            "NATIVE_ENGINE_TELEMETRY_GAP",
+            "OBSERVABILITY_GAP",
+            "AGGREGATE_ONLY_PER_CALL_IO_MISSING",
         }
     ]
+    blockers = runtime_blockers + actuation_gaps
     payload = {
         "schema": "qore.cibo.function-io-actuation.v1",
         "group_id": group.get("group_id"),
         "function_count": len(rows),
         "functions": rows,
-        "economic_actuation_coverage_complete": not blockers,
+        "runtime_functionality_complete": not runtime_blockers,
+        "runtime_blocker_count": len(runtime_blockers),
+        "runtime_blockers": runtime_blockers,
+        "economic_actuation_coverage_complete": (
+            not runtime_blockers and not actuation_gaps
+        ),
+        "actuation_gap_count": len(actuation_gaps),
+        "actuation_gaps": actuation_gaps,
         "blocker_count": len(blockers),
         "blockers": blockers,
         "governance": {
