@@ -481,6 +481,7 @@ def main() -> int:
         replay_started_at=replay_started_at,
         lab_allow_nonpositive_expectation=True,
         lab_cibo_free_tool_choice=True,
+        lab_burned_context_quality_gate=True,
         lab_enable_t02_released_capacity=True,
     )
     research_authorizations = _compound_research_authorizations(plan)
