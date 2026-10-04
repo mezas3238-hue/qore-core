@@ -89,6 +89,11 @@ class CiboObservedPositionState:
     released_margin_usd: Decimal
     remaining_reward_r: Decimal
     provider_cost_usd: Decimal
+    expected_continuation_net_value_usd: Decimal = Decimal(0)
+    expected_remaining_capital_minutes: Decimal = Decimal(1)
+    release_cost_usd: Decimal = Decimal(0)
+    uncertainty_penalty: Decimal = Decimal(0)
+    releasable: bool = True
     lifecycle_actions: tuple[CiboLifecycleAction, ...] = ()
     future_outcome_used: bool = False
     structural_stop_widened: bool = False
@@ -115,8 +120,24 @@ class CiboObservedPositionState:
             "released_stop_risk_usd",
             "released_margin_usd",
             "provider_cost_usd",
+            "expected_remaining_capital_minutes",
+            "release_cost_usd",
+            "uncertainty_penalty",
         ):
             _finite(getattr(self, name), name)
+        _finite(
+            self.expected_continuation_net_value_usd,
+            "expected_continuation_net_value_usd",
+            nonnegative=False,
+        )
+        if self.expected_remaining_capital_minutes <= 0:
+            raise CiboCapitalManagementError(
+                "Full Economic Twin position remaining capital minutes must be positive"
+            )
+        if type(self.releasable) is not bool:
+            raise CiboCapitalManagementError(
+                "Full Economic Twin position releasable must be bool"
+            )
         _finite(self.remaining_reward_r, "remaining_reward_r", nonnegative=False)
         if (
             self.future_outcome_used
