@@ -18,7 +18,6 @@ from qore.infrastructure.core_stack_v2.shared_a3_world_fact_consumer import (
     A3WorldKnowledgeState,
 )
 
-
 NOW = datetime(2026, 10, 4, 20, 0, tzinfo=UTC)
 
 
