@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import os
 import platform
 import re
@@ -271,7 +270,7 @@ class NativeLabOrchestrator:
                     for task in pending.values()
                     if all(dep in completed for dep in task.dependencies)
                 ]
-                futures: dict[Future[TaskResult], str] = {}
+                futures: dict[Future[TaskResult], tuple[TaskSpec, str]] = {}
                 for task in ready:
                     worker_index += 1
                     worker_id = f"W{((worker_index - 1) % request.workers) + 1:02d}"
@@ -298,22 +297,22 @@ class NativeLabOrchestrator:
                         worker_id,
                         completed.copy(),
                     )
-                    futures[future] = task.task_id
+                    futures[future] = (task, worker_id)
                     del pending[task.task_id]
                     progress = True
                 for future in as_completed(futures):
-                    task_id = futures[future]
+                    task, worker_id = futures[future]
+                    task_id = task.task_id
                     try:
                         result = future.result()
                     except Exception as exc:
                         now = time.time_ns()
-                        task = next(item for item in tasks_from_results(task_id, ready))
                         result = TaskResult(
                             task_id=task.task_id,
                             suite=task.suite,
                             scope=task.scope,
                             state=TaskState.INCOMPLETE,
-                            worker_id="WORKER_EXCEPTION",
+                            worker_id=worker_id,
                             started_at_ns=now,
                             ended_at_ns=now,
                             duration_ms=0.0,
@@ -564,12 +563,7 @@ class NativeLabOrchestrator:
             "python_executable": sys.executable,
             "platform": platform.platform(),
             "lab_version": LAB_VERSION,
-            "github_actions": os.environ.get("GITHUB_ACTIONS") == "true",
+            "execution_engine": "QORE_SHARED_LAB_NATIVE",
+            "github_actions_detected": os.environ.get("GITHUB_ACTIONS") == "true",
+            "github_actions_required": False,
         }
-
-
-def tasks_from_results(
-    task_id: str,
-    tasks: list[TaskSpec],
-) -> tuple[TaskSpec, ...]:
-    return tuple(task for task in tasks if task.task_id == task_id)
