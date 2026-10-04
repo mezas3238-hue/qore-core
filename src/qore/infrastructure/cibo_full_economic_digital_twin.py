@@ -83,18 +83,18 @@ class CiboObservedPositionState:
     entry_at: datetime
     observed_at: datetime
     current_volume: Decimal
+    current_stop_risk_usd: Decimal
+    current_margin_usd: Decimal
+    released_stop_risk_usd: Decimal
+    released_margin_usd: Decimal
+    remaining_reward_r: Decimal
+    provider_cost_usd: Decimal
     entry_price: Decimal | None = None
     structural_stop: Decimal | None = None
     technical_target: Decimal | None = None
     current_mark_price: Decimal | None = None
     market_state_observed_at: datetime | None = None
     mark_to_market_identified: bool = False
-    current_stop_risk_usd: Decimal = Decimal(0)
-    current_margin_usd: Decimal
-    released_stop_risk_usd: Decimal
-    released_margin_usd: Decimal
-    remaining_reward_r: Decimal
-    provider_cost_usd: Decimal
     entry_expected_net_value_usd: Decimal = Decimal(0)
     entry_expected_capital_minutes: Decimal = Decimal(1)
     expectation_evidence_sha256: str = "sha256:" + "0" * 64
