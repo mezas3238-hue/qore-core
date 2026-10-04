@@ -424,8 +424,14 @@ B_WORK_ITEMS: Final = (
         "B-24",
         "Handoff to A plus final integration",
         SharedBWorkStatus.OPEN,
-        (),
-        ("WORLD_PERCEPTION_FREEZE does not yet exist",),
+        (
+            "doc:docs/shared/evidence/SHARED_B24_FINAL_HANDOFF_READINESS_001.json",
+        ),
+        (
+            "Shared Lab handoff readiness is fail-closed: B-22 WORLD_PERCEPTION_FREEZE "
+            "is absent, provenance through B-22 is incomplete, and B-06..B-16 plus "
+            "B-21/B-22 remain nonterminal; B-24 must not emit",
+        ),
     ),
 )
 
