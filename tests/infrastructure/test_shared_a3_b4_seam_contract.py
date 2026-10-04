@@ -11,7 +11,6 @@ from qore.infrastructure.core_stack_v2.shared_a3_b4_seam_contract import (
     SharedA3B4WorldFact,
 )
 
-
 NOW = datetime(2026, 10, 4, 16, 0, tzinfo=UTC)
 
 
