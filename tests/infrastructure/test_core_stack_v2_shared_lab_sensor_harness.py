@@ -1,6 +1,11 @@
 import pytest
 from qore.infrastructure.core_stack_v2.shared_lab_data_reality import CanonicalIdentity, ProviderDatum, ProviderProvenance
-from qore.infrastructure.core_stack_v2.shared_lab_sensor_harness import SensorFault, expand_required_fault_cases, inject_fault
+from qore.infrastructure.core_stack_v2.shared_lab_sensor_harness import (
+    SensorFault,
+    expand_required_fault_cases,
+    inject_fault,
+    run_sensor_probe,
+)
 from qore.infrastructure.core_stack_v2.shared_lab_tools import default_shared_lab_registry
 
 
@@ -23,3 +28,17 @@ def test_every_sensor_fault_materially_mutates_or_removes_evidence(fault: Sensor
 def test_registry_expands_family_cross_product_not_scripts() -> None:
     count = expand_required_fault_cases(default_shared_lab_registry(), sensors=("s1", "s2"), assets=("EURUSD", "XAUUSD"), regimes=("normal", "stress"))
     assert count > 50
+
+
+
+@pytest.mark.parametrize("fault", list(SensorFault))
+def test_every_sensor_fault_emits_structured_detected_receipt(fault: SensorFault) -> None:
+    receipt = run_sensor_probe(
+        sensor_id="sensor-test",
+        data=_data(),
+        fault=fault,
+        amount_ns=10_000,
+    )
+    assert receipt.detected
+    assert receipt.failure_classifications == (fault.value,)
+    assert receipt.productive_authority is False
