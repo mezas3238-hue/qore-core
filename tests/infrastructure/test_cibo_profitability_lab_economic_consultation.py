@@ -76,6 +76,30 @@ def test_economic_consultation_puts_all_faculties_on_predecision_path() -> None:
     assert receipt.outcome_used is False
     assert receipt.broker_mutation is False
     assert receipt.consultation_id.startswith("sha256:")
+    assert tuple(item.function_code for item in receipt.faculty_receipts) == tuple(
+        f"CF{i:02d}" for i in range(1, 20)
+    )
+    assert len({item.faculty for item in receipt.faculty_receipts}) == 19
+    assert len(
+        {
+            item.output_payload["contribution_code"]
+            for item in receipt.faculty_receipts
+        }
+    ) == 19
+    for item in receipt.faculty_receipts:
+        assert item.input_payload
+        assert item.output_payload
+        assert item.input_sha256.startswith("sha256:")
+        assert item.output_sha256.startswith("sha256:")
+        assert item.downstream_consumer == "cibo-functional-coordinator"
+        assert item.consumer_action == "contribution-coordinated"
+        assert item.decision_context_effect == "evidence-request-context"
+        assert item.advisory_only is True
+        assert item.economic_authority is False
+        assert item.sizing_authority is False
+        assert item.risk_authority is False
+        assert item.execution_authority is False
+        assert item.outcome_used is False
 
 
 def test_economic_cognitive_orchestration_is_deterministic() -> None:
@@ -97,3 +121,4 @@ def test_economic_cognitive_orchestration_is_deterministic() -> None:
     assert left.execution_authority is False
     assert left.outcome_used is False
     assert left.broker_mutation is False
+    assert left.faculty_receipts == right.faculty_receipts
