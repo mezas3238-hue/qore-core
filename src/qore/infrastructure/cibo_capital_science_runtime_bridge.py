@@ -1611,8 +1611,12 @@ def evaluate_capital_science_predecision(
         )
     )
 
-    # GEN-C10: build a canonical observed twin consumed by GEN-C11 and GEN-C12.
+    # GEN-C10: build canonical capital truth, then compose the Full Economic Twin.
     twin = _capital_twin(state, identity=identity)
+    economic_twin = _full_economic_twin(
+        state,
+        capital_twin=twin,
+    )
     receipts.append(
         _receipt(
             state=state,
@@ -1642,6 +1646,22 @@ def evaluate_capital_science_predecision(
                 ),
                 "known_option_count": len(twin.known_options),
                 "known_option_ids": [item.option_id for item in twin.known_options],
+                "full_economic_twin_id": economic_twin.twin_id,
+                "economic_opportunity_count": len(economic_twin.opportunities),
+                "economic_opportunities": [
+                    {
+                        "option_id": item.option_id,
+                        "expected_net_value_usd": format(
+                            item.expected_net_value_usd,
+                            "f",
+                        ),
+                        "expected_capital_minutes": format(
+                            item.expected_capital_minutes,
+                            "f",
+                        ),
+                    }
+                    for item in economic_twin.opportunities
+                ],
             },
             typed_engine_input={
                 "capital_truth_sha256": twin.capital_truth_sha256,
@@ -1733,7 +1753,7 @@ def evaluate_capital_science_predecision(
         )
         genc11 = plan_genc11_multi_period_capital(
             plan_id=f"genc11:{state.decision_epoch_id}:{state.signal_fingerprint}",
-            twin=twin,
+            twin=economic_twin,
             world_paths=paths,
             option_schedules=option_schedules,
         )
@@ -1782,7 +1802,8 @@ def evaluate_capital_science_predecision(
                     "all_worlds_horizon_coverable": (first_envelope.all_worlds_horizon_coverable),
                 },
                 typed_engine_input={
-                    "twin_id": twin.twin_id,
+                    "capital_twin_id": twin.twin_id,
+                    "economic_twin_id": economic_twin.twin_id,
                     "path_ids": [item.path_id for item in paths],
                     "option_schedules": [
                         {
