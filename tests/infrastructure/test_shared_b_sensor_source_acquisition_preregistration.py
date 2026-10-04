@@ -6,11 +6,10 @@ from datetime import UTC, datetime
 import pytest
 
 from qore.infrastructure.core_stack_v2.shared_b_sensor_source_acquisition_preregistration import (
-    B16SourceAcquisitionPreregistrationError,
     FROZEN_PILOT_INDICES,
+    B16SourceAcquisitionPreregistrationError,
     build_b16_source_acquisition_preregistration,
 )
-
 
 NOW = datetime(2026, 10, 4, 20, 0, tzinfo=UTC)
 
