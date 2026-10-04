@@ -867,6 +867,8 @@ def _capital_twin(
             stop_risk_usd=state.requested_stop_risk_usd,
             margin_usd=state.requested_margin_usd,
             evidence_sha256=_runtime_sha("known-option", state.payload()),
+            expected_net_value_usd=state.expected_net_value_usd,
+            expected_capital_minutes=state.expected_capital_minutes,
         )
         if request_capital > 0
         and state.requested_stop_risk_usd > 0
