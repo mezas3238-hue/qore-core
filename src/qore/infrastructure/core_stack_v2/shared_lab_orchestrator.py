@@ -170,6 +170,7 @@ class NativeLabOrchestrator:
             repository=snapshot.repository,
             commit_sha=snapshot.commit_sha,
             branch=snapshot.branch,
+            dataset_id=dataset.dataset_id,
             dataset_version=dataset.version,
             dataset_hash=dataset.content_hash,
             configuration_hash=plan_request.configuration_hash(),
