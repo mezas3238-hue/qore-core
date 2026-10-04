@@ -44,3 +44,21 @@ jobs:
           tests/infrastructure/test_core_stack_v2_shared_lab_completeness_thresholds.py
           tests/infrastructure/test_core_stack_v2_shared_lab_temporal_context.py
           tests/infrastructure/test_core_stack_v2_shared_lab_data_assessment.py
+          tests/infrastructure/test_core_stack_v2_shared_lab_market_calendar.py
+          tests/infrastructure/test_core_stack_v2_shared_lab_data_exam.py
+      - name: Emit full Data Reality exam receipt
+        run: |
+          python -m qore.infrastructure.core_stack_v2.shared_lab_data_exam > shared-lab-data-reality-exam.json
+          python - <<'PY'
+          import json
+          p=json.load(open("shared-lab-data-reality-exam.json"))
+          assert p["passed"] is True
+          assert len(p["evidence"]) == 14
+          print(p["exam_fingerprint"])
+          PY
+      - name: Upload Data Reality exam receipt
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-lab-data-reality-exam
+          path: shared-lab-data-reality-exam.json
+          if-no-files-found: error
