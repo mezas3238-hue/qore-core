@@ -32,3 +32,18 @@ def test_weekend_holiday_break_and_early_close_are_derived() -> None:
 def test_overnight_session_is_not_treated_as_closed() -> None:
     cal = _calendar()
     assert expected_session_state(cal, datetime(2026, 11, 24, 0, 30, tzinfo=UTC)) is SessionState.OVERNIGHT
+
+
+
+def test_dst_transition_preserves_local_session_contract() -> None:
+    cal = MarketCalendarContract(
+        instrument_id="INDEX:NYSE",
+        timezone="America/New_York",
+        open_weekdays=(0, 1, 2, 3, 4),
+        session_open=time(9, 30),
+        session_close=time(16, 0),
+    )
+    before_dst = datetime(2026, 3, 6, 15, 0, tzinfo=UTC)
+    after_dst = datetime(2026, 3, 9, 14, 0, tzinfo=UTC)
+    assert expected_session_state(cal, before_dst) is SessionState.OPEN
+    assert expected_session_state(cal, after_dst) is SessionState.OPEN
