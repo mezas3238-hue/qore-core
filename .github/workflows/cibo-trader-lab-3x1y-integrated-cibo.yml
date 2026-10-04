@@ -207,7 +207,7 @@ jobs:
           assert p['shared_cibo_state'] is True
           assert p['shared_qore_risk_state'] is True
           assert len(p['traders'])==7
-          assert len(p['candidates'])==4
+          assert len(p['candidates'])==5
           io_path=Path(os.environ['RUNNER_TEMP'])/'results'/group/'lab'/'function-io-actuation.json'
           io=json.loads(io_path.read_text())
           assert io['schema']=='qore.cibo.function-io-actuation.v1'
