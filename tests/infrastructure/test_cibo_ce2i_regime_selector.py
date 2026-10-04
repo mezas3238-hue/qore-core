@@ -101,17 +101,18 @@ def test_provider_degradation_blocks_new_capital_even_in_demo() -> None:
     assert "T20" in decision.enabled_tools
 
 
-def test_recovery_posture_blocks_expansion_and_competition() -> None:
+def test_demo_recovery_keeps_minimum_seed_competition_without_expansion() -> None:
     decision = select_ce2i_tools_for_regime(
         mission=_demo(),
         state=_state(dd="0.80"),
     )
 
     assert decision.posture is CiboRegimePosture.RECOVERY
+    assert "T01" in decision.enabled_tools
     assert "T06" not in decision.enabled_tools
     assert "T07" not in decision.enabled_tools
-    assert "T09" not in decision.enabled_tools
-    assert "T18" not in decision.enabled_tools
+    assert "T09" in decision.enabled_tools
+    assert "T18" in decision.enabled_tools
     assert "T11" in decision.enabled_tools
     assert "T20" in decision.enabled_tools
 
