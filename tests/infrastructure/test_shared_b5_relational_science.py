@@ -194,3 +194,25 @@ def test_b13_rejects_noncomparable_window_and_outcome_samples() -> None:
             provenance_refs=("sealed:forbidden",),
             outcome_used=True,
         )
+
+
+def test_b11_lifecycle_executes_degraded_after_birth() -> None:
+    source_values = (100, 101, 103, 102, 105, 103)
+    target_values = (200, 197, 194, 192, 189, 186)
+    samples = tuple(
+        _sample(i, source_values[i], target_values[i])
+        for i in range(len(source_values))
+    )
+    receipt = populate_relationship_lifecycle(
+        relation_id="B11:DEGRADED",
+        samples=samples,
+        window_size=5,
+        active_threshold_bps=6_000,
+        degraded_threshold_bps=3_000,
+    )
+    states = tuple(item.state for item in receipt.transitions)
+    assert states == (
+        RelationshipLifecycleState.BIRTH,
+        RelationshipLifecycleState.DEGRADED,
+    )
+    assert receipt.current_state is RelationshipLifecycleState.DEGRADED
