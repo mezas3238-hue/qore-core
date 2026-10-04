@@ -94,6 +94,21 @@ def build_cibo_profitability_decision_trace(
             "portfolio_decisions",
         )
         allocation_rows = _allocation_rows(policy_payload)
+        full_surface_runtime_receipts = _list_of_objects(
+            full_surface.get("runtime_receipts", []),
+            "full-surface CE2I runtime receipts",
+        )
+        allocator_payload = _object(
+            policy_payload.get("allocator_decision"),
+            "allocator_decision",
+        )
+        allocator_runtime_receipts = _list_of_objects(
+            allocator_payload.get("runtime_receipts", []),
+            "allocator CE2I runtime receipts",
+        )
+        ce2i_runtime_receipts = (
+            full_surface_runtime_receipts + allocator_runtime_receipts
+        )
         consultation = _object(
             policy_payload.get("economic_consultation"),
             "economic_consultation",
@@ -303,6 +318,7 @@ def build_cibo_profitability_decision_trace(
                         ),
                         "candidate_economic_effects": signal_effects,
                         "portfolio_economic_effects": portfolio_effects,
+                        "runtime_receipts": ce2i_runtime_receipts,
                         "effective_hard_risk_headroom_usd": (
                             economic_application.get(
                                 "effective_hard_risk_headroom_usd"

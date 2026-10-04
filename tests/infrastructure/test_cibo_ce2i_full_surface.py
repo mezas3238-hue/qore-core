@@ -97,3 +97,13 @@ def test_full_surface_binds_all_twenty_tools_and_all_advanced_scopes() -> None:
         item.disposition is AdvancedToolDisposition.FAIL_CLOSED
         for item in result.advanced_decisions
     )
+    assert len(result.runtime_receipts) == 1
+    receipt = result.runtime_receipts[0]
+    assert receipt.tool_code == "T12"
+    assert receipt.engine_name == "select_ce2i_tools_for_regime"
+    assert receipt.downstream_consumer == "cibo-full-ce2i-surface"
+    assert receipt.consumer_action == "regime-tool-selection-consumed"
+    assert receipt.native_engine_called is True
+    assert receipt.outcome_used is False
+    assert receipt.risk_authority is False
+    assert receipt.execution_authority is False

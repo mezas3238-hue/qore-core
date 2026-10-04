@@ -215,6 +215,9 @@ def _ce2i_rows(
 ) -> list[dict[str, Any]]:
     decisions: dict[str, list[dict[str, Any]]] = {code: [] for code in T_CODES}
     effects: Counter[str] = Counter()
+    runtime_receipts: dict[str, dict[tuple[str, str, str, str], dict[str, Any]]] = {
+        code: {} for code in T_CODES
+    }
     for row in opportunities:
         ce2i = row.get("ce2i")
         if not isinstance(ce2i, dict):
@@ -231,6 +234,19 @@ def _ce2i_rows(
         ):
             if isinstance(effect, dict) and effect.get("tool_code"):
                 effects[str(effect["tool_code"])] += 1
+        for receipt in ce2i.get("runtime_receipts", []):
+            if not isinstance(receipt, dict):
+                continue
+            code = str(receipt.get("tool_code"))
+            if code not in runtime_receipts:
+                continue
+            key = (
+                str(receipt.get("scope_id")),
+                str(receipt.get("input_sha256")),
+                str(receipt.get("output_sha256")),
+                str(receipt.get("engine_name")),
+            )
+            runtime_receipts[code][key] = receipt
 
     result = []
     for code in T_CODES:
@@ -240,8 +256,37 @@ def _ce2i_rows(
         reasons = Counter(str(row.get("reason")) for row in rows)
         per_call_output = bool(rows) if code in ADVANCED else False
         effect_count = effects[code]
+        receipts = list(runtime_receipts[code].values())
+        runtime_io_complete = bool(receipts) and all(
+            isinstance(item.get("input_payload"), dict)
+            and bool(item["input_payload"])
+            and isinstance(item.get("output_payload"), dict)
+            and bool(item["output_payload"])
+            and isinstance(item.get("input_sha256"), str)
+            and str(item["input_sha256"]).startswith("sha256:")
+            and isinstance(item.get("output_sha256"), str)
+            and str(item["output_sha256"]).startswith("sha256:")
+            and bool(item.get("downstream_consumer"))
+            and bool(item.get("consumer_action"))
+            and item.get("native_engine_called") is True
+            and item.get("allocation_authority") is False
+            and item.get("risk_authority") is False
+            and item.get("execution_authority") is False
+            and item.get("productive_authority") is False
+            and item.get("broker_mutation") is False
+            for item in receipts
+        )
+        runtime_changed = sum(
+            item.get("decision_changed") is True
+            or item.get("economic_effect_observable") is True
+            for item in receipts
+        )
         status = str(cov.get("status", "UNKNOWN"))
-        if code in ADVANCED and rows:
+        if runtime_io_complete and runtime_changed > 0:
+            diagnosis = "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED"
+        elif runtime_io_complete:
+            diagnosis = "INPUT_OUTPUT_CONSUMER_OBSERVED_NO_CHANGE"
+        elif code in ADVANCED and rows:
             if dispositions.get("FAIL_CLOSED", 0) == len(rows):
                 diagnosis = "ALL_CALLS_FAIL_CLOSED"
             elif effect_count > 0:
@@ -259,12 +304,24 @@ def _ce2i_rows(
                 "coverage_status": status,
                 "enabled_epochs": cov.get("enabled_epochs"),
                 "applied_count": cov.get("applied_count"),
-                "per_call_input_observable": False,
-                "per_call_output_observable": per_call_output,
-                "downstream_consumer_observable": effect_count > 0,
-                "decision_change_observable": effect_count > 0,
-                "economic_effect_observable": effect_count > 0,
+                "per_call_input_observable": runtime_io_complete,
+                "per_call_output_observable": per_call_output or runtime_io_complete,
+                "downstream_consumer_observable": (
+                    effect_count > 0 or runtime_io_complete
+                ),
+                "decision_change_observable": (
+                    effect_count > 0 or runtime_changed > 0
+                ),
+                "economic_effect_observable": (
+                    effect_count > 0
+                    or any(
+                        item.get("economic_effect_observable") is True
+                        for item in receipts
+                    )
+                ),
                 "advanced_call_count": len(rows),
+                "runtime_receipt_count": len(receipts),
+                "runtime_actuation_count": runtime_changed,
                 "economic_effect_count": effect_count,
                 "dispositions": dict(dispositions),
                 "reason_distribution": dict(reasons),

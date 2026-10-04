@@ -41,6 +41,10 @@ from qore.infrastructure.cibo_ce2i_regime_selector import (
     CiboRegimePosture,
     CiboRegimeToolSelection,
 )
+from qore.infrastructure.cibo_ce2i_runtime_receipt import (
+    CiboCe2iRuntimeReceipt,
+    build_ce2i_runtime_receipt,
+)
 
 
 class Phase20AllocatorDisposition(StrEnum):
@@ -62,6 +66,7 @@ class Phase20RobustAllocatorDecision:
     reserved_for_opportunity_ids: tuple[str, ...]
     allocation: OpportunityAllocationDecision | None
     reason: str
+    runtime_receipts: tuple[CiboCe2iRuntimeReceipt, ...] = ()
     outcome_aware: bool = False
     validation_tuned: bool = False
     phase19j_burned_validation_reused: bool = False
@@ -86,6 +91,13 @@ class Phase20RobustAllocatorDecision:
         if type(self.regime_posture) is not CiboRegimePosture:
             raise CiboCapitalManagementError(
                 "Phase20H regime posture must use canonical enum"
+            )
+        if any(
+            not isinstance(item, CiboCe2iRuntimeReceipt)
+            for item in self.runtime_receipts
+        ):
+            raise CiboCapitalManagementError(
+                "Phase20H runtime receipt type drift"
             )
         for name in (
             "reserve_stop_risk_usd",
@@ -222,6 +234,7 @@ def propose_phase20h_robust_allocation(
         )
 
     applied: list[str] = []
+    runtime_receipts: list[CiboCe2iRuntimeReceipt] = []
     if "T15" in enabled:
         optionality = plan_capital_optionality(
             mission=mission,
@@ -235,6 +248,45 @@ def propose_phase20h_robust_allocation(
         deployable_risk = optionality.deployable_stop_risk_usd
         deployable_margin = optionality.deployable_margin_usd
         reserved_ids = optionality.reserved_for_opportunity_ids
+        runtime_receipts.append(
+            build_ce2i_runtime_receipt(
+                tool_code="T15",
+                engine_name="plan_capital_optionality",
+                stage="PREDECISION",
+                scope_id="phase20h-allocator",
+                input_payload={
+                    "hard_risk_headroom_usd": str(hard_risk_headroom_usd),
+                    "margin_headroom_usd": str(margin_headroom_usd),
+                    "known_options": [
+                        {
+                            "opportunity_id": item.opportunity_id,
+                            "minimum_stop_risk_usd": str(item.minimum_stop_risk_usd),
+                            "minimum_margin_usd": str(item.minimum_margin_usd),
+                        }
+                        for item in known_options
+                    ],
+                    "regime_posture": regime.posture.value,
+                },
+                output_payload={
+                    "reserve_stop_risk_usd": str(reserve_risk),
+                    "reserve_margin_usd": str(reserve_margin),
+                    "deployable_stop_risk_usd": str(deployable_risk),
+                    "deployable_margin_usd": str(deployable_margin),
+                    "reserved_for_opportunity_ids": list(reserved_ids),
+                },
+                downstream_consumer="phase20h-allocator-budget",
+                consumer_action="optionality-envelope-consumed",
+                decision_changed=(
+                    reserve_risk > 0
+                    or reserve_margin > 0
+                    or deployable_risk != hard_risk_headroom_usd
+                    or deployable_margin != margin_headroom_usd
+                ),
+                economic_effect_observable=(
+                    reserve_risk > 0 or reserve_margin > 0
+                ),
+            )
+        )
         applied.append("T15")
         if (
             regime.posture is CiboRegimePosture.RECOVERY
@@ -316,6 +368,7 @@ def propose_phase20h_robust_allocation(
                 "allocation is blocked by capital, candidate availability, "
                 "or required multi-candidate competition tooling"
             ),
+            runtime_receipts=tuple(runtime_receipts),
         )
 
     budget = OpportunityAllocationBudget(
@@ -329,6 +382,41 @@ def propose_phase20h_robust_allocation(
         lab_allow_nonpositive_expectation=lab_allow_nonpositive_expectation,
     )
     if len(candidates) > 1:
+        allocation_input = {
+            "candidate_fingerprints": [
+                item.signal_fingerprint for item in candidates
+            ],
+            "stop_risk_headroom_usd": str(deployable_risk),
+            "margin_headroom_usd": str(deployable_margin),
+            "concentration_limit_by_group": [
+                [name, str(value)]
+                for name, value in concentration_limit_by_group
+            ],
+        }
+        allocation_output = {
+            "selected_signal_fingerprints": list(
+                allocation.selected_signal_fingerprints
+            ),
+            "used_stop_risk_usd": str(allocation.used_stop_risk_usd),
+            "used_margin_usd": str(allocation.used_margin_usd),
+        }
+        for tool_code in ("T09", "T18"):
+            runtime_receipts.append(
+                build_ce2i_runtime_receipt(
+                    tool_code=tool_code,
+                    engine_name="allocate_competing_opportunities",
+                    stage="PREDECISION",
+                    scope_id="phase20h-allocator",
+                    input_payload=allocation_input,
+                    output_payload=allocation_output,
+                    downstream_consumer="phase20h-allocator-selection",
+                    consumer_action="competition-result-consumed",
+                    decision_changed=True,
+                    economic_effect_observable=bool(
+                        allocation.selected_signal_fingerprints
+                    ),
+                )
+            )
         applied.extend(("T09", "T18"))
     disposition = (
         Phase20AllocatorDisposition.ALLOCATE
@@ -355,4 +443,5 @@ def propose_phase20h_robust_allocation(
                 "optionality, shared headroom and concentration constraints"
             )
         ),
+        runtime_receipts=tuple(runtime_receipts),
     )

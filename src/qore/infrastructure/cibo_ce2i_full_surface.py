@@ -37,6 +37,10 @@ from qore.infrastructure.cibo_ce2i_regime_selector import (
     CiboRegimeToolSelection,
     select_ce2i_tools_for_regime,
 )
+from qore.infrastructure.cibo_ce2i_runtime_receipt import (
+    CiboCe2iRuntimeReceipt,
+    build_ce2i_runtime_receipt,
+)
 from qore.infrastructure.cibo_ce2i_tool_registry import (
     CE2I_TOOL_REGISTRY,
     ToolMaturity,
@@ -115,6 +119,7 @@ class FullCe2iSurfaceAssessment:
     portfolio_decisions: tuple[AdvancedToolDecision, ...]
     registry_codes: tuple[str, ...]
     complete_registry: bool
+    runtime_receipts: tuple[CiboCe2iRuntimeReceipt, ...] = ()
 
     def __post_init__(self) -> None:
         if self.registry_codes != tuple(
@@ -137,6 +142,13 @@ class FullCe2iSurfaceAssessment:
         ):
             raise CiboCapitalManagementError(
                 "portfolio assessment contains opportunity-level tool"
+            )
+        if any(
+            not isinstance(item, CiboCe2iRuntimeReceipt)
+            for item in self.runtime_receipts
+        ):
+            raise CiboCapitalManagementError(
+                "full CE2I runtime receipt type drift"
             )
 
     @property
@@ -223,6 +235,42 @@ def evaluate_full_ce2i_surface(
                 "scientific_eligibility must be canonical freeze"
             )
         regime = scientific_eligibility.filter_regime_selection(regime)
+    t12_input = {
+        "mission_tools": list(mission_tools),
+        "liquidity": regime_state.liquidity.value,
+        "volatility": regime_state.volatility.value,
+        "correlation": regime_state.correlation.value,
+        "provider_condition": regime_state.provider_condition.value,
+        "risk_utilization": str(regime_state.risk_utilization),
+        "margin_utilization": str(regime_state.margin_utilization),
+        "drawdown_utilization": str(regime_state.drawdown_utilization),
+        "opportunity_count": regime_state.opportunity_count,
+        "position_path_adverse": regime_state.position_path_adverse,
+        "evidence_stale": regime_state.evidence_stale,
+        "scientific_eligibility_applied": scientific_eligibility is not None,
+    }
+    t12_output = {
+        "posture": regime.posture.value,
+        "enabled_tools": list(regime.enabled_tools),
+        "blocked_tools": list(regime.blocked_tools),
+        "reason": regime.reason,
+    }
+    t12_receipt = build_ce2i_runtime_receipt(
+        tool_code="T12",
+        engine_name="select_ce2i_tools_for_regime",
+        stage="PREDECISION",
+        scope_id=(
+            decision_at.isoformat()
+            if decision_at is not None
+            else "UNSEALED_RESEARCH_EPOCH"
+        ),
+        input_payload=t12_input,
+        output_payload=t12_output,
+        downstream_consumer="cibo-full-ce2i-surface",
+        consumer_action="regime-tool-selection-consumed",
+        decision_changed=bool(regime.blocked_tools),
+        economic_effect_observable=False,
+    )
     evidence_by_signal = {
         item.signal_fingerprint: item
         for item in advanced_evidence.opportunities
@@ -297,6 +345,7 @@ def evaluate_full_ce2i_surface(
         portfolio_decisions=portfolio_decisions,
         registry_codes=registry_codes,
         complete_registry=True,
+        runtime_receipts=(t12_receipt,),
     )
 
 

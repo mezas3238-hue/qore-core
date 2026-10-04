@@ -144,6 +144,20 @@ def test_phase20h_stable_demo_allocates_inside_shared_headroom() -> None:
     assert decision.allocation.selected_signal_fingerprints == ("fast",)
     assert decision.allocation.used_stop_risk_usd == Decimal("5")
     assert decision.applied_tools == ("T15", "T09", "T18")
+    assert tuple(item.tool_code for item in decision.runtime_receipts) == (
+        "T15",
+        "T09",
+        "T18",
+    )
+    assert all(
+        item.downstream_consumer
+        in {"phase20h-allocator-budget", "phase20h-allocator-selection"}
+        for item in decision.runtime_receipts
+    )
+    assert all(item.outcome_used is False for item in decision.runtime_receipts)
+    assert all(item.risk_authority is False for item in decision.runtime_receipts)
+    assert decision.runtime_receipts[1].economic_effect_observable is True
+    assert decision.runtime_receipts[2].economic_effect_observable is True
 
 
 def test_phase20h_single_stable_candidate_does_not_require_competition() -> None:
@@ -247,6 +261,9 @@ def test_phase20h_defensive_reserves_option_and_blocks_competition() -> None:
     assert decision.reserved_for_opportunity_ids == ("future-small",)
     assert decision.applied_tools == ("T15",)
     assert decision.allocation is None
+    assert tuple(item.tool_code for item in decision.runtime_receipts) == ("T15",)
+    assert decision.runtime_receipts[0].decision_changed is True
+    assert decision.runtime_receipts[0].economic_effect_observable is True
 
 
 def test_phase20h_external_capital_fails_conservative_without_t15() -> None:
