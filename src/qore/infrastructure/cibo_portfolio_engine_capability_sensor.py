@@ -98,6 +98,7 @@ def measure_portfolio_engine_capability(
     if continuation.primary_blocker not in {
         "NONE",
         "NO_OPEN_POSITION_COMPETITION",
+        "REMAINING_REWARD_UNIDENTIFIED",
     }:
         blocker = continuation.primary_blocker
     elif readiness.primary_blocker not in {
