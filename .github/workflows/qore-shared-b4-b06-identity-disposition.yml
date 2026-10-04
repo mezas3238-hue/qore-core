@@ -1,0 +1,149 @@
+name: QORE Shared B4 B06 Identity Disposition Closure
+
+on:
+  push:
+    branches:
+      - agent/shared-architect-b4-world-foundation-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/shared_b4_global_identity_disposition.py
+      - scripts/shared_b4_global_identity_disposition.py
+      - tests/infrastructure/test_shared_b4_global_identity_disposition.py
+      - .github/workflows/qore-shared-b4-b06-identity-disposition.yml
+  workflow_dispatch:
+
+concurrency:
+  group: qore-shared-b4-b06-identity-disposition-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  FRONTIER_V3_RUN_ID: "36775635034"
+  FRONTIER_V3_ARTIFACT_ID: "11125412870"
+  FRONTIER_V3_GIT_SHA: "d4956bd7fa02830be56648338c871a78c00374bd"
+
+jobs:
+  close-b06:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Shared
+        run: pip install -e ".[dev]"
+
+      - name: Validate B4 B-06 closure
+        run: |
+          set -euo pipefail
+          ruff check \
+            src/qore/infrastructure/core_stack_v2/shared_b4_global_identity_disposition.py \
+            scripts/shared_b4_global_identity_disposition.py \
+            tests/infrastructure/test_shared_b4_global_identity_disposition.py
+          mypy \
+            src/qore/infrastructure/core_stack_v2/shared_b4_global_identity_disposition.py \
+            scripts/shared_b4_global_identity_disposition.py
+          pytest -q tests/infrastructure/test_shared_b4_global_identity_disposition.py
+
+      - name: Verify sealed B-06 frontier lineage
+        run: |
+          set -euo pipefail
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${FRONTIER_V3_RUN_ID}" --jq '.status')" = "completed"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${FRONTIER_V3_RUN_ID}" --jq '.conclusion')" = "success"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${FRONTIER_V3_RUN_ID}" --jq '.head_sha')" = "${FRONTIER_V3_GIT_SHA}"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${FRONTIER_V3_ARTIFACT_ID}" --jq '.workflow_run.id')" = "${FRONTIER_V3_RUN_ID}"
+
+      - name: Recover sealed 177-sensor frontier
+        run: |
+          set -euo pipefail
+          mkdir -p input/frontier result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${FRONTIER_V3_ARTIFACT_ID}/zip" > frontier.zip
+          unzip -q frontier.zip -d input/frontier
+          sums="$(find input/frontier -name SHA256SUMS -print -quit)"
+          test -n "$sums"
+          (cd "$(dirname "$sums")" && sha256sum -c SHA256SUMS)
+          frontier_file="$(find input/frontier -name shared-b-global-identity-frontier-v3.json -print -quit)"
+          test -n "$frontier_file"
+          printf 'FRONTIER_FILE=%s\n' "$frontier_file" >> "$GITHUB_ENV"
+
+      - name: Materialize exact B-06 identity dispositions
+        run: |
+          set -euo pipefail
+          python scripts/shared_b4_global_identity_disposition.py \
+            --frontier-v3 "$FRONTIER_FILE" \
+            --output result/shared-b4-global-identity-disposition.json \
+            | tee result/summary.json
+
+      - name: Enforce honest B-06 closure
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p=json.loads(
+              Path("result/shared-b4-global-identity-disposition.json").read_text()
+          )
+          assert p["identity"] == "SHARED_B4_GLOBAL_IDENTITY_DISPOSITION_001"
+          assert p["status"] == "B06_EPISTEMIC_IDENTITY_DISPOSITION_CLOSED"
+          assert p["sensor_count"] == 177
+          assert p["identity_disposition_complete_count"] == 177
+          assert p["identity_disposition_coverage_complete"] is True
+          assert p["calendar_qualification_candidate_count"] == 90
+          assert p["explicit_unknown_or_limited_count"] == 87
+          assert p["disposition_counts"] == {
+              "CURRENT_REFERENCE_VERIFIED": 85,
+              "LEGACY_LINEAGE_ONLY": 2,
+              "PROVIDER_ATTESTED_ONLY": 73,
+              "PROVIDER_BINDING_UNKNOWN": 12,
+              "VERSIONED_CONTRACT_VERIFIED": 5,
+          }
+          assert p["unknown_is_valid_terminal_identity_disposition"] is True
+          assert p["all_provider_symbols_have_canonical_identity"] is False
+          assert p["provider_symbol_is_canonical_identity_proof"] is False
+          assert p["automatic_identity_inference"] is False
+          assert p["calendar_binding_authorized"] is False
+          assert p["relational_claims_authorized"] is False
+          assert p["sensor_admission_authorized"] is False
+          assert p["target_or_outcome_read"] is False
+          assert p["fresh_holdout_opened"] is False
+          assert p["broker_mutation"] is False
+          assert p["productive_authority"] is False
+          assert p["b06_epistemic_closure_complete"] is True
+          assert p["b06_all_canonical_identities_verified"] is False
+          assert len(p["registry_fingerprint_sha256"]) == 64
+          PY
+
+      - name: Seal B-06 closure evidence
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$GITHUB_SHA" > result/code-git-sha.txt
+          printf '%s\n' "$GITHUB_RUN_ID" > result/run-id.txt
+          printf '%s\n' "$FRONTIER_V3_RUN_ID" > result/upstream-run-id.txt
+          printf '%s\n' "$FRONTIER_V3_ARTIFACT_ID" > result/upstream-artifact-id.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 \
+              | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - name: Upload B-06 closure evidence
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-b4-b06-identity-disposition-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report B4 B-06 closure
+        env:
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+        run: |
+          gh issue comment 638 --repo "$GITHUB_REPOSITORY" --body "Architect B4 B-06 identity disposition closure: run ${GITHUB_RUN_ID}, SHA ${GITHUB_SHA}, artifact ${ARTIFACT_ID}. Exact 177/177 sensors now have explicit evidence-backed terminal identity dispositions: 85 CURRENT_REFERENCE_VERIFIED, 5 VERSIONED_CONTRACT_VERIFIED, 2 LEGACY_LINEAGE_ONLY, 12 PROVIDER_BINDING_UNKNOWN, 73 PROVIDER_ATTESTED_ONLY. UNKNOWN/limited states remain non-authoritative; 90 sensors may proceed to calendar qualification, while all calendar bindings and relational claims remain unauthorized. No outcome/fresh-holdout/broker/productive authority."
