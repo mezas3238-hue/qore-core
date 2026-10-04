@@ -335,6 +335,133 @@ def _baseline_metrics(payload: dict[str, Any] | None) -> dict[str, Any] | None:
     return row
 
 
+
+def _selection_diagnostics(
+    *,
+    trace: dict[str, Any],
+    execution,
+) -> dict[str, Any]:
+    baseline_selected = {
+        str(row["signal_fingerprint"])
+        for row in trace["opportunities"]
+        if bool(row["allocation"]["selected_by_cibo_policy"])
+    }
+    current_selected = {
+        signal
+        for decision in execution.books.holdout_policy.decisions
+        for signal in decision.selected_signal_fingerprints
+    }
+    settlements = {
+        item.signal_fingerprint: item
+        for item in execution.books.cma_settlement.settlements
+    }
+    newly_selected = current_selected - baseline_selected
+    dropped = baseline_selected - current_selected
+
+    by_trader: dict[str, dict[str, object]] = {}
+    for signal in sorted(newly_selected):
+        item = settlements.get(signal)
+        if item is None:
+            continue
+        row = by_trader.setdefault(
+            item.trader_id,
+            {"count": 0, "pnl_usd": Decimal(0), "wins": 0, "losses": 0},
+        )
+        row["count"] = int(row["count"]) + 1
+        row["pnl_usd"] = Decimal(row["pnl_usd"]) + item.realized_net_pnl_usd
+        row["wins"] = int(row["wins"]) + int(item.realized_net_pnl_usd > 0)
+        row["losses"] = int(row["losses"]) + int(item.realized_net_pnl_usd < 0)
+
+    ordered = sorted(
+        execution.books.cma_settlement.settlements,
+        key=lambda item: (
+            item.capital_released_at,
+            item.signal_fingerprint,
+        ),
+    )
+    equity = execution.initial_realized_capital_usd
+    peak = equity
+    peak_index = -1
+    peak_time = None
+    max_dd = Decimal(0)
+    dd_start_index = -1
+    dd_end_index = -1
+    for index, item in enumerate(ordered):
+        equity += item.realized_net_pnl_usd
+        if equity > peak:
+            peak = equity
+            peak_index = index
+            peak_time = item.capital_released_at
+        dd = peak - equity
+        if dd > max_dd:
+            max_dd = dd
+            dd_start_index = peak_index
+            dd_end_index = index
+
+    window = (
+        ordered[dd_start_index + 1 : dd_end_index + 1]
+        if dd_end_index >= 0
+        else []
+    )
+    window_new_pnl = Decimal(0)
+    window_existing_pnl = Decimal(0)
+    window_by_trader: dict[str, Decimal] = {}
+    for item in window:
+        if item.signal_fingerprint in newly_selected:
+            window_new_pnl += item.realized_net_pnl_usd
+        else:
+            window_existing_pnl += item.realized_net_pnl_usd
+        window_by_trader[item.trader_id] = (
+            window_by_trader.get(item.trader_id, Decimal(0))
+            + item.realized_net_pnl_usd
+        )
+
+    return {
+        "baseline_selected_count": len(baseline_selected),
+        "current_selected_count": len(current_selected),
+        "newly_selected_count": len(newly_selected),
+        "dropped_count": len(dropped),
+        "newly_selected_realized_pnl_usd": format(
+            sum(
+                (
+                    settlements[signal].realized_net_pnl_usd
+                    for signal in newly_selected
+                    if signal in settlements
+                ),
+                Decimal(0),
+            ),
+            "f",
+        ),
+        "newly_selected_by_trader": {
+            trader: {
+                "count": int(row["count"]),
+                "pnl_usd": format(Decimal(row["pnl_usd"]), "f"),
+                "wins": int(row["wins"]),
+                "losses": int(row["losses"]),
+            }
+            for trader, row in sorted(by_trader.items())
+        },
+        "current_max_drawdown_window": {
+            "max_drawdown_usd": format(max_dd, "f"),
+            "peak_released_at": (
+                None if peak_time is None else peak_time.isoformat()
+            ),
+            "trough_released_at": (
+                None
+                if dd_end_index < 0
+                else ordered[dd_end_index].capital_released_at.isoformat()
+            ),
+            "trade_count": len(window),
+            "newly_selected_pnl_usd": format(window_new_pnl, "f"),
+            "preexisting_selected_pnl_usd": format(window_existing_pnl, "f"),
+            "pnl_by_trader": {
+                trader: format(value, "f")
+                for trader, value in sorted(window_by_trader.items())
+            },
+        },
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--trace", type=Path, required=True)
@@ -425,6 +552,10 @@ def main() -> int:
         "current": current,
         "baseline": baseline,
         "comparison": comparison,
+        "selection_diagnostics": _selection_diagnostics(
+            trace=trace,
+            execution=execution,
+        ),
         "governance": {
             "outcomes_used_for_predecision": False,
             "broker_mutation": False,
