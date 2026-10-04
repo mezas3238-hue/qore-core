@@ -11,8 +11,9 @@ import hashlib
 import inspect
 import json
 import time
+from collections.abc import Callable, Mapping
 from dataclasses import asdict, dataclass, is_dataclass
-from typing import Any, Callable, Mapping
+from typing import Any
 
 from qore.infrastructure.core_stack_v2.shared_lab import (
     CableRealityReceipt,
@@ -36,8 +37,8 @@ def _canonical(value: Any) -> Any:
         return [_canonical(item) for item in value]
     if isinstance(value, (str, int, float, bool)) or value is None:
         return value
-    if hasattr(value, "value") and isinstance(getattr(value, "value"), (str, int, float, bool)):
-        return getattr(value, "value")
+    if hasattr(value, "value") and isinstance(value.value, (str, int, float, bool)):
+        return value.value
     return repr(value)
 
 
