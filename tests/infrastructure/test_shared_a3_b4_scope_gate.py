@@ -75,6 +75,22 @@ def test_current_b07_like_fact_stays_blocked_until_b08_b09() -> None:
     assert out.a3_scope_relation_claim_allowed is False
 
 
+def test_factual_scope_can_be_ready_without_relational_comparability() -> None:
+    fact = _fact(
+        "A",
+        temporal_status=SharedA3B4TemporalStatus.NOT_COMPARABLE,
+        relation_eligibility=SharedA3B4RelationEligibility.INELIGIBLE,
+    )
+    out = assess_a3_b4_scope(
+        facts=(fact,),
+        required_instrument_keys=("A",),
+        require_relation_claims=False,
+    )
+    assert out.a3_scope_consumption_allowed is True
+    assert out.a3_scope_relation_claim_allowed is False
+    assert out.blocked == ()
+
+
 def test_missing_or_unknown_fact_fails_closed() -> None:
     unknown = _fact(
         "A",
