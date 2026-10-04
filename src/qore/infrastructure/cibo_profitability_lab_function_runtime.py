@@ -52,6 +52,7 @@ from qore.infrastructure.cibo.opportunity_search import (
 )
 from qore.infrastructure.cibo.portfolio_intelligence import CiboPortfolioIntelligence
 from qore.infrastructure.cibo.quantitative_intelligence import (
+    CIBO_OWNER_RESEARCH_UNLOCK_V1,
     CiboQuantitativeIntelligence,
     CiboQuantRequest,
     CiboQuantTool,
@@ -435,17 +436,17 @@ def evaluate_cibo_native_faculties(
         _capture(
             "CF10",
             "CiboQuantitativeIntelligence.dispatch",
-            CiboQuantitativeIntelligence().dispatch(
+            CiboQuantitativeIntelligence().dispatch_owner_authorized_research(
                 quant_request,
                 result_code="opportunity-count",
                 exact_value=Decimal(len(opportunities)),
-                evidence=evidence,
+                evidence_refs=(evidence_ref,),
                 computed_at=decision_at,
+                authorization_id=CIBO_OWNER_RESEARCH_UNLOCK_V1,
             ),
-            failure_status="DEPENDENCY_BLOCKED",
-            failure_reason=(
-                "quant engine executed but authoritative exact-result binding "
-                "requires an external Trader Lab PASS receipt at this seam"
+            success_reason=(
+                "owner-authorized burned-replay research unlock; CF10 no longer "
+                "depends on Trader Lab PASS for this non-productive experiment"
             ),
         )
     )
