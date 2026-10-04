@@ -743,11 +743,17 @@ def _tool_audit(
             if stat["applied"] > 0:
                 status = ToolRuntimeStatus.APPLIED
                 reason = _reason_summary(reasons[code], "advanced engine applied")
-            elif stat["fail_closed"] > 0 or stat["abstain"] > 0:
+            elif stat["fail_closed"] > 0:
                 status = ToolRuntimeStatus.FAIL_CLOSED
                 reason = _reason_summary(
                     reasons[code],
-                    "advanced engine evaluated and correctly withheld authority",
+                    "advanced engine lacked mandatory evidence and failed closed",
+                )
+            elif stat["abstain"] > 0:
+                status = ToolRuntimeStatus.JUSTIFIED_NOT_APPLICABLE
+                reason = _reason_summary(
+                    reasons[code],
+                    "advanced engine executed and found no eligible economic alternative",
                 )
             elif stat["enabled"] == 0 and stat["blocked"] > 0:
                 status = ToolRuntimeStatus.REGIME_BLOCKED
