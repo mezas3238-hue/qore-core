@@ -195,7 +195,7 @@ class SharedLabScheduler:
             if queued_count >= self.max_queued_jobs:
                 raise RuntimeError("scheduler queue capacity exhausted")
             self._sequence += 1
-            job_id = f"JOB-{time.time_ns()}-{uuid.uuid4().hex[:8]}"
+            job_id = f"RUN-{time.time_ns()}-{uuid.uuid4().hex[:8]}"
             locks = normalized.exclusive_locks
             if (
                 normalized.request.mode is ExecutionMode.CERTIFICATION
@@ -211,6 +211,7 @@ class SharedLabScheduler:
                 sequence=self._sequence,
                 queue_entered_ns=time.time_ns(),
                 attached_clients=[normalized.submitted_by],
+                run_id=job_id,
             )
             self._jobs[job_id] = job
             self._active_by_key[job_key] = job_id
@@ -448,7 +449,11 @@ class SharedLabScheduler:
             job.state = SchedulerState.RUNNING
             self._persist_locked()
             self._condition.notify_all()
-        return self.orchestrator.run(request, cancellation_token=token)
+        return self.orchestrator.run(
+            request,
+            cancellation_token=token,
+            run_id=job_id,
+        )
 
     def _collect_finished_locked(self) -> None:
         for job_id, future in tuple(self._futures.items()):
