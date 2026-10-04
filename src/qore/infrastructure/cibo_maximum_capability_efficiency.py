@@ -9,7 +9,7 @@ at least 99.99%.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, fields
+from dataclasses import fields, dataclass
 from decimal import Decimal
 
 from qore.infrastructure.cibo_capital_management_authority import (
