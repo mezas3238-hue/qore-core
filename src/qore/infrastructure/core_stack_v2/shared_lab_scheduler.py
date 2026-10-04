@@ -243,9 +243,15 @@ class SharedLabScheduler:
             if job_id is not None:
                 job = self._jobs[job_id]
                 return job.to_dict(positions.get(job_id))
+            slots_in_use = self._slots_in_use_locked()
             return {
                 "worker_capacity": self.worker_capacity,
                 "max_worker_capacity": self.max_worker_capacity,
+                "worker_slots_in_use": slots_in_use,
+                "worker_slots_available": max(
+                    0,
+                    self.worker_capacity - slots_in_use,
+                ),
                 "running_jobs": sum(
                     job.state in {SchedulerState.PREPARING, SchedulerState.RUNNING}
                     for job in self._jobs.values()
@@ -292,6 +298,10 @@ class SharedLabScheduler:
         self,
         submission: JobSubmission,
     ) -> tuple[JobSubmission, str]:
+        if submission.request.workers > self.max_worker_capacity:
+            raise ValueError(
+                "job requests more workers than scheduler maximum capacity"
+            )
         runtime = RepositoryRuntime(Path(submission.request.repo_path))
         snapshot = runtime.resolve(
             repository=submission.request.repository,
@@ -338,10 +348,10 @@ class SharedLabScheduler:
                     job.state in {SchedulerState.PREPARING, SchedulerState.RUNNING}
                     for job in self._jobs.values()
                 )
-                available = self.worker_capacity - running
+                available = self.worker_capacity - self._slots_in_use_locked()
                 dispatched = False
                 while available > 0:
-                    job = self._next_job_locked()
+                    job = self._next_job_locked(available)
                     if job is None:
                         break
                     if not self._locks.acquire(
@@ -350,7 +360,9 @@ class SharedLabScheduler:
                     ):
                         break
                     job.state = SchedulerState.PREPARING
-                    job.worker_slot = f"POOL-{running + 1:02d}"
+                    job.worker_slot = (
+                        f"POOL-SLOTS-{job.submission.request.workers}"
+                    )
                     job.started_at_ns = time.time_ns()
                     self._last_dispatched_by_client[
                         job.submission.submitted_by
@@ -364,17 +376,21 @@ class SharedLabScheduler:
                     )
                     self._futures[job.scheduler_job_id] = future
                     running += 1
-                    available -= 1
+                    available -= job.submission.request.workers
                     dispatched = True
                 if dispatched:
                     self._persist_locked()
                 self._condition.wait(timeout=0.05)
 
-    def _next_job_locked(self) -> ScheduledJob | None:
+    def _next_job_locked(
+        self,
+        available_slots: int,
+    ) -> ScheduledJob | None:
         candidates = [
             job
             for job in self._jobs.values()
             if job.state is SchedulerState.QUEUED
+            and job.submission.request.workers <= available_slots
             and self._locks.can_acquire(
                 job.scheduler_job_id,
                 job.submission.exclusive_locks,
@@ -392,6 +408,13 @@ class SharedLabScheduler:
                 ),
                 job.sequence,
             ),
+        )
+
+    def _slots_in_use_locked(self) -> int:
+        return sum(
+            job.submission.request.workers
+            for job in self._jobs.values()
+            if job.state in {SchedulerState.PREPARING, SchedulerState.RUNNING}
         )
 
     def _queue_order_locked(self) -> list[str]:
@@ -469,9 +492,15 @@ class SharedLabScheduler:
     def status_snapshot_locked(self) -> dict[str, Any]:
         queue = self._queue_order_locked()
         positions = {job_id: index + 1 for index, job_id in enumerate(queue)}
+        slots_in_use = self._slots_in_use_locked()
         return {
             "worker_capacity": self.worker_capacity,
             "max_worker_capacity": self.max_worker_capacity,
+            "worker_slots_in_use": slots_in_use,
+            "worker_slots_available": max(
+                0,
+                self.worker_capacity - slots_in_use,
+            ),
             "max_queued_jobs": self.max_queued_jobs,
             "jobs": {
                 job_id: job.to_dict(positions.get(job_id))
