@@ -46,6 +46,8 @@ def _summary_payload(summary: RunSummary) -> dict[str, Any]:
         "repository": summary.identity.repository,
         "commit_sha": summary.identity.commit_sha,
         "branch": summary.identity.branch,
+        "dataset_id": summary.identity.dataset_id,
+        "dataset_version": summary.identity.dataset_version,
         "dataset_hash": summary.identity.dataset_hash,
         "config_hash": summary.identity.configuration_hash,
         "lab_version": summary.identity.lab_version,
