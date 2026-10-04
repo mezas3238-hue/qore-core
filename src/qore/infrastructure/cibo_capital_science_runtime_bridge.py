@@ -675,6 +675,10 @@ def build_capital_science_lane_receipt(
         raise CiboCapitalManagementError(
             "lane receipt requires an explicit native engine identity"
         )
+    details = {
+        "engine": native_engine_name,
+        **(output_details or {}),
+    }
     return _receipt(
         state=state,
         function_code=function_code,
@@ -684,8 +688,8 @@ def build_capital_science_lane_receipt(
         consumer_action=consumer_action,
         decision_changed=decision_changed,
         capital_source_usage=capital_source_usage,
-        output_details=output_details,
-        typed_engine_input=output_details,
+        output_details=details,
+        typed_engine_input=(output_details or {"function_code": function_code}),
         native_engine_name=native_engine_name,
     )
 
