@@ -329,6 +329,44 @@ def _genc8_posture(capital_science: object) -> str:
     return posture
 
 
+def _t11_execution_cap(
+    *,
+    requested_volume: Decimal,
+    expected_structural_value_usd: Decimal,
+    provider_envelope: object,
+) -> tuple[Decimal, str]:
+    """Apply causal linear execution economics without inventing market impact."""
+
+    if requested_volume <= 0:
+        return Decimal(0), "T11 requested volume is non-positive"
+    structural_edge_per_volume = (
+        expected_structural_value_usd / requested_volume
+    )
+    if structural_edge_per_volume <= 0:
+        return (
+            Decimal(0),
+            "T11 frozen structural expectation is non-positive before execution cost",
+        )
+    curve = ExecutionCostCurveInput(
+        evidence_id="cibo-burned-research-linear-provider-economics",
+        volume_step=provider_envelope.volume_step,
+        maximum_volume=requested_volume,
+        gross_edge_per_volume_usd=structural_edge_per_volume,
+        spread_cost_per_volume_usd=provider_envelope.spread_cost_per_volume_usd,
+        commission_cost_per_volume_usd=provider_envelope.commission_per_volume_usd,
+        slippage_cost_per_volume_usd=(
+            provider_envelope.slippage_reserve_per_volume_usd
+        ),
+        impact_cost_per_volume_squared_usd=Decimal(0),
+    )
+    cap = execution_efficient_volume_cap(curve)
+    return cap.volume_cap, (
+        cap.reason
+        + "; nonlinear market impact is unclaimed and fixed to zero in this "
+        "non-certifying burned-holdout calibration"
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class CompoundPortfolioLaneResult:
     core_ending_capital_usd: Decimal
