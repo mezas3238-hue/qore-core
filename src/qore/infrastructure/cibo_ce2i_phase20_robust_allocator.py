@@ -236,12 +236,30 @@ def propose_phase20h_robust_allocation(
     applied: list[str] = []
     runtime_receipts: list[CiboCe2iRuntimeReceipt] = []
     if "T15" in enabled:
+        optionality_options = known_options
+        if (
+            regime.posture is CiboRegimePosture.RECOVERY
+            and mission.capability_measurement_enabled
+            and candidates
+        ):
+            # Recovery capability measurement must size the preserved envelope
+            # from the opportunities that are actually actionable now.  Future
+            # options are not allowed to crowd out the single minimum seed used
+            # to measure CIBO's recovery behavior.
+            optionality_options = tuple(
+                KnownCapitalOption(
+                    opportunity_id=item.signal_fingerprint,
+                    minimum_stop_risk_usd=item.stop_risk_usd,
+                    minimum_margin_usd=item.margin_usd,
+                )
+                for item in candidates
+            )
         optionality = plan_capital_optionality(
             mission=mission,
             regime=regime,
             hard_risk_headroom_usd=hard_risk_headroom_usd,
             margin_headroom_usd=margin_headroom_usd,
-            known_options=known_options,
+            known_options=optionality_options,
         )
         reserve_risk = optionality.reserve_stop_risk_usd
         reserve_margin = optionality.reserve_margin_usd
@@ -331,8 +349,7 @@ def propose_phase20h_robust_allocation(
     )
     single_candidate_direct = (
         len(candidates) == 1
-        and regime.posture
-        in {CiboRegimePosture.STABLE, CiboRegimePosture.WATCH}
+        and "T01" in enabled
     )
     if (
         deployable_risk <= 0
