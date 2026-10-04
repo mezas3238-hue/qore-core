@@ -310,6 +310,37 @@ def propose_phase20h_robust_allocation(
             regime.posture is CiboRegimePosture.RECOVERY
             and "T13" in enabled
         ):
+            runtime_receipts.append(
+                build_ce2i_runtime_receipt(
+                    tool_code="T13",
+                    engine_name="plan_capital_optionality",
+                    stage="PREDECISION",
+                    scope_id="phase20h-allocator",
+                    input_payload={
+                        "drawdown_posture": regime.posture.value,
+                        "hard_risk_headroom_usd": str(hard_risk_headroom_usd),
+                        "margin_headroom_usd": str(margin_headroom_usd),
+                        "candidate_count": len(candidates),
+                    },
+                    output_payload={
+                        "reserve_stop_risk_usd": str(reserve_risk),
+                        "reserve_margin_usd": str(reserve_margin),
+                        "deployable_stop_risk_usd": str(deployable_risk),
+                        "deployable_margin_usd": str(deployable_margin),
+                    },
+                    downstream_consumer="phase20h-allocator-budget",
+                    consumer_action="drawdown-reserve-consumed",
+                    decision_changed=(
+                        reserve_risk > 0
+                        or reserve_margin > 0
+                        or deployable_risk != hard_risk_headroom_usd
+                        or deployable_margin != margin_headroom_usd
+                    ),
+                    economic_effect_observable=(
+                        reserve_risk > 0 or reserve_margin > 0
+                    ),
+                )
+            )
             applied.append("T13")
     elif (
         mission.preserve_optionality_priority

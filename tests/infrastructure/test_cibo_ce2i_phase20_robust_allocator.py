@@ -215,6 +215,15 @@ def test_phase20h_demo_recovery_allocates_one_bounded_minimum_probe() -> None:
     assert decision.allocation is not None
     assert decision.allocation.selected_signal_fingerprints == ("fast",)
     assert decision.applied_tools == ("T15", "T13")
+    assert tuple(item.tool_code for item in decision.runtime_receipts) == (
+        "T15",
+        "T13",
+    )
+    assert decision.runtime_receipts[1].consumer_action == (
+        "drawdown-reserve-consumed"
+    )
+    assert decision.runtime_receipts[1].decision_changed is True
+    assert decision.runtime_receipts[1].economic_effect_observable is True
 
 
 def test_phase20h_stale_regime_halts_without_invoking_blocked_tools() -> None:
