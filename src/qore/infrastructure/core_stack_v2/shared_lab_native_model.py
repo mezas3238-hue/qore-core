@@ -17,6 +17,8 @@ class RunDisposition(StrEnum):
     INCOMPLETE = "INCOMPLETE"
     DEPENDENCY_BLOCKED = "DEPENDENCY_BLOCKED"
     INVALID_EVIDENCE = "INVALID_EVIDENCE"
+    TIMEOUT = "TIMEOUT"
+    CANCELLED = "CANCELLED"
 
 
 class TaskState(StrEnum):
@@ -27,6 +29,8 @@ class TaskState(StrEnum):
     INCOMPLETE = "INCOMPLETE"
     DEPENDENCY_BLOCKED = "DEPENDENCY_BLOCKED"
     INVALID_EVIDENCE = "INVALID_EVIDENCE"
+    TIMEOUT = "TIMEOUT"
+    CANCELLED = "CANCELLED"
 
 
 class ExecutionMode(StrEnum):
@@ -48,6 +52,7 @@ class LabScope(StrEnum):
     COGNITION = "cognition"
     DECISION = "decision"
     MC18 = "mc18"
+    MC23 = "mc23"
     FULL_STACK = "full-stack"
 
 
@@ -110,6 +115,10 @@ class RunRequest:
     scenario: str | None = None
     use_cache: bool = True
     reproduces_run_id: str | None = None
+    submitted_by: str = "local-user"
+    submitted_role: str = "ARCHITECT"
+    dependency_hashes: tuple[str, ...] = ()
+    exclusive_locks: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         for value in (
@@ -119,6 +128,8 @@ class RunRequest:
             self.branch,
             self.dataset_id,
             self.dataset_version,
+            self.submitted_by,
+            self.submitted_role,
         ):
             if not value.strip():
                 raise ValueError("run request identity fields must be non-empty")
@@ -134,6 +145,7 @@ class RunRequest:
             "base_sha": self.base_sha,
             "changed_paths": self.changed_paths,
             "scenario": self.scenario,
+            "dependency_hashes": self.dependency_hashes,
             "lab_version": LAB_VERSION,
         }
         raw = json.dumps(payload, sort_keys=True, separators=(",", ":"))
