@@ -1,0 +1,18 @@
+{
+  "task_id": "i1-a2-scientific-evidence",
+  "suite": "INTEGRATION",
+  "scope": "cognition",
+  "dependencies": [
+    "a2-wp11-closure"
+  ],
+  "command": [
+    "python",
+    "scripts/shared_integrator1_a2_scientific_evidence_gate.py",
+    "--output",
+    "result/i1-a2-scientific-evidence-gate.json"
+  ],
+  "component_globs": [
+    "scripts/shared_integrator1_a2_scientific_evidence_gate.py",
+    "docs/shared/evidence/*.json"
+  ]
+}
