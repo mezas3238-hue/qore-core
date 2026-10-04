@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 from datetime import timedelta
@@ -22,10 +23,68 @@ _SPEC.loader.exec_module(_FIXTURE)
 HEAD = "a" * 40
 
 
-def _pre_exam(*, passed: bool = True) -> str:
+def _reconciled_ledger() -> dict[str, object]:
+    rows = [
+        {
+            "id": f"TERMINAL_{index:02d}",
+            "mandatory": True,
+            "certification_blocking": True,
+            "terminal_disposition": "COMPLETED_AND_PROVEN",
+        }
+        for index in range(62)
+    ]
+    rows.extend(
+        (
+            {
+                "id": "FINAL_INTEGRATED_CIBO_EXAM",
+                "mandatory": True,
+                "certification_blocking": True,
+                "terminal_disposition": None,
+            },
+            {
+                "id": "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM",
+                "mandatory": True,
+                "certification_blocking": True,
+                "terminal_disposition": None,
+            },
+        )
+    )
+    return {
+        "workstreams": rows,
+        "current_summary": {
+            "mandatory_count": 64,
+            "terminal_count": 62,
+            "open_count": 2,
+            "zero_open_work_pass": False,
+            "final_certification_candidate": False,
+        },
+    }
+
+
+def _pre_exam(
+    *,
+    passed: bool = True,
+    ledger: dict[str, object] | None = None,
+    evidence_head_sha: str = HEAD,
+    ledger_sha256: str | None = None,
+) -> str:
+    resolved_ledger = _reconciled_ledger() if ledger is None else ledger
+    encoded = json.dumps(
+        resolved_ledger,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+    ).encode("utf-8")
+    resolved_ledger_sha = (
+        "sha256:" + hashlib.sha256(encoded).hexdigest()
+        if ledger_sha256 is None
+        else ledger_sha256
+    )
     payload = {
         "schema": "QORE_CIBO_ZERO_OPEN_WORK_GATE_V1",
         "scope": "PRE_EXAM",
+        "evidence_head_sha": evidence_head_sha,
+        "ledger_sha256": resolved_ledger_sha,
         "pass": passed,
         "mandatory_workstream_count": 62,
         "terminal_workstream_count": 62,
@@ -51,6 +110,7 @@ def test_p2_binds_exact_pre_exam_pass_to_same_head() -> None:
         pre_exam_evidence_git_sha=HEAD,
         integrated_git_sha=HEAD,
         phase22_receipt=phase22,
+        reconciled_ledger=_reconciled_ledger(),
         observed_at=phase22.qualified_at + timedelta(minutes=1),
     )
     assert receipt.receipt_id == "P2_PRE_EXAM_ZERO_OPEN_PASS"
@@ -69,6 +129,43 @@ def test_p2_rejects_failed_pre_exam() -> None:
             pre_exam_evidence_git_sha=HEAD,
             integrated_git_sha=HEAD,
             phase22_receipt=phase22,
+            reconciled_ledger=_reconciled_ledger(),
+            observed_at=phase22.qualified_at + timedelta(minutes=1),
+        )
+
+
+def test_p2_rejects_detached_pre_exam_artifact_head() -> None:
+    phase21 = _FIXTURE._phase21_manifest()
+    phase22 = _FIXTURE._receipt(phase21_sha=phase21.manifest_sha256())
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="artifact/evidence HEAD drift",
+    ):
+        build_pre_exam_zero_open_control(
+            pre_exam_artifact_json=_pre_exam(evidence_head_sha="b" * 40),
+            pre_exam_evidence_git_sha=HEAD,
+            integrated_git_sha=HEAD,
+            phase22_receipt=phase22,
+            reconciled_ledger=_reconciled_ledger(),
+            observed_at=phase22.qualified_at + timedelta(minutes=1),
+        )
+
+
+def test_p2_rejects_detached_pre_exam_artifact_ledger() -> None:
+    phase21 = _FIXTURE._phase21_manifest()
+    phase22 = _FIXTURE._receipt(phase21_sha=phase21.manifest_sha256())
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="artifact/ledger digest drift",
+    ):
+        build_pre_exam_zero_open_control(
+            pre_exam_artifact_json=_pre_exam(
+                ledger_sha256="sha256:" + "9" * 64,
+            ),
+            pre_exam_evidence_git_sha=HEAD,
+            integrated_git_sha=HEAD,
+            phase22_receipt=phase22,
+            reconciled_ledger=_reconciled_ledger(),
             observed_at=phase22.qualified_at + timedelta(minutes=1),
         )
 
@@ -82,5 +179,32 @@ def test_p2_rejects_cross_head_reuse() -> None:
             pre_exam_evidence_git_sha="b" * 40,
             integrated_git_sha=HEAD,
             phase22_receipt=phase22,
+            reconciled_ledger=_reconciled_ledger(),
+            observed_at=phase22.qualified_at + timedelta(minutes=1),
+        )
+
+
+def test_p2_rejects_ledger_that_is_not_exact_64_62_2() -> None:
+    phase21 = _FIXTURE._phase21_manifest()
+    phase22 = _FIXTURE._receipt(phase21_sha=phase21.manifest_sha256())
+    bad = _reconciled_ledger()
+    bad["workstreams"][0]["terminal_disposition"] = None
+    bad["current_summary"] = {
+        "mandatory_count": 64,
+        "terminal_count": 61,
+        "open_count": 3,
+        "zero_open_work_pass": False,
+        "final_certification_candidate": False,
+    }
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="topology drift",
+    ):
+        build_pre_exam_zero_open_control(
+            pre_exam_artifact_json=_pre_exam(ledger=bad),
+            pre_exam_evidence_git_sha=HEAD,
+            integrated_git_sha=HEAD,
+            phase22_receipt=phase22,
+            reconciled_ledger=bad,
             observed_at=phase22.qualified_at + timedelta(minutes=1),
         )

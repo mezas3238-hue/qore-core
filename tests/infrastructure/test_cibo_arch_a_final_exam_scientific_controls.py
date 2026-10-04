@@ -10,6 +10,7 @@ import pytest
 
 from qore.infrastructure.cibo_arch_a_final_exam_scientific_controls import (
     build_architect_a_final_exam_scientific_controls,
+    build_closure41_final_exam_scientific_controls,
 )
 from qore.infrastructure.cibo_arch_a_internal_readiness import (
     PHASE22_V2_INTAKE_SCHEMA,
@@ -29,6 +30,17 @@ _SPEC = importlib.util.spec_from_file_location("_final_science_fixture", _FIXTUR
 assert _SPEC is not None and _SPEC.loader is not None
 _FIXTURE = importlib.util.module_from_spec(_SPEC)
 _SPEC.loader.exec_module(_FIXTURE)
+
+_CLOSURE_FIXTURE_PATH = Path(__file__).with_name(
+    "test_cibo_scientific_closure_41.py"
+)
+_CLOSURE_SPEC = importlib.util.spec_from_file_location(
+    "_closure41_science_fixture",
+    _CLOSURE_FIXTURE_PATH,
+)
+assert _CLOSURE_SPEC is not None and _CLOSURE_SPEC.loader is not None
+_CLOSURE_FIXTURE = importlib.util.module_from_spec(_CLOSURE_SPEC)
+_CLOSURE_SPEC.loader.exec_module(_CLOSURE_FIXTURE)
 
 
 def _sha(label: str) -> str:
@@ -169,5 +181,46 @@ def test_arch_a_final_science_rejects_qualification_artifact_drift() -> None:
             phase22_receipt=phase22,
             intake=bad_intake,
             dispositions=dispositions,
+            observed_at=phase22.qualified_at + timedelta(minutes=1),
+        )
+
+
+def test_closure41_derives_e7_e8_e9_only_from_positive_dimensions() -> None:
+    phase21 = _FIXTURE._phase21_manifest()
+    phase22 = _FIXTURE._receipt(phase21_sha=phase21.manifest_sha256())
+    package = _CLOSURE_FIXTURE._package()
+
+    receipts = build_closure41_final_exam_scientific_controls(
+        integrated_git_sha="a" * 40,
+        phase22_receipt=phase22,
+        closure_package=package,
+        observed_at=phase22.qualified_at + timedelta(minutes=1),
+    )
+
+    assert tuple(item.receipt_id for item in receipts) == (
+        "E7_ECONOMIC_NONCOMPENSATION",
+        "E8_STRESS_INTEGRITY",
+        "E9_TEMPORAL_REPLICATION",
+    )
+    assert tuple(item.producer_gate_id for item in receipts) == (
+        "CIBO_CLOSURE41_E7_ECONOMIC_NONCOMPENSATION_V1",
+        "CIBO_CLOSURE41_E8_STRESS_INTEGRITY_V1",
+        "CIBO_CLOSURE41_E9_TEMPORAL_REPLICATION_V1",
+    )
+
+
+def test_closure41_e8_rejects_terminal_falsification_as_positive_pass() -> None:
+    phase21 = _FIXTURE._phase21_manifest()
+    phase22 = _FIXTURE._receipt(phase21_sha=phase21.manifest_sha256())
+    package = _CLOSURE_FIXTURE._package(fail_id="ADVERSARIAL_STRESS")
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="requires positive terminal gate: ADVERSARIAL_STRESS",
+    ):
+        build_closure41_final_exam_scientific_controls(
+            integrated_git_sha="a" * 40,
+            phase22_receipt=phase22,
+            closure_package=package,
             observed_at=phase22.qualified_at + timedelta(minutes=1),
         )

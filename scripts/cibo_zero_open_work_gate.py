@@ -14,8 +14,10 @@ from __future__ import annotations
 import argparse
 import ast
 import fnmatch
+import hashlib
 import io
 import json
+import os
 import tokenize
 from dataclasses import dataclass
 from pathlib import Path
@@ -449,6 +451,8 @@ class CiboZeroOpenWorkGateError(ValueError):
 @dataclass(frozen=True, slots=True)
 class GateVerdict:
     scope: str
+    evidence_head_sha: str | None
+    ledger_sha256: str
     passed: bool
     mandatory_workstream_count: int
     terminal_workstream_count: int
@@ -465,6 +469,8 @@ class GateVerdict:
         return {
             "schema": _GATE_SCHEMA,
             "scope": self.scope,
+            "evidence_head_sha": self.evidence_head_sha,
+            "ledger_sha256": self.ledger_sha256,
             "pass": self.passed,
             "mandatory_workstream_count": self.mandatory_workstream_count,
             "terminal_workstream_count": self.terminal_workstream_count,
@@ -506,6 +512,16 @@ def _load_ledger(path: Path = LEDGER_PATH) -> dict[str, Any]:
             "CIBO closure ledger requires workstreams"
         )
     return raw
+
+
+def _ledger_sha256(raw: dict[str, Any]) -> str:
+    encoded = json.dumps(
+        raw,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+    ).encode("utf-8")
+    return "sha256:" + hashlib.sha256(encoded).hexdigest()
 
 
 def _validate_current_summary(
@@ -732,8 +748,14 @@ def evaluate_gate(
     ledger_path: Path = LEDGER_PATH,
     excluded_mandatory_ids: frozenset[str] = frozenset(),
     scope: str = "STRICT",
+    evidence_head_sha: str | None = None,
 ) -> GateVerdict:
     raw = _load_ledger(ledger_path)
+    resolved_head_sha = (
+        evidence_head_sha
+        if evidence_head_sha is not None
+        else os.environ.get("EVIDENCE_SHA")
+    )
     rows = tuple(_validate_workstream(row) for row in raw["workstreams"])
     ids = tuple(str(row["id"]) for row in rows)
     if len(ids) != len(set(ids)):
@@ -856,6 +878,8 @@ def evaluate_gate(
         )
     return GateVerdict(
         scope=scope,
+        evidence_head_sha=resolved_head_sha,
+        ledger_sha256=_ledger_sha256(raw),
         passed=passed,
         mandatory_workstream_count=len(mandatory),
         terminal_workstream_count=sum(
@@ -878,6 +902,7 @@ def evaluate_pre_exam_gate(
     *,
     repo_root: Path = Path("."),
     ledger_path: Path = LEDGER_PATH,
+    evidence_head_sha: str | None = None,
 ) -> GateVerdict:
     """Audit ordinary-certification closure before the final exam itself runs."""
 
@@ -886,6 +911,7 @@ def evaluate_pre_exam_gate(
         ledger_path=ledger_path,
         excluded_mandatory_ids=_PRE_EXAM_EXCLUDED_WORKSTREAM_IDS,
         scope="PRE_EXAM",
+        evidence_head_sha=evidence_head_sha,
     )
 
 

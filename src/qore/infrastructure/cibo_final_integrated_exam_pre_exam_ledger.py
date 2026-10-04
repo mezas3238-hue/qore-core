@@ -1,4 +1,4 @@
-"""Compose A+B Phase22 dispositions into the legal PRE_EXAM ledger."""
+"""Compose evidence-bound scientific closure into the legal PRE_EXAM ledger."""
 
 from __future__ import annotations
 
@@ -17,6 +17,10 @@ from qore.infrastructure.cibo_final_integrated_exam_arch_b_ledger_reconciliation
 )
 from qore.infrastructure.cibo_final_integrated_exam_scientific_ledger_reconciliation import (
     apply_architect_a_phase22_scientific_dispositions,
+)
+from qore.infrastructure.cibo_scientific_closure_41 import (
+    ScientificClosure41Package,
+    apply_scientific_closure_41_to_ledger_copy,
 )
 
 _REQUIRED_OPEN_IDS = (
@@ -84,6 +88,35 @@ def validate_pre_exam_reconciled_ledger(
     return ledger
 
 
+def reconcile_pre_exam_ledger_from_scientific_closure_41(
+    *,
+    ledger: dict[str, Any],
+    closure_package: ScientificClosure41Package,
+) -> dict[str, Any]:
+    """Apply canonical Closure41, then require exact 64/62/2/0 PRE_EXAM."""
+
+    if not isinstance(closure_package, ScientificClosure41Package):
+        raise CiboCapitalManagementError(
+            "PRE_EXAM requires canonical Scientific Closure 41 package"
+        )
+    reconciled, transition = apply_scientific_closure_41_to_ledger_copy(
+        ledger=ledger,
+        package=closure_package,
+    )
+    if transition.open_exam_ids != (
+        "FINAL_INTEGRATED_CIBO_EXAM",
+        "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM",
+    ):
+        raise CiboCapitalManagementError(
+            "PRE_EXAM Closure41 transition exam topology drift"
+        )
+    if transition.residual_external_ids:
+        raise CiboCapitalManagementError(
+            "PRE_EXAM Closure41 transition retains external blockers"
+        )
+    return validate_pre_exam_reconciled_ledger(reconciled)
+
+
 def reconcile_pre_exam_ledger(
     *,
     ledger: dict[str, Any],
@@ -93,7 +126,7 @@ def reconcile_pre_exam_ledger(
     ],
     architect_b_package: ArchitectBPhase22FinalDispositionPackage,
 ) -> dict[str, Any]:
-    """Apply both evidence-bound sides, then require exact PRE_EXAM topology."""
+    """Legacy A+B compatibility path; current certification uses Closure41."""
 
     after_a = apply_architect_a_phase22_scientific_dispositions(
         ledger=ledger,

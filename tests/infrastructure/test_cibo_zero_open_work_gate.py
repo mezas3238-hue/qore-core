@@ -103,6 +103,31 @@ def test_zero_open_work_gate_blocks_open_required_work(
     assert verdict.reasons == ("UNCLOSED_REQUIRED_WORKSTREAM",)
 
 
+def test_zero_open_verdict_binds_exact_head_and_ledger(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ledger = tmp_path / "ledger.json"
+    payload = _ledger(disposition="COMPLETED_AND_PROVEN")
+    _write(ledger, payload)
+    monkeypatch.setattr(gate, "_REQUIRED_CANONICAL_ARTIFACTS", ())
+    monkeypatch.setattr(gate, "_INVENTORY_GLOBS", ())
+    monkeypatch.setattr(gate, "_MARKER_SCAN_GLOBS", ())
+
+    head = "a" * 40
+    verdict = gate.evaluate_gate(
+        repo_root=tmp_path,
+        ledger_path=ledger,
+        evidence_head_sha=head,
+    )
+
+    assert verdict.evidence_head_sha == head
+    assert verdict.ledger_sha256 == gate._ledger_sha256(payload)
+    artifact = verdict.as_dict()
+    assert artifact["evidence_head_sha"] == head
+    assert artifact["ledger_sha256"] == gate._ledger_sha256(payload)
+
+
 def test_zero_open_work_gate_passes_only_terminal_proven_work(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

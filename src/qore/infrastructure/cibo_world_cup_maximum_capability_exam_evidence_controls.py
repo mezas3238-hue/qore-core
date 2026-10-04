@@ -26,9 +26,7 @@ from qore.infrastructure.cibo_world_cup_maximum_capability_exam import (
     world_cup_policy_identity_sha256,
 )
 
-_PHASE22_V2_CANDIDATE_ID = (
-    "CIBO_USD60_6M_HOLDOUT_2015-10-19_2016-04-19_V2"
-)
+_PROTECTED_PHASE22_POPULATION_PREFIX = "CIBO_USD60_6M_HOLDOUT_"
 _EVIDENCE_KIND = "WORLD_CUP_MAXIMUM_CAPABILITY_CONTROL"
 _SCHEMA = "qore.cibo.world-cup-evidence-control.v1"
 _SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
@@ -80,9 +78,11 @@ class WorldCupEvidenceBase:
             raise CiboCapitalManagementError(
                 "World Cup competition population identity required"
             )
-        if self.competition_population_id == _PHASE22_V2_CANDIDATE_ID:
+        if self.competition_population_id.startswith(
+            _PROTECTED_PHASE22_POPULATION_PREFIX
+        ):
             raise CiboCapitalManagementError(
-                "World Cup cannot reuse protected Phase22 V2 holdout"
+                "World Cup cannot reuse a protected Phase22 holdout"
             )
         _sha(self.evidence_sha256, "evidence_sha256")
         if self.observed_at.tzinfo is None or self.observed_at.utcoffset() is None:
@@ -126,17 +126,32 @@ class WorldCupDigitalTwinEvidence(WorldCupEvidenceBase):
     capital_conservation_sha256: str = ""
     competition_digital_twin_bound: bool = False
     capital_conservation_proven: bool = False
+    no_capital_creation: bool = False
+    no_duplicated_profit: bool = False
+    no_reused_released_capacity: bool = False
+    no_double_counted_netting: bool = False
+    margin_feasible: bool = False
+    chronology_monotonic: bool = False
+    future_information_used: bool = False
 
     def __post_init__(self) -> None:
         WorldCupEvidenceBase.__post_init__(self)
         _sha(self.digital_twin_sha256, "digital_twin_sha256")
         _sha(self.capital_conservation_sha256, "capital_conservation_sha256")
-        if (
-            not self.competition_digital_twin_bound
-            or not self.capital_conservation_proven
-        ):
+        if not all(
+            (
+                self.competition_digital_twin_bound,
+                self.capital_conservation_proven,
+                self.no_capital_creation,
+                self.no_duplicated_profit,
+                self.no_reused_released_capacity,
+                self.no_double_counted_netting,
+                self.margin_feasible,
+                self.chronology_monotonic,
+            )
+        ) or self.future_information_used:
             raise CiboCapitalManagementError(
-                "World Cup Digital Twin evidence is incomplete"
+                "World Cup Digital Twin conservation contract failed"
             )
 
 
@@ -280,6 +295,7 @@ def _artifact(
         "aspirational_return_target_used": False,
         "hidden_leverage_used": False,
         "protected_holdout_reused": False,
+        "future_information_used": False,
         "operational_authority_claimed": False,
         "competition_population_id": evidence.competition_population_id,
         "evidence_sha256": evidence.evidence_sha256,
@@ -356,6 +372,12 @@ def build_world_cup_evidence_controls(
             {
                 "competition_digital_twin_bound": True,
                 "capital_conservation_proven": True,
+                "no_capital_creation": True,
+                "no_duplicated_profit": True,
+                "no_reused_released_capacity": True,
+                "no_double_counted_netting": True,
+                "margin_feasible": True,
+                "chronology_monotonic": True,
             },
             {
                 "digital_twin_sha256": digital_twin.digital_twin_sha256,

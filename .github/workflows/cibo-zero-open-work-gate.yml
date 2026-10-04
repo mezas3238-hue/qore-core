@@ -50,6 +50,7 @@ jobs:
           python scripts/cibo_zero_open_work_gate.py --pre-exam
           python - <<'PY'
           import json
+          import os
           from pathlib import Path
 
           strict = json.loads(
@@ -65,6 +66,12 @@ jobs:
           for payload, scope in ((strict, "STRICT"), (pre, "PRE_EXAM")):
               assert payload["schema"] == "QORE_CIBO_ZERO_OPEN_WORK_GATE_V1"
               assert payload["scope"] == scope
+              assert payload["evidence_head_sha"] == os.environ["EVIDENCE_SHA"]
+              assert (
+                  isinstance(payload["ledger_sha256"], str)
+                  and payload["ledger_sha256"].startswith("sha256:")
+                  and len(payload["ledger_sha256"]) == 71
+              )
               assert isinstance(payload["pass"], bool)
               assert isinstance(payload["open_workstream_ids"], list)
               assert isinstance(payload["inventory_paths"], list)

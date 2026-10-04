@@ -31,9 +31,6 @@ from qore.infrastructure.cibo_ce2i_phase22_qualification_plan import (
 from qore.infrastructure.cibo_phase22_demo_empirical_provider_receipt import (
     PHASE22_DEMO_EMPIRICAL_PROVIDER_RECEIPT,
 )
-from qore.infrastructure.cibo_phase22_holdout_v2_source_receipt import (
-    CANDIDATE_ID,
-)
 
 PACKAGE_SCHEMA = "QORE_CIBO_SCIENTIFIC_CLOSURE_41_PACKAGE_V1"
 EVIDENCE_SCHEMA = "QORE_CIBO_SCIENTIFIC_CLOSURE_41_EVIDENCE_V1"
@@ -43,6 +40,7 @@ LEDGER_SCHEMA = "QORE_CIBO_MASTER_OPEN_WORK_LEDGER_V1"
 COMPLETED = "COMPLETED_AND_PROVEN"
 FALSIFIED = "FALSIFIED_AND_CLOSED"
 EXTERNAL = "EXTERNAL_DEPENDENCY_BLOCKED"
+OPEN_PREIMAGE = "OPEN"
 
 SCIENTIFIC_CLOSURE_41_IDS = (
     "T02",
@@ -92,8 +90,30 @@ FINAL_EXAM_IDS = (
     "FINAL_INTEGRATED_CIBO_EXAM",
     "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM",
 )
+FRESH_OOS_ID = "FRESH_OOS"
+SCIENTIFIC_CLOSURE_EXTERNAL_IDS = tuple(
+    workstream_id
+    for workstream_id in SCIENTIFIC_CLOSURE_41_IDS
+    if workstream_id != FRESH_OOS_ID
+)
+PRE_CLOSURE_OPEN_IDS = (FRESH_OOS_ID, *FINAL_EXAM_IDS)
 
-CANONICAL_HOLDOUT_ID = CANDIDATE_ID
+CONSUMED_INVALID_V4_HOLDOUT_ID = (
+    "CIBO_USD60_6M_HOLDOUT_2014-10-19_2015-04-19_V4"
+)
+SOURCE_UNAVAILABLE_V5_HOLDOUT_ID = (
+    "CIBO_USD60_6M_HOLDOUT_2014-04-19_2014-10-19_V5"
+)
+LEGACY_V2_HOLDOUT_ID = (
+    "CIBO_USD60_6M_HOLDOUT_2015-10-19_2016-04-19_V2"
+)
+NONCERTIFIABLE_HOLDOUT_IDS = frozenset(
+    {
+        LEGACY_V2_HOLDOUT_ID,
+        CONSUMED_INVALID_V4_HOLDOUT_ID,
+        SOURCE_UNAVAILABLE_V5_HOLDOUT_ID,
+    }
+)
 CANONICAL_POLICY_IDENTITY = phase20d_qualification_plan_sha256()
 CANONICAL_QUALIFICATION_PLAN_IDENTITY = (
     phase22_holdout_qualification_plan_sha256()
@@ -112,6 +132,28 @@ _ALLOWED_ORIGINS = {
 }
 _RESULT_VALUES = {"PASS", "FAIL", "NOT_APPLICABLE"}
 _SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
+_HOLDOUT_ID_RE = re.compile(
+    r"^CIBO_USD60_6M_HOLDOUT_\d{4}-\d{2}-\d{2}_"
+    r"\d{4}-\d{2}-\d{2}_V\d+$"
+)
+
+
+def validate_certifiable_holdout_id(
+    value: str,
+    label: str = "holdout identity",
+) -> None:
+    if not isinstance(value, str) or _HOLDOUT_ID_RE.fullmatch(value) is None:
+        raise CiboCapitalManagementError(
+            f"Scientific closure 41 {label} must be a versioned fresh holdout id"
+        )
+    if value in NONCERTIFIABLE_HOLDOUT_IDS:
+        raise CiboCapitalManagementError(
+            f"Scientific closure 41 {label} is explicitly non-certifiable"
+        )
+
+
+def _require_holdout_id(value: str, label: str) -> None:
+    validate_certifiable_holdout_id(value, label)
 
 
 def _require_sha256(value: str, label: str) -> None:
@@ -150,7 +192,7 @@ class ScientificClosure41Evidence:
     terminal_reason: str
     evaluated_at: datetime
     phase22_manifest_sha256: str
-    holdout_id: str = CANONICAL_HOLDOUT_ID
+    holdout_id: str
     qualification_plan_identity: str = CANONICAL_QUALIFICATION_PLAN_IDENTITY
     evidence_origin: str = "CANONICAL_GATE_RECEIPT"
     failed_dimensions: tuple[str, ...] = ()
@@ -168,9 +210,12 @@ class ScientificClosure41Evidence:
             raise CiboCapitalManagementError(
                 "Scientific closure 41 workstream outside exact ownership"
             )
-        if self.previous_disposition != EXTERNAL:
+        expected_preimage = (
+            OPEN_PREIMAGE if self.workstream_id == FRESH_OOS_ID else EXTERNAL
+        )
+        if self.previous_disposition != expected_preimage:
             raise CiboCapitalManagementError(
-                "Scientific closure 41 requires external-blocked preimage"
+                "Scientific closure 41 previous-disposition preimage drift"
             )
         if not self.scientific_hypothesis.strip():
             raise CiboCapitalManagementError(
@@ -207,10 +252,7 @@ class ScientificClosure41Evidence:
             )
         _require_sha256(self.causal_lineage, "causal lineage")
         _require_sha256(self.phase22_manifest_sha256, "Phase22 manifest")
-        if self.holdout_id != CANONICAL_HOLDOUT_ID:
-            raise CiboCapitalManagementError(
-                "Scientific closure 41 holdout identity drift"
-            )
+        _require_holdout_id(self.holdout_id, "holdout identity")
         if (
             self.qualification_plan_identity
             != CANONICAL_QUALIFICATION_PLAN_IDENTITY
@@ -321,10 +363,7 @@ class ScientificClosure41Package:
                 "Scientific closure 41 package schema drift"
             )
         _require_sha256(self.phase22_manifest_sha256, "package Phase22 manifest")
-        if self.holdout_id != CANONICAL_HOLDOUT_ID:
-            raise CiboCapitalManagementError(
-                "Scientific closure 41 package holdout drift"
-            )
+        _require_holdout_id(self.holdout_id, "package holdout")
         if self.policy_identity != CANONICAL_POLICY_IDENTITY:
             raise CiboCapitalManagementError(
                 "Scientific closure 41 package policy drift"
@@ -352,6 +391,10 @@ class ScientificClosure41Package:
         ):
             raise CiboCapitalManagementError(
                 "Scientific closure 41 package Phase22 lineage drift"
+            )
+        if any(item.holdout_id != self.holdout_id for item in self.workstreams):
+            raise CiboCapitalManagementError(
+                "Scientific closure 41 package cross-holdout lineage drift"
             )
         expected_completed = tuple(
             item.workstream_id
@@ -447,10 +490,17 @@ def build_scientific_closure_41_package(
         raise CiboCapitalManagementError(
             "Scientific closure 41 evidence/manifest mismatch"
         )
+    holdout_ids = {item.holdout_id for item in ordered}
+    if len(holdout_ids) != 1:
+        raise CiboCapitalManagementError(
+            "Scientific closure 41 evidence spans multiple fresh holdouts"
+        )
+    holdout_id = next(iter(holdout_ids))
+    _require_holdout_id(holdout_id, "package holdout")
     return ScientificClosure41Package(
         schema=PACKAGE_SCHEMA,
         phase22_manifest_sha256=phase22_manifest_sha256,
-        holdout_id=CANONICAL_HOLDOUT_ID,
+        holdout_id=holdout_id,
         policy_identity=CANONICAL_POLICY_IDENTITY,
         provider_identity=CANONICAL_PROVIDER_IDENTITY,
         workstreams=ordered,
@@ -559,7 +609,7 @@ def validate_scientific_closure_41_preimage(
         for row in mandatory
         if row.get("terminal_disposition") == EXTERNAL
     )
-    if set(external_ids) != set(SCIENTIFIC_CLOSURE_41_IDS):
+    if set(external_ids) != set(SCIENTIFIC_CLOSURE_EXTERNAL_IDS):
         raise CiboCapitalManagementError(
             "Scientific closure 41 ledger external surface is not exact"
         )
@@ -568,15 +618,17 @@ def validate_scientific_closure_41_preimage(
         for row in mandatory
         if not row.get("terminal_disposition")
     )
-    if open_ids != FINAL_EXAM_IDS:
+    if open_ids != PRE_CLOSURE_OPEN_IDS:
         raise CiboCapitalManagementError(
-            "Scientific closure 41 preimage final-exam topology drift"
+            "Scientific closure 41 preimage open-work topology drift"
         )
     return {
         "mandatory_count": len(mandatory),
         "external_dependency_blocked": len(external_ids),
         "external_ids": list(external_ids),
-        "open_exam_ids": list(open_ids),
+        "fresh_oos_open": FRESH_OOS_ID in open_ids,
+        "open_workstream_ids": list(open_ids),
+        "open_exam_ids": list(FINAL_EXAM_IDS),
         "certification": False,
         "productive_authority": False,
     }
@@ -609,11 +661,16 @@ def apply_scientific_closure_41_to_ledger_copy(
 
     for workstream_id in SCIENTIFIC_CLOSURE_41_IDS:
         row = by_id[workstream_id]
-        if row.get("terminal_disposition") != EXTERNAL:
+        evidence = evidence_by_id[workstream_id]
+        if workstream_id == FRESH_OOS_ID:
+            if row.get("terminal_disposition") not in {None, ""}:
+                raise CiboCapitalManagementError(
+                    "Scientific closure 41 fresh-OOS preimage is not OPEN"
+                )
+        elif row.get("terminal_disposition") != EXTERNAL:
             raise CiboCapitalManagementError(
                 "Scientific closure 41 cannot reopen or overwrite terminal row"
             )
-        evidence = evidence_by_id[workstream_id]
         row["terminal_disposition"] = evidence.terminal_disposition
         row["current_maturity"] = (
             "SCIENTIFIC_CLOSURE_41_" + evidence.terminal_disposition
@@ -655,6 +712,21 @@ def apply_scientific_closure_41_to_ledger_copy(
         for row in _mandatory_rows(updated)
         if not row.get("terminal_disposition")
     )
+    terminal_count = sum(
+        row.get("terminal_disposition") is not None
+        for row in _mandatory_rows(updated)
+    )
+    if terminal_count != 62 or open_exam_ids != FINAL_EXAM_IDS:
+        raise CiboCapitalManagementError(
+            "Scientific closure 41 post-transition topology drift"
+        )
+    updated["current_summary"] = {
+        "mandatory_count": 64,
+        "terminal_count": 62,
+        "open_count": 2,
+        "zero_open_work_pass": False,
+        "final_certification_candidate": False,
+    }
 
     receipt = ScientificClosure41TransitionReceipt(
         schema=TRANSITION_SCHEMA,

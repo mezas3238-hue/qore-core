@@ -10,7 +10,6 @@ from qore.infrastructure.cibo_arch2_provider_blocker_reconciliation import (
     reconcile_current_empirical_provider_plane,
 )
 from qore.infrastructure.cibo_scientific_closure_41 import (
-    CANONICAL_HOLDOUT_ID,
     CANONICAL_POLICY_IDENTITY,
     CANONICAL_PROVIDER_IDENTITY,
     PACKAGE_SCHEMA,
@@ -18,6 +17,7 @@ from qore.infrastructure.cibo_scientific_closure_41 import (
     validate_scientific_closure_41_preimage,
 )
 from qore.infrastructure.cibo_scientific_closure_41_adapters import (
+    CERTIFYING_FRESH_EVIDENCE_CLASS,
     scientific_closure_41_dependency_manifest,
 )
 
@@ -48,7 +48,11 @@ def main() -> int:
         "schema": "QORE_CIBO_SCIENTIFIC_CLOSURE_41_SEMANTIC_GATE_V1",
         "closure_package_schema": PACKAGE_SCHEMA,
         "status": "READY_TO_CONSUME_TERMINAL_IMMUTABLE_EVIDENCE",
-        "holdout_id": CANONICAL_HOLDOUT_ID,
+        "holdout_id": None,
+        "holdout_binding_state": (
+            "AWAITING_CERTIFIABLE_SUCCESSOR_TERMINAL_HANDOFF"
+        ),
+        "required_evidence_class": CERTIFYING_FRESH_EVIDENCE_CLASS,
         "policy_identity": CANONICAL_POLICY_IDENTITY,
         "provider_identity": CANONICAL_PROVIDER_IDENTITY,
         **summary,

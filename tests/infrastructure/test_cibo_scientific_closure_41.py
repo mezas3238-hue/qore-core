@@ -11,13 +11,18 @@ from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
 from qore.infrastructure.cibo_scientific_closure_41 import (
-    CANONICAL_HOLDOUT_ID,
     CANONICAL_POLICY_IDENTITY,
     CANONICAL_PROVIDER_IDENTITY,
     COMPLETED,
+    CONSUMED_INVALID_V4_HOLDOUT_ID,
     FALSIFIED,
     FINAL_EXAM_IDS,
+    FRESH_OOS_ID,
+    OPEN_PREIMAGE,
+    PRE_CLOSURE_OPEN_IDS,
     SCIENTIFIC_CLOSURE_41_IDS,
+    SCIENTIFIC_CLOSURE_EXTERNAL_IDS,
+    SOURCE_UNAVAILABLE_V5_HOLDOUT_ID,
     ScientificClosure41Evidence,
     apply_scientific_closure_41_to_ledger_copy,
     build_scientific_closure_41_package,
@@ -25,6 +30,7 @@ from qore.infrastructure.cibo_scientific_closure_41 import (
 )
 
 LEDGER_PATH = Path("docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json")
+SUCCESSOR_HOLDOUT_ID = "CIBO_USD60_6M_HOLDOUT_2013-10-19_2014-04-19_V6"
 
 
 def _sha(label: str) -> str:
@@ -38,7 +44,7 @@ def _evidence(
     manifest: str | None = None,
     policy_identity: str = CANONICAL_POLICY_IDENTITY,
     provider_identity: str = CANONICAL_PROVIDER_IDENTITY,
-    holdout_id: str = CANONICAL_HOLDOUT_ID,
+    holdout_id: str = SUCCESSOR_HOLDOUT_ID,
     causal_lineage: str | None = None,
     evidence_sha256s: tuple[str, ...] | None = None,
     synthetic: bool = False,
@@ -48,7 +54,11 @@ def _evidence(
 ) -> ScientificClosure41Evidence:
     return ScientificClosure41Evidence(
         workstream_id=workstream_id,
-        previous_disposition="EXTERNAL_DEPENDENCY_BLOCKED",
+        previous_disposition=(
+            OPEN_PREIMAGE
+            if workstream_id == FRESH_OOS_ID
+            else "EXTERNAL_DEPENDENCY_BLOCKED"
+        ),
         scientific_hypothesis=f"Frozen hypothesis for {workstream_id}",
         evidence_refs=(f"artifact://{workstream_id}",),
         evidence_sha256s=(
@@ -56,7 +66,7 @@ def _evidence(
             if evidence_sha256s is None
             else evidence_sha256s
         ),
-        population_identity=f"phase22-v2:{workstream_id}",
+        population_identity=f"phase22-v6:{workstream_id}",
         policy_identity=policy_identity,
         provider_identity=provider_identity,
         causal_lineage=causal_lineage or _sha(f"lineage:{workstream_id}"),
@@ -104,7 +114,10 @@ def test_exact_41_workstream_ownership_matches_current_ledger() -> None:
 
     assert len(SCIENTIFIC_CLOSURE_41_IDS) == 41
     assert len(set(SCIENTIFIC_CLOSURE_41_IDS)) == 41
-    assert summary["external_dependency_blocked"] == 41
+    assert len(SCIENTIFIC_CLOSURE_EXTERNAL_IDS) == 40
+    assert summary["external_dependency_blocked"] == 40
+    assert summary["fresh_oos_open"] is True
+    assert tuple(summary["open_workstream_ids"]) == PRE_CLOSURE_OPEN_IDS
     assert tuple(summary["open_exam_ids"]) == FINAL_EXAM_IDS
 
 
@@ -176,12 +189,24 @@ def test_policy_identity_drift_fails_closed() -> None:
 def test_holdout_mismatch_fails_closed() -> None:
     with pytest.raises(
         CiboCapitalManagementError,
-        match="holdout identity drift",
+        match="versioned fresh holdout id",
     ):
         _evidence(
             "T02",
             holdout_id="CIBO_USD60_6M_HOLDOUT_2017H1_BURNED",
         )
+
+
+@pytest.mark.parametrize(
+    "holdout_id",
+    [CONSUMED_INVALID_V4_HOLDOUT_ID, SOURCE_UNAVAILABLE_V5_HOLDOUT_ID],
+)
+def test_known_noncertifiable_holdouts_fail_closed(holdout_id: str) -> None:
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="explicitly non-certifiable",
+    ):
+        _evidence("T02", holdout_id=holdout_id)
 
 
 @pytest.mark.parametrize(
@@ -222,6 +247,34 @@ def test_not_ready_or_invalid_cannot_be_terminal(status: str) -> None:
     ):
         _evidence("T02", status=status)
 
+
+
+def test_package_accepts_one_successor_holdout_and_rejects_cross_holdout_mix() -> None:
+    manifest = _sha("phase22-successor-manifest")
+    successor = "CIBO_USD60_6M_HOLDOUT_2013-10-19_2014-04-19_V6"
+    evidence = tuple(
+        _evidence(workstream_id, manifest=manifest, holdout_id=successor)
+        for workstream_id in SCIENTIFIC_CLOSURE_41_IDS
+    )
+    package = build_scientific_closure_41_package(
+        phase22_manifest_sha256=manifest,
+        evidence=evidence,
+    )
+    assert package.holdout_id == successor
+
+    mixed = (*evidence[:-1], _evidence(
+        SCIENTIFIC_CLOSURE_41_IDS[-1],
+        manifest=manifest,
+        holdout_id="CIBO_USD60_6M_HOLDOUT_2013-04-19_2013-10-19_V7",
+    ))
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="multiple fresh holdouts",
+    ):
+        build_scientific_closure_41_package(
+            phase22_manifest_sha256=manifest,
+            evidence=mixed,
+        )
 
 def test_package_accepts_terminal_falsification_without_rescue() -> None:
     package = _package(fail_id="GEN-C12")
@@ -281,6 +334,13 @@ def test_transition_modifies_only_exact_41_and_leaves_exams_open() -> None:
     assert receipt.productive_authority is False
     assert receipt.live_authorized is False
     assert receipt.real_capital_authorized is False
+    assert updated["current_summary"] == {
+        "mandatory_count": 64,
+        "terminal_count": 62,
+        "open_count": 2,
+        "zero_open_work_pass": False,
+        "final_certification_candidate": False,
+    }
 
 
 def test_transition_rejects_reopened_or_preterminal_target() -> None:
