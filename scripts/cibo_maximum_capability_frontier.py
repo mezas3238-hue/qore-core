@@ -1366,94 +1366,121 @@ def _quantile(
 def _release_velocity(
     trace: dict[str, Any],
 ) -> dict[str, Any]:
+    rows = trace["opportunities"]
     deployments = sorted(
-        _dt(
-            row[
-                "settlement"
-            ][
-                "capital_deployed_at"
-            ]
-        )
-        for row in trace[
-            "opportunities"
-        ]
-        if isinstance(
-            row.get(
-                "settlement"
-            ),
-            dict,
-        )
+        _dt(row["settlement"]["capital_deployed_at"])
+        for row in rows
+        if isinstance(row.get("settlement"), dict)
     )
     releases = sorted(
-        _dt(
-            row[
-                "settlement"
-            ][
-                "capital_released_at"
-            ]
-        )
-        for row in trace[
-            "opportunities"
-        ]
-        if isinstance(
-            row.get(
-                "settlement"
-            ),
-            dict,
-        )
+        _dt(row["settlement"]["capital_released_at"])
+        for row in rows
+        if isinstance(row.get("settlement"), dict)
     )
-    latencies: list[
-        Decimal
-    ] = []
-    for release in releases:
-        nxt = next(
+    opportunities = sorted(
+        (
+            _dt(row["market_decision_at"]),
+            row,
+        )
+        for row in rows
+    )
+
+    def next_time(
+        release: datetime,
+        predicate,
+    ) -> datetime | None:
+        return next(
             (
-                item
-                for item
-                in deployments
-                if item > release
+                when
+                for when, row in opportunities
+                if when > release and predicate(row)
             ),
             None,
         )
-        if nxt is None:
-            continue
-        latencies.append(
-            Decimal(
-                str(
-                    (
-                        nxt
-                        - release
-                    ).total_seconds()
-                )
-            )
-            / Decimal(60)
+
+    def minutes(
+        later: datetime | None,
+        earlier: datetime,
+    ) -> Decimal | None:
+        if later is None:
+            return None
+        return Decimal(
+            str((later - earlier).total_seconds())
+        ) / Decimal(60)
+
+    stage_latencies: dict[str, list[Decimal]] = {
+        "first_known_opportunity": [],
+        "first_context_allow": [],
+        "first_allocator_allocate": [],
+        "first_qore_risk_allow": [],
+        "next_deploy": [],
+    }
+    for release in releases:
+        first_known = next_time(release, lambda row: True)
+        first_context = next_time(
+            release,
+            lambda row: (
+                row.get("context_quality", {}).get("disposition")
+                == "ALLOW"
+            ),
         )
+        first_allocate = next_time(
+            release,
+            lambda row: (
+                row.get("allocation", {}).get("allocator_disposition")
+                == "ALLOCATE"
+            ),
+        )
+        first_risk = next_time(
+            release,
+            lambda row: (
+                row.get("qore_risk", {}).get("status")
+                in {"ALLOW", "REDUCE"}
+            ),
+        )
+        next_deploy = next(
+            (item for item in deployments if item > release),
+            None,
+        )
+        for key, later in (
+            ("first_known_opportunity", first_known),
+            ("first_context_allow", first_context),
+            ("first_allocator_allocate", first_allocate),
+            ("first_qore_risk_allow", first_risk),
+            ("next_deploy", next_deploy),
+        ):
+            value = minutes(later, release)
+            if value is not None:
+                stage_latencies[key].append(value)
+
+    def summary(values: list[Decimal]) -> dict[str, Any]:
+        return {
+            "observations": len(values),
+            "median_minutes": _fmt(
+                Decimal(str(median(values)))
+                if values else Decimal(0)
+            ),
+            "p90_minutes": _fmt(
+                _quantile(values, Decimal("0.90"))
+            ),
+        }
+
+    next_deploy = stage_latencies["next_deploy"]
     return {
-        "release_to_next_deploy_observations": (
-            len(latencies)
-        ),
-        "release_to_next_deploy_median_minutes": (
-            _fmt(
-                Decimal(
-                    str(
-                        median(
-                            latencies
-                        )
-                    )
-                )
-                if latencies
-                else Decimal(0)
-            )
-        ),
-        "release_to_next_deploy_p90_minutes": (
-            _fmt(
-                _quantile(
-                    latencies,
-                    Decimal(
-                        "0.90"
-                    ),
-                )
-            )
+        "release_to_next_deploy_observations": len(next_deploy),
+        "release_to_next_deploy_median_minutes": summary(
+            next_deploy
+        )["median_minutes"],
+        "release_to_next_deploy_p90_minutes": summary(
+            next_deploy
+        )["p90_minutes"],
+        "stage_latency": {
+            key: summary(values)
+            for key, values in stage_latencies.items()
+        },
+        "diagnostic_contract": (
+            "release->known opportunity->context allow->allocator allocate"
+            "->QORE Risk allow/reduce->capital deployment"
         ),
     }
 
