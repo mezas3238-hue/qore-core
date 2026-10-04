@@ -59,6 +59,11 @@ from qore.infrastructure.cibo_ce2i_phase20_train_prior import (
 from qore.infrastructure.cibo_ce2i_regime_selector import (
     CiboCapitalRegimeState,
 )
+from qore.infrastructure.cibo_profitability_lab_context_quality import (
+    ContextQualityDecision,
+    ContextQualityDisposition,
+    evaluate_context_quality,
+)
 from qore.infrastructure.cibo_profitability_lab_economic_consultation import (
     CiboEconomicConsultationReceipt,
     consult_cibo_economic_faculties,
@@ -144,6 +149,7 @@ class Phase22HistoricalPolicyDecisionRecord:
     margin_headroom_usd: Decimal
     concentration_limit_by_group: tuple[tuple[str, Decimal], ...]
     economic_consultation: CiboEconomicConsultationReceipt
+    context_quality_decisions: tuple[ContextQualityDecision, ...]
     full_surface: FullCe2iSurfaceAssessment
     advanced_economic_application: AdvancedCe2iEconomicApplication
     mpc_plan: Phase20MpcCapacityPlan
@@ -198,6 +204,20 @@ class Phase22HistoricalPolicyDecisionRecord:
                 raise CiboCapitalManagementError(
                     f"Phase22 historical policy {name} invalid"
                 )
+        if any(
+            not isinstance(item, ContextQualityDecision)
+            for item in self.context_quality_decisions
+        ):
+            raise CiboCapitalManagementError(
+                "Phase22 context-quality decision type drift"
+            )
+        context_signals = tuple(
+            item.signal_fingerprint for item in self.context_quality_decisions
+        )
+        if len(context_signals) != len(set(context_signals)):
+            raise CiboCapitalManagementError(
+                "Phase22 context-quality signal duplication"
+            )
         if (
             not self.counterfactual_historical_replay
             or self.policy_changed
@@ -258,6 +278,9 @@ class Phase22HistoricalPolicyDecisionRecord:
                 "causal_predecision": self.economic_consultation.causal_predecision,
                 "outcome_used": self.economic_consultation.outcome_used,
             },
+            "context_quality_decisions": [
+                item.payload() for item in self.context_quality_decisions
+            ],
             "regime_posture": self.full_surface.regime.posture.value,
             "advanced_economic_application": {
                 "effective_hard_risk_headroom_usd": format(
@@ -336,6 +359,7 @@ def evaluate_phase22_historical_policy(
     known_options: tuple[Phase20MpcKnownOption, ...] = (),
     lab_allow_nonpositive_expectation: bool = False,
     lab_cibo_free_tool_choice: bool = False,
+    lab_burned_context_quality_gate: bool = False,
 ) -> Phase22HistoricalPolicyDecisionRecord:
     """Evaluate frozen V4 composition without falsifying historical timestamps."""
 
@@ -346,6 +370,10 @@ def evaluate_phase22_historical_policy(
     if type(lab_cibo_free_tool_choice) is not bool:
         raise CiboCapitalManagementError(
             "lab_cibo_free_tool_choice must be bool"
+        )
+    if type(lab_burned_context_quality_gate) is not bool:
+        raise CiboCapitalManagementError(
+            "lab_burned_context_quality_gate must be bool"
         )
     if not inputs:
         raise CiboCapitalManagementError(
@@ -401,6 +429,22 @@ def evaluate_phase22_historical_policy(
         opportunities=opportunities,
         regime_state=regime_state,
     )
+    context_quality_decisions = (
+        tuple(
+            evaluate_context_quality(
+                opportunity=item,
+                decision_at=market_decision_at,
+            )
+            for item in opportunities
+        )
+        if lab_burned_context_quality_gate
+        else ()
+    )
+    context_allowed = {
+        item.signal_fingerprint
+        for item in context_quality_decisions
+        if item.disposition is ContextQualityDisposition.ALLOW
+    }
     full_surface = evaluate_full_ce2i_surface(
         mission=mission,
         regime_state=regime_state,
@@ -431,13 +475,22 @@ def evaluate_phase22_historical_policy(
         ),
         known_options=known_options,
     )
+    allocator_candidates = (
+        tuple(
+            item
+            for item in advanced_application.candidates
+            if item.signal_fingerprint in context_allowed
+        )
+        if lab_burned_context_quality_gate
+        else advanced_application.candidates
+    )
     allocator = propose_phase20h_robust_allocation(
         mission=mission,
         regime=full_surface.regime,
         hard_risk_headroom_usd=mpc.deployable_stop_risk_usd,
         margin_headroom_usd=mpc.deployable_margin_usd,
         concentration_limit_by_group=concentration_limit_by_group,
-        candidates=advanced_application.candidates,
+        candidates=allocator_candidates,
         known_options=(),
         lab_allow_nonpositive_expectation=lab_allow_nonpositive_expectation,
     )
@@ -451,6 +504,7 @@ def evaluate_phase22_historical_policy(
         margin_headroom_usd=margin_headroom_usd,
         concentration_limit_by_group=concentration_limit_by_group,
         economic_consultation=economic_consultation,
+        context_quality_decisions=context_quality_decisions,
         full_surface=full_surface,
         advanced_economic_application=advanced_application,
         mpc_plan=mpc,
