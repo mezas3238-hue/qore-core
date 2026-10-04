@@ -3,6 +3,7 @@ import subprocess
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -334,12 +335,10 @@ def test_identical_active_jobs_are_deduplicated_across_clients(
         scope=LabScope.PROVIDER,
         dependency_hash="same",
     )
-    other = RunRequest(
-        **{
-            **base.__dict__,
-            "submitted_by": "Integrator-1",
-            "submitted_role": "INTEGRATOR",
-        }
+    other = replace(
+        base,
+        submitted_by="Integrator-1",
+        submitted_role="INTEGRATOR",
     )
     try:
         first = lab.submit(
