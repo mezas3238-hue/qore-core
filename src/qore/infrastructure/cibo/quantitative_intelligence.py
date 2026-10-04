@@ -24,6 +24,8 @@ from qore.infrastructure.cibo.contracts import (
 from qore.infrastructure.cibo_trader_capability_profile import CiboEvidenceRef
 from qore.kernel.result import Failure, Result, Success
 
+CIBO_OWNER_RESEARCH_UNLOCK_V1 = "owner-research-unlock-v1"
+
 _CODE_RE = r"[a-z][a-z0-9._-]*"
 _PARAM_VALUE_RE = r"[a-z0-9][a-z0-9._:+-]*"
 _SENSITIVE_PARTS = (
@@ -241,6 +243,104 @@ class CiboQuantResult:
 
 
 @dataclass(frozen=True, slots=True)
+class CiboResearchQuantResult:
+    """Owner-authorized quantitative result for burned adaptive research only.
+
+    This result is deliberately separate from the normal authoritative quant
+    result. It does not claim Trader Lab sufficiency and cannot be promoted to
+    execution, Risk, Production, broker mutation, or real-capital authority.
+    Its only purpose is to let CF10 execute deterministically inside the burned
+    replay so CIBO's latent quantitative capability can be measured.
+    """
+
+    request: CiboQuantRequest
+    result_code: str
+    exact_value: Decimal
+    evidence_refs: tuple[CiboEvidenceRef, ...]
+    computed_at: datetime
+    authorization_id: str = CIBO_OWNER_RESEARCH_UNLOCK_V1
+    research_only: bool = True
+    trader_lab_pass_required: bool = False
+    productive_authority: bool = False
+    risk_authority: bool = False
+    execution_authority: bool = False
+    broker_mutation: bool = False
+    outcome_used: bool = False
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.request, CiboQuantRequest):
+            raise CiboFunctionalValidationError(
+                "research quant result requires CiboQuantRequest"
+            )
+        CiboQuantRequest.__post_init__(self.request)
+        object.__setattr__(
+            self,
+            "result_code",
+            _validate_code(
+                self.result_code,
+                field_name="research quant result code",
+            ),
+        )
+        _validate_exact_decimal(
+            self.exact_value,
+            field_name="research quant exact value",
+        )
+        object.__setattr__(
+            self,
+            "evidence_refs",
+            _validate_input_refs(
+                self.evidence_refs,
+                field_name="research quant evidence refs",
+            ),
+        )
+        _validate_timestamp(
+            self.computed_at,
+            field_name="research quant computed_at",
+        )
+        if self.computed_at < self.request.requested_at:
+            raise CiboFunctionalValidationError(
+                "research quant computed_at must not predate requested_at"
+            )
+        if self.authorization_id != CIBO_OWNER_RESEARCH_UNLOCK_V1:
+            raise CiboFunctionalValidationError(
+                "research quant result requires exact owner research unlock"
+            )
+        if not self.research_only or self.trader_lab_pass_required:
+            raise CiboFunctionalValidationError(
+                "research quant result must remain owner-unlocked research-only"
+            )
+        if any(
+            (
+                self.productive_authority,
+                self.risk_authority,
+                self.execution_authority,
+                self.broker_mutation,
+                self.outcome_used,
+            )
+        ):
+            raise CiboFunctionalValidationError(
+                "research quant result cannot carry productive authority or outcomes"
+            )
+
+    def logical_values(self) -> tuple[object, ...]:
+        return (
+            self.request.logical_values(),
+            self.result_code,
+            _canonical_decimal(self.exact_value),
+            tuple(item.logical_values() for item in self.evidence_refs),
+            self.computed_at.isoformat(),
+            self.authorization_id,
+            self.research_only,
+            self.trader_lab_pass_required,
+            self.productive_authority,
+            self.risk_authority,
+            self.execution_authority,
+            self.broker_mutation,
+            self.outcome_used,
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class CiboQuantitativeIntelligence:
     """Stateless, deterministic quantitative-intelligence orchestration.
 
@@ -288,6 +388,69 @@ class CiboQuantitativeIntelligence:
                     exact_value=exact,
                     evidence=evidence,
                     computed_at=computed_at,
+                )
+            )
+        except CiboFunctionalError as error:
+            return Failure(error)
+
+    def dispatch_owner_authorized_research(
+        self,
+        request: CiboQuantRequest,
+        *,
+        result_code: str,
+        exact_value: Decimal | None,
+        evidence_refs: tuple[CiboEvidenceRef, ...],
+        computed_at: datetime,
+        authorization_id: str = CIBO_OWNER_RESEARCH_UNLOCK_V1,
+    ) -> Result[CiboResearchQuantResult, CiboFunctionalError]:
+        """Execute CF10 in burned research without a Trader Lab PASS dependency.
+
+        Owner authorization removes only the Trader-Lab authority dependency for
+        this research result. It does not create evidence sufficiency for normal
+        CIBO functions and grants no productive, Risk, execution, or broker
+        authority.
+        """
+
+        if not isinstance(request, CiboQuantRequest):
+            return Failure(
+                CiboFunctionalValidationError(
+                    "research quant dispatch requires CiboQuantRequest"
+                )
+            )
+        try:
+            CiboQuantRequest.__post_init__(request)
+            exact = _validate_exact_decimal(
+                exact_value,
+                field_name="research quant exact value",
+            )
+            normalized_code = _validate_code(
+                result_code,
+                field_name="research quant result code",
+            )
+            refs = _validate_input_refs(
+                evidence_refs,
+                field_name="research quant evidence refs",
+            )
+            _validate_timestamp(
+                computed_at,
+                field_name="research quant computed_at",
+            )
+            if computed_at < request.requested_at:
+                raise CiboFunctionalValidationError(
+                    "research quant computed_at must not predate requested_at"
+                )
+            if authorization_id != CIBO_OWNER_RESEARCH_UNLOCK_V1:
+                raise CiboFunctionalValidationError(
+                    "research quant dispatch requires owner research unlock"
+                )
+            return Success(
+                CiboResearchQuantResult(
+                    request=request,
+                    result_code=normalized_code,
+                    exact_value=exact,
+                    evidence_refs=refs,
+                    computed_at=computed_at,
+                    authorization_id=authorization_id,
                 )
             )
         except CiboFunctionalError as error:
