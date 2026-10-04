@@ -308,9 +308,14 @@ def plan_genc12_crisis_capital(
         if "T14" in enabled
         else ()
     )
+    new_capital_available = (
+        twin.total_stop_risk_capacity_usd > twin.used_stop_risk_usd
+        and twin.total_margin_capacity_usd > twin.used_margin_usd
+    )
     responses = _responses(
         enabled=enabled,
         position_plans=position_plans,
+        new_capital_available=new_capital_available,
     )
     active_factors = tuple(
         sorted(
@@ -373,16 +378,17 @@ def _responses(
     *,
     enabled: set[str],
     position_plans: tuple[Genc12PositionCapitalPlan, ...],
+    new_capital_available: bool,
 ) -> tuple[Genc12CapitalResponse, ...]:
     responses: set[Genc12CapitalResponse] = set()
-    if "T01" in enabled:
+    if "T01" in enabled and new_capital_available:
         responses.add(Genc12CapitalResponse.MINIMAL_SEED_ELIGIBLE)
     if "T13" in enabled:
         responses.add(Genc12CapitalResponse.RESERVE_CAPACITY)
     if "T20" in enabled:
         responses.add(Genc12CapitalResponse.RELEASE_CAPACITY)
     expansion_tools = {"T06", "T07", "T09", "T18"}
-    if enabled & expansion_tools:
+    if enabled & expansion_tools and new_capital_available:
         responses.add(Genc12CapitalResponse.SELECTIVE_EXPANSION_ELIGIBLE)
     if any(
         item.decision.action
@@ -390,6 +396,9 @@ def _responses(
         for item in position_plans
     ):
         responses.add(Genc12CapitalResponse.REDUCE_EXPOSURE)
-    if "T01" not in enabled and not (enabled & expansion_tools):
+    if (
+        not new_capital_available
+        or ("T01" not in enabled and not (enabled & expansion_tools))
+    ):
         responses.add(Genc12CapitalResponse.NO_NEW_DEPLOYMENT)
     return tuple(sorted(responses, key=lambda item: item.value))
