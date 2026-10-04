@@ -576,3 +576,110 @@ def test_genc11_full_economic_twin_adapter_uses_complete_opportunity_surface() -
     assert plan.twin_id == capital.twin_id
     assert plan.oracle_arrivals_used is False
     assert plan.risk_authority is False
+
+
+
+def test_genc11_full_twin_recovery_world_preserves_current_causal_probe() -> None:
+    capital = replace(_twin(), known_options=())
+    opportunity = CiboObservedOpportunityState(
+        option_id="current-positive",
+        trader_id="R34_XAUUSD",
+        qore_symbol="XAUUSD",
+        known_at=T0,
+        earliest_action_at=T0,
+        expires_at=T0 + timedelta(minutes=40),
+        requested_capital_usd=Decimal("5"),
+        expected_net_value_usd=Decimal("0.6"),
+        expected_capital_minutes=Decimal("20"),
+        stop_risk_usd=Decimal("1"),
+        margin_usd=Decimal("2"),
+        provider_cost_usd=Decimal("0.05"),
+        uncertainty_penalty=Decimal("0.05"),
+        context_allowed=True,
+        provider_viable=True,
+        capital_source_eligible=True,
+        evidence_sha256="sha256:" + "c" * 64,
+    )
+    full = CiboObservedEconomicTwin(
+        twin_id="full-recovery-probe",
+        captured_at=T0,
+        capital_twin=capital,
+        positions=(),
+        opportunities=(opportunity,),
+        portfolio=CiboObservedPortfolioState(
+            observed_at=T0,
+            active_position_ids=(),
+            opportunity_ids=("current-positive",),
+            concentration_utilization=Decimal("0.1"),
+            correlation_utilization=Decimal("0.1"),
+            reserved_stop_risk_usd=Decimal("0"),
+            reserved_margin_usd=Decimal("0"),
+        ),
+        velocity=CiboCapitalVelocityState(
+            observed_at=T0,
+            released_stop_risk_usd=Decimal("0"),
+            released_margin_usd=Decimal("0"),
+            waiting_stop_risk_usd=Decimal("0"),
+            waiting_margin_usd=Decimal("0"),
+            oldest_release_age_minutes=Decimal("0"),
+            idle_classification=CiboIdleCapitalClass.OPTIONALITY_RESERVE,
+        ),
+    )
+
+    def recovery_path(path_id: str) -> Genc11WorldPath:
+        return Genc11WorldPath(
+            path_id=path_id,
+            world_kind=Genc10WorldKind.DEFENSIVE,
+            steps=tuple(
+                Genc11WorldStep(
+                    step_index=index,
+                    projected_at=T0 + timedelta(minutes=5 * index),
+                    posture=CiboRegimePosture.RECOVERY,
+                    scenario=_scenario(
+                        scenario_id=f"{path_id}-{index}",
+                        kind=Genc10WorldKind.DEFENSIVE,
+                        declared_at=T0,
+                        surviving=("current-positive",),
+                    ),
+                )
+                for index in range(1, 4)
+            ),
+            factor_interaction_evidence_sha256="sha256:" + "d" * 64,
+            optionality_evidence_sha256="sha256:" + "e" * 64,
+            reserve_need_evidence_sha256="sha256:" + "f" * 64,
+        )
+
+    plan = plan_genc11_multi_period_capital(
+        plan_id="full-recovery-plan",
+        twin=full,
+        world_paths=(
+            recovery_path("recovery-a"),
+            recovery_path("recovery-b"),
+        ),
+        option_schedules=(
+            Genc11KnownOptionSchedule(
+                option_id="current-positive",
+                decision_step=1,
+                schedule_evidence_sha256="sha256:" + "1" * 64,
+            ),
+        ),
+    )
+
+    first_steps = tuple(
+        item
+        for item in plan.world_step_plans
+        if item.step_index == 1
+    )
+    assert len(first_steps) == 2
+    assert all(
+        item.capacity_plan.deployable_stop_risk_usd == Decimal("1")
+        for item in first_steps
+    )
+    assert all(
+        item.capacity_plan.deployable_margin_usd == Decimal("2")
+        for item in first_steps
+    )
+    assert all(
+        "measurement probe" in item.capacity_plan.reason
+        for item in first_steps
+    )
