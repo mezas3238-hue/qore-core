@@ -136,7 +136,9 @@ class EfficiencyReceipt:
 
     @property
     def useful_action_rate(self) -> float:
-        return 0.0 if self.invocation_count == 0 else self.downstream_changed_count / self.invocation_count
+        if self.invocation_count == 0:
+            return 0.0
+        return self.downstream_changed_count / self.invocation_count
 
     @property
     def cognitively_live(self) -> bool:
@@ -182,7 +184,13 @@ class InfluenceEdge:
 
     @property
     def dead(self) -> bool:
-        return not (self.real and self.tested and self.observed and self.consumed and self.fingerprint_match)
+        return not (
+            self.real
+            and self.tested
+            and self.observed
+            and self.consumed
+            and self.fingerprint_match
+        )
 
 
 @dataclass(frozen=True, slots=True)
