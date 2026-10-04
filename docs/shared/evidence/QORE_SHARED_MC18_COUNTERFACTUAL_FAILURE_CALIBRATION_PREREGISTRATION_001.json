@@ -1,0 +1,56 @@
+{
+  "identity": "QORE_SHARED_MC18_COUNTERFACTUAL_FAILURE_CALIBRATION_PREREGISTRATION_001",
+  "workstream": "MC18_COUNTERFACTUAL_WORLD_ENGINE",
+  "status": "PREREGISTERED_BEFORE_CONSUMED_DEVELOPMENT_CALIBRATION_EXECUTION",
+  "hypothesis": {
+    "statement": "A monotone calibration of the source-only MC18 failure-world probability mass can improve probability calibration on consumed development validation without changing the counterfactual engine.",
+    "raw_failure_worlds": [
+      "LIQUIDITY_FAILS",
+      "LEADER_REVERSES",
+      "RELATIONSHIP_BREAKS",
+      "FAILED_AUCTION_REVERSAL"
+    ],
+    "unknown_shock_preserved": true,
+    "engine_changed": false
+  },
+  "target": {
+    "definition": "MAX_REVERSAL_STRUCTURAL_FAILURE_ANOMALY_GTE_6500_BPS_AT_30M",
+    "threshold_bps": 6500,
+    "label_attached_only_after_source_distribution_materialized": true
+  },
+  "data_protocol": {
+    "fit": "R6_CONSUMED_ONLY",
+    "validation": "R5_CONSUMED_ONLY",
+    "future_oos_for_fit": false,
+    "future_oos_for_validation": false,
+    "protected_final_holdout": false
+  },
+  "model": {
+    "family": "ONE_FEATURE_LOGISTIC_CALIBRATION",
+    "input": "RAW_FAILURE_WORLD_PROBABILITY_MASS",
+    "C": 1,
+    "solver": "lbfgs",
+    "random_state": 1818,
+    "hyperparameter_search": false
+  },
+  "frozen_gates": {
+    "coefficient_positive": true,
+    "calibrated_brier_lt_raw": true,
+    "calibrated_log_loss_lt_raw": true,
+    "all_required": true
+  },
+  "disposition_law": {
+    "pass": "FREEZE_CALIBRATION_FOR_FUTURE_INDEPENDENT_MC27_EVALUATION",
+    "fail": "FALSIFIED_AND_KEEP_RAW_ENGINE_UNCALIBRATED",
+    "post_outcome_retuning": false
+  },
+  "governance": {
+    "productive_authority": false,
+    "execution_authority": false,
+    "risk_authority": false,
+    "sizing_authority": false,
+    "capital_authority": false,
+    "future_market_used_for_inference": false,
+    "protected_final_holdout_opened": false
+  }
+}
