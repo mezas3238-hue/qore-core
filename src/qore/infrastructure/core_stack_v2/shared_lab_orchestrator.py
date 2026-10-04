@@ -226,7 +226,7 @@ class NativeLabOrchestrator:
             ).encode()
         )
         evidence_path = self.evidence_store.finish_run(
-            run_id=run_id,
+            run_id=identity.run_id,
             disposition=disposition.value,
             ended_at_ns=ended_at_ns,
             artifact_hash=artifact_hash,
