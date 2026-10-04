@@ -1,0 +1,32 @@
+{
+  "schema": "qore.cibo.phase22.nas100-archived-source-exhaustion.v1",
+  "discovery_run_id": 37170769226,
+  "discovery_head_sha": "ac3c39645b435fc34efe040d2fd9f5b59f6f51fc",
+  "discovery_artifact_id": 11290509663,
+  "discovery_artifact_digest": "sha256:8715316a9f8b2b58c305b3f4667289d76a1707b0b9b229c9687e5e613aff0af0",
+  "include_archived_symbols": true,
+  "matching_symbol_count": 1,
+  "matching_symbols": [
+    {
+      "symbol_id": 10014,
+      "symbol_name": "USTEC",
+      "enabled": true,
+      "archived_alternative_found": false,
+      "v5_start_m5_bars": 0,
+      "v5_start_m1_bars": 0,
+      "v5_end_m5_bars": 1649,
+      "v5_end_m1_bars": 2701,
+      "v6_start_m5_bars": 0,
+      "v6_start_m1_bars": 0,
+      "v6_end_m5_bars": 0,
+      "v6_end_m1_bars": 0
+    }
+  ],
+  "conclusion": "NO_ARCHIVED_NAS100_EQUIVALENT_WITH_PRE_V4_HISTORY",
+  "trader_logic_executed": false,
+  "outcomes_inspected": false,
+  "broker_mutation": false,
+  "live_authorized": false,
+  "real_capital_authorized": false,
+  "productive_authority": false
+}
