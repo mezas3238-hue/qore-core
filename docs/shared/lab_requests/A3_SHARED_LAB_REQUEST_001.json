@@ -1,6 +1,6 @@
 {
   "identity": "QORE_SHARED_A3_SHARED_LAB_REQUEST_001",
-  "request_revision": 6,
+  "request_revision": 7,
   "requested_by": "Architect-A3",
   "role": "ARCHITECT",
   "repository": "mezas3238-hue/qore-core",
@@ -16,8 +16,8 @@
   "github_actions_role": "COMPUTE_HOST_ONLY",
   "github_actions_scientific_authority": false,
   "legacy_scientific_workflows_used": false,
-  "previous_run_id": 37229927676,
-  "previous_run_artifact_id": 11313244011,
+  "previous_run_id": 37230073084,
+  "previous_run_artifact_id": 11313089563,
   "previous_run_findings": {
     "functional_tasks_green_except_mc12_infrastructure_collision": true,
     "mc12_tests_passed": "4/4",
@@ -79,9 +79,9 @@
     "expected_gate": "CONTRACT_PASS",
     "test_plane": "QORE_SHARED_LAB",
     "last_red": {
-      "class": "ENGINEERING_LINT_I001_ONLY",
+      "class": "ENGINEERING_LINT_I001_IMPORT_CLASSIFICATION",
       "scientific_or_contract_outcome_observed": false,
-      "repair": "USE_SINGLE_MODULE_IMPORT_IN_TEST"
+      "repair": "REMOVE_THIRD_PARTY_TEST_IMPORT_AND_USE_NATIVE_ERROR_ASSERTIONS"
     }
   }
 }

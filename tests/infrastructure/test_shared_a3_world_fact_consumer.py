@@ -2,9 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
-import pytest
-
-from qore.infrastructure.core_stack_v2 import shared_a3_world_fact_consumer as seam
+import qore.infrastructure.core_stack_v2.shared_a3_world_fact_consumer as seam
 
 
 NOW = datetime(2026, 10, 4, 19, 50, tzinfo=UTC)
@@ -29,6 +27,15 @@ def _fact(**overrides):
     )
     values.update(overrides)
     return seam.A3WorldFactEnvelope(**values)
+
+
+def _expect_error(message: str, function) -> None:
+    try:
+        function()
+    except seam.A3WorldFactError as exc:
+        assert message in str(exc)
+    else:
+        raise AssertionError(f"expected A3WorldFactError containing {message!r}")
 
 
 def test_verified_observed_comparable_fact_is_consumable() -> None:
@@ -68,35 +75,39 @@ def test_not_comparable_fact_cannot_create_relation_claim() -> None:
 
 
 def test_future_available_fact_fails_closed() -> None:
-    with pytest.raises(seam.A3WorldFactError, match="future fact availability"):
-        _fact(available_at=NOW + timedelta(milliseconds=1))
+    _expect_error(
+        "future fact availability",
+        lambda: _fact(available_at=NOW + timedelta(milliseconds=1)),
+    )
 
 
-@pytest.mark.parametrize(
-    "field",
-    (
+def test_sovereign_or_methodology_hints_are_rejected() -> None:
+    for field in (
         "trader_methodology_embedded",
         "directional_action_hint",
         "sizing_hint",
         "risk_override_hint",
         "execution_hint",
-    ),
-)
-def test_sovereign_or_methodology_hints_are_rejected(field: str) -> None:
-    with pytest.raises(seam.A3WorldFactError, match="sovereign action hints"):
-        _fact(**{field: True})
+    ):
+        _expect_error("sovereign action hints", lambda f=field: _fact(**{f: True}))
 
 
 def test_relational_eligible_requires_verified_healthy_comparable_world() -> None:
-    with pytest.raises(seam.A3WorldFactError, match="verified identity"):
-        _fact(
+    _expect_error(
+        "verified identity",
+        lambda: _fact(
             identity_status=seam.A3IdentityStatus.UNKNOWN,
             canonical_identity=None,
-        )
-    with pytest.raises(seam.A3WorldFactError, match="explicit comparability"):
-        _fact(comparability_state=seam.A3ComparabilityState.UNKNOWN)
-    with pytest.raises(seam.A3WorldFactError, match="healthy data"):
-        _fact(data_health_state=seam.A3DataHealthState.DEGRADED)
+        ),
+    )
+    _expect_error(
+        "explicit comparability",
+        lambda: _fact(comparability_state=seam.A3ComparabilityState.UNKNOWN),
+    )
+    _expect_error(
+        "healthy data",
+        lambda: _fact(data_health_state=seam.A3DataHealthState.DEGRADED),
+    )
 
 
 def test_fingerprint_is_deterministic() -> None:
