@@ -100,9 +100,12 @@ from qore.infrastructure.market_test_environment import MarketRuntimeEnvironment
 
 RESEARCH_MODE = "NON_CERTIFYING_BURNED_ADAPTIVE_RESEARCH"
 MANDATORY_RUNTIME_GENC = (
+    "GEN-C1",
     "GEN-C2",
+    "GEN-C3",
     "GEN-C4",
     "GEN-C5",
+    "GEN-C6",
     "GEN-C7",
     "GEN-C8",
     "GEN-C9",
@@ -645,6 +648,44 @@ def _receipt(
         qore_risk_bypassed=False,
         productive_authority=False,
         native_engine_called=native_engine_name is not None,
+        native_engine_name=native_engine_name,
+    )
+
+
+def build_capital_science_lane_receipt(
+    *,
+    state: CapitalSciencePredecisionInput,
+    function_code: str,
+    disposition: CapitalScienceDisposition,
+    reason: str,
+    downstream_consumer: str,
+    consumer_action: str,
+    decision_changed: bool = False,
+    capital_source_usage: tuple[str, ...] = (),
+    output_details: dict[str, object] | None = None,
+    native_engine_name: str,
+) -> CapitalScienceReceipt:
+    """Build an auditable lane-owned GEN-C receipt with no extra authority."""
+
+    if function_code not in {"GEN-C1", "GEN-C3", "GEN-C6"}:
+        raise CiboCapitalManagementError(
+            "lane receipt helper is restricted to GEN-C1/GEN-C3/GEN-C6"
+        )
+    if not native_engine_name:
+        raise CiboCapitalManagementError(
+            "lane receipt requires an explicit native engine identity"
+        )
+    return _receipt(
+        state=state,
+        function_code=function_code,
+        disposition=disposition,
+        reason=reason,
+        downstream_consumer=downstream_consumer,
+        consumer_action=consumer_action,
+        decision_changed=decision_changed,
+        capital_source_usage=capital_source_usage,
+        output_details=output_details,
+        typed_engine_input=output_details,
         native_engine_name=native_engine_name,
     )
 
