@@ -1,0 +1,62 @@
+{
+  "identity": "QORE_SHARED_STI8_V4_LINEAGE_AND_FUTURE_DEPENDENCY_001",
+  "owner_lane": "SHARED_ARCHITECT_1",
+  "status": "V4_ENGINEERING_READY_FUTURE_DISJOINT_OOS_BLOCKED",
+  "predictive_signal_lineage": {
+    "r6": {
+      "run_id": 36640907470,
+      "status": "SIGNAL_VALUE_DEMONSTRATED_R6"
+    },
+    "r5": {
+      "run_id": 36650551765,
+      "status": "STI8_V1_REPLICATION_PASS_R5"
+    },
+    "research_oos": {
+      "run_id": 36653177299,
+      "status": "STI8_V1_RESEARCH_OOS_PASS"
+    },
+    "engine_retuned_after_r6": false
+  },
+  "economic_response_lineage": {
+    "V1": {
+      "run_id": 36665151377,
+      "disposition": "STI8_V1_ECONOMIC_RESPONSE_POLICY_FALSIFIED",
+      "reopened": false
+    },
+    "V2": {
+      "run_id": 36666605996,
+      "disposition": "STI8_RESPONSE_V2_RESEARCH_OOS_FALSIFIED",
+      "reopened": false
+    },
+    "V3": {
+      "run_id": 36743402436,
+      "disposition": "STI8_RESPONSE_V3_RESEARCH_OOS_FALSIFIED",
+      "reopened": false,
+      "policy_or_gates_changed_by_engineering_recovery": false
+    },
+    "V3_failure_knowledge": {
+      "run_id": 36745783337,
+      "selected_v4_mechanism": "V4_ONE_STEP_RECOVERY_VETO",
+      "burned_v2_v3_may_demonstrate_v4_value": false
+    }
+  },
+  "v4": {
+    "preregistration": "QORE_SHARED_STI8_ECONOMIC_RESPONSE_V4_PREREGISTRATION_001",
+    "engineering_readiness": "QORE_SHARED_STI8_V4_ENGINEERING_READINESS_001",
+    "implementation": "src/qore/infrastructure/traders/vt31_shared_threat_consumer_v4_research.py",
+    "implementation_present": true,
+    "future_oos_opened": false,
+    "value_demonstrated": false,
+    "completed_and_proven": false,
+    "exact_dependency": "PREREGISTERED_TEMPORALLY_DISJOINT_FUTURE_OOS_MUST_MATURE_AND_THEN_RUN_ONE_SHOT_IN_SHARED_LAB"
+  },
+  "sovereignty": {
+    "trader_owns_research_response": true,
+    "shared_exit_authority": false,
+    "shared_stop_authority": false,
+    "shared_target_authority": false,
+    "sizing_mutation": false,
+    "productive_authority": false,
+    "protected_final_holdout_opened": false
+  }
+}

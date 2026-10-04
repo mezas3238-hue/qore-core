@@ -1,0 +1,41 @@
+{
+  "identity": "QORE_SHARED_MC19_HISTORICAL_FOUNDATION_LINEAGE_001",
+  "owner_lane": "SHARED_ARCHITECT_1",
+  "status": "FOUNDATION_PASS_ENGINEERING_EXTENDED_SCIENTIFIC_VALUE_BLOCKED",
+  "historical_foundation": {
+    "run_id": 36764215198,
+    "git_sha": "a3d41bfea87028661c3616bd6c1902593b9edcd9",
+    "disposition": "MC19_TRAJECTORY_INTELLIGENCE_REAL_FOUNDATION_PASS",
+    "r6_trajectory_points": 7161,
+    "r5_trajectory_points": 7130,
+    "r6_memories": 218,
+    "r5_memories": 264,
+    "winner_preserving_economic_value_proven": false,
+    "completed_and_proven": false
+  },
+  "current_a1_extension": {
+    "chain_contract": "QORE_SHARED_A1_MC17_MC18_MC19_FUNCTIONAL_CHAIN_CONTRACT_001",
+    "native_chain": "MC17_TO_MC18_TO_MC19",
+    "states": [
+      "NORMAL_ADVERSITY",
+      "RECOVERABLE_DETERIORATION",
+      "STRUCTURAL_FAILURE",
+      "INSUFFICIENT"
+    ],
+    "functional_lab_execution_completed": false,
+    "scientifically_calibrated": false
+  },
+  "remaining_dependency": {
+    "functional": "SHARED_LAB_EXACT_SHA_HARNESS_SEAM_REPAIR_AND_A1_CHAIN_EXECUTION",
+    "scientific": "STI8_V4_FUTURE_OOS_ECONOMIC_GATE",
+    "winner_retention": "CANNOT_BE_CLAIMED_BEFORE_STI8_V4_INDEPENDENT_ECONOMIC_EVIDENCE"
+  },
+  "governance": {
+    "direct_trade_control": false,
+    "risk_authority": false,
+    "sizing_authority": false,
+    "execution_authority": false,
+    "protected_final_holdout_opened": false,
+    "productive_authority": false
+  }
+}
