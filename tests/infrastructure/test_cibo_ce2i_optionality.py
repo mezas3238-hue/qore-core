@@ -123,8 +123,26 @@ def test_demo_defensive_preserves_cheapest_known_option() -> None:
     assert decision.reserved_for_opportunity_ids == ("next-small",)
 
 
-def test_recovery_preserves_all_remaining_capacity() -> None:
+def test_demo_recovery_leaves_exactly_one_minimum_probe_capacity() -> None:
     mission = _mission_demo()
+    decision = plan_capital_optionality(
+        mission=mission,
+        regime=_regime(mission, dd="0.80"),
+        hard_risk_headroom_usd=Decimal("60"),
+        margin_headroom_usd=Decimal("500"),
+        known_options=OPTIONS,
+    )
+
+    assert decision.reserve_stop_risk_usd == Decimal("56")
+    assert decision.reserve_margin_usd == Decimal("480")
+    assert decision.deployable_stop_risk_usd == Decimal("4")
+    assert decision.deployable_margin_usd == Decimal("20")
+    assert decision.reserved_for_opportunity_ids == ("next-small",)
+    assert decision.preserve_new_capital is True
+
+
+def test_funded_recovery_still_preserves_all_remaining_capacity() -> None:
+    mission = _mission_funded()
     decision = plan_capital_optionality(
         mission=mission,
         regime=_regime(mission, dd="0.80"),
