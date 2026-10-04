@@ -859,8 +859,7 @@ def run_compound_portfolio_lane(
                     position_path_adverse=regime_source.position_path_adverse,
                     evidence_stale=regime_source.evidence_stale,
                 )
-            capital_science = evaluate_capital_science_predecision(
-                CapitalSciencePredecisionInput(
+            capital_science_state = CapitalSciencePredecisionInput(
                     decision_epoch_id=epoch.decision_epoch_id,
                     signal_fingerprint=signal,
                     trader_id=candidate.trader_id,
@@ -929,6 +928,8 @@ def run_compound_portfolio_lane(
                         capital_eligible=True,
                     ),
                 )
+            capital_science = evaluate_capital_science_predecision(
+                capital_science_state
             )
             capital_science_receipts.extend(capital_science.receipts)
             available = min(
