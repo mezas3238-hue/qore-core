@@ -32,7 +32,6 @@ from qore.infrastructure.core_stack_v2.shared_lab_tools import (
 )
 
 
-
 def _record(
     *,
     native: bool = True,
