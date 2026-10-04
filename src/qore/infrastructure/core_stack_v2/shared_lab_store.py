@@ -238,6 +238,9 @@ class EvidenceStore:
         run = json.loads(run_file.read_text())
         run["state"] = "COMPLETED"
         run["ended_at_ns"] = ended_at_ns
+        run["duration_ms"] = (
+            ended_at_ns - int(run["started_at_ns"])
+        ) / 1_000_000
         run["final_disposition"] = disposition
         run["artifact_hash"] = artifact_hash
         atomic_write_json(run_file, run)
