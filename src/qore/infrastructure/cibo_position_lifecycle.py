@@ -232,8 +232,17 @@ def run_cibo_position_lifecycle(
     for bar in causal_bars:
         favorable, adverse = favorable_and_adverse(bar)
 
-        # Only state active before BAR N may execute inside BAR N.
+        # If BAR N crosses the original structural stop while also
+        # containing favorable lifecycle triggers, M5 alone cannot establish
+        # which path occurred first.  Do not invent intrabar ordering or apply
+        # lifecycle actions that may have occurred after the position ceased.
+        # Preserve the original structural settlement as the authoritative
+        # outcome and stop lifecycle evaluation for this position.
         active_stop_r = stop_r
+        if active_stop_r == Decimal(-1) and adverse <= Decimal(-1):
+            break
+
+        # Only protection active before BAR N may execute inside BAR N.
         if active_stop_r > Decimal(-1) and adverse <= active_stop_r:
             delta = remaining * active_stop_r
             remaining = Decimal(0)
