@@ -71,6 +71,7 @@ from qore.infrastructure.cibo_full_economic_digital_twin import (
     CiboObservedEconomicTwin,
     CiboObservedOpportunityState,
     CiboObservedPortfolioState,
+    CiboObservedPositionState,
 )
 from qore.infrastructure.cibo_crisis_capital_intelligence import (
     Genc12CapitalResponse,
@@ -992,15 +993,48 @@ def _full_economic_twin(
         )
         for item in _known_economic_options(state)
     )
+    positions = tuple(
+        CiboObservedPositionState(
+            signal_fingerprint=item.signal_fingerprint,
+            qore_symbol=item.qore_symbol,
+            side=item.side,
+            entry_at=item.entry_at,
+            observed_at=state.decision_at,
+            current_volume=item.current_volume,
+            current_stop_risk_usd=item.current_stop_risk_usd,
+            current_margin_usd=item.current_margin_usd,
+            released_stop_risk_usd=Decimal(0),
+            released_margin_usd=Decimal(0),
+            remaining_reward_r=Decimal(0),
+            provider_cost_usd=item.provider_cost_usd,
+            entry_expected_net_value_usd=item.entry_expected_net_value_usd,
+            entry_expected_capital_minutes=item.entry_expected_capital_minutes,
+            expectation_evidence_sha256=item.expectation_evidence_sha256,
+            remaining_reward_identified=False,
+            expected_continuation_net_value_usd=Decimal(0),
+            expected_remaining_capital_minutes=(
+                item.entry_expected_capital_minutes
+            ),
+            release_cost_usd=Decimal(0),
+            uncertainty_penalty=Decimal(0),
+            releasable=True,
+            continuation_value_identified=(
+                item.continuation_value_identified
+            ),
+        )
+        for item in state.open_economic_positions
+    )
     return CiboObservedEconomicTwin(
         twin_id=f"economic:{capital_twin.twin_id}",
         captured_at=state.decision_at,
         capital_twin=capital_twin,
-        positions=(),
+        positions=positions,
         opportunities=opportunities,
         portfolio=CiboObservedPortfolioState(
             observed_at=state.decision_at,
-            active_position_ids=(),
+            active_position_ids=tuple(
+                item.signal_fingerprint for item in positions
+            ),
             opportunity_ids=tuple(item.option_id for item in opportunities),
             concentration_utilization=Decimal(0),
             correlation_utilization=Decimal(0),
