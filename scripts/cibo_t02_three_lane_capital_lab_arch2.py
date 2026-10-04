@@ -559,6 +559,7 @@ def main() -> int:
     decision_trace = build_cibo_profitability_decision_trace(
         execution=treatment,
         compound_function_accountability=dynamic_portfolio.function_accountability,
+        evaluation_outcomes=plan.outcome_events,
     )
     coverage = _coverage(
         fresh=fresh,

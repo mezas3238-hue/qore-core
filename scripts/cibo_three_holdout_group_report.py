@@ -512,15 +512,26 @@ def candidate(
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--three-lane", type=Path, required=True)
+    parser.add_argument("--maximum-capability", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
 
     raw = json.loads(args.three_lane.read_text(encoding="utf-8"))
+    maximum_capability = json.loads(
+        args.maximum_capability.read_text(encoding="utf-8")
+    )
+    if (
+        maximum_capability.get("schema")
+        != "qore.cibo.maximum-capability-frontier.v1"
+    ):
+        raise ValueError("maximum capability frontier schema drift")
     if raw.get("validation_mode") != "NON_CERTIFYING_BURNED_ADAPTIVE_RESEARCH":
         raise ValueError("3x1Y reporter requires burned adaptive research")
     group_id = raw.get("research_group_id")
     if group_id not in {"GROUP_1", "GROUP_2", "GROUP_3"}:
         raise ValueError("research group id missing")
+    if maximum_capability.get("research_group_id") != group_id:
+        raise ValueError("maximum capability group identity drift")
 
     core = core_events(raw["decision_trace"])
     if not core:
@@ -573,6 +584,7 @@ def main() -> int:
         "dynamic_leverage_decisions": raw[
             "all_trader_cibo_compound_portfolio_dynamic"
         ].get("leverage_decisions", []),
+        "maximum_capability_frontier": maximum_capability,
         "candidates": candidates,
         "source_three_lane_trace_sha256": raw["decision_trace"]["trace_sha256"],
         "fresh_oos_claimed": False,

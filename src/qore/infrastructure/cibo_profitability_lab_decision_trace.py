@@ -18,6 +18,9 @@ from qore.infrastructure.cibo_capital_management_authority import (
 from qore.infrastructure.cibo_phase22_v4_chronological_execution import (
     Phase22HistoricalExecutionReport,
 )
+from qore.infrastructure.cibo_phase22_v4_chronological_replay_plan import (
+    Phase22OutcomeEvent,
+)
 
 _CF_CODES = tuple(f"CF{index:02d}" for index in range(1, 20))
 _T_CODES = tuple(f"T{index:02d}" for index in range(1, 21))
@@ -29,6 +32,7 @@ def build_cibo_profitability_decision_trace(
     execution: Phase22HistoricalExecutionReport,
     compound_function_accountability: Iterable[dict[str, object]] = (),
     capital_science_receipts: Iterable[dict[str, object]] = (),
+    evaluation_outcomes: Iterable[Phase22OutcomeEvent] = (),
 ) -> dict[str, object]:
     """Reconstruct the observed economic path without changing it."""
 
@@ -38,6 +42,18 @@ def build_cibo_profitability_decision_trace(
         )
 
     books = execution.books
+    evaluation_by_signal: dict[str, Phase22OutcomeEvent] = {}
+    for item in evaluation_outcomes:
+        if not isinstance(item, Phase22OutcomeEvent):
+            raise CiboCapitalManagementError(
+                "profitability trace evaluation outcome type invalid"
+            )
+        if item.signal_fingerprint in evaluation_by_signal:
+            raise CiboCapitalManagementError(
+                "profitability trace duplicate evaluation outcome"
+            )
+        evaluation_by_signal[item.signal_fingerprint] = item
+
     policies = {
         item.evidence_sha256: item for item in books.holdout_policy.decisions
     }
@@ -257,6 +273,27 @@ def build_cibo_profitability_decision_trace(
                     "trader_id": trader_id,
                     "qore_symbol": qore_symbol,
                     "trader_opportunity": opportunity,
+                    "evaluation_outcome": (
+                        None
+                        if signal not in evaluation_by_signal
+                        else {
+                            "entry_at": (
+                                evaluation_by_signal[signal].entry_at.isoformat()
+                            ),
+                            "exit_at": (
+                                evaluation_by_signal[signal].exit_at.isoformat()
+                            ),
+                            "gross_structural_outcome_r": format(
+                                evaluation_by_signal[
+                                    signal
+                                ].gross_structural_outcome_r,
+                                "f",
+                            ),
+                            "exit_reason": evaluation_by_signal[signal].exit_reason,
+                            "not_available_to_predecision": True,
+                            "used_for_decision": False,
+                        }
+                    ),
                     "market_predecision_state": {
                         "provider_observation": candidate_row.get(
                             "provider_observation"
@@ -460,6 +497,16 @@ def build_cibo_profitability_decision_trace(
                 }
             )
 
+    if evaluation_by_signal:
+        row_signals = {
+            str(item["signal_fingerprint"])
+            for item in rows
+        }
+        if row_signals != set(evaluation_by_signal):
+            raise CiboCapitalManagementError(
+                "profitability trace evaluation outcome surface drift"
+            )
+
     expected_opportunities = sum(
         len(item.signal_fingerprints)
         for item in books.holdout_evidence.decisions
@@ -485,6 +532,7 @@ def build_cibo_profitability_decision_trace(
             "production": False,
             "merge_authority": False,
             "capital_science_runtime_receipts_bound": True,
+            "evaluation_outcomes_separate_from_predecision": True,
         },
         "opportunities": rows,
     }
