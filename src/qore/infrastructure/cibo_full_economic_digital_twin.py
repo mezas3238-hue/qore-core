@@ -139,6 +139,7 @@ class CiboObservedOpportunityState:
     known_at: datetime
     earliest_action_at: datetime
     expires_at: datetime
+    requested_capital_usd: Decimal
     expected_net_value_usd: Decimal
     expected_capital_minutes: Decimal
     stop_risk_usd: Decimal
@@ -164,6 +165,11 @@ class CiboObservedOpportunityState:
         ):
             raise CiboCapitalManagementError(
                 "Full Economic Twin opportunity chronology invalid"
+            )
+        _finite(self.requested_capital_usd, "requested_capital_usd")
+        if self.requested_capital_usd <= 0:
+            raise CiboCapitalManagementError(
+                "Full Economic Twin requested capital must be positive"
             )
         _finite(
             self.expected_net_value_usd,
