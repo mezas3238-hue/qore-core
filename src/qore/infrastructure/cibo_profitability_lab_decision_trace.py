@@ -126,6 +126,36 @@ def build_cibo_profitability_decision_trace(
             raise CiboCapitalManagementError(
                 "profitability trace Mission Director disposition drift"
             )
+        faculty_receipts = _list_of_objects(
+            consultation.get("faculty_receipts", []),
+            "faculty_receipts",
+        )
+        receipt_codes = tuple(
+            _required_string(item.get("function_code"), "faculty function_code")
+            for item in faculty_receipts
+        )
+        if receipt_codes != _CF_CODES:
+            raise CiboCapitalManagementError(
+                "profitability trace requires exact ordered CF01-CF19 receipts"
+            )
+        if any(
+            not isinstance(item.get("input_payload"), dict)
+            or not item["input_payload"]
+            or not isinstance(item.get("output_payload"), dict)
+            or not item["output_payload"]
+            or item.get("downstream_consumer") != "cibo-functional-coordinator"
+            or item.get("consumer_action") != "contribution-coordinated"
+            or item.get("advisory_only") is not True
+            or item.get("economic_authority") is not False
+            or item.get("sizing_authority") is not False
+            or item.get("risk_authority") is not False
+            or item.get("execution_authority") is not False
+            or item.get("outcome_used") is not False
+            for item in faculty_receipts
+        ):
+            raise CiboCapitalManagementError(
+                "profitability trace faculty I/O/authority receipt drift"
+            )
         economic_application = _object(
             policy_payload.get("advanced_economic_application"),
             "advanced_economic_application",
@@ -246,6 +276,7 @@ def build_cibo_profitability_decision_trace(
                         "functional_coordinator_invoked": consultation.get(
                             "functional_coordinator_invoked"
                         ),
+                        "faculty_receipts": faculty_receipts,
                         "executive_brain_invoked": False,
                         "executive_brain_status": "QUARANTINED_RESEARCH_ONLY",
                         "legacy_stack_quarantine_preserved": True,
