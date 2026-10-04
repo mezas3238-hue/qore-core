@@ -3,7 +3,7 @@
   "suite": "PERFORMANCE",
   "scope": "mc23",
   "dependencies": [
-    "a2-mc24-regression"
+    "a2-mc24-half-life"
   ],
   "command": [
     "python",
