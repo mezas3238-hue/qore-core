@@ -1,9 +1,11 @@
 """Executable seam contract between Shared Architect 3 and Architect 4.
 
-Integrator 2 owns this boundary.  The contract is intentionally conservative:
-B4 world facts may be consumed by A3 only when their epistemic and temporal
-status is explicit.  UNKNOWN / UNRESOLVED / NOT_COMPARABLE are first-class
-states and can never be silently promoted into certainty.
+Integrator 2 owns this boundary. B4 world facts may be consumed by A3 only
+when epistemic and temporal status is explicit. UNKNOWN / UNRESOLVED /
+NOT_COMPARABLE are first-class states and can never be silently promoted.
+
+Provider-neutral reference identity is deliberately distinct from a versioned
+contract identity. Neither implies tradable/listing/calendar authority.
 
 This module carries no Trader methodology, order filtering, sizing, Risk,
 capital or Execution authority.
@@ -23,14 +25,16 @@ class SharedA3B4SeamValidationError(ValueError):
 
 
 class SharedA3B4IdentityStatus(StrEnum):
-    VERIFIED_CANONICAL = "VERIFIED_CANONICAL"
+    PROVIDER_NEUTRAL_REFERENCE_VERIFIED = "PROVIDER_NEUTRAL_REFERENCE_VERIFIED"
+    VERSIONED_CONTRACT_VERIFIED = "VERSIONED_CONTRACT_VERIFIED"
     UNKNOWN = "UNKNOWN"
     UNRESOLVED = "UNRESOLVED"
 
 
 class SharedA3B4CalendarStatus(StrEnum):
     VERIFIED_CANONICAL = "VERIFIED_CANONICAL"
-    DISTRIBUTED_OTC = "DISTRIBUTED_OTC"
+    DISTRIBUTED_OTC_UNRESOLVED = "DISTRIBUTED_OTC_UNRESOLVED"
+    HISTORICAL_SESSION_PARTIAL = "HISTORICAL_SESSION_PARTIAL"
     UNKNOWN = "UNKNOWN"
     UNRESOLVED = "UNRESOLVED"
 
@@ -46,6 +50,14 @@ class SharedA3B4RelationEligibility(StrEnum):
     ELIGIBLE = "ELIGIBLE"
     INELIGIBLE = "INELIGIBLE"
     UNKNOWN = "UNKNOWN"
+
+
+_RESOLVED_IDENTITY = frozenset(
+    {
+        SharedA3B4IdentityStatus.PROVIDER_NEUTRAL_REFERENCE_VERIFIED,
+        SharedA3B4IdentityStatus.VERSIONED_CONTRACT_VERIFIED,
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,6 +92,10 @@ class SharedA3B4WorldFact:
             raise SharedA3B4SeamValidationError(
                 "instrument_key must be non-empty"
             )
+        if not self.data_health_state.strip():
+            raise SharedA3B4SeamValidationError(
+                "data_health_state must be non-empty"
+            )
         for name in ("fact_timestamp", "decision_timestamp"):
             value = getattr(self, name)
             if value.tzinfo is None or value.utcoffset() is None:
@@ -102,10 +118,10 @@ class SharedA3B4WorldFact:
                 "provenance_refs must be non-empty, unique and canonical"
             )
 
-        if self.identity_status is SharedA3B4IdentityStatus.VERIFIED_CANONICAL:
+        if self.identity_status in _RESOLVED_IDENTITY:
             if self.canonical_identity is None or not self.canonical_identity.strip():
                 raise SharedA3B4SeamValidationError(
-                    "verified canonical identity requires canonical_identity"
+                    "verified seam identity requires canonical_identity"
                 )
         elif self.canonical_identity is not None:
             raise SharedA3B4SeamValidationError(
@@ -113,20 +129,17 @@ class SharedA3B4WorldFact:
             )
 
         if self.relation_eligibility is SharedA3B4RelationEligibility.ELIGIBLE:
-            if self.identity_status is not SharedA3B4IdentityStatus.VERIFIED_CANONICAL:
+            if self.identity_status not in _RESOLVED_IDENTITY:
                 raise SharedA3B4SeamValidationError(
-                    "relation eligibility requires verified canonical identity"
+                    "relation eligibility requires resolved identity"
                 )
             if self.temporal_status is not SharedA3B4TemporalStatus.COMPARABLE:
                 raise SharedA3B4SeamValidationError(
                     "relation eligibility requires temporal comparability"
                 )
-            if self.calendar_status in {
-                SharedA3B4CalendarStatus.UNKNOWN,
-                SharedA3B4CalendarStatus.UNRESOLVED,
-            }:
+            if self.calendar_status is not SharedA3B4CalendarStatus.VERIFIED_CANONICAL:
                 raise SharedA3B4SeamValidationError(
-                    "relation eligibility requires resolved market-time semantics"
+                    "relation eligibility requires canonical market-time semantics"
                 )
 
         if self.trader_methodology_present:
@@ -148,19 +161,19 @@ class SharedA3B4WorldFact:
             )
 
     @property
+    def identity_resolved(self) -> bool:
+        return self.identity_status in _RESOLVED_IDENTITY
+
+    @property
     def relation_claim_allowed(self) -> bool:
         return self.relation_eligibility is SharedA3B4RelationEligibility.ELIGIBLE
 
     @property
     def a3_consumable_as_certainty(self) -> bool:
         return (
-            self.identity_status is SharedA3B4IdentityStatus.VERIFIED_CANONICAL
+            self.identity_resolved
             and self.temporal_status is SharedA3B4TemporalStatus.COMPARABLE
-            and self.calendar_status
-            not in {
-                SharedA3B4CalendarStatus.UNKNOWN,
-                SharedA3B4CalendarStatus.UNRESOLVED,
-            }
+            and self.calendar_status is SharedA3B4CalendarStatus.VERIFIED_CANONICAL
         )
 
     def fingerprint(self) -> str:

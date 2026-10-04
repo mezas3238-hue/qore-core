@@ -18,10 +18,12 @@ NOW = datetime(2026, 10, 4, 16, 0, tzinfo=UTC)
 def _fact(**overrides):
     values = {
         "source_workstream": "B-08",
-        "instrument_key": "EURUSD",
-        "canonical_identity": "FX:EURUSD",
-        "identity_status": SharedA3B4IdentityStatus.VERIFIED_CANONICAL,
-        "calendar_status": SharedA3B4CalendarStatus.DISTRIBUTED_OTC,
+        "instrument_key": "CTRADER_DEMO:000001",
+        "canonical_identity": "QORE:FX_REFERENCE:EUR/USD",
+        "identity_status": (
+            SharedA3B4IdentityStatus.PROVIDER_NEUTRAL_REFERENCE_VERIFIED
+        ),
+        "calendar_status": SharedA3B4CalendarStatus.VERIFIED_CANONICAL,
         "data_health_state": "HEALTHY",
         "temporal_status": SharedA3B4TemporalStatus.COMPARABLE,
         "relation_eligibility": SharedA3B4RelationEligibility.ELIGIBLE,
@@ -36,16 +38,32 @@ def _fact(**overrides):
 
 def test_verified_comparable_fact_is_consumable_and_deterministic():
     fact = _fact()
+    assert fact.identity_resolved is True
     assert fact.a3_consumable_as_certainty is True
     assert fact.relation_claim_allowed is True
     assert fact.fingerprint() == fact.fingerprint()
+
+
+def test_versioned_contract_is_resolved_but_does_not_imply_calendar():
+    fact = _fact(
+        canonical_identity="QORE:FUTURES_CONTRACT:GC:2027-02:COMEX",
+        identity_status=SharedA3B4IdentityStatus.VERSIONED_CONTRACT_VERIFIED,
+        calendar_status=SharedA3B4CalendarStatus.UNRESOLVED,
+        temporal_status=SharedA3B4TemporalStatus.NOT_COMPARABLE,
+        relation_eligibility=SharedA3B4RelationEligibility.INELIGIBLE,
+        uncertainty_bps=10_000,
+    )
+    assert fact.identity_resolved is True
+    assert fact.a3_consumable_as_certainty is False
+    assert fact.relation_claim_allowed is False
 
 
 def test_unknown_identity_cannot_be_promoted_to_guessed_identity():
     with pytest.raises(SharedA3B4SeamValidationError):
         _fact(
             identity_status=SharedA3B4IdentityStatus.UNKNOWN,
-            canonical_identity="FX:EURUSD",
+            canonical_identity="QORE:FX_REFERENCE:EUR/USD",
+            calendar_status=SharedA3B4CalendarStatus.UNKNOWN,
             temporal_status=SharedA3B4TemporalStatus.UNKNOWN,
             relation_eligibility=SharedA3B4RelationEligibility.UNKNOWN,
         )
@@ -60,6 +78,7 @@ def test_unknown_identity_is_preserved_and_not_consumable_as_certainty():
         relation_eligibility=SharedA3B4RelationEligibility.INELIGIBLE,
         uncertainty_bps=10_000,
     )
+    assert fact.identity_resolved is False
     assert fact.a3_consumable_as_certainty is False
     assert fact.relation_claim_allowed is False
 
@@ -69,9 +88,11 @@ def test_future_fact_is_rejected():
         _fact(fact_timestamp=NOW + timedelta(microseconds=1))
 
 
-def test_relation_claim_requires_temporal_comparability():
+def test_relation_claim_requires_temporal_comparability_and_canonical_time():
     with pytest.raises(SharedA3B4SeamValidationError):
         _fact(temporal_status=SharedA3B4TemporalStatus.NOT_COMPARABLE)
+    with pytest.raises(SharedA3B4SeamValidationError):
+        _fact(calendar_status=SharedA3B4CalendarStatus.DISTRIBUTED_OTC_UNRESOLVED)
 
 
 def test_hidden_filter_and_productive_authority_fail_closed():
