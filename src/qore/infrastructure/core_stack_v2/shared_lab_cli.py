@@ -19,10 +19,16 @@ from qore.infrastructure.core_stack_v2.shared_lab_native_model import (
 )
 from qore.infrastructure.core_stack_v2.shared_lab_orchestrator import NativeLabOrchestrator
 from qore.infrastructure.core_stack_v2.shared_lab_publisher import GitHubResultPublisher
+from qore.infrastructure.core_stack_v2.shared_lab_scheduler import SharedLabScheduler
+from qore.infrastructure.core_stack_v2.shared_lab_scheduler_server import (
+    SchedulerClient,
+    SchedulerServer,
+)
 from qore.infrastructure.core_stack_v2.shared_lab_store import DatasetStore, EvidenceStore
 
 
 DEFAULT_REPOSITORY = "mezas3238-hue/qore-core"
+DEFAULT_SERVER_URL = "http://127.0.0.1:8765"
 
 
 def _branch(repo_path: Path) -> str:
@@ -59,7 +65,11 @@ def _summary_payload(summary: RunSummary) -> dict[str, Any]:
     }
 
 
-def _request_from_args(args: argparse.Namespace, *, replay: bool = False) -> RunRequest:
+def _request_from_args(
+    args: argparse.Namespace,
+    *,
+    replay: bool = False,
+) -> RunRequest:
     repo_path = Path(str(args.repo_path)).resolve()
     branch = str(args.branch) if args.branch else _branch(repo_path)
     return RunRequest(
@@ -93,10 +103,41 @@ def _request_from_args(args: argparse.Namespace, *, replay: bool = False) -> Run
             )
         ),
         use_cache=not bool(args.no_cache),
+        submitted_by=str(getattr(args, "submitted_by", "local-user")),
+        submitted_role=str(getattr(args, "role", "ARCHITECT")).upper(),
+        dependency_hashes=tuple(getattr(args, "dependency_hash", ()) or ()),
+        exclusive_locks=tuple(getattr(args, "lock", ()) or ()),
     )
 
 
-def _add_execution_args(parser: argparse.ArgumentParser) -> None:
+def _request_payload(request: RunRequest, priority: str) -> dict[str, Any]:
+    return {
+        "repository": request.repository,
+        "repo_path": request.repo_path,
+        "commit_sha": request.commit_sha,
+        "branch": request.branch,
+        "dataset_id": request.dataset_id,
+        "dataset_version": request.dataset_version,
+        "mode": request.mode.value,
+        "scope": request.scope.value,
+        "workers": request.workers,
+        "policy": asdict(request.policy),
+        "base_sha": request.base_sha,
+        "scenario": request.scenario,
+        "use_cache": request.use_cache,
+        "dependency_hashes": request.dependency_hashes,
+        "exclusive_locks": request.exclusive_locks,
+        "submitted_by": request.submitted_by,
+        "role": request.submitted_role,
+        "priority": priority,
+    }
+
+
+def _add_execution_args(
+    parser: argparse.ArgumentParser,
+    *,
+    require_identity: bool = False,
+) -> None:
     parser.add_argument("--repo-path", default=".")
     parser.add_argument("--repository", default=DEFAULT_REPOSITORY)
     parser.add_argument("--branch")
@@ -107,8 +148,37 @@ def _add_execution_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--retries", type=int, default=0)
     parser.add_argument("--memory-mb", type=int, default=2048)
     parser.add_argument("--cpu-seconds", type=int, default=300)
+    parser.add_argument("--dependency-hash", action="append", default=[])
+    parser.add_argument("--lock", action="append", default=[])
     parser.add_argument("--no-cache", action="store_true")
     parser.add_argument("--state-dir", default=".qore-shared-lab")
+    parser.add_argument(
+        "--submitted-by",
+        required=require_identity,
+        default=None if require_identity else "local-user",
+    )
+    parser.add_argument(
+        "--role",
+        choices=("ARCHITECT", "INTEGRATOR"),
+        required=require_identity,
+        default=None if require_identity else "ARCHITECT",
+    )
+
+
+def _add_validate_shape(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--sha", required=True)
+    parser.add_argument(
+        "--scope",
+        choices=[scope.value for scope in LabScope],
+        default=LabScope.FULL_STACK.value,
+    )
+    parser.add_argument(
+        "--mode",
+        choices=[mode.value.lower() for mode in ExecutionMode],
+        default=ExecutionMode.FULL.value.lower(),
+    )
+    parser.add_argument("--base-sha")
+    parser.add_argument("--scenario")
 
 
 def _run_validate(args: argparse.Namespace) -> int:
@@ -127,7 +197,63 @@ def _run_replay(args: argparse.Namespace) -> int:
     return 0 if summary.disposition.value == "PASS" else 1
 
 
+def _run_serve(args: argparse.Namespace) -> int:
+    scheduler = SharedLabScheduler(
+        state_dir=_state_dir(str(args.state_dir)),
+        worker_capacity=int(args.workers),
+        max_worker_capacity=int(args.max_workers),
+        max_queued_jobs=int(args.max_queued_jobs),
+    )
+    SchedulerServer(
+        scheduler=scheduler,
+        host=str(args.host),
+        port=int(args.port),
+    ).serve_forever()
+    return 0
+
+
+def _run_submit(args: argparse.Namespace) -> int:
+    request = _request_from_args(args)
+    client = SchedulerClient(str(args.server_url))
+    payload = client.submit(
+        _request_payload(request, str(args.priority).upper())
+    )
+    print(json.dumps(payload, sort_keys=True, indent=2))
+    return 0
+
+
 def _run_status(args: argparse.Namespace) -> int:
+    client = SchedulerClient(str(args.server_url))
+    run_id = None if args.run_id is None else str(args.run_id)
+    print(json.dumps(client.status(run_id), sort_keys=True, indent=2))
+    return 0
+
+
+def _run_cancel(args: argparse.Namespace) -> int:
+    client = SchedulerClient(str(args.server_url))
+    print(
+        json.dumps(
+            client.cancel(str(args.run_id)),
+            sort_keys=True,
+            indent=2,
+        )
+    )
+    return 0
+
+
+def _run_workers(args: argparse.Namespace) -> int:
+    client = SchedulerClient(str(args.server_url))
+    print(
+        json.dumps(
+            client.resize(int(args.capacity)),
+            sort_keys=True,
+            indent=2,
+        )
+    )
+    return 0
+
+
+def _run_evidence_status(args: argparse.Namespace) -> int:
     store = EvidenceStore(_state_dir(str(args.state_dir)) / "evidence")
     print(json.dumps(store.read_run(str(args.run_id)), sort_keys=True, indent=2))
     return 0
@@ -164,6 +290,12 @@ def _run_reproduce(args: argparse.Namespace) -> int:
         ),
         use_cache=bool(payload.get("use_cache", True)),
         reproduces_run_id=str(args.run_id),
+        submitted_by=str(payload.get("submitted_by", "reproduce")),
+        submitted_role=str(payload.get("submitted_role", "INTEGRATOR")),
+        dependency_hashes=tuple(
+            str(x) for x in payload.get("dependency_hashes", [])
+        ),
+        exclusive_locks=tuple(str(x) for x in payload.get("exclusive_locks", [])),
     )
     summary = NativeLabOrchestrator(state_dir=state_dir).run(request)
     print(json.dumps(_summary_payload(summary), sort_keys=True, indent=2))
@@ -201,19 +333,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
 
     validate = sub.add_parser("validate")
-    validate.add_argument("--sha", required=True)
-    validate.add_argument(
-        "--scope",
-        choices=[scope.value for scope in LabScope],
-        default=LabScope.FULL_STACK.value,
-    )
-    validate.add_argument(
-        "--mode",
-        choices=[mode.value.lower() for mode in ExecutionMode],
-        default=ExecutionMode.FULL.value.lower(),
-    )
-    validate.add_argument("--base-sha")
-    validate.add_argument("--scenario")
+    _add_validate_shape(validate)
     _add_execution_args(validate)
     validate.set_defaults(handler=_run_validate)
 
@@ -223,10 +343,45 @@ def build_parser() -> argparse.ArgumentParser:
     _add_execution_args(replay)
     replay.set_defaults(handler=_run_replay)
 
+    serve = sub.add_parser("serve")
+    serve.add_argument("--state-dir", default=".qore-shared-lab")
+    serve.add_argument("--host", default="127.0.0.1")
+    serve.add_argument("--port", type=int, default=8765)
+    serve.add_argument("--workers", type=int, default=4)
+    serve.add_argument("--max-workers", type=int, default=20)
+    serve.add_argument("--max-queued-jobs", type=int, default=32)
+    serve.set_defaults(handler=_run_serve)
+
+    submit = sub.add_parser("submit")
+    _add_validate_shape(submit)
+    _add_execution_args(submit, require_identity=True)
+    submit.add_argument(
+        "--priority",
+        choices=("QUICK", "NORMAL", "DEEP", "CERTIFICATION"),
+        default="NORMAL",
+    )
+    submit.add_argument("--server-url", default=DEFAULT_SERVER_URL)
+    submit.set_defaults(handler=_run_submit)
+
     status = sub.add_parser("status")
-    status.add_argument("run_id")
-    status.add_argument("--state-dir", default=".qore-shared-lab")
+    status.add_argument("run_id", nargs="?")
+    status.add_argument("--server-url", default=DEFAULT_SERVER_URL)
     status.set_defaults(handler=_run_status)
+
+    cancel = sub.add_parser("cancel")
+    cancel.add_argument("run_id")
+    cancel.add_argument("--server-url", default=DEFAULT_SERVER_URL)
+    cancel.set_defaults(handler=_run_cancel)
+
+    workers = sub.add_parser("workers")
+    workers.add_argument("--capacity", type=int, required=True)
+    workers.add_argument("--server-url", default=DEFAULT_SERVER_URL)
+    workers.set_defaults(handler=_run_workers)
+
+    evidence = sub.add_parser("evidence-status")
+    evidence.add_argument("run_id")
+    evidence.add_argument("--state-dir", default=".qore-shared-lab")
+    evidence.set_defaults(handler=_run_evidence_status)
 
     reproduce = sub.add_parser("reproduce")
     reproduce.add_argument("run_id")
