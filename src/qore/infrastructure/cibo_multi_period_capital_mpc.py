@@ -538,11 +538,11 @@ def plan_genc11_multi_period_capital(
                     opportunity_id=item.option_id,
                     decision_step=item.decision_step,
                     minimum_stop_risk_usd=_known_option(
-                        twin,
+                        capital_twin,
                         item.option_id,
                     ).stop_risk_usd,
                     minimum_margin_usd=_known_option(
-                        twin,
+                        capital_twin,
                         item.option_id,
                     ).margin_usd,
                 )
