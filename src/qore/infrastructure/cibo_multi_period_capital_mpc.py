@@ -447,17 +447,43 @@ class Genc11MultiPeriodPlan:
 def plan_genc11_multi_period_capital(
     *,
     plan_id: str,
-    twin: Genc10ObservedCapitalTwin,
+    twin: Genc10ObservedCapitalTwin | CiboObservedEconomicTwin,
     world_paths: tuple[Genc11WorldPath, ...],
     option_schedules: tuple[Genc11KnownOptionSchedule, ...],
 ) -> Genc11MultiPeriodPlan:
-    """Build a robust, forecastless multi-world capacity envelope."""
+    """Build the native robust multi-world capacity plan.
+
+    GEN-C11 accepts either the canonical GEN-C10 capital truth surface or the
+    richer Full Economic Twin.  With the Full Twin, GEN-C11 consumes the full
+    causal opportunity set directly while preserving GEN-C10 as capital truth.
+    """
 
     if not plan_id:
         raise CiboCapitalManagementError("GEN-C11 plan_id is required")
-    if not isinstance(twin, Genc10ObservedCapitalTwin):
+    if isinstance(twin, CiboObservedEconomicTwin):
+        full_twin = twin
+        capital_twin = replace(
+            full_twin.capital_twin,
+            known_options=tuple(
+                Genc10KnownCapitalOption(
+                    option_id=item.option_id,
+                    known_at=item.known_at,
+                    earliest_action_at=item.earliest_action_at,
+                    expires_at=item.expires_at,
+                    requested_capital_usd=item.requested_capital_usd,
+                    stop_risk_usd=item.stop_risk_usd,
+                    margin_usd=item.margin_usd,
+                    evidence_sha256=item.evidence_sha256,
+                )
+                for item in full_twin.opportunities
+            ),
+        )
+    elif isinstance(twin, Genc10ObservedCapitalTwin):
+        full_twin = None
+        capital_twin = twin
+    else:
         raise CiboCapitalManagementError(
-            "GEN-C11 requires canonical GEN-C10 observed twin"
+            "GEN-C11 requires canonical GEN-C10 or Full Economic Twin"
         )
     # The GEN-C11 freeze locks the planning policy. A canonical GEN-C10
     # twin may represent historical market time without disabling this engine.
@@ -486,7 +512,7 @@ def plan_genc11_multi_period_capital(
         )
 
     scheduled = _validate_option_schedules(
-        twin=twin,
+        twin=capital_twin,
         step_times=step_times,
         schedules=option_schedules,
     )
@@ -502,7 +528,7 @@ def plan_genc11_multi_period_capital(
                 through_step=step.step_index,
             )
             projected = project_genc10_world(
-                twin=twin,
+                twin=capital_twin,
                 scenario=aggregate,
                 projected_at=step.projected_at,
             )
@@ -522,7 +548,7 @@ def plan_genc11_multi_period_capital(
                 )
                 for item in scheduled
                 if item.option_id in surviving
-                and _known_option(twin, item.option_id).expires_at
+                and _known_option(capital_twin, item.option_id).expires_at
                 > step.projected_at
             )
             capacity_plan = plan_phase20i_receding_horizon_capacity(
@@ -557,7 +583,7 @@ def plan_genc11_multi_period_capital(
     )
     return Genc11MultiPeriodPlan(
         plan_id=plan_id,
-        twin_id=twin.twin_id,
+        twin_id=capital_twin.twin_id,
         horizon_steps=horizon,
         step_times=step_times,
         path_ids=path_ids,
@@ -760,48 +786,3 @@ def _derived_sha(label: str, values: tuple[str, ...]) -> str:
     payload = {"label": label, "values": list(values)}
     raw = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
     return "sha256:" + hashlib.sha256(raw).hexdigest()
-
-
-
-def plan_genc11_from_full_economic_twin(
-    *,
-    plan_id: str,
-    twin: CiboObservedEconomicTwin,
-    world_paths: tuple[Genc11WorldPath, ...],
-    option_schedules: tuple[Genc11KnownOptionSchedule, ...],
-) -> Genc11MultiPeriodPlan:
-    """Run GEN-C11 from the canonical Full Economic Twin opportunity surface.
-
-    GEN-C10 remains capital truth. The wrapper only replaces its known-option
-    view with the complete causal opportunity set already present in the Full
-    Economic Twin, preserving evidence lineage and all existing GEN-C11 world
-    mechanics.
-    """
-
-    if not isinstance(twin, CiboObservedEconomicTwin):
-        raise CiboCapitalManagementError(
-            "GEN-C11 Full Twin adapter requires canonical observed twin"
-        )
-    options = tuple(
-        Genc10KnownCapitalOption(
-            option_id=item.option_id,
-            known_at=item.known_at,
-            earliest_action_at=item.earliest_action_at,
-            expires_at=item.expires_at,
-            requested_capital_usd=item.requested_capital_usd,
-            stop_risk_usd=item.stop_risk_usd,
-            margin_usd=item.margin_usd,
-            evidence_sha256=item.evidence_sha256,
-        )
-        for item in twin.opportunities
-    )
-    augmented_capital_twin = replace(
-        twin.capital_twin,
-        known_options=options,
-    )
-    return plan_genc11_multi_period_capital(
-        plan_id=plan_id,
-        twin=augmented_capital_twin,
-        world_paths=world_paths,
-        option_schedules=option_schedules,
-    )
