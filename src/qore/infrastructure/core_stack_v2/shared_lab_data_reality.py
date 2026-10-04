@@ -154,6 +154,14 @@ class DataQualityMetrics:
     def provider_disagreement_ratio(self) -> float:
         return self._ratio(self.provider_disagreement_count)
 
+    @property
+    def freshness(self) -> float:
+        return 1.0 - self.stale_ratio
+
+    @property
+    def continuity(self) -> float:
+        return 1.0 - self.out_of_order_ratio
+
     def passes(self, thresholds: DataQualityThresholds) -> bool:
         return (
             self.coverage >= thresholds.min_coverage
