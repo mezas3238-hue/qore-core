@@ -1288,6 +1288,8 @@ def run_compound_portfolio_lane(
                     stop_risk_usd=known_risk,
                     margin_usd=known_margin,
                     evidence_sha256=known_candidate.fingerprint(),
+                    expected_net_value_usd=known_expectation.expected_net_value_usd,
+                    expected_capital_minutes=known_expectation.expected_capital_minutes,
                 )
             )
 
