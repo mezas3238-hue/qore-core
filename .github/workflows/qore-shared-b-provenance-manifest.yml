@@ -89,6 +89,8 @@ jobs:
             {"evidence_id":"B15_ENERGY_REFERENCE_BOUNDARY","capability_scope":"B-15","kind":"IDENTITY_EVIDENCE","run_id":36784810864,"artifact_id":11128739693,"source_hash":true,"provider_free_replay":true},
             {"evidence_id":"B16_17_ACTIVE_PERCEPTION","capability_scope":"B-16/B-17","kind":"REAL_REPLICATION_EVIDENCE","run_id":36757173753,"artifact_id":11116986748,"source_hash":true,"provider_free_replay":true},
             {"evidence_id":"B16_SENSOR_QUALIFICATION_FRONTIER","capability_scope":"B-16","kind":"GOVERNANCE_EVIDENCE","run_id":36783433192,"artifact_id":11127854507,"source_hash":true,"provider_free_replay":true},
+            {"evidence_id":"B16_PROGRESSIVE_QUALIFICATION_CONTRACT","capability_scope":"B-16","kind":"GOVERNANCE_EVIDENCE","run_id":37228391397,"artifact_id":11313231357,"source_hash":true,"provider_free_replay":true,"source_branch":"agent/shared-architect-6-provenance-freeze-001"},
+            {"evidence_id":"B21_PREVIOUS_TOTAL_PROVENANCE_MANIFEST","capability_scope":"B-21","kind":"GOVERNANCE_EVIDENCE","run_id":37228394518,"artifact_id":11312932170,"source_hash":false,"provider_free_replay":true,"source_branch":"agent/shared-architect-6-provenance-freeze-001"},
             {"evidence_id":"B18_20_OBSERVABILITY","capability_scope":"B-18/B-19/B-20","kind":"ARCHITECTURE_EVIDENCE","run_id":36756742481,"artifact_id":11116344955,"source_hash":true,"provider_free_replay":true},
             {"evidence_id":"B18_CORE_BROKER_REAL","capability_scope":"B-18","kind":"REAL_REPLICATION_EVIDENCE","run_id":36764365409,"artifact_id":11120521150,"source_hash":true,"provider_free_replay":true},
             {"evidence_id":"B19_BLINDSPOT_INVENTORY","capability_scope":"B-19","kind":"REAL_REPLICATION_EVIDENCE","run_id":36764376550,"artifact_id":11120391213,"source_hash":true,"provider_free_replay":true}
@@ -184,12 +186,8 @@ jobs:
               ),
               coverage_complete=False,
               open_coverage_reasons=(
-                  "B-06/B-07/B-08 global identity/calendar/temporal closure remains incomplete",
-                  "B-09 stale-relation empirical isolation remains gated by B-07/B-08",
-                  "B-10/B-11/B-12 empirical relational population remains open",
-                  "B-13 empirical structural-divergence population remains open",
-                  "B-21 does not yet cover every mandatory B workstream",
-                  "B-22 WORLD_PERCEPTION_FREEZE does not yet exist",
+                  "B-22 WORLD_PERCEPTION_FREEZE is intentionally absent until every mandatory B workstream has a terminal disposition",
+                  "B-24 final B handoff is intentionally absent until B-22 exists",
               ),
           )
           Path("result/shared-b-provenance-manifest.json").write_text(
@@ -203,6 +201,27 @@ jobs:
                   "provider_free_replay_pointer_count"
               ],
           },sort_keys=True))
+          PY
+
+      - name: Quantify exact B provenance coverage
+        run: |
+          python scripts/shared_integrator_b_provenance_coverage.py \
+            --manifest result/shared-b-provenance-manifest.json \
+            --output result/shared-b-provenance-coverage.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/shared-b-provenance-coverage.json").read_text())
+          assert p["covered_count"] == 22
+          assert p["required_count"] == 24
+          assert p["missing_ids"] == ["B-22", "B-24"]
+          assert p["missing_terminal_ids"] == []
+          assert p["missing_external_blocked_ids"] == []
+          assert p["missing_nonterminal_ids"] == ["B-22", "B-24"]
+          assert p["coverage_complete"] is False
+          assert p["b_status_mutated"] is False
+          assert p["holdout_authority"] is False
+          assert p["productive_authority"] is False
           PY
 
       - name: Seal provenance audit
@@ -228,4 +247,4 @@ jobs:
         env:
           ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
         run: |
-          gh issue comment 638 --repo "$GITHUB_REPOSITORY" --body "Architect B B-21 provenance manifest: run ${GITHUB_RUN_ID}, SHA ${GITHUB_SHA}, artifact ${ARTIFACT_ID}. Exact GitHub run↔artifact↔producer-branch↔HEAD↔artifact-SHA256 lineage verified for the current sealed B evidence population. coverage_complete=False remains mandatory until final B-21/B-22/B-24 provenance closure; current upstream evidence is recorded without holdout/broker/productive authority."
+          gh issue comment 638 --repo "$GITHUB_REPOSITORY" --body "Architect B B-21 provenance manifest: run ${GITHUB_RUN_ID}, SHA ${GITHUB_SHA}, artifact ${ARTIFACT_ID}. Exact GitHub run↔artifact↔producer-branch↔HEAD↔artifact-SHA256 lineage verified for 22/24 B workstreams. Only B-22 and B-24 remain intentionally uncovered because their downstream artifacts do not yet exist. coverage_complete=False remains mandatory until those gates are legitimately emitted; current upstream evidence is recorded without holdout/broker/productive authority."
