@@ -131,7 +131,11 @@ def test_causal_baseline_feeds_advanced_engines_without_inventing_oos() -> None:
     assert row.convex_exposure is not None
     assert row.convex_exposure.instruments == ()
     assert evidence.portfolio_netting is not None
-    assert evidence.portfolio_netting.factor_map_verified is False
+    assert evidence.portfolio_netting.factor_map_verified is True
+    assert evidence.portfolio_netting.risk_mapping_verified is True
+    assert evidence.portfolio_netting.exact_instrument_identity_verified is True
+    assert evidence.portfolio_netting.correlation_oos is False
+    assert evidence.portfolio_netting.netting_utility_oos is False
     assert evidence.capital_velocity is not None
     assert len(evidence.capital_velocity.policies) == 1
     assert evidence.hedged_exposure is not None
