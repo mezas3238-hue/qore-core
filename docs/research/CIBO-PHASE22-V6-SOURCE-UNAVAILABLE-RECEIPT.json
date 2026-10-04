@@ -1,0 +1,37 @@
+{
+  "schema": "qore.cibo.phase22.v6-source-unavailable-receipt.v1",
+  "candidate_id": "CIBO_USD60_6M_HOLDOUT_2013-10-19_2014-04-19_V6",
+  "source_availability_run_id": 37170588450,
+  "source_availability_artifact_id": 11291471205,
+  "source_availability_artifact_digest": "sha256:b0c4f037086ddf63c1ca870f176b657b2f67f4d359f8b4e99ec5d3f0b85706f6",
+  "required_surface_count": 10,
+  "available_surface_count": 8,
+  "source_available": false,
+  "status": "SOURCE_UNAVAILABLE",
+  "unavailable_sources": [
+    {
+      "symbol": "NAS100",
+      "provider_symbol": "USTEC",
+      "timeframe": "M5",
+      "first_window_bars": 0,
+      "last_window_bars": 0
+    },
+    {
+      "symbol": "NAS100",
+      "provider_symbol": "USTEC",
+      "timeframe": "M1",
+      "first_window_bars": 0,
+      "last_window_bars": 0
+    }
+  ],
+  "trader_logic_executed": false,
+  "outcomes_inspected": false,
+  "fresh_execution_authorized": false,
+  "claim_committed": false,
+  "broker_mutation": false,
+  "live_authorized": false,
+  "real_capital_authorized": false,
+  "production_authorized": false,
+  "merge_authorized": false,
+  "productive_authority": false
+}
