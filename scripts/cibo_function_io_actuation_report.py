@@ -43,10 +43,13 @@ def _cognitive_rows(opportunities: list[dict[str, Any]]) -> list[dict[str, Any]]
         expected_rows = 0
         shared_outputs: Counter[str] = Counter()
         function_outputs: Counter[str] = Counter()
+        native_statuses: Counter[str] = Counter()
+        native_engines: Counter[str] = Counter()
         complete_io = True
         consumer_bound = True
         advisory_boundary = True
         context_effect = True
+        native_runtime_valid = True
         for row in opportunities:
             cog = row.get("cognitive_orchestration")
             if not isinstance(cog, dict):
@@ -69,6 +72,7 @@ def _cognitive_rows(opportunities: list[dict[str, Any]]) -> list[dict[str, Any]]
                 consumer_bound = False
                 advisory_boundary = False
                 context_effect = False
+                native_runtime_valid = False
                 continue
             matching = [
                 item
@@ -80,6 +84,7 @@ def _cognitive_rows(opportunities: list[dict[str, Any]]) -> list[dict[str, Any]]
                 consumer_bound = False
                 advisory_boundary = False
                 context_effect = False
+                native_runtime_valid = False
                 continue
             receipt = matching[0]
             calls += 1
@@ -116,6 +121,40 @@ def _cognitive_rows(opportunities: list[dict[str, Any]]) -> list[dict[str, Any]]
             context_effect = context_effect and (
                 receipt.get("decision_context_effect") == "evidence-request-context"
             )
+            if not isinstance(output_payload, dict):
+                native_runtime_valid = False
+                continue
+            native_called = output_payload.get("native_engine_called")
+            native_name = output_payload.get("native_engine_name")
+            native_status = output_payload.get("native_engine_status")
+            native_output = output_payload.get("native_engine_output")
+            native_reason = output_payload.get("native_engine_reason")
+            native_statuses[str(native_status)] += 1
+            native_engines[str(native_name)] += 1
+            valid_status = native_status in {
+                "SUCCESS",
+                "FAIL_CLOSED",
+                "DEPENDENCY_BLOCKED",
+                "JUSTIFIED_NOT_APPLICABLE",
+            }
+            native_runtime_valid = native_runtime_valid and (
+                type(native_called) is bool
+                and isinstance(native_name, str)
+                and bool(native_name)
+                and valid_status
+                and isinstance(native_output, dict)
+                and (
+                    native_reason is None
+                    or (isinstance(native_reason, str) and bool(native_reason))
+                )
+                and (
+                    (native_status == "JUSTIFIED_NOT_APPLICABLE" and native_called is False)
+                    or (
+                        native_status != "JUSTIFIED_NOT_APPLICABLE"
+                        and native_called is True
+                    )
+                )
+            )
 
         observed = (
             expected_rows > 0
@@ -125,6 +164,26 @@ def _cognitive_rows(opportunities: list[dict[str, Any]]) -> list[dict[str, Any]]
             and advisory_boundary
             and context_effect
         )
+        native_observed = (
+            observed
+            and native_runtime_valid
+            and sum(native_statuses.values()) == calls
+        )
+        if not observed:
+            diagnosis = "OBSERVABILITY_GAP"
+        elif not native_observed:
+            diagnosis = "NATIVE_ENGINE_TELEMETRY_GAP"
+        elif native_statuses == Counter({"SUCCESS": calls}):
+            diagnosis = "NATIVE_ENGINE_SUCCESS_CONSUMED_NO_ECONOMIC_ACTUATION"
+        elif native_statuses == Counter({"FAIL_CLOSED": calls}):
+            diagnosis = "NATIVE_ENGINE_FAIL_CLOSED"
+        elif native_statuses == Counter({"DEPENDENCY_BLOCKED": calls}):
+            diagnosis = "NATIVE_ENGINE_DEPENDENCY_BLOCKED"
+        elif native_statuses == Counter({"JUSTIFIED_NOT_APPLICABLE": calls}):
+            diagnosis = "JUSTIFIED_NOT_APPLICABLE_PREDECISION"
+        else:
+            diagnosis = "MIXED_NATIVE_ENGINE_RUNTIME_STATUS"
+
         result.append(
             {
                 "function_code": code,
@@ -135,27 +194,20 @@ def _cognitive_rows(opportunities: list[dict[str, Any]]) -> list[dict[str, Any]]
                 "per_function_output_observable": observed,
                 "downstream_consumer_observable": observed,
                 "advisory_consumption_observable": observed,
+                "native_runtime_observable": native_observed,
+                "native_engine_status_distribution": dict(native_statuses),
+                "native_engine_distribution": dict(native_engines),
                 "decision_change_observable": False,
                 "economic_effect_observable": False,
                 "authority_boundary_preserved": advisory_boundary,
                 "shared_coordinator_output_distribution": dict(shared_outputs),
                 "function_output_distribution": dict(function_outputs),
-                "status": (
-                    "INPUT_OUTPUT_CONSUMER_OBSERVED_ADVISORY"
-                    if observed
-                    else "OBSERVABILITY_GAP"
-                ),
-                "diagnosis": (
-                    "INPUT_OUTPUT_CONSUMER_OBSERVED_ADVISORY"
-                    if observed
-                    else (
-                        "faculty consultation lacks complete function-specific "
-                        "input/output/consumer evidence on the runtime decision path"
-                    )
-                ),
+                "status": diagnosis,
+                "diagnosis": diagnosis,
             }
         )
     return result
+
 
 def _ce2i_rows(
     opportunities: list[dict[str, Any]],
