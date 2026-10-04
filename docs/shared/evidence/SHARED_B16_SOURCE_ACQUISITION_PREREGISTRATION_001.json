@@ -1,0 +1,68 @@
+{
+  "identity": "QORE_SHARED_B16_SOURCE_ACQUISITION_PREREGISTRATION_EVIDENCE_001",
+  "created_at": "2026-10-04",
+  "repository": "mezas3238-hue/qore-core",
+  "branch": "agent/shared-architect-6-provenance-freeze-001",
+  "code_head": "73953273eebd51e19d963fb9d06b4f1ecd4249b3",
+  "test_plane": "QORE_SHARED_LAB_ISOLATED_B6_WORKTREE",
+  "upstream": {
+    "qualification_worklist_fingerprint_sha256": "d4dd62fd439b7ffbb0eda67d524c34d693be9b5175767f4a8615b0536e08afb1",
+    "source_queue_fingerprint_sha256": "a4a144f7fddaddf40fa3cf94d25f047e7645dae861aa225189c527ea704bdca6",
+    "source_queue_result_sha256": "0cf584e380ada664c1cc4e868961558e5088446ed77e0daace29023a0cd972d8"
+  },
+  "preregistration": {
+    "candidate_count": 87,
+    "candidate_set_sha256": "aaaebe328d1fb8d1e771aa5e8dd2276007b7c4c34889ce4931e53d8c6e806a08",
+    "r8_source_manifest_sha256": "2f18b9f11d5893effa46ac85c712edd6646d1d90a9de521b235143e42155d191",
+    "pilot_indices": [
+      0,
+      736,
+      1473,
+      2210,
+      2947
+    ],
+    "quote_sides": [
+      "BID",
+      "ASK"
+    ],
+    "full_pilot_history_law": "BID>0 AND ASK>0 AT ALL FIVE FROZEN WINDOWS",
+    "full_r8_authorization_law": "ONLY_FULL_PILOT_HISTORY_MAY_PROCEED_TO_FULL_R8_SOURCE_ACQUISITION",
+    "partial_history_auto_retry_authorized": false,
+    "technical_error_as_absence_authorized": false,
+    "candidate_removal_after_observation_authorized": false,
+    "candidate_addition_after_observation_authorized": false,
+    "preregistration_fingerprint_sha256": "8cc19a5ec21341d295a94e1671251e17be7278a266e2b9977385ec89d07c8324",
+    "shared_lab_result_sha256": "d52f4c5f4fc6d841f7354a96fca7e4decc0c8c2521d2cb8cb5004957f6c403f1"
+  },
+  "current_execution": {
+    "provider_credentials_available": false,
+    "execution_status": "BLOCKED_MISSING_PROVIDER_CREDENTIALS",
+    "execution_ready_candidate_count": 0,
+    "source_complete_count": 2,
+    "partial_source_blindspot_count": 1,
+    "identity_blocked_do_not_acquire_count": 87,
+    "ready_for_source_acquisition_count": 87
+  },
+  "validation": {
+    "ruff": "PASS",
+    "mypy": "PASS",
+    "preregistration_tests": "3/3 PASS",
+    "queue_tests": "4/4 PASS"
+  },
+  "governance": {
+    "target_or_outcome_read": false,
+    "research_labels_opened": false,
+    "scientific_value_decided": false,
+    "final_shared_holdout_opened": false,
+    "broker_mutation": false,
+    "live": false,
+    "production": false,
+    "real_capital": false,
+    "sensor_admission_authority": false,
+    "trade_priority_authority": false,
+    "sizing_authority": false,
+    "risk_authority": false,
+    "execution_authority": false,
+    "productive_authority": false
+  }
+}
