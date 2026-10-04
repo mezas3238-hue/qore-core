@@ -15,6 +15,7 @@ on:
       - 'src/qore/infrastructure/cibo_phase22_v4_chronological_execution.py'
       - 'src/qore/infrastructure/cibo_phase22_v4_historical_policy_replay.py'
       - 'src/qore/infrastructure/cibo_profitability_lab_economic_consultation.py'
+      - 'src/qore/infrastructure/cibo_profitability_lab_function_runtime.py'
       - 'src/qore/infrastructure/cibo_profitability_lab_decision_trace.py'
       - 'src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py'
       - 'src/qore/infrastructure/cibo_capital_science_runtime_bridge.py'
@@ -22,6 +23,7 @@ on:
       - 'tests/infrastructure/test_cibo_universal_capital_science_registry.py'
       - 'tests/infrastructure/test_cibo_capital_science_runtime_bridge.py'
       - 'tests/infrastructure/test_cibo_profitability_lab_economic_consultation.py'
+      - 'tests/infrastructure/test_cibo_profitability_lab_function_runtime.py'
       - 'tests/infrastructure/test_cibo_phase22_v4_t02_volume_alignment.py'
   workflow_dispatch:
 
@@ -73,6 +75,7 @@ jobs:
             src/qore/infrastructure/cibo_phase22_v4_chronological_execution.py \
             src/qore/infrastructure/cibo_phase22_v4_historical_policy_replay.py \
             src/qore/infrastructure/cibo_profitability_lab_economic_consultation.py \
+            src/qore/infrastructure/cibo_profitability_lab_function_runtime.py \
             src/qore/infrastructure/cibo_profitability_lab_decision_trace.py \
             src/qore/infrastructure/cibo_capital_science_runtime_bridge.py \
             src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py \
@@ -84,6 +87,7 @@ jobs:
             src/qore/infrastructure/cibo_phase22_v4_chronological_execution.py \
             src/qore/infrastructure/cibo_phase22_v4_historical_policy_replay.py \
             src/qore/infrastructure/cibo_profitability_lab_economic_consultation.py \
+            src/qore/infrastructure/cibo_profitability_lab_function_runtime.py \
             src/qore/infrastructure/cibo_profitability_lab_decision_trace.py \
             src/qore/infrastructure/cibo_capital_science_runtime_bridge.py \
             src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py \
@@ -91,12 +95,14 @@ jobs:
             tests/infrastructure/test_cibo_phase22_v4_t02_volume_alignment.py \
             tests/infrastructure/test_cibo_universal_capital_science_registry.py \
             tests/infrastructure/test_cibo_capital_science_runtime_bridge.py \
-            tests/infrastructure/test_cibo_profitability_lab_economic_consultation.py
+            tests/infrastructure/test_cibo_profitability_lab_economic_consultation.py \
+            tests/infrastructure/test_cibo_profitability_lab_function_runtime.py
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_phase22_v4_t02_volume_alignment.py \
             tests/infrastructure/test_cibo_universal_capital_science_registry.py \
             tests/infrastructure/test_cibo_capital_science_runtime_bridge.py \
-            tests/infrastructure/test_cibo_profitability_lab_economic_consultation.py
+            tests/infrastructure/test_cibo_profitability_lab_economic_consultation.py \
+            tests/infrastructure/test_cibo_profitability_lab_function_runtime.py
 
       - name: Recover immutable seven-Trader assembly
         run: |
