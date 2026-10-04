@@ -230,6 +230,9 @@ class CapitalScienceOpenEconomicPosition:
     current_volume: Decimal
     current_stop_risk_usd: Decimal
     current_margin_usd: Decimal
+    entry_price: Decimal
+    structural_stop: Decimal
+    technical_target: Decimal
     provider_cost_usd: Decimal
     entry_expected_net_value_usd: Decimal
     entry_expected_capital_minutes: Decimal
@@ -268,6 +271,20 @@ class CapitalScienceOpenEconomicPosition:
                 raise CiboCapitalManagementError(
                     f"Capital Science open economic position {name} must be positive Decimal"
                 )
+        for name in (
+            "entry_price",
+            "structural_stop",
+            "technical_target",
+        ):
+            value = getattr(self, name)
+            if not isinstance(value, Decimal) or not value.is_finite():
+                raise CiboCapitalManagementError(
+                    f"Capital Science open economic position {name} must be finite Decimal"
+                )
+        if self.entry_price == self.structural_stop:
+            raise CiboCapitalManagementError(
+                "Capital Science open economic position stop distance must be nonzero"
+            )
         for name in (
             "provider_cost_usd",
             "entry_expected_net_value_usd",
@@ -521,6 +538,9 @@ class CapitalSciencePredecisionInput:
                     item.current_margin_usd,
                     "f",
                 ),
+                "entry_price": format(item.entry_price, "f"),
+                "structural_stop": format(item.structural_stop, "f"),
+                "technical_target": format(item.technical_target, "f"),
                 "provider_cost_usd": format(
                     item.provider_cost_usd,
                     "f",
@@ -1107,6 +1127,12 @@ def _full_economic_twin(
                 released_margin_usd=Decimal(0),
                 remaining_reward_r=Decimal(0),
                 provider_cost_usd=item.provider_cost_usd,
+                entry_price=item.entry_price,
+                structural_stop=item.structural_stop,
+                technical_target=item.technical_target,
+                current_mark_price=None,
+                market_state_observed_at=None,
+                mark_to_market_identified=False,
                 entry_expected_net_value_usd=(
                     item.entry_expected_net_value_usd
                 ),
