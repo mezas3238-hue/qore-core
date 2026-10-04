@@ -1,0 +1,80 @@
+name: QORE CIBO NAS100 Archived Source Discovery
+
+on:
+  push:
+    branches:
+      - agent/cibo-v7-nas100-source-discovery-001
+    paths:
+      - 'src/qore/infrastructure/cibo_phase22_nas100_archived_source_discovery.py'
+      - '.github/workflows/cibo-phase22-nas100-archived-source-discovery.yml'
+
+permissions:
+  contents: read
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+
+jobs:
+  discovery:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev,ctrader]'
+      - name: Static safety
+        run: |
+          python -m ruff check src/qore/infrastructure/cibo_phase22_nas100_archived_source_discovery.py
+          python - <<'PY'
+          from pathlib import Path
+          source = Path("src/qore/infrastructure/cibo_phase22_nas100_archived_source_discovery.py").read_text()
+          for token in (
+              "ProtoOANewOrderReq",
+              "ProtoOAClosePositionReq",
+              "ProtoOACancelOrderReq",
+              "ProtoOAAmendOrderReq",
+              "ProtoOAAmendPositionSLTPReq",
+          ):
+              assert token not in source
+          PY
+      - name: Discover DEMO account when needed
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            [[ "$account_id" =~ ^[1-9][0-9]*$ ]] || exit 3
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
+      - name: Discover archived NAS100-equivalent source history
+        run: |
+          mkdir -p artifacts
+          python -m qore.infrastructure.cibo_phase22_nas100_archived_source_discovery \
+            artifacts/discovery.json \
+            > artifacts/discovery.stdout.json
+      - name: Enforce read-only evidence
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("artifacts/discovery.json").read_text())
+          assert p["include_archived_symbols"] is True
+          assert p["trader_logic_executed"] is False
+          assert p["outcomes_inspected"] is False
+          assert p["broker_mutation"] is False
+          assert p["live_authorized"] is False
+          assert p["real_capital_authorized"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-nas100-archived-source-discovery-${{ github.sha }}
+          path: artifacts
+          if-no-files-found: error
+          retention-days: 90
