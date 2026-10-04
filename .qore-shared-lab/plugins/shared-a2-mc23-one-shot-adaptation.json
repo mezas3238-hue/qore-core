@@ -3,23 +3,22 @@
   "suite": "FUNCTIONAL",
   "scope": "mc23",
   "dependencies": [
-    "mc23-functional"
+    "a2-capsule-self-test"
   ],
   "command": [
     "python",
-    "scripts/shared_mc23_validated_novel_regime_adaptation.py",
+    "a2_lab_capsule/capsule.py",
+    "--mode",
+    "mc23",
     "--dataset",
     "{dataset_path}",
     "--output",
     "result/mc23-validated-novel-regime-adaptation.json"
   ],
   "component_globs": [
+    "a2_lab_capsule/capsule.py",
+    "a2_lab_capsule/manifest.json",
     "docs/shared/evidence/QORE_SHARED_MC23_VALIDATED_NOVEL_REGIME_ADAPTATION_PREREGISTRATION_001.json",
-    "src/qore/infrastructure/core_stack_v2/mc23_validated_novel_regime_adaptation.py",
-    "src/qore/infrastructure/core_stack_v2/meta_learning_regime_adaptation.py",
-    "scripts/shared_mc23_real_novelty_detection.py",
-    "scripts/shared_mc23_validated_novel_regime_adaptation.py",
-    "scripts/shared_sti2_real_opportunity_discovery.py",
-    "scripts/shared_wp03_historical_causal_discovery.py"
+    "docs/shared/evidence/QORE_SHARED_LAB_A2_R6_R5_DATASET_MANIFEST_001.json"
   ]
 }
