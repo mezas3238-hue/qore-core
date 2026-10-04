@@ -12,6 +12,7 @@ def receipt(*, github_required: bool = False) -> MultiuserNativeAcceptance:
         queue_32_pass=True,
         dynamic_worker_pool_pass=True,
         run_isolation_pass=True,
+        run_id_unification_pass=True,
         deduplication_pass=True,
         causal_cache_pass=True,
         granular_lock_pass=True,
