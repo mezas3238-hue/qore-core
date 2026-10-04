@@ -1,0 +1,75 @@
+{
+  "schema": "QORE_SHARED_INTEGRATOR_1_SHARED_LAB_PLUGIN_DAG_AUDIT_003",
+  "generated_at": "2026-10-04",
+  "integrator_branch": "agent/shared-integrator-1-a1-a2-001",
+  "integrator_code_head_under_audit": "30c3c90c3988cdab6d98427a88f130a5d246d57e",
+  "producer_heads": {
+    "architect_1": "6ad93e8d493e13e588d9f7dc726fc061768a7c80",
+    "architect_2": "7f3c3e6f19028d3c41dd91ab2588efd628198d34"
+  },
+  "shared_lab_branch": "agent/qore-shared-lab-001",
+  "shared_lab_head": "f9792cd95553b5663383b0b3474e5be2e2bda789",
+  "plugin_count": 9,
+  "default_registry_task_count": 22,
+  "checks": {
+    "duplicate_task_ids": [],
+    "missing_dependencies": [],
+    "missing_command_paths": [],
+    "dependency_cycles": [],
+    "dag_contract_status": "PASS"
+  },
+  "mandatory_a2_chain": [
+    "contract",
+    "mc23-functional",
+    "a2-capsule-self-test",
+    "a2-mc23-one-shot-adaptation",
+    "a2-mc24-regression",
+    "a2-mc24-half-life",
+    "a2-mc25-performance",
+    "a2-wp11-closure",
+    "i1-a1-a2-pair"
+  ],
+  "a1_chain": [
+    "contract",
+    "i1-a1-core",
+    "i1-a1-a2-pair"
+  ],
+  "a2_capsule": {
+    "capsule_id": "QORE_SHARED_A2_LAB_CAPSULE_001",
+    "dataset_sha256": "15575cd662b92e736fe53f59fbad50c42d244e29180cfb10fa8b6c7a87c560d0",
+    "scientific_runner_is_self_contained": true,
+    "self_test_is_mandatory_before_mc23": true,
+    "mc23_runner_uses_capsule": true,
+    "mc24_runner_uses_same_capsule": true,
+    "canonical_source_blob_matches": 5,
+    "canonical_source_blob_mismatches": 0,
+    "lineage_status": "PASS"
+  },
+  "shared_lab_execution": {
+    "completed": false,
+    "blocker": "EXTERNAL_HARNESS_TARGET_SHA_SEAM",
+    "pr": 716,
+    "original_blocker_comment_id": 5983660147,
+    "integrator_confirmation_comment_id": 5983802293,
+    "capsule_does_not_bypass_blocker": true,
+    "reason": "Current planning still injects default contract/harness dependencies whose component globs and commands are resolved from the target exact-SHA worktree.",
+    "required_repair": [
+      "versioned immutable Lab harness separate from target SHA",
+      "strict exact-SHA target code-under-test worktree",
+      "evidence records target_sha and lab_harness_sha_or_hash",
+      "separate target and harness hashes",
+      "support client targets predating Lab",
+      "fail closed on provenance ambiguity"
+    ]
+  },
+  "governance": {
+    "github_actions_dispatched": false,
+    "vps_used": false,
+    "pr_635_merged": false,
+    "final_holdout_opened": false,
+    "live_or_production_authority_introduced": false,
+    "broker_mutation_authority_introduced": false,
+    "outcome_aware_gate_rescue_used": false,
+    "scientific_pass_claimed": false
+  }
+}
