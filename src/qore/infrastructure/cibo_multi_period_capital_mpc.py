@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from decimal import Decimal
 
@@ -28,6 +28,9 @@ from qore.infrastructure.cibo_capital_digital_twin import (
 )
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
+)
+from qore.infrastructure.cibo_full_economic_digital_twin import (
+    CiboObservedEconomicTwin,
 )
 from qore.infrastructure.cibo_ce2i_phase20_mpc import (
     Phase20MpcCapacityPlan,
@@ -757,3 +760,48 @@ def _derived_sha(label: str, values: tuple[str, ...]) -> str:
     payload = {"label": label, "values": list(values)}
     raw = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
     return "sha256:" + hashlib.sha256(raw).hexdigest()
+
+
+
+def plan_genc11_from_full_economic_twin(
+    *,
+    plan_id: str,
+    twin: CiboObservedEconomicTwin,
+    world_paths: tuple[Genc11WorldPath, ...],
+    option_schedules: tuple[Genc11KnownOptionSchedule, ...],
+) -> Genc11MultiPeriodPlan:
+    """Run GEN-C11 from the canonical Full Economic Twin opportunity surface.
+
+    GEN-C10 remains capital truth. The wrapper only replaces its known-option
+    view with the complete causal opportunity set already present in the Full
+    Economic Twin, preserving evidence lineage and all existing GEN-C11 world
+    mechanics.
+    """
+
+    if not isinstance(twin, CiboObservedEconomicTwin):
+        raise CiboCapitalManagementError(
+            "GEN-C11 Full Twin adapter requires canonical observed twin"
+        )
+    options = tuple(
+        Genc10KnownCapitalOption(
+            option_id=item.option_id,
+            known_at=item.known_at,
+            earliest_action_at=item.earliest_action_at,
+            expires_at=item.expires_at,
+            requested_capital_usd=item.requested_capital_usd,
+            stop_risk_usd=item.stop_risk_usd,
+            margin_usd=item.margin_usd,
+            evidence_sha256=item.evidence_sha256,
+        )
+        for item in twin.opportunities
+    )
+    augmented_capital_twin = replace(
+        twin.capital_twin,
+        known_options=options,
+    )
+    return plan_genc11_multi_period_capital(
+        plan_id=plan_id,
+        twin=augmented_capital_twin,
+        world_paths=world_paths,
+        option_schedules=option_schedules,
+    )
