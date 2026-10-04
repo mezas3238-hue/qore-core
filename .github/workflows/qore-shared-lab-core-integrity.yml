@@ -21,6 +21,10 @@ on:
       - tests/infrastructure/test_core_stack_v2_shared_lab_ledger.py
       - tests/infrastructure/test_core_stack_v2_shared_lab_cognition.py
       - tests/infrastructure/test_core_stack_v2_shared_lab_operational.py
+      - src/qore/infrastructure/core_stack_v2/shared_lab_runtime_probe.py
+      - src/qore/infrastructure/core_stack_v2/shared_lab_organism.py
+      - tests/infrastructure/test_core_stack_v2_shared_lab_runtime_probe.py
+      - tests/infrastructure/test_core_stack_v2_shared_lab_organism.py
       - .github/workflows/qore-shared-lab-core-integrity.yml
   workflow_dispatch:
 
@@ -51,6 +55,8 @@ jobs:
             src/qore/infrastructure/core_stack_v2/shared_lab_ledger.py \
             src/qore/infrastructure/core_stack_v2/shared_lab_cognition.py \
             src/qore/infrastructure/core_stack_v2/shared_lab_operational.py \
+            src/qore/infrastructure/core_stack_v2/shared_lab_runtime_probe.py \
+            src/qore/infrastructure/core_stack_v2/shared_lab_organism.py \
             tests/infrastructure/test_core_stack_v2_shared_lab.py \
             tests/infrastructure/test_core_stack_v2_shared_lab_tools.py \
             tests/infrastructure/test_core_stack_v2_shared_lab_influence.py \
@@ -58,7 +64,9 @@ jobs:
             tests/infrastructure/test_core_stack_v2_shared_lab_integrity.py \
             tests/infrastructure/test_core_stack_v2_shared_lab_ledger.py \
             tests/infrastructure/test_core_stack_v2_shared_lab_cognition.py \
-            tests/infrastructure/test_core_stack_v2_shared_lab_operational.py
+            tests/infrastructure/test_core_stack_v2_shared_lab_operational.py \
+            tests/infrastructure/test_core_stack_v2_shared_lab_runtime_probe.py \
+            tests/infrastructure/test_core_stack_v2_shared_lab_organism.py
           mypy \
             src/qore/infrastructure/core_stack_v2/shared_lab.py \
             src/qore/infrastructure/core_stack_v2/shared_lab_tools.py \
