@@ -7,6 +7,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -21,9 +22,6 @@ from qore.infrastructure.core_stack_v2.shared_lab_native_completion import (
 from qore.infrastructure.core_stack_v2.shared_lab_native_model import (
     LabScope,
     ValidationSuite,
-)
-from qore.infrastructure.core_stack_v2.shared_lab_native_replay import (
-    execute_scenario,
 )
 from qore.infrastructure.core_stack_v2.shared_lab_orchestrator import (
     NativeLabOrchestrator,
@@ -47,6 +45,22 @@ TERMINAL = {
     "TIMEOUT",
     "INVALID_EVIDENCE",
 }
+
+
+
+def run_cli_json(
+    executable: str,
+    args: tuple[str, ...],
+) -> dict[str, Any]:
+    completed = subprocess.run(
+        (executable, *args),
+        check=True,
+        capture_output=True,
+        text=True,
+        env=os.environ.copy(),
+    )
+    payload: dict[str, Any] = json.loads(completed.stdout)
+    return payload
 
 
 def git(*args: str) -> str:
@@ -267,6 +281,72 @@ def run_acceptance(state_dir: Path) -> dict[str, Any]:
     sha = git("rev-parse", "HEAD")
     branch = git("branch", "--show-current") or "DETACHED"
     removed_github = scrub_github_environment()
+    executable = shutil.which("qore-shared-lab")
+    if executable is None:
+        raise RuntimeError("qore-shared-lab console entry point is not installed")
+    direct_state = state_dir / "direct-cli"
+    direct_validate = run_cli_json(
+        executable,
+        (
+            "validate",
+            "--sha",
+            sha,
+            "--branch",
+            branch,
+            "--scope",
+            "full-stack",
+            "--mode",
+            "quick",
+            "--workers",
+            "2",
+            "--timeout",
+            "180",
+            "--memory-mb",
+            "4096",
+            "--cpu-seconds",
+            "180",
+            "--state-dir",
+            str(direct_state),
+        ),
+    )
+    if direct_validate["disposition"] != "PASS":
+        raise RuntimeError("direct native validate did not PASS")
+    direct_reproduce = run_cli_json(
+        executable,
+        (
+            "reproduce",
+            str(direct_validate["run_id"]),
+            "--state-dir",
+            str(direct_state),
+        ),
+    )
+    if direct_reproduce["disposition"] != "PASS":
+        raise RuntimeError("direct native reproduce did not PASS")
+    direct_replay = run_cli_json(
+        executable,
+        (
+            "replay",
+            "--sha",
+            sha,
+            "--branch",
+            branch,
+            "--scenario",
+            "global-exam",
+            "--workers",
+            "2",
+            "--timeout",
+            "180",
+            "--memory-mb",
+            "4096",
+            "--cpu-seconds",
+            "180",
+            "--state-dir",
+            str(direct_state),
+        ),
+    )
+    if direct_replay["disposition"] != "PASS":
+        raise RuntimeError("direct native replay did not PASS")
+
     orchestrator = NativeLabOrchestrator(
         state_dir=state_dir,
         registry=acceptance_registry(),
@@ -545,7 +625,13 @@ def run_acceptance(state_dir: Path) -> dict[str, Any]:
         queue_32 = queue_32 and overflow_rejected
         client.resize(4)
 
-        replay_pass = execute_scenario("global-exam") == 0
+        replay_pass = direct_replay["disposition"] == "PASS"
+        status_snapshot = client.status()
+        status_observability = (
+            "jobs" in status_snapshot
+            and "worker_capacity" in status_snapshot
+            and "queued_jobs" in status_snapshot
+        )
         github_required = any(
             bool(
                 json.loads(Path(str(item["evidence_path"])).read_text())[
@@ -570,6 +656,10 @@ def run_acceptance(state_dir: Path) -> dict[str, Any]:
 
         receipt = MultiuserNativeAcceptance(
             commit_sha=sha,
+            direct_cli_validate_pass=(
+                direct_validate["disposition"] == "PASS"
+                and direct_validate["commit_sha"] == sha
+            ),
             nine_concurrent_clients_pass=len(finished) == 9,
             queue_32_pass=queue_32,
             dynamic_worker_pool_pass=dynamic_pool,
@@ -580,8 +670,14 @@ def run_acceptance(state_dir: Path) -> dict[str, Any]:
             failure_isolation_pass=failures == {"Architect-5": "FAIL"},
             evidence_ownership_pass=evidence_ownership,
             cancellation_pass=cancellation,
+            status_observability_pass=status_observability,
             native_replay_pass=replay_pass,
-            exact_sha_pass=exact_sha,
+            reproduce_pass=direct_reproduce["disposition"] == "PASS",
+            exact_sha_pass=(
+                exact_sha
+                and direct_validate["commit_sha"] == sha
+                and direct_replay["commit_sha"] == sha
+            ),
             persistent_dataset_pass=persistent_dataset,
             github_actions_required=github_required,
             github_publication_available=True,
