@@ -20,11 +20,19 @@ from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
 from qore.infrastructure.cibo_ce2i_regime_selector import CiboRegimePosture
+from qore.infrastructure.cibo_full_economic_digital_twin import (
+    CiboCapitalVelocityState,
+    CiboIdleCapitalClass,
+    CiboObservedEconomicTwin,
+    CiboObservedOpportunityState,
+    CiboObservedPortfolioState,
+)
 from qore.infrastructure.cibo_multi_period_capital_mpc import (
     GENC11_POLICY_SHA256,
     Genc11KnownOptionSchedule,
     Genc11WorldPath,
     Genc11WorldStep,
+    plan_genc11_from_full_economic_twin,
     plan_genc11_multi_period_capital,
 )
 from qore.infrastructure.market_test_environment import (
@@ -495,3 +503,77 @@ def test_genc11_frozen_planner_accepts_historical_twin_and_worlds() -> None:
     assert plan.horizon_steps == 2
     assert plan.oracle_arrivals_used is False
 
+
+
+
+def test_genc11_full_economic_twin_adapter_uses_complete_opportunity_surface() -> None:
+    capital = replace(_twin(), known_options=())
+    opportunity = CiboObservedOpportunityState(
+        option_id="known-a",
+        trader_id="R34_XAUUSD",
+        qore_symbol="XAUUSD",
+        known_at=T0,
+        earliest_action_at=T0 + timedelta(minutes=5),
+        expires_at=T0 + timedelta(minutes=40),
+        requested_capital_usd=Decimal("5"),
+        expected_net_value_usd=Decimal("0.4"),
+        expected_capital_minutes=Decimal("20"),
+        stop_risk_usd=Decimal("1"),
+        margin_usd=Decimal("2"),
+        provider_cost_usd=Decimal("0.05"),
+        uncertainty_penalty=Decimal("0.05"),
+        context_allowed=True,
+        provider_viable=True,
+        capital_source_eligible=True,
+        evidence_sha256="sha256:" + "5" * 64,
+    )
+    full = CiboObservedEconomicTwin(
+        twin_id="full-genc11",
+        captured_at=T0,
+        capital_twin=capital,
+        positions=(),
+        opportunities=(opportunity,),
+        portfolio=CiboObservedPortfolioState(
+            observed_at=T0,
+            active_position_ids=(),
+            opportunity_ids=("known-a",),
+            concentration_utilization=Decimal("0.1"),
+            correlation_utilization=Decimal("0.1"),
+            reserved_stop_risk_usd=Decimal("0"),
+            reserved_margin_usd=Decimal("0"),
+        ),
+        velocity=CiboCapitalVelocityState(
+            observed_at=T0,
+            released_stop_risk_usd=Decimal("0"),
+            released_margin_usd=Decimal("0"),
+            waiting_stop_risk_usd=Decimal("0"),
+            waiting_margin_usd=Decimal("0"),
+            oldest_release_age_minutes=Decimal("0"),
+            idle_classification=CiboIdleCapitalClass.OPTIONALITY_RESERVE,
+        ),
+    )
+
+    plan = plan_genc11_from_full_economic_twin(
+        plan_id="full-plan",
+        twin=full,
+        world_paths=(
+            _path(
+                path_id="balanced-full",
+                kind=Genc10WorldKind.BALANCED,
+                risk_deltas=("0", "0", "0"),
+                margin_deltas=("0", "0", "0"),
+            ),
+            _path(
+                path_id="defensive-full",
+                kind=Genc10WorldKind.DEFENSIVE,
+                risk_deltas=("0", "0", "0"),
+                margin_deltas=("0", "0", "0"),
+            ),
+        ),
+        option_schedules=_schedule(),
+    )
+
+    assert plan.known_option_ids == ("known-a",)
+    assert plan.twin_id == capital.twin_id
+    assert plan.oracle_arrivals_used is False
+    assert plan.risk_authority is False
