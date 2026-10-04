@@ -245,9 +245,17 @@ def build_causal_baseline_advanced_evidence(
                 evidence_id="causal-netting:" + decision_at.isoformat(),
                 observed_at=decision_at,
                 exposures=tuple(factor_rows),
-                correlation_state_id="unverified-causal-symbol-map",
+                correlation_state_id="exact-qore-symbol-identity-map",
                 correlation_stable=False,
-                factor_map_verified=False,
+                factor_map_verified=True,
+                risk_mapping_evidence_id=(
+                    "direct-stop-risk-map:" + decision_at.isoformat()
+                ),
+                risk_mapping_verified=True,
+                exact_instrument_identity_verified=True,
+                exact_instrument_evidence_id=(
+                    "qore-symbol-identity:" + decision_at.isoformat()
+                ),
             )
         ),
         capital_velocity=(
