@@ -463,6 +463,39 @@ def evaluate_phase22_historical_policy(
         hard_risk_headroom_usd=hard_risk_headroom_usd,
         margin_headroom_usd=margin_headroom_usd,
     )
+    allocator_candidates = (
+        tuple(
+            item
+            for item in advanced_application.candidates
+            if item.signal_fingerprint in context_allowed
+        )
+        if lab_burned_context_quality_gate
+        else advanced_application.candidates
+    )
+    recovery_probe_candidates = tuple(
+        item
+        for item in allocator_candidates
+        if (
+            lab_allow_nonpositive_expectation
+            or item.expectation.expected_net_value_usd > 0
+        )
+    )
+    recovery_probe = (
+        min(
+            recovery_probe_candidates,
+            key=lambda item: (
+                item.stop_risk_usd,
+                item.margin_usd,
+                item.signal_fingerprint,
+            ),
+        )
+        if (
+            mission.capability_measurement_enabled
+            and full_surface.regime.posture is CiboRegimePosture.RECOVERY
+            and recovery_probe_candidates
+        )
+        else None
+    )
     mpc = plan_phase20i_receding_horizon_capacity(
         current_step=current_step,
         horizon_steps=FROZEN_PHASE20_POLICY_CANDIDATE.mpc_horizon_steps,
@@ -474,15 +507,16 @@ def evaluate_phase22_historical_policy(
             advanced_application.effective_margin_headroom_usd
         ),
         known_options=known_options,
-    )
-    allocator_candidates = (
-        tuple(
-            item
-            for item in advanced_application.candidates
-            if item.signal_fingerprint in context_allowed
-        )
-        if lab_burned_context_quality_gate
-        else advanced_application.candidates
+        recovery_probe_stop_risk_usd=(
+            Decimal(0)
+            if recovery_probe is None
+            else recovery_probe.stop_risk_usd
+        ),
+        recovery_probe_margin_usd=(
+            Decimal(0)
+            if recovery_probe is None
+            else recovery_probe.margin_usd
+        ),
     )
     allocator = propose_phase20h_robust_allocation(
         mission=mission,
