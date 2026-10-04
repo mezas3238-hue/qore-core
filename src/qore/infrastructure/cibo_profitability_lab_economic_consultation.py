@@ -42,6 +42,130 @@ from qore.infrastructure.cibo_trader_capability_profile import CiboEvidenceRef
 from qore.kernel.result import Success
 
 
+_FACULTY_SEQUENCE = (
+    ("CF01", CiboFacultyDomain.FINANCIAL_WORLD_MONITORING, "financial-world-state-observed"),
+    ("CF02", CiboFacultyDomain.MARKET_INTELLIGENCE_MESH, "market-regime-observed"),
+    ("CF03", CiboFacultyDomain.TRADER_DIRECTOR, "trader-opportunity-set-observed"),
+    ("CF04", CiboFacultyDomain.TRADER_ACADEMY, "trader-capability-evidence-requested"),
+    ("CF05", CiboFacultyDomain.OPPORTUNITY_SEARCH, "opportunity-set-observed"),
+    ("CF06", CiboFacultyDomain.PORTFOLIO_INTELLIGENCE, "portfolio-utilization-observed"),
+    ("CF07", CiboFacultyDomain.ECONOMIC_INTELLIGENCE, "economic-evidence-requested"),
+    ("CF08", CiboFacultyDomain.OUTCOME_JOURNAL, "outcome-unavailable-predecision"),
+    ("CF09", CiboFacultyDomain.FAILURE_INTELLIGENCE, "failure-outcome-unavailable-predecision"),
+    ("CF10", CiboFacultyDomain.QUANTITATIVE_INTELLIGENCE, "quantitative-state-observed"),
+    ("CF11", CiboFacultyDomain.RESEARCH_DIRECTOR, "evidence-gap-identified"),
+    ("CF12", CiboFacultyDomain.RISK_AWARE_RECOMMENDATION, "risk-authority-external"),
+    ("CF13", CiboFacultyDomain.CORE_HEALTH, "runtime-governance-observed"),
+    ("CF14", CiboFacultyDomain.EXECUTIVE_PLANNER, "evidence-sequencing-requested"),
+    ("CF15", CiboFacultyDomain.CEO_DIALOGUE, "executive-context-observed"),
+    ("CF16", CiboFacultyDomain.TRADER_VOICE, "trader-context-observed"),
+    ("CF17", CiboFacultyDomain.DECISION_JOURNAL, "predecision-journal-observed"),
+    ("CF18", CiboFacultyDomain.SELF_EVALUATION, "self-evaluation-deferred-predecision"),
+    ("CF19", CiboFacultyDomain.LEARNING, "learning-deferred-until-settlement"),
+)
+_FUNCTION_CODE_BY_FACULTY = {
+    faculty: function_code for function_code, faculty, _ in _FACULTY_SEQUENCE
+}
+_OUTPUT_CODE_BY_FACULTY = {
+    faculty: output_code for _, faculty, output_code in _FACULTY_SEQUENCE
+}
+
+
+def _payload_sha256(payload: dict[str, object]) -> str:
+    raw = json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+        default=str,
+    ).encode()
+    return "sha256:" + hashlib.sha256(raw).hexdigest()
+
+
+@dataclass(frozen=True, slots=True)
+class CiboFacultyEconomicConsultationReceipt:
+    """Faculty-specific causal I/O consumed by the Functional Coordinator.
+
+    These receipts expose real advisory work without elevating a faculty into
+    sizing, Risk, execution, broker, or outcome authority.
+    """
+
+    function_code: str
+    faculty: CiboFacultyDomain
+    input_payload: dict[str, object]
+    output_payload: dict[str, object]
+    input_sha256: str
+    output_sha256: str
+    downstream_consumer: str = "cibo-functional-coordinator"
+    consumer_action: str = "contribution-coordinated"
+    decision_context_effect: str = "evidence-request-context"
+    advisory_only: bool = True
+    economic_authority: bool = False
+    sizing_authority: bool = False
+    risk_authority: bool = False
+    execution_authority: bool = False
+    outcome_used: bool = False
+
+    def __post_init__(self) -> None:
+        expected_function = _FUNCTION_CODE_BY_FACULTY.get(self.faculty)
+        expected_output = _OUTPUT_CODE_BY_FACULTY.get(self.faculty)
+        if self.function_code != expected_function:
+            raise CiboCapitalManagementError(
+                "faculty consultation function-code mapping drift"
+            )
+        if not isinstance(self.input_payload, dict) or not self.input_payload:
+            raise CiboCapitalManagementError(
+                "faculty consultation input payload required"
+            )
+        if not isinstance(self.output_payload, dict) or not self.output_payload:
+            raise CiboCapitalManagementError(
+                "faculty consultation output payload required"
+            )
+        if self.output_payload.get("contribution_code") != expected_output:
+            raise CiboCapitalManagementError(
+                "faculty consultation output-code mapping drift"
+            )
+        if self.input_sha256 != _payload_sha256(self.input_payload):
+            raise CiboCapitalManagementError(
+                "faculty consultation input digest drift"
+            )
+        if self.output_sha256 != _payload_sha256(self.output_payload):
+            raise CiboCapitalManagementError(
+                "faculty consultation output digest drift"
+            )
+        if (
+            self.downstream_consumer != "cibo-functional-coordinator"
+            or self.consumer_action != "contribution-coordinated"
+            or self.decision_context_effect != "evidence-request-context"
+        ):
+            raise CiboCapitalManagementError(
+                "faculty consultation downstream binding drift"
+            )
+        for name in (
+            "advisory_only",
+            "economic_authority",
+            "sizing_authority",
+            "risk_authority",
+            "execution_authority",
+            "outcome_used",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise CiboCapitalManagementError(
+                    f"faculty consultation {name} must be bool"
+                )
+        if (
+            not self.advisory_only
+            or self.economic_authority
+            or self.sizing_authority
+            or self.risk_authority
+            or self.execution_authority
+            or self.outcome_used
+        ):
+            raise CiboCapitalManagementError(
+                "faculty consultation advisory authority boundary violated"
+            )
+
+
 @dataclass(frozen=True, slots=True)
 class CiboEconomicConsultationReceipt:
     decision_at: datetime
@@ -53,6 +177,7 @@ class CiboEconomicConsultationReceipt:
     mission_code: str
     mission_faculties: tuple[str, ...]
     mission_disposition: str
+    faculty_receipts: tuple[CiboFacultyEconomicConsultationReceipt, ...]
     causal_predecision: bool = True
     all_faculties_consulted: bool = True
     mission_director_invoked: bool = True
@@ -95,6 +220,29 @@ class CiboEconomicConsultationReceipt:
         if self.mission_disposition != CiboMissionDisposition.CONTINUE.value:
             raise CiboCapitalManagementError(
                 "economic consultation mission must remain CONTINUE/request-only"
+            )
+        if (
+            not isinstance(self.faculty_receipts, tuple)
+            or len(self.faculty_receipts) != len(_FACULTY_SEQUENCE)
+            or any(
+                not isinstance(item, CiboFacultyEconomicConsultationReceipt)
+                for item in self.faculty_receipts
+            )
+        ):
+            raise CiboCapitalManagementError(
+                "economic consultation requires exact faculty-specific receipts"
+            )
+        expected_codes = tuple(item[0] for item in _FACULTY_SEQUENCE)
+        observed_codes = tuple(item.function_code for item in self.faculty_receipts)
+        if observed_codes != expected_codes:
+            raise CiboCapitalManagementError(
+                "economic consultation faculty receipt order/surface drift"
+            )
+        if tuple(item.faculty.value for item in self.faculty_receipts) != tuple(
+            item[1].value for item in _FACULTY_SEQUENCE
+        ):
+            raise CiboCapitalManagementError(
+                "economic consultation faculty receipt identity drift"
             )
         if len(self.opportunity_fingerprints) != len(
             set(self.opportunity_fingerprints)
@@ -222,11 +370,22 @@ def consult_cibo_economic_faculties(
             "economic Mission Director faculty assignment drift"
         )
 
+    faculty_receipts = tuple(
+        _build_faculty_receipt(
+            function_code=function_code,
+            faculty=faculty,
+            output_code=output_code,
+            decision_at=decision_at,
+            opportunities=opportunities,
+            regime_state=regime_state,
+        )
+        for function_code, faculty, output_code in _FACULTY_SEQUENCE
+    )
     contributions = tuple(
         CiboFunctionalContribution(
-            faculty=faculty,
-            contribution_code="predecision-consulted",
-            subject_key="economic-decision",
+            faculty=receipt.faculty,
+            contribution_code=str(receipt.output_payload["contribution_code"]),
+            subject_key=f"economic-decision-{receipt.function_code.lower()}",
             authority=CiboFunctionalAuthority.OBSERVATION,
             evidence=CiboFunctionalEvidence(
                 status=CiboEvidenceStatus.INSUFFICIENT,
@@ -235,9 +394,9 @@ def consult_cibo_economic_faculties(
                 reasons=("authority-rooted-evidence-required",),
             ),
             authored_at=decision_at,
-            provenance=("profitability-lab", "predecision"),
+            provenance=("profitability-lab", "predecision", receipt.faculty.value),
         )
-        for faculty in faculties
+        for receipt in faculty_receipts
     )
     result = CiboFunctionalCoordinator().coordinate(
         contributions,
@@ -269,7 +428,156 @@ def consult_cibo_economic_faculties(
         mission_code=mission.mission_code,
         mission_faculties=mission_faculties,
         mission_disposition=mission.disposition.value,
+        faculty_receipts=faculty_receipts,
     )
+
+
+def _build_faculty_receipt(
+    *,
+    function_code: str,
+    faculty: CiboFacultyDomain,
+    output_code: str,
+    decision_at: datetime,
+    opportunities: tuple[TraderOpportunityEnvelope, ...],
+    regime_state: CiboCapitalRegimeState,
+) -> CiboFacultyEconomicConsultationReceipt:
+    input_payload = _faculty_input_payload(
+        faculty=faculty,
+        decision_at=decision_at,
+        opportunities=opportunities,
+        regime_state=regime_state,
+    )
+    output_payload: dict[str, object] = {
+        "contribution_code": output_code,
+        "evidence_status": CiboEvidenceStatus.INSUFFICIENT.value,
+        "evidence_reason": "authority-rooted-evidence-required",
+        "request_code": "economic.evidence.request",
+        "advisory_only": True,
+    }
+    return CiboFacultyEconomicConsultationReceipt(
+        function_code=function_code,
+        faculty=faculty,
+        input_payload=input_payload,
+        output_payload=output_payload,
+        input_sha256=_payload_sha256(input_payload),
+        output_sha256=_payload_sha256(output_payload),
+    )
+
+
+def _faculty_input_payload(
+    *,
+    faculty: CiboFacultyDomain,
+    decision_at: datetime,
+    opportunities: tuple[TraderOpportunityEnvelope, ...],
+    regime_state: CiboCapitalRegimeState,
+) -> dict[str, object]:
+    signals = tuple(sorted(item.signal_fingerprint for item in opportunities))
+    symbols = tuple(sorted({item.qore_symbol for item in opportunities}))
+    providers = tuple(sorted({item.provider_symbol for item in opportunities}))
+    traders = tuple(sorted({item.trader_id.value for item in opportunities}))
+    geometry = tuple(
+        sorted(
+            (
+                item.signal_fingerprint,
+                item.side,
+                item.entry_type,
+                str(item.intended_entry),
+                str(item.stop_loss),
+                str(item.take_profit),
+            )
+            for item in opportunities
+        )
+    )
+    regime = {
+        "liquidity": regime_state.liquidity.value,
+        "volatility": regime_state.volatility.value,
+        "correlation": regime_state.correlation.value,
+        "provider_condition": regime_state.provider_condition.value,
+    }
+    utilization = {
+        "risk_utilization": str(regime_state.risk_utilization),
+        "margin_utilization": str(regime_state.margin_utilization),
+        "drawdown_utilization": str(regime_state.drawdown_utilization),
+    }
+    if faculty is CiboFacultyDomain.FINANCIAL_WORLD_MONITORING:
+        return {"decision_at": decision_at.isoformat(), "regime": regime}
+    if faculty is CiboFacultyDomain.MARKET_INTELLIGENCE_MESH:
+        return {"symbols": symbols, "regime": regime}
+    if faculty is CiboFacultyDomain.TRADER_DIRECTOR:
+        return {"traders": traders, "opportunity_count": len(opportunities)}
+    if faculty is CiboFacultyDomain.TRADER_ACADEMY:
+        return {"traders": traders, "signals": signals}
+    if faculty is CiboFacultyDomain.OPPORTUNITY_SEARCH:
+        return {"signals": signals, "symbols": symbols}
+    if faculty is CiboFacultyDomain.PORTFOLIO_INTELLIGENCE:
+        return {
+            "opportunity_count": len(opportunities),
+            "utilization": utilization,
+            "correlation": regime_state.correlation.value,
+        }
+    if faculty is CiboFacultyDomain.ECONOMIC_INTELLIGENCE:
+        return {
+            "provider_symbols": providers,
+            "provider_condition": regime_state.provider_condition.value,
+            "opportunity_geometry": geometry,
+        }
+    if faculty is CiboFacultyDomain.OUTCOME_JOURNAL:
+        return {
+            "decision_at": decision_at.isoformat(),
+            "signals": signals,
+            "outcome_present": False,
+        }
+    if faculty is CiboFacultyDomain.FAILURE_INTELLIGENCE:
+        return {
+            "signals": signals,
+            "outcome_present": False,
+            "predecision_only": True,
+        }
+    if faculty is CiboFacultyDomain.QUANTITATIVE_INTELLIGENCE:
+        return {"utilization": utilization, "opportunity_count": len(opportunities)}
+    if faculty is CiboFacultyDomain.RESEARCH_DIRECTOR:
+        return {
+            "signals": signals,
+            "evidence_gap": "authority-rooted-evidence-required",
+        }
+    if faculty is CiboFacultyDomain.RISK_AWARE_RECOMMENDATION:
+        return {
+            "utilization": utilization,
+            "risk_authority": "external-qore-risk",
+        }
+    if faculty is CiboFacultyDomain.CORE_HEALTH:
+        return {
+            "runtime_path": "profitability-lab-predecision",
+            "broker_mutation": False,
+            "outcome_used": False,
+        }
+    if faculty is CiboFacultyDomain.EXECUTIVE_PLANNER:
+        return {
+            "opportunity_count": len(opportunities),
+            "evidence_request": "economic.evidence.request",
+        }
+    if faculty is CiboFacultyDomain.CEO_DIALOGUE:
+        return {
+            "decision_at": decision_at.isoformat(),
+            "decision_context": "research-only-predecision",
+        }
+    if faculty is CiboFacultyDomain.TRADER_VOICE:
+        return {"traders": traders, "signals": signals}
+    if faculty is CiboFacultyDomain.DECISION_JOURNAL:
+        return {"decision_at": decision_at.isoformat(), "signals": signals}
+    if faculty is CiboFacultyDomain.SELF_EVALUATION:
+        return {
+            "signals": signals,
+            "outcome_present": False,
+            "evaluation_stage": "predecision",
+        }
+    if faculty is CiboFacultyDomain.LEARNING:
+        return {
+            "signals": signals,
+            "outcome_present": False,
+            "learning_stage": "deferred-until-settlement",
+        }
+    raise CiboCapitalManagementError("unknown CIBO faculty in economic consultation")
 
 
 def _predecision_digest(
