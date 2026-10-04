@@ -158,6 +158,7 @@ class RunIdentity:
     repository: str
     commit_sha: str
     branch: str
+    dataset_id: str
     dataset_version: str
     dataset_hash: str
     configuration_hash: str
