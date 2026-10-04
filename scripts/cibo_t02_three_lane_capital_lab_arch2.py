@@ -515,6 +515,30 @@ def main() -> int:
     }
     compound_local = local_by_multiplier[Decimal("1")]
     compound_portfolio = portfolio_by_multiplier[Decimal("1")]
+    dynamic_local = run_compound_portfolio_lane(
+        plan=plan,
+        core_execution=treatment,
+        lab_use_executed_core_surface=True,
+        lab_require_rational_redeploy=True,
+        lab_allow_noncertifying_research_redeploy=True,
+        research_redeploy_authorizations=research_authorizations,
+        lab_pool_scope=POOL_SCOPE_TRADER_LOCAL,
+        lab_seed_multiplier=Decimal("4"),
+        lab_dynamic_leverage=True,
+        regime_evidence=regimes,
+    )
+    dynamic_portfolio = run_compound_portfolio_lane(
+        plan=plan,
+        core_execution=treatment,
+        lab_use_executed_core_surface=True,
+        lab_require_rational_redeploy=True,
+        lab_allow_noncertifying_research_redeploy=True,
+        research_redeploy_authorizations=research_authorizations,
+        lab_pool_scope=POOL_SCOPE_ACCOUNT,
+        lab_seed_multiplier=Decimal("4"),
+        lab_dynamic_leverage=True,
+        regime_evidence=regimes,
+    )
 
     baseline_metrics = _run_minimal_seed_baseline(plan)
     control_metrics = _full_metrics(
@@ -533,7 +557,7 @@ def main() -> int:
     )
     decision_trace = build_cibo_profitability_decision_trace(
         execution=treatment,
-        compound_function_accountability=compound_portfolio.function_accountability,
+        compound_function_accountability=dynamic_portfolio.function_accountability,
     )
     coverage = _coverage(
         fresh=fresh,
@@ -575,6 +599,12 @@ def main() -> int:
             core_executed_count=treatment.settled_count
         ),
         "all_trader_cibo_compound_portfolio": compound_portfolio.payload(
+            core_executed_count=treatment.settled_count
+        ),
+        "all_trader_cibo_compound_dynamic": dynamic_local.payload(
+            core_executed_count=treatment.settled_count
+        ),
+        "all_trader_cibo_compound_portfolio_dynamic": dynamic_portfolio.payload(
             core_executed_count=treatment.settled_count
         ),
         "compound_leverage_sweep": {
@@ -636,12 +666,12 @@ def main() -> int:
     )
     capital_science_io = {
         "schema": "qore.cibo.capital-science.per-call-io.v1",
-        "lane": "COMPOUND_PORTFOLIO_ACCOUNT_1X",
-        "calls": list(compound_portfolio.capital_science_receipts),
-        "summary": list(compound_portfolio.function_accountability),
-        "call_count": len(compound_portfolio.capital_science_receipts),
+        "lane": "COMPOUND_PORTFOLIO_ACCOUNT_DYNAMIC_GENC8_T11",
+        "calls": list(dynamic_portfolio.capital_science_receipts),
+        "summary": list(dynamic_portfolio.function_accountability),
+        "call_count": len(dynamic_portfolio.capital_science_receipts),
         "functions": sorted(
-            {str(row["function_code"]) for row in compound_portfolio.capital_science_receipts}
+            {str(row["function_code"]) for row in dynamic_portfolio.capital_science_receipts}
         ),
         "all_calls_have_input_output": all(
             isinstance(row.get("input_payload"), dict)
