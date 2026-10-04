@@ -699,6 +699,8 @@ def _tool_audit(
             t06 = plan_self_financing_expansion(opportunity, observed_capital)
             if t06.volume > 0:
                 counters["T06"]["applied"] += 1
+            elif observed_capital.proven_self_financing_capacity_usd <= 0:
+                counters["T06"]["abstain"] += 1
             else:
                 counters["T06"]["fail_closed"] += 1
             reasons["T06"].append(t06.reason)
@@ -721,7 +723,7 @@ def _tool_audit(
             if t07.volume > 0:
                 counters["T07"]["applied"] += 1
             else:
-                counters["T07"]["fail_closed"] += 1
+                counters["T07"]["abstain"] += 1
             reasons["T07"].append(t07.reason)
 
     contracts = {item.code: item for item in CE2I_TOOL_REGISTRY}
@@ -786,7 +788,13 @@ def _tool_audit(
                 status = ToolRuntimeStatus.FAIL_CLOSED
                 reason = _reason_summary(
                     reasons[code],
-                    "profit-funded expansion evaluated and withheld authority",
+                    "profit-funded expansion lacked mandatory authorization evidence",
+                )
+            elif stat["abstain"] > 0:
+                status = ToolRuntimeStatus.JUSTIFIED_NOT_APPLICABLE
+                reason = _reason_summary(
+                    reasons[code],
+                    "no realized-profit capacity was available for expansion",
                 )
             elif stat["enabled"] == 0 and stat["blocked"] > 0:
                 status = ToolRuntimeStatus.REGIME_BLOCKED
@@ -807,7 +815,13 @@ def _tool_audit(
                 status = ToolRuntimeStatus.FAIL_CLOSED
                 reason = _reason_summary(
                     reasons[code],
-                    "protected-capacity expansion evaluated and withheld authority",
+                    "protected-capacity expansion lacked mandatory protection evidence",
+                )
+            elif stat["abstain"] > 0:
+                status = ToolRuntimeStatus.JUSTIFIED_NOT_APPLICABLE
+                reason = _reason_summary(
+                    reasons[code],
+                    "no broker-confirmed protected capacity existed at this boundary",
                 )
             elif stat["enabled"] == 0 and stat["blocked"] > 0:
                 status = ToolRuntimeStatus.REGIME_BLOCKED
