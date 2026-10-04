@@ -16,6 +16,7 @@ on:
       - 'src/qore/infrastructure/trader_lab/cibo_three_holdout_1y_contract.py'
       - 'src/qore/infrastructure/cibo_phase22_v4_historical_regime.py'
       - 'src/qore/infrastructure/cibo_ce2i_full_surface.py'
+      - 'src/qore/infrastructure/cibo_ce2i_advanced_capital_tools.py'
       - 'src/qore/infrastructure/cibo_ce2i_regime_selector.py'
       - 'src/qore/infrastructure/cibo_ce2i_optionality.py'
       - 'src/qore/infrastructure/cibo_crisis_capital_intelligence.py'
@@ -36,6 +37,7 @@ on:
       - 'tests/infrastructure/test_cibo_profitability_lab_economic_consultation.py'
       - 'tests/infrastructure/test_cibo_profitability_lab_function_runtime.py'
       - 'tests/infrastructure/test_cibo_ce2i_full_surface.py'
+      - 'tests/infrastructure/test_cibo_ce2i_advanced_capital_tools.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_robust_allocator.py'
       - 'tests/infrastructure/test_cibo_ce2i_regime_selector.py'
       - 'tests/infrastructure/test_cibo_ce2i_optionality.py'
@@ -90,12 +92,14 @@ jobs:
             scripts/cibo_function_io_actuation_report.py \
             scripts/cibo_function_utilization_sensor.py \
             src/qore/infrastructure/cibo_ce2i_full_surface.py \
+            src/qore/infrastructure/cibo_ce2i_advanced_capital_tools.py \
             src/qore/infrastructure/cibo_ce2i_regime_selector.py \
             src/qore/infrastructure/cibo_ce2i_optionality.py \
             src/qore/infrastructure/cibo_crisis_capital_intelligence.py \
             src/qore/infrastructure/cibo_ce2i_phase20_robust_allocator.py \
             src/qore/infrastructure/cibo_ce2i_runtime_receipt.py \
             src/qore/infrastructure/cibo_ce2i_full_surface.py \
+            src/qore/infrastructure/cibo_ce2i_advanced_capital_tools.py \
             src/qore/infrastructure/cibo_ce2i_phase20_robust_allocator.py \
             src/qore/infrastructure/cibo_ce2i_runtime_receipt.py \
             src/qore/infrastructure/cibo_phase22_v4_chronological_execution.py \
@@ -132,6 +136,7 @@ jobs:
             tests/infrastructure/test_cibo_profitability_lab_economic_consultation.py \
             tests/infrastructure/test_cibo_profitability_lab_function_runtime.py \
             tests/infrastructure/test_cibo_ce2i_full_surface.py \
+            tests/infrastructure/test_cibo_ce2i_advanced_capital_tools.py \
             tests/infrastructure/test_cibo_ce2i_phase20_robust_allocator.py \
             tests/infrastructure/test_cibo_ce2i_regime_selector.py \
             tests/infrastructure/test_cibo_ce2i_optionality.py \
@@ -143,6 +148,7 @@ jobs:
             tests/infrastructure/test_cibo_profitability_lab_economic_consultation.py \
             tests/infrastructure/test_cibo_profitability_lab_function_runtime.py \
             tests/infrastructure/test_cibo_ce2i_full_surface.py \
+            tests/infrastructure/test_cibo_ce2i_advanced_capital_tools.py \
             tests/infrastructure/test_cibo_ce2i_phase20_robust_allocator.py \
             tests/infrastructure/test_cibo_ce2i_regime_selector.py \
             tests/infrastructure/test_cibo_ce2i_optionality.py \
