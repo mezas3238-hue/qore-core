@@ -18,6 +18,12 @@ on:
       - src/qore/infrastructure/core_stack_v2/shared_lab_counterfactual.py
       - src/qore/infrastructure/core_stack_v2/shared_lab_replay.py
       - src/qore/infrastructure/core_stack_v2/shared_lab_scientific.py
+      - src/qore/infrastructure/core_stack_v2/shared_lab_gate_policy.py
+      - src/qore/infrastructure/core_stack_v2/shared_lab_integrity_gate.py
+      - src/qore/infrastructure/core_stack_v2/shared_lab_seven_trader.py
+      - src/qore/infrastructure/core_stack_v2/shared_lab_authority.py
+      - src/qore/infrastructure/core_stack_v2/shared_lab_readiness.py
+      - src/qore/infrastructure/core_stack_v2/shared_lab_manifest.py
       - tests/infrastructure/test_core_stack_v2_shared_lab.py
       - tests/infrastructure/test_core_stack_v2_shared_lab_tools.py
       - tests/infrastructure/test_core_stack_v2_shared_lab_influence.py
@@ -31,6 +37,12 @@ on:
       - tests/infrastructure/test_core_stack_v2_shared_lab_counterfactual.py
       - tests/infrastructure/test_core_stack_v2_shared_lab_replay.py
       - tests/infrastructure/test_core_stack_v2_shared_lab_scientific.py
+      - tests/infrastructure/test_core_stack_v2_shared_lab_gate_policy.py
+      - tests/infrastructure/test_core_stack_v2_shared_lab_integrity_gate.py
+      - tests/infrastructure/test_core_stack_v2_shared_lab_seven_trader.py
+      - tests/infrastructure/test_core_stack_v2_shared_lab_authority.py
+      - tests/infrastructure/test_core_stack_v2_shared_lab_readiness.py
+      - tests/infrastructure/test_core_stack_v2_shared_lab_manifest.py
       - .github/workflows/qore-shared-lab-core-integrity.yml
   workflow_dispatch:
 
@@ -40,7 +52,7 @@ permissions:
 jobs:
   shared-lab-core:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -66,6 +78,12 @@ jobs:
             src/qore/infrastructure/core_stack_v2/shared_lab_counterfactual.py \
             src/qore/infrastructure/core_stack_v2/shared_lab_replay.py \
             src/qore/infrastructure/core_stack_v2/shared_lab_scientific.py \
+            src/qore/infrastructure/core_stack_v2/shared_lab_gate_policy.py \
+            src/qore/infrastructure/core_stack_v2/shared_lab_integrity_gate.py \
+            src/qore/infrastructure/core_stack_v2/shared_lab_seven_trader.py \
+            src/qore/infrastructure/core_stack_v2/shared_lab_authority.py \
+            src/qore/infrastructure/core_stack_v2/shared_lab_readiness.py \
+            src/qore/infrastructure/core_stack_v2/shared_lab_manifest.py \
             tests/infrastructure/test_core_stack_v2_shared_lab.py \
             tests/infrastructure/test_core_stack_v2_shared_lab_tools.py \
             tests/infrastructure/test_core_stack_v2_shared_lab_influence.py \
@@ -79,6 +97,12 @@ jobs:
             tests/infrastructure/test_core_stack_v2_shared_lab_counterfactual.py \
             tests/infrastructure/test_core_stack_v2_shared_lab_replay.py \
             tests/infrastructure/test_core_stack_v2_shared_lab_scientific.py \
+            tests/infrastructure/test_core_stack_v2_shared_lab_gate_policy.py \
+            tests/infrastructure/test_core_stack_v2_shared_lab_integrity_gate.py \
+            tests/infrastructure/test_core_stack_v2_shared_lab_seven_trader.py \
+            tests/infrastructure/test_core_stack_v2_shared_lab_authority.py \
+            tests/infrastructure/test_core_stack_v2_shared_lab_readiness.py \
+            tests/infrastructure/test_core_stack_v2_shared_lab_manifest.py \
       - name: Mypy
         run: |
           mypy \
@@ -95,6 +119,12 @@ jobs:
             src/qore/infrastructure/core_stack_v2/shared_lab_counterfactual.py \
             src/qore/infrastructure/core_stack_v2/shared_lab_replay.py \
             src/qore/infrastructure/core_stack_v2/shared_lab_scientific.py \
+            src/qore/infrastructure/core_stack_v2/shared_lab_gate_policy.py \
+            src/qore/infrastructure/core_stack_v2/shared_lab_integrity_gate.py \
+            src/qore/infrastructure/core_stack_v2/shared_lab_seven_trader.py \
+            src/qore/infrastructure/core_stack_v2/shared_lab_authority.py \
+            src/qore/infrastructure/core_stack_v2/shared_lab_readiness.py \
+            src/qore/infrastructure/core_stack_v2/shared_lab_manifest.py \
       - name: L0-L10 laboratory truth checks
         run: |
           pytest -q \
@@ -111,3 +141,9 @@ jobs:
             tests/infrastructure/test_core_stack_v2_shared_lab_counterfactual.py \
             tests/infrastructure/test_core_stack_v2_shared_lab_replay.py \
             tests/infrastructure/test_core_stack_v2_shared_lab_scientific.py \
+            tests/infrastructure/test_core_stack_v2_shared_lab_gate_policy.py \
+            tests/infrastructure/test_core_stack_v2_shared_lab_integrity_gate.py \
+            tests/infrastructure/test_core_stack_v2_shared_lab_seven_trader.py \
+            tests/infrastructure/test_core_stack_v2_shared_lab_authority.py \
+            tests/infrastructure/test_core_stack_v2_shared_lab_readiness.py \
+            tests/infrastructure/test_core_stack_v2_shared_lab_manifest.py \
