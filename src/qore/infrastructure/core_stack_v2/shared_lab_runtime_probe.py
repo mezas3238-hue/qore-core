@@ -25,7 +25,13 @@ def _canonical(value: Any) -> Any:
     if is_dataclass(value):
         return asdict(value)
     if isinstance(value, Mapping):
-        return {str(key): _canonical(item) for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))}
+        return {
+            str(key): _canonical(item)
+            for key, item in sorted(
+                value.items(),
+                key=lambda pair: str(pair[0]),
+            )
+        }
     if isinstance(value, (tuple, list)):
         return [_canonical(item) for item in value]
     if isinstance(value, (str, int, float, bool)) or value is None:
