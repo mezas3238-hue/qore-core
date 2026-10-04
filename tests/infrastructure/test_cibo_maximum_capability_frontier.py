@@ -2,10 +2,8 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from qore.infrastructure.cibo_maximum_capability_frontier import (
-    frozenset(CiboLifecycleFeature),
     CausalFrontierOpportunity,
     EpochOption,
-    LifecycleFeature,
     cognitive_multiplier_cap,
     optimize_epoch_multipliers,
 )
