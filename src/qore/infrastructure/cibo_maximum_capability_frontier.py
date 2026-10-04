@@ -15,8 +15,6 @@ from decimal import ROUND_FLOOR, Decimal
 from enum import StrEnum
 from itertools import product
 
-from qore.infrastructure.trader_lab.ict_turtle_soup_r4_source_exact import Bar
-
 
 class CiboMaximumCapabilityError(ValueError):
     """The maximum-capability research surface is invalid."""
