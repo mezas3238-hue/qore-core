@@ -1,0 +1,20 @@
+{
+  "task_id": "a2-capsule-self-test",
+  "suite": "FUNCTIONAL",
+  "scope": "mc23",
+  "dependencies": [
+    "mc23-functional"
+  ],
+  "command": [
+    "python",
+    "a2_lab_capsule/capsule.py",
+    "--mode",
+    "self-test"
+  ],
+  "component_globs": [
+    "a2_lab_capsule/capsule.py",
+    "a2_lab_capsule/manifest.json",
+    "docs/shared/evidence/QORE_SHARED_MC23_VALIDATED_NOVEL_REGIME_ADAPTATION_PREREGISTRATION_001.json",
+    "docs/shared/evidence/QORE_SHARED_MC24_EMPIRICAL_KNOWLEDGE_HALF_LIFE_PREREGISTRATION_001.json"
+  ]
+}
