@@ -1,0 +1,68 @@
+{
+  "identity": "QORE_SHARED_A1_MC17_MC18_MC19_FUNCTIONAL_CHAIN_CONTRACT_001",
+  "status": "ENGINEERING_READY_REQUIRES_QORE_SHARED_LAB_EXECUTION",
+  "owner_lane": "SHARED_ARCHITECT_1",
+  "created_date": "2026-10-04",
+  "baseline_sha": "feb5bd5315525908485e69e61e39abb730d42bad",
+  "scope": [
+    "MC17_MARKET_AGENCY_MODEL",
+    "MC18_COUNTERFACTUAL_WORLD_ENGINE",
+    "MC19_TRAJECTORY_INTELLIGENCE"
+  ],
+  "functional_chain": {
+    "input": "SharedOpportunitySourceObservation",
+    "native_engines": [
+      "assess_market_agency",
+      "build_counterfactual_world_distribution",
+      "assess_trajectory_intelligence"
+    ],
+    "required_flow": [
+      "REAL_OR_REPLAY_SOURCE_ONLY_INPUT",
+      "MC17_NATIVE_OUTPUT",
+      "MC18_NATIVE_OUTPUT",
+      "MC19_DOWNSTREAM_CONSUMPTION",
+      "OBSERVABLE_TRAJECTORY_ASSESSMENT_CHANGE"
+    ],
+    "mc17_output_must_be_consumed": true,
+    "mc18_output_must_be_consumed": true,
+    "causality_probe": "SOURCE_ONLY_PERTURBATION_MUST_CHANGE_DOWNSTREAM_FINGERPRINT"
+  },
+  "mc19_states": [
+    "NORMAL_ADVERSITY",
+    "RECOVERABLE_DETERIORATION",
+    "STRUCTURAL_FAILURE",
+    "INSUFFICIENT"
+  ],
+  "scientific_status": {
+    "calibrated": false,
+    "completed_and_proven": false,
+    "engineering_policy_only": true,
+    "winner_preservation_economic_effect_proven": false,
+    "sti8_v4_bound": false
+  },
+  "governance": {
+    "future_market_used": false,
+    "future_outcome_used": false,
+    "protected_final_holdout_opened": false,
+    "live_or_broker_mutation": false,
+    "creates_trader_setup": false,
+    "position_management_authority": false,
+    "execution_authority": false,
+    "risk_authority": false,
+    "sizing_authority": false,
+    "capital_authority": false,
+    "master_ledger_mutation": false
+  },
+  "shared_lab": {
+    "required": true,
+    "preferred_scope": "COGNITION",
+    "test_file": "tests/infrastructure/test_core_stack_v2_shared_a1_causal_trajectory_chain.py",
+    "disposition_before_lab": "NOT_PROVEN",
+    "allowed_terminal_results": [
+      "FUNCTIONAL_PASS_SCIENTIFICALLY_OPEN",
+      "FAIL_REPAIR_REQUIRED",
+      "INSUFFICIENT_OR_BLOCKED_WITH_EXACT_DEPENDENCY"
+    ]
+  },
+  "next_gate": "EXECUTE_EXACT_SHA_IN_QORE_SHARED_LAB_AND_CAPTURE_EVIDENCE"
+}
