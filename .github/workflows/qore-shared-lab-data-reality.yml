@@ -57,6 +57,7 @@ jobs:
           tests/infrastructure/test_core_stack_v2_shared_lab_data_authority_firewall.py
           tests/infrastructure/test_core_stack_v2_shared_lab_universe_completeness.py
           tests/infrastructure/test_core_stack_v2_shared_lab_resilience.py
+          tests/infrastructure/test_core_stack_v2_shared_lab_data_tool_matrix.py
       - name: Emit full Data Reality exam receipt
         run: |
           python -m qore.infrastructure.core_stack_v2.shared_lab_data_exam > shared-lab-data-reality-exam.json
