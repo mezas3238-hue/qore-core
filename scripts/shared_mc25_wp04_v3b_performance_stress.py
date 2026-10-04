@@ -307,16 +307,16 @@ def main() -> None:
         "results": results,
         "performance_stress_bound": True,
         "performance_stress_pass": performance_pass,
-        "formal_stress_stage_completed": performance_pass,
+        "formal_stress_stage_completed": False,
         "highest_formal_stage": (
-            "STRESS" if performance_pass else "HOLDOUT"
+            "PERFORMANCE_STRESS" if performance_pass else "HOLDOUT"
         ),
         "shadow_stage_bound": False,
         "certification_stage_bound": False,
         "promotion_allowed": False,
         "mc25_completed_and_proven": False,
         "next_gate": (
-            "WP04_V3B_GOVERNED_SHADOW"
+            "WP04_V3B_GOVERNED_FORMAL_STRESS"
             if performance_pass
             else "FALSIFIED_AND_CLOSED_FOR_THIS_STRESS_CONFIGURATION"
         ),
