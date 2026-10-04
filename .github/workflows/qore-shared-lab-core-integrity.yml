@@ -5,45 +5,10 @@ on:
     branches:
       - agent/qore-shared-lab-001
     paths:
-      - src/qore/infrastructure/core_stack_v2/shared_lab.py
-      - src/qore/infrastructure/core_stack_v2/shared_lab_tools.py
-      - src/qore/infrastructure/core_stack_v2/shared_lab_influence.py
-      - src/qore/infrastructure/core_stack_v2/shared_lab_experiments.py
-      - src/qore/infrastructure/core_stack_v2/shared_lab_integrity.py
-      - src/qore/infrastructure/core_stack_v2/shared_lab_ledger.py
-      - src/qore/infrastructure/core_stack_v2/shared_lab_cognition.py
-      - src/qore/infrastructure/core_stack_v2/shared_lab_operational.py
-      - src/qore/infrastructure/core_stack_v2/shared_lab_runtime_probe.py
-      - src/qore/infrastructure/core_stack_v2/shared_lab_organism.py
-      - src/qore/infrastructure/core_stack_v2/shared_lab_counterfactual.py
-      - src/qore/infrastructure/core_stack_v2/shared_lab_replay.py
-      - src/qore/infrastructure/core_stack_v2/shared_lab_scientific.py
-      - src/qore/infrastructure/core_stack_v2/shared_lab_gate_policy.py
-      - src/qore/infrastructure/core_stack_v2/shared_lab_integrity_gate.py
-      - src/qore/infrastructure/core_stack_v2/shared_lab_seven_trader.py
-      - src/qore/infrastructure/core_stack_v2/shared_lab_authority.py
-      - src/qore/infrastructure/core_stack_v2/shared_lab_readiness.py
-      - src/qore/infrastructure/core_stack_v2/shared_lab_manifest.py
-      - tests/infrastructure/test_core_stack_v2_shared_lab.py
-      - tests/infrastructure/test_core_stack_v2_shared_lab_tools.py
-      - tests/infrastructure/test_core_stack_v2_shared_lab_influence.py
-      - tests/infrastructure/test_core_stack_v2_shared_lab_experiments.py
-      - tests/infrastructure/test_core_stack_v2_shared_lab_integrity.py
-      - tests/infrastructure/test_core_stack_v2_shared_lab_ledger.py
-      - tests/infrastructure/test_core_stack_v2_shared_lab_cognition.py
-      - tests/infrastructure/test_core_stack_v2_shared_lab_operational.py
-      - tests/infrastructure/test_core_stack_v2_shared_lab_runtime_probe.py
-      - tests/infrastructure/test_core_stack_v2_shared_lab_organism.py
-      - tests/infrastructure/test_core_stack_v2_shared_lab_counterfactual.py
-      - tests/infrastructure/test_core_stack_v2_shared_lab_replay.py
-      - tests/infrastructure/test_core_stack_v2_shared_lab_scientific.py
-      - tests/infrastructure/test_core_stack_v2_shared_lab_gate_policy.py
-      - tests/infrastructure/test_core_stack_v2_shared_lab_integrity_gate.py
-      - tests/infrastructure/test_core_stack_v2_shared_lab_seven_trader.py
-      - tests/infrastructure/test_core_stack_v2_shared_lab_authority.py
-      - tests/infrastructure/test_core_stack_v2_shared_lab_readiness.py
-      - tests/infrastructure/test_core_stack_v2_shared_lab_manifest.py
-      - scripts/shared_lab_core_self_exam.py
+      - src/qore/infrastructure/core_stack_v2/shared_lab*.py
+      - tests/infrastructure/test_core_stack_v2_shared_lab*.py
+      - scripts/shared_lab*.py
+      - docs/shared/QORE_SHARED_LAB_*.md
       - .github/workflows/qore-shared-lab-core-integrity.yml
   workflow_dispatch:
 
@@ -66,90 +31,15 @@ jobs:
       - name: Ruff
         run: |
           ruff check \
-            src/qore/infrastructure/core_stack_v2/shared_lab.py \
-            src/qore/infrastructure/core_stack_v2/shared_lab_tools.py \
-            src/qore/infrastructure/core_stack_v2/shared_lab_influence.py \
-            src/qore/infrastructure/core_stack_v2/shared_lab_experiments.py \
-            src/qore/infrastructure/core_stack_v2/shared_lab_integrity.py \
-            src/qore/infrastructure/core_stack_v2/shared_lab_ledger.py \
-            src/qore/infrastructure/core_stack_v2/shared_lab_cognition.py \
-            src/qore/infrastructure/core_stack_v2/shared_lab_operational.py \
-            src/qore/infrastructure/core_stack_v2/shared_lab_runtime_probe.py \
-            src/qore/infrastructure/core_stack_v2/shared_lab_organism.py \
-            src/qore/infrastructure/core_stack_v2/shared_lab_counterfactual.py \
-            src/qore/infrastructure/core_stack_v2/shared_lab_replay.py \
-            src/qore/infrastructure/core_stack_v2/shared_lab_scientific.py \
-            src/qore/infrastructure/core_stack_v2/shared_lab_gate_policy.py \
-            src/qore/infrastructure/core_stack_v2/shared_lab_integrity_gate.py \
-            src/qore/infrastructure/core_stack_v2/shared_lab_seven_trader.py \
-            src/qore/infrastructure/core_stack_v2/shared_lab_authority.py \
-            src/qore/infrastructure/core_stack_v2/shared_lab_readiness.py \
-            src/qore/infrastructure/core_stack_v2/shared_lab_manifest.py \
-            tests/infrastructure/test_core_stack_v2_shared_lab.py \
-            tests/infrastructure/test_core_stack_v2_shared_lab_tools.py \
-            tests/infrastructure/test_core_stack_v2_shared_lab_influence.py \
-            tests/infrastructure/test_core_stack_v2_shared_lab_experiments.py \
-            tests/infrastructure/test_core_stack_v2_shared_lab_integrity.py \
-            tests/infrastructure/test_core_stack_v2_shared_lab_ledger.py \
-            tests/infrastructure/test_core_stack_v2_shared_lab_cognition.py \
-            tests/infrastructure/test_core_stack_v2_shared_lab_operational.py \
-            tests/infrastructure/test_core_stack_v2_shared_lab_runtime_probe.py \
-            tests/infrastructure/test_core_stack_v2_shared_lab_organism.py \
-            tests/infrastructure/test_core_stack_v2_shared_lab_counterfactual.py \
-            tests/infrastructure/test_core_stack_v2_shared_lab_replay.py \
-            tests/infrastructure/test_core_stack_v2_shared_lab_scientific.py \
-            tests/infrastructure/test_core_stack_v2_shared_lab_gate_policy.py \
-            tests/infrastructure/test_core_stack_v2_shared_lab_integrity_gate.py \
-            tests/infrastructure/test_core_stack_v2_shared_lab_seven_trader.py \
-            tests/infrastructure/test_core_stack_v2_shared_lab_authority.py \
-            tests/infrastructure/test_core_stack_v2_shared_lab_readiness.py \
-            tests/infrastructure/test_core_stack_v2_shared_lab_manifest.py \
-            scripts/shared_lab_core_self_exam.py
+            src/qore/infrastructure/core_stack_v2/shared_lab*.py \
+            tests/infrastructure/test_core_stack_v2_shared_lab*.py \
+            scripts/shared_lab*.py
       - name: Mypy
         run: |
-          mypy \
-            src/qore/infrastructure/core_stack_v2/shared_lab.py \
-            src/qore/infrastructure/core_stack_v2/shared_lab_tools.py \
-            src/qore/infrastructure/core_stack_v2/shared_lab_influence.py \
-            src/qore/infrastructure/core_stack_v2/shared_lab_experiments.py \
-            src/qore/infrastructure/core_stack_v2/shared_lab_integrity.py \
-            src/qore/infrastructure/core_stack_v2/shared_lab_ledger.py \
-            src/qore/infrastructure/core_stack_v2/shared_lab_cognition.py \
-            src/qore/infrastructure/core_stack_v2/shared_lab_operational.py \
-            src/qore/infrastructure/core_stack_v2/shared_lab_runtime_probe.py \
-            src/qore/infrastructure/core_stack_v2/shared_lab_organism.py \
-            src/qore/infrastructure/core_stack_v2/shared_lab_counterfactual.py \
-            src/qore/infrastructure/core_stack_v2/shared_lab_replay.py \
-            src/qore/infrastructure/core_stack_v2/shared_lab_scientific.py \
-            src/qore/infrastructure/core_stack_v2/shared_lab_gate_policy.py \
-            src/qore/infrastructure/core_stack_v2/shared_lab_integrity_gate.py \
-            src/qore/infrastructure/core_stack_v2/shared_lab_seven_trader.py \
-            src/qore/infrastructure/core_stack_v2/shared_lab_authority.py \
-            src/qore/infrastructure/core_stack_v2/shared_lab_readiness.py \
-            src/qore/infrastructure/core_stack_v2/shared_lab_manifest.py
+          mypy src/qore/infrastructure/core_stack_v2/shared_lab*.py
       - name: L0-L10 laboratory truth checks
         run: |
-          pytest -q \
-            tests/infrastructure/test_core_stack_v2_shared_lab.py \
-            tests/infrastructure/test_core_stack_v2_shared_lab_tools.py \
-            tests/infrastructure/test_core_stack_v2_shared_lab_influence.py \
-            tests/infrastructure/test_core_stack_v2_shared_lab_experiments.py \
-            tests/infrastructure/test_core_stack_v2_shared_lab_integrity.py \
-            tests/infrastructure/test_core_stack_v2_shared_lab_ledger.py \
-            tests/infrastructure/test_core_stack_v2_shared_lab_cognition.py \
-            tests/infrastructure/test_core_stack_v2_shared_lab_operational.py \
-            tests/infrastructure/test_core_stack_v2_shared_lab_runtime_probe.py \
-            tests/infrastructure/test_core_stack_v2_shared_lab_organism.py \
-            tests/infrastructure/test_core_stack_v2_shared_lab_counterfactual.py \
-            tests/infrastructure/test_core_stack_v2_shared_lab_replay.py \
-            tests/infrastructure/test_core_stack_v2_shared_lab_scientific.py \
-            tests/infrastructure/test_core_stack_v2_shared_lab_gate_policy.py \
-            tests/infrastructure/test_core_stack_v2_shared_lab_integrity_gate.py \
-            tests/infrastructure/test_core_stack_v2_shared_lab_seven_trader.py \
-            tests/infrastructure/test_core_stack_v2_shared_lab_authority.py \
-            tests/infrastructure/test_core_stack_v2_shared_lab_readiness.py \
-            tests/infrastructure/test_core_stack_v2_shared_lab_manifest.py
-
+          pytest -q tests/infrastructure/test_core_stack_v2_shared_lab*.py
       - name: Run core self-exam
         run: |
           mkdir -p result/shared-lab
