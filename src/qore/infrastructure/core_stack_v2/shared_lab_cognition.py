@@ -53,7 +53,11 @@ class UncertaintyCalibrationReceipt:
 
     @property
     def high_confidence_wrong_rate(self) -> float:
-        high = tuple(item for item in self.bins if item.confidence >= self.high_confidence_threshold)
+        high = tuple(
+            item
+            for item in self.bins
+            if item.confidence >= self.high_confidence_threshold
+        )
         if not high:
             return 0.0
         total = sum(item.observations for item in high)
