@@ -26,7 +26,12 @@ class CapabilityNode:
 
     @property
     def decorative(self) -> bool:
-        return self.invoked and self.meaningful_output and self.downstream_consumed and not self.downstream_changed
+        return (
+            self.invoked
+            and self.meaningful_output
+            and self.downstream_consumed
+            and not self.downstream_changed
+        )
 
 
 @dataclass(frozen=True, slots=True)
