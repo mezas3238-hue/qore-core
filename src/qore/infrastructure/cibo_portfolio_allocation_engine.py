@@ -433,7 +433,7 @@ def plan_position_opportunity_competition(
         per_minute = (
             continuation_value / item.expected_remaining_capital_minutes
         )
-        if item.releasable:
+        if item.releasable and item.continuation_value_identified:
             candidates.append((per_minute, continuation_value, item))
 
     candidates.sort(
