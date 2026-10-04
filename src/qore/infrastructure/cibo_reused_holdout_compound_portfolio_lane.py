@@ -1489,6 +1489,7 @@ def run_compound_portfolio_lane(
                             qore_symbol=item.qore_symbol,
                             side=item.side,
                             entry_at=item.entry_at,
+                            planned_exit_at=item.exit_at,
                             current_volume=item.authorized_volume,
                             current_stop_risk_usd=item.authorized_stop_risk_usd,
                             current_margin_usd=item.authorized_margin_usd,
