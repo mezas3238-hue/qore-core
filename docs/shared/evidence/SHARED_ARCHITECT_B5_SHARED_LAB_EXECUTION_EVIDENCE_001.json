@@ -1,0 +1,51 @@
+{
+  "identity": "SHARED_ARCHITECT_B5_SHARED_LAB_EXECUTION_EVIDENCE_001",
+  "architect": "B5",
+  "branch": "agent/shared-architect-b5-relational-asset-world-001",
+  "commit_sha": "7c62547b635c805f52e94b66bec185b1c9b0ac53",
+  "base_sha": "55144bb92abdc5135521f545667b94dcad555bb1",
+  "shared_lab_observed_head": "f9792cd95553b5663383b0b3474e5be2e2bda789",
+  "local_engineering_validation": {
+    "pytest_passed": 62,
+    "pytest_failed": 0,
+    "ruff_exit": 0,
+    "mypy_exit": 0,
+    "mypy_files_checked": 30
+  },
+  "shared_lab_attempts": [
+    {
+      "run_id": "SL-1791144163665939700-7c62547b-f88bc719",
+      "artifact_hash": "23ac7060241b5aec27045bec827d0131732fbe4337f6a3b6d01f10f281ebba53",
+      "disposition": "INCOMPLETE",
+      "finding": "BASE_SUITES_SELECTED_WITHOUT_B5_PLUGIN_REGISTRY"
+    },
+    {
+      "run_id": "SL-1791144191275289500-7c62547b-4a4d112a",
+      "artifact_hash": "bd467f52c377e9431c3f5e875f53681816d09c441272731f56b5c445c1e9c8f9",
+      "disposition": "INCOMPLETE",
+      "selected_b5_tasks": [
+        "b5-relational-science-functional",
+        "b5-asset-worlds-functional",
+        "b5-handoff-determinism"
+      ],
+      "finding": "WINDOWS_RESOURCE_LIMIT_GOVERNOR_UNAVAILABLE_FAIL_CLOSED"
+    }
+  ],
+  "lab_blocker": {
+    "code": "SHARED_LAB_WINDOWS_RESOURCE_LIMIT_GOVERNOR_UNAVAILABLE",
+    "root_cause": "shared_lab_orchestrator._apply_limits returns false when os.name != posix",
+    "b5_code_failure": false,
+    "test_process_started": false,
+    "fail_closed_preserved": true,
+    "runtime_install_or_system_mutation_performed": false
+  },
+  "scientific_truth": {
+    "b11_b12_b13_empirical_population_complete": false,
+    "b14": "KNOWN_BLINDSPOT",
+    "b15": "GOVERNED_UNKNOWN",
+    "target_or_outcome_read": false,
+    "fresh_holdout_opened": false,
+    "productive_authority": false,
+    "certification_claimed": false
+  }
+}
