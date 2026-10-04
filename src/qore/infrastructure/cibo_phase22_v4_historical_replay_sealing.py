@@ -144,6 +144,7 @@ def seal_phase22_historical_replay_epoch(
     known_options: tuple[Phase20MpcKnownOption, ...] = (),
     lab_allow_nonpositive_expectation: bool = False,
     lab_cibo_free_tool_choice: bool = False,
+    lab_burned_context_quality_gate: bool = False,
 ) -> Phase22HistoricalReplaySealPair:
     """Seal one historical epoch using the frozen policy and current provider model."""
 
@@ -205,6 +206,7 @@ def seal_phase22_historical_replay_epoch(
         known_options=known_options,
         lab_allow_nonpositive_expectation=lab_allow_nonpositive_expectation,
         lab_cibo_free_tool_choice=lab_cibo_free_tool_choice,
+        lab_burned_context_quality_gate=lab_burned_context_quality_gate,
     )
 
     candidate_rows: list[dict[str, object]] = []
