@@ -24,6 +24,8 @@ from qore.infrastructure.core_stack_v2.shared_lab import (
 
 def _canonical(value: Any) -> Any:
     if is_dataclass(value):
+        if isinstance(value, type):
+            return repr(value)
         return asdict(value)
     if isinstance(value, Mapping):
         return {
