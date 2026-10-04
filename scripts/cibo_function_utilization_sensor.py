@@ -41,6 +41,9 @@ def _decimal(value: object) -> Decimal:
 
 
 def _top_reason(row: dict[str, Any]) -> str | None:
+    coverage_reason = row.get("coverage_reason")
+    if isinstance(coverage_reason, str) and coverage_reason:
+        return f"coverage_reason:{coverage_reason}"
     for field in (
         "reason_distribution",
         "native_engine_status_distribution",
@@ -103,11 +106,23 @@ def _classify(row: dict[str, Any]) -> tuple[str, bool, str]:
             "per-call evidence is insufficient to prove runtime use"
         )
 
+    if diagnosis == "FAIL_CLOSED_OR_UNAVAILABLE":
+        coverage_reason = str(row.get("coverage_reason", "")).lower()
+        if "base capital remains at risk" in coverage_reason:
+            return (
+                "SAFETY_LOCKED",
+                False,
+                "runtime is deliberately fail-closed until protected-capital "
+                "preconditions permit expansion",
+            )
+        return "BLOCKED", True, (
+            "runtime is fail-closed or unavailable for a non-contextual reason"
+        )
+
     if diagnosis in {
         "NATIVE_ENGINE_FAIL_CLOSED",
         "NATIVE_ENGINE_DEPENDENCY_BLOCKED",
         "ALL_CALLS_FAIL_CLOSED",
-        "FAIL_CLOSED_OR_UNAVAILABLE",
     }:
         return "BLOCKED", True, (
             "runtime is fail-closed, dependency-blocked, or unavailable"
@@ -346,6 +361,7 @@ def build(
             "ADVISORY_USED",
             "USED_NO_CHANGE",
             "JUSTIFIED_NOT_APPLICABLE",
+            "SAFETY_LOCKED",
         }
         for state in (
             str(row["utilization_state"]) for row in probes
@@ -389,6 +405,10 @@ def build(
             ),
             "JUSTIFIED_NOT_APPLICABLE": (
                 "not used because predecision eligibility was absent"
+            ),
+            "SAFETY_LOCKED": (
+                "healthy fail-closed safety behavior while expansion "
+                "preconditions are not satisfied"
             ),
             "DEGRADED": (
                 "runtime present but expected downstream effect is not proven"

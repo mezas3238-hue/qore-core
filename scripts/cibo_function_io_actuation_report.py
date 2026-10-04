@@ -282,6 +282,7 @@ def _ce2i_rows(
             for item in receipts
         )
         status = str(cov.get("status", "UNKNOWN"))
+        coverage_reason = str(cov.get("reason", ""))
         if runtime_io_complete and runtime_changed > 0:
             diagnosis = "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED"
         elif runtime_io_complete and (
@@ -294,6 +295,8 @@ def _ce2i_rows(
             diagnosis = "JUSTIFIED_NOT_APPLICABLE"
         elif runtime_io_complete:
             diagnosis = "INPUT_OUTPUT_CONSUMER_OBSERVED_NO_CHANGE"
+        elif status == "JUSTIFIED_NOT_APPLICABLE":
+            diagnosis = "JUSTIFIED_NOT_APPLICABLE"
         elif code in ADVANCED and rows:
             if dispositions.get("FAIL_CLOSED", 0) == len(rows):
                 diagnosis = "ALL_CALLS_FAIL_CLOSED"
@@ -312,6 +315,7 @@ def _ce2i_rows(
                 "function_code": code,
                 "stage": "CE2I",
                 "coverage_status": status,
+                "coverage_reason": coverage_reason,
                 "enabled_epochs": cov.get("enabled_epochs"),
                 "applied_count": cov.get("applied_count"),
                 "per_call_input_observable": runtime_io_complete,
