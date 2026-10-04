@@ -6,7 +6,9 @@ on:
       - agent/qore-shared-lab-001
     paths:
       - src/qore/infrastructure/core_stack_v2/shared_lab.py
+      - src/qore/infrastructure/core_stack_v2/shared_lab_tools.py
       - tests/infrastructure/test_core_stack_v2_shared_lab.py
+      - tests/infrastructure/test_core_stack_v2_shared_lab_tools.py
       - .github/workflows/qore-shared-lab-core-integrity.yml
   workflow_dispatch:
 
@@ -28,7 +30,7 @@ jobs:
           pip install -e ".[dev]"
       - name: Static checks
         run: |
-          ruff check src/qore/infrastructure/core_stack_v2/shared_lab.py tests/infrastructure/test_core_stack_v2_shared_lab.py
-          mypy src/qore/infrastructure/core_stack_v2/shared_lab.py
+          ruff check src/qore/infrastructure/core_stack_v2/shared_lab.py src/qore/infrastructure/core_stack_v2/shared_lab_tools.py tests/infrastructure/test_core_stack_v2_shared_lab.py tests/infrastructure/test_core_stack_v2_shared_lab_tools.py
+          mypy src/qore/infrastructure/core_stack_v2/shared_lab.py src/qore/infrastructure/core_stack_v2/shared_lab_tools.py
       - name: L0/L5/L10 laboratory truth checks
-        run: pytest -q tests/infrastructure/test_core_stack_v2_shared_lab.py
+        run: pytest -q tests/infrastructure/test_core_stack_v2_shared_lab.py tests/infrastructure/test_core_stack_v2_shared_lab_tools.py
