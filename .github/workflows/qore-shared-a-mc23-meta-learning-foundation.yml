@@ -1,0 +1,77 @@
+name: QORE Shared A MC23 Meta Learning Foundation
+
+on:
+  push:
+    branches: [agent/shared-a-cognitive-science-001]
+    paths:
+      - src/qore/infrastructure/core_stack_v2/meta_learning_regime_adaptation.py
+      - tests/infrastructure/test_core_stack_v2_meta_learning_regime_adaptation.py
+      - scripts/shared_mc23_meta_learning_audit.py
+      - .github/workflows/qore-shared-a-mc23-meta-learning-foundation.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  foundation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install and validate
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          mkdir -p result
+          ruff check src/qore/infrastructure/core_stack_v2/meta_learning_regime_adaptation.py tests/infrastructure/test_core_stack_v2_meta_learning_regime_adaptation.py scripts/shared_mc23_meta_learning_audit.py
+          mypy src/qore/infrastructure/core_stack_v2/meta_learning_regime_adaptation.py
+          pytest -q tests/infrastructure/test_core_stack_v2_meta_learning_regime_adaptation.py
+          for run_id in 36726927463 36752791958
+          do
+            test "$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq '.conclusion // ""')" = "success"
+          done
+          python scripts/shared_mc23_meta_learning_audit.py | tee result/summary.json
+      - name: Validate bounded disposition
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/mc23-meta-learning-audit.json").read_text())
+          assert p["status"] == "MC23_META_LEARNING_GOVERNANCE_FOUNDATION_PASS"
+          assert p["novelty_state"] == "NOVEL"
+          assert p["unknown_treated_as_known"] is False
+          assert p["proposal_disposition"] == "RESEARCH_ONLY"
+          assert p["certified_knowledge_mutation"] is False
+          assert p["real_novel_regime_validation_completed"] is False
+          assert p["mc23_completed_and_proven"] is False
+          PY
+      - name: Seal
+        run: |
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (cd result && find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-a-mc23-meta-learning-${{ github.sha }}
+          path: result/
+          retention-days: 90
+      - name: Report
+        run: |
+          {
+            echo "## Shared A MC-23 — Meta-Learning foundation"
+            echo
+            echo "- run: \`${GITHUB_RUN_ID}\`"
+            echo "- novelty never masquerades as known: **True**"
+            echo "- experimental adaptation mutates certified knowledge: **False**"
+            echo "- real novel-regime validation completed: **False**"
+            echo "- MC-23 completed-and-proven: **False**"
+          } > result/issue-comment.md
+          gh issue comment 638 --body-file result/issue-comment.md

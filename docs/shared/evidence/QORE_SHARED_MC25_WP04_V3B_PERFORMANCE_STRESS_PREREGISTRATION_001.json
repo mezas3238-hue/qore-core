@@ -1,0 +1,92 @@
+{
+  "identity": "QORE_SHARED_MC25_WP04_V3B_PERFORMANCE_STRESS_PREREGISTRATION_001",
+  "status": "FROZEN_BEFORE_SAME_LINEAGE_PERFORMANCE_STRESS_EVALUATION",
+  "owner_lane": "ARCHITECT_A",
+  "proposal": "WP04_V3B_REPRESENTATION",
+  "representation_fingerprint": "e2fc2ca059d5852b4e9107c467392e5e64aeabbd6aca2d8013951b93402bc987",
+  "sealed_lineage": {
+    "freeze_run_id": 36244726347,
+    "freeze_artifact_id": 10906064254,
+    "holdout_e_run_id": 36247407353,
+    "holdout_e_artifact_id": 10908500161,
+    "replication_d_run_id": 36248025384,
+    "replication_d_artifact_id": 10908077821,
+    "consumed_r8_artifact_id": 10402199719,
+    "consumed_r6_artifact_id": 10389112524,
+    "consumed_r5_artifact_id": 10380044761
+  },
+  "known_consumed_baseline": {
+    "holdout_e": {
+      "pooled_incremental_information_bps": 288,
+      "positive_target_count": 8,
+      "target_count": 8
+    },
+    "replication_d": {
+      "pooled_incremental_information_bps": 312,
+      "positive_target_count": 8,
+      "target_count": 8
+    }
+  },
+  "unchanged_gate": {
+    "minimum_pooled_incremental_bps": 100,
+    "minimum_positive_target_count": 4,
+    "must_pass_every_stress_scenario_in_both_consumed_partitions": true,
+    "gate_relaxation": false
+  },
+  "frozen_target_blind_stress_scenarios": [
+    {
+      "id": "HASH_ROW_DROP_10PCT",
+      "mechanism": "deterministic SHA256 episode thinning",
+      "drop_bps": 1000
+    },
+    {
+      "id": "HASH_ROW_DROP_20PCT",
+      "mechanism": "deterministic SHA256 episode thinning",
+      "drop_bps": 2000
+    },
+    {
+      "id": "CONTIGUOUS_TIME_DROP_10PCT",
+      "mechanism": "remove central chronological 10 percent block",
+      "drop_bps": 1000
+    },
+    {
+      "id": "LATENT_ATTENUATION_10PCT",
+      "mechanism": "multiply augmented-only latent additions by 0.90",
+      "attenuation_bps": 9000
+    },
+    {
+      "id": "LATENT_QUANTIZATION_0_05",
+      "mechanism": "quantize augmented-only latent additions to 0.05",
+      "quantization_milli": 50
+    },
+    {
+      "id": "COMBINED_DROP10_ATTENUATION10",
+      "mechanism": "SHA256 10 percent episode thinning plus 0.90 augmented-only latent attenuation",
+      "drop_bps": 1000,
+      "attenuation_bps": 9000
+    }
+  ],
+  "scientific_interpretation": {
+    "fresh_holdout_claim": false,
+    "purpose": "same-lineage robustness stress only",
+    "pass_allows_formal_stress_stage": true,
+    "pass_does_not_allow_shadow_certification_or_promotion": true,
+    "failure": "FALSIFIED_AND_CLOSED_FOR_THIS_STRESS_CONFIGURATION",
+    "stress_scenarios_selected_without_target_values": true,
+    "probe_refit": false,
+    "representation_refit": false,
+    "threshold_retuning": false
+  },
+  "governance": {
+    "knowledge_auto_promotion": false,
+    "shared_methodology_authority": false,
+    "shared_sizing_authority": false,
+    "shared_risk_authority": false,
+    "shared_order_authority": false,
+    "shared_execution_authority": false,
+    "productive_authority": false,
+    "master_ledger_mutation": false,
+    "protected_certification_holdout_opened": false
+  },
+  "next_gate": "IMPLEMENTATION_VALIDATION_THEN_SINGLE_PERFORMANCE_STRESS_RUN"
+}

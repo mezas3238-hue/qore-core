@@ -1,0 +1,118 @@
+name: QORE Shared A MC11 Neural Symbolic Foundation
+
+concurrency:
+  group: qore-shared-a-mc11-neural-symbolic-foundation
+  cancel-in-progress: false
+
+on:
+  push:
+    branches:
+      - agent/shared-a-cognitive-science-001
+    paths:
+      - src/qore/infrastructure/core_stack_v2/neural_symbolic_brain.py
+      - tests/infrastructure/test_core_stack_v2_neural_symbolic_brain.py
+      - scripts/shared_mc11_neural_symbolic_verified_binding.py
+      - .github/workflows/qore-shared-a-mc11-neural-symbolic-foundation.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  foundation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Validate MC-11 contracts
+        run: |
+          set -euo pipefail
+          mkdir -p input/{wp04,mc09,mc10} result
+          ruff check src/qore/infrastructure/core_stack_v2/neural_symbolic_brain.py tests/infrastructure/test_core_stack_v2_neural_symbolic_brain.py scripts/shared_mc11_neural_symbolic_verified_binding.py
+          mypy src/qore/infrastructure/core_stack_v2/neural_symbolic_brain.py
+          pytest -q tests/infrastructure/test_core_stack_v2_neural_symbolic_brain.py
+      - name: Recover frozen verified dependencies
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10906064254/zip" > wp04.zip
+          unzip -q wp04.zip -d input/wp04
+          (cd input/wp04 && sha256sum -c SHA256SUMS)
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11116522138/zip" > mc09.zip
+          unzip -q mc09.zip -d input/mc09
+          (cd input/mc09 && sha256sum -c SHA256SUMS)
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11115664725/zip" > mc10.zip
+          unzip -q mc10.zip -d input/mc10
+          (cd input/mc10 && sha256sum -c SHA256SUMS)
+      - name: Bind WP04 MC09 MC10 into MC11 foundation
+        run: |
+          set -euo pipefail
+          python scripts/shared_mc11_neural_symbolic_verified_binding.py             --wp04 input/wp04             --mc09 input/mc09             --mc10 input/mc10             --output result/mc11-neural-symbolic-binding.json             | tee result/summary.json
+      - name: Validate bounded disposition
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("result/mc11-neural-symbolic-binding.json").read_text())
+          assert p["status"] == "MC11_NEURAL_SYMBOLIC_DEPENDENCIES_VERIFIED"
+          assert p["wp04_representation_fingerprint"] == "e2fc2ca059d5852b4e9107c467392e5e64aeabbd6aca2d8013951b93402bc987"
+          assert p["wp04_concept_count"] == 6
+          assert p["wp04_probe_count"] == 8
+          assert p["mc09_temporal_oos_pass"] is True
+          assert p["mc10_transition_stability_pass"] is True
+          assert p["hard_constraint_dominance_contract_tested"] is True
+          assert p["symbolic_conclusions_traceable"] is True
+          assert p["incremental_oos_value_demonstrated"] is False
+          assert p["mc11_completed_and_proven"] is False
+          assert p["protected_certification_holdout_opened"] is False
+          PY
+      - name: Seal result
+        run: |
+          printf '%s\n' "${GITHUB_SHA}" > result/code-git-sha.txt
+          (
+            cd result
+            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-a-mc11-neural-symbolic-foundation-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Report MC-11
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p=json.loads(Path("result/mc11-neural-symbolic-binding.json").read_text())
+          body="\n".join([
+              "## Shared A MC-11 — Neural-Symbolic Foundation",
+              "",
+              f"- Git SHA: `{os.environ['GITHUB_SHA']}`",
+              f"- run: `{os.environ['GITHUB_RUN_ID']}`",
+              f"- disposition: **{p['status']}**",
+              f"- WP-04 representation: **{p['wp04_representation_fingerprint']}**",
+              f"- concepts/probes: **{p['wp04_concept_count']} / {p['wp04_probe_count']}**",
+              f"- MC-09 calibrated OOS: **{p['mc09_temporal_oos_pass']}**",
+              f"- MC-10 stability: **{p['mc10_transition_stability_pass']}**",
+              "- hard constraint dominance: **True**",
+              "- traceable conclusions: **True**",
+              "- incremental OOS value demonstrated: **False**",
+              "- MC-11 completed-and-proven: **False**",
+          ])+"\n"
+          Path("result/issue-comment.md").write_text(body)
+          PY
+          gh issue comment 638 --body-file result/issue-comment.md
