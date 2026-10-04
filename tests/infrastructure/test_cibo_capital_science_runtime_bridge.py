@@ -302,6 +302,8 @@ def test_genc11_consumes_every_simultaneously_known_option() -> None:
         stop_risk_usd=Decimal("1.00"),
         margin_usd=Decimal("0.80"),
         evidence_sha256="sha256:" + "a" * 64,
+        expected_net_value_usd=Decimal("0.42"),
+        expected_capital_minutes=Decimal("18"),
     )
     directive = runtime.evaluate_capital_science_predecision(
         _state(
@@ -313,6 +315,12 @@ def test_genc11_consumes_every_simultaneously_known_option() -> None:
     c11 = next(item for item in directive.receipts if item.function_code == "GEN-C11")
 
     assert c10.output_payload["engine_output"]["known_option_count"] == 2
+    economic_rows = {
+        item["option_id"]: item
+        for item in c10.output_payload["engine_output"]["economic_opportunities"]
+    }
+    assert economic_rows["peer-signal"]["expected_net_value_usd"] == "0.42"
+    assert economic_rows["peer-signal"]["expected_capital_minutes"] == "18"
     assert set(c11.output_payload["engine_output"]["known_option_ids"]) == {
         "signal-1",
         "peer-signal",
