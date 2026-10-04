@@ -83,7 +83,13 @@ class CiboObservedPositionState:
     entry_at: datetime
     observed_at: datetime
     current_volume: Decimal
-    current_stop_risk_usd: Decimal
+    entry_price: Decimal | None = None
+    structural_stop: Decimal | None = None
+    technical_target: Decimal | None = None
+    current_mark_price: Decimal | None = None
+    market_state_observed_at: datetime | None = None
+    mark_to_market_identified: bool = False
+    current_stop_risk_usd: Decimal = Decimal(0)
     current_margin_usd: Decimal
     released_stop_risk_usd: Decimal
     released_margin_usd: Decimal
@@ -152,6 +158,42 @@ class CiboObservedPositionState:
         ):
             raise CiboCapitalManagementError(
                 "Full Economic Twin position expectation evidence invalid"
+            )
+        for name in (
+            "entry_price",
+            "structural_stop",
+            "technical_target",
+            "current_mark_price",
+        ):
+            value = getattr(self, name)
+            if value is not None:
+                _finite(value, name, nonnegative=False)
+        if type(self.mark_to_market_identified) is not bool:
+            raise CiboCapitalManagementError(
+                "Full Economic Twin mark-to-market identity must be bool"
+            )
+        if self.mark_to_market_identified:
+            if (
+                self.entry_price is None
+                or self.structural_stop is None
+                or self.technical_target is None
+                or self.current_mark_price is None
+                or self.market_state_observed_at is None
+            ):
+                raise CiboCapitalManagementError(
+                    "Full Economic Twin identified mark requires complete price geometry"
+                )
+            _aware(
+                self.market_state_observed_at,
+                "position market_state_observed_at",
+            )
+            if self.market_state_observed_at > self.observed_at:
+                raise CiboCapitalManagementError(
+                    "Full Economic Twin market state cannot be future-known"
+                )
+        elif self.current_mark_price is not None:
+            raise CiboCapitalManagementError(
+                "Full Economic Twin unidentified mark cannot carry current_mark_price"
             )
         if type(self.remaining_reward_identified) is not bool:
             raise CiboCapitalManagementError(
