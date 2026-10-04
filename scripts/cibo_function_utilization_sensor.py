@@ -85,7 +85,10 @@ def _classify(row: dict[str, Any]) -> tuple[str, bool, str]:
         return (
             "USED_NO_CHANGE",
             False,
-            "runtime input/output and consumer were observed; this call legitimately made no change",
+            (
+                "runtime input/output and consumer were observed; "
+                "this call legitimately made no change"
+            ),
         )
 
     if diagnosis in {
