@@ -89,6 +89,10 @@ class CiboObservedPositionState:
     released_margin_usd: Decimal
     remaining_reward_r: Decimal
     provider_cost_usd: Decimal
+    entry_expected_net_value_usd: Decimal = Decimal(0)
+    entry_expected_capital_minutes: Decimal = Decimal(1)
+    expectation_evidence_sha256: str = "sha256:" + "0" * 64
+    remaining_reward_identified: bool = False
     expected_continuation_net_value_usd: Decimal = Decimal(0)
     expected_remaining_capital_minutes: Decimal = Decimal(1)
     release_cost_usd: Decimal = Decimal(0)
@@ -121,11 +125,17 @@ class CiboObservedPositionState:
             "released_stop_risk_usd",
             "released_margin_usd",
             "provider_cost_usd",
+            "entry_expected_capital_minutes",
             "expected_remaining_capital_minutes",
             "release_cost_usd",
             "uncertainty_penalty",
         ):
             _finite(getattr(self, name), name)
+        _finite(
+            self.entry_expected_net_value_usd,
+            "entry_expected_net_value_usd",
+            nonnegative=False,
+        )
         _finite(
             self.expected_continuation_net_value_usd,
             "expected_continuation_net_value_usd",
@@ -134,6 +144,18 @@ class CiboObservedPositionState:
         if self.expected_remaining_capital_minutes <= 0:
             raise CiboCapitalManagementError(
                 "Full Economic Twin position remaining capital minutes must be positive"
+            )
+        if (
+            not isinstance(self.expectation_evidence_sha256, str)
+            or not self.expectation_evidence_sha256.startswith("sha256:")
+            or len(self.expectation_evidence_sha256) != 71
+        ):
+            raise CiboCapitalManagementError(
+                "Full Economic Twin position expectation evidence invalid"
+            )
+        if type(self.remaining_reward_identified) is not bool:
+            raise CiboCapitalManagementError(
+                "Full Economic Twin remaining reward identity must be bool"
             )
         if type(self.releasable) is not bool:
             raise CiboCapitalManagementError(
