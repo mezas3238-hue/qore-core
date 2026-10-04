@@ -19,6 +19,11 @@ from qore.infrastructure.cibo_full_economic_digital_twin import (
     CiboObservedEconomicTwin,
     observed_twin_constraints,
 )
+from qore.infrastructure.cibo_position_lifecycle import (
+    CiboLifecycleFeature,
+    CiboPositionLifecycleInput,
+    run_cibo_position_lifecycle,
+)
 from qore.infrastructure.trader_lab.ict_turtle_soup_r4_source_exact import Bar
 
 
@@ -594,305 +599,56 @@ def simulate_position_lifecycle(
         LifecycleFeature
     ] = FULL_LIFECYCLE_FEATURES,
 ) -> PositionLifecycleResult:
-    """Apply causal closed-bar lifecycle rules inside the original horizon.
+    """Research adapter over the universal causal CIBO lifecycle engine."""
 
-    The original settlement timestamp is the evaluation horizon.  Lifecycle
-    state derived from bar N becomes executable protection only from bar N+1.
-    When lifecycle is disabled, or when the remaining position reaches the
-    original horizon, the original structural settlement is reused exactly
-    instead of synthesizing a mark-to-market outcome.
-    """
-
-    risk_distance = abs(
-        opportunity.entry_price
-        - opportunity.structural_stop
-    )
-    if risk_distance <= 0:
-        raise CiboMaximumCapabilityError(
-            "position lifecycle requires nonzero stop distance"
-        )
-    target_r = (
-        abs(
-            opportunity.technical_target
-            - opportunity.entry_price
-        )
-        / risk_distance
-    )
-    cost_r = (
-        opportunity.provider_cost_per_volume_usd
-        / opportunity.stop_risk_per_volume_usd
-    )
-
-    causal_bars = tuple(
-        bar
-        for bar in bars
-        if (
-            bar.opened_at >= opportunity.entry_at
-            and bar.closed_at <= opportunity.horizon_at
-        )
-    )
-
-    def original_settlement(
-        *,
-        data_available: bool,
-        action: str,
-    ) -> PositionLifecycleResult:
-        close = LifecycleEvent(
-            occurred_at=opportunity.horizon_at,
-            action=action,
-            realized_r_delta=opportunity.fallback_gross_r,
-            remaining_volume_fraction=Decimal(0),
-            risk_fraction_remaining=Decimal(0),
-            margin_fraction_remaining=Decimal(0),
-        )
-        return PositionLifecycleResult(
+    feature_map = {
+        LifecycleFeature.BREAKEVEN: CiboLifecycleFeature.BREAKEVEN,
+        LifecycleFeature.PROFIT_LOCK: CiboLifecycleFeature.PROFIT_LOCK,
+        LifecycleFeature.TRAILING: CiboLifecycleFeature.TRAILING,
+        LifecycleFeature.PARTIAL_REALIZATION:
+            CiboLifecycleFeature.PARTIAL_REALIZATION,
+        LifecycleFeature.EXTENDED_TARGET: CiboLifecycleFeature.EXTENDED_TARGET,
+    }
+    universal = run_cibo_position_lifecycle(
+        CiboPositionLifecycleInput(
             signal_fingerprint=opportunity.signal_fingerprint,
-            data_available=data_available,
-            gross_r=opportunity.fallback_gross_r,
-            exit_at=opportunity.horizon_at,
-            events=(close,),
-            risk_released_before_exit_fraction=Decimal(0),
-            margin_released_before_exit_fraction=Decimal(0),
-            actions=(close.action,),
+            side=opportunity.side,
+            entry_at=opportunity.entry_at,
+            horizon_at=opportunity.horizon_at,
+            entry_price=opportunity.entry_price,
+            structural_stop=opportunity.structural_stop,
+            technical_target=opportunity.technical_target,
+            provider_cost_per_volume_usd=(
+                opportunity.provider_cost_per_volume_usd
+            ),
+            stop_risk_per_volume_usd=opportunity.stop_risk_per_volume_usd,
+            original_settlement_gross_r=opportunity.fallback_gross_r,
+        ),
+        bars,
+        features=frozenset(feature_map[item] for item in features),
+    )
+    events = tuple(
+        LifecycleEvent(
+            occurred_at=item.occurred_at,
+            action=item.action,
+            realized_r_delta=item.realized_r_delta,
+            remaining_volume_fraction=item.remaining_volume_fraction,
+            risk_fraction_remaining=item.risk_fraction_remaining,
+            margin_fraction_remaining=item.margin_fraction_remaining,
         )
-
-    if not causal_bars:
-        return original_settlement(
-            data_available=False,
-            action="FALLBACK_ORIGINAL_SETTLEMENT",
-        )
-
-    # Settlement identity is a hard invariant.  Turning lifecycle off must
-    # reproduce the original outcome exactly, irrespective of M5 geometry.
-    if not features:
-        return original_settlement(
-            data_available=True,
-            action="LIFECYCLE_OFF_ORIGINAL_SETTLEMENT",
-        )
-
-    remaining = Decimal(1)
-    # -1R is the original structural stop.  It is not re-simulated as a new
-    # lifecycle decision; the original settlement remains authoritative at
-    # horizon.  Only a protection stricter than the original stop can create
-    # an earlier lifecycle exit.
-    stop_r = Decimal(-1)
-    partial_done = False
-    be_done = False
-    lock_done = False
-    trail_active = False
-    realized_r = Decimal(0)
-    events: list[LifecycleEvent] = []
-    risk_fraction = Decimal(1)
-    margin_fraction = Decimal(1)
-
-    def favorable_and_adverse(
-        bar: Bar,
-    ) -> tuple[Decimal, Decimal, Decimal]:
-        if opportunity.side == "long":
-            favorable = (
-                bar.high - opportunity.entry_price
-            ) / risk_distance
-            adverse = (
-                bar.low - opportunity.entry_price
-            ) / risk_distance
-            close_r = (
-                bar.close - opportunity.entry_price
-            ) / risk_distance
-        else:
-            favorable = (
-                opportunity.entry_price - bar.low
-            ) / risk_distance
-            adverse = (
-                opportunity.entry_price - bar.high
-            ) / risk_distance
-            close_r = (
-                opportunity.entry_price - bar.close
-            ) / risk_distance
-        return favorable, adverse, close_r
-
-    def append_event(
-        at: datetime,
-        action: str,
-        realized_delta: Decimal = Decimal(0),
-        *,
-        force_close: bool = False,
-    ) -> None:
-        nonlocal realized_r
-        nonlocal risk_fraction
-        nonlocal margin_fraction
-        realized_r += realized_delta
-        next_margin = (
-            Decimal(0) if force_close else remaining
-        )
-        next_risk = (
-            Decimal(0)
-            if force_close
-            else remaining * max(Decimal(0), -stop_r)
-        )
-        risk_fraction = min(risk_fraction, next_risk)
-        margin_fraction = min(
-            margin_fraction, next_margin
-        )
-        events.append(
-            LifecycleEvent(
-                occurred_at=at,
-                action=action,
-                realized_r_delta=realized_delta,
-                remaining_volume_fraction=(
-                    Decimal(0)
-                    if force_close
-                    else remaining
-                ),
-                risk_fraction_remaining=risk_fraction,
-                margin_fraction_remaining=margin_fraction,
-            )
-        )
-
-    for bar in causal_bars:
-        favorable, adverse, _close_r = favorable_and_adverse(bar)
-
-        # Only protection that existed at BAR N START may stop the position
-        # inside BAR N.  A protection first derived from this bar cannot be
-        # compared retroactively against this bar's LOW/HIGH.
-        active_stop_r = stop_r
-        if active_stop_r > Decimal(-1) and adverse <= active_stop_r:
-            delta = remaining * active_stop_r
-            remaining = Decimal(0)
-            append_event(
-                bar.closed_at,
-                "STOP_OR_PROTECTED_STOP",
-                delta,
-                force_close=True,
-            )
-            break
-
-        # Partial realization is an action at the closed-bar decision clock.
-        if (
-            LifecycleFeature.PARTIAL_REALIZATION
-            in features
-            and not partial_done
-            and favorable >= Decimal(1)
-            and target_r > Decimal(1)
-            and bar.closed_at < opportunity.horizon_at
-        ):
-            close_fraction = min(
-                Decimal("0.25"), remaining
-            )
-            remaining -= close_fraction
-            partial_done = True
-            append_event(
-                bar.closed_at,
-                "PARTIAL_REALIZATION_1R",
-                close_fraction,
-            )
-
-        # Build the next-bar protection from information frozen at BAR N
-        # close.  Do not evaluate the new stop against BAR N extremes.
-        next_stop_r = stop_r
-        actions_at_close: list[tuple[str, Decimal]] = []
-
-        if (
-            LifecycleFeature.BREAKEVEN in features
-            and not be_done
-            and favorable >= Decimal(1)
-            and bar.closed_at < opportunity.horizon_at
-        ):
-            proposed = max(next_stop_r, cost_r)
-            if proposed > next_stop_r:
-                next_stop_r = proposed
-                actions_at_close.append(
-                    ("MOVE_TO_BREAKEVEN", next_stop_r)
-                )
-            be_done = True
-
-        if (
-            LifecycleFeature.PROFIT_LOCK in features
-            and not lock_done
-            and favorable >= Decimal("1.5")
-            and bar.closed_at < opportunity.horizon_at
-        ):
-            proposed = max(
-                next_stop_r, Decimal("0.5")
-            )
-            if proposed > next_stop_r:
-                next_stop_r = proposed
-                actions_at_close.append(
-                    ("PROFIT_LOCK", next_stop_r)
-                )
-            lock_done = True
-
-        if (
-            LifecycleFeature.TRAILING in features
-            and favorable >= Decimal(2)
-            and bar.closed_at < opportunity.horizon_at
-        ):
-            proposed = max(
-                next_stop_r, favorable - Decimal(1)
-            )
-            if proposed > next_stop_r:
-                next_stop_r = proposed
-                actions_at_close.append(
-                    ("TRAIL_STOP", next_stop_r)
-                )
-            trail_active = True
-
-        # EXTENDED_TARGET cannot be truthfully executed from this M5-only
-        # surface because horizon_at is the original settlement time and no
-        # post-horizon path is supplied.  The feature therefore remains
-        # available but intentionally makes no fabricated same-bar extension.
-        # A future universal lifecycle engine may actuate it only with
-        # pre-target evidence plus real post-horizon path coverage.
-
-        if actions_at_close:
-            stop_r = next_stop_r
-            for action, _new_stop in actions_at_close:
-                append_event(
-                    bar.closed_at,
-                    action,
-                )
-
-    if remaining > 0:
-        # Preserve the exact original settlement for the still-open fraction.
-        # Outcome is consumed only now, after all lifecycle decisions in the
-        # original trade horizon have been frozen.
-        delta = remaining * opportunity.fallback_gross_r
-        remaining = Decimal(0)
-        append_event(
-            opportunity.horizon_at,
-            "HORIZON_ORIGINAL_SETTLEMENT",
-            delta,
-            force_close=True,
-        )
-
+        for item in universal.events
+    )
     return PositionLifecycleResult(
-        signal_fingerprint=opportunity.signal_fingerprint,
-        data_available=True,
-        gross_r=realized_r,
-        exit_at=events[-1].occurred_at,
-        events=tuple(events),
-        risk_released_before_exit_fraction=max(
-            Decimal(0),
-            max(
-                (
-                    Decimal(1)
-                    - item.risk_fraction_remaining
-                    for item in events[:-1]
-                ),
-                default=Decimal(0),
-            ),
+        signal_fingerprint=universal.signal_fingerprint,
+        data_available=universal.data_available,
+        gross_r=universal.gross_r,
+        exit_at=universal.exit_at,
+        events=events,
+        risk_released_before_exit_fraction=(
+            universal.risk_released_before_exit_fraction
         ),
-        margin_released_before_exit_fraction=max(
-            Decimal(0),
-            max(
-                (
-                    Decimal(1)
-                    - item.margin_fraction_remaining
-                    for item in events[:-1]
-                ),
-                default=Decimal(0),
-            ),
+        margin_released_before_exit_fraction=(
+            universal.margin_released_before_exit_fraction
         ),
-        actions=tuple(
-            item.action for item in events
-        ),
+        actions=universal.actions,
     )
