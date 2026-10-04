@@ -32,7 +32,6 @@ from qore.infrastructure.cibo_multi_period_capital_mpc import (
     Genc11KnownOptionSchedule,
     Genc11WorldPath,
     Genc11WorldStep,
-    plan_genc11_from_full_economic_twin,
     plan_genc11_multi_period_capital,
 )
 from qore.infrastructure.market_test_environment import (
@@ -553,7 +552,7 @@ def test_genc11_full_economic_twin_adapter_uses_complete_opportunity_surface() -
         ),
     )
 
-    plan = plan_genc11_from_full_economic_twin(
+    plan = plan_genc11_multi_period_capital(
         plan_id="full-plan",
         twin=full,
         world_paths=(
