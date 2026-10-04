@@ -18,8 +18,10 @@ from typing import Any
 EXPECTED_FUNCTIONS = 53
 REPAIR_SEVERITY = {
     "UNOBSERVABLE": 0,
-    "BLOCKED": 1,
-    "DEGRADED": 2,
+    "AUTHORITY_LOCKED": 1,
+    "SCIENCE_LOCKED": 2,
+    "BLOCKED": 3,
+    "DEGRADED": 4,
 }
 
 
@@ -115,8 +117,30 @@ def _classify(row: dict[str, Any]) -> tuple[str, bool, str]:
                 "runtime is deliberately fail-closed until protected-capital "
                 "preconditions permit expansion",
             )
+        if (
+            row.get("function_code") == "T11"
+            and "t11_gross_edge_model_not_identified" in coverage_reason
+            and "t11_market_impact_model_not_identified" in coverage_reason
+        ):
+            return (
+                "SCIENCE_LOCKED",
+                True,
+                "runtime guard is present but mandatory gross-edge and "
+                "market-impact evidence are not yet bound",
+            )
         return "BLOCKED", True, (
             "runtime is fail-closed or unavailable for a non-contextual reason"
+        )
+
+    if (
+        diagnosis == "NATIVE_ENGINE_DEPENDENCY_BLOCKED"
+        and row.get("function_code") == "CF10"
+    ):
+        return (
+            "AUTHORITY_LOCKED",
+            True,
+            "quantitative engine executes, but authoritative output requires "
+            "a causally valid Trader Lab PASS receipt",
         )
 
     if diagnosis in {
@@ -162,9 +186,11 @@ def _row_probe(row: dict[str, Any]) -> dict[str, Any]:
             ).items()
             if str(key) != "JUSTIFIED_NOT_APPLICABLE"
         )
+        direct_trace_evidence_count = 0
     elif stage == "CE2I":
         invocation_count = max(
             int(row.get("runtime_receipt_count") or 0),
+            int(row.get("direct_trace_evidence_count") or 0),
             int(row.get("advanced_call_count") or 0),
             int(row.get("applied_count") or 0),
         )
@@ -175,6 +201,9 @@ def _row_probe(row: dict[str, Any]) -> dict[str, Any]:
         decision_changed = bool(row.get("decision_change_observable"))
         economic_effect = bool(row.get("economic_effect_observable"))
         native_called_count = int(row.get("runtime_receipt_count") or 0)
+        direct_trace_evidence_count = int(
+            row.get("direct_trace_evidence_count") or 0
+        )
     else:
         invocation_count = int(row.get("call_count") or 0)
         expected_count = invocation_count
@@ -184,6 +213,7 @@ def _row_probe(row: dict[str, Any]) -> dict[str, Any]:
         decision_changed = int(row.get("decision_changed_count") or 0) > 0
         economic_effect = int(row.get("economic_delta_field_count") or 0) > 0
         native_called_count = int(row.get("native_engine_called_count") or 0)
+        direct_trace_evidence_count = 0
 
     return {
         "function_code": str(row.get("function_code")),
@@ -196,6 +226,7 @@ def _row_probe(row: dict[str, Any]) -> dict[str, Any]:
         "invocation_count": invocation_count,
         "expected_or_enabled_count": expected_count,
         "native_called_count": native_called_count,
+        "direct_trace_evidence_count": direct_trace_evidence_count,
         "input_observed": input_observed,
         "output_observed": output_observed,
         "consumer_observed": consumer_observed,
@@ -409,6 +440,14 @@ def build(
             "SAFETY_LOCKED": (
                 "healthy fail-closed safety behavior while expansion "
                 "preconditions are not satisfied"
+            ),
+            "AUTHORITY_LOCKED": (
+                "engine executes but a required external authority receipt "
+                "is not causally available"
+            ),
+            "SCIENCE_LOCKED": (
+                "runtime path exists but mandatory scientific inputs are "
+                "not yet proven/bound"
             ),
             "DEGRADED": (
                 "runtime present but expected downstream effect is not proven"
