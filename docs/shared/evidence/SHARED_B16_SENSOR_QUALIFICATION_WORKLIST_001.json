@@ -1,0 +1,61 @@
+{
+  "identity": "QORE_SHARED_B16_SENSOR_QUALIFICATION_WORKLIST_EVIDENCE_001",
+  "created_at": "2026-10-04",
+  "repository": "mezas3238-hue/qore-core",
+  "branch": "agent/shared-architect-6-provenance-freeze-001",
+  "code_head": "ebcb388b4830ca5896c23af23ab8e77ccb61e430",
+  "test_plane": "QORE_SHARED_LAB_ISOLATED_B6_WORKTREE",
+  "source": {
+    "workflow_run_id": 37228391397,
+    "artifact_id": 11313231357,
+    "artifact_zip_sha256": "354c70a3d3c6ef4a843fb0949bd7e5ec3369542db750a9a8ceddf6caa8577903",
+    "frontier_fingerprint_sha256": "ee9b84abfed7c2b924e77aadae61ff4174116615c7afe1323efa161226e557cc"
+  },
+  "worklist": {
+    "sensor_count": 177,
+    "state_counts": {
+      "EVIDENCE_COMPLETION_REQUIRED": 177
+    },
+    "gap_counts": {
+      "CANONICAL_CALENDAR_EVIDENCE": 177,
+      "CANONICAL_IDENTITY_EVIDENCE": 87,
+      "FULL_REAL_CAUSAL_HISTORY_EVIDENCE": 175,
+      "SCIENTIFIC_VALUE_PROOF": 177
+    },
+    "minimum_missing_evidence_count": 2,
+    "nearest_evidence_completion_symbols": [
+      "XAUUSD",
+      "US2000"
+    ],
+    "ready_for_scientific_value_exam_count": 0,
+    "causal_qualification_complete_count": 0,
+    "worklist_fingerprint_sha256": "d4dd62fd439b7ffbb0eda67d524c34d693be9b5175767f4a8615b0536e08afb1",
+    "shared_lab_result_sha256": "029568cc778bef55a0dc7ae17390c07640d2d0bebd803471f39beb7c3cc57eeb"
+  },
+  "scientific_interpretation": {
+    "provider_presence_is_admission": false,
+    "ordering_basis": "MISSING_QUALIFICATION_EVIDENCE_ONLY",
+    "nearest_evidence_completion_is_trade_priority": false,
+    "xauusd_us2000_status": "IDENTITY_AND_FULL_HISTORY_PRESENT__CALENDAR_AND_SCIENTIFIC_VALUE_OPEN",
+    "xtiusd_status": "PARTIAL_HISTORY__CALENDAR_AND_SCIENTIFIC_VALUE_OPEN",
+    "b16_complete": false
+  },
+  "validation": {
+    "ruff": "PASS",
+    "mypy": "PASS",
+    "unit_tests": "4/4 PASS"
+  },
+  "governance": {
+    "outcome_used": false,
+    "pnl_used": false,
+    "final_shared_holdout_opened": false,
+    "broker_mutation": false,
+    "productive_authority": false,
+    "trade_priority_authority": false,
+    "economic_priority_authority": false,
+    "sensor_admission_authority": false,
+    "sizing_authority": false,
+    "risk_authority": false,
+    "execution_authority": false
+  }
+}
