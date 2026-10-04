@@ -289,6 +289,64 @@ def _direct_ce2i_trace_evidence(
     return result
 
 
+def _compound_t14_evidence(
+    three_lane: dict[str, Any],
+) -> list[dict[str, Any]]:
+    lane = three_lane.get("all_trader_cibo_compound_portfolio_dynamic")
+    if not isinstance(lane, dict):
+        return []
+    rows = lane.get("t14_derisk_decisions")
+    if not isinstance(rows, list):
+        return []
+    result: list[dict[str, Any]] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        action = str(row.get("action"))
+        reduction = _dec(row.get("reduction_volume"))
+        released_risk = _dec(row.get("released_stop_risk_usd"))
+        released_margin = _dec(row.get("released_margin_usd"))
+        if (
+            reduction is None
+            or released_risk is None
+            or released_margin is None
+        ):
+            continue
+        changed = action in {"REDUCE", "RELEASE_ALL"} and reduction > 0
+        result.append(
+            {
+                "input_payload": {
+                    "signal_fingerprint": row.get("signal_fingerprint"),
+                    "trader_id": row.get("trader_id"),
+                    "decision_at": row.get("decision_at"),
+                    "pre_volume": row.get("pre_volume"),
+                    "retention_factor": row.get("retention_factor"),
+                },
+                "output_payload": {
+                    "action": action,
+                    "retained_volume": row.get("retained_volume"),
+                    "reduction_volume": row.get("reduction_volume"),
+                    "released_stop_risk_usd": row.get(
+                        "released_stop_risk_usd"
+                    ),
+                    "released_margin_usd": row.get("released_margin_usd"),
+                    "reason": row.get("reason"),
+                },
+                "downstream_consumer": "compound-cma-risk-request",
+                "consumer_action": "t14-prefill-derisking-applied",
+                "decision_changed": changed,
+                "economic_effect_observable": (
+                    changed
+                    and (released_risk > 0 or released_margin > 0)
+                ),
+                "research_only": True,
+                "broker_mutation": False,
+                "outcome_used": False,
+            }
+        )
+    return result
+
+
 def _cognitive_rows(opportunities: list[dict[str, Any]]) -> list[dict[str, Any]]:
     result = []
     for code in CF_CODES:
@@ -475,6 +533,9 @@ def _ce2i_rows(
     direct_trace_evidence: dict[str, list[dict[str, Any]]] = {
         code: [] for code in T_CODES
     }
+    direct_trace_evidence["T14"].extend(
+        _compound_t14_evidence(three_lane)
+    )
     dynamic_rows = group.get("dynamic_leverage_decisions", [])
     if not isinstance(dynamic_rows, list):
         raise ValueError("dynamic leverage decisions must be a list")
@@ -855,6 +916,7 @@ def main() -> int:
     parser.add_argument("--decision-trace", type=Path, required=True)
     parser.add_argument("--coverage", type=Path, required=True)
     parser.add_argument("--capital-science-io", type=Path, required=True)
+    parser.add_argument("--three-lane", type=Path, required=True)
     parser.add_argument("--group-result", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
@@ -862,6 +924,7 @@ def main() -> int:
     trace = _load(args.decision_trace)
     coverage_raw = _load(args.coverage)
     capital = _load(args.capital_science_io)
+    three_lane = _load(args.three_lane)
     group = _load(args.group_result)
     opportunities = trace.get("opportunities")
     if not isinstance(opportunities, list) or not opportunities:
