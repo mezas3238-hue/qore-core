@@ -238,7 +238,14 @@ def classify_resilience(required_sensor_count: int, available_required_sensor_co
     return DegradationClass.CRITICAL_SENSOR_FAILURE
 
 
-def compute_quality_metrics(observations: Iterable[ProviderDatum], *, expected_observations: int, freshness_limit_ns: int, now_ns: int) -> DataQualityMetrics:
+def compute_quality_metrics(
+    observations: Iterable[ProviderDatum],
+    *,
+    expected_observations: int,
+    freshness_limit_ns: int,
+    now_ns: int,
+    provider_disagreement_count: int = 0,
+) -> DataQualityMetrics:
     items = tuple(observations)
     fingerprints: set[str] = set()
     duplicate = out_of_order = stale = invalid = usable = 0
@@ -274,7 +281,7 @@ def compute_quality_metrics(observations: Iterable[ProviderDatum], *, expected_o
         out_of_order_count=out_of_order,
         stale_count=stale,
         invalid_count=invalid,
-        provider_disagreement_count=0,
+        provider_disagreement_count=provider_disagreement_count,
         gap_distribution_ns=tuple(gaps),
         latency_distribution_ns=tuple(latencies),
         usable_observations=usable,
