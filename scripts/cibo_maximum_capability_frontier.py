@@ -23,7 +23,11 @@ from qore.infrastructure.cibo_maximum_capability_frontier import (
     PositionLifecycleResult,
     cognitive_multiplier_cap,
     optimize_epoch_multipliers,
-    simulate_position_lifecycle,
+)
+from qore.infrastructure.cibo_position_lifecycle import (
+    CiboLifecycleFeature,
+    CiboPositionLifecycleInput,
+    run_cibo_position_lifecycle,
 )
 from qore.infrastructure.trader_lab.cibo_market_atlas_journey_extractor_v1 import (
     load_raw_m5,
