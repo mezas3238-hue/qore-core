@@ -388,10 +388,11 @@ B_WORK_ITEMS: Final = (
         ),
         (
             "run 37228503625 verifies exact run/artifact/producer-branch/SHA/digest "
-            "provenance coverage for 22/24 B workstream IDs; only B-22 and B-24 "
-            "remain intentionally uncovered because their downstream artifacts do not exist",
-            "B-21 remains partial until B-22 and B-24 are legitimately emitted; "
-            "provenance coverage never substitutes for scientific terminality",
+            "provenance coverage for 22/24 B workstream IDs; only downstream B-22 "
+            "and B-24 are intentionally absent, so pre-freeze provenance topology is complete",
+            "B-21 remains partial because final deterministic replay over the terminal "
+            "B surface is not yet sealed and upstream B work remains nonterminal; "
+            "future B-22/B-24 self-provenance is not a prerequisite for B-22 readiness",
         ),
     ),
     SharedBWorkItem(
