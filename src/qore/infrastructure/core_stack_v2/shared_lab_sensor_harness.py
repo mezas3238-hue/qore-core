@@ -5,7 +5,11 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from enum import StrEnum
 
-from qore.infrastructure.core_stack_v2.shared_lab_data_reality import ProviderDatum, classify_resilience
+from qore.infrastructure.core_stack_v2.shared_lab_data_reality import (
+    ProviderDatum,
+    classify_resilience,
+    fingerprint_datum,
+)
 from qore.infrastructure.core_stack_v2.shared_lab_tools import SharedLabToolRegistry
 
 
@@ -103,3 +107,65 @@ def expand_required_fault_cases(registry: SharedLabToolRegistry, *, sensors: tup
 
 def degradation_classification(required: int, available: int, alternatives: int, observability: float) -> str:
     return classify_resilience(required, available, alternatives, observability).value
+
+
+
+def detect_injected_fault(
+    base: tuple[ProviderDatum, ...],
+    mutated: tuple[ProviderDatum, ...],
+    fault: SensorFault,
+    *,
+    amount_ns: int = 1_000_000,
+) -> bool:
+    if fault in {SensorFault.MISSING, SensorFault.PARTIAL_HISTORY, SensorFault.INTERMITTENT}:
+        return len(mutated) < len(base)
+    if fault in {SensorFault.DISCONNECTED_PROVIDER, SensorFault.SENSOR_STARVATION}:
+        return bool(base) and not mutated
+    if not base or not mutated:
+        return False
+    if fault is SensorFault.DUPLICATED:
+        return len(mutated) > len(base) and fingerprint_datum(mutated[0]) == fingerprint_datum(mutated[1])
+    if fault is SensorFault.OUT_OF_ORDER:
+        return len(mutated) > 1 and mutated[0].sequence > mutated[1].sequence
+    if fault is SensorFault.STALE:
+        return all(m.available_at_ns < b.available_at_ns for b, m in zip(base, mutated))
+    if fault is SensorFault.FUTURE_TIMESTAMP:
+        return all(m.available_at_ns > m.observed_at_ns for m in mutated)
+    if fault is SensorFault.MALFORMED_VALUE:
+        return mutated[0].bid is not None and mutated[0].bid <= 0
+    if fault is SensorFault.WRONG_ASSET_CLASS:
+        return mutated[0].metadata_asset_class != base[0].metadata_asset_class
+    if fault is SensorFault.DELAYED:
+        return all(m.available_at_ns - b.available_at_ns >= amount_ns for b, m in zip(base, mutated))
+    if fault is SensorFault.RECONNECT_GAP:
+        return len(mutated) > 1 and mutated[1].sequence != mutated[0].sequence + 1
+    if fault is SensorFault.SPREAD_ANOMALY:
+        return (
+            mutated[0].bid is not None
+            and mutated[0].ask is not None
+            and mutated[0].ask - mutated[0].bid > abs(mutated[0].bid)
+        )
+    if fault is SensorFault.TIMESTAMP_DRIFT:
+        return all(m.observed_at_ns - b.observed_at_ns >= amount_ns for b, m in zip(base, mutated))
+    if fault is SensorFault.ALIAS_COLLISION:
+        return mutated[0].provider_symbol == "AMBIGUOUS_ALIAS"
+    return mutated != base
+
+
+def run_sensor_probe(
+    *,
+    sensor_id: str,
+    data: tuple[ProviderDatum, ...],
+    fault: SensorFault,
+    amount_ns: int = 1_000_000,
+) -> SensorProbeReceipt:
+    mutated = inject_fault(data, fault, amount_ns=amount_ns)
+    detected = detect_injected_fault(data, mutated, fault, amount_ns=amount_ns)
+    return SensorProbeReceipt(
+        sensor_id=sensor_id,
+        fault=fault,
+        input_count=len(data),
+        output_count=len(mutated),
+        detected=detected,
+        failure_classifications=(fault.value,) if detected else (),
+    )
