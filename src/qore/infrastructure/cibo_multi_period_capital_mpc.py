@@ -29,6 +29,9 @@ from qore.infrastructure.cibo_capital_digital_twin import (
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
+from qore.infrastructure.cibo_recovery_probe_efficiency_guard import (
+    evaluate_recovery_probe_efficiency,
+)
 from qore.infrastructure.cibo_full_economic_digital_twin import (
     CiboObservedEconomicTwin,
 )
@@ -534,6 +537,13 @@ def plan_genc11_multi_period_capital(
                     - item.provider_cost_usd
                     - item.uncertainty_penalty
                 ) > 0
+                and evaluate_recovery_probe_efficiency(
+                    expected_net_value_usd=item.expected_net_value_usd,
+                    stop_risk_usd=item.stop_risk_usd,
+                    hard_risk_headroom_usd=(
+                        full_twin.capital_twin.stop_risk_headroom_usd
+                    ),
+                ).admitted
             )
         )
         if eligible_recovery_probes:
