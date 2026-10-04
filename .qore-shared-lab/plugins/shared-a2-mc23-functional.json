@@ -10,11 +10,14 @@
     "-m",
     "pytest",
     "-q",
-    "tests/infrastructure/test_core_stack_v2_meta_learning_regime_adaptation.py"
+    "tests/infrastructure/test_core_stack_v2_meta_learning_regime_adaptation.py",
+    "tests/infrastructure/test_core_stack_v2_mc23_validated_novel_regime_adaptation.py"
   ],
   "component_globs": [
     "src/qore/infrastructure/core_stack_v2/meta_learning_regime_adaptation.py",
+    "src/qore/infrastructure/core_stack_v2/mc23_validated_novel_regime_adaptation.py",
     "scripts/shared_mc23_*.py",
-    "tests/infrastructure/test_core_stack_v2_meta_learning_regime_adaptation.py"
+    "tests/infrastructure/test_core_stack_v2_meta_learning_regime_adaptation.py",
+    "tests/infrastructure/test_core_stack_v2_mc23_validated_novel_regime_adaptation.py"
   ]
 }
