@@ -186,14 +186,28 @@ def test_nonpositive_marginal_value_abstains_before_cma_and_risk() -> None:
 
 
 def test_postrun_receipts_complete_c9_c13_c14_without_same_trade_mutation() -> None:
-    pre = runtime.evaluate_capital_science_predecision(_state()).receipts
+    state = _state()
+    pre = runtime.evaluate_capital_science_predecision(state).receipts
+    lane = tuple(
+        runtime.build_capital_science_lane_receipt(
+            state=state,
+            function_code=code,
+            disposition=runtime.CapitalScienceDisposition.ELIGIBLE_NO_CHANGE,
+            reason="unit-test lane receipt",
+            downstream_consumer="UNIT_TEST",
+            consumer_action="OBSERVED",
+            output_details={"code": code},
+            native_engine_name="unit_test_native_lane_engine",
+        )
+        for code in ("GEN-C1", "GEN-C3", "GEN-C6")
+    )
     post = runtime.build_capital_science_postrun_receipts(
         observed_at=NOW,
         ending_capital_usd=Decimal("66"),
         net_realized_pnl_usd=Decimal("6"),
         settlement_rows=(("signal-1", "VT31_NAS100", Decimal("1.25")),),
     )
-    aggregate = runtime.aggregate_capital_science_receipts(pre + post)
+    aggregate = runtime.aggregate_capital_science_receipts(pre + lane + post)
 
     assert {row["function_code"].split("_", 1)[0] for row in aggregate} == set(
         runtime.MANDATORY_RUNTIME_GENC
