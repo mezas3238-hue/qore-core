@@ -48,6 +48,8 @@ from qore.infrastructure.core_stack_v2.shared_lab_sensor_harness import (
     SensorFault,
     inject_fault,
 )
+from qore.infrastructure.core_stack_v2.shared_lab_resilience import assess_resilience
+from qore.infrastructure.core_stack_v2.shared_lab_universe_completeness import assess_universe_coverage
 from qore.infrastructure.core_stack_v2.shared_lab_temporal_harness import assess_temporal
 
 
@@ -184,8 +186,26 @@ def run_engineering_data_reality_exam() -> DataRealityExamResult:
     )
 
     missing_sensor = inject_fault((datum,), SensorFault.MISSING)
-    redundancy = classify_resilience(2, 1, 2, 0.9)
-    critical = classify_resilience(1, 0, 0, 0.0)
+    universe = assess_universe_coverage(
+        ("FX:EURUSD", "METAL:XAUUSD", "CRYPTO:BTCUSD"),
+        ("FX:EURUSD", "METAL:XAUUSD", "CRYPTO:BTCUSD"),
+    )
+    redundancy = assess_resilience(
+        required_sensor_count=2,
+        available_required_sensor_count=1,
+        alternative_sensor_count=2,
+        observability_ratio=0.9,
+        base_uncertainty=0.1,
+        affected_dependencies=("representation.microstructure",),
+    )
+    critical = assess_resilience(
+        required_sensor_count=1,
+        available_required_sensor_count=0,
+        alternative_sensor_count=0,
+        observability_ratio=0.0,
+        base_uncertainty=0.1,
+        affected_dependencies=("representation.price",),
+    )
 
     l10 = run_data_l10(
         stale_detected=True,
@@ -204,7 +224,11 @@ def run_engineering_data_reality_exam() -> DataRealityExamResult:
         _evidence(DataRealityGate.PROVIDER_INTEGRITY, receipt1.provider_lineage_pass, asdict(receipt1)),
         _evidence(DataRealityGate.CANONICAL_IDENTITY, receipt1.identity_pass and receipt1.canonical_economic_id == identity.economic_id, asdict(receipt1)),
         _evidence(DataRealityGate.MARKET_HOURS, market_state in {SessionState.OPEN, SessionState.OVERNIGHT}, market_state.value),
-        _evidence(DataRealityGate.DATA_COMPLETENESS, receipt1.completeness_pass, asdict(metrics)),
+        _evidence(
+            DataRealityGate.DATA_COMPLETENESS,
+            receipt1.completeness_pass and universe.passed,
+            {"dataset": asdict(metrics), "universe": asdict(universe)},
+        ),
         _evidence(DataRealityGate.DATA_QUALITY, receipt1.quality_pass, asdict(metrics)),
         _evidence(
             DataRealityGate.PROVENANCE,
@@ -212,8 +236,16 @@ def run_engineering_data_reality_exam() -> DataRealityExamResult:
             and receipt1.raw_parent_fingerprint == (obs1.parent_fingerprint if obs1 else None),
             {"decode_lineage": asdict(decode_lineage), "receipt": asdict(receipt1)},
         ),
-        _evidence(DataRealityGate.REDUNDANCY_RESILIENCE, redundancy.value == "DEGRADED_BUT_USABLE", redundancy.value),
-        _evidence(DataRealityGate.FAIL_DEGRADED, critical.value == "ABSTENTION_REQUIRED", critical.value),
+        _evidence(
+            DataRealityGate.REDUNDANCY_RESILIENCE,
+            redundancy.passed and redundancy.classification.value == "DEGRADED_BUT_USABLE",
+            asdict(redundancy),
+        ),
+        _evidence(
+            DataRealityGate.FAIL_DEGRADED,
+            critical.passed and critical.abstention_required and not critical.data_plane_continues,
+            asdict(critical),
+        ),
         _evidence(DataRealityGate.LEAKAGE_FIREWALL, leakage_probe.detected_future_leakage and not leakage_probe.passed, asdict(leakage_probe)),
         _evidence(DataRealityGate.DETERMINISTIC_REPLAY, deterministic_replay_equal(obs1, receipt1, obs2, receipt2) and bound.lineage_exact_to_next_consumer, {"replay_equal": True, "lineage": bound.lineage_exact_to_next_consumer}),
         _evidence(
