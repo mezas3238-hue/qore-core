@@ -141,6 +141,10 @@ class SharedA3B4WorldFact:
                 raise SharedA3B4SeamValidationError(
                     "relation eligibility requires canonical market-time semantics"
                 )
+            if self.data_health_state != "HEALTHY":
+                raise SharedA3B4SeamValidationError(
+                    "relation eligibility requires healthy B-09 data state"
+                )
 
         if self.trader_methodology_present:
             raise SharedA3B4SeamValidationError(
@@ -174,6 +178,7 @@ class SharedA3B4WorldFact:
             self.identity_resolved
             and self.temporal_status is SharedA3B4TemporalStatus.COMPARABLE
             and self.calendar_status is SharedA3B4CalendarStatus.VERIFIED_CANONICAL
+            and self.data_health_state == "HEALTHY"
         )
 
     def fingerprint(self) -> str:
