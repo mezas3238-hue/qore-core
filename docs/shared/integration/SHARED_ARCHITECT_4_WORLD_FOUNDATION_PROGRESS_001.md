@@ -135,3 +135,35 @@ CI GREEN != SCIENTIFIC CLOSURE
 ```
 
 This checkpoint claims no B4 work ID complete.
+
+
+## Execution checkpoint — 2026-10-04
+
+### B-06 validated closure
+
+- validation run: `37228295074` — SUCCESS;
+- code SHA: `83dcf44122813043183ecbf2ba57235018da72a7`;
+- artifact: `11312761430`;
+- artifact digest: `sha256:9bbb502decc1d5a0efdc5b08d8939d272f01ba3b34e6072daf18f9ea1c031702`;
+- 177/177 identity dispositions materialized;
+- 85 CURRENT_REFERENCE_VERIFIED;
+- 5 VERSIONED_CONTRACT_VERIFIED;
+- 2 LEGACY_LINEAGE_ONLY;
+- 12 PROVIDER_BINDING_UNKNOWN;
+- 73 PROVIDER_ATTESTED_ONLY;
+- 90 may proceed to calendar qualification;
+- 87 remain explicit UNKNOWN/limited;
+- zero calendar/relation/productive authority widened.
+
+Disposition: **B-06 epistemic identity closure PASS**. This does not claim all
+177 canonical identities are verified; it proves every sensor has an honest,
+terminal identity state.
+
+### B-07 active repair
+
+First B-07 validation run `37228453308` exposed a static typing defect
+(`mypy no-redef`) before any sealed evidence was consumed. The defect was
+repaired at `6dbc5b806d24602fd7196f1550bd05a38731c848` and revalidation
+was started as run `37228533004`.
+
+No B-07 completion claim is made until the repaired run is terminal GREEN.
