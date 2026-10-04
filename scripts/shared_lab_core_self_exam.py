@@ -32,15 +32,6 @@ from qore.infrastructure.core_stack_v2.shared_lab_tools import (
 )
 
 
-CORE_L10_FAULTS = (
-    LabFault.DEAD_NATIVE_ENGINE,
-    LabFault.ADAPTER_SUBSTITUTED_FOR_ENGINE,
-    LabFault.FUTURE_LEAKAGE,
-    LabFault.DUPLICATED_OUTPUT,
-    LabFault.IGNORED_COGNITION,
-    LabFault.FAKE_PASS,
-)
-
 
 def _record(
     *,
