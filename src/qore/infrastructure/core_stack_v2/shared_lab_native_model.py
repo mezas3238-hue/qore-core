@@ -240,6 +240,7 @@ class TaskResult:
         payload["scope"] = self.scope.value
         payload["state"] = self.state.value
         payload["component"] = self.task_id
+        payload["cache_status"] = "CACHE_VALID" if self.cache_hit else "EXECUTED"
         payload["outputs"] = tuple(
             path for path in (self.stdout_path, self.stderr_path) if path
         )
