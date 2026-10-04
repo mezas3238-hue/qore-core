@@ -1,0 +1,27 @@
+{
+  "identity": "QORE_SHARED_MC18_HISTORICAL_FOUNDATION_LINEAGE_001",
+  "owner_lane": "SHARED_ARCHITECT_1",
+  "status": "FOUNDATION_PASS_CALIBRATION_STILL_OPEN",
+  "foundation": {
+    "run_id": 36764204066,
+    "git_sha": "5632b10e85c26d8bf9c8a8ca83a063ed1070f525",
+    "disposition": "MC18_COUNTERFACTUAL_WORLD_ENGINE_REAL_DATA_BOUND_PASS",
+    "r6_observations": 21123,
+    "r5_observations": 23363,
+    "deterministic": true,
+    "probability_sum_valid": true,
+    "unknown_shock_preserved": true,
+    "deterministic_future_claimed": false
+  },
+  "remaining_science": {
+    "probability_calibration_demonstrated": false,
+    "completed_and_proven": false,
+    "calibration_preregistration": "QORE_SHARED_MC18_COUNTERFACTUAL_FAILURE_CALIBRATION_PREREGISTRATION_001",
+    "calibration_engineering": "QORE_SHARED_MC18_CALIBRATION_ENGINEERING_READINESS_001",
+    "independent_future_value_dependency": "MC27_PROSPECTIVE_OOS"
+  },
+  "governance": {
+    "protected_final_holdout_opened": false,
+    "productive_authority": false
+  }
+}

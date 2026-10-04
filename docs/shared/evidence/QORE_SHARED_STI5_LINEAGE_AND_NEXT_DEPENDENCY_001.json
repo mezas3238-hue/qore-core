@@ -1,0 +1,35 @@
+{
+  "identity": "QORE_SHARED_STI5_LINEAGE_AND_NEXT_DEPENDENCY_001",
+  "owner_lane": "SHARED_ARCHITECT_1",
+  "status": "FALSIFIED_V1_CLOSED_CAPABILITY_WAITING_GENUINELY_NEW_INFORMATION",
+  "v1": {
+    "run_id": 36640098773,
+    "git_sha": "a6f2855bacc6f472e8fe70267f6b6700a607c423",
+    "disposition": "STI5_V1_FALSIFIED_ON_CONSUMED_EVIDENCE",
+    "r6_precision_bps": 3987,
+    "r6_recall_bps": 1752,
+    "r5_precision_bps": 3904,
+    "r5_recall_bps": 2177,
+    "reopened": false
+  },
+  "failure_knowledge": {
+    "run_id": 36685175913,
+    "git_sha": "8f5d1a05bc59bd754fc43e1e5f2c4525d321b9f2",
+    "cross_partition_hypotheses": [],
+    "v1_threshold_rescue": false,
+    "v1_policy_rescue": false,
+    "conclusion": "CURRENT_SENSOR_REPRESENTATION_DID_NOT_SUPPORT_A_CROSS_PARTITION_SUCCESSOR"
+  },
+  "next_dependency": {
+    "required": "GENUINELY_NEW_NON_OUTCOME_SELECTED_INFORMATION_OR_MECHANISM",
+    "current_candidate": "MC14_B04_XAUUSD_NEW_INFORMATION_ONLY_AFTER_SINGLE_GOVERNED_REPLAY",
+    "mc14_state": "READY_BUT_SHARED_LAB_BLOCKED",
+    "preregister_successor_before_outcome_evaluation": true
+  },
+  "governance": {
+    "no_gate_lowering": true,
+    "burned_evidence_not_relabeled_fresh": true,
+    "protected_final_holdout_opened": false,
+    "productive_authority": false
+  }
+}
