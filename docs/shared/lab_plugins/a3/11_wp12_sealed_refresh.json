@@ -1,0 +1,34 @@
+{
+  "task_id": "a3-wp12-sealed-refresh",
+  "suite": "CAUSALITY",
+  "scope": "cognition",
+  "dependencies": [
+    "a3-mc27-audit",
+    "a3-mc28-taxonomy"
+  ],
+  "command": [
+    "bash",
+    "-lc",
+    "set -euo pipefail; root=\"${QORE_SHARED_A3_SEALED_INPUT_ROOT:-$PWD/result/a3-wp12-sealed-input}\"; mkdir -p \"$root\"; fetch_artifact(){ id=\"$1\"; dest=\"$2\"; rm -rf \"$dest\" \"$dest.zip\"; mkdir -p \"$dest\"; gh api \"/repos/${GITHUB_REPOSITORY}/actions/artifacts/${id}/zip\" > \"$dest.zip\"; unzip -q \"$dest.zip\" -d \"$dest\"; (cd \"$dest\" && sha256sum -c SHA256SUMS); }; fetch_artifact 11126331852 \"$root/mc26\"; fetch_artifact 11128321427 \"$root/mc27\"; fetch_artifact 11134473860 \"$root/mc28\"; python scripts/shared_wp12_exact_blocker_audit.py --mc26 \"$root/mc26/mc26-real-all-facet-arbitration.json\" --mc27 \"$root/mc27/mc27-prospective-research-cycle.json\" --mc28 \"$root/mc28/mc28-broker-provider-mismatch.json\" --output result/a3-wp12-exact-blockers.json; cat result/a3-wp12-exact-blockers.json"
+  ],
+  "component_globs": [
+    "scripts/shared_wp12_exact_blocker_audit.py",
+    "docs/shared/evidence/QORE_SHARED_MC27_PROSPECTIVE_META_COGNITIVE_RESEARCH_CYCLE_001.json"
+  ],
+  "sealed_dependencies": {
+    "mc26": {
+      "run_id": 36778113179,
+      "artifact_id": 11126331852
+    },
+    "mc27": {
+      "run_id": 36782066174,
+      "artifact_id": 11128321427
+    },
+    "mc28_broker_provider": {
+      "run_id": 36796674458,
+      "artifact_id": 11134473860
+    }
+  },
+  "master_ledger_mutation": false,
+  "protected_holdout_opened": false
+}

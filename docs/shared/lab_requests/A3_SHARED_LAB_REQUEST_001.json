@@ -1,6 +1,6 @@
 {
   "identity": "QORE_SHARED_A3_SHARED_LAB_REQUEST_001",
-  "request_revision": 2,
+  "request_revision": 3,
   "requested_by": "Architect-A3",
   "role": "ARCHITECT",
   "repository": "mezas3238-hue/qore-core",
@@ -40,5 +40,21 @@
     "shared_sizing_authority": false,
     "shared_risk_authority": false,
     "shared_execution_authority": false
-  }
+  },
+  "previous_success_run_id": 37229054096,
+  "previous_success_artifact_id": 11313112974,
+  "wp12_refresh": {
+    "reason": "BROKER_PROVIDER_MISMATCH_CLOSED_AFTER_WP12_AUDIT_002",
+    "expected_blocker_count": 5,
+    "expected_removed_blocker": "MC28_DIAGNOSTIC_BROKER_PROVIDER_MISMATCH",
+    "test_plane": "QORE_SHARED_LAB",
+    "sealed_input_artifacts": [
+      11126331852,
+      11128321427,
+      11134473860
+    ]
+  },
+  "task_ids": [
+    "a3-wp12-sealed-refresh"
+  ]
 }

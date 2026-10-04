@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-IDENTITY = "QORE_SHARED_WP12_EXACT_BLOCKER_AUDIT_002"
+IDENTITY = "QORE_SHARED_WP12_EXACT_BLOCKER_AUDIT_003"
 
 
 def _load(path: Path) -> dict[str, Any]:
@@ -36,10 +36,12 @@ def main() -> None:
         raise AssertionError("MC26 completion flag missing")
     if mc27.get("status") != "MC27_PROSPECTIVE_RESEARCH_PRIORITY_PREREGISTERED":
         raise AssertionError("MC27 prospective evidence missing")
-    if mc28.get("status") != "MC28_MODEL_RUNTIME_INSTABILITY_REAL_BOUND_PASS_OPEN_3":
-        raise AssertionError("latest MC28 diagnostic evidence missing")
-    if mc28.get("model_runtime_instability_diagnostic_bound") is not True:
-        raise AssertionError("MC28 runtime-instability diagnostic not bound")
+    if mc28.get("status") != "MC28_BROKER_PROVIDER_MISMATCH_REAL_BOUND_PASS_OPEN_2":
+        raise AssertionError("latest MC28 broker/provider evidence missing")
+    if mc28.get("broker_provider_mismatch_diagnostic_bound") is not True:
+        raise AssertionError("MC28 broker/provider diagnostic not bound")
+    if mc28.get("broker_provider_mismatch_open") is not False:
+        raise AssertionError("MC28 broker/provider diagnostic must be closed")
     if mc28.get("mc28_completed_and_proven") is not False:
         raise AssertionError("MC28 must remain open while diagnostics remain")
 
@@ -59,7 +61,6 @@ def main() -> None:
         "MC27_COMPLETED_AND_PROVEN",
         "MC27_PROSPECTIVE_FUTURE_OOS_IMPROVEMENT",
         "MC28_COMPLETED_AND_PROVEN",
-        "MC28_DIAGNOSTIC_BROKER_PROVIDER_MISMATCH",
         "MC28_DIAGNOSTIC_CLOCK_DRIFT",
         "MC28_DIAGNOSTIC_EXECUTION_QUALITY_DETERIORATION",
     )
@@ -74,6 +75,7 @@ def main() -> None:
         "mc27_prospective_cycle_preregistered": True,
         "mc28_mapping_error_diagnostic_complete": True,
         "mc28_model_runtime_instability_diagnostic_complete": True,
+        "mc28_broker_provider_mismatch_diagnostic_complete": True,
         "mc28_open_diagnostics": open_diagnostics,
         "blocker_count": len(blockers_tuple),
         "blockers": blockers_tuple,
