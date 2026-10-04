@@ -41,9 +41,44 @@ def test_metamorphic_invariant_rejects_irrelevant_sensitivity():
 
 def test_capability_requires_mutation_metamorphic_and_ablation():
     observations = (
-        ExperimentObservation("m", "MC18", ExperimentKind.MUTATION, "a", "b", "x", "y", True, True, True),
-        ExperimentObservation("meta", "MC18", ExperimentKind.METAMORPHIC, "a", "b", "x", "x", True, False, False, True, True),
-        ExperimentObservation("a", "MC18", ExperimentKind.ABLATION, "a", "b", "x", "y", True, True, True),
+        ExperimentObservation(
+            "m",
+            "MC18",
+            ExperimentKind.MUTATION,
+            "a",
+            "b",
+            "x",
+            "y",
+            True,
+            True,
+            True,
+        ),
+        ExperimentObservation(
+            "meta",
+            "MC18",
+            ExperimentKind.METAMORPHIC,
+            "a",
+            "b",
+            "x",
+            "x",
+            True,
+            False,
+            False,
+            True,
+            True,
+        ),
+        ExperimentObservation(
+            "a",
+            "MC18",
+            ExperimentKind.ABLATION,
+            "a",
+            "b",
+            "x",
+            "y",
+            True,
+            True,
+            True,
+        ),
     )
     result = assess_capability_experiments("MC18", observations)
     assert result.mutation_pass is True
