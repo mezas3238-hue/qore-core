@@ -43,6 +43,7 @@ on:
       - tests/infrastructure/test_core_stack_v2_shared_lab_authority.py
       - tests/infrastructure/test_core_stack_v2_shared_lab_readiness.py
       - tests/infrastructure/test_core_stack_v2_shared_lab_manifest.py
+      - scripts/shared_lab_core_self_exam.py
       - .github/workflows/qore-shared-lab-core-integrity.yml
   workflow_dispatch:
 
@@ -102,7 +103,8 @@ jobs:
             tests/infrastructure/test_core_stack_v2_shared_lab_seven_trader.py \
             tests/infrastructure/test_core_stack_v2_shared_lab_authority.py \
             tests/infrastructure/test_core_stack_v2_shared_lab_readiness.py \
-            tests/infrastructure/test_core_stack_v2_shared_lab_manifest.py
+            tests/infrastructure/test_core_stack_v2_shared_lab_manifest.py \
+            scripts/shared_lab_core_self_exam.py
       - name: Mypy
         run: |
           mypy \
@@ -147,3 +149,15 @@ jobs:
             tests/infrastructure/test_core_stack_v2_shared_lab_authority.py \
             tests/infrastructure/test_core_stack_v2_shared_lab_readiness.py \
             tests/infrastructure/test_core_stack_v2_shared_lab_manifest.py
+
+      - name: Run core self-exam
+        run: |
+          mkdir -p result/shared-lab
+          python scripts/shared_lab_core_self_exam.py \
+            --output result/shared-lab/core-self-exam.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-lab-core-self-exam-${{ github.sha }}
+          path: result/shared-lab/
+          if-no-files-found: error
+          retention-days: 90
