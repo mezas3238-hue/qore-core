@@ -225,6 +225,16 @@ class TaskResult:
         payload["suite"] = self.suite.value
         payload["scope"] = self.scope.value
         payload["state"] = self.state.value
+        payload["component"] = self.task_id
+        payload["outputs"] = tuple(
+            path for path in (self.stdout_path, self.stderr_path) if path
+        )
+        payload["consumer_evidence"] = ()
+        payload["causal_evidence"] = ()
+        payload["regression_evidence"] = ()
+        payload["performance_metrics"] = {}
+        payload["replay_metrics"] = {}
+        payload["final_disposition"] = self.state.value
         return payload
 
     @classmethod
