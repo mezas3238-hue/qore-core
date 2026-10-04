@@ -315,15 +315,18 @@ B_WORK_ITEMS: Final = (
             "artifact:11113260581",
             "artifact:11116986748",
             "artifact:11127854507",
+            "artifact:11313231357",
             "run:36757173753",
             "run:36783433192",
+            "run:37228391397",
         ),
         (
-            "exact 177-sensor qualification frontier is frozen with 0 admissions; "
-            "90 sensors have identity evidence for the next step, 2 have full "
-            "real BID/ASK history, 1 partial, and 174 lack bound real causal history",
-            "canonical calendar bindings remain 0/177 and scientific value is "
-            "not yet proven for any sensor",
+            "B-16 qualification is now progressive and consumes newer governed "
+            "identity/calendar/source evidence without automatic admission; the "
+            "current sealed snapshot still has 0 admissions and no scientific-value proof",
+            "current sealed upstream evidence still leaves canonical calendar/source "
+            "prerequisites incomplete across the 177-sensor universe; B-16 cannot "
+            "close until causal qualification and scientific value are actually proven",
         ),
     ),
     SharedBWorkItem(
@@ -372,18 +375,23 @@ B_WORK_ITEMS: Final = (
             "artifact:11125588197",
             "artifact:11126485523",
             "artifact:11127424217",
+            "artifact:11312932170",
+            "artifact:11313306408",
             "run:36746337433",
             "run:36758248635",
             "run:36765319771",
             "run:36776003986",
             "run:36777484441",
             "run:36782511198",
+            "run:37228394518",
+            "run:37228503625",
         ),
         (
-            "current sealed provenance explicitly covers 18/24 B workstream IDs; "
-            "B-04/B-07/B-08/B-21/B-22/B-24 still lack final coverage",
-            "total provenance cannot close before all mandatory B workstreams have "
-            "a terminal or explicitly governed blocked disposition",
+            "run 37228503625 verifies exact run/artifact/producer-branch/SHA/digest "
+            "provenance coverage for 22/24 B workstream IDs; only B-22 and B-24 "
+            "remain intentionally uncovered because their downstream artifacts do not exist",
+            "B-21 remains partial until B-22 and B-24 are legitimately emitted; "
+            "provenance coverage never substitutes for scientific terminality",
         ),
     ),
     SharedBWorkItem(
