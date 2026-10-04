@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import argparse
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+import threading
 from typing import Any
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
@@ -130,19 +131,51 @@ class SchedulerServer:
     scheduler: SharedLabScheduler
     host: str = "127.0.0.1"
     port: int = 8765
+    _httpd: ThreadingHTTPServer | None = field(init=False, default=None)
+    _thread: threading.Thread | None = field(init=False, default=None)
+
+    def _server(self) -> ThreadingHTTPServer:
+        if self._httpd is None:
+            handler = type(
+                "BoundSchedulerHandler",
+                (SchedulerRequestHandler,),
+                {"scheduler": self.scheduler},
+            )
+            self._httpd = ThreadingHTTPServer((self.host, self.port), handler)
+        return self._httpd
+
+    @property
+    def bound_port(self) -> int:
+        server = self._server()
+        return int(server.server_address[1])
+
+    def start_in_thread(self) -> threading.Thread:
+        if self._thread is not None and self._thread.is_alive():
+            return self._thread
+        server = self._server()
+        self._thread = threading.Thread(
+            target=server.serve_forever,
+            name="shared-lab-api",
+            daemon=True,
+        )
+        self._thread.start()
+        return self._thread
 
     def serve_forever(self) -> None:
-        handler = type(
-            "BoundSchedulerHandler",
-            (SchedulerRequestHandler,),
-            {"scheduler": self.scheduler},
-        )
-        server = ThreadingHTTPServer((self.host, self.port), handler)
+        server = self._server()
         try:
             server.serve_forever()
         finally:
             server.server_close()
             self.scheduler.shutdown(wait=True)
+
+    def shutdown(self) -> None:
+        if self._httpd is not None:
+            self._httpd.shutdown()
+            self._httpd.server_close()
+        if self._thread is not None:
+            self._thread.join(timeout=5)
+        self.scheduler.shutdown(wait=True)
 
 
 class SchedulerClient:
