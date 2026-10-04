@@ -19,7 +19,7 @@ Decimal precision, including GEN-C10 observed and projected world-capacity conse
 from __future__ import annotations
 
 from collections import Counter, defaultdict
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Any
@@ -47,6 +47,10 @@ from qore.infrastructure.cibo_capital_science_runtime_bridge import (
     aggregate_capital_science_receipts,
     build_capital_science_postrun_receipts,
     evaluate_capital_science_predecision,
+)
+from qore.infrastructure.cibo_ce2i_execution_efficiency import (
+    ExecutionCostCurveInput,
+    execution_efficient_volume_cap,
 )
 from qore.infrastructure.cibo_ce2i_phase20_train_prior import (
     build_frozen_train_expectation,
@@ -224,6 +228,108 @@ class CompoundPortfolioTrade:
 
 
 @dataclass(frozen=True, slots=True)
+class CompoundLeverageDecision:
+    signal_fingerprint: str
+    trader_id: str
+    decision_at: datetime
+    requested_multiplier: Decimal
+    effective_multiplier: Decimal
+    genc8_posture: str
+    t11_execution_cap_volume: Decimal
+    t11_allows_compound: bool
+    reason: str
+
+    def __post_init__(self) -> None:
+        if not self.signal_fingerprint or not self.trader_id or not self.reason:
+            raise CiboCapitalManagementError(
+                "compound leverage decision identity/reason required"
+            )
+        if self.decision_at.tzinfo is None or self.decision_at.utcoffset() is None:
+            raise CiboCapitalManagementError(
+                "compound leverage decision_at must be timezone-aware"
+            )
+        for name in (
+            "requested_multiplier",
+            "effective_multiplier",
+            "t11_execution_cap_volume",
+        ):
+            value = getattr(self, name)
+            if (
+                not isinstance(value, Decimal)
+                or not value.is_finite()
+                or value < 0
+            ):
+                raise CiboCapitalManagementError(
+                    f"compound leverage {name} must be finite non-negative Decimal"
+                )
+        if self.effective_multiplier > self.requested_multiplier:
+            raise CiboCapitalManagementError(
+                "compound leverage cannot exceed requested multiplier"
+            )
+        if self.genc8_posture not in {
+            "PAUSE",
+            "DEFENSIVE",
+            "CAUTIOUS",
+            "NORMAL",
+            "ACCELERATED",
+            "GENC5_CANONICAL_INPUT_UNAVAILABLE",
+        }:
+            raise CiboCapitalManagementError(
+                "compound leverage GEN-C8 posture invalid"
+            )
+        if type(self.t11_allows_compound) is not bool:
+            raise CiboCapitalManagementError(
+                "compound leverage T11 allow flag must be bool"
+            )
+
+    def payload(self) -> dict[str, object]:
+        return {
+            "signal_fingerprint": self.signal_fingerprint,
+            "trader_id": self.trader_id,
+            "decision_at": self.decision_at.isoformat(),
+            "requested_multiplier": format(self.requested_multiplier, "f"),
+            "effective_multiplier": format(self.effective_multiplier, "f"),
+            "genc8_posture": self.genc8_posture,
+            "t11_execution_cap_volume": format(
+                self.t11_execution_cap_volume,
+                "f",
+            ),
+            "t11_allows_compound": self.t11_allows_compound,
+            "reason": self.reason,
+            "causal_predecision": True,
+            "outcome_used": False,
+        }
+
+
+_GENC8_MULTIPLIER_CAP = {
+    "PAUSE": Decimal(0),
+    "DEFENSIVE": Decimal(1),
+    "CAUTIOUS": Decimal(1),
+    "NORMAL": Decimal(2),
+    "ACCELERATED": Decimal(4),
+    "GENC5_CANONICAL_INPUT_UNAVAILABLE": Decimal(0),
+}
+
+
+def _genc8_posture(capital_science: object) -> str:
+    receipts = tuple(
+        item
+        for item in getattr(capital_science, "receipts", ())
+        if item.function_code == "GEN-C8"
+    )
+    if len(receipts) != 1:
+        raise CiboCapitalManagementError(
+            "compound dynamic leverage requires exactly one GEN-C8 receipt"
+        )
+    posture = receipts[0].consumer_action
+    if posture not in _GENC8_MULTIPLIER_CAP:
+        raise CiboCapitalManagementError(
+            "compound dynamic leverage GEN-C8 posture drift"
+        )
+    return posture
+
+
+@dataclass(frozen=True, slots=True)
 class CompoundPortfolioLaneResult:
     core_ending_capital_usd: Decimal
     compound_incremental_pnl_usd: Decimal
@@ -242,6 +348,8 @@ class CompoundPortfolioLaneResult:
     blocker_reasons: tuple[tuple[str, int], ...]
     function_accountability: tuple[dict[str, object], ...]
     capital_science_receipts: tuple[dict[str, object], ...] = ()
+    leverage_decisions: tuple[CompoundLeverageDecision, ...] = ()
+    dynamic_leverage_enabled: bool = False
     rational_redeploy_gate_enabled: bool = False
     noncertifying_research_redeploy_enabled: bool = False
     protected_reinvestment_policy_id: str = ""
@@ -277,6 +385,17 @@ class CompoundPortfolioLaneResult:
             raise CiboCapitalManagementError("compound lane settlement count drift")
         if self.compound_settled_count != len(self.trades):
             raise CiboCapitalManagementError("compound lane trade count drift")
+        if type(self.dynamic_leverage_enabled) is not bool:
+            raise CiboCapitalManagementError(
+                "compound dynamic leverage flag must be bool"
+            )
+        if any(
+            not isinstance(item, CompoundLeverageDecision)
+            for item in self.leverage_decisions
+        ):
+            raise CiboCapitalManagementError(
+                "compound leverage decisions must be canonical"
+            )
         if type(self.rational_redeploy_gate_enabled) is not bool:
             raise CiboCapitalManagementError("compound rational redeploy gate flag must be bool")
         if type(self.noncertifying_research_redeploy_enabled) is not bool:
@@ -352,6 +471,10 @@ class CompoundPortfolioLaneResult:
             ],
             "function_accountability": list(self.function_accountability),
             "capital_science_receipts": list(self.capital_science_receipts),
+            "leverage_decisions": [
+                item.payload() for item in self.leverage_decisions
+            ],
+            "dynamic_leverage_enabled": self.dynamic_leverage_enabled,
             "rational_redeploy_gate_enabled": self.rational_redeploy_gate_enabled,
             "noncertifying_research_redeploy_enabled": (
                 self.noncertifying_research_redeploy_enabled
@@ -383,6 +506,7 @@ def run_compound_portfolio_lane(
     research_redeploy_authorizations: tuple[CompoundResearchRedeployAuthorization, ...] = (),
     lab_pool_scope: str = POOL_SCOPE_ACCOUNT,
     lab_seed_multiplier: Decimal = Decimal("1"),
+    lab_dynamic_leverage: bool = False,
     regime_evidence: tuple[Phase22HistoricalRegimeEvidence, ...] = (),
 ) -> CompoundPortfolioLaneResult:
     """Add causal profit-funded seeds without changing Core policy selection."""
@@ -393,6 +517,8 @@ def run_compound_portfolio_lane(
         raise CiboCapitalManagementError("lab_require_rational_redeploy must be bool")
     if type(lab_allow_noncertifying_research_redeploy) is not bool:
         raise CiboCapitalManagementError("lab_allow_noncertifying_research_redeploy must be bool")
+    if type(lab_dynamic_leverage) is not bool:
+        raise CiboCapitalManagementError("lab_dynamic_leverage must be bool")
     if lab_pool_scope not in {POOL_SCOPE_ACCOUNT, POOL_SCOPE_TRADER_LOCAL}:
         raise CiboCapitalManagementError("lab_pool_scope is invalid")
     if (
@@ -450,6 +576,7 @@ def run_compound_portfolio_lane(
     trades: list[CompoundPortfolioTrade] = []
     blockers: Counter[str] = Counter()
     capital_science_receipts: list[CapitalScienceReceipt] = []
+    leverage_decisions: list[CompoundLeverageDecision] = []
     selected = allowed = reduced = rejected = cross_trader = 0
     peak_realized_capital = initial
 
@@ -572,7 +699,9 @@ def run_compound_portfolio_lane(
         for known_signal in selected_signals:
             known_candidate = by_signal[known_signal]
             known_opportunity = known_candidate.projection.candidate.capital_input.opportunity
-            known_volume = minimum_seed_volume(known_opportunity) * lab_seed_multiplier
+            known_volume = minimum_seed_volume(known_opportunity) * (
+                Decimal(1) if lab_dynamic_leverage else lab_seed_multiplier
+            )
             if known_volume > known_opportunity.maximum_volume:
                 continue
             known_risk = known_volume * known_opportunity.stop_loss_per_volume
@@ -1097,6 +1226,8 @@ def run_compound_portfolio_lane(
         blocker_reasons=tuple(sorted(blockers.items())),
         function_accountability=functions,
         capital_science_receipts=tuple(item.payload() for item in capital_science_receipts),
+        leverage_decisions=tuple(leverage_decisions),
+        dynamic_leverage_enabled=lab_dynamic_leverage,
         rational_redeploy_gate_enabled=lab_require_rational_redeploy,
         noncertifying_research_redeploy_enabled=(lab_allow_noncertifying_research_redeploy),
         protected_reinvestment_policy_id=POLICY_ID,
