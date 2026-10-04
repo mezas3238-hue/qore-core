@@ -94,6 +94,7 @@ class CiboObservedPositionState:
     release_cost_usd: Decimal = Decimal(0)
     uncertainty_penalty: Decimal = Decimal(0)
     releasable: bool = True
+    continuation_value_identified: bool = False
     lifecycle_actions: tuple[CiboLifecycleAction, ...] = ()
     future_outcome_used: bool = False
     structural_stop_widened: bool = False
@@ -137,6 +138,10 @@ class CiboObservedPositionState:
         if type(self.releasable) is not bool:
             raise CiboCapitalManagementError(
                 "Full Economic Twin position releasable must be bool"
+            )
+        if type(self.continuation_value_identified) is not bool:
+            raise CiboCapitalManagementError(
+                "Full Economic Twin position continuation identity must be bool"
             )
         _finite(self.remaining_reward_r, "remaining_reward_r", nonnegative=False)
         if (
