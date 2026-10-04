@@ -15,6 +15,7 @@ from qore.infrastructure.core_stack_v2.shared_lab_data_assessment import (
     assess_data_reality,
 )
 from qore.infrastructure.core_stack_v2.shared_lab_data_l10 import run_data_l10
+from qore.infrastructure.core_stack_v2.shared_lab_data_tool_matrix import build_data_tool_matrix
 from qore.infrastructure.core_stack_v2.shared_lab_data_provenance import (
     RawProviderEvidence,
     verify_decode_lineage,
@@ -51,6 +52,7 @@ from qore.infrastructure.core_stack_v2.shared_lab_sensor_harness import (
 from qore.infrastructure.core_stack_v2.shared_lab_resilience import assess_resilience
 from qore.infrastructure.core_stack_v2.shared_lab_universe_completeness import assess_universe_coverage
 from qore.infrastructure.core_stack_v2.shared_lab_temporal_harness import assess_temporal
+from qore.infrastructure.core_stack_v2.shared_lab_tools import default_shared_lab_registry
 
 
 @dataclass(frozen=True, slots=True)
@@ -186,6 +188,12 @@ def run_engineering_data_reality_exam() -> DataRealityExamResult:
     )
 
     missing_sensor = inject_fault((datum,), SensorFault.MISSING)
+    tool_matrix = build_data_tool_matrix(
+        default_shared_lab_registry(),
+        sensors=("price", "spread"),
+        assets=("EURUSD", "XAUUSD", "NAS100", "BTCUSD"),
+        regimes=("normal", "stress"),
+    )
     universe = assess_universe_coverage(
         ("FX:EURUSD", "METAL:XAUUSD", "CRYPTO:BTCUSD"),
         ("FX:EURUSD", "METAL:XAUUSD", "CRYPTO:BTCUSD"),
@@ -219,7 +227,17 @@ def run_engineering_data_reality_exam() -> DataRealityExamResult:
 
     evidence = (
         _evidence(DataRealityGate.GOLDEN_TRACE, library.get(trace.trace_id) == trace, asdict(trace)),
-        _evidence(DataRealityGate.SENSOR_FAILURE_INJECTION, len(missing_sensor) == 0, {"missing_count": len(missing_sensor)}),
+        _evidence(
+            DataRealityGate.SENSOR_FAILURE_INJECTION,
+            len(missing_sensor) == 0
+            and len(tool_matrix.covered_families) == 4
+            and tool_matrix.total_cases > 0,
+            {
+                "missing_count": len(missing_sensor),
+                "tool_case_count": tool_matrix.total_cases,
+                "families": [family.value for family in tool_matrix.covered_families],
+            },
+        ),
         _evidence(DataRealityGate.TIMESTAMP_CHRONOLOGY, temporal.passed, asdict(temporal)),
         _evidence(DataRealityGate.PROVIDER_INTEGRITY, receipt1.provider_lineage_pass, asdict(receipt1)),
         _evidence(DataRealityGate.CANONICAL_IDENTITY, receipt1.identity_pass and receipt1.canonical_economic_id == identity.economic_id, asdict(receipt1)),
