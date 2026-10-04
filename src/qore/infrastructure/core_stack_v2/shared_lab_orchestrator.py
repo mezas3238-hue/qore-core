@@ -152,6 +152,7 @@ class NativeLabOrchestrator:
         self,
         request: RunRequest,
         cancellation_token: CancellationToken | None = None,
+        run_id: str | None = None,
     ) -> RunSummary:
         started_at_ns = time.time_ns()
         token = cancellation_token or CancellationToken()
@@ -175,9 +176,9 @@ class NativeLabOrchestrator:
             )
         plan_request = replace(request, commit_sha=snapshot.commit_sha)
         tasks = self.registry.plan(plan_request, changed_paths)
-        run_id = self._run_id(snapshot.commit_sha)
+        resolved_run_id = run_id or self._run_id(snapshot.commit_sha)
         identity = RunIdentity(
-            run_id=run_id,
+            run_id=resolved_run_id,
             repository=snapshot.repository,
             commit_sha=snapshot.commit_sha,
             branch=snapshot.branch,
