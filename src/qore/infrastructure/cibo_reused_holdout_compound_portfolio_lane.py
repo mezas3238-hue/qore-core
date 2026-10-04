@@ -225,6 +225,46 @@ class _Open:
     source_traders_before_entry: tuple[str, ...]
 
 
+def _open_economic_position_snapshot(
+    item: _Open,
+    *,
+    decision_at: datetime,
+    marks_by_signal: dict[str, tuple[CiboPositionMarkEvidence, ...]],
+) -> CapitalScienceOpenEconomicPosition:
+    causal_marks = tuple(
+        mark
+        for mark in marks_by_signal.get(item.signal_fingerprint, ())
+        if mark.observed_at <= decision_at
+    )
+    latest_mark = causal_marks[-1] if causal_marks else None
+    return CapitalScienceOpenEconomicPosition(
+        signal_fingerprint=item.signal_fingerprint,
+        trader_id=item.trader_id,
+        qore_symbol=item.qore_symbol,
+        side=item.side,
+        entry_at=item.entry_at,
+        planned_exit_at=item.exit_at,
+        current_volume=item.authorized_volume,
+        current_stop_risk_usd=item.authorized_stop_risk_usd,
+        current_margin_usd=item.authorized_margin_usd,
+        entry_price=item.entry_price,
+        structural_stop=item.structural_stop,
+        technical_target=item.technical_target,
+        provider_cost_usd=item.provider_cost_usd,
+        entry_expected_net_value_usd=item.entry_expected_net_value_usd,
+        entry_expected_capital_minutes=item.entry_expected_capital_minutes,
+        expectation_evidence_sha256=item.expectation_evidence_sha256,
+        current_mark_price=(
+            None if latest_mark is None else latest_mark.mark_price
+        ),
+        market_state_observed_at=(
+            None if latest_mark is None else latest_mark.observed_at
+        ),
+        mark_to_market_identified=latest_mark is not None,
+        continuation_value_identified=False,
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class CompoundPortfolioTrade:
     signal_fingerprint: str
@@ -1688,51 +1728,10 @@ def run_compound_portfolio_lane(
                         )
                     ),
                     open_economic_positions=tuple(
-                        CapitalScienceOpenEconomicPosition(
-                            signal_fingerprint=item.signal_fingerprint,
-                            trader_id=item.trader_id,
-                            qore_symbol=item.qore_symbol,
-                            side=item.side,
-                            entry_at=item.entry_at,
-                            planned_exit_at=item.exit_at,
-                            current_volume=item.authorized_volume,
-                            current_stop_risk_usd=item.authorized_stop_risk_usd,
-                            current_margin_usd=item.authorized_margin_usd,
-                            entry_price=item.entry_price,
-                            structural_stop=item.structural_stop,
-                            technical_target=item.technical_target,
-                            provider_cost_usd=item.provider_cost_usd,
-                            entry_expected_net_value_usd=(
-                                item.entry_expected_net_value_usd
-                            ),
-                            entry_expected_capital_minutes=(
-                                item.entry_expected_capital_minutes
-                            ),
-                            expectation_evidence_sha256=(
-                                item.expectation_evidence_sha256
-                            ),
-                            current_mark_price=(
-                                None
-                                if not (
-                                    causal_marks := tuple(
-                                        mark
-                                        for mark in marks_by_signal.get(
-                                            item.signal_fingerprint,
-                                            (),
-                                        )
-                                        if mark.observed_at
-                                        <= epoch.market_decision_at
-                                    )
-                                )
-                                else causal_marks[-1].mark_price
-                            ),
-                            market_state_observed_at=(
-                                None
-                                if not causal_marks
-                                else causal_marks[-1].observed_at
-                            ),
-                            mark_to_market_identified=bool(causal_marks),
-                            continuation_value_identified=False,
+                        _open_economic_position_snapshot(
+                            item,
+                            decision_at=epoch.market_decision_at,
+                            marks_by_signal=marks_by_signal,
                         )
                         for item in open_rows.values()
                     ),
