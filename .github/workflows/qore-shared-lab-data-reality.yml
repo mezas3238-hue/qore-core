@@ -24,7 +24,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install test dependencies
-        run: python -m pip install -U pytest
+        run: python -m pip install -U pytest pytest-cov
       - name: Shared Lab Data Reality tests
         run: >
           python -m pytest -q
