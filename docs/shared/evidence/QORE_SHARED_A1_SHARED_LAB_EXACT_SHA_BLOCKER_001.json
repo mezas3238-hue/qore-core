@@ -1,0 +1,68 @@
+{
+  "identity": "QORE_SHARED_A1_SHARED_LAB_EXACT_SHA_BLOCKER_001",
+  "owner_lane": "SHARED_ARCHITECT_1",
+  "status": "EXTERNAL_OR_INTEGRATION_BLOCKED",
+  "observed_date": "2026-10-04",
+  "tested_target": {
+    "branch": "agent/shared-architect-1-cognitive-core-001",
+    "head_sha": "a37239f7f58934066c90108e3d85042d779317dd",
+    "shared_master_pr": 635
+  },
+  "shared_lab": {
+    "pr": 716,
+    "branch": "agent/qore-shared-lab-001",
+    "head_sha": "f9792cd95553b5663383b0b3474e5be2e2bda789"
+  },
+  "observed_runtime_contract": {
+    "exact_sha_worktree_required": true,
+    "target_worktree_is_detached_at_requested_sha": true,
+    "task_component_hash_computed_from_target_worktree": true,
+    "task_cwd_is_target_worktree": true,
+    "target_pythonpath_is_target_worktree_src": true,
+    "default_suite_harness_paths_are_resolved_inside_target_worktree": true
+  },
+  "failure_mode": {
+    "summary": "A1 exact SHA predates Shared Lab harness files, so current default Lab suites cannot execute this client SHA without conflating harness and code under test.",
+    "missing_on_a1_target": [
+      "src/qore/infrastructure/core_stack_v2/shared_lab*.py",
+      "tests/infrastructure/test_core_stack_v2_shared_lab*.py"
+    ],
+    "earliest_failure": "_component_hash raises when suite component_globs match no files in the exact-SHA A1 worktree; suites can also reference test paths absent from that worktree.",
+    "functional_validation_executed": false,
+    "shared_lab_pass_claimed": false
+  },
+  "forbidden_workarounds": [
+    "DO_NOT_COPY_OR_MERGE_THE_ENTIRE_SHARED_LAB_HARNESS_INTO_A1_ONLY_TO_MANUFACTURE_A_PASS",
+    "DO_NOT_SUBSTITUTE_GITHUB_ACTIONS_FOR_THE_OWNER_MANDATED_SHARED_LAB",
+    "DO_NOT_USE_VPS",
+    "DO_NOT_OPEN_PROTECTED_FINAL_HOLDOUT"
+  ],
+  "required_integration_change": {
+    "owner": "QORE_SHARED_LAB",
+    "requirement": "Decouple the versioned Lab harness from the exact target worktree while preserving the target commit SHA.",
+    "acceptance": [
+      "Lab harness code/tests execute from a separately versioned Lab revision or immutable harness package.",
+      "Code under test is imported or invoked strictly from the requested exact-SHA target worktree.",
+      "Evidence records both target_sha and lab_harness_sha_or_hash.",
+      "Component hashes distinguish target-code hash from harness hash.",
+      "A client branch that predates Lab can run functional/causality suites without modifying the client SHA.",
+      "No result is labelled PASS when harness or target provenance is ambiguous."
+    ]
+  },
+  "a1_scientific_effect": {
+    "MC14": "TARGET_REPLAY_NOT_EXECUTED; XAUUSD remains READY_FOR_SINGLE_GOVERNED_REPLAY; US2000 remains INSUFFICIENT_DO_NOT_INFER.",
+    "STI8_V4": "ENGINEERING_READY_AWAITING_FUTURE_DISJOINT_OOS; no value claim.",
+    "MC17_MC18_MC19": "ENGINEERING_READY_REQUIRES_SHARED_LAB_EXECUTION; NOT_PROVEN."
+  },
+  "governance": {
+    "merge_performed": false,
+    "live_used": false,
+    "vps_used": false,
+    "broker_mutation": false,
+    "real_capital_used": false,
+    "protected_final_holdout_opened": false,
+    "github_actions_used_as_validation_fallback": false,
+    "master_ledger_mutated": false
+  },
+  "next_gate": "SHARED_LAB_FIXES_EXTERNAL_HARNESS_TARGET_SHA_SEAM_THEN_A1_EXACT_SHA_VALIDATION"
+}
