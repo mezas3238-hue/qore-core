@@ -1,0 +1,38 @@
+{
+  "schema": "QORE_SHARED_INTEGRATOR_1_SHARED_LAB_PLUGIN_DAG_AUDIT_001",
+  "generated_at": "2026-10-04",
+  "integrator_branch": "agent/shared-integrator-1-a1-a2-001",
+  "integrator_head_under_audit": "87cf6188c9dc9a03c485d2211a432227d8af5142",
+  "shared_lab_branch": "agent/qore-shared-lab-001",
+  "shared_lab_head": "f9792cd95553b5663383b0b3474e5be2e2bda789",
+  "plugin_count": 6,
+  "default_registry_task_count": 22,
+  "checks": {
+    "duplicate_task_ids": [],
+    "missing_dependencies": [],
+    "invalid_suite_values": [],
+    "invalid_scope_values": [],
+    "dag_contract_status": "PASS"
+  },
+  "pair_chain": [
+    "contract",
+    "i1-a1-core",
+    "mc23-functional",
+    "a2-mc24-regression",
+    "a2-mc25-performance",
+    "a2-wp11-closure",
+    "i1-a1-a2-pair"
+  ],
+  "limitations": {
+    "shared_lab_execution_completed": false,
+    "pytest_results_claimed": false,
+    "scientific_completion_claimed": false
+  },
+  "governance": {
+    "github_actions_dispatched": false,
+    "pr_635_merged": false,
+    "final_holdout_opened": false,
+    "live_or_production_authority_introduced": false,
+    "broker_mutation_authority_introduced": false
+  }
+}
