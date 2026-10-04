@@ -591,7 +591,7 @@ def test_genc11_full_twin_recovery_world_preserves_current_causal_probe() -> Non
         requested_capital_usd=Decimal("5"),
         expected_net_value_usd=Decimal("0.6"),
         expected_capital_minutes=Decimal("20"),
-        stop_risk_usd=Decimal("1"),
+        stop_risk_usd=Decimal("0.4"),
         margin_usd=Decimal("2"),
         provider_cost_usd=Decimal("0.05"),
         uncertainty_penalty=Decimal("0.05"),
