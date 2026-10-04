@@ -176,7 +176,6 @@ class SharedA3B4WorldFact:
     def a3_consumable_as_certainty(self) -> bool:
         return (
             self.identity_resolved
-            and self.temporal_status is SharedA3B4TemporalStatus.COMPARABLE
             and self.calendar_status is SharedA3B4CalendarStatus.VERIFIED_CANONICAL
             and self.data_health_state == "HEALTHY"
         )
