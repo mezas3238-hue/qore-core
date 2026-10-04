@@ -35,6 +35,7 @@ from qore.infrastructure.cibo_ce2i_economic_effects import (
 from qore.infrastructure.cibo_ce2i_full_surface import (
     AdvancedPortfolioEvidence,
     FullCe2iSurfaceAssessment,
+    build_causal_baseline_advanced_evidence,
     evaluate_full_ce2i_surface,
 )
 from qore.infrastructure.cibo_ce2i_opportunity_competition import (
@@ -390,6 +391,11 @@ def evaluate_phase22_historical_policy(
         for item in inputs
     )
     opportunities = tuple(item.opportunity for item in inputs)
+    advanced_evidence = build_causal_baseline_advanced_evidence(
+        opportunities=opportunities,
+        decision_at=market_decision_at,
+        existing=advanced_evidence,
+    )
     economic_consultation = consult_cibo_economic_faculties(
         decision_at=market_decision_at,
         opportunities=opportunities,
