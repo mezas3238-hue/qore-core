@@ -94,6 +94,17 @@ def test_relation_claim_requires_temporal_comparability_and_canonical_time():
         _fact(calendar_status=SharedA3B4CalendarStatus.DISTRIBUTED_OTC_UNRESOLVED)
 
 
+def test_data_health_is_required_for_certainty_and_relation_claims():
+    fact = _fact(
+        data_health_state="NOT_ASSESSED_B09_PENDING",
+        relation_eligibility=SharedA3B4RelationEligibility.INELIGIBLE,
+    )
+    assert fact.a3_consumable_as_certainty is False
+    assert fact.relation_claim_allowed is False
+    with pytest.raises(SharedA3B4SeamValidationError):
+        _fact(data_health_state="NOT_ASSESSED_B09_PENDING")
+
+
 def test_hidden_filter_and_productive_authority_fail_closed():
     with pytest.raises(SharedA3B4SeamValidationError):
         _fact(hidden_trade_filter_present=True)
