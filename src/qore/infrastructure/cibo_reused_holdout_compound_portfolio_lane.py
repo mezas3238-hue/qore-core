@@ -311,6 +311,34 @@ _GENC8_MULTIPLIER_CAP = {
 }
 
 
+def _known_options_with_current_geometry(
+    options: tuple[CapitalScienceKnownOpportunity, ...],
+    *,
+    signal_fingerprint: str,
+    stop_risk_usd: Decimal,
+    margin_usd: Decimal,
+    provider_cost_usd: Decimal,
+) -> tuple[CapitalScienceKnownOpportunity, ...]:
+    matches = tuple(
+        item for item in options if item.option_id == signal_fingerprint
+    )
+    if len(matches) != 1:
+        raise CiboCapitalManagementError(
+            "compound current signal must exist exactly once in epoch options"
+        )
+    return tuple(
+        replace(
+            item,
+            requested_capital_usd=stop_risk_usd + provider_cost_usd,
+            stop_risk_usd=stop_risk_usd,
+            margin_usd=margin_usd,
+        )
+        if item.option_id == signal_fingerprint
+        else item
+        for item in options
+    )
+
+
 def _genc8_posture(capital_science: object) -> str:
     receipts = tuple(
         item
@@ -958,7 +986,15 @@ def run_compound_portfolio_lane(
                         environment=MarketRuntimeEnvironment.DEMO,
                     ),
                     regime_state=regime_state,
-                    known_simultaneous_opportunities=tuple(known_epoch_options),
+                    known_simultaneous_opportunities=(
+                        _known_options_with_current_geometry(
+                            tuple(known_epoch_options),
+                            signal_fingerprint=signal,
+                            stop_risk_usd=risk,
+                            margin_usd=margin,
+                            provider_cost_usd=cost,
+                        )
+                    ),
                     genc7_proposal=Genc7PreservationProposalEvidence(
                         proposal_id=f"compound-redeploy:{epoch.decision_epoch_id}:{signal}",
                         decision_at=epoch.market_decision_at,
@@ -1052,6 +1088,15 @@ def run_compound_portfolio_lane(
                         ),
                         expected_capital_minutes=(
                             expectation.expected_capital_minutes
+                        ),
+                        known_simultaneous_opportunities=(
+                            _known_options_with_current_geometry(
+                                tuple(known_epoch_options),
+                                signal_fingerprint=signal,
+                                stop_risk_usd=risk,
+                                margin_usd=margin,
+                                provider_cost_usd=cost,
+                            )
                         ),
                         genc7_proposal=replace(
                             genc7,
