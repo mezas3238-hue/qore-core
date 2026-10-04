@@ -1,0 +1,46 @@
+{
+  "identity": "QORE_SHARED_STI6_LINEAGE_AND_NEXT_DEPENDENCY_001",
+  "owner_lane": "SHARED_ARCHITECT_1",
+  "status": "V1_V2_V3_FALSIFIED_AND_CLOSED_CAPABILITY_WAITING_NEW_INFORMATION",
+  "generations": {
+    "V1": {
+      "run_id": 36640907470,
+      "git_sha": "711788d89521e051ab3969a9006830068381693e",
+      "disposition": "STI6_V1_FALSIFIED_ON_CONSUMED_R6",
+      "r5_opened": false
+    },
+    "V2": {
+      "run_id": 36683516642,
+      "git_sha": "afd76ca4b4789c8852798cd2d7db5ad1aae52eba",
+      "disposition": "STI6_V2_FALSIFIED_ON_CONSUMED_R6",
+      "r8_source_only_calibration": true,
+      "r5_opened": false,
+      "threshold_rescue": false
+    },
+    "V3": {
+      "run_id": 36684414954,
+      "git_sha": "ce8cdd1cb39aec972e3c12cffd7c1115693b2aaf",
+      "disposition": "STI6_V3_FALSIFIED_R6_DEVELOPMENT_MAPPING",
+      "continuation_states_selected": [],
+      "positive_tail_states_selected": [],
+      "r5_opened": false,
+      "threshold_rescue": false
+    }
+  },
+  "next_dependency": {
+    "required": "GENUINELY_NEW_NON_OUTCOME_SELECTED_REPRESENTATION_OR_INFORMATION",
+    "allowed_research_directions": [
+      "FAILURE_HAZARD_VETO_AS_A_NEW_CAUSAL_MECHANISM_NOT_THRESHOLD_RESCUE",
+      "NEW_CROSS_ASSET_MICROSTRUCTURE_AFTER_MC14_B04_REPLAY",
+      "NEW_TRAJECTORY_MECHANISM_ONLY_IF_DISTINCT_FROM_FALSIFIED_V2_V3"
+    ],
+    "current_blocker": "MC14_B04_XAUUSD_REPLAY_CANNOT_EXECUTE_UNTIL_SHARED_LAB_EXACT_SHA_SEAM_IS_REPAIRED"
+  },
+  "governance": {
+    "v1_v2_v3_reopened": false,
+    "exit_stop_target_authority": false,
+    "trader_methodology_mutation": false,
+    "protected_final_holdout_opened": false,
+    "productive_authority": false
+  }
+}

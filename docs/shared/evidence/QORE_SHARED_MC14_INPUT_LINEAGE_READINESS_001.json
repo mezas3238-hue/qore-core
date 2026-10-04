@@ -1,0 +1,43 @@
+{
+  "identity": "QORE_SHARED_MC14_INPUT_LINEAGE_READINESS_001",
+  "owner_lane": "SHARED_ARCHITECT_1",
+  "status": "ALL_FROZEN_INPUT_LINEAGE_AVAILABLE_REPLAY_BLOCKED_ONLY_BY_SHARED_LAB",
+  "observed_date": "2026-10-04",
+  "b04_source": {
+    "run_id": 36765098842,
+    "git_sha": "aec788d073aedc31f609c1609af3f7d4d8e5ae30",
+    "global_artifact_id": 11129732922,
+    "global_artifact_zip_sha256": "7365280e8fd684ab1c8feafc93dbe87265f3b3d65649a12b9a602d8f64ca8d92",
+    "source_manifest_artifact_id": 10982052296,
+    "source_manifest_zip_sha256": "c0f067298a5a079455771faff86bac868be1702a815b05cd5f016e4eca591128",
+    "manifest_sha256": "2f18b9f11d5893effa46ac85c712edd6646d1d90a9de521b235143e42155d191"
+  },
+  "r8_target": {
+    "evidence_artifact_id": 10402199719,
+    "artifact_zip_sha256": "9f5df4eba1882cb498b4e3657176f34a7c27083f3ac1af7856ebddf01447f34d",
+    "extracted_sha256": {
+      "NAS100": "4031c7e21bb311fdb99d7b1028fd9ff154ace1dc4886249ff978b700fdeeedcb",
+      "SP500": "b6e9f478f7bc7a56eb79491ec22ff5e8d2144f0663355b8e9f84b407757dd4a4",
+      "US30": "b64957e8558c96241d6b6e9340b0550694d37b668509d975c38f20992073fe75"
+    },
+    "extracted_hashes_recomputed_and_matched": true
+  },
+  "source_family_readiness": {
+    "US2000_BREADTH_PROXY": "INSUFFICIENT_DO_NOT_INFER",
+    "XAUUSD_DEFENSIVE_PROXY": "READY_FOR_SINGLE_GOVERNED_REPLAY"
+  },
+  "execution": {
+    "target_replay_executed": false,
+    "github_actions_fallback_used": false,
+    "shared_lab_required": true,
+    "shared_lab_exact_sha_blocker": "QORE_SHARED_A1_SHARED_LAB_EXACT_SHA_BLOCKER_001"
+  },
+  "governance": {
+    "r6_r5_read": false,
+    "protected_final_holdout_opened": false,
+    "outcome_aware_retuning": false,
+    "missing_source_imputation": false,
+    "broker_mutation": false,
+    "productive_authority": false
+  }
+}
