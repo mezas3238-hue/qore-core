@@ -1,6 +1,6 @@
 {
   "schema": "QORE_SHARED_INTEGRATOR_2_A3_B4_INTAKE_STATUS_001",
-  "observed_at": "2026-10-04T19:23:29Z",
+  "observed_at": "2026-10-04T19:44:00Z",
   "shared_master": {
     "branch": "agent/qore-core-stack-v2-shared-001",
     "observed_head": "55144bb92abdc5135521f545667b94dcad555bb1",
@@ -9,8 +9,9 @@
   },
   "integrator_2": {
     "branch": "agent/shared-integrator-2-a3-b4-001",
-    "reconciled_head_parent": "fff3969ee2427c18db6d2d5fbebb910fe764c2af",
+    "observed_head_before_status_update": "268cb8bdfc82870fc483d6b8d1873b3cef1f754b",
     "authority": "A3_B4_SEAM_ONLY",
+    "shared_lab_evidence": "docs/shared/integration/SHARED_INTEGRATOR_2_A3_B4_SHARED_LAB_EVIDENCE_001.json",
     "protected_final_holdout_opened": false,
     "live_authorized": false,
     "broker_mutation_authorized": false,
@@ -18,32 +19,72 @@
   },
   "architect_3": {
     "branch": "agent/shared-architect-3-transversal-seam-001",
-    "observed_head": "a4c97ad47f462775f61aba3a23874beb057c990e",
-    "manifest": "docs/shared/integration/QORE_SHARED_A3_INTEGRATION_MANIFEST_001.json",
-    "admission": "NOT_YET_ADMISSIBLE_AS_TERMINAL_SLICE",
-    "reason": "local foundations exist but global B4-dependent closure remains open"
+    "observed_head": "bf8a7526a82831ae9b62b1351dfe416b3b287f36",
+    "local_engineering_validation": "SHARED_LAB_PASS_135_OF_135",
+    "terminal_global_admission": "BLOCKED",
+    "blockers": [
+      "B08_TEMPORAL_COMPARABILITY",
+      "MC27_FUTURE_EVIDENCE",
+      "MC28_CLOCK_DRIFT",
+      "MC28_EXECUTION_QUALITY"
+    ]
   },
   "architect_4": {
     "branch": "agent/shared-architect-b4-world-foundation-001",
-    "observed_head": "ea1b8ce61ff11ebc8cdef445f5b39d939207494f",
-    "progress": "docs/shared/integration/SHARED_ARCHITECT_4_WORLD_FOUNDATION_PROGRESS_001.md",
-    "admission": "NOT_YET_ADMISSIBLE_AS_TERMINAL_SLICE",
-    "reason": "B4 progress checkpoint explicitly claims no B-06..B-10 workstream complete"
+    "observed_head": "6a361d0b85aff4333db2842d73b5f683167ca2fe",
+    "b06": {
+      "admission": "ADMITTED_AT_EPISTEMIC_LAYER",
+      "sensor_count": 177,
+      "resolved_identity_count": 90,
+      "unknown_or_limited_count": 87
+    },
+    "b07": {
+      "admission": "ADMITTED_AT_EPISTEMIC_LAYER",
+      "sensor_count": 177,
+      "canonical_calendar_verified_count": 0,
+      "comparability_eligible_count": 0
+    },
+    "b08": {
+      "admission": "OPEN"
+    },
+    "b09": {
+      "admission": "BLOCKED_BY_B08"
+    },
+    "b10": {
+      "admission": "BLOCKED_BY_B08_B09"
+    }
   },
   "seam": {
     "executable_contract_path": "src/qore/infrastructure/core_stack_v2/shared_a3_b4_seam_contract.py",
-    "validation_path": "tests/infrastructure/test_shared_a3_b4_seam_contract.py",
+    "intake_reducer_path": "src/qore/infrastructure/core_stack_v2/shared_a3_b4_b4_intake.py",
+    "validation_paths": [
+      "tests/infrastructure/test_shared_a3_b4_seam_contract.py",
+      "tests/infrastructure/test_shared_a3_b4_b4_intake.py"
+    ],
     "laws": [
       "UNKNOWN_UNRESOLVED_NOT_COMPARABLE_ARE_FIRST_CLASS",
       "FACT_TIMESTAMP_LE_DECISION_TIMESTAMP",
-      "RELATION_CLAIM_REQUIRES_VERIFIED_IDENTITY_AND_TEMPORAL_COMPARABILITY",
+      "RELATION_CLAIM_REQUIRES_RESOLVED_IDENTITY_CANONICAL_MARKET_TIME_AND_TEMPORAL_COMPARABILITY",
       "NO_TRADER_METHODOLOGY",
       "NO_HIDDEN_TRADE_FILTERS",
       "NO_EXECUTION_SIZING_RISK_CAPITAL_AUTHORITY",
       "DETERMINISTIC_REPLAY_FINGERPRINT"
     ],
-    "shared_lab_validation_status": "PENDING",
+    "shared_lab_validation_status": "PASS_PARTIAL_SEAM",
+    "tests": {
+      "seam_identity_temporal_passed": 48,
+      "a3_functional_passed": 135,
+      "failed": 0
+    },
+    "actual_intake": {
+      "facts": 177,
+      "resolved_identity": 90,
+      "unknown_identity": 87,
+      "comparable": 0,
+      "relation_eligible": 0,
+      "a3_certainty": 0
+    },
     "github_workflow_required": false
   },
-  "next_gate": "WAIT_FOR_EVIDENCE_BACKED_B4_INTAKE_THEN_BIND_A3_CONSUMERS_WITHOUT_PROMOTING_UNKNOWN"
+  "next_gate": "B4_B08_COMPARABILITY_THEN_B09_DATA_HEALTH_THEN_B10_RELATIONAL_ELIGIBILITY_THEN_A3_CONSUMER_BINDING"
 }
