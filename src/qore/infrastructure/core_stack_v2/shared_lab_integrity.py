@@ -36,7 +36,11 @@ def detect_fault(scenario: FaultScenario) -> bool:
             or record.native_engine.engine_kind.value == "ADAPTER"
         )
     if scenario.fault is LabFault.FAKE_CONSUMER:
-        return edge is not None and (not edge.observed or not edge.consumed or not edge.fingerprint_match)
+        return edge is not None and (
+            not edge.observed
+            or not edge.consumed
+            or not edge.fingerprint_match
+        )
     if scenario.fault is LabFault.FUTURE_LEAKAGE:
         return record is not None and not record.leakage_free
     if scenario.fault is LabFault.DUPLICATED_OUTPUT:
