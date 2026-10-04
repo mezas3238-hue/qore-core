@@ -1,0 +1,23 @@
+{
+  "task_id": "a3-sti3-functional",
+  "suite": "FUNCTIONAL",
+  "scope": "cognition",
+  "dependencies": [],
+  "command": [
+    "{python}",
+    "-m",
+    "pytest",
+    "-q",
+    "tests/infrastructure/test_core_stack_v2_shared_global_opportunity_board.py",
+    "tests/infrastructure/test_core_stack_v2_shared_attention_budget.py",
+    "tests/infrastructure/test_core_stack_v2_shared_global_opportunity_discovery.py",
+    "tests/infrastructure/test_core_stack_v2_shared_global_opportunity_trajectory_v2.py"
+  ],
+  "component_globs": [
+    "src/qore/infrastructure/core_stack_v2/shared_global_opportunity_*.py",
+    "src/qore/infrastructure/core_stack_v2/shared_attention_budget.py",
+    "tests/infrastructure/test_core_stack_v2_shared_global_opportunity_*.py",
+    "tests/infrastructure/test_core_stack_v2_shared_attention_budget.py",
+    "scripts/shared_sti3_*.py"
+  ]
+}

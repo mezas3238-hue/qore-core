@@ -1,0 +1,22 @@
+{
+  "task_id": "a3-sti10-functional",
+  "suite": "FUNCTIONAL",
+  "scope": "cognition",
+  "dependencies": [],
+  "command": [
+    "{python}",
+    "-m",
+    "pytest",
+    "-q",
+    "tests/infrastructure/test_core_stack_v2_shared_trader_intelligence.py",
+    "tests/infrastructure/test_core_stack_v2_shared_trader_intelligence_lifecycle.py",
+    "tests/infrastructure/test_core_stack_v2_shared_trader_intelligence_preregistration.py",
+    "tests/infrastructure/test_core_stack_v2_shared_trader_intelligence_readiness.py",
+    "tests/infrastructure/test_core_stack_v2_shared_trader_intelligence_research_policy.py"
+  ],
+  "component_globs": [
+    "src/qore/infrastructure/core_stack_v2/shared_trader_intelligence*.py",
+    "tests/infrastructure/test_core_stack_v2_shared_trader_intelligence*.py",
+    "scripts/shared_sti10_*.py"
+  ]
+}

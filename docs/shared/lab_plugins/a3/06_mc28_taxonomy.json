@@ -1,0 +1,16 @@
+{
+  "task_id": "a3-mc28-taxonomy",
+  "suite": "CAUSALITY",
+  "scope": "cognition",
+  "dependencies": [
+    "a3-mc28-functional"
+  ],
+  "command": [
+    "{python}",
+    "scripts/shared_mc28_standard_006_diagnostic_taxonomy.py"
+  ],
+  "component_globs": [
+    "src/qore/infrastructure/core_stack_v2/system_blindspot_diagnostics.py",
+    "scripts/shared_mc28_standard_006_diagnostic_taxonomy.py"
+  ]
+}

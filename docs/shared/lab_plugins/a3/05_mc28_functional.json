@@ -1,0 +1,28 @@
+{
+  "task_id": "a3-mc28-functional",
+  "suite": "FUNCTIONAL",
+  "scope": "cognition",
+  "dependencies": [],
+  "command": [
+    "{python}",
+    "-m",
+    "pytest",
+    "-q",
+    "tests/infrastructure/test_core_stack_v2_mapping_error_diagnostic.py",
+    "tests/infrastructure/test_core_stack_v2_runtime_instability_diagnostic.py",
+    "tests/infrastructure/test_core_stack_v2_broker_provider_mismatch_diagnostic.py",
+    "tests/infrastructure/test_core_stack_v2_runtime_clock_drift_diagnostic.py",
+    "tests/infrastructure/test_core_stack_v2_execution_quality_deterioration_diagnostic.py",
+    "tests/infrastructure/test_core_stack_v2_core_broker_blindspot_cognition.py",
+    "tests/infrastructure/test_core_stack_v2_second_order_blindspot_cognition.py",
+    "tests/infrastructure/test_core_stack_v2_system_blindspot_diagnostics.py"
+  ],
+  "component_globs": [
+    "src/qore/infrastructure/core_stack_v2/*diagnostic*.py",
+    "src/qore/infrastructure/core_stack_v2/*blindspot*.py",
+    "tests/infrastructure/test_core_stack_v2_*diagnostic*.py",
+    "tests/infrastructure/test_core_stack_v2_*blindspot*.py",
+    "scripts/shared_mc28_*.py",
+    "docs/shared/evidence/QORE_SHARED_MC28_*.json"
+  ]
+}

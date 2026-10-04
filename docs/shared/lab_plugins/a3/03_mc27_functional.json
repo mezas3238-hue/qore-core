@@ -1,0 +1,19 @@
+{
+  "task_id": "a3-mc27-functional",
+  "suite": "FUNCTIONAL",
+  "scope": "cognition",
+  "dependencies": [],
+  "command": [
+    "{python}",
+    "-m",
+    "pytest",
+    "-q",
+    "tests/infrastructure/test_core_stack_v2_meta_cognitive_scientific_intelligence.py"
+  ],
+  "component_globs": [
+    "src/qore/infrastructure/core_stack_v2/meta_cognitive_scientific_intelligence.py",
+    "tests/infrastructure/test_core_stack_v2_meta_cognitive_scientific_intelligence.py",
+    "scripts/shared_mc27_*.py",
+    "docs/shared/evidence/QORE_SHARED_MC27_*.json"
+  ]
+}

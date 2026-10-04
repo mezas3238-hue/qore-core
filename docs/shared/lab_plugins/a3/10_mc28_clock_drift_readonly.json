@@ -1,0 +1,21 @@
+{
+  "task_id": "a3-mc28-clock-drift-readonly",
+  "suite": "PROVIDER_REALITY",
+  "scope": "provider",
+  "dependencies": [
+    "a3-mc28-functional",
+    "a3-mc28-taxonomy"
+  ],
+  "command": [
+    "{python}",
+    "scripts/shared_mc28_runtime_clock_drift.py",
+    "--output",
+    "result/a3-mc28-runtime-clock-drift.json"
+  ],
+  "component_globs": [
+    "src/qore/infrastructure/core_stack_v2/runtime_clock_drift_diagnostic.py",
+    "tests/infrastructure/test_core_stack_v2_runtime_clock_drift_diagnostic.py",
+    "scripts/shared_mc28_runtime_clock_drift.py",
+    "docs/shared/evidence/QORE_SHARED_MC28_RUNTIME_CLOCK_DRIFT_PREREGISTRATION_001.json"
+  ]
+}

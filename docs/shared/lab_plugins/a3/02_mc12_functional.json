@@ -1,0 +1,18 @@
+{
+  "task_id": "a3-mc12-functional",
+  "suite": "FUNCTIONAL",
+  "scope": "cognition",
+  "dependencies": [],
+  "command": [
+    "{python}",
+    "-m",
+    "pytest",
+    "-q",
+    "tests/infrastructure/test_core_stack_v2_market_foundation_model_evidence.py"
+  ],
+  "component_globs": [
+    "src/qore/infrastructure/core_stack_v2/market_foundation_model_evidence.py",
+    "tests/infrastructure/test_core_stack_v2_market_foundation_model_evidence.py",
+    "scripts/shared_mc12_market_foundation_model_audit.py"
+  ]
+}

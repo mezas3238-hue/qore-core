@@ -1,0 +1,140 @@
+name: QORE Shared Lab A3 Gateway
+
+on:
+  push:
+    branches:
+      - agent/shared-architect-3-transversal-seam-001
+    paths:
+      - docs/shared/lab_plugins/a3/**
+      - docs/shared/lab_requests/A3_SHARED_LAB_REQUEST_001.json
+      - .github/workflows/qore-shared-lab-a3-gateway.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qore-shared-lab-a3-gateway
+  cancel-in-progress: false
+
+jobs:
+  shared-lab-a3:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+      QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+      QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+      QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+      QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Load exact Shared Lab engine
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin agent/qore-shared-lab-001
+          git worktree add --detach /tmp/qore-shared-lab origin/agent/qore-shared-lab-001
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,ctrader]"
+          pip install -e "/tmp/qore-shared-lab[dev]"
+
+      - name: Execute A3 exclusively through native Shared Lab
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p result/shared-lab-a3
+          python - <<'PY'
+          import json
+          from dataclasses import asdict
+          from pathlib import Path
+
+          from qore.infrastructure.core_stack_v2.shared_lab_native_model import (
+              ExecutionMode,
+              LabScope,
+              ResourcePolicy,
+              RunRequest,
+          )
+          from qore.infrastructure.core_stack_v2.shared_lab_orchestrator import (
+              NativeLabOrchestrator,
+          )
+          from qore.infrastructure.core_stack_v2.shared_lab_suite_registry import (
+              NativeSuiteRegistry,
+          )
+
+          repo = Path.cwd()
+          state = repo / "result" / "shared-lab-a3"
+          registry = NativeSuiteRegistry()
+          registry.load_plugins(repo / "docs" / "shared" / "lab_plugins" / "a3")
+          request = RunRequest(
+              repository="mezas3238-hue/qore-core",
+              repo_path=str(repo),
+              commit_sha="${{ github.sha }}",
+              branch="agent/shared-architect-3-transversal-seam-001",
+              dataset_id="builtin-engineering",
+              dataset_version="1",
+              mode=ExecutionMode.FULL,
+              scope=LabScope.COGNITION,
+              workers=4,
+              policy=ResourcePolicy(
+                  timeout_seconds=480,
+                  retries=0,
+                  memory_limit_mb=3072,
+                  cpu_limit_seconds=420,
+              ),
+              base_sha="55144bb92abdc5135521f545667b94dcad555bb1",
+              use_cache=False,
+              submitted_by="Architect-A3",
+              submitted_role="ARCHITECT",
+              dependency_hashes=(
+                  "shared-lab:f9792cd95553b5663383b0b3474e5be2e2bda789",
+                  "a4:3757ab54c979977d1eb30874c7c8f33220e50f56",
+                  "mc28-broker-provider:run-36796674458",
+              ),
+          )
+          summary = NativeLabOrchestrator(
+              state_dir=state,
+              registry=registry,
+          ).run(request)
+          payload = {
+              "identity": asdict(summary.identity),
+              "disposition": summary.disposition.value,
+              "artifact_hash": summary.artifact_hash,
+              "evidence_path": summary.evidence_path,
+              "duration_ms": summary.duration_ms,
+              "tasks": [item.to_dict() for item in summary.task_results],
+          }
+          (state / "gateway-summary.json").write_text(
+              json.dumps(payload, sort_keys=True, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          print(json.dumps(payload, sort_keys=True, indent=2))
+          raise SystemExit(0 if summary.disposition.value == "PASS" else 1)
+          PY
+
+      - name: Seal Shared Lab evidence
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -d result/shared-lab-a3 ]; then
+            (
+              cd result/shared-lab-a3
+              find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+              sha256sum -c SHA256SUMS
+            )
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-shared-lab-a3-${{ github.sha }}
+          path: result/shared-lab-a3/
+          if-no-files-found: error
+          retention-days: 90

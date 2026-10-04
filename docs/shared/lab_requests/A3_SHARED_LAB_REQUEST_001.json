@@ -1,0 +1,42 @@
+{
+  "identity": "QORE_SHARED_A3_SHARED_LAB_REQUEST_001",
+  "requested_by": "Architect-A3",
+  "role": "ARCHITECT",
+  "repository": "mezas3238-hue/qore-core",
+  "branch": "agent/shared-architect-3-transversal-seam-001",
+  "requested_target_parent_head": "a4c97ad47f462775f61aba3a23874beb057c990e",
+  "execution_target": "PUSH_COMMIT_SHA_CONTAINING_THIS_REQUEST",
+  "shared_lab_ref": "agent/qore-shared-lab-001",
+  "shared_lab_observed_head": "f9792cd95553b5663383b0b3474e5be2e2bda789",
+  "execution_mode": "FULL_CUSTOM_PLUGIN_REGISTRY",
+  "dataset": "builtin-engineering@1",
+  "workers": 4,
+  "tests_must_run_in_shared_lab": true,
+  "github_actions_role": "COMPUTE_HOST_ONLY",
+  "github_actions_scientific_authority": false,
+  "legacy_scientific_workflows_used": false,
+  "task_ids": [
+    "a3-mc05-functional",
+    "a3-mc12-functional",
+    "a3-mc27-functional",
+    "a3-mc27-audit",
+    "a3-mc28-functional",
+    "a3-mc28-taxonomy",
+    "a3-sti3-functional",
+    "a3-sti10-functional",
+    "a3-wp10-functional",
+    "a3-mc28-clock-drift-readonly"
+  ],
+  "governance": {
+    "broker_mutation": false,
+    "order_create_modify_close": false,
+    "live": false,
+    "production": false,
+    "real_capital": false,
+    "vps_changes": false,
+    "final_protected_holdout_opened": false,
+    "shared_sizing_authority": false,
+    "shared_risk_authority": false,
+    "shared_execution_authority": false
+  }
+}
