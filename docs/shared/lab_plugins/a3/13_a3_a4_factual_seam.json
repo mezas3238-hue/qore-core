@@ -1,0 +1,24 @@
+{
+  "task_id": "a3-a4-factual-seam-contract",
+  "suite": "CONTRACT",
+  "scope": "cognition",
+  "dependencies": [],
+  "command": [
+    "bash",
+    "-lc",
+    "set -euo pipefail; ruff check src/qore/infrastructure/core_stack_v2/shared_a3_world_fact_consumer.py tests/infrastructure/test_shared_a3_world_fact_consumer.py; mypy src/qore/infrastructure/core_stack_v2/shared_a3_world_fact_consumer.py; python -m pytest --no-cov -q tests/infrastructure/test_shared_a3_world_fact_consumer.py"
+  ],
+  "component_globs": [
+    "src/qore/infrastructure/core_stack_v2/shared_a3_world_fact_consumer.py",
+    "tests/infrastructure/test_shared_a3_world_fact_consumer.py"
+  ],
+  "contract_laws": [
+    "UNKNOWN_IS_NOT_CERTAINTY",
+    "FACT_AVAILABLE_AT_LE_DECISION_AT",
+    "RELATIONAL_CLAIM_REQUIRES_COMPARABILITY",
+    "NO_TRADER_METHODOLOGY",
+    "NO_DIRECTIONAL_ACTION_HINT",
+    "NO_SIZING_RISK_EXECUTION_AUTHORITY"
+  ],
+  "integrator_2_owns_mapping_to_b4": true
+}

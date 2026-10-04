@@ -1,6 +1,6 @@
 {
   "identity": "QORE_SHARED_A3_SHARED_LAB_REQUEST_001",
-  "request_revision": 4,
+  "request_revision": 5,
   "requested_by": "Architect-A3",
   "role": "ARCHITECT",
   "repository": "mezas3238-hue/qore-core",
@@ -41,8 +41,8 @@
     "shared_risk_authority": false,
     "shared_execution_authority": false
   },
-  "previous_success_run_id": 37229359593,
-  "previous_success_artifact_id": 11312893864,
+  "previous_success_run_id": 37229700184,
+  "previous_success_artifact_id": 11313014080,
   "wp12_refresh": {
     "reason": "BROKER_PROVIDER_MISMATCH_CLOSED_AFTER_WP12_AUDIT_002",
     "expected_blocker_count": 5,
@@ -55,7 +55,7 @@
     ]
   },
   "task_ids": [
-    "a3-mc28-execution-quality-census"
+    "a3-a4-factual-seam-contract"
   ],
   "execution_scope": "SELECTED_TASKS_PLUS_TRANSITIVE_DEPENDENCIES",
   "execution_quality_census": {
@@ -70,6 +70,13 @@
       "ATTEMPT_POPULATION_30_PER_WINDOW_NOT_OBSERVABLE"
     ],
     "new_order_submission": false,
+    "test_plane": "QORE_SHARED_LAB"
+  },
+  "a3_a4_factual_seam": {
+    "purpose": "A3_SIDE_FACTUAL_CONSUMPTION_CONTRACT_ONLY",
+    "integrator_2_owns_pair_integration": true,
+    "no_b4_acquisition_or_identity_implementation": true,
+    "expected_gate": "CONTRACT_PASS",
     "test_plane": "QORE_SHARED_LAB"
   }
 }
