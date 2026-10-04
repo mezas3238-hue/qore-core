@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from enum import StrEnum
 
 from qore.infrastructure.core_stack_v2.shared_lab_data_reality import (
@@ -268,3 +268,20 @@ def build_validated_sensor_receipt(
         sensor_output_fingerprint=output_fingerprint,
     )
     return observation, receipt
+
+
+def bind_next_consumer(receipt: LabDataReceipt, consumer_parent_fingerprint: str) -> LabDataReceipt:
+    """Bind the exact validated sensor output fingerprint to its next lab consumer."""
+    if receipt.sensor_output_fingerprint is None:
+        raise ValueError("blocked/degraded receipt has no validated sensor output to bind")
+    return replace(receipt, next_consumer_parent_fingerprint=consumer_parent_fingerprint)
+
+
+def deterministic_replay_equal(
+    first_observation: SensorObservation | None,
+    first_receipt: LabDataReceipt,
+    second_observation: SensorObservation | None,
+    second_receipt: LabDataReceipt,
+) -> bool:
+    """Strict replay identity: typed output and full receipt must be byte-stable in meaning."""
+    return first_observation == second_observation and first_receipt == second_receipt
