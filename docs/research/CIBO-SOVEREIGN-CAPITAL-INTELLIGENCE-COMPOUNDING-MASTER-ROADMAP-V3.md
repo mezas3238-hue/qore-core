@@ -6,6 +6,30 @@ Compounding ADR: CIBO-CE2I-ADR-003-SOVEREIGN-CAPITAL-INTELLIGENCE-COMPOUNDING.md
 Gap audit: CIBO-MAXIMUM-CAPITAL-INTELLIGENCE-COMPOUNDING-GAP-AUDIT-V1.md
 Governance: OPEN / DRAFT / UNMERGED / RESEARCH ONLY
 
+## Active owner-authorized successor program — 04-OCT-2026
+
+The active maximum-capability repair/mastery program is now governed by:
+
+`docs/research/CIBO-MAXIMUM-CAPABILITY-UNLOCK-AND-MASTERY-ROADMAP-V1.md`
+
+That roadmap is additive to this V3 program and is binding for the current burned
+3x1Y repair lane. Its immediate order is:
+
+```text
+FULL FUNCTION MASTERY
+-> CF10 OWNER-RESEARCH UNLOCK
+-> T14 REAL ACTUATION
+-> ZERO UNEXPLAINED FUNCTION LOCKS
+-> COGNITIVE ECONOMIC ACTUATION
+-> POSITION LIFECYCLE
+-> COMPOUND / PORTFOLIO / ADAPTIVE LEVERAGE MASTERY
+-> MAXIMUM CAPABILITY FRONTIER
+-> TRADER RESCUE + ROBUSTNESS
+```
+
+It grants no LIVE, Production, real-capital, broker-mutation, merge or
+certification authority.
+
 ## 0. Dual-track law
 
 The current CIBO V3 certification program and the new compounding research program run in parallel.
