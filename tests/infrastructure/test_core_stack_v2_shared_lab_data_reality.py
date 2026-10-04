@@ -50,3 +50,17 @@ def test_provider_disagreement_is_detected_and_fingerprinted() -> None:
     right = replace(_datum(), provider="p2", provenance=ProviderProvenance("p2", "feed-B", "b" * 64, "decoder-v1", "map-v1"), bid=1.2)
     assert provider_disagreement(left, right, tolerance=0.001)
     assert len(fingerprint_datum(left)) == 64
+
+
+def test_provider_disagreement_participates_in_quality_gate() -> None:
+    data = (_datum(1), _datum(2), _datum(3))
+    metrics = compute_quality_metrics(
+        data,
+        expected_observations=3,
+        freshness_limit_ns=10_000,
+        now_ns=3_100,
+        provider_disagreement_count=1,
+    )
+    assert metrics.provider_disagreement_count == 1
+    assert metrics.provider_disagreement_ratio > 0
+    assert not metrics.passes(DataQualityThresholds(max_provider_disagreement_ratio=0.01))
