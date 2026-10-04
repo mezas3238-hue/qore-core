@@ -18,7 +18,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime
 from decimal import Decimal
 from enum import StrEnum
-from typing import Mapping
+from collections.abc import Mapping
 
 from qore.infrastructure.cibo_capital_digital_twin import (
     Genc10ObservedCapitalTwin,
