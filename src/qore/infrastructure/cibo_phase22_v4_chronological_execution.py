@@ -386,6 +386,7 @@ def execute_phase22_chronological_replay(
     amendment: Phase22HistoricalReplayEconomicsAmendment | None = None,
     lab_allow_nonpositive_expectation: bool = False,
     lab_cibo_free_tool_choice: bool = False,
+    lab_burned_context_quality_gate: bool = False,
     lab_enable_t02_released_capacity: bool = False,
     lab_admission_rules_by_trader: (
         dict[str, tuple[tuple[str, str], ...]] | None
@@ -405,6 +406,10 @@ def execute_phase22_chronological_replay(
     if type(lab_cibo_free_tool_choice) is not bool:
         raise CiboCapitalManagementError(
             "lab_cibo_free_tool_choice must be bool"
+        )
+    if type(lab_burned_context_quality_gate) is not bool:
+        raise CiboCapitalManagementError(
+            "lab_burned_context_quality_gate must be bool"
         )
     if type(lab_enable_t02_released_capacity) is not bool:
         raise CiboCapitalManagementError(
@@ -638,6 +643,7 @@ def execute_phase22_chronological_replay(
                 lab_allow_nonpositive_expectation
             ),
             lab_cibo_free_tool_choice=lab_cibo_free_tool_choice,
+            lab_burned_context_quality_gate=lab_burned_context_quality_gate,
         )
         pairs.append(pair)
 
