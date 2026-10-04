@@ -145,6 +145,7 @@ class SharedLabScheduler:
         worker_capacity: int = 4,
         max_worker_capacity: int = 20,
         max_queued_jobs: int = 32,
+        orchestrator: NativeLabOrchestrator | None = None,
     ) -> None:
         if worker_capacity <= 0 or worker_capacity > max_worker_capacity:
             raise ValueError("invalid worker capacity")
@@ -155,7 +156,9 @@ class SharedLabScheduler:
         self.worker_capacity = worker_capacity
         self.max_worker_capacity = max_worker_capacity
         self.max_queued_jobs = max_queued_jobs
-        self.orchestrator = NativeLabOrchestrator(state_dir=self.state_dir)
+        self.orchestrator = orchestrator or NativeLabOrchestrator(
+            state_dir=self.state_dir
+        )
         self._executor = ThreadPoolExecutor(
             max_workers=max_worker_capacity,
             thread_name_prefix="shared-lab-run",
