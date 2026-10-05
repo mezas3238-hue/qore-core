@@ -359,6 +359,8 @@ def replay(evidence_path: Path) -> dict[str, object]:
             enriched["last_structure_event_family"] = state[
                 "last_structure_event_family"
             ]
+            enriched["protection_triggered"] = required is not None
+            enriched["required_confirmations"] = required
             trades[variant].append(enriched)
             if bool(outcome.get("structural_trail_armed")):
                 armed[variant] += 1
@@ -396,6 +398,7 @@ def replay(evidence_path: Path) -> dict[str, object]:
             "provider_symbol_name": provider,
         },
         "variant_metrics": variant_metrics,
+        "trade_rows": trades,
         "status_counts": dict(sorted(status.items())),
         "governance": {
             "consumed_evidence_only": True,
