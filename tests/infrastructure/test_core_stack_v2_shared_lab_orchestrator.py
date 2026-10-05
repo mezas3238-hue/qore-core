@@ -1,6 +1,6 @@
 # ruff: noqa: I001
 import json
-import resource
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -23,10 +23,19 @@ from qore.infrastructure.core_stack_v2.shared_lab_suite_registry import (
 )
 
 
-pytestmark = pytest.mark.skipif(
-    not hasattr(resource, "prlimit"),
-    reason="native resource-limit acceptance currently requires Linux prlimit",
-)
+if os.name == "posix":
+    try:
+        import resource
+    except ImportError:
+        resource = None  # type: ignore[assignment]
+    pytestmark = pytest.mark.skipif(
+        resource is None or not hasattr(resource, "prlimit"),
+        reason="POSIX native resource-limit acceptance requires prlimit",
+    )
+elif os.name == "nt":
+    pytestmark = []
+else:
+    pytestmark = pytest.mark.skip(reason="unsupported native resource-limit backend")
 
 
 def git(repo: Path, *args: str) -> str:
