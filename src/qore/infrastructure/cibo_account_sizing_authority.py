@@ -133,6 +133,7 @@ def plan_account_sizing(
     mission_policy: CiboCapitalMissionPolicy,
     survival_capital_usd: Decimal,
     protected_capital_usd: Decimal,
+    provider_cost_per_volume_usd: Decimal = Decimal(0),
 ) -> CiboAccountSizingDecision:
     """Choose size solely from account mission/capital facts and Trader geometry."""
 
@@ -151,6 +152,7 @@ def plan_account_sizing(
     for name, value in (
         ("survival_capital_usd", survival_capital_usd),
         ("protected_capital_usd", protected_capital_usd),
+        ("provider_cost_per_volume_usd", provider_cost_per_volume_usd),
     ):
         if (
             not isinstance(value, Decimal)
@@ -167,6 +169,7 @@ def plan_account_sizing(
         plan = _maximum_capability_plan(
             opportunity=opportunity,
             capital=capital,
+            provider_cost_per_volume_usd=provider_cost_per_volume_usd,
             reason=(
                 "DEMO capability discovery: CIBO selected maximum executable "
                 "account-constrained size with explicit base/profit provenance"
@@ -192,6 +195,7 @@ def plan_account_sizing(
             plan = _maximum_constrained_plan(
                 opportunity=opportunity,
                 capital=capital,
+                provider_cost_per_volume_usd=provider_cost_per_volume_usd,
                 action=CapitalAction.EXPAND,
                 source=CapitalSource.REALIZED_PROFIT,
                 reason=(
@@ -225,6 +229,7 @@ def _maximum_capability_plan(
     *,
     opportunity: TraderOpportunityEnvelope,
     capital: CiboCapitalState,
+    provider_cost_per_volume_usd: Decimal,
     reason: str,
 ) -> CiboCapitalActionPlan:
     """Size capability discovery without mislabeling compounded profit as base.
@@ -238,6 +243,7 @@ def _maximum_capability_plan(
     provisional = _maximum_constrained_plan(
         opportunity=opportunity,
         capital=capital,
+        provider_cost_per_volume_usd=provider_cost_per_volume_usd,
         action=CapitalAction.OPEN_CAPABILITY_MAX,
         source=CapitalSource.ORIGINAL_BASE_CAPITAL,
         reason=reason,
@@ -303,6 +309,7 @@ def _maximum_constrained_plan(
     *,
     opportunity: TraderOpportunityEnvelope,
     capital: CiboCapitalState,
+    provider_cost_per_volume_usd: Decimal,
     action: CapitalAction,
     source: CapitalSource,
     reason: str,
@@ -311,9 +318,18 @@ def _maximum_constrained_plan(
         raise CiboCapitalManagementError(
             "CIBO account has no deployable risk/margin headroom"
         )
-    by_risk = (
-        capital.hard_risk_headroom_usd / opportunity.stop_loss_per_volume
+    if (
+        not isinstance(provider_cost_per_volume_usd, Decimal)
+        or not provider_cost_per_volume_usd.is_finite()
+        or provider_cost_per_volume_usd < 0
+    ):
+        raise CiboCapitalManagementError(
+            "provider cost per volume must be finite non-negative Decimal"
+        )
+    total_loss_per_volume = (
+        opportunity.stop_loss_per_volume + provider_cost_per_volume_usd
     )
+    by_risk = capital.hard_risk_headroom_usd / total_loss_per_volume
     by_margin = (
         capital.margin_headroom_usd / opportunity.margin_per_volume
     )
