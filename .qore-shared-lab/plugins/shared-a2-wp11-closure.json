@@ -3,7 +3,7 @@
   "suite": "CONTRACT",
   "scope": "mc23",
   "dependencies": [
-    "a2-mc25-performance"
+    "a2-mc25-formal-stress"
   ],
   "command": [
     "python",
