@@ -1,0 +1,32 @@
+{
+  "task_id": "a2-mc23-candidate-003-freeze",
+  "suite": "FUNCTIONAL",
+  "scope": "mc23",
+  "dependencies": [
+    "a2-mc23-candidate-003-prepare-r8",
+    "a2-mc23-candidate-003-prepare-r6",
+    "a2-mc23-candidate-003-prepare-r5",
+    "a2-mc23-candidate-003-prepare-d"
+  ],
+  "command": [
+    "python",
+    "-m",
+    "a2_lab_capsule.mc23_candidate_003",
+    "--mode",
+    "freeze",
+    "--r8",
+    "result/mc23-003-r8.npz",
+    "--r6",
+    "result/mc23-003-r6.npz",
+    "--r5",
+    "result/mc23-003-r5.npz",
+    "--d",
+    "result/mc23-003-d.npz",
+    "--output",
+    "result/mc23-003-freeze.npz"
+  ],
+  "component_globs": [
+    "docs/shared/evidence/QORE_SHARED_MC23_VALIDATED_NOVEL_REGIME_ADAPTATION_PREREGISTRATION_003.json",
+    "a2_lab_capsule/mc23_candidate_003.py"
+  ]
+}
