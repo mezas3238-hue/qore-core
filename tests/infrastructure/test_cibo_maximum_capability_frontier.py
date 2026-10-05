@@ -2,6 +2,8 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from qore.infrastructure.cibo_maximum_capability_frontier import (
+    CEILING_DISCOVERY_CLOSURE_ELIGIBLE,
+    FRONTIER_ROLE,
     CausalFrontierOpportunity,
     EpochOption,
     cognitive_multiplier_cap,
@@ -397,3 +399,8 @@ def test_wick_touch_without_close_cannot_realize_partial() -> None:
     )
 
     assert "PARTIAL_REALIZATION_AT_CLOSE" not in result.actions
+
+
+def test_frontier_is_diagnostic_and_cannot_close_ceiling_discovery() -> None:
+    assert FRONTIER_ROLE == "DIAGNOSTIC_FRONTIER_ONLY"
+    assert CEILING_DISCOVERY_CLOSURE_ELIGIBLE is False
