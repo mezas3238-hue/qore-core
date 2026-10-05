@@ -155,3 +155,44 @@ def test_native_orchestrator_executes_exact_sha_dag_and_reuses_safe_cache(
     assert all(item.cache_hit for item in second.task_results)
     second_evidence = json.loads(Path(second.evidence_path).read_text())
     assert second_evidence["final_disposition"] == "PASS"
+
+
+def test_native_cache_invalidates_when_target_plugin_contract_changes(
+    tmp_path: Path,
+) -> None:
+    repo, sha = make_repo(tmp_path)
+    state = tmp_path / "state"
+
+    def versioned_registry(label: str) -> NativeSuiteRegistry:
+        result = NativeSuiteRegistry()
+        result.register(
+            SuiteDefinition(
+                "unit",
+                ValidationSuite.UNIT,
+                LabScope.FULL_STACK,
+                (),
+                (
+                    sys.executable,
+                    "-c",
+                    f"print('{label}'); print('1 passed')",
+                ),
+                ("component.txt",),
+                execution_origin="TARGET",
+            )
+        )
+        return result
+
+    first = NativeLabOrchestrator(
+        state_dir=state,
+        registry=versioned_registry("plugin-v1"),
+    ).run(run_request(repo, sha))
+    assert first.disposition is RunDisposition.PASS
+    assert not first.task_results[0].cache_hit
+
+    second = NativeLabOrchestrator(
+        state_dir=state,
+        registry=versioned_registry("plugin-v2"),
+    ).run(run_request(repo, sha))
+    assert second.disposition is RunDisposition.PASS
+    assert not second.task_results[0].cache_hit
+    assert "plugin-v2" in Path(second.task_results[0].stdout_path).read_text()
