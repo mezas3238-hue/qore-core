@@ -62,7 +62,20 @@ def _strategy_identity_cached() -> dict[str, object]:
                 "opposite-frozen-09-reference-boundary"
             ),
             "fixed-r-target_is_methodology_identity": False,
+            "runtime_r_target_allowed": False,
+            "runtime_r_breakeven_allowed": False,
+            "runtime_r_trailing_allowed": False,
             "destination_may_be_contextualized": True,
+            "contextualization_basis": (
+                "structure+liquidity+exhaustion+regime+momentum"
+            ),
+        },
+        "execution_invariance": {
+            "market_decision_depends_on_volume": False,
+            "sizing_authority": False,
+            "leverage_authority": False,
+            "compounding_authority": False,
+            "portfolio_allocation_authority": False,
         },
         "lifecycle": {
             "pending_setup_expiry": "11:00-NY",
