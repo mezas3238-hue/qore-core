@@ -12,6 +12,7 @@ Runtime decision inputs are price/structure/time only:
 
 R is computed only after terminal outcomes for evaluation.
 """
+# ruff: noqa: B009
 from __future__ import annotations
 
 import argparse
