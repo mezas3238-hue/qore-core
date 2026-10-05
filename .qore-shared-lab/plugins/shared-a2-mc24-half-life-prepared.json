@@ -1,0 +1,30 @@
+{
+  "task_id": "a2-mc24-half-life-prepared",
+  "suite": "REGRESSION",
+  "scope": "mc23",
+  "dependencies": [
+    "a2-mc23-evaluate-prepared",
+    "a2-mc24-regression"
+  ],
+  "command": [
+    "python",
+    "a2_lab_capsule/capsule.py",
+    "--mode",
+    "mc24-prepared",
+    "--r6-prepared",
+    "a2_lab_runtime/r6-prepared.npz",
+    "--r5-prepared",
+    "a2_lab_runtime/r5-prepared.npz",
+    "--mc23-result",
+    "a2_lab_runtime/mc23-result.json",
+    "--prior-mc24",
+    "a2_lab_runtime/prior-mc24-real-regression-suite.json",
+    "--output",
+    "a2_lab_runtime/mc24-result.json"
+  ],
+  "component_globs": [
+    "a2_lab_capsule/capsule.py",
+    "a2_lab_capsule/manifest.json",
+    "docs/shared/evidence/QORE_SHARED_MC24_EMPIRICAL_KNOWLEDGE_HALF_LIFE_PREREGISTRATION_001.json"
+  ]
+}
