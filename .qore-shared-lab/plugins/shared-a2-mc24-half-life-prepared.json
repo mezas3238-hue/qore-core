@@ -26,5 +26,6 @@
     "a2_lab_capsule/capsule.py",
     "a2_lab_capsule/manifest.json",
     "docs/shared/evidence/QORE_SHARED_MC24_EMPIRICAL_KNOWLEDGE_HALF_LIFE_PREREGISTRATION_001.json"
-  ]
+  ],
+  "execution_origin": "TARGET"
 }
