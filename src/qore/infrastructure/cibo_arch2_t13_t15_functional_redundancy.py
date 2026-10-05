@@ -10,6 +10,7 @@ It does not modify capital policy, sizing, QORE Risk, execution, or outcomes.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
@@ -24,7 +25,7 @@ def _dec(value: object) -> Decimal:
     return result
 
 
-def _walk(value: object):
+def _walk(value: object) -> Iterator[dict[str, Any]]:
     if isinstance(value, dict):
         yield value
         for item in value.values():
