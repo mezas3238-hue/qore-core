@@ -667,13 +667,38 @@ def _cap_sizing_plan(
             ),
         )
 
-    if plan.capital_source_lots and volume != plan.volume:
-        raise CiboCapitalManagementError(
-            "sovereign resizing cannot mutate pre-reserved capital-source lots"
-        )
-
     risk = volume * opportunity.stop_loss_per_volume
     margin = volume * opportunity.margin_per_volume
+
+    source_lots = plan.capital_source_lots
+    capital_source = plan.capital_source
+    if source_lots and risk != plan.stop_risk_usd:
+        remaining = risk
+        resized_lots = []
+        for lot in source_lots:
+            if remaining <= 0:
+                break
+            amount = min(lot.amount_usd, remaining)
+            if amount > 0:
+                resized_lots.append(
+                    type(lot)(
+                        source=lot.source,
+                        amount_usd=amount,
+                        source_id=lot.source_id,
+                    )
+                )
+                remaining -= amount
+        if remaining != 0:
+            raise CiboCapitalManagementError(
+                "sovereign resize exceeds declared capital-source provenance"
+            )
+        source_lots = tuple(resized_lots)
+        capital_source = (
+            source_lots[0].source
+            if len(source_lots) == 1
+            else None
+        )
+
     return CiboCapitalActionPlan(
         trader_id=plan.trader_id,
         qore_symbol=plan.qore_symbol,
@@ -682,12 +707,12 @@ def _cap_sizing_plan(
         volume=volume,
         stop_risk_usd=risk,
         margin_usd=margin,
-        capital_source=plan.capital_source,
+        capital_source=capital_source,
         capital_source_amount_usd=risk,
         reason=(
             plan.reason
             + "; capped by Executive Brain + GEN-C11 + account-wide "
             "Portfolio/Adaptive Leverage"
         ),
-        capital_source_lots=plan.capital_source_lots,
+        capital_source_lots=source_lots,
     )
