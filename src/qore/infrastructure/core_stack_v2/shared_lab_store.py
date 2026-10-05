@@ -7,6 +7,7 @@ import json
 import os
 import shutil
 import tempfile
+import threading
 from dataclasses import asdict
 from enum import Enum
 from pathlib import Path
@@ -177,6 +178,16 @@ class EvidenceStore:
     def __init__(self, root: Path) -> None:
         self.root = root
         self.root.mkdir(parents=True, exist_ok=True)
+        self._run_locks_guard = threading.Lock()
+        self._run_locks: dict[str, threading.RLock] = {}
+
+    def _run_lock(self, run_id: str) -> threading.RLock:
+        with self._run_locks_guard:
+            lock = self._run_locks.get(run_id)
+            if lock is None:
+                lock = threading.RLock()
+                self._run_locks[run_id] = lock
+            return lock
 
     def run_dir(self, run_id: str) -> Path:
         return self.root / run_id
@@ -225,14 +236,15 @@ class EvidenceStore:
         task_id: str,
         payload: dict[str, Any],
     ) -> None:
-        run_file = self.run_dir(run_id) / "run.json"
-        run = json.loads(run_file.read_text())
-        tasks = dict(run.get("tasks", {}))
-        current = dict(tasks.get(task_id, {}))
-        current.update(payload)
-        tasks[task_id] = current
-        run["tasks"] = tasks
-        atomic_write_json(run_file, run)
+        with self._run_lock(run_id):
+            run_file = self.run_dir(run_id) / "run.json"
+            run = json.loads(run_file.read_text())
+            tasks = dict(run.get("tasks", {}))
+            current = dict(tasks.get(task_id, {}))
+            current.update(payload)
+            tasks[task_id] = current
+            run["tasks"] = tasks
+            atomic_write_json(run_file, run)
 
     def write_task_result(self, run_id: str, result: TaskResult) -> None:
         task_dir = self.run_dir(run_id) / "tasks" / result.task_id
@@ -248,17 +260,18 @@ class EvidenceStore:
         ended_at_ns: int,
         artifact_hash: str,
     ) -> Path:
-        run_file = self.run_dir(run_id) / "run.json"
-        run = json.loads(run_file.read_text())
-        run["state"] = "COMPLETED"
-        run["ended_at_ns"] = ended_at_ns
-        run["duration_ms"] = (
-            ended_at_ns - int(run["started_at_ns"])
-        ) / 1_000_000
-        run["final_disposition"] = disposition
-        run["artifact_hash"] = artifact_hash
-        atomic_write_json(run_file, run)
-        return run_file
+        with self._run_lock(run_id):
+            run_file = self.run_dir(run_id) / "run.json"
+            run = json.loads(run_file.read_text())
+            run["state"] = "COMPLETED"
+            run["ended_at_ns"] = ended_at_ns
+            run["duration_ms"] = (
+                ended_at_ns - int(run["started_at_ns"])
+            ) / 1_000_000
+            run["final_disposition"] = disposition
+            run["artifact_hash"] = artifact_hash
+            atomic_write_json(run_file, run)
+            return run_file
 
     def read_run(self, run_id: str) -> dict[str, Any]:
         path = self.run_dir(run_id) / "run.json"
