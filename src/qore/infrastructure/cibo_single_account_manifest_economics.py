@@ -108,7 +108,7 @@ def _opportunity(row: Mapping[str, Any]) -> TraderOpportunityEnvelope:
     )
 
 
-def _provider_cost_per_volume(row: Mapping[str, Any]) -> Decimal:
+def manifest_row_provider_cost_per_volume_usd(\n    row: Mapping[str, Any],\n) -> Decimal:
     state = _mapping(row.get("market_predecision_state"), "market_predecision_state")
     observation = _mapping(state.get("provider_observation"), "provider_observation")
     ask = _decimal(observation["ask"], "provider ask")
@@ -196,7 +196,7 @@ def manifest_row_to_ceiling_opportunity_evidence(
             expectation["expected_capital_minutes"],
             "expected_capital_minutes",
         ),
-        provider_cost_per_volume_usd=_provider_cost_per_volume(row),
+        provider_cost_per_volume_usd=manifest_row_provider_cost_per_volume_usd(row),
         expectation_evidence_sha256=_canonical_sha256(expectation),
         context_allowed=disposition == "ALLOW",
         provider_viable=True,
