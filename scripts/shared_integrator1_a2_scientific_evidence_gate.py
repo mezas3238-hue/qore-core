@@ -102,17 +102,30 @@ def main() -> None:
         and _safe_governance(row)
         for _path, row in rows
     )
-    candidate_002_pass = any(
-        row.get("identity") == MC23_CANDIDATE_002_ID
-        and row.get("status")
-        == "MC23_CANDIDATE_002_VALIDATED_AND_INDEPENDENTLY_REPLICATED_PASS"
-        and row.get("real_novel_regime_validated_adaptation") is True
-        and row.get("mc23_completed_and_proven") is True
-        and row.get("candidate_001_reused") is False
-        and row.get("gate_retuning") is False
-        and row.get("outcome_aware_tuning") is False
-        and _safe_governance(row)
-        for _path, row in rows
+    candidate_002_row = next(
+        (
+            row
+            for _path, row in rows
+            if row.get("identity") == MC23_CANDIDATE_002_ID
+            and row.get("status")
+            == "MC23_CANDIDATE_002_VALIDATED_AND_INDEPENDENTLY_REPLICATED_PASS"
+            and row.get("real_novel_regime_validated_adaptation") is True
+            and row.get("mc23_completed_and_proven") is True
+            and row.get("candidate_001_reused") is False
+            and row.get("r5_used_as_candidate_002_validation") is False
+            and row.get("validation_d_refit") is False
+            and row.get("replication_e_refit") is False
+            and row.get("gate_retuning") is False
+            and row.get("outcome_aware_tuning") is False
+            and _safe_governance(row)
+        ),
+        None,
+    )
+    candidate_002_pass = candidate_002_row is not None
+    candidate_002_fingerprint = (
+        None
+        if candidate_002_row is None
+        else candidate_002_row.get("candidate_fingerprint")
     )
     legacy_mc23_pass = any(
         row.get("identity") == MC23_CANDIDATE_001_ID
@@ -141,13 +154,27 @@ def main() -> None:
             and row.get("empirical_half_life_validated") is True
             and row.get("retained_knowledge_non_degradation_pass") is True
             and row.get("mc24_completed_and_proven") is True
+            and (
+                not candidate_001_terminal_falsified
+                or (
+                    candidate_002_fingerprint is not None
+                    and row.get("mc23_candidate_identity")
+                    == MC23_CANDIDATE_002_ID
+                    and row.get("mc23_candidate_fingerprint")
+                    == candidate_002_fingerprint
+                )
+            )
             and _safe_governance(row)
         ),
     )
     if not mc24_pass:
-        blockers.append("MC24_EMPIRICAL_KNOWLEDGE_HALF_LIFE")
+        blockers.append(
+            "MC24_CANDIDATE_002_BOUND_EMPIRICAL_KNOWLEDGE_HALF_LIFE"
+            if candidate_001_terminal_falsified
+            else "MC24_EMPIRICAL_KNOWLEDGE_HALF_LIFE"
+        )
 
-    lineage_pass = _has(
+    lineage_pass = mc24_pass and _has(
         rows,
         MC25_LINEAGE_ID,
         lambda row: (
@@ -159,7 +186,7 @@ def main() -> None:
     if not lineage_pass:
         blockers.append("MC25_LINEAGE_INTEGRITY_STRESS")
 
-    performance_pass = _has(
+    performance_pass = lineage_pass and _has(
         rows,
         MC25_PERFORMANCE_ID,
         lambda row: (
@@ -173,22 +200,22 @@ def main() -> None:
     if not performance_pass:
         blockers.append("MC25_SAME_LINEAGE_PERFORMANCE_STRESS")
 
-    formal_stress_pass = any(
+    formal_stress_pass = performance_pass and any(
         row.get("formal_stress_stage_completed") is True
         and _safe_governance(row)
         for _path, row in rows
     )
-    shadow_pass = any(
+    shadow_pass = formal_stress_pass and any(
         row.get("shadow_stage_bound") is True
         and _safe_governance(row)
         for _path, row in rows
     )
-    certification_pass = any(
+    certification_pass = shadow_pass and any(
         row.get("certification_stage_bound") is True
         and _safe_governance(row)
         for _path, row in rows
     )
-    promotion_pass = any(
+    promotion_pass = certification_pass and any(
         row.get("promotion_allowed") is True
         and row.get("mc25_completed_and_proven") is True
         and _safe_governance(row)
@@ -211,7 +238,7 @@ def main() -> None:
     if not promotion_pass:
         blockers.append("MC25_GOVERNED_PROMOTION")
 
-    wp11_pass = _has(
+    wp11_pass = lifecycle_pass and _has(
         rows,
         WP11_ID,
         lambda row: (
@@ -240,6 +267,8 @@ def main() -> None:
         "mc23_candidate_001_terminal_falsified": candidate_001_terminal_falsified,
         "mc23_candidate_001_retry_for_pass_allowed": (False if candidate_001_terminal_falsified else None),
         "mc23_candidate_002_scientific_pass": candidate_002_pass,
+        "mc23_candidate_002_fingerprint": candidate_002_fingerprint,
+        "mc24_bound_to_active_mc23_candidate": mc24_pass,
         "mc23_scientific_pass": mc23_pass,
         "mc23_active_candidate": "MC23_CANDIDATE_002",
         "mc23_candidate_001_terminal_falsification_preserved": True,
