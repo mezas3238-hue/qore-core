@@ -3,7 +3,7 @@
   "suite": "INTEGRATION",
   "scope": "cognition",
   "dependencies": [
-    "a2-wp11-closure"
+    "a2-mc23-candidate-002-scientific"
   ],
   "command": [
     "python",
@@ -17,7 +17,10 @@
   ],
   "component_globs": [
     "scripts/shared_integrator1_a2_scientific_evidence_gate.py",
-    "docs/shared/evidence/*.json"
+    "docs/shared/evidence/*.json",
+    "a2_lab_capsule/mc23_candidate_002.py",
+    "docs/shared/evidence/QORE_SHARED_A2_MC23_CANDIDATE_001_FALSIFICATION_001.json",
+    "docs/shared/evidence/QORE_SHARED_MC23_VALIDATED_NOVEL_REGIME_ADAPTATION_PREREGISTRATION_002.json"
   ],
   "execution_origin": "TARGET"
 }
