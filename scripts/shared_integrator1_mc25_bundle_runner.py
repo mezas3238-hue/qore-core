@@ -184,7 +184,22 @@ def main() -> None:
             ]
         command += ["--output", str(args.output)]
         completed = subprocess.run(command, check=False)
-        raise SystemExit(completed.returncode)
+        if completed.returncode != 0:
+            raise SystemExit(completed.returncode)
+        if not args.output.is_file():
+            raise SystemExit("MC25 performance producer returned zero without output")
+        performance = _load(args.output)
+        scientifically_passed = (
+            performance.get("identity")
+            == "QORE_SHARED_MC25_WP04_V3B_PERFORMANCE_STRESS_001"
+            and performance.get("performance_stress_bound") is True
+            and performance.get("performance_stress_pass") is True
+            and performance.get("threshold_retuning") is False
+            and performance.get("target_aware_stress_selection") is False
+            and performance.get("promotion_allowed") is False
+            and performance.get("productive_authority") is False
+        )
+        raise SystemExit(0 if scientifically_passed else 2)
 
 
 if __name__ == "__main__":
