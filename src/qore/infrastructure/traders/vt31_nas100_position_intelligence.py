@@ -293,7 +293,7 @@ def _confirmed_exhaustion(state: str) -> bool:
 
 
 def _destination_state(
-    situation: "Nas100SituationModel",
+    situation: Nas100SituationModel,
     *,
     entry_tier: str | None,
 ) -> tuple[str, tuple[str, ...]]:
@@ -344,7 +344,7 @@ def _destination_state(
 def assess_full_cognitive_position(
     *,
     situation: "Nas100SituationModel",
-    reasoning: "Nas100ReasoningDecision",
+    reasoning: Nas100ReasoningDecision,
     entry_tier: str | None = None,
     dol1_acceptance_observed: bool | None = None,
 ) -> FullCognitivePositionState:
