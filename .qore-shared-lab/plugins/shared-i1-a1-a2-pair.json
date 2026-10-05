@@ -29,6 +29,8 @@
     "tests/infrastructure/test_shared_wp11_exact_blocker_audit.py"
   ],
   "component_globs": [
+    "scripts/shared_integrator1_wp11_runtime_runner.py",
+    "scripts/shared_integrator1_mc25_bundle_runner.py",
     "scripts/shared_integrator1_a2_scientific_evidence_gate.py",
     "a2_lab_capsule/capsule.py",
     "a2_lab_capsule/manifest.json",
@@ -73,5 +75,6 @@
     "tests/infrastructure/test_core_stack_v2_mc25_v3b_performance_stress.py",
     "tests/infrastructure/test_core_stack_v2_mc25_governed_lifecycle.py",
     "tests/infrastructure/test_shared_wp11_exact_blocker_audit.py"
-  ]
+  ],
+  "execution_origin": "TARGET"
 }
