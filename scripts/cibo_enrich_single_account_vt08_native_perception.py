@@ -19,6 +19,10 @@ from typing import Any
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
+from qore.infrastructure.cibo_single_account_manifest_integrity import (
+    reseal_single_account_manifest,
+    validate_single_account_manifest_sha256,
+)
 
 
 def _price(value: object) -> str:
@@ -52,6 +56,7 @@ def enrich(
     manifest: dict[str, Any],
     native_payloads: tuple[dict[str, Any], ...],
 ) -> dict[str, Any]:
+    source_manifest_sha256 = validate_single_account_manifest_sha256(manifest)
     native_by_key: dict[tuple[str, ...], dict[str, Any]] = {}
     for payload in native_payloads:
         rows = payload.get("opportunities")
@@ -144,6 +149,7 @@ def enrich(
     result["opportunities"] = result_rows
     result["vt08_native_perception_enrichment"] = {
         "schema": "qore.cibo.vt08-native-perception-enrichment.v1",
+        "source_manifest_sha256": source_manifest_sha256,
         "attempted": sum(
             1
             for row in opportunities
@@ -157,7 +163,7 @@ def enrich(
         "future_lookup": False,
         "external_ai": False,
     }
-    return result
+    return reseal_single_account_manifest(result)
 
 
 def main() -> int:
