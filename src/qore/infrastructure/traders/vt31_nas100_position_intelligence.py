@@ -343,7 +343,7 @@ def _destination_state(
 
 def assess_full_cognitive_position(
     *,
-    situation: "Nas100SituationModel",
+    situation: Nas100SituationModel,
     reasoning: Nas100ReasoningDecision,
     entry_tier: str | None = None,
     dol1_acceptance_observed: bool | None = None,
