@@ -227,7 +227,9 @@ class EvidenceStore:
         run_file = self.run_dir(run_id) / "run.json"
         run = json.loads(run_file.read_text())
         tasks = dict(run.get("tasks", {}))
-        tasks[task_id] = payload
+        current = dict(tasks.get(task_id, {}))
+        current.update(payload)
+        tasks[task_id] = current
         run["tasks"] = tasks
         atomic_write_json(run_file, run)
 
