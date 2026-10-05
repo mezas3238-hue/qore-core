@@ -336,6 +336,7 @@ def consult_cibo_economic_faculties(
     decision_at: datetime,
     opportunities: tuple[TraderOpportunityEnvelope, ...],
     regime_state: CiboCapitalRegimeState,
+    evidence_ref: CiboEvidenceRef | None = None,
 ) -> CiboEconomicConsultationReceipt:
     """Consult all CF01-CF19 on the actual predecision economic path."""
 
@@ -370,9 +371,14 @@ def consult_cibo_economic_faculties(
         opportunities=opportunities,
         regime_state=regime_state,
     )
-    evidence_ref = CiboEvidenceRef(
-        "lab:predecision:" + predecision_digest[7:]
-    )
+    if evidence_ref is None:
+        evidence_ref = CiboEvidenceRef(
+            "cibo:sovereign:predecision:" + predecision_digest[7:]
+        )
+    elif not isinstance(evidence_ref, CiboEvidenceRef):
+        raise CiboCapitalManagementError(
+            "economic consultation evidence_ref must be canonical"
+        )
     faculties = tuple(sorted(CiboFacultyDomain, key=lambda item: item.value))
     mission_result = CiboMissionDirector().direct(
         mission_code="cibo-economic-predecision",
