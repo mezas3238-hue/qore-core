@@ -22,6 +22,9 @@ MC23_CANDIDATE_001_FALSIFIED_STATUS = (
     "MC23_VALIDATED_REAL_NOVEL_REGIME_ADAPTATION_"
     "FALSIFIED_AND_CLOSED_FOR_THIS_MECHANISM"
 )
+MC23_CANDIDATE_002_FALSIFIED_STATUS = (
+    "MC23_CANDIDATE_002_FALSIFIED_ON_REPLICATION_D"
+)
 MC24_ID = "QORE_SHARED_MC24_VALIDATED_ADAPTATION_HALF_LIFE_001"
 MC25_LINEAGE_ID = "QORE_SHARED_MC25_WP04_V3B_LINEAGE_INTEGRITY_STRESS_001"
 MC25_PERFORMANCE_ID = "QORE_SHARED_MC25_WP04_V3B_PERFORMANCE_STRESS_001"
@@ -102,6 +105,17 @@ def main() -> None:
         and _safe_governance(row)
         for _path, row in rows
     )
+    candidate_002_terminal_falsified = any(
+        row.get("schema")
+        == "QORE_SHARED_A2_MC23_CANDIDATE_002_FALSIFICATION_001"
+        and row.get("status") == MC23_CANDIDATE_002_FALSIFIED_STATUS
+        and row.get("governance", {}).get("candidate_002_terminal") is True
+        and row.get("governance", {}).get("retry_for_pass_forbidden") is True
+        and row.get("replication_e", {}).get("evaluated") is False
+        and _safe_governance(row)
+        for _path, row in rows
+    )
+
     candidate_002_row = next(
         (
             row
@@ -134,19 +148,23 @@ def main() -> None:
         and _safe_governance(row)
         for _path, row in rows
     )
-    mc23_pass = (
-        candidate_002_pass
-        if candidate_001_terminal_falsified
-        else legacy_mc23_pass
-    )
-    if not mc23_pass:
-        blockers.append(
-            "MC23_CANDIDATE_002_VALIDATED_AND_INDEPENDENTLY_REPLICATED"
+    if candidate_002_terminal_falsified:
+        mc23_pass = False
+        blockers.append("MC23_NEW_PREREGISTERED_MECHANISM_REQUIRED")
+    else:
+        mc23_pass = (
+            candidate_002_pass
             if candidate_001_terminal_falsified
-            else "MC23_VALIDATED_REAL_NOVEL_REGIME_ADAPTATION"
+            else legacy_mc23_pass
         )
+        if not mc23_pass:
+            blockers.append(
+                "MC23_CANDIDATE_002_VALIDATED_AND_INDEPENDENTLY_REPLICATED"
+                if candidate_001_terminal_falsified
+                else "MC23_VALIDATED_REAL_NOVEL_REGIME_ADAPTATION"
+            )
 
-    mc24_pass = _has(
+    mc24_pass = (not candidate_002_terminal_falsified) and _has(
         rows,
         MC24_ID,
         lambda row: (
@@ -169,9 +187,13 @@ def main() -> None:
     )
     if not mc24_pass:
         blockers.append(
-            "MC24_CANDIDATE_002_BOUND_EMPIRICAL_KNOWLEDGE_HALF_LIFE"
-            if candidate_001_terminal_falsified
-            else "MC24_EMPIRICAL_KNOWLEDGE_HALF_LIFE"
+            "MC24_BLOCKED_UNTIL_NEW_MC23_MECHANISM"
+            if candidate_002_terminal_falsified
+            else (
+                "MC24_CANDIDATE_002_BOUND_EMPIRICAL_KNOWLEDGE_HALF_LIFE"
+                if candidate_001_terminal_falsified
+                else "MC24_EMPIRICAL_KNOWLEDGE_HALF_LIFE"
+            )
         )
 
     lineage_pass = mc24_pass and _has(
@@ -266,11 +288,21 @@ def main() -> None:
         "blocker_count": len(blockers),
         "mc23_candidate_001_terminal_falsified": candidate_001_terminal_falsified,
         "mc23_candidate_001_retry_for_pass_allowed": (False if candidate_001_terminal_falsified else None),
-        "mc23_candidate_002_scientific_pass": candidate_002_pass,
+        "mc23_candidate_002_terminal_falsified": candidate_002_terminal_falsified,
+        "mc23_candidate_002_retry_for_pass_allowed": (False if candidate_002_terminal_falsified else None),
+        "mc23_candidate_002_scientific_pass": candidate_002_pass and not candidate_002_terminal_falsified,
         "mc23_candidate_002_fingerprint": candidate_002_fingerprint,
         "mc24_bound_to_active_mc23_candidate": mc24_pass,
         "mc23_scientific_pass": mc23_pass,
-        "mc23_active_candidate": "MC23_CANDIDATE_002",
+        "mc23_active_candidate": (
+            "NONE_NEW_PREREGISTERED_MECHANISM_REQUIRED"
+            if candidate_002_terminal_falsified
+            else (
+                "MC23_CANDIDATE_002"
+                if candidate_001_terminal_falsified
+                else "MC23_CANDIDATE_001"
+            )
+        ),
         "mc23_candidate_001_terminal_falsification_preserved": True,
         "mc24_scientific_pass": mc24_pass,
         "mc25_lineage_pass": lineage_pass,
