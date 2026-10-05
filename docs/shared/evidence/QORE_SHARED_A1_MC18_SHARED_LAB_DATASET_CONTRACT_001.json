@@ -1,0 +1,83 @@
+{
+  "identity": "QORE_SHARED_A1_MC18_SHARED_LAB_DATASET_CONTRACT_001",
+  "owner_lane": "SHARED_ARCHITECT_1",
+  "status": "CONSUMED_DEVELOPMENT_LINEAGE_CRYPTOGRAPHICALLY_VERIFIED_READY_FOR_LAB_BUNDLE",
+  "observed_date": "2026-10-04",
+  "source_lineage": {
+    "foundation_run_id": 36764204066,
+    "foundation_git_sha": "5632b10e85c26d8bf9c8a8ca83a063ed1070f525",
+    "R6_CONSUMED_ONLY": {
+      "artifact_id": 10389112524,
+      "artifact_zip_sha256": "9b0f3a05dc76b5dd83e5e3610266484bee1b79595dbbaacdff1d799115ad58b9",
+      "evidence": {
+        "NAS100": "cf3ef22fa86916bfb2826f4fa48c7a9655b9509c76a05d9bb26d0d4cb6069581",
+        "SP500": "1a4f37ba444e357bbee4c3bdd8e6b73458d159d8ce9c4249cb5137232d70171c",
+        "US30": "fdbd1ebcb4e36b40e3c48415d4590f7d54c7d915780d75ca6867a3a6f8a4dbae"
+      },
+      "embedded_evidence_sha256s_recomputed_and_matched": true
+    },
+    "R5_CONSUMED_ONLY": {
+      "artifact_id": 10380044761,
+      "artifact_zip_sha256": "828335b99cd51c663e3f0f095df5137e881da3d7e8da741da8ca116a0400edf8",
+      "evidence": {
+        "NAS100": "7b1e3d9e2bfd17ccc6f043befabf464838d150bc6034ced1f76a24ee248611d7",
+        "SP500": "08da54cdec1e1286718a901aee98b225bde65a12cedaf4f9751e667baf8e6b77",
+        "US30": "c260e50dcbf02630c7e0713750cd27faea63a64939c3c4553ac63c82afce990e"
+      },
+      "embedded_evidence_sha256s_recomputed_and_matched": true
+    }
+  },
+  "frozen_scientific_protocol": {
+    "preregistration": "QORE_SHARED_MC18_COUNTERFACTUAL_FAILURE_CALIBRATION_PREREGISTRATION_001",
+    "fit_partition": "R6_CONSUMED_ONLY",
+    "validation_partition": "R5_CONSUMED_ONLY",
+    "model_family": "ONE_FEATURE_LOGISTIC_CALIBRATION",
+    "input": "RAW_FAILURE_WORLD_PROBABILITY_MASS",
+    "C": 1,
+    "solver": "lbfgs",
+    "random_state": 1818,
+    "hyperparameter_search": false,
+    "target_definition": "MAX_REVERSAL_STRUCTURAL_FAILURE_ANOMALY_GTE_6500_BPS_AT_30M",
+    "target_threshold_bps": 6500,
+    "gates": {
+      "coefficient_positive": true,
+      "calibrated_brier_lt_raw": true,
+      "calibrated_log_loss_lt_raw": true,
+      "all_required": true
+    },
+    "post_outcome_retuning": false
+  },
+  "bundle_contract": {
+    "dataset_id": "shared-a1-mc18-r6-r5-consumed-v1",
+    "dataset_version": "1",
+    "format": "ZIP_WITH_MANIFEST_AND_HASH_VERIFICATION",
+    "required_logical_paths": [
+      "manifest.json",
+      "r6/NAS100.json",
+      "r6/SP500.json",
+      "r6/US30.json",
+      "r5/NAS100.json",
+      "r5/SP500.json",
+      "r5/US30.json"
+    ],
+    "bundle_hash": "NOT_YET_MATERIALIZED",
+    "shared_lab_dataset_store_registration_required": true
+  },
+  "execution_law": {
+    "target_script": "scripts/shared_mc18_counterfactual_failure_calibration.py",
+    "execution_origin": "TARGET",
+    "calibration_pass_does_not_equal_mc18_completed_and_proven": true,
+    "calibration_pass_next_gate": "FREEZE_FOR_FUTURE_INDEPENDENT_MC27_EVALUATION",
+    "calibration_fail_disposition": "FALSIFIED_AND_KEEP_RAW_ENGINE_UNCALIBRATED"
+  },
+  "governance": {
+    "future_oos_used_for_fit": false,
+    "future_oos_used_for_validation": false,
+    "protected_final_holdout_opened": false,
+    "live_used": false,
+    "vps_used": false,
+    "broker_mutation": false,
+    "productive_authority": false
+  },
+  "next_gate": "MATERIALIZE_HASHED_R6_R5_BUNDLE_AND_EXECUTE_PREREGISTERED_CALIBRATION_IN_NATIVE_SHARED_LAB"
+}
