@@ -109,12 +109,159 @@ def _request_payload(request: RunRequest) -> dict[str, Any]:
     }
 
 
+def _git_head(root: Path) -> str:
+    completed = subprocess.run(
+        ("git", "-C", str(root), "rev-parse", "HEAD"),
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    sha = completed.stdout.strip()
+    if re.fullmatch(r"[0-9a-f]{40}", sha) is None:
+        raise RuntimeError("Shared Lab harness HEAD is not an exact commit SHA")
+    dirty = subprocess.run(
+        (
+            "git",
+            "-C",
+            str(root),
+            "status",
+            "--porcelain",
+            "--untracked-files=no",
+        ),
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    if dirty.stdout.strip():
+        raise RuntimeError(
+            "Shared Lab harness has tracked working-tree mutations; "
+            "provenance is ambiguous"
+        )
+    return sha
+
+
+def _apply_windows_limits(
+    process: subprocess.Popen[str],
+    *,
+    memory_limit_mb: int,
+    cpu_limit_seconds: int,
+) -> bool:
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        class IO_COUNTERS(ctypes.Structure):
+            _fields_ = [
+                ("ReadOperationCount", ctypes.c_ulonglong),
+                ("WriteOperationCount", ctypes.c_ulonglong),
+                ("OtherOperationCount", ctypes.c_ulonglong),
+                ("ReadTransferCount", ctypes.c_ulonglong),
+                ("WriteTransferCount", ctypes.c_ulonglong),
+                ("OtherTransferCount", ctypes.c_ulonglong),
+            ]
+
+        class JOBOBJECT_BASIC_LIMIT_INFORMATION(ctypes.Structure):
+            _fields_ = [
+                ("PerProcessUserTimeLimit", ctypes.c_longlong),
+                ("PerJobUserTimeLimit", ctypes.c_longlong),
+                ("LimitFlags", wintypes.DWORD),
+                ("MinimumWorkingSetSize", ctypes.c_size_t),
+                ("MaximumWorkingSetSize", ctypes.c_size_t),
+                ("ActiveProcessLimit", wintypes.DWORD),
+                ("Affinity", ctypes.c_size_t),
+                ("PriorityClass", wintypes.DWORD),
+                ("SchedulingClass", wintypes.DWORD),
+            ]
+
+        class JOBOBJECT_EXTENDED_LIMIT_INFORMATION(ctypes.Structure):
+            _fields_ = [
+                ("BasicLimitInformation", JOBOBJECT_BASIC_LIMIT_INFORMATION),
+                ("IoInfo", IO_COUNTERS),
+                ("ProcessMemoryLimit", ctypes.c_size_t),
+                ("JobMemoryLimit", ctypes.c_size_t),
+                ("PeakProcessMemoryUsed", ctypes.c_size_t),
+                ("PeakJobMemoryUsed", ctypes.c_size_t),
+            ]
+
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel32.CreateJobObjectW.argtypes = (ctypes.c_void_p, wintypes.LPCWSTR)
+        kernel32.CreateJobObjectW.restype = wintypes.HANDLE
+        kernel32.SetInformationJobObject.argtypes = (
+            wintypes.HANDLE,
+            ctypes.c_int,
+            ctypes.c_void_p,
+            wintypes.DWORD,
+        )
+        kernel32.SetInformationJobObject.restype = wintypes.BOOL
+        kernel32.AssignProcessToJobObject.argtypes = (
+            wintypes.HANDLE,
+            wintypes.HANDLE,
+        )
+        kernel32.AssignProcessToJobObject.restype = wintypes.BOOL
+        kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
+        kernel32.CloseHandle.restype = wintypes.BOOL
+
+        job = kernel32.CreateJobObjectW(None, None)
+        if not job:
+            return False
+        info = JOBOBJECT_EXTENDED_LIMIT_INFORMATION()
+        info.BasicLimitInformation.PerProcessUserTimeLimit = (
+            int(cpu_limit_seconds) * 10_000_000
+        )
+        info.BasicLimitInformation.LimitFlags = (
+            0x00000002  # JOB_OBJECT_LIMIT_PROCESS_TIME
+            | 0x00000100  # JOB_OBJECT_LIMIT_PROCESS_MEMORY
+            | 0x00002000  # JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+        )
+        info.ProcessMemoryLimit = int(memory_limit_mb) * 1024 * 1024
+        if not kernel32.SetInformationJobObject(
+            job,
+            9,  # JobObjectExtendedLimitInformation
+            ctypes.byref(info),
+            ctypes.sizeof(info),
+        ):
+            kernel32.CloseHandle(job)
+            return False
+        process_handle = wintypes.HANDLE(int(getattr(process, "_handle")))
+        if not kernel32.AssignProcessToJobObject(job, process_handle):
+            kernel32.CloseHandle(job)
+            return False
+        setattr(process, "_qore_job_handle", job)
+        return True
+    except (AttributeError, OSError, TypeError, ValueError):
+        return False
+
+
+def _release_limits(process: subprocess.Popen[str]) -> None:
+    if os.name != "nt":
+        return
+    job = getattr(process, "_qore_job_handle", None)
+    if not job:
+        return
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
+        kernel32.CloseHandle.restype = wintypes.BOOL
+        kernel32.CloseHandle(job)
+    finally:
+        setattr(process, "_qore_job_handle", None)
+
+
 def _apply_limits(
     process: subprocess.Popen[str],
     *,
     memory_limit_mb: int,
     cpu_limit_seconds: int,
 ) -> bool:
+    if os.name == "nt":
+        return _apply_windows_limits(
+            process,
+            memory_limit_mb=memory_limit_mb,
+            cpu_limit_seconds=cpu_limit_seconds,
+        )
     if os.name != "posix":
         return False
     try:
