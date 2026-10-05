@@ -1,6 +1,6 @@
 # VT31_NAS100_SPECIALIST_R1 — Freeze Contract
 
-Status: DRAFT / DEVELOPMENT WFO ACTIVE / HOLDOUT SEALED
+Status: SUPERSEDED FOR CERTIFICATION / HOLDOUT SEALED
 
 This identity supersedes the old pre-intelligence `VT31_NAS100_R1` candidate
 for the current NAS100 specialist research program. It does not inherit the old
@@ -109,41 +109,40 @@ STOP = price where the source reversal hypothesis is structurally invalid
 
 No M1 protected-swing trailing is allowed.
 
-## Target / management intelligence
+## Target / management intelligence — superseded rule
 
-The target policy depends on causal reference-volatility state.
+The former R-driven management policy in this contract is **not eligible for
+certification** under the Owner's sovereign pure-edge rule.
 
-Reference-volatility ratio:
-
-```text
-current 09:00-10:00 reference width
-/
-median(last up to 5 admitted prior 09:00 reference widths)
-```
-
-### Compressed reference (<0.75)
-
-The market is in a double-compression state: compressed current path plus
-compressed 09:00 reference.
+The active certification boundary is:
 
 ```text
-100% destination = opposite frozen 09:00 boundary
-management = one BE transition only after source 3R, effective next bar
+primary destination = opposite frozen 09:00 structural boundary
+initial invalidation = source structural invalidation
+runtime R target = prohibited
+runtime R breakeven = prohibited
+runtime R trailing = prohibited
+runtime R partial exit = prohibited
 ```
 
-### Normal / expanded reference (>=0.75)
+Any future extension beyond the primary boundary must be derived from causal
+market-native evidence such as:
 
-```text
-50% realized at 1.25R
-50% runner retained toward opposite frozen 09:00 boundary
-runner -> breakeven beginning next bar after partial
-```
+- structural acceptance;
+- liquidity continuation/failure;
+- confirmed exhaustion;
+- regime change;
+- momentum deterioration;
+- confirmed protective structure.
 
-If the structural boundary is closer than 1.25R, the boundary is used directly
-and no artificial farther target is created.
+R may be calculated only as post-trade evaluation.
 
-This is designed to let the specialist shorten exposure when destination
-geometry is less favorable while retaining structural extension when available.
+Canonical sovereign rule:
+
+`docs/research/VT31_NAS100_SOVEREIGN_PURE_EDGE_CERTIFICATION_RULE.md`
+
+This supersession does **not** open the holdout. A new exact pure-edge candidate
+fingerprint must be frozen before any one-shot holdout is authorized.
 
 ## Causal firewall
 
@@ -199,7 +198,7 @@ end-exclusive: 2016-04-19T00:00:00Z
 Until an immutable freeze artifact exists:
 
 ```text
-VT31_NAS100_SPECIALIST_R1 = NOT_FROZEN
+VT31_NAS100_SPECIALIST_R1 = SUPERSEDED_FOR_CERTIFICATION
 NAS100_1Y_FRESH_HOLDOUT = SEALED
 LIVE_AUTHORIZED = FALSE
 PRODUCTION_AUTHORIZED = FALSE
