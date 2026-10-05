@@ -12,6 +12,7 @@ broker, LIVE, production, or real-capital authority is introduced here.
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from uuid import NAMESPACE_URL, uuid5
 
 from qore.infrastructure.cibo_capital_management_authority import (
@@ -32,6 +33,7 @@ def build_sovereign_reasoning_request(
     *,
     consultation: CiboEconomicConsultationReceipt,
     opportunity: TraderOpportunityEnvelope,
+    requested_at: datetime | None = None,
 ) -> CiboReasoningRequest:
     """Create one evidence-bound MAX-capability reasoning request.
 
@@ -48,6 +50,24 @@ def build_sovereign_reasoning_request(
         raise CiboCapitalManagementError(
             "sovereign reasoning requires canonical Trader opportunity"
         )
+    effective_requested_at = (
+        consultation.decision_at
+        if requested_at is None
+        else requested_at
+    )
+    if (
+        not isinstance(effective_requested_at, datetime)
+        or effective_requested_at.tzinfo is None
+        or effective_requested_at.utcoffset() is None
+    ):
+        raise CiboCapitalManagementError(
+            "sovereign reasoning requested_at must be timezone-aware"
+        )
+    if effective_requested_at < consultation.decision_at:
+        raise CiboCapitalManagementError(
+            "sovereign reasoning request cannot predate market evidence"
+        )
+
     if consultation.outcome_used or consultation.broker_mutation:
         raise CiboCapitalManagementError(
             "sovereign reasoning cannot consume contaminated consultation"
@@ -131,6 +151,8 @@ def build_sovereign_reasoning_request(
 
     prompt_payload = {
         "mission": "single-account-seven-trader-maximum-capability",
+        "market_decision_at": consultation.decision_at.isoformat(),
+        "reasoning_requested_at": effective_requested_at.isoformat(),
         "instruction": (
             "Reason from current causal state and faculty semantics. "
             "Memory is evidence, never authority. Decide whether this "
@@ -221,13 +243,15 @@ def build_sovereign_reasoning_request(
             + consultation.consultation_id
             + ":"
             + opportunity.signal_fingerprint
+            + ":"
+            + effective_requested_at.isoformat()
         ),
     )
 
     return CiboReasoningRequest(
         request_id=request_id,
         subject_code="single-account-maxcap",
-        asked_at=consultation.decision_at,
+        asked_at=effective_requested_at,
         prompt=prompt,
         evidence_refs=evidence_refs,
         observations=(
@@ -236,6 +260,11 @@ def build_sovereign_reasoning_request(
             "memory-evidence-not-authority",
             "qore-risk-sovereign",
             "single-account-seven-trader",
+            (
+                "historical-counterfactual-seal"
+                if effective_requested_at > consultation.decision_at
+                else "market-time-reasoning"
+            ),
         ),
         memory_refs=(),
     )
