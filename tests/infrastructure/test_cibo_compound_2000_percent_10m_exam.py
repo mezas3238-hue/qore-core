@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -62,7 +62,7 @@ def test_exam_rejects_twenty_x_capital_as_only_plus_1900_percent() -> None:
 
 def test_exam_rejects_result_after_ten_calendar_months() -> None:
     deadline = add_calendar_months(START, 10)
-    late = deadline.replace(day=min(deadline.day + 1, 28))
+    late = deadline + timedelta(days=1)
 
     with pytest.raises(
         CiboCapitalManagementError,
