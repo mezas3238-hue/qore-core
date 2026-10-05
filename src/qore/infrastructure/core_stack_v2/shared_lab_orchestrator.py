@@ -299,7 +299,6 @@ class NativeLabOrchestrator:
         self.cache_store = CacheStore(self.state_dir / "cache")
         self.evidence_store = EvidenceStore(self.state_dir / "evidence")
         self.registry = registry or default_native_suite_registry()
-        self.registry.load_plugins(self.state_dir / "plugins")
 
     def run(
         self,
@@ -329,7 +328,6 @@ class NativeLabOrchestrator:
                 snapshot.commit_sha,
             )
         plan_request = replace(request, commit_sha=snapshot.commit_sha)
-        tasks = self.registry.plan(plan_request, changed_paths)
         resolved_run_id = run_id or self._run_id(snapshot.commit_sha)
         identity = RunIdentity(
             run_id=resolved_run_id,
@@ -342,16 +340,21 @@ class NativeLabOrchestrator:
             configuration_hash=plan_request.configuration_hash(),
             lab_harness_sha=harness_sha,
         )
-        run_dir = self.evidence_store.start_run(
-            identity=identity,
-            request=_request_payload(plan_request),
-            environment=self._environment(plan_request, harness_sha),
-            started_at_ns=started_at_ns,
-        )
 
         completed: dict[str, TaskResult] = {}
-        pending = {task.task_id: task for task in tasks}
         with runtime.worktree(snapshot.commit_sha) as worktree:
+            run_registry = self.registry.clone()
+            run_registry.load_plugins(
+                worktree / ".qore-shared-lab" / "plugins"
+            )
+            tasks = run_registry.plan(plan_request, changed_paths)
+            run_dir = self.evidence_store.start_run(
+                identity=identity,
+                request=_request_payload(plan_request),
+                environment=self._environment(plan_request, harness_sha),
+                started_at_ns=started_at_ns,
+            )
+            pending = {task.task_id: task for task in tasks}
             self._execute_dag(
                 request=plan_request,
                 identity=identity,
