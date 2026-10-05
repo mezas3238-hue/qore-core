@@ -19,6 +19,17 @@ Write-Host "Downloading QORE VPS Control Bridge from immutable qore-core commit 
 Invoke-WebRequest -UseBasicParsing -Uri "$Base/QoreVpsBridge.ps1" -OutFile $Agent
 Invoke-WebRequest -UseBasicParsing -Uri "$Base/Install-QoreVpsBridge.ps1" -OutFile $Installer
 
+Write-Host "Applying Windows PowerShell 5.1 DPAPI compatibility fix ..."
+foreach ($Path in @($Agent, $Installer)) {
+    $text = Get-Content -LiteralPath $Path -Raw -Encoding UTF8
+    $text = $text.Replace("[Security.Cryptography.ProtectedData]", "[System.Security.Cryptography.ProtectedData]")
+    $text = $text.Replace("[Security.Cryptography.DataProtectionScope]", "[System.Security.Cryptography.DataProtectionScope]")
+    if ($text -notmatch "Add-Type -AssemblyName System.Security") {
+        $text = $text.Replace('$ErrorActionPreference = "Stop"', '$ErrorActionPreference = "Stop"' + [Environment]::NewLine + 'Add-Type -AssemblyName System.Security')
+    }
+    [IO.File]::WriteAllText($Path, $text, [Text.UTF8Encoding]::new($false))
+}
+
 Write-Host "Verifying downloaded files ..."
 if ((Get-Item -LiteralPath $Agent).Length -lt 1000) { throw "Agent download is unexpectedly small." }
 if ((Get-Item -LiteralPath $Installer).Length -lt 1000) { throw "Installer download is unexpectedly small." }
