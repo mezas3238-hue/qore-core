@@ -1,0 +1,32 @@
+{
+  "task_id": "b5-asset-worlds-functional",
+  "suite": "PROVIDER_REALITY",
+  "scope": "provider",
+  "dependencies": [],
+  "command": [
+    "{python}",
+    "-m",
+    "pytest",
+    "--no-cov",
+    "-q",
+    "tests/infrastructure/test_shared_b5_asset_world_disposition.py",
+    "tests/infrastructure/test_shared_b5_relational_asset_world.py",
+    "tests/infrastructure/test_shared_b_secondary_provider_intake.py",
+    "tests/infrastructure/test_shared_b_commodity_observation_identity.py",
+    "tests/infrastructure/test_shared_b_gc_contract_lifecycle.py",
+    "tests/infrastructure/test_shared_b_metals_reference_boundary.py",
+    "tests/infrastructure/test_shared_b_energy_reference_boundary.py",
+    "tests/infrastructure/test_shared_b_metals_component_semantics.py"
+  ],
+  "component_globs": [
+    "src/qore/infrastructure/core_stack_v2/shared_b5_asset_world.py",
+    "src/qore/infrastructure/core_stack_v2/shared_b5_asset_world_disposition.py",
+    "src/qore/infrastructure/core_stack_v2/shared_b_secondary_provider_intake.py",
+    "src/qore/infrastructure/core_stack_v2/shared_b_commodity_observation_identity.py",
+    "src/qore/infrastructure/core_stack_v2/shared_b_gc_contract_lifecycle.py",
+    "src/qore/infrastructure/core_stack_v2/shared_b_metals*.py",
+    "src/qore/infrastructure/core_stack_v2/shared_b_energy*.py",
+    "tests/infrastructure/test_shared_b5_asset_world_disposition.py",
+    "tests/infrastructure/test_shared_b5_relational_asset_world.py"
+  ]
+}

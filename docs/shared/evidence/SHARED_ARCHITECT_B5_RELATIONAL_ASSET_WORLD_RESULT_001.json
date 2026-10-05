@@ -1,0 +1,172 @@
+{
+  "b4_comparability_eligible_count": 0,
+  "b4_relational_comparability_authorized": false,
+  "b5_scientific_closure_complete": false,
+  "broker_mutation": false,
+  "complete_and_proven_count": 0,
+  "dependency_blocked_count": 3,
+  "empirical_relational_population_complete": false,
+  "engineering_open_count": 0,
+  "execution_authority": false,
+  "fresh_holdout_opened": false,
+  "functional_engine_count": 5,
+  "functional_engine_implemented_count": 5,
+  "governed_unknown_count": 1,
+  "handoff_fingerprint_sha256": "e07a13776a05d0657a850ee2a9ca27ab2a1b17741f566d0b630d319fd88e4079",
+  "handoff_to_integrator_3_ready": true,
+  "identity": "SHARED_ARCHITECT_B5_RELATIONAL_ASSET_WORLD_HANDOFF_001",
+  "items": [
+    {
+      "blockers": [
+        "B08_RELATIONAL_COMPARABILITY_NOT_AUTHORIZED",
+        "ZERO_COMPARABILITY_ELIGIBLE_SENSORS"
+      ],
+      "disposition": "DEPENDENCY_BLOCKED",
+      "empirical_population_complete": false,
+      "functional_engine_implemented": true,
+      "outcome_used": false,
+      "productive_authority": false,
+      "required_states": [
+        "BIRTH",
+        "ACTIVE",
+        "DEGRADED",
+        "STALE",
+        "DEAD"
+      ],
+      "title": "Relationship Lifecycle",
+      "work_id": "B-11"
+    },
+    {
+      "blockers": [
+        "B08_RELATIONAL_COMPARABILITY_NOT_AUTHORIZED",
+        "ZERO_COMPARABILITY_ELIGIBLE_SENSORS"
+      ],
+      "disposition": "DEPENDENCY_BLOCKED",
+      "empirical_population_complete": false,
+      "functional_engine_implemented": true,
+      "outcome_used": false,
+      "productive_authority": false,
+      "temporal_precedence_is_causation": false,
+      "title": "Lead-Lag Observability",
+      "work_id": "B-12"
+    },
+    {
+      "blockers": [
+        "B08_RELATIONAL_COMPARABILITY_NOT_AUTHORIZED",
+        "ZERO_COMPARABILITY_ELIGIBLE_SENSORS"
+      ],
+      "disposition": "DEPENDENCY_BLOCKED",
+      "empirical_population_complete": false,
+      "fully_comparable_window_required": true,
+      "functional_engine_implemented": true,
+      "outcome_used": false,
+      "productive_authority": false,
+      "title": "Structural Divergence",
+      "work_id": "B-13"
+    },
+    {
+      "asset_world_receipt": {
+        "agricultural_candidate_count": 0,
+        "authorized_provider_count": 1,
+        "blocker_codes": [
+          "NO_OWNER_AUTHORIZED_SECONDARY_PROVIDER",
+          "NO_SCIENTIFICALLY_ADMITTED_SECONDARY_PROVIDER",
+          "ZERO_AGRICULTURAL_SOFT_LIVESTOCK_CANDIDATES"
+        ],
+        "disposition": "KNOWN_BLINDSPOT",
+        "evidence_refs": [
+          "artifact:11059457712",
+          "artifact:11126270432",
+          "artifact:11128508597",
+          "run:36623645085",
+          "run:36777269692",
+          "run:36783743044"
+        ],
+        "execution_authority": false,
+        "livestock_candidate_count": 0,
+        "productive_authority": false,
+        "proxy_agriculture_used": false,
+        "secondary_provider_owner_authorized": false,
+        "secondary_provider_scientifically_admitted": false,
+        "soft_candidate_count": 0
+      },
+      "blockers": [
+        "NO_OWNER_AUTHORIZED_SECONDARY_PROVIDER",
+        "NO_SCIENTIFICALLY_ADMITTED_SECONDARY_PROVIDER",
+        "ZERO_AGRICULTURAL_SOFT_LIVESTOCK_CANDIDATES"
+      ],
+      "disposition": "KNOWN_BLINDSPOT",
+      "functional_engine_implemented": true,
+      "productive_authority": false,
+      "proxy_used": false,
+      "title": "Agricultural World",
+      "work_id": "B-14"
+    },
+    {
+      "asset_world_receipt": {
+        "blocker_codes": [
+          "CONTINUOUS_SERIES_UNVERIFIED",
+          "CURRENT_FRONT_CONTRACT_UNVERIFIED",
+          "ENERGY_PROVIDER_NEUTRAL_IDENTITY_UNRESOLVED",
+          "METALS_PROVIDER_NEUTRAL_IDENTITY_UNRESOLVED",
+          "OBSERVED_GC_SET_EXPIRED",
+          "ROLL_SEMANTICS_UNVERIFIED",
+          "VENUE_IDENTITY_UNVERIFIED"
+        ],
+        "continuous_series_verified": false,
+        "current_front_contract_verified_count": 0,
+        "dated_gc_contract_count": 5,
+        "disposition": "GOVERNED_UNKNOWN",
+        "energy_provider_neutral_identity_count": 0,
+        "energy_reference_object_count": 3,
+        "evidence_refs": [
+          "artifact:11115769948",
+          "artifact:11128416668",
+          "artifact:11128739693",
+          "artifact:11129012317",
+          "run:36755839843",
+          "run:36782329462",
+          "run:36784542345",
+          "run:36784810864"
+        ],
+        "execution_authority": false,
+        "expired_gc_contract_count": 5,
+        "inference_used": false,
+        "metal_provider_neutral_identity_count": 0,
+        "metal_reference_object_count": 11,
+        "productive_authority": false,
+        "roll_semantics_verified": false,
+        "venue_identity_verified": false
+      },
+      "blockers": [
+        "CONTINUOUS_SERIES_UNVERIFIED",
+        "CURRENT_FRONT_CONTRACT_UNVERIFIED",
+        "ENERGY_PROVIDER_NEUTRAL_IDENTITY_UNRESOLVED",
+        "METALS_PROVIDER_NEUTRAL_IDENTITY_UNRESOLVED",
+        "OBSERVED_GC_SET_EXPIRED",
+        "ROLL_SEMANTICS_UNVERIFIED",
+        "VENUE_IDENTITY_UNVERIFIED"
+      ],
+      "disposition": "GOVERNED_UNKNOWN",
+      "functional_engine_implemented": true,
+      "inference_used": false,
+      "productive_authority": false,
+      "title": "Commodity World",
+      "work_id": "B-15"
+    }
+  ],
+  "known_blindspot_count": 1,
+  "live": false,
+  "owned_work_ids": [
+    "B-11",
+    "B-12",
+    "B-13",
+    "B-14",
+    "B-15"
+  ],
+  "production": false,
+  "real_capital": false,
+  "risk_authority": false,
+  "sizing_authority": false,
+  "target_or_outcome_read": false
+}
