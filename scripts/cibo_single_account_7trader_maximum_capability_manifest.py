@@ -118,6 +118,11 @@ def build_manifest(
                     "market_predecision_state": row.get(
                         "market_predecision_state"
                     ),
+                    # Frozen causal expectation and context-quality evidence are
+                    # predecision inputs required by the sovereign ceiling runner.
+                    # They are transported verbatim; no outcome is consulted.
+                    "expectation": row.get("expectation"),
+                    "context_quality": row.get("context_quality"),
                     "ce2i_predecision_evidence": row.get("ce2i"),
                     # Outcome is retained only for chronological settlement.
                     # Sovereign predecision consumers must never receive it.
