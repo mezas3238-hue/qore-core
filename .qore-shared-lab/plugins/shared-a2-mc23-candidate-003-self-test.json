@@ -1,0 +1,20 @@
+{
+  "task_id": "a2-mc23-candidate-003-self-test",
+  "suite": "FUNCTIONAL",
+  "scope": "mc23",
+  "dependencies": [
+    "mc23-functional"
+  ],
+  "command": [
+    "python",
+    "-m",
+    "a2_lab_capsule.mc23_candidate_003",
+    "--mode",
+    "self-test"
+  ],
+  "component_globs": [
+    "docs/shared/evidence/QORE_SHARED_MC23_VALIDATED_NOVEL_REGIME_ADAPTATION_PREREGISTRATION_003.json",
+    "a2_lab_capsule/capsule.py",
+    "a2_lab_capsule/mc23_candidate_003.py"
+  ]
+}
