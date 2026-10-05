@@ -30,4 +30,8 @@ def test_vt31_nas100_specialist_r1_freeze_contract_keeps_holdout_sealed() -> Non
     assert "Opening permanently consumes the interval" in text
     assert "No post-open retuning" in text
     assert "date-level CIBO outcome lookup" in text
-    assert "50% realized at 1.25R" in text
+    assert "SUPERSEDED FOR CERTIFICATION" in text
+    assert "runtime R target = prohibited" in text
+    assert "runtime R breakeven = prohibited" in text
+    assert "VT31_NAS100_SOVEREIGN_PURE_EDGE_CERTIFICATION_RULE.md" in text
+    assert "50% realized at 1.25R" not in text
