@@ -267,10 +267,11 @@ def _rescue(
     pending: dict[int, list[Decimal]] = defaultdict(list)
     armed = 0
     qualifying_observations = 0
+    rescue_committed = False
 
     for index, bar in enumerate(path):
-        candidates = pending.get(index, [])
-        if candidates:
+        candidates = pending.pop(index, [])
+        if candidates and not rescue_committed:
             proposed = (
                 max(candidates)
                 if side == "long"
@@ -284,6 +285,7 @@ def _rescue(
             if improves:
                 current_stop = proposed
                 armed += 1
+                rescue_committed = True
 
         stopped = _touches_stop(bar, side, current_stop)
         reached = _touches_target(bar, side, boundary)
@@ -326,7 +328,11 @@ def _rescue(
 
         # A protective swing is known only after the right bar closes. The
         # candidate therefore becomes effective on the next M1 bar.
-        if 2 <= index < len(path) - 1:
+        if (
+            not rescue_committed
+            and not pending
+            and 2 <= index < len(path) - 1
+        ):
             left = path[index - 2]
             middle = path[index - 1]
             right = path[index]
@@ -681,6 +687,7 @@ def replay(
             ),
             "protection_effective": "next-m1-bar-only",
             "initial_stop_widening": False,
+            "maximum_rescue_moves_per_trade": 1,
             "structural_target": (
                 "opposite-frozen-09-reference-boundary"
             ),
@@ -706,6 +713,7 @@ def replay(
             "trade_admission_changed": False,
             "entry_changed": False,
             "initial_stop_changed": False,
+            "single_structural_rescue_move_max": True,
             "structural_target_changed": False,
             "terminal_pnl_runtime_input": False,
             "future_journey_runtime_input": False,
