@@ -16,7 +16,12 @@ from typing import Any
 
 IDENTITY = "QORE_SHARED_INTEGRATOR_1_A2_SCIENTIFIC_EVIDENCE_GATE_001"
 
-MC23_ID = "QORE_SHARED_MC23_VALIDATED_NOVEL_REGIME_ADAPTATION_001"
+MC23_IDS = frozenset(
+    {
+        "QORE_SHARED_MC23_VALIDATED_NOVEL_REGIME_ADAPTATION_001",
+        "QORE_SHARED_MC23_CANDIDATE_002_ROUTED_SECOND_ORDER_001",
+    }
+)
 MC24_ID = "QORE_SHARED_MC24_VALIDATED_ADAPTATION_HALF_LIFE_001"
 MC25_LINEAGE_ID = "QORE_SHARED_MC25_WP04_V3B_LINEAGE_INTEGRITY_STRESS_001"
 MC25_PERFORMANCE_ID = "QORE_SHARED_MC25_WP04_V3B_PERFORMANCE_STRESS_001"
@@ -85,14 +90,12 @@ def main() -> None:
             rows.extend(_load_rows(runtime_dir))
     blockers: list[str] = []
 
-    mc23_pass = _has(
-        rows,
-        MC23_ID,
-        lambda row: (
-            row.get("real_novel_regime_validated_adaptation") is True
-            and row.get("mc23_completed_and_proven") is True
-            and _safe_governance(row)
-        ),
+    mc23_pass = any(
+        row.get("identity") in MC23_IDS
+        and row.get("real_novel_regime_validated_adaptation") is True
+        and row.get("mc23_completed_and_proven") is True
+        and _safe_governance(row)
+        for _path, row in rows
     )
     if not mc23_pass:
         blockers.append("MC23_VALIDATED_REAL_NOVEL_REGIME_ADAPTATION")
