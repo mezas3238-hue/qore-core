@@ -81,7 +81,10 @@ def test_runtime_reasoning_has_no_r_target_plan() -> None:
 
     assert compressed.target_plan == "PRIMARY_STRUCTURAL_BOUNDARY"
     assert normal.target_plan == "PRIMARY_STRUCTURAL_BOUNDARY"
-    assert "R" not in compressed.target_plan
+    assert "1R" not in compressed.target_plan
+    assert "1.25R" not in compressed.target_plan
+    assert "3R" not in compressed.target_plan
+    assert "_R_" not in compressed.target_plan
     assert "PARTIAL" not in compressed.target_plan
 
 
