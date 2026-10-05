@@ -185,3 +185,20 @@ def test_development_module_cannot_claim_certification_or_open_holdout() -> None
     assert report["live_authorized"] is False
     assert report["real_capital_authorized"] is False
     assert report["production_authorized"] is False
+
+
+def test_final_sharpe_sortino_gates_remain_unbound_until_convention_freeze() -> None:
+    report = build_edge_only_report(_rows(), monte_carlo_paths=100)
+
+    assert report["gates"]["sharpe"] is None
+    assert report["gates"]["sortino"] is None
+    assert report["risk_adjusted_certification_binding_complete"] is False
+    assert report["ready_for_candidate_freeze"] is False
+    assert (
+        report["risk_adjusted_metric_binding"]["sharpe"]["status"]
+        == "UNBOUND_FINAL_CERTIFICATION_CONVENTION"
+    )
+    assert (
+        report["risk_adjusted_metric_binding"]["sortino"]["status"]
+        == "UNBOUND_FINAL_CERTIFICATION_CONVENTION"
+    )
