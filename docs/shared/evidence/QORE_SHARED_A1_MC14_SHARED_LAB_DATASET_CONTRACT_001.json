@@ -1,7 +1,7 @@
 {
   "identity": "QORE_SHARED_A1_MC14_SHARED_LAB_DATASET_CONTRACT_001",
   "owner_lane": "SHARED_ARCHITECT_1",
-  "status": "SEALED_SOURCE_INVENTORY_READY_FOR_NATIVE_LAB_BUNDLE_MATERIALIZATION",
+  "status": "SEALED_XAUUSD_ONLY_MATERIALIZATION_CONTRACT_READY",
   "observed_date": "2026-10-04",
   "scientific_contract": {
     "b04_run_id": 36765098842,
@@ -269,13 +269,19 @@
     "required_logical_paths": [
       "manifest.json",
       "sources/XAUUSD_DEFENSIVE_PROXY/",
-      "sources/US2000_BREADTH_PROXY/",
       "targets/NAS100",
       "targets/SP500",
       "targets/US30"
     ],
     "bundle_hash": "NOT_YET_MATERIALIZED",
-    "shared_lab_dataset_store_registration_required": true
+    "shared_lab_dataset_store_registration_required": true,
+    "excluded_source_families": {
+      "US2000_BREADTH_PROXY": {
+        "reason": "FROZEN_SOURCE_PREFLIGHT_INSUFFICIENT_DO_NOT_READ_TARGET",
+        "source_artifacts_retained_for_lineage": true,
+        "packaged_for_replay": false
+      }
+    }
   },
   "execution_law": {
     "target_script": "scripts/shared_mc14_b04_new_information_causal_replay.py",
@@ -284,7 +290,10 @@
     "us2000_must_remain_insufficient_if_frozen_missing_windows_persist": true,
     "xauusd_scientific_outcome_may_be_replicated_falsified_or_insufficient": true,
     "lab_task_pass_only_means_governed_execution_completed": true,
-    "scientific_disposition_must_be_read_from_replay_output": true
+    "scientific_disposition_must_be_read_from_replay_output": true,
+    "replay_mode": "XAUUSD_ONLY",
+    "us2000_target_evaluation_executed": false,
+    "efficiency_reason": "DO_NOT_DOWNLOAD_OR_REEVALUATE_A_SOURCE_FAMILY_ALREADY_FROZEN_INSUFFICIENT_BEFORE_TARGET_READ"
   },
   "governance": {
     "github_actions_used_as_execution_engine": false,
@@ -296,5 +305,5 @@
     "broker_mutation": false,
     "productive_authority": false
   },
-  "next_gate": "MATERIALIZE_ONE_HASHED_DATASET_BUNDLE_FROM_THE_SEALED_ARTIFACT_INVENTORY_THEN_REGISTER_IT_IN_SHARED_LAB_DATASET_STORE"
+  "next_gate": "MATERIALIZE_ONE_HASHED_XAUUSD_ONLY_DATASET_BUNDLE_THEN_REGISTER_IT_IN_SHARED_LAB_DATASET_STORE_AND_EXECUTE_EXACTLY_ONE_GOVERNED_REPLAY"
 }
