@@ -559,6 +559,15 @@ class NativeLabOrchestrator:
                     "suite": task.suite.value,
                     "scope": task.scope.value,
                     "execution_origin": task.execution_origin,
+                    "task_contract": {
+                        "dependencies": task.dependencies,
+                        "command": task.command,
+                        "component_globs": task.component_globs,
+                        "timeout_seconds": task.timeout_seconds,
+                        "retries": task.retries,
+                        "dataset_id": task.dataset_id,
+                        "dataset_version": task.dataset_version,
+                    },
                     "target_sha": identity.commit_sha,
                     "lab_harness_sha": identity.lab_harness_sha,
                 }
