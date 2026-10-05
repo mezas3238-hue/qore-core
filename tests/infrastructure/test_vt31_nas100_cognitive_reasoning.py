@@ -80,7 +80,7 @@ def _situation(
         entry_evidence_freshness="fresh-0-5m",
         stop_plan="SOURCE_SWING_EXTREME",
         risk_ref=Decimal("0.21"),
-        planned_target_r=Decimal("3.4"),
+        planned_target_r=None,
         structural_destination="OPPOSITE_09_REFERENCE_BOUNDARY",
         destination_distance_ref=Decimal("0.71"),
         journey_stage="POST_CONFIRMATION_PRE_EXECUTION",
@@ -144,7 +144,7 @@ def test_reasoning_executes_supported_current_state() -> None:
     situation = _situation()
     decision = reason(situation)
     assert decision.action == "EXECUTE"
-    assert decision.target_plan == "FULL_STRUCTURAL_BOUNDARY"
+    assert decision.target_plan == "PRIMARY_STRUCTURAL_BOUNDARY"
     assert decision.contradictions == ()
     assert "source_identity" in decision.strategy_memory_used
     assert "journey_memory" in decision.cibo_market_memory_used
@@ -222,7 +222,7 @@ def test_noncompressed_short_h1_mixed_is_low_dd_fallback() -> None:
         )
     )
     assert decision.action == "EXECUTE"
-    assert decision.target_plan == "PARTIAL_1_25R_PLUS_BOUNDARY_RUNNER"
+    assert decision.target_plan == "PRIMARY_STRUCTURAL_BOUNDARY"
     assert "EXPERIENCE:LOW_DD_NONCOMPRESSED_SHORT_H1_MIXED" in (
         decision.supporting_evidence
     )
@@ -240,3 +240,10 @@ def test_noncompressed_state_outside_low_dd_gate_abstains() -> None:
     assert "EXPERIENCE:NONCOMPRESSED_REFERENCE_OUTSIDE_LOW_DD_GATE" in (
         decision.contradictions
     )
+
+
+def test_reasoning_target_plan_contains_no_r_runtime_threshold() -> None:
+    decision = reason(_situation(ref_ratio="1.05", side="short", h1_state="mixed"))
+    assert decision.target_plan == "PRIMARY_STRUCTURAL_BOUNDARY"
+    assert "R" not in decision.target_plan
+    assert "PARTIAL" not in decision.target_plan
