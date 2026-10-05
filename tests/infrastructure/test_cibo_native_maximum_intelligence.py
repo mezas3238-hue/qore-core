@@ -83,6 +83,7 @@ def test_native_max_intelligence_is_provider_free_and_max_mode() -> None:
         consultation=consultation,
         opportunities=(opportunity,),
         target=opportunity,
+        regime_state=_regime(),
     )
 
     assert result.native_only is True
