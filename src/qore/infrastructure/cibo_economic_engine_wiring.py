@@ -36,22 +36,24 @@ from qore.infrastructure.cibo_multi_period_capital_mpc import (
 )
 from qore.infrastructure.cibo_portfolio_allocation_engine import (
     CiboPortfolioAllocationPlan,
+    CiboPositionOpportunityCompetitionPlan,
     plan_account_wide_capital_allocation,
+    plan_position_opportunity_competition,
 )
 from qore.infrastructure.cibo_position_lifecycle import (
+    CiboLifecycleBar,
     CiboLifecycleFeature,
     CiboPositionLifecycleInput,
     CiboPositionLifecycleResult,
     FULL_CIBO_LIFECYCLE_FEATURES,
     run_cibo_position_lifecycle,
 )
-from qore.infrastructure.trader_lab.ict_turtle_soup_r4_source_exact import Bar
 
 
 @dataclass(frozen=True, slots=True)
 class CiboLifecycleWireRequest:
     position: CiboPositionLifecycleInput
-    bars: tuple[Bar, ...]
+    bars: tuple[CiboLifecycleBar, ...]
     features: frozenset[
         CiboLifecycleFeature
     ] = FULL_CIBO_LIFECYCLE_FEATURES
@@ -63,6 +65,7 @@ class CiboEconomicEngineRun:
     genc11_plan: Genc11MultiPeriodPlan
     portfolio_plan: CiboPortfolioAllocationPlan
     lifecycle_results: tuple[CiboPositionLifecycleResult, ...]
+    competition_plans: tuple[CiboPositionOpportunityCompetitionPlan, ...]
     release_ledger: CiboCapitalVelocityLedger | None
     redeployment_proposals: tuple[CiboRedeploymentProposal, ...]
     allocation_authority: bool = False
@@ -76,6 +79,7 @@ def run_cibo_economic_engine_chain(
     world_paths: tuple[Genc11WorldPath, ...],
     option_schedules: tuple[Genc11KnownOptionSchedule, ...],
     lifecycle_requests: Sequence[CiboLifecycleWireRequest] = (),
+    competition_option_ids: Sequence[str] = (),
     release_events: Sequence[CiboCapitalReleaseEvent] = (),
 ) -> CiboEconomicEngineRun:
     """Run canonical CIBO engines through explicit direct wiring."""
@@ -96,6 +100,13 @@ def run_cibo_economic_engine_chain(
         )
         for request in lifecycle_requests
     )
+    competition_plans = tuple(
+        plan_position_opportunity_competition(
+            twin,
+            opportunity_id=option_id,
+        )
+        for option_id in competition_option_ids
+    )
 
     ledger: CiboCapitalVelocityLedger | None = None
     proposals: list[CiboRedeploymentProposal] = []
@@ -115,6 +126,7 @@ def run_cibo_economic_engine_chain(
         genc11_plan=genc11,
         portfolio_plan=portfolio,
         lifecycle_results=lifecycle_results,
+        competition_plans=competition_plans,
         release_ledger=ledger,
         redeployment_proposals=tuple(proposals),
         allocation_authority=False,
