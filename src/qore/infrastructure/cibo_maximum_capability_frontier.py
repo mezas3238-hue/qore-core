@@ -30,6 +30,8 @@ class LifecycleFeature(StrEnum):
 
 FULL_LIFECYCLE_FEATURES = frozenset(LifecycleFeature)
 POLICY_ID = "CIBO_MAXIMUM_CAPABILITY_FRONTIER_V1"
+FRONTIER_ROLE = "DIAGNOSTIC_FRONTIER_ONLY"
+CEILING_DISCOVERY_CLOSURE_ELIGIBLE = False
 
 
 @dataclass(frozen=True, slots=True)
