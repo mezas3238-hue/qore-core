@@ -1,8 +1,13 @@
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from types import SimpleNamespace
 
-from qore.infrastructure.account_wide_risk import TraderLineage
+from qore.infrastructure.account_wide_risk import (
+    AccountRiskSnapshot,
+    RiskDecision,
+    TraderLineage,
+)
 from qore.infrastructure.cibo_capital_management_authority import (
     TraderOpportunityEnvelope,
 )
@@ -36,15 +41,42 @@ def _opportunity(
     )
 
 
+@dataclass(frozen=True)
+class _Budget:
+    provider_headroom: Decimal = Decimal("60")
+    max_risk_at_any_time: Decimal = Decimal("60")
+    active_mll: Decimal = Decimal("0")
+    hard_breach: bool = False
+
+
+def _snapshot() -> AccountRiskSnapshot:
+    return AccountRiskSnapshot(
+        account_binding_id="ceiling-account",
+        equity=Decimal("60"),
+        margin_used=Decimal("0"),
+        free_margin=Decimal("60"),
+        open_stop_worst_case_loss=Decimal("0"),
+        open_floating_loss=Decimal("0"),
+        pending_broker_worst_case_loss=Decimal("0"),
+        qore_authorizable_headroom=Decimal("60"),
+        provider_budget=_Budget(),
+        reconciled_at=T0,
+    )
+
+
 class _RiskEngine:
     def __init__(self) -> None:
         self.calls: list[str] = []
+        self.headrooms: list[Decimal] = []
 
     def authorize(self, request, snapshot, *, now):
         self.calls.append(request.signal_fingerprint)
+        self.headrooms.append(snapshot.qore_authorizable_headroom)
         return SimpleNamespace(
             signal_fingerprint=request.signal_fingerprint,
             request_id=request.request_id,
+            decision=RiskDecision.ALLOW,
+            authorized_volume=request.requested_volume,
         )
 
 
@@ -85,6 +117,7 @@ def test_epoch_uses_full_surface_and_risk_priority_not_manifest_order(
         request = SimpleNamespace(
             signal_fingerprint=signal,
             request_id=kwargs["request_id"],
+            requested_volume=Decimal("0.10"),
         )
         line = SimpleNamespace(
             option_id=kwargs["option_id"],
@@ -125,8 +158,14 @@ def test_epoch_uses_full_surface_and_risk_priority_not_manifest_order(
     twin = SimpleNamespace(
         captured_at=T0,
         opportunities=(
-            SimpleNamespace(option_id="option-a"),
-            SimpleNamespace(option_id="option-b"),
+            SimpleNamespace(
+                option_id="option-a",
+                provider_cost_usd=Decimal("0.01"),
+            ),
+            SimpleNamespace(
+                option_id="option-b",
+                provider_cost_usd=Decimal("0.01"),
+            ),
         ),
     )
     regime = SimpleNamespace(opportunity_count=2)
@@ -146,7 +185,7 @@ def test_epoch_uses_full_surface_and_risk_priority_not_manifest_order(
         regime_state=regime,
         evidence_ref=object(),
         mission_policy=object(),
-        risk_snapshot=object(),
+        risk_snapshot=_snapshot(),
         risk_engine=risk,
         survival_capital_usd=Decimal("60"),
         protected_capital_usd=Decimal("0"),
@@ -157,6 +196,8 @@ def test_epoch_uses_full_surface_and_risk_priority_not_manifest_order(
         ("signal-b", ("signal-a", "signal-b"), True),
     ]
     assert risk.calls == ["signal-b", "signal-a"]
+    assert risk.headrooms == [Decimal("59.90"), Decimal("59.80")]
+    assert result.provider_cost_reserve_usd == Decimal("0.20")
     assert result.risk_submission_order == ("signal-b", "signal-a")
     assert tuple(
         item.signal_fingerprint for item in result.decision_receipts
@@ -213,7 +254,12 @@ def test_epoch_does_not_call_risk_for_native_cognitive_or_capital_block(
 
     twin = SimpleNamespace(
         captured_at=T0,
-        opportunities=(SimpleNamespace(option_id="option-a"),),
+        opportunities=(
+            SimpleNamespace(
+                option_id="option-a",
+                provider_cost_usd=Decimal("0.01"),
+            ),
+        ),
     )
     risk = _RiskEngine()
 
@@ -237,3 +283,4 @@ def test_epoch_does_not_call_risk_for_native_cognitive_or_capital_block(
     assert risk.calls == []
     assert result.risk_submission_order == ()
     assert result.risk_authorizations == ()
+    assert result.provider_cost_reserve_usd == Decimal("0")
