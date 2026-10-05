@@ -1,0 +1,40 @@
+{
+  "schema": "QORE_SHARED_A2_MC23_INTERRUPTED_ATTEMPT_002",
+  "created_at": "2026-10-04",
+  "architect": "A2",
+  "branch": "agent/shared-architect-2-sti-001",
+  "source_truth_commit": "381332e045ba439fcb3d3152c7ca738513fff7c3",
+  "shared_lab_run_id": "SL-A2-1791144425350910829-381332e0-6dad3064",
+  "dataset_sha256": "15575cd662b92e736fe53f59fbad50c42d244e29180cfb10fa8b6c7a87c560d0",
+  "capsule_sha256": "d8ef749750323c4f348513751ea6f00ad8e4b5bafc43a1bae228dd2f75e5a56c",
+  "disposition": "ENGINEERING_INTERRUPTED_NO_SCIENTIFIC_OUTCOME",
+  "sealed_prerequisites": {
+    "self_test": {
+      "state": "PASS",
+      "artifact_hash": "3db5bc37a592cb571d86eb5a53fb16e2b923511970ebf803dd95eae913e8470f"
+    },
+    "r6_parity": {
+      "state": "PASS",
+      "artifact_hash": "7c176f4621714817391654eb7df5ffef089a5feb252acb438ecf7f42502c016a",
+      "source_observation_count": 21121,
+      "scored_novel_or_near_count": 8010
+    }
+  },
+  "mc23": {
+    "task_directory_created": true,
+    "task_result_created": false,
+    "scientific_result_created": false,
+    "stdout_created": false,
+    "stderr_created": false,
+    "scientific_disposition_observed": false
+  },
+  "governance": {
+    "exact_scientific_mechanism_unchanged": true,
+    "hypothesis_changed": false,
+    "features_changed": false,
+    "frozen_gates_changed": false,
+    "outcome_aware_tuning": false,
+    "resume_from_sealed_prerequisites_only": true,
+    "protected_final_holdout_opened": false
+  }
+}
