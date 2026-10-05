@@ -175,6 +175,7 @@ class RunIdentity:
     dataset_version: str
     dataset_hash: str
     configuration_hash: str
+    lab_harness_sha: str = "UNKNOWN"
     lab_version: str = LAB_VERSION
 
 
@@ -188,10 +189,17 @@ class TaskSpec:
     component_globs: tuple[str, ...]
     timeout_seconds: int
     retries: int
+    execution_origin: str = "TARGET"
+    dataset_id: str | None = None
+    dataset_version: str | None = None
 
     def __post_init__(self) -> None:
         if not self.task_id.strip() or not self.command:
             raise ValueError("task spec requires id and command")
+        if self.execution_origin not in {"TARGET", "HARNESS"}:
+            raise ValueError("task execution_origin must be TARGET or HARNESS")
+        if (self.dataset_id is None) != (self.dataset_version is None):
+            raise ValueError("task dataset_id and dataset_version must be paired")
 
 
 @dataclass(frozen=True, slots=True)
