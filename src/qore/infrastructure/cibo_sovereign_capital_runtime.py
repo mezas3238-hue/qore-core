@@ -325,12 +325,17 @@ def run_cibo_sovereign_capital_runtime(
         lifecycle_requests=lifecycle_requests,
         competition_option_ids=(option_id,),
     )
+    minimum_volume = minimum_seed_volume(opportunity)
+    provider_cost_per_volume_usd = (
+        twin_opportunity.provider_cost_usd / minimum_volume
+    )
     sizing = plan_account_sizing(
         opportunity=opportunity,
         capital=capital,
         mission_policy=mission_policy,
         survival_capital_usd=survival_capital_usd,
         protected_capital_usd=protected_capital_usd,
+        provider_cost_per_volume_usd=provider_cost_per_volume_usd,
     )
     capital_science = evaluate_capital_science_predecision(
         _build_capital_science_state(
