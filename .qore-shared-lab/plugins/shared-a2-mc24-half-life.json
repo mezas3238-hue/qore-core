@@ -23,5 +23,8 @@
     "a2_lab_capsule/manifest.json",
     "docs/shared/evidence/QORE_SHARED_MC24_EMPIRICAL_KNOWLEDGE_HALF_LIFE_PREREGISTRATION_001.json",
     "docs/shared/evidence/QORE_SHARED_LAB_A2_R6_R5_DATASET_MANIFEST_001.json"
-  ]
+  ],
+  "execution_origin": "TARGET",
+  "dataset_id": "shared-a2-consumed-r6-r5",
+  "dataset_version": "1"
 }
