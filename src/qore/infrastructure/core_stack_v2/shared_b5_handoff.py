@@ -239,11 +239,6 @@ def build_b5_handoff(
             item["disposition"] == B5WorkDisposition.DEPENDENCY_BLOCKED.value
             for item in items
         ),
-        "ready_for_empirical_population_count": sum(
-            item["disposition"]
-            == B5WorkDisposition.READY_FOR_EMPIRICAL_POPULATION.value
-            for item in items
-        ),
         "known_blindspot_count": 1,
         "governed_unknown_count": 1,
         "engineering_open_count": 0,
