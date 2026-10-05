@@ -504,14 +504,6 @@ def build_ceiling_epoch_state(
         )
         for item in account.open_exposures
     )
-    used_risk = sum(
-        (item.stop_risk_usd for item in account.open_exposures),
-        Decimal(0),
-    )
-    used_margin = sum(
-        (item.margin_usd for item in account.open_exposures),
-        Decimal(0),
-    )
     portfolio = CiboObservedPortfolioState(
         observed_at=captured_at,
         active_position_ids=tuple(
