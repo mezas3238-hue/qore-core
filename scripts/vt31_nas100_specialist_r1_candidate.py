@@ -67,8 +67,6 @@ MARKET = "NAS100"
 FRICTION = Decimal("0.05")
 COMPRESSION_THRESHOLD = Decimal("0.75")
 LATE_STATE_CUTOFF_MINUTE = 10 * 60 + 30
-PARTIAL_TARGET_R = Decimal("1.25")
-PARTIAL_FRACTION = Decimal("0.50")
 LIFECYCLE_MINUTE = 16 * 60
 CIBO_EIGHT_LEDGER_RUN_ID = 35175782935
 CIBO_EIGHT_LEDGER_ARTIFACT_ID = 10478487667
@@ -144,23 +142,24 @@ def contract_payload() -> dict[str, object]:
         "entry": "earliest-source-valid-R2.2-executable-confluence",
         "initial_stop": "source-methodological-swing-extreme-no-buffer",
         "target_intelligence": {
-            "reference_volatility_definition": (
-                "09:00-reference-width / median(last-up-to-5 admitted prior "
-                "09:00-reference-widths)"
+            "primary_destination": "opposite-frozen-09-reference-boundary",
+            "runtime_r_target_allowed": False,
+            "runtime_r_breakeven_allowed": False,
+            "runtime_r_trailing_allowed": False,
+            "partial_exit_from_r_threshold_allowed": False,
+            "extension_authority": (
+                "market-native-only:structure+liquidity+exhaustion+"
+                "regime+momentum;currently-unpromoted"
             ),
-            "compressed_reference": {
-                "condition": "<0.75",
-                "action": "full-opposite-frozen-09-boundary",
-                "management": "single-BE-at-source-3R-next-bar;no-trailing",
-            },
-            "normal_or_expanded_reference": {
-                "condition": ">=0.75",
-                "action": (
-                    "50%-at-1.25R + 50%-runner-to-opposite-frozen-09-boundary"
-                ),
-                "runner_management": "move-runner-to-BE-next-bar-after-partial",
-            },
-            "boundary_closer_than_partial": "full-exit-at-boundary",
+        },
+        "pure_edge_runtime": {
+            "certification_basis": "entry+exit+winner-preservation",
+            "volume_changes_market_decision": False,
+            "sizing_used": False,
+            "leverage_used": False,
+            "compounding_used": False,
+            "capital_weighting_used": False,
+            "r_is_evaluation_metric_only": True,
         },
         "pending_expiry": "11:00-NY",
         "filled_lifecycle": "16:00-NY",
@@ -435,12 +434,7 @@ def _state_snapshot(
         if reference_width > 0
         else None
     )
-    planned_target_r = (
-        abs(executable.target_price - executable.entry_price)
-        / executable.initial_risk
-        if executable.initial_risk > 0
-        else None
-    )
+    planned_target_r = None
     destination_distance_ref = (
         abs(executable.target_price - executable.entry_price)
         / reference_width
@@ -626,21 +620,139 @@ def _state_snapshot(
     }
 
 
+def _simulate_structural_boundary_only(
+    day_bars: tuple[object, ...],
+    executable: Vt31R22ExecutableSetup,
+) -> dict[str, object]:
+    """Execute only market-price invalidation and structural destination.
+
+    R is computed after the path for evaluation. It never arms breakeven,
+    selects a partial target, changes the stop, or selects an exit.
+    """
+    side = executable.side.value
+    entry = executable.entry_price
+    initial_stop = executable.stop_price
+    target = executable.target_price
+    risk = executable.initial_risk
+    if risk <= 0:
+        return {"status": "censored-invalid-risk"}
+
+    fill_index = v2b._fill_index(day_bars, executable)
+    if fill_index is None:
+        return {"status": "no-fill"}
+
+    first = day_bars[fill_index]
+    first_low = _d(getattr(first, "low"))
+    first_high = _d(getattr(first, "high"))
+    stop_hit = (
+        first_low <= initial_stop
+        if side == "long"
+        else first_high >= initial_stop
+    )
+    target_hit = (
+        first_high >= target
+        if side == "long"
+        else first_low <= target
+    )
+    if stop_hit or target_hit:
+        return {"status": "censored-fill-bar-path"}
+
+    previous = first
+    filled_at = cast(datetime, getattr(first, "closed_at"))
+    max_favorable = Decimal(0)
+    max_adverse = Decimal(0)
+    terminal: Decimal | None = None
+    exit_reason: str | None = None
+    exit_at: datetime | None = None
+
+    for bar in day_bars[fill_index + 1 :]:
+        if baseline._local_minute(bar) >= LIFECYCLE_MINUTE:
+            break
+        if getattr(bar, "opened_at") != getattr(previous, "closed_at"):
+            return {"status": "censored-gap-after-fill"}
+        previous = bar
+
+        favorable, adverse = baseline._favorable_adverse(
+            bar,
+            side,
+            entry,
+            risk,
+        )
+        max_favorable = max(max_favorable, favorable)
+        max_adverse = max(max_adverse, adverse)
+
+        high = _d(getattr(bar, "high"))
+        low = _d(getattr(bar, "low"))
+        hit_stop = (
+            low <= initial_stop
+            if side == "long"
+            else high >= initial_stop
+        )
+        hit_target = (
+            high >= target
+            if side == "long"
+            else low <= target
+        )
+        if hit_stop and hit_target:
+            return {"status": "censored-same-bar-stop-target"}
+        if hit_stop:
+            terminal = baseline._terminal_r(
+                side,
+                entry,
+                initial_stop,
+                risk,
+            )
+            exit_reason = "structural-invalidation"
+            exit_at = cast(datetime, getattr(bar, "closed_at"))
+            break
+        if hit_target:
+            terminal = abs(target - entry) / risk
+            exit_reason = "structural-target"
+            exit_at = cast(datetime, getattr(bar, "closed_at"))
+            break
+
+    if terminal is None:
+        eligible = [
+            bar
+            for bar in day_bars[fill_index:]
+            if baseline._local_minute(bar) < LIFECYCLE_MINUTE
+        ]
+        if not eligible:
+            return {"status": "censored-no-lifecycle-close"}
+        final = eligible[-1]
+        close = _d(getattr(final, "close"))
+        terminal = (
+            (close - entry) / risk
+            if side == "long"
+            else (entry - close) / risk
+        )
+        exit_reason = "16:00-lifecycle"
+        exit_at = cast(datetime, getattr(final, "closed_at"))
+
+    return {
+        "status": "terminal",
+        "local_date": _day(executable.decision_at).isoformat(),
+        "side": side,
+        "signal_at": executable.decision_at.astimezone(UTC).isoformat(),
+        "filled_at": filled_at.astimezone(UTC).isoformat(),
+        "exit_at": cast(datetime, exit_at).astimezone(UTC).isoformat(),
+        "entry_family": executable.selected_family.value,
+        "exit_reason": exit_reason,
+        "r_multiple": format(terminal, "f"),
+        "mfe_r": format(max_favorable, "f"),
+        "mae_r": format(max_adverse, "f"),
+        "r_runtime_authority": False,
+        "breakeven_armed": False,
+        "partial_exit_used": False,
+    }
+
+
 def _simulate_selected_plan(
     day_bars: tuple[object, ...],
     executable: Vt31R22ExecutableSetup,
     state: dict[str, object],
 ) -> dict[str, object]:
-    if state["target_plan"] == "FULL_STRUCTURAL_BOUNDARY":
-        outcome = baseline._simulate(day_bars, executable)
-        if outcome.get("status") == "terminal":
-            outcome["target_plan"] = state["target_plan"]
-        return outcome
-    outcome = v2b._simulate_partial_runner(
-        day_bars,
-        executable,
-        PARTIAL_TARGET_R,
-    )
+    outcome = _simulate_structural_boundary_only(day_bars, executable)
     if outcome.get("status") == "terminal":
         outcome["target_plan"] = state["target_plan"]
     return outcome
@@ -1219,7 +1331,11 @@ def self_test() -> None:
     )
     assert len(contract_fingerprint()) == 64
     assert COMPRESSION_THRESHOLD == Decimal("0.75")
-    assert PARTIAL_TARGET_R == Decimal("1.25")
+    pure_edge = cast(dict[str, object], contract["pure_edge_runtime"])
+    assert pure_edge["r_is_evaluation_metric_only"] is True
+    assert pure_edge["sizing_used"] is False
+    assert pure_edge["leverage_used"] is False
+    assert pure_edge["compounding_used"] is False
     print(
         json.dumps(
             {
