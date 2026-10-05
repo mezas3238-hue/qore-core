@@ -24,6 +24,7 @@ foreach ($Path in @($Agent, $Installer)) {
     $text = Get-Content -LiteralPath $Path -Raw -Encoding UTF8
     $text = $text.Replace("[Security.Cryptography.ProtectedData]", "[System.Security.Cryptography.ProtectedData]")
     $text = $text.Replace("[Security.Cryptography.DataProtectionScope]", "[System.Security.Cryptography.DataProtectionScope]")
+    $text = $text.Replace('$uri = "$ApiBase/contents/$escapedPath?ref=$branchEncoded"', '$uri = "$ApiBase/contents/${escapedPath}?ref=$branchEncoded"')
     if ($text -notmatch "Add-Type -AssemblyName System.Security") {
         $text = $text.Replace('$ErrorActionPreference = "Stop"', '$ErrorActionPreference = "Stop"' + [Environment]::NewLine + 'Add-Type -AssemblyName System.Security')
     }
