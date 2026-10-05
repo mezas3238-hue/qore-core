@@ -8,11 +8,14 @@
   "command": [
     "python",
     "scripts/shared_integrator1_a2_scientific_evidence_gate.py",
+    "--runtime-evidence-dir",
+    "result",
     "--output",
     "result/i1-a2-scientific-evidence-gate.json"
   ],
   "component_globs": [
     "scripts/shared_integrator1_a2_scientific_evidence_gate.py",
     "docs/shared/evidence/*.json"
-  ]
+  ],
+  "execution_origin": "TARGET"
 }
