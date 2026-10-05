@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import inspect
 from dataclasses import replace
 from decimal import Decimal
-import inspect
 
 from qore.infrastructure.traders.vt31_nas100_position_intelligence import (
     RESEARCH_UNCALIBRATED_POLICY,
