@@ -56,12 +56,15 @@ The mechanism uses only state observable at a closed M1 bar:
   - <= +1.00R;
 - a confirmed M1 protective swing must exist;
 - the swing becomes actionable only on the next M1 bar;
+- at most one DGR structural stop improvement is allowed per trade;
 - the stop may only improve, never widen;
 - DOL1 remains the opposite frozen 09:00 reference boundary;
 - no partial exit is required.
 
 The most conservative member, `CURRENT_CLOSE_MAX_0_25`, is treated only as a
-**research witness**. It is not a promoted runtime policy.
+**research witness**. It is not a promoted runtime policy. A subsequent
+architecture hardening pass capped DGR at one rescue move per trade; all
+reported witness metrics below use that stricter single-move semantics.
 
 ## 4. Exact cross-partition results for the 0.25R witness
 
@@ -96,9 +99,9 @@ Baseline:
 
 DGR <= +0.25R:
 
-- PF: 0.4942965487
-- mean: -0.4757308249R
-- max DD: 26.6409261916R
+- PF: 0.4886283452
+- mean: -0.4866435233R
+- max DD: 27.2520373027R
 - armed trades: 5
 - winner-count preservation: 100%
 - winner-R preservation: 100%
@@ -120,8 +123,8 @@ Baseline:
 
 DGR <= +0.25R:
 
-- PF: 1.9870322248
-- mean: +0.7726863709R
+- PF: 1.9605798531
+- mean: +0.7619358776R
 - max DD: 15.7630434783R
 - armed trades: 9
 - winner-count preservation: 100%
@@ -145,7 +148,7 @@ R6:
 
 - 2018H1: +0.02000R/trade
 - 2018H2: +0.03710R/trade
-- 2019H1: +0.04784R/trade
+- 2019H1: +0.01389R/trade
 - 2019H2: unchanged
 - 2020H1: +0.05285R/trade
 
@@ -153,7 +156,7 @@ R5:
 
 - 2020H2: +0.03688R/trade
 - 2021H1: +0.04122R/trade
-- 2021H2: +0.08286R/trade
+- 2021H2: +0.03796R/trade
 - 2022H1: +0.07551R/trade
 - 2022H2: +0.37391R/trade
 
