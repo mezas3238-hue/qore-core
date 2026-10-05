@@ -3,7 +3,8 @@
   "suite": "INTEGRATION",
   "scope": "cognition",
   "dependencies": [
-    "a1-functional-causality",
+    "a1-mc14-governed-replay",
+    "a1-mc18-consumed-development-calibration",
     "i1-a2-scientific-evidence"
   ],
   "command": [
@@ -29,6 +30,12 @@
     "tests/infrastructure/test_shared_wp11_exact_blocker_audit.py"
   ],
   "component_globs": [
+    "src/qore/infrastructure/core_stack_v2/mc25_formal_governance_stress.py",
+    "docs/shared/evidence/QORE_SHARED_MC23_VALIDATED_NOVEL_REGIME_ADAPTATION_PREREGISTRATION_002.json",
+    "docs/shared/evidence/QORE_SHARED_A2_MC23_CANDIDATE_001_FALSIFICATION_001.json",
+    "a2_lab_capsule/mc23_candidate_002.py",
+    "scripts/shared_a1_mc18_lab_calibration.py",
+    "scripts/shared_a1_mc14_lab_replay.py",
     "scripts/shared_a1_functional_causality_exam.py",
     "scripts/shared_integrator1_wp11_runtime_runner.py",
     "scripts/shared_integrator1_mc25_bundle_runner.py",
