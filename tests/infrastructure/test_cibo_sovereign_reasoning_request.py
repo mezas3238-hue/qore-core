@@ -70,6 +70,30 @@ def _opp() -> TraderOpportunityEnvelope:
     )
 
 
+
+def _opp_2() -> TraderOpportunityEnvelope:
+    return TraderOpportunityEnvelope(
+        trader_id=TraderLineage.R38_EURUSD,
+        signal_fingerprint="signal-maxcap-002",
+        qore_symbol="EURUSD",
+        provider_symbol="EURUSD",
+        side="short",
+        entry_type="market",
+        intended_entry=Decimal("1.10"),
+        stop_loss=Decimal("1.11"),
+        take_profit=Decimal("1.08"),
+        stop_loss_per_volume=Decimal("8"),
+        margin_per_volume=Decimal("15"),
+        volume_step=Decimal("0.01"),
+        minimum_volume=Decimal("0.01"),
+        maximum_volume=Decimal("2"),
+        decision_context=(
+            ("ctx_regime", "trend"),
+            ("ctx_volatility", "medium"),
+            ("ctx_structure", "reversal"),
+        ),
+    )
+
 def _consultation():
     return consult_cibo_economic_faculties(
         decision_at=NOW,
@@ -173,3 +197,33 @@ def test_existing_adaptive_runtime_can_reason_from_sovereign_request() -> None:
     assert result.value.runtime_result.synthesis.recommendation is not None
     assert not hasattr(result.value.runtime_result.synthesis, "quantity")
     assert not hasattr(result.value.runtime_result.synthesis, "risk_approval")
+
+
+def test_shared_epoch_request_contains_competing_opportunity_surface() -> None:
+    shared = (_opp(), _opp_2())
+    consultation = consult_cibo_economic_faculties(
+        decision_at=NOW,
+        opportunities=shared,
+        regime_state=CiboCapitalRegimeState(
+            liquidity=LiquidityState.NORMAL,
+            volatility=VolatilityState.NORMAL,
+            correlation=CorrelationState.NORMAL,
+            provider_condition=ProviderCondition.HEALTHY,
+            risk_utilization=Decimal("0.10"),
+            margin_utilization=Decimal("0.10"),
+            drawdown_utilization=Decimal("0.00"),
+            opportunity_count=2,
+            position_path_adverse=False,
+            evidence_stale=False,
+        ),
+    )
+    request = build_sovereign_reasoning_request(
+        consultation=consultation,
+        opportunity=_opp(),
+    )
+
+    assert "signal-maxcap-001" in request.prompt
+    assert "signal-maxcap-002" in request.prompt
+    assert '"opportunity_count":2' in request.prompt
+    assert '"qore_symbol":"EURUSD"' in request.prompt
+    assert '"qore_symbol":"XAUUSD"' in request.prompt
