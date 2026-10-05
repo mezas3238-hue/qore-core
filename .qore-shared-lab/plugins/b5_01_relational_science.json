@@ -1,0 +1,24 @@
+{
+  "task_id": "b5-relational-science-functional",
+  "suite": "FUNCTIONAL",
+  "scope": "cognition",
+  "dependencies": [],
+  "command": [
+    "{python}",
+    "-m",
+    "pytest",
+    "--no-cov",
+    "-q",
+    "tests/infrastructure/test_shared_b5_relational_science.py",
+    "tests/infrastructure/test_shared_b_relation_lifecycle.py",
+    "tests/infrastructure/test_shared_b_relational_population_gate.py",
+    "tests/infrastructure/test_shared_b_structural_divergence_inputs.py"
+  ],
+  "component_globs": [
+    "src/qore/infrastructure/core_stack_v2/shared_b5_relational_science.py",
+    "src/qore/infrastructure/core_stack_v2/shared_b_relation_lifecycle.py",
+    "src/qore/infrastructure/core_stack_v2/shared_b_relational_population_gate.py",
+    "src/qore/infrastructure/core_stack_v2/shared_b_structural_divergence_inputs.py",
+    "tests/infrastructure/test_shared_b5_relational_science.py"
+  ]
+}
