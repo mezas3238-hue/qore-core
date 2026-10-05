@@ -15,6 +15,8 @@ from statistics import median
 from typing import Any
 
 from qore.infrastructure.cibo_maximum_capability_frontier import (
+    CEILING_DISCOVERY_CLOSURE_ELIGIBLE,
+    FRONTIER_ROLE,
     FULL_LIFECYCLE_FEATURES,
     POLICY_ID,
     CausalFrontierOpportunity,
@@ -1917,6 +1919,11 @@ def main() -> int:
             "qore.cibo.maximum-capability-frontier.v1"
         ),
         "policy_id": POLICY_ID,
+        "frontier_role": FRONTIER_ROLE,
+        "ceiling_discovery_closure_eligible": (
+            CEILING_DISCOVERY_CLOSURE_ELIGIBLE
+        ),
+        "native_sovereign_runtime_used_for_frontier_allocation": False,
         "research_group_id": (
             three_lane.get(
                 "research_group_id"
@@ -2264,6 +2271,9 @@ def main() -> int:
             "production": False,
             "real_capital": False,
             "certification_claimed": False,
+            "diagnostic_frontier_only": True,
+            "ceiling_discovery_closure_eligible": False,
+            "requires_native_sovereign_runner_for_ceiling_claim": True,
         },
     }
     raw = json.dumps(
