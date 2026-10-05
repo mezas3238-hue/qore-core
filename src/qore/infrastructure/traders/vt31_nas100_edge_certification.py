@@ -391,11 +391,29 @@ def _decimal_metric(
     return None if value is None else _d(value)
 
 
-def _pf_pass(
-    value: Decimal | None,
+def _pf_gate(
+    metrics: Mapping[str, object],
     threshold: Decimal,
+    *,
+    exclusive: bool = False,
 ) -> bool:
-    return True if value is None else value >= threshold
+    """Profit-factor gate with explicit empty/no-loss semantics.
+
+    PF=None is authoritative only when a non-empty sample has winners and no
+    losers (mathematically infinite PF). Empty samples and samples without any
+    winners never pass.
+    """
+    trade_count = int(metrics.get("trade_count", 0))
+    winner_count = int(metrics.get("winner_count", 0))
+    loser_count = int(metrics.get("loser_count", 0))
+    if trade_count <= 0 or winner_count <= 0:
+        return False
+    if loser_count == 0:
+        return True
+    value = _decimal_metric(metrics, "profit_factor")
+    if value is None:
+        return False
+    return value > threshold if exclusive else value >= threshold
 
 
 def build_edge_only_report(
@@ -436,19 +454,16 @@ def build_edge_only_report(
     mc_dd = _d(mc["p95_max_drawdown_r"])
     severe_pf = _decimal_metric(stress["0.10"], "profit_factor")
 
-    era_pfs = [
-        _decimal_metric(item, "profit_factor")
-        for item in temporal["era"].values()
-    ]
+    era_metrics = list(temporal["era"].values())
     era_gate = (
         None
-        if not era_pfs
+        if not era_metrics
         else all(
-            _pf_pass(
-                value,
+            _pf_gate(
+                item,
                 GATES["profit_factor_per_era_min"],
             )
-            for value in era_pfs
+            for item in era_metrics
         )
     )
     year_totals = [
@@ -465,8 +480,8 @@ def build_edge_only_report(
     )
 
     gates: dict[str, bool | None] = {
-        "combined_pf": _pf_pass(
-            pf,
+        "combined_pf": _pf_gate(
+            metrics,
             GATES["profit_factor_combined_min"],
         ),
         "expectancy_positive": (
@@ -496,9 +511,10 @@ def build_edge_only_report(
         "mc_p95_drawdown": (
             mc_dd <= GATES["mc_p95_drawdown_max"]
         ),
-        "severe_cost_pf": (
-            severe_pf is None
-            or severe_pf > GATES["severe_cost_pf_min_exclusive"]
+        "severe_cost_pf": _pf_gate(
+            stress["0.10"],
+            GATES["severe_cost_pf_min_exclusive"],
+            exclusive=True,
         ),
         "all_eras_pf": era_gate,
         "all_years_positive": annual_gate,
@@ -526,6 +542,12 @@ def build_edge_only_report(
     return {
         "identity": IDENTITY,
         "market": "NAS100",
+        "certification_basis": "entries-profits-edge-only",
+        "equal_trade_weight": True,
+        "sizing_authority": False,
+        "leverage_authority": False,
+        "compounding_authority": False,
+        "portfolio_weighting_authority": False,
         "minimum_compatible_volume": format(
             MINIMUM_COMPATIBLE_VOLUME,
             "f",
