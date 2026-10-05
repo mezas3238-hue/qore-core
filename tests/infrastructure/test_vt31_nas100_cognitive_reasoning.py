@@ -245,5 +245,8 @@ def test_noncompressed_state_outside_low_dd_gate_abstains() -> None:
 def test_reasoning_target_plan_contains_no_r_runtime_threshold() -> None:
     decision = reason(_situation(ref_ratio="1.05", side="short", h1_state="mixed"))
     assert decision.target_plan == "PRIMARY_STRUCTURAL_BOUNDARY"
-    assert "R" not in decision.target_plan
+    assert "1R" not in decision.target_plan
+    assert "1.25R" not in decision.target_plan
+    assert "3R" not in decision.target_plan
+    assert "_R_" not in decision.target_plan
     assert "PARTIAL" not in decision.target_plan
