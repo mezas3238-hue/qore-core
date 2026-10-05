@@ -61,18 +61,13 @@ def _component_hash(worktree: Path, patterns: tuple[str, ...]) -> str:
     return digest.hexdigest()
 
 
-def _runtime_json_snapshot(root: Path) -> dict[str, str]:
-    directories = [root / "result"]
-    directories.extend(
-        path
-        for path in root.glob("*_lab_runtime")
-        if path.is_dir()
-    )
+def _runtime_evidence_snapshot(
+    root: Path,
+    patterns: tuple[str, ...],
+) -> dict[str, str]:
     snapshot: dict[str, str] = {}
-    for directory in directories:
-        if not directory.is_dir():
-            continue
-        for path in sorted(directory.rglob("*.json")):
+    for pattern in patterns:
+        for path in sorted(root.glob(pattern)):
             if not path.is_file():
                 continue
             relative = path.relative_to(root).as_posix()
@@ -80,13 +75,14 @@ def _runtime_json_snapshot(root: Path) -> dict[str, str]:
     return snapshot
 
 
-def _archive_runtime_json(
+def _archive_runtime_evidence(
     *,
     root: Path,
     task_dir: Path,
     before: dict[str, str],
+    patterns: tuple[str, ...],
 ) -> tuple[tuple[dict[str, Any], ...], Path, str]:
-    after = _runtime_json_snapshot(root)
+    after = _runtime_evidence_snapshot(root, patterns)
     records: list[dict[str, Any]] = []
     archive_root = task_dir / "generated"
     for relative, digest in sorted(after.items()):
@@ -105,7 +101,10 @@ def _archive_runtime_json(
             }
         )
     manifest_path = task_dir / "generated-evidence.json"
-    payload = {"generated_evidence": records}
+    payload = {
+        "evidence_globs": patterns,
+        "generated_evidence": records,
+    }
     manifest_path.write_text(
         json.dumps(payload, sort_keys=True, indent=2) + "\n",
         encoding="utf-8",
@@ -623,6 +622,7 @@ class NativeLabOrchestrator:
                         "dataset_id": task.dataset_id,
                         "dataset_version": task.dataset_version,
                         "cache_safe": task.cache_safe,
+                        "evidence_globs": task.evidence_globs,
                     },
                     "target_sha": identity.commit_sha,
                     "lab_harness_sha": identity.lab_harness_sha,
@@ -656,7 +656,10 @@ class NativeLabOrchestrator:
 
         task_dir = run_dir / "tasks" / task.task_id
         task_dir.mkdir(parents=True, exist_ok=True)
-        generated_before = _runtime_json_snapshot(execution_root)
+        generated_before = _runtime_evidence_snapshot(
+            execution_root,
+            task.evidence_globs,
+        )
         command = self._format_command(task.command, request, task_dataset)
         environment = os.environ.copy()
         existing_pythonpath = environment.get("PYTHONPATH")
@@ -771,10 +774,11 @@ class NativeLabOrchestrator:
             returncode,
         )
         generated, generated_manifest_path, generated_manifest_hash = (
-            _archive_runtime_json(
+            _archive_runtime_evidence(
                 root=execution_root,
                 task_dir=task_dir,
                 before=generated_before,
+                patterns=task.evidence_globs,
             )
         )
         ended = time.time_ns()
