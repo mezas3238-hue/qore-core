@@ -65,6 +65,13 @@ from qore.infrastructure.cibo_compound_portfolio_ledger import CompoundPortfolio
 from qore.infrastructure.cibo_core_compound_portfolio import (
     AccountCoreCompoundPortfolio,
 )
+from qore.infrastructure.cibo_crisis_capital_intelligence import (
+    Genc12CapitalResponse,
+    Genc12CrisisFact,
+    Genc12CrisisFactor,
+    Genc12PositionCapitalInput,
+    plan_genc12_crisis_capital,
+)
 from qore.infrastructure.cibo_full_economic_digital_twin import (
     CiboCapitalVelocityState,
     CiboIdleCapitalClass,
@@ -73,15 +80,14 @@ from qore.infrastructure.cibo_full_economic_digital_twin import (
     CiboObservedPortfolioState,
     CiboObservedPositionState,
 )
-from qore.infrastructure.cibo_crisis_capital_intelligence import (
-    Genc12CapitalResponse,
-    Genc12CrisisFact,
-    Genc12CrisisFactor,
-    Genc12PositionCapitalInput,
-    plan_genc12_crisis_capital,
-)
 from qore.infrastructure.cibo_marginal_capital_utility_evidence import (
     MarginalCapitalUtilityEvidence,
+)
+from qore.infrastructure.cibo_multi_period_capital_mpc import (
+    Genc11KnownOptionSchedule,
+    Genc11WorldPath,
+    Genc11WorldStep,
+    plan_genc11_multi_period_capital,
 )
 from qore.infrastructure.cibo_position_continuation_intelligence import (
     CiboPositionContinuationInput,
@@ -92,12 +98,6 @@ from qore.infrastructure.cibo_portfolio_allocation_engine import (
     CiboPositionOpportunityCompetitionPlan,
     plan_account_wide_capital_allocation,
     plan_position_opportunity_competition,
-)
-from qore.infrastructure.cibo_multi_period_capital_mpc import (
-    Genc11KnownOptionSchedule,
-    Genc11WorldPath,
-    Genc11WorldStep,
-    plan_genc11_multi_period_capital,
 )
 from qore.infrastructure.cibo_profit_preservation_shadow import (
     Genc7Action,
@@ -193,7 +193,8 @@ class CapitalScienceKnownOpportunity:
             or self.expected_capital_minutes <= 0
         ):
             raise CiboCapitalManagementError(
-                "Capital Science known opportunity expected_capital_minutes must be positive Decimal"
+                "Capital Science known opportunity expected_capital_minutes "
+                "must be positive Decimal"
             )
         if not self.evidence_sha256.startswith("sha256:") or len(self.evidence_sha256) != 71:
             raise CiboCapitalManagementError(
