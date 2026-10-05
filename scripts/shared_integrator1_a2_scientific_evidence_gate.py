@@ -241,6 +241,8 @@ def main() -> None:
         "mc23_candidate_001_retry_for_pass_allowed": (False if candidate_001_terminal_falsified else None),
         "mc23_candidate_002_scientific_pass": candidate_002_pass,
         "mc23_scientific_pass": mc23_pass,
+        "mc23_active_candidate": "MC23_CANDIDATE_002",
+        "mc23_candidate_001_terminal_falsification_preserved": True,
         "mc24_scientific_pass": mc24_pass,
         "mc25_lineage_pass": lineage_pass,
         "mc25_performance_pass": performance_pass,
