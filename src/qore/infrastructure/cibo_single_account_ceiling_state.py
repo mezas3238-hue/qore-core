@@ -76,6 +76,35 @@ def _ratio(value: Decimal, total: Decimal) -> Decimal:
 
 
 @dataclass(frozen=True, slots=True)
+class CiboCeilingCapacityReservation:
+    signal_fingerprint: str
+    trader_id: TraderLineage
+    qore_symbol: str
+    stop_risk_usd: Decimal
+    margin_usd: Decimal
+
+    def __post_init__(self) -> None:
+        if not self.signal_fingerprint or not self.qore_symbol:
+            raise CiboCapitalManagementError(
+                "ceiling reservation identity is required"
+            )
+        if type(self.trader_id) is not TraderLineage:
+            raise CiboCapitalManagementError(
+                "ceiling reservation trader must be canonical"
+            )
+        for name in ("stop_risk_usd", "margin_usd"):
+            value = getattr(self, name)
+            if (
+                not isinstance(value, Decimal)
+                or not value.is_finite()
+                or value <= 0
+            ):
+                raise CiboCapitalManagementError(
+                    f"ceiling reservation {name} must be finite positive Decimal"
+                )
+
+
+@dataclass(frozen=True, slots=True)
 class CiboCeilingOpenExposure:
     signal_fingerprint: str
     trader_id: TraderLineage
@@ -208,6 +237,7 @@ class CiboCeilingAccountState:
         RealizedProfitEquivalenceBinding, ...
     ] = ()
     open_exposures: tuple[CiboCeilingOpenExposure, ...] = ()
+    capacity_reservations: tuple[CiboCeilingCapacityReservation, ...] = ()
     peak_realized_capital_usd: Decimal = _INITIAL_CAPITAL_USD
     released_stop_risk_usd: Decimal = Decimal(0)
     released_margin_usd: Decimal = Decimal(0)
@@ -224,10 +254,16 @@ class CiboCeilingAccountState:
             raise CiboCapitalManagementError(
                 "ceiling account peak is below current realized capital"
             )
-        signals = tuple(item.signal_fingerprint for item in self.open_exposures)
-        if len(signals) != len(set(signals)):
+        open_signals = tuple(
+            item.signal_fingerprint for item in self.open_exposures
+        )
+        reserved_signals = tuple(
+            item.signal_fingerprint for item in self.capacity_reservations
+        )
+        all_signals = open_signals + reserved_signals
+        if len(all_signals) != len(set(all_signals)):
             raise CiboCapitalManagementError(
-                "ceiling account has duplicate open exposure"
+                "ceiling account has duplicate open/reserved exposure"
             )
 
     @property
@@ -343,7 +379,10 @@ def build_ceiling_epoch_state(
             concentration_risk_usd=item.stop_risk_usd,
             state=PortfolioAllocationReservationState.ACTIVE,
         )
-        for item in account.open_exposures
+        for item in (
+            tuple(account.open_exposures)
+            + tuple(account.capacity_reservations)
+        )
     )
     t19 = PortfolioAllocationLedger(
         total_stop_risk_capacity_usd=stop_capacity,
