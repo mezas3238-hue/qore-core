@@ -226,3 +226,35 @@ def test_demo_capability_sizing_does_not_label_profit_as_original_base() -> None
     lots = {lot.source: lot.amount_usd for lot in decision.plan.capital_source_lots}
     assert lots[CapitalSource.ORIGINAL_BASE_CAPITAL] == Decimal("60")
     assert lots[CapitalSource.REALIZED_PROFIT] == Decimal("10.00")
+
+
+def test_demo_maximum_sizing_reserves_provider_cost_inside_capital() -> None:
+    capital = account_capital_state(
+        assigned_capital_usd=Decimal("60"),
+        hard_risk_headroom_usd=Decimal("60"),
+        margin_headroom_usd=Decimal("1000"),
+        survival_capital_usd=Decimal("0"),
+        protected_capital_usd=Decimal("0"),
+    )
+
+    decision = plan_account_sizing(
+        opportunity=_opportunity(),
+        capital=capital,
+        mission_policy=_mission(MarketRuntimeEnvironment.DEMO),
+        survival_capital_usd=Decimal("0"),
+        protected_capital_usd=Decimal("0"),
+        provider_cost_per_volume_usd=Decimal("2"),
+    )
+
+    assert decision.mode is CiboAccountSizingMode.CAPABILITY_MAXIMUM
+    assert decision.plan.volume == Decimal("5.00")
+    assert decision.plan.stop_risk_usd == Decimal("50.00")
+    assert (
+        decision.plan.volume
+        * (
+            _opportunity().stop_loss_per_volume
+            + Decimal("2")
+        )
+        == Decimal("60.00")
+    )
+
