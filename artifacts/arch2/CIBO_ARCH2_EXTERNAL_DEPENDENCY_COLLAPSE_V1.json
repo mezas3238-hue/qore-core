@@ -1,0 +1,913 @@
+{
+  "schema": "qore.cibo.arch2-external-dependency-collapse.v1",
+  "source_ledger_schema": "QORE_CIBO_MASTER_OPEN_WORK_LEDGER_V1",
+  "canonical_ledger_mutated": false,
+  "fresh_oos_opened": false,
+  "architect2_internal_functional_closure": true,
+  "architect2_internal_blocker_count": 0,
+  "external_dependency_blocked_row_count": 40,
+  "unique_external_blocker_atom_count": 67,
+  "semantic_dependency_family_count": 7,
+  "unclassified_external_blocker_atom_count": 0,
+  "actionable_architect2_internal_repair_count": 0,
+  "certification_execution_ready": false,
+  "disposition": "INTERNAL_FUNCTIONAL_CLOSURE_CONFIRMED__EXTERNAL_SCIENTIFIC_DEPENDENCIES_COLLAPSED",
+  "dependency_families": {
+    "FRESH_FORWARD_CAUSAL": {
+      "row_count": 33,
+      "rows": [
+        "AS_IS_ECONOMIC_BASELINE",
+        "CAPITAL_GENERATIONS",
+        "COMPOUND_ENGINE",
+        "COMPOUND_PORTFOLIO",
+        "GEN-C10",
+        "GEN-C11",
+        "GEN-C12",
+        "GEN-C2",
+        "GEN-C4",
+        "GEN-C5",
+        "GEN-C6",
+        "GEN-C7",
+        "GEN-C8",
+        "GEN-C9",
+        "INTEGRATED_CAPITAL_TRUTH",
+        "INTERNAL_CAPITAL_MARKET",
+        "PROFIT_PROTECTION",
+        "PROTECTED_BASE_CAPITAL",
+        "T02",
+        "T04",
+        "T06",
+        "T07",
+        "T08",
+        "T09",
+        "T10",
+        "T11",
+        "T12",
+        "T13",
+        "T14",
+        "T15",
+        "T18",
+        "T20",
+        "USD60_CAPABILITY_PROGRAM"
+      ],
+      "unique_blocker_atom_count": 32,
+      "blocker_atoms": [
+        "CAUSAL_PROFIT_GRADUATION_POLICY_VALUE_REQUIRED",
+        "COMPOUND_MONTE_CARLO_REAL_POPULATION_STRESS_OOS_REPLICATION_REQUIRED",
+        "ECONOMIC_VALUE_NOT_YET_DEMONSTRATED",
+        "FOUR_FOLD_POSITIVE_TREATMENT_AND_NONWORSE_DRAWDOWN_EVIDENCE_REQUIRED",
+        "FRESH_AS_IS_ECONOMIC_POPULATION_REQUIRED",
+        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED",
+        "FRESH_MULTI_PERIOD_OOS_UTILITY_NOT_YET_PROVEN",
+        "FRESH_OOS_ATTRIBUTION_REQUIRED",
+        "FRESH_OOS_GIVEBACK_RETENTION_STRESS_REPLICATION_REQUIRED",
+        "FRESH_OOS_PROFIT_FUNDED_EXPANSION_UTILITY_REQUIRED",
+        "FRESH_OOS_PROFIT_RETENTION_AND_GIVEBACK_CAUSAL_VALUE_REQUIRED",
+        "FRESH_OOS_PROTECTED_CAPACITY_EXPANSION_UTILITY_REQUIRED",
+        "FRESH_OOS_STRESS_AND_4_OF_4_TEMPORAL_REPLICATION_REQUIRED",
+        "FRESH_OOS_STRESS_REPLICATION_REQUIRED",
+        "FRESH_OOS_STRESS_TEMPORAL_REPLICATION_REQUIRED",
+        "FRESH_PATH_DEPENDENT_OOS_STRESS_REPLICATION_REQUIRED",
+        "FRESH_PHASE20D_T13_TREATMENT_POPULATION_THRESHOLDS_REQUIRED",
+        "FRESH_TRUE_SCARCITY_ECONOMIC_VALUE_REQUIRED",
+        "FRESH_TRUE_SCARCITY_OOS_STRESS_REPLICATION_REQUIRED",
+        "FROZEN_PHASE20D_REAL_FORWARD_THRESHOLDS_REQUIRED",
+        "REAL_AUTHORITATIVE_FORWARD_RELEASE_POPULATION_REQUIRED",
+        "REAL_CALIBRATED_FRESH_OOS_GROSS_EDGE_MODEL_REQUIRED",
+        "REAL_CHRONOLOGICAL_FORWARD_POPULATION_BINDING_REQUIRED",
+        "REAL_CHRONOLOGICAL_POPULATION_REPLAY_REQUIRED",
+        "REAL_CHRONOLOGICAL_TWIN_TRANSITION_POPULATION_NOT_YET_BOUND",
+        "REAL_DATA_BOUND_CAUSAL_VALUE_PROOF_REQUIRED",
+        "REAL_FORWARD_COMPOUND_EVENT_STREAM_PATH_HISTORY_REQUIRED",
+        "REAL_FORWARD_GIVEBACK_PATH_HISTORY_REQUIRED",
+        "REAL_POST_FREEZE_STRUCTURAL_TERMINAL_REASON_POPULATION_REQUIRED",
+        "STARVATION_AND_CONCENTRATION_NONWORSE_WF1_WF2_WF3_WF4_REQUIRED",
+        "STRICT_CAPITAL_PRODUCTIVITY_IMPROVEMENT_REQUIRED",
+        "WF1_WF2_WF3_WF4_NONCOMPENSATORY_REPLICATION_REQUIRED"
+      ]
+    },
+    "PROVIDER_EXECUTION_ECONOMICS": {
+      "row_count": 7,
+      "rows": [
+        "ADVERSARIAL_STRESS",
+        "GEN-C9",
+        "PROTECTED_BASE_CAPITAL",
+        "T02",
+        "T04",
+        "T10",
+        "T11"
+      ],
+      "unique_blocker_atom_count": 7,
+      "blocker_atoms": [
+        "CRISIS_PROVIDER_FACTOR_STRESS_INTEGRATION_REQUIRED",
+        "PROTECTED_BASE_NUMERIC_CANDIDATE_NOT_YET_FROZEN_ON_REAL_PROVIDER_VALID_POPULATION",
+        "PROVIDER_BOUND_LEVERAGE_ECONOMIC_ABLATION_REQUIRED",
+        "REAL_CALIBRATED_FRESH_OOS_GROSS_EDGE_MODEL_REQUIRED",
+        "REAL_PROVIDER_BOUND_MARKET_IMPACT_MODEL_REQUIRED",
+        "REAL_PROVIDER_VALID_CAUSAL_CONTROL_TREATMENT_POPULATION_REQUIRED",
+        "REAL_PROVIDER_VALID_COMPOUND_PATH_POPULATION_REQUIRED"
+      ]
+    },
+    "SCARCITY_CONCENTRATION": {
+      "row_count": 4,
+      "rows": [
+        "GEN-C6",
+        "INTERNAL_CAPITAL_MARKET",
+        "T09",
+        "T18"
+      ],
+      "unique_blocker_atom_count": 4,
+      "blocker_atoms": [
+        "FRESH_TRUE_SCARCITY_ECONOMIC_VALUE_REQUIRED",
+        "FRESH_TRUE_SCARCITY_OOS_STRESS_REPLICATION_REQUIRED",
+        "REAL_SIMULTANEOUS_SCARCITY_POPULATION_REQUIRED",
+        "STARVATION_AND_CONCENTRATION_NONWORSE_WF1_WF2_WF3_WF4_REQUIRED"
+      ]
+    },
+    "PATH_STRESS_TEMPORAL_MC": {
+      "row_count": 18,
+      "rows": [
+        "ADVERSARIAL_STRESS",
+        "COMPOUND_ENGINE",
+        "COMPOUND_PORTFOLIO",
+        "GEN-C10",
+        "GEN-C11",
+        "GEN-C12",
+        "GEN-C13",
+        "GEN-C5",
+        "GEN-C6",
+        "GEN-C7",
+        "GEN-C8",
+        "GEN-C9",
+        "INTEGRATED_CAPITAL_TRUTH",
+        "INTERNAL_CAPITAL_MARKET",
+        "PATH_DEPENDENT_MONTE_CARLO",
+        "PROFIT_PROTECTION",
+        "PROTECTED_BASE_CAPITAL",
+        "TEMPORAL_REPLICATION"
+      ],
+      "unique_blocker_atom_count": 22,
+      "blocker_atoms": [
+        "ADVERSARIAL_CRISIS_STRESS_AND_TEMPORAL_REPLICATION_REQUIRED",
+        "ADVERSARIAL_STRESS_AND_TEMPORAL_REPLICATION_REQUIRED",
+        "COMPOUND_MONTE_CARLO_REAL_POPULATION_STRESS_OOS_REPLICATION_REQUIRED",
+        "CRISIS_PROVIDER_FACTOR_STRESS_INTEGRATION_REQUIRED",
+        "FRESH_OOS_GIVEBACK_RETENTION_STRESS_REPLICATION_REQUIRED",
+        "FRESH_OOS_STRESS_AND_4_OF_4_TEMPORAL_REPLICATION_REQUIRED",
+        "FRESH_OOS_STRESS_REPLICATION_REQUIRED",
+        "FRESH_OOS_STRESS_TEMPORAL_REPLICATION_REQUIRED",
+        "FRESH_PATH_DEPENDENT_OOS_STRESS_REPLICATION_REQUIRED",
+        "FRESH_TRUE_SCARCITY_OOS_STRESS_REPLICATION_REQUIRED",
+        "GEN_C10_TRANSITION_UNCERTAINTY_NOT_YET_CALIBRATED",
+        "PROTECTED_FLOOR_GRADUATION_CAUSAL_PATH_BINDING_REQUIRED",
+        "REAL_4_OF_4_ECONOMIC_REPLICATION_RESULTS_REQUIRED",
+        "REAL_COMPOUND_POPULATION_STRESS_EXECUTION_REQUIRED",
+        "REAL_CRISIS_POPULATION_NOT_YET_BOUND",
+        "REAL_FORWARD_COMPOUND_EVENT_STREAM_PATH_HISTORY_REQUIRED",
+        "REAL_FORWARD_GIVEBACK_PATH_HISTORY_REQUIRED",
+        "REAL_FROZEN_TEMPORAL_FOLDS_REQUIRED",
+        "REAL_PROVIDER_VALID_COMPOUND_PATH_POPULATION_REQUIRED",
+        "REAL_TRANSITION_UNCERTAINTY_CALIBRATION_RESULTS_NOT_YET_PROVEN",
+        "STRESS_AND_TEMPORAL_REPLICATION_REQUIRED",
+        "TEMPORAL_REPLICATION_REQUIRED"
+      ]
+    },
+    "COMPOUND_PORTFOLIO_CAPITAL": {
+      "row_count": 18,
+      "rows": [
+        "ADVERSARIAL_STRESS",
+        "AS_IS_ECONOMIC_BASELINE",
+        "CAPITAL_AMPLIFICATION",
+        "CAPITAL_GENERATIONS",
+        "COMPOUND_ENGINE",
+        "COMPOUND_PORTFOLIO",
+        "GEN-C2",
+        "GEN-C3",
+        "GEN-C7",
+        "GEN-C9",
+        "INTEGRATED_CAPITAL_TRUTH",
+        "PATH_DEPENDENT_MONTE_CARLO",
+        "PROFIT_PROTECTION",
+        "PROTECTED_BASE_CAPITAL",
+        "T06",
+        "T07",
+        "T13",
+        "T15"
+      ],
+      "unique_blocker_atom_count": 22,
+      "blocker_atoms": [
+        "CAUSAL_PROFIT_GRADUATION_POLICY_VALUE_REQUIRED",
+        "COMPOUND_MONTE_CARLO_REAL_POPULATION_STRESS_OOS_REPLICATION_REQUIRED",
+        "COUNTERFACTUAL_RESERVATION_CAUSAL_EFFECT_NOT_IDENTIFIED",
+        "CURRENT_TRADER_CIBO_COMPOUND_ALLOCATION_UTILIZATION_MEASUREMENT_RESULTS_REQUIRED",
+        "END_TO_END_COMPOUND_PORTFOLIO_ECONOMIC_CYCLE_REQUIRED",
+        "FRESH_OOS_GIVEBACK_RETENTION_STRESS_REPLICATION_REQUIRED",
+        "FRESH_OOS_PROFIT_FUNDED_EXPANSION_UTILITY_REQUIRED",
+        "FRESH_OOS_PROFIT_RETENTION_AND_GIVEBACK_CAUSAL_VALUE_REQUIRED",
+        "FRESH_OOS_PROTECTED_CAPACITY_EXPANSION_UTILITY_REQUIRED",
+        "MULTI_GENERATION_REAL_REPLAY_REQUIRED",
+        "PROTECTED_BASE_CAUSAL_VALUE_NOT_YET_PROVEN",
+        "PROTECTED_BASE_NUMERIC_CANDIDATE_NOT_YET_FROZEN_ON_REAL_PROVIDER_VALID_POPULATION",
+        "PROTECTED_BASE_REMAINS_RESEARCH_ONLY_AND_MUST_NOT_RETROACTIVELY_CHANGE_V3",
+        "PROTECTED_FLOOR_GRADUATION_CAUSAL_PATH_BINDING_REQUIRED",
+        "REAL_COMPOUND_EPISODE_POPULATION_AND_FLOOR_ATTRIBUTION_REQUIRED",
+        "REAL_COMPOUND_POPULATION_STRESS_EXECUTION_REQUIRED",
+        "REAL_ECONOMIC_PORTFOLIO_REPLAY_REQUIRED",
+        "REAL_FORWARD_COMPOUND_EVENT_STREAM_PATH_HISTORY_REQUIRED",
+        "REAL_FORWARD_GIVEBACK_PATH_HISTORY_REQUIRED",
+        "REAL_PROVIDER_VALID_COMPOUND_PATH_POPULATION_REQUIRED",
+        "STRICT_CAPITAL_PRODUCTIVITY_IMPROVEMENT_REQUIRED",
+        "UPSTREAM_COMPOUND_AND_GEN_C_REAL_EVIDENCE_CLOSURE_REQUIRED"
+      ]
+    },
+    "POST_OUTCOME_MEMORY_GOVERNANCE": {
+      "row_count": 2,
+      "rows": [
+        "GEN-C13",
+        "GEN-C14"
+      ],
+      "unique_blocker_atom_count": 5,
+      "blocker_atoms": [
+        "FINAL_PROMOTION_EVIDENCE_NOT_YET_AVAILABLE",
+        "OWNER_REVIEW_IS_EXTERNAL_AND_CANNOT_BE_FABRICATED",
+        "PROSPECTIVE_MEMORY_USE_CAUSAL_ABLATION_NOT_YET_RUN",
+        "REAL_HYPOTHESIS_LINEAGES_NOT_YET_RUN_THROUGH_FULL_PIPELINE",
+        "REAL_POST_OUTCOME_EPISODE_POPULATION_NOT_YET_BOUND"
+      ]
+    },
+    "EXAM_GOVERNANCE": {
+      "row_count": 3,
+      "rows": [
+        "AS_IS_ECONOMIC_BASELINE",
+        "PROTECTED_BASE_CAPITAL",
+        "USD60_CAPABILITY_PROGRAM"
+      ],
+      "unique_blocker_atom_count": 4,
+      "blocker_atoms": [
+        "FINAL_GOVERNED_SIX_MONTH_EXAM_NOT_RUN",
+        "NO_SYNTHETIC_BASELINE_ALLOWED",
+        "PRE_EXAM_EXTERNAL_PREREQUISITES_REQUIRED",
+        "PROTECTED_BASE_REMAINS_RESEARCH_ONLY_AND_MUST_NOT_RETROACTIVELY_CHANGE_V3"
+      ]
+    },
+    "UNCLASSIFIED_EXTERNAL": {
+      "row_count": 0,
+      "rows": [],
+      "unique_blocker_atom_count": 0,
+      "blocker_atoms": []
+    }
+  },
+  "rows": [
+    {
+      "id": "ADVERSARIAL_STRESS",
+      "kind": "SYSTEM",
+      "mandatory": true,
+      "certification_blocking": true,
+      "reconciliation_disposition": "EXTERNAL_CERTIFICATION_EVIDENCE_PENDING",
+      "dependency_families": [
+        "COMPOUND_PORTFOLIO_CAPITAL",
+        "PATH_STRESS_TEMPORAL_MC",
+        "PROVIDER_EXECUTION_ECONOMICS"
+      ],
+      "blockers": [
+        "REAL_COMPOUND_POPULATION_STRESS_EXECUTION_REQUIRED",
+        "CRISIS_PROVIDER_FACTOR_STRESS_INTEGRATION_REQUIRED"
+      ],
+      "canonical_terminal_disposition_preserved": true
+    },
+    {
+      "id": "AS_IS_ECONOMIC_BASELINE",
+      "kind": "EVIDENCE_PROGRAM",
+      "mandatory": true,
+      "certification_blocking": true,
+      "reconciliation_disposition": "EXTERNAL_CERTIFICATION_EVIDENCE_PENDING",
+      "dependency_families": [
+        "COMPOUND_PORTFOLIO_CAPITAL",
+        "EXAM_GOVERNANCE",
+        "FRESH_FORWARD_CAUSAL"
+      ],
+      "blockers": [
+        "FRESH_AS_IS_ECONOMIC_POPULATION_REQUIRED",
+        "CURRENT_TRADER_CIBO_COMPOUND_ALLOCATION_UTILIZATION_MEASUREMENT_RESULTS_REQUIRED",
+        "NO_SYNTHETIC_BASELINE_ALLOWED"
+      ],
+      "canonical_terminal_disposition_preserved": true
+    },
+    {
+      "id": "CAPITAL_AMPLIFICATION",
+      "kind": "SYSTEM",
+      "mandatory": true,
+      "certification_blocking": true,
+      "reconciliation_disposition": "EXTERNAL_CERTIFICATION_EVIDENCE_PENDING",
+      "dependency_families": [
+        "COMPOUND_PORTFOLIO_CAPITAL"
+      ],
+      "blockers": [
+        "UPSTREAM_COMPOUND_AND_GEN_C_REAL_EVIDENCE_CLOSURE_REQUIRED"
+      ],
+      "canonical_terminal_disposition_preserved": true
+    },
+    {
+      "id": "CAPITAL_GENERATIONS",
+      "kind": "SYSTEM",
+      "mandatory": true,
+      "certification_blocking": true,
+      "reconciliation_disposition": "EXTERNAL_CERTIFICATION_EVIDENCE_PENDING",
+      "dependency_families": [
+        "COMPOUND_PORTFOLIO_CAPITAL",
+        "FRESH_FORWARD_CAUSAL"
+      ],
+      "blockers": [
+        "MULTI_GENERATION_REAL_REPLAY_REQUIRED",
+        "FRESH_OOS_ATTRIBUTION_REQUIRED"
+      ],
+      "canonical_terminal_disposition_preserved": true
+    },
+    {
+      "id": "COMPOUND_ENGINE",
+      "kind": "SYSTEM",
+      "mandatory": true,
+      "certification_blocking": true,
+      "reconciliation_disposition": "EXTERNAL_CERTIFICATION_EVIDENCE_PENDING",
+      "dependency_families": [
+        "COMPOUND_PORTFOLIO_CAPITAL",
+        "FRESH_FORWARD_CAUSAL",
+        "PATH_STRESS_TEMPORAL_MC"
+      ],
+      "blockers": [
+        "REAL_CHRONOLOGICAL_POPULATION_REPLAY_REQUIRED",
+        "COMPOUND_MONTE_CARLO_REAL_POPULATION_STRESS_OOS_REPLICATION_REQUIRED"
+      ],
+      "canonical_terminal_disposition_preserved": true
+    },
+    {
+      "id": "COMPOUND_PORTFOLIO",
+      "kind": "SYSTEM",
+      "mandatory": true,
+      "certification_blocking": true,
+      "reconciliation_disposition": "EXTERNAL_CERTIFICATION_EVIDENCE_PENDING",
+      "dependency_families": [
+        "COMPOUND_PORTFOLIO_CAPITAL",
+        "FRESH_FORWARD_CAUSAL",
+        "PATH_STRESS_TEMPORAL_MC"
+      ],
+      "blockers": [
+        "REAL_ECONOMIC_PORTFOLIO_REPLAY_REQUIRED",
+        "FRESH_OOS_STRESS_REPLICATION_REQUIRED"
+      ],
+      "canonical_terminal_disposition_preserved": true
+    },
+    {
+      "id": "GEN-C10",
+      "kind": "GEN_C",
+      "mandatory": true,
+      "certification_blocking": true,
+      "reconciliation_disposition": "INTERNAL_FUNCTIONAL_CLOSED__EXTERNAL_SCIENCE_PENDING",
+      "dependency_families": [
+        "FRESH_FORWARD_CAUSAL",
+        "PATH_STRESS_TEMPORAL_MC"
+      ],
+      "blockers": [
+        "REAL_CHRONOLOGICAL_TWIN_TRANSITION_POPULATION_NOT_YET_BOUND",
+        "REAL_TRANSITION_UNCERTAINTY_CALIBRATION_RESULTS_NOT_YET_PROVEN",
+        "FRESH_OOS_STRESS_TEMPORAL_REPLICATION_REQUIRED"
+      ],
+      "canonical_terminal_disposition_preserved": true
+    },
+    {
+      "id": "GEN-C11",
+      "kind": "GEN_C",
+      "mandatory": true,
+      "certification_blocking": true,
+      "reconciliation_disposition": "INTERNAL_FUNCTIONAL_CLOSED__EXTERNAL_SCIENCE_PENDING",
+      "dependency_families": [
+        "FRESH_FORWARD_CAUSAL",
+        "PATH_STRESS_TEMPORAL_MC"
+      ],
+      "blockers": [
+        "FRESH_MULTI_PERIOD_OOS_UTILITY_NOT_YET_PROVEN",
+        "STRESS_AND_TEMPORAL_REPLICATION_REQUIRED",
+        "GEN_C10_TRANSITION_UNCERTAINTY_NOT_YET_CALIBRATED"
+      ],
+      "canonical_terminal_disposition_preserved": true
+    },
+    {
+      "id": "GEN-C12",
+      "kind": "GEN_C",
+      "mandatory": true,
+      "certification_blocking": true,
+      "reconciliation_disposition": "INTERNAL_FUNCTIONAL_CLOSED__EXTERNAL_SCIENCE_PENDING",
+      "dependency_families": [
+        "FRESH_FORWARD_CAUSAL",
+        "PATH_STRESS_TEMPORAL_MC"
+      ],
+      "blockers": [
+        "REAL_CRISIS_POPULATION_NOT_YET_BOUND",
+        "ADVERSARIAL_CRISIS_STRESS_AND_TEMPORAL_REPLICATION_REQUIRED",
+        "ECONOMIC_VALUE_NOT_YET_DEMONSTRATED"
+      ],
+      "canonical_terminal_disposition_preserved": true
+    },
+    {
+      "id": "GEN-C13",
+      "kind": "GEN_C",
+      "mandatory": true,
+      "certification_blocking": true,
+      "reconciliation_disposition": "INTERNAL_FUNCTIONAL_CLOSED__EXTERNAL_SCIENCE_PENDING",
+      "dependency_families": [
+        "PATH_STRESS_TEMPORAL_MC",
+        "POST_OUTCOME_MEMORY_GOVERNANCE"
+      ],
+      "blockers": [
+        "REAL_POST_OUTCOME_EPISODE_POPULATION_NOT_YET_BOUND",
+        "PROSPECTIVE_MEMORY_USE_CAUSAL_ABLATION_NOT_YET_RUN",
+        "TEMPORAL_REPLICATION_REQUIRED"
+      ],
+      "canonical_terminal_disposition_preserved": true
+    },
+    {
+      "id": "GEN-C14",
+      "kind": "GEN_C",
+      "mandatory": true,
+      "certification_blocking": true,
+      "reconciliation_disposition": "INTERNAL_FUNCTIONAL_CLOSED__EXTERNAL_SCIENCE_PENDING",
+      "dependency_families": [
+        "POST_OUTCOME_MEMORY_GOVERNANCE"
+      ],
+      "blockers": [
+        "REAL_HYPOTHESIS_LINEAGES_NOT_YET_RUN_THROUGH_FULL_PIPELINE",
+        "OWNER_REVIEW_IS_EXTERNAL_AND_CANNOT_BE_FABRICATED",
+        "FINAL_PROMOTION_EVIDENCE_NOT_YET_AVAILABLE"
+      ],
+      "canonical_terminal_disposition_preserved": true
+    },
+    {
+      "id": "GEN-C2",
+      "kind": "GEN_C",
+      "mandatory": true,
+      "certification_blocking": true,
+      "reconciliation_disposition": "INTERNAL_FUNCTIONAL_CLOSED__EXTERNAL_SCIENCE_PENDING",
+      "dependency_families": [
+        "COMPOUND_PORTFOLIO_CAPITAL",
+        "FRESH_FORWARD_CAUSAL"
+      ],
+      "blockers": [
+        "CAUSAL_PROFIT_GRADUATION_POLICY_VALUE_REQUIRED"
+      ],
+      "canonical_terminal_disposition_preserved": true
+    },
+    {
+      "id": "GEN-C3",
+      "kind": "GEN_C",
+      "mandatory": true,
+      "certification_blocking": true,
+      "reconciliation_disposition": "INTERNAL_FUNCTIONAL_CLOSED__EXTERNAL_SCIENCE_PENDING",
+      "dependency_families": [
+        "COMPOUND_PORTFOLIO_CAPITAL"
+      ],
+      "blockers": [
+        "END_TO_END_COMPOUND_PORTFOLIO_ECONOMIC_CYCLE_REQUIRED"
+      ],
+      "canonical_terminal_disposition_preserved": true
+    },
+    {
+      "id": "GEN-C4",
+      "kind": "GEN_C",
+      "mandatory": true,
+      "certification_blocking": true,
+      "reconciliation_disposition": "INTERNAL_FUNCTIONAL_CLOSED__EXTERNAL_SCIENCE_PENDING",
+      "dependency_families": [
+        "FRESH_FORWARD_CAUSAL"
+      ],
+      "blockers": [
+        "REAL_DATA_BOUND_CAUSAL_VALUE_PROOF_REQUIRED"
+      ],
+      "canonical_terminal_disposition_preserved": true
+    },
+    {
+      "id": "GEN-C5",
+      "kind": "GEN_C",
+      "mandatory": true,
+      "certification_blocking": true,
+      "reconciliation_disposition": "INTERNAL_FUNCTIONAL_CLOSED__EXTERNAL_SCIENCE_PENDING",
+      "dependency_families": [
+        "FRESH_FORWARD_CAUSAL",
+        "PATH_STRESS_TEMPORAL_MC"
+      ],
+      "blockers": [
+        "FRESH_PATH_DEPENDENT_OOS_STRESS_REPLICATION_REQUIRED"
+      ],
+      "canonical_terminal_disposition_preserved": true
+    },
+    {
+      "id": "GEN-C6",
+      "kind": "GEN_C",
+      "mandatory": true,
+      "certification_blocking": true,
+      "reconciliation_disposition": "INTERNAL_FUNCTIONAL_CLOSED__EXTERNAL_SCIENCE_PENDING",
+      "dependency_families": [
+        "FRESH_FORWARD_CAUSAL",
+        "PATH_STRESS_TEMPORAL_MC",
+        "SCARCITY_CONCENTRATION"
+      ],
+      "blockers": [
+        "FRESH_TRUE_SCARCITY_OOS_STRESS_REPLICATION_REQUIRED"
+      ],
+      "canonical_terminal_disposition_preserved": true
+    },
+    {
+      "id": "GEN-C7",
+      "kind": "GEN_C",
+      "mandatory": true,
+      "certification_blocking": true,
+      "reconciliation_disposition": "INTERNAL_FUNCTIONAL_CLOSED__EXTERNAL_SCIENCE_PENDING",
+      "dependency_families": [
+        "COMPOUND_PORTFOLIO_CAPITAL",
+        "FRESH_FORWARD_CAUSAL",
+        "PATH_STRESS_TEMPORAL_MC"
+      ],
+      "blockers": [
+        "FRESH_OOS_GIVEBACK_RETENTION_STRESS_REPLICATION_REQUIRED"
+      ],
+      "canonical_terminal_disposition_preserved": true
+    },
+    {
+      "id": "GEN-C8",
+      "kind": "GEN_C",
+      "mandatory": true,
+      "certification_blocking": true,
+      "reconciliation_disposition": "INTERNAL_FUNCTIONAL_CLOSED__EXTERNAL_SCIENCE_PENDING",
+      "dependency_families": [
+        "FRESH_FORWARD_CAUSAL",
+        "PATH_STRESS_TEMPORAL_MC"
+      ],
+      "blockers": [
+        "FRESH_OOS_STRESS_REPLICATION_REQUIRED"
+      ],
+      "canonical_terminal_disposition_preserved": true
+    },
+    {
+      "id": "GEN-C9",
+      "kind": "GEN_C",
+      "mandatory": true,
+      "certification_blocking": true,
+      "reconciliation_disposition": "INTERNAL_FUNCTIONAL_CLOSED__EXTERNAL_SCIENCE_PENDING",
+      "dependency_families": [
+        "COMPOUND_PORTFOLIO_CAPITAL",
+        "FRESH_FORWARD_CAUSAL",
+        "PATH_STRESS_TEMPORAL_MC",
+        "PROVIDER_EXECUTION_ECONOMICS"
+      ],
+      "blockers": [
+        "REAL_PROVIDER_VALID_COMPOUND_PATH_POPULATION_REQUIRED",
+        "FRESH_OOS_STRESS_TEMPORAL_REPLICATION_REQUIRED"
+      ],
+      "canonical_terminal_disposition_preserved": true
+    },
+    {
+      "id": "INTEGRATED_CAPITAL_TRUTH",
+      "kind": "SYSTEM",
+      "mandatory": true,
+      "certification_blocking": true,
+      "reconciliation_disposition": "EXTERNAL_CERTIFICATION_EVIDENCE_PENDING",
+      "dependency_families": [
+        "COMPOUND_PORTFOLIO_CAPITAL",
+        "FRESH_FORWARD_CAUSAL",
+        "PATH_STRESS_TEMPORAL_MC"
+      ],
+      "blockers": [
+        "REAL_CHRONOLOGICAL_FORWARD_POPULATION_BINDING_REQUIRED",
+        "REAL_FORWARD_COMPOUND_EVENT_STREAM_PATH_HISTORY_REQUIRED",
+        "PROTECTED_FLOOR_GRADUATION_CAUSAL_PATH_BINDING_REQUIRED"
+      ],
+      "canonical_terminal_disposition_preserved": true
+    },
+    {
+      "id": "INTERNAL_CAPITAL_MARKET",
+      "kind": "SYSTEM",
+      "mandatory": true,
+      "certification_blocking": true,
+      "reconciliation_disposition": "EXTERNAL_CERTIFICATION_EVIDENCE_PENDING",
+      "dependency_families": [
+        "FRESH_FORWARD_CAUSAL",
+        "PATH_STRESS_TEMPORAL_MC",
+        "SCARCITY_CONCENTRATION"
+      ],
+      "blockers": [
+        "FRESH_TRUE_SCARCITY_ECONOMIC_VALUE_REQUIRED",
+        "STRESS_AND_TEMPORAL_REPLICATION_REQUIRED"
+      ],
+      "canonical_terminal_disposition_preserved": true
+    },
+    {
+      "id": "PATH_DEPENDENT_MONTE_CARLO",
+      "kind": "SYSTEM",
+      "mandatory": true,
+      "certification_blocking": true,
+      "reconciliation_disposition": "EXTERNAL_CERTIFICATION_EVIDENCE_PENDING",
+      "dependency_families": [
+        "COMPOUND_PORTFOLIO_CAPITAL",
+        "PATH_STRESS_TEMPORAL_MC"
+      ],
+      "blockers": [
+        "REAL_COMPOUND_EPISODE_POPULATION_AND_FLOOR_ATTRIBUTION_REQUIRED",
+        "ADVERSARIAL_STRESS_AND_TEMPORAL_REPLICATION_REQUIRED"
+      ],
+      "canonical_terminal_disposition_preserved": true
+    },
+    {
+      "id": "PROFIT_PROTECTION",
+      "kind": "SYSTEM",
+      "mandatory": true,
+      "certification_blocking": true,
+      "reconciliation_disposition": "EXTERNAL_CERTIFICATION_EVIDENCE_PENDING",
+      "dependency_families": [
+        "COMPOUND_PORTFOLIO_CAPITAL",
+        "FRESH_FORWARD_CAUSAL",
+        "PATH_STRESS_TEMPORAL_MC"
+      ],
+      "blockers": [
+        "REAL_FORWARD_GIVEBACK_PATH_HISTORY_REQUIRED",
+        "FRESH_OOS_PROFIT_RETENTION_AND_GIVEBACK_CAUSAL_VALUE_REQUIRED"
+      ],
+      "canonical_terminal_disposition_preserved": true
+    },
+    {
+      "id": "PROTECTED_BASE_CAPITAL",
+      "kind": "SYSTEM",
+      "mandatory": true,
+      "certification_blocking": true,
+      "reconciliation_disposition": "EXTERNAL_CERTIFICATION_EVIDENCE_PENDING",
+      "dependency_families": [
+        "COMPOUND_PORTFOLIO_CAPITAL",
+        "EXAM_GOVERNANCE",
+        "FRESH_FORWARD_CAUSAL",
+        "PATH_STRESS_TEMPORAL_MC",
+        "PROVIDER_EXECUTION_ECONOMICS"
+      ],
+      "blockers": [
+        "PROTECTED_BASE_NUMERIC_CANDIDATE_NOT_YET_FROZEN_ON_REAL_PROVIDER_VALID_POPULATION",
+        "PROTECTED_BASE_CAUSAL_VALUE_NOT_YET_PROVEN",
+        "FRESH_OOS_STRESS_AND_4_OF_4_TEMPORAL_REPLICATION_REQUIRED",
+        "PROTECTED_BASE_REMAINS_RESEARCH_ONLY_AND_MUST_NOT_RETROACTIVELY_CHANGE_V3"
+      ],
+      "canonical_terminal_disposition_preserved": true
+    },
+    {
+      "id": "T02",
+      "kind": "CE2I_TOOL",
+      "mandatory": true,
+      "certification_blocking": true,
+      "reconciliation_disposition": "INTERNAL_FUNCTIONAL_CLOSED__EXTERNAL_SCIENCE_PENDING",
+      "dependency_families": [
+        "FRESH_FORWARD_CAUSAL",
+        "PROVIDER_EXECUTION_ECONOMICS"
+      ],
+      "blockers": [
+        "REAL_POST_FREEZE_STRUCTURAL_TERMINAL_REASON_POPULATION_REQUIRED",
+        "PROVIDER_BOUND_LEVERAGE_ECONOMIC_ABLATION_REQUIRED"
+      ],
+      "canonical_terminal_disposition_preserved": true
+    },
+    {
+      "id": "T04",
+      "kind": "CE2I_TOOL",
+      "mandatory": true,
+      "certification_blocking": true,
+      "reconciliation_disposition": "INTERNAL_FUNCTIONAL_CLOSED__EXTERNAL_SCIENCE_PENDING",
+      "dependency_families": [
+        "FRESH_FORWARD_CAUSAL",
+        "PROVIDER_EXECUTION_ECONOMICS"
+      ],
+      "blockers": [
+        "REAL_PROVIDER_VALID_CAUSAL_CONTROL_TREATMENT_POPULATION_REQUIRED",
+        "WF1_WF2_WF3_WF4_NONCOMPENSATORY_REPLICATION_REQUIRED"
+      ],
+      "canonical_terminal_disposition_preserved": true
+    },
+    {
+      "id": "T06",
+      "kind": "CE2I_TOOL",
+      "mandatory": true,
+      "certification_blocking": true,
+      "reconciliation_disposition": "INTERNAL_FUNCTIONAL_CLOSED__EXTERNAL_SCIENCE_PENDING",
+      "dependency_families": [
+        "COMPOUND_PORTFOLIO_CAPITAL",
+        "FRESH_FORWARD_CAUSAL"
+      ],
+      "blockers": [
+        "FRESH_OOS_PROFIT_FUNDED_EXPANSION_UTILITY_REQUIRED"
+      ],
+      "canonical_terminal_disposition_preserved": true
+    },
+    {
+      "id": "T07",
+      "kind": "CE2I_TOOL",
+      "mandatory": true,
+      "certification_blocking": true,
+      "reconciliation_disposition": "INTERNAL_FUNCTIONAL_CLOSED__EXTERNAL_SCIENCE_PENDING",
+      "dependency_families": [
+        "COMPOUND_PORTFOLIO_CAPITAL",
+        "FRESH_FORWARD_CAUSAL"
+      ],
+      "blockers": [
+        "FRESH_OOS_PROTECTED_CAPACITY_EXPANSION_UTILITY_REQUIRED"
+      ],
+      "canonical_terminal_disposition_preserved": true
+    },
+    {
+      "id": "T08",
+      "kind": "CE2I_TOOL",
+      "mandatory": true,
+      "certification_blocking": true,
+      "reconciliation_disposition": "INTERNAL_FUNCTIONAL_CLOSED__EXTERNAL_SCIENCE_PENDING",
+      "dependency_families": [
+        "FRESH_FORWARD_CAUSAL"
+      ],
+      "blockers": [
+        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
+      ],
+      "canonical_terminal_disposition_preserved": true
+    },
+    {
+      "id": "T09",
+      "kind": "CE2I_TOOL",
+      "mandatory": true,
+      "certification_blocking": true,
+      "reconciliation_disposition": "INTERNAL_FUNCTIONAL_CLOSED__EXTERNAL_SCIENCE_PENDING",
+      "dependency_families": [
+        "FRESH_FORWARD_CAUSAL",
+        "SCARCITY_CONCENTRATION"
+      ],
+      "blockers": [
+        "REAL_SIMULTANEOUS_SCARCITY_POPULATION_REQUIRED",
+        "STARVATION_AND_CONCENTRATION_NONWORSE_WF1_WF2_WF3_WF4_REQUIRED"
+      ],
+      "canonical_terminal_disposition_preserved": true
+    },
+    {
+      "id": "T10",
+      "kind": "CE2I_TOOL",
+      "mandatory": true,
+      "certification_blocking": true,
+      "reconciliation_disposition": "INTERNAL_FUNCTIONAL_CLOSED__EXTERNAL_SCIENCE_PENDING",
+      "dependency_families": [
+        "FRESH_FORWARD_CAUSAL",
+        "PROVIDER_EXECUTION_ECONOMICS"
+      ],
+      "blockers": [
+        "REAL_PROVIDER_VALID_CAUSAL_CONTROL_TREATMENT_POPULATION_REQUIRED",
+        "WF1_WF2_WF3_WF4_NONCOMPENSATORY_REPLICATION_REQUIRED"
+      ],
+      "canonical_terminal_disposition_preserved": true
+    },
+    {
+      "id": "T11",
+      "kind": "CE2I_TOOL",
+      "mandatory": true,
+      "certification_blocking": true,
+      "reconciliation_disposition": "EMPIRICAL_PROVIDER_PARTIAL_CLOSURE__FRESH_GROSS_EDGE_MARKET_IMPACT_PENDING",
+      "dependency_families": [
+        "FRESH_FORWARD_CAUSAL",
+        "PROVIDER_EXECUTION_ECONOMICS"
+      ],
+      "blockers": [
+        "REAL_CALIBRATED_FRESH_OOS_GROSS_EDGE_MODEL_REQUIRED",
+        "REAL_PROVIDER_BOUND_MARKET_IMPACT_MODEL_REQUIRED"
+      ],
+      "canonical_terminal_disposition_preserved": true
+    },
+    {
+      "id": "T12",
+      "kind": "CE2I_TOOL",
+      "mandatory": true,
+      "certification_blocking": true,
+      "reconciliation_disposition": "INTERNAL_FUNCTIONAL_CLOSED__EXTERNAL_SCIENCE_PENDING",
+      "dependency_families": [
+        "FRESH_FORWARD_CAUSAL"
+      ],
+      "blockers": [
+        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
+      ],
+      "canonical_terminal_disposition_preserved": true
+    },
+    {
+      "id": "T13",
+      "kind": "CE2I_TOOL",
+      "mandatory": true,
+      "certification_blocking": true,
+      "reconciliation_disposition": "FUNCTIONAL_REDUNDANCY_CLASSIFIED__SCIENTIFIC_UTILITY_EVIDENCE_PENDING",
+      "dependency_families": [
+        "COMPOUND_PORTFOLIO_CAPITAL",
+        "FRESH_FORWARD_CAUSAL"
+      ],
+      "blockers": [
+        "FRESH_PHASE20D_T13_TREATMENT_POPULATION_THRESHOLDS_REQUIRED",
+        "FOUR_FOLD_POSITIVE_TREATMENT_AND_NONWORSE_DRAWDOWN_EVIDENCE_REQUIRED",
+        "STRICT_CAPITAL_PRODUCTIVITY_IMPROVEMENT_REQUIRED"
+      ],
+      "canonical_terminal_disposition_preserved": true
+    },
+    {
+      "id": "T14",
+      "kind": "CE2I_TOOL",
+      "mandatory": true,
+      "certification_blocking": true,
+      "reconciliation_disposition": "INTERNAL_FUNCTIONAL_CLOSED__EXTERNAL_SCIENCE_PENDING",
+      "dependency_families": [
+        "FRESH_FORWARD_CAUSAL"
+      ],
+      "blockers": [
+        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED"
+      ],
+      "canonical_terminal_disposition_preserved": true
+    },
+    {
+      "id": "T15",
+      "kind": "CE2I_TOOL",
+      "mandatory": true,
+      "certification_blocking": true,
+      "reconciliation_disposition": "FUNCTIONAL_REDUNDANCY_CLASSIFIED__SCIENTIFIC_UTILITY_EVIDENCE_PENDING",
+      "dependency_families": [
+        "COMPOUND_PORTFOLIO_CAPITAL",
+        "FRESH_FORWARD_CAUSAL"
+      ],
+      "blockers": [
+        "FRESH_FORWARD_CAUSAL_ECONOMIC_PROOF_REQUIRED",
+        "COUNTERFACTUAL_RESERVATION_CAUSAL_EFFECT_NOT_IDENTIFIED"
+      ],
+      "canonical_terminal_disposition_preserved": true
+    },
+    {
+      "id": "T18",
+      "kind": "CE2I_TOOL",
+      "mandatory": true,
+      "certification_blocking": true,
+      "reconciliation_disposition": "INTERNAL_FUNCTIONAL_CLOSED__EXTERNAL_SCIENCE_PENDING",
+      "dependency_families": [
+        "FRESH_FORWARD_CAUSAL",
+        "SCARCITY_CONCENTRATION"
+      ],
+      "blockers": [
+        "REAL_SIMULTANEOUS_SCARCITY_POPULATION_REQUIRED",
+        "STARVATION_AND_CONCENTRATION_NONWORSE_WF1_WF2_WF3_WF4_REQUIRED"
+      ],
+      "canonical_terminal_disposition_preserved": true
+    },
+    {
+      "id": "T20",
+      "kind": "CE2I_TOOL",
+      "mandatory": true,
+      "certification_blocking": true,
+      "reconciliation_disposition": "INTERNAL_FUNCTIONAL_CLOSED__EXTERNAL_SCIENCE_PENDING",
+      "dependency_families": [
+        "FRESH_FORWARD_CAUSAL"
+      ],
+      "blockers": [
+        "REAL_AUTHORITATIVE_FORWARD_RELEASE_POPULATION_REQUIRED"
+      ],
+      "canonical_terminal_disposition_preserved": true
+    },
+    {
+      "id": "TEMPORAL_REPLICATION",
+      "kind": "SYSTEM",
+      "mandatory": true,
+      "certification_blocking": true,
+      "reconciliation_disposition": "EXTERNAL_CERTIFICATION_EVIDENCE_PENDING",
+      "dependency_families": [
+        "PATH_STRESS_TEMPORAL_MC"
+      ],
+      "blockers": [
+        "REAL_FROZEN_TEMPORAL_FOLDS_REQUIRED",
+        "REAL_4_OF_4_ECONOMIC_REPLICATION_RESULTS_REQUIRED"
+      ],
+      "canonical_terminal_disposition_preserved": true
+    },
+    {
+      "id": "USD60_CAPABILITY_PROGRAM",
+      "kind": "EVIDENCE_PROGRAM",
+      "mandatory": true,
+      "certification_blocking": true,
+      "reconciliation_disposition": "EXTERNAL_CERTIFICATION_EVIDENCE_PENDING",
+      "dependency_families": [
+        "EXAM_GOVERNANCE",
+        "FRESH_FORWARD_CAUSAL"
+      ],
+      "blockers": [
+        "FROZEN_PHASE20D_REAL_FORWARD_THRESHOLDS_REQUIRED",
+        "PRE_EXAM_EXTERNAL_PREREQUISITES_REQUIRED",
+        "FINAL_GOVERNED_SIX_MONTH_EXAM_NOT_RUN"
+      ],
+      "canonical_terminal_disposition_preserved": true
+    }
+  ],
+  "governance": {
+    "fresh_oos_claimed": false,
+    "reused_research_promoted_to_certification": false,
+    "outcome_aware_tuning": false,
+    "merge_performed": false,
+    "live": false,
+    "production": false,
+    "real_capital": false
+  }
+}
