@@ -4,7 +4,6 @@ import importlib.util
 import json
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts" / "cibo_arch2_external_dependency_collapse.py"
 
@@ -39,7 +38,7 @@ def test_external_dependency_collapse_preserves_scientific_blockers() -> None:
     assert report["certification_execution_ready"] is False
 
     families = report["dependency_families"]
-    assert families["FRESH_FORWARD_CAUSAL"]["row_count"] == 32
+    assert families["FRESH_FORWARD_CAUSAL"]["row_count"] == 33
     assert families["PROVIDER_EXECUTION_ECONOMICS"]["row_count"] == 7
     assert families["SCARCITY_CONCENTRATION"]["row_count"] == 4
     assert families["PATH_STRESS_TEMPORAL_MC"]["row_count"] == 18
