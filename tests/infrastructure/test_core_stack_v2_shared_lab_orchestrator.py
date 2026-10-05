@@ -1,8 +1,13 @@
 # ruff: noqa: I001
 import json
-import resource
+import os
 import subprocess
 import sys
+
+try:
+    import resource
+except ImportError:  # Windows
+    resource = None
 from pathlib import Path
 
 import pytest
@@ -24,8 +29,12 @@ from qore.infrastructure.core_stack_v2.shared_lab_suite_registry import (
 
 
 pytestmark = pytest.mark.skipif(
-    not hasattr(resource, "prlimit"),
-    reason="native resource-limit acceptance currently requires Linux prlimit",
+    os.name not in {"posix", "nt"}
+    or (
+        os.name == "posix"
+        and (resource is None or not hasattr(resource, "prlimit"))
+    ),
+    reason="native resource-limit backend unavailable on this platform",
 )
 
 
@@ -66,6 +75,7 @@ def registry() -> NativeSuiteRegistry:
             (),
             command,
             ("component.txt",),
+            execution_origin="TARGET",
         )
     )
     result.register(
@@ -76,6 +86,7 @@ def registry() -> NativeSuiteRegistry:
             (),
             command,
             ("component.txt",),
+            execution_origin="TARGET",
         )
     )
     result.register(
@@ -86,6 +97,7 @@ def registry() -> NativeSuiteRegistry:
             ("unit", "contract"),
             command,
             ("component.txt",),
+            execution_origin="TARGET",
         )
     )
     return result
@@ -131,6 +143,10 @@ def test_native_orchestrator_executes_exact_sha_dag_and_reuses_safe_cache(
     evidence = EvidenceStore(state / "evidence").read_run(first.identity.run_id)
     assert evidence["final_disposition"] == "PASS"
     assert evidence["identity"]["commit_sha"] == sha
+    assert len(evidence["identity"]["lab_harness_sha"]) == 40
+    assert evidence["environment"]["lab_harness_sha"] == (
+        evidence["identity"]["lab_harness_sha"]
+    )
     assert evidence["environment"]["github_actions_detected"] in {True, False}
     assert evidence["environment"]["github_actions_required"] is False
 
