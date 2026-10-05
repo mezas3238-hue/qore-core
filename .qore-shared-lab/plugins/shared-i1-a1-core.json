@@ -3,8 +3,7 @@
   "suite": "FUNCTIONAL",
   "scope": "cognition",
   "dependencies": [
-    "contract",
-    "a1-causal-trajectory-functional"
+    "contract"
   ],
   "command": [
     "python",
