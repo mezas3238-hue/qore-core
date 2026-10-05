@@ -104,6 +104,138 @@ class PositionManagementDecision:
     policy_calibrated: bool
 
 
+@dataclass(frozen=True, slots=True)
+class MarketNativePositionDecision:
+    """Post-entry decision made only from market structure and cognition."""
+
+    action: PositionAction
+    next_stop: Decimal | None
+    next_target: Decimal | None
+    reason: str
+    market_native: bool = True
+    volume_agnostic: bool = True
+    r_runtime_authority: bool = False
+
+
+def decide_market_native_position(
+    *,
+    side: str,
+    current_stop: Decimal,
+    primary_structural_target: Decimal,
+    next_structural_target: Decimal | None,
+    cognition: "FullCognitivePositionState",
+    protective_swing: StructuralProtectionCandidate | None,
+    primary_target_reached: bool,
+    primary_target_accepted: bool,
+    structure_invalidated: bool,
+    liquidity_failure_confirmed: bool,
+    momentum_deteriorated: bool,
+    regime_changed_against_thesis: bool,
+) -> MarketNativePositionDecision:
+    """Manage VT31 without R, volume, sizing, or fixed-profit caps.
+
+    The caller supplies only causal market facts. R is deliberately absent from
+    the function signature so it cannot trigger target, protection, or exit.
+    """
+
+    if side not in {"long", "short"}:
+        raise ValueError(f"unsupported side: {side}")
+    for name, value in (
+        ("current_stop", current_stop),
+        ("primary_structural_target", primary_structural_target),
+    ):
+        if not value.is_finite() or value <= 0:
+            raise ValueError(f"{name} must be positive finite")
+    if (
+        next_structural_target is not None
+        and (
+            not next_structural_target.is_finite()
+            or next_structural_target <= 0
+        )
+    ):
+        raise ValueError("next_structural_target must be positive finite")
+
+    if structure_invalidated:
+        return MarketNativePositionDecision(
+            action=PositionAction.EXIT,
+            next_stop=None,
+            next_target=None,
+            reason="STRUCTURAL_INVALIDATION_CONFIRMED",
+        )
+
+    if (
+        cognition.target_intent
+        is UniversalTargetIntent.EXIT_ON_CONFIRMED_EXHAUSTION
+    ):
+        return MarketNativePositionDecision(
+            action=PositionAction.EXIT,
+            next_stop=None,
+            next_target=None,
+            reason="COGNITIVE_EXHAUSTION_CONFIRMED",
+        )
+
+    if regime_changed_against_thesis:
+        return MarketNativePositionDecision(
+            action=PositionAction.EXIT,
+            next_stop=None,
+            next_target=None,
+            reason="REGIME_CHANGED_AGAINST_THESIS",
+        )
+
+    if liquidity_failure_confirmed:
+        return MarketNativePositionDecision(
+            action=PositionAction.EXIT,
+            next_stop=None,
+            next_target=None,
+            reason="LIQUIDITY_DELIVERY_FAILURE_CONFIRMED",
+        )
+
+    if primary_target_reached:
+        extension_allowed = (
+            primary_target_accepted
+            and next_structural_target is not None
+            and cognition.target_intent
+            is UniversalTargetIntent.EXTEND_TO_DOL2
+        )
+        if extension_allowed:
+            return MarketNativePositionDecision(
+                action=PositionAction.EXTEND,
+                next_stop=None,
+                next_target=next_structural_target,
+                reason="STRUCTURAL_TARGET_ACCEPTED_CONTINUATION_SUPPORTED",
+            )
+        return MarketNativePositionDecision(
+            action=PositionAction.EXIT,
+            next_stop=None,
+            next_target=None,
+            reason="PRIMARY_STRUCTURAL_TARGET_DELIVERED",
+        )
+
+    if (
+        momentum_deteriorated
+        and protective_swing is not None
+        and improves_stop(
+            side=side,
+            current_stop=current_stop,
+            candidate_stop=protective_swing.level,
+            target=primary_structural_target,
+        )
+    ):
+        return MarketNativePositionDecision(
+            action=PositionAction.TRAIL,
+            next_stop=protective_swing.level,
+            next_target=None,
+            reason="MOMENTUM_DETERIORATED_CONFIRMED_STRUCTURAL_SWING",
+        )
+
+    return MarketNativePositionDecision(
+        action=PositionAction.HOLD,
+        next_stop=None,
+        next_target=None,
+        reason="MARKET_STRUCTURE_REMAINS_VALID",
+    )
+
+
 def improves_stop(
     *,
     side: str,
