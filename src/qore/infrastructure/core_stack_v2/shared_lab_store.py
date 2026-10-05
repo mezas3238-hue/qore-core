@@ -7,6 +7,8 @@ import json
 import os
 import shutil
 import tempfile
+import threading
+import time
 from dataclasses import asdict
 from enum import Enum
 from pathlib import Path
@@ -49,6 +51,21 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+_ATOMIC_REPLACE_ATTEMPTS = 60
+_ATOMIC_REPLACE_RETRY_SECONDS = 0.05
+
+
+def _replace_with_retry(source: Path, target: Path) -> None:
+    for attempt in range(_ATOMIC_REPLACE_ATTEMPTS):
+        try:
+            os.replace(source, target)
+            return
+        except PermissionError:
+            if attempt + 1 >= _ATOMIC_REPLACE_ATTEMPTS:
+                raise
+            time.sleep(_ATOMIC_REPLACE_RETRY_SECONDS)
+
+
 def atomic_write_json(path: Path, payload: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     raw = json.dumps(
@@ -65,7 +82,10 @@ def atomic_write_json(path: Path, payload: object) -> None:
     ) as handle:
         handle.write(raw)
         temp_path = Path(handle.name)
-    os.replace(temp_path, path)
+    try:
+        _replace_with_retry(temp_path, path)
+    finally:
+        temp_path.unlink(missing_ok=True)
 
 
 class DatasetStore:
@@ -177,6 +197,16 @@ class EvidenceStore:
     def __init__(self, root: Path) -> None:
         self.root = root
         self.root.mkdir(parents=True, exist_ok=True)
+        self._run_locks_guard = threading.Lock()
+        self._run_locks: dict[str, threading.RLock] = {}
+
+    def _run_lock(self, run_id: str) -> threading.RLock:
+        with self._run_locks_guard:
+            lock = self._run_locks.get(run_id)
+            if lock is None:
+                lock = threading.RLock()
+                self._run_locks[run_id] = lock
+            return lock
 
     def run_dir(self, run_id: str) -> Path:
         return self.root / run_id
@@ -225,14 +255,15 @@ class EvidenceStore:
         task_id: str,
         payload: dict[str, Any],
     ) -> None:
-        run_file = self.run_dir(run_id) / "run.json"
-        run = json.loads(run_file.read_text())
-        tasks = dict(run.get("tasks", {}))
-        current = dict(tasks.get(task_id, {}))
-        current.update(payload)
-        tasks[task_id] = current
-        run["tasks"] = tasks
-        atomic_write_json(run_file, run)
+        with self._run_lock(run_id):
+            run_file = self.run_dir(run_id) / "run.json"
+            run = json.loads(run_file.read_text())
+            tasks = dict(run.get("tasks", {}))
+            current = dict(tasks.get(task_id, {}))
+            current.update(payload)
+            tasks[task_id] = current
+            run["tasks"] = tasks
+            atomic_write_json(run_file, run)
 
     def write_task_result(self, run_id: str, result: TaskResult) -> None:
         task_dir = self.run_dir(run_id) / "tasks" / result.task_id
@@ -248,17 +279,18 @@ class EvidenceStore:
         ended_at_ns: int,
         artifact_hash: str,
     ) -> Path:
-        run_file = self.run_dir(run_id) / "run.json"
-        run = json.loads(run_file.read_text())
-        run["state"] = "COMPLETED"
-        run["ended_at_ns"] = ended_at_ns
-        run["duration_ms"] = (
-            ended_at_ns - int(run["started_at_ns"])
-        ) / 1_000_000
-        run["final_disposition"] = disposition
-        run["artifact_hash"] = artifact_hash
-        atomic_write_json(run_file, run)
-        return run_file
+        with self._run_lock(run_id):
+            run_file = self.run_dir(run_id) / "run.json"
+            run = json.loads(run_file.read_text())
+            run["state"] = "COMPLETED"
+            run["ended_at_ns"] = ended_at_ns
+            run["duration_ms"] = (
+                ended_at_ns - int(run["started_at_ns"])
+            ) / 1_000_000
+            run["final_disposition"] = disposition
+            run["artifact_hash"] = artifact_hash
+            atomic_write_json(run_file, run)
+            return run_file
 
     def read_run(self, run_id: str) -> dict[str, Any]:
         path = self.run_dir(run_id) / "run.json"
