@@ -74,13 +74,13 @@ def build_relational_population_gate(
         population_authorized = False
         gate_status = "RELATIONAL_EMPIRICAL_POPULATION_CLOSED_BY_B08"
     elif governance_status == "READY":
-        if authority is not True:
-            raise SharedBRelationalPopulationGateError(
-                "READY B-08 must authorize relational comparability"
-            )
         if blockers:
             raise SharedBRelationalPopulationGateError(
                 "READY B-08 cannot retain temporal governance blockers"
+            )
+        if authority is not True:
+            raise SharedBRelationalPopulationGateError(
+                "READY B-08 must authorize relational comparability"
             )
         population_authorized = True
         gate_status = "RELATIONAL_EMPIRICAL_POPULATION_READY"
