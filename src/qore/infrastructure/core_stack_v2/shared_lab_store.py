@@ -202,6 +202,7 @@ class EvidenceStore:
                 "dataset_version": identity.dataset_version,
                 "dataset_hash": identity.dataset_hash,
                 "config_hash": identity.configuration_hash,
+                "lab_harness_sha": identity.lab_harness_sha,
                 "lab_version": identity.lab_version,
                 "submitted_by": request.get("submitted_by"),
                 "submitted_role": request.get("submitted_role"),
