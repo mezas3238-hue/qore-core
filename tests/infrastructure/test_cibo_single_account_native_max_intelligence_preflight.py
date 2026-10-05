@@ -15,7 +15,7 @@ def _row(*, trader: str, symbol: str, signal: str) -> dict[str, object]:
         "qore_symbol": symbol,
         "trader_opportunity": {
             "provider_symbol": symbol,
-            "side": "BUY",
+            "side": "long",
             "entry_type": "market",
             "intended_entry": "100",
             "stop_loss": "99",
