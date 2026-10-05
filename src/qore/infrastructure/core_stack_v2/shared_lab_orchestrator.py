@@ -109,12 +109,138 @@ def _request_payload(request: RunRequest) -> dict[str, Any]:
     }
 
 
+_WINDOWS_JOB_HANDLES: dict[int, Any] = {}
+
+
+def _apply_windows_job_limits(
+    process: subprocess.Popen[str],
+    *,
+    memory_limit_mb: int,
+    cpu_limit_seconds: int,
+) -> bool:
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        job_object_limit_process_time = 0x00000002
+        job_object_limit_process_memory = 0x00000100
+        job_object_extended_limit_information = 9
+
+        class IoCounters(ctypes.Structure):
+            _fields_ = [
+                ("read_operation_count", ctypes.c_ulonglong),
+                ("write_operation_count", ctypes.c_ulonglong),
+                ("other_operation_count", ctypes.c_ulonglong),
+                ("read_transfer_count", ctypes.c_ulonglong),
+                ("write_transfer_count", ctypes.c_ulonglong),
+                ("other_transfer_count", ctypes.c_ulonglong),
+            ]
+
+        class BasicLimitInformation(ctypes.Structure):
+            _fields_ = [
+                ("per_process_user_time_limit", ctypes.c_longlong),
+                ("per_job_user_time_limit", ctypes.c_longlong),
+                ("limit_flags", wintypes.DWORD),
+                ("minimum_working_set_size", ctypes.c_size_t),
+                ("maximum_working_set_size", ctypes.c_size_t),
+                ("active_process_limit", wintypes.DWORD),
+                ("affinity", ctypes.c_size_t),
+                ("priority_class", wintypes.DWORD),
+                ("scheduling_class", wintypes.DWORD),
+            ]
+
+        class ExtendedLimitInformation(ctypes.Structure):
+            _fields_ = [
+                ("basic_limit_information", BasicLimitInformation),
+                ("io_info", IoCounters),
+                ("process_memory_limit", ctypes.c_size_t),
+                ("job_memory_limit", ctypes.c_size_t),
+                ("peak_process_memory_used", ctypes.c_size_t),
+                ("peak_job_memory_used", ctypes.c_size_t),
+            ]
+
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel32.CreateJobObjectW.argtypes = [ctypes.c_void_p, wintypes.LPCWSTR]
+        kernel32.CreateJobObjectW.restype = wintypes.HANDLE
+        kernel32.SetInformationJobObject.argtypes = [
+            wintypes.HANDLE,
+            ctypes.c_int,
+            ctypes.c_void_p,
+            wintypes.DWORD,
+        ]
+        kernel32.SetInformationJobObject.restype = wintypes.BOOL
+        kernel32.AssignProcessToJobObject.argtypes = [
+            wintypes.HANDLE,
+            wintypes.HANDLE,
+        ]
+        kernel32.AssignProcessToJobObject.restype = wintypes.BOOL
+        kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+        kernel32.CloseHandle.restype = wintypes.BOOL
+
+        job_handle = kernel32.CreateJobObjectW(None, None)
+        if not job_handle:
+            return False
+
+        info = ExtendedLimitInformation()
+        info.basic_limit_information.limit_flags = (
+            job_object_limit_process_time | job_object_limit_process_memory
+        )
+        info.basic_limit_information.per_process_user_time_limit = (
+            cpu_limit_seconds * 10_000_000
+        )
+        info.process_memory_limit = memory_limit_mb * 1024 * 1024
+
+        if not kernel32.SetInformationJobObject(
+            job_handle,
+            job_object_extended_limit_information,
+            ctypes.byref(info),
+            ctypes.sizeof(info),
+        ):
+            kernel32.CloseHandle(job_handle)
+            return False
+
+        raw_process_handle = getattr(process, "_handle", None)
+        if raw_process_handle is None or not kernel32.AssignProcessToJobObject(
+            job_handle,
+            wintypes.HANDLE(raw_process_handle),
+        ):
+            kernel32.CloseHandle(job_handle)
+            return False
+
+        _WINDOWS_JOB_HANDLES[process.pid] = job_handle
+        return True
+    except (AttributeError, OSError, TypeError, ValueError):
+        return False
+
+
+def _release_limits(process: subprocess.Popen[str]) -> None:
+    job_handle = _WINDOWS_JOB_HANDLES.pop(process.pid, None)
+    if job_handle is None:
+        return
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+        kernel32.CloseHandle.restype = wintypes.BOOL
+        kernel32.CloseHandle(job_handle)
+    finally:
+        pass
+
+
 def _apply_limits(
     process: subprocess.Popen[str],
     *,
     memory_limit_mb: int,
     cpu_limit_seconds: int,
 ) -> bool:
+    if os.name == "nt":
+        return _apply_windows_job_limits(
+            process,
+            memory_limit_mb=memory_limit_mb,
+            cpu_limit_seconds=cpu_limit_seconds,
+        )
     if os.name != "posix":
         return False
     try:
@@ -122,11 +248,15 @@ def _apply_limits(
 
         if not hasattr(resource, "prlimit"):
             return False
+        rlimit_as = getattr(resource, "RLIMIT_AS", None)
+        rlimit_cpu = getattr(resource, "RLIMIT_CPU", None)
+        if rlimit_as is None or rlimit_cpu is None:
+            return False
         memory_bytes = memory_limit_mb * 1024 * 1024
-        resource.prlimit(process.pid, resource.RLIMIT_AS, (memory_bytes, memory_bytes))
+        resource.prlimit(process.pid, rlimit_as, (memory_bytes, memory_bytes))
         resource.prlimit(
             process.pid,
-            resource.RLIMIT_CPU,
+            rlimit_cpu,
             (cpu_limit_seconds, cpu_limit_seconds),
         )
         return True
@@ -464,35 +594,38 @@ class NativeLabOrchestrator:
                 state = TaskState.INCOMPLETE
                 reason = "resource limits could not be applied; fail-closed"
                 break
-            deadline = time.monotonic() + task.timeout_seconds
-            while True:
-                if cancellation_token.cancelled:
-                    process.kill()
-                    out, err = process.communicate()
-                    final_stdout += out
-                    final_stderr += err
-                    returncode = process.returncode
-                    state = TaskState.CANCELLED
-                    reason = "cancelled by scheduler"
-                    break
-                remaining = deadline - time.monotonic()
-                if remaining <= 0:
-                    process.kill()
-                    out, err = process.communicate()
-                    final_stdout += out
-                    final_stderr += err
-                    returncode = process.returncode
-                    state = TaskState.TIMEOUT
-                    reason = f"timeout after {task.timeout_seconds}s"
-                    break
-                try:
-                    final_stdout, final_stderr = process.communicate(
-                        timeout=min(0.1, remaining)
-                    )
-                    returncode = process.returncode
-                    break
-                except subprocess.TimeoutExpired:
-                    continue
+            try:
+                deadline = time.monotonic() + task.timeout_seconds
+                while True:
+                    if cancellation_token.cancelled:
+                        process.kill()
+                        out, err = process.communicate()
+                        final_stdout += out
+                        final_stderr += err
+                        returncode = process.returncode
+                        state = TaskState.CANCELLED
+                        reason = "cancelled by scheduler"
+                        break
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        process.kill()
+                        out, err = process.communicate()
+                        final_stdout += out
+                        final_stderr += err
+                        returncode = process.returncode
+                        state = TaskState.TIMEOUT
+                        reason = f"timeout after {task.timeout_seconds}s"
+                        break
+                    try:
+                        final_stdout, final_stderr = process.communicate(
+                            timeout=min(0.1, remaining)
+                        )
+                        returncode = process.returncode
+                        break
+                    except subprocess.TimeoutExpired:
+                        continue
+            finally:
+                _release_limits(process)
             if state is TaskState.CANCELLED:
                 break
             if state is TaskState.TIMEOUT:
