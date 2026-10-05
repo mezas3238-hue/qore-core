@@ -58,6 +58,7 @@ def _summary_payload(summary: RunSummary) -> dict[str, Any]:
         "dataset_version": summary.identity.dataset_version,
         "dataset_hash": summary.identity.dataset_hash,
         "config_hash": summary.identity.configuration_hash,
+        "lab_harness_sha": summary.identity.lab_harness_sha,
         "lab_version": summary.identity.lab_version,
         "disposition": summary.disposition.value,
         "duration_ms": summary.duration_ms,
