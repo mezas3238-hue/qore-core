@@ -226,3 +226,152 @@ Integrator 1 must:
 6. keep PR #635 unmerged unless the Owner explicitly orders merge.
 
 At this point there is **no known legitimate A1 local implementation step hidden behind these blockers**. The next executable gates are owned by Shared Lab repair, genuinely new information, or future disjoint evidence.
+
+
+## 7. Superseding update — Shared Lab native execution readiness
+
+This section supersedes the historical exact-SHA blocker description in section 4
+and the statement that no additional local A1 engineering step existed.
+
+### Current producer state
+
+A1 HEAD immediately before this manifest refresh:
+`fbd4ab6e8c21bad5c435c30d7c3d778e2398eb7d`.
+
+Additional A1 commits after the original manifest:
+
+11. `42fcc683a5361eb0f7ba52ff058010c467932633` — executable MC17 → MC18 → MC19 functional/causality exam.
+12. `a0623ad0192465c611d317916ba963564d63713f` — exact-SHA A1 Shared Lab TARGET plugin.
+13. `4b9343b9426327b27b72881d2f4d54108d203660` — seal TARGET execution readiness without claiming Lab PASS.
+14. `e31171490309084024cac8820008184988ae6e15` — seal MC14 source/target dataset inventory.
+15. `ce454fdf6b252dd0950cd5fcc13d072c68bdc5dc` — fail-closed MC14 bundle builder.
+16. `edb7c2fe2b207baf71b17e1688969bd27bfe1b9c` — sealed-bundle MC14 replay runner.
+17. `c78f5c2fa09400332b29de4df38cd6cb44e3fd12` — MC14 TARGET plugin with task-level dataset binding.
+18. `1c058627f8405ef2a4bdce4b8d47285ec76b90c9` — cryptographically seal consumed R6/R5 MC18 dataset lineage.
+19. `46380cae63cc04c8bf8cc370cf719f05cd7706a5` — fail-closed MC18 bundle builder.
+20. `b1129eea50b53abe3644b864a1ed4f830d22c3cb` — sealed-bundle MC18 calibration runner.
+21. `b456f857e9c1100e90a6bad852e52281950f373a` — MC18 TARGET plugin with task-level dataset binding.
+22. `fbd4ab6e8c21bad5c435c30d7c3d778e2398eb7d` — materialized MC18 dataset receipt.
+
+### Shared Lab seam status
+
+The exact target/harness seam is no longer merely a requested repair.
+
+Verified sovereign Shared Lab HEAD:
+`ec9261037cf93a36976d6e76353363ad8c684063`.
+
+The Lab now has:
+
+- separate immutable `target_sha` and `lab_harness_sha`;
+- `TARGET` versus `HARNESS` task execution origins;
+- exact target worktree cwd/PYTHONPATH for producer tasks;
+- per-task dataset bindings;
+- Windows Job Object resource limits plus POSIX `prlimit`;
+- task/plugin contract fields bound into the causal cache component hash;
+- a regression proving a changed TARGET plugin contract cannot reuse a prior
+  cached PASS.
+
+A1 opened draft PR #721 for the cache-integrity delta. The sovereign Lab lane
+incorporated equivalent commits independently. #721 was therefore closed
+**without merge** as superseded; no duplicate integration is required.
+
+### MC14 current gate
+
+Disposition is now:
+`DATASET_MATERIALIZATION_PENDING_NATIVE_EXECUTION`.
+
+The prior Lab harness blocker is resolved at code-contract level.
+
+A1 now owns a frozen dataset contract containing all 16 XAUUSD and 16 US2000
+source shard artifact IDs/digests plus the frozen R8 target hashes. XAUUSD
+remains `READY_FOR_SINGLE_GOVERNED_REPLAY`; US2000 remains
+`INSUFFICIENT_DO_NOT_INFER`.
+
+Prepared executable surfaces:
+
+- `scripts/shared_a1_build_mc14_lab_bundle.py`
+- `scripts/shared_a1_mc14_lab_replay.py`
+- `SHARED_ARCHITECT_1_MC14_SHARED_LAB_TARGET_PLUGIN_001.json`
+
+Remaining legitimate work is to materialize the single sealed MC14 bundle,
+register it in Shared Lab DatasetStore, then execute exactly one governed replay.
+The scientific result may validly be REPLICATED, FALSIFIED or INSUFFICIENT.
+
+### MC18 current gate
+
+Disposition is now:
+`DATASET_REGISTER_AND_NATIVE_EXECUTION_PENDING`.
+
+The consumed-development lineage is cryptographically frozen:
+
+- R6 artifact `10389112524`
+  - ZIP SHA-256 `9b0f3a05dc76b5dd83e5e3610266484bee1b79595dbbaacdff1d799115ad58b9`
+- R5 artifact `10380044761`
+  - ZIP SHA-256 `828335b99cd51c663e3f0f095df5137e881da3d7e8da741da8ca116a0400edf8`
+- all six NAS100/SP500/US30 evidence hashes were recomputed and matched the
+  embedded `EVIDENCE-SHA256SUMS` manifests.
+
+A deterministic MC18 Lab bundle has been materialized from those exact consumed
+artifacts:
+
+- dataset id: `shared-a1-mc18-r6-r5-consumed-v1`
+- version: `1`
+- bundle SHA-256:
+  `44cf4252e1f830cb36d24f07857a3fd745479cc9583ec346c7e883d0e3b373ec`
+- bundle size: `65,626,914` bytes
+- manifest SHA-256:
+  `c12b40e12ffdb82509450d2b467a469aef560ab6175104033c05c98af5eed8d7`
+
+Prepared executable surfaces:
+
+- `scripts/shared_a1_build_mc18_lab_bundle.py`
+- `scripts/shared_a1_mc18_lab_calibration.py`
+- `SHARED_ARCHITECT_1_MC18_SHARED_LAB_TARGET_PLUGIN_001.json`
+
+No calibration outcome was evaluated during bundle construction. The next
+legitimate gate is DatasetStore registration followed by native Shared Lab
+execution. A calibration PASS still does **not** complete/prove MC18; it only
+freezes the calibration for future independent MC27 evaluation. A calibration
+FAIL terminally keeps the raw engine uncalibrated.
+
+### MC17 → MC18 → MC19 functional chain
+
+Disposition is now:
+`NATIVE_SHARED_LAB_EXECUTION_PENDING`.
+
+The target executable
+`scripts/shared_a1_functional_causality_exam.py` verifies, in one bounded
+engineering exam:
+
+- MC17 output is consumed;
+- MC18 output is consumed;
+- MC19 distinguishes normal adversity and structural failure;
+- low-integrity input fails closed to INSUFFICIENT;
+- an upstream perturbation changes MC17, MC18 and MC19 fingerprints plus the
+  observable structural-hazard output;
+- deterministic replay;
+- source-only temporal firewall;
+- zero trade/risk/sizing/capital/execution authority;
+- no scientific-calibration overclaim.
+
+Its TARGET plugin is
+`SHARED_ARCHITECT_1_SHARED_LAB_TARGET_PLUGIN_001.json`.
+
+No native Shared Lab PASS is claimed yet.
+
+### Governance remains unchanged
+
+- No merge performed.
+- No LIVE / production / real-capital / broker mutation.
+- No VPS use.
+- No protected final Shared holdout opening.
+- No GitHub Actions validation fallback.
+- No outcome-aware tuning.
+- No falsified mechanism reopened.
+- No Shared sizing, capital, Risk, order or execution authority.
+
+The remaining A1 executable gates are now sharply bounded: native Lab execution
+for the prepared functional chain, DatasetStore registration + one governed
+MC14 replay, DatasetStore registration + preregistered MC18 calibration, and
+future genuinely new/disjoint evidence for STI5/STI6/STI8/MC17/MC19 where
+already specified.
