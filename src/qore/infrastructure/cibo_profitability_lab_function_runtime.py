@@ -87,6 +87,9 @@ from qore.infrastructure.cibo_trader_development_review import (
     CiboDevelopmentReason,
     CiboDevelopmentRecommendation,
 )
+from qore.infrastructure.cibo_semantic_transport import (
+    build_semantic_transport_payload,
+)
 from qore.infrastructure.research_evaluator_identity import (
     ResearchDecisionEvaluatorFamily,
     ResearchDecisionEvaluatorIdentity,
@@ -167,23 +170,7 @@ def _success(
     status: str = "SUCCESS",
     reason: str | None = None,
 ) -> CiboNativeFacultyRuntimeObservation:
-    canonical = _canonical(value)
-    raw = json.dumps(
-        canonical,
-        sort_keys=True,
-        separators=(",", ":"),
-        ensure_ascii=True,
-        default=str,
-    ).encode()
-    payload: dict[str, object] = {
-        "result_type": type(value).__name__,
-        "result_sha256": "sha256:" + hashlib.sha256(raw).hexdigest(),
-        "semantic_transport": "FULL_CANONICAL_READ_ONLY",
-    }
-    if isinstance(canonical, (str, int, float, bool)) or canonical is None:
-        payload["result_value"] = canonical
-    else:
-        payload["result_semantics"] = canonical
+    payload = build_semantic_transport_payload(value)
     return CiboNativeFacultyRuntimeObservation(
         function_code=function_code,
         engine_name=engine_name,
