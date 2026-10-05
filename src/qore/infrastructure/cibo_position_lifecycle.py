@@ -12,6 +12,7 @@ the position, the original structural settlement remains authoritative.
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import Protocol
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
@@ -20,7 +21,14 @@ from enum import StrEnum
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
-from qore.infrastructure.trader_lab.ict_turtle_soup_r4_source_exact import Bar
+class CiboLifecycleBar(Protocol):
+    """Minimal sovereign bar contract consumed by CIBO lifecycle cognition."""
+
+    opened_at: datetime
+    closed_at: datetime
+    high: Decimal
+    low: Decimal
+    close: Decimal
 
 
 class CiboLifecycleFeature(StrEnum):
@@ -117,7 +125,7 @@ class CiboPositionLifecycleResult:
 
 def run_cibo_position_lifecycle(
     position: CiboPositionLifecycleInput,
-    bars: Sequence[Bar],
+    bars: Sequence[CiboLifecycleBar],
     *,
     features: frozenset[CiboLifecycleFeature] = FULL_CIBO_LIFECYCLE_FEATURES,
 ) -> CiboPositionLifecycleResult:
@@ -189,7 +197,7 @@ def run_cibo_position_lifecycle(
     margin_fraction = Decimal(1)
 
     def favorable_adverse_close(
-        bar: Bar,
+        bar: CiboLifecycleBar,
     ) -> tuple[Decimal, Decimal, Decimal]:
         if position.side == "long":
             return (
