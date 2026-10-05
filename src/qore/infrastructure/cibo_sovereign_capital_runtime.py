@@ -307,6 +307,7 @@ def run_cibo_sovereign_capital_runtime(
     capital_science = evaluate_capital_science_predecision(
         _build_capital_science_state(
             decision_id=decision_id,
+            option_id=option_id,
             opportunity=opportunity,
             twin=cognitive_twin,
             sizing=sizing,
@@ -455,6 +456,7 @@ def run_cibo_sovereign_capital_runtime(
 def _build_capital_science_state(
     *,
     decision_id: str,
+    option_id: str,
     opportunity: TraderOpportunityEnvelope,
     twin: CiboObservedEconomicTwin,
     sizing: CiboAccountSizingDecision,
@@ -481,10 +483,20 @@ def _build_capital_science_state(
         for item in twin.opportunities
     )
     target = next(
-        item for item in twin.opportunities
-        if item.trader_id == opportunity.trader_id.value
-        and item.qore_symbol == opportunity.qore_symbol
+        (item for item in twin.opportunities if item.option_id == option_id),
+        None,
     )
+    if target is None:
+        raise CiboCapitalManagementError(
+            "Capital Science target option is absent from Full Economic Twin"
+        )
+    if (
+        target.trader_id != opportunity.trader_id.value
+        or target.qore_symbol != opportunity.qore_symbol
+    ):
+        raise CiboCapitalManagementError(
+            "Capital Science target option identity drift"
+        )
     source = (
         sizing.plan.capital_source.value
         if sizing.plan.capital_source is not None
@@ -499,7 +511,14 @@ def _build_capital_science_state(
         peak_realized_capital_usd=twin.capital_twin.total_realized_capital_usd,
         realized_profit_pool_usd=twin.capital_twin.compound_economic_value_usd,
         protected_capacity_usd=twin.capital_twin.protected_floor_usd,
-        deployed_profit_usd=capital.reserved_expansion_risk_usd,
+        deployed_profit_usd=min(
+            capital.reserved_expansion_risk_usd,
+            max(
+                Decimal(0),
+                twin.capital_twin.compound_economic_value_usd
+                - twin.capital_twin.protected_floor_usd,
+            ),
+        ),
         open_stop_risk_usd=twin.capital_twin.used_stop_risk_usd,
         open_margin_usd=twin.capital_twin.used_margin_usd,
         requested_stop_risk_usd=sizing.plan.stop_risk_usd,
