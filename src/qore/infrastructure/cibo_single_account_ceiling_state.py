@@ -483,8 +483,8 @@ def build_ceiling_epoch_state(
         ),
         concentration_utilization=concentration_utilization,
         correlation_utilization=correlation_utilization,
-        reserved_stop_risk_usd=used_risk,
-        reserved_margin_usd=used_margin,
+        reserved_stop_risk_usd=Decimal(0),
+        reserved_margin_usd=Decimal(0),
     )
     velocity = CiboCapitalVelocityState(
         observed_at=captured_at,
@@ -509,11 +509,13 @@ def build_ceiling_epoch_state(
         ),
         provider_state=tuple(
             sorted(
-                (
-                    item.opportunity.qore_symbol,
-                    "COUNTERFACTUAL_PROVIDER_ECONOMICS",
-                )
-                for item in opportunities
+                {
+                    (
+                        item.opportunity.qore_symbol,
+                        "COUNTERFACTUAL_PROVIDER_ECONOMICS",
+                    )
+                    for item in opportunities
+                }
             )
         ),
         allocation_authority=False,
