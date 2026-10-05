@@ -82,6 +82,37 @@ def test_dgr_confirmed_swing_only_changes_stop_on_next_bar() -> None:
     assert result["armed_count"] == 1
 
 
+def test_dgr_is_capped_at_one_structural_rescue_move() -> None:
+    dgr = _load_script(
+        "vt31_nas100_deep_giveback_rescue_frontier_v1.py"
+    )
+    path = [
+        {"high": "101", "low": "99", "close": "100"},
+        {"high": "116", "low": "108", "close": "115"},
+        {"high": "106", "low": "100", "close": "104"},
+        {"high": "104", "low": "101", "close": "102"},
+        {"high": "105", "low": "101", "close": "103"},
+        {"high": "117", "low": "110", "close": "116"},
+        {"high": "108", "low": "101", "close": "104"},
+        {"high": "105", "low": "102", "close": "102"},
+        {"high": "104", "low": "101.5", "close": "102"},
+        {"high": "103", "low": "100.5", "close": "101"},
+    ]
+
+    result = dgr._rescue(
+        path,
+        side="long",
+        entry=Decimal("100"),
+        initial_stop=Decimal("90"),
+        risk=Decimal("10"),
+        boundary=Decimal("150"),
+        maximum_current_close_r=Decimal("0.25"),
+    )
+
+    assert result["status"] == "terminal"
+    assert result["armed_count"] == 1
+
+
 def test_dgr_never_arms_a_non_improving_protective_swing() -> None:
     dgr = _load_script(
         "vt31_nas100_deep_giveback_rescue_frontier_v1.py"
