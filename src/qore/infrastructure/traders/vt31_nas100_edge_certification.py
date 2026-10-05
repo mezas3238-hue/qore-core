@@ -18,7 +18,7 @@ from decimal import ROUND_HALF_EVEN, Context, Decimal, localcontext
 _DECIMAL = Context(prec=34, rounding=ROUND_HALF_EVEN)
 
 IDENTITY = "VT31_NAS100_EDGE_CERT_V1_DEV"
-MINIMUM_COMPATIBLE_VOLUME = Decimal("0.01")
+VOLUME_AGNOSTIC = True
 
 FORBIDDEN_CAPITAL_FIELDS = frozenset(
     {
@@ -546,10 +546,8 @@ def build_edge_only_report(
         "leverage_authority": False,
         "compounding_authority": False,
         "portfolio_weighting_authority": False,
-        "minimum_compatible_volume": format(
-            MINIMUM_COMPATIBLE_VOLUME,
-            "f",
-        ),
+        "volume_agnostic": VOLUME_AGNOSTIC,
+        "volume_constraints_authority": "provider-adapter-only",
         "volume_used_for_edge_metrics": False,
         "capital_fields_used_for_edge_metrics": [],
         "normalized_trade_basis": "equal-1R-structural-outcome",
