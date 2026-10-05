@@ -68,10 +68,14 @@ class _RiskEngine:
     def __init__(self) -> None:
         self.calls: list[str] = []
         self.headrooms: list[Decimal] = []
+        self.equities: list[Decimal] = []
+        self.free_margins: list[Decimal] = []
 
     def authorize(self, request, snapshot, *, now):
         self.calls.append(request.signal_fingerprint)
         self.headrooms.append(snapshot.qore_authorizable_headroom)
+        self.equities.append(snapshot.equity)
+        self.free_margins.append(snapshot.free_margin)
         return SimpleNamespace(
             signal_fingerprint=request.signal_fingerprint,
             request_id=request.request_id,
@@ -197,6 +201,8 @@ def test_epoch_uses_full_surface_and_risk_priority_not_manifest_order(
     ]
     assert risk.calls == ["signal-b", "signal-a"]
     assert risk.headrooms == [Decimal("59.90"), Decimal("59.80")]
+    assert risk.equities == [Decimal("59.90"), Decimal("59.80")]
+    assert risk.free_margins == [Decimal("59.90"), Decimal("59.80")]
     assert result.provider_cost_reserve_usd == Decimal("0.20")
     assert result.risk_submission_order == ("signal-b", "signal-a")
     assert tuple(
