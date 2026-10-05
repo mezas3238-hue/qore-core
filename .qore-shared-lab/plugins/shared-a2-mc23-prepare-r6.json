@@ -1,0 +1,24 @@
+{
+  "task_id": "a2-mc23-prepare-r6",
+  "suite": "FUNCTIONAL",
+  "scope": "mc23",
+  "dependencies": [
+    "mc23-functional"
+  ],
+  "command": [
+    "python",
+    "a2_lab_capsule/capsule.py",
+    "--mode",
+    "prepare-r6",
+    "--dataset",
+    "{dataset_path}",
+    "--output",
+    "a2_lab_runtime/r6-prepared.npz"
+  ],
+  "component_globs": [
+    "a2_lab_capsule/capsule.py",
+    "a2_lab_capsule/manifest.json",
+    "docs/shared/evidence/QORE_SHARED_LAB_A2_R6_R5_DATASET_MANIFEST_001.json",
+    "docs/shared/evidence/QORE_SHARED_MC23_VALIDATED_NOVEL_REGIME_ADAPTATION_PREREGISTRATION_001.json"
+  ]
+}
