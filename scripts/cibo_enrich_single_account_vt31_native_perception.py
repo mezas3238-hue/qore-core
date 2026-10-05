@@ -24,6 +24,10 @@ from zoneinfo import ZoneInfo
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
+from qore.infrastructure.cibo_single_account_manifest_integrity import (
+    reseal_single_account_manifest,
+    validate_single_account_manifest_sha256,
+)
 from qore.infrastructure.trader_lab.vt31_silver_bullet_r2_5_multi_index_research import (
     load_market_evidence,
 )
@@ -99,6 +103,7 @@ def enrich(
     manifest: dict[str, Any],
     series: tuple[object, ...],
 ) -> dict[str, Any]:
+    source_manifest_sha256 = validate_single_account_manifest_sha256(manifest)
     by_day_raw: dict[date, list[object]] = defaultdict(list)
     for bar in series:
         by_day_raw[_local_day(bar)].append(bar)
@@ -205,6 +210,7 @@ def enrich(
     result["opportunities"] = result_rows
     result["vt31_native_perception_enrichment"] = {
         "schema": "qore.cibo.vt31-native-perception-enrichment.v1",
+        "source_manifest_sha256": source_manifest_sha256,
         "attempted": sum(
             1 for row in opportunities if row.get("trader_id") == "VT31_NAS100"
         ),
@@ -216,7 +222,7 @@ def enrich(
         "future_bar_lookup": False,
         "external_ai": False,
     }
-    return result
+    return reseal_single_account_manifest(result)
 
 
 def main() -> int:
