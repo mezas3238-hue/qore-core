@@ -38,6 +38,9 @@ from qore.infrastructure.cibo_capital_management_authority import (
     TraderOpportunityEnvelope,
 )
 from qore.infrastructure.cibo_ce2i_regime_selector import CiboCapitalRegimeState
+from qore.infrastructure.cibo_high_intelligence_context import (
+    build_high_intelligence_context,
+)
 from qore.infrastructure.cibo_profitability_lab_function_runtime import (
     CiboNativeFacultyRuntimeObservation,
     evaluate_cibo_native_faculties,
@@ -488,42 +491,6 @@ def consult_cibo_economic_faculties(
     )
 
 
-def _high_intelligence_context(
-    opportunities: tuple[TraderOpportunityEnvelope, ...],
-) -> tuple[dict[str, object], ...]:
-    """Expose the full causal opportunity state to advisory cognition.
-
-    This is read-only context. It never grants sizing, Risk, execution, broker,
-    or outcome authority, and it contains only material already admitted at the
-    predecision boundary.
-    """
-
-    return tuple(
-        {
-            "signal_fingerprint": item.signal_fingerprint,
-            "trader_id": item.trader_id.value,
-            "qore_symbol": item.qore_symbol,
-            "provider_symbol": item.provider_symbol,
-            "side": item.side,
-            "entry_type": item.entry_type,
-            "intended_entry": str(item.intended_entry),
-            "stop_loss": str(item.stop_loss),
-            "take_profit": str(item.take_profit),
-            "stop_loss_per_volume": str(item.stop_loss_per_volume),
-            "margin_per_volume": str(item.margin_per_volume),
-            "volume_step": str(item.volume_step),
-            "minimum_volume": str(item.minimum_volume),
-            "maximum_volume": str(item.maximum_volume),
-            "minimum_execution_steps": item.minimum_execution_steps,
-            "decision_context": [list(pair) for pair in item.decision_context],
-        }
-        for item in sorted(
-            opportunities,
-            key=lambda candidate: candidate.signal_fingerprint,
-        )
-    )
-
-
 def _build_faculty_receipt(
     *,
     function_code: str,
@@ -541,7 +508,7 @@ def _build_faculty_receipt(
             opportunities=opportunities,
             regime_state=regime_state,
         ),
-        "high_intelligence_context": _high_intelligence_context(opportunities),
+        "high_intelligence_context": build_high_intelligence_context(opportunities),
     }
     if native_observation.function_code != function_code:
         raise CiboCapitalManagementError(
@@ -693,7 +660,7 @@ def _predecision_digest(
 ) -> str:
     payload = {
         "decision_at": decision_at.isoformat(),
-        "opportunities": _high_intelligence_context(opportunities),
+        "opportunities": build_high_intelligence_context(opportunities),
         "regime": {
             "liquidity": regime_state.liquidity.value,
             "volatility": regime_state.volatility.value,
