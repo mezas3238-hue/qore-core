@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from decimal import Decimal
-from types import SimpleNamespace
 from uuid import UUID
 
 from qore.infrastructure.account_wide_risk import TraderLineage
@@ -24,8 +23,15 @@ from qore.infrastructure.cibo_reasoning_runtime import (
     cibo_reasoning_proposal_digest,
     cibo_reasoning_request_digest,
 )
+from qore.infrastructure.cibo_ce2i_regime_selector import (
+    CiboCapitalRegimeState,
+    CorrelationState,
+    LiquidityState,
+    ProviderCondition,
+    VolatilityState,
+)
 from qore.infrastructure.cibo_sovereign_function_consultation import (
-    CiboEconomicConsultationReceipt,
+    consult_cibo_economic_faculties,
 )
 from qore.infrastructure.cibo_sovereign_reasoning_request import (
     build_sovereign_reasoning_request,
@@ -65,50 +71,22 @@ def _opp() -> TraderOpportunityEnvelope:
     )
 
 
-def _faculty(code: str, faculty: str) -> object:
-    semantic = {
-        "result_type": "dict",
-        "result_sha256": "sha256:" + code[-2:].lower().rjust(64, "0"),
-        "semantic_transport": "FULL_CANONICAL_READ_ONLY",
-        "advisory_only": True,
-        "economic_authority": False,
-        "sizing_authority": False,
-        "risk_authority": False,
-        "execution_authority": False,
-        "result_semantics": {
-            "state": "supportive",
-            "function_code": code,
-        },
-    }
-    return SimpleNamespace(
-        function_code=code,
-        faculty=SimpleNamespace(value=faculty),
-        output_payload={
-            "native_engine_called": True,
-            "native_engine_name": "fixture",
-            "native_engine_status": "SUCCESS",
-            "native_engine_output": semantic,
-            "evidence_status": "insufficient",
-            "contribution_code": f"{code.lower()}-contribution",
-        },
-    )
-
-
-def _consultation() -> object:
-    rows = tuple(
-        _faculty(f"CF{index:02d}", f"faculty-{index:02d}")
-        for index in range(1, 20)
-    )
-    return SimpleNamespace(
-        consultation_id="sha256:" + "a" * 64,
+def _consultation():
+    return consult_cibo_economic_faculties(
         decision_at=NOW,
-        outcome_used=False,
-        broker_mutation=False,
-        opportunity_fingerprints=("signal-maxcap-001",),
-        coordination_disposition="request-evidence",
-        coordination_request_code="authority-rooted-evidence-required",
-        mission_disposition="continue",
-        faculty_receipts=rows,
+        opportunities=(_opp(),),
+        regime_state=CiboCapitalRegimeState(
+            liquidity=LiquidityState.NORMAL,
+            volatility=VolatilityState.NORMAL,
+            correlation=CorrelationState.NORMAL,
+            provider_condition=ProviderCondition.NORMAL,
+            risk_utilization=Decimal("0.10"),
+            margin_utilization=Decimal("0.10"),
+            drawdown_utilization=Decimal("0.00"),
+            opportunity_count=1,
+            position_path_adverse=False,
+            evidence_stale=False,
+        ),
     )
 
 
