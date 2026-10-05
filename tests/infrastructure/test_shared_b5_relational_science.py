@@ -216,3 +216,37 @@ def test_b11_lifecycle_executes_degraded_after_birth() -> None:
         RelationshipLifecycleState.DEGRADED,
     )
     assert receipt.current_state is RelationshipLifecycleState.DEGRADED
+
+
+
+def test_b11_degraded_strength_births_before_it_can_degrade_or_die() -> None:
+    source_values = (0, 1, 3, 6, 10)
+    target_values = (0, -2, -4, -3, -4)
+    samples = tuple(
+        _sample(i, source_values[i], target_values[i])
+        for i in range(len(source_values))
+    )
+    samples += (
+        _sample(5, 11, -5, comparable=False),
+        _sample(6, 12, -6, comparable=False),
+    )
+
+    receipt = populate_relationship_lifecycle(
+        relation_id="B11:DEGRADED-BIRTH",
+        samples=samples,
+        window_size=5,
+        active_threshold_bps=6_000,
+        degraded_threshold_bps=3_000,
+        dead_after_stale_windows=2,
+    )
+
+    states = tuple(item.state for item in receipt.transitions)
+    assert states == (
+        RelationshipLifecycleState.BIRTH,
+        RelationshipLifecycleState.STALE,
+        RelationshipLifecycleState.DEAD,
+    )
+    assert receipt.transitions[0].reason_codes == (
+        "RELATION_FIRST_OBSERVED_DEGRADED_STRENGTH",
+    )
+    assert receipt.current_state is RelationshipLifecycleState.DEAD
