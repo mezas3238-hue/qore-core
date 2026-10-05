@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from decimal import Decimal
-from uuid import UUID
 
 from qore.infrastructure.account_wide_risk import TraderLineage
 from qore.infrastructure.cibo_adaptive_reasoning_runtime import (
@@ -79,7 +78,7 @@ def _consultation():
             liquidity=LiquidityState.NORMAL,
             volatility=VolatilityState.NORMAL,
             correlation=CorrelationState.NORMAL,
-            provider_condition=ProviderCondition.NORMAL,
+            provider_condition=ProviderCondition.HEALTHY,
             risk_utilization=Decimal("0.10"),
             margin_utilization=Decimal("0.10"),
             drawdown_utilization=Decimal("0.00"),
