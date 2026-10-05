@@ -89,15 +89,15 @@ from qore.infrastructure.cibo_multi_period_capital_mpc import (
     Genc11WorldStep,
     plan_genc11_multi_period_capital,
 )
-from qore.infrastructure.cibo_position_continuation_intelligence import (
-    CiboPositionContinuationInput,
-    estimate_position_continuation,
-)
 from qore.infrastructure.cibo_portfolio_allocation_engine import (
     CiboPortfolioAllocationPlan,
     CiboPositionOpportunityCompetitionPlan,
     plan_account_wide_capital_allocation,
     plan_position_opportunity_competition,
+)
+from qore.infrastructure.cibo_position_continuation_intelligence import (
+    CiboPositionContinuationInput,
+    estimate_position_continuation,
 )
 from qore.infrastructure.cibo_profit_preservation_shadow import (
     Genc7Action,
