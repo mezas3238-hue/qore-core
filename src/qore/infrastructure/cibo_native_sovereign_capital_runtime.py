@@ -33,6 +33,9 @@ from qore.infrastructure.cibo_native_maximum_intelligence import (
     CiboNativeMaximumIntelligenceResult,
     run_native_maximum_intelligence,
 )
+from qore.infrastructure.cibo_native_max_mpc_bridge import (
+    build_native_max_mpc_inputs,
+)
 from qore.infrastructure.cibo_sovereign_capital_runtime import (
     CiboSovereignCapitalDecision,
     run_cibo_sovereign_capital_runtime,
@@ -49,6 +52,8 @@ class CiboNativeSovereignCapitalDecision:
     consultation: CiboEconomicConsultationReceipt
     intelligence: CiboNativeMaximumIntelligenceResult
     capital: CiboSovereignCapitalDecision
+    native_mpc_derived_from_cognition: bool = False
+    mpc_world_path_ids: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not isinstance(self.consultation, CiboEconomicConsultationReceipt):
@@ -81,6 +86,24 @@ class CiboNativeSovereignCapitalDecision:
         ):
             raise CiboCapitalManagementError(
                 "native sovereign path cannot depend on external AI"
+            )
+        if type(self.native_mpc_derived_from_cognition) is not bool:
+            raise CiboCapitalManagementError(
+                "native sovereign MPC derivation flag must be bool"
+            )
+        if (
+            len(self.mpc_world_path_ids)
+            != len(set(self.mpc_world_path_ids))
+            or any(not item for item in self.mpc_world_path_ids)
+        ):
+            raise CiboCapitalManagementError(
+                "native sovereign MPC world ids must be unique/non-empty"
+            )
+        if self.native_mpc_derived_from_cognition and len(
+            self.mpc_world_path_ids
+        ) != 4:
+            raise CiboCapitalManagementError(
+                "native-derived MPC must consume all four Native MAX scenarios"
             )
 
 
@@ -145,14 +168,31 @@ def run_cibo_native_sovereign_capital_runtime(
         regime_state=regime_state,
     )
 
+    if bool(world_paths) != bool(option_schedules):
+        raise CiboCapitalManagementError(
+            "native sovereign MPC worlds/schedules must be supplied together"
+        )
+    native_mpc_derived = False
+    effective_world_paths = world_paths
+    effective_option_schedules = option_schedules
+    if not effective_world_paths:
+        (
+            effective_world_paths,
+            effective_option_schedules,
+        ) = build_native_max_mpc_inputs(
+            episode=intelligence.cognitive_episode,
+            twin=twin,
+        )
+        native_mpc_derived = True
+
     capital_decision = run_cibo_sovereign_capital_runtime(
         decision_id=decision_id,
         option_id=option_id,
         opportunity=opportunity,
         synthesis=intelligence.synthesis,
         twin=twin,
-        world_paths=world_paths,
-        option_schedules=option_schedules,
+        world_paths=effective_world_paths,
+        option_schedules=effective_option_schedules,
         mission_policy=mission_policy,
         capital=capital,
         regime_state=regime_state,
@@ -170,4 +210,8 @@ def run_cibo_native_sovereign_capital_runtime(
         consultation=consultation,
         intelligence=intelligence,
         capital=capital_decision,
+        native_mpc_derived_from_cognition=native_mpc_derived,
+        mpc_world_path_ids=tuple(
+            item.path_id for item in effective_world_paths
+        ),
     )
