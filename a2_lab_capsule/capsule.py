@@ -826,6 +826,15 @@ def _prepare_partition_from_dataset(
             source_times=source_times,
             metadata=metadata,
         )
+        if partition == "r6":
+            sealed_prior = root / "sealed" / "mc24-real-regression-suite.json"
+            prior_payload = json.loads(sealed_prior.read_text(encoding="utf-8"))
+            if prior_payload.get("status") != "MC24_REAL_REGRESSION_SUITE_BOUND_PASS":
+                raise ValueError("sealed prior MC24 regression evidence missing")
+            (output.parent / "prior-mc24-real-regression-suite.json").write_text(
+                json.dumps(prior_payload, sort_keys=True, indent=2) + "\n",
+                encoding="utf-8",
+            )
         return {
             "capsule_id": CAPSULE_ID,
             "status": f"{partition.upper()}_PREPARED_PASS",
