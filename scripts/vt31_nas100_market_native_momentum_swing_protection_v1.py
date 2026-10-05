@@ -404,6 +404,7 @@ def replay(evidence_path: Path) -> dict[str, object]:
                 row.get("structural_protection_armed") is True
                 for row in trades
             ),
+            "trade_rows": trades,
         }
 
     return {
