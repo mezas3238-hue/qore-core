@@ -31,6 +31,12 @@ from qore.infrastructure.cibo_account_sizing_authority import (
     CiboAccountSizingDecision,
     plan_account_sizing,
 )
+from qore.infrastructure.cibo_capital_science_runtime_bridge import (
+    CapitalScienceDirective,
+    CapitalScienceKnownOpportunity,
+    CapitalSciencePredecisionInput,
+    evaluate_capital_science_predecision,
+)
 from qore.infrastructure.cibo_capital_management_authority import (
     CapitalAction,
     CiboCapitalActionPlan,
@@ -76,6 +82,7 @@ class CiboSovereignCapitalDecision:
     option_id: str
     synthesis: CiboExecutiveSynthesis
     faculty_consultation: CiboEconomicConsultationReceipt
+    capital_science: CapitalScienceDirective
     economic_run: CiboEconomicEngineRun
     sizing: CiboAccountSizingDecision
     final_plan: CiboCapitalActionPlan
@@ -108,6 +115,10 @@ class CiboSovereignCapitalDecision:
         ):
             raise CiboCapitalManagementError(
                 "sovereign decision requires CF01-CF19 consultation receipt"
+            )
+        if not isinstance(self.capital_science, CapitalScienceDirective):
+            raise CiboCapitalManagementError(
+                "sovereign decision requires canonical Capital Science directive"
             )
         if not isinstance(self.economic_run, CiboEconomicEngineRun):
             raise CiboCapitalManagementError(
@@ -293,6 +304,16 @@ def run_cibo_sovereign_capital_runtime(
         survival_capital_usd=survival_capital_usd,
         protected_capital_usd=protected_capital_usd,
     )
+    capital_science = evaluate_capital_science_predecision(
+        _build_capital_science_state(
+            decision_id=decision_id,
+            opportunity=opportunity,
+            twin=cognitive_twin,
+            sizing=sizing,
+            capital=capital,
+            regime_state=regime_state,
+        )
+    )
 
     portfolio_line = next(
         (
@@ -334,10 +355,35 @@ def run_cibo_sovereign_capital_runtime(
             option_id=option_id,
             synthesis=synthesis,
             faculty_consultation=consultation,
+            capital_science=capital_science,
             economic_run=economic,
             sizing=sizing,
             final_plan=final_plan,
             disposition=CiboSovereignCapitalDisposition.COGNITIVE_BLOCK,
+            risk_request=None,
+        )
+
+    if (
+        sizing.plan.action is CapitalAction.EXPAND
+        and not capital_science.allow_incremental_compound
+    ):
+        final_plan = _hold_plan(
+            opportunity=opportunity,
+            sizing=sizing,
+            reason=(
+                "Capital Science GEN-C surface did not admit incremental compound"
+            ),
+        )
+        return CiboSovereignCapitalDecision(
+            decision_id=decision_id,
+            option_id=option_id,
+            synthesis=synthesis,
+            faculty_consultation=consultation,
+            capital_science=capital_science,
+            economic_run=economic,
+            sizing=sizing,
+            final_plan=final_plan,
+            disposition=CiboSovereignCapitalDisposition.CAPITAL_BLOCK,
             risk_request=None,
         )
 
@@ -355,6 +401,7 @@ def run_cibo_sovereign_capital_runtime(
             option_id=option_id,
             synthesis=synthesis,
             faculty_consultation=consultation,
+            capital_science=capital_science,
             economic_run=economic,
             sizing=sizing,
             final_plan=final_plan,
@@ -377,6 +424,7 @@ def run_cibo_sovereign_capital_runtime(
             option_id=option_id,
             synthesis=synthesis,
             faculty_consultation=consultation,
+            capital_science=capital_science,
             economic_run=economic,
             sizing=sizing,
             final_plan=final_plan,
@@ -401,6 +449,72 @@ def run_cibo_sovereign_capital_runtime(
         final_plan=final_plan,
         disposition=CiboSovereignCapitalDisposition.RISK_REVIEW_READY,
         risk_request=risk_request,
+    )
+
+
+def _build_capital_science_state(
+    *,
+    decision_id: str,
+    opportunity: TraderOpportunityEnvelope,
+    twin: CiboObservedEconomicTwin,
+    sizing: CiboAccountSizingDecision,
+    capital: CiboCapitalState,
+    regime_state: CiboCapitalRegimeState,
+) -> CapitalSciencePredecisionInput:
+    """Project sovereign predecision truth into the native Capital Science surface."""
+
+    known = tuple(
+        CapitalScienceKnownOpportunity(
+            option_id=item.option_id,
+            trader_id=item.trader_id,
+            qore_symbol=item.qore_symbol,
+            known_at=item.known_at,
+            earliest_action_at=item.earliest_action_at,
+            expires_at=item.expires_at,
+            requested_capital_usd=item.requested_capital_usd,
+            stop_risk_usd=item.stop_risk_usd,
+            margin_usd=item.margin_usd,
+            evidence_sha256=item.evidence_sha256,
+            expected_net_value_usd=item.expected_net_value_usd,
+            expected_capital_minutes=item.expected_capital_minutes,
+        )
+        for item in twin.opportunities
+    )
+    target = next(
+        item for item in twin.opportunities
+        if item.trader_id == opportunity.trader_id.value
+        and item.qore_symbol == opportunity.qore_symbol
+    )
+    source = (
+        sizing.plan.capital_source.value
+        if sizing.plan.capital_source is not None
+        else "NONE"
+    )
+    return CapitalSciencePredecisionInput(
+        decision_epoch_id=decision_id,
+        signal_fingerprint=opportunity.signal_fingerprint,
+        trader_id=opportunity.trader_id.value,
+        decision_at=twin.captured_at,
+        realized_capital_usd=twin.capital_twin.total_realized_capital_usd,
+        peak_realized_capital_usd=twin.capital_twin.total_realized_capital_usd,
+        realized_profit_pool_usd=twin.capital_twin.compound_economic_value_usd,
+        protected_capacity_usd=twin.capital_twin.protected_floor_usd,
+        deployed_profit_usd=capital.reserved_expansion_risk_usd,
+        open_stop_risk_usd=twin.capital_twin.used_stop_risk_usd,
+        open_margin_usd=twin.capital_twin.used_margin_usd,
+        requested_stop_risk_usd=sizing.plan.stop_risk_usd,
+        requested_margin_usd=sizing.plan.margin_usd,
+        provider_cost_usd=target.provider_cost_usd,
+        expected_net_value_usd=target.expected_net_value_usd,
+        expected_capital_minutes=target.expected_capital_minutes,
+        hard_risk_headroom_usd=twin.capital_twin.stop_risk_headroom_usd,
+        margin_headroom_usd=twin.capital_twin.margin_headroom_usd,
+        competing_candidates=max(0, len(twin.opportunities) - 1),
+        capital_source=source,
+        qore_symbol=opportunity.qore_symbol,
+        account_identity=twin.capital_twin.account_identity,
+        regime_state=regime_state,
+        known_simultaneous_opportunities=known,
     )
 
 
