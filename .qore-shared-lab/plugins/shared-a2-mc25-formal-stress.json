@@ -1,0 +1,20 @@
+{
+  "task_id": "a2-mc25-formal-stress",
+  "suite": "STRESS",
+  "scope": "mc23",
+  "dependencies": [
+    "a2-mc25-performance"
+  ],
+  "command": [
+    "python",
+    "scripts/shared_mc25_formal_governance_stress.py",
+    "--output",
+    "a2_lab_runtime/mc25-formal-stress.json"
+  ],
+  "component_globs": [
+    "src/qore/infrastructure/core_stack_v2/mc25_governed_lifecycle.py",
+    "src/qore/infrastructure/core_stack_v2/mc25_formal_governance_stress.py",
+    "tests/infrastructure/test_core_stack_v2_mc25_formal_governance_stress.py",
+    "scripts/shared_mc25_formal_governance_stress.py"
+  ]
+}
