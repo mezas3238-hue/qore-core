@@ -9,7 +9,7 @@ from qore.infrastructure.traders.vt31_nas100_position_intelligence import (
     ManagementContext,
     PositionAction,
     ProtectionUrgency,
-    SingleUnitTargetIntent,
+    UniversalTargetIntent,
     StructuralProtectionCandidate,
     assess_full_cognitive_position,
     decide_structural_protection,
@@ -185,7 +185,8 @@ def test_full_cognitive_position_consumes_all_domains_without_oracle() -> None:
         "INTERMARKET",
         "TEMPORAL",
     )
-    assert state.minimum_volume_compatible == Decimal("0.01")
+    assert state.volume_agnostic is True
+    assert state.partial_execution_required is False
     assert state.cognitive_coverage_ratio == Decimal("1")
     assert "risk_ref" in state.observed_situation_fields
     assert "planned_target_r" in state.observed_situation_fields
@@ -196,7 +197,7 @@ def test_full_cognitive_position_consumes_all_domains_without_oracle() -> None:
     assert len(state.fingerprint()) == 64
 
 
-def test_full_cognition_extends_single_unit_only_on_causal_deep_acceptance() -> None:
+def test_full_cognition_extends_volume_agnostically_on_causal_deep_acceptance() -> None:
     situation = _full_cognitive_situation()
     reasoning = reason(situation)
     state = assess_full_cognitive_position(
@@ -212,7 +213,7 @@ def test_full_cognition_extends_single_unit_only_on_causal_deep_acceptance() -> 
     assert state.protection_urgency is ProtectionUrgency.LOW
     assert (
         state.target_intent
-        is SingleUnitTargetIntent.EXTEND_FULL_UNIT_TO_DOL2
+        is UniversalTargetIntent.EXTEND_FULL_UNIT_TO_DOL2
     )
 
 
@@ -227,7 +228,7 @@ def test_full_cognition_fails_closed_without_dol1_acceptance() -> None:
     )
 
     assert state.destination_state == "DEEP"
-    assert state.target_intent is SingleUnitTargetIntent.PRESERVE_DOL1
+    assert state.target_intent is UniversalTargetIntent.PRESERVE_DOL1
 
 
 def test_full_cognition_detects_shallow_breaker_interaction() -> None:
@@ -246,7 +247,7 @@ def test_full_cognition_detects_shallow_breaker_interaction() -> None:
 
     assert state.destination_state == "SHALLOW"
     assert state.management_context is ManagementContext.CAUTIOUS
-    assert state.target_intent is SingleUnitTargetIntent.PRESERVE_DOL1
+    assert state.target_intent is UniversalTargetIntent.PRESERVE_DOL1
     assert "DESTINATION:BREAKER_LATENCY_11M_PLUS" in state.signal_codes
     assert "DESTINATION:SECONDARY_BREAKER" in state.signal_codes
 
@@ -267,5 +268,22 @@ def test_full_cognition_exhaustion_overrides_extension() -> None:
     assert state.protection_urgency is ProtectionUrgency.HIGH
     assert (
         state.target_intent
-        is SingleUnitTargetIntent.EXIT_ON_CONFIRMED_EXHAUSTION
+        is UniversalTargetIntent.EXIT_ON_CONFIRMED_EXHAUSTION
     )
+
+
+def test_full_cognition_has_no_volume_input_or_fixed_lot_contract() -> None:
+    situation = _full_cognitive_situation()
+    reasoning = reason(situation)
+    state = assess_full_cognitive_position(
+        situation=situation,
+        reasoning=reasoning,
+        entry_tier="CORE",
+        dol1_acceptance_observed=True,
+    )
+
+    assert state.volume_agnostic is True
+    assert state.partial_execution_required is False
+    assert "volume" not in state.__dataclass_fields__
+    assert "lot" not in state.__dataclass_fields__
+    assert "minimum_volume_compatible" not in state.__dataclass_fields__
