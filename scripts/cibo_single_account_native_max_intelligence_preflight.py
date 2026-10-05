@@ -144,6 +144,7 @@ def run(manifest: dict[str, Any]) -> dict[str, Any]:
                 consultation=consultation,
                 opportunities=(opportunity,),
                 target=opportunity,
+                regime_state=_regime(row),
             )
             if (
                 not result.native_only
