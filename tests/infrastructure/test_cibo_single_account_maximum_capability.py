@@ -28,6 +28,9 @@ def test_protocol_is_one_shared_usd60_account_for_exact_seven_traders() -> None:
     assert protocol.shared_qore_risk_state is True
     assert protocol.sovereign_cibo_required is True
     assert protocol.full_cognitive_semantics_required is True
+    assert protocol.native_cibo_intelligence_required is True
+    assert protocol.external_ai_dependency_allowed is False
+    assert protocol.external_reasoning_provider_allowed is False
     assert protocol.target_capital_used_for_tuning is False
 
 
@@ -56,6 +59,8 @@ def test_run_evidence_requires_every_decision_to_use_sovereign_cibo() -> None:
             opportunity_decision_count=3368,
             sovereign_runtime_evaluation_count=3367,
             full_semantic_decision_count=3368,
+            native_max_intelligence_decision_count=3368,
+            external_ai_call_count=0,
             trader_ids_observed=CIBO_MAXIMUM_CAPABILITY_TRADERS,
             account_reset_count=0,
             economic_era_reset_count=0,
@@ -78,6 +83,8 @@ def test_run_evidence_rejects_era_reset_even_if_final_capital_is_large() -> None
             opportunity_decision_count=3368,
             sovereign_runtime_evaluation_count=3368,
             full_semantic_decision_count=3368,
+            native_max_intelligence_decision_count=3368,
+            external_ai_call_count=0,
             trader_ids_observed=CIBO_MAXIMUM_CAPABILITY_TRADERS,
             account_reset_count=0,
             economic_era_reset_count=1,
@@ -99,6 +106,8 @@ def test_valid_run_reports_multiple_and_drawdown_fraction() -> None:
         opportunity_decision_count=3368,
         sovereign_runtime_evaluation_count=3368,
         full_semantic_decision_count=3368,
+        native_max_intelligence_decision_count=3368,
+        external_ai_call_count=0,
         trader_ids_observed=CIBO_MAXIMUM_CAPABILITY_TRADERS,
         account_reset_count=0,
         economic_era_reset_count=0,
@@ -119,3 +128,27 @@ def test_valid_run_reports_multiple_and_drawdown_fraction() -> None:
     )
     assert evidence.geometric_growth_per_settled_operation is not None
     assert CIBO_MAXIMUM_CAPABILITY_INITIAL_CAPITAL_USD == Decimal("60")
+
+
+def test_run_evidence_rejects_any_external_ai_call() -> None:
+    with pytest.raises(CiboCapitalManagementError):
+        CiboMaximumCapabilityRunEvidence(
+            protocol=DEFAULT_CIBO_SINGLE_ACCOUNT_MAXIMUM_CAPABILITY_PROTOCOL,
+            account_identity="research:single-account",
+            opportunity_decision_count=10,
+            sovereign_runtime_evaluation_count=10,
+            full_semantic_decision_count=10,
+            native_max_intelligence_decision_count=10,
+            external_ai_call_count=1,
+            trader_ids_observed=CIBO_MAXIMUM_CAPABILITY_TRADERS,
+            account_reset_count=0,
+            economic_era_reset_count=0,
+            ending_capital_usd=Decimal("60"),
+            peak_capital_usd=Decimal("60"),
+            maximum_drawdown_usd=Decimal("0"),
+            settled_operation_count=0,
+            qore_risk_reduce_count=0,
+            qore_risk_reject_count=0,
+            compound_reinvestment_count=0,
+            portfolio_compound_reinvestment_count=0,
+        )
