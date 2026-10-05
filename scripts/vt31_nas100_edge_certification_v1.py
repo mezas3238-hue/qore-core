@@ -10,6 +10,7 @@ import argparse
 import json
 from decimal import Decimal
 from pathlib import Path
+
 from qore.infrastructure.traders.vt31_nas100_edge_certification import (
     build_edge_only_report,
 )
