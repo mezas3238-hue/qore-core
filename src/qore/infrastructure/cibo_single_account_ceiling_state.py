@@ -554,7 +554,19 @@ def build_ceiling_epoch_state(
         execution_authority=False,
         future_outcome_used=False,
     )
-    compound_value = cycle.compound_ledger.current_economic_value_usd
+    compound_value = truth.realized_profit_nonconsumed_usd
+    deployable_profit_capacity = sum(
+        (
+            item.available_usd
+            for item in account.source_ledger.accounts
+            if item.source is CapitalSource.REALIZED_PROFIT
+        ),
+        Decimal(0),
+    )
+    if deployable_profit_capacity > compound_value:
+        raise CiboCapitalManagementError(
+            "ceiling deployable realized-profit capacity exceeds economic value"
+        )
     capital = CiboCapitalState(
         assigned_capital_usd=realized,
         hard_risk_headroom_usd=capital_twin.stop_risk_headroom_usd,
@@ -564,7 +576,7 @@ def build_ceiling_epoch_state(
         protected_open_economic_floor_usd=(
             cycle.floor_ledger.total_floor_usd
         ),
-        proven_self_financing_capacity_usd=compound_value,
+        proven_self_financing_capacity_usd=deployable_profit_capacity,
         reserved_expansion_risk_usd=Decimal(0),
         cost_reserve_usd=Decimal(0),
     )
