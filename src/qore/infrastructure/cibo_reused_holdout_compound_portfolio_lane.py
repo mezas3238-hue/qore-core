@@ -19,10 +19,10 @@ Decimal precision, including GEN-C10 observed and projected world-capacity conse
 from __future__ import annotations
 
 from collections import Counter, defaultdict
-from hashlib import sha256
 from dataclasses import asdict, dataclass, replace
 from datetime import datetime, timedelta
 from decimal import Decimal
+from hashlib import sha256
 from typing import Any
 
 from qore.infrastructure.account_wide_risk import (
@@ -42,8 +42,8 @@ from qore.infrastructure.cibo_capital_management_authority import (
     plan_self_financing_expansion,
 )
 from qore.infrastructure.cibo_capital_science_runtime_bridge import (
-    CapitalScienceDisposition,
     CapitalScienceDirective,
+    CapitalScienceDisposition,
     CapitalScienceKnownOpportunity,
     CapitalScienceOpenEconomicPosition,
     CapitalSciencePredecisionInput,
