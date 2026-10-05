@@ -1,4 +1,5 @@
 import json
+import os
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -113,3 +114,29 @@ def test_evidence_store_preserves_parallel_task_manifest_updates(
     payload = store.read_run(run_id)
     assert set(payload["tasks"]) == set(task_ids)
     assert all(item["state"] == "PASS" for item in payload["tasks"].values())
+
+
+
+def test_atomic_json_write_retries_transient_sharing_violation(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    from qore.infrastructure.core_stack_v2 import shared_lab_store
+
+    target = tmp_path / "run.json"
+    real_replace = os.replace
+    attempts = 0
+
+    def flaky_replace(source: str | Path, destination: str | Path) -> None:
+        nonlocal attempts
+        attempts += 1
+        if attempts < 4:
+            raise PermissionError("transient sharing violation")
+        real_replace(source, destination)
+
+    monkeypatch.setattr(shared_lab_store.os, "replace", flaky_replace)
+    shared_lab_store.atomic_write_json(target, {"state": "PASS"})
+
+    assert attempts == 4
+    assert json.loads(target.read_text()) == {"state": "PASS"}
+    assert list(tmp_path.iterdir()) == [target]
