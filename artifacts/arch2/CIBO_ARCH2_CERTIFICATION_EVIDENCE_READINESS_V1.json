@@ -1,0 +1,89 @@
+{
+  "schema": "qore.cibo.arch2-certification-evidence-readiness.v1",
+  "source_collapse_schema": "qore.cibo.arch2-external-dependency-collapse.v1",
+  "family_count": 7,
+  "certification_ready_family_count": 0,
+  "partial_family_count": 1,
+  "blocked_family_count": 6,
+  "external_dependency_blocked_row_count": 40,
+  "architect2_internal_repair_count": 0,
+  "fresh_oos_owner_authorization_present": false,
+  "fresh_outcomes_executed": false,
+  "certification_execution_ready": false,
+  "families": [
+    {
+      "family": "COMPOUND_PORTFOLIO_CAPITAL",
+      "row_count": 18,
+      "status": "RESEARCH_ONLY_NOT_CERTIFYING",
+      "certification_ready": false,
+      "partial": false,
+      "reason": "The reused-holdout compound population binding is BURNED_RESEARCH and explicitly cannot claim certification readiness."
+    },
+    {
+      "family": "EXAM_GOVERNANCE",
+      "row_count": 3,
+      "status": "BLOCKED_EXAMS_NOT_RUN",
+      "certification_ready": false,
+      "partial": false,
+      "reason": "Pre-exam prerequisites and the actual governed Final/World-Cup exams remain unexecuted; software-gate readiness is not exam PASS."
+    },
+    {
+      "family": "FRESH_FORWARD_CAUSAL",
+      "row_count": 33,
+      "status": "BLOCKED_EXTERNAL_FRESH_FORWARD_EVIDENCE",
+      "certification_ready": false,
+      "partial": false,
+      "reason": "Current Trader-Lab/Capital-Science bridge is explicitly NON_CERTIFYING_BURNED_ADAPTIVE_RESEARCH and creates no Fresh-OOS claim."
+    },
+    {
+      "family": "PATH_STRESS_TEMPORAL_MC",
+      "row_count": 18,
+      "status": "RESEARCH_ONLY_NOT_CERTIFYING",
+      "certification_ready": false,
+      "partial": false,
+      "reason": "Current path/MC/stress surfaces explicitly prohibit certification claims and still require real/fresh temporal populations."
+    },
+    {
+      "family": "POST_OUTCOME_MEMORY_GOVERNANCE",
+      "row_count": 2,
+      "status": "BLOCKED_POST_OUTCOME_AND_EXTERNAL_GOVERNANCE",
+      "certification_ready": false,
+      "partial": false,
+      "reason": "GEN-C13 remains post-outcome research/shadow and GEN-C14 includes external Owner review/promotion evidence that cannot be fabricated."
+    },
+    {
+      "family": "PROVIDER_EXECUTION_ECONOMICS",
+      "row_count": 7,
+      "status": "PARTIAL_EMPIRICAL_CLOSURE",
+      "certification_ready": false,
+      "partial": true,
+      "reason": "Provider execution/slippage is partially proven for T11, while Fresh-OOS gross-edge and provider-bound market-impact evidence remain required."
+    },
+    {
+      "family": "SCARCITY_CONCENTRATION",
+      "row_count": 4,
+      "status": "BLOCKED_REAL_SCARCITY_POPULATION",
+      "certification_ready": false,
+      "partial": false,
+      "reason": "Research replay can exercise the mechanism, but certification still requires real simultaneous scarcity and non-worse concentration evidence."
+    }
+  ],
+  "evidence_refs": [
+    "src/qore/infrastructure/cibo_capital_science_runtime_bridge.py",
+    "src/qore/infrastructure/cibo_compound_real_population_binding.py",
+    "src/qore/infrastructure/cibo_compound_path_monte_carlo.py",
+    "src/qore/infrastructure/cibo_meta_capital_memory.py",
+    "artifacts/arch2/CIBO_ARCH2_EXTERNAL_DEPENDENCY_COLLAPSE_V1.json",
+    "artifacts/arch2/CIBO_ARCH2_CERTIFICATION_BLOCKER_RECONCILIATION_V1.json"
+  ],
+  "disposition": "EXTERNAL_EVIDENCE_NOT_READY__DO_NOT_OPEN_CERTIFICATION_EXECUTION",
+  "governance": {
+    "functional_completeness_is_not_certification": true,
+    "burned_research_is_not_fresh_oos": true,
+    "research_runtime_may_not_self_promote": true,
+    "merge_performed": false,
+    "live": false,
+    "production": false,
+    "real_capital": false
+  }
+}
