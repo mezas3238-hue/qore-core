@@ -14,7 +14,6 @@ predecision inputs.
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 from collections import Counter
 from datetime import datetime
@@ -23,6 +22,9 @@ from typing import Any
 
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
+)
+from qore.infrastructure.cibo_single_account_manifest_integrity import (
+    reseal_single_account_manifest,
 )
 from qore.infrastructure.cibo_single_account_maximum_capability import (
     CIBO_MAXIMUM_CAPABILITY_INITIAL_CAPITAL_USD,
@@ -41,16 +43,6 @@ def _dt(value: object) -> datetime:
             "single-account manifest timestamp must be timezone-aware"
         )
     return result
-
-
-def _sha(payload: object) -> str:
-    raw = json.dumps(
-        payload,
-        sort_keys=True,
-        separators=(",", ":"),
-        ensure_ascii=True,
-    ).encode()
-    return "sha256:" + hashlib.sha256(raw).hexdigest()
 
 
 def _load_trace(path: Path, index: int) -> dict[str, Any]:
@@ -201,8 +193,7 @@ def build_manifest(
             "real_capital": False,
         },
     }
-    manifest_core["manifest_sha256"] = _sha(manifest_core)
-    return manifest_core
+    return reseal_single_account_manifest(manifest_core)
 
 
 def main() -> int:
