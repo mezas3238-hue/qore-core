@@ -9,6 +9,7 @@ from qore.infrastructure.cibo_account_sizing_authority import (
 )
 from qore.infrastructure.cibo_capital_management_authority import (
     CapitalAction,
+    CapitalSource,
     CapitalStage,
     CiboCapitalActionPlan,
     TraderOpportunityEnvelope,
@@ -180,7 +181,7 @@ def test_sovereign_cognitive_defer_blocks_risk_request(monkeypatch) -> None:
             volume=Decimal("0.01"),
             stop_risk_usd=Decimal("0.10"),
             margin_usd=Decimal("0.20"),
-            capital_source=runtime.CapitalSource.ORIGINAL_BASE_CAPITAL,
+            capital_source=CapitalSource.ORIGINAL_BASE_CAPITAL,
             capital_source_amount_usd=Decimal("0.10"),
             reason="test sizing candidate",
         ),
