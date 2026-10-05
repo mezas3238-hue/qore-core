@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from decimal import Decimal
+import inspect
 
 from qore.infrastructure.traders.vt31_nas100_position_intelligence import (
     RESEARCH_UNCALIBRATED_POLICY,
@@ -13,6 +14,7 @@ from qore.infrastructure.traders.vt31_nas100_position_intelligence import (
     StructuralProtectionCandidate,
     UniversalTargetIntent,
     assess_full_cognitive_position,
+    decide_market_native_position,
     decide_structural_protection,
     structurally_rearmed,
 )
@@ -319,3 +321,161 @@ def test_post_entry_cognition_reuses_frozen_entry_reasoning() -> None:
     assert state.entry_situation_fingerprint == entry.fingerprint()
     assert state.current_situation_fingerprint == current.fingerprint()
     assert state.target_intent is UniversalTargetIntent.EXTEND_TO_DOL2
+
+
+def test_market_native_decision_signature_has_no_r_or_volume_authority() -> None:
+    params = set(inspect.signature(decide_market_native_position).parameters)
+    forbidden = {
+        "r",
+        "r_multiple",
+        "mfe_r",
+        "mae_r",
+        "profit_r",
+        "target_r",
+        "risk_r",
+        "volume",
+        "lot_size",
+        "position_size",
+        "leverage",
+        "risk_budget",
+    }
+    assert params.isdisjoint(forbidden)
+
+
+def test_market_native_position_exits_on_structural_invalidation() -> None:
+    situation = _full_cognitive_situation()
+    cognition = assess_full_cognitive_position(
+        situation=situation,
+        reasoning=reason(situation),
+        entry_tier="CORE",
+        dol1_acceptance_observed=None,
+    )
+
+    decision = decide_market_native_position(
+        side="long",
+        current_stop=Decimal("100"),
+        primary_structural_target=Decimal("120"),
+        next_structural_target=None,
+        cognition=cognition,
+        protective_swing=None,
+        primary_target_reached=False,
+        primary_target_accepted=False,
+        structure_invalidated=True,
+        liquidity_failure_confirmed=False,
+        momentum_deteriorated=False,
+        regime_changed_against_thesis=False,
+    )
+
+    assert decision.action is PositionAction.EXIT
+    assert decision.reason == "STRUCTURAL_INVALIDATION_CONFIRMED"
+    assert decision.r_runtime_authority is False
+    assert decision.volume_agnostic is True
+
+
+def test_market_native_position_extends_only_after_structural_acceptance() -> None:
+    situation = _full_cognitive_situation()
+    cognition = assess_full_cognitive_position(
+        situation=situation,
+        reasoning=reason(situation),
+        entry_tier="CORE",
+        dol1_acceptance_observed=True,
+    )
+    assert cognition.target_intent is UniversalTargetIntent.EXTEND_TO_DOL2
+
+    accepted = decide_market_native_position(
+        side="long",
+        current_stop=Decimal("100"),
+        primary_structural_target=Decimal("120"),
+        next_structural_target=Decimal("128"),
+        cognition=cognition,
+        protective_swing=None,
+        primary_target_reached=True,
+        primary_target_accepted=True,
+        structure_invalidated=False,
+        liquidity_failure_confirmed=False,
+        momentum_deteriorated=False,
+        regime_changed_against_thesis=False,
+    )
+    rejected = decide_market_native_position(
+        side="long",
+        current_stop=Decimal("100"),
+        primary_structural_target=Decimal("120"),
+        next_structural_target=Decimal("128"),
+        cognition=cognition,
+        protective_swing=None,
+        primary_target_reached=True,
+        primary_target_accepted=False,
+        structure_invalidated=False,
+        liquidity_failure_confirmed=False,
+        momentum_deteriorated=False,
+        regime_changed_against_thesis=False,
+    )
+
+    assert accepted.action is PositionAction.EXTEND
+    assert accepted.next_target == Decimal("128")
+    assert rejected.action is PositionAction.EXIT
+    assert rejected.reason == "PRIMARY_STRUCTURAL_TARGET_DELIVERED"
+
+
+def test_market_native_momentum_deterioration_uses_confirmed_swing_price() -> None:
+    situation = _full_cognitive_situation()
+    cognition = assess_full_cognitive_position(
+        situation=situation,
+        reasoning=reason(situation),
+        entry_tier="CORE",
+        dol1_acceptance_observed=None,
+    )
+    swing = StructuralProtectionCandidate(
+        level=Decimal("106"),
+        confirmations=1,
+        source="confirmed-m1-swing",
+    )
+
+    decision = decide_market_native_position(
+        side="long",
+        current_stop=Decimal("100"),
+        primary_structural_target=Decimal("120"),
+        next_structural_target=None,
+        cognition=cognition,
+        protective_swing=swing,
+        primary_target_reached=False,
+        primary_target_accepted=False,
+        structure_invalidated=False,
+        liquidity_failure_confirmed=False,
+        momentum_deteriorated=True,
+        regime_changed_against_thesis=False,
+    )
+
+    assert decision.action is PositionAction.TRAIL
+    assert decision.next_stop == Decimal("106")
+    assert decision.reason == (
+        "MOMENTUM_DETERIORATED_CONFIRMED_STRUCTURAL_SWING"
+    )
+
+
+def test_market_native_position_holds_when_market_thesis_is_intact() -> None:
+    situation = _full_cognitive_situation()
+    cognition = assess_full_cognitive_position(
+        situation=situation,
+        reasoning=reason(situation),
+        entry_tier="CORE",
+        dol1_acceptance_observed=None,
+    )
+
+    decision = decide_market_native_position(
+        side="long",
+        current_stop=Decimal("100"),
+        primary_structural_target=Decimal("120"),
+        next_structural_target=None,
+        cognition=cognition,
+        protective_swing=None,
+        primary_target_reached=False,
+        primary_target_accepted=False,
+        structure_invalidated=False,
+        liquidity_failure_confirmed=False,
+        momentum_deteriorated=False,
+        regime_changed_against_thesis=False,
+    )
+
+    assert decision.action is PositionAction.HOLD
+    assert decision.reason == "MARKET_STRUCTURE_REMAINS_VALID"
