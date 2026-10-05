@@ -21,5 +21,9 @@
   ],
   "execution_origin": "TARGET",
   "dataset_id": "shared-a1-mc14-b04-xauusd-v1",
-  "dataset_version": "1"
+  "dataset_version": "1",
+  "evidence_globs": [
+    "result/a1-mc14-governed-replay.json"
+  ],
+  "cache_safe": false
 }
