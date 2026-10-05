@@ -1,0 +1,124 @@
+{
+  "schema": "QORE_SHARED_A2_MC23_CANDIDATE_002_FALSIFICATION_001",
+  "created_at": "2026-10-04",
+  "owner": "Sergio Meza",
+  "architect": "A2",
+  "branch": "agent/shared-architect-2-sti-001",
+  "preregistration": "docs/shared/evidence/QORE_SHARED_MC23_VALIDATED_NOVEL_REGIME_ADAPTATION_PREREGISTRATION_002.json",
+  "runner": {
+    "path": "a2_lab_capsule/mc23_candidate_002.py",
+    "git_blob_sha": "b232ba1094aeba317cd0f97c27837aac4cb98d6f"
+  },
+  "dataset": {
+    "manifest": "docs/shared/evidence/QORE_SHARED_LAB_A2_MC23_002_DATASET_MANIFEST_001.json",
+    "sha256": "d6eed594ae467a0776031c6b65d1f04887a9a4020111f508df7c5223bf057b9f"
+  },
+  "status": "MC23_CANDIDATE_002_FALSIFIED_ON_REPLICATION_D",
+  "engineering_execution": {
+    "initial_full_run": "ENGINEERING_INTERRUPTED_NO_SCIENTIFIC_OUTCOME",
+    "resumed_via_deterministic_partition_preparation": true,
+    "scientific_mechanism_changed": false,
+    "hypothesis_changed": false,
+    "features_changed": false,
+    "gates_changed": false
+  },
+  "development_freeze": {
+    "partitions": [
+      "R8",
+      "R6",
+      "R5"
+    ],
+    "sample_count": 26660,
+    "route_counts": {
+      "NEAR_KNOWN": 15381,
+      "NOVEL": 11279
+    },
+    "deterministic_repeat_pass": true,
+    "candidate_fingerprint": "a5a87cced7302a2bc63e68252d386177fa1fd0df559009fbee3054c409b09210",
+    "frozen_model_sha256": "11f0b0c33b66067ce2dcf9cfbcd29054ea177ceb3e61bc3793faa9f01a4804be",
+    "prepared_partitions": {
+      "R8": {
+        "source_observation_count": 16841,
+        "scored_novel_or_near_count": 8769,
+        "route_counts": {
+          "NEAR_KNOWN": 5191,
+          "NOVEL": 3578
+        },
+        "matrix_sha256": "e808741a02f0f0291e08d6bb206bd074b69aa09a8a21d83717478580dce71abb"
+      },
+      "R6": {
+        "source_observation_count": 21121,
+        "scored_novel_or_near_count": 8010,
+        "route_counts": {
+          "NEAR_KNOWN": 4864,
+          "NOVEL": 3146
+        },
+        "matrix_sha256": "b05c75ddf65740da36de4145ab9b2cb6a9652be00b0e82e8cb45819ea1ded843"
+      },
+      "R5": {
+        "source_observation_count": 23362,
+        "scored_novel_or_near_count": 9881,
+        "route_counts": {
+          "NEAR_KNOWN": 5326,
+          "NOVEL": 4555
+        },
+        "matrix_sha256": "06c38ede10ffed1f4b45add954c7deced16d84a99a18ecd73f45ef02d5ef667d"
+      }
+    }
+  },
+  "validation_d": {
+    "partition": "TEMPORAL_REPLICATION_D",
+    "source_observation_count": 11445,
+    "scored_novel_or_near_count": 4790,
+    "route_counts": {
+      "NEAR_KNOWN": 2663,
+      "NOVEL": 2127
+    },
+    "matrix_sha256": "323945a0593747e9967f3032aedd25718f2c527ab643bb1265c8dc717afa1438",
+    "minimum_required_rows": 3000,
+    "baseline_mse": [
+      0.7597781761,
+      0.703785774,
+      0.5881395204,
+      1.0185622617
+    ],
+    "adaptive_mse": [
+      0.7698171161,
+      0.7108148482,
+      0.5909972501,
+      1.0261064061
+    ],
+    "incremental_information_bps": [
+      -132,
+      -100,
+      -49,
+      -74
+    ],
+    "pooled_incremental_information_bps": -89,
+    "positive_target_count": 0,
+    "target_count": 4,
+    "maximum_target_regression_bps": 132,
+    "preregistered_gate_pass": false
+  },
+  "replication_e": {
+    "evaluated": false,
+    "reason": "FORBIDDEN_BY_PREREGISTRATION_AFTER_D_FAILURE",
+    "remains_unconsumed_for_mc23_candidate_002": true
+  },
+  "governance": {
+    "candidate_002_terminal": true,
+    "retry_for_pass_forbidden": true,
+    "outcome_aware_rescue": false,
+    "validation_d_refit": false,
+    "feature_selection_on_d": false,
+    "gate_retuning_after_d": false,
+    "holdout_e_scored": false,
+    "protected_certification_holdout_opened": false,
+    "productive_authority": false,
+    "execution_authority": false,
+    "risk_authority": false,
+    "sizing_authority": false,
+    "capital_authority": false
+  },
+  "next_gate": "NEW_PREREGISTERED_MC23_MECHANISM_REQUIRED"
+}
