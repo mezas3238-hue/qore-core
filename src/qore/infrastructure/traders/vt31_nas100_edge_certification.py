@@ -483,14 +483,11 @@ def build_edge_only_report(
             drawdown is not None
             and drawdown <= GATES["max_drawdown_r_reject"]
         ),
-        "sharpe": (
-            sharpe is not None
-            and sharpe >= GATES["sharpe_min"]
-        ),
-        "sortino": (
-            sortino is not None
-            and sortino >= GATES["sortino_min"]
-        ),
+        # Final certification convention is intentionally unbound here.
+        # The descriptive trade-period ratios above are not silently treated
+        # as annualized certification metrics.
+        "sharpe": None,
+        "sortino": None,
         "payoff": (
             payoff is not None
             and payoff >= GATES["payoff_min"]
@@ -548,6 +545,24 @@ def build_edge_only_report(
         "passes_available_development_gates": (
             bool(required) and all(required)
         ),
+        "risk_adjusted_metric_binding": {
+            "sharpe": {
+                "status": "UNBOUND_FINAL_CERTIFICATION_CONVENTION",
+                "descriptive_trade_period_value": metrics[
+                    "sharpe_trade_period"
+                ],
+                "minimum_final_gate": format(GATES["sharpe_min"], "f"),
+            },
+            "sortino": {
+                "status": "UNBOUND_FINAL_CERTIFICATION_CONVENTION",
+                "descriptive_trade_period_value": metrics[
+                    "sortino_trade_period"
+                ],
+                "minimum_final_gate": format(GATES["sortino_min"], "f"),
+            },
+        },
+        "risk_adjusted_certification_binding_complete": False,
+        "ready_for_candidate_freeze": False,
         "candidate_frozen": False,
         "opens_new_holdout": False,
         "candidate_certified": False,
