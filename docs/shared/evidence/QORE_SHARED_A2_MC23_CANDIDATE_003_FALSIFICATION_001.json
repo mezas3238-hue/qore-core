@@ -1,0 +1,90 @@
+{
+  "schema": "QORE_SHARED_A2_MC23_CANDIDATE_003_FALSIFICATION_001",
+  "created_at": "2026-10-04",
+  "owner": "Sergio Meza",
+  "architect": "A2",
+  "branch": "agent/shared-architect-2-sti-001",
+  "preregistration": "docs/shared/evidence/QORE_SHARED_MC23_VALIDATED_NOVEL_REGIME_ADAPTATION_PREREGISTRATION_003.json",
+  "status": "MC23_CANDIDATE_003_FALSIFIED_ON_HOLDOUT_E",
+  "development_freeze": {
+    "partitions": [
+      "R8",
+      "R6",
+      "R5",
+      "TEMPORAL_REPLICATION_D"
+    ],
+    "sample_count": 31450,
+    "route_counts": {
+      "NEAR_KNOWN": 18044,
+      "NOVEL": 13406
+    },
+    "selected_lambda": 100,
+    "candidate_fingerprint": "3bfac699e24287f027b5bdc164ec53cb0790d9b239405d60c4bfe7b8f9f81d72",
+    "model_sha256": "3394b2c53bb017175ce3ffffb90aa7cfdc9d420adb413479d9c263bc2a6a30be",
+    "lambda_objectives": {
+      "0.1": 0.8118406486783839,
+      "1.0": 0.8111664692395021,
+      "10.0": 0.8089197556376166,
+      "100.0": 0.8047661021606738
+    },
+    "prepared_matrix_sha256": {
+      "R8": "19e185493609cab81a013922c4bc8d4fde5eabfaa7fcdb64c77739ed7defaa98",
+      "R6": "79cbd9d0e33be7f916859fbfd36ee696c7de663b6e565214f388e9ed32a9001d",
+      "R5": "18ed3d89181bcd72db5284e9192b83936a69ab8965b09f2dc8b408b3d494c858",
+      "TEMPORAL_REPLICATION_D": "b144f6ef8831fb4eb2d02ab2586d07cdf5b5816860423b6919004e605f491d20"
+    },
+    "holdout_e_prepared_or_scored_before_freeze": false
+  },
+  "validation_e": {
+    "source_observation_count": 2405,
+    "scored_novel_or_near_count": 1189,
+    "route_counts": {
+      "NEAR_KNOWN": 626,
+      "NOVEL": 563
+    },
+    "prepared_matrix_sha256": "c4a3c34b66bbacd9ba3643de3dde7517374d30d5a8887399e5889aa330429c7b",
+    "baseline_mse": [
+      0.81866912,
+      0.68340068,
+      0.43917381,
+      1.1215257
+    ],
+    "adaptive_mse": [
+      0.82926264,
+      0.5775029,
+      0.19216342,
+      1.12438588
+    ],
+    "incremental_information_bps": [
+      -129,
+      1550,
+      5624,
+      -26
+    ],
+    "pooled_incremental_information_bps": 1108,
+    "positive_target_count": 2,
+    "target_count": 4,
+    "maximum_target_regression_bps": 129,
+    "minimum_required_rows": 500,
+    "preregistered_gate_pass": false
+  },
+  "scientific_interpretation": {
+    "magnitude_and_volatility_information_demonstrated": true,
+    "directional_information_demonstrated": false,
+    "path_efficiency_information_demonstrated": false,
+    "monolithic_four_target_adaptation_rejected": true,
+    "next_hypothesis": "separate directional and path-efficiency faculties from magnitude/volatility adaptation"
+  },
+  "governance": {
+    "candidate_003_terminal": true,
+    "retry_for_pass_forbidden": true,
+    "gate_relaxation_forbidden": true,
+    "holdout_e_refit": false,
+    "feature_selection_on_e": false,
+    "hyperparameter_retuning_on_e": false,
+    "outcome_aware_rescue": false,
+    "protected_certification_holdout_opened": false,
+    "productive_authority": false
+  },
+  "next_gate": "NEW_PREREGISTERED_MECHANISM_REQUIRED"
+}
