@@ -1,18 +1,24 @@
 from __future__ import annotations
 
 import importlib.util
+import sys
 from decimal import Decimal
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
 
 
 def _load_script() -> ModuleType:
-    path = Path("scripts/vt31_nas100_post_1r_persistence_forensics_v1.py")
+    scripts = Path("scripts").resolve()
+    path = scripts / "vt31_nas100_post_1r_persistence_forensics_v1.py"
     spec = importlib.util.spec_from_file_location("post_1r_forensics", path)
     assert spec is not None
     assert spec.loader is not None
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    sys.path.insert(0, str(scripts))
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        sys.path.remove(str(scripts))
     return module
 
 
