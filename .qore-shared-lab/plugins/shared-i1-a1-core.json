@@ -3,7 +3,8 @@
   "suite": "FUNCTIONAL",
   "scope": "cognition",
   "dependencies": [
-    "contract"
+    "contract",
+    "a1-causal-trajectory-functional"
   ],
   "command": [
     "python",
@@ -20,6 +21,7 @@
     "tests/infrastructure/test_vt31_shared_threat_consumer_v4_research.py"
   ],
   "component_globs": [
+    "scripts/shared_a1_functional_causality_exam.py",
     "src/qore/infrastructure/core_stack_v2/mc14_b04_cross_asset_causal.py",
     "src/qore/infrastructure/core_stack_v2/mc14_b04_source_preflight.py",
     "src/qore/infrastructure/core_stack_v2/market_agency_model.py",
@@ -41,5 +43,6 @@
     "tests/infrastructure/test_core_stack_v2_shared_a1_causal_trajectory_chain.py",
     "tests/infrastructure/test_vt31_shared_threat_consumer_v3_research.py",
     "tests/infrastructure/test_vt31_shared_threat_consumer_v4_research.py"
-  ]
+  ],
+  "execution_origin": "TARGET"
 }
