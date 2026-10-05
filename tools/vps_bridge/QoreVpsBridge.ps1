@@ -6,7 +6,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 Add-Type -AssemblyName System.Security
 
-$BridgeVersion = "0.2.0"
+$BridgeVersion = "0.3.0"
 $InstallDir = Split-Path -Parent $ConfigPath
 $LogDir = Join-Path $InstallDir "logs"
 $StatePath = Join-Path $InstallDir "state.json"
@@ -238,6 +238,293 @@ function Invoke-TypedJob {
         "git_diff_names" {
             $repoPath=Require-Path -Job $Job -Property "repo_path" -Directory
             return @{ok=$true;operation="git_diff_names";process=Invoke-Program -FileName "git.exe" -Arguments "diff --name-status" -WorkingDirectory $repoPath -TimeoutSeconds 60}
+        }
+
+        "create_directory" {
+            $path=[string](Get-PropertyValue -Object $Job -Name "path")
+            if([string]::IsNullOrWhiteSpace($path)){throw "path is required"}
+            New-Item -ItemType Directory -Force -Path $path | Out-Null
+            return @{ok=$true;operation="create_directory";path=(Get-Item -LiteralPath $path).FullName}
+        }
+        "write_text" {
+            $path=[string](Get-PropertyValue -Object $Job -Name "path")
+            if([string]::IsNullOrWhiteSpace($path)){throw "path is required"}
+            $text=[string](Get-PropertyValue -Object $Job -Name "text" -Default "")
+            $parent=Split-Path -Parent $path
+            if($parent -and -not (Test-Path -LiteralPath $parent -PathType Container)){New-Item -ItemType Directory -Force -Path $parent|Out-Null}
+            [IO.File]::WriteAllText($path,$text,[Text.UTF8Encoding]::new($false))
+            return @{ok=$true;operation="write_text";path=(Get-Item -LiteralPath $path).FullName;length=(Get-Item -LiteralPath $path).Length}
+        }
+        "append_text" {
+            $path=[string](Get-PropertyValue -Object $Job -Name "path")
+            if([string]::IsNullOrWhiteSpace($path)){throw "path is required"}
+            $text=[string](Get-PropertyValue -Object $Job -Name "text" -Default "")
+            $parent=Split-Path -Parent $path
+            if($parent -and -not (Test-Path -LiteralPath $parent -PathType Container)){New-Item -ItemType Directory -Force -Path $parent|Out-Null}
+            [IO.File]::AppendAllText($path,$text,[Text.UTF8Encoding]::new($false))
+            return @{ok=$true;operation="append_text";path=(Get-Item -LiteralPath $path).FullName;length=(Get-Item -LiteralPath $path).Length}
+        }
+        "copy_item" {
+            $source=Require-Path -Job $Job -Property "source"
+            $destination=[string](Get-PropertyValue -Object $Job -Name "destination")
+            if([string]::IsNullOrWhiteSpace($destination)){throw "destination is required"}
+            Copy-Item -LiteralPath $source -Destination $destination -Force -Recurse
+            return @{ok=$true;operation="copy_item";source=$source;destination=$destination}
+        }
+        "move_item" {
+            $source=Require-Path -Job $Job -Property "source"
+            $destination=[string](Get-PropertyValue -Object $Job -Name "destination")
+            if([string]::IsNullOrWhiteSpace($destination)){throw "destination is required"}
+            Move-Item -LiteralPath $source -Destination $destination -Force
+            return @{ok=$true;operation="move_item";source=$source;destination=$destination}
+        }
+        "remove_item" {
+            $path=Require-Path -Job $Job
+            $recurse=[bool](Get-PropertyValue -Object $Job -Name "recurse" -Default $false)
+            if($recurse){Remove-Item -LiteralPath $path -Force -Recurse}else{Remove-Item -LiteralPath $path -Force}
+            return @{ok=$true;operation="remove_item";path=$path}
+        }
+        "git_fetch" {
+            $repoPath=Require-Path -Job $Job -Property "repo_path" -Directory
+            $remote=[string](Get-PropertyValue -Object $Job -Name "remote" -Default "origin")
+            if($remote -notmatch '^[A-Za-z0-9_.-]+
+            $repoPath=Require-Path -Job $Job -Property "repo_path" -Directory
+            $target=[string](Get-PropertyValue -Object $Job -Name "target")
+            if([string]::IsNullOrWhiteSpace($target)){throw "target is required"}
+            if($target -notmatch '^[A-Za-z0-9_\-./\\:]+$'){throw "target contains unsupported characters"}
+            $timeoutSeconds=[int](Get-PropertyValue -Object $Job -Name "timeout_seconds" -Default 1800)
+            return @{ok=$true;operation="pytest_target";target=$target;process=Invoke-Program -FileName "python.exe" -Arguments "-m pytest $target -q" -WorkingDirectory $repoPath -TimeoutSeconds $timeoutSeconds}
+        }
+        default { throw "unsupported typed job: $type" }
+    }
+}
+
+function Publish-Heartbeat {
+    $payload=@{schema="qore-vps-heartbeat-v1";device_id=$DeviceId;hostname=$env:COMPUTERNAME;utc=[DateTime]::UtcNow.ToString("o");bridge_version=$BridgeVersion;powershell_version=$PSVersionTable.PSVersion.ToString();pid=$PID;typed_operations=@("noop","system_info","list_directory","file_info","read_text","tail_text","list_processes","service_status","git_status","git_head","git_diff_names","create_directory","write_text","append_text","copy_item","move_item","remove_item","git_fetch","git_checkout","start_process","stop_process","pytest_target")}|ConvertTo-Json -Depth 8
+    [void](Put-RepoText -Path "heartbeats/$DeviceId.json" -Text $payload -Message "bridge($DeviceId): heartbeat $BridgeVersion")
+}
+
+function Publish-Result {
+    param($Job,[string]$CommandSha,[object]$Payload,[AllowNull()][string]$BridgeError)
+    $jobId=[string](Get-PropertyValue -Object $Job -Name "job_id")
+    $result=@{schema="qore-vps-result-v2";job_id=$jobId;target_device=$DeviceId;source_command_sha=$CommandSha;bridge_version=$BridgeVersion;bridge_error=$BridgeError;payload=$Payload;completed_at=[DateTime]::UtcNow.ToString("o")}|ConvertTo-Json -Depth 30
+    [void](Put-RepoText -Path "results/$jobId.json" -Text $result -Message "bridge($DeviceId): result $jobId")
+}
+
+Write-BridgeLog "bridge_start version=$BridgeVersion repo=$Owner/$Repo branch=$Branch device=$DeviceId poll_seconds=$PollSeconds"
+$lastHeartbeat=[DateTime]::MinValue
+
+while($true){
+    try{
+        if(([DateTime]::UtcNow-$lastHeartbeat).TotalSeconds -ge 600){Publish-Heartbeat;$lastHeartbeat=[DateTime]::UtcNow}
+        $items=Get-RepoContent -Path "commands"
+        if($items){
+            foreach($item in @($items|Sort-Object name)){
+                $itemType=[string](Get-PropertyValue -Object $item -Name "type")
+                $itemName=[string](Get-PropertyValue -Object $item -Name "name")
+                if($itemType -ne "file"){continue}
+                if(-not $itemName.EndsWith(".json",[StringComparison]::OrdinalIgnoreCase)){continue}
+                $job=(Decode-RepoFile -Item $item)|ConvertFrom-Json
+                $jobId=[string](Get-PropertyValue -Object $job -Name "job_id")
+                if([string]::IsNullOrWhiteSpace($jobId)){continue}
+                $itemSha=[string](Get-PropertyValue -Object $item -Name "sha")
+                if($State.completed.ContainsKey($jobId)){continue}
+                if(Get-RepoContent -Path "results/$jobId.json"){$State.completed[$jobId]=$itemSha;Save-State -State $State;continue}
+                $errorText=$null;$payload=$null
+                try{
+                    if([string](Get-PropertyValue -Object $job -Name "schema") -ne "qore-vps-job-v2"){throw "unsupported schema"}
+                    if([string](Get-PropertyValue -Object $job -Name "target_device") -ne $DeviceId){throw "target_device mismatch"}
+                    $expiresText=[string](Get-PropertyValue -Object $job -Name "expires_at")
+                    if([string]::IsNullOrWhiteSpace($expiresText)){throw "expires_at required"}
+                    if([DateTime]::UtcNow -gt [DateTime]::Parse($expiresText).ToUniversalTime()){throw "job expired"}
+                    Write-BridgeLog "job_start id=$jobId type=$([string](Get-PropertyValue -Object $job -Name "type")) sha=$itemSha"
+                    $payload=Invoke-TypedJob -Job $job
+                    Write-BridgeLog "job_finish id=$jobId"
+                }catch{
+                    $errorText=$_.Exception.Message
+                    Write-BridgeLog "job_error id=$jobId error=$errorText"
+                    $payload=@{ok=$false;operation=[string](Get-PropertyValue -Object $job -Name "type")}
+                }
+                try{
+                    Publish-Result -Job $job -CommandSha $itemSha -Payload $payload -BridgeError $errorText
+                    $State.completed[$jobId]=$itemSha
+                    Save-State -State $State
+                    Publish-Heartbeat
+                    $lastHeartbeat=[DateTime]::UtcNow
+                }catch{Write-BridgeLog "result_publish_failed id=$jobId error=$($_.Exception.Message)"}
+            }
+        }
+    }catch{Write-BridgeLog "poll_error: $($_.Exception.Message)"}
+    Start-Sleep -Seconds $PollSeconds
+}
+){throw "remote contains unsupported characters"}
+            $refspec=[string](Get-PropertyValue -Object $Job -Name "refspec" -Default "")
+            if($refspec -and $refspec -notmatch '^[A-Za-z0-9_./:+*-]+
+            $repoPath=Require-Path -Job $Job -Property "repo_path" -Directory
+            $target=[string](Get-PropertyValue -Object $Job -Name "target")
+            if([string]::IsNullOrWhiteSpace($target)){throw "target is required"}
+            if($target -notmatch '^[A-Za-z0-9_\-./\\:]+$'){throw "target contains unsupported characters"}
+            $timeoutSeconds=[int](Get-PropertyValue -Object $Job -Name "timeout_seconds" -Default 1800)
+            return @{ok=$true;operation="pytest_target";target=$target;process=Invoke-Program -FileName "python.exe" -Arguments "-m pytest $target -q" -WorkingDirectory $repoPath -TimeoutSeconds $timeoutSeconds}
+        }
+        default { throw "unsupported typed job: $type" }
+    }
+}
+
+function Publish-Heartbeat {
+    $payload=@{schema="qore-vps-heartbeat-v1";device_id=$DeviceId;hostname=$env:COMPUTERNAME;utc=[DateTime]::UtcNow.ToString("o");bridge_version=$BridgeVersion;powershell_version=$PSVersionTable.PSVersion.ToString();pid=$PID;typed_operations=@("noop","system_info","list_directory","file_info","read_text","tail_text","list_processes","service_status","git_status","git_head","git_diff_names","pytest_target")}|ConvertTo-Json -Depth 8
+    [void](Put-RepoText -Path "heartbeats/$DeviceId.json" -Text $payload -Message "bridge($DeviceId): heartbeat $BridgeVersion")
+}
+
+function Publish-Result {
+    param($Job,[string]$CommandSha,[object]$Payload,[AllowNull()][string]$BridgeError)
+    $jobId=[string](Get-PropertyValue -Object $Job -Name "job_id")
+    $result=@{schema="qore-vps-result-v2";job_id=$jobId;target_device=$DeviceId;source_command_sha=$CommandSha;bridge_version=$BridgeVersion;bridge_error=$BridgeError;payload=$Payload;completed_at=[DateTime]::UtcNow.ToString("o")}|ConvertTo-Json -Depth 30
+    [void](Put-RepoText -Path "results/$jobId.json" -Text $result -Message "bridge($DeviceId): result $jobId")
+}
+
+Write-BridgeLog "bridge_start version=$BridgeVersion repo=$Owner/$Repo branch=$Branch device=$DeviceId poll_seconds=$PollSeconds"
+$lastHeartbeat=[DateTime]::MinValue
+
+while($true){
+    try{
+        if(([DateTime]::UtcNow-$lastHeartbeat).TotalSeconds -ge 600){Publish-Heartbeat;$lastHeartbeat=[DateTime]::UtcNow}
+        $items=Get-RepoContent -Path "commands"
+        if($items){
+            foreach($item in @($items|Sort-Object name)){
+                $itemType=[string](Get-PropertyValue -Object $item -Name "type")
+                $itemName=[string](Get-PropertyValue -Object $item -Name "name")
+                if($itemType -ne "file"){continue}
+                if(-not $itemName.EndsWith(".json",[StringComparison]::OrdinalIgnoreCase)){continue}
+                $job=(Decode-RepoFile -Item $item)|ConvertFrom-Json
+                $jobId=[string](Get-PropertyValue -Object $job -Name "job_id")
+                if([string]::IsNullOrWhiteSpace($jobId)){continue}
+                $itemSha=[string](Get-PropertyValue -Object $item -Name "sha")
+                if($State.completed.ContainsKey($jobId)){continue}
+                if(Get-RepoContent -Path "results/$jobId.json"){$State.completed[$jobId]=$itemSha;Save-State -State $State;continue}
+                $errorText=$null;$payload=$null
+                try{
+                    if([string](Get-PropertyValue -Object $job -Name "schema") -ne "qore-vps-job-v2"){throw "unsupported schema"}
+                    if([string](Get-PropertyValue -Object $job -Name "target_device") -ne $DeviceId){throw "target_device mismatch"}
+                    $expiresText=[string](Get-PropertyValue -Object $job -Name "expires_at")
+                    if([string]::IsNullOrWhiteSpace($expiresText)){throw "expires_at required"}
+                    if([DateTime]::UtcNow -gt [DateTime]::Parse($expiresText).ToUniversalTime()){throw "job expired"}
+                    Write-BridgeLog "job_start id=$jobId type=$([string](Get-PropertyValue -Object $job -Name "type")) sha=$itemSha"
+                    $payload=Invoke-TypedJob -Job $job
+                    Write-BridgeLog "job_finish id=$jobId"
+                }catch{
+                    $errorText=$_.Exception.Message
+                    Write-BridgeLog "job_error id=$jobId error=$errorText"
+                    $payload=@{ok=$false;operation=[string](Get-PropertyValue -Object $job -Name "type")}
+                }
+                try{
+                    Publish-Result -Job $job -CommandSha $itemSha -Payload $payload -BridgeError $errorText
+                    $State.completed[$jobId]=$itemSha
+                    Save-State -State $State
+                    Publish-Heartbeat
+                    $lastHeartbeat=[DateTime]::UtcNow
+                }catch{Write-BridgeLog "result_publish_failed id=$jobId error=$($_.Exception.Message)"}
+            }
+        }
+    }catch{Write-BridgeLog "poll_error: $($_.Exception.Message)"}
+    Start-Sleep -Seconds $PollSeconds
+}
+){throw "refspec contains unsupported characters"}
+            $args=if($refspec){"fetch --prune $remote $refspec"}else{"fetch --prune $remote"}
+            return @{ok=$true;operation="git_fetch";process=Invoke-Program -FileName "git.exe" -Arguments $args -WorkingDirectory $repoPath -TimeoutSeconds 600}
+        }
+        "git_checkout" {
+            $repoPath=Require-Path -Job $Job -Property "repo_path" -Directory
+            $ref=[string](Get-PropertyValue -Object $Job -Name "ref")
+            if([string]::IsNullOrWhiteSpace($ref)){throw "ref is required"}
+            if($ref -notmatch '^[A-Za-z0-9_./-]+
+            $repoPath=Require-Path -Job $Job -Property "repo_path" -Directory
+            $target=[string](Get-PropertyValue -Object $Job -Name "target")
+            if([string]::IsNullOrWhiteSpace($target)){throw "target is required"}
+            if($target -notmatch '^[A-Za-z0-9_\-./\\:]+$'){throw "target contains unsupported characters"}
+            $timeoutSeconds=[int](Get-PropertyValue -Object $Job -Name "timeout_seconds" -Default 1800)
+            return @{ok=$true;operation="pytest_target";target=$target;process=Invoke-Program -FileName "python.exe" -Arguments "-m pytest $target -q" -WorkingDirectory $repoPath -TimeoutSeconds $timeoutSeconds}
+        }
+        default { throw "unsupported typed job: $type" }
+    }
+}
+
+function Publish-Heartbeat {
+    $payload=@{schema="qore-vps-heartbeat-v1";device_id=$DeviceId;hostname=$env:COMPUTERNAME;utc=[DateTime]::UtcNow.ToString("o");bridge_version=$BridgeVersion;powershell_version=$PSVersionTable.PSVersion.ToString();pid=$PID;typed_operations=@("noop","system_info","list_directory","file_info","read_text","tail_text","list_processes","service_status","git_status","git_head","git_diff_names","pytest_target")}|ConvertTo-Json -Depth 8
+    [void](Put-RepoText -Path "heartbeats/$DeviceId.json" -Text $payload -Message "bridge($DeviceId): heartbeat $BridgeVersion")
+}
+
+function Publish-Result {
+    param($Job,[string]$CommandSha,[object]$Payload,[AllowNull()][string]$BridgeError)
+    $jobId=[string](Get-PropertyValue -Object $Job -Name "job_id")
+    $result=@{schema="qore-vps-result-v2";job_id=$jobId;target_device=$DeviceId;source_command_sha=$CommandSha;bridge_version=$BridgeVersion;bridge_error=$BridgeError;payload=$Payload;completed_at=[DateTime]::UtcNow.ToString("o")}|ConvertTo-Json -Depth 30
+    [void](Put-RepoText -Path "results/$jobId.json" -Text $result -Message "bridge($DeviceId): result $jobId")
+}
+
+Write-BridgeLog "bridge_start version=$BridgeVersion repo=$Owner/$Repo branch=$Branch device=$DeviceId poll_seconds=$PollSeconds"
+$lastHeartbeat=[DateTime]::MinValue
+
+while($true){
+    try{
+        if(([DateTime]::UtcNow-$lastHeartbeat).TotalSeconds -ge 600){Publish-Heartbeat;$lastHeartbeat=[DateTime]::UtcNow}
+        $items=Get-RepoContent -Path "commands"
+        if($items){
+            foreach($item in @($items|Sort-Object name)){
+                $itemType=[string](Get-PropertyValue -Object $item -Name "type")
+                $itemName=[string](Get-PropertyValue -Object $item -Name "name")
+                if($itemType -ne "file"){continue}
+                if(-not $itemName.EndsWith(".json",[StringComparison]::OrdinalIgnoreCase)){continue}
+                $job=(Decode-RepoFile -Item $item)|ConvertFrom-Json
+                $jobId=[string](Get-PropertyValue -Object $job -Name "job_id")
+                if([string]::IsNullOrWhiteSpace($jobId)){continue}
+                $itemSha=[string](Get-PropertyValue -Object $item -Name "sha")
+                if($State.completed.ContainsKey($jobId)){continue}
+                if(Get-RepoContent -Path "results/$jobId.json"){$State.completed[$jobId]=$itemSha;Save-State -State $State;continue}
+                $errorText=$null;$payload=$null
+                try{
+                    if([string](Get-PropertyValue -Object $job -Name "schema") -ne "qore-vps-job-v2"){throw "unsupported schema"}
+                    if([string](Get-PropertyValue -Object $job -Name "target_device") -ne $DeviceId){throw "target_device mismatch"}
+                    $expiresText=[string](Get-PropertyValue -Object $job -Name "expires_at")
+                    if([string]::IsNullOrWhiteSpace($expiresText)){throw "expires_at required"}
+                    if([DateTime]::UtcNow -gt [DateTime]::Parse($expiresText).ToUniversalTime()){throw "job expired"}
+                    Write-BridgeLog "job_start id=$jobId type=$([string](Get-PropertyValue -Object $job -Name "type")) sha=$itemSha"
+                    $payload=Invoke-TypedJob -Job $job
+                    Write-BridgeLog "job_finish id=$jobId"
+                }catch{
+                    $errorText=$_.Exception.Message
+                    Write-BridgeLog "job_error id=$jobId error=$errorText"
+                    $payload=@{ok=$false;operation=[string](Get-PropertyValue -Object $job -Name "type")}
+                }
+                try{
+                    Publish-Result -Job $job -CommandSha $itemSha -Payload $payload -BridgeError $errorText
+                    $State.completed[$jobId]=$itemSha
+                    Save-State -State $State
+                    Publish-Heartbeat
+                    $lastHeartbeat=[DateTime]::UtcNow
+                }catch{Write-BridgeLog "result_publish_failed id=$jobId error=$($_.Exception.Message)"}
+            }
+        }
+    }catch{Write-BridgeLog "poll_error: $($_.Exception.Message)"}
+    Start-Sleep -Seconds $PollSeconds
+}
+){throw "ref contains unsupported characters"}
+            return @{ok=$true;operation="git_checkout";process=Invoke-Program -FileName "git.exe" -Arguments "checkout --detach $ref" -WorkingDirectory $repoPath -TimeoutSeconds 300}
+        }
+        "start_process" {
+            $file=[string](Get-PropertyValue -Object $Job -Name "file")
+            if([string]::IsNullOrWhiteSpace($file)){throw "file is required"}
+            if(-not (Test-Path -LiteralPath $file -PathType Leaf)){throw "executable/script does not exist: $file"}
+            $args=[string](Get-PropertyValue -Object $Job -Name "arguments" -Default "")
+            $cwd=[string](Get-PropertyValue -Object $Job -Name "cwd" -Default (Split-Path -Parent $file))
+            if(-not (Test-Path -LiteralPath $cwd -PathType Container)){throw "cwd does not exist: $cwd"}
+            $p=Start-Process -FilePath $file -ArgumentList $args -WorkingDirectory $cwd -PassThru
+            return @{ok=$true;operation="start_process";pid=$p.Id;file=$file;cwd=$cwd}
+        }
+        "stop_process" {
+            $pidValue=[int](Get-PropertyValue -Object $Job -Name "pid")
+            if($pidValue -le 0){throw "pid is required"}
+            Stop-Process -Id $pidValue -Force -ErrorAction Stop
+            return @{ok=$true;operation="stop_process";pid=$pidValue}
         }
         "pytest_target" {
             $repoPath=Require-Path -Job $Job -Property "repo_path" -Directory
