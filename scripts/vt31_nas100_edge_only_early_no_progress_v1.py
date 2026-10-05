@@ -22,8 +22,8 @@ from pathlib import Path
 from typing import cast
 
 import vt31_nas100_cognitive_structural_protection_frontier_v1 as ps
-import vt31_nas100_full_cognition_attribution_v1 as cognition_lab
 import vt31_nas100_entry_intelligence_oco_lab_v1 as oco
+import vt31_nas100_full_cognition_attribution_v1 as cognition_lab
 import vt31_nas100_specialist_r1_candidate as specialist
 
 from qore.infrastructure.trader_lab.vt31_silver_bullet_r2_5_multi_index_research import (
