@@ -338,7 +338,7 @@ class NativeLabOrchestrator:
             branch=snapshot.branch,
             dataset_id=dataset.dataset_id,
             dataset_version=dataset.version,
-            dataset_hash=dataset.content_hash,
+            dataset_hash=task_dataset.content_hash,
             configuration_hash=plan_request.configuration_hash(),
             lab_harness_sha=harness_sha,
         )
@@ -462,6 +462,13 @@ class NativeLabOrchestrator:
                             "state": TaskState.RUNNING.value,
                             "worker_id": worker_id,
                             "started_at_ns": time.time_ns(),
+                            "execution_origin": task.execution_origin,
+                            "dataset_id": task.dataset_id or dataset.dataset_id,
+                            "dataset_version": (
+                                task.dataset_version or dataset.version
+                            ),
+                            "target_sha": identity.commit_sha,
+                            "lab_harness_sha": identity.lab_harness_sha,
                         },
                     )
                     future = executor.submit(
@@ -526,8 +533,19 @@ class NativeLabOrchestrator:
         cancellation_token: CancellationToken,
     ) -> TaskResult:
         started = time.time_ns()
+        task_dataset = dataset
+        if task.dataset_id is not None:
+            task_dataset = self.dataset_store.resolve(
+                task.dataset_id,
+                task.dataset_version or "",
+            )
+        execution_root = (
+            self.harness_root
+            if task.execution_origin == "HARNESS"
+            else worktree
+        )
         raw_component_hash = _component_hash(
-            worktree,
+            execution_root,
             task.component_globs,
         )
         component_hash = hashlib.sha256(
@@ -537,6 +555,9 @@ class NativeLabOrchestrator:
                     "task_id": task.task_id,
                     "suite": task.suite.value,
                     "scope": task.scope.value,
+                    "execution_origin": task.execution_origin,
+                    "target_sha": identity.commit_sha,
+                    "lab_harness_sha": identity.lab_harness_sha,
                 }
             ).encode()
         ).hexdigest()
@@ -567,20 +588,25 @@ class NativeLabOrchestrator:
 
         task_dir = run_dir / "tasks" / task.task_id
         task_dir.mkdir(parents=True, exist_ok=True)
-        command = self._format_command(task.command, request, dataset)
+        command = self._format_command(task.command, request, task_dataset)
         environment = os.environ.copy()
         existing_pythonpath = environment.get("PYTHONPATH")
-        target_pythonpath = str(worktree / "src")
+        execution_pythonpath = str(execution_root / "src")
         environment["PYTHONPATH"] = (
-            target_pythonpath
+            execution_pythonpath
             if not existing_pythonpath
-            else f"{target_pythonpath}{os.pathsep}{existing_pythonpath}"
+            else f"{execution_pythonpath}{os.pathsep}{existing_pythonpath}"
         )
         environment.update(
             {
                 "QORE_SHARED_LAB_RUN_ID": identity.run_id,
                 "QORE_SHARED_LAB_COMMIT_SHA": identity.commit_sha,
-                "QORE_SHARED_LAB_DATASET_HASH": dataset.content_hash,
+                "QORE_SHARED_LAB_TARGET_SHA": identity.commit_sha,
+                "QORE_SHARED_LAB_HARNESS_SHA": identity.lab_harness_sha,
+                "QORE_SHARED_LAB_EXECUTION_ORIGIN": task.execution_origin,
+                "QORE_SHARED_LAB_DATASET_HASH": task_dataset.content_hash,
+                "QORE_SHARED_LAB_DATASET_ID": task_dataset.dataset_id,
+                "QORE_SHARED_LAB_DATASET_VERSION": task_dataset.version,
                 "QORE_SHARED_LAB_VERSION": LAB_VERSION,
                 "QORE_SHARED_LAB_SUBMITTED_BY": request.submitted_by,
                 "QORE_SHARED_LAB_SUBMITTED_ROLE": request.submitted_role,
@@ -602,7 +628,7 @@ class NativeLabOrchestrator:
             attempts += 1
             process = subprocess.Popen(
                 command,
-                cwd=worktree,
+                cwd=execution_root,
                 env=environment,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
@@ -616,6 +642,7 @@ class NativeLabOrchestrator:
             if not limits_applied:
                 process.kill()
                 process.communicate()
+                _release_limits(process)
                 state = TaskState.INCOMPLETE
                 reason = "resource limits could not be applied; fail-closed"
                 break
@@ -648,6 +675,7 @@ class NativeLabOrchestrator:
                     break
                 except subprocess.TimeoutExpired:
                     continue
+            _release_limits(process)
             if state is TaskState.CANCELLED:
                 break
             if state is TaskState.TIMEOUT:
@@ -677,6 +705,13 @@ class NativeLabOrchestrator:
         result_payload = {
             "task_id": task.task_id,
             "command": command,
+            "execution_origin": task.execution_origin,
+            "target_sha": identity.commit_sha,
+            "lab_harness_sha": identity.lab_harness_sha,
+            "dataset_id": task_dataset.dataset_id,
+            "dataset_version": task_dataset.version,
+            "dataset_hash": task_dataset.content_hash,
+            "component_hash": component_hash,
             "stdout_hash": sha256_bytes(final_stdout.encode()),
             "stderr_hash": sha256_bytes(final_stderr.encode()),
             "state": state.value,
