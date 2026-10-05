@@ -142,6 +142,7 @@ def run_cibo_native_sovereign_capital_runtime(
         consultation=consultation,
         opportunities=shared,
         target=opportunity,
+        regime_state=regime_state,
     )
 
     capital_decision = run_cibo_sovereign_capital_runtime(
