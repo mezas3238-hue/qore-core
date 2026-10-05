@@ -96,6 +96,9 @@ def run_cibo_reasoned_sovereign_capital_runtime(
     decision_id: str,
     option_id: str,
     opportunity: TraderOpportunityEnvelope,
+    simultaneous_opportunities: tuple[
+        TraderOpportunityEnvelope, ...
+    ] = (),
     reasoning_runtime: CiboAdaptiveReasoningRuntime,
     reasoning_completed_at: datetime,
     twin: CiboObservedEconomicTwin,
@@ -135,9 +138,37 @@ def run_cibo_reasoned_sovereign_capital_runtime(
             "Risk request cannot predate completed CIBO reasoning"
         )
 
+    shared_opportunities = (
+        simultaneous_opportunities
+        if simultaneous_opportunities
+        else (opportunity,)
+    )
+    if any(
+        not isinstance(item, TraderOpportunityEnvelope)
+        for item in shared_opportunities
+    ):
+        raise CiboCapitalManagementError(
+            "reasoned sovereign shared opportunities must be canonical"
+        )
+    fingerprints = tuple(
+        item.signal_fingerprint for item in shared_opportunities
+    )
+    if len(fingerprints) != len(set(fingerprints)):
+        raise CiboCapitalManagementError(
+            "reasoned sovereign shared opportunities contain duplicates"
+        )
+    if opportunity.signal_fingerprint not in fingerprints:
+        raise CiboCapitalManagementError(
+            "reasoned sovereign target absent from shared opportunity surface"
+        )
+    if regime_state.opportunity_count != len(shared_opportunities):
+        raise CiboCapitalManagementError(
+            "reasoned sovereign regime/shared-opportunity count drift"
+        )
+
     consultation = consult_cibo_economic_faculties(
         decision_at=twin.captured_at,
-        opportunities=(opportunity,),
+        opportunities=shared_opportunities,
         regime_state=regime_state,
         evidence_ref=evidence_ref,
     )
