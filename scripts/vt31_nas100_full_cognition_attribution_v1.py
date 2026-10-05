@@ -8,6 +8,7 @@ assumption is allowed to affect economics.
 The goal is to discover which causal VT31 cognition states generalize before
 any post-entry policy is promoted.
 """
+# ruff: noqa: B009
 from __future__ import annotations
 
 import argparse
