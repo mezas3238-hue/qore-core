@@ -1,0 +1,119 @@
+{
+  "identity": "QORE_SHARED_INTEGRATOR_1_A1_A2_INTAKE_RECONCILIATION_004",
+  "observed_date": "2026-10-04",
+  "role": "SHARED_INTEGRATOR_1_A1_A2_ONLY",
+  "source_of_truth": "mezas3238-hue/qore-core",
+  "observed_heads": {
+    "architect_a1": "db683bbc1fba3d1c8225ae27e595d080daae5bb2",
+    "architect_a2": "8d5b28d5dd871e2a05f0642571f32310fb269d2a",
+    "integrator1_before_manifest": "6be8934d8dd5430b9187a3aff6e697b40b4126e7",
+    "shared_lab": "c558127165435e5e1d2a748675db1158b5c19174"
+  },
+  "a1": {
+    "intake_status": "LATEST_KNOWN_A1_EVIDENCE_INGESTED",
+    "functional_causality": "WIRED_FAIL_CLOSED",
+    "mc14": {
+      "runner_mode": "XAUUSD_ONLY",
+      "dataset_id": "shared-a1-mc14-b04-xauusd-v1",
+      "dataset_version": "1",
+      "bundle_sha256": "affff1ddf76c76337cc87e3738a6b958794869fa785a7acd01575ec901acb8e7",
+      "bundle_size_in_bytes": 559499078,
+      "content_file_count": 7753,
+      "xauusd_source_hashes": "16_OF_16",
+      "r8_target_hashes": "3_OF_3",
+      "us2000": "INSUFFICIENT_DO_NOT_INFER",
+      "shared_lab_dataset_registered": false,
+      "governed_replay_executed": false,
+      "next_gate": "REGISTER_BUNDLE_AND_EXECUTE_EXACTLY_ONE_GOVERNED_XAUUSD_REPLAY"
+    },
+    "mc18": {
+      "native_plugin_present": true,
+      "dataset_id": "shared-a1-mc18-r6-r5-consumed-v1",
+      "dataset_version": "1",
+      "scientific_execution_required": true
+    },
+    "pair_gate": "i1-a1-scientific-evidence"
+  },
+  "a2": {
+    "intake_status": "CANDIDATE_003_PREREGISTERED",
+    "candidate_001": {
+      "status": "TERMINAL_FALSIFIED",
+      "retry_for_pass_forbidden": true
+    },
+    "candidate_002": {
+      "status": "MC23_CANDIDATE_002_FALSIFIED_ON_REPLICATION_D",
+      "retry_for_pass_forbidden": true,
+      "validation_d": {
+        "pooled_incremental_information_bps": -89,
+        "positive_target_count": 0,
+        "target_count": 4,
+        "maximum_target_regression_bps": 132
+      },
+      "holdout_e_evaluated": false
+    },
+    "candidate_003": {
+      "status": "PREREGISTERED_NOT_YET_EXECUTED",
+      "hypothesis": "RICH_TEMPORAL_AND_CROSS_MARKET_SOURCE_ONLY_INFORMATION",
+      "development_partitions": [
+        "R8",
+        "R6",
+        "R5",
+        "TEMPORAL_REPLICATION_D"
+      ],
+      "validation_partition": "REPLACEMENT_ONE_SHOT_HOLDOUT_E",
+      "minimum_pooled_incremental_information_bps": 100,
+      "minimum_positive_targets": 3,
+      "maximum_target_regression_bps": 500,
+      "no_E_information_allowed_before_freeze": true,
+      "next_gate": "IMPLEMENT_FROZEN_CANDIDATE_003_THEN_ONE_SHOT_HOLDOUT_E"
+    },
+    "mc24": "BLOCKED_UNTIL_MC23_VALIDATED",
+    "mc25": "BLOCKED_UNTIL_MC23_AND_MC24_VALIDATED",
+    "wp11": "BLOCKED_UNTIL_UPSTREAM_SCIENCE",
+    "executable_candidate_001_tasks_present": false,
+    "executable_candidate_002_tasks_present": false,
+    "pair_gate": "i1-a2-scientific-evidence"
+  },
+  "integration_repairs": [
+    "PRESERVED_A2_CANDIDATE_001_TERMINAL_FALSIFICATION",
+    "PRESERVED_A2_CANDIDATE_002_TERMINAL_FALSIFICATION",
+    "REMOVED_CANDIDATE_001_EXECUTABLE_ROUTE_FROM_INTEGRATED_DAG",
+    "REMOVED_CANDIDATE_002_EXECUTABLE_ROUTE_AFTER_TERMINAL_FALSIFICATION",
+    "PREVENTED_CROSS_CANDIDATE_A2_EVIDENCE_REUSE",
+    "REQUIRED_A1_SCIENTIFIC_GATE_BEFORE_PAIR",
+    "REQUIRED_A2_SCIENTIFIC_GATE_BEFORE_PAIR",
+    "SYNCHRONIZED_A1_XAUUSD_ONLY_MC14_RUNNER_AND_DATASET_RECEIPT",
+    "INGESTED_A2_CANDIDATE_003_PREREGISTRATION"
+  ],
+  "dag_audit": "SHARED_INTEGRATOR_1_SHARED_LAB_PLUGIN_DAG_AUDIT_004",
+  "shared_lab": {
+    "exact_target_sha": true,
+    "harness_target_separation": true,
+    "task_level_dataset_binding": true,
+    "scientific_evidence_archiving": true,
+    "github_actions_required": false,
+    "native_pair_execution_completed": false
+  },
+  "scientific_status": "OPEN",
+  "blockers": [
+    "A1_MC14_DATASET_REGISTRATION_AND_ONE_GOVERNED_REPLAY",
+    "A1_MC18_NATIVE_SCIENTIFIC_EXECUTION",
+    "A2_MC23_CANDIDATE_003_IMPLEMENTATION_AND_ONE_SHOT_HOLDOUT_E",
+    "A2_MC24_BLOCKED_BY_MC23",
+    "A2_MC25_BLOCKED_BY_MC23_MC24",
+    "A2_WP11_BLOCKED_BY_UPSTREAM_SCIENCE",
+    "PAIR_NATIVE_SHARED_LAB_TERMINAL_EXECUTION"
+  ],
+  "governance": {
+    "merge_performed": false,
+    "no_merge_without_owner_order": true,
+    "protected_final_holdout_opened": false,
+    "live_used": false,
+    "vps_used": false,
+    "broker_mutation": false,
+    "real_capital_used": false,
+    "outcome_aware_rescue_used": false,
+    "github_actions_used_as_validation_fallback": false,
+    "productive_authority": false
+  }
+}
