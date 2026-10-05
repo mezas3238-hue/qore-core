@@ -1,0 +1,120 @@
+{
+  "schema": "QORE_SHARED_MC23_VALIDATED_NOVEL_REGIME_ADAPTATION_PREREGISTRATION_003",
+  "created_at": "2026-10-04",
+  "owner": "Sergio Meza",
+  "architect": "A2",
+  "branch": "agent/shared-architect-2-sti-001",
+  "predecessors": [
+    {
+      "candidate": "001",
+      "status": "FALSIFIED_AND_CLOSED",
+      "lesson": "six hand-picked ontology interactions did not add independent information"
+    },
+    {
+      "candidate": "002",
+      "status": "FALSIFIED_ON_TEMPORAL_REPLICATION_D",
+      "lesson": "route-conditioned second-order transforms of the same 14 compressed ontology states did not add independent information"
+    }
+  ],
+  "hypothesis": "MC23 adaptation needs additional source-time temporal and cross-market information, not more nonlinear transformations of the same compressed 14-state vector.",
+  "development": {
+    "partitions": [
+      "R8",
+      "R6",
+      "R5",
+      "TEMPORAL_REPLICATION_D"
+    ],
+    "validation_role": "all four are consumed development evidence for candidate 003",
+    "state_population": [
+      "NOVEL",
+      "NEAR_KNOWN"
+    ],
+    "no_E_information_allowed": true
+  },
+  "source_features": {
+    "ontology_14": true,
+    "rich_temporal_source_only": {
+      "markets": [
+        "NAS100",
+        "SP500",
+        "US30"
+      ],
+      "horizons_minutes": [
+        5,
+        15,
+        30,
+        60,
+        90
+      ],
+      "per_market_metrics": [
+        "net_return_bps",
+        "path_return_bps",
+        "efficiency",
+        "mean_range_bps",
+        "max_abs_m1_return_bps",
+        "wick_fraction"
+      ],
+      "cross_market_metrics": [
+        "signed_return_coherence",
+        "NAS100_minus_SP500_return_bps",
+        "NAS100_minus_US30_return_bps",
+        "SP500_minus_US30_return_bps"
+      ],
+      "future_values": false,
+      "pnl": false,
+      "trader_methodology": false,
+      "clock_identity_features": false
+    }
+  },
+  "model_family": {
+    "baseline": "GLOBAL_RIDGE_ON_ONTOLOGY_14",
+    "adaptive": "NOVELTY_ROUTED_RIDGE_ON_RICH_TEMPORAL_SOURCE_FEATURES",
+    "routes": [
+      "NOVEL",
+      "NEAR_KNOWN"
+    ],
+    "target_normalization": "development-only global mean/std shared by baseline and adaptive",
+    "ridge_grid": [
+      0.1,
+      1,
+      10,
+      100
+    ],
+    "hyperparameter_selection": "leave-one-development-partition-out weighted pooled MSE, target-aware only on consumed development evidence",
+    "selection_tiebreak": "larger ridge_lambda",
+    "no_feature_selection": true,
+    "no_target_specific_feature_basis": true
+  },
+  "validation": {
+    "partition": "REPLACEMENT_ONE_SHOT_HOLDOUT_E",
+    "artifact_id": 10908500161,
+    "start_inclusive": "2026-07-13T00:00:00+00:00",
+    "end_exclusive": "2026-09-25T00:00:00+00:00",
+    "one_shot": true,
+    "minimum_scored_novel_or_near_rows": 500,
+    "minimum_pooled_incremental_information_bps": 100,
+    "minimum_positive_targets": 3,
+    "maximum_target_regression_bps": 500,
+    "refit": false,
+    "feature_selection": false,
+    "hyperparameter_retuning": false,
+    "gate_retuning": false
+  },
+  "disposition": {
+    "pass": "MC23_CANDIDATE_003_VALIDATED_REAL_NOVEL_REGIME_ADAPTATION_PASS",
+    "fail": "MC23_CANDIDATE_003_FALSIFIED_ON_HOLDOUT_E",
+    "insufficient": "MC23_CANDIDATE_003_INSUFFICIENT_EVIDENCE"
+  },
+  "governance": {
+    "shared_lab_required": true,
+    "github_actions_required": false,
+    "holdout_E_mc23_targets_not_read_before_freeze": true,
+    "protected_final_holdout_opened": false,
+    "outcome_aware_tuning_on_E": false,
+    "productive_authority": false,
+    "execution_authority": false,
+    "risk_authority": false,
+    "sizing_authority": false,
+    "capital_authority": false
+  }
+}
