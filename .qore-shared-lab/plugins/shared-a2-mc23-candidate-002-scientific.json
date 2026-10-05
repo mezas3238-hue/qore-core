@@ -1,0 +1,25 @@
+{
+  "task_id": "a2-mc23-candidate-002-scientific",
+  "suite": "FUNCTIONAL",
+  "scope": "mc23",
+  "dependencies": [
+    "a2-mc23-candidate-002-self-test"
+  ],
+  "command": [
+    "python",
+    "-m",
+    "a2_lab_capsule.mc23_candidate_002",
+    "--mode",
+    "evaluate",
+    "--dataset",
+    "{dataset_path}",
+    "--output",
+    "result/mc23-candidate-002.json"
+  ],
+  "component_globs": [
+    "docs/shared/evidence/QORE_SHARED_MC23_VALIDATED_NOVEL_REGIME_ADAPTATION_PREREGISTRATION_002.json",
+    "docs/shared/evidence/QORE_SHARED_LAB_A2_MC23_002_DATASET_MANIFEST_001.json",
+    "a2_lab_capsule/capsule.py",
+    "a2_lab_capsule/mc23_candidate_002.py"
+  ]
+}
