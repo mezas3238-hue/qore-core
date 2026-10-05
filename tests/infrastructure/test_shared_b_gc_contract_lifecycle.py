@@ -82,6 +82,9 @@ def test_all_five_observed_gc_contracts_are_expired_by_sep_2026() -> None:
     )
 
     assert payload["dated_gc_contract_count"] == 5
+    assert payload["official_gc_product_identity_verified"] is True
+    assert payload["official_gc_product_venue"] == "COMEX"
+    assert payload["observed_gc_contract_venue_verified_count"] == 5
     assert payload["expired_before_assessment_month_count"] == 5
     assert payload["delivery_month_exact_expiry_unresolved_count"] == 0
     assert payload["future_contract_count"] == 0
@@ -102,6 +105,9 @@ def test_all_five_observed_gc_contracts_are_expired_by_sep_2026() -> None:
     assert len(str(payload["lifecycle_fingerprint_sha256"])) == 64
     assert all(
         row["lifecycle_status"] == "EXPIRED_BEFORE_ASSESSMENT_MONTH"
+        and row["official_product_identity_verified"] is True
+        and row["official_product_venue"] == "COMEX"
+        and row["observed_contract_venue_verified"] is True
         and row["front_contract_verified"] is False
         and row["roll_semantics_verified"] is False
         and row["continuous_series_verified"] is False
