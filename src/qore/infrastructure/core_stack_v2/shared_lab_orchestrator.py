@@ -567,6 +567,7 @@ class NativeLabOrchestrator:
                         "retries": task.retries,
                         "dataset_id": task.dataset_id,
                         "dataset_version": task.dataset_version,
+                        "cache_safe": task.cache_safe,
                     },
                     "target_sha": identity.commit_sha,
                     "lab_harness_sha": identity.lab_harness_sha,
@@ -583,7 +584,7 @@ class NativeLabOrchestrator:
             lab_version=identity.lab_version,
         )
         key_fp = key.fingerprint()
-        if request.use_cache:
+        if request.use_cache and task.cache_safe:
             cached = self.cache_store.get(key)
             if cached is not None:
                 ended = time.time_ns()
@@ -724,6 +725,7 @@ class NativeLabOrchestrator:
             "dataset_version": task_dataset.version,
             "dataset_hash": task_dataset.content_hash,
             "component_hash": component_hash,
+            "cache_safe": task.cache_safe,
             "stdout_hash": sha256_bytes(final_stdout.encode()),
             "stderr_hash": sha256_bytes(final_stderr.encode()),
             "state": state.value,
@@ -752,7 +754,8 @@ class NativeLabOrchestrator:
             resource_limits_applied=limits_applied,
             cache_key=key_fp,
         )
-        self.cache_store.put(key, result)
+        if task.cache_safe:
+            self.cache_store.put(key, result)
         return result
 
     @staticmethod
