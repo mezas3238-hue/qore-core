@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from collections import Counter, defaultdict
 from datetime import datetime
 from decimal import Decimal
@@ -119,7 +120,19 @@ def _regime(row: dict[str, Any]) -> CiboCapitalRegimeState:
     )
 
 
-def run(manifest: dict[str, Any]) -> dict[str, Any]:
+def run(
+    manifest: dict[str, Any],
+    *,
+    progress_every: int = 0,
+) -> dict[str, Any]:
+    if (
+        not isinstance(progress_every, int)
+        or isinstance(progress_every, bool)
+        or progress_every < 0
+    ):
+        raise CiboCapitalManagementError(
+            "native MAX preflight progress_every must be non-negative int"
+        )
     source_manifest_sha256 = validate_single_account_manifest_sha256(manifest)
     rows = manifest.get("opportunities")
     if not isinstance(rows, list) or not rows:
@@ -134,7 +147,7 @@ def run(manifest: dict[str, Any]) -> dict[str, Any]:
     formal_blocked: Counter[str] = Counter()
     examples: list[dict[str, str]] = []
 
-    for row in rows:
+    for index, row in enumerate(rows, start=1):
         trader = str(row["trader_id"])
         opportunity = _opportunity(row)
         context_counts[trader].add(len(opportunity.decision_context))
@@ -176,6 +189,22 @@ def run(manifest: dict[str, Any]) -> dict[str, Any]:
                         "error": message,
                     }
                 )
+        if progress_every and (
+            index % progress_every == 0 or index == len(rows)
+        ):
+            print(
+                json.dumps(
+                    {
+                        "progress": index,
+                        "decision_count": len(rows),
+                        "native_max_pass_count": sum(passed.values()),
+                        "native_max_blocked_count": sum(blocked.values()),
+                    },
+                    sort_keys=True,
+                ),
+                file=sys.stderr,
+                flush=True,
+            )
 
     expected = len(rows)
     native_pass = sum(passed.values())
@@ -217,10 +246,16 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--manifest", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--progress-every",
+        type=int,
+        default=100,
+        help="Emit progress JSON to stderr every N decisions; 0 disables it.",
+    )
     args = parser.parse_args()
 
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
-    summary = run(manifest)
+    summary = run(manifest, progress_every=args.progress_every)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
         json.dumps(summary, indent=2, sort_keys=True) + "\n",
