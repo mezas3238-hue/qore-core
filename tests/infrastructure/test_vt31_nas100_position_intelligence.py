@@ -186,6 +186,11 @@ def test_full_cognitive_position_consumes_all_domains_without_oracle() -> None:
         "TEMPORAL",
     )
     assert state.minimum_volume_compatible == Decimal("0.01")
+    assert state.cognitive_coverage_ratio == Decimal("1")
+    assert "risk_ref" in state.observed_situation_fields
+    assert "planned_target_r" in state.observed_situation_fields
+    assert "structural_destination" in state.observation_only_situation_fields
+    assert "current_path_vs_previous" in state.actuated_situation_fields
     assert state.terminal_pnl_used is False
     assert state.future_journey_label_used is False
     assert len(state.fingerprint()) == 64
