@@ -1,0 +1,119 @@
+{
+  "schema": "QORE_SHARED_MC23_VALIDATED_NOVEL_REGIME_ADAPTATION_PREREGISTRATION_002",
+  "created_at": "2026-10-04",
+  "owner": "Sergio Meza",
+  "architect": "A2",
+  "source_of_truth": "mezas3238-hue/qore-core",
+  "branch": "agent/shared-architect-2-sti-001",
+  "predecessor": {
+    "candidate": "MC23_CANDIDATE_001",
+    "disposition": "FALSIFIED_AND_CLOSED",
+    "evidence": "docs/shared/evidence/QORE_SHARED_A2_MC23_CANDIDATE_001_FALSIFICATION_001.json",
+    "r5_may_not_be_reused_as_candidate_002_validation": true
+  },
+  "hypothesis": "Novel-regime adaptation requires source-time routing into regime-specialized symmetric second-order models; a single global linear-plus-six-interaction model is insufficient.",
+  "scientific_rationale": {
+    "target_blind": true,
+    "borrowed_structural_prior": "WP04_V3B_SYMMETRIC_SECOND_ORDER_V1",
+    "wp04_lineage_only_as_architectural_prior": true,
+    "wp04_target_results_not_used_to_select_candidate_002_coefficients": true
+  },
+  "development": {
+    "partitions": [
+      "R8",
+      "R6",
+      "R5"
+    ],
+    "state_population": [
+      "NOVEL",
+      "NEAR_KNOWN"
+    ],
+    "source_features": [
+      "compression",
+      "liquidity_accumulation",
+      "failed_auction",
+      "displacement",
+      "acceptance",
+      "absorption",
+      "leader_confirmation",
+      "leader_divergence",
+      "momentum_persistence",
+      "momentum_decay",
+      "structural_fragility",
+      "liquidity_vacuum",
+      "regime_transition",
+      "anomaly"
+    ],
+    "novelty_router": "same frozen source-time novelty rule as candidate 001",
+    "targets": [
+      "NAS100_FUTURE_30M_NET_RETURN_Z",
+      "NAS100_FUTURE_30M_ABS_RETURN_Z",
+      "NAS100_FUTURE_30M_MEAN_RANGE_Z",
+      "NAS100_FUTURE_30M_PATH_EFFICIENCY_Z"
+    ],
+    "baseline": {
+      "model": "GLOBAL_LINEAR_RIDGE",
+      "basis": "INTERCEPT_PLUS_14_LINEAR",
+      "ridge_lambda": 1
+    },
+    "adaptive": {
+      "model": "NOVELTY_ROUTED_SPECIALIST_RIDGE",
+      "routes": [
+        "NOVEL",
+        "NEAR_KNOWN"
+      ],
+      "basis": "INTERCEPT_PLUS_14_LINEAR_PLUS_14_SQUARES_PLUS_91_UNIQUE_PAIRS",
+      "ridge_lambda": 1,
+      "route_decided_from_source_time_only": true,
+      "fallback_to_baseline": false
+    },
+    "target_normalization": "single global development mean/std shared by baseline and both specialists",
+    "minimum_development_rows_per_route": 1000
+  },
+  "validation": {
+    "partition": "TEMPORAL_REPLICATION_D",
+    "artifact_id": 10908077821,
+    "start_inclusive": "2025-07-14T00:00:00+00:00",
+    "end_exclusive": "2026-07-13T00:00:00+00:00",
+    "one_shot": true,
+    "minimum_scored_novel_or_near_rows": 3000,
+    "minimum_pooled_incremental_information_bps": 100,
+    "minimum_positive_targets": 3,
+    "maximum_target_regression_bps": 500,
+    "refit": false,
+    "feature_selection": false,
+    "gate_retuning": false
+  },
+  "independent_replication": {
+    "partition": "REPLACEMENT_ONE_SHOT_HOLDOUT_E",
+    "artifact_id": 10908500161,
+    "start_inclusive": "2026-07-13T00:00:00+00:00",
+    "end_exclusive": "2026-09-25T00:00:00+00:00",
+    "open_for_mc23_only_if_validation_d_passes": true,
+    "minimum_scored_novel_or_near_rows": 500,
+    "minimum_pooled_incremental_information_bps": 100,
+    "minimum_positive_targets": 3,
+    "maximum_target_regression_bps": 500,
+    "refit": false,
+    "feature_selection": false,
+    "gate_retuning": false
+  },
+  "disposition": {
+    "pass": "MC23_CANDIDATE_002_VALIDATED_AND_INDEPENDENTLY_REPLICATED_PASS",
+    "validation_fail": "MC23_CANDIDATE_002_FALSIFIED_ON_REPLICATION_D",
+    "replication_fail": "MC23_CANDIDATE_002_FALSIFIED_ON_HOLDOUT_E",
+    "insufficient": "MC23_CANDIDATE_002_INSUFFICIENT_EVIDENCE"
+  },
+  "governance": {
+    "github_actions_required": false,
+    "shared_lab_required": true,
+    "protected_final_holdout_opened": false,
+    "r5_revalidation_forbidden": true,
+    "outcome_aware_tuning_forbidden": true,
+    "productive_authority": false,
+    "execution_authority": false,
+    "risk_authority": false,
+    "sizing_authority": false,
+    "capital_authority": false
+  }
+}
