@@ -25,6 +25,9 @@ MC23_CANDIDATE_001_FALSIFIED_STATUS = (
 MC23_CANDIDATE_002_FALSIFIED_STATUS = (
     "MC23_CANDIDATE_002_FALSIFIED_ON_REPLICATION_D"
 )
+MC23_CANDIDATE_003_PREREGISTRATION_SCHEMA = (
+    "QORE_SHARED_MC23_VALIDATED_NOVEL_REGIME_ADAPTATION_PREREGISTRATION_003"
+)
 MC24_ID = "QORE_SHARED_MC24_VALIDATED_ADAPTATION_HALF_LIFE_001"
 MC25_LINEAGE_ID = "QORE_SHARED_MC25_WP04_V3B_LINEAGE_INTEGRITY_STRESS_001"
 MC25_PERFORMANCE_ID = "QORE_SHARED_MC25_WP04_V3B_PERFORMANCE_STRESS_001"
@@ -116,6 +119,23 @@ def main() -> None:
         for _path, row in rows
     )
 
+    candidate_003_preregistered = any(
+        row.get("schema") == MC23_CANDIDATE_003_PREREGISTRATION_SCHEMA
+        and row.get("validation", {}).get("partition")
+        == "REPLACEMENT_ONE_SHOT_HOLDOUT_E"
+        and row.get("validation", {}).get("one_shot") is True
+        and row.get("development", {}).get("no_E_information_allowed") is True
+        and row.get("governance", {}).get("shared_lab_required") is True
+        and row.get("governance", {}).get(
+            "holdout_E_mc23_targets_not_read_before_freeze"
+        )
+        is True
+        and row.get("governance", {}).get("outcome_aware_tuning_on_E") is False
+        and row.get("governance", {}).get("protected_final_holdout_opened") is False
+        and _safe_governance(row)
+        for _path, row in rows
+    )
+
     candidate_002_row = next(
         (
             row
@@ -150,7 +170,11 @@ def main() -> None:
     )
     if candidate_002_terminal_falsified:
         mc23_pass = False
-        blockers.append("MC23_NEW_PREREGISTERED_MECHANISM_REQUIRED")
+        blockers.append(
+            "MC23_CANDIDATE_003_IMPLEMENTATION_AND_ONE_SHOT_E_VALIDATION"
+            if candidate_003_preregistered
+            else "MC23_NEW_PREREGISTERED_MECHANISM_REQUIRED"
+        )
     else:
         mc23_pass = (
             candidate_002_pass
@@ -290,12 +314,17 @@ def main() -> None:
         "mc23_candidate_001_retry_for_pass_allowed": (False if candidate_001_terminal_falsified else None),
         "mc23_candidate_002_terminal_falsified": candidate_002_terminal_falsified,
         "mc23_candidate_002_retry_for_pass_allowed": (False if candidate_002_terminal_falsified else None),
+        "mc23_candidate_003_preregistered": candidate_003_preregistered,
         "mc23_candidate_002_scientific_pass": candidate_002_pass and not candidate_002_terminal_falsified,
         "mc23_candidate_002_fingerprint": candidate_002_fingerprint,
         "mc24_bound_to_active_mc23_candidate": mc24_pass,
         "mc23_scientific_pass": mc23_pass,
         "mc23_active_candidate": (
-            "NONE_NEW_PREREGISTERED_MECHANISM_REQUIRED"
+            (
+                "MC23_CANDIDATE_003_PREREGISTERED"
+                if candidate_003_preregistered
+                else "NONE_NEW_PREREGISTERED_MECHANISM_REQUIRED"
+            )
             if candidate_002_terminal_falsified
             else (
                 "MC23_CANDIDATE_002"
