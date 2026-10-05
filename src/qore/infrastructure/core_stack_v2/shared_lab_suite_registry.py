@@ -30,6 +30,7 @@ class SuiteDefinition:
     dataset_id: str | None = None
     dataset_version: str | None = None
     cache_safe: bool = True
+    evidence_globs: tuple[str, ...] = ()
 
 
 class NativeSuiteRegistry:
@@ -85,6 +86,9 @@ class NativeSuiteRegistry:
                         else str(payload["dataset_version"])
                     ),
                     cache_safe=bool(payload.get("cache_safe", False)),
+                    evidence_globs=tuple(
+                        str(x) for x in payload.get("evidence_globs", [])
+                    ),
                 )
             )
 
@@ -124,6 +128,7 @@ class NativeSuiteRegistry:
                 dataset_id=definition.dataset_id,
                 dataset_version=definition.dataset_version,
                 cache_safe=definition.cache_safe,
+                evidence_globs=definition.evidence_globs,
             )
             for definition in self.definitions()
             if definition.task_id in selected
