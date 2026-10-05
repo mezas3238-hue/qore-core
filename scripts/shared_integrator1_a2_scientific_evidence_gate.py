@@ -16,11 +16,11 @@ from typing import Any
 
 IDENTITY = "QORE_SHARED_INTEGRATOR_1_A2_SCIENTIFIC_EVIDENCE_GATE_001"
 
-MC23_IDS = frozenset(
-    {
-        "QORE_SHARED_MC23_VALIDATED_NOVEL_REGIME_ADAPTATION_001",
-        "QORE_SHARED_MC23_CANDIDATE_002_ROUTED_SECOND_ORDER_001",
-    }
+MC23_CANDIDATE_001_ID = "QORE_SHARED_MC23_VALIDATED_NOVEL_REGIME_ADAPTATION_001"
+MC23_CANDIDATE_002_ID = "QORE_SHARED_MC23_CANDIDATE_002_ROUTED_SECOND_ORDER_001"
+MC23_CANDIDATE_001_FALSIFIED_STATUS = (
+    "MC23_VALIDATED_REAL_NOVEL_REGIME_ADAPTATION_"
+    "FALSIFIED_AND_CLOSED_FOR_THIS_MECHANISM"
 )
 MC24_ID = "QORE_SHARED_MC24_VALIDATED_ADAPTATION_HALF_LIFE_001"
 MC25_LINEAGE_ID = "QORE_SHARED_MC25_WP04_V3B_LINEAGE_INTEGRITY_STRESS_001"
@@ -90,15 +90,48 @@ def main() -> None:
             rows.extend(_load_rows(runtime_dir))
     blockers: list[str] = []
 
-    mc23_pass = any(
-        row.get("identity") in MC23_IDS
+    candidate_001_terminal_falsified = any(
+        row.get("schema")
+        == "QORE_SHARED_A2_MC23_CANDIDATE_001_FALSIFICATION_001"
+        and row.get("status") == MC23_CANDIDATE_001_FALSIFIED_STATUS
+        and row.get("governance", {}).get("candidate_001_terminal") is True
+        and row.get("governance", {}).get(
+            "candidate_001_may_not_be_retried_for_pass"
+        )
+        is True
+        and _safe_governance(row)
+        for _path, row in rows
+    )
+    candidate_002_pass = any(
+        row.get("identity") == MC23_CANDIDATE_002_ID
+        and row.get("status")
+        == "MC23_CANDIDATE_002_VALIDATED_AND_INDEPENDENTLY_REPLICATED_PASS"
+        and row.get("real_novel_regime_validated_adaptation") is True
+        and row.get("mc23_completed_and_proven") is True
+        and row.get("candidate_001_reused") is False
+        and row.get("gate_retuning") is False
+        and row.get("outcome_aware_tuning") is False
+        and _safe_governance(row)
+        for _path, row in rows
+    )
+    legacy_mc23_pass = any(
+        row.get("identity") == MC23_CANDIDATE_001_ID
         and row.get("real_novel_regime_validated_adaptation") is True
         and row.get("mc23_completed_and_proven") is True
         and _safe_governance(row)
         for _path, row in rows
     )
+    mc23_pass = (
+        candidate_002_pass
+        if candidate_001_terminal_falsified
+        else legacy_mc23_pass
+    )
     if not mc23_pass:
-        blockers.append("MC23_VALIDATED_REAL_NOVEL_REGIME_ADAPTATION")
+        blockers.append(
+            "MC23_CANDIDATE_002_VALIDATED_AND_INDEPENDENTLY_REPLICATED"
+            if candidate_001_terminal_falsified
+            else "MC23_VALIDATED_REAL_NOVEL_REGIME_ADAPTATION"
+        )
 
     mc24_pass = _has(
         rows,
@@ -204,6 +237,9 @@ def main() -> None:
         ),
         "blockers": blockers,
         "blocker_count": len(blockers),
+        "mc23_candidate_001_terminal_falsified": candidate_001_terminal_falsified,
+        "mc23_candidate_001_retry_for_pass_allowed": (False if candidate_001_terminal_falsified else None),
+        "mc23_candidate_002_scientific_pass": candidate_002_pass,
         "mc23_scientific_pass": mc23_pass,
         "mc24_scientific_pass": mc24_pass,
         "mc25_lineage_pass": lineage_pass,
