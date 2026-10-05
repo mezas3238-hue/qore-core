@@ -1,0 +1,27 @@
+{
+  "task_id": "i1-a1-scientific-evidence",
+  "suite": "INTEGRATION",
+  "scope": "cognition",
+  "dependencies": [
+    "a1-functional-causality",
+    "a1-mc14-governed-replay",
+    "a1-mc18-consumed-development-calibration"
+  ],
+  "command": [
+    "python",
+    "scripts/shared_integrator1_a1_scientific_evidence_gate.py",
+    "--runtime-evidence-dir",
+    "result",
+    "--output",
+    "result/i1-a1-scientific-evidence-gate.json"
+  ],
+  "component_globs": [
+    "scripts/shared_integrator1_a1_scientific_evidence_gate.py",
+    "scripts/shared_a1_functional_causality_exam.py",
+    "scripts/shared_a1_mc14_lab_replay.py",
+    "scripts/shared_a1_mc18_lab_calibration.py",
+    "docs/shared/evidence/QORE_SHARED_A1_MC14_SHARED_LAB_DATASET_CONTRACT_001.json",
+    "docs/shared/evidence/QORE_SHARED_A1_MC18_SHARED_LAB_DATASET_CONTRACT_001.json"
+  ],
+  "execution_origin": "TARGET"
+}
