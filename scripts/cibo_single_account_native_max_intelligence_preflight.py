@@ -34,6 +34,9 @@ from qore.infrastructure.cibo_ce2i_regime_selector import (
 from qore.infrastructure.cibo_native_maximum_intelligence import (
     run_native_maximum_intelligence,
 )
+from qore.infrastructure.cibo_single_account_manifest_integrity import (
+    validate_single_account_manifest_sha256,
+)
 from qore.infrastructure.cibo_sovereign_function_consultation import (
     consult_cibo_economic_faculties,
 )
@@ -117,6 +120,7 @@ def _regime(row: dict[str, Any]) -> CiboCapitalRegimeState:
 
 
 def run(manifest: dict[str, Any]) -> dict[str, Any]:
+    source_manifest_sha256 = validate_single_account_manifest_sha256(manifest)
     rows = manifest.get("opportunities")
     if not isinstance(rows, list) or not rows:
         raise CiboCapitalManagementError(
@@ -135,16 +139,17 @@ def run(manifest: dict[str, Any]) -> dict[str, Any]:
         opportunity = _opportunity(row)
         context_counts[trader].add(len(opportunity.decision_context))
         try:
+            regime_state = _regime(row)
             consultation = consult_cibo_economic_faculties(
                 decision_at=_dt(row["market_decision_at"]),
                 opportunities=(opportunity,),
-                regime_state=_regime(row),
+                regime_state=regime_state,
             )
             result = run_native_maximum_intelligence(
                 consultation=consultation,
                 opportunities=(opportunity,),
                 target=opportunity,
-                regime_state=_regime(row),
+                regime_state=regime_state,
             )
             if (
                 not result.native_only
@@ -177,7 +182,7 @@ def run(manifest: dict[str, Any]) -> dict[str, Any]:
     native_blocked = sum(blocked.values())
     return {
         "schema": "qore.cibo.native-max-intelligence-preflight.v1",
-        "source_manifest_sha256": manifest.get("manifest_sha256"),
+        "source_manifest_sha256": source_manifest_sha256,
         "decision_count": expected,
         "native_max_pass_count": native_pass,
         "native_max_blocked_count": native_blocked,
