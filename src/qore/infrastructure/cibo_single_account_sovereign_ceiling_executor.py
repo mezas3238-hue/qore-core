@@ -15,7 +15,7 @@ consumption exists here.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from decimal import Decimal
 from typing import Any
@@ -24,6 +24,7 @@ from qore.infrastructure.account_wide_risk import (
     AccountRiskSnapshot,
     AccountWideRiskEngine,
     RiskAuthorization,
+    RiskDecision,
 )
 from qore.infrastructure.cibo_account_capital_mission import (
     CiboCapitalMissionPolicy,
@@ -32,6 +33,7 @@ from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
     CiboCapitalState,
     TraderOpportunityEnvelope,
+    minimum_seed_volume,
 )
 from qore.infrastructure.cibo_ce2i_regime_selector import CiboCapitalRegimeState
 from qore.infrastructure.cibo_economic_engine_wiring import CiboLifecycleWireRequest
@@ -71,6 +73,7 @@ class CiboSovereignCeilingEpochResult:
     native_decisions: tuple[CiboNativeSovereignCapitalDecision, ...]
     risk_authorizations: tuple[RiskAuthorization, ...]
     risk_submission_order: tuple[str, ...]
+    provider_cost_reserve_usd: Decimal = Decimal(0)
     full_simultaneous_surface_used: bool = True
     outcome_used_for_predecision: bool = False
     broker_mutation: bool = False
@@ -98,6 +101,14 @@ class CiboSovereignCeilingEpochResult:
             raise CiboCapitalManagementError(
                 "sovereign ceiling epoch Risk order contains duplicates"
             )
+        if (
+            not isinstance(self.provider_cost_reserve_usd, Decimal)
+            or not self.provider_cost_reserve_usd.is_finite()
+            or self.provider_cost_reserve_usd < 0
+        ):
+            raise CiboCapitalManagementError(
+                "sovereign ceiling provider cost reserve must be non-negative"
+            )
         if any(
             type(getattr(self, name)) is not bool
             for name in (
@@ -117,6 +128,32 @@ class CiboSovereignCeilingEpochResult:
             raise CiboCapitalManagementError(
                 "sovereign ceiling epoch governance violated"
             )
+
+
+def _provider_cost_per_volume(
+    *,
+    opportunity: TraderOpportunityEnvelope,
+    option_id: str,
+    twin: CiboObservedEconomicTwin,
+) -> Decimal:
+    rows = tuple(
+        item for item in twin.opportunities if item.option_id == option_id
+    )
+    if len(rows) != 1:
+        raise CiboCapitalManagementError(
+            "sovereign ceiling provider cost option missing from twin"
+        )
+    minimum_volume = minimum_seed_volume(opportunity)
+    provider_cost = rows[0].provider_cost_usd
+    if (
+        not isinstance(provider_cost, Decimal)
+        or not provider_cost.is_finite()
+        or provider_cost < 0
+    ):
+        raise CiboCapitalManagementError(
+            "sovereign ceiling provider cost must be finite non-negative"
+        )
+    return provider_cost / minimum_volume
 
 
 def _risk_priority(
@@ -292,16 +329,40 @@ def execute_sovereign_ceiling_epoch(
 
     authorization_by_signal: dict[str, RiskAuthorization] = {}
     risk_order: list[str] = []
+    provider_cost_reserve = Decimal(0)
     for signal, native in risk_ready:
         request = native.capital.risk_request
         assert request is not None
+        cost_per_volume = _provider_cost_per_volume(
+            opportunity=opportunity_by_signal[signal],
+            option_id=mapping[signal],
+            twin=twin,
+        )
+        requested_cost = cost_per_volume * request.requested_volume
+        available_for_stop_after_cost = max(
+            Decimal(0),
+            risk_snapshot.qore_authorizable_headroom
+            - provider_cost_reserve
+            - requested_cost,
+        )
+        cost_reserved_snapshot = replace(
+            risk_snapshot,
+            qore_authorizable_headroom=available_for_stop_after_cost,
+        )
         authorization = risk_engine.authorize(
             request,
-            risk_snapshot,
+            cost_reserved_snapshot,
             now=decision_at,
         )
         authorization_by_signal[signal] = authorization
         risk_order.append(signal)
+        if authorization.decision in {
+            RiskDecision.ALLOW,
+            RiskDecision.REDUCE,
+        }:
+            provider_cost_reserve += (
+                cost_per_volume * authorization.authorized_volume
+            )
 
     receipts = tuple(
         decision_receipt_from_native_runtime(
@@ -328,6 +389,7 @@ def execute_sovereign_ceiling_epoch(
         native_decisions=native_decisions,
         risk_authorizations=authorizations,
         risk_submission_order=tuple(risk_order),
+        provider_cost_reserve_usd=provider_cost_reserve,
         full_simultaneous_surface_used=True,
         outcome_used_for_predecision=False,
         broker_mutation=False,
