@@ -192,13 +192,13 @@ function Invoke-TypedJob {
             $recurse=[bool](Get-PropertyValue -Object $Job -Name "recurse" -Default $false)
             $items=if($recurse){Get-ChildItem -LiteralPath $path -Force -Recurse -ErrorAction Stop|Select-Object -First $maxItems}else{Get-ChildItem -LiteralPath $path -Force -ErrorAction Stop|Select-Object -First $maxItems}
             $rows=@()
-            foreach($item in $items){$rows+=@{name=$item.Name;full_name=$item.FullName;type=if($item.PSIsContainer){"directory"}else{"file"};length=if($item.PSIsContainer){$null}else{$item.Length};last_write_utc=$item.LastWriteTimeUtc.ToString("o")}}
+            foreach($item in $items){$itemKind=$(if($item.PSIsContainer){"directory"}else{"file"});$itemLength=$(if($item.PSIsContainer){$null}else{$item.Length});$rows+=@{name=$item.Name;full_name=$item.FullName;type=$itemKind;length=$itemLength;last_write_utc=$item.LastWriteTimeUtc.ToString("o")}}
             return @{ok=$true;operation="list_directory";path=$path;items=$rows}
         }
         "file_info" {
             $path=Require-Path -Job $Job
             $item=Get-Item -LiteralPath $path -Force
-            return @{ok=$true;operation="file_info";full_name=$item.FullName;type=if($item.PSIsContainer){"directory"}else{"file"};length=if($item.PSIsContainer){$null}else{$item.Length};creation_utc=$item.CreationTimeUtc.ToString("o");last_write_utc=$item.LastWriteTimeUtc.ToString("o");attributes=[string]$item.Attributes}
+            $itemKind=$(if($item.PSIsContainer){"directory"}else{"file"});$itemLength=$(if($item.PSIsContainer){$null}else{$item.Length});return @{ok=$true;operation="file_info";full_name=$item.FullName;type=$itemKind;length=$itemLength;creation_utc=$item.CreationTimeUtc.ToString("o");last_write_utc=$item.LastWriteTimeUtc.ToString("o");attributes=[string]$item.Attributes}
         }
         "read_text" {
             $path=Require-Path -Job $Job
@@ -218,7 +218,7 @@ function Invoke-TypedJob {
             $name=[string](Get-PropertyValue -Object $Job -Name "name" -Default "")
             $procs=if([string]::IsNullOrWhiteSpace($name)){Get-Process|Sort-Object ProcessName,Id}else{Get-Process -Name $name -ErrorAction SilentlyContinue|Sort-Object ProcessName,Id}
             $rows=@()
-            foreach($p in ($procs|Select-Object -First 500)){$rows+=@{name=$p.ProcessName;id=$p.Id;cpu_seconds=if($null -eq $p.CPU){$null}else{[Math]::Round($p.CPU,3)};working_set_mb=[Math]::Round($p.WorkingSet64/1MB,2)}}
+            foreach($p in ($procs|Select-Object -First 500)){$cpuSeconds=$(if($null -eq $p.CPU){$null}else{[Math]::Round($p.CPU,3)});$rows+=@{name=$p.ProcessName;id=$p.Id;cpu_seconds=$cpuSeconds;working_set_mb=[Math]::Round($p.WorkingSet64/1MB,2)}}
             return @{ok=$true;operation="list_processes";processes=$rows}
         }
         "service_status" {
