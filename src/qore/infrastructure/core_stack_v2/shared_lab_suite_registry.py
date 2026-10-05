@@ -26,6 +26,9 @@ class SuiteDefinition:
     dependencies: tuple[str, ...]
     command: tuple[str, ...]
     component_globs: tuple[str, ...]
+    execution_origin: str = "HARNESS"
+    dataset_id: str | None = None
+    dataset_version: str | None = None
 
 
 class NativeSuiteRegistry:
@@ -57,6 +60,19 @@ class NativeSuiteRegistry:
                     command=tuple(str(x) for x in payload["command"]),
                     component_globs=tuple(
                         str(x) for x in payload.get("component_globs", [])
+                    ),
+                    execution_origin=str(
+                        payload.get("execution_origin", "TARGET")
+                    ).upper(),
+                    dataset_id=(
+                        None
+                        if payload.get("dataset_id") is None
+                        else str(payload["dataset_id"])
+                    ),
+                    dataset_version=(
+                        None
+                        if payload.get("dataset_version") is None
+                        else str(payload["dataset_version"])
                     ),
                 )
             )
@@ -93,6 +109,9 @@ class NativeSuiteRegistry:
                 component_globs=definition.component_globs,
                 timeout_seconds=request.policy.timeout_seconds,
                 retries=request.policy.retries,
+                execution_origin=definition.execution_origin,
+                dataset_id=definition.dataset_id,
+                dataset_version=definition.dataset_version,
             )
             for definition in self.definitions()
             if definition.task_id in selected
