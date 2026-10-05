@@ -713,6 +713,417 @@ def _extract_dataset(dataset: Path) -> tuple[tempfile.TemporaryDirectory[str], P
     return temp, root
 
 
+
+def _prepared_metadata_path(path: Path) -> Path:
+    return path.with_suffix(path.suffix + ".json")
+
+
+def _save_prepared_partition(
+    *,
+    path: Path,
+    partition: str,
+    features: np.ndarray,
+    targets: np.ndarray,
+    source_times: tuple[datetime, ...],
+    metadata: dict[str, Any],
+) -> dict[str, Any]:
+    if partition not in {"r6", "r5"}:
+        raise ValueError("prepared partition must be r6 or r5")
+    if features.ndim != 2 or features.shape[1] != len(BASELINE_FEATURE_NAMES):
+        raise ValueError("prepared feature shape drift")
+    if targets.ndim != 2 or targets.shape[1] != len(TARGET_NAMES):
+        raise ValueError("prepared target shape drift")
+    if features.shape[0] != targets.shape[0] or features.shape[0] != len(source_times):
+        raise ValueError("prepared partition cardinality mismatch")
+    if not np.isfinite(features).all() or not np.isfinite(targets).all():
+        raise ValueError("prepared matrices must be finite")
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    source_ns = np.asarray(
+        [int(item.timestamp() * 1_000_000_000) for item in source_times],
+        dtype=np.int64,
+    )
+    np.savez(
+        path,
+        features=np.asarray(features, dtype=np.float64),
+        targets=np.asarray(targets, dtype=np.float64),
+        source_ns=source_ns,
+    )
+    matrix_sha256 = _sha256_file(path)
+    payload = {
+        "schema": "QORE_SHARED_A2_PREPARED_PARTITION_001",
+        "capsule_id": CAPSULE_ID,
+        "partition": partition,
+        "dataset_sha256": DATASET_SHA256,
+        "matrix_sha256": matrix_sha256,
+        "feature_names": BASELINE_FEATURE_NAMES,
+        "target_names": TARGET_NAMES,
+        "row_count": int(features.shape[0]),
+        "metadata": metadata,
+        "future_market_used_for_source_features": False,
+        "future_market_used_offline_for_validation_targets": True,
+        "pnl_used": False,
+        "trader_methodology_used": False,
+        "protected_certification_holdout_opened": False,
+        "productive_authority": False,
+    }
+    _prepared_metadata_path(path).write_text(
+        json.dumps(payload, sort_keys=True, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    return payload
+
+
+def _load_prepared_partition(
+    path: Path,
+    *,
+    expected_partition: str,
+) -> tuple[np.ndarray, np.ndarray, tuple[datetime, ...], dict[str, Any]]:
+    metadata_path = _prepared_metadata_path(path)
+    payload = json.loads(metadata_path.read_text(encoding="utf-8"))
+    if payload.get("capsule_id") != CAPSULE_ID:
+        raise ValueError("prepared capsule identity drift")
+    if payload.get("partition") != expected_partition:
+        raise ValueError("prepared partition identity drift")
+    if payload.get("dataset_sha256") != DATASET_SHA256:
+        raise ValueError("prepared dataset identity drift")
+    if payload.get("matrix_sha256") != _sha256_file(path):
+        raise ValueError("prepared matrix hash mismatch")
+    if tuple(payload.get("feature_names", ())) != BASELINE_FEATURE_NAMES:
+        raise ValueError("prepared feature-name drift")
+    if tuple(payload.get("target_names", ())) != TARGET_NAMES:
+        raise ValueError("prepared target-name drift")
+
+    with np.load(path, allow_pickle=False) as data:
+        features = np.asarray(data["features"], dtype=np.float64)
+        targets = np.asarray(data["targets"], dtype=np.float64)
+        source_ns = np.asarray(data["source_ns"], dtype=np.int64)
+    source_times = tuple(
+        datetime.fromtimestamp(int(value) / 1_000_000_000, tz=UTC)
+        for value in source_ns
+    )
+    if int(payload.get("row_count", -1)) != features.shape[0]:
+        raise ValueError("prepared row-count drift")
+    if features.shape[0] != targets.shape[0] or features.shape[0] != len(source_times):
+        raise ValueError("prepared cardinality drift")
+    return features, targets, source_times, payload
+
+
+def _prepare_partition_from_dataset(
+    dataset: Path,
+    *,
+    partition: str,
+    output: Path,
+) -> dict[str, Any]:
+    temp, root = _extract_dataset(dataset)
+    try:
+        features, targets, source_times, metadata = _partition(root, partition)
+        payload = _save_prepared_partition(
+            path=output,
+            partition=partition,
+            features=features,
+            targets=targets,
+            source_times=source_times,
+            metadata=metadata,
+        )
+        return {
+            "capsule_id": CAPSULE_ID,
+            "status": f"{partition.upper()}_PREPARED_PASS",
+            "partition": partition,
+            "dataset_sha256": DATASET_SHA256,
+            "matrix_sha256": payload["matrix_sha256"],
+            "row_count": payload["row_count"],
+            "source_observation_count": metadata["source_observation_count"],
+            "scored_novel_or_near_count": metadata["scored_novel_or_near_count"],
+            "protected_certification_holdout_opened": False,
+            "productive_authority": False,
+        }
+    finally:
+        temp.cleanup()
+
+
+def _mc23_from_prepared(
+    *,
+    r6_prepared: Path,
+    r5_prepared: Path,
+    output: Path,
+) -> dict[str, Any]:
+    r6_x, r6_y, _r6_times, r6_payload = _load_prepared_partition(
+        r6_prepared,
+        expected_partition="r6",
+    )
+    r5_x, r5_y, _r5_times, r5_payload = _load_prepared_partition(
+        r5_prepared,
+        expected_partition="r5",
+    )
+    r6_meta = dict(r6_payload["metadata"])
+    r5_meta = dict(r5_payload["metadata"])
+    if str(r6_meta["source_max"]) >= str(r5_meta["source_min"]):
+        raise ValueError("R6/R5 temporal order invalid")
+
+    r6_adaptive = _adaptive_design(r6_x)
+    r5_adaptive = _adaptive_design(r5_x)
+    baseline = _fit(r6_x, r6_y, BASELINE_FEATURE_NAMES)
+    adaptive = _fit(
+        r6_adaptive,
+        r6_y,
+        BASELINE_FEATURE_NAMES + ADAPTIVE_INTERACTION_NAMES,
+    )
+    validation = _evaluate(
+        baseline,
+        adaptive,
+        r5_x,
+        r5_adaptive,
+        r5_y,
+    )
+    baseline_repeat = _fit(r6_x, r6_y, BASELINE_FEATURE_NAMES)
+    adaptive_repeat = _fit(
+        r6_adaptive,
+        r6_y,
+        BASELINE_FEATURE_NAMES + ADAPTIVE_INTERACTION_NAMES,
+    )
+    validation_repeat = _evaluate(
+        baseline_repeat,
+        adaptive_repeat,
+        r5_x,
+        r5_adaptive,
+        r5_y,
+    )
+    deterministic = (
+        baseline.fingerprint() == baseline_repeat.fingerprint()
+        and adaptive.fingerprint() == adaptive_repeat.fingerprint()
+        and validation == validation_repeat
+    )
+    if not deterministic:
+        raise AssertionError("MC23 deterministic repeat failed")
+
+    if validation.sample_count < MINIMUM_R5_SCORED_OBSERVATIONS:
+        status = (
+            "MC23_VALIDATED_REAL_NOVEL_REGIME_ADAPTATION_"
+            "INSUFFICIENT_EVIDENCE"
+        )
+        passed = False
+    elif validation.pass_gate:
+        status = "MC23_VALIDATED_REAL_NOVEL_REGIME_ADAPTATION_PASS"
+        passed = True
+    else:
+        status = (
+            "MC23_VALIDATED_REAL_NOVEL_REGIME_ADAPTATION_"
+            "FALSIFIED_AND_CLOSED_FOR_THIS_MECHANISM"
+        )
+        passed = False
+
+    payload = {
+        "capsule_id": CAPSULE_ID,
+        "identity": "QORE_SHARED_MC23_VALIDATED_NOVEL_REGIME_ADAPTATION_001",
+        "preregistration": MC23_PREREG,
+        "canonical_source_blobs": CANONICAL_SOURCE_BLOBS,
+        "dataset_sha256": DATASET_SHA256,
+        "status": status,
+        "r6": r6_meta,
+        "r5": r5_meta,
+        "r6_prepared_matrix_sha256": r6_payload["matrix_sha256"],
+        "r5_prepared_matrix_sha256": r5_payload["matrix_sha256"],
+        "baseline_feature_names": BASELINE_FEATURE_NAMES,
+        "adaptive_interaction_names": ADAPTIVE_INTERACTION_NAMES,
+        "target_names": TARGET_NAMES,
+        "baseline_model_fingerprint": baseline.fingerprint(),
+        "adaptive_model_fingerprint": adaptive.fingerprint(),
+        "validation": asdict(validation),
+        "deterministic_repeat_pass": True,
+        "temporal_order_pass": True,
+        "r5_refit": False,
+        "r5_feature_selection": False,
+        "threshold_retuning_after_r5": False,
+        "future_market_used_for_source_features": False,
+        "future_market_used_offline_for_validation": True,
+        "pnl_used": False,
+        "trader_methodology_used": False,
+        "protected_certification_holdout_opened": False,
+        "certified_knowledge_mutation": False,
+        "productive_authority": False,
+        "real_novel_regime_validated_adaptation": passed,
+        "mc23_completed_and_proven": passed,
+        "next_gate": (
+            "BIND_VALIDATED_MC23_ADAPTATION_INTO_MC24"
+            if passed
+            else "NEW_PREREGISTERED_MECHANISM_REQUIRED"
+        ),
+    }
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(
+        json.dumps(payload, sort_keys=True, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    return payload
+
+
+def _half_life_from_prepared(
+    *,
+    r6_prepared: Path,
+    r5_prepared: Path,
+    mc23_result_path: Path,
+    prior_mc24_path: Path,
+    output: Path,
+) -> dict[str, Any]:
+    mc23 = json.loads(mc23_result_path.read_text(encoding="utf-8"))
+    if mc23.get("status") != "MC23_VALIDATED_REAL_NOVEL_REGIME_ADAPTATION_PASS":
+        raise ValueError("MC24 cannot bind failed MC23 adaptation")
+    prior_mc24 = json.loads(prior_mc24_path.read_text(encoding="utf-8"))
+    if prior_mc24.get("status") != "MC24_REAL_REGRESSION_SUITE_BOUND_PASS":
+        raise ValueError("sealed prior MC24 regression evidence missing")
+    if prior_mc24.get("catastrophic_forgetting_detected") is not False:
+        raise ValueError("sealed prior MC24 detected forgetting")
+
+    r6_x, r6_y, _r6_times, _ = _load_prepared_partition(
+        r6_prepared,
+        expected_partition="r6",
+    )
+    r5_x, r5_y, r5_times, _ = _load_prepared_partition(
+        r5_prepared,
+        expected_partition="r5",
+    )
+    r6_adaptive = _adaptive_design(r6_x)
+    r5_adaptive = _adaptive_design(r5_x)
+    baseline = _fit(r6_x, r6_y, BASELINE_FEATURE_NAMES)
+    adaptive = _fit(
+        r6_adaptive,
+        r6_y,
+        BASELINE_FEATURE_NAMES + ADAPTIVE_INTERACTION_NAMES,
+    )
+    if baseline.fingerprint() != mc23["baseline_model_fingerprint"]:
+        raise ValueError("MC23 baseline fingerprint drift")
+    if adaptive.fingerprint() != mc23["adaptive_model_fingerprint"]:
+        raise ValueError("MC23 adaptive fingerprint drift")
+
+    origin = min(r5_times)
+    grouped: dict[int, list[int]] = {}
+    for index, observed_at in enumerate(r5_times):
+        age_days = int((observed_at - origin).total_seconds() // 86_400)
+        grouped.setdefault(age_days // HALF_LIFE_BIN_DAYS, []).append(index)
+
+    bins: list[dict[str, Any]] = []
+    for bin_index in sorted(grouped):
+        indexes = np.asarray(grouped[bin_index], dtype=np.int64)
+        validation = _evaluate(
+            baseline,
+            adaptive,
+            r5_x[indexes],
+            r5_adaptive[indexes],
+            r5_y[indexes],
+        )
+        bins.append(
+            {
+                "bin_index": bin_index,
+                "start_age_days": bin_index * HALF_LIFE_BIN_DAYS,
+                "end_age_days": (bin_index + 1) * HALF_LIFE_BIN_DAYS,
+                "sample_count": validation.sample_count,
+                "pooled_incremental_information_bps": (
+                    validation.pooled_incremental_information_bps
+                ),
+                "maximum_target_regression_bps": (
+                    validation.maximum_target_regression_bps
+                ),
+                "positive_target_count": validation.positive_target_count,
+                "incremental_information_bps": (
+                    validation.incremental_information_bps
+                ),
+            }
+        )
+
+    eligible = [
+        row for row in bins
+        if row["sample_count"] >= HALF_LIFE_MIN_SAMPLES_PER_BIN
+    ]
+    forgetting = any(
+        row["maximum_target_regression_bps"] > MAXIMUM_TARGET_REGRESSION_BPS
+        for row in eligible
+    )
+    half_life_days = None
+    lower_bound_days = None
+    reference = next(
+        (
+            row for row in eligible
+            if row["pooled_incremental_information_bps"] > 0
+        ),
+        None,
+    )
+    empirical = False
+    disposition = "MC24_EMPIRICAL_KNOWLEDGE_HALF_LIFE_INSUFFICIENT_EVIDENCE"
+    threshold = None
+    if len(eligible) >= HALF_LIFE_MIN_ELIGIBLE_BINS and reference is not None:
+        threshold = (
+            reference["pooled_incremental_information_bps"]
+            * HALF_LIFE_FRACTION_BPS
+            // 10_000
+        )
+        after = [
+            row for row in eligible
+            if row["bin_index"] >= reference["bin_index"]
+        ]
+        for first, second in zip(after, after[1:], strict=False):
+            if (
+                second["bin_index"] == first["bin_index"] + 1
+                and first["pooled_incremental_information_bps"] <= threshold
+                and second["pooled_incremental_information_bps"] <= threshold
+            ):
+                half_life_days = first["start_age_days"]
+                disposition = "MC24_EMPIRICAL_KNOWLEDGE_HALF_LIFE_MEASURED"
+                empirical = True
+                break
+        if not empirical:
+            lower_bound_days = max(row["end_age_days"] for row in eligible)
+            disposition = "MC24_EMPIRICAL_KNOWLEDGE_HALF_LIFE_LOWER_BOUND"
+            empirical = True
+
+    completed = empirical and not forgetting
+    payload = {
+        "capsule_id": CAPSULE_ID,
+        "identity": "QORE_SHARED_MC24_VALIDATED_ADAPTATION_HALF_LIFE_001",
+        "preregistration": MC24_PREREG,
+        "dataset_sha256": DATASET_SHA256,
+        "status": (
+            "MC24_VALIDATED_ADAPTATION_HALF_LIFE_PASS"
+            if completed
+            else "MC24_VALIDATED_ADAPTATION_HALF_LIFE_NOT_CLOSED"
+        ),
+        "half_life_disposition": disposition,
+        "half_life_bins": bins,
+        "eligible_bin_count": len(eligible),
+        "reference_bin_index": None if reference is None else reference["bin_index"],
+        "reference_incremental_information_bps": (
+            None
+            if reference is None
+            else reference["pooled_incremental_information_bps"]
+        ),
+        "half_life_threshold_bps": threshold,
+        "half_life_days": half_life_days,
+        "lower_bound_days": lower_bound_days,
+        "mc23_real_regime_adaptation_bound": True,
+        "prior_real_regression_suite_bound": True,
+        "empirical_half_life_validated": empirical,
+        "catastrophic_forgetting_detected": forgetting,
+        "retained_knowledge_non_degradation_pass": not forgetting,
+        "stable_certified_knowledge_overwritten": False,
+        "r5_refit": False,
+        "threshold_retuning_after_r5": False,
+        "protected_certification_holdout_opened": False,
+        "productive_authority": False,
+        "mc24_completed_and_proven": completed,
+        "next_gate": (
+            "MC25_SAME_LINEAGE_PERFORMANCE_STRESS"
+            if completed
+            else "MC24_REMAINS_OPEN"
+        ),
+    }
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(
+        json.dumps(payload, sort_keys=True, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    return payload
+
+
 def _mc23(dataset: Path, output: Path) -> dict[str, Any]:
     temp, root = _extract_dataset(dataset)
     try:
@@ -1017,11 +1428,14 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--mode",
-        choices=("self-test", "mc23", "mc24"),
+        choices=("self-test", "prepare-r6", "prepare-r5", "mc23", "mc23-prepared", "mc24", "mc24-prepared"),
         required=True,
     )
     parser.add_argument("--dataset", type=Path)
     parser.add_argument("--mc23-result", type=Path)
+    parser.add_argument("--r6-prepared", type=Path)
+    parser.add_argument("--r5-prepared", type=Path)
+    parser.add_argument("--prior-mc24", type=Path)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
 
@@ -1029,6 +1443,55 @@ def main() -> None:
         payload = _self_test()
         print(json.dumps(payload, sort_keys=True))
         return
+
+    if args.mode in {"prepare-r6", "prepare-r5"}:
+        if args.dataset is None or args.output is None:
+            raise SystemExit("prepare-r6/prepare-r5 require --dataset and --output")
+        partition = "r6" if args.mode == "prepare-r6" else "r5"
+        payload = _prepare_partition_from_dataset(
+            args.dataset,
+            partition=partition,
+            output=args.output,
+        )
+        print(json.dumps(payload, sort_keys=True))
+        return
+
+    if args.mode == "mc23-prepared":
+        if args.r6_prepared is None or args.r5_prepared is None or args.output is None:
+            raise SystemExit(
+                "mc23-prepared requires --r6-prepared --r5-prepared --output"
+            )
+        payload = _mc23_from_prepared(
+            r6_prepared=args.r6_prepared,
+            r5_prepared=args.r5_prepared,
+            output=args.output,
+        )
+        print(json.dumps(payload, sort_keys=True))
+        raise SystemExit(
+            0 if payload["real_novel_regime_validated_adaptation"] else 2
+        )
+
+    if args.mode == "mc24-prepared":
+        if (
+            args.r6_prepared is None
+            or args.r5_prepared is None
+            or args.mc23_result is None
+            or args.prior_mc24 is None
+            or args.output is None
+        ):
+            raise SystemExit(
+                "mc24-prepared requires prepared matrices, MC23 result, "
+                "prior MC24 evidence and --output"
+            )
+        payload = _half_life_from_prepared(
+            r6_prepared=args.r6_prepared,
+            r5_prepared=args.r5_prepared,
+            mc23_result_path=args.mc23_result,
+            prior_mc24_path=args.prior_mc24,
+            output=args.output,
+        )
+        print(json.dumps(payload, sort_keys=True))
+        raise SystemExit(0 if payload["mc24_completed_and_proven"] else 2)
 
     if args.dataset is None or args.output is None:
         raise SystemExit("mc23/mc24 require --dataset and --output")
