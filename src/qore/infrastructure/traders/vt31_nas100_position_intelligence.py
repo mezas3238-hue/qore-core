@@ -204,8 +204,8 @@ def structurally_rearmed(
     )
 
 
-class SingleUnitTargetIntent(StrEnum):
-    """Causal target intent that remains executable when total volume is 0.01."""
+class UniversalTargetIntent(StrEnum):
+    """Causal target intent independent of trade volume and provider lot size."""
 
     PRESERVE_DOL1 = "PRESERVE_DOL1"
     EXTEND_FULL_UNIT_TO_DOL2 = "EXTEND_FULL_UNIT_TO_DOL2"
@@ -229,7 +229,7 @@ class FullCognitivePositionState:
 
     management_context: ManagementContext
     destination_state: str
-    target_intent: SingleUnitTargetIntent
+    target_intent: UniversalTargetIntent
     protection_urgency: ProtectionUrgency
     support_score: int
     caution_score: int
@@ -243,7 +243,8 @@ class FullCognitivePositionState:
     memory_fingerprint: str
     entry_tier: str | None
     dol1_acceptance_observed: bool | None
-    minimum_volume_compatible: Decimal = Decimal("0.01")
+    volume_agnostic: bool = True
+    partial_execution_required: bool = False
     terminal_pnl_used: bool = False
     future_journey_label_used: bool = False
 
@@ -352,7 +353,7 @@ def assess_full_cognitive_position(
     entry_tier: str | None = None,
     dol1_acceptance_observed: bool | None = None,
 ) -> FullCognitivePositionState:
-    """Synthesize all causal VT31 cognitive domains into one position state."""
+    """Synthesize all causal VT31 cognition without using trade volume as input."""
 
     if reasoning.situation_fingerprint != situation.fingerprint():
         raise ValueError("reasoning/situation fingerprint mismatch")
@@ -664,16 +665,16 @@ def assess_full_cognitive_position(
     )
 
     if exhaustion:
-        target_intent = SingleUnitTargetIntent.EXIT_ON_CONFIRMED_EXHAUSTION
+        target_intent = UniversalTargetIntent.EXIT_ON_CONFIRMED_EXHAUSTION
     elif (
         dol1_reached
         and destination_state == "DEEP"
         and dol1_acceptance_observed is True
         and context is not ManagementContext.CAUTIOUS
     ):
-        target_intent = SingleUnitTargetIntent.EXTEND_FULL_UNIT_TO_DOL2
+        target_intent = UniversalTargetIntent.EXTEND_FULL_UNIT_TO_DOL2
     else:
-        target_intent = SingleUnitTargetIntent.PRESERVE_DOL1
+        target_intent = UniversalTargetIntent.PRESERVE_DOL1
 
     return FullCognitivePositionState(
         management_context=context,
