@@ -30,6 +30,7 @@ from qore.infrastructure.cibo_capital_management_authority import (
     CapitalStage,
     CiboCapitalActionPlan,
     CiboCapitalManagementError,
+    CapitalSourceLot,
     CiboCapitalState,
     TraderOpportunityEnvelope,
     minimum_seed_volume,
@@ -163,14 +164,12 @@ def plan_account_sizing(
     base_protected = protected_capital_usd >= survival_capital_usd
 
     if mission_policy.mission is CiboCapitalMission.DEMO_CAPABILITY_DISCOVERY:
-        plan = _maximum_constrained_plan(
+        plan = _maximum_capability_plan(
             opportunity=opportunity,
             capital=capital,
-            action=CapitalAction.OPEN_CAPABILITY_MAX,
-            source=CapitalSource.ORIGINAL_BASE_CAPITAL,
             reason=(
                 "DEMO capability discovery: CIBO selected maximum executable "
-                "account-constrained size"
+                "account-constrained size with explicit base/profit provenance"
             ),
         )
         return CiboAccountSizingDecision(
@@ -219,6 +218,84 @@ def plan_account_sizing(
         survival_capital_usd=survival_capital_usd,
         protected_capital_usd=protected_capital_usd,
         plan=plan,
+    )
+
+
+def _maximum_capability_plan(
+    *,
+    opportunity: TraderOpportunityEnvelope,
+    capital: CiboCapitalState,
+    reason: str,
+) -> CiboCapitalActionPlan:
+    """Size capability discovery without mislabeling compounded profit as base.
+
+    The volume law is identical to the ordinary maximum-constrained plan.
+    This helper changes only capital-source provenance: original base funds at
+    most the non-profit portion of assigned capital and any remaining risk is
+    explicitly funded by proven REALIZED_PROFIT capacity.
+    """
+
+    provisional = _maximum_constrained_plan(
+        opportunity=opportunity,
+        capital=capital,
+        action=CapitalAction.OPEN_CAPABILITY_MAX,
+        source=CapitalSource.ORIGINAL_BASE_CAPITAL,
+        reason=reason,
+    )
+    risk = provisional.stop_risk_usd
+    realized_profit_capacity = min(
+        capital.realized_net_profit_usd,
+        capital.proven_self_financing_capacity_usd,
+    )
+    original_base_capacity = max(
+        Decimal(0),
+        capital.assigned_capital_usd - capital.realized_net_profit_usd,
+    )
+    base_amount = min(risk, original_base_capacity)
+    profit_amount = risk - base_amount
+    if profit_amount > realized_profit_capacity:
+        raise CiboCapitalManagementError(
+            "capability sizing risk exceeds proven base/profit source capacity"
+        )
+
+    lots: list[CapitalSourceLot] = []
+    if base_amount > 0:
+        lots.append(
+            CapitalSourceLot(
+                source=CapitalSource.ORIGINAL_BASE_CAPITAL,
+                amount_usd=base_amount,
+                source_id="cibo:assigned-original-base",
+            )
+        )
+    if profit_amount > 0:
+        lots.append(
+            CapitalSourceLot(
+                source=CapitalSource.REALIZED_PROFIT,
+                amount_usd=profit_amount,
+                source_id="cibo:realized-profit-pool",
+            )
+        )
+    if not lots:
+        raise CiboCapitalManagementError(
+            "capability sizing produced no capital-source provenance"
+        )
+
+    return CiboCapitalActionPlan(
+        trader_id=provisional.trader_id,
+        qore_symbol=provisional.qore_symbol,
+        stage=provisional.stage,
+        action=provisional.action,
+        volume=provisional.volume,
+        stop_risk_usd=provisional.stop_risk_usd,
+        margin_usd=provisional.margin_usd,
+        capital_source=(
+            lots[0].source
+            if len(lots) == 1
+            else None
+        ),
+        capital_source_amount_usd=risk,
+        reason=provisional.reason,
+        capital_source_lots=tuple(lots),
     )
 
 
