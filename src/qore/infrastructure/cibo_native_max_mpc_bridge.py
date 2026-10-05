@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import json
 from datetime import timedelta
+from decimal import Decimal
 
 from qore.infrastructure.cibo_capital_digital_twin import (
     Genc10WorldKind,
@@ -147,10 +148,10 @@ def build_native_max_mpc_inputs(
                         index,
                     ),
                     flows=(),
-                    stop_risk_capacity_delta_usd=0,
-                    stop_risk_usage_delta_usd=0,
-                    margin_capacity_delta_usd=0,
-                    margin_usage_delta_usd=0,
+                    stop_risk_capacity_delta_usd=Decimal("0"),
+                    stop_risk_usage_delta_usd=Decimal("0"),
+                    margin_capacity_delta_usd=Decimal("0"),
+                    margin_usage_delta_usd=Decimal("0"),
                     surviving_known_option_ids=option_ids,
                     hypothetical_new_option_count=0,
                     provider_constraints_changed=False,
