@@ -178,11 +178,12 @@ def _success(
     payload: dict[str, object] = {
         "result_type": type(value).__name__,
         "result_sha256": "sha256:" + hashlib.sha256(raw).hexdigest(),
+        "semantic_transport": "FULL_CANONICAL_READ_ONLY",
     }
     if isinstance(canonical, (str, int, float, bool)) or canonical is None:
         payload["result_value"] = canonical
-    elif isinstance(canonical, dict) and "response_count" in canonical:
-        payload["response_count"] = canonical["response_count"]
+    else:
+        payload["result_semantics"] = canonical
     return CiboNativeFacultyRuntimeObservation(
         function_code=function_code,
         engine_name=engine_name,

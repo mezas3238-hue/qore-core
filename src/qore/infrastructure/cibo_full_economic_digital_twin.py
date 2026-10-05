@@ -89,6 +89,22 @@ class CiboObservedPositionState:
     released_margin_usd: Decimal
     remaining_reward_r: Decimal
     provider_cost_usd: Decimal
+    entry_price: Decimal | None = None
+    structural_stop: Decimal | None = None
+    technical_target: Decimal | None = None
+    current_mark_price: Decimal | None = None
+    market_state_observed_at: datetime | None = None
+    mark_to_market_identified: bool = False
+    entry_expected_net_value_usd: Decimal = Decimal(0)
+    entry_expected_capital_minutes: Decimal = Decimal(1)
+    expectation_evidence_sha256: str = "sha256:" + "0" * 64
+    remaining_reward_identified: bool = False
+    expected_continuation_net_value_usd: Decimal = Decimal(0)
+    expected_remaining_capital_minutes: Decimal = Decimal(1)
+    release_cost_usd: Decimal = Decimal(0)
+    uncertainty_penalty: Decimal = Decimal(0)
+    releasable: bool = True
+    continuation_value_identified: bool = False
     lifecycle_actions: tuple[CiboLifecycleAction, ...] = ()
     future_outcome_used: bool = False
     structural_stop_widened: bool = False
@@ -115,8 +131,82 @@ class CiboObservedPositionState:
             "released_stop_risk_usd",
             "released_margin_usd",
             "provider_cost_usd",
+            "entry_expected_capital_minutes",
+            "expected_remaining_capital_minutes",
+            "release_cost_usd",
+            "uncertainty_penalty",
         ):
             _finite(getattr(self, name), name)
+        _finite(
+            self.entry_expected_net_value_usd,
+            "entry_expected_net_value_usd",
+            nonnegative=False,
+        )
+        _finite(
+            self.expected_continuation_net_value_usd,
+            "expected_continuation_net_value_usd",
+            nonnegative=False,
+        )
+        if self.expected_remaining_capital_minutes <= 0:
+            raise CiboCapitalManagementError(
+                "Full Economic Twin position remaining capital minutes must be positive"
+            )
+        if (
+            not isinstance(self.expectation_evidence_sha256, str)
+            or not self.expectation_evidence_sha256.startswith("sha256:")
+            or len(self.expectation_evidence_sha256) != 71
+        ):
+            raise CiboCapitalManagementError(
+                "Full Economic Twin position expectation evidence invalid"
+            )
+        for name in (
+            "entry_price",
+            "structural_stop",
+            "technical_target",
+            "current_mark_price",
+        ):
+            value = getattr(self, name)
+            if value is not None:
+                _finite(value, name, nonnegative=False)
+        if type(self.mark_to_market_identified) is not bool:
+            raise CiboCapitalManagementError(
+                "Full Economic Twin mark-to-market identity must be bool"
+            )
+        if self.mark_to_market_identified:
+            if (
+                self.entry_price is None
+                or self.structural_stop is None
+                or self.technical_target is None
+                or self.current_mark_price is None
+                or self.market_state_observed_at is None
+            ):
+                raise CiboCapitalManagementError(
+                    "Full Economic Twin identified mark requires complete price geometry"
+                )
+            _aware(
+                self.market_state_observed_at,
+                "position market_state_observed_at",
+            )
+            if self.market_state_observed_at > self.observed_at:
+                raise CiboCapitalManagementError(
+                    "Full Economic Twin market state cannot be future-known"
+                )
+        elif self.current_mark_price is not None:
+            raise CiboCapitalManagementError(
+                "Full Economic Twin unidentified mark cannot carry current_mark_price"
+            )
+        if type(self.remaining_reward_identified) is not bool:
+            raise CiboCapitalManagementError(
+                "Full Economic Twin remaining reward identity must be bool"
+            )
+        if type(self.releasable) is not bool:
+            raise CiboCapitalManagementError(
+                "Full Economic Twin position releasable must be bool"
+            )
+        if type(self.continuation_value_identified) is not bool:
+            raise CiboCapitalManagementError(
+                "Full Economic Twin position continuation identity must be bool"
+            )
         _finite(self.remaining_reward_r, "remaining_reward_r", nonnegative=False)
         if (
             self.future_outcome_used

@@ -171,3 +171,56 @@ def test_phase20i_contract_has_no_forecast_or_runtime_authority() -> None:
     assert plan.execution_authority is False
     assert plan.live_authorized is False
     assert plan.real_capital_authorized is False
+
+
+
+def test_phase20i_recovery_can_expose_one_explicit_measurement_probe() -> None:
+    plan = plan_phase20i_receding_horizon_capacity(
+        current_step=0,
+        horizon_steps=3,
+        posture=CiboRegimePosture.RECOVERY,
+        hard_risk_headroom_usd=Decimal("60"),
+        margin_headroom_usd=Decimal("500"),
+        known_options=(_option("future", 2, "10", "40"),),
+        recovery_probe_stop_risk_usd=Decimal("0.47"),
+        recovery_probe_margin_usd=Decimal("15.299"),
+    )
+
+    assert plan.reserve_stop_risk_usd == Decimal("59.53")
+    assert plan.reserve_margin_usd == Decimal("484.701")
+    assert plan.deployable_stop_risk_usd == Decimal("0.47")
+    assert plan.deployable_margin_usd == Decimal("15.299")
+    assert plan.horizon_fully_coverable is True
+    assert "measurement probe" in plan.reason
+
+
+def test_phase20i_halt_ignores_recovery_probe_and_preserves_all_capacity() -> None:
+    plan = plan_phase20i_receding_horizon_capacity(
+        current_step=0,
+        horizon_steps=3,
+        posture=CiboRegimePosture.HALT_NEW_CAPITAL,
+        hard_risk_headroom_usd=Decimal("60"),
+        margin_headroom_usd=Decimal("500"),
+        known_options=(),
+        recovery_probe_stop_risk_usd=Decimal("0.47"),
+        recovery_probe_margin_usd=Decimal("15.299"),
+    )
+
+    assert plan.reserve_stop_risk_usd == Decimal("60")
+    assert plan.reserve_margin_usd == Decimal("500")
+    assert plan.deployable_stop_risk_usd == Decimal("0")
+    assert plan.deployable_margin_usd == Decimal("0")
+
+
+def test_phase20i_recovery_probe_cannot_exceed_headroom() -> None:
+    with pytest.raises(CiboCapitalManagementError, match="cannot exceed"):
+        plan_phase20i_receding_horizon_capacity(
+            current_step=0,
+            horizon_steps=3,
+            posture=CiboRegimePosture.RECOVERY,
+            hard_risk_headroom_usd=Decimal("0.4"),
+            margin_headroom_usd=Decimal("10"),
+            known_options=(),
+            recovery_probe_stop_risk_usd=Decimal("0.47"),
+            recovery_probe_margin_usd=Decimal("15.299"),
+        )

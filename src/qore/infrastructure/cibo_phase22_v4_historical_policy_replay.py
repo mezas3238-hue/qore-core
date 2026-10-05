@@ -58,6 +58,10 @@ from qore.infrastructure.cibo_ce2i_phase20_train_prior import (
 )
 from qore.infrastructure.cibo_ce2i_regime_selector import (
     CiboCapitalRegimeState,
+    CiboRegimePosture,
+)
+from qore.infrastructure.cibo_recovery_probe_efficiency_guard import (
+    evaluate_recovery_probe_efficiency,
 )
 from qore.infrastructure.cibo_profitability_lab_context_quality import (
     ContextQualityDecision,
@@ -463,6 +467,48 @@ def evaluate_phase22_historical_policy(
         hard_risk_headroom_usd=hard_risk_headroom_usd,
         margin_headroom_usd=margin_headroom_usd,
     )
+    allocator_candidates = (
+        tuple(
+            item
+            for item in advanced_application.candidates
+            if item.signal_fingerprint in context_allowed
+        )
+        if lab_burned_context_quality_gate
+        else advanced_application.candidates
+    )
+    recovery_probe_candidates = tuple(
+        item
+        for item in allocator_candidates
+        if (
+            (
+                lab_allow_nonpositive_expectation
+                or item.expectation.expected_net_value_usd > 0
+            )
+            and evaluate_recovery_probe_efficiency(
+                expected_net_value_usd=item.expectation.expected_net_value_usd,
+                stop_risk_usd=item.stop_risk_usd,
+                hard_risk_headroom_usd=(
+                    advanced_application.effective_hard_risk_headroom_usd
+                ),
+            ).admitted
+        )
+    )
+    recovery_probe = (
+        min(
+            recovery_probe_candidates,
+            key=lambda item: (
+                item.stop_risk_usd,
+                item.margin_usd,
+                item.signal_fingerprint,
+            ),
+        )
+        if (
+            mission.capability_measurement_enabled
+            and full_surface.regime.posture is CiboRegimePosture.RECOVERY
+            and recovery_probe_candidates
+        )
+        else None
+    )
     mpc = plan_phase20i_receding_horizon_capacity(
         current_step=current_step,
         horizon_steps=FROZEN_PHASE20_POLICY_CANDIDATE.mpc_horizon_steps,
@@ -474,15 +520,24 @@ def evaluate_phase22_historical_policy(
             advanced_application.effective_margin_headroom_usd
         ),
         known_options=known_options,
+        recovery_probe_stop_risk_usd=(
+            Decimal(0)
+            if recovery_probe is None
+            else recovery_probe.stop_risk_usd
+        ),
+        recovery_probe_margin_usd=(
+            Decimal(0)
+            if recovery_probe is None
+            else recovery_probe.margin_usd
+        ),
     )
-    allocator_candidates = (
-        tuple(
-            item
-            for item in advanced_application.candidates
-            if item.signal_fingerprint in context_allowed
+    effective_allocator_candidates = (
+        recovery_probe_candidates
+        if (
+            mission.capability_measurement_enabled
+            and full_surface.regime.posture is CiboRegimePosture.RECOVERY
         )
-        if lab_burned_context_quality_gate
-        else advanced_application.candidates
+        else allocator_candidates
     )
     allocator = propose_phase20h_robust_allocation(
         mission=mission,
@@ -490,7 +545,7 @@ def evaluate_phase22_historical_policy(
         hard_risk_headroom_usd=mpc.deployable_stop_risk_usd,
         margin_headroom_usd=mpc.deployable_margin_usd,
         concentration_limit_by_group=concentration_limit_by_group,
-        candidates=allocator_candidates,
+        candidates=effective_allocator_candidates,
         known_options=(),
         lab_allow_nonpositive_expectation=lab_allow_nonpositive_expectation,
         runtime_scope_id=f"phase22:{market_decision_at.isoformat()}",

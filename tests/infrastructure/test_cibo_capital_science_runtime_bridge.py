@@ -302,6 +302,8 @@ def test_genc11_consumes_every_simultaneously_known_option() -> None:
         stop_risk_usd=Decimal("1.00"),
         margin_usd=Decimal("0.80"),
         evidence_sha256="sha256:" + "a" * 64,
+        expected_net_value_usd=Decimal("0.42"),
+        expected_capital_minutes=Decimal("18"),
     )
     directive = runtime.evaluate_capital_science_predecision(
         _state(
@@ -313,6 +315,12 @@ def test_genc11_consumes_every_simultaneously_known_option() -> None:
     c11 = next(item for item in directive.receipts if item.function_code == "GEN-C11")
 
     assert c10.output_payload["engine_output"]["known_option_count"] == 2
+    economic_rows = {
+        item["option_id"]: item
+        for item in c10.output_payload["engine_output"]["economic_opportunities"]
+    }
+    assert economic_rows["peer-signal"]["expected_net_value_usd"] == "0.42"
+    assert economic_rows["peer-signal"]["expected_capital_minutes"] == "18"
     assert set(c11.output_payload["engine_output"]["known_option_ids"]) == {
         "signal-1",
         "peer-signal",
@@ -420,3 +428,59 @@ def test_high_precision_profit_partition_conserves_native_genc5_lineage() -> Non
         by_code["GEN-C10"].output_payload["engine_output"]["deployed_profit_usd"]
         == "3.222222222222222222222222222222222222"
     )
+
+
+
+def test_runtime_full_twin_identifies_open_position_continuation_for_portfolio() -> None:
+    open_position = runtime.CapitalScienceOpenEconomicPosition(
+        signal_fingerprint="open-position-1",
+        trader_id="R38_EURUSD",
+        qore_symbol="EURUSD",
+        side="long",
+        entry_at=NOW - runtime.timedelta(minutes=15),
+        planned_exit_at=NOW + runtime.timedelta(minutes=45),
+        current_volume=Decimal("1"),
+        current_stop_risk_usd=Decimal("1"),
+        current_margin_usd=Decimal("1"),
+        entry_price=Decimal("100"),
+        structural_stop=Decimal("99"),
+        technical_target=Decimal("102"),
+        provider_cost_usd=Decimal("0.10"),
+        entry_expected_net_value_usd=Decimal("6"),
+        entry_expected_capital_minutes=Decimal("60"),
+        expectation_evidence_sha256="sha256:" + "c" * 64,
+        continuation_value_identified=False,
+    )
+
+    directive = runtime.evaluate_capital_science_predecision(
+        _state(
+            open_economic_positions=(open_position,),
+        )
+    )
+
+    c10 = next(
+        item for item in directive.receipts
+        if item.function_code == "GEN-C10"
+    )
+    positions = c10.output_payload["engine_output"]["economic_positions"]
+
+    assert len(positions) == 1
+    assert positions[0]["signal_fingerprint"] == "open-position-1"
+    assert positions[0]["entry_expected_net_value_usd"] == "6"
+    assert positions[0]["expected_continuation_net_value_usd"] == "4.50"
+    assert Decimal(
+        positions[0]["expected_remaining_capital_minutes"]
+    ) == Decimal("45")
+    assert positions[0]["continuation_value_identified"] is True
+    assert positions[0]["releasable"] is True
+
+    assert directive.portfolio_allocation_plan is not None
+    assert directive.portfolio_allocation_plan.risk_authority is False
+    assert directive.portfolio_allocation_plan.execution_authority is False
+
+    assert directive.position_competition_plan is not None
+    assert directive.position_competition_plan.fits_without_release is True
+    assert directive.position_competition_plan.admit_opportunity is True
+    assert directive.position_competition_plan.released_stop_risk_usd == Decimal("0")
+    assert directive.position_competition_plan.risk_authority is False
+    assert directive.position_competition_plan.execution_authority is False

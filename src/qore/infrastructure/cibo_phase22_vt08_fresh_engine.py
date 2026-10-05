@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 from collections import Counter, defaultdict
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from hashlib import sha256
@@ -98,6 +98,7 @@ class Phase22VolumeFreeOpportunity:
     realized_r: str
     methodology_sha256: str
     causal_provenance: tuple[str, ...]
+    setup_context: dict[str, str] = field(default_factory=dict)
     volume: None = None
 
     def __post_init__(self) -> None:
@@ -113,6 +114,24 @@ class Phase22VolumeFreeOpportunity:
             raise ValueError("VT08 signal fingerprint must be SHA-256")
         if not self.methodology_sha256.startswith("sha256:"):
             raise ValueError("VT08 methodology digest must be SHA-256")
+        if not isinstance(self.setup_context, dict):
+            raise ValueError("VT08 setup_context must be a dict")
+        forbidden = (
+            "outcome",
+            "realized",
+            "pnl",
+            "mfe",
+            "mae",
+            "winner",
+            "loser",
+        )
+        for key, value in self.setup_context.items():
+            if not isinstance(key, str) or not key:
+                raise ValueError("VT08 setup_context key invalid")
+            if not isinstance(value, str) or not value:
+                raise ValueError("VT08 setup_context value invalid")
+            if any(token in key.lower() for token in forbidden):
+                raise ValueError("VT08 setup_context cannot contain outcome fields")
 
 
 @dataclass(frozen=True, slots=True)
@@ -286,8 +305,82 @@ def _fingerprint(
     return f"sha256:{sha256(raw).hexdigest()}"
 
 
+def _bar_direction(bar: Vt08B01Bar) -> str:
+    if bar.close > bar.open:
+        return "up"
+    if bar.close < bar.open:
+        return "down"
+    return "flat"
+
+
+def _candidate_setup_context(
+    candidate: Vt08B01Candidate,
+) -> dict[str, str]:
+    """Preserve native VT08 causal semantics for downstream CIBO intelligence."""
+
+    reference = candidate.reference_h4
+    candle2 = candidate.candle2
+    protected = candidate.protected_swing
+    setup = candidate.setup
+    risk = (
+        setup.entry_price - setup.invalidation_price
+        if candidate.side is DemoTradingSetupSide.LONG
+        else setup.invalidation_price - setup.entry_price
+    )
+    target_distance = (
+        setup.take_profit_price - setup.entry_price
+        if candidate.side is DemoTradingSetupSide.LONG
+        else setup.entry_price - setup.take_profit_price
+    )
+    if risk <= 0 or target_distance <= 0:
+        raise ValueError("VT08 candidate context requires positive geometry")
+    cisd_age_minutes = Decimal(
+        str((candidate.decision_at - protected.confirmed_at).total_seconds())
+    ) / Decimal("60")
+    important_level = (
+        reference.low
+        if candidate.side is DemoTradingSetupSide.LONG
+        else reference.high
+    )
+    return {
+        "strategy_family": "VT08_B01_R3_8",
+        "entry_anchor_hour_ny": str(candidate.entry_anchor_hour),
+        "side": candidate.side.value,
+        "daily_bias_side": candidate.side.value,
+        "reference_h4_opened_at": reference.opened_at.astimezone(UTC).isoformat(),
+        "reference_h4_open": format(reference.open, "f"),
+        "reference_h4_high": format(reference.high, "f"),
+        "reference_h4_low": format(reference.low, "f"),
+        "reference_h4_close": format(reference.close, "f"),
+        "reference_h4_direction": _bar_direction(reference),
+        "reference_h4_range": format(reference.high - reference.low, "f"),
+        "reference_important_level": format(important_level, "f"),
+        "candle2_opened_at": candle2.opened_at.astimezone(UTC).isoformat(),
+        "candle2_open": format(candle2.open, "f"),
+        "candle2_high": format(candle2.high, "f"),
+        "candle2_low": format(candle2.low, "f"),
+        "candle2_close": format(candle2.close, "f"),
+        "candle2_direction": _bar_direction(candle2),
+        "candle2_range": format(candle2.high - candle2.low, "f"),
+        "candle2_reversal_alignment": "confirmed",
+        "protected_swing_cardinality": "exactly_one",
+        "protected_swing_price": format(protected.price, "f"),
+        "cisd_level": format(protected.cisd_level, "f"),
+        "cisd_confirmed_at": protected.confirmed_at.astimezone(UTC).isoformat(),
+        "cisd_age_minutes": format(cisd_age_minutes, "f"),
+        "opposing_series_opened_at": (
+            protected.opposing_series_opened_at.astimezone(UTC).isoformat()
+        ),
+        "risk_distance": format(risk, "f"),
+        "target_distance": format(target_distance, "f"),
+        "planned_target_r": format(target_distance / risk, "f"),
+        "source_context_causal": "true",
+    }
+
+
 def _opportunity(
     symbol: str,
+    candidate: Vt08B01Candidate,
     trade: FrozenVt08ModeledTrade,
     transform_sha256: str,
 ) -> Phase22VolumeFreeOpportunity:

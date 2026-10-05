@@ -488,6 +488,42 @@ def consult_cibo_economic_faculties(
     )
 
 
+def _high_intelligence_context(
+    opportunities: tuple[TraderOpportunityEnvelope, ...],
+) -> tuple[dict[str, object], ...]:
+    """Expose the full causal opportunity state to advisory cognition.
+
+    This is read-only context. It never grants sizing, Risk, execution, broker,
+    or outcome authority, and it contains only material already admitted at the
+    predecision boundary.
+    """
+
+    return tuple(
+        {
+            "signal_fingerprint": item.signal_fingerprint,
+            "trader_id": item.trader_id.value,
+            "qore_symbol": item.qore_symbol,
+            "provider_symbol": item.provider_symbol,
+            "side": item.side,
+            "entry_type": item.entry_type,
+            "intended_entry": str(item.intended_entry),
+            "stop_loss": str(item.stop_loss),
+            "take_profit": str(item.take_profit),
+            "stop_loss_per_volume": str(item.stop_loss_per_volume),
+            "margin_per_volume": str(item.margin_per_volume),
+            "volume_step": str(item.volume_step),
+            "minimum_volume": str(item.minimum_volume),
+            "maximum_volume": str(item.maximum_volume),
+            "minimum_execution_steps": item.minimum_execution_steps,
+            "decision_context": [list(pair) for pair in item.decision_context],
+        }
+        for item in sorted(
+            opportunities,
+            key=lambda candidate: candidate.signal_fingerprint,
+        )
+    )
+
+
 def _build_faculty_receipt(
     *,
     function_code: str,
@@ -498,12 +534,15 @@ def _build_faculty_receipt(
     regime_state: CiboCapitalRegimeState,
     native_observation: CiboNativeFacultyRuntimeObservation,
 ) -> CiboFacultyEconomicConsultationReceipt:
-    input_payload = _faculty_input_payload(
-        faculty=faculty,
-        decision_at=decision_at,
-        opportunities=opportunities,
-        regime_state=regime_state,
-    )
+    input_payload = {
+        **_faculty_input_payload(
+            faculty=faculty,
+            decision_at=decision_at,
+            opportunities=opportunities,
+            regime_state=regime_state,
+        ),
+        "high_intelligence_context": _high_intelligence_context(opportunities),
+    }
     if native_observation.function_code != function_code:
         raise CiboCapitalManagementError(
             "faculty consultation/native runtime function-code drift"
@@ -654,23 +693,7 @@ def _predecision_digest(
 ) -> str:
     payload = {
         "decision_at": decision_at.isoformat(),
-        "opportunities": [
-            {
-                "signal_fingerprint": item.signal_fingerprint,
-                "trader_id": item.trader_id.value,
-                "qore_symbol": item.qore_symbol,
-                "provider_symbol": item.provider_symbol,
-                "side": item.side,
-                "entry_type": item.entry_type,
-                "intended_entry": str(item.intended_entry),
-                "stop_loss": str(item.stop_loss),
-                "take_profit": str(item.take_profit),
-            }
-            for item in sorted(
-                opportunities,
-                key=lambda item: item.signal_fingerprint,
-            )
-        ],
+        "opportunities": _high_intelligence_context(opportunities),
         "regime": {
             "liquidity": regime_state.liquidity.value,
             "volatility": regime_state.volatility.value,

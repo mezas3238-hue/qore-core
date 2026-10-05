@@ -27,6 +27,7 @@ from qore.modules.cibo.cognitive_contracts import (
 )
 
 _CODE_RE = r"[a-z][a-z0-9._-]*"
+MAX_CIBO_REASONING_PROMPT_CHARS = 65536
 
 
 class CiboReasoningRuntimeError(InfrastructureError):
@@ -152,7 +153,11 @@ class CiboReasoningRequest:
         object.__setattr__(
             self,
             "prompt",
-            _validate_safe_text(self.prompt, field_name="prompt", max_length=16000),
+            _validate_safe_text(
+                self.prompt,
+                field_name="prompt",
+                max_length=MAX_CIBO_REASONING_PROMPT_CHARS,
+            ),
         )
         object.__setattr__(
             self,

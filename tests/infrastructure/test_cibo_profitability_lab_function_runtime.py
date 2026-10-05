@@ -36,6 +36,10 @@ def _opportunity(signal: str, trader: TraderLineage) -> TraderOpportunityEnvelop
         volume_step=Decimal("0.01"),
         minimum_volume=Decimal("0.01"),
         maximum_volume=Decimal("100"),
+        decision_context=(
+            ("ctx_market_state", "trend"),
+            ("ctx_structure_state", "displacement"),
+        ),
     )
 
 
@@ -100,6 +104,14 @@ def test_native_faculty_runtime_calls_real_engines_or_justifies_temporal_na() ->
         assert by_code[code].engine_called is True
         assert by_code[code].status == "SUCCESS"
         assert by_code[code].output_payload
+        assert (
+            by_code[code].output_payload["semantic_transport"]
+            == "FULL_CANONICAL_READ_ONLY"
+        )
+        assert (
+            "result_semantics" in by_code[code].output_payload
+            or "result_value" in by_code[code].output_payload
+        )
 
 
 def test_native_faculty_runtime_is_deterministic() -> None:

@@ -19,7 +19,14 @@ from qore.infrastructure.cibo_profitability_lab_economic_consultation import (
 T0 = datetime(2015, 10, 20, 12, 0, tzinfo=UTC)
 
 
-def _opportunity(signal: str) -> TraderOpportunityEnvelope:
+def _opportunity(
+    signal: str,
+    *,
+    context: tuple[tuple[str, str], ...] = (
+        ("ctx_market_state", "trend"),
+        ("ctx_structure_state", "displacement"),
+    ),
+) -> TraderOpportunityEnvelope:
     return TraderOpportunityEnvelope(
         trader_id=TraderLineage.R34_XAUUSD,
         signal_fingerprint=signal,
@@ -35,6 +42,7 @@ def _opportunity(signal: str) -> TraderOpportunityEnvelope:
         volume_step=Decimal("0.01"),
         minimum_volume=Decimal("0.01"),
         maximum_volume=Decimal("100"),
+        decision_context=context,
     )
 
 
@@ -89,6 +97,14 @@ def test_economic_consultation_puts_all_faculties_on_predecision_path() -> None:
     for item in receipt.faculty_receipts:
         assert item.input_payload
         assert item.output_payload
+        high_context = item.input_payload["high_intelligence_context"]
+        assert len(high_context) == 1
+        assert high_context[0]["decision_context"] == [
+            ["ctx_market_state", "trend"],
+            ["ctx_structure_state", "displacement"],
+        ]
+        assert "outcome" not in high_context[0]
+        assert "realized_pnl" not in high_context[0]
         assert item.input_sha256.startswith("sha256:")
         assert item.output_sha256.startswith("sha256:")
         assert item.downstream_consumer == "cibo-functional-coordinator"
@@ -122,3 +138,30 @@ def test_economic_cognitive_orchestration_is_deterministic() -> None:
     assert left.outcome_used is False
     assert left.broker_mutation is False
     assert left.faculty_receipts == right.faculty_receipts
+
+def test_consultation_identity_binds_full_causal_context() -> None:
+    left = consult_cibo_economic_faculties(
+        decision_at=T0,
+        opportunities=(
+            _opportunity(
+                "signal-1",
+                context=(("ctx_market_state", "trend"),),
+            ),
+        ),
+        regime_state=_regime(1),
+    )
+    right = consult_cibo_economic_faculties(
+        decision_at=T0,
+        opportunities=(
+            _opportunity(
+                "signal-1",
+                context=(("ctx_market_state", "range"),),
+            ),
+        ),
+        regime_state=_regime(1),
+    )
+
+    assert left.consultation_id != right.consultation_id
+    assert left.faculty_receipts != right.faculty_receipts
+    assert all(item.outcome_used is False for item in left.faculty_receipts)
+    assert all(item.outcome_used is False for item in right.faculty_receipts)

@@ -65,6 +65,14 @@ from qore.infrastructure.cibo_compound_portfolio_ledger import CompoundPortfolio
 from qore.infrastructure.cibo_core_compound_portfolio import (
     AccountCoreCompoundPortfolio,
 )
+from qore.infrastructure.cibo_full_economic_digital_twin import (
+    CiboCapitalVelocityState,
+    CiboIdleCapitalClass,
+    CiboObservedEconomicTwin,
+    CiboObservedOpportunityState,
+    CiboObservedPortfolioState,
+    CiboObservedPositionState,
+)
 from qore.infrastructure.cibo_crisis_capital_intelligence import (
     Genc12CapitalResponse,
     Genc12CrisisFact,
@@ -74,6 +82,16 @@ from qore.infrastructure.cibo_crisis_capital_intelligence import (
 )
 from qore.infrastructure.cibo_marginal_capital_utility_evidence import (
     MarginalCapitalUtilityEvidence,
+)
+from qore.infrastructure.cibo_position_continuation_intelligence import (
+    CiboPositionContinuationInput,
+    estimate_position_continuation,
+)
+from qore.infrastructure.cibo_portfolio_allocation_engine import (
+    CiboPortfolioAllocationPlan,
+    CiboPositionOpportunityCompetitionPlan,
+    plan_account_wide_capital_allocation,
+    plan_position_opportunity_competition,
 )
 from qore.infrastructure.cibo_multi_period_capital_mpc import (
     Genc11KnownOptionSchedule,
@@ -138,6 +156,8 @@ class CapitalScienceKnownOpportunity:
     stop_risk_usd: Decimal
     margin_usd: Decimal
     evidence_sha256: str
+    expected_net_value_usd: Decimal = Decimal(0)
+    expected_capital_minutes: Decimal = Decimal(1)
 
     def __post_init__(self) -> None:
         if not self.option_id or not self.trader_id or not self.qore_symbol:
@@ -160,6 +180,21 @@ class CapitalScienceKnownOpportunity:
                 raise CiboCapitalManagementError(
                     f"Capital Science known opportunity {name} must be positive Decimal"
                 )
+        if (
+            not isinstance(self.expected_net_value_usd, Decimal)
+            or not self.expected_net_value_usd.is_finite()
+        ):
+            raise CiboCapitalManagementError(
+                "Capital Science known opportunity expected_net_value_usd must be finite Decimal"
+            )
+        if (
+            not isinstance(self.expected_capital_minutes, Decimal)
+            or not self.expected_capital_minutes.is_finite()
+            or self.expected_capital_minutes <= 0
+        ):
+            raise CiboCapitalManagementError(
+                "Capital Science known opportunity expected_capital_minutes must be positive Decimal"
+            )
         if not self.evidence_sha256.startswith("sha256:") or len(self.evidence_sha256) != 71:
             raise CiboCapitalManagementError(
                 "Capital Science known opportunity evidence digest is invalid"
@@ -176,8 +211,137 @@ class CapitalScienceKnownOpportunity:
             "requested_capital_usd": format(self.requested_capital_usd, "f"),
             "stop_risk_usd": format(self.stop_risk_usd, "f"),
             "margin_usd": format(self.margin_usd, "f"),
+            "expected_net_value_usd": format(self.expected_net_value_usd, "f"),
+            "expected_capital_minutes": format(self.expected_capital_minutes, "f"),
             "evidence_sha256": self.evidence_sha256,
         }
+
+
+@dataclass(frozen=True, slots=True)
+class CapitalScienceOpenEconomicPosition:
+    """Observed open-position economics available at the decision epoch."""
+
+    signal_fingerprint: str
+    trader_id: str
+    qore_symbol: str
+    side: str
+    entry_at: datetime
+    planned_exit_at: datetime
+    current_volume: Decimal
+    current_stop_risk_usd: Decimal
+    current_margin_usd: Decimal
+    entry_price: Decimal
+    structural_stop: Decimal
+    technical_target: Decimal
+    provider_cost_usd: Decimal
+    entry_expected_net_value_usd: Decimal
+    entry_expected_capital_minutes: Decimal
+    expectation_evidence_sha256: str
+    current_mark_price: Decimal | None = None
+    market_state_observed_at: datetime | None = None
+    mark_to_market_identified: bool = False
+    continuation_value_identified: bool = False
+
+    def __post_init__(self) -> None:
+        if not self.signal_fingerprint or not self.trader_id or not self.qore_symbol:
+            raise CiboCapitalManagementError(
+                "Capital Science open economic position identity is required"
+            )
+        if self.side not in {"long", "short"}:
+            raise CiboCapitalManagementError(
+                "Capital Science open economic position side must be long/short"
+            )
+        if self.entry_at.tzinfo is None or self.entry_at.utcoffset() is None:
+            raise CiboCapitalManagementError(
+                "Capital Science open economic position entry_at must be timezone-aware"
+            )
+        if (
+            self.planned_exit_at.tzinfo is None
+            or self.planned_exit_at.utcoffset() is None
+            or self.planned_exit_at <= self.entry_at
+        ):
+            raise CiboCapitalManagementError(
+                "Capital Science open economic position planned_exit_at invalid"
+            )
+        for name in (
+            "current_volume",
+            "current_stop_risk_usd",
+            "current_margin_usd",
+            "entry_expected_capital_minutes",
+        ):
+            value = getattr(self, name)
+            if not isinstance(value, Decimal) or not value.is_finite() or value <= 0:
+                raise CiboCapitalManagementError(
+                    f"Capital Science open economic position {name} must be positive Decimal"
+                )
+        for name in (
+            "entry_price",
+            "structural_stop",
+            "technical_target",
+        ):
+            value = getattr(self, name)
+            if not isinstance(value, Decimal) or not value.is_finite():
+                raise CiboCapitalManagementError(
+                    f"Capital Science open economic position {name} must be finite Decimal"
+                )
+        if self.entry_price == self.structural_stop:
+            raise CiboCapitalManagementError(
+                "Capital Science open economic position stop distance must be nonzero"
+            )
+        for name in (
+            "provider_cost_usd",
+            "entry_expected_net_value_usd",
+        ):
+            value = getattr(self, name)
+            if not isinstance(value, Decimal) or not value.is_finite():
+                raise CiboCapitalManagementError(
+                    f"Capital Science open economic position {name} must be finite Decimal"
+                )
+        if self.provider_cost_usd < 0:
+            raise CiboCapitalManagementError(
+                "Capital Science open economic position provider cost cannot be negative"
+            )
+        if (
+            not self.expectation_evidence_sha256.startswith("sha256:")
+            or len(self.expectation_evidence_sha256) != 71
+        ):
+            raise CiboCapitalManagementError(
+                "Capital Science open economic position expectation digest is invalid"
+            )
+        if type(self.mark_to_market_identified) is not bool:
+            raise CiboCapitalManagementError(
+                "Capital Science mark-to-market identification must be bool"
+            )
+        if self.mark_to_market_identified:
+            if (
+                self.current_mark_price is None
+                or self.market_state_observed_at is None
+            ):
+                raise CiboCapitalManagementError(
+                    "Capital Science identified mark requires price and observed_at"
+                )
+            if (
+                not isinstance(self.current_mark_price, Decimal)
+                or not self.current_mark_price.is_finite()
+            ):
+                raise CiboCapitalManagementError(
+                    "Capital Science current mark must be finite Decimal"
+                )
+            if (
+                self.market_state_observed_at.tzinfo is None
+                or self.market_state_observed_at.utcoffset() is None
+            ):
+                raise CiboCapitalManagementError(
+                    "Capital Science market state time must be timezone-aware"
+                )
+        elif self.current_mark_price is not None:
+            raise CiboCapitalManagementError(
+                "Capital Science unidentified mark cannot carry current price"
+            )
+        if type(self.continuation_value_identified) is not bool:
+            raise CiboCapitalManagementError(
+                "Capital Science continuation identification must be bool"
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -207,6 +371,7 @@ class CapitalSciencePredecisionInput:
     regime_state: CiboCapitalRegimeState | None = None
     known_simultaneous_opportunities: tuple[CapitalScienceKnownOpportunity, ...] = ()
     open_positions: tuple[Genc12PositionCapitalInput, ...] = ()
+    open_economic_positions: tuple[CapitalScienceOpenEconomicPosition, ...] = ()
     genc7_proposal: Genc7PreservationProposalEvidence | None = None
 
     def __post_init__(self) -> None:
@@ -299,6 +464,35 @@ class CapitalSciencePredecisionInput:
             raise CiboCapitalManagementError(
                 "Capital Science open positions must be canonical T14 inputs"
             )
+        if any(
+            not isinstance(item, CapitalScienceOpenEconomicPosition)
+            for item in self.open_economic_positions
+        ):
+            raise CiboCapitalManagementError(
+                "Capital Science open economic positions must be canonical"
+            )
+        economic_position_ids = tuple(
+            item.signal_fingerprint for item in self.open_economic_positions
+        )
+        if len(economic_position_ids) != len(set(economic_position_ids)):
+            raise CiboCapitalManagementError(
+                "Capital Science open economic position ids must be unique"
+            )
+        if any(
+            item.entry_at > self.decision_at
+            for item in self.open_economic_positions
+        ):
+            raise CiboCapitalManagementError(
+                "Capital Science cannot consume future open-position state"
+            )
+        if any(
+            item.market_state_observed_at is not None
+            and item.market_state_observed_at > self.decision_at
+            for item in self.open_economic_positions
+        ):
+            raise CiboCapitalManagementError(
+                "Capital Science cannot consume future position mark state"
+            )
         if self.genc7_proposal is not None:
             if not isinstance(
                 self.genc7_proposal,
@@ -367,6 +561,60 @@ class CapitalSciencePredecisionInput:
                 "evidence_sha256": _runtime_sha("t14-position-input", asdict(item.evidence)),
             }
             for item in self.open_positions
+        ]
+        payload["open_economic_positions"] = [
+            {
+                "signal_fingerprint": item.signal_fingerprint,
+                "trader_id": item.trader_id,
+                "qore_symbol": item.qore_symbol,
+                "side": item.side,
+                "entry_at": item.entry_at.isoformat(),
+                "planned_exit_at": item.planned_exit_at.isoformat(),
+                "current_volume": format(item.current_volume, "f"),
+                "current_stop_risk_usd": format(
+                    item.current_stop_risk_usd,
+                    "f",
+                ),
+                "current_margin_usd": format(
+                    item.current_margin_usd,
+                    "f",
+                ),
+                "entry_price": format(item.entry_price, "f"),
+                "structural_stop": format(item.structural_stop, "f"),
+                "technical_target": format(item.technical_target, "f"),
+                "provider_cost_usd": format(
+                    item.provider_cost_usd,
+                    "f",
+                ),
+                "entry_expected_net_value_usd": format(
+                    item.entry_expected_net_value_usd,
+                    "f",
+                ),
+                "entry_expected_capital_minutes": format(
+                    item.entry_expected_capital_minutes,
+                    "f",
+                ),
+                "expectation_evidence_sha256": (
+                    item.expectation_evidence_sha256
+                ),
+                "current_mark_price": (
+                    None
+                    if item.current_mark_price is None
+                    else format(item.current_mark_price, "f")
+                ),
+                "market_state_observed_at": (
+                    None
+                    if item.market_state_observed_at is None
+                    else item.market_state_observed_at.isoformat()
+                ),
+                "mark_to_market_identified": (
+                    item.mark_to_market_identified
+                ),
+                "continuation_value_identified": (
+                    item.continuation_value_identified
+                ),
+            }
+            for item in self.open_economic_positions
         ]
         payload["genc7_proposal"] = (
             {
@@ -541,6 +789,8 @@ class CapitalScienceDirective:
     allow_incremental_compound: bool
     deployable_profit_usd: Decimal
     receipts: tuple[CapitalScienceReceipt, ...]
+    portfolio_allocation_plan: CiboPortfolioAllocationPlan | None = None
+    position_competition_plan: CiboPositionOpportunityCompetitionPlan | None = None
 
     def __post_init__(self) -> None:
         if type(self.allow_incremental_compound) is not bool:
@@ -563,6 +813,26 @@ class CapitalScienceDirective:
             "GEN-C11",
             "GEN-C12",
         }
+        if (
+            self.portfolio_allocation_plan is not None
+            and not isinstance(
+                self.portfolio_allocation_plan,
+                CiboPortfolioAllocationPlan,
+            )
+        ):
+            raise CiboCapitalManagementError(
+                "Capital Science portfolio allocation plan must be canonical"
+            )
+        if (
+            self.position_competition_plan is not None
+            and not isinstance(
+                self.position_competition_plan,
+                CiboPositionOpportunityCompetitionPlan,
+            )
+        ):
+            raise CiboCapitalManagementError(
+                "Capital Science position competition plan must be canonical"
+            )
         actual = {item.function_code for item in self.receipts}
         if actual != expected:
             raise CiboCapitalManagementError(
@@ -799,6 +1069,183 @@ def _regime_state(state: CapitalSciencePredecisionInput) -> CiboCapitalRegimeSta
     )
 
 
+def _known_economic_options(
+    state: CapitalSciencePredecisionInput,
+) -> tuple[CapitalScienceKnownOpportunity, ...]:
+    request_capital = state.requested_stop_risk_usd + state.provider_cost_usd
+    horizon_minutes = max(3, int(state.expected_capital_minutes) + 1)
+    current_option = (
+        CapitalScienceKnownOpportunity(
+            option_id=state.signal_fingerprint,
+            trader_id=state.trader_id,
+            qore_symbol=state.qore_symbol,
+            known_at=state.decision_at,
+            earliest_action_at=state.decision_at,
+            expires_at=state.decision_at + timedelta(minutes=horizon_minutes),
+            requested_capital_usd=request_capital,
+            stop_risk_usd=state.requested_stop_risk_usd,
+            margin_usd=state.requested_margin_usd,
+            evidence_sha256=_runtime_sha("known-option", state.payload()),
+            expected_net_value_usd=state.expected_net_value_usd,
+            expected_capital_minutes=state.expected_capital_minutes,
+        )
+        if request_capital > 0
+        and state.requested_stop_risk_usd > 0
+        and state.requested_margin_usd > 0
+        else None
+    )
+    known_by_id = {
+        item.option_id: item
+        for item in state.known_simultaneous_opportunities
+    }
+    if current_option is not None:
+        previous = known_by_id.get(current_option.option_id)
+        if previous is not None and (
+            previous.stop_risk_usd != current_option.stop_risk_usd
+            or previous.margin_usd != current_option.margin_usd
+            or previous.requested_capital_usd != current_option.requested_capital_usd
+            or previous.expected_net_value_usd != current_option.expected_net_value_usd
+            or previous.expected_capital_minutes != current_option.expected_capital_minutes
+        ):
+            raise CiboCapitalManagementError(
+                "Capital Science current option geometry/economics conflicts with epoch option set"
+            )
+        known_by_id[current_option.option_id] = previous or current_option
+    return tuple(
+        sorted(known_by_id.values(), key=lambda row: row.option_id)
+    )
+
+
+def _full_economic_twin(
+    state: CapitalSciencePredecisionInput,
+    *,
+    capital_twin: Genc10ObservedCapitalTwin,
+) -> CiboObservedEconomicTwin:
+    opportunities = tuple(
+        CiboObservedOpportunityState(
+            option_id=item.option_id,
+            trader_id=item.trader_id,
+            qore_symbol=item.qore_symbol,
+            known_at=item.known_at,
+            earliest_action_at=item.earliest_action_at,
+            expires_at=item.expires_at,
+            requested_capital_usd=item.requested_capital_usd,
+            expected_net_value_usd=item.expected_net_value_usd,
+            expected_capital_minutes=item.expected_capital_minutes,
+            stop_risk_usd=item.stop_risk_usd,
+            margin_usd=item.margin_usd,
+            provider_cost_usd=max(
+                Decimal(0),
+                item.requested_capital_usd - item.stop_risk_usd,
+            ),
+            uncertainty_penalty=Decimal(0),
+            context_allowed=True,
+            provider_viable=True,
+            capital_source_eligible=True,
+            evidence_sha256=item.evidence_sha256,
+        )
+        for item in _known_economic_options(state)
+    )
+    positions = []
+    for item in state.open_economic_positions:
+        continuation = estimate_position_continuation(
+            CiboPositionContinuationInput(
+                signal_fingerprint=item.signal_fingerprint,
+                observed_at=state.decision_at,
+                entry_at=item.entry_at,
+                planned_exit_at=item.planned_exit_at,
+                entry_expected_net_value_usd=(
+                    item.entry_expected_net_value_usd
+                ),
+                entry_expected_capital_minutes=(
+                    item.entry_expected_capital_minutes
+                ),
+                current_stop_risk_usd=item.current_stop_risk_usd,
+                current_margin_usd=item.current_margin_usd,
+                expectation_evidence_sha256=(
+                    item.expectation_evidence_sha256
+                ),
+            )
+        )
+        positions.append(
+            CiboObservedPositionState(
+                signal_fingerprint=item.signal_fingerprint,
+                qore_symbol=item.qore_symbol,
+                side=item.side,
+                entry_at=item.entry_at,
+                observed_at=state.decision_at,
+                current_volume=item.current_volume,
+                current_stop_risk_usd=item.current_stop_risk_usd,
+                current_margin_usd=item.current_margin_usd,
+                released_stop_risk_usd=Decimal(0),
+                released_margin_usd=Decimal(0),
+                remaining_reward_r=Decimal(0),
+                provider_cost_usd=item.provider_cost_usd,
+                entry_price=item.entry_price,
+                structural_stop=item.structural_stop,
+                technical_target=item.technical_target,
+                current_mark_price=item.current_mark_price,
+                market_state_observed_at=item.market_state_observed_at,
+                mark_to_market_identified=item.mark_to_market_identified,
+                entry_expected_net_value_usd=(
+                    item.entry_expected_net_value_usd
+                ),
+                entry_expected_capital_minutes=(
+                    item.entry_expected_capital_minutes
+                ),
+                expectation_evidence_sha256=(
+                    item.expectation_evidence_sha256
+                ),
+                remaining_reward_identified=False,
+                expected_continuation_net_value_usd=(
+                    continuation.expected_continuation_net_value_usd
+                ),
+                expected_remaining_capital_minutes=max(
+                    Decimal("0.000001"),
+                    continuation.remaining_capital_minutes,
+                ),
+                release_cost_usd=Decimal(0),
+                uncertainty_penalty=Decimal(0),
+                releasable=continuation.value_identified,
+                continuation_value_identified=(
+                    continuation.value_identified
+                ),
+            )
+        )
+    positions = tuple(positions)
+    return CiboObservedEconomicTwin(
+        twin_id=f"economic:{capital_twin.twin_id}",
+        captured_at=state.decision_at,
+        capital_twin=capital_twin,
+        positions=positions,
+        opportunities=opportunities,
+        portfolio=CiboObservedPortfolioState(
+            observed_at=state.decision_at,
+            active_position_ids=tuple(
+                item.signal_fingerprint for item in positions
+            ),
+            opportunity_ids=tuple(item.option_id for item in opportunities),
+            concentration_utilization=Decimal(0),
+            correlation_utilization=Decimal(0),
+            reserved_stop_risk_usd=Decimal(0),
+            reserved_margin_usd=Decimal(0),
+        ),
+        velocity=CiboCapitalVelocityState(
+            observed_at=state.decision_at,
+            released_stop_risk_usd=Decimal(0),
+            released_margin_usd=Decimal(0),
+            waiting_stop_risk_usd=Decimal(0),
+            waiting_margin_usd=Decimal(0),
+            oldest_release_age_minutes=Decimal(0),
+            idle_classification=(
+                CiboIdleCapitalClass.OPTIONALITY_RESERVE
+                if opportunities
+                else CiboIdleCapitalClass.NO_VALID_OPPORTUNITY
+            ),
+        ),
+    )
+
+
 def _capital_twin(
     state: CapitalSciencePredecisionInput,
     *,
@@ -834,38 +1281,7 @@ def _capital_twin(
         )
         for bucket in Genc10EconomicBucket
     )
-    request_capital = state.requested_stop_risk_usd + state.provider_cost_usd
-    horizon_minutes = max(3, int(state.expected_capital_minutes) + 1)
-    current_option = (
-        CapitalScienceKnownOpportunity(
-            option_id=state.signal_fingerprint,
-            trader_id=state.trader_id,
-            qore_symbol=state.qore_symbol,
-            known_at=state.decision_at,
-            earliest_action_at=state.decision_at,
-            expires_at=state.decision_at + timedelta(minutes=horizon_minutes),
-            requested_capital_usd=request_capital,
-            stop_risk_usd=state.requested_stop_risk_usd,
-            margin_usd=state.requested_margin_usd,
-            evidence_sha256=_runtime_sha("known-option", state.payload()),
-        )
-        if request_capital > 0
-        and state.requested_stop_risk_usd > 0
-        and state.requested_margin_usd > 0
-        else None
-    )
-    known_by_id = {item.option_id: item for item in state.known_simultaneous_opportunities}
-    if current_option is not None:
-        previous = known_by_id.get(current_option.option_id)
-        if previous is not None and (
-            previous.stop_risk_usd != current_option.stop_risk_usd
-            or previous.margin_usd != current_option.margin_usd
-            or previous.requested_capital_usd != current_option.requested_capital_usd
-        ):
-            raise CiboCapitalManagementError(
-                "Capital Science current option geometry conflicts with epoch option set"
-            )
-        known_by_id[current_option.option_id] = previous or current_option
+    economic_options = _known_economic_options(state)
     known_options = tuple(
         Genc10KnownCapitalOption(
             option_id=item.option_id,
@@ -877,7 +1293,7 @@ def _capital_twin(
             margin_usd=item.margin_usd,
             evidence_sha256=item.evidence_sha256,
         )
-        for item in sorted(known_by_id.values(), key=lambda row: row.option_id)
+        for item in economic_options
     )
     with localcontext() as context:
         context.prec = 80
@@ -1508,8 +1924,12 @@ def evaluate_capital_science_predecision(
         )
     )
 
-    # GEN-C10: build a canonical observed twin consumed by GEN-C11 and GEN-C12.
+    # GEN-C10: build canonical capital truth, then compose the Full Economic Twin.
     twin = _capital_twin(state, identity=identity)
+    economic_twin = _full_economic_twin(
+        state,
+        capital_twin=twin,
+    )
     receipts.append(
         _receipt(
             state=state,
@@ -1539,6 +1959,45 @@ def evaluate_capital_science_predecision(
                 ),
                 "known_option_count": len(twin.known_options),
                 "known_option_ids": [item.option_id for item in twin.known_options],
+                "full_economic_twin_id": economic_twin.twin_id,
+                "economic_opportunity_count": len(economic_twin.opportunities),
+                "economic_opportunities": [
+                    {
+                        "option_id": item.option_id,
+                        "expected_net_value_usd": format(
+                            item.expected_net_value_usd,
+                            "f",
+                        ),
+                        "expected_capital_minutes": format(
+                            item.expected_capital_minutes,
+                            "f",
+                        ),
+                    }
+                    for item in economic_twin.opportunities
+                ],
+                "economic_position_count": len(economic_twin.positions),
+                "economic_positions": [
+                    {
+                        "signal_fingerprint": item.signal_fingerprint,
+                        "entry_expected_net_value_usd": format(
+                            item.entry_expected_net_value_usd,
+                            "f",
+                        ),
+                        "expected_continuation_net_value_usd": format(
+                            item.expected_continuation_net_value_usd,
+                            "f",
+                        ),
+                        "expected_remaining_capital_minutes": format(
+                            item.expected_remaining_capital_minutes,
+                            "f",
+                        ),
+                        "continuation_value_identified": (
+                            item.continuation_value_identified
+                        ),
+                        "releasable": item.releasable,
+                    }
+                    for item in economic_twin.positions
+                ],
             },
             typed_engine_input={
                 "capital_truth_sha256": twin.capital_truth_sha256,
@@ -1630,7 +2089,7 @@ def evaluate_capital_science_predecision(
         )
         genc11 = plan_genc11_multi_period_capital(
             plan_id=f"genc11:{state.decision_epoch_id}:{state.signal_fingerprint}",
-            twin=twin,
+            twin=economic_twin,
             world_paths=paths,
             option_schedules=option_schedules,
         )
@@ -1679,7 +2138,8 @@ def evaluate_capital_science_predecision(
                     "all_worlds_horizon_coverable": (first_envelope.all_worlds_horizon_coverable),
                 },
                 typed_engine_input={
-                    "twin_id": twin.twin_id,
+                    "capital_twin_id": twin.twin_id,
+                    "economic_twin_id": economic_twin.twin_id,
                     "path_ids": [item.path_id for item in paths],
                     "option_schedules": [
                         {
@@ -1795,11 +2255,29 @@ def evaluate_capital_science_predecision(
         )
     )
 
+    portfolio_allocation_plan = plan_account_wide_capital_allocation(
+        economic_twin
+    )
+    position_competition_plan = (
+        plan_position_opportunity_competition(
+            economic_twin,
+            opportunity_id=state.signal_fingerprint,
+        )
+        if economic_twin.positions
+        and any(
+            item.option_id == state.signal_fingerprint
+            for item in economic_twin.opportunities
+        )
+        else None
+    )
+
     allow = c4_allows and c7_allows and genc5_allows and c8_allows and c11_allows and c12_allows
     return CapitalScienceDirective(
         allow_incremental_compound=allow,
         deployable_profit_usd=state.deployable_profit_usd,
         receipts=tuple(receipts),
+        portfolio_allocation_plan=portfolio_allocation_plan,
+        position_competition_plan=position_competition_plan,
     )
 
 

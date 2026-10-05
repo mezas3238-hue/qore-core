@@ -204,7 +204,7 @@ def test_position_lifecycle_uses_closed_post_entry_bars_and_releases_risk() -> N
     )
 
     assert result.data_available is True
-    assert "PARTIAL_REALIZATION_1R" in result.actions
+    assert "PARTIAL_REALIZATION_AT_CLOSE" in result.actions
     assert "MOVE_TO_BREAKEVEN" in result.actions
     assert result.risk_released_before_exit_fraction > 0
 
@@ -337,3 +337,63 @@ def test_partial_then_horizon_uses_original_settlement_not_last_close() -> None:
         "HORIZON_ORIGINAL_SETTLEMENT",
     )
     assert result.gross_r == Decimal("-0.50")
+
+
+
+def test_partial_realization_requires_causal_close_price() -> None:
+    opportunity = _opportunity()
+    wick_only = Bar(
+        opened_at=opportunity.entry_at,
+        closed_at=opportunity.entry_at + timedelta(minutes=5),
+        open=Decimal("100"),
+        high=Decimal("101.4"),
+        low=Decimal("99.8"),
+        close=Decimal("100.6"),
+    )
+    close_above = Bar(
+        opened_at=opportunity.entry_at + timedelta(minutes=5),
+        closed_at=opportunity.entry_at + timedelta(minutes=10),
+        open=Decimal("100.6"),
+        high=Decimal("101.6"),
+        low=Decimal("100.5"),
+        close=Decimal("101.2"),
+    )
+
+    result = run_cibo_position_lifecycle(
+        _lifecycle_input(),
+        (wick_only, close_above),
+        features=frozenset(
+            {CiboLifecycleFeature.PARTIAL_REALIZATION}
+        ),
+    )
+
+    assert result.actions.count("PARTIAL_REALIZATION_AT_CLOSE") == 1
+    partial = next(
+        item
+        for item in result.events
+        if item.action == "PARTIAL_REALIZATION_AT_CLOSE"
+    )
+    assert partial.occurred_at == close_above.closed_at
+    assert partial.realized_r_delta == Decimal("0.30")
+
+
+def test_wick_touch_without_close_cannot_realize_partial() -> None:
+    opportunity = _opportunity()
+    bar = Bar(
+        opened_at=opportunity.entry_at,
+        closed_at=opportunity.entry_at + timedelta(minutes=5),
+        open=Decimal("100"),
+        high=Decimal("101.5"),
+        low=Decimal("99.8"),
+        close=Decimal("100.7"),
+    )
+
+    result = run_cibo_position_lifecycle(
+        _lifecycle_input(),
+        (bar,),
+        features=frozenset(
+            {CiboLifecycleFeature.PARTIAL_REALIZATION}
+        ),
+    )
+
+    assert "PARTIAL_REALIZATION_AT_CLOSE" not in result.actions

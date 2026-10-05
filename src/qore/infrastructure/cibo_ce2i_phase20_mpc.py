@@ -181,6 +181,8 @@ def plan_phase20i_receding_horizon_capacity(
     hard_risk_headroom_usd: Decimal,
     margin_headroom_usd: Decimal,
     known_options: tuple[Phase20MpcKnownOption, ...],
+    recovery_probe_stop_risk_usd: Decimal = Decimal(0),
+    recovery_probe_margin_usd: Decimal = Decimal(0),
 ) -> Phase20MpcCapacityPlan:
     """Recompute a finite-horizon reserve from currently-known option geometry."""
 
@@ -204,6 +206,21 @@ def plan_phase20i_receding_horizon_capacity(
         margin_headroom_usd,
         name="margin_headroom_usd",
     )
+    _finite_headroom(
+        recovery_probe_stop_risk_usd,
+        name="recovery_probe_stop_risk_usd",
+    )
+    _finite_headroom(
+        recovery_probe_margin_usd,
+        name="recovery_probe_margin_usd",
+    )
+    if (
+        recovery_probe_stop_risk_usd > hard_risk_headroom_usd
+        or recovery_probe_margin_usd > margin_headroom_usd
+    ):
+        raise CiboCapitalManagementError(
+            "Phase20I recovery probe cannot exceed current headroom"
+        )
     ids = tuple(item.opportunity_id for item in known_options)
     if len(ids) != len(set(ids)):
         raise CiboCapitalManagementError(
@@ -223,10 +240,7 @@ def plan_phase20i_receding_horizon_capacity(
     )
     considered_ids = tuple(item.opportunity_id for item in considered)
 
-    if posture in {
-        CiboRegimePosture.RECOVERY,
-        CiboRegimePosture.HALT_NEW_CAPITAL,
-    }:
+    if posture is CiboRegimePosture.HALT_NEW_CAPITAL:
         fully_coverable = all(
             item.minimum_stop_risk_usd <= hard_risk_headroom_usd
             and item.minimum_margin_usd <= margin_headroom_usd
@@ -244,7 +258,47 @@ def plan_phase20i_receding_horizon_capacity(
             deployable_stop_risk_usd=Decimal(0),
             deployable_margin_usd=Decimal(0),
             horizon_fully_coverable=fully_coverable,
-            reason="recovery/halt posture preserves the complete horizon capacity",
+            reason="halt posture preserves the complete horizon capacity",
+        )
+
+    if posture is CiboRegimePosture.RECOVERY:
+        fully_coverable = all(
+            item.minimum_stop_risk_usd <= hard_risk_headroom_usd
+            and item.minimum_margin_usd <= margin_headroom_usd
+            for item in considered
+        )
+        probe_enabled = (
+            recovery_probe_stop_risk_usd > 0
+            and recovery_probe_margin_usd > 0
+        )
+        deployable_risk = (
+            recovery_probe_stop_risk_usd
+            if probe_enabled
+            else Decimal(0)
+        )
+        deployable_margin = (
+            recovery_probe_margin_usd
+            if probe_enabled
+            else Decimal(0)
+        )
+        return Phase20MpcCapacityPlan(
+            current_step=current_step,
+            horizon_steps=horizon_steps,
+            horizon_end_step=horizon_end,
+            posture=posture,
+            considered_option_ids=considered_ids,
+            representative_option_ids=considered_ids,
+            reserve_stop_risk_usd=hard_risk_headroom_usd - deployable_risk,
+            reserve_margin_usd=margin_headroom_usd - deployable_margin,
+            deployable_stop_risk_usd=deployable_risk,
+            deployable_margin_usd=deployable_margin,
+            horizon_fully_coverable=fully_coverable,
+            reason=(
+                "recovery preserves the horizon envelope while exposing one "
+                "explicit causal capability-measurement probe"
+                if probe_enabled
+                else "recovery preserves the complete horizon capacity"
+            ),
         )
 
     if not considered:

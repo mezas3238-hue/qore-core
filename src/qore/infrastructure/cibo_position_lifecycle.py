@@ -188,15 +188,19 @@ def run_cibo_position_lifecycle(
     risk_fraction = Decimal(1)
     margin_fraction = Decimal(1)
 
-    def favorable_and_adverse(bar: Bar) -> tuple[Decimal, Decimal]:
+    def favorable_adverse_close(
+        bar: Bar,
+    ) -> tuple[Decimal, Decimal, Decimal]:
         if position.side == "long":
             return (
                 (bar.high - position.entry_price) / risk_distance,
                 (bar.low - position.entry_price) / risk_distance,
+                (bar.close - position.entry_price) / risk_distance,
             )
         return (
             (position.entry_price - bar.low) / risk_distance,
             (position.entry_price - bar.high) / risk_distance,
+            (position.entry_price - bar.close) / risk_distance,
         )
 
     def append_event(
@@ -230,7 +234,7 @@ def run_cibo_position_lifecycle(
         )
 
     for bar in causal_bars:
-        favorable, adverse = favorable_and_adverse(bar)
+        favorable, adverse, close_r = favorable_adverse_close(bar)
 
         # If BAR N crosses the original structural stop while also
         # containing favorable lifecycle triggers, M5 alone cannot establish
@@ -257,7 +261,7 @@ def run_cibo_position_lifecycle(
         if (
             CiboLifecycleFeature.PARTIAL_REALIZATION in features
             and not partial_done
-            and favorable >= Decimal(1)
+            and close_r >= Decimal(1)
             and target_r > Decimal(1)
             and bar.closed_at < position.horizon_at
         ):
@@ -266,8 +270,8 @@ def run_cibo_position_lifecycle(
             partial_done = True
             append_event(
                 bar.closed_at,
-                "PARTIAL_REALIZATION_1R",
-                close_fraction,
+                "PARTIAL_REALIZATION_AT_CLOSE",
+                close_fraction * close_r,
             )
 
         next_stop_r = stop_r

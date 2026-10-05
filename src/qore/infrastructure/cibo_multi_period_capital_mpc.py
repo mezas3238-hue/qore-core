@@ -29,6 +29,9 @@ from qore.infrastructure.cibo_capital_digital_twin import (
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
+from qore.infrastructure.cibo_recovery_probe_efficiency_guard import (
+    evaluate_recovery_probe_efficiency,
+)
 from qore.infrastructure.cibo_full_economic_digital_twin import (
     CiboObservedEconomicTwin,
 )
@@ -517,6 +520,42 @@ def plan_genc11_multi_period_capital(
         schedules=option_schedules,
     )
 
+    recovery_probe = None
+    if full_twin is not None:
+        eligible_recovery_probes = tuple(
+            item
+            for item in full_twin.opportunities
+            if (
+                item.known_at <= full_twin.captured_at
+                and item.earliest_action_at <= full_twin.captured_at
+                and item.expires_at > full_twin.captured_at
+                and item.context_allowed
+                and item.provider_viable
+                and item.capital_source_eligible
+                and (
+                    item.expected_net_value_usd
+                    - item.provider_cost_usd
+                    - item.uncertainty_penalty
+                ) > 0
+                and evaluate_recovery_probe_efficiency(
+                    expected_net_value_usd=item.expected_net_value_usd,
+                    stop_risk_usd=item.stop_risk_usd,
+                    hard_risk_headroom_usd=(
+                        full_twin.capital_twin.stop_risk_headroom_usd
+                    ),
+                ).admitted
+            )
+        )
+        if eligible_recovery_probes:
+            recovery_probe = min(
+                eligible_recovery_probes,
+                key=lambda item: (
+                    item.stop_risk_usd,
+                    item.margin_usd,
+                    item.option_id,
+                ),
+            )
+
     plans: list[Genc11WorldStepPlan] = []
     for path in world_paths:
         cumulative: list[Genc10WorldScenario] = []
@@ -551,6 +590,20 @@ def plan_genc11_multi_period_capital(
                 and _known_option(capital_twin, item.option_id).expires_at
                 > step.projected_at
             )
+            probe_risk = Decimal(0)
+            probe_margin = Decimal(0)
+            if recovery_probe is not None:
+                probe_risk = min(
+                    recovery_probe.stop_risk_usd,
+                    projected.stop_risk_headroom_usd,
+                )
+                probe_margin = min(
+                    recovery_probe.margin_usd,
+                    projected.margin_headroom_usd,
+                )
+                if probe_risk <= 0 or probe_margin <= 0:
+                    probe_risk = Decimal(0)
+                    probe_margin = Decimal(0)
             capacity_plan = plan_phase20i_receding_horizon_capacity(
                 current_step=step.step_index - 1,
                 horizon_steps=horizon - step.step_index + 1,
@@ -560,6 +613,8 @@ def plan_genc11_multi_period_capital(
                 ),
                 margin_headroom_usd=projected.margin_headroom_usd,
                 known_options=options,
+                recovery_probe_stop_risk_usd=probe_risk,
+                recovery_probe_margin_usd=probe_margin,
             )
             plans.append(
                 Genc11WorldStepPlan(

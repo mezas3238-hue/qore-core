@@ -118,6 +118,10 @@ def build_cibo_profitability_decision_trace(
             policy_payload.get("allocator_decision"),
             "allocator_decision",
         )
+        mpc_payload = _object(
+            policy_payload.get("mpc_plan"),
+            "mpc_plan",
+        )
         allocator_runtime_receipts = _list_of_objects(
             allocator_payload.get("runtime_receipts", []),
             "allocator CE2I runtime receipts",
@@ -381,9 +385,53 @@ def build_cibo_profitability_decision_trace(
                         "capabilities": genc,
                         "runtime_receipts": genc_runtime_by_signal.get(signal, []),
                     },
+                    "mpc": {
+                        "posture": mpc_payload.get("posture"),
+                        "considered_option_ids": mpc_payload.get(
+                            "considered_option_ids"
+                        ),
+                        "representative_option_ids": mpc_payload.get(
+                            "representative_option_ids"
+                        ),
+                        "reserve_stop_risk_usd": mpc_payload.get(
+                            "reserve_stop_risk_usd"
+                        ),
+                        "reserve_margin_usd": mpc_payload.get(
+                            "reserve_margin_usd"
+                        ),
+                        "deployable_stop_risk_usd": mpc_payload.get(
+                            "deployable_stop_risk_usd"
+                        ),
+                        "deployable_margin_usd": mpc_payload.get(
+                            "deployable_margin_usd"
+                        ),
+                        "horizon_fully_coverable": mpc_payload.get(
+                            "horizon_fully_coverable"
+                        ),
+                        "reason": mpc_payload.get("reason"),
+                    },
                     "allocation": {
                         "selected_by_cibo_policy": selected,
                         "allocator_disposition": policy.allocator_disposition,
+                        "allocator_reason": allocator_payload.get("reason"),
+                        "allocator_regime_posture": allocator_payload.get(
+                            "regime_posture"
+                        ),
+                        "reserve_stop_risk_usd": allocator_payload.get(
+                            "reserve_stop_risk_usd"
+                        ),
+                        "reserve_margin_usd": allocator_payload.get(
+                            "reserve_margin_usd"
+                        ),
+                        "deployable_stop_risk_usd": allocator_payload.get(
+                            "deployable_stop_risk_usd"
+                        ),
+                        "deployable_margin_usd": allocator_payload.get(
+                            "deployable_margin_usd"
+                        ),
+                        "reserved_for_opportunity_ids": allocator_payload.get(
+                            "reserved_for_opportunity_ids"
+                        ),
                         "allocation_row": allocation,
                     },
                     "cma": {
