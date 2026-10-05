@@ -52,11 +52,18 @@ def build_sovereign_reasoning_request(
         raise CiboCapitalManagementError(
             "sovereign reasoning cannot consume contaminated consultation"
         )
-    if consultation.opportunity_fingerprints != (
-        opportunity.signal_fingerprint,
+    if (
+        opportunity.signal_fingerprint
+        not in consultation.opportunity_fingerprints
     ):
         raise CiboCapitalManagementError(
-            "sovereign reasoning consultation/opportunity identity drift"
+            "sovereign reasoning target is absent from shared consultation"
+        )
+    if consultation.opportunity_fingerprints.count(
+        opportunity.signal_fingerprint
+    ) != 1:
+        raise CiboCapitalManagementError(
+            "sovereign reasoning target must appear exactly once"
         )
 
     faculty_semantics = []
@@ -101,6 +108,24 @@ def build_sovereign_reasoning_request(
             }
         )
 
+    shared_context = None
+    for receipt in consultation.faculty_receipts:
+        candidate_context = receipt.input_payload.get(
+            "high_intelligence_context"
+        )
+        if candidate_context is None:
+            continue
+        if shared_context is None:
+            shared_context = candidate_context
+        elif candidate_context != shared_context:
+            raise CiboCapitalManagementError(
+                "sovereign reasoning shared opportunity context drift"
+            )
+    if not isinstance(shared_context, list) or not shared_context:
+        raise CiboCapitalManagementError(
+            "sovereign reasoning requires shared high-intelligence context"
+        )
+
     prompt_payload = {
         "mission": "single-account-seven-trader-maximum-capability",
         "instruction": (
@@ -110,7 +135,16 @@ def build_sovereign_reasoning_request(
             "Do not infer from future outcome and do not choose broker order "
             "details. Preserve uncertainty explicitly."
         ),
-        "opportunity": {
+        "shared_account_opportunity_surface": {
+            "opportunity_count": len(
+                consultation.opportunity_fingerprints
+            ),
+            "opportunity_fingerprints": list(
+                consultation.opportunity_fingerprints
+            ),
+            "high_intelligence_context": shared_context,
+        },
+        "target_opportunity": {
             "signal_fingerprint": opportunity.signal_fingerprint,
             "trader_id": opportunity.trader_id.value,
             "qore_symbol": opportunity.qore_symbol,
