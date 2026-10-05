@@ -17,5 +17,9 @@
     "src/qore/infrastructure/core_stack_v2/counterfactual_world_engine.py",
     "src/qore/infrastructure/core_stack_v2/shared_trajectory_intelligence.py"
   ],
-  "execution_origin": "TARGET"
+  "execution_origin": "TARGET",
+  "evidence_globs": [
+    "result/a1-functional-causality.json"
+  ],
+  "cache_safe": false
 }
