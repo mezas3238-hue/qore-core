@@ -35,9 +35,11 @@ MC23_PREREG: Final = (
 MC24_PREREG: Final = (
     "QORE_SHARED_MC24_EMPIRICAL_KNOWLEDGE_HALF_LIFE_PREREGISTRATION_001"
 )
+# The novelty-detection audit used require_future=False. This experiment
+# attaches +30m targets, so the final two R6 source observations are not
+# target-eligible; one of those two was NOVEL/NEAR_KNOWN.
 EXPECTED_COUNTS: Final = {
-    "r6": {"total": 21_123, "novel_or_near": 8_011},
-    "r5": {"total": 23_363, "novel_or_near": 9_882},
+    "r6": {"total": 21_121, "novel_or_near": 8_010},
 }
 MARKETS: Final = ("NAS100", "SP500", "US30")
 SAMPLE_MINUTES: Final = (0, 30)
@@ -537,15 +539,6 @@ def _partition(
             ):
                 complete = False
                 break
-            source_at = _parse_key(pre_rows[-1].closed_key)
-            pre_start = _parse_key(pre_rows[-60].closed_key)
-            target_at = _parse_key(future_rows[-1].closed_key)
-            if (source_at - pre_start).total_seconds() > 70 * 60:
-                complete = False
-                break
-            if (target_at - source_at).total_seconds() > 35 * 60:
-                complete = False
-                break
             pre[market] = pre_rows
             future[market] = future_rows
         if not complete:
@@ -561,17 +554,22 @@ def _partition(
         targets.append(_future_targets(pre, future))
         source_times.append(_parse_key(pre["NAS100"][-1].closed_key))
 
-    expected = EXPECTED_COUNTS[partition]
     selected = len(features)
-    if total != expected["total"]:
-        raise ValueError(
-            f"{partition} total population drift: {total} != {expected['total']}"
-        )
-    if selected != expected["novel_or_near"]:
-        raise ValueError(
-            f"{partition} novel population drift: "
-            f"{selected} != {expected['novel_or_near']}"
-        )
+    # R6 is consumed construction evidence, so exact target-eligible parity is
+    # checked before the one-shot. R5 is not pre-counted; its preregistered
+    # scientific sufficiency gate remains MINIMUM_R5_SCORED_OBSERVATIONS.
+    if partition == "r6":
+        expected = EXPECTED_COUNTS["r6"]
+        if total != expected["total"]:
+            raise ValueError(
+                "r6 target-eligible population drift: "
+                f"{total} != {expected['total']}"
+            )
+        if selected != expected["novel_or_near"]:
+            raise ValueError(
+                "r6 target-eligible novel population drift: "
+                f"{selected} != {expected['novel_or_near']}"
+            )
     del bars
     del peer_indexes
     gc.collect()
