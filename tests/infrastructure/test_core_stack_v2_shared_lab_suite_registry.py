@@ -1,3 +1,5 @@
+import json
+
 from qore.infrastructure.core_stack_v2.shared_lab_native_model import (
     ExecutionMode,
     LabScope,
@@ -5,6 +7,7 @@ from qore.infrastructure.core_stack_v2.shared_lab_native_model import (
     RunRequest,
 )
 from qore.infrastructure.core_stack_v2.shared_lab_suite_registry import (
+    NativeSuiteRegistry,
     default_native_suite_registry,
 )
 
@@ -65,3 +68,37 @@ def test_full_plan_contains_parallel_reality_branches_and_final_full_stack() -> 
         "provider-reality",
     }
     assert "full-stack" in by_id
+
+
+def test_default_lab_suites_are_harness_bound() -> None:
+    registry = default_native_suite_registry()
+    assert registry.definitions()
+    assert all(
+        definition.execution_origin == "HARNESS"
+        for definition in registry.definitions()
+    )
+
+
+def test_target_plugin_carries_exact_task_dataset_binding(tmp_path) -> None:
+    plugin_dir = tmp_path / "plugins"
+    plugin_dir.mkdir()
+    payload = {
+        "task_id": "producer-science",
+        "suite": "FUNCTIONAL",
+        "scope": "cognition",
+        "dependencies": [],
+        "command": ["python", "producer.py", "{dataset_path}"],
+        "component_globs": ["producer.py"],
+        "dataset_id": "sealed-science",
+        "dataset_version": "7",
+    }
+    (plugin_dir / "producer.json").write_text(
+        json.dumps(payload),
+        encoding="utf-8",
+    )
+    registry = NativeSuiteRegistry()
+    registry.load_plugins(plugin_dir)
+    definition = registry.get("producer-science")
+    assert definition.execution_origin == "TARGET"
+    assert definition.dataset_id == "sealed-science"
+    assert definition.dataset_version == "7"
