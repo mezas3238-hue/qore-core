@@ -8,6 +8,7 @@ import os
 import shutil
 import tempfile
 import threading
+import time
 from dataclasses import asdict
 from enum import Enum
 from pathlib import Path
@@ -50,6 +51,21 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+_ATOMIC_REPLACE_ATTEMPTS = 60
+_ATOMIC_REPLACE_RETRY_SECONDS = 0.05
+
+
+def _replace_with_retry(source: Path, target: Path) -> None:
+    for attempt in range(_ATOMIC_REPLACE_ATTEMPTS):
+        try:
+            os.replace(source, target)
+            return
+        except PermissionError:
+            if attempt + 1 >= _ATOMIC_REPLACE_ATTEMPTS:
+                raise
+            time.sleep(_ATOMIC_REPLACE_RETRY_SECONDS)
+
+
 def atomic_write_json(path: Path, payload: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     raw = json.dumps(
@@ -66,7 +82,10 @@ def atomic_write_json(path: Path, payload: object) -> None:
     ) as handle:
         handle.write(raw)
         temp_path = Path(handle.name)
-    os.replace(temp_path, path)
+    try:
+        _replace_with_retry(temp_path, path)
+    finally:
+        temp_path.unlink(missing_ok=True)
 
 
 class DatasetStore:
