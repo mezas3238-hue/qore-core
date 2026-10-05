@@ -1,0 +1,81 @@
+{
+  "identity": "QORE_SHARED_INTEGRATOR_1_SHARED_LAB_PLUGIN_DAG_AUDIT_005",
+  "observed_date": "2026-10-04",
+  "role": "SHARED_INTEGRATOR_1_A1_A2_ONLY",
+  "observed_heads": {
+    "architect_a1": "db683bbc1fba3d1c8225ae27e595d080daae5bb2",
+    "architect_a2": "8d5b28d5dd871e2a05f0642571f32310fb269d2a",
+    "integrator1_pre_audit": "a9d29d45e9fe15335deaef8d51d9555070ac7cd8",
+    "shared_lab": "c558127165435e5e1d2a748675db1158b5c19174"
+  },
+  "plugin_count": 9,
+  "task_graph": {
+    "i1-a1-core": [
+      "contract"
+    ],
+    "a1-functional-causality": [
+      "i1-a1-core"
+    ],
+    "a1-mc14-governed-replay": [
+      "a1-functional-causality"
+    ],
+    "a1-mc18-consumed-development-calibration": [
+      "a1-functional-causality"
+    ],
+    "i1-a1-scientific-evidence": [
+      "a1-functional-causality",
+      "a1-mc14-governed-replay",
+      "a1-mc18-consumed-development-calibration"
+    ],
+    "mc23-functional": [
+      "contract"
+    ],
+    "a2-mc24-regression": [
+      "mc23-functional"
+    ],
+    "i1-a2-scientific-evidence": [
+      "mc23-functional"
+    ],
+    "i1-a1-a2-pair": [
+      "i1-a1-scientific-evidence",
+      "i1-a2-scientific-evidence"
+    ]
+  },
+  "assertions": {
+    "duplicate_task_ids": false,
+    "missing_custom_dependencies": false,
+    "dependency_cycles": false,
+    "candidate_001_executable_tasks_present": false,
+    "candidate_002_executable_tasks_present": false,
+    "pair_can_bypass_a1_scientific_gate": false,
+    "pair_can_bypass_a2_scientific_gate": false,
+    "stale_candidate_evidence_can_unlock_active_mc23": false
+  },
+  "current_science": {
+    "a1_mc14": {
+      "bundle_materialized": true,
+      "bundle_sha256": "affff1ddf76c76337cc87e3738a6b958794869fa785a7acd01575ec901acb8e7",
+      "dataset_registered": false,
+      "governed_replay_executed": false,
+      "us2000": "INSUFFICIENT_DO_NOT_INFER"
+    },
+    "a1_mc18": "NATIVE_SCIENTIFIC_EXECUTION_REQUIRED",
+    "a2_mc23_candidate_001": "TERMINAL_FALSIFIED",
+    "a2_mc23_candidate_002": "TERMINAL_FALSIFIED_ON_REPLICATION_D",
+    "a2_mc23_candidate_003": "PREREGISTERED_NOT_YET_IMPLEMENTED_OR_EXECUTED",
+    "a2_mc24": "BLOCKED_UNTIL_ACTIVE_MC23_PASS",
+    "a2_mc25": "BLOCKED_UNTIL_ACTIVE_MC23_AND_MC24_PASS",
+    "a2_wp11": "BLOCKED_BY_UPSTREAM_SCIENCE"
+  },
+  "status": "DAG_STATIC_PASS_SCIENCE_OPEN",
+  "governance": {
+    "merge_performed": false,
+    "protected_final_holdout_opened": false,
+    "vps_used": false,
+    "live_used": false,
+    "broker_mutation": false,
+    "github_actions_validation_fallback_used": false,
+    "outcome_aware_rescue_used": false,
+    "productive_authority": false
+  }
+}
