@@ -192,6 +192,7 @@ class TaskSpec:
     execution_origin: str = "TARGET"
     dataset_id: str | None = None
     dataset_version: str | None = None
+    cache_safe: bool = True
 
     def __post_init__(self) -> None:
         if not self.task_id.strip() or not self.command:
