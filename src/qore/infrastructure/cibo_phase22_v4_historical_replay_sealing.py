@@ -214,17 +214,22 @@ def seal_phase22_historical_replay_epoch(
     for item in candidates:
         capital = item.capital_input
         opportunity = capital.opportunity
+        prior_available_at = FROZEN_PHASE20_POLICY_CANDIDATE.frozen_at
+        if prior_available_at > replay_sealed_at:
+            raise CiboCapitalManagementError(
+                "Phase22 frozen TRAIN prior is not yet available at replay decision"
+            )
         expectation = build_frozen_train_expectation(
             trader_id=opportunity.trader_id,
             stop_risk_usd=capital.minimum_stop_risk_usd,
-            as_of=market_decision_at,
+            as_of=prior_available_at,
         )
         candidate = CapitalOpportunityCandidate(
             signal_fingerprint=opportunity.signal_fingerprint,
             trader_id=opportunity.trader_id,
             qore_symbol=opportunity.qore_symbol,
             provider_symbol=opportunity.provider_symbol,
-            decision_as_of=market_decision_at,
+            decision_as_of=replay_sealed_at,
             expectation=expectation,
             stop_risk_usd=capital.minimum_stop_risk_usd,
             margin_usd=capital.minimum_margin_usd,
@@ -269,6 +274,15 @@ def seal_phase22_historical_replay_epoch(
         "decision_epoch_id": decision_epoch_id,
         "market_decision_at": market_decision_at.isoformat(),
         "replay_sealed_at": replay_sealed_at.isoformat(),
+        "policy_decision_at": replay_sealed_at.isoformat(),
+        "train_prior_available_at": (
+            FROZEN_PHASE20_POLICY_CANDIDATE.frozen_at.isoformat()
+        ),
+        "time_semantics": {
+            "market_clock": "HISTORICAL_SOURCE_STATE_ONLY",
+            "policy_clock": "POST_FREEZE_COUNTERFACTUAL_REPLAY",
+            "train_prior_backdated_to_market_time": False,
+        },
         "hard_risk_headroom_usd": format(hard_risk_headroom_usd, "f"),
         "margin_headroom_usd": format(margin_headroom_usd, "f"),
         "concentration_limit_by_group": [

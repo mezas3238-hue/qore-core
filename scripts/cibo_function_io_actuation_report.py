@@ -997,8 +997,7 @@ def main() -> int:
     coverage_raw = _load(args.coverage)
     capital = _load(args.capital_science_io)
     three_lane = _load(args.three_lane)
-    group = _load(args.group_result)
-    opportunities = trace.get("opportunities")
+    group = _load(args.group_result)    opportunities = trace.get("opportunities")
     if not isinstance(opportunities, list) or not opportunities:
         raise ValueError("decision trace opportunities missing")
     coverage = _coverage_by_code(coverage_raw)
@@ -1017,11 +1016,23 @@ def main() -> int:
         "JUSTIFIED_NOT_APPLICABLE_PREDECISION",
         "JUSTIFIED_NOT_APPLICABLE",
     }
+    # Coverage is role-aware. A function does not become broken merely because
+    # its demonstrated authority is advisory/protective or because the current
+    # context legitimately requires no economic mutation. Productive actuation
+    # remains observable separately below; this gate asks whether every
+    # mandatory function has a valid causal terminal role.
     actuation_ok = {
         "OUTPUT_AND_ECONOMIC_EFFECT_OBSERVED",
         "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED",
+        "INPUT_OUTPUT_CONSUMER_OBSERVED_ADVISORY",
+        "INPUT_OUTPUT_CONSUMER_OBSERVED_NO_CHANGE",
+        "NATIVE_ENGINE_SUCCESS_CONSUMED_NO_ECONOMIC_ACTUATION",
         "JUSTIFIED_NOT_APPLICABLE_PREDECISION",
         "JUSTIFIED_NOT_APPLICABLE",
+    }
+    productive_actuation_statuses = {
+        "OUTPUT_AND_ECONOMIC_EFFECT_OBSERVED",
+        "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED",
     }
     runtime_blockers = [
         {
@@ -1062,8 +1073,19 @@ def main() -> int:
         "runtime_functionality_complete": not runtime_blockers,
         "runtime_blocker_count": len(runtime_blockers),
         "runtime_blockers": runtime_blockers,
+        "productive_actuation_count": sum(
+            row["diagnosis"] in productive_actuation_statuses for row in rows
+        ),
+        "role_accounted_count": sum(
+            row["diagnosis"] in actuation_ok for row in rows
+        ),
+        "role_accounted_complete": not runtime_blockers and not actuation_gaps,
         "economic_actuation_coverage_complete": (
             not runtime_blockers and not actuation_gaps
+        ),
+        "economic_actuation_coverage_semantics": (
+            "ROLE_AWARE__PRODUCTIVE_WHERE_AUTHORIZED__"
+            "ADVISORY_PROTECTIVE_NO_CHANGE_WHERE_TERMINALLY_CLASSIFIED"
         ),
         "actuation_gap_count": len(actuation_gaps),
         "actuation_gaps": actuation_gaps,

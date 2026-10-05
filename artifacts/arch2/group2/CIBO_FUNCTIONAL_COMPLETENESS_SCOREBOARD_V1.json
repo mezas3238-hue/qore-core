@@ -1,0 +1,1630 @@
+{
+  "classification_counts": {
+    "INFORMATIONAL_USEFUL": 22,
+    "NOT_APPLICABLE": 10,
+    "PRODUCTIVE_COOPERATIVE": 24,
+    "PRODUCTIVE_UNIQUE": 1,
+    "PROTECTIVE_UNIQUE": 1,
+    "UNPROVEN": 2
+  },
+  "exact_runtime_signature_collision_count": 0,
+  "exact_runtime_signature_collisions": [],
+  "function_rows": 53,
+  "functional_completeness": false,
+  "governance": {
+    "authority_note": "GEN-C/Compound/Leverage/Portfolio/Sizing economic authority remains Architect-1 domain; this artifact classifies functional use only.",
+    "broker_mutation": false,
+    "certification_claimed": false,
+    "diagnostic_only": true,
+    "live": false,
+    "outcome_aware_tuning": false,
+    "production": false,
+    "real_capital": false
+  },
+  "group_id": "GROUP_2",
+  "mandatory_gap_count": 2,
+  "mandatory_gaps": [
+    {
+      "Authority": "CE2I_CONTEXTUAL_OR_PROTECTIVE__NO_INFERRED_AUTHORITY",
+      "Classification": "UNPROVEN",
+      "Consumer": true,
+      "Decision Change": false,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": false,
+      "Evidence": {
+        "diagnosis": "INPUT_OUTPUT_CONSUMER_OBSERVED_NO_CHANGE",
+        "expected_or_enabled_count": 1135,
+        "invocation_count": 153,
+        "primary_reason": "coverage_reason:allocator applied drawdown reserve under recovery posture",
+        "utilization_state": "USED_NO_CHANGE"
+      },
+      "Function": "T13",
+      "Input": true,
+      "Native Engine": {
+        "native_called_count": 153
+      },
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "CE2I",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "CE2I_CONTEXTUAL_OR_PROTECTIVE__NO_INFERRED_AUTHORITY",
+      "Classification": "UNPROVEN",
+      "Consumer": true,
+      "Decision Change": false,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": false,
+      "Evidence": {
+        "diagnosis": "INPUT_OUTPUT_CONSUMER_OBSERVED_NO_CHANGE",
+        "expected_or_enabled_count": 1135,
+        "invocation_count": 1135,
+        "primary_reason": "coverage_reason:allocator applied capital optionality/reservation envelope",
+        "utilization_state": "USED_NO_CHANGE"
+      },
+      "Function": "T15",
+      "Input": true,
+      "Native Engine": {
+        "native_called_count": 1135
+      },
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "CE2I",
+      "Timing Valid": true
+    }
+  ],
+  "row_count": 60,
+  "rows": [
+    {
+      "Authority": "OBSERVATION_ADVISORY__NO_SIZING_RISK_EXECUTION_AUTHORITY",
+      "Classification": "INFORMATIONAL_USEFUL",
+      "Consumer": true,
+      "Decision Change": false,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": false,
+      "Evidence": {
+        "diagnosis": "NATIVE_ENGINE_SUCCESS_CONSUMED_NO_ECONOMIC_ACTUATION",
+        "expected_or_enabled_count": 1154,
+        "invocation_count": 1154,
+        "primary_reason": "native_engine_status_distribution:SUCCESS (1154)",
+        "utilization_state": "ADVISORY_USED"
+      },
+      "Function": "CF01",
+      "Input": true,
+      "Native Engine": [
+        "CiboWorldMonitor.observe"
+      ],
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "COGNITIVE",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "OBSERVATION_ADVISORY__NO_SIZING_RISK_EXECUTION_AUTHORITY",
+      "Classification": "INFORMATIONAL_USEFUL",
+      "Consumer": true,
+      "Decision Change": false,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": false,
+      "Evidence": {
+        "diagnosis": "NATIVE_ENGINE_SUCCESS_CONSUMED_NO_ECONOMIC_ACTUATION",
+        "expected_or_enabled_count": 1154,
+        "invocation_count": 1154,
+        "primary_reason": "native_engine_status_distribution:SUCCESS (1154)",
+        "utilization_state": "ADVISORY_USED"
+      },
+      "Function": "CF02",
+      "Input": true,
+      "Native Engine": [
+        "CiboSpecialistMesh.collect"
+      ],
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "COGNITIVE",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "OBSERVATION_ADVISORY__NO_SIZING_RISK_EXECUTION_AUTHORITY",
+      "Classification": "INFORMATIONAL_USEFUL",
+      "Consumer": true,
+      "Decision Change": false,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": false,
+      "Evidence": {
+        "diagnosis": "NATIVE_ENGINE_SUCCESS_CONSUMED_NO_ECONOMIC_ACTUATION",
+        "expected_or_enabled_count": 1154,
+        "invocation_count": 1154,
+        "primary_reason": "native_engine_status_distribution:SUCCESS (1154)",
+        "utilization_state": "ADVISORY_USED"
+      },
+      "Function": "CF03",
+      "Input": true,
+      "Native Engine": [
+        "form_trader_team"
+      ],
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "COGNITIVE",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "OBSERVATION_ADVISORY__NO_SIZING_RISK_EXECUTION_AUTHORITY",
+      "Classification": "INFORMATIONAL_USEFUL",
+      "Consumer": true,
+      "Decision Change": false,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": false,
+      "Evidence": {
+        "diagnosis": "NATIVE_ENGINE_SUCCESS_CONSUMED_NO_ECONOMIC_ACTUATION",
+        "expected_or_enabled_count": 1154,
+        "invocation_count": 1154,
+        "primary_reason": "native_engine_status_distribution:SUCCESS (1154)",
+        "utilization_state": "ADVISORY_USED"
+      },
+      "Function": "CF04",
+      "Input": true,
+      "Native Engine": [
+        "CiboAcademy.advance"
+      ],
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "COGNITIVE",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "OBSERVATION_ADVISORY__NO_SIZING_RISK_EXECUTION_AUTHORITY",
+      "Classification": "INFORMATIONAL_USEFUL",
+      "Consumer": true,
+      "Decision Change": false,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": false,
+      "Evidence": {
+        "diagnosis": "NATIVE_ENGINE_SUCCESS_CONSUMED_NO_ECONOMIC_ACTUATION",
+        "expected_or_enabled_count": 1154,
+        "invocation_count": 1154,
+        "primary_reason": "native_engine_status_distribution:SUCCESS (1154)",
+        "utilization_state": "ADVISORY_USED"
+      },
+      "Function": "CF05",
+      "Input": true,
+      "Native Engine": [
+        "CiboOpportunitySearch.evaluate"
+      ],
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "COGNITIVE",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "OBSERVATION_ADVISORY__NO_SIZING_RISK_EXECUTION_AUTHORITY",
+      "Classification": "INFORMATIONAL_USEFUL",
+      "Consumer": true,
+      "Decision Change": false,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": false,
+      "Evidence": {
+        "diagnosis": "NATIVE_ENGINE_SUCCESS_CONSUMED_NO_ECONOMIC_ACTUATION",
+        "expected_or_enabled_count": 1154,
+        "invocation_count": 1154,
+        "primary_reason": "native_engine_status_distribution:SUCCESS (1154)",
+        "utilization_state": "ADVISORY_USED"
+      },
+      "Function": "CF06",
+      "Input": true,
+      "Native Engine": [
+        "CiboPortfolioIntelligence.recommend"
+      ],
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "COGNITIVE",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "OBSERVATION_ADVISORY__NO_SIZING_RISK_EXECUTION_AUTHORITY",
+      "Classification": "INFORMATIONAL_USEFUL",
+      "Consumer": true,
+      "Decision Change": false,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": false,
+      "Evidence": {
+        "diagnosis": "NATIVE_ENGINE_SUCCESS_CONSUMED_NO_ECONOMIC_ACTUATION",
+        "expected_or_enabled_count": 1154,
+        "invocation_count": 1154,
+        "primary_reason": "native_engine_status_distribution:SUCCESS (1154)",
+        "utilization_state": "ADVISORY_USED"
+      },
+      "Function": "CF07",
+      "Input": true,
+      "Native Engine": [
+        "CiboEconomicIntelligence.assess"
+      ],
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "COGNITIVE",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "OBSERVATION_ADVISORY__NO_SIZING_RISK_EXECUTION_AUTHORITY",
+      "Classification": "NOT_APPLICABLE",
+      "Consumer": true,
+      "Decision Change": false,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": false,
+      "Evidence": {
+        "diagnosis": "JUSTIFIED_NOT_APPLICABLE_PREDECISION",
+        "expected_or_enabled_count": 1154,
+        "invocation_count": 1154,
+        "primary_reason": "native_engine_status_distribution:JUSTIFIED_NOT_APPLICABLE (1154)",
+        "utilization_state": "JUSTIFIED_NOT_APPLICABLE"
+      },
+      "Function": "CF08",
+      "Input": true,
+      "Native Engine": [
+        "CiboOutcomeJournal.record"
+      ],
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "COGNITIVE",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "OBSERVATION_ADVISORY__NO_SIZING_RISK_EXECUTION_AUTHORITY",
+      "Classification": "INFORMATIONAL_USEFUL",
+      "Consumer": true,
+      "Decision Change": false,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": false,
+      "Evidence": {
+        "diagnosis": "NATIVE_ENGINE_SUCCESS_CONSUMED_NO_ECONOMIC_ACTUATION",
+        "expected_or_enabled_count": 1154,
+        "invocation_count": 1154,
+        "primary_reason": "native_engine_status_distribution:SUCCESS (1154)",
+        "utilization_state": "ADVISORY_USED"
+      },
+      "Function": "CF09",
+      "Input": true,
+      "Native Engine": [
+        "CiboFailureIntelligence.diagnose"
+      ],
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "COGNITIVE",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "OBSERVATION_ADVISORY__NO_SIZING_RISK_EXECUTION_AUTHORITY",
+      "Classification": "INFORMATIONAL_USEFUL",
+      "Consumer": true,
+      "Decision Change": false,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": false,
+      "Evidence": {
+        "diagnosis": "NATIVE_ENGINE_SUCCESS_CONSUMED_NO_ECONOMIC_ACTUATION",
+        "expected_or_enabled_count": 1154,
+        "invocation_count": 1154,
+        "primary_reason": "native_engine_status_distribution:SUCCESS (1154)",
+        "utilization_state": "ADVISORY_USED"
+      },
+      "Function": "CF10",
+      "Input": true,
+      "Native Engine": [
+        "CiboQuantitativeIntelligence.dispatch"
+      ],
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "COGNITIVE",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "OBSERVATION_ADVISORY__NO_SIZING_RISK_EXECUTION_AUTHORITY",
+      "Classification": "INFORMATIONAL_USEFUL",
+      "Consumer": true,
+      "Decision Change": false,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": false,
+      "Evidence": {
+        "diagnosis": "NATIVE_ENGINE_SUCCESS_CONSUMED_NO_ECONOMIC_ACTUATION",
+        "expected_or_enabled_count": 1154,
+        "invocation_count": 1154,
+        "primary_reason": "native_engine_status_distribution:SUCCESS (1154)",
+        "utilization_state": "ADVISORY_USED"
+      },
+      "Function": "CF11",
+      "Input": true,
+      "Native Engine": [
+        "CiboResearchDirector.advance"
+      ],
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "COGNITIVE",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "OBSERVATION_ADVISORY__NO_SIZING_RISK_EXECUTION_AUTHORITY",
+      "Classification": "INFORMATIONAL_USEFUL",
+      "Consumer": true,
+      "Decision Change": false,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": false,
+      "Evidence": {
+        "diagnosis": "NATIVE_ENGINE_SUCCESS_CONSUMED_NO_ECONOMIC_ACTUATION",
+        "expected_or_enabled_count": 1154,
+        "invocation_count": 1154,
+        "primary_reason": "native_engine_status_distribution:SUCCESS (1154)",
+        "utilization_state": "ADVISORY_USED"
+      },
+      "Function": "CF12",
+      "Input": true,
+      "Native Engine": [
+        "CiboRiskAwareComposer.compose"
+      ],
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "COGNITIVE",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "OBSERVATION_ADVISORY__NO_SIZING_RISK_EXECUTION_AUTHORITY",
+      "Classification": "INFORMATIONAL_USEFUL",
+      "Consumer": true,
+      "Decision Change": false,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": false,
+      "Evidence": {
+        "diagnosis": "NATIVE_ENGINE_SUCCESS_CONSUMED_NO_ECONOMIC_ACTUATION",
+        "expected_or_enabled_count": 1154,
+        "invocation_count": 1154,
+        "primary_reason": "native_engine_status_distribution:SUCCESS (1154)",
+        "utilization_state": "ADVISORY_USED"
+      },
+      "Function": "CF13",
+      "Input": true,
+      "Native Engine": [
+        "CiboCoreHealth.assess"
+      ],
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "COGNITIVE",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "OBSERVATION_ADVISORY__NO_SIZING_RISK_EXECUTION_AUTHORITY",
+      "Classification": "INFORMATIONAL_USEFUL",
+      "Consumer": true,
+      "Decision Change": false,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": false,
+      "Evidence": {
+        "diagnosis": "NATIVE_ENGINE_SUCCESS_CONSUMED_NO_ECONOMIC_ACTUATION",
+        "expected_or_enabled_count": 1154,
+        "invocation_count": 1154,
+        "primary_reason": "native_engine_status_distribution:SUCCESS (1154)",
+        "utilization_state": "ADVISORY_USED"
+      },
+      "Function": "CF14",
+      "Input": true,
+      "Native Engine": [
+        "CiboExecutivePlanner.plan"
+      ],
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "COGNITIVE",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "OBSERVATION_ADVISORY__NO_SIZING_RISK_EXECUTION_AUTHORITY",
+      "Classification": "INFORMATIONAL_USEFUL",
+      "Consumer": true,
+      "Decision Change": false,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": false,
+      "Evidence": {
+        "diagnosis": "NATIVE_ENGINE_SUCCESS_CONSUMED_NO_ECONOMIC_ACTUATION",
+        "expected_or_enabled_count": 1154,
+        "invocation_count": 1154,
+        "primary_reason": "native_engine_status_distribution:SUCCESS (1154)",
+        "utilization_state": "ADVISORY_USED"
+      },
+      "Function": "CF15",
+      "Input": true,
+      "Native Engine": [
+        "CiboCeoDialogue.speak"
+      ],
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "COGNITIVE",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "OBSERVATION_ADVISORY__NO_SIZING_RISK_EXECUTION_AUTHORITY",
+      "Classification": "INFORMATIONAL_USEFUL",
+      "Consumer": true,
+      "Decision Change": false,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": false,
+      "Evidence": {
+        "diagnosis": "NATIVE_ENGINE_SUCCESS_CONSUMED_NO_ECONOMIC_ACTUATION",
+        "expected_or_enabled_count": 1154,
+        "invocation_count": 1154,
+        "primary_reason": "native_engine_status_distribution:SUCCESS (1154)",
+        "utilization_state": "ADVISORY_USED"
+      },
+      "Function": "CF16",
+      "Input": true,
+      "Native Engine": [
+        "CiboTraderCouncil.consider"
+      ],
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "COGNITIVE",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "OBSERVATION_ADVISORY__NO_SIZING_RISK_EXECUTION_AUTHORITY",
+      "Classification": "INFORMATIONAL_USEFUL",
+      "Consumer": true,
+      "Decision Change": false,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": false,
+      "Evidence": {
+        "diagnosis": "NATIVE_ENGINE_SUCCESS_CONSUMED_NO_ECONOMIC_ACTUATION",
+        "expected_or_enabled_count": 1154,
+        "invocation_count": 1154,
+        "primary_reason": "native_engine_status_distribution:SUCCESS (1154)",
+        "utilization_state": "ADVISORY_USED"
+      },
+      "Function": "CF17",
+      "Input": true,
+      "Native Engine": [
+        "CiboDecisionJournal.record"
+      ],
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "COGNITIVE",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "OBSERVATION_ADVISORY__NO_SIZING_RISK_EXECUTION_AUTHORITY",
+      "Classification": "NOT_APPLICABLE",
+      "Consumer": true,
+      "Decision Change": false,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": false,
+      "Evidence": {
+        "diagnosis": "JUSTIFIED_NOT_APPLICABLE_PREDECISION",
+        "expected_or_enabled_count": 1154,
+        "invocation_count": 1154,
+        "primary_reason": "native_engine_status_distribution:JUSTIFIED_NOT_APPLICABLE (1154)",
+        "utilization_state": "JUSTIFIED_NOT_APPLICABLE"
+      },
+      "Function": "CF18",
+      "Input": true,
+      "Native Engine": [
+        "CiboSelfEvaluation.evaluate"
+      ],
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "COGNITIVE",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "OBSERVATION_ADVISORY__NO_SIZING_RISK_EXECUTION_AUTHORITY",
+      "Classification": "NOT_APPLICABLE",
+      "Consumer": true,
+      "Decision Change": false,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": false,
+      "Evidence": {
+        "diagnosis": "JUSTIFIED_NOT_APPLICABLE_PREDECISION",
+        "expected_or_enabled_count": 1154,
+        "invocation_count": 1154,
+        "primary_reason": "native_engine_status_distribution:JUSTIFIED_NOT_APPLICABLE (1154)",
+        "utilization_state": "JUSTIFIED_NOT_APPLICABLE"
+      },
+      "Function": "CF19",
+      "Input": true,
+      "Native Engine": [
+        "CiboLearning.accept/reject"
+      ],
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "COGNITIVE",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "CE2I_TOOL_RUNTIME__BOUND_BY_CMA_AND_QORE_RISK",
+      "Classification": "PRODUCTIVE_COOPERATIVE",
+      "Consumer": true,
+      "Decision Change": true,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": true,
+      "Evidence": {
+        "diagnosis": "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED",
+        "expected_or_enabled_count": 1135,
+        "invocation_count": 695,
+        "primary_reason": "coverage_reason:plan_minimal_seed executed for every CIBO-selected signal",
+        "utilization_state": "ACTUATING"
+      },
+      "Function": "T01",
+      "Input": true,
+      "Native Engine": {
+        "native_called_count": 0
+      },
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "CE2I",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "CE2I_TOOL_RUNTIME__BOUND_BY_CMA_AND_QORE_RISK",
+      "Classification": "PRODUCTIVE_COOPERATIVE",
+      "Consumer": true,
+      "Decision Change": true,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": true,
+      "Evidence": {
+        "diagnosis": "OUTPUT_AND_ECONOMIC_EFFECT_OBSERVED",
+        "expected_or_enabled_count": 982,
+        "invocation_count": 1154,
+        "primary_reason": "coverage_reason:MISSING_STRUCTURAL_LEVERAGE_EVIDENCE; verified OOS structural precision supports bounded extra exposure; out-of-sample stop evidence is insufficient",
+        "utilization_state": "ACTUATING"
+      },
+      "Function": "T02",
+      "Input": false,
+      "Native Engine": {
+        "native_called_count": 0
+      },
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "CE2I",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "CE2I_CONTEXTUAL_OR_PROTECTIVE__NO_INFERRED_AUTHORITY",
+      "Classification": "NOT_APPLICABLE",
+      "Consumer": false,
+      "Decision Change": false,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": false,
+      "Evidence": {
+        "diagnosis": "JUSTIFIED_NOT_APPLICABLE",
+        "expected_or_enabled_count": 1135,
+        "invocation_count": 1154,
+        "primary_reason": "coverage_reason:NO_ALTERNATIVE_EQUIVALENT_EXPRESSION",
+        "utilization_state": "JUSTIFIED_NOT_APPLICABLE"
+      },
+      "Function": "T03",
+      "Input": false,
+      "Native Engine": {
+        "native_called_count": 0
+      },
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "CE2I",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "CE2I_CONTEXTUAL_OR_PROTECTIVE__NO_INFERRED_AUTHORITY",
+      "Classification": "NOT_APPLICABLE",
+      "Consumer": false,
+      "Decision Change": false,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": false,
+      "Evidence": {
+        "diagnosis": "JUSTIFIED_NOT_APPLICABLE",
+        "expected_or_enabled_count": 982,
+        "invocation_count": 1154,
+        "primary_reason": "coverage_reason:NO_ALTERNATIVE_RISK_POLICY",
+        "utilization_state": "JUSTIFIED_NOT_APPLICABLE"
+      },
+      "Function": "T04",
+      "Input": false,
+      "Native Engine": {
+        "native_called_count": 0
+      },
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "CE2I",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "CE2I_TOOL_RUNTIME__BOUND_BY_CMA_AND_QORE_RISK",
+      "Classification": "PRODUCTIVE_COOPERATIVE",
+      "Consumer": true,
+      "Decision Change": true,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": true,
+      "Evidence": {
+        "diagnosis": "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED",
+        "expected_or_enabled_count": 982,
+        "invocation_count": 695,
+        "primary_reason": "coverage_reason:settled risk/margin was released and subsequent epochs recomputed reusable headroom",
+        "utilization_state": "ACTUATING"
+      },
+      "Function": "T05",
+      "Input": true,
+      "Native Engine": {
+        "native_called_count": 0
+      },
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "CE2I",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "CE2I_TOOL_RUNTIME__BOUND_BY_CMA_AND_QORE_RISK",
+      "Classification": "PRODUCTIVE_COOPERATIVE",
+      "Consumer": true,
+      "Decision Change": true,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": false,
+      "Evidence": {
+        "diagnosis": "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED",
+        "expected_or_enabled_count": 982,
+        "invocation_count": 11,
+        "primary_reason": "coverage_reason:expansion funded only from proven non-base economic capacity",
+        "utilization_state": "ACTUATING"
+      },
+      "Function": "T06",
+      "Input": true,
+      "Native Engine": {
+        "native_called_count": 11
+      },
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "CE2I",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "CE2I_CONTEXTUAL_OR_PROTECTIVE__NO_INFERRED_AUTHORITY",
+      "Classification": "NOT_APPLICABLE",
+      "Consumer": false,
+      "Decision Change": false,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": false,
+      "Evidence": {
+        "diagnosis": "JUSTIFIED_NOT_APPLICABLE",
+        "expected_or_enabled_count": 982,
+        "invocation_count": 0,
+        "primary_reason": "coverage_reason:no proven non-base self-financing capacity is currently available",
+        "utilization_state": "JUSTIFIED_NOT_APPLICABLE"
+      },
+      "Function": "T07",
+      "Input": false,
+      "Native Engine": {
+        "native_called_count": 0
+      },
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": false,
+      "Protective Effect": false,
+      "Stage": "CE2I",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "CE2I_CONTEXTUAL_OR_PROTECTIVE__NO_INFERRED_AUTHORITY",
+      "Classification": "NOT_APPLICABLE",
+      "Consumer": false,
+      "Decision Change": false,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": false,
+      "Evidence": {
+        "diagnosis": "JUSTIFIED_NOT_APPLICABLE",
+        "expected_or_enabled_count": 1057,
+        "invocation_count": 1154,
+        "primary_reason": "coverage_reason:NO_POTENTIAL_FACTOR_OFFSET",
+        "utilization_state": "JUSTIFIED_NOT_APPLICABLE"
+      },
+      "Function": "T08",
+      "Input": false,
+      "Native Engine": {
+        "native_called_count": 0
+      },
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "CE2I",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "CE2I_TOOL_RUNTIME__BOUND_BY_CMA_AND_QORE_RISK",
+      "Classification": "PRODUCTIVE_COOPERATIVE",
+      "Consumer": true,
+      "Decision Change": true,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": true,
+      "Evidence": {
+        "diagnosis": "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED",
+        "expected_or_enabled_count": 18,
+        "invocation_count": 19,
+        "primary_reason": "coverage_reason:robust allocator evaluated simultaneous opportunity competition",
+        "utilization_state": "ACTUATING"
+      },
+      "Function": "T09",
+      "Input": true,
+      "Native Engine": {
+        "native_called_count": 8
+      },
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "CE2I",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "CE2I_CONTEXTUAL_OR_PROTECTIVE__NO_INFERRED_AUTHORITY",
+      "Classification": "NOT_APPLICABLE",
+      "Consumer": false,
+      "Decision Change": false,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": false,
+      "Evidence": {
+        "diagnosis": "JUSTIFIED_NOT_APPLICABLE",
+        "expected_or_enabled_count": 1135,
+        "invocation_count": 1154,
+        "primary_reason": "coverage_reason:NO_ALTERNATIVE_VELOCITY_POLICY",
+        "utilization_state": "JUSTIFIED_NOT_APPLICABLE"
+      },
+      "Function": "T10",
+      "Input": false,
+      "Native Engine": {
+        "native_called_count": 0
+      },
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "CE2I",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "CE2I_TOOL_RUNTIME__BOUND_BY_CMA_AND_QORE_RISK",
+      "Classification": "PRODUCTIVE_COOPERATIVE",
+      "Consumer": true,
+      "Decision Change": true,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": true,
+      "Evidence": {
+        "diagnosis": "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED",
+        "expected_or_enabled_count": 1135,
+        "invocation_count": 695,
+        "primary_reason": "coverage_reason:T11_GROSS_EDGE_MODEL_NOT_IDENTIFIED; T11_MARKET_IMPACT_MODEL_NOT_IDENTIFIED",
+        "utilization_state": "ACTUATING"
+      },
+      "Function": "T11",
+      "Input": true,
+      "Native Engine": {
+        "native_called_count": 0
+      },
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "CE2I",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "CE2I_TOOL_RUNTIME__BOUND_BY_CMA_AND_QORE_RISK",
+      "Classification": "PRODUCTIVE_COOPERATIVE",
+      "Consumer": true,
+      "Decision Change": true,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": false,
+      "Evidence": {
+        "diagnosis": "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED",
+        "expected_or_enabled_count": 982,
+        "invocation_count": 1135,
+        "primary_reason": "coverage_reason:causal regime selector evaluated the CE2I surface at every decision epoch",
+        "utilization_state": "ACTUATING"
+      },
+      "Function": "T12",
+      "Input": true,
+      "Native Engine": {
+        "native_called_count": 1135
+      },
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "CE2I",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "CE2I_CONTEXTUAL_OR_PROTECTIVE__NO_INFERRED_AUTHORITY",
+      "Classification": "UNPROVEN",
+      "Consumer": true,
+      "Decision Change": false,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": false,
+      "Evidence": {
+        "diagnosis": "INPUT_OUTPUT_CONSUMER_OBSERVED_NO_CHANGE",
+        "expected_or_enabled_count": 1135,
+        "invocation_count": 153,
+        "primary_reason": "coverage_reason:allocator applied drawdown reserve under recovery posture",
+        "utilization_state": "USED_NO_CHANGE"
+      },
+      "Function": "T13",
+      "Input": true,
+      "Native Engine": {
+        "native_called_count": 153
+      },
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "CE2I",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "CE2I_TOOL_RUNTIME__BOUND_BY_CMA_AND_QORE_RISK",
+      "Classification": "PRODUCTIVE_COOPERATIVE",
+      "Consumer": true,
+      "Decision Change": true,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": true,
+      "Evidence": {
+        "diagnosis": "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED",
+        "expected_or_enabled_count": 1135,
+        "invocation_count": 1046,
+        "primary_reason": "coverage_reason:current position already fits retained capital ceilings",
+        "utilization_state": "ACTUATING"
+      },
+      "Function": "T14",
+      "Input": true,
+      "Native Engine": {
+        "native_called_count": 351
+      },
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": true,
+      "Stage": "CE2I",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "CE2I_CONTEXTUAL_OR_PROTECTIVE__NO_INFERRED_AUTHORITY",
+      "Classification": "UNPROVEN",
+      "Consumer": true,
+      "Decision Change": false,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": false,
+      "Evidence": {
+        "diagnosis": "INPUT_OUTPUT_CONSUMER_OBSERVED_NO_CHANGE",
+        "expected_or_enabled_count": 1135,
+        "invocation_count": 1135,
+        "primary_reason": "coverage_reason:allocator applied capital optionality/reservation envelope",
+        "utilization_state": "USED_NO_CHANGE"
+      },
+      "Function": "T15",
+      "Input": true,
+      "Native Engine": {
+        "native_called_count": 1135
+      },
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "CE2I",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "CE2I_CONTEXTUAL_OR_PROTECTIVE__NO_INFERRED_AUTHORITY",
+      "Classification": "NOT_APPLICABLE",
+      "Consumer": false,
+      "Decision Change": false,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": false,
+      "Evidence": {
+        "diagnosis": "JUSTIFIED_NOT_APPLICABLE",
+        "expected_or_enabled_count": 1057,
+        "invocation_count": 1154,
+        "primary_reason": "coverage_reason:NO_HEDGE_INSTRUMENT_AVAILABLE",
+        "utilization_state": "JUSTIFIED_NOT_APPLICABLE"
+      },
+      "Function": "T16",
+      "Input": false,
+      "Native Engine": {
+        "native_called_count": 0
+      },
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "CE2I",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "CE2I_CONTEXTUAL_OR_PROTECTIVE__NO_INFERRED_AUTHORITY",
+      "Classification": "NOT_APPLICABLE",
+      "Consumer": false,
+      "Decision Change": false,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": false,
+      "Evidence": {
+        "diagnosis": "JUSTIFIED_NOT_APPLICABLE",        "expected_or_enabled_count": 982,
+        "invocation_count": 1154,
+        "primary_reason": "coverage_reason:NO_CERTIFIED_LIMITED_DOWNSIDE_INSTRUMENT_AVAILABLE",
+        "utilization_state": "JUSTIFIED_NOT_APPLICABLE"
+      },
+      "Function": "T17",
+      "Input": false,
+      "Native Engine": {
+        "native_called_count": 0
+      },
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "CE2I",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "CE2I_TOOL_RUNTIME__BOUND_BY_CMA_AND_QORE_RISK",
+      "Classification": "PRODUCTIVE_COOPERATIVE",
+      "Consumer": true,
+      "Decision Change": true,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": true,
+      "Evidence": {
+        "diagnosis": "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED",
+        "expected_or_enabled_count": 18,
+        "invocation_count": 13,
+        "primary_reason": "coverage_reason:robust allocator compared simultaneous cross-Trader opportunities",
+        "utilization_state": "ACTUATING"
+      },
+      "Function": "T18",
+      "Input": true,
+      "Native Engine": {
+        "native_called_count": 8
+      },
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "CE2I",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "CE2I_TOOL_RUNTIME__BOUND_BY_CMA_AND_QORE_RISK",
+      "Classification": "PRODUCTIVE_COOPERATIVE",
+      "Consumer": true,
+      "Decision Change": true,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": true,
+      "Evidence": {
+        "diagnosis": "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED",
+        "expected_or_enabled_count": 982,
+        "invocation_count": 695,
+        "primary_reason": "coverage_reason:QORE Risk reservations were created before accepted historical deployments",
+        "utilization_state": "ACTUATING"
+      },
+      "Function": "T19",
+      "Input": true,
+      "Native Engine": {
+        "native_called_count": 0
+      },
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "CE2I",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "CE2I_TOOL_RUNTIME__BOUND_BY_CMA_AND_QORE_RISK",
+      "Classification": "PRODUCTIVE_COOPERATIVE",
+      "Consumer": true,
+      "Decision Change": true,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": true,
+      "Evidence": {
+        "diagnosis": "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED",
+        "expected_or_enabled_count": 1135,
+        "invocation_count": 695,
+        "primary_reason": "coverage_reason:every settled deployment emitted a reconciled T20 release seal",
+        "utilization_state": "ACTUATING"
+      },
+      "Function": "T20",
+      "Input": true,
+      "Native Engine": {
+        "native_called_count": 0
+      },
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "CE2I",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "CAPITAL_SCIENCE_RUNTIME_ROLE__AUTHORITY_RECONCILE_WITH_ARCHITECT1",
+      "Classification": "PRODUCTIVE_COOPERATIVE",
+      "Consumer": true,
+      "Decision Change": true,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": false,
+      "Evidence": {
+        "diagnosis": "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED",
+        "expected_or_enabled_count": 437,
+        "invocation_count": 437,
+        "primary_reason": "dispositions:APPLIED (436)",
+        "utilization_state": "ACTUATING"
+      },
+      "Function": "GEN-C1",
+      "Input": true,
+      "Native Engine": {
+        "native_called_count": 437
+      },
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "CAPITAL_SCIENCE",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "CAPITAL_SCIENCE_RUNTIME_ROLE__AUTHORITY_RECONCILE_WITH_ARCHITECT1",
+      "Classification": "PRODUCTIVE_COOPERATIVE",
+      "Consumer": true,
+      "Decision Change": true,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": false,
+      "Evidence": {
+        "diagnosis": "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED",
+        "expected_or_enabled_count": 437,
+        "invocation_count": 437,
+        "primary_reason": "dispositions:APPLIED (436)",
+        "utilization_state": "ACTUATING"
+      },
+      "Function": "GEN-C2",
+      "Input": true,
+      "Native Engine": {
+        "native_called_count": 0
+      },
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "CAPITAL_SCIENCE",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "CAPITAL_SCIENCE_RUNTIME_ROLE__AUTHORITY_RECONCILE_WITH_ARCHITECT1",
+      "Classification": "PRODUCTIVE_COOPERATIVE",
+      "Consumer": true,
+      "Decision Change": true,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": false,
+      "Evidence": {
+        "diagnosis": "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED",
+        "expected_or_enabled_count": 437,
+        "invocation_count": 437,
+        "primary_reason": "dispositions:APPLIED (436)",
+        "utilization_state": "ACTUATING"
+      },
+      "Function": "GEN-C3",
+      "Input": true,
+      "Native Engine": {
+        "native_called_count": 437
+      },
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "CAPITAL_SCIENCE",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "CAPITAL_SCIENCE_RUNTIME_ROLE__AUTHORITY_RECONCILE_WITH_ARCHITECT1",
+      "Classification": "PRODUCTIVE_COOPERATIVE",
+      "Consumer": true,
+      "Decision Change": true,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": false,
+      "Evidence": {
+        "diagnosis": "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED",
+        "expected_or_enabled_count": 437,
+        "invocation_count": 437,
+        "primary_reason": "dispositions:APPLIED (341)",
+        "utilization_state": "ACTUATING"
+      },
+      "Function": "GEN-C4",
+      "Input": true,
+      "Native Engine": {
+        "native_called_count": 0
+      },
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "CAPITAL_SCIENCE",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "CAPITAL_SCIENCE_RUNTIME_ROLE__AUTHORITY_RECONCILE_WITH_ARCHITECT1",
+      "Classification": "PRODUCTIVE_COOPERATIVE",
+      "Consumer": true,
+      "Decision Change": true,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": false,
+      "Evidence": {
+        "diagnosis": "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED",
+        "expected_or_enabled_count": 437,
+        "invocation_count": 437,
+        "primary_reason": "dispositions:APPLIED (427)",
+        "utilization_state": "ACTUATING"
+      },
+      "Function": "GEN-C5",
+      "Input": true,
+      "Native Engine": {
+        "native_called_count": 427
+      },
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "CAPITAL_SCIENCE",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "CAPITAL_SCIENCE_RUNTIME_ROLE__AUTHORITY_RECONCILE_WITH_ARCHITECT1",
+      "Classification": "PRODUCTIVE_COOPERATIVE",
+      "Consumer": true,
+      "Decision Change": true,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": false,
+      "Evidence": {
+        "diagnosis": "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED",
+        "expected_or_enabled_count": 437,
+        "invocation_count": 437,
+        "primary_reason": "dispositions:JUSTIFIED_NOT_APPLICABLE (425)",
+        "utilization_state": "ACTUATING"
+      },
+      "Function": "GEN-C6",
+      "Input": true,
+      "Native Engine": {
+        "native_called_count": 437
+      },
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "CAPITAL_SCIENCE",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "CAPITAL_SCIENCE_RUNTIME_ROLE__AUTHORITY_RECONCILE_WITH_ARCHITECT1",
+      "Classification": "PRODUCTIVE_COOPERATIVE",
+      "Consumer": true,
+      "Decision Change": true,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": false,
+      "Evidence": {
+        "diagnosis": "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED",
+        "expected_or_enabled_count": 437,
+        "invocation_count": 437,
+        "primary_reason": "dispositions:APPLIED (427)",
+        "utilization_state": "ACTUATING"
+      },
+      "Function": "GEN-C7",
+      "Input": true,
+      "Native Engine": {
+        "native_called_count": 437
+      },
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "CAPITAL_SCIENCE",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "CAPITAL_SCIENCE_RUNTIME_ROLE__AUTHORITY_RECONCILE_WITH_ARCHITECT1",
+      "Classification": "PRODUCTIVE_COOPERATIVE",
+      "Consumer": true,
+      "Decision Change": true,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": false,
+      "Evidence": {
+        "diagnosis": "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED",
+        "expected_or_enabled_count": 437,
+        "invocation_count": 437,
+        "primary_reason": "dispositions:APPLIED (427)",
+        "utilization_state": "ACTUATING"
+      },
+      "Function": "GEN-C8",
+      "Input": true,
+      "Native Engine": {
+        "native_called_count": 427
+      },
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "CAPITAL_SCIENCE",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "CAPITAL_SCIENCE_RUNTIME_ROLE__AUTHORITY_RECONCILE_WITH_ARCHITECT1",
+      "Classification": "INFORMATIONAL_USEFUL",
+      "Consumer": true,
+      "Decision Change": false,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": false,
+      "Evidence": {
+        "diagnosis": "INPUT_OUTPUT_CONSUMER_OBSERVED_NO_CHANGE",
+        "expected_or_enabled_count": 1,
+        "invocation_count": 1,
+        "primary_reason": "dispositions:APPLIED (1)",
+        "utilization_state": "USED_NO_CHANGE"
+      },
+      "Function": "GEN-C9",
+      "Input": true,
+      "Native Engine": {
+        "native_called_count": 0
+      },
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "CAPITAL_SCIENCE",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "CAPITAL_SCIENCE_RUNTIME_ROLE__AUTHORITY_RECONCILE_WITH_ARCHITECT1",
+      "Classification": "INFORMATIONAL_USEFUL",
+      "Consumer": true,
+      "Decision Change": false,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": false,
+      "Evidence": {
+        "diagnosis": "INPUT_OUTPUT_CONSUMER_OBSERVED_NO_CHANGE",
+        "expected_or_enabled_count": 437,
+        "invocation_count": 437,
+        "primary_reason": "dispositions:APPLIED (437)",
+        "utilization_state": "USED_NO_CHANGE"
+      },
+      "Function": "GEN-C10",
+      "Input": true,
+      "Native Engine": {
+        "native_called_count": 437
+      },
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "CAPITAL_SCIENCE",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "CAPITAL_SCIENCE_RUNTIME_ROLE__AUTHORITY_RECONCILE_WITH_ARCHITECT1",
+      "Classification": "PRODUCTIVE_COOPERATIVE",
+      "Consumer": true,
+      "Decision Change": true,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": true,
+      "Evidence": {
+        "diagnosis": "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED",
+        "expected_or_enabled_count": 437,
+        "invocation_count": 437,
+        "primary_reason": "dispositions:APPLIED (437)",
+        "utilization_state": "ACTUATING"
+      },
+      "Function": "GEN-C11",
+      "Input": true,
+      "Native Engine": {
+        "native_called_count": 437
+      },
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "CAPITAL_SCIENCE",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "CAPITAL_SCIENCE_RUNTIME_ROLE__AUTHORITY_RECONCILE_WITH_ARCHITECT1",
+      "Classification": "INFORMATIONAL_USEFUL",
+      "Consumer": true,
+      "Decision Change": false,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": false,
+      "Evidence": {
+        "diagnosis": "INPUT_OUTPUT_CONSUMER_OBSERVED_NO_CHANGE",
+        "expected_or_enabled_count": 437,
+        "invocation_count": 437,
+        "primary_reason": "dispositions:APPLIED (419)",
+        "utilization_state": "USED_NO_CHANGE"
+      },
+      "Function": "GEN-C12",
+      "Input": true,
+      "Native Engine": {
+        "native_called_count": 437
+      },
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "CAPITAL_SCIENCE",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "CAPITAL_SCIENCE_RUNTIME_ROLE__AUTHORITY_RECONCILE_WITH_ARCHITECT1",
+      "Classification": "INFORMATIONAL_USEFUL",
+      "Consumer": true,
+      "Decision Change": false,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": false,
+      "Evidence": {
+        "diagnosis": "INPUT_OUTPUT_CONSUMER_OBSERVED_NO_CHANGE",
+        "expected_or_enabled_count": 706,
+        "invocation_count": 706,
+        "primary_reason": "dispositions:APPLIED (706)",
+        "utilization_state": "USED_NO_CHANGE"
+      },
+      "Function": "GEN-C13",
+      "Input": true,
+      "Native Engine": {
+        "native_called_count": 0
+      },
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "CAPITAL_SCIENCE",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "CAPITAL_SCIENCE_RUNTIME_ROLE__AUTHORITY_RECONCILE_WITH_ARCHITECT1",
+      "Classification": "INFORMATIONAL_USEFUL",
+      "Consumer": true,
+      "Decision Change": false,
+      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
+      "Economic Effect": false,
+      "Evidence": {
+        "diagnosis": "INPUT_OUTPUT_CONSUMER_OBSERVED_NO_CHANGE",
+        "expected_or_enabled_count": 1,
+        "invocation_count": 1,
+        "primary_reason": "dispositions:APPLIED (1)",
+        "utilization_state": "USED_NO_CHANGE"
+      },
+      "Function": "GEN-C14",
+      "Input": true,
+      "Native Engine": {
+        "native_called_count": 0
+      },
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "CAPITAL_SCIENCE",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "SIZING_AUTHORITY",
+      "Classification": "PRODUCTIVE_UNIQUE",
+      "Consumer": true,
+      "Decision Change": true,
+      "Duplicate": "NOT_PROVEN",
+      "Economic Effect": true,
+      "Evidence": {
+        "consumer_contract": "QORE Risk request",
+        "input_contract": "TraderOpportunity/CE2I-adjusted capital request",
+        "release_count": 695,
+        "settlement_count": 695,
+        "trace_opportunity_count": 1154
+      },
+      "Function": "CMA",
+      "Input": true,
+      "Native Engine": "CIBO_CMA",
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "SYSTEM",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "QORE_RISK_SOVEREIGN",
+      "Classification": "PROTECTIVE_UNIQUE",
+      "Consumer": true,
+      "Decision Change": true,
+      "Duplicate": "NOT_PROVEN",
+      "Economic Effect": false,
+      "Evidence": {
+        "consumer_contract": "Execution eligibility",
+        "input_contract": "CMA risk request",
+        "release_count": 695,
+        "settlement_count": 695,
+        "trace_opportunity_count": 1154
+      },
+      "Function": "QORE_RISK_BRIDGE",
+      "Input": true,
+      "Native Engine": "QORE Risk sovereign decision",
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": true,
+      "Stage": "SYSTEM",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "EXECUTION_BRIDGE_ONLY",
+      "Classification": "PRODUCTIVE_COOPERATIVE",
+      "Consumer": true,
+      "Decision Change": true,
+      "Duplicate": "NOT_PROVEN",
+      "Economic Effect": true,
+      "Evidence": {
+        "consumer_contract": "settlement lifecycle",
+        "input_contract": "QORE Risk authorization + provider model",
+        "release_count": 695,
+        "settlement_count": 695,
+        "trace_opportunity_count": 1154
+      },
+      "Function": "EXECUTION_BRIDGE",
+      "Input": true,
+      "Native Engine": "provider execution binding",
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "SYSTEM",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "POSTDECISION_SETTLEMENT",
+      "Classification": "PRODUCTIVE_COOPERATIVE",
+      "Consumer": true,
+      "Decision Change": false,
+      "Duplicate": "NOT_PROVEN",
+      "Economic Effect": true,
+      "Evidence": {
+        "consumer_contract": "capital accounting/release",
+        "input_contract": "executed position lifecycle",
+        "release_count": 695,
+        "settlement_count": 695,
+        "trace_opportunity_count": 1154
+      },
+      "Function": "SETTLEMENT",
+      "Input": true,
+      "Native Engine": "settlement evidence",
+      "Outcome Usage Valid": true,
+      "Outcome Used": true,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "SYSTEM",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "CAPITAL_RELEASE",
+      "Classification": "PRODUCTIVE_COOPERATIVE",
+      "Consumer": true,
+      "Decision Change": false,
+      "Duplicate": "NOT_PROVEN",
+      "Economic Effect": true,
+      "Evidence": {
+        "consumer_contract": "capital availability",
+        "input_contract": "settled position",
+        "release_count": 695,
+        "settlement_count": 695,
+        "trace_opportunity_count": 1154
+      },
+      "Function": "RELEASE",
+      "Input": true,
+      "Native Engine": "released risk/margin capacity",
+      "Outcome Usage Valid": true,
+      "Outcome Used": true,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "SYSTEM",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "ACCOUNTING_NO_SIZING_AUTHORITY",
+      "Classification": "PRODUCTIVE_COOPERATIVE",
+      "Consumer": true,
+      "Decision Change": false,
+      "Duplicate": "NOT_PROVEN",
+      "Economic Effect": false,
+      "Evidence": {
+        "consumer_contract": "next capital decision state",
+        "input_contract": "settlement + release evidence",
+        "release_count": 695,
+        "settlement_count": 695,
+        "trace_opportunity_count": 1154
+      },
+      "Function": "ACCOUNTING",
+      "Input": true,
+      "Native Engine": "capital ledger state",
+      "Outcome Usage Valid": true,
+      "Outcome Used": true,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "SYSTEM",
+      "Timing Valid": true
+    },
+    {
+      "Authority": "PROVIDER_EVIDENCE__NO_CAPITAL_AUTHORITY",
+      "Classification": "INFORMATIONAL_USEFUL",
+      "Consumer": true,
+      "Decision Change": false,
+      "Duplicate": "NOT_PROVEN",
+      "Economic Effect": false,
+      "Evidence": {
+        "consumer_contract": "execution/settlement bridge",
+        "input_contract": "normalized provider economics",
+        "release_count": 695,
+        "settlement_count": 695,
+        "trace_opportunity_count": 1154
+      },
+      "Function": "PROVIDER_INTERACTION",
+      "Input": true,
+      "Native Engine": "execution observation",
+      "Outcome Usage Valid": true,
+      "Outcome Used": false,
+      "Output": true,
+      "Protective Effect": false,
+      "Stage": "SYSTEM",
+      "Timing Valid": true
+    }
+  ],
+  "schema": "CIBO_FUNCTIONAL_COMPLETENESS_SCOREBOARD_V1",
+  "system_rows": 7
+}

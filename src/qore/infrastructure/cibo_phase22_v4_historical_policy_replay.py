@@ -240,6 +240,15 @@ class Phase22HistoricalPolicyDecisionRecord:
             "candidate_id": self.candidate_id,
             "market_decision_at": self.market_decision_at.isoformat(),
             "replay_sealed_at": self.replay_sealed_at.isoformat(),
+            "policy_decision_at": self.replay_sealed_at.isoformat(),
+            "train_prior_available_at": (
+                FROZEN_PHASE20_POLICY_CANDIDATE.frozen_at.isoformat()
+            ),
+            "time_semantics": {
+                "market_clock": "HISTORICAL_SOURCE_STATE_ONLY",
+                "policy_clock": "POST_FREEZE_COUNTERFACTUAL_REPLAY",
+                "train_prior_backdated_to_market_time": False,
+            },
             "account_identity": asdict(self.account_identity),
             "provider_model_sha256": self.provider_model_sha256,
             "hard_risk_headroom_usd": format(
@@ -403,17 +412,29 @@ def evaluate_phase22_historical_policy(
         )
 
     mission = derive_cibo_capital_mission(account_identity)
+
+    # Phase22 is a counterfactual replay, not a claim that the frozen 2021-2022
+    # TRAIN prior existed in 2015. Keep the historical market clock on the
+    # opportunity/evidence surface, but evaluate the frozen policy on the
+    # physical replay clock after the policy/prior was actually available.
+    policy_decision_at = replay_sealed_at
+    prior_available_at = FROZEN_PHASE20_POLICY_CANDIDATE.frozen_at
+    if prior_available_at > policy_decision_at:
+        raise CiboCapitalManagementError(
+            "Phase22 frozen TRAIN prior is not yet available at replay decision"
+        )
+
     candidates = tuple(
         CapitalOpportunityCandidate(
             signal_fingerprint=item.opportunity.signal_fingerprint,
             trader_id=item.opportunity.trader_id,
             qore_symbol=item.opportunity.qore_symbol,
             provider_symbol=item.opportunity.provider_symbol,
-            decision_as_of=market_decision_at,
+            decision_as_of=policy_decision_at,
             expectation=build_frozen_train_expectation(
                 trader_id=item.opportunity.trader_id,
                 stop_risk_usd=item.minimum_stop_risk_usd,
-                as_of=market_decision_at,
+                as_of=prior_available_at,
             ),
             stop_risk_usd=item.minimum_stop_risk_usd,
             margin_usd=item.minimum_margin_usd,
