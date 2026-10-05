@@ -253,6 +253,8 @@ def run_cibo_sovereign_capital_runtime(
             "sovereign causal order must be twin <= cognition <= Risk request"
         )
 
+    _validate_capital_twin_alignment(capital=capital, twin=twin)
+
     consultation = consult_cibo_economic_faculties(
         decision_at=twin.captured_at,
         opportunities=(opportunity,),
@@ -400,6 +402,38 @@ def run_cibo_sovereign_capital_runtime(
         disposition=CiboSovereignCapitalDisposition.RISK_REVIEW_READY,
         risk_request=risk_request,
     )
+
+
+def _validate_capital_twin_alignment(
+    *,
+    capital: CiboCapitalState,
+    twin: CiboObservedEconomicTwin,
+) -> None:
+    """Require Sizing/Compound inputs to be grounded in the same capital truth."""
+
+    capital_twin = twin.capital_twin
+    if capital.hard_risk_headroom_usd != capital_twin.stop_risk_headroom_usd:
+        raise CiboCapitalManagementError(
+            "CIBO sizing risk headroom must equal Full Economic Twin truth"
+        )
+    if capital.margin_headroom_usd != capital_twin.margin_headroom_usd:
+        raise CiboCapitalManagementError(
+            "CIBO sizing margin headroom must equal Full Economic Twin truth"
+        )
+    if (
+        capital.realized_net_profit_usd
+        > capital_twin.compound_economic_value_usd
+    ):
+        raise CiboCapitalManagementError(
+            "CIBO realized-profit sizing state exceeds compound economic truth"
+        )
+    if (
+        capital.proven_self_financing_capacity_usd
+        > capital_twin.compound_economic_value_usd
+    ):
+        raise CiboCapitalManagementError(
+            "CIBO self-financing capacity exceeds compound economic truth"
+        )
 
 
 def _hold_plan(
