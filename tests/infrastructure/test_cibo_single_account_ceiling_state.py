@@ -7,7 +7,16 @@ from qore.infrastructure.cibo_account_capital_mission import (
     CiboAccountCapitalIdentity,
 )
 from qore.infrastructure.cibo_capital_management_authority import (
+    CapitalSource,
     TraderOpportunityEnvelope,
+)
+from qore.infrastructure.cibo_cma_settlement_ledger import (
+    CmaSettlementRecord,
+    CmaSettlementState,
+)
+from qore.infrastructure.cibo_compound_cycle_state import ingest_base_settlement
+from qore.infrastructure.cibo_integrated_capital_truth import (
+    RealizedProfitEquivalenceBinding,
 )
 from qore.infrastructure.cibo_single_account_ceiling_state import (
     CiboCeilingOpenExposure,
@@ -147,3 +156,65 @@ def test_open_exposure_is_counted_once_in_t19_and_reduces_headroom() -> None:
     assert epoch.twin.positions[0].current_stop_risk_usd == Decimal("10")
     assert epoch.capital.hard_risk_headroom_usd == Decimal("50")
     assert epoch.capital.margin_headroom_usd == Decimal("40")
+
+def test_reserved_profit_is_not_reused_as_self_financing_capacity() -> None:
+    account = initialize_ceiling_account_state(
+        account_identity=_identity(),
+    )
+    settled_at = NOW - timedelta(minutes=5)
+    settlement = CmaSettlementState(
+        signal_fingerprint="profit-seed",
+        position_id=101,
+        records=(
+            CmaSettlementRecord(
+                event="CTRADER_DEMO_EXIT_SETTLEMENT",
+                deal_id=201,
+                signal_fingerprint="profit-seed",
+                position_id=101,
+                net_profit_usd=Decimal("10"),
+                position_open_after=False,
+            ),
+        ),
+        position_closed=True,
+    )
+    cycle = ingest_base_settlement(
+        account.compound_state,
+        event_id="profit-seed-settlement",
+        occurred_at=settled_at,
+        trader_id=TraderLineage.R34_XAUUSD,
+        settlement=settlement,
+    )
+    source = account.source_ledger.add_source(
+        source_id="cibo:realized-profit-pool",
+        source=CapitalSource.REALIZED_PROFIT,
+        proven_amount_usd=Decimal("10"),
+    )
+    source = source.reserve(
+        reservation_id="profit-reservation",
+        source_id="cibo:realized-profit-pool",
+        amount_usd=Decimal("4"),
+    )
+    source = source.deploy("profit-reservation")
+    account = replace(
+        account,
+        compound_state=cycle,
+        source_ledger=source,
+        realized_profit_bindings=(
+            RealizedProfitEquivalenceBinding(
+                source_id="cibo:realized-profit-pool",
+                admission_lot_ids=("profit-seed-settlement:gen1",),
+            ),
+        ),
+    )
+
+    epoch = build_ceiling_epoch_state(
+        account=account,
+        captured_at=NOW,
+        expires_at=NOW + timedelta(minutes=1),
+        opportunities=(_evidence(_opportunity(signal="after-profit")),),
+    )
+
+    assert epoch.account.realized_capital_usd == Decimal("70")
+    assert epoch.capital.realized_net_profit_usd == Decimal("10")
+    assert epoch.capital.proven_self_financing_capacity_usd == Decimal("6")
+
