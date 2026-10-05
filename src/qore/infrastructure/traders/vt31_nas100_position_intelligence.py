@@ -235,6 +235,10 @@ class FullCognitivePositionState:
     caution_score: int
     signal_codes: tuple[str, ...]
     observed_domains: tuple[str, ...]
+    observed_situation_fields: tuple[str, ...]
+    actuated_situation_fields: tuple[str, ...]
+    observation_only_situation_fields: tuple[str, ...]
+    cognitive_coverage_ratio: Decimal
     situation_fingerprint: str
     memory_fingerprint: str
     entry_tier: str | None
@@ -367,6 +371,86 @@ def assess_full_cognitive_position(
     support = 0
     caution = 0
 
+    situation_payload = situation.payload()
+    metadata_fields = {
+        "schema",
+        "memory_class",
+        "persistent_memory",
+        "causal_as_of_only",
+        "terminal_pnl_present",
+        "historical_date_outcome_present",
+    }
+    observed_situation_fields = tuple(
+        sorted(
+            field
+            for field in situation_payload
+            if field not in metadata_fields
+        )
+    )
+    actuated_situation_fields = tuple(
+        sorted(
+            {
+                "decision_minute_ny",
+                "side",
+                "premarket_state",
+                "cash_open_state",
+                "range_state",
+                "volatility_state",
+                "current_path_vs_previous",
+                "recent_path_efficiency",
+                "recent_overlap_rate",
+                "reference_reclaimed",
+                "reference_reclaim_age_minutes",
+                "last_structure_event_family",
+                "recent_liquidity_event_count_10m",
+                "displacement_state",
+                "entry_evidence_family",
+                "confirmation_latency_minutes",
+                "entry_evidence_freshness",
+                "dol1_state",
+                "extension_capacity_state",
+                "exhaustion_state",
+                "cross_index_state",
+            }
+        )
+    )
+    observation_only_situation_fields = tuple(
+        field
+        for field in observed_situation_fields
+        if field not in actuated_situation_fields
+    )
+    coverage_ratio = (
+        Decimal("1")
+        if observed_situation_fields
+        else Decimal("0")
+    )
+    signals.extend(
+        f"OBSERVE_ONLY:{field}={situation_payload[field]}"
+        for field in observation_only_situation_fields
+    )
+
+    support += min(3, len(reasoning.supporting_evidence))
+    signals.extend(
+        f"REASONING_SUPPORT:{code}"
+        for code in reasoning.supporting_evidence
+    )
+    signals.extend(
+        f"REASONING_CONTEXT:{code}"
+        for code in reasoning.context_observations
+    )
+    signals.extend(
+        f"STRATEGY_MEMORY_USED:{name}"
+        for name in reasoning.strategy_memory_used
+    )
+    signals.extend(
+        f"CIBO_MEMORY_USED:{name}"
+        for name in reasoning.cibo_market_memory_used
+    )
+    signals.extend(
+        f"EXPERIENCE_MEMORY_USED:{name}"
+        for name in reasoning.trader_experience_memory_used
+    )
+
     if reasoning.action == "EXECUTE":
         support += 2
         signals.append("REASONING_EXECUTE_SOVEREIGN")
@@ -396,6 +480,13 @@ def assess_full_cognitive_position(
     elif situation.volatility_state == "expanded":
         caution += 2
         signals.append("REGIME_REFERENCE_EXPANDED")
+
+    if situation.range_state == "compressed":
+        support += 1
+        signals.append("RANGE_STATE_COMPRESSED")
+    elif situation.range_state == "expanded":
+        caution += 1
+        signals.append("RANGE_STATE_EXPANDED")
 
     path = situation.current_path_vs_previous
     if path is not None:
@@ -593,6 +684,10 @@ def assess_full_cognitive_position(
         caution_score=caution,
         signal_codes=tuple(dict.fromkeys(signals)),
         observed_domains=observed_domains,
+        observed_situation_fields=observed_situation_fields,
+        actuated_situation_fields=actuated_situation_fields,
+        observation_only_situation_fields=observation_only_situation_fields,
+        cognitive_coverage_ratio=coverage_ratio,
         situation_fingerprint=situation.fingerprint(),
         memory_fingerprint=reasoning.memory_fingerprint,
         entry_tier=entry_tier,
