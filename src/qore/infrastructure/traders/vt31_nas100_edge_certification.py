@@ -446,13 +446,11 @@ def build_edge_only_report(
         )
     )
 
-    pf = _decimal_metric(metrics, "profit_factor")
     expectancy = _decimal_metric(metrics, "expectancy_r")
     drawdown = _decimal_metric(metrics, "max_drawdown_r")
     payoff = _decimal_metric(metrics, "payoff_ratio")
     mc_positive = _d(mc["positive_terminal_probability"])
     mc_dd = _d(mc["p95_max_drawdown_r"])
-    severe_pf = _decimal_metric(stress["0.10"], "profit_factor")
 
     era_metrics = list(temporal["era"].values())
     era_gate = (
