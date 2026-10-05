@@ -49,6 +49,17 @@ Preserve the strongest VT31-specific gates already established and extend the re
 
 The prior R5 certification contract is not valid as the new final edge-only contract because it uses route-dependent risk and a global risk scalar. A new edge-only candidate identity must be frozen before any future fresh certification holdout is opened.
 
+
+## Universal volume invariance
+
+Owner clarification: universal does **not** mean a fixed or target volume of 0.01. VT31 must be volume-agnostic.
+
+The same trader cognition, admission, stop, target and certification edge must remain valid whether execution volume is 0.01, 0.10, 1.00 or any other provider-accepted amount. The trader may not contain a hard-coded minimum/maximum lot, preferred lot, volume bucket, or volume-dependent edge rule.
+
+Provider-specific minimums, maximums, steps and rounding belong only to the execution/provider adapter. Partial exits may be used only as an optional execution capability when representable; the certified edge must not require a particular absolute volume or a split that becomes impossible at another valid provider volume.
+
+Certification remains in normalized R and must be invariant to absolute trade volume.
+
 ## Architect B — POSITION EDGE · NAS100 JOURNEY · TARGETS · CERTIFICATION
 
 Branch: `agent/vt31-edge-position-cert-b-001`
