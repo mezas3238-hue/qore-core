@@ -22,6 +22,10 @@ from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
     TraderOpportunityEnvelope,
 )
+from qore.infrastructure.cibo_native_max_cognitive_episode import (
+    CiboNativeMaxCognitiveEpisode,
+    build_native_max_cognitive_episode,
+)
 from qore.infrastructure.cibo_executive_brain import (
     CiboExecutiveBrain,
     CiboExecutiveDirectiveKind,
@@ -92,6 +96,7 @@ class CiboNativeMaximumIntelligenceResult:
     synthesis: CiboExecutiveSynthesis
     consultation_id: str
     semantic_digest: str
+    cognitive_episode: CiboNativeMaxCognitiveEpisode
     applicable_faculty_count: int
     successful_faculty_count: int
     not_applicable_faculty_count: int
@@ -114,6 +119,14 @@ class CiboNativeMaximumIntelligenceResult:
             raise CiboCapitalManagementError(
                 "native maximum intelligence consultation id invalid"
             )
+        if not isinstance(
+            self.cognitive_episode,
+            CiboNativeMaxCognitiveEpisode,
+        ):
+            raise CiboCapitalManagementError(
+                "native maximum intelligence requires cognitive episode"
+            )
+        self.cognitive_episode.__post_init__()
         if (
             not isinstance(self.semantic_digest, str)
             or not self.semantic_digest.startswith("sha256:")
@@ -332,6 +345,7 @@ def run_native_maximum_intelligence(
     consultation: CiboEconomicConsultationReceipt,
     opportunities: tuple[TraderOpportunityEnvelope, ...],
     target: TraderOpportunityEnvelope,
+    regime_state,
 ) -> CiboNativeMaximumIntelligenceResult:
     """Run native CIBO intelligence without any external AI/provider."""
 
@@ -353,6 +367,13 @@ def run_native_maximum_intelligence(
         consultation
     )
     not_applicable = 19 - applicable
+
+    cognitive_episode = build_native_max_cognitive_episode(
+        consultation=consultation,
+        opportunities=opportunities,
+        target=target,
+        regime_state=regime_state,
+    )
 
     evidence_refs = tuple(
         sorted(
@@ -381,71 +402,88 @@ def run_native_maximum_intelligence(
     )
 
     brain = CiboExecutiveBrain()
-    confidence_level = (
-        CiboConfidenceLevel.MEDIUM
-        if blocked
-        else CiboConfidenceLevel.HIGH
-    )
-    uncertainty = CiboUncertainty(
-        kind=CiboUncertaintyKind.BOUNDED_CONFIDENCE,
-        confidence=CiboConfidence(
-            level=confidence_level,
+    if cognitive_episode.abstention_required:
+        result = brain.synthesize(
+            synthesis_id=synthesis_id,
+            directive=CiboExecutiveDirectiveKind.ABSTAIN,
+            reasoning_mode=CiboReasoningMode.MAX,
+            subject_code="native-max-capital",
+            synthesized_at=consultation.decision_at,
             evidence_refs=evidence_refs,
-        ),
-    )
-    recommendation = CiboFormalRecommendation(
-        recommendation_id=uuid5(
-            NAMESPACE_URL,
-            "qore:cibo:native-max:recommendation:"
-            + consultation.consultation_id
-            + ":"
-            + target.signal_fingerprint,
-        ),
-        recommendation_code="evaluate-capital",
-        reasoning_mode=CiboReasoningMode.MAX,
-        summary=(
-            "All CF01-CF19 native research semantics were consumed without "
-            "external AI; formal authority gaps remain separate and cannot "
-            "bypass CMA or QORE Risk."
-        ),
-        evidence_refs=evidence_refs,
-        uncertainty=uncertainty,
-        issued_at=consultation.decision_at,
-        limitations=(
-            "advisory-only",
-            "qore-risk-sovereign",
-            "no-external-ai",
-            *(
-                ("formal-authority-evidence-pending",)
-                if blocked
-                else ()
+            uncertainty=cognitive_episode.uncertainty,
+            observations=(
+                "cf01-cf19-consumed",
+                "native-only-intelligence",
+                "full-research-semantics",
+                "world-model-consumed",
+                "scenarios-consumed",
+                "causality-consumed",
+                "metacognition-consumed",
             ),
-        ),
-    )
-    result = brain.synthesize(
-        synthesis_id=synthesis_id,
-        directive=CiboExecutiveDirectiveKind.RECOMMEND,
-        reasoning_mode=CiboReasoningMode.MAX,
-        subject_code="native-max-capital",
-        synthesized_at=consultation.decision_at,
-        evidence_refs=evidence_refs,
-        uncertainty=uncertainty,
-        observations=(
-            "cf01-cf19-consumed",
-            "native-only-intelligence",
-            "full-research-semantics",
-        ),
-        recommendation=recommendation,
-        limitations=(
-            "qore-risk-sovereign",
-            "no-external-ai",
-            *(
-                ("formal-authority-evidence-pending",)
-                if blocked
-                else ()
+            limitations=(
+                "qore-risk-sovereign",
+                "no-external-ai",
+                "native-cognitive-abstention",
             ),
-        ),
-    )
+        )
+    else:
+        recommendation = CiboFormalRecommendation(
+            recommendation_id=uuid5(
+                NAMESPACE_URL,
+                "qore:cibo:native-max:recommendation:"
+                + consultation.consultation_id
+                + ":"
+                + target.signal_fingerprint,
+            ),
+            recommendation_code="evaluate-capital",
+            reasoning_mode=CiboReasoningMode.MAX,
+            summary=(
+                "Native MAX CIBO consumed CF01-CF19, world model, scenarios, "
+                "causal reasoning and metacognition without external AI; "
+                "evaluate capital under CMA and QORE Risk."
+            ),
+            evidence_refs=evidence_refs,
+            uncertainty=cognitive_episode.uncertainty,
+            issued_at=consultation.decision_at,
+            limitations=(
+                "advisory-only",
+                "qore-risk-sovereign",
+                "no-external-ai",
+                *(
+                    ("formal-authority-evidence-pending",)
+                    if blocked
+                    else ()
+                ),
+            ),
+        )
+        result = brain.synthesize(
+            synthesis_id=synthesis_id,
+            directive=CiboExecutiveDirectiveKind.RECOMMEND,
+            reasoning_mode=CiboReasoningMode.MAX,
+            subject_code="native-max-capital",
+            synthesized_at=consultation.decision_at,
+            evidence_refs=evidence_refs,
+            uncertainty=cognitive_episode.uncertainty,
+            observations=(
+                "cf01-cf19-consumed",
+                "native-only-intelligence",
+                "full-research-semantics",
+                "world-model-consumed",
+                "scenarios-consumed",
+                "causality-consumed",
+                "metacognition-consumed",
+            ),
+            recommendation=recommendation,
+            limitations=(
+                "qore-risk-sovereign",
+                "no-external-ai",
+                *(
+                    ("formal-authority-evidence-pending",)
+                    if blocked
+                    else ()
+                ),
+            ),
+        )
 
     if not isinstance(result, Success):
         raise CiboCapitalManagementError(
@@ -456,6 +494,7 @@ def run_native_maximum_intelligence(
         synthesis=result.value,
         consultation_id=consultation.consultation_id,
         semantic_digest=semantic_digest,
+        cognitive_episode=cognitive_episode,
         applicable_faculty_count=applicable,
         successful_faculty_count=successful,
         not_applicable_faculty_count=not_applicable,
