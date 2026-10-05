@@ -16,6 +16,18 @@ def main() -> None:
         "--b4-relational-comparability-authorized",
         action="store_true",
     )
+    parser.add_argument(
+        "--b11-empirical-population-complete",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--b12-empirical-population-complete",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--b13-empirical-population-complete",
+        action="store_true",
+    )
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
 
@@ -23,6 +35,15 @@ def main() -> None:
         b4_comparability_eligible_count=args.b4_comparability_eligible_count,
         b4_relational_comparability_authorized=(
             args.b4_relational_comparability_authorized
+        ),
+        b11_empirical_population_complete=(
+            args.b11_empirical_population_complete
+        ),
+        b12_empirical_population_complete=(
+            args.b12_empirical_population_complete
+        ),
+        b13_empirical_population_complete=(
+            args.b13_empirical_population_complete
         ),
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -37,6 +58,10 @@ def main() -> None:
                 "fingerprint": payload["handoff_fingerprint_sha256"],
                 "engineering_open_count": payload["engineering_open_count"],
                 "dependency_blocked_count": payload["dependency_blocked_count"],
+                "complete_and_proven_count": payload["complete_and_proven_count"],
+                "empirical_relational_population_complete": payload[
+                    "empirical_relational_population_complete"
+                ],
                 "handoff_to_integrator_3_ready": payload[
                     "handoff_to_integrator_3_ready"
                 ],
