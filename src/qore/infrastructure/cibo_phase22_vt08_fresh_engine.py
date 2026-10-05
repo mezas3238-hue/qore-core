@@ -403,6 +403,11 @@ def _opportunity(
             f"git:{FROZEN_VT08_SOURCE_GIT_SHA}",
             transform_sha256,
         ),
+        setup_context={
+            **_candidate_setup_context(candidate),
+            "cibo_native_perception_complete": "true",
+            "cibo_native_perception_version": "vt08-b01-r3-8-max-intelligence-v1",
+        },
     )
 
 
