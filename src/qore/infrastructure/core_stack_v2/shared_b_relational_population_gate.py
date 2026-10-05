@@ -2,7 +2,8 @@
 
 B-10..B-13 may have validated descriptive architecture, but empirical
 population remains forbidden until B-08 temporal governance is READY. This
-gate makes that dependency executable and fail-closed.
+gate makes that dependency executable and fail-closed while also allowing a
+future B-08 READY state to open empirical work without claiming completion.
 """
 
 from __future__ import annotations
@@ -50,38 +51,59 @@ def build_relational_population_gate(
 
     governance_status = temporal_readiness.get("temporal_governance_status")
     blockers = temporal_readiness.get("temporal_governance_blockers")
+    authority = temporal_readiness.get("relational_comparability_authorized")
+
     if not isinstance(blockers, list):
         raise SharedBRelationalPopulationGateError(
             "B-08 blocker list missing"
         )
-    if temporal_readiness.get("relational_comparability_authorized") is not False:
+    if type(authority) is not bool:
         raise SharedBRelationalPopulationGateError(
-            "B-08 unexpectedly authorizes relational comparability"
+            "B-08 relational comparability authority must be bool"
         )
-    if governance_status != "NOT_READY":
+
+    if governance_status == "NOT_READY":
+        if authority is not False:
+            raise SharedBRelationalPopulationGateError(
+                "NOT_READY B-08 cannot authorize relational comparability"
+            )
+        if not blockers:
+            raise SharedBRelationalPopulationGateError(
+                "NOT_READY B-08 must expose blockers"
+            )
+        population_authorized = False
+        gate_status = "RELATIONAL_EMPIRICAL_POPULATION_CLOSED_BY_B08"
+    elif governance_status == "READY":
+        if authority is not True:
+            raise SharedBRelationalPopulationGateError(
+                "READY B-08 must authorize relational comparability"
+            )
+        if blockers:
+            raise SharedBRelationalPopulationGateError(
+                "READY B-08 cannot retain temporal governance blockers"
+            )
+        population_authorized = True
+        gate_status = "RELATIONAL_EMPIRICAL_POPULATION_READY"
+    else:
         raise SharedBRelationalPopulationGateError(
-            "expected current B-08 NOT_READY evidence"
-        )
-    if not blockers:
-        raise SharedBRelationalPopulationGateError(
-            "NOT_READY B-08 must expose blockers"
+            "unsupported B-08 temporal governance status"
         )
 
     payload: dict[str, object] = {
         "identity": IDENTITY,
-        "status": "RELATIONAL_EMPIRICAL_POPULATION_CLOSED_BY_B08",
+        "status": gate_status,
         "b10_global_graph_architecture_verified": True,
         "b11_relationship_lifecycle_architecture_verified": True,
         "b12_lead_lag_architecture_verified": True,
         "b13_structural_divergence_architecture_verified": True,
         "b08_temporal_governance_status": governance_status,
         "b08_blockers": sorted(set(str(item) for item in blockers)),
-        "global_graph_population_authorized": False,
-        "relationship_lifecycle_population_authorized": False,
-        "lead_lag_population_authorized": False,
-        "structural_divergence_population_authorized": False,
+        "global_graph_population_authorized": population_authorized,
+        "relationship_lifecycle_population_authorized": population_authorized,
+        "lead_lag_population_authorized": population_authorized,
+        "structural_divergence_population_authorized": population_authorized,
         "causal_relation_claim_authorized": False,
-        "stale_relation_empirical_isolation_authorized": False,
+        "stale_relation_empirical_isolation_authorized": population_authorized,
         "not_comparable_is_valid_terminal_state": True,
         "architecture_green_does_not_equal_empirical_population_green": True,
         "automatic_threshold_invention": False,
