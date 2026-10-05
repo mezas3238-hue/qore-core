@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import tempfile
+import zipfile
 from collections import defaultdict
 from datetime import date
 from pathlib import Path
@@ -36,11 +38,39 @@ def _local_day(bar: object) -> date:
     return bar.opened_at.astimezone(_NY).date()
 
 
+def _load_one(path: Path) -> tuple[object, ...]:
+    if path.suffix.lower() != ".zip":
+        series, *_ = load_market_evidence(path)
+        return tuple(series)
+
+    with zipfile.ZipFile(path) as archive:
+        candidates = tuple(
+            name
+            for name in archive.namelist()
+            if name.replace("\\", "/").endswith(
+                "fresh/NAS100/market-evidence.json"
+            )
+        )
+        if len(candidates) != 1:
+            raise CiboCapitalManagementError(
+                "VT31 source ZIP requires exactly one NAS100 market-evidence.json"
+            )
+        with tempfile.TemporaryDirectory(prefix="qore-vt31-m1-") as tmp:
+            target = Path(tmp) / "market-evidence.json"
+            with archive.open(candidates[0]) as source, target.open("wb") as sink:
+                while True:
+                    chunk = source.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    sink.write(chunk)
+            series, *_ = load_market_evidence(target)
+            return tuple(series)
+
+
 def _load_all(paths: tuple[Path, ...]) -> tuple[object, ...]:
     by_identity: dict[tuple[object, object], object] = {}
     for path in paths:
-        series, *_ = load_market_evidence(path)
-        for bar in series:
+        for bar in _load_one(path):
             key = (bar.opened_at, bar.closed_at)
             existing = by_identity.get(key)
             if existing is not None:
