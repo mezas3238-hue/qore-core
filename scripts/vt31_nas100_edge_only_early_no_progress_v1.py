@@ -22,12 +22,16 @@ from pathlib import Path
 from typing import cast
 
 import vt31_nas100_cognitive_structural_protection_frontier_v1 as ps
+import vt31_nas100_full_cognition_attribution_v1 as cognition_lab
 import vt31_nas100_entry_intelligence_oco_lab_v1 as oco
 import vt31_nas100_specialist_r1_candidate as specialist
 
 from qore.infrastructure.trader_lab.vt31_silver_bullet_r2_5_multi_index_research import (
     _day,
     load_market_evidence,
+)
+from qore.infrastructure.traders.vt31_nas100_position_intelligence import (
+    assess_full_cognitive_position,
 )
 
 SCHEMA = "qore.vt31.nas100.edge_only_early_no_progress.v1"
@@ -174,6 +178,7 @@ def replay(evidence_path: Path) -> dict[str, object]:
         )
         for local_day, items in raw.items()
     }
+    context_by_day = specialist._context_map(by_day)
     policy = oco.Vt31R22ExecutionPolicy()
     trades: dict[str, list[dict[str, object]]] = {
         variant: [] for variant in VARIANTS
@@ -198,6 +203,41 @@ def replay(evidence_path: Path) -> dict[str, object]:
         if selected is None:
             continue
 
+        (
+            previous_path_range,
+            prior_ref_median,
+            prior_admitted_day_bars,
+        ) = context_by_day[local_day]
+        observation_at = selected.decision_at
+        session_prefix = tuple(
+            bar
+            for bar in session
+            if cast(datetime, getattr(bar, "closed_at")) <= observation_at
+        )
+        state = specialist._state_snapshot(
+            day_bars,
+            previous_path_range,
+            prior_ref_median,
+            prior_admitted_day_bars,
+            session_prefix,
+            timeline.source,
+            selected,
+            observation_at,
+        )
+        situation = cognition_lab._reconstruct_situation(
+            state=state,
+            selected=selected,
+            source=timeline.source,
+            observation_at=observation_at,
+        )
+        reasoning = cognition_lab._reconstruct_reasoning(state)
+        cognition = assess_full_cognitive_position(
+            situation=situation,
+            reasoning=reasoning,
+            entry_tier="CORE",
+            dol1_acceptance_observed=None,
+        )
+
         baseline = specialist.baseline._simulate(day_bars, selected)
         trade_id = ps._trade_id(local_day=local_day, selected=selected)
 
@@ -217,6 +257,22 @@ def replay(evidence_path: Path) -> dict[str, object]:
                 continue
             row = dict(outcome)
             row["trade_id"] = trade_id
+            row["entry_family"] = selected.selected_family.value
+            row["destination_state"] = cognition.destination_state
+            row["management_context"] = cognition.management_context.value
+            row["support_score"] = cognition.support_score
+            row["caution_score"] = cognition.caution_score
+            row["last_structure_event_family"] = state[
+                "last_structure_event_family"
+            ]
+            row["path_not_compressed"] = (
+                "REASONING_CONTRADICTION:"
+                "SITUATION:CURRENT_PATH_NOT_COMPRESSED"
+                in cognition.signal_codes
+            )
+            row["reference_volatility_state"] = state[
+                "reference_volatility_state"
+            ]
             trades[variant].append(row)
 
     baseline_rows = trades["BASELINE"]
@@ -260,6 +316,7 @@ def replay(evidence_path: Path) -> dict[str, object]:
             "provider_symbol_name": provider,
         },
         "variants": variants,
+        "trade_rows": trades,
         "governance": {
             "consumed_evidence_only": True,
             "preexisting_hypothesis_revalidation": True,
