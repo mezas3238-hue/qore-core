@@ -45,6 +45,31 @@ Combined consumed R5/R6/R8:
 - expectancy ~**+1.0109R/trade**;
 - total ~**+125.35R**.
 
+### Consumed recent 2Y
+
+The same sovereign candidate on the already-consumed recent 2Y partition
+(2022H2-2024H2) is materially weaker:
+
+- 48 terminal trades;
+- 8 winners;
+- PF **1.0464**;
+- expectancy **+0.0406R/trade**;
+- total **+1.95R**;
+- observed DD **13.83R**;
+- MC positive-terminal probability **51.53%**;
+- MC p95 DD **29.74R**.
+
+Half-year behavior:
+
+- 2022H2: 9 trades, 0 wins, -9.45R;
+- 2023H1: PF 1.1745;
+- 2023H2: PF 1.0611;
+- 2024H1: PF 1.9864;
+- 2024H2: 2 trades, 0 wins.
+
+This recent-period evidence is a hard certification blocker. Historical
+R5/R6/R8 profitability cannot substitute for recent temporal robustness.
+
 These economics are produced without financial engineering.
 
 ## Certification interpretation
