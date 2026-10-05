@@ -21,5 +21,8 @@
     "docs/shared/evidence/QORE_SHARED_LAB_A2_MC23_002_DATASET_MANIFEST_001.json",
     "a2_lab_capsule/capsule.py",
     "a2_lab_capsule/mc23_candidate_002.py"
-  ]
+  ],
+  "execution_origin": "TARGET",
+  "dataset_id": "shared-a2-mc23-candidate-002",
+  "dataset_version": "1"
 }
