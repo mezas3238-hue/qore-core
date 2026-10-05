@@ -293,9 +293,23 @@ Prepared executable surfaces:
 - `scripts/shared_a1_mc14_lab_replay.py`
 - `SHARED_ARCHITECT_1_MC14_SHARED_LAB_TARGET_PLUGIN_001.json`
 
-Remaining legitimate work is to materialize the single sealed MC14 bundle,
-register it in Shared Lab DatasetStore, then execute exactly one governed replay.
-The scientific result may validly be REPLICATED, FALSIFIED or INSUFFICIENT.
+The single XAUUSD-only MC14 bundle has now been materialized and verified:
+
+- dataset id: `shared-a1-mc14-b04-xauusd-v1`
+- version: `1`
+- bundle SHA-256:
+  `affff1ddf76c76337cc87e3738a6b958794869fa785a7acd01575ec901acb8e7`
+- bundle size: `559,499,078` bytes
+- manifest SHA-256:
+  `ff37c0fa6b56b93858a006462171e2f156d7837e8910ad1d6e6f39ab90459f52`
+- 16/16 XAUUSD source ZIP hashes matched;
+- 3/3 frozen R8 target hashes matched;
+- US2000 was not packaged and no target evaluation was performed for that
+  already-frozen insufficient family.
+
+Remaining legitimate work is DatasetStore registration followed by exactly one
+governed XAUUSD replay. The scientific result may validly be REPLICATED,
+FALSIFIED or INSUFFICIENT.
 
 ### MC18 current gate
 
