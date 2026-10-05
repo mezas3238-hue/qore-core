@@ -208,7 +208,7 @@ class UniversalTargetIntent(StrEnum):
     """Causal target intent independent of trade volume and provider lot size."""
 
     PRESERVE_DOL1 = "PRESERVE_DOL1"
-    EXTEND_FULL_UNIT_TO_DOL2 = "EXTEND_FULL_UNIT_TO_DOL2"
+    EXTEND_TO_DOL2 = "EXTEND_TO_DOL2"
     EXIT_ON_CONFIRMED_EXHAUSTION = "EXIT_ON_CONFIRMED_EXHAUSTION"
 
 
@@ -672,7 +672,7 @@ def assess_full_cognitive_position(
         and dol1_acceptance_observed is True
         and context is not ManagementContext.CAUTIOUS
     ):
-        target_intent = UniversalTargetIntent.EXTEND_FULL_UNIT_TO_DOL2
+        target_intent = UniversalTargetIntent.EXTEND_TO_DOL2
     else:
         target_intent = UniversalTargetIntent.PRESERVE_DOL1
 
