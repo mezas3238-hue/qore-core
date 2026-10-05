@@ -137,24 +137,43 @@ def main() -> None:
     if not performance_pass:
         blockers.append("MC25_SAME_LINEAGE_PERFORMANCE_STRESS")
 
-    lifecycle_pass = any(
+    formal_stress_pass = any(
         row.get("formal_stress_stage_completed") is True
-        and row.get("shadow_stage_bound") is True
-        and row.get("certification_stage_bound") is True
-        and row.get("promotion_allowed") is True
+        and _safe_governance(row)
+        for _path, row in rows
+    )
+    shadow_pass = any(
+        row.get("shadow_stage_bound") is True
+        and _safe_governance(row)
+        for _path, row in rows
+    )
+    certification_pass = any(
+        row.get("certification_stage_bound") is True
+        and _safe_governance(row)
+        for _path, row in rows
+    )
+    promotion_pass = any(
+        row.get("promotion_allowed") is True
         and row.get("mc25_completed_and_proven") is True
         and _safe_governance(row)
         for _path, row in rows
     )
-    if not lifecycle_pass:
-        blockers.extend(
-            [
-                "MC25_FORMAL_STRESS_STAGE",
-                "MC25_SAME_LINEAGE_SHADOW",
-                "MC25_CERTIFICATION",
-                "MC25_GOVERNED_PROMOTION",
-            ]
+    lifecycle_pass = all(
+        (
+            formal_stress_pass,
+            shadow_pass,
+            certification_pass,
+            promotion_pass,
         )
+    )
+    if not formal_stress_pass:
+        blockers.append("MC25_FORMAL_STRESS_STAGE")
+    if not shadow_pass:
+        blockers.append("MC25_SAME_LINEAGE_SHADOW")
+    if not certification_pass:
+        blockers.append("MC25_CERTIFICATION")
+    if not promotion_pass:
+        blockers.append("MC25_GOVERNED_PROMOTION")
 
     wp11_pass = _has(
         rows,
@@ -186,6 +205,10 @@ def main() -> None:
         "mc24_scientific_pass": mc24_pass,
         "mc25_lineage_pass": lineage_pass,
         "mc25_performance_pass": performance_pass,
+        "mc25_formal_stress_pass": formal_stress_pass,
+        "mc25_shadow_pass": shadow_pass,
+        "mc25_certification_pass": certification_pass,
+        "mc25_promotion_pass": promotion_pass,
         "mc25_full_lifecycle_pass": lifecycle_pass,
         "wp11_terminal_pass": wp11_pass,
         "producer_thresholds_modified": False,
