@@ -8,9 +8,10 @@ from __future__ import annotations
 
 import argparse
 import json
+from collections.abc import Mapping
 from decimal import Decimal
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 
 IDENTITY = "VT31_NAS100_JOURNEY_CROSS_PARTITION_ADJUDICATION_V1"
 PARTITIONS = ("r8_fresh", "r6", "r5")
