@@ -121,7 +121,10 @@ def build_sovereign_reasoning_request(
             raise CiboCapitalManagementError(
                 "sovereign reasoning shared opportunity context drift"
             )
-    if not isinstance(shared_context, list) or not shared_context:
+    if (
+        not isinstance(shared_context, (tuple, list))
+        or not shared_context
+    ):
         raise CiboCapitalManagementError(
             "sovereign reasoning requires shared high-intelligence context"
         )
