@@ -225,6 +225,7 @@ def run_cibo_sovereign_capital_runtime(
     capital: CiboCapitalState,
     regime_state: CiboCapitalRegimeState,
     evidence_ref: CiboEvidenceRef,
+    faculty_consultation: CiboEconomicConsultationReceipt | None = None,
     survival_capital_usd: Decimal,
     protected_capital_usd: Decimal,
     request_id: str,
@@ -266,12 +267,32 @@ def run_cibo_sovereign_capital_runtime(
 
     _validate_capital_twin_alignment(capital=capital, twin=twin)
 
-    consultation = consult_cibo_economic_faculties(
-        decision_at=twin.captured_at,
-        opportunities=(opportunity,),
-        regime_state=regime_state,
-        evidence_ref=evidence_ref,
-    )
+    if faculty_consultation is None:
+        consultation = consult_cibo_economic_faculties(
+            decision_at=twin.captured_at,
+            opportunities=(opportunity,),
+            regime_state=regime_state,
+            evidence_ref=evidence_ref,
+        )
+    else:
+        if not isinstance(
+            faculty_consultation,
+            CiboEconomicConsultationReceipt,
+        ):
+            raise CiboCapitalManagementError(
+                "sovereign runtime faculty_consultation must be canonical"
+            )
+        if faculty_consultation.decision_at != twin.captured_at:
+            raise CiboCapitalManagementError(
+                "sovereign runtime consultation/twin clock drift"
+            )
+        if faculty_consultation.opportunity_fingerprints != (
+            opportunity.signal_fingerprint,
+        ):
+            raise CiboCapitalManagementError(
+                "sovereign runtime consultation/opportunity drift"
+            )
+        consultation = faculty_consultation
 
     twin_opportunity = next(
         (item for item in twin.opportunities if item.option_id == option_id),
