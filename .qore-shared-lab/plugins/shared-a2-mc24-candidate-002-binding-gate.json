@@ -1,0 +1,28 @@
+{
+  "task_id": "a2-mc24-candidate-002-binding-gate",
+  "suite": "INTEGRATION",
+  "scope": "mc23",
+  "dependencies": [
+    "a2-mc23-candidate-002-scientific",
+    "a2-mc24-regression"
+  ],
+  "command": [
+    "python",
+    "scripts/shared_integrator1_a2_mc24_candidate002_binding_gate.py",
+    "--mc23-result",
+    "result/mc23-candidate-002.json",
+    "--runtime-evidence-dir",
+    "result",
+    "--runtime-evidence-dir",
+    "a2_lab_runtime",
+    "--output",
+    "result/i1-a2-mc24-candidate002-binding-gate.json"
+  ],
+  "component_globs": [
+    "scripts/shared_integrator1_a2_mc24_candidate002_binding_gate.py",
+    "a2_lab_capsule/mc23_candidate_002.py",
+    "docs/shared/evidence/QORE_SHARED_MC23_VALIDATED_NOVEL_REGIME_ADAPTATION_PREREGISTRATION_002.json",
+    "docs/shared/evidence/*.json"
+  ],
+  "execution_origin": "TARGET"
+}
