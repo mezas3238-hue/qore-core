@@ -1,0 +1,25 @@
+{
+  "task_id": "a2-mc23-evaluate-prepared",
+  "suite": "FUNCTIONAL",
+  "scope": "mc23",
+  "dependencies": [
+    "a2-mc23-prepare-r5"
+  ],
+  "command": [
+    "python",
+    "a2_lab_capsule/capsule.py",
+    "--mode",
+    "mc23-prepared",
+    "--r6-prepared",
+    "a2_lab_runtime/r6-prepared.npz",
+    "--r5-prepared",
+    "a2_lab_runtime/r5-prepared.npz",
+    "--output",
+    "a2_lab_runtime/mc23-result.json"
+  ],
+  "component_globs": [
+    "a2_lab_capsule/capsule.py",
+    "a2_lab_capsule/manifest.json",
+    "docs/shared/evidence/QORE_SHARED_MC23_VALIDATED_NOVEL_REGIME_ADAPTATION_PREREGISTRATION_001.json"
+  ]
+}
