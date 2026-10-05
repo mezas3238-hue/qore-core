@@ -6,7 +6,7 @@ import pytest
 
 from qore.infrastructure.traders.vt31_nas100_edge_certification import (
     IDENTITY,
-    MINIMUM_COMPATIBLE_VOLUME,
+    VOLUME_AGNOSTIC,
     build_edge_only_report,
     normalized_trade_rows,
     winner_preservation,
@@ -117,11 +117,13 @@ def test_capital_weighted_result_cannot_replace_structural_r_multiple() -> None:
         )
 
 
-def test_universal_001_is_capability_metadata_not_edge_input() -> None:
+def test_volume_is_provider_metadata_not_trader_edge_input() -> None:
     report = build_edge_only_report(_rows(), monte_carlo_paths=100)
 
-    assert MINIMUM_COMPATIBLE_VOLUME == Decimal("0.01")
-    assert report["minimum_compatible_volume"] == "0.01"
+    assert VOLUME_AGNOSTIC is True
+    assert report["volume_agnostic"] is True
+    assert report["volume_constraints_authority"] == "provider-adapter-only"
+    assert "minimum_compatible_volume" not in report
     assert report["volume_used_for_edge_metrics"] is False
     assert report["capital_fields_used_for_edge_metrics"] == []
 
