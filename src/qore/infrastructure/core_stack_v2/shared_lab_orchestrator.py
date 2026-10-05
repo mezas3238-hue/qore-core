@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import platform
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -57,6 +59,59 @@ def _component_hash(worktree: Path, patterns: tuple[str, ...]) -> str:
         digest.update(path.read_bytes())
         digest.update(b"\0")
     return digest.hexdigest()
+
+
+def _runtime_json_snapshot(root: Path) -> dict[str, str]:
+    directories = [root / "result"]
+    directories.extend(
+        path
+        for path in root.glob("*_lab_runtime")
+        if path.is_dir()
+    )
+    snapshot: dict[str, str] = {}
+    for directory in directories:
+        if not directory.is_dir():
+            continue
+        for path in sorted(directory.rglob("*.json")):
+            if not path.is_file():
+                continue
+            relative = path.relative_to(root).as_posix()
+            snapshot[relative] = sha256_bytes(path.read_bytes())
+    return snapshot
+
+
+def _archive_runtime_json(
+    *,
+    root: Path,
+    task_dir: Path,
+    before: dict[str, str],
+) -> tuple[tuple[dict[str, Any], ...], Path, str]:
+    after = _runtime_json_snapshot(root)
+    records: list[dict[str, Any]] = []
+    archive_root = task_dir / "generated"
+    for relative, digest in sorted(after.items()):
+        if before.get(relative) == digest:
+            continue
+        source = root / relative
+        target = archive_root / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, target)
+        records.append(
+            {
+                "relative_path": relative,
+                "sha256": digest,
+                "size_bytes": source.stat().st_size,
+                "archived_path": str(target),
+            }
+        )
+    manifest_path = task_dir / "generated-evidence.json"
+    payload = {"generated_evidence": records}
+    manifest_path.write_text(
+        json.dumps(payload, sort_keys=True, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    manifest_hash = sha256_bytes(manifest_path.read_bytes())
+    return tuple(records), manifest_path, manifest_hash
 
 
 def _dependency_hash(
@@ -601,6 +656,7 @@ class NativeLabOrchestrator:
 
         task_dir = run_dir / "tasks" / task.task_id
         task_dir.mkdir(parents=True, exist_ok=True)
+        generated_before = _runtime_json_snapshot(execution_root)
         command = self._format_command(task.command, request, task_dataset)
         environment = os.environ.copy()
         existing_pythonpath = environment.get("PYTHONPATH")
@@ -714,6 +770,13 @@ class NativeLabOrchestrator:
             final_stdout,
             returncode,
         )
+        generated, generated_manifest_path, generated_manifest_hash = (
+            _archive_runtime_json(
+                root=execution_root,
+                task_dir=task_dir,
+                before=generated_before,
+            )
+        )
         ended = time.time_ns()
         result_payload = {
             "task_id": task.task_id,
@@ -726,6 +789,8 @@ class NativeLabOrchestrator:
             "dataset_hash": task_dataset.content_hash,
             "component_hash": component_hash,
             "cache_safe": task.cache_safe,
+            "generated_evidence_count": len(generated),
+            "generated_evidence_manifest_hash": generated_manifest_hash,
             "stdout_hash": sha256_bytes(final_stdout.encode()),
             "stderr_hash": sha256_bytes(final_stderr.encode()),
             "state": state.value,
@@ -753,6 +818,16 @@ class NativeLabOrchestrator:
             failure_reason=reason,
             resource_limits_applied=limits_applied,
             cache_key=key_fp,
+        )
+        self.evidence_store.update_task(
+            identity.run_id,
+            task.task_id,
+            {
+                "generated_evidence_count": len(generated),
+                "generated_evidence_manifest": str(generated_manifest_path),
+                "generated_evidence_manifest_hash": generated_manifest_hash,
+                "generated_evidence": list(generated),
+            },
         )
         if task.cache_safe:
             self.cache_store.put(key, result)
