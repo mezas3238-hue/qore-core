@@ -16,5 +16,6 @@
     "src/qore/infrastructure/core_stack_v2/mc25_formal_governance_stress.py",
     "tests/infrastructure/test_core_stack_v2_mc25_formal_governance_stress.py",
     "scripts/shared_mc25_formal_governance_stress.py"
-  ]
+  ],
+  "execution_origin": "TARGET"
 }
