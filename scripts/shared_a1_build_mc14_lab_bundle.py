@@ -133,28 +133,28 @@ def build_bundle(
 
     input_receipts: list[dict[str, object]] = []
     sources_root = staging_dir / "sources"
-    for family in ("XAUUSD_DEFENSIVE_PROXY", "US2000_BREADTH_PROXY"):
-        family_contract = contract["source_artifacts"][family]
-        shards = list(family_contract["shards"])
-        if len(shards) != int(family_contract["required_shard_count"]):
-            raise ValueError(f"{family}: frozen shard count mismatch")
-        for ordinal, shard in enumerate(shards):
-            artifact_id = int(shard["artifact_id"])
-            archive = _artifact_zip(artifact_dir, artifact_id)
-            _verify_artifact(archive, str(shard["sha256"]), artifact_id)
-            shard_root = sources_root / family / f"shard_{ordinal:02d}"
-            files = _extract_verified_zip(archive, shard_root)
-            if not files:
-                raise ValueError(f"artifact {artifact_id}: empty source ZIP")
-            input_receipts.append(
-                {
-                    "artifact_id": artifact_id,
-                    "family": family,
-                    "source_zip": archive.name,
-                    "sha256": str(shard["sha256"]),
-                    "extracted_file_count": len(files),
-                }
-            )
+    family = "XAUUSD_DEFENSIVE_PROXY"
+    family_contract = contract["source_artifacts"][family]
+    shards = list(family_contract["shards"])
+    if len(shards) != int(family_contract["required_shard_count"]):
+        raise ValueError(f"{family}: frozen shard count mismatch")
+    for ordinal, shard in enumerate(shards):
+        artifact_id = int(shard["artifact_id"])
+        archive = _artifact_zip(artifact_dir, artifact_id)
+        _verify_artifact(archive, str(shard["sha256"]), artifact_id)
+        shard_root = sources_root / family / f"shard_{ordinal:02d}"
+        files = _extract_verified_zip(archive, shard_root)
+        if not files:
+            raise ValueError(f"artifact {artifact_id}: empty source ZIP")
+        input_receipts.append(
+            {
+                "artifact_id": artifact_id,
+                "family": family,
+                "source_zip": archive.name,
+                "sha256": str(shard["sha256"]),
+                "extracted_file_count": len(files),
+            }
+        )
 
     target_contract = contract["r8_target"]
     target_id = int(target_contract["artifact_id"])
@@ -201,6 +201,13 @@ def build_bundle(
         "b04_run_id": contract["scientific_contract"]["b04_run_id"],
         "b04_git_sha": contract["scientific_contract"]["b04_git_sha"],
         "source_artifacts": input_receipts,
+        "excluded_source_families": {
+            "US2000_BREADTH_PROXY": {
+                "status": "INSUFFICIENT_DO_NOT_INFER",
+                "target_evaluation_executed": False,
+                "reason": "FROZEN_SOURCE_PREFLIGHT_INCOMPLETE",
+            }
+        },
         "target_artifact": {
             "artifact_id": target_id,
             "sha256": target_contract["artifact_zip_sha256"],
