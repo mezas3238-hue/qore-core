@@ -1,0 +1,25 @@
+{
+  "task_id": "a2-mc23-candidate-003-validate-e",
+  "suite": "FUNCTIONAL",
+  "scope": "mc23",
+  "dependencies": [
+    "a2-mc23-candidate-003-prepare-e"
+  ],
+  "command": [
+    "python",
+    "-m",
+    "a2_lab_capsule.mc23_candidate_003",
+    "--mode",
+    "validate-e",
+    "--frozen",
+    "result/mc23-003-freeze.npz",
+    "--e",
+    "result/mc23-003-e.npz",
+    "--output",
+    "result/mc23-candidate-003.json"
+  ],
+  "component_globs": [
+    "docs/shared/evidence/QORE_SHARED_MC23_VALIDATED_NOVEL_REGIME_ADAPTATION_PREREGISTRATION_003.json",
+    "a2_lab_capsule/mc23_candidate_003.py"
+  ]
+}
