@@ -9,6 +9,8 @@
     "python",
     "scripts/shared_integrator1_a2_scientific_evidence_gate.py",
     "--runtime-evidence-dir",
+    "a2_lab_runtime",
+    "--runtime-evidence-dir",
     "result",
     "--output",
     "result/i1-a2-scientific-evidence-gate.json"
