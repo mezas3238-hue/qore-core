@@ -102,3 +102,62 @@ def test_target_plugin_carries_exact_task_dataset_binding(tmp_path) -> None:
     assert definition.execution_origin == "TARGET"
     assert definition.dataset_id == "sealed-science"
     assert definition.dataset_version == "7"
+
+
+def test_replay_mode_includes_custom_replay_plugins() -> None:
+    registry = default_native_suite_registry()
+    from qore.infrastructure.core_stack_v2.shared_lab_native_model import (
+        ValidationSuite,
+    )
+    from qore.infrastructure.core_stack_v2.shared_lab_suite_registry import (
+        SuiteDefinition,
+    )
+
+    registry.register(
+        SuiteDefinition(
+            "custom-replay",
+            ValidationSuite.REPLAY,
+            LabScope.COGNITION,
+            (),
+            ("python", "-c", "print('1 passed')"),
+            ("custom.py",),
+            execution_origin="TARGET",
+        )
+    )
+    tasks = registry.plan(
+        request(ExecutionMode.REPLAY, LabScope.COGNITION),
+        (),
+    )
+    ids = {task.task_id for task in tasks}
+    assert "replay" in ids
+    assert "determinism" in ids
+    assert "custom-replay" in ids
+
+
+def test_regression_mode_includes_custom_regression_plugins() -> None:
+    registry = default_native_suite_registry()
+    from qore.infrastructure.core_stack_v2.shared_lab_native_model import (
+        ValidationSuite,
+    )
+    from qore.infrastructure.core_stack_v2.shared_lab_suite_registry import (
+        SuiteDefinition,
+    )
+
+    registry.register(
+        SuiteDefinition(
+            "custom-regression",
+            ValidationSuite.REGRESSION,
+            LabScope.COGNITION,
+            (),
+            ("python", "-c", "print('1 passed')"),
+            ("custom.py",),
+            execution_origin="TARGET",
+        )
+    )
+    tasks = registry.plan(
+        request(ExecutionMode.REGRESSION, LabScope.COGNITION),
+        (),
+    )
+    ids = {task.task_id for task in tasks}
+    assert "regression" in ids
+    assert "custom-regression" in ids
