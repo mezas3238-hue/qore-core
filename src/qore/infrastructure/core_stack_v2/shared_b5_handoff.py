@@ -15,6 +15,7 @@ from qore.infrastructure.core_stack_v2.shared_b5_asset_world_disposition import 
 
 class B5WorkDisposition(StrEnum):
     DEPENDENCY_BLOCKED = "DEPENDENCY_BLOCKED"
+    READY_FOR_EMPIRICAL_POPULATION = "READY_FOR_EMPIRICAL_POPULATION"
     KNOWN_BLINDSPOT = "KNOWN_BLINDSPOT"
     GOVERNED_UNKNOWN = "GOVERNED_UNKNOWN"
     COMPLETE_AND_PROVEN = "COMPLETE_AND_PROVEN"
@@ -32,21 +33,91 @@ def _fingerprint(payload: object) -> str:
     ).hexdigest()
 
 
+def _validate_empirical_flag(name: str, value: bool) -> None:
+    if type(value) is not bool:
+        raise ValueError(f"{name} must be bool")
+
+
+def _relational_disposition(
+    *,
+    population_ready: bool,
+    empirical_complete: bool,
+    blocked_codes: tuple[str, ...],
+    empirical_requirement_code: str,
+) -> tuple[str, list[str]]:
+    if empirical_complete:
+        if not population_ready:
+            raise ValueError(
+                "empirical relational completion requires B4 comparability authority"
+            )
+        return B5WorkDisposition.COMPLETE_AND_PROVEN.value, []
+    if population_ready:
+        return (
+            B5WorkDisposition.READY_FOR_EMPIRICAL_POPULATION.value,
+            [empirical_requirement_code],
+        )
+    return B5WorkDisposition.DEPENDENCY_BLOCKED.value, list(blocked_codes)
+
+
 def build_b5_handoff(
     *,
     b4_comparability_eligible_count: int,
     b4_relational_comparability_authorized: bool,
+    b11_empirical_population_complete: bool = False,
+    b12_empirical_population_complete: bool = False,
+    b13_empirical_population_complete: bool = False,
 ) -> dict[str, object]:
-    """Build current B5 truth without upgrading blocked evidence to PASS."""
+    """Build B5 truth without upgrading authorization into scientific proof."""
 
-    if type(b4_comparability_eligible_count) is not int or b4_comparability_eligible_count < 0:
+    if (
+        type(b4_comparability_eligible_count) is not int
+        or b4_comparability_eligible_count < 0
+    ):
         raise ValueError("B4 comparability eligible count invalid")
     if type(b4_relational_comparability_authorized) is not bool:
         raise ValueError("B4 relational comparability authority must be bool")
 
-    relational_population_allowed = (
+    _validate_empirical_flag(
+        "b11_empirical_population_complete",
+        b11_empirical_population_complete,
+    )
+    _validate_empirical_flag(
+        "b12_empirical_population_complete",
+        b12_empirical_population_complete,
+    )
+    _validate_empirical_flag(
+        "b13_empirical_population_complete",
+        b13_empirical_population_complete,
+    )
+
+    relational_population_ready = (
         b4_relational_comparability_authorized
         and b4_comparability_eligible_count > 0
+    )
+    blocked_codes: list[str] = []
+    if not b4_relational_comparability_authorized:
+        blocked_codes.append("B08_RELATIONAL_COMPARABILITY_NOT_AUTHORIZED")
+    if b4_comparability_eligible_count == 0:
+        blocked_codes.append("ZERO_COMPARABILITY_ELIGIBLE_SENSORS")
+    relational_blockers = tuple(blocked_codes)
+
+    b11_disposition, b11_blockers = _relational_disposition(
+        population_ready=relational_population_ready,
+        empirical_complete=b11_empirical_population_complete,
+        blocked_codes=relational_blockers,
+        empirical_requirement_code="B11_EMPIRICAL_POPULATION_NOT_EXECUTED",
+    )
+    b12_disposition, b12_blockers = _relational_disposition(
+        population_ready=relational_population_ready,
+        empirical_complete=b12_empirical_population_complete,
+        blocked_codes=relational_blockers,
+        empirical_requirement_code="B12_EMPIRICAL_POPULATION_NOT_EXECUTED",
+    )
+    b13_disposition, b13_blockers = _relational_disposition(
+        population_ready=relational_population_ready,
+        empirical_complete=b13_empirical_population_complete,
+        blocked_codes=relational_blockers,
+        empirical_requirement_code="B13_EMPIRICAL_POPULATION_NOT_EXECUTED",
     )
 
     agriculture = assess_agricultural_world(
@@ -89,27 +160,15 @@ def build_b5_handoff(
         ),
     )
 
-    relational_blocker = (
-        ()
-        if relational_population_allowed
-        else (
-            "B08_RELATIONAL_COMPARABILITY_NOT_AUTHORIZED",
-            "ZERO_COMPARABILITY_ELIGIBLE_SENSORS",
-        )
-    )
     items = [
         {
             "work_id": "B-11",
             "title": "Relationship Lifecycle",
             "functional_engine_implemented": True,
             "required_states": ["BIRTH", "ACTIVE", "DEGRADED", "STALE", "DEAD"],
-            "empirical_population_complete": False,
-            "disposition": (
-                B5WorkDisposition.COMPLETE_AND_PROVEN.value
-                if relational_population_allowed
-                else B5WorkDisposition.DEPENDENCY_BLOCKED.value
-            ),
-            "blockers": list(relational_blocker),
+            "empirical_population_complete": b11_empirical_population_complete,
+            "disposition": b11_disposition,
+            "blockers": b11_blockers,
             "outcome_used": False,
             "productive_authority": False,
         },
@@ -118,13 +177,9 @@ def build_b5_handoff(
             "title": "Lead-Lag Observability",
             "functional_engine_implemented": True,
             "temporal_precedence_is_causation": False,
-            "empirical_population_complete": False,
-            "disposition": (
-                B5WorkDisposition.COMPLETE_AND_PROVEN.value
-                if relational_population_allowed
-                else B5WorkDisposition.DEPENDENCY_BLOCKED.value
-            ),
-            "blockers": list(relational_blocker),
+            "empirical_population_complete": b12_empirical_population_complete,
+            "disposition": b12_disposition,
+            "blockers": b12_blockers,
             "outcome_used": False,
             "productive_authority": False,
         },
@@ -133,13 +188,9 @@ def build_b5_handoff(
             "title": "Structural Divergence",
             "functional_engine_implemented": True,
             "fully_comparable_window_required": True,
-            "empirical_population_complete": False,
-            "disposition": (
-                B5WorkDisposition.COMPLETE_AND_PROVEN.value
-                if relational_population_allowed
-                else B5WorkDisposition.DEPENDENCY_BLOCKED.value
-            ),
-            "blockers": list(relational_blocker),
+            "empirical_population_complete": b13_empirical_population_complete,
+            "disposition": b13_disposition,
+            "blockers": b13_blockers,
             "outcome_used": False,
             "productive_authority": False,
         },
@@ -164,6 +215,12 @@ def build_b5_handoff(
             "productive_authority": False,
         },
     ]
+    empirical_relational_population_complete = (
+        relational_population_ready
+        and b11_empirical_population_complete
+        and b12_empirical_population_complete
+        and b13_empirical_population_complete
+    )
     payload: dict[str, object] = {
         "identity": "SHARED_ARCHITECT_B5_RELATIONAL_ASSET_WORLD_HANDOFF_001",
         "owned_work_ids": ["B-11", "B-12", "B-13", "B-14", "B-15"],
@@ -182,10 +239,17 @@ def build_b5_handoff(
             item["disposition"] == B5WorkDisposition.DEPENDENCY_BLOCKED.value
             for item in items
         ),
+        "ready_for_empirical_population_count": sum(
+            item["disposition"]
+            == B5WorkDisposition.READY_FOR_EMPIRICAL_POPULATION.value
+            for item in items
+        ),
         "known_blindspot_count": 1,
         "governed_unknown_count": 1,
         "engineering_open_count": 0,
-        "empirical_relational_population_complete": relational_population_allowed,
+        "empirical_relational_population_complete": (
+            empirical_relational_population_complete
+        ),
         "b5_scientific_closure_complete": all(
             item["disposition"] == B5WorkDisposition.COMPLETE_AND_PROVEN.value
             for item in items
