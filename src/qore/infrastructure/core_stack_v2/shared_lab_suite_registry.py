@@ -36,9 +36,18 @@ class NativeSuiteRegistry:
         self._definitions: dict[str, SuiteDefinition] = {}
 
     def register(self, definition: SuiteDefinition) -> None:
-        if definition.task_id in self._definitions:
-            raise ValueError(f"duplicate suite task: {definition.task_id}")
+        existing = self._definitions.get(definition.task_id)
+        if existing is not None:
+            if existing == definition:
+                return
+            raise ValueError(f"conflicting duplicate suite task: {definition.task_id}")
         self._definitions[definition.task_id] = definition
+
+    def clone(self) -> NativeSuiteRegistry:
+        result = NativeSuiteRegistry()
+        for definition in self.definitions():
+            result.register(definition)
+        return result
 
     def definitions(self) -> tuple[SuiteDefinition, ...]:
         return tuple(self._definitions[key] for key in sorted(self._definitions))
