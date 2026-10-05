@@ -152,7 +152,7 @@ def _full_cognitive_situation(
         entry_evidence_freshness="fresh-0-5m",
         stop_plan="SOURCE_SWING_EXTREME",
         risk_ref=Decimal("0.21"),
-        planned_target_r=Decimal("3.4"),
+        planned_target_r=None,
         structural_destination="OPPOSITE_09_REFERENCE_BOUNDARY",
         destination_distance_ref=Decimal("0.71"),
         journey_stage="DOL1_TOUCH_CLOSED",
@@ -194,6 +194,7 @@ def test_full_cognitive_position_consumes_all_domains_without_oracle() -> None:
     assert state.current_situation_fingerprint == situation.fingerprint()
     assert "risk_ref" in state.observed_situation_fields
     assert "planned_target_r" in state.observed_situation_fields
+    assert "planned_target_r" in state.observation_only_situation_fields
     assert "structural_destination" in state.observation_only_situation_fields
     assert "current_path_vs_previous" in state.actuated_situation_fields
     assert state.terminal_pnl_used is False
