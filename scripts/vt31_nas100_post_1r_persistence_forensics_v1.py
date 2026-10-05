@@ -11,6 +11,7 @@ No threshold, stop policy, target policy, or runtime action is selected here.
 Future journey class and deeper delivery are labels for consumed-evidence
 research only.
 """
+# ruff: noqa: B009
 from __future__ import annotations
 
 import argparse
