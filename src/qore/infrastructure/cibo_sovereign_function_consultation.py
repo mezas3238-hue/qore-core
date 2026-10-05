@@ -37,6 +37,9 @@ from qore.infrastructure.cibo_ce2i_regime_selector import CiboCapitalRegimeState
 from qore.infrastructure.cibo_high_intelligence_context import (
     build_high_intelligence_context,
 )
+from qore.infrastructure.cibo_native_faculty_semantics import (
+    build_native_faculty_research_semantics,
+)
 from qore.infrastructure.cibo_sovereign_function_runtime import (
     CiboNativeFacultyRuntimeObservation,
     evaluate_cibo_native_faculties,
@@ -516,8 +519,15 @@ def _build_faculty_receipt(
         raise CiboCapitalManagementError(
             "faculty consultation/native runtime function-code drift"
         )
+    research_semantics = build_native_faculty_research_semantics(
+        function_code=function_code,
+        decision_at=decision_at,
+        opportunities=opportunities,
+        regime_state=regime_state,
+    )
     output_payload: dict[str, object] = {
         "contribution_code": output_code,
+        "research_semantic_observation": research_semantics,
         "evidence_status": CiboEvidenceStatus.INSUFFICIENT.value,
         "evidence_reason": "authority-rooted-evidence-required",
         "request_code": "economic.evidence.request",
