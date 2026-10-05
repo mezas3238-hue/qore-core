@@ -12,6 +12,7 @@ from qore.infrastructure.cibo_capital_management_authority import (
     CapitalSource,
     CapitalStage,
     CiboCapitalActionPlan,
+    CapitalSourceLot,
     TraderOpportunityEnvelope,
 )
 from qore.infrastructure.cibo_capital_science_runtime_bridge import (
@@ -247,3 +248,97 @@ def test_sovereign_cognitive_defer_blocks_risk_request(monkeypatch) -> None:
     assert decision.final_plan.action is CapitalAction.HOLD
     assert decision.cognitive_consumed is True
     assert decision.qore_risk_sovereign is True
+
+
+def test_sovereign_cap_reduces_multi_source_lots_without_losing_provenance() -> None:
+    opportunity = _opportunity()
+    plan = CiboCapitalActionPlan(
+        trader_id=opportunity.trader_id,
+        qore_symbol=opportunity.qore_symbol,
+        stage=CapitalStage.CAPITALIZE,
+        action=CapitalAction.OPEN_CAPABILITY_MAX,
+        volume=Decimal("0.04"),
+        stop_risk_usd=Decimal("0.40"),
+        margin_usd=Decimal("0.80"),
+        capital_source=None,
+        capital_source_amount_usd=Decimal("0.40"),
+        capital_source_lots=(
+            CapitalSourceLot(
+                source=CapitalSource.ORIGINAL_BASE_CAPITAL,
+                amount_usd=Decimal("0.20"),
+                source_id="base",
+            ),
+            CapitalSourceLot(
+                source=CapitalSource.REALIZED_PROFIT,
+                amount_usd=Decimal("0.20"),
+                source_id="profit",
+            ),
+        ),
+        reason="mixed-source capability sizing",
+    )
+
+    capped = runtime._cap_sizing_plan(
+        opportunity=opportunity,
+        sizing=SimpleNamespace(plan=plan),
+        portfolio_risk_cap_usd=Decimal("0.30"),
+        portfolio_margin_cap_usd=Decimal("0.60"),
+        robust_risk_cap_usd=Decimal("0.30"),
+        robust_margin_cap_usd=Decimal("0.60"),
+    )
+
+    assert capped.volume == Decimal("0.03")
+    assert capped.stop_risk_usd == Decimal("0.30")
+    assert capped.capital_source is None
+    assert tuple(
+        (lot.source, lot.amount_usd)
+        for lot in capped.capital_source_lots
+    ) == (
+        (CapitalSource.ORIGINAL_BASE_CAPITAL, Decimal("0.20")),
+        (CapitalSource.REALIZED_PROFIT, Decimal("0.10")),
+    )
+
+
+def test_sovereign_cap_can_remove_profit_lot_when_reduced_into_base_capacity() -> None:
+    opportunity = _opportunity()
+    plan = CiboCapitalActionPlan(
+        trader_id=opportunity.trader_id,
+        qore_symbol=opportunity.qore_symbol,
+        stage=CapitalStage.CAPITALIZE,
+        action=CapitalAction.OPEN_CAPABILITY_MAX,
+        volume=Decimal("0.04"),
+        stop_risk_usd=Decimal("0.40"),
+        margin_usd=Decimal("0.80"),
+        capital_source=None,
+        capital_source_amount_usd=Decimal("0.40"),
+        capital_source_lots=(
+            CapitalSourceLot(
+                source=CapitalSource.ORIGINAL_BASE_CAPITAL,
+                amount_usd=Decimal("0.20"),
+                source_id="base",
+            ),
+            CapitalSourceLot(
+                source=CapitalSource.REALIZED_PROFIT,
+                amount_usd=Decimal("0.20"),
+                source_id="profit",
+            ),
+        ),
+        reason="mixed-source capability sizing",
+    )
+
+    capped = runtime._cap_sizing_plan(
+        opportunity=opportunity,
+        sizing=SimpleNamespace(plan=plan),
+        portfolio_risk_cap_usd=Decimal("0.20"),
+        portfolio_margin_cap_usd=Decimal("0.40"),
+        robust_risk_cap_usd=Decimal("0.20"),
+        robust_margin_cap_usd=Decimal("0.40"),
+    )
+
+    assert capped.volume == Decimal("0.02")
+    assert capped.capital_source is CapitalSource.ORIGINAL_BASE_CAPITAL
+    assert tuple(
+        (lot.source, lot.amount_usd)
+        for lot in capped.capital_source_lots
+    ) == (
+        (CapitalSource.ORIGINAL_BASE_CAPITAL, Decimal("0.20")),
+    )
