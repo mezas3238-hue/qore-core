@@ -339,14 +339,22 @@ def execute_sovereign_ceiling_epoch(
             twin=twin,
         )
         requested_cost = cost_per_volume * request.requested_volume
+        total_cost_reserve = provider_cost_reserve + requested_cost
         available_for_stop_after_cost = max(
             Decimal(0),
             risk_snapshot.qore_authorizable_headroom
-            - provider_cost_reserve
-            - requested_cost,
+            - total_cost_reserve,
         )
         cost_reserved_snapshot = replace(
             risk_snapshot,
+            equity=max(
+                Decimal(0),
+                risk_snapshot.equity - total_cost_reserve,
+            ),
+            free_margin=max(
+                Decimal(0),
+                risk_snapshot.free_margin - total_cost_reserve,
+            ),
             qore_authorizable_headroom=available_for_stop_after_cost,
         )
         authorization = risk_engine.authorize(
