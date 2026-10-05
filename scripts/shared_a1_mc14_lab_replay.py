@@ -88,6 +88,14 @@ def _verify_manifest(root: Path) -> dict[str, Any]:
         raise ValueError(
             "MC14 dataset bundle lacks one or more frozen R8 target files"
         )
+    excluded = dict(manifest.get("excluded_source_families", {}))
+    us2000 = dict(excluded.get("US2000_BREADTH_PROXY", {}))
+    if us2000.get("status") != "INSUFFICIENT_DO_NOT_INFER":
+        raise ValueError(
+            "MC14 bundle must preserve US2000 as frozen INSUFFICIENT"
+        )
+    if us2000.get("target_evaluation_executed") is not False:
+        raise ValueError("MC14 bundle attempted US2000 target evaluation")
     return manifest
 
 
@@ -102,8 +110,7 @@ def run_replay(bundle: Path) -> dict[str, Any]:
         command = (
             sys.executable,
             "scripts/shared_mc14_b04_new_information_causal_replay.py",
-            "--us2000-root",
-            str(root / "sources" / "US2000_BREADTH_PROXY"),
+            "--xauusd-only",
             "--xauusd-root",
             str(root / "sources" / "XAUUSD_DEFENSIVE_PROXY"),
             "--r8-nas",
