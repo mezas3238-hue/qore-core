@@ -20,16 +20,20 @@ from __future__ import annotations
 import hashlib
 import json
 import time
+from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from decimal import ROUND_FLOOR, Decimal
+from decimal import ROUND_FLOOR, ROUND_HALF_UP, Decimal
 from typing import Any
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 from qore.infrastructure.account_wide_risk import CiboRiskRequest, TraderLineage
 from qore.infrastructure.fundednext_mt5 import Mt5SymbolSpecification
-from qore.infrastructure.fundednext_mt5_clock import normalise_fundednext_server_epoch
+from qore.infrastructure.fundednext_mt5_clock import (
+    NEW_YORK_TZ,
+    normalise_fundednext_server_epoch,
+)
 from qore.infrastructure.fundednext_stellar_instant import resolve_pilot_symbol
 from qore.infrastructure.market_data import (
     Instrument,
@@ -114,6 +118,8 @@ MIN_PRELOAD_M1_BARS = 10_000
 RECENT_M1_BARS = 32
 BOUNDARY_RECENT_M1_BARS = 8
 FINALIZATION_LAG = DECISION_DEADLINE
+LATE_TICK_RECONCILIATION_WINDOW = timedelta(seconds=30)
+RECONCILIATION_RECEIPT_LIMIT = 512
 
 # QORE runtime normalization used by every currently integrated specialist:
 # 1.00 strategy-R maps to 0.20% account equity before the trader's frozen
@@ -134,9 +140,129 @@ _SOURCE = ExternalSourceDescriptor(
 class Vt31Nas100LiveError(RuntimeError):
     """VT31 NAS100 runtime invariant failed closed."""
 
+    def __init__(
+        self,
+        message: str,
+        *,
+        receipt: Vt31M1BarReconciliationReceipt | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.receipt = receipt
+
 
 class Vt31Nas100SlaExpired(Vt31Nas100LiveError):
     """M1 execution decision deadline expired."""
+
+
+@dataclass(frozen=True, slots=True)
+class Vt31M1BarReconciliationReceipt:
+    """Complete, serializable evidence for one M1 reconciliation decision."""
+
+    result: str
+    provider_symbol: str
+    qore_symbol: str
+    bar_open_time: datetime
+    bar_close_time: datetime
+    broker_timestamp: int
+    broker_wall_time: datetime
+    utc_time: datetime
+    new_york_time: datetime
+    first_seen_at: datetime
+    sealed_at: datetime | None
+    sealed_now: bool
+    observed_at: datetime
+    source: str
+    previous_source: str | None
+    history_source: str | None
+    incremental_source: str | None
+    sequence: int
+    bar_state: str
+    ohlc: tuple[str, str, str, str]
+    previous_ohlc: tuple[str, str, str, str] | None
+    tick_volume: int | None
+    previous_tick_volume: int | None
+    real_volume: int | None
+    previous_real_volume: int | None
+    spread: int | None
+    previous_spread: int | None
+    fingerprint: str
+    previous_fingerprint: str | None
+    revision_count: int
+    cache_version: int
+    cache_state: str
+    history_state: str
+    incremental_state: str
+    decision_state: str
+    changed_fields: tuple[str, ...]
+    differences: tuple[tuple[str, str, str, str], ...]
+
+    def as_payload(self) -> dict[str, object]:
+        previous_ohlc = None
+        if self.previous_ohlc is not None:
+            previous_ohlc = _ohlc_payload(self.previous_ohlc)
+        return {
+            "event": "VT31_M1_BAR_RECONCILIATION",
+            "result": self.result,
+            "provider_symbol": self.provider_symbol,
+            "qore_symbol": self.qore_symbol,
+            "bar_open_time": self.bar_open_time.isoformat(),
+            "bar_close_time": self.bar_close_time.isoformat(),
+            "broker_timestamp": self.broker_timestamp,
+            "broker_wall_time": self.broker_wall_time.isoformat(),
+            "utc_time": self.utc_time.isoformat(),
+            "new_york_time": self.new_york_time.isoformat(),
+            "first_seen_at": self.first_seen_at.isoformat(),
+            "sealed_at": self.sealed_at.isoformat() if self.sealed_at else None,
+            "sealed_now": self.sealed_now,
+            "observed_at": self.observed_at.isoformat(),
+            "source": self.source,
+            "previous_source": self.previous_source,
+            "history_source": self.history_source,
+            "incremental_source": self.incremental_source,
+            "sequence": self.sequence,
+            "bar_state": self.bar_state,
+            "ohlc": _ohlc_payload(self.ohlc),
+            "previous_ohlc": previous_ohlc,
+            "tick_volume": self.tick_volume,
+            "previous_tick_volume": self.previous_tick_volume,
+            "real_volume": self.real_volume,
+            "previous_real_volume": self.previous_real_volume,
+            "spread": self.spread,
+            "previous_spread": self.previous_spread,
+            "fingerprint": self.fingerprint,
+            "previous_fingerprint": self.previous_fingerprint,
+            "revision_count": self.revision_count,
+            "cache_version": self.cache_version,
+            "cache_state": self.cache_state,
+            "history_state": self.history_state,
+            "incremental_state": self.incremental_state,
+            "decision_state": self.decision_state,
+            "changed_fields": list(self.changed_fields),
+            "differences": [
+                {
+                    "field": field,
+                    "previous": previous,
+                    "current": current,
+                    "difference": difference,
+                }
+                for field, previous, current, difference in self.differences
+            ],
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class _Vt31M1Observation:
+    snapshot: OhlcSnapshot
+    broker_timestamp: int
+    broker_wall_time: datetime
+    raw_ohlc: tuple[str, str, str, str]
+    canonical_ohlc: tuple[str, str, str, str]
+    tick_volume: int | None
+    real_volume: int | None
+    spread: int | None
+    source: str
+    sequence: int
+    fingerprint: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -223,17 +349,32 @@ class Vt31RiskResolution:
 
 
 class Vt31Nas100M1Cache:
-    """One preload, then incremental recent M1 reads only."""
+    """One preload, then deterministic incremental M1 reconciliation."""
 
-    def __init__(self, *, max_bars: int = HISTORY_M1_BARS) -> None:
+    def __init__(
+        self,
+        *,
+        max_bars: int = HISTORY_M1_BARS,
+        price_digits: int = 1,
+    ) -> None:
         if max_bars < MIN_PRELOAD_M1_BARS:
             raise ValueError("VT31 M1 cache max_bars below minimum")
+        if isinstance(price_digits, bool) or not 0 <= price_digits <= 10:
+            raise ValueError("VT31 price digits invalid")
         self._max_bars = max_bars
+        self._price_digits = price_digits
+        self._price_quantum = Decimal(1).scaleb(-price_digits)
         self._bars: dict[datetime, OhlcSnapshot] = {}
-        # Keys enter this set only after QORE has observed them as completed.
-        # A bar first seen while open may therefore publish exactly one final
-        # closed snapshot without being mistaken for historical mutation.
+        self._observations: dict[datetime, _Vt31M1Observation] = {}
         self._finalized_bars: set[datetime] = set()
+        self._first_seen_at: dict[datetime, datetime] = {}
+        self._sealed_at: dict[datetime, datetime] = {}
+        self._revision_counts: dict[datetime, int] = {}
+        self._receipts: deque[Vt31M1BarReconciliationReceipt] = deque(
+            maxlen=RECONCILIATION_RECEIPT_LIMIT
+        )
+        self._sequence = 0
+        self._cache_version = 0
         self._preloaded = False
         self._preload_calls = 0
         self._incremental_calls = 0
@@ -255,6 +396,17 @@ class Vt31Nas100M1Cache:
     def last_refresh_at(self) -> datetime | None:
         return self._last_refresh_at
 
+    @property
+    def cache_version(self) -> int:
+        return self._cache_version
+
+    def drain_reconciliation_receipts(
+        self,
+    ) -> tuple[Vt31M1BarReconciliationReceipt, ...]:
+        receipts = tuple(self._receipts)
+        self._receipts.clear()
+        return receipts
+
     def closed_m1(self, *, through: datetime) -> tuple[OhlcSnapshot, ...]:
         """Return only immutable bars closed no later than the cutoff."""
         cutoff = _utc(through, "through")
@@ -264,55 +416,282 @@ class Vt31Nas100M1Cache:
             if self._bars[key].closed_at <= cutoff
         )
 
-    def _ingest(self, rows: Any, *, observed_at: datetime) -> None:
+    def _ingest(
+        self,
+        rows: Any,
+        *,
+        observed_at: datetime,
+        source: str = "incremental",
+        emit_receipts: bool = True,
+    ) -> None:
         observed = _utc(observed_at, "observed_at")
         for row in rows:
-            opened = normalise_fundednext_server_epoch(int(row["time"]))
-            snapshot = OhlcSnapshot(
-                snapshot_id=MarketDataSnapshotId(
-                    uuid5(
-                        NAMESPACE_URL,
-                        f"qore:vt31:nas100:m1:{opened.isoformat()}",
-                    )
-                ),
-                instrument=_INSTRUMENT,
-                source=_SOURCE,
-                timeframe=_TIMEFRAME_M1,
-                opened_at=opened,
-                closed_at=opened + timedelta(minutes=1),
-                open=float(row["open"]),
-                high=float(row["high"]),
-                low=float(row["low"]),
-                close=float(row["close"]),
+            self._sequence += 1
+            current = self._observation_from_row(
+                row,
+                source=source,
+                sequence=self._sequence,
             )
+            snapshot = current.snapshot
+            opened = snapshot.opened_at
             prior = self._bars.get(opened)
-            if prior is not None and prior != snapshot:
-                # Broker OHLC can settle for a short interval immediately
-                # after a minute closes. Accept revisions inside the same
-                # hard decision window. A later historical mutation still
-                # fails closed for that cycle, but retain the newest broker
-                # snapshot so the cache can self-recover instead of emitting
-                # the same contradiction forever.
-                if opened in self._finalized_bars:
-                    self._bars[opened] = snapshot
-                    raise Vt31Nas100LiveError(
-                        "VT31 contradictory completed M1 bar"
-                    )
-            self._bars[opened] = snapshot
-            if snapshot.closed_at + FINALIZATION_LAG <= observed:
+            prior_observation = self._observations.get(opened)
+            first_seen = self._first_seen_at.setdefault(opened, observed)
+            result: str | None = None
+
+            if prior is None or prior_observation is None:
+                self._accept_observation(current)
+                result = "LEGITIMATE_UPDATE"
+            elif (
+                prior_observation.fingerprint == current.fingerprint
+                and prior_observation.raw_ohlc == current.raw_ohlc
+            ):
+                result = None
+            elif _only_precision_difference(prior_observation, current):
+                self._accept_observation(current, revision=True)
+                result = "PRECISION_NORMALIZED"
+            elif opened not in self._finalized_bars:
+                self._accept_observation(current, revision=True)
+                result = "LEGITIMATE_UPDATE"
+            elif self._is_admissible_late_tick(
+                prior_observation,
+                current,
+                observed_at=observed,
+            ):
+                self._accept_observation(current, revision=True)
+                result = "LATE_TICK_RECONCILED"
+            else:
+                receipt = self._receipt(
+                    result="TRUE_CONTRADICTION",
+                    current=current,
+                    previous=prior_observation,
+                    observed_at=observed,
+                    first_seen_at=first_seen,
+                    decision_state="FAIL_CLOSED",
+                    sealed_now=False,
+                )
+                self._receipts.append(receipt)
+                payload = receipt.as_payload()
+                raise Vt31Nas100LiveError(
+                    "VT31 contradictory completed M1 bar "
+                    + json.dumps(payload, sort_keys=True, separators=(",", ":")),
+                    receipt=receipt,
+                )
+
+            newly_sealed = False
+            if (
+                opened not in self._finalized_bars
+                and snapshot.closed_at + FINALIZATION_LAG <= observed
+            ):
                 self._finalized_bars.add(opened)
+                self._sealed_at[opened] = observed
+                self._cache_version += 1
+                newly_sealed = True
+
+            if emit_receipts and (result is not None or newly_sealed):
+                accepted = self._observations[opened]
+                self._receipts.append(
+                    self._receipt(
+                        result=result or "IDENTICAL",
+                        current=accepted,
+                        previous=prior_observation,
+                        observed_at=observed,
+                        first_seen_at=first_seen,
+                        decision_state=(
+                            "READY" if opened in self._finalized_bars else "WAIT"
+                        ),
+                        sealed_now=newly_sealed,
+                    )
+                )
 
         if len(self._bars) > self._max_bars:
             keys = sorted(self._bars)
             for key in keys[: len(keys) - self._max_bars]:
                 del self._bars[key]
+                self._observations.pop(key, None)
                 self._finalized_bars.discard(key)
+                self._first_seen_at.pop(key, None)
+                self._sealed_at.pop(key, None)
+                self._revision_counts.pop(key, None)
+
+    def _observation_from_row(
+        self,
+        row: Any,
+        *,
+        source: str,
+        sequence: int,
+    ) -> _Vt31M1Observation:
+        broker_timestamp = int(row["time"])
+        opened = normalise_fundednext_server_epoch(broker_timestamp)
+        raw_ohlc = (
+            str(_row_value(row, "open")),
+            str(_row_value(row, "high")),
+            str(_row_value(row, "low")),
+            str(_row_value(row, "close")),
+        )
+        canonical_ohlc = (
+            _canonical_price(raw_ohlc[0], self._price_quantum),
+            _canonical_price(raw_ohlc[1], self._price_quantum),
+            _canonical_price(raw_ohlc[2], self._price_quantum),
+            _canonical_price(raw_ohlc[3], self._price_quantum),
+        )
+        snapshot = OhlcSnapshot(
+            snapshot_id=MarketDataSnapshotId(
+                uuid5(
+                    NAMESPACE_URL,
+                    f"qore:vt31:nas100:m1:{opened.isoformat()}",
+                )
+            ),
+            instrument=_INSTRUMENT,
+            source=_SOURCE,
+            timeframe=_TIMEFRAME_M1,
+            opened_at=opened,
+            closed_at=opened + timedelta(minutes=1),
+            open=float(canonical_ohlc[0]),
+            high=float(canonical_ohlc[1]),
+            low=float(canonical_ohlc[2]),
+            close=float(canonical_ohlc[3]),
+        )
+        tick_volume = _optional_int(row, "tick_volume")
+        real_volume = _optional_int(row, "real_volume")
+        spread = _optional_int(row, "spread")
+        material = {
+            "bar_open_time": opened.isoformat(),
+            "ohlc": canonical_ohlc,
+            "tick_volume": tick_volume,
+            "real_volume": real_volume,
+            "spread": spread,
+        }
+        fingerprint = hashlib.sha256(
+            json.dumps(material, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+        broker_wall_time = datetime.fromtimestamp(broker_timestamp, tz=UTC)
+        return _Vt31M1Observation(
+            snapshot=snapshot,
+            broker_timestamp=broker_timestamp,
+            broker_wall_time=broker_wall_time,
+            raw_ohlc=raw_ohlc,
+            canonical_ohlc=canonical_ohlc,
+            tick_volume=tick_volume,
+            real_volume=real_volume,
+            spread=spread,
+            source=source,
+            sequence=sequence,
+            fingerprint=fingerprint,
+        )
+
+    def _accept_observation(
+        self,
+        observation: _Vt31M1Observation,
+        *,
+        revision: bool = False,
+    ) -> None:
+        opened = observation.snapshot.opened_at
+        self._bars[opened] = observation.snapshot
+        self._observations[opened] = observation
+        if revision:
+            self._revision_counts[opened] = self._revision_counts.get(opened, 0) + 1
+        else:
+            self._revision_counts.setdefault(opened, 0)
+        self._cache_version += 1
+
+    def _is_admissible_late_tick(
+        self,
+        previous: _Vt31M1Observation,
+        current: _Vt31M1Observation,
+        *,
+        observed_at: datetime,
+    ) -> bool:
+        if (
+            observed_at
+            > current.snapshot.closed_at + LATE_TICK_RECONCILIATION_WINDOW
+        ):
+            return False
+        if previous.tick_volume is None or current.tick_volume is None:
+            return False
+        previous_prices = tuple(Decimal(value) for value in previous.canonical_ohlc)
+        current_prices = tuple(Decimal(value) for value in current.canonical_ohlc)
+        previous_open, previous_high, previous_low, _ = previous_prices
+        current_open, current_high, current_low, current_close = current_prices
+        return (
+            current_open == previous_open
+            and current_high >= previous_high
+            and current_low <= previous_low
+            and current_low <= current_close <= current_high
+            and current.tick_volume >= previous.tick_volume
+            and (
+                previous.real_volume is None
+                or current.real_volume is None
+                or current.real_volume >= previous.real_volume
+            )
+        )
+
+    def _receipt(
+        self,
+        *,
+        result: str,
+        current: _Vt31M1Observation,
+        previous: _Vt31M1Observation | None,
+        observed_at: datetime,
+        first_seen_at: datetime,
+        decision_state: str,
+        sealed_now: bool,
+    ) -> Vt31M1BarReconciliationReceipt:
+        opened = current.snapshot.opened_at
+        previous_ohlc = previous.canonical_ohlc if previous else None
+        changed_fields = _changed_bar_fields(previous, current)
+        differences = _bar_differences(previous, current)
+        previous_source = previous.source if previous else None
+        return Vt31M1BarReconciliationReceipt(
+            result=result,
+            provider_symbol=PROVIDER_SYMBOL,
+            qore_symbol=SYMBOL,
+            bar_open_time=opened,
+            bar_close_time=current.snapshot.closed_at,
+            broker_timestamp=current.broker_timestamp,
+            broker_wall_time=current.broker_wall_time,
+            utc_time=opened,
+            new_york_time=opened.astimezone(NEW_YORK_TZ),
+            first_seen_at=first_seen_at,
+            sealed_at=self._sealed_at.get(opened),
+            sealed_now=sealed_now,
+            observed_at=observed_at,
+            source=current.source,
+            previous_source=previous_source,
+            history_source=(
+                previous_source if previous_source == "history_preload" else None
+            ),
+            incremental_source=(
+                current.source if current.source == "incremental" else None
+            ),
+            sequence=current.sequence,
+            bar_state=("CLOSED" if current.snapshot.closed_at <= observed_at else "OPEN"),
+            ohlc=current.canonical_ohlc,
+            previous_ohlc=previous_ohlc,
+            tick_volume=current.tick_volume,
+            previous_tick_volume=previous.tick_volume if previous else None,
+            real_volume=current.real_volume,
+            previous_real_volume=previous.real_volume if previous else None,
+            spread=current.spread,
+            previous_spread=previous.spread if previous else None,
+            fingerprint=current.fingerprint,
+            previous_fingerprint=previous.fingerprint if previous else None,
+            revision_count=self._revision_counts.get(opened, 0),
+            cache_version=self._cache_version,
+            cache_state="DETERMINISTIC",
+            history_state="PRELOADED" if self._preloaded else "PRELOADING",
+            incremental_state=("ACTIVE" if self._incremental_calls else "STARTING"),
+            decision_state=decision_state,
+            changed_fields=changed_fields,
+            differences=differences,
+        )
 
     def preload(self, api: Any, *, now: datetime) -> None:
         if self._preloaded:
             raise Vt31Nas100LiveError(
                 "VT31 historical M1 preload may run only once"
             )
+        self._sync_provider_precision(api)
         rows = api.copy_rates_from_pos(
             PROVIDER_SYMBOL,
             api.TIMEFRAME_M1,
@@ -321,7 +700,12 @@ class Vt31Nas100M1Cache:
         )
         if rows is None or len(rows) < MIN_PRELOAD_M1_BARS:
             raise Vt31Nas100LiveError("VT31 historical M1 preload unavailable")
-        self._ingest(rows, observed_at=now)
+        self._ingest(
+            rows,
+            observed_at=now,
+            source="history_preload",
+            emit_receipts=False,
+        )
         self._preloaded = True
         self._preload_calls += 1
         self._last_refresh_at = now.astimezone(UTC)
@@ -337,6 +721,7 @@ class Vt31Nas100M1Cache:
             raise Vt31Nas100LiveError("VT31 M1 cache not preloaded")
         if count <= 0 or count > 64:
             raise ValueError("VT31 incremental M1 count invalid")
+        self._sync_provider_precision(api)
         rows = api.copy_rates_from_pos(
             PROVIDER_SYMBOL,
             api.TIMEFRAME_M1,
@@ -345,9 +730,26 @@ class Vt31Nas100M1Cache:
         )
         if rows is None or len(rows) < 2:
             raise Vt31Nas100LiveError("VT31 incremental M1 refresh unavailable")
-        self._ingest(rows, observed_at=now)
+        self._ingest(rows, observed_at=now, source="incremental")
         self._incremental_calls += 1
         self._last_refresh_at = now.astimezone(UTC)
+
+    def _sync_provider_precision(self, api: Any) -> None:
+        symbol_info = getattr(api, "symbol_info", None)
+        if not callable(symbol_info):
+            return
+        info = symbol_info(PROVIDER_SYMBOL)
+        if info is None:
+            return
+        digits = getattr(info, "digits", None)
+        if isinstance(digits, bool) or not isinstance(digits, int):
+            raise Vt31Nas100LiveError("VT31 provider price digits unavailable")
+        if not 0 <= digits <= 10:
+            raise Vt31Nas100LiveError("VT31 provider price digits invalid")
+        if self._bars and digits != self._price_digits:
+            raise Vt31Nas100LiveError("VT31 provider price precision drift")
+        self._price_digits = digits
+        self._price_quantum = Decimal(1).scaleb(-digits)
 
     def boundary_snapshot(
         self,
@@ -397,6 +799,86 @@ class Vt31Nas100M1Cache:
             observed_at=observed,
             evidence_fingerprint=fingerprint,
         )
+
+
+def _row_value(row: Any, field: str) -> object:
+    try:
+        return row[field]
+    except (IndexError, KeyError, TypeError, ValueError) as error:
+        raise Vt31Nas100LiveError(
+            f"VT31 M1 row missing required field {field}"
+        ) from error
+
+
+def _optional_int(row: Any, field: str) -> int | None:
+    try:
+        value = row[field]
+    except (IndexError, KeyError, TypeError, ValueError):
+        return None
+    if value is None:
+        return None
+    return int(value)
+
+
+def _ohlc_payload(values: tuple[str, str, str, str]) -> dict[str, str]:
+    return dict(zip(("open", "high", "low", "close"), values, strict=True))
+
+
+def _canonical_price(value: str, quantum: Decimal) -> str:
+    return str(Decimal(value).quantize(quantum, rounding=ROUND_HALF_UP))
+
+
+def _only_precision_difference(
+    previous: _Vt31M1Observation,
+    current: _Vt31M1Observation,
+) -> bool:
+    return (
+        previous.canonical_ohlc == current.canonical_ohlc
+        and previous.raw_ohlc != current.raw_ohlc
+        and previous.tick_volume == current.tick_volume
+        and previous.real_volume == current.real_volume
+        and previous.spread == current.spread
+    )
+
+
+def _changed_bar_fields(
+    previous: _Vt31M1Observation | None,
+    current: _Vt31M1Observation,
+) -> tuple[str, ...]:
+    if previous is None:
+        return ("new_bar",)
+    fields: list[str] = []
+    for index, field in enumerate(("open", "high", "low", "close")):
+        if previous.canonical_ohlc[index] != current.canonical_ohlc[index]:
+            fields.append(field)
+        elif previous.raw_ohlc[index] != current.raw_ohlc[index]:
+            fields.append(f"{field}_precision")
+    for field in ("tick_volume", "real_volume", "spread"):
+        if getattr(previous, field) != getattr(current, field):
+            fields.append(field)
+    return tuple(fields)
+
+
+def _bar_differences(
+    previous: _Vt31M1Observation | None,
+    current: _Vt31M1Observation,
+) -> tuple[tuple[str, str, str, str], ...]:
+    if previous is None:
+        return ()
+    differences: list[tuple[str, str, str, str]] = []
+    for index, field in enumerate(("open", "high", "low", "close")):
+        previous_value = Decimal(previous.raw_ohlc[index])
+        current_value = Decimal(current.raw_ohlc[index])
+        if previous_value != current_value:
+            differences.append(
+                (
+                    field,
+                    str(previous_value),
+                    str(current_value),
+                    str(current_value - previous_value),
+                )
+            )
+    return tuple(differences)
 
 
 def next_minute_boundary(now: datetime) -> datetime:

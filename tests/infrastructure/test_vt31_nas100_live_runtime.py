@@ -246,7 +246,7 @@ def test_live_state_store_roundtrips_empty_state(tmp_path: Path) -> None:
     assert store.load() == Vt31Nas100LiveState()
 
 
-def test_m1_cache_accepts_one_close_finalization_then_freezes(
+def test_m1_replay_fails_under_old_seal_rule_and_reconciles_late_tick(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from qore.infrastructure import vt31_nas100_live as live
@@ -265,19 +265,25 @@ def test_m1_cache_accepts_one_close_finalization_then_freezes(
         "high": 20002.0,
         "low": 19999.0,
         "close": 20001.0,
+        "tick_volume": 10,
+        "real_volume": 0,
+        "spread": 2,
     }
     final_row = {
         **open_row,
         "high": 20003.0,
         "close": 20002.0,
+        "tick_volume": 20,
     }
     rewritten_row = {
         **final_row,
         "close": 20002.5,
+        "tick_volume": 21,
     }
     late_rewrite = {
         **rewritten_row,
         "close": 20002.75,
+        "tick_volume": 22,
     }
 
     cache._ingest([open_row], observed_at=opened + timedelta(seconds=30))
@@ -294,16 +300,182 @@ def test_m1_cache_accepts_one_close_finalization_then_freezes(
         observed_at=opened + timedelta(minutes=1, seconds=2, milliseconds=1),
     )
 
-    with pytest.raises(
-        Vt31Nas100LiveError,
-        match="contradictory completed M1 bar",
-    ):
-        cache._ingest(
-            [late_rewrite],
-            observed_at=opened + timedelta(minutes=1, seconds=2, milliseconds=2),
-        )
-
     cache._ingest(
         [late_rewrite],
         observed_at=opened + timedelta(minutes=1, seconds=2, milliseconds=3),
     )
+    receipts = cache.drain_reconciliation_receipts()
+    assert any(item.result == "LATE_TICK_RECONCILED" for item in receipts)
+    assert cache.closed_m1(through=opened + timedelta(minutes=1))[-1].close == 20002.8
+
+
+def test_m1_true_contradiction_after_seal_remains_fail_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from qore.infrastructure import vt31_nas100_live as live
+
+    opened = datetime(2026, 10, 5, 10, 24, tzinfo=UTC)
+    monkeypatch.setattr(live, "normalise_fundednext_server_epoch", lambda _raw: opened)
+    cache = Vt31Nas100M1Cache()
+    original = {
+        "time": 1,
+        "open": 20000.0,
+        "high": 20005.0,
+        "low": 19998.0,
+        "close": 20003.0,
+        "tick_volume": 30,
+        "real_volume": 0,
+        "spread": 2,
+    }
+    contradiction = {
+        **original,
+        "high": 20004.0,
+        "close": 20003.5,
+        "tick_volume": 31,
+    }
+    cache._ingest(
+        [original],
+        observed_at=opened + timedelta(minutes=1, seconds=3),
+    )
+    with pytest.raises(Vt31Nas100LiveError, match="changed_fields.*high") as captured:
+        cache._ingest(
+            [contradiction],
+            observed_at=opened + timedelta(minutes=1, seconds=4),
+        )
+    assert captured.value.receipt is not None
+    assert captured.value.receipt.result == "TRUE_CONTRADICTION"
+    assert captured.value.receipt.decision_state == "FAIL_CLOSED"
+    assert captured.value.receipt.bar_open_time == opened
+    assert captured.value.receipt.differences == (
+        ("high", "20005.0", "20004.0", "-1.0"),
+        ("close", "20003.0", "20003.5", "0.5"),
+    )
+
+
+def test_m1_precision_only_difference_normalizes_deterministically(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from qore.infrastructure import vt31_nas100_live as live
+
+    opened = datetime(2026, 10, 5, 9, 52, tzinfo=UTC)
+    monkeypatch.setattr(live, "normalise_fundednext_server_epoch", lambda _raw: opened)
+    cache = Vt31Nas100M1Cache(price_digits=1)
+    row = {
+        "time": 1,
+        "open": 20000.0,
+        "high": 20002.0,
+        "low": 19999.0,
+        "close": 20001.0,
+        "tick_volume": 10,
+        "real_volume": 0,
+        "spread": 2,
+    }
+    precision_only = {**row, "close": 20001.04}
+    cache._ingest([row], observed_at=opened + timedelta(minutes=1, seconds=3))
+    cache.drain_reconciliation_receipts()
+    cache._ingest(
+        [precision_only],
+        observed_at=opened + timedelta(minutes=1, seconds=4),
+    )
+    receipts = cache.drain_reconciliation_receipts()
+    assert len(receipts) == 1
+    assert receipts[0].result == "PRECISION_NORMALIZED"
+    assert receipts[0].changed_fields == ("close_precision",)
+
+
+def test_m1_duplicate_is_idempotent(monkeypatch: pytest.MonkeyPatch) -> None:
+    from qore.infrastructure import vt31_nas100_live as live
+
+    opened = datetime(2026, 10, 5, 9, 53, tzinfo=UTC)
+    monkeypatch.setattr(live, "normalise_fundednext_server_epoch", lambda _raw: opened)
+    cache = Vt31Nas100M1Cache()
+    row = {
+        "time": 1,
+        "open": 20000.0,
+        "high": 20002.0,
+        "low": 19999.0,
+        "close": 20001.0,
+        "tick_volume": 10,
+        "real_volume": 0,
+        "spread": 2,
+    }
+    observed = opened + timedelta(minutes=1, seconds=3)
+    cache._ingest([row], observed_at=observed)
+    version = cache.cache_version
+    cache.drain_reconciliation_receipts()
+    cache._ingest([row], observed_at=observed + timedelta(seconds=1))
+    assert cache.cache_version == version
+    assert cache.drain_reconciliation_receipts() == ()
+
+
+def test_m1_in_progress_revision_is_legitimate_update(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from qore.infrastructure import vt31_nas100_live as live
+
+    opened = datetime(2026, 10, 5, 8, 56, tzinfo=UTC)
+    monkeypatch.setattr(live, "normalise_fundednext_server_epoch", lambda _raw: opened)
+    cache = Vt31Nas100M1Cache()
+    first = {
+        "time": 1,
+        "open": 20000.0,
+        "high": 20001.0,
+        "low": 19999.0,
+        "close": 20000.0,
+        "tick_volume": 3,
+        "real_volume": 0,
+        "spread": 2,
+    }
+    second = {**first, "high": 20002.0, "close": 20001.0, "tick_volume": 4}
+    cache._ingest([first], observed_at=opened + timedelta(seconds=10))
+    cache.drain_reconciliation_receipts()
+    cache._ingest([second], observed_at=opened + timedelta(seconds=20))
+    receipt = cache.drain_reconciliation_receipts()[0]
+    assert receipt.result == "LEGITIMATE_UPDATE"
+    assert receipt.bar_state == "OPEN"
+    assert receipt.decision_state == "WAIT"
+
+
+def test_m1_restart_rebuilds_cache_without_artificial_contradiction(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from qore.infrastructure import vt31_nas100_live as live
+
+    base = datetime(2026, 10, 5, 10, 20, tzinfo=UTC)
+    monkeypatch.setattr(live, "MIN_PRELOAD_M1_BARS", 2)
+    monkeypatch.setattr(live, "HISTORY_M1_BARS", 3)
+    monkeypatch.setattr(
+        live,
+        "normalise_fundednext_server_epoch",
+        lambda raw: base + timedelta(minutes=raw),
+    )
+    rows = [
+        {
+            "time": index,
+            "open": 20000.0 + index,
+            "high": 20001.0 + index,
+            "low": 19999.0 + index,
+            "close": 20000.5 + index,
+            "tick_volume": 10 + index,
+            "real_volume": 0,
+            "spread": 2,
+        }
+        for index in range(3)
+    ]
+
+    class Api:
+        TIMEFRAME_M1 = 1
+
+        def copy_rates_from_pos(
+            self, _symbol: str, _timeframe: int, _start: int, _count: int
+        ) -> list[dict[str, float | int]]:
+            return rows
+
+    now = base + timedelta(minutes=4)
+    first = Vt31Nas100M1Cache(max_bars=3)
+    first.preload(Api(), now=now)
+    restarted = Vt31Nas100M1Cache(max_bars=3)
+    restarted.preload(Api(), now=now)
+    restarted.refresh_incremental(Api(), now=now + timedelta(seconds=1), count=3)
+    assert restarted.drain_reconciliation_receipts() == ()
+    assert restarted.closed_m1(through=now) == first.closed_m1(through=now)

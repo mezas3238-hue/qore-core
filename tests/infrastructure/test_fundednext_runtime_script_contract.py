@@ -133,6 +133,16 @@ def test_vt31_m1_feed_uses_ndx100_provider_symbol_for_preload_and_incremental() 
     assert "symbol_info_tick(PROVIDER_SYMBOL)" in source
 
 
+def test_vt31_incremental_feed_failure_blocks_decision_preflight() -> None:
+    source = _RUNTIME.read_text(encoding="utf-8-sig")
+    assert "vt31_incremental_feed_healthy = True" in source
+    assert "vt31_incremental_feed_healthy = False" in source
+    assert "or not vt31_incremental_feed_healthy" in source
+    assert '"event": "VT31_M1_BAR_RECONCILIATION"' in _VT31_LIVE.read_text(
+        encoding="utf-8-sig"
+    )
+
+
 def test_vt31_adapter_normalizes_fundednext_tick_and_position_clocks() -> None:
     source = _VT31_ADAPTER.read_text(encoding="utf-8-sig")
     assert (
