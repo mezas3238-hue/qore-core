@@ -239,7 +239,9 @@ class FullCognitivePositionState:
     actuated_situation_fields: tuple[str, ...]
     observation_only_situation_fields: tuple[str, ...]
     cognitive_coverage_ratio: Decimal
-    situation_fingerprint: str
+    entry_situation_fingerprint: str
+    current_situation_fingerprint: str
+    post_entry_reassessment: bool
     memory_fingerprint: str
     entry_tier: str | None
     dol1_acceptance_observed: bool | None
@@ -352,11 +354,19 @@ def assess_full_cognitive_position(
     reasoning: Nas100ReasoningDecision,
     entry_tier: str | None = None,
     dol1_acceptance_observed: bool | None = None,
+    entry_situation_fingerprint: str | None = None,
 ) -> FullCognitivePositionState:
-    """Synthesize all causal VT31 cognition without using trade volume as input."""
+    """Synthesize current cognition from frozen entry reasoning + live situation."""
 
-    if reasoning.situation_fingerprint != situation.fingerprint():
-        raise ValueError("reasoning/situation fingerprint mismatch")
+    current_fingerprint = situation.fingerprint()
+    bound_entry_fingerprint = (
+        current_fingerprint
+        if entry_situation_fingerprint is None
+        else entry_situation_fingerprint
+    )
+    if reasoning.situation_fingerprint != bound_entry_fingerprint:
+        raise ValueError("entry reasoning fingerprint mismatch")
+    post_entry_reassessment = current_fingerprint != bound_entry_fingerprint
 
     observed_domains = (
         "STRATEGY_REASONING",
@@ -689,7 +699,9 @@ def assess_full_cognitive_position(
         actuated_situation_fields=actuated_situation_fields,
         observation_only_situation_fields=observation_only_situation_fields,
         cognitive_coverage_ratio=coverage_ratio,
-        situation_fingerprint=situation.fingerprint(),
+        entry_situation_fingerprint=bound_entry_fingerprint,
+        current_situation_fingerprint=current_fingerprint,
+        post_entry_reassessment=post_entry_reassessment,
         memory_fingerprint=reasoning.memory_fingerprint,
         entry_tier=entry_tier,
         dol1_acceptance_observed=dol1_acceptance_observed,
