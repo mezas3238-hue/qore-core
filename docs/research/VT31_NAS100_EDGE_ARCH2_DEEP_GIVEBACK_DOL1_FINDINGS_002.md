@@ -185,9 +185,9 @@ R5 materially degrades:
 
 - PF falls below baseline;
 - mean R falls;
-- DD rises;
-- winner-count preservation falls to ~84.62%;
-- winner-R preservation falls to ~81.76%;
+- DD does not improve;
+- winner-count preservation falls to ~92.31%;
+- winner-R preservation falls to ~82.70%;
 - 2021H2 and 2022H1 degrade.
 
 Rejected for promotion.
@@ -198,8 +198,9 @@ The frontier becomes destructive:
 
 - R6 PF and mean deteriorate and DD rises;
 - R6 winner-R preservation falls to ~66.64%;
-- R5 PF/mean/DD deteriorate;
-- R5 winner-R preservation falls to ~75.11%.
+- R5 PF and mean deteriorate while DD does not improve;
+- R5 winner-count preservation falls to ~92.31%;
+- R5 winner-R preservation falls to ~76.05%.
 
 Rejected.
 
