@@ -1,0 +1,91 @@
+{
+  "schema": "QORE_SHARED_A2_NATIVE_LAB_RUN_CONTRACT_001",
+  "created_at": "2026-10-04",
+  "owner": "Sergio Meza",
+  "architect": "A2",
+  "repository": "mezas3238-hue/qore-core",
+  "branch": "agent/shared-architect-2-sti-001",
+  "candidate_parent_sha": "90c5d41f55994eaf79a3139072760dff8cef87b9",
+  "execution_engine": "QORE_SHARED_LAB_NATIVE",
+  "github_actions_required": false,
+  "vps_required": false,
+  "broker_required": false,
+  "dataset": {
+    "dataset_id": "shared-a2-consumed-r6-r5",
+    "dataset_version": "1",
+    "sha256": "15575cd662b92e736fe53f59fbad50c42d244e29180cfb10fa8b6c7a87c560d0",
+    "size_bytes": 65630061,
+    "manifest": "docs/shared/evidence/QORE_SHARED_LAB_A2_R6_R5_DATASET_MANIFEST_001.json"
+  },
+  "invocation": {
+    "register_dataset": [
+      "qore-shared-lab",
+      "dataset-add",
+      "--dataset-id",
+      "shared-a2-consumed-r6-r5",
+      "--dataset-version",
+      "1",
+      "--file",
+      "<FROZEN_DATASET_ZIP>"
+    ],
+    "validate": [
+      "qore-shared-lab",
+      "validate",
+      "--sha",
+      "<EXACT_A2_HEAD_SHA>",
+      "--branch",
+      "agent/shared-architect-2-sti-001",
+      "--scope",
+      "mc23",
+      "--mode",
+      "component",
+      "--base-sha",
+      "c66e5e56fe4e459f2a891e5db0c171a74a1652b3",
+      "--dataset-id",
+      "shared-a2-consumed-r6-r5",
+      "--dataset-version",
+      "1",
+      "--submitted-by",
+      "Architect-A2",
+      "--role",
+      "ARCHITECT",
+      "--workers",
+      "1",
+      "--no-cache"
+    ]
+  },
+  "canonical_dag": [
+    "unit",
+    "contract",
+    "mc23-functional",
+    "a2-mc23-prepare-r6",
+    "a2-mc23-prepare-r5",
+    "a2-mc23-evaluate-prepared",
+    "a2-mc24-regression",
+    "a2-mc24-half-life-prepared"
+  ],
+  "science_freeze": {
+    "mc23_preregistration": "docs/shared/evidence/QORE_SHARED_MC23_VALIDATED_NOVEL_REGIME_ADAPTATION_PREREGISTRATION_001.json",
+    "mc24_preregistration": "docs/shared/evidence/QORE_SHARED_MC24_EMPIRICAL_KNOWLEDGE_HALF_LIFE_PREREGISTRATION_001.json",
+    "hypothesis_changes_forbidden": true,
+    "feature_changes_forbidden": true,
+    "gate_changes_forbidden": true,
+    "r5_refit_forbidden": true,
+    "outcome_aware_tuning_forbidden": true,
+    "protected_final_holdout_opened": false
+  },
+  "interrupted_attempts": [
+    "docs/shared/evidence/QORE_SHARED_A2_MC23_INTERRUPTED_ATTEMPT_001.json",
+    "docs/shared/evidence/QORE_SHARED_A2_MC23_INTERRUPTED_ATTEMPT_002.json"
+  ],
+  "expected_behavior": {
+    "prepare_r6_must_match": {
+      "source_observation_count": 21121,
+      "scored_novel_or_near_count": 8010
+    },
+    "prepare_r5_must_be_scientifically_unretuned": true,
+    "mc23_task_exit_zero_only_on_preregistered_pass": true,
+    "mc24_must_not_run_if_mc23_fails": true,
+    "no_scientific_outcome_from_interrupted_runs": true
+  }
+}
