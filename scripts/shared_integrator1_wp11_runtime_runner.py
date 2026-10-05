@@ -17,7 +17,12 @@ from typing import Any
 
 from shared_wp11_exact_blocker_audit import audit_blockers
 
-MC23_ID = "QORE_SHARED_MC23_VALIDATED_NOVEL_REGIME_ADAPTATION_001"
+MC23_IDS = frozenset(
+    {
+        "QORE_SHARED_MC23_VALIDATED_NOVEL_REGIME_ADAPTATION_001",
+        "QORE_SHARED_MC23_CANDIDATE_002_ROUTED_SECOND_ORDER_001",
+    }
+)
 MC24_ID = "QORE_SHARED_MC24_VALIDATED_ADAPTATION_HALF_LIFE_001"
 MC25_LINEAGE_ID = "QORE_SHARED_MC25_WP04_V3B_LINEAGE_INTEGRITY_STRESS_001"
 MC25_PERFORMANCE_ID = "QORE_SHARED_MC25_WP04_V3B_PERFORMANCE_STRESS_001"
@@ -51,7 +56,11 @@ def main() -> None:
     for result_dir in result_dirs:
         if result_dir.exists():
             rows.extend(_load_rows(result_dir))
-    mc23 = [copy.deepcopy(row) for row in rows if row.get("identity") == MC23_ID]
+    mc23 = [
+        copy.deepcopy(row)
+        for row in rows
+        if row.get("identity") in MC23_IDS
+    ]
     mc24 = [copy.deepcopy(row) for row in rows if row.get("identity") == MC24_ID]
     mc25 = [
         copy.deepcopy(row)
