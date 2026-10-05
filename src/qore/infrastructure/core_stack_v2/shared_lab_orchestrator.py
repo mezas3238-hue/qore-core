@@ -287,8 +287,14 @@ class NativeLabOrchestrator:
         *,
         state_dir: Path,
         registry: NativeSuiteRegistry | None = None,
+        harness_root: Path | None = None,
     ) -> None:
         self.state_dir = state_dir.resolve()
+        self.harness_root = (
+            harness_root.resolve()
+            if harness_root is not None
+            else Path(__file__).resolve().parents[4]
+        )
         self.dataset_store = DatasetStore(self.state_dir / "datasets")
         self.cache_store = CacheStore(self.state_dir / "cache")
         self.evidence_store = EvidenceStore(self.state_dir / "evidence")
@@ -305,6 +311,7 @@ class NativeLabOrchestrator:
         token = cancellation_token or CancellationToken()
         if token.cancelled:
             raise RuntimeError("native lab run cancelled before preparation")
+        harness_sha = _git_head(self.harness_root)
         runtime = RepositoryRuntime(Path(request.repo_path))
         snapshot = runtime.resolve(
             repository=request.repository,
@@ -333,11 +340,12 @@ class NativeLabOrchestrator:
             dataset_version=dataset.version,
             dataset_hash=dataset.content_hash,
             configuration_hash=plan_request.configuration_hash(),
+            lab_harness_sha=harness_sha,
         )
         run_dir = self.evidence_store.start_run(
             identity=identity,
             request=_request_payload(plan_request),
-            environment=self._environment(plan_request),
+            environment=self._environment(plan_request, harness_sha),
             started_at_ns=started_at_ns,
         )
 
@@ -799,12 +807,17 @@ class NativeLabOrchestrator:
         return f"SL-{time.time_ns()}-{commit_sha[:8]}-{uuid.uuid4().hex[:8]}"
 
     @staticmethod
-    def _environment(request: RunRequest) -> dict[str, Any]:
+    def _environment(
+        request: RunRequest,
+        harness_sha: str,
+    ) -> dict[str, Any]:
         return {
             "python": sys.version,
             "python_executable": sys.executable,
             "platform": platform.platform(),
             "lab_version": LAB_VERSION,
+            "lab_harness_sha": harness_sha,
+            "target_sha": request.commit_sha,
             "submitted_by": request.submitted_by,
             "submitted_role": request.submitted_role,
             "execution_engine": "QORE_SHARED_LAB_NATIVE",
