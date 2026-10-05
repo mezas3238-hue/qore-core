@@ -36,25 +36,32 @@ Current replay classification:
 | Stage | G1 | G2 | G3 |
 | --- | --- | --- | --- |
 | Cognitive CF01-CF19 | 16 INFORMATIONAL_USEFUL + 3 NOT_APPLICABLE | same | same |
-| CE2I | 11 productive + 7 N/A + T13/T15 UNPROVEN | same | 12 productive + 6 N/A + T13/T15 UNPROVEN |
+| CE2I | 11 productive + 7 N/A + T13/T15 NO_MEASURABLE_EFFECT | same | 12 productive + 6 N/A + T13/T15 NO_MEASURABLE_EFFECT |
 | Capital Science / GEN-C | 8 productive + 6 informational | 9 productive + 5 informational | 9 productive + 5 informational |
 | System bridges | 1 productive-unique + 1 protective-unique + 4 cooperative + 1 informational | same | same |
 
-The three groups have:
+The three groups now have:
 
+- 60/60 functional scoreboard rows classified
 - runtime blockers: 0
+- mandatory functional gaps: 0
+- `functional_completeness = true`
 - role-accounted function coverage: complete
 - exact runtime-signature collisions among the 53 functions: 0
 - Architect-2-owned mandatory functional blockers: 0
 
-The only mandatory scoreboard gaps are:
+T13/T15 were closed through a real replay redundancy probe, not by granting
+them false productive authority. Across G1/G2/G3:
 
-- T13 — UNPROVEN protective/economic effect
-- T15 — UNPROVEN protective/economic effect
+- T13 is invoked only in RECOVERY after its allocator input already has zero
+  risk/margin headroom; every observed T13 incremental reserve effect is zero.
+- T15 receives no known option in every observed runtime receipt and returns
+  the allocator envelope unchanged; every observed incremental effect is zero.
 
-Those are deliberately not papered over as advisory no-change. Their wiring is
-present and consumed, but proving their economic/protective value belongs to
-Architect-1's economic workstream.
+Their terminal functional classification for the **current replay composition**
+is therefore `NO_MEASURABLE_EFFECT`. This does not certify their economic value
+and does not prevent Architect-1 from later producing a superior economic
+composition in which they become useful.
 
 ## Cognitive disposition
 
@@ -136,7 +143,7 @@ Canonical reconciliation generator:
 Current result:
 
 - Architect-2 internal blockers: **0**
-- Architect-1 economic interface blockers: **T13, T15**
+- Architect-1 functional interface blockers: **0**
 - external-dependency-blocked master-ledger workstreams preserved: **40**
 - nonterminal certification gates:
   - `FRESH_OOS`
@@ -168,34 +175,57 @@ is a governance invariant, not a repair target.
 - `artifacts/arch2/group1/CIBO_FUNCTIONAL_COMPLETENESS_SCOREBOARD_V1.json`
 - `artifacts/arch2/group2/CIBO_FUNCTIONAL_COMPLETENESS_SCOREBOARD_V1.json`
 - `artifacts/arch2/group3/CIBO_FUNCTIONAL_COMPLETENESS_SCOREBOARD_V1.json`
+- `artifacts/arch2/group1/t13-t15-functional-redundancy.json`
+- `artifacts/arch2/group2/t13-t15-functional-redundancy.json`
+- `artifacts/arch2/group3/t13-t15-functional-redundancy.json`
 - `artifacts/arch2/CIBO_ARCH2_CERTIFICATION_BLOCKER_RECONCILIATION_V1.json`
+- `artifacts/arch2/CIBO_ARCH2_PRE_CERTIFICATION_READINESS_V1.json`
 
 Supporting generated diagnostics are reproducible from the existing CIBO
 Maximum Capability Lab decision traces.
+
+## Pre-certification readiness
+
+Architect-2 pre-certification disposition is now:
+
+- `functional_pre_certification_ready = true`
+- `certification_execution_ready = false`
+- disposition =
+  `FUNCTIONAL_GATE_CLEARED__CERTIFICATION_DEPENDENCIES_REMAIN`
+
+The functional gate is closed without opening Fresh OOS. Certification remains
+blocked by the canonical external/scientific ledger: 40
+`EXTERNAL_DEPENDENCY_BLOCKED` workstreams plus the nonterminal sequence
+`FRESH_OOS -> FINAL_INTEGRATED_CIBO_EXAM -> WORLD_CUP_MAXIMUM_CAPABILITY_EXAM`.
 
 ## Reproduction order
 
 1. Generate role-aware function I/O actuation report.
 2. Generate utilization sensor.
-3. Generate `CIBO_FUNCTIONAL_COMPLETENESS_SCOREBOARD_V1`.
-4. Generate Architect-2 certification blocker reconciliation.
-5. Run focused Phase22 causality tests.
-6. Run Ruff on modified Architect-2 files.
-7. Revalidate exact HEAD CI only after the Architect-1/Architect-2 integration
-   seam is assembled.
-8. Do not open Fresh OOS before functional/economic seam closure.
+3. Generate the T13/T15 functional-redundancy probe.
+4. Generate `CIBO_FUNCTIONAL_COMPLETENESS_SCOREBOARD_V1` for G1/G2/G3.
+5. Generate Architect-2 certification blocker reconciliation.
+6. Generate `CIBO_ARCH2_PRE_CERTIFICATION_READINESS_V1`.
+7. Run focused Phase22 causality + T13/T15 regression tests and Ruff.
+8. Revalidate the exact Architect-2 HEAD with one targeted integration CI.
+9. Do not open Fresh OOS from this workstream; that remains a separate
+   governed/authorized certification step after the external scientific
+   dependencies are cleared.
 
 ## Integrator seam
 
-Architect-1 must supply causal economic evidence for T13/T15. Architect-2 does
-not redesign their economics.
+There is no remaining Architect-1/Architect-2 **functional** seam. T13/T15 are
+closed for functional completeness as `NO_MEASURABLE_EFFECT` in the current
+composition. Architect-1 still owns any future economic redesign/promotion of
+those tools.
 
-When T13/T15 are closed, the integrator should:
+The integrator should now:
 
-1. regenerate all three scoreboards;
-2. require zero mandatory functional gaps;
-3. re-run exact-head regression/CI;
-4. reconcile the external certification ledger;
+1. preserve the three 60/60 zero-gap scoreboards;
+2. re-run exact-head regression/CI;
+3. reconcile the external scientific/certification ledger;
+4. consume any later Architect-1 economic improvements without reclassifying
+   no-effect runtime as productive unless causal evidence changes;
 5. only then consider the separately authorized Fresh OOS/certification path.
 
 No LIVE, production, real capital, FundedNext LIVE or merge action was used by

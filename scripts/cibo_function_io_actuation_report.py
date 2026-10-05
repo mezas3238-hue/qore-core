@@ -997,7 +997,8 @@ def main() -> int:
     coverage_raw = _load(args.coverage)
     capital = _load(args.capital_science_io)
     three_lane = _load(args.three_lane)
-    group = _load(args.group_result)    opportunities = trace.get("opportunities")
+    group = _load(args.group_result)
+    opportunities = trace.get("opportunities")
     if not isinstance(opportunities, list) or not opportunities:
         raise ValueError("decision trace opportunities missing")
     coverage = _coverage_by_code(coverage_raw)

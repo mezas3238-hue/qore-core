@@ -1,0 +1,27 @@
+{
+  "T13": {
+    "all_incremental_effect_zero": true,
+    "all_input_headroom_zero": true,
+    "classification": "NO_MEASURABLE_EFFECT",
+    "native_consumer_chain_healthy": true,
+    "reason": "T13 receives no deployable headroom in every observed recovery receipt, so its incremental reserve action is identically zero in the current integrated composition.",
+    "receipt_count": 161,
+    "recovery_only": true
+  },
+  "T15": {
+    "all_incremental_effect_zero": true,
+    "all_known_options_empty": true,
+    "all_outputs_identity_envelope": true,
+    "classification": "NO_MEASURABLE_EFFECT",
+    "native_consumer_chain_healthy": true,
+    "reason": "T15 receives no known option in every observed receipt and returns the allocator envelope unchanged, so its incremental effect is zero in the current integrated composition.",
+    "receipt_count": 1111
+  },
+  "authority_mutated": false,
+  "economic_promotion_claimed": false,
+  "functional_seam_closed": true,
+  "group_id": "GROUP_3",
+  "outcome_aware_tuning": false,
+  "schema": "qore.cibo.arch2-t13-t15-functional-redundancy.v1",
+  "scope": "CURRENT_REPLAY_COMPOSITION_ONLY"
+}

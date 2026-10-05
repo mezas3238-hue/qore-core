@@ -2,15 +2,15 @@
   "classification_counts": {
     "INFORMATIONAL_USEFUL": 23,
     "NOT_APPLICABLE": 10,
+    "NO_MEASURABLE_EFFECT": 2,
     "PRODUCTIVE_COOPERATIVE": 23,
     "PRODUCTIVE_UNIQUE": 1,
-    "PROTECTIVE_UNIQUE": 1,
-    "UNPROVEN": 2
+    "PROTECTIVE_UNIQUE": 1
   },
   "exact_runtime_signature_collision_count": 0,
   "exact_runtime_signature_collisions": [],
   "function_rows": 53,
-  "functional_completeness": false,
+  "functional_completeness": true,
   "governance": {
     "authority_note": "GEN-C/Compound/Leverage/Portfolio/Sizing economic authority remains Architect-1 domain; this artifact classifies functional use only.",
     "broker_mutation": false,
@@ -22,61 +22,8 @@
     "real_capital": false
   },
   "group_id": "GROUP_1",
-  "mandatory_gap_count": 2,
-  "mandatory_gaps": [
-    {
-      "Authority": "CE2I_CONTEXTUAL_OR_PROTECTIVE__NO_INFERRED_AUTHORITY",
-      "Classification": "UNPROVEN",
-      "Consumer": true,
-      "Decision Change": false,
-      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
-      "Economic Effect": false,
-      "Evidence": {
-        "diagnosis": "INPUT_OUTPUT_CONSUMER_OBSERVED_NO_CHANGE",
-        "expected_or_enabled_count": 1078,
-        "invocation_count": 166,
-        "primary_reason": "coverage_reason:allocator applied drawdown reserve under recovery posture",
-        "utilization_state": "USED_NO_CHANGE"
-      },
-      "Function": "T13",
-      "Input": true,
-      "Native Engine": {
-        "native_called_count": 166
-      },
-      "Outcome Usage Valid": true,
-      "Outcome Used": false,
-      "Output": true,
-      "Protective Effect": false,
-      "Stage": "CE2I",
-      "Timing Valid": true
-    },
-    {
-      "Authority": "CE2I_CONTEXTUAL_OR_PROTECTIVE__NO_INFERRED_AUTHORITY",
-      "Classification": "UNPROVEN",
-      "Consumer": true,
-      "Decision Change": false,
-      "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
-      "Economic Effect": false,
-      "Evidence": {
-        "diagnosis": "INPUT_OUTPUT_CONSUMER_OBSERVED_NO_CHANGE",
-        "expected_or_enabled_count": 1078,
-        "invocation_count": 1078,
-        "primary_reason": "coverage_reason:allocator applied capital optionality/reservation envelope",
-        "utilization_state": "USED_NO_CHANGE"
-      },
-      "Function": "T15",
-      "Input": true,
-      "Native Engine": {
-        "native_called_count": 1078
-      },
-      "Outcome Usage Valid": true,
-      "Outcome Used": false,
-      "Output": true,
-      "Protective Effect": false,
-      "Stage": "CE2I",
-      "Timing Valid": true
-    }
-  ],
+  "mandatory_gap_count": 0,
+  "mandatory_gaps": [],
   "row_count": 60,
   "rows": [
     {
@@ -87,6 +34,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": false,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "NATIVE_ENGINE_SUCCESS_CONSUMED_NO_ECONOMIC_ACTUATION",
         "expected_or_enabled_count": 1103,
         "invocation_count": 1103,
@@ -113,6 +61,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": false,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "NATIVE_ENGINE_SUCCESS_CONSUMED_NO_ECONOMIC_ACTUATION",
         "expected_or_enabled_count": 1103,
         "invocation_count": 1103,
@@ -139,6 +88,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": false,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "NATIVE_ENGINE_SUCCESS_CONSUMED_NO_ECONOMIC_ACTUATION",
         "expected_or_enabled_count": 1103,
         "invocation_count": 1103,
@@ -165,6 +115,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": false,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "NATIVE_ENGINE_SUCCESS_CONSUMED_NO_ECONOMIC_ACTUATION",
         "expected_or_enabled_count": 1103,
         "invocation_count": 1103,
@@ -191,6 +142,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": false,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "NATIVE_ENGINE_SUCCESS_CONSUMED_NO_ECONOMIC_ACTUATION",
         "expected_or_enabled_count": 1103,
         "invocation_count": 1103,
@@ -217,6 +169,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": false,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "NATIVE_ENGINE_SUCCESS_CONSUMED_NO_ECONOMIC_ACTUATION",
         "expected_or_enabled_count": 1103,
         "invocation_count": 1103,
@@ -243,6 +196,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": false,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "NATIVE_ENGINE_SUCCESS_CONSUMED_NO_ECONOMIC_ACTUATION",
         "expected_or_enabled_count": 1103,
         "invocation_count": 1103,
@@ -269,6 +223,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": false,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "JUSTIFIED_NOT_APPLICABLE_PREDECISION",
         "expected_or_enabled_count": 1103,
         "invocation_count": 1103,
@@ -295,6 +250,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": false,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "NATIVE_ENGINE_SUCCESS_CONSUMED_NO_ECONOMIC_ACTUATION",
         "expected_or_enabled_count": 1103,
         "invocation_count": 1103,
@@ -321,6 +277,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": false,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "NATIVE_ENGINE_SUCCESS_CONSUMED_NO_ECONOMIC_ACTUATION",
         "expected_or_enabled_count": 1103,
         "invocation_count": 1103,
@@ -347,6 +304,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": false,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "NATIVE_ENGINE_SUCCESS_CONSUMED_NO_ECONOMIC_ACTUATION",
         "expected_or_enabled_count": 1103,
         "invocation_count": 1103,
@@ -373,6 +331,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": false,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "NATIVE_ENGINE_SUCCESS_CONSUMED_NO_ECONOMIC_ACTUATION",
         "expected_or_enabled_count": 1103,
         "invocation_count": 1103,
@@ -399,6 +358,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": false,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "NATIVE_ENGINE_SUCCESS_CONSUMED_NO_ECONOMIC_ACTUATION",
         "expected_or_enabled_count": 1103,
         "invocation_count": 1103,
@@ -425,6 +385,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": false,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "NATIVE_ENGINE_SUCCESS_CONSUMED_NO_ECONOMIC_ACTUATION",
         "expected_or_enabled_count": 1103,
         "invocation_count": 1103,
@@ -451,6 +412,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": false,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "NATIVE_ENGINE_SUCCESS_CONSUMED_NO_ECONOMIC_ACTUATION",
         "expected_or_enabled_count": 1103,
         "invocation_count": 1103,
@@ -477,6 +439,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": false,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "NATIVE_ENGINE_SUCCESS_CONSUMED_NO_ECONOMIC_ACTUATION",
         "expected_or_enabled_count": 1103,
         "invocation_count": 1103,
@@ -503,6 +466,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": false,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "NATIVE_ENGINE_SUCCESS_CONSUMED_NO_ECONOMIC_ACTUATION",
         "expected_or_enabled_count": 1103,
         "invocation_count": 1103,
@@ -529,6 +493,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": false,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "JUSTIFIED_NOT_APPLICABLE_PREDECISION",
         "expected_or_enabled_count": 1103,
         "invocation_count": 1103,
@@ -555,6 +520,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": false,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "JUSTIFIED_NOT_APPLICABLE_PREDECISION",
         "expected_or_enabled_count": 1103,
         "invocation_count": 1103,
@@ -581,6 +547,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": true,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED",
         "expected_or_enabled_count": 1077,
         "invocation_count": 676,
@@ -607,6 +574,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": true,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "OUTPUT_AND_ECONOMIC_EFFECT_OBSERVED",
         "expected_or_enabled_count": 911,
         "invocation_count": 1103,
@@ -633,6 +601,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": false,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "JUSTIFIED_NOT_APPLICABLE",
         "expected_or_enabled_count": 1078,
         "invocation_count": 1103,
@@ -659,6 +628,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": false,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "JUSTIFIED_NOT_APPLICABLE",
         "expected_or_enabled_count": 911,
         "invocation_count": 1103,
@@ -685,6 +655,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": true,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED",
         "expected_or_enabled_count": 912,
         "invocation_count": 676,
@@ -711,6 +682,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": false,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED",
         "expected_or_enabled_count": 911,
         "invocation_count": 7,
@@ -737,6 +709,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": false,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "JUSTIFIED_NOT_APPLICABLE",
         "expected_or_enabled_count": 911,
         "invocation_count": 0,
@@ -763,6 +736,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": false,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "JUSTIFIED_NOT_APPLICABLE",
         "expected_or_enabled_count": 986,
         "invocation_count": 1103,
@@ -789,6 +763,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": true,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED",
         "expected_or_enabled_count": 20,
         "invocation_count": 23,
@@ -815,6 +790,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": false,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "JUSTIFIED_NOT_APPLICABLE",
         "expected_or_enabled_count": 1078,
         "invocation_count": 1103,
@@ -841,6 +817,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": true,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED",
         "expected_or_enabled_count": 1078,
         "invocation_count": 676,
@@ -867,6 +844,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": false,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED",
         "expected_or_enabled_count": 912,
         "invocation_count": 1078,
@@ -887,12 +865,21 @@
     },
     {
       "Authority": "CE2I_CONTEXTUAL_OR_PROTECTIVE__NO_INFERRED_AUTHORITY",
-      "Classification": "UNPROVEN",
+      "Classification": "NO_MEASURABLE_EFFECT",
       "Consumer": true,
       "Decision Change": false,
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": false,
       "Evidence": {
+        "classification_evidence": {
+          "all_incremental_effect_zero": true,
+          "all_input_headroom_zero": true,
+          "classification": "NO_MEASURABLE_EFFECT",
+          "native_consumer_chain_healthy": true,
+          "reason": "T13 receives no deployable headroom in every observed recovery receipt, so its incremental reserve action is identically zero in the current integrated composition.",
+          "receipt_count": 171,
+          "recovery_only": true
+        },
         "diagnosis": "INPUT_OUTPUT_CONSUMER_OBSERVED_NO_CHANGE",
         "expected_or_enabled_count": 1078,
         "invocation_count": 166,
@@ -919,6 +906,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": true,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED",
         "expected_or_enabled_count": 1078,
         "invocation_count": 993,
@@ -939,12 +927,21 @@
     },
     {
       "Authority": "CE2I_CONTEXTUAL_OR_PROTECTIVE__NO_INFERRED_AUTHORITY",
-      "Classification": "UNPROVEN",
+      "Classification": "NO_MEASURABLE_EFFECT",
       "Consumer": true,
       "Decision Change": false,
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": false,
       "Evidence": {
+        "classification_evidence": {
+          "all_incremental_effect_zero": true,
+          "all_known_options_empty": true,
+          "all_outputs_identity_envelope": true,
+          "classification": "NO_MEASURABLE_EFFECT",
+          "native_consumer_chain_healthy": true,
+          "reason": "T15 receives no known option in every observed receipt and returns the allocator envelope unchanged, so its incremental effect is zero in the current integrated composition.",
+          "receipt_count": 1103
+        },
         "diagnosis": "INPUT_OUTPUT_CONSUMER_OBSERVED_NO_CHANGE",
         "expected_or_enabled_count": 1078,
         "invocation_count": 1078,
@@ -971,6 +968,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": false,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "JUSTIFIED_NOT_APPLICABLE",
         "expected_or_enabled_count": 985,
         "invocation_count": 1103,
@@ -997,7 +995,9 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": false,
       "Evidence": {
-        "diagnosis": "JUSTIFIED_NOT_APPLICABLE",        "expected_or_enabled_count": 911,
+        "classification_evidence": null,
+        "diagnosis": "JUSTIFIED_NOT_APPLICABLE",
+        "expected_or_enabled_count": 911,
         "invocation_count": 1103,
         "primary_reason": "coverage_reason:NO_CERTIFIED_LIMITED_DOWNSIDE_INSTRUMENT_AVAILABLE",
         "utilization_state": "JUSTIFIED_NOT_APPLICABLE"
@@ -1022,6 +1022,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": true,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED",
         "expected_or_enabled_count": 20,
         "invocation_count": 18,
@@ -1048,6 +1049,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": true,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED",
         "expected_or_enabled_count": 912,
         "invocation_count": 676,
@@ -1074,6 +1076,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": true,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED",
         "expected_or_enabled_count": 1078,
         "invocation_count": 676,
@@ -1100,6 +1103,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": false,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED",
         "expected_or_enabled_count": 447,
         "invocation_count": 447,
@@ -1126,6 +1130,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": false,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "INPUT_OUTPUT_CONSUMER_OBSERVED_NO_CHANGE",
         "expected_or_enabled_count": 447,
         "invocation_count": 447,
@@ -1152,6 +1157,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": false,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED",
         "expected_or_enabled_count": 447,
         "invocation_count": 447,
@@ -1178,6 +1184,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": false,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED",
         "expected_or_enabled_count": 447,
         "invocation_count": 447,
@@ -1204,6 +1211,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": false,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED",
         "expected_or_enabled_count": 447,
         "invocation_count": 447,
@@ -1230,6 +1238,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": false,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED",
         "expected_or_enabled_count": 447,
         "invocation_count": 447,
@@ -1256,6 +1265,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": false,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED",
         "expected_or_enabled_count": 447,
         "invocation_count": 447,
@@ -1282,6 +1292,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": false,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED",
         "expected_or_enabled_count": 447,
         "invocation_count": 447,
@@ -1308,6 +1319,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": false,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "INPUT_OUTPUT_CONSUMER_OBSERVED_NO_CHANGE",
         "expected_or_enabled_count": 1,
         "invocation_count": 1,
@@ -1334,6 +1346,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": false,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "INPUT_OUTPUT_CONSUMER_OBSERVED_NO_CHANGE",
         "expected_or_enabled_count": 447,
         "invocation_count": 447,
@@ -1360,6 +1373,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": true,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "INPUT_OUTPUT_CONSUMER_ACTUATION_OBSERVED",
         "expected_or_enabled_count": 447,
         "invocation_count": 447,
@@ -1386,6 +1400,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": false,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "INPUT_OUTPUT_CONSUMER_OBSERVED_NO_CHANGE",
         "expected_or_enabled_count": 447,
         "invocation_count": 447,
@@ -1412,6 +1427,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": false,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "INPUT_OUTPUT_CONSUMER_OBSERVED_NO_CHANGE",
         "expected_or_enabled_count": 683,
         "invocation_count": 683,
@@ -1438,6 +1454,7 @@
       "Duplicate": "NO_EXACT_RUNTIME_SIGNATURE_COLLISION",
       "Economic Effect": false,
       "Evidence": {
+        "classification_evidence": null,
         "diagnosis": "INPUT_OUTPUT_CONSUMER_OBSERVED_NO_CHANGE",
         "expected_or_enabled_count": 1,
         "invocation_count": 1,

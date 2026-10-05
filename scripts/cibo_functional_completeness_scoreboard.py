@@ -55,10 +55,20 @@ def _load(path: Path) -> dict[str, Any]:
     return value
 
 
-def _classify(probe: dict[str, Any]) -> str:
+def _classify(
+    probe: dict[str, Any],
+    *,
+    classification_override: str | None = None,
+) -> str:
     state = str(probe["utilization_state"])
     stage = str(probe["stage"])
     code = str(probe["function_code"])
+    if classification_override is not None:
+        if classification_override not in FUNCTIONAL_CLASSES:
+            raise ValueError(
+                f"invalid functional classification override: {classification_override}"
+            )
+        return classification_override
     if state in REPAIR_TO_CLASS:
         return REPAIR_TO_CLASS[state]
     if state == "JUSTIFIED_NOT_APPLICABLE":
@@ -126,10 +136,15 @@ def _function_row(
     *,
     outcome_used: bool,
     duplicate: str,
+    classification_override: str | None = None,
+    classification_evidence: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     code = str(row["function_code"])
     stage = str(row["stage"])
-    classification = _classify(probe)
+    classification = _classify(
+        probe,
+        classification_override=classification_override,
+    )
     protective_candidate = code in {"T13", "T14", "T15"}
     protective_observed = bool(
         protective_candidate
@@ -145,6 +160,7 @@ def _function_row(
         "invocation_count": probe.get("invocation_count"),
         "expected_or_enabled_count": probe.get("expected_or_enabled_count"),
         "primary_reason": probe.get("primary_reason"),
+        "classification_evidence": classification_evidence,
     }
     result = {
         "Function": code,
@@ -327,6 +343,7 @@ def build(
     function_io: dict[str, Any],
     utilization: dict[str, Any],
     trace: dict[str, Any],
+    redundancy_probe: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     function_rows = function_io.get("functions")
     probes = utilization.get("functions")
@@ -349,6 +366,18 @@ def build(
         if len(codes) > 1
     }
 
+    classification_overrides: dict[str, str] = {}
+    classification_evidence: dict[str, dict[str, Any]] = {}
+    if redundancy_probe is not None:
+        if redundancy_probe.get("functional_seam_closed") is True:
+            for code in ("T13", "T15"):
+                evidence = redundancy_probe.get(code)
+                if isinstance(evidence, dict):
+                    classification = str(evidence.get("classification", ""))
+                    if classification == "NO_MEASURABLE_EFFECT":
+                        classification_overrides[code] = classification
+                        classification_evidence[code] = evidence
+
     governance = trace.get("governance") or {}
     outcome_used = governance.get("outcome_aware_tuning_used") is not False
     rows = []
@@ -367,6 +396,8 @@ def build(
                 by_probe[code],
                 outcome_used=outcome_used,
                 duplicate=duplicate,
+                classification_override=classification_overrides.get(code),
+                classification_evidence=classification_evidence.get(code),
             )
         )
     rows.extend(_system_rows(trace))
@@ -416,12 +447,18 @@ def main() -> int:
     parser.add_argument("--function-io", type=Path, required=True)
     parser.add_argument("--utilization", type=Path, required=True)
     parser.add_argument("--decision-trace", type=Path, required=True)
+    parser.add_argument("--redundancy-probe", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     payload = build(
         _load(args.function_io),
         _load(args.utilization),
         _load(args.decision_trace),
+        (
+            None
+            if args.redundancy_probe is None
+            else _load(args.redundancy_probe)
+        ),
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(

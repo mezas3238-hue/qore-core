@@ -1,8 +1,5 @@
 {
-  "architect1_economic_interface_blockers": [
-    "T13",
-    "T15"
-  ],
+  "architect1_economic_interface_blockers": [],
   "architect2_internal_blockers": [],
   "certification_open_after_internal_closure": [
     {
@@ -43,32 +40,23 @@
   "functional_groups": {
     "GROUP_1": {
       "exact_runtime_signature_collision_count": 0,
-      "functional_completeness": false,
-      "mandatory_gap_count": 2,
-      "mandatory_gaps": [
-        "T13",
-        "T15"
-      ],
+      "functional_completeness": true,
+      "mandatory_gap_count": 0,
+      "mandatory_gaps": [],
       "row_count": 60
     },
     "GROUP_2": {
       "exact_runtime_signature_collision_count": 0,
-      "functional_completeness": false,
-      "mandatory_gap_count": 2,
-      "mandatory_gaps": [
-        "T13",
-        "T15"
-      ],
+      "functional_completeness": true,
+      "mandatory_gap_count": 0,
+      "mandatory_gaps": [],
       "row_count": 60
     },
     "GROUP_3": {
       "exact_runtime_signature_collision_count": 0,
-      "functional_completeness": false,
-      "mandatory_gap_count": 2,
-      "mandatory_gaps": [
-        "T13",
-        "T15"
-      ],
+      "functional_completeness": true,
+      "mandatory_gap_count": 0,
+      "mandatory_gaps": [],
       "row_count": 60
     }
   },
