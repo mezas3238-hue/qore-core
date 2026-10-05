@@ -175,3 +175,54 @@ def test_trader_identity_does_not_change_account_sizing_law() -> None:
 
     assert first.plan.volume == second.plan.volume
     assert first.mode is second.mode
+
+
+def test_demo_capability_sizing_uses_profit_provenance_after_growth() -> None:
+    capital = account_capital_state(
+        assigned_capital_usd=Decimal("100"),
+        hard_risk_headroom_usd=Decimal("80"),
+        margin_headroom_usd=Decimal("160"),
+        survival_capital_usd=Decimal("60"),
+        protected_capital_usd=Decimal("40"),
+    )
+
+    decision = plan_account_sizing(
+        opportunity=_opportunity(),
+        capital=capital,
+        mission_policy=_mission(MarketRuntimeEnvironment.DEMO),
+        survival_capital_usd=Decimal("60"),
+        protected_capital_usd=Decimal("40"),
+    )
+
+    assert decision.plan.stop_risk_usd == Decimal("80.00")
+    assert decision.plan.capital_source is None
+    assert tuple(
+        (lot.source, lot.amount_usd)
+        for lot in decision.plan.capital_source_lots
+    ) == (
+        (CapitalSource.ORIGINAL_BASE_CAPITAL, Decimal("60")),
+        (CapitalSource.REALIZED_PROFIT, Decimal("20.00")),
+    )
+
+
+def test_demo_capability_sizing_does_not_label_profit_as_original_base() -> None:
+    capital = account_capital_state(
+        assigned_capital_usd=Decimal("120"),
+        hard_risk_headroom_usd=Decimal("70"),
+        margin_headroom_usd=Decimal("140"),
+        survival_capital_usd=Decimal("60"),
+        protected_capital_usd=Decimal("60"),
+    )
+
+    decision = plan_account_sizing(
+        opportunity=_opportunity(),
+        capital=capital,
+        mission_policy=_mission(MarketRuntimeEnvironment.DEMO),
+        survival_capital_usd=Decimal("60"),
+        protected_capital_usd=Decimal("60"),
+    )
+
+    assert decision.plan.stop_risk_usd == Decimal("70.00")
+    lots = {lot.source: lot.amount_usd for lot in decision.plan.capital_source_lots}
+    assert lots[CapitalSource.ORIGINAL_BASE_CAPITAL] == Decimal("60")
+    assert lots[CapitalSource.REALIZED_PROFIT] == Decimal("10.00")
