@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - agent/vt31-nas100-intelligence-pilot-001
+      - agent/vt31-edge-position-cert-b-001
     paths:
       - scripts/vt31_nas100_specialist_r1_candidate.py
       - src/qore/infrastructure/traders/vt31_nas100_*.py
