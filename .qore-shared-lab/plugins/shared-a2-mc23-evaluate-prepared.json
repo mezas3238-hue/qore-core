@@ -21,5 +21,6 @@
     "a2_lab_capsule/capsule.py",
     "a2_lab_capsule/manifest.json",
     "docs/shared/evidence/QORE_SHARED_MC23_VALIDATED_NOVEL_REGIME_ADAPTATION_PREREGISTRATION_001.json"
-  ]
+  ],
+  "execution_origin": "TARGET"
 }
