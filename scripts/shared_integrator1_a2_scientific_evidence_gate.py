@@ -69,10 +69,20 @@ def main() -> None:
         type=Path,
         default=Path("docs/shared/evidence"),
     )
+    parser.add_argument(
+        "--runtime-evidence-dir",
+        type=Path,
+        action="append",
+        default=[],
+        help="Additional same-run evidence directories (for example result/).",
+    )
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
 
     rows = _load_rows(args.evidence_dir)
+    for runtime_dir in args.runtime_evidence_dir:
+        if runtime_dir.exists():
+            rows.extend(_load_rows(runtime_dir))
     blockers: list[str] = []
 
     mc23_pass = _has(
