@@ -11,9 +11,9 @@ from __future__ import annotations
 
 import hashlib
 from collections import defaultdict
+from collections.abc import Iterable, Mapping, Sequence
 from datetime import datetime
-from decimal import Context, Decimal, ROUND_HALF_EVEN, localcontext
-from typing import Iterable, Mapping, Sequence
+from decimal import ROUND_HALF_EVEN, Context, Decimal, localcontext
 
 _DECIMAL = Context(prec=34, rounding=ROUND_HALF_EVEN)
 
@@ -431,8 +431,6 @@ def build_edge_only_report(
     pf = _decimal_metric(metrics, "profit_factor")
     expectancy = _decimal_metric(metrics, "expectancy_r")
     drawdown = _decimal_metric(metrics, "max_drawdown_r")
-    sharpe = _decimal_metric(metrics, "sharpe_trade_period")
-    sortino = _decimal_metric(metrics, "sortino_trade_period")
     payoff = _decimal_metric(metrics, "payoff_ratio")
     mc_positive = _d(mc["positive_terminal_probability"])
     mc_dd = _d(mc["p95_max_drawdown_r"])
