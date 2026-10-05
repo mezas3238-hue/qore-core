@@ -2,22 +2,22 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from qore.infrastructure.traders.vt31_nas100_reasoning_engine import reason
-from qore.infrastructure.traders.vt31_nas100_situation_model import (
-    Nas100SituationModel,
-)
 from qore.infrastructure.traders.vt31_nas100_position_intelligence import (
     RESEARCH_UNCALIBRATED_POLICY,
-    FullCognitivePositionState,
-    ProtectionUrgency,
-    SingleUnitTargetIntent,
     ContextualTrailingPolicy,
+    FullCognitivePositionState,
     ManagementContext,
     PositionAction,
+    ProtectionUrgency,
+    SingleUnitTargetIntent,
     StructuralProtectionCandidate,
     assess_full_cognitive_position,
     decide_structural_protection,
     structurally_rearmed,
+)
+from qore.infrastructure.traders.vt31_nas100_reasoning_engine import reason
+from qore.infrastructure.traders.vt31_nas100_situation_model import (
+    Nas100SituationModel,
 )
 
 
