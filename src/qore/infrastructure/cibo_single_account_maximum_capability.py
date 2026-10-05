@@ -52,6 +52,9 @@ class CiboSingleAccountMaximumCapabilityProtocol:
     shared_qore_risk_state: bool = True
     sovereign_cibo_required: bool = True
     full_cognitive_semantics_required: bool = True
+    native_cibo_intelligence_required: bool = True
+    external_ai_dependency_allowed: bool = False
+    external_reasoning_provider_allowed: bool = False
     target_capital_used_for_tuning: bool = False
     outcome_aware_tuning_allowed: bool = False
     fresh_oos_claimed: bool = False
@@ -97,6 +100,9 @@ class CiboSingleAccountMaximumCapabilityProtocol:
             or not self.shared_qore_risk_state
             or not self.sovereign_cibo_required
             or not self.full_cognitive_semantics_required
+            or not self.native_cibo_intelligence_required
+            or self.external_ai_dependency_allowed
+            or self.external_reasoning_provider_allowed
             or self.target_capital_used_for_tuning
             or self.outcome_aware_tuning_allowed
             or self.fresh_oos_claimed
@@ -120,6 +126,8 @@ class CiboMaximumCapabilityRunEvidence:
     opportunity_decision_count: int
     sovereign_runtime_evaluation_count: int
     full_semantic_decision_count: int
+    native_max_intelligence_decision_count: int
+    external_ai_call_count: int
     trader_ids_observed: tuple[TraderLineage, ...]
     account_reset_count: int
     economic_era_reset_count: int
@@ -154,6 +162,8 @@ class CiboMaximumCapabilityRunEvidence:
             "opportunity_decision_count",
             "sovereign_runtime_evaluation_count",
             "full_semantic_decision_count",
+            "native_max_intelligence_decision_count",
+            "external_ai_call_count",
             "account_reset_count",
             "economic_era_reset_count",
             "settled_operation_count",
@@ -182,6 +192,17 @@ class CiboMaximumCapabilityRunEvidence:
         if self.full_semantic_decision_count != self.opportunity_decision_count:
             raise CiboCapitalManagementError(
                 "every opportunity must consume full causal cognitive semantics"
+            )
+        if (
+            self.native_max_intelligence_decision_count
+            != self.opportunity_decision_count
+        ):
+            raise CiboCapitalManagementError(
+                "every opportunity must use native maximum CIBO intelligence"
+            )
+        if self.external_ai_call_count != 0:
+            raise CiboCapitalManagementError(
+                "maximum-capability CIBO cannot depend on external AI"
             )
         if self.account_reset_count != 0 or self.economic_era_reset_count != 0:
             raise CiboCapitalManagementError(
