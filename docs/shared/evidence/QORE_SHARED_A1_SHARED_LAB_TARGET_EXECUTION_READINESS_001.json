@@ -1,0 +1,87 @@
+{
+  "identity": "QORE_SHARED_A1_SHARED_LAB_TARGET_EXECUTION_READINESS_001",
+  "owner_lane": "SHARED_ARCHITECT_1",
+  "status": "TARGET_EXECUTION_READY_AWAITING_NATIVE_SHARED_LAB_RUN",
+  "observed_date": "2026-10-04",
+  "a1_target": {
+    "branch": "agent/shared-architect-1-cognitive-core-001",
+    "head_sha": "a0623ad0192465c611d317916ba963564d63713f",
+    "functional_exam": {
+      "path": "scripts/shared_a1_functional_causality_exam.py",
+      "git_blob_sha": "34d8af532f786b27e54bbcb5c630ca32269c4b1f",
+      "commit_sha": "42fcc683a5361eb0f7ba52ff058010c467932633"
+    },
+    "target_plugin": {
+      "path": "docs/shared/integration/SHARED_ARCHITECT_1_SHARED_LAB_TARGET_PLUGIN_001.json",
+      "git_blob_sha": "77ae8a321b94a70b85da86e35b5b2253d9787729",
+      "commit_sha": "a0623ad0192465c611d317916ba963564d63713f",
+      "task_id": "a1-causal-trajectory-functional",
+      "execution_origin": "TARGET",
+      "scope": "cognition",
+      "suite": "CAUSALITY"
+    }
+  },
+  "shared_lab": {
+    "pr": 716,
+    "branch": "agent/qore-shared-lab-001",
+    "observed_head_sha": "fa46d5ec9db27bece7ea52fd0d5304d50fe656c6",
+    "exact_target_harness_separation_present": true,
+    "target_and_harness_sha_recorded_separately": true,
+    "target_task_dataset_binding_present": true,
+    "windows_job_object_resource_limits_present": true,
+    "native_run_executed_for_a1": false,
+    "shared_lab_pass_claimed": false
+  },
+  "lab_integrity_followup": {
+    "draft_pr": 721,
+    "branch": "agent/qore-shared-lab-a1-plugin-integrity-001",
+    "head_sha": "5103e6edc40049918183672b63f28c2eca1b12cc",
+    "purpose": "Bind the full target plugin task contract into the causal cache component hash and prove a changed plugin contract cannot reuse a prior cached PASS.",
+    "merge_performed": false
+  },
+  "functional_exam_contract": {
+    "chain": [
+      "SOURCE_OBSERVATION",
+      "MC17_MARKET_AGENCY",
+      "MC18_COUNTERFACTUAL_WORLD",
+      "MC19_TRAJECTORY_INTELLIGENCE"
+    ],
+    "required_gates": [
+      "MC17_OUTPUT_CONSUMED",
+      "MC18_OUTPUT_CONSUMED",
+      "NORMAL_ADVERSITY_DISTINGUISHED",
+      "STRUCTURAL_FAILURE_DISTINGUISHED",
+      "LOW_INTEGRITY_FAILS_CLOSED",
+      "MC17_UPSTREAM_PERTURBATION_PROPAGATES",
+      "MC18_UPSTREAM_PERTURBATION_PROPAGATES",
+      "MC19_DOWNSTREAM_OUTPUT_CHANGES",
+      "OBSERVABLE_HAZARD_CHANGES",
+      "DETERMINISTIC_REPLAY",
+      "SOURCE_ONLY_TEMPORAL_FIREWALL",
+      "ZERO_PRODUCTIVE_AUTHORITY",
+      "NO_SCIENTIFIC_CALIBRATION_OVERCLAIM"
+    ],
+    "engineering_pass_is_not_scientific_calibration": true,
+    "engineering_pass_is_not_economic_value_proof": true,
+    "engineering_pass_is_not_shared_certification": true
+  },
+  "scientific_workstreams": {
+    "MC14": "XAUUSD remains READY_FOR_SINGLE_GOVERNED_REPLAY; US2000 remains INSUFFICIENT_DO_NOT_INFER. Requires sealed source/target dataset staging plus one native Lab replay.",
+    "MC18": "Consumed-development calibration remains preregistered and engineering-ready. Requires sealed R6/R5 dataset staging plus native Lab execution.",
+    "MC19": "Functional MC17->MC18->MC19 chain is now directly executable as a TARGET task; economic/winner-preservation value remains future-evidence blocked."
+  },
+  "governance": {
+    "merge_performed": false,
+    "live_used": false,
+    "vps_used": false,
+    "broker_mutation": false,
+    "real_capital_used": false,
+    "protected_final_holdout_opened": false,
+    "github_actions_used_as_validation_fallback": false,
+    "outcome_aware_tuning": false,
+    "shared_trade_authority": false,
+    "shared_risk_authority": false,
+    "shared_sizing_authority": false
+  },
+  "next_gate": "LOAD_A1_TARGET_PLUGIN_IN_NATIVE_SHARED_LAB_AND_EXECUTE_EXACT_A1_SHA; THEN_STAGE_SEALED_MC14_AND_MC18_DATASETS_WITHOUT_CHANGING_FROZEN_SCIENTIFIC_GATES"
+}
