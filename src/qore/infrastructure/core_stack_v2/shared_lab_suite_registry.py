@@ -155,9 +155,18 @@ class NativeSuiteRegistry:
                 if item.suite is not ValidationSuite.CERTIFICATION
             }
         if request.mode is ExecutionMode.REPLAY:
-            return {"replay", "determinism"}
+            return {
+                item.task_id
+                for item in self.definitions()
+                if item.suite
+                in {ValidationSuite.REPLAY, ValidationSuite.DETERMINISM}
+            }
         if request.mode is ExecutionMode.REGRESSION:
-            return {"regression"}
+            return {
+                item.task_id
+                for item in self.definitions()
+                if item.suite is ValidationSuite.REGRESSION
+            }
         if request.mode is ExecutionMode.QUICK:
             selected = {"unit", "contract"}
             if request.scope is not LabScope.FULL_STACK:
