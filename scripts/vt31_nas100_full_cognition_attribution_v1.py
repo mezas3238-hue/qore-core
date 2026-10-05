@@ -386,6 +386,10 @@ def replay(evidence_path: Path) -> dict[str, object]:
             selected,
             observation_at,
         )
+        if state.get("planned_target_r") is not None:
+            raise AssertionError(
+                "pure-edge runtime forbids planned_target_r authority"
+            )
         situation = _reconstruct_situation(
             state=state,
             selected=selected,
@@ -516,6 +520,8 @@ def replay(evidence_path: Path) -> dict[str, object]:
             "provider_volume_rule_used": False,
             "terminal_pnl_used_for_runtime_decision": False,
             "future_journey_label_used": False,
+            "runtime_r_decision_authority": False,
+            "runtime_volume_decision_authority": False,
             "opens_new_holdout": False,
             "policy_promoted": False,
             "live_authorized": False,
