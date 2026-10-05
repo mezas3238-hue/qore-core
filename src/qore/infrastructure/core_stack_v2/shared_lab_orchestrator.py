@@ -338,7 +338,7 @@ class NativeLabOrchestrator:
             branch=snapshot.branch,
             dataset_id=dataset.dataset_id,
             dataset_version=dataset.version,
-            dataset_hash=task_dataset.content_hash,
+            dataset_hash=dataset.content_hash,
             configuration_hash=plan_request.configuration_hash(),
             lab_harness_sha=harness_sha,
         )
@@ -566,7 +566,7 @@ class NativeLabOrchestrator:
             code_hash=identity.commit_sha,
             component_hash=component_hash,
             dependency_hash=dependency_hash,
-            dataset_hash=dataset.content_hash,
+            dataset_hash=task_dataset.content_hash,
             configuration_hash=identity.configuration_hash,
             lab_version=identity.lab_version,
         )
