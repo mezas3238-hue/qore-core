@@ -286,11 +286,18 @@ def run_cibo_sovereign_capital_runtime(
             raise CiboCapitalManagementError(
                 "sovereign runtime consultation/twin clock drift"
             )
-        if faculty_consultation.opportunity_fingerprints != (
-            opportunity.signal_fingerprint,
+        if (
+            opportunity.signal_fingerprint
+            not in faculty_consultation.opportunity_fingerprints
         ):
             raise CiboCapitalManagementError(
-                "sovereign runtime consultation/opportunity drift"
+                "sovereign runtime target absent from shared consultation"
+            )
+        if faculty_consultation.opportunity_fingerprints.count(
+            opportunity.signal_fingerprint
+        ) != 1:
+            raise CiboCapitalManagementError(
+                "sovereign runtime target must appear exactly once"
             )
         consultation = faculty_consultation
 
