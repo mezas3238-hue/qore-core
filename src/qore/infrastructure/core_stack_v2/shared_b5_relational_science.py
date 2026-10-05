@@ -317,8 +317,13 @@ def populate_relationship_lifecycle(
                     reasons = ("RELATION_ACTIVE",)
             elif strength >= degraded_threshold_bps:
                 stale_windows = 0
-                state = RelationshipLifecycleState.DEGRADED
-                reasons = ("RELATION_STRENGTH_DEGRADED",)
+                if not ever_born:
+                    ever_born = True
+                    state = RelationshipLifecycleState.BIRTH
+                    reasons = ("RELATION_FIRST_OBSERVED_DEGRADED_STRENGTH",)
+                else:
+                    state = RelationshipLifecycleState.DEGRADED
+                    reasons = ("RELATION_STRENGTH_DEGRADED",)
             else:
                 stale_windows += 1
                 state = (
