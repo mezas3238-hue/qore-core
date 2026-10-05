@@ -22,6 +22,15 @@ def _b08() -> dict[str, object]:
     }
 
 
+def _b08_ready() -> dict[str, object]:
+    return {
+        "identity": "SHARED_B_TEMPORAL_GOVERNANCE_READINESS_001",
+        "temporal_governance_status": "READY",
+        "temporal_governance_blockers": [],
+        "relational_comparability_authorized": True,
+    }
+
+
 def test_architecture_green_cannot_bypass_b08() -> None:
     payload = build_relational_population_gate(
         temporal_readiness=_b08(),
@@ -45,6 +54,27 @@ def test_architecture_green_cannot_bypass_b08() -> None:
     assert payload["b13_complete"] is False
 
 
+def test_ready_b08_opens_population_without_claiming_completion_or_causation() -> None:
+    payload = build_relational_population_gate(
+        temporal_readiness=_b08_ready(),
+        b10_b12_architecture_verified=True,
+        b13_architecture_verified=True,
+    )
+    assert payload["status"] == "RELATIONAL_EMPIRICAL_POPULATION_READY"
+    assert payload["b08_blockers"] == []
+    assert payload["global_graph_population_authorized"] is True
+    assert payload["relationship_lifecycle_population_authorized"] is True
+    assert payload["lead_lag_population_authorized"] is True
+    assert payload["structural_divergence_population_authorized"] is True
+    assert payload["stale_relation_empirical_isolation_authorized"] is True
+    assert payload["causal_relation_claim_authorized"] is False
+    assert payload["b10_complete"] is False
+    assert payload["b11_complete"] is False
+    assert payload["b12_complete"] is False
+    assert payload["b13_complete"] is False
+    assert payload["productive_authority"] is False
+
+
 def test_missing_architecture_evidence_fails_closed() -> None:
     with pytest.raises(
         SharedBRelationalPopulationGateError,
@@ -57,12 +87,39 @@ def test_missing_architecture_evidence_fails_closed() -> None:
         )
 
 
-def test_unexpected_b08_authority_fails_closed() -> None:
+@pytest.mark.parametrize(
+    ("mutation", "match"),
+    [
+        (
+            {"relational_comparability_authorized": True},
+            "NOT_READY B-08 cannot authorize",
+        ),
+        (
+            {"temporal_governance_status": "READY"},
+            "READY B-08 cannot retain",
+        ),
+        (
+            {
+                "temporal_governance_status": "READY",
+                "temporal_governance_blockers": [],
+            },
+            "READY B-08 must authorize",
+        ),
+        (
+            {"temporal_governance_status": "UNKNOWN"},
+            "unsupported B-08",
+        ),
+    ],
+)
+def test_inconsistent_b08_readiness_fails_closed(
+    mutation: dict[str, object],
+    match: str,
+) -> None:
     b08 = deepcopy(_b08())
-    b08["relational_comparability_authorized"] = True
+    b08.update(mutation)
     with pytest.raises(
         SharedBRelationalPopulationGateError,
-        match="unexpectedly authorizes",
+        match=match,
     ):
         build_relational_population_gate(
             temporal_readiness=b08,
