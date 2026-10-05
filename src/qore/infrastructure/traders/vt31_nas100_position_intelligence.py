@@ -117,12 +117,38 @@ class MarketNativePositionDecision:
     r_runtime_authority: bool = False
 
 
+STRUCTURAL_DESTINATION_SOURCES = frozenset(
+    {
+        "confirmed-liquidity-pool",
+        "confirmed-swing-high",
+        "confirmed-swing-low",
+        "confirmed-pd-array",
+        "confirmed-session-liquidity",
+    }
+)
+
+
+@dataclass(frozen=True, slots=True)
+class StructuralDestinationCandidate:
+    level: Decimal
+    source: str
+    confirmed: bool = True
+
+    def __post_init__(self) -> None:
+        if not self.level.is_finite() or self.level <= 0:
+            raise ValueError("structural destination level must be positive finite")
+        if self.source not in STRUCTURAL_DESTINATION_SOURCES:
+            raise ValueError("next target requires approved structural provenance")
+        if not self.confirmed:
+            raise ValueError("next structural destination must be confirmed")
+
+
 def decide_market_native_position(
     *,
     side: str,
     current_stop: Decimal,
     primary_structural_target: Decimal,
-    next_structural_target: Decimal | None,
+    next_structural_target: StructuralDestinationCandidate | None,
     cognition: FullCognitivePositionState,
     protective_swing: StructuralProtectionCandidate | None,
     primary_target_reached: bool,
@@ -146,14 +172,17 @@ def decide_market_native_position(
     ):
         if not value.is_finite() or value <= 0:
             raise ValueError(f"{name} must be positive finite")
-    if (
-        next_structural_target is not None
-        and (
-            not next_structural_target.is_finite()
-            or next_structural_target <= 0
+    if next_structural_target is not None:
+        level = next_structural_target.level
+        beyond_primary = (
+            level > primary_structural_target
+            if side == "long"
+            else level < primary_structural_target
         )
-    ):
-        raise ValueError("next_structural_target must be positive finite")
+        if not beyond_primary:
+            raise ValueError(
+                "next structural destination must extend beyond primary target"
+            )
 
     if structure_invalidated:
         return MarketNativePositionDecision(
@@ -201,7 +230,7 @@ def decide_market_native_position(
             return MarketNativePositionDecision(
                 action=PositionAction.EXTEND,
                 next_stop=None,
-                next_target=next_structural_target,
+                next_target=next_structural_target.level,
                 reason="STRUCTURAL_TARGET_ACCEPTED_CONTINUATION_SUPPORTED",
             )
         return MarketNativePositionDecision(
