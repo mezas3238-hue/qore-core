@@ -1,14 +1,20 @@
 import json
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from qore.infrastructure.core_stack_v2.shared_lab_native_model import (
     CacheKey,
     LabScope,
+    RunIdentity,
     TaskResult,
     TaskState,
     ValidationSuite,
 )
-from qore.infrastructure.core_stack_v2.shared_lab_store import CacheStore, DatasetStore
+from qore.infrastructure.core_stack_v2.shared_lab_store import (
+    CacheStore,
+    DatasetStore,
+    EvidenceStore,
+)
 
 
 def result(cache_key: str) -> TaskResult:
@@ -66,3 +72,44 @@ def test_task_evidence_contains_required_sections() -> None:
     assert "performance_metrics" in payload
     assert "replay_metrics" in payload
     json.dumps(payload)
+
+
+
+def test_evidence_store_preserves_parallel_task_manifest_updates(
+    tmp_path: Path,
+) -> None:
+    store = EvidenceStore(tmp_path / "evidence")
+    run_id = "SL-CONCURRENT-EVIDENCE-TEST"
+    identity = RunIdentity(
+        run_id=run_id,
+        repository="owner/repo",
+        commit_sha="a" * 40,
+        branch="test",
+        dataset_id="builtin-engineering",
+        dataset_version="1",
+        dataset_hash="b" * 64,
+        configuration_hash="c" * 64,
+        lab_harness_sha="d" * 40,
+    )
+    store.start_run(
+        identity=identity,
+        request={"submitted_by": "test", "submitted_role": "ARCHITECT"},
+        environment={},
+        started_at_ns=1,
+    )
+
+    task_ids = tuple(f"task-{index:03d}" for index in range(64))
+
+    def write(task_id: str) -> None:
+        store.update_task(
+            run_id,
+            task_id,
+            {"task_id": task_id, "state": "PASS"},
+        )
+
+    with ThreadPoolExecutor(max_workers=16) as executor:
+        tuple(executor.map(write, task_ids))
+
+    payload = store.read_run(run_id)
+    assert set(payload["tasks"]) == set(task_ids)
+    assert all(item["state"] == "PASS" for item in payload["tasks"].values())
