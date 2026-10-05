@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from decimal import Decimal
 
 from qore.infrastructure.traders.vt31_nas100_position_intelligence import (
@@ -188,6 +189,9 @@ def test_full_cognitive_position_consumes_all_domains_without_oracle() -> None:
     assert state.volume_agnostic is True
     assert state.partial_execution_required is False
     assert state.cognitive_coverage_ratio == Decimal("1")
+    assert state.post_entry_reassessment is False
+    assert state.entry_situation_fingerprint == situation.fingerprint()
+    assert state.current_situation_fingerprint == situation.fingerprint()
     assert "risk_ref" in state.observed_situation_fields
     assert "planned_target_r" in state.observed_situation_fields
     assert "structural_destination" in state.observation_only_situation_fields
@@ -287,3 +291,30 @@ def test_full_cognition_has_no_volume_input_or_fixed_lot_contract() -> None:
     assert "volume" not in state.__dataclass_fields__
     assert "lot" not in state.__dataclass_fields__
     assert "minimum_volume_compatible" not in state.__dataclass_fields__
+
+
+def test_post_entry_cognition_reuses_frozen_entry_reasoning() -> None:
+    entry = _full_cognitive_situation()
+    reasoning = reason(entry)
+    current = replace(
+        entry,
+        as_of="2026-01-05T15:45:00+00:00",
+        decision_minute_ny=10 * 60 + 45,
+        journey_stage="POST_ENTRY_DOL1_REASSESSMENT",
+        dol1_state="REACHED_CLOSED_M1",
+        recent_path_efficiency=Decimal("0.66"),
+        recent_overlap_rate=Decimal("0.35"),
+    )
+
+    state = assess_full_cognitive_position(
+        situation=current,
+        reasoning=reasoning,
+        entry_tier="CORE",
+        dol1_acceptance_observed=True,
+        entry_situation_fingerprint=entry.fingerprint(),
+    )
+
+    assert state.post_entry_reassessment is True
+    assert state.entry_situation_fingerprint == entry.fingerprint()
+    assert state.current_situation_fingerprint == current.fingerprint()
+    assert state.target_intent is UniversalTargetIntent.EXTEND_TO_DOL2
