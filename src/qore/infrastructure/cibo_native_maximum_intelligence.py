@@ -245,35 +245,52 @@ def _semantic_digest(
     canonical: list[dict[str, object]] = []
     applicable = 0
     successful = 0
-    blocked: list[str] = []
+    formal_blocked: list[str] = []
 
     for receipt in consultation.faculty_receipts:
         payload = receipt.output_payload
         called = payload.get("native_engine_called")
         status = payload.get("native_engine_status")
-        native = payload.get("native_engine_output")
-        if type(called) is not bool or not isinstance(native, dict):
+        formal_native = payload.get("native_engine_output")
+        research = payload.get("research_semantic_observation")
+        if type(called) is not bool or not isinstance(formal_native, dict):
             raise CiboCapitalManagementError(
                 f"{receipt.function_code} native receipt malformed"
+            )
+        if not isinstance(research, dict):
+            raise CiboCapitalManagementError(
+                f"{receipt.function_code} native research semantics missing"
+            )
+        if research.get("schema") != (
+            "qore.cibo.native-faculty-research-semantics.v1"
+        ):
+            raise CiboCapitalManagementError(
+                f"{receipt.function_code} research semantic schema drift"
+            )
+        if (
+            research.get("function_code") != receipt.function_code
+            or research.get("research_read_only") is not True
+            or research.get("causal_predecision_only") is not True
+            or research.get("memory_is_evidence_not_authority") is not True
+            or research.get("economic_authority") is not False
+            or research.get("sizing_authority") is not False
+            or research.get("risk_authority") is not False
+            or research.get("execution_authority") is not False
+            or research.get("broker_authority") is not False
+            or research.get("outcome_used") is not False
+            or not isinstance(research.get("semantics"), dict)
+            or not isinstance(research.get("semantic_sha256"), str)
+        ):
+            raise CiboCapitalManagementError(
+                f"{receipt.function_code} research semantic authority drift"
             )
 
         if called:
             applicable += 1
-            if native.get("semantic_transport") != "FULL_CANONICAL_READ_ONLY":
-                raise CiboCapitalManagementError(
-                    f"{receipt.function_code} lacks full semantic transport"
-                )
-            if (
-                "result_semantics" not in native
-                and "result_value" not in native
-            ):
-                raise CiboCapitalManagementError(
-                    f"{receipt.function_code} lacks native semantic content"
-                )
             if status == "SUCCESS":
                 successful += 1
             else:
-                blocked.append(receipt.function_code)
+                formal_blocked.append(receipt.function_code)
         else:
             if receipt.function_code not in _POST_OUTCOME_NOT_APPLICABLE:
                 raise CiboCapitalManagementError(
@@ -288,13 +305,9 @@ def _semantic_digest(
             {
                 "function_code": receipt.function_code,
                 "faculty": receipt.faculty.value,
-                "status": status,
-                "native_engine_name": payload.get("native_engine_name"),
-                "semantic": (
-                    native.get("result_semantics")
-                    if "result_semantics" in native
-                    else native.get("result_value")
-                ),
+                "formal_status": status,
+                "formal_engine_name": payload.get("native_engine_name"),
+                "research_semantics": research,
                 "input_sha256": receipt.input_sha256,
                 "output_sha256": receipt.output_sha256,
             }
@@ -311,9 +324,8 @@ def _semantic_digest(
         "sha256:" + hashlib.sha256(raw).hexdigest(),
         applicable,
         successful,
-        tuple(sorted(blocked)),
+        tuple(sorted(formal_blocked)),
     )
-
 
 def run_native_maximum_intelligence(
     *,
@@ -369,79 +381,71 @@ def run_native_maximum_intelligence(
     )
 
     brain = CiboExecutiveBrain()
-    if blocked:
-        uncertainty = CiboUncertainty(
-            kind=CiboUncertaintyKind.MORE_EVIDENCE_REQUESTED,
-        )
-        result = brain.synthesize(
-            synthesis_id=synthesis_id,
-            directive=CiboExecutiveDirectiveKind.REQUEST_EVIDENCE,
-            reasoning_mode=CiboReasoningMode.MAX,
-            subject_code="native-max-capital",
-            synthesized_at=consultation.decision_at,
+    confidence_level = (
+        CiboConfidenceLevel.MEDIUM
+        if blocked
+        else CiboConfidenceLevel.HIGH
+    )
+    uncertainty = CiboUncertainty(
+        kind=CiboUncertaintyKind.BOUNDED_CONFIDENCE,
+        confidence=CiboConfidence(
+            level=confidence_level,
             evidence_refs=evidence_refs,
-            uncertainty=uncertainty,
-            observations=(
-                "cf01-cf19-consumed",
-                "native-only-intelligence",
-                "full-semantic-transport",
+        ),
+    )
+    recommendation = CiboFormalRecommendation(
+        recommendation_id=uuid5(
+            NAMESPACE_URL,
+            "qore:cibo:native-max:recommendation:"
+            + consultation.consultation_id
+            + ":"
+            + target.signal_fingerprint,
+        ),
+        recommendation_code="evaluate-capital",
+        reasoning_mode=CiboReasoningMode.MAX,
+        summary=(
+            "All CF01-CF19 native research semantics were consumed without "
+            "external AI; formal authority gaps remain separate and cannot "
+            "bypass CMA or QORE Risk."
+        ),
+        evidence_refs=evidence_refs,
+        uncertainty=uncertainty,
+        issued_at=consultation.decision_at,
+        limitations=(
+            "advisory-only",
+            "qore-risk-sovereign",
+            "no-external-ai",
+            *(
+                ("formal-authority-evidence-pending",)
+                if blocked
+                else ()
             ),
-            request_code="native-faculty-repair",
-            limitations=(
-                "qore-risk-sovereign",
-                "no-external-ai",
+        ),
+    )
+    result = brain.synthesize(
+        synthesis_id=synthesis_id,
+        directive=CiboExecutiveDirectiveKind.RECOMMEND,
+        reasoning_mode=CiboReasoningMode.MAX,
+        subject_code="native-max-capital",
+        synthesized_at=consultation.decision_at,
+        evidence_refs=evidence_refs,
+        uncertainty=uncertainty,
+        observations=(
+            "cf01-cf19-consumed",
+            "native-only-intelligence",
+            "full-research-semantics",
+        ),
+        recommendation=recommendation,
+        limitations=(
+            "qore-risk-sovereign",
+            "no-external-ai",
+            *(
+                ("formal-authority-evidence-pending",)
+                if blocked
+                else ()
             ),
-        )
-    else:
-        uncertainty = CiboUncertainty(
-            kind=CiboUncertaintyKind.BOUNDED_CONFIDENCE,
-            confidence=CiboConfidence(
-                level=CiboConfidenceLevel.HIGH,
-                evidence_refs=evidence_refs,
-            ),
-        )
-        recommendation = CiboFormalRecommendation(
-            recommendation_id=uuid5(
-                NAMESPACE_URL,
-                "qore:cibo:native-max:recommendation:"
-                + consultation.consultation_id
-                + ":"
-                + target.signal_fingerprint,
-            ),
-            recommendation_code="evaluate-capital",
-            reasoning_mode=CiboReasoningMode.MAX,
-            summary=(
-                "All causally applicable native CIBO faculties executed with "
-                "full semantic transport; evaluate capital under CMA and QORE Risk."
-            ),
-            evidence_refs=evidence_refs,
-            uncertainty=uncertainty,
-            issued_at=consultation.decision_at,
-            limitations=(
-                "advisory-only",
-                "qore-risk-sovereign",
-                "no-external-ai",
-            ),
-        )
-        result = brain.synthesize(
-            synthesis_id=synthesis_id,
-            directive=CiboExecutiveDirectiveKind.RECOMMEND,
-            reasoning_mode=CiboReasoningMode.MAX,
-            subject_code="native-max-capital",
-            synthesized_at=consultation.decision_at,
-            evidence_refs=evidence_refs,
-            uncertainty=uncertainty,
-            observations=(
-                "cf01-cf19-consumed",
-                "native-only-intelligence",
-                "full-semantic-transport",
-            ),
-            recommendation=recommendation,
-            limitations=(
-                "qore-risk-sovereign",
-                "no-external-ai",
-            ),
-        )
+        ),
+    )
 
     if not isinstance(result, Success):
         raise CiboCapitalManagementError(
