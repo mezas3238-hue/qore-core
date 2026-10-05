@@ -1,0 +1,53 @@
+{
+  "identity": "QORE_SHARED_A1_MC14_SHARED_LAB_DATASET_BUNDLE_RECEIPT_001",
+  "owner_lane": "SHARED_ARCHITECT_1",
+  "status": "XAUUSD_ONLY_BUNDLE_MATERIALIZED_CRYPTOGRAPHICALLY_VERIFIED_NOT_YET_REGISTERED_IN_NATIVE_LAB",
+  "observed_date": "2026-10-04",
+  "dataset": {
+    "dataset_id": "shared-a1-mc14-b04-xauusd-v1",
+    "dataset_version": "1",
+    "bundle_sha256": "affff1ddf76c76337cc87e3738a6b958794869fa785a7acd01575ec901acb8e7",
+    "bundle_size_in_bytes": 559499078,
+    "manifest_sha256": "ff37c0fa6b56b93858a006462171e2f156d7837e8910ad1d6e6f39ab90459f52",
+    "content_file_count": 7753
+  },
+  "source_verification": {
+    "xauusd_source_shard_count": 16,
+    "xauusd_source_zip_hashes_matched": "16_OF_16",
+    "r8_target_artifact_id": 10402199719,
+    "r8_target_zip_sha256": "9f5df4eba1882cb498b4e3657176f34a7c27083f3ac1af7856ebddf01447f34d",
+    "r8_target_zip_hash_matched": true,
+    "r8_extracted_market_hashes_matched": "3_OF_3"
+  },
+  "frozen_insufficient_family": {
+    "family": "US2000_BREADTH_PROXY",
+    "disposition": "INSUFFICIENT_DO_NOT_INFER",
+    "packaged_for_replay": false,
+    "target_evaluation_executed": false,
+    "reason": "SOURCE_ONLY_PREFLIGHT_ALREADY_FROZEN_INSUFFICIENT"
+  },
+  "builder": {
+    "path": "scripts/shared_a1_build_mc14_lab_bundle.py",
+    "replay_runner": "scripts/shared_a1_mc14_lab_replay.py",
+    "plugin": "SHARED_ARCHITECT_1_MC14_SHARED_LAB_TARGET_PLUGIN_001"
+  },
+  "execution": {
+    "governed_replay_executed": false,
+    "shared_lab_dataset_registered": false,
+    "shared_lab_run_id": null,
+    "shared_lab_pass_claimed": false
+  },
+  "governance": {
+    "target_blind_source_features": true,
+    "gate_retuning": false,
+    "missing_data_imputation": false,
+    "r6_r5_read": false,
+    "protected_final_holdout_opened": false,
+    "outcome_aware_tuning": false,
+    "live_used": false,
+    "vps_used": false,
+    "broker_mutation": false,
+    "productive_authority": false
+  },
+  "next_gate": "REGISTER_BUNDLE_SHA_affff1dd... IN_SHARED_LAB_DATASET_STORE_AND_EXECUTE_EXACTLY_ONE_XAUUSD_GOVERNED_REPLAY"
+}
