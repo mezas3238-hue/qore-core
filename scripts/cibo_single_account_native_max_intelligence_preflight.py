@@ -88,7 +88,19 @@ def _opportunity(row: dict[str, Any]) -> TraderOpportunityEnvelope:
     )
 
 
-def _regime(row: dict[str, Any]) -> CiboCapitalRegimeState:
+def _regime(
+    row: dict[str, Any],
+    *,
+    opportunity_count: int,
+) -> CiboCapitalRegimeState:
+    if (
+        not isinstance(opportunity_count, int)
+        or isinstance(opportunity_count, bool)
+        or opportunity_count <= 0
+    ):
+        raise CiboCapitalManagementError(
+            "preflight opportunity_count must be positive int"
+        )
     ce2i = row.get("ce2i_predecision_evidence")
     receipts = ce2i.get("runtime_receipts") if isinstance(ce2i, dict) else None
     candidates = [
@@ -102,6 +114,18 @@ def _regime(row: dict[str, Any]) -> CiboCapitalRegimeState:
             "preflight requires exact CE2I regime receipt"
         )
     payload = candidates[0]["input_payload"]
+    declared_count = payload.get("opportunity_count")
+    if declared_count is not None:
+        try:
+            declared_count = int(str(declared_count))
+        except (TypeError, ValueError) as error:
+            raise CiboCapitalManagementError(
+                "preflight CE2I opportunity_count is invalid"
+            ) from error
+        if declared_count != opportunity_count:
+            raise CiboCapitalManagementError(
+                "preflight CE2I opportunity_count/epoch surface drift"
+            )
     return CiboCapitalRegimeState(
         liquidity=LiquidityState(str(payload["liquidity"])),
         volatility=VolatilityState(str(payload["volatility"])),
@@ -112,11 +136,62 @@ def _regime(row: dict[str, Any]) -> CiboCapitalRegimeState:
         risk_utilization=_d(payload["risk_utilization"]),
         margin_utilization=_d(payload["margin_utilization"]),
         drawdown_utilization=_d(payload["drawdown_utilization"]),
-        opportunity_count=1,
+        opportunity_count=opportunity_count,
         position_path_adverse=bool(
             payload.get("position_path_adverse", False)
         ),
         evidence_stale=bool(payload.get("evidence_stale", False)),
+    )
+
+
+def _group_rows_by_epoch(
+    rows: list[dict[str, Any]],
+) -> tuple[tuple[dict[str, Any], ...], ...]:
+    grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for row in rows:
+        epoch_id = row.get("decision_epoch_id")
+        if not isinstance(epoch_id, str) or not epoch_id:
+            raise CiboCapitalManagementError(
+                "native MAX preflight requires decision_epoch_id"
+            )
+        grouped[epoch_id].append(row)
+
+    epochs: list[tuple[dict[str, Any], ...]] = []
+    for epoch_id, epoch_rows in grouped.items():
+        decision_times = {
+            str(item.get("market_decision_at")) for item in epoch_rows
+        }
+        if len(decision_times) != 1:
+            raise CiboCapitalManagementError(
+                "native MAX preflight epoch decision-time drift"
+            )
+        signals = tuple(
+            str(item.get("signal_fingerprint")) for item in epoch_rows
+        )
+        if len(signals) != len(set(signals)):
+            raise CiboCapitalManagementError(
+                "native MAX preflight duplicate signal in epoch"
+            )
+        ordered = tuple(
+            sorted(
+                epoch_rows,
+                key=lambda item: (
+                    str(item["trader_id"]),
+                    str(item["qore_symbol"]),
+                    str(item["signal_fingerprint"]),
+                ),
+            )
+        )
+        epochs.append(ordered)
+
+    return tuple(
+        sorted(
+            epochs,
+            key=lambda epoch: (
+                _dt(epoch[0]["market_decision_at"]),
+                str(epoch[0]["decision_epoch_id"]),
+            ),
+        )
     )
 
 
@@ -147,55 +222,16 @@ def run(
     formal_blocked: Counter[str] = Counter()
     examples: list[dict[str, str]] = []
 
-    for index, row in enumerate(rows, start=1):
-        trader = str(row["trader_id"])
-        opportunity = _opportunity(row)
-        context_counts[trader].add(len(opportunity.decision_context))
-        try:
-            regime_state = _regime(row)
-            consultation = consult_cibo_economic_faculties(
-                decision_at=_dt(row["market_decision_at"]),
-                opportunities=(opportunity,),
-                regime_state=regime_state,
-            )
-            result = run_native_maximum_intelligence(
-                consultation=consultation,
-                opportunities=(opportunity,),
-                target=opportunity,
-                regime_state=regime_state,
-            )
-            if (
-                not result.native_only
-                or result.external_ai_call_count != 0
-                or result.external_reasoning_provider_used
-            ):
-                raise CiboCapitalManagementError(
-                    "native MAX preflight external AI dependency drift"
-                )
-            passed[trader] += 1
-            for code in result.blocked_function_codes:
-                formal_blocked[code] += 1
-        except Exception as error:
-            blocked[trader] += 1
-            message = str(error)
-            failure_reasons[message] += 1
-            if len(examples) < 30:
-                examples.append(
-                    {
-                        "trader_id": trader,
-                        "signal_fingerprint": str(
-                            row["signal_fingerprint"]
-                        ),
-                        "error": message,
-                    }
-                )
+    processed = 0
+
+    def emit_progress() -> None:
         if progress_every and (
-            index % progress_every == 0 or index == len(rows)
+            processed % progress_every == 0 or processed == len(rows)
         ):
             print(
                 json.dumps(
                     {
-                        "progress": index,
+                        "progress": processed,
                         "decision_count": len(rows),
                         "native_max_pass_count": sum(passed.values()),
                         "native_max_blocked_count": sum(blocked.values()),
@@ -205,6 +241,92 @@ def run(
                 file=sys.stderr,
                 flush=True,
             )
+
+    for epoch_rows in _group_rows_by_epoch(rows):
+        opportunities = tuple(_opportunity(row) for row in epoch_rows)
+        for row, opportunity in zip(
+            epoch_rows,
+            opportunities,
+            strict=True,
+        ):
+            trader = str(row["trader_id"])
+            context_counts[trader].add(len(opportunity.decision_context))
+
+        try:
+            regime_states = tuple(
+                _regime(row, opportunity_count=len(opportunities))
+                for row in epoch_rows
+            )
+            regime_state = regime_states[0]
+            if any(item != regime_state for item in regime_states[1:]):
+                raise CiboCapitalManagementError(
+                    "native MAX preflight mixed regime evidence inside epoch"
+                )
+            consultation = consult_cibo_economic_faculties(
+                decision_at=_dt(epoch_rows[0]["market_decision_at"]),
+                opportunities=opportunities,
+                regime_state=regime_state,
+            )
+        except Exception as error:
+            message = str(error)
+            for row in epoch_rows:
+                trader = str(row["trader_id"])
+                blocked[trader] += 1
+                failure_reasons[message] += 1
+                if len(examples) < 30:
+                    examples.append(
+                        {
+                            "trader_id": trader,
+                            "signal_fingerprint": str(
+                                row["signal_fingerprint"]
+                            ),
+                            "error": message,
+                        }
+                    )
+                processed += 1
+                emit_progress()
+            continue
+
+        for row, opportunity in zip(
+            epoch_rows,
+            opportunities,
+            strict=True,
+        ):
+            trader = str(row["trader_id"])
+            try:
+                result = run_native_maximum_intelligence(
+                    consultation=consultation,
+                    opportunities=opportunities,
+                    target=opportunity,
+                    regime_state=regime_state,
+                )
+                if (
+                    not result.native_only
+                    or result.external_ai_call_count != 0
+                    or result.external_reasoning_provider_used
+                ):
+                    raise CiboCapitalManagementError(
+                        "native MAX preflight external AI dependency drift"
+                    )
+                passed[trader] += 1
+                for code in result.blocked_function_codes:
+                    formal_blocked[code] += 1
+            except Exception as error:
+                blocked[trader] += 1
+                message = str(error)
+                failure_reasons[message] += 1
+                if len(examples) < 30:
+                    examples.append(
+                        {
+                            "trader_id": trader,
+                            "signal_fingerprint": str(
+                                row["signal_fingerprint"]
+                            ),
+                            "error": message,
+                        }
+                    )
+            processed += 1
+            emit_progress()
 
     expected = len(rows)
     native_pass = sum(passed.values())
