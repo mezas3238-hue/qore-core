@@ -40,6 +40,7 @@ from qore.infrastructure.cibo_capital_management_authority import (
     minimum_seed_volume,
 )
 from qore.infrastructure.cibo_cma_risk_request import build_cma_risk_request
+from qore.infrastructure.cibo_ce2i_regime_selector import CiboCapitalRegimeState
 from qore.infrastructure.cibo_economic_engine_wiring import (
     CiboEconomicEngineRun,
     CiboLifecycleWireRequest,
@@ -56,6 +57,11 @@ from qore.infrastructure.cibo_multi_period_capital_mpc import (
     Genc11KnownOptionSchedule,
     Genc11WorldPath,
 )
+from qore.infrastructure.cibo_sovereign_function_consultation import (
+    CiboEconomicConsultationReceipt,
+    consult_cibo_economic_faculties,
+)
+from qore.infrastructure.cibo_trader_capability_profile import CiboEvidenceRef
 
 
 class CiboSovereignCapitalDisposition(StrEnum):
@@ -69,6 +75,7 @@ class CiboSovereignCapitalDecision:
     decision_id: str
     option_id: str
     synthesis: CiboExecutiveSynthesis
+    faculty_consultation: CiboEconomicConsultationReceipt
     economic_run: CiboEconomicEngineRun
     sizing: CiboAccountSizingDecision
     final_plan: CiboCapitalActionPlan
@@ -95,6 +102,13 @@ class CiboSovereignCapitalDecision:
                 "sovereign decision requires canonical CIBO synthesis"
             )
         self.synthesis.revalidate()
+        if not isinstance(
+            self.faculty_consultation,
+            CiboEconomicConsultationReceipt,
+        ):
+            raise CiboCapitalManagementError(
+                "sovereign decision requires CF01-CF19 consultation receipt"
+            )
         if not isinstance(self.economic_run, CiboEconomicEngineRun):
             raise CiboCapitalManagementError(
                 "sovereign decision requires canonical economic run"
@@ -198,6 +212,8 @@ def run_cibo_sovereign_capital_runtime(
     option_schedules: tuple[Genc11KnownOptionSchedule, ...],
     mission_policy: CiboCapitalMissionPolicy,
     capital: CiboCapitalState,
+    regime_state: CiboCapitalRegimeState,
+    evidence_ref: CiboEvidenceRef,
     survival_capital_usd: Decimal,
     protected_capital_usd: Decimal,
     request_id: str,
@@ -236,6 +252,13 @@ def run_cibo_sovereign_capital_runtime(
         raise CiboCapitalManagementError(
             "sovereign causal order must be twin <= cognition <= Risk request"
         )
+
+    consultation = consult_cibo_economic_faculties(
+        decision_at=twin.captured_at,
+        opportunities=(opportunity,),
+        regime_state=regime_state,
+        evidence_ref=evidence_ref,
+    )
 
     twin_opportunity = next(
         (item for item in twin.opportunities if item.option_id == option_id),
@@ -308,6 +331,7 @@ def run_cibo_sovereign_capital_runtime(
             decision_id=decision_id,
             option_id=option_id,
             synthesis=synthesis,
+            faculty_consultation=consultation,
             economic_run=economic,
             sizing=sizing,
             final_plan=final_plan,
@@ -328,6 +352,7 @@ def run_cibo_sovereign_capital_runtime(
             decision_id=decision_id,
             option_id=option_id,
             synthesis=synthesis,
+            faculty_consultation=consultation,
             economic_run=economic,
             sizing=sizing,
             final_plan=final_plan,
@@ -349,6 +374,7 @@ def run_cibo_sovereign_capital_runtime(
             decision_id=decision_id,
             option_id=option_id,
             synthesis=synthesis,
+            faculty_consultation=consultation,
             economic_run=economic,
             sizing=sizing,
             final_plan=final_plan,
@@ -367,6 +393,7 @@ def run_cibo_sovereign_capital_runtime(
         decision_id=decision_id,
         option_id=option_id,
         synthesis=synthesis,
+        faculty_consultation=consultation,
         economic_run=economic,
         sizing=sizing,
         final_plan=final_plan,
