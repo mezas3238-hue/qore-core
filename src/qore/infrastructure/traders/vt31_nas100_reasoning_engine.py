@@ -41,8 +41,8 @@ from qore.infrastructure.traders.vt31_nas100_trader_experience_memory import (
 
 Action = Literal["EXECUTE", "WAIT", "ABSTAIN"]
 TargetPlan = Literal[
-    "FULL_STRUCTURAL_BOUNDARY",
-    "PARTIAL_1_25R_PLUS_BOUNDARY_RUNNER",
+    "PRIMARY_STRUCTURAL_BOUNDARY",
+    "PRIMARY_BOUNDARY_THEN_REASSESS_MARKET_STRUCTURE",
 ]
 
 Nas100ReasoningState = Nas100SituationModel
@@ -70,14 +70,20 @@ class Nas100ReasoningDecision:
 
 
 def _target_plan(state: Nas100SituationModel) -> TargetPlan:
+    """Choose a market-native destination intent.
+
+    Reference geometry may decide whether VT31 should merely deliver to the
+    frozen structural boundary or reassess structure after that boundary.
+    No R multiple is permitted to select a target or management action.
+    """
     reference_compressed = (
         state.reference_width_vs_prior5 is not None
         and state.reference_width_vs_prior5 < Decimal("0.75")
     )
     return (
-        "FULL_STRUCTURAL_BOUNDARY"
+        "PRIMARY_STRUCTURAL_BOUNDARY"
         if reference_compressed
-        else "PARTIAL_1_25R_PLUS_BOUNDARY_RUNNER"
+        else "PRIMARY_BOUNDARY_THEN_REASSESS_MARKET_STRUCTURE"
     )
 
 
