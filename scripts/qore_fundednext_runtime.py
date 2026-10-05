@@ -416,6 +416,20 @@ def _log(path: Path, event: dict[str, object]) -> None:
         handle.write(json.dumps(value, sort_keys=True, default=str) + "\n")
 
 
+def _log_vt31_m1_receipts(path: Path, cache: Vt31Nas100M1Cache) -> None:
+    for receipt in cache.drain_reconciliation_receipts():
+        payload = receipt.as_payload()
+        _log(path, payload)
+        if receipt.result != "TRUE_CONTRADICTION":
+            accepted = dict(payload)
+            accepted["event"] = "VT31_M1_BAR_ACCEPTED"
+            _log(path, accepted)
+        if receipt.sealed_now:
+            sealed = dict(payload)
+            sealed["event"] = "VT31_M1_BAR_SEALED"
+            _log(path, sealed)
+
+
 def _latency_ms(started_at: datetime, finished_at: datetime) -> int:
     return int((finished_at - started_at).total_seconds() * 1000)
 
@@ -1939,9 +1953,12 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         "observed_at": cycle_at.isoformat(),
                     },
                 )
+        vt31_incremental_feed_healthy = True
         try:
             vt31_cache.refresh_incremental(mt5, now=cycle_at)
         except Exception as error:
+            vt31_incremental_feed_healthy = False
+            _log_vt31_m1_receipts(log_path, vt31_cache)
             _log(
                 log_path,
                 {
@@ -1952,6 +1969,8 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     "observed_at": cycle_at.isoformat(),
                 },
             )
+        else:
+            _log_vt31_m1_receipts(log_path, vt31_cache)
 
         audjpy_arm_anchor = m5_boundary_to_arm(cycle_at)
         certified_policy_ready = True
@@ -2686,6 +2705,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     or gateway.has_unresolved_mutations
                     or not certified_policy_ready
                     or not mission_snapshot.new_risk_allowed_by_mission
+                    or not vt31_incremental_feed_healthy
                 )
                 vt31_boundary = await_vt31_boundary_snapshot(
                     mt5,
@@ -2714,6 +2734,18 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         _log(
                             log_path,
                             {
+                                "event": "VT31_DECISION",
+                                "candidate": False,
+                                "decision": "ABSTAIN",
+                                "symbol": "NAS100",
+                                "decision_at": vt31_arm_anchor.isoformat(),
+                                "reason": vt31_reason,
+                                "observed_at": (vt31_boundary.observed_at.isoformat()),
+                            },
+                        )
+                        _log(
+                            log_path,
+                            {
                                 "event": "VT31_NAS100_CAUSAL_ABSTAIN",
                                 "symbol": "NAS100",
                                 "decision_at": vt31_arm_anchor.isoformat(),
@@ -2722,6 +2754,17 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             },
                         )
                     elif mode == "shadow":
+                        _log(
+                            log_path,
+                            {
+                                "event": "VT31_DECISION",
+                                "candidate": True,
+                                "decision": "SHADOW_CANDIDATE",
+                                "symbol": "NAS100",
+                                "decision_at": vt31_arm_anchor.isoformat(),
+                                "candidate_count": len(vt31_basket.candidates),
+                            },
+                        )
                         shadow_vt31_basket(
                             basket=vt31_basket,
                             boundary_at=vt31_arm_anchor,
