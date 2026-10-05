@@ -1,0 +1,101 @@
+{
+  "identity": "QORE_SHARED_INTEGRATOR_1_SHARED_LAB_PLUGIN_DAG_AUDIT_004",
+  "observed_date": "2026-10-04",
+  "integrator_lane": "A1_A2_ONLY",
+  "observed_heads": {
+    "architect_a1": "81500471ce22c5a399ac17192bc77723b71305cf",
+    "architect_a2": "436cfc0a6766a7fa537360c8f5b1dacfbcfd36c5",
+    "integrator1_pre_audit": "8de85697aeba1b2297d331aab38e4eab0d285f85",
+    "shared_lab": "c558127165435e5e1d2a748675db1158b5c19174"
+  },
+  "plugin_count": 9,
+  "external_default_task_ids": [
+    "contract"
+  ],
+  "tasks": {
+    "i1-a1-core": [
+      "contract"
+    ],
+    "a1-functional-causality": [
+      "i1-a1-core"
+    ],
+    "a1-mc14-governed-replay": [
+      "a1-functional-causality"
+    ],
+    "a1-mc18-consumed-development-calibration": [
+      "a1-functional-causality"
+    ],
+    "i1-a1-scientific-evidence": [
+      "a1-functional-causality",
+      "a1-mc14-governed-replay",
+      "a1-mc18-consumed-development-calibration"
+    ],
+    "mc23-functional": [
+      "contract"
+    ],
+    "a2-mc24-regression": [
+      "mc23-functional"
+    ],
+    "i1-a2-scientific-evidence": [
+      "mc23-functional"
+    ],
+    "i1-a1-a2-pair": [
+      "i1-a1-scientific-evidence",
+      "i1-a2-scientific-evidence"
+    ]
+  },
+  "assertions": {
+    "duplicate_task_ids": false,
+    "missing_custom_dependencies": false,
+    "dependency_cycles": false,
+    "candidate_001_executable_tasks_present": false,
+    "candidate_002_executable_tasks_present": false,
+    "a1_scientific_gate_non_skippable_for_pair": true,
+    "a2_scientific_gate_non_skippable_for_pair": true,
+    "a1_mc14_dataset_bound": true,
+    "a1_mc18_dataset_bound": true,
+    "a2_terminal_falsifications_preserved": true
+  },
+  "scientific_dispositions": {
+    "a1": {
+      "status": "OPEN_NATIVE_EVIDENCE_REQUIRED",
+      "mc14": "XAUUSD_ONLY_RUNNER_READY_BUT_DATASET_MATERIALIZATION_REGISTRATION_AND_ONE_GOVERNED_REPLAY_STILL_REQUIRED",
+      "us2000": "INSUFFICIENT_DO_NOT_INFER",
+      "mc18": "CONSUMED_DEVELOPMENT_CALIBRATION_NATIVE_EXECUTION_REQUIRED"
+    },
+    "a2": {
+      "mc23_candidate_001": "TERMINAL_FALSIFIED_RETRY_FOR_PASS_FORBIDDEN",
+      "mc23_candidate_002": "TERMINAL_FALSIFIED_ON_TEMPORAL_REPLICATION_D_RETRY_FOR_PASS_FORBIDDEN",
+      "candidate_002_validation_d": {
+        "pooled_incremental_information_bps": -89,
+        "positive_target_count": 0,
+        "target_count": 4,
+        "maximum_target_regression_bps": 132
+      },
+      "holdout_e": "NOT_EVALUATED_FOR_CANDIDATE_002",
+      "next_gate": "NEW_PREREGISTERED_MC23_MECHANISM_REQUIRED",
+      "mc24": "BLOCKED_BY_MC23",
+      "mc25": "BLOCKED_BY_MC23_MC24",
+      "wp11": "BLOCKED_BY_UPSTREAM_SCIENCE"
+    }
+  },
+  "shared_lab": {
+    "exact_target_harness_separation": true,
+    "task_level_dataset_binding": true,
+    "windows_fail_closed_resource_limits": true,
+    "target_plugin_cache_provenance_hardened": true,
+    "task_owned_scientific_evidence_archiving": true
+  },
+  "governance": {
+    "merge_performed": false,
+    "github_actions_validation_fallback_used": false,
+    "vps_used": false,
+    "live_used": false,
+    "broker_mutation": false,
+    "real_capital_used": false,
+    "protected_final_holdout_opened": false,
+    "outcome_aware_rescue_used": false,
+    "productive_authority": false
+  },
+  "status": "DAG_STATIC_PASS_SCIENCE_OPEN"
+}
