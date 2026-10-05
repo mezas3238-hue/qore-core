@@ -1,0 +1,51 @@
+{
+  "schema": "QORE_SHARED_A2_MC23_CANDIDATE_001_FALSIFICATION_001",
+  "created_at": "2026-10-04",
+  "owner": "Sergio Meza",
+  "architect": "A2",
+  "branch": "agent/shared-architect-2-sti-001",
+  "source_truth_commit": "c66e5e56fe4e459f2a891e5db0c171a74a1652b3",
+  "capsule_git_blob": "874ac21fec317190d94624e7ecc534f118eb5677",
+  "capsule_id": "QORE_SHARED_A2_LAB_CAPSULE_001",
+  "dataset_sha256": "15575cd662b92e736fe53f59fbad50c42d244e29180cfb10fa8b6c7a87c560d0",
+  "execution_engine": "QORE_SHARED_LAB_NATIVE_CAPSULE",
+  "preregistration": "QORE_SHARED_MC23_VALIDATED_NOVEL_REGIME_ADAPTATION_PREREGISTRATION_001",
+  "status": "MC23_VALIDATED_REAL_NOVEL_REGIME_ADAPTATION_FALSIFIED_AND_CLOSED_FOR_THIS_MECHANISM",
+  "scientific_result": {
+    "r6_source_observation_count": 21121,
+    "r6_scored_novel_or_near_count": 8010,
+    "r5_source_observation_count": 23362,
+    "r5_scored_novel_or_near_count": 9881,
+    "pooled_incremental_information_bps": -4,
+    "positive_target_count": 1,
+    "target_count": 4,
+    "maximum_target_regression_bps": 17,
+    "incremental_information_bps": [
+      -17,
+      10,
+      -9,
+      -1
+    ],
+    "deterministic_repeat_pass": true,
+    "temporal_order_pass": true,
+    "preregistered_gate_pass": false
+  },
+  "fingerprints": {
+    "baseline_model": "f2bc836e5b42fb2739d1d766d544eecbaddbfaee8e09dadf4e3a0c3239cecab1",
+    "adaptive_model": "23d5920a370955a8644736fff40542d01e44ee587813ee6322feef2a0d40f759",
+    "result_sha256": "2f36fecdb10829b279b9088f810d5de907e8236f3f06817a7ebac07443fad2a4",
+    "stdout_sha256": "681eded3508e6fdd025b8b4dd6ce3c8aba096ba753c5fb847ffb75da519e1a4a"
+  },
+  "governance": {
+    "hypothesis_changed_after_r5": false,
+    "features_changed_after_r5": false,
+    "gates_changed_after_r5": false,
+    "r5_refit": false,
+    "outcome_aware_rescue": false,
+    "protected_certification_holdout_opened": false,
+    "productive_authority": false,
+    "candidate_001_terminal": true,
+    "candidate_001_may_not_be_retried_for_pass": true
+  },
+  "next_gate": "NEW_PREREGISTERED_MC23_MECHANISM_REQUIRED"
+}
