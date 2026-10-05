@@ -458,8 +458,16 @@ def _evaluate_family(
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--us2000-root", type=Path, required=True)
+    parser.add_argument("--us2000-root", type=Path)
     parser.add_argument("--xauusd-root", type=Path, required=True)
+    parser.add_argument(
+        "--xauusd-only",
+        action="store_true",
+        help=(
+            "Evaluate only the preflight-complete XAUUSD family and preserve "
+            "US2000 as frozen INSUFFICIENT without target evaluation."
+        ),
+    )
     parser.add_argument("--r8-nas", type=Path, required=True)
     parser.add_argument("--r8-sp", type=Path, required=True)
     parser.add_argument("--r8-us", type=Path, required=True)
@@ -467,13 +475,19 @@ def main() -> None:
     args = parser.parse_args()
 
     features = {
-        "US2000_BREADTH_PROXY": extract_window_features(
-            root=args.us2000_root
-        ),
         "XAUUSD_DEFENSIVE_PROXY": extract_window_features(
             root=args.xauusd_root
         ),
     }
+    if args.xauusd_only:
+        if args.us2000_root is not None:
+            parser.error("--us2000-root must be omitted with --xauusd-only")
+    else:
+        if args.us2000_root is None:
+            parser.error("--us2000-root is required unless --xauusd-only is set")
+        features["US2000_BREADTH_PROXY"] = extract_window_features(
+            root=args.us2000_root
+        )
     source_times: dict[int, datetime] = {}
     source_time_mismatches = []
     for index in range(EXPECTED_WINDOW_COUNT):
@@ -503,6 +517,16 @@ def main() -> None:
         )
         for family, rows in features.items()
     }
+    if args.xauusd_only:
+        family_results["US2000_BREADTH_PROXY"] = {
+            "family": "US2000_BREADTH_PROXY",
+            "hypothesis_id": FAMILIES["US2000_BREADTH_PROXY"],
+            "status": "INSUFFICIENT_DO_NOT_INFER",
+            "reason": "FROZEN_SOURCE_PREFLIGHT_INCOMPLETE_DO_NOT_READ_TARGET",
+            "source_preflight_only": True,
+            "target_evaluation_executed": False,
+            "relations": [],
+        }
     replicated = sum(
         int(
             result["status"]
