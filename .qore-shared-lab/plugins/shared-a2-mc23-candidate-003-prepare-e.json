@@ -1,0 +1,25 @@
+{
+  "task_id": "a2-mc23-candidate-003-prepare-e",
+  "suite": "FUNCTIONAL",
+  "scope": "mc23",
+  "dependencies": [
+    "a2-mc23-candidate-003-freeze"
+  ],
+  "command": [
+    "python",
+    "-m",
+    "a2_lab_capsule.mc23_candidate_003",
+    "--mode",
+    "prepare",
+    "--dataset",
+    "{dataset_path}",
+    "--partition",
+    "holdout_e",
+    "--output",
+    "result/mc23-003-e.npz"
+  ],
+  "component_globs": [
+    "a2_lab_capsule/capsule.py",
+    "a2_lab_capsule/mc23_candidate_003.py"
+  ]
+}
