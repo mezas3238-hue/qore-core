@@ -1,0 +1,25 @@
+{
+  "task_id": "a1-mc14-governed-replay",
+  "suite": "CAUSALITY",
+  "scope": "cognition",
+  "dependencies": [
+    "a1-functional-causality"
+  ],
+  "command": [
+    "python",
+    "scripts/shared_a1_mc14_lab_replay.py",
+    "--dataset-bundle",
+    "{dataset_path}",
+    "--output",
+    "result/a1-mc14-governed-replay.json"
+  ],
+  "component_globs": [
+    "scripts/shared_a1_mc14_lab_replay.py",
+    "scripts/shared_mc14_b04_new_information_causal_replay.py",
+    "docs/shared/evidence/QORE_SHARED_A1_MC14_SHARED_LAB_DATASET_CONTRACT_001.json",
+    "src/qore/infrastructure/core_stack_v2/mc14_b04_cross_asset_causal.py"
+  ],
+  "execution_origin": "TARGET",
+  "dataset_id": "shared-a1-mc14-b04-xauusd-v1",
+  "dataset_version": "1"
+}
