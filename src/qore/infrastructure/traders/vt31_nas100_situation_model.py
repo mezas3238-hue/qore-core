@@ -59,6 +59,8 @@ class Nas100SituationModel:
     # Structural risk / geometry
     stop_plan: str
     risk_ref: Decimal | None
+    # Legacy compatibility slot. Runtime must keep this None: R is evaluation
+    # only and cannot govern entry, target, stop, trailing, or exit.
     planned_target_r: Decimal | None
     structural_destination: str
     destination_distance_ref: Decimal | None
@@ -89,6 +91,11 @@ class Nas100SituationModel:
             and self.recent_liquidity_event_count_10m < 0
         ):
             raise ValueError("liquidity-event count cannot be negative")
+        if self.planned_target_r is not None:
+            raise ValueError(
+                "planned_target_r is prohibited in runtime situation; "
+                "R is post-trade evaluation only"
+            )
         for value in (
             self.current_path_vs_previous,
             self.reference_width_vs_prior5,
@@ -96,7 +103,6 @@ class Nas100SituationModel:
             self.recent_path_efficiency,
             self.recent_overlap_rate,
             self.risk_ref,
-            self.planned_target_r,
             self.destination_distance_ref,
         ):
             if value is not None and not value.is_finite():
