@@ -140,8 +140,10 @@ def test_sovereign_reasoning_request_contains_context_and_all_faculties() -> Non
     assert "ctx_regime" in request.prompt
     for index in range(1, 20):
         assert f"CF{index:02d}" in request.prompt
-    assert "outcome" not in request.prompt.lower()
-    assert "realized_pnl" not in request.prompt.lower()
+    prompt = request.prompt.lower()
+    assert "settlement_outcome_research_only" not in prompt
+    assert "gross_structural_outcome_r" not in prompt
+    assert "realized_net_pnl" not in prompt
     assert request.memory_refs == ()
 
 
