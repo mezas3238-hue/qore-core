@@ -29,6 +29,7 @@ class SuiteDefinition:
     execution_origin: str = "HARNESS"
     dataset_id: str | None = None
     dataset_version: str | None = None
+    cache_safe: bool = True
 
 
 class NativeSuiteRegistry:
@@ -83,6 +84,7 @@ class NativeSuiteRegistry:
                         if payload.get("dataset_version") is None
                         else str(payload["dataset_version"])
                     ),
+                    cache_safe=bool(payload.get("cache_safe", False)),
                 )
             )
 
@@ -121,6 +123,7 @@ class NativeSuiteRegistry:
                 execution_origin=definition.execution_origin,
                 dataset_id=definition.dataset_id,
                 dataset_version=definition.dataset_version,
+                cache_safe=definition.cache_safe,
             )
             for definition in self.definitions()
             if definition.task_id in selected
