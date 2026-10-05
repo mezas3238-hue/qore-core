@@ -31,7 +31,7 @@ from qore.infrastructure.cibo_ce2i_regime_selector import (
     ProviderCondition,
     VolatilityState,
 )
-from qore.infrastructure.cibo_reasoning_runtime import (
+from qore.infrastructure.cibo_adaptive_reasoning_runtime import (
     cibo_reasoning_request_digest,
 )
 from qore.infrastructure.cibo_sovereign_function_consultation import (
