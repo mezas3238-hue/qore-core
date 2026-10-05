@@ -93,7 +93,11 @@ def _opportunity(row: dict[str, Any]) -> TraderOpportunityEnvelope:
     )
 
 
-def _regime(row: dict[str, Any]) -> CiboCapitalRegimeState:
+def _regime(
+    row: dict[str, Any],
+    *,
+    opportunity_count: int,
+) -> CiboCapitalRegimeState:
     ce2i = row.get("ce2i_predecision_evidence")
     if not isinstance(ce2i, dict):
         raise CiboCapitalManagementError(
@@ -129,7 +133,7 @@ def _regime(row: dict[str, Any]) -> CiboCapitalRegimeState:
         risk_utilization=_d(payload["risk_utilization"]),
         margin_utilization=_d(payload["margin_utilization"]),
         drawdown_utilization=_d(payload["drawdown_utilization"]),
-        opportunity_count=1,
+        opportunity_count=opportunity_count,
         position_path_adverse=bool(
             payload.get("position_path_adverse", False)
         ),
@@ -178,7 +182,10 @@ def build_ledger(manifest: dict[str, Any]) -> dict[str, Any]:
     max_prompt_chars = 0
     min_prompt_chars: int | None = None
     total_prompt_chars = 0
+    consultation_count = 0
+    maximum_epoch_opportunity_count = 0
 
+    grouped: dict[tuple[str, str], list[dict[str, Any]]] = {}
     for row in opportunities:
         if not isinstance(row, dict):
             raise CiboCapitalManagementError(
@@ -188,30 +195,49 @@ def build_ledger(manifest: dict[str, Any]) -> dict[str, Any]:
             raise CiboCapitalManagementError(
                 "reasoning-request ledger detected outcome availability"
             )
+        key = (
+            str(row["market_decision_at"]),
+            str(row["decision_epoch_id"]),
+        )
+        grouped.setdefault(key, []).append(row)
 
-        opportunity = _opportunity(row)
-        decision_at = _dt(row["market_decision_at"])
-        regime = _regime(row)
+    ordered_groups = sorted(
+        grouped.items(),
+        key=lambda item: (
+            _dt(item[0][0]),
+            item[0][1],
+        ),
+    )
+
+    for _epoch_key, epoch_rows in ordered_groups:
+        epoch_rows = sorted(
+            epoch_rows,
+            key=lambda row: str(row["signal_fingerprint"]),
+        )
+        shared_opportunities = tuple(
+            _opportunity(row) for row in epoch_rows
+        )
+        decision_at = _dt(epoch_rows[0]["market_decision_at"])
+        opportunity_count = len(shared_opportunities)
+        maximum_epoch_opportunity_count = max(
+            maximum_epoch_opportunity_count,
+            opportunity_count,
+        )
+        regimes = tuple(
+            _regime(row, opportunity_count=opportunity_count)
+            for row in epoch_rows
+        )
+        if any(item != regimes[0] for item in regimes[1:]):
+            raise CiboCapitalManagementError(
+                "reasoning-request ledger simultaneous regime state drift"
+            )
+        regime = regimes[0]
         consultation = consult_cibo_economic_faculties(
             decision_at=decision_at,
-            opportunities=(opportunity,),
+            opportunities=shared_opportunities,
             regime_state=regime,
         )
-        request = build_sovereign_reasoning_request(
-            consultation=consultation,
-            opportunity=opportunity,
-        )
-        prompt_lower = request.prompt.lower()
-        for forbidden in (
-            "settlement_outcome_research_only",
-            "gross_structural_outcome_r",
-            "realized_net_pnl",
-            "future_outcome",
-        ):
-            if forbidden in prompt_lower:
-                raise CiboCapitalManagementError(
-                    "reasoning-request ledger outcome leakage detected"
-                )
+        consultation_count += 1
         if len(consultation.faculty_receipts) != 19:
             raise CiboCapitalManagementError(
                 "reasoning-request ledger faculty surface drift"
@@ -235,42 +261,70 @@ def build_ledger(manifest: dict[str, Any]) -> dict[str, Any]:
                 "reasoning-request ledger semantic transport incomplete"
             )
 
-        prompt_chars = len(request.prompt)
-        max_prompt_chars = max(max_prompt_chars, prompt_chars)
-        min_prompt_chars = (
-            prompt_chars
-            if min_prompt_chars is None
-            else min(min_prompt_chars, prompt_chars)
-        )
-        total_prompt_chars += prompt_chars
-        trader_counts[opportunity.trader_id.value] += 1
+        for row, opportunity in zip(
+            epoch_rows,
+            shared_opportunities,
+            strict=True,
+        ):
+            request = build_sovereign_reasoning_request(
+                consultation=consultation,
+                opportunity=opportunity,
+            )
+            prompt_lower = request.prompt.lower()
+            for forbidden in (
+                "settlement_outcome_research_only",
+                "gross_structural_outcome_r",
+                "realized_net_pnl",
+            ):
+                if forbidden in prompt_lower:
+                    raise CiboCapitalManagementError(
+                        "reasoning-request ledger outcome leakage detected"
+                    )
 
-        rows.append(
-            {
-                "decision_epoch_id": row["decision_epoch_id"],
-                "market_decision_at": decision_at.isoformat(),
-                "signal_fingerprint": opportunity.signal_fingerprint,
-                "trader_id": opportunity.trader_id.value,
-                "qore_symbol": opportunity.qore_symbol,
-                "consultation_id": consultation.consultation_id,
-                "reasoning_request_id": str(request.request_id),
-                "reasoning_request_digest": cibo_reasoning_request_digest(
-                    request
-                ),
-                "reasoning_subject_code": request.subject_code,
-                "prompt_chars": prompt_chars,
-                "faculty_count": len(consultation.faculty_receipts),
-                "native_called_count": called,
-                "full_semantic_native_count": full_semantic,
-                "outcome_used": consultation.outcome_used,
-                "broker_mutation": consultation.broker_mutation,
-            }
-        )
+            prompt_chars = len(request.prompt)
+            max_prompt_chars = max(max_prompt_chars, prompt_chars)
+            min_prompt_chars = (
+                prompt_chars
+                if min_prompt_chars is None
+                else min(min_prompt_chars, prompt_chars)
+            )
+            total_prompt_chars += prompt_chars
+            trader_counts[opportunity.trader_id.value] += 1
+
+            rows.append(
+                {
+                    "decision_epoch_id": row["decision_epoch_id"],
+                    "market_decision_at": decision_at.isoformat(),
+                    "signal_fingerprint": opportunity.signal_fingerprint,
+                    "trader_id": opportunity.trader_id.value,
+                    "qore_symbol": opportunity.qore_symbol,
+                    "shared_epoch_opportunity_count": opportunity_count,
+                    "shared_epoch_opportunity_fingerprints": list(
+                        consultation.opportunity_fingerprints
+                    ),
+                    "consultation_id": consultation.consultation_id,
+                    "reasoning_request_id": str(request.request_id),
+                    "reasoning_request_digest": cibo_reasoning_request_digest(
+                        request
+                    ),
+                    "reasoning_subject_code": request.subject_code,
+                    "prompt_chars": prompt_chars,
+                    "faculty_count": len(consultation.faculty_receipts),
+                    "native_called_count": called,
+                    "full_semantic_native_count": full_semantic,
+                    "outcome_used": consultation.outcome_used,
+                    "broker_mutation": consultation.broker_mutation,
+                }
+            )
 
     ledger = {
         "schema": "qore.cibo.single-account-reasoning-request-ledger.v1",
         "source_manifest_sha256": manifest["manifest_sha256"],
         "decision_count": len(rows),
+        "consultation_count": consultation_count,
+        "maximum_epoch_opportunity_count": (
+            maximum_epoch_opportunity_count
+        ),
         "trader_counts": dict(sorted(trader_counts.items())),
         "minimum_prompt_chars": min_prompt_chars or 0,
         "maximum_prompt_chars": max_prompt_chars,
@@ -305,6 +359,10 @@ def main() -> int:
             {
                 "ledger_sha256": ledger["ledger_sha256"],
                 "decision_count": ledger["decision_count"],
+                "consultation_count": ledger["consultation_count"],
+                "maximum_epoch_opportunity_count": ledger[
+                    "maximum_epoch_opportunity_count"
+                ],
                 "trader_counts": ledger["trader_counts"],
                 "minimum_prompt_chars": ledger["minimum_prompt_chars"],
                 "maximum_prompt_chars": ledger["maximum_prompt_chars"],
