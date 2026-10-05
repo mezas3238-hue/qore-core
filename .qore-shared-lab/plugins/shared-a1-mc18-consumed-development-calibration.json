@@ -1,0 +1,27 @@
+{
+  "task_id": "a1-mc18-consumed-development-calibration",
+  "suite": "CAUSALITY",
+  "scope": "mc18",
+  "dependencies": [
+    "a1-functional-causality"
+  ],
+  "command": [
+    "{python}",
+    "scripts/shared_a1_mc18_lab_calibration.py",
+    "--dataset-bundle",
+    "{dataset_path}",
+    "--output",
+    "result/a1-mc18-consumed-development-calibration.json"
+  ],
+  "component_globs": [
+    "scripts/shared_a1_mc18_lab_calibration.py",
+    "scripts/shared_mc18_counterfactual_failure_calibration.py",
+    "src/qore/infrastructure/core_stack_v2/counterfactual_world_calibration.py",
+    "src/qore/infrastructure/core_stack_v2/counterfactual_world_engine.py",
+    "docs/shared/evidence/QORE_SHARED_A1_MC18_SHARED_LAB_DATASET_CONTRACT_001.json",
+    "docs/shared/evidence/QORE_SHARED_MC18_COUNTERFACTUAL_FAILURE_CALIBRATION_PREREGISTRATION_001.json"
+  ],
+  "execution_origin": "TARGET",
+  "dataset_id": "shared-a1-mc18-r6-r5-consumed-v1",
+  "dataset_version": "1"
+}
