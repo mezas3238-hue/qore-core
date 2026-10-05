@@ -1,0 +1,41 @@
+{
+  "identity": "QORE_SHARED_A1_MC18_SHARED_LAB_DATASET_BUNDLE_RECEIPT_001",
+  "owner_lane": "SHARED_ARCHITECT_1",
+  "status": "BUNDLE_MATERIALIZED_CRYPTOGRAPHICALLY_VERIFIED_NOT_YET_REGISTERED_IN_NATIVE_LAB",
+  "observed_date": "2026-10-04",
+  "dataset": {
+    "dataset_id": "shared-a1-mc18-r6-r5-consumed-v1",
+    "dataset_version": "1",
+    "bundle_sha256": "44cf4252e1f830cb36d24f07857a3fd745479cc9583ec346c7e883d0e3b373ec",
+    "bundle_size_in_bytes": 65626914,
+    "manifest_sha256": "c12b40e12ffdb82509450d2b467a469aef560ab6175104033c05c98af5eed8d7"
+  },
+  "source_verification": {
+    "r6_artifact_id": 10389112524,
+    "r6_zip_sha256": "9b0f3a05dc76b5dd83e5e3610266484bee1b79595dbbaacdff1d799115ad58b9",
+    "r5_artifact_id": 10380044761,
+    "r5_zip_sha256": "828335b99cd51c663e3f0f095df5137e881da3d7e8da741da8ca116a0400edf8",
+    "embedded_market_evidence_hashes_recomputed_and_matched": "6_OF_6"
+  },
+  "builder": {
+    "path": "scripts/shared_a1_build_mc18_lab_bundle.py",
+    "contract": "QORE_SHARED_A1_MC18_SHARED_LAB_DATASET_CONTRACT_001"
+  },
+  "execution": {
+    "calibration_executed": false,
+    "shared_lab_dataset_registered": false,
+    "shared_lab_run_id": null,
+    "shared_lab_pass_claimed": false
+  },
+  "governance": {
+    "only_consumed_r6_r5_used": true,
+    "future_oos_opened": false,
+    "protected_final_holdout_opened": false,
+    "outcome_aware_tuning": false,
+    "live_used": false,
+    "vps_used": false,
+    "broker_mutation": false,
+    "productive_authority": false
+  },
+  "next_gate": "REGISTER_BUNDLE_SHA_44cf4252... IN_SHARED_LAB_DATASET_STORE_AND_EXECUTE_A1_MC18_TARGET_PLUGIN"
+}
