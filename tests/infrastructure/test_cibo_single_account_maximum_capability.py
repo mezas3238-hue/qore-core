@@ -112,7 +112,10 @@ def test_valid_run_reports_multiple_and_drawdown_fraction() -> None:
         portfolio_compound_reinvestment_count=800,
     )
 
-    assert evidence.capital_multiple == Decimal("50000") / Decimal("60")
-    assert evidence.maximum_drawdown_fraction_of_peak == Decimal("2000") / Decimal("52000")
+    assert evidence.capital_multiple * Decimal("60") == Decimal("50000")
+    assert (
+        evidence.maximum_drawdown_fraction_of_peak * Decimal("52000")
+        == Decimal("2000")
+    )
     assert evidence.geometric_growth_per_settled_operation is not None
     assert CIBO_MAXIMUM_CAPABILITY_INITIAL_CAPITAL_USD == Decimal("60")
