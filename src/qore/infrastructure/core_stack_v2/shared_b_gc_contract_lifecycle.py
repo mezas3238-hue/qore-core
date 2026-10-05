@@ -207,6 +207,9 @@ def build_gc_observed_contract_lifecycle(
                 "contract_year": contract_year,
                 "contract_month": contract_month,
                 "lifecycle_status": lifecycle_status,
+                "official_product_identity_verified": True,
+                "official_product_venue": "COMEX",
+                "observed_contract_venue_verified": True,
                 "expired_before_assessment_month_verified": expiry_proven,
                 "front_contract_verified": False,
                 "roll_semantics_verified": False,
@@ -257,6 +260,12 @@ def build_gc_observed_contract_lifecycle(
             timespec="microseconds"
         ),
         "dated_gc_contract_count": len(gc_rows),
+        "official_gc_product_identity_verified": True,
+        "official_gc_product_venue": "COMEX",
+        "observed_gc_contract_venue_verified_count": sum(
+            row["observed_contract_venue_verified"] is True
+            for row in gc_rows
+        ),
         "expired_before_assessment_month_count": expired_count,
         "delivery_month_exact_expiry_unresolved_count": (
             current_month_unresolved_count
