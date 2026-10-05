@@ -1,0 +1,76 @@
+name: QORE Shared Lab Data Reality
+
+on:
+  pull_request:
+    paths:
+      - "src/qore/infrastructure/core_stack_v2/shared_lab_golden_traces.py"
+      - "src/qore/infrastructure/core_stack_v2/shared_lab_data_reality.py"
+      - "src/qore/infrastructure/core_stack_v2/shared_lab_temporal_harness.py"
+      - "src/qore/infrastructure/core_stack_v2/shared_lab_sensor_harness.py"
+      - "src/qore/infrastructure/core_stack_v2/shared_lab_data_*.py"
+      - "src/qore/infrastructure/core_stack_v2/shared_lab_provider_*.py"
+      - "src/qore/infrastructure/core_stack_v2/shared_lab_identity_*.py"
+      - "src/qore/infrastructure/core_stack_v2/shared_lab_market_*.py"
+      - "src/qore/infrastructure/core_stack_v2/shared_lab_temporal_*.py"
+      - "src/qore/infrastructure/core_stack_v2/shared_lab_universe_*.py"
+      - "src/qore/infrastructure/core_stack_v2/shared_lab_data_resilience.py"
+      - "tests/infrastructure/test_core_stack_v2_shared_lab_*"
+      - ".github/workflows/qore-shared-lab-data-reality.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  data-reality:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: src
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install test dependencies
+        run: python -m pip install -e ".[dev]"
+      - name: Shared Lab Data Reality tests
+        run: >
+          python -m pytest -q
+          tests/infrastructure/test_core_stack_v2_shared_lab_golden_traces.py
+          tests/infrastructure/test_core_stack_v2_shared_lab_temporal_harness.py
+          tests/infrastructure/test_core_stack_v2_shared_lab_data_reality.py
+          tests/infrastructure/test_core_stack_v2_shared_lab_sensor_harness.py
+          tests/infrastructure/test_core_stack_v2_shared_lab_provider_harness.py
+          tests/infrastructure/test_core_stack_v2_shared_lab_identity_harness.py
+          tests/infrastructure/test_core_stack_v2_shared_lab_market_hours.py
+          tests/infrastructure/test_core_stack_v2_shared_lab_data_l10.py
+          tests/infrastructure/test_core_stack_v2_shared_lab_data_pipeline.py
+          tests/infrastructure/test_core_stack_v2_shared_lab_provider_scenarios.py
+          tests/infrastructure/test_core_stack_v2_shared_lab_identity_multiasset.py
+          tests/infrastructure/test_core_stack_v2_shared_lab_completeness_thresholds.py
+          tests/infrastructure/test_core_stack_v2_shared_lab_temporal_context.py
+          tests/infrastructure/test_core_stack_v2_shared_lab_data_assessment.py
+          tests/infrastructure/test_core_stack_v2_shared_lab_market_calendar.py
+          tests/infrastructure/test_core_stack_v2_shared_lab_data_exam.py
+          tests/infrastructure/test_core_stack_v2_shared_lab_data_provenance.py
+          tests/infrastructure/test_core_stack_v2_shared_lab_data_authority_firewall.py
+          tests/infrastructure/test_core_stack_v2_shared_lab_universe_completeness.py
+          tests/infrastructure/test_core_stack_v2_shared_lab_data_resilience.py
+          tests/infrastructure/test_core_stack_v2_shared_lab_data_tool_matrix.py
+      - name: Emit full Data Reality exam receipt
+        run: |
+          python -m qore.infrastructure.core_stack_v2.shared_lab_data_exam > shared-lab-data-reality-exam.json
+          python - <<'PY'
+          import json
+          p=json.load(open("shared-lab-data-reality-exam.json"))
+          assert p["passed"] is True
+          assert len(p["evidence"]) == 14
+          print(p["exam_fingerprint"])
+          PY
+      - name: Upload Data Reality exam receipt
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-shared-lab-data-reality-exam
+          path: shared-lab-data-reality-exam.json
+          if-no-files-found: error
