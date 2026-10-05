@@ -12,7 +12,6 @@ import json
 from pathlib import Path
 from typing import Any
 
-
 FAMILY_DISPOSITIONS: dict[str, dict[str, Any]] = {
     "FRESH_FORWARD_CAUSAL": {
         "status": "BLOCKED_EXTERNAL_FRESH_FORWARD_EVIDENCE",
