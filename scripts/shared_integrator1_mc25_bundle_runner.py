@@ -144,6 +144,16 @@ def main() -> None:
             archive.extractall(root)
         _validate_bundle(root)
 
+        lineage_source = (
+            root / "lineage" / "result"
+            / "mc25-wp04-v3b-lineage-integrity-stress.json"
+        )
+        lineage_output = (
+            args.output.parent / "mc25-wp04-v3b-lineage-integrity-stress.json"
+        )
+        lineage_output.parent.mkdir(parents=True, exist_ok=True)
+        lineage_output.write_bytes(lineage_source.read_bytes())
+
         command = [
             sys.executable,
             "scripts/shared_mc25_wp04_v3b_performance_stress.py",
