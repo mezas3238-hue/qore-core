@@ -11,6 +11,9 @@ from qore.infrastructure.cibo_capital_management_authority import (
 from qore.infrastructure.cibo_ce2i_phase20_forward_policy_store import (
     VersionedPhase20ForwardPolicyBook,
 )
+from qore.infrastructure.cibo_ce2i_phase20_policy_candidate import (
+    FROZEN_PHASE20_POLICY_CANDIDATE,
+)
 from qore.infrastructure.cibo_ce2i_phase20_qualification_readiness import (
     assess_phase20d_qualification_readiness,
 )
@@ -37,6 +40,15 @@ from qore.infrastructure.cibo_phase22_holdout_v2_source_receipt import (
 )
 from qore.infrastructure.cibo_phase22_provider_execution_calibration_receipt import (
     PHASE22_PROVIDER_EXECUTION_CALIBRATION_RECEIPT,
+)
+from qore.infrastructure.cibo_phase22_v4_historical_policy_replay import (
+    Phase22HistoricalCapitalInput as Phase22V4HistoricalCapitalInput,
+)
+from qore.infrastructure.cibo_phase22_v4_historical_replay_sealing import (
+    Phase22HistoricalReplayCandidateEvidence as Phase22V4ReplayCandidateEvidence,
+)
+from qore.infrastructure.cibo_phase22_v4_historical_replay_sealing import (
+    seal_phase22_historical_replay_epoch as seal_phase22_v4_historical_replay_epoch,
 )
 from qore.infrastructure.cibo_provider_economic_normalization import (
     ProviderEconomicObservation,
@@ -106,6 +118,23 @@ def _candidate() -> Phase22HistoricalReplayCandidateEvidence:
     )
 
 
+def _v4_candidate() -> Phase22V4ReplayCandidateEvidence:
+    base = _candidate()
+    capital = base.capital_input
+    return Phase22V4ReplayCandidateEvidence(
+        capital_input=Phase22V4HistoricalCapitalInput(
+            opportunity=capital.opportunity,
+            minimum_stop_risk_usd=capital.minimum_stop_risk_usd,
+            minimum_margin_usd=capital.minimum_margin_usd,
+            concentration_group=capital.concentration_group,
+            concentration_risk_usd=capital.concentration_risk_usd,
+            provider_model_sha256=capital.provider_model_sha256,
+        ),
+        provider_observation=base.provider_observation,
+        provider_evidence_id=base.provider_evidence_id,
+    )
+
+
 def _regime() -> CiboCapitalRegimeState:
     return CiboCapitalRegimeState(
         liquidity=LiquidityState.NORMAL,
@@ -150,6 +179,38 @@ def test_sealer_preserves_historical_market_clock_and_postfreeze_seal() -> None:
             if pair.policy_record.allocator_decision.allocation is None
             else pair.policy_record.allocator_decision.allocation.selected_signal_fingerprints
         )
+    )
+
+
+def test_v4_sealer_keeps_market_time_separate_from_prior_availability() -> None:
+    import json
+
+    pair = seal_phase22_v4_historical_replay_epoch(
+        decision_epoch_id="phase22-v4-clock-separation",
+        market_decision_at=MARKET_AT,
+        replay_sealed_at=SEALED_AT,
+        seal_deadline_at=SEALED_AT + timedelta(seconds=2),
+        account_identity=_account(),
+        candidates=(_v4_candidate(),),
+        regime_state=_regime(),
+        hard_risk_headroom_usd=Decimal("3.60"),
+        margin_headroom_usd=Decimal("60"),
+        concentration_limit_by_group=(("GBPUSD", Decimal("1.80")),),
+        current_step=0,
+        lab_allow_nonpositive_expectation=True,
+    )
+    payload = json.loads(pair.decision.canonical_payload_json)
+    candidate = payload["candidates"][0]["candidate"]
+
+    assert payload["market_decision_at"] == MARKET_AT.isoformat()
+    assert payload["policy_decision_at"] == SEALED_AT.isoformat()
+    assert payload["train_prior_available_at"] == (
+        FROZEN_PHASE20_POLICY_CANDIDATE.frozen_at.isoformat()
+    )
+    assert payload["time_semantics"]["train_prior_backdated_to_market_time"] is False
+    assert candidate["decision_as_of"] == SEALED_AT.isoformat()
+    assert candidate["expectation"]["as_of"] == (
+        FROZEN_PHASE20_POLICY_CANDIDATE.frozen_at.isoformat()
     )
 
 

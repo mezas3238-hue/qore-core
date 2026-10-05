@@ -197,6 +197,23 @@ _WORKSTREAM_CLASSIFIERS = (
         "*cibo_arch2_forward_qualification_reconciliation*",
         "FORWARD_QUALIFICATION",
     ),
+    (
+        "*cibo_function_io_actuation_report*",
+        "SOURCE_OF_TRUTH_RECONCILIATION",
+    ),
+    (
+        "*cibo_function_utilization_sensor*",
+        "SOURCE_OF_TRUTH_RECONCILIATION",
+    ),
+    (
+        "*cibo_functional_completeness_scoreboard*",
+        "SOURCE_OF_TRUTH_RECONCILIATION",
+    ),
+    (
+        "*cibo_t13_t15_functional_redundancy_probe*",
+        "SOURCE_OF_TRUTH_RECONCILIATION",
+    ),
+    ("*cibo_arch2_*", "SOURCE_OF_TRUTH_RECONCILIATION"),
     ("*CIBO-B-T16-POST-DECLARATION-MARKET-STRUCTURE*", "T16"),
     ("*cibo-t16-post-declaration-market-structure*", "T16"),
     ("*cibo_t16_ctrader_demo_post_declaration_probe*", "T16"),

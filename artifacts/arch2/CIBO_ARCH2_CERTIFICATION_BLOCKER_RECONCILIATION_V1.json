@@ -1,0 +1,158 @@
+{
+  "architect1_economic_interface_blockers": [],
+  "architect2_internal_blockers": [],
+  "certification_open_after_internal_closure": [
+    {
+      "blockers": [
+        "PHASE22_V4_EXECUTION_BUILD_AND_EXACT_HEAD_CI_REQUIRED",
+        "PHASE22_V4_EXPLICIT_OWNER_ONE_SHOT_AUTHORIZATION_REQUIRED",
+        "PHASE22_V4_FRESH_TERMINAL_EVIDENCE_REQUIRED",
+        "PHASE22_V3_SECOND_FRESH_EXECUTION_FORBIDDEN"
+      ],
+      "id": "FRESH_OOS",
+      "next_gate": "V4 source availability and exact ten-source corpus are sealed read-only with no Trader logic or outcome inspection. Freeze the V4 execution build, prove the VT31 source-ABI repair and all seven lanes pre-outcome, then require a new explicit Owner one-shot authorization before any V4 fresh Trader execution. V3 remains permanently non-rerunnable.",
+      "status": "OPEN"
+    },
+    {
+      "blockers": [
+        "PRE_EXAM_EXTERNAL_DEPENDENCIES_MUST_CLEAR",
+        "PHASE20D_PHASE21_PHASE22_AND_PROTECTED_HOLDOUT_CHAIN_REQUIRED",
+        "ACTUAL_18_RECEIPT_FINAL_INTEGRATED_EXAM_NOT_RUN"
+      ],
+      "id": "FINAL_INTEGRATED_CIBO_EXAM",
+      "next_gate": "After the real external prerequisites permit PRE_EXAM and exact Phase21/Phase22 certification, execute the actual 18-receipt Final Integrated Exam. Software-gate CI alone is not exam PASS.",
+      "status": "OPEN"
+    },
+    {
+      "blockers": [
+        "FINAL_INTEGRATED_CIBO_EXAM_MUST_PASS_FIRST",
+        "COMPETITION_PROVIDER_ADAPTER_REAL_EVIDENCE_REQUIRED",
+        "WORLD_CUP_DIGITAL_TWIN_REAL_EVIDENCE_REQUIRED",
+        "WORLD_CUP_CAUSAL_MC_STRESS_REPLICATION_RECEIPTS_REQUIRED",
+        "CERTIFICATION_BLOCKING_EXTERNAL_DEPENDENCIES_MUST_CLEAR",
+        "ACTUAL_WORLD_CUP_MAXIMUM_CAPABILITY_EXAM_NOT_RUN"
+      ],
+      "id": "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM",
+      "next_gate": "Software gate is proven. After the actual Final Integrated Exam passes and external dependencies clear, bind real competition-provider, Digital-Twin, causal attribution, path-MC, stress and temporal receipts and execute the actual World Cup exam.",
+      "status": "OPEN"
+    }
+  ],
+  "functional_groups": {
+    "GROUP_1": {
+      "exact_runtime_signature_collision_count": 0,
+      "functional_completeness": true,
+      "mandatory_gap_count": 0,
+      "mandatory_gaps": [],
+      "row_count": 60
+    },
+    "GROUP_2": {
+      "exact_runtime_signature_collision_count": 0,
+      "functional_completeness": true,
+      "mandatory_gap_count": 0,
+      "mandatory_gaps": [],
+      "row_count": 60
+    },
+    "GROUP_3": {
+      "exact_runtime_signature_collision_count": 0,
+      "functional_completeness": true,
+      "mandatory_gap_count": 0,
+      "mandatory_gaps": [],
+      "row_count": 60
+    }
+  },
+  "governance": {
+    "fresh_oos_opened": false,
+    "live": false,
+    "merge_performed": false,
+    "outcome_aware_tuning": false,
+    "production": false,
+    "real_capital": false,
+    "v3_second_fresh_execution": "FORBIDDEN__NOT_A_REPAIR_TARGET"
+  },
+  "master_ledger": {
+    "external_dependency_blocked_count": 40,
+    "external_dependency_blocked_ids": [
+      "T02",
+      "T04",
+      "T06",
+      "T07",
+      "T08",
+      "T09",
+      "T10",
+      "T11",
+      "T12",
+      "T13",
+      "T14",
+      "T15",
+      "T18",
+      "T20",
+      "GEN-C2",
+      "GEN-C3",
+      "GEN-C4",
+      "GEN-C5",
+      "GEN-C6",
+      "GEN-C7",
+      "GEN-C8",
+      "GEN-C9",
+      "GEN-C10",
+      "GEN-C11",
+      "GEN-C12",
+      "GEN-C13",
+      "GEN-C14",
+      "COMPOUND_ENGINE",
+      "COMPOUND_PORTFOLIO",
+      "INTERNAL_CAPITAL_MARKET",
+      "CAPITAL_GENERATIONS",
+      "PROTECTED_BASE_CAPITAL",
+      "PROFIT_PROTECTION",
+      "PATH_DEPENDENT_MONTE_CARLO",
+      "ADVERSARIAL_STRESS",
+      "TEMPORAL_REPLICATION",
+      "CAPITAL_AMPLIFICATION",
+      "USD60_CAPABILITY_PROGRAM",
+      "INTEGRATED_CAPITAL_TRUTH",
+      "AS_IS_ECONOMIC_BASELINE"
+    ],
+    "nonterminal_ids": [
+      "FRESH_OOS",
+      "FINAL_INTEGRATED_CIBO_EXAM",
+      "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM"
+    ],
+    "terminal_disposition_counts": {
+      "COMPLETED_AND_PROVEN": 16,
+      "EXTERNAL_DEPENDENCY_BLOCKED": 40,
+      "FALSIFIED_AND_CLOSED": 3,
+      "None": 3,
+      "SUPERSEDED_WITH_PROVEN_LINEAGE": 2
+    },
+    "workstream_count": 64
+  },
+  "phase22_causal_availability": {
+    "disposition": "MARKET_TIME_POLICY_TIME_SEPARATED",
+    "evidence_refs": [
+      "src/qore/infrastructure/cibo_phase22_v4_historical_policy_replay.py",
+      "src/qore/infrastructure/cibo_phase22_v4_historical_replay_sealing.py",
+      "tests/infrastructure/test_cibo_phase22_historical_policy_replay.py",
+      "tests/infrastructure/test_cibo_phase22_historical_replay_sealing.py"
+    ],
+    "market_clock_claim": "HISTORICAL_SOURCE_STATE_ONLY",
+    "policy_clock_claim": "POST_FREEZE_COUNTERFACTUAL_REPLAY",
+    "status": "RESOLVED_INTERNAL_ENGINEERING",
+    "train_prior_backdated_to_market_time": false
+  },
+  "phase22_v4_preexecution": {
+    "exact_head_ci_required_after_arch2_changes": true,
+    "fresh_oos_disposition": "DEFERRED_BY_OWNER_RULE__DO_NOT_OPEN_BEFORE_FUNCTIONAL_CLOSURE",
+    "fresh_outcomes_executed": false,
+    "live_authorized": false,
+    "manifest_preexecution_ready": true,
+    "merge_authorized": false,
+    "owner_authorization_present": false,
+    "production_authorized": false,
+    "productive_authority": false,
+    "real_capital_authorized": false,
+    "source_head_sha": "2f4908321255cf894003ef063c16e3eb834a88e8"
+  },
+  "schema": "qore.cibo.arch2-certification-blocker-reconciliation.v1",
+  "source_ledger_schema": "QORE_CIBO_MASTER_OPEN_WORK_LEDGER_V1"
+}

@@ -17,6 +17,9 @@ from qore.infrastructure.cibo_ce2i_full_surface import (
     AdvancedOpportunityEvidence,
     AdvancedPortfolioEvidence,
 )
+from qore.infrastructure.cibo_ce2i_phase20_policy_candidate import (
+    FROZEN_PHASE20_POLICY_CANDIDATE,
+)
 from qore.infrastructure.cibo_ce2i_phase20_robust_allocator import (
     Phase20AllocatorDisposition,
 )
@@ -257,6 +260,31 @@ def test_authorized_t03_changes_allocator_margin_before_allocation() -> None:
     )
     assert record.allocator_decision.allocation is not None
     assert record.allocator_decision.allocation.used_margin_usd == Decimal("0.10")
+
+
+def test_v4_counterfactual_replay_does_not_backdate_frozen_train_prior() -> None:
+    inputs = (
+        _v4_input(TraderLineage.R43_GBPUSD, _sha("clock-separation"), "GBPUSD"),
+    )
+    record = evaluate_phase22_v4_historical_policy(
+        market_decision_at=MARKET_AT,
+        replay_sealed_at=SEALED_AT,
+        account_identity=_account(),
+        inputs=inputs,
+        regime_state=_regime(1),
+        hard_risk_headroom_usd=Decimal("3.60"),
+        margin_headroom_usd=Decimal("60"),
+        concentration_limit_by_group=(("GBPUSD", Decimal("1.80")),),
+        current_step=0,
+        lab_allow_nonpositive_expectation=True,
+    )
+
+    candidate = record.advanced_economic_application.candidates[0]
+    assert MARKET_AT < FROZEN_PHASE20_POLICY_CANDIDATE.frozen_at < SEALED_AT
+    assert candidate.decision_as_of == SEALED_AT
+    assert candidate.expectation.as_of == FROZEN_PHASE20_POLICY_CANDIDATE.frozen_at
+    assert candidate.expectation.as_of > MARKET_AT
+    assert candidate.expectation.as_of <= candidate.decision_as_of
 
 
 def test_t03_shadow_measurement_cannot_change_allocator_economics() -> None:
