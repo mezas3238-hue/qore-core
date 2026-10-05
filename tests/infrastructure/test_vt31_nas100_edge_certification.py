@@ -202,3 +202,32 @@ def test_final_sharpe_sortino_gates_remain_unbound_until_convention_freeze() -> 
         report["risk_adjusted_metric_binding"]["sortino"]["status"]
         == "UNBOUND_FINAL_CERTIFICATION_CONVENTION"
     )
+
+
+def test_empty_sample_cannot_pass_profit_factor_gates() -> None:
+    report = build_edge_only_report([], monte_carlo_paths=100)
+
+    assert report["metrics"]["trade_count"] == 0
+    assert report["gates"]["combined_pf"] is False
+    assert report["gates"]["severe_cost_pf"] is False
+    assert report["passes_available_development_gates"] is False
+
+
+def test_positive_no_loss_sample_has_infinite_pf_semantics_without_capital() -> None:
+    report = build_edge_only_report(
+        [
+            {"trade_id": "a", "r_multiple": "1.5"},
+            {"trade_id": "b", "r_multiple": "0.8"},
+        ],
+        monte_carlo_paths=100,
+    )
+
+    assert report["metrics"]["profit_factor"] is None
+    assert report["gates"]["combined_pf"] is True
+    assert report["gates"]["severe_cost_pf"] is True
+    assert report["certification_basis"] == "entries-profits-edge-only"
+    assert report["equal_trade_weight"] is True
+    assert report["sizing_authority"] is False
+    assert report["leverage_authority"] is False
+    assert report["compounding_authority"] is False
+    assert report["portfolio_weighting_authority"] is False
