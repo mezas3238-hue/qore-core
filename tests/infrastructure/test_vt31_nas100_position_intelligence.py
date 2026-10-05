@@ -213,7 +213,7 @@ def test_full_cognition_extends_volume_agnostically_on_causal_deep_acceptance() 
     assert state.protection_urgency is ProtectionUrgency.LOW
     assert (
         state.target_intent
-        is UniversalTargetIntent.EXTEND_FULL_UNIT_TO_DOL2
+        is UniversalTargetIntent.EXTEND_TO_DOL2
     )
 
 
