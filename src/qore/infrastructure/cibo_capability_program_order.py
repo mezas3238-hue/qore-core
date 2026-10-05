@@ -32,6 +32,9 @@ from enum import IntEnum
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
+from qore.infrastructure.cibo_ceiling_discovery import (
+    CiboCeilingDiscoveryEvidence,
+)
 
 
 class CiboCapabilityProgramStage(IntEnum):
@@ -103,3 +106,22 @@ DEFAULT_CIBO_CAPABILITY_PROGRAM_PROGRESS = CiboCapabilityProgramProgress(
     current_stage=CiboCapabilityProgramStage.CEILING_DISCOVERY,
     closed_stages=(),
 )
+
+
+def enter_post_ceiling_refinement(
+    evidence: CiboCeilingDiscoveryEvidence,
+) -> CiboCapabilityProgramProgress:
+    """Close CEILING_DISCOVERY only with admissible intrinsic-ceiling evidence."""
+
+    if not isinstance(evidence, CiboCeilingDiscoveryEvidence):
+        raise CiboCapitalManagementError(
+            "post-ceiling refinement requires canonical ceiling evidence"
+        )
+    if not evidence.ceiling_discovery_ready_to_close:
+        raise CiboCapitalManagementError(
+            "CEILING_DISCOVERY cannot close before intrinsic ceiling is proven"
+        )
+    return CiboCapabilityProgramProgress(
+        current_stage=CiboCapabilityProgramStage.POST_CEILING_REFINEMENT,
+        closed_stages=(CiboCapabilityProgramStage.CEILING_DISCOVERY,),
+    )
