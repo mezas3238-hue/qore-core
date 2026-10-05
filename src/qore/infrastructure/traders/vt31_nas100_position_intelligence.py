@@ -123,7 +123,7 @@ def decide_market_native_position(
     current_stop: Decimal,
     primary_structural_target: Decimal,
     next_structural_target: Decimal | None,
-    cognition: "FullCognitivePositionState",
+    cognition: FullCognitivePositionState,
     protective_swing: StructuralProtectionCandidate | None,
     primary_target_reached: bool,
     primary_target_accepted: bool,
