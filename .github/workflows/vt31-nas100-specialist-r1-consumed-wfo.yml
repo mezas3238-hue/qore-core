@@ -7,7 +7,12 @@ on:
       - agent/vt31-edge-position-cert-b-001
     paths:
       - scripts/vt31_nas100_specialist_r1_candidate.py
-      - src/qore/infrastructure/traders/vt31_nas100_*.py
+      - src/qore/infrastructure/traders/vt31_nas100_reasoning_engine.py
+      - src/qore/infrastructure/traders/vt31_nas100_situation_model.py
+      - src/qore/infrastructure/traders/vt31_nas100_strategy_identity_memory.py
+      - src/qore/infrastructure/traders/vt31_nas100_trader_experience_memory.py
+      - src/qore/infrastructure/traders/vt31_nas100_market_context_runtime.py
+      - src/qore/infrastructure/traders/vt31_nas100_cibo_causal_structure.py
       - .github/workflows/vt31-nas100-specialist-r1-consumed-wfo.yml
   workflow_dispatch:
 
