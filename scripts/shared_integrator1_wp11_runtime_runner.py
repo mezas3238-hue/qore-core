@@ -36,11 +36,21 @@ def _load_rows(root: Path) -> list[dict[str, Any]]:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--result-dir", type=Path, default=Path("result"))
+    parser.add_argument(
+        "--result-dir",
+        type=Path,
+        action="append",
+        default=[],
+        help="Same-run evidence directory; may be repeated.",
+    )
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
 
-    rows = _load_rows(args.result_dir)
+    result_dirs = args.result_dir or [Path("result")]
+    rows: list[dict[str, Any]] = []
+    for result_dir in result_dirs:
+        if result_dir.exists():
+            rows.extend(_load_rows(result_dir))
     mc23 = [copy.deepcopy(row) for row in rows if row.get("identity") == MC23_ID]
     mc24 = [copy.deepcopy(row) for row in rows if row.get("identity") == MC24_ID]
     mc25 = [
@@ -79,7 +89,7 @@ def main() -> None:
     )
     payload["integrator_projection_only"] = True
     payload["scientific_evidence_created_by_runner"] = False
-    payload["runtime_evidence_dir"] = str(args.result_dir)
+    payload["runtime_evidence_dirs"] = [str(path) for path in result_dirs]
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
         json.dumps(payload, sort_keys=True, indent=2) + "\n",
