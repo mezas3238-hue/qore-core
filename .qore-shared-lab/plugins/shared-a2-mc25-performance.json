@@ -3,7 +3,7 @@
   "suite": "PERFORMANCE",
   "scope": "mc23",
   "dependencies": [
-    "a2-mc24-half-life-prepared"
+    "a2-mc23-candidate-002-scientific"
   ],
   "command": [
     "python",
