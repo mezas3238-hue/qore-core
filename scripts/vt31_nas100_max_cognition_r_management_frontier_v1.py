@@ -28,7 +28,7 @@ from qore.infrastructure.traders.vt31_nas100_position_intelligence import (
     ManagementContext,
     ProtectionUrgency,
     assess_full_cognitive_position,
-    validate_maximum_cognition_for_certification,
+    validate_full_cognitive_accounting_for_research,
 )
 
 SCHEMA = "qore.vt31.nas100.max_cognition_r_management_frontier.v1"
@@ -61,7 +61,7 @@ def _cognition(
         entry_tier="CORE",
         dol1_acceptance_observed=None,
     )
-    validate_maximum_cognition_for_certification(cognition)
+    validate_full_cognitive_accounting_for_research(cognition)
     return cognition
 
 
@@ -183,8 +183,17 @@ def replay(evidence_path: Path) -> dict[str, object]:
                     outcome["cognition_caution_score"] = (
                         cognition.caution_score
                     )
+                    outcome["full_cognitive_accounting_verified"] = (
+                        cognition.full_cognitive_accounting_verified
+                    )
                     outcome["maximum_cognition_verified"] = (
                         cognition.maximum_cognition_verified
+                    )
+                    outcome["reasoning_max_intelligence_ready"] = (
+                        cognition.reasoning_max_intelligence_ready
+                    )
+                    outcome["reasoning_max_intelligence_blockers"] = list(
+                        cognition.reasoning_max_intelligence_blockers
                     )
                     outcome["selected_be_threshold_r"] = (
                         None if threshold is None else format(threshold, "f")
@@ -211,11 +220,11 @@ def replay(evidence_path: Path) -> dict[str, object]:
                 f"{variant} changed sovereign admission population"
             )
         if any(
-            row.get("maximum_cognition_verified") is not True
+            row.get("full_cognitive_accounting_verified") is not True
             for row in rows
         ):
             raise AssertionError(
-                f"{variant} contains a partial-cognition terminal trade"
+                f"{variant} contains an incompletely-accounted cognition trade"
             )
 
         variants[variant] = {
@@ -251,7 +260,8 @@ def replay(evidence_path: Path) -> dict[str, object]:
         "market": "NAS100",
         "variants": variants,
         "governance": {
-            "maximum_cognition_required_for_every_trade": True,
+            "full_cognitive_accounting_required_for_every_trade": True,
+            "maximum_intelligence_required_for_candidate_freeze": True,
             "same_admission_population": True,
             "entry_changed": False,
             "initial_structural_invalidation_changed": False,
