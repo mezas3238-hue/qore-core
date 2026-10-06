@@ -21,6 +21,9 @@ from qore.infrastructure.traders.vt31_nas100_cibo_causal_structure import (
     pd_array_events,
     reference_sweep_events,
 )
+from qore.infrastructure.traders.vt31_nas100_cognitive_plumbing import (
+    recent_liquidity_event_count_10m,
+)
 from qore.infrastructure.traders.vt31_silver_bullet_r2_2 import (
     Vt31R22EntryEvidence,
     Vt31R22EntryFamily,
@@ -158,3 +161,33 @@ def test_pd_array_overlap_never_backdates_before_formation() -> None:
     assert len(observed) == 1
     assert observed[0].observed_at == formed_at
     assert observed[0].observed_at > bar.opened_at
+
+
+def test_recent_liquidity_count_uses_causal_trailing_window() -> None:
+    opened = datetime(2026, 1, 2, 15, 10, tzinfo=UTC)
+    bar = _bar(
+        suffix=3,
+        opened_at=opened,
+        open_price=109.5,
+        high=111.0,
+        low=108.0,
+        close=109.0,
+    )
+    source = _source(raid_at=opened)
+
+    assert (
+        recent_liquidity_event_count_10m(
+            (bar,),
+            source,
+            bar.closed_at,
+        )
+        == 1
+    )
+    assert (
+        recent_liquidity_event_count_10m(
+            (bar,),
+            source,
+            bar.closed_at + timedelta(minutes=11),
+        )
+        == 0
+    )
