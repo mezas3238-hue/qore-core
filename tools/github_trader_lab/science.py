@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import hashlib
+import os
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from decimal import Decimal
 from typing import Any
 
@@ -22,18 +24,59 @@ def pf(metrics: dict[str, Any]) -> Decimal:
     return Decimal("-Infinity")
 
 
+def _block_summaries(
+    values: tuple[Decimal, ...],
+    *,
+    block_length: int,
+) -> dict[int, tuple[tuple[Decimal, Decimal, Decimal, Decimal], ...]]:
+    """Precompute circular-block path statistics for O(blocks), not O(trades)."""
+
+    n = len(values)
+    takes = {block_length}
+    tail = n % block_length
+    if tail:
+        takes.add(tail)
+
+    summaries: dict[
+        int,
+        tuple[tuple[Decimal, Decimal, Decimal, Decimal], ...],
+    ] = {}
+    zero = Decimal(0)
+    for take in takes:
+        rows: list[tuple[Decimal, Decimal, Decimal, Decimal]] = []
+        for start in range(n):
+            equity = zero
+            peak = zero
+            minimum = zero
+            max_dd = zero
+            for offset in range(take):
+                equity += values[(start + offset) % n]
+                if equity > peak:
+                    peak = equity
+                if equity < minimum:
+                    minimum = equity
+                dd = peak - equity
+                if dd > max_dd:
+                    max_dd = dd
+            rows.append((equity, peak, minimum, max_dd))
+        summaries[take] = tuple(rows)
+    return summaries
+
+
 def fast_block_bootstrap(
-    values_raw: list[object],
+    values_raw: list[object] | tuple[object, ...],
     *,
     domain: str,
     paths: int,
     block_length: int = 5,
 ) -> dict[str, Any]:
-    values = [d(value) for value in values_raw]
+    """Deterministic circular-block bootstrap optimized for hot research."""
+
+    values = tuple(d(value) for value in values_raw)
     n = len(values)
     if n == 0:
         return {
-            "algorithm": "sha256-moving-block-bootstrap-v1-fast",
+            "algorithm": "sha256-moving-block-bootstrap-v2-block-summary",
             "paths": paths,
             "block_length": block_length,
             "positive_terminal_probability": "0",
@@ -41,44 +84,52 @@ def fast_block_bootstrap(
             "p50_terminal_r": "0",
             "p95_max_drawdown_r": "0",
         }
+    if block_length <= 0:
+        raise ValueError("block_length must be positive")
 
+    summaries = _block_summaries(values, block_length=block_length)
     prefix = domain.encode()
     terminals: list[Decimal] = []
     drawdowns: list[Decimal] = []
     zero = Decimal(0)
+    sha256 = hashlib.sha256
+    int_from_bytes = int.from_bytes
+    blocks_per_path = (n + block_length - 1) // block_length
+    tail = n % block_length
 
     for path_index in range(paths):
         equity = zero
         peak = zero
         max_dd = zero
-        consumed = 0
-        block_index = 0
-        while consumed < n:
-            digest = hashlib.sha256(
-                prefix
-                + b":"
-                + str(path_index).encode()
-                + b":"
-                + str(block_index).encode()
-            ).digest()
-            start = int.from_bytes(digest, "big") % n
-            remaining = min(block_length, n - consumed)
-            for offset in range(remaining):
-                equity += values[(start + offset) % n]
-                if equity > peak:
-                    peak = equity
-                dd = peak - equity
-                if dd > max_dd:
-                    max_dd = dd
-            consumed += remaining
-            block_index += 1
+        path_prefix = prefix + b":" + str(path_index).encode() + b":"
+        for block_index in range(blocks_per_path):
+            digest = sha256(path_prefix + str(block_index).encode()).digest()
+            start = int_from_bytes(digest, "big") % n
+            take = (
+                tail
+                if tail and block_index == blocks_per_path - 1
+                else block_length
+            )
+            total, local_peak, local_minimum, local_dd = summaries[take][start]
+
+            cross_dd = peak - (equity + local_minimum)
+            if cross_dd > max_dd:
+                max_dd = cross_dd
+            if local_dd > max_dd:
+                max_dd = local_dd
+
+            candidate_peak = equity + local_peak
+            if candidate_peak > peak:
+                peak = candidate_peak
+            equity += total
+
         terminals.append(equity)
         drawdowns.append(max_dd)
 
     terminals.sort()
     drawdowns.sort()
     return {
-        "algorithm": "sha256-moving-block-bootstrap-v1-fast",
+        "algorithm": "sha256-moving-block-bootstrap-v2-block-summary",
         "paths": paths,
         "block_length": block_length,
         "positive_terminal_probability": format(
@@ -98,6 +149,34 @@ def fast_block_bootstrap(
             "f",
         ),
     }
+
+
+def _bootstrap_worker(
+    args: tuple[tuple[object, ...], str, int, int],
+) -> dict[str, Any]:
+    values, domain, paths, block_length = args
+    return fast_block_bootstrap(
+        values,
+        domain=domain,
+        paths=paths,
+        block_length=block_length,
+    )
+
+
+def _existing_monte_carlo(
+    row: dict[str, Any],
+    *,
+    min_paths: int,
+) -> dict[str, Any] | None:
+    existing = row.get("monte_carlo")
+    if (
+        isinstance(existing, dict)
+        and int(existing.get("paths", 0)) >= min_paths
+        and existing.get("positive_terminal_probability") is not None
+        and existing.get("p95_max_drawdown_r") is not None
+    ):
+        return existing
+    return None
 
 
 def temporal_nondegrade(
@@ -122,37 +201,6 @@ def temporal_nondegrade(
             "nondegrade": ok,
         }
     return all_ok, details
-
-
-def ensure_monte_carlo(
-    *,
-    profile: dict[str, Any],
-    lane: str,
-    variant: str,
-    row: dict[str, Any],
-) -> dict[str, Any]:
-    existing = row.get("monte_carlo")
-    min_paths = int(profile["science"]["mc_paths_min"])
-    if (
-        isinstance(existing, dict)
-        and int(existing.get("paths", 0)) >= min_paths
-        and existing.get("positive_terminal_probability") is not None
-        and existing.get("p95_max_drawdown_r") is not None
-    ):
-        return existing
-    values = row.get("net_r_values")
-    if not isinstance(values, list):
-        raise ValueError(
-            f"{lane}/{variant}: normalized replay missing net_r_values"
-        )
-    return fast_block_bootstrap(
-        values,
-        domain=(
-            f"qore:github-trader-lab:{profile['profile_id']}:{lane}:{variant}"
-        ),
-        paths=min_paths,
-        block_length=int(profile["science"].get("mc_block_length", 5)),
-    )
 
 
 def evaluate(
@@ -186,14 +234,80 @@ def evaluate(
     require_temporal = bool(science.get("require_temporal_nondegrade", True))
 
     mc_cache: dict[tuple[str, str], dict[str, Any]] = {}
+    pending_by_series: dict[
+        tuple[str, tuple[str, ...]],
+        tuple[tuple[object, ...], str, int, int],
+    ] = {}
+    consumers: dict[
+        tuple[str, tuple[str, ...]],
+        list[tuple[str, str]],
+    ] = {}
+
+    block_length = int(science.get("mc_block_length", 5))
     for lane in lanes:
         for variant in variant_names:
-            mc_cache[(lane, variant)] = ensure_monte_carlo(
-                profile=profile,
-                lane=lane,
-                variant=variant,
-                row=payloads[lane]["variants"][variant],
+            row = payloads[lane]["variants"][variant]
+            existing = _existing_monte_carlo(
+                row,
+                min_paths=mc_paths_min,
             )
+            if existing is not None:
+                mc_cache[(lane, variant)] = existing
+                continue
+
+            values = row.get("net_r_values")
+            if not isinstance(values, list):
+                raise ValueError(
+                    f"{lane}/{variant}: normalized replay missing net_r_values"
+                )
+            canonical_values = tuple(str(value) for value in values)
+            series_key = (lane, canonical_values)
+            consumers.setdefault(series_key, []).append((lane, variant))
+            if series_key not in pending_by_series:
+                paired_domain = (
+                    f"qore:github-trader-lab:"
+                    f"{profile['profile_id']}:{lane}:"
+                    f"n={len(canonical_values)}:paired-v2"
+                )
+                pending_by_series[series_key] = (
+                    canonical_values,
+                    paired_domain,
+                    mc_paths_min,
+                    block_length,
+                )
+
+    if pending_by_series:
+        max_workers = min(
+            len(pending_by_series),
+            max(
+                1,
+                int(
+                    science.get(
+                        "mc_max_workers",
+                        min(4, os.cpu_count() or 1),
+                    )
+                ),
+            ),
+        )
+        computed: dict[
+            tuple[str, tuple[str, ...]],
+            dict[str, Any],
+        ] = {}
+        if max_workers == 1:
+            for key, args in pending_by_series.items():
+                computed[key] = _bootstrap_worker(args)
+        else:
+            with ProcessPoolExecutor(max_workers=max_workers) as pool:
+                futures = {
+                    pool.submit(_bootstrap_worker, args): key
+                    for key, args in pending_by_series.items()
+                }
+                for future in as_completed(futures):
+                    computed[futures[future]] = future.result()
+
+        for series_key, result in computed.items():
+            for consumer in consumers[series_key]:
+                mc_cache[consumer] = result
 
     variants: dict[str, Any] = {}
     for variant in variant_names:
@@ -318,7 +432,7 @@ def evaluate(
             "DENSITY_FLOOR",
             "WINNER_COUNT_AND_R_PRESERVATION",
             "TEMPORAL_BLOCK_STRESS",
-            "DETERMINISTIC_10000_PATH_BLOCK_BOOTSTRAP_MONTE_CARLO",
+            "DETERMINISTIC_10000_PATH_BLOCK_BOOTSTRAP_MONTE_CARLO_V2_FAST",
             "CROSS_LANE_PF_FLOOR",
             "OBSERVED_DD_HARD_GATE",
             "PRIMARY_LANE_DIRECTION_GATES",
