@@ -1,3 +1,8 @@
+> [!IMPORTANT]
+> **CURRENT SOVEREIGN TRADER CERTIFICATION STANDARD — 2026-10-06**
+> All VT-01..VT-31 certification decisions MUST use `docs/architecture/QORE-TRADER-SOVEREIGN-CERTIFICATION-STANDARD-002.md` and the corresponding `docs/research/trader-walls/VT-XX-CERTIFICATION-WALL.md`.
+> Core law: **EDGE PURO + MAXIMUM INTELLIGENCE + observed max DD <= 6R**. **R is allowed; sizing/capital engineering to obtain, improve or rescue certification is forbidden.** Any conflicting older certification threshold in this document is superseded for Trader certification.
+
 # QORE-TRADER-FAMILY-MODEL-001 — First DEMO Trader Cohort Deterministic Family
 
 Status: **ENGINEERING FAMILY MODEL** (deterministic contracts for the five first-cohort Traders).
