@@ -63,6 +63,8 @@ from qore.infrastructure.cibo_full_economic_digital_twin import (
 )
 from qore.infrastructure.cibo_maximum_capability_frontier import (
     POLICY_ID as MAX_FRONTIER_POLICY_ID,
+)
+from qore.infrastructure.cibo_maximum_capability_frontier import (
     cognitive_multiplier_cap as maximum_frontier_cognitive_cap,
 )
 from qore.infrastructure.cibo_multi_period_capital_mpc import (
