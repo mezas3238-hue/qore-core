@@ -468,6 +468,7 @@ def _attention(
     )
     walk_forward_provisional = False
     walk_forward_maturity_fraction: Decimal | None = None
+    walk_forward_consensus_pct = 100
     if walk_forward_forecast:
         maturity = target_economics.get("walk_forward_maturity")
         mature = target_economics.get(
@@ -529,6 +530,15 @@ def _attention(
             raise CiboCapitalManagementError(
                 "native cognitive CF07 walk-forward confidence malformed"
             )
+        walk_forward_consensus_pct = positive_blocks * 20
+        if positive_blocks < 5:
+            add(
+                AttentionSignalKind.CONTRADICTION,
+                100 - walk_forward_consensus_pct,
+                "walk-forward-block-disagreement",
+                "causal-forecast-consensus",
+            )
+
         walk_forward_provisional = mature != "true"
         if walk_forward_provisional:
             add(
@@ -688,12 +698,33 @@ def _attention(
         epistemic_confidence_pct = int(
             walk_forward_maturity_fraction * Decimal(100)
         )
+
+    # Convert already-observed causal warning severity into bounded confidence.
+    # This is deliberately monotone and outcome-free: a stronger provider,
+    # correlation, volatility, path or forecast-consensus warning can only
+    # reduce capital confidence; it can never manufacture confidence.
+    attention_pressure = 0
+    if regime.provider_condition is ProviderCondition.UNAVAILABLE:
+        attention_pressure = max(attention_pressure, 100)
+    elif regime.provider_condition is ProviderCondition.DEGRADED:
+        attention_pressure = max(attention_pressure, 70)
+    if regime.correlation is CorrelationState.BREAK:
+        attention_pressure = max(attention_pressure, 90)
+    elif regime.correlation is not CorrelationState.NORMAL:
+        attention_pressure = max(attention_pressure, 65)
+    if regime.volatility is VolatilityState.DISLOCATED:
+        attention_pressure = max(attention_pressure, 95)
+    if regime.position_path_adverse:
+        attention_pressure = max(attention_pressure, 85)
+
     confidence_band = max(
         0,
         min(
             100,
             100 - utilization_pct,
             epistemic_confidence_pct,
+            walk_forward_consensus_pct,
+            100 - attention_pressure,
         ),
     )
     return (
