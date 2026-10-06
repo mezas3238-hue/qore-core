@@ -89,7 +89,6 @@ def _fmt(value: Decimal | None) -> str | None:
     return None if value is None else format(value, "f")
 
 
-
 def validate_pure_edge_runtime_governance(
     governance: Mapping[str, object],
 ) -> dict[str, object]:
@@ -464,7 +463,11 @@ def build_edge_only_report(
     runtime_governance: Mapping[str, object] | None = None,
 ) -> dict[str, object]:
     runtime_purity = (
-        {"verified": False, "violations": ["runtime_governance_missing"], "r_runtime_execution_forbidden": True}
+        {
+            "verified": False,
+            "violations": ["runtime_governance_missing"],
+            "r_runtime_execution_forbidden": True,
+        }
         if runtime_governance is None
         else validate_pure_edge_runtime_governance(runtime_governance)
     )
