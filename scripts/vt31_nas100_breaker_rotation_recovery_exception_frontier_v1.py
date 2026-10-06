@@ -159,11 +159,30 @@ def _residual_entry_quality_forensics(
     for row in rows:
         context = cast(dict[str, object], row.get("entry_context", {}))
         net_r = _d(row["r_multiple"]) - specialist.FRICTION
+        first_material_adverse = next(
+            (
+                event
+                for event in cast(
+                    list[dict[str, object]],
+                    row.get("cognitive_exit_evaluations", []),
+                )
+                if event.get("current_open_r") is not None
+                and _d(event["current_open_r"])
+                <= adverse.MATERIAL_ADVERSE_R
+            ),
+            None,
+        )
+        rapid_invalidation = (
+            str(row.get("exit_reason")) == "structural-invalidation"
+            and first_material_adverse is None
+            and net_r < 0
+        )
         samples.append(
             {
                 "net_r": net_r,
                 "winner": net_r > 0,
                 "loser": net_r < 0,
+                "rapid_invalidation": rapid_invalidation,
                 "entry_family": str(row["entry_family"]),
                 "side": str(row["side"]),
                 "prior_day_state": str(
@@ -172,6 +191,7 @@ def _residual_entry_quality_forensics(
                 "reference_volatility_state": str(
                     context.get("reference_volatility_state", "NA")
                 ),
+                "h4_state": str(context.get("h4_state", "NA")),
                 "h1_state": str(context.get("h1_state", "NA")),
                 "m15_state": str(context.get("m15_state", "NA")),
                 "premarket_state": str(
@@ -182,6 +202,9 @@ def _residual_entry_quality_forensics(
                 ),
                 "position_in_prior_day_range": str(
                     context.get("position_in_prior_day_range", "NA")
+                ),
+                "entry_freshness_state": adverse._entry_freshness_state(
+                    context.get("entry_evidence_age_minutes")
                 ),
                 "reclaim_sequence_state": adverse._reclaim_sequence_state(
                     context.get("reference_reclaim_age_minutes")
@@ -239,6 +262,51 @@ def _residual_entry_quality_forensics(
             "reclaim_sequence_state",
             "confirmation_latency_state",
         ),
+        (
+            "entry_family",
+            "side",
+            "entry_freshness_state",
+            "confirmation_latency_state",
+        ),
+        (
+            "entry_family",
+            "side",
+            "reclaim_sequence_state",
+            "confirmation_latency_state",
+        ),
+        (
+            "entry_family",
+            "side",
+            "h4_state",
+            "h1_state",
+            "m15_state",
+        ),
+        (
+            "entry_family",
+            "side",
+            "premarket_state",
+            "cash_open_state",
+        ),
+        (
+            "entry_family",
+            "side",
+            "prior_day_state",
+            "reference_volatility_state",
+            "reclaim_sequence_state",
+            "confirmation_latency_state",
+        ),
+        (
+            "side",
+            "h1_state",
+            "m15_state",
+            "reclaim_sequence_state",
+        ),
+        (
+            "side",
+            "premarket_state",
+            "cash_open_state",
+            "confirmation_latency_state",
+        ),
     )
 
     grouped: dict[str, dict[str, object]] = {}
@@ -252,6 +320,9 @@ def _residual_entry_quality_forensics(
                 "sample": len(items),
                 "wins": sum(bool(item["winner"]) for item in items),
                 "losses": sum(bool(item["loser"]) for item in items),
+                "rapid_invalidations": sum(
+                    bool(item["rapid_invalidation"]) for item in items
+                ),
                 "mean_net_r": format(
                     sum(
                         (
@@ -566,6 +637,8 @@ def replay(evidence_path: Path) -> dict[str, object]:
             "reclaim_fresh_bucket_preexisting": True,
             "residual_entry_quality_forensics_observation_only": True,
             "residual_entry_quality_forensics_action_authority": False,
+            "residual_entry_quality_expanded_observation_only": True,
+            "residual_entry_quality_expanded_action_authority": False,
             "first_material_adverse_forensics_observation_only": True,
             "first_material_adverse_forensics_action_authority": False,
             "fvg_fresh_fast_candidate_predeclared": True,
