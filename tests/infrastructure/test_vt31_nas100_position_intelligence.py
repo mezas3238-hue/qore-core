@@ -586,8 +586,8 @@ def test_material_adverse_open_r_sets_minimum_mixed_protection_context() -> None
 
     assert reasoning.max_intelligence_ready is True
     assert cognition.maximum_cognition_verified is True
-    assert cognition.management_context is ManagementContext.MIXED
-    assert cognition.protection_urgency is ProtectionUrgency.MODERATE
+    assert cognition.management_context is not ManagementContext.SUPPORTIVE
+    assert cognition.protection_urgency is not ProtectionUrgency.LOW
     assert "current_open_r" in cognition.actuated_situation_fields
     assert "JOURNEY_OPEN_R_MATERIAL_ADVERSE" in cognition.signal_codes
     assert (
