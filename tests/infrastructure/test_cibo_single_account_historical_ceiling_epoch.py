@@ -192,3 +192,10 @@ def test_provider_assumption_is_explicit_and_not_observed_history(
     assert snapshot.provider_budget.max_risk_at_any_time == Decimal("15.00")
     assert snapshot.free_margin == Decimal("1200")
     assert snapshot.qore_authorizable_headroom == Decimal("15.00")
+    assert seen["twin"].capital_twin.total_stop_risk_capacity_usd == Decimal(
+        "15.00"
+    )
+    assert seen["twin"].capital_twin.stop_risk_headroom_usd == Decimal(
+        "15.00"
+    )
+    assert seen["capital"].hard_risk_headroom_usd == Decimal("15.00")
