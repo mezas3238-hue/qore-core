@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
-from decimal import Decimal
+from decimal import Decimal, localcontext
 
 import pytest
 
@@ -586,3 +586,81 @@ def test_position_competition_preserves_unidentified_position_value() -> None:
     assert plan.admit_opportunity is False
     assert plan.released_stop_risk_usd == Decimal("0")
     assert plan.position_lines[0].proposed_action == "KEEP"
+
+
+
+def test_full_twin_preserves_exact_long_decimal_open_exposure_sum() -> None:
+    first = Decimal("1.2345678901234567890123456789")
+    second = Decimal("0.00000000000000000000000000005")
+    with localcontext() as context:
+        context.prec = 100
+        total = first + second
+        risk_headroom = Decimal("10") - total
+        margin_headroom = Decimal("100") - total
+
+    capital = replace(
+        _capital_twin(),
+        used_stop_risk_usd=total,
+        stop_risk_headroom_usd=risk_headroom,
+        used_margin_usd=total,
+        margin_headroom_usd=margin_headroom,
+    )
+    positions = (
+        CiboObservedPositionState(
+            signal_fingerprint="p-exact-1",
+            qore_symbol="EURUSD",
+            side="long",
+            entry_at=T0 - timedelta(minutes=10),
+            observed_at=T0,
+            current_volume=Decimal("1"),
+            current_stop_risk_usd=first,
+            current_margin_usd=first,
+            released_stop_risk_usd=Decimal("0"),
+            released_margin_usd=Decimal("0"),
+            remaining_reward_r=Decimal("1"),
+            provider_cost_usd=Decimal("0"),
+        ),
+        CiboObservedPositionState(
+            signal_fingerprint="p-exact-2",
+            qore_symbol="GBPUSD",
+            side="long",
+            entry_at=T0 - timedelta(minutes=5),
+            observed_at=T0,
+            current_volume=Decimal("1"),
+            current_stop_risk_usd=second,
+            current_margin_usd=second,
+            released_stop_risk_usd=Decimal("0"),
+            released_margin_usd=Decimal("0"),
+            remaining_reward_r=Decimal("1"),
+            provider_cost_usd=Decimal("0"),
+        ),
+    )
+
+    twin = CiboObservedEconomicTwin(
+        twin_id="exact-open-exposure",
+        captured_at=T0,
+        capital_twin=capital,
+        positions=positions,
+        opportunities=(),
+        portfolio=CiboObservedPortfolioState(
+            observed_at=T0,
+            active_position_ids=("p-exact-1", "p-exact-2"),
+            opportunity_ids=(),
+            concentration_utilization=Decimal("0"),
+            correlation_utilization=Decimal("0"),
+            reserved_stop_risk_usd=Decimal("0"),
+            reserved_margin_usd=Decimal("0"),
+        ),
+        velocity=CiboCapitalVelocityState(
+            observed_at=T0,
+            released_stop_risk_usd=Decimal("0"),
+            released_margin_usd=Decimal("0"),
+            waiting_stop_risk_usd=Decimal("0"),
+            waiting_margin_usd=Decimal("0"),
+            oldest_release_age_minutes=Decimal("0"),
+            idle_classification=CiboIdleCapitalClass.SAFE_RESERVE,
+        ),
+    )
+
+    assert twin.capital_twin.used_stop_risk_usd == total
+    assert twin.capital_twin.used_margin_usd == total
