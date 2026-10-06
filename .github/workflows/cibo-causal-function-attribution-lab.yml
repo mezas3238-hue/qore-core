@@ -20,6 +20,10 @@ permissions:
   contents: read
   actions: read
 
+concurrency:
+  group: qore-cibo-causal-function-attribution-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   PYTHONPATH: ${{ github.workspace }}
   FROZEN_ARTIFACT_ID: '11389331836'
