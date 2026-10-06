@@ -539,6 +539,53 @@ def _build_capital_science_state(
         raise CiboCapitalManagementError(
             "Capital Science target option identity drift"
         )
+
+    current_provider_cost_usd = Decimal(0)
+    current_expected_net_value_usd = target.expected_net_value_usd
+    if sizing.plan.volume > 0:
+        base_volume = minimum_seed_volume(opportunity)
+        if target.stop_risk_usd <= 0 or base_volume <= 0:
+            raise CiboCapitalManagementError(
+                "Capital Science target base geometry must be positive"
+            )
+        volume_scale = sizing.plan.volume / base_volume
+        risk_scale = sizing.plan.stop_risk_usd / target.stop_risk_usd
+        if volume_scale != risk_scale:
+            raise CiboCapitalManagementError(
+                "Capital Science sizing volume/risk geometry drift"
+            )
+        current_provider_cost_usd = target.provider_cost_usd * volume_scale
+        current_expected_net_value_usd = (
+            target.expected_net_value_usd * risk_scale
+        )
+        matches = tuple(item for item in known if item.option_id == option_id)
+        if len(matches) != 1:
+            raise CiboCapitalManagementError(
+                "Capital Science current option must exist exactly once"
+            )
+        known = tuple(
+            replace(
+                item,
+                requested_capital_usd=(
+                    sizing.plan.stop_risk_usd + current_provider_cost_usd
+                ),
+                stop_risk_usd=sizing.plan.stop_risk_usd,
+                margin_usd=sizing.plan.margin_usd,
+                expected_net_value_usd=current_expected_net_value_usd,
+                expected_capital_minutes=target.expected_capital_minutes,
+            )
+            if item.option_id == option_id
+            else item
+            for item in known
+        )
+    elif (
+        sizing.plan.stop_risk_usd != 0
+        or sizing.plan.margin_usd != 0
+    ):
+        raise CiboCapitalManagementError(
+            "Capital Science zero-volume sizing geometry drift"
+        )
+
     source = (
         sizing.plan.capital_source.value
         if sizing.plan.capital_source is not None
@@ -565,8 +612,8 @@ def _build_capital_science_state(
         open_margin_usd=twin.capital_twin.used_margin_usd,
         requested_stop_risk_usd=sizing.plan.stop_risk_usd,
         requested_margin_usd=sizing.plan.margin_usd,
-        provider_cost_usd=target.provider_cost_usd,
-        expected_net_value_usd=target.expected_net_value_usd,
+        provider_cost_usd=current_provider_cost_usd,
+        expected_net_value_usd=current_expected_net_value_usd,
         expected_capital_minutes=target.expected_capital_minutes,
         hard_risk_headroom_usd=twin.capital_twin.stop_risk_headroom_usd,
         margin_headroom_usd=twin.capital_twin.margin_headroom_usd,

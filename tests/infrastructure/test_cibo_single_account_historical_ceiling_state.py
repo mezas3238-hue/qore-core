@@ -106,6 +106,14 @@ def test_historical_projection_exposes_continuous_compound_capital() -> None:
     ].available == Decimal("20")
     assert epoch.twin.opportunities[0].option_id == "alpha"
     assert epoch.capital_twin.known_options[0].option_id == "alpha"
+    assert (
+        epoch.twin.opportunities[0].requested_capital_usd
+        == Decimal("0.101")
+    )
+    assert (
+        epoch.capital_twin.known_options[0].requested_capital_usd
+        == Decimal("0.101")
+    )
     assert epoch.twin.future_outcome_used is False
     assert epoch.capital_twin.future_leakage_used is False
 
