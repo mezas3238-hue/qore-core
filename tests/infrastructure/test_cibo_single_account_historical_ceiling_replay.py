@@ -43,6 +43,9 @@ def _row(
     exit_at: datetime,
     gross_r: str,
 ) -> dict[str, object]:
+    # R34's frozen Turtle lane transports net_010_r. Keep callers expressed
+    # in structural R and encode the synthetic row with the same source law.
+    encoded_outcome_r = Decimal(gross_r) - Decimal("0.10")
     return {
         "decision_epoch_id": epoch,
         "market_decision_at": decision_at.isoformat(),
@@ -123,7 +126,7 @@ def _row(
         "settlement_outcome_research_only": {
             "entry_at": (decision_at + timedelta(seconds=1)).isoformat(),
             "exit_at": exit_at.isoformat(),
-            "gross_structural_outcome_r": gross_r,
+            "gross_structural_outcome_r": format(encoded_outcome_r, "f"),
             "exit_reason": "RESEARCH",
             "not_available_to_predecision": True,
             "used_for_decision": False,
