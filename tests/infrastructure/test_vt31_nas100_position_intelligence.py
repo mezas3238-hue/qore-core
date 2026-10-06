@@ -16,10 +16,10 @@ from qore.infrastructure.traders.vt31_nas100_position_intelligence import (
     UniversalTargetIntent,
     assess_full_cognitive_position,
     decide_market_native_position,
-    validate_full_cognitive_accounting_for_research,
-    validate_maximum_cognition_for_certification,
     decide_structural_protection,
     structurally_rearmed,
+    validate_full_cognitive_accounting_for_research,
+    validate_maximum_cognition_for_certification,
 )
 from qore.infrastructure.traders.vt31_nas100_reasoning_engine import reason
 from qore.infrastructure.traders.vt31_nas100_situation_model import (
