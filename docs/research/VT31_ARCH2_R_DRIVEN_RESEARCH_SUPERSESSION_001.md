@@ -1,50 +1,83 @@
-# VT31 NAS100 — Architect B R-Driven Research Supersession 001
+# VT31 NAS100 — R-Driven Research Eligibility Correction 001
 
-**Status:** SUPERSEDED BY OWNER CORRECTION  
 **Owner:** Sergio Meza  
-**Rule authority:** `VT31_NAS100_SOVEREIGN_PURE_EDGE_CERTIFICATION_RULE_001.md`
+**Status:** CORRECTED / R ELIGIBLE / SIZING FOR CERTIFICATION FORBIDDEN  
+**Authority:** `VT31_NAS100_SOVEREIGN_PURE_EDGE_CERTIFICATION_RULE_001.md`
 
 ## Correction
 
-The prior interpretation in this document was too restrictive.
+The previous interpretation that R-driven runtime management was categorically
+non-certifiable is superseded.
 
-R-based runtime logic is **not prohibited**.
+Canonical rule:
 
-The sovereign prohibition applies to sizing/capital engineering used to obtain,
-improve, or rescue trader certification.
+> **R IS NOT FORBIDDEN. SIZING TO OBTAIN CERTIFICATION IS FORBIDDEN.**
 
-Therefore these mechanisms are again eligible for causal research and possible
-promotion:
+VT31 may use R inside its own trading logic when the rule is causal and improves
+edge.
 
-- `3R -> breakeven`;
-- R-based targets;
-- R-based stop movement;
+Eligible research includes:
+
+- R-based entry geometry;
+- stop movement at R milestones;
+- breakeven at +1R, +2R, +3R or other levels;
 - R-based trailing;
-- R-based partial exits;
-- MFE/MAE rules expressed in R;
-- combinations of R and market structure;
-- cognition-controlled R management.
+- partial exits by R;
+- fixed/adaptive R targets;
+- target extensions expressed in R;
+- MFE/MAE logic expressed in R;
+- combinations of R + structure + liquidity + cognition.
 
-They must be accepted or rejected by evidence, robustness, and winner
-preservation — not by the fact that they use R.
+No mechanism is rejected merely because it contains R.
 
 ## What remains prohibited
 
-- sizing;
-- dynamic position sizing;
-- risk-based lot reduction;
-- loss-compensating lot increases;
-- leverage/compounding used to improve certification metrics;
+Certification may not be rescued by changing economic exposure.
+
+Forbidden:
+
+- dynamic sizing;
+- reducing volume because a stop is wide;
+- increasing volume to compensate losses;
+- leverage as a certification improver;
+- compounding as a certification improver;
 - CIBO capital rescue;
 - risk budgeting;
 - portfolio allocation;
-- capital weighting;
-- any rule that changes trade amount to manufacture certification.
+- R-driven volume changes.
 
-## Provenance
+The certification harness must use neutral/equal trade weighting and ignore
+capital-engineering fields.
 
-Pure-market experiments already run remain valid comparative research. They are
-not erased. They simply no longer have authority to disqualify an R-based rule
-solely because it is R-based.
+## Prior R studies
 
-No fresh holdout, merge, LIVE, real-capital, or production authority is granted.
+Previously burned R studies remain valid evidence of their tested economics.
+
+Their adjudication must be interpreted as:
+
+- rejected when they damaged PF, expectancy, DD, temporal robustness or winner
+  preservation;
+- supported when they improved those metrics causally;
+- **never rejected solely because they used R**.
+
+This specifically restores `3R -> breakeven` as an eligible research
+mechanism. It is not automatically promoted; it must win on evidence.
+
+## Existing 3R comparison
+
+Consumed workflow evidence comparing legacy `3R -> BE` with pure structural
+exit showed mixed fold behavior.
+
+Therefore neither policy is globally authoritative yet. The correct next test
+is a predeclared R-management frontier on the **current sovereign admission
+population**, with identical fixed/neutral certification exposure and no sizing.
+
+## Governance
+
+- R runtime strategy: ALLOWED;
+- R used to change volume: FORBIDDEN;
+- sizing for certification: FORBIDDEN;
+- leverage/compound/capital weighting for certification: FORBIDDEN;
+- fresh holdout: SEALED;
+- merge: NOT AUTHORIZED;
+- LIVE / real capital / production: NOT AUTHORIZED.
