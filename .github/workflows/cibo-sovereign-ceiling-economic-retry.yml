@@ -13,6 +13,7 @@ on:
       - 'src/qore/infrastructure/cibo_capital_management_authority.py'
       - 'src/qore/infrastructure/cibo_cma_risk_request.py'
       - 'src/qore/infrastructure/cibo_capital_digital_twin.py'
+      - 'src/qore/infrastructure/cibo_full_economic_digital_twin.py'
       - 'src/qore/infrastructure/cibo_single_account_historical_capital_ledger.py'
       - 'src/qore/infrastructure/cibo_single_account_historical_ceiling_state.py'
       - 'src/qore/infrastructure/cibo_single_account_historical_ceiling_epoch.py'
@@ -30,6 +31,7 @@ on:
       - 'tests/infrastructure/test_cibo_account_sizing_authority.py'
       - 'tests/infrastructure/test_cibo_cma_risk_request.py'
       - 'tests/infrastructure/test_cibo_capital_digital_twin.py'
+      - 'tests/infrastructure/test_cibo_full_economic_digital_twin.py'
 
 permissions:
   contents: read
@@ -67,6 +69,7 @@ jobs:
             src/qore/infrastructure/cibo_capital_management_authority.py \
             src/qore/infrastructure/cibo_cma_risk_request.py \
             src/qore/infrastructure/cibo_capital_digital_twin.py \
+            src/qore/infrastructure/cibo_full_economic_digital_twin.py \
             src/qore/infrastructure/cibo_single_account_historical_capital_ledger.py \
             src/qore/infrastructure/cibo_single_account_historical_ceiling_state.py \
             src/qore/infrastructure/cibo_single_account_historical_ceiling_epoch.py \
@@ -95,7 +98,8 @@ jobs:
             tests/infrastructure/test_cibo_sovereign_capital_runtime_contract.py \
             tests/infrastructure/test_cibo_account_sizing_authority.py \
             tests/infrastructure/test_cibo_cma_risk_request.py \
-            tests/infrastructure/test_cibo_capital_digital_twin.py
+            tests/infrastructure/test_cibo_capital_digital_twin.py \
+            tests/infrastructure/test_cibo_full_economic_digital_twin.py
           pytest -q --no-cov \
             tests/infrastructure/test_account_wide_risk.py \
             tests/infrastructure/test_cibo_single_account_historical_capital_ledger.py \
@@ -107,7 +111,8 @@ jobs:
             tests/infrastructure/test_cibo_sovereign_capital_runtime_contract.py \
             tests/infrastructure/test_cibo_account_sizing_authority.py \
             tests/infrastructure/test_cibo_cma_risk_request.py \
-            tests/infrastructure/test_cibo_capital_digital_twin.py
+            tests/infrastructure/test_cibo_capital_digital_twin.py \
+            tests/infrastructure/test_cibo_full_economic_digital_twin.py
 
       - name: Recover frozen Native MAX input from run 124
         env:
