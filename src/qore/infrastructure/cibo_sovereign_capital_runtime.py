@@ -208,10 +208,7 @@ def bind_cibo_cognition_to_twin(
 
     # Cognition does not pick volume. It can only close the capital-intensity
     # gate. A positive RECOMMEND leaves the existing economic cap untouched.
-    if (
-        ablation_mode is not CiboCeilingAblationMode.COGNITION
-        and synthesis.directive is not CiboExecutiveDirectiveKind.RECOMMEND
-    ):
+    if synthesis.directive is not CiboExecutiveDirectiveKind.RECOMMEND:
         constraints["capital_intensity_cap"] = "0"
 
     return replace(
@@ -431,7 +428,10 @@ def run_cibo_sovereign_capital_runtime(
             "sovereign position/opportunity competition was not evaluated"
         )
 
-    if synthesis.directive is not CiboExecutiveDirectiveKind.RECOMMEND:
+    if (
+        ablation_mode is not CiboCeilingAblationMode.COGNITION
+        and synthesis.directive is not CiboExecutiveDirectiveKind.RECOMMEND
+    ):
         final_plan = _hold_plan(
             opportunity=opportunity,
             sizing=sizing,
