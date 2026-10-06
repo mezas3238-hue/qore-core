@@ -365,25 +365,32 @@ def _maximum_constrained_plan(
         raise CiboCapitalManagementError(
             "provider cost per volume must be finite non-negative Decimal"
         )
-    total_loss_per_volume = (
-        opportunity.stop_loss_per_volume + provider_cost_per_volume_usd
-    )
-    by_risk = capital.hard_risk_headroom_usd / total_loss_per_volume
-    by_margin = (
-        capital.margin_headroom_usd / opportunity.margin_per_volume
-    )
-    raw = min(by_risk, by_margin, opportunity.maximum_volume)
-    steps = (raw / opportunity.volume_step).to_integral_value(
-        rounding=ROUND_FLOOR
-    )
-    volume = steps * opportunity.volume_step
+    with localcontext() as context:
+        context.prec = 100
+        total_loss_per_volume = (
+            opportunity.stop_loss_per_volume
+            + provider_cost_per_volume_usd
+        )
+        by_risk = (
+            capital.hard_risk_headroom_usd / total_loss_per_volume
+        )
+        by_margin = (
+            capital.margin_headroom_usd / opportunity.margin_per_volume
+        )
+        raw = min(by_risk, by_margin, opportunity.maximum_volume)
+        steps = (raw / opportunity.volume_step).to_integral_value(
+            rounding=ROUND_FLOOR
+        )
+        volume = steps * opportunity.volume_step
     minimum = minimum_seed_volume(opportunity)
     if volume < minimum:
         raise CiboCapitalManagementError(
             "maximum account-constrained capacity cannot express minimum seed"
         )
-    risk = volume * opportunity.stop_loss_per_volume
-    margin = volume * opportunity.margin_per_volume
+    with localcontext() as context:
+        context.prec = 100
+        risk = volume * opportunity.stop_loss_per_volume
+        margin = volume * opportunity.margin_per_volume
     return CiboCapitalActionPlan(
         trader_id=opportunity.trader_id,
         qore_symbol=opportunity.qore_symbol,
