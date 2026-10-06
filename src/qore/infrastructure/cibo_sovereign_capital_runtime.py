@@ -364,6 +364,17 @@ def run_cibo_sovereign_capital_runtime(
         twin,
         CapitalCapacityDimension.ECONOMIC_PROFIT_CAPITAL,
     )
+    normal_sizing = plan_account_sizing(
+        opportunity=opportunity,
+        capital=capital,
+        mission_policy=mission_policy,
+        survival_capital_usd=survival_capital_usd,
+        protected_capital_usd=protected_capital_usd,
+        provider_cost_per_volume_usd=provider_cost_per_volume_usd,
+        original_base_available_usd=base_available,
+        realized_profit_available_usd=profit_available,
+    )
+    sizing = normal_sizing
     if ablation_mode is CiboCeilingAblationMode.CIBO_COMPOUND:
         sizing = _plan_without_compound_funding(
             opportunity=opportunity,
@@ -374,29 +385,23 @@ def run_cibo_sovereign_capital_runtime(
             provider_cost_per_volume_usd=provider_cost_per_volume_usd,
             original_base_available_usd=base_available,
         )
-    else:
-        sizing = plan_account_sizing(
-            opportunity=opportunity,
-            capital=capital,
-            mission_policy=mission_policy,
-            survival_capital_usd=survival_capital_usd,
-            protected_capital_usd=protected_capital_usd,
-            provider_cost_per_volume_usd=provider_cost_per_volume_usd,
-            original_base_available_usd=base_available,
-            realized_profit_available_usd=profit_available,
-        )
     if ablation_mode is CiboCeilingAblationMode.SIZING:
         sizing = _ablate_variable_sizing(
             opportunity=opportunity,
             sizing=sizing,
         )
+    science_sizing = (
+        normal_sizing
+        if ablation_mode is CiboCeilingAblationMode.CIBO_COMPOUND
+        else sizing
+    )
     capital_science = evaluate_capital_science_predecision(
         _build_capital_science_state(
             decision_id=decision_id,
             option_id=option_id,
             opportunity=opportunity,
             twin=cognitive_twin,
-            sizing=sizing,
+            sizing=science_sizing,
             capital=capital,
             regime_state=regime_state,
         )
