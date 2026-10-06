@@ -20,6 +20,7 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter
+from dataclasses import replace
 from decimal import Decimal
 from pathlib import Path
 from typing import cast
@@ -31,6 +32,7 @@ import vt31_nas100_post_1r_persistence_forensics_v1 as persistence
 import vt31_nas100_sovereign_r_management_frontier_v1 as r_frontier
 import vt31_nas100_specialist_r1_candidate as specialist
 
+from qore.infrastructure.traders.vt31_nas100_reasoning_engine import reason_position
 from qore.infrastructure.traders.vt31_nas100_position_intelligence import (
     UniversalTargetIntent,
     assess_full_cognitive_position,
@@ -127,10 +129,18 @@ def _acceptance_cognition(
         observation_at=getattr(executable, "decision_at"),
     )
     entry_reasoning = cognition_lab._reconstruct_reasoning(state)
+    accepted_current = replace(
+        current,
+        dol1_state="REACHED_ACCEPTED_CLOSED_M1",
+    )
+    accepted_reasoning = reason_position(
+        accepted_current,
+        frozen_entry_reasoning=entry_reasoning,
+    )
     cognition = assess_full_cognitive_position(
-        situation=current,
+        situation=accepted_current,
         reasoning=entry_reasoning,
-        current_reasoning=current_reasoning,
+        current_reasoning=accepted_reasoning,
         entry_tier="CORE",
         dol1_acceptance_observed=True,
         entry_situation_fingerprint=entry_situation.fingerprint(),
@@ -138,7 +148,7 @@ def _acceptance_cognition(
     validate_full_cognitive_accounting_for_research(cognition)
     return (
         cognition,
-        current_reasoning,
+        accepted_reasoning,
         persistence_state,
         "READY" if management_ready else "MANAGEMENT_BLOCKED",
     )
