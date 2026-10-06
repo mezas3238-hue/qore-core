@@ -1,0 +1,233 @@
+name: QORE VT31 Architect A Abstain Counterfactual V1
+
+on:
+  push:
+    branches:
+      - agent/vt31-edge-entry-reasoning-a-001
+    paths:
+      - scripts/vt31_nas100_architect_a_abstain_counterfactual_v1.py
+      - scripts/vt31_nas100_specialist_r1_candidate.py
+      - src/qore/infrastructure/traders/vt31_nas100_reasoning_engine.py
+      - src/qore/infrastructure/traders/vt31_nas100_situation_model.py
+      - src/qore/infrastructure/traders/vt31_nas100_market_context_runtime.py
+      - .github/workflows/vt31-architect-a-abstain-counterfactual-v1.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  fold:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - partition: r5
+            artifact_id: "10380044761"
+            evidence_sha256: "7b1e3d9e2bfd17ccc6f043befabf464838d150bc6034ced1f76a24ee248611d7"
+            evidence_path: "fresh/NAS100/market-evidence.json"
+          - partition: r6
+            artifact_id: "10389112524"
+            evidence_sha256: "cf3ef22fa86916bfb2826f4fa48c7a9655b9509c76a05d9bb26d0d4cb6069581"
+            evidence_path: "fresh/NAS100/market-evidence.json"
+          - partition: r8
+            artifact_id: "10402199719"
+            evidence_sha256: "4031c7e21bb311fdb99d7b1028fd9ff154ace1dc4886249ff978b700fdeeedcb"
+            evidence_path: "fresh/NAS100/market-evidence.json"
+          - partition: consumed
+            artifact_id: "10557487418"
+            evidence_sha256: "acf2fa327a68a5a6d977dfdbc9c696cb13db6e0e7550b9da386f3699b5cf8d09"
+            evidence_path: "NAS100/market-evidence.json"
+    env:
+      PARTITION: ${{ matrix.partition }}
+      ARTIFACT_ID: ${{ matrix.artifact_id }}
+      EXPECTED_EVIDENCE_SHA256: ${{ matrix.evidence_sha256 }}
+      EVIDENCE_PATH: ${{ matrix.evidence_path }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -e ".[dev]"
+      - name: Static gate
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/vt31_nas100_architect_a_abstain_counterfactual_v1.py
+          ruff check scripts/vt31_nas100_architect_a_abstain_counterfactual_v1.py
+          python scripts/vt31_nas100_specialist_r1_candidate.py --self-test
+      - name: Recover immutable consumed evidence
+        run: |
+          set -euo pipefail
+          mkdir -p input result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" > evidence.zip
+          unzip -q evidence.zip -d input
+          test -f "input/${EVIDENCE_PATH}"
+          actual="$(sha256sum "input/${EVIDENCE_PATH}" | awk '{print $1}')"
+          test "$actual" = "$EXPECTED_EVIDENCE_SHA256"
+      - name: Run abstain counterfactual
+        run: |
+          set -euo pipefail
+          PYTHONPATH=scripts python \
+            scripts/vt31_nas100_architect_a_abstain_counterfactual_v1.py \
+            "input/${EVIDENCE_PATH}" \
+            --output "result/abstain-counterfactual-${PARTITION}.json" \
+            | tee "result/summary-${PARTITION}.json"
+      - name: Governance
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=os.environ["PARTITION"]
+          x=json.loads(Path(f"result/abstain-counterfactual-{p}.json").read_text())
+          g=x["governance"]
+          assert g["consumed_evidence_only"] is True
+          assert g["current_runtime_reasoning_changed"] is False
+          assert g["first_hard_abstain_per_source_event_only"] is True
+          assert g["counterfactual_uses_already_formed_setup"] is True
+          assert g["counterfactual_uses_source_structural_exit"] is True
+          assert g["future_outcome_used_for_runtime_admission"] is False
+          assert g["future_outcome_used_only_as_research_label"] is True
+          assert g["fold_identity_used_for_runtime_admission"] is False
+          assert g["position_sizing_used"] is False
+          assert g["leverage_used"] is False
+          assert g["compounding_used"] is False
+          assert g["capital_weighting_used"] is False
+          assert g["fresh_holdout_opened"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-architect-a-abstain-${{ matrix.partition }}-${{ github.sha }}
+          path: result/
+          retention-days: 90
+
+  aggregate:
+    needs: fold
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qore-vt31-architect-a-abstain-*-${{ github.sha }}
+          path: input
+          merge-multiple: true
+      - name: Cross-fold contradiction adjudication
+        run: |
+          set -euo pipefail
+          mkdir -p result
+          python - <<'PY'
+          import json
+          from decimal import Decimal
+          from pathlib import Path
+
+          folds=("r5","r6","r8","consumed")
+          payloads={
+              f:json.loads(
+                  Path(f"input/abstain-counterfactual-{f}.json").read_text()
+              )
+              for f in folds
+          }
+          common=set(payloads["r5"]["groups"])
+          for fold in folds[1:]:
+              common &= set(payloads[fold]["groups"])
+
+          positive=[]
+          negative=[]
+          mixed=[]
+          for key in sorted(common):
+              per_fold={
+                  fold:payloads[fold]["groups"][key]
+                  for fold in folds
+              }
+              means={
+                  fold:Decimal(str(per_fold[fold]["stress_0_05r"]["mean_r"]))
+                  for fold in folds
+              }
+              pfs={
+                  fold:(
+                      None
+                      if per_fold[fold]["stress_0_05r"]["profit_factor"] is None
+                      else Decimal(
+                          str(per_fold[fold]["stress_0_05r"]["profit_factor"])
+                      )
+                  )
+                  for fold in folds
+              }
+              item={
+                  "class":key,
+                  "samples":{
+                      fold:per_fold[fold]["sample"]
+                      for fold in folds
+                  },
+                  "mean_r":{
+                      fold:format(means[fold],"f")
+                      for fold in folds
+                  },
+                  "profit_factor":{
+                      fold:(
+                          None if pfs[fold] is None else format(pfs[fold],"f")
+                      )
+                      for fold in folds
+                  },
+              }
+              all_positive=all(means[f]>0 for f in folds)
+              all_negative=all(means[f]<0 for f in folds)
+              if all_positive:
+                  positive.append(item)
+              elif all_negative:
+                  negative.append(item)
+              else:
+                  mixed.append(item)
+
+          summary={
+              fold:{
+                  "actual_execute_days":payloads[fold]["actual_execute_days"],
+                  "wait_observations":payloads[fold]["wait_observations"],
+                  "counterfactual_terminal_count":(
+                      payloads[fold]["counterfactual_terminal_count"]
+                  ),
+                  "counterfactual_terminal_metrics":(
+                      payloads[fold]["counterfactual_terminal_metrics"]
+                  ),
+                  "abstain_reason_counts":payloads[fold]["abstain_reason_counts"],
+              }
+              for fold in folds
+          }
+          result={
+              "schema":"qore.vt31.nas100.architect_a_abstain_counterfactual.aggregate.v1",
+              "head":"${{ github.sha }}",
+              "fold_summary":summary,
+              "cross_fold_positive_denied_classes":positive,
+              "cross_fold_negative_denied_classes":negative,
+              "mixed_denied_classes":mixed,
+              "governance":{
+                  "consumed_evidence_only":True,
+                  "counterfactual_forensics_only":True,
+                  "runtime_rule_changed":False,
+                  "fold_identity_allowed_at_runtime":False,
+                  "future_outcome_allowed_at_runtime":False,
+                  "sizing_for_certification_forbidden":True,
+                  "fresh_holdout_opened":False,
+                  "policy_promoted":False,
+                  "candidate_frozen":False,
+                  "candidate_certified":False,
+              },
+          }
+          Path("result/aggregate.json").write_text(
+              json.dumps(result,sort_keys=True,indent=2)+"\n"
+          )
+          print(json.dumps(result,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-architect-a-abstain-aggregate-${{ github.sha }}
+          path: result/
+          retention-days: 90
