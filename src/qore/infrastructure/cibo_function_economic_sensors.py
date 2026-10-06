@@ -342,6 +342,7 @@ def build_sovereign_function_sensors(
                 stop_risk_cap_usd=portfolio.stop_risk_usd,
                 margin_cap_usd=portfolio.margin_usd,
             ),
+            decision_changed=(portfolio.multiplier != 1),
             decision_gate_triggered=(portfolio.multiplier == 0),
             ablation_key="adaptive_leverage",
         ),
