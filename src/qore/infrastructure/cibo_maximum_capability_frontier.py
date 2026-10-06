@@ -108,9 +108,13 @@ class CausalFrontierOpportunity:
             raise CiboMaximumCapabilityError(
                 "frontier economic geometry invalid"
             )
-        if self.cognitive_multiplier_cap not in {0, 1, 2, 3, 4}:
+        if (
+            not isinstance(self.cognitive_multiplier_cap, int)
+            or isinstance(self.cognitive_multiplier_cap, bool)
+            or self.cognitive_multiplier_cap < 0
+        ):
             raise CiboMaximumCapabilityError(
-                "cognitive multiplier cap must be 0..4"
+                "cognitive multiplier cap must be non-negative"
             )
 
     @property
@@ -126,7 +130,7 @@ class CausalFrontierOpportunity:
         raw = (
             self.maximum_volume / self.base_volume
         ).to_integral_value(rounding=ROUND_FLOOR)
-        return max(0, min(4, int(raw)))
+        return max(0, int(raw))
 
 
 @dataclass(frozen=True, slots=True)
@@ -219,9 +223,13 @@ class EpochOption:
     margin_per_multiplier_usd: Decimal
 
     def __post_init__(self) -> None:
-        if self.multiplier_cap not in {0, 1, 2, 3, 4}:
+        if (
+            not isinstance(self.multiplier_cap, int)
+            or isinstance(self.multiplier_cap, bool)
+            or self.multiplier_cap < 0
+        ):
             raise CiboMaximumCapabilityError(
-                "epoch multiplier cap invalid"
+                "epoch multiplier cap must be non-negative"
             )
         if self.expected_capital_minutes <= 0:
             raise CiboMaximumCapabilityError(
@@ -238,12 +246,23 @@ class EpochOption:
 
 def cognitive_multiplier_cap(
     cognitive_orchestration: Mapping[str, object],
+    *,
+    provider_multiplier_cap: int,
 ) -> tuple[int, tuple[str, ...], str]:
     """Turn the CF predecision surface into a capital-intensity ceiling.
 
     The function consumes only CF input/status information. It never reads
     realized P/L or later market path.
     """
+
+    if (
+        not isinstance(provider_multiplier_cap, int)
+        or isinstance(provider_multiplier_cap, bool)
+        or provider_multiplier_cap < 0
+    ):
+        raise CiboMaximumCapabilityError(
+            "provider multiplier cap must be non-negative"
+        )
 
     raw_receipts = cognitive_orchestration.get("faculty_receipts")
     if not isinstance(raw_receipts, list) or len(raw_receipts) != 19:
@@ -322,15 +341,23 @@ def cognitive_multiplier_cap(
         raise CiboMaximumCapabilityError(
             "cognitive utilization outside [0,1]"
         )
+    def scaled_cap(fraction: Decimal) -> int:
+        if provider_multiplier_cap == 0:
+            return 0
+        raw = (
+            Decimal(provider_multiplier_cap) * fraction
+        ).to_integral_value(rounding=ROUND_FLOOR)
+        return max(1, min(provider_multiplier_cap, int(raw)))
+
     max_util = max(values)
     if max_util >= Decimal("0.75"):
-        utilization_cap = 1
+        utilization_cap = scaled_cap(Decimal("0.25"))
     elif max_util >= Decimal("0.50"):
-        utilization_cap = 2
+        utilization_cap = scaled_cap(Decimal("0.50"))
     elif max_util >= Decimal("0.25"):
-        utilization_cap = 3
+        utilization_cap = scaled_cap(Decimal("0.75"))
     else:
-        utilization_cap = 4
+        utilization_cap = provider_multiplier_cap
 
     liquidity = str(regime.get("liquidity", "STRESSED"))
     volatility = str(regime.get("volatility", "DISLOCATED"))
@@ -338,25 +365,34 @@ def cognitive_multiplier_cap(
     provider = str(
         regime.get("provider_condition", "UNAVAILABLE")
     )
-    regime_cap = 4
+    regime_cap = provider_multiplier_cap
     if (
         provider == "UNAVAILABLE"
         or volatility == "DISLOCATED"
         or correlation == "BREAK"
     ):
-        regime_cap = 1
+        regime_cap = scaled_cap(Decimal("0.25"))
     elif provider == "DEGRADED" or liquidity == "STRESSED":
-        regime_cap = 2
+        regime_cap = scaled_cap(Decimal("0.50"))
     elif (
         liquidity == "THIN"
         or volatility == "ELEVATED"
         or correlation == "CONCENTRATED"
     ):
-        regime_cap = 3
+        regime_cap = scaled_cap(Decimal("0.75"))
 
     opportunity_count = int(cf06.get("opportunity_count", 0))
-    competition_cap = 3 if opportunity_count >= 3 else 4
-    cap = min(utilization_cap, regime_cap, competition_cap)
+    competition_cap = (
+        scaled_cap(Decimal("0.75"))
+        if opportunity_count >= 3
+        else provider_multiplier_cap
+    )
+    cap = min(
+        provider_multiplier_cap,
+        utilization_cap,
+        regime_cap,
+        competition_cap,
+    )
     return (
         cap,
         consumed,
@@ -377,7 +413,7 @@ def optimize_epoch_multipliers(
     fixed_multiplier: int | None = None,
     portfolio_competition: bool = True,
 ) -> tuple[int, ...]:
-    """Solve the causal per-epoch discrete 0x..4x allocation surface."""
+    """Solve the full causal discrete allocation surface within real capacity."""
 
     if risk_headroom_usd < 0 or margin_headroom_usd < 0:
         raise CiboMaximumCapabilityError(
@@ -385,10 +421,14 @@ def optimize_epoch_multipliers(
         )
     if (
         fixed_multiplier is not None
-        and fixed_multiplier not in {1, 2, 3, 4}
+        and (
+            not isinstance(fixed_multiplier, int)
+            or isinstance(fixed_multiplier, bool)
+            or fixed_multiplier < 1
+        )
     ):
         raise CiboMaximumCapabilityError(
-            "fixed frontier multiplier must be 1..4"
+            "fixed frontier multiplier must be a positive integer"
         )
     if not options:
         return ()
@@ -398,6 +438,18 @@ def optimize_epoch_multipliers(
         cap = item.multiplier_cap
         if item.expected_net_value_usd <= 0:
             cap = 0
+        else:
+            risk_cap = int(
+                (
+                    risk_headroom_usd / item.risk_per_multiplier_usd
+                ).to_integral_value(rounding=ROUND_FLOOR)
+            )
+            margin_cap = int(
+                (
+                    margin_headroom_usd / item.margin_per_multiplier_usd
+                ).to_integral_value(rounding=ROUND_FLOOR)
+            )
+            cap = min(cap, risk_cap, margin_cap)
         if fixed_multiplier is not None:
             cap = min(cap, fixed_multiplier)
             ranges.append(
