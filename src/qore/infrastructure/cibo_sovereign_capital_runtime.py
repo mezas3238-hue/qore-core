@@ -736,17 +736,19 @@ def _cap_sizing_plan(
                 f"sovereign {name} must be finite non-negative Decimal"
             )
 
-    raw = min(
-        plan.volume,
-        portfolio_risk_cap_usd / opportunity.stop_loss_per_volume,
-        portfolio_margin_cap_usd / opportunity.margin_per_volume,
-        robust_risk_cap_usd / opportunity.stop_loss_per_volume,
-        robust_margin_cap_usd / opportunity.margin_per_volume,
-    )
-    steps = (raw / opportunity.volume_step).to_integral_value(
-        rounding=ROUND_FLOOR
-    )
-    volume = steps * opportunity.volume_step
+    with localcontext() as context:
+        context.prec = 100
+        raw = min(
+            plan.volume,
+            portfolio_risk_cap_usd / opportunity.stop_loss_per_volume,
+            portfolio_margin_cap_usd / opportunity.margin_per_volume,
+            robust_risk_cap_usd / opportunity.stop_loss_per_volume,
+            robust_margin_cap_usd / opportunity.margin_per_volume,
+        )
+        steps = (raw / opportunity.volume_step).to_integral_value(
+            rounding=ROUND_FLOOR
+        )
+        volume = steps * opportunity.volume_step
     minimum = minimum_seed_volume(opportunity)
     if volume < minimum:
         return _hold_plan(
@@ -758,27 +760,31 @@ def _cap_sizing_plan(
             ),
         )
 
-    risk = volume * opportunity.stop_loss_per_volume
-    margin = volume * opportunity.margin_per_volume
+    with localcontext() as context:
+        context.prec = 100
+        risk = volume * opportunity.stop_loss_per_volume
+        margin = volume * opportunity.margin_per_volume
 
     source_lots = plan.capital_source_lots
     capital_source = plan.capital_source
     if source_lots and risk != plan.stop_risk_usd:
         remaining = risk
         resized_lots = []
-        for lot in source_lots:
-            if remaining <= 0:
-                break
-            amount = min(lot.amount_usd, remaining)
-            if amount > 0:
-                resized_lots.append(
-                    type(lot)(
-                        source=lot.source,
-                        amount_usd=amount,
-                        source_id=lot.source_id,
+        with localcontext() as context:
+            context.prec = 100
+            for lot in source_lots:
+                if remaining <= 0:
+                    break
+                amount = min(lot.amount_usd, remaining)
+                if amount > 0:
+                    resized_lots.append(
+                        type(lot)(
+                            source=lot.source,
+                            amount_usd=amount,
+                            source_id=lot.source_id,
+                        )
                     )
-                )
-                remaining -= amount
+                    remaining -= amount
         if remaining != 0:
             raise CiboCapitalManagementError(
                 "sovereign resize exceeds declared capital-source provenance"
