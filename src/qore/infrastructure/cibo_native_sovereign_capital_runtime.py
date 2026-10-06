@@ -127,6 +127,7 @@ def run_cibo_native_sovereign_capital_runtime(
     expires_at: datetime,
     portfolio_fixed_multiplier: int | None = None,
     lifecycle_requests: tuple[CiboLifecycleWireRequest, ...] = (),
+    peak_realized_capital_usd: Decimal | None = None,
 ) -> CiboNativeSovereignCapitalDecision:
     """Execute CIBO native MAX intelligence before every capital decision."""
 
@@ -206,6 +207,7 @@ def run_cibo_native_sovereign_capital_runtime(
         expires_at=expires_at,
         portfolio_fixed_multiplier=portfolio_fixed_multiplier,
         lifecycle_requests=lifecycle_requests,
+        peak_realized_capital_usd=peak_realized_capital_usd,
     )
 
     return CiboNativeSovereignCapitalDecision(
