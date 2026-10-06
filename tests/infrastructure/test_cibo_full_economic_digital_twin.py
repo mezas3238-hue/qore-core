@@ -403,7 +403,7 @@ def test_maximum_capability_diagnostics_do_not_invent_leverage_gap() -> None:
     assert report.twin_id == twin.twin_id
     assert report.positive_eligible_opportunities == 1
     assert report.productive_authority is False
-    assert report.native_velocity_utility == report.challenger_velocity_utility
+    assert report.native_velocity_utility == report.baseline_velocity_utility
     assert report.worst_gap is None
     assert report.gaps == ()
 
