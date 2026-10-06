@@ -585,6 +585,8 @@ def build_edge_only_report(
         value for value in gates.values()
         if value is not None
     ]
+    economic_development_pass = bool(required) and all(required)
+    runtime_purity_verified = runtime_purity.get("verified") is True
     return {
         "identity": IDENTITY,
         "market": "NAS100",
@@ -609,8 +611,10 @@ def build_edge_only_report(
         "cost_stress": stress,
         "winner_preservation": preservation,
         "gates": gates,
+        "passes_economic_development_gates": economic_development_pass,
+        "runtime_purity_gate": runtime_purity_verified,
         "passes_available_development_gates": (
-            bool(required) and all(required)
+            economic_development_pass and runtime_purity_verified
         ),
         "risk_adjusted_metric_binding": {
             "sharpe": {
