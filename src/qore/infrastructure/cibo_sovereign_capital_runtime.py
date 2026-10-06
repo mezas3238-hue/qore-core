@@ -39,6 +39,7 @@ from qore.infrastructure.cibo_capital_science_runtime_bridge import (
 )
 from qore.infrastructure.cibo_capital_management_authority import (
     CapitalAction,
+    CapitalCapacityDimension,
     CiboCapitalActionPlan,
     CiboCapitalManagementError,
     CiboCapitalState,
@@ -336,6 +337,14 @@ def run_cibo_sovereign_capital_runtime(
         survival_capital_usd=survival_capital_usd,
         protected_capital_usd=protected_capital_usd,
         provider_cost_per_volume_usd=provider_cost_per_volume_usd,
+        original_base_available_usd=_available_source_capacity(
+            twin,
+            CapitalCapacityDimension.BASE_RISK_CAPITAL,
+        ),
+        realized_profit_available_usd=_available_source_capacity(
+            twin,
+            CapitalCapacityDimension.ECONOMIC_PROFIT_CAPITAL,
+        ),
     )
     capital_science = evaluate_capital_science_predecision(
         _build_capital_science_state(
@@ -568,6 +577,26 @@ def _build_capital_science_state(
         regime_state=regime_state,
         known_simultaneous_opportunities=known,
     )
+
+
+def _available_source_capacity(
+    twin: CiboObservedEconomicTwin,
+    dimension: CapitalCapacityDimension,
+) -> Decimal | None:
+    """Read current source availability when the capital twin exposes it."""
+
+    matches = tuple(
+        item.available
+        for item in twin.capital_twin.source_capacities
+        if item.dimension is dimension
+    )
+    if not matches:
+        return None
+    if len(matches) != 1:
+        raise CiboCapitalManagementError(
+            "sovereign capital twin has duplicate source-capacity dimension"
+        )
+    return matches[0]
 
 
 def _validate_capital_twin_alignment(
