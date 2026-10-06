@@ -468,6 +468,7 @@ def _state_snapshot(
             prior_day_state=higher_context.prior_day_state,
             h4_state=higher_context.h4_state,
             h1_state=higher_context.h1_state,
+            m15_state=higher_context.m15_state,
             premarket_state=higher_context.premarket_state,
             cash_open_state=higher_context.cash_open_state,
             position_in_prior_day_range=(
@@ -507,7 +508,6 @@ def _state_snapshot(
             extension_capacity_state="RESEARCH_ONLY_UNCALIBRATED",
             exhaustion_state="UNKNOWN",
             cross_index_state="OPTIONAL_CONTEXT_NOT_REQUIRED",
-            m15_state="UNWIRED",
         )
     )
     abstain_reasons = list(reasoning.contradictions)
@@ -553,7 +553,7 @@ def _state_snapshot(
         ),
         "h4_state": higher_context.h4_state,
         "h1_state": higher_context.h1_state,
-        "m15_state": "UNWIRED",
+        "m15_state": higher_context.m15_state,
         "premarket_state": higher_context.premarket_state,
         "cash_open_state": higher_context.cash_open_state,
         "position_in_prior_day_range": (
@@ -1193,6 +1193,7 @@ def replay(evidence_path: Path) -> dict[str, object]:
                     "prior_day_state",
                     "h4_state",
                     "h1_state",
+                    "m15_state",
                     "premarket_state",
                     "cash_open_state",
                     "position_in_prior_day_range",
@@ -1226,6 +1227,7 @@ def replay(evidence_path: Path) -> dict[str, object]:
                 "current_path_vs_previous",
                 "reference_width_vs_prior5",
                 "reference_volatility_state",
+                "m15_state",
                 "risk_ref",
                 "planned_target_r",
                 "destination_distance_ref",
