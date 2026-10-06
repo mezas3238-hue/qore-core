@@ -228,6 +228,84 @@ def test_native_max_positive_context_remains_recommend_without_fake_gate() -> No
     assert result.cognitive_episode.decision_gate_codes == ()
 
 
+def _walk_forward_confidence_context(*, mature: bool) -> tuple[tuple[str, str], ...]:
+    return (
+        ("cibo_context_quality_disposition", "ALLOW"),
+        ("cibo_context_quality_rules", "none"),
+        ("cibo_context_quality_hard_gate_authorized", "false"),
+        ("cibo_expectation_basis", "WALK_FORWARD_EMPIRICAL_FORECAST"),
+        ("cibo_expected_value_usd", "1.25"),
+        ("cibo_expected_net_utility_usd", "1.00"),
+        ("cibo_expected_capital_minutes", "30"),
+        ("cibo_walk_forward_observation_count", "25" if mature else "10"),
+        ("cibo_walk_forward_maturity", "MATURE" if mature else "PROVISIONAL"),
+        (
+            "cibo_walk_forward_mature_for_capital_consideration",
+            "true" if mature else "false",
+        ),
+        ("cibo_walk_forward_positive_block_count", "4"),
+        ("cibo_walk_forward_nonpositive_block_count", "1"),
+        ("cibo_walk_forward_block_dispersion_r", "1.25"),
+        ("cibo_walk_forward_median_absolute_deviation_r", "0.20"),
+        ("cibo_walk_forward_maturity_fraction", "1" if mature else "0.4"),
+        ("cibo_walk_forward_evidence_age_minutes", "15"),
+    )
+
+
+def test_native_max_abstains_on_provisional_walk_forward_forecast() -> None:
+    context = tuple(
+        (f"ctx_native_{index:02d}", f"value-{index:02d}")
+        for index in range(30)
+    ) + _walk_forward_confidence_context(mature=False)
+    opportunity = _opportunity(TraderLineage.R34_XAUUSD, context)
+    consultation = consult_cibo_economic_faculties(
+        decision_at=NOW,
+        opportunities=(opportunity,),
+        regime_state=_regime(),
+    )
+
+    result = run_native_maximum_intelligence(
+        consultation=consultation,
+        opportunities=(opportunity,),
+        target=opportunity,
+        regime_state=_regime(),
+    )
+
+    assert result.synthesis.directive is CiboExecutiveDirectiveKind.ABSTAIN
+    assert result.cognitive_episode.abstention_required is True
+    assert (
+        result.cognitive_episode.calibration.note
+        == "walk-forward-provisional-forecast-history-required"
+    )
+    assert result.cognitive_episode.calibration.confidence_band == 40
+    assert result.cognitive_episode.decision_gate_codes == ("CF07",)
+
+
+def test_native_max_admits_mature_positive_walk_forward_forecast() -> None:
+    context = tuple(
+        (f"ctx_native_{index:02d}", f"value-{index:02d}")
+        for index in range(30)
+    ) + _walk_forward_confidence_context(mature=True)
+    opportunity = _opportunity(TraderLineage.R34_XAUUSD, context)
+    consultation = consult_cibo_economic_faculties(
+        decision_at=NOW,
+        opportunities=(opportunity,),
+        regime_state=_regime(),
+    )
+
+    result = run_native_maximum_intelligence(
+        consultation=consultation,
+        opportunities=(opportunity,),
+        target=opportunity,
+        regime_state=_regime(),
+    )
+
+    assert result.synthesis.directive is CiboExecutiveDirectiveKind.RECOMMEND
+    assert result.cognitive_episode.abstention_required is False
+    assert result.cognitive_episode.calibration.confidence_band == 100
+    assert result.cognitive_episode.decision_gate_codes == ()
+
+
 def test_native_max_perception_accepts_universal_trader_market_contract() -> None:
     opportunity = _opportunity(
         TraderLineage("UNIVERSAL_TRADER_001"),
