@@ -17,7 +17,7 @@ from collections import defaultdict
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from decimal import Decimal
+from decimal import Decimal, localcontext
 from typing import Any
 
 from qore.infrastructure.account_wide_risk import (
@@ -556,10 +556,12 @@ def run_historical_ceiling_replay(
             }:
                 continue
             item = evidence_by_signal[signal]
-            provider_cost = (
-                item.provider_cost_per_volume_usd
-                * authorization.authorized_volume
-            )
+            with localcontext() as context:
+                context.prec = 100
+                provider_cost = (
+                    item.provider_cost_per_volume_usd
+                    * authorization.authorized_volume
+                )
             capital = reserve_historical_authorization(
                 capital,
                 authorization=authorization,
