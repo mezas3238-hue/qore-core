@@ -5,9 +5,9 @@ reconstruct the *current* causal Situation Model from newly closed market
 observations and re-run the full cognitive synthesis before deciding whether
 to HOLD, TRAIL, EXTEND, or EXIT.
 
-This specific market-native component currently exposes no R threshold, but
-that is a component design choice, not a sovereign prohibition. VT31 may use
-R-based entry or management rules elsewhere when they prove causal edge.
+This runtime may consume strategy-native R journey state when it is computed
+causally from frozen entry geometry and closed market prices. R is valid trader
+logic; it is not position sizing and cannot depend on capital or volume.
 
 Absolute volume, sizing, leverage, compounding, and capital weighting remain
 outside trader-certification authority.
@@ -75,6 +75,10 @@ class PostEntryCausalObservation:
     # maximum-intelligence candidate freeze/certification.
     m15_state: str = "UNWIRED"
 
+    # Strategy-native current journey R from frozen initial risk and the latest
+    # fully closed causal price. No account/volume fields participate.
+    current_open_r: Decimal | None = None
+
 
 @dataclass(frozen=True, slots=True)
 class PostEntryMarketFacts:
@@ -106,7 +110,7 @@ class PostEntryCognitiveDecision:
     current_reasoning_action: str
     current_reasoning_situation_fingerprint: str
     full_cognition_reassessed: bool = True
-    r_runtime_authority: bool = False
+    r_runtime_authority: bool = True
     r_runtime_strategy_allowed: bool = True
     volume_runtime_authority: bool = False
     sizing_authority: bool = False
@@ -161,6 +165,7 @@ def rebuild_post_entry_situation(
         exhaustion_state=observation.exhaustion_state,
         cross_index_state=observation.cross_index_state,
         m15_state=observation.m15_state,
+        current_open_r=observation.current_open_r,
     )
 
 
