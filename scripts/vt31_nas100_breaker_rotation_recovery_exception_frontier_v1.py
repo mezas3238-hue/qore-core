@@ -31,6 +31,10 @@ SCHEMA = "qore.vt31.nas100.breaker_rotation_recovery_exception_frontier.v1"
 ADMISSION_BASE = "A_EXPANDED_OB_REQUIRE_SHORT_RECLAIM_15M"
 COMPARATOR_ID = "VT31_BSIDE_COMP003_CAUTION_STALE_RESIDUAL_CONTEXT_EXIT"
 POSITION_VARIANT = "BASE_PLUS_FVG_NONSHALLOW_OR_NONOB_NORMAL"
+LIVE_POSITION_VARIANTS = (
+    "COMP003_PLUS_MIXED_DEEP_ADVERSE",
+    "COMP003_PLUS_BREAKER_MIXED_DEEP_ADVERSE",
+)
 
 VARIANTS = (
     "COMP003_CONTROL",
@@ -347,6 +351,9 @@ def _report(
 def replay(evidence_path: Path) -> dict[str, object]:
     original = specialist._simulate_selected_plan
     comp003_rows: list[dict[str, object]] = []
+    live_position_rows: dict[str, list[dict[str, object]]] = {
+        variant: [] for variant in LIVE_POSITION_VARIANTS
+    }
 
     def simulator(
         day_bars: tuple[object, ...],
@@ -372,6 +379,20 @@ def replay(evidence_path: Path) -> dict[str, object]:
                 f"{outcome}"
             )
         comp003_rows.append(outcome)
+
+        for live_variant in LIVE_POSITION_VARIANTS:
+            live_outcome = adverse._simulate(
+                day_bars,
+                executable,
+                state,
+                variant=live_variant,
+            )
+            if live_outcome.get("status") != "terminal":
+                raise AssertionError(
+                    f"{live_variant} changed terminal eligibility: "
+                    f"{live_outcome}"
+                )
+            live_position_rows[live_variant].append(live_outcome)
         return structural
 
     try:
@@ -389,6 +410,11 @@ def replay(evidence_path: Path) -> dict[str, object]:
         raise AssertionError(
             "Comparator 003 changed sovereign terminal trade identity"
         )
+    for live_variant, live_rows in live_position_rows.items():
+        if [str(row["signal_at"]) for row in live_rows] != structural_ids:
+            raise AssertionError(
+                f"{live_variant} changed sovereign terminal trade identity"
+            )
 
     comparator = [
         row
@@ -435,6 +461,29 @@ def replay(evidence_path: Path) -> dict[str, object]:
             or _r8_breaker_short_normal_mature_fast(row)
         )
     ]
+
+    clean_admission_control = episode_breaker_candidate
+
+    live_clean_candidates: dict[str, list[dict[str, object]]] = {}
+    for live_variant, live_rows in live_position_rows.items():
+        admitted = [
+            row
+            for row in live_rows
+            if not admission._is_abstained(row, ADMISSION_BASE)
+        ]
+        recovery_filtered = [
+            row for row in admitted if not _should_abstain(row)
+        ]
+        fvg_filtered = [
+            row
+            for row in recovery_filtered
+            if not _fvg_short_compressed_fresh_fast(row)
+        ]
+        live_clean_candidates[live_variant] = [
+            row
+            for row in fvg_filtered
+            if not _episode_breaker_bearish_compressed_bullish(row)
+        ]
 
     return {
         "schema": SCHEMA,
@@ -489,6 +538,25 @@ def replay(evidence_path: Path) -> dict[str, object]:
                 comparator=fvg_fresh_fast_candidate,
                 rows=union_plus_r8_candidate,
             ),
+            "CLEAN_ADMISSION_SURVIVOR_CONTROL": _report(
+                structural_count=len(structural_rows),
+                comparator=clean_admission_control,
+                rows=clean_admission_control,
+            ),
+            "CLEAN_PLUS_MIXED_DEEP_ADVERSE_EXIT": _report(
+                structural_count=len(structural_rows),
+                comparator=clean_admission_control,
+                rows=live_clean_candidates[
+                    "COMP003_PLUS_MIXED_DEEP_ADVERSE"
+                ],
+            ),
+            "CLEAN_PLUS_BREAKER_MIXED_DEEP_ADVERSE_EXIT": _report(
+                structural_count=len(structural_rows),
+                comparator=clean_admission_control,
+                rows=live_clean_candidates[
+                    "COMP003_PLUS_BREAKER_MIXED_DEEP_ADVERSE"
+                ],
+            ),
         },
         "governance": {
             "consumed_evidence_only": True,
@@ -505,6 +573,10 @@ def replay(evidence_path: Path) -> dict[str, object]:
             "residual_episode_frontier_predeclared": True,
             "residual_episode_frontier_uses_entry_time_only": True,
             "r8_repair_uses_preexisting_buckets": True,
+            "mixed_deep_adverse_live_exit_predeclared": True,
+            "mixed_deep_adverse_bucket_preexisting": True,
+            "live_exit_decision_closed_m1": True,
+            "live_exit_execution_next_m1_open": True,
             "new_numeric_threshold_added": False,
             "outcome_used_for_action": False,
             "fold_identity_used_for_action": False,
