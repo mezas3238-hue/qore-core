@@ -285,6 +285,8 @@ def test_report_fails_closed_when_runtime_purity_is_unproven() -> None:
     assert report["r_role"] == "post_trade_evaluation_only"
     assert report["r_runtime_execution_authority"] is False
     assert report["runtime_purity"]["verified"] is False
+    assert report["runtime_purity_gate"] is False
+    assert report["passes_available_development_gates"] is False
     assert report["runtime_purity_required_for_freeze"] is True
 
 
@@ -297,3 +299,7 @@ def test_report_binds_verified_pure_edge_runtime_governance() -> None:
 
     assert report["runtime_purity"]["verified"] is True
     assert report["runtime_purity"]["violations"] == []
+    assert report["runtime_purity_gate"] is True
+    assert report["passes_available_development_gates"] == (
+        report["passes_economic_development_gates"]
+    )
