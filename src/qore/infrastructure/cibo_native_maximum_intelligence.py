@@ -41,7 +41,6 @@ from qore.modules.cibo.cognitive_contracts import (
     CiboReasoningMode,
 )
 
-
 _POST_OUTCOME_NOT_APPLICABLE = frozenset({"CF08", "CF18", "CF19"})
 _FORBIDDEN_CONTEXT_TOKENS = (
     "outcome",
