@@ -10,6 +10,7 @@ on:
       - agent/vt31-edge-position-cert-b-001
     paths:
       - src/qore/infrastructure/traders/vt31_nas100_reasoning_engine.py
+      - src/qore/infrastructure/traders/vt31_nas100_market_context_runtime.py
       - src/qore/infrastructure/traders/vt31_nas100_situation_model.py
       - src/qore/infrastructure/traders/vt31_nas100_position_intelligence.py
       - src/qore/infrastructure/traders/vt31_nas100_post_entry_cognitive_runtime.py
@@ -19,6 +20,7 @@ on:
       - scripts/vt31_nas100_specialist_r1_candidate.py
       - tests/infrastructure/test_vt31_nas100_sovereign_pure_edge_runtime.py
       - tests/infrastructure/test_vt31_nas100_cognitive_reasoning.py
+      - tests/infrastructure/test_vt31_nas100_market_context_runtime.py
       - tests/infrastructure/test_vt31_nas100_position_intelligence.py
       - tests/infrastructure/test_vt31_nas100_post_entry_cognitive_runtime.py
       - tests/infrastructure/test_vt31_nas100_edge_certification.py
@@ -42,12 +44,12 @@ jobs:
       - name: Static gates
         run: |
           set -euo pipefail
-          python -m py_compile             src/qore/infrastructure/traders/vt31_nas100_reasoning_engine.py             src/qore/infrastructure/traders/vt31_nas100_situation_model.py             src/qore/infrastructure/traders/vt31_nas100_position_intelligence.py             src/qore/infrastructure/traders/vt31_nas100_post_entry_cognitive_runtime.py             src/qore/infrastructure/traders/vt31_nas100_edge_certification.py             scripts/vt31_nas100_specialist_r1_candidate.py
-          ruff check             src/qore/infrastructure/traders/vt31_nas100_reasoning_engine.py             src/qore/infrastructure/traders/vt31_nas100_situation_model.py             src/qore/infrastructure/traders/vt31_nas100_position_intelligence.py             src/qore/infrastructure/traders/vt31_nas100_edge_certification.py             scripts/vt31_nas100_specialist_r1_candidate.py             tests/infrastructure/test_vt31_nas100_sovereign_pure_edge_runtime.py             tests/infrastructure/test_vt31_nas100_cognitive_reasoning.py             tests/infrastructure/test_vt31_nas100_position_intelligence.py             tests/infrastructure/test_vt31_nas100_post_entry_cognitive_runtime.py             tests/infrastructure/test_vt31_nas100_edge_certification.py
+          python -m py_compile             src/qore/infrastructure/traders/vt31_nas100_reasoning_engine.py             src/qore/infrastructure/traders/vt31_nas100_market_context_runtime.py             src/qore/infrastructure/traders/vt31_nas100_situation_model.py             src/qore/infrastructure/traders/vt31_nas100_position_intelligence.py             src/qore/infrastructure/traders/vt31_nas100_post_entry_cognitive_runtime.py             src/qore/infrastructure/traders/vt31_nas100_edge_certification.py             scripts/vt31_nas100_specialist_r1_candidate.py
+          ruff check             src/qore/infrastructure/traders/vt31_nas100_reasoning_engine.py             src/qore/infrastructure/traders/vt31_nas100_situation_model.py             src/qore/infrastructure/traders/vt31_nas100_position_intelligence.py             src/qore/infrastructure/traders/vt31_nas100_edge_certification.py             scripts/vt31_nas100_specialist_r1_candidate.py             tests/infrastructure/test_vt31_nas100_sovereign_pure_edge_runtime.py             tests/infrastructure/test_vt31_nas100_cognitive_reasoning.py             tests/infrastructure/test_vt31_nas100_market_context_runtime.py             tests/infrastructure/test_vt31_nas100_position_intelligence.py             tests/infrastructure/test_vt31_nas100_post_entry_cognitive_runtime.py             tests/infrastructure/test_vt31_nas100_edge_certification.py
       - name: Sovereign pure-edge focused tests
         run: |
           set -euo pipefail
-          pytest -q -o addopts=''             tests/infrastructure/test_vt31_nas100_sovereign_pure_edge_runtime.py             tests/infrastructure/test_vt31_nas100_cognitive_reasoning.py             tests/infrastructure/test_vt31_nas100_position_intelligence.py             tests/infrastructure/test_vt31_nas100_edge_certification.py             tests/infrastructure/test_vt31_nas100_specialist_r1_candidate.py
+          pytest -q -o addopts=''             tests/infrastructure/test_vt31_nas100_sovereign_pure_edge_runtime.py             tests/infrastructure/test_vt31_nas100_cognitive_reasoning.py             tests/infrastructure/test_vt31_nas100_market_context_runtime.py             tests/infrastructure/test_vt31_nas100_position_intelligence.py             tests/infrastructure/test_vt31_nas100_edge_certification.py             tests/infrastructure/test_vt31_nas100_specialist_r1_candidate.py
       - name: Candidate self-test
         run: |
           set -euo pipefail
