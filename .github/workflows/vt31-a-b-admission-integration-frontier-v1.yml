@@ -125,6 +125,8 @@ jobs:
           assert g["future_outcome_used_for_action"] is False
           assert g["residual_clustering_diagnostics_observation_only"] is True
           assert g["residual_clustering_diagnostics_action_authority"] is False
+          assert g["residual_multivariate_diagnostics_observation_only"] is True
+          assert g["residual_multivariate_diagnostics_action_authority"] is False
           assert g["residual_preferred_variant"] == (
               "A_ABSTAIN_ORDER_BLOCK_AGE_0_2M_OR_EXPANDED"
           )
@@ -234,6 +236,9 @@ jobs:
                       "removed_metrics":cand["removed_metrics"],
                       "removed_context":cand["removed_context"],
                       "sequence_diagnostics":cand["sequence_diagnostics"],
+                      "residual_multivariate_groups":(
+                          cand["residual_multivariate_groups"]
+                      ),
                       "winner_preservation":wp,
                       "pf_nondegrade":pf_non,
                       "mean_nondegrade":mean_non,
@@ -343,6 +348,52 @@ jobs:
                           },
                       })
 
+          group_maps={
+              fold:residual[fold]["residual_multivariate_groups"]
+              for fold in folds
+          }
+          common_groups=set.intersection(
+              *(set(group_maps[fold]) for fold in folds)
+          )
+          multivariate_stable_negative=[]
+          multivariate_historical_positive_recent_flip=[]
+          for key in sorted(common_groups):
+              samples={
+                  fold:int(group_maps[fold][key]["sample"])
+                  for fold in folds
+              }
+              means={
+                  fold:d(
+                      group_maps[fold][key]["stress_0_05r"]["mean_r"]
+                  )
+                  for fold in folds
+              }
+              if (
+                  all(samples[fold]>=2 for fold in folds)
+                  and all(means[fold]<0 for fold in folds)
+              ):
+                  multivariate_stable_negative.append({
+                      "class":key,
+                      "samples":samples,
+                      "mean_stressed_r":{
+                          fold:format(means[fold],"f")
+                          for fold in folds
+                      },
+                  })
+              if (
+                  all(samples[fold]>=2 for fold in folds)
+                  and all(means[fold]>0 for fold in ("r5","r6","r8"))
+                  and means["consumed"]<0
+              ):
+                  multivariate_historical_positive_recent_flip.append({
+                      "class":key,
+                      "samples":samples,
+                      "mean_stressed_r":{
+                          fold:format(means[fold],"f")
+                          for fold in folds
+                      },
+                  })
+
           result={
               "schema":"qore.vt31.nas100.a_b_admission_integration.aggregate.v1",
               "head":"${{ github.sha }}",
@@ -357,6 +408,15 @@ jobs:
                   if item["development_survivor"]
                   and item["halfyears_all_nondegrade"]
               ],
+              "residual_multivariate":{
+                  "preferred_variant":preferred,
+                  "stable_negative_classes":multivariate_stable_negative,
+                  "historical_positive_recent_flip_classes":(
+                      multivariate_historical_positive_recent_flip
+                  ),
+                  "minimum_sample_each_fold":2,
+                  "action_authority":False,
+              },
               "residual_clustering":{
                   "preferred_variant":preferred,
                   "stable_negative_classes":stable_negative,
@@ -384,6 +444,8 @@ jobs:
                   "runtime_policy_changed":False,
                   "residual_clustering_observation_only":True,
                   "residual_clustering_action_authority":False,
+                  "residual_multivariate_observation_only":True,
+                  "residual_multivariate_action_authority":False,
                   "sizing_for_certification_forbidden":True,
                   "fresh_holdout_opened":False,
                   "policy_promoted":False,

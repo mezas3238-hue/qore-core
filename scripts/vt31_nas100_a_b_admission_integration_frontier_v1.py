@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import argparse
 import json
-from collections import Counter
+from collections import Counter, defaultdict
 from decimal import Decimal
 from pathlib import Path
 from typing import cast
@@ -138,6 +138,89 @@ def _winner_preservation(
     }
 
 
+def _minutes_bucket(value: object) -> str:
+    if value is None:
+        return "unavailable"
+    minute = int(value)
+    if minute <= 2:
+        return "0_2m"
+    if minute <= 5:
+        return "3_5m"
+    if minute <= 10:
+        return "6_10m"
+    return "11m_plus"
+
+
+def _residual_class_keys(row: dict[str, object]) -> tuple[str, ...]:
+    context = _entry_context(row)
+    family = str(row["entry_family"])
+    side = str(row["side"])
+    h1 = str(context.get("h1_state", "NA"))
+    m15 = str(context.get("m15_state", "NA"))
+    prior = str(context.get("prior_day_state", "NA"))
+    location = str(context.get("position_in_prior_day_range", "NA"))
+    volatility = str(context.get("reference_volatility_state", "NA"))
+    confirmation = _minutes_bucket(
+        context.get("confirmation_latency_minutes")
+    )
+    entry_age = _minutes_bucket(
+        context.get("entry_evidence_age_minutes")
+    )
+    return (
+        f"family_m15={family}|{m15}",
+        f"family_prior={family}|{prior}",
+        f"family_location={family}|{location}",
+        f"side_m15={side}|{m15}",
+        f"side_prior={side}|{prior}",
+        f"m15_prior={m15}|{prior}",
+        f"m15_location={m15}|{location}",
+        f"prior_location={prior}|{location}",
+        f"family_h1_m15={family}|{h1}|{m15}",
+        f"family_m15_prior={family}|{m15}|{prior}",
+        f"family_m15_location={family}|{m15}|{location}",
+        f"side_m15_prior={side}|{m15}|{prior}",
+        f"side_m15_location={side}|{m15}|{location}",
+        f"m15_prior_location={m15}|{prior}|{location}",
+        (
+            "family_m15_confirmation="
+            f"{family}|{m15}|{confirmation}"
+        ),
+        (
+            "family_prior_entry_age="
+            f"{family}|{prior}|{entry_age}"
+        ),
+        (
+            "m15_prior_confirmation="
+            f"{m15}|{prior}|{confirmation}"
+        ),
+        (
+            "family_volatility_m15="
+            f"{family}|{volatility}|{m15}"
+        ),
+    )
+
+
+def _residual_multivariate_groups(
+    rows: list[dict[str, object]],
+) -> dict[str, dict[str, object]]:
+    groups: dict[str, list[dict[str, object]]] = defaultdict(list)
+    for row in rows:
+        for key in _residual_class_keys(row):
+            groups[key].append(row)
+    result: dict[str, dict[str, object]] = {}
+    for key, group in sorted(groups.items()):
+        if len(group) < 2:
+            continue
+        result[key] = {
+            "sample": len(group),
+            "stress_0_05r": specialist._metrics(
+                group,
+                friction=specialist.FRICTION,
+            ),
+        }
+    return result
+
+
 def _removed_context(
     rows: list[dict[str, object]],
 ) -> dict[str, dict[str, int]]:
@@ -206,6 +289,11 @@ def _variant_report(
         "removed_context": _removed_context(removed),
         "sequence_diagnostics": (
             composition._sequence_diagnostics(candidate)
+            if variant == PREFERRED_RESIDUAL_VARIANT
+            else None
+        ),
+        "residual_multivariate_groups": (
+            _residual_multivariate_groups(candidate)
             if variant == PREFERRED_RESIDUAL_VARIANT
             else None
         ),
@@ -290,6 +378,8 @@ def replay(evidence_path: Path) -> dict[str, object]:
             "future_outcome_used_for_action": False,
             "residual_clustering_diagnostics_observation_only": True,
             "residual_clustering_diagnostics_action_authority": False,
+            "residual_multivariate_diagnostics_observation_only": True,
+            "residual_multivariate_diagnostics_action_authority": False,
             "residual_preferred_variant": PREFERRED_RESIDUAL_VARIANT,
             "density_floor_predeclared": format(DENSITY_FLOOR, "f"),
             "winner_count_floor_predeclared": format(
