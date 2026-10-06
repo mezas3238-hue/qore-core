@@ -31,6 +31,7 @@ from qore.infrastructure.traders import vt31_nas100_market_context_runtime as ct
 from qore.infrastructure.traders.vt31_nas100_position_intelligence import (
     ManagementContext,
     assess_full_cognitive_position,
+    validate_contextual_management_readiness_for_research,
     validate_full_cognitive_accounting_for_research,
     validate_maximum_cognition_for_certification,
 )
@@ -216,13 +217,25 @@ def _current_cognition(
     )
     validate_full_cognitive_accounting_for_research(cognition)
 
-    max_ready = True
+    management_ready = True
+    try:
+        validate_contextual_management_readiness_for_research(cognition)
+    except ValueError:
+        management_ready = False
+
+    maximum_intelligence_ready = True
     try:
         validate_maximum_cognition_for_certification(cognition)
     except ValueError:
-        max_ready = False
+        maximum_intelligence_ready = False
 
-    return current, current_reasoning, cognition, max_ready
+    return (
+        current,
+        current_reasoning,
+        cognition,
+        management_ready,
+        maximum_intelligence_ready,
+    )
 
 
 def _simulate(
@@ -292,7 +305,8 @@ def _simulate(
     cognitive_state: str | None = None
     cognitive_action = "NONE"
     current_reasoning_action: str | None = None
-    max_ready_at_action: bool | None = None
+    management_ready_at_action: bool | None = None
+    maximum_intelligence_ready_at_action: bool | None = None
     max_blockers: list[str] = []
     previous = first
     filled_at = getattr(first, "closed_at")
@@ -360,7 +374,13 @@ def _simulate(
                 for item in post_touch
             ]
             cognitive_state = persistence._persistence_state(closes_r)
-            _, current_reasoning, cognition, max_ready = _current_cognition(
+            (
+                _,
+                current_reasoning,
+                cognition,
+                management_ready,
+                maximum_intelligence_ready,
+            ) = _current_cognition(
                 day_bars=day_bars,
                 executable=executable,
                 state=state,
@@ -369,11 +389,16 @@ def _simulate(
                 horizon=horizon,
             )
             current_reasoning_action = current_reasoning.action
-            max_ready_at_action = max_ready
+            management_ready_at_action = management_ready
+            maximum_intelligence_ready_at_action = (
+                maximum_intelligence_ready
+            )
             max_blockers = list(cognition.reasoning_max_intelligence_blockers)
 
-            if not max_ready:
-                cognitive_action = "HOLD_BASELINE_MAX_INTELLIGENCE_BLOCKED"
+            if not management_ready:
+                cognitive_action = (
+                    "HOLD_BASELINE_CONTEXTUAL_MANAGEMENT_BLOCKED"
+                )
                 continue
 
             if cognitive_state in {
@@ -433,7 +458,12 @@ def _simulate(
         "post_1r_persistence_state": cognitive_state,
         "full_cognition_action": cognitive_action,
         "current_reasoning_action": current_reasoning_action,
-        "maximum_intelligence_ready_at_action": max_ready_at_action,
+        "contextual_management_ready_at_action": (
+            management_ready_at_action
+        ),
+        "maximum_intelligence_ready_at_action": (
+            maximum_intelligence_ready_at_action
+        ),
         "maximum_intelligence_blockers": max_blockers,
         "breakeven_armed": be_armed,
         "runtime_r_strategy_used": True,
@@ -510,11 +540,19 @@ def replay(evidence_path: Path) -> dict[str, object]:
                     ).items()
                 )
             ),
-            "max_ready_action_count": sum(
+            "management_ready_action_count": sum(
+                row.get("contextual_management_ready_at_action") is True
+                for row in rows
+            ),
+            "management_blocked_action_count": sum(
+                row.get("contextual_management_ready_at_action") is False
+                for row in rows
+            ),
+            "maximum_intelligence_ready_action_count": sum(
                 row.get("maximum_intelligence_ready_at_action") is True
                 for row in rows
             ),
-            "max_blocked_action_count": sum(
+            "maximum_intelligence_blocked_action_count": sum(
                 row.get("maximum_intelligence_ready_at_action") is False
                 for row in rows
             ),
@@ -529,7 +567,9 @@ def replay(evidence_path: Path) -> dict[str, object]:
         "variants": variants,
         "governance": {
             "full_post_entry_reasoning_reassessed": True,
-            "maximum_intelligence_required_before_management_action": True,
+            "full_cognition_required_before_management_action": True,
+            "contextual_management_readiness_required_before_action": True,
+            "maximum_intelligence_required_for_candidate_freeze": True,
             "blocked_cognition_falls_back_to_structural_baseline": True,
             "same_sovereign_admission_population": True,
             "entry_changed": False,
