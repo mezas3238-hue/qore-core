@@ -21,7 +21,9 @@ from qore.infrastructure.cibo_capital_management_authority import (
     CapitalAction,
     CiboCapitalManagementError,
 )
-from qore.infrastructure.cibo_executive_brain import CiboExecutiveDirectiveKind
+from qore.infrastructure.cibo_executive_brain import (
+    CiboExecutiveDirectiveKind,
+)
 from qore.infrastructure.cibo_sovereign_capital_runtime import (
     CiboSovereignCapitalDecision,
 )
