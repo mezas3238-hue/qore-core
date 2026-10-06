@@ -1,0 +1,211 @@
+name: QORE CIBO Walk Forward Full Replay
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/cibo-causal-expectation-leakage-fix-001
+    paths:
+      - '.github/workflows/cibo-walk-forward-full-replay.yml'
+      - 'src/qore/infrastructure/cibo_ce2i_causal_expectation.py'
+      - 'src/qore/infrastructure/cibo_walk_forward_expectation.py'
+      - 'src/qore/infrastructure/cibo_single_account_manifest_settlement.py'
+      - 'src/qore/infrastructure/cibo_single_account_manifest_economics.py'
+      - 'src/qore/infrastructure/cibo_portfolio_allocation_engine.py'
+      - 'src/qore/infrastructure/cibo_native_max_cognitive_episode.py'
+      - 'scripts/cibo_build_walk_forward_expectation_manifest.py'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-cibo-walk-forward-full-replay-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  replay:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+      FROZEN_ARTIFACT_ID: '11389331836'
+      FROZEN_ARTIFACT_DIGEST: 'sha256:30177639f660c9647ab70257c2d12c541bdade49ab5582347a3890f920070fee'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install
+        run: python -m pip install -e '.[dev]'
+
+      - name: Validate walk-forward surface
+        run: |
+          set -euo pipefail
+          python -m py_compile             src/qore/infrastructure/cibo_walk_forward_expectation.py             scripts/cibo_build_walk_forward_expectation_manifest.py             scripts/cibo_single_account_historical_ceiling_replay.py
+          ruff check             src/qore/infrastructure/cibo_walk_forward_expectation.py             scripts/cibo_build_walk_forward_expectation_manifest.py
+          pytest -q --no-cov             tests/infrastructure/test_cibo_walk_forward_expectation.py             tests/infrastructure/test_cibo_walk_forward_manifest_builder.py             tests/infrastructure/test_cibo_single_account_manifest_settlement.py
+
+      - name: Recover frozen source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/frozen" "$RUNNER_TEMP/walk-forward"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$FROZEN_ARTIFACT_ID" > "$RUNNER_TEMP/frozen.meta.json"
+          jq -e --arg digest "$FROZEN_ARTIFACT_DIGEST" '.expired == false and .digest == $digest' "$RUNNER_TEMP/frozen.meta.json"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$FROZEN_ARTIFACT_ID/zip" > "$RUNNER_TEMP/frozen.zip"
+          echo "${FROZEN_ARTIFACT_DIGEST#sha256:}  $RUNNER_TEMP/frozen.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/frozen.zip" -d "$RUNNER_TEMP/frozen"
+          MANIFEST="$(find "$RUNNER_TEMP/frozen" -type f -name single-account-manifest-native.json -print -quit)"
+          test -n "$MANIFEST"
+          echo "MANIFEST=$MANIFEST" >> "$GITHUB_ENV"
+
+      - name: Build full causal walk-forward manifest
+        run: |
+          set -euo pipefail
+          python scripts/cibo_build_walk_forward_expectation_manifest.py             --manifest "$MANIFEST"             --output "$RUNNER_TEMP/walk-forward/walk-forward-manifest.json"             --receipt "$RUNNER_TEMP/walk-forward/walk-forward-receipt.json"
+          echo "WF_MANIFEST=$RUNNER_TEMP/walk-forward/walk-forward-manifest.json" >> "$GITHUB_ENV"
+
+      - name: Prove full-period chronology and expectation coverage
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          from qore.infrastructure.cibo_single_account_manifest_economics import (
+              manifest_to_ceiling_opportunity_evidence,
+          )
+
+          payload = json.loads(Path(os.environ["WF_MANIFEST"]).read_text())
+          receipt = json.loads(
+              (Path(os.environ["RUNNER_TEMP"]) / "walk-forward" / "walk-forward-receipt.json").read_text()
+          )
+          evidence = manifest_to_ceiling_opportunity_evidence(payload)
+
+          assert len(evidence) == 3368
+          assert payload["decision_epoch_count"] == 3305
+          assert receipt["opportunity_decision_count"] == 3368
+          assert receipt["decoded_before_exit_count"] == 0
+          assert receipt["future_outcome_used"] is False
+          assert receipt["cold_start_decision_count"] + receipt["forecast_decision_count"] == 3368
+          assert receipt["forecast_decision_count"] > 3000
+          assert set(receipt["per_trader_forecast"]) == set(payload["trader_ids"])
+          assert all(value > 0 for value in receipt["per_trader_forecast"].values())
+          print(json.dumps(receipt, sort_keys=True))
+          PY
+
+      - name: Execute full causal sovereign replay
+        run: |
+          set -euo pipefail
+          python scripts/cibo_single_account_historical_ceiling_replay.py             --manifest "$WF_MANIFEST"             --output "$RUNNER_TEMP/walk-forward/walk-forward-replay.json"             --progress-every 100
+
+      - name: Summarize repaired capital path
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from collections import Counter, defaultdict
+          from datetime import datetime
+          from decimal import Decimal, localcontext
+          from pathlib import Path
+
+          root = Path(os.environ["RUNNER_TEMP"]) / "walk-forward"
+          replay = json.loads((root / "walk-forward-replay.json").read_text())
+          manifest = json.loads((root / "walk-forward-manifest.json").read_text())
+          receipt = json.loads((root / "walk-forward-receipt.json").read_text())
+
+          assert replay["decision_count"] == 3368
+          assert replay["decision_epoch_count"] == 3305
+          assert replay["external_ai_call_count"] == 0
+          assert replay["governance"]["outcome_used_for_predecision"] is False
+          assert replay["governance"]["account_reset_count"] == 0
+          assert replay["governance"]["economic_era_reset_count"] == 0
+          assert replay["governance"]["broker_mutation"] is False
+          assert replay["governance"]["certification_claimed"] is False
+
+          initial = Decimal("60")
+          ending = Decimal(replay["ending_capital_usd"])
+          start = datetime.fromisoformat(manifest["first_market_decision_at"])
+          end = datetime.fromisoformat(manifest["last_market_decision_at"])
+          elapsed_days = Decimal(str((end - start).total_seconds())) / Decimal("86400")
+
+          capital = initial
+          peak = initial
+          max_drawdown = Decimal(0)
+          net_by_trader = defaultdict(Decimal)
+          settlements_by_trader = Counter()
+          for item in sorted(
+              replay["settlement_receipts"],
+              key=lambda row: (row["settled_at"], row["signal_fingerprint"]),
+          ):
+              pnl = Decimal(item["realized_net_pnl_usd"])
+              capital += pnl
+              peak = max(peak, capital)
+              max_drawdown = max(max_drawdown, peak - capital)
+              net_by_trader[item["trader_id"]] += pnl
+              settlements_by_trader[item["trader_id"]] += 1
+
+          leverage = Counter(
+              str(item["adaptive_leverage_multiplier"])
+              for item in replay["decision_receipts"]
+          )
+          risk = Counter(
+              str(item["risk_decision"])
+              for item in replay["decision_receipts"]
+          )
+          selected = sum(
+              1
+              for item in replay["decision_receipts"]
+              if item["risk_decision"] in {"ALLOW", "REDUCE"}
+          )
+          with localcontext() as context:
+              context.prec = 100
+              cumulative_return = (
+                  ending / initial - Decimal(1)
+              ) * Decimal(100)
+
+          summary = {
+              "schema": "qore.cibo.walk-forward-causal-baseline.v1",
+              "initial_capital_usd": format(initial, "f"),
+              "ending_capital_usd": format(ending, "f"),
+              "net_pnl_usd": replay["net_pnl_usd"],
+              "peak_capital_usd": replay["peak_capital_usd"],
+              "maximum_drawdown_usd": format(max_drawdown, "f"),
+              "cumulative_return_percent": format(cumulative_return, "f"),
+              "elapsed_days": format(elapsed_days, "f"),
+              "decision_count": replay["decision_count"],
+              "decision_epoch_count": replay["decision_epoch_count"],
+              "settlement_count": replay["settlement_count"],
+              "selected_decision_count": selected,
+              "cold_start_decision_count": receipt["cold_start_decision_count"],
+              "forecast_decision_count": receipt["forecast_decision_count"],
+              "adaptive_leverage_multiplier_counts": dict(sorted(leverage.items())),
+              "risk_decision_counts": dict(sorted(risk.items())),
+              "settlements_by_trader": dict(sorted(settlements_by_trader.items())),
+              "net_pnl_by_trader_usd": {
+                  key: format(value, "f")
+                  for key, value in sorted(net_by_trader.items())
+              },
+              "decoded_before_exit_count": receipt["decoded_before_exit_count"],
+              "future_outcome_used": False,
+              "outcome_aware_tuning": False,
+              "certification_claimed": False,
+              "research_only": True,
+          }
+          (root / "walk-forward-summary.json").write_text(
+              json.dumps(summary, indent=2, sort_keys=True) + "\n"
+          )
+          print(json.dumps(summary, sort_keys=True))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-cibo-walk-forward-full-replay-${{ github.run_id }}
+          path: ${{ runner.temp }}/walk-forward
+          if-no-files-found: warn
