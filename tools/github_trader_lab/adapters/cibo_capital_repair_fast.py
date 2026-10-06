@@ -67,6 +67,7 @@ class Variant:
     profit_funded_leverage: bool = False
     max_frontier: bool = False
     tiered_consensus: bool = False
+    evidence_depth_confidence: bool = False
 
 
 VARIANTS = (
@@ -132,6 +133,18 @@ VARIANTS = (
         max_frontier=True,
         tiered_consensus=True,
     ),
+    Variant(
+        "MAX_FRONTIER_DEPTH_CONSENSUS",
+        Decimal("0.70"),
+        True,
+        True,
+        True,
+        True,
+        profit_funded_leverage=True,
+        max_frontier=True,
+        tiered_consensus=True,
+        evidence_depth_confidence=True,
+    ),
 )
 
 
@@ -176,8 +189,19 @@ def _confidence_cap(
     margin_utilization: Decimal,
     drawdown_utilization: Decimal,
     tiered_consensus: bool = False,
+    evidence_depth_confidence: bool = False,
 ) -> int:
-    maturity = d(row.get("walk_forward_maturity_fraction", "0"))
+    if evidence_depth_confidence:
+        observations = Decimal(
+            int(row.get("walk_forward_observation_count", 0))
+        )
+        maturity = (
+            ZERO
+            if observations <= 0
+            else observations / (observations + Decimal(25))
+        )
+    else:
+        maturity = d(row.get("walk_forward_maturity_fraction", "0"))
     utilization = max(
         risk_utilization,
         margin_utilization,
@@ -349,6 +373,9 @@ def _portfolio(
                     margin_utilization=margin_utilization,
                     drawdown_utilization=drawdown_utilization,
                     tiered_consensus=variant.tiered_consensus,
+                    evidence_depth_confidence=(
+                        variant.evidence_depth_confidence
+                    ),
                 ),
             )
         if variant.max_frontier:
