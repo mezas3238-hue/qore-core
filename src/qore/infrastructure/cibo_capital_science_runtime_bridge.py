@@ -1370,7 +1370,12 @@ def _native_genc5_inputs(
         deployable_profit = unprotected_profit - deployed_profit
         combined_compound_capacity = unprotected_profit
         requested = state.requested_stop_risk_usd + state.provider_cost_usd
-    if profit_total <= 0 or deployable_profit <= 0 or requested > deployable_profit:
+    if (
+        requested <= 0
+        or profit_total <= 0
+        or deployable_profit <= 0
+        or requested > deployable_profit
+    ):
         return None
 
     realized_at = state.decision_at - timedelta(microseconds=6)
@@ -1808,17 +1813,27 @@ def evaluate_capital_science_predecision(
             )
         )
     else:
+        no_marginal_request = incremental_request_capital <= 0
         receipts.append(
             _receipt(
                 state=state,
                 function_code="GEN-C5",
                 disposition=CapitalScienceDisposition.JUSTIFIED_NOT_APPLICABLE,
                 reason=(
-                    "canonical realized-profit capacity could not fund the exact "
-                    "incremental request"
+                    "no positive marginal capital request exists after upstream "
+                    "sizing/capital-scarcity evaluation"
+                    if no_marginal_request
+                    else (
+                        "canonical realized-profit capacity could not fund the exact "
+                        "incremental request"
+                    )
                 ),
                 downstream_consumer="GEN-C8_ADAPTIVE_COMPOUND_SPEED",
-                consumer_action="INSUFFICIENT_REALIZED_PROFIT_CAPACITY",
+                consumer_action=(
+                    "NO_MARGINAL_CAPACITY"
+                    if no_marginal_request
+                    else "INSUFFICIENT_REALIZED_PROFIT_CAPACITY"
+                ),
                 decision_changed=True,
                 capital_source_usage=(state.capital_source,),
             )
