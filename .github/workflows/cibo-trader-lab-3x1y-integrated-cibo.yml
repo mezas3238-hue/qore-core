@@ -8,15 +8,19 @@ on:
     paths:
       - '.github/workflows/cibo-trader-lab-3x1y-integrated-cibo.yml'
       - 'scripts/cibo_maximum_capability_frontier.py'
+      - 'scripts/cibo_enrich_single_account_vt31_native_perception.py'
+      - 'scripts/cibo_single_account_native_perception_audit.py'
       - 'src/qore/infrastructure/cibo_maximum_capability_frontier.py'
       - 'src/qore/infrastructure/cibo_position_lifecycle.py'
       - 'src/qore/infrastructure/cibo_profitability_lab_function_runtime.py'
       - 'src/qore/infrastructure/cibo_capital_science_runtime_bridge.py'
       - 'src/qore/infrastructure/cibo_crisis_capital_intelligence.py'
+      - 'src/qore/infrastructure/traders/vt31_nas100_native_perception.py'
       - 'tests/infrastructure/test_cibo_capital_science_runtime_bridge.py'
       - 'tests/infrastructure/test_cibo_reused_holdout_compound_portfolio_lane_alignment.py'
       - 'tests/infrastructure/test_cibo_crisis_capital_intelligence.py'
       - 'tests/infrastructure/test_cibo_maximum_capability_frontier.py'
+      - 'tests/infrastructure/test_cibo_vt31_native_perception_contract.py'
 
 permissions:
   contents: read
@@ -70,11 +74,14 @@ jobs:
             scripts/cibo_maximum_capability_frontier.py \
             scripts/cibo_function_io_actuation_report.py \
             scripts/cibo_function_utilization_sensor.py \
+            scripts/cibo_enrich_single_account_vt31_native_perception.py \
+            scripts/cibo_single_account_native_perception_audit.py \
             src/qore/infrastructure/cibo_ce2i_full_surface.py \
             src/qore/infrastructure/cibo_ce2i_advanced_capital_tools.py \
             src/qore/infrastructure/cibo_ce2i_regime_selector.py \
             src/qore/infrastructure/cibo_ce2i_optionality.py \
             src/qore/infrastructure/cibo_crisis_capital_intelligence.py \
+            src/qore/infrastructure/traders/vt31_nas100_native_perception.py \
             src/qore/infrastructure/cibo_ce2i_phase20_robust_allocator.py \
             src/qore/infrastructure/cibo_ce2i_runtime_receipt.py \
             src/qore/infrastructure/cibo_ce2i_full_surface.py \
@@ -133,7 +140,8 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_robust_allocator.py \
             tests/infrastructure/test_cibo_ce2i_regime_selector.py \
             tests/infrastructure/test_cibo_ce2i_optionality.py \
-            tests/infrastructure/test_cibo_profitability_lab_context_quality.py
+            tests/infrastructure/test_cibo_profitability_lab_context_quality.py \
+            tests/infrastructure/test_cibo_vt31_native_perception_contract.py
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_phase22_v4_t02_volume_alignment.py \
             tests/infrastructure/test_cibo_maximum_capability_frontier.py \
@@ -149,7 +157,8 @@ jobs:
             tests/infrastructure/test_cibo_ce2i_phase20_robust_allocator.py \
             tests/infrastructure/test_cibo_ce2i_regime_selector.py \
             tests/infrastructure/test_cibo_ce2i_optionality.py \
-            tests/infrastructure/test_cibo_profitability_lab_context_quality.py
+            tests/infrastructure/test_cibo_profitability_lab_context_quality.py \
+            tests/infrastructure/test_cibo_vt31_native_perception_contract.py
 
       - name: Recover immutable seven-Trader assembly
         run: |
