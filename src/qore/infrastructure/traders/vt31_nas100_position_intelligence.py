@@ -1009,6 +1009,14 @@ def assess_full_cognitive_position(
     else:
         context = ManagementContext.MIXED
 
+    if (
+        open_r is not None
+        and open_r <= Decimal("-0.50")
+        and context is ManagementContext.SUPPORTIVE
+    ):
+        context = ManagementContext.MIXED
+        signals.append("JOURNEY_MATERIAL_ADVERSE_CONTEXT_FLOOR_MIXED")
+
     urgency = (
         ProtectionUrgency.HIGH
         if context is ManagementContext.CAUTIOUS
