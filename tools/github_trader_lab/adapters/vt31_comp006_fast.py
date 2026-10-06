@@ -109,6 +109,8 @@ def run(prepared_path: Path, lane: str) -> dict[str, Any]:
             "current_subject_downstream_logic_loaded": True,
             "m1_reconstructed_this_iteration": False,
             "monte_carlo_deferred_to_lab": True,
+            "pure_edge_replay": True,
+            "sizing_for_certification_used": False,
             "fresh_holdout_opened": False,
             "certification_claimed": False,
         },
