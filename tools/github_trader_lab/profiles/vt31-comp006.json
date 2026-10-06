@@ -40,22 +40,26 @@
     "r5": {
       "artifact_id": 10380044761,
       "artifact_path": "fresh/NAS100/market-evidence.json",
-      "sha256": "7b1e3d9e2bfd17ccc6f043befabf464838d150bc6034ced1f76a24ee248611d7"
+      "sha256": "7b1e3d9e2bfd17ccc6f043befabf464838d150bc6034ced1f76a24ee248611d7",
+      "evidence_role": "DEVELOPMENT_RESEARCH"
     },
     "r6": {
       "artifact_id": 10389112524,
       "artifact_path": "fresh/NAS100/market-evidence.json",
-      "sha256": "cf3ef22fa86916bfb2826f4fa48c7a9655b9509c76a05d9bb26d0d4cb6069581"
+      "sha256": "cf3ef22fa86916bfb2826f4fa48c7a9655b9509c76a05d9bb26d0d4cb6069581",
+      "evidence_role": "DEVELOPMENT_RESEARCH"
     },
     "r8": {
       "artifact_id": 10402199719,
       "artifact_path": "fresh/NAS100/market-evidence.json",
-      "sha256": "4031c7e21bb311fdb99d7b1028fd9ff154ace1dc4886249ff978b700fdeeedcb"
+      "sha256": "4031c7e21bb311fdb99d7b1028fd9ff154ace1dc4886249ff978b700fdeeedcb",
+      "evidence_role": "DEVELOPMENT_RESEARCH"
     },
     "consumed": {
       "artifact_id": 10557487418,
       "artifact_path": "NAS100/market-evidence.json",
-      "sha256": "acf2fa327a68a5a6d977dfdbc9c696cb13db6e0e7550b9da386f3699b5cf8d09"
+      "sha256": "acf2fa327a68a5a6d977dfdbc9c696cb13db6e0e7550b9da386f3699b5cf8d09",
+      "evidence_role": "DEVELOPMENT_RESEARCH"
     }
   },
   "science": {
@@ -73,5 +77,18 @@
     "mc_positive_floor": "0.90",
     "mc_p95_dd_max_r": "15",
     "require_temporal_nondegrade": true
+  },
+  "certification_policy": {
+    "hard_dd_max_r": "6",
+    "pure_edge_no_sizing_required": true,
+    "walk_forward_oos_required": true,
+    "fresh_oos_required": true,
+    "sharpe_threshold": null,
+    "sortino_threshold": null,
+    "notes": [
+      "Sharpe and Sortino are reported but are not hard gates unless a sovereign threshold is explicitly declared.",
+      "Development folds never self-promote to OOS.",
+      "Fresh OOS must be bound explicitly as FRESH_OOS evidence."
+    ]
   }
 }
