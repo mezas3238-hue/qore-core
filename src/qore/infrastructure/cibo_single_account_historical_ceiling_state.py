@@ -178,20 +178,23 @@ def _validate_open_exposures(
             )
 
 
+def _sum_decimal_exact(values: tuple[Decimal, ...]) -> Decimal:
+    with localcontext() as context:
+        context.prec = 100
+        return sum(values, Decimal(0))
+
+
 def _source_capacities(
     state: CiboHistoricalResearchCapitalState,
 ) -> tuple[Genc10SourceCapacityState, ...]:
-    profit_proven = sum(
-        (item.proven_usd for item in state.profit_generations),
-        Decimal(0),
+    profit_proven = _sum_decimal_exact(
+        tuple(item.proven_usd for item in state.profit_generations)
     )
-    profit_consumed = sum(
-        (item.consumed_usd for item in state.profit_generations),
-        Decimal(0),
+    profit_consumed = _sum_decimal_exact(
+        tuple(item.consumed_usd for item in state.profit_generations)
     )
-    profit_reserved = sum(
-        (item.reserved_usd for item in state.profit_generations),
-        Decimal(0),
+    profit_reserved = _sum_decimal_exact(
+        tuple(item.reserved_usd for item in state.profit_generations)
     )
     return (
         Genc10SourceCapacityState(
@@ -216,9 +219,8 @@ def _source_capacities(
 def _economic_buckets(
     state: CiboHistoricalResearchCapitalState,
 ) -> tuple[tuple[Genc10EconomicBucket, Decimal], ...]:
-    profit_reserved = sum(
-        (item.reserved_usd for item in state.profit_generations),
-        Decimal(0),
+    profit_reserved = _sum_decimal_exact(
+        tuple(item.reserved_usd for item in state.profit_generations)
     )
     profit_available = state.realized_profit_available_usd
     amounts = {
