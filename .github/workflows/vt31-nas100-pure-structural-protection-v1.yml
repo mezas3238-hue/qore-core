@@ -1,4 +1,8 @@
 name: QORE VT31 NAS100 Pure Structural Protection V1
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 
 on:
   push:
