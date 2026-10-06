@@ -78,6 +78,7 @@ def run_cibo_economic_engine_chain(
     twin: CiboObservedEconomicTwin,
     world_paths: tuple[Genc11WorldPath, ...],
     option_schedules: tuple[Genc11KnownOptionSchedule, ...],
+    fixed_multiplier: int | None = None,
     lifecycle_requests: Sequence[CiboLifecycleWireRequest] = (),
     competition_option_ids: Sequence[str] = (),
     release_events: Sequence[CiboCapitalReleaseEvent] = (),
@@ -90,7 +91,10 @@ def run_cibo_economic_engine_chain(
         world_paths=world_paths,
         option_schedules=option_schedules,
     )
-    portfolio = plan_account_wide_capital_allocation(twin)
+    portfolio = plan_account_wide_capital_allocation(
+        twin,
+        fixed_multiplier=fixed_multiplier,
+    )
 
     lifecycle_results = tuple(
         run_cibo_position_lifecycle(
