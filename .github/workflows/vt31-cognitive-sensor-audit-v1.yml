@@ -12,6 +12,8 @@ on:
       - tests/infrastructure/test_vt31_nas100_cibo_causal_structure.py
       - src/qore/infrastructure/traders/vt31_nas100_post_entry_cognitive_runtime.py
       - tests/infrastructure/test_vt31_nas100_post_entry_cognitive_runtime.py
+      - scripts/vt31_nas100_specialist_r1_candidate.py
+      - scripts/vt31_nas100_full_cognition_attribution_v1.py
       - scripts/vt31_nas100_live_cognitive_breaker_protection_frontier_v1.py
       - scripts/vt31_nas100_comp010_live_context_adverse_exit_v1.py
       - scripts/vt31_nas100_comp009_causal_trace_prepare_v1.py
