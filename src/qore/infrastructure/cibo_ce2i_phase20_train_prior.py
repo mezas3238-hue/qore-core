@@ -212,6 +212,17 @@ FROZEN_TRAIN_PRIORS: tuple[FrozenTraderExpectationPrior, ...] = (
 )
 
 
+def frozen_train_prior_available_at() -> datetime:
+    """Return the earliest timestamp at which the complete TRAIN prior existed."""
+
+    result = datetime.fromisoformat(_TRAIN_END)
+    if result.tzinfo is None or result.utcoffset() is None:
+        raise CiboCapitalManagementError(
+            "TRAIN prior availability timestamp must be timezone-aware"
+        )
+    return result
+
+
 def frozen_train_prior_for(
     trader_id: TraderLineage,
 ) -> FrozenTraderExpectationPrior:
@@ -248,6 +259,11 @@ def build_frozen_train_expectation(
     if as_of.tzinfo is None or as_of.utcoffset() is None:
         raise CiboCapitalManagementError(
             "TRAIN prior expectation as_of must be timezone-aware"
+        )
+    available_at = frozen_train_prior_available_at()
+    if as_of < available_at:
+        raise CiboCapitalManagementError(
+            "TRAIN prior cannot be used before its training window completed"
         )
     prior = frozen_train_prior_for(trader_id)
     with localcontext() as context:
