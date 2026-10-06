@@ -687,6 +687,20 @@ def summarize_cognitive_reach_sensors(
             )
         ablation_key = next(iter(keys))
         without = component_ablations.get(ablation_key)
+        delta = (
+            None
+            if without is None or full_ending_capital_usd is None
+            else full_ending_capital_usd - without
+        )
+        contribution_class = (
+            "UNPROVEN"
+            if delta is None
+            else "POSITIVE_CONTRIBUTOR"
+            if delta > 0
+            else "ECONOMIC_DRAG"
+            if delta < 0
+            else "NO_MEASURED_EFFECT"
+        )
         components[code] = {
             "event_count": len(group),
             "applicable_count": sum(item.applicable for item in group),
@@ -723,10 +737,9 @@ def summarize_cognitive_reach_sensors(
                 None if without is None else format(without, "f")
             ),
             "individual_delta_ending_capital_vs_full_usd": (
-                None
-                if without is None or full_ending_capital_usd is None
-                else format(full_ending_capital_usd - without, "f")
+                None if delta is None else format(delta, "f")
             ),
+            "economic_contribution_class": contribution_class,
         }
 
     global_delta = None
