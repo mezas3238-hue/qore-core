@@ -74,6 +74,27 @@ def _should_abstain(row: dict[str, object]) -> bool:
     )
 
 
+def _fvg_short_compressed_fresh_fast(
+    row: dict[str, object],
+) -> bool:
+    if str(row["entry_family"]) != "fair-value-gap":
+        return False
+    if str(row["side"]) != "short":
+        return False
+    context = cast(dict[str, object], row.get("entry_context", {}))
+    return (
+        str(context.get("reference_volatility_state")) == "compressed"
+        and adverse._reclaim_sequence_state(
+            context.get("reference_reclaim_age_minutes")
+        )
+        == "FRESH_LT8M"
+        and adverse._confirmation_latency_state(
+            context.get("confirmation_latency_minutes")
+        )
+        == "FAST_LE5M"
+    )
+
+
 def _residual_entry_quality_forensics(
     rows: list[dict[str, object]],
 ) -> dict[str, object]:
@@ -318,6 +339,11 @@ def replay(evidence_path: Path) -> dict[str, object]:
     candidate = [
         row for row in comparator if not _should_abstain(row)
     ]
+    fvg_fresh_fast_candidate = [
+        row
+        for row in candidate
+        if not _fvg_short_compressed_fresh_fast(row)
+    ]
 
     return {
         "schema": SCHEMA,
@@ -339,6 +365,14 @@ def replay(evidence_path: Path) -> dict[str, object]:
                 comparator=comparator,
                 rows=candidate,
             ),
+            (
+                "CURRENT_SURVIVOR_PLUS_"
+                "ABSTAIN_FVG_SHORT_COMPRESSED_FRESH_FAST"
+            ): _report(
+                structural_count=len(structural_rows),
+                comparator=candidate,
+                rows=fvg_fresh_fast_candidate,
+            ),
         },
         "governance": {
             "consumed_evidence_only": True,
@@ -348,6 +382,8 @@ def replay(evidence_path: Path) -> dict[str, object]:
             "reclaim_fresh_bucket_preexisting": True,
             "residual_entry_quality_forensics_observation_only": True,
             "residual_entry_quality_forensics_action_authority": False,
+            "fvg_fresh_fast_candidate_predeclared": True,
+            "fvg_fresh_fast_uses_preexisting_buckets": True,
             "new_numeric_threshold_added": False,
             "outcome_used_for_action": False,
             "fold_identity_used_for_action": False,
