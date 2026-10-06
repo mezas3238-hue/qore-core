@@ -108,7 +108,7 @@ def _live_cognitive_decision(
     causal_today = tuple(
         bar
         for bar in day_bars
-        if cast(datetime, getattr(bar, "closed_at")) <= observation_at
+        if cast(datetime, bar.closed_at) <= observation_at
     )
     local = observation_at.astimezone(h3._NY)
     previous_range = h3._opt_d(state.get("previous_admitted_path_range"))
@@ -162,7 +162,7 @@ def _live_cognitive_decision(
         bar
         for bar in causal_today
         if (10, 0, 0)
-        <= specialist._wall(getattr(bar, "opened_at"))
+        <= specialist._wall(bar.opened_at)
         < (11, 0, 0)
     )
     reclaim_at = specialist._first_reference_reclaim_at(session_prefix, source)
@@ -310,7 +310,7 @@ def _simulate(
             day_bars=day_bars,
             executable=executable,
             state=state,
-            observation_at=cast(datetime, getattr(bar, "closed_at")),
+            observation_at=cast(datetime, bar.closed_at),
             current_stop=current_stop,
             candidate_stop=candidate_stop,
             confirmations=confirmations,
