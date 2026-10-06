@@ -102,6 +102,9 @@ class PostEntryCognitiveDecision:
     position: MarketNativePositionDecision
     entry_situation_fingerprint: str
     current_situation_fingerprint: str
+    entry_reasoning_action: str
+    current_reasoning_action: str
+    current_reasoning_situation_fingerprint: str
     full_cognition_reassessed: bool = True
     r_runtime_authority: bool = False
     r_runtime_strategy_allowed: bool = True
@@ -211,4 +214,9 @@ def reassess_and_decide_post_entry(
         position=position,
         entry_situation_fingerprint=entry_fingerprint,
         current_situation_fingerprint=current.fingerprint(),
+        entry_reasoning_action=entry_reasoning.action,
+        current_reasoning_action=current_reasoning.action,
+        current_reasoning_situation_fingerprint=(
+            current_reasoning.situation_fingerprint
+        ),
     )
