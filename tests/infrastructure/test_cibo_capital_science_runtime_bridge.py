@@ -554,3 +554,26 @@ def test_current_option_identity_preserves_exact_long_decimal_request_capital() 
     current = next(item for item in options if item.option_id == "signal-1")
     assert current.requested_capital_usd == request_capital
     assert current.stop_risk_usd == stop_risk
+
+def test_zero_marginal_request_is_explicitly_not_applicable_to_genc5() -> None:
+    directive = runtime.evaluate_capital_science_predecision(
+        _state(
+            requested_stop_risk_usd=Decimal("0"),
+            requested_margin_usd=Decimal("0"),
+            provider_cost_usd=Decimal("0"),
+            genc7_proposal=None,
+        )
+    )
+    by_code = {item.function_code: item for item in directive.receipts}
+
+    assert directive.allow_incremental_compound is False
+    assert by_code["GEN-C5"].disposition is (
+        runtime.CapitalScienceDisposition.JUSTIFIED_NOT_APPLICABLE
+    )
+    assert by_code["GEN-C5"].consumer_action == "NO_MARGINAL_CAPACITY"
+    assert by_code["GEN-C5"].native_engine_called is False
+    assert by_code["GEN-C8"].native_engine_called is False
+    assert by_code["GEN-C8"].consumer_action == "GENC5_CANONICAL_INPUT_UNAVAILABLE"
+    assert all(item.qore_risk_bypassed is False for item in directive.receipts)
+    assert all(item.productive_authority is False for item in directive.receipts)
+
