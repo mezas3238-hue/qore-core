@@ -102,6 +102,7 @@ def test_sensor_summary_separates_activity_from_ablation_economics() -> None:
     sizing = summary["function_summary"]["SIZING"]
     assert sizing["call_count"] == 2
     assert sizing["downstream_consumed_count"] == 2
+    assert sizing["decision_changed_count"] == 0
     assert sizing["decision_gate_triggered_count"] == 1
     assert sizing["risk_delta_usd"] == "1"
 
