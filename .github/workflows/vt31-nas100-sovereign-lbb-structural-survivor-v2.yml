@@ -194,7 +194,15 @@ jobs:
                   "halfyears":blocks,
               }
 
-          survivor=cross_fold and temporal
+          total_changed=sum(
+              item["changed_trade_count"]
+              for item in fold_reports.values()
+          )
+          total_eligible=sum(
+              item["eligible_count"]
+              for item in fold_reports.values()
+          )
+          survivor=cross_fold and temporal and total_changed > 0
           report={
               "schema":"qore.vt31.nas100.sovereign_lbb_structural_survivor.aggregate.v2",
               "head":"${{ github.sha }}",
@@ -202,10 +210,16 @@ jobs:
               "cross_fold_gates_pass":cross_fold,
               "all_halfyears_nondegrade":temporal,
               "sovereign_survivor":survivor,
+              "total_eligible_count":total_eligible,
+              "total_changed_trade_count":total_changed,
               "adjudication":(
                   "PURE_EDGE_STRUCTURAL_SURVIVOR"
                   if survivor
-                  else "NOT_SUPPORTED"
+                  else (
+                      "NO_EFFECT"
+                      if total_changed == 0
+                      else "NOT_SUPPORTED"
+                  )
               ),
               "governance":{
                   "specialist_replay_admission_authority":True,
