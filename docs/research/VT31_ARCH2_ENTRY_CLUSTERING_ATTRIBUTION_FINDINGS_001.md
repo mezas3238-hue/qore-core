@@ -32,18 +32,17 @@ replayed by Architect A without outcome access at runtime.
 
 ## Position-side state
 
-The leading B-side witness remains `H3_W3_DOL2_PS2`.
+Two B-side composite witnesses survive:
 
-Across R5 / R6 / R8 / recent consumed it remains:
+- `H3_W3_DOL2_PS2` is the slightly stronger recent-consumed arithmetic
+  witness;
+- `H3_W5_DOL2_PS2` is the robustness-preferred B-side research comparator
+  because it is stronger across the historical folds and removes the R5
+  half-year degradation seen in W3.
 
-- PF non-degrading: 4/4;
-- mean-R non-degrading: 4/4;
-- DD non-degrading: 4/4;
-- winner floors: PASS 4/4;
-- research survivor: YES;
-- promotion / freeze: NO.
+Both remain research-only. Neither is promotion-grade or frozen.
 
-Recent consumed remains:
+Recent consumed W3:
 
 - PF: `1.203943`;
 - mean: `+0.174587R`;
@@ -51,11 +50,21 @@ Recent consumed remains:
 - Monte Carlo positive terminal: `63.34%`;
 - Monte Carlo p95 DD: `28.47R`.
 
-Therefore B-side management adds edge but does not solve certification.
+Recent consumed W5:
+
+- PF: `1.196378`;
+- mean: `+0.168112R`;
+- DD: `12.6714R`;
+- Monte Carlo positive terminal: `63.22%`;
+- Monte Carlo p95 DD: `28.28R`.
+
+Therefore B-side management adds edge but does not solve certification. During
+Architect-A admission experiments, W5 should remain fixed so entry changes can
+be measured without simultaneously changing position management.
 
 ## Sequential-risk anatomy
 
-Longest stressed losing streaks under the same leading B-side witness:
+Longest stressed losing streaks under the W3 diagnostic witness:
 
 - R8: 11 losses, `-11.55R`;
 - R6: 8 losses, `-8.40R`;
@@ -73,7 +82,8 @@ repair this primarily by adding more post-entry exit machinery.
 `reference_volatility_state = expanded` is the cleanest recurring negative
 state found by the attribution layer.
 
-Results under `H3_W3_DOL2_PS2`:
+Results under `H3_W3_DOL2_PS2` (the same expanded-state failure signature
+also appears under W5):
 
 | Fold | Sample | Losses | Mean stressed R | Total stressed R |
 |---|---:|---:|---:|---:|
