@@ -80,6 +80,11 @@ class Nas100SituationModel:
     # callers default to UNWIRED until causal M15 state is actually supplied.
     m15_state: str = "UNWIRED"
 
+    # Causal live-position journey location in strategy-native R, normalized
+    # by the frozen initial structural risk. None is valid before fill; a live
+    # post-entry maximum-intelligence observation must supply it.
+    current_open_r: Decimal | None = None
+
     def __post_init__(self) -> None:
         if not 0 <= self.decision_minute_ny < 24 * 60:
             raise ValueError("decision_minute_ny out of range")
@@ -114,6 +119,7 @@ class Nas100SituationModel:
             self.risk_ref,
             self.destination_distance_ref,
             self.planned_target_r,
+            self.current_open_r,
         ):
             if value is not None and not value.is_finite():
                 raise ValueError("situation decimal values must be finite")
