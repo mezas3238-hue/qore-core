@@ -2,5 +2,5 @@
   "schema": "qore.github-trader-lab.run-request.v1",
   "profile_path": "tools/github_trader_lab/profiles/cibo-capital-repair.json",
   "subject_ref": "134b8c186aa227ab55eff3ac52e53b0e02272f7c",
-  "benchmark": "cibo-burned-repair-recency-2"
+  "benchmark": "cibo-full-burned-profit-funded-leverage-3"
 }

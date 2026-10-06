@@ -1,6 +1,6 @@
 {
   "schema": "qore.github-trader-lab.profile.v2",
-  "profile_id": "cibo-capital-repair-fast-v2",
+  "profile_id": "cibo-capital-repair-fast-v3",
   "repository": "mezas3238-hue/qore-core",
   "subject": "CIBO",
   "max_parallel_lanes": 1,
@@ -13,7 +13,7 @@
       "--output",
       "{prepared}",
       "--cutoff",
-      "2020-04-30T23:59:59+00:00"
+      "2022-06-29T23:59:59+00:00"
     ],
     "dependency_globs": [
       "scripts/cibo_build_walk_forward_expectation_manifest.py",

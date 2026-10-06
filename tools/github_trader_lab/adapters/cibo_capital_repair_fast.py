@@ -60,6 +60,7 @@ class Variant:
     genc12_binding: bool
     fixed_multiplier: int | None = None
     recency_guard: bool = False
+    profit_funded_leverage: bool = False
 
 
 VARIANTS = (
@@ -94,6 +95,15 @@ VARIANTS = (
         True,
         True,
         recency_guard=True,
+    ),
+    Variant(
+        "PROFIT_FUNDED_ADAPTIVE_LEVERAGE",
+        Decimal("0.70"),
+        True,
+        True,
+        True,
+        True,
+        profit_funded_leverage=True,
     ),
 )
 
@@ -256,6 +266,19 @@ def _portfolio(
         )
         if risk > risk_headroom or margin > margin_headroom:
             continue
+        if variant.profit_funded_leverage:
+            incremental_leverage_risk = sum(
+                (
+                    d(row["stop_loss_per_volume"])
+                    * d(row["minimum_volume"])
+                    * max(0, mult - 1)
+                    for row, mult in zip(rows, combo, strict=True)
+                ),
+                ZERO,
+            )
+            realized_profit_buffer = max(ZERO, capital - INITIAL)
+            if incremental_leverage_risk > realized_profit_buffer:
+                continue
 
         robust_lines: list[Decimal] = []
         velocity_lines: list[Decimal] = []
