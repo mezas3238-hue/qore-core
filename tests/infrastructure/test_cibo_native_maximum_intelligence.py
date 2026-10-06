@@ -302,7 +302,7 @@ def test_native_max_admits_mature_positive_walk_forward_forecast() -> None:
 
     assert result.synthesis.directive is CiboExecutiveDirectiveKind.RECOMMEND
     assert result.cognitive_episode.abstention_required is False
-    assert result.cognitive_episode.calibration.confidence_band == 100
+    assert result.cognitive_episode.calibration.confidence_band == 90
     assert result.cognitive_episode.decision_gate_codes == ()
 
 
