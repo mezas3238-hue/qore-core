@@ -52,9 +52,8 @@ _SUPPORTED: Final = {
         "must combine causal state rather than promote isolated bins"
     ),
     "dynamic_destination_management": (
-        "primary structural-boundary delivery versus market-native extension "
-        "must be decided from causal structure/liquidity/exhaustion; no "
-        "R-threshold target plan is runtime-authoritative"
+        "structural and R-based destination management are both eligible; "
+        "promotion depends on causal cross-fold edge and winner preservation"
     ),
     "initial_invalidation_identity": (
         "source structural swing remains the methodological initial "
@@ -84,8 +83,8 @@ _REJECTED: Final = {
         "secondary stability diagnostics degraded"
     ),
     "universal_r_partial_runner": (
-        "R-threshold partial+runner management is non-certifiable and is "
-        "rejected as runtime authority"
+        "the tested universal R partial+runner variant was unstable across "
+        "folds; it is rejected by evidence, not because R is prohibited"
     ),
     "best_bin_promotion": (
         "historically attractive bins are not operational rules without "
@@ -131,7 +130,8 @@ def _trader_experience_cached() -> dict[str, object]:
             "pnl_direct_rule_promotion_allowed": False,
             "strategy_identity_rewrite_allowed": False,
             "fresh_holdout_opened": False,
-            "r_runtime_decision_authority": False,
+            "r_runtime_strategy_allowed": True,
+            "r_used_for_volume_allowed": False,
             "volume_runtime_decision_authority": False,
         },
     }
