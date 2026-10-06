@@ -83,9 +83,20 @@ def main() -> int:
         type=int,
         default=100,
     )
+    parser.add_argument(
+        "--max-epochs",
+        type=int,
+        default=None,
+        help=(
+            "Run only the first N chronological decision epochs. "
+            "Research/debug scope only; all opened positions are still settled."
+        ),
+    )
     args = parser.parse_args()
     if args.progress_every < 0:
         parser.error("--progress-every must be non-negative")
+    if args.max_epochs is not None and args.max_epochs <= 0:
+        parser.error("--max-epochs must be positive")
 
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
     assumption = CiboHistoricalProviderAssumption(
@@ -112,6 +123,7 @@ def main() -> int:
         manifest,
         provider_assumption=assumption,
         progress_hook=progress,
+        max_decision_epochs=args.max_epochs,
     )
     function_sensors = tuple(
         sensor
@@ -135,6 +147,10 @@ def main() -> int:
         "external_ai_call_count": result.external_ai_call_count,
         "regime_reconstruction_count": result.regime_reconstruction_count,
         "provider_assumption": _canonical(result.provider_assumption),
+        "replay_scope": {
+            "max_decision_epochs": args.max_epochs,
+            "full_population": args.max_epochs is None,
+        },
         "final_capital": _canonical(result.final_capital),
         "decision_receipts": _canonical(result.decision_receipts),
         "settlement_receipts": _canonical(result.settlement_receipts),
