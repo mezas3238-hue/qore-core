@@ -59,6 +59,17 @@ def _d(value: object) -> Decimal:
     return Decimal(str(value))
 
 
+def _carry_forward_h4_state(
+    current_state: str,
+    entry_state: str,
+) -> str:
+    """Use the newest closed H4 state without inventing unavailable context."""
+
+    if current_state.lower() != "unavailable":
+        return current_state
+    return entry_state
+
+
 def _target_touched_before(
     *,
     day_bars: tuple[object, ...],
@@ -150,8 +161,11 @@ def _live_cognitive_position_decision(
     h1_state = h3.ctx._trend_state(
         h3.ctx._completed_hour_closes(causal_today, observation_at, 1)
     )
-    h4_state = h3.ctx._trend_state(
-        h3.ctx._completed_hour_closes(causal_today, observation_at, 4)
+    h4_state = _carry_forward_h4_state(
+        h3.ctx._trend_state(
+            h3.ctx._completed_hour_closes(causal_today, observation_at, 4)
+        ),
+        entry_situation.h4_state,
     )
     m15_state = h3.ctx._trend_state(
         h3.ctx._completed_minute_bucket_closes(
