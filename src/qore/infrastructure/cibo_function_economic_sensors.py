@@ -196,6 +196,7 @@ def _sensor(
     stage_order: int,
     input_metrics: tuple[tuple[str, str], ...],
     output_metrics: tuple[tuple[str, str], ...],
+    downstream_consumed: bool = True,
     decision_gate_triggered: bool = False,
     final_capital_binding: bool = False,
     risk_delta_usd: Decimal = Decimal(0),
@@ -211,7 +212,7 @@ def _sensor(
         input_metrics=input_metrics,
         output_metrics=output_metrics,
         called=True,
-        downstream_consumed=True,
+        downstream_consumed=downstream_consumed,
         decision_gate_triggered=decision_gate_triggered,
         final_capital_binding=final_capital_binding,
         risk_delta_usd=risk_delta_usd,
@@ -510,6 +511,7 @@ def build_sovereign_function_sensors(
                     else risk_request.requested_margin
                 ),
             ),
+            downstream_consumed=(risk_request is not None),
             final_capital_binding=(risk_request is not None),
         ),
     ]
