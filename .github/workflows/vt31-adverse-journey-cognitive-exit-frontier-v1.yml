@@ -99,6 +99,8 @@ jobs:
           assert g["exit_decision_on_closed_m1"] is True
           assert g["exit_execution_next_m1_open"] is True
           assert g["same_bar_hindsight_used"] is False
+          assert g["stale_sequence_8_14_preexisting_reasoning_state"] is True
+          assert g["stale_sequence_threshold_newly_outcome_tuned"] is False
           assert g["position_sizing_used"] is False
           assert g["dynamic_sizing_used"] is False
           assert g["leverage_used"] is False
@@ -139,6 +141,8 @@ jobs:
           variants=(
               "COG_EXIT_CAUTION",
               "COG_EXIT_CAUTION_WEAK_PATH",
+              "COG_EXIT_STALE_MIXED",
+              "COG_EXIT_CAUTION_OR_STALE_MIXED",
               "COG_EXIT_NONSUPPORTIVE",
           )
           payloads={
