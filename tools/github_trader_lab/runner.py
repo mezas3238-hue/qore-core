@@ -172,7 +172,7 @@ def run_lane(
         monitor.emit("lane.completed", summary, lane=lane)
         return payload
 
-    evidence = evidence_dir / f"{lane}.json"
+    evidence = (evidence_dir / f"{lane}.json").resolve()
     if not evidence.is_file():
         raise TraderLabError(f"missing evidence for lane {lane}: {evidence}")
 
