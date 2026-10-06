@@ -46,6 +46,17 @@ def _d(value: object) -> Decimal:
     return Decimal(str(value))
 
 
+def _pf_decimal(metrics: dict[str, object]) -> Decimal:
+    value = metrics.get("profit_factor")
+    if value is not None:
+        return _d(value)
+    wins = int(metrics.get("wins", 0))
+    losses = int(metrics.get("losses", 0))
+    if wins > 0 and losses == 0:
+        return Decimal("Infinity")
+    return Decimal("-Infinity")
+
+
 def _neutral_destination_exit_allowed(
     diagnostic: dict[str, object],
     *,
@@ -280,7 +291,7 @@ def _partition_report(
             _d(winner["winner_r_preservation"]) >= Decimal("0.90")
         ),
         "pf_nondegrade_vs_comp009": (
-            pack._pf_decimal(metrics) >= pack._pf_decimal(baseline_metrics)
+            _pf_decimal(metrics) >= _pf_decimal(baseline_metrics)
         ),
         "mean_nondegrade_vs_comp009": (
             _d(metrics["mean_r"]) >= _d(baseline_metrics["mean_r"])
