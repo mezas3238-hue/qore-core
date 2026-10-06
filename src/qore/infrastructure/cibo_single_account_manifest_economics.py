@@ -37,6 +37,9 @@ _EXPECTATION_BASES = {
     "CAUSAL_MODEL_FORECAST",
     "CURRENT_STATE_FORECAST",
 }
+_RESEARCH_ONLY_CONTEXT_MODES = {
+    "NON_CERTIFYING_REUSED_HOLDOUT_ADAPTIVE_RESEARCH",
+}
 
 
 def _mapping(value: object, name: str) -> Mapping[str, Any]:
@@ -85,6 +88,32 @@ def _expectation_evidence_available_at(
     )
 
 
+def _context_quality_hard_gate_authorized(
+    context: Mapping[str, Any],
+    *,
+    decision_at: datetime,
+) -> bool:
+    research_mode = context.get("research_mode")
+    if research_mode in _RESEARCH_ONLY_CONTEXT_MODES:
+        return False
+    if context.get("hard_gate_authorized") is not True:
+        return False
+    raw_available = context.get("policy_available_at")
+    if raw_available is None:
+        raise CiboCapitalManagementError(
+            "context-quality hard gate requires policy_available_at"
+        )
+    available_at = _datetime(
+        raw_available,
+        "context-quality policy_available_at",
+    )
+    if available_at > decision_at:
+        raise CiboCapitalManagementError(
+            "context-quality policy was not available at decision time"
+        )
+    return True
+
+
 def _canonical_sha256(value: Mapping[str, Any]) -> str:
     raw = json.dumps(
         value,
@@ -125,6 +154,14 @@ def _cognitive_economic_context(
         "context_quality",
     )
     disposition = context_quality.get("disposition")
+    decision_at = _datetime(
+        row.get("market_decision_at"),
+        "market_decision_at",
+    )
+    hard_gate_authorized = _context_quality_hard_gate_authorized(
+        context_quality,
+        decision_at=decision_at,
+    )
     basis = expectation.get("basis")
     expected_value = expectation.get("expected_net_value_usd")
     expected_minutes = expectation.get("expected_capital_minutes")
@@ -171,6 +208,12 @@ def _cognitive_economic_context(
     additions = {
         "cibo_context_quality_disposition": disposition,
         "cibo_context_quality_rules": rule_value,
+        "cibo_context_quality_research_mode": str(
+            context_quality.get("research_mode", "unspecified")
+        ),
+        "cibo_context_quality_hard_gate_authorized": (
+            "true" if hard_gate_authorized else "false"
+        ),
         "cibo_expectation_basis": basis,
         "cibo_expected_value_usd": str(expected_value),
         "cibo_expected_net_utility_usd": format(
@@ -291,6 +334,10 @@ def manifest_row_to_ceiling_opportunity_evidence(
     disposition = context.get("disposition")
     if disposition not in {"ALLOW", "ABSTAIN"}:
         raise CiboCapitalManagementError("context-quality disposition is invalid")
+    hard_gate_authorized = _context_quality_hard_gate_authorized(
+        context,
+        decision_at=decision_at,
+    )
 
     uncertainty_penalty = _decimal(
         expectation.get("uncertainty_penalty_usd", "0"),
@@ -314,7 +361,9 @@ def manifest_row_to_ceiling_opportunity_evidence(
         expectation_basis=CausalExpectationBasis(
             str(expectation["basis"])
         ),
-        context_allowed=disposition == "ALLOW",
+        context_allowed=(
+            disposition == "ALLOW" or not hard_gate_authorized
+        ),
         provider_viable=True,
         capital_source_eligible=True,
         uncertainty_penalty_usd=uncertainty_penalty,
