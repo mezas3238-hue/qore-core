@@ -385,3 +385,15 @@ def test_calibrated_journey_depletion_remains_position_authority() -> None:
     assert "DOL3_TARGET_INTELLIGENCE_UNCALIBRATED" in (
         position.max_intelligence_blockers
     )
+
+
+def test_h4_unavailable_blocks_maximum_intelligence() -> None:
+    situation = replace(
+        _situation(m15_state="bearish"),
+        h4_state="unavailable",
+    )
+    decision = reason(situation)
+
+    assert decision.max_intelligence_ready is False
+    assert "H4_CONTEXT_UNAVAILABLE" in decision.max_intelligence_blockers
+    assert "SITUATION:H4_CONTEXT_UNAVAILABLE" in decision.uncertainty
