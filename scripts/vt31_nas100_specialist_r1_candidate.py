@@ -507,6 +507,7 @@ def _state_snapshot(
             extension_capacity_state="RESEARCH_ONLY_UNCALIBRATED",
             exhaustion_state="UNKNOWN",
             cross_index_state="OPTIONAL_CONTEXT_NOT_REQUIRED",
+            m15_state="UNWIRED",
         )
     )
     abstain_reasons = list(reasoning.contradictions)
@@ -552,6 +553,7 @@ def _state_snapshot(
         ),
         "h4_state": higher_context.h4_state,
         "h1_state": higher_context.h1_state,
+        "m15_state": "UNWIRED",
         "premarket_state": higher_context.premarket_state,
         "cash_open_state": higher_context.cash_open_state,
         "position_in_prior_day_range": (
@@ -617,6 +619,13 @@ def _state_snapshot(
             reasoning.trader_experience_memory_fingerprint
         ),
         "cognitive_memory_fingerprint": reasoning.memory_fingerprint,
+        "cognitive_domains_consulted": list(
+            reasoning.cognitive_domains_consulted
+        ),
+        "max_intelligence_blockers": list(
+            reasoning.max_intelligence_blockers
+        ),
+        "max_intelligence_ready": reasoning.max_intelligence_ready,
         "stop_plan": "SOURCE_SWING_EXTREME",
         "target_plan": target_plan,
     }
