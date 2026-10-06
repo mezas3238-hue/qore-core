@@ -316,12 +316,17 @@ class CiboCapitalActionPlan:
 def minimum_seed_volume(opportunity: TraderOpportunityEnvelope) -> Decimal:
     """Smallest step-aligned volume compatible with provider/methodology constraints."""
 
-    lifecycle_floor = (
-        opportunity.minimum_volume * Decimal(opportunity.minimum_execution_steps)
-    )
-    raw = max(opportunity.minimum_volume, lifecycle_floor)
-    steps = (raw / opportunity.volume_step).to_integral_value(rounding=ROUND_CEILING)
-    return steps * opportunity.volume_step
+    with localcontext() as context:
+        context.prec = 100
+        lifecycle_floor = (
+            opportunity.minimum_volume
+            * Decimal(opportunity.minimum_execution_steps)
+        )
+        raw = max(opportunity.minimum_volume, lifecycle_floor)
+        steps = (raw / opportunity.volume_step).to_integral_value(
+            rounding=ROUND_CEILING
+        )
+        return steps * opportunity.volume_step
 
 
 def plan_minimal_seed(
@@ -337,8 +342,10 @@ def plan_minimal_seed(
             CapitalStage.MINIMAL_SEED,
             "minimum seed exceeds provider maximum",
         )
-    risk = volume * opportunity.stop_loss_per_volume
-    margin = volume * opportunity.margin_per_volume
+    with localcontext() as context:
+        context.prec = 100
+        risk = volume * opportunity.stop_loss_per_volume
+        margin = volume * opportunity.margin_per_volume
     if risk > capital.hard_risk_headroom_usd:
         return _hold(
             opportunity,
@@ -393,13 +400,17 @@ def plan_self_financing_expansion(
             "no proven non-base self-financing capacity is currently available",
         )
 
-    by_risk = capacity / opportunity.stop_loss_per_volume
-    by_margin = capital.margin_headroom_usd / opportunity.margin_per_volume
-    raw_volume = min(by_risk, by_margin, opportunity.maximum_volume)
-    steps = (raw_volume / opportunity.volume_step).to_integral_value(
-        rounding=ROUND_FLOOR
-    )
-    volume = steps * opportunity.volume_step
+    with localcontext() as context:
+        context.prec = 100
+        by_risk = capacity / opportunity.stop_loss_per_volume
+        by_margin = (
+            capital.margin_headroom_usd / opportunity.margin_per_volume
+        )
+        raw_volume = min(by_risk, by_margin, opportunity.maximum_volume)
+        steps = (raw_volume / opportunity.volume_step).to_integral_value(
+            rounding=ROUND_FLOOR
+        )
+        volume = steps * opportunity.volume_step
     if volume < opportunity.minimum_volume:
         return _hold(
             opportunity,
@@ -407,8 +418,10 @@ def plan_self_financing_expansion(
             "self-financing capacity cannot express provider minimum volume",
         )
 
-    risk = volume * opportunity.stop_loss_per_volume
-    margin = volume * opportunity.margin_per_volume
+    with localcontext() as context:
+        context.prec = 100
+        risk = volume * opportunity.stop_loss_per_volume
+        margin = volume * opportunity.margin_per_volume
     if capital.realized_net_profit_usd >= risk:
         source = CapitalSource.REALIZED_PROFIT
     elif capital.protected_open_economic_floor_usd >= risk:
