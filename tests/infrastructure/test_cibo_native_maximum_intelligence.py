@@ -136,6 +136,7 @@ def test_native_max_consumes_context_quality_semantics_into_abstention() -> None
     ) + (
         ("cibo_context_quality_disposition", "ABSTAIN"),
         ("cibo_context_quality_rules", "RULE_A"),
+        ("cibo_context_quality_hard_gate_authorized", "true"),
         ("cibo_expectation_basis", "FROZEN_HISTORICAL_PRIOR"),
         ("cibo_expected_value_usd", "1.25"),
         ("cibo_expected_net_utility_usd", "1.00"),
@@ -264,3 +265,38 @@ def test_native_max_perception_rejects_incomplete_universal_contract() -> None:
         match="universal native perception contract incomplete",
     ):
         validate_native_maximum_perception((opportunity,))
+
+
+def test_native_max_treats_burned_context_abstain_as_advisory() -> None:
+    context = tuple(
+        (f"ctx_native_{index:02d}", f"value-{index:02d}")
+        for index in range(30)
+    ) + (
+        ("cibo_context_quality_disposition", "ABSTAIN"),
+        ("cibo_context_quality_rules", "RULE_A"),
+        ("cibo_context_quality_research_mode", (
+            "NON_CERTIFYING_REUSED_HOLDOUT_ADAPTIVE_RESEARCH"
+        )),
+        ("cibo_context_quality_hard_gate_authorized", "false"),
+        ("cibo_expectation_basis", "FROZEN_HISTORICAL_PRIOR"),
+        ("cibo_expected_value_usd", "1.25"),
+        ("cibo_expected_net_utility_usd", "1.00"),
+        ("cibo_expected_capital_minutes", "30"),
+    )
+    opportunity = _opportunity(TraderLineage.R34_XAUUSD, context)
+    consultation = consult_cibo_economic_faculties(
+        decision_at=NOW,
+        opportunities=(opportunity,),
+        regime_state=_regime(),
+    )
+
+    result = run_native_maximum_intelligence(
+        consultation=consultation,
+        opportunities=(opportunity,),
+        target=opportunity,
+        regime_state=_regime(),
+    )
+
+    assert result.synthesis.directive is CiboExecutiveDirectiveKind.RECOMMEND
+    assert result.cognitive_episode.abstention_required is False
+    assert result.cognitive_episode.decision_gate_codes == ()
