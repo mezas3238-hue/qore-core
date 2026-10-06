@@ -58,7 +58,7 @@ def _entry_situation() -> Nas100SituationModel:
         entry_evidence_freshness="fresh-0-5m",
         stop_plan="SOURCE_SWING_EXTREME",
         risk_ref=Decimal("0.21"),
-        planned_target_r=None,
+        planned_target_r=Decimal("3"),
         structural_destination="OPPOSITE_09_REFERENCE_BOUNDARY",
         destination_distance_ref=Decimal("0.71"),
         journey_stage="POST_CONFIRMATION_PRE_EXECUTION",
@@ -170,7 +170,7 @@ def test_rebuild_post_entry_situation_preserves_current_market_native_plan() -> 
         observation=_observation(),
     )
 
-    assert current.planned_target_r is None
+    assert current.planned_target_r == Decimal("3")
     assert current.as_of != entry.as_of
     assert current.h1_state == "bullish"
     assert current.journey_stage == "POST_ENTRY_REASSESSMENT"
@@ -199,8 +199,10 @@ def test_full_cognition_reassesses_and_extends_only_on_structural_acceptance() -
     assert decision.position.action is PositionAction.EXTEND
     assert decision.position.next_target == Decimal("104")
     assert decision.position.r_runtime_authority is False
+    assert decision.position.r_runtime_strategy_allowed is True
     assert decision.position.volume_agnostic is True
     assert decision.r_runtime_authority is False
+    assert decision.r_runtime_strategy_allowed is True
     assert decision.volume_runtime_authority is False
     assert decision.sizing_authority is False
 
