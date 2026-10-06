@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# ruff: noqa: I001
 """Postdecision coherence audit for CIBO cognitive/function telemetry.
 
 This tool consumes an already-completed burned/research replay. It never
