@@ -15,6 +15,9 @@ on:
       - 'src/qore/infrastructure/cibo_account_sizing_authority.py'
       - 'src/qore/infrastructure/cibo_capital_science_runtime_bridge.py'
       - 'src/qore/infrastructure/cibo_portfolio_allocation_engine.py'
+      - 'src/qore/infrastructure/cibo_sovereign_capital_runtime.py'
+      - 'src/qore/infrastructure/cibo_single_account_historical_ceiling_epoch.py'
+      - 'src/qore/infrastructure/cibo_ce2i_regime_selector.py'
       - 'src/qore/infrastructure/cibo_native_faculty_semantics.py'
       - 'src/qore/infrastructure/cibo_native_max_cognitive_episode.py'
       - 'scripts/cibo_build_walk_forward_expectation_manifest.py'
@@ -24,6 +27,9 @@ on:
       - 'tests/infrastructure/test_cibo_walk_forward_manifest_builder.py'
       - 'tests/infrastructure/test_cibo_single_account_manifest_economics.py'
       - 'tests/infrastructure/test_cibo_native_maximum_intelligence.py'
+      - 'tests/infrastructure/test_cibo_sovereign_capital_runtime_contract.py'
+      - 'tests/infrastructure/test_cibo_full_economic_digital_twin.py'
+      - 'tests/infrastructure/test_cibo_walk_forward_expectation.py'
       - 'tests/infrastructure/test_cibo_walk_forward_capital_path_diagnostics.py'
 
 permissions:
@@ -54,9 +60,9 @@ jobs:
       - name: Validate walk-forward surface
         run: |
           set -euo pipefail
-          python -m py_compile             src/qore/infrastructure/cibo_walk_forward_expectation.py             src/qore/infrastructure/cibo_walk_forward_forecast_confidence.py             src/qore/infrastructure/cibo_single_account_manifest_economics.py             src/qore/infrastructure/cibo_native_faculty_semantics.py             src/qore/infrastructure/cibo_native_max_cognitive_episode.py             src/qore/infrastructure/cibo_capital_science_runtime_bridge.py             scripts/cibo_build_walk_forward_expectation_manifest.py             scripts/cibo_walk_forward_forecast_calibration.py             scripts/cibo_walk_forward_capital_path_diagnostics.py             scripts/cibo_single_account_historical_ceiling_replay.py
-          ruff check             src/qore/infrastructure/cibo_walk_forward_expectation.py             src/qore/infrastructure/cibo_walk_forward_forecast_confidence.py             src/qore/infrastructure/cibo_single_account_manifest_economics.py             src/qore/infrastructure/cibo_native_faculty_semantics.py             src/qore/infrastructure/cibo_native_max_cognitive_episode.py             src/qore/infrastructure/cibo_capital_science_runtime_bridge.py             scripts/cibo_build_walk_forward_expectation_manifest.py             scripts/cibo_walk_forward_forecast_calibration.py             scripts/cibo_walk_forward_capital_path_diagnostics.py
-          pytest -q --no-cov             tests/infrastructure/test_cibo_walk_forward_expectation.py             tests/infrastructure/test_cibo_walk_forward_forecast_confidence.py             tests/infrastructure/test_cibo_walk_forward_manifest_builder.py             tests/infrastructure/test_cibo_single_account_manifest_settlement.py             tests/infrastructure/test_cibo_single_account_manifest_economics.py             tests/infrastructure/test_cibo_native_maximum_intelligence.py             tests/infrastructure/test_cibo_account_sizing_authority.py             tests/infrastructure/test_cibo_capital_science_runtime_bridge.py             tests/infrastructure/test_cibo_walk_forward_capital_path_diagnostics.py
+          python -m py_compile             src/qore/infrastructure/cibo_walk_forward_expectation.py             src/qore/infrastructure/cibo_walk_forward_forecast_confidence.py             src/qore/infrastructure/cibo_single_account_manifest_economics.py             src/qore/infrastructure/cibo_native_faculty_semantics.py             src/qore/infrastructure/cibo_native_max_cognitive_episode.py             src/qore/infrastructure/cibo_capital_science_runtime_bridge.py             src/qore/infrastructure/cibo_portfolio_allocation_engine.py             src/qore/infrastructure/cibo_sovereign_capital_runtime.py             src/qore/infrastructure/cibo_single_account_historical_ceiling_epoch.py             src/qore/infrastructure/cibo_ce2i_regime_selector.py             scripts/cibo_build_walk_forward_expectation_manifest.py             scripts/cibo_walk_forward_forecast_calibration.py             scripts/cibo_walk_forward_capital_path_diagnostics.py             scripts/cibo_single_account_historical_ceiling_replay.py
+          ruff check             src/qore/infrastructure/cibo_walk_forward_expectation.py             src/qore/infrastructure/cibo_walk_forward_forecast_confidence.py             src/qore/infrastructure/cibo_single_account_manifest_economics.py             src/qore/infrastructure/cibo_native_faculty_semantics.py             src/qore/infrastructure/cibo_native_max_cognitive_episode.py             src/qore/infrastructure/cibo_capital_science_runtime_bridge.py             src/qore/infrastructure/cibo_portfolio_allocation_engine.py             src/qore/infrastructure/cibo_sovereign_capital_runtime.py             src/qore/infrastructure/cibo_single_account_historical_ceiling_epoch.py             src/qore/infrastructure/cibo_ce2i_regime_selector.py             scripts/cibo_build_walk_forward_expectation_manifest.py             scripts/cibo_walk_forward_forecast_calibration.py             scripts/cibo_walk_forward_capital_path_diagnostics.py             tests/infrastructure/test_cibo_sovereign_capital_runtime_contract.py             tests/infrastructure/test_cibo_full_economic_digital_twin.py
+          pytest -q --no-cov             tests/infrastructure/test_cibo_walk_forward_expectation.py             tests/infrastructure/test_cibo_walk_forward_forecast_confidence.py             tests/infrastructure/test_cibo_walk_forward_manifest_builder.py             tests/infrastructure/test_cibo_single_account_manifest_settlement.py             tests/infrastructure/test_cibo_single_account_manifest_economics.py             tests/infrastructure/test_cibo_native_maximum_intelligence.py             tests/infrastructure/test_cibo_account_sizing_authority.py             tests/infrastructure/test_cibo_capital_science_runtime_bridge.py             tests/infrastructure/test_cibo_sovereign_capital_runtime_contract.py             tests/infrastructure/test_cibo_full_economic_digital_twin.py             tests/infrastructure/test_cibo_walk_forward_capital_path_diagnostics.py
 
       - name: Recover frozen source
         env:
