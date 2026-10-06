@@ -15,12 +15,12 @@ from decimal import Decimal, localcontext
 from typing import Any
 
 from qore.infrastructure.account_wide_risk import TraderLineage
-from qore.infrastructure.cibo_ce2i_causal_expectation import (
-    CausalExpectationBasis,
-)
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
     TraderOpportunityEnvelope,
+)
+from qore.infrastructure.cibo_ce2i_causal_expectation import (
+    CausalExpectationBasis,
 )
 from qore.infrastructure.cibo_single_account_ceiling_state import (
     CiboCeilingOpportunityEvidence,
