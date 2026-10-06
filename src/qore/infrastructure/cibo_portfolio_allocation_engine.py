@@ -1,7 +1,7 @@
 """Native account-wide portfolio allocation and adaptive leverage engine.
 
 This is a real CIBO decision engine, not a frontier adapter.  It consumes the
-canonical Full Economic Digital Twin and evaluates 0x..4x capital intensity
+canonical Full Economic Digital Twin and evaluates the full executable capital-intensity surface
 jointly across all currently known opportunities subject to observed capital,
 risk, margin, context, provider and cognition constraints.
 
@@ -12,7 +12,7 @@ authorities.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from decimal import Decimal, localcontext
+from decimal import ROUND_CEILING, ROUND_FLOOR, Decimal, localcontext
 from itertools import product
 
 from qore.infrastructure.cibo_capital_management_authority import (
@@ -41,9 +41,13 @@ class CiboPortfolioAllocationLine:
             raise CiboCapitalManagementError(
                 "Portfolio allocation option identity required"
             )
-        if self.multiplier not in {0, 1, 2, 3, 4}:
+        if (
+            not isinstance(self.multiplier, int)
+            or isinstance(self.multiplier, bool)
+            or self.multiplier < 0
+        ):
             raise CiboCapitalManagementError(
-                "Portfolio allocation multiplier must be 0..4"
+                "Portfolio allocation multiplier must be a non-negative integer"
             )
         for name in (
             "expected_net_utility_usd",
@@ -108,9 +112,16 @@ def plan_account_wide_capital_allocation(
         raise CiboCapitalManagementError(
             "Portfolio engine requires canonical Full Economic Twin"
         )
-    if fixed_multiplier is not None and fixed_multiplier not in {1, 2, 3, 4}:
+    if (
+        fixed_multiplier is not None
+        and (
+            not isinstance(fixed_multiplier, int)
+            or isinstance(fixed_multiplier, bool)
+            or fixed_multiplier < 1
+        )
+    ):
         raise CiboCapitalManagementError(
-            "Portfolio fixed multiplier must be 1..4"
+            "Portfolio fixed multiplier must be a positive integer"
         )
 
     constraints = observed_twin_constraints(twin)
@@ -124,15 +135,21 @@ def plan_account_wide_capital_allocation(
             "Portfolio requires positive realized capital for robust risk pricing"
         )
     cognitive = dict(twin.cognitive_constraints)
+    dynamic_default_cap = max(
+        (item.maximum_multiplier for item in twin.opportunities),
+        default=0,
+    )
     try:
-        cognitive_cap = int(cognitive.get("capital_intensity_cap", "4"))
+        cognitive_cap = int(
+            cognitive.get("capital_intensity_cap", str(dynamic_default_cap))
+        )
     except (TypeError, ValueError) as error:
         raise CiboCapitalManagementError(
-            "Portfolio cognitive capital cap must be integer 0..4"
+            "Portfolio cognitive capital cap must be a non-negative integer"
         ) from error
-    if cognitive_cap not in {0, 1, 2, 3, 4}:
+    if cognitive_cap < 0:
         raise CiboCapitalManagementError(
-            "Portfolio cognitive capital cap outside 0..4"
+            "Portfolio cognitive capital cap cannot be negative"
         )
 
     ordered = tuple(
@@ -158,11 +175,52 @@ def plan_account_wide_capital_allocation(
             - item.uncertainty_penalty
         )
         net_values.append(net)
-        cap = (
-            min(item.maximum_multiplier, cognitive_cap)
-            if eligible and net > 0
-            else 0
-        )
+        cap = 0
+        if eligible and net > 0:
+            with localcontext() as context:
+                context.prec = 100
+                risk_cap = int(
+                    (
+                        constraints["stop_risk_headroom_usd"]
+                        / item.stop_risk_usd
+                    ).to_integral_value(rounding=ROUND_FLOOR)
+                )
+                margin_cap = int(
+                    (
+                        constraints["margin_headroom_usd"]
+                        / item.margin_usd
+                    ).to_integral_value(rounding=ROUND_FLOOR)
+                )
+                # Robust utility is concave in multiplier:
+                #   net*m - (risk*m)^2 / capital.
+                # Once the next unit has non-positive marginal robust utility,
+                # increasing exposure cannot improve the lexicographic objective
+                # and only consumes scarce capacity.  This is an economic
+                # boundary, not a fixed leverage ceiling.
+                marginal_limit = (
+                    (
+                        net
+                        * capital_base
+                        / (item.stop_risk_usd * item.stop_risk_usd)
+                    )
+                    + Decimal(1)
+                ) / Decimal(2)
+                economic_cap = max(
+                    0,
+                    int(
+                        marginal_limit.to_integral_value(
+                            rounding=ROUND_CEILING
+                        )
+                    )
+                    - 1,
+                )
+            cap = min(
+                item.maximum_multiplier,
+                cognitive_cap,
+                risk_cap,
+                margin_cap,
+                economic_cap,
+            )
         if fixed_multiplier is not None:
             cap = min(cap, fixed_multiplier)
         ranges.append(range(cap + 1))
