@@ -1,9 +1,9 @@
-name: QORE GitHub Trader Lab Fast
+name: QORE CIBO GitHub Trader Lab Fast
 
 on:
   push:
     branches:
-      - agent/github-trader-lab-001
+      - agent/cibo-github-trader-lab-001
     paths:
       - 'tools/github_trader_lab/**'
       - '.github/workflows/github-trader-lab-fast.yml'
