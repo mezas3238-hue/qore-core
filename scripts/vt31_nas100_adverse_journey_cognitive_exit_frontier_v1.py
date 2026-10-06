@@ -34,6 +34,11 @@ import vt31_nas100_specialist_r1_candidate as specialist
 SCHEMA = "qore.vt31.nas100.adverse_journey_cognitive_exit_frontier.v1"
 ADMISSION_VARIANT = "A_EXPANDED_OB_REQUIRE_SHORT_RECLAIM_15M"
 B_COMPARATOR_ID = "VT31_BSIDE_H3_W5_DOL2_PS2_RESEARCH_COMPARATOR_001"
+RESIDUAL_COMPARATOR_ID = (
+    "VT31_BSIDE_H3_W5_DOL2_PS2_CAUTION_STALE_EXIT_"
+    "RESEARCH_COMPARATOR_002"
+)
+RESIDUAL_COMPARATOR_VARIANT = "COG_EXIT_CAUTION_OR_STALE_MIXED"
 WINDOW = 5
 MATERIAL_ADVERSE_R = Decimal("-0.50")
 
@@ -613,6 +618,10 @@ def replay(evidence_path: Path) -> dict[str, object]:
         for variant, rows in filtered.items()
     }
     control_map = {str(row["signal_at"]): row for row in baseline}
+    residual_comparator = filtered[RESIDUAL_COMPARATOR_VARIANT]
+    residual_map = {
+        str(row["signal_at"]): row for row in residual_comparator
+    }
     for variant, rows in filtered.items():
         candidate_map = {str(row["signal_at"]): row for row in rows}
         reports[variant]["changed_trade_count_vs_control"] = sum(
@@ -620,12 +629,25 @@ def replay(evidence_path: Path) -> dict[str, object]:
             != _d(control_map[key]["r_multiple"])
             for key in control_map
         )
+        reports[variant]["changed_trade_count_vs_residual_comparator"] = sum(
+            _d(candidate_map[key]["r_multiple"])
+            != _d(residual_map[key]["r_multiple"])
+            for key in residual_map
+        )
+        reports[variant]["winner_preservation_vs_residual_comparator"] = (
+            admission._winner_preservation(
+                residual_comparator,
+                rows,
+            )
+        )
 
     return {
         "schema": SCHEMA,
         "market": "NAS100",
         "admission_variant": ADMISSION_VARIANT,
         "b_comparator_id": B_COMPARATOR_ID,
+        "residual_comparator_id": RESIDUAL_COMPARATOR_ID,
+        "residual_comparator_variant": RESIDUAL_COMPARATOR_VARIANT,
         "material_adverse_r": format(MATERIAL_ADVERSE_R, "f"),
         "variants": reports,
         "governance": {
@@ -646,6 +668,7 @@ def replay(evidence_path: Path) -> dict[str, object]:
             "stale_sequence_threshold_newly_outcome_tuned": False,
             "residual_context_hypotheses_consumed_discovery_only": True,
             "residual_context_new_numeric_threshold_added": False,
+            "residual_variants_must_nondegrade_comparator_002": True,
             "position_sizing_used": False,
             "dynamic_sizing_used": False,
             "leverage_used": False,
