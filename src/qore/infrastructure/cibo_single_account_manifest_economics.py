@@ -11,7 +11,7 @@ import hashlib
 import json
 from collections.abc import Mapping
 from datetime import datetime
-from decimal import Decimal
+from decimal import Decimal, localcontext
 from typing import Any
 
 from qore.infrastructure.account_wide_risk import TraderLineage
@@ -123,11 +123,33 @@ def _cognitive_economic_context(
             "cognitive context quality rules must be a sequence"
         )
     rule_value = ",".join(str(item) for item in raw_rules) or "none"
+    minimum_volume = _decimal(
+        payload.get("minimum_volume"),
+        "minimum_volume",
+    )
+    uncertainty_penalty = _decimal(
+        expectation.get("uncertainty_penalty_usd", "0"),
+        "uncertainty_penalty_usd",
+    )
+    provider_cost_per_volume = (
+        manifest_row_provider_cost_per_volume_usd(row)
+    )
+    with localcontext() as context:
+        context.prec = 100
+        expected_net_utility = (
+            _decimal(expected_value, "expected_net_value_usd")
+            - provider_cost_per_volume * minimum_volume
+            - uncertainty_penalty
+        )
     additions = {
         "cibo_context_quality_disposition": disposition,
         "cibo_context_quality_rules": rule_value,
         "cibo_expectation_basis": basis,
         "cibo_expected_value_usd": str(expected_value),
+        "cibo_expected_net_utility_usd": format(
+            expected_net_utility,
+            "f",
+        ),
         "cibo_expected_capital_minutes": str(expected_minutes),
     }
     overlap = set(base).intersection(additions)
