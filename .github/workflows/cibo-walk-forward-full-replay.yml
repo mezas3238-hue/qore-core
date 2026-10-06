@@ -17,6 +17,7 @@ on:
       - 'src/qore/infrastructure/cibo_portfolio_allocation_engine.py'
       - 'src/qore/infrastructure/cibo_sovereign_capital_runtime.py'
       - 'src/qore/infrastructure/cibo_single_account_historical_ceiling_epoch.py'
+      - 'src/qore/infrastructure/cibo_single_account_historical_ceiling_replay.py'
       - 'src/qore/infrastructure/cibo_ce2i_regime_selector.py'
       - 'src/qore/infrastructure/cibo_native_faculty_semantics.py'
       - 'src/qore/infrastructure/cibo_native_max_cognitive_episode.py'
