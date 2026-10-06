@@ -392,6 +392,7 @@ def run_historical_ceiling_replay(
     provider_assumption: CiboHistoricalProviderAssumption | None = None,
     portfolio_fixed_multiplier: int | None = None,
     progress_hook: Any | None = None,
+    max_decision_epochs: int | None = None,
 ) -> CiboHistoricalCeilingReplayResult:
     """Run one continuous USD60 historical Native MAX ceiling replay."""
 
@@ -438,6 +439,18 @@ def run_historical_ceiling_replay(
         raise CiboCapitalManagementError(
             "historical ceiling manifest epoch count drift"
         )
+    if max_decision_epochs is not None:
+        if (
+            not isinstance(max_decision_epochs, int)
+            or isinstance(max_decision_epochs, bool)
+            or max_decision_epochs <= 0
+        ):
+            raise CiboCapitalManagementError(
+                "historical ceiling max_decision_epochs must be positive int"
+            )
+        replay_epochs = epochs[:max_decision_epochs]
+    else:
+        replay_epochs = epochs
 
     identity = CiboAccountCapitalIdentity(
         provider_key="cibo-historical-ceiling-research",
@@ -488,7 +501,7 @@ def run_historical_ceiling_replay(
                 None,
             )
 
-    for epoch_index, epoch_rows in enumerate(epochs, start=1):
+    for epoch_index, epoch_rows in enumerate(replay_epochs, start=1):
         decision_at = _dt(
             epoch_rows[0]["market_decision_at"],
             "market_decision_at",
@@ -639,7 +652,7 @@ def run_historical_ceiling_replay(
             progress_hook(
                 {
                     "epoch_index": epoch_index,
-                    "decision_epoch_count": len(epochs),
+                    "decision_epoch_count": len(replay_epochs),
                     "decision_count": len(decisions),
                     "settled_count": len(settlements),
                     "open_count": len(open_exposures),
@@ -657,7 +670,7 @@ def run_historical_ceiling_replay(
     settle_due(None)
     return CiboHistoricalCeilingReplayResult(
         source_manifest_sha256=source_manifest_sha256,
-        decision_epoch_count=len(epochs),
+        decision_epoch_count=len(replay_epochs),
         decision_receipts=tuple(decisions),
         settlement_receipts=tuple(settlements),
         final_capital=capital,
