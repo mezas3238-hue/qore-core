@@ -193,17 +193,23 @@ def _first_material_adverse_forensics(
         control = baseline_map[str(row["signal_at"])]
         control_net_r = _d(control["r_multiple"]) - specialist.FRICTION
         candidate_net_r = _d(row["r_multiple"]) - specialist.FRICTION
+        entry_context = cast(
+            dict[str, object],
+            row.get("entry_context", {}),
+        )
         samples.append(
             {
                 "management_context": str(first["management_context"]),
                 "entry_family": str(row["entry_family"]),
                 "side": str(row["side"]),
-                "prior_day_state": str(row["prior_day_state"]),
+                "prior_day_state": str(
+                    entry_context.get("prior_day_state", "NA")
+                ),
                 "position_in_prior_day_range": str(
-                    row["position_in_prior_day_range"]
+                    entry_context.get("position_in_prior_day_range", "NA")
                 ),
                 "reference_volatility_state": str(
-                    row["reference_volatility_state"]
+                    entry_context.get("reference_volatility_state", "NA")
                 ),
                 "weak_path": bool(first.get("weak_path")),
                 "current_reasoning_action": str(
