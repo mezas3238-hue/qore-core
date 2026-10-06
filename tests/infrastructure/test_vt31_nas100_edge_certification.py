@@ -6,7 +6,8 @@ import pytest
 
 from qore.infrastructure.traders.vt31_nas100_edge_certification import (
     IDENTITY,
-    RUNTIME_R_EXECUTION_FORBIDDEN,
+    R_RUNTIME_ALLOWED,
+    SIZING_FOR_CERTIFICATION_FORBIDDEN,
     VOLUME_AGNOSTIC,
     build_edge_only_report,
     normalized_trade_rows,
@@ -32,7 +33,7 @@ def _pure_runtime_governance() -> dict[str, object]:
         "compounding_used": False,
         "capital_weighting_used": False,
         "volume_agnostic": True,
-        "r_role": "post_trade_evaluation_only",
+        "r_role": "runtime_strategy_and_evaluation_allowed",
     }
 
 
@@ -259,15 +260,28 @@ def test_positive_no_loss_sample_has_infinite_pf_semantics_without_capital() -> 
 
 
 
-def test_runtime_governance_rejects_r_driven_breakeven() -> None:
+def test_runtime_governance_allows_r_driven_breakeven() -> None:
     governance = _pure_runtime_governance()
     governance["r_used_for_breakeven"] = True
+    governance["r_used_for_target"] = True
+    governance["r_used_for_trailing"] = True
 
     result = validate_pure_edge_runtime_governance(governance)
 
-    assert RUNTIME_R_EXECUTION_FORBIDDEN is True
+    assert R_RUNTIME_ALLOWED is True
+    assert SIZING_FOR_CERTIFICATION_FORBIDDEN is True
+    assert result["verified"] is True
+    assert result["violations"] == []
+
+
+def test_runtime_governance_rejects_r_driven_volume_sizing() -> None:
+    governance = _pure_runtime_governance()
+    governance["r_used_for_volume"] = True
+
+    result = validate_pure_edge_runtime_governance(governance)
+
     assert result["verified"] is False
-    assert "r_used_for_breakeven" in result["violations"]
+    assert "r_used_for_volume" in result["violations"]
 
 
 def test_runtime_governance_accepts_market_native_volume_agnostic_execution() -> None:
@@ -282,8 +296,9 @@ def test_runtime_governance_accepts_market_native_volume_agnostic_execution() ->
 def test_report_fails_closed_when_runtime_purity_is_unproven() -> None:
     report = build_edge_only_report(_rows(), monte_carlo_paths=100)
 
-    assert report["r_role"] == "post_trade_evaluation_only"
-    assert report["r_runtime_execution_authority"] is False
+    assert report["r_role"] == "runtime_strategy_and_evaluation_allowed"
+    assert report["r_runtime_allowed"] is True
+    assert report["r_runtime_execution_authority"] is True
     assert report["runtime_purity"]["verified"] is False
     assert report["runtime_purity_gate"] is False
     assert report["passes_available_development_gates"] is False
