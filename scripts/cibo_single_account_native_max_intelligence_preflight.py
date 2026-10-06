@@ -178,7 +178,7 @@ def _group_rows_by_epoch(
         grouped[epoch_id].append(row)
 
     epochs: list[tuple[dict[str, Any], ...]] = []
-    for epoch_id, epoch_rows in grouped.items():
+    for _epoch_id, epoch_rows in grouped.items():
         decision_times = {
             str(item.get("market_decision_at")) for item in epoch_rows
         }
