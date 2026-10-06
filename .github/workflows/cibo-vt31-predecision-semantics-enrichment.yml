@@ -1,0 +1,143 @@
+name: QORE CIBO VT31 Predecision Semantics Enrichment
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/cibo-function-economic-sensors-001
+    paths:
+      - '.github/workflows/cibo-vt31-predecision-semantics-enrichment.yml'
+      - 'scripts/cibo_enrich_vt31_phase18_predecision_semantics.py'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-cibo-vt31-predecision-enrichment-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  enrich:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+      FROZEN_ARTIFACT_ID: '11389331836'
+      FROZEN_ARTIFACT_DIGEST: 'sha256:30177639f660c9647ab70257c2d12c541bdade49ab5582347a3890f920070fee'
+      VT31_ARTIFACT_ID: '11413275226'
+      VT31_ARTIFACT_DIGEST: 'sha256:e4e23b87875117b5119dd78c3a538d4a65d73d6270d848dc55d0e3b65dba3423'
+      VT31_BOUND_TRADES_SHA256: 'eb107bafd5cb6a31c0d2448c88610b3722c5dda7ca8910f9f1260533ce25d416'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install
+        run: python -m pip install -e '.[dev]'
+
+      - name: Validate enrichment adapter
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/cibo_enrich_vt31_phase18_predecision_semantics.py
+          ruff check scripts/cibo_enrich_vt31_phase18_predecision_semantics.py
+
+      - name: Recover frozen ceiling and VT31 Phase18 source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/frozen" "$RUNNER_TEMP/vt31" "$RUNNER_TEMP/enriched"
+
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$FROZEN_ARTIFACT_ID" > "$RUNNER_TEMP/frozen.meta.json"
+          jq -e --arg digest "$FROZEN_ARTIFACT_DIGEST" '.expired == false and .digest == $digest' "$RUNNER_TEMP/frozen.meta.json"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$FROZEN_ARTIFACT_ID/zip" > "$RUNNER_TEMP/frozen.zip"
+          echo "${FROZEN_ARTIFACT_DIGEST#sha256:}  $RUNNER_TEMP/frozen.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/frozen.zip" -d "$RUNNER_TEMP/frozen"
+
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$VT31_ARTIFACT_ID" > "$RUNNER_TEMP/vt31.meta.json"
+          jq -e --arg digest "$VT31_ARTIFACT_DIGEST" '.expired == false and .digest == $digest' "$RUNNER_TEMP/vt31.meta.json"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$VT31_ARTIFACT_ID/zip" > "$RUNNER_TEMP/vt31.zip"
+          echo "${VT31_ARTIFACT_DIGEST#sha256:}  $RUNNER_TEMP/vt31.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/vt31.zip" -d "$RUNNER_TEMP/vt31"
+
+          MANIFEST="$(find "$RUNNER_TEMP/frozen" -type f -name single-account-manifest-native.json -print -quit)"
+          VT31_SOURCE="$(find "$RUNNER_TEMP/vt31" -type f -name phase18-vt31-v4-bound-trades.jsonl -print -quit)"
+          test -n "$MANIFEST"
+          test -n "$VT31_SOURCE"
+          echo "$VT31_BOUND_TRADES_SHA256  $VT31_SOURCE" | sha256sum -c -
+          echo "MANIFEST=$MANIFEST" >> "$GITHUB_ENV"
+          echo "VT31_SOURCE=$VT31_SOURCE" >> "$GITHUB_ENV"
+
+      - name: Build resealed predecision-only manifest
+        run: |
+          set -euo pipefail
+          python scripts/cibo_enrich_vt31_phase18_predecision_semantics.py             --manifest "$MANIFEST"             --vt31-source "$VT31_SOURCE"             --output "$RUNNER_TEMP/enriched/single-account-manifest-vt31-predecision-enriched.json"             --receipt "$RUNNER_TEMP/enriched/vt31-predecision-enrichment-receipt.json"
+
+      - name: Prove whitelist and chronology
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path(os.environ["RUNNER_TEMP"]) / "enriched"
+          payload = json.loads(
+              (root / "single-account-manifest-vt31-predecision-enriched.json").read_text()
+          )
+          receipt = json.loads(
+              (root / "vt31-predecision-enrichment-receipt.json").read_text()
+          )
+
+          rows = payload["opportunities"]
+          vt31 = [row for row in rows if row["trader_id"] == "VT31_NAS100"]
+          other = [row for row in rows if row["trader_id"] != "VT31_NAS100"]
+          assert len(rows) == 3368
+          assert len(vt31) == 484
+          assert len(other) == 2884
+          assert receipt["enriched_opportunity_count"] == 484
+          assert receipt["source_signal_at_equals_frozen_decision_at"] is True
+          assert receipt["source_outcome_fields_read"] is False
+          assert receipt["future_market_used"] is False
+          assert receipt["outcome_used"] is False
+          assert receipt["pnl_used"] is False
+          assert receipt["post_entry_path_used"] is False
+
+          required = {
+              "vt31_entry_family",
+              "vt31_confirmation_latency_minutes",
+              "vt31_risk_ref",
+              "vt31_phase18_predecision_source_sha256",
+          }
+          forbidden = {
+              "exit_at",
+              "exit_reason",
+              "r_multiple",
+              "capital_weighted_net_r",
+              "mae_r",
+              "mfe_r",
+              "loss_path_class",
+              "breaker_regime_shield_multiplier",
+              "state_risk_shield_multiplier",
+              "context_risk_multiplier",
+          }
+          for row in vt31:
+              context = dict(row["trader_opportunity"]["decision_context"])
+              assert required.issubset(context)
+              assert forbidden.isdisjoint(context)
+
+          print(json.dumps({
+              "enriched_manifest_sha256": receipt["enriched_manifest_sha256"],
+              "vt31_enriched": len(vt31),
+              "other_unchanged_population": len(other),
+              "source_outcome_fields_read": False,
+          }, sort_keys=True))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-vt31-predecision-enriched-${{ github.run_id }}
+          path: ${{ runner.temp }}/enriched
+          if-no-files-found: error
