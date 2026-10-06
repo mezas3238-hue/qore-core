@@ -144,13 +144,13 @@ class StructuralDestinationCandidate:
             raise ValueError("next structural destination must be confirmed")
 
 
-def validate_maximum_cognition_for_certification(
+def validate_full_cognitive_accounting_for_research(
     cognition: FullCognitivePositionState,
 ) -> None:
-    """Fail closed if a certifiable adaptive decision uses partial cognition."""
+    """Require full causal accounting while missing policies are calibrated."""
 
-    if not cognition.maximum_cognition_verified:
-        raise ValueError("VT31 maximum cognition proof is incomplete")
+    if not cognition.full_cognitive_accounting_verified:
+        raise ValueError("VT31 full cognitive accounting is incomplete")
     if not cognition.memory_bundle_complete:
         raise ValueError("VT31 persistent memory bundle is incomplete")
     if not cognition.domain_coverage_complete:
@@ -160,7 +160,23 @@ def validate_maximum_cognition_for_certification(
     if cognition.cognitive_coverage_ratio != Decimal("1"):
         raise ValueError("VT31 cognitive coverage ratio must equal 1")
     if cognition.terminal_pnl_used or cognition.future_journey_label_used:
-        raise ValueError("VT31 maximum cognition cannot use outcome oracles")
+        raise ValueError("VT31 cognition cannot use outcome oracles")
+
+
+def validate_maximum_cognition_for_certification(
+    cognition: FullCognitivePositionState,
+) -> None:
+    """Fail closed unless every applicable intelligence layer is ready."""
+
+    validate_full_cognitive_accounting_for_research(cognition)
+    if not cognition.reasoning_max_intelligence_ready:
+        blockers = ",".join(cognition.reasoning_max_intelligence_blockers)
+        raise ValueError(
+            "VT31 maximum intelligence is not certification-ready: "
+            + blockers
+        )
+    if not cognition.maximum_cognition_verified:
+        raise ValueError("VT31 maximum cognition proof is incomplete")
 
 
 def decide_market_native_position(
@@ -185,7 +201,7 @@ def decide_market_native_position(
     validated. Volume/sizing never becomes decision authority here.
     """
 
-    validate_maximum_cognition_for_certification(cognition)
+    validate_full_cognitive_accounting_for_research(cognition)
 
     if side not in {"long", "short"}:
         raise ValueError(f"unsupported side: {side}")
@@ -411,11 +427,14 @@ class ProtectionUrgency(StrEnum):
 
 REQUIRED_COGNITIVE_DOMAINS = (
     "STRATEGY_REASONING",
+    "MEMORY_SYNTHESIS",
+    "MULTITIMEFRAME_CONTEXT",
     "MARKET_REGIME",
     "LIQUIDITY_SEQUENCE",
     "ENTRY_QUALITY",
     "RISK_GEOMETRY",
     "JOURNEY_DESTINATION",
+    "TARGET_EXIT_INTELLIGENCE",
     "INTERMARKET",
     "TEMPORAL",
 )
@@ -445,6 +464,9 @@ class FullCognitivePositionState:
     memory_bundle_complete: bool
     domain_coverage_complete: bool
     situation_accounting_complete: bool
+    full_cognitive_accounting_verified: bool
+    reasoning_max_intelligence_ready: bool
+    reasoning_max_intelligence_blockers: tuple[str, ...]
     maximum_cognition_verified: bool
     entry_situation_fingerprint: str
     current_situation_fingerprint: str
@@ -601,6 +623,9 @@ def assess_full_cognitive_position(
             {
                 "decision_minute_ny",
                 "side",
+                "h4_state",
+                "h1_state",
+                "m15_state",
                 "premarket_state",
                 "cash_open_state",
                 "range_state",
@@ -662,15 +687,28 @@ def assess_full_cognitive_position(
     domain_coverage_complete = (
         set(observed_domains) == set(REQUIRED_COGNITIVE_DOMAINS)
     )
-    maximum_cognition_verified = (
+    full_cognitive_accounting_verified = (
         memory_bundle_complete
         and domain_coverage_complete
         and situation_accounting_complete
         and coverage_ratio == Decimal("1")
     )
+    reasoning_max_intelligence_ready = reasoning.max_intelligence_ready
+    reasoning_max_intelligence_blockers = (
+        reasoning.max_intelligence_blockers
+    )
+    maximum_cognition_verified = (
+        full_cognitive_accounting_verified
+        and reasoning_max_intelligence_ready
+        and not reasoning_max_intelligence_blockers
+    )
     signals.extend(
         f"OBSERVE_ONLY:{field}={situation_payload[field]}"
         for field in observation_only_situation_fields
+    )
+    signals.extend(
+        f"MAX_INTELLIGENCE_BLOCKER:{blocker}"
+        for blocker in reasoning_max_intelligence_blockers
     )
 
     support += min(3, len(reasoning.supporting_evidence))
@@ -831,8 +869,9 @@ def assess_full_cognitive_position(
             caution += 1
             signals.append(f"{label}_OPPOSED")
 
-    signals.append(f"H1_OBSERVED:{situation.h1_state}")
-    signals.append(f"H4_OBSERVED:{situation.h4_state}")
+    signals.append(f"H1_ACTUATED:{situation.h1_state}")
+    signals.append(f"H4_ACTUATED:{situation.h4_state}")
+    signals.append(f"M15_ACTUATED:{situation.m15_state}")
     signals.append(f"PRIOR_DAY_OBSERVED:{situation.prior_day_state}")
     signals.append(
         f"PRIOR_RANGE_LOCATION:{situation.position_in_prior_day_range}"
@@ -935,6 +974,13 @@ def assess_full_cognitive_position(
         memory_bundle_complete=memory_bundle_complete,
         domain_coverage_complete=domain_coverage_complete,
         situation_accounting_complete=situation_accounting_complete,
+        full_cognitive_accounting_verified=(
+            full_cognitive_accounting_verified
+        ),
+        reasoning_max_intelligence_ready=reasoning_max_intelligence_ready,
+        reasoning_max_intelligence_blockers=(
+            reasoning_max_intelligence_blockers
+        ),
         maximum_cognition_verified=maximum_cognition_verified,
         entry_situation_fingerprint=bound_entry_fingerprint,
         current_situation_fingerprint=current_fingerprint,
