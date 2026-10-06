@@ -354,8 +354,6 @@ def test_calibrated_journey_depletion_remains_position_authority() -> None:
         minute=10 * 60 + 45,
         m15_state="bearish",
     )
-    from dataclasses import replace
-
     current = replace(
         current,
         journey_stage="POST_1R_H5_ENTRY_OR_WORSE",
