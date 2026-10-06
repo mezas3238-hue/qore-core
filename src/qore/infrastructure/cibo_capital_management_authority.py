@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import ROUND_CEILING, ROUND_FLOOR, Decimal, localcontext
 from enum import StrEnum
+from fractions import Fraction
 
 from qore.infrastructure.account_wide_risk import (
     TraderIdentity,
@@ -286,11 +287,11 @@ class CiboCapitalActionPlan:
             if self.capital_source is None and not self.capital_source_lots:
                 raise CiboCapitalManagementError("capital deployment requires source")
         if self.capital_source_lots:
-            total = sum(
-                (lot.amount_usd for lot in self.capital_source_lots),
-                Decimal(0),
+            lots_total = sum(
+                (Fraction(lot.amount_usd) for lot in self.capital_source_lots),
+                Fraction(0),
             )
-            if total != self.capital_source_amount_usd:
+            if lots_total != Fraction(self.capital_source_amount_usd):
                 raise CiboCapitalManagementError(
                     "capital source lots must sum to source amount"
                 )
