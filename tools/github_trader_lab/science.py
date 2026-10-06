@@ -239,6 +239,42 @@ def evaluate(
     mc_p95_dd_max = d(science["mc_p95_dd_max_r"])
     require_temporal = bool(science.get("require_temporal_nondegrade", True))
 
+    mc_required_variants: set[str] = set()
+    for variant in variant_names:
+        deterministic_pass = True
+        for lane in lanes:
+            baseline = payloads[lane]["variants"][control]
+            candidate = payloads[lane]["variants"][variant]
+            bm = baseline["metrics"]
+            cm = candidate["metrics"]
+            winner = candidate["winner_preservation"]
+
+            temporal_ok, _ = temporal_nondegrade(
+                baseline,
+                candidate,
+            )
+            if not require_temporal:
+                temporal_ok = True
+
+            deterministic_pass &= (
+                pf(cm) >= pf(bm)
+                and d(cm["mean_r"]) >= d(bm["mean_r"])
+                and d(cm["max_drawdown_r"]) <= d(bm["max_drawdown_r"])
+                and d(candidate["relative_density_vs_control"])
+                >= min_density
+                and d(winner["count"]) >= min_winner_count
+                and d(winner["r"]) >= min_winner_r
+                and temporal_ok
+            )
+            if not deterministic_pass:
+                break
+        if deterministic_pass:
+            mc_required_variants.add(variant)
+
+    # The control is always measured even if a malformed profile would make
+    # its deterministic self-comparison fail.
+    mc_required_variants.add(control)
+
     mc_cache: dict[tuple[str, str], dict[str, Any]] = {}
     pending_by_series: dict[
         tuple[str, tuple[str, ...]],
@@ -253,6 +289,20 @@ def evaluate(
     for lane in lanes:
         for variant in variant_names:
             row = payloads[lane]["variants"][variant]
+            if variant not in mc_required_variants:
+                mc_cache[(lane, variant)] = {
+                    "algorithm": "skipped-after-deterministic-pre-gate-failure",
+                    "status": "SKIPPED_PRE_GATE_FAILURE",
+                    "paths": 0,
+                    "block_length": int(
+                        science.get("mc_block_length", 5)
+                    ),
+                    "positive_terminal_probability": "0",
+                    "p05_terminal_r": None,
+                    "p50_terminal_r": None,
+                    "p95_max_drawdown_r": "Infinity",
+                }
+                continue
             existing = _existing_monte_carlo(
                 row,
                 min_paths=mc_paths_min,
@@ -375,13 +425,20 @@ def evaluate(
         primary = payloads[primary_lane]["variants"][variant]
         pm = primary["metrics"]
         pmc = mc_cache[(primary_lane, variant)]
+        mc_was_run = int(pmc.get("paths", 0)) >= mc_paths_min
         owner = {
             "pf_floor": pf(pm) >= primary_pf_floor,
             "mean_r_floor": d(pm["mean_r"]) >= primary_mean_floor,
             "observed_dd_hard_gate": d(pm["max_drawdown_r"]) <= hard_dd,
-            "mc_positive_floor": d(pmc["positive_terminal_probability"])
-            >= mc_positive_floor,
-            "mc_p95_dd_gate": d(pmc["p95_max_drawdown_r"]) <= mc_p95_dd_max,
+            "mc_positive_floor": (
+                mc_was_run
+                and d(pmc["positive_terminal_probability"])
+                >= mc_positive_floor
+            ),
+            "mc_p95_dd_gate": (
+                mc_was_run
+                and d(pmc["p95_max_drawdown_r"]) <= mc_p95_dd_max
+            ),
         }
         all_lane_pf = all(
             pf(payloads[lane]["variants"][variant]["metrics"]) >= all_lane_pf_floor
@@ -431,6 +488,10 @@ def evaluate(
         "subject": profile["subject"],
         "lanes": list(lanes),
         "control": control,
+        "monte_carlo_required_variants": sorted(mc_required_variants),
+        "monte_carlo_skipped_variants": sorted(
+            set(variant_names) - mc_required_variants
+        ),
         "battery_layers": [
             "MULTI_LANE_REPLAY",
             "FIXED_FRICTION_FROM_SUBJECT_REPLAY",
