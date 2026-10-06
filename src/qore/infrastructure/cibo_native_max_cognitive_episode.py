@@ -246,6 +246,36 @@ def _target_semantic_context(
     return context
 
 
+def _target_economic_semantics(
+    *,
+    consultation: CiboEconomicConsultationReceipt,
+    target_signal_fingerprint: str,
+) -> dict[str, object]:
+    semantics = _semantic_state(consultation)
+    cf07 = semantics.get("CF07", {})
+    economic_state = cf07.get("economic_state")
+    if not isinstance(economic_state, dict):
+        raise CiboCapitalManagementError(
+            "native cognitive CF07 economic state missing"
+        )
+    unit_economics = economic_state.get("unit_economics")
+    if not isinstance(unit_economics, (tuple, list)):
+        raise CiboCapitalManagementError(
+            "native cognitive CF07 unit economics missing"
+        )
+    matches = [
+        item
+        for item in unit_economics
+        if isinstance(item, dict)
+        and item.get("signal_fingerprint") == target_signal_fingerprint
+    ]
+    if len(matches) != 1:
+        raise CiboCapitalManagementError(
+            "native cognitive target missing from CF07 semantics"
+        )
+    return matches[0]
+
+
 def _native_faculty_blockers(
     consultation: CiboEconomicConsultationReceipt,
 ) -> tuple[str, ...]:
@@ -314,6 +344,10 @@ def _attention(
     )
     signals: list[AttentionSignal] = []
     target_context = _target_semantic_context(
+        consultation=consultation,
+        target_signal_fingerprint=target_signal_fingerprint,
+    )
+    target_economics = _target_economic_semantics(
         consultation=consultation,
         target_signal_fingerprint=target_signal_fingerprint,
     )
@@ -409,31 +443,36 @@ def _attention(
         )
         decision_gate_codes.append("CF16")
 
-    expected_value_raw = target_context.get("cibo_expected_value_usd")
-    expected_value: Decimal | None = None
-    if expected_value_raw not in {None, ""}:
-        try:
-            expected_value = Decimal(expected_value_raw)
-        except Exception as error:
-            raise CiboCapitalManagementError(
-                "native cognitive expected value context invalid"
-            ) from error
-        if not expected_value.is_finite():
-            raise CiboCapitalManagementError(
-                "native cognitive expected value context non-finite"
-            )
-        if expected_value <= 0:
-            add(
-                AttentionSignalKind.CONTRADICTION,
-                90,
-                "nonpositive-causal-expected-value",
-                "economic-expectation-context",
-            )
-            if "CF16" not in decision_gate_codes:
-                decision_gate_codes.append("CF16")
+    expected_net_utility_raw = target_economics.get(
+        "expected_net_utility_usd"
+    )
+    if not isinstance(expected_net_utility_raw, str) or not (
+        expected_net_utility_raw
+    ):
+        raise CiboCapitalManagementError(
+            "native cognitive CF07 expected net utility missing"
+        )
+    try:
+        expected_net_utility = Decimal(expected_net_utility_raw)
+    except Exception as error:
+        raise CiboCapitalManagementError(
+            "native cognitive CF07 expected net utility invalid"
+        ) from error
+    if not expected_net_utility.is_finite():
+        raise CiboCapitalManagementError(
+            "native cognitive CF07 expected net utility non-finite"
+        )
+    if expected_net_utility <= 0:
+        add(
+            AttentionSignalKind.CONTRADICTION,
+            90,
+            "nonpositive-causal-expected-net-utility",
+            "cf07-economic-intelligence",
+        )
+        decision_gate_codes.append("CF07")
 
     if (
-        target_context.get("cibo_expectation_basis")
+        target_economics.get("expectation_basis")
         == "FROZEN_HISTORICAL_PRIOR"
     ):
         add(
@@ -478,7 +517,7 @@ def _attention(
     )
     semantic_abstain = (
         context_quality_disposition == "ABSTAIN"
-        or (expected_value is not None and expected_value <= 0)
+        or expected_net_utility <= 0
     )
     abstain = (
         bool(missing)
@@ -492,9 +531,9 @@ def _attention(
     elif context_quality_disposition == "ABSTAIN":
         kind = "abstain_defer"
         note = "context-quality-abstention"
-    elif expected_value is not None and expected_value <= 0:
+    elif expected_net_utility <= 0:
         kind = "abstain_defer"
-        note = "nonpositive-causal-expected-value"
+        note = "nonpositive-causal-expected-net-utility"
     elif hard_capacity_exhausted:
         kind = "abstain_defer"
         note = "account-capacity-exhausted"
