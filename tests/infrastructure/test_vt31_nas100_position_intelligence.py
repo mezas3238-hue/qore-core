@@ -404,7 +404,10 @@ def test_market_native_position_extends_only_after_structural_acceptance() -> No
         side="long",
         current_stop=Decimal("100"),
         primary_structural_target=Decimal("120"),
-        next_structural_target=Decimal("128"),
+        next_structural_target=StructuralDestinationCandidate(
+            level=Decimal("128"),
+            source="confirmed-liquidity-pool",
+        ),
         cognition=cognition,
         protective_swing=None,
         primary_target_reached=True,
