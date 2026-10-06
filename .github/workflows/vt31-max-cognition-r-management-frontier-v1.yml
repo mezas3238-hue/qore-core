@@ -83,7 +83,8 @@ jobs:
           p=os.environ["PARTITION"]
           x=json.loads(Path(f"result/max-cog-r-{p}.json").read_text())
           g=x["governance"]
-          assert g["maximum_cognition_required_for_every_trade"] is True
+          assert g["full_cognitive_accounting_required_for_every_trade"] is True
+          assert g["maximum_intelligence_required_for_candidate_freeze"] is True
           assert g["same_admission_population"] is True
           assert g["entry_changed"] is False
           assert g["r_runtime_strategy_allowed"] is True
@@ -196,7 +197,8 @@ jobs:
               "head":"${{ github.sha }}",
               "variants":report,
               "governance":{
-                  "maximum_cognition_selects_r_management":True,
+                  "full_cognition_selects_r_management":True,
+                  "maximum_intelligence_required_for_candidate_freeze":True,
                   "sizing_for_certification_forbidden":True,
                   "fresh_holdout_opened":False,
                   "policy_promoted":False,
