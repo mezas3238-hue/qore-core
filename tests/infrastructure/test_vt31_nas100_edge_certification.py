@@ -5,6 +5,7 @@ from decimal import Decimal
 import pytest
 
 from qore.infrastructure.traders.vt31_nas100_edge_certification import (
+    GATES,
     IDENTITY,
     R_RUNTIME_ALLOWED,
     SIZING_FOR_CERTIFICATION_FORBIDDEN,
@@ -374,3 +375,15 @@ def test_edge_report_exposes_maximum_intelligence_freeze_gate() -> None:
     assert complete["maximum_intelligence_gate"] is True
     assert complete["maximum_intelligence"]["verified"] is True
     assert complete["maximum_intelligence_required_for_freeze"] is True
+
+
+def test_observed_drawdown_certification_gate_is_six_r() -> None:
+    report = build_edge_only_report(
+        _rows(),
+        monte_carlo_paths=100,
+        runtime_governance=_pure_runtime_governance(),
+    )
+
+    assert GATES["max_drawdown_r_target"] == Decimal("6")
+    assert "drawdown_at_most_6r" in report["gates"]
+    assert "drawdown_at_most_10r" not in report["gates"]
