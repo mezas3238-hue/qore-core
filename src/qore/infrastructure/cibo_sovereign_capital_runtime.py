@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from datetime import datetime
-from decimal import ROUND_FLOOR, Decimal
+from decimal import ROUND_FLOOR, Decimal, localcontext
 from enum import StrEnum
 
 from qore.infrastructure.account_wide_risk import CiboRiskRequest
@@ -549,16 +549,25 @@ def _build_capital_science_state(
             raise CiboCapitalManagementError(
                 "Capital Science target base geometry must be positive"
             )
-        volume_scale = sizing.plan.volume / base_volume
-        risk_scale = sizing.plan.stop_risk_usd / target.stop_risk_usd
-        if volume_scale != risk_scale:
+        expected_risk = sizing.plan.volume * opportunity.stop_loss_per_volume
+        expected_margin = sizing.plan.volume * opportunity.margin_per_volume
+        if (
+            sizing.plan.stop_risk_usd != expected_risk
+            or sizing.plan.margin_usd != expected_margin
+        ):
             raise CiboCapitalManagementError(
-                "Capital Science sizing volume/risk geometry drift"
+                "Capital Science sizing plan geometry drift"
             )
-        current_provider_cost_usd = target.provider_cost_usd * volume_scale
-        current_expected_net_value_usd = (
-            target.expected_net_value_usd * risk_scale
-        )
+        with localcontext() as context:
+            context.prec = 80
+            volume_scale = sizing.plan.volume / base_volume
+            risk_scale = sizing.plan.stop_risk_usd / target.stop_risk_usd
+            current_provider_cost_usd = (
+                target.provider_cost_usd * volume_scale
+            )
+            current_expected_net_value_usd = (
+                target.expected_net_value_usd * risk_scale
+            )
         matches = tuple(item for item in known if item.option_id == option_id)
         if len(matches) != 1:
             raise CiboCapitalManagementError(
