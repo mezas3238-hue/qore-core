@@ -156,3 +156,52 @@ def test_funded_recovery_still_preserves_all_remaining_capacity() -> None:
     assert decision.deployable_stop_risk_usd == 0
     assert decision.deployable_margin_usd == 0
     assert decision.preserve_new_capital is True
+
+def test_no_feasible_known_seed_preserves_all_remaining_capacity() -> None:
+    mission = _mission_demo()
+    decision = plan_capital_optionality(
+        mission=mission,
+        regime=_regime(mission, dd="0.80"),
+        hard_risk_headroom_usd=Decimal("3"),
+        margin_headroom_usd=Decimal("10"),
+        known_options=OPTIONS,
+    )
+
+    assert decision.reserve_stop_risk_usd == Decimal("3")
+    assert decision.reserve_margin_usd == Decimal("10")
+    assert decision.deployable_stop_risk_usd == Decimal("0")
+    assert decision.deployable_margin_usd == Decimal("0")
+    assert decision.preserve_new_capital is True
+    assert decision.reserved_for_opportunity_ids == (
+        "next-small",
+        "next-large",
+    )
+    assert "no currently known minimum executable seed fits" in decision.reason
+
+
+def test_funded_optionality_ignores_known_seed_that_is_already_infeasible() -> None:
+    mission = _mission_funded()
+    options = (
+        KnownCapitalOption(
+            opportunity_id="feasible",
+            minimum_stop_risk_usd=Decimal("4"),
+            minimum_margin_usd=Decimal("20"),
+        ),
+        KnownCapitalOption(
+            opportunity_id="infeasible",
+            minimum_stop_risk_usd=Decimal("100"),
+            minimum_margin_usd=Decimal("1000"),
+        ),
+    )
+    decision = plan_capital_optionality(
+        mission=mission,
+        regime=_regime(mission),
+        hard_risk_headroom_usd=Decimal("60"),
+        margin_headroom_usd=Decimal("500"),
+        known_options=options,
+    )
+
+    assert decision.reserve_stop_risk_usd == Decimal("4")
+    assert decision.reserve_margin_usd == Decimal("20")
+    assert decision.reserved_for_opportunity_ids == ("feasible",)
+
