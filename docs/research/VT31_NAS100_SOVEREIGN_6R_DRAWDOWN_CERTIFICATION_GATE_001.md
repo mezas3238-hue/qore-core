@@ -18,7 +18,15 @@ An observed drawdown above 6R fails the drawdown certification gate.
 
 The historical 10R target is superseded for certification.
 
-The 15R ceiling remains only a hard research / safety rejection boundary. It does **not** mean that a candidate with 7R, 10R, or 14R drawdown is certified.
+The historical 15R observed-drawdown ceiling is **not a certification gate** and must not appear inside the certification-gate set.
+
+A separate Monte Carlo p95 drawdown threshold may still use 15R as a robustness/clustering criterion. That is a different metric and must never be confused with observed maximum drawdown.
+
+Therefore:
+
+- observed DD = 6.00R -> this requirement may PASS;
+- observed DD = 6.01R -> NO CERTIFICA;
+- observed DD = 7R, 10R or 15R -> NO CERTIFICA.
 
 ## Edge-only sovereignty
 

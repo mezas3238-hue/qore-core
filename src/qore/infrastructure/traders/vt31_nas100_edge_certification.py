@@ -58,7 +58,6 @@ GATES = {
     "profit_factor_combined_min": Decimal("1.70"),
     "expectancy_min_exclusive": Decimal("0"),
     "max_drawdown_r_target": Decimal("6"),
-    "max_drawdown_r_reject": Decimal("15"),
     "sharpe_min": Decimal("1.50"),
     "sortino_min": Decimal("2.00"),
     "payoff_min": Decimal("1.20"),
@@ -570,10 +569,6 @@ def build_edge_only_report(
             drawdown is not None
             and drawdown <= GATES["max_drawdown_r_target"]
         ),
-        "drawdown_reject_ceiling": (
-            drawdown is not None
-            and drawdown <= GATES["max_drawdown_r_reject"]
-        ),
         # Final certification convention is intentionally unbound here.
         # The descriptive trade-period ratios above are not silently treated
         # as annualized certification metrics.
@@ -645,6 +640,13 @@ def build_edge_only_report(
         "cost_stress": stress,
         "winner_preservation": preservation,
         "gates": gates,
+        "observed_drawdown_certification_policy": {
+            "maximum_r": format(GATES["max_drawdown_r_target"], "f"),
+            "pass_operator": "<=",
+            "legacy_10r_certification_target_active": False,
+            "legacy_15r_certification_ceiling_active": False,
+            "mc_p95_drawdown_is_separate_robustness_metric": True,
+        },
         "passes_economic_development_gates": economic_development_pass,
         "runtime_purity_gate": runtime_purity_verified,
         "maximum_intelligence": intelligence_completeness,

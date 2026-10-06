@@ -673,8 +673,9 @@ Approximate final targets:
 - combined PF >=1.70, preferred >=2.00;
 - expectancy >0, target >=+0.15R/trade;
 - observed DD certification PASS <=6R;
-- observed DD >6R fails the certification DD gate;
-- 15R remains a hard research/safety rejection ceiling, not a certification pass threshold;
+- observed DD >6R fails the certification DD gate immediately;
+- there is no 10R or 15R observed-DD certification ceiling anymore;
+- MC p95 DD <=15R is a separate Monte Carlo robustness metric, not the observed-DD gate;
 - Sharpe >=1.50, preferred >=2.00;
 - Sortino >=2.00;
 - payoff >=1.20, preferred >=1.50;

@@ -1,5 +1,19 @@
 # VT31_NAS100_R5 — Final Certification Contract
 
+> **SUPERSEDED FOR CURRENT VT31 CERTIFICATION**
+>
+> This historical contract is retained only for audit provenance. Its
+> capital-weighted economics, global risk scalar, activity budgets and sizing
+> authority are incompatible with the current sovereign EDGE-PURO
+> certification standard.
+>
+> Do **not** use this contract to open a fresh holdout or certify current VT31.
+> Current certification requires equal-R / volume-invariant edge, maximum
+> intelligence and observed max drawdown <=6R without sizing rescue.
+>
+> Canonical replacement:
+> `docs/research/VT31_NAS100_SOVEREIGN_TRADER_CERTIFICATION_STANDARD_001.md`
+>
 Status: **FROZEN CANDIDATE / FINAL HOLDOUT SEALED / NOT LIVE**
 
 ## Identity

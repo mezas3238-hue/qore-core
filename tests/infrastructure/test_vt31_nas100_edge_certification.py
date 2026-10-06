@@ -385,5 +385,33 @@ def test_observed_drawdown_certification_gate_is_six_r() -> None:
     )
 
     assert GATES["max_drawdown_r_target"] == Decimal("6")
+    assert "max_drawdown_r_reject" not in GATES
     assert "drawdown_at_most_6r" in report["gates"]
     assert "drawdown_at_most_10r" not in report["gates"]
+    assert "drawdown_reject_ceiling" not in report["gates"]
+    policy = report["observed_drawdown_certification_policy"]
+    assert policy["maximum_r"] == "6"
+    assert policy["legacy_15r_certification_ceiling_active"] is False
+    assert policy["mc_p95_drawdown_is_separate_robustness_metric"] is True
+
+
+def test_observed_drawdown_6r_passes_and_6_01r_fails() -> None:
+    pass_report = build_edge_only_report(
+        [
+            {"trade_id": "a", "r_multiple": "1"},
+            {"trade_id": "b", "r_multiple": "-6"},
+        ],
+        monte_carlo_paths=100,
+    )
+    fail_report = build_edge_only_report(
+        [
+            {"trade_id": "a", "r_multiple": "1"},
+            {"trade_id": "b", "r_multiple": "-6.01"},
+        ],
+        monte_carlo_paths=100,
+    )
+
+    assert pass_report["metrics"]["max_drawdown_r"] == "6"
+    assert pass_report["gates"]["drawdown_at_most_6r"] is True
+    assert fail_report["metrics"]["max_drawdown_r"] == "6.01"
+    assert fail_report["gates"]["drawdown_at_most_6r"] is False
