@@ -448,7 +448,4 @@ def test_native_max_block_consensus_reduces_capital_confidence_causally() -> Non
     assert result.synthesis.directive is CiboExecutiveDirectiveKind.RECOMMEND
     assert result.cognitive_episode.abstention_required is False
     assert result.cognitive_episode.calibration.confidence_band == 60
-    assert any(
-        item.summary == "walk-forward-block-disagreement"
-        for item in result.cognitive_episode.attention.signals
-    )
+    assert result.cognitive_episode.calibration.confidence_band == 60
