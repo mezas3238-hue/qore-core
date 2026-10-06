@@ -208,15 +208,16 @@ def _confidence_cap(
         drawdown_utilization,
     )
     positive_blocks = int(row.get("walk_forward_positive_block_count", 0))
-    consensus_pct = (
-        100
-        if positive_blocks == 5
-        else 66
-        if positive_blocks == 4
-        else 33
-        if tiered_consensus
-        else positive_blocks * 20
-    )
+    if tiered_consensus:
+        consensus_pct = (
+            100
+            if positive_blocks == 5
+            else 66
+            if positive_blocks == 4
+            else 33
+        )
+    else:
+        consensus_pct = positive_blocks * 20
     regime = row["regime"]
     attention_pressure = 0
     provider = str(regime.get("provider_condition"))
