@@ -61,6 +61,7 @@ class Variant:
     fixed_multiplier: int | None = None
     recency_guard: bool = False
     profit_funded_leverage: bool = False
+    max_frontier: bool = False
 
 
 VARIANTS = (
@@ -104,6 +105,16 @@ VARIANTS = (
         True,
         True,
         profit_funded_leverage=True,
+    ),
+    Variant(
+        "MAX_FRONTIER_WIRING_REPAIR",
+        Decimal("0.70"),
+        True,
+        True,
+        True,
+        True,
+        profit_funded_leverage=True,
+        max_frontier=True,
     ),
 )
 
@@ -155,12 +166,33 @@ def _confidence_cap(
         margin_utilization,
         drawdown_utilization,
     )
+    consensus_pct = int(row.get("walk_forward_positive_block_count", 0)) * 20
+    regime = row["regime"]
+    attention_pressure = 0
+    provider = str(regime.get("provider_condition"))
+    correlation = str(regime.get("correlation"))
+    volatility = str(regime.get("volatility"))
+    if provider == "UNAVAILABLE":
+        attention_pressure = max(attention_pressure, 100)
+    elif provider == "DEGRADED":
+        attention_pressure = max(attention_pressure, 70)
+    if correlation == "BREAK":
+        attention_pressure = max(attention_pressure, 90)
+    elif correlation != "NORMAL":
+        attention_pressure = max(attention_pressure, 65)
+    if volatility == "DISLOCATED":
+        attention_pressure = max(attention_pressure, 95)
+    if bool(regime.get("position_path_adverse")):
+        attention_pressure = max(attention_pressure, 85)
+
     confidence_band = max(
         0,
         min(
             100,
             100 - int(utilization * HUNDRED),
             int(maturity * HUNDRED),
+            consensus_pct,
+            100 - attention_pressure,
         ),
     )
     if confidence_band >= 67:
@@ -237,6 +269,11 @@ def _portfolio(
                     drawdown_utilization=drawdown_utilization,
                 ),
             )
+        if variant.max_frontier:
+            frontier_cap = int(row.get("maximum_frontier_cap", 0))
+            if frontier_cap not in {0, 1, 2, 3, 4}:
+                raise ValueError("prepared MAX Frontier cap outside 0..4")
+            cap = min(cap, frontier_cap)
         if variant.fixed_multiplier is not None:
             cap = min(cap, variant.fixed_multiplier)
         caps.append(cap)
@@ -784,6 +821,8 @@ def run(prepared_path: Path, lane: str) -> dict[str, Any]:
         "governance": {
             "burned_repair_window_only": True,
             "prepared_causal_ledger_reused": True,
+            "exact_max_frontier_caps_prepared_from_subject": True,
+            "max_frontier_constraining_only": True,
             "outcome_available_to_same_decision": False,
             "trader_methodology_changed": False,
             "fresh_holdout_opened": False,
