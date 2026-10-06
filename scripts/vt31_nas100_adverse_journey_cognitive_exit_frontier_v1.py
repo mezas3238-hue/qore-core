@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import argparse
 import json
-from collections import Counter
+from collections import Counter, defaultdict
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
@@ -122,6 +122,126 @@ def _simulate(
     return outcome
 
 
+def _bucket_support_margin(value: object) -> str:
+    margin = int(value)
+    if margin <= -3:
+        return "LE_-3"
+    if margin <= -1:
+        return "-2_-1"
+    if margin <= 1:
+        return "-0_1"
+    if margin <= 3:
+        return "2_3"
+    return "GE_4"
+
+
+def _bucket_open_r(value: object) -> str:
+    open_r = _d(value)
+    if open_r <= Decimal("-0.75"):
+        return "LE_-0.75R"
+    return "-0.75_TO_-0.50R"
+
+
+def _bucket_reclaim_age(value: object) -> str:
+    if value is None:
+        return "NONE"
+    age = int(value)
+    if age < 8:
+        return "LT8M"
+    if age < 15:
+        return "8_14M"
+    return "GE15M"
+
+
+def _first_material_adverse_forensics(
+    baseline: list[dict[str, object]],
+    rows: list[dict[str, object]],
+) -> dict[str, object]:
+    baseline_map = {str(row["signal_at"]): row for row in baseline}
+    samples: list[dict[str, object]] = []
+    for row in rows:
+        first = next(
+            (
+                cast(dict[str, object], event)
+                for event in cast(
+                    list[dict[str, object]],
+                    row.get("cognitive_exit_evaluations", []),
+                )
+                if event.get("current_open_r") is not None
+                and _d(event["current_open_r"]) <= MATERIAL_ADVERSE_R
+            ),
+            None,
+        )
+        if first is None:
+            continue
+        control = baseline_map[str(row["signal_at"])]
+        control_net_r = _d(control["r_multiple"]) - specialist.FRICTION
+        samples.append(
+            {
+                "management_context": str(first["management_context"]),
+                "weak_path": bool(first.get("weak_path")),
+                "current_reasoning_action": str(
+                    first["current_reasoning_action"]
+                ),
+                "m15_state": str(first["m15_state"]),
+                "h1_state": str(first["h1_state"]),
+                "h4_state": str(first["h4_state"]),
+                "destination_state": str(first["destination_state"]),
+                "last_structure_event_family": str(
+                    first["last_structure_event_family"]
+                ),
+                "support_margin_bucket": _bucket_support_margin(
+                    first["support_margin"]
+                ),
+                "open_r_bucket": _bucket_open_r(first["current_open_r"]),
+                "reclaim_age_bucket": _bucket_reclaim_age(
+                    first.get("reference_reclaim_age_minutes")
+                ),
+                "control_net_r": control_net_r,
+            }
+        )
+
+    fields = (
+        ("management_context",),
+        ("management_context", "weak_path"),
+        ("management_context", "m15_state"),
+        ("management_context", "h1_state"),
+        ("management_context", "h4_state"),
+        ("management_context", "destination_state"),
+        ("management_context", "current_reasoning_action"),
+        ("management_context", "last_structure_event_family"),
+        ("management_context", "support_margin_bucket"),
+        ("management_context", "open_r_bucket"),
+        ("management_context", "reclaim_age_bucket"),
+    )
+    grouped: dict[str, dict[str, object]] = {}
+    for field_tuple in fields:
+        table: dict[str, list[Decimal]] = defaultdict(list)
+        for sample in samples:
+            key = "|".join(str(sample[field]) for field in field_tuple)
+            table[key].append(cast(Decimal, sample["control_net_r"]))
+        grouped["+".join(field_tuple)] = {
+            key: {
+                "sample": len(values),
+                "wins": sum(value > 0 for value in values),
+                "losses": sum(value < 0 for value in values),
+                "mean_control_net_r": format(
+                    sum(values, Decimal(0)) / Decimal(len(values)),
+                    "f",
+                ),
+            }
+            for key, values in sorted(table.items())
+        }
+
+    return {
+        "observation_only": True,
+        "action_authority": False,
+        "outcome_used_only_for_forensic_attribution": True,
+        "first_material_adverse_trade_count": len(samples),
+        "groups": grouped,
+    }
+
+
 def _report(
     full_control: list[dict[str, object]],
     baseline: list[dict[str, object]],
@@ -156,6 +276,10 @@ def _report(
             rows,
         ),
         "sequence_diagnostics": composition._sequence_diagnostics(rows),
+        "first_material_adverse_forensics": _first_material_adverse_forensics(
+            baseline,
+            rows,
+        ),
         "cognitive_exit_count": sum(
             row.get("exit_reason")
             == "composite-pretarget-cognitive-exit"
@@ -316,6 +440,8 @@ def replay(evidence_path: Path) -> dict[str, object]:
             "absolute_volume_used": False,
             "fold_identity_used_for_action": False,
             "future_outcome_used_for_action": False,
+            "material_adverse_forensics_observation_only": True,
+            "material_adverse_forensics_action_authority": False,
             "fresh_holdout_opened": False,
             "policy_promoted": False,
             "candidate_frozen": False,
