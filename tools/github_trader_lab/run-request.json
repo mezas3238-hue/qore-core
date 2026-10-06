@@ -1,5 +1,6 @@
 {
   "schema": "qore.github-trader-lab.run-request.v1",
   "profile_path": "tools/github_trader_lab/profiles/vt31-comp006.json",
-  "subject_ref": "agent/vt31-edge-position-cert-b-001"
+  "subject_ref": "agent/vt31-edge-position-cert-b-001",
+  "benchmark": "hot-cache-validation-1"
 }
