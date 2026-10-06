@@ -37,6 +37,7 @@ def _situation(
     ref_ratio: str = "0.68",
     side: str = "short",
     h1_state: str = "bearish",
+    m15_state: str = "UNWIRED",
 ) -> Nas100SituationModel:
     return Nas100SituationModel(
         as_of="2020-01-02T15:12:00+00:00",
@@ -90,6 +91,7 @@ def _situation(
         extension_capacity_state="RESEARCH_ONLY_UNCALIBRATED",
         exhaustion_state="UNKNOWN",
         cross_index_state="OPTIONAL_CONTEXT_NOT_REQUIRED",
+        m15_state=m15_state,
     )
 
 
@@ -250,3 +252,57 @@ def test_reasoning_target_plan_contains_no_r_runtime_threshold() -> None:
     assert "3R" not in decision.target_plan
     assert "_R_" not in decision.target_plan
     assert "PARTIAL" not in decision.target_plan
+
+
+def test_maximum_intelligence_gate_exposes_current_unwired_m15() -> None:
+    decision = reason(_situation())
+
+    assert decision.max_intelligence_ready is False
+    assert "m15_context" in decision.cognitive_domains_consulted
+    assert "M15_CONTEXT_UNWIRED" in decision.max_intelligence_blockers
+    assert "SITUATION:M15_CONTEXT_UNWIRED" in decision.uncertainty
+
+
+def test_wiring_m15_removes_only_the_m15_blocker() -> None:
+    decision = reason(_situation(m15_state="bearish-displacement"))
+
+    assert "M15_CONTEXT_UNWIRED" not in decision.max_intelligence_blockers
+    assert "DEEPER_JOURNEY_CAPACITY_UNCALIBRATED" in (
+        decision.max_intelligence_blockers
+    )
+    assert "CONTEXTUAL_POSITION_MANAGEMENT_UNRESOLVED" in (
+        decision.max_intelligence_blockers
+    )
+    assert decision.max_intelligence_ready is False
+
+
+def test_maximum_intelligence_manifest_covers_full_cognitive_stack() -> None:
+    decision = reason(_situation())
+    domains = set(decision.cognitive_domains_consulted)
+
+    required = {
+        "strategy_identity",
+        "prior_day_context",
+        "h4_context",
+        "h1_context",
+        "m15_context",
+        "m1_microstructure",
+        "structure",
+        "liquidity",
+        "regime",
+        "volatility",
+        "timing_freshness",
+        "entry_intelligence",
+        "risk_geometry",
+        "journey_intelligence",
+        "target_exit_intelligence",
+        "cibo_market_memory",
+        "trader_experience_memory",
+        "cross_index_context",
+        "post_entry_reassessment_capability",
+        "strategy_native_r_capability",
+    }
+    assert required.issubset(domains)
+    assert decision.strategy_memory_used
+    assert decision.cibo_market_memory_used
+    assert decision.trader_experience_memory_used
