@@ -1,0 +1,113 @@
+name: QORE CIBO GEN-C9 Robust Growth Ruin Capacity
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-genc9-robust-growth.yml'
+      - 'src/qore/infrastructure/cibo_robust_growth_ruin_capacity.py'
+      - 'src/qore/infrastructure/cibo_compound_path_monte_carlo.py'
+      - 'src/qore/infrastructure/cibo_compound_real_population_binding.py'
+      - 'src/qore/infrastructure/cibo_genc9_economic_gate.py'
+      - 'src/qore/infrastructure/cibo_compound_adversarial_stress.py'
+      - 'src/qore/infrastructure/cibo_compound_temporal_replication.py'
+      - 'src/qore/infrastructure/cibo_compound_temporal_replication_gate.py'
+      - 'tests/infrastructure/test_cibo_robust_growth_ruin_capacity.py'
+      - 'tests/infrastructure/test_cibo_compound_path_monte_carlo.py'
+      - 'tests/infrastructure/test_cibo_compound_real_population_binding.py'
+      - 'tests/infrastructure/test_cibo_genc9_economic_gate.py'
+      - 'tests/infrastructure/test_cibo_compound_adversarial_stress.py'
+      - 'tests/infrastructure/test_cibo_compound_temporal_replication.py'
+      - 'tests/infrastructure/test_cibo_compound_temporal_replication_gate.py'
+      - 'docs/research/CIBO-COMPOUND-TEMPORAL-REPLICATION-V1.md'
+      - 'docs/research/CIBO-COMPOUND-TEMPORAL-ECONOMIC-REPLICATION-CRITERION-V1.md'
+      - 'docs/research/CIBO-COMPOUND-REAL-POPULATION-BINDING-V1.md'
+      - 'docs/research/CIBO-COMPOUND-ADVERSARIAL-STRESS-MATRIX-V1.md'
+      - 'docs/research/CIBO-GEN-C9-NONCOMPENSATORY-ECONOMIC-GATE-V1.md'
+      - 'docs/research/CIBO-GEN-C9-ROBUST-GROWTH-RUIN-CAPACITY-PREREGISTRATION-V1.md'
+      - 'docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json'
+  push:
+    branches:
+      - agent/cibo-capital-efficiency-sizing-lab-001
+    paths:
+      - '.github/workflows/cibo-genc9-robust-growth.yml'
+      - 'src/qore/infrastructure/cibo_robust_growth_ruin_capacity.py'
+      - 'src/qore/infrastructure/cibo_compound_path_monte_carlo.py'
+      - 'src/qore/infrastructure/cibo_compound_real_population_binding.py'
+      - 'src/qore/infrastructure/cibo_genc9_economic_gate.py'
+      - 'src/qore/infrastructure/cibo_compound_adversarial_stress.py'
+      - 'src/qore/infrastructure/cibo_compound_temporal_replication.py'
+      - 'src/qore/infrastructure/cibo_compound_temporal_replication_gate.py'
+      - 'tests/infrastructure/test_cibo_robust_growth_ruin_capacity.py'
+      - 'tests/infrastructure/test_cibo_compound_path_monte_carlo.py'
+      - 'tests/infrastructure/test_cibo_compound_real_population_binding.py'
+      - 'tests/infrastructure/test_cibo_genc9_economic_gate.py'
+      - 'tests/infrastructure/test_cibo_compound_adversarial_stress.py'
+      - 'tests/infrastructure/test_cibo_compound_temporal_replication.py'
+      - 'tests/infrastructure/test_cibo_compound_temporal_replication_gate.py'
+      - 'docs/research/CIBO-COMPOUND-TEMPORAL-REPLICATION-V1.md'
+      - 'docs/research/CIBO-COMPOUND-TEMPORAL-ECONOMIC-REPLICATION-CRITERION-V1.md'
+      - 'docs/research/CIBO-COMPOUND-REAL-POPULATION-BINDING-V1.md'
+      - 'docs/research/CIBO-COMPOUND-ADVERSARIAL-STRESS-MATRIX-V1.md'
+      - 'docs/research/CIBO-GEN-C9-NONCOMPENSATORY-ECONOMIC-GATE-V1.md'
+      - 'docs/research/CIBO-GEN-C9-ROBUST-GROWTH-RUIN-CAPACITY-PREREGISTRATION-V1.md'
+      - 'docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json'
+
+permissions:
+  contents: read
+
+env:
+  EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  genc9-robust-growth:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: GEN-C9 robust-growth quality
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_robust_growth_ruin_capacity.py \
+            src/qore/infrastructure/cibo_compound_path_monte_carlo.py \
+            src/qore/infrastructure/cibo_compound_real_population_binding.py \
+            src/qore/infrastructure/cibo_genc9_economic_gate.py \
+            src/qore/infrastructure/cibo_compound_adversarial_stress.py \
+            src/qore/infrastructure/cibo_compound_temporal_replication.py \
+            src/qore/infrastructure/cibo_compound_temporal_replication_gate.py \
+            tests/infrastructure/test_cibo_robust_growth_ruin_capacity.py \
+            tests/infrastructure/test_cibo_compound_path_monte_carlo.py \
+            tests/infrastructure/test_cibo_compound_real_population_binding.py \
+            tests/infrastructure/test_cibo_genc9_economic_gate.py \
+            tests/infrastructure/test_cibo_compound_adversarial_stress.py \
+            tests/infrastructure/test_cibo_compound_temporal_replication.py \
+            tests/infrastructure/test_cibo_compound_temporal_replication_gate.py
+          mypy \
+            src/qore/infrastructure/cibo_robust_growth_ruin_capacity.py \
+            src/qore/infrastructure/cibo_compound_path_monte_carlo.py \
+            src/qore/infrastructure/cibo_compound_real_population_binding.py \
+            src/qore/infrastructure/cibo_genc9_economic_gate.py \
+            src/qore/infrastructure/cibo_compound_adversarial_stress.py \
+            src/qore/infrastructure/cibo_compound_temporal_replication.py \
+            src/qore/infrastructure/cibo_compound_temporal_replication_gate.py
+          python -m py_compile \
+            src/qore/infrastructure/cibo_robust_growth_ruin_capacity.py \
+            src/qore/infrastructure/cibo_compound_path_monte_carlo.py \
+            src/qore/infrastructure/cibo_compound_real_population_binding.py \
+            src/qore/infrastructure/cibo_genc9_economic_gate.py \
+            src/qore/infrastructure/cibo_compound_adversarial_stress.py \
+            src/qore/infrastructure/cibo_compound_temporal_replication.py \
+            src/qore/infrastructure/cibo_compound_temporal_replication_gate.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_robust_growth_ruin_capacity.py \
+            tests/infrastructure/test_cibo_compound_path_monte_carlo.py \
+            tests/infrastructure/test_cibo_compound_real_population_binding.py \
+            tests/infrastructure/test_cibo_genc9_economic_gate.py \
+            tests/infrastructure/test_cibo_compound_adversarial_stress.py \
+            tests/infrastructure/test_cibo_compound_temporal_replication.py \
+            tests/infrastructure/test_cibo_compound_temporal_replication_gate.py

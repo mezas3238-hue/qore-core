@@ -1,0 +1,97 @@
+name: QORE CIBO T02 Pooled Burned Selector
+
+on:
+  push:
+    branches:
+      - agent/cibo-profitability-lab-001
+    paths:
+      - '.github/workflows/cibo-t02-pooled-burned-selector.yml'
+      - 'scripts/cibo_t02_pooled_burned_selector.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_train_prior.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  pooled-burned-selector:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: python -m pip install -e '.[dev]'
+
+      - name: Static validation
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/cibo_t02_pooled_burned_selector.py
+          ruff check scripts/cibo_t02_pooled_burned_selector.py
+
+      - name: Recover immutable burned research corpora
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/t02-burned"
+          fetch_source() {
+            local id="$1"
+            local digest="$2"
+            local name="$3"
+            local target="$RUNNER_TEMP/t02-burned/$name.zip"
+            gh api               "/repos/$GITHUB_REPOSITORY/actions/artifacts/$id/zip"               > "$target"
+            echo "$digest  $target" | sha256sum -c -
+          }
+          fetch_source             10972846579             3767998a3ad38afe08fcb7031615cc23ae285ccef83085909ef635fa29f31423             r38-gbpjpy
+          fetch_source             10972467350             e0c32a6b8d551f52b3be733c6c86e916103fd7f45a3305e34f3f0013006d8b49             r42-audjpy
+          fetch_source             10972906353             73f4b4d8961f621f427ba8cf67dc40f474af476faa226c48e7020b9d409b2da9             r43-gbpusd
+
+      - name: TRAIN select and freeze then VALIDATE
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/t02-pooled"
+          python scripts/cibo_t02_pooled_burned_selector.py             --r38-gbpjpy "$RUNNER_TEMP/t02-burned/r38-gbpjpy.zip"             --r42-audjpy "$RUNNER_TEMP/t02-burned/r42-audjpy.zip"             --r43-gbpusd "$RUNNER_TEMP/t02-burned/r43-gbpusd.zip"             --output "$RUNNER_TEMP/t02-pooled/report.json"
+
+      - name: Enforce causal selector governance
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+
+          p = json.loads(
+              (
+                  Path(os.environ["RUNNER_TEMP"])
+                  / "t02-pooled"
+                  / "report.json"
+              ).read_text(encoding="utf-8")
+          )
+          assert p["selected_rule_id"] == "ROR_0050_D1_NOT_EXTREME"
+          assert p["validation_pass"] is True
+          assert p["promotion_authorized"] is False
+          g = p["governance"]
+          assert g["selection_used_validation_outcomes"] is False
+          assert g["selection_used_reused_holdout_outcomes"] is False
+          assert g["symbol_or_trader_blacklist"] is False
+          assert g["fresh_oos_claimed"] is False
+          assert g["broker_mutation"] is False
+          assert g["live"] is False
+          assert g["production"] is False
+          assert g["real_capital"] is False
+          assert g["merge_authority"] is False
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-cibo-t02-pooled-burned-selector-${{ github.run_id }}
+          path: ${{ runner.temp }}/t02-pooled
+          if-no-files-found: error
+          retention-days: 90

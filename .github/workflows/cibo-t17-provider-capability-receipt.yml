@@ -1,0 +1,49 @@
+name: QORE CIBO T17 Provider Capability Receipt
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-t17-provider-capability-receipt.yml'
+      - 'src/qore/infrastructure/cibo_t17_provider_capability_receipt.py'
+      - 'src/qore/infrastructure/cibo_ce2i_t17_structural_disable.py'
+      - 'src/qore/infrastructure/cibo_t17_governed_provider_disposition.py'
+      - 'tests/infrastructure/test_cibo_t17_provider_capability_receipt.py'
+      - 'tests/infrastructure/test_cibo_ce2i_t17_structural_disable.py'
+      - 'tests/infrastructure/test_cibo_t17_governed_provider_disposition.py'
+      - 'docs/research/CIBO-B-CTRADER-DEMO-PROVIDER-EVIDENCE-2026-10-01.json'
+      - 'docs/research/CIBO-B-T17-STRUCTURAL-DISPOSITION-V1.json'
+
+permissions:
+  contents: read
+
+jobs:
+  t17-provider-capability-receipt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: T17 capability and provider-disposition quality
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_t17_provider_capability_receipt.py \
+            src/qore/infrastructure/cibo_ce2i_t17_structural_disable.py \
+            src/qore/infrastructure/cibo_t17_governed_provider_disposition.py \
+            tests/infrastructure/test_cibo_t17_provider_capability_receipt.py \
+            tests/infrastructure/test_cibo_ce2i_t17_structural_disable.py \
+            tests/infrastructure/test_cibo_t17_governed_provider_disposition.py
+          mypy \
+            src/qore/infrastructure/cibo_t17_provider_capability_receipt.py \
+            src/qore/infrastructure/cibo_ce2i_t17_structural_disable.py \
+            src/qore/infrastructure/cibo_t17_governed_provider_disposition.py
+          python -m py_compile \
+            src/qore/infrastructure/cibo_t17_provider_capability_receipt.py \
+            src/qore/infrastructure/cibo_ce2i_t17_structural_disable.py \
+            src/qore/infrastructure/cibo_t17_governed_provider_disposition.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_t17_provider_capability_receipt.py \
+            tests/infrastructure/test_cibo_crossboundary_evidence_receipt.py \
+            tests/infrastructure/test_cibo_ce2i_t17_structural_disable.py \
+            tests/infrastructure/test_cibo_t17_governed_provider_disposition.py

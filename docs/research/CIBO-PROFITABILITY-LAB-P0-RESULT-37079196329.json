@@ -1,0 +1,89 @@
+{
+  "schema": "qore.cibo.profitability-lab.p0-result.v1",
+  "status": "COMPLETE",
+  "workflow_run_id": 37079196329,
+  "artifact_id": 11257663031,
+  "validation_mode": "NON_CERTIFYING_REUSED_HOLDOUT_DIAGNOSTIC",
+  "seven_of_seven_participation_pass": true,
+  "treatment": "ALL_TRADER_CMA_QORE_RISK_PLUS_CURRENT_COMPOUND",
+  "economics": {
+    "baseline_minimal_seed": {
+      "ending_capital_usd": "0.507309799996659851172511559",
+      "net_realized_pnl_usd": "-59.49269020000334014882748844",
+      "executed_count": 241,
+      "profit_factor": "0.6376894475454216954255992045"
+    },
+    "frozen_cibo_control": {
+      "ending_capital_usd": "30.84811291671338898657498753",
+      "net_realized_pnl_usd": "-29.15188708328661101342501247",
+      "executed_count": 107,
+      "profit_factor": "0.5927742781217964234174721775"
+    },
+    "all_trader_cibo_core": {
+      "ending_capital_usd": "28.99595300231663179392236063",
+      "net_realized_pnl_usd": "-31.00404699768336820607763937",
+      "executed_count": 155,
+      "profit_factor": "0.6873637621648908835836637379"
+    },
+    "all_trader_cibo_compound_portfolio": {
+      "ending_capital_usd": "0.36496913284964797217178863",
+      "net_realized_pnl_usd": "-59.63503086715035202782821137",
+      "total_executed_count": 265,
+      "compound_incremental_pnl_usd": "-28.63098386946698382175057200",
+      "profit_factor": "0.6515067609766604544385216033"
+    }
+  },
+  "trader_core_pnl_usd": {
+    "VT08_FOREX": "1.475174105257632836525958920",
+    "R34_XAUUSD": "1.320999999999999999999999999",
+    "R38_EURUSD": "-1.951000000000000000000000000",
+    "R43_GBPUSD": "-8.105000000000000000000000001",
+    "R38_GBPJPY": "-13.35740636489217283838689899",
+    "R42_AUDJPY": "-6.110564738048828204216699317",
+    "VT31_NAS100": "-4.276250000000000000000000000"
+  },
+  "runtime_coverage": {
+    "cognitive_cf01_cf19": "APPLIED",
+    "ce2i_t01_t20": "ACCOUNTED",
+    "genc_applied": [
+      "GEN-C1",
+      "GEN-C3",
+      "GEN-C5"
+    ],
+    "genc_justified_not_applicable": [
+      "GEN-C6"
+    ],
+    "genc_not_integrated": [
+      "GEN-C2",
+      "GEN-C4",
+      "GEN-C7",
+      "GEN-C8",
+      "GEN-C9",
+      "GEN-C10",
+      "GEN-C11",
+      "GEN-C12",
+      "GEN-C13",
+      "GEN-C14"
+    ],
+    "full_stack_runtime_coverage_complete": false
+  },
+  "key_findings": [
+    "Seven-of-seven Trader participation is technically achievable without Trader-level exclusion.",
+    "Removing the static Trader-prior sign gate alone did not restore profitability.",
+    "Current Compound/Portfolio materially worsened the all-Trader treatment.",
+    "The current economic replay still does not integrate GEN-C2, GEN-C4, or GEN-C7 through GEN-C14.",
+    "T11 remains fail-closed because gross-edge and market-impact models are not identified."
+  ],
+  "scientific_disposition": "DIAGNOSTIC_ONLY_DO_NOT_TUNE_FROM_THIS_OUTCOME",
+  "governance": {
+    "outcome_aware_tuning": false,
+    "trader_edge_changed": false,
+    "qore_risk_sovereign": true,
+    "broker_mutation": false,
+    "live": false,
+    "real_capital": false,
+    "production": false,
+    "certification_claimed": false,
+    "merge_authority": false
+  }
+}

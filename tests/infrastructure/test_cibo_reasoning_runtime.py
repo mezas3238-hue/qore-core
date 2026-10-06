@@ -14,6 +14,7 @@ from qore.infrastructure.cibo_reasoning_runtime import (
     CiboReasoningRuntime,
     CiboReasoningRuntimeError,
     CiboReasoningRuntimeValidationError,
+    MAX_CIBO_REASONING_PROMPT_CHARS,
 )
 from qore.infrastructure.openai_cibo_reasoning_engine import (
     OpenAICiboReasoningConfiguration,
@@ -195,3 +196,27 @@ def test_openai_engine_repr_redacts_secret() -> None:
     rendered = repr(engine)
     assert "sk-test-material-not-real" not in rendered
     assert "<redacted>" in rendered
+
+
+def test_reasoning_request_accepts_high_intelligence_context_above_legacy_16k() -> None:
+    request = CiboReasoningRequest(
+        request_id=_REQUEST_ID,
+        subject_code="cibo.trade-predecision",
+        asked_at=_NOW,
+        prompt="x" * 18223,
+        evidence_refs=(_REF,),
+        observations=("runtime.high-intelligence-v1",),
+    )
+    assert len(request.prompt) == 18223
+
+
+def test_reasoning_request_preserves_bounded_transport_limit() -> None:
+    with pytest.raises(CiboReasoningRuntimeValidationError):
+        CiboReasoningRequest(
+            request_id=_REQUEST_ID,
+            subject_code="cibo.trade-predecision",
+            asked_at=_NOW,
+            prompt="x" * (MAX_CIBO_REASONING_PROMPT_CHARS + 1),
+            evidence_refs=(_REF,),
+            observations=("runtime.high-intelligence-v1",),
+        )

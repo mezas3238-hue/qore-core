@@ -1,0 +1,136 @@
+{
+  "schema": "qore.cibo.profitability-lab.free-tool-choice-result.v1",
+  "status": "COMPLETE",
+  "workflow_run_id": 37080376842,
+  "artifact_id": 11257959626,
+  "validation_mode": "NON_CERTIFYING_REUSED_HOLDOUT_DIAGNOSTIC",
+  "treatment": "ALL_TRADER_CIBO_FREE_TOOL_CHOICE_CMA_QORE_RISK_PLUS_CURRENT_COMPOUND",
+  "replay_tool_eligibility_authority": false,
+  "cibo_free_tool_choice": true,
+  "seven_of_seven_participation_pass": true,
+  "economics": {
+    "baseline_minimal_seed": {
+      "ending_capital_usd": "0.507309799996659851172511559",
+      "net_realized_pnl_usd": "-59.49269020000334014882748844",
+      "executed_count": 241,
+      "profit_factor": "0.6376894475454216954255992045"
+    },
+    "frozen_cibo_control": {
+      "ending_capital_usd": "30.84811291671338898657498753",
+      "net_realized_pnl_usd": "-29.15188708328661101342501247",
+      "executed_count": 107,
+      "profit_factor": "0.5927742781217964234174721775"
+    },
+    "all_trader_cibo_core": {
+      "ending_capital_usd": "28.99595300231663179392236063",
+      "net_realized_pnl_usd": "-31.00404699768336820607763937",
+      "executed_count": 155,
+      "profit_factor": "0.6873637621648908835836637379"
+    },
+    "all_trader_cibo_compound_portfolio": {
+      "ending_capital_usd": "0.36496913284964797217178863",
+      "net_realized_pnl_usd": "-59.63503086715035202782821137",
+      "total_executed_count": 265,
+      "compound_incremental_pnl_usd": "-28.63098386946698382175057200",
+      "profit_factor": "0.6515067609766604544385216033"
+    }
+  },
+  "ce2i_free_choice_effect": {
+    "newly_exposed_but_fail_closed": [
+      [
+        "T02",
+        "MISSING_STRUCTURAL_LEVERAGE_EVIDENCE"
+      ],
+      [
+        "T03",
+        "MISSING_MARGIN_EFFICIENCY_EVIDENCE"
+      ],
+      [
+        "T04",
+        "MISSING_RISK_EFFICIENCY_EVIDENCE"
+      ],
+      [
+        "T08",
+        "MISSING_PORTFOLIO_NETTING_EVIDENCE"
+      ],
+      [
+        "T10",
+        "MISSING_CAPITAL_VELOCITY_EVIDENCE"
+      ],
+      [
+        "T16",
+        "MISSING_HEDGE_EVIDENCE"
+      ],
+      [
+        "T17",
+        "MISSING_CONVEX_INSTRUMENT_EVIDENCE"
+      ]
+    ],
+    "unchanged_fail_closed": [
+      [
+        "T06",
+        "base capital remains at risk; expansion locked"
+      ],
+      [
+        "T07",
+        "base capital remains at risk; expansion locked"
+      ],
+      [
+        "T11",
+        "T11_GROSS_EDGE_MODEL_NOT_IDENTIFIED; T11_MARKET_IMPACT_MODEL_NOT_IDENTIFIED"
+      ]
+    ],
+    "applied": [
+      "T01",
+      "T05",
+      "T09",
+      "T12",
+      "T13",
+      "T14",
+      "T15",
+      "T18",
+      "T19",
+      "T20"
+    ]
+  },
+  "capital_science_runtime": {
+    "applied": [
+      "GEN-C1",
+      "GEN-C3",
+      "GEN-C5"
+    ],
+    "justified_not_applicable": [
+      "GEN-C6"
+    ],
+    "not_integrated": [
+      "GEN-C2",
+      "GEN-C4",
+      "GEN-C7",
+      "GEN-C8",
+      "GEN-C9",
+      "GEN-C10",
+      "GEN-C11",
+      "GEN-C12",
+      "GEN-C13",
+      "GEN-C14"
+    ]
+  },
+  "root_finding": [
+    "Removing replay-level scientific eligibility filtering exposed additional CE2I tools to CIBO.",
+    "Those tools did not become economically active because their required predecision evidence was absent.",
+    "Economic outputs were exactly unchanged versus the prior all-Trader P0 treatment.",
+    "Therefore replay gating was a real authority-boundary defect but not the primary cause of the observed loss.",
+    "The next root cause is missing evidence/adapters into the CIBO decision surface plus unintegrated GEN-C capital-science runtime."
+  ],
+  "governance": {
+    "trader_edge_changed": false,
+    "outcome_aware_tuning": false,
+    "qore_risk_sovereign": true,
+    "broker_mutation": false,
+    "live": false,
+    "real_capital": false,
+    "production": false,
+    "certification_claimed": false,
+    "merge_authority": false
+  }
+}

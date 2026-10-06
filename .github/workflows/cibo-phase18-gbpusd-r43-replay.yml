@@ -1,0 +1,430 @@
+name: QORE CIBO Phase 18 GBPUSD R43 Chronological Replay
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-phase18-gbpusd-r43-replay.yml'
+      - 'src/qore/infrastructure/cibo_ce2i_chronological_replay.py'
+      - 'src/qore/infrastructure/trader_lab/cibo_phase18_gbpusd_r39_geometry_replay.py'
+      - 'tests/infrastructure/test_cibo_ce2i_chronological_replay.py'
+      - 'tests/infrastructure/trader_lab/test_cibo_phase18_gbpusd_r39_geometry_replay.py'
+  push:
+    branches:
+      - agent/cibo-capital-efficiency-sizing-lab-001
+    paths:
+      - '.github/workflows/cibo-phase18-gbpusd-r43-replay.yml'
+      - 'src/qore/infrastructure/cibo_ce2i_chronological_replay.py'
+      - 'src/qore/infrastructure/trader_lab/cibo_phase18_gbpusd_r39_geometry_replay.py'
+      - 'tests/infrastructure/test_cibo_ce2i_chronological_replay.py'
+      - 'tests/infrastructure/trader_lab/test_cibo_phase18_gbpusd_r39_geometry_replay.py'
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  SOURCE_RUN_ID: '35166210458'
+  SOURCE_ARTIFACT: 'qore-cibo-market-atlas-10y-windowed-GBPUSD-ab782b8e9f890f86a2b6500070f0556b4b685e3d'
+  TARGET_RUN_ID: '35204892665'
+  TARGET_ARTIFACT: 'qore-cibo-target-destination-v2-GBPUSD-2f510461b3360e91d5ee70a72716a76cd6561f16'
+  V2_RUN_ID: '35339237432'
+  V2_ARTIFACT: 'qore-turtle-soup-gbpusd-structural-specialist-v2-r27-b7005f4dab80376f3bdd5ce199e37f425ab99633'
+  FREEZE_RUN_ID: '35352628190'
+  FREEZE_ARTIFACT: 'qore-turtle-soup-gbpusd-r38-candidate-freeze-ca8117643986e9c1fbb8e4ee3ddac5d06e3a6ce7'
+  R39_RUN_ID: '35353073610'
+  R39_ARTIFACT: 'qore-turtle-soup-gbpusd-r39-frozen-r37-5y-e02d9384fbe6521040fc2779a085c43b8d5f0f92'
+  R43_RUN_ID: '35357443440'
+  R43_ARTIFACT: 'qore-turtle-soup-gbpusd-r43-rank2-fragility-2748596bd132e6577e87851849a338b9a7a9c42e'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Focused quality
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_ce2i_chronological_replay.py \
+            src/qore/infrastructure/trader_lab/cibo_phase18_gbpusd_r39_geometry_replay.py \
+            tests/infrastructure/test_cibo_ce2i_chronological_replay.py \
+            tests/infrastructure/trader_lab/test_cibo_phase18_gbpusd_r39_geometry_replay.py
+          mypy --disable-error-code attr-defined \
+            src/qore/infrastructure/cibo_ce2i_chronological_replay.py \
+            src/qore/infrastructure/trader_lab/cibo_phase18_gbpusd_r39_geometry_replay.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_ce2i_chronological_replay.py \
+            tests/infrastructure/trader_lab/test_cibo_phase18_gbpusd_r39_geometry_replay.py
+
+  replay-gbpusd:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Download immutable GBPUSD raw master
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.SOURCE_ARTIFACT }}
+          path: source-gbpusd
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_RUN_ID }}
+      - name: Download immutable Target Destination V2
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.TARGET_ARTIFACT }}
+          path: target-gbpusd
+          github-token: ${{ github.token }}
+          run-id: ${{ env.TARGET_RUN_ID }}
+      - name: Download exact Cognitive V2 R27 evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.V2_ARTIFACT }}
+          path: v2-r27
+          github-token: ${{ github.token }}
+          run-id: ${{ env.V2_RUN_ID }}
+      - name: Download exact R38 freeze
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.FREEZE_ARTIFACT }}
+          path: r38-freeze
+          github-token: ${{ github.token }}
+          run-id: ${{ env.FREEZE_RUN_ID }}
+      - name: Download exact R39 source ledger
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.R39_ARTIFACT }}
+          path: r39-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.R39_RUN_ID }}
+      - name: Download exact R43 final ledger
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.R43_ARTIFACT }}
+          path: r43-final
+          github-token: ${{ github.token }}
+          run-id: ${{ env.R43_RUN_ID }}
+      - name: Reproduce exact frozen geometry
+        run: |
+          mkdir -p phase18-output
+          python -m qore.infrastructure.trader_lab.cibo_phase18_gbpusd_r39_geometry_replay \
+            source-gbpusd target-gbpusd v2-r27 r38-freeze phase18-output \
+            > phase18-output/replay-stdout.json
+      - name: Bind geometry to R39 and final R43 evidence
+        run: |
+          python - <<'PY'
+          import json
+          from datetime import datetime
+          from decimal import Decimal
+          from pathlib import Path
+
+          def load_jsonl(path: Path):
+              return [
+                  json.loads(line)
+                  for line in path.read_text().splitlines()
+                  if line.strip()
+              ]
+
+          generated = load_jsonl(
+              Path('phase18-output/phase18-gbpusd-r39-geometry-trades.jsonl')
+          )
+          r39 = load_jsonl(Path('r39-source/r39-5y-scaled-trades.jsonl'))
+          r43 = load_jsonl(Path('r43-final/r43-5y-corrected-trades.jsonl'))
+
+          assert len(generated) == len(r39) == len(r43) == 907
+
+          bound = []
+          for index, (geometry, base, final) in enumerate(
+              zip(generated, r39, r43, strict=True)
+          ):
+              for key, value in base.items():
+                  assert geometry[key] == value, (index, key, geometry[key], value)
+
+              assert final['entry_at'] == base['entry_at']
+              assert final['exit_at'] == base['exit_at']
+              assert final['side'] == base['side']
+              assert final['source'] == base['source']
+              assert final['family'] == base['family']
+              assert final['classification'] == base['classification']
+              assert final['target_rank'] == base['target_rank']
+              assert final['target_route'] == base['target_route']
+              assert final['raw_net_010_r'] == base['raw_net_010_r']
+              assert final['frozen_structural_scale'] == base['structural_scale']
+
+              overlay = min(
+                  Decimal(final['short_scale']),
+                  Decimal(final['rank_scale']),
+              )
+              corrected_risk = (
+                  Decimal(final['frozen_structural_scale'])
+                  * overlay
+                  * Decimal(final['drawdown_scale'])
+              )
+              assert Decimal(final['corrected_risk_scale']) == corrected_risk
+              assert Decimal(final['corrected_net_010_r']) == (
+                  Decimal(final['raw_net_010_r']) * corrected_risk
+              )
+
+              signal_at = datetime.fromisoformat(geometry['signal_at'])
+              entry_at = datetime.fromisoformat(geometry['entry_at'])
+              assert signal_at <= entry_at
+              entry = Decimal(geometry['entry_price'])
+              stop = Decimal(geometry['structural_stop'])
+              target = Decimal(geometry['technical_target'])
+              if geometry['side'] == 'long':
+                  assert stop < entry < target
+              else:
+                  assert target < entry < stop
+
+              row = dict(geometry)
+              row.update(
+                  {
+                      'legacy_r43_final_risk_scale': final[
+                          'corrected_risk_scale'
+                      ],
+                      'legacy_r43_corrected_scaled_net_010_r': final[
+                          'corrected_net_010_r'
+                      ],
+                      'legacy_r43_short_scale': final['short_scale'],
+                      'legacy_r43_rank_scale': final['rank_scale'],
+                      'legacy_r43_drawdown_scale': final['drawdown_scale'],
+                      'economics_status': 'R_DENOMINATED_ONLY',
+                  }
+              )
+              bound.append(row)
+
+          Path(
+              'phase18-output/phase18-gbpusd-r43-bound-trades.jsonl'
+          ).write_text(
+              ''.join(json.dumps(row, sort_keys=True) + '\n' for row in bound)
+          )
+
+          final_report = json.loads(
+              Path(
+                  'r43-final/r43-rank2-fragility-correction-report.json'
+              ).read_text()
+          )
+          selected = next(
+              item
+              for item in final_report['results']
+              if item['policy'] == 'R43_RANK2_025'
+          )
+          result = selected['stats']
+          assert selected['acceptance_pass'] is True
+          assert selected['positive_annual_blocks'] == 5
+          assert result['trades'] == 907
+          assert result['profit_factor'] == (
+              '1.713624514596208498825398640'
+          )
+          assert result['total_r'] == (
+              '35.40396721533287699752413575'
+          )
+          assert result['max_drawdown_r'] == (
+              '4.401231922815307849576052766'
+          )
+          assert result['max_losing_streak'] == 7
+
+          report = {
+              'schema': 'qore.cibo.phase18.gbpusd_r43_bound_replay.v1',
+              'identity': 'CIBO_PHASE18_GBPUSD_R43_BOUND_REPLAY_V1',
+              'status': (
+                  'R_DENOMINATED_GEOMETRY_REPLAY_GREEN_'
+                  'PROVIDER_CALIBRATION_REQUIRED'
+              ),
+              'rows': len(bound),
+              'parity': {
+                  'r39_row_for_row': True,
+                  'r43_population_row_for_row': True,
+                  'same_signals': True,
+                  'same_entry': True,
+                  'same_structural_stop': True,
+                  'same_technical_target': True,
+                  'same_market_path': True,
+                  'same_structural_scale': True,
+                  'same_capital_policy': False,
+                  'r43_drawdown_recomputed_on_corrected_equity': True,
+              },
+              'provider_economics': {
+                  'status': 'CALIBRATION_REQUIRED',
+                  'usd_cibo_sizing_comparison_authorized': False,
+              },
+              'source_evidence': {
+                  'raw_run_id': 35166210458,
+                  'raw_artifact_id': 10475449182,
+                  'target_artifact_id': 10489089220,
+                  'r27_artifact_id': 10544098544,
+                  'r38_freeze_artifact_id': 10550491883,
+                  'r39_run_id': 35353073610,
+                  'r39_artifact_id': 10550866581,
+                  'r39_digest': (
+                      'sha256:825b2858d9d471dc85c83d6783536e1b97c597d'
+                      '38333c7c2adae0d0a00552683'
+                  ),
+                  'r43_run_id': 35357443440,
+                  'r43_artifact_id': 10552052483,
+                  'r43_digest': (
+                      'sha256:1157e9e3079d46e04d541744c012f75cc5405cb'
+                      '0e299d593622ab11777b9308f'
+                  ),
+              },
+              'legacy_r43_result_5y': result,
+              'governance': {
+                  'research_only': True,
+                  'demo_execution_authorized': False,
+                  'live_authorized': False,
+                  'real_capital_authorized': False,
+                  'merge_authorized': False,
+              },
+          }
+          Path(
+              'phase18-output/phase18-gbpusd-r43-bound-report.json'
+          ).write_text(json.dumps(report, indent=2, sort_keys=True) + '\n')
+          PY
+      - name: Validate generic Phase 18 scorer against R43
+        run: |
+          python - <<'PY'
+          import json
+          from datetime import datetime
+          from decimal import Decimal
+          from pathlib import Path
+
+          from qore.infrastructure.account_wide_risk import TraderLineage
+          from qore.infrastructure.cibo_ce2i_chronological_replay import (
+              CiboChronologicalReplayTrade,
+              CiboReplayCausalTrade,
+              CiboReplayOutcome,
+              ReplayEconomicsStatus,
+              ReplaySignalFingerprintOrigin,
+              reconstructed_signal_fingerprint,
+              score_legacy_replay,
+          )
+
+          rows = [
+              json.loads(line)
+              for line in Path(
+                  'phase18-output/phase18-gbpusd-r43-bound-trades.jsonl'
+              ).read_text().splitlines()
+              if line.strip()
+          ]
+          evidence_ids = (
+              'github-actions:raw:10475449182',
+              'github-actions:r39:10550866581',
+              'github-actions:r43:10552052483',
+          )
+          trades = []
+          for row in rows:
+              signal_at = datetime.fromisoformat(row['signal_at'])
+              entry_at = datetime.fromisoformat(row['entry_at'])
+              exit_at = datetime.fromisoformat(row['exit_at'])
+              entry = Decimal(row['entry_price'])
+              stop = Decimal(row['structural_stop'])
+              target = Decimal(row['technical_target'])
+              fingerprint = reconstructed_signal_fingerprint(
+                  trader_id=TraderLineage.R43_GBPUSD,
+                  qore_symbol='GBPUSD',
+                  side=row['side'],
+                  signal_at=signal_at,
+                  entry_at=entry_at,
+                  entry_price=entry,
+                  structural_stop=stop,
+                  technical_target=target,
+                  source_evidence_ids=evidence_ids,
+              )
+              causal = CiboReplayCausalTrade(
+                  trader_id=TraderLineage.R43_GBPUSD,
+                  signal_fingerprint=fingerprint,
+                  signal_fingerprint_origin=(
+                      ReplaySignalFingerprintOrigin.PHASE18_RECONSTRUCTED
+                  ),
+                  qore_symbol='GBPUSD',
+                  side=row['side'],
+                  signal_at=signal_at,
+                  entry_at=entry_at,
+                  entry_price=entry,
+                  structural_stop=stop,
+                  technical_target=target,
+                  legacy_risk_scale=Decimal(
+                      row['legacy_r43_final_risk_scale']
+                  ),
+                  minimum_execution_steps=1,
+                  pre_trade_state=(),
+                  source_evidence_ids=evidence_ids,
+                  economics_status=ReplayEconomicsStatus.R_DENOMINATED_ONLY,
+              )
+              outcome = CiboReplayOutcome(
+                  exit_at=exit_at,
+                  raw_outcome_r=Decimal(row['raw_net_010_r']),
+                  net_outcome_r=Decimal(row['raw_net_010_r']),
+                  exit_reason=row['exit_reason'],
+              )
+              trades.append(
+                  CiboChronologicalReplayTrade(
+                      causal=causal,
+                      outcome=outcome,
+                      legacy_net_outcome_r=Decimal(
+                          row['legacy_r43_corrected_scaled_net_010_r']
+                      ),
+                  )
+              )
+
+          metrics = score_legacy_replay(tuple(trades))
+          assert metrics.trades == 907
+          assert metrics.profit_factor == Decimal(
+              '1.713624514596208498825398640'
+          )
+          assert metrics.total_r == Decimal(
+              '35.40396721533287699752413575'
+          )
+          assert metrics.max_drawdown_r == Decimal(
+              '4.401231922815307849576052766'
+          )
+          assert metrics.max_loss_streak == 7
+
+          report = {
+              'schema': 'qore.cibo.phase18.generic_legacy_score.v1',
+              'trader_id': TraderLineage.R43_GBPUSD.value,
+              'trades': metrics.trades,
+              'profit_factor': str(metrics.profit_factor),
+              'total_r': str(metrics.total_r),
+              'max_drawdown_r': str(metrics.max_drawdown_r),
+              'max_loss_streak': metrics.max_loss_streak,
+              'stop_count': metrics.stop_count,
+              'provider_economics_status': 'R_DENOMINATED_ONLY',
+              'usd_cibo_sizing_comparison_authorized': False,
+          }
+          Path(
+              'phase18-output/phase18-gbpusd-r43-generic-score.json'
+          ).write_text(json.dumps(report, indent=2, sort_keys=True) + '\n')
+          PY
+      - name: Hash Phase 18 evidence
+        run: |
+          printf '%s\n' "$EVIDENCE_SHA" > phase18-output/git-sha.txt
+          cd phase18-output
+          sha256sum \
+            phase18-gbpusd-r39-geometry-report.json \
+            phase18-gbpusd-r39-geometry-trades.jsonl \
+            phase18-gbpusd-r43-bound-report.json \
+            phase18-gbpusd-r43-bound-trades.jsonl \
+            phase18-gbpusd-r43-generic-score.json \
+            replay-stdout.json \
+            git-sha.txt > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-phase18-gbpusd-r43-geometry-${{ env.EVIDENCE_SHA }}
+          path: phase18-output
+          if-no-files-found: error
+          retention-days: 90

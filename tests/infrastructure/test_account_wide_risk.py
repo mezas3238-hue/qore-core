@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from decimal import Decimal
+from decimal import Decimal, localcontext
 
 from qore.infrastructure.account_wide_risk import (
     AccountRiskSnapshot,
     AccountWideRiskEngine,
+    CiboCapitalProvenanceLot,
     CiboRiskRequest,
     RiskDecision,
     TraderLineage,
@@ -212,3 +213,63 @@ def test_minimum_lot_uplift_uses_shared_budget_then_blocks_when_exhausted() -> N
     assert authorizations[7].decision is RiskDecision.REJECT
     assert authorizations[7].reason == "insufficient-shared-risk-or-margin-headroom"
     assert engine.active_reserved_stop_risk() == Decimal("56.759332896")
+
+
+
+def test_long_decimal_request_and_authorization_preserve_exact_geometry() -> None:
+    volume = Decimal("2.2222222222222222222222222222222222222222")
+    stop_per_volume = Decimal(
+        "1.1111111111111111111111111111111111111111"
+    )
+    margin_per_volume = Decimal(
+        "3.3333333333333333333333333333333333333333"
+    )
+    with localcontext() as context:
+        context.prec = 100
+        requested_risk = volume * stop_per_volume
+        requested_margin = volume * margin_per_volume
+
+    request = CiboRiskRequest(
+        request_id="long-decimal-risk",
+        trader_id=TraderLineage.R34_XAUUSD,
+        signal_fingerprint="long-decimal-risk",
+        qore_symbol="XAUUSD",
+        provider_symbol="XAUUSD",
+        side="long",
+        entry_type="market",
+        intended_entry=Decimal("100"),
+        stop_loss=Decimal("99"),
+        take_profit=Decimal("102"),
+        requested_volume=volume,
+        volume_step=Decimal(
+            "0.0000000000000000000000000000000000000001"
+        ),
+        minimum_volume=Decimal(
+            "0.0000000000000000000000000000000000000001"
+        ),
+        stop_loss_per_volume=stop_per_volume,
+        margin_per_volume=margin_per_volume,
+        requested_at=_NOW,
+        expires_at=_NOW + timedelta(minutes=2),
+        capital_provenance=(
+            CiboCapitalProvenanceLot(
+                source_kind="ORIGINAL_BASE_CAPITAL",
+                source_id="long-decimal-base",
+                amount_usd=requested_risk,
+            ),
+        ),
+    )
+
+    assert request.requested_stop_risk == requested_risk
+    assert request.requested_margin == requested_margin
+
+    authorization = AccountWideRiskEngine().authorize(
+        request,
+        _snapshot("100"),
+        now=_NOW,
+    )
+
+    assert authorization.decision is RiskDecision.ALLOW
+    assert authorization.monetary_stop_loss == requested_risk
+    assert authorization.margin_reserved == requested_margin
+    assert authorization.capital_provenance[0].amount_usd == requested_risk

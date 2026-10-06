@@ -1,0 +1,130 @@
+name: QORE CIBO Burned Calibration Evidence Pack
+
+on:
+  push:
+    branches:
+      - agent/cibo-capital-efficiency-sizing-lab-001
+    paths:
+      - '.github/workflows/cibo-burned-calibration-pack.yml'
+      - 'scripts/cibo_ce2i_burned_calibration_pack.py'
+      - 'scripts/cibo_ce2i_calibration_matrix.py'
+      - 'src/qore/infrastructure/cibo_ce2i_calibration_matrix.py'
+      - 'src/qore/infrastructure/cibo_ce2i_pre_holdout_freeze.py'
+      - 'tests/infrastructure/test_cibo_ce2i_calibration_matrix.py'
+      - 'tests/infrastructure/test_cibo_ce2i_pre_holdout_freeze.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  burned-calibration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Quality
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_ce2i_calibration_matrix.py \
+            src/qore/infrastructure/cibo_ce2i_pre_holdout_freeze.py \
+            scripts/cibo_ce2i_burned_calibration_pack.py \
+            scripts/cibo_ce2i_calibration_matrix.py \
+            tests/infrastructure/test_cibo_ce2i_calibration_matrix.py \
+            tests/infrastructure/test_cibo_ce2i_pre_holdout_freeze.py
+          mypy \
+            src/qore/infrastructure/cibo_ce2i_calibration_matrix.py \
+            src/qore/infrastructure/cibo_ce2i_pre_holdout_freeze.py \
+            scripts/cibo_ce2i_burned_calibration_pack.py \
+            scripts/cibo_ce2i_calibration_matrix.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_ce2i_calibration_matrix.py \
+            tests/infrastructure/test_cibo_ce2i_pre_holdout_freeze.py
+
+      - name: Download exact burned Phase19 artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p calibration-input calibration-output
+          gh api \
+            "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10972948493/zip" \
+            > calibration-input/phase19-burned.zip
+          echo \
+            "e2fcf03ac78e278a22ec53f4f4d6b419ae4d9f5f7a9c674c23fd18c3a4e95527  calibration-input/phase19-burned.zip" \
+            > calibration-input/SHA256SUMS.txt
+          sha256sum -c calibration-input/SHA256SUMS.txt
+
+      - name: Build burned-only calibration pack
+        run: |
+          python scripts/cibo_ce2i_burned_calibration_pack.py \
+            --phase19-artifact calibration-input/phase19-burned.zip \
+            --output calibration-output/cibo-burned-calibration-pack.json \
+            > calibration-output/cibo-burned-calibration-pack.stdout.json
+          python scripts/cibo_ce2i_calibration_matrix.py \
+            --output calibration-output/cibo-t01-t20-calibration-matrix.json \
+            > calibration-output/cibo-t01-t20-calibration-matrix.stdout.json
+          python scripts/cibo_ce2i_pre_holdout_checkpoint.py \
+            --output calibration-output/cibo-pre-holdout-checkpoint.json \
+            > calibration-output/cibo-pre-holdout-checkpoint.stdout.json
+
+      - name: Enforce holdout isolation and no fabricated USD
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(
+              Path(
+                  "calibration-output/cibo-burned-calibration-pack.json"
+              ).read_text()
+          )
+          assert payload["status"] == "BURNED_CAUSAL_CALIBRATION_PACK_SEALED"
+          assert payload["holdout"]["state"] == "SEALED_UNTOUCHED"
+          assert payload["holdout"]["2017h1_read"] is False
+          assert payload["holdout"]["2017h1_outcomes_used"] is False
+          assert payload["holdout"]["2017h1_used_for_thresholds"] is False
+          assert payload["economics"]["historical_usd_exact_available"] is False
+          assert payload["economics"]["historical_usd_fabricated"] is False
+          assert payload["calibrations"]["T04_R_NORMALIZED"]["status"] == (
+              "CALIBRATED_CAUSAL"
+          )
+          assert payload["calibrations"]["T10_NORMALIZED_CAPITAL_TIME"][
+              "status"
+          ] == "CALIBRATED_CAUSAL"
+          PY
+
+      - name: Seal evidence pack
+        run: |
+          printf '%s\n' "$GITHUB_SHA" > calibration-output/calibration-code-sha.txt
+          printf '%s\n' \
+            "69288ce31c746c6b0e354b45bdb051d45aa3009d" \
+            > calibration-output/burned-source-head.txt
+          cd calibration-output
+          sha256sum \
+            cibo-burned-calibration-pack.json \
+            cibo-t01-t20-calibration-matrix.json \
+            cibo-pre-holdout-checkpoint.json \
+            calibration-code-sha.txt \
+            burned-source-head.txt \
+            > SHA256SUMS.txt
+          sha256sum -c SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-burned-calibration-${{ github.sha }}
+          path: calibration-output
+          if-no-files-found: error
+          retention-days: 90

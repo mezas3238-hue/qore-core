@@ -1,0 +1,73 @@
+name: QORE CIBO Phase22 Execution Closure Contract
+
+on:
+  push:
+    branches:
+      - agent/cibo-integrator-ab-001
+    paths:
+      - '.github/workflows/cibo-phase22-execution-closure.yml'
+      - 'src/qore/infrastructure/cibo_phase22_execution_closure.py'
+      - '.github/workflows/cibo-phase22-sovereign-one-shot.yml'
+      - 'tests/infrastructure/test_cibo_phase22_sovereign_one_shot_workflow.py'
+      - 'tests/infrastructure/test_cibo_phase22_execution_authorization.py'
+      - 'src/qore/infrastructure/cibo_phase22_execution_authorization.py'
+      - 'src/qore/infrastructure/cibo_phase22_git_durable_claim.py'
+      - 'scripts/cibo_phase22_execution_closure.py'
+      - 'src/qore/infrastructure/cibo_phase22_chronological_execution.py'
+      - 'src/qore/infrastructure/cibo_phase22_historical_regime.py'
+      - 'tests/infrastructure/test_cibo_phase22_execution_closure.py'
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-phase22-execution-closure.yml'
+      - '.github/workflows/cibo-phase22-sovereign-one-shot.yml'
+      - 'src/qore/infrastructure/cibo_phase22_execution_authorization.py'
+      - 'src/qore/infrastructure/cibo_phase22_execution_closure.py'
+      - 'src/qore/infrastructure/cibo_phase22_git_durable_claim.py'
+      - 'scripts/cibo_phase22_execution_closure.py'
+      - 'scripts/cibo_phase22_git_durable_claim.py'
+      - 'tests/infrastructure/test_cibo_phase22_execution_authorization.py'
+      - 'tests/infrastructure/test_cibo_phase22_execution_closure.py'
+      - 'tests/infrastructure/test_cibo_phase22_git_durable_claim.py'
+      - 'tests/infrastructure/test_cibo_phase22_sovereign_one_shot_workflow.py'
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Validate irreversible execution closure
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_phase22_execution_authorization.py \
+            src/qore/infrastructure/cibo_phase22_execution_closure.py \
+            src/qore/infrastructure/cibo_phase22_git_durable_claim.py \
+            scripts/cibo_phase22_execution_closure.py \
+            scripts/cibo_phase22_git_durable_claim.py \
+            tests/infrastructure/test_cibo_phase22_execution_authorization.py \
+            tests/infrastructure/test_cibo_phase22_execution_closure.py \
+            tests/infrastructure/test_cibo_phase22_git_durable_claim.py \
+            tests/infrastructure/test_cibo_phase22_sovereign_one_shot_workflow.py
+          mypy \
+            src/qore/infrastructure/cibo_phase22_execution_authorization.py \
+            src/qore/infrastructure/cibo_phase22_execution_closure.py \
+            src/qore/infrastructure/cibo_phase22_git_durable_claim.py \
+            scripts/cibo_phase22_execution_closure.py \
+            scripts/cibo_phase22_git_durable_claim.py
+          python -m py_compile \
+            src/qore/infrastructure/cibo_phase22_execution_authorization.py \
+            src/qore/infrastructure/cibo_phase22_execution_closure.py \
+            scripts/cibo_phase22_execution_closure.py \
+            scripts/cibo_phase22_git_durable_claim.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_phase22_execution_authorization.py \
+            tests/infrastructure/test_cibo_phase22_execution_closure.py \
+            tests/infrastructure/test_cibo_phase22_git_durable_claim.py \
+            tests/infrastructure/test_cibo_phase22_sovereign_one_shot_workflow.py

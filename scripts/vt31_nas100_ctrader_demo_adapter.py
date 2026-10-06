@@ -25,18 +25,28 @@ from zoneinfo import ZoneInfo
 from qore.infrastructure.account_wide_risk import (
     AccountRiskSnapshot,
     AccountWideRiskError,
-    TraderLineage,
 )
 from qore.infrastructure.account_wide_risk_ledger import (
     DurableAccountWideRiskEngine,
 )
-from qore.infrastructure.ctrader_demo_compat import normalise_legacy_server_epoch
+from qore.infrastructure.ctrader_demo_compat import (
+    CTraderDemoAccountState,
+    CTraderDemoSymbolSpecification,
+    normalise_legacy_server_epoch,
+)
+from qore.infrastructure.cibo_capital_management_authority import (
+    TraderOpportunityEnvelope,
+)
 from qore.infrastructure.traders.vt31_nas100_cibo_market_memory import (
     cibo_market_memory_fingerprint,
 )
 from qore.infrastructure.ctrader_demo_free_sink import (
-    demo_capital_for,
+    demo_committed_stop_risk,
+    global_sink,
     submit_demo_request,
+)
+from qore.infrastructure.cibo_ctrader_demo_sizing import (
+    build_ctrader_demo_cibo_sizing,
 )
 from qore.infrastructure.vt31_nas100_live import (
     CIBO_MEMORY_FINGERPRINT,
@@ -60,7 +70,7 @@ from qore.infrastructure.vt31_nas100_live import (
     Vt31RiskContext,
     Vt31VirtualCandidate,
     assert_deadline,
-    build_risk_request,
+    build_vt31_opportunity,
     pre_close_spread_exit_at,
     resolve_certified_risk,
     virtual_oco_trigger,
@@ -78,6 +88,18 @@ from vt31_nas100_live_policy import (
     evaluate_live_basket,
     prepare_live_context,
 )
+
+Phase20AfterSubmit = Callable[
+    [
+        TraderOpportunityEnvelope,
+        CTraderDemoSymbolSpecification,
+        CTraderDemoAccountState,
+        datetime,
+        datetime,
+    ],
+    None,
+]
+
 
 SYMBOL = "NAS100"
 _NY = ZoneInfo("America/New_York")
@@ -198,7 +220,7 @@ def shadow_basket(
             gateway=gateway,
             risk=risk,
             snapshot=snapshot,
-            account_equity=demo_capital_for(TraderLineage.VT31_NAS100),
+            account_equity=account_equity,
             store=store,
             log=log,
         )
@@ -215,6 +237,7 @@ def submit_single_live(
     account_equity: Decimal,
     store: Vt31Nas100LiveStateStore,
     log: Callable[[dict[str, object]], None],
+    phase20_after_submit: Phase20AfterSubmit | None = None,
 ) -> None:
     if len(basket.candidates) != 1:
         raise Vt31Nas100LiveError(
@@ -231,6 +254,7 @@ def submit_single_live(
             account_equity=account_equity,
             store=store,
             log=log,
+            phase20_after_submit=phase20_after_submit,
         )
     except (
         Vt31Nas100SlaExpired,
@@ -256,6 +280,7 @@ def process_virtual_oco(
     account_equity: Decimal,
     store: Vt31Nas100LiveStateStore,
     log: Callable[[dict[str, object]], None],
+    phase20_after_submit: Phase20AfterSubmit | None = None,
 ) -> None:
     state = store.load()
     basket = state.virtual_basket
@@ -297,6 +322,7 @@ def process_virtual_oco(
         account_equity=account_equity,
         store=store,
         log=log,
+        phase20_after_submit=phase20_after_submit,
     )
     if store.load().pending_broker_order is None:
         store.clear_virtual_basket()
@@ -328,6 +354,10 @@ def reconcile_pending(
         None,
     )
     if position is not None:
+        global_sink().registry.bind_position(
+            pending.client_order_id,
+            int(position.ticket),
+        )
         filled_at = _position_time(position, now)
         entry = Decimal(str(position.price_open))
         volume = Decimal(str(position.volume))
@@ -1170,6 +1200,27 @@ def _ps2_candidate(
     return selected, confirmations
 
 
+def build_virtual_order_opportunity(
+    *,
+    order: Vt31VirtualOrderState,
+    provider_spec: CTraderDemoSymbolSpecification,
+    decision_anchor: datetime,
+    now: datetime,
+) -> TraderOpportunityEnvelope:
+    """Expose VT31 virtual-order geometry without restoring Trader sizing authority."""
+
+    return build_vt31_opportunity(
+        signal_fingerprint=order.signal_fingerprint,
+        side=order.side,
+        entry=Decimal(order.entry_price),
+        stop_loss=Decimal(order.stop_loss),
+        take_profit=_broker_guard_target(order),
+        provider_spec=provider_spec,
+        decision_anchor=decision_anchor,
+        now=now,
+    )
+
+
 def _authorize_and_check(
     *,
     order: Vt31VirtualOrderState,
@@ -1181,6 +1232,7 @@ def _authorize_and_check(
     account_equity: Decimal,
     store: Vt31Nas100LiveStateStore,
     log: Callable[[dict[str, object]], None],
+    phase20_after_submit: Phase20AfterSubmit | None = None,
 ) -> None:
     trigger_at = trigger_at.astimezone(UTC)
     pre_close_due = pre_close_spread_exit_at(order.local_date)
@@ -1217,23 +1269,49 @@ def _authorize_and_check(
             else Decimal(order.current_path_vs_previous)
         ),
     )
-    resolution = resolve_certified_risk(context)
+    legacy_resolution = resolve_certified_risk(context)
     request_at = stage("before-risk-request")
-    request, _one_r = build_risk_request(
-        request_id=f"vt31-{order.signal_fingerprint[:24]}",
-        signal_fingerprint=order.signal_fingerprint,
-        side=order.side,
-        entry=Decimal(order.entry_price),
-        stop_loss=Decimal(order.stop_loss),
-        take_profit=_broker_guard_target(order),
-        certified_risk_r=resolution.final_risk_r,
+    account = gateway.read_account(now=request_at)
+    opportunity = build_virtual_order_opportunity(
+        order=order,
         provider_spec=spec,
-        account_equity=demo_capital_for(TraderLineage.VT31_NAS100),
         decision_anchor=trigger_at,
-        reservation_expires_at=expires_at,
         now=request_at,
     )
-    demo_result = submit_demo_request(request)
+    seed = build_ctrader_demo_cibo_sizing(
+        request_id=f"vt31-{order.signal_fingerprint[:24]}",
+        opportunity=opportunity,
+        account_ref=global_sink().binding.account.account_ref,
+        account_state=account,
+        current_committed_stop_risk_usd=demo_committed_stop_risk(
+            now=request_at,
+        ),
+        requested_at=request_at,
+        expires_at=expires_at,
+    )
+    request = seed.request
+    try:
+        demo_result = submit_demo_request(request)
+    except Exception:
+        _observe_phase20_without_execution_authority(
+            callback=phase20_after_submit,
+            opportunity=opportunity,
+            spec=spec,
+            account=account,
+            trigger_at=trigger_at,
+            observed_at=request_at,
+            log=log,
+        )
+        raise
+    _observe_phase20_without_execution_authority(
+        callback=phase20_after_submit,
+        opportunity=opportunity,
+        spec=spec,
+        account=account,
+        trigger_at=trigger_at,
+        observed_at=request_at,
+        log=log,
+    )
     log({
         "event": "CTRADER_DEMO_FREE_EXECUTION",
         "trader": "VT31_NAS100",
@@ -1241,6 +1319,9 @@ def _authorize_and_check(
         "state": demo_result.state,
         "requested_volume": str(request.requested_volume),
         "assigned_capital": str(demo_result.assigned_capital),
+        "cibo_sizing_mode": seed.mode.value,
+        "legacy_certified_risk_r": str(legacy_resolution.final_risk_r),
+        "sizing_authority": "CIBO_CMA",
         "provider_order_ref": demo_result.provider_order_ref,
     })
     if (
@@ -1264,7 +1345,7 @@ def _authorize_and_check(
             stop_loss=order.stop_loss,
             dol1=order.dol1,
             three_r=order.three_r,
-            requested_risk_r=format(resolution.final_risk_r, "f"),
+            requested_risk_r=format(legacy_resolution.final_risk_r, "f"),
             authorized_volume=format(request.requested_volume, "f"),
             reference_high=order.reference_high,
             reference_low=order.reference_low,
@@ -1287,6 +1368,40 @@ def _authorize_and_check(
             "expires_at": order.expires_at,
         })
     return
+
+
+def _observe_phase20_without_execution_authority(
+    *,
+    callback: Phase20AfterSubmit | None,
+    opportunity: TraderOpportunityEnvelope,
+    spec: CTraderDemoSymbolSpecification,
+    account: CTraderDemoAccountState,
+    trigger_at: datetime,
+    observed_at: datetime,
+    log: Callable[[dict[str, object]], None],
+) -> None:
+    if callback is None:
+        return
+    try:
+        callback(
+            opportunity,
+            spec,
+            account,
+            trigger_at,
+            observed_at,
+        )
+    except Exception as error:
+        log(
+            {
+                "event": "PHASE20D_VT31_OBSERVER_INELIGIBLE",
+                "signal_fingerprint": opportunity.signal_fingerprint,
+                "trigger_at": trigger_at.isoformat(),
+                "observed_at": observed_at.isoformat(),
+                "reason": type(error).__name__,
+                "message": str(error),
+                "execution_path_blocked": False,
+            }
+        )
 
 
 def _broker_guard_target(order: Vt31VirtualOrderState) -> Decimal:

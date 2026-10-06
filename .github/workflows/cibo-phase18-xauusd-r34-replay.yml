@@ -1,0 +1,193 @@
+name: QORE CIBO Phase 18 XAUUSD R34 Chronological Replay
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-phase18-xauusd-r34-replay.yml'
+      - 'scripts/cibo_phase18_xauusd_geometry_patch.py'
+      - 'scripts/cibo_phase18_xauusd_bind.py'
+      - 'scripts/cibo_phase18_xauusd_score.py'
+      - 'src/qore/infrastructure/cibo_ce2i_chronological_replay.py'
+      - 'tests/infrastructure/test_cibo_ce2i_chronological_replay.py'
+      - 'tests/infrastructure/trader_lab/test_cibo_phase18_xauusd_geometry_patch.py'
+  push:
+    branches:
+      - agent/cibo-capital-efficiency-sizing-lab-001
+    paths:
+      - '.github/workflows/cibo-phase18-xauusd-r34-replay.yml'
+      - 'scripts/cibo_phase18_xauusd_geometry_patch.py'
+      - 'scripts/cibo_phase18_xauusd_bind.py'
+      - 'scripts/cibo_phase18_xauusd_score.py'
+      - 'src/qore/infrastructure/cibo_ce2i_chronological_replay.py'
+      - 'tests/infrastructure/test_cibo_ce2i_chronological_replay.py'
+      - 'tests/infrastructure/trader_lab/test_cibo_phase18_xauusd_geometry_patch.py'
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  XAUUSD_SOURCE_SHA: '56ef138ee5ea1cde6d0bcf4c9e25e8b661c04e84'
+  SOURCE_RUN_ID: '35166210458'
+  SOURCE_ARTIFACT: 'qore-cibo-market-atlas-10y-windowed-XAUUSD-ab782b8e9f890f86a2b6500070f0556b4b685e3d'
+  TARGET_RUN_ID: '35204892665'
+  TARGET_ARTIFACT: 'qore-cibo-target-destination-v2-XAUUSD-2f510461b3360e91d5ee70a72716a76cd6561f16'
+  R28_RUN_ID: '35305338898'
+  R28_ARTIFACT: 'qore-turtle-soup-xauusd-cognitive-v3-r28-c35f8414ce59e26a36cdda27c2a964a426c3e5ba'
+  FREEZE_RUN_ID: '35308395893'
+  FREEZE_ARTIFACT: 'qore-turtle-soup-xauusd-r33-candidate-freeze-112c4f12c53299764d31c38f8e7a129f1e84305e'
+  R34_RUN_ID: '35308785945'
+  R34_ARTIFACT: 'qore-turtle-soup-xauusd-r34-frozen-r33-5y-validation-56ef138ee5ea1cde6d0bcf4c9e25e8b661c04e84'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Focused quality
+        run: |
+          ruff check \
+            scripts/cibo_phase18_xauusd_geometry_patch.py \
+            scripts/cibo_phase18_xauusd_bind.py \
+            scripts/cibo_phase18_xauusd_score.py \
+            src/qore/infrastructure/cibo_ce2i_chronological_replay.py \
+            tests/infrastructure/test_cibo_ce2i_chronological_replay.py \
+            tests/infrastructure/trader_lab/test_cibo_phase18_xauusd_geometry_patch.py
+          mypy \
+            scripts/cibo_phase18_xauusd_geometry_patch.py \
+            scripts/cibo_phase18_xauusd_bind.py \
+            scripts/cibo_phase18_xauusd_score.py \
+            src/qore/infrastructure/cibo_ce2i_chronological_replay.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_ce2i_chronological_replay.py \
+            tests/infrastructure/trader_lab/test_cibo_phase18_xauusd_geometry_patch.py
+
+  replay-xauusd:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Checkout CIBO evidence head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+
+      - name: Checkout immutable XAUUSD source code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.XAUUSD_SOURCE_SHA }}
+          path: xauusd-code
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: python -m pip install -e .
+
+      - name: Verify immutable XAUUSD source commit
+        run: |
+          test "$(git -C xauusd-code rev-parse HEAD)" = "$XAUUSD_SOURCE_SHA"
+          test "$XAUUSD_SOURCE_SHA" = "56ef138ee5ea1cde6d0bcf4c9e25e8b661c04e84"
+
+      - name: Instrument exact R34 source for geometry serialization only
+        run: |
+          python scripts/cibo_phase18_xauusd_geometry_patch.py \
+            "xauusd-code/src/qore/infrastructure/trader_lab/turtle_soup_xauusd_r34_frozen_r33_5y_validation.py" \
+            "xauusd-code/src/qore/infrastructure/trader_lab/cibo_phase18_xauusd_r34_geometry_replay.py"
+          python -m py_compile \
+            xauusd-code/src/qore/infrastructure/trader_lab/cibo_phase18_xauusd_r34_geometry_replay.py
+
+      - name: Download immutable XAUUSD raw master
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.SOURCE_ARTIFACT }}
+          path: source-xauusd
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_RUN_ID }}
+
+      - name: Download immutable Target Destination V2
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.TARGET_ARTIFACT }}
+          path: target-xauusd
+          github-token: ${{ github.token }}
+          run-id: ${{ env.TARGET_RUN_ID }}
+
+      - name: Download exact Cognitive V3 R28
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.R28_ARTIFACT }}
+          path: cognitive-v3
+          github-token: ${{ github.token }}
+          run-id: ${{ env.R28_RUN_ID }}
+
+      - name: Download exact R33 freeze
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.FREEZE_ARTIFACT }}
+          path: r33-freeze
+          github-token: ${{ github.token }}
+          run-id: ${{ env.FREEZE_RUN_ID }}
+
+      - name: Download exact authoritative R34 ledger
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.R34_ARTIFACT }}
+          path: r34-source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.R34_RUN_ID }}
+
+      - name: Reproduce exact R34 geometry and capital policy
+        env:
+          PYTHONPATH: ${{ github.workspace }}/xauusd-code/src
+        run: |
+          mkdir -p phase18-output
+          python xauusd-code/src/qore/infrastructure/trader_lab/cibo_phase18_xauusd_r34_geometry_replay.py \
+            source-xauusd target-xauusd cognitive-v3 r33-freeze phase18-output \
+            > phase18-output/replay-stdout.json
+
+      - name: Bind exact geometry to authoritative R34
+        run: |
+          python scripts/cibo_phase18_xauusd_bind.py \
+            --geometry phase18-output/phase18-xauusd-r34-geometry-trades.jsonl \
+            --r34 r34-source/r34-5y-scaled-trades.jsonl \
+            --r34-report r34-source/r34-5y-validation-report.json \
+            --output phase18-output
+
+      - name: Score R34 with generic CIBO Phase 18 replay
+        run: |
+          python scripts/cibo_phase18_xauusd_score.py \
+            --bound phase18-output/phase18-xauusd-r34-bound-trades.jsonl \
+            --output phase18-output/phase18-xauusd-r34-generic-score.json
+
+      - name: Hash Phase 18 evidence
+        run: |
+          printf '%s\n' "$EVIDENCE_SHA" > phase18-output/git-sha.txt
+          printf '%s\n' "$XAUUSD_SOURCE_SHA" > phase18-output/xauusd-source-sha.txt
+          cd phase18-output
+          sha256sum \
+            phase18-xauusd-r34-geometry-report.json \
+            phase18-xauusd-r34-geometry-trades.jsonl \
+            phase18-xauusd-r34-bound-report.json \
+            phase18-xauusd-r34-bound-trades.jsonl \
+            phase18-xauusd-r34-generic-score.json \
+            replay-stdout.json \
+            git-sha.txt \
+            xauusd-source-sha.txt > SHA256SUMS.txt
+          sha256sum -c SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-phase18-xauusd-r34-geometry-${{ env.EVIDENCE_SHA }}
+          path: phase18-output
+          if-no-files-found: error
+          retention-days: 90

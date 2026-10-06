@@ -1,0 +1,142 @@
+name: QORE CIBO Phase22 Provider Numeric Execution Freeze
+
+on:
+  push:
+    branches:
+      - agent/cibo-integrator-ab-001
+    paths:
+      - '.github/workflows/cibo-phase22-provider-numeric-execution-freeze.yml'
+      - 'src/qore/infrastructure/cibo_phase22_provider_numeric_execution.py'
+      - 'src/qore/infrastructure/cibo_phase22_provider_execution_calibration_receipt.py'
+      - 'src/qore/infrastructure/cibo_ce2i_provider_economics_evidence.py'
+      - 'scripts/cibo_phase22_provider_account_lineage_probe.py'
+      - 'scripts/cibo_phase22_provider_numeric_execution_freeze.py'
+      - 'tests/infrastructure/test_cibo_phase22_provider_numeric_execution.py'
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-phase22-provider-numeric-execution-freeze.yml'
+      - 'src/qore/infrastructure/cibo_phase22_provider_numeric_execution.py'
+      - 'scripts/cibo_phase22_provider_numeric_execution_freeze.py'
+      - 'tests/infrastructure/test_cibo_phase22_provider_numeric_execution.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+
+jobs:
+  freeze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e '.[dev,ctrader]'
+      - name: Quality
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_phase22_provider_numeric_execution.py \
+            scripts/cibo_phase22_provider_account_lineage_probe.py \
+            scripts/cibo_phase22_provider_numeric_execution_freeze.py \
+            tests/infrastructure/test_cibo_phase22_provider_numeric_execution.py
+          mypy \
+            src/qore/infrastructure/cibo_phase22_provider_numeric_execution.py \
+            scripts/cibo_phase22_provider_account_lineage_probe.py \
+            scripts/cibo_phase22_provider_numeric_execution_freeze.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_phase22_provider_numeric_execution.py
+      - name: Verify DEMO credentials without printing them
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in \
+            QORE_CTRADER_CLIENT_ID \
+            QORE_CTRADER_CLIENT_SECRET \
+            QORE_CTRADER_ACCESS_TOKEN \
+            QORE_CTRADER_REFRESH_TOKEN
+          do
+            test -n "${!name:-}" || {
+              echo "::error::missing required cTrader DEMO secret: $name"
+              exit 1
+            }
+          done
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
+      - name: Prove legacy and Phase22 fingerprints are one DEMO account
+        run: |
+          mkdir -p provider-numeric
+          python scripts/cibo_phase22_provider_account_lineage_probe.py \
+            --output provider-numeric/account-lineage.json
+      - name: Recover sealed provider/eecution artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11139835744/zip" \
+            > provider-terms.zip
+          echo "dc9bb7a969c12fabfca4ce7ea1ca1c015298b8f3817035d39ed24597d993fa02  provider-terms.zip" \
+            | sha256sum -c -
+          mkdir -p provider-terms
+          unzip -q provider-terms.zip -d provider-terms
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11194919112/zip" \
+            > empirical-execution.zip
+          echo "9e20c1d1486391cc1c9e70ab4fa8b9cae7eb36bd23b8774ae70353c93a8852ab  empirical-execution.zip" \
+            | sha256sum -c -
+          mkdir -p empirical-execution
+          unzip -q empirical-execution.zip -d empirical-execution
+      - name: Freeze provider numeric execution model before holdout
+        run: |
+          python scripts/cibo_phase22_provider_numeric_execution_freeze.py \
+            --provider-terms provider-terms/provider-economics.json \
+            --empirical-execution empirical-execution/empirical-slippage.json \
+            --account-lineage provider-numeric/account-lineage.json \
+            --output provider-numeric/provider-numeric-execution-freeze.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(
+              Path(
+                  "provider-numeric/provider-numeric-execution-freeze.json"
+              ).read_text()
+          )
+          assert p["status"] == "READY"
+          assert p["holdout_market_data_read"] is False
+          assert p["holdout_outcomes_used"] is False
+          assert p["broker_mutation_performed"] is False
+          assert p["historical_provider_economics_claimed"] is False
+          assert p["productive_authority"] is False
+          assert [item["qore_symbol"] for item in p["specs"]] == [
+              "AUDJPY", "EURUSD", "GBPJPY",
+              "GBPUSD", "NAS100", "XAUUSD",
+          ]
+          PY
+      - name: Seal evidence
+        run: |
+          printf '%s\n' "${GITHUB_SHA}" > provider-numeric/git-sha.txt
+          cd provider-numeric
+          sha256sum \
+            account-lineage.json \
+            provider-numeric-execution-freeze.json \
+            git-sha.txt > SHA256SUMS.txt
+          sha256sum -c SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-phase22-provider-numeric-execution-freeze-${{ github.sha }}
+          path: provider-numeric
+          if-no-files-found: error
+          retention-days: 90

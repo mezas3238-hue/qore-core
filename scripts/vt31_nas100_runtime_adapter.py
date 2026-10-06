@@ -30,6 +30,7 @@ from qore.infrastructure.account_wide_risk import (
 from qore.infrastructure.account_wide_risk_ledger import (
     DurableAccountWideRiskEngine,
 )
+from qore.infrastructure.cibo_fundednext_seed import build_fundednext_cibo_seed
 from qore.infrastructure.fundednext_live_mt5 import (
     FundedNextLiveMt5ExecutionGateway,
     MetaTrader5FundedNextLiveTransport,
@@ -69,7 +70,7 @@ from qore.infrastructure.vt31_nas100_live import (
     Vt31RiskContext,
     Vt31VirtualCandidate,
     assert_deadline,
-    build_risk_request,
+    build_vt31_opportunity,
     resolve_certified_risk,
     virtual_oco_trigger,
 )
@@ -191,6 +192,8 @@ def shadow_basket(
     risk: DurableAccountWideRiskEngine,
     snapshot: AccountRiskSnapshot,
     account_equity: Decimal,
+    survival_capital_usd: Decimal,
+    protected_capital_usd: Decimal,
     store: Vt31Nas100LiveStateStore,
     log: Callable[[dict[str, object]], None],
 ) -> None:
@@ -203,6 +206,8 @@ def shadow_basket(
             risk=risk,
             snapshot=snapshot,
             account_equity=account_equity,
+            survival_capital_usd=survival_capital_usd,
+            protected_capital_usd=protected_capital_usd,
             store=store,
             log=log,
         )
@@ -217,6 +222,8 @@ def submit_single_live(
     risk: DurableAccountWideRiskEngine,
     snapshot: AccountRiskSnapshot,
     account_equity: Decimal,
+    survival_capital_usd: Decimal,
+    protected_capital_usd: Decimal,
     store: Vt31Nas100LiveStateStore,
     log: Callable[[dict[str, object]], None],
 ) -> None:
@@ -233,6 +240,8 @@ def submit_single_live(
             risk=risk,
             snapshot=snapshot,
             account_equity=account_equity,
+            survival_capital_usd=survival_capital_usd,
+            protected_capital_usd=protected_capital_usd,
             store=store,
             log=log,
         )
@@ -260,6 +269,8 @@ def process_virtual_oco(
     risk: DurableAccountWideRiskEngine,
     snapshot: AccountRiskSnapshot,
     account_equity: Decimal,
+    survival_capital_usd: Decimal,
+    protected_capital_usd: Decimal,
     store: Vt31Nas100LiveStateStore,
     log: Callable[[dict[str, object]], None],
 ) -> None:
@@ -301,6 +312,8 @@ def process_virtual_oco(
         risk=risk,
         snapshot=snapshot,
         account_equity=account_equity,
+        survival_capital_usd=survival_capital_usd,
+        protected_capital_usd=protected_capital_usd,
         store=store,
         log=log,
     )
@@ -1146,6 +1159,8 @@ def _authorize_and_check(
     risk: DurableAccountWideRiskEngine,
     snapshot: AccountRiskSnapshot,
     account_equity: Decimal,
+    survival_capital_usd: Decimal,
+    protected_capital_usd: Decimal,
     store: Vt31Nas100LiveStateStore,
     log: Callable[[dict[str, object]], None],
 ) -> None:
@@ -1177,22 +1192,30 @@ def _authorize_and_check(
     )
     resolution = resolve_certified_risk(context)
     request_at = stage("before-risk-request")
-    request, _one_r = build_risk_request(
-        request_id=f"vt31-{order.signal_fingerprint[:24]}",
+    opportunity = build_vt31_opportunity(
         signal_fingerprint=order.signal_fingerprint,
         side=order.side,
         entry=Decimal(order.entry_price),
         stop_loss=Decimal(order.stop_loss),
         take_profit=_broker_guard_target(order),
-        certified_risk_r=resolution.final_risk_r,
         provider_spec=spec,
-        account_equity=account_equity,
         decision_anchor=trigger_at,
-        reservation_expires_at=expires_at,
         now=request_at,
     )
+    seed = build_fundednext_cibo_seed(
+        request_id=f"vt31-{order.signal_fingerprint[:24]}",
+        opportunity=opportunity,
+        risk=risk,
+        snapshot=snapshot,
+        assigned_capital_usd=account_equity,
+        survival_capital_usd=survival_capital_usd,
+        protected_capital_usd=protected_capital_usd,
+        requested_at=request_at,
+        expires_at=expires_at,
+    )
+    request = seed.request
     log({
-        "event": "VT31_BROKER_SIZING",
+        "event": "VT31_CIBO_ACCOUNT_SIZING",
         "candidate_id": order.candidate_id,
         "signal_fingerprint": order.signal_fingerprint,
         "decision_at_utc": trigger_at.isoformat(),
@@ -1202,10 +1225,14 @@ def _authorize_and_check(
         "requested_volume": str(request.requested_volume),
         "broker_minimum_volume": str(request.minimum_volume),
         "requested_risk_usd": str(request.requested_stop_risk),
+        "legacy_certified_risk_r": str(resolution.final_risk_r),
+        "sizing_authority": "CIBO_CMA",
+        "cibo_sizing_mode": seed.mode.value,
+        "cibo_base_protected": seed.base_protected,
+        "cibo_survival_capital_usd": str(seed.survival_capital_usd),
+        "cibo_protected_capital_usd": str(seed.protected_capital_usd),
     })
     auth_at = stage("before-account-wide-risk")
-    if risk.recovery_required:
-        risk.complete_boot_reconciliation(snapshot, now=auth_at)
     authorization = risk.authorize(request, snapshot, now=auth_at)
     minimum_volume_risk = request.minimum_volume * request.stop_loss_per_volume
     risk_observability = {

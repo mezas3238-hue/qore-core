@@ -1,0 +1,45 @@
+name: QORE CIBO T06 T07 Expansion Utility Gate
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-t06-t07-expansion-utility.yml'
+      - 'src/qore/infrastructure/cibo_expansion_utility_gate.py'
+      - 'tests/infrastructure/test_cibo_expansion_utility_gate.py'
+      - 'docs/research/CIBO-T06-T07-EXPANSION-UTILITY-GATE-V1.md'
+  push:
+    branches:
+      - agent/cibo-certification-architect-a-science-001
+    paths:
+      - '.github/workflows/cibo-t06-t07-expansion-utility.yml'
+      - 'src/qore/infrastructure/cibo_expansion_utility_gate.py'
+      - 'tests/infrastructure/test_cibo_expansion_utility_gate.py'
+      - 'docs/research/CIBO-T06-T07-EXPANSION-UTILITY-GATE-V1.md'
+
+permissions:
+  contents: read
+
+env:
+  EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  expansion-utility:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: T06 T07 expansion utility quality
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_expansion_utility_gate.py \
+            tests/infrastructure/test_cibo_expansion_utility_gate.py
+          python -m py_compile \
+            src/qore/infrastructure/cibo_expansion_utility_gate.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_expansion_utility_gate.py

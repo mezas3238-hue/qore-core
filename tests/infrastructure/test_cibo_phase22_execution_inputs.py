@@ -1,0 +1,199 @@
+from datetime import UTC, datetime, timedelta
+from decimal import Decimal
+from hashlib import sha256
+
+from qore.infrastructure.account_wide_risk import TraderLineage
+from qore.infrastructure.cibo_phase22_execution_inputs import (
+    load_phase22_sealed_fresh_batch,
+    load_phase22_sealed_provider_numeric,
+    project_phase22_execution_inputs,
+)
+from qore.infrastructure.cibo_phase22_fresh_opportunity_batch import (
+    Phase22FreshOpportunity,
+    Phase22FreshTraderEvidence,
+    build_phase22_fresh_opportunity_batch,
+)
+from qore.infrastructure.cibo_phase22_provider_numeric_execution import (
+    Phase22ProviderAccountLineageReceipt,
+    Phase22ProviderNumericExecutionSpec,
+)
+from qore.infrastructure.cibo_phase22_trader_parity_manifest import (
+    CANONICAL_PHASE22_TRADER_IDS,
+)
+
+
+def _sha(label: str) -> str:
+    return "sha256:" + sha256(label.encode()).hexdigest()
+
+
+def _fresh(trader_id: str, symbol: str, index: int) -> Phase22FreshOpportunity:
+    at = datetime(2015, 11, 2, 10, tzinfo=UTC) + timedelta(minutes=index)
+    return Phase22FreshOpportunity(
+        trader_id=TraderLineage(trader_id),
+        qore_symbol=symbol,
+        signal_fingerprint=_sha(f"signal-{trader_id}"),
+        signal_at=at,
+        entry_at=at + timedelta(minutes=1),
+        exit_at=at + timedelta(minutes=30),
+        side="long",
+        entry_price=Decimal("100"),
+        structural_stop=Decimal("99"),
+        technical_target=Decimal("102"),
+        exit_reason="target",
+        gross_structural_outcome_r=Decimal("2"),
+        methodology_sha256=_sha(f"method-{trader_id}"),
+        source_evidence_ids=(_sha(f"source-{trader_id}"),),
+        decision_context=(
+            ("family", f"family-{trader_id}"),
+            ("reg_h1_body_alignment", "opposed"),
+        ),
+    )
+
+
+def _fresh_payload() -> dict[str, object]:
+    symbols = {
+        "VT08_FOREX": "GBPUSD",
+        "R34_XAUUSD": "XAUUSD",
+        "R38_EURUSD": "EURUSD",
+        "R43_GBPUSD": "GBPUSD",
+        "R38_GBPJPY": "GBPJPY",
+        "R42_AUDJPY": "AUDJPY",
+        "VT31_NAS100": "NAS100",
+    }
+    traders = tuple(
+        Phase22FreshTraderEvidence(
+            trader_id=trader_id,
+            source_artifact_sha256=_sha(f"lane-{trader_id}"),
+            opportunities=(_fresh(trader_id, symbols[trader_id], index),),
+            fresh_outcomes_executed=True,
+            methodology_changed=False,
+            legacy_trader_sizing_used_for_cibo=False,
+        )
+        for index, trader_id in enumerate(CANONICAL_PHASE22_TRADER_IDS)
+    )
+    batch = build_phase22_fresh_opportunity_batch(traders)
+    return {
+        "schema": "qore.cibo.phase22.fresh-batch-assembly.v1",
+        "candidate_id": batch.candidate_id,
+        "batch_sha256": batch.fingerprint(),
+        "traders": [
+            {
+                "trader_id": item.trader_id,
+                "lane_artifact_sha256": item.source_artifact_sha256,
+                "opportunity_count": len(item.opportunities),
+                "evidence_sha256": item.fingerprint(),
+            }
+            for item in batch.traders
+        ],
+        "opportunities": [item.payload() for item in batch.opportunities],
+        "legacy_trader_sizing_used_for_cibo": False,
+        "productive_authority": False,
+    }
+
+
+def _provider_payload() -> dict[str, object]:
+    lineage = Phase22ProviderAccountLineageReceipt(
+        provider_key="ctrader-demo",
+        legacy_account_fingerprint_sha256=(
+            "70d38b13a2afb1ada12883a486ddb39aa0626e4c262b69ee44410bb6531d6086"
+        ),
+        phase22_account_fingerprint_sha256=(
+            "17585ecd6f116a92d19919e46948f06c027d0cbf9f1cb8d97802f20055bad17b"
+        ),
+        same_account_proven=True,
+    )
+    symbols = (
+        "AUDJPY",
+        "EURUSD",
+        "GBPJPY",
+        "GBPUSD",
+        "NAS100",
+        "XAUUSD",
+    )
+    specs = []
+    for symbol in symbols:
+        is_nas = symbol == "NAS100"
+        spec = Phase22ProviderNumericExecutionSpec(
+            qore_symbol=symbol,
+            provider_symbol="USTEC" if is_nas else symbol,
+            observed_at=datetime(2026, 10, 1, 20, tzinfo=UTC),
+            bid=Decimal("100"),
+            ask=Decimal("100.01"),
+            display_digits=2,
+            contract_size_per_volume=Decimal("1") if is_nas else Decimal("100000"),
+            minimum_volume=Decimal("0.1") if is_nas else Decimal("0.01"),
+            maximum_volume=Decimal("100"),
+            volume_step=Decimal("0.1") if is_nas else Decimal("0.01"),
+            margin_per_volume_usd=Decimal("100"),
+            commission_per_volume_usd=Decimal("0") if is_nas else Decimal("3"),
+            worst_adverse_slippage_bps=Decimal("0"),
+            quote_to_usd=Decimal("1"),
+            usd_value_per_price_unit_per_volume=(
+                Decimal("1") if is_nas else Decimal("100000")
+            ),
+            derived_price_quantum=Decimal("0.01"),
+            derived_value_per_quantum_usd=(
+                Decimal("0.01") if is_nas else Decimal("1000")
+            ),
+            source_provider_terms_artifact_sha256=_sha("terms"),
+            source_empirical_execution_artifact_sha256=_sha("empirical"),
+        )
+        specs.append(spec)
+    return {
+        "schema": "qore.cibo.phase22.provider-numeric-execution-freeze.v1",
+        "status": "READY",
+        "account_lineage": lineage.payload(),
+        "account_lineage_sha256": lineage.fingerprint(),
+        "specs": [item.payload() for item in specs],
+        "holdout_market_data_read": False,
+        "holdout_outcomes_used": False,
+        "broker_mutation_performed": False,
+        "historical_provider_economics_claimed": False,
+        "productive_authority": False,
+    }
+
+
+def test_sealed_inputs_recompute_batch_and_provider_contracts() -> None:
+    fresh = load_phase22_sealed_fresh_batch(_fresh_payload())
+    provider = load_phase22_sealed_provider_numeric(_provider_payload())
+
+    assert fresh.batch.fingerprint() == fresh.declared_batch_sha256
+    assert all(item.decision_context for item in fresh.batch.opportunities)
+    assert (
+        fresh.batch.opportunities[0].decision_context[0][0]
+        == "family"
+    )
+    assert tuple(item.qore_symbol for item in provider.specs) == (
+        "AUDJPY",
+        "EURUSD",
+        "GBPJPY",
+        "GBPUSD",
+        "NAS100",
+        "XAUUSD",
+    )
+
+
+def test_sealed_inputs_project_all_fresh_opportunities() -> None:
+    fresh = load_phase22_sealed_fresh_batch(_fresh_payload())
+    provider = load_phase22_sealed_provider_numeric(_provider_payload())
+
+    projected = project_phase22_execution_inputs(
+        fresh=fresh,
+        provider=provider,
+        provider_numeric_freeze_sha256=_sha("provider-freeze"),
+    )
+
+    assert len(projected) == len(fresh.batch.opportunities) == 7
+    assert all(
+        item.candidate.capital_input.opportunity.context_value(
+            "reg_h1_body_alignment"
+        )
+        == "opposed"
+        for item in projected
+    )
+    assert tuple(
+        item.candidate.capital_input.opportunity.signal_fingerprint
+        for item in projected
+    ) == tuple(
+        item.signal_fingerprint for item in fresh.batch.opportunities
+    )

@@ -1,6 +1,11 @@
+# ruff: noqa: I001
+import json
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
+from decimal import Decimal
 
 from qore.infrastructure.ctrader_demo_trade_registry import (
     CTraderDemoTradeRegistry,
@@ -11,7 +16,10 @@ from qore.infrastructure.ctrader_demo_trade_registry import (
 NOW = datetime(2026, 9, 24, 15, 0, tzinfo=UTC)
 
 
-def _entry(*, position_id=None):
+def _entry(
+    *,
+    position_id: int | None = None,
+) -> DemoTradeRegistryEntry:
     return DemoTradeRegistryEntry(
         trader="R38_EURUSD",
         signal_fingerprint="a" * 64,
@@ -24,10 +32,13 @@ def _entry(*, position_id=None):
         submitted_at=NOW.isoformat(),
         expires_at=(NOW + timedelta(hours=1)).isoformat(),
         position_id=position_id,
+        capital_provenance=(
+            ("ORIGINAL_BASE_CAPITAL", "base:signal", "25.00"),
+        ),
     )
 
 
-def test_registry_round_trip_and_position_binding(tmp_path):
+def test_registry_round_trip_and_position_binding(tmp_path: Path) -> None:
     path = tmp_path / "registry.json"
     registry = CTraderDemoTradeRegistry(path)
     registry.register(_entry())
@@ -41,20 +52,20 @@ def test_registry_round_trip_and_position_binding(tmp_path):
     assert CTraderDemoTradeRegistry(path).by_position(99) == bound
 
 
-def test_registry_rejects_identity_conflict(tmp_path):
+def test_registry_rejects_identity_conflict(tmp_path: Path) -> None:
     registry = CTraderDemoTradeRegistry(tmp_path / "registry.json")
     registry.register(_entry())
-    conflicting = DemoTradeRegistryEntry(
-        **{
-            **_entry().as_json(),
-            "signal_fingerprint": "b" * 64,
-        }
+    conflicting = replace(
+        _entry(),
+        signal_fingerprint="b" * 64,
     )
     with pytest.raises(RuntimeError, match="identity conflict"):
         registry.register(conflicting)
 
 
-def test_registry_allows_multiple_cibo_legs_on_one_netted_position(tmp_path):
+def test_registry_allows_multiple_cibo_legs_on_one_netted_position(
+    tmp_path: Path,
+) -> None:
     path = tmp_path / "registry.json"
     registry = CTraderDemoTradeRegistry(path)
     first = _entry(position_id=99)
@@ -78,3 +89,130 @@ def test_registry_allows_multiple_cibo_legs_on_one_netted_position(tmp_path):
 
     assert legs == (first, second)
     assert registry.by_position(99) == first
+
+
+
+def test_registry_loads_legacy_entry_without_provenance(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "legacy-registry.json"
+    payload = {
+        "schema": "qore.ctrader-demo.trade-registry.v1",
+        "entries": [
+            {
+                "trader": "R38_EURUSD",
+                "signal_fingerprint": "a" * 64,
+                "request_id": "request-legacy",
+                "client_order_id": "qore-legacy",
+                "provider_order_ref": "legacy-ref",
+                "qore_symbol": "EURUSD",
+                "requested_volume": "0.10",
+                "requested_stop_risk": "25.00",
+                "submitted_at": NOW.isoformat(),
+                "expires_at": (NOW + timedelta(hours=1)).isoformat(),
+                "position_id": None,
+            }
+        ],
+    }
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    loaded = CTraderDemoTradeRegistry(path).entries()
+
+    assert len(loaded) == 1
+    assert loaded[0].capital_provenance == ()
+
+
+
+def test_registry_committed_risk_counts_open_and_live_pending_only(
+    tmp_path: Path,
+) -> None:
+    registry = CTraderDemoTradeRegistry(tmp_path / "registry.json")
+    registry.register(_entry(position_id=99))
+    pending = replace(
+        _entry(),
+        signal_fingerprint="b" * 64,
+        request_id="request-2",
+        client_order_id="qore-client-2",
+        provider_order_ref="12346",
+        requested_stop_risk="15.00",
+        position_id=None,
+    )
+    expired = replace(
+        _entry(),
+        signal_fingerprint="c" * 64,
+        request_id="request-3",
+        client_order_id="qore-client-3",
+        provider_order_ref="12347",
+        requested_stop_risk="100.00",
+        expires_at=(NOW - timedelta(seconds=1)).isoformat(),
+        position_id=None,
+    )
+    registry.register(pending)
+    registry.register(expired)
+
+    provider_status = {
+        "12346": 1,
+        "12347": 1,
+    }
+
+    assert registry.committed_stop_risk(
+        now=NOW,
+        provider_order_status=provider_status.__getitem__,
+    ) == Decimal("140.00")
+    assert registry.pending_stop_risk(
+        now=NOW,
+        provider_order_status=provider_status.__getitem__,
+    ) == Decimal("115.00")
+
+    # cTrader EXPIRED/CANCELLED statuses can still contain partial fills,
+    # so the full requested risk remains reserved until fill/position evidence
+    # proves the surviving exposure.
+    for partial_capable_terminal in (4, 5):
+        provider_status["12347"] = partial_capable_terminal
+        assert registry.committed_stop_risk(
+            now=NOW,
+            provider_order_status=provider_status.__getitem__,
+        ) == Decimal("140.00")
+        assert registry.pending_stop_risk(
+            now=NOW,
+            provider_order_status=provider_status.__getitem__,
+        ) == Decimal("115.00")
+
+    # REJECTED is the only unbound terminal status that proves no execution.
+    provider_status["12347"] = 3
+    assert registry.pending_stop_risk(
+        now=NOW,
+        provider_order_status=provider_status.__getitem__,
+    ) == Decimal("15.00")
+
+    closed = registry.mark_position_closed(
+        99,
+        closed_at=NOW + timedelta(minutes=5),
+    )
+    assert len(closed) == 1
+    assert closed[0].closed_at == (NOW + timedelta(minutes=5)).isoformat()
+    assert registry.committed_stop_risk(
+        now=NOW + timedelta(minutes=6),
+        provider_order_status=provider_status.__getitem__,
+    ) == Decimal("15.00")
+    assert registry.pending_stop_risk(
+        now=NOW + timedelta(minutes=6),
+        provider_order_status=provider_status.__getitem__,
+    ) == Decimal("15.00")
+
+
+def test_registry_terminal_close_survives_restart(tmp_path: Path) -> None:
+    path = tmp_path / "registry.json"
+    registry = CTraderDemoTradeRegistry(path)
+    registry.register(_entry(position_id=99))
+    closed_at = NOW + timedelta(minutes=10)
+    registry.mark_position_closed(99, closed_at=closed_at)
+
+    reloaded = CTraderDemoTradeRegistry(path)
+    entry = reloaded.by_position(99)
+
+    assert entry is not None
+    assert entry.closed_at == closed_at.isoformat()
+    assert reloaded.committed_stop_risk(
+        now=closed_at,
+        provider_order_status=lambda _provider_order_ref: 1,
+    ) == Decimal("0")

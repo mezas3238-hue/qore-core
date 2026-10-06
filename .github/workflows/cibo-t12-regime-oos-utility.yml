@@ -1,0 +1,44 @@
+name: QORE CIBO T12 Regime Eligibility OOS Utility
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-t12-regime-oos-utility.yml'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t12_oos_utility.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t12_oos_readiness.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t12_shadow_policy.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_t12_shadow_store.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t12_oos_utility_ready.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_t12_oos_utility.py'
+
+permissions:
+  contents: read
+
+env:
+  EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  t12-oos-utility:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: T12 fixed OOS utility contract
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_ce2i_phase20_t12_oos_utility.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t12_oos_utility_ready.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t12_oos_utility.py
+          mypy \
+            src/qore/infrastructure/cibo_ce2i_phase20_t12_oos_utility.py
+          python -m py_compile \
+            src/qore/infrastructure/cibo_ce2i_phase20_t12_oos_utility.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_ce2i_phase20_t12_oos_utility_ready.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_t12_oos_utility.py

@@ -34,6 +34,7 @@ from qore.infrastructure.ctrader_open_api_transport import (
 from qore.infrastructure.execution_boundary import (
     ExecutionBoundaryError,
     ExecutionReceipt,
+    ExecutionReceiptId,
     ExecutionSubmission,
 )
 from qore.infrastructure.market_test_environment import (
@@ -179,6 +180,14 @@ class CTraderDemoOperationalRuntime:
     @property
     def has_unresolved_mutations(self) -> bool:
         return self._gateway.has_unresolved_mutations
+
+    def fills_for(
+        self,
+        receipt_id: ExecutionReceiptId,
+    ) -> tuple[CTraderDemoFillObservation, ...]:
+        """Expose exact durable fill evidence for a known/restored submission."""
+
+        return self._gateway.fills_for(receipt_id)
 
     def stage_risk_fence(
         self,

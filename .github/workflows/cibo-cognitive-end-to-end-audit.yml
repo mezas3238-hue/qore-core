@@ -1,0 +1,156 @@
+name: QORE CIBO Cognitive End-to-End Audit
+
+on:
+  push:
+    branches:
+      - agent/cibo-profitability-lab-001
+    paths:
+      - '.github/workflows/cibo-cognitive-end-to-end-audit.yml'
+      - 'src/qore/infrastructure/cibo_cognitive_*.py'
+      - 'src/qore/infrastructure/cibo_executive_*.py'
+      - 'src/qore/infrastructure/cibo_reasoning_*.py'
+      - 'src/qore/infrastructure/cibo_adaptive_reasoning_runtime.py'
+      - 'src/qore/infrastructure/cibo/**'
+      - 'src/qore/modules/cibo/**'
+      - 'src/qore/infrastructure/cibo_profitability_lab_economic_consultation.py'
+      - 'tests/infrastructure/test_cibo_cognitive_*.py'
+      - 'tests/infrastructure/test_cibo_executive_*.py'
+      - 'tests/infrastructure/test_cibo_reasoning_runtime.py'
+      - 'tests/infrastructure/test_cibo_adaptive_reasoning.py'
+      - 'tests/infrastructure/test_cibo_adaptive_router_492.py'
+      - 'tests/infrastructure/test_cibo/**'
+      - 'tests/modules/cibo/**'
+      - 'tests/infrastructure/test_cibo_profitability_lab_economic_consultation.py'
+      - 'scripts/cibo_cognitive_trader_lab_audit.py'
+      - 'docs/research/CIBO-COGNITIVE-TRADER-LAB-AUDIT-TRIGGER.json'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  cognitive-audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+
+      - name: P01 contracts-common-boundaries
+        run: pytest -q --no-cov tests/infrastructure/test_cibo_cognitive_common.py tests/infrastructure/test_cibo_cognitive_boundaries.py tests/modules/cibo/test_cibo_cognitive_contracts.py
+      - name: P02 executive-memory-deliberation-brain
+        run: pytest -q --no-cov tests/infrastructure/test_cibo_executive_memory.py tests/infrastructure/test_cibo_executive_journal.py tests/infrastructure/test_cibo_executive_deliberation.py tests/infrastructure/test_cibo_executive_brain.py
+      - name: P03 world-model
+        run: pytest -q --no-cov tests/infrastructure/test_cibo_cognitive_world_model.py
+      - name: P04 attention-and-routing
+        run: pytest -q --no-cov tests/infrastructure/test_cibo_cognitive_attention.py tests/infrastructure/test_cibo_reasoning_runtime.py tests/infrastructure/test_cibo_adaptive_reasoning.py tests/infrastructure/test_cibo_adaptive_router_492.py
+      - name: P05 planning-learning
+        run: pytest -q --no-cov tests/infrastructure/test_cibo_cognitive_planning.py
+      - name: P06 tools-faculty-bus
+        run: pytest -q --no-cov tests/infrastructure/test_cibo_cognitive_tools.py
+      - name: P07 causality
+        run: pytest -q --no-cov tests/infrastructure/test_cibo_cognitive_causality.py
+      - name: P08 scenarios
+        run: pytest -q --no-cov tests/infrastructure/test_cibo_cognitive_scenarios.py
+      - name: P09 hypotheses
+        run: pytest -q --no-cov tests/infrastructure/test_cibo_cognitive_hypotheses.py
+      - name: P10 metacognition
+        run: pytest -q --no-cov tests/infrastructure/test_cibo_cognitive_metacognition.py
+      - name: P11 replay-handoff
+        run: pytest -q --no-cov tests/infrastructure/test_cibo_cognitive_replay.py
+      - name: P12 evaluation
+        run: pytest -q --no-cov tests/infrastructure/test_cibo_cognitive_evaluation.py
+      - name: P13 integrated-cognitive-episode
+        run: pytest -q --no-cov tests/infrastructure/test_cibo_cognitive_integration.py
+      - name: P14 functional-coordinator-and-economic-consultation
+        run: pytest -q --no-cov tests/infrastructure/test_cibo/test_functional_coordinator.py tests/infrastructure/test_cibo_profitability_lab_economic_consultation.py
+      - name: P14B full-CF01-CF20-functional-regression
+        run: pytest -q --no-cov tests/infrastructure/test_cibo tests/infrastructure/test_cibo_trader_manager.py tests/governance/test_cibo_executive_dialogue.py
+      - name: P14C legacy-cognitive-quarantine
+        run: |
+          python scripts/cibo_legacy_stack_quarantine.py
+          pytest -q --no-cov tests/infrastructure/test_cibo_legacy_stack_quarantine.py
+      - name: P15 static-integrity
+        run: |
+          python -m compileall -q src/qore/infrastructure/cibo_cognitive_*.py src/qore/infrastructure/cibo_executive_*.py src/qore/infrastructure/cibo_reasoning_runtime.py src/qore/infrastructure/cibo_adaptive_reasoning_runtime.py
+          ruff check src/qore/infrastructure/cibo_cognitive_*.py src/qore/infrastructure/cibo_executive_*.py src/qore/infrastructure/cibo_reasoning_runtime.py src/qore/infrastructure/cibo_adaptive_reasoning_runtime.py tests/infrastructure/test_cibo_cognitive_*.py tests/infrastructure/test_cibo_executive_*.py
+
+      - name: P16 recover-retained-Trader-Lab-artifact
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/cibo-cognitive-source"
+          python - <<'PY' > "$RUNNER_TEMP/cibo-cognitive-source.env"
+          import json
+          from pathlib import Path
+          p=json.loads(Path("docs/research/CIBO-COGNITIVE-TRADER-LAB-AUDIT-TRIGGER.json").read_text())
+          assert p["research_only"] is True
+          assert p["expected_traders"] == 7
+          assert p["broker_mutation"] is False
+          print(f'ARTIFACT_ID={p["source_artifact_id"]}')
+          print(f'SOURCE_HEAD_SHA={p["source_head_sha"]}')
+          PY
+          source "$RUNNER_TEMP/cibo-cognitive-source.env"
+          echo "SOURCE_HEAD_SHA=$SOURCE_HEAD_SHA" >> "$GITHUB_ENV"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$ARTIFACT_ID/zip" > "$RUNNER_TEMP/cibo-cognitive-source.zip"
+          unzip -q "$RUNNER_TEMP/cibo-cognitive-source.zip" -d "$RUNNER_TEMP/cibo-cognitive-source"
+          test -s "$RUNNER_TEMP/cibo-cognitive-source/decision-trace.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=json.loads((Path(os.environ["RUNNER_TEMP"])/"cibo-cognitive-source"/"decision-trace.json").read_text())
+          assert len(p["opportunities"]) == 580
+          assert len({x["trader_id"] for x in p["opportunities"]}) == 7
+          assert p["governance"]["broker_mutation"] is False
+          assert p["governance"]["outcome_aware_tuning_used"] is False
+          PY
+
+      - name: P17 execute-all-cognition-in-real-Trader-Lab-candidates
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/cibo-cognitive-trader-lab"
+          python scripts/cibo_cognitive_trader_lab_audit.py \
+            --decision-trace "$RUNNER_TEMP/cibo-cognitive-source/decision-trace.json" \
+            --source-head "$SOURCE_HEAD_SHA" \
+            --output "$RUNNER_TEMP/cibo-cognitive-trader-lab/audit.json"
+
+      - name: P18 enforce-Trader-Lab-execution-not-unit-green
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=json.loads((Path(os.environ["RUNNER_TEMP"])/"cibo-cognitive-trader-lab"/"audit.json").read_text())
+          assert p["candidate_count"] == 7
+          assert p["phase_count"] == 18
+          assert p["all_phases_green"] is True
+          assert all(x["status"] == "GREEN" for x in p["phases"])
+          assert all(x["all_7_traders_green"] is True for x in p["phases"])
+          assert all(x["outputs_consumed_by_next_phase"] is True for x in p["phases"])
+          assert all(x["traders"][t]["trader_lab_candidate"] is True for x in p["phases"] for t in p["traders"])
+          assert all(p["phases"][0]["traders"][t]["trader_lab_state"] == "research_ready" for t in p["traders"])
+          assert all(p["phases"][16]["traders"][t]["faculty_count"] == 19 for t in p["traders"])
+          assert p["governance"]["broker_mutation"] is False
+          assert p["governance"]["live"] is False
+          assert p["governance"]["real_capital"] is False
+          assert p["governance"]["certification_claimed"] is False
+          PY
+
+      - name: P19 re-prove-legacy-quarantine-after-Trader-Lab
+        run: |
+          python scripts/cibo_legacy_stack_quarantine.py
+          pytest -q --no-cov tests/infrastructure/test_cibo_legacy_stack_quarantine.py
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-cibo-cognitive-trader-lab-audit-${{ github.run_id }}
+          path: ${{ runner.temp }}/cibo-cognitive-trader-lab
+          if-no-files-found: warn
+          retention-days: 90

@@ -37,6 +37,16 @@ from qore.infrastructure.account_wide_risk_ledger import (
     DurableAccountWideRiskEngine,
     DurableAccountWideRiskLedger,
 )
+from qore.infrastructure.cibo_account_capital_mission import (
+    derive_cibo_capital_mission,
+    eligible_ce2i_tool_codes_for_mission,
+    fundednext_stellar_instant_identity,
+)
+from qore.infrastructure.cibo_fundednext_provider import (
+    build_fundednext_vt08_opportunity,
+    fundednext_cibo_symbol_spec,
+)
+from qore.infrastructure.cibo_fundednext_seed import build_fundednext_cibo_seed
 from qore.infrastructure.fundednext_capitalization_mission import (
     CapitalizationMissionSnapshot,
     CapitalizationMissionState,
@@ -79,7 +89,9 @@ from qore.infrastructure.fundednext_mt5_mutation_ledger import (
 from qore.infrastructure.fundednext_operational import build_account_bound_submission
 from qore.infrastructure.fundednext_operational_risk_policy import (
     CapitalBudgetDecision,
+    CiboAccountCapitalPosture,
     QoreOperationalCapitalBudget,
+    derive_cibo_account_capital_posture,
     evaluate_qore_operational_capital_budget,
 )
 from qore.infrastructure.fundednext_position_exit_ledger import (
@@ -128,7 +140,7 @@ from qore.infrastructure.r34_xauusd_live import (
     R34LiveState,
     R34LiveStateStore,
     build_live_signal as build_r34_live_signal,
-    build_r34_risk_request,
+    build_r34_opportunity,
     current_anchor as current_r34_anchor,
     load_cognitive as load_r34_cognitive,
 )
@@ -137,7 +149,7 @@ from qore.infrastructure.r38_eurusd_live import (
     R38LiveState,
     R38LiveStateStore,
     build_live_signal as build_r38_live_signal,
-    build_r38_risk_request,
+    build_r38_opportunity,
     current_anchor as current_r38_anchor,
     load_cognitive as load_r38_cognitive,
     manage_open_position as manage_r38_open_position,
@@ -147,7 +159,7 @@ from qore.infrastructure.r43_gbpusd_live import (
     R43LiveState,
     R43LiveStateStore,
     build_live_signal as build_r43_live_signal,
-    build_r43_risk_request,
+    build_r43_opportunity,
     current_anchor as current_r43_anchor,
     load_memory as load_r43_memory,
     manage_open_position as manage_r43_open_position,
@@ -157,7 +169,7 @@ from qore.infrastructure.r38_gbpjpy_live import (
     R38GbpJpyLiveState,
     R38GbpJpyLiveStateStore,
     build_live_signal as build_gbpjpy_r38_live_signal,
-    build_r38_gbpjpy_risk_request,
+    build_r38_gbpjpy_opportunity,
     current_anchor as current_gbpjpy_r38_anchor,
     load_memory as load_gbpjpy_r38_memory,
     manage_open_position as manage_gbpjpy_r38_open_position,
@@ -171,7 +183,7 @@ from qore.infrastructure.r42_audjpy_live import (
     R42AudJpyLiveState,
     R42AudJpyLiveStateStore,
     build_live_signal as build_audjpy_r42_live_signal,
-    build_r42_audjpy_risk_request,
+    build_r42_audjpy_opportunity,
     load_memory as load_audjpy_r42_memory,
     manage_open_position as manage_audjpy_r42_open_position,
 )
@@ -192,9 +204,6 @@ from qore.infrastructure.vt08_forex_cibo_operational import (
     Vt08ForexCiboDecision,
     Vt08ForexCiboPosture,
     evaluate_vt08_forex_cibo,
-)
-from qore.infrastructure.vt08_forex_fundednext_sizing import (
-    build_certified_vt08_forex_cibo_request,
 )
 from qore.kernel.result import Failure
 
@@ -816,15 +825,23 @@ def _process_candidate(
         now=refresh_at,
     )
     spec = gateway.read_symbol(candidate.symbol, now=datetime.now(UTC))
-    request = build_certified_vt08_forex_cibo_request(
-        request_id=f"vt08-{setup.signal_fingerprint[:24]}",
+    opportunity = build_fundednext_vt08_opportunity(
         cibo_authorization=cibo,
         provider_spec=spec,
-        account_equity=fresh_equity,
     )
     authorize_at = datetime.now(UTC)
-    if risk.recovery_required:
-        risk.complete_boot_reconciliation(snapshot, now=authorize_at)
+    seed = build_fundednext_cibo_seed(
+        request_id=f"vt08-{setup.signal_fingerprint[:24]}",
+        opportunity=opportunity,
+        risk=risk,
+        snapshot=snapshot,
+        assigned_capital_usd=fresh_equity,
+        survival_capital_usd=capital_budget.aggregate_heat_cap,
+        protected_capital_usd=capital_budget.earned_closed_balance_cushion,
+        requested_at=authorize_at,
+        expires_at=setup.expires_at,
+    )
+    request = seed.request
     authorization = risk.authorize(request, snapshot, now=authorize_at)
     if authorization.decision is RiskDecision.REJECT:
         _log(
@@ -964,16 +981,30 @@ def _process_r34_candidate(
         now=refresh_started_at,
     )
     spec = gateway.read_symbol("XAUUSD", now=datetime.now(UTC))
-    request, base_risk_usd = build_r34_risk_request(
-        request_id=f"r34-{signal.signal_fingerprint[:24]}",
+    opportunity = build_r34_opportunity(
         signal=signal,
-        provider_spec=spec,
-        account_equity=fresh_equity,
-        now=datetime.now(UTC),
+        provider_spec=fundednext_cibo_symbol_spec(
+            qore_symbol="XAUUSD",
+            side=signal.side,
+            spec=spec,
+        ),
     )
     authorize_at = datetime.now(UTC)
-    if risk.recovery_required:
-        risk.complete_boot_reconciliation(snapshot, now=authorize_at)
+    seed = build_fundednext_cibo_seed(
+        request_id=f"r34-{signal.signal_fingerprint[:24]}",
+        opportunity=opportunity,
+        risk=risk,
+        snapshot=snapshot,
+        assigned_capital_usd=fresh_equity,
+        survival_capital_usd=capital_budget.aggregate_heat_cap,
+        protected_capital_usd=capital_budget.earned_closed_balance_cushion,
+        requested_at=authorize_at,
+        expires_at=(
+            signal.entry_at.astimezone(UTC) + M5_PROFILE.order_send_deadline
+        ),
+    )
+    request = seed.request
+    base_risk_usd = seed.plan.stop_risk_usd
     authorization = risk.authorize(request, snapshot, now=authorize_at)
     if authorization.decision is RiskDecision.REJECT:
         _log(
@@ -1137,16 +1168,30 @@ def _process_r38_candidate(
         now=refresh_started_at,
     )
     spec = gateway.read_symbol("EURUSD", now=datetime.now(UTC))
-    request, base_risk_usd = build_r38_risk_request(
-        request_id=f"r38-{signal.signal_fingerprint[:24]}",
+    opportunity = build_r38_opportunity(
         signal=signal,
-        provider_spec=spec,
-        account_equity=fresh_equity,
-        now=datetime.now(UTC),
+        provider_spec=fundednext_cibo_symbol_spec(
+            qore_symbol="EURUSD",
+            side=signal.side,
+            spec=spec,
+        ),
     )
     authorize_at = datetime.now(UTC)
-    if risk.recovery_required:
-        risk.complete_boot_reconciliation(snapshot, now=authorize_at)
+    seed = build_fundednext_cibo_seed(
+        request_id=f"r38-{signal.signal_fingerprint[:24]}",
+        opportunity=opportunity,
+        risk=risk,
+        snapshot=snapshot,
+        assigned_capital_usd=fresh_equity,
+        survival_capital_usd=capital_budget.aggregate_heat_cap,
+        protected_capital_usd=capital_budget.earned_closed_balance_cushion,
+        requested_at=authorize_at,
+        expires_at=(
+            signal.entry_at.astimezone(UTC) + M5_PROFILE.order_send_deadline
+        ),
+    )
+    request = seed.request
+    base_risk_usd = seed.plan.stop_risk_usd
     authorization = risk.authorize(request, snapshot, now=authorize_at)
     if authorization.decision is RiskDecision.REJECT:
         _log(
@@ -1308,16 +1353,30 @@ def _process_r43_candidate(
         now=refresh_started_at,
     )
     spec = gateway.read_symbol("GBPUSD", now=datetime.now(UTC))
-    request, base_risk_usd = build_r43_risk_request(
-        request_id=f"r43-{signal.signal_fingerprint[:24]}",
+    opportunity = build_r43_opportunity(
         signal=signal,
-        provider_spec=spec,
-        account_equity=fresh_equity,
-        now=datetime.now(UTC),
+        provider_spec=fundednext_cibo_symbol_spec(
+            qore_symbol="GBPUSD",
+            side=signal.side,
+            spec=spec,
+        ),
     )
     authorize_at = datetime.now(UTC)
-    if risk.recovery_required:
-        risk.complete_boot_reconciliation(snapshot, now=authorize_at)
+    seed = build_fundednext_cibo_seed(
+        request_id=f"r43-{signal.signal_fingerprint[:24]}",
+        opportunity=opportunity,
+        risk=risk,
+        snapshot=snapshot,
+        assigned_capital_usd=fresh_equity,
+        survival_capital_usd=capital_budget.aggregate_heat_cap,
+        protected_capital_usd=capital_budget.earned_closed_balance_cushion,
+        requested_at=authorize_at,
+        expires_at=(
+            signal.entry_at.astimezone(UTC) + M5_PROFILE.order_send_deadline
+        ),
+    )
+    request = seed.request
+    base_risk_usd = seed.plan.stop_risk_usd
     authorization = risk.authorize(request, snapshot, now=authorize_at)
     if authorization.decision is RiskDecision.REJECT:
         _log(
@@ -1481,16 +1540,30 @@ def _process_gbpjpy_r38_candidate(
         now=refresh_started_at,
     )
     spec = gateway.read_symbol("GBPJPY", now=datetime.now(UTC))
-    request, base_risk_usd = build_r38_gbpjpy_risk_request(
-        request_id=f"gbpjpy-r38-{signal.signal_fingerprint[:24]}",
+    opportunity = build_r38_gbpjpy_opportunity(
         signal=signal,
-        provider_spec=spec,
-        account_equity=fresh_equity,
-        now=datetime.now(UTC),
+        provider_spec=fundednext_cibo_symbol_spec(
+            qore_symbol="GBPJPY",
+            side=signal.side,
+            spec=spec,
+        ),
     )
     authorize_at = datetime.now(UTC)
-    if risk.recovery_required:
-        risk.complete_boot_reconciliation(snapshot, now=authorize_at)
+    seed = build_fundednext_cibo_seed(
+        request_id=f"gbpjpy-r38-{signal.signal_fingerprint[:24]}",
+        opportunity=opportunity,
+        risk=risk,
+        snapshot=snapshot,
+        assigned_capital_usd=fresh_equity,
+        survival_capital_usd=capital_budget.aggregate_heat_cap,
+        protected_capital_usd=capital_budget.earned_closed_balance_cushion,
+        requested_at=authorize_at,
+        expires_at=(
+            signal.entry_at.astimezone(UTC) + M5_PROFILE.order_send_deadline
+        ),
+    )
+    request = seed.request
+    base_risk_usd = seed.plan.stop_risk_usd
     authorization = risk.authorize(request, snapshot, now=authorize_at)
     if authorization.decision is RiskDecision.REJECT:
         _log(
@@ -1688,19 +1761,32 @@ def _process_audjpy_r42_candidate(
     request_at = stage_time("before-risk-request")
     if request_at is None:
         return
-    request, base_risk_usd = build_r42_audjpy_risk_request(
-        request_id=f"audjpy-r42-{signal.signal_fingerprint[:24]}",
+    opportunity = build_r42_audjpy_opportunity(
         signal=signal,
-        provider_spec=spec,
-        account_equity=fresh_equity,
+        provider_spec=fundednext_cibo_symbol_spec(
+            qore_symbol="AUDJPY",
+            side=signal.side,
+            spec=spec,
+        ),
         now=request_at,
     )
+    seed = build_fundednext_cibo_seed(
+        request_id=f"audjpy-r42-{signal.signal_fingerprint[:24]}",
+        opportunity=opportunity,
+        risk=risk,
+        snapshot=snapshot,
+        assigned_capital_usd=fresh_equity,
+        survival_capital_usd=capital_budget.aggregate_heat_cap,
+        protected_capital_usd=capital_budget.earned_closed_balance_cushion,
+        requested_at=request_at,
+        expires_at=deadline,
+    )
+    request = seed.request
+    base_risk_usd = seed.plan.stop_risk_usd
 
     authorize_at = stage_time("before-account-wide-risk")
     if authorize_at is None:
         return
-    if risk.recovery_required:
-        risk.complete_boot_reconciliation(snapshot, now=authorize_at)
     authorization = risk.authorize(request, snapshot, now=authorize_at)
     if authorization.decision is RiskDecision.REJECT:
         _log(
@@ -1862,6 +1948,13 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
         provider_key="fundednext-stellar-instant-mt5",
         account_ref=_ACCOUNT_REF,
         environment=MarketRuntimeEnvironment.PRODUCTION,
+    )
+    cibo_account_identity = fundednext_stellar_instant_identity(
+        account_ref=_ACCOUNT_REF
+    )
+    cibo_capital_mission = derive_cibo_capital_mission(cibo_account_identity)
+    cibo_enabled_ce2i_tools = eligible_ce2i_tool_codes_for_mission(
+        cibo_capital_mission
     )
     activation = load_verified_live_activation(
         root=root,
@@ -2126,7 +2219,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             "r38_schedule": "EVERY_H1_H4_BOUNDARY_24_7_SERVICE",
             "r38_single_position_busy": True,
             "r38_lifecycle": "STATIC_OR_PROTECT_DOL_LOCK_M5_SWING_TRAIL_PLUS_24H_EXIT",
-            "r38_base_risk_fraction": "0.002",
+            "r38_legacy_risk_fraction_baseline_only": "0.002",
             "r43_enabled": True,
             "r43_identity": "TURTLE_SOUP_GBPUSD_R43",
             "r43_certification": "TURTLE_SOUP_GBPUSD_R45_FINAL_CERTIFICATION_SUITE_V1",
@@ -2134,7 +2227,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             "r43_schedule": "EVERY_H1_H4_BOUNDARY_24_7_SERVICE",
             "r43_single_position_busy": True,
             "r43_lifecycle": "STATIC_OR_PROTECT_DOL_LOCK_M5_SWING_TRAIL_PLUS_24H_EXIT",
-            "r43_base_risk_fraction": "0.002",
+            "r43_legacy_risk_fraction_baseline_only": "0.002",
             "r43_short_overlay_scale": "0.005",
             "r43_rank2_overlay_scale": "0.25",
             "r43_memory_sha256": "e4a79978c0144e0b97c19ce3ee18040e62a02efe891b204fc724e4a0016734ae",
@@ -2149,7 +2242,21 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                 "VT31_NAS100",
             ],
             "single_mt5_writer": True,
+            "trader_runtime_sizing_authority": False,
+            "cibo_runtime_sizing_authority": True,
+            "cibo_sizing_scope": "ACCOUNT",
+            "legacy_risk_fraction_execution_authority": False,
             "account_wide_risk_active": True,
+            "cibo_account_context_source": "ACCOUNT_BINDING",
+            "cibo_capital_mission": cibo_capital_mission.mission.value,
+            "cibo_capital_primary_objective": (
+                cibo_capital_mission.primary_objective.value
+            ),
+            "cibo_ce2i_activation_scope": cibo_capital_mission.ce2i_scope.value,
+            "cibo_enabled_ce2i_tools": list(cibo_enabled_ce2i_tools),
+            "cibo_capability_measurement_enabled": (
+                cibo_capital_mission.capability_measurement_enabled
+            ),
             "certified_prop_policy_active": True,
             "certified_prop_policy_observed_at": (certified_policy.observed_at.isoformat()),
             "certified_prop_policy_default_open_risk_fraction": str(
@@ -2175,7 +2282,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             "gbpjpy_r38_schedule": "EVERY_H1_H4_BOUNDARY_24_7_SERVICE",
             "gbpjpy_r38_single_position_busy": True,
             "gbpjpy_r38_lifecycle": "STATIC_OR_PROTECT_DOL_LOCK_M5_SWING_TRAIL_PLUS_24H_EXIT",
-            "gbpjpy_r38_base_risk_fraction": "0.002",
+            "gbpjpy_r38_legacy_risk_fraction_baseline_only": "0.002",
             "gbpjpy_r38_ensemble": "R35_RANGE_DIRECTION_MINIMAL_ROBUST",
             "gbpjpy_r38_policy": "CONFIDENCE_100_050_010",
             "gbpjpy_r38_fragility_policy": ["1", "0.25", "0.10", "0.05"],
@@ -2189,7 +2296,7 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             "audjpy_r42_schedule": "EVERY_H1_H4_BOUNDARY_24_7_SERVICE",
             "audjpy_r42_single_position_busy": True,
             "audjpy_r42_lifecycle": "STATIC_OR_PROTECT_DOL_LOCK_M5_SWING_TRAIL_PLUS_24H_EXIT",
-            "audjpy_r42_base_risk_fraction": "0.002",
+            "audjpy_r42_legacy_risk_fraction_baseline_only": "0.002",
             "audjpy_r42_ensemble": "R38_FROZEN_SIGNAL_BASELINE",
             "audjpy_r42_policy": "AUDJPY_CONFIDENCE_100_075_025",
             "audjpy_r42_first_fragility_policy": ["1", "0.20", "0.05", "0.01"],
@@ -2387,14 +2494,14 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                         defend=False,
                         payout_eligible=False,
                     )
-                    arm_posture = request_cibo_posture(
+                    arm_posture = derive_cibo_account_capital_posture(
                         initial_balance=PILOT_INITIAL_BALANCE,
                         balance=arm_account.balance,
                         equity=arm_account.equity,
-                        current_aggregate_risk=arm_aggregate,
+                        current_aggregate_stop_risk=arm_aggregate,
                     )
                     if mission_snapshot.state is CapitalizationMissionState.BANK:
-                        arm_posture = Vt08ForexCiboPosture.BANK
+                        arm_posture = CiboAccountCapitalPosture.BANK
                     arm_capital = evaluate_qore_operational_capital_budget(
                         provider_budget=arm_provider,
                         initial_balance=PILOT_INITIAL_BALANCE,
@@ -3124,14 +3231,14 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                     defend=False,
                     payout_eligible=False,
                 )
-                vt31_posture = request_cibo_posture(
+                vt31_posture = derive_cibo_account_capital_posture(
                     initial_balance=PILOT_INITIAL_BALANCE,
                     balance=vt31_account.balance,
                     equity=vt31_account.equity,
-                    current_aggregate_risk=vt31_aggregate,
+                    current_aggregate_stop_risk=vt31_aggregate,
                 )
                 if mission_snapshot.state is CapitalizationMissionState.BANK:
-                    vt31_posture = Vt08ForexCiboPosture.BANK
+                    vt31_posture = CiboAccountCapitalPosture.BANK
                 vt31_capital = evaluate_qore_operational_capital_budget(
                     provider_budget=vt31_provider,
                     initial_balance=PILOT_INITIAL_BALANCE,
@@ -3337,6 +3444,10 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             risk=risk,
                             snapshot=vt31_snapshot,
                             account_equity=vt31_execution_equity,
+                            survival_capital_usd=vt31_capital.aggregate_heat_cap,
+                            protected_capital_usd=(
+                                vt31_capital.earned_closed_balance_cushion
+                            ),
                             store=vt31_store,
                             log=lambda event: _log(log_path, event),
                         )
@@ -3348,6 +3459,10 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                             risk=risk,
                             snapshot=vt31_snapshot,
                             account_equity=vt31_execution_equity,
+                            survival_capital_usd=vt31_capital.aggregate_heat_cap,
+                            protected_capital_usd=(
+                                vt31_capital.earned_closed_balance_cushion
+                            ),
                             store=vt31_store,
                             log=lambda event: _log(log_path, event),
                         )
@@ -3577,14 +3692,14 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
             defend=False,
             payout_eligible=False,
         )
-        posture = request_cibo_posture(
+        posture = derive_cibo_account_capital_posture(
             initial_balance=PILOT_INITIAL_BALANCE,
             balance=account_state.balance,
             equity=account_state.equity,
-            current_aggregate_risk=aggregate,
+            current_aggregate_stop_risk=aggregate,
         )
         if mission_snapshot.state is CapitalizationMissionState.BANK:
-            posture = Vt08ForexCiboPosture.BANK
+            posture = CiboAccountCapitalPosture.BANK
         capital = evaluate_qore_operational_capital_budget(
             provider_budget=provider,
             initial_balance=PILOT_INITIAL_BALANCE,
@@ -3680,6 +3795,8 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
                 risk=risk,
                 snapshot=vt31_runtime_snapshot,
                 account_equity=account_state.equity,
+                survival_capital_usd=capital.aggregate_heat_cap,
+                protected_capital_usd=capital.earned_closed_balance_cushion,
                 store=vt31_store,
                 log=lambda event: _log(log_path, event),
             )

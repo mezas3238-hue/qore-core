@@ -1,0 +1,23 @@
+{
+  "schema": "qore.cibo.infrastructure-capability-trigger.v1",
+  "candidate_id": "CIBO_USD60_6M_HOLDOUT_2014-10-19_2015-04-19_V4",
+  "validation_mode": "NON_CERTIFYING_REUSED_HOLDOUT",
+  "authorized_at_utc": "2026-10-02T20:33:00Z",
+  "owner_directive": "Use any holdout, including a previously used one, to validate whether the complete CIBO infrastructure functions end-to-end; exercise every implemented capability when applicable and require an explicit reason for every non-used capability.",
+  "reused_holdout_authorized": true,
+  "scientific_freshness_claimed": false,
+  "fresh_oos_generalization_claimed": false,
+  "performance_baseline_required": "MINIMAL_SEED_ONLY",
+  "full_capability_lane_required": "FULL_CIBO_CORE",
+  "t01_t20_accountability_required": true,
+  "unused_tool_reason_required": true,
+  "broker_mutation_authorized": false,
+  "live_authorized": false,
+  "real_capital_authorized": false,
+  "production_authorized": false,
+  "merge_authorized": false,
+  "retrigger_for_head": "22fc6fdff53ff5fc2a9dcbdf23991fdd9ae2960c",
+  "retrigger_reason": "Reporting-only relaunch: map CF01-CF19 to the 19 consulted mission faculties and emit canonical zero-selection allocator reasons for VT08/EURUSD. Economic/trader logic unchanged.",
+  "launch_authorized_by_owner": true,
+  "launch_authorized_at_utc": "2026-10-02T22:45:00Z"
+}

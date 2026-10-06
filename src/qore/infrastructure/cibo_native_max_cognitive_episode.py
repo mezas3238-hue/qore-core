@@ -1,0 +1,622 @@
+"""Full provider-neutral native MAX cognitive episode for CIBO.
+
+This module exercises the deeper native CIBO cognitive substrate before the
+Executive Brain is allowed to recommend capital evaluation:
+
+- world model
+- attention/context selection
+- MAX reasoning routing
+- bounded calibration / abstention
+- base/adverse/extreme/regime-change scenarios
+- explicit correlation/causality substrate
+- metacognitive audit
+- integrated replayable cognitive episode
+
+No external AI/model/provider is imported or invoked.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import timedelta
+from decimal import Decimal
+from uuid import NAMESPACE_URL, uuid5
+
+from qore.infrastructure.cibo_capital_management_authority import (
+    CiboCapitalManagementError,
+    TraderOpportunityEnvelope,
+)
+from qore.infrastructure.cibo_ce2i_regime_selector import (
+    CiboCapitalRegimeState,
+    CorrelationState,
+    ProviderCondition,
+    VolatilityState,
+)
+from qore.infrastructure.cibo_cognitive_attention import (
+    AttentionEvidenceRef,
+    AttentionSignal,
+    AttentionSignalKind,
+    CalibrationNote,
+    ContextSelectionResult,
+    ReasoningDepthHint,
+    ReasoningRequest,
+    ReasoningRouteDecision,
+    ReasoningRoutingOutcome,
+    calibration_requires_abstention,
+    route_reasoning,
+    select_context,
+)
+from qore.infrastructure.cibo_cognitive_causality import (
+    CausalClaim,
+    CausalClaimKind,
+    CausalClaimStatus,
+    CausalClaimStrength,
+    CausalEvidence,
+    CausalEvidencePolarity,
+    CausalVariable,
+    build_causal_claim,
+)
+from qore.infrastructure.cibo_cognitive_common import fingerprint_material
+from qore.infrastructure.cibo_cognitive_integration import (
+    CiboIntegratedCognitiveEpisode,
+    bind_evidence_fingerprint,
+    build_integrated_episode,
+)
+from qore.infrastructure.cibo_cognitive_metacognition import (
+    MetacognitiveAudit,
+    MetacognitiveFinding,
+    build_metacognitive_audit,
+)
+from qore.infrastructure.cibo_cognitive_scenarios import (
+    Scenario,
+    ScenarioAlternative,
+    ScenarioAssumption,
+    ScenarioFactKind,
+    ScenarioFamily,
+    build_scenario,
+)
+from qore.infrastructure.cibo_cognitive_world_model import (
+    WorldModelDomain,
+    WorldModelReference,
+    WorldModelReferenceStatus,
+    WorldModelSnapshot,
+    WorldModelSourceId,
+    WorldModelSourceVersion,
+    build_world_model_snapshot,
+)
+from qore.infrastructure.cibo_sovereign_function_consultation import (
+    CiboEconomicConsultationReceipt,
+)
+from qore.modules.cibo.cognitive_contracts import (
+    CiboCognitiveEvidenceRef,
+    CiboConfidence,
+    CiboConfidenceLevel,
+    CiboReasoningMode,
+    CiboUncertainty,
+    CiboUncertaintyKind,
+)
+
+
+@dataclass(frozen=True, slots=True)
+class CiboNativeMaxCognitiveEpisode:
+    world_snapshot: WorldModelSnapshot
+    selected_context: ContextSelectionResult
+    reasoning_routing: ReasoningRoutingOutcome
+    calibration: CalibrationNote
+    scenarios: tuple[Scenario, ...]
+    causal_claim: CausalClaim
+    metacognitive_audit: MetacognitiveAudit
+    integrated_episode: CiboIntegratedCognitiveEpisode
+    uncertainty: CiboUncertainty
+    external_ai_call_count: int = 0
+    external_reasoning_provider_used: bool = False
+
+    def __post_init__(self) -> None:
+        self.world_snapshot.revalidate()
+        if self.reasoning_routing.decision not in {
+            ReasoningRouteDecision.PROCEED,
+            ReasoningRouteDecision.ABSTAIN_INSUFFICIENT_EVIDENCE,
+        }:
+            raise CiboCapitalManagementError(
+                "native cognitive episode routing decision invalid"
+            )
+        for scenario in self.scenarios:
+            scenario.revalidate()
+        self.causal_claim.revalidate()
+        self.metacognitive_audit.revalidate()
+        self.integrated_episode.revalidate()
+        self.uncertainty.revalidate()
+        if self.external_ai_call_count != 0:
+            raise CiboCapitalManagementError(
+                "native cognitive episode cannot call external AI"
+            )
+        if self.external_reasoning_provider_used:
+            raise CiboCapitalManagementError(
+                "native cognitive episode cannot use external reasoning provider"
+            )
+
+    @property
+    def abstention_required(self) -> bool:
+        return (
+            self.reasoning_routing.decision
+            is ReasoningRouteDecision.ABSTAIN_INSUFFICIENT_EVIDENCE
+            or calibration_requires_abstention(self.calibration)
+        )
+
+
+def _fingerprint_from_semantics(
+    consultation: CiboEconomicConsultationReceipt,
+):
+    material = tuple(
+        (
+            receipt.function_code,
+            str(
+                receipt.output_payload.get(
+                    "research_semantic_observation"
+                )
+            ),
+        )
+        for receipt in consultation.faculty_receipts
+    )
+    return fingerprint_material(material)
+
+
+def _world_snapshot(
+    *,
+    consultation: CiboEconomicConsultationReceipt,
+    semantic_fingerprint,
+) -> WorldModelSnapshot:
+    references = tuple(
+        WorldModelReference(
+            domain=domain,
+            source_id=WorldModelSourceId(
+                "cibo-native-" + domain.value
+            ),
+            source_version=WorldModelSourceVersion("v1"),
+            as_of=consultation.decision_at,
+            status=WorldModelReferenceStatus.CURRENT,
+            evidence_fingerprint=semantic_fingerprint,
+            evidence_label="native-causal-predecision-semantics",
+        )
+        for domain in (
+            WorldModelDomain.MARKET,
+            WorldModelDomain.TRADER,
+            WorldModelDomain.PORTFOLIO,
+            WorldModelDomain.OPERATIONAL,
+            WorldModelDomain.RESEARCH,
+        )
+    )
+    return build_world_model_snapshot(
+        snapshot_id=uuid5(
+            NAMESPACE_URL,
+            "qore:cibo:native-max:world:"
+            + consultation.consultation_id,
+        ),
+        as_of=consultation.decision_at,
+        references=references,
+        staleness_threshold=timedelta(0),
+    )
+
+
+def _attention(
+    *,
+    consultation: CiboEconomicConsultationReceipt,
+    regime: CiboCapitalRegimeState,
+    semantic_fingerprint,
+) -> tuple[ContextSelectionResult, ReasoningRoutingOutcome, CalibrationNote]:
+    evidence = (
+        AttentionEvidenceRef(
+            reference_id="native-cf01-cf19",
+            fingerprint=semantic_fingerprint,
+        ),
+    )
+    signals: list[AttentionSignal] = []
+
+    def add(kind: AttentionSignalKind, severity: int, summary: str, reason: str) -> None:
+        signals.append(
+            AttentionSignal(
+                signal_id=uuid5(
+                    NAMESPACE_URL,
+                    (
+                        "qore:cibo:native-max:attention:"
+                        + consultation.consultation_id
+                        + ":"
+                        + kind.value
+                        + ":"
+                        + summary
+                    ),
+                ),
+                kind=kind,
+                summary=summary,
+                evidence_refs=evidence,
+                severity=max(0, min(100, severity)),
+                priority_reason=reason,
+            )
+        )
+
+    add(
+        AttentionSignalKind.PENDING_GOAL,
+        100,
+        "evaluate-current-capital-opportunity",
+        "single-account-maximum-capability",
+    )
+    utilization = max(
+        regime.risk_utilization,
+        regime.margin_utilization,
+        regime.drawdown_utilization,
+    )
+    utilization_pct = int(utilization * Decimal(100))
+    if utilization > 0:
+        add(
+            AttentionSignalKind.RISK_DETERIORATION,
+            utilization_pct,
+            "account-capacity-utilization",
+            "capital-survival-context",
+        )
+    if regime.evidence_stale:
+        add(
+            AttentionSignalKind.STALE_EVIDENCE,
+            100,
+            "stale-causal-evidence",
+            "freshness-required",
+        )
+    if regime.provider_condition is not ProviderCondition.HEALTHY:
+        add(
+            AttentionSignalKind.ANOMALY,
+            100 if regime.provider_condition is ProviderCondition.UNAVAILABLE else 70,
+            "provider-condition-degraded",
+            "provider-reality",
+        )
+    if regime.correlation is not CorrelationState.NORMAL:
+        add(
+            AttentionSignalKind.CONTRADICTION,
+            90 if regime.correlation is CorrelationState.BREAK else 65,
+            "portfolio-correlation-nonnormal",
+            "portfolio-dependence",
+        )
+    if regime.volatility is VolatilityState.DISLOCATED:
+        add(
+            AttentionSignalKind.ANOMALY,
+            95,
+            "volatility-dislocated",
+            "market-regime-anomaly",
+        )
+    if regime.position_path_adverse:
+        add(
+            AttentionSignalKind.RISK_DETERIORATION,
+            85,
+            "position-path-adverse",
+            "capital-preservation",
+        )
+
+    selected = select_context(signals, max_results=10)
+
+    missing: tuple[str, ...] = ()
+    if regime.evidence_stale:
+        missing += ("fresh-causal-evidence",)
+    if regime.provider_condition is ProviderCondition.UNAVAILABLE:
+        missing += ("provider-reality",)
+
+    request = ReasoningRequest(
+        request_id=uuid5(
+            NAMESPACE_URL,
+            "qore:cibo:native-max:routing:" + consultation.consultation_id,
+        ),
+        depth_hint=ReasoningDepthHint("max"),
+        missing_evidence=missing,
+        justification="native-max-capital-requires-deep-reasoning",
+    )
+    routing = route_reasoning(request)
+
+    hard_capacity_exhausted = (
+        regime.risk_utilization >= Decimal(1)
+        or regime.margin_utilization >= Decimal(1)
+        or regime.drawdown_utilization >= Decimal(1)
+    )
+    severe_joint_risk = (
+        regime.position_path_adverse
+        and (
+            regime.volatility is VolatilityState.DISLOCATED
+            or regime.correlation is CorrelationState.BREAK
+        )
+    )
+    abstain = bool(missing) or hard_capacity_exhausted or severe_joint_risk
+    if missing:
+        kind = "more_evidence_requested"
+        note = "fresh-provider-or-causal-evidence-required"
+    elif hard_capacity_exhausted:
+        kind = "abstain_defer"
+        note = "account-capacity-exhausted"
+    elif severe_joint_risk:
+        kind = "abstain_defer"
+        note = "joint-market-portfolio-risk-deterioration"
+    else:
+        kind = "bounded_confidence"
+        note = "native-causal-state-bounded-confidence"
+
+    confidence_band = max(0, min(100, 100 - utilization_pct))
+    return (
+        selected,
+        routing,
+        CalibrationNote(
+            confidence_band=confidence_band,
+            note=note,
+            abstention_required=abstain,
+            kind=kind,
+        ),
+    )
+
+
+def _uncertainty(
+    *,
+    calibration: CalibrationNote,
+    evidence_refs: tuple[CiboCognitiveEvidenceRef, ...],
+) -> CiboUncertainty:
+    if calibration.abstention_required:
+        return CiboUncertainty(
+            kind=CiboUncertaintyKind.ABSTAIN_DEFER,
+        )
+    level = (
+        CiboConfidenceLevel.HIGH
+        if calibration.confidence_band >= 67
+        else CiboConfidenceLevel.MEDIUM
+        if calibration.confidence_band >= 34
+        else CiboConfidenceLevel.LOW
+    )
+    return CiboUncertainty(
+        kind=CiboUncertaintyKind.BOUNDED_CONFIDENCE,
+        confidence=CiboConfidence(
+            level=level,
+            evidence_refs=evidence_refs,
+        ),
+    )
+
+
+def _scenarios(
+    *,
+    consultation: CiboEconomicConsultationReceipt,
+    snapshot: WorldModelSnapshot,
+    uncertainty: CiboUncertainty,
+    abstained: bool,
+) -> tuple[Scenario, ...]:
+    families = (
+        ScenarioFamily.BASE,
+        ScenarioFamily.ADVERSE,
+        ScenarioFamily.EXTREME,
+        ScenarioFamily.REGIME_CHANGE,
+    )
+    result: list[Scenario] = []
+    for family in families:
+        observed = family is ScenarioFamily.BASE
+        assumptions = (
+            ScenarioAssumption(
+                code=(
+                    "current-causal-state"
+                    if observed
+                    else family.value.replace("-", "-") + "-hypothesis"
+                ),
+                fact_kind=(
+                    ScenarioFactKind.OBSERVED
+                    if observed
+                    else ScenarioFactKind.HYPOTHETICAL
+                ),
+            ),
+        )
+        alternatives = (
+            ()
+            if abstained
+            else (
+                ScenarioAlternative(
+                    alternative_id=uuid5(
+                        NAMESPACE_URL,
+                        f"qore:cibo:native-max:{consultation.consultation_id}:{family.value}:evaluate",
+                    ),
+                    action_code="evaluate-capital",
+                    outcome_code="qore-risk-review",
+                ),
+                ScenarioAlternative(
+                    alternative_id=uuid5(
+                        NAMESPACE_URL,
+                        f"qore:cibo:native-max:{consultation.consultation_id}:{family.value}:defer",
+                    ),
+                    action_code="defer",
+                    outcome_code="preserve-capital",
+                ),
+                ScenarioAlternative(
+                    alternative_id=uuid5(
+                        NAMESPACE_URL,
+                        f"qore:cibo:native-max:{consultation.consultation_id}:{family.value}:abstain",
+                    ),
+                    action_code="abstain",
+                    outcome_code="preserve-capital",
+                ),
+            )
+        )
+        result.append(
+            build_scenario(
+                scenario_id=uuid5(
+                    NAMESPACE_URL,
+                    f"qore:cibo:native-max:scenario:{consultation.consultation_id}:{family.value}",
+                ),
+                family=family,
+                version="v1",
+                assumptions=assumptions,
+                world_snapshot_id=(
+                    snapshot.snapshot_id if observed else None
+                ),
+                world_fingerprint=(
+                    snapshot.fingerprint if observed else None
+                ),
+                alternatives=alternatives,
+                abstained=abstained,
+                uncertainty=uncertainty,
+                limitations=(
+                    "hypothetical-not-fact",
+                    "no-outcome-aware-reasoning",
+                    "qore-risk-sovereign",
+                ),
+            )
+        )
+    return tuple(result)
+
+
+def _causal_claim(
+    *,
+    consultation: CiboEconomicConsultationReceipt,
+    semantic_ref: CiboCognitiveEvidenceRef,
+) -> CausalClaim:
+    cause = CausalVariable(
+        code="current-causal-state",
+        fingerprint=fingerprint_material(("current-causal-state",)),
+    )
+    effect = CausalVariable(
+        code="capital-evaluation-context",
+        fingerprint=fingerprint_material(("capital-evaluation-context",)),
+    )
+    evidence = CausalEvidence(
+        ref=semantic_ref,
+        polarity=CausalEvidencePolarity.SUPPORTS,
+        observed_at=consultation.decision_at,
+        fingerprint=fingerprint_material(
+            (
+                semantic_ref.value,
+                CausalEvidencePolarity.SUPPORTS.value,
+                consultation.decision_at,
+            )
+        ),
+    )
+    return build_causal_claim(
+        claim_id=uuid5(
+            NAMESPACE_URL,
+            "qore:cibo:native-max:causal:" + consultation.consultation_id,
+        ),
+        kind=CausalClaimKind.CORRELATION,
+        cause=cause,
+        effect=effect,
+        evidence_for=(evidence,),
+        strength=CausalClaimStrength.MODERATE,
+        status=CausalClaimStatus.ACTIVE,
+    )
+
+
+def build_native_max_cognitive_episode(
+    *,
+    consultation: CiboEconomicConsultationReceipt,
+    opportunities: tuple[TraderOpportunityEnvelope, ...],
+    target: TraderOpportunityEnvelope,
+    regime_state: CiboCapitalRegimeState,
+) -> CiboNativeMaxCognitiveEpisode:
+    """Build and replay-validate CIBO's provider-neutral MAX cognitive episode."""
+
+    if not opportunities or target not in opportunities:
+        raise CiboCapitalManagementError(
+            "native cognitive episode target/opportunity surface drift"
+        )
+    semantic_fp = _fingerprint_from_semantics(consultation)
+    world = _world_snapshot(
+        consultation=consultation,
+        semantic_fingerprint=semantic_fp,
+    )
+    selected, routing, calibration = _attention(
+        consultation=consultation,
+        regime=regime_state,
+        semantic_fingerprint=semantic_fp,
+    )
+    evidence_refs = tuple(
+        sorted(
+            (
+                CiboCognitiveEvidenceRef(
+                    "cibo:native-world:" + world.fingerprint.value
+                ),
+                CiboCognitiveEvidenceRef(
+                    "cibo:native-cf:" + semantic_fp.value
+                ),
+                CiboCognitiveEvidenceRef(
+                    "cibo:native-target:" + target.signal_fingerprint
+                ),
+            ),
+            key=lambda item: item.value,
+        )
+    )
+    uncertainty = _uncertainty(
+        calibration=calibration,
+        evidence_refs=evidence_refs,
+    )
+    scenarios = _scenarios(
+        consultation=consultation,
+        snapshot=world,
+        uncertainty=uncertainty,
+        abstained=(
+            routing.decision
+            is ReasoningRouteDecision.ABSTAIN_INSUFFICIENT_EVIDENCE
+            or calibration.abstention_required
+        ),
+    )
+    semantic_ref = CiboCognitiveEvidenceRef(
+        "cibo:native-cf:" + semantic_fp.value
+    )
+    causal = _causal_claim(
+        consultation=consultation,
+        semantic_ref=semantic_ref,
+    )
+    audit = build_metacognitive_audit(
+        audit_id=uuid5(
+            NAMESPACE_URL,
+            "qore:cibo:native-max:metacognition:"
+            + consultation.consultation_id,
+        ),
+        reasoning_mode=CiboReasoningMode.MAX,
+        evidence_sufficiency=(
+            MetacognitiveFinding.INSUFFICIENT_EVIDENCE
+            if (
+                routing.decision
+                is ReasoningRouteDecision.ABSTAIN_INSUFFICIENT_EVIDENCE
+                or calibration.abstention_required
+            )
+            else MetacognitiveFinding.SUFFICIENT
+        ),
+        reason_codes=(
+            (
+                "native-max-abstention-required",
+            )
+            if (
+                routing.decision
+                is ReasoningRouteDecision.ABSTAIN_INSUFFICIENT_EVIDENCE
+                or calibration.abstention_required
+            )
+            else (
+                "cf01-cf19-semantics-consumed",
+                "native-perception-complete",
+                "no-external-ai",
+            )
+        ),
+    )
+    bindings = (
+        bind_evidence_fingerprint(semantic_fp),
+        bind_evidence_fingerprint(world.fingerprint),
+    )
+    episode = build_integrated_episode(
+        integration_id=uuid5(
+            NAMESPACE_URL,
+            "qore:cibo:native-max:episode:" + consultation.consultation_id,
+        ),
+        reasoning_mode=CiboReasoningMode.MAX,
+        evidence_bindings=bindings,
+        recorded_at=consultation.decision_at,
+        world_snapshot=world,
+        uncertainty=uncertainty,
+        causal_claims=(causal,),
+        scenarios=scenarios,
+        metacognitive_audit=audit,
+    )
+    return CiboNativeMaxCognitiveEpisode(
+        world_snapshot=world,
+        selected_context=selected,
+        reasoning_routing=routing,
+        calibration=calibration,
+        scenarios=scenarios,
+        causal_claim=causal,
+        metacognitive_audit=audit,
+        integrated_episode=episode,
+        uncertainty=uncertainty,
+    )

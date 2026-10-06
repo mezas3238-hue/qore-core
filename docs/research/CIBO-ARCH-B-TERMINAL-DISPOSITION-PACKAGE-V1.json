@@ -1,0 +1,144 @@
+{
+  "schema": "CIBO_ARCH_B_TERMINAL_DISPOSITION_PACKAGE_V1",
+  "branch": "agent/cibo-certification-architect-b-integration-001",
+  "source_head": "cd41a8e224812ee6944a70a947d7d4d5f3e7d9de",
+  "created_at_utc": "2026-10-01T04:09:27Z",
+  "governance": {
+    "draft_unmerged": true,
+    "master_ledger_modified": false,
+    "holdout_2017h1_opened": false,
+    "live_authority": false,
+    "productive_authority": false,
+    "real_capital_authority": false
+  },
+  "interpretation": "Architect B has exhausted currently realizable GitHub-only engineering. COMPLETED/FALSIFIED recommendations are evidence-backed. EXTERNAL_DEPENDENCY_BLOCKED recommendations identify work that now depends on future real forward population, provider/account availability, realized execution or later governed examination; they remain certification-blocking.",
+  "dispositions": [
+    {
+      "id": "T01",
+      "recommendation": "COMPLETED_AND_PROVEN",
+      "certification_blocking": false,
+      "blockers": []
+    },
+    {
+      "id": "RISK_INTEGRATION",
+      "recommendation": "COMPLETED_AND_PROVEN",
+      "certification_blocking": false,
+      "blockers": []
+    },
+    {
+      "id": "CMA_FOUNDATION_INTEGRATION",
+      "recommendation": "COMPLETED_AND_PROVEN",
+      "certification_blocking": false,
+      "blockers": []
+    },
+    {
+      "id": "LEGACY_CIBO_COGNITIVE_EXECUTIVE_STACK",
+      "recommendation": "COMPLETED_AND_PROVEN",
+      "certification_blocking": false,
+      "blockers": []
+    },
+    {
+      "id": "T17",
+      "recommendation": "FALSIFIED_AND_CLOSED",
+      "certification_blocking": false,
+      "blockers": [],
+      "scope": "current governed cTrader DEMO + FundedNext Stellar Instant CFD universe"
+    },
+    {
+      "id": "T02",
+      "recommendation": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "certification_blocking": true,
+      "blockers": [
+        "REAL_POST_FREEZE_STRUCTURAL_TERMINAL_REASON_POPULATION_REQUIRED",
+        "PROVIDER_BOUND_LEVERAGE_ECONOMIC_ABLATION_REQUIRED"
+      ]
+    },
+    {
+      "id": "T03",
+      "recommendation": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "certification_blocking": true,
+      "blockers": [
+        "CURRENT_CTRADER_DIRECT_SINGLE_INSTRUMENT_CANDIDATE_SCREEN_EXHAUSTED",
+        "MULTI_LEG_OR_ALTERNATE_PROVIDER_EQUIVALENT_EXPRESSION_NOT_PROVEN",
+        "FRESH_OOS_EQUIVALENT_EXPRESSION_UTILITY_REQUIRED_IF_CANDIDATE_APPEARS"
+      ]
+    },
+    {
+      "id": "T11",
+      "recommendation": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "certification_blocking": true,
+      "blockers": [
+        "REAL_EXECUTION_POPULATION_REQUIRED",
+        "EMPIRICAL_SLIPPAGE_CALIBRATION_REQUIRED",
+        "REAL_CALIBRATED_FRESH_OOS_GROSS_EDGE_MODEL_REQUIRED",
+        "REAL_PROVIDER_BOUND_MARKET_IMPACT_MODEL_REQUIRED"
+      ]
+    },
+    {
+      "id": "T16",
+      "recommendation": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "certification_blocking": true,
+      "blockers": [
+        "REAL_POST_DECLARATION_HEDGE_RETURN_POPULATION_REQUIRED",
+        "HEDGE_INSTRUMENT_BASIS_RISK_COST_CORRELATION_EXECUTION_EVIDENCE_REQUIRED",
+        "NET_ECONOMIC_BENEFIT_NOT_PROVEN",
+        "PROVIDER_BOUND_FRESH_OOS_HEDGE_UTILITY_REQUIRED"
+      ]
+    },
+    {
+      "id": "T20",
+      "recommendation": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "certification_blocking": true,
+      "blockers": [
+        "REAL_AUTHORITATIVE_FORWARD_RELEASE_POPULATION_REQUIRED"
+      ]
+    },
+    {
+      "id": "PROVIDER_ECONOMICS",
+      "recommendation": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "certification_blocking": true,
+      "blockers": [
+        "REAL_FORWARD_SLIPPAGE_COST_CALIBRATION_REQUIRED",
+        "HISTORICAL_2017_PROVIDER_USD_ECONOMICS_UNAVAILABLE"
+      ]
+    },
+    {
+      "id": "FORWARD_QUALIFICATION",
+      "recommendation": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "certification_blocking": true,
+      "blockers": [
+        "FROZEN_PHASE20D_REAL_FORWARD_THRESHOLDS_NOT_YET_MET"
+      ]
+    },
+    {
+      "id": "FRESH_OOS",
+      "recommendation": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "certification_blocking": true,
+      "blockers": [
+        "REAL_PHASE20D_FORWARD_POPULATION_REQUIRED",
+        "PHASE21_EMPIRICAL_VALIDATIONS_REQUIRED",
+        "PHASE21_POLICY_FREEZE_REQUIRED",
+        "HOLDOUT_MUST_REMAIN_SEALED_UNTIL_PREREQUISITES_PASS"
+      ]
+    },
+    {
+      "id": "USD60_CAPABILITY_PROGRAM",
+      "recommendation": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "certification_blocking": true,
+      "blockers": [
+        "FORWARD_MANIFEST_MUST_BECOME_SCIENTIFICALLY_CONSUMABLE",
+        "ALL_PRE_EXAM_PREREQUISITES_MUST_PASS",
+        "FINAL_GOVERNED_SIX_MONTH_EXAM_NOT_RUN"
+      ]
+    },
+    {
+      "id": "INTEGRATED_CAPITAL_TRUTH",
+      "recommendation": "EXTERNAL_DEPENDENCY_BLOCKED",
+      "certification_blocking": true,
+      "blockers": [
+        "REAL_CHRONOLOGICAL_FORWARD_POPULATION_BINDING_REQUIRED"
+      ]
+    }
+  ],
+  "integrator_action": "Reconcile these evidence-backed B dispositions into the canonical Master Ledger. Do not convert certification-blocking EXTERNAL_DEPENDENCY_BLOCKED states into pass/closed certification."
+}

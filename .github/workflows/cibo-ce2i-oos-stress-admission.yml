@@ -1,0 +1,39 @@
+name: QORE CIBO CE2I OOS Stress Admission
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-ce2i-oos-stress-admission.yml'
+      - 'src/qore/infrastructure/cibo_ce2i_oos_stress_admission.py'
+      - 'tests/infrastructure/test_cibo_ce2i_oos_stress_admission.py'
+      - 'docs/research/CIBO-CE2I-OOS-MECHANISM-STRESS-ADMISSION-V1.md'
+      - 'docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json'
+
+permissions:
+  contents: read
+
+env:
+  EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  ce2i-oos-stress-admission:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Canonical CE2I OOS stress admission
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_ce2i_oos_stress_admission.py \
+            tests/infrastructure/test_cibo_ce2i_oos_stress_admission.py
+          mypy src/qore/infrastructure/cibo_ce2i_oos_stress_admission.py
+          python -m py_compile \
+            src/qore/infrastructure/cibo_ce2i_oos_stress_admission.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_ce2i_oos_stress_admission.py

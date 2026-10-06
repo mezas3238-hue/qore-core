@@ -1,9 +1,9 @@
-"""Allocation-only cTrader DEMO authority for unrestricted Trader/CIBO execution.
+"""Technical cTrader DEMO authorization for CIBO account-scoped sizing.
 
-This account path is completely separate from FundedNext sovereign Risk. Risk assigns
-virtual capital to each Trader lineage for attribution only; Trader and CIBO own
-setup selection, risk fraction, sizing and lifecycle. The allocator never reduces
-or rejects a valid CIBO size because of another Trader or assigned-capital usage.
+The account owns one capital pool. Per-Trader allocations exist only for
+attribution/reporting and never constrain runtime size. Traders own setup and
+entry/exit geometry; CIBO alone owns requested volume/risk. The technical
+allocator preserves the CIBO request and never re-sizes it.
 """
 
 from __future__ import annotations
@@ -45,7 +45,7 @@ from qore.infrastructure.pretrade_safety import (
 )
 from qore.kernel.errors import InfrastructureError
 
-_POLICY_ID = PreTradePolicyId("ctrader.demo.allocation-only.v1")
+_POLICY_ID = PreTradePolicyId("ctrader.demo.cibo-account-authority.v2")
 _ACTIVE_TRADERS = (
     TraderLineage.VT08_FOREX,
     TraderLineage.R34_XAUUSD,
@@ -96,13 +96,26 @@ class DemoCapitalAllocationBook:
             MappingProxyType(dict(sorted(canonical.items(), key=lambda item: item[0].value))),
         )
 
-    def capital_for(self, trader: TraderLineage) -> Decimal:
+    @property
+    def account_capital(self) -> Decimal:
+        return self.total_capital
+
+    def attribution_capital_for(self, trader: TraderLineage) -> Decimal:
         try:
             return self.allocations[trader]
         except KeyError as error:
             raise CTraderDemoAllocationError(
-                f"no DEMO capital allocation for {trader.value}"
+                f"no DEMO attribution allocation for {trader.value}"
             ) from error
+
+    def capital_for(self, trader: TraderLineage) -> Decimal:
+        """Compatibility alias: runtime sizing sees full account capital.
+
+        The Trader argument is validated only as an eligible lineage; it does
+        not select or partition capital.
+        """
+        self.attribution_capital_for(trader)
+        return self.total_capital
 
 
 def equal_active_trader_allocations(total_capital: Decimal) -> DemoCapitalAllocationBook:
@@ -147,10 +160,12 @@ def authorize_allocation_only(
     _aware(now, "now")
     if now > request.expires_at:
         raise CTraderDemoAllocationError("CIBO request expired")
-    capital = book.capital_for(request.trader_id)
+    # Account-scoped authority: attribution slices never constrain CIBO size.
+    book.attribution_capital_for(request.trader_id)
+    capital = book.account_capital
     material = "|".join(
         (
-            "ctrader-demo-allocation-only-v1",
+            "ctrader-demo-cibo-account-authority-v2",
             request.trader_id.value,
             request.request_id,
             request.signal_fingerprint,
@@ -218,7 +233,7 @@ def build_allocation_only_submission(
         attributes={
             "ctrader_reference_entry": format(request.intended_entry, "f"),
             "ctrader_order_expires_at": request.expires_at.isoformat(),
-            "demo_policy": "allocation-only",
+            "demo_policy": "cibo-account-authority",
             "trader_id": request.trader_id.value,
         },
     )
@@ -244,12 +259,15 @@ def build_allocation_only_submission(
         decision=PreTradeDecision.APPROVED,
         evaluated_at=evaluated_at,
         expires_at=expires_at,
-        reason="DEMO capital assigned; CIBO size preserved without shared-risk reduction",
+        reason=(
+            "DEMO account capital observed; CIBO account-scoped size preserved "
+            "without Trader-owned sizing"
+        ),
     )
     technical_switch = ExecutionSafetySwitchSnapshot(
         state=ExecutionSwitchState.ENABLED,
         observed_at=evaluated_at,
-        reason="cTrader DEMO allocation-only technical execution enabled",
+        reason="cTrader DEMO CIBO account-authority technical execution enabled",
     )
     authorized_intent = AuthorizedOrderIntent(
         intent=intent,

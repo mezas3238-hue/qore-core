@@ -1,0 +1,81 @@
+{
+  "schema": "QORE_CIBO_PHASE22_V3_CLAIMED_FAILURE_FORENSIC_RECEIPT_V1",
+  "candidate_id": "CIBO_USD60_6M_HOLDOUT_2015-04-19_2015-10-19_V3",
+  "observed_at": "2026-10-02T18:24:10Z",
+  "one_shot": {
+    "workflow_run_id": 37047009381,
+    "workflow_conclusion": "failure",
+    "run_attempt": 1,
+    "authorization_head_sha": "e07cfff481563f5539b3ef42fec130c60c5f8a80",
+    "claim_commit_sha": "203fa1bbb342b147af47064511e0b7e7d092fe58",
+    "claim_committed": true,
+    "fresh_replay_count": 1,
+    "second_fresh_execution_authorized": false,
+    "rerun_authorized": false
+  },
+  "consumption": {
+    "state": "CLAIMED",
+    "outcomes_emitted": false,
+    "outcome_bundle_sha256": null,
+    "assembly_executed": false,
+    "closure_executed": false
+  },
+  "lanes": {
+    "VT08_FOREX": {
+      "status": "SUCCESS",
+      "artifact_id": 11245070932,
+      "artifact_digest": "sha256:e4332df32f7d4881b0e31918d0bf78d2fd008316b9fa019482a987aa5d85bf28"
+    },
+    "R34_XAUUSD": {
+      "status": "SUCCESS",
+      "artifact_id": 11245060917,
+      "artifact_digest": "sha256:ec24e78c81ce1d37700dc2e41a0e9089e36f7f1bb36d2ca10d3fd85113b1d5fe"
+    },
+    "R38_EURUSD": {
+      "status": "SUCCESS",
+      "artifact_id": 11245085972,
+      "artifact_digest": "sha256:0429ee70b9533a3a1dcedff17362d77b3eb770c34fcb6410744c90b194e2c102"
+    },
+    "R43_GBPUSD": {
+      "status": "SUCCESS",
+      "artifact_id": 11244377916,
+      "artifact_digest": "sha256:2aace3e1dea003ceca553b2b1cdcfa6d98554794a300a57f578502edc2f89dca"
+    },
+    "R38_GBPJPY": {
+      "status": "SUCCESS",
+      "artifact_id": 11245520840,
+      "artifact_digest": "sha256:f80de35bf54ef587ff87300e9ce8c0f5d4aec2e16f2f8ece3586405206821829"
+    },
+    "R42_AUDJPY": {
+      "status": "SUCCESS",
+      "artifact_id": 11245250822,
+      "artifact_digest": "sha256:8eafe124f512828669079b4b07e01350a83ddfab7d2692b41d22eb8d11f5be21"
+    },
+    "VT31_NAS100": {
+      "status": "FAILURE",
+      "job_id": 110971029475,
+      "artifact_emitted": false,
+      "failure_stage": "FROZEN_VT31_FRESH_RUNNER_BEFORE_ROWS_RETURNED",
+      "failure_type": "SOURCE_ADAPTER_ABI_MISMATCH",
+      "error": "ValueError: too many values to unpack (expected 6)",
+      "frozen_methodology_git_sha": "cac38ed14f20e066536910145027426fd23f5939"
+    }
+  },
+  "scientific_integrity": {
+    "lane_artifact_contents_inspected_by_integrator": false,
+    "outcome_aware_retuning_performed": false,
+    "policy_changed_after_fresh_results": false,
+    "broker_mutation_performed": false,
+    "live_authorized": false,
+    "real_capital_authorized": false,
+    "production_authorized": false,
+    "merge_authorized": false,
+    "v3_reexecution_forbidden": true
+  },
+  "terminal_assessment": {
+    "status": "INVALID_NON_TERMINAL",
+    "fresh_oos_terminal_ready": false,
+    "terminal_recommendation": null,
+    "implication": "SUCCESSOR_FRESH_SCIENTIFIC_CYCLE_REQUIRED"
+  }
+}

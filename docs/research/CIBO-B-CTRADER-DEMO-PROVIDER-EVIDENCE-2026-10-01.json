@@ -1,0 +1,86 @@
+{
+  "schema": "CIBO_B_CTRADER_DEMO_PROVIDER_EVIDENCE_V2026_10_01",
+  "source_head": "9e2301edf7bbdf141050965c252b51697a3a94db",
+  "observed_at_utc": "2026-10-01T03:39:04.840136+00:00",
+  "workflow": {
+    "run_id": 36810489106,
+    "name": "QORE CIBO cTrader DEMO Provider Economics Calibration",
+    "conclusion": "SUCCESS",
+    "artifact_name": "qore-cibo-provider-economics-9e2301edf7bbdf141050965c252b51697a3a94db",
+    "artifact_digest": "sha256:dc9bb7a969c12fabfca4ce7ea1ca1c015298b8f3817035d39ed24597d993fa02"
+  },
+  "sealed_files": {
+    "provider-economics.json": "sha256:2e8a4d0d4bfaf1d1cef9d62ce45aca96ec25fd78a9a25137ef1bc7f980f405c6",
+    "account-capability.json": "sha256:32c266d3ed2c07eb65588b3636e017d40e81b6a02f0e9a508e7f83afc57d2778",
+    "t17-limited-risk-capability.json": "sha256:2d86d70a028803abc51efcaa8aa18016b5228e2111836eec37c4b7d8f8e4f160",
+    "t17-structural-disable.json": "sha256:3c91451eaca3dbbdf745bd79ce626551b630cb39a683d680c000c84c9ddbb442"
+  },
+  "provider_terms": {
+    "provider_key": "ctrader-demo",
+    "environment": "demo",
+    "provider_terms_ready": true,
+    "execution_model_ready": false,
+    "slippage_empirically_calibrated": false,
+    "historical_exact_claimed": false,
+    "holdout_outcomes_used": false,
+    "target_aware": false
+  },
+  "account_capability": {
+    "account_type": "HEDGED",
+    "account_type_field_present": true,
+    "same_symbol_opposite_positions_supported": true,
+    "is_limited_risk": false,
+    "limited_risk_margin_calculation_strategy": null,
+    "symbol_count": 352,
+    "taxonomy_binding_complete": true,
+    "asset_class_names": [
+      "Forex",
+      "Metals",
+      "Indices",
+      "Oil",
+      "EU Equities (CFDs)",
+      "US Equities (CFDs)",
+      "Commodities",
+      "Cryptocurrencies",
+      "Futures",
+      "Bonds",
+      "Futures Commodities"
+    ],
+    "option_taxonomy_candidates": [],
+    "t16_hedge_instrument_certified": false,
+    "t17_option_structure_certified": false
+  },
+  "governed_universe": {
+    "symbols": [
+      "AUDJPY",
+      "EURUSD",
+      "GBPJPY",
+      "GBPUSD",
+      "NAS100",
+      "XAUUSD"
+    ],
+    "gsl_supported_symbols": [],
+    "gsl_unknown_symbols": [],
+    "gsl_unsupported_symbols": [
+      "AUDJPY",
+      "EURUSD",
+      "GBPJPY",
+      "GBPUSD",
+      "NAS100",
+      "XAUUSD"
+    ],
+    "provider_universe_gsl_coverage_complete": true,
+    "limited_risk_candidate_identified": false
+  },
+  "governance": {
+    "broker_mutation_performed": false,
+    "productive_authority": false,
+    "live_authority": false,
+    "real_capital_authority": false,
+    "holdout_2017h1_opened": false
+  },
+  "remaining_provider_blockers": [
+    "HISTORICAL_2017_PROVIDER_USD_ECONOMICS_UNAVAILABLE",
+    "REAL_FORWARD_SLIPPAGE_COST_CALIBRATION_REQUIRED"
+  ]
+}

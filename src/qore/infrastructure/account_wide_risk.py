@@ -8,9 +8,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
-from decimal import ROUND_FLOOR, Decimal
+from decimal import ROUND_FLOOR, Decimal, localcontext
 from enum import StrEnum
 from hashlib import sha256
+from re import fullmatch
 from threading import RLock
 from typing import Protocol
 
@@ -30,7 +31,17 @@ class ProviderRiskBudget(Protocol):
     hard_breach: bool
 
 
+_TRADER_ID_RE = r"[A-Z0-9][A-Z0-9._/-]*"
+
+
 class TraderLineage(StrEnum):
+    """Universal Trader identity with legacy names retained as conveniences.
+
+    Enumeration members are known historical lineages, not an admission list.
+    Any canonical uppercase identity is accepted and cached as a stable
+    pseudo-member so existing enum consumers keep working.
+    """
+
     VT08_FOREX = "VT08_FOREX"
     VT08_INDEX = "VT08_INDEX"
     R34_XAUUSD = "R34_XAUUSD"
@@ -39,6 +50,76 @@ class TraderLineage(StrEnum):
     R38_GBPJPY = "R38_GBPJPY"
     R42_AUDJPY = "R42_AUDJPY"
     VT31_NAS100 = "VT31_NAS100"
+
+    @classmethod
+    def _missing_(cls, value: object) -> TraderLineage | None:
+        if not isinstance(value, str) or fullmatch(_TRADER_ID_RE, value) is None:
+            return None
+        member = str.__new__(cls, value)
+        member._name_ = value
+        member._value_ = value
+        cls._value2member_map_[value] = member
+        return member
+
+
+TraderIdentity = TraderLineage
+
+
+def _exact_sum(values) -> Decimal:
+    with localcontext() as context:
+        context.prec = 100
+        return sum(values, Decimal(0))
+
+
+def _exact_add(left: Decimal, right: Decimal) -> Decimal:
+    with localcontext() as context:
+        context.prec = 100
+        return left + right
+
+
+def _exact_sub(left: Decimal, right: Decimal) -> Decimal:
+    with localcontext() as context:
+        context.prec = 100
+        return left - right
+
+
+def _exact_mul(left: Decimal, right: Decimal) -> Decimal:
+    with localcontext() as context:
+        context.prec = 100
+        return left * right
+
+
+def _exact_div(left: Decimal, right: Decimal) -> Decimal:
+    with localcontext() as context:
+        context.prec = 100
+        return left / right
+
+
+def canonical_trader_lineage(
+    value: TraderLineage | str,
+    *,
+    field_name: str = "trader_id",
+) -> TraderLineage:
+    """Return a stable universal TraderLineage for any canonical identity."""
+
+    if isinstance(value, TraderLineage):
+        return value
+    try:
+        return TraderLineage(value)
+    except (TypeError, ValueError) as error:
+        raise AccountWideRiskError(
+            f"{field_name} must use canonical uppercase Trader identity syntax"
+        ) from error
+
+
+def canonical_trader_identity(
+    value: TraderLineage | str,
+    *,
+    field_name: str = "trader_id",
+) -> str:
+    """Return canonical text without restricting the Trader universe."""
+
+    return canonical_trader_lineage(value, field_name=field_name).value
 
 
 class RiskDecision(StrEnum):
@@ -85,18 +166,88 @@ class AccountRiskSnapshot:
             _nonnegative(decimal_value, name)
         _aware(self.reconciled_at, "reconciled_at")
         provider = self.provider_budget
-        for name in ("provider_headroom", "max_risk_at_any_time", "active_mll"):
-            _nonnegative(getattr(provider, name, None), f"provider_budget.{name}")
-        if type(getattr(provider, "hard_breach", None)) is not bool:
+        for name, decimal_value in (
+            ("provider_headroom", provider.provider_headroom),
+            ("max_risk_at_any_time", provider.max_risk_at_any_time),
+            ("active_mll", provider.active_mll),
+        ):
+            _nonnegative(decimal_value, f"provider_budget.{name}")
+        if type(provider.hard_breach) is not bool:
             raise AccountWideRiskError("provider_budget.hard_breach must be bool")
         if self.qore_authorizable_headroom > provider.provider_headroom:
             raise AccountWideRiskError("QORE headroom cannot exceed provider headroom")
 
 
 @dataclass(frozen=True, slots=True)
+class RiskCapitalConstraintEnvelope:
+    """Read-only hard constraints CIBO may size inside; Risk selects no volume."""
+
+    account_binding_id: str
+    aggregate_pre_order_worst_case_usd: Decimal
+    active_reserved_stop_risk_usd: Decimal
+    active_reserved_margin_usd: Decimal
+    provider_remaining_headroom_usd: Decimal
+    internal_qore_remaining_headroom_usd: Decimal
+    max_risk_remaining_usd: Decimal
+    hard_risk_headroom_usd: Decimal
+    margin_headroom_usd: Decimal
+    provider_hard_breach: bool
+    survival_blocked: bool
+    reason: str
+    reconciled_at: datetime
+
+    def __post_init__(self) -> None:
+        if not self.account_binding_id:
+            raise AccountWideRiskError(
+                "constraint envelope account binding is required"
+            )
+        for name in (
+            "aggregate_pre_order_worst_case_usd",
+            "active_reserved_stop_risk_usd",
+            "active_reserved_margin_usd",
+            "provider_remaining_headroom_usd",
+            "internal_qore_remaining_headroom_usd",
+            "max_risk_remaining_usd",
+            "hard_risk_headroom_usd",
+            "margin_headroom_usd",
+        ):
+            _nonnegative(getattr(self, name), name)
+        if type(self.provider_hard_breach) is not bool:
+            raise AccountWideRiskError("provider_hard_breach must be bool")
+        if type(self.survival_blocked) is not bool:
+            raise AccountWideRiskError("survival_blocked must be bool")
+        if not self.reason:
+            raise AccountWideRiskError("constraint envelope reason is required")
+        _aware(self.reconciled_at, "reconciled_at")
+        if self.survival_blocked and (
+            self.hard_risk_headroom_usd != 0
+            or self.margin_headroom_usd != 0
+        ):
+            raise AccountWideRiskError(
+                "blocked survival envelope cannot expose allocatable headroom"
+            )
+
+
+@dataclass(frozen=True, slots=True)
+class CiboCapitalProvenanceLot:
+    """Non-authoritative capital-source metadata carried through Risk."""
+
+    source_kind: str
+    source_id: str
+    amount_usd: Decimal
+
+    def __post_init__(self) -> None:
+        if not self.source_kind or not self.source_id:
+            raise AccountWideRiskError(
+                "capital provenance source kind/id must be non-empty"
+            )
+        _positive(self.amount_usd, "capital provenance amount_usd")
+
+
+@dataclass(frozen=True, slots=True)
 class CiboRiskRequest:
     request_id: str
-    trader_id: TraderLineage
+    trader_id: TraderIdentity
     signal_fingerprint: str
     qore_symbol: str
     provider_symbol: str
@@ -114,6 +265,7 @@ class CiboRiskRequest:
     expires_at: datetime
     strategy_requested_risk_usd: Decimal | None = None
     minimum_volume_uplifted: bool = False
+    capital_provenance: tuple[CiboCapitalProvenanceLot, ...] = ()
 
     def __post_init__(self) -> None:
         for name, text_value in (
@@ -126,8 +278,11 @@ class CiboRiskRequest:
         ):
             if not text_value:
                 raise AccountWideRiskError(f"{name} must be non-empty")
-        if type(self.trader_id) is not TraderLineage:
-            raise AccountWideRiskError("trader_id must be a frozen pilot lineage")
+        object.__setattr__(
+            self,
+            "trader_id",
+            canonical_trader_lineage(self.trader_id),
+        )
         for name, decimal_value in (
             ("intended_entry", self.intended_entry),
             ("stop_loss", self.stop_loss),
@@ -149,6 +304,25 @@ class CiboRiskRequest:
             _positive(self.strategy_requested_risk_usd, "strategy_requested_risk_usd")
         if type(self.minimum_volume_uplifted) is not bool:
             raise AccountWideRiskError("minimum_volume_uplifted must be bool")
+        if not isinstance(self.capital_provenance, tuple):
+            raise AccountWideRiskError(
+                "capital_provenance must be tuple"
+            )
+        if any(
+            not isinstance(item, CiboCapitalProvenanceLot)
+            for item in self.capital_provenance
+        ):
+            raise AccountWideRiskError(
+                "capital_provenance entries must be canonical lots"
+            )
+        if self.capital_provenance:
+            provenance_total = _exact_sum(
+                item.amount_usd for item in self.capital_provenance
+            )
+            if provenance_total != self.requested_stop_risk:
+                raise AccountWideRiskError(
+                    "request capital provenance must sum to requested stop risk"
+                )
         if (
             self.minimum_volume_uplifted
             and self.strategy_requested_risk_usd is not None
@@ -164,18 +338,18 @@ class CiboRiskRequest:
 
     @property
     def requested_stop_risk(self) -> Decimal:
-        return self.requested_volume * self.stop_loss_per_volume
+        return _exact_mul(self.requested_volume, self.stop_loss_per_volume)
 
     @property
     def requested_margin(self) -> Decimal:
-        return self.requested_volume * self.margin_per_volume
+        return _exact_mul(self.requested_volume, self.margin_per_volume)
 
 
 @dataclass(frozen=True, slots=True)
 class RiskAuthorization:
     authorization_id: str
     account_binding_id: str
-    trader_id: TraderLineage
+    trader_id: TraderIdentity
     request_id: str
     signal_fingerprint: str
     qore_symbol: str
@@ -200,8 +374,14 @@ class RiskAuthorization:
     authorization_fingerprint: str
     strategy_requested_risk_usd: Decimal | None = None
     minimum_volume_uplifted: bool = False
+    capital_provenance: tuple[CiboCapitalProvenanceLot, ...] = ()
 
     def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "trader_id",
+            canonical_trader_lineage(self.trader_id),
+        )
         if type(self.decision) is not RiskDecision:
             raise AccountWideRiskError("decision must be canonical")
         if self.decision is RiskDecision.REJECT:
@@ -214,10 +394,84 @@ class RiskAuthorization:
             raise AccountWideRiskError("ALLOW must preserve requested volume")
         if self.decision is RiskDecision.REDUCE and self.authorized_volume >= self.requested_volume:
             raise AccountWideRiskError("REDUCE must lower requested volume")
-        if len(self.authorization_fingerprint) != 64:
-            raise AccountWideRiskError("authorization_fingerprint must be SHA-256")
+        if (
+            len(self.authorization_fingerprint) != 64
+            or any(
+                char not in "0123456789abcdef"
+                for char in self.authorization_fingerprint
+            )
+        ):
+            raise AccountWideRiskError(
+                "authorization_fingerprint must be lowercase SHA-256"
+            )
+        if not isinstance(self.capital_provenance, tuple):
+            raise AccountWideRiskError(
+                "authorization capital_provenance must be tuple"
+            )
+        if any(
+            not isinstance(item, CiboCapitalProvenanceLot)
+            for item in self.capital_provenance
+        ):
+            raise AccountWideRiskError(
+                "authorization provenance entries must be canonical lots"
+            )
+        if self.decision is RiskDecision.REJECT and self.capital_provenance:
+            raise AccountWideRiskError(
+                "rejected authorization cannot carry deployed capital provenance"
+            )
+        if self.capital_provenance:
+            provenance_total = _exact_sum(
+                item.amount_usd for item in self.capital_provenance
+            )
+            if provenance_total != self.monetary_stop_loss:
+                raise AccountWideRiskError(
+                    "authorization capital provenance must sum to monetary stop loss"
+                )
         _aware(self.issued_at, "issued_at")
         _aware(self.expires_at, "expires_at")
+        if self.expires_at <= self.issued_at:
+            raise AccountWideRiskError(
+                "Risk authorization expiry must follow issuance"
+            )
+        expected_fingerprint = _risk_authorization_fingerprint(self)
+        if self.authorization_fingerprint != expected_fingerprint:
+            raise AccountWideRiskError(
+                "Risk authorization fingerprint/content drift"
+            )
+        if self.authorization_id != f"risk-{expected_fingerprint[:24]}":
+            raise AccountWideRiskError(
+                "Risk authorization id/fingerprint drift"
+            )
+
+
+def _risk_authorization_fingerprint(
+    authorization: RiskAuthorization,
+) -> str:
+    """Recompute the legacy canonical identity of one Risk authorization."""
+
+    provenance_material = ";".join(
+        f"{item.source_kind}:{item.source_id}:{item.amount_usd}"
+        for item in authorization.capital_provenance
+    )
+    canonical = "|".join(
+        (
+            authorization.account_binding_id,
+            canonical_trader_identity(authorization.trader_id),
+            authorization.signal_fingerprint,
+            authorization.provider_symbol,
+            authorization.side,
+            authorization.entry_type,
+            str(authorization.intended_entry),
+            str(authorization.stop_loss),
+            str(authorization.take_profit),
+            str(authorization.authorized_volume),
+            provenance_material,
+            authorization.issued_at.astimezone(UTC).isoformat(
+                timespec="microseconds"
+            ),
+        )
+    )
+    return sha256(canonical.encode("utf-8")).hexdigest()
 
 
 @dataclass(frozen=True, slots=True)
@@ -230,7 +484,10 @@ class RiskReservation:
 
     @property
     def total_unreconciled_stop_risk(self) -> Decimal:
-        return self.pending_stop_risk + self.filled_unreconciled_stop_risk
+        return _exact_add(
+            self.pending_stop_risk,
+            self.filled_unreconciled_stop_risk,
+        )
 
 
 class AccountWideRiskEngine:
@@ -240,6 +497,23 @@ class AccountWideRiskEngine:
         self._lock = RLock()
         self._reservations: dict[str, RiskReservation] = {}
         self._signal_to_authorization: dict[str, str] = {}
+
+    def capital_constraint_envelope(
+        self,
+        snapshot: AccountRiskSnapshot,
+        *,
+        now: datetime,
+    ) -> RiskCapitalConstraintEnvelope:
+        """Expose only current hard constraints; CIBO remains sizing authority."""
+
+        _aware(now, "now")
+        if not isinstance(snapshot, AccountRiskSnapshot):
+            raise AccountWideRiskError(
+                "constraint envelope requires AccountRiskSnapshot"
+            )
+        with self._lock:
+            self._expire_locked(now)
+            return self._constraint_envelope_locked(snapshot)
 
     def authorize(
         self,
@@ -302,13 +576,19 @@ class AccountWideRiskEngine:
             auth = item.authorization
             if filled_volume >= auth.authorized_volume:
                 raise AccountWideRiskError("partial fill must be below authorized volume")
-            fill_fraction = filled_volume / auth.authorized_volume
-            filled_risk = auth.monetary_stop_loss * fill_fraction
-            filled_margin = auth.margin_reserved * fill_fraction
+            fill_fraction = _exact_div(filled_volume, auth.authorized_volume)
+            filled_risk = _exact_mul(auth.monetary_stop_loss, fill_fraction)
+            filled_margin = _exact_mul(auth.margin_reserved, fill_fraction)
             self._reservations[authorization_id] = replace(
                 item,
-                pending_stop_risk=auth.monetary_stop_loss - filled_risk,
-                pending_margin=auth.margin_reserved - filled_margin,
+                pending_stop_risk=_exact_sub(
+                    auth.monetary_stop_loss,
+                    filled_risk,
+                ),
+                pending_margin=_exact_sub(
+                    auth.margin_reserved,
+                    filled_margin,
+                ),
                 filled_unreconciled_stop_risk=filled_risk,
                 state=ReservationState.PARTIALLY_FILLED,
             )
@@ -343,13 +623,52 @@ class AccountWideRiskEngine:
 
     def active_reserved_stop_risk(self) -> Decimal:
         with self._lock:
-            return sum(
-                (
-                    item.total_unreconciled_stop_risk
-                    for item in self._reservations.values()
-                    if item.state not in {ReservationState.RELEASED, ReservationState.EXPIRED}
-                ),
-                Decimal(0),
+            return _exact_sum(
+                item.total_unreconciled_stop_risk
+                for item in self._reservations.values()
+                if item.state not in {
+                    ReservationState.RELEASED,
+                    ReservationState.EXPIRED,
+                }
+            )
+
+    def reservations(self) -> tuple[RiskReservation, ...]:
+        """Return an immutable authorization-state snapshot for reconciliation."""
+
+        with self._lock:
+            return tuple(
+                sorted(
+                    self._reservations.values(),
+                    key=lambda item: item.authorization.authorization_id,
+                )
+            )
+
+    def reservation_for(
+        self,
+        authorization_id: str,
+    ) -> RiskReservation | None:
+        """Read one Risk reservation without changing authority or capacity."""
+
+        if not authorization_id:
+            raise AccountWideRiskError("authorization_id is required")
+        with self._lock:
+            return self._reservations.get(authorization_id)
+
+    def reconcile_terminal_release(self, authorization_id: str) -> None:
+        """Release internal shadow after caller proves broker terminal settlement.
+
+        This method never infers provider state. Callers must bind a definitive
+        broker fill plus terminal settlement before invoking it.
+        """
+
+        with self._lock:
+            item = self._require_active(authorization_id)
+            self._reservations[authorization_id] = replace(
+                item,
+                pending_stop_risk=Decimal(0),
+                pending_margin=Decimal(0),
+                filled_unreconciled_stop_risk=Decimal(0),
+                state=ReservationState.RELEASED,
             )
 
     def _evaluate_locked(
@@ -358,42 +677,38 @@ class AccountWideRiskEngine:
         snapshot: AccountRiskSnapshot,
         now: datetime,
     ) -> RiskAuthorization:
-        pre = (
-            snapshot.open_stop_worst_case_loss
-            + snapshot.pending_broker_worst_case_loss
-            + self._active_risk_locked()
-        )
+        constraints = self._constraint_envelope_locked(snapshot)
+        pre = constraints.aggregate_pre_order_worst_case_usd
         provider = snapshot.provider_budget
         if now > request.expires_at:
             return self._reject(request, snapshot, now, pre, "request-expired")
-        if provider.hard_breach:
-            return self._reject(request, snapshot, now, pre, "provider-hard-breach")
-        if snapshot.equity <= provider.active_mll:
-            return self._reject(request, snapshot, now, pre, "no-provider-equity-headroom")
+        if constraints.survival_blocked:
+            return self._reject(
+                request,
+                snapshot,
+                now,
+                pre,
+                constraints.reason,
+            )
 
-        risk_capacity = min(
-            max(Decimal(0), provider.provider_headroom - pre),
-            max(Decimal(0), snapshot.qore_authorizable_headroom - pre),
-            max(Decimal(0), provider.max_risk_at_any_time - pre),
-        )
-        margin_reserved = self._active_margin_locked()
-        margin_capacity = max(Decimal(0), snapshot.free_margin - margin_reserved)
-        by_risk = risk_capacity / request.stop_loss_per_volume
-        by_margin = margin_capacity / request.margin_per_volume
+        risk_capacity = constraints.hard_risk_headroom_usd
+        margin_capacity = constraints.margin_headroom_usd
+        by_risk = _exact_div(risk_capacity, request.stop_loss_per_volume)
+        by_margin = _exact_div(margin_capacity, request.margin_per_volume)
         raw_volume = min(request.requested_volume, by_risk, by_margin)
         volume = _floor_to_step(raw_volume, request.volume_step)
         if volume < request.minimum_volume:
             reason = "insufficient-shared-risk-or-margin-headroom"
             return self._reject(request, snapshot, now, pre, reason)
         volume = min(volume, request.requested_volume)
-        stop_risk = volume * request.stop_loss_per_volume
-        margin = volume * request.margin_per_volume
+        stop_risk = _exact_mul(volume, request.stop_loss_per_volume)
+        margin = _exact_mul(volume, request.margin_per_volume)
         decision = (
             RiskDecision.ALLOW
             if volume == request.requested_volume
             else RiskDecision.REDUCE
         )
-        post = pre + stop_risk
+        post = _exact_add(pre, stop_risk)
         if post > provider.max_risk_at_any_time:
             return self._reject(request, snapshot, now, pre, "provider-max-risk-cap")
         if post > snapshot.qore_authorizable_headroom:
@@ -440,24 +755,91 @@ class AccountWideRiskEngine:
             reason=reason,
         )
 
-    def _active_risk_locked(self) -> Decimal:
-        return sum(
+    def _constraint_envelope_locked(
+        self,
+        snapshot: AccountRiskSnapshot,
+    ) -> RiskCapitalConstraintEnvelope:
+        active_risk = self._active_risk_locked()
+        active_margin = self._active_margin_locked()
+        pre = _exact_sum(
             (
-                item.total_unreconciled_stop_risk
-                for item in self._reservations.values()
-                if item.state not in {ReservationState.RELEASED, ReservationState.EXPIRED}
-            ),
+                snapshot.open_stop_worst_case_loss,
+                snapshot.pending_broker_worst_case_loss,
+                active_risk,
+            )
+        )
+        provider = snapshot.provider_budget
+        provider_remaining = max(
             Decimal(0),
+            _exact_sub(provider.provider_headroom, pre),
+        )
+        qore_remaining = max(
+            Decimal(0),
+            _exact_sub(snapshot.qore_authorizable_headroom, pre),
+        )
+        max_risk_remaining = max(
+            Decimal(0),
+            _exact_sub(provider.max_risk_at_any_time, pre),
+        )
+        margin_remaining = max(
+            Decimal(0),
+            _exact_sub(snapshot.free_margin, active_margin),
+        )
+
+        blocked = bool(
+            provider.hard_breach
+            or snapshot.equity <= provider.active_mll
+        )
+        if provider.hard_breach:
+            reason = "provider-hard-breach"
+        elif snapshot.equity <= provider.active_mll:
+            reason = "no-provider-equity-headroom"
+        else:
+            reason = "hard-constraints-observed"
+
+        hard_risk = (
+            Decimal(0)
+            if blocked
+            else min(
+                provider_remaining,
+                qore_remaining,
+                max_risk_remaining,
+            )
+        )
+        return RiskCapitalConstraintEnvelope(
+            account_binding_id=snapshot.account_binding_id,
+            aggregate_pre_order_worst_case_usd=pre,
+            active_reserved_stop_risk_usd=active_risk,
+            active_reserved_margin_usd=active_margin,
+            provider_remaining_headroom_usd=provider_remaining,
+            internal_qore_remaining_headroom_usd=qore_remaining,
+            max_risk_remaining_usd=max_risk_remaining,
+            hard_risk_headroom_usd=hard_risk,
+            margin_headroom_usd=Decimal(0) if blocked else margin_remaining,
+            provider_hard_breach=provider.hard_breach,
+            survival_blocked=blocked,
+            reason=reason,
+            reconciled_at=snapshot.reconciled_at,
+        )
+
+    def _active_risk_locked(self) -> Decimal:
+        return _exact_sum(
+            item.total_unreconciled_stop_risk
+            for item in self._reservations.values()
+            if item.state not in {
+                ReservationState.RELEASED,
+                ReservationState.EXPIRED,
+            }
         )
 
     def _active_margin_locked(self) -> Decimal:
-        return sum(
-            (
-                item.pending_margin
-                for item in self._reservations.values()
-                if item.state not in {ReservationState.RELEASED, ReservationState.EXPIRED}
-            ),
-            Decimal(0),
+        return _exact_sum(
+            item.pending_margin
+            for item in self._reservations.values()
+            if item.state not in {
+                ReservationState.RELEASED,
+                ReservationState.EXPIRED,
+            }
         )
 
     def _expire_locked(self, now: datetime) -> None:
@@ -493,10 +875,18 @@ def _authorization(
     decision: RiskDecision,
     reason: str,
 ) -> RiskAuthorization:
+    authorized_provenance = _scale_capital_provenance(
+        request,
+        authorized_volume=authorized_volume,
+    )
+    provenance_material = ";".join(
+        f"{item.source_kind}:{item.source_id}:{item.amount_usd}"
+        for item in authorized_provenance
+    )
     canonical = "|".join(
         (
             snapshot.account_binding_id,
-            request.trader_id.value,
+            canonical_trader_identity(request.trader_id),
             request.signal_fingerprint,
             request.provider_symbol,
             request.side,
@@ -505,6 +895,7 @@ def _authorization(
             str(request.stop_loss),
             str(request.take_profit),
             str(authorized_volume),
+            provenance_material,
             issued_at.astimezone(UTC).isoformat(timespec="microseconds"),
         )
     )
@@ -538,14 +929,56 @@ def _authorization(
         authorization_fingerprint=fingerprint,
         strategy_requested_risk_usd=request.strategy_requested_risk_usd,
         minimum_volume_uplifted=request.minimum_volume_uplifted,
+        capital_provenance=authorized_provenance,
     )
+
+
+def _scale_capital_provenance(
+    request: CiboRiskRequest,
+    *,
+    authorized_volume: Decimal,
+) -> tuple[CiboCapitalProvenanceLot, ...]:
+    if authorized_volume <= 0 or not request.capital_provenance:
+        return ()
+    if authorized_volume == request.requested_volume:
+        return request.capital_provenance
+
+    authorized_risk = _exact_mul(
+        authorized_volume,
+        request.stop_loss_per_volume,
+    )
+    fraction = _exact_div(authorized_volume, request.requested_volume)
+    retained: list[CiboCapitalProvenanceLot] = []
+    allocated = Decimal(0)
+    for index, item in enumerate(request.capital_provenance):
+        if index == len(request.capital_provenance) - 1:
+            amount = _exact_sub(authorized_risk, allocated)
+        else:
+            amount = _exact_mul(item.amount_usd, fraction)
+            allocated = _exact_add(allocated, amount)
+        if amount <= 0:
+            continue
+        retained.append(
+            CiboCapitalProvenanceLot(
+                source_kind=item.source_kind,
+                source_id=item.source_id,
+                amount_usd=amount,
+            )
+        )
+    if _exact_sum(item.amount_usd for item in retained) != authorized_risk:
+        raise AccountWideRiskError(
+            "scaled capital provenance does not match authorized stop risk"
+        )
+    return tuple(retained)
 
 
 def _floor_to_step(value: Decimal, step: Decimal) -> Decimal:
     _nonnegative(value, "value")
     _positive(step, "step")
-    units = (value / step).to_integral_value(rounding=ROUND_FLOOR)
-    return units * step
+    with localcontext() as context:
+        context.prec = 100
+        units = (value / step).to_integral_value(rounding=ROUND_FLOOR)
+        return units * step
 
 
 def _aware(value: datetime, name: str) -> None:

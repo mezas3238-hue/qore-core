@@ -1,0 +1,107 @@
+"""Compose A+B Phase22 dispositions into the legal PRE_EXAM ledger."""
+
+from __future__ import annotations
+
+from typing import Any
+
+from qore.infrastructure.cibo_arch_a_internal_readiness import (
+    ArchitectAPhase22V2ScientificClosureBatch,
+    ArchitectAPhase22V2ScientificDispositionReceipt,
+)
+from qore.infrastructure.cibo_capital_management_authority import (
+    CiboCapitalManagementError,
+)
+from qore.infrastructure.cibo_final_integrated_exam_arch_b_ledger_reconciliation import (
+    ArchitectBPhase22FinalDispositionPackage,
+    apply_architect_b_phase22_final_dispositions,
+)
+from qore.infrastructure.cibo_final_integrated_exam_scientific_ledger_reconciliation import (
+    apply_architect_a_phase22_scientific_dispositions,
+)
+
+_REQUIRED_OPEN_IDS = (
+    "FINAL_INTEGRATED_CIBO_EXAM",
+    "WORLD_CUP_MAXIMUM_CAPABILITY_EXAM",
+)
+
+
+def validate_pre_exam_reconciled_ledger(
+    ledger: dict[str, Any],
+) -> dict[str, Any]:
+    if not isinstance(ledger, dict):
+        raise CiboCapitalManagementError(
+            "PRE_EXAM reconciled ledger must be object"
+        )
+    rows = ledger.get("workstreams")
+    if (
+        not isinstance(rows, list)
+        or any(not isinstance(item, dict) for item in rows)
+    ):
+        raise CiboCapitalManagementError(
+            "PRE_EXAM reconciled ledger rows invalid"
+        )
+    mandatory = [item for item in rows if item.get("mandatory") is True]
+    if len(mandatory) != 64:
+        raise CiboCapitalManagementError(
+            "PRE_EXAM reconciled ledger requires 64 mandatory rows"
+        )
+    terminal = [
+        item for item in mandatory if item.get("terminal_disposition") is not None
+    ]
+    open_ids = tuple(
+        str(item.get("id"))
+        for item in mandatory
+        if item.get("terminal_disposition") is None
+    )
+    external = tuple(
+        str(item.get("id"))
+        for item in mandatory
+        if (
+            item.get("certification_blocking") is True
+            and item.get("terminal_disposition") == "EXTERNAL_DEPENDENCY_BLOCKED"
+        )
+    )
+    if len(terminal) != 62 or open_ids != _REQUIRED_OPEN_IDS:
+        raise CiboCapitalManagementError(
+            "PRE_EXAM reconciled ledger topology drift"
+        )
+    if external:
+        raise CiboCapitalManagementError(
+            "PRE_EXAM reconciled ledger external blockers remain: "
+            + ",".join(external)
+        )
+    expected_summary = {
+        "mandatory_count": 64,
+        "terminal_count": 62,
+        "open_count": 2,
+        "zero_open_work_pass": False,
+        "final_certification_candidate": False,
+    }
+    if ledger.get("current_summary") != expected_summary:
+        raise CiboCapitalManagementError(
+            "PRE_EXAM reconciled ledger summary drift"
+        )
+    return ledger
+
+
+def reconcile_pre_exam_ledger(
+    *,
+    ledger: dict[str, Any],
+    architect_a_batch: ArchitectAPhase22V2ScientificClosureBatch,
+    architect_a_receipts: tuple[
+        ArchitectAPhase22V2ScientificDispositionReceipt, ...
+    ],
+    architect_b_package: ArchitectBPhase22FinalDispositionPackage,
+) -> dict[str, Any]:
+    """Apply both evidence-bound sides, then require exact PRE_EXAM topology."""
+
+    after_a = apply_architect_a_phase22_scientific_dispositions(
+        ledger=ledger,
+        batch=architect_a_batch,
+        receipts=architect_a_receipts,
+    )
+    after_b = apply_architect_b_phase22_final_dispositions(
+        ledger=after_a,
+        package=architect_b_package,
+    )
+    return validate_pre_exam_reconciled_ledger(after_b)

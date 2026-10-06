@@ -1,0 +1,93 @@
+name: QORE CIBO Protected Compound Reality Exam
+
+on:
+  push:
+    branches:
+      - agent/cibo-profitability-lab-001
+    paths:
+      - '.github/workflows/cibo-protected-compound-reality-exam.yml'
+      - 'scripts/cibo_compound_protected_capital_reality_exam.py'
+      - 'src/qore/infrastructure/cibo_protected_reinvestment_policy.py'
+      - 'tests/infrastructure/test_cibo_protected_reinvestment_policy.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  protected-compound-reality:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SOURCE_ARTIFACT_ID: '11261743257'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Recover retained Trader Lab evidence
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/source"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$SOURCE_ARTIFACT_ID/zip" > "$RUNNER_TEMP/source.zip"
+          unzip -q "$RUNNER_TEMP/source.zip" -d "$RUNNER_TEMP/source"
+          test -s "$RUNNER_TEMP/source/decision-trace.json"
+      - name: Execute protected-capital reality exam
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/reality"
+          python scripts/cibo_compound_protected_capital_reality_exam.py \
+            --decision-trace "$RUNNER_TEMP/source/decision-trace.json" \
+            --output "$RUNNER_TEMP/reality/report.json"
+      - name: Enforce WFO Monte Carlo stress and no population gate
+        run: |
+          python - <<'PY'
+          import json, os
+          from decimal import Decimal
+          from pathlib import Path
+          p=json.loads((Path(os.environ['RUNNER_TEMP'])/'reality'/'report.json').read_text())
+          assert p['governance']['population_gate_used'] is False
+          assert p['governance']['protected_capital_required_before_reinvestment'] is True
+          assert p['governance']['core_losses_create_compound_capital'] is False
+          assert p['governance']['dynamic_current_capital_scaling'] is True
+          assert p['governance']['opening_base_capital_used_as_static_reinvestment_basis'] is False
+          assert p['calibrated_reinvestment_policy']['dynamic_scaling'] is True
+          for key in ('cibo_compound','compound_portfolio'):
+              s=p[key]
+              assert s['observed']['status']=='MEASURED'
+              assert s['observed']['episode_count']>0
+              assert Decimal(s['observed']['incremental_realized_pnl_usd'])>0
+              assert Decimal(s['observed']['weighted_average_roi'])>0
+              assert s['walk_forward']['fold_count']>0
+              assert all(
+                  Decimal(f['weighted_average_roi'])>0
+                  for f in s['walk_forward']['folds']
+              )
+              assert s['monte_carlo']['simulation_count']==1000
+              assert Decimal(s['monte_carlo']['median_incremental_pnl_usd'])>0
+              assert s['monte_carlo']['protected_pool_breach_paths']==0
+              assert s['stress']['scenario_count']==7
+          PY
+      - name: Static integrity and dynamic policy tests
+        if: always()
+        run: |
+          pytest -q --no-cov tests/infrastructure/test_cibo_protected_reinvestment_policy.py
+          python -m py_compile \
+            scripts/cibo_compound_protected_capital_reality_exam.py \
+            src/qore/infrastructure/cibo_protected_reinvestment_policy.py
+          ruff check \
+            scripts/cibo_compound_protected_capital_reality_exam.py \
+            src/qore/infrastructure/cibo_protected_reinvestment_policy.py \
+            tests/infrastructure/test_cibo_protected_reinvestment_policy.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-cibo-protected-compound-reality-exam-${{ github.run_id }}
+          path: ${{ runner.temp }}/reality
+          if-no-files-found: warn
+          retention-days: 90

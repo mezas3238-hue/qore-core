@@ -1,0 +1,72 @@
+name: QORE CIBO GEN-C7 Profit Preservation Shadow
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-genc7-profit-preservation.yml'
+      - 'src/qore/infrastructure/cibo_profit_preservation_shadow.py'
+      - 'src/qore/infrastructure/cibo_profit_preservation_store.py'
+      - 'src/qore/infrastructure/cibo_profit_preservation_population.py'
+      - 'src/qore/infrastructure/cibo_profit_preservation_oos_binding.py'
+      - 'src/qore/infrastructure/cibo_profit_preservation_economic_gate.py'
+      - 'tests/infrastructure/test_cibo_profit_preservation_shadow.py'
+      - 'tests/infrastructure/test_cibo_profit_preservation_economic_gate.py'
+      - 'docs/research/CIBO-GEN-C7-PROFIT-PRESERVATION-GIVEBACK-SHADOW-PREREGISTRATION-V1.md'
+      - 'docs/research/CIBO-GEN-C7-PROFIT-PRESERVATION-NONCOMPENSATORY-ECONOMIC-GATE-V1.md'
+  push:
+    branches:
+      - agent/cibo-capital-efficiency-sizing-lab-001
+    paths:
+      - '.github/workflows/cibo-genc7-profit-preservation.yml'
+      - 'src/qore/infrastructure/cibo_profit_preservation_shadow.py'
+      - 'src/qore/infrastructure/cibo_profit_preservation_store.py'
+      - 'src/qore/infrastructure/cibo_profit_preservation_population.py'
+      - 'src/qore/infrastructure/cibo_profit_preservation_oos_binding.py'
+      - 'src/qore/infrastructure/cibo_profit_preservation_economic_gate.py'
+      - 'tests/infrastructure/test_cibo_profit_preservation_shadow.py'
+      - 'tests/infrastructure/test_cibo_profit_preservation_economic_gate.py'
+      - 'docs/research/CIBO-GEN-C7-PROFIT-PRESERVATION-GIVEBACK-SHADOW-PREREGISTRATION-V1.md'
+      - 'docs/research/CIBO-GEN-C7-PROFIT-PRESERVATION-NONCOMPENSATORY-ECONOMIC-GATE-V1.md'
+
+permissions:
+  contents: read
+
+env:
+  EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  profit-preservation-shadow:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: GEN-C7 profit preservation quality
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_profit_preservation_shadow.py \
+            src/qore/infrastructure/cibo_profit_preservation_store.py \
+            src/qore/infrastructure/cibo_profit_preservation_population.py \
+            src/qore/infrastructure/cibo_profit_preservation_oos_binding.py \
+            src/qore/infrastructure/cibo_profit_preservation_economic_gate.py \
+            tests/infrastructure/test_cibo_profit_preservation_shadow.py \
+            tests/infrastructure/test_cibo_profit_preservation_economic_gate.py
+          mypy \
+            src/qore/infrastructure/cibo_profit_preservation_shadow.py \
+            src/qore/infrastructure/cibo_profit_preservation_store.py \
+            src/qore/infrastructure/cibo_profit_preservation_population.py \
+            src/qore/infrastructure/cibo_profit_preservation_oos_binding.py \
+            src/qore/infrastructure/cibo_profit_preservation_economic_gate.py
+          python -m py_compile \
+            src/qore/infrastructure/cibo_profit_preservation_shadow.py \
+            src/qore/infrastructure/cibo_profit_preservation_store.py \
+            src/qore/infrastructure/cibo_profit_preservation_population.py \
+            src/qore/infrastructure/cibo_profit_preservation_oos_binding.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_profit_preservation_shadow.py \
+            tests/infrastructure/test_cibo_profit_preservation_economic_gate.py

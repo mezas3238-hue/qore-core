@@ -1,0 +1,46 @@
+name: QORE CIBO Maximum Capability Unit Validation
+
+on:
+  push:
+    branches:
+      - agent/cibo-post-repair-3x1y-validation-001
+    paths:
+      - '.github/workflows/cibo-maximum-capability-unit.yml'
+      - 'src/qore/infrastructure/cibo_full_economic_digital_twin.py'
+      - 'src/qore/infrastructure/cibo_maximum_capability_frontier.py'
+      - 'src/qore/infrastructure/cibo_position_lifecycle.py'
+      - 'src/qore/infrastructure/cibo_capital_velocity_redeployment.py'
+      - 'src/qore/infrastructure/cibo_maximum_capability_efficiency.py'
+      - 'tests/infrastructure/test_cibo_full_economic_digital_twin.py'
+      - 'tests/infrastructure/test_cibo_maximum_capability_frontier.py'
+      - 'tests/infrastructure/test_cibo_capital_velocity_redeployment.py'
+      - 'tests/infrastructure/test_cibo_maximum_capability_efficiency.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  maximum-capability-unit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: python -m pip install -e '.[dev]'
+
+      - name: Compile
+        run: |
+          python -m py_compile             src/qore/infrastructure/cibo_full_economic_digital_twin.py             src/qore/infrastructure/cibo_maximum_capability_frontier.py             src/qore/infrastructure/cibo_position_lifecycle.py             src/qore/infrastructure/cibo_capital_velocity_redeployment.py             src/qore/infrastructure/cibo_maximum_capability_efficiency.py
+
+      - name: Ruff
+        run: |
+          ruff check             src/qore/infrastructure/cibo_full_economic_digital_twin.py             src/qore/infrastructure/cibo_maximum_capability_frontier.py             src/qore/infrastructure/cibo_position_lifecycle.py             src/qore/infrastructure/cibo_capital_velocity_redeployment.py             src/qore/infrastructure/cibo_maximum_capability_efficiency.py             tests/infrastructure/test_cibo_full_economic_digital_twin.py             tests/infrastructure/test_cibo_maximum_capability_frontier.py             tests/infrastructure/test_cibo_capital_velocity_redeployment.py             tests/infrastructure/test_cibo_maximum_capability_efficiency.py
+
+      - name: Pytest causal invariants
+        run: |
+          pytest -q --no-cov             tests/infrastructure/test_cibo_full_economic_digital_twin.py             tests/infrastructure/test_cibo_maximum_capability_frontier.py             tests/infrastructure/test_cibo_capital_velocity_redeployment.py             tests/infrastructure/test_cibo_maximum_capability_efficiency.py

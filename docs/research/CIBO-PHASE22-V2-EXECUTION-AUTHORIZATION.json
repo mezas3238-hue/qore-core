@@ -1,0 +1,15 @@
+{
+  "schema": "qore.cibo.phase22.execution-authorization.v1",
+  "authorization_id": "CIBO_PHASE22_V2_ONE_SHOT_OWNER_AUTHORIZATION_V1",
+  "candidate_id": "CIBO_USD60_6M_HOLDOUT_2015-10-19_2016-04-19_V2",
+  "authorized_parent_head_sha": "1e0a578e07cadf9aab0ad5af9fbfab516140336b",
+  "target_branch": "agent/cibo-integrator-ab-001",
+  "fresh_holdout_execution_authorized": true,
+  "one_shot_only": true,
+  "second_execution_authorized": false,
+  "broker_mutation_authorized": false,
+  "live_authorized": false,
+  "real_capital_authorized": false,
+  "merge_authorized": false,
+  "productive_authority": false
+}

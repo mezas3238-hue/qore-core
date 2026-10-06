@@ -1,0 +1,60 @@
+name: QORE CIBO GEN-C10 Capital Digital Twin
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-genc10-capital-digital-twin.yml'
+      - 'src/qore/infrastructure/cibo_capital_digital_twin.py'
+      - 'src/qore/infrastructure/cibo_genc10_transition_uncertainty_calibration.py'
+      - 'tests/infrastructure/test_cibo_capital_digital_twin.py'
+      - 'tests/infrastructure/test_cibo_genc10_transition_uncertainty_calibration.py'
+      - 'docs/research/CIBO-GEN-C10-CAPITAL-DIGITAL-TWIN-PREREGISTRATION-V1.md'
+      - 'docs/research/CIBO-GEN-C10-TRANSITION-UNCERTAINTY-CALIBRATION-PROTOCOL-V1.md'
+      - 'docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json'
+  push:
+    branches:
+      - agent/cibo-capital-efficiency-sizing-lab-001
+    paths:
+      - '.github/workflows/cibo-genc10-capital-digital-twin.yml'
+      - 'src/qore/infrastructure/cibo_capital_digital_twin.py'
+      - 'src/qore/infrastructure/cibo_genc10_transition_uncertainty_calibration.py'
+      - 'tests/infrastructure/test_cibo_capital_digital_twin.py'
+      - 'tests/infrastructure/test_cibo_genc10_transition_uncertainty_calibration.py'
+      - 'docs/research/CIBO-GEN-C10-CAPITAL-DIGITAL-TWIN-PREREGISTRATION-V1.md'
+      - 'docs/research/CIBO-GEN-C10-TRANSITION-UNCERTAINTY-CALIBRATION-PROTOCOL-V1.md'
+      - 'docs/research/CIBO-MASTER-OPEN-WORK-LEDGER-V1.json'
+
+permissions:
+  contents: read
+
+env:
+  EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  genc10-capital-digital-twin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: GEN-C10 quality and invariants
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_capital_digital_twin.py \
+            src/qore/infrastructure/cibo_genc10_transition_uncertainty_calibration.py \
+            tests/infrastructure/test_cibo_capital_digital_twin.py \
+            tests/infrastructure/test_cibo_genc10_transition_uncertainty_calibration.py
+          mypy \
+            src/qore/infrastructure/cibo_capital_digital_twin.py \
+            src/qore/infrastructure/cibo_genc10_transition_uncertainty_calibration.py
+          python -m py_compile \
+            src/qore/infrastructure/cibo_capital_digital_twin.py \
+            src/qore/infrastructure/cibo_genc10_transition_uncertainty_calibration.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_capital_digital_twin.py \
+            tests/infrastructure/test_cibo_genc10_transition_uncertainty_calibration.py

@@ -1,0 +1,179 @@
+name: QORE CIBO Phase20 DEMO Execution Arm
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-phase20-demo-execution-arm.yml'
+      - 'scripts/qore_ctrader_demo_free_runtime.py'
+      - 'src/qore/infrastructure/cibo_phase20_bounded_runtime.py'
+      - 'tests/infrastructure/test_cibo_phase20_bounded_runtime.py'
+      - 'src/qore/infrastructure/cibo_ce2i_phase20_demo_risk_bridge.py'
+      - 'tests/infrastructure/test_cibo_ce2i_phase20_demo_risk_bridge.py'
+      - 'tests/infrastructure/test_ctrader_demo_phase20_risk_sink.py'
+      - 'src/qore/infrastructure/ctrader_demo_free_sink.py'
+      - 'src/qore/infrastructure/ctrader_demo_trade_registry.py'
+  push:
+    branches:
+      - agent/cibo-capital-efficiency-sizing-lab-001
+    paths:
+      - .github/workflows/cibo-phase20-demo-execution-arm.yml
+      - scripts/cibo_phase20_demo_execution_arm.py
+      - src/qore/infrastructure/ctrader_demo_free_binding.py
+      - src/qore/infrastructure/ctrader_open_api_client.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+
+jobs:
+  bounded-runtime-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Validate bounded Phase20D runtime contract
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_phase20_bounded_runtime.py \
+            tests/infrastructure/test_cibo_phase20_bounded_runtime.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_demo_risk_bridge.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_demo_risk_bridge.py \
+            tests/infrastructure/test_ctrader_demo_phase20_risk_sink.py
+          ruff check --select F \
+            src/qore/infrastructure/ctrader_demo_free_sink.py \
+            src/qore/infrastructure/ctrader_demo_trade_registry.py
+          mypy \
+            src/qore/infrastructure/cibo_phase20_bounded_runtime.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_demo_risk_bridge.py
+          python -m py_compile \
+            src/qore/infrastructure/cibo_phase20_bounded_runtime.py \
+            src/qore/infrastructure/cibo_ce2i_phase20_demo_risk_bridge.py \
+            src/qore/infrastructure/ctrader_demo_free_sink.py \
+            src/qore/infrastructure/ctrader_demo_trade_registry.py \
+            scripts/qore_ctrader_demo_free_runtime.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_phase20_bounded_runtime.py \
+            tests/infrastructure/test_cibo_ce2i_phase20_demo_risk_bridge.py \
+            tests/infrastructure/test_ctrader_demo_phase20_risk_sink.py
+
+  arm:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact branch head
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install cTrader runtime
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[ctrader,dev]"
+
+      - name: Quality execution arm
+        run: |
+          ruff check scripts/cibo_phase20_demo_execution_arm.py
+          mypy --disable-error-code=import-untyped scripts/cibo_phase20_demo_execution_arm.py
+          python -m py_compile scripts/cibo_phase20_demo_execution_arm.py
+
+      - name: Verify required DEMO secrets without printing them
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in             QORE_CTRADER_CLIENT_ID             QORE_CTRADER_CLIENT_SECRET             QORE_CTRADER_ACCESS_TOKEN             QORE_CTRADER_REFRESH_TOKEN
+          do
+            if [ -z "${!name:-}" ]; then
+              echo "missing required DEMO runtime input: ${name}" >&2
+              exit 2
+            fi
+          done
+
+      - name: Discover authorized DEMO account when not configured
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            if ! [[ "$account_id" =~ ^[1-9][0-9]*$ ]]; then
+              echo "cTrader DEMO account discovery returned invalid id" >&2
+              exit 3
+            fi
+            echo "::add-mask::$account_id"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
+
+      - name: Arm Phase20D DEMO collector without broker mutation
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p phase20-demo-arm/var/ctrader_demo_free
+          python scripts/cibo_phase20_demo_execution_arm.py             --binding-output phase20-demo-arm/var/ctrader_demo_free/binding.json             --report-output phase20-demo-arm/arm-report.json             > phase20-demo-arm/arm-stdout.json
+          printf '%s\n' "$GITHUB_SHA" > phase20-demo-arm/git-sha.txt
+
+      - name: Validate fail-closed arm
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("phase20-demo-arm")
+          arm = json.loads((root / "arm-report.json").read_text())
+          binding = json.loads(
+              (root / "var/ctrader_demo_free/binding.json").read_text()
+          )
+          assert arm["status"] == "ARMED_NOT_ACTIVATED"
+          assert arm["environment"] == "demo"
+          assert arm["initial_open_positions"] == 0
+          assert arm["initial_pending_orders"] == 0
+          assert arm["broker_mutation_performed"] is False
+          assert arm["execution_authorized"] is False
+          assert arm["phase20d_population_started"] is False
+          assert arm["governance"]["fundednext_touched"] is False
+          assert arm["governance"]["vps_touched"] is False
+          assert len(binding["contracts"]) == 6
+          assert {
+              row["qore_symbol"] for row in binding["contracts"]
+          } == {
+              "AUDJPY",
+              "EURUSD",
+              "GBPJPY",
+              "GBPUSD",
+              "NAS100",
+              "XAUUSD",
+          }
+          by_symbol = {
+              row["qore_symbol"]: row for row in binding["contracts"]
+          }
+          assert by_symbol["NAS100"]["source_contract_size_units"] == "10"
+          assert by_symbol["XAUUSD"]["source_contract_size_units"] == "100"
+          PY
+
+      - name: Seal arm evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd phase20-demo-arm
+          sha256sum             arm-report.json             arm-stdout.json             git-sha.txt             var/ctrader_demo_free/binding.json             > SHA256SUMS.txt
+          sha256sum -c SHA256SUMS.txt
+
+      - name: Upload sanitized arm evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-phase20-demo-execution-arm-${{ github.sha }}
+          path: phase20-demo-arm
+          if-no-files-found: error
+          retention-days: 90

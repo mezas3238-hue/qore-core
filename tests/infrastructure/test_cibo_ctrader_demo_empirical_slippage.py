@@ -1,0 +1,102 @@
+from decimal import Decimal
+from types import SimpleNamespace
+
+import pytest
+
+from qore.infrastructure.cibo_capital_management_authority import (
+    CiboCapitalManagementError,
+)
+from qore.infrastructure.cibo_ctrader_demo_empirical_slippage import (
+    decode_ctrader_tick_series,
+    signed_slippage,
+)
+
+
+def test_tick_series_accepts_live_signed_time_and_price_deltas() -> None:
+    rows = (
+        SimpleNamespace(timestamp=1_790_884_402_000, tick=10_956_400),
+        SimpleNamespace(timestamp=-2_402, tick=100),
+        SimpleNamespace(timestamp=-398, tick=100),
+        SimpleNamespace(timestamp=-406, tick=-100),
+    )
+
+    assert decode_ctrader_tick_series(rows) == (
+        (1_790_884_402_000, Decimal("109.564")),
+        (1_790_884_399_598, Decimal("109.565")),
+        (1_790_884_399_200, Decimal("109.566")),
+        (1_790_884_398_794, Decimal("109.565")),
+    )
+
+
+def test_tick_series_rejects_non_descending_delta() -> None:
+    rows = (
+        SimpleNamespace(timestamp=1_000, tick=110_000),
+        SimpleNamespace(timestamp=2_000, tick=110_001),
+    )
+
+    with pytest.raises(CiboCapitalManagementError):
+        decode_ctrader_tick_series(rows)
+
+
+def test_tick_series_decodes_newest_first_time_and_price_deltas() -> None:
+    rows = (
+        SimpleNamespace(timestamp=1_000_000, tick=110_000),
+        SimpleNamespace(timestamp=-250, tick=-10),
+        SimpleNamespace(timestamp=-500, tick=20),
+        SimpleNamespace(timestamp=0, tick=0),
+    )
+
+    decoded = decode_ctrader_tick_series(rows)
+
+    assert decoded == (
+        (1_000_000, Decimal("1.1")),
+        (999_750, Decimal("1.0999")),
+        (999_250, Decimal("1.1001")),
+        (999_250, Decimal("1.1001")),
+    )
+
+
+def test_tick_series_accepts_legacy_positive_time_distance() -> None:
+    rows = (
+        SimpleNamespace(timestamp=1_000_000, tick=110_000),
+        SimpleNamespace(timestamp=250, tick=-10),
+    )
+
+    assert decode_ctrader_tick_series(rows) == (
+        (1_000_000, Decimal("1.1")),
+        (999_750, Decimal("1.0999")),
+    )
+
+def test_buy_and_sell_slippage_sign_is_adverse_positive() -> None:
+    buy = signed_slippage(
+        side="BUY",
+        quote_price=Decimal("100"),
+        fill_price=Decimal("100.1"),
+    )
+    sell = signed_slippage(
+        side="SELL",
+        quote_price=Decimal("100"),
+        fill_price=Decimal("99.9"),
+    )
+    favorable = signed_slippage(
+        side="BUY",
+        quote_price=Decimal("100"),
+        fill_price=Decimal("99.9"),
+    )
+
+    assert buy[0] == Decimal("0.1")
+    assert buy[1] == Decimal("10")
+    assert buy[2] == Decimal("10")
+    assert sell[0] == Decimal("0.1")
+    assert sell[1] == Decimal("10")
+    assert sell[2] == Decimal("10")
+    assert favorable[1] == Decimal("-10")
+    assert favorable[2] == Decimal("0")
+
+
+def test_tick_lookbacks_are_bounded_and_widen_only() -> None:
+    from qore.infrastructure import cibo_ctrader_demo_empirical_slippage as module
+
+    assert module._TICK_LOOKBACK_WINDOWS_MS == (300_000, 900_000, 3_600_000)
+    assert module._HISTORICAL_REQUEST_PAUSE_SECONDS >= 0.2
+    assert module._HISTORICAL_REQUEST_PAUSE_SECONDS < 1

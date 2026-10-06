@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -140,3 +141,45 @@ def test_stale_boot_snapshot_can_be_recovered_by_fresh_refresh(tmp_path: Path) -
     assert restarted.recovery_required is False
     authorization = restarted.authorize(_request("fresh-after-recovery"), _snapshot(), now=_NOW)
     assert authorization.decision is not RiskDecision.REJECT
+
+def test_durable_risk_rejects_authorization_content_drift(tmp_path: Path) -> None:
+    path = tmp_path / "account-wide-risk.json"
+    engine = DurableAccountWideRiskEngine(DurableAccountWideRiskLedger(path))
+    engine.authorize(_request("same"), _snapshot(), now=_NOW)
+
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["reservations"][0]["authorization"]["provider_symbol"] = (
+        "CORRUPTED.GBPUSD"
+    )
+    path.write_text(
+        json.dumps(payload, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        AccountWideRiskError,
+        match="fingerprint/content drift",
+    ):
+        DurableAccountWideRiskEngine(DurableAccountWideRiskLedger(path))
+
+
+def test_durable_risk_rejects_authorization_id_drift(tmp_path: Path) -> None:
+    path = tmp_path / "account-wide-risk.json"
+    engine = DurableAccountWideRiskEngine(DurableAccountWideRiskLedger(path))
+    engine.authorize(_request("same"), _snapshot(), now=_NOW)
+
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["reservations"][0]["authorization"]["authorization_id"] = (
+        "risk-000000000000000000000000"
+    )
+    path.write_text(
+        json.dumps(payload, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        AccountWideRiskError,
+        match="id/fingerprint drift",
+    ):
+        DurableAccountWideRiskEngine(DurableAccountWideRiskLedger(path))
+

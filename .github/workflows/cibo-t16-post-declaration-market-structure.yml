@@ -1,0 +1,156 @@
+name: QORE CIBO T16 Post-Declaration Market Structure
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/cibo-certification-architect-b-integration-001
+    paths:
+      - '.github/workflows/cibo-t16-post-declaration-market-structure.yml'
+      - 'scripts/cibo_t16_ctrader_demo_post_declaration_probe.py'
+      - 'src/qore/infrastructure/cibo_ce2i_t16_hedge_candidate.py'
+      - 'src/qore/infrastructure/cibo_ce2i_t16_preregistered_hedge_universe.py'
+      - 'tests/infrastructure/test_cibo_ce2i_t16_hedge_candidate.py'
+      - 'tests/infrastructure/test_cibo_t16_ctrader_demo_post_declaration_probe.py'
+      - 'docs/research/CIBO-B-T16-HEDGE-PAIR-PREREGISTRATION-V1.json'
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-t16-post-declaration-market-structure.yml'
+      - 'scripts/cibo_t16_ctrader_demo_post_declaration_probe.py'
+      - 'src/qore/infrastructure/cibo_ce2i_t16_hedge_candidate.py'
+      - 'src/qore/infrastructure/cibo_ce2i_t16_preregistered_hedge_universe.py'
+      - 'tests/infrastructure/test_cibo_ce2i_t16_hedge_candidate.py'
+      - 'tests/infrastructure/test_cibo_t16_ctrader_demo_post_declaration_probe.py'
+      - 'docs/research/CIBO-B-T16-HEDGE-PAIR-PREREGISTRATION-V1.json'
+
+permissions:
+  contents: read
+
+env:
+  EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  QORE_CTRADER_CLIENT_ID: ${{ secrets.QORE_CTRADER_CLIENT_ID || secrets.QORE_CTRADER_DEMO_CLIENT_ID }}
+  QORE_CTRADER_CLIENT_SECRET: ${{ secrets.QORE_CTRADER_CLIENT_SECRET || secrets.QORE_CTRADER_DEMO_CLIENT_SECRET }}
+  QORE_CTRADER_ACCESS_TOKEN: ${{ secrets.QORE_CTRADER_ACCESS_TOKEN || secrets.QORE_CTRADER_DEMO_ACCESS_TOKEN }}
+  QORE_CTRADER_REFRESH_TOKEN: ${{ secrets.QORE_CTRADER_REFRESH_TOKEN || secrets.QORE_CTRADER_DEMO_REFRESH_TOKEN }}
+  QORE_CTRADER_DEMO_ACCOUNT_ID: ${{ secrets.QORE_CTRADER_DEMO_ACCOUNT_ID || secrets.QORE_CTRADER_ACCOUNT_ID }}
+
+jobs:
+  t16-post-declaration-market-structure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -e '.[dev,ctrader]'
+
+      - name: T16 post-declaration quality
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_ce2i_t16_hedge_candidate.py \
+            src/qore/infrastructure/cibo_ce2i_t16_preregistered_hedge_universe.py \
+            scripts/cibo_t16_ctrader_demo_post_declaration_probe.py \
+            tests/infrastructure/test_cibo_ce2i_t16_hedge_candidate.py \
+            tests/infrastructure/test_cibo_t16_ctrader_demo_post_declaration_probe.py
+          mypy \
+            src/qore/infrastructure/cibo_ce2i_t16_hedge_candidate.py \
+            src/qore/infrastructure/cibo_ce2i_t16_preregistered_hedge_universe.py \
+            scripts/cibo_t16_ctrader_demo_post_declaration_probe.py
+          python -m py_compile \
+            src/qore/infrastructure/cibo_ce2i_t16_hedge_candidate.py \
+            src/qore/infrastructure/cibo_ce2i_t16_preregistered_hedge_universe.py \
+            scripts/cibo_t16_ctrader_demo_post_declaration_probe.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_ce2i_t16_hedge_candidate.py \
+            tests/infrastructure/test_cibo_ce2i_t16_preregistered_hedge_universe.py \
+            tests/infrastructure/test_cibo_t16_ctrader_demo_post_declaration_probe.py
+
+      - name: Verify DEMO credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in \
+            QORE_CTRADER_CLIENT_ID \
+            QORE_CTRADER_CLIENT_SECRET \
+            QORE_CTRADER_ACCESS_TOKEN \
+            QORE_CTRADER_REFRESH_TOKEN
+          do
+            test -n "${!name:-}" || {
+              echo "::error::missing required cTrader DEMO secret: $name"
+              exit 1
+            }
+          done
+          if [ -z "${QORE_CTRADER_DEMO_ACCOUNT_ID:-}" ]; then
+            account_id="$(python -m qore.infrastructure.ctrader_demo_account_discovery)"
+            printf 'QORE_CTRADER_DEMO_ACCOUNT_ID=%s\n' "$account_id" >> "$GITHUB_ENV"
+          fi
+
+      - name: Collect post-declaration market structure
+        run: |
+          mkdir -p t16-post-declaration
+          python scripts/cibo_t16_ctrader_demo_post_declaration_probe.py \
+            --output t16-post-declaration/t16-market-structure.json \
+            > t16-post-declaration/t16-market-structure.stdout.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(
+              Path(
+                  "t16-post-declaration/t16-market-structure.json"
+              ).read_text(encoding="utf-8")
+          )
+          assert payload["schema"] == (
+              "qore.cibo.t16.post_declaration_market_structure.v1"
+          )
+          assert payload["provider_key"] == "ctrader-demo"
+          assert payload["environment"] == "demo"
+          assert payload["pair_count"] == 2
+          assert set(payload["provider_terms"]) == {"USTEC", "US30", "US500"}
+          assert payload["provider_contract_and_quote_coverage_complete"] is True
+          assert payload["empirical_slippage_coverage_complete"] is False
+          assert payload["realized_execution_coverage_complete"] is False
+          assert payload["full_hedge_cost_model_ready"] is False
+          assert payload["hedge_cost_history_claimed"] is False
+          assert payload["execution_cost_history_claimed"] is False
+          assert payload["holdout_outcomes_used"] is False
+          assert payload["holdout_market_data_read"] is False
+          assert payload["broker_mutation_performed"] is False
+          assert payload["productive_authority"] is False
+          for symbol, terms in payload["provider_terms"].items():
+              assert terms["enabled"] is True, symbol
+              assert terms["provider_contract_and_quote_ready"] is True, symbol
+              assert terms["realized_slippage_observed"] is False, symbol
+              assert terms["realized_fill_observed"] is False, symbol
+              assert terms["full_hedge_cost_model_ready"] is False, symbol
+              assert terms["productive_authority"] is False, symbol
+          for pair in payload["pairs"]:
+              audit = pair["audit"]
+              assert audit["fresh_oos_utility_demonstrated"] is False
+              assert audit["t16_policy_ready"] is False
+              assert audit["productive_authority"] is False
+          PY
+
+      - name: Seal T16 evidence
+        run: |
+          printf '%s\n' "$EVIDENCE_SHA" > t16-post-declaration/git-sha.txt
+          cd t16-post-declaration
+          sha256sum \
+            t16-market-structure.json \
+            t16-market-structure.stdout.json \
+            git-sha.txt > SHA256SUMS.txt
+          sha256sum -c SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-t16-post-declaration-${{ env.EVIDENCE_SHA }}
+          path: t16-post-declaration
+          if-no-files-found: error
+          retention-days: 90

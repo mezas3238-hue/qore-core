@@ -2,9 +2,11 @@
 
 This module is an orchestration boundary only. It binds a fully-specified,
 deterministic quantitative request to a pre-computed exact ``Decimal`` result and
-certified evidence. It performs no statistical math of its own, consults no
-provider, uses no random source, and grants no execution authority: a quantitative
-result is an observation, never an order or a Risk decision.
+typed evidence. It performs no statistical math of its own, consults no provider,
+uses no random source, and grants no execution authority: a quantitative result is
+an observation, never an order or a Risk decision. Function availability is
+environment-neutral: holdout, replay, TEST, DEMO, LIVE, and Production consumers
+may call the same engine; downstream Risk/execution authority remains separate.
 """
 
 from __future__ import annotations
@@ -16,7 +18,6 @@ from enum import StrEnum
 from re import fullmatch
 
 from qore.infrastructure.cibo.contracts import (
-    CiboEvidenceStatus,
     CiboFunctionalError,
     CiboFunctionalEvidence,
     CiboFunctionalValidationError,
@@ -192,10 +193,11 @@ class CiboQuantRequest:
 
 @dataclass(frozen=True, slots=True)
 class CiboQuantResult:
-    """An exact quantitative result bound to sufficient evidence.
+    """Exact environment-neutral quantitative output bound to typed evidence.
 
-    The exact ``Decimal`` value is required: prose substitution is not permitted,
-    and the evidence must be SUFFICIENT for the result to be authoritative.
+    Evidence status is preserved as provenance for downstream consumers, but it
+    does not gate CF10 execution. A consumer that needs Risk, execution, broker,
+    certification, or other authority must enforce that authority separately.
     """
 
     request: CiboQuantRequest
@@ -219,10 +221,6 @@ class CiboQuantResult:
                 "quant result requires CiboFunctionalEvidence"
             )
         CiboFunctionalEvidence.__post_init__(self.evidence)
-        if self.evidence.status is not CiboEvidenceStatus.SUFFICIENT:
-            raise CiboFunctionalValidationError(
-                "quant result requires sufficient evidence"
-            )
         _validate_timestamp(self.computed_at, field_name="quant computed_at")
         if self.computed_at < self.request.requested_at:
             raise CiboFunctionalValidationError(
@@ -270,10 +268,6 @@ class CiboQuantitativeIntelligence:
                     "quant dispatch requires CiboFunctionalEvidence"
                 )
             CiboFunctionalEvidence.__post_init__(evidence)
-            if evidence.status is not CiboEvidenceStatus.SUFFICIENT:
-                raise CiboFunctionalValidationError(
-                    "quant dispatch requires sufficient evidence"
-                )
             exact = _validate_exact_decimal(exact_value, field_name="quant exact value")
             normalized_code = _validate_code(result_code, field_name="quant result code")
             _validate_timestamp(computed_at, field_name="quant computed_at")

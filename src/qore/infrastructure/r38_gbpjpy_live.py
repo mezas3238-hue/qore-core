@@ -29,6 +29,10 @@ from typing import Any
 
 from qore.infrastructure.account_wide_risk import CiboRiskRequest, TraderLineage
 from qore.infrastructure.broker_risk_sizing import size_volume_for_risk
+from qore.infrastructure.cibo_capital_management_authority import (
+    TraderOpportunityEnvelope,
+)
+from qore.infrastructure.cibo_live_opportunity import build_live_opportunity
 from qore.infrastructure.ctrader_demo_compat import (
     NEW_YORK_TZ,
     normalise_legacy_server_epoch,
@@ -911,6 +915,69 @@ def build_live_signal(
 def _floor_to_step(value: Decimal, step: Decimal) -> Decimal:
     units = (value / step).to_integral_value(rounding=ROUND_FLOOR)
     return units * step
+
+
+def build_r38_gbpjpy_opportunity(
+    *,
+    signal: R38GbpJpyLiveSignal,
+    provider_spec: Any,
+) -> TraderOpportunityEnvelope:
+    """Build GBPJPY R38 opportunity without Trader sizing authority."""
+
+    for name, value in (
+        ("volume_min", provider_spec.minimum_volume),
+        ("volume_step", provider_spec.volume_step),
+        ("volume_max", provider_spec.maximum_volume),
+        ("tick_size", provider_spec.tick_size),
+        ("tick_value", provider_spec.tick_value),
+        ("contract_size", provider_spec.contract_size),
+        ("point", provider_spec.point),
+    ):
+        if value <= 0:
+            raise ValueError(f"GBPJPY R38 broker {name} invalid")
+    if provider_spec.maximum_volume < provider_spec.minimum_volume:
+        raise ValueError("GBPJPY R38 broker volume range invalid")
+    if provider_spec.spread_points < 0:
+        raise ValueError("GBPJPY R38 broker spread invalid")
+    if provider_spec.minimum_stop_distance_points < 0:
+        raise ValueError("GBPJPY R38 broker stops level invalid")
+    if not provider_spec.trade_enabled or not provider_spec.session_open:
+        raise ValueError("GBPJPY R38 broker trading unavailable")
+
+    executable = provider_spec.ask if signal.side == "long" else provider_spec.bid
+    stop_points = abs(executable - signal.stop_loss) / provider_spec.point
+    target_points = abs(signal.take_profit - executable) / provider_spec.point
+    if stop_points < provider_spec.minimum_stop_distance_points:
+        raise ValueError("GBPJPY R38 stop is inside broker stops level")
+    if target_points < provider_spec.minimum_stop_distance_points:
+        raise ValueError("GBPJPY R38 target is inside broker stops level")
+
+    commission_per_lot = getattr(
+        provider_spec,
+        "open_commission_per_lot_usd",
+        Decimal("7"),
+    )
+    return build_live_opportunity(
+        trader_id=TraderLineage.R38_GBPJPY,
+        signal_fingerprint=signal.signal_fingerprint,
+        qore_symbol=SYMBOL,
+        provider_symbol=provider_spec.provider_symbol,
+        side=signal.side,
+        entry_type="market",
+        certified_entry=signal.certified_entry,
+        execution_entry=executable,
+        stop_loss=signal.stop_loss,
+        take_profit=signal.take_profit,
+        tick_size=provider_spec.tick_size,
+        tick_value=provider_spec.tick_value,
+        margin_per_volume=provider_spec.margin_per_volume,
+        volume_step=provider_spec.volume_step,
+        minimum_volume=provider_spec.minimum_volume,
+        maximum_volume=provider_spec.maximum_volume,
+        broker_risk_buffer=BROKER_RISK_BUFFER,
+        commission_per_volume_usd=commission_per_lot,
+        maximum_adverse_entry_drift_r=MAX_SOURCE_ENTRY_DRIFT_R,
+    )
 
 
 def build_r38_gbpjpy_risk_request(

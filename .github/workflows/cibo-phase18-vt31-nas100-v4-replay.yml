@@ -1,0 +1,174 @@
+name: QORE CIBO Phase 18 VT31 NAS100 V4 Chronological Replay
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/cibo-phase18-vt31-nas100-v4-replay.yml'
+      - 'scripts/cibo_phase18_vt31_v4_geometry_patch.py'
+      - 'scripts/cibo_phase18_vt31_rearm_geometry_patch.py'
+      - 'scripts/cibo_phase18_vt31_bind.py'
+      - 'scripts/cibo_phase18_vt31_score.py'
+      - 'src/qore/infrastructure/cibo_ce2i_chronological_replay.py'
+      - 'tests/infrastructure/test_cibo_ce2i_chronological_replay.py'
+      - 'tests/infrastructure/trader_lab/test_cibo_phase18_vt31_v4_geometry_patch.py'
+  push:
+    branches:
+      - agent/cibo-capital-efficiency-sizing-lab-001
+    paths:
+      - '.github/workflows/cibo-phase18-vt31-nas100-v4-replay.yml'
+      - 'scripts/cibo_phase18_vt31_v4_geometry_patch.py'
+      - 'scripts/cibo_phase18_vt31_rearm_geometry_patch.py'
+      - 'scripts/cibo_phase18_vt31_bind.py'
+      - 'scripts/cibo_phase18_vt31_score.py'
+      - 'src/qore/infrastructure/cibo_ce2i_chronological_replay.py'
+      - 'tests/infrastructure/test_cibo_ce2i_chronological_replay.py'
+      - 'tests/infrastructure/trader_lab/test_cibo_phase18_vt31_v4_geometry_patch.py'
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  EVIDENCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  VT31_SOURCE_SHA: 'cac38ed14f20e066536910145027426fd23f5939'
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Focused quality
+        run: |
+          ruff check \
+            scripts/cibo_phase18_vt31_v4_geometry_patch.py \
+            scripts/cibo_phase18_vt31_rearm_geometry_patch.py \
+            scripts/cibo_phase18_vt31_bind.py \
+            scripts/cibo_phase18_vt31_score.py \
+            src/qore/infrastructure/cibo_ce2i_chronological_replay.py \
+            tests/infrastructure/test_cibo_ce2i_chronological_replay.py \
+            tests/infrastructure/trader_lab/test_cibo_phase18_vt31_v4_geometry_patch.py
+          mypy \
+            scripts/cibo_phase18_vt31_v4_geometry_patch.py \
+            scripts/cibo_phase18_vt31_rearm_geometry_patch.py \
+            scripts/cibo_phase18_vt31_bind.py \
+            scripts/cibo_phase18_vt31_score.py \
+            src/qore/infrastructure/cibo_ce2i_chronological_replay.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_ce2i_chronological_replay.py \
+            tests/infrastructure/trader_lab/test_cibo_phase18_vt31_v4_geometry_patch.py
+
+  replay-vt31:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Checkout CIBO evidence head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_SHA }}
+
+      - name: Checkout immutable VT31 V4 source code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.VT31_SOURCE_SHA }}
+          path: vt31-code
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: python -m pip install -e .
+
+      - name: Verify immutable VT31 source commit
+        run: |
+          test "$(git -C vt31-code rev-parse HEAD)" = "$VT31_SOURCE_SHA"
+          test "$VT31_SOURCE_SHA" = "cac38ed14f20e066536910145027426fd23f5939"
+
+      - name: Instrument exact V4 source for row serialization only
+        run: |
+          python scripts/cibo_phase18_vt31_v4_geometry_patch.py \
+            "vt31-code/scripts/vt31_nas100_structural_target_execution_binding_5y_v4.py" \
+            "vt31-code/scripts/cibo_phase18_vt31_v4_replay.py"
+          python scripts/cibo_phase18_vt31_rearm_geometry_patch.py \
+            "vt31-code/scripts/vt31_nas100_r5_corrective_management_frontier_v1.py" \
+            "vt31-code/scripts/vt31_nas100_r5_corrective_management_frontier_v1.py"
+          python -m py_compile \
+            vt31-code/scripts/cibo_phase18_vt31_v4_replay.py \
+            vt31-code/scripts/vt31_nas100_r5_corrective_management_frontier_v1.py
+
+      - name: Recover immutable VT31 and authoritative V4 evidence
+        run: |
+          set -euo pipefail
+          mkdir -p input/r8 input/r6 input/r5 authoritative phase18-output
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10402199719/zip" > r8.zip
+          unzip -q r8.zip -d input/r8
+          echo "4031c7e21bb311fdb99d7b1028fd9ff154ace1dc4886249ff978b700fdeeedcb  input/r8/fresh/NAS100/market-evidence.json" | sha256sum -c -
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10389112524/zip" > r6.zip
+          unzip -q r6.zip -d input/r6
+          echo "cf3ef22fa86916bfb2826f4fa48c7a9655b9509c76a05d9bb26d0d4cb6069581  input/r6/fresh/NAS100/market-evidence.json" | sha256sum -c -
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10380044761/zip" > r5.zip
+          unzip -q r5.zip -d input/r5
+          echo "7b1e3d9e2bfd17ccc6f043befabf464838d150bc6034ced1f76a24ee248611d7  input/r5/fresh/NAS100/market-evidence.json" | sha256sum -c -
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10610673464/zip" \
+            > authoritative.zip
+          unzip -q authoritative.zip -d authoritative
+          (cd authoritative && sha256sum -c SHA256SUMS)
+
+      - name: Reproduce exact VT31 V4 rows and metrics
+        env:
+          PYTHONPATH: ${{ github.workspace }}/vt31-code/src:${{ github.workspace }}/vt31-code/scripts
+        run: |
+          python vt31-code/scripts/cibo_phase18_vt31_v4_replay.py \
+            --r8 input/r8/fresh/NAS100/market-evidence.json \
+            --r6 input/r6/fresh/NAS100/market-evidence.json \
+            --r5 input/r5/fresh/NAS100/market-evidence.json \
+            --output phase18-output/regenerated-vt31-v4.json \
+            > phase18-output/replay-stdout.json
+
+      - name: Bind regenerated rows to authoritative V4
+        run: |
+          python scripts/cibo_phase18_vt31_bind.py \
+            --regenerated phase18-output/regenerated-vt31-v4.json \
+            --authoritative authoritative/validation-5y-v4.json \
+            --output phase18-output
+
+      - name: Score VT31 with generic CIBO Phase 18 replay
+        run: |
+          python scripts/cibo_phase18_vt31_score.py \
+            --bound phase18-output/phase18-vt31-v4-bound-trades.jsonl \
+            --output phase18-output/phase18-vt31-v4-generic-score.json
+
+      - name: Hash Phase 18 evidence
+        run: |
+          printf '%s\n' "$EVIDENCE_SHA" > phase18-output/git-sha.txt
+          printf '%s\n' "$VT31_SOURCE_SHA" > phase18-output/vt31-source-sha.txt
+          cd phase18-output
+          sha256sum \
+            regenerated-vt31-v4.json \
+            phase18-vt31-v4-bound-report.json \
+            phase18-vt31-v4-bound-trades.jsonl \
+            phase18-vt31-v4-generic-score.json \
+            replay-stdout.json \
+            git-sha.txt \
+            vt31-source-sha.txt > SHA256SUMS.txt
+          sha256sum -c SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-phase18-vt31-v4-${{ env.EVIDENCE_SHA }}
+          path: phase18-output
+          if-no-files-found: error
+          retention-days: 90
