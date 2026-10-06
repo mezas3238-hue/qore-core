@@ -1,0 +1,62 @@
+{
+  "schema": "qore.github-trader-lab.profile.v2",
+  "profile_id": "cibo-capital-repair-fast-v1",
+  "repository": "mezas3238-hue/qore-core",
+  "subject": "CIBO",
+  "max_parallel_lanes": 1,
+  "preparation": {
+    "command": [
+      "python",
+      "{lab_root}/tools/github_trader_lab/adapters/cibo_capital_repair_prepare.py",
+      "--evidence",
+      "{evidence}",
+      "--output",
+      "{prepared}",
+      "--cutoff",
+      "2020-04-30T23:59:59+00:00"
+    ],
+    "dependency_globs": [
+      "scripts/cibo_build_walk_forward_expectation_manifest.py",
+      "src/qore/infrastructure/cibo_walk_forward_expectation.py",
+      "src/qore/infrastructure/cibo_walk_forward_forecast_confidence.py",
+      "src/qore/infrastructure/cibo_single_account_manifest_economics.py",
+      "src/qore/infrastructure/cibo_single_account_manifest_settlement.py",
+      "src/qore/infrastructure/cibo_single_account_manifest_integrity.py"
+    ]
+  },
+  "experiment": {
+    "command": [
+      "python",
+      "{lab_root}/tools/github_trader_lab/adapters/cibo_capital_repair_fast.py",
+      "--prepared",
+      "{prepared}",
+      "--lane",
+      "{lane}",
+      "--output",
+      "{normalized_output}"
+    ]
+  },
+  "lanes": {
+    "burned-repair": {
+      "artifact_id": 11389331836,
+      "artifact_path": "single-account-manifest-native.json",
+      "sha256": "c7050def4b0e0c7db9dc7f2d25c3d0a897379ac243038d5a6b0e317dc534929a"
+    }
+  },
+  "science": {
+    "control": "MATURE_4X_CONTROL",
+    "primary_lane": "burned-repair",
+    "min_density": "0",
+    "min_winner_count_preservation": "0",
+    "min_winner_r_preservation": "0",
+    "all_lane_pf_floor": "0",
+    "hard_dd_max_r": "999",
+    "primary_pf_floor": "0",
+    "primary_mean_r_floor": "-999",
+    "mc_paths_min": 10000,
+    "mc_block_length": 5,
+    "mc_positive_floor": "0",
+    "mc_p95_dd_max_r": "9999",
+    "require_temporal_nondegrade": false
+  }
+}

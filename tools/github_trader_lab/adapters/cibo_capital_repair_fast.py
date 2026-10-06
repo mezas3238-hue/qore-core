@@ -1,0 +1,589 @@
+#!/usr/bin/env python3
+"""Fast CIBO capital-path replay for the independent GitHub Trader Lab.
+
+Consumes a prepared causal opportunity ledger and replays only the capital
+actuator path. It is non-certifying and uses burned research history.
+Settlement outcomes are applied only after their exit time.
+"""
+
+from __future__ import annotations
+
+import argparse
+import heapq
+import itertools
+import json
+from collections import Counter, defaultdict
+from dataclasses import dataclass
+from decimal import ROUND_FLOOR, Decimal, localcontext
+from pathlib import Path
+from typing import Any
+
+ZERO = Decimal(0)
+ONE = Decimal(1)
+HUNDRED = Decimal(100)
+INITIAL = Decimal("60")
+
+
+def d(value: object) -> Decimal:
+    result = Decimal(str(value))
+    if not result.is_finite():
+        raise ValueError("non-finite Decimal")
+    return result
+
+
+def ratio(numerator: Decimal, denominator: Decimal) -> Decimal:
+    if denominator <= 0:
+        return ZERO if numerator <= 0 else ONE
+    with localcontext() as ctx:
+        ctx.prec = 80
+        return max(ZERO, min(ONE, numerator / denominator))
+
+
+def floor_step(value: Decimal, step: Decimal) -> Decimal:
+    if value <= 0:
+        return ZERO
+    with localcontext() as ctx:
+        ctx.prec = 80
+        return (
+            (value / step).to_integral_value(rounding=ROUND_FLOOR)
+            * step
+        )
+
+
+@dataclass(frozen=True)
+class Variant:
+    name: str
+    risk_fraction: Decimal
+    graded_intensity: bool
+    uncertainty_priced: bool
+    robust_portfolio: bool
+    genc12_binding: bool
+
+
+VARIANTS = (
+    Variant("MATURE_4X_CONTROL", Decimal("1"), False, False, False, False),
+    Variant("GRADED_INTENSITY", Decimal("1"), True, False, False, False),
+    Variant("GRADED_PLUS_SURVIVAL", Decimal("0.70"), True, False, False, True),
+    Variant("FULL_CAUSAL_REPAIR", Decimal("0.70"), True, True, True, True),
+)
+
+
+@dataclass
+class Deployment:
+    signal: str
+    trader_id: str
+    exit_at: str
+    risk: Decimal
+    margin: Decimal
+    provider_cost: Decimal
+    gross_r: Decimal
+    multiplier: int
+    volume: Decimal
+
+
+def _genc12_allows_new_capital(row: dict[str, Any], has_capacity: bool) -> bool:
+    if not has_capacity:
+        return False
+    regime = row["regime"]
+    if bool(regime.get("evidence_stale")):
+        return False
+    if str(regime.get("provider_condition")) != "HEALTHY":
+        return False
+    if str(regime.get("liquidity")) == "STRESSED":
+        return False
+    return True
+
+
+def _confidence_cap(
+    *,
+    row: dict[str, Any],
+    risk_utilization: Decimal,
+    margin_utilization: Decimal,
+    drawdown_utilization: Decimal,
+) -> int:
+    maturity = d(row.get("walk_forward_maturity_fraction", "0"))
+    utilization = max(
+        risk_utilization,
+        margin_utilization,
+        drawdown_utilization,
+    )
+    confidence_band = max(
+        0,
+        min(
+            100,
+            100 - int(utilization * HUNDRED),
+            int(maturity * HUNDRED),
+        ),
+    )
+    if confidence_band >= 67:
+        return 3
+    if confidence_band >= 34:
+        return 2
+    return 1
+
+
+def _eligible_net(
+    row: dict[str, Any],
+    *,
+    uncertainty_priced: bool,
+) -> Decimal | None:
+    if (
+        row.get("expectation_basis") != "WALK_FORWARD_EMPIRICAL_FORECAST"
+        or not bool(row.get("walk_forward_mature"))
+        or not bool(row.get("context_allowed"))
+        or not bool(row.get("provider_viable"))
+        or not bool(row.get("capital_source_eligible"))
+    ):
+        return None
+    minimum_volume = d(row["minimum_volume"])
+    provider_cost = d(row["provider_cost_per_volume_usd"]) * minimum_volume
+    value = d(row["expected_net_value_usd"]) - provider_cost
+    if uncertainty_priced:
+        value -= d(row["uncertainty_penalty_usd"])
+    return value if value > 0 else None
+
+
+def _portfolio(
+    rows: list[dict[str, Any]],
+    *,
+    variant: Variant,
+    capital: Decimal,
+    risk_headroom: Decimal,
+    margin_headroom: Decimal,
+    risk_utilization: Decimal,
+    margin_utilization: Decimal,
+    drawdown_utilization: Decimal,
+) -> tuple[tuple[int, ...], tuple[Decimal, ...]]:
+    caps: list[int] = []
+    nets: list[Decimal] = []
+    for row in rows:
+        net = _eligible_net(
+            row,
+            uncertainty_priced=variant.uncertainty_priced,
+        )
+        nets.append(net if net is not None else ZERO)
+        if net is None:
+            caps.append(0)
+            continue
+        minimum_volume = d(row["minimum_volume"])
+        maximum_volume = d(row["maximum_volume"])
+        cap = min(4, int(maximum_volume / minimum_volume))
+        if variant.graded_intensity:
+            cap = min(
+                cap,
+                _confidence_cap(
+                    row=row,
+                    risk_utilization=risk_utilization,
+                    margin_utilization=margin_utilization,
+                    drawdown_utilization=drawdown_utilization,
+                ),
+            )
+        caps.append(cap)
+
+    best_key: tuple[Any, ...] | None = None
+    best_combo = tuple(0 for _ in rows)
+    best_velocity = tuple(ZERO for _ in rows)
+
+    for combo in itertools.product(*(range(cap + 1) for cap in caps)):
+        risk = sum(
+            (
+                d(row["stop_loss_per_volume"])
+                * d(row["minimum_volume"])
+                * mult
+                for row, mult in zip(rows, combo, strict=True)
+            ),
+            ZERO,
+        )
+        margin = sum(
+            (
+                d(row["margin_per_volume"])
+                * d(row["minimum_volume"])
+                * mult
+                for row, mult in zip(rows, combo, strict=True)
+            ),
+            ZERO,
+        )
+        if risk > risk_headroom or margin > margin_headroom:
+            continue
+
+        robust_lines: list[Decimal] = []
+        velocity_lines: list[Decimal] = []
+        for row, net, mult in zip(rows, nets, combo, strict=True):
+            base_risk = (
+                d(row["stop_loss_per_volume"]) * d(row["minimum_volume"])
+            )
+            utility = net * mult
+            if variant.robust_portfolio and mult:
+                with localcontext() as ctx:
+                    ctx.prec = 80
+                    utility -= (
+                        (base_risk * mult)
+                        * (base_risk * mult)
+                        / capital
+                    )
+            robust_lines.append(utility)
+            duration = max(ONE, d(row["expected_capital_minutes"]))
+            velocity_lines.append(
+                utility / duration
+                if row["expectation_basis"]
+                == "WALK_FORWARD_EMPIRICAL_FORECAST"
+                else ZERO
+            )
+
+        trusted_velocity = sum(velocity_lines, ZERO)
+        expected_utility = sum(robust_lines, ZERO)
+        key = (
+            trusted_velocity,
+            expected_utility,
+            -risk,
+            -margin,
+            tuple(-value for value in combo),
+        )
+        if best_key is None or key > best_key:
+            best_key = key
+            best_combo = tuple(int(value) for value in combo)
+            best_velocity = tuple(velocity_lines)
+
+    return best_combo, best_velocity
+
+
+def _temporal_blocks(settlements: list[dict[str, Any]]) -> dict[str, Any]:
+    groups: dict[str, list[Decimal]] = defaultdict(list)
+    for row in settlements:
+        stamp = str(row["settled_at"])
+        month = int(stamp[5:7])
+        key = stamp[:4] + ("-H1" if month <= 6 else "-H2")
+        groups[key].append(d(row["net_r"]))
+    result: dict[str, Any] = {}
+    for key, values in sorted(groups.items()):
+        equity = peak = max_dd = ZERO
+        for value in values:
+            equity += value
+            peak = max(peak, equity)
+            max_dd = max(max_dd, peak - equity)
+        result[key] = {
+            "mean_r": format(sum(values, ZERO) / Decimal(len(values)), "f"),
+            "max_drawdown_r": format(max_dd, "f"),
+        }
+    return result
+
+
+def _metrics(
+    settlements: list[dict[str, Any]],
+    *,
+    peak: Decimal,
+    ending: Decimal,
+    max_dd: Decimal,
+    multiplier_counts: Counter[str],
+    block_counts: Counter[str],
+) -> dict[str, Any]:
+    net_rs = [d(row["net_r"]) for row in settlements]
+    gains = sum((value for value in net_rs if value > 0), ZERO)
+    losses = -sum((value for value in net_rs if value < 0), ZERO)
+    wins = sum(value > 0 for value in net_rs)
+    loss_count = sum(value < 0 for value in net_rs)
+    pf = None if losses == 0 else format(gains / losses, "f")
+    mean_r = ZERO if not net_rs else sum(net_rs, ZERO) / Decimal(len(net_rs))
+    return {
+        "trade_count": len(settlements),
+        "metrics": {
+            "profit_factor": pf,
+            "mean_r": format(mean_r, "f"),
+            "max_drawdown_r": format(max_dd / INITIAL, "f"),
+            "wins": wins,
+            "losses": loss_count,
+        },
+        "capital_path": {
+            "initial_capital_usd": format(INITIAL, "f"),
+            "ending_capital_usd": format(ending, "f"),
+            "net_pnl_usd": format(ending - INITIAL, "f"),
+            "peak_capital_usd": format(peak, "f"),
+            "maximum_drawdown_usd": format(max_dd, "f"),
+            "maximum_drawdown_fraction_of_initial": format(max_dd / INITIAL, "f"),
+            "adaptive_leverage_counts": dict(sorted(multiplier_counts.items())),
+            "block_counts": dict(sorted(block_counts.items())),
+        },
+        "net_r_values": [format(value, "f") for value in net_rs],
+        "temporal_blocks": _temporal_blocks(settlements),
+    }
+
+
+def simulate(rows: list[dict[str, Any]], variant: Variant) -> dict[str, Any]:
+    grouped: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
+    for row in rows:
+        grouped[
+            (str(row["decision_at"]), str(row["decision_epoch_id"]))
+        ].append(row)
+
+    capital = INITIAL
+    peak = INITIAL
+    max_dd = ZERO
+    open_risk = ZERO
+    open_margin = ZERO
+    provider_reserve = ZERO
+    pending: list[tuple[str, int, Deployment]] = []
+    sequence = 0
+    settlements: list[dict[str, Any]] = []
+    multiplier_counts: Counter[str] = Counter()
+    block_counts: Counter[str] = Counter()
+
+    def settle_until(cutoff: str | None) -> None:
+        nonlocal capital, peak, max_dd
+        nonlocal open_risk, open_margin, provider_reserve
+        while pending and (cutoff is None or pending[0][0] <= cutoff):
+            _, _, dep = heapq.heappop(pending)
+            pnl = dep.gross_r * dep.risk - dep.provider_cost
+            capital += pnl
+            open_risk -= dep.risk
+            open_margin -= dep.margin
+            provider_reserve -= dep.provider_cost
+            peak = max(peak, capital)
+            max_dd = max(max_dd, peak - capital)
+            settlements.append(
+                {
+                    "signal_fingerprint": dep.signal,
+                    "trader_id": dep.trader_id,
+                    "settled_at": dep.exit_at,
+                    "realized_net_pnl_usd": format(pnl, "f"),
+                    "risk_usd": format(dep.risk, "f"),
+                    "net_r": format(ZERO if dep.risk <= 0 else pnl / dep.risk, "f"),
+                    "multiplier": dep.multiplier,
+                    "volume": format(dep.volume, "f"),
+                }
+            )
+
+    for (decision_at, _epoch_id), epoch_rows in sorted(grouped.items()):
+        settle_until(decision_at)
+        if capital <= 0:
+            block_counts["ECONOMIC_DEATH"] += len(epoch_rows)
+            continue
+
+        stop_capacity = max(ZERO, capital - provider_reserve)
+        total_risk_capacity = min(
+            stop_capacity,
+            capital * variant.risk_fraction,
+        )
+        margin_capacity = max(
+            ZERO,
+            capital * Decimal("100") - provider_reserve,
+        )
+        risk_headroom = max(ZERO, total_risk_capacity - open_risk)
+        margin_headroom = max(ZERO, margin_capacity - open_margin)
+        risk_utilization = ratio(open_risk, total_risk_capacity)
+        margin_utilization = ratio(open_margin, margin_capacity)
+        drawdown_utilization = ratio(peak - capital, peak)
+
+        rows_sorted = sorted(
+            epoch_rows,
+            key=lambda row: (
+                str(row["trader_id"]),
+                str(row["qore_symbol"]),
+                str(row["signal_fingerprint"]),
+            ),
+        )
+
+        if variant.genc12_binding and not all(
+            _genc12_allows_new_capital(
+                row,
+                has_capacity=(risk_headroom > 0 and margin_headroom > 0),
+            )
+            for row in rows_sorted
+        ):
+            block_counts["GENC12_PAUSE_NEW_CAPITAL"] += len(rows_sorted)
+            continue
+
+        combo, velocities = _portfolio(
+            rows_sorted,
+            variant=variant,
+            capital=capital,
+            risk_headroom=risk_headroom,
+            margin_headroom=margin_headroom,
+            risk_utilization=risk_utilization,
+            margin_utilization=margin_utilization,
+            drawdown_utilization=drawdown_utilization,
+        )
+
+        selected = [
+            (index, row, combo[index], velocities[index])
+            for index, row in enumerate(rows_sorted)
+            if combo[index] > 0
+        ]
+        selected.sort(
+            key=lambda item: (
+                -item[3],
+                -(_eligible_net(
+                    item[1],
+                    uncertainty_priced=variant.uncertainty_priced,
+                ) or ZERO),
+                str(item[1]["signal_fingerprint"]),
+            )
+        )
+
+        for _, row, multiplier, _ in selected:
+            minimum_volume = d(row["minimum_volume"])
+            step = d(row["volume_step"])
+            desired = min(
+                d(row["maximum_volume"]),
+                minimum_volume * Decimal(multiplier),
+            )
+            total_risk_capacity = min(
+                max(ZERO, capital - provider_reserve),
+                capital * variant.risk_fraction,
+            )
+            available_risk = max(ZERO, total_risk_capacity - open_risk)
+            available_margin = max(
+                ZERO,
+                capital * Decimal("100") - provider_reserve - open_margin,
+            )
+            stop_per_volume = d(row["stop_loss_per_volume"])
+            cost_per_volume = d(row["provider_cost_per_volume_usd"])
+            margin_per_volume = d(row["margin_per_volume"])
+            total_loss_per_volume = stop_per_volume + cost_per_volume
+            if total_loss_per_volume <= 0 or margin_per_volume <= 0:
+                block_counts["INVALID_GEOMETRY"] += 1
+                continue
+            volume = floor_step(
+                min(
+                    desired,
+                    available_risk / total_loss_per_volume,
+                    available_margin / margin_per_volume,
+                ),
+                step,
+            )
+            if volume < minimum_volume:
+                block_counts["SCARCITY_HOLD"] += 1
+                continue
+
+            risk = volume * stop_per_volume
+            margin = volume * margin_per_volume
+            cost = volume * cost_per_volume
+            outcome = row["settlement"]
+            if (
+                bool(outcome["used_for_decision"])
+                or not bool(outcome["not_available_to_predecision"])
+            ):
+                raise ValueError("same-trade outcome leakage detected")
+            dep = Deployment(
+                signal=str(row["signal_fingerprint"]),
+                trader_id=str(row["trader_id"]),
+                exit_at=str(outcome["exit_at"]),
+                risk=risk,
+                margin=margin,
+                provider_cost=cost,
+                gross_r=d(outcome["gross_structural_outcome_r"]),
+                multiplier=multiplier,
+                volume=volume,
+            )
+            sequence += 1
+            heapq.heappush(pending, (dep.exit_at, sequence, dep))
+            open_risk += risk
+            open_margin += margin
+            provider_reserve += cost
+            multiplier_counts[str(multiplier)] += 1
+
+        zero_count = len(rows_sorted) - len(selected)
+        if zero_count:
+            block_counts["PORTFOLIO_ZERO"] += zero_count
+
+    settle_until(None)
+
+    return _metrics(
+        settlements,
+        peak=peak,
+        ending=capital,
+        max_dd=max_dd,
+        multiplier_counts=multiplier_counts,
+        block_counts=block_counts,
+    )
+
+
+def run(prepared_path: Path, lane: str) -> dict[str, Any]:
+    prepared = json.loads(prepared_path.read_text(encoding="utf-8"))
+    if prepared.get("schema") != "qore.github-trader-lab.cibo-capital-prepared.v1":
+        raise ValueError("unexpected CIBO prepared ledger schema")
+    rows = prepared["rows"]
+    if not isinstance(rows, list) or not rows:
+        raise ValueError("prepared CIBO rows missing")
+
+    raw = {variant.name: simulate(rows, variant) for variant in VARIANTS}
+    control = raw["MATURE_4X_CONTROL"]
+    control_count = int(control["trade_count"])
+    control_winners = sum(d(value) > 0 for value in control["net_r_values"])
+    control_winner_r = sum(
+        (d(value) for value in control["net_r_values"] if d(value) > 0),
+        ZERO,
+    )
+
+    variants: dict[str, Any] = {}
+    for name, row in raw.items():
+        count = int(row["trade_count"])
+        winner_count = sum(d(value) > 0 for value in row["net_r_values"])
+        winner_r = sum(
+            (d(value) for value in row["net_r_values"] if d(value) > 0),
+            ZERO,
+        )
+        row["relative_density_vs_control"] = format(
+            ZERO if control_count == 0 else Decimal(count) / Decimal(control_count),
+            "f",
+        )
+        row["winner_preservation"] = {
+            "count": format(
+                ONE
+                if control_winners == 0
+                else Decimal(winner_count) / Decimal(control_winners),
+                "f",
+            ),
+            "r": format(
+                ONE
+                if control_winner_r == 0
+                else winner_r / control_winner_r,
+                "f",
+            ),
+        }
+        variants[name] = row
+
+    return {
+        "schema": "qore.github-trader-lab.normalized-replay.v2",
+        "adapter": "cibo-capital-repair-fast-v1",
+        "subject": "CIBO",
+        "lane": lane,
+        "control": "MATURE_4X_CONTROL",
+        "variants": variants,
+        "governance": {
+            "burned_repair_window_only": True,
+            "prepared_causal_ledger_reused": True,
+            "outcome_available_to_same_decision": False,
+            "trader_methodology_changed": False,
+            "fresh_holdout_opened": False,
+            "certification_claimed": False,
+            "sovereign_workflow_modified": False,
+        },
+    }
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--prepared", required=True, type=Path)
+    parser.add_argument("--lane", required=True)
+    parser.add_argument("--output", required=True, type=Path)
+    args = parser.parse_args()
+    payload = run(args.prepared, args.lane)
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    args.output.write_text(
+        json.dumps(payload, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    headline = {
+        name: row["capital_path"]
+        for name, row in payload["variants"].items()
+    }
+    print(
+        "QORE_CIBO_FAST_CAPITAL_PATH "
+        + json.dumps(headline, sort_keys=True),
+        flush=True,
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
