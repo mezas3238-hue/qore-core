@@ -401,21 +401,9 @@ def build_sovereign_function_sensors(
             }
         )
     )
-    if decision.synthesis.directive is not CiboExecutiveDirectiveKind.RECOMMEND:
-        native_cap = 0
-    elif decision.synthesis.uncertainty.confidence is None:
-        native_cap = 1
-    else:
-        native_cap = {
-            "low": 1,
-            "medium": 2,
-            "high": 3,
-        }[decision.synthesis.uncertainty.confidence.level.value]
-    frontier_restricts = frontier_cap < native_cap
-    frontier_final_binding = (
-        frontier_restricts
-        and portfolio.multiplier == frontier_cap
-    )
+    frontier_restricts = False
+    frontier_final_binding = False
+    frontier_diverges_from_selected = portfolio.multiplier > frontier_cap
 
     compound_source_requested = _uses_realized_profit(sizing_plan)
     compound_block_binding = (
@@ -458,14 +446,15 @@ def build_sovereign_function_sensors(
             stage_order=15,
             input_metrics=_pairs(
                 consumed_codes=",".join(frontier_codes),
-                native_max_cap=native_cap,
+                provider_scaled_frontier_cap=frontier_cap,
                 directive=decision.synthesis.directive.value,
             ),
             output_metrics=_pairs(
                 frontier_cap=frontier_cap,
                 frontier_reason=frontier_reason,
                 selected_multiplier=portfolio.multiplier,
-                constraining_only=True,
+                advisory_diagnostic=True,
+                selected_above_recommendation=frontier_diverges_from_selected,
             ),
             downstream_consumed=True,
             decision_gate_triggered=frontier_restricts,
@@ -517,7 +506,7 @@ def build_sovereign_function_sensors(
             function_code="ADAPTIVE_LEVERAGE",
             stage_order=40,
             input_metrics=_pairs(
-                maximum_multiplier=4,
+                maximum_multiplier="PROVIDER_AND_CAPITAL_DERIVED",
                 option_id=decision.option_id,
             ),
             output_metrics=_pairs(
