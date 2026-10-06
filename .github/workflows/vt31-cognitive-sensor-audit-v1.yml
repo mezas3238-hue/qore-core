@@ -6,6 +6,8 @@ on:
       - agent/vt31-edge-position-cert-b-001
     paths:
       - src/qore/infrastructure/traders/vt31_nas100_cognitive_telemetry.py
+      - src/qore/infrastructure/traders/vt31_nas100_post_entry_cognitive_runtime.py
+      - tests/infrastructure/test_vt31_nas100_post_entry_cognitive_runtime.py
       - scripts/vt31_nas100_live_cognitive_breaker_protection_frontier_v1.py
       - scripts/vt31_nas100_comp010_live_context_adverse_exit_v1.py
       - scripts/vt31_nas100_comp009_causal_trace_prepare_v1.py
@@ -33,7 +35,8 @@ jobs:
         run: |
           set -euo pipefail
           python -m py_compile             src/qore/infrastructure/traders/vt31_nas100_cognitive_telemetry.py             scripts/vt31_nas100_cognitive_sensor_audit_v1.py
-          ruff check             src/qore/infrastructure/traders/vt31_nas100_cognitive_telemetry.py             scripts/vt31_nas100_cognitive_sensor_audit_v1.py
+          ruff check             src/qore/infrastructure/traders/vt31_nas100_cognitive_telemetry.py             src/qore/infrastructure/traders/vt31_nas100_post_entry_cognitive_runtime.py             scripts/vt31_nas100_cognitive_sensor_audit_v1.py             tests/infrastructure/test_vt31_nas100_post_entry_cognitive_runtime.py
+          pytest -q -o addopts='' tests/infrastructure/test_vt31_nas100_post_entry_cognitive_runtime.py
           python - <<'PY'
           from qore.infrastructure.traders.vt31_nas100_cognitive_telemetry import (
               observe_cognitive_actuation,
