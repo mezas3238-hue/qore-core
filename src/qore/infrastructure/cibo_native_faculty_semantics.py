@@ -84,6 +84,33 @@ def _opportunity_row(
         "expected_capital_minutes": context.get(
             "cibo_expected_capital_minutes"
         ),
+        "walk_forward_observation_count": context.get(
+            "cibo_walk_forward_observation_count"
+        ),
+        "walk_forward_maturity": context.get(
+            "cibo_walk_forward_maturity"
+        ),
+        "walk_forward_mature_for_capital_consideration": context.get(
+            "cibo_walk_forward_mature_for_capital_consideration"
+        ),
+        "walk_forward_positive_block_count": context.get(
+            "cibo_walk_forward_positive_block_count"
+        ),
+        "walk_forward_nonpositive_block_count": context.get(
+            "cibo_walk_forward_nonpositive_block_count"
+        ),
+        "walk_forward_block_dispersion_r": context.get(
+            "cibo_walk_forward_block_dispersion_r"
+        ),
+        "walk_forward_median_absolute_deviation_r": context.get(
+            "cibo_walk_forward_median_absolute_deviation_r"
+        ),
+        "walk_forward_maturity_fraction": context.get(
+            "cibo_walk_forward_maturity_fraction"
+        ),
+        "walk_forward_evidence_age_minutes": context.get(
+            "cibo_walk_forward_evidence_age_minutes"
+        ),
         "decision_context": [
             [key, value] for key, value in sorted(context.items())
         ],
@@ -255,6 +282,33 @@ def build_native_faculty_research_semantics(
                         ],
                         "expected_capital_minutes": row[
                             "expected_capital_minutes"
+                        ],
+                        "walk_forward_observation_count": row[
+                            "walk_forward_observation_count"
+                        ],
+                        "walk_forward_maturity": row[
+                            "walk_forward_maturity"
+                        ],
+                        "walk_forward_mature_for_capital_consideration": row[
+                            "walk_forward_mature_for_capital_consideration"
+                        ],
+                        "walk_forward_positive_block_count": row[
+                            "walk_forward_positive_block_count"
+                        ],
+                        "walk_forward_nonpositive_block_count": row[
+                            "walk_forward_nonpositive_block_count"
+                        ],
+                        "walk_forward_block_dispersion_r": row[
+                            "walk_forward_block_dispersion_r"
+                        ],
+                        "walk_forward_median_absolute_deviation_r": row[
+                            "walk_forward_median_absolute_deviation_r"
+                        ],
+                        "walk_forward_maturity_fraction": row[
+                            "walk_forward_maturity_fraction"
+                        ],
+                        "walk_forward_evidence_age_minutes": row[
+                            "walk_forward_evidence_age_minutes"
                         ],
                     }
                     for row in rows
