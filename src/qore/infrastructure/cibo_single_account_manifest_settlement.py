@@ -104,6 +104,106 @@ def _sha256(payload: Mapping[str, object]) -> str:
 
 
 @dataclass(frozen=True, slots=True)
+class CiboManifestShadowOutcomeObservation:
+    signal_fingerprint: str
+    trader_id: str
+    decision_at: datetime
+    entry_at: datetime
+    exit_at: datetime
+    gross_structural_outcome_r: Decimal
+    capital_minutes: Decimal
+
+    def __post_init__(self) -> None:
+        if not self.signal_fingerprint or not self.trader_id:
+            raise CiboCapitalManagementError(
+                "manifest shadow observation identity is required"
+            )
+        for name in ("decision_at", "entry_at", "exit_at"):
+            value = getattr(self, name)
+            if value.tzinfo is None or value.utcoffset() is None:
+                raise CiboCapitalManagementError(
+                    f"manifest shadow observation {name} must be timezone-aware"
+                )
+        if self.entry_at < self.decision_at or self.exit_at < self.entry_at:
+            raise CiboCapitalManagementError(
+                "manifest shadow observation chronology is invalid"
+            )
+        if (
+            not isinstance(self.gross_structural_outcome_r, Decimal)
+            or not self.gross_structural_outcome_r.is_finite()
+        ):
+            raise CiboCapitalManagementError(
+                "manifest shadow observation structural R must be finite Decimal"
+            )
+        if (
+            not isinstance(self.capital_minutes, Decimal)
+            or not self.capital_minutes.is_finite()
+            or self.capital_minutes <= 0
+        ):
+            raise CiboCapitalManagementError(
+                "manifest shadow observation duration must be positive Decimal"
+            )
+
+
+def manifest_row_to_shadow_outcome_observation(
+    row: Mapping[str, Any],
+) -> CiboManifestShadowOutcomeObservation:
+    """Decode one signal outcome for later walk-forward learning only."""
+
+    if row.get("outcome_available_to_predecision") is not False:
+        raise CiboCapitalManagementError(
+            "manifest shadow outcome predecision flag must be false"
+        )
+    outcome = _mapping(
+        row.get("settlement_outcome_research_only"),
+        "settlement_outcome_research_only",
+    )
+    if (
+        outcome.get("not_available_to_predecision") is not True
+        or outcome.get("used_for_decision") is not False
+    ):
+        raise CiboCapitalManagementError(
+            "manifest shadow outcome governance flags are invalid"
+        )
+    decision_at = _datetime(
+        row.get("market_decision_at"),
+        "market_decision_at",
+    )
+    entry_at = _datetime(outcome.get("entry_at"), "outcome entry_at")
+    exit_at = _datetime(outcome.get("exit_at"), "outcome exit_at")
+    if entry_at < decision_at or exit_at < entry_at:
+        raise CiboCapitalManagementError(
+            "manifest shadow outcome chronology is invalid"
+        )
+    encoded_outcome_r = _decimal(
+        outcome.get("gross_structural_outcome_r"),
+        "gross_structural_outcome_r",
+    )
+    gross_r, _normalization = _structural_gross_r(
+        trader_id=str(row.get("trader_id", "")),
+        encoded_outcome_r=encoded_outcome_r,
+    )
+    with localcontext() as context:
+        context.prec = 100
+        capital_minutes = Decimal(
+            str((exit_at - entry_at).total_seconds())
+        ) / Decimal(60)
+    if capital_minutes <= 0:
+        raise CiboCapitalManagementError(
+            "manifest shadow outcome duration must be positive"
+        )
+    return CiboManifestShadowOutcomeObservation(
+        signal_fingerprint=str(row.get("signal_fingerprint", "")),
+        trader_id=str(row.get("trader_id", "")),
+        decision_at=decision_at,
+        entry_at=entry_at,
+        exit_at=exit_at,
+        gross_structural_outcome_r=gross_r,
+        capital_minutes=capital_minutes,
+    )
+
+
+@dataclass(frozen=True, slots=True)
 class CiboManifestOutcomeSettlement:
     signal_fingerprint: str
     trader_id: str
