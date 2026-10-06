@@ -66,6 +66,24 @@ def _sha(label: str, payload: object) -> str:
     return "sha256:" + hashlib.sha256(raw).hexdigest()
 
 
+def _exact_add(left: Decimal, right: Decimal) -> Decimal:
+    with localcontext() as context:
+        context.prec = 100
+        return left + right
+
+
+def _exact_mul(left: Decimal, right: Decimal) -> Decimal:
+    with localcontext() as context:
+        context.prec = 100
+        return left * right
+
+
+def _exact_div(left: Decimal, right: Decimal) -> Decimal:
+    with localcontext() as context:
+        context.prec = 100
+        return left / right
+
+
 def _money(value: Decimal, name: str) -> None:
     if (
         not isinstance(value, Decimal)
@@ -337,12 +355,22 @@ def build_historical_ceiling_epoch_state(
     for row in opportunities:
         opportunity = row.opportunity
         minimum_volume = minimum_seed_volume(opportunity)
-        stop_risk = minimum_volume * opportunity.stop_loss_per_volume
-        margin = minimum_volume * opportunity.margin_per_volume
-        provider_cost = minimum_volume * row.provider_cost_per_volume_usd
+        stop_risk = _exact_mul(
+            minimum_volume,
+            opportunity.stop_loss_per_volume,
+        )
+        margin = _exact_mul(
+            minimum_volume,
+            opportunity.margin_per_volume,
+        )
+        provider_cost = _exact_mul(
+            minimum_volume,
+            row.provider_cost_per_volume_usd,
+        )
         provider_cap = int(
-            (
-                opportunity.maximum_volume / minimum_volume
+            _exact_div(
+                opportunity.maximum_volume,
+                minimum_volume,
             ).to_integral_value(rounding=ROUND_FLOOR)
         )
         maximum_multiplier = max(0, min(4, provider_cap))
@@ -363,7 +391,7 @@ def build_historical_ceiling_epoch_state(
                 known_at=captured_at,
                 earliest_action_at=captured_at,
                 expires_at=expires_at,
-                requested_capital_usd=stop_risk + provider_cost,
+                requested_capital_usd=_exact_add(stop_risk, provider_cost),
                 expected_net_value_usd=row.expected_net_value_usd,
                 expected_capital_minutes=row.expected_capital_minutes,
                 stop_risk_usd=stop_risk,
@@ -384,7 +412,7 @@ def build_historical_ceiling_epoch_state(
                 known_at=captured_at,
                 earliest_action_at=captured_at,
                 expires_at=expires_at,
-                requested_capital_usd=stop_risk + provider_cost,
+                requested_capital_usd=_exact_add(stop_risk, provider_cost),
                 stop_risk_usd=stop_risk,
                 margin_usd=margin,
                 evidence_sha256=evidence_sha,
@@ -537,10 +565,15 @@ def build_historical_ceiling_epoch_state(
         future_outcome_used=False,
     )
     profit_economic = historical_capital.realized_profit_economic_value_usd
-    profit_reserved = sum(
-        (item.reserved_usd for item in historical_capital.profit_generations),
-        Decimal(0),
-    )
+    with localcontext() as context:
+        context.prec = 100
+        profit_reserved = sum(
+            (
+                item.reserved_usd
+                for item in historical_capital.profit_generations
+            ),
+            Decimal(0),
+        )
     capital = CiboCapitalState(
         assigned_capital_usd=realized,
         hard_risk_headroom_usd=stop_risk_headroom,
