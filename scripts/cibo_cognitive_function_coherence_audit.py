@@ -135,7 +135,7 @@ def audit(replay: dict[str, Any]) -> dict[str, Any]:
                 ):
                     violations["max_frontier_malformed_output"] += 1
                 elif frontier_selected > frontier_cap:
-                    violations["portfolio_above_frontier_advisory"] += 1
+                    violations["portfolio_exceeds_max_frontier"] += 1
 
         portfolio = by_function.get("COMPOUND_PORTFOLIO")
         if portfolio is not None:
@@ -204,9 +204,6 @@ def audit(replay: dict[str, Any]) -> dict[str, Any]:
         violations["portfolio_exceeds_max_frontier"],
         "Portfolio selected an intensity above the causal MAX Frontier cap.",
     )
-    # MAX Frontier is intentionally advisory in the sovereign runtime.  A
-    # Portfolio decision above its recommendation is tracked as research
-    # divergence, not a coherence violation and never a P0 blocker.
     add(
         "P0",
         "RISK_AFTER_PORTFOLIO_ZERO",
