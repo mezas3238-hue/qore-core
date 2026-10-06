@@ -124,13 +124,13 @@ def _eligible_dates(evidence_path: Path) -> tuple[list[str], dict[str, object]]:
     )
     by_day: dict[object, list[object]] = defaultdict(list)
     for bar in series:
-        by_day[specialist._day(getattr(bar, "opened_at"))].append(bar)
+        by_day[specialist._day(bar.opened_at)].append(bar)
     eligible = []
     for day in sorted(by_day):
         bars = tuple(
             sorted(
                 by_day[day],
-                key=lambda bar: getattr(bar, "opened_at"),
+                key=lambda bar: bar.opened_at,
             )
         )
         if specialist._admitted_day(bars):
