@@ -20,7 +20,6 @@ import argparse
 import json
 from collections import Counter, defaultdict
 from datetime import UTC, date, datetime
-from decimal import Decimal
 from pathlib import Path
 from typing import Any, cast
 
