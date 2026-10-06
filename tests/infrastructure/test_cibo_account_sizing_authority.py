@@ -14,6 +14,7 @@ from qore.infrastructure.cibo_account_sizing_authority import (
 from qore.infrastructure.cibo_capital_management_authority import (
     CapitalAction,
     CapitalSource,
+    CiboCapitalState,
     TraderOpportunityEnvelope,
 )
 from qore.infrastructure.market_test_environment import MarketRuntimeEnvironment
@@ -287,3 +288,27 @@ def test_demo_capability_sizing_respects_current_source_availability() -> None:
         (CapitalSource.REALIZED_PROFIT, Decimal("30.00")),
     )
 
+
+
+def test_self_financing_identity_preserves_long_decimal_sources() -> None:
+    realized = Decimal("1.11111111111111111111111111111")
+    protected = Decimal("2.22222222222222222222222222222")
+    proven = Decimal("3.33333333333333333333333333333")
+    reserved = Decimal("1.11111111111111111111111111111")
+
+    capital = CiboCapitalState(
+        assigned_capital_usd=Decimal("60"),
+        hard_risk_headroom_usd=Decimal("60"),
+        margin_headroom_usd=Decimal("60"),
+        base_capital_at_risk_usd=Decimal("0"),
+        realized_net_profit_usd=realized,
+        protected_open_economic_floor_usd=protected,
+        proven_self_financing_capacity_usd=proven,
+        reserved_expansion_risk_usd=reserved,
+        cost_reserve_usd=Decimal("0"),
+    )
+
+    assert capital.proven_self_financing_capacity_usd <= realized + protected
+    assert capital.available_self_financing_capacity_usd == Decimal(
+        "2.22222222222222222222222222222"
+    )
