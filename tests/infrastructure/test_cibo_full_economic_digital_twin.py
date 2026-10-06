@@ -9,6 +9,7 @@ import pytest
 from qore.infrastructure.account_wide_risk import TraderLineage
 from qore.infrastructure.cibo_account_capital_mission import (
     CiboAccountCapitalIdentity,
+    derive_cibo_capital_mission,
 )
 from qore.infrastructure.cibo_capital_digital_twin import (
     Genc10KnownCapitalOption,
@@ -24,6 +25,13 @@ from qore.infrastructure.cibo_ce2i_causal_expectation import (
 )
 from qore.infrastructure.cibo_ce2i_portfolio_allocation_ledger import (
     PortfolioAllocationLedger,
+)
+from qore.infrastructure.cibo_ce2i_regime_selector import (
+    CiboCapitalRegimeState,
+    CorrelationState,
+    LiquidityState,
+    ProviderCondition,
+    VolatilityState,
 )
 from qore.infrastructure.cibo_cma_settlement_ledger import (
     CmaSettlementRecord,
@@ -68,6 +76,9 @@ from qore.infrastructure.cibo_maximum_capability_diagnostics import (
 from qore.infrastructure.cibo_portfolio_allocation_engine import (
     plan_account_wide_capital_allocation,
     plan_position_opportunity_competition,
+)
+from qore.infrastructure.cibo_sovereign_capital_runtime import (
+    bind_cibo_optionality_to_twin,
 )
 from qore.infrastructure.market_test_environment import MarketRuntimeEnvironment
 
@@ -744,3 +755,79 @@ def test_contextual_forecast_can_use_capital_velocity_rank() -> None:
         ("fast-lower-utility", 1),
         ("slow-higher-utility", 0),
     )
+
+def _demo_recovery_regime() -> CiboCapitalRegimeState:
+    return CiboCapitalRegimeState(
+        liquidity=LiquidityState.NORMAL,
+        volatility=VolatilityState.NORMAL,
+        correlation=CorrelationState.NORMAL,
+        provider_condition=ProviderCondition.HEALTHY,
+        risk_utilization=Decimal("0.20"),
+        margin_utilization=Decimal("0.20"),
+        drawdown_utilization=Decimal("0.80"),
+        opportunity_count=1,
+        position_path_adverse=False,
+    )
+
+
+def _demo_mission():
+    return derive_cibo_capital_mission(
+        CiboAccountCapitalIdentity(
+            provider_key="ctrader-demo",
+            account_ref="optionality-runtime",
+            environment=MarketRuntimeEnvironment.DEMO,
+        )
+    )
+
+
+def test_sovereign_optionality_binding_reserves_twin_before_allocation() -> None:
+    twin = _full_twin()
+
+    bound, decision = bind_cibo_optionality_to_twin(
+        twin=twin,
+        mission_policy=_demo_mission(),
+        regime_state=_demo_recovery_regime(),
+    )
+
+    assert decision.deployable_stop_risk_usd == Decimal("1")
+    assert decision.deployable_margin_usd == Decimal("2")
+    assert observed_twin_constraints(bound)["stop_risk_headroom_usd"] == Decimal(
+        "1"
+    )
+    assert observed_twin_constraints(bound)["margin_headroom_usd"] == Decimal(
+        "2"
+    )
+    constraints = dict(bound.cognitive_constraints)
+    assert constraints["minimum_executable_seed_feasible"] == "true"
+    assert constraints["known_executable_seed_count"] == "1"
+    assert constraints["optionality_preserve_new_capital"] == "true"
+    assert bound.capital_twin.stop_risk_headroom_usd == Decimal("10")
+    assert bound.capital_twin.margin_headroom_usd == Decimal("100")
+
+
+def test_sovereign_optionality_binding_marks_infeasible_seed_and_deploys_zero() -> None:
+    twin = _full_twin()
+    impossible = replace(
+        twin.opportunities[0],
+        stop_risk_usd=Decimal("20"),
+        margin_usd=Decimal("200"),
+    )
+    twin = replace(
+        twin,
+        opportunities=(impossible,),
+    )
+
+    bound, decision = bind_cibo_optionality_to_twin(
+        twin=twin,
+        mission_policy=_demo_mission(),
+        regime_state=_demo_recovery_regime(),
+    )
+
+    assert decision.deployable_stop_risk_usd == Decimal("0")
+    assert decision.deployable_margin_usd == Decimal("0")
+    assert observed_twin_constraints(bound)["stop_risk_headroom_usd"] == 0
+    assert observed_twin_constraints(bound)["margin_headroom_usd"] == 0
+    constraints = dict(bound.cognitive_constraints)
+    assert constraints["minimum_executable_seed_feasible"] == "false"
+    assert constraints["optionality_preserve_new_capital"] == "true"
+
