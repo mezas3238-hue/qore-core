@@ -545,6 +545,9 @@ def _metrics(
     recency_relation_buckets: dict[str, list[dict[str, Any]]] = defaultdict(list)
     multiplier_buckets: dict[str, list[dict[str, Any]]] = defaultdict(list)
     trader_multiplier_buckets: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    consensus_trader_buckets: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    consensus_multiplier_buckets: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    consensus_recent_buckets: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for row in settlements:
         observations = int(row["observation_count"])
         if observations < 50:
@@ -572,6 +575,21 @@ def _metrics(
         multiplier_buckets[f"{int(row['multiplier'])}X"].append(row)
         trader_multiplier_buckets[
             f"{row['trader_id']}|{int(row['multiplier'])}X"
+        ].append(row)
+        consensus = f"{int(row['positive_blocks'])}_OF_5"
+        consensus_trader_buckets[
+            f"{consensus}|{row['trader_id']}"
+        ].append(row)
+        consensus_multiplier_buckets[
+            f"{consensus}|{int(row['multiplier'])}X"
+        ].append(row)
+        consensus_recent_buckets[
+            f"{consensus}|"
+            + (
+                "RECENT_POSITIVE"
+                if d(row["recent_block_r"]) > 0
+                else "RECENT_NONPOSITIVE"
+            )
         ].append(row)
 
     def bucket_summary(
@@ -654,6 +672,15 @@ def _metrics(
             "multiplier_buckets": bucket_summary(multiplier_buckets),
             "trader_multiplier_buckets": bucket_summary(
                 trader_multiplier_buckets
+            ),
+            "consensus_trader_buckets": bucket_summary(
+                consensus_trader_buckets
+            ),
+            "consensus_multiplier_buckets": bucket_summary(
+                consensus_multiplier_buckets
+            ),
+            "consensus_recent_buckets": bucket_summary(
+                consensus_recent_buckets
             ),
             "provider_cost_usd": format(total_provider_cost, "f"),
             "expected_net_minimum_size_usd_sum": format(
