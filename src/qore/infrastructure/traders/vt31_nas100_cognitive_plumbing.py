@@ -25,8 +25,13 @@ def recent_liquidity_event_count_10m(
     """Count already-observable liquidity sweeps in the trailing 10 minutes."""
 
     window_start = decision_at - timedelta(minutes=10)
+    causal_path = tuple(
+        bar
+        for bar in path
+        if source.structure.raid_at <= bar.closed_at <= decision_at
+    )
     return sum(
         event.family in _LIQUIDITY_EVENT_FAMILIES
         and window_start <= event.observed_at <= decision_at
-        for event in causal_structure_events(path, source, decision_at)
+        for event in causal_structure_events(causal_path, source, decision_at)
     )
