@@ -88,7 +88,7 @@ def _simulate(
         bar: object,
         current_stop: Decimal,
     ) -> bool:
-        observation_at = cast(datetime, getattr(bar, "closed_at"))
+        observation_at = cast(datetime, bar.closed_at)
         _, diagnostic = live_cognition._live_cognitive_decision(
             day_bars=day_bars,
             executable=executable,
