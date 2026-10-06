@@ -277,7 +277,12 @@ def build_higher_context(
     )
 
     h1 = _trend_state(_completed_hour_closes(causal_today, decision_at, 1))
-    h4 = _trend_state(_completed_hour_closes(causal_today, decision_at, 4))
+    h4_causal_history = (
+        tuple(prior_admitted_day_bars) + causal_today
+    )
+    h4 = _trend_state(
+        _completed_hour_closes(h4_causal_history, decision_at, 4)
+    )
     m15 = _trend_state(
         _completed_minute_bucket_closes(causal_today, decision_at, 15)
     )
