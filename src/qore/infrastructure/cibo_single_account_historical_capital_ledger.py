@@ -27,7 +27,6 @@ from qore.infrastructure.cibo_single_account_manifest_settlement import (
     CiboManifestOutcomeSettlement,
 )
 
-
 _INITIAL_CAPITAL_USD = Decimal("60")
 
 

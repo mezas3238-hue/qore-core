@@ -28,7 +28,6 @@ from qore.infrastructure.cibo_single_account_historical_ceiling_state import (
 )
 from qore.infrastructure.market_test_environment import MarketRuntimeEnvironment
 
-
 NOW = datetime(2026, 10, 5, 12, 0, tzinfo=UTC)
 
 

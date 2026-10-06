@@ -24,7 +24,6 @@ from qore.infrastructure.cibo_single_account_sovereign_ceiling_run import (
     CiboSovereignCeilingDecisionReceipt,
 )
 
-
 T0 = datetime(2026, 1, 5, 12, 0, tzinfo=UTC)
 
 

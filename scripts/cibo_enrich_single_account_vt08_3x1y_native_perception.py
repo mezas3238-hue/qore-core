@@ -33,7 +33,6 @@ from qore.infrastructure.traders.vt08_b01_r3_8 import (
     evaluate_b01_at_entry_indexed,
 )
 
-
 _NATIVE_VERSION = "vt08-b01-r3-8-max-intelligence-v1"
 
 

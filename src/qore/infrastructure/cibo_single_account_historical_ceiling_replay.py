@@ -67,7 +67,6 @@ from qore.infrastructure.cibo_single_account_sovereign_ceiling_run import (
 from qore.infrastructure.cibo_trader_capability_profile import CiboEvidenceRef
 from qore.infrastructure.market_test_environment import MarketRuntimeEnvironment
 
-
 _INITIAL_CAPITAL_USD = Decimal("60")
 
 

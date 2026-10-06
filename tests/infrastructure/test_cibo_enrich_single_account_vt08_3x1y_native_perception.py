@@ -9,7 +9,6 @@ from scripts import (
     cibo_enrich_single_account_vt08_3x1y_native_perception as enrichment,
 )
 
-
 NOW = datetime(2020, 7, 1, 9, 0, tzinfo=UTC)
 
 

@@ -26,7 +26,6 @@ from qore.infrastructure.cibo_single_account_manifest_integrity import (
     validate_single_account_manifest_sha256,
 )
 
-
 _EXPECTATION_BASES = {
     "FROZEN_HISTORICAL_PRIOR",
     "CAUSAL_MODEL_FORECAST",

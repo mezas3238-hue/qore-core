@@ -31,12 +31,6 @@ from qore.infrastructure.cibo_account_sizing_authority import (
     CiboAccountSizingDecision,
     plan_account_sizing,
 )
-from qore.infrastructure.cibo_capital_science_runtime_bridge import (
-    CapitalScienceDirective,
-    CapitalScienceKnownOpportunity,
-    CapitalSciencePredecisionInput,
-    evaluate_capital_science_predecision,
-)
 from qore.infrastructure.cibo_capital_management_authority import (
     CapitalAction,
     CapitalCapacityDimension,
@@ -46,8 +40,14 @@ from qore.infrastructure.cibo_capital_management_authority import (
     TraderOpportunityEnvelope,
     minimum_seed_volume,
 )
-from qore.infrastructure.cibo_cma_risk_request import build_cma_risk_request
+from qore.infrastructure.cibo_capital_science_runtime_bridge import (
+    CapitalScienceDirective,
+    CapitalScienceKnownOpportunity,
+    CapitalSciencePredecisionInput,
+    evaluate_capital_science_predecision,
+)
 from qore.infrastructure.cibo_ce2i_regime_selector import CiboCapitalRegimeState
+from qore.infrastructure.cibo_cma_risk_request import build_cma_risk_request
 from qore.infrastructure.cibo_economic_engine_wiring import (
     CiboEconomicEngineRun,
     CiboLifecycleWireRequest,
