@@ -14,6 +14,9 @@ from qore.infrastructure.cibo_account_sizing_authority import (
 from qore.infrastructure.cibo_capital_management_authority import (
     CapitalAction,
     CapitalSource,
+    CapitalSourceLot,
+    CapitalStage,
+    CiboCapitalActionPlan,
     CiboCapitalState,
     TraderOpportunityEnvelope,
 )
@@ -313,3 +316,37 @@ def test_self_financing_identity_preserves_long_decimal_sources() -> None:
     assert capital.available_self_financing_capacity_usd == Decimal(
         "2.22222222222222222222222222222"
     )
+
+
+
+def test_capital_source_lots_conserve_long_decimal_source_amount_exactly() -> None:
+    first = Decimal("1.1111111111111111111111111111111111111111")
+    second = Decimal("2.2222222222222222222222222222222222222222")
+    total = Decimal("3.3333333333333333333333333333333333333333")
+
+    plan = CiboCapitalActionPlan(
+        trader_id=TraderLineage.R34_XAUUSD,
+        qore_symbol="XAUUSD",
+        stage=CapitalStage.CAPITALIZE,
+        action=CapitalAction.OPEN_CAPABILITY_MAX,
+        volume=Decimal("1"),
+        stop_risk_usd=total,
+        margin_usd=Decimal("1"),
+        capital_source=None,
+        capital_source_amount_usd=total,
+        reason="exact provenance conservation",
+        capital_source_lots=(
+            CapitalSourceLot(
+                source=CapitalSource.ORIGINAL_BASE_CAPITAL,
+                amount_usd=first,
+                source_id="base",
+            ),
+            CapitalSourceLot(
+                source=CapitalSource.REALIZED_PROFIT,
+                amount_usd=second,
+                source_id="profit",
+            ),
+        ),
+    )
+
+    assert plan.capital_source_amount_usd == total
