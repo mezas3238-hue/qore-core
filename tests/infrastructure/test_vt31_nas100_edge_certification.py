@@ -6,11 +6,34 @@ import pytest
 
 from qore.infrastructure.traders.vt31_nas100_edge_certification import (
     IDENTITY,
+    RUNTIME_R_EXECUTION_FORBIDDEN,
     VOLUME_AGNOSTIC,
     build_edge_only_report,
     normalized_trade_rows,
+    validate_pure_edge_runtime_governance,
     winner_preservation,
 )
+
+
+def _pure_runtime_governance() -> dict[str, object]:
+    return {
+        "r_used_for_admission": False,
+        "r_used_for_entry": False,
+        "r_used_for_invalidation": False,
+        "r_used_for_stop_movement": False,
+        "r_used_for_breakeven": False,
+        "r_used_for_target": False,
+        "r_used_for_exit": False,
+        "r_used_for_trailing": False,
+        "r_used_for_partials": False,
+        "r_used_for_volume": False,
+        "sizing_used": False,
+        "leverage_used": False,
+        "compounding_used": False,
+        "capital_weighting_used": False,
+        "volume_agnostic": True,
+        "r_role": "post_trade_evaluation_only",
+    }
 
 
 def _rows() -> list[dict[str, object]]:
@@ -233,3 +256,44 @@ def test_positive_no_loss_sample_has_infinite_pf_semantics_without_capital() -> 
     assert report["leverage_authority"] is False
     assert report["compounding_authority"] is False
     assert report["portfolio_weighting_authority"] is False
+
+
+
+def test_runtime_governance_rejects_r_driven_breakeven() -> None:
+    governance = _pure_runtime_governance()
+    governance["r_used_for_breakeven"] = True
+
+    result = validate_pure_edge_runtime_governance(governance)
+
+    assert RUNTIME_R_EXECUTION_FORBIDDEN is True
+    assert result["verified"] is False
+    assert "r_used_for_breakeven" in result["violations"]
+
+
+def test_runtime_governance_accepts_market_native_volume_agnostic_execution() -> None:
+    result = validate_pure_edge_runtime_governance(
+        _pure_runtime_governance()
+    )
+
+    assert result["verified"] is True
+    assert result["violations"] == []
+
+
+def test_report_fails_closed_when_runtime_purity_is_unproven() -> None:
+    report = build_edge_only_report(_rows(), monte_carlo_paths=100)
+
+    assert report["r_role"] == "post_trade_evaluation_only"
+    assert report["r_runtime_execution_authority"] is False
+    assert report["runtime_purity"]["verified"] is False
+    assert report["runtime_purity_required_for_freeze"] is True
+
+
+def test_report_binds_verified_pure_edge_runtime_governance() -> None:
+    report = build_edge_only_report(
+        _rows(),
+        monte_carlo_paths=100,
+        runtime_governance=_pure_runtime_governance(),
+    )
+
+    assert report["runtime_purity"]["verified"] is True
+    assert report["runtime_purity"]["violations"] == []
