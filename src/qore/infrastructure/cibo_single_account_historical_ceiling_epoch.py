@@ -110,6 +110,7 @@ def run_predecision_historical_sovereign_ceiling_epoch(
     provider_assumption: CiboHistoricalProviderAssumption,
     survival_capital_usd: Decimal,
     protected_capital_usd: Decimal,
+    portfolio_fixed_multiplier: int | None = None,
 ) -> CiboPreparedHistoricalSovereignCeilingEpoch:
     """Execute one historical epoch without reading any settlement outcome."""
 
@@ -221,6 +222,7 @@ def run_predecision_historical_sovereign_ceiling_epoch(
         risk_engine=risk_engine,
         survival_capital_usd=survival_capital_usd,
         protected_capital_usd=protected_capital_usd,
+        portfolio_fixed_multiplier=portfolio_fixed_multiplier,
     )
     return CiboPreparedHistoricalSovereignCeilingEpoch(
         epoch_state=epoch,
