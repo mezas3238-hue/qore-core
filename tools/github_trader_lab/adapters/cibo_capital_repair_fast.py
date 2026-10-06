@@ -470,13 +470,22 @@ def _metrics(
             (d(row["realized_net_pnl_usd"]) for row in selected),
             ZERO,
         )
+        total_risk = sum((d(row["risk_usd"]) for row in selected), ZERO)
+        simple_mean_r = (
+            sum((d(row["net_r"]) for row in selected), ZERO)
+            / Decimal(len(selected))
+        )
+        risk_weighted_mean_r = (
+            ZERO if total_risk <= 0 else pnl / total_risk
+        )
         by_trader[trader] = {
             "trade_count": len(selected),
             "net_pnl_usd": format(pnl, "f"),
-            "mean_net_r": format(
-                sum((d(row["net_r"]) for row in selected), ZERO)
-                / Decimal(len(selected)),
-                "f",
+            "total_risk_usd": format(total_risk, "f"),
+            "mean_net_r": format(simple_mean_r, "f"),
+            "risk_weighted_mean_net_r": format(risk_weighted_mean_r, "f"),
+            "risk_allocation_sign_mismatch": (
+                simple_mean_r > 0 and risk_weighted_mean_r < 0
             ),
         }
 
@@ -484,6 +493,8 @@ def _metrics(
     consensus_buckets: dict[str, list[dict[str, Any]]] = defaultdict(list)
     recent_sign_buckets: dict[str, list[dict[str, Any]]] = defaultdict(list)
     recency_relation_buckets: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    multiplier_buckets: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    trader_multiplier_buckets: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for row in settlements:
         observations = int(row["observation_count"])
         if observations < 50:
@@ -508,6 +519,10 @@ def _metrics(
             if d(row["recent_block_r"]) < d(row["global_expected_r"])
             else "RECENT_AT_OR_ABOVE_GLOBAL"
         ].append(row)
+        multiplier_buckets[f"{int(row['multiplier'])}X"].append(row)
+        trader_multiplier_buckets[
+            f"{row['trader_id']}|{int(row['multiplier'])}X"
+        ].append(row)
 
     def bucket_summary(
         buckets: dict[str, list[dict[str, Any]]],
@@ -518,9 +533,15 @@ def _metrics(
                 (d(row["realized_net_pnl_usd"]) for row in selected),
                 ZERO,
             )
+            total_risk = sum((d(row["risk_usd"]) for row in selected), ZERO)
             result[key] = {
                 "trade_count": len(selected),
                 "net_pnl_usd": format(pnl, "f"),
+                "total_risk_usd": format(total_risk, "f"),
+                "risk_weighted_mean_net_r": format(
+                    ZERO if total_risk <= 0 else pnl / total_risk,
+                    "f",
+                ),
                 "mean_net_r": format(
                     sum((d(row["net_r"]) for row in selected), ZERO)
                     / Decimal(len(selected)),
@@ -579,6 +600,10 @@ def _metrics(
             ),
             "recency_relation_buckets": bucket_summary(
                 recency_relation_buckets
+            ),
+            "multiplier_buckets": bucket_summary(multiplier_buckets),
+            "trader_multiplier_buckets": bucket_summary(
+                trader_multiplier_buckets
             ),
             "provider_cost_usd": format(total_provider_cost, "f"),
             "expected_net_minimum_size_usd_sum": format(
