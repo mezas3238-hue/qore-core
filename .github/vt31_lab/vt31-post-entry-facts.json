@@ -1,0 +1,100 @@
+{
+  "schema": "qore.github-trader-lab.profile.v2",
+  "profile_id": "vt31-comp009-post-entry-facts-v1",
+  "repository": "mezas3238-hue/qore-core",
+  "subject": "VT31_NAS100",
+  "max_parallel_lanes": 4,
+  "preparation": {
+    "command": [
+      "python",
+      "{lab_root}/.github/vt31_lab/vt31_comp009_post_entry_prepare.py",
+      "--evidence",
+      "{evidence}",
+      "--output",
+      "{prepared}"
+    ],
+    "dependency_globs": [
+      "scripts/vt31_nas100_breaker_mixed_weak_efficiency_adverse_exit_v1.py",
+      "scripts/vt31_nas100_bullish_h1_mid_confirmation_conflict_admission_v1.py",
+      "scripts/vt31_nas100_live_cognitive_breaker_protection_frontier_v1.py",
+      "scripts/vt31_nas100_adverse_journey_cognitive_exit_frontier_v1.py",
+      "scripts/vt31_nas100_h3_dol2_composition_frontier_v1.py",
+      "scripts/vt31_nas100_comp007_residual_dd_forensics_v1.py",
+      "scripts/vt31_nas100_rapid_breaker_conflict_admission_frontier_v1.py",
+      "scripts/vt31_nas100_breaker_rotation_recovery_exception_frontier_v1.py",
+      "scripts/vt31_nas100_a_b_admission_integration_frontier_v1.py",
+      "scripts/vt31_nas100_specialist_r1_candidate.py",
+      "src/qore/infrastructure/trader_lab/vt31_silver_bullet_r2_5_multi_index_research.py",
+      "src/qore/infrastructure/traders/vt31_nas100_*.py",
+      "src/qore/infrastructure/traders/vt31_silver_bullet_r2_2.py",
+      "src/qore/infrastructure/market_data.py"
+    ]
+  },
+  "experiment": {
+    "command": [
+      "python",
+      "{lab_root}/.github/vt31_lab/vt31_comp009_post_entry_observe.py",
+      "--prepared",
+      "{prepared}",
+      "--lane",
+      "{lane}",
+      "--output",
+      "{normalized_output}"
+    ]
+  },
+  "lanes": {
+    "r5": {
+      "artifact_id": 10380044761,
+      "artifact_path": "fresh/NAS100/market-evidence.json",
+      "sha256": "7b1e3d9e2bfd17ccc6f043befabf464838d150bc6034ced1f76a24ee248611d7",
+      "evidence_role": "DEVELOPMENT_RESEARCH"
+    },
+    "r6": {
+      "artifact_id": 10389112524,
+      "artifact_path": "fresh/NAS100/market-evidence.json",
+      "sha256": "cf3ef22fa86916bfb2826f4fa48c7a9655b9509c76a05d9bb26d0d4cb6069581",
+      "evidence_role": "DEVELOPMENT_RESEARCH"
+    },
+    "r8": {
+      "artifact_id": 10402199719,
+      "artifact_path": "fresh/NAS100/market-evidence.json",
+      "sha256": "4031c7e21bb311fdb99d7b1028fd9ff154ace1dc4886249ff978b700fdeeedcb",
+      "evidence_role": "DEVELOPMENT_RESEARCH"
+    },
+    "consumed": {
+      "artifact_id": 10557487418,
+      "artifact_path": "NAS100/market-evidence.json",
+      "sha256": "acf2fa327a68a5a6d977dfdbc9c696cb13db6e0e7550b9da386f3699b5cf8d09",
+      "evidence_role": "DEVELOPMENT_RESEARCH"
+    }
+  },
+  "science": {
+    "control": "COMP009_CONTROL",
+    "primary_lane": "consumed",
+    "min_density": "0.75",
+    "min_winner_count_preservation": "0.80",
+    "min_winner_r_preservation": "0.90",
+    "all_lane_pf_floor": "1.50",
+    "hard_dd_max_r": "6",
+    "primary_pf_floor": "1.70",
+    "primary_mean_r_floor": "0.15",
+    "mc_paths_min": 10000,
+    "mc_block_length": 5,
+    "mc_positive_floor": "0.90",
+    "mc_p95_dd_max_r": "15",
+    "require_temporal_nondegrade": true
+  },
+  "certification_policy": {
+    "hard_dd_max_r": "6",
+    "pure_edge_no_sizing_required": true,
+    "walk_forward_oos_required": true,
+    "fresh_oos_required": true,
+    "sharpe_threshold": null,
+    "sortino_threshold": null,
+    "notes": [
+      "Observation-only post-entry market-fact preparation.",
+      "Fresh holdout is intentionally absent and sealed.",
+      "No fact in this profile has runtime authority."
+    ]
+  }
+}
