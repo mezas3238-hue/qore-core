@@ -20,6 +20,16 @@ _UNIVERSAL_CORE = (
     "src/qore/infrastructure/cibo_multi_period_capital_mpc.py",
     "src/qore/infrastructure/cibo_portfolio_allocation_engine.py",
     "src/qore/infrastructure/cibo_native_maximum_intelligence.py",
+    "src/qore/infrastructure/cibo_native_faculty_semantics.py",
+    "src/qore/infrastructure/cibo_native_max_cognitive_episode.py",
+    "src/qore/infrastructure/cibo_native_max_mpc_bridge.py",
+    "src/qore/infrastructure/cibo_native_sovereign_capital_runtime.py",
+    "src/qore/infrastructure/cibo_sovereign_function_consultation.py",
+    "src/qore/infrastructure/cibo_sovereign_function_runtime.py",
+    "src/qore/infrastructure/cibo_reasoned_sovereign_capital_runtime.py",
+    "src/qore/infrastructure/cibo_cognitive_world_model.py",
+    "src/qore/infrastructure/cibo_cognitive_scenarios.py",
+    "src/qore/infrastructure/cibo_cognitive_causality.py",
     "src/qore/infrastructure/cibo_executive_brain.py",
 )
 
