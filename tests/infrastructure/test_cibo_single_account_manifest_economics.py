@@ -146,7 +146,7 @@ def test_walk_forward_confidence_is_exposed_to_cognition_causally() -> None:
         == "0.20"
     )
     assert context["cibo_walk_forward_maturity_fraction"] == "1"
-    assert context["cibo_walk_forward_evidence_age_minutes"] == "30"
+    assert context["cibo_walk_forward_evidence_age_minutes"] == "30.0"
 
 
 def test_settlement_outcome_cannot_change_predecision_economics() -> None:
