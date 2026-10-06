@@ -37,14 +37,13 @@ jobs:
       - name: Install
         run: python -m pip install -e '.[dev]'
 
-      - name: Show exact Ruff normalization
+      - name: Compile and lint
         run: |
           set -euo pipefail
-          ruff check --fix src/qore/infrastructure/cibo_single_account_ceiling_state.py
-          git diff -- src/qore/infrastructure/cibo_single_account_ceiling_state.py
-          exit 1
+          python -m py_compile src/qore/infrastructure/cibo_full_economic_digital_twin.py src/qore/infrastructure/cibo_single_account_ceiling_state.py src/qore/infrastructure/cibo_single_account_historical_ceiling_state.py src/qore/infrastructure/cibo_single_account_manifest_economics.py src/qore/infrastructure/cibo_portfolio_allocation_engine.py
+          ruff check src/qore/infrastructure/cibo_full_economic_digital_twin.py src/qore/infrastructure/cibo_single_account_ceiling_state.py src/qore/infrastructure/cibo_single_account_historical_ceiling_state.py src/qore/infrastructure/cibo_single_account_manifest_economics.py src/qore/infrastructure/cibo_portfolio_allocation_engine.py tests/infrastructure/test_cibo_full_economic_digital_twin.py tests/infrastructure/test_cibo_single_account_manifest_economics.py
 
       - name: Prove forecast confidence contract
         run: |
           set -euo pipefail
-          pytest -q --no-cov             tests/infrastructure/test_cibo_full_economic_digital_twin.py             tests/infrastructure/test_cibo_single_account_manifest_economics.py
+          pytest -q --no-cov tests/infrastructure/test_cibo_full_economic_digital_twin.py tests/infrastructure/test_cibo_single_account_manifest_economics.py
