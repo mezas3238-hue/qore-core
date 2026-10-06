@@ -112,6 +112,43 @@ def test_manifest_row_builds_exact_causal_ceiling_economics() -> None:
     assert context["cibo_expected_capital_minutes"] == "30"
 
 
+def test_walk_forward_confidence_is_exposed_to_cognition_causally() -> None:
+    row = _row()
+    row["expectation"] = {
+        **row["expectation"],
+        "evidence_id": "CIBO_WALK_FORWARD_EMPIRICAL_V1:sha256:abc:R34_XAUUSD",
+        "evidence_available_at": "2026-01-05T14:00:00+00:00",
+        "basis": "WALK_FORWARD_EMPIRICAL_FORECAST",
+        "walk_forward_observation_count": 25,
+        "walk_forward_maturity": "MATURE",
+        "walk_forward_mature_for_capital_consideration": True,
+        "walk_forward_positive_block_count": 4,
+        "walk_forward_nonpositive_block_count": 1,
+        "walk_forward_block_dispersion_r": "1.25",
+        "walk_forward_median_absolute_deviation_r": "0.20",
+        "walk_forward_maturity_fraction": "1",
+    }
+
+    evidence = manifest_row_to_ceiling_opportunity_evidence(row)
+    context = dict(evidence.opportunity.decision_context)
+
+    assert context["cibo_walk_forward_observation_count"] == "25"
+    assert context["cibo_walk_forward_maturity"] == "MATURE"
+    assert (
+        context["cibo_walk_forward_mature_for_capital_consideration"]
+        == "true"
+    )
+    assert context["cibo_walk_forward_positive_block_count"] == "4"
+    assert context["cibo_walk_forward_nonpositive_block_count"] == "1"
+    assert context["cibo_walk_forward_block_dispersion_r"] == "1.25"
+    assert (
+        context["cibo_walk_forward_median_absolute_deviation_r"]
+        == "0.20"
+    )
+    assert context["cibo_walk_forward_maturity_fraction"] == "1"
+    assert context["cibo_walk_forward_evidence_age_minutes"] == "30"
+
+
 def test_settlement_outcome_cannot_change_predecision_economics() -> None:
     positive = manifest_row_to_ceiling_opportunity_evidence(
         _row(settlement_pnl="500")
