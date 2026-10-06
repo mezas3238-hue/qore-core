@@ -816,6 +816,8 @@ def project_genc10_world(
             + scenario.margin_capacity_delta_usd
         )
         used_margin = twin.used_margin_usd + scenario.margin_usage_delta_usd
+        stop_headroom = total_stop - used_stop
+        margin_headroom = total_margin - used_margin
     for value, name in (
         (total_stop, "projected total stop risk"),
         (used_stop, "projected used stop risk"),
@@ -854,10 +856,10 @@ def project_genc10_world(
         protected_floor_usd=protected_floor,
         total_stop_risk_capacity_usd=total_stop,
         used_stop_risk_usd=used_stop,
-        stop_risk_headroom_usd=total_stop - used_stop,
+        stop_risk_headroom_usd=stop_headroom,
         total_margin_capacity_usd=total_margin,
         used_margin_usd=used_margin,
-        margin_headroom_usd=total_margin - used_margin,
+        margin_headroom_usd=margin_headroom,
         surviving_known_option_ids=(
             scenario.surviving_known_option_ids
         ),
