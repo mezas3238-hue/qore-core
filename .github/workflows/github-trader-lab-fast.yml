@@ -128,6 +128,7 @@ jobs:
           python -m py_compile \
             lab/tools/github_trader_lab/realtime.py \
             lab/tools/github_trader_lab/science.py \
+            lab/tools/github_trader_lab/certification.py \
             lab/tools/github_trader_lab/fingerprint.py \
             lab/tools/github_trader_lab/fast_runner.py \
             lab/tools/github_trader_lab/adapters/vt31_comp003_prepare.py \
@@ -169,11 +170,26 @@ jobs:
           print(f"- Hot compute: {h['hot_compute_seconds']} s")
           print(f"- Replay/filter stage: {h['experiment_replay_seconds']} s")
           print(f"- Full scientific battery: {h['scientific_battery_seconds']} s")
+          print(f"- Certification readiness: {h['certification_readiness_seconds']} s")
           print(f"- Runner internal total: {h['runner_total_seconds']} s")
           print(f"- Development survivors: {h['development_survivors']}")
           print(f"- ≤6R survivors: {h['hard_dd_survivors']}")
           print(f"- Scientific passes: {h['scientific_passes']}")
-          print("- Fresh holdout opened: false")
+          print(f"- Walk-forward OOS present: {h['walk_forward_oos_present']}")
+          print(f"- Fresh OOS present: {h['fresh_oos_present']}")
+          print()
+          print("## Certification readiness")
+          for name, status in h["certification_readiness"].items():
+              metrics=h["primary_risk_adjusted"][name]
+              print(
+                  f"- {name}: {status}; "
+                  f"Sharpe={metrics['sharpe']}; "
+                  f"Sortino={metrics['sortino']}; "
+                  f"Recovery={metrics['recovery_factor']}; "
+                  f"CVaR5={metrics['cvar_05_r']}R"
+              )
+          print()
+          print("- Fresh holdout opened by Trader Lab: false")
           print("- Certification claimed: false")
           PY
           fi
