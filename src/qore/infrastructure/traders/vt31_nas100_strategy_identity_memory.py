@@ -72,6 +72,13 @@ def _strategy_identity_cached() -> dict[str, object]:
             ),
             "r_management_requires_causal_validation": True,
         },
+        "maximum_cognition": {
+            "partial_cognition_certification_allowed": False,
+            "all_available_memories_must_participate": True,
+            "all_available_cognitive_domains_must_be_accounted": True,
+            "post_entry_reassessment_capability_required": True,
+            "unknown_context_must_remain_explicit": True,
+        },
         "execution_invariance": {
             "market_decision_depends_on_volume": False,
             "sizing_authority": False,
