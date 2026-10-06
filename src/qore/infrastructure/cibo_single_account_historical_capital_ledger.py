@@ -604,7 +604,14 @@ def settle_historical_deployment(
     )
     if next_state.realized_capital_usd != expected:
         raise CiboCapitalManagementError(
-            "historical ceiling settlement capital conservation drift"
+            "historical ceiling settlement capital conservation drift: "
+            f"signal={settlement.signal_fingerprint} "
+            f"before={state.realized_capital_usd} "
+            f"gross_pnl={settlement.gross_pnl_usd} "
+            f"provider_cost={settlement.provider_cost_usd} "
+            f"net_pnl={settlement.realized_net_pnl_usd} "
+            f"expected={expected} "
+            f"actual={next_state.realized_capital_usd}"
         )
     if next_state.realized_capital_usd < 0:
         raise CiboCapitalManagementError(
