@@ -216,23 +216,25 @@ def bind_cibo_cognition_to_twin(
     constraints["executive_reasoning_mode"] = synthesis.reasoning_mode.value
     constraints["executive_uncertainty"] = synthesis.uncertainty.kind.value
 
-    # Cognition never selects a broker volume, but it must grade the maximum
-    # capital-intensity surface from its own causal epistemic state.  The old
-    # binary 0-or-existing-cap seam let any positive recommendation inherit 4x.
-    # Bounded confidence is intentionally not treated as certainty: LOW/MEDIUM/
-    # HIGH can expose at most 1x/2x/3x respectively.  A future 4x path therefore
-    # requires a distinct, explicit capital-confidence contract rather than
-    # silently inheriting the historical maximum.
-    existing_cap_raw = constraints.get("capital_intensity_cap", "4")
+    # Native MAX receives the full executable multiplier surface exposed by
+    # the Twin/provider geometry.  There is no fixed leverage ceiling here.
+    dynamic_default_cap = max(
+        (item.maximum_multiplier for item in twin.opportunities),
+        default=0,
+    )
+    existing_cap_raw = constraints.get(
+        "capital_intensity_cap",
+        str(dynamic_default_cap),
+    )
     try:
         existing_cap = int(existing_cap_raw)
     except (TypeError, ValueError) as error:
         raise CiboCapitalManagementError(
-            "cognitive capital_intensity_cap must be integer 0..4"
+            "cognitive capital_intensity_cap must be a non-negative integer"
         ) from error
-    if existing_cap not in {0, 1, 2, 3, 4}:
+    if existing_cap < 0:
         raise CiboCapitalManagementError(
-            "cognitive capital_intensity_cap outside 0..4"
+            "cognitive capital_intensity_cap cannot be negative"
         )
 
     # During capital-leak closure, epistemic confidence must constrain the
@@ -257,15 +259,15 @@ def bind_cibo_cognition_to_twin(
         cognitive_cap = confidence_cap[level]
 
     if maximum_frontier_cap is None:
-        frontier_cap = 4
+        frontier_cap = dynamic_default_cap
     else:
         if (
             not isinstance(maximum_frontier_cap, int)
             or isinstance(maximum_frontier_cap, bool)
-            or maximum_frontier_cap not in {0, 1, 2, 3, 4}
+            or maximum_frontier_cap < 0
         ):
             raise CiboCapitalManagementError(
-                "MAX Frontier capital-intensity recommendation must be integer 0..4"
+                "MAX Frontier capital-intensity recommendation must be non-negative"
             )
         frontier_cap = maximum_frontier_cap
 
