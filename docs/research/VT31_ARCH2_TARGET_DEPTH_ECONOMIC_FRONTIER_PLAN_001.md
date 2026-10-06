@@ -35,21 +35,46 @@ Extension can become eligible only after:
 
 No future DOL2/DOL3 reach label may select the runtime action.
 
+## Soft-DOL1 acceptance windows
+
+The calibration showed non-constant touch-to-acceptance latency. To avoid
+post-hoc selection, test the following windows in parallel:
+
+- 1 fully closed M1 after DOL1 touch;
+- 3 fully closed M1 after DOL1 touch;
+- 5 fully closed M1 after DOL1 touch.
+
+Within a window:
+
+- the original structural invalidation remains active;
+- DOL1 is a soft checkpoint, not a hard TP;
+- acceptance occurs only when a closed M1 finishes beyond DOL1;
+- if the window expires without acceptance, exit at that causal close;
+- if accepted, the extension target becomes active only from the next M1.
+
+No post-acceptance target hit on the acceptance bar is credited.
+
 ## Economic variants
 
 Always include:
 
 - `DOL1_EXIT_BASELINE`
 
-If DOL2 calibration passes:
+If DOL2 calibration passes, for each 1/3/5-M1 acceptance window:
 
-- `ACCEPTED_DOL1_EXTEND_DOL2`
-- `ACCEPTED_DOL1_EXTEND_DOL2_STRUCTURAL_PROTECTION`
+- `ACCEPTED_DOL1_EXTEND_DOL2_ALL` control;
+- `ACCEPTED_DOL1_EXTEND_DOL2_FULL_COGNITION`.
 
-If DOL3 calibration passes:
+The full-cognition variant re-runs live-position reasoning at the accepted
+close and extends only when the integrated cognition supports continuation.
 
-- `ACCEPTED_DOL1_EXTEND_DOL3`
-- `ACCEPTED_DOL1_EXTEND_DOL3_STRUCTURAL_PROTECTION`
+If DOL3 calibration passes, for each 1/3/5-M1 acceptance window:
+
+- `ACCEPTED_DOL1_EXTEND_DOL3_ALL` control;
+- `ACCEPTED_DOL1_EXTEND_DOL3_DEEP_COGNITION`.
+
+DOL3 cognition requires DOL1 acceptance plus a continuation-supportive live
+journey state. It is research-only until cross-fold economics survive.
 
 The whole position follows the selected market-management policy. The policy
 must be executable independently of absolute volume.
