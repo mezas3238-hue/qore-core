@@ -169,6 +169,41 @@ def test_predecision_bridge_invokes_exact_mandatory_causal_surface() -> None:
     )
 
 
+def test_genc12_projects_causal_regime_crisis_facts() -> None:
+    regime = runtime.CiboCapitalRegimeState(
+        liquidity=runtime.LiquidityState.STRESSED,
+        volatility=runtime.VolatilityState.DISLOCATED,
+        correlation=runtime.CorrelationState.BREAK,
+        provider_condition=runtime.ProviderCondition.DEGRADED,
+        risk_utilization=Decimal("4") / Decimal("72"),
+        margin_utilization=Decimal("5") / Decimal("72"),
+        drawdown_utilization=Decimal("3") / Decimal("75"),
+        opportunity_count=2,
+    )
+    directive = runtime.evaluate_capital_science_predecision(
+        _state(regime_state=regime)
+    )
+    c12 = next(
+        item for item in directive.receipts
+        if item.function_code == "GEN-C12"
+    )
+    required = {
+        runtime.Genc12CrisisFactor.LIQUIDITY_STRESS.value,
+        runtime.Genc12CrisisFactor.VOLATILITY_DISLOCATION.value,
+        runtime.Genc12CrisisFactor.CORRELATION_CONVERGENCE.value,
+        runtime.Genc12CrisisFactor.PROVIDER_DEGRADATION.value,
+    }
+
+    assert required <= set(
+        c12.input_payload["typed_engine_input"]["crisis_factors"]
+    )
+    assert required <= set(
+        c12.output_payload["engine_output"]["active_factors"]
+    )
+    assert c12.native_engine_called is True
+    assert c12.outcome_used_for_same_decision is False
+
+
 def test_nonpositive_marginal_value_abstains_before_cma_and_risk() -> None:
     directive = runtime.evaluate_capital_science_predecision(
         _state(

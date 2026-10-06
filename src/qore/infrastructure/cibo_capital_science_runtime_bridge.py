@@ -2174,6 +2174,17 @@ def evaluate_capital_science_predecision(
     # GEN-C12: invoke the native crisis-capital engine using the same twin and
     # causal account regime. No future outcome or market probability is used.
     crisis_factors: list[Genc12CrisisFactor] = []
+    if regime_state.liquidity is LiquidityState.STRESSED:
+        crisis_factors.append(Genc12CrisisFactor.LIQUIDITY_STRESS)
+    if regime_state.volatility is VolatilityState.DISLOCATED:
+        crisis_factors.append(Genc12CrisisFactor.VOLATILITY_DISLOCATION)
+    if regime_state.correlation is CorrelationState.BREAK:
+        crisis_factors.append(Genc12CrisisFactor.CORRELATION_CONVERGENCE)
+    if regime_state.provider_condition in {
+        ProviderCondition.DEGRADED,
+        ProviderCondition.UNAVAILABLE,
+    }:
+        crisis_factors.append(Genc12CrisisFactor.PROVIDER_DEGRADATION)
     if drawdown_util >= Decimal("0.50"):
         crisis_factors.append(Genc12CrisisFactor.DRAWDOWN_ACCELERATION)
     if risk_util >= Decimal("0.80") or margin_util >= Decimal("0.80"):
