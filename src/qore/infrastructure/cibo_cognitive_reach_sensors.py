@@ -49,7 +49,11 @@ class CiboCognitiveReachSensor:
     reached_stages: tuple[str, ...]
     downstream_consumer: str
     component_ablation_key: str
+    input_metrics: tuple[tuple[str, str], ...] = ()
+    output_metrics: tuple[tuple[str, str], ...] = ()
     native_engine_called: bool = True
+    native_output_consumed: bool = True
+    semantic_payload_consumed: bool = True
     applicable: bool = True
     downstream_consumed: bool = True
     constraint_or_gate_emitted: bool = False
@@ -107,6 +111,8 @@ class CiboCognitiveReachSensor:
             )
         for name in (
             "native_engine_called",
+            "native_output_consumed",
+            "semantic_payload_consumed",
             "applicable",
             "downstream_consumed",
             "constraint_or_gate_emitted",
@@ -126,6 +132,25 @@ class CiboCognitiveReachSensor:
             raise CiboCapitalManagementError(
                 "non-applicable cognitive component cannot claim execution"
             )
+        if self.native_output_consumed and not self.native_engine_called:
+            raise CiboCapitalManagementError(
+                "cognitive sensor cannot consume native output from an uncalled engine"
+            )
+        for name in ("input_metrics", "output_metrics"):
+            values = getattr(self, name)
+            keys = tuple(item[0] for item in values)
+            if (
+                any(
+                    not isinstance(item, tuple)
+                    or len(item) != 2
+                    or not all(isinstance(part, str) for part in item)
+                    for item in values
+                )
+                or len(keys) != len(set(keys))
+            ):
+                raise CiboCapitalManagementError(
+                    f"cognitive sensor {name} must be unique string pairs"
+                )
         if self.reached_capital_decision and not self.reached_executive_synthesis:
             raise CiboCapitalManagementError(
                 "cognitive sensor cannot reach capital before executive synthesis"
@@ -160,7 +185,11 @@ class CiboCognitiveReachSensor:
             "max_reached_stage": self.max_reached_stage,
             "downstream_consumer": self.downstream_consumer,
             "component_ablation_key": self.component_ablation_key,
+            "input_metrics": dict(self.input_metrics),
+            "output_metrics": dict(self.output_metrics),
             "native_engine_called": self.native_engine_called,
+            "native_output_consumed": self.native_output_consumed,
+            "semantic_payload_consumed": self.semantic_payload_consumed,
             "applicable": self.applicable,
             "downstream_consumed": self.downstream_consumed,
             "constraint_or_gate_emitted": self.constraint_or_gate_emitted,
@@ -187,6 +216,23 @@ def _sha(payload: object) -> str:
     return "sha256:" + hashlib.sha256(raw).hexdigest()
 
 
+def _compact_metrics(payload: object) -> tuple[tuple[str, str], ...]:
+    if not isinstance(payload, dict):
+        return (("value_type", type(payload).__name__),)
+    rows: list[tuple[str, str]] = []
+    for key, value in sorted(payload.items(), key=lambda item: str(item[0])):
+        name = str(key)
+        if isinstance(value, (str, int, bool, Decimal)) or value is None:
+            rows.append((name, str(value)))
+        elif isinstance(value, (tuple, list, set, frozenset)):
+            rows.append((name + "_count", str(len(value))))
+        elif isinstance(value, dict):
+            rows.append((name + "_key_count", str(len(value))))
+        else:
+            rows.append((name + "_type", type(value).__name__))
+    return tuple(rows)
+
+
 def _internal_sensor(
     *,
     decision_id: str,
@@ -210,7 +256,11 @@ def _internal_sensor(
         reached_stages=reached_stages,
         downstream_consumer=consumer,
         component_ablation_key="cognition:" + code.lower(),
+        input_metrics=_compact_metrics(input_payload),
+        output_metrics=_compact_metrics(output_payload),
         native_engine_called=True,
+        native_output_consumed=True,
+        semantic_payload_consumed=True,
         applicable=True,
         downstream_consumed=True,
         constraint_or_gate_emitted=gate,
@@ -352,7 +402,19 @@ def build_native_cognitive_reach_sensors(
                 component_ablation_key=(
                     "cognition:" + receipt.function_code.lower()
                 ),
+                input_metrics=(
+                    ("function_code", receipt.function_code),
+                    ("input_sha256", receipt.input_sha256),
+                ),
+                output_metrics=(
+                    ("native_engine_status", native_status),
+                    ("native_engine_called", str(native_called)),
+                    ("gate_emitted", str(gate_emitted)),
+                    ("downstream_consumer", receipt.downstream_consumer),
+                ),
                 native_engine_called=native_called,
+                native_output_consumed=(native_called and applicable),
+                semantic_payload_consumed=True,
                 applicable=applicable,
                 downstream_consumed=True,
                 constraint_or_gate_emitted=gate_emitted,
@@ -707,6 +769,17 @@ def summarize_cognitive_reach_sensors(
             "applicable_count": sum(item.applicable for item in group),
             "native_engine_called_count": sum(
                 item.native_engine_called for item in group
+            ),
+            "native_output_consumed_count": sum(
+                item.native_output_consumed for item in group
+            ),
+            "semantic_payload_consumed_count": sum(
+                item.semantic_payload_consumed for item in group
+            ),
+            "semantic_only_count": sum(
+                item.semantic_payload_consumed
+                and not item.native_output_consumed
+                for item in group
             ),
             "downstream_consumed_count": sum(
                 item.downstream_consumed for item in group
