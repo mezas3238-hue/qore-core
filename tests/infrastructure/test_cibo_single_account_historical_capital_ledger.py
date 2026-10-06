@@ -16,6 +16,8 @@ from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
 from qore.infrastructure.cibo_single_account_historical_capital_ledger import (
+    CiboHistoricalProfitGeneration,
+    CiboHistoricalResearchCapitalState,
     initialize_historical_research_capital,
     reserve_historical_authorization,
     settle_historical_deployment,
@@ -334,3 +336,32 @@ def test_gap_outcome_below_minus_one_r_consumes_explicit_excess_loss() -> None:
 
     assert state.realized_capital_usd == Decimal("47")
     assert state.cumulative_gross_loss_usd == Decimal("11")
+
+
+
+def test_profit_generation_allocation_identity_uses_exact_decimal_sum() -> None:
+    consumed = Decimal("0.12345678901234567890123456789")
+    reserved = Decimal("0.00000000000000000000000000006")
+    proven = Decimal("0.12345678901234567890123456795")
+
+    generation = CiboHistoricalProfitGeneration(
+        generation=1,
+        proven_usd=proven,
+        consumed_usd=consumed,
+        reserved_usd=reserved,
+    )
+
+    assert generation.available_usd == Decimal("0")
+
+
+def test_base_allocation_identity_uses_exact_decimal_sum() -> None:
+    consumed = Decimal("59.99999999999999999999999999994")
+    reserved = Decimal("0.00000000000000000000000000006")
+
+    state = CiboHistoricalResearchCapitalState(
+        original_base_consumed_usd=consumed,
+        original_base_reserved_usd=reserved,
+        peak_realized_capital_usd=Decimal("60"),
+    )
+
+    assert state.original_base_available_usd == Decimal("0")
