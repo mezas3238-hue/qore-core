@@ -605,6 +605,27 @@ def _plan_without_compound_funding(
                 "available; realized profit is intentionally non-deployable"
             ),
         )
+    minimum = minimum_seed_volume(opportunity)
+    with localcontext() as context:
+        context.prec = 100
+        minimum_total_loss = minimum * (
+            opportunity.stop_loss_per_volume + provider_cost_per_volume_usd
+        )
+        minimum_margin = minimum * opportunity.margin_per_volume
+    if (
+        minimum_total_loss > base_available
+        or minimum_margin > capital.margin_headroom_usd
+    ):
+        return _hold_sizing_for_ablation(
+            opportunity=opportunity,
+            mission_policy=mission_policy,
+            survival_capital_usd=survival_capital_usd,
+            protected_capital_usd=protected_capital_usd,
+            reason=(
+                "CIBO compound ablation: original-base capacity cannot "
+                "finance the minimum executable seed"
+            ),
+        )
     ablated_capital = replace(
         capital,
         assigned_capital_usd=base_available,
