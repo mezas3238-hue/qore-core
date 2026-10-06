@@ -1,0 +1,234 @@
+name: QORE CIBO Damage Attribution Ablation
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/cibo-causal-expectation-leakage-fix-001
+    paths:
+      - '.github/workflows/cibo-damage-attribution-ablation.yml'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-cibo-damage-attribution-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  leverage:
+    name: leverage-${{ matrix.multiplier }}x
+    strategy:
+      fail-fast: false
+      matrix:
+        multiplier: [1, 2, 3, 4]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+      FROZEN_ARTIFACT_ID: '11389331836'
+      FROZEN_ARTIFACT_DIGEST: 'sha256:30177639f660c9647ab70257c2d12c541bdade49ab5582347a3890f920070fee'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install
+        run: python -m pip install -e '.[dev]'
+      - name: Recover frozen source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/ablation/frozen"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$FROZEN_ARTIFACT_ID" > "$RUNNER_TEMP/ablation/frozen.meta.json"
+          jq -e --arg digest "$FROZEN_ARTIFACT_DIGEST" '.expired == false and .digest == $digest' "$RUNNER_TEMP/ablation/frozen.meta.json"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$FROZEN_ARTIFACT_ID/zip" > "$RUNNER_TEMP/ablation/frozen.zip"
+          echo "${FROZEN_ARTIFACT_DIGEST#sha256:}  $RUNNER_TEMP/ablation/frozen.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/ablation/frozen.zip" -d "$RUNNER_TEMP/ablation/frozen"
+          MANIFEST="$(find "$RUNNER_TEMP/ablation/frozen" -type f -name single-account-manifest-native.json -print -quit)"
+          test -n "$MANIFEST"
+          echo "MANIFEST=$MANIFEST" >> "$GITHUB_ENV"
+      - name: Build maturity walk-forward window
+        run: |
+          set -euo pipefail
+          python scripts/cibo_build_walk_forward_expectation_manifest.py             --manifest "$MANIFEST"             --output "$RUNNER_TEMP/ablation/full.json"             --receipt "$RUNNER_TEMP/ablation/receipt.json"
+          python - <<'PY'
+          import json, os
+          from collections import Counter
+          from pathlib import Path
+          from qore.infrastructure.cibo_single_account_manifest_integrity import reseal_single_account_manifest
+          root=Path(os.environ["RUNNER_TEMP"])/"ablation"
+          p=json.loads((root/"full.json").read_text())
+          cutoff="2020-04-30T23:59:59+00:00"
+          rows=[r for r in p["opportunities"] if r["market_decision_at"] <= cutoff]
+          p["opportunities"]=rows
+          p["opportunity_decision_count"]=len(rows)
+          p["decision_epoch_count"]=len({r["decision_epoch_id"] for r in rows})
+          p["trader_ids"]=sorted({r["trader_id"] for r in rows})
+          p["trader_opportunity_counts"]=dict(sorted(Counter(r["trader_id"] for r in rows).items()))
+          p["first_market_decision_at"]=rows[0]["market_decision_at"]
+          p["last_market_decision_at"]=rows[-1]["market_decision_at"]
+          p["research_window"]={"kind":"BURNED_DAMAGE_ATTRIBUTION_WINDOW","cutoff":cutoff,"certification_claimed":False}
+          p=reseal_single_account_manifest(p)
+          (root/"window.json").write_text(json.dumps(p,sort_keys=True))
+          PY
+      - name: Run fixed multiplier ablation
+        env:
+          MULTIPLIER: ${{ matrix.multiplier }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os
+          from collections import Counter, defaultdict
+          from decimal import Decimal
+          from pathlib import Path
+          from qore.infrastructure.cibo_single_account_historical_ceiling_replay import run_historical_ceiling_replay
+          root=Path(os.environ["RUNNER_TEMP"])/"ablation"
+          manifest=json.loads((root/"window.json").read_text())
+          multiplier=int(os.environ["MULTIPLIER"])
+          result=run_historical_ceiling_replay(manifest, portfolio_fixed_multiplier=multiplier)
+          capital=Decimal("60"); peak=capital; max_dd=Decimal(0)
+          by_trader=defaultdict(Decimal)
+          for s in sorted(result.settlement_receipts,key=lambda x:(x.settled_at,x.signal_fingerprint)):
+              capital += s.realized_net_pnl_usd
+              peak=max(peak,capital)
+              max_dd=max(max_dd,peak-capital)
+              by_trader[s.trader_id] += s.realized_net_pnl_usd
+          counts=Counter(str(d.adaptive_leverage_multiplier) for d in result.decision_receipts)
+          selected=sum(d.risk_decision in {"ALLOW","REDUCE"} for d in result.decision_receipts)
+          payload={
+              "ablation":"FIXED_PORTFOLIO_MULTIPLIER",
+              "fixed_multiplier":multiplier,
+              "decision_count":len(result.decision_receipts),
+              "selected_count":selected,
+              "settlement_count":len(result.settlement_receipts),
+              "ending_capital_usd":format(result.ending_capital_usd,"f"),
+              "net_pnl_usd":format(result.net_pnl_usd,"f"),
+              "peak_capital_usd":format(result.peak_capital_usd,"f"),
+              "maximum_drawdown_usd":format(max_dd,"f"),
+              "adaptive_leverage_counts":dict(sorted(counts.items())),
+              "net_pnl_by_trader_usd":{k:format(v,"f") for k,v in sorted(by_trader.items())},
+              "future_outcome_used":result.outcome_used_for_predecision,
+              "certification_claimed":result.certification_claimed,
+          }
+          out=root/f"leverage-{multiplier}x.json"
+          out.write_text(json.dumps(payload,indent=2,sort_keys=True)+"\n")
+          print(json.dumps(payload,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cibo-damage-leverage-${{ matrix.multiplier }}x-${{ github.run_id }}
+          path: ${{ runner.temp }}/ablation/leverage-*.json
+
+  survival:
+    name: survival-${{ matrix.risk_multiple }}
+    strategy:
+      fail-fast: false
+      matrix:
+        risk_multiple: ['0.02', '0.03', '0.05', '0.10', '0.25', '1.00']
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+      FROZEN_ARTIFACT_ID: '11389331836'
+      FROZEN_ARTIFACT_DIGEST: 'sha256:30177639f660c9647ab70257c2d12c541bdade49ab5582347a3890f920070fee'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install
+        run: python -m pip install -e '.[dev]'
+      - name: Recover frozen source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/ablation/frozen"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$FROZEN_ARTIFACT_ID" > "$RUNNER_TEMP/ablation/frozen.meta.json"
+          jq -e --arg digest "$FROZEN_ARTIFACT_DIGEST" '.expired == false and .digest == $digest' "$RUNNER_TEMP/ablation/frozen.meta.json"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$FROZEN_ARTIFACT_ID/zip" > "$RUNNER_TEMP/ablation/frozen.zip"
+          echo "${FROZEN_ARTIFACT_DIGEST#sha256:}  $RUNNER_TEMP/ablation/frozen.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/ablation/frozen.zip" -d "$RUNNER_TEMP/ablation/frozen"
+          MANIFEST="$(find "$RUNNER_TEMP/ablation/frozen" -type f -name single-account-manifest-native.json -print -quit)"
+          test -n "$MANIFEST"
+          echo "MANIFEST=$MANIFEST" >> "$GITHUB_ENV"
+      - name: Build maturity walk-forward window
+        run: |
+          set -euo pipefail
+          python scripts/cibo_build_walk_forward_expectation_manifest.py             --manifest "$MANIFEST"             --output "$RUNNER_TEMP/ablation/full.json"             --receipt "$RUNNER_TEMP/ablation/receipt.json"
+          python - <<'PY'
+          import json, os
+          from collections import Counter
+          from pathlib import Path
+          from qore.infrastructure.cibo_single_account_manifest_integrity import reseal_single_account_manifest
+          root=Path(os.environ["RUNNER_TEMP"])/"ablation"
+          p=json.loads((root/"full.json").read_text())
+          cutoff="2020-04-30T23:59:59+00:00"
+          rows=[r for r in p["opportunities"] if r["market_decision_at"] <= cutoff]
+          p["opportunities"]=rows
+          p["opportunity_decision_count"]=len(rows)
+          p["decision_epoch_count"]=len({r["decision_epoch_id"] for r in rows})
+          p["trader_ids"]=sorted({r["trader_id"] for r in rows})
+          p["trader_opportunity_counts"]=dict(sorted(Counter(r["trader_id"] for r in rows).items()))
+          p["first_market_decision_at"]=rows[0]["market_decision_at"]
+          p["last_market_decision_at"]=rows[-1]["market_decision_at"]
+          p["research_window"]={"kind":"BURNED_DAMAGE_ATTRIBUTION_WINDOW","cutoff":cutoff,"certification_claimed":False}
+          p=reseal_single_account_manifest(p)
+          (root/"window.json").write_text(json.dumps(p,sort_keys=True))
+          PY
+      - name: Run survival envelope ablation
+        env:
+          RISK_MULTIPLE: ${{ matrix.risk_multiple }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os
+          from collections import Counter, defaultdict
+          from decimal import Decimal
+          from pathlib import Path
+          from qore.infrastructure.cibo_single_account_historical_ceiling_epoch import CiboHistoricalProviderAssumption
+          from qore.infrastructure.cibo_single_account_historical_ceiling_replay import run_historical_ceiling_replay
+          root=Path(os.environ["RUNNER_TEMP"])/"ablation"
+          manifest=json.loads((root/"window.json").read_text())
+          risk_multiple=Decimal(os.environ["RISK_MULTIPLE"])
+          assumption=CiboHistoricalProviderAssumption(
+              risk_headroom_multiple_of_equity=risk_multiple,
+              max_risk_multiple_of_equity=risk_multiple,
+              margin_capacity_multiple_of_equity=Decimal("100"),
+          )
+          result=run_historical_ceiling_replay(manifest, provider_assumption=assumption)
+          capital=Decimal("60"); peak=capital; max_dd=Decimal(0)
+          by_trader=defaultdict(Decimal)
+          for s in sorted(result.settlement_receipts,key=lambda x:(x.settled_at,x.signal_fingerprint)):
+              capital += s.realized_net_pnl_usd
+              peak=max(peak,capital)
+              max_dd=max(max_dd,peak-capital)
+              by_trader[s.trader_id] += s.realized_net_pnl_usd
+          counts=Counter(str(d.adaptive_leverage_multiplier) for d in result.decision_receipts)
+          selected=sum(d.risk_decision in {"ALLOW","REDUCE"} for d in result.decision_receipts)
+          payload={
+              "ablation":"TOTAL_RISK_ENVELOPE",
+              "risk_multiple":format(risk_multiple,"f"),
+              "decision_count":len(result.decision_receipts),
+              "selected_count":selected,
+              "settlement_count":len(result.settlement_receipts),
+              "ending_capital_usd":format(result.ending_capital_usd,"f"),
+              "net_pnl_usd":format(result.net_pnl_usd,"f"),
+              "peak_capital_usd":format(result.peak_capital_usd,"f"),
+              "maximum_drawdown_usd":format(max_dd,"f"),
+              "adaptive_leverage_counts":dict(sorted(counts.items())),
+              "net_pnl_by_trader_usd":{k:format(v,"f") for k,v in sorted(by_trader.items())},
+              "future_outcome_used":result.outcome_used_for_predecision,
+              "certification_claimed":result.certification_claimed,
+          }
+          out=root/f"survival-{str(risk_multiple).replace('.','_')}.json"
+          out.write_text(json.dumps(payload,indent=2,sort_keys=True)+"\n")
+          print(json.dumps(payload,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cibo-damage-survival-${{ matrix.risk_multiple }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/ablation/survival-*.json
