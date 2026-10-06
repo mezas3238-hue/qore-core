@@ -247,22 +247,13 @@ class EpochOption:
 def cognitive_multiplier_cap(
     cognitive_orchestration: Mapping[str, object],
     *,
-    provider_multiplier_cap: int,
+    provider_multiplier_cap: int | None = None,
 ) -> tuple[int, tuple[str, ...], str]:
     """Turn the CF predecision surface into a capital-intensity ceiling.
 
     The function consumes only CF input/status information. It never reads
     realized P/L or later market path.
     """
-
-    if (
-        not isinstance(provider_multiplier_cap, int)
-        or isinstance(provider_multiplier_cap, bool)
-        or provider_multiplier_cap < 0
-    ):
-        raise CiboMaximumCapabilityError(
-            "provider multiplier cap must be non-negative"
-        )
 
     raw_receipts = cognitive_orchestration.get("faculty_receipts")
     if not isinstance(raw_receipts, list) or len(raw_receipts) != 19:
@@ -282,6 +273,52 @@ def cognitive_multiplier_cap(
     expected_codes = tuple(f"CF{index:02d}" for index in range(1, 20))
     if tuple(sorted(by_code)) != expected_codes:
         return 0, (), "CF01-CF19 identity surface incomplete"
+
+    if provider_multiplier_cap is None:
+        derived_caps: list[int] = []
+        for raw in by_code.values():
+            payload = raw.get("input_payload")
+            if not isinstance(payload, Mapping):
+                continue
+            high_context = payload.get("high_intelligence_context")
+            if not isinstance(high_context, (list, tuple)):
+                continue
+            for item in high_context:
+                if not isinstance(item, Mapping):
+                    continue
+                try:
+                    maximum = Decimal(str(item["maximum_volume"]))
+                    minimum = Decimal(str(item["minimum_volume"]))
+                    steps = int(item.get("minimum_execution_steps", 1))
+                except (KeyError, TypeError, ValueError):
+                    continue
+                base = minimum * Decimal(steps)
+                if (
+                    maximum.is_finite()
+                    and base.is_finite()
+                    and maximum >= 0
+                    and base > 0
+                ):
+                    derived_caps.append(
+                        max(
+                            0,
+                            int(
+                                (maximum / base).to_integral_value(
+                                    rounding=ROUND_FLOOR
+                                )
+                            ),
+                        )
+                    )
+        provider_multiplier_cap = max(derived_caps, default=0)
+
+    if (
+        not isinstance(provider_multiplier_cap, int)
+        or isinstance(provider_multiplier_cap, bool)
+        or provider_multiplier_cap < 0
+    ):
+        raise CiboMaximumCapabilityError(
+            "provider multiplier cap must be non-negative"
+        )
 
     consumed = ("CF02", "CF06", "CF07", "CF10", "CF12")
     for code in consumed:
