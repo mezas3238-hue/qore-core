@@ -85,7 +85,7 @@ def test_sovereign_cap_resize_preserves_long_decimal_source_provenance() -> None
     sizing = CiboAccountSizingDecision(
         mission=CiboCapitalMission.DEMO_CAPABILITY_DISCOVERY,
         mode=CiboAccountSizingMode.CAPABILITY_MAXIMUM,
-        base_protected=False,
+        base_protected=True,
         survival_capital_usd=Decimal("0"),
         protected_capital_usd=Decimal("0"),
         plan=plan,
