@@ -421,10 +421,12 @@ class CapitalSciencePredecisionInput:
             raise CiboCapitalManagementError(
                 "Capital Science protected capacity cannot exceed realized-profit pool"
             )
-        if (
-            self.protected_capacity_usd + self.deployed_profit_usd
-            > self.realized_profit_pool_usd
-        ):
+        with localcontext() as context:
+            context.prec = 100
+            protected_plus_deployed = (
+                self.protected_capacity_usd + self.deployed_profit_usd
+            )
+        if protected_plus_deployed > self.realized_profit_pool_usd:
             raise CiboCapitalManagementError(
                 "Capital Science protected plus deployed profit cannot exceed "
                 "realized-profit pool"
@@ -510,7 +512,7 @@ class CapitalSciencePredecisionInput:
     @property
     def deployable_profit_usd(self) -> Decimal:
         with localcontext() as context:
-            context.prec = 80
+            context.prec = 100
             return max(
                 Decimal(0),
                 self.realized_profit_pool_usd
@@ -521,7 +523,7 @@ class CapitalSciencePredecisionInput:
     @property
     def giveback_usd(self) -> Decimal:
         with localcontext() as context:
-            context.prec = 80
+            context.prec = 100
             return self.peak_realized_capital_usd - self.realized_capital_usd
 
     def payload(self) -> dict[str, object]:
@@ -989,7 +991,7 @@ def _runtime_identity(
 
 def _utilization(used: Decimal, headroom: Decimal) -> Decimal:
     with localcontext() as context:
-        context.prec = 80
+        context.prec = 100
         total = used + headroom
         if total <= 0:
             return Decimal(0)
@@ -999,10 +1001,12 @@ def _utilization(used: Decimal, headroom: Decimal) -> Decimal:
 def _drawdown_utilization(state: CapitalSciencePredecisionInput) -> Decimal:
     if state.peak_realized_capital_usd <= 0:
         return Decimal(0)
-    return min(
-        Decimal(1),
-        state.giveback_usd / state.peak_realized_capital_usd,
-    )
+    with localcontext() as context:
+        context.prec = 100
+        return min(
+            Decimal(1),
+            state.giveback_usd / state.peak_realized_capital_usd,
+        )
 
 
 def _severity(value: Decimal) -> Genc8Severity:
@@ -1073,7 +1077,11 @@ def _regime_state(state: CapitalSciencePredecisionInput) -> CiboCapitalRegimeSta
 def _known_economic_options(
     state: CapitalSciencePredecisionInput,
 ) -> tuple[CapitalScienceKnownOpportunity, ...]:
-    request_capital = state.requested_stop_risk_usd + state.provider_cost_usd
+    with localcontext() as context:
+        context.prec = 100
+        request_capital = (
+            state.requested_stop_risk_usd + state.provider_cost_usd
+        )
     horizon_minutes = max(3, int(state.expected_capital_minutes) + 1)
     current_option = (
         CapitalScienceKnownOpportunity(
@@ -1117,6 +1125,17 @@ def _known_economic_options(
     )
 
 
+def _known_option_provider_cost_usd(
+    item: CapitalScienceKnownOpportunity,
+) -> Decimal:
+    with localcontext() as context:
+        context.prec = 100
+        return max(
+            Decimal(0),
+            item.requested_capital_usd - item.stop_risk_usd,
+        )
+
+
 def _full_economic_twin(
     state: CapitalSciencePredecisionInput,
     *,
@@ -1135,10 +1154,7 @@ def _full_economic_twin(
             expected_capital_minutes=item.expected_capital_minutes,
             stop_risk_usd=item.stop_risk_usd,
             margin_usd=item.margin_usd,
-            provider_cost_usd=max(
-                Decimal(0),
-                item.requested_capital_usd - item.stop_risk_usd,
-            ),
+            provider_cost_usd=_known_option_provider_cost_usd(item),
             uncertainty_penalty=Decimal(0),
             context_allowed=True,
             provider_viable=True,
@@ -1257,13 +1273,14 @@ def _capital_twin(
         state.realized_capital_usd,
     )
     protected_profit = min(state.protected_capacity_usd, profit_total)
-    deployed_profit = min(
-        state.deployed_profit_usd,
-        profit_total - protected_profit,
-    )
     with localcontext() as context:
-        context.prec = 80
-        deployable_profit = profit_total - protected_profit - deployed_profit
+        context.prec = 100
+        unprotected_profit = profit_total - protected_profit
+        deployed_profit = min(
+            state.deployed_profit_usd,
+            unprotected_profit,
+        )
+        deployable_profit = unprotected_profit - deployed_profit
         original_base = state.realized_capital_usd - profit_total
     buckets = tuple(
         (
@@ -1297,7 +1314,7 @@ def _capital_twin(
         for item in economic_options
     )
     with localcontext() as context:
-        context.prec = 80
+        context.prec = 100
         risk_capacity = state.open_stop_risk_usd + state.hard_risk_headroom_usd
         margin_capacity = state.open_margin_usd + state.margin_headroom_usd
     return Genc10ObservedCapitalTwin(
@@ -1339,7 +1356,7 @@ def _native_genc5_inputs(
     """Materialize the canonical GEN-C1/C2/C4 contracts from causal state."""
 
     with localcontext() as context:
-        context.prec = 80
+        context.prec = 100
         profit_total = min(
             state.realized_profit_pool_usd,
             state.realized_capital_usd,
@@ -1533,6 +1550,14 @@ def evaluate_capital_science_predecision(
         )
 
     receipts: list[CapitalScienceReceipt] = []
+    with localcontext() as context:
+        context.prec = 100
+        incremental_request_capital = (
+            state.requested_stop_risk_usd + state.provider_cost_usd
+        )
+        marginal_net = (
+            state.expected_net_value_usd - state.provider_cost_usd
+        )
 
     # GEN-C2: consume already-protected/non-deployable account capacity before
     # incremental capital can reach CMA.  The bridge never invents a floor.
@@ -1557,7 +1582,7 @@ def evaluate_capital_science_predecision(
             decision_changed=(
                 c2_active
                 and state.deployable_profit_usd
-                < state.requested_stop_risk_usd + state.provider_cost_usd
+                < incremental_request_capital
                 <= state.realized_profit_pool_usd
             ),
             capital_source_usage=(state.capital_source,),
@@ -1566,7 +1591,6 @@ def evaluate_capital_science_predecision(
 
     # GEN-C4: a strictly causal marginal-value check.  Expected value is from
     # predecision evidence; provider cost is known at the same decision epoch.
-    marginal_net = state.expected_net_value_usd - state.provider_cost_usd
     c4_allows = marginal_net > 0
     receipts.append(
         _receipt(
@@ -1598,13 +1622,13 @@ def evaluate_capital_science_predecision(
     # GEN-C7: invoke the actual profit-preservation engine on the causal
     # account state and exact already-sized incremental request.
     identity = _runtime_identity(state)
-    request_capital = state.requested_stop_risk_usd + state.provider_cost_usd
+    request_capital = incremental_request_capital
     current_profit = min(
         state.realized_profit_pool_usd,
         state.realized_capital_usd,
     )
     with localcontext() as context:
-        context.prec = 80
+        context.prec = 100
         peak_profit = current_profit + state.giveback_usd
         base_capital = state.realized_capital_usd - current_profit
     genc7_state = Genc7CapitalStateEvidence(
