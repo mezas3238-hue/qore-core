@@ -27,7 +27,6 @@ from qore.infrastructure.cibo_sovereign_function_consultation import (
 )
 from qore.modules.cibo.cognitive_contracts import CiboReasoningMode
 
-
 NOW = datetime(2026, 10, 5, 12, 0, tzinfo=UTC)
 
 
