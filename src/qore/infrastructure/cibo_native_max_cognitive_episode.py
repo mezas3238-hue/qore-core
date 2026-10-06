@@ -459,6 +459,19 @@ def _attention(
             "non-authoritative-context-research",
         )
 
+    expectation_basis = target_economics.get("expectation_basis")
+    cold_start_no_forecast = (
+        expectation_basis == "COLD_START_NO_FORECAST"
+    )
+    if cold_start_no_forecast:
+        add(
+            AttentionSignalKind.PENDING_GOAL,
+            100,
+            "walk-forward-cold-start-no-forecast",
+            "causal-history-warmup",
+        )
+        decision_gate_codes.append("CF07")
+
     expected_net_utility_raw = target_economics.get(
         "expected_net_utility_usd"
     )
@@ -481,6 +494,7 @@ def _attention(
                 context_quality_disposition == "ABSTAIN"
                 and context_quality_hard_gate
             )
+            and not cold_start_no_forecast
             and expected_net_utility <= 0
         ):
             add(
@@ -491,10 +505,7 @@ def _attention(
             )
             decision_gate_codes.append("CF07")
 
-    if (
-        target_economics.get("expectation_basis")
-        == "FROZEN_HISTORICAL_PRIOR"
-    ):
+    if expectation_basis == "FROZEN_HISTORICAL_PRIOR":
         add(
             AttentionSignalKind.PENDING_GOAL,
             40,
@@ -507,6 +518,8 @@ def _attention(
     missing: tuple[str, ...] = tuple(
         "native-faculty-" + code.lower() for code in faculty_blockers
     )
+    if cold_start_no_forecast:
+        missing += ("walk-forward-forecast-history",)
     if regime.evidence_stale:
         missing += ("fresh-causal-evidence",)
     if regime.provider_condition is ProviderCondition.UNAVAILABLE:
@@ -541,6 +554,7 @@ def _attention(
     )
     semantic_abstain = (
         context_quality_abstain
+        or cold_start_no_forecast
         or (
             not context_quality_abstain
             and expected_net_utility is not None
@@ -553,7 +567,10 @@ def _attention(
         or severe_joint_risk
         or semantic_abstain
     )
-    if missing:
+    if cold_start_no_forecast:
+        kind = "more_evidence_requested"
+        note = "walk-forward-cold-start-history-required"
+    elif missing:
         kind = "more_evidence_requested"
         note = "fresh-provider-or-causal-evidence-required"
     elif context_quality_abstain:
