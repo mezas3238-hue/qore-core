@@ -26,7 +26,7 @@ import json
 from collections import Counter
 from decimal import Decimal
 from pathlib import Path
-from typing import cast
+from typing import Callable, cast
 
 import vt31_nas100_dol2_cognitive_protection_frontier_v1 as dol2_protection
 import vt31_nas100_intelligence_policy_lab_v2b as v2b
@@ -295,6 +295,9 @@ def _simulate_composite(
     *,
     window: int,
     pretarget_breaker_ps_confirmations: int | None = None,
+    pretarget_breaker_ps_authorizer: (
+        Callable[[object, Decimal, Decimal], bool] | None
+    ) = None,
 ) -> dict[str, object]:
     if pretarget_breaker_ps_confirmations not in {None, 1, 2}:
         raise ValueError(
@@ -520,6 +523,14 @@ def _simulate_composite(
                 if (
                     breaker_ps_confirmations
                     >= cast(int, pretarget_breaker_ps_confirmations)
+                    and (
+                        pretarget_breaker_ps_authorizer is None
+                        or pretarget_breaker_ps_authorizer(
+                            bar,
+                            candidate,
+                            current_stop,
+                        )
+                    )
                 ):
                     pending_breaker_ps = candidate
 
