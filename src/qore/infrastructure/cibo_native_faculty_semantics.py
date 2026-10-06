@@ -74,6 +74,17 @@ def _opportunity_row(
         "native_perception_version": (
             context.get("cibo_native_perception_version")
         ),
+        "context_quality_disposition": context.get(
+            "cibo_context_quality_disposition"
+        ),
+        "expectation_basis": context.get("cibo_expectation_basis"),
+        "expected_value_usd": context.get("cibo_expected_value_usd"),
+        "expected_net_utility_usd": context.get(
+            "cibo_expected_net_utility_usd"
+        ),
+        "expected_capital_minutes": context.get(
+            "cibo_expected_capital_minutes"
+        ),
         "decision_context": [
             [key, value] for key, value in sorted(context.items())
         ],
@@ -238,6 +249,14 @@ def build_native_faculty_research_semantics(
                         "planned_reward_r": row["planned_reward_r"],
                         "minimum_volume": row["minimum_volume"],
                         "maximum_volume": row["maximum_volume"],
+                        "expectation_basis": row["expectation_basis"],
+                        "expected_value_usd": row["expected_value_usd"],
+                        "expected_net_utility_usd": row[
+                            "expected_net_utility_usd"
+                        ],
+                        "expected_capital_minutes": row[
+                            "expected_capital_minutes"
+                        ],
                     }
                     for row in rows
                 ),
