@@ -113,13 +113,30 @@ def _minimum_stop_risk_usd(row: dict[str, Any]) -> Decimal:
     return result
 
 
-def _expectation_payload(snapshot) -> dict[str, object]:
+def _expectation_payload(
+    snapshot,
+    *,
+    stop_risk_usd: Decimal,
+) -> dict[str, object]:
     expectation = snapshot.expectation
     confidence = assess_walk_forward_forecast_confidence(
         observation_count=snapshot.observation_count,
         expected_structural_r=snapshot.expected_structural_r,
         chronological_block_means_r=snapshot.chronological_block_means_r,
     )
+    if (
+        not isinstance(stop_risk_usd, Decimal)
+        or not stop_risk_usd.is_finite()
+        or stop_risk_usd <= 0
+    ):
+        raise CiboCapitalManagementError(
+            "walk-forward uncertainty stop risk must be finite positive"
+        )
+    with localcontext() as context:
+        context.prec = 100
+        uncertainty_penalty_usd = (
+            confidence.median_absolute_deviation_r * stop_risk_usd
+        )
     return {
         "evidence_id": expectation.evidence_id,
         "evidence_available_at": snapshot.evidence_available_at.isoformat(),
@@ -132,6 +149,15 @@ def _expectation_payload(snapshot) -> dict[str, object]:
         "expected_capital_minutes": format(
             expectation.expected_capital_minutes,
             "f",
+        ),
+        "uncertainty_penalty_usd": format(
+            uncertainty_penalty_usd,
+            "f",
+        ),
+        "walk_forward_duration_estimator": (
+            "UPPER_QUARTILE_PRIOR_ONLY"
+            if not snapshot.cold_start
+            else "COLD_START_NO_FORECAST"
         ),
         "walk_forward_observation_count": snapshot.observation_count,
         "walk_forward_history_sha256": snapshot.history_sha256,
@@ -268,13 +294,17 @@ def build_walk_forward_manifest(
             ),
         ):
             trader = TraderLineage(str(row["trader_id"]))
+            minimum_stop_risk_usd = _minimum_stop_risk_usd(row)
             snapshot = build_walk_forward_expectation(
                 trader_id=trader,
                 decision_at=decision_at,
-                stop_risk_usd=_minimum_stop_risk_usd(row),
+                stop_risk_usd=minimum_stop_risk_usd,
                 completed_observations=history_surface,
             )
-            row["expectation"] = _expectation_payload(snapshot)
+            row["expectation"] = _expectation_payload(
+                snapshot,
+                stop_risk_usd=minimum_stop_risk_usd,
+            )
             basis_counts[snapshot.expectation.basis.value] += 1
             max_observation_count[trader.value] = max(
                 max_observation_count[trader.value],
