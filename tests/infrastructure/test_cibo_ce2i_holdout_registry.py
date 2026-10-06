@@ -38,14 +38,14 @@ def test_v2_legacy_alias_is_source_frozen_but_scientifically_consumed() -> None:
     assert candidate_is_burn_clean_for_all_lineages(candidate) is False
 
 
-def test_v6_is_current_fresh_candidate_pending_source_validation() -> None:
+def test_v6_is_rejected_only_for_source_unavailability_not_outcome_burn() -> None:
     candidate = CURRENT_FRESH_USD60_HOLDOUT_CANDIDATE
 
     assert candidate.start_at == datetime(2013, 10, 19, tzinfo=UTC)
     assert candidate.end_exclusive_at == datetime(2014, 4, 19, tzinfo=UTC)
-    assert candidate.status is CiboHoldoutCandidateStatus.SOURCE_VALIDATION_PENDING
+    assert candidate.status is CiboHoldoutCandidateStatus.REJECTED
     assert candidate.outcome_data_inspected_at_selection is False
-    assert candidate.source_validation_complete is False
+    assert candidate.source_validation_complete is True
     assert candidate_is_burn_clean_for_all_lineages(candidate) is True
 
 
