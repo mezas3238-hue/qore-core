@@ -64,7 +64,7 @@ def _target_touched_before(
     if fill_index is None:
         return False
     for bar in day_bars[fill_index:]:
-        if cast(datetime, getattr(bar, "closed_at")) > observation_at:
+        if cast(datetime, bar.closed_at) > observation_at:
             break
         if composition.depth._target_hit(side, bar, target):
             return True
@@ -116,7 +116,7 @@ def _live_cognitive_decision(
         bar
         for bar in causal_today
         if (0, 0, 0)
-        <= specialist._wall(getattr(bar, "opened_at"))
+        <= specialist._wall(bar.opened_at)
         < (16, 0, 0)
     )
     current_range = specialist._interval_range(current_path)
