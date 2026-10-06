@@ -103,3 +103,5 @@ def test_future_bar_cannot_change_causal_higher_context() -> None:
     assert before.raid_depth_ref is not None
     assert before.raid_depth_ref > 0
     assert before.h1_state != "unavailable"
+    assert before.m15_state != "unavailable"
+    assert before.m15_state != "UNWIRED"
