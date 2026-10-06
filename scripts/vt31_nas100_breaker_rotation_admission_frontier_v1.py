@@ -58,6 +58,39 @@ def _report(
     comparator: list[dict[str, object]],
     rows: list[dict[str, object]],
 ) -> dict[str, object]:
+    kept = {str(row["signal_at"]) for row in rows}
+    excluded = [
+        row for row in comparator if str(row["signal_at"]) not in kept
+    ]
+    excluded_forensics = []
+    for row in excluded:
+        context = cast(dict[str, object], row.get("entry_context", {}))
+        excluded_forensics.append(
+            {
+                "signal_at": row["signal_at"],
+                "r_multiple": row["r_multiple"],
+                "exit_reason": row["exit_reason"],
+                "entry_family": row["entry_family"],
+                "side": row["side"],
+                "prior_day_state": context.get("prior_day_state"),
+                "reference_volatility_state": context.get(
+                    "reference_volatility_state"
+                ),
+                "h1_state": context.get("h1_state"),
+                "m15_state": context.get("m15_state"),
+                "cash_open_state": context.get("cash_open_state"),
+                "premarket_state": context.get("premarket_state"),
+                "reference_reclaim_age_minutes": context.get(
+                    "reference_reclaim_age_minutes"
+                ),
+                "confirmation_latency_minutes": context.get(
+                    "confirmation_latency_minutes"
+                ),
+                "entry_evidence_freshness": context.get(
+                    "entry_evidence_freshness"
+                ),
+            }
+        )
     return {
         "trade_count": len(rows),
         "relative_density_vs_structural": (
@@ -91,6 +124,7 @@ def _report(
         ),
         "sequence_diagnostics": composition._sequence_diagnostics(rows),
         "excluded_trade_count": len(comparator) - len(rows),
+        "excluded_trade_forensics": excluded_forensics,
     }
 
 
@@ -181,6 +215,8 @@ def replay(evidence_path: Path) -> dict[str, object]:
             "reference_volatility_used_for_action": True,
             "new_numeric_threshold_added": False,
             "outcome_used_for_action": False,
+            "excluded_trade_forensics_observation_only": True,
+            "excluded_trade_forensics_action_authority": False,
             "fold_identity_used_for_action": False,
             "date_identity_used_for_action": False,
             "position_sizing_used": False,
