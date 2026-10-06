@@ -13,6 +13,9 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+from qore.infrastructure.cibo_function_economic_sensors import (
+    summarize_function_sensors,
+)
 from qore.infrastructure.cibo_single_account_historical_ceiling_epoch import (
     CiboHistoricalProviderAssumption,
 )
@@ -107,6 +110,11 @@ def main() -> int:
         provider_assumption=assumption,
         progress_hook=progress,
     )
+    function_sensors = tuple(
+        sensor
+        for decision in result.decision_receipts
+        for sensor in decision.function_sensors
+    )
     payload = {
         "schema": "qore.cibo.single-account-historical-ceiling-replay.v1",
         "source_manifest_sha256": result.source_manifest_sha256,
@@ -122,6 +130,9 @@ def main() -> int:
         "final_capital": _canonical(result.final_capital),
         "decision_receipts": _canonical(result.decision_receipts),
         "settlement_receipts": _canonical(result.settlement_receipts),
+        "function_economic_sensors": summarize_function_sensors(
+            function_sensors
+        ),
         "governance": {
             "single_account_usd60": True,
             "account_reset_count": result.account_reset_count,
