@@ -457,6 +457,142 @@ def _first_material_adverse_forensics(
         "unchanged_groups": summarize(unchanged),
     }
 
+def _max_drawdown_episode_forensics(
+    baseline: list[dict[str, object]],
+    rows: list[dict[str, object]],
+) -> dict[str, object]:
+    ordered = sorted(rows, key=lambda row: str(row["signal_at"]))
+    baseline_map = {str(row["signal_at"]): row for row in baseline}
+    equity = Decimal(0)
+    peak = Decimal(0)
+    peak_index = -1
+    worst_dd = Decimal(0)
+    worst_start = 0
+    worst_end = -1
+
+    for index, row in enumerate(ordered):
+        equity += _d(row["r_multiple"]) - specialist.FRICTION
+        if equity > peak:
+            peak = equity
+            peak_index = index
+        drawdown = peak - equity
+        if drawdown > worst_dd:
+            worst_dd = drawdown
+            worst_start = peak_index + 1
+            worst_end = index
+
+    episode = (
+        []
+        if worst_end < worst_start
+        else ordered[worst_start : worst_end + 1]
+    )
+    details: list[dict[str, object]] = []
+    for row in episode:
+        signal = str(row["signal_at"])
+        control = baseline_map[signal]
+        candidate_net = _d(row["r_multiple"]) - specialist.FRICTION
+        control_net = _d(control["r_multiple"]) - specialist.FRICTION
+        entry_context = cast(
+            dict[str, object],
+            row.get("entry_context", {}),
+        )
+        first_adverse = next(
+            (
+                cast(dict[str, object], event)
+                for event in cast(
+                    list[dict[str, object]],
+                    row.get("cognitive_exit_evaluations", []),
+                )
+                if event.get("current_open_r") is not None
+                and _d(event["current_open_r"]) <= MATERIAL_ADVERSE_R
+            ),
+            None,
+        )
+        details.append(
+            {
+                "signal_at": signal,
+                "candidate_net_r": format(candidate_net, "f"),
+                "control_net_r": format(control_net, "f"),
+                "changed_vs_control": candidate_net != control_net,
+                "entry_family": str(row["entry_family"]),
+                "side": str(row["side"]),
+                "reference_volatility_state": str(
+                    entry_context.get("reference_volatility_state", "NA")
+                ),
+                "prior_day_state": str(
+                    entry_context.get("prior_day_state", "NA")
+                ),
+                "entry_h1_state": str(
+                    entry_context.get("h1_state", "NA")
+                ),
+                "entry_m15_state": str(
+                    entry_context.get("m15_state", "NA")
+                ),
+                "first_material_adverse": (
+                    None
+                    if first_adverse is None
+                    else {
+                        "management_context": str(
+                            first_adverse["management_context"]
+                        ),
+                        "destination_state": str(
+                            first_adverse["destination_state"]
+                        ),
+                        "current_reasoning_action": str(
+                            first_adverse["current_reasoning_action"]
+                        ),
+                        "current_open_r": str(
+                            first_adverse["current_open_r"]
+                        ),
+                        "reference_reclaim_age_minutes": (
+                            first_adverse.get(
+                                "reference_reclaim_age_minutes"
+                            )
+                        ),
+                        "h1_state": str(first_adverse["h1_state"]),
+                        "m15_state": str(first_adverse["m15_state"]),
+                        "h4_state": str(first_adverse["h4_state"]),
+                        "recent_path_efficiency": first_adverse.get(
+                            "recent_path_efficiency"
+                        ),
+                        "recent_overlap_rate": first_adverse.get(
+                            "recent_overlap_rate"
+                        ),
+                        "last_structure_event_family": str(
+                            first_adverse["last_structure_event_family"]
+                        ),
+                        "last_structure_event_age_minutes": (
+                            first_adverse.get(
+                                "last_structure_event_age_minutes"
+                            )
+                        ),
+                    }
+                ),
+            }
+        )
+
+    return {
+        "observation_only": True,
+        "action_authority": False,
+        "outcome_episode_runtime_authority": False,
+        "max_drawdown_r": format(worst_dd, "f"),
+        "episode_trade_count": len(details),
+        "episode_loss_count": sum(
+            _d(item["candidate_net_r"]) < 0 for item in details
+        ),
+        "episode_changed_trade_count": sum(
+            bool(item["changed_vs_control"]) for item in details
+        ),
+        "start_signal_at": (
+            None if not details else details[0]["signal_at"]
+        ),
+        "end_signal_at": (
+            None if not details else details[-1]["signal_at"]
+        ),
+        "trades": details,
+    }
+
+
 def _report(
     full_control: list[dict[str, object]],
     baseline: list[dict[str, object]],
@@ -491,6 +627,10 @@ def _report(
             rows,
         ),
         "sequence_diagnostics": composition._sequence_diagnostics(rows),
+        "max_drawdown_episode_forensics": _max_drawdown_episode_forensics(
+            baseline,
+            rows,
+        ),
         "first_material_adverse_forensics": _first_material_adverse_forensics(
             baseline,
             rows,
@@ -669,6 +809,8 @@ def replay(evidence_path: Path) -> dict[str, object]:
             "residual_context_hypotheses_consumed_discovery_only": True,
             "residual_context_new_numeric_threshold_added": False,
             "residual_variants_must_nondegrade_comparator_002": True,
+            "max_drawdown_episode_forensics_observation_only": True,
+            "max_drawdown_episode_runtime_authority": False,
             "position_sizing_used": False,
             "dynamic_sizing_used": False,
             "leverage_used": False,
