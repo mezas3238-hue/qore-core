@@ -32,6 +32,10 @@ import vt31_nas100_live_cognitive_breaker_protection_frontier_v1 as live_cogniti
 import vt31_nas100_rapid_breaker_conflict_admission_frontier_v1 as rapid
 import vt31_nas100_specialist_r1_candidate as specialist
 
+from qore.infrastructure.traders.vt31_nas100_cognitive_telemetry import (
+    observe_cognitive_actuation,
+)
+
 SCHEMA = "qore.vt31.nas100.comp010.live_context_adverse_exit.v1"
 COMPARATOR_ID = "VT31_AB_COMP009_MAX_INTELLIGENCE_COMPOSED_SURVIVOR"
 LAB_CONTROL_ALIAS = "COMP006_CONTROL"
@@ -149,6 +153,10 @@ def _simulate_variant(
         diagnostic["comp010_fvg_h1_mixed_exit_authorized"] = a_allowed
         diagnostic["comp010_long_m15_bearish_exit_authorized"] = b_allowed
         diagnostic["comp010_extra_exit_authorized"] = extra_allowed
+        diagnostic["actuation_sensor"] = observe_cognitive_actuation(
+            expected_action=str(diagnostic["decision_action"]),
+            routed_actions=("EXIT",) if allowed else (),
+        ).payload()
         evaluations.append(diagnostic)
         return allowed
 
