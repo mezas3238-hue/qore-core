@@ -93,16 +93,24 @@ jobs:
             --subject-root subject)"
           echo "$raw"
           fp="$(printf '%s\n' "$raw" | sed -n 's/^fingerprint=//p')"
+          legacy_fp="$(printf '%s\n' "$raw" | sed -n 's/^legacy_fingerprint=//p')"
+          evidence_fp="$(printf '%s\n' "$raw" | sed -n 's/^evidence_fingerprint=//p')"
           count="$(printf '%s\n' "$raw" | sed -n 's/^file_count=//p')"
           test -n "$fp"
+          test -n "$legacy_fp"
+          test -n "$evidence_fp"
           echo "fingerprint=$fp" >> "$GITHUB_OUTPUT"
+          echo "legacy_fingerprint=$legacy_fp" >> "$GITHUB_OUTPUT"
+          echo "evidence_fingerprint=$evidence_fp" >> "$GITHUB_OUTPUT"
           echo "file_count=$count" >> "$GITHUB_OUTPUT"
 
       - name: Restore immutable evidence cache
         uses: actions/cache@v4
         with:
-          path: .qore-cache/github-trader-lab/evidence/${{ steps.request.outputs.profile_id }}
-          key: qore-github-trader-lab-evidence-v2-${{ steps.request.outputs.profile_sha }}
+          path: .qore-cache/github-trader-lab/evidence
+          key: qore-github-trader-lab-evidence-v3-${{ steps.prep.outputs.evidence_fingerprint }}
+          restore-keys: |
+            qore-github-trader-lab-evidence-v2-${{ steps.request.outputs.profile_sha }}
 
       - name: Recover and verify evidence
         shell: bash
@@ -112,14 +120,46 @@ jobs:
           set -euo pipefail
           python lab/tools/github_trader_lab/evidence.py \
             --profile "lab/${{ steps.request.outputs.profile_path }}" \
-            --output-dir ".qore-cache/github-trader-lab/evidence/${{ steps.request.outputs.profile_id }}"
+            --output-dir ".qore-cache/github-trader-lab/evidence"
 
       - name: Restore prepared causal ledger
         id: prepared-cache
         uses: actions/cache@v4
         with:
-          path: .qore-cache/github-trader-lab/prepared/${{ steps.request.outputs.profile_id }}
-          key: qore-github-trader-lab-prepared-v1-${{ steps.prep.outputs.fingerprint }}
+          path: .qore-cache/github-trader-lab/prepared
+          key: qore-github-trader-lab-prepared-v2-${{ steps.prep.outputs.fingerprint }}
+          restore-keys: |
+            qore-github-trader-lab-prepared-v1-${{ steps.prep.outputs.legacy_fingerprint }}
+
+      - name: Migrate legacy prepared ledger
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import shutil
+          from pathlib import Path
+
+          profile=json.loads(
+              Path("lab/${{ steps.request.outputs.profile_path }}").read_text()
+          )
+          root=Path(".qore-cache/github-trader-lab/prepared")
+          root.mkdir(parents=True, exist_ok=True)
+          for lane in profile["lanes"]:
+              target=root/f"{lane}.json"
+              if target.is_file():
+                  continue
+              matches=[
+                  path for path in root.glob(f"*/{lane}.json")
+                  if path.is_file()
+              ]
+              if len(matches) == 1:
+                  shutil.copy2(matches[0], target)
+                  print(
+                      f"QORE_TRADER_LAB_CACHE_MIGRATION "
+                      f"lane={lane} source={matches[0]} target={target}"
+                  )
+          PY
 
       - name: Static preflight
         shell: bash
@@ -143,13 +183,13 @@ jobs:
         run: |
           set -euo pipefail
           out="$RUNNER_TEMP/github-trader-lab-fast"
-          prepared=".qore-cache/github-trader-lab/prepared/${{ steps.request.outputs.profile_id }}"
+          prepared=".qore-cache/github-trader-lab/prepared"
           mkdir -p "$out" "$prepared"
           python lab/tools/github_trader_lab/fast_runner.py \
             --profile "lab/${{ steps.request.outputs.profile_path }}" \
             --lab-root "${{ github.workspace }}/lab" \
             --subject-root "${{ github.workspace }}/subject" \
-            --evidence-dir "${{ github.workspace }}/.qore-cache/github-trader-lab/evidence/${{ steps.request.outputs.profile_id }}" \
+            --evidence-dir "${{ github.workspace }}/.qore-cache/github-trader-lab/evidence" \
             --prepared-dir "${{ github.workspace }}/$prepared" \
             --output-dir "$out" \
             | tee "$out/console.log"
