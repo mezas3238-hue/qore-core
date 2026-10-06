@@ -73,7 +73,7 @@ class PostEntryCausalObservation:
 
 @dataclass(frozen=True, slots=True)
 class PostEntryMarketFacts:
-    """Market-native execution facts. Deliberately contains no R or volume."""
+    """Market-native execution facts for this path; never volume/sizing authority."""
 
     side: str
     current_stop: Decimal
@@ -99,6 +99,7 @@ class PostEntryCognitiveDecision:
     current_situation_fingerprint: str
     full_cognition_reassessed: bool = True
     r_runtime_authority: bool = False
+    r_runtime_strategy_allowed: bool = True
     volume_runtime_authority: bool = False
     sizing_authority: bool = False
 
@@ -141,8 +142,9 @@ def rebuild_post_entry_situation(
             observation.recent_liquidity_event_count_10m
         ),
         displacement_state=observation.displacement_state,
-        # Sovereign rule: R cannot enter runtime Situation Model.
-        planned_target_r=None,
+        # Preserve any strategy-native R plan frozen at entry. This market-native
+        # path may ignore it, but sovereignty does not allow deleting it merely
+        # because it is expressed in R.
         journey_stage=observation.journey_stage,
         dol1_state=observation.dol1_state,
         dol2_state=observation.dol2_state,
