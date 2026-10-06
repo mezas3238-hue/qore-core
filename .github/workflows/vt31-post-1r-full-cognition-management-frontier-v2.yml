@@ -92,7 +92,9 @@ jobs:
           )
           g=x["governance"]
           assert g["full_post_entry_reasoning_reassessed"] is True
-          assert g["maximum_intelligence_required_before_management_action"] is True
+          assert g["full_cognition_required_before_management_action"] is True
+          assert g["contextual_management_readiness_required_before_action"] is True
+          assert g["maximum_intelligence_required_for_candidate_freeze"] is True
           assert g["blocked_cognition_falls_back_to_structural_baseline"] is True
           assert g["same_sovereign_admission_population"] is True
           assert g["future_outcome_used_for_runtime_action"] is False
@@ -154,7 +156,8 @@ jobs:
               pf_non=mean_non=dd_non=0
               winner_ok=True
               temporal_ok=True
-              ready_actions=blocked_actions=0
+              management_ready_actions=management_blocked_actions=0
+              max_ready_actions=max_blocked_actions=0
               for fold in folds:
                   b=payloads[fold]["variants"]["STRUCTURAL_ONLY"]
                   c=payloads[fold]["variants"][variant]
@@ -192,8 +195,16 @@ jobs:
                           "nondegrade":block_ok,
                       }
 
-                  ready_actions += c["max_ready_action_count"]
-                  blocked_actions += c["max_blocked_action_count"]
+                  management_ready_actions += c["management_ready_action_count"]
+                  management_blocked_actions += c[
+                      "management_blocked_action_count"
+                  ]
+                  max_ready_actions += c[
+                      "maximum_intelligence_ready_action_count"
+                  ]
+                  max_blocked_actions += c[
+                      "maximum_intelligence_blocked_action_count"
+                  ]
                   per_fold[fold]={
                       "baseline":bm,
                       "candidate":cm,
@@ -203,9 +214,17 @@ jobs:
                       "full_cognition_action_counts":c[
                           "full_cognition_action_counts"
                       ],
-                      "max_ready_action_count":c["max_ready_action_count"],
-                      "max_blocked_action_count":c[
-                          "max_blocked_action_count"
+                      "management_ready_action_count":c[
+                          "management_ready_action_count"
+                      ],
+                      "management_blocked_action_count":c[
+                          "management_blocked_action_count"
+                      ],
+                      "maximum_intelligence_ready_action_count":c[
+                          "maximum_intelligence_ready_action_count"
+                      ],
+                      "maximum_intelligence_blocked_action_count":c[
+                          "maximum_intelligence_blocked_action_count"
                       ],
                       "pf_nondegrade":pf_ok,
                       "mean_nondegrade":mean_ok,
@@ -220,15 +239,17 @@ jobs:
                   "dd_nondegrade_folds":dd_non,
                   "winner_preservation_all_folds":winner_ok,
                   "all_halfyears_nondegrade":temporal_ok,
-                  "max_ready_action_count_total":ready_actions,
-                  "max_blocked_action_count_total":blocked_actions,
+                  "management_ready_action_count_total":management_ready_actions,
+                  "management_blocked_action_count_total":management_blocked_actions,
+                  "maximum_intelligence_ready_action_count_total":max_ready_actions,
+                  "maximum_intelligence_blocked_action_count_total":max_blocked_actions,
                   "cross_fold_research_survivor":(
                       pf_non >= 3
                       and mean_non >= 3
                       and dd_non >= 3
                       and winner_ok
                       and temporal_ok
-                      and ready_actions > 0
+                      and management_ready_actions > 0
                   ),
               }
 
@@ -238,7 +259,8 @@ jobs:
               "variants":report,
               "governance":{
                   "full_post_entry_reasoning_reassessed":True,
-                  "maximum_intelligence_required_before_management_action":True,
+                  "contextual_management_readiness_required_before_action":True,
+                  "maximum_intelligence_required_for_candidate_freeze":True,
                   "sizing_for_certification_forbidden":True,
                   "fresh_holdout_opened":False,
                   "policy_promoted":False,
