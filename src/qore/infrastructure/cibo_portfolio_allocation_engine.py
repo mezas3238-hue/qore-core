@@ -233,7 +233,51 @@ def plan_account_wide_capital_allocation(
         tuple[int, ...],
     ] | None = None
     best_combo: tuple[int, ...] = tuple(0 for _ in ordered)
-    for combo in product(*ranges):
+
+    candidate_combos: object
+    if len(ordered) == 1:
+        item = ordered[0]
+        net = net_values[0]
+        cap = ranges[0].stop - 1
+        if cap <= 0 or net <= 0:
+            candidate_values = (0,)
+        else:
+            with localcontext() as context:
+                context.prec = 100
+                continuous_optimum = (
+                    net
+                    * capital_base
+                    / (
+                        Decimal(2)
+                        * item.stop_risk_usd
+                        * item.stop_risk_usd
+                    )
+                )
+                floor_optimum = int(
+                    continuous_optimum.to_integral_value(
+                        rounding=ROUND_FLOOR
+                    )
+                )
+                ceil_optimum = int(
+                    continuous_optimum.to_integral_value(
+                        rounding=ROUND_CEILING
+                    )
+                )
+            candidate_values = tuple(
+                sorted(
+                    {
+                        0,
+                        cap,
+                        max(0, min(cap, floor_optimum)),
+                        max(0, min(cap, ceil_optimum)),
+                    }
+                )
+            )
+        candidate_combos = ((value,) for value in candidate_values)
+    else:
+        candidate_combos = product(*ranges)
+
+    for combo in candidate_combos:
         risk = sum(
             (
                 item.stop_risk_usd * mult
