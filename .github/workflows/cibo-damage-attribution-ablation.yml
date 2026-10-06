@@ -7,6 +7,8 @@ on:
       - agent/cibo-causal-expectation-leakage-fix-001
     paths:
       - '.github/workflows/cibo-damage-attribution-ablation.yml'
+      - 'src/qore/infrastructure/cibo_single_account_historical_ceiling_epoch.py'
+      - 'tests/infrastructure/test_cibo_single_account_historical_ceiling_epoch.py'
 
 permissions:
   contents: read
