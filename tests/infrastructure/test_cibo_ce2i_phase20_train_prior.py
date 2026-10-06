@@ -4,6 +4,9 @@ import pytest
 from decimal import Decimal, localcontext
 
 from qore.infrastructure.account_wide_risk import TraderLineage
+from qore.infrastructure.cibo_capital_management_authority import (
+    CiboCapitalManagementError,
+)
 from qore.infrastructure.cibo_ce2i_causal_expectation import (
     CausalExpectationBasis,
 )
@@ -81,7 +84,7 @@ def test_train_prior_cannot_exist_before_training_window_completed() -> None:
     )
 
     with pytest.raises(
-        Exception,
+        CiboCapitalManagementError,
         match="TRAIN prior cannot be used before its training window completed",
     ):
         build_frozen_train_expectation(
