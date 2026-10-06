@@ -58,7 +58,8 @@ def test_capital_path_diagnostics_locates_threshold_crossing_and_minimum() -> No
     assert result["peak_capital_usd"] == "66"
     assert result["minimum_capital_usd"] == "30"
     assert result["maximum_drawdown_usd"] == "36"
-    assert result["first_threshold_crossings"]["0.75"]["signal_fingerprint"] == "s2"
+    assert result["first_threshold_crossings"]["0.90"]["signal_fingerprint"] == "s2"
+    assert result["first_threshold_crossings"]["0.75"]["signal_fingerprint"] == "s3"
     assert result["first_threshold_crossings"]["0.50"]["signal_fingerprint"] == "s3"
     assert result["minimum_capital_event"]["signal_fingerprint"] == "s3"
     assert result["net_pnl_by_trader_usd"] == {"T1": "-10", "T2": "-20"}
