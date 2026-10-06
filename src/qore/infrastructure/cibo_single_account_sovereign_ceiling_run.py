@@ -148,10 +148,10 @@ class CiboSovereignCeilingDecisionReceipt:
         if (
             not isinstance(self.adaptive_leverage_multiplier, int)
             or isinstance(self.adaptive_leverage_multiplier, bool)
-            or self.adaptive_leverage_multiplier not in {0, 1, 2, 3, 4}
+            or self.adaptive_leverage_multiplier < 0
         ):
             raise CiboCapitalManagementError(
-                "sovereign ceiling leverage multiplier must be 0..4"
+                "sovereign ceiling leverage multiplier must be non-negative"
             )
         if self.risk_decision not in {
             _NOT_REQUESTED,
