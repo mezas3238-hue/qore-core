@@ -274,6 +274,85 @@ def plan_account_wide_capital_allocation(
                 )
             )
         candidate_combos = ((value,) for value in candidate_values)
+    elif len(ordered) == 2:
+        caps = (ranges[0].stop - 1, ranges[1].stop - 1)
+        iterate_index = 0 if caps[0] <= caps[1] else 1
+        analytic_index = 1 - iterate_index
+        iterate_item = ordered[iterate_index]
+        analytic_item = ordered[analytic_index]
+        analytic_net = net_values[analytic_index]
+
+        with localcontext() as context:
+            context.prec = 100
+            if analytic_net > 0:
+                analytic_optimum = (
+                    analytic_net
+                    * capital_base
+                    / (
+                        Decimal(2)
+                        * analytic_item.stop_risk_usd
+                        * analytic_item.stop_risk_usd
+                    )
+                )
+                analytic_floor = int(
+                    analytic_optimum.to_integral_value(
+                        rounding=ROUND_FLOOR
+                    )
+                )
+                analytic_ceil = int(
+                    analytic_optimum.to_integral_value(
+                        rounding=ROUND_CEILING
+                    )
+                )
+            else:
+                analytic_floor = 0
+                analytic_ceil = 0
+
+        def two_option_candidates():
+            for iterate_value in ranges[iterate_index]:
+                with localcontext() as context:
+                    context.prec = 100
+                    remaining_risk = (
+                        constraints["stop_risk_headroom_usd"]
+                        - iterate_item.stop_risk_usd * iterate_value
+                    )
+                    remaining_margin = (
+                        constraints["margin_headroom_usd"]
+                        - iterate_item.margin_usd * iterate_value
+                    )
+                    if remaining_risk < 0 or remaining_margin < 0:
+                        continue
+                    risk_cap = int(
+                        (
+                            remaining_risk / analytic_item.stop_risk_usd
+                        ).to_integral_value(rounding=ROUND_FLOOR)
+                    )
+                    margin_cap = int(
+                        (
+                            remaining_margin / analytic_item.margin_usd
+                        ).to_integral_value(rounding=ROUND_FLOOR)
+                    )
+                analytic_cap = max(
+                    0,
+                    min(caps[analytic_index], risk_cap, margin_cap),
+                )
+                analytic_candidates = tuple(
+                    sorted(
+                        {
+                            0,
+                            analytic_cap,
+                            max(0, min(analytic_cap, analytic_floor)),
+                            max(0, min(analytic_cap, analytic_ceil)),
+                        }
+                    )
+                )
+                for analytic_value in analytic_candidates:
+                    combo = [0, 0]
+                    combo[iterate_index] = iterate_value
+                    combo[analytic_index] = analytic_value
+                    yield tuple(combo)
+
+        candidate_combos = two_option_candidates()
     else:
         candidate_combos = product(*ranges)
 
