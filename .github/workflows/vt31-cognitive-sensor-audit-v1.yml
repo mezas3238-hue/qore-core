@@ -6,6 +6,10 @@ on:
       - agent/vt31-edge-position-cert-b-001
     paths:
       - src/qore/infrastructure/traders/vt31_nas100_cognitive_telemetry.py
+      - src/qore/infrastructure/traders/vt31_nas100_cognitive_plumbing.py
+      - src/qore/infrastructure/traders/vt31_nas100_reasoning_engine.py
+      - tests/infrastructure/test_vt31_nas100_cognitive_reasoning.py
+      - tests/infrastructure/test_vt31_nas100_cibo_causal_structure.py
       - src/qore/infrastructure/traders/vt31_nas100_post_entry_cognitive_runtime.py
       - tests/infrastructure/test_vt31_nas100_post_entry_cognitive_runtime.py
       - scripts/vt31_nas100_live_cognitive_breaker_protection_frontier_v1.py
