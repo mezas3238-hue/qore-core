@@ -170,15 +170,27 @@ def test_historical_projection_tracks_open_authorized_capacity() -> None:
         expires_at=NOW + timedelta(minutes=1),
         opportunities=(_opportunity("new-beta"),),
         open_exposures=(exposure,),
-        total_stop_risk_capacity_usd=Decimal("60"),
-        total_margin_capacity_usd=Decimal("100"),
+        total_stop_risk_capacity_usd=Decimal(
+            "60.123456789012345678901234567890123456789"
+        ),
+        total_margin_capacity_usd=Decimal(
+            "100.987654321098765432109876543210987654321"
+        ),
     )
 
     assert epoch.capital_twin.used_stop_risk_usd == Decimal("10")
-    assert epoch.capital_twin.stop_risk_headroom_usd == Decimal("50")
+    assert epoch.capital_twin.stop_risk_headroom_usd == Decimal(
+        "50.123456789012345678901234567890123456789"
+    )
     assert epoch.capital_twin.used_margin_usd == Decimal("20")
-    assert epoch.capital_twin.margin_headroom_usd == Decimal("80")
-    assert epoch.capital.hard_risk_headroom_usd == Decimal("50")
-    assert epoch.capital.margin_headroom_usd == Decimal("80")
+    assert epoch.capital_twin.margin_headroom_usd == Decimal(
+        "80.987654321098765432109876543210987654321"
+    )
+    assert epoch.capital.hard_risk_headroom_usd == Decimal(
+        "50.123456789012345678901234567890123456789"
+    )
+    assert epoch.capital.margin_headroom_usd == Decimal(
+        "80.987654321098765432109876543210987654321"
+    )
     assert epoch.capital.cost_reserve_usd == Decimal("2")
     assert epoch.twin.portfolio.active_position_ids == ("open-alpha",)
