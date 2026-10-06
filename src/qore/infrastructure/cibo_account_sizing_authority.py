@@ -266,6 +266,8 @@ def _maximum_capability_plan(
         source=CapitalSource.ORIGINAL_BASE_CAPITAL,
         reason=reason,
     )
+    if provisional.action is CapitalAction.HOLD:
+        return provisional
     risk = provisional.stop_risk_usd
     realized_profit_capacity = min(
         capital.realized_net_profit_usd,
@@ -354,8 +356,17 @@ def _maximum_constrained_plan(
     reason: str,
 ) -> CiboCapitalActionPlan:
     if capital.hard_risk_headroom_usd <= 0 or capital.margin_headroom_usd <= 0:
-        raise CiboCapitalManagementError(
-            "CIBO account has no deployable risk/margin headroom"
+        return CiboCapitalActionPlan(
+            trader_id=opportunity.trader_id,
+            qore_symbol=opportunity.qore_symbol,
+            stage=capital_stage_for_action(action),
+            action=CapitalAction.HOLD,
+            volume=Decimal(0),
+            stop_risk_usd=Decimal(0),
+            margin_usd=Decimal(0),
+            capital_source=None,
+            capital_source_amount_usd=Decimal(0),
+            reason="CIBO account has no deployable risk/margin headroom",
         )
     if (
         not isinstance(provider_cost_per_volume_usd, Decimal)
@@ -384,8 +395,19 @@ def _maximum_constrained_plan(
         volume = steps * opportunity.volume_step
     minimum = minimum_seed_volume(opportunity)
     if volume < minimum:
-        raise CiboCapitalManagementError(
-            "maximum account-constrained capacity cannot express minimum seed"
+        return CiboCapitalActionPlan(
+            trader_id=opportunity.trader_id,
+            qore_symbol=opportunity.qore_symbol,
+            stage=capital_stage_for_action(action),
+            action=CapitalAction.HOLD,
+            volume=Decimal(0),
+            stop_risk_usd=Decimal(0),
+            margin_usd=Decimal(0),
+            capital_source=None,
+            capital_source_amount_usd=Decimal(0),
+            reason=(
+                "maximum account-constrained capacity cannot express minimum seed"
+            ),
         )
     with localcontext() as context:
         context.prec = 100
