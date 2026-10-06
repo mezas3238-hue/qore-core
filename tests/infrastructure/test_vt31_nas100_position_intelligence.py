@@ -425,7 +425,11 @@ def test_market_native_position_extends_only_after_structural_acceptance() -> No
 
 
 def test_market_native_momentum_deterioration_uses_confirmed_swing_price() -> None:
-    situation = _full_cognitive_situation()
+    situation = _full_cognitive_situation(
+        entry_family="breaker",
+        last_event="breaker",
+        latency=12,
+    )
     cognition = assess_full_cognitive_position(
         situation=situation,
         reasoning=reason(situation),
@@ -455,9 +459,42 @@ def test_market_native_momentum_deterioration_uses_confirmed_swing_price() -> No
 
     assert decision.action is PositionAction.TRAIL
     assert decision.next_stop == Decimal("106")
-    assert decision.reason == (
-        "MOMENTUM_DETERIORATED_CONFIRMED_STRUCTURAL_SWING"
+    assert decision.reason == "COGNITIVE_AND_MARKET_STRUCTURAL_PROTECTION"
+
+
+def test_supportive_cognition_vetoes_premature_structural_trailing() -> None:
+    situation = _full_cognitive_situation()
+    cognition = assess_full_cognitive_position(
+        situation=situation,
+        reasoning=reason(situation),
+        entry_tier="CORE",
+        dol1_acceptance_observed=None,
     )
+    swing = StructuralProtectionCandidate(
+        level=Decimal("106"),
+        confirmations=1,
+        source="confirmed-m1-swing",
+    )
+
+    decision = decide_market_native_position(
+        side="long",
+        current_stop=Decimal("100"),
+        primary_structural_target=Decimal("120"),
+        next_structural_target=None,
+        cognition=cognition,
+        protective_swing=swing,
+        primary_target_reached=False,
+        primary_target_accepted=False,
+        structure_invalidated=False,
+        liquidity_failure_confirmed=False,
+        momentum_deteriorated=True,
+        regime_changed_against_thesis=False,
+    )
+
+    assert cognition.protection_urgency is ProtectionUrgency.LOW
+    assert decision.action is PositionAction.HOLD
+    assert decision.next_stop is None
+    assert decision.reason == "COGNITIVE_WINNER_PRESERVATION_VETO"
 
 
 def test_market_native_position_holds_when_market_thesis_is_intact() -> None:
