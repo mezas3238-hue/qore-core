@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from datetime import datetime
-from decimal import Decimal
+from decimal import Decimal, localcontext
 
 from qore.infrastructure.account_wide_risk import (
     RiskAuthorization,
@@ -48,6 +48,27 @@ def _money(
         )
 
 
+def _add(*values: Decimal) -> Decimal:
+    with localcontext() as context:
+        context.prec = 100
+        return sum(values, Decimal(0))
+
+
+def _sub(value: Decimal, *values: Decimal) -> Decimal:
+    with localcontext() as context:
+        context.prec = 100
+        result = value
+        for item in values:
+            result -= item
+        return result
+
+
+def _mul(left: Decimal, right: Decimal) -> Decimal:
+    with localcontext() as context:
+        context.prec = 100
+        return left * right
+
+
 @dataclass(frozen=True, slots=True)
 class CiboHistoricalProfitGeneration:
     generation: int
@@ -73,11 +94,11 @@ class CiboHistoricalProfitGeneration:
 
     @property
     def available_usd(self) -> Decimal:
-        return self.proven_usd - self.consumed_usd - self.reserved_usd
+        return _sub(self.proven_usd, self.consumed_usd, self.reserved_usd)
 
     @property
     def economic_value_usd(self) -> Decimal:
-        return self.proven_usd - self.consumed_usd
+        return _sub(self.proven_usd, self.consumed_usd)
 
 
 @dataclass(frozen=True, slots=True)
@@ -121,7 +142,7 @@ class CiboHistoricalCapitalSlice:
 
     @property
     def total_reserved_usd(self) -> Decimal:
-        return self.stop_risk_reserved_usd + self.provider_cost_reserved_usd
+        return _add(self.stop_risk_reserved_usd, self.provider_cost_reserved_usd)
 
 
 @dataclass(frozen=True, slots=True)
@@ -252,56 +273,54 @@ class CiboHistoricalResearchCapitalState:
 
     @property
     def original_base_available_usd(self) -> Decimal:
-        return (
-            self.original_base_proven_usd
-            - self.original_base_consumed_usd
-            - self.original_base_reserved_usd
+        return _sub(
+            self.original_base_proven_usd,
+            self.original_base_consumed_usd,
+            self.original_base_reserved_usd,
         )
 
     @property
     def original_base_economic_value_usd(self) -> Decimal:
-        return self.original_base_proven_usd - self.original_base_consumed_usd
+        return _sub(
+            self.original_base_proven_usd,
+            self.original_base_consumed_usd,
+        )
 
     @property
     def realized_profit_economic_value_usd(self) -> Decimal:
-        return sum(
-            (item.economic_value_usd for item in self.profit_generations),
-            Decimal(0),
+        return _add(
+            *(item.economic_value_usd for item in self.profit_generations)
         )
 
     @property
     def realized_profit_available_usd(self) -> Decimal:
-        return sum(
-            (item.available_usd for item in self.profit_generations),
-            Decimal(0),
+        return _add(
+            *(item.available_usd for item in self.profit_generations)
         )
 
     @property
     def realized_capital_usd(self) -> Decimal:
-        return (
-            self.original_base_economic_value_usd
-            + self.realized_profit_economic_value_usd
+        return _add(
+            self.original_base_economic_value_usd,
+            self.realized_profit_economic_value_usd,
         )
 
     @property
     def open_stop_risk_usd(self) -> Decimal:
-        return sum(
-            (item.authorized_stop_risk_usd for item in self.open_deployments),
-            Decimal(0),
+        return _add(
+            *(item.authorized_stop_risk_usd for item in self.open_deployments)
         )
 
     @property
     def open_margin_usd(self) -> Decimal:
-        return sum(
-            (item.authorized_margin_usd for item in self.open_deployments),
-            Decimal(0),
+        return _add(
+            *(item.authorized_margin_usd for item in self.open_deployments)
         )
 
     @property
     def open_provider_cost_reserve_usd(self) -> Decimal:
-        return sum(
-            (item.provider_cost_usd for item in self.open_deployments),
-            Decimal(0),
+        return _add(
+            *(item.provider_cost_usd for item in self.open_deployments)
         )
 
 
@@ -506,19 +525,19 @@ def settle_historical_deployment(
     ) -> None:
         nonlocal base_reserved, base_consumed, profits
         release = item.total_reserved_usd
-        consumed = (
-            item.provider_cost_reserved_usd
-            + item.stop_risk_reserved_usd * stop_loss_fraction
+        consumed = _add(
+            item.provider_cost_reserved_usd,
+            _mul(item.stop_risk_reserved_usd, stop_loss_fraction),
         )
         if item.source is CapitalSource.ORIGINAL_BASE_CAPITAL:
-            base_reserved -= release
-            base_consumed += consumed
+            base_reserved = _sub(base_reserved, release)
+            base_consumed = _add(base_consumed, consumed)
             return
         lot = profits[item.generation]
         profits[item.generation] = replace(
             lot,
-            reserved_usd=lot.reserved_usd - release,
-            consumed_usd=lot.consumed_usd + consumed,
+            reserved_usd=_sub(lot.reserved_usd, release),
+            consumed_usd=_add(lot.consumed_usd, consumed),
         )
 
     loss_fraction = max(Decimal(0), -gross_r)
@@ -537,7 +556,7 @@ def settle_historical_deployment(
         else:
             profits[generation] = replace(
                 existing,
-                proven_usd=existing.proven_usd + gross_profit,
+                proven_usd=_add(existing.proven_usd, gross_profit),
             )
 
     next_state = replace(
@@ -557,26 +576,33 @@ def settle_historical_deployment(
             + (settlement.receipt.settlement_sha256,)
         ),
         cumulative_provider_cost_usd=(
-            state.cumulative_provider_cost_usd
-            + settlement.provider_cost_usd
+            _add(
+                state.cumulative_provider_cost_usd,
+                settlement.provider_cost_usd,
+            )
         ),
         cumulative_gross_profit_usd=(
-            state.cumulative_gross_profit_usd + gross_profit
+            _add(state.cumulative_gross_profit_usd, gross_profit)
         ),
         cumulative_gross_loss_usd=(
-            state.cumulative_gross_loss_usd
-            + max(Decimal(0), -settlement.gross_pnl_usd)
+            _add(
+                state.cumulative_gross_loss_usd,
+                max(Decimal(0), -settlement.gross_pnl_usd),
+            )
         ),
         peak_realized_capital_usd=max(
             state.peak_realized_capital_usd,
             (
-                state.realized_capital_usd
-                + settlement.realized_net_pnl_usd
+                _add(
+                    state.realized_capital_usd,
+                    settlement.realized_net_pnl_usd,
+                )
             ),
         ),
     )
-    expected = (
-        state.realized_capital_usd + settlement.realized_net_pnl_usd
+    expected = _add(
+        state.realized_capital_usd,
+        settlement.realized_net_pnl_usd,
     )
     if next_state.realized_capital_usd != expected:
         raise CiboCapitalManagementError(
