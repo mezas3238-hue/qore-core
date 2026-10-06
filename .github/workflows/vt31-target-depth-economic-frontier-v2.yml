@@ -205,6 +205,10 @@ jobs:
                       "timeout_count":cand["timeout_count"],
                   }
 
+              extension_total=sum(
+                  fold["extension_activated_count"]
+                  for fold in per_fold.values()
+              )
               consumed=per_fold["consumed"]
               consumed_ok=(
                   consumed["pf_nondegrade"]
@@ -217,6 +221,7 @@ jobs:
                   and dd_count >= 3
                   and winner_ok
                   and consumed_ok
+                  and extension_total > 0
               )
               promotion_grade=(
                   pf_count == 4
@@ -225,6 +230,7 @@ jobs:
                   and winner_ok
                   and halfyear_ok
                   and consumed_ok
+                  and extension_total > 0
               )
               report[variant]={
                   "folds":per_fold,
@@ -234,6 +240,8 @@ jobs:
                   "winner_preservation_all_folds":winner_ok,
                   "r5_r6_r8_halfyears_nondegrade":halfyear_ok,
                   "consumed_nondegrade":consumed_ok,
+                  "extension_activated_total":extension_total,
+                  "target_extension_mechanism_exercised":extension_total > 0,
                   "research_survivor":research_survivor,
                   "promotion_grade_consumed_witness":promotion_grade,
               }
