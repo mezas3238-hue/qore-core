@@ -118,6 +118,8 @@ jobs:
           assert g["absolute_volume_used"] is False
           assert g["fold_identity_used_for_action"] is False
           assert g["future_outcome_used_for_action"] is False
+          assert g["sequence_diagnostics_observation_only"] is True
+          assert g["sequence_diagnostics_action_authority"] is False
           assert g["fresh_holdout_opened"] is False
           counts={v["trade_count"] for v in x["variants"].values()}
           assert len(counts) == 1
@@ -248,6 +250,7 @@ jobs:
                       "h3_action_counts":cand["h3_action_counts"],
                       "halfyears":blocks,
                       "parent_interaction":interaction,
+                      "sequence_diagnostics":cand["sequence_diagnostics"],
                   }
 
               consumed=per_fold["consumed"]

@@ -40,6 +40,52 @@ WINDOWS = (3, 5)
 HORIZON = 3
 PS_CONFIRMATIONS = 2
 
+ENTRY_DIAGNOSTIC_FIELDS = (
+    "decision_minute_ny",
+    "last_structure_event_family",
+    "last_structure_event_age_minutes",
+    "reference_reclaim_age_minutes",
+    "sequence_stale_8_14",
+    "current_path_vs_previous",
+    "current_path_compressed",
+    "reference_width_vs_prior5",
+    "reference_volatility_state",
+    "prior_day_state",
+    "h4_state",
+    "h1_state",
+    "m15_state",
+    "premarket_state",
+    "cash_open_state",
+    "position_in_prior_day_range",
+    "raid_depth_ref",
+    "recent_path_efficiency",
+    "recent_overlap_rate",
+    "risk_ref",
+    "destination_distance_ref",
+    "confirmation_latency_minutes",
+    "entry_evidence_age_minutes",
+    "management_context_state",
+    "journey_capacity_state",
+    "target_plan",
+)
+SEQUENCE_CONTEXT_FIELDS = (
+    "entry_family",
+    "side",
+    "last_structure_event_family",
+    "reference_volatility_state",
+    "prior_day_state",
+    "h1_state",
+    "m15_state",
+    "current_path_compressed",
+    "sequence_stale_8_14",
+    "position_in_prior_day_range",
+    "management_context_state",
+)
+DIAGNOSTIC_VARIANTS = {
+    "H3_W3_DOL2_PS2",
+    "H3_W5_DOL2_PS2",
+}
+
 
 def _d(value: object) -> Decimal:
     return Decimal(str(value))
@@ -51,6 +97,195 @@ def _composite_name(window: int) -> str:
 
 def _target_only_name(window: int) -> str:
     return f"W{window}_DOL2_PS2_ONLY"
+
+
+def _attach_entry_context(
+    row: dict[str, object],
+    state: dict[str, object],
+) -> dict[str, object]:
+    row["entry_context"] = {
+        key: state.get(key)
+        for key in ENTRY_DIAGNOSTIC_FIELDS
+    }
+    return row
+
+
+def _context_value(row: dict[str, object], field: str) -> str:
+    if field in {"entry_family", "side"}:
+        value = row.get(field)
+    else:
+        context = cast(dict[str, object], row.get("entry_context", {}))
+        value = context.get(field)
+    if value is None:
+        return "NA"
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    return str(value)
+
+
+def _context_counts(
+    rows: list[dict[str, object]],
+) -> dict[str, dict[str, int]]:
+    return {
+        field: dict(
+            sorted(
+                Counter(_context_value(row, field) for row in rows).items()
+            )
+        )
+        for field in SEQUENCE_CONTEXT_FIELDS
+    }
+
+
+def _context_outcome_attribution(
+    rows: list[dict[str, object]],
+) -> dict[str, list[dict[str, object]]]:
+    result: dict[str, list[dict[str, object]]] = {}
+    for field in SEQUENCE_CONTEXT_FIELDS:
+        grouped: dict[str, list[Decimal]] = {}
+        for row in rows:
+            key = _context_value(row, field)
+            stressed = _d(row["r_multiple"]) - specialist.FRICTION
+            grouped.setdefault(key, []).append(stressed)
+        profiles = []
+        for value, values in grouped.items():
+            sample = len(values)
+            losses = sum(item < 0 for item in values)
+            total = sum(values, Decimal(0))
+            profiles.append(
+                {
+                    "value": value,
+                    "sample": sample,
+                    "losses": losses,
+                    "loss_rate": format(
+                        Decimal(losses) / Decimal(sample),
+                        "f",
+                    ),
+                    "mean_stressed_r": format(
+                        total / Decimal(sample),
+                        "f",
+                    ),
+                    "total_stressed_r": format(total, "f"),
+                }
+            )
+        result[field] = sorted(
+            profiles,
+            key=lambda item: (
+                _d(item["mean_stressed_r"]),
+                -int(item["sample"]),
+                str(item["value"]),
+            ),
+        )
+    return result
+
+
+def _sequence_diagnostics(
+    rows: list[dict[str, object]],
+) -> dict[str, object]:
+    ordered = sorted(rows, key=lambda row: str(row["signal_at"]))
+
+    streaks: list[list[dict[str, object]]] = []
+    current: list[dict[str, object]] = []
+    for row in ordered:
+        stressed = _d(row["r_multiple"]) - specialist.FRICTION
+        if stressed < 0:
+            current.append(row)
+        elif current:
+            streaks.append(current)
+            current = []
+    if current:
+        streaks.append(current)
+
+    longest = max(streaks, key=len, default=[])
+    loss_rows = [
+        row
+        for row in ordered
+        if _d(row["r_multiple"]) - specialist.FRICTION < 0
+    ]
+
+    def window(size: int) -> dict[str, object] | None:
+        if len(ordered) < size:
+            return None
+        candidates = []
+        for start in range(len(ordered) - size + 1):
+            items = ordered[start : start + size]
+            total = sum(
+                (
+                    _d(row["r_multiple"]) - specialist.FRICTION
+                    for row in items
+                ),
+                Decimal(0),
+            )
+            candidates.append((total, items))
+        total, items = min(candidates, key=lambda item: item[0])
+        return {
+            "size": size,
+            "stressed_total_r": format(total, "f"),
+            "start_signal_at": str(items[0]["signal_at"]),
+            "end_signal_at": str(items[-1]["signal_at"]),
+            "loss_count": sum(
+                _d(row["r_multiple"]) - specialist.FRICTION < 0
+                for row in items
+            ),
+            "context_counts": _context_counts(items),
+        }
+
+    loss_pairs = [
+        (ordered[index - 1], ordered[index])
+        for index in range(1, len(ordered))
+        if _d(ordered[index - 1]["r_multiple"]) - specialist.FRICTION < 0
+        and _d(ordered[index]["r_multiple"]) - specialist.FRICTION < 0
+    ]
+    transition_similarity = {}
+    for field in SEQUENCE_CONTEXT_FIELDS:
+        matches = sum(
+            _context_value(left, field) == _context_value(right, field)
+            for left, right in loss_pairs
+        )
+        transition_similarity[field] = {
+            "loss_pair_count": len(loss_pairs),
+            "same_context_count": matches,
+            "same_context_rate": (
+                None
+                if not loss_pairs
+                else format(
+                    Decimal(matches) / Decimal(len(loss_pairs)),
+                    "f",
+                )
+            ),
+        }
+
+    return {
+        "observation_only": True,
+        "action_authority": False,
+        "outcome_labels_runtime_authority": False,
+        "trade_count": len(ordered),
+        "loss_count": len(loss_rows),
+        "longest_losing_streak": {
+            "length": len(longest),
+            "start_signal_at": (
+                None if not longest else str(longest[0]["signal_at"])
+            ),
+            "end_signal_at": (
+                None if not longest else str(longest[-1]["signal_at"])
+            ),
+            "stressed_total_r": format(
+                sum(
+                    (
+                        _d(row["r_multiple"]) - specialist.FRICTION
+                        for row in longest
+                    ),
+                    Decimal(0),
+                ),
+                "f",
+            ),
+            "context_counts": _context_counts(longest),
+        },
+        "worst_rolling_5": window(5),
+        "worst_rolling_10": window(10),
+        "all_loss_context_counts": _context_counts(loss_rows),
+        "consecutive_loss_context_similarity": transition_similarity,
+        "context_outcome_attribution": _context_outcome_attribution(ordered),
+    }
 
 
 def _simulate_composite(
@@ -377,6 +612,7 @@ def replay(evidence_path: Path) -> dict[str, object]:
                 f"H3_ONLY changed terminal eligibility: {h3_only}"
             )
         h3_only["target_plan"] = state["target_plan"]
+        _attach_entry_context(h3_only, state)
         rows_by_variant["H3_ONLY"].append(h3_only)
 
         for window in WINDOWS:
@@ -393,6 +629,7 @@ def replay(evidence_path: Path) -> dict[str, object]:
                     f"{target_only}"
                 )
             target_only["target_plan"] = state["target_plan"]
+            _attach_entry_context(target_only, state)
             rows_by_variant[_target_only_name(window)].append(target_only)
 
             composite = _simulate_composite(
@@ -407,6 +644,7 @@ def replay(evidence_path: Path) -> dict[str, object]:
                     f"{composite}"
                 )
             composite["target_plan"] = state["target_plan"]
+            _attach_entry_context(composite, state)
             rows_by_variant[_composite_name(window)].append(composite)
 
         return baseline
@@ -469,6 +707,11 @@ def replay(evidence_path: Path) -> dict[str, object]:
                     ).items()
                 )
             ),
+            "sequence_diagnostics": (
+                _sequence_diagnostics(rows)
+                if name in DIAGNOSTIC_VARIANTS
+                else None
+            ),
         }
 
     return {
@@ -492,6 +735,8 @@ def replay(evidence_path: Path) -> dict[str, object]:
             "absolute_volume_used": False,
             "fold_identity_used_for_action": False,
             "future_outcome_used_for_action": False,
+            "sequence_diagnostics_observation_only": True,
+            "sequence_diagnostics_action_authority": False,
             "fresh_holdout_opened": False,
             "policy_promoted": False,
             "candidate_frozen": False,
