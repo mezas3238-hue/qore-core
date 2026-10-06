@@ -26,7 +26,6 @@ from decimal import Decimal, localcontext
 from pathlib import Path
 from typing import Any
 
-
 _TURTLE = {
     "R34_XAUUSD",
     "R38_EURUSD",
