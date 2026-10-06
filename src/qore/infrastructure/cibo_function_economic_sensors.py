@@ -19,6 +19,7 @@ from enum import StrEnum
 
 from qore.infrastructure.cibo_capital_management_authority import (
     CapitalAction,
+    CapitalSource,
     CiboCapitalManagementError,
 )
 from qore.infrastructure.cibo_executive_brain import (
@@ -55,6 +56,7 @@ class CiboFunctionEconomicSensor:
     output_metrics: tuple[tuple[str, str], ...]
     called: bool = True
     downstream_consumed: bool = True
+    decision_changed: bool = False
     decision_gate_triggered: bool = False
     risk_delta_usd: Decimal = Decimal(0)
     margin_delta_usd: Decimal = Decimal(0)
@@ -89,6 +91,7 @@ class CiboFunctionEconomicSensor:
         for name in (
             "called",
             "downstream_consumed",
+            "decision_changed",
             "decision_gate_triggered",
             "productive_authority",
         ):
@@ -158,6 +161,7 @@ class CiboFunctionEconomicSensor:
             "output_metrics": dict(self.output_metrics),
             "called": self.called,
             "downstream_consumed": self.downstream_consumed,
+            "decision_changed": self.decision_changed,
             "decision_gate_triggered": self.decision_gate_triggered,
             "risk_delta_usd": format(self.risk_delta_usd, "f"),
             "margin_delta_usd": format(self.margin_delta_usd, "f"),
@@ -193,6 +197,7 @@ def _sensor(
     stage_order: int,
     input_metrics: tuple[tuple[str, str], ...],
     output_metrics: tuple[tuple[str, str], ...],
+    decision_changed: bool = False,
     decision_gate_triggered: bool = False,
     risk_delta_usd: Decimal = Decimal(0),
     margin_delta_usd: Decimal = Decimal(0),
@@ -208,6 +213,7 @@ def _sensor(
         output_metrics=output_metrics,
         called=True,
         downstream_consumed=True,
+        decision_changed=decision_changed,
         decision_gate_triggered=decision_gate_triggered,
         risk_delta_usd=risk_delta_usd,
         margin_delta_usd=margin_delta_usd,
@@ -273,6 +279,10 @@ def build_sovereign_function_sensors(
                 ),
                 capital_disposition=decision.disposition.value,
             ),
+            decision_changed=(
+                decision.synthesis.directive
+                is not CiboExecutiveDirectiveKind.RECOMMEND
+            ),
             decision_gate_triggered=(
                 decision.synthesis.directive
                 is not CiboExecutiveDirectiveKind.RECOMMEND
@@ -297,7 +307,7 @@ def build_sovereign_function_sensors(
                     first_robust.common_margin_headroom_usd
                 ),
             ),
-            ablation_key="compound_portfolio",
+            ablation_key=None,
         ),
         _sensor(
             decision_id=decision.decision_id,
@@ -315,6 +325,7 @@ def build_sovereign_function_sensors(
                 stop_risk_usd=portfolio.stop_risk_usd,
                 margin_usd=portfolio.margin_usd,
             ),
+            decision_changed=(portfolio.multiplier != 1),
             decision_gate_triggered=(portfolio.multiplier == 0),
             ablation_key="compound_portfolio",
         ),
@@ -331,6 +342,7 @@ def build_sovereign_function_sensors(
                 stop_risk_cap_usd=portfolio.stop_risk_usd,
                 margin_cap_usd=portfolio.margin_usd,
             ),
+            decision_changed=(portfolio.multiplier != 1),
             decision_gate_triggered=(portfolio.multiplier == 0),
             ablation_key="adaptive_leverage",
         ),
@@ -350,8 +362,13 @@ def build_sovereign_function_sensors(
                     competition.net_incremental_utility_usd
                 ),
             ),
+            decision_changed=(
+                not competition.admit_opportunity
+                or competition.released_stop_risk_usd > 0
+                or competition.released_margin_usd > 0
+            ),
             decision_gate_triggered=(not competition.admit_opportunity),
-            ablation_key="compound_portfolio",
+            ablation_key=None,
         ),
         _sensor(
             decision_id=decision.decision_id,
@@ -374,6 +391,10 @@ def build_sovereign_function_sensors(
                     if sizing_plan.capital_source is None
                     else sizing_plan.capital_source.value
                 ),
+            ),
+            decision_changed=(
+                sizing_plan.action is CapitalAction.HOLD
+                or decision.sizing.mode.value != "SURVIVAL_MINIMAL_SEED"
             ),
             decision_gate_triggered=(
                 sizing_plan.action is CapitalAction.HOLD
@@ -398,6 +419,17 @@ def build_sovereign_function_sensors(
                     sizing_plan.capital_source_lots
                 ),
             ),
+            decision_changed=(
+                any(
+                    lot.source is CapitalSource.REALIZED_PROFIT
+                    for lot in sizing_plan.capital_source_lots
+                )
+                or sizing_plan.capital_source is CapitalSource.REALIZED_PROFIT
+                or (
+                    sizing_plan.action is CapitalAction.EXPAND
+                    and not decision.capital_science.allow_incremental_compound
+                )
+            ),
             decision_gate_triggered=(
                 sizing_plan.action is CapitalAction.EXPAND
                 and not decision.capital_science.allow_incremental_compound
@@ -420,6 +452,12 @@ def build_sovereign_function_sensors(
                 volume=final_plan.volume,
                 stop_risk_usd=final_plan.stop_risk_usd,
                 margin_usd=final_plan.margin_usd,
+            ),
+            decision_changed=(
+                final_plan.action is not sizing_plan.action
+                or final_plan.volume != sizing_plan.volume
+                or final_plan.stop_risk_usd != sizing_plan.stop_risk_usd
+                or final_plan.margin_usd != sizing_plan.margin_usd
             ),
             decision_gate_triggered=(final_plan.action is CapitalAction.HOLD),
         ),
@@ -475,6 +513,7 @@ def build_sovereign_function_sensors(
                 ),
                 called=True,
                 downstream_consumed=bool(receipt.downstream_consumer),
+                decision_changed=receipt.decision_changed,
                 decision_gate_triggered=receipt.decision_changed,
                 risk_delta_usd=receipt.risk_delta_usd,
                 margin_delta_usd=receipt.margin_delta_usd,
@@ -530,6 +569,9 @@ def summarize_function_sensors(
             "call_count": len(group),
             "downstream_consumed_count": sum(
                 item.downstream_consumed for item in group
+            ),
+            "decision_changed_count": sum(
+                item.decision_changed for item in group
             ),
             "decision_gate_triggered_count": sum(
                 item.decision_gate_triggered for item in group
