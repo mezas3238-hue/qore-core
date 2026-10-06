@@ -297,7 +297,7 @@ def build_sovereign_function_sensors(
                     first_robust.common_margin_headroom_usd
                 ),
             ),
-            ablation_key="compound_portfolio",
+            ablation_key=None,
         ),
         _sensor(
             decision_id=decision.decision_id,
@@ -351,7 +351,7 @@ def build_sovereign_function_sensors(
                 ),
             ),
             decision_gate_triggered=(not competition.admit_opportunity),
-            ablation_key="compound_portfolio",
+            ablation_key=None,
         ),
         _sensor(
             decision_id=decision.decision_id,
