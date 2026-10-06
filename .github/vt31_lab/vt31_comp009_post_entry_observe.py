@@ -72,6 +72,7 @@ def fact_report(
                 "h1_state": first.get("h1_state"),
                 "m15_state": first.get("m15_state"),
                 "management_context": first.get("management_context"),
+                "protection_urgency": first.get("protection_urgency"),
                 "destination_state": first.get("destination_state"),
                 "reclaim_bucket": first.get("reclaim_bucket"),
                 "last_causal_event_family": first.get(
