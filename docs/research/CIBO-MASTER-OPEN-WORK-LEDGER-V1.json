@@ -1243,8 +1243,8 @@
       "kind": "SYSTEM",
       "mandatory": true,
       "certification_blocking": true,
-      "current_maturity": "PHASE22_V4_SOURCE_VALIDATED_PRE_EXECUTION",
-      "terminal_disposition": null,
+      "current_maturity": "HISTORICAL_SOURCE_EXHAUSTED__FORWARD_CLEAN_WINDOW_ACCUMULATING",
+      "terminal_disposition": "EXTERNAL_DEPENDENCY_BLOCKED",
       "evidence_refs": [
         "src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py",
         "src/qore/infrastructure/cibo_ce2i_pre_holdout_checkpoint.py",
@@ -1274,15 +1274,21 @@
         "github-actions://37048678560/SUCCESS",
         "github-actions-artifact://11246140100/sha256:9586d4c4b03d846e98a8d64dd308cd12d4287807dfb150dca156d4eac2c07d07",
         "github-actions://37049312208/SUCCESS",
-        "github-actions-artifact://11245897154/sha256:285e0e54c87fab94fd5e51f394b942870844eb51b8b472c02d9337a7d55a15ff"
+        "github-actions-artifact://11245897154/sha256:285e0e54c87fab94fd5e51f394b942870844eb51b8b472c02d9337a7d55a15ff",
+        "docs/research/CIBO-PHASE22-V4-CLAIMED-FAILURE-FORENSIC-RECEIPT.json",
+        "docs/research/CIBO-PHASE22-V5-SOURCE-UNAVAILABLE-RECEIPT.json",
+        "docs/research/CIBO-PHASE22-V6-SOURCE-UNAVAILABLE-RECEIPT.json",
+        "docs/research/CIBO-PHASE22-NAS100-ARCHIVED-SOURCE-EXHAUSTION-V1.json",
+        "src/qore/infrastructure/cibo_phase22_fresh_source_exhaustion.py",
+        "github-actions://37171169135/SUCCESS",
+        "github-actions-artifact://11290509663/sha256:8715316a9f8b2b58c305b3f4667289d76a1707b0b9b229c9687e5e613aff0af0",
+        "github-actions-artifact://11291471205/sha256:b0c4f037086ddf63c1ca870f176b657b2f67f4d359f8b4e99ec5d3f0b85706f6"
       ],
       "blockers": [
-        "PHASE22_V4_EXECUTION_BUILD_AND_EXACT_HEAD_CI_REQUIRED",
-        "PHASE22_V4_EXPLICIT_OWNER_ONE_SHOT_AUTHORIZATION_REQUIRED",
-        "PHASE22_V4_FRESH_TERMINAL_EVIDENCE_REQUIRED",
-        "PHASE22_V3_SECOND_FRESH_EXECUTION_FORBIDDEN"
+        "NO_BURN_CLEAN_SIX_MONTH_HISTORICAL_WINDOW_WITH_FULL_NAS100_SOURCE",
+        "EARLIEST_FORWARD_BURN_CLEAN_WINDOW_COMPLETES_2027-03-17"
       ],
-      "next_gate": "V4 source availability and exact ten-source corpus are sealed read-only with no Trader logic or outcome inspection. Freeze the V4 execution build, prove the VT31 source-ABI repair and all seven lanes pre-outcome, then require a new explicit Owner one-shot authorization before any V4 fresh Trader execution. V3 remains permanently non-rerunnable."
+      "next_gate": "Preserve the preregistered forward candidate 2026-09-17 through 2027-03-17 untouched. After 2027-03-17, validate the exact ten-source surface read-only, freeze the execution bundle before outcomes, obtain explicit Owner one-shot authorization, and execute the fresh scientific cycle once."
     },
     {
       "id": "TEMPORAL_REPLICATION",
@@ -1698,8 +1704,8 @@
   ],
   "current_summary": {
     "mandatory_count": 64,
-    "terminal_count": 61,
-    "open_count": 3,
+    "terminal_count": 62,
+    "open_count": 2,
     "zero_open_work_pass": false,
     "final_certification_candidate": false
   }

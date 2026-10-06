@@ -373,3 +373,5 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+# V6_SOURCE_PROBE_RELAUNCH_MARKER = 2026-10-03

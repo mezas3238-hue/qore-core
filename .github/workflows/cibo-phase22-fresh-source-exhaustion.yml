@@ -1,0 +1,56 @@
+name: QORE CIBO Phase22 Fresh Source Exhaustion
+
+on:
+  push:
+    branches:
+      - agent/cibo-integrator-ab-001
+    paths:
+      - 'src/qore/infrastructure/cibo_phase22_fresh_source_exhaustion.py'
+      - 'docs/research/CIBO-PHASE22-V5-SOURCE-UNAVAILABLE-RECEIPT.json'
+      - 'docs/research/CIBO-PHASE22-V6-SOURCE-UNAVAILABLE-RECEIPT.json'
+      - 'docs/research/CIBO-PHASE22-NAS100-ARCHIVED-SOURCE-EXHAUSTION-V1.json'
+      - '.github/workflows/cibo-phase22-fresh-source-exhaustion.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  prove-exhaustion:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]'
+      - name: Static quality
+        run: python -m ruff check src/qore/infrastructure/cibo_phase22_fresh_source_exhaustion.py
+      - name: Prove historical exhaustion and preregister future clean window
+        run: |
+          python - <<'PY'
+          from datetime import UTC, datetime
+          from qore.infrastructure.cibo_phase22_fresh_source_exhaustion import (
+              EARLIEST_FUTURE_END,
+              EARLIEST_FUTURE_START,
+              FUTURE_CANDIDATE_ID,
+              build_fresh_source_exhaustion_receipt,
+              payload,
+          )
+          receipt = build_fresh_source_exhaustion_receipt()
+          assert receipt.historical_source_exhausted is True
+          assert receipt.archived_nas100_alternative_found is False
+          assert receipt.latest_confirmed_burn_end == datetime(2026, 9, 17, tzinfo=UTC)
+          assert receipt.earliest_future_candidate.candidate_id == FUTURE_CANDIDATE_ID
+          assert receipt.earliest_future_candidate.start_at == EARLIEST_FUTURE_START
+          assert receipt.earliest_future_candidate.end_exclusive_at == EARLIEST_FUTURE_END
+          assert receipt.future_window_complete_at_observation is False
+          assert receipt.outcome_data_used_for_selection is False
+          assert receipt.trader_logic_executed is False
+          assert receipt.broker_mutation is False
+          value = payload()
+          assert value["historical_source_exhausted"] is True
+          assert value["future_window_complete_at_observation"] is False
+          assert value["outcome_data_used_for_selection"] is False
+          assert value["broker_mutation"] is False
+          PY
