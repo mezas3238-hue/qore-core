@@ -442,6 +442,14 @@ def replay(evidence_path: Path) -> dict[str, object]:
                 "support_margin_bucket": _support_margin_bucket(margin),
                 "target_intent": cognition.target_intent.value,
                 "m15_state": situation.m15_state,
+                "maximum_cognition_verified": (
+                    cognition.maximum_cognition_verified
+                ),
+                "memory_bundle_complete": cognition.memory_bundle_complete,
+                "domain_coverage_complete": cognition.domain_coverage_complete,
+                "situation_accounting_complete": (
+                    cognition.situation_accounting_complete
+                ),
                 "max_intelligence_ready": reasoning.max_intelligence_ready,
                 "max_intelligence_blockers": list(
                     reasoning.max_intelligence_blockers
@@ -486,6 +494,9 @@ def replay(evidence_path: Path) -> dict[str, object]:
     max_ready_count = sum(
         row["max_intelligence_ready"] is True for row in rows
     )
+    cognition_verified_count = sum(
+        row["maximum_cognition_verified"] is True for row in rows
+    )
 
     return {
         "schema": SCHEMA,
@@ -519,6 +530,10 @@ def replay(evidence_path: Path) -> dict[str, object]:
             rows,
             "reference_volatility_state",
         ),
+        "by_m15_state": _group_metrics(
+            rows,
+            "m15_state",
+        ),
         "by_context_destination": _group_metrics(
             context_destination,
             "context_x_destination",
@@ -532,6 +547,9 @@ def replay(evidence_path: Path) -> dict[str, object]:
             "required_for_candidate_freeze": True,
             "terminal_trade_count": len(rows),
             "ready_trade_count": max_ready_count,
+            "maximum_cognition_verified_trade_count": (
+                cognition_verified_count
+            ),
             "ready_trade_fraction": (
                 None
                 if not rows
@@ -542,7 +560,9 @@ def replay(evidence_path: Path) -> dict[str, object]:
             ),
             "blocker_counts": dict(sorted(blocker_counts.items())),
             "candidate_freeze_allowed": (
-                bool(rows) and max_ready_count == len(rows)
+                bool(rows)
+                and max_ready_count == len(rows)
+                and cognition_verified_count == len(rows)
             ),
         },
         "rows": rows,
@@ -565,7 +585,9 @@ def replay(evidence_path: Path) -> dict[str, object]:
             "runtime_volume_decision_authority": False,
             "maximum_intelligence_required": True,
             "maximum_intelligence_candidate_freeze_allowed": (
-                bool(rows) and max_ready_count == len(rows)
+                bool(rows)
+                and max_ready_count == len(rows)
+                and cognition_verified_count == len(rows)
             ),
             "opens_new_holdout": False,
             "policy_promoted": False,
