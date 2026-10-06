@@ -59,6 +59,7 @@ class Variant:
     robust_portfolio: bool
     genc12_binding: bool
     fixed_multiplier: int | None = None
+    recency_guard: bool = False
 
 
 VARIANTS = (
@@ -74,6 +75,25 @@ VARIANTS = (
         True,
         True,
         fixed_multiplier=1,
+    ),
+    Variant(
+        "RECENCY_GUARD_FIXED_1X_ATTRIBUTION",
+        Decimal("0.70"),
+        True,
+        True,
+        True,
+        True,
+        fixed_multiplier=1,
+        recency_guard=True,
+    ),
+    Variant(
+        "FULL_CAUSAL_REPAIR_RECENCY_GUARD",
+        Decimal("0.70"),
+        True,
+        True,
+        True,
+        True,
+        recency_guard=True,
     ),
 )
 
@@ -95,6 +115,8 @@ class Deployment:
     mad_r: Decimal
     dispersion_r: Decimal
     expected_net_min_usd: Decimal
+    global_expected_r: Decimal
+    recent_block_r: Decimal
 
 
 def _genc12_allows_new_capital(row: dict[str, Any], has_capacity: bool) -> bool:
@@ -142,6 +164,7 @@ def _eligible_net(
     row: dict[str, Any],
     *,
     uncertainty_priced: bool,
+    recency_guard: bool = False,
 ) -> Decimal | None:
     if (
         row.get("expectation_basis") != "WALK_FORWARD_EMPIRICAL_FORECAST"
@@ -153,7 +176,16 @@ def _eligible_net(
         return None
     minimum_volume = d(row["minimum_volume"])
     provider_cost = d(row["provider_cost_per_volume_usd"]) * minimum_volume
+    minimum_stop_risk = d(row["stop_loss_per_volume"]) * minimum_volume
     value = d(row["expected_net_value_usd"]) - provider_cost
+    if recency_guard:
+        blocks_raw = row.get("walk_forward_block_means_r")
+        if not isinstance(blocks_raw, list) or len(blocks_raw) != 5:
+            raise ValueError("recency guard requires five causal block means")
+        global_r = d(row["walk_forward_expected_structural_r"])
+        recent_r = d(blocks_raw[-1])
+        conservative_r = min(global_r, recent_r)
+        value = conservative_r * minimum_stop_risk - provider_cost
     if uncertainty_priced:
         value -= d(row["uncertainty_penalty_usd"])
     return value if value > 0 else None
@@ -176,6 +208,7 @@ def _portfolio(
         net = _eligible_net(
             row,
             uncertainty_priced=variant.uncertainty_priced,
+            recency_guard=variant.recency_guard,
         )
         nets.append(net if net is not None else ZERO)
         if net is None:
@@ -324,6 +357,8 @@ def _metrics(
 
     observation_buckets: dict[str, list[dict[str, Any]]] = defaultdict(list)
     consensus_buckets: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    recent_sign_buckets: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    recency_relation_buckets: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for row in settlements:
         observations = int(row["observation_count"])
         if observations < 50:
@@ -337,6 +372,16 @@ def _metrics(
         observation_buckets[observation_key].append(row)
         consensus_buckets[
             f"{int(row['positive_blocks'])}_OF_5_POSITIVE_BLOCKS"
+        ].append(row)
+        recent_sign_buckets[
+            "RECENT_POSITIVE"
+            if d(row["recent_block_r"]) > 0
+            else "RECENT_NONPOSITIVE"
+        ].append(row)
+        recency_relation_buckets[
+            "RECENT_BELOW_GLOBAL"
+            if d(row["recent_block_r"]) < d(row["global_expected_r"])
+            else "RECENT_AT_OR_ABOVE_GLOBAL"
         ].append(row)
 
     def bucket_summary(
@@ -404,6 +449,12 @@ def _metrics(
             "positive_block_consensus_buckets": bucket_summary(
                 consensus_buckets
             ),
+            "recent_block_sign_buckets": bucket_summary(
+                recent_sign_buckets
+            ),
+            "recency_relation_buckets": bucket_summary(
+                recency_relation_buckets
+            ),
             "provider_cost_usd": format(total_provider_cost, "f"),
             "expected_net_minimum_size_usd_sum": format(
                 expected_min_total,
@@ -464,6 +515,15 @@ def simulate(rows: list[dict[str, Any]], variant: Variant) -> dict[str, Any]:
                         "f",
                     ),
                     "provider_cost_usd": format(dep.provider_cost, "f"),
+                    "global_expected_r": format(
+                        dep.global_expected_r,
+                        "f",
+                    ),
+                    "recent_block_r": format(dep.recent_block_r, "f"),
+                    "recent_minus_global_r": format(
+                        dep.recent_block_r - dep.global_expected_r,
+                        "f",
+                    ),
                 }
             )
 
@@ -529,6 +589,7 @@ def simulate(rows: list[dict[str, Any]], variant: Variant) -> dict[str, Any]:
                 -(_eligible_net(
                     item[1],
                     uncertainty_priced=variant.uncertainty_priced,
+                    recency_guard=variant.recency_guard,
                 ) or ZERO),
                 str(item[1]["signal_fingerprint"]),
             )
@@ -603,8 +664,23 @@ def simulate(rows: list[dict[str, Any]], variant: Variant) -> dict[str, Any]:
                     _eligible_net(
                         row,
                         uncertainty_priced=variant.uncertainty_priced,
+                        recency_guard=variant.recency_guard,
                     )
                     or ZERO
+                ),
+                global_expected_r=d(
+                    row.get("walk_forward_expected_structural_r", "0")
+                ),
+                recent_block_r=d(
+                    (
+                        row.get("walk_forward_block_means_r")
+                        if isinstance(
+                            row.get("walk_forward_block_means_r"),
+                            list,
+                        )
+                        and row.get("walk_forward_block_means_r")
+                        else ["0"]
+                    )[-1]
                 ),
             )
             sequence += 1

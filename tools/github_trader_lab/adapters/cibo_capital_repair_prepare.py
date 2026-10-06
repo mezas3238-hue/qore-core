@@ -128,6 +128,13 @@ def _compact_row(row: dict[str, Any]) -> dict[str, object]:
         "walk_forward_mad_r": str(
             expectation.get("walk_forward_median_absolute_deviation_r", "0")
         ),
+        "walk_forward_expected_structural_r": str(
+            expectation.get("walk_forward_expected_structural_r", "0")
+        ),
+        "walk_forward_block_means_r": [
+            str(value)
+            for value in expectation.get("walk_forward_block_means_r", [])
+        ],
         "cibo_expected_net_utility_usd": context.get(
             "cibo_expected_net_utility_usd",
             "0",
