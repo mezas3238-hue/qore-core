@@ -101,7 +101,7 @@ def test_pre_holdout_gate_is_fail_closed_before_calibration_freeze() -> None:
     assert readiness.status is CiboPreHoldoutStatus.NOT_READY
     assert (
         readiness.holdout_candidate_id
-        == "CIBO_USD60_6M_HOLDOUT_2015-10-19_2016-04-19_V2"
+        == "CIBO_USD60_6M_HOLDOUT_2013-10-19_2014-04-19_V6"
     )
     assert readiness.holdout_outcomes_inspected is False
     assert readiness.holdout_market_data_read is False
@@ -169,8 +169,9 @@ def test_dynamic_terminal_manifest_supersedes_historical_matrix_blockers() -> No
         phase20d_forward_manifest_sha256=phase20_sha,
     )
 
-    assert readiness.status is CiboPreHoldoutStatus.READY_TO_UNSEAL_ACTIVE_HOLDOUT
-    assert readiness.blockers == ()
+    assert readiness.status is CiboPreHoldoutStatus.NOT_READY
+    assert "ACTIVE_HOLDOUT_NOT_ELIGIBLE_FROZEN" in readiness.blockers
+    assert "ACTIVE_HOLDOUT_SOURCE_VALIDATION_INCOMPLETE" in readiness.blockers
     assert readiness.holdout_outcomes_inspected is False
     assert readiness.holdout_market_data_read is False
     assert not any(
