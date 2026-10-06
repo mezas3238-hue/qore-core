@@ -1,0 +1,298 @@
+from __future__ import annotations
+
+import inspect
+from decimal import Decimal
+
+import pytest
+
+from qore.infrastructure.traders.vt31_nas100_position_intelligence import (
+    PositionAction,
+    StructuralDestinationCandidate,
+    StructuralProtectionCandidate,
+)
+from qore.infrastructure.traders.vt31_nas100_post_entry_cognitive_runtime import (
+    PostEntryCausalObservation,
+    PostEntryMarketFacts,
+    reassess_and_decide_post_entry,
+    rebuild_post_entry_situation,
+)
+from qore.infrastructure.traders.vt31_nas100_reasoning_engine import reason
+from qore.infrastructure.traders.vt31_nas100_situation_model import (
+    Nas100SituationModel,
+)
+
+
+def _entry_situation() -> Nas100SituationModel:
+    return Nas100SituationModel(
+        as_of="2026-01-05T15:20:00+00:00",
+        weekday="Monday",
+        session="NY_AM_SILVER_BULLET",
+        decision_minute_ny=10 * 60 + 20,
+        side="long",
+        setup_family="VT31_AM_SILVER_BULLET_R2_2",
+        confirmation_state="confirmed",
+        prior_day_state="bullish",
+        h4_state="mixed",
+        h1_state="mixed",
+        premarket_state="bullish",
+        cash_open_state="bullish",
+        position_in_prior_day_range="middle-third",
+        range_state="compressed",
+        volatility_state="compressed",
+        current_path_vs_previous=Decimal("0.62"),
+        reference_width_vs_prior5=Decimal("0.68"),
+        raid_depth_ref=Decimal("0.14"),
+        recent_path_efficiency=Decimal("0.61"),
+        recent_overlap_rate=Decimal("0.42"),
+        first_breach_side="low",
+        double_sided_before_decision=False,
+        reference_reclaimed=True,
+        reference_reclaim_age_minutes=3,
+        last_structure_event_family="reference-liquidity-sweep",
+        last_structure_event_age_minutes=2,
+        recent_liquidity_event_count_10m=2,
+        displacement_state="STRUCTURAL_CONFIRMATION_OBSERVED",
+        entry_evidence_family="fair-value-gap",
+        confirmation_latency_minutes=4,
+        entry_evidence_freshness="fresh-0-5m",
+        stop_plan="SOURCE_SWING_EXTREME",
+        risk_ref=Decimal("0.21"),
+        planned_target_r=None,
+        structural_destination="OPPOSITE_09_REFERENCE_BOUNDARY",
+        destination_distance_ref=Decimal("0.71"),
+        journey_stage="POST_CONFIRMATION_PRE_EXECUTION",
+        dol1_state="ACTIVE_OPPOSITE_09_BOUNDARY",
+        dol2_state="RESEARCH_ONLY_UNCALIBRATED",
+        dol3_state="RESEARCH_ONLY_UNCALIBRATED",
+        extension_capacity_state="RESEARCH_ONLY_UNCALIBRATED",
+        exhaustion_state="UNKNOWN",
+        cross_index_state="OPTIONAL_CONTEXT_NOT_REQUIRED",
+    )
+
+
+def _observation(
+    *,
+    exhaustion: str = "UNKNOWN",
+    dol1_state: str = "REACHED_CLOSED_M1",
+) -> PostEntryCausalObservation:
+    return PostEntryCausalObservation(
+        as_of="2026-01-05T15:45:00+00:00",
+        decision_minute_ny=10 * 60 + 45,
+        prior_day_state="bullish",
+        h4_state="mixed",
+        h1_state="bullish",
+        premarket_state="bullish",
+        cash_open_state="bullish",
+        position_in_prior_day_range="middle-third",
+        range_state="compressed",
+        volatility_state="compressed",
+        current_path_vs_previous=Decimal("0.64"),
+        reference_width_vs_prior5=Decimal("0.68"),
+        raid_depth_ref=Decimal("0.14"),
+        recent_path_efficiency=Decimal("0.66"),
+        recent_overlap_rate=Decimal("0.35"),
+        reference_reclaimed=True,
+        reference_reclaim_age_minutes=7,
+        last_structure_event_family="reference-liquidity-sweep",
+        last_structure_event_age_minutes=3,
+        recent_liquidity_event_count_10m=2,
+        displacement_state="STRUCTURAL_CONFIRMATION_OBSERVED",
+        journey_stage="POST_ENTRY_REASSESSMENT",
+        dol1_state=dol1_state,
+        dol2_state="CONFIRMED_LIQUIDITY_DESTINATION",
+        dol3_state="UNRESOLVED",
+        extension_capacity_state="SUPPORTIVE_CONTINUATION",
+        exhaustion_state=exhaustion,
+        cross_index_state="BOTH_PEERS_SAME_SIDE_ALIGNED",
+    )
+
+
+def _market(
+    *,
+    target_reached: bool = False,
+    target_accepted: bool = False,
+    swing: StructuralProtectionCandidate | None = None,
+    momentum_bad: bool = False,
+    invalidated: bool = False,
+) -> PostEntryMarketFacts:
+    return PostEntryMarketFacts(
+        side="long",
+        current_stop=Decimal("95"),
+        primary_structural_target=Decimal("100"),
+        next_structural_target=StructuralDestinationCandidate(
+            level=Decimal("104"),
+            source="confirmed-liquidity-pool",
+        ),
+        protective_swing=swing,
+        primary_target_reached=target_reached,
+        primary_target_accepted=target_accepted,
+        structure_invalidated=invalidated,
+        liquidity_failure_confirmed=False,
+        momentum_deteriorated=momentum_bad,
+        regime_changed_against_thesis=False,
+    )
+
+
+def test_post_entry_runtime_interfaces_expose_no_r_or_volume_authority() -> None:
+    forbidden = {
+        "r",
+        "r_multiple",
+        "mfe_r",
+        "mae_r",
+        "target_r",
+        "risk_r",
+        "profit_r",
+        "volume",
+        "lot_size",
+        "position_size",
+        "sizing",
+        "leverage",
+        "risk_budget",
+    }
+    observation_fields = set(PostEntryCausalObservation.__dataclass_fields__)
+    market_fields = set(PostEntryMarketFacts.__dataclass_fields__)
+    function_params = set(
+        inspect.signature(reassess_and_decide_post_entry).parameters
+    )
+
+    assert observation_fields.isdisjoint(forbidden)
+    assert market_fields.isdisjoint(forbidden)
+    assert function_params.isdisjoint(forbidden)
+
+
+def test_rebuild_post_entry_situation_keeps_r_out_of_runtime() -> None:
+    entry = _entry_situation()
+    current = rebuild_post_entry_situation(
+        entry_situation=entry,
+        observation=_observation(),
+    )
+
+    assert current.planned_target_r is None
+    assert current.as_of != entry.as_of
+    assert current.h1_state == "bullish"
+    assert current.journey_stage == "POST_ENTRY_REASSESSMENT"
+    assert current.entry_evidence_family == entry.entry_evidence_family
+    assert current.stop_plan == entry.stop_plan
+
+
+def test_full_cognition_reassesses_and_extends_only_on_structural_acceptance() -> None:
+    entry = _entry_situation()
+    decision = reassess_and_decide_post_entry(
+        entry_situation=entry,
+        entry_reasoning=reason(entry),
+        observation=_observation(),
+        market=_market(target_reached=True, target_accepted=True),
+        entry_tier="CORE",
+        dol1_acceptance_observed=True,
+    )
+
+    assert decision.full_cognition_reassessed is True
+    assert decision.cognition.post_entry_reassessment is True
+    assert decision.entry_situation_fingerprint == entry.fingerprint()
+    assert (
+        decision.current_situation_fingerprint
+        != decision.entry_situation_fingerprint
+    )
+    assert decision.position.action is PositionAction.EXTEND
+    assert decision.position.next_target == Decimal("104")
+    assert decision.position.r_runtime_authority is False
+    assert decision.position.volume_agnostic is True
+    assert decision.r_runtime_authority is False
+    assert decision.volume_runtime_authority is False
+    assert decision.sizing_authority is False
+
+
+def test_target_touch_without_structural_acceptance_exits_at_primary_target() -> None:
+    entry = _entry_situation()
+    decision = reassess_and_decide_post_entry(
+        entry_situation=entry,
+        entry_reasoning=reason(entry),
+        observation=_observation(),
+        market=_market(target_reached=True, target_accepted=False),
+        entry_tier="CORE",
+        dol1_acceptance_observed=True,
+    )
+
+    assert decision.position.action is PositionAction.EXIT
+    assert decision.position.reason == "PRIMARY_STRUCTURAL_TARGET_DELIVERED"
+    assert decision.position.next_target is None
+
+
+def test_confirmed_exhaustion_exits_before_extension() -> None:
+    entry = _entry_situation()
+    decision = reassess_and_decide_post_entry(
+        entry_situation=entry,
+        entry_reasoning=reason(entry),
+        observation=_observation(exhaustion="CONFIRMED_EXHAUSTION"),
+        market=_market(target_reached=False),
+        entry_tier="CORE",
+        dol1_acceptance_observed=False,
+    )
+
+    assert decision.position.action is PositionAction.EXIT
+    assert decision.position.reason == "COGNITIVE_EXHAUSTION_CONFIRMED"
+
+
+def test_momentum_deterioration_trails_to_confirmed_market_swing() -> None:
+    entry = _entry_situation()
+    decision = reassess_and_decide_post_entry(
+        entry_situation=entry,
+        entry_reasoning=reason(entry),
+        observation=_observation(dol1_state="ACTIVE_OPPOSITE_09_BOUNDARY"),
+        market=_market(
+            swing=StructuralProtectionCandidate(
+                level=Decimal("97"),
+                confirmations=1,
+                source="confirmed-m1-swing",
+            ),
+            momentum_bad=True,
+        ),
+        entry_tier="CORE",
+        dol1_acceptance_observed=None,
+    )
+
+    assert decision.position.action is PositionAction.TRAIL
+    assert decision.position.next_stop == Decimal("97")
+    assert decision.position.reason == (
+        "MOMENTUM_DETERIORATED_CONFIRMED_STRUCTURAL_SWING"
+    )
+
+
+def test_structural_invalidation_has_immediate_market_authority() -> None:
+    entry = _entry_situation()
+    decision = reassess_and_decide_post_entry(
+        entry_situation=entry,
+        entry_reasoning=reason(entry),
+        observation=_observation(),
+        market=_market(invalidated=True),
+        entry_tier="CORE",
+        dol1_acceptance_observed=None,
+    )
+
+    assert decision.position.action is PositionAction.EXIT
+    assert decision.position.reason == "STRUCTURAL_INVALIDATION_CONFIRMED"
+
+
+def test_post_entry_side_cannot_drift_from_frozen_entry() -> None:
+    entry = _entry_situation()
+    market = PostEntryMarketFacts(
+        side="short",
+        current_stop=Decimal("105"),
+        primary_structural_target=Decimal("90"),
+        next_structural_target=None,
+        protective_swing=None,
+        primary_target_reached=False,
+        primary_target_accepted=False,
+        structure_invalidated=False,
+        liquidity_failure_confirmed=False,
+        momentum_deteriorated=False,
+        regime_changed_against_thesis=False,
+    )
+
+    with pytest.raises(ValueError, match="side must match"):
+        reassess_and_decide_post_entry(
+            entry_situation=entry,
+            entry_reasoning=reason(entry),
+            observation=_observation(),
+            market=market,
+        )
