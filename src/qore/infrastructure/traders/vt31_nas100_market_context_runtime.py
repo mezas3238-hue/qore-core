@@ -24,6 +24,7 @@ class Nas100CausalHigherContext:
     prior_day_body_fraction: Decimal | None
     h4_state: str
     h1_state: str
+    m15_state: str
     premarket_state: str
     cash_open_state: str
     position_in_prior_day_range: str
@@ -93,6 +94,47 @@ def _completed_hour_closes(
     for group in groups.values():
         ordered = sorted(group, key=lambda bar: bar.opened_at)
         if len(ordered) != required:
+            continue
+        if any(
+            right.opened_at != left.closed_at
+            for left, right in zip(ordered, ordered[1:], strict=False)
+        ):
+            continue
+        if ordered[-1].closed_at > decision_at:
+            continue
+        closes.append((ordered[-1].closed_at, _d(ordered[-1].close)))
+    closes.sort(key=lambda item: item[0])
+    return [value for _, value in closes]
+
+
+def _completed_minute_bucket_closes(
+    bars: Sequence[OhlcSnapshot],
+    decision_at: datetime,
+    minutes_per_bucket: int,
+) -> list[Decimal]:
+    if minutes_per_bucket < 1 or 60 % minutes_per_bucket != 0:
+        raise ValueError("minutes_per_bucket must divide one hour")
+    groups: dict[
+        tuple[object, int, int],
+        list[OhlcSnapshot],
+    ] = defaultdict(list)
+    for bar in bars:
+        if bar.closed_at > decision_at:
+            continue
+        local = bar.opened_at.astimezone(_NY)
+        bucket = (
+            local.date(),
+            local.hour,
+            local.minute // minutes_per_bucket,
+        )
+        groups[bucket].append(bar)
+
+    closes: list[tuple[datetime, Decimal]] = []
+    for group in groups.values():
+        ordered = sorted(group, key=lambda bar: bar.opened_at)
+        if len(ordered) != minutes_per_bucket:
+            continue
+        if ordered[0].opened_at.astimezone(_NY).minute % minutes_per_bucket != 0:
             continue
         if any(
             right.opened_at != left.closed_at
@@ -236,6 +278,9 @@ def build_higher_context(
 
     h1 = _trend_state(_completed_hour_closes(causal_today, decision_at, 1))
     h4 = _trend_state(_completed_hour_closes(causal_today, decision_at, 4))
+    m15 = _trend_state(
+        _completed_minute_bucket_closes(causal_today, decision_at, 15)
+    )
     premarket = _directional_state(
         _slice(causal_today, (8, 0, 0), (9, 0, 0), decision_at)
     )
@@ -253,6 +298,7 @@ def build_higher_context(
         prior_day_body_fraction=prior_body,
         h4_state=h4,
         h1_state=h1,
+        m15_state=m15,
         premarket_state=premarket,
         cash_open_state=cash_open,
         position_in_prior_day_range=_position_in_prior_range(
