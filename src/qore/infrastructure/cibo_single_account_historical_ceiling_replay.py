@@ -102,7 +102,12 @@ def _boolish(value: object, name: str) -> bool:
 def _ratio(numerator: Decimal, denominator: Decimal) -> Decimal:
     if denominator <= 0:
         return Decimal(0) if numerator <= 0 else Decimal(1)
-    return min(Decimal(1), max(Decimal(0), numerator / denominator))
+    with localcontext() as context:
+        context.prec = 100
+        return min(
+            Decimal(1),
+            max(Decimal(0), numerator / denominator),
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -227,7 +232,9 @@ class CiboHistoricalCeilingReplayResult:
 
     @property
     def net_pnl_usd(self) -> Decimal:
-        return self.ending_capital_usd - _INITIAL_CAPITAL_USD
+        with localcontext() as context:
+            context.prec = 100
+            return self.ending_capital_usd - _INITIAL_CAPITAL_USD
 
 
 def _regime_semantics(row: Mapping[str, Any]) -> _RegimeSemantics:
@@ -287,27 +294,31 @@ def _causal_regime(
 
     realized = capital.realized_capital_usd
     provider_cost_reserve = capital.open_provider_cost_reserve_usd
-    internal_stop_capacity = max(
-        Decimal(0),
-        realized - provider_cost_reserve,
-    )
-    risk_capacity = min(
-        internal_stop_capacity,
-        realized * provider_assumption.risk_headroom_multiple_of_equity,
-        realized * provider_assumption.max_risk_multiple_of_equity,
-    )
-    margin_capacity = max(
-        Decimal(0),
-        (
+    with localcontext() as context:
+        context.prec = 100
+        internal_stop_capacity = max(
+            Decimal(0),
+            realized - provider_cost_reserve,
+        )
+        risk_capacity = min(
+            internal_stop_capacity,
             realized
-            * provider_assumption.margin_capacity_multiple_of_equity
-            - provider_cost_reserve
-        ),
-    )
-    drawdown = max(
-        Decimal(0),
-        capital.peak_realized_capital_usd - realized,
-    )
+            * provider_assumption.risk_headroom_multiple_of_equity,
+            realized
+            * provider_assumption.max_risk_multiple_of_equity,
+        )
+        margin_capacity = max(
+            Decimal(0),
+            (
+                realized
+                * provider_assumption.margin_capacity_multiple_of_equity
+                - provider_cost_reserve
+            ),
+        )
+        drawdown = max(
+            Decimal(0),
+            capital.peak_realized_capital_usd - realized,
+        )
     return CiboCapitalRegimeState(
         liquidity=regime.liquidity,
         volatility=regime.volatility,
