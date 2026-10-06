@@ -341,6 +341,7 @@ def test_post_entry_rebuild_carries_causal_open_r() -> None:
         dol2_state="CALIBRATED_ECONOMIC_CAPACITY_COGNITION_REQUIRED",
         dol3_state="REJECTED_BY_EDGE_ECONOMICS",
         extension_capacity_state="CALIBRATED_PRE_DOL1_CURRENT_JOURNEY",
+        exhaustion_state="NO_CONFIRMED_EXHAUSTION",
         current_open_r=Decimal("-0.50"),
     )
     current = rebuild_post_entry_situation(
@@ -366,5 +367,7 @@ def test_post_entry_rebuild_carries_causal_open_r() -> None:
     )
     assert decision.cognition.maximum_cognition_verified is True
     assert decision.cognition.protection_urgency is ProtectionUrgency.MODERATE
+    assert decision.cognition.target_intent.value == "PRESERVE_DOL1"
     assert decision.position.action is PositionAction.TRAIL
+    assert decision.position.reason == "COGNITIVE_AND_MARKET_STRUCTURAL_PROTECTION"
     assert decision.r_runtime_authority is True
