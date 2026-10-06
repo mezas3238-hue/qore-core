@@ -350,3 +350,54 @@ def test_capital_source_lots_conserve_long_decimal_source_amount_exactly() -> No
     )
 
     assert plan.capital_source_amount_usd == total
+
+
+
+def test_demo_maximum_sizing_preserves_long_decimal_geometry_exactly() -> None:
+    volume = Decimal("2.2222222222222222222222222222222222222222")
+    stop_per_volume = Decimal(
+        "1.1111111111111111111111111111111111111111"
+    )
+    margin_per_volume = Decimal(
+        "1.3333333333333333333333333333333333333333"
+    )
+    step = Decimal("0.0000000000000000000000000000000000000001")
+    opportunity = TraderOpportunityEnvelope(
+        trader_id=TraderLineage.R34_XAUUSD,
+        signal_fingerprint="account-sizing-long-decimal",
+        qore_symbol="XAUUSD",
+        provider_symbol="XAUUSD",
+        side="long",
+        entry_type="market",
+        intended_entry=Decimal("2600"),
+        stop_loss=Decimal("2590"),
+        take_profit=Decimal("2620"),
+        stop_loss_per_volume=stop_per_volume,
+        margin_per_volume=margin_per_volume,
+        volume_step=step,
+        minimum_volume=step,
+        maximum_volume=volume,
+    )
+    capital = account_capital_state(
+        assigned_capital_usd=Decimal("60"),
+        hard_risk_headroom_usd=Decimal("60"),
+        margin_headroom_usd=Decimal("60"),
+        survival_capital_usd=Decimal("0"),
+        protected_capital_usd=Decimal("0"),
+    )
+
+    decision = plan_account_sizing(
+        opportunity=opportunity,
+        capital=capital,
+        mission_policy=_mission(MarketRuntimeEnvironment.DEMO),
+        survival_capital_usd=Decimal("0"),
+        protected_capital_usd=Decimal("0"),
+    )
+
+    with localcontext() as context:
+        context.prec = 100
+        expected_risk = volume * stop_per_volume
+        expected_margin = volume * margin_per_volume
+    assert decision.plan.volume == volume
+    assert decision.plan.stop_risk_usd == expected_risk
+    assert decision.plan.margin_usd == expected_margin
