@@ -1487,3 +1487,161 @@ CAPITAL-LEAK CLOSURE
 -> Exam 2 (+2000% NET in <=10 calendar months)
 -> certification adjudication.
 
+---
+
+# 27. P0 CAUSAL DAMAGE ATTRIBUTION — 2026-10-06 LATEST
+
+This section supersedes the old blocker wording in sections 18, 23, 24 and 26.
+
+Canonical detailed autopsy:
+
+`docs/research/CIBO_WALK_FORWARD_DAMAGE_ATTRIBUTION_2026-10-06.md`
+
+Latest causal ablation:
+
+- workflow: `QORE CIBO Damage Attribution Ablation`;
+- run: `37516432478`;
+- head: `5464332be9371cc113c2cae495230b60fced553c`;
+- result: SUCCESS.
+
+## 27.1 Minimum-seed / GEN-C5 technical blockers are closed
+
+The replay now completes through all 3,368 decisions.
+
+Do not reopen:
+
+- minimum-seed scarcity HOLD repair;
+- zero-marginal GEN-C5 abstention;
+- provider-envelope / historical Full Economic Twin alignment.
+
+## 27.2 Forecast maturity defect was real and is repaired
+
+Original destructive baseline:
+
+- 39 selected trades;
+- all had only 5–19 completed walk-forward observations;
+- ending capital ~USD 0.14646.
+
+After requiring 25 observations before capital consideration, the early 2019 replay:
+
+- survives;
+- grows from USD 60 to ~USD 115.04.
+
+Therefore the provisional-forecast admission defect was causal.
+
+## 27.3 Full repaired replay exposes the next account-killing mechanism
+
+Full maturity-repaired run `37512709504`:
+
+- peak capital ~USD 147.57;
+- ending capital ~USD 0.0803;
+- 292 selected settlements;
+- 291 decisions request 4x;
+- Risk ALLOW on all 292.
+
+This proves maturity alone is insufficient.
+
+## 27.4 Fixed-multiplier causal reruns
+
+Same maturity-gated burned window through 2020-04-30:
+
+| Multiplier | Ending capital | Net PnL | Max DD | Selected |
+| --- | ---: | ---: | ---: | ---: |
+| 1x | ~USD 188.30 | ~+USD 128.30 | ~USD 38.39 | 456 |
+| 2x | ~USD 316.22 | ~+USD 256.22 | ~USD 75.82 | 456 |
+| 3x | ~USD 358.78 | ~+USD 298.78 | ~USD 112.53 | 448 |
+| 4x | ~USD 0.08 | ~-USD 59.92 | ~USD 147.49 | 292 |
+
+This is direct causal evidence that current 4x behavior crosses a survival cliff.
+
+Do not conclude that 3x is the final production setting. The window is burned research.
+
+## 27.5 Current leverage/Portfolio wiring defect
+
+Historical Full Economic Twin hardcodes:
+
+`capital_intensity_cap = 4`.
+
+Cognition currently behaves effectively as:
+
+- 0 if ABSTAIN;
+- leave 4 available if RECOMMEND.
+
+Portfolio maximizes positive expected utility approximately linearly in multiplier until capacity becomes binding.
+
+Therefore the current “Adaptive Leverage” is not truly adaptive across 1/2/3/4 under ordinary positive recommendations.
+
+This is now P0.
+
+## 27.6 Survival-envelope causal evidence
+
+Current baseline provider/Risk research envelope allows total stop risk up to 100% of equity.
+
+Burned-window reruns with tighter total risk envelopes materially alter survival:
+
+- 2% -> ending ~USD 104.46;
+- 3% -> ~USD 60.50;
+- 5% -> ~USD 42.47;
+- 10% -> ~USD 211.11;
+- 25% -> ~USD 423.08;
+- 100% -> ~USD 0.08.
+
+This relationship is path-dependent and non-monotonic.
+
+Do NOT tune a production percentage from these results.
+
+The justified conclusion is only:
+
+**the 100%-equity survival envelope is causally unsafe.**
+
+## 27.7 Forecast economic calibration remains open
+
+On the 292 mature selected trades:
+
+- aggregate expected Portfolio utility ~+USD 258;
+- realized net ~-USD 59.92;
+- expected-return ranking has almost no useful relationship with realized result;
+- mean expected capital duration ~49 min;
+- mean actual capital duration ~136 min.
+
+Selected gross structural PnL was ~+USD 32.81, but provider costs were ~USD 92.73.
+
+Thus CIBO also overestimates:
+
+- economic value;
+- capital velocity;
+- the amount of edge available after provider friction.
+
+## 27.8 Current causal hierarchy
+
+P0 root / actuator hierarchy:
+
+1. Forecast maturity admission — repaired.
+2. Forecast economic calibration — OPEN.
+3. Portfolio / Adaptive Leverage 0-or-4 wiring — OPEN and directly causal.
+4. Survival envelope — OPEN and directly causal.
+5. Provider-cost sufficiency — OPEN.
+6. Duration / capital-velocity calibration — OPEN.
+7. GEN-C12 PAUSE_NEW_CAPITAL not universally binding for OPEN_CAPABILITY_MAX — OPEN integration defect.
+
+Not supported as principal culprit:
+
+- CIBO Compound;
+- GEN-C5 profit-funded expansion;
+- QORE Risk as opportunity selector.
+
+## 27.9 Immediate next work
+
+Before ceiling discovery:
+
+1. replace binary 0-or-4 capital intensity with a causal graded intensity contract;
+2. make Portfolio robust-risk / uncertainty aware instead of linearly maximizing multiplier;
+3. incorporate provider-cost sufficiency and duration uncertainty into economic admission;
+4. make survival capacity consistent across Cognition / Twin / Capital Science / Portfolio / Risk;
+5. make GEN-C12 NO_NEW_DEPLOYMENT binding for all new-deployment actions;
+6. validate on burned replay only for debugging;
+7. freeze candidate;
+8. then fresh holdout.
+
+CIBO remains NOT CERTIFIED and NOT production-authorized.
+
