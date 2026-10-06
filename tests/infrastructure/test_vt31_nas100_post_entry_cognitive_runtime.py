@@ -7,6 +7,7 @@ import pytest
 
 from qore.infrastructure.traders.vt31_nas100_position_intelligence import (
     PositionAction,
+    ProtectionUrgency,
     StructuralDestinationCandidate,
     StructuralProtectionCandidate,
 )
@@ -50,7 +51,7 @@ def _entry_situation() -> Nas100SituationModel:
         reference_reclaim_age_minutes=3,
         last_structure_event_family="reference-liquidity-sweep",
         last_structure_event_age_minutes=2,
-        recent_liquidity_event_count_10m=2,
+        recent_liquidity_event_count_10m=0 if cautious else 2,
         displacement_state="STRUCTURAL_CONFIRMATION_OBSERVED",
         entry_evidence_family="fair-value-gap",
         confirmation_latency_minutes=4,
@@ -74,26 +75,29 @@ def _observation(
     *,
     exhaustion: str = "UNKNOWN",
     dol1_state: str = "REACHED_CLOSED_M1",
+    cautious: bool = False,
 ) -> PostEntryCausalObservation:
     return PostEntryCausalObservation(
         as_of="2026-01-05T15:45:00+00:00",
         decision_minute_ny=10 * 60 + 45,
         prior_day_state="bullish",
         h4_state="mixed",
-        h1_state="bullish",
-        premarket_state="bullish",
-        cash_open_state="bullish",
+        h1_state="bearish" if cautious else "bullish",
+        premarket_state="bearish" if cautious else "bullish",
+        cash_open_state="bearish" if cautious else "bullish",
         position_in_prior_day_range="middle-third",
-        range_state="compressed",
-        volatility_state="compressed",
-        current_path_vs_previous=Decimal("0.64"),
+        range_state="expanded" if cautious else "compressed",
+        volatility_state="expanded" if cautious else "compressed",
+        current_path_vs_previous=Decimal("1.45" if cautious else "0.64"),
         reference_width_vs_prior5=Decimal("0.68"),
         raid_depth_ref=Decimal("0.14"),
-        recent_path_efficiency=Decimal("0.66"),
-        recent_overlap_rate=Decimal("0.35"),
-        reference_reclaimed=True,
-        reference_reclaim_age_minutes=7,
-        last_structure_event_family="reference-liquidity-sweep",
+        recent_path_efficiency=Decimal("0.20" if cautious else "0.66"),
+        recent_overlap_rate=Decimal("0.90" if cautious else "0.35"),
+        reference_reclaimed=not cautious,
+        reference_reclaim_age_minutes=None if cautious else 7,
+        last_structure_event_family=(
+            "breaker" if cautious else "reference-liquidity-sweep"
+        ),
         last_structure_event_age_minutes=3,
         recent_liquidity_event_count_10m=2,
         displacement_state="STRUCTURAL_CONFIRMATION_OBSERVED",
@@ -103,7 +107,11 @@ def _observation(
         dol3_state="UNRESOLVED",
         extension_capacity_state="SUPPORTIVE_CONTINUATION",
         exhaustion_state=exhaustion,
-        cross_index_state="BOTH_PEERS_SAME_SIDE_ALIGNED",
+        cross_index_state=(
+            "BOTH_PEERS_OPPOSITE"
+            if cautious
+            else "BOTH_PEERS_SAME_SIDE_ALIGNED"
+        ),
     )
 
 
@@ -238,7 +246,10 @@ def test_momentum_deterioration_trails_to_confirmed_market_swing() -> None:
     decision = reassess_and_decide_post_entry(
         entry_situation=entry,
         entry_reasoning=reason(entry),
-        observation=_observation(dol1_state="ACTIVE_OPPOSITE_09_BOUNDARY"),
+        observation=_observation(
+            dol1_state="ACTIVE_OPPOSITE_09_BOUNDARY",
+            cautious=True,
+        ),
         market=_market(
             swing=StructuralProtectionCandidate(
                 level=Decimal("97"),
@@ -253,9 +264,8 @@ def test_momentum_deterioration_trails_to_confirmed_market_swing() -> None:
 
     assert decision.position.action is PositionAction.TRAIL
     assert decision.position.next_stop == Decimal("97")
-    assert decision.position.reason == (
-        "MOMENTUM_DETERIORATED_CONFIRMED_STRUCTURAL_SWING"
-    )
+    assert decision.cognition.protection_urgency is not ProtectionUrgency.LOW
+    assert decision.position.reason == "COGNITIVE_AND_MARKET_STRUCTURAL_PROTECTION"
 
 
 def test_structural_invalidation_has_immediate_market_authority() -> None:
@@ -296,3 +306,30 @@ def test_post_entry_side_cannot_drift_from_frozen_entry() -> None:
             observation=_observation(),
             market=market,
         )
+
+
+
+def test_supportive_post_entry_cognition_preserves_winner_despite_swing() -> None:
+    entry = _entry_situation()
+    decision = reassess_and_decide_post_entry(
+        entry_situation=entry,
+        entry_reasoning=reason(entry),
+        observation=_observation(
+            dol1_state="ACTIVE_OPPOSITE_09_BOUNDARY",
+            cautious=False,
+        ),
+        market=_market(
+            swing=StructuralProtectionCandidate(
+                level=Decimal("97"),
+                confirmations=1,
+                source="confirmed-m1-swing",
+            ),
+            momentum_bad=True,
+        ),
+        entry_tier="CORE",
+        dol1_acceptance_observed=None,
+    )
+
+    assert decision.cognition.protection_urgency is ProtectionUrgency.LOW
+    assert decision.position.action is PositionAction.HOLD
+    assert decision.position.reason == "COGNITIVE_WINNER_PRESERVATION_VETO"
