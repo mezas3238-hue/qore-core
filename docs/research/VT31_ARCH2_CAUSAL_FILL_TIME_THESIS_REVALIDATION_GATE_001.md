@@ -42,6 +42,33 @@ For a prospective fill at M1 open T:
 
 No future bar may influence the decision.
 
+## Fill-stage intelligence readiness
+
+The fill-time check occurs before a position exists. Therefore the readiness
+check must distinguish **entry/fill intelligence** from blockers that only
+describe later position-management calibration.
+
+The fill may proceed only when current reasoning is `EXECUTE` and none of
+these entry-relevant blockers is present:
+
+- `M15_CONTEXT_UNWIRED`;
+- `H4_CONTEXT_UNAVAILABLE`;
+- `H1_CONTEXT_UNAVAILABLE`;
+- `STRUCTURE_CONTEXT_UNAVAILABLE`;
+- `VOLATILITY_CONTEXT_UNAVAILABLE`;
+- `ENTRY_INTELLIGENCE_UNAVAILABLE`.
+
+The following blockers may be recorded but are not fill-veto authority because
+the position does not yet exist:
+
+- deeper DOL target calibration;
+- DOL2/DOL3 target intelligence;
+- contextual post-entry position management;
+- current-position R state.
+
+This distinction is frozen before economic replay and does not relax
+post-entry maximum-cognition certification requirements.
+
 ## No time threshold
 
 The mechanism may not introduce a rule such as:
