@@ -14,6 +14,10 @@ on:
       - 'src/qore/infrastructure/cibo_single_account_historical_ceiling_replay.py'
       - 'src/qore/infrastructure/cibo_single_account_manifest_economics.py'
       - 'src/qore/infrastructure/cibo_single_account_manifest_settlement.py'
+      - 'src/qore/infrastructure/cibo_phase22_vt08_fresh_engine.py'
+      - 'scripts/cibo_single_account_historical_ceiling_replay.py'
+      - 'scripts/cibo_single_account_native_max_intelligence_preflight.py'
+      - 'scripts/cibo_enrich_single_account_vt08_3x1y_native_perception.py'
       - 'tests/infrastructure/test_cibo_account_sizing_authority.py'
       - 'tests/infrastructure/test_cibo_single_account_historical_capital_ledger.py'
       - 'tests/infrastructure/test_cibo_single_account_historical_ceiling_state.py'
@@ -21,6 +25,8 @@ on:
       - 'tests/infrastructure/test_cibo_single_account_historical_ceiling_replay.py'
       - 'tests/infrastructure/test_cibo_single_account_manifest_economics.py'
       - 'tests/infrastructure/test_cibo_single_account_manifest_settlement.py'
+      - 'tests/infrastructure/test_cibo_single_account_native_max_intelligence_preflight.py'
+      - 'tests/infrastructure/test_cibo_enrich_single_account_vt08_3x1y_native_perception.py'
   workflow_dispatch:
 
 permissions:
@@ -50,7 +56,15 @@ jobs:
             src/qore/infrastructure/cibo_single_account_historical_ceiling_epoch.py \
             src/qore/infrastructure/cibo_single_account_historical_ceiling_replay.py \
             src/qore/infrastructure/cibo_single_account_manifest_economics.py \
-            src/qore/infrastructure/cibo_single_account_manifest_settlement.py
+            src/qore/infrastructure/cibo_single_account_manifest_settlement.py \
+            src/qore/infrastructure/cibo_phase22_vt08_fresh_engine.py \
+            scripts/cibo_single_account_historical_ceiling_replay.py \
+            scripts/cibo_single_account_native_max_intelligence_preflight.py \
+            scripts/cibo_enrich_single_account_vt08_3x1y_native_perception.py \
+            src/qore/infrastructure/cibo_phase22_vt08_fresh_engine.py \
+            scripts/cibo_single_account_historical_ceiling_replay.py \
+            scripts/cibo_single_account_native_max_intelligence_preflight.py \
+            scripts/cibo_enrich_single_account_vt08_3x1y_native_perception.py
 
       - name: Ruff replay surface
         run: |
@@ -69,7 +83,9 @@ jobs:
             tests/infrastructure/test_cibo_single_account_historical_ceiling_epoch.py \
             tests/infrastructure/test_cibo_single_account_historical_ceiling_replay.py \
             tests/infrastructure/test_cibo_single_account_manifest_economics.py \
-            tests/infrastructure/test_cibo_single_account_manifest_settlement.py
+            tests/infrastructure/test_cibo_single_account_manifest_settlement.py \
+            tests/infrastructure/test_cibo_single_account_native_max_intelligence_preflight.py \
+            tests/infrastructure/test_cibo_enrich_single_account_vt08_3x1y_native_perception.py
 
       - name: Pytest chronological replay invariants
         run: |
@@ -80,4 +96,6 @@ jobs:
             tests/infrastructure/test_cibo_single_account_historical_ceiling_epoch.py \
             tests/infrastructure/test_cibo_single_account_historical_ceiling_replay.py \
             tests/infrastructure/test_cibo_single_account_manifest_economics.py \
-            tests/infrastructure/test_cibo_single_account_manifest_settlement.py
+            tests/infrastructure/test_cibo_single_account_manifest_settlement.py \
+            tests/infrastructure/test_cibo_single_account_native_max_intelligence_preflight.py \
+            tests/infrastructure/test_cibo_enrich_single_account_vt08_3x1y_native_perception.py
