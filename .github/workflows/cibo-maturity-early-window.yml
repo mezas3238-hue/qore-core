@@ -102,6 +102,25 @@ jobs:
             --manifest "$RUNNER_TEMP/early/early-manifest.json" \
             --output "$RUNNER_TEMP/early/early-replay.json" \
             --progress-every 50
+      - name: Audit four-engine cooperation
+        run: |
+          set -euo pipefail
+          python scripts/cibo_four_engine_cooperation_report.py \
+            --replay "$RUNNER_TEMP/early/early-replay.json" \
+            --output "$RUNNER_TEMP/early/four-engine-cooperation.json"
+          jq '{
+            decision_count,
+            module_summary,
+            cooperation_pattern_counts,
+            handoff_consistency_counts,
+            compound_applicable_count,
+            compound_allowed_count,
+            maximum_selected_leverage_multiplier,
+            selected_multiplier_above_four_count,
+            portfolio_and_leverage_share_exact_output_surface,
+            bottleneck_candidates
+          }' "$RUNNER_TEMP/early/four-engine-cooperation.json"
+
       - name: Summarize early survival
         run: |
           set -euo pipefail
