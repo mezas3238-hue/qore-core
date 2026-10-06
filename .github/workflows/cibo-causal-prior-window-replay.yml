@@ -10,6 +10,7 @@ on:
       - 'scripts/cibo_extract_causal_prior_window.py'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_train_prior.py'
       - 'src/qore/infrastructure/cibo_single_account_manifest_economics.py'
+      - 'src/qore/infrastructure/cibo_native_max_cognitive_episode.py'
 
 permissions:
   contents: read
