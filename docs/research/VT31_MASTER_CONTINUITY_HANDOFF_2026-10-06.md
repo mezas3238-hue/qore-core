@@ -5,7 +5,7 @@
 **Owner / CEO:** Sergio Meza  
 **Repository source of truth:** `mezas3238-hue/qore-core`  
 **Canonical working branch:** `agent/vt31-edge-position-cert-b-001`  
-**Research HEAD before this handoff:** `e4dda550814d21894a6a79e995e480530cc59912`  
+**Current canonical research HEAD:** `e2c2ff6fef485cd445d461b422aa47df415c3b55`  
 **Latest decisive workflow:** `37508820071` — QORE VT31 Rapid Breaker Conflict Admission Frontier V1 — SUCCESS  
 **Status:** VT31 IS NOT CERTIFIED. Fresh holdout remains sealed.
 
@@ -872,3 +872,185 @@ Freeze the union as the next development comparator before adding another hypoth
 Then attack only the remaining approximately `0.593R` recent DD gap using causal market intelligence.
 
 Do not reopen already rejected broad mechanisms. Do not touch the fresh holdout.
+
+---
+
+## 13. AUTHORITATIVE LATEST DELTA — COMPARATOR 007 IS NOW FROZEN
+
+This section supersedes any older wording above that says the rapid Breaker union still needs to be frozen as a comparator.
+
+Latest commit:
+
+`e2c2ff6fef485cd445d461b422aa47df415c3b55`
+
+Commit message:
+
+`docs(vt31): freeze rapid breaker union as comparator 007`
+
+Canonical comparator file:
+
+`docs/research/VT31_ARCH2_INTEGRATED_RESEARCH_COMPARATOR_007.md`
+
+Comparator ID:
+
+`VT31_AB_COMP007_RAPID_BREAKER_UNION_SURVIVOR`
+
+Source workflow:
+
+`37508820071` — SUCCESS
+
+Evaluated research head:
+
+`e4dda550814d21894a6a79e995e480530cc59912`
+
+Source variant:
+
+`COMP006_PLUS_RAPID_BREAKER_UNION`
+
+### 13.1 Comparator 007 fixed stack
+
+Position side remains Comparator 003:
+
+- H3 full-cognition post-1R management;
+- W5 soft-DOL1;
+- cognition-selected DOL2;
+- post-acceptance PS2;
+- causal `current_open_r`;
+- validated maximum-cognition pre-DOL1 exits.
+
+Admission stack:
+
+1. `A_EXPANDED_OB_REQUIRE_SHORT_RECLAIM_15M`;
+2. abstain Breaker + SHORT + prior-day rotation + compressed reference, except bullish recovery;
+3. abstain FVG + SHORT + compressed reference + `FRESH_LT8M` reclaim + `FAST_LE5M` confirmation;
+4. abstain Breaker + SHORT + prior-day bearish + compressed reference + H1 bullish;
+5. rapid Breaker Conflict A:
+   - Breaker;
+   - SHORT;
+   - prior-day bullish;
+   - normal reference volatility;
+   - H4 bullish;
+   - H1 mixed;
+   - M15 mixed;
+   - premarket bearish;
+   - cash-open bullish;
+6. rapid Breaker Conflict B:
+   - Breaker;
+   - SHORT;
+   - normal reference volatility;
+   - `FRESH_LT8M` reclaim;
+   - `MID_6_10M` confirmation.
+
+The union abstains when Conflict A or Conflict B is present.
+
+### 13.2 Current strongest consumed-evidence economics
+
+R5:
+
+- PF 4.64358;
+- mean +2.10502R;
+- observed DD 5.25R;
+- MC positive 98.34%;
+- MC p95 DD 14.7945R;
+- winner count preservation 100%;
+- winner-R preservation 100%.
+
+R6:
+
+- PF 5.14059;
+- mean +2.70518R;
+- observed DD 5.39444R;
+- MC positive 98.97%;
+- MC p95 DD 7.49444R;
+- winner count preservation 100%;
+- winner-R preservation 100%.
+
+R8:
+
+- PF 6.95158;
+- mean +3.12034R;
+- observed DD 5.06613R;
+- MC positive 98.60%;
+- MC p95 DD 7.94946R;
+- winner count preservation 100%;
+- winner-R preservation 100%.
+
+Recent consumed:
+
+- sample 33;
+- wins 8;
+- losses 25;
+- PF 2.2073021627;
+- mean +0.8148066039R/trade;
+- total +26.88861793R;
+- observed DD 6.5933831126R;
+- max losing streak 5;
+- MC positive 93.70%;
+- MC p95 DD 12.146999R;
+- winner count preservation 100%;
+- winner-R preservation 100%.
+
+### 13.3 Current certification blocker
+
+Historical consumed folds all satisfy the sovereign observed-DD gate:
+
+- R5 PASS;
+- R6 PASS;
+- R8 PASS.
+
+Recent consumed remains:
+
+`6.5933831126R`
+
+Residual excess above the hard gate:
+
+`0.5933831126R`
+
+Therefore:
+
+`six_r_all_fold_survivor = false`
+
+VT31 remains NOT CERTIFIED.
+
+### 13.4 Immediate next work
+
+Do NOT create another filter immediately.
+
+First:
+
+1. reconstruct the exact recent Comparator-007 peak-to-trough max-DD episode;
+2. identify every trade inside that path;
+3. separate rapid invalidations from losses that had causal post-entry observation time;
+4. compare those losing paths against matched winners;
+5. inspect existing causal fields/buckets before inventing any new threshold;
+6. predeclare only one narrow mechanism at a time;
+7. replay 4/4 consumed folds;
+8. require observed DD <=6R in all folds without destroying winners.
+
+The remaining gap is small enough that a broad filter is scientifically unnecessary and likely dangerous.
+
+### 13.5 Work still required after <=6R is achieved
+
+A 6R survivor is necessary but not sufficient.
+
+Before fresh holdout:
+
+- wire exact Comparator-007-plus-final-repair logic into runtime;
+- prove replay/runtime semantic parity;
+- audit maximum-intelligence accounting;
+- audit categorical semantic parsers for substring collisions;
+- freeze payoff formula/result;
+- freeze Sharpe formula/annualization/result;
+- freeze Sortino formula/result;
+- run degraded cost/slippage stress;
+- run final temporal/OOS pack;
+- run final Monte Carlo/sequence robustness;
+- compute final combined PF/expectancy;
+- freeze exact code SHA/config/cognition fingerprints;
+- freeze evidence exclusions;
+- freeze final candidate.
+
+Only then open fresh sealed holdout exactly once.
+
+No sizing, leverage, compounding, portfolio weighting, CIBO rescue, capital engineering, fold/date lookup or future-outcome authority may be introduced to obtain certification.
+
