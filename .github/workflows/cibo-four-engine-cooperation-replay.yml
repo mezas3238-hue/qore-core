@@ -1,0 +1,115 @@
+name: QORE CIBO Four Engine Cooperation Replay
+
+on:
+  push:
+    branches:
+      - agent/cibo-causal-expectation-leakage-fix-001
+    paths:
+      - '.github/workflows/cibo-four-engine-cooperation-replay.yml'
+      - 'src/qore/infrastructure/cibo_function_economic_sensors.py'
+      - 'src/qore/infrastructure/cibo_portfolio_allocation_engine.py'
+      - 'src/qore/infrastructure/cibo_sovereign_capital_runtime.py'
+      - 'src/qore/infrastructure/cibo_single_account_sovereign_ceiling_run.py'
+      - 'src/qore/infrastructure/cibo_single_account_historical_ceiling_state.py'
+      - 'src/qore/infrastructure/cibo_single_account_historical_ceiling_epoch.py'
+      - 'src/qore/infrastructure/cibo_single_account_historical_ceiling_replay.py'
+      - 'src/qore/infrastructure/cibo_capital_science_runtime_bridge.py'
+      - 'scripts/cibo_build_walk_forward_expectation_manifest.py'
+      - 'scripts/cibo_single_account_historical_ceiling_replay.py'
+      - 'scripts/cibo_four_engine_cooperation_report.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  replay:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+      FROZEN_ARTIFACT_ID: '11389331836'
+      FROZEN_ARTIFACT_DIGEST: 'sha256:30177639f660c9647ab70257c2d12c541bdade49ab5582347a3890f920070fee'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install
+        run: python -m pip install -e '.[dev]'
+
+      - name: Validate four-engine sensor lane
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            src/qore/infrastructure/cibo_function_economic_sensors.py \
+            src/qore/infrastructure/cibo_portfolio_allocation_engine.py \
+            scripts/cibo_four_engine_cooperation_report.py
+          ruff check \
+            src/qore/infrastructure/cibo_function_economic_sensors.py \
+            src/qore/infrastructure/cibo_portfolio_allocation_engine.py \
+            scripts/cibo_four_engine_cooperation_report.py
+
+      - name: Recover frozen source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/frozen" "$RUNNER_TEMP/four-engine"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$FROZEN_ARTIFACT_ID" > "$RUNNER_TEMP/frozen.meta.json"
+          jq -e --arg digest "$FROZEN_ARTIFACT_DIGEST" '.expired == false and .digest == $digest' "$RUNNER_TEMP/frozen.meta.json"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$FROZEN_ARTIFACT_ID/zip" > "$RUNNER_TEMP/frozen.zip"
+          echo "${FROZEN_ARTIFACT_DIGEST#sha256:}  $RUNNER_TEMP/frozen.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/frozen.zip" -d "$RUNNER_TEMP/frozen"
+          MANIFEST="$(find "$RUNNER_TEMP/frozen" -type f -name single-account-manifest-native.json -print -quit)"
+          test -n "$MANIFEST"
+          echo "MANIFEST=$MANIFEST" >> "$GITHUB_ENV"
+
+      - name: Build causal walk-forward manifest
+        run: |
+          set -euo pipefail
+          python scripts/cibo_build_walk_forward_expectation_manifest.py \
+            --manifest "$MANIFEST" \
+            --output "$RUNNER_TEMP/four-engine/walk-forward-manifest.json" \
+            --receipt "$RUNNER_TEMP/four-engine/walk-forward-receipt.json"
+          echo "WF_MANIFEST=$RUNNER_TEMP/four-engine/walk-forward-manifest.json" >> "$GITHUB_ENV"
+
+      - name: Execute sovereign replay with four-engine sensors
+        run: |
+          set -euo pipefail
+          python scripts/cibo_single_account_historical_ceiling_replay.py \
+            --manifest "$WF_MANIFEST" \
+            --output "$RUNNER_TEMP/four-engine/replay.json" \
+            --progress-every 250
+
+      - name: Build four-engine cooperation report
+        run: |
+          set -euo pipefail
+          python scripts/cibo_four_engine_cooperation_report.py \
+            --replay "$RUNNER_TEMP/four-engine/replay.json" \
+            --output "$RUNNER_TEMP/four-engine/four-engine-cooperation.json"
+
+      - name: Print compact four-engine findings
+        run: |
+          set -euo pipefail
+          jq '{
+            decision_count,
+            module_summary,
+            cooperation_pattern_counts,
+            handoff_consistency_counts,
+            compound_applicable_count,
+            compound_allowed_count,
+            maximum_selected_leverage_multiplier,
+            selected_multiplier_above_four_count,
+            portfolio_and_leverage_share_exact_output_surface,
+            bottleneck_candidates
+          }' "$RUNNER_TEMP/four-engine/four-engine-cooperation.json"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-cibo-four-engine-cooperation-${{ github.run_id }}
+          path: ${{ runner.temp }}/four-engine
+          if-no-files-found: warn
