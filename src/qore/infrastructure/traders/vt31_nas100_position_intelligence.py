@@ -163,6 +163,37 @@ def validate_full_cognitive_accounting_for_research(
         raise ValueError("VT31 cognition cannot use outcome oracles")
 
 
+_TARGET_DEPTH_ONLY_BLOCKERS = frozenset(
+    {
+        "DOL2_TARGET_INTELLIGENCE_UNCALIBRATED",
+        "DOL3_TARGET_INTELLIGENCE_UNCALIBRATED",
+    }
+)
+
+
+def validate_contextual_management_readiness_for_research(
+    cognition: FullCognitivePositionState,
+) -> None:
+    """Allow calibrated management research while target depth is still open.
+
+    This is deliberately weaker than certification readiness. It requires full
+    causal accounting and rejects every blocker except unresolved deeper-target
+    depth, which this management experiment does not actuate.
+    """
+
+    validate_full_cognitive_accounting_for_research(cognition)
+    disallowed = tuple(
+        blocker
+        for blocker in cognition.reasoning_max_intelligence_blockers
+        if blocker not in _TARGET_DEPTH_ONLY_BLOCKERS
+    )
+    if disallowed:
+        raise ValueError(
+            "VT31 contextual management cognition is not research-ready: "
+            + ",".join(disallowed)
+        )
+
+
 def validate_maximum_cognition_for_certification(
     cognition: FullCognitivePositionState,
 ) -> None:
