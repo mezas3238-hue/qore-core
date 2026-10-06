@@ -5,10 +5,10 @@ from pathlib import Path
 
 import pytest
 
+from qore.infrastructure.traders.vt31_nas100_reasoning_engine import reason
 from qore.infrastructure.traders.vt31_nas100_situation_model import (
     Nas100SituationModel,
 )
-from qore.infrastructure.traders.vt31_nas100_reasoning_engine import reason
 
 
 ROOT = Path(__file__).resolve().parents[2]
