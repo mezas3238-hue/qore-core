@@ -3,11 +3,11 @@ from decimal import Decimal
 
 import pytest
 
-from qore.infrastructure.cibo_ce2i_causal_expectation import (
-    CausalExpectationBasis,
-)
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
+)
+from qore.infrastructure.cibo_ce2i_causal_expectation import (
+    CausalExpectationBasis,
 )
 from qore.infrastructure.cibo_single_account_manifest_economics import (
     manifest_row_to_ceiling_opportunity_evidence,
