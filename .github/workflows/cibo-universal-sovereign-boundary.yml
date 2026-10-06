@@ -1,0 +1,55 @@
+name: QORE CIBO Universal Sovereign Boundary
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/cibo-function-economic-sensors-001
+    paths:
+      - '.github/workflows/cibo-universal-sovereign-boundary.yml'
+      - 'src/qore/infrastructure/cibo_sovereign_capital_runtime.py'
+      - 'src/qore/infrastructure/cibo_economic_engine_wiring.py'
+      - 'src/qore/infrastructure/cibo_account_sizing_authority.py'
+      - 'src/qore/infrastructure/cibo_capital_management_authority.py'
+      - 'src/qore/infrastructure/cibo_capital_science_runtime_bridge.py'
+      - 'src/qore/infrastructure/cibo_full_economic_digital_twin.py'
+      - 'src/qore/infrastructure/cibo_multi_period_capital_mpc.py'
+      - 'src/qore/infrastructure/cibo_portfolio_allocation_engine.py'
+      - 'src/qore/infrastructure/cibo_native_maximum_intelligence.py'
+      - 'src/qore/infrastructure/cibo_executive_brain.py'
+      - 'src/qore/infrastructure/cibo_account_capital_mission.py'
+      - 'tests/infrastructure/test_cibo_native_maximum_intelligence.py'
+      - 'tests/infrastructure/test_cibo_universal_sovereign_boundary.py'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qore-cibo-universal-sovereign-boundary-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  universal-boundary:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install
+        run: python -m pip install -e '.[dev]'
+
+      - name: Compile and lint
+        run: |
+          set -euo pipefail
+          python -m py_compile             src/qore/infrastructure/cibo_native_maximum_intelligence.py             tests/infrastructure/test_cibo_native_maximum_intelligence.py             tests/infrastructure/test_cibo_universal_sovereign_boundary.py
+          ruff check             src/qore/infrastructure/cibo_native_maximum_intelligence.py             tests/infrastructure/test_cibo_native_maximum_intelligence.py             tests/infrastructure/test_cibo_universal_sovereign_boundary.py
+
+      - name: Prove universal sovereign boundary
+        run: |
+          set -euo pipefail
+          pytest -q --no-cov             tests/infrastructure/test_cibo_native_maximum_intelligence.py             tests/infrastructure/test_cibo_universal_sovereign_boundary.py
