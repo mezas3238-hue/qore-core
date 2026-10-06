@@ -38,6 +38,10 @@ from qore.infrastructure.cibo_ce2i_regime_selector import (
     ProviderCondition,
     VolatilityState,
 )
+from qore.infrastructure.cibo_ceiling_ablation import (
+    CiboCeilingAblationMode,
+    validate_ceiling_ablation_mode,
+)
 from qore.infrastructure.cibo_single_account_ceiling_state import (
     CiboCeilingOpenExposure,
 )
@@ -138,6 +142,7 @@ class CiboHistoricalCeilingReplayResult:
     regime_reconstruction_count: int
     provider_assumption: CiboHistoricalProviderAssumption
     external_ai_call_count: int
+    ablation_mode: CiboCeilingAblationMode = CiboCeilingAblationMode.FULL
     outcome_used_for_predecision: bool = False
     account_reset_count: int = 0
     economic_era_reset_count: int = 0
@@ -209,6 +214,7 @@ class CiboHistoricalCeilingReplayResult:
             raise CiboCapitalManagementError(
                 "historical ceiling replay forbids external AI"
             )
+        validate_ceiling_ablation_mode(self.ablation_mode)
         if self.account_reset_count or self.economic_era_reset_count:
             raise CiboCapitalManagementError(
                 "historical ceiling replay forbids account/era resets"
@@ -391,9 +397,11 @@ def run_historical_ceiling_replay(
     *,
     provider_assumption: CiboHistoricalProviderAssumption | None = None,
     progress_hook: Any | None = None,
+    ablation_mode: CiboCeilingAblationMode = CiboCeilingAblationMode.FULL,
 ) -> CiboHistoricalCeilingReplayResult:
     """Run one continuous USD60 historical Native MAX ceiling replay."""
 
+    validate_ceiling_ablation_mode(ablation_mode)
     if provider_assumption is None:
         provider_assumption = CiboHistoricalProviderAssumption()
 
@@ -531,6 +539,7 @@ def run_historical_ceiling_replay(
             provider_assumption=provider_assumption,
             survival_capital_usd=_INITIAL_CAPITAL_USD,
             protected_capital_usd=Decimal(0),
+            ablation_mode=ablation_mode,
         )
         execution = prepared.execution
         decisions.extend(execution.decision_receipts)
@@ -668,6 +677,7 @@ def run_historical_ceiling_replay(
         regime_reconstruction_count=regime_reconstructions,
         provider_assumption=provider_assumption,
         external_ai_call_count=external_ai_calls,
+        ablation_mode=ablation_mode,
         outcome_used_for_predecision=False,
         account_reset_count=0,
         economic_era_reset_count=0,
