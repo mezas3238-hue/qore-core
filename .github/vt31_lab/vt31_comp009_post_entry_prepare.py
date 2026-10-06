@@ -104,14 +104,24 @@ def prepare_one(evidence_path: Path) -> dict[str, Any]:
         selected = [
             item
             for item in source.candidates
-            if item.family.value == str(row["entry_family"])
-            and item.formed_at == executable.decision_at
+            if item.family.value == str(executable.selected_family.value)
+            and (
+                d(item.zone_lower) + d(item.zone_upper)
+            )
+            / Decimal(2)
+            == entry
+            and item.formed_at <= executable.decision_at
         ]
         if not selected:
             raise AssertionError(
-                f"selected entry evidence unavailable for {signal_at}"
+                "selected entry evidence unavailable for "
+                f"{signal_at}: family={executable.selected_family.value} "
+                f"entry={entry}"
             )
-        evidence = selected[0]
+        evidence = sorted(
+            selected,
+            key=lambda item: item.formed_at,
+        )[0]
 
         by_close = {
             iso(cast(datetime, bar.closed_at)): bar
