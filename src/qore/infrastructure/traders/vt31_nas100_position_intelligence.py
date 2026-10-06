@@ -671,6 +671,7 @@ def assess_full_cognitive_position(
                 "current_path_vs_previous",
                 "recent_path_efficiency",
                 "recent_overlap_rate",
+                "current_open_r",
                 "reference_reclaimed",
                 "reference_reclaim_age_minutes",
                 "last_structure_event_family",
@@ -849,6 +850,25 @@ def assess_full_cognitive_position(
         elif overlap >= Decimal("0.75"):
             caution += 1
             signals.append("OVERLAP_HIGH")
+
+    open_r = situation.current_open_r
+    if open_r is not None:
+        if open_r <= Decimal("-0.50"):
+            caution += 4
+            signals.append("JOURNEY_OPEN_R_MATERIAL_ADVERSE")
+        elif open_r < Decimal("0"):
+            caution += 2
+            signals.append("JOURNEY_OPEN_R_ADVERSE")
+        elif open_r >= Decimal("1"):
+            support += 2
+            signals.append("JOURNEY_OPEN_R_STRONG_FAVORABLE_PROGRESS")
+        elif open_r >= Decimal("0.50"):
+            support += 1
+            signals.append("JOURNEY_OPEN_R_FAVORABLE_PROGRESS")
+        else:
+            signals.append("JOURNEY_OPEN_R_NEUTRAL")
+    else:
+        signals.append("JOURNEY_OPEN_R_UNAVAILABLE")
 
     if situation.reference_reclaimed:
         support += 1
