@@ -584,7 +584,8 @@ def _attention(
                 "nonpositive-causal-expected-net-utility",
                 "cf07-economic-intelligence",
             )
-            decision_gate_codes.append("CF07")
+            if "CF07" not in decision_gate_codes:
+                decision_gate_codes.append("CF07")
 
     if expectation_basis == "FROZEN_HISTORICAL_PRIOR":
         add(
