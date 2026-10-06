@@ -8,6 +8,7 @@ from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
 from qore.infrastructure.cibo_single_account_manifest_settlement import (
+    manifest_row_to_shadow_outcome_observation,
     manifest_row_to_sovereign_settlement,
 )
 from qore.infrastructure.cibo_single_account_sovereign_ceiling_run import (
@@ -57,6 +58,7 @@ def _row(
     return {
         "signal_fingerprint": "signal-1",
         "trader_id": trader_id,
+        "market_decision_at": NOW.isoformat(),
         "outcome_available_to_predecision": False,
         "market_predecision_state": {
             "provider_observation": {
@@ -177,3 +179,23 @@ def test_settlement_digest_binds_exit_reason() -> None:
     )
 
     assert stop.receipt.settlement_sha256 != gap.receipt.settlement_sha256
+
+
+def test_shadow_observation_reuses_structural_decode_and_duration() -> None:
+    observation = manifest_row_to_shadow_outcome_observation(
+        _row(outcome_r="-1.10", exit_reason="STOP")
+    )
+
+    assert observation.gross_structural_outcome_r == Decimal("-1.00")
+    assert observation.decision_at == NOW
+    assert observation.entry_at == NOW + timedelta(minutes=1)
+    assert observation.exit_at == NOW + timedelta(minutes=10)
+    assert observation.capital_minutes == Decimal("9")
+
+
+def test_shadow_observation_non_turtle_is_not_shifted() -> None:
+    observation = manifest_row_to_shadow_outcome_observation(
+        _row(trader_id="UNIVERSAL_TRADER_001", outcome_r="1.25")
+    )
+
+    assert observation.gross_structural_outcome_r == Decimal("1.25")
