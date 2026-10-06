@@ -12,7 +12,10 @@ from qore.infrastructure.traders.vt31_nas100_cognitive_memory import (
     memory_payload,
     validate_memory,
 )
-from qore.infrastructure.traders.vt31_nas100_reasoning_engine import reason
+from qore.infrastructure.traders.vt31_nas100_reasoning_engine import (
+    reason,
+    reason_position,
+)
 from qore.infrastructure.traders.vt31_nas100_situation_model import (
     Nas100SituationModel,
 )
@@ -306,3 +309,68 @@ def test_maximum_intelligence_manifest_covers_full_cognitive_stack() -> None:
     assert decision.strategy_memory_used
     assert decision.cibo_market_memory_used
     assert decision.trader_experience_memory_used
+
+
+def test_late_market_is_invalid_new_entry_but_not_invalid_live_position() -> None:
+    entry_state = _situation(
+        minute=10 * 60 + 12,
+        m15_state="bearish",
+    )
+    entry_reasoning = reason(entry_state)
+    assert entry_reasoning.action == "EXECUTE"
+
+    current = _situation(
+        minute=10 * 60 + 45,
+        m15_state="bearish",
+    )
+    admission = reason(current)
+    position = reason_position(
+        current,
+        frozen_entry_reasoning=entry_reasoning,
+    )
+
+    assert admission.action == "ABSTAIN"
+    assert "EXPERIENCE:CURRENT_SELECTED_STATE_TOO_LATE" in (
+        admission.contradictions
+    )
+    assert position.action == "EXECUTE"
+    assert "EXPERIENCE:CURRENT_SELECTED_STATE_TOO_LATE" not in (
+        position.contradictions
+    )
+    assert any(
+        item.startswith(
+            "POSITION:ADMISSION_ONLY_CONTRADICTION="
+            "EXPERIENCE:CURRENT_SELECTED_STATE_TOO_LATE"
+        )
+        for item in position.context_observations
+    )
+
+
+def test_calibrated_journey_depletion_remains_position_authority() -> None:
+    entry_state = _situation(m15_state="bearish")
+    entry_reasoning = reason(entry_state)
+
+    current = _situation(
+        minute=10 * 60 + 45,
+        m15_state="bearish",
+    )
+    from dataclasses import replace
+
+    current = replace(
+        current,
+        journey_stage="POST_1R_H5_ENTRY_OR_WORSE",
+        extension_capacity_state=(
+            "CALIBRATED_POST1R_CONTINUATION_DEPLETED"
+        ),
+        exhaustion_state="FAILED_CONTINUATION_CONFIRMED",
+    )
+    position = reason_position(
+        current,
+        frozen_entry_reasoning=entry_reasoning,
+    )
+
+    assert position.action == "ABSTAIN"
+    assert "JOURNEY:POST1R_CONTINUATION_DEPLETED" in (
+        position.contradictions
+    )
+    assert position.max_intelligence_ready is True
