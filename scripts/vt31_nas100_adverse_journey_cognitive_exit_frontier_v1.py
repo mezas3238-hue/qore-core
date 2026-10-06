@@ -657,6 +657,187 @@ def _max_drawdown_episode_forensics(
     }
 
 
+def _entry_freshness_state(value: object) -> str:
+    if value is None:
+        return "NONE"
+    return "FRESH_LE5M" if int(value) <= 5 else "OLDER_GT5M"
+
+
+def _confirmation_latency_state(value: object) -> str:
+    if value is None:
+        return "NONE"
+    minute = int(value)
+    if minute <= 5:
+        return "FAST_LE5M"
+    if minute >= 11:
+        return "SLOW_GE11M"
+    return "MID_6_10M"
+
+
+def _reclaim_sequence_state(value: object) -> str:
+    if value is None:
+        return "NONE"
+    age = int(value)
+    if age < 8:
+        return "FRESH_LT8M"
+    if age < 15:
+        return "STALE_8_14M"
+    return "MATURE_GE15M"
+
+
+def _breaker_entry_quality_forensics(
+    rows: list[dict[str, object]],
+) -> dict[str, object]:
+    samples: list[dict[str, object]] = []
+    for row in rows:
+        if str(row["entry_family"]) != "breaker":
+            continue
+        evaluations = cast(
+            list[dict[str, object]],
+            row.get("cognitive_exit_evaluations", []),
+        )
+        first_material_adverse = next(
+            (
+                event
+                for event in evaluations
+                if event.get("current_open_r") is not None
+                and _d(event["current_open_r"]) <= MATERIAL_ADVERSE_R
+            ),
+            None,
+        )
+        net_r = _d(row["r_multiple"]) - specialist.FRICTION
+        context = cast(
+            dict[str, object],
+            row.get("entry_context", {}),
+        )
+        rapid_structural_invalidation = (
+            str(row.get("exit_reason")) == "structural-invalidation"
+            and first_material_adverse is None
+            and net_r < 0
+        )
+        samples.append(
+            {
+                "net_r": net_r,
+                "winner": net_r > 0,
+                "loser": net_r < 0,
+                "rapid_structural_invalidation": (
+                    rapid_structural_invalidation
+                ),
+                "side": str(row["side"]),
+                "reference_volatility_state": str(
+                    context.get("reference_volatility_state", "NA")
+                ),
+                "prior_day_state": str(
+                    context.get("prior_day_state", "NA")
+                ),
+                "position_in_prior_day_range": str(
+                    context.get("position_in_prior_day_range", "NA")
+                ),
+                "h4_state": str(context.get("h4_state", "NA")),
+                "h1_state": str(context.get("h1_state", "NA")),
+                "m15_state": str(context.get("m15_state", "NA")),
+                "premarket_state": str(
+                    context.get("premarket_state", "NA")
+                ),
+                "cash_open_state": str(
+                    context.get("cash_open_state", "NA")
+                ),
+                "entry_freshness_state": _entry_freshness_state(
+                    context.get("entry_evidence_age_minutes")
+                ),
+                "confirmation_latency_state": (
+                    _confirmation_latency_state(
+                        context.get("confirmation_latency_minutes")
+                    )
+                ),
+                "reclaim_sequence_state": _reclaim_sequence_state(
+                    context.get("reference_reclaim_age_minutes")
+                ),
+            }
+        )
+
+    fields = (
+        ("side",),
+        ("reference_volatility_state",),
+        ("prior_day_state",),
+        ("position_in_prior_day_range",),
+        ("h1_state",),
+        ("m15_state",),
+        ("premarket_state",),
+        ("cash_open_state",),
+        ("entry_freshness_state",),
+        ("confirmation_latency_state",),
+        ("reclaim_sequence_state",),
+        ("side", "reference_volatility_state"),
+        ("side", "h1_state"),
+        ("side", "m15_state"),
+        ("h1_state", "m15_state"),
+        ("prior_day_state", "reference_volatility_state"),
+        ("premarket_state", "cash_open_state"),
+        ("entry_freshness_state", "confirmation_latency_state"),
+        ("reclaim_sequence_state", "confirmation_latency_state"),
+        ("side", "h1_state", "m15_state"),
+        ("side", "prior_day_state", "reference_volatility_state"),
+    )
+    grouped: dict[str, dict[str, object]] = {}
+    for field_tuple in fields:
+        table: dict[str, list[dict[str, object]]] = defaultdict(list)
+        for sample in samples:
+            key = "|".join(str(sample[field]) for field in field_tuple)
+            table[key].append(sample)
+        grouped["+".join(field_tuple)] = {
+            key: {
+                "sample": len(items),
+                "wins": sum(bool(item["winner"]) for item in items),
+                "losses": sum(bool(item["loser"]) for item in items),
+                "rapid_invalidations": sum(
+                    bool(item["rapid_structural_invalidation"])
+                    for item in items
+                ),
+                "rapid_invalidation_rate": format(
+                    Decimal(
+                        sum(
+                            bool(item["rapid_structural_invalidation"])
+                            for item in items
+                        )
+                    )
+                    / Decimal(len(items)),
+                    "f",
+                ),
+                "mean_net_r": format(
+                    sum(
+                        (
+                            cast(Decimal, item["net_r"])
+                            for item in items
+                        ),
+                        Decimal(0),
+                    )
+                    / Decimal(len(items)),
+                    "f",
+                ),
+            }
+            for key, items in sorted(table.items())
+        }
+
+    return {
+        "observation_only": True,
+        "action_authority": False,
+        "outcome_runtime_authority": False,
+        "breaker_trade_count": len(samples),
+        "breaker_winner_count": sum(
+            bool(sample["winner"]) for sample in samples
+        ),
+        "breaker_loss_count": sum(
+            bool(sample["loser"]) for sample in samples
+        ),
+        "rapid_structural_invalidation_count": sum(
+            bool(sample["rapid_structural_invalidation"])
+            for sample in samples
+        ),
+        "groups": grouped,
+    }
+
+
 def _report(
     full_control: list[dict[str, object]],
     baseline: list[dict[str, object]],
@@ -691,6 +872,9 @@ def _report(
             rows,
         ),
         "sequence_diagnostics": composition._sequence_diagnostics(rows),
+        "breaker_entry_quality_forensics": _breaker_entry_quality_forensics(
+            rows,
+        ),
         "max_drawdown_episode_forensics": _max_drawdown_episode_forensics(
             baseline,
             rows,
@@ -877,6 +1061,8 @@ def replay(evidence_path: Path) -> dict[str, object]:
             "max_drawdown_episode_runtime_authority": False,
             "rapid_invalidation_forensics_observation_only": True,
             "rapid_invalidation_forensics_action_authority": False,
+            "breaker_entry_quality_forensics_observation_only": True,
+            "breaker_entry_quality_forensics_action_authority": False,
             "position_sizing_used": False,
             "dynamic_sizing_used": False,
             "leverage_used": False,
