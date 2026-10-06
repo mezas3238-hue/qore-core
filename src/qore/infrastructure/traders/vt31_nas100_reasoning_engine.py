@@ -115,6 +115,12 @@ def _max_intelligence_audit(
         blockers.append("DEEPER_JOURNEY_CAPACITY_UNCALIBRATED")
     if management_context_state.startswith("UNRESOLVED"):
         blockers.append("CONTEXTUAL_POSITION_MANAGEMENT_UNRESOLVED")
+    if (
+        state.extension_capacity_state.upper()
+        == "CALIBRATED_PRE_DOL1_CURRENT_JOURNEY"
+        and state.current_open_r is None
+    ):
+        blockers.append("CURRENT_POSITION_R_STATE_UNAVAILABLE")
 
     unresolved_target_tokens = (
         "RESEARCH_ONLY",
@@ -231,6 +237,11 @@ def reason(state: Nas100SituationModel) -> Nas100ReasoningDecision:
                 if state.recent_overlap_rate is None
                 else f"RECENT_OVERLAP_RATE:{state.recent_overlap_rate}"
             ),
+            (
+                "CURRENT_OPEN_R:pre-entry-or-unavailable"
+                if state.current_open_r is None
+                else f"CURRENT_OPEN_R:{state.current_open_r}"
+            ),
         ]
     )
     if state.h4_state == "unavailable":
@@ -307,7 +318,10 @@ def reason(state: Nas100SituationModel) -> Nas100ReasoningDecision:
     # state produced by VT31's own closed-bar journey logic. Pre-entry remains
     # unresolved because future persistence is unknowable at admission.
     extension_state = state.extension_capacity_state.upper()
-    if extension_state == "CALIBRATED_POST1R_CONTINUATION_SUPPORTED":
+    if extension_state == "CALIBRATED_PRE_DOL1_CURRENT_JOURNEY":
+        journey_capacity_state = state.extension_capacity_state
+        management_context_state = "CALIBRATED_PRE_DOL1_LIVE_CONTEXT"
+    elif extension_state == "CALIBRATED_POST1R_CONTINUATION_SUPPORTED":
         journey_capacity_state = state.extension_capacity_state
         management_context_state = "CALIBRATED_POST1R_SUPPORTIVE"
         support.append("JOURNEY:POST1R_CONTINUATION_SUPPORTED")
