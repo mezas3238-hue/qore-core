@@ -119,6 +119,7 @@ def _max_intelligence_audit(
     unresolved_target_tokens = (
         "RESEARCH_ONLY",
         "UNCALIBRATED",
+        "ECONOMICS_PENDING",
         "UNRESOLVED",
         "UNKNOWN",
     )
