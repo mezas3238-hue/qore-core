@@ -1,0 +1,148 @@
+name: QORE CIBO Repair Closure Window
+
+on:
+  push:
+    branches:
+      - agent/cibo-causal-expectation-leakage-fix-001
+    paths:
+      - '.github/workflows/cibo-repair-closure-window.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  PYTHONPATH: ${{ github.workspace }}
+  FROZEN_ARTIFACT_ID: 11389331836
+  FROZEN_ARTIFACT_DIGEST: sha256:30177639f660c9647ab70257c2d12c541bdade49ab5582347a3890f920070fee
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  closure:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install
+        run: python -m pip install -e '.[dev]'
+      - name: Validate repaired surfaces
+        run: |
+          set -euo pipefail
+          ruff check \
+            src/qore/infrastructure/cibo_sovereign_capital_runtime.py \
+            src/qore/infrastructure/cibo_portfolio_allocation_engine.py \
+            src/qore/infrastructure/cibo_walk_forward_expectation.py \
+            src/qore/infrastructure/cibo_ce2i_regime_selector.py \
+            src/qore/infrastructure/cibo_single_account_historical_ceiling_epoch.py \
+            src/qore/infrastructure/cibo_single_account_historical_ceiling_replay.py \
+            scripts/cibo_build_walk_forward_expectation_manifest.py
+          pytest -q --no-cov \
+            tests/infrastructure/test_cibo_sovereign_capital_runtime_contract.py \
+            tests/infrastructure/test_cibo_full_economic_digital_twin.py \
+            tests/infrastructure/test_cibo_walk_forward_expectation.py \
+            tests/infrastructure/test_cibo_walk_forward_manifest_builder.py
+      - name: Recover frozen burned source
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/repair/frozen"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$FROZEN_ARTIFACT_ID" > "$RUNNER_TEMP/repair/frozen.meta.json"
+          jq -e --arg digest "$FROZEN_ARTIFACT_DIGEST" '.expired == false and .digest == $digest' "$RUNNER_TEMP/repair/frozen.meta.json"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$FROZEN_ARTIFACT_ID/zip" > "$RUNNER_TEMP/repair/frozen.zip"
+          echo "${FROZEN_ARTIFACT_DIGEST#sha256:}  $RUNNER_TEMP/repair/frozen.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/repair/frozen.zip" -d "$RUNNER_TEMP/repair/frozen"
+          MANIFEST="$(find "$RUNNER_TEMP/repair/frozen" -type f -name single-account-manifest-native.json -print -quit)"
+          test -n "$MANIFEST"
+          echo "MANIFEST=$MANIFEST" >> "$GITHUB_ENV"
+      - name: Build repaired causal window
+        run: |
+          set -euo pipefail
+          python scripts/cibo_build_walk_forward_expectation_manifest.py \
+            --manifest "$MANIFEST" \
+            --output "$RUNNER_TEMP/repair/full.json" \
+            --receipt "$RUNNER_TEMP/repair/receipt.json"
+          python - <<'PY'
+          import json, os
+          from collections import Counter
+          from pathlib import Path
+          from qore.infrastructure.cibo_single_account_manifest_integrity import (
+              reseal_single_account_manifest,
+          )
+          root=Path(os.environ["RUNNER_TEMP"])/"repair"
+          p=json.loads((root/"full.json").read_text())
+          cutoff="2020-04-30T23:59:59+00:00"
+          rows=[r for r in p["opportunities"] if r["market_decision_at"] <= cutoff]
+          p["opportunities"]=rows
+          p["opportunity_decision_count"]=len(rows)
+          p["decision_epoch_count"]=len({r["decision_epoch_id"] for r in rows})
+          p["trader_ids"]=sorted({r["trader_id"] for r in rows})
+          p["trader_opportunity_counts"]=dict(sorted(Counter(r["trader_id"] for r in rows).items()))
+          p["first_market_decision_at"]=rows[0]["market_decision_at"]
+          p["last_market_decision_at"]=rows[-1]["market_decision_at"]
+          p["research_window"]={
+              "kind":"BURNED_REPAIR_CLOSURE_WINDOW",
+              "cutoff":cutoff,
+              "certification_claimed":False,
+          }
+          p=reseal_single_account_manifest(p)
+          (root/"window.json").write_text(json.dumps(p,indent=2,sort_keys=True)+"\n")
+          print(json.dumps({"opportunities":len(rows),"epochs":p["decision_epoch_count"]},sort_keys=True))
+          PY
+      - name: Execute repaired causal window
+        run: |
+          python scripts/cibo_single_account_historical_ceiling_replay.py \
+            --manifest "$RUNNER_TEMP/repair/window.json" \
+            --output "$RUNNER_TEMP/repair/replay.json" \
+            --progress-every 100
+      - name: Summarize repair closure
+        run: |
+          python - <<'PY'
+          import json, os
+          from collections import Counter, defaultdict
+          from decimal import Decimal
+          from pathlib import Path
+          root=Path(os.environ["RUNNER_TEMP"])/"repair"
+          r=json.loads((root/"replay.json").read_text())
+          capital=Decimal("60"); peak=capital; maxdd=Decimal(0)
+          by=defaultdict(Decimal)
+          for s in sorted(r["settlement_receipts"],key=lambda x:(x["settled_at"],x["signal_fingerprint"])):
+              pnl=Decimal(s["realized_net_pnl_usd"])
+              capital+=pnl; peak=max(peak,capital); maxdd=max(maxdd,peak-capital)
+              by[s["trader_id"]]+=pnl
+          lev=Counter(str(d["adaptive_leverage_multiplier"]) for d in r["decision_receipts"])
+          disp=Counter(str(d["capital_disposition"]) for d in r["decision_receipts"])
+          risk=Counter(str(d["risk_decision"]) for d in r["decision_receipts"])
+          payload={
+              "schema":"qore.cibo.repair-closure-window.v1",
+              "head_sha":os.environ.get("GITHUB_SHA"),
+              "initial_capital_usd":"60",
+              "ending_capital_usd":format(capital,"f"),
+              "net_pnl_usd":format(capital-Decimal("60"),"f"),
+              "peak_capital_usd":format(peak,"f"),
+              "maximum_drawdown_usd":format(maxdd,"f"),
+              "decision_count":r["decision_count"],
+              "settlement_count":r["settlement_count"],
+              "adaptive_leverage_counts":dict(sorted(lev.items())),
+              "capital_disposition_counts":dict(sorted(disp.items())),
+              "risk_decision_counts":dict(sorted(risk.items())),
+              "net_pnl_by_trader_usd":{k:format(v,"f") for k,v in sorted(by.items())},
+              "future_outcome_used":r["outcome_used_for_predecision"],
+              "certification_claimed":r["certification_claimed"],
+              "research_only":True,
+          }
+          (root/"summary.json").write_text(json.dumps(payload,indent=2,sort_keys=True)+"\n")
+          print(json.dumps(payload,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-cibo-repair-closure-window-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/repair/summary.json
+            ${{ runner.temp }}/repair/replay.json
+            ${{ runner.temp }}/repair/window.json
+          if-no-files-found: warn
+          retention-days: 90
