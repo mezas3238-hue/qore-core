@@ -247,13 +247,20 @@ def _opportunities(
             raise ValueError(
                 "frontier rejects evaluation outcome in decision"
             )
-        cap, consumed, reason = (
-            cognitive_multiplier_cap(
-                cognitive
-            )
-        )
         base_volume = _base_volume(
             raw_opportunity
+        )
+        provider_multiplier_cap = int(
+            (
+                _dec(raw_opportunity["maximum_volume"])
+                / base_volume
+            ).to_integral_value(rounding="ROUND_FLOOR")
+        )
+        cap, consumed, reason = (
+            cognitive_multiplier_cap(
+                cognitive,
+                provider_multiplier_cap=max(0, provider_multiplier_cap),
+            )
         )
         opportunities[
             signal
