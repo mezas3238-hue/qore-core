@@ -19,6 +19,9 @@ from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
 from qore.infrastructure.cibo_capital_source_ledger import CapitalSourceLedger
+from qore.infrastructure.cibo_ce2i_causal_expectation import (
+    CausalExpectationBasis,
+)
 from qore.infrastructure.cibo_ce2i_portfolio_allocation_ledger import (
     PortfolioAllocationLedger,
 )
@@ -664,3 +667,80 @@ def test_full_twin_preserves_exact_long_decimal_open_exposure_sum() -> None:
 
     assert twin.capital_twin.used_stop_risk_usd == total
     assert twin.capital_twin.used_margin_usd == total
+
+
+def _two_option_velocity_twin(
+    *,
+    basis: CausalExpectationBasis,
+) -> CiboObservedEconomicTwin:
+    base = _full_twin()
+    fast = replace(
+        _opportunity(),
+        option_id="fast-lower-utility",
+        expected_net_value_usd=Decimal("3"),
+        expected_capital_minutes=Decimal("1"),
+        stop_risk_usd=Decimal("6"),
+        margin_usd=Decimal("6"),
+        provider_cost_usd=Decimal("0"),
+        uncertainty_penalty=Decimal("0"),
+        maximum_multiplier=1,
+        expectation_basis=basis,
+        evidence_sha256="sha256:" + "1" * 64,
+    )
+    slow = replace(
+        _opportunity(),
+        option_id="slow-higher-utility",
+        trader_id="VT31_NAS100",
+        qore_symbol="NAS100",
+        expected_net_value_usd=Decimal("5"),
+        expected_capital_minutes=Decimal("100"),
+        stop_risk_usd=Decimal("6"),
+        margin_usd=Decimal("6"),
+        provider_cost_usd=Decimal("0"),
+        uncertainty_penalty=Decimal("0"),
+        maximum_multiplier=1,
+        expectation_basis=basis,
+        evidence_sha256="sha256:" + "2" * 64,
+    )
+    portfolio = replace(
+        base.portfolio,
+        opportunity_ids=(fast.option_id, slow.option_id),
+        reserved_stop_risk_usd=Decimal("0"),
+        reserved_margin_usd=Decimal("0"),
+    )
+    return replace(
+        base,
+        opportunities=(fast, slow),
+        portfolio=portfolio,
+        cognitive_constraints=(("capital_intensity_cap", "1"),),
+    )
+
+
+def test_prior_only_duration_cannot_dominate_portfolio_rank() -> None:
+    twin = _two_option_velocity_twin(
+        basis=CausalExpectationBasis.FROZEN_HISTORICAL_PRIOR,
+    )
+
+    plan = plan_account_wide_capital_allocation(twin)
+
+    assert tuple(
+        (item.option_id, item.multiplier) for item in plan.lines
+    ) == (
+        ("fast-lower-utility", 0),
+        ("slow-higher-utility", 1),
+    )
+
+
+def test_contextual_forecast_can_use_capital_velocity_rank() -> None:
+    twin = _two_option_velocity_twin(
+        basis=CausalExpectationBasis.CURRENT_STATE_FORECAST,
+    )
+
+    plan = plan_account_wide_capital_allocation(twin)
+
+    assert tuple(
+        (item.option_id, item.multiplier) for item in plan.lines
+    ) == (
+        ("fast-lower-utility", 1),
+        ("slow-higher-utility", 0),
+    )
