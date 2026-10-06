@@ -1,116 +1,76 @@
 # VT31 NAS100 — Target-Depth Economic V2 Findings 001
 
 **Owner:** Sergio Meza  
-**Status:** DOL2 PROMISING / NO SURVIVOR YET / DOL3 REJECTED  
+**Status:** NO SURVIVOR / W3-DOL2 MECHANISM RETAINED FOR RELOSS REPAIR  
 **Workflow:** `37442469140` — SUCCESS  
-**Head tested:** `c9e961939886693248184d82ac8a382d26b6e469`
+**Head:** `c9e961939886693248184d82ac8a382d26b6e469`
 
-## Critical correction
+## Result
 
-This run is the first V2 economic result in which full cognition actually
-activated target extensions.
+The hardened finite-window V2 produced:
 
-The earlier run `37441800341` is superseded as target-depth evidence because
-its full-cognition variants activated zero extensions.
+- no research survivor;
+- no promotion-grade consumed witness.
 
-## DOL2 full-cognition results
+All variants used the exact sovereign terminal population and no sizing,
+leverage, compounding, capital weighting or volume adaptation.
 
-### SOFT3_DOL2_FULL_COGNITION
+## Strongest DOL2 family — 3-M1 acceptance window
 
-Actual extensions across folds: 16.
+`SOFT3_DOL2_ALL` improves PF and mean R in all four folds:
 
-Economic direction:
+- R5 PF 1.9169 -> 2.0186; mean +0.7488R -> +0.8517R;
+- R6 PF 2.3035 -> 2.4057; mean +1.1097R -> +1.1967R;
+- R8 PF 2.6708 -> 2.9625; mean +1.3291R -> +1.5611R;
+- consumed PF 1.0464 -> 1.1446; mean +0.0406R -> +0.1297R.
 
-- PF non-degrading: **4/4**
-- mean-R non-degrading: **4/4**
-- DD non-degrading: 3/4
-- winner floor: PASS all folds
+Winner-R is >=100% in R6/R8/consumed and 107.8% in R5, but one R5
+baseline winner is not preserved as a winner.
 
-Fold economics:
+The blocking defect is drawdown / sequence risk:
 
-- R5 PF 1.9169 -> **1.9582**, mean 0.7488R -> **0.8012R**
-- R6 PF 2.3035 -> **2.3469**, mean 1.1097R -> **1.1467R**
-- R8 PF 2.6708 -> **2.9066**, mean 1.3291R -> **1.5166R**
-- consumed PF 1.0464 -> **1.1392**, mean 0.0406R -> **0.1249R**
+- consumed DD 13.834R -> 16.800R;
+- consumed MC p95 DD 30.296R -> 32.550R;
+- R5 MC positive probability also falls slightly.
 
-However consumed DD worsens:
+Therefore the capacity is economically useful but the post-acceptance journey
+needs protection.
 
-- 13.8341R -> **16.80R**
+## Full-cognition selector alone is insufficient
 
-and winner-count preservation in consumed is 87.5%.
+`SOFT3_DOL2_FULL_COGNITION` still raises consumed DD to 16.8R.
 
-Therefore it is not a research survivor under the frozen gate.
+Entry/acceptance-time cognition alone cannot solve post-acceptance giveback.
+The next decision must occur after the journey evolves.
 
-### SOFT5_DOL2_FULL_COGNITION
+## DOL3 clue
 
-Actual extensions: 17.
+`SOFT1_DOL3_ALL` is also informative:
 
-- PF non-degrading: **4/4**
-- mean-R non-degrading: **4/4**
-- DD non-degrading: 3/4
-- winner floor: PASS all folds
+- consumed PF 1.0464 -> 1.2298;
+- consumed mean +0.0406R -> +0.2011R;
+- consumed MC p95 DD improves 30.296R -> 28.883R;
+- winner count / winner-R = 100% / 117.5%.
 
-Economics:
+But R6 PF and mean degrade slightly, so it is not cross-fold promotable.
 
-- R5 PF 1.9169 -> **1.9834**
-- R6 PF 2.3035 -> **2.4523**
-- R8 PF 2.6708 -> **2.9157**
-- consumed PF 1.0464 -> **1.1320**
+## Next causal repair
 
-Mean-R also improves 4/4.
+The calibration plan already recorded whether price closes back inside DOL1
+after acceptance. V3 will use that event causally.
 
-Again consumed DD worsens to **16.80R**, and some historical half-years degrade.
+The target remains W3 DOL2 because it showed PF/mean non-degradation 4/4.
 
-Result: promising mechanism, not survivor.
+After DOL1 acceptance and before DOL2:
 
-## DOL3
+- a fully closed M1 back inside DOL1 becomes a **reloss observation**;
+- the control exits immediately at that close;
+- the full-cognition variant rebuilds the live Situation Model and current
+  position reasoning at that close;
+- continuation is preserved only when full cognition still says EXECUTE and
+  post-1R persistence remains PERSISTENT or RECOVERED;
+- otherwise exit at the causal close.
 
-Full-cognition DOL3 extension degrades too much winner preservation and DD.
+No future DOL2 reach label is used.
 
-Examples for SOFT5:
-
-- consumed DD 13.83R -> 17.69R
-- R6 DD 12.74R -> 17.25R
-- R8 winner-R preservation ~75.4%
-
-DOL3 is rejected for the current architecture.
-
-## Mechanism interpretation
-
-The DOL2 cognition is doing something economically real:
-
-- actual extensions occur;
-- PF and mean-R improve in all four folds;
-- R6/R8 DD does not worsen;
-- recent consumed expectancy improves substantially.
-
-The remaining defect is extension downside protection / giveback, especially
-in recent consumed evidence.
-
-The correct repair is therefore **not**:
-
-- reduce volume;
-- shorten DOL2;
-- globally cap R;
-- abandon extension.
-
-The next frontier will keep the same cognition-selected DOL2 and test
-market-native protection after DOL1 acceptance:
-
-- first confirmed improving M1 swing;
-- two-confirmation M1 swing;
-- protection active only from the next M1.
-
-No future outcome label may select protection.
-
-## Decision
-
-Retain DOL2 full-cognition extension as a research mechanism.
-
-Reject DOL3 for now.
-
-Do not promote DOL2 until post-acceptance structural protection fixes DD and
-temporal instability without sacrificing winner-R.
-
-No fresh holdout, policy promotion, candidate freeze, merge, LIVE, or real
-capital authority.
+No fresh holdout, freeze, promotion, merge, LIVE or real-capital authority.
