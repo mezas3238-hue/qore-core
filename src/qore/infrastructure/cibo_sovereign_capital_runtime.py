@@ -232,6 +232,7 @@ def run_cibo_sovereign_capital_runtime(
     request_id: str,
     requested_at: datetime,
     expires_at: datetime,
+    portfolio_fixed_multiplier: int | None = None,
     lifecycle_requests: tuple[CiboLifecycleWireRequest, ...] = (),
 ) -> CiboSovereignCapitalDecision:
     """Run the sovereign CIBO path through the QORE Risk handoff boundary."""
@@ -323,6 +324,7 @@ def run_cibo_sovereign_capital_runtime(
         twin=cognitive_twin,
         world_paths=world_paths,
         option_schedules=option_schedules,
+        fixed_multiplier=portfolio_fixed_multiplier,
         lifecycle_requests=lifecycle_requests,
         competition_option_ids=(option_id,),
     )
