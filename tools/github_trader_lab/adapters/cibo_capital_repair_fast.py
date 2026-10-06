@@ -68,6 +68,7 @@ class Variant:
     max_frontier: bool = False
     tiered_consensus: bool = False
     evidence_depth_confidence: bool = False
+    unanimous_incremental_leverage: bool = False
 
 
 VARIANTS = (
@@ -144,6 +145,17 @@ VARIANTS = (
         max_frontier=True,
         tiered_consensus=True,
         evidence_depth_confidence=True,
+    ),
+    Variant(
+        "MAX_FRONTIER_ROBUST_LEVERAGE",
+        Decimal("0.70"),
+        True,
+        True,
+        True,
+        True,
+        profit_funded_leverage=True,
+        max_frontier=True,
+        unanimous_incremental_leverage=True,
     ),
 )
 
@@ -390,6 +402,14 @@ def _portfolio(
                     drawdown_utilization=drawdown_utilization,
                 ),
             )
+        if variant.unanimous_incremental_leverage:
+            blocks_raw = row.get("walk_forward_block_means_r")
+            if not isinstance(blocks_raw, list) or len(blocks_raw) != 5:
+                raise ValueError(
+                    "robust leverage requires five causal block means"
+                )
+            if min(d(value) for value in blocks_raw) <= 0:
+                cap = min(cap, 1)
         if variant.fixed_multiplier is not None:
             cap = min(cap, variant.fixed_multiplier)
         caps.append(cap)
