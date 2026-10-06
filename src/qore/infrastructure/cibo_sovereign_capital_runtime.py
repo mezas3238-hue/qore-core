@@ -549,17 +549,14 @@ def _build_capital_science_state(
             raise CiboCapitalManagementError(
                 "Capital Science target base geometry must be positive"
             )
-        expected_risk = sizing.plan.volume * opportunity.stop_loss_per_volume
-        expected_margin = sizing.plan.volume * opportunity.margin_per_volume
-        if (
-            sizing.plan.stop_risk_usd != expected_risk
-            or sizing.plan.margin_usd != expected_margin
-        ):
-            raise CiboCapitalManagementError(
-                "Capital Science sizing plan geometry drift"
-            )
         with localcontext() as context:
-            context.prec = 80
+            context.prec = 100
+            expected_risk = (
+                sizing.plan.volume * opportunity.stop_loss_per_volume
+            )
+            expected_margin = (
+                sizing.plan.volume * opportunity.margin_per_volume
+            )
             volume_scale = sizing.plan.volume / base_volume
             risk_scale = sizing.plan.stop_risk_usd / target.stop_risk_usd
             current_provider_cost_usd = (
@@ -568,17 +565,27 @@ def _build_capital_science_state(
             current_expected_net_value_usd = (
                 target.expected_net_value_usd * risk_scale
             )
+        if (
+            sizing.plan.stop_risk_usd != expected_risk
+            or sizing.plan.margin_usd != expected_margin
+        ):
+            raise CiboCapitalManagementError(
+                "Capital Science sizing plan geometry drift"
+            )
         matches = tuple(item for item in known if item.option_id == option_id)
         if len(matches) != 1:
             raise CiboCapitalManagementError(
                 "Capital Science current option must exist exactly once"
             )
+        with localcontext() as context:
+            context.prec = 100
+            current_requested_capital_usd = (
+                sizing.plan.stop_risk_usd + current_provider_cost_usd
+            )
         known = tuple(
             replace(
                 item,
-                requested_capital_usd=(
-                    sizing.plan.stop_risk_usd + current_provider_cost_usd
-                ),
+                requested_capital_usd=current_requested_capital_usd,
                 stop_risk_usd=sizing.plan.stop_risk_usd,
                 margin_usd=sizing.plan.margin_usd,
                 expected_net_value_usd=current_expected_net_value_usd,
@@ -601,6 +608,13 @@ def _build_capital_science_state(
         if sizing.plan.capital_source is not None
         else "NONE"
     )
+    with localcontext() as context:
+        context.prec = 100
+        deployable_profit_usd = max(
+            Decimal(0),
+            twin.capital_twin.compound_economic_value_usd
+            - twin.capital_twin.protected_floor_usd,
+        )
     return CapitalSciencePredecisionInput(
         decision_epoch_id=decision_id,
         signal_fingerprint=opportunity.signal_fingerprint,
@@ -612,11 +626,7 @@ def _build_capital_science_state(
         protected_capacity_usd=twin.capital_twin.protected_floor_usd,
         deployed_profit_usd=min(
             capital.reserved_expansion_risk_usd,
-            max(
-                Decimal(0),
-                twin.capital_twin.compound_economic_value_usd
-                - twin.capital_twin.protected_floor_usd,
-            ),
+            deployable_profit_usd,
         ),
         open_stop_risk_usd=twin.capital_twin.used_stop_risk_usd,
         open_margin_usd=twin.capital_twin.used_margin_usd,
