@@ -5,9 +5,12 @@ reconstruct the *current* causal Situation Model from newly closed market
 observations and re-run the full cognitive synthesis before deciding whether
 to HOLD, TRAIL, EXTEND, or EXIT.
 
-No R multiple, MFE/MAE threshold, absolute volume, sizing, leverage,
-compounding, capital weighting, or fixed-profit cap exists in this runtime
-interface. R remains post-trade evaluation only.
+This specific market-native component currently exposes no R threshold, but
+that is a component design choice, not a sovereign prohibition. VT31 may use
+R-based entry or management rules elsewhere when they prove causal edge.
+
+Absolute volume, sizing, leverage, compounding, and capital weighting remain
+outside trader-certification authority.
 """
 from __future__ import annotations
 
