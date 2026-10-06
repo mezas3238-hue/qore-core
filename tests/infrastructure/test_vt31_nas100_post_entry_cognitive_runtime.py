@@ -141,21 +141,16 @@ def _market(
     )
 
 
-def test_post_entry_runtime_interfaces_expose_no_r_or_volume_authority() -> None:
+def test_post_entry_runtime_interfaces_expose_no_sizing_authority() -> None:
     forbidden = {
-        "r",
-        "r_multiple",
-        "mfe_r",
-        "mae_r",
-        "target_r",
-        "risk_r",
-        "profit_r",
         "volume",
         "lot_size",
         "position_size",
         "sizing",
         "leverage",
         "risk_budget",
+        "portfolio_weight",
+        "capital_weight",
     }
     observation_fields = set(PostEntryCausalObservation.__dataclass_fields__)
     market_fields = set(PostEntryMarketFacts.__dataclass_fields__)
@@ -168,7 +163,7 @@ def test_post_entry_runtime_interfaces_expose_no_r_or_volume_authority() -> None
     assert function_params.isdisjoint(forbidden)
 
 
-def test_rebuild_post_entry_situation_keeps_r_out_of_runtime() -> None:
+def test_rebuild_post_entry_situation_preserves_current_market_native_plan() -> None:
     entry = _entry_situation()
     current = rebuild_post_entry_situation(
         entry_situation=entry,
