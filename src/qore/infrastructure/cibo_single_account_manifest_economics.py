@@ -82,6 +82,47 @@ def _decision_context(payload: Mapping[str, Any]) -> tuple[tuple[str, str], ...]
     return tuple(result)
 
 
+def _cognitive_economic_context(
+    row: Mapping[str, Any],
+    payload: Mapping[str, Any],
+) -> tuple[tuple[str, str], ...]:
+    base = dict(_decision_context(payload))
+    if len(base) != len(_decision_context(payload)):
+        raise CiboCapitalManagementError(
+            "decision_context contains duplicate keys"
+        )
+
+    expectation = _mapping(row.get("expectation"), "expectation")
+    context_quality = _mapping(
+        row.get("context_quality"),
+        "context_quality",
+    )
+    additions = {
+        "cibo_context_quality_disposition": str(
+            context_quality.get("disposition", "")
+        ),
+        "cibo_context_quality_rules": ",".join(
+            str(item)
+            for item in context_quality.get("matched_rule_ids", ())
+        ),
+        "cibo_expectation_basis": str(expectation.get("basis", "")),
+        "cibo_expected_value_usd": str(
+            expectation.get("expected_net_value_usd", "")
+        ),
+        "cibo_expected_capital_minutes": str(
+            expectation.get("expected_capital_minutes", "")
+        ),
+    }
+    overlap = set(base).intersection(additions)
+    if overlap:
+        raise CiboCapitalManagementError(
+            "decision_context collides with CIBO economic context: "
+            + ",".join(sorted(overlap))
+        )
+    base.update(additions)
+    return tuple(sorted(base.items()))
+
+
 def _opportunity(row: Mapping[str, Any]) -> TraderOpportunityEnvelope:
     payload = _mapping(row.get("trader_opportunity"), "trader_opportunity")
     return TraderOpportunityEnvelope(
@@ -103,7 +144,7 @@ def _opportunity(row: Mapping[str, Any]) -> TraderOpportunityEnvelope:
         minimum_volume=_decimal(payload["minimum_volume"], "minimum_volume"),
         maximum_volume=_decimal(payload["maximum_volume"], "maximum_volume"),
         minimum_execution_steps=int(payload.get("minimum_execution_steps", 1)),
-        decision_context=_decision_context(payload),
+        decision_context=_cognitive_economic_context(row, payload),
     )
 
 
