@@ -411,11 +411,9 @@ def build_sovereign_function_sensors(
             "medium": 2,
             "high": 3,
         }[decision.synthesis.uncertainty.confidence.level.value]
-    frontier_restricts = frontier_cap < native_cap
-    frontier_final_binding = (
-        frontier_restricts
-        and portfolio.multiplier == frontier_cap
-    )
+    frontier_restricts = False
+    frontier_final_binding = False
+    frontier_diverges_from_selected = portfolio.multiplier > frontier_cap
 
     compound_source_requested = _uses_realized_profit(sizing_plan)
     compound_block_binding = (
@@ -465,7 +463,8 @@ def build_sovereign_function_sensors(
                 frontier_cap=frontier_cap,
                 frontier_reason=frontier_reason,
                 selected_multiplier=portfolio.multiplier,
-                constraining_only=True,
+                advisory_diagnostic=True,
+                selected_above_recommendation=frontier_diverges_from_selected,
             ),
             downstream_consumed=True,
             decision_gate_triggered=frontier_restricts,
