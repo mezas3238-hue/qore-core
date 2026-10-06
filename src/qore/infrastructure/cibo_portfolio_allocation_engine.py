@@ -12,7 +12,7 @@ authorities.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from decimal import Decimal
+from decimal import Decimal, localcontext
 from itertools import product
 
 from qore.infrastructure.cibo_capital_management_authority import (
@@ -114,6 +114,15 @@ def plan_account_wide_capital_allocation(
         )
 
     constraints = observed_twin_constraints(twin)
+    capital_base = twin.capital_twin.total_realized_capital_usd
+    if (
+        not isinstance(capital_base, Decimal)
+        or not capital_base.is_finite()
+        or capital_base <= 0
+    ):
+        raise CiboCapitalManagementError(
+            "Portfolio requires positive realized capital for robust risk pricing"
+        )
     cognitive = dict(twin.cognitive_constraints)
     try:
         cognitive_cap = int(cognitive.get("capital_intensity_cap", "4"))
@@ -186,28 +195,44 @@ def plan_account_wide_capital_allocation(
             or margin > constraints["margin_headroom_usd"]
         ):
             continue
-        trusted_velocity_utility = sum(
-            (
-                net * mult / item.expected_capital_minutes
+        # Robust utility prices concentration non-linearly.  Expected edge,
+        # provider cost and forecast uncertainty scale with exposure, while the
+        # survival cost of concentrating stop-risk grows quadratically relative
+        # to current realized capital.  This removes the old structural bias
+        # where every positive utility was monotonically pushed to the maximum
+        # multiplier until a hard capacity wall.
+        with localcontext() as context:
+            context.prec = 100
+            robust_lines = tuple(
+                (
+                    net * mult
+                    - (
+                        (item.stop_risk_usd * mult)
+                        * (item.stop_risk_usd * mult)
+                        / capital_base
+                    )
+                )
                 for item, net, mult in zip(
                     ordered, net_values, combo, strict=True
                 )
-                if item.expectation_basis
-                in {
-                    CausalExpectationBasis.CAUSAL_MODEL_FORECAST,
-                    CausalExpectationBasis.CURRENT_STATE_FORECAST,
-                    CausalExpectationBasis.WALK_FORWARD_EMPIRICAL_FORECAST,
-                }
-            ),
-            Decimal(0),
-        )
-        expected_utility = sum(
-            (
-                net * mult
-                for net, mult in zip(net_values, combo, strict=True)
-            ),
-            Decimal(0),
-        )
+            )
+            trusted_velocity_utility = sum(
+                (
+                    robust
+                    / item.expected_capital_minutes
+                    for item, robust in zip(
+                        ordered, robust_lines, strict=True
+                    )
+                    if item.expectation_basis
+                    in {
+                        CausalExpectationBasis.CAUSAL_MODEL_FORECAST,
+                        CausalExpectationBasis.CURRENT_STATE_FORECAST,
+                        CausalExpectationBasis.WALK_FORWARD_EMPIRICAL_FORECAST,
+                    }
+                ),
+                Decimal(0),
+            )
+            expected_utility = sum(robust_lines, Decimal(0))
         key = (
             trusted_velocity_utility,
             expected_utility,
