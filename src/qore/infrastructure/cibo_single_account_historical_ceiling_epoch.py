@@ -24,6 +24,7 @@ from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
 from qore.infrastructure.cibo_ce2i_regime_selector import CiboCapitalRegimeState
+from qore.infrastructure.cibo_ceiling_ablation import CiboCeilingAblationMode
 from qore.infrastructure.cibo_single_account_ceiling_state import (
     CiboCeilingOpenExposure,
     CiboCeilingOpportunityEvidence,
@@ -110,6 +111,7 @@ def run_predecision_historical_sovereign_ceiling_epoch(
     provider_assumption: CiboHistoricalProviderAssumption,
     survival_capital_usd: Decimal,
     protected_capital_usd: Decimal,
+    ablation_mode: CiboCeilingAblationMode = CiboCeilingAblationMode.FULL,
 ) -> CiboPreparedHistoricalSovereignCeilingEpoch:
     """Execute one historical epoch without reading any settlement outcome."""
 
@@ -221,6 +223,7 @@ def run_predecision_historical_sovereign_ceiling_epoch(
         risk_engine=risk_engine,
         survival_capital_usd=survival_capital_usd,
         protected_capital_usd=protected_capital_usd,
+        ablation_mode=ablation_mode,
     )
     return CiboPreparedHistoricalSovereignCeilingEpoch(
         epoch_state=epoch,
