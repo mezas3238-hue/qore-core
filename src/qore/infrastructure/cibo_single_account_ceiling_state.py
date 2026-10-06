@@ -57,7 +57,6 @@ from qore.infrastructure.cibo_integrated_capital_truth import (
     build_integrated_capital_truth,
 )
 
-
 _INITIAL_CAPITAL_USD = Decimal("60")
 
 
