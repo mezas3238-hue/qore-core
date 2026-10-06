@@ -24,6 +24,10 @@ from qore.infrastructure.traders.vt31_nas100_cibo_market_memory import (
     cibo_market_memory_fingerprint,
     dossier_runtime_view,
 )
+from qore.infrastructure.traders.vt31_nas100_comp008_policy import (
+    COMP008_ADMISSION_CONTRADICTIONS,
+    comparator008_decision_from_situation,
+)
 from qore.infrastructure.traders.vt31_nas100_cognitive_memory import (
     memory_fingerprint,
 )
@@ -255,6 +259,14 @@ def reason(state: Nas100SituationModel) -> Nas100ReasoningDecision:
     if state.prior_day_state == "unavailable":
         uncertainty.append("SITUATION:PRIOR_DAY_CONTEXT_UNAVAILABLE")
 
+    # Comparator 008 is the frozen development admission survivor. Its complete
+    # causal admission stack is now a runtime policy rather than a research-only
+    # post-filter. These contradictions are admission-only after a position is
+    # already open and are demoted by reason_position().
+    comparator008_admission = comparator008_decision_from_situation(state)
+    contradictions.extend(comparator008_admission.abstention_reasons)
+    experience_used.append("comp008_certification_admission_policy")
+
     # Trader Experience says the latest reference-liquidity event, compression,
     # and freshness are meaningful jointly. They are not promoted independently.
     if state.last_structure_event_family == "reference-liquidity-sweep":
@@ -402,6 +414,7 @@ _POSITION_NONBLOCKING_ADMISSION_CONTRADICTIONS = frozenset(
         "SITUATION:CURRENT_PATH_NOT_COMPRESSED",
         "EXPERIENCE:CURRENT_SELECTED_STATE_TOO_LATE",
         "EXPERIENCE:NONCOMPRESSED_REFERENCE_OUTSIDE_LOW_DD_GATE",
+        *COMP008_ADMISSION_CONTRADICTIONS,
     }
 )
 
