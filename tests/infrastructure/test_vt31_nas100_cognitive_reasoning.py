@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from decimal import Decimal
 
 from qore.infrastructure.traders.vt31_nas100_cibo_market_memory import (
