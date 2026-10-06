@@ -92,8 +92,9 @@ def test_walk_forward_uses_only_completed_same_trader_history() -> None:
     assert snapshot.cold_start is False
     assert snapshot.observation_count == 5
     assert snapshot.expected_structural_r == Decimal("1")
-    assert snapshot.expected_capital_minutes == Decimal("30")
+    assert snapshot.expected_capital_minutes == Decimal("40")
     assert snapshot.expectation.expected_net_value_usd == Decimal("2")
+    assert snapshot.expectation.expected_capital_minutes == Decimal("40")
     assert (
         snapshot.expectation.basis
         is CausalExpectationBasis.WALK_FORWARD_EMPIRICAL_FORECAST
