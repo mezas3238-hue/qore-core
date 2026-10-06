@@ -165,7 +165,7 @@ def _archived_geometry(row: Mapping[str, Any]) -> tuple[str, Decimal, Decimal, D
 
 def enrich(
     manifest: dict[str, Any],
-    bars_by_symbol: Mapping[str, Mapping[datetime, Vt08B01Bar]],
+    bars_by_symbol: Mapping[str, dict[datetime, Vt08B01Bar]],
     *,
     source_ids: tuple[str, ...] = (),
 ) -> dict[str, Any]:
@@ -210,7 +210,7 @@ def enrich(
         try:
             evaluation = evaluate_b01_at_entry_indexed(
                 symbol=symbol,
-                bars_by_open=dict(bars),
+                bars_by_open=bars,
                 decision_at=decision_at,
             )
             candidate = evaluation.candidate
