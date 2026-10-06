@@ -36,11 +36,12 @@ jobs:
       - name: Install
         run: python -m pip install -e '.[dev]'
 
-      - name: Compile and lint cognitive remediation
+      - name: Show exact Ruff normalization
         run: |
           set -euo pipefail
-          python -m py_compile             src/qore/infrastructure/cibo_native_max_cognitive_episode.py             src/qore/infrastructure/cibo_cognitive_reach_sensors.py             src/qore/infrastructure/cibo_single_account_manifest_economics.py
-          ruff check             src/qore/infrastructure/cibo_native_max_cognitive_episode.py             src/qore/infrastructure/cibo_cognitive_reach_sensors.py             src/qore/infrastructure/cibo_single_account_manifest_economics.py             tests/infrastructure/test_cibo_native_maximum_intelligence.py             tests/infrastructure/test_cibo_cognitive_reach_sensors.py             tests/infrastructure/test_cibo_single_account_manifest_economics.py
+          ruff check --fix tests/infrastructure/test_cibo_native_maximum_intelligence.py
+          git diff -- tests/infrastructure/test_cibo_native_maximum_intelligence.py
+          exit 1
 
       - name: Prove semantic cognition and sensor truth
         run: |
