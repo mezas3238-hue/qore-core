@@ -401,3 +401,54 @@ def test_demo_maximum_sizing_preserves_long_decimal_geometry_exactly() -> None:
     assert decision.plan.volume == volume
     assert decision.plan.stop_risk_usd == expected_risk
     assert decision.plan.margin_usd == expected_margin
+
+def test_demo_maximum_sizing_holds_when_minimum_seed_is_not_executable() -> None:
+    capital = account_capital_state(
+        assigned_capital_usd=Decimal("1"),
+        hard_risk_headroom_usd=Decimal("0.05"),
+        margin_headroom_usd=Decimal("100"),
+        survival_capital_usd=Decimal("0"),
+        protected_capital_usd=Decimal("0"),
+    )
+
+    decision = plan_account_sizing(
+        opportunity=_opportunity(),
+        capital=capital,
+        mission_policy=_mission(MarketRuntimeEnvironment.DEMO),
+        survival_capital_usd=Decimal("0"),
+        protected_capital_usd=Decimal("0"),
+    )
+
+    assert decision.mode is CiboAccountSizingMode.CAPABILITY_MAXIMUM
+    assert decision.plan.action is CapitalAction.HOLD
+    assert decision.plan.volume == Decimal("0")
+    assert decision.plan.stop_risk_usd == Decimal("0")
+    assert decision.plan.margin_usd == Decimal("0")
+    assert (
+        decision.plan.reason
+        == "maximum account-constrained capacity cannot express minimum seed"
+    )
+
+
+def test_demo_maximum_sizing_holds_when_no_deployable_headroom_remains() -> None:
+    capital = account_capital_state(
+        assigned_capital_usd=Decimal("1"),
+        hard_risk_headroom_usd=Decimal("0"),
+        margin_headroom_usd=Decimal("100"),
+        survival_capital_usd=Decimal("0"),
+        protected_capital_usd=Decimal("0"),
+    )
+
+    decision = plan_account_sizing(
+        opportunity=_opportunity(),
+        capital=capital,
+        mission_policy=_mission(MarketRuntimeEnvironment.DEMO),
+        survival_capital_usd=Decimal("0"),
+        protected_capital_usd=Decimal("0"),
+    )
+
+    assert decision.mode is CiboAccountSizingMode.CAPABILITY_MAXIMUM
+    assert decision.plan.action is CapitalAction.HOLD
+    assert decision.plan.volume == Decimal("0")
+    assert decision.plan.reason == "CIBO account has no deployable risk/margin headroom"
+
