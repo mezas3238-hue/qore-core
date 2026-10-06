@@ -8,7 +8,7 @@ governor. This module is research-only and performs no broker mutation.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from decimal import ROUND_CEILING, ROUND_FLOOR, Decimal
+from decimal import ROUND_CEILING, ROUND_FLOOR, Decimal, localcontext
 from enum import StrEnum
 
 from qore.infrastructure.account_wide_risk import (
@@ -226,10 +226,12 @@ class CiboCapitalState:
             "cost_reserve_usd",
         ):
             _nonnegative(getattr(self, name), name)
-        gross_proven_sources = (
-            self.realized_net_profit_usd
-            + self.protected_open_economic_floor_usd
-        )
+        with localcontext() as context:
+            context.prec = 100
+            gross_proven_sources = (
+                self.realized_net_profit_usd
+                + self.protected_open_economic_floor_usd
+            )
         if self.proven_self_financing_capacity_usd > gross_proven_sources:
             raise CiboCapitalManagementError(
                 "self-financing capacity cannot exceed proven profit/protection sources"
@@ -241,11 +243,13 @@ class CiboCapitalState:
 
     @property
     def available_self_financing_capacity_usd(self) -> Decimal:
-        return max(
-            Decimal(0),
-            self.proven_self_financing_capacity_usd
-            - self.reserved_expansion_risk_usd,
-        )
+        with localcontext() as context:
+            context.prec = 100
+            return max(
+                Decimal(0),
+                self.proven_self_financing_capacity_usd
+                - self.reserved_expansion_risk_usd,
+            )
 
 
 @dataclass(frozen=True, slots=True)
