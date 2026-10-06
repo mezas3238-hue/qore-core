@@ -413,13 +413,15 @@ def replay(evidence_path: Path, *, partition: str) -> dict[str, object]:
         executable: object,
         state: dict[str, object],
     ) -> dict[str, object]:
-        row = _diagnose(day_bars, executable, state)
-        if row is not None:
-            observations.append(row)
-        return specialist._simulate_structural_boundary_only(
+        outcome = specialist._simulate_structural_boundary_only(
             day_bars,
             executable,
         )
+        if outcome.get("status") == "terminal":
+            row = _diagnose(day_bars, executable, state)
+            if row is not None:
+                observations.append(row)
+        return outcome
 
     try:
         specialist._simulate_selected_plan = simulator
