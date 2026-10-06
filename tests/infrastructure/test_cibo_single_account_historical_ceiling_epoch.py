@@ -134,10 +134,14 @@ def test_historical_epoch_uses_current_compounded_equity(monkeypatch) -> None:
     )
 
     assert prepared.risk_snapshot.equity == Decimal("78")
-    assert prepared.risk_snapshot.qore_authorizable_headroom == Decimal("78")
+    assert prepared.risk_snapshot.qore_authorizable_headroom == Decimal("54.60")
     assert prepared.risk_snapshot.free_margin == Decimal("7800")
     assert prepared.epoch_state.capital.assigned_capital_usd == Decimal("78")
     assert seen["capital"].assigned_capital_usd == Decimal("78")
+    assert seen["twin"].capital_twin.total_stop_risk_capacity_usd == Decimal(
+        "54.60"
+    )
+    assert seen["capital"].hard_risk_headroom_usd == Decimal("54.60")
     assert seen["option_id_by_signal"] == (("alpha", "alpha"),)
     assert seen["twin"].opportunities[0].option_id == "alpha"
     assert seen["twin"].future_outcome_used is False
