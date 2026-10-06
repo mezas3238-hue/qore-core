@@ -15,6 +15,9 @@ from dataclasses import dataclass
 from decimal import Decimal
 from itertools import product
 
+from qore.infrastructure.cibo_ce2i_causal_expectation import (
+    CausalExpectationBasis,
+)
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
@@ -183,12 +186,17 @@ def plan_account_wide_capital_allocation(
             or margin > constraints["margin_headroom_usd"]
         ):
             continue
-        velocity_utility = sum(
+        trusted_velocity_utility = sum(
             (
                 net * mult / item.expected_capital_minutes
                 for item, net, mult in zip(
                     ordered, net_values, combo, strict=True
                 )
+                if item.expectation_basis
+                in {
+                    CausalExpectationBasis.CAUSAL_MODEL_FORECAST,
+                    CausalExpectationBasis.CURRENT_STATE_FORECAST,
+                }
             ),
             Decimal(0),
         )
@@ -200,7 +208,7 @@ def plan_account_wide_capital_allocation(
             Decimal(0),
         )
         key = (
-            velocity_utility,
+            trusted_velocity_utility,
             expected_utility,
             -risk,
             -margin,
