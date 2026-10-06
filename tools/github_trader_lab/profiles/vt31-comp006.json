@@ -1,0 +1,63 @@
+{
+  "schema": "qore.github-trader-lab.profile.v1",
+  "profile_id": "vt31-comp006-four-fold-v1",
+  "repository": "mezas3238-hue/qore-core",
+  "subject": "VT31_NAS100",
+  "max_parallel_lanes": 4,
+  "replay": {
+    "command": [
+      "python",
+      "{subject_root}/scripts/vt31_nas100_rapid_breaker_conflict_admission_frontier_v1.py",
+      "{evidence}",
+      "--output",
+      "{raw_output}"
+    ],
+    "adapter_command": [
+      "python",
+      "{lab_root}/tools/github_trader_lab/adapters/vt31_comp006.py",
+      "--input",
+      "{raw_output}",
+      "--lane",
+      "{lane}",
+      "--output",
+      "{normalized_output}"
+    ]
+  },
+  "lanes": {
+    "r5": {
+      "artifact_id": 10380044761,
+      "artifact_path": "fresh/NAS100/market-evidence.json",
+      "sha256": "7b1e3d9e2bfd17ccc6f043befabf464838d150bc6034ced1f76a24ee248611d7"
+    },
+    "r6": {
+      "artifact_id": 10389112524,
+      "artifact_path": "fresh/NAS100/market-evidence.json",
+      "sha256": "cf3ef22fa86916bfb2826f4fa48c7a9655b9509c76a05d9bb26d0d4cb6069581"
+    },
+    "r8": {
+      "artifact_id": 10402199719,
+      "artifact_path": "fresh/NAS100/market-evidence.json",
+      "sha256": "4031c7e21bb311fdb99d7b1028fd9ff154ace1dc4886249ff978b700fdeeedcb"
+    },
+    "consumed": {
+      "artifact_id": 10557487418,
+      "artifact_path": "NAS100/market-evidence.json",
+      "sha256": "acf2fa327a68a5a6d977dfdbc9c696cb13db6e0e7550b9da386f3699b5cf8d09"
+    }
+  },
+  "science": {
+    "control": "COMP006_CONTROL",
+    "primary_lane": "consumed",
+    "min_density": "0.75",
+    "min_winner_count_preservation": "0.80",
+    "min_winner_r_preservation": "0.90",
+    "all_lane_pf_floor": "1.50",
+    "hard_dd_max_r": "6",
+    "primary_pf_floor": "1.70",
+    "primary_mean_r_floor": "0.15",
+    "mc_paths_min": 10000,
+    "mc_positive_floor": "0.90",
+    "mc_p95_dd_max_r": "15",
+    "require_temporal_nondegrade": true
+  }
+}
