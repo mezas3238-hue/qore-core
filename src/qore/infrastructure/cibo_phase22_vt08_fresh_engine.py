@@ -378,6 +378,14 @@ def _candidate_setup_context(
     }
 
 
+def candidate_setup_context(
+    candidate: Vt08B01Candidate,
+) -> dict[str, str]:
+    """Expose outcome-free native VT08 setup semantics for causal replay."""
+
+    return _candidate_setup_context(candidate)
+
+
 def _opportunity(
     symbol: str,
     candidate: Vt08B01Candidate,
