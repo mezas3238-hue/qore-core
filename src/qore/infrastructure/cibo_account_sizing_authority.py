@@ -134,6 +134,8 @@ def plan_account_sizing(
     survival_capital_usd: Decimal,
     protected_capital_usd: Decimal,
     provider_cost_per_volume_usd: Decimal = Decimal(0),
+    original_base_available_usd: Decimal | None = None,
+    realized_profit_available_usd: Decimal | None = None,
 ) -> CiboAccountSizingDecision:
     """Choose size solely from account mission/capital facts and Trader geometry."""
 
@@ -162,6 +164,18 @@ def plan_account_sizing(
             raise CiboCapitalManagementError(
                 f"{name} must be finite non-negative Decimal"
             )
+    for name, value in (
+        ("original_base_available_usd", original_base_available_usd),
+        ("realized_profit_available_usd", realized_profit_available_usd),
+    ):
+        if value is not None and (
+            not isinstance(value, Decimal)
+            or not value.is_finite()
+            or value < 0
+        ):
+            raise CiboCapitalManagementError(
+                f"{name} must be finite non-negative Decimal when supplied"
+            )
 
     base_protected = protected_capital_usd >= survival_capital_usd
 
@@ -170,6 +184,8 @@ def plan_account_sizing(
             opportunity=opportunity,
             capital=capital,
             provider_cost_per_volume_usd=provider_cost_per_volume_usd,
+            original_base_available_usd=original_base_available_usd,
+            realized_profit_available_usd=realized_profit_available_usd,
             reason=(
                 "DEMO capability discovery: CIBO selected maximum executable "
                 "account-constrained size with explicit base/profit provenance"
@@ -230,6 +246,8 @@ def _maximum_capability_plan(
     opportunity: TraderOpportunityEnvelope,
     capital: CiboCapitalState,
     provider_cost_per_volume_usd: Decimal,
+    original_base_available_usd: Decimal | None,
+    realized_profit_available_usd: Decimal | None,
     reason: str,
 ) -> CiboCapitalActionPlan:
     """Size capability discovery without mislabeling compounded profit as base.
@@ -253,10 +271,24 @@ def _maximum_capability_plan(
         capital.realized_net_profit_usd,
         capital.proven_self_financing_capacity_usd,
     )
+    if realized_profit_available_usd is not None:
+        realized_profit_capacity = min(
+            realized_profit_capacity,
+            realized_profit_available_usd,
+        )
     original_base_capacity = max(
         Decimal(0),
         capital.assigned_capital_usd - capital.realized_net_profit_usd,
     )
+    if original_base_available_usd is not None:
+        original_base_capacity = min(
+            original_base_capacity,
+            original_base_available_usd,
+        )
+    if risk > original_base_capacity + realized_profit_capacity:
+        raise CiboCapitalManagementError(
+            "capability sizing risk exceeds currently available capital sources"
+        )
     base_amount = min(risk, original_base_capacity)
     profit_amount = risk - base_amount
     if profit_amount > realized_profit_capacity:
