@@ -15,7 +15,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from datetime import datetime
-from decimal import ROUND_FLOOR, Decimal
+from decimal import ROUND_FLOOR, Decimal, localcontext
 
 from qore.infrastructure.cibo_account_capital_mission import (
     CiboAccountCapitalIdentity,
@@ -323,6 +323,13 @@ def build_historical_ceiling_epoch_state(
             "historical ceiling open exposure exceeds declared capacity"
         )
 
+    # GEN-C10 enforces exact conservation with Fraction, so compute residual
+    # capacity under a precision high enough to preserve long compound decimals.
+    with localcontext() as context:
+        context.prec = 80
+        stop_risk_headroom = stop_capacity - used_stop
+        margin_headroom = margin_capacity - used_margin
+
     observed_opportunities: list[CiboObservedOpportunityState] = []
     known_options: list[Genc10KnownCapitalOption] = []
     for row in opportunities:
@@ -425,10 +432,10 @@ def build_historical_ceiling_epoch_state(
         source_capacities=_source_capacities(historical_capital),
         total_stop_risk_capacity_usd=stop_capacity,
         used_stop_risk_usd=used_stop,
-        stop_risk_headroom_usd=stop_capacity - used_stop,
+        stop_risk_headroom_usd=stop_risk_headroom,
         total_margin_capacity_usd=margin_capacity,
         used_margin_usd=used_margin,
-        margin_headroom_usd=margin_capacity - used_margin,
+        margin_headroom_usd=margin_headroom,
         active_deployment_count=len(historical_capital.open_deployments),
         provider_capability_counts=tuple(
             (status, 0) for status in CapabilityStatus
@@ -534,8 +541,8 @@ def build_historical_ceiling_epoch_state(
     )
     capital = CiboCapitalState(
         assigned_capital_usd=realized,
-        hard_risk_headroom_usd=stop_capacity - used_stop,
-        margin_headroom_usd=margin_capacity - used_margin,
+        hard_risk_headroom_usd=stop_risk_headroom,
+        margin_headroom_usd=margin_headroom,
         base_capital_at_risk_usd=(
             historical_capital.original_base_economic_value_usd
         ),
