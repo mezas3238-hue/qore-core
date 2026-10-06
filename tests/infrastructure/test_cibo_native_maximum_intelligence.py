@@ -15,7 +15,9 @@ from qore.infrastructure.cibo_ce2i_regime_selector import (
     ProviderCondition,
     VolatilityState,
 )
-from qore.infrastructure.cibo_executive_brain import CiboExecutiveDirectiveKind
+from qore.infrastructure.cibo_executive_brain import (
+    CiboExecutiveDirectiveKind,
+)
 from qore.infrastructure.cibo_native_maximum_intelligence import (
     run_native_maximum_intelligence,
     validate_native_maximum_perception,
