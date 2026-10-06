@@ -25,7 +25,6 @@ from qore.infrastructure.cibo_single_account_historical_ceiling_replay import (
     run_historical_ceiling_replay,
 )
 
-
 _INITIAL_CAPITAL_USD = Decimal("60")
 _ABLATION_NAME = "adaptive_leverage"
 _FIXED_MULTIPLIER = 1
