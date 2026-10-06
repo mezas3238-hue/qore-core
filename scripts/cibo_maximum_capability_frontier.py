@@ -21,6 +21,7 @@ from qore.infrastructure.cibo_maximum_capability_frontier import (
     POLICY_ID,
     CausalFrontierOpportunity,
     EpochOption,
+    LifecycleEvent,
     LifecycleFeature,
     PositionLifecycleResult,
     cognitive_multiplier_cap,
@@ -384,6 +385,52 @@ def _bars_by_symbol(
             symbol
         ] = evidence.bars
     return result
+
+
+def simulate_position_lifecycle(
+    opportunity: CausalFrontierOpportunity,
+    bars: tuple[Bar, ...],
+    *,
+    features: frozenset[LifecycleFeature],
+) -> PositionLifecycleResult:
+    """Adapt frontier geometry into the universal causal lifecycle engine."""
+
+    native = run_cibo_position_lifecycle(
+        CiboPositionLifecycleInput(
+            signal_fingerprint=opportunity.signal_fingerprint,
+            side=opportunity.side,
+            entry_at=opportunity.entry_at,
+            horizon_at=opportunity.horizon_at,
+            entry_price=opportunity.entry_price,
+            structural_stop=opportunity.structural_stop,
+            technical_target=opportunity.technical_target,
+            provider_cost_per_volume_usd=opportunity.provider_cost_per_volume_usd,
+            stop_risk_per_volume_usd=opportunity.stop_risk_per_volume_usd,
+            original_settlement_gross_r=opportunity.fallback_gross_r,
+        ),
+        bars,
+        features=frozenset(CiboLifecycleFeature(item.value) for item in features),
+    )
+    return PositionLifecycleResult(
+        signal_fingerprint=native.signal_fingerprint,
+        data_available=native.data_available,
+        gross_r=native.gross_r,
+        exit_at=native.exit_at,
+        events=tuple(
+            LifecycleEvent(
+                occurred_at=item.occurred_at,
+                action=item.action,
+                realized_r_delta=item.realized_r_delta,
+                remaining_volume_fraction=item.remaining_volume_fraction,
+                risk_fraction_remaining=item.risk_fraction_remaining,
+                margin_fraction_remaining=item.margin_fraction_remaining,
+            )
+            for item in native.events
+        ),
+        risk_released_before_exit_fraction=native.risk_released_before_exit_fraction,
+        margin_released_before_exit_fraction=native.margin_released_before_exit_fraction,
+        actions=native.actions,
+    )
 
 
 def _lifecycle_map(

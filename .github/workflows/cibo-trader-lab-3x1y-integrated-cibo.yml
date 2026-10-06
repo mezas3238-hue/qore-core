@@ -7,6 +7,10 @@ on:
       - agent/cibo-capital-efficiency-sizing-lab-001
     paths:
       - '.github/workflows/cibo-trader-lab-3x1y-integrated-cibo.yml'
+      - 'scripts/cibo_maximum_capability_frontier.py'
+      - 'src/qore/infrastructure/cibo_maximum_capability_frontier.py'
+      - 'src/qore/infrastructure/cibo_position_lifecycle.py'
+      - 'src/qore/infrastructure/cibo_profitability_lab_function_runtime.py'
 
 permissions:
   contents: read
