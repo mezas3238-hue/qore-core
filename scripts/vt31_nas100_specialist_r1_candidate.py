@@ -36,6 +36,9 @@ from qore.infrastructure.traders.vt31_nas100_cibo_causal_structure import (
 from qore.infrastructure.traders.vt31_nas100_cibo_market_memory import (
     cibo_market_memory_fingerprint,
 )
+from qore.infrastructure.traders.vt31_nas100_cognitive_plumbing import (
+    recent_liquidity_event_count_10m,
+)
 from qore.infrastructure.traders.vt31_nas100_cognitive_memory import (
     memory_fingerprint,
     validate_memory,
@@ -487,7 +490,13 @@ def _state_snapshot(
             reference_reclaim_age_minutes=reclaim_age,
             last_structure_event_family=last_family,
             last_structure_event_age_minutes=last_age,
-            recent_liquidity_event_count_10m=None,
+            recent_liquidity_event_count_10m=(
+                recent_liquidity_event_count_10m(
+                    cast(tuple[OhlcSnapshot, ...], session_prefix),
+                    source,
+                    decision_at,
+                )
+            ),
             displacement_state="STRUCTURAL_CONFIRMATION_OBSERVED",
             entry_evidence_family=executable.selected_family.value,
             confirmation_latency_minutes=confirmation_latency,
