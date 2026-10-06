@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from datetime import datetime
-from decimal import ROUND_FLOOR, Decimal, localcontext
+from decimal import ROUND_CEILING, ROUND_FLOOR, Decimal, localcontext
 from enum import StrEnum
 
 from qore.infrastructure.account_wide_risk import CiboRiskRequest
@@ -34,6 +34,7 @@ from qore.infrastructure.cibo_account_sizing_authority import (
 from qore.infrastructure.cibo_capital_management_authority import (
     CapitalAction,
     CapitalCapacityDimension,
+    CapitalSource,
     CiboCapitalActionPlan,
     CiboCapitalManagementError,
     CiboCapitalState,
@@ -59,6 +60,11 @@ from qore.infrastructure.cibo_executive_brain import (
 )
 from qore.infrastructure.cibo_full_economic_digital_twin import (
     CiboObservedEconomicTwin,
+)
+from qore.infrastructure.cibo_profit_preservation_shadow import (
+    Genc7Action,
+    Genc7PreservationProposalEvidence,
+    Genc7SourceBucket,
 )
 from qore.infrastructure.cibo_multi_period_capital_mpc import (
     Genc11KnownOptionSchedule,
@@ -489,7 +495,7 @@ def run_cibo_sovereign_capital_runtime(
         )
 
     if (
-        sizing.plan.action is CapitalAction.EXPAND
+        _plan_uses_realized_profit(sizing.plan)
         and not capital_science.allow_incremental_compound
     ):
         final_plan = _hold_plan(
@@ -713,6 +719,45 @@ def _build_capital_science_state(
             "Capital Science peak realized capital must be finite and "
             "not below current realized capital"
         )
+    genc7_proposal = None
+    if sizing.plan.volume > 0 and _plan_uses_realized_profit(sizing.plan):
+        with localcontext() as context:
+            context.prec = 100
+            compound_request_capital = (
+                sizing.plan.stop_risk_usd + current_provider_cost_usd
+            )
+        if compound_request_capital > 0:
+            horizon = max(
+                1,
+                int(
+                    target.expected_capital_minutes.to_integral_value(
+                        rounding=ROUND_CEILING
+                    )
+                ),
+            )
+            genc7_proposal = Genc7PreservationProposalEvidence(
+                proposal_id=(
+                    "genc7:upstream-sizing:"
+                    + decision_id
+                    + ":"
+                    + opportunity.signal_fingerprint
+                ),
+                decision_at=twin.captured_at,
+                account_identity=twin.capital_twin.account_identity,
+                action=Genc7Action.COMPOUND,
+                source_bucket=(
+                    Genc7SourceBucket.COMPOUNDABLE_OR_RELEASED_CAPACITY
+                ),
+                amount_usd=compound_request_capital,
+                evidence_sha256=target.evidence_sha256,
+                rationale_code=(
+                    "CAUSAL_REALIZED_PROFIT_SIZING_PROPOSAL"
+                ),
+                evaluation_horizon_minutes=horizon,
+                calibrated=True,
+                capital_eligible=target.capital_source_eligible,
+            )
+
     return CapitalSciencePredecisionInput(
         decision_epoch_id=decision_id,
         signal_fingerprint=opportunity.signal_fingerprint,
@@ -741,6 +786,18 @@ def _build_capital_science_state(
         account_identity=twin.capital_twin.account_identity,
         regime_state=regime_state,
         known_simultaneous_opportunities=known,
+        genc7_proposal=genc7_proposal,
+    )
+
+
+def _plan_uses_realized_profit(plan: CiboCapitalActionPlan) -> bool:
+    """Return whether any requested stop-risk is sourced from realized profit."""
+
+    if plan.capital_source is CapitalSource.REALIZED_PROFIT:
+        return plan.stop_risk_usd > 0
+    return any(
+        item.source is CapitalSource.REALIZED_PROFIT and item.amount_usd > 0
+        for item in plan.capital_source_lots
     )
 
 
