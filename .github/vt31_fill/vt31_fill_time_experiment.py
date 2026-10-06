@@ -22,8 +22,13 @@ def _d(value: object) -> Decimal:
 def _preservation(
     control: list[dict[str, object]],
     candidate: list[dict[str, object]],
-) -> dict[str, str]:
-    return admission._winner_preservation(control, candidate)
+) -> dict[str, object]:
+    raw = admission._winner_preservation(control, candidate)
+    return {
+        **raw,
+        "count": raw["winner_count_preservation"],
+        "r": raw["winner_r_preservation"],
+    }
 
 
 def _payload(
