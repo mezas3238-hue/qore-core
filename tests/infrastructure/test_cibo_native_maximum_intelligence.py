@@ -48,12 +48,18 @@ def _regime() -> CiboCapitalRegimeState:
 def _opportunity(
     trader: TraderLineage,
     context: tuple[tuple[str, str], ...],
+    *,
+    qore_symbol: str | None = None,
+    provider_symbol: str | None = None,
 ) -> TraderOpportunityEnvelope:
+    default_symbol = (
+        "XAUUSD" if trader is TraderLineage.R34_XAUUSD else "NAS100"
+    )
     return TraderOpportunityEnvelope(
         trader_id=trader,
         signal_fingerprint="signal-native-max-001",
-        qore_symbol="XAUUSD" if trader is TraderLineage.R34_XAUUSD else "NAS100",
-        provider_symbol="XAUUSD" if trader is TraderLineage.R34_XAUUSD else "USTEC",
+        qore_symbol=qore_symbol or default_symbol,
+        provider_symbol=provider_symbol or default_symbol,
         side="long",
         entry_type="market",
         intended_entry=Decimal("100"),
@@ -219,3 +225,42 @@ def test_native_max_positive_context_remains_recommend_without_fake_gate() -> No
     assert result.synthesis.directive is CiboExecutiveDirectiveKind.RECOMMEND
     assert result.cognitive_episode.abstention_required is False
     assert result.cognitive_episode.decision_gate_codes == ()
+
+
+def test_native_max_perception_accepts_universal_trader_market_contract() -> None:
+    opportunity = _opportunity(
+        TraderLineage("UNIVERSAL_TRADER_001"),
+        (
+            ("cibo_native_perception_complete", "true"),
+            ("cibo_native_perception_version", "universal-v1"),
+            ("source_context_causal", "true"),
+            ("market_structure_state", "balanced"),
+        ),
+        qore_symbol="BTCUSD",
+        provider_symbol="BTC-USD",
+    )
+
+    counts = validate_native_maximum_perception((opportunity,))
+
+    assert counts == (("signal-native-max-001", 4),)
+    assert opportunity.trader_id.value == "UNIVERSAL_TRADER_001"
+    assert opportunity.qore_symbol == "BTCUSD"
+    assert opportunity.provider_symbol == "BTC-USD"
+
+
+def test_native_max_perception_rejects_incomplete_universal_contract() -> None:
+    opportunity = _opportunity(
+        TraderLineage("UNIVERSAL_TRADER_002"),
+        (
+            ("cibo_native_perception_complete", "true"),
+            ("cibo_native_perception_version", "universal-v1"),
+        ),
+        qore_symbol="ES",
+        provider_symbol="ESZ6",
+    )
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="universal native perception contract incomplete",
+    ):
+        validate_native_maximum_perception((opportunity,))
