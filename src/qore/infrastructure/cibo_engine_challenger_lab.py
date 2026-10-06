@@ -124,15 +124,21 @@ def _baseline_score(
 ) -> CiboAllocationPathScore:
     constraints = observed_twin_constraints(twin)
     cognitive = dict(twin.cognitive_constraints)
+    dynamic_default_cap = max(
+        (item.maximum_multiplier for item in twin.opportunities),
+        default=0,
+    )
     try:
-        cognitive_cap = int(cognitive.get("capital_intensity_cap", "4"))
+        cognitive_cap = int(
+            cognitive.get("capital_intensity_cap", str(dynamic_default_cap))
+        )
     except (TypeError, ValueError) as error:
         raise CiboCapitalManagementError(
-            "Challenger cognitive capital cap must be integer 0..4"
+            "Challenger cognitive capital cap must be a non-negative integer"
         ) from error
-    if cognitive_cap not in {0, 1, 2, 3, 4}:
+    if cognitive_cap < 0:
         raise CiboCapitalManagementError(
-            "Challenger cognitive capital cap outside 0..4"
+            "Challenger cognitive capital cap cannot be negative"
         )
 
     ordered = tuple(
