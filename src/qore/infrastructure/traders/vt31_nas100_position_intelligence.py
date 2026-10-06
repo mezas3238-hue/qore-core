@@ -584,6 +584,7 @@ def assess_full_cognitive_position(
     entry_tier: str | None = None,
     dol1_acceptance_observed: bool | None = None,
     entry_situation_fingerprint: str | None = None,
+    current_reasoning: Nas100ReasoningDecision | None = None,
 ) -> FullCognitivePositionState:
     """Synthesize current cognition from frozen entry reasoning + live situation."""
 
@@ -596,6 +597,12 @@ def assess_full_cognitive_position(
     if reasoning.situation_fingerprint != bound_entry_fingerprint:
         raise ValueError("entry reasoning fingerprint mismatch")
     post_entry_reassessment = current_fingerprint != bound_entry_fingerprint
+    if current_reasoning is not None:
+        if current_reasoning.situation_fingerprint != current_fingerprint:
+            raise ValueError("current reasoning fingerprint mismatch")
+        active_reasoning = current_reasoning
+    else:
+        active_reasoning = reasoning
 
     observed_domains = REQUIRED_COGNITIVE_DOMAINS
     signals: list[str] = []
@@ -678,11 +685,19 @@ def assess_full_cognitive_position(
                 reasoning.trader_experience_memory_fingerprint,
                 reasoning.memory_fingerprint,
                 reasoning.situation_fingerprint,
+                active_reasoning.strategy_memory_fingerprint,
+                active_reasoning.cibo_market_memory_fingerprint,
+                active_reasoning.trader_experience_memory_fingerprint,
+                active_reasoning.memory_fingerprint,
+                active_reasoning.situation_fingerprint,
             )
         )
         and bool(reasoning.strategy_memory_used)
         and bool(reasoning.cibo_market_memory_used)
         and bool(reasoning.trader_experience_memory_used)
+        and bool(active_reasoning.strategy_memory_used)
+        and bool(active_reasoning.cibo_market_memory_used)
+        and bool(active_reasoning.trader_experience_memory_used)
     )
     domain_coverage_complete = (
         set(observed_domains) == set(REQUIRED_COGNITIVE_DOMAINS)
@@ -693,9 +708,9 @@ def assess_full_cognitive_position(
         and situation_accounting_complete
         and coverage_ratio == Decimal("1")
     )
-    reasoning_max_intelligence_ready = reasoning.max_intelligence_ready
+    reasoning_max_intelligence_ready = active_reasoning.max_intelligence_ready
     reasoning_max_intelligence_blockers = (
-        reasoning.max_intelligence_blockers
+        active_reasoning.max_intelligence_blockers
     )
     maximum_cognition_verified = (
         full_cognitive_accounting_verified
@@ -711,49 +726,56 @@ def assess_full_cognitive_position(
         for blocker in reasoning_max_intelligence_blockers
     )
 
-    support += min(3, len(reasoning.supporting_evidence))
+    if current_reasoning is not None:
+        signals.append(f"ENTRY_REASONING_FROZEN_ACTION:{reasoning.action}")
+        signals.append(
+            f"CURRENT_REASONING_REASSESSED_ACTION:{active_reasoning.action}"
+        )
+
+    support += min(3, len(active_reasoning.supporting_evidence))
     signals.extend(
         f"REASONING_SUPPORT:{code}"
-        for code in reasoning.supporting_evidence
+        for code in active_reasoning.supporting_evidence
     )
     signals.extend(
         f"REASONING_CONTEXT:{code}"
-        for code in reasoning.context_observations
+        for code in active_reasoning.context_observations
     )
     signals.extend(
         f"STRATEGY_MEMORY_USED:{name}"
-        for name in reasoning.strategy_memory_used
+        for name in active_reasoning.strategy_memory_used
     )
     signals.extend(
         f"CIBO_MEMORY_USED:{name}"
-        for name in reasoning.cibo_market_memory_used
+        for name in active_reasoning.cibo_market_memory_used
     )
     signals.extend(
         f"EXPERIENCE_MEMORY_USED:{name}"
-        for name in reasoning.trader_experience_memory_used
+        for name in active_reasoning.trader_experience_memory_used
     )
 
-    if reasoning.action == "EXECUTE":
+    if active_reasoning.action == "EXECUTE":
         support += 2
         signals.append("REASONING_EXECUTE_SOVEREIGN")
     else:
         caution += 4
-        signals.append(f"REASONING_NOT_EXECUTE:{reasoning.action}")
+        signals.append(f"REASONING_NOT_EXECUTE:{active_reasoning.action}")
 
-    if reasoning.contradictions:
-        caution += min(6, 2 * len(reasoning.contradictions))
+    if active_reasoning.contradictions:
+        caution += min(6, 2 * len(active_reasoning.contradictions))
         signals.extend(
             f"REASONING_CONTRADICTION:{code}"
-            for code in reasoning.contradictions
+            for code in active_reasoning.contradictions
         )
     else:
         support += 1
         signals.append("REASONING_NO_CONTRADICTIONS")
 
-    if reasoning.uncertainty:
-        caution += min(3, len(reasoning.uncertainty))
+    if active_reasoning.uncertainty:
+        caution += min(3, len(active_reasoning.uncertainty))
         signals.extend(
-            f"REASONING_UNCERTAINTY:{code}" for code in reasoning.uncertainty
+            f"REASONING_UNCERTAINTY:{code}"
+            for code in active_reasoning.uncertainty
         )
 
     if situation.volatility_state == "compressed":
@@ -927,7 +949,7 @@ def assess_full_cognitive_position(
             support += 1
             signals.append("EARLY_SESSION_EXTENSION_WINDOW")
 
-    if exhaustion or reasoning.action != "EXECUTE":
+    if exhaustion or active_reasoning.action != "EXECUTE":
         context = ManagementContext.CAUTIOUS
     elif support - caution >= 3:
         context = ManagementContext.SUPPORTIVE
