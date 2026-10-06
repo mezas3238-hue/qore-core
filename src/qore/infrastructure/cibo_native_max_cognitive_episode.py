@@ -434,7 +434,16 @@ def _attention(
     context_quality_disposition = target_context.get(
         "cibo_context_quality_disposition"
     )
-    if context_quality_disposition == "ABSTAIN":
+    context_quality_hard_gate = (
+        target_context.get(
+            "cibo_context_quality_hard_gate_authorized"
+        )
+        == "true"
+    )
+    if (
+        context_quality_disposition == "ABSTAIN"
+        and context_quality_hard_gate
+    ):
         add(
             AttentionSignalKind.CONTRADICTION,
             95,
@@ -442,6 +451,13 @@ def _attention(
             "causal-predecision-context-quality",
         )
         decision_gate_codes.append("CF16")
+    elif context_quality_disposition == "ABSTAIN":
+        add(
+            AttentionSignalKind.PENDING_GOAL,
+            35,
+            "research-only-context-quality-warning",
+            "non-authoritative-context-research",
+        )
 
     expected_net_utility_raw = target_economics.get(
         "expected_net_utility_usd"
@@ -461,7 +477,10 @@ def _attention(
                 "native cognitive CF07 expected net utility non-finite"
             )
         if (
-            context_quality_disposition != "ABSTAIN"
+            not (
+                context_quality_disposition == "ABSTAIN"
+                and context_quality_hard_gate
+            )
             and expected_net_utility <= 0
         ):
             add(
@@ -516,10 +535,14 @@ def _attention(
             or regime.correlation is CorrelationState.BREAK
         )
     )
-    semantic_abstain = (
+    context_quality_abstain = (
         context_quality_disposition == "ABSTAIN"
+        and context_quality_hard_gate
+    )
+    semantic_abstain = (
+        context_quality_abstain
         or (
-            context_quality_disposition != "ABSTAIN"
+            not context_quality_abstain
             and expected_net_utility is not None
             and expected_net_utility <= 0
         )
@@ -533,7 +556,7 @@ def _attention(
     if missing:
         kind = "more_evidence_requested"
         note = "fresh-provider-or-causal-evidence-required"
-    elif context_quality_disposition == "ABSTAIN":
+    elif context_quality_abstain:
         kind = "abstain_defer"
         note = "context-quality-abstention"
     elif (
