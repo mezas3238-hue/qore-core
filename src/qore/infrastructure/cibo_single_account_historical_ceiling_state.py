@@ -373,7 +373,7 @@ def build_historical_ceiling_epoch_state(
                 minimum_volume,
             ).to_integral_value(rounding=ROUND_FLOOR)
         )
-        maximum_multiplier = max(0, min(4, provider_cap))
+        maximum_multiplier = max(0, provider_cap)
         option_id = opportunity.signal_fingerprint
         evidence_sha = _sha(
             "historical-opportunity",
@@ -547,7 +547,10 @@ def build_historical_ceiling_epoch_state(
         portfolio=portfolio,
         velocity=velocity,
         cognitive_constraints=(
-            ("capital_intensity_cap", "4"),
+            (
+                "capital_intensity_cap",
+                str(max((item.maximum_multiplier for item in observed_opportunities), default=0)),
+            ),
             ("historical_research_projection", "true"),
             ("native_max_required", "true"),
         ),
