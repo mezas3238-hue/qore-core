@@ -8,6 +8,7 @@ on:
     paths:
       - '.github/workflows/cibo-function-economic-sensors-full-replay.yml'
       - 'scripts/cibo_single_account_historical_ceiling_replay.py'
+      - 'scripts/cibo_analyze_sensor_influence_and_loss.py'
       - 'src/qore/infrastructure/cibo_cognitive_reach_sensors.py'
       - 'src/qore/infrastructure/cibo_function_economic_sensors.py'
       - 'src/qore/infrastructure/cibo_single_account_sovereign_ceiling_run.py'
@@ -41,8 +42,8 @@ jobs:
       - name: Validate sensor replay surface
         run: |
           set -euo pipefail
-          python -m py_compile scripts/cibo_single_account_historical_ceiling_replay.py src/qore/infrastructure/cibo_cognitive_reach_sensors.py src/qore/infrastructure/cibo_function_economic_sensors.py src/qore/infrastructure/cibo_single_account_sovereign_ceiling_run.py
-          ruff check scripts/cibo_single_account_historical_ceiling_replay.py src/qore/infrastructure/cibo_cognitive_reach_sensors.py src/qore/infrastructure/cibo_function_economic_sensors.py src/qore/infrastructure/cibo_single_account_sovereign_ceiling_run.py
+          python -m py_compile scripts/cibo_single_account_historical_ceiling_replay.py scripts/cibo_analyze_sensor_influence_and_loss.py src/qore/infrastructure/cibo_cognitive_reach_sensors.py src/qore/infrastructure/cibo_function_economic_sensors.py src/qore/infrastructure/cibo_single_account_sovereign_ceiling_run.py
+          ruff check scripts/cibo_single_account_historical_ceiling_replay.py scripts/cibo_analyze_sensor_influence_and_loss.py src/qore/infrastructure/cibo_cognitive_reach_sensors.py src/qore/infrastructure/cibo_function_economic_sensors.py src/qore/infrastructure/cibo_single_account_sovereign_ceiling_run.py
           pytest -q --no-cov tests/infrastructure/test_cibo_cognitive_reach_sensors.py tests/infrastructure/test_cibo_function_economic_sensors.py tests/infrastructure/test_cibo_single_account_historical_ceiling_epoch.py
 
       - name: Recover frozen Native MAX input
@@ -92,6 +93,11 @@ jobs:
           mkdir -p "$RUNNER_TEMP/sensors"
           python scripts/cibo_single_account_historical_ceiling_replay.py --manifest "$MANIFEST" --output "$RUNNER_TEMP/sensors/historical-ceiling-replay-with-sensors.json" --progress-every 100
 
+      - name: Analyze decision influence and loss concentration
+        run: |
+          set -euo pipefail
+          python scripts/cibo_analyze_sensor_influence_and_loss.py --replay "$RUNNER_TEMP/sensors/historical-ceiling-replay-with-sensors.json" --output "$RUNNER_TEMP/sensors/influence-loss-analysis.json"
+
       - name: Prove cognitive reach coverage
         run: |
           set -euo pipefail
@@ -124,6 +130,12 @@ jobs:
           for code in ("NATIVE_PERCEPTION", "MISSION_DIRECTOR", "FUNCTIONAL_COORDINATOR", "WORLD_MODEL", "ATTENTION_CONTEXT", "REASONING_ROUTING", "CALIBRATION", "SCENARIO_ENGINE", "CAUSAL_REASONING", "METACOGNITION", "COGNITIVE_INTEGRATION", "EXECUTIVE_SYNTHESIS"):
               assert code in components
               assert components[code]["event_count"] == 3368
+
+          analysis_path = Path(os.environ["RUNNER_TEMP"]) / "sensors" / "influence-loss-analysis.json"
+          analysis = json.loads(analysis_path.read_text())
+          assert analysis["decision_count"] == 3368
+          assert analysis["settlement_count"] == payload["settlement_count"]
+          assert analysis["interpretation_contract"]["causal_contribution_requires_frozen_isolated_ablation"] is True
 
           summary = {
               "ending_capital_usd": payload["ending_capital_usd"],
