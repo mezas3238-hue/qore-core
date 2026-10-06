@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from collections import defaultdict
 from decimal import Decimal
 from pathlib import Path
 from typing import cast
@@ -73,6 +74,130 @@ def _should_abstain(row: dict[str, object]) -> bool:
     )
 
 
+def _residual_entry_quality_forensics(
+    rows: list[dict[str, object]],
+) -> dict[str, object]:
+    samples: list[dict[str, object]] = []
+    for row in rows:
+        context = cast(dict[str, object], row.get("entry_context", {}))
+        net_r = _d(row["r_multiple"]) - specialist.FRICTION
+        samples.append(
+            {
+                "net_r": net_r,
+                "winner": net_r > 0,
+                "loser": net_r < 0,
+                "entry_family": str(row["entry_family"]),
+                "side": str(row["side"]),
+                "prior_day_state": str(
+                    context.get("prior_day_state", "NA")
+                ),
+                "reference_volatility_state": str(
+                    context.get("reference_volatility_state", "NA")
+                ),
+                "h1_state": str(context.get("h1_state", "NA")),
+                "m15_state": str(context.get("m15_state", "NA")),
+                "premarket_state": str(
+                    context.get("premarket_state", "NA")
+                ),
+                "cash_open_state": str(
+                    context.get("cash_open_state", "NA")
+                ),
+                "position_in_prior_day_range": str(
+                    context.get("position_in_prior_day_range", "NA")
+                ),
+                "reclaim_sequence_state": adverse._reclaim_sequence_state(
+                    context.get("reference_reclaim_age_minutes")
+                ),
+                "confirmation_latency_state": (
+                    adverse._confirmation_latency_state(
+                        context.get("confirmation_latency_minutes")
+                    )
+                ),
+            }
+        )
+
+    fields = (
+        (
+            "entry_family",
+            "side",
+            "prior_day_state",
+            "reference_volatility_state",
+            "h1_state",
+        ),
+        (
+            "entry_family",
+            "side",
+            "prior_day_state",
+            "reference_volatility_state",
+            "h1_state",
+            "cash_open_state",
+        ),
+        (
+            "entry_family",
+            "side",
+            "prior_day_state",
+            "reference_volatility_state",
+            "h1_state",
+            "premarket_state",
+            "cash_open_state",
+        ),
+        (
+            "entry_family",
+            "side",
+            "reference_volatility_state",
+            "h1_state",
+            "m15_state",
+        ),
+        (
+            "entry_family",
+            "side",
+            "prior_day_state",
+            "position_in_prior_day_range",
+        ),
+        (
+            "entry_family",
+            "side",
+            "reference_volatility_state",
+            "reclaim_sequence_state",
+            "confirmation_latency_state",
+        ),
+    )
+
+    grouped: dict[str, dict[str, object]] = {}
+    for field_tuple in fields:
+        table: dict[str, list[dict[str, object]]] = defaultdict(list)
+        for sample in samples:
+            key = "|".join(str(sample[field]) for field in field_tuple)
+            table[key].append(sample)
+        grouped["+".join(field_tuple)] = {
+            key: {
+                "sample": len(items),
+                "wins": sum(bool(item["winner"]) for item in items),
+                "losses": sum(bool(item["loser"]) for item in items),
+                "mean_net_r": format(
+                    sum(
+                        (
+                            cast(Decimal, item["net_r"])
+                            for item in items
+                        ),
+                        Decimal(0),
+                    )
+                    / Decimal(len(items)),
+                    "f",
+                ),
+            }
+            for key, items in sorted(table.items())
+        }
+
+    return {
+        "observation_only": True,
+        "action_authority": False,
+        "outcome_runtime_authority": False,
+        "trade_count": len(samples),
+        "groups": grouped,
+    }
+
+
 def _report(
     *,
     structural_count: int,
@@ -115,6 +240,9 @@ def _report(
             rows,
         ),
         "sequence_diagnostics": composition._sequence_diagnostics(rows),
+        "residual_entry_quality_forensics": (
+            _residual_entry_quality_forensics(rows)
+        ),
         "max_drawdown_episode_forensics": (
             adverse._max_drawdown_episode_forensics(
                 comparator,
@@ -218,6 +346,8 @@ def replay(evidence_path: Path) -> dict[str, object]:
             "only_admission_degree_of_freedom": True,
             "recovery_exception_entry_time_only": True,
             "reclaim_fresh_bucket_preexisting": True,
+            "residual_entry_quality_forensics_observation_only": True,
+            "residual_entry_quality_forensics_action_authority": False,
             "new_numeric_threshold_added": False,
             "outcome_used_for_action": False,
             "fold_identity_used_for_action": False,
