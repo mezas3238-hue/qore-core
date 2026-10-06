@@ -9,8 +9,10 @@ on:
       - '.github/workflows/cibo-causal-expectation-chronology.yml'
       - 'src/qore/infrastructure/cibo_ce2i_phase20_train_prior.py'
       - 'src/qore/infrastructure/cibo_single_account_manifest_economics.py'
+      - 'src/qore/infrastructure/cibo_native_max_cognitive_episode.py'
       - 'tests/infrastructure/test_cibo_ce2i_phase20_train_prior.py'
       - 'tests/infrastructure/test_cibo_single_account_manifest_economics.py'
+      - 'tests/infrastructure/test_cibo_native_maximum_intelligence.py'
 
 permissions:
   contents: read
