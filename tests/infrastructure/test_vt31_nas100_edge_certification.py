@@ -11,6 +11,7 @@ from qore.infrastructure.traders.vt31_nas100_edge_certification import (
     VOLUME_AGNOSTIC,
     build_edge_only_report,
     normalized_trade_rows,
+    validate_max_intelligence_governance,
     validate_pure_edge_runtime_governance,
     winner_preservation,
 )
@@ -34,6 +35,16 @@ def _pure_runtime_governance() -> dict[str, object]:
         "capital_weighting_used": False,
         "volume_agnostic": True,
         "r_role": "runtime_strategy_and_evaluation_allowed",
+    }
+
+
+def _max_intelligence_governance() -> dict[str, object]:
+    return {
+        "maximum_intelligence_required": True,
+        "max_intelligence_ready": True,
+        "applicable_domains_all_consulted": True,
+        "unwired_domains": [],
+        "bypassed_available_domains": [],
     }
 
 
@@ -318,3 +329,48 @@ def test_report_binds_verified_pure_edge_runtime_governance() -> None:
     assert report["passes_available_development_gates"] == (
         report["passes_economic_development_gates"]
     )
+
+
+def test_maximum_intelligence_gate_fails_when_any_domain_is_unwired() -> None:
+    governance = _max_intelligence_governance()
+    governance["max_intelligence_ready"] = False
+    governance["unwired_domains"] = ["M15_CONTEXT"]
+
+    result = validate_max_intelligence_governance(governance)
+
+    assert result["verified"] is False
+    assert "max_intelligence_ready" in result["blockers"]
+    assert "unwired_domains" in result["blockers"]
+
+
+def test_maximum_intelligence_gate_accepts_complete_cognition() -> None:
+    result = validate_max_intelligence_governance(
+        _max_intelligence_governance()
+    )
+
+    assert result["verified"] is True
+    assert result["blockers"] == []
+    assert result["maximum_intelligence_required_for_freeze"] is True
+
+
+def test_edge_report_exposes_maximum_intelligence_freeze_gate() -> None:
+    incomplete = build_edge_only_report(
+        _rows(),
+        monte_carlo_paths=100,
+        runtime_governance=_pure_runtime_governance(),
+    )
+    complete = build_edge_only_report(
+        _rows(),
+        monte_carlo_paths=100,
+        runtime_governance=_pure_runtime_governance(),
+        intelligence_governance=_max_intelligence_governance(),
+    )
+
+    assert incomplete["maximum_intelligence_gate"] is False
+    assert (
+        incomplete["maximum_intelligence"]["blockers"]
+        == ["intelligence_governance_missing"]
+    )
+    assert complete["maximum_intelligence_gate"] is True
+    assert complete["maximum_intelligence"]["verified"] is True
+    assert complete["maximum_intelligence_required_for_freeze"] is True
