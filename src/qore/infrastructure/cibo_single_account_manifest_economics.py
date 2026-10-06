@@ -15,6 +15,9 @@ from decimal import Decimal, localcontext
 from typing import Any
 
 from qore.infrastructure.account_wide_risk import TraderLineage
+from qore.infrastructure.cibo_ce2i_causal_expectation import (
+    CausalExpectationBasis,
+)
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
     TraderOpportunityEnvelope,
@@ -279,6 +282,9 @@ def manifest_row_to_ceiling_opportunity_evidence(
         ),
         provider_cost_per_volume_usd=manifest_row_provider_cost_per_volume_usd(row),
         expectation_evidence_sha256=_canonical_sha256(expectation),
+        expectation_basis=CausalExpectationBasis(
+            str(expectation["basis"])
+        ),
         context_allowed=disposition == "ALLOW",
         provider_viable=True,
         capital_source_eligible=True,
