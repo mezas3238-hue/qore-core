@@ -17,9 +17,6 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from cibo_build_walk_forward_expectation_manifest import build_walk_forward_manifest
-from qore.infrastructure.cibo_maximum_capability_frontier import (
-    cognitive_multiplier_cap,
-)
 from qore.infrastructure.cibo_single_account_manifest_economics import (
     manifest_row_to_ceiling_opportunity_evidence,
 )
@@ -77,13 +74,6 @@ def _compact_row(row: dict[str, Any]) -> dict[str, object]:
         "settlement_outcome_research_only",
     )
     context = dict(opportunity.decision_context)
-    cognitive = _mapping(
-        row.get("cognitive_orchestration"),
-        "cognitive_orchestration",
-    )
-    frontier_cap, frontier_codes, frontier_reason = cognitive_multiplier_cap(
-        cognitive
-    )
     minimum_volume = opportunity.minimum_volume * Decimal(
         opportunity.minimum_execution_steps
     )
@@ -153,9 +143,6 @@ def _compact_row(row: dict[str, Any]) -> dict[str, object]:
             "cibo_expected_net_utility_usd",
             "0",
         ),
-        "maximum_frontier_cap": frontier_cap,
-        "maximum_frontier_consumed_codes": list(frontier_codes),
-        "maximum_frontier_reason": frontier_reason,
         "regime": _regime(row),
         "settlement": {
             "entry_at": str(outcome["entry_at"]),
