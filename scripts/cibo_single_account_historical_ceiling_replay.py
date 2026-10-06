@@ -13,6 +13,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+from qore.infrastructure.cibo_ceiling_ablation import CiboCeilingAblationMode
 from qore.infrastructure.cibo_function_economic_sensors import (
     summarize_function_sensors,
 )
@@ -80,6 +81,12 @@ def main() -> int:
         type=int,
         default=100,
     )
+    parser.add_argument(
+        "--ablation",
+        choices=tuple(item.value for item in CiboCeilingAblationMode),
+        default=CiboCeilingAblationMode.FULL.value,
+        help="Research-only causal ablation mode.",
+    )
     args = parser.parse_args()
     if args.progress_every < 0:
         parser.error("--progress-every must be non-negative")
@@ -109,6 +116,7 @@ def main() -> int:
         manifest,
         provider_assumption=assumption,
         progress_hook=progress,
+        ablation_mode=CiboCeilingAblationMode(args.ablation),
     )
     function_sensors = tuple(
         sensor
@@ -118,6 +126,7 @@ def main() -> int:
     payload = {
         "schema": "qore.cibo.single-account-historical-ceiling-replay.v1",
         "source_manifest_sha256": result.source_manifest_sha256,
+        "ablation_mode": result.ablation_mode.value,
         "decision_epoch_count": result.decision_epoch_count,
         "decision_count": len(result.decision_receipts),
         "settlement_count": len(result.settlement_receipts),
