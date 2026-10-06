@@ -213,3 +213,33 @@ def test_portfolio_and_leverage_ablation_seams_are_orthogonal(monkeypatch) -> No
 
     assert observed["ids"] == ("a",)
     assert observed["fixed_multiplier"] == 1
+
+
+
+def test_compound_ablation_holds_when_base_cannot_fund_minimum_seed() -> None:
+    opportunity = _opportunity()
+    capital = CiboCapitalState(
+        assigned_capital_usd=Decimal("100"),
+        hard_risk_headroom_usd=Decimal("100"),
+        margin_headroom_usd=Decimal("1000"),
+        base_capital_at_risk_usd=Decimal("0.5"),
+        realized_net_profit_usd=Decimal("40"),
+        protected_open_economic_floor_usd=Decimal("0"),
+        proven_self_financing_capacity_usd=Decimal("40"),
+        reserved_expansion_risk_usd=Decimal("0"),
+        cost_reserve_usd=Decimal("0"),
+    )
+
+    ablated = runtime._plan_without_compound_funding(
+        opportunity=opportunity,
+        capital=capital,
+        mission_policy=_mission_policy(),
+        survival_capital_usd=Decimal("60"),
+        protected_capital_usd=Decimal("0"),
+        provider_cost_per_volume_usd=Decimal("0"),
+        original_base_available_usd=Decimal("0.5"),
+    )
+
+    assert ablated.plan.action is CapitalAction.HOLD
+    assert ablated.plan.volume == Decimal("0")
+    assert "cannot finance the minimum executable seed" in ablated.plan.reason
