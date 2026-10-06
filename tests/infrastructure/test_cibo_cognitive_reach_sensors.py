@@ -99,9 +99,11 @@ def test_cognitive_summary_requires_individual_ablation_to_name_contributor() ->
     assert cf01["constraint_or_gate_count"] == 1
     assert cf01["individual_contribution_state"] == "ABLATION_PROVEN"
     assert cf01["individual_delta_ending_capital_vs_full_usd"] == "141.70"
+    assert cf01["economic_contribution_class"] == "POSITIVE_CONTRIBUTOR"
 
     assert cf02["individual_contribution_state"] == "UNPROVEN"
     assert cf02["individual_delta_ending_capital_vs_full_usd"] is None
+    assert cf02["economic_contribution_class"] == "UNPROVEN"
 
     global_ablation = summary["global_cognition_ablation"]
     assert global_ablation["state"] == "ABLATION_PROVEN"
