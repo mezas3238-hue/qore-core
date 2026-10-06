@@ -12,6 +12,14 @@ Variants:
 - W5_DOL2_COG_NO_PROTECTION
 - W5_DOL2_COG_PS1
 - W5_DOL2_COG_PS2
+- W3_DOL2_STRICT_COG_NO_PROTECTION
+- W3_DOL2_STRICT_COG_PS2
+- W5_DOL2_STRICT_COG_NO_PROTECTION
+- W5_DOL2_STRICT_COG_PS2
+
+Strict cognition requires accepted DOL1 plus PERSISTENT/RECOVERED journey,
+management-ready SUPPORTIVE context, EXECUTE position reasoning, and the
+accepted-state DOL2 target intent.
 
 A protective swing observed on a closed M1 becomes effective from the next M1.
 Only one structural stop improvement is allowed. No sizing or volume authority.
@@ -31,6 +39,10 @@ import vt31_nas100_intelligence_policy_lab_v2b as v2b
 import vt31_nas100_sovereign_r_management_frontier_v1 as r_frontier
 import vt31_nas100_specialist_r1_candidate as specialist
 import vt31_nas100_target_depth_economic_frontier_v2 as depth
+
+from qore.infrastructure.traders.vt31_nas100_position_intelligence import (
+    ManagementContext,
+)
 
 SCHEMA = "qore.vt31.nas100.dol2_cognitive_protection_frontier.v1"
 WINDOWS = (3, 5)
@@ -57,6 +69,7 @@ def _simulate(
     *,
     window: int,
     confirmations_required: int | None,
+    strict_cognition: bool = False,
 ) -> dict[str, object]:
     side = str(getattr(getattr(executable, "side"), "value"))
     entry = _d(getattr(executable, "entry_price"))
@@ -189,6 +202,16 @@ def _simulate(
                 current_reasoning=current_reasoning,
                 persistence_state=persistence_state,
             )
+            if strict_cognition:
+                cognition_allowed = bool(
+                    cognition_allowed
+                    and cognition_state == "READY"
+                    and persistence_state
+                    in {"PERSISTENT_1R_FLOOR", "RECOVERED_1R_FLOOR"}
+                    and cognition is not None
+                    and cognition.management_context
+                    is ManagementContext.SUPPORTIVE
+                )
             if cognition_allowed:
                 extension_active = True
                 # DOL2 and protection both begin no earlier than next M1.
@@ -234,6 +257,7 @@ def _simulate(
         ),
         "window_m1": window,
         "confirmations_required": confirmations_required,
+        "strict_cognition": strict_cognition,
         "dol1_touched": touch_index is not None,
         "dol1_accepted": accepted_index is not None,
         "extension_activated": extension_active,
@@ -248,10 +272,24 @@ def _simulate(
 
 def replay(evidence_path: Path) -> dict[str, object]:
     original = specialist._simulate_selected_plan
-    rows_by_variant: dict[str, list[dict[str, object]]] = {
-        _variant(window, confirmations): []
+    specs: dict[str, tuple[int, int | None, bool]] = {
+        _variant(window, confirmations): (window, confirmations, False)
         for window in WINDOWS
         for confirmations in CONFIRMATIONS
+    }
+    for window in WINDOWS:
+        specs[f"W{window}_DOL2_STRICT_COG_NO_PROTECTION"] = (
+            window,
+            None,
+            True,
+        )
+        specs[f"W{window}_DOL2_STRICT_COG_PS2"] = (
+            window,
+            2,
+            True,
+        )
+    rows_by_variant: dict[str, list[dict[str, object]]] = {
+        name: [] for name in specs
     }
 
     def simulator(
@@ -266,22 +304,21 @@ def replay(evidence_path: Path) -> dict[str, object]:
         if baseline.get("status") != "terminal":
             return baseline
 
-        for window in WINDOWS:
-            for confirmations in CONFIRMATIONS:
-                name = _variant(window, confirmations)
-                outcome = _simulate(
-                    day_bars,
-                    executable,
-                    state,
-                    window=window,
-                    confirmations_required=confirmations,
+        for name, (window, confirmations, strict) in specs.items():
+            outcome = _simulate(
+                day_bars,
+                executable,
+                state,
+                window=window,
+                confirmations_required=confirmations,
+                strict_cognition=strict,
+            )
+            if outcome.get("status") != "terminal":
+                raise AssertionError(
+                    f"{name} changed terminal eligibility: {outcome}"
                 )
-                if outcome.get("status") != "terminal":
-                    raise AssertionError(
-                        f"{name} changed terminal eligibility: {outcome}"
-                    )
-                outcome["target_plan"] = state["target_plan"]
-                rows_by_variant[name].append(outcome)
+            outcome["target_plan"] = state["target_plan"]
+            rows_by_variant[name].append(outcome)
         return baseline
 
     try:
