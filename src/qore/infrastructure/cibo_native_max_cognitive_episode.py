@@ -108,6 +108,7 @@ class CiboNativeMaxCognitiveEpisode:
     metacognitive_audit: MetacognitiveAudit
     integrated_episode: CiboIntegratedCognitiveEpisode
     uncertainty: CiboUncertainty
+    decision_gate_codes: tuple[str, ...] = ()
     external_ai_call_count: int = 0
     external_reasoning_provider_used: bool = False
 
@@ -126,6 +127,18 @@ class CiboNativeMaxCognitiveEpisode:
         self.metacognitive_audit.revalidate()
         self.integrated_episode.revalidate()
         self.uncertainty.revalidate()
+        if (
+            not isinstance(self.decision_gate_codes, tuple)
+            or any(
+                not isinstance(item, str) or not item
+                for item in self.decision_gate_codes
+            )
+            or len(self.decision_gate_codes)
+            != len(set(self.decision_gate_codes))
+        ):
+            raise CiboCapitalManagementError(
+                "native cognitive episode decision gate codes invalid"
+            )
         if self.external_ai_call_count != 0:
             raise CiboCapitalManagementError(
                 "native cognitive episode cannot call external AI"
@@ -159,6 +172,89 @@ def _fingerprint_from_semantics(
         for receipt in consultation.faculty_receipts
     )
     return fingerprint_material(material)
+
+
+def _semantic_state(
+    consultation: CiboEconomicConsultationReceipt,
+) -> dict[str, dict[str, object]]:
+    result: dict[str, dict[str, object]] = {}
+    for receipt in consultation.faculty_receipts:
+        observation = receipt.output_payload.get(
+            "research_semantic_observation"
+        )
+        if not isinstance(observation, dict):
+            raise CiboCapitalManagementError(
+                "native cognitive faculty semantic observation missing"
+            )
+        if (
+            observation.get("function_code") != receipt.function_code
+            or observation.get("research_read_only") is not True
+            or observation.get("causal_predecision_only") is not True
+            or observation.get("outcome_used") is not False
+        ):
+            raise CiboCapitalManagementError(
+                "native cognitive faculty semantic governance drift"
+            )
+        semantics = observation.get("semantics")
+        if not isinstance(semantics, dict):
+            raise CiboCapitalManagementError(
+                "native cognitive faculty semantic payload invalid"
+            )
+        result[receipt.function_code] = semantics
+    return result
+
+
+def _target_semantic_context(
+    *,
+    consultation: CiboEconomicConsultationReceipt,
+    target_signal_fingerprint: str,
+) -> dict[str, str]:
+    semantics = _semantic_state(consultation)
+    cf16 = semantics.get("CF16", {})
+    surface = cf16.get("trader_voice_surface")
+    if not isinstance(surface, (tuple, list)):
+        raise CiboCapitalManagementError(
+            "native cognitive CF16 trader voice surface missing"
+        )
+    matches = [
+        item
+        for item in surface
+        if isinstance(item, dict)
+        and item.get("signal_fingerprint") == target_signal_fingerprint
+    ]
+    if len(matches) != 1:
+        raise CiboCapitalManagementError(
+            "native cognitive target missing from CF16 semantics"
+        )
+    raw_context = matches[0].get("decision_context")
+    if not isinstance(raw_context, (tuple, list)):
+        raise CiboCapitalManagementError(
+            "native cognitive target decision context missing"
+        )
+    context: dict[str, str] = {}
+    for item in raw_context:
+        if not isinstance(item, (tuple, list)) or len(item) != 2:
+            raise CiboCapitalManagementError(
+                "native cognitive target context entry invalid"
+            )
+        key = str(item[0])
+        if key in context:
+            raise CiboCapitalManagementError(
+                "native cognitive target context duplicate key"
+            )
+        context[key] = str(item[1])
+    return context
+
+
+def _native_faculty_blockers(
+    consultation: CiboEconomicConsultationReceipt,
+) -> tuple[str, ...]:
+    return tuple(
+        receipt.function_code
+        for receipt in consultation.faculty_receipts
+        if receipt.output_payload.get("native_engine_status")
+        in {"FAIL_CLOSED", "DEPENDENCY_BLOCKED"}
+    )
 
 
 def _world_snapshot(
@@ -203,7 +299,13 @@ def _attention(
     consultation: CiboEconomicConsultationReceipt,
     regime: CiboCapitalRegimeState,
     semantic_fingerprint,
-) -> tuple[ContextSelectionResult, ReasoningRoutingOutcome, CalibrationNote]:
+    target_signal_fingerprint: str,
+) -> tuple[
+    ContextSelectionResult,
+    ReasoningRoutingOutcome,
+    CalibrationNote,
+    tuple[str, ...],
+]:
     evidence = (
         AttentionEvidenceRef(
             reference_id="native-cf01-cf19",
@@ -211,6 +313,12 @@ def _attention(
         ),
     )
     signals: list[AttentionSignal] = []
+    target_context = _target_semantic_context(
+        consultation=consultation,
+        target_signal_fingerprint=target_signal_fingerprint,
+    )
+    faculty_blockers = _native_faculty_blockers(consultation)
+    decision_gate_codes: list[str] = []
 
     def add(kind: AttentionSignalKind, severity: int, summary: str, reason: str) -> None:
         signals.append(
@@ -289,9 +397,57 @@ def _attention(
             "capital-preservation",
         )
 
+    context_quality_disposition = target_context.get(
+        "cibo_context_quality_disposition"
+    )
+    if context_quality_disposition == "ABSTAIN":
+        add(
+            AttentionSignalKind.CONTRADICTION,
+            95,
+            "context-quality-abstention",
+            "causal-predecision-context-quality",
+        )
+        decision_gate_codes.append("CF16")
+
+    expected_value_raw = target_context.get("cibo_expected_value_usd")
+    expected_value: Decimal | None = None
+    if expected_value_raw not in {None, ""}:
+        try:
+            expected_value = Decimal(expected_value_raw)
+        except Exception as error:
+            raise CiboCapitalManagementError(
+                "native cognitive expected value context invalid"
+            ) from error
+        if not expected_value.is_finite():
+            raise CiboCapitalManagementError(
+                "native cognitive expected value context non-finite"
+            )
+        if expected_value <= 0:
+            add(
+                AttentionSignalKind.CONTRADICTION,
+                90,
+                "nonpositive-causal-expected-value",
+                "economic-expectation-context",
+            )
+            if "CF16" not in decision_gate_codes:
+                decision_gate_codes.append("CF16")
+
+    if (
+        target_context.get("cibo_expectation_basis")
+        == "FROZEN_HISTORICAL_PRIOR"
+    ):
+        add(
+            AttentionSignalKind.PENDING_GOAL,
+            40,
+            "prior-only-economic-expectation",
+            "contextual-forecast-gap",
+        )
+
     selected = select_context(signals, max_results=10)
 
-    missing: tuple[str, ...] = ()
+    missing: tuple[str, ...] = tuple(
+        "native-faculty-" + code.lower() for code in faculty_blockers
+    )
     if regime.evidence_stale:
         missing += ("fresh-causal-evidence",)
     if regime.provider_condition is ProviderCondition.UNAVAILABLE:
@@ -320,10 +476,25 @@ def _attention(
             or regime.correlation is CorrelationState.BREAK
         )
     )
-    abstain = bool(missing) or hard_capacity_exhausted or severe_joint_risk
+    semantic_abstain = (
+        context_quality_disposition == "ABSTAIN"
+        or (expected_value is not None and expected_value <= 0)
+    )
+    abstain = (
+        bool(missing)
+        or hard_capacity_exhausted
+        or severe_joint_risk
+        or semantic_abstain
+    )
     if missing:
         kind = "more_evidence_requested"
         note = "fresh-provider-or-causal-evidence-required"
+    elif context_quality_disposition == "ABSTAIN":
+        kind = "abstain_defer"
+        note = "context-quality-abstention"
+    elif expected_value is not None and expected_value <= 0:
+        kind = "abstain_defer"
+        note = "nonpositive-causal-expected-value"
     elif hard_capacity_exhausted:
         kind = "abstain_defer"
         note = "account-capacity-exhausted"
@@ -344,6 +515,7 @@ def _attention(
             abstention_required=abstain,
             kind=kind,
         ),
+        tuple(decision_gate_codes + list(faculty_blockers)),
     )
 
 
@@ -517,10 +689,16 @@ def build_native_max_cognitive_episode(
         consultation=consultation,
         semantic_fingerprint=semantic_fp,
     )
-    selected, routing, calibration = _attention(
+    (
+        selected,
+        routing,
+        calibration,
+        decision_gate_codes,
+    ) = _attention(
         consultation=consultation,
         regime=regime_state,
         semantic_fingerprint=semantic_fp,
+        target_signal_fingerprint=target.signal_fingerprint,
     )
     evidence_refs = tuple(
         sorted(
@@ -619,4 +797,5 @@ def build_native_max_cognitive_episode(
         metacognitive_audit=audit,
         integrated_episode=episode,
         uncertainty=uncertainty,
+        decision_gate_codes=decision_gate_codes,
     )
