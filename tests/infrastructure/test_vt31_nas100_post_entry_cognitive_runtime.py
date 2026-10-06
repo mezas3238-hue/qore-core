@@ -51,7 +51,7 @@ def _entry_situation() -> Nas100SituationModel:
         reference_reclaim_age_minutes=3,
         last_structure_event_family="reference-liquidity-sweep",
         last_structure_event_age_minutes=2,
-        recent_liquidity_event_count_10m=0 if cautious else 2,
+        recent_liquidity_event_count_10m=2,
         displacement_state="STRUCTURAL_CONFIRMATION_OBSERVED",
         entry_evidence_family="fair-value-gap",
         confirmation_latency_minutes=4,
