@@ -120,6 +120,18 @@ def _live_cognitive_decision(
         < (16, 0, 0)
     )
     current_range = specialist._interval_range(current_path)
+    entry = _d(executable.entry_price)
+    initial_stop = _d(executable.stop_price)
+    initial_risk = abs(entry - initial_stop)
+    if initial_risk <= 0 or not causal_today:
+        raise ValueError("live cognition requires positive frozen initial risk")
+    current_close = _d(causal_today[-1].close)
+    current_open_r = h3._terminal_r(
+        side=str(executable.side.value),
+        entry=entry,
+        price=current_close,
+        risk=initial_risk,
+    )
     current_ratio = (
         current_range / previous_range
         if current_range is not None
@@ -215,12 +227,13 @@ def _live_cognitive_decision(
         displacement_state=entry_situation.displacement_state,
         journey_stage="OPEN_PRE_DOL1_PROTECTION_EVALUATION",
         dol1_state="ACTIVE_PRE_DOL1",
-        dol2_state=entry_situation.dol2_state,
-        dol3_state=entry_situation.dol3_state,
-        extension_capacity_state="PRE_DOL1_NOT_YET_CALIBRATED",
-        exhaustion_state="UNKNOWN",
+        dol2_state="CALIBRATED_ECONOMIC_CAPACITY_COGNITION_REQUIRED",
+        dol3_state="REJECTED_BY_EDGE_ECONOMICS",
+        extension_capacity_state="CALIBRATED_PRE_DOL1_CURRENT_JOURNEY",
+        exhaustion_state="NO_CONFIRMED_EXHAUSTION",
         cross_index_state=entry_situation.cross_index_state,
         m15_state=m15_state,
+        current_open_r=current_open_r,
     )
     momentum_deteriorated = mode == "SWING" or (
         mode == "WEAK_PATH" and weak_path
@@ -267,6 +280,7 @@ def _live_cognitive_decision(
         "caution_score": cognition.caution_score,
         "support_margin": cognition.support_score - cognition.caution_score,
         "weak_path": weak_path,
+        "current_open_r": format(current_open_r, "f"),
         "recent_path_efficiency": (
             None if efficiency is None else format(efficiency, "f")
         ),
