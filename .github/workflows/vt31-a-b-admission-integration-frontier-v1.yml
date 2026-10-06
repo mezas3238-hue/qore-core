@@ -132,7 +132,7 @@ jobs:
           assert g["remaining_order_block_diagnostics_observation_only"] is True
           assert g["remaining_order_block_diagnostics_action_authority"] is False
           assert g["residual_preferred_variant"] == (
-              "A_ABSTAIN_ORDER_BLOCK_AGE_0_2M_OR_EXPANDED"
+              "A_EXPANDED_OB_REQUIRE_SHORT_RECLAIM_15M"
           )
           assert g["fresh_holdout_opened"] is False
           PY
@@ -300,7 +300,7 @@ jobs:
                   "promotion_authorized":False,
               }
 
-          preferred="A_ABSTAIN_ORDER_BLOCK_AGE_0_2M_OR_EXPANDED"
+          preferred="A_EXPANDED_OB_REQUIRE_SHORT_RECLAIM_15M"
           residual=report[preferred]["folds"]
           fields=(
               "entry_family",
