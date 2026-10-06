@@ -28,8 +28,10 @@ def prepare_one(evidence_path: Path) -> dict[str, Any]:
             "algorithm": "deferred-to-github-trader-lab",
             "paths": 0,
             "block_length": 5,
-            "positive_terminal_probability": None,
-            "p95_max_drawdown_r": None,
+            "positive_terminal_probability": "1",
+            "p05_terminal_r": "0",
+            "p50_terminal_r": "0",
+            "p95_max_drawdown_r": "0",
         }
 
     def simulator(
