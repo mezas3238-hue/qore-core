@@ -459,7 +459,12 @@ def replay(evidence_path: Path) -> dict[str, object]:
             "h3_action_counts": dict(
                 sorted(
                     Counter(
-                        str(row.get("h3_action", row.get("full_cognition_action", "NA")))
+                        str(
+                            row.get(
+                                "h3_action",
+                                row.get("full_cognition_action", "NA"),
+                            )
+                        )
                         for row in rows
                     ).items()
                 )
