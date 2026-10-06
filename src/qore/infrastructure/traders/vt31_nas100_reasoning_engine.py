@@ -16,7 +16,7 @@ consumed evidence.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from decimal import Decimal
 from typing import Literal
 
@@ -358,4 +358,92 @@ def reason(state: Nas100SituationModel) -> Nas100ReasoningDecision:
         cognitive_domains_consulted=cognitive_domains,
         max_intelligence_blockers=max_intelligence_blockers,
         max_intelligence_ready=not max_intelligence_blockers,
+    )
+
+
+# Admission predicates answer whether VT31 should create a *new* position.
+# They remain useful observations after entry, but cannot by themselves
+# invalidate a thesis that was already admitted causally.
+_POSITION_NONBLOCKING_ADMISSION_CONTRADICTIONS = frozenset(
+    {
+        "SITUATION:NO_REFERENCE_LIQUIDITY_STATE_BY_CUTOFF",
+        "SITUATION:CURRENT_PATH_NOT_COMPRESSED",
+        "EXPERIENCE:CURRENT_SELECTED_STATE_TOO_LATE",
+        "EXPERIENCE:NONCOMPRESSED_REFERENCE_OUTSIDE_LOW_DD_GATE",
+    }
+)
+
+_POSITION_NONBLOCKING_ADMISSION_UNCERTAINTIES = frozenset(
+    {
+        "STRATEGY:SOURCE_CONFIRMATION_NOT_COMPLETE",
+        "STRATEGY:ENTRY_EVIDENCE_NOT_ACTIONABLE",
+        "SITUATION:REFERENCE_LIQUIDITY_STATE_NOT_YET_PRESENT",
+        "EXPERIENCE:SEQUENCE_STALE_8_14_REQUIRES_REEVALUATION",
+    }
+)
+
+
+def reason_position(
+    state: Nas100SituationModel,
+    *,
+    frozen_entry_reasoning: Nas100ReasoningDecision,
+) -> Nas100ReasoningDecision:
+    """Reassess a live VT31 position with the full current cognition.
+
+    The frozen entry decision proves that the trade was valid when admitted.
+    Current structure/regime/liquidity/journey information is re-read in full,
+    while predicates that only answer "would I open a *new* trade now?" are
+    demoted to observations instead of being treated as exit authority.
+
+    Position-authoritative contradictions (for example calibrated journey
+    depletion) remain contradictions and can make the current reasoning
+    cautious/abstaining.
+    """
+
+    if frozen_entry_reasoning.action != "EXECUTE":
+        raise ValueError(
+            "position reasoning requires a frozen EXECUTE entry decision"
+        )
+
+    raw = reason(state)
+
+    admission_only_contradictions = tuple(
+        code
+        for code in raw.contradictions
+        if code in _POSITION_NONBLOCKING_ADMISSION_CONTRADICTIONS
+    )
+    position_contradictions = tuple(
+        code
+        for code in raw.contradictions
+        if code not in _POSITION_NONBLOCKING_ADMISSION_CONTRADICTIONS
+    )
+    admission_only_uncertainties = tuple(
+        code
+        for code in raw.uncertainty
+        if code in _POSITION_NONBLOCKING_ADMISSION_UNCERTAINTIES
+    )
+
+    context = list(raw.context_observations)
+    context.append(
+        f"POSITION:ENTRY_ACTION_FROZEN={frozen_entry_reasoning.action}"
+    )
+    context.extend(
+        f"POSITION:ADMISSION_ONLY_CONTRADICTION={code}"
+        for code in admission_only_contradictions
+    )
+    context.extend(
+        f"POSITION:ADMISSION_ONLY_UNCERTAINTY={code}"
+        for code in admission_only_uncertainties
+    )
+
+    # WAIT is an admission state. Once a position exists, current uncertainty
+    # is represented in cognition/support-vs-caution rather than pretending the
+    # already-open trade is waiting to be admitted.
+    action: Action = "ABSTAIN" if position_contradictions else "EXECUTE"
+
+    return replace(
+        raw,
+        action=action,
+        contradictions=position_contradictions,
+        context_observations=tuple(context),
     )
