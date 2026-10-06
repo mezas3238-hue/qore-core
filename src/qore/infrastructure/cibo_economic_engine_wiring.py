@@ -15,8 +15,8 @@ CMA, QORE Risk and Execution remain downstream authorities.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, replace
-from typing import Sequence
 
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
@@ -44,11 +44,11 @@ from qore.infrastructure.cibo_portfolio_allocation_engine import (
     plan_position_opportunity_competition,
 )
 from qore.infrastructure.cibo_position_lifecycle import (
+    FULL_CIBO_LIFECYCLE_FEATURES,
     CiboLifecycleBar,
     CiboLifecycleFeature,
     CiboPositionLifecycleInput,
     CiboPositionLifecycleResult,
-    FULL_CIBO_LIFECYCLE_FEATURES,
     run_cibo_position_lifecycle,
 )
 
