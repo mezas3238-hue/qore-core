@@ -153,6 +153,16 @@ def run_predecision_historical_sovereign_ceiling_epoch(
             gross_margin_capacity - provider_cost_reserve,
         )
 
+    qore_total_authorizable = min(
+        stop_capacity,
+        provider_risk_headroom,
+        provider_max_risk,
+    )
+    effective_stop_capacity = max(
+        historical_capital.open_stop_risk_usd,
+        qore_total_authorizable,
+    )
+
     if historical_capital.open_stop_risk_usd > stop_capacity:
         raise CiboCapitalManagementError(
             "historical ceiling current open risk exceeds realizable capital"
@@ -169,15 +179,10 @@ def run_predecision_historical_sovereign_ceiling_epoch(
         expires_at=expires_at,
         opportunities=opportunities,
         open_exposures=open_exposures,
-        total_stop_risk_capacity_usd=stop_capacity,
+        total_stop_risk_capacity_usd=effective_stop_capacity,
         total_margin_capacity_usd=effective_margin_capacity,
     )
 
-    qore_total_authorizable = min(
-        stop_capacity,
-        provider_risk_headroom,
-        provider_max_risk,
-    )
     provider_budget = _HistoricalProviderBudget(
         provider_headroom=provider_risk_headroom,
         max_risk_at_any_time=provider_max_risk,
