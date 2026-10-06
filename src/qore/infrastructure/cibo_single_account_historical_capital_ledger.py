@@ -374,7 +374,7 @@ def reserve_historical_authorization(
             take = min(remaining, lot.available_usd)
             if take > 0:
                 updated.append(
-                    replace(lot, reserved_usd=lot.reserved_usd + take)
+                    replace(lot, reserved_usd=_add(lot.reserved_usd, take))
                 )
                 slices.append(
                     CiboHistoricalCapitalSlice(
@@ -386,7 +386,7 @@ def reserve_historical_authorization(
                         ),
                     )
                 )
-                remaining -= take
+                remaining = _sub(remaining, take)
             else:
                 updated.append(lot)
         if remaining > 0:
@@ -398,16 +398,16 @@ def reserve_historical_authorization(
     for provenance in authorization.capital_provenance:
         amount = provenance.amount_usd
         if provenance.source_kind == CapitalSource.ORIGINAL_BASE_CAPITAL.value:
-            available = (
-                state.original_base_proven_usd
-                - state.original_base_consumed_usd
-                - base_reserved
+            available = _sub(
+                state.original_base_proven_usd,
+                state.original_base_consumed_usd,
+                base_reserved,
             )
             if amount > available:
                 raise CiboCapitalManagementError(
                     "historical ceiling base provenance exceeds available capital"
                 )
-            base_reserved += amount
+            base_reserved = _add(base_reserved, amount)
             slices.append(
                 CiboHistoricalCapitalSlice(
                     source=CapitalSource.ORIGINAL_BASE_CAPITAL,
@@ -423,15 +423,15 @@ def reserve_historical_authorization(
             )
 
     remaining_cost = provider_cost_usd
-    available_base = (
-        state.original_base_proven_usd
-        - state.original_base_consumed_usd
-        - base_reserved
+    available_base = _sub(
+        state.original_base_proven_usd,
+        state.original_base_consumed_usd,
+        base_reserved,
     )
     base_cost = min(remaining_cost, available_base)
     if base_cost > 0:
-        base_reserved += base_cost
-        remaining_cost -= base_cost
+        base_reserved = _add(base_reserved, base_cost)
+        remaining_cost = _sub(remaining_cost, base_cost)
         slices.append(
             CiboHistoricalCapitalSlice(
                 source=CapitalSource.ORIGINAL_BASE_CAPITAL,
