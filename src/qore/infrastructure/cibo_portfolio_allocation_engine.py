@@ -15,11 +15,11 @@ from dataclasses import dataclass
 from decimal import Decimal
 from itertools import product
 
-from qore.infrastructure.cibo_ce2i_causal_expectation import (
-    CausalExpectationBasis,
-)
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
+)
+from qore.infrastructure.cibo_ce2i_causal_expectation import (
+    CausalExpectationBasis,
 )
 from qore.infrastructure.cibo_full_economic_digital_twin import (
     CiboObservedEconomicTwin,
