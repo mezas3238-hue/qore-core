@@ -1,7 +1,8 @@
-"""Generic scientific adjudication for normalized Trader Lab replay reports."""
+"""Generic scientific battery for normalized GitHub Trader Lab replay reports."""
 
 from __future__ import annotations
 
+import hashlib
 from decimal import Decimal
 from typing import Any
 
@@ -19,6 +20,84 @@ def pf(metrics: dict[str, Any]) -> Decimal:
     if wins > 0 and losses == 0:
         return Decimal("Infinity")
     return Decimal("-Infinity")
+
+
+def fast_block_bootstrap(
+    values_raw: list[object],
+    *,
+    domain: str,
+    paths: int,
+    block_length: int = 5,
+) -> dict[str, Any]:
+    values = [d(value) for value in values_raw]
+    n = len(values)
+    if n == 0:
+        return {
+            "algorithm": "sha256-moving-block-bootstrap-v1-fast",
+            "paths": paths,
+            "block_length": block_length,
+            "positive_terminal_probability": "0",
+            "p05_terminal_r": "0",
+            "p50_terminal_r": "0",
+            "p95_max_drawdown_r": "0",
+        }
+
+    prefix = domain.encode()
+    terminals: list[Decimal] = []
+    drawdowns: list[Decimal] = []
+    zero = Decimal(0)
+
+    for path_index in range(paths):
+        equity = zero
+        peak = zero
+        max_dd = zero
+        consumed = 0
+        block_index = 0
+        while consumed < n:
+            digest = hashlib.sha256(
+                prefix
+                + b":"
+                + str(path_index).encode()
+                + b":"
+                + str(block_index).encode()
+            ).digest()
+            start = int.from_bytes(digest, "big") % n
+            remaining = min(block_length, n - consumed)
+            for offset in range(remaining):
+                equity += values[(start + offset) % n]
+                if equity > peak:
+                    peak = equity
+                dd = peak - equity
+                if dd > max_dd:
+                    max_dd = dd
+            consumed += remaining
+            block_index += 1
+        terminals.append(equity)
+        drawdowns.append(max_dd)
+
+    terminals.sort()
+    drawdowns.sort()
+    return {
+        "algorithm": "sha256-moving-block-bootstrap-v1-fast",
+        "paths": paths,
+        "block_length": block_length,
+        "positive_terminal_probability": format(
+            Decimal(sum(value > 0 for value in terminals)) / Decimal(paths),
+            "f",
+        ),
+        "p05_terminal_r": format(
+            terminals[(paths - 1) * 5 // 100],
+            "f",
+        ),
+        "p50_terminal_r": format(
+            terminals[(paths - 1) * 50 // 100],
+            "f",
+        ),
+        "p95_max_drawdown_r": format(
+            drawdowns[(paths - 1) * 95 // 100],
+            "f",
+        ),
+    }
 
 
 def temporal_nondegrade(
@@ -43,6 +122,37 @@ def temporal_nondegrade(
             "nondegrade": ok,
         }
     return all_ok, details
+
+
+def ensure_monte_carlo(
+    *,
+    profile: dict[str, Any],
+    lane: str,
+    variant: str,
+    row: dict[str, Any],
+) -> dict[str, Any]:
+    existing = row.get("monte_carlo")
+    min_paths = int(profile["science"]["mc_paths_min"])
+    if (
+        isinstance(existing, dict)
+        and int(existing.get("paths", 0)) >= min_paths
+        and existing.get("positive_terminal_probability") is not None
+        and existing.get("p95_max_drawdown_r") is not None
+    ):
+        return existing
+    values = row.get("net_r_values")
+    if not isinstance(values, list):
+        raise ValueError(
+            f"{lane}/{variant}: normalized replay missing net_r_values"
+        )
+    return fast_block_bootstrap(
+        values,
+        domain=(
+            f"qore:github-trader-lab:{profile['profile_id']}:{lane}:{variant}"
+        ),
+        paths=min_paths,
+        block_length=int(profile["science"].get("mc_block_length", 5)),
+    )
 
 
 def evaluate(
@@ -75,6 +185,16 @@ def evaluate(
     mc_p95_dd_max = d(science["mc_p95_dd_max_r"])
     require_temporal = bool(science.get("require_temporal_nondegrade", True))
 
+    mc_cache: dict[tuple[str, str], dict[str, Any]] = {}
+    for lane in lanes:
+        for variant in variant_names:
+            mc_cache[(lane, variant)] = ensure_monte_carlo(
+                profile=profile,
+                lane=lane,
+                variant=variant,
+                row=payloads[lane]["variants"][variant],
+            )
+
     variants: dict[str, Any] = {}
     for variant in variant_names:
         per_lane: dict[str, Any] = {}
@@ -92,7 +212,7 @@ def evaluate(
             bm = base["metrics"]
             cm = cand["metrics"]
             winner = cand["winner_preservation"]
-            mc = cand["monte_carlo"]
+            mc = mc_cache[(lane, variant)]
 
             pf_non = pf(cm) >= pf(bm)
             mean_non = d(cm["mean_r"]) >= d(bm["mean_r"])
@@ -121,6 +241,7 @@ def evaluate(
 
             per_lane[lane] = {
                 "metrics": cm,
+                "monte_carlo": mc,
                 "pf_nondegrade": pf_non,
                 "mean_nondegrade": mean_non,
                 "dd_nondegrade": dd_non,
@@ -133,7 +254,7 @@ def evaluate(
 
         primary = payloads[primary_lane]["variants"][variant]
         pm = primary["metrics"]
-        pmc = primary["monte_carlo"]
+        pmc = mc_cache[(primary_lane, variant)]
         owner = {
             "pf_floor": pf(pm) >= primary_pf_floor,
             "mean_r_floor": d(pm["mean_r"]) >= primary_mean_floor,
@@ -185,7 +306,7 @@ def evaluate(
         }
 
     return {
-        "schema": "qore.github-trader-lab.scientific-battery.v1",
+        "schema": "qore.github-trader-lab.scientific-battery.v2",
         "profile_id": profile["profile_id"],
         "subject": profile["subject"],
         "lanes": list(lanes),
@@ -197,7 +318,7 @@ def evaluate(
             "DENSITY_FLOOR",
             "WINNER_COUNT_AND_R_PRESERVATION",
             "TEMPORAL_BLOCK_STRESS",
-            "DETERMINISTIC_MONTE_CARLO",
+            "DETERMINISTIC_10000_PATH_BLOCK_BOOTSTRAP_MONTE_CARLO",
             "CROSS_LANE_PF_FLOOR",
             "OBSERVED_DD_HARD_GATE",
             "PRIMARY_LANE_DIRECTION_GATES",
