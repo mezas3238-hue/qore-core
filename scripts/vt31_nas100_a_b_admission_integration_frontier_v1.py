@@ -38,6 +38,9 @@ WINDOW = 5
 DENSITY_FLOOR = Decimal("0.75")
 WINNER_COUNT_FLOOR = Decimal("0.80")
 WINNER_R_FLOOR = Decimal("0.90")
+PREFERRED_RESIDUAL_VARIANT = (
+    "A_ABSTAIN_ORDER_BLOCK_AGE_0_2M_OR_EXPANDED"
+)
 
 VARIANTS = (
     "CONTROL_B_W5",
@@ -201,6 +204,11 @@ def _variant_report(
             else None
         ),
         "removed_context": _removed_context(removed),
+        "sequence_diagnostics": (
+            composition._sequence_diagnostics(candidate)
+            if variant == PREFERRED_RESIDUAL_VARIANT
+            else None
+        ),
     }
 
 
@@ -280,6 +288,9 @@ def replay(evidence_path: Path) -> dict[str, object]:
             "absolute_volume_used": False,
             "fold_identity_used_for_action": False,
             "future_outcome_used_for_action": False,
+            "residual_clustering_diagnostics_observation_only": True,
+            "residual_clustering_diagnostics_action_authority": False,
+            "residual_preferred_variant": PREFERRED_RESIDUAL_VARIANT,
             "density_floor_predeclared": format(DENSITY_FLOOR, "f"),
             "winner_count_floor_predeclared": format(
                 WINNER_COUNT_FLOOR,

@@ -123,6 +123,11 @@ jobs:
           assert g["absolute_volume_used"] is False
           assert g["fold_identity_used_for_action"] is False
           assert g["future_outcome_used_for_action"] is False
+          assert g["residual_clustering_diagnostics_observation_only"] is True
+          assert g["residual_clustering_diagnostics_action_authority"] is False
+          assert g["residual_preferred_variant"] == (
+              "A_ABSTAIN_ORDER_BLOCK_AGE_0_2M_OR_EXPANDED"
+          )
           assert g["fresh_holdout_opened"] is False
           PY
       - uses: actions/upload-artifact@v4
@@ -228,6 +233,7 @@ jobs:
                       "removed_trade_count":cand["removed_trade_count"],
                       "removed_metrics":cand["removed_metrics"],
                       "removed_context":cand["removed_context"],
+                      "sequence_diagnostics":cand["sequence_diagnostics"],
                       "winner_preservation":wp,
                       "pf_nondegrade":pf_non,
                       "mean_nondegrade":mean_non,
@@ -278,6 +284,65 @@ jobs:
                   "promotion_authorized":False,
               }
 
+          preferred="A_ABSTAIN_ORDER_BLOCK_AGE_0_2M_OR_EXPANDED"
+          residual=report[preferred]["folds"]
+          fields=(
+              "entry_family",
+              "side",
+              "h1_state",
+              "m15_state",
+              "prior_day_state",
+              "reference_volatility_state",
+              "position_in_prior_day_range",
+          )
+          stable_negative=[]
+          historical_positive_recent_flip=[]
+          for field in fields:
+              maps={}
+              for fold in folds:
+                  profiles=(
+                      residual[fold]["sequence_diagnostics"]
+                      ["context_outcome_attribution"][field]
+                  )
+                  maps[fold]={item["value"]:item for item in profiles}
+              common=set.intersection(
+                  *(set(maps[fold]) for fold in folds)
+              )
+              for value in sorted(common):
+                  rows={fold:maps[fold][value] for fold in folds}
+                  samples={fold:int(rows[fold]["sample"]) for fold in folds}
+                  means={
+                      fold:d(rows[fold]["mean_stressed_r"])
+                      for fold in folds
+                  }
+                  if (
+                      all(samples[fold]>=2 for fold in folds)
+                      and all(means[fold]<0 for fold in folds)
+                  ):
+                      stable_negative.append({
+                          "field":field,
+                          "value":value,
+                          "samples":samples,
+                          "mean_stressed_r":{
+                              fold:format(means[fold],"f")
+                              for fold in folds
+                          },
+                      })
+                  if (
+                      all(samples[fold]>=2 for fold in folds)
+                      and all(means[fold]>0 for fold in ("r5","r6","r8"))
+                      and means["consumed"]<0
+                  ):
+                      historical_positive_recent_flip.append({
+                          "field":field,
+                          "value":value,
+                          "samples":samples,
+                          "mean_stressed_r":{
+                              fold:format(means[fold],"f")
+                              for fold in folds
+                          },
+                      })
+
           result={
               "schema":"qore.vt31.nas100.a_b_admission_integration.aggregate.v1",
               "head":"${{ github.sha }}",
@@ -292,12 +357,33 @@ jobs:
                   if item["development_survivor"]
                   and item["halfyears_all_nondegrade"]
               ],
+              "residual_clustering":{
+                  "preferred_variant":preferred,
+                  "stable_negative_classes":stable_negative,
+                  "historical_positive_recent_flip_classes":(
+                      historical_positive_recent_flip
+                  ),
+                  "longest_losing_streaks":{
+                      fold:residual[fold]["sequence_diagnostics"][
+                          "longest_losing_streak"
+                      ]
+                      for fold in folds
+                  },
+                  "worst_rolling_5":{
+                      fold:residual[fold]["sequence_diagnostics"][
+                          "worst_rolling_5"
+                      ]
+                      for fold in folds
+                  },
+              },
               "governance":{
                   "consumed_evidence_only":True,
                   "same_evidence_contributed_to_hypothesis_discovery":True,
                   "results_are_not_promotion_evidence":True,
                   "b_comparator_unchanged":True,
                   "runtime_policy_changed":False,
+                  "residual_clustering_observation_only":True,
+                  "residual_clustering_action_authority":False,
                   "sizing_for_certification_forbidden":True,
                   "fresh_holdout_opened":False,
                   "policy_promoted":False,
