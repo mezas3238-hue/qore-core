@@ -192,9 +192,19 @@ def _first_material_adverse_forensics(
             continue
         control = baseline_map[str(row["signal_at"])]
         control_net_r = _d(control["r_multiple"]) - specialist.FRICTION
+        candidate_net_r = _d(row["r_multiple"]) - specialist.FRICTION
         samples.append(
             {
                 "management_context": str(first["management_context"]),
+                "entry_family": str(row["entry_family"]),
+                "side": str(row["side"]),
+                "prior_day_state": str(row["prior_day_state"]),
+                "position_in_prior_day_range": str(
+                    row["position_in_prior_day_range"]
+                ),
+                "reference_volatility_state": str(
+                    row["reference_volatility_state"]
+                ),
                 "weak_path": bool(first.get("weak_path")),
                 "current_reasoning_action": str(
                     first["current_reasoning_action"]
@@ -214,11 +224,22 @@ def _first_material_adverse_forensics(
                     first.get("reference_reclaim_age_minutes")
                 ),
                 "control_net_r": control_net_r,
+                "candidate_net_r": candidate_net_r,
+                "changed_vs_control": candidate_net_r != control_net_r,
             }
         )
 
     fields = (
         ("management_context",),
+        ("entry_family",),
+        ("entry_family", "management_context"),
+        ("entry_family", "reclaim_age_bucket"),
+        ("entry_family", "m15_state"),
+        ("entry_family", "h1_state"),
+        ("entry_family", "destination_state"),
+        ("entry_family", "prior_day_state"),
+        ("entry_family", "reference_volatility_state"),
+        ("entry_family", "position_in_prior_day_range"),
         ("management_context", "weak_path"),
         ("management_context", "m15_state"),
         ("management_context", "h1_state"),
@@ -232,21 +253,56 @@ def _first_material_adverse_forensics(
     )
     grouped: dict[str, dict[str, object]] = {}
     for field_tuple in fields:
-        table: dict[str, list[Decimal]] = defaultdict(list)
+        table: dict[str, list[dict[str, object]]] = defaultdict(list)
         for sample in samples:
             key = "|".join(str(sample[field]) for field in field_tuple)
-            table[key].append(cast(Decimal, sample["control_net_r"]))
+            table[key].append(sample)
         grouped["+".join(field_tuple)] = {
             key: {
-                "sample": len(values),
-                "wins": sum(value > 0 for value in values),
-                "losses": sum(value < 0 for value in values),
+                "sample": len(items),
+                "control_wins": sum(
+                    cast(Decimal, item["control_net_r"]) > 0
+                    for item in items
+                ),
+                "control_losses": sum(
+                    cast(Decimal, item["control_net_r"]) < 0
+                    for item in items
+                ),
+                "candidate_wins": sum(
+                    cast(Decimal, item["candidate_net_r"]) > 0
+                    for item in items
+                ),
+                "candidate_losses": sum(
+                    cast(Decimal, item["candidate_net_r"]) < 0
+                    for item in items
+                ),
+                "changed_count": sum(
+                    bool(item["changed_vs_control"]) for item in items
+                ),
                 "mean_control_net_r": format(
-                    sum(values, Decimal(0)) / Decimal(len(values)),
+                    sum(
+                        (
+                            cast(Decimal, item["control_net_r"])
+                            for item in items
+                        ),
+                        Decimal(0),
+                    )
+                    / Decimal(len(items)),
+                    "f",
+                ),
+                "mean_candidate_net_r": format(
+                    sum(
+                        (
+                            cast(Decimal, item["candidate_net_r"])
+                            for item in items
+                        ),
+                        Decimal(0),
+                    )
+                    / Decimal(len(items)),
                     "f",
                 ),
             }
-            for key, values in sorted(table.items())
+            for key, items in sorted(table.items())
         }
 
     return {
