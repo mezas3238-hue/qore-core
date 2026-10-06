@@ -269,6 +269,7 @@ def run_cibo_sovereign_capital_runtime(
     expires_at: datetime,
     portfolio_fixed_multiplier: int | None = None,
     lifecycle_requests: tuple[CiboLifecycleWireRequest, ...] = (),
+    peak_realized_capital_usd: Decimal | None = None,
 ) -> CiboSovereignCapitalDecision:
     """Run the sovereign CIBO path through the QORE Risk handoff boundary."""
 
@@ -585,6 +586,7 @@ def _build_capital_science_state(
     sizing: CiboAccountSizingDecision,
     capital: CiboCapitalState,
     regime_state: CiboCapitalRegimeState,
+    peak_realized_capital_usd: Decimal | None = None,
 ) -> CapitalSciencePredecisionInput:
     """Project sovereign predecision truth into the native Capital Science surface."""
 
@@ -695,13 +697,28 @@ def _build_capital_science_state(
             twin.capital_twin.compound_economic_value_usd
             - twin.capital_twin.protected_floor_usd,
         )
+    realized_capital_usd = twin.capital_twin.total_realized_capital_usd
+    resolved_peak_realized_capital_usd = (
+        realized_capital_usd
+        if peak_realized_capital_usd is None
+        else peak_realized_capital_usd
+    )
+    if (
+        not isinstance(resolved_peak_realized_capital_usd, Decimal)
+        or not resolved_peak_realized_capital_usd.is_finite()
+        or resolved_peak_realized_capital_usd < realized_capital_usd
+    ):
+        raise CiboCapitalManagementError(
+            "Capital Science peak realized capital must be finite and "
+            "not below current realized capital"
+        )
     return CapitalSciencePredecisionInput(
         decision_epoch_id=decision_id,
         signal_fingerprint=opportunity.signal_fingerprint,
         trader_id=opportunity.trader_id.value,
         decision_at=twin.captured_at,
-        realized_capital_usd=twin.capital_twin.total_realized_capital_usd,
-        peak_realized_capital_usd=twin.capital_twin.total_realized_capital_usd,
+        realized_capital_usd=realized_capital_usd,
+        peak_realized_capital_usd=resolved_peak_realized_capital_usd,
         realized_profit_pool_usd=twin.capital_twin.compound_economic_value_usd,
         protected_capacity_usd=twin.capital_twin.protected_floor_usd,
         deployed_profit_usd=min(
