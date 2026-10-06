@@ -1,0 +1,148 @@
+name: QORE GitHub Trader Lab VT31 Post Entry Facts
+
+on:
+  push:
+    branches:
+      - agent/github-trader-lab-001
+    paths:
+      - '.github/vt31_lab/**'
+      - '.github/workflows/github-trader-lab-vt31-post-entry-facts.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-github-trader-lab-vt31-post-entry-facts
+  cancel-in-progress: true
+
+jobs:
+  trader-lab-vt31-facts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      PROFILE: .github/vt31_lab/vt31-post-entry-facts.json
+      SUBJECT_REF: agent/vt31-edge-position-cert-b-001
+
+    steps:
+      - name: Checkout independent Trader Lab
+        uses: actions/checkout@v4
+        with:
+          path: lab
+
+      - name: Checkout VT31 subject
+        uses: actions/checkout@v4
+        with:
+          repository: mezas3238-hue/qore-core
+          ref: ${{ env.SUBJECT_REF }}
+          path: subject
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Fingerprint prepared-ledger dependencies
+        id: prep
+        shell: bash
+        run: |
+          set -euo pipefail
+          raw="$(python lab/tools/github_trader_lab/fingerprint.py             --profile "lab/${PROFILE}"             --subject-root subject)"
+          echo "$raw"
+          fp="$(printf '%s\n' "$raw" | sed -n 's/^fingerprint=//p')"
+          test -n "$fp"
+          echo "fingerprint=$fp" >> "$GITHUB_OUTPUT"
+
+      - name: Profile fingerprint
+        id: profile
+        shell: bash
+        run: |
+          set -euo pipefail
+          digest="$(sha256sum "lab/${PROFILE}" | awk '{print $1}')"
+          echo "sha=$digest" >> "$GITHUB_OUTPUT"
+
+      - name: Restore immutable evidence cache
+        uses: actions/cache@v4
+        with:
+          path: .qore-cache/github-trader-lab/evidence/vt31-comp009-post-entry-facts-v1
+          key: qore-github-trader-lab-evidence-v2-${{ steps.profile.outputs.sha }}
+
+      - name: Recover and verify consumed evidence
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python lab/tools/github_trader_lab/evidence.py             --profile "lab/${PROFILE}"             --output-dir ".qore-cache/github-trader-lab/evidence/vt31-comp009-post-entry-facts-v1"
+
+      - name: Restore prepared post-entry causal ledger
+        id: prepared-cache
+        uses: actions/cache@v4
+        with:
+          path: .qore-cache/github-trader-lab/prepared/vt31-comp009-post-entry-facts-v1
+          key: qore-vt31-post-entry-prepared-v1-${{ steps.prep.outputs.fingerprint }}
+
+      - name: Static preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile             lab/tools/github_trader_lab/realtime.py             lab/tools/github_trader_lab/science.py             lab/tools/github_trader_lab/certification.py             lab/tools/github_trader_lab/fingerprint.py             lab/tools/github_trader_lab/fast_runner.py             lab/.github/vt31_lab/vt31_comp009_post_entry_prepare.py             lab/.github/vt31_lab/vt31_comp009_post_entry_observe.py             lab/.github/vt31_lab/vt31_post_entry_fact_aggregate.py
+          echo "prepared_cache_hit=${{ steps.prepared-cache.outputs.cache-hit }}"
+
+      - name: Execute prepared-ledger Trader Lab
+        shell: bash
+        env:
+          PYTHONPATH: ${{ github.workspace }}/subject/src:${{ github.workspace }}/subject/scripts:${{ github.workspace }}/lab/tools/github_trader_lab
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/github-trader-lab-vt31-facts"
+          prepared=".qore-cache/github-trader-lab/prepared/vt31-comp009-post-entry-facts-v1"
+          mkdir -p "$out" "$prepared"
+          python lab/tools/github_trader_lab/fast_runner.py             --profile "lab/${PROFILE}"             --lab-root "${{ github.workspace }}/lab"             --subject-root "${{ github.workspace }}/subject"             --evidence-dir "${{ github.workspace }}/.qore-cache/github-trader-lab/evidence/vt31-comp009-post-entry-facts-v1"             --prepared-dir "${{ github.workspace }}/$prepared"             --output-dir "$out"             | tee "$out/console.log"
+
+      - name: Aggregate causal fact audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/github-trader-lab-vt31-facts"
+          python lab/.github/vt31_lab/vt31_post_entry_fact_aggregate.py             --output-root "$out"             --output "$out/post-entry-fact-audit.json"             | tee "$out/post-entry-fact-audit.log"
+
+      - name: Publish headline
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/github-trader-lab-vt31-facts"
+          if test -f "$out/headline.json"; then
+            cat "$out/headline.json"
+          fi
+          if test -f "$out/post-entry-fact-audit.json"; then
+            python - <<'PY'
+          import json, os
+          from pathlib import Path
+          root=Path(os.environ["RUNNER_TEMP"])/"github-trader-lab-vt31-facts"
+          x=json.loads((root/"post-entry-fact-audit.json").read_text())
+          print("zero_winner_cross_partition_observations=" + json.dumps(
+              x["zero_winner_cross_partition_observations"]
+          ))
+          for name,row in x["geometric_facts"].items():
+              print(
+                  name,
+                  "trades=",row["trade_count"],
+                  "wins=",row["winner_count"],
+                  "losses=",row["loss_count"],
+                  "partitions=",row["partition_count"],
+                  "already_exit=",row["already_exit_authorized_count"],
+                  "unhandled_losses=",row["unhandled_loss_count"],
+              )
+          PY
+          fi
+
+      - name: Upload laboratory record
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-github-trader-lab-vt31-post-entry-facts-${{ github.run_id }}
+          path: ${{ runner.temp }}/github-trader-lab-vt31-facts
+          if-no-files-found: error
+          retention-days: 90
