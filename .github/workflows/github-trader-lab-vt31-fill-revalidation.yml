@@ -1,0 +1,179 @@
+name: QORE GitHub Trader Lab VT31 Fill Revalidation
+
+on:
+  push:
+    branches:
+      - agent/github-trader-lab-001
+    paths:
+      - '.github/vt31_fill/**'
+      - '.github/workflows/github-trader-lab-vt31-fill-revalidation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-github-trader-lab-vt31-fill-revalidation
+  cancel-in-progress: true
+
+jobs:
+  trader-lab:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      PROFILE: .github/vt31_fill/vt31-fill-time-revalidation.json
+      SUBJECT_REF: agent/vt31-edge-position-cert-b-001
+      PREPARED: .qore-cache/github-trader-lab/prepared/vt31-fill-time-revalidation-v1
+      EVIDENCE: .qore-cache/github-trader-lab/evidence/vt31-fill-time-revalidation-v1
+
+    steps:
+      - name: Checkout independent Trader Lab
+        uses: actions/checkout@v4
+        with:
+          path: lab
+
+      - name: Checkout VT31 subject
+        uses: actions/checkout@v4
+        with:
+          repository: mezas3238-hue/qore-core
+          ref: ${{ env.SUBJECT_REF }}
+          path: subject
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Fingerprint prepared-ledger dependencies
+        id: prep
+        shell: bash
+        run: |
+          set -euo pipefail
+          raw="$(python lab/tools/github_trader_lab/fingerprint.py \
+            --profile "lab/${PROFILE}" \
+            --subject-root subject)"
+          echo "$raw"
+          fp="$(printf '%s\n' "$raw" | sed -n 's/^fingerprint=//p')"
+          test -n "$fp"
+          echo "fingerprint=$fp" >> "$GITHUB_OUTPUT"
+
+      - name: Recover verified consumed evidence
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "${EVIDENCE}"
+          python lab/tools/github_trader_lab/evidence.py \
+            --profile "lab/${PROFILE}" \
+            --output-dir "${EVIDENCE}"
+
+      - name: Restore fill-time prepared ledger
+        id: prepared-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.PREPARED }}
+          key: qore-vt31-fill-time-prepared-v1-${{ steps.prep.outputs.fingerprint }}
+
+      - name: Static preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            lab/.github/vt31_fill/vt31_fill_time_prepare.py \
+            lab/.github/vt31_fill/vt31_fill_time_experiment.py \
+            lab/.github/vt31_fill/vt31_fill_time_adjudicator.py \
+            lab/tools/github_trader_lab/fast_runner.py
+          echo "prepared_cache_hit=${{ steps.prepared-cache.outputs.cache-hit }}"
+
+      - name: Run four-fold Trader Lab
+        shell: bash
+        env:
+          PYTHONPATH: ${{ github.workspace }}/subject/src:${{ github.workspace }}/subject/scripts:${{ github.workspace }}/lab/tools/github_trader_lab
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/github-trader-lab-vt31-fill"
+          mkdir -p "$out" "${PREPARED}"
+          python lab/tools/github_trader_lab/fast_runner.py \
+            --profile "lab/${PROFILE}" \
+            --lab-root "${{ github.workspace }}/lab" \
+            --subject-root "${{ github.workspace }}/subject" \
+            --evidence-dir "${{ github.workspace }}/${EVIDENCE}" \
+            --prepared-dir "${{ github.workspace }}/${PREPARED}" \
+            --output-dir "$out" \
+            | tee "$out/console.log"
+
+      - name: Stitched sovereign adjudication
+        shell: bash
+        env:
+          PYTHONPATH: ${{ github.workspace }}/subject/src:${{ github.workspace }}/subject/scripts
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/github-trader-lab-vt31-fill"
+          python lab/.github/vt31_fill/vt31_fill_time_adjudicator.py \
+            --output-root "$out" \
+            --output "$out/fill-time-stitched.json" \
+            | tee "$out/fill-time-stitched.log"
+
+      - name: Governance assertions
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/github-trader-lab-vt31-fill"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          root=Path(os.environ["RUNNER_TEMP"])/"github-trader-lab-vt31-fill"
+          x=json.loads((root/"fill-time-stitched.json").read_text())
+          g=x["governance"]
+          assert g["consumed_evidence_only"] is True
+          assert g["pure_edge_only"] is True
+          assert g["fresh_holdout_opened"] is False
+          assert g["delay_threshold_used"] is False
+          assert g["fill_bar_ohlc_decision_authority"] is False
+          assert g["metric_conventions_retuned"] is False
+          assert g["position_sizing_used"] is False
+          assert g["leverage_used"] is False
+          assert g["compounding_used"] is False
+          assert g["candidate_certified"] is False
+          PY
+
+      - name: Publish headline
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/github-trader-lab-vt31-fill"
+          if test -f "$out/fill-time-stitched.json"; then
+            python - <<'PY'
+          import json, os
+          from pathlib import Path
+          root=Path(os.environ["RUNNER_TEMP"])/"github-trader-lab-vt31-fill"
+          x=json.loads((root/"fill-time-stitched.json").read_text())
+          for name,row in x["reports"].items():
+              print(
+                  "VT31_FILL_RESULT",
+                  name,
+                  "DD="+str(row["metrics"]["max_drawdown_r"]),
+                  "PF="+str(row["metrics"]["profit_factor"]),
+                  "MEAN="+str(row["metrics"]["mean_r"]),
+                  "SHARPE="+str(row["risk_adjusted"]["annualized_sharpe"]),
+                  "SORTINO="+str(row["risk_adjusted"]["annualized_sortino"]),
+                  "CHANGED="+str(row["changed_trade_count"]),
+                  "REJECTED_WINNERS="+str(row["rejected_winner_count"]),
+                  "REJECTED_ZERO_CALL_LOSSES="+str(row["rejected_zero_call_loss_count"]),
+                  "PASS="+str(row["stitched_gate_pass"]),
+                  "MC="+str(row["monte_carlo_stage"]),
+              )
+          print("VT31_FILL_SURVIVORS", x["stitched_survivors"])
+          PY
+          fi
+
+      - name: Upload laboratory record
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-github-trader-lab-vt31-fill-${{ github.run_id }}
+          path: ${{ runner.temp }}/github-trader-lab-vt31-fill
+          if-no-files-found: error
+          retention-days: 90
