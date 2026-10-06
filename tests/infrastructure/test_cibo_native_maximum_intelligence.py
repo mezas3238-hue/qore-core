@@ -228,7 +228,11 @@ def test_native_max_positive_context_remains_recommend_without_fake_gate() -> No
     assert result.cognitive_episode.decision_gate_codes == ()
 
 
-def _walk_forward_confidence_context(*, mature: bool) -> tuple[tuple[str, str], ...]:
+def _walk_forward_confidence_context(
+    *,
+    mature: bool,
+    positive_blocks: int = 4,
+) -> tuple[tuple[str, str], ...]:
     return (
         ("cibo_context_quality_disposition", "ALLOW"),
         ("cibo_context_quality_rules", "none"),
@@ -243,8 +247,11 @@ def _walk_forward_confidence_context(*, mature: bool) -> tuple[tuple[str, str], 
             "cibo_walk_forward_mature_for_capital_consideration",
             "true" if mature else "false",
         ),
-        ("cibo_walk_forward_positive_block_count", "4"),
-        ("cibo_walk_forward_nonpositive_block_count", "1"),
+        ("cibo_walk_forward_positive_block_count", str(positive_blocks)),
+        (
+            "cibo_walk_forward_nonpositive_block_count",
+            str(5 - positive_blocks),
+        ),
         ("cibo_walk_forward_block_dispersion_r", "1.25"),
         ("cibo_walk_forward_median_absolute_deviation_r", "0.20"),
         ("cibo_walk_forward_maturity_fraction", "1" if mature else "0.4"),
@@ -302,7 +309,7 @@ def test_native_max_admits_mature_positive_walk_forward_forecast() -> None:
 
     assert result.synthesis.directive is CiboExecutiveDirectiveKind.RECOMMEND
     assert result.cognitive_episode.abstention_required is False
-    assert result.cognitive_episode.calibration.confidence_band == 90
+    assert result.cognitive_episode.calibration.confidence_band == 80
     assert result.cognitive_episode.decision_gate_codes == ()
 
 
@@ -414,3 +421,34 @@ def test_native_max_distinguishes_walk_forward_cold_start() -> None:
         == "walk-forward-cold-start-history-required"
     )
     assert result.cognitive_episode.decision_gate_codes == ("CF07",)
+
+
+def test_native_max_block_consensus_reduces_capital_confidence_causally() -> None:
+    context = tuple(
+        (f"ctx_native_{index:02d}", f"value-{index:02d}")
+        for index in range(30)
+    ) + _walk_forward_confidence_context(
+        mature=True,
+        positive_blocks=3,
+    )
+    opportunity = _opportunity(TraderLineage.R34_XAUUSD, context)
+    consultation = consult_cibo_economic_faculties(
+        decision_at=NOW,
+        opportunities=(opportunity,),
+        regime_state=_regime(),
+    )
+
+    result = run_native_maximum_intelligence(
+        consultation=consultation,
+        opportunities=(opportunity,),
+        target=opportunity,
+        regime_state=_regime(),
+    )
+
+    assert result.synthesis.directive is CiboExecutiveDirectiveKind.RECOMMEND
+    assert result.cognitive_episode.abstention_required is False
+    assert result.cognitive_episode.calibration.confidence_band == 60
+    assert any(
+        item.summary == "walk-forward-block-disagreement"
+        for item in result.cognitive_episode.attention.signals
+    )
