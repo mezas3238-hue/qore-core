@@ -29,12 +29,12 @@ from qore.infrastructure.cibo_multi_period_capital_mpc import (
     Genc11KnownOptionSchedule,
     Genc11WorldPath,
 )
+from qore.infrastructure.cibo_native_max_mpc_bridge import (
+    build_native_max_mpc_inputs,
+)
 from qore.infrastructure.cibo_native_maximum_intelligence import (
     CiboNativeMaximumIntelligenceResult,
     run_native_maximum_intelligence,
-)
-from qore.infrastructure.cibo_native_max_mpc_bridge import (
-    build_native_max_mpc_inputs,
 )
 from qore.infrastructure.cibo_sovereign_capital_runtime import (
     CiboSovereignCapitalDecision,
