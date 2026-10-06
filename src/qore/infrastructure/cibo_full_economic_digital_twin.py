@@ -23,6 +23,9 @@ from enum import StrEnum
 from qore.infrastructure.cibo_capital_digital_twin import (
     Genc10ObservedCapitalTwin,
 )
+from qore.infrastructure.cibo_ce2i_causal_expectation import (
+    CausalExpectationBasis,
+)
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
@@ -252,6 +255,9 @@ class CiboObservedOpportunityState:
     provider_viable: bool
     capital_source_eligible: bool
     evidence_sha256: str
+    expectation_basis: CausalExpectationBasis = (
+        CausalExpectationBasis.CURRENT_STATE_FORECAST
+    )
     maximum_multiplier: int = 4
     future_outcome_used: bool = False
 
@@ -302,6 +308,10 @@ class CiboObservedOpportunityState:
         ):
             raise CiboCapitalManagementError(
                 "Full Economic Twin opportunity evidence_sha256 invalid"
+            )
+        if type(self.expectation_basis) is not CausalExpectationBasis:
+            raise CiboCapitalManagementError(
+                "Full Economic Twin expectation basis must be canonical"
             )
         if (
             not isinstance(self.maximum_multiplier, int)
