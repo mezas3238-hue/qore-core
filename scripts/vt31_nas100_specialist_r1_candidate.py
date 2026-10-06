@@ -459,6 +459,12 @@ def _state_snapshot(
         reference_low=source.reference.low,
     )
 
+    liquidity_event_count = recent_liquidity_event_count_10m(
+        cast(tuple[OhlcSnapshot, ...], session_prefix),
+        source,
+        decision_at,
+    )
+
     reasoning = reason(
         Nas100ReasoningState(
             as_of=decision_at.astimezone(UTC).isoformat(),
@@ -490,13 +496,7 @@ def _state_snapshot(
             reference_reclaim_age_minutes=reclaim_age,
             last_structure_event_family=last_family,
             last_structure_event_age_minutes=last_age,
-            recent_liquidity_event_count_10m=(
-                recent_liquidity_event_count_10m(
-                    cast(tuple[OhlcSnapshot, ...], session_prefix),
-                    source,
-                    decision_at,
-                )
-            ),
+            recent_liquidity_event_count_10m=liquidity_event_count,
             displacement_state="STRUCTURAL_CONFIRMATION_OBSERVED",
             entry_evidence_family=executable.selected_family.value,
             confirmation_latency_minutes=confirmation_latency,
@@ -526,6 +526,7 @@ def _state_snapshot(
         "decision_minute_ny": decision_minute,
         "last_structure_event_family": last_family,
         "last_structure_event_age_minutes": last_age,
+        "recent_liquidity_event_count_10m": liquidity_event_count,
         "reference_reclaim_age_minutes": reclaim_age,
         "sequence_stale_8_14": stale_8_14,
         "previous_admitted_path_range": (
