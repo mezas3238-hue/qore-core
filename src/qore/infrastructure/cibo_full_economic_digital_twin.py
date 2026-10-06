@@ -255,10 +255,10 @@ class CiboObservedOpportunityState:
     provider_viable: bool
     capital_source_eligible: bool
     evidence_sha256: str
+    maximum_multiplier: int
     expectation_basis: CausalExpectationBasis = (
         CausalExpectationBasis.CURRENT_STATE_FORECAST
     )
-    maximum_multiplier: int = 4
     future_outcome_used: bool = False
 
     def __post_init__(self) -> None:
@@ -316,10 +316,10 @@ class CiboObservedOpportunityState:
         if (
             not isinstance(self.maximum_multiplier, int)
             or isinstance(self.maximum_multiplier, bool)
-            or self.maximum_multiplier not in {0, 1, 2, 3, 4}
+            or self.maximum_multiplier < 0
         ):
             raise CiboCapitalManagementError(
-                "Full Economic Twin maximum_multiplier must be 0..4"
+                "Full Economic Twin maximum_multiplier must be non-negative"
             )
         if self.future_outcome_used:
             raise CiboCapitalManagementError(
