@@ -18,6 +18,9 @@ from qore.infrastructure.cibo_capital_digital_twin import (
     Genc10KnownCapitalOption,
     build_genc10_observed_twin,
 )
+from qore.infrastructure.cibo_ce2i_causal_expectation import (
+    CausalExpectationBasis,
+)
 from qore.infrastructure.cibo_capital_management_authority import (
     CapitalSource,
     CiboCapitalManagementError,
@@ -181,6 +184,9 @@ class CiboCeilingOpportunityEvidence:
     expected_capital_minutes: Decimal
     provider_cost_per_volume_usd: Decimal
     expectation_evidence_sha256: str
+    expectation_basis: CausalExpectationBasis = (
+        CausalExpectationBasis.CURRENT_STATE_FORECAST
+    )
     context_allowed: bool = True
     provider_viable: bool = True
     capital_source_eligible: bool = True
@@ -209,6 +215,10 @@ class CiboCeilingOpportunityEvidence:
         ):
             raise CiboCapitalManagementError(
                 "ceiling opportunity economics invalid"
+            )
+        if type(self.expectation_basis) is not CausalExpectationBasis:
+            raise CiboCapitalManagementError(
+                "ceiling opportunity expectation basis must be canonical"
             )
         for name in (
             "context_allowed",
@@ -443,6 +453,7 @@ def build_ceiling_epoch_state(
             provider_viable=row.provider_viable,
             capital_source_eligible=row.capital_source_eligible,
             evidence_sha256=evidence_sha,
+            expectation_basis=row.expectation_basis,
             maximum_multiplier=maximum_multiplier,
             future_outcome_used=False,
         )
