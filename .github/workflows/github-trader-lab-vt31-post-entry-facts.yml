@@ -125,13 +125,21 @@ jobs:
           print("zero_winner_cross_partition_observations=" + json.dumps(
               x["zero_winner_cross_partition_observations"]
           ))
+          print(
+              "zero_winner_cross_partition_conjunctions="
+              + json.dumps(
+                  x["predeclared_single_categorical_scan"][
+                      "zero_winner_cross_partition_conjunctions"
+                  ]
+              )
+          )
           for name,row in x["geometric_facts"].items():
               print(
                   name,
                   "trades=",row["trade_count"],
                   "wins=",row["winner_count"],
                   "losses=",row["loss_count"],
-                  "partitions=",row["partition_count"],
+                  "unhandled_partitions=",len(row["unhandled_partition_support"]),
                   "already_exit=",row["already_exit_authorized_count"],
                   "unhandled_losses=",row["unhandled_loss_count"],
               )
