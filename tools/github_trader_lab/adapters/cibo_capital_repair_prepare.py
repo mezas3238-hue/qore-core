@@ -20,6 +20,9 @@ from cibo_build_walk_forward_expectation_manifest import build_walk_forward_mani
 from qore.infrastructure.cibo_single_account_manifest_economics import (
     manifest_row_to_ceiling_opportunity_evidence,
 )
+from qore.infrastructure.cibo_single_account_manifest_settlement import (
+    manifest_row_to_shadow_outcome_observation,
+)
 
 
 def _dt(value: object) -> datetime:
@@ -63,6 +66,7 @@ def _regime(row: Mapping[str, Any]) -> dict[str, object]:
 
 def _compact_row(row: dict[str, Any]) -> dict[str, object]:
     evidence = manifest_row_to_ceiling_opportunity_evidence(row)
+    shadow_outcome = manifest_row_to_shadow_outcome_observation(row)
     opportunity = evidence.opportunity
     expectation = _mapping(row.get("expectation"), "expectation")
     outcome = _mapping(
@@ -143,8 +147,9 @@ def _compact_row(row: dict[str, Any]) -> dict[str, object]:
         "settlement": {
             "entry_at": str(outcome["entry_at"]),
             "exit_at": str(outcome["exit_at"]),
-            "gross_structural_outcome_r": str(
-                outcome["gross_structural_outcome_r"]
+            "gross_structural_outcome_r": format(
+                shadow_outcome.gross_structural_outcome_r,
+                "f",
             ),
             "not_available_to_predecision": bool(
                 outcome.get("not_available_to_predecision")
