@@ -237,7 +237,6 @@ def build_native_cognitive_reach_sensors(
     intelligence = native_decision.intelligence
     episode = intelligence.cognitive_episode
     synthesis = intelligence.synthesis
-    blocked = set(intelligence.blocked_function_codes)
 
     sensors: list[CiboCognitiveReachSensor] = []
 
@@ -326,15 +325,19 @@ def build_native_cognitive_reach_sensors(
         stages = ["FACULTY_INPUT"]
         if native_called:
             stages.append("NATIVE_FACULTY_ENGINE")
+        gate_emitted = (
+            receipt.function_code in episode.decision_gate_codes
+        )
         stages.extend(
             (
                 "FUNCTIONAL_COORDINATOR",
                 "SEMANTIC_DIGEST",
                 "COGNITIVE_EPISODE",
                 "EXECUTIVE_SYNTHESIS",
-                "CAPITAL_DECISION",
             )
         )
+        if gate_emitted:
+            stages.append("CAPITAL_DECISION")
         sensors.append(
             CiboCognitiveReachSensor(
                 decision_id=decision_id,
@@ -352,11 +355,9 @@ def build_native_cognitive_reach_sensors(
                 native_engine_called=native_called,
                 applicable=applicable,
                 downstream_consumed=True,
-                constraint_or_gate_emitted=(
-                    receipt.function_code in blocked
-                ),
+                constraint_or_gate_emitted=gate_emitted,
                 reached_executive_synthesis=True,
-                reached_capital_decision=True,
+                reached_capital_decision=gate_emitted,
                 contribution_state=(
                     CiboCognitiveContributionState.UNPROVEN
                 ),
