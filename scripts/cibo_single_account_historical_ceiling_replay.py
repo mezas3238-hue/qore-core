@@ -13,6 +13,9 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+from qore.infrastructure.cibo_cognitive_reach_sensors import (
+    summarize_cognitive_reach_sensors,
+)
 from qore.infrastructure.cibo_function_economic_sensors import (
     summarize_function_sensors,
 )
@@ -115,6 +118,11 @@ def main() -> int:
         for decision in result.decision_receipts
         for sensor in decision.function_sensors
     )
+    cognitive_sensors = tuple(
+        sensor
+        for decision in result.decision_receipts
+        for sensor in decision.cognitive_sensors
+    )
     payload = {
         "schema": "qore.cibo.single-account-historical-ceiling-replay.v1",
         "source_manifest_sha256": result.source_manifest_sha256,
@@ -132,6 +140,9 @@ def main() -> int:
         "settlement_receipts": _canonical(result.settlement_receipts),
         "function_economic_sensors": summarize_function_sensors(
             function_sensors
+        ),
+        "cognitive_reach_sensors": summarize_cognitive_reach_sensors(
+            cognitive_sensors
         ),
         "governance": {
             "single_account_usd60": True,
