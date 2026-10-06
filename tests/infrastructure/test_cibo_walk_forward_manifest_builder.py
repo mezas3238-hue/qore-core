@@ -113,6 +113,11 @@ def test_builder_requires_five_completed_signals_before_forecast() -> None:
         Decimal("3") * Decimal("0.02"),
         "f",
     )
+    assert expectations[5]["uncertainty_penalty_usd"] == "0.02"
+    assert (
+        expectations[5]["walk_forward_duration_estimator"]
+        == "UPPER_QUARTILE_PRIOR_ONLY"
+    )
     assert expectations[25]["walk_forward_observation_count"] == 25
     assert expectations[25]["walk_forward_maturity"] == "MATURE"
     assert (
