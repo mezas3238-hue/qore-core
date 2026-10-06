@@ -250,11 +250,18 @@ def decide_market_native_position(
             target=primary_structural_target,
         )
     ):
+        if cognition.protection_urgency is ProtectionUrgency.LOW:
+            return MarketNativePositionDecision(
+                action=PositionAction.HOLD,
+                next_stop=None,
+                next_target=None,
+                reason="COGNITIVE_WINNER_PRESERVATION_VETO",
+            )
         return MarketNativePositionDecision(
             action=PositionAction.TRAIL,
             next_stop=protective_swing.level,
             next_target=None,
-            reason="MOMENTUM_DETERIORATED_CONFIRMED_STRUCTURAL_SWING",
+            reason="COGNITIVE_AND_MARKET_STRUCTURAL_PROTECTION",
         )
 
     return MarketNativePositionDecision(
