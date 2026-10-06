@@ -8,7 +8,6 @@ from qore.infrastructure.cibo_reused_holdout_compound_portfolio_lane import (
     _known_options_with_current_geometry,
 )
 
-
 NOW = datetime(2026, 1, 5, 12, 0, tzinfo=UTC)
 
 
