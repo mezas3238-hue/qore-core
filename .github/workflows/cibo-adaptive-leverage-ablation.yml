@@ -1,0 +1,136 @@
+name: QORE CIBO Adaptive Leverage Ablation
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/cibo-function-economic-sensors-001
+    paths:
+      - '.github/workflows/cibo-adaptive-leverage-ablation.yml'
+      - 'scripts/cibo_run_adaptive_leverage_ablation.py'
+      - 'src/qore/infrastructure/cibo_economic_engine_wiring.py'
+      - 'src/qore/infrastructure/cibo_sovereign_capital_runtime.py'
+      - 'src/qore/infrastructure/cibo_native_sovereign_capital_runtime.py'
+      - 'src/qore/infrastructure/cibo_single_account_sovereign_ceiling_executor.py'
+      - 'src/qore/infrastructure/cibo_single_account_historical_ceiling_epoch.py'
+      - 'src/qore/infrastructure/cibo_single_account_historical_ceiling_replay.py'
+      - 'tests/infrastructure/test_cibo_adaptive_leverage_ablation_wiring.py'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-cibo-adaptive-leverage-ablation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  adaptive-leverage-off:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+      FROZEN_ARTIFACT_ID: '11389331836'
+      FROZEN_ARTIFACT_DIGEST: 'sha256:30177639f660c9647ab70257c2d12c541bdade49ab5582347a3890f920070fee'
+      BASELINE_ARTIFACT_ID: '11415099219'
+      BASELINE_ARTIFACT_DIGEST: 'sha256:fb43256b3861e09c1988612c5b76fd485ae42ee2a770a14c5e3969bc7f1ec44c'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install
+        run: python -m pip install -e '.[dev]'
+
+      - name: Validate ablation wiring
+        run: |
+          set -euo pipefail
+          python -m py_compile             scripts/cibo_run_adaptive_leverage_ablation.py             src/qore/infrastructure/cibo_economic_engine_wiring.py             src/qore/infrastructure/cibo_sovereign_capital_runtime.py             src/qore/infrastructure/cibo_native_sovereign_capital_runtime.py             src/qore/infrastructure/cibo_single_account_sovereign_ceiling_executor.py             src/qore/infrastructure/cibo_single_account_historical_ceiling_epoch.py             src/qore/infrastructure/cibo_single_account_historical_ceiling_replay.py
+          ruff check             scripts/cibo_run_adaptive_leverage_ablation.py             src/qore/infrastructure/cibo_economic_engine_wiring.py             src/qore/infrastructure/cibo_sovereign_capital_runtime.py             src/qore/infrastructure/cibo_native_sovereign_capital_runtime.py             src/qore/infrastructure/cibo_single_account_sovereign_ceiling_executor.py             src/qore/infrastructure/cibo_single_account_historical_ceiling_epoch.py             src/qore/infrastructure/cibo_single_account_historical_ceiling_replay.py             tests/infrastructure/test_cibo_adaptive_leverage_ablation_wiring.py
+          pytest -q --no-cov             tests/infrastructure/test_cibo_adaptive_leverage_ablation_wiring.py             tests/infrastructure/test_cibo_sovereign_capital_runtime_contract.py             tests/infrastructure/test_cibo_single_account_sovereign_ceiling_executor.py             tests/infrastructure/test_cibo_single_account_historical_ceiling_epoch.py             tests/infrastructure/test_cibo_single_account_historical_ceiling_replay.py
+
+      - name: Recover frozen input and baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/frozen" "$RUNNER_TEMP/baseline"
+
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$FROZEN_ARTIFACT_ID" > "$RUNNER_TEMP/frozen.meta.json"
+          jq -e --arg digest "$FROZEN_ARTIFACT_DIGEST" '.expired == false and .digest == $digest' "$RUNNER_TEMP/frozen.meta.json"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$FROZEN_ARTIFACT_ID/zip" > "$RUNNER_TEMP/frozen.zip"
+          echo "${FROZEN_ARTIFACT_DIGEST#sha256:}  $RUNNER_TEMP/frozen.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/frozen.zip" -d "$RUNNER_TEMP/frozen"
+
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$BASELINE_ARTIFACT_ID" > "$RUNNER_TEMP/baseline.meta.json"
+          jq -e --arg digest "$BASELINE_ARTIFACT_DIGEST" '.expired == false and .digest == $digest' "$RUNNER_TEMP/baseline.meta.json"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$BASELINE_ARTIFACT_ID/zip" > "$RUNNER_TEMP/baseline.zip"
+          echo "${BASELINE_ARTIFACT_DIGEST#sha256:}  $RUNNER_TEMP/baseline.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/baseline.zip" -d "$RUNNER_TEMP/baseline"
+
+          MANIFEST="$(find "$RUNNER_TEMP/frozen" -type f -name single-account-manifest-native.json -print -quit)"
+          BASELINE="$(find "$RUNNER_TEMP/baseline" -type f -name historical-ceiling-replay-with-sensors.json -print -quit)"
+          test -n "$MANIFEST"
+          test -n "$BASELINE"
+          echo "MANIFEST=$MANIFEST" >> "$GITHUB_ENV"
+          echo "BASELINE=$BASELINE" >> "$GITHUB_ENV"
+
+      - name: Run Adaptive Leverage OFF replay
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/ablation"
+          python scripts/cibo_run_adaptive_leverage_ablation.py             --manifest "$MANIFEST"             --output "$RUNNER_TEMP/ablation/adaptive-leverage-off.json"             --progress-every 100
+
+      - name: Compare against full sovereign baseline
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from decimal import Decimal
+          from pathlib import Path
+
+          root = Path(os.environ["RUNNER_TEMP"])
+          baseline = json.loads(Path(os.environ["BASELINE"]).read_text())
+          ablation_path = root / "ablation" / "adaptive-leverage-off.json"
+          ablation = json.loads(ablation_path.read_text())
+
+          assert baseline["decision_count"] == 3368
+          assert ablation["decision_count"] == 3368
+          assert ablation["name"] == "adaptive_leverage"
+          assert ablation["external_ai_call_count"] == 0
+          assert ablation["account_reset_count"] == 0
+          assert ablation["economic_era_reset_count"] == 0
+          assert ablation["outcome_used_for_predecision"] is False
+          assert ablation["broker_mutation"] is False
+          assert ablation["certification_claimed"] is False
+          assert set(ablation["adaptive_leverage_multiplier_counts"]) <= {"0", "1"}
+          assert int(ablation["adaptive_leverage_multiplier_counts"].get("1", 0)) > 0
+
+          full = Decimal(baseline["ending_capital_usd"])
+          without = Decimal(ablation["ending_capital_usd"])
+          comparison = {
+              "schema": "qore.cibo.ablation-comparison.v1",
+              "name": "adaptive_leverage",
+              "full_ending_capital_usd": format(full, "f"),
+              "ending_capital_without_adaptive_leverage_usd": format(without, "f"),
+              "delta_full_minus_ablation_usd": format(full - without, "f"),
+              "full_settlement_count": baseline["settlement_count"],
+              "ablation_settlement_count": ablation["settlement_count"],
+              "outcome_aware_tuning": False,
+              "causal_ablation_executed": True,
+          }
+          (root / "ablation" / "adaptive-leverage-comparison.json").write_text(
+              json.dumps(comparison, indent=2, sort_keys=True) + "\n"
+          )
+          print(json.dumps(comparison, sort_keys=True))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-cibo-adaptive-leverage-ablation-${{ github.run_id }}
+          path: ${{ runner.temp }}/ablation
+          if-no-files-found: warn
