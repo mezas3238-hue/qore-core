@@ -3,6 +3,9 @@ from decimal import Decimal
 
 import pytest
 
+from qore.infrastructure.cibo_ce2i_causal_expectation import (
+    CausalExpectationBasis,
+)
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
@@ -87,6 +90,10 @@ def test_manifest_row_builds_exact_causal_ceiling_economics() -> None:
 
     assert evidence.expected_net_value_usd == Decimal("5")
     assert evidence.expected_capital_minutes == Decimal("30")
+    assert (
+        evidence.expectation_basis
+        is CausalExpectationBasis.FROZEN_HISTORICAL_PRIOR
+    )
     assert evidence.provider_cost_per_volume_usd == Decimal("9")
     assert evidence.context_allowed is True
     assert evidence.provider_viable is True
