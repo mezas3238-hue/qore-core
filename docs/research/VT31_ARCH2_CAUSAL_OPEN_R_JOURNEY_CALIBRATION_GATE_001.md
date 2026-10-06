@@ -46,7 +46,9 @@ It may not consume:
 
 These bands are fixed before the replay:
 
-- `current_open_r <= -0.50R`: MATERIAL_ADVERSE, strong caution;
+- `current_open_r <= -0.50R`: MATERIAL_ADVERSE, strong caution; this state
+  cannot remain SUPPORTIVE/LOW and therefore imposes a minimum
+  MIXED/MODERATE management floor;
 - `-0.50R < current_open_r < 0R`: ADVERSE, moderate caution;
 - `0R <= current_open_r < +0.50R`: NEUTRAL;
 - `+0.50R <= current_open_r < +1R`: FAVORABLE_PROGRESS, support;
