@@ -99,6 +99,9 @@ def _report(
                 "bullish_h1_breaker_short_conflict": _conflict(row),
                 "signature": comp007._signature(row),
                 "entry_context": row.get("entry_context", {}),
+                "cognitive_exit_evaluations": row.get(
+                    "cognitive_exit_evaluations", []
+                ),
             }
             for row in excluded
         ],
