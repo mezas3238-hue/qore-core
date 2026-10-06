@@ -12,9 +12,11 @@ on:
       - 'src/qore/infrastructure/cibo_single_account_manifest_settlement.py'
       - 'src/qore/infrastructure/cibo_single_account_manifest_economics.py'
       - 'src/qore/infrastructure/cibo_account_sizing_authority.py'
+      - 'src/qore/infrastructure/cibo_capital_science_runtime_bridge.py'
       - 'src/qore/infrastructure/cibo_portfolio_allocation_engine.py'
       - 'src/qore/infrastructure/cibo_native_max_cognitive_episode.py'
       - 'scripts/cibo_build_walk_forward_expectation_manifest.py'
+      - 'scripts/cibo_walk_forward_forecast_calibration.py'
 
 permissions:
   contents: read
@@ -44,9 +46,9 @@ jobs:
       - name: Validate walk-forward surface
         run: |
           set -euo pipefail
-          python -m py_compile             src/qore/infrastructure/cibo_walk_forward_expectation.py             scripts/cibo_build_walk_forward_expectation_manifest.py             scripts/cibo_single_account_historical_ceiling_replay.py
-          ruff check             src/qore/infrastructure/cibo_walk_forward_expectation.py             scripts/cibo_build_walk_forward_expectation_manifest.py
-          pytest -q --no-cov             tests/infrastructure/test_cibo_walk_forward_expectation.py             tests/infrastructure/test_cibo_walk_forward_manifest_builder.py             tests/infrastructure/test_cibo_single_account_manifest_settlement.py             tests/infrastructure/test_cibo_account_sizing_authority.py
+          python -m py_compile             src/qore/infrastructure/cibo_walk_forward_expectation.py             src/qore/infrastructure/cibo_capital_science_runtime_bridge.py             scripts/cibo_build_walk_forward_expectation_manifest.py             scripts/cibo_walk_forward_forecast_calibration.py             scripts/cibo_single_account_historical_ceiling_replay.py
+          ruff check             src/qore/infrastructure/cibo_walk_forward_expectation.py             src/qore/infrastructure/cibo_capital_science_runtime_bridge.py             scripts/cibo_build_walk_forward_expectation_manifest.py             scripts/cibo_walk_forward_forecast_calibration.py
+          pytest -q --no-cov             tests/infrastructure/test_cibo_walk_forward_expectation.py             tests/infrastructure/test_cibo_walk_forward_manifest_builder.py             tests/infrastructure/test_cibo_single_account_manifest_settlement.py             tests/infrastructure/test_cibo_account_sizing_authority.py             tests/infrastructure/test_cibo_capital_science_runtime_bridge.py
 
       - name: Recover frozen source
         env:
@@ -98,6 +100,13 @@ jobs:
           assert all(value > 0 for value in receipt["per_trader_forecast"].values())
           print(json.dumps(receipt, sort_keys=True))
           PY
+
+      - name: Calibrate causal walk-forward forecasts postdecision
+        run: |
+          set -euo pipefail
+          python scripts/cibo_walk_forward_forecast_calibration.py \
+            --manifest "$WF_MANIFEST" \
+            --output "$RUNNER_TEMP/walk-forward/walk-forward-calibration.json"
 
       - name: Execute full causal sovereign replay
         run: |
