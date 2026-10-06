@@ -744,3 +744,36 @@ def test_contextual_forecast_can_use_capital_velocity_rank() -> None:
         ("fast-lower-utility", 1),
         ("slow-higher-utility", 0),
     )
+
+
+
+def test_positive_edge_does_not_monotonically_force_maximum_multiplier() -> None:
+    base = _full_twin()
+    opportunity = replace(
+        _opportunity(),
+        expected_net_value_usd=Decimal("0.13"),
+        expected_capital_minutes=Decimal("20"),
+        stop_risk_usd=Decimal("2"),
+        margin_usd=Decimal("2"),
+        provider_cost_usd=Decimal("0"),
+        uncertainty_penalty=Decimal("0"),
+        maximum_multiplier=4,
+        expectation_basis=CausalExpectationBasis.CURRENT_STATE_FORECAST,
+    )
+    portfolio = replace(
+        base.portfolio,
+        opportunity_ids=(opportunity.option_id,),
+        reserved_stop_risk_usd=Decimal("0"),
+        reserved_margin_usd=Decimal("0"),
+    )
+    twin = replace(
+        base,
+        opportunities=(opportunity,),
+        portfolio=portfolio,
+        cognitive_constraints=(("capital_intensity_cap", "4"),),
+    )
+
+    plan = plan_account_wide_capital_allocation(twin)
+
+    assert plan.lines[0].multiplier == 2
+    assert plan.lines[0].multiplier < opportunity.maximum_multiplier
