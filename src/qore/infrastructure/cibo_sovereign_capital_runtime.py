@@ -395,6 +395,7 @@ def run_cibo_sovereign_capital_runtime(
             sizing=sizing,
             capital=capital,
             regime_state=regime_state,
+            peak_realized_capital_usd=peak_realized_capital_usd,
         )
     )
 
