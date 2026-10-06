@@ -11,7 +11,11 @@ on:
     paths:
       - scripts/vt31_nas100_full_cognition_attribution_v1.py
       - src/qore/infrastructure/traders/vt31_nas100_position_intelligence.py
+      - src/qore/infrastructure/traders/vt31_nas100_reasoning_engine.py
+      - src/qore/infrastructure/traders/vt31_nas100_situation_model.py
+      - scripts/vt31_nas100_specialist_r1_candidate.py
       - tests/infrastructure/test_vt31_nas100_position_intelligence.py
+      - tests/infrastructure/test_vt31_nas100_cognitive_reasoning.py
       - .github/workflows/vt31-architect-b-full-cognition-attribution-v1.yml
   workflow_dispatch:
 
@@ -66,8 +70,8 @@ jobs:
       - name: Static and focused cognition gates
         run: |
           set -euo pipefail
-          ruff check             scripts/vt31_nas100_full_cognition_attribution_v1.py             src/qore/infrastructure/traders/vt31_nas100_position_intelligence.py             tests/infrastructure/test_vt31_nas100_position_intelligence.py
-          pytest -q             tests/infrastructure/test_vt31_nas100_position_intelligence.py             tests/infrastructure/test_vt31_nas100_cognitive_reasoning.py
+          ruff check             scripts/vt31_nas100_full_cognition_attribution_v1.py             scripts/vt31_nas100_specialist_r1_candidate.py             src/qore/infrastructure/traders/vt31_nas100_position_intelligence.py             src/qore/infrastructure/traders/vt31_nas100_reasoning_engine.py             src/qore/infrastructure/traders/vt31_nas100_situation_model.py             tests/infrastructure/test_vt31_nas100_position_intelligence.py             tests/infrastructure/test_vt31_nas100_cognitive_reasoning.py
+          pytest -q -o addopts=''             tests/infrastructure/test_vt31_nas100_position_intelligence.py             tests/infrastructure/test_vt31_nas100_cognitive_reasoning.py
 
       - name: Recover immutable consumed evidence
         run: |
@@ -109,8 +113,17 @@ jobs:
           assert g["provider_volume_rule_used"] is False
           assert g["terminal_pnl_used_for_runtime_decision"] is False
           assert g["future_journey_label_used"] is False
+          assert g["r_runtime_strategy_allowed"] is True
+          assert g["maximum_intelligence_required"] is True
           assert g["opens_new_holdout"] is False
           assert g["policy_promoted"] is False
+
+          intelligence = payload["maximum_intelligence"]
+          assert intelligence["required_for_candidate_freeze"] is True
+          assert intelligence["terminal_trade_count"] >= 0
+          if intelligence["candidate_freeze_allowed"]:
+              assert intelligence["ready_trade_count"] == intelligence["terminal_trade_count"]
+              assert intelligence["blocker_counts"] == {}
           PY
 
       - uses: actions/upload-artifact@v4
