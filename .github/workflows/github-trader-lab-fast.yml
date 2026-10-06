@@ -1,0 +1,188 @@
+name: QORE GitHub Trader Lab Fast
+
+on:
+  push:
+    branches:
+      - agent/github-trader-lab-001
+    paths:
+      - 'tools/github_trader_lab/**'
+      - '.github/workflows/github-trader-lab-fast.yml'
+  workflow_dispatch:
+    inputs:
+      profile_path:
+        description: 'Trader Lab profile path'
+        required: false
+        type: string
+      subject_ref:
+        description: 'Subject Git ref'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-github-trader-lab-fast-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  trader-lab-fast:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout independent Trader Lab
+        uses: actions/checkout@v4
+        with:
+          path: lab
+
+      - name: Resolve request
+        id: request
+        shell: bash
+        env:
+          INPUT_PROFILE: ${{ github.event.inputs.profile_path || '' }}
+          INPUT_SUBJECT_REF: ${{ github.event.inputs.subject_ref || '' }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          lab=Path("lab").resolve()
+          request=json.loads((lab/"tools/github_trader_lab/run-request.json").read_text())
+          profile_path=Path(os.environ.get("INPUT_PROFILE") or request["profile_path"])
+          subject_ref=os.environ.get("INPUT_SUBJECT_REF") or request["subject_ref"]
+          if profile_path.is_absolute() or ".." in profile_path.parts:
+              raise SystemExit("profile_path must stay in lab checkout")
+          full=lab/profile_path
+          profile=json.loads(full.read_text())
+          if profile.get("schema") != "qore.github-trader-lab.profile.v2":
+              raise SystemExit("fast Trader Lab requires profile v2")
+          digest=hashlib.sha256(full.read_bytes()).hexdigest()
+          with Path(os.environ["GITHUB_OUTPUT"]).open("a") as out:
+              out.write(f"profile_path={profile_path.as_posix()}\n")
+              out.write(f"profile_id={profile['profile_id']}\n")
+              out.write(f"profile_sha={digest}\n")
+              out.write(f"subject_ref={subject_ref}\n")
+          print(json.dumps({
+              "profile_id": profile["profile_id"],
+              "subject": profile["subject"],
+              "subject_ref": subject_ref,
+              "profile_sha": digest
+          }, sort_keys=True))
+          PY
+
+      - name: Checkout subject
+        uses: actions/checkout@v4
+        with:
+          repository: mezas3238-hue/qore-core
+          ref: ${{ steps.request.outputs.subject_ref }}
+          path: subject
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Fingerprint prepared-ledger dependencies
+        id: prep
+        shell: bash
+        run: |
+          set -euo pipefail
+          raw="$(python lab/tools/github_trader_lab/fingerprint.py \
+            --profile "lab/${{ steps.request.outputs.profile_path }}" \
+            --subject-root subject)"
+          echo "$raw"
+          fp="$(printf '%s\n' "$raw" | sed -n 's/^fingerprint=//p')"
+          count="$(printf '%s\n' "$raw" | sed -n 's/^file_count=//p')"
+          test -n "$fp"
+          echo "fingerprint=$fp" >> "$GITHUB_OUTPUT"
+          echo "file_count=$count" >> "$GITHUB_OUTPUT"
+
+      - name: Restore immutable evidence cache
+        uses: actions/cache@v4
+        with:
+          path: .qore-cache/github-trader-lab/evidence/${{ steps.request.outputs.profile_id }}
+          key: qore-github-trader-lab-evidence-v2-${{ steps.request.outputs.profile_sha }}
+
+      - name: Recover and verify evidence
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python lab/tools/github_trader_lab/evidence.py \
+            --profile "lab/${{ steps.request.outputs.profile_path }}" \
+            --output-dir ".qore-cache/github-trader-lab/evidence/${{ steps.request.outputs.profile_id }}"
+
+      - name: Restore prepared causal ledger
+        id: prepared-cache
+        uses: actions/cache@v4
+        with:
+          path: .qore-cache/github-trader-lab/prepared/${{ steps.request.outputs.profile_id }}
+          key: qore-github-trader-lab-prepared-v1-${{ steps.prep.outputs.fingerprint }}
+
+      - name: Static preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            lab/tools/github_trader_lab/realtime.py \
+            lab/tools/github_trader_lab/science.py \
+            lab/tools/github_trader_lab/fingerprint.py \
+            lab/tools/github_trader_lab/fast_runner.py \
+            lab/tools/github_trader_lab/adapters/vt31_comp003_prepare.py \
+            lab/tools/github_trader_lab/adapters/vt31_comp006_fast.py
+          echo "prepared_cache_hit=${{ steps.prepared-cache.outputs.cache-hit }}"
+          echo "prepared_dependency_files=${{ steps.prep.outputs.file_count }}"
+
+      - name: Execute hot replay and full scientific battery
+        shell: bash
+        env:
+          PYTHONPATH: ${{ github.workspace }}/subject/src:${{ github.workspace }}/subject/scripts:${{ github.workspace }}/lab/tools/github_trader_lab
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/github-trader-lab-fast"
+          prepared=".qore-cache/github-trader-lab/prepared/${{ steps.request.outputs.profile_id }}"
+          mkdir -p "$out" "$prepared"
+          python lab/tools/github_trader_lab/fast_runner.py \
+            --profile "lab/${{ steps.request.outputs.profile_path }}" \
+            --lab-root "${{ github.workspace }}/lab" \
+            --subject-root "${{ github.workspace }}/subject" \
+            --evidence-dir "${{ github.workspace }}/.qore-cache/github-trader-lab/evidence/${{ steps.request.outputs.profile_id }}" \
+            --prepared-dir "${{ github.workspace }}/$prepared" \
+            --output-dir "$out" \
+            | tee "$out/console.log"
+
+      - name: Publish performance and science headline
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/github-trader-lab-fast"
+          if test -f "$out/headline.json"; then
+            python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json, os
+          from pathlib import Path
+          h=json.loads((Path(os.environ["RUNNER_TEMP"])/"github-trader-lab-fast"/"headline.json").read_text())
+          print("# QORE GitHub Trader Lab — Fast")
+          print()
+          print(f"- Hot compute: {h['hot_compute_seconds']} s")
+          print(f"- Replay/filter stage: {h['experiment_replay_seconds']} s")
+          print(f"- Full scientific battery: {h['scientific_battery_seconds']} s")
+          print(f"- Runner internal total: {h['runner_total_seconds']} s")
+          print(f"- Development survivors: {h['development_survivors']}")
+          print(f"- ≤6R survivors: {h['hard_dd_survivors']}")
+          print(f"- Scientific passes: {h['scientific_passes']}")
+          print("- Fresh holdout opened: false")
+          print("- Certification claimed: false")
+          PY
+          fi
+
+      - name: Upload laboratory record
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-github-trader-lab-fast-${{ steps.request.outputs.profile_id }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/github-trader-lab-fast
+          if-no-files-found: error
+          retention-days: 90
