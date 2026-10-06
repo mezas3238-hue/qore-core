@@ -97,21 +97,38 @@ def _cognitive_economic_context(
         row.get("context_quality"),
         "context_quality",
     )
+    disposition = context_quality.get("disposition")
+    basis = expectation.get("basis")
+    expected_value = expectation.get("expected_net_value_usd")
+    expected_minutes = expectation.get("expected_capital_minutes")
+    if not isinstance(disposition, str) or not disposition:
+        raise CiboCapitalManagementError(
+            "cognitive context quality disposition is required"
+        )
+    if not isinstance(basis, str) or not basis:
+        raise CiboCapitalManagementError(
+            "cognitive expectation basis is required"
+        )
+    if expected_value is None or not str(expected_value):
+        raise CiboCapitalManagementError(
+            "cognitive expected value is required"
+        )
+    if expected_minutes is None or not str(expected_minutes):
+        raise CiboCapitalManagementError(
+            "cognitive expected capital minutes are required"
+        )
+    raw_rules = context_quality.get("matched_rule_ids", ())
+    if not isinstance(raw_rules, (list, tuple)):
+        raise CiboCapitalManagementError(
+            "cognitive context quality rules must be a sequence"
+        )
+    rule_value = ",".join(str(item) for item in raw_rules) or "none"
     additions = {
-        "cibo_context_quality_disposition": str(
-            context_quality.get("disposition", "")
-        ),
-        "cibo_context_quality_rules": ",".join(
-            str(item)
-            for item in context_quality.get("matched_rule_ids", ())
-        ),
-        "cibo_expectation_basis": str(expectation.get("basis", "")),
-        "cibo_expected_value_usd": str(
-            expectation.get("expected_net_value_usd", "")
-        ),
-        "cibo_expected_capital_minutes": str(
-            expectation.get("expected_capital_minutes", "")
-        ),
+        "cibo_context_quality_disposition": disposition,
+        "cibo_context_quality_rules": rule_value,
+        "cibo_expectation_basis": basis,
+        "cibo_expected_value_usd": str(expected_value),
+        "cibo_expected_capital_minutes": str(expected_minutes),
     }
     overlap = set(base).intersection(additions)
     if overlap:
