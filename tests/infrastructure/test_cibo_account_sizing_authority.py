@@ -1,4 +1,4 @@
-from decimal import Decimal
+from decimal import Decimal, localcontext
 
 from qore.infrastructure.account_wide_risk import TraderLineage
 from qore.infrastructure.cibo_account_capital_mission import (
@@ -289,7 +289,6 @@ def test_demo_capability_sizing_respects_current_source_availability() -> None:
     )
 
 
-
 def test_self_financing_identity_preserves_long_decimal_sources() -> None:
     realized = Decimal("1.11111111111111111111111111111")
     protected = Decimal("2.22222222222222222222222222222")
@@ -308,7 +307,9 @@ def test_self_financing_identity_preserves_long_decimal_sources() -> None:
         cost_reserve_usd=Decimal("0"),
     )
 
-    assert capital.proven_self_financing_capacity_usd <= realized + protected
+    with localcontext() as context:
+        context.prec = 100
+        assert capital.proven_self_financing_capacity_usd <= realized + protected
     assert capital.available_self_financing_capacity_usd == Decimal(
         "2.22222222222222222222222222222"
     )
