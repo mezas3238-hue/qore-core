@@ -144,6 +144,25 @@ class StructuralDestinationCandidate:
             raise ValueError("next structural destination must be confirmed")
 
 
+def validate_maximum_cognition_for_certification(
+    cognition: FullCognitivePositionState,
+) -> None:
+    """Fail closed if a certifiable adaptive decision uses partial cognition."""
+
+    if not cognition.maximum_cognition_verified:
+        raise ValueError("VT31 maximum cognition proof is incomplete")
+    if not cognition.memory_bundle_complete:
+        raise ValueError("VT31 persistent memory bundle is incomplete")
+    if not cognition.domain_coverage_complete:
+        raise ValueError("VT31 cognitive domain coverage is incomplete")
+    if not cognition.situation_accounting_complete:
+        raise ValueError("VT31 situation accounting is incomplete")
+    if cognition.cognitive_coverage_ratio != Decimal("1"):
+        raise ValueError("VT31 cognitive coverage ratio must equal 1")
+    if cognition.terminal_pnl_used or cognition.future_journey_label_used:
+        raise ValueError("VT31 maximum cognition cannot use outcome oracles")
+
+
 def decide_market_native_position(
     *,
     side: str,
@@ -165,6 +184,8 @@ def decide_market_native_position(
     strategy-native R management is globally permitted when independently
     validated. Volume/sizing never becomes decision authority here.
     """
+
+    validate_maximum_cognition_for_certification(cognition)
 
     if side not in {"long", "short"}:
         raise ValueError(f"unsupported side: {side}")
@@ -623,14 +644,20 @@ def assess_full_cognitive_position(
         if observed_situation_fields
         else Decimal("0")
     )
-    memory_bundle_complete = all(
-        len(value) == 64
-        for value in (
-            reasoning.strategy_memory_fingerprint,
-            reasoning.cibo_market_memory_fingerprint,
-            reasoning.trader_experience_memory_fingerprint,
-            reasoning.memory_fingerprint,
+    memory_bundle_complete = (
+        all(
+            len(value) == 64
+            for value in (
+                reasoning.strategy_memory_fingerprint,
+                reasoning.cibo_market_memory_fingerprint,
+                reasoning.trader_experience_memory_fingerprint,
+                reasoning.memory_fingerprint,
+                reasoning.situation_fingerprint,
+            )
         )
+        and bool(reasoning.strategy_memory_used)
+        and bool(reasoning.cibo_market_memory_used)
+        and bool(reasoning.trader_experience_memory_used)
     )
     domain_coverage_complete = (
         set(observed_domains) == set(REQUIRED_COGNITIVE_DOMAINS)
