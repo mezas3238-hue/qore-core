@@ -116,6 +116,23 @@ def _max_intelligence_audit(
     if management_context_state.startswith("UNRESOLVED"):
         blockers.append("CONTEXTUAL_POSITION_MANAGEMENT_UNRESOLVED")
 
+    unresolved_target_tokens = (
+        "RESEARCH_ONLY",
+        "UNCALIBRATED",
+        "UNRESOLVED",
+        "UNKNOWN",
+    )
+    if any(
+        token in state.dol2_state.upper()
+        for token in unresolved_target_tokens
+    ):
+        blockers.append("DOL2_TARGET_INTELLIGENCE_UNCALIBRATED")
+    if any(
+        token in state.dol3_state.upper()
+        for token in unresolved_target_tokens
+    ):
+        blockers.append("DOL3_TARGET_INTELLIGENCE_UNCALIBRATED")
+
     return domains, tuple(blockers)
 
 
