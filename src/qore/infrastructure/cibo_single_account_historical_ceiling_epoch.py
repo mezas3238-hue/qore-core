@@ -170,7 +170,11 @@ def run_predecision_historical_sovereign_ceiling_epoch(
         total_margin_capacity_usd=effective_margin_capacity,
     )
 
-    qore_headroom = epoch.capital_twin.stop_risk_headroom_usd
+    qore_total_authorizable = min(
+        stop_capacity,
+        provider_risk_headroom,
+        provider_max_risk,
+    )
     provider_budget = _HistoricalProviderBudget(
         provider_headroom=provider_risk_headroom,
         max_risk_at_any_time=provider_max_risk,
@@ -185,11 +189,10 @@ def run_predecision_historical_sovereign_ceiling_epoch(
         open_stop_worst_case_loss=historical_capital.open_stop_risk_usd,
         open_floating_loss=Decimal(0),
         pending_broker_worst_case_loss=Decimal(0),
-        qore_authorizable_headroom=min(
-            qore_headroom,
-            provider_risk_headroom,
-            provider_max_risk,
-        ),
+        # AccountWideRiskEngine subtracts current open/pending risk from
+        # this value, so this is the total internal account limit, not the
+        # already-remaining headroom exposed by the capital twin.
+        qore_authorizable_headroom=qore_total_authorizable,
         provider_budget=provider_budget,
         reconciled_at=decision_at,
     )
