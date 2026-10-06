@@ -115,6 +115,7 @@ class MarketNativePositionDecision:
     market_native: bool = True
     volume_agnostic: bool = True
     r_runtime_authority: bool = False
+    r_runtime_strategy_allowed: bool = True
 
 
 STRUCTURAL_DESTINATION_SOURCES = frozenset(
@@ -158,10 +159,11 @@ def decide_market_native_position(
     momentum_deteriorated: bool,
     regime_changed_against_thesis: bool,
 ) -> MarketNativePositionDecision:
-    """Manage VT31 without R, volume, sizing, or fixed-profit caps.
+    """Manage one market-native VT31 path without capital engineering.
 
-    The caller supplies only causal market facts. R is deliberately absent from
-    the function signature so it cannot trigger target, protection, or exit.
+    This specific path uses causal market facts rather than an R trigger, but
+    strategy-native R management is globally permitted when independently
+    validated. Volume/sizing never becomes decision authority here.
     """
 
     if side not in {"long", "short"}:
