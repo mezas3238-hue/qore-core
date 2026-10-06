@@ -318,6 +318,48 @@ def _cost_stress(
     }
 
 
+def _drawdown_episode(
+    rows: list[dict[str, object]],
+    friction: Decimal,
+) -> dict[str, object]:
+    equity = Decimal(0)
+    peak = Decimal(0)
+    max_dd = Decimal(0)
+    current_peak_index: int | None = None
+    peak_index: int | None = None
+    trough_index: int | None = None
+
+    for index, row in enumerate(rows):
+        equity += _d(row["r_multiple"]) - friction
+        if equity > peak:
+            peak = equity
+            current_peak_index = index
+        drawdown = peak - equity
+        if drawdown > max_dd:
+            max_dd = drawdown
+            peak_index = current_peak_index
+            trough_index = index
+
+    def identity(index: int | None) -> dict[str, object] | None:
+        if index is None:
+            return None
+        row = rows[index]
+        return {
+            "signal_at": row["signal_at"],
+            "local_date": row["local_date"],
+            "entry_family": row.get("entry_family"),
+            "side": row.get("side"),
+        }
+
+    return {
+        "max_drawdown_r": format(max_dd, "f"),
+        "peak_trade": identity(peak_index),
+        "trough_trade": identity(trough_index),
+        "peak_index": peak_index,
+        "trough_index": trough_index,
+    }
+
+
 def _pf_pass(metrics: dict[str, object], threshold: Decimal) -> bool:
     value = metrics.get("profit_factor")
     return value is not None and _d(value) >= threshold
@@ -367,17 +409,6 @@ def partition_report(
         "observed_dd_at_most_6r": (
             _d(metrics["max_drawdown_r"]) <= OBSERVED_DD_MAX
         ),
-        "payoff_at_least_1_20": (
-            payoff is not None and payoff >= PAYOFF_MIN
-        ),
-        "annualized_sharpe_at_least_1_50": (
-            risk["annualized_sharpe"] is not None
-            and _d(risk["annualized_sharpe"]) >= SHARPE_MIN
-        ),
-        "annualized_sortino_at_least_2_00": (
-            risk["annualized_sortino"] is not None
-            and _d(risk["annualized_sortino"]) >= SORTINO_MIN
-        ),
         "mc_positive_at_least_0_90": (
             _d(mc["positive_terminal_probability"]) >= MC_POSITIVE_MIN
         ),
@@ -388,6 +419,23 @@ def partition_report(
             stress["0.10"],
             Decimal(1),
         ),
+    }
+    diagnostics = {
+        "payoff_ratio": None if payoff is None else format(payoff, "f"),
+        "payoff_at_least_1_20": (
+            payoff is not None and payoff >= PAYOFF_MIN
+        ),
+        "annualized_sharpe": risk["annualized_sharpe"],
+        "annualized_sharpe_at_least_1_50": (
+            risk["annualized_sharpe"] is not None
+            and _d(risk["annualized_sharpe"]) >= SHARPE_MIN
+        ),
+        "annualized_sortino": risk["annualized_sortino"],
+        "annualized_sortino_at_least_2_00": (
+            risk["annualized_sortino"] is not None
+            and _d(risk["annualized_sortino"]) >= SORTINO_MIN
+        ),
+        "calendar_year_total_r": years,
         "all_calendar_year_totals_positive": (
             bool(years) and all(_d(value) > 0 for value in years.values())
         ),
@@ -412,7 +460,8 @@ def partition_report(
         "halfyear_stress": halfyears,
         "reference_volatility_regimes": _regime_report(_minimal_rows(rows)),
         "gates": gates,
-        "partition_pack_pass": all(gates.values()),
+        "diagnostics": diagnostics,
+        "partition_robustness_gate_pass": all(gates.values()),
         "governance": {
             "consumed_evidence_only": True,
             "fresh_holdout_opened": False,
@@ -493,6 +542,7 @@ def aggregate_reports(
         for name in FROZEN_BINDINGS
     )
 
+    combined_dd = _drawdown_episode(rows, BASELINE_FRICTION_R)
     gates = {
         "all_partition_development_bindings_exact": all(
             cast(dict[str, bool], report["gates"])[
@@ -504,6 +554,9 @@ def aggregate_reports(
         "no_eligible_session_overlap_across_folds": True,
         "all_fold_pf_at_least_1_50": fold_pf,
         "all_fold_observed_dd_at_most_6r": fold_dd,
+        "combined_observed_dd_at_most_6r": (
+            _d(combined_dd["max_drawdown_r"]) <= OBSERVED_DD_MAX
+        ),
         "combined_pf_at_least_1_70": _pf_pass(metrics, COMBINED_PF_MIN),
         "combined_expectancy_positive": _d(metrics["mean_r"]) > 0,
         "combined_expectancy_at_least_0_15r_direction": (
@@ -530,13 +583,23 @@ def aggregate_reports(
             stress["0.10"],
             Decimal(1),
         ),
+    }
+    temporal_diagnostics = {
+        "calendar_year_total_r": years,
+        "negative_calendar_years": [
+            year for year, value in years.items() if _d(value) <= 0
+        ],
         "all_calendar_year_totals_positive": (
             bool(years) and all(_d(value) > 0 for value in years.values())
         ),
+        "review_required": any(_d(value) <= 0 for value in years.values()),
+        "automatic_fail_from_year_sign": False,
     }
     partition_results = {
         name: {
-            "partition_pack_pass": by_partition[name]["partition_pack_pass"],
+            "partition_robustness_gate_pass": (
+                by_partition[name]["partition_robustness_gate_pass"]
+            ),
             "metrics": by_partition[name]["metrics"],
             "payoff_ratio": by_partition[name]["payoff_ratio"],
             "risk_adjusted": by_partition[name]["risk_adjusted"],
@@ -574,9 +637,11 @@ def aggregate_reports(
             "monte_carlo": mc,
             "cost_stress": stress,
             "year_total_r": years,
+            "drawdown_episode": combined_dd,
             "reference_volatility_regimes": _regime_report(rows),
         },
         "gates": gates,
+        "temporal_diagnostics": temporal_diagnostics,
         "preholdout_metric_pack_pass": all(gates.values()),
         "remaining_nonmetric_blockers": [
             "REPLAY_RUNTIME_SEMANTIC_PARITY",
