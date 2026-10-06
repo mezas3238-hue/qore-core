@@ -37,6 +37,7 @@ from qore.infrastructure.cibo_ce2i_regime_selector import (
     LiquidityState,
     ProviderCondition,
     VolatilityState,
+    cibo_new_capital_risk_utilization_ceiling,
 )
 from qore.infrastructure.cibo_single_account_ceiling_state import (
     CiboCeilingOpenExposure,
@@ -306,6 +307,7 @@ def _causal_regime(
             * provider_assumption.risk_headroom_multiple_of_equity,
             realized
             * provider_assumption.max_risk_multiple_of_equity,
+            realized * cibo_new_capital_risk_utilization_ceiling(),
         )
         margin_capacity = max(
             Decimal(0),
