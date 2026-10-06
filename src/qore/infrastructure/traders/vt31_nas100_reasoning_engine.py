@@ -383,6 +383,14 @@ _POSITION_NONBLOCKING_ADMISSION_UNCERTAINTIES = frozenset(
 )
 
 
+_POSITION_NONBLOCKING_ADMISSION_SUPPORT = frozenset(
+    {
+        "EXPERIENCE:LOW_DD_COMPRESSED_REFERENCE_CORE",
+        "EXPERIENCE:LOW_DD_NONCOMPRESSED_SHORT_H1_MIXED",
+    }
+)
+
+
 def reason_position(
     state: Nas100SituationModel,
     *,
@@ -422,6 +430,21 @@ def reason_position(
         for code in raw.uncertainty
         if code in _POSITION_NONBLOCKING_ADMISSION_UNCERTAINTIES
     )
+    position_uncertainties = tuple(
+        code
+        for code in raw.uncertainty
+        if code not in _POSITION_NONBLOCKING_ADMISSION_UNCERTAINTIES
+    )
+    admission_only_support = tuple(
+        code
+        for code in raw.supporting_evidence
+        if code in _POSITION_NONBLOCKING_ADMISSION_SUPPORT
+    )
+    position_support = tuple(
+        code
+        for code in raw.supporting_evidence
+        if code not in _POSITION_NONBLOCKING_ADMISSION_SUPPORT
+    )
 
     context = list(raw.context_observations)
     context.append(
@@ -435,6 +458,10 @@ def reason_position(
         f"POSITION:ADMISSION_ONLY_UNCERTAINTY={code}"
         for code in admission_only_uncertainties
     )
+    context.extend(
+        f"POSITION:ADMISSION_ONLY_SUPPORT={code}"
+        for code in admission_only_support
+    )
 
     # WAIT is an admission state. Once a position exists, current uncertainty
     # is represented in cognition/support-vs-caution rather than pretending the
@@ -444,6 +471,8 @@ def reason_position(
     return replace(
         raw,
         action=action,
+        supporting_evidence=position_support,
         contradictions=position_contradictions,
+        uncertainty=position_uncertainties,
         context_observations=tuple(context),
     )
