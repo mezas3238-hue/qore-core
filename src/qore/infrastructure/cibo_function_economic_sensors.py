@@ -19,6 +19,7 @@ from enum import StrEnum
 
 from qore.infrastructure.cibo_capital_management_authority import (
     CapitalAction,
+    CapitalSource,
     CiboCapitalManagementError,
 )
 from qore.infrastructure.cibo_executive_brain import (
@@ -175,6 +176,15 @@ class CiboFunctionEconomicSensor:
         }
 
 
+def _uses_realized_profit(plan) -> bool:
+    if plan.capital_source is CapitalSource.REALIZED_PROFIT:
+        return plan.stop_risk_usd > 0
+    return any(
+        item.source is CapitalSource.REALIZED_PROFIT and item.amount_usd > 0
+        for item in plan.capital_source_lots
+    )
+
+
 def _pairs(**values: object) -> tuple[tuple[str, str], ...]:
     return tuple(sorted((str(key), str(value)) for key, value in values.items()))
 
@@ -300,8 +310,9 @@ def build_sovereign_function_sensors(
             == first_robust.common_margin_headroom_usd
         )
     )
+    compound_source_requested = _uses_realized_profit(sizing_plan)
     compound_block_binding = (
-        sizing_plan.action is CapitalAction.EXPAND
+        compound_source_requested
         and not decision.capital_science.allow_incremental_compound
         and final_plan.action is CapitalAction.HOLD
     )
@@ -459,7 +470,7 @@ def build_sovereign_function_sensors(
                 ),
             ),
             decision_gate_triggered=(
-                sizing_plan.action is CapitalAction.EXPAND
+                compound_source_requested
                 and not decision.capital_science.allow_incremental_compound
             ),
             final_capital_binding=compound_block_binding,
