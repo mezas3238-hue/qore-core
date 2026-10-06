@@ -241,6 +241,43 @@ def test_minus_one_r_consumes_stop_and_provider_cost_exactly() -> None:
     assert state.cumulative_gross_loss_usd == Decimal("10")
 
 
+def test_long_decimal_settlement_preserves_exact_capital() -> None:
+    state = initialize_historical_research_capital()
+    authorization = _authorization(
+        signal="long-decimal-win",
+        source=CapitalSource.ORIGINAL_BASE_CAPITAL,
+    )
+    provider_cost = Decimal(
+        "0.111111111111111111111111111111111111111"
+    )
+    state = reserve_historical_authorization(
+        state,
+        authorization=authorization,
+        provider_cost_usd=provider_cost,
+    )
+    state = settle_historical_deployment(
+        state,
+        settlement=_settlement(
+            signal="long-decimal-win",
+            gross_r=Decimal(
+                "0.3333333333333333333333333333333333333333"
+            ),
+            provider_cost=provider_cost,
+            gross_pnl=Decimal(
+                "3.333333333333333333333333333333333333333"
+            ),
+            net_pnl=Decimal(
+                "3.222222222222222222222222222222222222222"
+            ),
+            suffix="f",
+        ),
+    )
+
+    assert state.realized_capital_usd == Decimal(
+        "63.222222222222222222222222222222222222222"
+    )
+
+
 def test_outcome_below_minus_one_r_fails_without_gap_evidence() -> None:
     state = initialize_historical_research_capital()
     authorization = _authorization(
