@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
+from decimal import Decimal, localcontext
 
 import pytest
-from decimal import Decimal, localcontext
 
 from qore.infrastructure.account_wide_risk import TraderLineage
 from qore.infrastructure.cibo_capital_management_authority import (
