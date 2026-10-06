@@ -306,6 +306,47 @@ def test_genc10_world_transition_conserves_value_and_capacity() -> None:
     assert projected.productive_authority is False
 
 
+def test_genc10_projected_headroom_preserves_long_decimal_identity() -> None:
+    twin = __import__("dataclasses").replace(
+        _twin(),
+        total_stop_risk_capacity_usd=Decimal(
+            "10.123456789012345678901234567890123456789"
+        ),
+        used_stop_risk_usd=Decimal("1"),
+        stop_risk_headroom_usd=Decimal(
+            "9.123456789012345678901234567890123456789"
+        ),
+        total_margin_capacity_usd=Decimal(
+            "100.987654321098765432109876543210987654321"
+        ),
+        used_margin_usd=Decimal("2"),
+        margin_headroom_usd=Decimal(
+            "98.987654321098765432109876543210987654321"
+        ),
+    )
+    scenario = Genc10WorldScenario(
+        scenario_id="long-decimal-capacity",
+        kind=Genc10WorldKind.BALANCED,
+        declared_at=T0,
+        scenario_evidence_sha256="sha256:" + "0" * 64,
+        transition_uncertainty_evidence_sha256="sha256:" + "1" * 64,
+        surviving_known_option_ids=("known-r34",),
+    )
+
+    projected = project_genc10_world(
+        twin=twin,
+        scenario=scenario,
+        projected_at=T0 + timedelta(minutes=1),
+    )
+
+    assert projected.stop_risk_headroom_usd == Decimal(
+        "9.123456789012345678901234567890123456789"
+    )
+    assert projected.margin_headroom_usd == Decimal(
+        "98.987654321098765432109876543210987654321"
+    )
+
+
 def test_genc10_protected_floor_cannot_flow_back_to_growth() -> None:
     with pytest.raises(
         CiboCompoundCapitalError,
