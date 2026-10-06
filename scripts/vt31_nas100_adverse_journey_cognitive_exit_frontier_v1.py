@@ -51,6 +51,8 @@ VARIANTS = (
     "BASE_PLUS_FVG_NONSHALLOW",
     "BASE_PLUS_NONOB_NORMAL",
     "BASE_PLUS_FVG_NONSHALLOW_OR_NONOB_NORMAL",
+    "COMP003_PLUS_MIXED_DEEP_ADVERSE",
+    "COMP003_PLUS_BREAKER_MIXED_DEEP_ADVERSE",
     "COG_EXIT_NONSUPPORTIVE",
 )
 
@@ -110,8 +112,21 @@ def _exit_allowed(
         return base_safe or fvg_nonshallow
     if variant == "BASE_PLUS_NONOB_NORMAL":
         return base_safe or nonob_normal
+    comp003 = base_safe or fvg_nonshallow or nonob_normal
     if variant == "BASE_PLUS_FVG_NONSHALLOW_OR_NONOB_NORMAL":
-        return base_safe or fvg_nonshallow or nonob_normal
+        return comp003
+
+    mixed_deep_adverse = (
+        context == "MIXED"
+        and open_r <= Decimal("-0.75")
+    )
+    if variant == "COMP003_PLUS_MIXED_DEEP_ADVERSE":
+        return comp003 or mixed_deep_adverse
+    if variant == "COMP003_PLUS_BREAKER_MIXED_DEEP_ADVERSE":
+        return comp003 or (
+            entry_family == "breaker"
+            and mixed_deep_adverse
+        )
     if variant == "COG_EXIT_NONSUPPORTIVE":
         return context in {"MIXED", "CAUTIOUS"}
     raise ValueError(f"unsupported variant: {variant}")
