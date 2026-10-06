@@ -70,6 +70,10 @@ class PostEntryCausalObservation:
     exhaustion_state: str
     cross_index_state: str
 
+    # Explicit M15 state. UNWIRED is allowed during research but blocks
+    # maximum-intelligence candidate freeze/certification.
+    m15_state: str = "UNWIRED"
+
 
 @dataclass(frozen=True, slots=True)
 class PostEntryMarketFacts:
@@ -152,6 +156,7 @@ def rebuild_post_entry_situation(
         extension_capacity_state=observation.extension_capacity_state,
         exhaustion_state=observation.exhaustion_state,
         cross_index_state=observation.cross_index_state,
+        m15_state=observation.m15_state,
     )
 
 
