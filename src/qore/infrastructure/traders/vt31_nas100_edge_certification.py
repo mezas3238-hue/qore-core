@@ -19,18 +19,10 @@ _DECIMAL = Context(prec=34, rounding=ROUND_HALF_EVEN)
 
 IDENTITY = "VT31_NAS100_EDGE_CERT_V1_DEV"
 VOLUME_AGNOSTIC = True
-RUNTIME_R_EXECUTION_FORBIDDEN = True
+R_RUNTIME_ALLOWED = True
+SIZING_FOR_CERTIFICATION_FORBIDDEN = True
 
-PURE_EDGE_RUNTIME_FALSE_KEYS = (
-    "r_used_for_admission",
-    "r_used_for_entry",
-    "r_used_for_invalidation",
-    "r_used_for_stop_movement",
-    "r_used_for_breakeven",
-    "r_used_for_target",
-    "r_used_for_exit",
-    "r_used_for_trailing",
-    "r_used_for_partials",
+FORBIDDEN_CERTIFICATION_CAPITAL_KEYS = (
     "r_used_for_volume",
     "sizing_used",
     "leverage_used",
@@ -92,19 +84,20 @@ def _fmt(value: Decimal | None) -> str | None:
 def validate_pure_edge_runtime_governance(
     governance: Mapping[str, object],
 ) -> dict[str, object]:
-    """Fail closed unless runtime proves R/capital do not govern execution."""
+    """Fail closed on sizing/capital engineering, never on legitimate R logic."""
     violations: list[str] = []
-    for key in PURE_EDGE_RUNTIME_FALSE_KEYS:
+    for key in FORBIDDEN_CERTIFICATION_CAPITAL_KEYS:
         if governance.get(key) is not False:
             violations.append(key)
     if governance.get("volume_agnostic") is not True:
         violations.append("volume_agnostic")
-    if governance.get("r_role") != "post_trade_evaluation_only":
-        violations.append("r_role")
     return {
         "verified": not violations,
         "violations": violations,
-        "r_runtime_execution_forbidden": RUNTIME_R_EXECUTION_FORBIDDEN,
+        "r_runtime_allowed": R_RUNTIME_ALLOWED,
+        "sizing_for_certification_forbidden": (
+            SIZING_FOR_CERTIFICATION_FORBIDDEN
+        ),
     }
 
 
@@ -466,7 +459,8 @@ def build_edge_only_report(
         {
             "verified": False,
             "violations": ["runtime_governance_missing"],
-            "r_runtime_execution_forbidden": True,
+            "r_runtime_allowed": True,
+            "sizing_for_certification_forbidden": True,
         }
         if runtime_governance is None
         else validate_pure_edge_runtime_governance(runtime_governance)
@@ -597,9 +591,11 @@ def build_edge_only_report(
         "compounding_authority": False,
         "portfolio_weighting_authority": False,
         "volume_agnostic": VOLUME_AGNOSTIC,
-        "r_role": "post_trade_evaluation_only",
-        "r_runtime_execution_authority": False,
+        "r_role": "runtime_strategy_and_evaluation_allowed",
+        "r_runtime_allowed": R_RUNTIME_ALLOWED,
+        "r_runtime_execution_authority": True,
         "runtime_purity": runtime_purity,
+        "certification_capital_neutrality": runtime_purity,
         "volume_constraints_authority": "provider-adapter-only",
         "volume_used_for_edge_metrics": False,
         "capital_fields_used_for_edge_metrics": [],
