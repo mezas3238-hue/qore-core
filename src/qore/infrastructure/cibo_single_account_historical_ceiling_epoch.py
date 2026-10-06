@@ -237,6 +237,9 @@ def run_predecision_historical_sovereign_ceiling_epoch(
         survival_capital_usd=survival_capital_usd,
         protected_capital_usd=protected_capital_usd,
         portfolio_fixed_multiplier=portfolio_fixed_multiplier,
+        peak_realized_capital_usd=(
+            historical_capital.peak_realized_capital_usd
+        ),
     )
     return CiboPreparedHistoricalSovereignCeilingEpoch(
         epoch_state=epoch,
