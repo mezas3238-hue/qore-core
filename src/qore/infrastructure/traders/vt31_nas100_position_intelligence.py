@@ -551,6 +551,16 @@ def _dol1_reached(state: str) -> bool:
 
 
 def _confirmed_exhaustion(state: str) -> bool:
+    normalized = state.upper().replace("-", "_").replace(" ", "_")
+    negative_exhaustion_tokens = (
+        "NO_CONFIRMED_EXHAUSTION",
+        "NO_EXHAUSTION",
+        "NOT_EXHAUSTED",
+        "EXHAUSTION_NOT_CONFIRMED",
+        "EXHAUSTION_ABSENT",
+    )
+    if any(token in normalized for token in negative_exhaustion_tokens):
+        return False
     if _contains_any(state, ("UNKNOWN", "UNRESOLVED", "NONE", "ABSENT")):
         return False
     return _contains_any(
