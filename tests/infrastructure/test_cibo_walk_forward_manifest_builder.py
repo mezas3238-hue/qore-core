@@ -68,7 +68,7 @@ def _row(index: int) -> dict[str, object]:
 
 
 def test_builder_requires_five_completed_signals_before_forecast() -> None:
-    rows = [_row(index) for index in range(1, 7)]
+    rows = [_row(index) for index in range(1, 27)]
     manifest = reseal_single_account_manifest(
         {
             "schema": "test.walk-forward-source.v1",
@@ -77,11 +77,11 @@ def test_builder_requires_five_completed_signals_before_forecast() -> None:
             "account_reset_count": 0,
             "economic_era_reset_count": 0,
             "target_capital_used_for_tuning": False,
-            "opportunity_decision_count": 6,
-            "decision_epoch_count": 6,
+            "opportunity_decision_count": 26,
+            "decision_epoch_count": 26,
             "trader_ids": ["UNIVERSAL_TRADER_001"],
             "trader_opportunity_counts": {
-                "UNIVERSAL_TRADER_001": 6,
+                "UNIVERSAL_TRADER_001": 26,
             },
             "first_market_decision_at": rows[0]["market_decision_at"],
             "last_market_decision_at": rows[-1]["market_decision_at"],
@@ -103,12 +103,25 @@ def test_builder_requires_five_completed_signals_before_forecast() -> None:
     ] * 5
     assert expectations[5]["basis"] == "WALK_FORWARD_EMPIRICAL_FORECAST"
     assert expectations[5]["walk_forward_observation_count"] == 5
+    assert expectations[5]["walk_forward_maturity"] == "PROVISIONAL"
+    assert (
+        expectations[5]["walk_forward_mature_for_capital_consideration"]
+        is False
+    )
     assert expectations[5]["walk_forward_expected_structural_r"] == "3"
     assert expectations[5]["expected_net_value_usd"] == format(
         Decimal("3") * Decimal("0.02"),
         "f",
     )
+    assert expectations[25]["walk_forward_observation_count"] == 25
+    assert expectations[25]["walk_forward_maturity"] == "MATURE"
+    assert (
+        expectations[25]["walk_forward_mature_for_capital_consideration"]
+        is True
+    )
+    assert receipt["minimum_observations"] == 5
+    assert receipt["mature_observation_count"] == 25
     assert receipt["cold_start_decision_count"] == 5
-    assert receipt["forecast_decision_count"] == 1
+    assert receipt["forecast_decision_count"] == 21
     assert receipt["decoded_before_exit_count"] == 0
     assert receipt["future_outcome_used"] is False
