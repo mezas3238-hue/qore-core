@@ -178,3 +178,67 @@ def test_manifest_requires_availability_provenance_for_other_expectations() -> N
         match="expectation must declare when its evidence became available",
     ):
         manifest_row_to_ceiling_opportunity_evidence(row)
+
+
+def test_burned_context_research_cannot_hard_veto_capital() -> None:
+    row = _row()
+    row["context_quality"] = {
+        **row["context_quality"],
+        "disposition": "ABSTAIN",
+        "matched_rule_ids": ["LOW_PROJECTED_R_BUCKET"],
+        "research_mode": (
+            "NON_CERTIFYING_REUSED_HOLDOUT_ADAPTIVE_RESEARCH"
+        ),
+    }
+
+    evidence = manifest_row_to_ceiling_opportunity_evidence(row)
+    context = dict(evidence.opportunity.decision_context)
+
+    assert evidence.context_allowed is True
+    assert (
+        context["cibo_context_quality_hard_gate_authorized"]
+        == "false"
+    )
+    assert (
+        context["cibo_context_quality_research_mode"]
+        == "NON_CERTIFYING_REUSED_HOLDOUT_ADAPTIVE_RESEARCH"
+    )
+
+
+def test_causal_context_policy_can_hard_veto_when_already_available() -> None:
+    row = _row()
+    row["context_quality"] = {
+        **row["context_quality"],
+        "disposition": "ABSTAIN",
+        "matched_rule_ids": ["CAUSAL_RULE_A"],
+        "research_mode": "CAUSAL_POLICY",
+        "hard_gate_authorized": True,
+        "policy_available_at": "2025-12-31T00:00:00+00:00",
+    }
+
+    evidence = manifest_row_to_ceiling_opportunity_evidence(row)
+    context = dict(evidence.opportunity.decision_context)
+
+    assert evidence.context_allowed is False
+    assert (
+        context["cibo_context_quality_hard_gate_authorized"]
+        == "true"
+    )
+
+
+def test_context_policy_cannot_veto_before_policy_existed() -> None:
+    row = _row()
+    row["context_quality"] = {
+        **row["context_quality"],
+        "disposition": "ABSTAIN",
+        "matched_rule_ids": ["CAUSAL_RULE_A"],
+        "research_mode": "CAUSAL_POLICY",
+        "hard_gate_authorized": True,
+        "policy_available_at": "2026-02-01T00:00:00+00:00",
+    }
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="context-quality policy was not available at decision time",
+    ):
+        manifest_row_to_ceiling_opportunity_evidence(row)
