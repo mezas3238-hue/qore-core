@@ -13,7 +13,7 @@ import json
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
-from decimal import Decimal
+from decimal import Decimal, localcontext
 from typing import Any
 
 from qore.infrastructure.account_wide_risk import RiskDecision
@@ -174,9 +174,13 @@ def manifest_row_to_sovereign_settlement(
     provider_cost_per_volume = (
         manifest_row_provider_cost_per_volume_usd(row)
     )
-    provider_cost = provider_cost_per_volume * decision.authorized_volume
-    gross_pnl = gross_r * decision.authorized_stop_risk_usd
-    net_pnl = gross_pnl - provider_cost
+    with localcontext() as context:
+        context.prec = 100
+        provider_cost = (
+            provider_cost_per_volume * decision.authorized_volume
+        )
+        gross_pnl = gross_r * decision.authorized_stop_risk_usd
+        net_pnl = gross_pnl - provider_cost
     digest_payload = {
         "signal_fingerprint": decision.signal_fingerprint,
         "trader_id": decision.trader_id,
