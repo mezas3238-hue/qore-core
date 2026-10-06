@@ -120,3 +120,98 @@ def test_native_max_intelligence_rejects_vt08_without_native_surface() -> None:
         match="VT08 native perception incomplete",
     ):
         validate_native_maximum_perception((opportunity,))
+
+
+def test_native_max_consumes_context_quality_semantics_into_abstention() -> None:
+    context = tuple(
+        (f"ctx_native_{index:02d}", f"value-{index:02d}")
+        for index in range(30)
+    ) + (
+        ("cibo_context_quality_disposition", "ABSTAIN"),
+        ("cibo_context_quality_rules", "RULE_A"),
+        ("cibo_expectation_basis", "FROZEN_HISTORICAL_PRIOR"),
+        ("cibo_expected_value_usd", "1.25"),
+        ("cibo_expected_capital_minutes", "30"),
+    )
+    opportunity = _opportunity(TraderLineage.R34_XAUUSD, context)
+    consultation = consult_cibo_economic_faculties(
+        decision_at=NOW,
+        opportunities=(opportunity,),
+        regime_state=_regime(),
+    )
+
+    result = run_native_maximum_intelligence(
+        consultation=consultation,
+        opportunities=(opportunity,),
+        target=opportunity,
+        regime_state=_regime(),
+    )
+
+    assert result.synthesis.directive is CiboExecutiveDirectiveKind.ABSTAIN
+    assert result.cognitive_episode.abstention_required is True
+    assert result.cognitive_episode.calibration.note == "context-quality-abstention"
+    assert result.cognitive_episode.decision_gate_codes == ("CF16",)
+
+
+def test_native_max_consumes_nonpositive_expected_value_into_abstention() -> None:
+    context = tuple(
+        (f"ctx_native_{index:02d}", f"value-{index:02d}")
+        for index in range(30)
+    ) + (
+        ("cibo_context_quality_disposition", "ALLOW"),
+        ("cibo_context_quality_rules", ""),
+        ("cibo_expectation_basis", "FROZEN_HISTORICAL_PRIOR"),
+        ("cibo_expected_value_usd", "0"),
+        ("cibo_expected_capital_minutes", "30"),
+    )
+    opportunity = _opportunity(TraderLineage.R34_XAUUSD, context)
+    consultation = consult_cibo_economic_faculties(
+        decision_at=NOW,
+        opportunities=(opportunity,),
+        regime_state=_regime(),
+    )
+
+    result = run_native_maximum_intelligence(
+        consultation=consultation,
+        opportunities=(opportunity,),
+        target=opportunity,
+        regime_state=_regime(),
+    )
+
+    assert result.synthesis.directive is CiboExecutiveDirectiveKind.ABSTAIN
+    assert result.cognitive_episode.abstention_required is True
+    assert (
+        result.cognitive_episode.calibration.note
+        == "nonpositive-causal-expected-value"
+    )
+    assert result.cognitive_episode.decision_gate_codes == ("CF16",)
+
+
+def test_native_max_positive_context_remains_recommend_without_fake_gate() -> None:
+    context = tuple(
+        (f"ctx_native_{index:02d}", f"value-{index:02d}")
+        for index in range(30)
+    ) + (
+        ("cibo_context_quality_disposition", "ALLOW"),
+        ("cibo_context_quality_rules", ""),
+        ("cibo_expectation_basis", "FROZEN_HISTORICAL_PRIOR"),
+        ("cibo_expected_value_usd", "1.25"),
+        ("cibo_expected_capital_minutes", "30"),
+    )
+    opportunity = _opportunity(TraderLineage.R34_XAUUSD, context)
+    consultation = consult_cibo_economic_faculties(
+        decision_at=NOW,
+        opportunities=(opportunity,),
+        regime_state=_regime(),
+    )
+
+    result = run_native_maximum_intelligence(
+        consultation=consultation,
+        opportunities=(opportunity,),
+        target=opportunity,
+        regime_state=_regime(),
+    )
+
+    assert result.synthesis.directive is CiboExecutiveDirectiveKind.RECOMMEND
+    assert result.cognitive_episode.abstention_required is False
+    assert result.cognitive_episode.decision_gate_codes == ()
