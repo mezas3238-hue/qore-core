@@ -32,12 +32,12 @@ import vt31_nas100_post_1r_persistence_forensics_v1 as persistence
 import vt31_nas100_sovereign_r_management_frontier_v1 as r_frontier
 import vt31_nas100_specialist_r1_candidate as specialist
 
-from qore.infrastructure.traders.vt31_nas100_reasoning_engine import reason_position
 from qore.infrastructure.traders.vt31_nas100_position_intelligence import (
     UniversalTargetIntent,
     assess_full_cognitive_position,
     validate_full_cognitive_accounting_for_research,
 )
+from qore.infrastructure.traders.vt31_nas100_reasoning_engine import reason_position
 
 SCHEMA = "qore.vt31.nas100.target_depth_economic_frontier.v2"
 WINDOWS = (1, 3, 5)
