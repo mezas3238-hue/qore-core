@@ -24,12 +24,12 @@ from qore.infrastructure.traders.vt31_nas100_cibo_market_memory import (
     cibo_market_memory_fingerprint,
     dossier_runtime_view,
 )
+from qore.infrastructure.traders.vt31_nas100_cognitive_memory import (
+    memory_fingerprint,
+)
 from qore.infrastructure.traders.vt31_nas100_comp008_policy import (
     COMP008_ADMISSION_CONTRADICTIONS,
     comparator008_decision_from_situation,
-)
-from qore.infrastructure.traders.vt31_nas100_cognitive_memory import (
-    memory_fingerprint,
 )
 from qore.infrastructure.traders.vt31_nas100_situation_model import (
     Nas100SituationModel,
@@ -157,8 +157,17 @@ def _target_plan(state: Nas100SituationModel) -> TargetPlan:
     return "PRIMARY_STRUCTURAL_BOUNDARY"
 
 
-def reason(state: Nas100SituationModel) -> Nas100ReasoningDecision:
-    """Reason from the three memories before constructing the operation."""
+def reason(
+    state: Nas100SituationModel,
+    *,
+    apply_comp008_admission: bool = False,
+) -> Nas100ReasoningDecision:
+    """Reason from the three memories before constructing the operation.
+
+    The generic reasoning engine preserves the historical research baseline by
+    default. The frozen Comparator-008/009 admission stack is activated only
+    explicitly by the certification/runtime candidate entrypoint.
+    """
     strategy = strategy_identity_runtime_view()
     market = dossier_runtime_view()
     experience = trader_experience_runtime_view()
@@ -259,13 +268,13 @@ def reason(state: Nas100SituationModel) -> Nas100ReasoningDecision:
     if state.prior_day_state == "unavailable":
         uncertainty.append("SITUATION:PRIOR_DAY_CONTEXT_UNAVAILABLE")
 
-    # Comparator 008 is the frozen development admission survivor. Its complete
-    # causal admission stack is now a runtime policy rather than a research-only
-    # post-filter. These contradictions are admission-only after a position is
-    # already open and are demoted by reason_position().
-    comparator008_admission = comparator008_decision_from_situation(state)
-    contradictions.extend(comparator008_admission.abstention_reasons)
-    experience_used.append("comp008_certification_admission_policy")
+    # Comparator 008/009 admission is explicit so historical research replay
+    # remains reproducible. Certification/runtime callers opt in through
+    # reason_comp008_entry(); generic research callers retain the frozen base.
+    if apply_comp008_admission:
+        comparator008_admission = comparator008_decision_from_situation(state)
+        contradictions.extend(comparator008_admission.abstention_reasons)
+        experience_used.append("comp008_certification_admission_policy")
 
     # Trader Experience says the latest reference-liquidity event, compression,
     # and freshness are meaningful jointly. They are not promoted independently.
@@ -403,6 +412,14 @@ def reason(state: Nas100SituationModel) -> Nas100ReasoningDecision:
         max_intelligence_blockers=max_intelligence_blockers,
         max_intelligence_ready=not max_intelligence_blockers,
     )
+
+
+def reason_comp008_entry(
+    state: Nas100SituationModel,
+) -> Nas100ReasoningDecision:
+    """Apply full cognition plus the frozen Comparator-008/009 admission stack."""
+
+    return reason(state, apply_comp008_admission=True)
 
 
 # Admission predicates answer whether VT31 should create a *new* position.
