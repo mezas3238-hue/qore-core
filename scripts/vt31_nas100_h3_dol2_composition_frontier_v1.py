@@ -299,6 +299,9 @@ def _simulate_composite(
     pretarget_breaker_ps_authorizer: (
         Callable[[object, Decimal, Decimal], bool] | None
     ) = None,
+    pretarget_cognitive_exit_authorizer: (
+        Callable[[object, Decimal], bool] | None
+    ) = None,
 ) -> dict[str, object]:
     if pretarget_breaker_ps_confirmations not in {None, 1, 2}:
         raise ValueError(
@@ -358,6 +361,8 @@ def _simulate_composite(
     ps_confirmations = 0
 
     pending_breaker_ps: Decimal | None = None
+    pending_cognitive_exit = False
+    cognitive_exit_armed = False
     breaker_ps_committed = False
     breaker_ps_confirmations = 0
     breaker_ps_enabled = (
@@ -389,6 +394,16 @@ def _simulate_composite(
         if getattr(bar, "opened_at") != getattr(previous, "closed_at"):
             return {"status": "censored-gap-after-fill"}
         previous = bar
+
+        # A cognitive EXIT decided on the prior fully closed M1 executes only
+        # at the next M1 open. This prevents same-bar hindsight.
+        if pending_cognitive_exit:
+            exit_price = _d(getattr(bar, "open"))
+            exit_at = getattr(bar, "opened_at")
+            exit_reason = "composite-pretarget-cognitive-exit"
+            cognitive_exit_armed = True
+            pending_cognitive_exit = False
+            break
 
         # Actions decided on a prior closed M1 become active now.
         if pending_breaker_ps is not None and not breaker_ps_committed:
@@ -557,6 +572,14 @@ def _simulate_composite(
         if dol1_touch_index is None:
             if depth._target_hit(side, bar, dol1):
                 dol1_touch_index = index
+            elif (
+                pretarget_cognitive_exit_authorizer is not None
+                and pretarget_cognitive_exit_authorizer(
+                    bar,
+                    current_stop,
+                )
+            ):
+                pending_cognitive_exit = True
             continue
 
         if index <= dol1_touch_index:
@@ -646,6 +669,7 @@ def _simulate_composite(
             breaker_ps_confirmations
         ),
         "pretarget_breaker_ps_committed": breaker_ps_committed,
+        "pretarget_cognitive_exit_armed": cognitive_exit_armed,
         "runtime_r_strategy_used": True,
         "runtime_volume_decision_authority": False,
     }
