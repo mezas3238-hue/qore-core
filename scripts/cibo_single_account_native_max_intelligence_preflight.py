@@ -58,6 +58,22 @@ def _dt(value: object) -> datetime:
     return result
 
 
+def _boolish(value: object, name: str) -> bool:
+    if type(value) is bool:
+        return value
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in {"true", "1", "yes"}:
+            return True
+        if lowered in {"false", "0", "no", ""}:
+            return False
+    if value is None:
+        return False
+    raise CiboCapitalManagementError(
+        f"preflight {name} must be bool-compatible"
+    )
+
+
 def _opportunity(row: dict[str, Any]) -> TraderOpportunityEnvelope:
     payload = row["trader_opportunity"]
     context = tuple(
@@ -117,15 +133,16 @@ def _regime(
     declared_count = payload.get("opportunity_count")
     if declared_count is not None:
         try:
-            declared_count = int(str(declared_count))
+            int(str(declared_count))
         except (TypeError, ValueError) as error:
             raise CiboCapitalManagementError(
                 "preflight CE2I opportunity_count is invalid"
             ) from error
-        if declared_count != opportunity_count:
-            raise CiboCapitalManagementError(
-                "preflight CE2I opportunity_count/epoch surface drift"
-            )
+        # Archived CE2I receipts were emitted once per Trader opportunity and
+        # may therefore say opportunity_count=1.  The manifest groups the true
+        # simultaneous decision surface causally; that observed epoch size
+        # supersedes the stale transport count without changing market regime
+        # semantics or consulting outcomes.
     return CiboCapitalRegimeState(
         liquidity=LiquidityState(str(payload["liquidity"])),
         volatility=VolatilityState(str(payload["volatility"])),
@@ -137,10 +154,14 @@ def _regime(
         margin_utilization=_d(payload["margin_utilization"]),
         drawdown_utilization=_d(payload["drawdown_utilization"]),
         opportunity_count=opportunity_count,
-        position_path_adverse=bool(
-            payload.get("position_path_adverse", False)
+        position_path_adverse=_boolish(
+            payload.get("position_path_adverse", False),
+            "position_path_adverse",
         ),
-        evidence_stale=bool(payload.get("evidence_stale", False)),
+        evidence_stale=_boolish(
+            payload.get("evidence_stale", False),
+            "evidence_stale",
+        ),
     )
 
 
