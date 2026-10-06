@@ -15,6 +15,7 @@ on:
       - 'src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py'
       - 'tests/infrastructure/test_cibo_ce2i_holdout_registry.py'
       - 'tests/infrastructure/test_cibo_ce2i_pre_holdout_gate.py'
+      - 'tests/infrastructure/test_cibo_single_account_historical_ceiling_epoch.py'
 
 permissions:
   contents: read
@@ -48,7 +49,8 @@ jobs:
             src/qore/infrastructure/cibo_ce2i_holdout_registry.py \
             src/qore/infrastructure/cibo_ce2i_pre_holdout_gate.py \
             tests/infrastructure/test_cibo_ce2i_holdout_registry.py \
-            tests/infrastructure/test_cibo_ce2i_pre_holdout_gate.py
+            tests/infrastructure/test_cibo_ce2i_pre_holdout_gate.py \
+            tests/infrastructure/test_cibo_single_account_historical_ceiling_epoch.py
           pytest -q --no-cov \
             tests/infrastructure/test_cibo_walk_forward_forecast_confidence.py \
             tests/infrastructure/test_cibo_walk_forward_capital_path_diagnostics.py \
