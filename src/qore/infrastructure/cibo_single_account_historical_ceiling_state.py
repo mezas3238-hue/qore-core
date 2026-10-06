@@ -402,6 +402,7 @@ def build_historical_ceiling_epoch_state(
                 provider_viable=row.provider_viable,
                 capital_source_eligible=row.capital_source_eligible,
                 evidence_sha256=evidence_sha,
+                expectation_basis=row.expectation_basis,
                 maximum_multiplier=maximum_multiplier,
                 future_outcome_used=False,
             )
