@@ -197,6 +197,7 @@ def execute_sovereign_ceiling_epoch(
     protected_capital_usd: Decimal,
     world_paths: tuple[Genc11WorldPath, ...] = (),
     option_schedules: tuple[Genc11KnownOptionSchedule, ...] = (),
+    portfolio_fixed_multiplier: int | None = None,
     lifecycle_requests: tuple[CiboLifecycleWireRequest, ...] = (),
 ) -> CiboSovereignCeilingEpochResult:
     """Execute one complete simultaneous epoch without outcome knowledge."""
@@ -305,6 +306,7 @@ def execute_sovereign_ceiling_epoch(
             request_id=f"{decision_epoch_id}:{signal}:risk",
             requested_at=decision_at,
             expires_at=expires_at,
+            portfolio_fixed_multiplier=portfolio_fixed_multiplier,
             lifecycle_requests=lifecycle_requests,
         )
 
