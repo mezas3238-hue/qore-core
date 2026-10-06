@@ -1,6 +1,8 @@
 import ast
 import inspect
+from dataclasses import replace
 from decimal import Decimal
+from uuid import UUID
 
 import qore.infrastructure.cibo_sovereign_capital_runtime as module
 from qore.infrastructure.account_wide_risk import TraderLineage
@@ -16,6 +18,23 @@ from qore.infrastructure.cibo_capital_management_authority import (
     CapitalStage,
     CiboCapitalActionPlan,
     TraderOpportunityEnvelope,
+)
+from qore.infrastructure.cibo_executive_brain import (
+    CiboExecutiveDirectiveKind,
+    CiboExecutiveSynthesis,
+)
+from qore.modules.cibo.cognitive_contracts import (
+    CiboCognitiveEvidenceRef,
+    CiboConfidence,
+    CiboConfidenceLevel,
+    CiboFormalRecommendation,
+    CiboReasoningMode,
+    CiboUncertainty,
+    CiboUncertaintyKind,
+)
+from tests.infrastructure.test_cibo_full_economic_digital_twin import (
+    T0,
+    _full_twin,
 )
 
 
@@ -106,3 +125,65 @@ def test_sovereign_cap_resize_preserves_long_decimal_source_provenance() -> None
         first,
         Decimal("1.1111111111111111111111111111111111111111"),
     )
+
+
+
+def _recommend_synthesis(
+    level: CiboConfidenceLevel,
+) -> CiboExecutiveSynthesis:
+    ref = CiboCognitiveEvidenceRef("evidence:capital-intensity")
+    uncertainty = CiboUncertainty(
+        kind=CiboUncertaintyKind.BOUNDED_CONFIDENCE,
+        confidence=CiboConfidence(
+            level=level,
+            evidence_refs=(ref,),
+        ),
+    )
+    recommendation = CiboFormalRecommendation(
+        recommendation_id=UUID("70000000-0000-0000-0000-0000000000cc"),
+        recommendation_code="cibo.capital-intensity",
+        reasoning_mode=CiboReasoningMode.MAX,
+        summary="Causal capital intensity recommendation",
+        evidence_refs=(ref,),
+        uncertainty=uncertainty,
+        issued_at=T0,
+    )
+    return CiboExecutiveSynthesis(
+        synthesis_id=UUID("70000000-0000-0000-0000-0000000000cd"),
+        directive=CiboExecutiveDirectiveKind.RECOMMEND,
+        reasoning_mode=CiboReasoningMode.MAX,
+        subject_code="capital-intensity",
+        synthesized_at=T0,
+        evidence_refs=(ref,),
+        uncertainty=uncertainty,
+        recommendation=recommendation,
+    )
+
+
+def test_cognition_grades_intensity_instead_of_inheriting_four_x() -> None:
+    twin = replace(
+        _full_twin(),
+        cognitive_constraints=(("capital_intensity_cap", "4"),),
+    )
+
+    expected = {
+        CiboConfidenceLevel.LOW: "1",
+        CiboConfidenceLevel.MEDIUM: "2",
+        CiboConfidenceLevel.HIGH: "3",
+    }
+    for level, cap in expected.items():
+        bound = module.bind_cibo_cognition_to_twin(
+            twin,
+            _recommend_synthesis(level),
+        )
+        assert dict(bound.cognitive_constraints)["capital_intensity_cap"] == cap
+
+
+def test_sovereign_runtime_makes_genc12_pause_binding_for_new_openings() -> None:
+    source = inspect.getsource(module.run_cibo_sovereign_capital_runtime)
+
+    assert '"PAUSE_NEW_CAPITAL"' in source
+    assert "CapitalAction.OPEN_MINIMAL_SEED" in source
+    assert "CapitalAction.OPEN_CAPABILITY_MAX" in source
+    assert "CapitalAction.EXPAND" in source
+    assert "GEN-C12 paused all new capital deployment" in source
