@@ -187,3 +187,46 @@ def test_sovereign_runtime_makes_genc12_pause_binding_for_new_openings() -> None
     assert "CapitalAction.OPEN_CAPABILITY_MAX" in source
     assert "CapitalAction.EXPAND" in source
     assert "GEN-C12 paused all new capital deployment" in source
+
+
+
+def test_max_frontier_can_only_reduce_native_max_intensity() -> None:
+    twin = replace(
+        _full_twin(),
+        cognitive_constraints=(("capital_intensity_cap", "4"),),
+    )
+
+    high = module.bind_cibo_cognition_to_twin(
+        twin,
+        _recommend_synthesis(CiboConfidenceLevel.HIGH),
+        maximum_frontier_cap=1,
+        maximum_frontier_reason="frontier stress cap",
+        maximum_frontier_consumed_codes=("CF02", "CF06", "CF07", "CF10", "CF12"),
+    )
+    high_constraints = dict(high.cognitive_constraints)
+    assert high_constraints["capital_intensity_cap"] == "1"
+    assert high_constraints["maximum_frontier_cap"] == "1"
+    assert high_constraints["maximum_frontier_mode"] == "CONSTRAINING_ONLY"
+    assert high_constraints["maximum_frontier_policy"] == (
+        module.MAX_FRONTIER_POLICY_ID
+    )
+    assert high_constraints["maximum_frontier_consumed_codes"] == (
+        "CF02,CF06,CF07,CF10,CF12"
+    )
+
+    low = module.bind_cibo_cognition_to_twin(
+        twin,
+        _recommend_synthesis(CiboConfidenceLevel.LOW),
+        maximum_frontier_cap=4,
+    )
+    assert dict(low.cognitive_constraints)["capital_intensity_cap"] == "1"
+
+
+def test_sovereign_runtime_consumes_max_frontier_before_portfolio() -> None:
+    source = inspect.getsource(module.run_cibo_sovereign_capital_runtime)
+
+    frontier_call = source.index("_maximum_frontier_surface(consultation)")
+    bind_call = source.index("bind_cibo_cognition_to_twin(")
+    economic_call = source.index("run_cibo_economic_engine_chain(")
+
+    assert frontier_call < bind_call < economic_call
