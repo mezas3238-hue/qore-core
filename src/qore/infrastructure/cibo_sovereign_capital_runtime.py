@@ -327,9 +327,11 @@ def run_cibo_sovereign_capital_runtime(
         competition_option_ids=(option_id,),
     )
     minimum_volume = minimum_seed_volume(opportunity)
-    provider_cost_per_volume_usd = (
-        twin_opportunity.provider_cost_usd / minimum_volume
-    )
+    with localcontext() as context:
+        context.prec = 100
+        provider_cost_per_volume_usd = (
+            twin_opportunity.provider_cost_usd / minimum_volume
+        )
     sizing = plan_account_sizing(
         opportunity=opportunity,
         capital=capital,
