@@ -76,9 +76,15 @@ class Nas100SituationModel:
     # Cross-index context; never substitutes NAS100 memory.
     cross_index_state: str
 
+    # Explicit M15 layer for maximum-intelligence certification. Existing
+    # callers default to UNWIRED until causal M15 state is actually supplied.
+    m15_state: str = "UNWIRED"
+
     def __post_init__(self) -> None:
         if not 0 <= self.decision_minute_ny < 24 * 60:
             raise ValueError("decision_minute_ny out of range")
+        if not self.m15_state:
+            raise ValueError("m15_state cannot be empty")
         for age in (
             self.reference_reclaim_age_minutes,
             self.last_structure_event_age_minutes,
