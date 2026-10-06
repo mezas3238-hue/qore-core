@@ -285,17 +285,29 @@ def reason(state: Nas100SituationModel) -> Nas100ReasoningDecision:
     if state.reference_width_vs_prior5 is None:
         uncertainty.append("SITUATION:REFERENCE_VOLATILITY_CONTEXT_UNAVAILABLE")
 
-    # Capacity memory currently supports DOL1 as structural destination and
-    # aggregate extension priors. It is not yet calibrated enough to authorize
-    # deeper DOL ranks, so deeper capacity remains explicitly unresolved.
-    journey_capacity_state = (
-        "DOL1_STRUCTURAL_SUPPORTED__DEEPER_DOL_RESEARCH_UNCALIBRATED"
-    )
-    experience_used.append("journey_capacity_memory")
+    # Post-entry journey capacity may become calibrated only from a causal
+    # state produced by VT31's own closed-bar journey logic. Pre-entry remains
+    # unresolved because future persistence is unknowable at admission.
+    extension_state = state.extension_capacity_state.upper()
+    if extension_state == "CALIBRATED_POST1R_CONTINUATION_SUPPORTED":
+        journey_capacity_state = state.extension_capacity_state
+        management_context_state = "CALIBRATED_POST1R_SUPPORTIVE"
+        support.append("JOURNEY:POST1R_CONTINUATION_SUPPORTED")
+    elif extension_state == "CALIBRATED_POST1R_CONTINUATION_WEAKENED":
+        journey_capacity_state = state.extension_capacity_state
+        management_context_state = "CALIBRATED_POST1R_MIXED"
+        uncertainty.append("JOURNEY:POST1R_CONTINUATION_WEAKENED")
+    elif extension_state == "CALIBRATED_POST1R_CONTINUATION_DEPLETED":
+        journey_capacity_state = state.extension_capacity_state
+        management_context_state = "CALIBRATED_POST1R_CAUTIOUS"
+        contradictions.append("JOURNEY:POST1R_CONTINUATION_DEPLETED")
+    else:
+        journey_capacity_state = (
+            "DOL1_STRUCTURAL_SUPPORTED__DEEPER_DOL_RESEARCH_UNCALIBRATED"
+        )
+        management_context_state = "UNRESOLVED_VT31_CONTEXTUAL_MANAGEMENT"
 
-    # Do not copy Turtle Soup SUPPORTIVE/MIXED/CAUTIOUS thresholds. VT31 must
-    # learn its own management-state mapping first.
-    management_context_state = "UNRESOLVED_VT31_CONTEXTUAL_MANAGEMENT"
+    experience_used.append("journey_capacity_memory")
     experience_used.append("contextual_position_management")
 
     transient_wait = any(
