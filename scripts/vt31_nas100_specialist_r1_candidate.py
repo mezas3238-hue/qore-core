@@ -585,6 +585,13 @@ def _state_snapshot(
             if destination_distance_ref is None
             else format(destination_distance_ref, "f")
         ),
+        "journey_stage": "POST_CONFIRMATION_PRE_EXECUTION",
+        "dol1_state": "ACTIVE_OPPOSITE_09_BOUNDARY",
+        "dol2_state": "CALIBRATED_DEPTH_ECONOMICS_PENDING",
+        "dol3_state": "CALIBRATED_DEPTH_ECONOMICS_PENDING",
+        "extension_capacity_state": "RESEARCH_ONLY_UNCALIBRATED",
+        "exhaustion_state": "UNKNOWN",
+        "cross_index_state": "OPTIONAL_CONTEXT_NOT_REQUIRED",
         "confirmation_latency_minutes": confirmation_latency,
         "entry_evidence_age_minutes": entry_evidence_age,
         "action": reasoning.action,
