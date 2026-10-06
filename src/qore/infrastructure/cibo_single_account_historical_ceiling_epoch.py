@@ -23,7 +23,10 @@ from qore.infrastructure.cibo_account_capital_mission import (
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
-from qore.infrastructure.cibo_ce2i_regime_selector import CiboCapitalRegimeState
+from qore.infrastructure.cibo_ce2i_regime_selector import (
+    CiboCapitalRegimeState,
+    cibo_new_capital_risk_utilization_ceiling,
+)
 from qore.infrastructure.cibo_single_account_ceiling_state import (
     CiboCeilingOpenExposure,
     CiboCeilingOpportunityEvidence,
@@ -153,10 +156,16 @@ def run_predecision_historical_sovereign_ceiling_epoch(
             gross_margin_capacity - provider_cost_reserve,
         )
 
+    with localcontext() as context:
+        context.prec = 100
+        internal_survival_risk_ceiling = (
+            realized * cibo_new_capital_risk_utilization_ceiling()
+        )
     qore_total_authorizable = min(
         stop_capacity,
         provider_risk_headroom,
         provider_max_risk,
+        internal_survival_risk_ceiling,
     )
     effective_stop_capacity = max(
         historical_capital.open_stop_risk_usd,
