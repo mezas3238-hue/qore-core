@@ -169,6 +169,45 @@ def _bucket_reclaim_age(value: object) -> str:
     return "GE15M"
 
 
+def _bucket_efficiency(value: object) -> str:
+    if value is None:
+        return "NONE"
+    efficiency = _d(value)
+    if efficiency <= Decimal("0.30"):
+        return "WEAK_LE_0.30"
+    if efficiency >= Decimal("0.55"):
+        return "HEALTHY_GE_0.55"
+    return "MID"
+
+
+def _bucket_overlap(value: object) -> str:
+    if value is None:
+        return "NONE"
+    overlap = _d(value)
+    if overlap >= Decimal("0.75"):
+        return "HIGH_GE_0.75"
+    if overlap <= Decimal("0.55"):
+        return "LOW_LE_0.55"
+    return "MID"
+
+
+def _bucket_minutes(value: object) -> str:
+    if value is None:
+        return "NONE"
+    minute = int(value)
+    if minute <= 2:
+        return "0_2M"
+    if minute <= 5:
+        return "3_5M"
+    if minute <= 10:
+        return "6_10M"
+    return "GE11M"
+
+
+def _state_transition(entry: object, current: object) -> str:
+    return f"{entry}->{current}"
+
+
 def _first_material_adverse_forensics(
     baseline: list[dict[str, object]],
     rows: list[dict[str, object]],
@@ -211,6 +250,18 @@ def _first_material_adverse_forensics(
                 "reference_volatility_state": str(
                     entry_context.get("reference_volatility_state", "NA")
                 ),
+                "entry_h1_state": str(
+                    entry_context.get("h1_state", "NA")
+                ),
+                "entry_m15_state": str(
+                    entry_context.get("m15_state", "NA")
+                ),
+                "confirmation_latency_bucket": _bucket_minutes(
+                    entry_context.get("confirmation_latency_minutes")
+                ),
+                "entry_evidence_age_bucket": _bucket_minutes(
+                    entry_context.get("entry_evidence_age_minutes")
+                ),
                 "weak_path": bool(first.get("weak_path")),
                 "current_reasoning_action": str(
                     first["current_reasoning_action"]
@@ -218,9 +269,26 @@ def _first_material_adverse_forensics(
                 "m15_state": str(first["m15_state"]),
                 "h1_state": str(first["h1_state"]),
                 "h4_state": str(first["h4_state"]),
+                "h1_transition": _state_transition(
+                    entry_context.get("h1_state", "NA"),
+                    first["h1_state"],
+                ),
+                "m15_transition": _state_transition(
+                    entry_context.get("m15_state", "NA"),
+                    first["m15_state"],
+                ),
                 "destination_state": str(first["destination_state"]),
+                "efficiency_bucket": _bucket_efficiency(
+                    first.get("recent_path_efficiency")
+                ),
+                "overlap_bucket": _bucket_overlap(
+                    first.get("recent_overlap_rate")
+                ),
                 "last_structure_event_family": str(
                     first["last_structure_event_family"]
+                ),
+                "last_structure_event_age_bucket": _bucket_minutes(
+                    first.get("last_structure_event_age_minutes")
                 ),
                 "support_margin_bucket": _bucket_support_margin(
                     first["support_margin"]
@@ -238,7 +306,19 @@ def _first_material_adverse_forensics(
     fields = (
         ("management_context",),
         ("entry_family",),
+        ("side",),
+        ("prior_day_state",),
+        ("position_in_prior_day_range",),
+        ("reference_volatility_state",),
+        ("h1_transition",),
+        ("m15_transition",),
+        ("efficiency_bucket",),
+        ("overlap_bucket",),
+        ("last_structure_event_age_bucket",),
+        ("confirmation_latency_bucket",),
+        ("entry_evidence_age_bucket",),
         ("entry_family", "management_context"),
+        ("entry_family", "side"),
         ("entry_family", "reclaim_age_bucket"),
         ("entry_family", "m15_state"),
         ("entry_family", "h1_state"),
@@ -246,6 +326,9 @@ def _first_material_adverse_forensics(
         ("entry_family", "prior_day_state"),
         ("entry_family", "reference_volatility_state"),
         ("entry_family", "position_in_prior_day_range"),
+        ("side", "m15_state"),
+        ("side", "h1_state"),
+        ("side", "reclaim_age_bucket"),
         ("management_context", "weak_path"),
         ("management_context", "m15_state"),
         ("management_context", "h1_state"),
@@ -256,69 +339,90 @@ def _first_material_adverse_forensics(
         ("management_context", "support_margin_bucket"),
         ("management_context", "open_r_bucket"),
         ("management_context", "reclaim_age_bucket"),
+        ("h1_state", "m15_state"),
+        ("prior_day_state", "m15_state"),
+        ("position_in_prior_day_range", "m15_state"),
+        ("reference_volatility_state", "m15_state"),
+        ("efficiency_bucket", "overlap_bucket"),
+        ("last_structure_event_family", "last_structure_event_age_bucket"),
+        ("entry_family", "m15_state", "reclaim_age_bucket"),
+        ("side", "m15_state", "reclaim_age_bucket"),
+        ("h1_state", "m15_state", "reclaim_age_bucket"),
+        ("m15_state", "efficiency_bucket", "overlap_bucket"),
     )
-    grouped: dict[str, dict[str, object]] = {}
-    for field_tuple in fields:
-        table: dict[str, list[dict[str, object]]] = defaultdict(list)
-        for sample in samples:
-            key = "|".join(str(sample[field]) for field in field_tuple)
-            table[key].append(sample)
-        grouped["+".join(field_tuple)] = {
-            key: {
-                "sample": len(items),
-                "control_wins": sum(
-                    cast(Decimal, item["control_net_r"]) > 0
-                    for item in items
-                ),
-                "control_losses": sum(
-                    cast(Decimal, item["control_net_r"]) < 0
-                    for item in items
-                ),
-                "candidate_wins": sum(
-                    cast(Decimal, item["candidate_net_r"]) > 0
-                    for item in items
-                ),
-                "candidate_losses": sum(
-                    cast(Decimal, item["candidate_net_r"]) < 0
-                    for item in items
-                ),
-                "changed_count": sum(
-                    bool(item["changed_vs_control"]) for item in items
-                ),
-                "mean_control_net_r": format(
-                    sum(
-                        (
-                            cast(Decimal, item["control_net_r"])
-                            for item in items
-                        ),
-                        Decimal(0),
-                    )
-                    / Decimal(len(items)),
-                    "f",
-                ),
-                "mean_candidate_net_r": format(
-                    sum(
-                        (
-                            cast(Decimal, item["candidate_net_r"])
-                            for item in items
-                        ),
-                        Decimal(0),
-                    )
-                    / Decimal(len(items)),
-                    "f",
-                ),
-            }
-            for key, items in sorted(table.items())
-        }
 
+    def summarize(
+        selected: list[dict[str, object]],
+    ) -> dict[str, dict[str, object]]:
+        grouped: dict[str, dict[str, object]] = {}
+        for field_tuple in fields:
+            table: dict[str, list[dict[str, object]]] = defaultdict(list)
+            for sample in selected:
+                key = "|".join(str(sample[field]) for field in field_tuple)
+                table[key].append(sample)
+            grouped["+".join(field_tuple)] = {
+                key: {
+                    "sample": len(items),
+                    "control_wins": sum(
+                        cast(Decimal, item["control_net_r"]) > 0
+                        for item in items
+                    ),
+                    "control_losses": sum(
+                        cast(Decimal, item["control_net_r"]) < 0
+                        for item in items
+                    ),
+                    "candidate_wins": sum(
+                        cast(Decimal, item["candidate_net_r"]) > 0
+                        for item in items
+                    ),
+                    "candidate_losses": sum(
+                        cast(Decimal, item["candidate_net_r"]) < 0
+                        for item in items
+                    ),
+                    "changed_count": sum(
+                        bool(item["changed_vs_control"]) for item in items
+                    ),
+                    "mean_control_net_r": format(
+                        sum(
+                            (
+                                cast(Decimal, item["control_net_r"])
+                                for item in items
+                            ),
+                            Decimal(0),
+                        )
+                        / Decimal(len(items)),
+                        "f",
+                    ),
+                    "mean_candidate_net_r": format(
+                        sum(
+                            (
+                                cast(Decimal, item["candidate_net_r"])
+                                for item in items
+                            ),
+                            Decimal(0),
+                        )
+                        / Decimal(len(items)),
+                        "f",
+                    ),
+                }
+                for key, items in sorted(table.items())
+            }
+        return grouped
+
+    unchanged = [
+        sample
+        for sample in samples
+        if not bool(sample["changed_vs_control"])
+    ]
     return {
         "observation_only": True,
         "action_authority": False,
         "outcome_used_only_for_forensic_attribution": True,
         "first_material_adverse_trade_count": len(samples),
-        "groups": grouped,
+        "unchanged_first_material_adverse_trade_count": len(unchanged),
+        "groups": summarize(samples),
+        "unchanged_groups": summarize(unchanged),
     }
-
 
 def _report(
     full_control: list[dict[str, object]],
