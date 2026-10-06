@@ -106,6 +106,8 @@ jobs:
           assert g["consumed_evidence_only"] is True
           assert g["a_hypotheses_predeclared"] is True
           assert g["a_hypotheses_discovered_on_consumed_evidence"] is True
+          assert g["order_block_positive_evidence_frontier_predeclared"] is True
+          assert g["order_block_positive_evidence_frontier_development_only"] is True
           assert g["b_comparator_fixed"] is True
           assert g["b_h3_horizon_m1"] == 3
           assert g["b_soft_dol1_window_m1"] == 5
@@ -166,6 +168,10 @@ jobs:
               "A_ABSTAIN_ORDER_BLOCK_AGE_0_2M",
               "A_ABSTAIN_ORDER_BLOCK_OR_EXPANDED",
               "A_ABSTAIN_ORDER_BLOCK_AGE_0_2M_OR_EXPANDED",
+              "A_EXPANDED_OB_REQUIRE_SHORT",
+              "A_EXPANDED_OB_REQUIRE_AGE_11M",
+              "A_EXPANDED_OB_REQUIRE_SHORT_AGE_11M",
+              "A_EXPANDED_OB_REQUIRE_SHORT_RECLAIM_15M",
           )
           payloads={
               fold:json.loads(

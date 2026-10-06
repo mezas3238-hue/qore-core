@@ -49,6 +49,10 @@ VARIANTS = (
     "A_ABSTAIN_ORDER_BLOCK_AGE_0_2M",
     "A_ABSTAIN_ORDER_BLOCK_OR_EXPANDED",
     "A_ABSTAIN_ORDER_BLOCK_AGE_0_2M_OR_EXPANDED",
+    "A_EXPANDED_OB_REQUIRE_SHORT",
+    "A_EXPANDED_OB_REQUIRE_AGE_11M",
+    "A_EXPANDED_OB_REQUIRE_SHORT_AGE_11M",
+    "A_EXPANDED_OB_REQUIRE_SHORT_RECLAIM_15M",
 )
 
 
@@ -81,6 +85,35 @@ def _expanded(row: dict[str, object]) -> bool:
     )
 
 
+def _context_minutes(row: dict[str, object], field: str) -> int | None:
+    value = _entry_context(row).get(field)
+    if value is None:
+        return None
+    return int(value)
+
+
+def _order_block_positive_evidence(
+    row: dict[str, object],
+    *,
+    require_short: bool = False,
+    min_entry_age: int | None = None,
+    min_reclaim_age: int | None = None,
+) -> bool:
+    if not _order_block(row):
+        return True
+    if require_short and str(row["side"]) != "short":
+        return False
+    if min_entry_age is not None:
+        age = _context_minutes(row, "entry_evidence_age_minutes")
+        if age is None or age < min_entry_age:
+            return False
+    if min_reclaim_age is not None:
+        age = _context_minutes(row, "reference_reclaim_age_minutes")
+        if age is None or age < min_reclaim_age:
+            return False
+    return True
+
+
 def _is_abstained(row: dict[str, object], variant: str) -> bool:
     if variant == "CONTROL_B_W5":
         return False
@@ -97,6 +130,28 @@ def _is_abstained(row: dict[str, object], variant: str) -> bool:
         return order_block or expanded
     if variant == "A_ABSTAIN_ORDER_BLOCK_AGE_0_2M_OR_EXPANDED":
         return order_block_fresh or expanded
+    if variant == "A_EXPANDED_OB_REQUIRE_SHORT":
+        return expanded or not _order_block_positive_evidence(
+            row,
+            require_short=True,
+        )
+    if variant == "A_EXPANDED_OB_REQUIRE_AGE_11M":
+        return expanded or not _order_block_positive_evidence(
+            row,
+            min_entry_age=11,
+        )
+    if variant == "A_EXPANDED_OB_REQUIRE_SHORT_AGE_11M":
+        return expanded or not _order_block_positive_evidence(
+            row,
+            require_short=True,
+            min_entry_age=11,
+        )
+    if variant == "A_EXPANDED_OB_REQUIRE_SHORT_RECLAIM_15M":
+        return expanded or not _order_block_positive_evidence(
+            row,
+            require_short=True,
+            min_reclaim_age=15,
+        )
     raise ValueError(f"unsupported variant: {variant}")
 
 
@@ -408,6 +463,8 @@ def replay(evidence_path: Path) -> dict[str, object]:
             "consumed_evidence_only": True,
             "a_hypotheses_predeclared": True,
             "a_hypotheses_discovered_on_consumed_evidence": True,
+            "order_block_positive_evidence_frontier_predeclared": True,
+            "order_block_positive_evidence_frontier_development_only": True,
             "b_comparator_fixed": True,
             "b_h3_horizon_m1": 3,
             "b_soft_dol1_window_m1": WINDOW,
