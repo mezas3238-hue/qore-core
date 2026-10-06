@@ -34,7 +34,9 @@ from qore.infrastructure.traders.vt31_nas100_position_intelligence import (
     validate_full_cognitive_accounting_for_research,
     validate_maximum_cognition_for_certification,
 )
-from qore.infrastructure.traders.vt31_nas100_reasoning_engine import reason
+from qore.infrastructure.traders.vt31_nas100_reasoning_engine import (
+    reason_position,
+)
 
 SCHEMA = "qore.vt31.nas100.post_1r_full_cognition_management_frontier.v2"
 VARIANTS: dict[str, int | None] = {
@@ -200,7 +202,10 @@ def _current_cognition(
         extension_capacity_state=extension,
         exhaustion_state=exhaustion,
     )
-    current_reasoning = reason(current)
+    current_reasoning = reason_position(
+        current,
+        frozen_entry_reasoning=entry_reasoning,
+    )
     cognition = assess_full_cognitive_position(
         situation=current,
         reasoning=entry_reasoning,
