@@ -13,6 +13,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
 
+from certification import evaluate_certification_readiness
 from realtime import RealtimeMonitor
 from science import evaluate
 
@@ -243,19 +244,79 @@ def main() -> int:
             json.dumps(battery, indent=2, sort_keys=True) + "\n",
             encoding="utf-8",
         )
-        compute_seconds = replay_seconds + science_seconds
+
+        certification_started = time.monotonic()
+        monitor.emit("certification_readiness.started", {})
+        readiness = evaluate_certification_readiness(
+            profile,
+            {lane: payloads[lane] for lane in lanes},
+            battery,
+        )
+        certification_seconds = time.monotonic() - certification_started
+        (args.output_dir / "certification-readiness.json").write_text(
+            json.dumps(readiness, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        readiness_statuses = {
+            name: row["readiness_status"]
+            for name, row in readiness["variants"].items()
+        }
+        primary_lane = str(profile["science"]["primary_lane"])
+        primary_risk_adjusted = {
+            name: {
+                "sharpe": row["lanes"][primary_lane]["risk_adjusted"].get(
+                    "sharpe_per_trade_nonannualized"
+                ),
+                "sortino": row["lanes"][primary_lane]["risk_adjusted"].get(
+                    "sortino_per_trade_nonannualized_mar0"
+                ),
+                "recovery_factor": row["lanes"][primary_lane][
+                    "risk_adjusted"
+                ].get("recovery_factor_total_r_over_max_dd"),
+                "cvar_05_r": row["lanes"][primary_lane]["risk_adjusted"].get(
+                    "cvar_05_trade_r"
+                ),
+            }
+            for name, row in readiness["variants"].items()
+        }
+        monitor.emit(
+            "certification_readiness.completed",
+            {
+                "readiness_statuses": readiness_statuses,
+                "primary_lane": primary_lane,
+                "primary_risk_adjusted": primary_risk_adjusted,
+            },
+        )
+
+        compute_seconds = (
+            replay_seconds + science_seconds + certification_seconds
+        )
         total_seconds = time.monotonic() - overall_started
         headline = {
-            "schema": "qore.github-trader-lab.fast-headline.v1",
+            "schema": "qore.github-trader-lab.fast-headline.v2",
             "profile_id": profile["profile_id"],
             "subject": profile["subject"],
             "experiment_replay_seconds": round(replay_seconds, 3),
             "scientific_battery_seconds": round(science_seconds, 3),
+            "certification_readiness_seconds": round(
+                certification_seconds, 3
+            ),
             "hot_compute_seconds": round(compute_seconds, 3),
             "runner_total_seconds": round(total_seconds, 3),
             "development_survivors": battery["development_survivors"],
             "hard_dd_survivors": battery["hard_dd_survivors"],
             "scientific_passes": battery["scientific_passes"],
+            "certification_readiness": readiness_statuses,
+            "primary_lane": primary_lane,
+            "primary_risk_adjusted": primary_risk_adjusted,
+            "walk_forward_oos_present": any(
+                role == "WALK_FORWARD_OOS"
+                for role in readiness["evidence_roles"].values()
+            ),
+            "fresh_oos_present": any(
+                role == "FRESH_OOS"
+                for role in readiness["evidence_roles"].values()
+            ),
             "fresh_holdout_opened": False,
             "certification_claimed": False,
             "sovereign_workflow_modified": False,
