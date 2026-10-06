@@ -30,6 +30,7 @@ from qore.infrastructure.traders.vt31_nas100_position_intelligence import (
 )
 from qore.infrastructure.traders.vt31_nas100_post_entry_cognitive_runtime import (
     PostEntryCausalObservation,
+    PostEntryCognitiveDecision,
     PostEntryMarketFacts,
     reassess_and_decide_post_entry,
 )
@@ -71,7 +72,7 @@ def _target_touched_before(
     return False
 
 
-def _live_cognitive_decision(
+def _live_cognitive_position_decision(
     *,
     day_bars: tuple[object, ...],
     executable: object,
@@ -81,13 +82,13 @@ def _live_cognitive_decision(
     candidate_stop: Decimal,
     confirmations: int,
     mode: str,
-) -> tuple[bool, dict[str, object]]:
+) -> tuple[PostEntryCognitiveDecision | None, dict[str, object]]:
     if _target_touched_before(
         day_bars=day_bars,
         executable=executable,
         observation_at=observation_at,
     ):
-        return False, {
+        return None, {
             "observation_at": observation_at.astimezone(UTC).isoformat(),
             "authorized": False,
             "decision_action": "HOLD",
@@ -265,7 +266,7 @@ def _live_cognitive_decision(
     )
     authorized = decision.position.action is PositionAction.TRAIL
     cognition = decision.cognition
-    return authorized, {
+    return decision, {
         "observation_at": observation_at.astimezone(UTC).isoformat(),
         "authorized": authorized,
         "mode": mode,
@@ -301,6 +302,40 @@ def _live_cognitive_decision(
             cognition.reasoning_max_intelligence_blockers
         ),
     }
+
+
+def _live_cognitive_decision(
+    *,
+    day_bars: tuple[object, ...],
+    executable: object,
+    state: dict[str, object],
+    observation_at: datetime,
+    current_stop: Decimal,
+    candidate_stop: Decimal,
+    confirmations: int,
+    mode: str,
+) -> tuple[bool, dict[str, object]]:
+    """Backward-compatible trail-only view of the full position decision."""
+
+    decision, diagnostic = _live_cognitive_position_decision(
+        day_bars=day_bars,
+        executable=executable,
+        state=state,
+        observation_at=observation_at,
+        current_stop=current_stop,
+        candidate_stop=candidate_stop,
+        confirmations=confirmations,
+        mode=mode,
+    )
+    authorized = (
+        decision is not None
+        and decision.position.action is PositionAction.TRAIL
+    )
+    if bool(diagnostic.get("authorized")) != authorized:
+        raise AssertionError(
+            "trail compatibility view drifted from full position decision"
+        )
+    return authorized, diagnostic
 
 
 def _simulate(
