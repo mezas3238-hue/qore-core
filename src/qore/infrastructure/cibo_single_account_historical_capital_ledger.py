@@ -184,13 +184,11 @@ class CiboHistoricalOpenDeployment:
             raise CiboCapitalManagementError(
                 "historical ceiling deployment requires capital slices"
             )
-        stop = sum(
-            (item.stop_risk_reserved_usd for item in self.slices),
-            Decimal(0),
+        stop = _add(
+            *(item.stop_risk_reserved_usd for item in self.slices)
         )
-        cost = sum(
-            (item.provider_cost_reserved_usd for item in self.slices),
-            Decimal(0),
+        cost = _add(
+            *(item.provider_cost_reserved_usd for item in self.slices)
         )
         if stop != self.authorized_stop_risk_usd:
             raise CiboCapitalManagementError(
