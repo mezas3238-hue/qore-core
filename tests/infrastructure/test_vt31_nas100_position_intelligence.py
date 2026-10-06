@@ -16,6 +16,8 @@ from qore.infrastructure.traders.vt31_nas100_position_intelligence import (
     UniversalTargetIntent,
     assess_full_cognitive_position,
     decide_market_native_position,
+    validate_full_cognitive_accounting_for_research,
+    validate_maximum_cognition_for_certification,
     decide_structural_protection,
     structurally_rearmed,
 )
@@ -181,17 +183,29 @@ def test_full_cognitive_position_consumes_all_domains_without_oracle() -> None:
     assert isinstance(state, FullCognitivePositionState)
     assert state.observed_domains == (
         "STRATEGY_REASONING",
+        "MEMORY_SYNTHESIS",
+        "MULTITIMEFRAME_CONTEXT",
         "MARKET_REGIME",
         "LIQUIDITY_SEQUENCE",
         "ENTRY_QUALITY",
         "RISK_GEOMETRY",
         "JOURNEY_DESTINATION",
+        "TARGET_EXIT_INTELLIGENCE",
         "INTERMARKET",
         "TEMPORAL",
     )
     assert state.volume_agnostic is True
     assert state.partial_execution_required is False
     assert state.cognitive_coverage_ratio == Decimal("1")
+    assert state.full_cognitive_accounting_verified is True
+    assert state.reasoning_max_intelligence_ready is False
+    assert "DEEPER_JOURNEY_CAPACITY_UNCALIBRATED" in (
+        state.reasoning_max_intelligence_blockers
+    )
+    assert "CONTEXTUAL_POSITION_MANAGEMENT_UNRESOLVED" in (
+        state.reasoning_max_intelligence_blockers
+    )
+    assert state.maximum_cognition_verified is False
     assert state.post_entry_reassessment is False
     assert state.entry_situation_fingerprint == situation.fingerprint()
     assert state.current_situation_fingerprint == situation.fingerprint()
@@ -200,6 +214,9 @@ def test_full_cognitive_position_consumes_all_domains_without_oracle() -> None:
     assert "planned_target_r" in state.observation_only_situation_fields
     assert "structural_destination" in state.observation_only_situation_fields
     assert "current_path_vs_previous" in state.actuated_situation_fields
+    assert "h4_state" in state.actuated_situation_fields
+    assert "h1_state" in state.actuated_situation_fields
+    assert "m15_state" in state.actuated_situation_fields
     assert state.terminal_pnl_used is False
     assert state.future_journey_label_used is False
     assert len(state.fingerprint()) == 64
@@ -523,3 +540,25 @@ def test_market_native_position_holds_when_market_thesis_is_intact() -> None:
 
     assert decision.action is PositionAction.HOLD
     assert decision.reason == "MARKET_STRUCTURE_REMAINS_VALID"
+
+
+def test_full_accounting_can_research_while_certification_stays_blocked() -> None:
+    situation = _full_cognitive_situation()
+    cognition = assess_full_cognitive_position(
+        situation=situation,
+        reasoning=reason(situation),
+        entry_tier="CORE",
+        dol1_acceptance_observed=True,
+    )
+
+    validate_full_cognitive_accounting_for_research(cognition)
+
+    try:
+        validate_maximum_cognition_for_certification(cognition)
+    except ValueError as exc:
+        message = str(exc)
+    else:
+        raise AssertionError("maximum cognition certification should be blocked")
+
+    assert "DEEPER_JOURNEY_CAPACITY_UNCALIBRATED" in message
+    assert "CONTEXTUAL_POSITION_MANAGEMENT_UNRESOLVED" in message
