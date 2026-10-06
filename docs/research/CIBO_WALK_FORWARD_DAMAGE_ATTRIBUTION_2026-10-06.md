@@ -890,3 +890,192 @@ This is intended to distinguish:
 
 No result from this matrix may be treated as a tuned production threshold merely because it performs best on this burned period.
 
+---
+
+## 17. Causal ablation matrix — Portfolio intensity and survival envelope
+
+The dedicated attribution workflow completed successfully:
+
+- workflow: `QORE CIBO Damage Attribution Ablation`;
+- run: `37516432478`;
+- head: `5464332be9371cc113c2cae495230b60fced553c`;
+- result: SUCCESS;
+- burned research window: 2019-07-01 through 2020-04-30;
+- maturity gate enabled;
+- future outcome used: false;
+- certification claimed: false.
+
+This matrix reruns the causal system. These are not static rescalings of the old settlements.
+
+### 17.1 Fixed Portfolio multiplier ablation
+
+| Fixed multiplier | Selected / settled | Ending capital | Net PnL | Peak capital | Maximum drawdown |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 1x | 456 | ~USD 188.30 | ~+USD 128.30 | ~USD 201.61 | ~USD 38.39 |
+| 2x | 456 | ~USD 316.22 | ~+USD 256.22 | ~USD 343.21 | ~USD 75.82 |
+| 3x | 448 | ~USD 358.78 | ~+USD 298.78 | ~USD 398.10 | ~USD 112.53 |
+| 4x | 292 | ~USD 0.08 | ~-USD 59.92 | ~USD 147.57 | ~USD 147.49 |
+
+The result is not a smooth degradation.
+
+There is an observed **capital-intensity cliff** between the 3x and 4x research lanes on this burned window.
+
+The same maturity-gated opportunity stream:
+
+- survives and compounds at 1x;
+- survives and compounds more strongly at 2x;
+- survives and compounds more strongly again at 3x;
+- collapses at 4x and then loses the ability to participate in later opportunities.
+
+The falling selected count at 4x is a consequence of path-dependent capital destruction, not superior selectivity.
+
+This establishes causally that the current maximum-intensity behavior is a direct account-killing actuator in this replay.
+
+It does **not** establish that 3x is the production-optimal multiplier. That would be outcome-tuning on a burned sample.
+
+### 17.2 Total Risk/provider envelope ablation
+
+After aligning the historical Full Economic Twin with the effective provider/Risk capacity, the survival-envelope matrix also completed.
+
+| Total risk envelope as fraction of equity | Selected / settled | Ending capital | Net PnL | Peak capital | Maximum drawdown |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 2% | 297 | ~USD 104.46 | ~+USD 44.46 | ~USD 152.10 | ~USD 47.64 |
+| 3% | 334 | ~USD 60.50 | ~+USD 0.50 | ~USD 108.24 | ~USD 47.75 |
+| 5% | 366 | ~USD 42.47 | ~-USD 17.53 | ~USD 99.94 | ~USD 57.47 |
+| 10% | 442 | ~USD 211.11 | ~+USD 151.11 | ~USD 254.63 | ~USD 65.92 |
+| 25% | 451 | ~USD 423.08 | ~+USD 363.08 | ~USD 479.97 | ~USD 118.17 |
+| 100% baseline | 292 | ~USD 0.08 | ~-USD 59.92 | ~USD 147.57 | ~USD 147.49 |
+
+The relationship is deliberately **not** interpreted as monotonic or as a parameter search.
+
+The 2%, 3%, 5%, 10% and 25% outcomes differ because changing the envelope changes the entire chronological path:
+
+- which opportunities can be expressed;
+- which settlements occur;
+- how much capital exists later;
+- which subsequent opportunities remain executable.
+
+Therefore no burned-window threshold such as 10% or 25% may be promoted as a production setting.
+
+What the matrix does establish is narrower and stronger:
+
+> **The unconstrained 100%-of-equity research envelope is causally unsafe. A materially tighter survival envelope can prevent the account-killing trajectory.**
+
+### 17.3 Root cause versus amplifier versus contributing factors
+
+The causal hierarchy can now be stated more precisely.
+
+#### Root defect A — forecast admission maturity
+
+Status: repaired in current branch.
+
+The original 39 destructive early trades all used 5–19 observations.
+
+Blocking provisional forecasts removed the first account death and allowed capital to grow.
+
+#### Root defect B — capital-intensity wiring
+
+Status: OPEN.
+
+The historical Twin publishes `capital_intensity_cap = 4`.
+
+Cognition effectively outputs:
+
+- 0x when it abstains;
+- up to 4x when it recommends.
+
+The current Portfolio objective is monotonic in multiplier for positive expected utility.
+
+The fixed-multiplier reruns prove that this wiring is causal:
+
+- 1x / 2x / 3x survive;
+- 4x kills the account.
+
+#### Root defect C — survival envelope
+
+Status: OPEN.
+
+The baseline historical QORE Risk/provider model permits total stop risk up to 100% of equity.
+
+The envelope reruns prove that reducing this boundary materially changes survival and prevents the baseline death path.
+
+The exact production law remains unknown and must not be selected from this burned matrix.
+
+#### Root defect D — economic forecast calibration
+
+Status: OPEN.
+
+On the 292 selected mature trades:
+
+- expected Portfolio utility was strongly positive;
+- realized net PnL was negative;
+- expected-return ranking had almost no useful relationship with realized outcome;
+- expected capital duration was materially shorter than actual duration.
+
+Thus the capital allocator is optimizing a forecast surface whose magnitude and capital-velocity estimates are not adequately calibrated.
+
+#### Direct economic drag — provider friction
+
+Status: OPEN economic constraint, not merely noise.
+
+The selected mature surface had aggregate positive gross structural PnL but negative net PnL because provider friction exceeded the extracted structural edge.
+
+Provider cost must therefore be part of robust admission/intensity economics, not only bookkeeping after selection.
+
+#### Integration defect — crisis capital not universally binding
+
+Status: OPEN.
+
+At least one authorized `OPEN_CAPABILITY_MAX` decision had a GEN-C12 `PAUSE_NEW_CAPITAL` result but still reached Risk.
+
+The sovereign runtime currently blocks on `capital_science.allow_incremental_compound` only when Sizing action is `EXPAND`.
+
+Therefore a broad crisis no-new-deployment signal can fail to stop a DEMO capability opening.
+
+This is a real wiring defect, though it is not the dominant cause of the 292-trade collapse.
+
+### 17.4 What is now ruled out as the principal culprit
+
+Current evidence does not support the following as the primary cause of the collapse:
+
+- CIBO Compound;
+- GEN-C5 as a profit-funded expansion engine;
+- QORE Risk as the selector of economically bad opportunities;
+- provider friction alone;
+- raw Sizing alone.
+
+Raw Sizing remains aggressive and must still be studied independently, but on the damaging path Portfolio / Adaptive Leverage was normally the binding final intensity actuator.
+
+### 17.5 What must be repaired before ceiling discovery
+
+Before CIBO ceiling discovery resumes, the capital path needs these causal closures:
+
+1. Replace the hard-coded binary 0-or-4 cognition/intensity seam with a causal confidence/survival intensity contract.
+2. Make Portfolio optimize robust economic utility, not utility that rises linearly with multiplier until a hard capacity wall.
+3. Treat forecast uncertainty, duration uncertainty and provider friction as first-order economic costs.
+4. Make a survival envelope visible consistently to Regime, Full Economic Twin, Capital Science, Portfolio and QORE Risk.
+5. Make GEN-C12 `NO_NEW_DEPLOYMENT` / `PAUSE_NEW_CAPITAL` binding for every new deployment type, including `OPEN_CAPABILITY_MAX`.
+6. Keep QORE Risk sovereign and independent.
+7. Re-run the same burned diagnostics only for causal debugging; do not tune production thresholds from them.
+8. Freeze the repaired candidate before any fresh holdout or certification claim.
+
+### 17.6 Current strongest causal conclusion
+
+The dominant account-killing mechanism is now supported by direct reruns:
+
+**mature-but-miscalibrated economic forecast**
+→ **cognition recommends without graded intensity**
+→ **hard-coded 4x cap remains available**
+→ **Portfolio objective drives positive opportunities toward maximum multiplier**
+→ **100%-equity survival envelope permits oversized requests**
+→ **provider costs + adverse clusters consume capital**
+→ **capital path crosses a nonlinear survival cliff**
+→ **later opportunities become unexecutable**
+→ **account dies**.
+
+The fixed 1x/2x/3x/4x matrix demonstrates that the 4x intensity behavior is causal, not merely correlated with the collapse.
+
+The survival-envelope matrix independently demonstrates that the 100%-equity hard envelope is also causally unsafe.
+
+Neither matrix authorizes choosing a final production multiplier or risk percentage from this burned period.
+
