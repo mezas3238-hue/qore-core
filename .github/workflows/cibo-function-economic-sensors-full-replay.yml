@@ -1,0 +1,149 @@
+name: QORE CIBO Full Sensor Replay
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/cibo-function-economic-sensors-001
+    paths:
+      - '.github/workflows/cibo-function-economic-sensors-full-replay.yml'
+      - 'scripts/cibo_single_account_historical_ceiling_replay.py'
+      - 'src/qore/infrastructure/cibo_cognitive_reach_sensors.py'
+      - 'src/qore/infrastructure/cibo_function_economic_sensors.py'
+      - 'src/qore/infrastructure/cibo_single_account_sovereign_ceiling_run.py'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-cibo-full-sensor-replay-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  full-sensor-replay:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+      FROZEN_ARTIFACT_ID: '11389331836'
+      FROZEN_ARTIFACT_DIGEST: 'sha256:30177639f660c9647ab70257c2d12c541bdade49ab5582347a3890f920070fee'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install
+        run: python -m pip install -e '.[dev]'
+
+      - name: Validate sensor replay surface
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/cibo_single_account_historical_ceiling_replay.py src/qore/infrastructure/cibo_cognitive_reach_sensors.py src/qore/infrastructure/cibo_function_economic_sensors.py src/qore/infrastructure/cibo_single_account_sovereign_ceiling_run.py
+          ruff check scripts/cibo_single_account_historical_ceiling_replay.py src/qore/infrastructure/cibo_cognitive_reach_sensors.py src/qore/infrastructure/cibo_function_economic_sensors.py src/qore/infrastructure/cibo_single_account_sovereign_ceiling_run.py
+          pytest -q --no-cov tests/infrastructure/test_cibo_cognitive_reach_sensors.py tests/infrastructure/test_cibo_function_economic_sensors.py tests/infrastructure/test_cibo_single_account_historical_ceiling_epoch.py
+
+      - name: Recover frozen Native MAX input
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/frozen"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$FROZEN_ARTIFACT_ID" > "$RUNNER_TEMP/artifact.meta.json"
+          jq -e --arg digest "$FROZEN_ARTIFACT_DIGEST" '.expired == false and .digest == $digest' "$RUNNER_TEMP/artifact.meta.json"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$FROZEN_ARTIFACT_ID/zip" > "$RUNNER_TEMP/frozen.zip"
+          echo "${FROZEN_ARTIFACT_DIGEST#sha256:}  $RUNNER_TEMP/frozen.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/frozen.zip" -d "$RUNNER_TEMP/frozen"
+          MANIFEST="$(find "$RUNNER_TEMP/frozen" -type f -name single-account-manifest-native.json -print -quit)"
+          PREFLIGHT="$(find "$RUNNER_TEMP/frozen" -type f -name native-max-preflight.json -print -quit)"
+          test -n "$MANIFEST"
+          test -n "$PREFLIGHT"
+          echo "MANIFEST=$MANIFEST" >> "$GITHUB_ENV"
+          echo "PREFLIGHT=$PREFLIGHT" >> "$GITHUB_ENV"
+
+      - name: Prove frozen lineage
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          from qore.infrastructure.cibo_single_account_manifest_integrity import validate_single_account_manifest_sha256
+
+          manifest = json.loads(Path(os.environ["MANIFEST"]).read_text())
+          preflight = json.loads(Path(os.environ["PREFLIGHT"]).read_text())
+          digest = validate_single_account_manifest_sha256(manifest)
+          assert preflight["source_manifest_sha256"] == digest
+          assert preflight["decision_count"] == 3368
+          assert preflight["native_max_pass_count"] == 3368
+          assert preflight["native_max_blocked_count"] == 0
+          assert preflight["external_ai_call_count"] == 0
+          assert manifest["initial_capital_usd"] == "60"
+          assert manifest["opportunity_decision_count"] == 3368
+          assert manifest["decision_epoch_count"] == 3305
+          print(json.dumps({"manifest_sha256": digest, "native_max_pass_count": 3368}, sort_keys=True))
+          PY
+
+      - name: Execute frozen replay with all sensors
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/sensors"
+          python scripts/cibo_single_account_historical_ceiling_replay.py --manifest "$MANIFEST" --output "$RUNNER_TEMP/sensors/historical-ceiling-replay-with-sensors.json" --progress-every 100
+
+      - name: Prove cognitive reach coverage
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          path = Path(os.environ["RUNNER_TEMP"]) / "sensors" / "historical-ceiling-replay-with-sensors.json"
+          payload = json.loads(path.read_text())
+          cognitive = payload["cognitive_reach_sensors"]
+          functions = payload["function_economic_sensors"]
+
+          assert payload["decision_count"] == 3368
+          assert payload["decision_epoch_count"] == 3305
+          assert payload["external_ai_call_count"] == 0
+          assert cognitive["component_count"] == 31
+          assert cognitive["sensor_count"] == 3368 * 31
+          assert cognitive["productive_authority"] is False
+          assert cognitive["individual_component_ablation_required_for_who_contributes"] is True
+
+          components = cognitive["components"]
+          for code in ("CF01", "CF02", "CF03", "CF04", "CF05", "CF06", "CF07", "CF08", "CF09", "CF10", "CF11", "CF12", "CF13", "CF14", "CF15", "CF16", "CF17", "CF18", "CF19"):
+              assert code in components
+              assert components[code]["event_count"] == 3368
+              assert components[code]["reached_executive_synthesis_count"] == 3368
+              assert components[code]["reached_capital_decision_count"] == 3368
+              assert components[code]["individual_contribution_state"] == "UNPROVEN"
+
+          for code in ("NATIVE_PERCEPTION", "MISSION_DIRECTOR", "FUNCTIONAL_COORDINATOR", "WORLD_MODEL", "ATTENTION_CONTEXT", "REASONING_ROUTING", "CALIBRATION", "SCENARIO_ENGINE", "CAUSAL_REASONING", "METACOGNITION", "COGNITIVE_INTEGRATION", "EXECUTIVE_SYNTHESIS"):
+              assert code in components
+              assert components[code]["event_count"] == 3368
+
+          summary = {
+              "ending_capital_usd": payload["ending_capital_usd"],
+              "peak_capital_usd": payload["peak_capital_usd"],
+              "net_pnl_usd": payload["net_pnl_usd"],
+              "decision_count": payload["decision_count"],
+              "cognitive_sensor_count": cognitive["sensor_count"],
+              "cognitive_component_count": cognitive["component_count"],
+              "function_sensor_count": functions["sensor_count"],
+              "external_ai_call_count": payload["external_ai_call_count"],
+          }
+          (Path(os.environ["RUNNER_TEMP"]) / "sensors" / "sensor-summary.json").write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n")
+          print(json.dumps(summary, sort_keys=True))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-cibo-full-sensor-replay-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/sensors
+            ${{ runner.temp }}/artifact.meta.json
+          if-no-files-found: warn
