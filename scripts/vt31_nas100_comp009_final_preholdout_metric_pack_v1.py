@@ -162,6 +162,13 @@ def _minimal_rows(
                 dict[str, object],
                 row.get("entry_context", {}),
             ).get("reference_volatility_state"),
+            "entry_context": row.get("entry_context", {}),
+            "cognitive_exit_evaluations": row.get(
+                "cognitive_exit_evaluations",
+                [],
+            ),
+            "management_trace": row.get("management_trace", []),
+            "position_trace": row.get("position_trace", []),
         }
         for row in rows
     ]
@@ -595,6 +602,14 @@ def aggregate_reports(
         "review_required": any(_d(value) <= 0 for value in years.values()),
         "automatic_fail_from_year_sign": False,
     }
+    peak_index = cast(int | None, combined_dd["peak_index"])
+    trough_index = cast(int | None, combined_dd["trough_index"])
+    stitched_dd_rows = (
+        []
+        if peak_index is None or trough_index is None
+        else rows[peak_index : trough_index + 1]
+    )
+
     partition_results = {
         name: {
             "partition_robustness_gate_pass": (
@@ -638,6 +653,7 @@ def aggregate_reports(
             "cost_stress": stress,
             "year_total_r": years,
             "drawdown_episode": combined_dd,
+            "drawdown_episode_rows": stitched_dd_rows,
             "reference_volatility_regimes": _regime_report(rows),
         },
         "gates": gates,
