@@ -23,11 +23,11 @@ from enum import StrEnum
 from qore.infrastructure.cibo_capital_digital_twin import (
     Genc10ObservedCapitalTwin,
 )
-from qore.infrastructure.cibo_ce2i_causal_expectation import (
-    CausalExpectationBasis,
-)
 from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
+)
+from qore.infrastructure.cibo_ce2i_causal_expectation import (
+    CausalExpectationBasis,
 )
 
 
