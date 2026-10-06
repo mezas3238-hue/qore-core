@@ -43,6 +43,9 @@ VARIANTS = (
     "COG_EXIT_CAUTION_WEAK_PATH",
     "COG_EXIT_STALE_MIXED",
     "COG_EXIT_CAUTION_OR_STALE_MIXED",
+    "BASE_PLUS_FVG_NONSHALLOW",
+    "BASE_PLUS_NONOB_NORMAL",
+    "BASE_PLUS_FVG_NONSHALLOW_OR_NONOB_NORMAL",
     "COG_EXIT_NONSUPPORTIVE",
 )
 
@@ -55,6 +58,8 @@ def _exit_allowed(
     diagnostic: dict[str, object],
     *,
     variant: str,
+    entry_family: str,
+    reference_volatility_state: str,
 ) -> bool:
     if variant == "CONTROL":
         return False
@@ -82,10 +87,26 @@ def _exit_allowed(
         return context == "CAUTIOUS" and weak_path
     if variant == "COG_EXIT_STALE_MIXED":
         return context == "MIXED" and stale_sequence
+    base_safe = context == "CAUTIOUS" or (
+        context == "MIXED" and stale_sequence
+    )
     if variant == "COG_EXIT_CAUTION_OR_STALE_MIXED":
-        return context == "CAUTIOUS" or (
-            context == "MIXED" and stale_sequence
-        )
+        return base_safe
+
+    fvg_nonshallow = (
+        entry_family == "fair-value-gap"
+        and str(diagnostic["destination_state"]) != "SHALLOW"
+    )
+    nonob_normal = (
+        reference_volatility_state == "normal"
+        and entry_family != "order-block"
+    )
+    if variant == "BASE_PLUS_FVG_NONSHALLOW":
+        return base_safe or fvg_nonshallow
+    if variant == "BASE_PLUS_NONOB_NORMAL":
+        return base_safe or nonob_normal
+    if variant == "BASE_PLUS_FVG_NONSHALLOW_OR_NONOB_NORMAL":
+        return base_safe or fvg_nonshallow or nonob_normal
     if variant == "COG_EXIT_NONSUPPORTIVE":
         return context in {"MIXED", "CAUTIOUS"}
     raise ValueError(f"unsupported variant: {variant}")
@@ -115,7 +136,14 @@ def _simulate(
             confirmations=1,
             mode="WEAK_PATH",
         )
-        allowed = _exit_allowed(diagnostic, variant=variant)
+        allowed = _exit_allowed(
+            diagnostic,
+            variant=variant,
+            entry_family=str(executable.selected_family.value),
+            reference_volatility_state=str(
+                state["reference_volatility_state"]
+            ),
+        )
         diagnostic["cognitive_exit_variant"] = variant
         diagnostic["cognitive_exit_authorized"] = allowed
         evaluations.append(diagnostic)
@@ -616,6 +644,8 @@ def replay(evidence_path: Path) -> dict[str, object]:
             "material_adverse_threshold_newly_outcome_tuned": False,
             "stale_sequence_8_14_preexisting_reasoning_state": True,
             "stale_sequence_threshold_newly_outcome_tuned": False,
+            "residual_context_hypotheses_consumed_discovery_only": True,
+            "residual_context_new_numeric_threshold_added": False,
             "position_sizing_used": False,
             "dynamic_sizing_used": False,
             "leverage_used": False,
