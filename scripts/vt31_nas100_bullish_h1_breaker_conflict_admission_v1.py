@@ -97,6 +97,8 @@ def _report(
                 "entry_family": row["entry_family"],
                 "side": row["side"],
                 "bullish_h1_breaker_short_conflict": _conflict(row),
+                "signature": comp007._signature(row),
+                "entry_context": row.get("entry_context", {}),
             }
             for row in excluded
         ],
