@@ -64,6 +64,59 @@ class Nas100ReasoningDecision:
     cibo_market_memory_fingerprint: str
     trader_experience_memory_fingerprint: str
     memory_fingerprint: str
+    cognitive_domains_consulted: tuple[str, ...] = ()
+    max_intelligence_blockers: tuple[str, ...] = ()
+    max_intelligence_ready: bool = False
+
+
+def _max_intelligence_audit(
+    state: Nas100SituationModel,
+    *,
+    journey_capacity_state: str,
+    management_context_state: str,
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """Audit cognitive completeness without changing the current trade action."""
+
+    domains = (
+        "strategy_identity",
+        "prior_day_context",
+        "h4_context",
+        "h1_context",
+        "m15_context",
+        "m1_microstructure",
+        "structure",
+        "liquidity",
+        "regime",
+        "volatility",
+        "timing_freshness",
+        "entry_intelligence",
+        "risk_geometry",
+        "journey_intelligence",
+        "target_exit_intelligence",
+        "cibo_market_memory",
+        "trader_experience_memory",
+        "cross_index_context",
+        "post_entry_reassessment_capability",
+        "strategy_native_r_capability",
+    )
+    blockers: list[str] = []
+
+    if state.m15_state.upper() in {"UNWIRED", ""}:
+        blockers.append("M15_CONTEXT_UNWIRED")
+    if state.h1_state == "unavailable":
+        blockers.append("H1_CONTEXT_UNAVAILABLE")
+    if state.last_structure_event_family in {"", "unavailable"}:
+        blockers.append("STRUCTURE_CONTEXT_UNAVAILABLE")
+    if state.volatility_state in {"", "unavailable"}:
+        blockers.append("VOLATILITY_CONTEXT_UNAVAILABLE")
+    if state.entry_evidence_family in {"", "unavailable"}:
+        blockers.append("ENTRY_INTELLIGENCE_UNAVAILABLE")
+    if "DEEPER_DOL_RESEARCH_UNCALIBRATED" in journey_capacity_state:
+        blockers.append("DEEPER_JOURNEY_CAPACITY_UNCALIBRATED")
+    if management_context_state.startswith("UNRESOLVED"):
+        blockers.append("CONTEXTUAL_POSITION_MANAGEMENT_UNRESOLVED")
+
+    return domains, tuple(blockers)
 
 
 def _target_plan(state: Nas100SituationModel) -> TargetPlan:
@@ -139,6 +192,7 @@ def reason(state: Nas100SituationModel) -> Nas100ReasoningDecision:
             f"PRIOR_DAY:{state.prior_day_state}",
             f"H4:{state.h4_state}",
             f"H1:{state.h1_state}",
+            f"M15:{state.m15_state}",
             f"PREMARKET:{state.premarket_state}",
             f"CASH_OPEN:{state.cash_open_state}",
             f"PRIOR_RANGE_LOCATION:{state.position_in_prior_day_range}",
@@ -165,6 +219,10 @@ def reason(state: Nas100SituationModel) -> Nas100ReasoningDecision:
         uncertainty.append("SITUATION:H4_CONTEXT_UNAVAILABLE")
     if state.h1_state == "unavailable":
         uncertainty.append("SITUATION:H1_CONTEXT_UNAVAILABLE")
+    if state.m15_state.upper() == "UNWIRED":
+        uncertainty.append("SITUATION:M15_CONTEXT_UNWIRED")
+    elif state.m15_state.lower() == "unavailable":
+        uncertainty.append("SITUATION:M15_CONTEXT_UNAVAILABLE")
     if state.prior_day_state == "unavailable":
         uncertainty.append("SITUATION:PRIOR_DAY_CONTEXT_UNAVAILABLE")
 
@@ -256,6 +314,12 @@ def reason(state: Nas100SituationModel) -> Nas100ReasoningDecision:
     else:
         action = "EXECUTE"
 
+    cognitive_domains, max_intelligence_blockers = _max_intelligence_audit(
+        state,
+        journey_capacity_state=journey_capacity_state,
+        management_context_state=management_context_state,
+    )
+
     return Nas100ReasoningDecision(
         action=action,
         target_plan=plan,
@@ -274,4 +338,7 @@ def reason(state: Nas100SituationModel) -> Nas100ReasoningDecision:
         cibo_market_memory_fingerprint=cibo_market_memory_fingerprint(),
         trader_experience_memory_fingerprint=trader_experience_fingerprint(),
         memory_fingerprint=memory_fingerprint(),
+        cognitive_domains_consulted=cognitive_domains,
+        max_intelligence_blockers=max_intelligence_blockers,
+        max_intelligence_ready=not max_intelligence_blockers,
     )
