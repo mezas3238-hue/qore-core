@@ -588,7 +588,37 @@ def test_material_adverse_open_r_sets_minimum_mixed_protection_context() -> None
     assert cognition.maximum_cognition_verified is True
     assert cognition.management_context is not ManagementContext.SUPPORTIVE
     assert cognition.protection_urgency is not ProtectionUrgency.LOW
+    assert cognition.target_intent is UniversalTargetIntent.PRESERVE_DOL1
+    assert "JOURNEY_CONFIRMED_EXHAUSTION" not in cognition.signal_codes
     assert "current_open_r" in cognition.actuated_situation_fields
     assert "JOURNEY_OPEN_R_MATERIAL_ADVERSE" in cognition.signal_codes
     # The floor signal is emitted only when a previously SUPPORTIVE context
     # needs promotion to MIXED. A context already CAUTIOUS is already stronger.
+
+
+def test_explicit_non_exhaustion_tokens_do_not_force_exit() -> None:
+    for exhaustion in (
+        "NO_CONFIRMED_EXHAUSTION",
+        "NO_EXHAUSTION",
+        "NOT_EXHAUSTED",
+        "EXHAUSTION_NOT_CONFIRMED",
+        "EXHAUSTION_ABSENT",
+    ):
+        situation = replace(
+            _full_cognitive_situation(exhaustion=exhaustion),
+            m15_state="mixed",
+            journey_stage="OPEN_PRE_DOL1_PROTECTION_EVALUATION",
+            dol1_state="ACTIVE_PRE_DOL1",
+            dol2_state="CALIBRATED_ECONOMIC_CAPACITY_COGNITION_REQUIRED",
+            dol3_state="REJECTED_BY_EDGE_ECONOMICS",
+            extension_capacity_state="CALIBRATED_PRE_DOL1_CURRENT_JOURNEY",
+            current_open_r=Decimal("-0.50"),
+        )
+        cognition = assess_full_cognitive_position(
+            situation=situation,
+            reasoning=reason(situation),
+            entry_tier="CORE",
+            dol1_acceptance_observed=False,
+        )
+        assert cognition.target_intent is UniversalTargetIntent.PRESERVE_DOL1
+        assert "JOURNEY_CONFIRMED_EXHAUSTION" not in cognition.signal_codes
