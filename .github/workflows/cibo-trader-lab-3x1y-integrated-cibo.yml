@@ -18,6 +18,7 @@ concurrency:
 
 env:
   GH_TOKEN: ${{ github.token }}
+  PYTHONPATH: ${{ github.workspace }}
   ASSEMBLY_ARTIFACT_ID: '11281285816'
   ASSEMBLY_ARTIFACT_DIGEST: 'sha256:1ce78890e4f255cf68ce327d53029db5a34ea464b16df7e75228a8ac0a7dde9e'
   ATLAS_RUN_ID: '35166210458'
