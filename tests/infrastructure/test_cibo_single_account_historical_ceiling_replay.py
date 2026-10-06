@@ -303,3 +303,117 @@ def test_replay_settles_due_outcome_before_next_epoch(monkeypatch) -> None:
     assert result.regime_reconstruction_count == 2
     assert result.external_ai_call_count == 0
     assert result.outcome_used_for_predecision is False
+
+def test_prefix_replay_stops_new_decisions_but_settles_open_positions(
+    monkeypatch,
+) -> None:
+    first = _row(
+        epoch="epoch-1",
+        signal="alpha",
+        decision_at=T0,
+        exit_at=T0 + timedelta(minutes=30),
+        gross_r="1",
+    )
+    second = _row(
+        epoch="epoch-2",
+        signal="beta",
+        decision_at=T0 + timedelta(minutes=10),
+        exit_at=T0 + timedelta(minutes=15),
+        gross_r="-1",
+    )
+    calls: list[str] = []
+
+    def _fake_epoch(**kwargs):
+        calls.append(kwargs["decision_epoch_id"])
+        opportunity = kwargs["opportunities"][0].opportunity
+        signal = opportunity.signal_fingerprint
+        request = CiboRiskRequest(
+            request_id=kwargs["decision_epoch_id"] + ":risk",
+            trader_id=opportunity.trader_id,
+            signal_fingerprint=signal,
+            qore_symbol=opportunity.qore_symbol,
+            provider_symbol=opportunity.provider_symbol,
+            side=opportunity.side,
+            entry_type=opportunity.entry_type,
+            intended_entry=opportunity.intended_entry,
+            stop_loss=opportunity.stop_loss,
+            take_profit=opportunity.take_profit,
+            requested_volume=Decimal("1"),
+            volume_step=Decimal("1"),
+            minimum_volume=Decimal("1"),
+            stop_loss_per_volume=Decimal("10"),
+            margin_per_volume=Decimal("20"),
+            requested_at=kwargs["decision_at"],
+            expires_at=kwargs["expires_at"],
+            capital_provenance=(
+                CiboCapitalProvenanceLot(
+                    source_kind=CapitalSource.ORIGINAL_BASE_CAPITAL.value,
+                    source_id="cibo:assigned-original-base",
+                    amount_usd=Decimal("10"),
+                ),
+            ),
+        )
+        snapshot = AccountRiskSnapshot(
+            account_binding_id=kwargs["account_identity"].account_ref,
+            equity=kwargs["historical_capital"].realized_capital_usd,
+            margin_used=Decimal("0"),
+            free_margin=Decimal("1000"),
+            open_stop_worst_case_loss=Decimal("0"),
+            open_floating_loss=Decimal("0"),
+            pending_broker_worst_case_loss=Decimal("0"),
+            qore_authorizable_headroom=Decimal("1000"),
+            provider_budget=_Budget(),
+            reconciled_at=kwargs["decision_at"],
+        )
+        authorization = kwargs["risk_engine"].authorize(
+            request,
+            snapshot,
+            now=kwargs["decision_at"],
+        )
+        receipt = CiboSovereignCeilingDecisionReceipt(
+            decision_epoch_id=kwargs["decision_epoch_id"],
+            decision_id=kwargs["decision_epoch_id"] + ":" + signal,
+            option_id="ceiling:" + signal,
+            signal_fingerprint=signal,
+            trader_id=opportunity.trader_id.value,
+            decided_at=kwargs["decision_at"],
+            capital_disposition="RISK_REVIEW_READY",
+            risk_decision=RiskDecision.ALLOW.value,
+            requested_volume=Decimal("1"),
+            authorized_volume=Decimal("1"),
+            requested_stop_risk_usd=Decimal("10"),
+            authorized_stop_risk_usd=Decimal("10"),
+            authorized_margin_usd=Decimal("20"),
+            adaptive_leverage_multiplier=1,
+            sizing_mode="CAPABILITY_MAXIMUM",
+            semantic_digest="sha256:" + "b" * 64,
+            native_mpc_derived_from_cognition=True,
+        )
+        return SimpleNamespace(
+            execution=SimpleNamespace(
+                decision_receipts=(receipt,),
+                risk_submission_order=(signal,),
+                risk_authorizations=(authorization,),
+            )
+        )
+
+    monkeypatch.setattr(
+        "qore.infrastructure.cibo_single_account_historical_ceiling_replay."
+        "run_predecision_historical_sovereign_ceiling_epoch",
+        _fake_epoch,
+    )
+
+    result = run_historical_ceiling_replay(
+        _manifest([first, second], epochs=2),
+        max_decision_epochs=1,
+    )
+
+    assert calls == ["epoch-1"]
+    assert result.decision_epoch_count == 1
+    assert result.regime_reconstruction_count == 1
+    assert len(result.decision_receipts) == 1
+    assert len(result.settlement_receipts) == 1
+    assert result.final_open_exposures == ()
+    assert result.final_capital.open_deployments == ()
+    assert result.ending_capital_usd == Decimal("70")
+
