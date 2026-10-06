@@ -562,3 +562,35 @@ def test_full_accounting_can_research_while_certification_stays_blocked() -> Non
 
     assert "DEEPER_JOURNEY_CAPACITY_UNCALIBRATED" in message
     assert "CONTEXTUAL_POSITION_MANAGEMENT_UNRESOLVED" in message
+
+
+def test_material_adverse_open_r_sets_minimum_mixed_protection_context() -> None:
+    situation = replace(
+        _full_cognitive_situation(),
+        m15_state="mixed",
+        journey_stage="OPEN_PRE_DOL1_PROTECTION_EVALUATION",
+        dol1_state="ACTIVE_PRE_DOL1",
+        dol2_state="CALIBRATED_ECONOMIC_CAPACITY_COGNITION_REQUIRED",
+        dol3_state="REJECTED_BY_EDGE_ECONOMICS",
+        extension_capacity_state="CALIBRATED_PRE_DOL1_CURRENT_JOURNEY",
+        exhaustion_state="NO_CONFIRMED_EXHAUSTION",
+        current_open_r=Decimal("-0.50"),
+    )
+    reasoning = reason(situation)
+    cognition = assess_full_cognitive_position(
+        situation=situation,
+        reasoning=reasoning,
+        entry_tier="CORE",
+        dol1_acceptance_observed=False,
+    )
+
+    assert reasoning.max_intelligence_ready is True
+    assert cognition.maximum_cognition_verified is True
+    assert cognition.management_context is ManagementContext.MIXED
+    assert cognition.protection_urgency is ProtectionUrgency.MODERATE
+    assert "current_open_r" in cognition.actuated_situation_fields
+    assert "JOURNEY_OPEN_R_MATERIAL_ADVERSE" in cognition.signal_codes
+    assert (
+        "JOURNEY_MATERIAL_ADVERSE_CONTEXT_FLOOR_MIXED"
+        in cognition.signal_codes
+    )
