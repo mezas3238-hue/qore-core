@@ -87,7 +87,7 @@ class CiboHistoricalProfitGeneration:
             )
         for name in ("proven_usd", "consumed_usd", "reserved_usd"):
             _money(getattr(self, name), name)
-        if self.consumed_usd + self.reserved_usd > self.proven_usd:
+        if _add(self.consumed_usd, self.reserved_usd) > self.proven_usd:
             raise CiboCapitalManagementError(
                 "historical ceiling profit generation is over-allocated"
             )
@@ -234,7 +234,10 @@ class CiboHistoricalResearchCapitalState:
                 "historical ceiling opening capital must remain exactly USD60"
             )
         if (
-            self.original_base_consumed_usd + self.original_base_reserved_usd
+            _add(
+                self.original_base_consumed_usd,
+                self.original_base_reserved_usd,
+            )
             > self.original_base_proven_usd
         ):
             raise CiboCapitalManagementError(
