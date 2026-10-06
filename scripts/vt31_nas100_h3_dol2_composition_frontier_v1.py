@@ -294,8 +294,17 @@ def _simulate_composite(
     state: dict[str, object],
     *,
     window: int,
+    pretarget_breaker_ps_confirmations: int | None = None,
 ) -> dict[str, object]:
+    if pretarget_breaker_ps_confirmations not in {None, 1, 2}:
+        raise ValueError(
+            "pretarget_breaker_ps_confirmations must be None, 1, or 2"
+        )
+
     side = str(getattr(getattr(executable, "side"), "value"))
+    entry_family = str(
+        getattr(getattr(executable, "selected_family"), "value")
+    )
     entry = _d(getattr(executable, "entry_price"))
     initial_stop = _d(getattr(executable, "stop_price"))
     dol1 = _d(getattr(executable, "target_price"))
@@ -344,6 +353,14 @@ def _simulate_composite(
     ps_committed = False
     ps_confirmations = 0
 
+    pending_breaker_ps: Decimal | None = None
+    breaker_ps_committed = False
+    breaker_ps_confirmations = 0
+    breaker_ps_enabled = (
+        entry_family == "breaker"
+        and pretarget_breaker_ps_confirmations is not None
+    )
+
     dol1_touch_index: int | None = None
     dol1_accepted_index: int | None = None
     extension_active = False
@@ -370,6 +387,18 @@ def _simulate_composite(
         previous = bar
 
         # Actions decided on a prior closed M1 become active now.
+        if pending_breaker_ps is not None and not breaker_ps_committed:
+            active_target = dol2 if extension_active else dol1
+            if dol2_protection.protection._improves_stop(
+                side,
+                current_stop,
+                pending_breaker_ps,
+                active_target,
+            ):
+                current_stop = pending_breaker_ps
+                breaker_ps_committed = True
+            pending_breaker_ps = None
+
         if pending_be and not be_armed:
             if dol2_protection.protection._improves_stop(
                 side, current_stop, entry, dol2
@@ -391,6 +420,8 @@ def _simulate_composite(
             exit_at = getattr(bar, "closed_at")
             if ps_committed:
                 exit_reason = "composite-protective-swing-stop"
+            elif breaker_ps_committed:
+                exit_reason = "composite-breaker-pretarget-protective-stop"
             elif be_armed:
                 exit_reason = "composite-h3-breakeven"
             else:
@@ -467,6 +498,30 @@ def _simulate_composite(
                 h3_action = "ARM_BE_NEXT_M1"
             else:
                 h3_action = "HOLD_RUNNER"
+
+        if (
+            breaker_ps_enabled
+            and not extension_active
+            and not breaker_ps_committed
+            and pending_breaker_ps is None
+        ):
+            candidate = dol2_protection.protection._protective_swing_level(
+                eligible,
+                index,
+                side,
+            )
+            if candidate is not None and dol2_protection.protection._improves_stop(
+                side,
+                current_stop,
+                candidate,
+                dol1,
+            ):
+                breaker_ps_confirmations += 1
+                if (
+                    breaker_ps_confirmations
+                    >= cast(int, pretarget_breaker_ps_confirmations)
+                ):
+                    pending_breaker_ps = candidate
 
         if extension_active:
             if not ps_committed and pending_ps is None:
@@ -546,9 +601,7 @@ def _simulate_composite(
         "signal_at": getattr(executable, "decision_at").isoformat(),
         "filled_at": filled_at.isoformat(),
         "exit_at": exit_at.isoformat(),
-        "entry_family": str(
-            getattr(getattr(executable, "selected_family"), "value")
-        ),
+        "entry_family": entry_family,
         "exit_reason": exit_reason,
         "r_multiple": format(
             depth._terminal_r(
@@ -574,6 +627,13 @@ def _simulate_composite(
         "extension_persistence_state": extension_persistence_state,
         "ps_confirmations_seen": ps_confirmations,
         "ps_committed": ps_committed,
+        "pretarget_breaker_ps_confirmations_required": (
+            pretarget_breaker_ps_confirmations
+        ),
+        "pretarget_breaker_ps_confirmations_seen": (
+            breaker_ps_confirmations
+        ),
+        "pretarget_breaker_ps_committed": breaker_ps_committed,
         "runtime_r_strategy_used": True,
         "runtime_volume_decision_authority": False,
     }
