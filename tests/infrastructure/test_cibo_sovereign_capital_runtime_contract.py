@@ -160,23 +160,24 @@ def _recommend_synthesis(
     )
 
 
-def test_cognition_grades_intensity_instead_of_inheriting_four_x() -> None:
+def test_native_max_confidence_does_not_truncate_action_surface() -> None:
     twin = replace(
         _full_twin(),
         cognitive_constraints=(("capital_intensity_cap", "4"),),
     )
 
-    expected = {
-        CiboConfidenceLevel.LOW: "1",
-        CiboConfidenceLevel.MEDIUM: "2",
-        CiboConfidenceLevel.HIGH: "3",
-    }
-    for level, cap in expected.items():
+    for level in (
+        CiboConfidenceLevel.LOW,
+        CiboConfidenceLevel.MEDIUM,
+        CiboConfidenceLevel.HIGH,
+    ):
         bound = module.bind_cibo_cognition_to_twin(
             twin,
             _recommend_synthesis(level),
         )
-        assert dict(bound.cognitive_constraints)["capital_intensity_cap"] == cap
+        constraints = dict(bound.cognitive_constraints)
+        assert constraints["capital_intensity_cap"] == "4"
+        assert constraints["executive_confidence_level"] == level.value
 
 
 def test_sovereign_runtime_makes_genc12_pause_binding_for_new_openings() -> None:
@@ -190,7 +191,7 @@ def test_sovereign_runtime_makes_genc12_pause_binding_for_new_openings() -> None
 
 
 
-def test_max_frontier_can_only_reduce_native_max_intensity() -> None:
+def test_max_frontier_is_advisory_and_cannot_reduce_native_max_intensity() -> None:
     twin = replace(
         _full_twin(),
         cognitive_constraints=(("capital_intensity_cap", "4"),),
@@ -204,9 +205,9 @@ def test_max_frontier_can_only_reduce_native_max_intensity() -> None:
         maximum_frontier_consumed_codes=("CF02", "CF06", "CF07", "CF10", "CF12"),
     )
     high_constraints = dict(high.cognitive_constraints)
-    assert high_constraints["capital_intensity_cap"] == "1"
+    assert high_constraints["capital_intensity_cap"] == "4"
     assert high_constraints["maximum_frontier_cap"] == "1"
-    assert high_constraints["maximum_frontier_mode"] == "CONSTRAINING_ONLY"
+    assert high_constraints["maximum_frontier_mode"] == "ADVISORY_DIAGNOSTIC"
     assert high_constraints["maximum_frontier_policy"] == (
         module.MAX_FRONTIER_POLICY_ID
     )
@@ -219,7 +220,7 @@ def test_max_frontier_can_only_reduce_native_max_intensity() -> None:
         _recommend_synthesis(CiboConfidenceLevel.LOW),
         maximum_frontier_cap=4,
     )
-    assert dict(low.cognitive_constraints)["capital_intensity_cap"] == "1"
+    assert dict(low.cognitive_constraints)["capital_intensity_cap"] == "4"
 
 
 def test_sovereign_runtime_consumes_max_frontier_before_portfolio() -> None:
