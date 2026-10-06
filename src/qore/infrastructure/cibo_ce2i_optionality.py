@@ -117,6 +117,28 @@ def plan_capital_optionality(
             "known optionality opportunity ids must be unique"
         )
 
+    feasible_options = tuple(
+        item
+        for item in known_options
+        if (
+            item.minimum_stop_risk_usd <= hard_risk_headroom_usd
+            and item.minimum_margin_usd <= margin_headroom_usd
+        )
+    )
+    if known_options and not feasible_options:
+        return CiboOptionalityDecision(
+            reserve_stop_risk_usd=hard_risk_headroom_usd,
+            reserve_margin_usd=margin_headroom_usd,
+            deployable_stop_risk_usd=Decimal(0),
+            deployable_margin_usd=Decimal(0),
+            reserved_for_opportunity_ids=ids,
+            preserve_new_capital=True,
+            reason=(
+                "no currently known minimum executable seed fits remaining "
+                "risk and margin capacity; preserve all new-capital headroom"
+            ),
+        )
+
     if regime.posture is CiboRegimePosture.HALT_NEW_CAPITAL:
         return CiboOptionalityDecision(
             reserve_stop_risk_usd=hard_risk_headroom_usd,
@@ -129,9 +151,9 @@ def plan_capital_optionality(
         )
 
     if regime.posture is CiboRegimePosture.RECOVERY:
-        if mission.capability_measurement_enabled and known_options:
+        if mission.capability_measurement_enabled and feasible_options:
             cheapest = min(
-                known_options,
+                feasible_options,
                 key=lambda item: (
                     item.minimum_stop_risk_usd,
                     item.minimum_margin_usd,
@@ -171,7 +193,7 @@ def plan_capital_optionality(
             ),
         )
 
-    if not known_options:
+    if not feasible_options:
         return CiboOptionalityDecision(
             reserve_stop_risk_usd=Decimal(0),
             reserve_margin_usd=Decimal(0),
@@ -186,21 +208,21 @@ def plan_capital_optionality(
     if mission.preserve_optionality_priority:
         # Preserve enough capacity to express any one currently known option.
         risk_requirement = max(
-            item.minimum_stop_risk_usd for item in known_options
+            item.minimum_stop_risk_usd for item in feasible_options
         )
         margin_requirement = max(
-            item.minimum_margin_usd for item in known_options
+            item.minimum_margin_usd for item in feasible_options
         )
-        selected = known_options
+        selected = feasible_options
         reason = (
-            "mission preserves capacity sufficient for any one known "
-            "minimum executable opportunity"
+            "mission preserves capacity sufficient for any one currently "
+            "feasible known minimum executable opportunity"
         )
     elif regime.posture is CiboRegimePosture.DEFENSIVE:
         # Capability-discovery accounts still preserve one cheapest future option
         # when current conditions have already become defensive.
         selected_item = min(
-            known_options,
+            feasible_options,
             key=lambda item: (
                 item.minimum_stop_risk_usd,
                 item.minimum_margin_usd,
