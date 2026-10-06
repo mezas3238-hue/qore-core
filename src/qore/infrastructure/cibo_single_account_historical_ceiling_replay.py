@@ -345,7 +345,7 @@ def _group_epochs(
         grouped[(decision_at, epoch_id)].append(row)
 
     result: list[tuple[Mapping[str, Any], ...]] = []
-    for (decision_at, epoch_id), epoch_rows in grouped.items():
+    for (_decision_at, _epoch_id), epoch_rows in grouped.items():
         signals = tuple(
             str(row.get("signal_fingerprint")) for row in epoch_rows
         )
@@ -379,12 +379,13 @@ def _group_epochs(
 def run_historical_ceiling_replay(
     manifest: Mapping[str, Any],
     *,
-    provider_assumption: CiboHistoricalProviderAssumption = (
-        CiboHistoricalProviderAssumption()
-    ),
+    provider_assumption: CiboHistoricalProviderAssumption | None = None,
     progress_hook: Any | None = None,
 ) -> CiboHistoricalCeilingReplayResult:
     """Run one continuous USD60 historical Native MAX ceiling replay."""
+
+    if provider_assumption is None:
+        provider_assumption = CiboHistoricalProviderAssumption()
 
     source_manifest_sha256 = validate_single_account_manifest_sha256(manifest)
     if manifest.get("initial_capital_usd") != "60":
