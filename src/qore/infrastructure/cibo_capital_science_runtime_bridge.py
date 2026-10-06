@@ -1160,6 +1160,23 @@ def _full_economic_twin(
             provider_viable=True,
             capital_source_eligible=True,
             evidence_sha256=item.evidence_sha256,
+            maximum_multiplier=max(
+                0,
+                min(
+                    int(
+                        (
+                            capital_twin.stop_risk_headroom_usd
+                            / item.stop_risk_usd
+                        ).to_integral_value(rounding=ROUND_FLOOR)
+                    ),
+                    int(
+                        (
+                            capital_twin.margin_headroom_usd
+                            / item.margin_usd
+                        ).to_integral_value(rounding=ROUND_FLOOR)
+                    ),
+                ),
+            ),
         )
         for item in _known_economic_options(state)
     )
