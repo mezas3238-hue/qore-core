@@ -172,6 +172,7 @@ def _trade_forensics(
             "position_trace",
             "cognitive_trace",
             "last_structure_event_family",
+            "cognitive_exit_evaluations",
         )
         if key in row
     }
