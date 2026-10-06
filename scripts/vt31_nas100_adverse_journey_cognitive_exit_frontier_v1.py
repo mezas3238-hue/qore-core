@@ -508,25 +508,79 @@ def _max_drawdown_episode_forensics(
             ),
             None,
         )
+        filled_raw = row.get("filled_at")
+        exit_raw = row.get("exit_at")
+        fill_to_exit_minutes: int | None = None
+        if isinstance(filled_raw, str) and isinstance(exit_raw, str):
+            fill_dt = datetime.fromisoformat(filled_raw)
+            exit_dt = datetime.fromisoformat(exit_raw)
+            fill_to_exit_minutes = int(
+                (exit_dt - fill_dt).total_seconds() // 60
+            )
+
         details.append(
             {
                 "signal_at": signal,
                 "candidate_net_r": format(candidate_net, "f"),
                 "control_net_r": format(control_net, "f"),
                 "changed_vs_control": candidate_net != control_net,
+                "exit_reason": str(row.get("exit_reason", "NA")),
+                "filled_at": filled_raw,
+                "exit_at": exit_raw,
+                "fill_to_exit_minutes": fill_to_exit_minutes,
                 "entry_family": str(row["entry_family"]),
                 "side": str(row["side"]),
+                "decision_minute_ny": entry_context.get(
+                    "decision_minute_ny"
+                ),
+                "confirmation_latency_minutes": entry_context.get(
+                    "confirmation_latency_minutes"
+                ),
+                "entry_evidence_age_minutes": entry_context.get(
+                    "entry_evidence_age_minutes"
+                ),
+                "reference_reclaim_age_minutes_at_entry": entry_context.get(
+                    "reference_reclaim_age_minutes"
+                ),
                 "reference_volatility_state": str(
                     entry_context.get("reference_volatility_state", "NA")
                 ),
                 "prior_day_state": str(
                     entry_context.get("prior_day_state", "NA")
                 ),
+                "position_in_prior_day_range": str(
+                    entry_context.get("position_in_prior_day_range", "NA")
+                ),
+                "entry_h4_state": str(
+                    entry_context.get("h4_state", "NA")
+                ),
                 "entry_h1_state": str(
                     entry_context.get("h1_state", "NA")
                 ),
                 "entry_m15_state": str(
                     entry_context.get("m15_state", "NA")
+                ),
+                "premarket_state": str(
+                    entry_context.get("premarket_state", "NA")
+                ),
+                "cash_open_state": str(
+                    entry_context.get("cash_open_state", "NA")
+                ),
+                "current_path_vs_previous_at_entry": entry_context.get(
+                    "current_path_vs_previous"
+                ),
+                "recent_path_efficiency_at_entry": entry_context.get(
+                    "recent_path_efficiency"
+                ),
+                "recent_overlap_rate_at_entry": entry_context.get(
+                    "recent_overlap_rate"
+                ),
+                "raid_depth_ref_at_entry": entry_context.get(
+                    "raid_depth_ref"
+                ),
+                "risk_ref": entry_context.get("risk_ref"),
+                "destination_distance_ref": entry_context.get(
+                    "destination_distance_ref"
                 ),
                 "first_material_adverse": (
                     None
@@ -583,6 +637,16 @@ def _max_drawdown_episode_forensics(
         "episode_changed_trade_count": sum(
             bool(item["changed_vs_control"]) for item in details
         ),
+        "no_material_adverse_close_trade_count": sum(
+            item["first_material_adverse"] is None for item in details
+        ),
+        "no_material_adverse_close_loss_count": sum(
+            item["first_material_adverse"] is None
+            and _d(item["candidate_net_r"]) < 0
+            for item in details
+        ),
+        "rapid_invalidation_observation_only": True,
+        "rapid_invalidation_action_authority": False,
         "start_signal_at": (
             None if not details else details[0]["signal_at"]
         ),
@@ -811,6 +875,8 @@ def replay(evidence_path: Path) -> dict[str, object]:
             "residual_variants_must_nondegrade_comparator_002": True,
             "max_drawdown_episode_forensics_observation_only": True,
             "max_drawdown_episode_runtime_authority": False,
+            "rapid_invalidation_forensics_observation_only": True,
+            "rapid_invalidation_forensics_action_authority": False,
             "position_sizing_used": False,
             "dynamic_sizing_used": False,
             "leverage_used": False,
