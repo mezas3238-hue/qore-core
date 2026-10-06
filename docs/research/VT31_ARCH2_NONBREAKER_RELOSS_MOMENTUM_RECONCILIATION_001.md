@@ -1,7 +1,7 @@
 # VT31 NAS100 — Non-Breaker Reloss Momentum Fold Reconciliation 001
 
 **Owner:** Sergio Meza  
-**Status:** FOUR IMMUTABLE FOLDS PASS / CI AGGREGATE PENDING RUNNER  
+**Status:** OFFICIAL AGGREGATE PASS / SUPPORTED CONSUMED RESEARCH WITNESS  
 **Frozen experiment head:** `8de1d5ee87979664db76d9b4ce7031da555ac4a9`  
 **Run:** `37398899265`
 
@@ -104,10 +104,26 @@ Reproduction of the workflow aggregate contract:
 - reproduced adjudication:
   **`SUPPORTED_CONSUMED_RESEARCH_WITNESS`**
 
-The GitHub aggregate job `112063764667` remains queued for runner execution
-at the time this reconciliation is written. Therefore this document does not
-claim a completed CI aggregate conclusion; it records the deterministic
-reproduction from the four immutable successful fold artifacts.
+The GitHub aggregate job `112063764667` completed **SUCCESS**.
+
+Official aggregate artifact:
+
+- artifact `11384966427`;
+- digest `sha256:bb5c6f9d33b042f3c3f8c910d13820ab9cfe82af7515104a046ac37ef7d419c3`.
+
+Official aggregate adjudication:
+
+`SUPPORTED_CONSUMED_RESEARCH_WITNESS`
+
+Official fields:
+
+- `cross_fold_survivor = true`;
+- `changed_trade_count_total = 15`;
+- runtime R decision authority = false;
+- runtime volume decision authority = false;
+- fresh holdout opened = false;
+- candidate frozen = false;
+- policy promoted = false.
 
 ## Certification meaning
 
