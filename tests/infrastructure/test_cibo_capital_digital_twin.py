@@ -15,12 +15,16 @@ from qore.infrastructure.cibo_capital_digital_twin import (
     Genc10EconomicBucket,
     Genc10FlowKind,
     Genc10KnownCapitalOption,
+    Genc10SourceCapacityState,
     Genc10WorldKind,
     Genc10WorldScenario,
     build_genc10_observed_twin,
     project_genc10_world,
 )
-from qore.infrastructure.cibo_capital_management_authority import CapitalSource
+from qore.infrastructure.cibo_capital_management_authority import (
+    CapitalCapacityDimension,
+    CapitalSource,
+)
 from qore.infrastructure.cibo_capital_source_ledger import CapitalSourceLedger
 from qore.infrastructure.cibo_ce2i_portfolio_allocation_ledger import (
     PortfolioAllocationLedger,
@@ -478,3 +482,19 @@ def test_genc10_frozen_contract_accepts_historical_observed_state() -> None:
     assert historical.policy_sha256 == GENC10_POLICY_SHA256
     assert historical.future_leakage_used is False
 
+
+
+
+def test_genc10_source_capacity_uses_exact_decimal_conservation() -> None:
+    available = Decimal("3.3333333333333333333333333333333333333333")
+    capacity = Genc10SourceCapacityState(
+        dimension=CapitalCapacityDimension.ECONOMIC_PROFIT_CAPITAL,
+        proven=available,
+        available=available,
+        reserved=Decimal("0"),
+        deployed=Decimal("0"),
+        consumed=Decimal("0"),
+    )
+
+    assert capacity.available == available
+    assert capacity.proven == available
