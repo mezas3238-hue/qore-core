@@ -36,6 +36,10 @@ from qore.infrastructure.cibo_walk_forward_expectation import (
     build_walk_forward_expectation,
     walk_forward_minimum_observations,
 )
+from qore.infrastructure.cibo_walk_forward_forecast_confidence import (
+    assess_walk_forward_forecast_confidence,
+    walk_forward_mature_observation_count,
+)
 
 
 def _dt(value: object, name: str) -> datetime:
@@ -111,6 +115,11 @@ def _minimum_stop_risk_usd(row: dict[str, Any]) -> Decimal:
 
 def _expectation_payload(snapshot) -> dict[str, object]:
     expectation = snapshot.expectation
+    confidence = assess_walk_forward_forecast_confidence(
+        observation_count=snapshot.observation_count,
+        expected_structural_r=snapshot.expected_structural_r,
+        chronological_block_means_r=snapshot.chronological_block_means_r,
+    )
     return {
         "evidence_id": expectation.evidence_id,
         "evidence_available_at": snapshot.evidence_available_at.isoformat(),
@@ -136,6 +145,24 @@ def _expectation_payload(snapshot) -> dict[str, object]:
             format(value, "f")
             for value in snapshot.chronological_block_means_r
         ],
+        "walk_forward_maturity": confidence.maturity.value,
+        "walk_forward_mature_for_capital_consideration": (
+            confidence.mature_for_capital_consideration
+        ),
+        "walk_forward_positive_block_count": confidence.positive_block_count,
+        "walk_forward_nonpositive_block_count": confidence.nonpositive_block_count,
+        "walk_forward_block_dispersion_r": format(
+            confidence.block_dispersion_r,
+            "f",
+        ),
+        "walk_forward_median_absolute_deviation_r": format(
+            confidence.median_absolute_deviation_r,
+            "f",
+        ),
+        "walk_forward_maturity_fraction": format(
+            confidence.maturity_fraction,
+            "f",
+        ),
         "future_market_used": False,
         "outcome_used": False,
         "pnl_used": False,
@@ -288,6 +315,7 @@ def build_walk_forward_manifest(
         "schema": "qore.cibo.walk-forward-expectation-manifest.v1",
         "source_manifest_sha256": source_sha,
         "minimum_observations": walk_forward_minimum_observations(),
+        "mature_observation_count": walk_forward_mature_observation_count(),
         "signal_outcomes_observed_in_shadow": True,
         "outcome_decoded_only_after_exit": True,
         "future_outcome_used": False,
