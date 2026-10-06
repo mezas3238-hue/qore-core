@@ -23,6 +23,7 @@ from qore.infrastructure.cibo_capital_management_authority import (
     TraderOpportunityEnvelope,
 )
 from qore.infrastructure.cibo_ce2i_regime_selector import CiboCapitalRegimeState
+from qore.infrastructure.cibo_ceiling_ablation import CiboCeilingAblationMode
 from qore.infrastructure.cibo_economic_engine_wiring import CiboLifecycleWireRequest
 from qore.infrastructure.cibo_full_economic_digital_twin import CiboObservedEconomicTwin
 from qore.infrastructure.cibo_multi_period_capital_mpc import (
@@ -126,6 +127,7 @@ def run_cibo_native_sovereign_capital_runtime(
     requested_at: datetime,
     expires_at: datetime,
     lifecycle_requests: tuple[CiboLifecycleWireRequest, ...] = (),
+    ablation_mode: CiboCeilingAblationMode = CiboCeilingAblationMode.FULL,
 ) -> CiboNativeSovereignCapitalDecision:
     """Execute CIBO native MAX intelligence before every capital decision."""
 
@@ -204,6 +206,7 @@ def run_cibo_native_sovereign_capital_runtime(
         requested_at=requested_at,
         expires_at=expires_at,
         lifecycle_requests=lifecycle_requests,
+        ablation_mode=ablation_mode,
     )
 
     return CiboNativeSovereignCapitalDecision(
