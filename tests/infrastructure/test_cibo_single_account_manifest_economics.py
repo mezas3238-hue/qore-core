@@ -52,6 +52,7 @@ def _row(*, settlement_pnl: str = "1") -> dict[str, object]:
         },
         "expectation": {
             "evidence_id": "CIBO_FROZEN_TRAIN_PRIOR:sha256:abc:R34_XAUUSD",
+            "evidence_available_at": "2025-12-31T23:59:00+00:00",
             "as_of": "2026-01-05T14:30:00+00:00",
             "basis": "FROZEN_HISTORICAL_PRIOR",
             "expected_net_value_usd": "5",
@@ -144,4 +145,36 @@ def test_manifest_adapter_rejects_outcome_aware_expectation() -> None:
     row["expectation"]["outcome_used"] = True
 
     with pytest.raises(CiboCapitalManagementError):
+        manifest_row_to_ceiling_opportunity_evidence(row)
+
+
+def test_manifest_rejects_prior_content_that_did_not_exist_yet() -> None:
+    row = _row()
+    row["market_decision_at"] = "2019-07-01T14:31:00+00:00"
+    row["expectation"] = {
+        **row["expectation"],
+        "evidence_id": (
+            "CIBO_PHASE20_TRAIN_PRIOR_V1:"
+            "sha256:15b059ea1e303fee7a9ed0894480ee1da6091647482a0811f1090335925b6caa:"
+            "R34_XAUUSD"
+        ),
+        "as_of": "2019-07-01T14:31:00+00:00",
+    }
+    row["expectation"].pop("evidence_available_at", None)
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="expectation evidence was not available at decision time",
+    ):
+        manifest_row_to_ceiling_opportunity_evidence(row)
+
+
+def test_manifest_requires_availability_provenance_for_other_expectations() -> None:
+    row = _row()
+    row["expectation"].pop("evidence_available_at")
+
+    with pytest.raises(
+        CiboCapitalManagementError,
+        match="expectation must declare when its evidence became available",
+    ):
         manifest_row_to_ceiling_opportunity_evidence(row)
