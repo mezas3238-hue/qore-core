@@ -103,6 +103,7 @@ jobs:
           assert g["stale_sequence_threshold_newly_outcome_tuned"] is False
           assert g["residual_context_hypotheses_consumed_discovery_only"] is True
           assert g["residual_context_new_numeric_threshold_added"] is False
+          assert g["residual_variants_must_nondegrade_comparator_002"] is True
           assert g["position_sizing_used"] is False
           assert g["dynamic_sizing_used"] is False
           assert g["leverage_used"] is False
@@ -177,11 +178,20 @@ jobs:
               winners_all=True
               temporal_all=True
               for fold in folds:
-                  base=payloads[fold]["variants"]["CONTROL"]
+                  comparator_name=(
+                      "COG_EXIT_CAUTION_OR_STALE_MIXED"
+                      if variant.startswith("BASE_PLUS_")
+                      else "CONTROL"
+                  )
+                  base=payloads[fold]["variants"][comparator_name]
                   cand=payloads[fold]["variants"][variant]
                   bm=base["stress_0_05r"]
                   cm=cand["stress_0_05r"]
-                  wp=cand["winner_preservation_vs_control"]
+                  wp=(
+                      cand["winner_preservation_vs_residual_comparator"]
+                      if variant.startswith("BASE_PLUS_")
+                      else cand["winner_preservation_vs_control"]
+                  )
                   pf_non=pf(cm)>=pf(bm)
                   mean_non=d(cm["mean_r"])>=d(bm["mean_r"])
                   dd_non=d(cm["max_drawdown_r"])<=d(bm["max_drawdown_r"])
@@ -217,6 +227,7 @@ jobs:
                       }
 
                   per[fold]={
+                      "development_comparator":comparator_name,
                       "baseline":bm,
                       "candidate":cm,
                       "monte_carlo":cand["monte_carlo"],
@@ -226,9 +237,11 @@ jobs:
                       "dd_nondegrade":dd_non,
                       "winner_floor_pass":winner_non,
                       "halfyears":blocks,
-                      "changed_trade_count":cand[
-                          "changed_trade_count_vs_control"
-                      ],
+                      "changed_trade_count":(
+                          cand["changed_trade_count_vs_residual_comparator"]
+                          if variant.startswith("BASE_PLUS_")
+                          else cand["changed_trade_count_vs_control"]
+                      ),
                       "cognitive_exit_count":cand["cognitive_exit_count"],
                       "cognitive_evaluation_count":cand[
                           "cognitive_evaluation_count"
