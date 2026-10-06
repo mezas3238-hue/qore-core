@@ -11,10 +11,12 @@ on:
     paths:
       - scripts/vt31_nas100_full_cognition_attribution_v1.py
       - src/qore/infrastructure/traders/vt31_nas100_position_intelligence.py
+      - src/qore/infrastructure/traders/vt31_nas100_market_context_runtime.py
       - src/qore/infrastructure/traders/vt31_nas100_reasoning_engine.py
       - src/qore/infrastructure/traders/vt31_nas100_situation_model.py
       - scripts/vt31_nas100_specialist_r1_candidate.py
       - tests/infrastructure/test_vt31_nas100_position_intelligence.py
+      - tests/infrastructure/test_vt31_nas100_market_context_runtime.py
       - tests/infrastructure/test_vt31_nas100_cognitive_reasoning.py
       - .github/workflows/vt31-architect-b-full-cognition-attribution-v1.yml
   workflow_dispatch:
@@ -70,7 +72,7 @@ jobs:
       - name: Static and focused cognition gates
         run: |
           set -euo pipefail
-          ruff check             scripts/vt31_nas100_full_cognition_attribution_v1.py             scripts/vt31_nas100_specialist_r1_candidate.py             src/qore/infrastructure/traders/vt31_nas100_position_intelligence.py             src/qore/infrastructure/traders/vt31_nas100_reasoning_engine.py             src/qore/infrastructure/traders/vt31_nas100_situation_model.py             tests/infrastructure/test_vt31_nas100_position_intelligence.py             tests/infrastructure/test_vt31_nas100_cognitive_reasoning.py
+          ruff check             scripts/vt31_nas100_full_cognition_attribution_v1.py             scripts/vt31_nas100_specialist_r1_candidate.py             src/qore/infrastructure/traders/vt31_nas100_position_intelligence.py             src/qore/infrastructure/traders/vt31_nas100_market_context_runtime.py             src/qore/infrastructure/traders/vt31_nas100_reasoning_engine.py             src/qore/infrastructure/traders/vt31_nas100_situation_model.py             tests/infrastructure/test_vt31_nas100_position_intelligence.py             tests/infrastructure/test_vt31_nas100_market_context_runtime.py             tests/infrastructure/test_vt31_nas100_cognitive_reasoning.py
           pytest -q -o addopts=''             tests/infrastructure/test_vt31_nas100_position_intelligence.py             tests/infrastructure/test_vt31_nas100_cognitive_reasoning.py
 
       - name: Recover immutable consumed evidence
