@@ -27,6 +27,7 @@ from qore.infrastructure.traders.vt31_nas100_position_intelligence import (
 )
 from qore.infrastructure.traders.vt31_nas100_reasoning_engine import (
     Nas100ReasoningDecision,
+    reason,
 )
 from qore.infrastructure.traders.vt31_nas100_situation_model import (
     Nas100SituationModel,
@@ -179,12 +180,14 @@ def reassess_and_decide_post_entry(
         entry_situation=entry_situation,
         observation=observation,
     )
+    current_reasoning = reason(current)
     cognition = assess_full_cognitive_position(
         situation=current,
         reasoning=entry_reasoning,
         entry_tier=entry_tier,
         dol1_acceptance_observed=dol1_acceptance_observed,
         entry_situation_fingerprint=entry_fingerprint,
+        current_reasoning=current_reasoning,
     )
     position = decide_market_native_position(
         side=market.side,
