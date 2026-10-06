@@ -178,12 +178,14 @@ class Genc10SourceCapacityState:
             "consumed",
         ):
             _money(getattr(self, name), f"source capacity {name}")
-        if (
-            self.available
-            + self.reserved
-            + self.deployed
-            + self.consumed
-            != self.proven
+        if not _exact_sum_equals(
+            self.proven,
+            (
+                self.available,
+                self.reserved,
+                self.deployed,
+                self.consumed,
+            ),
         ):
             raise CiboCompoundCapitalError(
                 "GEN-C10 source capacity does not conserve its dimension"
