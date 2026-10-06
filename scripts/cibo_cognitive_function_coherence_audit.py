@@ -118,6 +118,25 @@ def audit(replay: dict[str, Any]) -> dict[str, Any]:
         if cognition is not None and bool(cognition.get("decision_gate_triggered")) and selected:
             violations["cognition_block_but_risk_authorized"] += 1
 
+        frontier = by_function.get("MAX_FRONTIER")
+        if frontier is not None:
+            frontier_output = _pairs(frontier.get("output_metrics"))
+            try:
+                frontier_cap = int(frontier_output.get("frontier_cap", "-1"))
+                frontier_selected = int(
+                    frontier_output.get("selected_multiplier", "-1")
+                )
+            except ValueError:
+                violations["max_frontier_malformed_output"] += 1
+            else:
+                if (
+                    frontier_cap not in {0, 1, 2, 3, 4}
+                    or frontier_selected not in {0, 1, 2, 3, 4}
+                ):
+                    violations["max_frontier_malformed_output"] += 1
+                elif frontier_selected > frontier_cap:
+                    violations["portfolio_exceeds_max_frontier"] += 1
+
         portfolio = by_function.get("COMPOUND_PORTFOLIO")
         if portfolio is not None:
             multiplier = _pairs(portfolio.get("output_metrics")).get("multiplier")
@@ -172,6 +191,18 @@ def audit(replay: dict[str, Any]) -> dict[str, Any]:
         "RISK_AFTER_COGNITIVE_BLOCK",
         violations["cognition_block_but_risk_authorized"],
         "Risk authorization exists after a binding cognitive abstention.",
+    )
+    add(
+        "P0",
+        "MAX_FRONTIER_MALFORMED",
+        violations["max_frontier_malformed_output"],
+        "MAX Frontier emitted malformed cap/multiplier telemetry.",
+    )
+    add(
+        "P0",
+        "PORTFOLIO_EXCEEDS_MAX_FRONTIER",
+        violations["portfolio_exceeds_max_frontier"],
+        "Portfolio selected an intensity above the causal MAX Frontier cap.",
     )
     add(
         "P0",
