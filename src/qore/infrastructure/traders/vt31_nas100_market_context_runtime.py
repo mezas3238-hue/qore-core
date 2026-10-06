@@ -148,41 +148,6 @@ def _completed_minute_bucket_closes(
     return [value for _, value in closes]
 
 
-def _completed_m15_closes(
-    bars: Sequence[OhlcSnapshot],
-    decision_at: datetime,
-) -> list[Decimal]:
-    """Build only fully closed NY-aligned M15 buckets from causal M1 bars."""
-
-    groups: dict[tuple[object, int, int], list[OhlcSnapshot]] = defaultdict(list)
-    for bar in bars:
-        if bar.closed_at > decision_at:
-            continue
-        local = bar.opened_at.astimezone(_NY)
-        bucket = (local.date(), local.hour, local.minute // 15)
-        groups[bucket].append(bar)
-
-    closes: list[tuple[datetime, Decimal]] = []
-    for group in groups.values():
-        ordered = sorted(group, key=lambda bar: bar.opened_at)
-        if len(ordered) != 15:
-            continue
-        if any(
-            right.opened_at != left.closed_at
-            for left, right in zip(ordered, ordered[1:], strict=False)
-        ):
-            continue
-        first_local = ordered[0].opened_at.astimezone(_NY)
-        if first_local.minute % 15 != 0:
-            continue
-        if ordered[-1].closed_at > decision_at:
-            continue
-        closes.append((ordered[-1].closed_at, _d(ordered[-1].close)))
-
-    closes.sort(key=lambda item: item[0])
-    return [value for _, value in closes]
-
-
 def _trend_state(closes: list[Decimal]) -> str:
     if len(closes) < 2:
         return "unavailable"
@@ -313,7 +278,6 @@ def build_higher_context(
 
     h1 = _trend_state(_completed_hour_closes(causal_today, decision_at, 1))
     h4 = _trend_state(_completed_hour_closes(causal_today, decision_at, 4))
-    m15 = _trend_state(_completed_m15_closes(causal_today, decision_at))
     m15 = _trend_state(
         _completed_minute_bucket_closes(causal_today, decision_at, 15)
     )
