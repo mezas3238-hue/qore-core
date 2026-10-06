@@ -17,7 +17,7 @@ import json
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from datetime import datetime
-from decimal import Decimal
+from decimal import Decimal, localcontext
 from enum import StrEnum
 
 from qore.infrastructure.cibo_capital_digital_twin import (
@@ -51,6 +51,18 @@ class CiboLifecycleAction(StrEnum):
     EXTEND_TARGET = "EXTEND_TARGET"
     RELEASE_ALL = "RELEASE_ALL"
     EXIT = "EXIT"
+
+
+def _exact_sum(values) -> Decimal:
+    with localcontext() as context:
+        context.prec = 100
+        return sum(values, Decimal(0))
+
+
+def _exact_sub(left: Decimal, right: Decimal) -> Decimal:
+    with localcontext() as context:
+        context.prec = 100
+        return left - right
 
 
 def _aware(value: datetime, name: str) -> None:
@@ -437,13 +449,11 @@ class CiboObservedEconomicTwin:
             raise CiboCapitalManagementError(
                 "Full Economic Twin portfolio opportunity surface drift"
             )
-        open_risk = sum(
-            (item.current_stop_risk_usd for item in self.positions),
-            Decimal(0),
+        open_risk = _exact_sum(
+            item.current_stop_risk_usd for item in self.positions
         )
-        open_margin = sum(
-            (item.current_margin_usd for item in self.positions),
-            Decimal(0),
+        open_margin = _exact_sum(
+            item.current_margin_usd for item in self.positions
         )
         if open_risk > self.capital_twin.used_stop_risk_usd:
             raise CiboCapitalManagementError(
@@ -581,12 +591,16 @@ def observed_twin_constraints(
         )
     return {
         "stop_risk_headroom_usd": (
-            twin.capital_twin.stop_risk_headroom_usd
-            - twin.portfolio.reserved_stop_risk_usd
+            _exact_sub(
+                twin.capital_twin.stop_risk_headroom_usd,
+                twin.portfolio.reserved_stop_risk_usd,
+            )
         ),
         "margin_headroom_usd": (
-            twin.capital_twin.margin_headroom_usd
-            - twin.portfolio.reserved_margin_usd
+            _exact_sub(
+                twin.capital_twin.margin_headroom_usd,
+                twin.portfolio.reserved_margin_usd,
+            )
         ),
         "waiting_stop_risk_usd": twin.velocity.waiting_stop_risk_usd,
         "waiting_margin_usd": twin.velocity.waiting_margin_usd,

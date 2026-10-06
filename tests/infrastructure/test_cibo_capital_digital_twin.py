@@ -15,12 +15,16 @@ from qore.infrastructure.cibo_capital_digital_twin import (
     Genc10EconomicBucket,
     Genc10FlowKind,
     Genc10KnownCapitalOption,
+    Genc10SourceCapacityState,
     Genc10WorldKind,
     Genc10WorldScenario,
     build_genc10_observed_twin,
     project_genc10_world,
 )
-from qore.infrastructure.cibo_capital_management_authority import CapitalSource
+from qore.infrastructure.cibo_capital_management_authority import (
+    CapitalCapacityDimension,
+    CapitalSource,
+)
 from qore.infrastructure.cibo_capital_source_ledger import CapitalSourceLedger
 from qore.infrastructure.cibo_ce2i_portfolio_allocation_ledger import (
     PortfolioAllocationLedger,
@@ -306,6 +310,47 @@ def test_genc10_world_transition_conserves_value_and_capacity() -> None:
     assert projected.productive_authority is False
 
 
+def test_genc10_projected_headroom_preserves_long_decimal_identity() -> None:
+    twin = __import__("dataclasses").replace(
+        _twin(),
+        total_stop_risk_capacity_usd=Decimal(
+            "10.123456789012345678901234567890123456789"
+        ),
+        used_stop_risk_usd=Decimal("1"),
+        stop_risk_headroom_usd=Decimal(
+            "9.123456789012345678901234567890123456789"
+        ),
+        total_margin_capacity_usd=Decimal(
+            "100.987654321098765432109876543210987654321"
+        ),
+        used_margin_usd=Decimal("2"),
+        margin_headroom_usd=Decimal(
+            "98.987654321098765432109876543210987654321"
+        ),
+    )
+    scenario = Genc10WorldScenario(
+        scenario_id="long-decimal-capacity",
+        kind=Genc10WorldKind.BALANCED,
+        declared_at=T0,
+        scenario_evidence_sha256="sha256:" + "0" * 64,
+        transition_uncertainty_evidence_sha256="sha256:" + "1" * 64,
+        surviving_known_option_ids=("known-r34",),
+    )
+
+    projected = project_genc10_world(
+        twin=twin,
+        scenario=scenario,
+        projected_at=T0 + timedelta(minutes=1),
+    )
+
+    assert projected.stop_risk_headroom_usd == Decimal(
+        "9.123456789012345678901234567890123456789"
+    )
+    assert projected.margin_headroom_usd == Decimal(
+        "98.987654321098765432109876543210987654321"
+    )
+
+
 def test_genc10_protected_floor_cannot_flow_back_to_growth() -> None:
     with pytest.raises(
         CiboCompoundCapitalError,
@@ -437,3 +482,19 @@ def test_genc10_frozen_contract_accepts_historical_observed_state() -> None:
     assert historical.policy_sha256 == GENC10_POLICY_SHA256
     assert historical.future_leakage_used is False
 
+
+
+
+def test_genc10_source_capacity_uses_exact_decimal_conservation() -> None:
+    available = Decimal("3.3333333333333333333333333333333333333333")
+    capacity = Genc10SourceCapacityState(
+        dimension=CapitalCapacityDimension.ECONOMIC_PROFIT_CAPITAL,
+        proven=available,
+        available=available,
+        reserved=Decimal("0"),
+        deployed=Decimal("0"),
+        consumed=Decimal("0"),
+    )
+
+    assert capacity.available == available
+    assert capacity.proven == available

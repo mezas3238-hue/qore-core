@@ -141,3 +141,55 @@ def test_expansion_request_can_bind_exact_durable_source_id() -> None:
     assert request.capital_provenance[0].source_kind == "REALIZED_PROFIT"
     assert request.capital_provenance[0].source_id == "profit-ledger-source-7"
     assert request.capital_provenance[0].amount_usd == request.requested_stop_risk
+
+
+
+def test_risk_request_preserves_long_decimal_geometry_identity() -> None:
+    now = datetime(2026, 9, 26, 12, 0, tzinfo=UTC)
+    volume = Decimal("2.2222222222222222222222222222222222222222")
+    per_volume_risk = Decimal("1.1111111111111111111111111111111111111111")
+    per_volume_margin = Decimal("3.3333333333333333333333333333333333333333")
+    with __import__("decimal").localcontext() as context:
+        context.prec = 100
+        risk = volume * per_volume_risk
+        margin = volume * per_volume_margin
+
+    opportunity = TraderOpportunityEnvelope(
+        trader_id=TraderLineage.R34_XAUUSD,
+        signal_fingerprint="long-decimal-risk-request",
+        qore_symbol="XAUUSD",
+        provider_symbol="XAUUSD",
+        side="long",
+        entry_type="MARKET",
+        intended_entry=Decimal("2600"),
+        stop_loss=Decimal("2590"),
+        take_profit=Decimal("2620"),
+        stop_loss_per_volume=per_volume_risk,
+        margin_per_volume=per_volume_margin,
+        volume_step=Decimal("0.0000000000000000000000000000000000000001"),
+        minimum_volume=Decimal("0.0000000000000000000000000000000000000001"),
+        maximum_volume=Decimal("10"),
+    )
+    plan = CiboCapitalActionPlan(
+        trader_id=TraderLineage.R34_XAUUSD,
+        qore_symbol="XAUUSD",
+        stage=CapitalStage.CAPITALIZE,
+        action=CapitalAction.OPEN_CAPABILITY_MAX,
+        volume=volume,
+        stop_risk_usd=risk,
+        margin_usd=margin,
+        capital_source=CapitalSource.ORIGINAL_BASE_CAPITAL,
+        capital_source_amount_usd=risk,
+        reason="exact long-decimal geometry",
+    )
+
+    request = build_cma_risk_request(
+        request_id="cma-long-decimal",
+        opportunity=opportunity,
+        plan=plan,
+        requested_at=now,
+        expires_at=now + timedelta(minutes=1),
+    )
+
+    assert request.requested_stop_risk == risk
+    assert request.requested_margin == margin

@@ -22,6 +22,7 @@ def _decision(
     volume: str = "1",
     risk: str = "10",
     decision: str = RiskDecision.ALLOW.value,
+    trader_id: str = "R34_XAUUSD",
 ) -> CiboSovereignCeilingDecisionReceipt:
     authorized = Decimal(volume) if decision != RiskDecision.REJECT.value else Decimal(0)
     authorized_risk = Decimal(risk) if decision != RiskDecision.REJECT.value else Decimal(0)
@@ -31,7 +32,7 @@ def _decision(
         decision_id="decision-1",
         option_id="ceiling:signal-1",
         signal_fingerprint="signal-1",
-        trader_id="R34_XAUUSD",
+        trader_id=trader_id,
         decided_at=NOW,
         capital_disposition="CAPITALIZE",
         risk_decision=decision,
@@ -47,10 +48,15 @@ def _decision(
     )
 
 
-def _row() -> dict[str, object]:
+def _row(
+    *,
+    trader_id: str = "R34_XAUUSD",
+    outcome_r: str = "1.90",
+    exit_reason: str = "TARGET",
+) -> dict[str, object]:
     return {
         "signal_fingerprint": "signal-1",
-        "trader_id": "R34_XAUUSD",
+        "trader_id": trader_id,
         "outcome_available_to_predecision": False,
         "market_predecision_state": {
             "provider_observation": {
@@ -65,8 +71,8 @@ def _row() -> dict[str, object]:
         "settlement_outcome_research_only": {
             "entry_at": (NOW + timedelta(minutes=1)).isoformat(),
             "exit_at": (NOW + timedelta(minutes=10)).isoformat(),
-            "gross_structural_outcome_r": "2",
-            "exit_reason": "TARGET",
+            "gross_structural_outcome_r": outcome_r,
+            "exit_reason": exit_reason,
             "not_available_to_predecision": True,
             "used_for_decision": False,
         },
@@ -83,10 +89,12 @@ def test_structural_outcome_is_rescaled_to_sovereign_authorized_size() -> None:
         decision=_decision(volume="0.5", risk="5"),
     )
 
-    assert full.gross_pnl_usd == Decimal("20")
+    assert full.gross_structural_outcome_r == Decimal("2.00")
+    assert full.exit_reason == "TARGET"
+    assert full.gross_pnl_usd == Decimal("20.00")
     assert full.provider_cost_usd == Decimal("9")
     assert full.realized_net_pnl_usd == Decimal("11")
-    assert half.gross_pnl_usd == Decimal("10")
+    assert half.gross_pnl_usd == Decimal("10.00")
     assert half.provider_cost_usd == Decimal("4.5")
     assert half.realized_net_pnl_usd == Decimal("5.5")
     assert full.receipt.outcome_available_to_predecision is False
@@ -110,3 +118,62 @@ def test_settlement_requires_risk_authorized_decision() -> None:
             row=_row(),
             decision=_decision(decision=RiskDecision.REJECT.value),
         )
+
+
+
+def test_turtle_net_010_stop_is_restored_to_structural_minus_one_r() -> None:
+    settlement = manifest_row_to_sovereign_settlement(
+        row=_row(outcome_r="-1.10", exit_reason="STOP"),
+        decision=_decision(volume="1", risk="10"),
+    )
+
+    assert settlement.gross_structural_outcome_r == Decimal("-1.00")
+    assert settlement.gross_pnl_usd == Decimal("-10.00")
+    assert settlement.realized_net_pnl_usd == Decimal("-19.00")
+    assert settlement.exit_reason == "STOP"
+
+
+def test_turtle_gap_preserves_real_excess_loss_after_net_010_decode() -> None:
+    settlement = manifest_row_to_sovereign_settlement(
+        row=_row(
+            outcome_r="-1.484615384615384615384615385",
+            exit_reason="GAP_STOP",
+        ),
+        decision=_decision(volume="1", risk="10"),
+    )
+
+    assert settlement.gross_structural_outcome_r == Decimal(
+        "-1.384615384615384615384615385"
+    )
+    assert settlement.exit_reason == "GAP_STOP"
+
+
+def test_non_turtle_structural_outcome_is_not_shifted() -> None:
+    settlement = manifest_row_to_sovereign_settlement(
+        row=_row(
+            trader_id="VT31_NAS100",
+            outcome_r="-1",
+            exit_reason="INITIAL_STOP",
+        ),
+        decision=_decision(
+            volume="1",
+            risk="10",
+            trader_id="VT31_NAS100",
+        ),
+    )
+
+    assert settlement.gross_structural_outcome_r == Decimal("-1")
+    assert settlement.exit_reason == "INITIAL_STOP"
+
+
+def test_settlement_digest_binds_exit_reason() -> None:
+    stop = manifest_row_to_sovereign_settlement(
+        row=_row(outcome_r="-1.10", exit_reason="STOP"),
+        decision=_decision(),
+    )
+    gap = manifest_row_to_sovereign_settlement(
+        row=_row(outcome_r="-1.10", exit_reason="GAP_STOP"),
+        decision=_decision(),
+    )
+
+    assert stop.receipt.settlement_sha256 != gap.receipt.settlement_sha256

@@ -16,6 +16,8 @@ from qore.infrastructure.cibo_capital_management_authority import (
     CiboCapitalManagementError,
 )
 from qore.infrastructure.cibo_single_account_historical_capital_ledger import (
+    CiboHistoricalProfitGeneration,
+    CiboHistoricalResearchCapitalState,
     initialize_historical_research_capital,
     reserve_historical_authorization,
     settle_historical_deployment,
@@ -97,6 +99,7 @@ def _settlement(
     gross_pnl: Decimal,
     net_pnl: Decimal,
     suffix: str,
+    exit_reason: str = "TARGET",
 ) -> CiboManifestOutcomeSettlement:
     receipt = CiboSovereignCeilingSettlementReceipt(
         signal_fingerprint=signal,
@@ -111,6 +114,7 @@ def _settlement(
         trader_id=TraderLineage.R34_XAUUSD.value,
         entry_at=T0 + timedelta(minutes=1),
         exit_at=T0 + timedelta(minutes=10),
+        exit_reason=exit_reason,
         gross_structural_outcome_r=gross_r,
         provider_cost_usd=provider_cost,
         gross_pnl_usd=gross_pnl,
@@ -241,6 +245,43 @@ def test_minus_one_r_consumes_stop_and_provider_cost_exactly() -> None:
     assert state.cumulative_gross_loss_usd == Decimal("10")
 
 
+def test_long_decimal_settlement_preserves_exact_capital() -> None:
+    state = initialize_historical_research_capital()
+    authorization = _authorization(
+        signal="long-decimal-win",
+        source=CapitalSource.ORIGINAL_BASE_CAPITAL,
+    )
+    provider_cost = Decimal(
+        "0.111111111111111111111111111111111111111"
+    )
+    state = reserve_historical_authorization(
+        state,
+        authorization=authorization,
+        provider_cost_usd=provider_cost,
+    )
+    state = settle_historical_deployment(
+        state,
+        settlement=_settlement(
+            signal="long-decimal-win",
+            gross_r=Decimal(
+                "0.3333333333333333333333333333333333333333"
+            ),
+            provider_cost=provider_cost,
+            gross_pnl=Decimal(
+                "3.333333333333333333333333333333333333333"
+            ),
+            net_pnl=Decimal(
+                "3.222222222222222222222222222222222222222"
+            ),
+            suffix="f",
+        ),
+    )
+
+    assert state.realized_capital_usd == Decimal(
+        "63.222222222222222222222222222222222222222"
+    )
+
+
 def test_outcome_below_minus_one_r_fails_without_gap_evidence() -> None:
     state = initialize_historical_research_capital()
     authorization = _authorization(
@@ -265,3 +306,62 @@ def test_outcome_below_minus_one_r_fails_without_gap_evidence() -> None:
                 suffix="e",
             ),
         )
+
+
+
+def test_gap_outcome_below_minus_one_r_consumes_explicit_excess_loss() -> None:
+    state = initialize_historical_research_capital()
+    authorization = _authorization(
+        signal="gap-evidence-loss",
+        source=CapitalSource.ORIGINAL_BASE_CAPITAL,
+    )
+    state = reserve_historical_authorization(
+        state,
+        authorization=authorization,
+        provider_cost_usd=Decimal("2"),
+    )
+
+    state = settle_historical_deployment(
+        state,
+        settlement=_settlement(
+            signal="gap-evidence-loss",
+            gross_r=Decimal("-1.1"),
+            provider_cost=Decimal("2"),
+            gross_pnl=Decimal("-11"),
+            net_pnl=Decimal("-13"),
+            suffix="9",
+            exit_reason="GAP_STOP",
+        ),
+    )
+
+    assert state.realized_capital_usd == Decimal("47")
+    assert state.cumulative_gross_loss_usd == Decimal("11")
+
+
+
+def test_profit_generation_allocation_identity_uses_exact_decimal_sum() -> None:
+    consumed = Decimal("0.12345678901234567890123456789")
+    reserved = Decimal("0.00000000000000000000000000006")
+    proven = Decimal("0.12345678901234567890123456795")
+
+    generation = CiboHistoricalProfitGeneration(
+        generation=1,
+        proven_usd=proven,
+        consumed_usd=consumed,
+        reserved_usd=reserved,
+    )
+
+    assert generation.available_usd == Decimal("0")
+
+
+def test_base_allocation_identity_uses_exact_decimal_sum() -> None:
+    consumed = Decimal("59.99999999999999999999999999994")
+    reserved = Decimal("0.00000000000000000000000000006")
+
+    state = CiboHistoricalResearchCapitalState(
+        original_base_consumed_usd=consumed,
+        original_base_reserved_usd=reserved,
+        peak_realized_capital_usd=Decimal("60"),
+    )
+
+    assert state.original_base_available_usd == Decimal("0")

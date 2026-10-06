@@ -1,5 +1,5 @@
 from datetime import UTC, datetime
-from decimal import Decimal
+from decimal import Decimal, localcontext
 
 from qore.infrastructure import cibo_capital_science_runtime_bridge as runtime
 from qore.infrastructure.cibo_profit_preservation_shadow import (
@@ -519,3 +519,38 @@ def test_runtime_full_twin_identifies_open_position_continuation_for_portfolio()
     assert directive.position_competition_plan.released_stop_risk_usd == Decimal("0")
     assert directive.position_competition_plan.risk_authority is False
     assert directive.position_competition_plan.execution_authority is False
+
+
+
+def test_current_option_identity_preserves_exact_long_decimal_request_capital() -> None:
+    stop_risk = Decimal("0.12345678901234567890123456789")
+    provider_cost = Decimal("0.00000000000000000000000000006")
+    with localcontext() as context:
+        context.prec = 100
+        request_capital = stop_risk + provider_cost
+
+    known = runtime.CapitalScienceKnownOpportunity(
+        option_id="signal-1",
+        trader_id="VT31_NAS100",
+        qore_symbol="NAS100",
+        known_at=NOW,
+        earliest_action_at=NOW,
+        expires_at=NOW + runtime.timedelta(minutes=46),
+        requested_capital_usd=request_capital,
+        stop_risk_usd=stop_risk,
+        margin_usd=Decimal("1.00"),
+        evidence_sha256="sha256:" + "f" * 64,
+        expected_net_value_usd=Decimal("0.80"),
+        expected_capital_minutes=Decimal("45"),
+    )
+    state = _state(
+        requested_stop_risk_usd=stop_risk,
+        provider_cost_usd=provider_cost,
+        known_simultaneous_opportunities=(known,),
+    )
+
+    options = runtime._known_economic_options(state)
+
+    current = next(item for item in options if item.option_id == "signal-1")
+    assert current.requested_capital_usd == request_capital
+    assert current.stop_risk_usd == stop_risk

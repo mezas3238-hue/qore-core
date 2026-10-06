@@ -17,7 +17,7 @@ the CIBO request. This module has no broker mutation authority.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from decimal import ROUND_FLOOR, Decimal
+from decimal import ROUND_FLOOR, Decimal, localcontext
 from enum import StrEnum
 
 from qore.infrastructure.cibo_account_capital_mission import (
@@ -276,21 +276,28 @@ def _maximum_capability_plan(
             realized_profit_capacity,
             realized_profit_available_usd,
         )
-    original_base_capacity = max(
-        Decimal(0),
-        capital.assigned_capital_usd - capital.realized_net_profit_usd,
-    )
+    with localcontext() as context:
+        context.prec = 100
+        original_base_capacity = max(
+            Decimal(0),
+            capital.assigned_capital_usd - capital.realized_net_profit_usd,
+        )
     if original_base_available_usd is not None:
         original_base_capacity = min(
             original_base_capacity,
             original_base_available_usd,
         )
-    if risk > original_base_capacity + realized_profit_capacity:
+    with localcontext() as context:
+        context.prec = 100
+        available_source_capacity = (
+            original_base_capacity + realized_profit_capacity
+        )
+        base_amount = min(risk, original_base_capacity)
+        profit_amount = risk - base_amount
+    if risk > available_source_capacity:
         raise CiboCapitalManagementError(
             "capability sizing risk exceeds currently available capital sources"
         )
-    base_amount = min(risk, original_base_capacity)
-    profit_amount = risk - base_amount
     if profit_amount > realized_profit_capacity:
         raise CiboCapitalManagementError(
             "capability sizing risk exceeds proven base/profit source capacity"
@@ -358,25 +365,32 @@ def _maximum_constrained_plan(
         raise CiboCapitalManagementError(
             "provider cost per volume must be finite non-negative Decimal"
         )
-    total_loss_per_volume = (
-        opportunity.stop_loss_per_volume + provider_cost_per_volume_usd
-    )
-    by_risk = capital.hard_risk_headroom_usd / total_loss_per_volume
-    by_margin = (
-        capital.margin_headroom_usd / opportunity.margin_per_volume
-    )
-    raw = min(by_risk, by_margin, opportunity.maximum_volume)
-    steps = (raw / opportunity.volume_step).to_integral_value(
-        rounding=ROUND_FLOOR
-    )
-    volume = steps * opportunity.volume_step
+    with localcontext() as context:
+        context.prec = 100
+        total_loss_per_volume = (
+            opportunity.stop_loss_per_volume
+            + provider_cost_per_volume_usd
+        )
+        by_risk = (
+            capital.hard_risk_headroom_usd / total_loss_per_volume
+        )
+        by_margin = (
+            capital.margin_headroom_usd / opportunity.margin_per_volume
+        )
+        raw = min(by_risk, by_margin, opportunity.maximum_volume)
+        steps = (raw / opportunity.volume_step).to_integral_value(
+            rounding=ROUND_FLOOR
+        )
+        volume = steps * opportunity.volume_step
     minimum = minimum_seed_volume(opportunity)
     if volume < minimum:
         raise CiboCapitalManagementError(
             "maximum account-constrained capacity cannot express minimum seed"
         )
-    risk = volume * opportunity.stop_loss_per_volume
-    margin = volume * opportunity.margin_per_volume
+    with localcontext() as context:
+        context.prec = 100
+        risk = volume * opportunity.stop_loss_per_volume
+        margin = volume * opportunity.margin_per_volume
     return CiboCapitalActionPlan(
         trader_id=opportunity.trader_id,
         qore_symbol=opportunity.qore_symbol,

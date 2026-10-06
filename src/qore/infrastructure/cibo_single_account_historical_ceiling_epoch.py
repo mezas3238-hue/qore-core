@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from decimal import Decimal
+from decimal import Decimal, localcontext
 
 from qore.infrastructure.account_wide_risk import (
     AccountRiskSnapshot,
@@ -129,26 +129,28 @@ def run_predecision_historical_sovereign_ceiling_epoch(
     provider_cost_reserve = (
         historical_capital.open_provider_cost_reserve_usd
     )
-    stop_capacity = max(
-        Decimal(0),
-        realized - provider_cost_reserve,
-    )
-    provider_risk_headroom = (
-        realized
-        * provider_assumption.risk_headroom_multiple_of_equity
-    )
-    provider_max_risk = (
-        realized
-        * provider_assumption.max_risk_multiple_of_equity
-    )
-    gross_margin_capacity = (
-        realized
-        * provider_assumption.margin_capacity_multiple_of_equity
-    )
-    effective_margin_capacity = max(
-        Decimal(0),
-        gross_margin_capacity - provider_cost_reserve,
-    )
+    with localcontext() as context:
+        context.prec = 100
+        stop_capacity = max(
+            Decimal(0),
+            realized - provider_cost_reserve,
+        )
+        provider_risk_headroom = (
+            realized
+            * provider_assumption.risk_headroom_multiple_of_equity
+        )
+        provider_max_risk = (
+            realized
+            * provider_assumption.max_risk_multiple_of_equity
+        )
+        gross_margin_capacity = (
+            realized
+            * provider_assumption.margin_capacity_multiple_of_equity
+        )
+        effective_margin_capacity = max(
+            Decimal(0),
+            gross_margin_capacity - provider_cost_reserve,
+        )
 
     if historical_capital.open_stop_risk_usd > stop_capacity:
         raise CiboCapitalManagementError(

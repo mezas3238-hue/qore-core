@@ -15,7 +15,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from datetime import datetime
-from decimal import ROUND_FLOOR, Decimal
+from decimal import ROUND_FLOOR, Decimal, localcontext
 
 from qore.infrastructure.cibo_account_capital_mission import (
     CiboAccountCapitalIdentity,
@@ -64,6 +64,24 @@ def _sha(label: str, payload: object) -> str:
         default=str,
     ).encode("utf-8")
     return "sha256:" + hashlib.sha256(raw).hexdigest()
+
+
+def _exact_add(left: Decimal, right: Decimal) -> Decimal:
+    with localcontext() as context:
+        context.prec = 100
+        return left + right
+
+
+def _exact_mul(left: Decimal, right: Decimal) -> Decimal:
+    with localcontext() as context:
+        context.prec = 100
+        return left * right
+
+
+def _exact_div(left: Decimal, right: Decimal) -> Decimal:
+    with localcontext() as context:
+        context.prec = 100
+        return left / right
 
 
 def _money(value: Decimal, name: str) -> None:
@@ -178,20 +196,23 @@ def _validate_open_exposures(
             )
 
 
+def _sum_decimal_exact(values: tuple[Decimal, ...]) -> Decimal:
+    with localcontext() as context:
+        context.prec = 100
+        return sum(values, Decimal(0))
+
+
 def _source_capacities(
     state: CiboHistoricalResearchCapitalState,
 ) -> tuple[Genc10SourceCapacityState, ...]:
-    profit_proven = sum(
-        (item.proven_usd for item in state.profit_generations),
-        Decimal(0),
+    profit_proven = _sum_decimal_exact(
+        tuple(item.proven_usd for item in state.profit_generations)
     )
-    profit_consumed = sum(
-        (item.consumed_usd for item in state.profit_generations),
-        Decimal(0),
+    profit_consumed = _sum_decimal_exact(
+        tuple(item.consumed_usd for item in state.profit_generations)
     )
-    profit_reserved = sum(
-        (item.reserved_usd for item in state.profit_generations),
-        Decimal(0),
+    profit_reserved = _sum_decimal_exact(
+        tuple(item.reserved_usd for item in state.profit_generations)
     )
     return (
         Genc10SourceCapacityState(
@@ -216,9 +237,8 @@ def _source_capacities(
 def _economic_buckets(
     state: CiboHistoricalResearchCapitalState,
 ) -> tuple[tuple[Genc10EconomicBucket, Decimal], ...]:
-    profit_reserved = sum(
-        (item.reserved_usd for item in state.profit_generations),
-        Decimal(0),
+    profit_reserved = _sum_decimal_exact(
+        tuple(item.reserved_usd for item in state.profit_generations)
     )
     profit_available = state.realized_profit_available_usd
     amounts = {
@@ -323,17 +343,34 @@ def build_historical_ceiling_epoch_state(
             "historical ceiling open exposure exceeds declared capacity"
         )
 
+    # GEN-C10 enforces exact conservation with Fraction, so compute residual
+    # capacity under a precision high enough to preserve long compound decimals.
+    with localcontext() as context:
+        context.prec = 80
+        stop_risk_headroom = stop_capacity - used_stop
+        margin_headroom = margin_capacity - used_margin
+
     observed_opportunities: list[CiboObservedOpportunityState] = []
     known_options: list[Genc10KnownCapitalOption] = []
     for row in opportunities:
         opportunity = row.opportunity
         minimum_volume = minimum_seed_volume(opportunity)
-        stop_risk = minimum_volume * opportunity.stop_loss_per_volume
-        margin = minimum_volume * opportunity.margin_per_volume
-        provider_cost = minimum_volume * row.provider_cost_per_volume_usd
+        stop_risk = _exact_mul(
+            minimum_volume,
+            opportunity.stop_loss_per_volume,
+        )
+        margin = _exact_mul(
+            minimum_volume,
+            opportunity.margin_per_volume,
+        )
+        provider_cost = _exact_mul(
+            minimum_volume,
+            row.provider_cost_per_volume_usd,
+        )
         provider_cap = int(
-            (
-                opportunity.maximum_volume / minimum_volume
+            _exact_div(
+                opportunity.maximum_volume,
+                minimum_volume,
             ).to_integral_value(rounding=ROUND_FLOOR)
         )
         maximum_multiplier = max(0, min(4, provider_cap))
@@ -354,7 +391,7 @@ def build_historical_ceiling_epoch_state(
                 known_at=captured_at,
                 earliest_action_at=captured_at,
                 expires_at=expires_at,
-                requested_capital_usd=stop_risk + provider_cost,
+                requested_capital_usd=_exact_add(stop_risk, provider_cost),
                 expected_net_value_usd=row.expected_net_value_usd,
                 expected_capital_minutes=row.expected_capital_minutes,
                 stop_risk_usd=stop_risk,
@@ -375,7 +412,7 @@ def build_historical_ceiling_epoch_state(
                 known_at=captured_at,
                 earliest_action_at=captured_at,
                 expires_at=expires_at,
-                requested_capital_usd=stop_risk + provider_cost,
+                requested_capital_usd=_exact_add(stop_risk, provider_cost),
                 stop_risk_usd=stop_risk,
                 margin_usd=margin,
                 evidence_sha256=evidence_sha,
@@ -425,10 +462,10 @@ def build_historical_ceiling_epoch_state(
         source_capacities=_source_capacities(historical_capital),
         total_stop_risk_capacity_usd=stop_capacity,
         used_stop_risk_usd=used_stop,
-        stop_risk_headroom_usd=stop_capacity - used_stop,
+        stop_risk_headroom_usd=stop_risk_headroom,
         total_margin_capacity_usd=margin_capacity,
         used_margin_usd=used_margin,
-        margin_headroom_usd=margin_capacity - used_margin,
+        margin_headroom_usd=margin_headroom,
         active_deployment_count=len(historical_capital.open_deployments),
         provider_capability_counts=tuple(
             (status, 0) for status in CapabilityStatus
@@ -528,14 +565,19 @@ def build_historical_ceiling_epoch_state(
         future_outcome_used=False,
     )
     profit_economic = historical_capital.realized_profit_economic_value_usd
-    profit_reserved = sum(
-        (item.reserved_usd for item in historical_capital.profit_generations),
-        Decimal(0),
-    )
+    with localcontext() as context:
+        context.prec = 100
+        profit_reserved = sum(
+            (
+                item.reserved_usd
+                for item in historical_capital.profit_generations
+            ),
+            Decimal(0),
+        )
     capital = CiboCapitalState(
         assigned_capital_usd=realized,
-        hard_risk_headroom_usd=stop_capacity - used_stop,
-        margin_headroom_usd=margin_capacity - used_margin,
+        hard_risk_headroom_usd=stop_risk_headroom,
+        margin_headroom_usd=margin_headroom,
         base_capital_at_risk_usd=(
             historical_capital.original_base_economic_value_usd
         ),

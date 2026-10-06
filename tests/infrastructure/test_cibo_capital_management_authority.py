@@ -1,4 +1,4 @@
-from decimal import Decimal
+from decimal import Decimal, localcontext
 
 import pytest
 
@@ -221,3 +221,48 @@ def test_capital_source_dimensions_are_nonfungible() -> None:
         capital_source_dimension(CapitalSource.TRUE_PORTFOLIO_NETTING)
         is CapitalCapacityDimension.PORTFOLIO_OFFSET
     )
+
+
+
+def test_minimal_seed_preserves_long_decimal_geometry_exactly() -> None:
+    volume = Decimal("0.1234567890123456789012345678901234567890")
+    stop_per_volume = Decimal(
+        "1.1111111111111111111111111111111111111111"
+    )
+    margin_per_volume = Decimal(
+        "2.2222222222222222222222222222222222222222"
+    )
+    opportunity = TraderOpportunityEnvelope(
+        trader_id=TraderLineage.R38_EURUSD,
+        signal_fingerprint="seed-long-decimal",
+        qore_symbol="EURUSD",
+        provider_symbol="EURUSD",
+        side="long",
+        entry_type="MARKET",
+        intended_entry=Decimal("1.1000"),
+        stop_loss=Decimal("1.0950"),
+        take_profit=Decimal("1.1100"),
+        stop_loss_per_volume=stop_per_volume,
+        margin_per_volume=margin_per_volume,
+        volume_step=Decimal(
+            "0.0000000000000000000000000000000000000001"
+        ),
+        minimum_volume=volume,
+        maximum_volume=Decimal("10"),
+    )
+
+    plan = plan_minimal_seed(
+        opportunity,
+        _capital(
+            hard_risk_headroom_usd=Decimal("50"),
+            margin_headroom_usd=Decimal("100"),
+        ),
+    )
+
+    with localcontext() as context:
+        context.prec = 100
+        expected_risk = volume * stop_per_volume
+        expected_margin = volume * margin_per_volume
+    assert plan.volume == volume
+    assert plan.stop_risk_usd == expected_risk
+    assert plan.margin_usd == expected_margin

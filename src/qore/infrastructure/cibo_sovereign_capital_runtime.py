@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from datetime import datetime
-from decimal import ROUND_FLOOR, Decimal
+from decimal import ROUND_FLOOR, Decimal, localcontext
 from enum import StrEnum
 
 from qore.infrastructure.account_wide_risk import CiboRiskRequest
@@ -327,9 +327,11 @@ def run_cibo_sovereign_capital_runtime(
         competition_option_ids=(option_id,),
     )
     minimum_volume = minimum_seed_volume(opportunity)
-    provider_cost_per_volume_usd = (
-        twin_opportunity.provider_cost_usd / minimum_volume
-    )
+    with localcontext() as context:
+        context.prec = 100
+        provider_cost_per_volume_usd = (
+            twin_opportunity.provider_cost_usd / minimum_volume
+        )
     sizing = plan_account_sizing(
         opportunity=opportunity,
         capital=capital,
@@ -487,6 +489,7 @@ def run_cibo_sovereign_capital_runtime(
         option_id=option_id,
         synthesis=synthesis,
         faculty_consultation=consultation,
+        capital_science=capital_science,
         economic_run=economic,
         sizing=sizing,
         final_plan=final_plan,
@@ -548,27 +551,43 @@ def _build_capital_science_state(
             raise CiboCapitalManagementError(
                 "Capital Science target base geometry must be positive"
             )
-        volume_scale = sizing.plan.volume / base_volume
-        risk_scale = sizing.plan.stop_risk_usd / target.stop_risk_usd
-        if volume_scale != risk_scale:
-            raise CiboCapitalManagementError(
-                "Capital Science sizing volume/risk geometry drift"
+        with localcontext() as context:
+            context.prec = 100
+            expected_risk = (
+                sizing.plan.volume * opportunity.stop_loss_per_volume
             )
-        current_provider_cost_usd = target.provider_cost_usd * volume_scale
-        current_expected_net_value_usd = (
-            target.expected_net_value_usd * risk_scale
-        )
+            expected_margin = (
+                sizing.plan.volume * opportunity.margin_per_volume
+            )
+            volume_scale = sizing.plan.volume / base_volume
+            risk_scale = sizing.plan.stop_risk_usd / target.stop_risk_usd
+            current_provider_cost_usd = (
+                target.provider_cost_usd * volume_scale
+            )
+            current_expected_net_value_usd = (
+                target.expected_net_value_usd * risk_scale
+            )
+        if (
+            sizing.plan.stop_risk_usd != expected_risk
+            or sizing.plan.margin_usd != expected_margin
+        ):
+            raise CiboCapitalManagementError(
+                "Capital Science sizing plan geometry drift"
+            )
         matches = tuple(item for item in known if item.option_id == option_id)
         if len(matches) != 1:
             raise CiboCapitalManagementError(
                 "Capital Science current option must exist exactly once"
             )
+        with localcontext() as context:
+            context.prec = 100
+            current_requested_capital_usd = (
+                sizing.plan.stop_risk_usd + current_provider_cost_usd
+            )
         known = tuple(
             replace(
                 item,
-                requested_capital_usd=(
-                    sizing.plan.stop_risk_usd + current_provider_cost_usd
-                ),
+                requested_capital_usd=current_requested_capital_usd,
                 stop_risk_usd=sizing.plan.stop_risk_usd,
                 margin_usd=sizing.plan.margin_usd,
                 expected_net_value_usd=current_expected_net_value_usd,
@@ -591,6 +610,13 @@ def _build_capital_science_state(
         if sizing.plan.capital_source is not None
         else "NONE"
     )
+    with localcontext() as context:
+        context.prec = 100
+        deployable_profit_usd = max(
+            Decimal(0),
+            twin.capital_twin.compound_economic_value_usd
+            - twin.capital_twin.protected_floor_usd,
+        )
     return CapitalSciencePredecisionInput(
         decision_epoch_id=decision_id,
         signal_fingerprint=opportunity.signal_fingerprint,
@@ -602,11 +628,7 @@ def _build_capital_science_state(
         protected_capacity_usd=twin.capital_twin.protected_floor_usd,
         deployed_profit_usd=min(
             capital.reserved_expansion_risk_usd,
-            max(
-                Decimal(0),
-                twin.capital_twin.compound_economic_value_usd
-                - twin.capital_twin.protected_floor_usd,
-            ),
+            deployable_profit_usd,
         ),
         open_stop_risk_usd=twin.capital_twin.used_stop_risk_usd,
         open_margin_usd=twin.capital_twin.used_margin_usd,
@@ -726,17 +748,19 @@ def _cap_sizing_plan(
                 f"sovereign {name} must be finite non-negative Decimal"
             )
 
-    raw = min(
-        plan.volume,
-        portfolio_risk_cap_usd / opportunity.stop_loss_per_volume,
-        portfolio_margin_cap_usd / opportunity.margin_per_volume,
-        robust_risk_cap_usd / opportunity.stop_loss_per_volume,
-        robust_margin_cap_usd / opportunity.margin_per_volume,
-    )
-    steps = (raw / opportunity.volume_step).to_integral_value(
-        rounding=ROUND_FLOOR
-    )
-    volume = steps * opportunity.volume_step
+    with localcontext() as context:
+        context.prec = 100
+        raw = min(
+            plan.volume,
+            portfolio_risk_cap_usd / opportunity.stop_loss_per_volume,
+            portfolio_margin_cap_usd / opportunity.margin_per_volume,
+            robust_risk_cap_usd / opportunity.stop_loss_per_volume,
+            robust_margin_cap_usd / opportunity.margin_per_volume,
+        )
+        steps = (raw / opportunity.volume_step).to_integral_value(
+            rounding=ROUND_FLOOR
+        )
+        volume = steps * opportunity.volume_step
     minimum = minimum_seed_volume(opportunity)
     if volume < minimum:
         return _hold_plan(
@@ -748,27 +772,31 @@ def _cap_sizing_plan(
             ),
         )
 
-    risk = volume * opportunity.stop_loss_per_volume
-    margin = volume * opportunity.margin_per_volume
+    with localcontext() as context:
+        context.prec = 100
+        risk = volume * opportunity.stop_loss_per_volume
+        margin = volume * opportunity.margin_per_volume
 
     source_lots = plan.capital_source_lots
     capital_source = plan.capital_source
     if source_lots and risk != plan.stop_risk_usd:
         remaining = risk
         resized_lots = []
-        for lot in source_lots:
-            if remaining <= 0:
-                break
-            amount = min(lot.amount_usd, remaining)
-            if amount > 0:
-                resized_lots.append(
-                    type(lot)(
-                        source=lot.source,
-                        amount_usd=amount,
-                        source_id=lot.source_id,
+        with localcontext() as context:
+            context.prec = 100
+            for lot in source_lots:
+                if remaining <= 0:
+                    break
+                amount = min(lot.amount_usd, remaining)
+                if amount > 0:
+                    resized_lots.append(
+                        type(lot)(
+                            source=lot.source,
+                            amount_usd=amount,
+                            source_id=lot.source_id,
+                        )
                     )
-                )
-                remaining -= amount
+                    remaining -= amount
         if remaining != 0:
             raise CiboCapitalManagementError(
                 "sovereign resize exceeds declared capital-source provenance"

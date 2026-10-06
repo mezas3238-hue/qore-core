@@ -170,15 +170,67 @@ def test_historical_projection_tracks_open_authorized_capacity() -> None:
         expires_at=NOW + timedelta(minutes=1),
         opportunities=(_opportunity("new-beta"),),
         open_exposures=(exposure,),
-        total_stop_risk_capacity_usd=Decimal("60"),
-        total_margin_capacity_usd=Decimal("100"),
+        total_stop_risk_capacity_usd=Decimal(
+            "60.123456789012345678901234567890123456789"
+        ),
+        total_margin_capacity_usd=Decimal(
+            "100.987654321098765432109876543210987654321"
+        ),
     )
 
     assert epoch.capital_twin.used_stop_risk_usd == Decimal("10")
-    assert epoch.capital_twin.stop_risk_headroom_usd == Decimal("50")
+    assert epoch.capital_twin.stop_risk_headroom_usd == Decimal(
+        "50.123456789012345678901234567890123456789"
+    )
     assert epoch.capital_twin.used_margin_usd == Decimal("20")
-    assert epoch.capital_twin.margin_headroom_usd == Decimal("80")
-    assert epoch.capital.hard_risk_headroom_usd == Decimal("50")
-    assert epoch.capital.margin_headroom_usd == Decimal("80")
+    assert epoch.capital_twin.margin_headroom_usd == Decimal(
+        "80.987654321098765432109876543210987654321"
+    )
+    assert epoch.capital.hard_risk_headroom_usd == Decimal(
+        "50.123456789012345678901234567890123456789"
+    )
+    assert epoch.capital.margin_headroom_usd == Decimal(
+        "80.987654321098765432109876543210987654321"
+    )
     assert epoch.capital.cost_reserve_usd == Decimal("2")
     assert epoch.twin.portfolio.active_position_ids == ("open-alpha",)
+
+
+
+def test_historical_projection_preserves_long_decimal_source_capacity() -> None:
+    first = Decimal("1.1111111111111111111111111111111111111111")
+    second = Decimal("2.2222222222222222222222222222222222222222")
+    total = Decimal("3.3333333333333333333333333333333333333333")
+    state = CiboHistoricalResearchCapitalState(
+        profit_generations=(
+            CiboHistoricalProfitGeneration(
+                generation=1,
+                proven_usd=first,
+            ),
+            CiboHistoricalProfitGeneration(
+                generation=2,
+                proven_usd=second,
+            ),
+        ),
+        peak_realized_capital_usd=Decimal(
+            "63.3333333333333333333333333333333333333333"
+        ),
+    )
+
+    epoch = build_historical_ceiling_epoch_state(
+        account_identity=_identity(),
+        historical_capital=state,
+        captured_at=NOW,
+        expires_at=NOW + timedelta(minutes=1),
+        opportunities=(_opportunity(),),
+    )
+    capacities = {
+        item.dimension: item for item in epoch.capital_twin.source_capacities
+    }
+    profit = capacities[CapitalCapacityDimension.ECONOMIC_PROFIT_CAPITAL]
+
+    assert profit.proven == total
+    assert profit.available == total
+    assert profit.reserved == Decimal("0")
+    assert profit.deployed == Decimal("0")
+    assert profit.consumed == Decimal("0")

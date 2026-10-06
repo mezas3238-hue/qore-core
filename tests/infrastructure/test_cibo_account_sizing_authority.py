@@ -1,4 +1,4 @@
-from decimal import Decimal
+from decimal import Decimal, localcontext
 
 from qore.infrastructure.account_wide_risk import TraderLineage
 from qore.infrastructure.cibo_account_capital_mission import (
@@ -14,6 +14,10 @@ from qore.infrastructure.cibo_account_sizing_authority import (
 from qore.infrastructure.cibo_capital_management_authority import (
     CapitalAction,
     CapitalSource,
+    CapitalSourceLot,
+    CapitalStage,
+    CiboCapitalActionPlan,
+    CiboCapitalState,
     TraderOpportunityEnvelope,
 )
 from qore.infrastructure.market_test_environment import MarketRuntimeEnvironment
@@ -287,3 +291,113 @@ def test_demo_capability_sizing_respects_current_source_availability() -> None:
         (CapitalSource.REALIZED_PROFIT, Decimal("30.00")),
     )
 
+
+def test_self_financing_identity_preserves_long_decimal_sources() -> None:
+    realized = Decimal("1.11111111111111111111111111111")
+    protected = Decimal("2.22222222222222222222222222222")
+    proven = Decimal("3.33333333333333333333333333333")
+    reserved = Decimal("1.11111111111111111111111111111")
+
+    capital = CiboCapitalState(
+        assigned_capital_usd=Decimal("60"),
+        hard_risk_headroom_usd=Decimal("60"),
+        margin_headroom_usd=Decimal("60"),
+        base_capital_at_risk_usd=Decimal("0"),
+        realized_net_profit_usd=realized,
+        protected_open_economic_floor_usd=protected,
+        proven_self_financing_capacity_usd=proven,
+        reserved_expansion_risk_usd=reserved,
+        cost_reserve_usd=Decimal("0"),
+    )
+
+    with localcontext() as context:
+        context.prec = 100
+        assert capital.proven_self_financing_capacity_usd <= realized + protected
+    assert capital.available_self_financing_capacity_usd == Decimal(
+        "2.22222222222222222222222222222"
+    )
+
+
+
+def test_capital_source_lots_conserve_long_decimal_source_amount_exactly() -> None:
+    first = Decimal("1.1111111111111111111111111111111111111111")
+    second = Decimal("2.2222222222222222222222222222222222222222")
+    total = Decimal("3.3333333333333333333333333333333333333333")
+
+    plan = CiboCapitalActionPlan(
+        trader_id=TraderLineage.R34_XAUUSD,
+        qore_symbol="XAUUSD",
+        stage=CapitalStage.CAPITALIZE,
+        action=CapitalAction.OPEN_CAPABILITY_MAX,
+        volume=Decimal("1"),
+        stop_risk_usd=total,
+        margin_usd=Decimal("1"),
+        capital_source=None,
+        capital_source_amount_usd=total,
+        reason="exact provenance conservation",
+        capital_source_lots=(
+            CapitalSourceLot(
+                source=CapitalSource.ORIGINAL_BASE_CAPITAL,
+                amount_usd=first,
+                source_id="base",
+            ),
+            CapitalSourceLot(
+                source=CapitalSource.REALIZED_PROFIT,
+                amount_usd=second,
+                source_id="profit",
+            ),
+        ),
+    )
+
+    assert plan.capital_source_amount_usd == total
+
+
+
+def test_demo_maximum_sizing_preserves_long_decimal_geometry_exactly() -> None:
+    volume = Decimal("2.2222222222222222222222222222222222222222")
+    stop_per_volume = Decimal(
+        "1.1111111111111111111111111111111111111111"
+    )
+    margin_per_volume = Decimal(
+        "1.3333333333333333333333333333333333333333"
+    )
+    step = Decimal("0.0000000000000000000000000000000000000001")
+    opportunity = TraderOpportunityEnvelope(
+        trader_id=TraderLineage.R34_XAUUSD,
+        signal_fingerprint="account-sizing-long-decimal",
+        qore_symbol="XAUUSD",
+        provider_symbol="XAUUSD",
+        side="long",
+        entry_type="market",
+        intended_entry=Decimal("2600"),
+        stop_loss=Decimal("2590"),
+        take_profit=Decimal("2620"),
+        stop_loss_per_volume=stop_per_volume,
+        margin_per_volume=margin_per_volume,
+        volume_step=step,
+        minimum_volume=step,
+        maximum_volume=volume,
+    )
+    capital = account_capital_state(
+        assigned_capital_usd=Decimal("60"),
+        hard_risk_headroom_usd=Decimal("60"),
+        margin_headroom_usd=Decimal("60"),
+        survival_capital_usd=Decimal("0"),
+        protected_capital_usd=Decimal("0"),
+    )
+
+    decision = plan_account_sizing(
+        opportunity=opportunity,
+        capital=capital,
+        mission_policy=_mission(MarketRuntimeEnvironment.DEMO),
+        survival_capital_usd=Decimal("0"),
+        protected_capital_usd=Decimal("0"),
+    )
+
+    with localcontext() as context:
+        context.prec = 100
+        expected_risk = volume * stop_per_volume
+        expected_margin = volume * margin_per_volume
+    assert decision.plan.volume == volume
+    assert decision.plan.stop_risk_usd == expected_risk
+    assert decision.plan.margin_usd == expected_margin

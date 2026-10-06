@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from datetime import datetime
-from decimal import Decimal
+from decimal import Decimal, localcontext
 
 from qore.infrastructure.account_wide_risk import (
     RiskAuthorization,
@@ -48,6 +48,27 @@ def _money(
         )
 
 
+def _add(*values: Decimal) -> Decimal:
+    with localcontext() as context:
+        context.prec = 100
+        return sum(values, Decimal(0))
+
+
+def _sub(value: Decimal, *values: Decimal) -> Decimal:
+    with localcontext() as context:
+        context.prec = 100
+        result = value
+        for item in values:
+            result -= item
+        return result
+
+
+def _mul(left: Decimal, right: Decimal) -> Decimal:
+    with localcontext() as context:
+        context.prec = 100
+        return left * right
+
+
 @dataclass(frozen=True, slots=True)
 class CiboHistoricalProfitGeneration:
     generation: int
@@ -66,18 +87,18 @@ class CiboHistoricalProfitGeneration:
             )
         for name in ("proven_usd", "consumed_usd", "reserved_usd"):
             _money(getattr(self, name), name)
-        if self.consumed_usd + self.reserved_usd > self.proven_usd:
+        if _add(self.consumed_usd, self.reserved_usd) > self.proven_usd:
             raise CiboCapitalManagementError(
                 "historical ceiling profit generation is over-allocated"
             )
 
     @property
     def available_usd(self) -> Decimal:
-        return self.proven_usd - self.consumed_usd - self.reserved_usd
+        return _sub(self.proven_usd, self.consumed_usd, self.reserved_usd)
 
     @property
     def economic_value_usd(self) -> Decimal:
-        return self.proven_usd - self.consumed_usd
+        return _sub(self.proven_usd, self.consumed_usd)
 
 
 @dataclass(frozen=True, slots=True)
@@ -121,7 +142,7 @@ class CiboHistoricalCapitalSlice:
 
     @property
     def total_reserved_usd(self) -> Decimal:
-        return self.stop_risk_reserved_usd + self.provider_cost_reserved_usd
+        return _add(self.stop_risk_reserved_usd, self.provider_cost_reserved_usd)
 
 
 @dataclass(frozen=True, slots=True)
@@ -163,13 +184,11 @@ class CiboHistoricalOpenDeployment:
             raise CiboCapitalManagementError(
                 "historical ceiling deployment requires capital slices"
             )
-        stop = sum(
-            (item.stop_risk_reserved_usd for item in self.slices),
-            Decimal(0),
+        stop = _add(
+            *(item.stop_risk_reserved_usd for item in self.slices)
         )
-        cost = sum(
-            (item.provider_cost_reserved_usd for item in self.slices),
-            Decimal(0),
+        cost = _add(
+            *(item.provider_cost_reserved_usd for item in self.slices)
         )
         if stop != self.authorized_stop_risk_usd:
             raise CiboCapitalManagementError(
@@ -215,7 +234,10 @@ class CiboHistoricalResearchCapitalState:
                 "historical ceiling opening capital must remain exactly USD60"
             )
         if (
-            self.original_base_consumed_usd + self.original_base_reserved_usd
+            _add(
+                self.original_base_consumed_usd,
+                self.original_base_reserved_usd,
+            )
             > self.original_base_proven_usd
         ):
             raise CiboCapitalManagementError(
@@ -252,56 +274,54 @@ class CiboHistoricalResearchCapitalState:
 
     @property
     def original_base_available_usd(self) -> Decimal:
-        return (
-            self.original_base_proven_usd
-            - self.original_base_consumed_usd
-            - self.original_base_reserved_usd
+        return _sub(
+            self.original_base_proven_usd,
+            self.original_base_consumed_usd,
+            self.original_base_reserved_usd,
         )
 
     @property
     def original_base_economic_value_usd(self) -> Decimal:
-        return self.original_base_proven_usd - self.original_base_consumed_usd
+        return _sub(
+            self.original_base_proven_usd,
+            self.original_base_consumed_usd,
+        )
 
     @property
     def realized_profit_economic_value_usd(self) -> Decimal:
-        return sum(
-            (item.economic_value_usd for item in self.profit_generations),
-            Decimal(0),
+        return _add(
+            *(item.economic_value_usd for item in self.profit_generations)
         )
 
     @property
     def realized_profit_available_usd(self) -> Decimal:
-        return sum(
-            (item.available_usd for item in self.profit_generations),
-            Decimal(0),
+        return _add(
+            *(item.available_usd for item in self.profit_generations)
         )
 
     @property
     def realized_capital_usd(self) -> Decimal:
-        return (
-            self.original_base_economic_value_usd
-            + self.realized_profit_economic_value_usd
+        return _add(
+            self.original_base_economic_value_usd,
+            self.realized_profit_economic_value_usd,
         )
 
     @property
     def open_stop_risk_usd(self) -> Decimal:
-        return sum(
-            (item.authorized_stop_risk_usd for item in self.open_deployments),
-            Decimal(0),
+        return _add(
+            *(item.authorized_stop_risk_usd for item in self.open_deployments)
         )
 
     @property
     def open_margin_usd(self) -> Decimal:
-        return sum(
-            (item.authorized_margin_usd for item in self.open_deployments),
-            Decimal(0),
+        return _add(
+            *(item.authorized_margin_usd for item in self.open_deployments)
         )
 
     @property
     def open_provider_cost_reserve_usd(self) -> Decimal:
-        return sum(
-            (item.provider_cost_usd for item in self.open_deployments),
-            Decimal(0),
+        return _add(
+            *(item.provider_cost_usd for item in self.open_deployments)
         )
 
 
@@ -357,7 +377,7 @@ def reserve_historical_authorization(
             take = min(remaining, lot.available_usd)
             if take > 0:
                 updated.append(
-                    replace(lot, reserved_usd=lot.reserved_usd + take)
+                    replace(lot, reserved_usd=_add(lot.reserved_usd, take))
                 )
                 slices.append(
                     CiboHistoricalCapitalSlice(
@@ -369,7 +389,7 @@ def reserve_historical_authorization(
                         ),
                     )
                 )
-                remaining -= take
+                remaining = _sub(remaining, take)
             else:
                 updated.append(lot)
         if remaining > 0:
@@ -381,16 +401,16 @@ def reserve_historical_authorization(
     for provenance in authorization.capital_provenance:
         amount = provenance.amount_usd
         if provenance.source_kind == CapitalSource.ORIGINAL_BASE_CAPITAL.value:
-            available = (
-                state.original_base_proven_usd
-                - state.original_base_consumed_usd
-                - base_reserved
+            available = _sub(
+                state.original_base_proven_usd,
+                state.original_base_consumed_usd,
+                base_reserved,
             )
             if amount > available:
                 raise CiboCapitalManagementError(
                     "historical ceiling base provenance exceeds available capital"
                 )
-            base_reserved += amount
+            base_reserved = _add(base_reserved, amount)
             slices.append(
                 CiboHistoricalCapitalSlice(
                     source=CapitalSource.ORIGINAL_BASE_CAPITAL,
@@ -406,15 +426,15 @@ def reserve_historical_authorization(
             )
 
     remaining_cost = provider_cost_usd
-    available_base = (
-        state.original_base_proven_usd
-        - state.original_base_consumed_usd
-        - base_reserved
+    available_base = _sub(
+        state.original_base_proven_usd,
+        state.original_base_consumed_usd,
+        base_reserved,
     )
     base_cost = min(remaining_cost, available_base)
     if base_cost > 0:
-        base_reserved += base_cost
-        remaining_cost -= base_cost
+        base_reserved = _add(base_reserved, base_cost)
+        remaining_cost = _sub(remaining_cost, base_cost)
         slices.append(
             CiboHistoricalCapitalSlice(
                 source=CapitalSource.ORIGINAL_BASE_CAPITAL,
@@ -488,7 +508,10 @@ def settle_historical_deployment(
             "historical ceiling reserved/settled provider cost drift"
         )
     gross_r = settlement.gross_structural_outcome_r
-    if gross_r < Decimal("-1"):
+    if (
+        gross_r < Decimal("-1")
+        and not settlement.exit_reason.startswith("GAP_")
+    ):
         raise CiboCapitalManagementError(
             "historical ceiling outcome below -1R requires explicit gap evidence"
         )
@@ -506,19 +529,19 @@ def settle_historical_deployment(
     ) -> None:
         nonlocal base_reserved, base_consumed, profits
         release = item.total_reserved_usd
-        consumed = (
-            item.provider_cost_reserved_usd
-            + item.stop_risk_reserved_usd * stop_loss_fraction
+        consumed = _add(
+            item.provider_cost_reserved_usd,
+            _mul(item.stop_risk_reserved_usd, stop_loss_fraction),
         )
         if item.source is CapitalSource.ORIGINAL_BASE_CAPITAL:
-            base_reserved -= release
-            base_consumed += consumed
+            base_reserved = _sub(base_reserved, release)
+            base_consumed = _add(base_consumed, consumed)
             return
         lot = profits[item.generation]
         profits[item.generation] = replace(
             lot,
-            reserved_usd=lot.reserved_usd - release,
-            consumed_usd=lot.consumed_usd + consumed,
+            reserved_usd=_sub(lot.reserved_usd, release),
+            consumed_usd=_add(lot.consumed_usd, consumed),
         )
 
     loss_fraction = max(Decimal(0), -gross_r)
@@ -537,7 +560,7 @@ def settle_historical_deployment(
         else:
             profits[generation] = replace(
                 existing,
-                proven_usd=existing.proven_usd + gross_profit,
+                proven_usd=_add(existing.proven_usd, gross_profit),
             )
 
     next_state = replace(
@@ -557,30 +580,44 @@ def settle_historical_deployment(
             + (settlement.receipt.settlement_sha256,)
         ),
         cumulative_provider_cost_usd=(
-            state.cumulative_provider_cost_usd
-            + settlement.provider_cost_usd
+            _add(
+                state.cumulative_provider_cost_usd,
+                settlement.provider_cost_usd,
+            )
         ),
         cumulative_gross_profit_usd=(
-            state.cumulative_gross_profit_usd + gross_profit
+            _add(state.cumulative_gross_profit_usd, gross_profit)
         ),
         cumulative_gross_loss_usd=(
-            state.cumulative_gross_loss_usd
-            + max(Decimal(0), -settlement.gross_pnl_usd)
+            _add(
+                state.cumulative_gross_loss_usd,
+                max(Decimal(0), -settlement.gross_pnl_usd),
+            )
         ),
         peak_realized_capital_usd=max(
             state.peak_realized_capital_usd,
             (
-                state.realized_capital_usd
-                + settlement.realized_net_pnl_usd
+                _add(
+                    state.realized_capital_usd,
+                    settlement.realized_net_pnl_usd,
+                )
             ),
         ),
     )
-    expected = (
-        state.realized_capital_usd + settlement.realized_net_pnl_usd
+    expected = _add(
+        state.realized_capital_usd,
+        settlement.realized_net_pnl_usd,
     )
     if next_state.realized_capital_usd != expected:
         raise CiboCapitalManagementError(
-            "historical ceiling settlement capital conservation drift"
+            "historical ceiling settlement capital conservation drift: "
+            f"signal={settlement.signal_fingerprint} "
+            f"before={state.realized_capital_usd} "
+            f"gross_pnl={settlement.gross_pnl_usd} "
+            f"provider_cost={settlement.provider_cost_usd} "
+            f"net_pnl={settlement.realized_net_pnl_usd} "
+            f"expected={expected} "
+            f"actual={next_state.realized_capital_usd}"
         )
     if next_state.realized_capital_usd < 0:
         raise CiboCapitalManagementError(

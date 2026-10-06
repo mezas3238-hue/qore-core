@@ -8,8 +8,9 @@ governor. This module is research-only and performs no broker mutation.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from decimal import ROUND_CEILING, ROUND_FLOOR, Decimal
+from decimal import ROUND_CEILING, ROUND_FLOOR, Decimal, localcontext
 from enum import StrEnum
+from fractions import Fraction
 
 from qore.infrastructure.account_wide_risk import (
     TraderIdentity,
@@ -226,10 +227,12 @@ class CiboCapitalState:
             "cost_reserve_usd",
         ):
             _nonnegative(getattr(self, name), name)
-        gross_proven_sources = (
-            self.realized_net_profit_usd
-            + self.protected_open_economic_floor_usd
-        )
+        with localcontext() as context:
+            context.prec = 100
+            gross_proven_sources = (
+                self.realized_net_profit_usd
+                + self.protected_open_economic_floor_usd
+            )
         if self.proven_self_financing_capacity_usd > gross_proven_sources:
             raise CiboCapitalManagementError(
                 "self-financing capacity cannot exceed proven profit/protection sources"
@@ -241,11 +244,13 @@ class CiboCapitalState:
 
     @property
     def available_self_financing_capacity_usd(self) -> Decimal:
-        return max(
-            Decimal(0),
-            self.proven_self_financing_capacity_usd
-            - self.reserved_expansion_risk_usd,
-        )
+        with localcontext() as context:
+            context.prec = 100
+            return max(
+                Decimal(0),
+                self.proven_self_financing_capacity_usd
+                - self.reserved_expansion_risk_usd,
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -282,11 +287,11 @@ class CiboCapitalActionPlan:
             if self.capital_source is None and not self.capital_source_lots:
                 raise CiboCapitalManagementError("capital deployment requires source")
         if self.capital_source_lots:
-            total = sum(
-                (lot.amount_usd for lot in self.capital_source_lots),
-                Decimal(0),
+            lots_total = sum(
+                (Fraction(lot.amount_usd) for lot in self.capital_source_lots),
+                Fraction(0),
             )
-            if total != self.capital_source_amount_usd:
+            if lots_total != Fraction(self.capital_source_amount_usd):
                 raise CiboCapitalManagementError(
                     "capital source lots must sum to source amount"
                 )
@@ -311,12 +316,17 @@ class CiboCapitalActionPlan:
 def minimum_seed_volume(opportunity: TraderOpportunityEnvelope) -> Decimal:
     """Smallest step-aligned volume compatible with provider/methodology constraints."""
 
-    lifecycle_floor = (
-        opportunity.minimum_volume * Decimal(opportunity.minimum_execution_steps)
-    )
-    raw = max(opportunity.minimum_volume, lifecycle_floor)
-    steps = (raw / opportunity.volume_step).to_integral_value(rounding=ROUND_CEILING)
-    return steps * opportunity.volume_step
+    with localcontext() as context:
+        context.prec = 100
+        lifecycle_floor = (
+            opportunity.minimum_volume
+            * Decimal(opportunity.minimum_execution_steps)
+        )
+        raw = max(opportunity.minimum_volume, lifecycle_floor)
+        steps = (raw / opportunity.volume_step).to_integral_value(
+            rounding=ROUND_CEILING
+        )
+        return steps * opportunity.volume_step
 
 
 def plan_minimal_seed(
@@ -332,8 +342,10 @@ def plan_minimal_seed(
             CapitalStage.MINIMAL_SEED,
             "minimum seed exceeds provider maximum",
         )
-    risk = volume * opportunity.stop_loss_per_volume
-    margin = volume * opportunity.margin_per_volume
+    with localcontext() as context:
+        context.prec = 100
+        risk = volume * opportunity.stop_loss_per_volume
+        margin = volume * opportunity.margin_per_volume
     if risk > capital.hard_risk_headroom_usd:
         return _hold(
             opportunity,
@@ -388,13 +400,17 @@ def plan_self_financing_expansion(
             "no proven non-base self-financing capacity is currently available",
         )
 
-    by_risk = capacity / opportunity.stop_loss_per_volume
-    by_margin = capital.margin_headroom_usd / opportunity.margin_per_volume
-    raw_volume = min(by_risk, by_margin, opportunity.maximum_volume)
-    steps = (raw_volume / opportunity.volume_step).to_integral_value(
-        rounding=ROUND_FLOOR
-    )
-    volume = steps * opportunity.volume_step
+    with localcontext() as context:
+        context.prec = 100
+        by_risk = capacity / opportunity.stop_loss_per_volume
+        by_margin = (
+            capital.margin_headroom_usd / opportunity.margin_per_volume
+        )
+        raw_volume = min(by_risk, by_margin, opportunity.maximum_volume)
+        steps = (raw_volume / opportunity.volume_step).to_integral_value(
+            rounding=ROUND_FLOOR
+        )
+        volume = steps * opportunity.volume_step
     if volume < opportunity.minimum_volume:
         return _hold(
             opportunity,
@@ -402,8 +418,10 @@ def plan_self_financing_expansion(
             "self-financing capacity cannot express provider minimum volume",
         )
 
-    risk = volume * opportunity.stop_loss_per_volume
-    margin = volume * opportunity.margin_per_volume
+    with localcontext() as context:
+        context.prec = 100
+        risk = volume * opportunity.stop_loss_per_volume
+        margin = volume * opportunity.margin_per_volume
     if capital.realized_net_profit_usd >= risk:
         source = CapitalSource.REALIZED_PROFIT
     elif capital.protected_open_economic_floor_usd >= risk:

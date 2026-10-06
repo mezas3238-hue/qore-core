@@ -8,6 +8,7 @@ independent QORE Risk engine. The Trader has no volume input here.
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import localcontext
 
 from qore.infrastructure.account_wide_risk import (
     CiboCapitalProvenanceLot,
@@ -52,8 +53,10 @@ def build_cma_risk_request(
     if plan.qore_symbol != opportunity.qore_symbol:
         raise CiboCapitalManagementError("plan/opportunity symbol mismatch")
 
-    expected_risk = plan.volume * opportunity.stop_loss_per_volume
-    expected_margin = plan.volume * opportunity.margin_per_volume
+    with localcontext() as context:
+        context.prec = 100
+        expected_risk = plan.volume * opportunity.stop_loss_per_volume
+        expected_margin = plan.volume * opportunity.margin_per_volume
     if plan.stop_risk_usd != expected_risk:
         raise CiboCapitalManagementError("plan stop risk differs from opportunity economics")
     if plan.margin_usd != expected_margin:
