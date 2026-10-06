@@ -10,9 +10,9 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter, defaultdict
+from collections.abc import Mapping
 from decimal import Decimal, localcontext
 from pathlib import Path
-from typing import Any, Mapping
 
 TARGETS = (
     "COMPOUND_PORTFOLIO",
