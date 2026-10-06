@@ -200,10 +200,45 @@ def bind_cibo_cognition_to_twin(
     constraints["executive_reasoning_mode"] = synthesis.reasoning_mode.value
     constraints["executive_uncertainty"] = synthesis.uncertainty.kind.value
 
-    # Cognition does not pick volume. It can only close the capital-intensity
-    # gate. A positive RECOMMEND leaves the existing economic cap untouched.
+    # Cognition never selects a broker volume, but it must grade the maximum
+    # capital-intensity surface from its own causal epistemic state.  The old
+    # binary 0-or-existing-cap seam let any positive recommendation inherit 4x.
+    # Bounded confidence is intentionally not treated as certainty: LOW/MEDIUM/
+    # HIGH can expose at most 1x/2x/3x respectively.  A future 4x path therefore
+    # requires a distinct, explicit capital-confidence contract rather than
+    # silently inheriting the historical maximum.
+    existing_cap_raw = constraints.get("capital_intensity_cap", "4")
+    try:
+        existing_cap = int(existing_cap_raw)
+    except (TypeError, ValueError) as error:
+        raise CiboCapitalManagementError(
+            "cognitive capital_intensity_cap must be integer 0..4"
+        ) from error
+    if existing_cap not in {0, 1, 2, 3, 4}:
+        raise CiboCapitalManagementError(
+            "cognitive capital_intensity_cap outside 0..4"
+        )
+
     if synthesis.directive is not CiboExecutiveDirectiveKind.RECOMMEND:
-        constraints["capital_intensity_cap"] = "0"
+        cognitive_cap = 0
+    elif synthesis.uncertainty.confidence is None:
+        cognitive_cap = 1
+    else:
+        confidence_cap = {
+            "low": 1,
+            "medium": 2,
+            "high": 3,
+        }
+        level = synthesis.uncertainty.confidence.level.value
+        if level not in confidence_cap:
+            raise CiboCapitalManagementError(
+                "cognitive confidence level has no capital-intensity mapping"
+            )
+        cognitive_cap = confidence_cap[level]
+
+    constraints["capital_intensity_cap"] = str(
+        min(existing_cap, cognitive_cap)
+    )
 
     return replace(
         twin,
@@ -407,6 +442,47 @@ def run_cibo_sovereign_capital_runtime(
             sizing=sizing,
             final_plan=final_plan,
             disposition=CiboSovereignCapitalDisposition.COGNITIVE_BLOCK,
+            risk_request=None,
+        )
+
+    genc12_receipts = tuple(
+        item
+        for item in capital_science.receipts
+        if item.function_code == "GEN-C12"
+    )
+    if len(genc12_receipts) != 1:
+        raise CiboCapitalManagementError(
+            "Capital Science must expose exactly one GEN-C12 receipt"
+        )
+    genc12_pauses_new_capital = (
+        genc12_receipts[0].consumer_action == "PAUSE_NEW_CAPITAL"
+    )
+    if (
+        sizing.plan.action
+        in {
+            CapitalAction.OPEN_MINIMAL_SEED,
+            CapitalAction.OPEN_CAPABILITY_MAX,
+            CapitalAction.EXPAND,
+        }
+        and genc12_pauses_new_capital
+    ):
+        final_plan = _hold_plan(
+            opportunity=opportunity,
+            sizing=sizing,
+            reason=(
+                "Capital Science GEN-C12 paused all new capital deployment"
+            ),
+        )
+        return CiboSovereignCapitalDecision(
+            decision_id=decision_id,
+            option_id=option_id,
+            synthesis=synthesis,
+            faculty_consultation=consultation,
+            capital_science=capital_science,
+            economic_run=economic,
+            sizing=sizing,
+            final_plan=final_plan,
+            disposition=CiboSovereignCapitalDisposition.CAPITAL_BLOCK,
             risk_request=None,
         )
 
