@@ -132,13 +132,31 @@ def _reconstruct_situation(
         destination_distance_ref=_opt_d(
             state["destination_distance_ref"]
         ),
-        journey_stage="POST_CONFIRMATION_PRE_EXECUTION",
-        dol1_state="ACTIVE_OPPOSITE_09_BOUNDARY",
-        dol2_state="RESEARCH_ONLY_UNCALIBRATED",
-        dol3_state="RESEARCH_ONLY_UNCALIBRATED",
-        extension_capacity_state="RESEARCH_ONLY_UNCALIBRATED",
-        exhaustion_state="UNKNOWN",
-        cross_index_state="OPTIONAL_CONTEXT_NOT_REQUIRED",
+        journey_stage=str(
+            state.get("journey_stage", "POST_CONFIRMATION_PRE_EXECUTION")
+        ),
+        dol1_state=str(
+            state.get("dol1_state", "ACTIVE_OPPOSITE_09_BOUNDARY")
+        ),
+        dol2_state=str(
+            state.get("dol2_state", "CALIBRATED_DEPTH_ECONOMICS_PENDING")
+        ),
+        dol3_state=str(
+            state.get("dol3_state", "CALIBRATED_DEPTH_ECONOMICS_PENDING")
+        ),
+        extension_capacity_state=str(
+            state.get(
+                "extension_capacity_state",
+                "RESEARCH_ONLY_UNCALIBRATED",
+            )
+        ),
+        exhaustion_state=str(state.get("exhaustion_state", "UNKNOWN")),
+        cross_index_state=str(
+            state.get(
+                "cross_index_state",
+                "OPTIONAL_CONTEXT_NOT_REQUIRED",
+            )
+        ),
         m15_state=str(state.get("m15_state", "UNWIRED")),
     )
 
