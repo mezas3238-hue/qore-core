@@ -9,6 +9,10 @@ on:
       - .github/workflows/vt31-comp009-final-preholdout-metrics-v1.yml
       - docs/research/VT31_ARCH2_FINAL_PREHOLDOUT_METRIC_CONVENTIONS_001.md
       - docs/research/VT31_ARCH2_INTEGRATED_RESEARCH_COMPARATOR_009.md
+      - src/qore/infrastructure/traders/vt31_nas100_reasoning_engine.py
+      - src/qore/infrastructure/traders/vt31_nas100_comp008_policy.py
+      - scripts/vt31_nas100_breaker_mixed_weak_efficiency_adverse_exit_v1.py
+      - scripts/vt31_nas100_bullish_h1_mid_confirmation_conflict_admission_v1.py
   workflow_dispatch:
 
 permissions:
