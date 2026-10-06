@@ -127,6 +127,8 @@ jobs:
           assert g["residual_clustering_diagnostics_action_authority"] is False
           assert g["residual_multivariate_diagnostics_observation_only"] is True
           assert g["residual_multivariate_diagnostics_action_authority"] is False
+          assert g["remaining_order_block_diagnostics_observation_only"] is True
+          assert g["remaining_order_block_diagnostics_action_authority"] is False
           assert g["residual_preferred_variant"] == (
               "A_ABSTAIN_ORDER_BLOCK_AGE_0_2M_OR_EXPANDED"
           )
@@ -238,6 +240,9 @@ jobs:
                       "sequence_diagnostics":cand["sequence_diagnostics"],
                       "residual_multivariate_groups":(
                           cand["residual_multivariate_groups"]
+                      ),
+                      "remaining_order_block_traces":(
+                          cand["remaining_order_block_traces"]
                       ),
                       "winner_preservation":wp,
                       "pf_nondegrade":pf_non,
@@ -408,6 +413,14 @@ jobs:
                   if item["development_survivor"]
                   and item["halfyears_all_nondegrade"]
               ],
+              "remaining_order_blocks":{
+                  "preferred_variant":preferred,
+                  "by_fold":{
+                      fold:residual[fold]["remaining_order_block_traces"]
+                      for fold in folds
+                  },
+                  "action_authority":False,
+              },
               "residual_multivariate":{
                   "preferred_variant":preferred,
                   "stable_negative_classes":multivariate_stable_negative,
@@ -446,6 +459,8 @@ jobs:
                   "residual_clustering_action_authority":False,
                   "residual_multivariate_observation_only":True,
                   "residual_multivariate_action_authority":False,
+                  "remaining_order_blocks_observation_only":True,
+                  "remaining_order_blocks_action_authority":False,
                   "sizing_for_certification_forbidden":True,
                   "fresh_holdout_opened":False,
                   "policy_promoted":False,

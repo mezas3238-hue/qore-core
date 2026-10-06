@@ -221,6 +221,51 @@ def _residual_multivariate_groups(
     return result
 
 
+def _remaining_order_block_traces(
+    rows: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    fields = (
+        "decision_minute_ny",
+        "prior_day_state",
+        "h4_state",
+        "h1_state",
+        "m15_state",
+        "premarket_state",
+        "cash_open_state",
+        "position_in_prior_day_range",
+        "reference_volatility_state",
+        "reference_width_vs_prior5",
+        "current_path_vs_previous",
+        "confirmation_latency_minutes",
+        "entry_evidence_age_minutes",
+        "reference_reclaim_age_minutes",
+        "risk_ref",
+        "destination_distance_ref",
+        "raid_depth_ref",
+        "recent_path_efficiency",
+        "recent_overlap_rate",
+    )
+    result = []
+    for row in rows:
+        if not _order_block(row):
+            continue
+        context = _entry_context(row)
+        result.append(
+            {
+                "local_date": row.get("local_date"),
+                "signal_at": row.get("signal_at"),
+                "side": row.get("side"),
+                "r_multiple": row.get("r_multiple"),
+                "exit_reason": row.get("exit_reason"),
+                "entry_context": {
+                    field: context.get(field)
+                    for field in fields
+                },
+            }
+        )
+    return sorted(result, key=lambda item: str(item["signal_at"]))
+
+
 def _removed_context(
     rows: list[dict[str, object]],
 ) -> dict[str, dict[str, int]]:
@@ -294,6 +339,11 @@ def _variant_report(
         ),
         "residual_multivariate_groups": (
             _residual_multivariate_groups(candidate)
+            if variant == PREFERRED_RESIDUAL_VARIANT
+            else None
+        ),
+        "remaining_order_block_traces": (
+            _remaining_order_block_traces(candidate)
             if variant == PREFERRED_RESIDUAL_VARIANT
             else None
         ),
@@ -380,6 +430,8 @@ def replay(evidence_path: Path) -> dict[str, object]:
             "residual_clustering_diagnostics_action_authority": False,
             "residual_multivariate_diagnostics_observation_only": True,
             "residual_multivariate_diagnostics_action_authority": False,
+            "remaining_order_block_diagnostics_observation_only": True,
+            "remaining_order_block_diagnostics_action_authority": False,
             "residual_preferred_variant": PREFERRED_RESIDUAL_VARIANT,
             "density_floor_predeclared": format(DENSITY_FLOOR, "f"),
             "winner_count_floor_predeclared": format(
