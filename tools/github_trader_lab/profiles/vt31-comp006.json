@@ -1,22 +1,35 @@
 {
-  "schema": "qore.github-trader-lab.profile.v1",
-  "profile_id": "vt31-comp006-four-fold-v1",
+  "schema": "qore.github-trader-lab.profile.v2",
+  "profile_id": "vt31-comp006-prepared-fast-v1",
   "repository": "mezas3238-hue/qore-core",
   "subject": "VT31_NAS100",
   "max_parallel_lanes": 4,
-  "replay": {
+  "preparation": {
     "command": [
       "python",
-      "{subject_root}/scripts/vt31_nas100_rapid_breaker_conflict_admission_frontier_v1.py",
+      "{lab_root}/tools/github_trader_lab/adapters/vt31_comp003_prepare.py",
+      "--evidence",
       "{evidence}",
       "--output",
-      "{raw_output}"
+      "{prepared}"
     ],
-    "adapter_command": [
+    "dependency_globs": [
+      "scripts/vt31_nas100_specialist_r1_candidate.py",
+      "scripts/vt31_nas100_adverse_journey_cognitive_exit_frontier_v1.py",
+      "scripts/vt31_nas100_intelligence_policy_lab_v2b.py",
+      "scripts/vt31_nas100_r1_candidate.py",
+      "src/qore/infrastructure/trader_lab/vt31_silver_bullet_r2_5_multi_index_research.py",
+      "src/qore/infrastructure/traders/vt31_nas100_*.py",
+      "src/qore/infrastructure/traders/vt31_silver_bullet_r2_2.py",
+      "src/qore/infrastructure/market_data.py"
+    ]
+  },
+  "experiment": {
+    "command": [
       "python",
-      "{lab_root}/tools/github_trader_lab/adapters/vt31_comp006.py",
-      "--input",
-      "{raw_output}",
+      "{lab_root}/tools/github_trader_lab/adapters/vt31_comp006_fast.py",
+      "--prepared",
+      "{prepared}",
       "--lane",
       "{lane}",
       "--output",
@@ -56,6 +69,7 @@
     "primary_pf_floor": "1.70",
     "primary_mean_r_floor": "0.15",
     "mc_paths_min": 10000,
+    "mc_block_length": 5,
     "mc_positive_floor": "0.90",
     "mc_p95_dd_max_r": "15",
     "require_temporal_nondegrade": true
