@@ -505,7 +505,10 @@ def settle_historical_deployment(
             "historical ceiling reserved/settled provider cost drift"
         )
     gross_r = settlement.gross_structural_outcome_r
-    if gross_r < Decimal("-1"):
+    if (
+        gross_r < Decimal("-1")
+        and not settlement.exit_reason.startswith("GAP_")
+    ):
         raise CiboCapitalManagementError(
             "historical ceiling outcome below -1R requires explicit gap evidence"
         )
