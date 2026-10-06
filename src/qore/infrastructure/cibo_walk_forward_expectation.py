@@ -5,9 +5,13 @@ before the current decision timestamp. It is market/provider/platform neutral:
 history is keyed by canonical Trader identity, while current provider economics
 and stop geometry remain downstream current-state facts.
 
-The estimator deliberately mirrors the robust Phase20 research estimator:
+The estimator is causal and conservative:
 - structural R: median of five chronological block means;
-- capital duration: median of previously completed signal durations.
+- capital duration: upper quartile of previously completed signal durations.
+
+The duration change is a structural capital-lockup safeguard, not an
+outcome-tuned threshold: velocity must not be optimized against a median that
+systematically ignores the slower half of already-observed capital occupancy.
 
 Cold start is explicit and non-authoritative. No future outcome, PnL, sizing,
 Risk, order or execution authority is present here.
@@ -35,7 +39,7 @@ from qore.infrastructure.cibo_single_account_manifest_settlement import (
 
 _BLOCK_COUNT = 5
 _MINIMUM_OBSERVATIONS = 5
-_IDENTITY = "CIBO_WALK_FORWARD_EMPIRICAL_V1"
+_IDENTITY = "CIBO_WALK_FORWARD_EMPIRICAL_V2"
 
 
 def _median(values: tuple[Decimal, ...]) -> Decimal:
@@ -50,6 +54,19 @@ def _median(values: tuple[Decimal, ...]) -> Decimal:
     with localcontext() as context:
         context.prec = 100
         return (ordered[middle - 1] + ordered[middle]) / Decimal(2)
+
+
+def _upper_quartile(values: tuple[Decimal, ...]) -> Decimal:
+    """Return the causal nearest-rank 75th percentile."""
+
+    if not values:
+        raise CiboCapitalManagementError(
+            "walk-forward upper quartile requires observations"
+        )
+    ordered = tuple(sorted(values))
+    # nearest-rank percentile: ceil(0.75 * n), converted to zero-based index.
+    rank = (3 * len(ordered) + 3) // 4
+    return ordered[rank - 1]
 
 
 def _chronological_blocks(
@@ -283,7 +300,7 @@ def build_walk_forward_expectation(
     blocks = _chronological_blocks(relevant)
     block_means = tuple(_block_mean_r(block) for block in blocks)
     expected_structural_r = _median(block_means)
-    expected_minutes = _median(
+    expected_minutes = _upper_quartile(
         tuple(item.capital_minutes for item in relevant)
     )
     with localcontext() as context:
