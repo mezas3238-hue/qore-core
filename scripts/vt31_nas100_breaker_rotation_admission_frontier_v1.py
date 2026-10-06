@@ -123,6 +123,12 @@ def _report(
             rows,
         ),
         "sequence_diagnostics": composition._sequence_diagnostics(rows),
+        "max_drawdown_episode_forensics": (
+            adverse._max_drawdown_episode_forensics(
+                comparator,
+                rows,
+            )
+        ),
         "excluded_trade_count": len(comparator) - len(rows),
         "excluded_trade_forensics": excluded_forensics,
     }
@@ -217,6 +223,8 @@ def replay(evidence_path: Path) -> dict[str, object]:
             "outcome_used_for_action": False,
             "excluded_trade_forensics_observation_only": True,
             "excluded_trade_forensics_action_authority": False,
+            "max_drawdown_episode_forensics_observation_only": True,
+            "max_drawdown_episode_forensics_action_authority": False,
             "fold_identity_used_for_action": False,
             "date_identity_used_for_action": False,
             "position_sizing_used": False,
