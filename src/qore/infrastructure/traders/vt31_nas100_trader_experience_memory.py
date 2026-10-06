@@ -51,6 +51,11 @@ _SUPPORTED: Final = {
         "generic renewal and single-variable routing were unstable; reasoning "
         "must combine causal state rather than promote isolated bins"
     ),
+    "maximum_cognition_sovereignty": (
+        "VT31 cannot certify through a partial-cognition path; all available "
+        "memories/domains must participate and post-entry journey must be "
+        "reassessed causally when adaptive management is used"
+    ),
     "dynamic_destination_management": (
         "structural and R-based destination management are both eligible; "
         "promotion depends on causal cross-fold edge and winner preservation"
