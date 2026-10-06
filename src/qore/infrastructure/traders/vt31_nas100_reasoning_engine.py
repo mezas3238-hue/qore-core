@@ -120,10 +120,10 @@ def _max_intelligence_audit(
 
 
 def _target_plan(state: Nas100SituationModel) -> TargetPlan:
-    """Use the source structural destination; R never selects an exit.
+    """Use the current candidate's structural destination.
 
-    Future extension may be activated only by a separately validated,
-    market-native post-entry policy using structure/liquidity/exhaustion.
+    This candidate is structural by design. The sovereign certification rule
+    still permits independently validated R-based or hybrid target policies.
     """
     _ = state
     return "PRIMARY_STRUCTURAL_BOUNDARY"
@@ -319,6 +319,11 @@ def reason(state: Nas100SituationModel) -> Nas100ReasoningDecision:
         journey_capacity_state=journey_capacity_state,
         management_context_state=management_context_state,
     )
+
+    if not strategy_used or not market_used or not experience_used:
+        raise AssertionError(
+            "VT31 partial cognition before EXECUTE/WAIT/ABSTAIN is forbidden"
+        )
 
     return Nas100ReasoningDecision(
         action=action,
