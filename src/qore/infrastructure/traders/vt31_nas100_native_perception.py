@@ -374,8 +374,6 @@ def build_vt31_native_causal_perception(
         "cibo_market_memory_fingerprint": cibo_market_memory_fingerprint(),
         "trader_experience_memory_fingerprint": trader_experience_fingerprint(),
         "cognitive_memory_fingerprint": memory_fingerprint(),
-        "future_bar_lookup": "false",
-        "date_level_outcome_lookup": "false",
         "external_ai_dependency": "false",
     }
     return tuple(sorted(values.items()))
