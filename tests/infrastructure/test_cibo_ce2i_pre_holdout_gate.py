@@ -171,7 +171,7 @@ def test_dynamic_terminal_manifest_supersedes_historical_matrix_blockers() -> No
 
     assert readiness.status is CiboPreHoldoutStatus.NOT_READY
     assert "ACTIVE_HOLDOUT_NOT_ELIGIBLE_FROZEN" in readiness.blockers
-    assert "ACTIVE_HOLDOUT_SOURCE_VALIDATION_INCOMPLETE" in readiness.blockers
+    assert "ACTIVE_HOLDOUT_SOURCE_VALIDATION_INCOMPLETE" not in readiness.blockers
     assert readiness.holdout_outcomes_inspected is False
     assert readiness.holdout_market_data_read is False
     assert not any(
