@@ -237,26 +237,16 @@ def bind_cibo_cognition_to_twin(
             "cognitive capital_intensity_cap cannot be negative"
         )
 
-    # During capital-leak closure, epistemic confidence must constrain the
-    # maximum admissible intensity. Cognition still never selects broker volume:
-    # it exposes a ceiling that Portfolio/CMA/Risk may reduce further.
+    # Native MAX keeps the full executable provider-derived action surface.
+    # Confidence remains evidence for economic ranking, not a fixed leverage cap.
     if synthesis.directive is not CiboExecutiveDirectiveKind.RECOMMEND:
         cognitive_cap = 0
-    elif synthesis.uncertainty.confidence is None:
-        cognitive_cap = 1
     else:
-        confidence_cap = {
-            "low": 1,
-            "medium": 2,
-            "high": 3,
-        }
-        level = synthesis.uncertainty.confidence.level.value
-        if level not in confidence_cap:
-            raise CiboCapitalManagementError(
-                "cognitive confidence level has no capital-intensity mapping"
-            )
-        constraints["executive_confidence_level"] = level
-        cognitive_cap = confidence_cap[level]
+        cognitive_cap = existing_cap
+    if synthesis.uncertainty.confidence is not None:
+        constraints["executive_confidence_level"] = (
+            synthesis.uncertainty.confidence.level.value
+        )
 
     if maximum_frontier_cap is None:
         frontier_cap = dynamic_default_cap
@@ -271,14 +261,13 @@ def bind_cibo_cognition_to_twin(
             )
         frontier_cap = maximum_frontier_cap
 
-    # MAX Frontier is a constraining intelligence surface during repair
-    # closure. It can only lower Native MAX's causal cap; it cannot raise risk,
-    # choose volume, bypass CMA, or bypass sovereign QORE Risk.
-    final_cap = min(existing_cap, cognitive_cap, frontier_cap)
-    constraints["capital_intensity_cap"] = str(final_cap)
+    # MAX Frontier is advisory in ceiling research. It may report a lower
+    # frontier recommendation, but cannot truncate Native MAX. Portfolio, CMA,
+    # Capital Science and QORE Risk remain downstream constraints.
+    constraints["capital_intensity_cap"] = str(cognitive_cap)
     constraints["maximum_frontier_cap"] = str(frontier_cap)
     constraints["maximum_frontier_policy"] = MAX_FRONTIER_POLICY_ID
-    constraints["maximum_frontier_mode"] = "CONSTRAINING_ONLY"
+    constraints["maximum_frontier_mode"] = "ADVISORY_DIAGNOSTIC"
     if maximum_frontier_reason is not None:
         constraints["maximum_frontier_reason"] = maximum_frontier_reason
     if maximum_frontier_consumed_codes:
