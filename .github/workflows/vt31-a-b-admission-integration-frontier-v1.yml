@@ -261,9 +261,9 @@ jobs:
                   "mean_at_least_0_15r":(
                       d(consumed["candidate"]["mean_r"])>=Decimal("0.15")
                   ),
-                  "dd_at_most_10r":(
+                  "dd_at_most_6r":(
                       d(consumed["candidate"]["max_drawdown_r"])
-                      <= Decimal("10")
+                      <= Decimal("6")
                   ),
                   "mc_positive_at_least_0_90":(
                       d(consumed["monte_carlo"]["positive_terminal_probability"])
