@@ -56,6 +56,7 @@ class CiboFunctionEconomicSensor:
     called: bool = True
     downstream_consumed: bool = True
     decision_gate_triggered: bool = False
+    final_capital_binding: bool = False
     risk_delta_usd: Decimal = Decimal(0)
     margin_delta_usd: Decimal = Decimal(0)
     ablation_key: str | None = None
@@ -90,6 +91,7 @@ class CiboFunctionEconomicSensor:
             "called",
             "downstream_consumed",
             "decision_gate_triggered",
+            "final_capital_binding",
             "productive_authority",
         ):
             if type(getattr(self, name)) is not bool:
@@ -159,6 +161,7 @@ class CiboFunctionEconomicSensor:
             "called": self.called,
             "downstream_consumed": self.downstream_consumed,
             "decision_gate_triggered": self.decision_gate_triggered,
+            "final_capital_binding": self.final_capital_binding,
             "risk_delta_usd": format(self.risk_delta_usd, "f"),
             "margin_delta_usd": format(self.margin_delta_usd, "f"),
             "ablation_key": self.ablation_key,
@@ -194,6 +197,7 @@ def _sensor(
     input_metrics: tuple[tuple[str, str], ...],
     output_metrics: tuple[tuple[str, str], ...],
     decision_gate_triggered: bool = False,
+    final_capital_binding: bool = False,
     risk_delta_usd: Decimal = Decimal(0),
     margin_delta_usd: Decimal = Decimal(0),
     ablation_key: str | None = None,
@@ -209,6 +213,7 @@ def _sensor(
         called=True,
         downstream_consumed=True,
         decision_gate_triggered=decision_gate_triggered,
+        final_capital_binding=final_capital_binding,
         risk_delta_usd=risk_delta_usd,
         margin_delta_usd=margin_delta_usd,
         ablation_key=ablation_key,
@@ -255,6 +260,50 @@ def build_sovereign_function_sensors(
     risk_request = decision.risk_request
     final_plan = decision.final_plan
     sizing_plan = decision.sizing.plan
+    final_positive = (
+        final_plan.action
+        in {
+            CapitalAction.OPEN_MINIMAL_SEED,
+            CapitalAction.OPEN_CAPABILITY_MAX,
+            CapitalAction.EXPAND,
+        }
+        and final_plan.volume > 0
+    )
+    portfolio_binding = (
+        (portfolio.multiplier == 0 and final_plan.action is CapitalAction.HOLD)
+        or (
+            final_positive
+            and (
+                final_plan.stop_risk_usd == portfolio.stop_risk_usd
+                or final_plan.margin_usd == portfolio.margin_usd
+            )
+        )
+    )
+    competition_binding = (
+        not competition.admit_opportunity
+        and final_plan.action is CapitalAction.HOLD
+    )
+    sizing_binding = (
+        sizing_plan.action is CapitalAction.HOLD
+        or (
+            final_positive
+            and final_plan.volume == sizing_plan.volume
+        )
+    )
+    robust_binding = (
+        final_positive
+        and (
+            final_plan.stop_risk_usd
+            == first_robust.common_stop_risk_headroom_usd
+            or final_plan.margin_usd
+            == first_robust.common_margin_headroom_usd
+        )
+    )
+    compound_block_binding = (
+        sizing_plan.action is CapitalAction.EXPAND
+        and not decision.capital_science.allow_incremental_compound
+        and final_plan.action is CapitalAction.HOLD
+    )
 
     sensors: list[CiboFunctionEconomicSensor] = [
         _sensor(
@@ -277,6 +326,11 @@ def build_sovereign_function_sensors(
                 decision.synthesis.directive
                 is not CiboExecutiveDirectiveKind.RECOMMEND
             ),
+            final_capital_binding=(
+                decision.synthesis.directive
+                is not CiboExecutiveDirectiveKind.RECOMMEND
+                and final_plan.action is CapitalAction.HOLD
+            ),
             ablation_key="cognition",
         ),
         _sensor(
@@ -297,6 +351,7 @@ def build_sovereign_function_sensors(
                     first_robust.common_margin_headroom_usd
                 ),
             ),
+            final_capital_binding=robust_binding,
             ablation_key="compound_portfolio",
         ),
         _sensor(
@@ -316,6 +371,7 @@ def build_sovereign_function_sensors(
                 margin_usd=portfolio.margin_usd,
             ),
             decision_gate_triggered=(portfolio.multiplier == 0),
+            final_capital_binding=portfolio_binding,
             ablation_key="compound_portfolio",
         ),
         _sensor(
@@ -332,6 +388,7 @@ def build_sovereign_function_sensors(
                 margin_cap_usd=portfolio.margin_usd,
             ),
             decision_gate_triggered=(portfolio.multiplier == 0),
+            final_capital_binding=portfolio_binding,
             ablation_key="adaptive_leverage",
         ),
         _sensor(
@@ -351,6 +408,7 @@ def build_sovereign_function_sensors(
                 ),
             ),
             decision_gate_triggered=(not competition.admit_opportunity),
+            final_capital_binding=competition_binding,
             ablation_key="compound_portfolio",
         ),
         _sensor(
@@ -378,6 +436,7 @@ def build_sovereign_function_sensors(
             decision_gate_triggered=(
                 sizing_plan.action is CapitalAction.HOLD
             ),
+            final_capital_binding=sizing_binding,
             ablation_key="sizing",
         ),
         _sensor(
@@ -402,6 +461,7 @@ def build_sovereign_function_sensors(
                 sizing_plan.action is CapitalAction.EXPAND
                 and not decision.capital_science.allow_incremental_compound
             ),
+            final_capital_binding=compound_block_binding,
             ablation_key="cibo_compound",
         ),
         _sensor(
@@ -422,6 +482,7 @@ def build_sovereign_function_sensors(
                 margin_usd=final_plan.margin_usd,
             ),
             decision_gate_triggered=(final_plan.action is CapitalAction.HOLD),
+            final_capital_binding=True,
         ),
         _sensor(
             decision_id=decision.decision_id,
@@ -449,6 +510,7 @@ def build_sovereign_function_sensors(
                     else risk_request.requested_margin
                 ),
             ),
+            final_capital_binding=(risk_request is not None),
         ),
     ]
 
@@ -476,6 +538,20 @@ def build_sovereign_function_sensors(
                 called=True,
                 downstream_consumed=bool(receipt.downstream_consumer),
                 decision_gate_triggered=receipt.decision_changed,
+                final_capital_binding=(
+                    robust_binding
+                    if receipt.function_code == "GEN-C11"
+                    else (
+                        receipt.function_code == "GEN-C12"
+                        and receipt.consumer_action == "PAUSE_NEW_CAPITAL"
+                        and final_plan.action is CapitalAction.HOLD
+                    )
+                    or (
+                        receipt.function_code in {"GEN-C4", "GEN-C5", "GEN-C7", "GEN-C8"}
+                        and compound_block_binding
+                        and receipt.decision_changed
+                    )
+                ),
                 risk_delta_usd=receipt.risk_delta_usd,
                 margin_delta_usd=receipt.margin_delta_usd,
                 ablation_key=None,
@@ -533,6 +609,13 @@ def summarize_function_sensors(
             ),
             "decision_gate_triggered_count": sum(
                 item.decision_gate_triggered for item in group
+            ),
+            "final_capital_binding_count": sum(
+                item.final_capital_binding for item in group
+            ),
+            "local_change_without_final_binding_count": sum(
+                item.decision_gate_triggered and not item.final_capital_binding
+                for item in group
             ),
             "risk_delta_usd": format(risk_delta, "f"),
             "margin_delta_usd": format(margin_delta, "f"),
