@@ -196,6 +196,7 @@ def plan_account_wide_capital_allocation(
                 in {
                     CausalExpectationBasis.CAUSAL_MODEL_FORECAST,
                     CausalExpectationBasis.CURRENT_STATE_FORECAST,
+                    CausalExpectationBasis.WALK_FORWARD_EMPIRICAL_FORECAST,
                 }
             ),
             Decimal(0),
