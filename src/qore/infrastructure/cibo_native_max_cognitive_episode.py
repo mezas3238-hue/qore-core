@@ -446,30 +446,31 @@ def _attention(
     expected_net_utility_raw = target_economics.get(
         "expected_net_utility_usd"
     )
-    if not isinstance(expected_net_utility_raw, str) or not (
+    expected_net_utility: Decimal | None = None
+    if isinstance(expected_net_utility_raw, str) and (
         expected_net_utility_raw
     ):
-        raise CiboCapitalManagementError(
-            "native cognitive CF07 expected net utility missing"
-        )
-    try:
-        expected_net_utility = Decimal(expected_net_utility_raw)
-    except Exception as error:
-        raise CiboCapitalManagementError(
-            "native cognitive CF07 expected net utility invalid"
-        ) from error
-    if not expected_net_utility.is_finite():
-        raise CiboCapitalManagementError(
-            "native cognitive CF07 expected net utility non-finite"
-        )
-    if expected_net_utility <= 0:
-        add(
-            AttentionSignalKind.CONTRADICTION,
-            90,
-            "nonpositive-causal-expected-net-utility",
-            "cf07-economic-intelligence",
-        )
-        decision_gate_codes.append("CF07")
+        try:
+            expected_net_utility = Decimal(expected_net_utility_raw)
+        except Exception as error:
+            raise CiboCapitalManagementError(
+                "native cognitive CF07 expected net utility invalid"
+            ) from error
+        if not expected_net_utility.is_finite():
+            raise CiboCapitalManagementError(
+                "native cognitive CF07 expected net utility non-finite"
+            )
+        if (
+            context_quality_disposition != "ABSTAIN"
+            and expected_net_utility <= 0
+        ):
+            add(
+                AttentionSignalKind.CONTRADICTION,
+                90,
+                "nonpositive-causal-expected-net-utility",
+                "cf07-economic-intelligence",
+            )
+            decision_gate_codes.append("CF07")
 
     if (
         target_economics.get("expectation_basis")
@@ -517,7 +518,11 @@ def _attention(
     )
     semantic_abstain = (
         context_quality_disposition == "ABSTAIN"
-        or expected_net_utility <= 0
+        or (
+            context_quality_disposition != "ABSTAIN"
+            and expected_net_utility is not None
+            and expected_net_utility <= 0
+        )
     )
     abstain = (
         bool(missing)
@@ -531,7 +536,10 @@ def _attention(
     elif context_quality_disposition == "ABSTAIN":
         kind = "abstain_defer"
         note = "context-quality-abstention"
-    elif expected_net_utility <= 0:
+    elif (
+        expected_net_utility is not None
+        and expected_net_utility <= 0
+    ):
         kind = "abstain_defer"
         note = "nonpositive-causal-expected-net-utility"
     elif hard_capacity_exhausted:
