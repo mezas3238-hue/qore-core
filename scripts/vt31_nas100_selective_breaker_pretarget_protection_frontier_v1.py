@@ -56,7 +56,7 @@ def _matches_selector(
 ) -> bool:
     if selector is None:
         return False
-    family = str(getattr(getattr(executable, "selected_family"), "value"))
+    family = str(executable.selected_family.value)
     if family != "breaker":
         return False
     if str(state.get("m15_state")) != "mixed":
