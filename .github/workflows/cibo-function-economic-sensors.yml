@@ -7,7 +7,6 @@ on:
       - agent/cibo-function-economic-sensors-001
     paths:
       - '.github/workflows/cibo-function-economic-sensors.yml'
-      - 'scripts/cibo_single_account_historical_ceiling_replay.py'
       - 'src/qore/infrastructure/cibo_function_economic_sensors.py'
       - 'src/qore/infrastructure/cibo_single_account_sovereign_ceiling_run.py'
       - 'tests/infrastructure/test_cibo_function_economic_sensors.py'
@@ -36,9 +35,9 @@ jobs:
       - name: Compile and lint sensor surface
         run: |
           set -euo pipefail
-          python -m py_compile scripts/cibo_single_account_historical_ceiling_replay.py src/qore/infrastructure/cibo_function_economic_sensors.py src/qore/infrastructure/cibo_single_account_sovereign_ceiling_run.py
-          ruff check scripts/cibo_single_account_historical_ceiling_replay.py src/qore/infrastructure/cibo_function_economic_sensors.py src/qore/infrastructure/cibo_single_account_sovereign_ceiling_run.py tests/infrastructure/test_cibo_function_economic_sensors.py
+          python -m py_compile             src/qore/infrastructure/cibo_function_economic_sensors.py             src/qore/infrastructure/cibo_single_account_sovereign_ceiling_run.py
+          ruff check             src/qore/infrastructure/cibo_function_economic_sensors.py             src/qore/infrastructure/cibo_single_account_sovereign_ceiling_run.py             tests/infrastructure/test_cibo_function_economic_sensors.py
       - name: Prove sensor contracts and real epoch integration
         run: |
           set -euo pipefail
-          pytest -q --no-cov tests/infrastructure/test_cibo_function_economic_sensors.py tests/infrastructure/test_cibo_single_account_historical_ceiling_epoch.py
+          pytest -q --no-cov             tests/infrastructure/test_cibo_function_economic_sensors.py             tests/infrastructure/test_cibo_single_account_historical_ceiling_epoch.py
