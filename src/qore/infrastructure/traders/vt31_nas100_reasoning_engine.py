@@ -107,6 +107,8 @@ def _max_intelligence_audit(
 
     if state.m15_state.upper() in {"UNWIRED", ""}:
         blockers.append("M15_CONTEXT_UNWIRED")
+    if state.h4_state.lower() == "unavailable":
+        blockers.append("H4_CONTEXT_UNAVAILABLE")
     if state.h1_state == "unavailable":
         blockers.append("H1_CONTEXT_UNAVAILABLE")
     if state.last_structure_event_family in {"", "unavailable"}:
