@@ -41,6 +41,8 @@ VARIANTS = (
     "CONTROL",
     "COG_EXIT_CAUTION",
     "COG_EXIT_CAUTION_WEAK_PATH",
+    "COG_EXIT_STALE_MIXED",
+    "COG_EXIT_CAUTION_OR_STALE_MIXED",
     "COG_EXIT_NONSUPPORTIVE",
 )
 
@@ -65,11 +67,25 @@ def _exit_allowed(
 
     context = str(diagnostic["management_context"])
     weak_path = diagnostic.get("weak_path") is True
+    reclaim_age_raw = diagnostic.get("reference_reclaim_age_minutes")
+    reclaim_age = (
+        None if reclaim_age_raw is None else int(reclaim_age_raw)
+    )
+    stale_sequence = (
+        reclaim_age is not None
+        and 8 <= reclaim_age < 15
+    )
 
     if variant == "COG_EXIT_CAUTION":
         return context == "CAUTIOUS"
     if variant == "COG_EXIT_CAUTION_WEAK_PATH":
         return context == "CAUTIOUS" and weak_path
+    if variant == "COG_EXIT_STALE_MIXED":
+        return context == "MIXED" and stale_sequence
+    if variant == "COG_EXIT_CAUTION_OR_STALE_MIXED":
+        return context == "CAUTIOUS" or (
+            context == "MIXED" and stale_sequence
+        )
     if variant == "COG_EXIT_NONSUPPORTIVE":
         return context in {"MIXED", "CAUTIOUS"}
     raise ValueError(f"unsupported variant: {variant}")
@@ -432,6 +448,8 @@ def replay(evidence_path: Path) -> dict[str, object]:
             "same_bar_hindsight_used": False,
             "material_adverse_threshold_predeclared": True,
             "material_adverse_threshold_newly_outcome_tuned": False,
+            "stale_sequence_8_14_preexisting_reasoning_state": True,
+            "stale_sequence_threshold_newly_outcome_tuned": False,
             "position_sizing_used": False,
             "dynamic_sizing_used": False,
             "leverage_used": False,
