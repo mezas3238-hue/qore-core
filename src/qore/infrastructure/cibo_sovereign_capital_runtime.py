@@ -487,6 +487,7 @@ def run_cibo_sovereign_capital_runtime(
         option_id=option_id,
         synthesis=synthesis,
         faculty_consultation=consultation,
+        capital_science=capital_science,
         economic_run=economic,
         sizing=sizing,
         final_plan=final_plan,
