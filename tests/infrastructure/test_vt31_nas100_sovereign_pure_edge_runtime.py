@@ -3,7 +3,6 @@ from __future__ import annotations
 from decimal import Decimal
 from pathlib import Path
 
-
 from qore.infrastructure.traders.vt31_nas100_reasoning_engine import reason
 from qore.infrastructure.traders.vt31_nas100_situation_model import (
     Nas100SituationModel,
@@ -11,17 +10,13 @@ from qore.infrastructure.traders.vt31_nas100_situation_model import (
 
 ROOT = Path(__file__).resolve().parents[2]
 SPECIALIST = ROOT / "scripts" / "vt31_nas100_specialist_r1_candidate.py"
-REASONING = (
-    ROOT
-    / "src"
-    / "qore"
-    / "infrastructure"
-    / "traders"
-    / "vt31_nas100_reasoning_engine.py"
-)
 
 
-def _situation(*, ref_ratio: str = "0.68") -> Nas100SituationModel:
+def _situation(
+    *,
+    ref_ratio: str = "0.68",
+    planned_target_r: Decimal | None = None,
+) -> Nas100SituationModel:
     return Nas100SituationModel(
         as_of="2026-01-05T15:20:00+00:00",
         weekday="Monday",
@@ -60,7 +55,7 @@ def _situation(*, ref_ratio: str = "0.68") -> Nas100SituationModel:
         entry_evidence_freshness="fresh-0-5m",
         stop_plan="SOURCE_SWING_EXTREME",
         risk_ref=Decimal("0.21"),
-        planned_target_r=None,
+        planned_target_r=planned_target_r,
         structural_destination="OPPOSITE_09_REFERENCE_BOUNDARY",
         destination_distance_ref=Decimal("0.71"),
         journey_stage="POST_CONFIRMATION_PRE_EXECUTION",
@@ -73,54 +68,41 @@ def _situation(*, ref_ratio: str = "0.68") -> Nas100SituationModel:
     )
 
 
-def test_current_reasoning_can_remain_structural_without_forbidding_r() -> None:
-    compressed = reason(_situation(ref_ratio="0.68"))
-    normal = reason(_situation(ref_ratio="1.05"))
-
-    assert compressed.target_plan == "PRIMARY_STRUCTURAL_BOUNDARY"
-    assert normal.target_plan == "PRIMARY_STRUCTURAL_BOUNDARY"
-
-
-def test_runtime_situation_accepts_positive_planned_target_r() -> None:
-    base = _situation()
-    payload = {
-        name: getattr(base, name)
-        for name in base.__dataclass_fields__
-    }
-    payload["planned_target_r"] = Decimal("3")
-
-    situation = Nas100SituationModel(**payload)
+def test_runtime_situation_allows_strategy_native_r_target() -> None:
+    situation = _situation(planned_target_r=Decimal("3"))
 
     assert situation.planned_target_r == Decimal("3")
+    assert situation.payload()["planned_target_r"] == "3"
 
 
-def test_current_candidate_may_be_structural_only_without_banning_r() -> None:
-    text = SPECIALIST.read_text(encoding="utf-8")
-    block = text.split(
-        "def _simulate_structural_boundary_only",
-        1,
-    )[1].split(
-        "def _simulate_selected_plan",
-        1,
-    )[0]
+def test_current_candidate_may_remain_structural_without_banning_r() -> None:
+    decision = reason(_situation(ref_ratio="0.68", planned_target_r=Decimal("3")))
 
-    assert 'exit_reason = "structural-invalidation"' in block
-    assert 'exit_reason = "structural-target"' in block
+    assert decision.target_plan == "PRIMARY_STRUCTURAL_BOUNDARY"
 
 
-def test_reasoning_keeps_current_structural_target_candidate() -> None:
-    reasoning = REASONING.read_text(encoding="utf-8")
-
-    assert "PRIMARY_STRUCTURAL_BOUNDARY" in reasoning
-
-
-def test_specialist_contract_allows_r_but_forbids_sizing() -> None:
+def test_specialist_contract_allows_r_but_forbids_sizing_rescue() -> None:
     text = SPECIALIST.read_text(encoding="utf-8")
 
-    assert '"r_runtime_allowed_by_sovereign_rule": True' in text
     assert '"runtime_r_target_allowed": True' in text
     assert '"runtime_r_breakeven_allowed": True' in text
     assert '"runtime_r_trailing_allowed": True' in text
+    assert '"r_runtime_allowed_by_sovereign_rule": True' in text
     assert '"sizing_used": False' in text
     assert '"leverage_used": False' in text
     assert '"compounding_used": False' in text
+    assert '"capital_weighting_used": False' in text
+
+
+def test_current_candidate_can_report_no_r_management_without_disabling_capability() -> None:
+    text = SPECIALIST.read_text(encoding="utf-8")
+
+    assert '"current_candidate_uses_r_runtime_management": False' in text
+    assert '"r_runtime_allowed_by_sovereign_rule": True' in text
+
+
+def test_volume_does_not_become_trader_decision_authority() -> None:
+    text = SPECIALIST.read_text(encoding="utf-8")
+
+    assert '"volume_changes_market_decision": False' in text
+    assert '"sizing_used": False' in text
