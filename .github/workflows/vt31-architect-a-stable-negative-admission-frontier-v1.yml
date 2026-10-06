@@ -144,8 +144,10 @@ jobs:
           folds=("r5","r6","r8","consumed")
           candidates=(
               "ABSTAIN_ORDER_BLOCK",
+              "ABSTAIN_ORDER_BLOCK_AGE_0_2M",
               "ABSTAIN_EXPANDED_REFERENCE",
               "ABSTAIN_ORDER_BLOCK_OR_EXPANDED",
+              "ABSTAIN_ORDER_BLOCK_AGE_0_2M_OR_EXPANDED",
           )
           payloads={
               fold:json.loads(
