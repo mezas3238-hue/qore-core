@@ -18,7 +18,6 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from datetime import datetime
 from decimal import Decimal
-from typing import Any
 
 from qore.infrastructure.account_wide_risk import (
     AccountRiskSnapshot,

@@ -3,6 +3,7 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from types import SimpleNamespace
 
+from qore.infrastructure import cibo_single_account_sovereign_ceiling_executor as executor
 from qore.infrastructure.account_wide_risk import (
     AccountRiskSnapshot,
     RiskDecision,
@@ -11,7 +12,6 @@ from qore.infrastructure.account_wide_risk import (
 from qore.infrastructure.cibo_capital_management_authority import (
     TraderOpportunityEnvelope,
 )
-from qore.infrastructure import cibo_single_account_sovereign_ceiling_executor as executor
 
 T0 = datetime(2026, 1, 5, 12, 0, tzinfo=UTC)
 
