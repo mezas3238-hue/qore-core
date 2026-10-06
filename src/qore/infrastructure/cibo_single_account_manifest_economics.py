@@ -22,6 +22,9 @@ from qore.infrastructure.cibo_capital_management_authority import (
 from qore.infrastructure.cibo_ce2i_causal_expectation import (
     CausalExpectationBasis,
 )
+from qore.infrastructure.cibo_ce2i_phase20_train_prior import (
+    frozen_train_prior_available_at,
+)
 from qore.infrastructure.cibo_single_account_ceiling_state import (
     CiboCeilingOpportunityEvidence,
 )
@@ -59,6 +62,27 @@ def _datetime(value: object, name: str) -> datetime:
     if result.tzinfo is None or result.utcoffset() is None:
         raise CiboCapitalManagementError(f"{name} must be timezone-aware")
     return result
+
+
+def _expectation_evidence_available_at(
+    expectation: Mapping[str, Any],
+) -> datetime:
+    raw = expectation.get("evidence_available_at")
+    if raw is not None:
+        return _datetime(raw, "expectation evidence_available_at")
+
+    evidence_id = expectation.get("evidence_id")
+    basis = expectation.get("basis")
+    if (
+        basis == CausalExpectationBasis.FROZEN_HISTORICAL_PRIOR.value
+        and isinstance(evidence_id, str)
+        and evidence_id.startswith("CIBO_PHASE20_TRAIN_PRIOR_V1:")
+    ):
+        return frozen_train_prior_available_at()
+
+    raise CiboCapitalManagementError(
+        "expectation must declare when its evidence became available"
+    )
 
 
 def _canonical_sha256(value: Mapping[str, Any]) -> str:
@@ -229,6 +253,11 @@ def manifest_row_to_ceiling_opportunity_evidence(
         raise CiboCapitalManagementError("expectation cannot postdate decision")
     if expectation.get("basis") not in _EXPECTATION_BASES:
         raise CiboCapitalManagementError("expectation basis is not canonical")
+    evidence_available_at = _expectation_evidence_available_at(expectation)
+    if evidence_available_at > decision_at:
+        raise CiboCapitalManagementError(
+            "expectation evidence was not available at decision time"
+        )
     for name in (
         "future_market_used",
         "outcome_used",
