@@ -222,6 +222,7 @@ def _opportunity(*, known_at: datetime = T0) -> CiboObservedOpportunityState:
         provider_viable=True,
         capital_source_eligible=True,
         evidence_sha256="sha256:" + "e" * 64,
+        maximum_multiplier=12,
     )
 
 
@@ -254,7 +255,7 @@ def _full_twin() -> CiboObservedEconomicTwin:
         opportunities=(opportunity,),
         portfolio=portfolio,
         velocity=velocity,
-        cognitive_constraints=(("capital_intensity_cap", "3"),),
+        cognitive_constraints=(("capital_intensity_cap", "12"),),
         provider_state=(("XAUUSD", "SUPPORTED"),),
     )
 
@@ -480,6 +481,7 @@ def _position_competition_twin(
         provider_viable=True,
         capital_source_eligible=True,
         evidence_sha256="sha256:" + "9" * 64,
+        maximum_multiplier=12,
     )
     return CiboObservedEconomicTwin(
         twin_id="position-competition",
