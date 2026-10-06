@@ -136,6 +136,19 @@ _RECOVERY_SAFE_TOOLS = frozenset(
 )
 
 
+# These utilization boundaries are policy semantics, not replay-tuned values.
+# Portfolio and Risk may import the defensive boundary so every layer agrees
+# on when CIBO must stop voluntarily adding new stop-risk.
+_DEFENSIVE_RISK_UTILIZATION = Decimal("0.70")
+_RECOVERY_RISK_UTILIZATION = Decimal("0.85")
+
+
+def cibo_new_capital_risk_utilization_ceiling() -> Decimal:
+    """Maximum total stop-risk utilization before new capital turns defensive."""
+
+    return _DEFENSIVE_RISK_UTILIZATION
+
+
 def select_ce2i_tools_for_regime(
     *,
     mission: CiboCapitalMissionPolicy,
@@ -217,7 +230,7 @@ def _posture(
         )
     if (
         state.drawdown_utilization >= Decimal("0.75")
-        or state.risk_utilization >= Decimal("0.85")
+        or state.risk_utilization >= _RECOVERY_RISK_UTILIZATION
         or state.volatility is VolatilityState.DISLOCATED
         or state.correlation is CorrelationState.BREAK
     ):
@@ -229,7 +242,7 @@ def _posture(
         state.provider_condition is ProviderCondition.DEGRADED
         or state.liquidity is LiquidityState.STRESSED
         or state.drawdown_utilization >= Decimal("0.50")
-        or state.risk_utilization >= Decimal("0.70")
+        or state.risk_utilization >= _DEFENSIVE_RISK_UTILIZATION
         or state.margin_utilization >= Decimal("0.80")
         or state.position_path_adverse
     ):
