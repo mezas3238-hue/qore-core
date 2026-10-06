@@ -24,6 +24,9 @@ import vt31_nas100_h3_dol2_composition_frontier_v1 as composition
 import vt31_nas100_post_1r_full_cognition_management_frontier_v2 as h3
 import vt31_nas100_specialist_r1_candidate as specialist
 
+from qore.infrastructure.traders.vt31_nas100_cognitive_plumbing import (
+    recent_liquidity_event_count_10m,
+)
 from qore.infrastructure.traders.vt31_nas100_cognitive_telemetry import (
     capture_post_entry_cognitive_sensor,
 )
@@ -227,7 +230,13 @@ def _live_cognitive_position_decision(
         reference_reclaim_age_minutes=reclaim_age,
         last_structure_event_family=last_family,
         last_structure_event_age_minutes=last_age,
-        recent_liquidity_event_count_10m=None,
+        recent_liquidity_event_count_10m=(
+            recent_liquidity_event_count_10m(
+                session_prefix,
+                source,
+                observation_at,
+            )
+        ),
         displacement_state=entry_situation.displacement_state,
         journey_stage="OPEN_PRE_DOL1_PROTECTION_EVALUATION",
         dol1_state="ACTIVE_PRE_DOL1",
