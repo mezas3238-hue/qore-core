@@ -1345,3 +1345,145 @@ The correct question is:
 **“How much robust economic value can full CIBO intelligence extract while preserving capital, causality, survival and universal operation?”**
 
 That is the mission.
+
+---
+
+# 26. LATEST DELTA AFTER HANDOFF CREATION — 2026-10-06
+
+This section is authoritative over any older "current blocker" wording above.
+
+## 26.1 Current branch head
+
+Canonical causal branch:
+
+`agent/cibo-causal-expectation-leakage-fix-001`
+
+Current verified head:
+
+`537d61f8267f9a6b15f533228c6f436bcaa14ca9`
+
+Commits added after the original handoff snapshot:
+
+- `e0c04fc6ccd6b1c5e667f655c549514399aa4892` — fail closed to HOLD when minimum seed is infeasible;
+- `ab6ff05f6db5a44467de33f36df93c5ab5cef8b9` — regression coverage for fail-closed scarcity;
+- `537d61f8267f9a6b15f533228c6f436bcaa14ca9` — exercise scarcity sizing in the full walk-forward replay.
+
+## 26.2 Minimum-seed crash partially closed
+
+The previous failure:
+
+`maximum account-constrained capacity cannot express minimum seed`
+
+was not silenced and provider minimums were not weakened.
+
+Instead, maximum account-constrained sizing now fails closed to:
+
+- CapitalAction.HOLD;
+- volume = 0;
+- risk = 0;
+- margin = 0;
+
+when either:
+
+- there is no deployable risk/margin headroom; or
+- the maximum lawful account-constrained volume is below the provider minimum seed.
+
+This is the correct scarcity behavior at the Sizing boundary.
+
+Regression tests cover both cases.
+
+## 26.3 New P0 blocker exposed downstream
+
+Latest full causal walk-forward replay:
+
+- workflow: `QORE CIBO Walk Forward Full Replay`;
+- run: `37507899860`;
+- head: `537d61f8267f9a6b15f533228c6f436bcaa14ca9`;
+- result: FAILURE.
+
+The walk-forward chronology remains clean:
+
+- 3,368 opportunities;
+- 3,305 decision epochs;
+- 35 cold-start decisions;
+- 3,333 causal walk-forward forecasts;
+- 0 decoded-before-exit;
+- future outcome used = false;
+- capital PnL used for forecast = false;
+- provider/platform/market-specific model = false.
+
+At epoch ~100:
+
+- peak realized capital ~USD 72.3956;
+- realized capital ~USD 15.9065;
+- 37 settlements;
+- 0 open positions.
+
+The new failure is:
+
+`CiboCompoundCapitalError: marginal capital request must be positive`
+
+Stack location:
+
+- `cibo_capital_science_runtime_bridge.py`;
+- `_native_genc5_inputs(...)`;
+- construction of `MarginalCapitalUtilityEvidence`;
+- validation in `cibo_marginal_capital_utility_evidence.py`.
+
+Interpretation:
+
+The Sizing scarcity boundary is now behaving fail-closed, but GEN-C5 still assumes that a marginal capital request reaching its evidence contract is strictly positive.
+
+Under deep capital scarcity, zero/non-positive deployable marginal capital must be represented truthfully as an abstain/hold/no-marginal-capacity state before GEN-C5 attempts to construct positive-request evidence.
+
+Do NOT fix this by:
+
+- inventing a tiny positive request;
+- clamping to epsilon;
+- weakening the evidence invariant;
+- resurrecting capital;
+- changing provider minimums;
+- using leverage or sizing to hide the scarcity state.
+
+## 26.4 Immediate new work order
+
+The next architect must now:
+
+1. Reproduce run `37507899860`.
+2. Trace the exact capital state and proposed marginal request entering `_native_genc5_inputs`.
+3. Identify which upstream capital-science/compound branch is incorrectly asking GEN-C5 to evaluate a non-positive marginal request.
+4. Introduce an explicit causal NO_MARGINAL_CAPACITY / HOLD path before positive marginal-utility evidence construction.
+5. Prove that:
+   - zero/negative marginal capacity never becomes an OPEN request;
+   - no fake epsilon capital is created;
+   - no realized/floating PnL is double spent;
+   - minimum-seed scarcity remains fail-closed;
+   - QORE Risk remains sovereign.
+6. Re-run the full 3,368-opportunity causal walk-forward replay.
+7. If another downstream scarcity assumption fails, continue tracing rather than weakening invariants.
+8. Only after the full causal replay completes should capital-leak attribution resume.
+
+## 26.5 Certification status after this delta
+
+CIBO remains:
+
+- NOT ceiling-discovered;
+- NOT candidate-frozen;
+- NOT fresh-holdout-ready;
+- NOT certified;
+- NOT LIVE-authorized;
+- NOT real-capital-authorized;
+- NOT production-authorized.
+
+The order remains:
+
+CAPITAL-LEAK CLOSURE
+-> CLEAN CAUSAL BASELINE
+-> Sizing / Adaptive Leverage / CIBO Compound / Compound Portfolio studies
+-> TRUE CEILING DISCOVERY
+-> POST-CEILING REFINEMENT
+-> Exam 1
+-> Exam 3
+-> Exam 2 (+2000% NET in <=10 calendar months)
+-> certification adjudication.
+
