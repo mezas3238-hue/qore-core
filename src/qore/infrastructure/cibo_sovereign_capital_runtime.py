@@ -29,11 +29,13 @@ from qore.infrastructure.cibo_account_capital_mission import (
 )
 from qore.infrastructure.cibo_account_sizing_authority import (
     CiboAccountSizingDecision,
+    CiboAccountSizingMode,
     plan_account_sizing,
 )
 from qore.infrastructure.cibo_capital_management_authority import (
     CapitalAction,
     CapitalCapacityDimension,
+    CapitalStage,
     CiboCapitalActionPlan,
     CiboCapitalManagementError,
     CiboCapitalState,
@@ -47,6 +49,10 @@ from qore.infrastructure.cibo_capital_science_runtime_bridge import (
     evaluate_capital_science_predecision,
 )
 from qore.infrastructure.cibo_ce2i_regime_selector import CiboCapitalRegimeState
+from qore.infrastructure.cibo_ceiling_ablation import (
+    CiboCeilingAblationMode,
+    validate_ceiling_ablation_mode,
+)
 from qore.infrastructure.cibo_cma_risk_request import build_cma_risk_request
 from qore.infrastructure.cibo_economic_engine_wiring import (
     CiboEconomicEngineRun,
@@ -202,7 +208,10 @@ def bind_cibo_cognition_to_twin(
 
     # Cognition does not pick volume. It can only close the capital-intensity
     # gate. A positive RECOMMEND leaves the existing economic cap untouched.
-    if synthesis.directive is not CiboExecutiveDirectiveKind.RECOMMEND:
+    if (
+        ablation_mode is not CiboCeilingAblationMode.COGNITION
+        and synthesis.directive is not CiboExecutiveDirectiveKind.RECOMMEND
+    ):
         constraints["capital_intensity_cap"] = "0"
 
     return replace(
@@ -233,9 +242,11 @@ def run_cibo_sovereign_capital_runtime(
     requested_at: datetime,
     expires_at: datetime,
     lifecycle_requests: tuple[CiboLifecycleWireRequest, ...] = (),
+    ablation_mode: CiboCeilingAblationMode = CiboCeilingAblationMode.FULL,
 ) -> CiboSovereignCapitalDecision:
     """Run the sovereign CIBO path through the QORE Risk handoff boundary."""
 
+    validate_ceiling_ablation_mode(ablation_mode)
     if not decision_id or not option_id or not request_id:
         raise CiboCapitalManagementError(
             "sovereign runtime decision/option/request identity is required"
@@ -318,13 +329,29 @@ def run_cibo_sovereign_capital_runtime(
             "sovereign option identity does not match Trader opportunity"
         )
 
-    cognitive_twin = bind_cibo_cognition_to_twin(twin, synthesis)
+    cognitive_twin = (
+        twin
+        if ablation_mode is CiboCeilingAblationMode.COGNITION
+        else bind_cibo_cognition_to_twin(twin, synthesis)
+    )
     economic = run_cibo_economic_engine_chain(
         twin=cognitive_twin,
         world_paths=world_paths,
         option_schedules=option_schedules,
         lifecycle_requests=lifecycle_requests,
         competition_option_ids=(option_id,),
+        portfolio_fixed_multiplier=(
+            1
+            if ablation_mode
+            is CiboCeilingAblationMode.ADAPTIVE_LEVERAGE
+            else None
+        ),
+        portfolio_target_only_option_id=(
+            option_id
+            if ablation_mode
+            is CiboCeilingAblationMode.COMPOUND_PORTFOLIO
+            else None
+        ),
     )
     minimum_volume = minimum_seed_volume(opportunity)
     with localcontext() as context:
@@ -332,22 +359,40 @@ def run_cibo_sovereign_capital_runtime(
         provider_cost_per_volume_usd = (
             twin_opportunity.provider_cost_usd / minimum_volume
         )
-    sizing = plan_account_sizing(
-        opportunity=opportunity,
-        capital=capital,
-        mission_policy=mission_policy,
-        survival_capital_usd=survival_capital_usd,
-        protected_capital_usd=protected_capital_usd,
-        provider_cost_per_volume_usd=provider_cost_per_volume_usd,
-        original_base_available_usd=_available_source_capacity(
-            twin,
-            CapitalCapacityDimension.BASE_RISK_CAPITAL,
-        ),
-        realized_profit_available_usd=_available_source_capacity(
-            twin,
-            CapitalCapacityDimension.ECONOMIC_PROFIT_CAPITAL,
-        ),
+    base_available = _available_source_capacity(
+        twin,
+        CapitalCapacityDimension.BASE_RISK_CAPITAL,
     )
+    profit_available = _available_source_capacity(
+        twin,
+        CapitalCapacityDimension.ECONOMIC_PROFIT_CAPITAL,
+    )
+    if ablation_mode is CiboCeilingAblationMode.CIBO_COMPOUND:
+        sizing = _plan_without_compound_funding(
+            opportunity=opportunity,
+            capital=capital,
+            mission_policy=mission_policy,
+            survival_capital_usd=survival_capital_usd,
+            protected_capital_usd=protected_capital_usd,
+            provider_cost_per_volume_usd=provider_cost_per_volume_usd,
+            original_base_available_usd=base_available,
+        )
+    else:
+        sizing = plan_account_sizing(
+            opportunity=opportunity,
+            capital=capital,
+            mission_policy=mission_policy,
+            survival_capital_usd=survival_capital_usd,
+            protected_capital_usd=protected_capital_usd,
+            provider_cost_per_volume_usd=provider_cost_per_volume_usd,
+            original_base_available_usd=base_available,
+            realized_profit_available_usd=profit_available,
+        )
+    if ablation_mode is CiboCeilingAblationMode.SIZING:
+        sizing = _ablate_variable_sizing(
+            opportunity=opportunity,
+            sizing=sizing,
+        )
     capital_science = evaluate_capital_science_predecision(
         _build_capital_science_state(
             decision_id=decision_id,
@@ -495,6 +540,147 @@ def run_cibo_sovereign_capital_runtime(
         final_plan=final_plan,
         disposition=CiboSovereignCapitalDisposition.RISK_REVIEW_READY,
         risk_request=risk_request,
+    )
+
+
+def _hold_sizing_for_ablation(
+    *,
+    opportunity: TraderOpportunityEnvelope,
+    mission_policy: CiboCapitalMissionPolicy,
+    survival_capital_usd: Decimal,
+    protected_capital_usd: Decimal,
+    reason: str,
+) -> CiboAccountSizingDecision:
+    plan = CiboCapitalActionPlan(
+        trader_id=opportunity.trader_id,
+        qore_symbol=opportunity.qore_symbol,
+        stage=CapitalStage.MINIMAL_SEED,
+        action=CapitalAction.HOLD,
+        volume=Decimal(0),
+        stop_risk_usd=Decimal(0),
+        margin_usd=Decimal(0),
+        capital_source=None,
+        capital_source_amount_usd=Decimal(0),
+        reason=reason,
+    )
+    return CiboAccountSizingDecision(
+        mission=mission_policy.mission,
+        mode=CiboAccountSizingMode.SURVIVAL_MINIMAL_SEED,
+        base_protected=protected_capital_usd >= survival_capital_usd,
+        survival_capital_usd=survival_capital_usd,
+        protected_capital_usd=protected_capital_usd,
+        plan=plan,
+    )
+
+
+def _plan_without_compound_funding(
+    *,
+    opportunity: TraderOpportunityEnvelope,
+    capital: CiboCapitalState,
+    mission_policy: CiboCapitalMissionPolicy,
+    survival_capital_usd: Decimal,
+    protected_capital_usd: Decimal,
+    provider_cost_per_volume_usd: Decimal,
+    original_base_available_usd: Decimal | None,
+) -> CiboAccountSizingDecision:
+    with localcontext() as context:
+        context.prec = 100
+        fallback_base = max(
+            Decimal(0),
+            capital.assigned_capital_usd - capital.realized_net_profit_usd,
+        )
+        base_available = (
+            fallback_base
+            if original_base_available_usd is None
+            else original_base_available_usd
+        )
+    if base_available <= 0:
+        return _hold_sizing_for_ablation(
+            opportunity=opportunity,
+            mission_policy=mission_policy,
+            survival_capital_usd=survival_capital_usd,
+            protected_capital_usd=protected_capital_usd,
+            reason=(
+                "CIBO compound ablation: no original-base capital remains "
+                "available; realized profit is intentionally non-deployable"
+            ),
+        )
+    ablated_capital = replace(
+        capital,
+        assigned_capital_usd=base_available,
+        hard_risk_headroom_usd=min(
+            capital.hard_risk_headroom_usd,
+            base_available,
+        ),
+        base_capital_at_risk_usd=min(
+            capital.base_capital_at_risk_usd,
+            base_available,
+        ),
+        realized_net_profit_usd=Decimal(0),
+        protected_open_economic_floor_usd=Decimal(0),
+        proven_self_financing_capacity_usd=Decimal(0),
+        reserved_expansion_risk_usd=Decimal(0),
+    )
+    if ablated_capital.hard_risk_headroom_usd <= 0:
+        return _hold_sizing_for_ablation(
+            opportunity=opportunity,
+            mission_policy=mission_policy,
+            survival_capital_usd=survival_capital_usd,
+            protected_capital_usd=protected_capital_usd,
+            reason=(
+                "CIBO compound ablation: original-base risk headroom "
+                "is exhausted"
+            ),
+        )
+    return plan_account_sizing(
+        opportunity=opportunity,
+        capital=ablated_capital,
+        mission_policy=mission_policy,
+        survival_capital_usd=survival_capital_usd,
+        protected_capital_usd=protected_capital_usd,
+        provider_cost_per_volume_usd=provider_cost_per_volume_usd,
+        original_base_available_usd=base_available,
+        realized_profit_available_usd=Decimal(0),
+    )
+
+
+def _ablate_variable_sizing(
+    *,
+    opportunity: TraderOpportunityEnvelope,
+    sizing: CiboAccountSizingDecision,
+) -> CiboAccountSizingDecision:
+    if sizing.plan.action not in {
+        CapitalAction.OPEN_MINIMAL_SEED,
+        CapitalAction.OPEN_CAPABILITY_MAX,
+        CapitalAction.EXPAND,
+    }:
+        return replace(
+            sizing,
+            mode=CiboAccountSizingMode.SURVIVAL_MINIMAL_SEED,
+        )
+    minimum = minimum_seed_volume(opportunity)
+    with localcontext() as context:
+        context.prec = 100
+        minimum_risk = minimum * opportunity.stop_loss_per_volume
+        minimum_margin = minimum * opportunity.margin_per_volume
+    plan = _cap_sizing_plan(
+        opportunity=opportunity,
+        sizing=sizing,
+        portfolio_risk_cap_usd=minimum_risk,
+        portfolio_margin_cap_usd=minimum_margin,
+        robust_risk_cap_usd=minimum_risk,
+        robust_margin_cap_usd=minimum_margin,
+    )
+    return replace(
+        sizing,
+        mode=CiboAccountSizingMode.SURVIVAL_MINIMAL_SEED,
+        plan=replace(
+            plan,
+            reason=(
+                plan.reason
+                + "; SIZING ablation fixes exposure to one minimum seed"
+            ),
+        ),
     )
 
 
