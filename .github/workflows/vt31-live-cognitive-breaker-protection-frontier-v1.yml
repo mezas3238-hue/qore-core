@@ -13,6 +13,9 @@ on:
       - src/qore/infrastructure/traders/vt31_nas100_post_entry_cognitive_runtime.py
       - src/qore/infrastructure/traders/vt31_nas100_position_intelligence.py
       - src/qore/infrastructure/traders/vt31_nas100_reasoning_engine.py
+      - src/qore/infrastructure/traders/vt31_nas100_situation_model.py
+      - tests/infrastructure/test_vt31_nas100_position_intelligence.py
+      - tests/infrastructure/test_vt31_nas100_post_entry_cognitive_runtime.py
       - .github/workflows/vt31-live-cognitive-breaker-protection-frontier-v1.yml
   workflow_dispatch:
 
