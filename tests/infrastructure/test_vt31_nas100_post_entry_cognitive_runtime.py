@@ -368,6 +368,31 @@ def test_post_entry_rebuild_carries_causal_open_r() -> None:
     assert decision.cognition.maximum_cognition_verified is True
     assert decision.cognition.protection_urgency is ProtectionUrgency.MODERATE
     assert decision.cognition.target_intent.value == "PRESERVE_DOL1"
-    assert decision.position.action is PositionAction.TRAIL
-    assert decision.position.reason == "COGNITIVE_AND_MARKET_STRUCTURAL_PROTECTION"
+    assert decision.position.action is PositionAction.EXIT
+    assert decision.position.reason == "VALIDATED_ADVERSE_CONTEXT_EXIT"
     assert decision.r_runtime_authority is True
+
+
+def test_validated_comp009_adverse_exit_requires_material_adverse_journey() -> None:
+    entry = _entry_situation()
+    observation = replace(
+        _observation(dol1_state="ACTIVE_OPPOSITE_09_BOUNDARY"),
+        m15_state="mixed",
+        dol2_state="CALIBRATED_ECONOMIC_CAPACITY_COGNITION_REQUIRED",
+        dol3_state="REJECTED_BY_EDGE_ECONOMICS",
+        extension_capacity_state="CALIBRATED_PRE_DOL1_CURRENT_JOURNEY",
+        exhaustion_state="NO_CONFIRMED_EXHAUSTION",
+        current_open_r=Decimal("-0.49"),
+    )
+    decision = reassess_and_decide_post_entry(
+        entry_situation=entry,
+        entry_reasoning=reason(entry),
+        observation=observation,
+        market=_market(),
+        entry_tier="CORE",
+        dol1_acceptance_observed=False,
+    )
+
+    assert decision.cognition.maximum_cognition_verified is True
+    assert decision.position.action is PositionAction.HOLD
+    assert decision.position.reason == "MARKET_STRUCTURE_REMAINS_VALID"
