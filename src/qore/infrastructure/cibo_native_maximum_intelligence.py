@@ -46,15 +46,6 @@ from qore.modules.cibo.cognitive_contracts import (
 )
 
 
-_TURTLE_TRADERS = frozenset(
-    {
-        TraderLineage.R34_XAUUSD,
-        TraderLineage.R38_EURUSD,
-        TraderLineage.R43_GBPUSD,
-        TraderLineage.R38_GBPJPY,
-        TraderLineage.R42_AUDJPY,
-    }
-)
 _POST_OUTCOME_NOT_APPLICABLE = frozenset({"CF08", "CF18", "CF19"})
 _FORBIDDEN_CONTEXT_TOKENS = (
     "outcome",
@@ -65,6 +56,13 @@ _FORBIDDEN_CONTEXT_TOKENS = (
     "winner",
     "loser",
     "future",
+)
+_UNIVERSAL_PERCEPTION_MARKERS = frozenset(
+    {
+        "cibo_native_perception_complete",
+        "cibo_native_perception_version",
+        "source_context_causal",
+    }
 )
 _VT08_REQUIRED = frozenset(
     {
@@ -185,6 +183,43 @@ def _context_map(opportunity: TraderOpportunityEnvelope) -> dict[str, str]:
     return context
 
 
+def _validate_universal_perception(
+    opportunity: TraderOpportunityEnvelope,
+    context: dict[str, str],
+) -> None:
+    """Require complete causal perception without restricting Trader or market."""
+
+    present_markers = _UNIVERSAL_PERCEPTION_MARKERS.intersection(context)
+    if present_markers:
+        missing = _UNIVERSAL_PERCEPTION_MARKERS - set(context)
+        if missing:
+            raise CiboCapitalManagementError(
+                "universal native perception contract incomplete: "
+                + ",".join(sorted(missing))
+            )
+        if context["cibo_native_perception_complete"] != "true":
+            raise CiboCapitalManagementError(
+                "universal native perception is not complete"
+            )
+        if context["source_context_causal"] != "true":
+            raise CiboCapitalManagementError(
+                "universal native perception must be causal predecision context"
+            )
+        if not context["cibo_native_perception_version"].strip():
+            raise CiboCapitalManagementError(
+                "universal native perception version is missing"
+            )
+        return
+
+    # Legacy complete surfaces predate the universal marker contract. Retain
+    # them during migration without treating historical Trader identities as
+    # an admission list. New adapters should emit the explicit markers above.
+    if len(context) < 30:
+        raise CiboCapitalManagementError(
+            f"{opportunity.trader_id.value} universal native perception is incomplete"
+        )
+
+
 def validate_native_maximum_perception(
     opportunities: tuple[TraderOpportunityEnvelope, ...],
 ) -> tuple[tuple[str, int], ...]:
@@ -204,13 +239,6 @@ def validate_native_maximum_perception(
     for opportunity in opportunities:
         context = _context_map(opportunity)
         counts.append((opportunity.signal_fingerprint, len(context)))
-
-        if opportunity.trader_id in _TURTLE_TRADERS:
-            if len(context) < 30:
-                raise CiboCapitalManagementError(
-                    f"{opportunity.trader_id.value} native perception is incomplete"
-                )
-            continue
 
         if opportunity.trader_id is TraderLineage.VT08_FOREX:
             missing = _VT08_REQUIRED - set(context)
@@ -240,9 +268,7 @@ def validate_native_maximum_perception(
                 )
             continue
 
-        raise CiboCapitalManagementError(
-            "native maximum intelligence received unsupported Trader"
-        )
+        _validate_universal_perception(opportunity, context)
 
     return tuple(sorted(counts))
 
