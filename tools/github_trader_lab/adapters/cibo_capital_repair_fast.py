@@ -18,6 +18,10 @@ from decimal import ROUND_FLOOR, Decimal, localcontext
 from pathlib import Path
 from typing import Any
 
+from qore.infrastructure.cibo_maximum_capability_frontier import (
+    cognitive_multiplier_cap,
+)
+
 ZERO = Decimal(0)
 ONE = Decimal(1)
 HUNDRED = Decimal(100)
@@ -202,6 +206,61 @@ def _confidence_cap(
     return 1
 
 
+def _maximum_frontier_cap(
+    *,
+    row: dict[str, Any],
+    opportunity_count: int,
+    risk_utilization: Decimal,
+    margin_utilization: Decimal,
+    drawdown_utilization: Decimal,
+) -> int:
+    """Call the subject's real MAX Frontier policy with causal live state."""
+
+    regime = row["regime"]
+    utilization = {
+        "risk_utilization": format(risk_utilization, "f"),
+        "margin_utilization": format(margin_utilization, "f"),
+        "drawdown_utilization": format(drawdown_utilization, "f"),
+    }
+    receipts: list[dict[str, object]] = []
+    for index in range(1, 20):
+        code = f"CF{index:02d}"
+        input_payload: dict[str, object] = {}
+        if code == "CF02":
+            input_payload = {"regime": dict(regime)}
+        elif code == "CF06":
+            input_payload = {
+                "utilization": utilization,
+                "opportunity_count": opportunity_count,
+                "correlation": str(regime.get("correlation")),
+            }
+        elif code == "CF07":
+            input_payload = {
+                "provider_condition": str(regime.get("provider_condition")),
+            }
+        elif code == "CF10":
+            input_payload = {"utilization": utilization}
+        elif code == "CF12":
+            input_payload = {"utilization": utilization}
+        receipts.append(
+            {
+                "function_code": code,
+                "input_payload": input_payload,
+                "output_payload": {
+                    "native_engine_status": (
+                        "JUSTIFIED_NOT_APPLICABLE"
+                        if code in {"CF08", "CF18", "CF19"}
+                        else "SUCCESS"
+                    )
+                },
+            }
+        )
+    cap, _codes, _reason = cognitive_multiplier_cap(
+        {"faculty_receipts": receipts}
+    )
+    return cap
+
+
 def _eligible_net(
     row: dict[str, Any],
     *,
@@ -270,10 +329,16 @@ def _portfolio(
                 ),
             )
         if variant.max_frontier:
-            frontier_cap = int(row.get("maximum_frontier_cap", 0))
-            if frontier_cap not in {0, 1, 2, 3, 4}:
-                raise ValueError("prepared MAX Frontier cap outside 0..4")
-            cap = min(cap, frontier_cap)
+            cap = min(
+                cap,
+                _maximum_frontier_cap(
+                    row=row,
+                    opportunity_count=len(rows),
+                    risk_utilization=risk_utilization,
+                    margin_utilization=margin_utilization,
+                    drawdown_utilization=drawdown_utilization,
+                ),
+            )
         if variant.fixed_multiplier is not None:
             cap = min(cap, variant.fixed_multiplier)
         caps.append(cap)
@@ -821,7 +886,7 @@ def run(prepared_path: Path, lane: str) -> dict[str, Any]:
         "governance": {
             "burned_repair_window_only": True,
             "prepared_causal_ledger_reused": True,
-            "exact_max_frontier_caps_prepared_from_subject": True,
+            "max_frontier_policy_loaded_from_current_subject": True,
             "max_frontier_constraining_only": True,
             "outcome_available_to_same_decision": False,
             "trader_methodology_changed": False,
