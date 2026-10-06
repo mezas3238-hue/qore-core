@@ -26,6 +26,26 @@ This is last-observation-carried-forward semantics, not imputation.
 
 Once a new closed H4 observation exists, it supersedes the carried entry state.
 
+## Entry H4 source completeness
+
+The entry higher-context builder already receives `prior_admitted_day_bars`,
+but historically H4 was computed only from `causal_today`.
+
+That is a plumbing defect: a multi-hour trend state may require the last fully
+closed H4 buckets from the prior admitted day when the current day does not yet
+contain two complete H4 buckets.
+
+The repair must therefore construct entry H4 from:
+
+`prior_admitted_day_bars + causal_today`
+
+while still discarding every bar whose close is after `decision_at`.
+
+H1 and M15 remain current-session calculations under their existing semantics.
+
+This is historical context completion, not imputation and not a new trading
+rule.
+
 ## Constraints
 
 - no future H4 bar;
