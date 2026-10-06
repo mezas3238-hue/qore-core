@@ -47,7 +47,13 @@ def _d(value: object) -> Decimal:
     return Decimal(str(value))
 
 
-def _terminal_r(*, side: str, entry: Decimal, price: Decimal, risk: Decimal) -> Decimal:
+def _terminal_r(
+    *,
+    side: str,
+    entry: Decimal,
+    price: Decimal,
+    risk: Decimal,
+) -> Decimal:
     return (price - entry) / risk if side == "long" else (entry - price) / risk
 
 
@@ -385,7 +391,9 @@ def replay(evidence_path: Path) -> dict[str, object]:
 
     for name, rows in rows_by_variant.items():
         if [str(row["signal_at"]) for row in rows] != ids:
-            raise AssertionError(f"{name} changed sovereign terminal population")
+            raise AssertionError(
+                f"{name} changed sovereign terminal population"
+            )
         reports[name] = {
             "trade_count": len(rows),
             "stress_0_05r": specialist._metrics(
