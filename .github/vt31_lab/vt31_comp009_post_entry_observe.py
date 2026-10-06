@@ -105,6 +105,90 @@ def fact_report(
     }
 
 
+
+CATEGORICAL_FIELDS = (
+    "side",
+    "entry_family",
+    "current_reasoning_action",
+    "h4_state",
+    "h1_state",
+    "m15_state",
+    "management_context",
+    "protection_urgency",
+    "destination_state",
+    "reclaim_bucket",
+    "last_causal_event_family",
+    "last_causal_event_source",
+)
+
+
+def conjunction_report(
+    rows: list[dict[str, Any]],
+) -> dict[str, dict[str, object]]:
+    """Scan every causal event with one fixed categorical dimension."""
+
+    grouped: dict[str, list[dict[str, object]]] = {}
+    for row in rows:
+        stressed = d(row["control_r_multiple"]) - specialist.FRICTION
+        seen: set[str] = set()
+        for raw in row["observations"]:
+            event = cast(dict[str, Any], raw)
+            values = {
+                "side": row["side"],
+                "entry_family": row["entry_family"],
+                "current_reasoning_action": event.get(
+                    "current_reasoning_action"
+                ),
+                "h4_state": event.get("h4_state"),
+                "h1_state": event.get("h1_state"),
+                "m15_state": event.get("m15_state"),
+                "management_context": event.get("management_context"),
+                "protection_urgency": event.get("protection_urgency"),
+                "destination_state": event.get("destination_state"),
+                "reclaim_bucket": event.get("reclaim_bucket"),
+                "last_causal_event_family": event.get(
+                    "last_causal_event_family"
+                ),
+                "last_causal_event_source": event.get(
+                    "last_causal_event_source"
+                ),
+            }
+            for fact in FACTS:
+                if event.get(fact) is not True:
+                    continue
+                for field in CATEGORICAL_FIELDS:
+                    key = f"{fact} && {field}={values[field]}"
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    grouped.setdefault(key, []).append(
+                        {
+                            "signal_at": row["signal_at"],
+                            "local_date": row["local_date"],
+                            "side": row["side"],
+                            "entry_family": row["entry_family"],
+                            "control_r_multiple": row["control_r_multiple"],
+                            "control_stressed_r": format(stressed, "f"),
+                            "observation_at": event["observation_at"],
+                            "current_open_r": event.get("current_open_r"),
+                            "next_m1_open_r": event.get("next_m1_open_r"),
+                            "existing_cognitive_exit_authorized": event.get(
+                                "cognitive_exit_authorized"
+                            ),
+                            "winner": stressed > 0,
+                        }
+                    )
+    return {
+        key: {
+            "trade_count": len(items),
+            "winner_count": sum(bool(x["winner"]) for x in items),
+            "loss_count": sum(not bool(x["winner"]) for x in items),
+            "matched_trades": items,
+        }
+        for key, items in sorted(grouped.items())
+    }
+
+
 def categorical_observation(
     rows: list[dict[str, Any]],
 ) -> dict[str, Any]:
@@ -208,6 +292,7 @@ def run(prepared_path: Path, lane: str) -> dict[str, Any]:
                 fact: fact_report(rows, fact)
                 for fact in FACTS
             },
+            "single_categorical_conjunctions": conjunction_report(rows),
             "categorical_single_states": categorical_observation(rows),
             "observation_count": sum(
                 len(row["observations"]) for row in rows
