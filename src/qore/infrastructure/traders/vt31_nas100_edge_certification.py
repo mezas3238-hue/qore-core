@@ -57,7 +57,7 @@ GATES = {
     "profit_factor_per_era_min": Decimal("1.50"),
     "profit_factor_combined_min": Decimal("1.70"),
     "expectancy_min_exclusive": Decimal("0"),
-    "max_drawdown_r_target": Decimal("10"),
+    "max_drawdown_r_target": Decimal("6"),
     "max_drawdown_r_reject": Decimal("15"),
     "sharpe_min": Decimal("1.50"),
     "sortino_min": Decimal("2.00"),
@@ -566,7 +566,7 @@ def build_edge_only_report(
             expectancy is not None
             and expectancy > GATES["expectancy_min_exclusive"]
         ),
-        "drawdown_at_most_10r": (
+        "drawdown_at_most_6r": (
             drawdown is not None
             and drawdown <= GATES["max_drawdown_r_target"]
         ),
