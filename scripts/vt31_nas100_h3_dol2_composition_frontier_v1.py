@@ -24,9 +24,10 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter
+from collections.abc import Callable
 from decimal import Decimal
 from pathlib import Path
-from typing import Callable, cast
+from typing import cast
 
 import vt31_nas100_dol2_cognitive_protection_frontier_v1 as dol2_protection
 import vt31_nas100_intelligence_policy_lab_v2b as v2b
