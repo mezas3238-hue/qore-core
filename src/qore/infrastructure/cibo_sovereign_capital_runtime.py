@@ -61,6 +61,10 @@ from qore.infrastructure.cibo_executive_brain import (
 from qore.infrastructure.cibo_full_economic_digital_twin import (
     CiboObservedEconomicTwin,
 )
+from qore.infrastructure.cibo_maximum_capability_frontier import (
+    POLICY_ID as MAX_FRONTIER_POLICY_ID,
+    cognitive_multiplier_cap as maximum_frontier_cognitive_cap,
+)
 from qore.infrastructure.cibo_multi_period_capital_mpc import (
     Genc11KnownOptionSchedule,
     Genc11WorldPath,
@@ -184,6 +188,10 @@ class CiboSovereignCapitalDecision:
 def bind_cibo_cognition_to_twin(
     twin: CiboObservedEconomicTwin,
     synthesis: CiboExecutiveSynthesis,
+    *,
+    maximum_frontier_cap: int | None = None,
+    maximum_frontier_reason: str | None = None,
+    maximum_frontier_consumed_codes: tuple[str, ...] = (),
 ) -> CiboObservedEconomicTwin:
     """Bind executive cognition to the economic twin without giving it sizing authority."""
 
@@ -242,9 +250,34 @@ def bind_cibo_cognition_to_twin(
             )
         cognitive_cap = confidence_cap[level]
 
-    constraints["capital_intensity_cap"] = str(
-        min(existing_cap, cognitive_cap)
-    )
+    if maximum_frontier_cap is None:
+        frontier_cap = 4
+    else:
+        if (
+            not isinstance(maximum_frontier_cap, int)
+            or isinstance(maximum_frontier_cap, bool)
+            or maximum_frontier_cap not in {0, 1, 2, 3, 4}
+        ):
+            raise CiboCapitalManagementError(
+                "MAX Frontier capital-intensity cap must be integer 0..4"
+            )
+        frontier_cap = maximum_frontier_cap
+
+    # MAX Frontier is a constraining intelligence surface, never an authority
+    # escalation path.  It can only make the Executive Brain's causal cap more
+    # conservative.  Portfolio, CMA and QORE Risk remain downstream sovereign
+    # authorities over the resulting request.
+    final_cap = min(existing_cap, cognitive_cap, frontier_cap)
+    constraints["capital_intensity_cap"] = str(final_cap)
+    constraints["maximum_frontier_cap"] = str(frontier_cap)
+    constraints["maximum_frontier_policy"] = MAX_FRONTIER_POLICY_ID
+    constraints["maximum_frontier_mode"] = "CONSTRAINING_ONLY"
+    if maximum_frontier_reason is not None:
+        constraints["maximum_frontier_reason"] = maximum_frontier_reason
+    if maximum_frontier_consumed_codes:
+        constraints["maximum_frontier_consumed_codes"] = ",".join(
+            maximum_frontier_consumed_codes
+        )
 
     return replace(
         twin,
@@ -252,6 +285,29 @@ def bind_cibo_cognition_to_twin(
             sorted((str(key), str(value)) for key, value in constraints.items())
         ),
     )
+
+
+def _maximum_frontier_surface(
+    consultation: CiboEconomicConsultationReceipt,
+) -> tuple[int, tuple[str, ...], str]:
+    """Adapt the canonical CF01-CF19 receipt into the MAX Frontier guard."""
+
+    payload = {
+        "faculty_receipts": [
+            {
+                "function_code": receipt.function_code,
+                "input_payload": receipt.input_payload,
+                "output_payload": receipt.output_payload,
+            }
+            for receipt in consultation.faculty_receipts
+        ]
+    }
+    try:
+        return maximum_frontier_cognitive_cap(payload)
+    except Exception as error:
+        raise CiboCapitalManagementError(
+            "MAX Frontier could not consume the canonical cognitive surface"
+        ) from error
 
 
 def run_cibo_sovereign_capital_runtime(
@@ -361,7 +417,18 @@ def run_cibo_sovereign_capital_runtime(
             "sovereign option identity does not match Trader opportunity"
         )
 
-    cognitive_twin = bind_cibo_cognition_to_twin(twin, synthesis)
+    (
+        maximum_frontier_cap,
+        maximum_frontier_consumed_codes,
+        maximum_frontier_reason,
+    ) = _maximum_frontier_surface(consultation)
+    cognitive_twin = bind_cibo_cognition_to_twin(
+        twin,
+        synthesis,
+        maximum_frontier_cap=maximum_frontier_cap,
+        maximum_frontier_reason=maximum_frontier_reason,
+        maximum_frontier_consumed_codes=maximum_frontier_consumed_codes,
+    )
     economic = run_cibo_economic_engine_chain(
         twin=cognitive_twin,
         world_paths=world_paths,
