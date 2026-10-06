@@ -18,6 +18,9 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from typing import Sequence
 
+from qore.infrastructure.cibo_capital_management_authority import (
+    CiboCapitalManagementError,
+)
 from qore.infrastructure.cibo_capital_velocity_redeployment import (
     CiboCapitalReleaseEvent,
     CiboCapitalVelocityLedger,
@@ -103,7 +106,7 @@ def run_cibo_economic_engine_chain(
             None,
         )
         if target is None:
-            raise ValueError(
+            raise CiboCapitalManagementError(
                 "portfolio target-only option is absent from economic twin"
             )
         portfolio_twin = replace(
