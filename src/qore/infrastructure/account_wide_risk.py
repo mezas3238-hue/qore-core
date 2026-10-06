@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
-from decimal import ROUND_FLOOR, Decimal
+from decimal import ROUND_FLOOR, Decimal, localcontext
 from enum import StrEnum
 from hashlib import sha256
 from re import fullmatch
@@ -63,6 +63,36 @@ class TraderLineage(StrEnum):
 
 
 TraderIdentity = TraderLineage
+
+
+def _exact_sum(values) -> Decimal:
+    with localcontext() as context:
+        context.prec = 100
+        return sum(values, Decimal(0))
+
+
+def _exact_add(left: Decimal, right: Decimal) -> Decimal:
+    with localcontext() as context:
+        context.prec = 100
+        return left + right
+
+
+def _exact_sub(left: Decimal, right: Decimal) -> Decimal:
+    with localcontext() as context:
+        context.prec = 100
+        return left - right
+
+
+def _exact_mul(left: Decimal, right: Decimal) -> Decimal:
+    with localcontext() as context:
+        context.prec = 100
+        return left * right
+
+
+def _exact_div(left: Decimal, right: Decimal) -> Decimal:
+    with localcontext() as context:
+        context.prec = 100
+        return left / right
 
 
 def canonical_trader_lineage(
@@ -286,9 +316,8 @@ class CiboRiskRequest:
                 "capital_provenance entries must be canonical lots"
             )
         if self.capital_provenance:
-            provenance_total = sum(
-                (item.amount_usd for item in self.capital_provenance),
-                Decimal(0),
+            provenance_total = _exact_sum(
+                item.amount_usd for item in self.capital_provenance
             )
             if provenance_total != self.requested_stop_risk:
                 raise AccountWideRiskError(
@@ -309,11 +338,11 @@ class CiboRiskRequest:
 
     @property
     def requested_stop_risk(self) -> Decimal:
-        return self.requested_volume * self.stop_loss_per_volume
+        return _exact_mul(self.requested_volume, self.stop_loss_per_volume)
 
     @property
     def requested_margin(self) -> Decimal:
-        return self.requested_volume * self.margin_per_volume
+        return _exact_mul(self.requested_volume, self.margin_per_volume)
 
 
 @dataclass(frozen=True, slots=True)
@@ -391,9 +420,8 @@ class RiskAuthorization:
                 "rejected authorization cannot carry deployed capital provenance"
             )
         if self.capital_provenance:
-            provenance_total = sum(
-                (item.amount_usd for item in self.capital_provenance),
-                Decimal(0),
+            provenance_total = _exact_sum(
+                item.amount_usd for item in self.capital_provenance
             )
             if provenance_total != self.monetary_stop_loss:
                 raise AccountWideRiskError(
@@ -456,7 +484,10 @@ class RiskReservation:
 
     @property
     def total_unreconciled_stop_risk(self) -> Decimal:
-        return self.pending_stop_risk + self.filled_unreconciled_stop_risk
+        return _exact_add(
+            self.pending_stop_risk,
+            self.filled_unreconciled_stop_risk,
+        )
 
 
 class AccountWideRiskEngine:
@@ -545,13 +576,19 @@ class AccountWideRiskEngine:
             auth = item.authorization
             if filled_volume >= auth.authorized_volume:
                 raise AccountWideRiskError("partial fill must be below authorized volume")
-            fill_fraction = filled_volume / auth.authorized_volume
-            filled_risk = auth.monetary_stop_loss * fill_fraction
-            filled_margin = auth.margin_reserved * fill_fraction
+            fill_fraction = _exact_div(filled_volume, auth.authorized_volume)
+            filled_risk = _exact_mul(auth.monetary_stop_loss, fill_fraction)
+            filled_margin = _exact_mul(auth.margin_reserved, fill_fraction)
             self._reservations[authorization_id] = replace(
                 item,
-                pending_stop_risk=auth.monetary_stop_loss - filled_risk,
-                pending_margin=auth.margin_reserved - filled_margin,
+                pending_stop_risk=_exact_sub(
+                    auth.monetary_stop_loss,
+                    filled_risk,
+                ),
+                pending_margin=_exact_sub(
+                    auth.margin_reserved,
+                    filled_margin,
+                ),
                 filled_unreconciled_stop_risk=filled_risk,
                 state=ReservationState.PARTIALLY_FILLED,
             )
@@ -586,13 +623,13 @@ class AccountWideRiskEngine:
 
     def active_reserved_stop_risk(self) -> Decimal:
         with self._lock:
-            return sum(
-                (
-                    item.total_unreconciled_stop_risk
-                    for item in self._reservations.values()
-                    if item.state not in {ReservationState.RELEASED, ReservationState.EXPIRED}
-                ),
-                Decimal(0),
+            return _exact_sum(
+                item.total_unreconciled_stop_risk
+                for item in self._reservations.values()
+                if item.state not in {
+                    ReservationState.RELEASED,
+                    ReservationState.EXPIRED,
+                }
             )
 
     def reservations(self) -> tuple[RiskReservation, ...]:
@@ -656,22 +693,22 @@ class AccountWideRiskEngine:
 
         risk_capacity = constraints.hard_risk_headroom_usd
         margin_capacity = constraints.margin_headroom_usd
-        by_risk = risk_capacity / request.stop_loss_per_volume
-        by_margin = margin_capacity / request.margin_per_volume
+        by_risk = _exact_div(risk_capacity, request.stop_loss_per_volume)
+        by_margin = _exact_div(margin_capacity, request.margin_per_volume)
         raw_volume = min(request.requested_volume, by_risk, by_margin)
         volume = _floor_to_step(raw_volume, request.volume_step)
         if volume < request.minimum_volume:
             reason = "insufficient-shared-risk-or-margin-headroom"
             return self._reject(request, snapshot, now, pre, reason)
         volume = min(volume, request.requested_volume)
-        stop_risk = volume * request.stop_loss_per_volume
-        margin = volume * request.margin_per_volume
+        stop_risk = _exact_mul(volume, request.stop_loss_per_volume)
+        margin = _exact_mul(volume, request.margin_per_volume)
         decision = (
             RiskDecision.ALLOW
             if volume == request.requested_volume
             else RiskDecision.REDUCE
         )
-        post = pre + stop_risk
+        post = _exact_add(pre, stop_risk)
         if post > provider.max_risk_at_any_time:
             return self._reject(request, snapshot, now, pre, "provider-max-risk-cap")
         if post > snapshot.qore_authorizable_headroom:
@@ -724,27 +761,29 @@ class AccountWideRiskEngine:
     ) -> RiskCapitalConstraintEnvelope:
         active_risk = self._active_risk_locked()
         active_margin = self._active_margin_locked()
-        pre = (
-            snapshot.open_stop_worst_case_loss
-            + snapshot.pending_broker_worst_case_loss
-            + active_risk
+        pre = _exact_sum(
+            (
+                snapshot.open_stop_worst_case_loss,
+                snapshot.pending_broker_worst_case_loss,
+                active_risk,
+            )
         )
         provider = snapshot.provider_budget
         provider_remaining = max(
             Decimal(0),
-            provider.provider_headroom - pre,
+            _exact_sub(provider.provider_headroom, pre),
         )
         qore_remaining = max(
             Decimal(0),
-            snapshot.qore_authorizable_headroom - pre,
+            _exact_sub(snapshot.qore_authorizable_headroom, pre),
         )
         max_risk_remaining = max(
             Decimal(0),
-            provider.max_risk_at_any_time - pre,
+            _exact_sub(provider.max_risk_at_any_time, pre),
         )
         margin_remaining = max(
             Decimal(0),
-            snapshot.free_margin - active_margin,
+            _exact_sub(snapshot.free_margin, active_margin),
         )
 
         blocked = bool(
@@ -784,23 +823,23 @@ class AccountWideRiskEngine:
         )
 
     def _active_risk_locked(self) -> Decimal:
-        return sum(
-            (
-                item.total_unreconciled_stop_risk
-                for item in self._reservations.values()
-                if item.state not in {ReservationState.RELEASED, ReservationState.EXPIRED}
-            ),
-            Decimal(0),
+        return _exact_sum(
+            item.total_unreconciled_stop_risk
+            for item in self._reservations.values()
+            if item.state not in {
+                ReservationState.RELEASED,
+                ReservationState.EXPIRED,
+            }
         )
 
     def _active_margin_locked(self) -> Decimal:
-        return sum(
-            (
-                item.pending_margin
-                for item in self._reservations.values()
-                if item.state not in {ReservationState.RELEASED, ReservationState.EXPIRED}
-            ),
-            Decimal(0),
+        return _exact_sum(
+            item.pending_margin
+            for item in self._reservations.values()
+            if item.state not in {
+                ReservationState.RELEASED,
+                ReservationState.EXPIRED,
+            }
         )
 
     def _expire_locked(self, now: datetime) -> None:
@@ -904,16 +943,19 @@ def _scale_capital_provenance(
     if authorized_volume == request.requested_volume:
         return request.capital_provenance
 
-    authorized_risk = authorized_volume * request.stop_loss_per_volume
-    fraction = authorized_volume / request.requested_volume
+    authorized_risk = _exact_mul(
+        authorized_volume,
+        request.stop_loss_per_volume,
+    )
+    fraction = _exact_div(authorized_volume, request.requested_volume)
     retained: list[CiboCapitalProvenanceLot] = []
     allocated = Decimal(0)
     for index, item in enumerate(request.capital_provenance):
         if index == len(request.capital_provenance) - 1:
-            amount = authorized_risk - allocated
+            amount = _exact_sub(authorized_risk, allocated)
         else:
-            amount = item.amount_usd * fraction
-            allocated += amount
+            amount = _exact_mul(item.amount_usd, fraction)
+            allocated = _exact_add(allocated, amount)
         if amount <= 0:
             continue
         retained.append(
@@ -923,7 +965,7 @@ def _scale_capital_provenance(
                 amount_usd=amount,
             )
         )
-    if sum((item.amount_usd for item in retained), Decimal(0)) != authorized_risk:
+    if _exact_sum(item.amount_usd for item in retained) != authorized_risk:
         raise AccountWideRiskError(
             "scaled capital provenance does not match authorized stop risk"
         )
@@ -933,8 +975,10 @@ def _scale_capital_provenance(
 def _floor_to_step(value: Decimal, step: Decimal) -> Decimal:
     _nonnegative(value, "value")
     _positive(step, "step")
-    units = (value / step).to_integral_value(rounding=ROUND_FLOOR)
-    return units * step
+    with localcontext() as context:
+        context.prec = 100
+        units = (value / step).to_integral_value(rounding=ROUND_FLOOR)
+        return units * step
 
 
 def _aware(value: datetime, name: str) -> None:
