@@ -15,7 +15,7 @@ CMA, QORE Risk and Execution remain downstream authorities.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Sequence
 
 from qore.infrastructure.cibo_capital_velocity_redeployment import (
@@ -81,6 +81,8 @@ def run_cibo_economic_engine_chain(
     lifecycle_requests: Sequence[CiboLifecycleWireRequest] = (),
     competition_option_ids: Sequence[str] = (),
     release_events: Sequence[CiboCapitalReleaseEvent] = (),
+    portfolio_fixed_multiplier: int | None = None,
+    portfolio_target_only_option_id: str | None = None,
 ) -> CiboEconomicEngineRun:
     """Run canonical CIBO engines through explicit direct wiring."""
 
@@ -90,7 +92,32 @@ def run_cibo_economic_engine_chain(
         world_paths=world_paths,
         option_schedules=option_schedules,
     )
-    portfolio = plan_account_wide_capital_allocation(twin)
+    portfolio_twin = twin
+    if portfolio_target_only_option_id is not None:
+        target = next(
+            (
+                item
+                for item in twin.opportunities
+                if item.option_id == portfolio_target_only_option_id
+            ),
+            None,
+        )
+        if target is None:
+            raise ValueError(
+                "portfolio target-only option is absent from economic twin"
+            )
+        portfolio_twin = replace(
+            twin,
+            opportunities=(target,),
+            portfolio=replace(
+                twin.portfolio,
+                opportunity_ids=(target.option_id,),
+            ),
+        )
+    portfolio = plan_account_wide_capital_allocation(
+        portfolio_twin,
+        fixed_multiplier=portfolio_fixed_multiplier,
+    )
 
     lifecycle_results = tuple(
         run_cibo_position_lifecycle(
