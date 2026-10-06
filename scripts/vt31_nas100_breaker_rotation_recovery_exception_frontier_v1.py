@@ -347,6 +347,94 @@ def _residual_entry_quality_forensics(
     }
 
 
+def _rapid_conflict_drilldown(
+    rows: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    result: list[dict[str, object]] = []
+    for row in rows:
+        context = cast(dict[str, object], row.get("entry_context", {}))
+        if not (
+            str(row["entry_family"]) == "breaker"
+            and str(row["side"]) == "short"
+            and str(context.get("prior_day_state")) == "bullish"
+            and str(context.get("reference_volatility_state")) == "normal"
+            and str(context.get("h1_state")) == "mixed"
+            and str(context.get("m15_state")) == "mixed"
+            and str(context.get("premarket_state")) == "bearish"
+            and str(context.get("cash_open_state")) == "bullish"
+        ):
+            continue
+
+        net_r = _d(row["r_multiple"]) - specialist.FRICTION
+        evaluations = cast(
+            list[dict[str, object]],
+            row.get("cognitive_exit_evaluations", []),
+        )
+        first_material_adverse = next(
+            (
+                event
+                for event in evaluations
+                if event.get("current_open_r") is not None
+                and _d(event["current_open_r"])
+                <= adverse.MATERIAL_ADVERSE_R
+            ),
+            None,
+        )
+        result.append(
+            {
+                "signal_at": str(row["signal_at"]),
+                "net_r": format(net_r, "f"),
+                "winner": net_r > 0,
+                "rapid_invalidation": (
+                    str(row.get("exit_reason")) == "structural-invalidation"
+                    and first_material_adverse is None
+                    and net_r < 0
+                ),
+                "exit_reason": str(row.get("exit_reason", "NA")),
+                "h4_state": str(context.get("h4_state", "NA")),
+                "position_in_prior_day_range": str(
+                    context.get("position_in_prior_day_range", "NA")
+                ),
+                "decision_minute_ny": context.get("decision_minute_ny"),
+                "entry_freshness_state": adverse._entry_freshness_state(
+                    context.get("entry_evidence_age_minutes")
+                ),
+                "entry_evidence_age_minutes": context.get(
+                    "entry_evidence_age_minutes"
+                ),
+                "confirmation_latency_state": (
+                    adverse._confirmation_latency_state(
+                        context.get("confirmation_latency_minutes")
+                    )
+                ),
+                "confirmation_latency_minutes": context.get(
+                    "confirmation_latency_minutes"
+                ),
+                "reclaim_sequence_state": adverse._reclaim_sequence_state(
+                    context.get("reference_reclaim_age_minutes")
+                ),
+                "reference_reclaim_age_minutes": context.get(
+                    "reference_reclaim_age_minutes"
+                ),
+                "current_path_vs_previous": context.get(
+                    "current_path_vs_previous"
+                ),
+                "recent_path_efficiency": context.get(
+                    "recent_path_efficiency"
+                ),
+                "recent_overlap_rate": context.get(
+                    "recent_overlap_rate"
+                ),
+                "raid_depth_ref": context.get("raid_depth_ref"),
+                "risk_ref": context.get("risk_ref"),
+                "destination_distance_ref": context.get(
+                    "destination_distance_ref"
+                ),
+            }
+        )
+    return result
+
+
 def _report(
     *,
     structural_count: int,
@@ -392,6 +480,7 @@ def _report(
         "residual_entry_quality_forensics": (
             _residual_entry_quality_forensics(rows)
         ),
+        "rapid_conflict_drilldown": _rapid_conflict_drilldown(rows),
         "first_material_adverse_forensics": (
             adverse._first_material_adverse_forensics(
                 comparator,
@@ -639,6 +728,8 @@ def replay(evidence_path: Path) -> dict[str, object]:
             "residual_entry_quality_forensics_action_authority": False,
             "residual_entry_quality_expanded_observation_only": True,
             "residual_entry_quality_expanded_action_authority": False,
+            "rapid_conflict_drilldown_observation_only": True,
+            "rapid_conflict_drilldown_action_authority": False,
             "first_material_adverse_forensics_observation_only": True,
             "first_material_adverse_forensics_action_authority": False,
             "fvg_fresh_fast_candidate_predeclared": True,
