@@ -101,6 +101,34 @@ def validate_pure_edge_runtime_governance(
     }
 
 
+def validate_max_intelligence_governance(
+    governance: Mapping[str, object],
+) -> dict[str, object]:
+    """Fail closed for candidate freeze if applicable cognition is sliced."""
+
+    blockers: list[str] = []
+    if governance.get("maximum_intelligence_required") is not True:
+        blockers.append("maximum_intelligence_required")
+    if governance.get("max_intelligence_ready") is not True:
+        blockers.append("max_intelligence_ready")
+    if governance.get("applicable_domains_all_consulted") is not True:
+        blockers.append("applicable_domains_all_consulted")
+
+    unwired = governance.get("unwired_domains")
+    if not isinstance(unwired, (list, tuple)) or len(unwired) != 0:
+        blockers.append("unwired_domains")
+
+    bypassed = governance.get("bypassed_available_domains")
+    if not isinstance(bypassed, (list, tuple)) or len(bypassed) != 0:
+        blockers.append("bypassed_available_domains")
+
+    return {
+        "verified": not blockers,
+        "blockers": blockers,
+        "maximum_intelligence_required_for_freeze": True,
+    }
+
+
 def normalized_trade_rows(
     rows: Iterable[Mapping[str, object]],
     *,
@@ -454,6 +482,7 @@ def build_edge_only_report(
     friction_r: Decimal = Decimal("0"),
     monte_carlo_paths: int = 10_000,
     runtime_governance: Mapping[str, object] | None = None,
+    intelligence_governance: Mapping[str, object] | None = None,
 ) -> dict[str, object]:
     runtime_purity = (
         {
@@ -464,6 +493,15 @@ def build_edge_only_report(
         }
         if runtime_governance is None
         else validate_pure_edge_runtime_governance(runtime_governance)
+    )
+    intelligence_completeness = (
+        {
+            "verified": False,
+            "blockers": ["intelligence_governance_missing"],
+            "maximum_intelligence_required_for_freeze": True,
+        }
+        if intelligence_governance is None
+        else validate_max_intelligence_governance(intelligence_governance)
     )
     normalized = normalized_trade_rows(
         source_rows,
@@ -609,6 +647,10 @@ def build_edge_only_report(
         "gates": gates,
         "passes_economic_development_gates": economic_development_pass,
         "runtime_purity_gate": runtime_purity_verified,
+        "maximum_intelligence": intelligence_completeness,
+        "maximum_intelligence_gate": (
+            intelligence_completeness.get("verified") is True
+        ),
         "passes_available_development_gates": (
             economic_development_pass and runtime_purity_verified
         ),
@@ -631,6 +673,7 @@ def build_edge_only_report(
         "risk_adjusted_certification_binding_complete": False,
         "ready_for_candidate_freeze": False,
         "runtime_purity_required_for_freeze": True,
+        "maximum_intelligence_required_for_freeze": True,
         "candidate_frozen": False,
         "opens_new_holdout": False,
         "candidate_certified": False,
