@@ -356,7 +356,7 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
-single-account-ceiling:
+  single-account-ceiling:
     name: single-account-usd60-ceiling
     needs: integrated-cibo
     runs-on: ubuntu-24.04
