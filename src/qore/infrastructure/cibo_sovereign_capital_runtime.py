@@ -235,22 +235,20 @@ def bind_cibo_cognition_to_twin(
             "cognitive capital_intensity_cap outside 0..4"
         )
 
+    # Native MAX must retain the full economically available action surface.
+    # Confidence is evidence about epistemic quality, not a hard leverage dial.
+    # Only a non-RECOMMEND directive closes the capital surface here.  When
+    # cognition recommends, Portfolio remains free to explore the full existing
+    # 0x..4x range subject to survival geometry, Capital Science and QORE Risk.
     if synthesis.directive is not CiboExecutiveDirectiveKind.RECOMMEND:
         cognitive_cap = 0
-    elif synthesis.uncertainty.confidence is None:
-        cognitive_cap = 1
     else:
-        confidence_cap = {
-            "low": 1,
-            "medium": 2,
-            "high": 3,
-        }
-        level = synthesis.uncertainty.confidence.level.value
-        if level not in confidence_cap:
-            raise CiboCapitalManagementError(
-                "cognitive confidence level has no capital-intensity mapping"
-            )
-        cognitive_cap = confidence_cap[level]
+        cognitive_cap = existing_cap
+
+    if synthesis.uncertainty.confidence is not None:
+        constraints["executive_confidence_level"] = (
+            synthesis.uncertainty.confidence.level.value
+        )
 
     if maximum_frontier_cap is None:
         frontier_cap = 4
@@ -261,19 +259,18 @@ def bind_cibo_cognition_to_twin(
             or maximum_frontier_cap not in {0, 1, 2, 3, 4}
         ):
             raise CiboCapitalManagementError(
-                "MAX Frontier capital-intensity cap must be integer 0..4"
+                "MAX Frontier capital-intensity recommendation must be integer 0..4"
             )
         frontier_cap = maximum_frontier_cap
 
-    # MAX Frontier is a constraining intelligence surface, never an authority
-    # escalation path.  It can only make the Executive Brain's causal cap more
-    # conservative.  Portfolio, CMA and QORE Risk remain downstream sovereign
-    # authorities over the resulting request.
-    final_cap = min(existing_cap, cognitive_cap, frontier_cap)
-    constraints["capital_intensity_cap"] = str(final_cap)
+    # MAX Frontier is advisory/diagnostic in the sovereign runtime.  It exposes
+    # the frontier recommendation and its causal evidence, but it cannot shrink
+    # Native MAX's action space.  This preserves ceiling discovery while leaving
+    # Portfolio, Capital Science, CMA and QORE Risk as the actual actuators.
+    constraints["capital_intensity_cap"] = str(cognitive_cap)
     constraints["maximum_frontier_cap"] = str(frontier_cap)
     constraints["maximum_frontier_policy"] = MAX_FRONTIER_POLICY_ID
-    constraints["maximum_frontier_mode"] = "CONSTRAINING_ONLY"
+    constraints["maximum_frontier_mode"] = "ADVISORY_DIAGNOSTIC"
     if maximum_frontier_reason is not None:
         constraints["maximum_frontier_reason"] = maximum_frontier_reason
     if maximum_frontier_consumed_codes:
