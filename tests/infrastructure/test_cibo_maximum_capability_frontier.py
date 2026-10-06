@@ -119,11 +119,14 @@ def _lifecycle_input() -> CiboPositionLifecycleInput:
 
 
 def test_cognitive_cap_consumes_real_cf_inputs_without_outcomes() -> None:
-    cap, codes, reason = cognitive_multiplier_cap(_cognitive())
+    cap, codes, reason = cognitive_multiplier_cap(
+        _cognitive(),
+        provider_multiplier_cap=12,
+    )
 
-    assert cap == 4
+    assert cap == 12
     assert codes == ("CF02", "CF06", "CF07", "CF10", "CF12")
-    assert "cognitive cap=4" in reason
+    assert "cognitive cap=12" in reason
 
 
 def test_optimizer_prefers_higher_causal_expected_value_within_capacity() -> None:
@@ -153,6 +156,23 @@ def test_optimizer_prefers_higher_causal_expected_value_within_capacity() -> Non
     )
 
     assert result == (4, 0)
+
+
+def test_optimizer_has_no_fixed_four_x_ceiling() -> None:
+    option = EpochOption(
+        signal_fingerprint="uncapped",
+        multiplier_cap=20,
+        expected_net_value_usd=Decimal("1"),
+        expected_capital_minutes=Decimal("10"),
+        risk_per_multiplier_usd=Decimal("1"),
+        margin_per_multiplier_usd=Decimal("1"),
+    )
+
+    assert optimize_epoch_multipliers(
+        (option,),
+        risk_headroom_usd=Decimal("12"),
+        margin_headroom_usd=Decimal("12"),
+    ) == (12,)
 
 
 def test_optimizer_never_allocates_nonpositive_expectancy() -> None:
