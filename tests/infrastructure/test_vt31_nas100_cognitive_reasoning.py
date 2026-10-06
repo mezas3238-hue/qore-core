@@ -277,6 +277,12 @@ def test_wiring_m15_removes_only_the_m15_blocker() -> None:
     assert "CONTEXTUAL_POSITION_MANAGEMENT_UNRESOLVED" in (
         decision.max_intelligence_blockers
     )
+    assert "DOL2_TARGET_INTELLIGENCE_UNCALIBRATED" in (
+        decision.max_intelligence_blockers
+    )
+    assert "DOL3_TARGET_INTELLIGENCE_UNCALIBRATED" in (
+        decision.max_intelligence_blockers
+    )
     assert decision.max_intelligence_ready is False
 
 
@@ -372,4 +378,10 @@ def test_calibrated_journey_depletion_remains_position_authority() -> None:
     assert "JOURNEY:POST1R_CONTINUATION_DEPLETED" in (
         position.contradictions
     )
-    assert position.max_intelligence_ready is True
+    assert position.max_intelligence_ready is False
+    assert "DOL2_TARGET_INTELLIGENCE_UNCALIBRATED" in (
+        position.max_intelligence_blockers
+    )
+    assert "DOL3_TARGET_INTELLIGENCE_UNCALIBRATED" in (
+        position.max_intelligence_blockers
+    )
