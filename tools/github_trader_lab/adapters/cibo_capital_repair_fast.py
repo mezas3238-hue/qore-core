@@ -58,6 +58,7 @@ class Variant:
     uncertainty_priced: bool
     robust_portfolio: bool
     genc12_binding: bool
+    fixed_multiplier: int | None = None
 
 
 VARIANTS = (
@@ -65,6 +66,15 @@ VARIANTS = (
     Variant("GRADED_INTENSITY", Decimal("1"), True, False, False, False),
     Variant("GRADED_PLUS_SURVIVAL", Decimal("0.70"), True, False, False, True),
     Variant("FULL_CAUSAL_REPAIR", Decimal("0.70"), True, True, True, True),
+    Variant(
+        "FULL_REPAIR_FIXED_1X_ATTRIBUTION",
+        Decimal("0.70"),
+        True,
+        True,
+        True,
+        True,
+        fixed_multiplier=1,
+    ),
 )
 
 
@@ -79,6 +89,12 @@ class Deployment:
     gross_r: Decimal
     multiplier: int
     volume: Decimal
+    observation_count: int
+    positive_blocks: int
+    nonpositive_blocks: int
+    mad_r: Decimal
+    dispersion_r: Decimal
+    expected_net_min_usd: Decimal
 
 
 def _genc12_allows_new_capital(row: dict[str, Any], has_capacity: bool) -> bool:
@@ -178,6 +194,8 @@ def _portfolio(
                     drawdown_utilization=drawdown_utilization,
                 ),
             )
+        if variant.fixed_multiplier is not None:
+            cap = min(cap, variant.fixed_multiplier)
         caps.append(cap)
 
     best_key: tuple[Any, ...] | None = None
@@ -284,6 +302,79 @@ def _metrics(
     loss_count = sum(value < 0 for value in net_rs)
     pf = None if losses == 0 else format(gains / losses, "f")
     mean_r = ZERO if not net_rs else sum(net_rs, ZERO) / Decimal(len(net_rs))
+
+    by_trader: dict[str, dict[str, object]] = {}
+    for trader in sorted({str(row["trader_id"]) for row in settlements}):
+        selected = [
+            row for row in settlements if str(row["trader_id"]) == trader
+        ]
+        pnl = sum(
+            (d(row["realized_net_pnl_usd"]) for row in selected),
+            ZERO,
+        )
+        by_trader[trader] = {
+            "trade_count": len(selected),
+            "net_pnl_usd": format(pnl, "f"),
+            "mean_net_r": format(
+                sum((d(row["net_r"]) for row in selected), ZERO)
+                / Decimal(len(selected)),
+                "f",
+            ),
+        }
+
+    observation_buckets: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    consensus_buckets: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for row in settlements:
+        observations = int(row["observation_count"])
+        if observations < 50:
+            observation_key = "25_49"
+        elif observations < 100:
+            observation_key = "50_99"
+        elif observations < 250:
+            observation_key = "100_249"
+        else:
+            observation_key = "250_PLUS"
+        observation_buckets[observation_key].append(row)
+        consensus_buckets[
+            f"{int(row['positive_blocks'])}_OF_5_POSITIVE_BLOCKS"
+        ].append(row)
+
+    def bucket_summary(
+        buckets: dict[str, list[dict[str, Any]]],
+    ) -> dict[str, dict[str, object]]:
+        result: dict[str, dict[str, object]] = {}
+        for key, selected in sorted(buckets.items()):
+            pnl = sum(
+                (d(row["realized_net_pnl_usd"]) for row in selected),
+                ZERO,
+            )
+            result[key] = {
+                "trade_count": len(selected),
+                "net_pnl_usd": format(pnl, "f"),
+                "mean_net_r": format(
+                    sum((d(row["net_r"]) for row in selected), ZERO)
+                    / Decimal(len(selected)),
+                    "f",
+                ),
+                "mean_expected_net_min_usd": format(
+                    sum(
+                        (d(row["expected_net_min_usd"]) for row in selected),
+                        ZERO,
+                    )
+                    / Decimal(len(selected)),
+                    "f",
+                ),
+            }
+        return result
+
+    total_provider_cost = sum(
+        (d(row["provider_cost_usd"]) for row in settlements),
+        ZERO,
+    )
+    expected_min_total = sum(
+        (d(row["expected_net_min_usd"]) for row in settlements),
+        ZERO,
+    )
     return {
         "trade_count": len(settlements),
         "metrics": {
@@ -305,6 +396,20 @@ def _metrics(
         },
         "net_r_values": [format(value, "f") for value in net_rs],
         "temporal_blocks": _temporal_blocks(settlements),
+        "attribution": {
+            "per_trader": by_trader,
+            "observation_count_buckets": bucket_summary(
+                observation_buckets
+            ),
+            "positive_block_consensus_buckets": bucket_summary(
+                consensus_buckets
+            ),
+            "provider_cost_usd": format(total_provider_cost, "f"),
+            "expected_net_minimum_size_usd_sum": format(
+                expected_min_total,
+                "f",
+            ),
+        },
     }
 
 
@@ -349,6 +454,16 @@ def simulate(rows: list[dict[str, Any]], variant: Variant) -> dict[str, Any]:
                     "net_r": format(ZERO if dep.risk <= 0 else pnl / dep.risk, "f"),
                     "multiplier": dep.multiplier,
                     "volume": format(dep.volume, "f"),
+                    "observation_count": dep.observation_count,
+                    "positive_blocks": dep.positive_blocks,
+                    "nonpositive_blocks": dep.nonpositive_blocks,
+                    "mad_r": format(dep.mad_r, "f"),
+                    "dispersion_r": format(dep.dispersion_r, "f"),
+                    "expected_net_min_usd": format(
+                        dep.expected_net_min_usd,
+                        "f",
+                    ),
+                    "provider_cost_usd": format(dep.provider_cost, "f"),
                 }
             )
 
@@ -473,6 +588,24 @@ def simulate(rows: list[dict[str, Any]], variant: Variant) -> dict[str, Any]:
                 gross_r=d(outcome["gross_structural_outcome_r"]),
                 multiplier=multiplier,
                 volume=volume,
+                observation_count=int(
+                    row.get("walk_forward_observation_count", 0)
+                ),
+                positive_blocks=int(
+                    row.get("walk_forward_positive_block_count", 0)
+                ),
+                nonpositive_blocks=int(
+                    row.get("walk_forward_nonpositive_block_count", 0)
+                ),
+                mad_r=d(row.get("walk_forward_mad_r", "0")),
+                dispersion_r=d(row.get("walk_forward_dispersion_r", "0")),
+                expected_net_min_usd=(
+                    _eligible_net(
+                        row,
+                        uncertainty_priced=variant.uncertainty_priced,
+                    )
+                    or ZERO
+                ),
             )
             sequence += 1
             heapq.heappush(pending, (dep.exit_at, sequence, dep))
