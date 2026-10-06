@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import random
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from decimal import Decimal
 from typing import Any
@@ -25,11 +26,11 @@ def pf(metrics: dict[str, Any]) -> Decimal:
 
 
 def _block_summaries(
-    values: tuple[Decimal, ...],
+    values: tuple[float, ...],
     *,
     block_length: int,
-) -> dict[int, tuple[tuple[Decimal, Decimal, Decimal, Decimal], ...]]:
-    """Precompute circular-block path statistics for O(blocks), not O(trades)."""
+) -> dict[int, tuple[tuple[float, float, float, float], ...]]:
+    """Precompute circular-block statistics for hot Monte Carlo."""
 
     n = len(values)
     takes = {block_length}
@@ -39,16 +40,15 @@ def _block_summaries(
 
     summaries: dict[
         int,
-        tuple[tuple[Decimal, Decimal, Decimal, Decimal], ...],
+        tuple[tuple[float, float, float, float], ...],
     ] = {}
-    zero = Decimal(0)
     for take in takes:
-        rows: list[tuple[Decimal, Decimal, Decimal, Decimal]] = []
+        rows: list[tuple[float, float, float, float]] = []
         for start in range(n):
-            equity = zero
-            peak = zero
-            minimum = zero
-            max_dd = zero
+            equity = 0.0
+            peak = 0.0
+            minimum = 0.0
+            max_dd = 0.0
             for offset in range(take):
                 equity += values[(start + offset) % n]
                 if equity > peak:
@@ -70,13 +70,20 @@ def fast_block_bootstrap(
     paths: int,
     block_length: int = 5,
 ) -> dict[str, Any]:
-    """Deterministic circular-block bootstrap optimized for hot research."""
+    """Deterministic paired circular-block bootstrap for hot research.
 
-    values = tuple(d(value) for value in values_raw)
+    SHA-256 is used once to bind a stable seed to the declared domain. Draws
+    then use Python's version-frozen MT19937 implementation rather than hashing
+    every block. The resampling family, block length and 10k path count remain
+    unchanged.
+    """
+
+    values = tuple(float(value) for value in values_raw)
     n = len(values)
+    algorithm = "sha256-seeded-mt19937-circular-block-bootstrap-v3"
     if n == 0:
         return {
-            "algorithm": "sha256-moving-block-bootstrap-v2-block-summary",
+            "algorithm": algorithm,
             "paths": paths,
             "block_length": block_length,
             "positive_terminal_probability": "0",
@@ -88,23 +95,23 @@ def fast_block_bootstrap(
         raise ValueError("block_length must be positive")
 
     summaries = _block_summaries(values, block_length=block_length)
-    prefix = domain.encode()
-    terminals: list[Decimal] = []
-    drawdowns: list[Decimal] = []
-    zero = Decimal(0)
-    sha256 = hashlib.sha256
-    int_from_bytes = int.from_bytes
+    seed = int.from_bytes(
+        hashlib.sha256(domain.encode()).digest()[:16],
+        "big",
+    )
+    rng = random.Random(seed)
+    randrange = rng.randrange
+    terminals: list[float] = []
+    drawdowns: list[float] = []
     blocks_per_path = (n + block_length - 1) // block_length
     tail = n % block_length
 
-    for path_index in range(paths):
-        equity = zero
-        peak = zero
-        max_dd = zero
-        path_prefix = prefix + b":" + str(path_index).encode() + b":"
+    for _ in range(paths):
+        equity = 0.0
+        peak = 0.0
+        max_dd = 0.0
         for block_index in range(blocks_per_path):
-            digest = sha256(path_prefix + str(block_index).encode()).digest()
-            start = int_from_bytes(digest, "big") % n
+            start = randrange(n)
             take = (
                 tail
                 if tail and block_index == blocks_per_path - 1
@@ -128,25 +135,24 @@ def fast_block_bootstrap(
 
     terminals.sort()
     drawdowns.sort()
+    positive = sum(value > 0.0 for value in terminals) / paths
     return {
-        "algorithm": "sha256-moving-block-bootstrap-v2-block-summary",
+        "algorithm": algorithm,
         "paths": paths,
         "block_length": block_length,
-        "positive_terminal_probability": format(
-            Decimal(sum(value > 0 for value in terminals)) / Decimal(paths),
-            "f",
-        ),
+        "seed_sha256": format(seed, "032x"),
+        "positive_terminal_probability": format(positive, ".12g"),
         "p05_terminal_r": format(
             terminals[(paths - 1) * 5 // 100],
-            "f",
+            ".12g",
         ),
         "p50_terminal_r": format(
             terminals[(paths - 1) * 50 // 100],
-            "f",
+            ".12g",
         ),
         "p95_max_drawdown_r": format(
             drawdowns[(paths - 1) * 95 // 100],
-            "f",
+            ".12g",
         ),
     }
 
@@ -432,7 +438,7 @@ def evaluate(
             "DENSITY_FLOOR",
             "WINNER_COUNT_AND_R_PRESERVATION",
             "TEMPORAL_BLOCK_STRESS",
-            "DETERMINISTIC_10000_PATH_BLOCK_BOOTSTRAP_MONTE_CARLO_V2_FAST",
+            "DETERMINISTIC_10000_PATH_PAIRED_CIRCULAR_BLOCK_BOOTSTRAP_V3_FAST",
             "CROSS_LANE_PF_FLOOR",
             "OBSERVED_DD_HARD_GATE",
             "PRIMARY_LANE_DIRECTION_GATES",
