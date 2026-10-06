@@ -28,7 +28,6 @@ from qore.infrastructure.cibo_sovereign_capital_runtime import (
     CiboSovereignCapitalDecision,
 )
 
-
 ABLATION_KEYS = frozenset(
     {
         "sizing",
