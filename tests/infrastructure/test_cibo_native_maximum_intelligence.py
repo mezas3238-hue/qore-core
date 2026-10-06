@@ -161,7 +161,7 @@ def test_native_max_consumes_nonpositive_expected_value_into_abstention() -> Non
         for index in range(30)
     ) + (
         ("cibo_context_quality_disposition", "ALLOW"),
-        ("cibo_context_quality_rules", ""),
+        ("cibo_context_quality_rules", "none"),
         ("cibo_expectation_basis", "FROZEN_HISTORICAL_PRIOR"),
         ("cibo_expected_value_usd", "1.25"),
         ("cibo_expected_net_utility_usd", "0"),
@@ -196,7 +196,7 @@ def test_native_max_positive_context_remains_recommend_without_fake_gate() -> No
         for index in range(30)
     ) + (
         ("cibo_context_quality_disposition", "ALLOW"),
-        ("cibo_context_quality_rules", ""),
+        ("cibo_context_quality_rules", "none"),
         ("cibo_expectation_basis", "FROZEN_HISTORICAL_PRIOR"),
         ("cibo_expected_value_usd", "1.25"),
         ("cibo_expected_net_utility_usd", "1.00"),
