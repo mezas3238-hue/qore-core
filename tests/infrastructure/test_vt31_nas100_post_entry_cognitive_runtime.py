@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+from dataclasses import replace
 from decimal import Decimal
 
 import pytest
@@ -201,7 +202,7 @@ def test_full_cognition_reassesses_and_extends_only_on_structural_acceptance() -
     assert decision.position.r_runtime_authority is False
     assert decision.position.r_runtime_strategy_allowed is True
     assert decision.position.volume_agnostic is True
-    assert decision.r_runtime_authority is False
+    assert decision.r_runtime_authority is True
     assert decision.r_runtime_strategy_allowed is True
     assert decision.volume_runtime_authority is False
     assert decision.sizing_authority is False
@@ -330,3 +331,40 @@ def test_supportive_post_entry_cognition_preserves_winner_despite_swing() -> Non
     assert decision.cognition.protection_urgency is ProtectionUrgency.LOW
     assert decision.position.action is PositionAction.HOLD
     assert decision.position.reason == "COGNITIVE_WINNER_PRESERVATION_VETO"
+
+
+def test_post_entry_rebuild_carries_causal_open_r() -> None:
+    entry = _entry_situation()
+    observation = replace(
+        _observation(dol1_state="ACTIVE_OPPOSITE_09_BOUNDARY"),
+        m15_state="mixed",
+        dol2_state="CALIBRATED_ECONOMIC_CAPACITY_COGNITION_REQUIRED",
+        dol3_state="REJECTED_BY_EDGE_ECONOMICS",
+        extension_capacity_state="CALIBRATED_PRE_DOL1_CURRENT_JOURNEY",
+        current_open_r=Decimal("-0.50"),
+    )
+    current = rebuild_post_entry_situation(
+        entry_situation=entry,
+        observation=observation,
+    )
+
+    assert current.current_open_r == Decimal("-0.50")
+    decision = reassess_and_decide_post_entry(
+        entry_situation=entry,
+        entry_reasoning=reason(entry),
+        observation=observation,
+        market=_market(
+            swing=StructuralProtectionCandidate(
+                level=Decimal("97"),
+                confirmations=1,
+                source="confirmed-m1-swing",
+            ),
+            momentum_bad=True,
+        ),
+        entry_tier="CORE",
+        dol1_acceptance_observed=False,
+    )
+    assert decision.cognition.maximum_cognition_verified is True
+    assert decision.cognition.protection_urgency is ProtectionUrgency.MODERATE
+    assert decision.position.action is PositionAction.TRAIL
+    assert decision.r_runtime_authority is True
