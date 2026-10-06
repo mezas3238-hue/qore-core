@@ -116,7 +116,10 @@ def _reconstruct_situation(
             int | None,
             state["last_structure_event_age_minutes"],
         ),
-        recent_liquidity_event_count_10m=None,
+        recent_liquidity_event_count_10m=cast(
+            int | None,
+            state.get("recent_liquidity_event_count_10m"),
+        ),
         displacement_state="STRUCTURAL_CONFIRMATION_OBSERVED",
         entry_evidence_family=entry_family,
         confirmation_latency_minutes=int(
