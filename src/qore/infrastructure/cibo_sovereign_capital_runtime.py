@@ -46,7 +46,15 @@ from qore.infrastructure.cibo_capital_science_runtime_bridge import (
     CapitalSciencePredecisionInput,
     evaluate_capital_science_predecision,
 )
-from qore.infrastructure.cibo_ce2i_regime_selector import CiboCapitalRegimeState
+from qore.infrastructure.cibo_ce2i_optionality import (
+    CiboOptionalityDecision,
+    KnownCapitalOption,
+    plan_capital_optionality,
+)
+from qore.infrastructure.cibo_ce2i_regime_selector import (
+    CiboCapitalRegimeState,
+    select_ce2i_tools_for_regime,
+)
 from qore.infrastructure.cibo_cma_risk_request import build_cma_risk_request
 from qore.infrastructure.cibo_economic_engine_wiring import (
     CiboEconomicEngineRun,
@@ -59,6 +67,7 @@ from qore.infrastructure.cibo_executive_brain import (
 )
 from qore.infrastructure.cibo_full_economic_digital_twin import (
     CiboObservedEconomicTwin,
+    observed_twin_constraints,
 )
 from qore.infrastructure.cibo_multi_period_capital_mpc import (
     Genc11KnownOptionSchedule,
@@ -213,6 +222,112 @@ def bind_cibo_cognition_to_twin(
     )
 
 
+def bind_cibo_optionality_to_twin(
+    *,
+    twin: CiboObservedEconomicTwin,
+    mission_policy: CiboCapitalMissionPolicy,
+    regime_state: CiboCapitalRegimeState,
+) -> tuple[CiboObservedEconomicTwin, CiboOptionalityDecision]:
+    """Reserve causal minimum-seed optionality before economic allocation."""
+
+    if not isinstance(twin, CiboObservedEconomicTwin):
+        raise CiboCapitalManagementError(
+            "optionality binding requires canonical Full Economic Twin"
+        )
+    if not isinstance(mission_policy, CiboCapitalMissionPolicy):
+        raise CiboCapitalManagementError(
+            "optionality binding requires canonical mission policy"
+        )
+    if not isinstance(regime_state, CiboCapitalRegimeState):
+        raise CiboCapitalManagementError(
+            "optionality binding requires canonical regime state"
+        )
+
+    constraints = observed_twin_constraints(twin)
+    known = tuple(
+        KnownCapitalOption(
+            opportunity_id=item.option_id,
+            minimum_stop_risk_usd=item.stop_risk_usd,
+            minimum_margin_usd=item.margin_usd,
+        )
+        for item in twin.opportunities
+        if (
+            item.known_at <= twin.captured_at
+            and item.earliest_action_at <= twin.captured_at
+            and twin.captured_at < item.expires_at
+            and item.context_allowed
+            and item.provider_viable
+            and item.capital_source_eligible
+        )
+    )
+    minimum_seed_feasible = (
+        not known
+        or any(
+            item.minimum_stop_risk_usd
+            <= constraints["stop_risk_headroom_usd"]
+            and item.minimum_margin_usd
+            <= constraints["margin_headroom_usd"]
+            for item in known
+        )
+    )
+    regime = select_ce2i_tools_for_regime(
+        mission=mission_policy,
+        state=regime_state,
+    )
+    optionality = plan_capital_optionality(
+        mission=mission_policy,
+        regime=regime,
+        hard_risk_headroom_usd=constraints["stop_risk_headroom_usd"],
+        margin_headroom_usd=constraints["margin_headroom_usd"],
+        known_options=known,
+    )
+
+    portfolio = replace(
+        twin.portfolio,
+        reserved_stop_risk_usd=(
+            twin.portfolio.reserved_stop_risk_usd
+            + optionality.reserve_stop_risk_usd
+        ),
+        reserved_margin_usd=(
+            twin.portfolio.reserved_margin_usd
+            + optionality.reserve_margin_usd
+        ),
+    )
+    cognitive_constraints = dict(twin.cognitive_constraints)
+    cognitive_constraints.update(
+        {
+            "minimum_executable_seed_feasible": (
+                "true" if minimum_seed_feasible else "false"
+            ),
+            "known_executable_seed_count": str(len(known)),
+            "optionality_preserve_new_capital": (
+                "true" if optionality.preserve_new_capital else "false"
+            ),
+            "optionality_reserve_stop_risk_usd": format(
+                optionality.reserve_stop_risk_usd,
+                "f",
+            ),
+            "optionality_reserve_margin_usd": format(
+                optionality.reserve_margin_usd,
+                "f",
+            ),
+        }
+    )
+    return (
+        replace(
+            twin,
+            portfolio=portfolio,
+            cognitive_constraints=tuple(
+                sorted(
+                    (str(key), str(value))
+                    for key, value in cognitive_constraints.items()
+                )
+            ),
+        ),
+        optionality,
+    )
+
+
 def run_cibo_sovereign_capital_runtime(
     *,
     decision_id: str,
@@ -319,7 +434,25 @@ def run_cibo_sovereign_capital_runtime(
             "sovereign option identity does not match Trader opportunity"
         )
 
-    cognitive_twin = bind_cibo_cognition_to_twin(twin, synthesis)
+    optionality_twin, _optionality = bind_cibo_optionality_to_twin(
+        twin=twin,
+        mission_policy=mission_policy,
+        regime_state=regime_state,
+    )
+    cognitive_twin = bind_cibo_cognition_to_twin(
+        optionality_twin,
+        synthesis,
+    )
+    deployable_constraints = observed_twin_constraints(cognitive_twin)
+    deployable_capital = replace(
+        capital,
+        hard_risk_headroom_usd=deployable_constraints[
+            "stop_risk_headroom_usd"
+        ],
+        margin_headroom_usd=deployable_constraints[
+            "margin_headroom_usd"
+        ],
+    )
     economic = run_cibo_economic_engine_chain(
         twin=cognitive_twin,
         world_paths=world_paths,
@@ -336,7 +469,7 @@ def run_cibo_sovereign_capital_runtime(
         )
     sizing = plan_account_sizing(
         opportunity=opportunity,
-        capital=capital,
+        capital=deployable_capital,
         mission_policy=mission_policy,
         survival_capital_usd=survival_capital_usd,
         protected_capital_usd=protected_capital_usd,
@@ -357,7 +490,7 @@ def run_cibo_sovereign_capital_runtime(
             opportunity=opportunity,
             twin=cognitive_twin,
             sizing=sizing,
-            capital=capital,
+            capital=deployable_capital,
             regime_state=regime_state,
         )
     )
@@ -619,6 +752,7 @@ def _build_capital_science_state(
             twin.capital_twin.compound_economic_value_usd
             - twin.capital_twin.protected_floor_usd,
         )
+    deployable_constraints = observed_twin_constraints(twin)
     return CapitalSciencePredecisionInput(
         decision_epoch_id=decision_id,
         signal_fingerprint=opportunity.signal_fingerprint,
@@ -639,8 +773,12 @@ def _build_capital_science_state(
         provider_cost_usd=current_provider_cost_usd,
         expected_net_value_usd=current_expected_net_value_usd,
         expected_capital_minutes=target.expected_capital_minutes,
-        hard_risk_headroom_usd=twin.capital_twin.stop_risk_headroom_usd,
-        margin_headroom_usd=twin.capital_twin.margin_headroom_usd,
+        hard_risk_headroom_usd=deployable_constraints[
+            "stop_risk_headroom_usd"
+        ],
+        margin_headroom_usd=deployable_constraints[
+            "margin_headroom_usd"
+        ],
         competing_candidates=max(0, len(twin.opportunities) - 1),
         capital_source=source,
         qore_symbol=opportunity.qore_symbol,
