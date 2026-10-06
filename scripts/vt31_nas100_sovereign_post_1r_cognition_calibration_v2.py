@@ -27,6 +27,7 @@ import vt31_nas100_specialist_r1_candidate as specialist
 
 from qore.infrastructure.traders.vt31_nas100_position_intelligence import (
     assess_full_cognitive_position,
+    validate_full_cognitive_accounting_for_research,
 )
 
 SCHEMA = "qore.vt31.nas100.sovereign_post_1r_cognition_calibration.v2"
@@ -155,8 +156,7 @@ def replay(
             entry_tier="CORE",
             dol1_acceptance_observed=None,
         )
-        if not cognition.maximum_cognition_verified:
-            raise AssertionError("partial cognition entered journey calibration")
+        validate_full_cognitive_accounting_for_research(cognition)
 
         local_day = specialist._day(getattr(executable, "decision_at"))
         for horizon in HORIZONS:
@@ -193,7 +193,18 @@ def replay(
                         "last_structure_event_family",
                         "unavailable",
                     ),
-                    "maximum_cognition_verified": True,
+                    "full_cognitive_accounting_verified": (
+                        cognition.full_cognitive_accounting_verified
+                    ),
+                    "maximum_cognition_verified": (
+                        cognition.maximum_cognition_verified
+                    ),
+                    "reasoning_max_intelligence_ready": (
+                        cognition.reasoning_max_intelligence_ready
+                    ),
+                    "reasoning_max_intelligence_blockers": list(
+                        cognition.reasoning_max_intelligence_blockers
+                    ),
                 }
             )
             observations.append(row)
@@ -257,7 +268,8 @@ def replay(
             "structural_target_changed": False,
             "future_labels_research_only": True,
             "future_labels_used_for_runtime_decision": False,
-            "maximum_cognition_required": True,
+            "full_cognitive_accounting_required": True,
+            "maximum_intelligence_required_for_candidate_freeze": True,
             "r_runtime_strategy_allowed": True,
             "r_used_for_volume": False,
             "position_sizing_used": False,
