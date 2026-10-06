@@ -36,6 +36,8 @@ jobs:
   chronological-usd60-ceiling:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    env:
+      PYTHONPATH: ${{ github.workspace }}
     steps:
       - uses: actions/checkout@v4
 
