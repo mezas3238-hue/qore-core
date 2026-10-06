@@ -24,6 +24,9 @@ import vt31_nas100_h3_dol2_composition_frontier_v1 as composition
 import vt31_nas100_post_1r_full_cognition_management_frontier_v2 as h3
 import vt31_nas100_specialist_r1_candidate as specialist
 
+from qore.infrastructure.traders.vt31_nas100_cognitive_telemetry import (
+    capture_post_entry_cognitive_sensor,
+)
 from qore.infrastructure.traders.vt31_nas100_position_intelligence import (
     PositionAction,
     StructuralProtectionCandidate,
@@ -266,6 +269,11 @@ def _live_cognitive_position_decision(
     )
     authorized = decision.position.action is PositionAction.TRAIL
     cognition = decision.cognition
+    sensor = capture_post_entry_cognitive_sensor(
+        observation=observation,
+        market=market,
+        decision=decision,
+    )
     return decision, {
         "observation_at": observation_at.astimezone(UTC).isoformat(),
         "authorized": authorized,
@@ -301,6 +309,8 @@ def _live_cognitive_position_decision(
         "maximum_intelligence_blockers": list(
             cognition.reasoning_max_intelligence_blockers
         ),
+        "cognitive_sensor": sensor.payload(),
+        "cognitive_sensor_fingerprint": sensor.fingerprint(),
     }
 
 
