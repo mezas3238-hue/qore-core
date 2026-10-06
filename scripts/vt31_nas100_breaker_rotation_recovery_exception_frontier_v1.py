@@ -317,6 +317,12 @@ def _report(
         "residual_entry_quality_forensics": (
             _residual_entry_quality_forensics(rows)
         ),
+        "first_material_adverse_forensics": (
+            adverse._first_material_adverse_forensics(
+                comparator,
+                rows,
+            )
+        ),
         "max_drawdown_episode_forensics": (
             adverse._max_drawdown_episode_forensics(
                 comparator,
@@ -492,6 +498,8 @@ def replay(evidence_path: Path) -> dict[str, object]:
             "reclaim_fresh_bucket_preexisting": True,
             "residual_entry_quality_forensics_observation_only": True,
             "residual_entry_quality_forensics_action_authority": False,
+            "first_material_adverse_forensics_observation_only": True,
+            "first_material_adverse_forensics_action_authority": False,
             "fvg_fresh_fast_candidate_predeclared": True,
             "fvg_fresh_fast_uses_preexisting_buckets": True,
             "residual_episode_frontier_predeclared": True,
