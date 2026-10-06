@@ -597,3 +597,296 @@ This must be designed from causal predecision facts only, such as:
 
 Do not use realized future outcome to choose thresholds.
 
+---
+
+## 16. Full maturity-repaired replay — root cause #2 confirmed
+
+The complete repaired walk-forward replay has now finished:
+
+- workflow: `QORE CIBO Walk Forward Full Replay`;
+- run: `37512709504`;
+- replay head: `a4af979420effe2b1d4ae9039706de7ca12243a5`;
+- result: SUCCESS;
+- 3,368 decisions / 3,305 epochs;
+- 292 Risk-authorized settlements;
+- future outcome used: false;
+- certification claimed: false.
+
+Economic result:
+
+- initial capital: USD 60;
+- peak capital: ~USD 147.56573637;
+- ending capital: ~USD 0.08028499;
+- net PnL: ~USD -59.91971501;
+- maximum peak-to-trough drawdown: ~USD 147.48545139.
+
+Therefore the forecast-maturity repair is necessary but not sufficient.
+
+It removes the original July/August 2019 death, allows the account to grow strongly, but the account is later destroyed by April 2020.
+
+### 16.1 Portfolio / Adaptive Leverage is effectively pinned at maximum intensity
+
+Across the 292 authorized mature decisions:
+
+- 291 requested multiplier 4x;
+- 1 requested multiplier 1x;
+- 244 finished at 4x minimum executable volume;
+- 47 were clipped to 3x by downstream capacity;
+- 1 finished at 1x.
+
+The historical Full Economic Twin currently publishes:
+
+`("capital_intensity_cap", "4")`
+
+as a fixed cognitive constraint.
+
+The cognition binding only changes this cap to zero when the executive directive is not RECOMMEND. For a positive RECOMMEND it leaves the cap at 4.
+
+Therefore cognition currently has only an effective binary intensity authority:
+
+- 0x if abstain/block;
+- up to 4x if recommend.
+
+It does not translate bounded confidence, drawdown, dispersion, MAD, evidence age or scenario severity into 1x/2x/3x intensity.
+
+The Portfolio objective then maximizes:
+
+`expected_net_utility * multiplier / expected_capital_minutes`
+
+before risk/margin tie-breakers.
+
+For any positive net utility, with no binding capacity constraint, the objective is monotonic in the multiplier and therefore structurally prefers 4x.
+
+This is not merely an empirical pattern. It is an architectural consequence of the current objective plus the hard-coded cap.
+
+### 16.2 QORE Risk passes the resulting request unchanged
+
+For all 292 authorized decisions:
+
+- authorized volume == requested volume;
+- authorized stop risk == requested stop risk;
+- Risk decision = ALLOW.
+
+The historical provider/Risk assumption currently permits:
+
+- risk headroom = 1.0 * equity;
+- maximum risk = 1.0 * equity.
+
+This means the hard governor can legally admit very large fractions of account equity when upstream Portfolio proposes them.
+
+Observed authorized stop-risk / realized-capital ratios:
+
+- median: ~3.25%;
+- 75th percentile: ~5.35%;
+- 90th percentile: ~8.44%;
+- 95th percentile: ~13.12%;
+- maximum: ~91.18%.
+
+There were:
+
+- 82 trades at >=5% of realized capital;
+- 21 trades at >=10%;
+- 13 trades at >=15%;
+- 7 trades at >=20%.
+
+Those >=5% trades contributed approximately:
+
+- net PnL: USD -54.11.
+
+Those >=10% trades contributed approximately:
+
+- net PnL: USD -101.43.
+
+The negative number larger than total account loss is possible because other trades generated offsetting profits.
+
+This shows that the capital death is highly concentrated in high-risk deployments.
+
+### 16.3 Same selected mature trades at 1x do not kill the account
+
+A postdecision same-sequence linear 1x counterfactual for the exact same 292 selected trades gives approximately:
+
+- ending capital: USD 45.05;
+- peak capital: USD 82.47;
+- maximum drawdown: USD 37.42.
+
+Actual 3x/4x path:
+
+- ending capital: USD 0.08;
+- peak capital: USD 147.57;
+- maximum drawdown: USD 147.49.
+
+Thus the same selected sequence is economically weak net of costs, but it is **not account-killing at 1x**.
+
+The additional loss associated with the higher realized intensity is approximately:
+
+- actual net: -USD 59.92;
+- 1x same-sequence net: -USD 14.95;
+- incremental damage associated with higher intensity: ~USD -44.97.
+
+This is postdecision attribution only; it is not a tuned production multiplier recommendation.
+
+### 16.4 Forecast economic calibration remains severely wrong after maturity
+
+The 292 selected mature decisions had aggregate Portfolio expected net utility of approximately:
+
+- **+USD 258.02**.
+
+Their realized net result was approximately:
+
+- **-USD 59.92**.
+
+Aggregate forecast-to-realized error:
+
+- ~USD 317.94.
+
+All 292 selected opportunities had positive expected Portfolio utility, but only ~52.4% realized positive net PnL.
+
+The highest quartile by expected Portfolio utility was especially damaging:
+
+- expected utility sum: ~+USD 174.39;
+- realized net PnL: ~-USD 78.63.
+
+Correlation between expected Portfolio utility and realized net PnL was negative:
+
+- Pearson: approximately -0.146;
+- Spearman: approximately -0.019.
+
+Expected structural R itself had effectively zero rank relationship with realized structural outcome on the selected set.
+
+Therefore maturity alone does not establish calibration.
+
+The current estimator is causally legal but its economic magnitude is not sufficiently calibrated for capital intensity.
+
+### 16.5 Confidence metrics are not yet a valid leverage oracle
+
+The repaired forecast now exposes:
+
+- observation count;
+- positive/nonpositive block count;
+- block dispersion;
+- median absolute deviation;
+- evidence age;
+- maturity fraction.
+
+But on this burned sample, simple monotonic interpretations are not supported.
+
+Selected decisions by positive chronological block count:
+
+- 3/5 positive blocks:
+  - 100 trades;
+  - realized net ~+USD 69.19.
+- 4/5 positive blocks:
+  - 127 trades;
+  - realized net ~-USD 111.20.
+- 5/5 positive blocks:
+  - 65 trades;
+  - realized net ~-USD 17.91.
+
+So it would be invalid to outcome-tune a rule like “more positive blocks => more leverage.”
+
+Likewise dispersion and observation count do not show a reliable monotonic relationship with realized net PnL in the burned sample.
+
+The correct architectural conclusion is not to derive a magic threshold from these outcomes.
+
+The correct conclusion is:
+
+> confidence information must enter capital intensity through a predeclared, causal, robust uncertainty/survival law and then be tested out-of-sample.
+
+### 16.6 Provider friction is now proven to be a major root economic problem
+
+Across the 292 selected mature trades:
+
+- gross structural PnL before provider friction: ~+USD 32.81;
+- provider costs: ~USD 92.73;
+- realized net PnL: ~-USD 59.92.
+
+Therefore the selected mature surface had positive aggregate structural edge, but the edge was too small to pay its real provider economics.
+
+At 1x minimum-size equivalent:
+
+- gross structural PnL: ~+USD 8.92;
+- provider friction: ~USD -23.87;
+- net PnL: ~USD -14.95.
+
+Trader-level decomposition:
+
+- R34_XAUUSD:
+  - gross structural ~-USD 51.48;
+  - provider cost ~USD 30.40;
+  - net ~-USD 81.88.
+- R38_GBPJPY:
+  - gross structural ~+USD 17.44;
+  - provider cost ~USD 22.85;
+  - net ~-USD 5.41.
+- R42_AUDJPY:
+  - gross structural ~+USD 50.38;
+  - provider cost ~USD 11.69;
+  - net ~+USD 38.69.
+- R43_GBPUSD:
+  - gross structural ~-USD 27.84;
+  - provider cost ~USD 10.08;
+  - net ~-USD 37.92.
+- VT08_FOREX:
+  - gross structural ~+USD 5.39;
+  - provider cost ~USD 0.12;
+  - net ~+USD 5.27.
+- VT31_NAS100:
+  - gross structural ~+USD 38.93;
+  - provider cost ~USD 17.60;
+  - net ~+USD 21.33.
+
+So the damage mechanisms differ by Trader:
+
+- R34 and R43: selected structural outcomes themselves are net destructive;
+- R38_GBPJPY: structural edge is positive, but provider economics consume it;
+- R42, VT08 and VT31 are positive contributors in the maturity-repaired path.
+
+This does not prove permanent Trader quality. It identifies where CIBO's selected capital actually lost money in this burned replay.
+
+### 16.7 Current root-cause hierarchy
+
+The full evidence now supports four distinct layers:
+
+1. **Forecast maturity admission defect** — causal and already repaired.
+2. **Forecast economic calibration defect** — OPEN.
+   - expected utility materially overstates realized economic value.
+3. **Portfolio / Adaptive Leverage intensity defect** — OPEN.
+   - fixed cognitive cap 4 plus a monotonic positive-utility objective drives almost every recommendation to 4x.
+4. **Survival-envelope defect** — OPEN.
+   - total stop risk may approach the full equity envelope;
+   - Risk passes admissible upstream requests unchanged.
+
+Provider friction is not merely noise: it is a first-order economic constraint that the selected gross edge frequently fails to cover.
+
+Compound remains unsupported as a cause of this collapse.
+
+### 16.8 Immediate causal ablation now launched
+
+A dedicated workflow has been added:
+
+`.github/workflows/cibo-damage-attribution-ablation.yml`
+
+It freezes the burned damage window through 2020-04-30 and runs two orthogonal matrices:
+
+1. fixed Portfolio multiplier:
+   - 1x;
+   - 2x;
+   - 3x;
+   - 4x.
+
+2. total Risk/provider envelope as fraction of equity:
+   - 2%;
+   - 3%;
+   - 5%;
+   - 10%;
+   - 25%;
+   - 100% baseline.
+
+This is intended to distinguish:
+
+- selection/calibration damage;
+- leverage amplification;
+- survival-envelope failure.
+
+No result from this matrix may be treated as a tuned production threshold merely because it performs best on this burned period.
+
