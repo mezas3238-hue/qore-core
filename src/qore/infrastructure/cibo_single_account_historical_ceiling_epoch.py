@@ -206,7 +206,7 @@ def run_predecision_historical_sovereign_ceiling_epoch(
         option_id_by_signal=tuple(
             (
                 item.signal_fingerprint,
-                "ceiling:" + item.signal_fingerprint,
+                item.signal_fingerprint,
             )
             for item in envelopes
         ),

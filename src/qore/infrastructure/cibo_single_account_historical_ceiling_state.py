@@ -337,7 +337,7 @@ def build_historical_ceiling_epoch_state(
             ).to_integral_value(rounding=ROUND_FLOOR)
         )
         maximum_multiplier = max(0, min(4, provider_cap))
-        option_id = "ceiling:" + opportunity.signal_fingerprint
+        option_id = opportunity.signal_fingerprint
         evidence_sha = _sha(
             "historical-opportunity",
             (
