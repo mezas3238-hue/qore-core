@@ -19,6 +19,7 @@ def _sensor(
     gate: bool = False,
     ablation_key: str | None = None,
     risk_delta: Decimal = Decimal("0"),
+    binding: bool = False,
 ) -> CiboFunctionEconomicSensor:
     return CiboFunctionEconomicSensor(
         decision_id=decision_id,
@@ -31,6 +32,7 @@ def _sensor(
         called=True,
         downstream_consumed=True,
         decision_gate_triggered=gate,
+        final_capital_binding=binding,
         risk_delta_usd=risk_delta,
         margin_delta_usd=Decimal("0"),
         ablation_key=ablation_key,
@@ -103,6 +105,8 @@ def test_sensor_summary_separates_activity_from_ablation_economics() -> None:
     assert sizing["call_count"] == 2
     assert sizing["downstream_consumed_count"] == 2
     assert sizing["decision_gate_triggered_count"] == 1
+    assert sizing["final_capital_binding_count"] == 0
+    assert sizing["local_change_without_final_binding_count"] == 1
     assert sizing["risk_delta_usd"] == "1"
 
     causal = summary["causal_ablation_summary"]
@@ -131,3 +135,31 @@ def test_sensor_rejects_productive_authority() -> None:
             output_metrics=(("output", "2"),),
             productive_authority=True,
         )
+
+
+def test_function_sensor_separates_binding_from_local_change() -> None:
+    sensors = (
+        _sensor(
+            decision_id="d1",
+            function_code="GEN-C11",
+            gate=True,
+            binding=False,
+        ),
+        _sensor(
+            decision_id="d2",
+            function_code="GEN-C12",
+            gate=True,
+            binding=True,
+        ),
+    )
+
+    summary = summarize_function_sensors(sensors)
+    g11 = summary["function_summary"]["GEN-C11"]
+    g12 = summary["function_summary"]["GEN-C12"]
+
+    assert g11["decision_gate_triggered_count"] == 1
+    assert g11["final_capital_binding_count"] == 0
+    assert g11["local_change_without_final_binding_count"] == 1
+    assert g12["decision_gate_triggered_count"] == 1
+    assert g12["final_capital_binding_count"] == 1
+    assert g12["local_change_without_final_binding_count"] == 0
