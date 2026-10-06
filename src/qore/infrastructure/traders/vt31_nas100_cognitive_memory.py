@@ -55,6 +55,13 @@ def memory_payload() -> dict[str, object]:
             "cibo_market": cibo_market_memory_fingerprint(),
             "trader_experience": trader_experience_fingerprint(),
         },
+        "maximum_cognition_contract": {
+            "maximum_cognition_required": True,
+            "partial_cognition_certification_allowed": False,
+            "post_entry_reassessment_capability_required": True,
+            "r_strategy_allowed": True,
+            "r_used_for_volume_allowed": False,
+        },
         "runtime_guards": {
             "external_cibo_runtime_dependency": False,
             "date_level_historical_outcome_lookup": False,
