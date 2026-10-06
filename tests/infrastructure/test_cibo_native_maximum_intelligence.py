@@ -131,6 +131,7 @@ def test_native_max_consumes_context_quality_semantics_into_abstention() -> None
         ("cibo_context_quality_rules", "RULE_A"),
         ("cibo_expectation_basis", "FROZEN_HISTORICAL_PRIOR"),
         ("cibo_expected_value_usd", "1.25"),
+        ("cibo_expected_net_utility_usd", "1.00"),
         ("cibo_expected_capital_minutes", "30"),
     )
     opportunity = _opportunity(TraderLineage.R34_XAUUSD, context)
@@ -161,7 +162,8 @@ def test_native_max_consumes_nonpositive_expected_value_into_abstention() -> Non
         ("cibo_context_quality_disposition", "ALLOW"),
         ("cibo_context_quality_rules", ""),
         ("cibo_expectation_basis", "FROZEN_HISTORICAL_PRIOR"),
-        ("cibo_expected_value_usd", "0"),
+        ("cibo_expected_value_usd", "1.25"),
+        ("cibo_expected_net_utility_usd", "0"),
         ("cibo_expected_capital_minutes", "30"),
     )
     opportunity = _opportunity(TraderLineage.R34_XAUUSD, context)
@@ -182,9 +184,9 @@ def test_native_max_consumes_nonpositive_expected_value_into_abstention() -> Non
     assert result.cognitive_episode.abstention_required is True
     assert (
         result.cognitive_episode.calibration.note
-        == "nonpositive-causal-expected-value"
+        == "nonpositive-causal-expected-net-utility"
     )
-    assert result.cognitive_episode.decision_gate_codes == ("CF16",)
+    assert result.cognitive_episode.decision_gate_codes == ("CF07",)
 
 
 def test_native_max_positive_context_remains_recommend_without_fake_gate() -> None:
@@ -196,6 +198,7 @@ def test_native_max_positive_context_remains_recommend_without_fake_gate() -> No
         ("cibo_context_quality_rules", ""),
         ("cibo_expectation_basis", "FROZEN_HISTORICAL_PRIOR"),
         ("cibo_expected_value_usd", "1.25"),
+        ("cibo_expected_net_utility_usd", "1.00"),
         ("cibo_expected_capital_minutes", "30"),
     )
     opportunity = _opportunity(TraderLineage.R34_XAUUSD, context)
