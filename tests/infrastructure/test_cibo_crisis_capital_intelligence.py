@@ -177,7 +177,9 @@ def test_genc12_correlation_break_removes_false_diversification_tools() -> None:
     assert plan.posture is CiboRegimePosture.RECOVERY
     for tool in ("T08", "T09", "T16", "T18"):
         assert tool in plan.blocked_ce2i_tools
-    assert Genc12CapitalResponse.NO_NEW_DEPLOYMENT in plan.responses
+    assert Genc12CapitalResponse.MINIMAL_SEED_ELIGIBLE in plan.responses
+    assert Genc12CapitalResponse.NO_NEW_DEPLOYMENT not in plan.responses
+    assert Genc12CapitalResponse.SELECTIVE_EXPANSION_ELIGIBLE not in plan.responses
     assert Genc12CapitalResponse.RESERVE_CAPACITY in plan.responses
     assert Genc12CapitalResponse.RELEASE_CAPACITY in plan.responses
 
