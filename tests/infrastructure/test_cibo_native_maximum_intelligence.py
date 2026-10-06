@@ -300,3 +300,39 @@ def test_native_max_treats_burned_context_abstain_as_advisory() -> None:
     assert result.synthesis.directive is CiboExecutiveDirectiveKind.RECOMMEND
     assert result.cognitive_episode.abstention_required is False
     assert result.cognitive_episode.decision_gate_codes == ()
+
+
+def test_native_max_distinguishes_walk_forward_cold_start() -> None:
+    context = tuple(
+        (f"ctx_native_{index:02d}", f"value-{index:02d}")
+        for index in range(30)
+    ) + (
+        ("cibo_context_quality_disposition", "ALLOW"),
+        ("cibo_context_quality_rules", "none"),
+        ("cibo_context_quality_hard_gate_authorized", "false"),
+        ("cibo_expectation_basis", "COLD_START_NO_FORECAST"),
+        ("cibo_expected_value_usd", "0"),
+        ("cibo_expected_net_utility_usd", "-0.10"),
+        ("cibo_expected_capital_minutes", "1"),
+    )
+    opportunity = _opportunity(TraderLineage.R34_XAUUSD, context)
+    consultation = consult_cibo_economic_faculties(
+        decision_at=NOW,
+        opportunities=(opportunity,),
+        regime_state=_regime(),
+    )
+
+    result = run_native_maximum_intelligence(
+        consultation=consultation,
+        opportunities=(opportunity,),
+        target=opportunity,
+        regime_state=_regime(),
+    )
+
+    assert result.synthesis.directive is CiboExecutiveDirectiveKind.ABSTAIN
+    assert result.cognitive_episode.abstention_required is True
+    assert (
+        result.cognitive_episode.calibration.note
+        == "walk-forward-cold-start-history-required"
+    )
+    assert result.cognitive_episode.decision_gate_codes == ("CF07",)
