@@ -10,7 +10,6 @@ from qore.infrastructure.traders.vt31_nas100_situation_model import (
     Nas100SituationModel,
 )
 
-
 ROOT = Path(__file__).resolve().parents[2]
 SPECIALIST = ROOT / "scripts" / "vt31_nas100_specialist_r1_candidate.py"
 REASONING = (
