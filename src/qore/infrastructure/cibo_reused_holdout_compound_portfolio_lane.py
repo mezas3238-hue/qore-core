@@ -771,6 +771,8 @@ def _known_options_with_current_geometry(
     stop_risk_usd: Decimal,
     margin_usd: Decimal,
     provider_cost_usd: Decimal,
+    expected_net_value_usd: Decimal,
+    expected_capital_minutes: Decimal,
 ) -> tuple[CapitalScienceKnownOpportunity, ...]:
     matches = tuple(
         item for item in options if item.option_id == signal_fingerprint
@@ -785,6 +787,8 @@ def _known_options_with_current_geometry(
             requested_capital_usd=stop_risk_usd + provider_cost_usd,
             stop_risk_usd=stop_risk_usd,
             margin_usd=margin_usd,
+            expected_net_value_usd=expected_net_value_usd,
+            expected_capital_minutes=expected_capital_minutes,
         )
         if item.option_id == signal_fingerprint
         else item
@@ -1725,6 +1729,8 @@ def run_compound_portfolio_lane(
                             stop_risk_usd=risk,
                             margin_usd=margin,
                             provider_cost_usd=cost,
+                            expected_net_value_usd=expectation.expected_net_value_usd,
+                            expected_capital_minutes=expectation.expected_capital_minutes,
                         )
                     ),
                     open_economic_positions=tuple(
@@ -1852,6 +1858,8 @@ def run_compound_portfolio_lane(
                                 stop_risk_usd=risk,
                                 margin_usd=margin,
                                 provider_cost_usd=cost,
+                                expected_net_value_usd=expectation.expected_net_value_usd,
+                                expected_capital_minutes=expectation.expected_capital_minutes,
                             )
                         ),
                         genc7_proposal=replace(
@@ -2003,6 +2011,8 @@ def run_compound_portfolio_lane(
                             stop_risk_usd=risk,
                             margin_usd=margin,
                             provider_cost_usd=cost,
+                            expected_net_value_usd=expectation.expected_net_value_usd,
+                            expected_capital_minutes=expectation.expected_capital_minutes,
                         )
                     ),
                     genc7_proposal=replace(
