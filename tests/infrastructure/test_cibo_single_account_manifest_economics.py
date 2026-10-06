@@ -98,7 +98,9 @@ def test_manifest_row_builds_exact_causal_ceiling_economics() -> None:
     assert context["ctx_session"] == "new_york"
     assert context["cibo_context_quality_disposition"] == "ALLOW"
     assert context["cibo_expectation_basis"] == "FROZEN_HISTORICAL_PRIOR"
+    assert context["cibo_context_quality_rules"] == "none"
     assert context["cibo_expected_value_usd"] == "5"
+    assert context["cibo_expected_net_utility_usd"] == "4.91"
     assert context["cibo_expected_capital_minutes"] == "30"
 
 
