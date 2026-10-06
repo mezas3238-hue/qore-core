@@ -27,7 +27,7 @@ from qore.infrastructure.cibo_ce2i_calibration_registry import (
     CiboCalibrationState,
 )
 from qore.infrastructure.cibo_ce2i_holdout_registry import (
-    ACTIVE_USD60_HOLDOUT_CANDIDATE,
+    CURRENT_FRESH_USD60_HOLDOUT_CANDIDATE,
     CiboHoldoutCandidateStatus,
     candidate_is_burn_clean_for_all_lineages,
 )
@@ -184,7 +184,7 @@ def evaluate_pre_holdout_readiness(
     if not effective_calibration_sealed:
         blockers.append("CALIBRATION_FREEZE_MANIFEST_NOT_SEALED")
 
-    candidate = ACTIVE_USD60_HOLDOUT_CANDIDATE
+    candidate = CURRENT_FRESH_USD60_HOLDOUT_CANDIDATE
     if candidate.status is not CiboHoldoutCandidateStatus.ELIGIBLE_FROZEN:
         blockers.append("ACTIVE_HOLDOUT_NOT_ELIGIBLE_FROZEN")
     if not candidate.source_validation_complete:
