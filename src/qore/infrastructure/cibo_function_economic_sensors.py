@@ -487,8 +487,15 @@ def build_sovereign_function_sensors(
             stage_order=30,
             input_metrics=_pairs(
                 option_id=decision.option_id,
+                opportunity_count=len(economic.portfolio_plan.lines),
                 total_expected_net_utility_usd=(
                     economic.portfolio_plan.total_expected_net_utility_usd
+                ),
+                robust_stop_risk_headroom_usd=(
+                    first_robust.common_stop_risk_headroom_usd
+                ),
+                robust_margin_headroom_usd=(
+                    first_robust.common_margin_headroom_usd
                 ),
             ),
             output_metrics=_pairs(
@@ -496,6 +503,8 @@ def build_sovereign_function_sensors(
                 expected_net_utility_usd=portfolio.expected_net_utility_usd,
                 stop_risk_usd=portfolio.stop_risk_usd,
                 margin_usd=portfolio.margin_usd,
+                feeds_adaptive_leverage=True,
+                feeds_cma_cap=True,
             ),
             decision_gate_triggered=(portfolio.multiplier == 0),
             final_capital_binding=portfolio_binding,
@@ -508,11 +517,16 @@ def build_sovereign_function_sensors(
             input_metrics=_pairs(
                 maximum_multiplier="PROVIDER_AND_CAPITAL_DERIVED",
                 option_id=decision.option_id,
+                upstream_portfolio_multiplier=portfolio.multiplier,
+                upstream_portfolio_stop_risk_usd=portfolio.stop_risk_usd,
+                upstream_portfolio_margin_usd=portfolio.margin_usd,
             ),
             output_metrics=_pairs(
                 selected_multiplier=portfolio.multiplier,
                 stop_risk_cap_usd=portfolio.stop_risk_usd,
                 margin_cap_usd=portfolio.margin_usd,
+                shared_portfolio_line=True,
+                downstream_target="CMA_FINAL_PLAN",
             ),
             decision_gate_triggered=(portfolio.multiplier == 0),
             final_capital_binding=portfolio_binding,
@@ -548,6 +562,13 @@ def build_sovereign_function_sensors(
                 base_protected=decision.sizing.base_protected,
                 survival_capital_usd=decision.sizing.survival_capital_usd,
                 protected_capital_usd=decision.sizing.protected_capital_usd,
+                observed_parallel_portfolio_multiplier=portfolio.multiplier,
+                observed_parallel_portfolio_stop_risk_cap_usd=(
+                    portfolio.stop_risk_usd
+                ),
+                observed_parallel_portfolio_margin_cap_usd=(
+                    portfolio.margin_usd
+                ),
             ),
             output_metrics=_pairs(
                 action=sizing_plan.action.value,
@@ -559,6 +580,9 @@ def build_sovereign_function_sensors(
                     if sizing_plan.capital_source is None
                     else sizing_plan.capital_source.value
                 ),
+                capital_source_lot_count=len(sizing_plan.capital_source_lots),
+                feeds_compound_gate=_uses_realized_profit(sizing_plan),
+                feeds_cma_final_plan=True,
             ),
             decision_gate_triggered=(
                 sizing_plan.action is CapitalAction.HOLD
@@ -572,18 +596,30 @@ def build_sovereign_function_sensors(
             stage_order=70,
             input_metrics=_pairs(
                 sizing_action=sizing_plan.action.value,
+                sizing_volume=sizing_plan.volume,
+                sizing_stop_risk_usd=sizing_plan.stop_risk_usd,
+                sizing_margin_usd=sizing_plan.margin_usd,
+                realized_profit_source_requested=compound_source_requested,
                 deployable_profit_usd=(
                     decision.capital_science.deployable_profit_usd
                 ),
             ),
             output_metrics=_pairs(
+                applicable=compound_source_requested,
                 allow_incremental_compound=(
                     decision.capital_science.allow_incremental_compound
                 ),
                 capital_source_lot_count=len(
                     sizing_plan.capital_source_lots
                 ),
+                final_action=final_plan.action.value,
+                final_volume=final_plan.volume,
+                reaches_final_plan=(
+                    compound_source_requested
+                    and final_plan.action is not CapitalAction.HOLD
+                ),
             ),
+            downstream_consumed=compound_source_requested,
             decision_gate_triggered=(
                 compound_source_requested
                 and not decision.capital_science.allow_incremental_compound
