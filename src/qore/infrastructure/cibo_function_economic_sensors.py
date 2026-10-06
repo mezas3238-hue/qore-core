@@ -25,6 +25,9 @@ from qore.infrastructure.cibo_capital_management_authority import (
 from qore.infrastructure.cibo_executive_brain import (
     CiboExecutiveDirectiveKind,
 )
+from qore.infrastructure.cibo_maximum_capability_frontier import (
+    cognitive_multiplier_cap as maximum_frontier_cognitive_cap,
+)
 from qore.infrastructure.cibo_sovereign_capital_runtime import (
     CiboSovereignCapitalDecision,
 )
@@ -384,6 +387,36 @@ def build_sovereign_function_sensors(
             == first_robust.common_margin_headroom_usd
         )
     )
+    frontier_cap, frontier_codes, frontier_reason = (
+        maximum_frontier_cognitive_cap(
+            {
+                "faculty_receipts": [
+                    {
+                        "function_code": receipt.function_code,
+                        "input_payload": receipt.input_payload,
+                        "output_payload": receipt.output_payload,
+                    }
+                    for receipt in decision.faculty_consultation.faculty_receipts
+                ]
+            }
+        )
+    )
+    if decision.synthesis.directive is not CiboExecutiveDirectiveKind.RECOMMEND:
+        native_cap = 0
+    elif decision.synthesis.uncertainty.confidence is None:
+        native_cap = 1
+    else:
+        native_cap = {
+            "low": 1,
+            "medium": 2,
+            "high": 3,
+        }[decision.synthesis.uncertainty.confidence.level.value]
+    frontier_restricts = frontier_cap < native_cap
+    frontier_final_binding = (
+        frontier_restricts
+        and portfolio.multiplier == frontier_cap
+    )
+
     compound_source_requested = _uses_realized_profit(sizing_plan)
     compound_block_binding = (
         compound_source_requested
@@ -418,6 +451,25 @@ def build_sovereign_function_sensors(
                 and final_plan.action is CapitalAction.HOLD
             ),
             ablation_key="cognition",
+        ),
+        _sensor(
+            decision_id=decision.decision_id,
+            function_code="MAX_FRONTIER",
+            stage_order=15,
+            input_metrics=_pairs(
+                consumed_codes=",".join(frontier_codes),
+                native_max_cap=native_cap,
+                directive=decision.synthesis.directive.value,
+            ),
+            output_metrics=_pairs(
+                frontier_cap=frontier_cap,
+                frontier_reason=frontier_reason,
+                selected_multiplier=portfolio.multiplier,
+                constraining_only=True,
+            ),
+            downstream_consumed=True,
+            decision_gate_triggered=frontier_restricts,
+            final_capital_binding=frontier_final_binding,
         ),
         _sensor(
             decision_id=decision.decision_id,
