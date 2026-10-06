@@ -1,4 +1,4 @@
-"""Emit the CIBO pre-holdout lock state without reading 2017H1 data."""
+"""Emit the CIBO pre-holdout lock state without reading holdout data."""
 
 from __future__ import annotations
 
@@ -29,11 +29,14 @@ def build_report() -> dict[str, object]:
         phase20d_causal_gate_passed=PHASE20D_CAUSAL_TOOL_GATE_PASSED,
         phase21_policy_freeze_sealed=PHASE21_POLICY_FREEZE_SEALED,
     )
-    authorized = readiness.status is CiboPreHoldoutStatus.READY_TO_UNSEAL_2017H1
+    authorized = (
+        readiness.status
+        is CiboPreHoldoutStatus.READY_TO_UNSEAL_ACTIVE_HOLDOUT
+    )
     return {
         "schema": "qore.cibo.pre_holdout_gate.v1",
         "status": (
-            "READY_TO_UNSEAL_2017H1"
+            "READY_TO_UNSEAL_ACTIVE_HOLDOUT"
             if authorized
             else "LOCKED_UNTOUCHED"
         ),
