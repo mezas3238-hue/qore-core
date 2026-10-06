@@ -19,6 +19,25 @@ _DECIMAL = Context(prec=34, rounding=ROUND_HALF_EVEN)
 
 IDENTITY = "VT31_NAS100_EDGE_CERT_V1_DEV"
 VOLUME_AGNOSTIC = True
+RUNTIME_R_EXECUTION_FORBIDDEN = True
+
+PURE_EDGE_RUNTIME_FALSE_KEYS = (
+    "r_used_for_admission",
+    "r_used_for_entry",
+    "r_used_for_invalidation",
+    "r_used_for_stop_movement",
+    "r_used_for_breakeven",
+    "r_used_for_target",
+    "r_used_for_exit",
+    "r_used_for_trailing",
+    "r_used_for_partials",
+    "r_used_for_volume",
+    "sizing_used",
+    "leverage_used",
+    "compounding_used",
+    "capital_weighting_used",
+)
+
 
 FORBIDDEN_CAPITAL_FIELDS = frozenset(
     {
@@ -68,6 +87,26 @@ def _d(value: object) -> Decimal:
 
 def _fmt(value: Decimal | None) -> str | None:
     return None if value is None else format(value, "f")
+
+
+
+def validate_pure_edge_runtime_governance(
+    governance: Mapping[str, object],
+) -> dict[str, object]:
+    """Fail closed unless runtime proves R/capital do not govern execution."""
+    violations: list[str] = []
+    for key in PURE_EDGE_RUNTIME_FALSE_KEYS:
+        if governance.get(key) is not False:
+            violations.append(key)
+    if governance.get("volume_agnostic") is not True:
+        violations.append("volume_agnostic")
+    if governance.get("r_role") != "post_trade_evaluation_only":
+        violations.append("r_role")
+    return {
+        "verified": not violations,
+        "violations": violations,
+        "r_runtime_execution_forbidden": RUNTIME_R_EXECUTION_FORBIDDEN,
+    }
 
 
 def normalized_trade_rows(
@@ -422,7 +461,13 @@ def build_edge_only_report(
     baseline_rows: Sequence[Mapping[str, object]] | None = None,
     friction_r: Decimal = Decimal("0"),
     monte_carlo_paths: int = 10_000,
+    runtime_governance: Mapping[str, object] | None = None,
 ) -> dict[str, object]:
+    runtime_purity = (
+        {"verified": False, "violations": ["runtime_governance_missing"], "r_runtime_execution_forbidden": True}
+        if runtime_governance is None
+        else validate_pure_edge_runtime_governance(runtime_governance)
+    )
     normalized = normalized_trade_rows(
         source_rows,
         friction_r=friction_r,
@@ -547,6 +592,9 @@ def build_edge_only_report(
         "compounding_authority": False,
         "portfolio_weighting_authority": False,
         "volume_agnostic": VOLUME_AGNOSTIC,
+        "r_role": "post_trade_evaluation_only",
+        "r_runtime_execution_authority": False,
+        "runtime_purity": runtime_purity,
         "volume_constraints_authority": "provider-adapter-only",
         "volume_used_for_edge_metrics": False,
         "capital_fields_used_for_edge_metrics": [],
@@ -579,6 +627,7 @@ def build_edge_only_report(
         },
         "risk_adjusted_certification_binding_complete": False,
         "ready_for_candidate_freeze": False,
+        "runtime_purity_required_for_freeze": True,
         "candidate_frozen": False,
         "opens_new_holdout": False,
         "candidate_certified": False,
