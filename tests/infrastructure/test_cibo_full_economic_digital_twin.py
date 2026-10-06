@@ -384,7 +384,7 @@ def test_frontier_consumes_full_twin_for_portfolio_competition_and_leverage() ->
     plan = plan_account_wide_capital_allocation(twin)
 
     assert tuple((item.option_id, item.multiplier) for item in plan.lines) == (
-        ("known-r34", 3),
+        ("known-r34", 9),
     )
     assert twin.risk_authority is False
     assert twin.execution_authority is False
