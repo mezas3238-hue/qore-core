@@ -26,13 +26,13 @@ from qore.infrastructure.cibo_capital_management_authority import (
     TraderOpportunityEnvelope,
 )
 from qore.infrastructure.cibo_ceiling_discovery import CiboCeilingLimitKind
-from qore.infrastructure.cibo_native_sovereign_capital_runtime import (
-    CiboNativeSovereignCapitalDecision,
-)
 from qore.infrastructure.cibo_function_economic_sensors import (
     CiboFunctionEconomicSensor,
     build_sovereign_function_sensors,
     summarize_function_sensors,
+)
+from qore.infrastructure.cibo_native_sovereign_capital_runtime import (
+    CiboNativeSovereignCapitalDecision,
 )
 from qore.infrastructure.cibo_single_account_maximum_capability import (
     CIBO_MAXIMUM_CAPABILITY_INITIAL_CAPITAL_USD,
