@@ -176,6 +176,80 @@ class CiboFunctionEconomicSensor:
         }
 
 
+def _capital_science_input_metrics(receipt) -> tuple[tuple[str, str], ...]:
+    payload = receipt.input_payload or {}
+    typed = payload.get("typed_engine_input")
+    typed = typed if isinstance(typed, dict) else {}
+    values: dict[str, object] = {
+        "native_engine": receipt.native_engine_name or "",
+        "signal_fingerprint": receipt.signal_fingerprint,
+        "trader_id": receipt.trader_id,
+    }
+    for key in (
+        "realized_capital_usd",
+        "peak_realized_capital_usd",
+        "realized_profit_pool_usd",
+        "protected_capacity_usd",
+        "deployed_profit_usd",
+        "requested_stop_risk_usd",
+        "requested_margin_usd",
+        "provider_cost_usd",
+        "expected_net_value_usd",
+        "expected_capital_minutes",
+        "hard_risk_headroom_usd",
+        "margin_headroom_usd",
+        "capital_source",
+        "competing_candidates",
+    ):
+        if key in payload:
+            values[key] = payload[key]
+    for key in (
+        "proposal_id",
+        "proposal_action",
+        "proposal_amount_usd",
+        "proposal_source_bucket",
+        "source_lot_id",
+        "source_lot_state",
+    ):
+        if key in typed:
+            values["typed_" + key] = typed[key]
+    return _pairs(**values)
+
+
+def _capital_science_output_metrics(receipt) -> tuple[tuple[str, str], ...]:
+    payload = receipt.output_payload or {}
+    engine = payload.get("engine_output")
+    engine = engine if isinstance(engine, dict) else {}
+    values: dict[str, object] = {
+        "disposition": receipt.disposition.value,
+        "downstream_consumer": receipt.downstream_consumer,
+        "consumer_action": receipt.consumer_action,
+        "decision_changed": receipt.decision_changed,
+        "risk_delta_usd": receipt.risk_delta_usd,
+        "margin_delta_usd": receipt.margin_delta_usd,
+        "native_engine_called": receipt.native_engine_called,
+        "native_engine": receipt.native_engine_name or "",
+    }
+    for key in (
+        "treatment_posture",
+        "treatment_action",
+        "treatment_amount_usd",
+        "treatment_requested_risk_review_usd",
+        "giveback_amount_usd",
+        "profit_retention_ratio",
+        "policy_protected_floor_usd",
+        "candidate_compound_capacity_usd",
+        "source_lot_state",
+    ):
+        if key in engine:
+            values[key] = engine[key]
+    blockers = engine.get("blocker_codes")
+    if isinstance(blockers, (tuple, list)):
+        values["blocker_codes"] = ",".join(str(item) for item in blockers)
+        values["blocker_count"] = len(blockers)
+    return _pairs(**values)
+
+
 def _uses_realized_profit(plan) -> bool:
     if plan.capital_source is CapitalSource.REALIZED_PROFIT:
         return plan.stop_risk_usd > 0
@@ -535,19 +609,8 @@ def build_sovereign_function_sensors(
                 stage_order=100 + index,
                 input_sha256=receipt.input_sha256,
                 output_sha256=receipt.output_sha256,
-                input_metrics=_pairs(
-                    native_engine=receipt.native_engine_name or "",
-                    signal_fingerprint=receipt.signal_fingerprint,
-                    trader_id=receipt.trader_id,
-                ),
-                output_metrics=_pairs(
-                    disposition=receipt.disposition.value,
-                    downstream_consumer=receipt.downstream_consumer,
-                    consumer_action=receipt.consumer_action,
-                    decision_changed=receipt.decision_changed,
-                    risk_delta_usd=receipt.risk_delta_usd,
-                    margin_delta_usd=receipt.margin_delta_usd,
-                ),
+                input_metrics=_capital_science_input_metrics(receipt),
+                output_metrics=_capital_science_output_metrics(receipt),
                 called=True,
                 downstream_consumed=bool(receipt.downstream_consumer),
                 decision_gate_triggered=receipt.decision_changed,
