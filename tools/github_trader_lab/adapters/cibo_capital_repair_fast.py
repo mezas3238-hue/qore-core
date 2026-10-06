@@ -66,6 +66,7 @@ class Variant:
     recency_guard: bool = False
     profit_funded_leverage: bool = False
     max_frontier: bool = False
+    tiered_consensus: bool = False
 
 
 VARIANTS = (
@@ -120,6 +121,17 @@ VARIANTS = (
         profit_funded_leverage=True,
         max_frontier=True,
     ),
+    Variant(
+        "MAX_FRONTIER_TIERED_CONSENSUS",
+        Decimal("0.70"),
+        True,
+        True,
+        True,
+        True,
+        profit_funded_leverage=True,
+        max_frontier=True,
+        tiered_consensus=True,
+    ),
 )
 
 
@@ -163,6 +175,7 @@ def _confidence_cap(
     risk_utilization: Decimal,
     margin_utilization: Decimal,
     drawdown_utilization: Decimal,
+    tiered_consensus: bool = False,
 ) -> int:
     maturity = d(row.get("walk_forward_maturity_fraction", "0"))
     utilization = max(
@@ -170,7 +183,16 @@ def _confidence_cap(
         margin_utilization,
         drawdown_utilization,
     )
-    consensus_pct = int(row.get("walk_forward_positive_block_count", 0)) * 20
+    positive_blocks = int(row.get("walk_forward_positive_block_count", 0))
+    consensus_pct = (
+        100
+        if positive_blocks == 5
+        else 66
+        if positive_blocks == 4
+        else 33
+        if tiered_consensus
+        else positive_blocks * 20
+    )
     regime = row["regime"]
     attention_pressure = 0
     provider = str(regime.get("provider_condition"))
@@ -326,6 +348,7 @@ def _portfolio(
                     risk_utilization=risk_utilization,
                     margin_utilization=margin_utilization,
                     drawdown_utilization=drawdown_utilization,
+                    tiered_consensus=variant.tiered_consensus,
                 ),
             )
         if variant.max_frontier:
