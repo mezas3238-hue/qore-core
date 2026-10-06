@@ -4,138 +4,113 @@
 **Authority:** Owner sovereign directive  
 **Source of truth:** GitHub `mezas3238-hue/qore-core`
 
+## Canonical sentence
+
+> **R IS NOT FORBIDDEN. SIZING TO OBTAIN CERTIFICATION IS FORBIDDEN.**
+
 ## Certification identity
 
-VT31 may certify only through:
+VT31 may certify only through the quality of the trader itself:
 
 `ENTRY EDGE + EXIT EDGE + WINNER PRESERVATION`
 
-Capital engineering is outside the trader certification exam.
+The certification exam must use neutral, equal trade weighting. Capital engineering
+cannot improve, rescue, or manufacture the certification result.
 
-## Forbidden certification mechanisms
+## Forbidden for certification
 
-VT31 certification may not improve results through:
+The following may not be used to obtain, improve, or rescue certification:
 
 - sizing;
 - dynamic position sizing;
-- leverage;
-- compounding;
+- reducing volume because a stop is wide;
+- increasing volume to compensate prior losses;
+- leverage as a certification improver;
+- compounding as a certification improver;
 - CIBO capital rescue;
-- risk-based volume reduction;
-- loss-compensating volume increases;
 - risk budgeting;
 - portfolio allocation;
 - route-dependent capital weighting;
-- any rule deciding how much to trade from R.
+- any capital rule that changes how much is traded in order to improve PF, DD,
+  expectancy, survival, or another certification metric.
 
-## Sovereign role of R
+If a trade is too expensive, badly located, geometrically poor, or requires an
+impractical stop, the trader must repair the trade itself. Lowering the lot is
+not an edge repair.
 
-R is an **evaluation metric only**.
+## R is permitted inside the trader
 
-R may be computed after or alongside replay for:
+R may be used freely when it is part of the trader's strategy and proves causal
+edge.
+
+Permitted examples include:
+
+- entry logic expressed in R;
+- stop movement after an R milestone;
+- breakeven at +1R, +2R, +3R, or another tested level;
+- partial exits by R;
+- fixed or adaptive R targets;
+- target extension from 2R to 3R, 5R, or beyond;
+- R-based trailing;
+- MFE/MAE rules expressed in R;
+- combinations of market structure and R;
+- profit protection by R multiples;
+- cognition deciding whether an R rule should be used.
+
+A rule is rejected because it damages edge, winner preservation, robustness, or
+causality — **not merely because it is expressed in R**.
+
+Therefore a rule such as `+3R -> breakeven` is eligible for research and
+promotion if consumed-evidence tests show that it improves VT31 without
+violating the certification gates.
+
+## Exact separation
+
+Forbidden:
+
+> wide/expensive trade -> change lot size -> make the trade appear viable
+
+Permitted:
+
+> trade evolves -> use R, structure, liquidity, regime, volatility, M1 journey,
+> or cognition to manage stop, target, trailing, partials, extension, or exit
+
+## Universal volume invariance
+
+VT31 must make the same market decision independently of absolute volume.
+
+The market logic must not change between provider-permitted volumes such as:
+
+`0.01`, `0.02`, `0.05`, `0.10`, `1.00`, etc.
+
+VT31 produces the trade. Volume only scales the economic amount of that same
+trade.
+
+Provider minimums, maximums, lot steps, and rounding belong to the provider
+adapter and cannot change VT31's market thesis.
+
+## Certification economics
+
+R remains the normalized language used to compare trades and calculate:
 
 - expectancy;
 - drawdown;
 - payoff;
 - MAE;
 - MFE;
-- profit;
-- loss;
-- stability;
+- PF;
 - Monte Carlo;
 - cost stress;
-- winner preservation.
+- winner preservation;
+- temporal stability.
 
-R may **not** govern runtime:
-
-- admission;
-- entry price;
-- entry timing;
-- invalidation;
-- stop movement;
-- breakeven;
-- target selection;
-- exit;
-- trailing;
-- partials;
-- volume.
-
-Canonical rule:
-
-> R IS AN EVALUATION METRIC, NOT AN ENTRY, EXIT OR VOLUME ENGINE.
-
-## Universal volume invariance
-
-VT31 market decisions are independent of absolute volume.
-
-The same market opportunity must produce the same:
-
-- admission decision;
-- entry;
-- invalidation;
-- target;
-- management;
-- exit;
-
-whether the provider executes 0.01, 0.02, 0.05, 0.10, 1.00 or any other
-provider-permitted amount.
-
-Provider lot minimums, maximums, steps and rounding belong only to the provider
-adapter.
-
-VT31 produces the trade. Volume scales only the economic amount of that same
-trade.
-
-## Entry repair principle
-
-If an entry requires an impractically wide stop, the repair must be inside the
-trader:
-
-- better structure reading;
-- better liquidity reading;
-- better context;
-- better regime interpretation;
-- better volatility interpretation;
-- better H1/M15/M1 alignment;
-- better confirmation;
-- better M1 location;
-- better timing;
-- better invalidation;
-- rejection of aged opportunity.
-
-The defect may not be hidden by reducing position size.
-
-## Exit repair principle
-
-Artificial R caps such as +0.50R, +0.75R or +1.00R are not valid runtime
-solutions.
-
-VT31 exits must come from market-native causes:
-
-- structural target;
-- liquidity destination;
-- exhaustion;
-- regime change;
-- invalidation;
-- momentum deterioration;
-- loss of structure;
-- structural trailing;
-- target intelligence.
-
-Any exit rule that destroys winner-R fails the certification objective.
-
-## Legacy incompatibility
-
-Any legacy VT31 simulator or candidate using a runtime rule such as
-`3R -> breakeven` is **not certification-authoritative** under this rule.
-
-Legacy code may remain for provenance and comparison, but the pure-edge
-certification path must not use it as runtime authority.
+The certification harness must ignore sizing, volume, leverage, capital
+weighting, compounding, and portfolio allocation.
 
 ## Final principle
 
-> DO NOT ADAPT CAPITAL TO SAVE THE TRADE.
+> **DO NOT ADAPT CAPITAL TO SAVE THE TRADE.**
 >
-> ADAPT TRADER INTELLIGENCE TO PRODUCE A BETTER TRADE.
+> **ADAPT THE TRADER — AND ALLOW THE TRADER TO USE R IF R IS PART OF ITS EDGE.**
 
-No merge, LIVE, real-capital or production authority is granted by this rule.
+This rule grants no merge, LIVE, real-capital, or production authority.
