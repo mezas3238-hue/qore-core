@@ -185,6 +185,33 @@ CONFIRMED_CIBO_BURNS: tuple[CiboBurnedInterval, ...] = (
         reason="Phase19 integrated CIBO interaction/calibration research",
         evidence_ref="artifact:10966794619",
     ),
+    CiboBurnedInterval(
+        burn_id="phase22:v2:consumed",
+        lineage=None,
+        start_at=datetime(2015, 10, 19, tzinfo=UTC),
+        end_exclusive_at=datetime(2016, 4, 19, tzinfo=UTC),
+        reason="Phase22 V2 one-shot emitted fresh outcomes",
+        evidence_ref="run:37007253157",
+    ),
+    CiboBurnedInterval(
+        burn_id="phase22:v3:partial-fresh-execution",
+        lineage=None,
+        start_at=datetime(2015, 4, 19, tzinfo=UTC),
+        end_exclusive_at=datetime(2015, 10, 19, tzinfo=UTC),
+        reason=(
+            "Phase22 V3 executed fresh Trader lanes before terminal ABI failure; "
+            "partial fresh execution burns the integrated candidate"
+        ),
+        evidence_ref="run:37047009381",
+    ),
+    CiboBurnedInterval(
+        burn_id="phase22:v4:consumed-invalid",
+        lineage=None,
+        start_at=datetime(2014, 10, 19, tzinfo=UTC),
+        end_exclusive_at=datetime(2015, 4, 19, tzinfo=UTC),
+        reason="Phase22 V4 emitted fresh lane outcomes before terminal failure",
+        evidence_ref="run:37059089221",
+    ),
 )
 
 
@@ -219,7 +246,24 @@ NEXT_PREREGISTERED_USD60_HOLDOUT = CiboHoldoutCandidate(
     source_validation_complete=True,
 )
 
+# Legacy Phase22 V2 code imports ACTIVE_USD60_HOLDOUT_CANDIDATE.  Keep that
+# alias stable so historical receipts remain readable, but never use it to
+# authorize a new fresh cycle after the durable V2 consumption receipt.
 ACTIVE_USD60_HOLDOUT_CANDIDATE = NEXT_PREREGISTERED_USD60_HOLDOUT
+
+CURRENT_FRESH_USD60_HOLDOUT_CANDIDATE = CiboHoldoutCandidate(
+    candidate_id="CIBO_USD60_6M_HOLDOUT_2013-10-19_2014-04-19_V6",
+    start_at=datetime(2013, 10, 19, tzinfo=UTC),
+    end_exclusive_at=datetime(2014, 4, 19, tzinfo=UTC),
+    status=CiboHoldoutCandidateStatus.SOURCE_VALIDATION_PENDING,
+    selection_rule=(
+        "latest mechanically preceding exact six-calendar-month block after "
+        "V2/V3/V4 fresh consumption and V5 read-only source unavailability; "
+        "selected without inspecting V6 outcomes"
+    ),
+    outcome_data_inspected_at_selection=False,
+    source_validation_complete=False,
+)
 
 
 def candidate_overlaps_confirmed_burn(
