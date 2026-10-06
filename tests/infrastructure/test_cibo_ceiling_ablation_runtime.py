@@ -21,6 +21,7 @@ from qore.infrastructure.cibo_capital_management_authority import (
     CapitalSourceLot,
     CapitalStage,
     CiboCapitalActionPlan,
+    CiboCapitalManagementError,
     CiboCapitalState,
     TraderOpportunityEnvelope,
 )
@@ -64,7 +65,7 @@ def test_ablation_mode_is_canonical_and_rejects_plain_string() -> None:
         validate_ceiling_ablation_mode(CiboCeilingAblationMode.SIZING)
         is CiboCeilingAblationMode.SIZING
     )
-    with pytest.raises(Exception):
+    with pytest.raises(CiboCapitalManagementError):
         validate_ceiling_ablation_mode("sizing")  # type: ignore[arg-type]
 
 
