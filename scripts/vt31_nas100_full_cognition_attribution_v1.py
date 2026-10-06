@@ -139,6 +139,7 @@ def _reconstruct_situation(
         extension_capacity_state="RESEARCH_ONLY_UNCALIBRATED",
         exhaustion_state="UNKNOWN",
         cross_index_state="OPTIONAL_CONTEXT_NOT_REQUIRED",
+        m15_state=str(state.get("m15_state", "UNWIRED")),
     )
 
 
@@ -183,6 +184,15 @@ def _reconstruct_reasoning(
             state["trader_experience_memory_fingerprint"]
         ),
         memory_fingerprint=str(state["cognitive_memory_fingerprint"]),
+        cognitive_domains_consulted=tuple(
+            cast(list[str], state.get("cognitive_domains_consulted", []))
+        ),
+        max_intelligence_blockers=tuple(
+            cast(list[str], state.get("max_intelligence_blockers", []))
+        ),
+        max_intelligence_ready=bool(
+            state.get("max_intelligence_ready", False)
+        ),
     )
 
 
@@ -386,10 +396,6 @@ def replay(evidence_path: Path) -> dict[str, object]:
             selected,
             observation_at,
         )
-        if state.get("planned_target_r") is not None:
-            raise AssertionError(
-                "pure-edge runtime forbids planned_target_r authority"
-            )
         situation = _reconstruct_situation(
             state=state,
             selected=selected,
@@ -435,6 +441,14 @@ def replay(evidence_path: Path) -> dict[str, object]:
                 "support_margin": margin,
                 "support_margin_bucket": _support_margin_bucket(margin),
                 "target_intent": cognition.target_intent.value,
+                "m15_state": situation.m15_state,
+                "max_intelligence_ready": reasoning.max_intelligence_ready,
+                "max_intelligence_blockers": list(
+                    reasoning.max_intelligence_blockers
+                ),
+                "cognitive_domains_consulted": list(
+                    reasoning.cognitive_domains_consulted
+                ),
                 "cognitive_coverage_ratio": format(
                     cognition.cognitive_coverage_ratio,
                     "f",
@@ -463,6 +477,15 @@ def replay(evidence_path: Path) -> dict[str, object]:
         }
         for row in rows
     ]
+
+    blocker_counts = Counter(
+        blocker
+        for row in rows
+        for blocker in cast(list[str], row["max_intelligence_blockers"])
+    )
+    max_ready_count = sum(
+        row["max_intelligence_ready"] is True for row in rows
+    )
 
     return {
         "schema": SCHEMA,
@@ -505,6 +528,23 @@ def replay(evidence_path: Path) -> dict[str, object]:
             "family_x_destination",
         ),
         "signal_metrics_min_sample_10": _signal_metrics(rows),
+        "maximum_intelligence": {
+            "required_for_candidate_freeze": True,
+            "terminal_trade_count": len(rows),
+            "ready_trade_count": max_ready_count,
+            "ready_trade_fraction": (
+                None
+                if not rows
+                else format(
+                    Decimal(max_ready_count) / Decimal(len(rows)),
+                    "f",
+                )
+            ),
+            "blocker_counts": dict(sorted(blocker_counts.items())),
+            "candidate_freeze_allowed": (
+                bool(rows) and max_ready_count == len(rows)
+            ),
+        },
         "rows": rows,
         "governance": {
             "consumed_evidence_only": True,
@@ -521,7 +561,12 @@ def replay(evidence_path: Path) -> dict[str, object]:
             "terminal_pnl_used_for_runtime_decision": False,
             "future_journey_label_used": False,
             "runtime_r_decision_authority": False,
+            "r_runtime_strategy_allowed": True,
             "runtime_volume_decision_authority": False,
+            "maximum_intelligence_required": True,
+            "maximum_intelligence_candidate_freeze_allowed": (
+                bool(rows) and max_ready_count == len(rows)
+            ),
             "opens_new_holdout": False,
             "policy_promoted": False,
             "live_authorized": False,
@@ -550,6 +595,7 @@ def main() -> None:
                 "by_management_context": payload["by_management_context"],
                 "by_destination_state": payload["by_destination_state"],
                 "by_support_margin": payload["by_support_margin"],
+                "maximum_intelligence": payload["maximum_intelligence"],
             },
             sort_keys=True,
         )
