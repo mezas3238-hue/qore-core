@@ -413,3 +413,187 @@ The strongest current root-cause candidate is the missing forecast-maturity gate
 The strongest current damage amplifier is Portfolio / Adaptive Leverage.
 
 This conclusion remains research-only until the repaired full replay completes and is compared against the frozen baseline.
+
+---
+
+## 15. Maturity-repaired early-window result — second culprit exposed
+
+A dedicated post-repair diagnostic completed successfully:
+
+- workflow: `QORE CIBO Maturity Early Window`;
+- run: `37513344544`;
+- replay head: `cb89572c4d6e963a70c463421aea6b79227cf5de`;
+- research window: 2019-07-01 through 2019-12-31;
+- opportunities: 544;
+- decision epochs: 537;
+- certification claimed: false;
+- future outcome used: false.
+
+Economic result after enforcing forecast maturity:
+
+- initial capital: USD 60;
+- ending capital: ~USD 115.03596465;
+- net PnL: ~USD +55.03596465;
+- peak capital: ~USD 147.56573637;
+- settlements: 186.
+
+This is a direct causal contrast to the old early collapse.
+
+The old baseline was effectively dead by 2019-08-09 at ~USD 0.14646.
+
+With provisional forecasts blocked, the account survives and grows.
+
+Therefore the missing maturity gate is no longer merely a hypothesis:
+
+> **The provisional-forecast admission defect was a real causal contributor to the original account death.**
+
+### 15.1 However, the maturity repair reveals a second major defect
+
+The repaired 2019 path still suffered maximum drawdown of approximately:
+
+- USD 51.94195640;
+- peak-to-trough: ~USD 147.57 -> ~USD 95.62.
+
+Every one of the 186 authorized trades reported:
+
+- `adaptive_leverage_multiplier = 4`.
+
+Final executable volume was:
+
+- 4x minimum executable volume on 155 trades;
+- 3x minimum executable volume on 31 trades because account/capacity constraints clipped the requested 4x.
+
+Therefore the current so-called Adaptive Leverage is not materially adapting intensity across the mature sample.
+
+### 15.2 Exact structural reason Portfolio tends to choose 4x
+
+The current native Portfolio objective evaluates each candidate multiplier using:
+
+`expected net utility * multiplier / expected capital minutes`
+
+as its first optimization key, followed by total expected utility.
+
+For any eligible opportunity with positive expected net utility, and absent a binding risk/margin constraint, utility increases linearly as the multiplier increases from 1 to 4.
+
+Risk and margin are hard feasibility constraints and later tie-breakers; they are not a convex penalty that competes with the incremental expected utility.
+
+Therefore, when:
+
+- forecast net utility > 0;
+- cognitive cap remains 4;
+- account constraints permit 4;
+
+the optimizer is structurally biased toward the maximum multiplier.
+
+This exactly matches the observed repaired replay:
+
+- 186 / 186 selected decisions requested 4x.
+
+### 15.3 Forecast confidence quality is observed but not yet priced into capital intensity
+
+After the maturity repair, cognition receives:
+
+- observation count;
+- maturity;
+- positive/nonpositive block counts;
+- block dispersion;
+- median absolute deviation;
+- evidence age;
+- maturity fraction.
+
+But the current productive behavior uses maturity primarily as a binary gate:
+
+- provisional -> abstain;
+- mature -> eligible.
+
+The dispersion / MAD / block-consensus metrics are not currently converted into a nonzero economic uncertainty penalty that lowers Portfolio utility or multiplier.
+
+The walk-forward manifest does not currently publish an `uncertainty_penalty_usd` derived from these confidence metrics, so the downstream economic adapter defaults that penalty to zero.
+
+Thus a mature but uncertain forecast can still be economically treated almost like a mature high-confidence forecast for leverage purposes.
+
+### 15.4 Postdecision 1x counterfactual of the repaired 2019 path
+
+Using the exact same 186 selected trades and realized outcomes but scaling each settlement linearly back to 1x minimum executable volume:
+
+Observed 3x/4x path:
+
+- ending capital: ~USD 115.04;
+- maximum drawdown: ~USD 51.94.
+
+1x postdecision counterfactual:
+
+- ending capital: ~USD 73.71;
+- maximum drawdown: ~USD 13.88;
+- minimum capital: ~USD 59.61.
+
+Interpretation:
+
+- 4x substantially amplified growth in this repaired sample;
+- 4x also amplified drawdown from ~USD 13.88 to ~USD 51.94.
+
+Therefore Adaptive Leverage is no longer correctly described only as a loss amplifier.
+
+After maturity repair it is a **variance / drawdown amplifier**: it magnifies both valid edge and adverse clusters.
+
+The architecture now needs to determine how much intensity the forecast confidence and survival state can actually support.
+
+### 15.5 Drawdown concentration after maturity repair
+
+The maximum drawdown segment contained 55 settlements.
+
+Net contribution during the peak-to-trough segment:
+
+- R38_GBPJPY: ~USD -30.66;
+- R34_XAUUSD: ~USD -27.80;
+- R42_AUDJPY: approximately flat;
+- R43_GBPUSD: ~USD +1.48;
+- VT31_NAS100: ~USD +5.03.
+
+Largest individual losses in that drawdown included:
+
+- R34_XAUUSD ~USD -15.88;
+- R38_GBPJPY ~USD -9.52;
+- R34_XAUUSD ~USD -8.24;
+- R38_GBPJPY ~USD -7.24;
+- R34_XAUUSD ~USD -7.12.
+
+The worst R34 loss had:
+
+- mature observation count: 71;
+- positive chronological blocks: 4 / 5;
+- expected structural R: ~+0.382R;
+- realized structural outcome: -1R;
+- authorized stop risk: ~USD 15.08;
+- realized capital at decision: ~USD 113.69;
+- stop risk / realized capital: ~13.3%.
+
+This confirms the second problem cannot be solved merely by waiting for 25 observations.
+
+### 15.6 Revised causal hierarchy after the repaired early replay
+
+The evidence now supports:
+
+1. **ROOT DEFECT #1 — CLOSED IN CURRENT REPAIR:** provisional forecast admitted to capital.
+2. **ROOT DEFECT #2 — OPEN:** capital intensity does not sufficiently respond to forecast uncertainty / survival state once maturity is reached.
+3. **DIRECT ACTUATOR:** Portfolio / Adaptive Leverage structurally prefers maximum multiplier for positive utility.
+4. **DRAW-DOWN CONCENTRATION:** mature adverse clusters in R34 and R38_GBPJPY receive the same requested 4x intensity.
+5. **NOT ROOT CAUSE OF THESE PATHS:** Compound.
+6. **NOT SELECTOR:** QORE Risk; it authorizes the mechanically admissible request it receives.
+7. **UPSTREAM PROPOSAL STILL REQUIRES LATER STUDY:** CAPABILITY_MAXIMUM Sizing.
+
+The next P0 investigation must therefore test **confidence-aware Adaptive Leverage / Portfolio intensity** without outcome-aware tuning and without weakening QORE Risk.
+
+This must be designed from causal predecision facts only, such as:
+
+- observation maturity;
+- block consensus;
+- dispersion;
+- median absolute deviation;
+- evidence age;
+- account drawdown / survival state;
+- current risk/margin utilization;
+- simultaneous opportunity competition.
+
+Do not use realized future outcome to choose thresholds.
+
