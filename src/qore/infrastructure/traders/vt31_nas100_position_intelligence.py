@@ -388,6 +388,18 @@ class ProtectionUrgency(StrEnum):
     HIGH = "HIGH"
 
 
+REQUIRED_COGNITIVE_DOMAINS = (
+    "STRATEGY_REASONING",
+    "MARKET_REGIME",
+    "LIQUIDITY_SEQUENCE",
+    "ENTRY_QUALITY",
+    "RISK_GEOMETRY",
+    "JOURNEY_DESTINATION",
+    "INTERMARKET",
+    "TEMPORAL",
+)
+
+
 @dataclass(frozen=True, slots=True)
 class FullCognitivePositionState:
     """Auditable synthesis of the complete causal VT31 cognition after entry.
@@ -409,6 +421,10 @@ class FullCognitivePositionState:
     actuated_situation_fields: tuple[str, ...]
     observation_only_situation_fields: tuple[str, ...]
     cognitive_coverage_ratio: Decimal
+    memory_bundle_complete: bool
+    domain_coverage_complete: bool
+    situation_accounting_complete: bool
+    maximum_cognition_verified: bool
     entry_situation_fingerprint: str
     current_situation_fingerprint: str
     post_entry_reassessment: bool
@@ -538,16 +554,7 @@ def assess_full_cognitive_position(
         raise ValueError("entry reasoning fingerprint mismatch")
     post_entry_reassessment = current_fingerprint != bound_entry_fingerprint
 
-    observed_domains = (
-        "STRATEGY_REASONING",
-        "MARKET_REGIME",
-        "LIQUIDITY_SEQUENCE",
-        "ENTRY_QUALITY",
-        "RISK_GEOMETRY",
-        "JOURNEY_DESTINATION",
-        "INTERMARKET",
-        "TEMPORAL",
-    )
+    observed_domains = REQUIRED_COGNITIVE_DOMAINS
     signals: list[str] = []
     support = 0
     caution = 0
@@ -600,10 +607,39 @@ def assess_full_cognitive_position(
         for field in observed_situation_fields
         if field not in actuated_situation_fields
     )
+    accounted_fields = set(actuated_situation_fields) | set(
+        observation_only_situation_fields
+    )
+    situation_accounting_complete = (
+        accounted_fields == set(observed_situation_fields)
+        and not (
+            set(actuated_situation_fields)
+            & set(observation_only_situation_fields)
+        )
+    )
     coverage_ratio = (
-        Decimal("1")
+        Decimal(len(accounted_fields))
+        / Decimal(len(observed_situation_fields))
         if observed_situation_fields
         else Decimal("0")
+    )
+    memory_bundle_complete = all(
+        len(value) == 64
+        for value in (
+            reasoning.strategy_memory_fingerprint,
+            reasoning.cibo_market_memory_fingerprint,
+            reasoning.trader_experience_memory_fingerprint,
+            reasoning.memory_fingerprint,
+        )
+    )
+    domain_coverage_complete = (
+        set(observed_domains) == set(REQUIRED_COGNITIVE_DOMAINS)
+    )
+    maximum_cognition_verified = (
+        memory_bundle_complete
+        and domain_coverage_complete
+        and situation_accounting_complete
+        and coverage_ratio == Decimal("1")
     )
     signals.extend(
         f"OBSERVE_ONLY:{field}={situation_payload[field]}"
@@ -869,6 +905,10 @@ def assess_full_cognitive_position(
         actuated_situation_fields=actuated_situation_fields,
         observation_only_situation_fields=observation_only_situation_fields,
         cognitive_coverage_ratio=coverage_ratio,
+        memory_bundle_complete=memory_bundle_complete,
+        domain_coverage_complete=domain_coverage_complete,
+        situation_accounting_complete=situation_accounting_complete,
+        maximum_cognition_verified=maximum_cognition_verified,
         entry_situation_fingerprint=bound_entry_fingerprint,
         current_situation_fingerprint=current_fingerprint,
         post_entry_reassessment=post_entry_reassessment,
