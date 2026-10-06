@@ -1,0 +1,155 @@
+name: QORE CIBO Forecast Confidence Full Replay
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/cibo-function-economic-sensors-001
+    paths:
+      - '.github/workflows/cibo-forecast-confidence-full-replay.yml'
+      - 'src/qore/infrastructure/cibo_full_economic_digital_twin.py'
+      - 'src/qore/infrastructure/cibo_single_account_ceiling_state.py'
+      - 'src/qore/infrastructure/cibo_single_account_historical_ceiling_state.py'
+      - 'src/qore/infrastructure/cibo_single_account_manifest_economics.py'
+      - 'src/qore/infrastructure/cibo_portfolio_allocation_engine.py'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-cibo-forecast-confidence-full-replay-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  replay:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+      FROZEN_ARTIFACT_ID: '11389331836'
+      FROZEN_ARTIFACT_DIGEST: 'sha256:30177639f660c9647ab70257c2d12c541bdade49ab5582347a3890f920070fee'
+      BASELINE_ARTIFACT_ID: '11420053195'
+      BASELINE_ARTIFACT_DIGEST: 'sha256:151eb3e9084c5249815fc2165c5e69cfd16057c745ab98eee3b77478555d6f90'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install
+        run: python -m pip install -e '.[dev]'
+
+      - name: Validate remediation surface
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/cibo_single_account_historical_ceiling_replay.py src/qore/infrastructure/cibo_full_economic_digital_twin.py src/qore/infrastructure/cibo_single_account_ceiling_state.py src/qore/infrastructure/cibo_single_account_historical_ceiling_state.py src/qore/infrastructure/cibo_single_account_manifest_economics.py src/qore/infrastructure/cibo_portfolio_allocation_engine.py
+          ruff check src/qore/infrastructure/cibo_full_economic_digital_twin.py src/qore/infrastructure/cibo_single_account_ceiling_state.py src/qore/infrastructure/cibo_single_account_historical_ceiling_state.py src/qore/infrastructure/cibo_single_account_manifest_economics.py src/qore/infrastructure/cibo_portfolio_allocation_engine.py
+          pytest -q --no-cov tests/infrastructure/test_cibo_full_economic_digital_twin.py tests/infrastructure/test_cibo_single_account_manifest_economics.py
+
+      - name: Recover frozen input and baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/frozen" "$RUNNER_TEMP/baseline" "$RUNNER_TEMP/result"
+
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$FROZEN_ARTIFACT_ID" > "$RUNNER_TEMP/frozen.meta.json"
+          jq -e --arg digest "$FROZEN_ARTIFACT_DIGEST" '.expired == false and .digest == $digest' "$RUNNER_TEMP/frozen.meta.json"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$FROZEN_ARTIFACT_ID/zip" > "$RUNNER_TEMP/frozen.zip"
+          echo "${FROZEN_ARTIFACT_DIGEST#sha256:}  $RUNNER_TEMP/frozen.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/frozen.zip" -d "$RUNNER_TEMP/frozen"
+
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$BASELINE_ARTIFACT_ID" > "$RUNNER_TEMP/baseline.meta.json"
+          jq -e --arg digest "$BASELINE_ARTIFACT_DIGEST" '.expired == false and .digest == $digest' "$RUNNER_TEMP/baseline.meta.json"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$BASELINE_ARTIFACT_ID/zip" > "$RUNNER_TEMP/baseline.zip"
+          echo "${BASELINE_ARTIFACT_DIGEST#sha256:}  $RUNNER_TEMP/baseline.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/baseline.zip" -d "$RUNNER_TEMP/baseline"
+
+          MANIFEST="$(find "$RUNNER_TEMP/frozen" -type f -name single-account-manifest-native.json -print -quit)"
+          BASELINE="$(find "$RUNNER_TEMP/baseline" -type f -name historical-ceiling-replay-with-sensors.json -print -quit)"
+          test -n "$MANIFEST"
+          test -n "$BASELINE"
+          echo "MANIFEST=$MANIFEST" >> "$GITHUB_ENV"
+          echo "BASELINE=$BASELINE" >> "$GITHUB_ENV"
+
+      - name: Execute repaired sovereign replay
+        run: |
+          set -euo pipefail
+          python scripts/cibo_single_account_historical_ceiling_replay.py --manifest "$MANIFEST" --output "$RUNNER_TEMP/result/repaired-replay.json" --progress-every 100
+
+      - name: Compare repaired economics to baseline
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from collections import Counter
+          from decimal import Decimal, localcontext
+          from pathlib import Path
+
+          root = Path(os.environ["RUNNER_TEMP"])
+          baseline = json.loads(Path(os.environ["BASELINE"]).read_text())
+          repaired = json.loads((root / "result" / "repaired-replay.json").read_text())
+
+          assert baseline["decision_count"] == repaired["decision_count"] == 3368
+          assert baseline["decision_epoch_count"] == repaired["decision_epoch_count"] == 3305
+          assert repaired["external_ai_call_count"] == 0
+          assert repaired["outcome_used_for_predecision"] is False
+          assert repaired["account_reset_count"] == 0
+          assert repaired["economic_era_reset_count"] == 0
+          assert repaired["broker_mutation"] is False
+
+          def selected(payload):
+              return {
+                  row["signal_fingerprint"]: row
+                  for row in payload["decision_receipts"]
+                  if row["risk_decision"] in {"ALLOW", "REDUCE"}
+              }
+
+          old = selected(baseline)
+          new = selected(repaired)
+          added = sorted(set(new) - set(old))
+          removed = sorted(set(old) - set(new))
+          common = set(old) & set(new)
+          changed_multiplier = sorted(
+              signal for signal in common
+              if old[signal]["adaptive_leverage_multiplier"]
+              != new[signal]["adaptive_leverage_multiplier"]
+          )
+
+          full_old = Decimal(baseline["ending_capital_usd"])
+          full_new = Decimal(repaired["ending_capital_usd"])
+          comparison = {
+              "schema": "qore.cibo.forecast-confidence-repair-comparison.v1",
+              "baseline_ending_capital_usd": format(full_old, "f"),
+              "repaired_ending_capital_usd": format(full_new, "f"),
+              "delta_ending_capital_usd": format(full_new - full_old, "f"),
+              "baseline_peak_capital_usd": baseline["peak_capital_usd"],
+              "repaired_peak_capital_usd": repaired["peak_capital_usd"],
+              "baseline_net_pnl_usd": baseline["net_pnl_usd"],
+              "repaired_net_pnl_usd": repaired["net_pnl_usd"],
+              "baseline_settlement_count": baseline["settlement_count"],
+              "repaired_settlement_count": repaired["settlement_count"],
+              "newly_executed_count": len(added),
+              "removed_execution_count": len(removed),
+              "changed_multiplier_count": len(changed_multiplier),
+              "newly_executed_signals": added[:100],
+              "removed_execution_signals": removed[:100],
+              "changed_multiplier_signals": changed_multiplier[:100],
+              "future_outcome_used": False,
+              "outcome_aware_tuning": False,
+              "certification_claimed": False,
+          }
+          (root / "result" / "forecast-confidence-comparison.json").write_text(
+              json.dumps(comparison, indent=2, sort_keys=True) + "\n"
+          )
+          print(json.dumps(comparison, sort_keys=True))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-cibo-forecast-confidence-full-replay-${{ github.run_id }}
+          path: ${{ runner.temp }}/result
+          if-no-files-found: warn
