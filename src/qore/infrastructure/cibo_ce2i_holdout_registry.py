@@ -255,14 +255,15 @@ CURRENT_FRESH_USD60_HOLDOUT_CANDIDATE = CiboHoldoutCandidate(
     candidate_id="CIBO_USD60_6M_HOLDOUT_2013-10-19_2014-04-19_V6",
     start_at=datetime(2013, 10, 19, tzinfo=UTC),
     end_exclusive_at=datetime(2014, 4, 19, tzinfo=UTC),
-    status=CiboHoldoutCandidateStatus.SOURCE_VALIDATION_PENDING,
+    status=CiboHoldoutCandidateStatus.REJECTED,
     selection_rule=(
         "latest mechanically preceding exact six-calendar-month block after "
         "V2/V3/V4 fresh consumption and V5 read-only source unavailability; "
-        "selected without inspecting V6 outcomes"
+        "read-only DEMO source validation proved the required NAS100 M1/M5 "
+        "surface unavailable without executing Trader logic or outcomes"
     ),
     outcome_data_inspected_at_selection=False,
-    source_validation_complete=False,
+    source_validation_complete=True,
 )
 
 
