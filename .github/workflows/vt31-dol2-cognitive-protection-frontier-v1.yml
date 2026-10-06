@@ -131,6 +131,10 @@ jobs:
               "W5_DOL2_COG_NO_PROTECTION",
               "W5_DOL2_COG_PS1",
               "W5_DOL2_COG_PS2",
+              "W3_DOL2_STRICT_COG_NO_PROTECTION",
+              "W3_DOL2_STRICT_COG_PS2",
+              "W5_DOL2_STRICT_COG_NO_PROTECTION",
+              "W5_DOL2_STRICT_COG_PS2",
           ]
           def d(v): return Decimal(str(v))
 
