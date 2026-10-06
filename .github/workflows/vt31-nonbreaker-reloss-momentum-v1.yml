@@ -1,4 +1,8 @@
 name: QORE VT31 NonBreaker Reloss Momentum V1
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 
 on:
   push:
