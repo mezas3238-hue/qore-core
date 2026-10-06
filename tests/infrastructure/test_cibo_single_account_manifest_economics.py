@@ -94,6 +94,12 @@ def test_manifest_row_builds_exact_causal_ceiling_economics() -> None:
     assert evidence.uncertainty_penalty_usd == Decimal("0")
     assert evidence.expectation_evidence_sha256.startswith("sha256:")
     assert len(evidence.expectation_evidence_sha256) == 71
+    context = dict(evidence.opportunity.decision_context)
+    assert context["ctx_session"] == "new_york"
+    assert context["cibo_context_quality_disposition"] == "ALLOW"
+    assert context["cibo_expectation_basis"] == "FROZEN_HISTORICAL_PRIOR"
+    assert context["cibo_expected_value_usd"] == "5"
+    assert context["cibo_expected_capital_minutes"] == "30"
 
 
 def test_settlement_outcome_cannot_change_predecision_economics() -> None:
