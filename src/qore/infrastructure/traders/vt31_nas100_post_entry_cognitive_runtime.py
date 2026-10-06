@@ -19,7 +19,9 @@ from decimal import Decimal
 
 from qore.infrastructure.traders.vt31_nas100_position_intelligence import (
     FullCognitivePositionState,
+    ManagementContext,
     MarketNativePositionDecision,
+    PositionAction,
     StructuralDestinationCandidate,
     StructuralProtectionCandidate,
     assess_full_cognitive_position,
@@ -169,6 +171,58 @@ def rebuild_post_entry_situation(
     )
 
 
+def _validated_comp009_adverse_exit(
+    *,
+    situation: Nas100SituationModel,
+    cognition: FullCognitivePositionState,
+) -> bool:
+    """Mirror only the already-validated Comparator-009 adverse exits.
+
+    This helper adds no new economic degree of freedom. It translates the
+    frozen Comparator-003 + Breaker weak-efficiency authorizers into the
+    canonical PositionAction surface so replay routing cannot contradict the
+    full-cognition output.
+    """
+
+    if not cognition.maximum_cognition_verified:
+        return False
+
+    open_r = situation.current_open_r
+    if open_r is None or open_r > Decimal("-0.50"):
+        return False
+
+    context = cognition.management_context
+    reclaim_age = situation.reference_reclaim_age_minutes
+    stale_sequence = (
+        reclaim_age is not None and 8 <= reclaim_age < 15
+    )
+    base_safe = (
+        context is ManagementContext.CAUTIOUS
+        or (
+            context is ManagementContext.MIXED
+            and stale_sequence
+        )
+    )
+    fvg_nonshallow = (
+        situation.entry_evidence_family == "fair-value-gap"
+        and cognition.destination_state != "SHALLOW"
+    )
+    nonob_normal = (
+        situation.volatility_state == "normal"
+        and situation.entry_evidence_family != "order-block"
+    )
+    comp003 = base_safe or fvg_nonshallow or nonob_normal
+
+    efficiency = situation.recent_path_efficiency
+    breaker_weak_efficiency = (
+        situation.entry_evidence_family == "breaker"
+        and context is ManagementContext.MIXED
+        and efficiency is not None
+        and efficiency <= Decimal("0.30")
+    )
+    return comp003 or breaker_weak_efficiency
+
+
 def reassess_and_decide_post_entry(
     *,
     entry_situation: Nas100SituationModel,
@@ -216,6 +270,20 @@ def reassess_and_decide_post_entry(
             market.regime_changed_against_thesis
         ),
     )
+    validated_adverse_exit = _validated_comp009_adverse_exit(
+        situation=current,
+        cognition=cognition,
+    )
+    if (
+        validated_adverse_exit
+        and position.action in {PositionAction.HOLD, PositionAction.TRAIL}
+    ):
+        position = MarketNativePositionDecision(
+            action=PositionAction.EXIT,
+            next_stop=None,
+            next_target=None,
+            reason="VALIDATED_ADVERSE_CONTEXT_EXIT",
+        )
 
     return PostEntryCognitiveDecision(
         cognition=cognition,
