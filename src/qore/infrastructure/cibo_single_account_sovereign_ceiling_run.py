@@ -26,6 +26,11 @@ from qore.infrastructure.cibo_capital_management_authority import (
     TraderOpportunityEnvelope,
 )
 from qore.infrastructure.cibo_ceiling_discovery import CiboCeilingLimitKind
+from qore.infrastructure.cibo_function_economic_sensors import (
+    CiboFunctionEconomicSensor,
+    build_sovereign_function_sensors,
+    summarize_function_sensors,
+)
 from qore.infrastructure.cibo_native_sovereign_capital_runtime import (
     CiboNativeSovereignCapitalDecision,
 )
@@ -101,6 +106,7 @@ class CiboSovereignCeilingDecisionReceipt:
     sizing_mode: str
     semantic_digest: str
     native_mpc_derived_from_cognition: bool
+    function_sensors: tuple[CiboFunctionEconomicSensor, ...] = ()
     native_maximum_intelligence: bool = True
     sovereign_runtime_evaluated: bool = True
     full_semantics_consumed: bool = True
@@ -177,6 +183,28 @@ class CiboSovereignCeilingDecisionReceipt:
         ):
             raise CiboCapitalManagementError(
                 "sovereign ceiling external AI count must be int"
+            )
+        if any(
+            not isinstance(item, CiboFunctionEconomicSensor)
+            for item in self.function_sensors
+        ):
+            raise CiboCapitalManagementError(
+                "sovereign ceiling function sensor receipt invalid"
+            )
+        sensor_codes = tuple(
+            item.function_code for item in self.function_sensors
+        )
+        if len(sensor_codes) != len(set(sensor_codes)):
+            raise CiboCapitalManagementError(
+                "sovereign ceiling duplicate function sensor code"
+            )
+        if any(
+            item.decision_id != self.decision_id
+            or item.productive_authority
+            for item in self.function_sensors
+        ):
+            raise CiboCapitalManagementError(
+                "sovereign ceiling function sensor lineage/authority drift"
             )
 
         if self.risk_decision == _NOT_REQUESTED:
@@ -389,6 +417,7 @@ def decision_receipt_from_native_runtime(
         native_mpc_derived_from_cognition=(
             native_decision.native_mpc_derived_from_cognition
         ),
+        function_sensors=build_sovereign_function_sensors(capital),
         native_maximum_intelligence=True,
         sovereign_runtime_evaluated=True,
         full_semantics_consumed=(
@@ -537,6 +566,19 @@ def build_single_account_sovereign_ceiling_run(
         )
         for multiplier in range(5)
     }
+    function_sensors = tuple(
+        sensor
+        for decision in decisions
+        for sensor in decision.function_sensors
+    )
+    function_sensor_summary = summarize_function_sensors(
+        function_sensors,
+        full_ending_capital_usd=capital,
+        ablation_ending_capital_usd={
+            name: item.ending_capital_usd
+            for name, item in ablation_by_name.items()
+        },
+    )
 
     return {
         "schema": _SCHEMA,
@@ -589,6 +631,7 @@ def build_single_account_sovereign_ceiling_run(
             trader: format(value, "f")
             for trader, value in sorted(by_trader.items())
         },
+        "function_economic_sensors": function_sensor_summary,
         "ablations": {
             name: {
                 "executed": True,
