@@ -30,7 +30,6 @@ import vt31_nas100_adverse_journey_cognitive_exit_frontier_v1 as adverse
 import vt31_nas100_breaker_mixed_weak_efficiency_adverse_exit_v1 as weak
 import vt31_nas100_bullish_h1_mid_confirmation_conflict_admission_v1 as mid
 import vt31_nas100_comp009_final_preholdout_metric_pack_v1 as pack
-import vt31_nas100_deep_giveback_rescue_frontier_v1 as dgr
 import vt31_nas100_h3_dol2_composition_frontier_v1 as composition
 import vt31_nas100_intelligence_policy_lab_v2b as v2b
 import vt31_nas100_live_cognitive_breaker_protection_frontier_v1 as live_cognition
@@ -40,10 +39,14 @@ import vt31_nas100_specialist_r1_candidate as specialist
 SCHEMA = "qore.vt31.nas100.comp011.breaker_deep_giveback_composition.v1"
 BASE_COMPARATOR_ID = "VT31_AB_COMP009_MAX_INTELLIGENCE_COMPOSED_SURVIVOR"
 VARIANT_ID = "VT31_AB_COMP011_BREAKER_DEEP_GIVEBACK_025"
-DGR_CURRENT_CLOSE_MAX_R = dgr.CURRENT_CLOSE_FRONTIER_R[0]
-
-if DGR_CURRENT_CLOSE_MAX_R != Decimal("0.25"):
-    raise RuntimeError("conservative DGR witness drifted from +0.25R")
+# Frozen from the previously adjudicated DGR_CURRENT_CLOSE_MAX_0_25 witness.
+# Keep these local: the historical DGR research module mutates global Decimal
+# precision at import time, which would contaminate Comparator-009 exact
+# development bindings in this final metric harness.
+DGR_MIN_MFE_R = Decimal("1.5")
+DGR_MIN_CLOSE_GIVEBACK_R = Decimal("1.0")
+DGR_MAX_PATH_EFFICIENCY = Decimal("0.10")
+DGR_CURRENT_CLOSE_MAX_R = Decimal("0.25")
 
 
 def _d(value: object) -> Decimal:
@@ -172,13 +175,13 @@ def _dgr_qualifies(
     efficiency = features["path_efficiency"]
     return bool(
         features["mfe_r"] is not None
-        and features["mfe_r"] >= dgr.MIN_MFE_R
+        and features["mfe_r"] >= DGR_MIN_MFE_R
         and features["close_giveback_r"] is not None
-        and features["close_giveback_r"] >= dgr.MIN_CLOSE_GIVEBACK_R
+        and features["close_giveback_r"] >= DGR_MIN_CLOSE_GIVEBACK_R
         and features["current_close_r"] is not None
         and features["current_close_r"] <= DGR_CURRENT_CLOSE_MAX_R
         and efficiency is not None
-        and efficiency <= dgr.MAX_PATH_EFFICIENCY
+        and efficiency <= DGR_MAX_PATH_EFFICIENCY
     )
 
 
@@ -569,13 +572,13 @@ def _partition_report(
             "same_comp009_target_stack": True,
             "breaker_only_dgr_scope": True,
             "maximum_cognition_required": True,
-            "dgr_min_mfe_r_preexisting": format(dgr.MIN_MFE_R, "f"),
+            "dgr_min_mfe_r_preexisting": format(DGR_MIN_MFE_R, "f"),
             "dgr_min_giveback_r_preexisting": format(
-                dgr.MIN_CLOSE_GIVEBACK_R,
+                DGR_MIN_CLOSE_GIVEBACK_R,
                 "f",
             ),
             "dgr_max_efficiency_preexisting": format(
-                dgr.MAX_PATH_EFFICIENCY,
+                DGR_MAX_PATH_EFFICIENCY,
                 "f",
             ),
             "dgr_current_close_max_r_preexisting": format(
