@@ -6,6 +6,7 @@ The preceding admitted-state attribution found two pre-entry states with
 negative mean-R in all four burned folds:
 
 - selected entry family == order-block;
+- selected entry family == order-block with entry evidence age 0-2m;
 - reference volatility state == expanded.
 
 This frontier tests only those predeclared universal-negative hypotheses.
@@ -40,8 +41,10 @@ WINNER_R_FLOOR = Decimal("0.90")
 VARIANTS = (
     "BASELINE",
     "ABSTAIN_ORDER_BLOCK",
+    "ABSTAIN_ORDER_BLOCK_AGE_0_2M",
     "ABSTAIN_EXPANDED_REFERENCE",
     "ABSTAIN_ORDER_BLOCK_OR_EXPANDED",
+    "ABSTAIN_ORDER_BLOCK_AGE_0_2M_OR_EXPANDED",
 )
 
 
@@ -58,14 +61,21 @@ def _is_abstained(
 
     features = cast(dict[str, str], row["pre_entry_features"])
     order_block = features["family"] == "order-block"
+    order_block_fresh = (
+        order_block and features["entry_age_bucket"] == "0_2m"
+    )
     expanded = features["volatility"] == "expanded"
 
     if variant == "ABSTAIN_ORDER_BLOCK":
         return order_block
+    if variant == "ABSTAIN_ORDER_BLOCK_AGE_0_2M":
+        return order_block_fresh
     if variant == "ABSTAIN_EXPANDED_REFERENCE":
         return expanded
     if variant == "ABSTAIN_ORDER_BLOCK_OR_EXPANDED":
         return order_block or expanded
+    if variant == "ABSTAIN_ORDER_BLOCK_AGE_0_2M_OR_EXPANDED":
+        return order_block_fresh or expanded
     raise ValueError(f"unsupported variant: {variant}")
 
 
