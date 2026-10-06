@@ -1,0 +1,119 @@
+name: QORE CIBO Control Root Cause Analysis
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/cibo-function-economic-sensors-001
+    paths:
+      - '.github/workflows/cibo-control-root-cause-analysis.yml'
+      - 'scripts/cibo_control_root_cause_analysis.py'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-cibo-control-root-cause-analysis-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  root-cause-analysis:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+      SENSOR_ARTIFACT_ID: '11415099219'
+      SENSOR_ARTIFACT_DIGEST: 'sha256:fb43256b3861e09c1988612c5b76fd485ae42ee2a770a14c5e3969bc7f1ec44c'
+      FROZEN_ARTIFACT_ID: '11389331836'
+      FROZEN_ARTIFACT_DIGEST: 'sha256:30177639f660c9647ab70257c2d12c541bdade49ab5582347a3890f920070fee'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install
+        run: python -m pip install -e '.[dev]'
+
+      - name: Validate analyzer
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/cibo_control_root_cause_analysis.py
+          ruff check scripts/cibo_control_root_cause_analysis.py
+
+      - name: Recover completed sensor replay and frozen population
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/sensor-artifact" "$RUNNER_TEMP/frozen-artifact"
+
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$SENSOR_ARTIFACT_ID" > "$RUNNER_TEMP/sensor.meta.json"
+          jq -e --arg digest "$SENSOR_ARTIFACT_DIGEST" '.expired == false and .digest == $digest' "$RUNNER_TEMP/sensor.meta.json"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$SENSOR_ARTIFACT_ID/zip" > "$RUNNER_TEMP/sensor.zip"
+          echo "${SENSOR_ARTIFACT_DIGEST#sha256:}  $RUNNER_TEMP/sensor.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/sensor.zip" -d "$RUNNER_TEMP/sensor-artifact"
+
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$FROZEN_ARTIFACT_ID" > "$RUNNER_TEMP/frozen.meta.json"
+          jq -e --arg digest "$FROZEN_ARTIFACT_DIGEST" '.expired == false and .digest == $digest' "$RUNNER_TEMP/frozen.meta.json"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$FROZEN_ARTIFACT_ID/zip" > "$RUNNER_TEMP/frozen.zip"
+          echo "${FROZEN_ARTIFACT_DIGEST#sha256:}  $RUNNER_TEMP/frozen.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/frozen.zip" -d "$RUNNER_TEMP/frozen-artifact"
+
+          REPLAY="$(find "$RUNNER_TEMP/sensor-artifact" -type f -name historical-ceiling-replay-with-sensors.json -print -quit)"
+          MANIFEST="$(find "$RUNNER_TEMP/frozen-artifact" -type f -name single-account-manifest-native.json -print -quit)"
+          test -n "$REPLAY"
+          test -n "$MANIFEST"
+          echo "REPLAY=$REPLAY" >> "$GITHUB_ENV"
+          echo "MANIFEST=$MANIFEST" >> "$GITHUB_ENV"
+
+      - name: Analyze first causes and calibration
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/root-cause"
+          python scripts/cibo_control_root_cause_analysis.py             --replay "$REPLAY"             --manifest "$MANIFEST"             --output "$RUNNER_TEMP/root-cause/control-root-cause-analysis.json"
+
+      - name: Prove root-cause accounting
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          p = json.loads(
+              (
+                  Path(os.environ["RUNNER_TEMP"])
+                  / "root-cause"
+                  / "control-root-cause-analysis.json"
+              ).read_text()
+          )
+          causes = p["first_upstream_decision_cause"]
+          assert causes["EXECUTED_POSITIVE_ELIGIBLE"]["decision_count"] == 1216
+          assert causes["CONTEXT_QUALITY_ABSTAIN"]["decision_count"] == 976
+          assert causes["NONPOSITIVE_EXPECTED_NET_UTILITY"]["decision_count"] == 1176
+          assert sum(item["decision_count"] for item in causes.values()) == 3368
+          assert p["cognition"]["component_count"] == 31
+          assert p["cognition"]["sensor_event_count"] == 104408
+          assert p["cognition"]["total_observed_cognitive_gate_count"] == 0
+          assert p["cognition"]["observed_control_discrimination"] == "NONE_IN_FROZEN_POPULATION"
+          assert p["interpretation_contract"]["correlation_is_not_causation"] is True
+          assert p["interpretation_contract"]["same_population_outcomes_must_not_be_used_as_tuning_labels"] is True
+          print(json.dumps({
+              "cognition": p["cognition"],
+              "first_causes": {
+                  key: value["decision_count"]
+                  for key, value in causes.items()
+              },
+              "expectation_calibration": p["expectation_calibration"],
+          }, sort_keys=True))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qore-cibo-control-root-cause-analysis-${{ github.run_id }}
+          path: ${{ runner.temp }}/root-cause
+          if-no-files-found: warn
