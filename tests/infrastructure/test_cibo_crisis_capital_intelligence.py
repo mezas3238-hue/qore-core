@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from decimal import Decimal
+from decimal import Decimal, localcontext
 
 import pytest
 
@@ -70,6 +70,10 @@ def _twin(
     total_risk_d = Decimal(total_risk)
     used_margin_d = Decimal(used_margin)
     total_margin_d = Decimal(total_margin)
+    with localcontext() as context:
+        context.prec = 100
+        risk_headroom = total_risk_d - used_risk_d
+        margin_headroom = total_margin_d - used_margin_d
     return Genc10ObservedCapitalTwin(
         twin_id="crisis-twin",
         account_identity=_identity(),
@@ -89,10 +93,10 @@ def _twin(
         source_capacities=(),
         total_stop_risk_capacity_usd=total_risk_d,
         used_stop_risk_usd=used_risk_d,
-        stop_risk_headroom_usd=total_risk_d - used_risk_d,
+        stop_risk_headroom_usd=risk_headroom,
         total_margin_capacity_usd=total_margin_d,
         used_margin_usd=used_margin_d,
-        margin_headroom_usd=total_margin_d - used_margin_d,
+        margin_headroom_usd=margin_headroom,
         active_deployment_count=1,
         provider_capability_counts=(),
     )
@@ -368,3 +372,43 @@ def test_genc12_frozen_engine_accepts_historical_causal_regime() -> None:
     assert plan.posture is CiboRegimePosture.DEFENSIVE
     assert plan.future_outcome_used is False
 
+
+
+
+def test_genc12_long_decimal_utilization_matches_twin_exactly() -> None:
+    used_risk = Decimal("1.2345678901234567890123456789012345678901")
+    total_risk = Decimal("9.8765432109876543210987654321098765432109")
+    used_margin = Decimal("2.3456789012345678901234567890123456789012")
+    total_margin = Decimal("19.876543210987654321098765432109876543210")
+    with localcontext() as context:
+        context.prec = 100
+        risk_utilization = used_risk / total_risk
+        margin_utilization = used_margin / total_margin
+
+    twin = _twin(
+        used_risk=format(used_risk, "f"),
+        total_risk=format(total_risk, "f"),
+        used_margin=format(used_margin, "f"),
+        total_margin=format(total_margin, "f"),
+    )
+    regime = CiboCapitalRegimeState(
+        liquidity=LiquidityState.NORMAL,
+        volatility=VolatilityState.NORMAL,
+        correlation=CorrelationState.NORMAL,
+        provider_condition=ProviderCondition.HEALTHY,
+        risk_utilization=risk_utilization,
+        margin_utilization=margin_utilization,
+        drawdown_utilization=Decimal("0"),
+        opportunity_count=1,
+    )
+
+    plan = plan_genc12_crisis_capital(
+        plan_id="long-decimal-utilization",
+        evaluated_at=T0,
+        twin=twin,
+        regime_state=regime,
+        crisis_facts=(),
+    )
+
+    assert plan.risk_boundary_overridden is False
+    assert plan.future_outcome_used is False
