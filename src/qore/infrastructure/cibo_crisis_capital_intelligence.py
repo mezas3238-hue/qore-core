@@ -346,7 +346,7 @@ def _utilization(used: Decimal, total: Decimal) -> Decimal:
     if total == 0:
         return Decimal(0)
     with localcontext() as context:
-        context.prec = 80
+        context.prec = 100
         return used / total
 
 
