@@ -1,0 +1,211 @@
+name: QORE CIBO Causal Function Attribution Lab
+
+on:
+  push:
+    branches:
+      - agent/cibo-ceiling-ablation-sensors-001
+    paths:
+      - '.github/workflows/cibo-causal-function-attribution-lab.yml'
+      - 'scripts/cibo_single_account_historical_ceiling_replay.py'
+      - 'src/qore/infrastructure/cibo_ceiling_ablation.py'
+      - 'src/qore/infrastructure/cibo_function_economic_sensors.py'
+      - 'src/qore/infrastructure/cibo_economic_engine_wiring.py'
+      - 'src/qore/infrastructure/cibo_sovereign_capital_runtime.py'
+      - 'src/qore/infrastructure/cibo_native_sovereign_capital_runtime.py'
+      - 'src/qore/infrastructure/cibo_single_account_sovereign_ceiling_executor.py'
+      - 'src/qore/infrastructure/cibo_single_account_historical_ceiling_epoch.py'
+      - 'src/qore/infrastructure/cibo_single_account_historical_ceiling_replay.py'
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  PYTHONPATH: ${{ github.workspace }}
+  FROZEN_ARTIFACT_ID: '11389331836'
+  FROZEN_ARTIFACT_DIGEST: 'sha256:30177639f660c9647ab70257c2d12c541bdade49ab5582347a3890f920070fee'
+
+jobs:
+  replay:
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        mode:
+          - full
+          - sizing
+          - adaptive_leverage
+          - cibo_compound
+          - compound_portfolio
+          - cognition
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install
+        run: python -m pip install -e '.[dev]'
+      - name: Recover frozen Native MAX population
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/frozen"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$FROZEN_ARTIFACT_ID" > "$RUNNER_TEMP/artifact.meta.json"
+          jq -e --arg digest "$FROZEN_ARTIFACT_DIGEST" '.expired == false and .digest == $digest' "$RUNNER_TEMP/artifact.meta.json"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$FROZEN_ARTIFACT_ID/zip" > "$RUNNER_TEMP/frozen.zip"
+          echo "${FROZEN_ARTIFACT_DIGEST#sha256:}  $RUNNER_TEMP/frozen.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/frozen.zip" -d "$RUNNER_TEMP/frozen"
+          MANIFEST="$(find "$RUNNER_TEMP/frozen" -type f -name single-account-manifest-native.json -print -quit)"
+          PREFLIGHT="$(find "$RUNNER_TEMP/frozen" -type f -name native-max-preflight.json -print -quit)"
+          test -n "$MANIFEST"
+          test -n "$PREFLIGHT"
+          echo "MANIFEST=$MANIFEST" >> "$GITHUB_ENV"
+          echo "PREFLIGHT=$PREFLIGHT" >> "$GITHUB_ENV"
+      - name: Prove frozen lineage
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          from qore.infrastructure.cibo_single_account_manifest_integrity import validate_single_account_manifest_sha256
+          manifest = json.loads(Path(os.environ["MANIFEST"]).read_text())
+          preflight = json.loads(Path(os.environ["PREFLIGHT"]).read_text())
+          digest = validate_single_account_manifest_sha256(manifest)
+          assert digest == "sha256:76ffb7e1c72bf3c18e2fc7614007e8f2124463379acd185167cc5e46b8b2e669"
+          assert preflight["source_manifest_sha256"] == digest
+          assert preflight["decision_count"] == 3368
+          assert preflight["native_max_pass_count"] == 3368
+          assert preflight["native_max_blocked_count"] == 0
+          assert preflight["external_ai_call_count"] == 0
+          assert manifest["decision_epoch_count"] == 3305
+          assert manifest["account_reset_count"] == 0
+          assert manifest["economic_era_reset_count"] == 0
+          PY
+      - name: Run causal replay
+        env:
+          MODE: ${{ matrix.mode }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/result"
+          python scripts/cibo_single_account_historical_ceiling_replay.py             --manifest "$MANIFEST"             --ablation "$MODE"             --progress-every 500             --output "$RUNNER_TEMP/result/$MODE.json"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          mode = os.environ["MODE"]
+          p = json.loads((Path(os.environ["RUNNER_TEMP"]) / "result" / f"{mode}.json").read_text())
+          assert p["ablation_mode"] == mode
+          assert p["decision_epoch_count"] == 3305
+          assert p["decision_count"] == 3368
+          assert p["external_ai_call_count"] == 0
+          assert p["governance"]["account_reset_count"] == 0
+          assert p["governance"]["economic_era_reset_count"] == 0
+          assert p["governance"]["outcome_used_for_predecision"] is False
+          assert p["function_economic_sensors"]["productive_authority"] is False
+          print(json.dumps({
+              "mode": mode,
+              "ending_capital_usd": p["ending_capital_usd"],
+              "peak_capital_usd": p["peak_capital_usd"],
+              "settlement_count": p["settlement_count"],
+              "sensor_count": p["function_economic_sensors"]["sensor_count"],
+          }, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cibo-causal-replay-${{ matrix.mode }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/result/${{ matrix.mode }}.json
+          if-no-files-found: error
+          retention-days: 7
+
+  attribution:
+    needs: replay
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: cibo-causal-replay-*-${{ github.run_id }}
+          path: ${{ runner.temp }}/causal
+          merge-multiple: true
+      - name: Assemble function attribution
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from decimal import Decimal, localcontext
+          from pathlib import Path
+
+          root = Path(os.environ["RUNNER_TEMP"]) / "causal"
+          names = (
+              "full",
+              "sizing",
+              "adaptive_leverage",
+              "cibo_compound",
+              "compound_portfolio",
+              "cognition",
+          )
+          runs = {
+              name: json.loads((root / f"{name}.json").read_text())
+              for name in names
+          }
+          full = runs["full"]
+          for name, row in runs.items():
+              assert row["source_manifest_sha256"] == full["source_manifest_sha256"]
+              assert row["decision_epoch_count"] == full["decision_epoch_count"] == 3305
+              assert row["decision_count"] == full["decision_count"] == 3368
+              assert row["provider_assumption"] == full["provider_assumption"]
+              assert row["governance"]["account_reset_count"] == 0
+              assert row["governance"]["economic_era_reset_count"] == 0
+              assert row["governance"]["outcome_used_for_predecision"] is False
+
+          full_end = Decimal(full["ending_capital_usd"])
+          causal = {}
+          for name in names[1:]:
+              without = Decimal(runs[name]["ending_capital_usd"])
+              with localcontext() as context:
+                  context.prec = 100
+                  delta = full_end - without
+              causal[name] = {
+                  "ending_capital_without_function_usd": format(without, "f"),
+                  "delta_ending_capital_vs_full_usd": format(delta, "f"),
+                  "direction": (
+                      "POSITIVE_CONTRIBUTION"
+                      if delta > 0
+                      else "NEGATIVE_CONTRIBUTION"
+                      if delta < 0
+                      else "NO_MEASURED_ENDING_CAPITAL_EFFECT"
+                  ),
+                  "decision_count": runs[name]["decision_count"],
+                  "settlement_count": runs[name]["settlement_count"],
+              }
+
+          out = {
+              "schema": "qore.cibo.function-economic-attribution.v1",
+              "source_manifest_sha256": full["source_manifest_sha256"],
+              "full_ending_capital_usd": full["ending_capital_usd"],
+              "full_peak_capital_usd": full["peak_capital_usd"],
+              "full_net_pnl_usd": full["net_pnl_usd"],
+              "function_activity": full["function_economic_sensors"]["function_summary"],
+              "causal_ablation_attribution": causal,
+              "unablated_function_economics_remain_unproven": True,
+              "causal_deltas_are_not_additive": True,
+              "same_population_chronology_provider_and_risk": True,
+              "external_ai": False,
+              "account_reset_count": 0,
+              "economic_era_reset_count": 0,
+              "certification_claimed": False,
+          }
+          output = root / "function-economic-attribution.json"
+          output.write_text(json.dumps(out, indent=2, sort_keys=True) + "\n")
+          print(json.dumps(out["causal_ablation_attribution"], sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cibo-function-economic-attribution-${{ github.run_id }}
+          path: ${{ runner.temp }}/causal/function-economic-attribution.json
+          if-no-files-found: error
+          retention-days: 14
