@@ -35,6 +35,7 @@ from qore.infrastructure.cibo_capital_management_authority import (
     minimum_seed_volume,
 )
 from qore.infrastructure.cibo_ce2i_regime_selector import CiboCapitalRegimeState
+from qore.infrastructure.cibo_ceiling_ablation import CiboCeilingAblationMode
 from qore.infrastructure.cibo_economic_engine_wiring import CiboLifecycleWireRequest
 from qore.infrastructure.cibo_full_economic_digital_twin import (
     CiboObservedEconomicTwin,
@@ -198,6 +199,7 @@ def execute_sovereign_ceiling_epoch(
     world_paths: tuple[Genc11WorldPath, ...] = (),
     option_schedules: tuple[Genc11KnownOptionSchedule, ...] = (),
     lifecycle_requests: tuple[CiboLifecycleWireRequest, ...] = (),
+    ablation_mode: CiboCeilingAblationMode = CiboCeilingAblationMode.FULL,
 ) -> CiboSovereignCeilingEpochResult:
     """Execute one complete simultaneous epoch without outcome knowledge."""
 
@@ -306,6 +308,7 @@ def execute_sovereign_ceiling_epoch(
             requested_at=decision_at,
             expires_at=expires_at,
             lifecycle_requests=lifecycle_requests,
+            ablation_mode=ablation_mode,
         )
 
     # Phase B: only Risk-ready requests enter QORE Risk. Submit the strongest
