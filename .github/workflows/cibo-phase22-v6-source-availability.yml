@@ -3,7 +3,7 @@ name: QORE CIBO Phase22 V6 Source Availability
 on:
   push:
     branches:
-      - agent/cibo-integrator-ab-001
+      - agent/cibo-causal-expectation-leakage-fix-001
     paths:
       - 'src/qore/infrastructure/cibo_phase22_v6_governance.py'
       - 'src/qore/infrastructure/cibo_phase22_v6_source_availability.py'
@@ -82,8 +82,8 @@ jobs:
           mkdir -p artifacts
           set +e
           python -m qore.infrastructure.cibo_phase22_v6_source_availability \
-            artifacts/v5-source-availability.json \
-            > artifacts/v5-source-availability.stdout.json
+            artifacts/v6-source-availability.json \
+            > artifacts/v6-source-availability.stdout.json
           code=$?
           set -e
           printf 'V6_PROBE_EXIT_CODE=%s\n' "$code" >> "$GITHUB_ENV"
@@ -94,7 +94,7 @@ jobs:
           import json
           from pathlib import Path
           p = json.loads(
-              Path("artifacts/v5-source-availability.json").read_text()
+              Path("artifacts/v6-source-availability.json").read_text()
           )
           assert p["candidate_id"] == (
               "CIBO_USD60_6M_HOLDOUT_2013-10-19_2014-04-19_V6"
@@ -128,7 +128,7 @@ jobs:
           import json
           from pathlib import Path
           payload = json.loads(
-              Path("artifacts/v5-source-availability.json").read_text()
+              Path("artifacts/v6-source-availability.json").read_text()
           )
           assert payload["source_available"] is True
           assert payload["status"] == "SOURCE_AVAILABLE"
