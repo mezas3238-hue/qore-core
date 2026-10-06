@@ -97,6 +97,7 @@ def _settlement(
     gross_pnl: Decimal,
     net_pnl: Decimal,
     suffix: str,
+    exit_reason: str = "TARGET",
 ) -> CiboManifestOutcomeSettlement:
     receipt = CiboSovereignCeilingSettlementReceipt(
         signal_fingerprint=signal,
@@ -111,6 +112,7 @@ def _settlement(
         trader_id=TraderLineage.R34_XAUUSD.value,
         entry_at=T0 + timedelta(minutes=1),
         exit_at=T0 + timedelta(minutes=10),
+        exit_reason=exit_reason,
         gross_structural_outcome_r=gross_r,
         provider_cost_usd=provider_cost,
         gross_pnl_usd=gross_pnl,
@@ -302,3 +304,33 @@ def test_outcome_below_minus_one_r_fails_without_gap_evidence() -> None:
                 suffix="e",
             ),
         )
+
+
+
+def test_gap_outcome_below_minus_one_r_consumes_explicit_excess_loss() -> None:
+    state = initialize_historical_research_capital()
+    authorization = _authorization(
+        signal="gap-evidence-loss",
+        source=CapitalSource.ORIGINAL_BASE_CAPITAL,
+    )
+    state = reserve_historical_authorization(
+        state,
+        authorization=authorization,
+        provider_cost_usd=Decimal("2"),
+    )
+
+    state = settle_historical_deployment(
+        state,
+        settlement=_settlement(
+            signal="gap-evidence-loss",
+            gross_r=Decimal("-1.1"),
+            provider_cost=Decimal("2"),
+            gross_pnl=Decimal("-11"),
+            net_pnl=Decimal("-13"),
+            suffix="9",
+            exit_reason="GAP_STOP",
+        ),
+    )
+
+    assert state.realized_capital_usd == Decimal("47")
+    assert state.cumulative_gross_loss_usd == Decimal("11")
