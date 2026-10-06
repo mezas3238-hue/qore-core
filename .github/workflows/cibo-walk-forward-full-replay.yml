@@ -20,6 +20,11 @@ on:
       - 'scripts/cibo_build_walk_forward_expectation_manifest.py'
       - 'scripts/cibo_walk_forward_capital_path_diagnostics.py'
       - 'scripts/cibo_walk_forward_forecast_calibration.py'
+      - 'tests/infrastructure/test_cibo_walk_forward_forecast_confidence.py'
+      - 'tests/infrastructure/test_cibo_walk_forward_manifest_builder.py'
+      - 'tests/infrastructure/test_cibo_single_account_manifest_economics.py'
+      - 'tests/infrastructure/test_cibo_native_maximum_intelligence.py'
+      - 'tests/infrastructure/test_cibo_walk_forward_capital_path_diagnostics.py'
 
 permissions:
   contents: read
