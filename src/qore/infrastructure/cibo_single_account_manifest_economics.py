@@ -207,6 +207,94 @@ def _cognitive_economic_context(
             - provider_cost_per_volume * minimum_volume
             - uncertainty_penalty
         )
+    walk_forward_additions: dict[str, str] = {}
+    if basis == "WALK_FORWARD_EMPIRICAL_FORECAST":
+        observation_count = expectation.get("walk_forward_observation_count")
+        maturity = expectation.get("walk_forward_maturity")
+        mature = expectation.get(
+            "walk_forward_mature_for_capital_consideration"
+        )
+        positive_blocks = expectation.get("walk_forward_positive_block_count")
+        nonpositive_blocks = expectation.get(
+            "walk_forward_nonpositive_block_count"
+        )
+        if (
+            not isinstance(observation_count, int)
+            or isinstance(observation_count, bool)
+            or observation_count < 5
+            or maturity not in {"PROVISIONAL", "MATURE"}
+            or type(mature) is not bool
+            or not isinstance(positive_blocks, int)
+            or isinstance(positive_blocks, bool)
+            or not isinstance(nonpositive_blocks, int)
+            or isinstance(nonpositive_blocks, bool)
+            or positive_blocks + nonpositive_blocks != 5
+        ):
+            raise CiboCapitalManagementError(
+                "walk-forward cognitive maturity semantics invalid"
+            )
+        evidence_available_at = _datetime(
+            expectation.get("evidence_available_at"),
+            "expectation evidence_available_at",
+        )
+        if evidence_available_at > decision_at:
+            raise CiboCapitalManagementError(
+                "walk-forward cognitive evidence is from the future"
+            )
+        with localcontext() as context:
+            context.prec = 100
+            evidence_age_minutes = Decimal(
+                str((decision_at - evidence_available_at).total_seconds())
+            ) / Decimal(60)
+        dispersion = _decimal(
+            expectation.get("walk_forward_block_dispersion_r"),
+            "walk_forward_block_dispersion_r",
+        )
+        median_absolute_deviation = _decimal(
+            expectation.get("walk_forward_median_absolute_deviation_r"),
+            "walk_forward_median_absolute_deviation_r",
+        )
+        maturity_fraction = _decimal(
+            expectation.get("walk_forward_maturity_fraction"),
+            "walk_forward_maturity_fraction",
+        )
+        if (
+            dispersion < 0
+            or median_absolute_deviation < 0
+            or maturity_fraction < 0
+            or maturity_fraction > 1
+        ):
+            raise CiboCapitalManagementError(
+                "walk-forward cognitive confidence metrics invalid"
+            )
+        walk_forward_additions = {
+            "cibo_walk_forward_observation_count": str(observation_count),
+            "cibo_walk_forward_maturity": str(maturity),
+            "cibo_walk_forward_mature_for_capital_consideration": (
+                "true" if mature else "false"
+            ),
+            "cibo_walk_forward_positive_block_count": str(positive_blocks),
+            "cibo_walk_forward_nonpositive_block_count": str(
+                nonpositive_blocks
+            ),
+            "cibo_walk_forward_block_dispersion_r": format(
+                dispersion,
+                "f",
+            ),
+            "cibo_walk_forward_median_absolute_deviation_r": format(
+                median_absolute_deviation,
+                "f",
+            ),
+            "cibo_walk_forward_maturity_fraction": format(
+                maturity_fraction,
+                "f",
+            ),
+            "cibo_walk_forward_evidence_age_minutes": format(
+                evidence_age_minutes,
+                "f",
+            ),
+        }
+
     additions = {
         "cibo_context_quality_disposition": disposition,
         "cibo_context_quality_rules": rule_value,
@@ -223,6 +311,7 @@ def _cognitive_economic_context(
             "f",
         ),
         "cibo_expected_capital_minutes": str(expected_minutes),
+        **walk_forward_additions,
     }
     overlap = set(base).intersection(additions)
     if overlap:
