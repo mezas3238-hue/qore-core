@@ -41,7 +41,8 @@ class CiboPreHoldoutStatus(StrEnum):
     NOT_READY = "NOT_READY"
     READY_TO_FREEZE = "READY_TO_FREEZE"
     READY_TO_UNSEAL_ACTIVE_HOLDOUT = "READY_TO_UNSEAL_ACTIVE_HOLDOUT"
-    # Compatibility alias only. The active candidate is V2, never 2017H1 V1.
+    # Historical compatibility alias only. New authorization always uses
+    # CURRENT_FRESH_USD60_HOLDOUT_CANDIDATE and can never target a burned V1.
     READY_TO_UNSEAL_2017H1 = "READY_TO_UNSEAL_ACTIVE_HOLDOUT"
 
 
