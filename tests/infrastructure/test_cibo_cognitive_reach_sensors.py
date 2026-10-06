@@ -37,7 +37,11 @@ def _sensor(
         reached_stages=stages,
         downstream_consumer="cibo-functional-coordinator",
         component_ablation_key=ablation_key,
+        input_metrics=(("input_kind", "unit-test"),),
+        output_metrics=(("output_kind", "unit-test"),),
         native_engine_called=called,
+        native_output_consumed=(called and applicable),
+        semantic_payload_consumed=True,
         applicable=applicable,
         downstream_consumed=True,
         constraint_or_gate_emitted=gate,
@@ -142,3 +146,24 @@ def test_cognitive_sensor_cannot_acquire_productive_authority() -> None:
             component_ablation_key="cognition:world_model",
             productive_authority=True,
         )
+
+
+def test_non_applicable_faculty_can_be_semantically_visible_without_fake_native_use() -> None:
+    sensor = _sensor(
+        decision_id="d1",
+        component_code="CF08",
+        ablation_key="cognition:cf08",
+        applicable=False,
+        called=False,
+    )
+
+    assert sensor.native_engine_called is False
+    assert sensor.native_output_consumed is False
+    assert sensor.semantic_payload_consumed is True
+
+    summary = summarize_cognitive_reach_sensors((sensor,))
+    cf08 = summary["components"]["CF08"]
+    assert cf08["native_engine_called_count"] == 0
+    assert cf08["native_output_consumed_count"] == 0
+    assert cf08["semantic_payload_consumed_count"] == 1
+    assert cf08["semantic_only_count"] == 1
