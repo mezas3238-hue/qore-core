@@ -463,6 +463,87 @@ def _attention(
     cold_start_no_forecast = (
         expectation_basis == "COLD_START_NO_FORECAST"
     )
+    walk_forward_forecast = (
+        expectation_basis == "WALK_FORWARD_EMPIRICAL_FORECAST"
+    )
+    walk_forward_provisional = False
+    walk_forward_maturity_fraction: Decimal | None = None
+    if walk_forward_forecast:
+        maturity = target_economics.get("walk_forward_maturity")
+        mature = target_economics.get(
+            "walk_forward_mature_for_capital_consideration"
+        )
+        observation_count_raw = target_economics.get(
+            "walk_forward_observation_count"
+        )
+        maturity_fraction_raw = target_economics.get(
+            "walk_forward_maturity_fraction"
+        )
+        dispersion_raw = target_economics.get(
+            "walk_forward_block_dispersion_r"
+        )
+        mad_raw = target_economics.get(
+            "walk_forward_median_absolute_deviation_r"
+        )
+        positive_blocks_raw = target_economics.get(
+            "walk_forward_positive_block_count"
+        )
+        nonpositive_blocks_raw = target_economics.get(
+            "walk_forward_nonpositive_block_count"
+        )
+        evidence_age_raw = target_economics.get(
+            "walk_forward_evidence_age_minutes"
+        )
+        try:
+            observation_count = int(str(observation_count_raw))
+            positive_blocks = int(str(positive_blocks_raw))
+            nonpositive_blocks = int(str(nonpositive_blocks_raw))
+            walk_forward_maturity_fraction = Decimal(
+                str(maturity_fraction_raw)
+            )
+            dispersion = Decimal(str(dispersion_raw))
+            median_absolute_deviation = Decimal(str(mad_raw))
+            evidence_age_minutes = Decimal(str(evidence_age_raw))
+        except Exception as error:
+            raise CiboCapitalManagementError(
+                "native cognitive CF07 walk-forward confidence invalid"
+            ) from error
+        if (
+            maturity not in {"PROVISIONAL", "MATURE"}
+            or mature not in {"true", "false"}
+            or observation_count < 5
+            or positive_blocks < 0
+            or nonpositive_blocks < 0
+            or positive_blocks + nonpositive_blocks != 5
+            or not walk_forward_maturity_fraction.is_finite()
+            or walk_forward_maturity_fraction < 0
+            or walk_forward_maturity_fraction > 1
+            or not dispersion.is_finite()
+            or dispersion < 0
+            or not median_absolute_deviation.is_finite()
+            or median_absolute_deviation < 0
+            or not evidence_age_minutes.is_finite()
+            or evidence_age_minutes < 0
+            or (maturity == "MATURE") != (mature == "true")
+        ):
+            raise CiboCapitalManagementError(
+                "native cognitive CF07 walk-forward confidence malformed"
+            )
+        walk_forward_provisional = mature != "true"
+        if walk_forward_provisional:
+            add(
+                AttentionSignalKind.PENDING_GOAL,
+                max(
+                    40,
+                    100 - int(
+                        walk_forward_maturity_fraction * Decimal(100)
+                    ),
+                ),
+                "walk-forward-forecast-provisional",
+                "causal-estimator-maturity",
+            )
+            decision_gate_codes.append("CF07")
+
     if cold_start_no_forecast:
         add(
             AttentionSignalKind.PENDING_GOAL,
@@ -520,6 +601,8 @@ def _attention(
     )
     if cold_start_no_forecast:
         missing += ("walk-forward-forecast-history",)
+    if walk_forward_provisional:
+        missing += ("walk-forward-forecast-maturity",)
     if regime.evidence_stale:
         missing += ("fresh-causal-evidence",)
     if regime.provider_condition is ProviderCondition.UNAVAILABLE:
@@ -555,6 +638,7 @@ def _attention(
     semantic_abstain = (
         context_quality_abstain
         or cold_start_no_forecast
+        or walk_forward_provisional
         or (
             not context_quality_abstain
             and expected_net_utility is not None
@@ -570,6 +654,9 @@ def _attention(
     if cold_start_no_forecast:
         kind = "more_evidence_requested"
         note = "walk-forward-cold-start-history-required"
+    elif walk_forward_provisional:
+        kind = "more_evidence_requested"
+        note = "walk-forward-provisional-forecast-history-required"
     elif missing:
         kind = "more_evidence_requested"
         note = "fresh-provider-or-causal-evidence-required"
@@ -592,7 +679,22 @@ def _attention(
         kind = "bounded_confidence"
         note = "native-causal-state-bounded-confidence"
 
-    confidence_band = max(0, min(100, 100 - utilization_pct))
+    epistemic_confidence_pct = 100
+    if (
+        walk_forward_forecast
+        and walk_forward_maturity_fraction is not None
+    ):
+        epistemic_confidence_pct = int(
+            walk_forward_maturity_fraction * Decimal(100)
+        )
+    confidence_band = max(
+        0,
+        min(
+            100,
+            100 - utilization_pct,
+            epistemic_confidence_pct,
+        ),
+    )
     return (
         selected,
         routing,
