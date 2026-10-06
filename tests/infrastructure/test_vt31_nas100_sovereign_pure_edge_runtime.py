@@ -3,7 +3,6 @@ from __future__ import annotations
 from decimal import Decimal
 from pathlib import Path
 
-import pytest
 
 from qore.infrastructure.traders.vt31_nas100_reasoning_engine import reason
 from qore.infrastructure.traders.vt31_nas100_situation_model import (
@@ -74,20 +73,15 @@ def _situation(*, ref_ratio: str = "0.68") -> Nas100SituationModel:
     )
 
 
-def test_runtime_reasoning_has_no_r_target_plan() -> None:
+def test_current_reasoning_can_remain_structural_without_forbidding_r() -> None:
     compressed = reason(_situation(ref_ratio="0.68"))
     normal = reason(_situation(ref_ratio="1.05"))
 
     assert compressed.target_plan == "PRIMARY_STRUCTURAL_BOUNDARY"
     assert normal.target_plan == "PRIMARY_STRUCTURAL_BOUNDARY"
-    assert "1R" not in compressed.target_plan
-    assert "1.25R" not in compressed.target_plan
-    assert "3R" not in compressed.target_plan
-    assert "_R_" not in compressed.target_plan
-    assert "PARTIAL" not in compressed.target_plan
 
 
-def test_runtime_situation_rejects_planned_target_r() -> None:
+def test_runtime_situation_accepts_positive_planned_target_r() -> None:
     base = _situation()
     payload = {
         name: getattr(base, name)
@@ -95,14 +89,12 @@ def test_runtime_situation_rejects_planned_target_r() -> None:
     }
     payload["planned_target_r"] = Decimal("3")
 
-    with pytest.raises(
-        ValueError,
-        match="R is post-trade evaluation only",
-    ):
-        Nas100SituationModel(**payload)
+    situation = Nas100SituationModel(**payload)
+
+    assert situation.planned_target_r == Decimal("3")
 
 
-def test_certifiable_simulator_does_not_use_r_exit_triggers() -> None:
+def test_current_candidate_may_be_structural_only_without_banning_r() -> None:
     text = SPECIALIST.read_text(encoding="utf-8")
     block = text.split(
         "def _simulate_structural_boundary_only",
@@ -112,29 +104,23 @@ def test_certifiable_simulator_does_not_use_r_exit_triggers() -> None:
         1,
     )[0]
 
-    assert "three_r_price" not in block
-    assert "touched_three_r" not in block
-    assert "PARTIAL_TARGET_R" not in block
-    assert "_simulate_partial_runner" not in block
-    assert "current_stop = entry" not in block
     assert 'exit_reason = "structural-invalidation"' in block
     assert 'exit_reason = "structural-target"' in block
 
 
-def test_certifiable_target_selection_has_no_legacy_r_plan() -> None:
+def test_reasoning_keeps_current_structural_target_candidate() -> None:
     reasoning = REASONING.read_text(encoding="utf-8")
 
-    assert "PARTIAL_1_25R_PLUS_BOUNDARY_RUNNER" not in reasoning
     assert "PRIMARY_STRUCTURAL_BOUNDARY" in reasoning
 
 
-def test_specialist_contract_declares_r_evaluation_only() -> None:
+def test_specialist_contract_allows_r_but_forbids_sizing() -> None:
     text = SPECIALIST.read_text(encoding="utf-8")
 
-    assert '"r_is_evaluation_metric_only": True' in text
-    assert '"runtime_r_target_allowed": False' in text
-    assert '"runtime_r_breakeven_allowed": False' in text
-    assert '"runtime_r_trailing_allowed": False' in text
+    assert '"r_runtime_allowed_by_sovereign_rule": True' in text
+    assert '"runtime_r_target_allowed": True' in text
+    assert '"runtime_r_breakeven_allowed": True' in text
+    assert '"runtime_r_trailing_allowed": True' in text
     assert '"sizing_used": False' in text
     assert '"leverage_used": False' in text
     assert '"compounding_used": False' in text
