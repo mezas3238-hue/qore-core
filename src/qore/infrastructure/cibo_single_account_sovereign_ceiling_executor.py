@@ -199,6 +199,7 @@ def execute_sovereign_ceiling_epoch(
     option_schedules: tuple[Genc11KnownOptionSchedule, ...] = (),
     portfolio_fixed_multiplier: int | None = None,
     lifecycle_requests: tuple[CiboLifecycleWireRequest, ...] = (),
+    peak_realized_capital_usd: Decimal | None = None,
 ) -> CiboSovereignCeilingEpochResult:
     """Execute one complete simultaneous epoch without outcome knowledge."""
 
@@ -308,6 +309,7 @@ def execute_sovereign_ceiling_epoch(
             expires_at=expires_at,
             portfolio_fixed_multiplier=portfolio_fixed_multiplier,
             lifecycle_requests=lifecycle_requests,
+            peak_realized_capital_usd=peak_realized_capital_usd,
         )
 
     # Phase B: only Risk-ready requests enter QORE Risk. Submit the strongest
