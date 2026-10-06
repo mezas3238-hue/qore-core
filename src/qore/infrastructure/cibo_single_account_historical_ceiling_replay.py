@@ -390,6 +390,7 @@ def run_historical_ceiling_replay(
     manifest: Mapping[str, Any],
     *,
     provider_assumption: CiboHistoricalProviderAssumption | None = None,
+    portfolio_fixed_multiplier: int | None = None,
     progress_hook: Any | None = None,
 ) -> CiboHistoricalCeilingReplayResult:
     """Run one continuous USD60 historical Native MAX ceiling replay."""
@@ -531,6 +532,7 @@ def run_historical_ceiling_replay(
             provider_assumption=provider_assumption,
             survival_capital_usd=_INITIAL_CAPITAL_USD,
             protected_capital_usd=Decimal(0),
+            portfolio_fixed_multiplier=portfolio_fixed_multiplier,
         )
         execution = prepared.execution
         decisions.extend(execution.decision_receipts)
