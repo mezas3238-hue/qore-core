@@ -87,7 +87,8 @@ jobs:
           assert g["trade_admission_changed"] is False
           assert g["future_labels_research_only"] is True
           assert g["future_labels_used_for_runtime_decision"] is False
-          assert g["maximum_cognition_required"] is True
+          assert g["full_cognitive_accounting_required"] is True
+          assert g["maximum_intelligence_required_for_candidate_freeze"] is True
           assert g["r_used_for_volume"] is False
           assert g["position_sizing_used"] is False
           assert g["leverage_used"] is False
@@ -95,7 +96,7 @@ jobs:
           assert g["capital_weighting_used"] is False
           assert g["fresh_holdout_opened"] is False
           assert all(
-              row["maximum_cognition_verified"] is True
+              row["full_cognitive_accounting_verified"] is True
               for row in x["rows"]
           )
           PY
@@ -183,6 +184,8 @@ jobs:
               "governance":{
                   "consumed_evidence_only":True,
                   "future_labels_research_only":True,
+                  "full_cognitive_accounting_required":True,
+                  "maximum_intelligence_required_for_candidate_freeze":True,
                   "runtime_policy_promoted":False,
                   "fresh_holdout_opened":False,
                   "candidate_frozen":False,
