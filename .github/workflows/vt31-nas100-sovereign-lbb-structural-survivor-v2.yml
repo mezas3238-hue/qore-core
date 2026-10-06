@@ -1,4 +1,8 @@
 name: QORE VT31 Sovereign LBB Structural Survivor V2
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 
 on:
   push:
