@@ -143,10 +143,11 @@ def contract_payload() -> dict[str, object]:
         "initial_stop": "source-methodological-swing-extreme-no-buffer",
         "target_intelligence": {
             "primary_destination": "opposite-frozen-09-reference-boundary",
-            "runtime_r_target_allowed": False,
-            "runtime_r_breakeven_allowed": False,
-            "runtime_r_trailing_allowed": False,
-            "partial_exit_from_r_threshold_allowed": False,
+            "runtime_r_target_allowed": True,
+            "runtime_r_breakeven_allowed": True,
+            "runtime_r_trailing_allowed": True,
+            "partial_exit_from_r_threshold_allowed": True,
+            "current_candidate_uses_r_runtime_management": False,
             "extension_authority": (
                 "market-native-only:structure+liquidity+exhaustion+"
                 "regime+momentum;currently-unpromoted"
@@ -159,7 +160,8 @@ def contract_payload() -> dict[str, object]:
             "leverage_used": False,
             "compounding_used": False,
             "capital_weighting_used": False,
-            "r_is_evaluation_metric_only": True,
+            "r_runtime_allowed_by_sovereign_rule": True,
+            "current_candidate_uses_r_runtime_management": False,
         },
         "pending_expiry": "11:00-NY",
         "filled_lifecycle": "16:00-NY",
@@ -1332,7 +1334,7 @@ def self_test() -> None:
     assert len(contract_fingerprint()) == 64
     assert COMPRESSION_THRESHOLD == Decimal("0.75")
     pure_edge = cast(dict[str, object], contract["pure_edge_runtime"])
-    assert pure_edge["r_is_evaluation_metric_only"] is True
+    assert pure_edge["r_runtime_allowed_by_sovereign_rule"] is True
     assert pure_edge["sizing_used"] is False
     assert pure_edge["leverage_used"] is False
     assert pure_edge["compounding_used"] is False
