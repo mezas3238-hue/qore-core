@@ -55,6 +55,7 @@ def _build_lifecycle_map(
     *,
     features: frozenset[CiboLifecycleFeature],
     adverse_loss_cut_r: Decimal,
+    adverse_loss_cut_confirmation_bars: int,
 ) -> dict[str, dict[str, object]]:
     if not roots:
         return {}
@@ -106,6 +107,9 @@ def _build_lifecycle_map(
             series[start:end] if start < end else (),
             features=features,
             adverse_loss_cut_r=adverse_loss_cut_r,
+            adverse_loss_cut_confirmation_bars=(
+                adverse_loss_cut_confirmation_bars
+            ),
         )
         result[signal] = {
             "original_gross_r": format(outcome.gross_structural_outcome_r, "f"),
@@ -116,6 +120,9 @@ def _build_lifecycle_map(
             "events": managed.events,
             "enabled_features": sorted(item.value for item in features),
             "adverse_loss_cut_r": format(adverse_loss_cut_r, "f"),
+            "adverse_loss_cut_confirmation_bars": (
+                adverse_loss_cut_confirmation_bars
+            ),
             "risk_released_before_exit_fraction": format(
                 managed.risk_released_before_exit_fraction, "f"
             ),
@@ -156,6 +163,15 @@ def main() -> int:
         help=(
             "Closed-bar deterioration trigger for ADVERSE_LOSS_CUT; the exit "
             "is executed causally at the next M5 open."
+        ),
+    )
+    parser.add_argument(
+        "--lifecycle-adverse-loss-cut-confirmation-bars",
+        type=int,
+        default=1,
+        help=(
+            "Consecutive closed M5 bars at/below the adverse threshold "
+            "required before arming the causal next-open exit."
         ),
     )
     parser.add_argument(
@@ -233,6 +249,9 @@ def main() -> int:
         _lifecycle_roots(args.lifecycle_source_root),
         features=lifecycle_features,
         adverse_loss_cut_r=args.lifecycle_adverse_loss_cut_r,
+        adverse_loss_cut_confirmation_bars=(
+            args.lifecycle_adverse_loss_cut_confirmation_bars
+        ),
     )
     baseline = None
     cognitive_recommend_by_signal = None
