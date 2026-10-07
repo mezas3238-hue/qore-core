@@ -46,8 +46,8 @@ jobs:
       - name: Run fast three-mode unit contract
         run: |
           set -euo pipefail
-          python -m pytest -q --no-cov \
-            tests/infrastructure/trader_lab/test_cibo_three_mode_capital_lab.py
+          python -m unittest -q \
+            tests.infrastructure.trader_lab.test_cibo_three_mode_capital_lab
 
       - name: Recover canonical full walk-forward artifact
         env:
