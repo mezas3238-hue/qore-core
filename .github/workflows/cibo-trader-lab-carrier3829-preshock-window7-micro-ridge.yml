@@ -187,10 +187,10 @@ jobs:
           }
 
           run_case "control-w7-f100" 0.05 100 170 1000 1300 1.00 &
-          run_case "w7-f95" 0.05 100 170 1000 1300 0.95 &
-          run_case "w7-f90" 0.05 100 170 1000 1300 0.90 &
-          run_case "w7-f85" 0.05 100 170 1000 1300 0.85 &
-          run_case "w7-narrow130-f90" 0.05 130 170 1000 1300 0.90 &
+          run_case "w7-f99" 0.05 100 170 1000 1300 0.99 &
+          run_case "w7-f98" 0.05 100 170 1000 1300 0.98 &
+          run_case "w7-f97" 0.05 100 170 1000 1300 0.97 &
+          run_case "w7-f96" 0.05 100 170 1000 1300 0.96 &
           wait
 
       - name: Rank pre-shock window7 micro strict Pareto
@@ -229,7 +229,7 @@ jobs:
                 "attack_gross_loss":str(agl),"attack_gl_delta_vs_current":str(agl-current_agl),
                 "profit_factor":loss["total_profit_factor"],
                 "bootstrap_override_count":p["position_lifecycle_report"].get("bootstrap_override_applied_count",0),
-                "window7_bind_count":p["engineering_sensor_report"].get("attack_drawdown_window7_taper_bind_count",0),
+                "window7_bind_count":p["economic_group_report"].get("attack_drawdown_window7_taper_bind_count",0),
                 "maxdd_peak":attr["peak_at"],"maxdd_trough":attr["trough_at"],
                 "maxdd_net_by_mode":attr["net_by_mode_usd"],
                 "step_pareto":step_pareto,
