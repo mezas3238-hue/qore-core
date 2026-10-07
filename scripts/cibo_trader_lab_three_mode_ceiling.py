@@ -55,6 +55,7 @@ def _build_lifecycle_map(
     *,
     features: frozenset[CiboLifecycleFeature],
     adverse_loss_cut_r: Decimal,
+    adverse_partial_fraction: Decimal,
 ) -> dict[str, dict[str, object]]:
     if not roots:
         return {}
@@ -106,6 +107,7 @@ def _build_lifecycle_map(
             series[start:end] if start < end else (),
             features=features,
             adverse_loss_cut_r=adverse_loss_cut_r,
+            adverse_partial_fraction=adverse_partial_fraction,
         )
         result[signal] = {
             "original_gross_r": format(outcome.gross_structural_outcome_r, "f"),
@@ -116,6 +118,9 @@ def _build_lifecycle_map(
             "events": managed.events,
             "enabled_features": sorted(item.value for item in features),
             "adverse_loss_cut_r": format(adverse_loss_cut_r, "f"),
+            "adverse_partial_fraction": format(
+                adverse_partial_fraction, "f"
+            ),
             "risk_released_before_exit_fraction": format(
                 managed.risk_released_before_exit_fraction, "f"
             ),
@@ -154,8 +159,17 @@ def main() -> int:
         type=Decimal,
         default=Decimal("-0.50"),
         help=(
-            "Closed-bar deterioration trigger for ADVERSE_LOSS_CUT; the exit "
-            "is executed causally at the next M5 open."
+            "Closed-bar deterioration trigger for adverse lifecycle defense; "
+            "the action executes causally at the next M5 open."
+        ),
+    )
+    parser.add_argument(
+        "--lifecycle-adverse-partial-fraction",
+        type=Decimal,
+        default=Decimal("0.25"),
+        help=(
+            "Fraction of remaining exposure released by "
+            "ADVERSE_PARTIAL_REDUCTION at the next M5 open."
         ),
     )
     parser.add_argument(
@@ -233,6 +247,7 @@ def main() -> int:
         _lifecycle_roots(args.lifecycle_source_root),
         features=lifecycle_features,
         adverse_loss_cut_r=args.lifecycle_adverse_loss_cut_r,
+        adverse_partial_fraction=args.lifecycle_adverse_partial_fraction,
     )
     baseline = None
     cognitive_recommend_by_signal = None
