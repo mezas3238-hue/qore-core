@@ -5,12 +5,115 @@ from __future__ import annotations
 
 import argparse
 import json
+from bisect import bisect_left, bisect_right
 from decimal import Decimal
 from pathlib import Path
 
+from qore.infrastructure.cibo_position_lifecycle import (
+    CiboPositionLifecycleInput,
+    run_cibo_position_lifecycle,
+)
+from qore.infrastructure.cibo_single_account_manifest_economics import (
+    manifest_row_provider_cost_per_volume_usd,
+)
+from qore.infrastructure.cibo_single_account_manifest_settlement import (
+    manifest_row_to_shadow_outcome_observation,
+)
+from qore.infrastructure.trader_lab.cibo_market_atlas_journey_extractor_v1 import (
+    load_raw_m5,
+)
 from qore.infrastructure.trader_lab.cibo_three_mode_capital_lab import (
     run_three_mode_trader_lab,
 )
+
+_LIFECYCLE_SYMBOLS = frozenset(
+    {"AUDJPY", "EURUSD", "GBPJPY", "GBPUSD", "NAS100", "XAUUSD"}
+)
+
+
+def _lifecycle_roots(values: list[str]) -> dict[str, Path]:
+    if not values:
+        return {}
+    roots: dict[str, Path] = {}
+    for value in values:
+        symbol, sep, raw = value.partition("=")
+        if not sep or symbol not in _LIFECYCLE_SYMBOLS or not raw:
+            raise ValueError("lifecycle source root must be supported SYMBOL=PATH")
+        if symbol in roots:
+            raise ValueError(f"duplicate lifecycle source root: {symbol}")
+        roots[symbol] = Path(raw)
+    if set(roots) != set(_LIFECYCLE_SYMBOLS):
+        raise ValueError("lifecycle custody requires exact six symbol roots")
+    return roots
+
+
+def _build_lifecycle_map(
+    manifest: dict[str, object],
+    roots: dict[str, Path],
+) -> dict[str, dict[str, object]]:
+    if not roots:
+        return {}
+    rows = manifest.get("opportunities")
+    if not isinstance(rows, list):
+        raise ValueError("lifecycle custody requires manifest opportunities")
+    bars_by_symbol = {}
+    bounds_by_symbol = {}
+    for symbol in sorted(_LIFECYCLE_SYMBOLS):
+        evidence, _provenance = load_raw_m5(roots[symbol])
+        if evidence.symbol != symbol:
+            raise ValueError(f"lifecycle Market Atlas identity drift: {symbol}")
+        bars_by_symbol[symbol] = evidence.bars
+        bounds_by_symbol[symbol] = (
+            tuple(item.opened_at for item in evidence.bars),
+            tuple(item.closed_at for item in evidence.bars),
+        )
+    result: dict[str, dict[str, object]] = {}
+    for raw in rows:
+        if not isinstance(raw, dict):
+            raise ValueError("lifecycle manifest row must be mapping")
+        signal = str(raw["signal_fingerprint"])
+        symbol = str(raw["qore_symbol"])
+        opportunity = raw.get("trader_opportunity")
+        if not isinstance(opportunity, dict):
+            raise ValueError("lifecycle trader opportunity missing")
+        outcome = manifest_row_to_shadow_outcome_observation(raw)
+        opened, closed = bounds_by_symbol[symbol]
+        series = bars_by_symbol[symbol]
+        start = bisect_left(opened, outcome.entry_at)
+        end = bisect_right(closed, outcome.exit_at)
+        managed = run_cibo_position_lifecycle(
+            CiboPositionLifecycleInput(
+                signal_fingerprint=signal,
+                side=str(opportunity["side"]),
+                entry_at=outcome.entry_at,
+                horizon_at=outcome.exit_at,
+                entry_price=Decimal(str(opportunity["intended_entry"])),
+                structural_stop=Decimal(str(opportunity["stop_loss"])),
+                technical_target=Decimal(str(opportunity["take_profit"])),
+                provider_cost_per_volume_usd=(
+                    manifest_row_provider_cost_per_volume_usd(raw)
+                ),
+                stop_risk_per_volume_usd=Decimal(
+                    str(opportunity["stop_loss_per_volume"])
+                ),
+                original_settlement_gross_r=outcome.gross_structural_outcome_r,
+            ),
+            series[start:end] if start < end else (),
+        )
+        result[signal] = {
+            "original_gross_r": format(outcome.gross_structural_outcome_r, "f"),
+            "managed_gross_r": format(managed.gross_r, "f"),
+            "managed_exit_at": managed.exit_at.isoformat(),
+            "data_available": managed.data_available,
+            "actions": list(managed.actions),
+            "risk_released_before_exit_fraction": format(
+                managed.risk_released_before_exit_fraction, "f"
+            ),
+            "margin_released_before_exit_fraction": format(
+                managed.margin_released_before_exit_fraction, "f"
+            ),
+        }
+    return result
 
 
 def main() -> int:
@@ -20,6 +123,12 @@ def main() -> int:
     parser.add_argument("--baseline-replay", type=Path)
     parser.add_argument("--historical-manifest", type=Path)
     parser.add_argument("--historical-replay", type=Path)
+    parser.add_argument(
+        "--lifecycle-source-root",
+        action="append",
+        default=[],
+        help="Post-entry causal Market Atlas source as SYMBOL=PATH.",
+    )
     parser.add_argument(
         "--soft-medium-drawdown-allocator",
         action="store_true",
@@ -76,6 +185,10 @@ def main() -> int:
     args = parser.parse_args()
 
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
+    lifecycle_by_signal = _build_lifecycle_map(
+        manifest,
+        _lifecycle_roots(args.lifecycle_source_root),
+    )
     baseline = None
     cognitive_recommend_by_signal = None
     native_profile_by_signal = None
@@ -343,6 +456,7 @@ def main() -> int:
         cognitive_recommend_by_signal=cognitive_recommend_by_signal,
         native_profile_by_signal=native_profile_by_signal,
         historical_prior_by_signal=historical_prior_by_signal,
+        lifecycle_by_signal=lifecycle_by_signal or None,
         enforce_research_context_abstain=args.enforce_context_abstain,
         soft_medium_drawdown_allocator=(
             args.soft_medium_drawdown_allocator
@@ -413,6 +527,7 @@ def main() -> int:
                     "medium_compound_negative_net_usd"
                 ],
                 "attack_net_pnl_usd": result["attack_net_pnl_usd"],
+                "position_lifecycle_report": result["position_lifecycle_report"],
             },
             sort_keys=True,
         )

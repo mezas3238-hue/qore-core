@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from collections import Counter, defaultdict
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from decimal import ROUND_CEILING, ROUND_FLOOR, Decimal, localcontext
 from enum import StrEnum
@@ -789,6 +789,9 @@ def run_three_mode_trader_lab(
     historical_prior_by_signal: (
         Mapping[str, Mapping[str, object]] | None
     ) = None,
+    lifecycle_by_signal: (
+        Mapping[str, Mapping[str, object]] | None
+    ) = None,
     enforce_research_context_abstain: bool = False,
     soft_medium_drawdown_allocator: bool = False,
     medium_pretrade_drawdown_ceiling: Decimal = ECONOMIC_DRAWDOWN_CEILING,
@@ -850,6 +853,55 @@ def run_three_mode_trader_lab(
         )
     rows = [_mapping(row, "manifest opportunity") for row in rows_raw]
     signals = tuple(str(row.get("signal_fingerprint", "")) for row in rows)
+    lifecycle_map: dict[str, dict[str, object]] = {}
+    if lifecycle_by_signal is not None:
+        lifecycle_map = {
+            str(signal): dict(profile)
+            for signal, profile in lifecycle_by_signal.items()
+        }
+        if set(lifecycle_map) != set(signals):
+            raise CiboCapitalManagementError(
+                "Trader Lab lifecycle map must cover exact manifest signals"
+            )
+        for signal, profile in lifecycle_map.items():
+            managed = Decimal(str(profile.get("managed_gross_r")))
+            original = Decimal(str(profile.get("original_gross_r")))
+            if (
+                not managed.is_finite()
+                or not original.is_finite()
+                or type(profile.get("data_available")) is not bool
+                or not isinstance(profile.get("managed_exit_at"), str)
+                or not isinstance(profile.get("actions"), (list, tuple))
+            ):
+                raise CiboCapitalManagementError(
+                    f"Trader Lab lifecycle profile malformed for {signal}"
+                )
+            _dt(profile["managed_exit_at"], "lifecycle managed_exit_at")
+
+    lifecycle_action_counts: Counter[str] = Counter()
+    lifecycle_data_available_count = 0
+    lifecycle_changed_count = 0
+    for profile in lifecycle_map.values():
+        lifecycle_data_available_count += int(bool(profile["data_available"]))
+        lifecycle_changed_count += int(
+            Decimal(str(profile["managed_gross_r"]))
+            != Decimal(str(profile["original_gross_r"]))
+        )
+        for action in profile["actions"]:
+            lifecycle_action_counts[str(action)] += 1
+    position_lifecycle_report = {
+        "enabled": bool(lifecycle_map),
+        "entry_count": len(signals),
+        "data_available_count": lifecycle_data_available_count,
+        "fallback_original_settlement_count": (
+            len(signals) - lifecycle_data_available_count if lifecycle_map else 0
+        ),
+        "changed_outcome_count": lifecycle_changed_count,
+        "action_counts": dict(sorted(lifecycle_action_counts.items())),
+        "causal_closed_bar_only": bool(lifecycle_map),
+        "outcome_used_for_trigger": False,
+    }
+
     cognitive_map = (
         {signal: True for signal in signals}
         if cognitive_recommend_by_signal is None
@@ -1345,7 +1397,7 @@ def run_three_mode_trader_lab(
             raise CiboCapitalManagementError(
                 "Trader Lab three-mode mixed regime inside epoch"
             )
-        candidates = tuple(
+        base_candidates = tuple(
             _candidate(
                 row,
                 native_cognition_recommended=cognitive_map[
@@ -1356,6 +1408,21 @@ def run_three_mode_trader_lab(
                 ),
             )
             for row in epoch_rows
+        )
+        candidates = tuple(
+            replace(
+                candidate,
+                gross_r=Decimal(
+                    str(lifecycle_map[candidate.signal_fingerprint]["managed_gross_r"])
+                ),
+                exit_at=_dt(
+                    lifecycle_map[candidate.signal_fingerprint]["managed_exit_at"],
+                    "lifecycle managed_exit_at",
+                ),
+            )
+            if lifecycle_map
+            else candidate
+            for candidate in base_candidates
         )
         eligible = tuple(
             sorted(
@@ -2551,7 +2618,11 @@ def run_three_mode_trader_lab(
     return {
         "schema": "qore.trader_lab.cibo_three_mode_ceiling.v1",
         "research_lane": (
-            "HISTORICAL_PRIOR_NATIVE_DISTRIBUTED_ATTACK_FRONTIER"
+            "HISTORICAL_PRIOR_NATIVE_LIFECYCLE_DISTRIBUTED_ATTACK_FRONTIER"
+            if use_historical_prior and lifecycle_map and distributed_attack_frontier
+            else "HISTORICAL_PRIOR_NATIVE_LIFECYCLE_CUSTODY"
+            if use_historical_prior and lifecycle_map
+            else "HISTORICAL_PRIOR_NATIVE_DISTRIBUTED_ATTACK_FRONTIER"
             if use_historical_prior and distributed_attack_frontier
             else "HISTORICAL_PRIOR_NATIVE_SOFT_DRAWDOWN_ALLOCATOR"
             if use_historical_prior and soft_medium_drawdown_allocator
@@ -2683,6 +2754,7 @@ def run_three_mode_trader_lab(
         ),
         "attack_epoch_count_with_funded_cushion": attack_epochs_funded,
         "engineering_sensor_report": engineering_sensor_report,
+        "position_lifecycle_report": position_lifecycle_report,
         "engineering_trace": engineering_trace,
         "function_sensors": {
             "SIZING": {
@@ -2764,6 +2836,17 @@ def run_three_mode_trader_lab(
                 "FROZEN_PREDECISION_WALK_FORWARD_REPLAY"
             ),
             "native_profile_consumed": True,
+            "position_lifecycle_consumed": bool(lifecycle_map),
+            "position_lifecycle_source": (
+                "MARKET_ATLAS_10Y_CAUSAL_CLOSED_M5_POST_ENTRY"
+                if lifecycle_map else None
+            ),
+            "position_lifecycle_post_entry_only": bool(lifecycle_map),
+            "position_lifecycle_outcome_used_for_trigger": False,
+            "position_lifecycle_fallback": (
+                "ORIGINAL_SETTLEMENT_WHEN_NO_CAUSAL_BAR_INTERVENTION_DATA"
+                if lifecycle_map else None
+            ),
             "historical_native_intensity_law": (
                 "HISTORICAL_PLUS_NATIVE_CONSENSUS_UP_TO_CONFIGURED_MEDIUM_CAP; "
                 "NATIVE_ONLY_OVERRIDE_1X; HISTORICAL_ONLY_DEFENSIVE_1X; "
