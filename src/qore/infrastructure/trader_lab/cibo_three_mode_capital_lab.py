@@ -1009,12 +1009,6 @@ def run_three_mode_trader_lab(
         "outcome_used_for_trigger": False,
     }
 
-    if four_engine_cooperation_frontier and lifecycle_map:
-        raise CiboCapitalManagementError(
-            "four-engine source-provenance frontier must be validated before "
-            "combining with lifecycle event settlement"
-        )
-
     cognitive_map = (
         {signal: True for signal in signals}
         if cognitive_recommend_by_signal is None
@@ -1402,14 +1396,57 @@ def run_three_mode_trader_lab(
         )
 
         if trade.mode is CiboTraderLabMode.MEDIUM:
+            cooperative_incremental = (
+                trade.cooperative_portfolio_incremental_multiplier
+            )
+            cooperative = cooperative_incremental > 0
+            if cooperative:
+                with localcontext() as context:
+                    context.prec = 100
+                    portfolio_fraction = (
+                        Decimal(cooperative_incremental)
+                        / Decimal(trade.multiplier)
+                    )
+                    medium_fraction = Decimal(1) - portfolio_fraction
+                    medium_released_risk_usd = (
+                        released_risk_usd * medium_fraction
+                    )
+                    portfolio_released_risk_usd = (
+                        released_risk_usd - medium_released_risk_usd
+                    )
+                    medium_net_pnl = net_pnl * medium_fraction
+                    portfolio_net_pnl = net_pnl - medium_net_pnl
+                    medium_provider_cost = (
+                        trade.provider_cost_usd * medium_fraction
+                    )
+                    portfolio_provider_cost = (
+                        trade.provider_cost_usd - medium_provider_cost
+                    )
+            else:
+                medium_released_risk_usd = released_risk_usd
+                portfolio_released_risk_usd = Decimal(0)
+                medium_net_pnl = net_pnl
+                portfolio_net_pnl = Decimal(0)
+                medium_provider_cost = trade.provider_cost_usd
+                portfolio_provider_cost = Decimal(0)
+
             state.sovereign_reserved_usd = max(
                 Decimal(0),
-                state.sovereign_reserved_usd - released_risk_usd,
+                state.sovereign_reserved_usd - medium_released_risk_usd,
+            )
+            state.cushion_reserved_usd = max(
+                Decimal(0),
+                state.cushion_reserved_usd
+                - portfolio_released_risk_usd,
             )
             if final_event:
                 state.sovereign_reserved_usd = max(
                     Decimal(0),
-                    state.sovereign_reserved_usd - trade.provider_cost_usd,
+                    state.sovereign_reserved_usd - medium_provider_cost,
+                )
+                state.cushion_reserved_usd = max(
+                    Decimal(0),
+                    state.cushion_reserved_usd - portfolio_provider_cost,
                 )
                 bank_seed = trade.bank_seed_usd or Decimal(0)
                 state.bank_seed_reserved_usd = max(
@@ -1417,14 +1454,23 @@ def run_three_mode_trader_lab(
                     state.bank_seed_reserved_usd - bank_seed,
                 )
                 state.bank_seed_recycled_total_usd += bank_seed
-                state.medium_compound_turnover_usd += (
-                    trade.source_reserved_usd
+                sovereign_source = (
+                    trade.cooperative_sovereign_source_reserved_usd
+                    if cooperative
+                    else trade.source_reserved_usd
                 )
+                portfolio_source = (
+                    trade.cooperative_portfolio_source_reserved_usd
+                    if cooperative
+                    else Decimal(0)
+                )
+                state.medium_compound_turnover_usd += sovereign_source
+                state.cooperative_portfolio_turnover_usd += portfolio_source
 
-            if net_pnl > 0:
+            if medium_net_pnl > 0:
                 recovery = (
                     min(
-                        net_pnl,
+                        medium_net_pnl,
                         state.medium_compound_recovery_deficit_usd,
                     )
                     if use_historical_prior
@@ -1434,7 +1480,7 @@ def run_three_mode_trader_lab(
                     state.sovereign_bank_usd += recovery
                     state.medium_compound_recovery_deficit_usd -= recovery
                     state.medium_compound_recovered_usd += recovery
-                distributable = net_pnl - recovery
+                distributable = medium_net_pnl - recovery
                 sovereign_gain = (
                     distributable * MEDIUM_SOVEREIGN_SHARE
                 )
@@ -1444,12 +1490,26 @@ def run_three_mode_trader_lab(
                 state.portfolio_attack_credit_usd += cushion_gain
                 state.medium_profit_to_sovereign_usd += sovereign_gain
                 state.medium_profit_to_cushion_usd += cushion_gain
-                state.medium_compound_positive_net_usd += net_pnl
-            elif net_pnl < 0:
-                state.sovereign_bank_usd += net_pnl
+                state.medium_compound_positive_net_usd += medium_net_pnl
+            elif medium_net_pnl < 0:
+                state.sovereign_bank_usd += medium_net_pnl
                 if use_historical_prior:
-                    state.medium_compound_recovery_deficit_usd += -net_pnl
-                state.medium_compound_negative_net_usd += -net_pnl
+                    state.medium_compound_recovery_deficit_usd += -medium_net_pnl
+                state.medium_compound_negative_net_usd += -medium_net_pnl
+
+            if portfolio_net_pnl:
+                state.portfolio_cushion_usd += portfolio_net_pnl
+                state.cooperative_portfolio_net_pnl_usd += (
+                    portfolio_net_pnl
+                )
+                if state.portfolio_cushion_usd < 0:
+                    breach = -state.portfolio_cushion_usd
+                    state.cooperative_portfolio_sovereign_breach_usd += breach
+                    state.portfolio_cushion_usd = Decimal(0)
+                    state.sovereign_bank_usd -= breach
+                state.portfolio_attack_credit_usd = (
+                    state.cushion_available_usd
+                )
 
         elif trade.mode is CiboTraderLabMode.ATTACK:
             state.cushion_reserved_usd = max(
@@ -3573,6 +3633,9 @@ def run_three_mode_trader_lab(
             "distributed_attack_frontier": distributed_attack_frontier,
             "four_engine_cooperation_frontier": (
                 four_engine_cooperation_frontier
+            ),
+            "four_engine_lifecycle_source_provenance_split": (
+                four_engine_cooperation_frontier and bool(lifecycle_map)
             ),
             "four_engine_cooperation_law": (
                 "TRADER_1X_INHERITED; SIZING_DIMENSIONS_PHYSICAL_RISK_MARGIN_"
