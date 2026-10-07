@@ -343,6 +343,15 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--ceiling-discovery-mode",
+        action="store_true",
+        help=(
+            "Trader-Lab-only raw ceiling discovery: remove drawdown-driven "
+            "economic throttles while preserving provider, risk, margin and "
+            "mandatory custody constraints."
+        ),
+    )
+    parser.add_argument(
         "--economic-group-bootstrap-cushion-share",
         type=Decimal,
         default=Decimal("0.75"),
@@ -699,6 +708,7 @@ def main() -> int:
             args.economic_group_bootstrap_cushion_share
         ),
         economic_group_ablation=args.economic_group_ablation,
+        ceiling_discovery_mode=args.ceiling_discovery_mode,
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
