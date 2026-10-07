@@ -58,6 +58,7 @@ MEDIUM_CUSHION_SHARE = Decimal("0.50")
 ATTACK_MINIMUM_MULTIPLIER = 2
 MARGIN_CAPACITY_MULTIPLE = Decimal("100")
 SOVEREIGN_DEFENSIVE_DRAWDOWN = Decimal("0.50")
+ATTACK_TOTAL_DRAWDOWN_GUARD = Decimal("0.20")
 
 
 class CiboTraderLabMode(StrEnum):
@@ -552,6 +553,7 @@ def explain_three_mode(
     drawdown_utilization: Decimal,
     cushion_available_usd: Decimal,
     best_candidate: CiboThreeModeCandidate | None,
+    total_drawdown_utilization: Decimal | None = None,
 ) -> tuple[CiboTraderLabMode, tuple[str, ...]]:
     """Choose one mode and expose only causal reasons for that choice."""
 
@@ -579,6 +581,13 @@ def explain_three_mode(
         return CiboTraderLabMode.MEDIUM, ("NO_ATTACK_GRADE_CANDIDATE",)
 
     attack_context_reasons: list[str] = []
+    total_dd = (
+        drawdown_utilization
+        if total_drawdown_utilization is None
+        else total_drawdown_utilization
+    )
+    if total_dd >= ATTACK_TOTAL_DRAWDOWN_GUARD:
+        attack_context_reasons.append("ATTACK_TOTAL_DRAWDOWN_GUARD")
     if drawdown_utilization >= SOVEREIGN_DEFENSIVE_DRAWDOWN:
         attack_context_reasons.append(
             "ATTACK_SOVEREIGN_DRAWDOWN_DEFENSIVE"
@@ -598,6 +607,10 @@ def explain_three_mode(
         )
     if not best_candidate.context_allowed:
         attack_context_reasons.append("ATTACK_CONTEXT_NOT_ALLOWED")
+    if best_candidate.context_quality_disposition != "ALLOW":
+        attack_context_reasons.append(
+            "ATTACK_NATIVE_CONTEXT_QUALITY_ABSTAIN"
+        )
     if best_candidate.maximum_multiplier < ATTACK_MINIMUM_MULTIPLIER:
         attack_context_reasons.append("ATTACK_PROVIDER_CAP_LT_2X")
 
@@ -624,6 +637,7 @@ def select_three_mode(
     drawdown_utilization: Decimal,
     cushion_available_usd: Decimal,
     best_candidate: CiboThreeModeCandidate | None,
+    total_drawdown_utilization: Decimal | None = None,
 ) -> CiboTraderLabMode:
     """Compatibility wrapper returning only the selected mode."""
 
@@ -634,6 +648,7 @@ def select_three_mode(
         drawdown_utilization=drawdown_utilization,
         cushion_available_usd=cushion_available_usd,
         best_candidate=best_candidate,
+        total_drawdown_utilization=total_drawdown_utilization,
     )
     return mode
 
@@ -1269,6 +1284,14 @@ def run_three_mode_trader_lab(
             sovereign_drawdown,
             state.peak_sovereign_bank_usd,
         )
+        total_drawdown_usd = max(
+            Decimal(0),
+            state.peak_total_capital_usd - state.total_capital_usd,
+        )
+        total_drawdown_utilization = _ratio(
+            total_drawdown_usd,
+            state.peak_total_capital_usd,
+        )
         best = eligible[0] if eligible else None
         mode, mode_reasons = explain_three_mode(
             regime=regime,
@@ -1277,6 +1300,7 @@ def run_three_mode_trader_lab(
             drawdown_utilization=drawdown_utilization,
             cushion_available_usd=state.attack_credit_available_usd,
             best_candidate=best,
+            total_drawdown_utilization=total_drawdown_utilization,
         )
         mode_counts[mode.value] += 1
         for reason in mode_reasons:
@@ -1323,6 +1347,12 @@ def run_three_mode_trader_lab(
                 "margin_utilization": format(margin_utilization, "f"),
                 "drawdown_utilization": format(
                     drawdown_utilization, "f"
+                ),
+                "total_drawdown_utilization": format(
+                    total_drawdown_utilization, "f"
+                ),
+                "attack_total_drawdown_guard": format(
+                    ATTACK_TOTAL_DRAWDOWN_GUARD, "f"
                 ),
                 "minimum_attack_cushion_usd": format(
                     minimum_attack_cushion, "f"
@@ -2369,7 +2399,8 @@ def run_three_mode_trader_lab(
             "medium_positive_profit_split": "50%_SOVEREIGN_50%_CUSHION",
             "bank_role": "TREASURY_SEEDS_MEDIUM_ONLY_NO_TRADES",
             "drawdown_policy": (
-                "DRAWDOWN_BLOCKS_ATTACK_NOT_MEDIUM; BANK_SEED_KEEPS_MEDIUM_WORKING"
+                "TOTAL_DRAWDOWN_AT_20PCT_STOPS_NEW_ATTACK_TO_PRESERVE_"
+                "THE_25PCT_CEILING; MEDIUM_REMAINS_AVAILABLE"
             ),
             "bank_seed_source": (
                 "4PCT_OF_CURRENT_TOTAL_ACCOUNT_CAPITAL_PER_MEDIUM_ENTRY"
