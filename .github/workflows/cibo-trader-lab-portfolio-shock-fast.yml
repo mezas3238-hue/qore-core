@@ -136,12 +136,12 @@ jobs:
             fi
           }
 
-          for attack in 257 275 300 325 350; do
+          # Post-37646016620 coarse upper-ceiling continuation.
+          # Persistent shock + 20% single-ATTACK risk dominates one-shot and 22% risk,
+          # so keep those fixed and expand only the still-binding ATTACK cap.
+          for attack in 350 400 500 650 800 1000; do
             run_case "persist-a${attack}-r020" "$attack" 10 0.20 0
-            run_case "oneshot-a${attack}-r020" "$attack" 10 0.20 1
           done
-          run_case "persist-a300-r022" 300 10 0.22 0
-          run_case "persist-a350-r022" 350 10 0.22 0
 
       - name: Rank shock ceiling expansion
         run: |
