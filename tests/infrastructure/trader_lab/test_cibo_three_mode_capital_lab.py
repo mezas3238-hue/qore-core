@@ -1,5 +1,5 @@
 import unittest
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from qore.infrastructure.cibo_ce2i_regime_selector import (
@@ -10,6 +10,11 @@ from qore.infrastructure.cibo_ce2i_regime_selector import (
 )
 from qore.infrastructure.cibo_protected_reinvestment_policy import (
     MAX_CAPITAL_NEED_TO_CURRENT_CAPITAL_RATIO,
+)
+from qore.infrastructure.cibo_position_lifecycle import (
+    CiboLifecycleFeature,
+    CiboPositionLifecycleInput,
+    run_cibo_position_lifecycle,
 )
 from qore.infrastructure.trader_lab.cibo_three_mode_capital_lab import (
     ATTACK_MINIMUM_MULTIPLIER,
@@ -146,6 +151,60 @@ class CiboThreeModeCapitalLabTest(unittest.TestCase):
         self.assertEqual(state.sovereign_bank_usd, Decimal("60.95"))
         self.assertEqual(state.portfolio_cushion_usd, Decimal("0.95"))
 
+
+    def test_adverse_loss_cut_requires_persistent_closed_bar_deterioration(self) -> None:
+        entry_at = datetime(2026, 1, 1, tzinfo=UTC)
+        position = CiboPositionLifecycleInput(
+            signal_fingerprint="persistent-loss-cut",
+            side="long",
+            entry_at=entry_at,
+            horizon_at=entry_at + timedelta(minutes=20),
+            entry_price=Decimal("100"),
+            structural_stop=Decimal("90"),
+            technical_target=Decimal("120"),
+            provider_cost_per_volume_usd=Decimal("0"),
+            stop_risk_per_volume_usd=Decimal("10"),
+            original_settlement_gross_r=Decimal("1"),
+        )
+
+        class Bar:
+            def __init__(self, minute, open_, high, low, close):
+                self.opened_at = entry_at + timedelta(minutes=minute)
+                self.closed_at = self.opened_at + timedelta(minutes=5)
+                self.open = Decimal(open_)
+                self.high = Decimal(high)
+                self.low = Decimal(low)
+                self.close = Decimal(close)
+
+        transient = (
+            Bar(0, "100", "100", "91", "92"),
+            Bar(5, "92", "96", "91", "96"),
+            Bar(10, "96", "99", "95", "98"),
+        )
+        preserved = run_cibo_position_lifecycle(
+            position,
+            transient,
+            features=frozenset({CiboLifecycleFeature.ADVERSE_LOSS_CUT}),
+            adverse_loss_cut_r=Decimal("-0.75"),
+            adverse_loss_cut_confirmation_bars=2,
+        )
+        self.assertEqual(preserved.gross_r, Decimal("1"))
+        self.assertNotIn("ADVERSE_LOSS_CUT_NEXT_OPEN", preserved.actions)
+
+        persistent = (
+            Bar(0, "100", "100", "91", "92"),
+            Bar(5, "92", "95", "90.5", "91"),
+            Bar(10, "91.5", "93", "91", "92"),
+        )
+        cut = run_cibo_position_lifecycle(
+            position,
+            persistent,
+            features=frozenset({CiboLifecycleFeature.ADVERSE_LOSS_CUT}),
+            adverse_loss_cut_r=Decimal("-0.75"),
+            adverse_loss_cut_confirmation_bars=2,
+        )
+        self.assertEqual(cut.gross_r, Decimal("-0.85"))
+        self.assertEqual(cut.actions, ("ADVERSE_LOSS_CUT_NEXT_OPEN",))
 
     def test_dynamic_bank_seed_is_four_percent_per_entry(self) -> None:
         self.assertEqual(
