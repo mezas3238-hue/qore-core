@@ -1006,6 +1006,8 @@ def run_three_mode_trader_lab(
     ceiling_attack_stress_confidence_multiplier_lower: int | None = None,
     ceiling_attack_stress_confidence_multiplier_upper: int | None = None,
     ceiling_attack_stress_confidence_projected_risk_fraction_trigger: Decimal | None = None,
+    ceiling_attack_stress_confidence_capital_floor: Decimal | None = None,
+    ceiling_attack_stress_confidence_capital_ceiling: Decimal | None = None,
     ceiling_attack_stress_confidence_taper_fraction: Decimal = Decimal("0.75"),
     ceiling_attack_stress_confidence_risk_budget_taper_fraction: Decimal = Decimal("1"),
     ceiling_attack_trader_loss_ratio_trigger: Decimal | None = None,
@@ -1932,6 +1934,31 @@ def run_three_mode_trader_lab(
     ):
         raise CiboCapitalManagementError(
             "Trader Lab stress-confidence projected risk trigger must be Decimal in (0, 1]"
+        )
+    if ceiling_attack_stress_confidence_capital_floor is not None and (
+        not isinstance(ceiling_attack_stress_confidence_capital_floor, Decimal)
+        or not ceiling_attack_stress_confidence_capital_floor.is_finite()
+        or ceiling_attack_stress_confidence_capital_floor < 0
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab stress-confidence capital floor must be nonnegative Decimal"
+        )
+    if ceiling_attack_stress_confidence_capital_ceiling is not None and (
+        not isinstance(ceiling_attack_stress_confidence_capital_ceiling, Decimal)
+        or not ceiling_attack_stress_confidence_capital_ceiling.is_finite()
+        or ceiling_attack_stress_confidence_capital_ceiling <= 0
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab stress-confidence capital ceiling must be positive Decimal"
+        )
+    if (
+        ceiling_attack_stress_confidence_capital_floor is not None
+        and ceiling_attack_stress_confidence_capital_ceiling is not None
+        and ceiling_attack_stress_confidence_capital_floor
+        >= ceiling_attack_stress_confidence_capital_ceiling
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab stress-confidence capital floor must be below ceiling"
         )
     if (
         not isinstance(
@@ -4378,6 +4405,16 @@ def run_three_mode_trader_lab(
                         )
                         and candidate.walk_forward_block_dispersion_r > 0
                         and (
+                            ceiling_attack_stress_confidence_capital_floor is None
+                            or state.total_capital_usd
+                            >= ceiling_attack_stress_confidence_capital_floor
+                        )
+                        and (
+                            ceiling_attack_stress_confidence_capital_ceiling is None
+                            or state.total_capital_usd
+                            <= ceiling_attack_stress_confidence_capital_ceiling
+                        )
+                        and (
                             ceiling_attack_stress_confidence_projected_risk_fraction_trigger
                             is None
                             or (
@@ -6385,6 +6422,16 @@ def run_three_mode_trader_lab(
                     ceiling_attack_stress_confidence_projected_risk_fraction_trigger,
                     "f",
                 )
+            ),
+            "ceiling_attack_stress_confidence_capital_floor": (
+                None
+                if ceiling_attack_stress_confidence_capital_floor is None
+                else format(ceiling_attack_stress_confidence_capital_floor, "f")
+            ),
+            "ceiling_attack_stress_confidence_capital_ceiling": (
+                None
+                if ceiling_attack_stress_confidence_capital_ceiling is None
+                else format(ceiling_attack_stress_confidence_capital_ceiling, "f")
             ),
             "ceiling_attack_stress_confidence_taper_fraction": format(
                 ceiling_attack_stress_confidence_taper_fraction, "f"
