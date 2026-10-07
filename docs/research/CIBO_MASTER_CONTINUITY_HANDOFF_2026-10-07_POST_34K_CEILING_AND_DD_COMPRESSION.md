@@ -1764,3 +1764,113 @@ Decision rule:
 2. if maximum lands at an interior point, run a final narrower confirmation around it;
 3. only after the local ridge is bracketed from both sides may the true ceiling be frozen;
 4. then begin DD forensics / compression without degrading that frozen ceiling.
+
+
+---
+
+# 29. TRUE CEILING FROZEN — 10,000x LOCAL MAXIMUM CONFIRMED
+
+Final local confirmation run `37652915289` completed SUCCESS on commit `072fb3c226e6abd03e785b68aaf4f4708d180db0`.
+
+Artifact:
+
+- id: `11498051407`
+- name: `qore-cibo-shock-ceiling-expansion-37652915289`
+- digest: `sha256:b94065c7b9b60c17eae0a38dbed551aab72f88cc35d188c9d0a972976de2faf6`
+
+Fine local frontier:
+
+| ATTACK cap | Ending capital | Total gain | Max DD |
+|---:|---:|---:|---:|
+| 9,600x | USD 576,451.88 | +960,653.14% | 65.10% |
+| 9,700x | USD 578,164.40 | +963,507.34% | 65.10% |
+| 9,800x | USD 579,616.52 | +965,927.54% | 65.10% |
+| 9,900x | USD 581,037.28 | +968,295.47% | 65.10% |
+| **10,000x** | **USD 582,440.03** | **+970,633.38%** | **65.10%** |
+| 10,100x | USD 581,851.98 | +969,653.29% | 65.10% |
+| 10,200x | USD 581,255.62 | +968,659.36% | 65.10% |
+| 10,300x | USD 580,667.57 | +967,679.28% | 65.10% |
+| 10,400x | USD 580,079.52 | +966,699.19% | 65.10% |
+| 10,500x | USD 579,483.16 | +965,705.26% | 65.10% |
+
+The maximum is now bracketed on both sides:
+
+- 9,900x < 10,000x;
+- 10,100x < 10,000x;
+- the wider sweeps also decline at 15k / 20k / 30k / 50k.
+
+Therefore, for the current frozen architecture and canonical historical replay:
+
+> **TRUE CEILING REFERENCE = USD 582,440.0252953678696769360345 from USD 60**
+>
+> **TOTAL GAIN = +970,633.3754922797827948933908%**
+>
+> **FROZEN ATTACK CAP = 10,000x**
+>
+> **MAX DD = 65.1041975924031567%**
+>
+> **ENTRIES = 3,368 / 3,368**
+
+This is now the economic reference ceiling for the next phase. Do not re-open ceiling discovery unless later evidence proves the architecture itself changed materially.
+
+Frozen economic configuration:
+
+- ATTACK cap: 10,000x;
+- persistent Portfolio shock taper;
+- Portfolio shock trigger: 5%;
+- Portfolio shock taper fraction: 50%;
+- one-shot: false;
+- single-ATTACK risk fraction: 20%;
+- growth leverage slope: 10;
+- ATTACK loss-streak trigger: 3;
+- ATTACK loss-streak taper: 75%;
+- MEDIUM cap: 14x;
+- MEDIUM live-DD intensity trigger: 5%;
+- economic-group bootstrap cushion share: 100%;
+- lifecycle feature: DEFENSIVE_INITIAL_STOP_CAP;
+- lifecycle defensive MEDIUM: 1x;
+- lifecycle initial stop: -0.20R;
+- lifecycle trader loss-streak trigger: 2;
+- lifecycle minimum stop-risk fraction trigger: 3%;
+- all 3,368 Trader entries conserved;
+- zero financial rejection/defer/upstream filtering.
+
+Critical forensic facts at frozen ceiling:
+
+- max-DD peak: `2020-09-10T12:05:00Z`;
+- peak capital: ~USD 14,205.07;
+- trough: `2020-10-05T14:10:00Z`;
+- trough capital: ~USD 4,956.97;
+- DD USD: ~USD 9,248.10;
+- DD: ~65.10%;
+- ATTACK contribution during max-DD episode: ~-USD 9,248.49;
+- MEDIUM contribution: ~+USD 0.40;
+- dominant Trader damage: R42_AUDJPY ~-USD 5,414.06 and R34_XAUUSD ~-USD 3,825.68.
+
+The largest losses inside the frozen max-DD episode are NOT 10,000x trades. Important examples include approximately:
+
+- R34_XAUUSD 842x: -USD 2,467.06;
+- R42_AUDJPY 1,020x: -USD 1,974.64;
+- R42_AUDJPY 2,366x: -USD 1,857.56;
+- R34_XAUUSD 280x: -USD 1,419.60;
+- R42_AUDJPY 1,145x: -USD 1,376.79;
+- R42_AUDJPY 945x: -USD 789.73;
+- R42_AUDJPY 836x: -USD 550.62.
+
+This is crucial: the 10,000x ceiling itself is not the direct cause of the max-DD episode. Therefore DD compression must be state-/Trader-/sequence-aware rather than simply reducing the global cap.
+
+The exact 10,000x multiplier bucket remains profitable:
+
+- gross profit: ~USD 646,100;
+- gross loss: ~USD 536,400;
+- net contribution: ~+USD 109,700.
+
+## PHASE TRANSITION
+
+Ceiling discovery is now CLOSED for the frozen architecture.
+
+Immediate priority becomes:
+
+> **DD FORENSICS → IDENTIFY CAUSAL DAMAGE MECHANISMS → COMPRESS DD TOWARD 20–25% OR LESS WITHOUT DEGRADING THE USD 582,440 CEILING.**
+
+No defensive tuning should be accepted merely because it lowers DD. The frozen ceiling is the comparison baseline.
