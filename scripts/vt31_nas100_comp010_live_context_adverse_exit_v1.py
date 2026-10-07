@@ -64,7 +64,7 @@ def _finalize_actuation_execution(
     """Attach the replay actuator acknowledgement to each routed action."""
 
     by_open = {
-        cast(datetime, getattr(bar, "opened_at")): bar
+        cast(datetime, bar.opened_at): bar
         for bar in day_bars
     }
     outcome_exit_at = (
@@ -97,7 +97,7 @@ def _finalize_actuation_execution(
         expected_open_at = (
             None
             if next_bar is None
-            else cast(datetime, getattr(next_bar, "opened_at"))
+            else cast(datetime, next_bar.opened_at)
         )
         route_accepted = expected in routed
         executed = (
@@ -132,7 +132,7 @@ def _finalize_actuation_execution(
                 expected_open_at.isoformat() if executed else None
             ),
             "execution_price": (
-                format(_d(getattr(next_bar, "open")), "f")
+                format(_d(next_bar.open), "f")
                 if executed and next_bar is not None
                 else None
             ),
