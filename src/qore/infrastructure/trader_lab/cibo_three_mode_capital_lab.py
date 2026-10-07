@@ -713,6 +713,7 @@ def apply_three_mode_settlement(
     net_compound_before_split: bool = False,
     coordinated_economic_group: bool = False,
     economic_group_bootstrap_cushion_share: Decimal = Decimal("0.75"),
+    economic_group_ablation: str | None = None,
 ) -> Decimal:
     """Settle one already-due trade; no outcome is consulted before exit."""
 
@@ -746,7 +747,9 @@ def apply_three_mode_settlement(
                 state.medium_compound_recovered_usd += recovery
             distributable = net_pnl - recovery
             sovereign_share = MEDIUM_SOVEREIGN_SHARE
-            if coordinated_economic_group:
+            if economic_group_ablation == "CIBO_COMPOUND":
+                sovereign_share = Decimal(1)
+            elif coordinated_economic_group:
                 total = max(Decimal("0.00000001"), state.total_capital_usd)
                 total_dd = _ratio(
                     max(
@@ -841,6 +844,7 @@ def run_three_mode_trader_lab(
     medium_drawdown_intensity_trigger: Decimal | None = None,
     coordinated_economic_group: bool = False,
     economic_group_bootstrap_cushion_share: Decimal = Decimal("0.75"),
+    economic_group_ablation: str | None = None,
     collect_engineering_trace: bool = True,
     collect_epoch_receipts: bool = True,
     compact_trade_receipts: bool = False,
@@ -924,6 +928,16 @@ def run_three_mode_trader_lab(
     if type(coordinated_economic_group) is not bool:
         raise CiboCapitalManagementError(
             "Trader Lab coordinated economic group switch must be bool"
+        )
+    if economic_group_ablation not in {
+        None,
+        "SIZING",
+        "CIBO_COMPOUND",
+        "COMPOUND_PORTFOLIO",
+        "ADAPTIVE_LEVERAGE",
+    }:
+        raise CiboCapitalManagementError(
+            "Trader Lab economic group ablation must name one canonical function"
         )
     if (
         not isinstance(economic_group_bootstrap_cushion_share, Decimal)
@@ -1523,7 +1537,9 @@ def run_three_mode_trader_lab(
                     state.medium_compound_recovered_usd += recovery
                 distributable = net_pnl - recovery
                 sovereign_share = MEDIUM_SOVEREIGN_SHARE
-                if coordinated_economic_group:
+                if economic_group_ablation == "CIBO_COMPOUND":
+                    sovereign_share = Decimal(1)
+                elif coordinated_economic_group:
                     total = max(
                         Decimal("0.00000001"),
                         state.total_capital_usd,
@@ -1728,6 +1744,7 @@ def run_three_mode_trader_lab(
                     economic_group_bootstrap_cushion_share=(
                         economic_group_bootstrap_cushion_share
                     ),
+                    economic_group_ablation=economic_group_ablation,
                 )
             else:
                 with localcontext() as context:
@@ -2046,6 +2063,8 @@ def run_three_mode_trader_lab(
             state.attack_credit_available_usd,
             attack_drawdown_headroom_usd,
         )
+        if economic_group_ablation == "COMPOUND_PORTFOLIO":
+            portfolio_attack_budget_usd = Decimal(0)
         if distributed_attack_frontier:
             attack_eligible = tuple(
                 item for item in eligible if distributed_attack_candidate(item)
@@ -2415,6 +2434,8 @@ def run_three_mode_trader_lab(
                         )
                         else 1
                     )
+                    if economic_group_ablation == "SIZING":
+                        native_intensity_cap = 1
                     if (
                         medium_drawdown_intensity_trigger is not None
                         and total_drawdown_utilization
@@ -2587,7 +2608,9 @@ def run_three_mode_trader_lab(
                     )
                     economic_cap = candidate.maximum_multiplier
                     coordinated_attack_cap = attack_multiplier_cap
-                    if coordinated_economic_group:
+                    if economic_group_ablation == "ADAPTIVE_LEVERAGE":
+                        coordinated_attack_cap = ATTACK_MINIMUM_MULTIPLIER
+                    elif coordinated_economic_group:
                         if (
                             candidate.walk_forward_positive_block_count >= 5
                             and candidate.attack_expected_net_utility_usd > 0
@@ -3517,6 +3540,7 @@ def run_three_mode_trader_lab(
             "bootstrap_cushion_share": format(
                 economic_group_bootstrap_cushion_share, "f"
             ),
+            "ablation": economic_group_ablation,
             "sizing_intensity_cap_counts": dict(
                 sorted(sizing_intensity_cap_counts.items())
             ),
@@ -3660,6 +3684,7 @@ def run_three_mode_trader_lab(
             "economic_group_bootstrap_cushion_share": format(
                 economic_group_bootstrap_cushion_share, "f"
             ),
+            "economic_group_ablation": economic_group_ablation,
             "economic_group_handoff": (
                 "SIZING_TO_CIBO_COMPOUND_TO_COMPOUND_PORTFOLIO_TO_ADAPTIVE_LEVERAGE"
                 if coordinated_economic_group
