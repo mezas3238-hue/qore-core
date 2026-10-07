@@ -968,6 +968,7 @@ def run_three_mode_trader_lab(
     ceiling_discovery_mode: bool = False,
     ceiling_growth_leverage_slope: Decimal | None = None,
     ceiling_attack_compound_hysteresis_fraction: Decimal | None = None,
+    ceiling_attack_stress_confidence_reinvestment_hysteresis_fraction: Decimal | None = None,
     ceiling_attack_drawdown_budget_fraction: Decimal | None = None,
     ceiling_attack_drawdown_budget_capital_floor: Decimal | None = None,
     ceiling_attack_drawdown_budget_capital_ceiling: Decimal | None = None,
@@ -1270,6 +1271,30 @@ def run_three_mode_trader_lab(
     ):
         raise CiboCapitalManagementError(
             "Trader Lab ATTACK compound hysteresis requires ceiling discovery mode"
+        )
+    if (
+        ceiling_attack_stress_confidence_reinvestment_hysteresis_fraction
+        is not None
+        and (
+            not isinstance(
+                ceiling_attack_stress_confidence_reinvestment_hysteresis_fraction,
+                Decimal,
+            )
+            or not ceiling_attack_stress_confidence_reinvestment_hysteresis_fraction.is_finite()
+            or ceiling_attack_stress_confidence_reinvestment_hysteresis_fraction <= 0
+            or ceiling_attack_stress_confidence_reinvestment_hysteresis_fraction > Decimal("0.10")
+        )
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab stress-confidence reinvestment hysteresis must be Decimal in (0, 0.10]"
+        )
+    if (
+        ceiling_attack_stress_confidence_reinvestment_hysteresis_fraction
+        is not None
+        and not ceiling_discovery_mode
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab stress-confidence reinvestment hysteresis requires ceiling discovery mode"
         )
     if ceiling_attack_drawdown_budget_fraction is not None and (
         not isinstance(ceiling_attack_drawdown_budget_fraction, Decimal)
@@ -2760,6 +2785,12 @@ def run_three_mode_trader_lab(
     attack_compound_hysteresis_hold_count = 0
     attack_compound_hysteresis_raise_count = 0
     attack_compound_hysteresis_drop_count = 0
+    attack_stress_confidence_reinvestment_anchor_usd = INITIAL_CAPITAL_USD
+    attack_stress_confidence_reinvestment_hysteresis_armed = False
+    attack_stress_confidence_reinvestment_arm_count = 0
+    attack_stress_confidence_reinvestment_hold_count = 0
+    attack_stress_confidence_reinvestment_release_count = 0
+    attack_stress_confidence_reinvestment_drop_count = 0
     mode_reason_counts: Counter[str] = Counter()
     sizing_intensity_cap_counts: Counter[str] = Counter()
     medium_drawdown_intensity_cap_bind_count = 0
@@ -4384,6 +4415,34 @@ def run_three_mode_trader_lab(
                             attack_scaling_capital_anchor_usd
                         )
                     if (
+                        ceiling_attack_stress_confidence_reinvestment_hysteresis_fraction
+                        is not None
+                        and attack_stress_confidence_reinvestment_hysteresis_armed
+                    ):
+                        if (
+                            state.total_capital_usd
+                            < attack_stress_confidence_reinvestment_anchor_usd
+                        ):
+                            attack_stress_confidence_reinvestment_anchor_usd = (
+                                state.total_capital_usd
+                            )
+                            attack_stress_confidence_reinvestment_drop_count += 1
+                        elif state.total_capital_usd >= (
+                            attack_stress_confidence_reinvestment_anchor_usd
+                            * (
+                                Decimal(1)
+                                + ceiling_attack_stress_confidence_reinvestment_hysteresis_fraction
+                            )
+                        ):
+                            attack_stress_confidence_reinvestment_hysteresis_armed = False
+                            attack_stress_confidence_reinvestment_release_count += 1
+                        else:
+                            attack_scaling_capital_base_usd = min(
+                                attack_scaling_capital_base_usd,
+                                attack_stress_confidence_reinvestment_anchor_usd,
+                            )
+                            attack_stress_confidence_reinvestment_hold_count += 1
+                    if (
                         ceiling_discovery_mode
                         and ceiling_growth_leverage_slope is not None
                     ):
@@ -4515,6 +4574,18 @@ def run_three_mode_trader_lab(
                             <= ceiling_attack_stress_confidence_ratio_ceiling
                         ):
                             stress_confidence_active = True
+                            if (
+                                ceiling_attack_stress_confidence_reinvestment_hysteresis_fraction
+                                is not None
+                                and ceiling_attack_stress_confidence_risk_budget_taper_fraction
+                                < Decimal(1)
+                                and not attack_stress_confidence_reinvestment_hysteresis_armed
+                            ):
+                                attack_stress_confidence_reinvestment_anchor_usd = (
+                                    state.total_capital_usd
+                                )
+                                attack_stress_confidence_reinvestment_hysteresis_armed = True
+                                attack_stress_confidence_reinvestment_arm_count += 1
                             stress_confidence_tapered_attack_cap = max(
                                 ATTACK_MINIMUM_MULTIPLIER,
                                 int(
@@ -6264,6 +6335,26 @@ def run_three_mode_trader_lab(
                 None
                 if ceiling_attack_compound_hysteresis_fraction is None
                 else format(ceiling_attack_compound_hysteresis_fraction, "f")
+            ),
+            "ceiling_attack_stress_confidence_reinvestment_hysteresis_fraction": (
+                None
+                if ceiling_attack_stress_confidence_reinvestment_hysteresis_fraction is None
+                else format(
+                    ceiling_attack_stress_confidence_reinvestment_hysteresis_fraction,
+                    "f",
+                )
+            ),
+            "attack_stress_confidence_reinvestment_arm_count": (
+                attack_stress_confidence_reinvestment_arm_count
+            ),
+            "attack_stress_confidence_reinvestment_hold_count": (
+                attack_stress_confidence_reinvestment_hold_count
+            ),
+            "attack_stress_confidence_reinvestment_release_count": (
+                attack_stress_confidence_reinvestment_release_count
+            ),
+            "attack_stress_confidence_reinvestment_drop_count": (
+                attack_stress_confidence_reinvestment_drop_count
             ),
             "attack_compound_hysteresis_hold_count": (
                 attack_compound_hysteresis_hold_count
