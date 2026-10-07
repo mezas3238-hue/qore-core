@@ -63,6 +63,8 @@ ATTACK_PORTFOLIO_DRAWDOWN_BUDGET = Decimal("0.20")
 MEDIUM_RECOMMEND_RISK_FRACTION = Decimal("0.04")
 MEDIUM_DEFENSIVE_RISK_FRACTION = Decimal("0.01")
 ECONOMIC_DRAWDOWN_CEILING = Decimal("0.25")
+DISTRIBUTED_ATTACK_MIN_POSITIVE_BLOCKS = 4
+DEFAULT_DISTRIBUTED_ATTACK_MULTIPLIER_CAP = 8
 
 
 class CiboTraderLabMode(StrEnum):
@@ -567,6 +569,7 @@ def explain_three_mode(
     cushion_available_usd: Decimal,
     best_candidate: CiboThreeModeCandidate | None,
     total_drawdown_utilization: Decimal | None = None,
+    distributed_attack_frontier: bool = False,
 ) -> tuple[CiboTraderLabMode, tuple[str, ...]]:
     """Choose one mode and expose only causal reasons for that choice."""
 
@@ -610,25 +613,49 @@ def explain_three_mode(
         attack_context_reasons.append(
             "ATTACK_SOVEREIGN_DRAWDOWN_DEFENSIVE"
         )
-    if regime.liquidity is not LiquidityState.NORMAL:
-        attack_context_reasons.append("ATTACK_REQUIRES_NORMAL_LIQUIDITY")
-    if regime.volatility not in {
-        VolatilityState.COMPRESSED,
-        VolatilityState.NORMAL,
-    }:
-        attack_context_reasons.append("ATTACK_VOLATILITY_NOT_GRADE")
-    if regime.correlation is not CorrelationState.NORMAL:
-        attack_context_reasons.append("ATTACK_CORRELATION_NOT_NORMAL")
-    if best_candidate.attack_expected_net_utility_usd <= 0:
-        attack_context_reasons.append(
-            "ATTACK_WEAKEST_CHRONOLOGICAL_BLOCK_NOT_POSITIVE"
-        )
-    if not best_candidate.context_allowed:
-        attack_context_reasons.append("ATTACK_CONTEXT_NOT_ALLOWED")
-    if best_candidate.context_quality_disposition != "ALLOW":
-        attack_context_reasons.append(
-            "ATTACK_NATIVE_CONTEXT_QUALITY_ABSTAIN"
-        )
+    if distributed_attack_frontier:
+        # Distributed ATTACK is an escalation grade, not an admission gate.
+        # The defensive regime checks above already remove truly stressed
+        # liquidity/volatility/correlation/provider states. THIN, ELEVATED
+        # and CONCENTRATED contexts may still earn bounded escalation when the
+        # full Native predecision stack and walk-forward evidence agree.
+        if not best_candidate.native_cognition_recommended:
+            attack_context_reasons.append("ATTACK_NATIVE_NOT_RECOMMENDED")
+        if best_candidate.context_quality_disposition != "ALLOW":
+            attack_context_reasons.append(
+                "ATTACK_NATIVE_CONTEXT_QUALITY_ABSTAIN"
+            )
+        if best_candidate.expected_net_utility_usd <= 0:
+            attack_context_reasons.append(
+                "ATTACK_UNCERTAINTY_ADJUSTED_UTILITY_NONPOSITIVE"
+            )
+        if (
+            best_candidate.walk_forward_positive_block_count
+            < DISTRIBUTED_ATTACK_MIN_POSITIVE_BLOCKS
+        ):
+            attack_context_reasons.append(
+                "ATTACK_INSUFFICIENT_POSITIVE_WALK_FORWARD_BLOCKS"
+            )
+    else:
+        if regime.liquidity is not LiquidityState.NORMAL:
+            attack_context_reasons.append("ATTACK_REQUIRES_NORMAL_LIQUIDITY")
+        if regime.volatility not in {
+            VolatilityState.COMPRESSED,
+            VolatilityState.NORMAL,
+        }:
+            attack_context_reasons.append("ATTACK_VOLATILITY_NOT_GRADE")
+        if regime.correlation is not CorrelationState.NORMAL:
+            attack_context_reasons.append("ATTACK_CORRELATION_NOT_NORMAL")
+        if best_candidate.attack_expected_net_utility_usd <= 0:
+            attack_context_reasons.append(
+                "ATTACK_WEAKEST_CHRONOLOGICAL_BLOCK_NOT_POSITIVE"
+            )
+        if not best_candidate.context_allowed:
+            attack_context_reasons.append("ATTACK_CONTEXT_NOT_ALLOWED")
+        if best_candidate.context_quality_disposition != "ALLOW":
+            attack_context_reasons.append(
+                "ATTACK_NATIVE_CONTEXT_QUALITY_ABSTAIN"
+            )
     if best_candidate.maximum_multiplier < ATTACK_MINIMUM_MULTIPLIER:
         attack_context_reasons.append("ATTACK_PROVIDER_CAP_LT_2X")
 
@@ -656,6 +683,7 @@ def select_three_mode(
     cushion_available_usd: Decimal,
     best_candidate: CiboThreeModeCandidate | None,
     total_drawdown_utilization: Decimal | None = None,
+    distributed_attack_frontier: bool = False,
 ) -> CiboTraderLabMode:
     """Compatibility wrapper returning only the selected mode."""
 
@@ -667,6 +695,7 @@ def select_three_mode(
         cushion_available_usd=cushion_available_usd,
         best_candidate=best_candidate,
         total_drawdown_utilization=total_drawdown_utilization,
+        distributed_attack_frontier=distributed_attack_frontier,
     )
     return mode
 
@@ -763,6 +792,8 @@ def run_three_mode_trader_lab(
     enforce_research_context_abstain: bool = False,
     soft_medium_drawdown_allocator: bool = False,
     medium_pretrade_drawdown_ceiling: Decimal = ECONOMIC_DRAWDOWN_CEILING,
+    distributed_attack_frontier: bool = False,
+    attack_multiplier_cap: int = DEFAULT_DISTRIBUTED_ATTACK_MULTIPLIER_CAP,
 ) -> dict[str, object]:
     """Run the isolated chronological three-mode ceiling experiment."""
 
@@ -773,6 +804,19 @@ def run_three_mode_trader_lab(
     if type(soft_medium_drawdown_allocator) is not bool:
         raise CiboCapitalManagementError(
             "Trader Lab soft MEDIUM drawdown allocator switch must be bool"
+        )
+    if type(distributed_attack_frontier) is not bool:
+        raise CiboCapitalManagementError(
+            "Trader Lab distributed ATTACK frontier switch must be bool"
+        )
+    if (
+        not isinstance(attack_multiplier_cap, int)
+        or isinstance(attack_multiplier_cap, bool)
+        or attack_multiplier_cap < ATTACK_MINIMUM_MULTIPLIER
+        or attack_multiplier_cap > 50
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab ATTACK multiplier cap must be int in [2, 50]"
         )
     if (
         not isinstance(medium_pretrade_drawdown_ceiling, Decimal)
@@ -995,6 +1039,18 @@ def run_three_mode_trader_lab(
             return None
         value = Decimal(str(raw))
         return min(value, MEDIUM_RECOMMEND_RISK_FRACTION)
+
+    def distributed_attack_candidate(
+        candidate: CiboThreeModeCandidate,
+    ) -> bool:
+        return (
+            candidate.native_cognition_recommended
+            and candidate.context_quality_disposition == "ALLOW"
+            and candidate.expected_net_utility_usd > 0
+            and candidate.walk_forward_positive_block_count
+            >= DISTRIBUTED_ATTACK_MIN_POSITIVE_BLOCKS
+            and candidate.maximum_multiplier >= ATTACK_MINIMUM_MULTIPLIER
+        )
 
     epochs = _group_epochs(rows)
     if len(rows) != manifest.get("opportunity_decision_count"):
@@ -1383,7 +1439,14 @@ def run_three_mode_trader_lab(
             state.attack_credit_available_usd,
             attack_drawdown_headroom_usd,
         )
-        best = eligible[0] if eligible else None
+        if distributed_attack_frontier:
+            attack_eligible = tuple(
+                item for item in eligible if distributed_attack_candidate(item)
+            )
+            best = attack_eligible[0] if attack_eligible else None
+        else:
+            attack_eligible = ()
+            best = eligible[0] if eligible else None
         mode, mode_reasons = explain_three_mode(
             regime=regime,
             risk_utilization=risk_utilization,
@@ -1392,6 +1455,7 @@ def run_three_mode_trader_lab(
             cushion_available_usd=portfolio_attack_budget_usd,
             best_candidate=best,
             total_drawdown_utilization=total_drawdown_utilization,
+            distributed_attack_frontier=distributed_attack_frontier,
         )
         mode_counts[mode.value] += 1
         for reason in mode_reasons:
@@ -1511,8 +1575,14 @@ def run_three_mode_trader_lab(
                     if (
                         mode is CiboTraderLabMode.ATTACK
                         and best is not None
-                        and candidate.signal_fingerprint
-                        == best.signal_fingerprint
+                        and (
+                            candidate.signal_fingerprint
+                            == best.signal_fingerprint
+                            or (
+                                distributed_attack_frontier
+                                and distributed_attack_candidate(candidate)
+                            )
+                        )
                     )
                     else CiboTraderLabMode.MEDIUM
                 )
@@ -1869,6 +1939,11 @@ def run_three_mode_trader_lab(
                     economic_cap = candidate.maximum_multiplier
                     leverage_caps = {
                         "PROVIDER_MAX": candidate.maximum_multiplier,
+                        "DISTRIBUTED_ATTACK_CAP": (
+                            attack_multiplier_cap
+                            if distributed_attack_frontier
+                            else candidate.maximum_multiplier
+                        ),
                         "CUSHION_FUNDING_CAP": int(
                             (
                                 source_left
@@ -2460,7 +2535,9 @@ def run_three_mode_trader_lab(
     return {
         "schema": "qore.trader_lab.cibo_three_mode_ceiling.v1",
         "research_lane": (
-            "HISTORICAL_PRIOR_NATIVE_SOFT_DRAWDOWN_ALLOCATOR"
+            "HISTORICAL_PRIOR_NATIVE_DISTRIBUTED_ATTACK_FRONTIER"
+            if use_historical_prior and distributed_attack_frontier
+            else "HISTORICAL_PRIOR_NATIVE_SOFT_DRAWDOWN_ALLOCATOR"
             if use_historical_prior and soft_medium_drawdown_allocator
             else "HISTORICAL_PRIOR_NATIVE_DD_RESERVE_FRONTIER"
             if (
@@ -2579,6 +2656,15 @@ def run_three_mode_trader_lab(
             "f",
         ),
         "maximum_selected_multiplier": leverage_max,
+        "attack_trade_count": trade_mode_counts["ATTACK"],
+        "attack_density_fraction": format(
+            (
+                Decimal(trade_mode_counts["ATTACK"]) / Decimal(trade_count)
+                if trade_count
+                else Decimal(0)
+            ),
+            "f",
+        ),
         "attack_epoch_count_with_funded_cushion": attack_epochs_funded,
         "engineering_sensor_report": engineering_sensor_report,
         "engineering_trace": engineering_trace,
@@ -2686,8 +2772,18 @@ def run_three_mode_trader_lab(
                 else "CURRENT_WALK_FORWARD_EXPECTATION"
             ),
             "attack_expectation_law": (
-                "WEAKEST_OF_FIVE_CAUSAL_CHRONOLOGICAL_BLOCKS"
+                (
+                    "DISTRIBUTED_NATIVE_ALLOW_POSITIVE_UNCERTAINTY_UTILITY_"
+                    "AT_LEAST_4_POSITIVE_WALK_FORWARD_BLOCKS"
+                )
+                if distributed_attack_frontier
+                else "WEAKEST_OF_FIVE_CAUSAL_CHRONOLOGICAL_BLOCKS"
             ),
+            "distributed_attack_frontier": distributed_attack_frontier,
+            "distributed_attack_min_positive_blocks": (
+                DISTRIBUTED_ATTACK_MIN_POSITIVE_BLOCKS
+            ),
+            "attack_multiplier_cap": attack_multiplier_cap,
             "context_quality_abstain_enforced": (
                 enforce_research_context_abstain
             ),
@@ -2754,7 +2850,12 @@ def run_three_mode_trader_lab(
                 "SETTLED_ATTACK_CAPITAL_REMAIN_AVAILABLE_FOR_FUTURE_ATTACK"
             ),
             "leverage_law": (
-                "ATTACK_UNCAPPED_BY_ECONOMIC_UTILITY_AFTER_PORTFOLIO_ENABLE"
+                (
+                    "DISTRIBUTED_ATTACK_BOUNDED_BY_EXPLICIT_FRONTIER_CAP_"
+                    "AFTER_PORTFOLIO_ENABLE"
+                )
+                if distributed_attack_frontier
+                else "ATTACK_UNCAPPED_BY_ECONOMIC_UTILITY_AFTER_PORTFOLIO_ENABLE"
             ),
             "attack_enable_authority": "COMPOUND_PORTFOLIO",
             "attack_internal_economic_cap": "FORBIDDEN",
