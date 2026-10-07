@@ -133,8 +133,8 @@ jobs:
         run: |
           set -euo pipefail
           : > "$RUNNER_TEMP/result/cibo-four-engine-loss-cut-failures.tsv"
-          for SPEC in "040c2t180f025dd005:-0.40:2:180:0.25:0.05" "040c2t180f025dd010:-0.40:2:180:0.25:0.10" "040c2t180f025dd015:-0.40:2:180:0.25:0.15" "040c2t180f025dd020:-0.40:2:180:0.25:0.20"; do
-            IFS=':' read -r LABEL THRESHOLD CONFIRMATIONS MAX_MINUTES MAX_FAVORABLE DD_ACTIVATION <<< "$SPEC"
+          for SPEC in "030p050:-0.30:2:180:0.25:0:0.50" "025p050:-0.25:2:180:0.25:0:0.50" "020p050:-0.20:2:180:0.25:0:0.50" "030p075:-0.30:2:180:0.25:0:0.75" "025p075:-0.25:2:180:0.25:0:0.75" "020p075:-0.20:2:180:0.25:0:0.75"; do
+            IFS=':' read -r LABEL THRESHOLD CONFIRMATIONS MAX_MINUTES MAX_FAVORABLE DD_ACTIVATION CLOSE_FRACTION <<< "$SPEC"
             if python scripts/cibo_trader_lab_three_mode_ceiling.py \
               --manifest "$MANIFEST" \
               --baseline-replay "$BASELINE" \
@@ -154,14 +154,15 @@ jobs:
               --lifecycle-adverse-loss-cut-max-elapsed-minutes "$MAX_MINUTES" \
               --lifecycle-adverse-loss-cut-max-favorable-r "$MAX_FAVORABLE" \
               --lifecycle-drawdown-activation-fraction "$DD_ACTIVATION" \
+              --lifecycle-adverse-loss-cut-close-fraction "$CLOSE_FRACTION" \
               --output "$RUNNER_TEMP/result/cibo-four-engine-loss-cut-${LABEL}.json" \
               > "$RUNNER_TEMP/result/cibo-four-engine-loss-cut-${LABEL}.log" 2>&1; then
               cat "$RUNNER_TEMP/result/cibo-four-engine-loss-cut-${LABEL}.log"
             else
               STATUS=$?
               cat "$RUNNER_TEMP/result/cibo-four-engine-loss-cut-${LABEL}.log"
-              printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
-                "$LABEL" "$THRESHOLD" "$CONFIRMATIONS" "$MAX_MINUTES" "$MAX_FAVORABLE" "$DD_ACTIVATION" "$STATUS" >> \
+              printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+                "$LABEL" "$THRESHOLD" "$CONFIRMATIONS" "$MAX_MINUTES" "$MAX_FAVORABLE" "$DD_ACTIVATION" "$CLOSE_FRACTION" "$STATUS" >> \
                 "$RUNNER_TEMP/result/cibo-four-engine-loss-cut-failures.tsv"
             fi
           done
@@ -215,11 +216,13 @@ jobs:
           ] == 0
 
           frontier = []
-          for filename, threshold, confirmations, max_minutes, max_favorable, dd_activation in (
-              ("cibo-four-engine-loss-cut-040c2t180f025dd005.json", "-0.40", 2, 180, "0.25", "0.05"),
-              ("cibo-four-engine-loss-cut-040c2t180f025dd010.json", "-0.40", 2, 180, "0.25", "0.10"),
-              ("cibo-four-engine-loss-cut-040c2t180f025dd015.json", "-0.40", 2, 180, "0.25", "0.15"),
-              ("cibo-four-engine-loss-cut-040c2t180f025dd020.json", "-0.40", 2, 180, "0.25", "0.20"),
+          for filename, threshold, confirmations, max_minutes, max_favorable, dd_activation, close_fraction in (
+              ("cibo-four-engine-loss-cut-030p050.json", "-0.30", 2, 180, "0.25", "0", "0.50"),
+              ("cibo-four-engine-loss-cut-025p050.json", "-0.25", 2, 180, "0.25", "0", "0.50"),
+              ("cibo-four-engine-loss-cut-020p050.json", "-0.20", 2, 180, "0.25", "0", "0.50"),
+              ("cibo-four-engine-loss-cut-030p075.json", "-0.30", 2, 180, "0.25", "0", "0.75"),
+              ("cibo-four-engine-loss-cut-025p075.json", "-0.25", 2, 180, "0.25", "0", "0.75"),
+              ("cibo-four-engine-loss-cut-020p075.json", "-0.20", 2, 180, "0.25", "0", "0.75"),
           ):
               candidate_path = (
                   Path(os.environ["RUNNER_TEMP"]) / "result" / filename
@@ -231,6 +234,7 @@ jobs:
                       "max_elapsed_minutes": max_minutes,
                       "max_favorable_r": max_favorable,
                       "drawdown_activation_fraction": dd_activation,
+                      "close_fraction": close_fraction,
                       "status": "RUN_FAILED",
                   })
                   continue
@@ -254,6 +258,9 @@ jobs:
               assert guarded["position_lifecycle_report"][
                   "drawdown_activation_fraction"
               ] == dd_activation
+              assert guarded["position_lifecycle_report"][
+                  "adverse_loss_cut_close_fraction"
+              ] == close_fraction
               assert guarded["position_lifecycle_report"]["outcome_used_for_trigger"] is False
               guarded_funnel = guarded["engineering_sensor_report"]["execution_funnel"]
               assert guarded_funnel["final_trade_count"] == 3368
@@ -266,6 +273,7 @@ jobs:
                   "max_elapsed_minutes": max_minutes,
                   "max_favorable_r": max_favorable,
                   "drawdown_activation_fraction": dd_activation,
+                  "close_fraction": close_fraction,
                   "activated_entry_count": guarded["position_lifecycle_report"][
                       "activated_entry_count"
                   ],

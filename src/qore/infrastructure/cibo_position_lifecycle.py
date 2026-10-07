@@ -141,6 +141,7 @@ def run_cibo_position_lifecycle(
     adverse_loss_cut_confirmation_bars: int = 1,
     adverse_loss_cut_max_elapsed_minutes: int | None = None,
     adverse_loss_cut_max_favorable_r: Decimal = Decimal("1"),
+    adverse_loss_cut_close_fraction: Decimal = Decimal("1"),
 ) -> CiboPositionLifecycleResult:
     """Evaluate one position using causal closed-bar lifecycle semantics."""
 
@@ -187,6 +188,15 @@ def run_cibo_position_lifecycle(
     ):
         raise CiboCapitalManagementError(
             "Lifecycle adverse loss-cut max favorable R must be Decimal in [0, 1]"
+        )
+    if (
+        not isinstance(adverse_loss_cut_close_fraction, Decimal)
+        or not adverse_loss_cut_close_fraction.is_finite()
+        or adverse_loss_cut_close_fraction <= Decimal(0)
+        or adverse_loss_cut_close_fraction > Decimal(1)
+    ):
+        raise CiboCapitalManagementError(
+            "Lifecycle adverse loss-cut close fraction must be Decimal in (0, 1]"
         )
 
     risk_distance = abs(position.entry_price - position.structural_stop)
@@ -251,6 +261,7 @@ def run_cibo_position_lifecycle(
     best_favorable_seen = Decimal("-Infinity")
     pending_adverse_loss_cut = False
     adverse_loss_cut_confirmation_count = 0
+    adverse_loss_reduction_done = False
 
     def favorable_adverse_close(
         bar: CiboLifecycleBar,
@@ -306,15 +317,27 @@ def run_cibo_position_lifecycle(
         # the replay causal and executable, an adverse loss cut triggered on
         # BAR N is realized at BAR N+1 open, never retroactively at BAR N close.
         if pending_adverse_loss_cut:
-            delta = remaining * open_r
-            remaining = Decimal(0)
+            close_fraction = min(
+                remaining,
+                adverse_loss_cut_close_fraction,
+            )
+            delta = close_fraction * open_r
+            remaining -= close_fraction
+            adverse_loss_reduction_done = True
+            pending_adverse_loss_cut = False
+            full_close = remaining <= 0
             append_event(
                 bar.opened_at,
-                "ADVERSE_LOSS_CUT_NEXT_OPEN",
+                (
+                    "ADVERSE_LOSS_CUT_NEXT_OPEN"
+                    if full_close
+                    else "ADVERSE_LOSS_REDUCTION_NEXT_OPEN"
+                ),
                 delta,
-                force_close=True,
+                force_close=full_close,
             )
-            break
+            if full_close:
+                break
 
         # If BAR N crosses the original structural stop while also
         # containing favorable lifecycle triggers, M5 alone cannot establish
@@ -405,6 +428,7 @@ def run_cibo_position_lifecycle(
         )
         if (
             CiboLifecycleFeature.ADVERSE_LOSS_CUT in features
+            and not adverse_loss_reduction_done
             and best_favorable_seen < adverse_loss_cut_max_favorable_r
             and bar.closed_at < position.horizon_at
             and adverse_cut_window_open

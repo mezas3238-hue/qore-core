@@ -952,6 +952,9 @@ def run_three_mode_trader_lab(
             adverse_loss_cut_max_favorable_r = Decimal(
                 str(profile.get("adverse_loss_cut_max_favorable_r", "1"))
             )
+            adverse_loss_cut_close_fraction = Decimal(
+                str(profile.get("adverse_loss_cut_close_fraction", "1"))
+            )
             if (
                 not managed.is_finite()
                 or not original.is_finite()
@@ -959,6 +962,9 @@ def run_three_mode_trader_lab(
                 or not adverse_loss_cut_max_favorable_r.is_finite()
                 or adverse_loss_cut_max_favorable_r < Decimal(0)
                 or adverse_loss_cut_max_favorable_r > Decimal(1)
+                or not adverse_loss_cut_close_fraction.is_finite()
+                or adverse_loss_cut_close_fraction <= Decimal(0)
+                or adverse_loss_cut_close_fraction > Decimal(1)
                 or not isinstance(adverse_loss_cut_confirmation_bars, int)
                 or isinstance(adverse_loss_cut_confirmation_bars, bool)
                 or adverse_loss_cut_confirmation_bars < 1
@@ -1060,6 +1066,19 @@ def run_three_mode_trader_lab(
         if lifecycle_loss_cut_favorable_caps
         else None
     )
+    lifecycle_loss_cut_close_fractions = {
+        Decimal(str(profile.get("adverse_loss_cut_close_fraction", "1")))
+        for profile in lifecycle_map.values()
+    }
+    if len(lifecycle_loss_cut_close_fractions) > 1:
+        raise CiboCapitalManagementError(
+            "Trader Lab lifecycle loss-cut close fraction must be uniform"
+        )
+    lifecycle_adverse_loss_cut_close_fraction = (
+        next(iter(lifecycle_loss_cut_close_fractions))
+        if lifecycle_loss_cut_close_fractions
+        else None
+    )
     lifecycle_data_available_count = 0
     lifecycle_changed_count = 0
     for profile in lifecycle_map.values():
@@ -1095,6 +1114,11 @@ def run_three_mode_trader_lab(
             None
             if lifecycle_adverse_loss_cut_max_favorable_r is None
             else format(lifecycle_adverse_loss_cut_max_favorable_r, "f")
+        ),
+        "adverse_loss_cut_close_fraction": (
+            None
+            if lifecycle_adverse_loss_cut_close_fraction is None
+            else format(lifecycle_adverse_loss_cut_close_fraction, "f")
         ),
         "causal_closed_bar_only": bool(lifecycle_map),
         "outcome_used_for_trigger": False,
@@ -1715,7 +1739,10 @@ def run_three_mode_trader_lab(
 
             if (
                 lifecycle_event is not None
-                and lifecycle_event.action == "ADVERSE_LOSS_CUT_NEXT_OPEN"
+                and lifecycle_event.action in {
+                    "ADVERSE_LOSS_CUT_NEXT_OPEN",
+                    "ADVERSE_LOSS_REDUCTION_NEXT_OPEN",
+                }
             ):
                 current_total_drawdown_usd = max(
                     Decimal(0),
