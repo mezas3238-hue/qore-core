@@ -286,6 +286,16 @@ def main() -> int:
         help="Maximum live total capital for the bootstrap lifecycle override.",
     )
     parser.add_argument(
+        "--lifecycle-bootstrap-override-peak-capital-ceiling",
+        type=Decimal,
+        default=None,
+        help=(
+            "Optional one-way bootstrap latch: apply the override only while "
+            "the realized total-capital high-water mark has never exceeded "
+            "this ceiling."
+        ),
+    )
+    parser.add_argument(
         "--lifecycle-bootstrap-override-drawdown-trigger",
         type=Decimal,
         default=None,
@@ -1203,6 +1213,9 @@ def main() -> int:
         ),
         lifecycle_bootstrap_override_capital_ceiling=(
             args.lifecycle_bootstrap_override_capital_ceiling
+        ),
+        lifecycle_bootstrap_override_peak_capital_ceiling=(
+            args.lifecycle_bootstrap_override_peak_capital_ceiling
         ),
         lifecycle_bootstrap_override_drawdown_trigger=(
             args.lifecycle_bootstrap_override_drawdown_trigger
