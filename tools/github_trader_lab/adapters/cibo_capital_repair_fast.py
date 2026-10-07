@@ -940,7 +940,7 @@ def simulate(rows: list[dict[str, Any]], variant: Variant) -> dict[str, Any]:
             )
         )
 
-        for _, row, multiplier, _ in selected:
+        for row_index, row, multiplier, _velocity in selected:
             minimum_volume = d(row["minimum_volume"])
             step = d(row["volume_step"])
             desired = min(
@@ -1005,7 +1005,7 @@ def simulate(rows: list[dict[str, Any]], variant: Variant) -> dict[str, Any]:
                 ),
                 mad_r=d(row.get("walk_forward_mad_r", "0")),
                 dispersion_r=d(row.get("walk_forward_dispersion_r", "0")),
-                expected_net_min_usd=assessments[_].expected_net_usd,
+                expected_net_min_usd=assessments[row_index].expected_net_usd,
                 global_expected_r=d(
                     row.get("walk_forward_expected_structural_r", "0")
                 ),
