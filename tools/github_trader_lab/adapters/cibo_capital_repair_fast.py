@@ -66,19 +66,19 @@ class Variant:
     recency_guard: bool = False
     profit_funded_leverage: bool = False
     max_frontier: bool = False
-    legacy_pre_economic_veto: bool = False
 
 
 VARIANTS = (
     Variant(
-        "MATURE_4X_CONTROL",
+        "TRADER_BASE_1X_CONTROL",
         Decimal("1"),
         False,
         False,
         False,
         False,
-        legacy_pre_economic_veto=True,
+        fixed_multiplier=1,
     ),
+    Variant("MATURE_4X_CONTROL", Decimal("1"), False, False, False, False),
     Variant("GRADED_INTENSITY", Decimal("1"), True, False, False, False),
     Variant("GRADED_PLUS_SURVIVAL", Decimal("0.70"), True, False, False, True),
     Variant("FULL_CAUSAL_REPAIR", Decimal("0.70"), True, True, True, True),
@@ -147,11 +147,12 @@ class EconomicAssessment:
             "REDUCE_INCREMENT",
             "RESERVE_DOMINATED",
             "INSUFFICIENT",
-            "LEGACY_PRE_ECONOMIC_VETO",
         }:
             raise ValueError("unknown economic disposition")
-        if self.multiplier_cap not in {0, 1, 2, 3, 4}:
-            raise ValueError("economic multiplier cap outside 0..4")
+        if self.multiplier_cap not in {1, 2, 3, 4}:
+            raise ValueError(
+                "economic total multiplier cap must preserve Trader base 1x"
+            )
         if not self.reason_codes:
             raise ValueError("economic assessment requires reason codes")
 
@@ -347,29 +348,6 @@ def _economic_assessment(
         or value <= 0
     )
 
-    if variant.legacy_pre_economic_veto and legacy_would_drop:
-        legacy_reasons = []
-        if basis != "WALK_FORWARD_EMPIRICAL_FORECAST":
-            legacy_reasons.append("LEGACY_EXPECTATION_BASIS_VETO")
-        if not mature:
-            legacy_reasons.append("LEGACY_MATURITY_VETO")
-        if not context_allowed:
-            legacy_reasons.append("LEGACY_CONTEXT_VETO")
-        if not provider_viable:
-            legacy_reasons.append("LEGACY_PROVIDER_VETO")
-        if not capital_source_eligible:
-            legacy_reasons.append("LEGACY_CAPITAL_SOURCE_VETO")
-        if value <= 0:
-            legacy_reasons.append("LEGACY_NET_EDGE_VETO")
-        return EconomicAssessment(
-            disposition="LEGACY_PRE_ECONOMIC_VETO",
-            sizing_mode="LEGACY_NOT_ROUTED_TO_ECONOMY",
-            expected_net_usd=value,
-            multiplier_cap=0,
-            reason_codes=tuple(sorted(set(legacy_reasons))),
-            legacy_prefilter_would_drop=True,
-        )
-
     # Missing/immature causal forecast is an explicit insufficient-evidence
     # disposition, not disappearance from the opportunity surface.
     if basis != "WALK_FORWARD_EMPIRICAL_FORECAST" or not mature:
@@ -379,9 +357,9 @@ def _economic_assessment(
             reasons.append("FORECAST_NOT_MATURE")
         return EconomicAssessment(
             disposition="INSUFFICIENT",
-            sizing_mode="RESERVE",
+            sizing_mode="BASE_1X_PROTECT_NO_ADDITIONAL_EXPOSURE",
             expected_net_usd=value,
-            multiplier_cap=0,
+            multiplier_cap=1,
             reason_codes=tuple(sorted(set(reasons))),
             legacy_prefilter_would_drop=legacy_would_drop,
         )
@@ -404,9 +382,9 @@ def _economic_assessment(
     ):
         return EconomicAssessment(
             disposition="RESERVE_DOMINATED",
-            sizing_mode="RESERVE",
+            sizing_mode="BASE_1X_PROTECT_NO_ADDITIONAL_EXPOSURE",
             expected_net_usd=value,
-            multiplier_cap=0,
+            multiplier_cap=1,
             reason_codes=tuple(sorted(set(reasons))),
             legacy_prefilter_would_drop=legacy_would_drop,
         )
@@ -431,7 +409,7 @@ def _economic_assessment(
     if defensive:
         return EconomicAssessment(
             disposition="REDUCE_INCREMENT",
-            sizing_mode="SURVIVAL_MINIMAL_SEED",
+            sizing_mode="BASE_1X_DEFENSIVE_NO_ADDITIONAL_EXPOSURE",
             expected_net_usd=value,
             multiplier_cap=1,
             reason_codes=tuple(sorted(set(reasons))),
@@ -441,7 +419,7 @@ def _economic_assessment(
     reasons.append("NEXT_INCREMENT_PASSES_MARGINAL_UTILITY_HURDLES")
     return EconomicAssessment(
         disposition="ELIGIBLE_FOR_INTERNAL_CAPITAL_MARKET",
-        sizing_mode="ECONOMIC_ENGINE",
+        sizing_mode="BASE_1X_PLUS_ECONOMIC_INTENSIFICATION",
         expected_net_usd=value,
         multiplier_cap=4,
         reason_codes=tuple(sorted(set(reasons))),
@@ -464,10 +442,17 @@ def _portfolio(
     tuple[Decimal, ...],
     tuple[EconomicAssessment, ...],
 ]:
-    caps: list[int] = []
+    """Allocate only exposure ABOVE the Trader's mandatory base 1x.
+
+    Returned combo values are incremental multipliers 0..3. The base 1x is
+    outside CIBO admission authority and cannot be removed by this optimizer.
+    """
+
+    extra_caps: list[int] = []
     nets: list[Decimal] = []
     assessments: list[EconomicAssessment] = []
     has_capacity = risk_headroom > 0 and margin_headroom > 0
+
     for row in rows:
         assessment = _economic_assessment(
             row,
@@ -475,72 +460,91 @@ def _portfolio(
             has_capacity=has_capacity,
         )
         assessments.append(assessment)
-        net = assessment.expected_net_usd
-        nets.append(net)
+        nets.append(assessment.expected_net_usd)
+
         minimum_volume = d(row["minimum_volume"])
         maximum_volume = d(row["maximum_volume"])
-        cap = min(
+        if minimum_volume <= 0 or maximum_volume < minimum_volume:
+            raise ValueError("Trader base execution geometry is invalid")
+
+        total_cap = min(
             assessment.multiplier_cap,
             4,
             int(maximum_volume / minimum_volume),
         )
+        total_cap = max(1, total_cap)
+
         if variant.graded_intensity:
-            cap = min(
-                cap,
-                _confidence_cap(
-                    row=row,
-                    risk_utilization=risk_utilization,
-                    margin_utilization=margin_utilization,
-                    drawdown_utilization=drawdown_utilization,
+            total_cap = max(
+                1,
+                min(
+                    total_cap,
+                    _confidence_cap(
+                        row=row,
+                        risk_utilization=risk_utilization,
+                        margin_utilization=margin_utilization,
+                        drawdown_utilization=drawdown_utilization,
+                    ),
                 ),
             )
         if variant.max_frontier:
-            cap = min(
-                cap,
-                _maximum_frontier_cap(
-                    row=row,
-                    opportunity_count=len(rows),
-                    risk_utilization=risk_utilization,
-                    margin_utilization=margin_utilization,
-                    drawdown_utilization=drawdown_utilization,
+            total_cap = max(
+                1,
+                min(
+                    total_cap,
+                    _maximum_frontier_cap(
+                        row=row,
+                        opportunity_count=len(rows),
+                        risk_utilization=risk_utilization,
+                        margin_utilization=margin_utilization,
+                        drawdown_utilization=drawdown_utilization,
+                    ),
                 ),
             )
         if variant.fixed_multiplier is not None:
-            cap = min(cap, variant.fixed_multiplier)
-        caps.append(cap)
+            total_cap = max(1, min(total_cap, variant.fixed_multiplier))
+
+        extra_caps.append(max(0, total_cap - 1))
 
     best_key: tuple[Any, ...] | None = None
     best_combo = tuple(0 for _ in rows)
     best_velocity = tuple(ZERO for _ in rows)
 
-    for combo in itertools.product(*(range(cap + 1) for cap in caps)):
-        risk = sum(
+    for combo in itertools.product(*(range(cap + 1) for cap in extra_caps)):
+        incremental_loss = sum(
             (
-                d(row["stop_loss_per_volume"])
+                (
+                    d(row["stop_loss_per_volume"])
+                    + d(row["provider_cost_per_volume_usd"])
+                )
                 * d(row["minimum_volume"])
-                * mult
-                for row, mult in zip(rows, combo, strict=True)
+                * extra
+                for row, extra in zip(rows, combo, strict=True)
             ),
             ZERO,
         )
-        margin = sum(
+        incremental_margin = sum(
             (
                 d(row["margin_per_volume"])
                 * d(row["minimum_volume"])
-                * mult
-                for row, mult in zip(rows, combo, strict=True)
+                * extra
+                for row, extra in zip(rows, combo, strict=True)
             ),
             ZERO,
         )
-        if risk > risk_headroom or margin > margin_headroom:
+        if (
+            incremental_loss > risk_headroom
+            or incremental_margin > margin_headroom
+        ):
             continue
+
         if variant.profit_funded_leverage:
             incremental_leverage_risk = sum(
                 (
                     d(row["stop_loss_per_volume"])
                     * d(row["minimum_volume"])
-                    * max(0, mult - 1)
-                    for row, mult in zip(rows, combo, strict=True)
+                    * extra
+                    for row, extra in zip(rows, combo, strict=True)
                 ),
                 ZERO,
             )
@@ -550,19 +554,22 @@ def _portfolio(
 
         robust_lines: list[Decimal] = []
         velocity_lines: list[Decimal] = []
-        for row, net, mult in zip(rows, nets, combo, strict=True):
+        for row, net, extra in zip(rows, nets, combo, strict=True):
             base_risk = (
                 d(row["stop_loss_per_volume"]) * d(row["minimum_volume"])
             )
-            utility = net * mult
-            if variant.robust_portfolio and mult:
+            utility = net * extra
+            if variant.robust_portfolio and extra and capital > 0:
                 with localcontext() as ctx:
                     ctx.prec = 80
-                    utility -= (
-                        (base_risk * mult)
-                        * (base_risk * mult)
+                    total_multiplier = Decimal(1 + extra)
+                    base_penalty = (base_risk * base_risk) / capital
+                    total_penalty = (
+                        (base_risk * total_multiplier)
+                        * (base_risk * total_multiplier)
                         / capital
                     )
+                    utility -= total_penalty - base_penalty
             robust_lines.append(utility)
             duration = max(ONE, d(row["expected_capital_minutes"]))
             velocity_lines.append(
@@ -577,8 +584,8 @@ def _portfolio(
         key = (
             trusted_velocity,
             expected_utility,
-            -risk,
-            -margin,
+            -incremental_loss,
+            -incremental_margin,
             tuple(-value for value in combo),
         )
         if best_key is None or key > best_key:
@@ -773,11 +780,16 @@ def _metrics(
                 "insufficient": int(
                     block_counts["ECONOMIC_DISPOSITION_INSUFFICIENT"]
                 ),
-                "legacy_vetoed_control_only": int(
-                    block_counts[
-                        "ECONOMIC_DISPOSITION_LEGACY_PRE_ECONOMIC_VETO"
-                    ]
+                "trader_base_1x_presented": int(
+                    block_counts["TRADER_BASE_1X_PRESENTED"]
                 ),
+                "trader_base_1x_managed": int(
+                    block_counts["TRADER_BASE_1X_MANAGED"]
+                ),
+                "legacy_prefilter_recovered_base_1x": int(
+                    block_counts["LEGACY_PREFILTER_RECOVERED_BASE_1X"]
+                ),
+                "cibo_base_rejections": 0,
             },
         },
         "net_r_values": [format(value, "f") for value in net_rs],
@@ -847,7 +859,10 @@ def simulate(rows: list[dict[str, Any]], variant: Variant) -> dict[str, Any]:
                     "settled_at": dep.exit_at,
                     "realized_net_pnl_usd": format(pnl, "f"),
                     "risk_usd": format(dep.risk, "f"),
-                    "net_r": format(ZERO if dep.risk <= 0 else pnl / dep.risk, "f"),
+                    "net_r": format(
+                        ZERO if dep.risk <= 0 else pnl / dep.risk,
+                        "f",
+                    ),
                     "multiplier": dep.multiplier,
                     "volume": format(dep.volume, "f"),
                     "observation_count": dep.observation_count,
@@ -874,24 +889,6 @@ def simulate(rows: list[dict[str, Any]], variant: Variant) -> dict[str, Any]:
 
     for (decision_at, _epoch_id), epoch_rows in sorted(grouped.items()):
         settle_until(decision_at)
-        if capital <= 0:
-            block_counts["ECONOMIC_DEATH"] += len(epoch_rows)
-            continue
-
-        stop_capacity = max(ZERO, capital - provider_reserve)
-        total_risk_capacity = min(
-            stop_capacity,
-            capital * variant.risk_fraction,
-        )
-        margin_capacity = max(
-            ZERO,
-            capital * Decimal("100") - provider_reserve,
-        )
-        risk_headroom = max(ZERO, total_risk_capacity - open_risk)
-        margin_headroom = max(ZERO, margin_capacity - open_margin)
-        risk_utilization = ratio(open_risk, total_risk_capacity)
-        margin_utilization = ratio(open_margin, margin_capacity)
-        drawdown_utilization = ratio(peak - capital, peak)
 
         rows_sorted = sorted(
             epoch_rows,
@@ -902,10 +899,71 @@ def simulate(rows: list[dict[str, Any]], variant: Variant) -> dict[str, Any]:
             ),
         )
 
-        combo, velocities, assessments = _portfolio(
+        base_stop_risk = sum(
+            (
+                d(row["stop_loss_per_volume"]) * d(row["minimum_volume"])
+                for row in rows_sorted
+            ),
+            ZERO,
+        )
+        base_margin = sum(
+            (
+                d(row["margin_per_volume"]) * d(row["minimum_volume"])
+                for row in rows_sorted
+            ),
+            ZERO,
+        )
+        base_provider_cost = sum(
+            (
+                d(row["provider_cost_per_volume_usd"])
+                * d(row["minimum_volume"])
+                for row in rows_sorted
+            ),
+            ZERO,
+        )
+
+        effective_capital = max(ZERO, capital)
+        if capital <= 0:
+            block_counts["ACCOUNT_NONPOSITIVE_BASE_STILL_MANAGED"] += len(
+                rows_sorted
+            )
+
+        stop_capacity = max(
+            ZERO,
+            effective_capital - provider_reserve - base_provider_cost,
+        )
+        total_risk_capacity = min(
+            stop_capacity,
+            effective_capital * variant.risk_fraction,
+        )
+        margin_capacity = max(
+            ZERO,
+            effective_capital * Decimal("100")
+            - provider_reserve
+            - base_provider_cost,
+        )
+        risk_headroom = max(
+            ZERO,
+            total_risk_capacity - open_risk - base_stop_risk,
+        )
+        margin_headroom = max(
+            ZERO,
+            margin_capacity - open_margin - base_margin,
+        )
+        risk_utilization = ratio(
+            open_risk + base_stop_risk,
+            total_risk_capacity,
+        )
+        margin_utilization = ratio(
+            open_margin + base_margin,
+            margin_capacity,
+        )
+        drawdown_utilization = ratio(peak - capital, max(peak, ONE))
+
+        extra_combo, velocities, assessments = _portfolio(
             rows_sorted,
             variant=variant,
-            capital=capital,
+            capital=effective_capital,
             risk_headroom=risk_headroom,
             margin_headroom=margin_headroom,
             risk_utilization=risk_utilization,
@@ -913,8 +971,11 @@ def simulate(rows: list[dict[str, Any]], variant: Variant) -> dict[str, Any]:
             drawdown_utilization=drawdown_utilization,
         )
 
+        block_counts["TRADER_BASE_1X_PRESENTED"] += len(rows_sorted)
+        block_counts["TRADER_BASE_1X_MANAGED"] += len(rows_sorted)
         block_counts["ECONOMIC_PRESENTED"] += len(rows_sorted)
         block_counts["ECONOMIC_EVALUATED"] += len(assessments)
+
         for assessment in assessments:
             block_counts[
                 f"ECONOMIC_DISPOSITION_{assessment.disposition}"
@@ -924,56 +985,36 @@ def simulate(rows: list[dict[str, Any]], variant: Variant) -> dict[str, Any]:
             ] += 1
             if assessment.legacy_prefilter_would_drop:
                 block_counts["LEGACY_PREFILTER_WOULD_DROP"] += 1
-                if not variant.legacy_pre_economic_veto:
-                    block_counts["RECOVERED_TO_ECONOMY"] += 1
+                block_counts["LEGACY_PREFILTER_RECOVERED_BASE_1X"] += 1
 
-        selected = [
-            (index, row, combo[index], velocities[index])
-            for index, row in enumerate(rows_sorted)
-            if combo[index] > 0
-        ]
-        selected.sort(
-            key=lambda item: (
-                -item[3],
-                -assessments[item[0]].expected_net_usd,
-                str(item[1]["signal_fingerprint"]),
-            )
+        order = sorted(
+            range(len(rows_sorted)),
+            key=lambda index: (
+                -velocities[index],
+                -assessments[index].expected_net_usd,
+                str(rows_sorted[index]["signal_fingerprint"]),
+            ),
         )
 
-        for row_index, row, multiplier, _velocity in selected:
+        for row_index in order:
+            row = rows_sorted[row_index]
+            extra = int(extra_combo[row_index])
+            total_multiplier = 1 + extra
             minimum_volume = d(row["minimum_volume"])
-            step = d(row["volume_step"])
-            desired = min(
-                d(row["maximum_volume"]),
-                minimum_volume * Decimal(multiplier),
-            )
-            total_risk_capacity = min(
-                max(ZERO, capital - provider_reserve),
-                capital * variant.risk_fraction,
-            )
-            available_risk = max(ZERO, total_risk_capacity - open_risk)
-            available_margin = max(
-                ZERO,
-                capital * Decimal("100") - provider_reserve - open_margin,
-            )
+            maximum_volume = d(row["maximum_volume"])
+            volume = minimum_volume * Decimal(total_multiplier)
+            if volume > maximum_volume:
+                raise ValueError(
+                    "economic intensification exceeds Trader executable maximum"
+                )
+
             stop_per_volume = d(row["stop_loss_per_volume"])
             cost_per_volume = d(row["provider_cost_per_volume_usd"])
             margin_per_volume = d(row["margin_per_volume"])
-            total_loss_per_volume = stop_per_volume + cost_per_volume
-            if total_loss_per_volume <= 0 or margin_per_volume <= 0:
-                block_counts["INVALID_GEOMETRY"] += 1
-                continue
-            volume = floor_step(
-                min(
-                    desired,
-                    available_risk / total_loss_per_volume,
-                    available_margin / margin_per_volume,
-                ),
-                step,
-            )
-            if volume < minimum_volume:
-                block_counts["SCARCITY_HOLD"] += 1
-                continue
+            if stop_per_volume <= 0 or margin_per_volume <= 0:
+                raise ValueError(
+                    "executed Trader base entry has invalid economic geometry"
+                )
 
             risk = volume * stop_per_volume
             margin = volume * margin_per_volume
@@ -984,6 +1025,7 @@ def simulate(rows: list[dict[str, Any]], variant: Variant) -> dict[str, Any]:
                 or not bool(outcome["not_available_to_predecision"])
             ):
                 raise ValueError("same-trade outcome leakage detected")
+
             dep = Deployment(
                 signal=str(row["signal_fingerprint"]),
                 trader_id=str(row["trader_id"]),
@@ -992,7 +1034,7 @@ def simulate(rows: list[dict[str, Any]], variant: Variant) -> dict[str, Any]:
                 margin=margin,
                 provider_cost=cost,
                 gross_r=d(outcome["gross_structural_outcome_r"]),
-                multiplier=multiplier,
+                multiplier=total_multiplier,
                 volume=volume,
                 observation_count=int(
                     row.get("walk_forward_observation_count", 0)
@@ -1005,7 +1047,9 @@ def simulate(rows: list[dict[str, Any]], variant: Variant) -> dict[str, Any]:
                 ),
                 mad_r=d(row.get("walk_forward_mad_r", "0")),
                 dispersion_r=d(row.get("walk_forward_dispersion_r", "0")),
-                expected_net_min_usd=assessments[row_index].expected_net_usd,
+                expected_net_min_usd=assessments[
+                    row_index
+                ].expected_net_usd,
                 global_expected_r=d(
                     row.get("walk_forward_expected_structural_r", "0")
                 ),
@@ -1026,13 +1070,18 @@ def simulate(rows: list[dict[str, Any]], variant: Variant) -> dict[str, Any]:
             open_risk += risk
             open_margin += margin
             provider_reserve += cost
-            multiplier_counts[str(multiplier)] += 1
-
-        zero_count = len(rows_sorted) - len(selected)
-        if zero_count:
-            block_counts["PORTFOLIO_ZERO"] += zero_count
+            multiplier_counts[str(total_multiplier)] += 1
+            block_counts[f"ADDITIONAL_EXPOSURE_{extra}X"] += 1
 
     settle_until(None)
+
+    if len(settlements) != len(rows):
+        raise ValueError(
+            "CIBO admission-authority violation: every Trader base entry must "
+            "remain present through economic management"
+        )
+    if block_counts["TRADER_BASE_1X_MANAGED"] != len(rows):
+        raise ValueError("CIBO base-management invariant failed")
 
     return _metrics(
         settlements,
@@ -1053,7 +1102,7 @@ def run(prepared_path: Path, lane: str) -> dict[str, Any]:
         raise ValueError("prepared CIBO rows missing")
 
     raw = {variant.name: simulate(rows, variant) for variant in VARIANTS}
-    control = raw["MATURE_4X_CONTROL"]
+    control = raw["TRADER_BASE_1X_CONTROL"]
     control_count = int(control["trade_count"])
     control_winners = sum(d(value) > 0 for value in control["net_r_values"])
     control_winner_r = sum(
@@ -1087,23 +1136,32 @@ def run(prepared_path: Path, lane: str) -> dict[str, Any]:
                 "f",
             ),
         }
+        if count != len(rows):
+            raise ValueError(
+                f"{name}: CIBO cannot reject Trader base entries "
+                f"({count} != {len(rows)})"
+            )
         variants[name] = row
 
     return {
         "schema": "qore.github-trader-lab.normalized-replay.v2",
-        "adapter": "cibo-capital-repair-fast-v1",
+        "adapter": "cibo-post-entry-economic-management-fast-v2",
         "subject": "CIBO",
         "lane": lane,
-        "control": "MATURE_4X_CONTROL",
+        "control": "TRADER_BASE_1X_CONTROL",
         "variants": variants,
         "governance": {
             "burned_repair_window_only": True,
             "prepared_causal_ledger_reused": True,
             "max_frontier_policy_loaded_from_current_subject": True,
             "max_frontier_constraining_only": True,
-            "native_opportunities_route_to_economy_before_zero_x": True,
-            "context_edge_provider_are_economic_modifiers_not_deletion_gates": True,
-            "legacy_pre_economic_veto_preserved_only_in_control": True,
+            "trader_base_1x_is_already_executed": True,
+            "cibo_has_no_entry_admission_authority": True,
+            "cibo_controls_incremental_exposure_only": True,
+            "economic_increment_space": "0..3x_above_mandatory_base_1x",
+            "native_opportunities_route_to_economy_after_base_execution": True,
+            "context_edge_provider_are_increment_modifiers_not_entry_gates": True,
+            "base_entry_rejection_count": 0,
             "outcome_available_to_same_decision": False,
             "trader_methodology_changed": False,
             "fresh_holdout_opened": False,
