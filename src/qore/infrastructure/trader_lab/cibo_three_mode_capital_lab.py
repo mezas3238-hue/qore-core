@@ -700,6 +700,9 @@ def run_three_mode_trader_lab(
     *,
     baseline_ending_capital_usd: Decimal | None = None,
     cognitive_recommend_by_signal: Mapping[str, bool] | None = None,
+    historical_prior_by_signal: (
+        Mapping[str, Mapping[str, object]] | None
+    ) = None,
     enforce_research_context_abstain: bool = False,
 ) -> dict[str, object]:
     """Run the isolated chronological three-mode ceiling experiment."""
@@ -731,6 +734,71 @@ def run_three_mode_trader_lab(
         raise CiboCapitalManagementError(
             "Trader Lab cognitive recommendation map must cover exact manifest signals"
         )
+
+    use_historical_prior = historical_prior_by_signal is not None
+    historical_prior_map: dict[str, dict[str, object]] = {}
+    if historical_prior_by_signal is not None:
+        historical_prior_map = {
+            str(signal): dict(profile)
+            for signal, profile in historical_prior_by_signal.items()
+        }
+        if set(historical_prior_map) != set(signals):
+            raise CiboCapitalManagementError(
+                "Trader Lab historical prior must cover exact manifest signals"
+            )
+        for signal, profile in historical_prior_map.items():
+            edge = Decimal(str(profile.get("expected_edge_after_cost_usd")))
+            minutes = Decimal(str(profile.get("expected_capital_minutes")))
+            allowed = profile.get("context_allowed")
+            if (
+                not edge.is_finite()
+                or not minutes.is_finite()
+                or minutes <= 0
+                or type(allowed) is not bool
+            ):
+                raise CiboCapitalManagementError(
+                    f"Trader Lab historical prior malformed for {signal}"
+                )
+
+    def portfolio_edge(candidate: CiboThreeModeCandidate) -> Decimal:
+        if not use_historical_prior:
+            return candidate.expected_edge_after_cost_usd
+        return Decimal(
+            str(
+                historical_prior_map[candidate.signal_fingerprint][
+                    "expected_edge_after_cost_usd"
+                ]
+            )
+        )
+
+    def portfolio_minutes(candidate: CiboThreeModeCandidate) -> Decimal:
+        if not use_historical_prior:
+            return candidate.expected_capital_minutes
+        return Decimal(
+            str(
+                historical_prior_map[candidate.signal_fingerprint][
+                    "expected_capital_minutes"
+                ]
+            )
+        )
+
+    def portfolio_context_allowed(candidate: CiboThreeModeCandidate) -> bool:
+        if not use_historical_prior:
+            return candidate.context_allowed
+        return bool(
+            historical_prior_map[candidate.signal_fingerprint][
+                "context_allowed"
+            ]
+        )
+
+    def portfolio_velocity(candidate: CiboThreeModeCandidate) -> Decimal:
+        minutes = portfolio_minutes(candidate)
+        if minutes <= 0:
+            return Decimal("-Infinity")
+        with localcontext() as context:
+            context.prec = 100
+            return portfolio_edge(candidate) / minutes
+
     epochs = _group_epochs(rows)
     if len(rows) != manifest.get("opportunity_decision_count"):
         raise CiboCapitalManagementError(
@@ -1030,8 +1098,8 @@ def run_three_mode_trader_lab(
                     if item.maximum_multiplier > 0
                 ),
                 key=lambda item: (
-                    -item.capital_time_score,
-                    -item.expected_net_utility_usd,
+                    -portfolio_velocity(item),
+                    -portfolio_edge(item),
                     item.signal_fingerprint,
                 ),
             )
@@ -1201,7 +1269,14 @@ def run_three_mode_trader_lab(
             for candidate in candidate_surface:
                 if mode is CiboTraderLabMode.MEDIUM:
                     sizing_calls += 1
-                    if not candidate.native_cognition_recommended:
+                    active_portfolio_edge = portfolio_edge(candidate)
+                    active_portfolio_context = portfolio_context_allowed(
+                        candidate
+                    )
+                    if (
+                        not use_historical_prior
+                        and not candidate.native_cognition_recommended
+                    ):
                         record_engineering_sensor(
                             "SIZING",
                             epoch_index=epoch_index,
@@ -1213,7 +1288,7 @@ def run_three_mode_trader_lab(
                                     candidate.context_quality_disposition
                                 ),
                                 "expected_edge_after_cost_usd": format(
-                                    candidate.expected_edge_after_cost_usd, "f"
+                                    active_portfolio_edge, "f"
                                 ),
                             },
                             action="DEFER_NATIVE_ABSTAIN_CAPITAL_PRESERVATION",
@@ -1225,6 +1300,42 @@ def run_three_mode_trader_lab(
                                 "PRESERVE_BANK_SEED_FOR_STRONGER_CAUSAL_SIGNAL"
                             ),
                             reasons=("NATIVE_ABSTAIN_DEFER",),
+                            call=True,
+                            restriction=True,
+                        )
+                        continue
+                    if (
+                        use_historical_prior
+                        and (
+                            not active_portfolio_context
+                            or active_portfolio_edge <= 0
+                        )
+                    ):
+                        record_engineering_sensor(
+                            "SIZING",
+                            epoch_index=epoch_index,
+                            signal_fingerprint=candidate.signal_fingerprint,
+                            event="HISTORICAL_PORTFOLIO_TREATMENT",
+                            inputs={
+                                "native_cognition_recommended": (
+                                    candidate.native_cognition_recommended
+                                ),
+                                "historical_context_allowed": (
+                                    active_portfolio_context
+                                ),
+                                "historical_edge_after_cost_usd": format(
+                                    active_portfolio_edge, "f"
+                                ),
+                            },
+                            action="DEFER_HISTORICAL_PRIOR_NONDEPLOYMENT",
+                            outputs={
+                                "selected_multiplier": 0,
+                                "economic_treatment": "DEFER",
+                            },
+                            reaction=(
+                                "KEEP_OPPORTUNITY_WORKED_WITHOUT_CAPITAL_RELEASE"
+                            ),
+                            reasons=("HISTORICAL_PRIOR_NO_DEPLOYMENT",),
                             call=True,
                             restriction=True,
                         )
@@ -1256,6 +1367,13 @@ def run_three_mode_trader_lab(
                     )
                     native_intensity_cap = (
                         min(candidate.maximum_multiplier, 4)
+                        if (
+                            use_historical_prior
+                            and candidate.native_cognition_recommended
+                        )
+                        else min(candidate.maximum_multiplier, 1)
+                        if use_historical_prior
+                        else min(candidate.maximum_multiplier, 4)
                         if (
                             candidate.native_cognition_recommended
                             and candidate.context_quality_disposition == "ALLOW"
@@ -1907,7 +2025,9 @@ def run_three_mode_trader_lab(
     return {
         "schema": "qore.trader_lab.cibo_three_mode_ceiling.v1",
         "research_lane": (
-            "POST_BURN_CONTEXT_ABSTAIN_HYPOTHESIS"
+            "HISTORICAL_PRIOR_NATIVE_TRANSFER"
+            if use_historical_prior
+            else "POST_BURN_CONTEXT_ABSTAIN_HYPOTHESIS"
             if enforce_research_context_abstain
             else "CAUSAL_BASELINE_THREE_MODE"
         ),
@@ -2088,6 +2208,12 @@ def run_three_mode_trader_lab(
             "native_cognition_gate_consumed": True,
             "native_cognition_source": (
                 "FROZEN_PREDECISION_WALK_FORWARD_REPLAY"
+            ),
+            "historical_prior_consumed": use_historical_prior,
+            "portfolio_prior_source": (
+                "FROZEN_HISTORICAL_PRIOR"
+                if use_historical_prior
+                else "CURRENT_WALK_FORWARD_EXPECTATION"
             ),
             "attack_expectation_law": (
                 "WEAKEST_OF_FIVE_CAUSAL_CHRONOLOGICAL_BLOCKS"
