@@ -1478,12 +1478,14 @@ def run_three_mode_trader_lab(
                             restriction=True,
                         )
                         continue
+                    historical_prior_deployable = (
+                        active_portfolio_context
+                        and active_portfolio_edge > 0
+                    )
                     if (
                         use_historical_prior
-                        and (
-                            not active_portfolio_context
-                            or active_portfolio_edge <= 0
-                        )
+                        and not historical_prior_deployable
+                        and not candidate.native_cognition_recommended
                     ):
                         record_engineering_sensor(
                             "SIZING",
@@ -1587,7 +1589,14 @@ def run_three_mode_trader_lab(
                         ).to_integral_value(rounding=ROUND_FLOOR)
                     )
                     native_intensity_cap = (
-                        historical_native_intensity_cap(candidate)
+                        (
+                            min(candidate.maximum_multiplier, 4)
+                            if (
+                                candidate.native_cognition_recommended
+                                and historical_prior_deployable
+                            )
+                            else min(candidate.maximum_multiplier, 1)
+                        )
                         if use_historical_prior
                         else min(candidate.maximum_multiplier, 4)
                         if (
@@ -1680,6 +1689,11 @@ def run_three_mode_trader_lab(
                                 native_profile_map[
                                     candidate.signal_fingerprint
                                 ]["executive_synthesis"]
+                            ),
+                            "historical_prior_deployable": (
+                                historical_prior_deployable
+                                if use_historical_prior
+                                else None
                             ),
                         },
                         action="SIZE_FROM_BANK_SEED_WITH_NATIVE_CAPABILITY",
@@ -2496,8 +2510,9 @@ def run_three_mode_trader_lab(
             ),
             "native_profile_consumed": True,
             "historical_native_intensity_law": (
-                "ABSTAIN_1X_DEFENSIVE; RECOMMEND_4X_PROVEN_MEDIUM; "
-                "NATIVE_CONFIDENCE_RESERVED_FOR_PORTFOLIO_ATTACK"
+                "HISTORICAL_PLUS_NATIVE_CONSENSUS_UP_TO_4X; "
+                "NATIVE_ONLY_OVERRIDE_1X; HISTORICAL_ONLY_DEFENSIVE_1X; "
+                "BOTH_NONDEPLOYMENT_DEFER"
             ),
             "historical_prior_consumed": use_historical_prior,
             "compound_distribution_basis": (
