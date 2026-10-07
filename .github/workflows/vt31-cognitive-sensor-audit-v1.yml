@@ -42,8 +42,8 @@ jobs:
       - name: Static and sensor semantics
         run: |
           set -euo pipefail
-          python -m py_compile             src/qore/infrastructure/traders/vt31_nas100_cognitive_telemetry.py             scripts/vt31_nas100_comp010_live_context_adverse_exit_v1.py             scripts/vt31_nas100_cognitive_sensor_audit_v1.py
-          ruff check             src/qore/infrastructure/traders/vt31_nas100_cognitive_telemetry.py             src/qore/infrastructure/traders/vt31_nas100_post_entry_cognitive_runtime.py             src/qore/infrastructure/traders/vt31_nas100_market_context_runtime.py             scripts/vt31_nas100_comp010_live_context_adverse_exit_v1.py             scripts/vt31_nas100_cognitive_sensor_audit_v1.py             tests/infrastructure/test_vt31_nas100_post_entry_cognitive_runtime.py             tests/infrastructure/test_vt31_nas100_market_context_h4.py
+          python -m py_compile             src/qore/infrastructure/traders/vt31_nas100_cognitive_telemetry.py             src/qore/infrastructure/traders/vt31_nas100_market_context_runtime.py             scripts/vt31_nas100_specialist_r1_candidate.py             scripts/vt31_nas100_comp010_live_context_adverse_exit_v1.py             scripts/vt31_nas100_cognitive_sensor_audit_v1.py
+          ruff check             src/qore/infrastructure/traders/vt31_nas100_cognitive_telemetry.py             src/qore/infrastructure/traders/vt31_nas100_post_entry_cognitive_runtime.py             src/qore/infrastructure/traders/vt31_nas100_market_context_runtime.py             scripts/vt31_nas100_specialist_r1_candidate.py             scripts/vt31_nas100_comp010_live_context_adverse_exit_v1.py             scripts/vt31_nas100_cognitive_sensor_audit_v1.py             tests/infrastructure/test_vt31_nas100_post_entry_cognitive_runtime.py             tests/infrastructure/test_vt31_nas100_market_context_h4.py
           pytest -q -o addopts='' tests/infrastructure/test_vt31_nas100_post_entry_cognitive_runtime.py tests/infrastructure/test_vt31_nas100_market_context_h4.py
           python - <<'PY'
           from qore.infrastructure.traders.vt31_nas100_cognitive_telemetry import (
@@ -139,6 +139,8 @@ jobs:
           assert x["sensor_integrity"]["required_action_unobserved_count"] == 0
           assert x["sensor_integrity"]["required_action_not_executed_count"] == 0
           assert x["sensor_integrity"]["required_action_not_routed_count"] == 0
+          assert x["input_sensor"]["unresolved_field_counts"].get("observation.h4_state", 0) == 0
+          assert x["cognition_sensor"]["maximum_intelligence_blocker_counts"].get("H4_CONTEXT_UNAVAILABLE", 0) == 0
           assert x["governance"]["read_only"] is True
           assert x["governance"]["fresh_holdout_opened"] is False
           assert x["governance"]["candidate_certified"] is False
