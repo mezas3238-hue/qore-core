@@ -85,6 +85,7 @@ def _build_lifecycle_map(
         if not isinstance(opportunity, dict):
             raise ValueError("lifecycle trader opportunity missing")
         outcome = manifest_row_to_shadow_outcome_observation(raw)
+        native_defensive_applied = False
         if native_defensive_only:
             if (
                 native_recommend_by_signal is None
@@ -93,10 +94,11 @@ def _build_lifecycle_map(
                 raise ValueError(
                     "native-defensive lifecycle requires exact Native map"
                 )
+            native_defensive_applied = not native_recommend_by_signal[signal]
             row_features = (
-                frozenset()
-                if native_recommend_by_signal[signal]
-                else features
+                features
+                if native_defensive_applied
+                else frozenset()
             )
         else:
             row_features = features
@@ -133,7 +135,8 @@ def _build_lifecycle_map(
             "data_available": managed.data_available,
             "actions": list(managed.actions),
             "events": managed.events,
-            "enabled_features": sorted(item.value for item in row_features),
+            "enabled_features": sorted(item.value for item in features),
+            "native_defensive_applied": native_defensive_applied,
             "adverse_loss_cut_r": format(adverse_loss_cut_r, "f"),
             "adverse_partial_fraction": format(
                 adverse_partial_fraction, "f"
