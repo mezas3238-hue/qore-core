@@ -830,6 +830,7 @@ def run_three_mode_trader_lab(
         Mapping[str, Mapping[str, object]] | None
     ) = None,
     lifecycle_defensive_medium_1x_only: bool = False,
+    lifecycle_defensive_medium_max_multiplier: int | None = None,
     lifecycle_defense_drawdown_trigger: Decimal | None = None,
     lifecycle_trader_loss_streak_trigger: int | None = None,
     lifecycle_bootstrap_capital_ceiling: Decimal | None = None,
@@ -864,6 +865,22 @@ def run_three_mode_trader_lab(
     if type(lifecycle_defensive_medium_1x_only) is not bool:
         raise CiboCapitalManagementError(
             "Trader Lab lifecycle defensive MEDIUM 1x switch must be bool"
+        )
+    if lifecycle_defensive_medium_max_multiplier is not None and (
+        not isinstance(lifecycle_defensive_medium_max_multiplier, int)
+        or isinstance(lifecycle_defensive_medium_max_multiplier, bool)
+        or lifecycle_defensive_medium_max_multiplier < 1
+        or lifecycle_defensive_medium_max_multiplier > 4
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab lifecycle defensive MEDIUM max multiplier must be int in [1, 4]"
+        )
+    if (
+        lifecycle_defensive_medium_1x_only
+        and lifecycle_defensive_medium_max_multiplier is not None
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab lifecycle defensive MEDIUM grade selectors are mutually exclusive"
         )
     if lifecycle_defense_drawdown_trigger is not None and (
         not isinstance(lifecycle_defense_drawdown_trigger, Decimal)
@@ -2915,10 +2932,18 @@ def run_three_mode_trader_lab(
                 )
                 source_reserved = stop_risk + provider_cost
             lifecycle_grade_allowed = (
-                not lifecycle_defensive_medium_1x_only
-                or (
+                (
                     candidate_mode is CiboTraderLabMode.MEDIUM
-                    and multiplier == 1
+                    and multiplier
+                    <= lifecycle_defensive_medium_max_multiplier
+                )
+                if lifecycle_defensive_medium_max_multiplier is not None
+                else (
+                    not lifecycle_defensive_medium_1x_only
+                    or (
+                        candidate_mode is CiboTraderLabMode.MEDIUM
+                        and multiplier == 1
+                    )
                 )
             )
             lifecycle_drawdown_allowed = (
@@ -3218,6 +3243,9 @@ def run_three_mode_trader_lab(
     )
     position_lifecycle_report["defensive_medium_1x_only"] = (
         lifecycle_defensive_medium_1x_only
+    )
+    position_lifecycle_report["defensive_medium_max_multiplier"] = (
+        lifecycle_defensive_medium_max_multiplier
     )
     position_lifecycle_report["drawdown_trigger"] = (
         None
@@ -3727,6 +3755,9 @@ def run_three_mode_trader_lab(
             "position_lifecycle_consumed": bool(lifecycle_map),
             "position_lifecycle_defensive_medium_1x_only": (
                 lifecycle_defensive_medium_1x_only
+            ),
+            "position_lifecycle_defensive_medium_max_multiplier": (
+                lifecycle_defensive_medium_max_multiplier
             ),
             "position_lifecycle_drawdown_trigger": (
                 None
