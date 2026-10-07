@@ -905,6 +905,8 @@ def run_three_mode_trader_lab(
     ceiling_attack_loss_streak_taper_fraction: Decimal = Decimal("0.50"),
     ceiling_attack_drawdown_taper_trigger: Decimal | None = None,
     ceiling_attack_drawdown_taper_fraction: Decimal = Decimal("0.50"),
+    ceiling_portfolio_shock_trigger_fraction: Decimal | None = None,
+    ceiling_portfolio_shock_taper_fraction: Decimal = Decimal("0.50"),
     compound_profit_reinvestment_fraction: Decimal | None = None,
     collect_engineering_trace: bool = True,
     collect_epoch_receipts: bool = True,
@@ -1100,6 +1102,31 @@ def run_three_mode_trader_lab(
     ):
         raise CiboCapitalManagementError(
             "Trader Lab ceiling ATTACK drawdown taper requires ceiling discovery mode"
+        )
+    if ceiling_portfolio_shock_trigger_fraction is not None and (
+        not isinstance(ceiling_portfolio_shock_trigger_fraction, Decimal)
+        or not ceiling_portfolio_shock_trigger_fraction.is_finite()
+        or ceiling_portfolio_shock_trigger_fraction <= 0
+        or ceiling_portfolio_shock_trigger_fraction > Decimal("0.50")
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab ceiling Portfolio shock trigger must be Decimal in (0, 0.50]"
+        )
+    if (
+        not isinstance(ceiling_portfolio_shock_taper_fraction, Decimal)
+        or not ceiling_portfolio_shock_taper_fraction.is_finite()
+        or ceiling_portfolio_shock_taper_fraction <= 0
+        or ceiling_portfolio_shock_taper_fraction > 1
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab ceiling Portfolio shock taper fraction must be Decimal in (0, 1]"
+        )
+    if (
+        ceiling_portfolio_shock_trigger_fraction is not None
+        and not ceiling_discovery_mode
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab ceiling Portfolio shock taper requires ceiling discovery mode"
         )
     if compound_profit_reinvestment_fraction is not None and (
         not isinstance(compound_profit_reinvestment_fraction, Decimal)
@@ -1542,6 +1569,8 @@ def run_three_mode_trader_lab(
     robust_leverage_cap_bind_count = 0
     attack_loss_streak_taper_bind_count = 0
     attack_drawdown_taper_bind_count = 0
+    portfolio_attack_shock_taper_bind_count = 0
+    portfolio_last_attack_loss_fraction = Decimal(0)
     attack_epochs_funded = 0
     mode_reason_counts: Counter[str] = Counter()
     sizing_intensity_cap_counts: Counter[str] = Counter()
@@ -1835,6 +1864,7 @@ def run_three_mode_trader_lab(
         nonlocal attack_winning_trade_count, attack_losing_trade_count
         nonlocal attack_flat_trade_count
         nonlocal attack_gross_profit_usd, attack_gross_loss_usd
+        nonlocal portfolio_last_attack_loss_fraction
 
         def due_at(trade: CiboThreeModeOpenTrade) -> datetime:
             if (
@@ -2168,6 +2198,11 @@ def run_three_mode_trader_lab(
                 trader_loss_streak[trade.trader_id] = 0
             if trade.mode is CiboTraderLabMode.ATTACK:
                 if settled_trade_net < 0:
+                    portfolio_last_attack_loss_fraction = (
+                        (-settled_trade_net) / before_total
+                        if before_total > 0
+                        else Decimal("0.50")
+                    )
                     trader_attack_loss_streak[trade.trader_id] += 1
                     attack_losing_trade_count += 1
                     attack_gross_loss_usd += -settled_trade_net
@@ -2178,6 +2213,7 @@ def run_three_mode_trader_lab(
                         -settled_trade_net
                     )
                 elif settled_trade_net > 0:
+                    portfolio_last_attack_loss_fraction = Decimal(0)
                     trader_attack_loss_streak[trade.trader_id] = 0
                     attack_winning_trade_count += 1
                     attack_gross_profit_usd += settled_trade_net
@@ -2188,6 +2224,7 @@ def run_three_mode_trader_lab(
                         settled_trade_net
                     )
                 else:
+                    portfolio_last_attack_loss_fraction = Decimal(0)
                     trader_attack_loss_streak[trade.trader_id] = 0
                     attack_flat_trade_count += 1
 
@@ -3037,10 +3074,30 @@ def run_three_mode_trader_lab(
                     ):
                         with localcontext() as context:
                             context.prec = 100
+                            effective_single_trade_risk_fraction = (
+                                ceiling_attack_single_trade_risk_fraction
+                            )
+                            if (
+                                ceiling_attack_drawdown_taper_trigger is not None
+                                and total_drawdown_utilization
+                                >= ceiling_attack_drawdown_taper_trigger
+                            ):
+                                effective_single_trade_risk_fraction *= (
+                                    ceiling_attack_drawdown_taper_fraction
+                                )
+                            if (
+                                ceiling_portfolio_shock_trigger_fraction is not None
+                                and portfolio_last_attack_loss_fraction
+                                >= ceiling_portfolio_shock_trigger_fraction
+                            ):
+                                effective_single_trade_risk_fraction *= (
+                                    ceiling_portfolio_shock_taper_fraction
+                                )
+                                portfolio_attack_shock_taper_bind_count += 1
                             single_trade_risk_budget_usd = max(
                                 Decimal(0),
                                 state.total_capital_usd
-                                * ceiling_attack_single_trade_risk_fraction,
+                                * effective_single_trade_risk_fraction,
                             )
                             ceiling_single_trade_risk_cap = max(
                                 0,
@@ -4059,6 +4116,20 @@ def run_three_mode_trader_lab(
             ),
             "attack_drawdown_taper_bind_count": (
                 attack_drawdown_taper_bind_count
+            ),
+            "ceiling_portfolio_shock_trigger_fraction": (
+                None
+                if ceiling_portfolio_shock_trigger_fraction is None
+                else format(ceiling_portfolio_shock_trigger_fraction, "f")
+            ),
+            "ceiling_portfolio_shock_taper_fraction": format(
+                ceiling_portfolio_shock_taper_fraction, "f"
+            ),
+            "portfolio_last_attack_loss_fraction": format(
+                portfolio_last_attack_loss_fraction, "f"
+            ),
+            "portfolio_attack_shock_taper_bind_count": (
+                portfolio_attack_shock_taper_bind_count
             ),
             "ending_trader_attack_loss_streaks": {
                 key: int(value)
