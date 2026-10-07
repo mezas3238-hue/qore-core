@@ -372,6 +372,16 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--ceiling-attack-single-trade-risk-fraction",
+        type=Decimal,
+        default=None,
+        help=(
+            "Trader-Lab-only ATTACK per-trade loss-exposure cap. "
+            "Limits incremental ATTACK scaling so source risk per trade "
+            "cannot exceed this fraction of current total capital."
+        ),
+    )
+    parser.add_argument(
         "--compound-profit-reinvestment-fraction",
         type=Decimal,
         default=None,
@@ -752,6 +762,9 @@ def main() -> int:
         ),
         ceiling_attack_drawdown_budget_fraction=(
             args.ceiling_attack_drawdown_budget_fraction
+        ),
+        ceiling_attack_single_trade_risk_fraction=(
+            args.ceiling_attack_single_trade_risk_fraction
         ),
         compound_profit_reinvestment_fraction=(
             args.compound_profit_reinvestment_fraction
