@@ -1803,13 +1803,25 @@ def run_three_mode_trader_lab(
             total_drawdown_utilization=total_drawdown_utilization,
             distributed_attack_frontier=distributed_attack_frontier,
         )
+        if (
+            four_engine_cooperation_frontier
+            and mode is CiboTraderLabMode.ATTACK
+        ):
+            # This research lane measures cooperation itself, not ATTACK.
+            # Preserve the Trader's base entry and route the whole population
+            # through the same four-engine economic chain.
+            mode = CiboTraderLabMode.MEDIUM
+            mode_reasons = (
+                *mode_reasons,
+                "FOUR_ENGINE_COOPERATION_ISOLATES_ATTACK",
+            )
         mode_counts[mode.value] += 1
         for reason in mode_reasons:
             mode_reason_counts[reason] += 1
         portfolio_calls += 1
         minimum_attack_cushion = (
             Decimal(0)
-            if best is None
+            if best is None or four_engine_cooperation_frontier
             else (
                 best.source_cost_per_multiplier_usd
                 * Decimal(ATTACK_MINIMUM_MULTIPLIER)
