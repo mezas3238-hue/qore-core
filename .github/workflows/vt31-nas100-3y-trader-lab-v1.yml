@@ -8,6 +8,7 @@ on:
       - scripts/vt31_nas100_3y_evidence_probe_v1.py
       - scripts/vt31_nas100_3y_replay_v1.py
       - scripts/vt31_nas100_3y_adjudicator_v1.py
+      - scripts/vt31_nas100_3y_density_frontier_v1.py
       - .github/workflows/vt31-nas100-3y-trader-lab-v1.yml
   workflow_dispatch:
 
@@ -48,8 +49,10 @@ jobs:
         run: |
           set -euo pipefail
           python scripts/vt31_nas100_3y_evidence_probe_v1.py --self-test
-          python -m py_compile             scripts/vt31_nas100_3y_evidence_probe_v1.py             scripts/vt31_nas100_3y_replay_v1.py             scripts/vt31_nas100_3y_adjudicator_v1.py
-          ruff check             scripts/vt31_nas100_3y_evidence_probe_v1.py             scripts/vt31_nas100_3y_replay_v1.py             scripts/vt31_nas100_3y_adjudicator_v1.py
+          python -m py_compile             scripts/vt31_nas100_3y_evidence_probe_v1.py             scripts/vt31_nas100_3y_replay_v1.py             scripts/vt31_nas100_3y_adjudicator_v1.py \
+            scripts/vt31_nas100_3y_density_frontier_v1.py
+          ruff check             scripts/vt31_nas100_3y_evidence_probe_v1.py             scripts/vt31_nas100_3y_replay_v1.py             scripts/vt31_nas100_3y_adjudicator_v1.py \
+            scripts/vt31_nas100_3y_density_frontier_v1.py
 
       - name: Resolve canonical single 3Y evidence
         id: evidence
@@ -133,6 +136,14 @@ jobs:
         run: |
           set -euo pipefail
           PYTHONPATH=scripts python scripts/vt31_nas100_3y_adjudicator_v1.py             result/3y-replay.json             --output result/3y-adjudication.json             | tee result/3y-adjudication-summary.json
+
+      - name: Run causal admission-density frontier
+        run: |
+          set -euo pipefail
+          PYTHONPATH=scripts python scripts/vt31_nas100_3y_density_frontier_v1.py \
+            input/NAS100/market-evidence.json \
+            --output result/3y-density-frontier.json \
+            | tee result/3y-density-frontier-summary.json
 
       - name: Governance
         run: |
