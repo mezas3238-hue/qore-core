@@ -142,6 +142,7 @@ def run_cibo_position_lifecycle(
     adverse_loss_cut_max_elapsed_minutes: int | None = None,
     adverse_loss_cut_max_favorable_r: Decimal = Decimal("1"),
     adverse_loss_cut_close_fraction: Decimal = Decimal("1"),
+    adverse_loss_cut_second_stage_r: Decimal | None = None,
 ) -> CiboPositionLifecycleResult:
     """Evaluate one position using causal closed-bar lifecycle semantics."""
 
@@ -198,6 +199,17 @@ def run_cibo_position_lifecycle(
         raise CiboCapitalManagementError(
             "Lifecycle adverse loss-cut close fraction must be Decimal in (0, 1]"
         )
+    if adverse_loss_cut_second_stage_r is not None:
+        if (
+            not isinstance(adverse_loss_cut_second_stage_r, Decimal)
+            or not adverse_loss_cut_second_stage_r.is_finite()
+            or adverse_loss_cut_second_stage_r <= Decimal("-1")
+            or adverse_loss_cut_second_stage_r >= adverse_loss_cut_r
+        ):
+            raise CiboCapitalManagementError(
+                "Lifecycle second-stage adverse threshold must be Decimal "
+                "strictly between -1R and the first-stage threshold"
+            )
 
     risk_distance = abs(position.entry_price - position.structural_stop)
     target_r = abs(
@@ -260,8 +272,10 @@ def run_cibo_position_lifecycle(
     margin_fraction = Decimal(1)
     best_favorable_seen = Decimal("-Infinity")
     pending_adverse_loss_cut = False
+    pending_adverse_loss_cut_stage = 0
     adverse_loss_cut_confirmation_count = 0
     adverse_loss_reduction_done = False
+    adverse_loss_second_stage_done = False
 
     def favorable_adverse_close(
         bar: CiboLifecycleBar,
@@ -323,8 +337,13 @@ def run_cibo_position_lifecycle(
             )
             delta = close_fraction * open_r
             remaining -= close_fraction
-            adverse_loss_reduction_done = True
+            if pending_adverse_loss_cut_stage == 1:
+                adverse_loss_reduction_done = True
+            elif pending_adverse_loss_cut_stage == 2:
+                adverse_loss_second_stage_done = True
             pending_adverse_loss_cut = False
+            pending_adverse_loss_cut_stage = 0
+            adverse_loss_cut_confirmation_count = 0
             full_close = remaining <= 0
             append_event(
                 bar.opened_at,
@@ -426,14 +445,27 @@ def run_cibo_position_lifecycle(
             <= position.entry_at
             + timedelta(minutes=adverse_loss_cut_max_elapsed_minutes)
         )
+        adverse_stage = 0
+        adverse_stage_threshold: Decimal | None = None
+        if not adverse_loss_reduction_done:
+            adverse_stage = 1
+            adverse_stage_threshold = adverse_loss_cut_r
+        elif (
+            adverse_loss_cut_second_stage_r is not None
+            and not adverse_loss_second_stage_done
+            and remaining > 0
+        ):
+            adverse_stage = 2
+            adverse_stage_threshold = adverse_loss_cut_second_stage_r
+
         if (
             CiboLifecycleFeature.ADVERSE_LOSS_CUT in features
-            and not adverse_loss_reduction_done
+            and adverse_stage_threshold is not None
             and best_favorable_seen < adverse_loss_cut_max_favorable_r
             and bar.closed_at < position.horizon_at
             and adverse_cut_window_open
         ):
-            if close_r <= adverse_loss_cut_r:
+            if close_r <= adverse_stage_threshold:
                 adverse_loss_cut_confirmation_count += 1
             else:
                 adverse_loss_cut_confirmation_count = 0
@@ -442,6 +474,7 @@ def run_cibo_position_lifecycle(
                 >= adverse_loss_cut_confirmation_bars
             ):
                 pending_adverse_loss_cut = True
+                pending_adverse_loss_cut_stage = adverse_stage
         else:
             adverse_loss_cut_confirmation_count = 0
 

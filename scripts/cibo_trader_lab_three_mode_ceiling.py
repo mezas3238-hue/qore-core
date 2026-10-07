@@ -59,6 +59,7 @@ def _build_lifecycle_map(
     adverse_loss_cut_max_elapsed_minutes: int | None,
     adverse_loss_cut_max_favorable_r: Decimal,
     adverse_loss_cut_close_fraction: Decimal,
+    adverse_loss_cut_second_stage_r: Decimal | None,
     adverse_loss_cut_trader_ids: frozenset[str],
 ) -> dict[str, dict[str, object]]:
     if not roots:
@@ -136,6 +137,9 @@ def _build_lifecycle_map(
             adverse_loss_cut_close_fraction=(
                 adverse_loss_cut_close_fraction
             ),
+            adverse_loss_cut_second_stage_r=(
+                adverse_loss_cut_second_stage_r
+            ),
         )
         result[signal] = {
             "original_gross_r": format(outcome.gross_structural_outcome_r, "f"),
@@ -162,6 +166,11 @@ def _build_lifecycle_map(
             ),
             "adverse_loss_cut_close_fraction": format(
                 adverse_loss_cut_close_fraction, "f"
+            ),
+            "adverse_loss_cut_second_stage_r": (
+                None
+                if adverse_loss_cut_second_stage_r is None
+                else format(adverse_loss_cut_second_stage_r, "f")
             ),
             "risk_released_before_exit_fraction": format(
                 managed.risk_released_before_exit_fraction, "f"
@@ -239,6 +248,16 @@ def main() -> int:
         help=(
             "Fraction of the live position causally reduced at an adverse "
             "loss-cut event. 1.0 preserves the full-close experiment."
+        ),
+    )
+    parser.add_argument(
+        "--lifecycle-adverse-loss-cut-second-stage-r",
+        type=Decimal,
+        default=None,
+        help=(
+            "Optional deeper second-stage adverse threshold. After a partial "
+            "first reduction, persistent deterioration to this level can "
+            "causally close the remaining live fraction."
         ),
     )
     parser.add_argument(
@@ -346,6 +365,9 @@ def main() -> int:
         ),
         adverse_loss_cut_close_fraction=(
             args.lifecycle_adverse_loss_cut_close_fraction
+        ),
+        adverse_loss_cut_second_stage_r=(
+            args.lifecycle_adverse_loss_cut_second_stage_r
         ),
         adverse_loss_cut_trader_ids=frozenset(
             args.lifecycle_adverse_loss_cut_trader_id
@@ -639,6 +661,13 @@ def main() -> int:
     result["position_lifecycle_report"][
         "adverse_loss_cut_trader_ids"
     ] = sorted(set(args.lifecycle_adverse_loss_cut_trader_id))
+    result["position_lifecycle_report"][
+        "adverse_loss_cut_second_stage_r"
+    ] = (
+        None
+        if args.lifecycle_adverse_loss_cut_second_stage_r is None
+        else format(args.lifecycle_adverse_loss_cut_second_stage_r, "f")
+    )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
         json.dumps(result, indent=2, sort_keys=True) + "\n",
