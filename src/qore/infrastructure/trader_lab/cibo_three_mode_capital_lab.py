@@ -942,6 +942,7 @@ def run_three_mode_trader_lab(
     ceiling_discovery_mode: bool = False,
     ceiling_growth_leverage_slope: Decimal | None = None,
     ceiling_attack_drawdown_budget_fraction: Decimal | None = None,
+    ceiling_attack_drawdown_budget_capital_ceiling: Decimal | None = None,
     ceiling_attack_single_trade_risk_fraction: Decimal | None = None,
     ceiling_attack_loss_streak_trigger: int | None = None,
     ceiling_attack_loss_streak_taper_fraction: Decimal = Decimal("0.50"),
@@ -1199,6 +1200,14 @@ def run_three_mode_trader_lab(
     ):
         raise CiboCapitalManagementError(
             "Trader Lab ceiling ATTACK drawdown budget fraction must be Decimal in (0, 0.50]"
+        )
+    if ceiling_attack_drawdown_budget_capital_ceiling is not None and (
+        not isinstance(ceiling_attack_drawdown_budget_capital_ceiling, Decimal)
+        or not ceiling_attack_drawdown_budget_capital_ceiling.is_finite()
+        or ceiling_attack_drawdown_budget_capital_ceiling <= 0
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab ceiling ATTACK drawdown budget capital ceiling must be positive Decimal"
         )
     if (
         ceiling_attack_drawdown_budget_fraction is not None
@@ -3377,12 +3386,18 @@ def run_three_mode_trader_lab(
             total_drawdown_usd,
             state.peak_total_capital_usd,
         )
+        ceiling_attack_drawdown_budget_active = (
+            ceiling_discovery_mode
+            and ceiling_attack_drawdown_budget_fraction is not None
+            and (
+                ceiling_attack_drawdown_budget_capital_ceiling is None
+                or state.total_capital_usd
+                <= ceiling_attack_drawdown_budget_capital_ceiling
+            )
+        )
         attack_drawdown_budget_fraction = (
             ceiling_attack_drawdown_budget_fraction
-            if (
-                ceiling_discovery_mode
-                and ceiling_attack_drawdown_budget_fraction is not None
-            )
+            if ceiling_attack_drawdown_budget_active
             else ATTACK_PORTFOLIO_DRAWDOWN_BUDGET
         )
         with localcontext() as context:
@@ -3400,7 +3415,7 @@ def run_three_mode_trader_lab(
             state.attack_credit_available_usd
             if (
                 ceiling_discovery_mode
-                and ceiling_attack_drawdown_budget_fraction is None
+                and not ceiling_attack_drawdown_budget_active
             )
             else min(
                 state.attack_credit_available_usd,
@@ -4203,8 +4218,7 @@ def run_three_mode_trader_lab(
                                 )
                     ceiling_drawdown_risk_cap = candidate.maximum_multiplier
                     if (
-                        ceiling_discovery_mode
-                        and ceiling_attack_drawdown_budget_fraction is not None
+                        ceiling_attack_drawdown_budget_active
                     ):
                         with localcontext() as context:
                             context.prec = 100
