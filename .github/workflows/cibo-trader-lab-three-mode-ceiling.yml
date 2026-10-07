@@ -275,6 +275,20 @@ jobs:
             --medium-multiplier-cap 3 \
             --output "$RUNNER_TEMP/result/cibo-three-mode-attack8-medium3.json"
 
+      - name: Run coordinated economic group
+        run: |
+          set -euo pipefail
+          python scripts/cibo_trader_lab_three_mode_ceiling.py \
+            --manifest "$MANIFEST" \
+            --baseline-replay "$BASELINE" \
+            --historical-manifest "$HISTORICAL_MANIFEST" \
+            --historical-replay "$HISTORICAL_REPLAY" \
+            --distributed-attack-frontier \
+            --attack-multiplier-cap 8 \
+            --medium-multiplier-cap 4 \
+            --coordinated-economic-group \
+            --output "$RUNNER_TEMP/result/cibo-three-mode-economic-group.json"
+
       - name: Run causal lifecycle custody
         run: |
           set -euo pipefail
@@ -546,6 +560,38 @@ jobs:
               assert frontier["governance"]["outcome_used_for_predecision"] is False
               assert Decimal(frontier["attack_sovereign_breach_usd"]) == 0
 
+          economic_group = json.loads(
+              (
+                  Path(os.environ["RUNNER_TEMP"])
+                  / "result"
+                  / "cibo-three-mode-economic-group.json"
+              ).read_text()
+          )
+          assert economic_group["research_lane"] == (
+              "HISTORICAL_PRIOR_NATIVE_COORDINATED_ECONOMIC_GROUP"
+          )
+          assert economic_group["decision_count"] == 3368
+          assert economic_group["trade_count"] == 3368
+          assert economic_group["governance"]["coordinated_economic_group"] is True
+          assert economic_group["economic_group_report"]["enabled"] is True
+          assert economic_group["economic_group_report"]["all_entries_preserved"] is True
+          assert economic_group["economic_group_report"]["handoff_chain"] == [
+              "SIZING",
+              "CIBO_COMPOUND",
+              "COMPOUND_PORTFOLIO",
+              "ADAPTIVE_LEVERAGE",
+          ]
+          assert economic_group["engineering_sensor_report"]["execution_funnel"][
+              "sizing_medium_rejected_count"
+          ] == 0
+          assert economic_group["engineering_sensor_report"]["execution_funnel"][
+              "sizing_medium_deferred_count"
+          ] == 0
+          assert economic_group["engineering_sensor_report"]["execution_funnel"][
+              "compound_portfolio_withheld_before_execution_engine_count"
+          ] == 0
+          assert economic_group["governance"]["outcome_used_for_predecision"] is False
+
           lifecycle = json.loads(
               (
                   Path(os.environ["RUNNER_TEMP"])
@@ -710,6 +756,7 @@ jobs:
             ${{ runner.temp }}/result/cibo-three-mode-attack8-medium1.json
             ${{ runner.temp }}/result/cibo-three-mode-attack8-medium2.json
             ${{ runner.temp }}/result/cibo-three-mode-attack8-medium3.json
+            ${{ runner.temp }}/result/cibo-three-mode-economic-group.json
             ${{ runner.temp }}/result/cibo-three-mode-lifecycle-custody.json
             ${{ runner.temp }}/result/cibo-three-mode-lifecycle-breakeven.json
             ${{ runner.temp }}/result/cibo-three-mode-lifecycle-profit-lock.json
