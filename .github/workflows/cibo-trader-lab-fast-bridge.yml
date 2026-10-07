@@ -1,0 +1,27 @@
+name: QORE CIBO -> GitHub Trader Lab Fast
+
+on:
+  push:
+    branches:
+      - agent/cibo-causal-expectation-leakage-fix-001
+    paths:
+      - 'src/qore/infrastructure/cibo_*.py'
+      - 'src/qore/infrastructure/trader_lab/cibo_*.py'
+      - 'scripts/cibo_*.py'
+      - '.github/workflows/cibo-trader-lab-fast-bridge.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-cibo-fast-lab-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fast-trader-lab:
+    uses: mezas3238-hue/qore-core/.github/workflows/github-trader-lab-fast.yml@agent/github-trader-lab-001
+    with:
+      profile_path: tools/github_trader_lab/profiles/cibo-capital-repair.json
+      subject_ref: ${{ github.sha }}
