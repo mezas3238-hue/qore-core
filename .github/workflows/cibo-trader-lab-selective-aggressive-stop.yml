@@ -1,5 +1,7 @@
 name: QORE CIBO Selective Aggressive Stop Frontier
 
+# Reproducibility replay on current CIBO HEAD
+
 on:
   workflow_dispatch:
   push:
