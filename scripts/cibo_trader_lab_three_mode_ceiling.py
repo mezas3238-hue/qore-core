@@ -33,6 +33,7 @@ def main() -> int:
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
     baseline = None
     cognitive_recommend_by_signal = None
+    native_profile_by_signal = None
     historical_prior_by_signal = None
     if args.baseline_replay is not None:
         payload = json.loads(
@@ -42,12 +43,76 @@ def main() -> int:
         decisions = payload.get("decision_receipts")
         if not isinstance(decisions, list):
             raise ValueError("baseline replay decision receipts missing")
-        cognitive_recommend_by_signal = {
-            str(item["signal_fingerprint"]): (
-                str(item["capital_disposition"]) != "COGNITIVE_BLOCK"
-            )
-            for item in decisions
-        }
+        cognitive_recommend_by_signal = {}
+        native_profile_by_signal = {}
+        for item in decisions:
+            signal = str(item["signal_fingerprint"])
+            sensors = item.get("cognitive_sensors")
+            if not isinstance(sensors, list):
+                raise ValueError("baseline cognitive sensors missing")
+            by_code = {
+                str(sensor.get("component_code")): sensor
+                for sensor in sensors
+                if isinstance(sensor, dict)
+            }
+            required = {
+                "EXECUTIVE_SYNTHESIS",
+                "REASONING_ROUTING",
+                "CALIBRATION",
+                "SCENARIO_ENGINE",
+                "METACOGNITION",
+                "ATTENTION_CONTEXT",
+            }
+            if not required.issubset(by_code):
+                raise ValueError(
+                    "baseline cognitive sensor surface incomplete"
+                )
+
+            def metrics(code: str) -> dict[str, str]:
+                raw = by_code[code].get("output_metrics")
+                if not isinstance(raw, list):
+                    raise ValueError(
+                        f"cognitive output metrics malformed for {code}"
+                    )
+                return {
+                    str(pair[0]): str(pair[1])
+                    for pair in raw
+                    if isinstance(pair, list) and len(pair) == 2
+                }
+
+            executive = str(by_code["EXECUTIVE_SYNTHESIS"].get("status"))
+            calibration = metrics("CALIBRATION")
+            scenario = metrics("SCENARIO_ENGINE")
+            attention = metrics("ATTENTION_CONTEXT")
+            recommended = executive == "recommend"
+            cognitive_recommend_by_signal[signal] = recommended
+            native_profile_by_signal[signal] = {
+                "executive_synthesis": executive,
+                "reasoning_routing": str(
+                    by_code["REASONING_ROUTING"].get("status")
+                ),
+                "calibration": str(
+                    by_code["CALIBRATION"].get("status")
+                ),
+                "confidence_band": int(
+                    calibration.get("confidence_band", "0")
+                ),
+                "scenario_abstained_count": int(
+                    scenario.get("abstained_count", "0")
+                ),
+                "metacognition": str(
+                    by_code["METACOGNITION"].get("status")
+                ),
+                "attention_ranked_signal_count": int(
+                    attention.get("ranked_signal_count", "0")
+                ),
+                "native_maximum_intelligence": bool(
+                    item.get("native_maximum_intelligence", False)
+                ),
+                "full_semantics_consumed": bool(
+                    item.get("full_semantics_consumed", False)
+                ),
+            }
 
     if args.historical_manifest is not None:
         historical = json.loads(
@@ -126,6 +191,7 @@ def main() -> int:
         manifest,
         baseline_ending_capital_usd=baseline,
         cognitive_recommend_by_signal=cognitive_recommend_by_signal,
+        native_profile_by_signal=native_profile_by_signal,
         historical_prior_by_signal=historical_prior_by_signal,
         enforce_research_context_abstain=args.enforce_context_abstain,
     )
