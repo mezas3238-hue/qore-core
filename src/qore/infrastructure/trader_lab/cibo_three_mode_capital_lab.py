@@ -2162,6 +2162,22 @@ def run_three_mode_trader_lab(
                         if candidate.native_cognition_recommended
                         else MEDIUM_DEFENSIVE_RISK_FRACTION
                     )
+                    cooperative_portfolio_growth_candidate = (
+                        four_engine_cooperation_frontier
+                        and active_portfolio_context
+                        and active_portfolio_edge > 0
+                        and candidate.expected_net_utility_usd > 0
+                        and candidate.native_cognition_recommended
+                    )
+                    if cooperative_portfolio_growth_candidate:
+                        # Portfolio identifies the causal destination for
+                        # incremental capital; Sizing then expresses that
+                        # allocation as a risk budget rather than independently
+                        # re-vetoing the same economic signal.
+                        medium_risk_fraction = max(
+                            medium_risk_fraction,
+                            MEDIUM_RECOMMEND_RISK_FRACTION,
+                        )
                     if total_drawdown_utilization >= ECONOMIC_DRAWDOWN_CEILING:
                         medium_drawdown_scale = Decimal("0.0625")
                     elif total_drawdown_utilization >= Decimal("0.20"):
@@ -2321,10 +2337,7 @@ def run_three_mode_trader_lab(
                             compound_multiplier_cap > 1
                         )
                         portfolio_growth_allowed = (
-                            active_portfolio_context
-                            and active_portfolio_edge > 0
-                            and candidate.expected_net_utility_usd > 0
-                            and candidate.native_cognition_recommended
+                            cooperative_portfolio_growth_candidate
                         )
                         portfolio_multiplier_cap = (
                             min(
@@ -3636,6 +3649,9 @@ def run_three_mode_trader_lab(
             ),
             "four_engine_lifecycle_source_provenance_split": (
                 four_engine_cooperation_frontier and bool(lifecycle_map)
+            ),
+            "four_engine_portfolio_aligned_sizing": (
+                four_engine_cooperation_frontier
             ),
             "four_engine_cooperation_law": (
                 "TRADER_1X_INHERITED; SIZING_DIMENSIONS_PHYSICAL_RISK_MARGIN_"
