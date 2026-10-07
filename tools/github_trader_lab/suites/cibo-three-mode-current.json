@@ -1,0 +1,70 @@
+{
+  "schema": "qore.github-trader-lab.cibo-three-mode-suite.v1",
+  "cases": [
+    {
+      "name": "COORDINATED_75_BASELINE",
+      "uses_atlas": false,
+      "args": [
+        "--distributed-attack-frontier",
+        "--attack-multiplier-cap",
+        "8",
+        "--medium-multiplier-cap",
+        "4",
+        "--coordinated-economic-group",
+        "--economic-group-bootstrap-cushion-share",
+        "0.75"
+      ]
+    },
+    {
+      "name": "COORDINATED_LOSS_CUT_070",
+      "uses_atlas": true,
+      "args": [
+        "--lifecycle-feature",
+        "ADVERSE_LOSS_CUT",
+        "--lifecycle-adverse-loss-cut-r=-0.70",
+        "--distributed-attack-frontier",
+        "--attack-multiplier-cap",
+        "8",
+        "--medium-multiplier-cap",
+        "4",
+        "--coordinated-economic-group",
+        "--economic-group-bootstrap-cushion-share",
+        "0.75"
+      ]
+    },
+    {
+      "name": "COORDINATED_LOSS_CUT_080",
+      "uses_atlas": true,
+      "args": [
+        "--lifecycle-feature",
+        "ADVERSE_LOSS_CUT",
+        "--lifecycle-adverse-loss-cut-r=-0.80",
+        "--distributed-attack-frontier",
+        "--attack-multiplier-cap",
+        "8",
+        "--medium-multiplier-cap",
+        "4",
+        "--coordinated-economic-group",
+        "--economic-group-bootstrap-cushion-share",
+        "0.75"
+      ]
+    },
+    {
+      "name": "COORDINATED_LOSS_CUT_090",
+      "uses_atlas": true,
+      "args": [
+        "--lifecycle-feature",
+        "ADVERSE_LOSS_CUT",
+        "--lifecycle-adverse-loss-cut-r=-0.90",
+        "--distributed-attack-frontier",
+        "--attack-multiplier-cap",
+        "8",
+        "--medium-multiplier-cap",
+        "4",
+        "--coordinated-economic-group",
+        "--economic-group-bootstrap-cushion-share",
+        "0.75"
+      ]
+    }
+  ]
+}
