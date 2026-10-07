@@ -111,6 +111,7 @@ def _build_lifecycle_map(
             "managed_exit_at": managed.exit_at.isoformat(),
             "data_available": managed.data_available,
             "actions": list(managed.actions),
+            "events": managed.events,
             "enabled_features": sorted(item.value for item in features),
             "risk_released_before_exit_fraction": format(
                 managed.risk_released_before_exit_fraction, "f"

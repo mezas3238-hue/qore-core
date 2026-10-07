@@ -48,6 +48,7 @@ from qore.infrastructure.cibo_single_account_manifest_integrity import (
 from qore.infrastructure.cibo_protected_reinvestment_policy import (
     MAX_CAPITAL_NEED_TO_CURRENT_CAPITAL_RATIO,
 )
+from qore.infrastructure.cibo_position_lifecycle import CiboLifecycleEvent
 from qore.infrastructure.cibo_single_account_manifest_settlement import (
     manifest_row_to_shadow_outcome_observation,
 )
@@ -137,6 +138,10 @@ class CiboThreeModeOpenTrade:
     provider_cost_usd: Decimal
     source_reserved_usd: Decimal
     bank_seed_usd: Decimal | None = None
+    lifecycle_events: tuple[CiboLifecycleEvent, ...] = ()
+    lifecycle_event_index: int = 0
+    lifecycle_risk_fraction_remaining: Decimal = Decimal(1)
+    lifecycle_margin_fraction_remaining: Decimal = Decimal(1)
 
 
 @dataclass(slots=True)
@@ -873,6 +878,12 @@ def run_three_mode_trader_lab(
                 or not isinstance(profile.get("managed_exit_at"), str)
                 or not isinstance(profile.get("actions"), (list, tuple))
                 or not isinstance(profile.get("enabled_features"), (list, tuple))
+                or not isinstance(profile.get("events"), (list, tuple))
+                or not profile.get("events")
+                or any(
+                    not isinstance(item, CiboLifecycleEvent)
+                    for item in profile["events"]
+                )
             ):
                 raise CiboCapitalManagementError(
                     f"Trader Lab lifecycle profile malformed for {signal}"
@@ -1280,21 +1291,134 @@ def run_three_mode_trader_lab(
             }
         )
 
+    def _apply_lifecycle_realization(
+        trade: CiboThreeModeOpenTrade,
+        *,
+        net_pnl: Decimal,
+        released_risk_usd: Decimal,
+        released_margin_usd: Decimal,
+        final_event: bool,
+    ) -> None:
+        state.open_stop_risk_usd = max(
+            Decimal(0),
+            state.open_stop_risk_usd - released_risk_usd,
+        )
+        state.open_margin_usd = max(
+            Decimal(0),
+            state.open_margin_usd - released_margin_usd,
+        )
+
+        if trade.mode is CiboTraderLabMode.MEDIUM:
+            state.sovereign_reserved_usd = max(
+                Decimal(0),
+                state.sovereign_reserved_usd - released_risk_usd,
+            )
+            if final_event:
+                state.sovereign_reserved_usd = max(
+                    Decimal(0),
+                    state.sovereign_reserved_usd - trade.provider_cost_usd,
+                )
+                bank_seed = trade.bank_seed_usd or Decimal(0)
+                state.bank_seed_reserved_usd = max(
+                    Decimal(0),
+                    state.bank_seed_reserved_usd - bank_seed,
+                )
+                state.bank_seed_recycled_total_usd += bank_seed
+                state.medium_compound_turnover_usd += (
+                    trade.source_reserved_usd
+                )
+
+            if net_pnl > 0:
+                recovery = (
+                    min(
+                        net_pnl,
+                        state.medium_compound_recovery_deficit_usd,
+                    )
+                    if use_historical_prior
+                    else Decimal(0)
+                )
+                if recovery > 0:
+                    state.sovereign_bank_usd += recovery
+                    state.medium_compound_recovery_deficit_usd -= recovery
+                    state.medium_compound_recovered_usd += recovery
+                distributable = net_pnl - recovery
+                sovereign_gain = (
+                    distributable * MEDIUM_SOVEREIGN_SHARE
+                )
+                cushion_gain = distributable - sovereign_gain
+                state.sovereign_bank_usd += sovereign_gain
+                state.portfolio_cushion_usd += cushion_gain
+                state.portfolio_attack_credit_usd += cushion_gain
+                state.medium_profit_to_sovereign_usd += sovereign_gain
+                state.medium_profit_to_cushion_usd += cushion_gain
+                state.medium_compound_positive_net_usd += net_pnl
+            elif net_pnl < 0:
+                state.sovereign_bank_usd += net_pnl
+                if use_historical_prior:
+                    state.medium_compound_recovery_deficit_usd += -net_pnl
+                state.medium_compound_negative_net_usd += -net_pnl
+
+        elif trade.mode is CiboTraderLabMode.ATTACK:
+            state.cushion_reserved_usd = max(
+                Decimal(0),
+                state.cushion_reserved_usd - released_risk_usd,
+            )
+            if final_event:
+                state.cushion_reserved_usd = max(
+                    Decimal(0),
+                    state.cushion_reserved_usd - trade.provider_cost_usd,
+                )
+            state.portfolio_cushion_usd += net_pnl
+            state.attack_net_pnl_usd += net_pnl
+            if state.portfolio_cushion_usd < 0:
+                breach = -state.portfolio_cushion_usd
+                state.attack_sovereign_breach_usd += breach
+                state.portfolio_cushion_usd = Decimal(0)
+                state.sovereign_bank_usd -= breach
+            if final_event:
+                state.portfolio_attack_credit_recycled_total_usd += (
+                    trade.source_reserved_usd
+                )
+            state.portfolio_attack_credit_usd = (
+                state.cushion_available_usd
+            )
+        else:
+            raise CiboCapitalManagementError(
+                "BANK cannot own lifecycle-managed trades"
+            )
+        state.mark()
+
     def settle_due(up_to: datetime | None) -> None:
         nonlocal pending, compound_settlements
-        due = sorted(
-            (
-                item
-                for item in pending
-                if up_to is None or item.exit_at <= up_to
-            ),
-            key=lambda item: (item.exit_at, item.signal_fingerprint),
-        )
-        if not due:
-            return
-        due_ids = {id(item) for item in due}
-        pending = [item for item in pending if id(item) not in due_ids]
-        for trade in due:
+
+        def due_at(trade: CiboThreeModeOpenTrade) -> datetime:
+            if (
+                trade.lifecycle_events
+                and trade.lifecycle_event_index
+                < len(trade.lifecycle_events)
+            ):
+                return trade.lifecycle_events[
+                    trade.lifecycle_event_index
+                ].occurred_at
+            return trade.exit_at
+
+        while True:
+            due = sorted(
+                (
+                    item
+                    for item in pending
+                    if up_to is None or due_at(item) <= up_to
+                ),
+                key=lambda item: (
+                    due_at(item),
+                    item.signal_fingerprint,
+                ),
+            )
+            if not due:
+                return
+
+            trade = due[0]
+            pending = [item for item in pending if item is not trade]
             before_sovereign = state.sovereign_bank_usd
             before_cushion = state.portfolio_cushion_usd
             before_total = state.total_capital_usd
@@ -1303,22 +1427,72 @@ def run_three_mode_trader_lab(
                 if trade.mode is CiboTraderLabMode.MEDIUM
                 else "COMPOUND_PORTFOLIO"
             )
+
+            lifecycle_event = None
+            final_event = True
+            released_risk_usd = trade.stop_risk_usd
+            released_margin_usd = trade.margin_usd
+            gross_r_delta = trade.gross_r
+            event_at = trade.exit_at
+
+            if trade.lifecycle_events:
+                lifecycle_event = trade.lifecycle_events[
+                    trade.lifecycle_event_index
+                ]
+                event_at = lifecycle_event.occurred_at
+                gross_r_delta = lifecycle_event.realized_r_delta
+                final_event = (
+                    trade.lifecycle_event_index + 1
+                    == len(trade.lifecycle_events)
+                )
+                released_risk_fraction = max(
+                    Decimal(0),
+                    trade.lifecycle_risk_fraction_remaining
+                    - lifecycle_event.risk_fraction_remaining,
+                )
+                released_margin_fraction = max(
+                    Decimal(0),
+                    trade.lifecycle_margin_fraction_remaining
+                    - lifecycle_event.margin_fraction_remaining,
+                )
+                released_risk_usd = (
+                    trade.stop_risk_usd * released_risk_fraction
+                )
+                released_margin_usd = (
+                    trade.margin_usd * released_margin_fraction
+                )
+
             record_engineering_sensor(
                 settlement_function,
                 epoch_index=None,
                 signal_fingerprint=trade.signal_fingerprint,
-                event="SETTLEMENT_INPUT",
+                event=(
+                    "LIFECYCLE_EVENT_INPUT"
+                    if lifecycle_event is not None
+                    else "SETTLEMENT_INPUT"
+                ),
                 inputs={
                     "mode": trade.mode.value,
                     "multiplier": trade.multiplier,
-                    "gross_r_postdecision": format(trade.gross_r, "f"),
+                    "gross_r_delta_postdecision": format(
+                        gross_r_delta, "f"
+                    ),
                     "stop_risk_usd": format(trade.stop_risk_usd, "f"),
                     "provider_cost_usd": format(
                         trade.provider_cost_usd, "f"
                     ),
-                    "source_reserved_usd": format(
-                        trade.source_reserved_usd, "f"
+                    "released_risk_usd": format(
+                        released_risk_usd, "f"
                     ),
+                    "released_margin_usd": format(
+                        released_margin_usd, "f"
+                    ),
+                    "lifecycle_action": (
+                        None
+                        if lifecycle_event is None
+                        else lifecycle_event.action
+                    ),
+                    "final_event": final_event,
                     "sovereign_bank_before_usd": format(
                         before_sovereign, "f"
                     ),
@@ -1326,23 +1500,47 @@ def run_three_mode_trader_lab(
                         before_cushion, "f"
                     ),
                 },
-                action="SETTLE_DUE_TRADE",
-                outputs={"exit_at": trade.exit_at.isoformat()},
+                action=(
+                    "SETTLE_CAUSAL_LIFECYCLE_EVENT"
+                    if lifecycle_event is not None
+                    else "SETTLE_DUE_TRADE"
+                ),
+                outputs={"occurred_at": event_at.isoformat()},
                 reaction="AWAIT_SETTLEMENT_OUTPUT",
                 call=True,
             )
-            net = apply_three_mode_settlement(
-                state,
-                trade,
-                net_compound_before_split=use_historical_prior,
-            )
+
+            if lifecycle_event is None:
+                net = apply_three_mode_settlement(
+                    state,
+                    trade,
+                    net_compound_before_split=use_historical_prior,
+                )
+            else:
+                with localcontext() as context:
+                    context.prec = 100
+                    net = gross_r_delta * trade.stop_risk_usd
+                    if final_event:
+                        net -= trade.provider_cost_usd
+                _apply_lifecycle_realization(
+                    trade,
+                    net_pnl=net,
+                    released_risk_usd=released_risk_usd,
+                    released_margin_usd=released_margin_usd,
+                    final_event=final_event,
+                )
+
             created = max(Decimal(0), net)
             destroyed = max(Decimal(0), -net)
             record_engineering_sensor(
                 settlement_function,
                 epoch_index=None,
                 signal_fingerprint=trade.signal_fingerprint,
-                event="SETTLEMENT_OUTPUT",
+                event=(
+                    "LIFECYCLE_EVENT_OUTPUT"
+                    if lifecycle_event is not None
+                    else "SETTLEMENT_OUTPUT"
+                ),
                 inputs={
                     "total_capital_before_usd": format(before_total, "f"),
                 },
@@ -1364,19 +1562,20 @@ def run_three_mode_trader_lab(
                     "total_capital_after_usd": format(
                         state.total_capital_usd, "f"
                     ),
-                    "sovereign_delta_usd": format(
-                        state.sovereign_bank_usd - before_sovereign, "f"
+                    "open_stop_risk_after_usd": format(
+                        state.open_stop_risk_usd, "f"
                     ),
-                    "cushion_delta_usd": format(
-                        state.portfolio_cushion_usd - before_cushion, "f"
+                    "open_margin_after_usd": format(
+                        state.open_margin_usd, "f"
                     ),
+                    "final_event": final_event,
                 },
                 reaction=(
                     "INCREASE_FUTURE_CAPITAL_CAPACITY"
                     if net > 0
                     else "REDUCE_FUTURE_CAPITAL_CAPACITY"
                     if net < 0
-                    else "NO_CAPITAL_CHANGE"
+                    else "RELEASE_OR_PRESERVE_CAPITAL_CAPACITY"
                 ),
                 reasons=(
                     ("POSITIVE_SETTLEMENT",)
@@ -1391,6 +1590,24 @@ def run_three_mode_trader_lab(
                 capital_destroyed_usd=destroyed,
             )
             trader_net[trade.trader_id] += net
+
+            if lifecycle_event is not None and not final_event:
+                pending.append(
+                    replace(
+                        trade,
+                        lifecycle_event_index=(
+                            trade.lifecycle_event_index + 1
+                        ),
+                        lifecycle_risk_fraction_remaining=(
+                            lifecycle_event.risk_fraction_remaining
+                        ),
+                        lifecycle_margin_fraction_remaining=(
+                            lifecycle_event.margin_fraction_remaining
+                        ),
+                    )
+                )
+                continue
+
             trader_trades[trade.trader_id] += 1
             if trade.mode is CiboTraderLabMode.MEDIUM:
                 compound_settlements += 1
@@ -2325,6 +2542,15 @@ def run_three_mode_trader_lab(
                     )
                     if candidate_mode is CiboTraderLabMode.MEDIUM
                     else Decimal(0)
+                ),
+                lifecycle_events=(
+                    tuple(
+                        lifecycle_map[candidate.signal_fingerprint][
+                            "events"
+                        ]
+                    )
+                    if lifecycle_map
+                    else ()
                 ),
             )
             pending.append(trade)
