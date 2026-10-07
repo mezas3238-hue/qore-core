@@ -136,11 +136,9 @@ jobs:
             fi
           }
 
-          # Final local confirmation around the observed 10k ridge.
-          # Use 100x spacing to bracket the discrete path-dependent maximum.
-          for attack in 9600 9700 9800 9900 10000 10100 10200 10300 10400 10500; do
-            run_case "persist-a${attack}-r020" "$attack" 10 0.20 0
-          done
+          # Frozen-ceiling forensic replay. Behaviour must remain bit-for-bit
+          # economically invariant while the new drawdown atlas observes episodes.
+          run_case "frozen-ceiling-a10000-r020" 10000 10 0.20 0
 
       - name: Rank shock ceiling expansion
         run: |
@@ -187,6 +185,19 @@ jobs:
           rows.sort(key=lambda x:Decimal(x["capital"]), reverse=True)
           print("SHOCK_CEILING_EXPANSION_TABLE="+json.dumps(rows,sort_keys=True))
           assert rows
+          assert len(rows) == 1
+          assert Decimal(rows[0]["capital"]) == Decimal(
+              "582440.0252953678696769360345"
+          )
+          assert Decimal(rows[0]["dd"]) == Decimal(
+              "0.6510419759240315671719825681633489757925369664663770620335151596826649313533375179797855048624928231"
+          )
+          forensic_path = next(root.glob("frozen-ceiling-a10000-r020.json"))
+          forensic = json.loads(forensic_path.read_text())
+          print(
+              "DD_FORENSICS="
+              + json.dumps(forensic["drawdown_forensics"], sort_keys=True)
+          )
           PY
 
       - uses: actions/upload-artifact@v4
