@@ -163,6 +163,15 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--lifecycle-trader-loss-streak-trigger",
+        type=int,
+        default=None,
+        help=(
+            "Activate supplied post-entry lifecycle defense only after the "
+            "same Trader has this many consecutively losing settled trades."
+        ),
+    )
+    parser.add_argument(
         "--lifecycle-feature",
         action="append",
         choices=[item.value for item in CiboLifecycleFeature],
@@ -549,6 +558,9 @@ def main() -> int:
         ),
         lifecycle_defense_drawdown_trigger=(
             args.lifecycle_defense_drawdown_trigger
+        ),
+        lifecycle_trader_loss_streak_trigger=(
+            args.lifecycle_trader_loss_streak_trigger
         ),
         enforce_research_context_abstain=args.enforce_context_abstain,
         soft_medium_drawdown_allocator=(
