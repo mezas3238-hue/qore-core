@@ -2838,3 +2838,64 @@ The following targeted experiments are active in parallel:
 - `QORE CIBO Carrier40 Bootstrap Initial Stop Ridge` — run `37681636785`.
 
 All are required to preserve 3,368 entries and the original frozen capital floor. The immediate research goal is a strict-Pareto crossing below 40%, then below 35%, while continuing gross-loss compression.
+
+
+---
+
+# 32. DD 40.0058% CARRIER — BOTTLENECK MIGRATES BACK TO MID-LOW ATTACK
+
+A new strict-Pareto carrier was confirmed from the expected-R causal MEDIUM bootstrap gate:
+
+- ending capital: **USD 667,465.3882811209420174021758**;
+- max DD: **40.005827712254776%**;
+- total gross loss: **USD 961,633.1351272310404802179688**;
+- frozen floor: USD 582,440.0252953678696769360345;
+- entries: **3,368 / 3,368 preserved**;
+- strict Pareto: PASS.
+
+This is only a small absolute DD improvement versus the prior 40.1624% carrier, but it changes the dominant DD regime.
+
+## New max-DD episode
+
+- peak: **2020-05-21T14:05:00+00:00**;
+- trough: **2020-06-08T14:21:00+00:00**;
+- peak capital: **USD 1,184.4473**;
+- trough capital: **USD 710.5994**;
+- DD USD: **USD 473.8479**;
+- ATTACK contribution: **-USD 464.1023**;
+- MEDIUM contribution: **-USD 9.7457**.
+
+Largest negative settlements in this episode are concentrated in ATTACK multipliers approximately:
+
+- 145x;
+- 65x;
+- 145x;
+- 55x;
+- 73x;
+- 158x.
+
+Therefore the active bottleneck is no longer the prior MEDIUM bootstrap floor. The next causal research surface is:
+
+**live-DD ATTACK multiplier window ~50x–170x**.
+
+No Trader identity hardcoding is permitted. The control must remain causal and state-based only.
+
+## New engineering capability
+
+A sixth causal ATTACK drawdown/multiplier window was added to Trader Lab:
+
+- engine commit: `8e3f22ce83b5617c09b63f6f1eb8dd7e3a674878`;
+- CLI commit: `780dd8c16048bfa9b3e749bff984dff33f7856c1`.
+
+The active ridge is:
+
+- workflow: `QORE CIBO Carrier40 Mid-Low ATTACK Window6 Ridge`;
+- run: `37684905114`;
+- workflow commit: `3d525dfebe39477b3dbf8cfab60ffc563d2fd148`;
+- target band: primarily **50x–170x**;
+- live DD bounds and taper strength are swept causally;
+- acceptance remains capital >= frozen floor + lower DD + lower total gross loss + lower ATTACK gross loss + 3,368 entries + zero breach.
+
+Immediate objective:
+
+**40.0058% -> <40% -> <35% -> continue toward 20–25% without degrading the frozen capital floor.**
