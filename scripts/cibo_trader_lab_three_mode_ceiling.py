@@ -438,6 +438,15 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--ceiling-portfolio-shock-one-shot",
+        action="store_true",
+        help=(
+            "Consume a qualifying Portfolio shock on the first subsequent "
+            "ATTACK sizing decision instead of keeping it active until an "
+            "ATTACK settlement."
+        ),
+    )
+    parser.add_argument(
         "--compound-profit-reinvestment-fraction",
         type=Decimal,
         default=None,
@@ -839,6 +848,9 @@ def main() -> int:
         ),
         ceiling_portfolio_shock_taper_fraction=(
             args.ceiling_portfolio_shock_taper_fraction
+        ),
+        ceiling_portfolio_shock_one_shot=(
+            args.ceiling_portfolio_shock_one_shot
         ),
         compound_profit_reinvestment_fraction=(
             args.compound_profit_reinvestment_fraction
