@@ -400,6 +400,7 @@ def replay(evidence_path: Path) -> dict[str, object]:
             previous_path_range,
             prior_ref_median,
             prior_admitted_day_bars,
+            prior_h4_history_bars,
         ) = context_by_day[local_day]
         observation_at = selected.decision_at
         session_prefix = tuple(
@@ -412,6 +413,7 @@ def replay(evidence_path: Path) -> dict[str, object]:
             previous_path_range,
             prior_ref_median,
             prior_admitted_day_bars,
+            prior_h4_history_bars,
             session_prefix,
             timeline.source,
             selected,
