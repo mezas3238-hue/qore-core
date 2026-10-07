@@ -138,6 +138,7 @@ def run_cibo_position_lifecycle(
     *,
     features: frozenset[CiboLifecycleFeature] = FULL_CIBO_LIFECYCLE_FEATURES,
     adverse_loss_cut_r: Decimal = Decimal("-0.50"),
+    adverse_loss_cut_confirmation_bars: int = 1,
 ) -> CiboPositionLifecycleResult:
     """Evaluate one position using causal closed-bar lifecycle semantics."""
 
@@ -153,6 +154,15 @@ def run_cibo_position_lifecycle(
     ):
         raise CiboCapitalManagementError(
             "Lifecycle adverse loss cut must be Decimal strictly between -1R and 0R"
+        )
+    if (
+        not isinstance(adverse_loss_cut_confirmation_bars, int)
+        or isinstance(adverse_loss_cut_confirmation_bars, bool)
+        or adverse_loss_cut_confirmation_bars < 1
+        or adverse_loss_cut_confirmation_bars > 12
+    ):
+        raise CiboCapitalManagementError(
+            "Lifecycle adverse loss-cut confirmation bars must be int in [1, 12]"
         )
 
     risk_distance = abs(position.entry_price - position.structural_stop)
@@ -216,6 +226,7 @@ def run_cibo_position_lifecycle(
     margin_fraction = Decimal(1)
     best_favorable_seen = Decimal("-Infinity")
     pending_adverse_loss_cut = False
+    adverse_loss_cut_confirmation_count = 0
 
     def favorable_adverse_close(
         bar: CiboLifecycleBar,
@@ -359,16 +370,25 @@ def run_cibo_position_lifecycle(
                 close_actions.append("TRAIL_STOP")
 
         # Direct-to-stop losers are the DD surface that winner-protection
-        # features do not address.  Only positions that have never reached
-        # +1R may arm this cut; this avoids amputating trades that already
-        # demonstrated material favorable excursion.
+        # features do not address. Only positions that have never reached
+        # +1R are eligible. A single adverse close can be noise, so require
+        # causal closed-bar persistence when the frontier asks for it.
         if (
             CiboLifecycleFeature.ADVERSE_LOSS_CUT in features
             and best_favorable_seen < Decimal(1)
-            and close_r <= adverse_loss_cut_r
             and bar.closed_at < position.horizon_at
         ):
-            pending_adverse_loss_cut = True
+            if close_r <= adverse_loss_cut_r:
+                adverse_loss_cut_confirmation_count += 1
+            else:
+                adverse_loss_cut_confirmation_count = 0
+            if (
+                adverse_loss_cut_confirmation_count
+                >= adverse_loss_cut_confirmation_bars
+            ):
+                pending_adverse_loss_cut = True
+        else:
+            adverse_loss_cut_confirmation_count = 0
 
         # EXTENDED_TARGET remains non-actuating unless path beyond the
         # original structural settlement is supplied by a future adapter.
