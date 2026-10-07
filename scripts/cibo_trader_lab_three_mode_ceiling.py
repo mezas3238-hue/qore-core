@@ -940,6 +940,15 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--ceiling-attack-stress-confidence-risk-budget-taper-fraction",
+        type=Decimal,
+        default=Decimal("1"),
+        help=(
+            "Optional fraction of the ATTACK single-trade risk budget retained "
+            "when the causal stress-confidence gate is active."
+        ),
+    )
+    parser.add_argument(
         "--ceiling-attack-stress-confidence-taper-fraction",
         type=Decimal,
         default=Decimal("0.75"),
@@ -1729,6 +1738,9 @@ def main() -> int:
         ),
         ceiling_attack_stress_confidence_taper_fraction=(
             args.ceiling_attack_stress_confidence_taper_fraction
+        ),
+        ceiling_attack_stress_confidence_risk_budget_taper_fraction=(
+            args.ceiling_attack_stress_confidence_risk_budget_taper_fraction
         ),
         ceiling_attack_trader_loss_ratio_trigger=(
             args.ceiling_attack_trader_loss_ratio_trigger
