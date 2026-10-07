@@ -9,6 +9,7 @@ on:
       - scripts/vt31_nas100_3y_replay_v1.py
       - scripts/vt31_nas100_3y_adjudicator_v1.py
       - scripts/vt31_nas100_3y_density_frontier_v1.py
+      - scripts/vt31_nas100_3y_capacity_audit_v1.py
       - .github/workflows/vt31-nas100-3y-trader-lab-v1.yml
   workflow_dispatch:
 
@@ -50,7 +51,8 @@ jobs:
           set -euo pipefail
           python scripts/vt31_nas100_3y_evidence_probe_v1.py --self-test
           python -m py_compile             scripts/vt31_nas100_3y_evidence_probe_v1.py             scripts/vt31_nas100_3y_replay_v1.py             scripts/vt31_nas100_3y_adjudicator_v1.py \
-            scripts/vt31_nas100_3y_density_frontier_v1.py
+            scripts/vt31_nas100_3y_density_frontier_v1.py \
+            scripts/vt31_nas100_3y_capacity_audit_v1.py
           ruff check             scripts/vt31_nas100_3y_evidence_probe_v1.py             scripts/vt31_nas100_3y_replay_v1.py             scripts/vt31_nas100_3y_adjudicator_v1.py \
             scripts/vt31_nas100_3y_density_frontier_v1.py
 
@@ -144,6 +146,14 @@ jobs:
             input/NAS100/market-evidence.json \
             --output result/3y-density-frontier.json \
             | tee result/3y-density-frontier-summary.json
+
+      - name: Audit 3Y causal opportunity capacity
+        run: |
+          set -euo pipefail
+          PYTHONPATH=scripts python scripts/vt31_nas100_3y_capacity_audit_v1.py \
+            input/NAS100/market-evidence.json \
+            --output result/3y-capacity-audit.json \
+            | tee result/3y-capacity-audit-summary.json
 
       - name: Governance
         run: |

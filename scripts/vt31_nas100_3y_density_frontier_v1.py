@@ -258,7 +258,7 @@ def main() -> None:
             "3Y density control drifted from verified 55-trade baseline"
         )
 
-    for name, result in results.items():
+    for _name, result in results.items():
         result["delta_admitted_trades_vs_current"] = (
             int(result["admitted_trade_count"])
             - int(control["admitted_trade_count"])
