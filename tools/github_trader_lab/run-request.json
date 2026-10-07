@@ -1,6 +1,6 @@
 {
   "schema": "qore.github-trader-lab.run-request.v1",
-  "profile_path": "tools/github_trader_lab/profiles/cibo-capital-repair.json",
+  "profile_path": "tools/github_trader_lab/profiles/cibo-three-mode-suite.json",
   "subject_ref": "agent/cibo-causal-expectation-leakage-fix-001",
-  "benchmark": "live-cibo-branch-fast-lab"
+  "benchmark": "cibo-three-mode-suite-migration-cold-001"
 }
