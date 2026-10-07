@@ -1,95 +1,18 @@
-name: QORE CIBO Trader Lab T02 Fast Downside
+name: RETIRED cibo-trader-lab-t02-fast-downside.yml
 
-# RETIRED AUTO-PATH: manual-only legacy evidence; automatic execution moved to QORE GitHub Trader Lab Fast.
+# RETIRED: this specialized Trader Lab path is no longer operational.
+# Source-of-truth execution moved to QORE GitHub Trader Lab Fast.
+# Historical implementation remains available in Git history at 6f42214acb629bce7c950b949e270a404672ab08.
 
 on:
   workflow_dispatch:
 
-permissions:
-  contents: read
-  actions: read
-
 jobs:
-  fast-downside:
+  retired:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    env:
-      GH_TOKEN: ${{ github.token }}
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.sha }}
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - run: python -m pip install -e '.[dev]'
-
-      - name: Static validation
+      - name: Retirement notice
         run: |
-          set -euo pipefail
-          python -m py_compile             src/qore/infrastructure/trader_lab/cibo_t02_fast_stability_lab.py             src/qore/infrastructure/trader_lab/cibo_t02_fast_downside_lab.py
-          ruff check             src/qore/infrastructure/trader_lab/cibo_t02_fast_stability_lab.py             src/qore/infrastructure/trader_lab/cibo_t02_fast_downside_lab.py
-
-      - name: Recover immutable burned Trader Lab corpora
-        run: |
-          set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/t02-fast"
-          fetch_source() {
-            local id="$1"
-            local digest="$2"
-            local name="$3"
-            local target="$RUNNER_TEMP/t02-fast/$name.zip"
-            gh api               "/repos/$GITHUB_REPOSITORY/actions/artifacts/$id/zip"               > "$target"
-            echo "$digest  $target" | sha256sum -c -
-          }
-          fetch_source             10972846579             3767998a3ad38afe08fcb7031615cc23ae285ccef83085909ef635fa29f31423             r38-gbpjpy
-          fetch_source             10972467350             e0c32a6b8d551f52b3be733c6c86e916103fd7f45a3305e34f3f0013006d8b49             r42-audjpy
-          fetch_source             10972906353             73f4b4d8961f621f427ba8cf67dc40f474af476faa226c48e7020b9d409b2da9             r43-gbpusd
-
-      - name: Run fast TRAIN downside selection then sealed VALIDATION
-        run: |
-          set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/t02-fast/result"
-          python -m qore.infrastructure.trader_lab.cibo_t02_fast_downside_lab             --r38-gbpjpy "$RUNNER_TEMP/t02-fast/r38-gbpjpy.zip"             --r42-audjpy "$RUNNER_TEMP/t02-fast/r42-audjpy.zip"             --r43-gbpusd "$RUNNER_TEMP/t02-fast/r43-gbpusd.zip"             --output "$RUNNER_TEMP/t02-fast/result/report.json"
-
-      - name: Enforce fast-lab governance
-        if: always()
-        run: |
-          set -euo pipefail
-          test -s "$RUNNER_TEMP/t02-fast/result/report.json"
-          python - <<'PY'
-          import json
-          import os
-          from pathlib import Path
-
-          p = json.loads(
-              (
-                  Path(os.environ["RUNNER_TEMP"])
-                  / "t02-fast"
-                  / "result"
-                  / "report.json"
-              ).read_text(encoding="utf-8")
-          )
-          assert p["schema"] == "qore.trader-lab.cibo-t02-fast-downside.v3"
-          assert p["promotion_authorized"] is False
-          g = p["governance"]
-          assert g["selection_used_validation_outcomes"] is False
-          assert g["selection_used_reused_holdout_outcomes"] is False
-          assert g["symbol_or_trader_blacklist"] is False
-          assert g["fresh_oos_claimed"] is False
-          assert g["broker_mutation"] is False
-          assert g["live"] is False
-          assert g["production"] is False
-          assert g["real_capital"] is False
-          assert g["merge_authority"] is False
-          PY
-
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: qore-cibo-trader-lab-t02-fast-downside-${{ github.run_id }}
-          path: ${{ runner.temp }}/t02-fast/result
-          if-no-files-found: error
-          retention-days: 90
+          echo "RETIRED_TRADER_LAB_WORKFLOW=cibo-trader-lab-t02-fast-downside.yml"
+          echo "Use .github/workflows/cibo-trader-lab-fast-bridge.yml"
+          echo "Historical definition: git show 6f42214acb629bce7c950b949e270a404672ab08:.github/workflows/cibo-trader-lab-t02-fast-downside.yml"

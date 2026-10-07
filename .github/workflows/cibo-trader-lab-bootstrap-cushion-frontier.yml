@@ -1,143 +1,18 @@
-name: QORE CIBO Bootstrap Cushion Frontier
+name: RETIRED cibo-trader-lab-bootstrap-cushion-frontier.yml
 
-# RETIRED AUTO-PATH: manual-only legacy evidence; automatic execution moved to QORE GitHub Trader Lab Fast.
+# RETIRED: this specialized Trader Lab path is no longer operational.
+# Source-of-truth execution moved to QORE GitHub Trader Lab Fast.
+# Historical implementation remains available in Git history at 6f42214acb629bce7c950b949e270a404672ab08.
 
 on:
   workflow_dispatch:
-permissions:
-  contents: read
-  actions: read
-
-env:
-  PYTHONPATH: ${{ github.workspace }}/src
-  SOURCE_ARTIFACT_ID: '11451743578'
-  SOURCE_ARTIFACT_DIGEST: 'sha256:d439957f21e2f79148b5a2fb75a53db6fa448698f17aeb6978f379ed3547f7ea'
-  HISTORICAL_SOURCE_ARTIFACT_ID: '11389331836'
-  HISTORICAL_SOURCE_ARTIFACT_DIGEST: 'sha256:30177639f660c9647ab70257c2d12c541bdade49ab5582347a3890f920070fee'
-  HISTORICAL_CONTROL_ARTIFACT_ID: '11409086692'
-  HISTORICAL_CONTROL_ARTIFACT_DIGEST: 'sha256:eeffdc99a736b82bd965ff646b8ca9bf084f50ae414e56e9b3d82961169d7187'
 
 jobs:
-  bootstrap-frontier:
+  retired:
     runs-on: ubuntu-24.04
-    timeout-minutes: 6
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Compile bootstrap frontier
+      - name: Retirement notice
         run: |
-          set -euo pipefail
-          python -m py_compile \
-            src/qore/infrastructure/trader_lab/cibo_three_mode_capital_lab.py \
-            scripts/cibo_trader_lab_three_mode_ceiling.py
-
-      - name: Recover causal replay inputs
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/source" "$RUNNER_TEMP/historical-source" "$RUNNER_TEMP/historical-control" "$RUNNER_TEMP/result"
-          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$SOURCE_ARTIFACT_ID/zip" > "$RUNNER_TEMP/source.zip"
-          echo "${SOURCE_ARTIFACT_DIGEST#sha256:}  $RUNNER_TEMP/source.zip" | sha256sum -c -
-          unzip -q "$RUNNER_TEMP/source.zip" -d "$RUNNER_TEMP/source"
-          MANIFEST="$(find "$RUNNER_TEMP/source" -type f -name walk-forward-manifest.json -print -quit)"
-          BASELINE="$(find "$RUNNER_TEMP/source" -type f -name walk-forward-replay.json -print -quit)"
-          test -n "$MANIFEST" && test -n "$BASELINE"
-          echo "MANIFEST=$MANIFEST" >> "$GITHUB_ENV"
-          echo "BASELINE=$BASELINE" >> "$GITHUB_ENV"
-
-          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$HISTORICAL_SOURCE_ARTIFACT_ID/zip" > "$RUNNER_TEMP/historical-source.zip"
-          echo "${HISTORICAL_SOURCE_ARTIFACT_DIGEST#sha256:}  $RUNNER_TEMP/historical-source.zip" | sha256sum -c -
-          unzip -q "$RUNNER_TEMP/historical-source.zip" -d "$RUNNER_TEMP/historical-source"
-          HISTORICAL_MANIFEST="$(find "$RUNNER_TEMP/historical-source" -type f -name single-account-manifest-native.json -print -quit)"
-          test -n "$HISTORICAL_MANIFEST"
-          echo "HISTORICAL_MANIFEST=$HISTORICAL_MANIFEST" >> "$GITHUB_ENV"
-
-          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$HISTORICAL_CONTROL_ARTIFACT_ID/zip" > "$RUNNER_TEMP/historical-control.zip"
-          echo "${HISTORICAL_CONTROL_ARTIFACT_DIGEST#sha256:}  $RUNNER_TEMP/historical-control.zip" | sha256sum -c -
-          unzip -q "$RUNNER_TEMP/historical-control.zip" -d "$RUNNER_TEMP/historical-control"
-          HISTORICAL_REPLAY="$(find "$RUNNER_TEMP/historical-control" -type f -name historical-ceiling-replay.json -print -quit)"
-          test -n "$HISTORICAL_REPLAY"
-          echo "HISTORICAL_REPLAY=$HISTORICAL_REPLAY" >> "$GITHUB_ENV"
-
-      - name: Run bootstrap 70pct
-        run: |
-          set -euo pipefail
-          python scripts/cibo_trader_lab_three_mode_ceiling.py \
-            --manifest "$MANIFEST" \
-            --baseline-replay "$BASELINE" \
-            --historical-manifest "$HISTORICAL_MANIFEST" \
-            --historical-replay "$HISTORICAL_REPLAY" \
-            --distributed-attack-frontier \
-            --attack-multiplier-cap 8 \
-            --medium-multiplier-cap 4 \
-            --coordinated-economic-group \
-            --economic-group-bootstrap-cushion-share=0.70 \
-            --output "$RUNNER_TEMP/result/bootstrap-070.json"
-
-      - name: Run bootstrap 75pct
-        run: |
-          set -euo pipefail
-          python scripts/cibo_trader_lab_three_mode_ceiling.py \
-            --manifest "$MANIFEST" \
-            --baseline-replay "$BASELINE" \
-            --historical-manifest "$HISTORICAL_MANIFEST" \
-            --historical-replay "$HISTORICAL_REPLAY" \
-            --distributed-attack-frontier \
-            --attack-multiplier-cap 8 \
-            --medium-multiplier-cap 4 \
-            --coordinated-economic-group \
-            --economic-group-bootstrap-cushion-share=0.75 \
-            --output "$RUNNER_TEMP/result/bootstrap-075.json"
-
-      - name: Run bootstrap 80pct
-        run: |
-          set -euo pipefail
-          python scripts/cibo_trader_lab_three_mode_ceiling.py \
-            --manifest "$MANIFEST" \
-            --baseline-replay "$BASELINE" \
-            --historical-manifest "$HISTORICAL_MANIFEST" \
-            --historical-replay "$HISTORICAL_REPLAY" \
-            --distributed-attack-frontier \
-            --attack-multiplier-cap 8 \
-            --medium-multiplier-cap 4 \
-            --coordinated-economic-group \
-            --economic-group-bootstrap-cushion-share=0.80 \
-            --output "$RUNNER_TEMP/result/bootstrap-080.json"
-
-      - name: Validate bootstrap frontier
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          import json, os
-          from pathlib import Path
-          root=Path(os.environ["RUNNER_TEMP"])/"result"
-          for filename,share in (
-              ("bootstrap-070.json","0.70"),
-              ("bootstrap-075.json","0.75"),
-              ("bootstrap-080.json","0.80"),
-          ):
-              p=json.loads((root/filename).read_text())
-              assert p["decision_count"]==p["trade_count"]==3368
-              assert p["governance"]["coordinated_economic_group"] is True
-              assert p["governance"]["economic_group_bootstrap_cushion_share"]==share
-              assert p["economic_group_report"]["bootstrap_cushion_share"]==share
-              assert p["economic_group_report"]["all_entries_preserved"] is True
-              f=p["engineering_sensor_report"]["execution_funnel"]
-              assert f["sizing_medium_rejected_count"]==0
-              assert f["sizing_medium_deferred_count"]==0
-              assert f["compound_portfolio_withheld_before_execution_engine_count"]==0
-          PY
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: qore-cibo-bootstrap-cushion-${{ github.run_id }}
-          path: |
-            ${{ runner.temp }}/result/bootstrap-070.json
-            ${{ runner.temp }}/result/bootstrap-075.json
-            ${{ runner.temp }}/result/bootstrap-080.json
-          if-no-files-found: error
-          retention-days: 90
+          echo "RETIRED_TRADER_LAB_WORKFLOW=cibo-trader-lab-bootstrap-cushion-frontier.yml"
+          echo "Use .github/workflows/cibo-trader-lab-fast-bridge.yml"
+          echo "Historical definition: git show 6f42214acb629bce7c950b949e270a404672ab08:.github/workflows/cibo-trader-lab-bootstrap-cushion-frontier.yml"
