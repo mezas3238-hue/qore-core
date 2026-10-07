@@ -828,6 +828,7 @@ def run_three_mode_trader_lab(
     ) = None,
     lifecycle_defensive_medium_1x_only: bool = False,
     lifecycle_defense_drawdown_trigger: Decimal | None = None,
+    lifecycle_trader_loss_streak_trigger: int | None = None,
     enforce_research_context_abstain: bool = False,
     soft_medium_drawdown_allocator: bool = False,
     medium_pretrade_drawdown_ceiling: Decimal = ECONOMIC_DRAWDOWN_CEILING,
@@ -851,6 +852,15 @@ def run_three_mode_trader_lab(
     ):
         raise CiboCapitalManagementError(
             "Trader Lab lifecycle defense drawdown trigger must be Decimal in [0, 0.50)"
+        )
+    if lifecycle_trader_loss_streak_trigger is not None and (
+        not isinstance(lifecycle_trader_loss_streak_trigger, int)
+        or isinstance(lifecycle_trader_loss_streak_trigger, bool)
+        or lifecycle_trader_loss_streak_trigger < 1
+        or lifecycle_trader_loss_streak_trigger > 10
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab lifecycle Trader loss streak trigger must be int in [1, 10]"
         )
     if type(enforce_research_context_abstain) is not bool:
         raise CiboCapitalManagementError(
@@ -983,6 +993,7 @@ def run_three_mode_trader_lab(
     lifecycle_changed_count = 0
     lifecycle_applied_trade_count = 0
     lifecycle_drawdown_trigger_blocked_count = 0
+    lifecycle_trader_loss_streak_blocked_count = 0
     for profile in lifecycle_map.values():
         lifecycle_data_available_count += int(bool(profile["data_available"]))
         lifecycle_changed_count += int(
@@ -1255,6 +1266,8 @@ def run_three_mode_trader_lab(
     trade_mode_counts: Counter[str] = Counter()
     trader_net: dict[str, Decimal] = defaultdict(Decimal)
     trader_trades: Counter[str] = Counter()
+    trader_loss_streak: Counter[str] = Counter()
+    trade_realized_net_by_signal: dict[str, Decimal] = defaultdict(Decimal)
     leverage_sum = 0
     leverage_max = 0
     portfolio_calls = 0
@@ -1728,6 +1741,7 @@ def run_three_mode_trader_lab(
                 capital_destroyed_usd=destroyed,
             )
             trader_net[trade.trader_id] += net
+            trade_realized_net_by_signal[trade.signal_fingerprint] += net
 
             after_total = state.total_capital_usd
             if after_total >= peak_total_before:
@@ -1820,6 +1834,15 @@ def run_three_mode_trader_lab(
                     )
                 )
                 continue
+
+            settled_trade_net = trade_realized_net_by_signal.pop(
+                trade.signal_fingerprint,
+                Decimal(0),
+            )
+            if settled_trade_net < 0:
+                trader_loss_streak[trade.trader_id] += 1
+            else:
+                trader_loss_streak[trade.trader_id] = 0
 
             trader_trades[trade.trader_id] += 1
             if trade.mode is CiboTraderLabMode.MEDIUM:
@@ -2783,10 +2806,16 @@ def run_three_mode_trader_lab(
                 or total_drawdown_utilization
                 >= lifecycle_defense_drawdown_trigger
             )
+            lifecycle_trader_streak_allowed = (
+                lifecycle_trader_loss_streak_trigger is None
+                or trader_loss_streak[candidate.trader_id]
+                >= lifecycle_trader_loss_streak_trigger
+            )
             apply_lifecycle_to_trade = bool(
                 lifecycle_map
                 and lifecycle_grade_allowed
                 and lifecycle_drawdown_allowed
+                and lifecycle_trader_streak_allowed
             )
             if (
                 lifecycle_map
@@ -2794,6 +2823,13 @@ def run_three_mode_trader_lab(
                 and not lifecycle_drawdown_allowed
             ):
                 lifecycle_drawdown_trigger_blocked_count += 1
+            if (
+                lifecycle_map
+                and lifecycle_grade_allowed
+                and lifecycle_drawdown_allowed
+                and not lifecycle_trader_streak_allowed
+            ):
+                lifecycle_trader_loss_streak_blocked_count += 1
             lifecycle_events_for_trade = (
                 tuple(
                     lifecycle_map[candidate.signal_fingerprint][
@@ -2985,6 +3021,16 @@ def run_three_mode_trader_lab(
     position_lifecycle_report["drawdown_trigger_blocked_count"] = (
         lifecycle_drawdown_trigger_blocked_count
     )
+    position_lifecycle_report["trader_loss_streak_trigger"] = (
+        lifecycle_trader_loss_streak_trigger
+    )
+    position_lifecycle_report["trader_loss_streak_blocked_count"] = (
+        lifecycle_trader_loss_streak_blocked_count
+    )
+    position_lifecycle_report["ending_trader_loss_streaks"] = {
+        key: int(value)
+        for key, value in sorted(trader_loss_streak.items())
+    }
     if pending:
         raise CiboCapitalManagementError(
             "Trader Lab three-mode ended with unsettled trades"
@@ -3422,6 +3468,9 @@ def run_three_mode_trader_lab(
                 None
                 if lifecycle_defense_drawdown_trigger is None
                 else format(lifecycle_defense_drawdown_trigger, "f")
+            ),
+            "position_lifecycle_trader_loss_streak_trigger": (
+                lifecycle_trader_loss_streak_trigger
             ),
             "position_lifecycle_source": (
                 "MARKET_ATLAS_10Y_CAUSAL_CLOSED_M5_POST_ENTRY"
