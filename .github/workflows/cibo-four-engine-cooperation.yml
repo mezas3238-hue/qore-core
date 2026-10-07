@@ -9,6 +9,7 @@ on:
       - agent/cibo-dd-activated-custody-001
       - agent/cibo-dd-mfe-selective-001
       - agent/cibo-dd-trader-adaptive-001
+      - agent/cibo-dd-staged-custody-001
     paths:
       - '.github/workflows/cibo-four-engine-cooperation.yml'
       - 'src/qore/infrastructure/trader_lab/cibo_three_mode_capital_lab.py'
@@ -137,18 +138,20 @@ jobs:
           set -euo pipefail
           : > "$RUNNER_TEMP/result/cibo-four-engine-loss-cut-failures.tsv"
           for SPEC in \
-            "g5_020p075:-0.20:2:180:0.25:0.10:0.75:R43_GBPUSD,R34_XAUUSD,VT31_NAS100,R38_GBPJPY,R42_AUDJPY" \
-            "g5_020p100:-0.20:2:180:0.25:0.10:1.00:R43_GBPUSD,R34_XAUUSD,VT31_NAS100,R38_GBPJPY,R42_AUDJPY" \
-            "g5_025p100:-0.25:2:180:0.25:0.10:1.00:R43_GBPUSD,R34_XAUUSD,VT31_NAS100,R38_GBPJPY,R42_AUDJPY" \
-            "g4_020p100:-0.20:2:180:0.25:0.10:1.00:R43_GBPUSD,R34_XAUUSD,R38_GBPJPY,R42_AUDJPY" \
-            "g4n34_020p100:-0.20:2:180:0.25:0.10:1.00:R43_GBPUSD,VT31_NAS100,R38_GBPJPY,R42_AUDJPY" \
-            "g5_020f050:-0.20:2:180:0.50:0.10:1.00:R43_GBPUSD,R34_XAUUSD,VT31_NAS100,R38_GBPJPY,R42_AUDJPY"; do
-            IFS=':' read -r LABEL THRESHOLD CONFIRMATIONS MAX_MINUTES MAX_FAVORABLE DD_ACTIVATION CLOSE_FRACTION TRADERS <<< "$SPEC"
+            "s040d0:-0.20:-0.40:2:180:0.25:0:0.50:ALL" \
+            "s050d0:-0.20:-0.50:2:180:0.25:0:0.50:ALL" \
+            "s060d0:-0.20:-0.60:2:180:0.25:0:0.50:ALL" \
+            "s040d10:-0.20:-0.40:2:180:0.25:0.10:0.50:ALL" \
+            "s050d10:-0.20:-0.50:2:180:0.25:0.10:0.50:ALL" \
+            "s060d10:-0.20:-0.60:2:180:0.25:0.10:0.50:ALL"; do
+            IFS=':' read -r LABEL THRESHOLD SECOND_STAGE CONFIRMATIONS MAX_MINUTES MAX_FAVORABLE DD_ACTIVATION CLOSE_FRACTION TRADERS <<< "$SPEC"
             TRADER_ARGS=()
-            IFS=',' read -ra TRADER_IDS <<< "$TRADERS"
-            for TRADER_ID in "${TRADER_IDS[@]}"; do
-              TRADER_ARGS+=(--lifecycle-adverse-loss-cut-trader-id "$TRADER_ID")
-            done
+            if [ "$TRADERS" != "ALL" ]; then
+              IFS=',' read -ra TRADER_IDS <<< "$TRADERS"
+              for TRADER_ID in "${TRADER_IDS[@]}"; do
+                TRADER_ARGS+=(--lifecycle-adverse-loss-cut-trader-id "$TRADER_ID")
+              done
+            fi
             if python scripts/cibo_trader_lab_three_mode_ceiling.py \
               --manifest "$MANIFEST" \
               --baseline-replay "$BASELINE" \
@@ -164,6 +167,7 @@ jobs:
               --lifecycle-source-root "XAUUSD=$RUNNER_TEMP/atlas/XAUUSD" \
               --lifecycle-feature ADVERSE_LOSS_CUT \
               --lifecycle-adverse-loss-cut-r "$THRESHOLD" \
+              --lifecycle-adverse-loss-cut-second-stage-r "$SECOND_STAGE" \
               --lifecycle-adverse-loss-cut-confirmation-bars "$CONFIRMATIONS" \
               --lifecycle-adverse-loss-cut-max-elapsed-minutes "$MAX_MINUTES" \
               --lifecycle-adverse-loss-cut-max-favorable-r "$MAX_FAVORABLE" \
@@ -175,8 +179,8 @@ jobs:
             else
               STATUS=$?
               cat "$RUNNER_TEMP/result/cibo-four-engine-loss-cut-${LABEL}.log"
-              printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
-                "$LABEL" "$THRESHOLD" "$CONFIRMATIONS" "$MAX_MINUTES" "$MAX_FAVORABLE" "$DD_ACTIVATION" "$CLOSE_FRACTION" "$TRADERS" "$STATUS" >> \
+              printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+                "$LABEL" "$THRESHOLD" "$SECOND_STAGE" "$CONFIRMATIONS" "$MAX_MINUTES" "$MAX_FAVORABLE" "$DD_ACTIVATION" "$CLOSE_FRACTION" "$TRADERS" "$STATUS" >> \
                 "$RUNNER_TEMP/result/cibo-four-engine-loss-cut-failures.tsv"
             fi
           done
@@ -230,24 +234,29 @@ jobs:
           ] == 0
 
           frontier = []
-          for filename, threshold, confirmations, max_minutes, max_favorable, dd_activation, close_fraction, traders in (
-              ("cibo-four-engine-loss-cut-g5_020p075.json", "-0.20", 2, 180, "0.25", "0.10", "0.75", "R43_GBPUSD,R34_XAUUSD,VT31_NAS100,R38_GBPJPY,R42_AUDJPY"),
-              ("cibo-four-engine-loss-cut-g5_020p100.json", "-0.20", 2, 180, "0.25", "0.10", "1.00", "R43_GBPUSD,R34_XAUUSD,VT31_NAS100,R38_GBPJPY,R42_AUDJPY"),
-              ("cibo-four-engine-loss-cut-g5_025p100.json", "-0.25", 2, 180, "0.25", "0.10", "1.00", "R43_GBPUSD,R34_XAUUSD,VT31_NAS100,R38_GBPJPY,R42_AUDJPY"),
-              ("cibo-four-engine-loss-cut-g4_020p100.json", "-0.20", 2, 180, "0.25", "0.10", "1.00", "R43_GBPUSD,R34_XAUUSD,R38_GBPJPY,R42_AUDJPY"),
-              ("cibo-four-engine-loss-cut-g4n34_020p100.json", "-0.20", 2, 180, "0.25", "0.10", "1.00", "R43_GBPUSD,VT31_NAS100,R38_GBPJPY,R42_AUDJPY"),
-              ("cibo-four-engine-loss-cut-g5_020f050.json", "-0.20", 2, 180, "0.50", "0.10", "1.00", "R43_GBPUSD,R34_XAUUSD,VT31_NAS100,R38_GBPJPY,R42_AUDJPY"),
-          ):             candidate_path = (
+          for filename, threshold, second_stage, confirmations, max_minutes, max_favorable, dd_activation, close_fraction, traders in (
+              ("cibo-four-engine-loss-cut-s040d0.json", "-0.20", "-0.40", 2, 180, "0.25", "0", "0.50", "ALL"),
+              ("cibo-four-engine-loss-cut-s050d0.json", "-0.20", "-0.50", 2, 180, "0.25", "0", "0.50", "ALL"),
+              ("cibo-four-engine-loss-cut-s060d0.json", "-0.20", "-0.60", 2, 180, "0.25", "0", "0.50", "ALL"),
+              ("cibo-four-engine-loss-cut-s040d10.json", "-0.20", "-0.40", 2, 180, "0.25", "0.10", "0.50", "ALL"),
+              ("cibo-four-engine-loss-cut-s050d10.json", "-0.20", "-0.50", 2, 180, "0.25", "0.10", "0.50", "ALL"),
+              ("cibo-four-engine-loss-cut-s060d10.json", "-0.20", "-0.60", 2, 180, "0.25", "0.10", "0.50", "ALL"),
+          ):
+              candidate_path = (
                   Path(os.environ["RUNNER_TEMP"]) / "result" / filename
               )
               if not candidate_path.exists():
                   frontier.append({
                       "threshold_r": threshold,
+                      "second_stage_r": second_stage,
                       "confirmation_bars": confirmations,
                       "max_elapsed_minutes": max_minutes,
                       "max_favorable_r": max_favorable,
                       "drawdown_activation_fraction": dd_activation,
                       "close_fraction": close_fraction,
+                      "trader_ids": (
+                          [] if traders == "ALL" else sorted(traders.split(","))
+                      ),
                       "status": "RUN_FAILED",
                   })
                   continue
@@ -275,8 +284,13 @@ jobs:
                   "adverse_loss_cut_close_fraction"
               ] == close_fraction
               assert guarded["position_lifecycle_report"][
+                  "adverse_loss_cut_second_stage_r"
+              ] == second_stage
+              assert guarded["position_lifecycle_report"][
                   "adverse_loss_cut_trader_ids"
-              ] == sorted(traders.split(","))
+              ] == (
+                  [] if traders == "ALL" else sorted(traders.split(","))
+              )
               assert guarded["position_lifecycle_report"]["outcome_used_for_trigger"] is False
               guarded_funnel = guarded["engineering_sensor_report"]["execution_funnel"]
               assert guarded_funnel["final_trade_count"] == 3368
@@ -285,12 +299,15 @@ jobs:
               assert guarded_funnel["causal_conservation_check"] is True
               frontier.append({
                   "threshold_r": threshold,
+                  "second_stage_r": second_stage,
                   "confirmation_bars": confirmations,
                   "max_elapsed_minutes": max_minutes,
                   "max_favorable_r": max_favorable,
                   "drawdown_activation_fraction": dd_activation,
                   "close_fraction": close_fraction,
-                  "trader_ids": sorted(traders.split(",")),
+                  "trader_ids": (
+                      [] if traders == "ALL" else sorted(traders.split(","))
+                  ),
                   "activated_entry_count": guarded["position_lifecycle_report"][
                       "activated_entry_count"
                   ],
