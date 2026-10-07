@@ -89,7 +89,7 @@ class CiboThreeModeCapitalLabTest(unittest.TestCase):
             risk_utilization=Decimal("0.1"),
             margin_utilization=Decimal("0.1"),
             drawdown_utilization=Decimal("0.1"),
-            cushion_available_usd=Decimal("2.20"),
+            cushion_available_usd=Decimal("4.00"),
             best_candidate=candidate,
         )
         self.assertIs(mode, CiboTraderLabMode.MEDIUM)
