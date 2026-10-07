@@ -1690,6 +1690,8 @@ def run_three_mode_trader_lab(
     attack_flat_trade_count = 0
     attack_gross_profit_usd = Decimal(0)
     attack_gross_loss_usd = Decimal(0)
+    total_gross_profit_usd = Decimal(0)
+    total_gross_loss_usd = Decimal(0)
     attack_gross_profit_by_trader: dict[str, Decimal] = defaultdict(Decimal)
     attack_gross_loss_by_trader: dict[str, Decimal] = defaultdict(Decimal)
     attack_gross_profit_by_multiplier: dict[int, Decimal] = defaultdict(Decimal)
@@ -2007,6 +2009,7 @@ def run_three_mode_trader_lab(
         nonlocal attack_winning_trade_count, attack_losing_trade_count
         nonlocal attack_flat_trade_count
         nonlocal attack_gross_profit_usd, attack_gross_loss_usd
+        nonlocal total_gross_profit_usd, total_gross_loss_usd
         nonlocal portfolio_last_attack_loss_fraction
 
         def due_at(trade: CiboThreeModeOpenTrade) -> datetime:
@@ -2476,7 +2479,11 @@ def run_three_mode_trader_lab(
             )
             receipt["realized_exit_at"] = event_at.isoformat()
             if settled_trade_net < 0:
+                total_gross_loss_usd += -settled_trade_net
                 trader_loss_streak[trade.trader_id] += 1
+            elif settled_trade_net > 0:
+                total_gross_profit_usd += settled_trade_net
+                trader_loss_streak[trade.trader_id] = 0
             else:
                 trader_loss_streak[trade.trader_id] = 0
             if trade.mode is CiboTraderLabMode.ATTACK:
@@ -4692,6 +4699,16 @@ def run_three_mode_trader_lab(
             "attack_flat_trade_count": attack_flat_trade_count,
             "attack_gross_profit_usd": format(attack_gross_profit_usd, "f"),
             "attack_gross_loss_usd": format(attack_gross_loss_usd, "f"),
+            "total_gross_profit_usd": format(total_gross_profit_usd, "f"),
+            "total_gross_loss_usd": format(total_gross_loss_usd, "f"),
+            "total_profit_factor": (
+                None
+                if total_gross_loss_usd <= 0
+                else format(
+                    total_gross_profit_usd / total_gross_loss_usd,
+                    "f",
+                )
+            ),
             "attack_net_pnl_usd": format(state.attack_net_pnl_usd, "f"),
             "attack_profit_factor": (
                 None
