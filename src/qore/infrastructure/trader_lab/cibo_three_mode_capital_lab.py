@@ -551,8 +551,6 @@ def explain_three_mode(
         bank_reasons.append("CORRELATION_BREAK")
     if regime.position_path_adverse:
         bank_reasons.append("POSITION_PATH_ADVERSE")
-    if drawdown_utilization >= SOVEREIGN_DEFENSIVE_DRAWDOWN:
-        bank_reasons.append("SOVEREIGN_DRAWDOWN_GE_50PCT")
     if risk_utilization >= cibo_new_capital_risk_utilization_ceiling():
         bank_reasons.append("RISK_UTILIZATION_DEFENSIVE")
     if margin_utilization >= Decimal("0.80"):
@@ -564,6 +562,10 @@ def explain_three_mode(
         return CiboTraderLabMode.MEDIUM, ("NO_ATTACK_GRADE_CANDIDATE",)
 
     attack_context_reasons: list[str] = []
+    if drawdown_utilization >= SOVEREIGN_DEFENSIVE_DRAWDOWN:
+        attack_context_reasons.append(
+            "ATTACK_SOVEREIGN_DRAWDOWN_DEFENSIVE"
+        )
     if regime.liquidity is not LiquidityState.NORMAL:
         attack_context_reasons.append("ATTACK_REQUIRES_NORMAL_LIQUIDITY")
     if regime.volatility not in {
@@ -2002,6 +2004,9 @@ def run_three_mode_trader_lab(
             "outcome_used_for_predecision": False,
             "medium_positive_profit_split": "50%_SOVEREIGN_50%_CUSHION",
             "bank_role": "TREASURY_SEEDS_MEDIUM_ONLY_NO_TRADES",
+            "drawdown_policy": (
+                "DRAWDOWN_BLOCKS_ATTACK_NOT_MEDIUM; BANK_SEED_KEEPS_MEDIUM_WORKING"
+            ),
             "bank_seed_source": "SOVEREIGN_WORKING_CAPITAL_ENVELOPE",
             "medium_engine": "SIZING_PLUS_CIBO_COMPOUND",
             "medium_capital_source": "BANK_SEED_ONLY",

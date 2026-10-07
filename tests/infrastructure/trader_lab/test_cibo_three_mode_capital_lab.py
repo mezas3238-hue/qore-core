@@ -70,6 +70,18 @@ class CiboThreeModeCapitalLabTest(unittest.TestCase):
         )
         self.assertIs(mode, CiboTraderLabMode.BANK)
 
+    def test_drawdown_blocks_attack_but_keeps_medium_working(self) -> None:
+        candidate = _candidate()
+        mode = select_three_mode(
+            regime=_regime(),
+            risk_utilization=Decimal("0.1"),
+            margin_utilization=Decimal("0.1"),
+            drawdown_utilization=Decimal("0.60"),
+            cushion_available_usd=Decimal("100"),
+            best_candidate=candidate,
+        )
+        self.assertIs(mode, CiboTraderLabMode.MEDIUM)
+
     def test_medium_builds_until_cushion_can_fund_two_x(self) -> None:
         candidate = _candidate()
         mode = select_three_mode(
