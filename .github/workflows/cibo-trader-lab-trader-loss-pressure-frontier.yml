@@ -1,6 +1,7 @@
 name: QORE CIBO Trader Loss Pressure Frontier
 
 # Research-only reused-holdout experiment; not certification evidence.
+# Triggered after total-gross-loss instrumentation.
 
 on:
   workflow_dispatch:
