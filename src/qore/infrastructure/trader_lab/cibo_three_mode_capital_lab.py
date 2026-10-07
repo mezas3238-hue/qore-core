@@ -838,6 +838,7 @@ def run_three_mode_trader_lab(
     distributed_attack_frontier: bool = False,
     attack_multiplier_cap: int = DEFAULT_DISTRIBUTED_ATTACK_MULTIPLIER_CAP,
     medium_multiplier_cap: int = 4,
+    medium_drawdown_intensity_trigger: Decimal | None = None,
     coordinated_economic_group: bool = False,
     economic_group_bootstrap_cushion_share: Decimal = Decimal("0.75"),
     collect_engineering_trace: bool = True,
@@ -950,6 +951,15 @@ def run_three_mode_trader_lab(
     ):
         raise CiboCapitalManagementError(
             "Trader Lab MEDIUM multiplier cap must be int in [1, 20]"
+        )
+    if medium_drawdown_intensity_trigger is not None and (
+        not isinstance(medium_drawdown_intensity_trigger, Decimal)
+        or not medium_drawdown_intensity_trigger.is_finite()
+        or medium_drawdown_intensity_trigger < 0
+        or medium_drawdown_intensity_trigger >= Decimal("0.50")
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab MEDIUM drawdown intensity trigger must be Decimal in [0, 0.50)"
         )
     if (
         not isinstance(medium_pretrade_drawdown_ceiling, Decimal)
@@ -1328,6 +1338,7 @@ def run_three_mode_trader_lab(
     attack_epochs_funded = 0
     mode_reason_counts: Counter[str] = Counter()
     sizing_intensity_cap_counts: Counter[str] = Counter()
+    medium_drawdown_intensity_cap_bind_count = 0
     drawdown_peak_at: datetime | None = None
     drawdown_episode_net_by_trader: dict[str, Decimal] = defaultdict(Decimal)
     drawdown_episode_net_by_mode: dict[str, Decimal] = defaultdict(Decimal)
@@ -2404,6 +2415,14 @@ def run_three_mode_trader_lab(
                         )
                         else 1
                     )
+                    if (
+                        medium_drawdown_intensity_trigger is not None
+                        and total_drawdown_utilization
+                        >= medium_drawdown_intensity_trigger
+                        and native_intensity_cap > 1
+                    ):
+                        native_intensity_cap = 1
+                        medium_drawdown_intensity_cap_bind_count += 1
                     multiplier = max(
                         1,
                         min(
@@ -2496,6 +2515,13 @@ def run_three_mode_trader_lab(
                             ),
                             "medium_pretrade_drawdown_ceiling": format(
                                 medium_pretrade_drawdown_ceiling, "f"
+                            ),
+                            "medium_drawdown_intensity_trigger": (
+                                None
+                                if medium_drawdown_intensity_trigger is None
+                                else format(
+                                    medium_drawdown_intensity_trigger, "f"
+                                )
                             ),
                             "medium_drawdown_allocator_cap_usd": format(
                                 medium_drawdown_allocator_cap_usd, "f"
@@ -3494,6 +3520,14 @@ def run_three_mode_trader_lab(
             "sizing_intensity_cap_counts": dict(
                 sorted(sizing_intensity_cap_counts.items())
             ),
+            "medium_drawdown_intensity_trigger": (
+                None
+                if medium_drawdown_intensity_trigger is None
+                else format(medium_drawdown_intensity_trigger, "f")
+            ),
+            "medium_drawdown_intensity_cap_bind_count": (
+                medium_drawdown_intensity_cap_bind_count
+            ),
             "medium_profit_to_sovereign_usd": format(
                 state.medium_profit_to_sovereign_usd, "f"
             ),
@@ -3615,6 +3649,14 @@ def run_three_mode_trader_lab(
             ),
             "native_profile_consumed": True,
             "coordinated_economic_group": coordinated_economic_group,
+            "medium_drawdown_intensity_trigger": (
+                None
+                if medium_drawdown_intensity_trigger is None
+                else format(medium_drawdown_intensity_trigger, "f")
+            ),
+            "medium_drawdown_intensity_cap_bind_count": (
+                medium_drawdown_intensity_cap_bind_count
+            ),
             "economic_group_bootstrap_cushion_share": format(
                 economic_group_bootstrap_cushion_share, "f"
             ),
