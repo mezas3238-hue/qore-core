@@ -1,0 +1,123 @@
+name: QORE CIBO Economic Group Hot Path
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/cibo-causal-expectation-leakage-fix-001
+    paths:
+      - '.github/workflows/cibo-trader-lab-economic-group-hot-path.yml'
+      - 'src/qore/infrastructure/trader_lab/cibo_three_mode_capital_lab.py'
+      - 'scripts/cibo_trader_lab_three_mode_ceiling.py'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-cibo-economic-group-hot-${{ github.sha }}
+  cancel-in-progress: false
+
+env:
+  PYTHONPATH: ${{ github.workspace }}/src
+  SOURCE_ARTIFACT_ID: '11451743578'
+  SOURCE_ARTIFACT_DIGEST: 'sha256:d439957f21e2f79148b5a2fb75a53db6fa448698f17aeb6978f379ed3547f7ea'
+  HISTORICAL_SOURCE_ARTIFACT_ID: '11389331836'
+  HISTORICAL_SOURCE_ARTIFACT_DIGEST: 'sha256:30177639f660c9647ab70257c2d12c541bdade49ab5582347a3890f920070fee'
+  HISTORICAL_CONTROL_ARTIFACT_ID: '11409086692'
+  HISTORICAL_CONTROL_ARTIFACT_DIGEST: 'sha256:eeffdc99a736b82bd965ff646b8ca9bf084f50ae414e56e9b3d82961169d7187'
+
+jobs:
+  economic-group-hot-path:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Compile economic group surface
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            src/qore/infrastructure/trader_lab/cibo_three_mode_capital_lab.py \
+            scripts/cibo_trader_lab_three_mode_ceiling.py
+
+      - name: Recover causal artifacts only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/source" "$RUNNER_TEMP/historical-source" "$RUNNER_TEMP/historical-control" "$RUNNER_TEMP/result"
+
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$SOURCE_ARTIFACT_ID/zip" > "$RUNNER_TEMP/source.zip"
+          echo "${SOURCE_ARTIFACT_DIGEST#sha256:}  $RUNNER_TEMP/source.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/source.zip" -d "$RUNNER_TEMP/source"
+          echo "MANIFEST=$(find "$RUNNER_TEMP/source" -type f -name walk-forward-manifest.json -print -quit)" >> "$GITHUB_ENV"
+          echo "BASELINE=$(find "$RUNNER_TEMP/source" -type f -name walk-forward-replay.json -print -quit)" >> "$GITHUB_ENV"
+
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$HISTORICAL_SOURCE_ARTIFACT_ID/zip" > "$RUNNER_TEMP/historical-source.zip"
+          echo "${HISTORICAL_SOURCE_ARTIFACT_DIGEST#sha256:}  $RUNNER_TEMP/historical-source.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/historical-source.zip" -d "$RUNNER_TEMP/historical-source"
+          echo "HISTORICAL_MANIFEST=$(find "$RUNNER_TEMP/historical-source" -type f -name single-account-manifest-native.json -print -quit)" >> "$GITHUB_ENV"
+
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$HISTORICAL_CONTROL_ARTIFACT_ID/zip" > "$RUNNER_TEMP/historical-control.zip"
+          echo "${HISTORICAL_CONTROL_ARTIFACT_DIGEST#sha256:}  $RUNNER_TEMP/historical-control.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/historical-control.zip" -d "$RUNNER_TEMP/historical-control"
+          echo "HISTORICAL_REPLAY=$(find "$RUNNER_TEMP/historical-control" -type f -name historical-ceiling-replay.json -print -quit)" >> "$GITHUB_ENV"
+
+      - name: Run coordinated quartet
+        run: |
+          set -euo pipefail
+          python scripts/cibo_trader_lab_three_mode_ceiling.py \
+            --manifest "$MANIFEST" \
+            --baseline-replay "$BASELINE" \
+            --historical-manifest "$HISTORICAL_MANIFEST" \
+            --historical-replay "$HISTORICAL_REPLAY" \
+            --distributed-attack-frontier \
+            --attack-multiplier-cap 8 \
+            --medium-multiplier-cap 4 \
+            --coordinated-economic-group \
+            --output "$RUNNER_TEMP/result/cibo-economic-group.json"
+
+      - name: Enforce quartet invariants
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from decimal import Decimal
+          from pathlib import Path
+
+          p = json.loads((Path(os.environ["RUNNER_TEMP"]) / "result" / "cibo-economic-group.json").read_text())
+          assert p["research_lane"] == "HISTORICAL_PRIOR_NATIVE_COORDINATED_ECONOMIC_GROUP"
+          assert p["decision_count"] == p["trade_count"] == 3368
+          assert p["economic_group_report"]["enabled"] is True
+          assert p["economic_group_report"]["all_entries_preserved"] is True
+          assert p["economic_group_report"]["handoff_chain"] == [
+              "SIZING", "CIBO_COMPOUND", "COMPOUND_PORTFOLIO", "ADAPTIVE_LEVERAGE"
+          ]
+          funnel = p["engineering_sensor_report"]["execution_funnel"]
+          assert funnel["sizing_medium_rejected_count"] == 0
+          assert funnel["sizing_medium_deferred_count"] == 0
+          assert funnel["compound_portfolio_withheld_before_execution_engine_count"] == 0
+          assert Decimal(p["ending_total_capital_usd"]) > 0
+          assert Decimal(p["attack_sovereign_breach_usd"]) == 0
+          print(json.dumps({
+              "capital": p["ending_total_capital_usd"],
+              "drawdown": p["max_drawdown_fraction"],
+              "trade_mode_counts": p["trade_mode_counts"],
+              "average_multiplier": p["average_selected_multiplier"],
+              "economic_group_report": p["economic_group_report"],
+              "function_sensors": p["function_sensors"],
+          }, sort_keys=True))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-economic-group-hot-${{ github.run_id }}
+          path: ${{ runner.temp }}/result/cibo-economic-group.json
+          if-no-files-found: error
+          retention-days: 90
