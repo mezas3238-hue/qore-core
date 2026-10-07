@@ -5169,6 +5169,15 @@ def run_three_mode_trader_lab(
                             candidate.attack_expected_net_utility_usd,
                             "f",
                         ),
+                        "walk_forward_expected_structural_r": (
+                            None
+                            if candidate.walk_forward_expected_structural_r is None
+                            else format(candidate.walk_forward_expected_structural_r, "f")
+                        ),
+                        "walk_forward_block_dispersion_r": format(
+                            candidate.walk_forward_block_dispersion_r, "f"
+                        ),
+                        "native_confidence_band": native_confidence(candidate),
                         "walk_forward_positive_block_count": (
                             candidate.walk_forward_positive_block_count
                         ),
