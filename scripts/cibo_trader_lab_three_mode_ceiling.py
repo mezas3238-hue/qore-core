@@ -574,6 +574,9 @@ def main() -> int:
                 ],
                 "attack_net_pnl_usd": result["attack_net_pnl_usd"],
                 "economic_group_report": result["economic_group_report"],
+                "max_drawdown_attribution": result[
+                    "max_drawdown_attribution"
+                ],
                 "position_lifecycle_report": result["position_lifecycle_report"],
             },
             sort_keys=True,
