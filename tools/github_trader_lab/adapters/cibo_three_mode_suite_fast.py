@@ -518,11 +518,35 @@ def run_case_worker(
         cibo_three_mode_capital_lab as capital,
     )
 
-    # Parity mode: keep the expensive Atlas lifecycle sidecar prepared, but
-    # execute the subject's candidate construction and economic replay exactly
-    # as the direct Trader Lab does. Candidate-cache and summary-telemetry
-    # shortcuts are intentionally disabled until parity is proven.
+    # Candidate construction is pure predecision work. The parent builds
+    # immutable candidates once before fork; workers reuse the exact objects.
+    # Economic replay, settlements and lifecycle remain subject-native.
     original_candidate = capital._candidate
+
+    def cached_candidate(
+        row: dict[str, Any],
+        *,
+        native_cognition_recommended: bool | None,
+        enforce_research_context_abstain: bool,
+    ) -> object:
+        signal = str(row["signal_fingerprint"])
+        key = (
+            signal,
+            native_cognition_recommended,
+            enforce_research_context_abstain,
+        )
+        cached = _PARENT_CANDIDATE_CACHE.get(key)
+        if cached is None:
+            return original_candidate(
+                row,
+                native_cognition_recommended=native_cognition_recommended,
+                enforce_research_context_abstain=(
+                    enforce_research_context_abstain
+                ),
+            )
+        return cached
+
+    capital._candidate = cached_candidate
     lifecycle_path_raw = job.get("lifecycle_sidecar")
     original_builder = subject._build_lifecycle_map
     original_run = subject.run_three_mode_trader_lab
@@ -739,6 +763,7 @@ def main() -> int:
             "atlas_scans_in_hot_path": 0,
             "case_workers": workers,
             "shared_predecision_candidate_cache": True,
+            "candidate_cache_active": True,
             "candidate_cache_entries": candidate_cache_entries,
             "failed_case_count": len(failures),
             "failed_cases_are_research_outcomes": True,
