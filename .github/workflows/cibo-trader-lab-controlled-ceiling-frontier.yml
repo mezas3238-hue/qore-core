@@ -1,6 +1,6 @@
 name: QORE CIBO Controlled Ceiling Frontier
 
-# Explicit leverage-cap revision 3 — summary risk ledger repaired
+# Explicit leverage-cap revision 4 — negative exposure diagnostic
 
 on:
   workflow_dispatch:
