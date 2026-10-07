@@ -1,0 +1,112 @@
+name: QORE CIBO Trader Lab Three Mode Ceiling
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/cibo-causal-expectation-leakage-fix-001
+    paths:
+      - '.github/workflows/cibo-trader-lab-three-mode-ceiling.yml'
+      - 'src/qore/infrastructure/trader_lab/cibo_three_mode_capital_lab.py'
+      - 'scripts/cibo_trader_lab_three_mode_ceiling.py'
+      - 'tests/infrastructure/trader_lab/test_cibo_three_mode_capital_lab.py'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qore-cibo-trader-lab-three-mode-${{ github.sha }}
+  cancel-in-progress: false
+
+env:
+  PYTHONPATH: ${{ github.workspace }}
+  SOURCE_ARTIFACT_ID: '11451743578'
+  SOURCE_ARTIFACT_DIGEST: 'sha256:d439957f21e2f79148b5a2fb75a53db6fa448698f17aeb6978f379ed3547f7ea'
+
+jobs:
+  three-mode-ceiling:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Compile isolated Trader Lab surface
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            src/qore/infrastructure/trader_lab/cibo_three_mode_capital_lab.py \
+            scripts/cibo_trader_lab_three_mode_ceiling.py \
+            tests/infrastructure/trader_lab/test_cibo_three_mode_capital_lab.py
+
+      - name: Run fast three-mode unit contract
+        run: |
+          set -euo pipefail
+          python -m pytest -q --no-cov \
+            tests/infrastructure/trader_lab/test_cibo_three_mode_capital_lab.py
+
+      - name: Recover canonical full walk-forward artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/source" "$RUNNER_TEMP/result"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$SOURCE_ARTIFACT_ID" > "$RUNNER_TEMP/source.meta.json"
+          jq -e --arg digest "$SOURCE_ARTIFACT_DIGEST" '.expired == false and .digest == $digest' "$RUNNER_TEMP/source.meta.json"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$SOURCE_ARTIFACT_ID/zip" > "$RUNNER_TEMP/source.zip"
+          echo "${SOURCE_ARTIFACT_DIGEST#sha256:}  $RUNNER_TEMP/source.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/source.zip" -d "$RUNNER_TEMP/source"
+          MANIFEST="$(find "$RUNNER_TEMP/source" -type f -name walk-forward-manifest.json -print -quit)"
+          BASELINE="$(find "$RUNNER_TEMP/source" -type f -name walk-forward-replay.json -print -quit)"
+          test -n "$MANIFEST"
+          test -n "$BASELINE"
+          echo "MANIFEST=$MANIFEST" >> "$GITHUB_ENV"
+          echo "BASELINE=$BASELINE" >> "$GITHUB_ENV"
+
+      - name: Run BANK MEDIUM ATTACK ceiling experiment
+        run: |
+          set -euo pipefail
+          python scripts/cibo_trader_lab_three_mode_ceiling.py \
+            --manifest "$MANIFEST" \
+            --baseline-replay "$BASELINE" \
+            --output "$RUNNER_TEMP/result/cibo-three-mode-ceiling.json"
+
+      - name: Enforce Trader Lab scientific invariants
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from decimal import Decimal
+          from pathlib import Path
+
+          p = json.loads(
+              (
+                  Path(os.environ["RUNNER_TEMP"])
+                  / "result"
+                  / "cibo-three-mode-ceiling.json"
+              ).read_text()
+          )
+          assert p["decision_count"] == 3368
+          assert p["decision_epoch_count"] == 3305
+          assert p["governance"]["trader_lab_only"] is True
+          assert p["governance"]["sovereign_runtime_mutated"] is False
+          assert p["governance"]["outcome_used_for_predecision"] is False
+          assert p["governance"]["attack_risk_source"] == "PORTFOLIO_CUSHION_ONLY"
+          assert p["governance"]["medium_positive_profit_split"] == "50%_SOVEREIGN_50%_CUSHION"
+          assert Decimal(p["ending_sovereign_bank_usd"]) >= 0
+          assert Decimal(p["ending_portfolio_cushion_usd"]) >= 0
+          assert Decimal(p["attack_sovereign_breach_usd"]) == 0
+          assert p["mode_epoch_counts"].get("MEDIUM", 0) > 0
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-trader-lab-three-mode-ceiling-${{ github.run_id }}
+          path: ${{ runner.temp }}/result/cibo-three-mode-ceiling.json
+          if-no-files-found: error
+          retention-days: 90
