@@ -903,6 +903,8 @@ def run_three_mode_trader_lab(
     ceiling_attack_single_trade_risk_fraction: Decimal | None = None,
     ceiling_attack_loss_streak_trigger: int | None = None,
     ceiling_attack_loss_streak_taper_fraction: Decimal = Decimal("0.50"),
+    ceiling_attack_drawdown_taper_trigger: Decimal | None = None,
+    ceiling_attack_drawdown_taper_fraction: Decimal = Decimal("0.50"),
     compound_profit_reinvestment_fraction: Decimal | None = None,
     collect_engineering_trace: bool = True,
     collect_epoch_receipts: bool = True,
@@ -1073,6 +1075,31 @@ def run_three_mode_trader_lab(
     ):
         raise CiboCapitalManagementError(
             "Trader Lab ceiling ATTACK loss streak taper requires ceiling discovery mode"
+        )
+    if ceiling_attack_drawdown_taper_trigger is not None and (
+        not isinstance(ceiling_attack_drawdown_taper_trigger, Decimal)
+        or not ceiling_attack_drawdown_taper_trigger.is_finite()
+        or ceiling_attack_drawdown_taper_trigger < 0
+        or ceiling_attack_drawdown_taper_trigger >= Decimal("0.50")
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab ceiling ATTACK drawdown taper trigger must be Decimal in [0, 0.50)"
+        )
+    if (
+        not isinstance(ceiling_attack_drawdown_taper_fraction, Decimal)
+        or not ceiling_attack_drawdown_taper_fraction.is_finite()
+        or ceiling_attack_drawdown_taper_fraction <= 0
+        or ceiling_attack_drawdown_taper_fraction > 1
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab ceiling ATTACK drawdown taper fraction must be Decimal in (0, 1]"
+        )
+    if (
+        ceiling_attack_drawdown_taper_trigger is not None
+        and not ceiling_discovery_mode
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab ceiling ATTACK drawdown taper requires ceiling discovery mode"
         )
     if compound_profit_reinvestment_fraction is not None and (
         not isinstance(compound_profit_reinvestment_fraction, Decimal)
@@ -1514,6 +1541,7 @@ def run_three_mode_trader_lab(
     robust_sizing_reject_count = 0
     robust_leverage_cap_bind_count = 0
     attack_loss_streak_taper_bind_count = 0
+    attack_drawdown_taper_bind_count = 0
     attack_epochs_funded = 0
     mode_reason_counts: Counter[str] = Counter()
     sizing_intensity_cap_counts: Counter[str] = Counter()
@@ -2951,6 +2979,29 @@ def run_three_mode_trader_lab(
                             coordinated_attack_cap,
                             tapered_attack_cap,
                         )
+                    if (
+                        ceiling_discovery_mode
+                        and ceiling_attack_drawdown_taper_trigger is not None
+                        and total_drawdown_utilization
+                        >= ceiling_attack_drawdown_taper_trigger
+                    ):
+                        drawdown_tapered_attack_cap = max(
+                            ATTACK_MINIMUM_MULTIPLIER,
+                            int(
+                                (
+                                    Decimal(coordinated_attack_cap)
+                                    * ceiling_attack_drawdown_taper_fraction
+                                ).to_integral_value(
+                                    rounding=ROUND_FLOOR
+                                )
+                            ),
+                        )
+                        if drawdown_tapered_attack_cap < coordinated_attack_cap:
+                            attack_drawdown_taper_bind_count += 1
+                        coordinated_attack_cap = min(
+                            coordinated_attack_cap,
+                            drawdown_tapered_attack_cap,
+                        )
                     ceiling_drawdown_risk_cap = candidate.maximum_multiplier
                     if (
                         ceiling_discovery_mode
@@ -3997,6 +4048,17 @@ def run_three_mode_trader_lab(
             ),
             "attack_loss_streak_taper_bind_count": (
                 attack_loss_streak_taper_bind_count
+            ),
+            "ceiling_attack_drawdown_taper_trigger": (
+                None
+                if ceiling_attack_drawdown_taper_trigger is None
+                else format(ceiling_attack_drawdown_taper_trigger, "f")
+            ),
+            "ceiling_attack_drawdown_taper_fraction": format(
+                ceiling_attack_drawdown_taper_fraction, "f"
+            ),
+            "attack_drawdown_taper_bind_count": (
+                attack_drawdown_taper_bind_count
             ),
             "ending_trader_attack_loss_streaks": {
                 key: int(value)
