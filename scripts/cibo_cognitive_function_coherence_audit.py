@@ -48,6 +48,7 @@ def audit(replay: dict[str, Any]) -> dict[str, Any]:
     consumer_actions: dict[str, Counter[str]] = defaultdict(Counter)
     blockers: dict[str, Counter[str]] = defaultdict(Counter)
     violations: Counter[str] = Counter()
+    diagnostics: Counter[str] = Counter()
     source_counts: Counter[str] = Counter()
 
     for decision in decisions:
@@ -129,13 +130,17 @@ def audit(replay: dict[str, Any]) -> dict[str, Any]:
             except ValueError:
                 violations["max_frontier_malformed_output"] += 1
             else:
-                if (
-                    frontier_cap not in {0, 1, 2, 3, 4}
-                    or frontier_selected not in {0, 1, 2, 3, 4}
-                ):
+                if frontier_cap < 0 or frontier_selected < 0:
                     violations["max_frontier_malformed_output"] += 1
+                elif frontier_output.get("advisory_diagnostic") != "True":
+                    violations["max_frontier_not_advisory"] += 1
                 elif frontier_selected > frontier_cap:
-                    violations["portfolio_exceeds_max_frontier"] += 1
+                    # MAX Frontier is diagnostic/advisory. Native MAX may
+                    # legitimately select above its recommendation when the
+                    # sovereign Portfolio/Sizing/Leverage/QORE-Risk chain
+                    # admits the provider-derived action. Record divergence
+                    # for diagnosis, never as a hard coherence violation.
+                    diagnostics["portfolio_above_max_frontier_recommendation"] += 1
 
         portfolio = by_function.get("COMPOUND_PORTFOLIO")
         if portfolio is not None:
@@ -200,9 +205,9 @@ def audit(replay: dict[str, Any]) -> dict[str, Any]:
     )
     add(
         "P0",
-        "PORTFOLIO_EXCEEDS_MAX_FRONTIER",
-        violations["portfolio_exceeds_max_frontier"],
-        "Portfolio selected an intensity above the causal MAX Frontier cap.",
+        "MAX_FRONTIER_ROLE_VIOLATION",
+        violations["max_frontier_not_advisory"],
+        "MAX Frontier telemetry no longer declares its required advisory/diagnostic role.",
     )
     add(
         "P0",
@@ -292,6 +297,7 @@ def audit(replay: dict[str, Any]) -> dict[str, Any]:
         "function_count": len(functions),
         "capital_source_counts": _counter_payload(source_counts),
         "coherence_violations": _counter_payload(violations),
+        "diagnostics": _counter_payload(diagnostics),
         "cognitive_components": {
             code: _counter_payload(counts)
             for code, counts in sorted(cognitive.items())
