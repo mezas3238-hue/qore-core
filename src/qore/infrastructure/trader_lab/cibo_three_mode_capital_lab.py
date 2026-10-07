@@ -319,6 +319,75 @@ def _group_epochs(
     )
 
 
+def explain_three_mode(
+    *,
+    regime: CiboTraderLabRegime,
+    risk_utilization: Decimal,
+    margin_utilization: Decimal,
+    drawdown_utilization: Decimal,
+    cushion_available_usd: Decimal,
+    best_candidate: CiboThreeModeCandidate | None,
+) -> tuple[CiboTraderLabMode, tuple[str, ...]]:
+    """Choose one mode and expose only causal reasons for that choice."""
+
+    bank_reasons: list[str] = []
+    if regime.evidence_stale:
+        bank_reasons.append("EVIDENCE_STALE")
+    if regime.provider_condition is not ProviderCondition.HEALTHY:
+        bank_reasons.append("PROVIDER_NOT_HEALTHY")
+    if regime.liquidity is LiquidityState.STRESSED:
+        bank_reasons.append("LIQUIDITY_STRESSED")
+    if regime.volatility is VolatilityState.DISLOCATED:
+        bank_reasons.append("VOLATILITY_DISLOCATED")
+    if regime.correlation is CorrelationState.BREAK:
+        bank_reasons.append("CORRELATION_BREAK")
+    if regime.position_path_adverse:
+        bank_reasons.append("POSITION_PATH_ADVERSE")
+    if drawdown_utilization >= Decimal("0.50"):
+        bank_reasons.append("DRAWDOWN_GE_50PCT")
+    if risk_utilization >= cibo_new_capital_risk_utilization_ceiling():
+        bank_reasons.append("RISK_UTILIZATION_DEFENSIVE")
+    if margin_utilization >= Decimal("0.80"):
+        bank_reasons.append("MARGIN_UTILIZATION_DEFENSIVE")
+    if bank_reasons:
+        return CiboTraderLabMode.BANK, tuple(bank_reasons)
+
+    if best_candidate is None:
+        return CiboTraderLabMode.MEDIUM, ("NO_ATTACK_GRADE_CANDIDATE",)
+
+    attack_context_reasons: list[str] = []
+    if regime.liquidity is not LiquidityState.NORMAL:
+        attack_context_reasons.append("ATTACK_REQUIRES_NORMAL_LIQUIDITY")
+    if regime.volatility not in {
+        VolatilityState.COMPRESSED,
+        VolatilityState.NORMAL,
+    }:
+        attack_context_reasons.append("ATTACK_VOLATILITY_NOT_GRADE")
+    if regime.correlation is not CorrelationState.NORMAL:
+        attack_context_reasons.append("ATTACK_CORRELATION_NOT_NORMAL")
+    if best_candidate.expected_net_utility_usd <= 0:
+        attack_context_reasons.append("ATTACK_EXPECTANCY_NOT_POSITIVE")
+    if not best_candidate.context_allowed:
+        attack_context_reasons.append("ATTACK_CONTEXT_NOT_ALLOWED")
+    if best_candidate.maximum_multiplier < ATTACK_MINIMUM_MULTIPLIER:
+        attack_context_reasons.append("ATTACK_PROVIDER_CAP_LT_2X")
+
+    minimum_attack_cushion = (
+        best_candidate.source_cost_per_multiplier_usd
+        * Decimal(ATTACK_MINIMUM_MULTIPLIER)
+    )
+    if cushion_available_usd < minimum_attack_cushion:
+        attack_context_reasons.append("ATTACK_CUSHION_LT_2X")
+
+    if not attack_context_reasons:
+        return CiboTraderLabMode.ATTACK, (
+            "HEALTHY_CONTEXT",
+            "POSITIVE_CAUSAL_EXPECTANCY",
+            "CUSHION_FUNDS_AT_LEAST_2X",
+        )
+    return CiboTraderLabMode.MEDIUM, tuple(attack_context_reasons)
+
+
 def select_three_mode(
     *,
     regime: CiboTraderLabRegime,
@@ -328,40 +397,17 @@ def select_three_mode(
     cushion_available_usd: Decimal,
     best_candidate: CiboThreeModeCandidate | None,
 ) -> CiboTraderLabMode:
-    """Choose exactly BANK, MEDIUM or ATTACK from causal state."""
+    """Compatibility wrapper returning only the selected mode."""
 
-    if (
-        regime.evidence_stale
-        or regime.provider_condition is not ProviderCondition.HEALTHY
-        or regime.liquidity is LiquidityState.STRESSED
-        or regime.volatility is VolatilityState.DISLOCATED
-        or regime.correlation is CorrelationState.BREAK
-        or regime.position_path_adverse
-        or drawdown_utilization >= Decimal("0.50")
-        or risk_utilization >= cibo_new_capital_risk_utilization_ceiling()
-        or margin_utilization >= Decimal("0.80")
-    ):
-        return CiboTraderLabMode.BANK
-
-    if best_candidate is None:
-        return CiboTraderLabMode.MEDIUM
-    attack_context = (
-        regime.liquidity is LiquidityState.NORMAL
-        and regime.volatility
-        in {VolatilityState.COMPRESSED, VolatilityState.NORMAL}
-        and regime.correlation is CorrelationState.NORMAL
-        and best_candidate.expected_net_utility_usd > 0
-        and best_candidate.context_allowed
-        and best_candidate.maximum_multiplier >= ATTACK_MINIMUM_MULTIPLIER
+    mode, _reasons = explain_three_mode(
+        regime=regime,
+        risk_utilization=risk_utilization,
+        margin_utilization=margin_utilization,
+        drawdown_utilization=drawdown_utilization,
+        cushion_available_usd=cushion_available_usd,
+        best_candidate=best_candidate,
     )
-    minimum_attack_cushion = (
-        best_candidate.source_cost_per_multiplier_usd
-        * Decimal(ATTACK_MINIMUM_MULTIPLIER)
-    )
-    if attack_context and cushion_available_usd >= minimum_attack_cushion:
-        return CiboTraderLabMode.ATTACK
-    return CiboTraderLabMode.MEDIUM
-
+    return mode
 
 def apply_three_mode_settlement(
     state: _State,
@@ -445,6 +491,8 @@ def run_three_mode_trader_lab(
     compound_settlements = 0
     adaptive_leverage_calls = 0
     attack_epochs_funded = 0
+    mode_reason_counts: Counter[str] = Counter()
+    trade_receipts: list[dict[str, object]] = []
     epoch_receipts: list[dict[str, object]] = []
 
     def settle_due(up_to: datetime | None) -> None:
@@ -515,7 +563,7 @@ def run_three_mode_trader_lab(
             state.peak_total_capital_usd,
         )
         best = eligible[0] if eligible else None
-        mode = select_three_mode(
+        mode, mode_reasons = explain_three_mode(
             regime=regime,
             risk_utilization=risk_utilization,
             margin_utilization=margin_utilization,
@@ -524,6 +572,8 @@ def run_three_mode_trader_lab(
             best_candidate=best,
         )
         mode_counts[mode.value] += 1
+        for reason in mode_reasons:
+            mode_reason_counts[reason] += 1
         portfolio_calls += 1
         if mode is CiboTraderLabMode.ATTACK:
             attack_epochs_funded += 1
@@ -629,6 +679,32 @@ def run_three_mode_trader_lab(
                 source_reserved_usd=source_reserved,
             )
             pending.append(trade)
+            trade_receipts.append(
+                {
+                    "signal_fingerprint": candidate.signal_fingerprint,
+                    "trader_id": candidate.trader_id,
+                    "decision_at": candidate.decision_at.isoformat(),
+                    "exit_at": candidate.exit_at.isoformat(),
+                    "mode": mode.value,
+                    "multiplier": multiplier,
+                    "expected_net_utility_usd": format(
+                        candidate.expected_net_utility_usd,
+                        "f",
+                    ),
+                    "capital_time_score": format(
+                        candidate.capital_time_score,
+                        "f",
+                    ),
+                    "gross_structural_outcome_r_postdecision": format(
+                        candidate.gross_r,
+                        "f",
+                    ),
+                    "stop_risk_usd": format(stop_risk, "f"),
+                    "provider_cost_usd": format(provider_cost, "f"),
+                    "source_reserved_usd": format(source_reserved, "f"),
+                    "mode_reasons": list(mode_reasons),
+                }
+            )
             state.open_stop_risk_usd += stop_risk
             state.open_margin_usd += margin
             if mode is CiboTraderLabMode.MEDIUM:
@@ -644,6 +720,7 @@ def run_three_mode_trader_lab(
                 "epoch_index": epoch_index,
                 "decision_at": decision_at.isoformat(),
                 "mode": mode.value,
+                "mode_reasons": list(mode_reasons),
                 "opportunity_count": len(candidates),
                 "eligible_count": len(eligible),
                 "selected_count": len(selected),
@@ -742,6 +819,7 @@ def run_three_mode_trader_lab(
             "f",
         ),
         "mode_epoch_counts": dict(sorted(mode_counts.items())),
+        "mode_reason_counts": dict(sorted(mode_reason_counts.items())),
         "trade_mode_counts": dict(sorted(trade_mode_counts.items())),
         "trade_count": trade_count,
         "average_selected_multiplier": format(
@@ -801,6 +879,7 @@ def run_three_mode_trader_lab(
         "delta_vs_baseline_ending_capital_usd": (
             None if baseline_delta is None else format(baseline_delta, "f")
         ),
+        "trade_receipts": trade_receipts,
         "epoch_receipts": epoch_receipts,
         "governance": {
             "trader_lab_only": True,
