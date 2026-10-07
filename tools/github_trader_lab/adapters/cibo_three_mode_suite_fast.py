@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from collections import Counter, defaultdict
 import inspect
 import json
 import multiprocessing
@@ -79,6 +80,148 @@ def temporal_blocks(
     return result
 
 
+def build_loss_profile(
+    receipts: list[dict[str, Any]],
+    result: dict[str, Any],
+) -> dict[str, Any]:
+    gross_profit = ZERO
+    gross_loss = ZERO
+    loss_by_mode: dict[str, Decimal] = defaultdict(Decimal)
+    loss_by_trader: dict[str, Decimal] = defaultdict(Decimal)
+    loss_by_multiplier: dict[str, Decimal] = defaultdict(Decimal)
+    profit_by_mode: dict[str, Decimal] = defaultdict(Decimal)
+    losses: list[dict[str, Any]] = []
+    chronology: list[tuple[str, str, Decimal]] = []
+
+    for row in receipts:
+        pnl = d(row["realized_net_pnl_usd"])
+        net_r = d(row["realized_net_r"])
+        mode = str(row.get("mode", "UNKNOWN"))
+        trader = str(row.get("trader_id", "UNKNOWN"))
+        multiplier = str(row.get("multiplier", "UNKNOWN"))
+        exit_at = str(row.get("realized_exit_at", row.get("exit_at", "")))
+        signal = str(row.get("signal_fingerprint", ""))
+
+        chronology.append((exit_at, signal, pnl))
+        if pnl < 0:
+            amount = -pnl
+            gross_loss += amount
+            loss_by_mode[mode] += amount
+            loss_by_trader[trader] += amount
+            loss_by_multiplier[multiplier] += amount
+            losses.append(
+                {
+                    "signal_fingerprint": signal,
+                    "trader_id": trader,
+                    "mode": mode,
+                    "multiplier": multiplier,
+                    "loss_usd": format(amount, "f"),
+                    "net_r": format(net_r, "f"),
+                    "realized_exit_at": exit_at,
+                }
+            )
+        elif pnl > 0:
+            gross_profit += pnl
+            profit_by_mode[mode] += pnl
+
+    losing_count = len(losses)
+    avg_loss = ZERO if losing_count == 0 else gross_loss / Decimal(losing_count)
+    sorted_losses = sorted(
+        losses,
+        key=lambda row: d(row["loss_usd"]),
+        reverse=True,
+    )
+
+    def share_top(count: int) -> Decimal:
+        if gross_loss <= 0 or not sorted_losses:
+            return ZERO
+        return sum(
+            (d(row["loss_usd"]) for row in sorted_losses[:count]),
+            ZERO,
+        ) / gross_loss
+
+    top_5pct_count = (
+        0
+        if losing_count == 0
+        else max(1, (losing_count * 5 + 99) // 100)
+    )
+    top_1pct_count = (
+        0
+        if losing_count == 0
+        else max(1, (losing_count + 99) // 100)
+    )
+
+    max_streak = 0
+    streak = 0
+    for _exit_at, _signal, pnl in sorted(chronology):
+        if pnl < 0:
+            streak += 1
+            max_streak = max(max_streak, streak)
+        else:
+            streak = 0
+
+    source = result.get("portfolio_loss_report")
+    if not isinstance(source, dict):
+        group = result.get("economic_group_report", {})
+        source = (
+            group.get("portfolio_loss_report", {})
+            if isinstance(group, dict)
+            else {}
+        )
+
+    return {
+        "gross_profit_usd": format(gross_profit, "f"),
+        "gross_loss_usd": format(gross_loss, "f"),
+        "net_realized_usd": format(gross_profit - gross_loss, "f"),
+        "profit_factor": (
+            None
+            if gross_loss <= 0
+            else format(gross_profit / gross_loss, "f")
+        ),
+        "winning_trade_count": sum(
+            d(row["realized_net_pnl_usd"]) > 0 for row in receipts
+        ),
+        "losing_trade_count": losing_count,
+        "flat_trade_count": sum(
+            d(row["realized_net_pnl_usd"]) == 0 for row in receipts
+        ),
+        "average_loss_usd": format(avg_loss, "f"),
+        "worst_trade_loss_usd": (
+            "0" if not sorted_losses else sorted_losses[0]["loss_usd"]
+        ),
+        "max_losing_streak": max_streak,
+        "top_10_losses_share": format(share_top(10), "f"),
+        "top_5pct_losses_share": format(
+            share_top(top_5pct_count), "f"
+        ),
+        "top_1pct_losses_share": format(
+            share_top(top_1pct_count), "f"
+        ),
+        "gross_loss_by_mode_usd": {
+            key: format(value, "f")
+            for key, value in sorted(loss_by_mode.items())
+        },
+        "gross_profit_by_mode_usd": {
+            key: format(value, "f")
+            for key, value in sorted(profit_by_mode.items())
+        },
+        "gross_loss_by_trader_usd": {
+            key: format(value, "f")
+            for key, value in sorted(loss_by_trader.items())
+        },
+        "gross_loss_by_multiplier_usd": {
+            key: format(value, "f")
+            for key, value in sorted(loss_by_multiplier.items())
+        },
+        "worst_losses": sorted_losses[:10],
+        "max_drawdown_attribution": result.get(
+            "max_drawdown_attribution",
+            {},
+        ),
+        "source_portfolio_loss_report": source,
+    }
+
+
 def normalize_case(name: str, result: dict[str, Any]) -> dict[str, Any]:
     receipts = result.get("trade_receipts")
     if not isinstance(receipts, list) or not receipts:
@@ -114,6 +257,7 @@ def normalize_case(name: str, result: dict[str, Any]) -> dict[str, Any]:
         "temporal_blocks": temporal_blocks(net_r_values),
         "relative_density_vs_control": "1",
         "winner_preservation": {"count": "1", "r": "1"},
+        "loss_profile": build_loss_profile(receipts, result),
         "capital_path": {
             "initial_capital_usd": format(INITIAL, "f"),
             "ending_capital_usd": str(result["ending_total_capital_usd"]),

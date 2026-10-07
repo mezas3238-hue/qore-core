@@ -113,5 +113,13 @@
     "fresh_oos_required": true,
     "sharpe_threshold": null,
     "sortino_threshold": null
+  },
+  "loss_compression_policy": {
+    "enabled": true,
+    "target_drawdown_fraction": "0.25",
+    "strict_ceiling_preservation": true,
+    "strict_entry_preservation": true,
+    "gross_loss_objective": "MINIMIZE",
+    "report_top_losses": 10
   }
 }

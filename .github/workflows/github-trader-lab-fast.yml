@@ -191,6 +191,7 @@ jobs:
             lab/tools/github_trader_lab/realtime.py \
             lab/tools/github_trader_lab/science.py \
             lab/tools/github_trader_lab/certification.py \
+            lab/tools/github_trader_lab/loss_compression.py \
             lab/tools/github_trader_lab/fingerprint.py \
             lab/tools/github_trader_lab/fast_runner.py \
             lab/tools/github_trader_lab/adapters/vt31_comp003_prepare.py \
@@ -234,6 +235,7 @@ jobs:
           print()
           print(f"- Hot compute: {h['hot_compute_seconds']} s")
           print(f"- Replay/filter stage: {h['experiment_replay_seconds']} s")
+          print(f"- Loss compression report: {h.get('loss_compression_seconds', 0)} s")
           print(f"- Full scientific battery: {h['scientific_battery_seconds']} s")
           print(f"- Certification readiness: {h['certification_readiness_seconds']} s")
           print(f"- Runner internal total: {h['runner_total_seconds']} s")
@@ -254,6 +256,34 @@ jobs:
                   f"Recovery={metrics['recovery_factor']}; "
                   f"CVaR5={metrics['cvar_05_r']}R"
               )
+          loss_path=Path(os.environ["RUNNER_TEMP"])/"github-trader-lab-fast"/"loss-compression-report.json"
+          if loss_path.is_file():
+              loss=json.loads(loss_path.read_text())
+              print()
+              print("## CIBO DD + Gross Loss Compression")
+              print()
+              print("| Variant | Verdict | Capital | Prod. retention | DD | ΔDD pp | Gross loss | Gross loss saved | PF |")
+              print("|---|---|---:|---:|---:|---:|---:|---:|---:|")
+              for name,row in loss["variants"].items():
+                  retention=row["production_retention_fraction"]
+                  retention_text="n/a" if retention is None else f"{float(retention)*100:.2f}%"
+                  saved=row["gross_loss_saved_vs_control_usd"]
+                  print(
+                      f"| {name} | {row['verdict']} | "
+                      f"${float(row['ending_capital_usd']):,.2f} | "
+                      f"{retention_text} | "
+                      f"{float(row['max_drawdown_fraction'])*100:.2f}% | "
+                      f"{float(row['drawdown_reduction_percentage_points']):.2f} | "
+                      f"${float(row['gross_loss_usd']):,.2f} | "
+                      f"${float(saved):,.2f} | "
+                      f"{row['profit_factor']} |"
+                  )
+              print()
+              print(f"- Strict wins: {loss['summary']['strict_wins']}")
+              print(f"- Pareto frontier: {loss['summary']['pareto_frontier']}")
+              print(f"- Best DD: {loss['summary']['best_drawdown']}")
+              print(f"- Best gross loss: {loss['summary']['best_gross_loss']}")
+              print(f"- Target DD survivors: {loss['summary']['target_drawdown_survivors']}")
           print()
           print("- Fresh holdout opened by Trader Lab: false")
           print("- Certification claimed: false")

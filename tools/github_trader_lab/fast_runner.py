@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from certification import evaluate_certification_readiness
+from loss_compression import evaluate_loss_compression
 from realtime import RealtimeMonitor
 from science import evaluate
 
@@ -268,6 +269,41 @@ def main() -> int:
                 payloads[lane] = future.result()
 
         replay_seconds = time.monotonic() - experiment_started
+
+        loss_compression_started = time.monotonic()
+        loss_compression = evaluate_loss_compression(
+            profile,
+            {lane: payloads[lane] for lane in lanes},
+        )
+        loss_compression_seconds = (
+            time.monotonic() - loss_compression_started
+        )
+        if loss_compression is not None:
+            (args.output_dir / "loss-compression-report.json").write_text(
+                json.dumps(
+                    loss_compression,
+                    indent=2,
+                    sort_keys=True,
+                ) + "\n",
+                encoding="utf-8",
+            )
+            for name, row in loss_compression["variants"].items():
+                monitor.report(
+                    "loss_compression.variant",
+                    row,
+                    variant=name,
+                )
+            monitor.report(
+                "loss_compression.summary",
+                {
+                    "control": loss_compression["control"],
+                    "control_baseline": loss_compression[
+                        "control_baseline"
+                    ],
+                    **loss_compression["summary"],
+                },
+            )
+
         science_started = time.monotonic()
         monitor.emit("science.started", {})
         battery = evaluate(
@@ -354,7 +390,10 @@ def main() -> int:
         )
 
         compute_seconds = (
-            replay_seconds + science_seconds + certification_seconds
+            replay_seconds
+            + loss_compression_seconds
+            + science_seconds
+            + certification_seconds
         )
         total_seconds = time.monotonic() - overall_started
         headline = {
@@ -362,6 +401,9 @@ def main() -> int:
             "profile_id": profile["profile_id"],
             "subject": profile["subject"],
             "experiment_replay_seconds": round(replay_seconds, 3),
+            "loss_compression_seconds": round(
+                loss_compression_seconds, 3
+            ),
             "scientific_battery_seconds": round(science_seconds, 3),
             "certification_readiness_seconds": round(
                 certification_seconds, 3
@@ -372,6 +414,12 @@ def main() -> int:
             "hard_dd_survivors": battery["hard_dd_survivors"],
             "scientific_passes": battery["scientific_passes"],
             "monte_carlo_cache": battery.get("monte_carlo_cache", {}),
+            "loss_compression_available": loss_compression is not None,
+            "loss_compression_summary": (
+                None
+                if loss_compression is None
+                else loss_compression["summary"]
+            ),
             "certification_readiness": readiness_statuses,
             "primary_lane": primary_lane,
             "primary_risk_adjusted": primary_risk_adjusted,
@@ -403,6 +451,11 @@ def main() -> int:
                 "status_file": "status.json",
                 "scientific_battery_file": "scientific-battery.json",
                 "certification_readiness_file": "certification-readiness.json",
+                "loss_compression_file": (
+                    "loss-compression-report.json"
+                    if loss_compression is not None
+                    else None
+                ),
                 "lane_normalized_files": {
                     lane: f"lanes/{lane}/normalized.json"
                     for lane in lanes
