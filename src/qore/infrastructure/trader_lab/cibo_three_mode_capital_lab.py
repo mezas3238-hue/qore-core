@@ -853,6 +853,7 @@ def run_three_mode_trader_lab(
     economic_group_bootstrap_cushion_share: Decimal = Decimal("0.75"),
     economic_group_ablation: str | None = None,
     ceiling_discovery_mode: bool = False,
+    ceiling_growth_leverage_slope: Decimal | None = None,
     collect_engineering_trace: bool = True,
     collect_epoch_receipts: bool = True,
     compact_trade_receipts: bool = False,
@@ -956,6 +957,15 @@ def run_three_mode_trader_lab(
     if type(ceiling_discovery_mode) is not bool:
         raise CiboCapitalManagementError(
             "Trader Lab ceiling discovery switch must be bool"
+        )
+    if ceiling_growth_leverage_slope is not None and (
+        not isinstance(ceiling_growth_leverage_slope, Decimal)
+        or not ceiling_growth_leverage_slope.is_finite()
+        or ceiling_growth_leverage_slope <= 0
+        or ceiling_growth_leverage_slope > Decimal("50")
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab ceiling growth leverage slope must be Decimal in (0, 50]"
         )
     if economic_group_ablation not in {
         None,
@@ -2695,6 +2705,31 @@ def run_three_mode_trader_lab(
                             coordinated_attack_cap = min(
                                 attack_multiplier_cap, 4
                             )
+                    if (
+                        ceiling_discovery_mode
+                        and ceiling_growth_leverage_slope is not None
+                    ):
+                        with localcontext() as context:
+                            context.prec = 100
+                            growth_multiple = max(
+                                Decimal(1),
+                                state.total_capital_usd / INITIAL_CAPITAL_USD,
+                            )
+                            growth_cap = max(
+                                ATTACK_MINIMUM_MULTIPLIER,
+                                int(
+                                    (
+                                        growth_multiple
+                                        * ceiling_growth_leverage_slope
+                                    ).to_integral_value(
+                                        rounding=ROUND_FLOOR
+                                    )
+                                ),
+                            )
+                        coordinated_attack_cap = min(
+                            coordinated_attack_cap,
+                            growth_cap,
+                        )
                     leverage_caps = {
                         "PROVIDER_MAX": candidate.maximum_multiplier,
                         "DISTRIBUTED_ATTACK_CAP": (
@@ -3638,6 +3673,11 @@ def run_three_mode_trader_lab(
             ),
             "ablation": economic_group_ablation,
             "ceiling_discovery_mode": ceiling_discovery_mode,
+            "ceiling_growth_leverage_slope": (
+                None
+                if ceiling_growth_leverage_slope is None
+                else format(ceiling_growth_leverage_slope, "f")
+            ),
             "sizing_intensity_cap_counts": dict(
                 sorted(sizing_intensity_cap_counts.items())
             ),
