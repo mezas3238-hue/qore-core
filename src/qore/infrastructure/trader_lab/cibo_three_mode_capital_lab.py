@@ -1005,6 +1005,7 @@ def run_three_mode_trader_lab(
     ceiling_attack_stress_confidence_ratio_ceiling: Decimal | None = None,
     ceiling_attack_stress_confidence_multiplier_lower: int | None = None,
     ceiling_attack_stress_confidence_multiplier_upper: int | None = None,
+    ceiling_attack_stress_confidence_projected_risk_fraction_trigger: Decimal | None = None,
     ceiling_attack_stress_confidence_taper_fraction: Decimal = Decimal("0.75"),
     ceiling_attack_trader_loss_ratio_trigger: Decimal | None = None,
     ceiling_attack_trader_loss_ratio_min_settlements: int = 20,
@@ -1914,6 +1915,22 @@ def run_three_mode_trader_lab(
     ):
         raise CiboCapitalManagementError(
             "Trader Lab localized stress-confidence multiplier bounds are invalid"
+        )
+    if (
+        ceiling_attack_stress_confidence_projected_risk_fraction_trigger
+        is not None
+        and (
+            not isinstance(
+                ceiling_attack_stress_confidence_projected_risk_fraction_trigger,
+                Decimal,
+            )
+            or not ceiling_attack_stress_confidence_projected_risk_fraction_trigger.is_finite()
+            or ceiling_attack_stress_confidence_projected_risk_fraction_trigger <= 0
+            or ceiling_attack_stress_confidence_projected_risk_fraction_trigger > 1
+        )
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab stress-confidence projected risk trigger must be Decimal in (0, 1]"
         )
     if (
         not isinstance(
@@ -4345,6 +4362,19 @@ def run_three_mode_trader_lab(
                             )
                         )
                         and candidate.walk_forward_block_dispersion_r > 0
+                        and (
+                            ceiling_attack_stress_confidence_projected_risk_fraction_trigger
+                            is None
+                            or (
+                                state.total_capital_usd > 0
+                                and (
+                                    candidate.stop_risk_per_multiplier_usd
+                                    * Decimal(coordinated_attack_cap)
+                                    / state.total_capital_usd
+                                )
+                                >= ceiling_attack_stress_confidence_projected_risk_fraction_trigger
+                            )
+                        )
                     ):
                         with localcontext() as context:
                             context.prec = 100
@@ -6318,6 +6348,14 @@ def run_three_mode_trader_lab(
             ),
             "ceiling_attack_stress_confidence_multiplier_upper": (
                 ceiling_attack_stress_confidence_multiplier_upper
+            ),
+            "ceiling_attack_stress_confidence_projected_risk_fraction_trigger": (
+                None
+                if ceiling_attack_stress_confidence_projected_risk_fraction_trigger is None
+                else format(
+                    ceiling_attack_stress_confidence_projected_risk_fraction_trigger,
+                    "f",
+                )
             ),
             "ceiling_attack_stress_confidence_taper_fraction": format(
                 ceiling_attack_stress_confidence_taper_fraction, "f"
