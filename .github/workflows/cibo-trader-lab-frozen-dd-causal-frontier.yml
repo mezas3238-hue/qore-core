@@ -1,4 +1,6 @@
-name: QORE CIBO Frozen DD Causal Frontier
+name: QORE CIBO Stress Confidence DD Frontier
+
+# Research-only reused-holdout experiment; not certification evidence.
 
 on:
   workflow_dispatch:
@@ -101,15 +103,13 @@ jobs:
             --summary-telemetry
           )
           run_case() {
-            name="$1"; dd_trigger="$2"; dd_taper="$3"; streak_trigger="$4"; streak_taper="$5"
-            extra=(
-              --ceiling-attack-loss-streak-trigger "$streak_trigger"
-              --ceiling-attack-loss-streak-taper-fraction "$streak_taper"
-            )
+            name="$1"; dd_trigger="$2"; ratio_ceiling="$3"; taper_fraction="$4"
+            extra=()
             if [[ "$dd_trigger" != "none" ]]; then
               extra+=(
-                --ceiling-attack-drawdown-taper-trigger "$dd_trigger"
-                --ceiling-attack-drawdown-taper-fraction "$dd_taper"
+                --ceiling-attack-stress-confidence-drawdown-trigger "$dd_trigger"
+                --ceiling-attack-stress-confidence-ratio-ceiling "$ratio_ceiling"
+                --ceiling-attack-stress-confidence-taper-fraction "$taper_fraction"
               )
             fi
             if python scripts/cibo_trader_lab_three_mode_ceiling.py "${common[@]}" \
@@ -119,6 +119,8 @@ jobs:
               --economic-group-bootstrap-cushion-share 1.00 \
               --ceiling-growth-leverage-slope 10 \
               --ceiling-attack-single-trade-risk-fraction 0.20 \
+              --ceiling-attack-loss-streak-trigger 3 \
+              --ceiling-attack-loss-streak-taper-fraction 0.75 \
               --ceiling-portfolio-shock-trigger-fraction 0.05 \
               --ceiling-portfolio-shock-taper-fraction 0.50 \
               "${extra[@]}" \
@@ -140,21 +142,20 @@ jobs:
             fi
           }
 
-          # Frozen 10,000x control plus two scientifically isolated defense families.
-          run_case "control"       none 0.50 3 0.75
+          # Exact frozen reference.
+          run_case "control" none 0 1
 
-          # Family A — live realized-DD ATTACK taper. Only this trigger changes.
-          run_case "dd10-f50"      0.10 0.50 3 0.75
-          run_case "dd15-f50"      0.15 0.50 3 0.75
-          run_case "dd20-f50"      0.20 0.50 3 0.75
-          run_case "dd25-f50"      0.25 0.50 3 0.75
-          run_case "dd30-f50"      0.30 0.50 3 0.75
+          # Weak-confidence states: coarse isolated frontier.
+          run_case "sc10-c075-f75" 0.10 0.75 0.75
+          run_case "sc10-c075-f50" 0.10 0.75 0.50
+          run_case "sc15-c075-f75" 0.15 0.75 0.75
+          run_case "sc15-c075-f50" 0.15 0.75 0.50
+          run_case "sc25-c075-f75" 0.25 0.75 0.75
+          run_case "sc30-c100-f75" 0.30 1.00 0.75
+          run_case "sc30-c150-f75" 0.30 1.50 0.75
+          run_case "sc35-c150-f75" 0.35 1.50 0.75
 
-          # Family B — same-Trader ATTACK loss-streak taper. No live-DD taper.
-          run_case "streak2-f75"   none 0.50 2 0.75
-          run_case "streak2-f50"   none 0.50 2 0.50
-
-      - name: Rank frozen DD causal frontier
+      - name: Rank stress-confidence DD frontier
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -163,9 +164,7 @@ jobs:
           from pathlib import Path
 
           root = Path(os.environ["RUNNER_TEMP"]) / "result"
-          control_path = root / "control.json"
-          assert control_path.exists(), "frozen control missing"
-          control = json.loads(control_path.read_text())
+          control = json.loads((root / "control.json").read_text())
           base_capital = Decimal("582440.0252953678696769360345")
           base_dd = Decimal("0.6510419759240315671719825681633489757925369664663770620335151596826649313533375179797855048624928231")
           assert Decimal(control["ending_total_capital_usd"]) == base_capital
@@ -183,39 +182,48 @@ jobs:
               assert funnel["final_trade_count"] == 3368
               assert funnel["sizing_medium_rejected_count"] == 0
               assert funnel["sizing_medium_deferred_count"] == 0
-              assert Decimal(p["attack_sovereign_breach_usd"]) == Decimal("0")
+              assert Decimal(p["attack_sovereign_breach_usd"]) == 0
 
               cap = Decimal(p["ending_total_capital_usd"])
               dd = Decimal(p["max_drawdown_fraction"])
               loss = p["economic_group_report"]["portfolio_loss_report"]
               gross_loss = Decimal(loss["attack_gross_loss_usd"])
               gross_profit = Decimal(loss["attack_gross_profit_usd"])
-              pf = Decimal(loss["attack_profit_factor"])
               eg = p["economic_group_report"]
               top = p["drawdown_forensics"]["top_10_episodes"]
-
-              ceiling_preserved = cap >= base_capital
-              dd_improved = dd < base_dd
-              gross_loss_improved = gross_loss < base_loss
               row = {
                   "case": pth.stem,
                   "capital": str(cap),
                   "capital_delta_vs_frozen": str(cap - base_capital),
-                  "ceiling_preserved": ceiling_preserved,
+                  "capital_ratio_vs_frozen": str(cap / base_capital),
+                  "ceiling_preserved": cap >= base_capital,
                   "dd": str(dd),
                   "dd_delta_vs_frozen": str(dd - base_dd),
-                  "dd_improved": dd_improved,
+                  "dd_improved": dd < base_dd,
                   "attack_gross_profit": str(gross_profit),
                   "attack_gross_loss": str(gross_loss),
                   "gross_loss_delta_vs_frozen": str(gross_loss - base_loss),
-                  "gross_loss_improved": gross_loss_improved,
-                  "attack_profit_factor": str(pf),
+                  "gross_loss_improved": gross_loss < base_loss,
+                  "attack_profit_factor": loss["attack_profit_factor"],
                   "attack_net": p["attack_net_pnl_usd"],
-                  "attack_drawdown_taper_bind_count": eg["attack_drawdown_taper_bind_count"],
-                  "attack_loss_streak_taper_bind_count": eg["attack_loss_streak_taper_bind_count"],
-                  "portfolio_shock_taper_bind_count": eg["portfolio_attack_shock_taper_bind_count"],
-                  "ceiling_dd_pareto": ceiling_preserved and dd_improved,
-                  "strict_pareto": ceiling_preserved and dd_improved and gross_loss_improved,
+                  "stress_confidence_bind_count": eg[
+                      "attack_stress_confidence_taper_bind_count"
+                  ],
+                  "stress_dd_trigger": eg[
+                      "ceiling_attack_stress_confidence_drawdown_trigger"
+                  ],
+                  "stress_ratio_ceiling": eg[
+                      "ceiling_attack_stress_confidence_ratio_ceiling"
+                  ],
+                  "stress_taper_fraction": eg[
+                      "ceiling_attack_stress_confidence_taper_fraction"
+                  ],
+                  "ceiling_dd_pareto": cap >= base_capital and dd < base_dd,
+                  "strict_pareto": (
+                      cap >= base_capital
+                      and dd < base_dd
+                      and gross_loss < base_loss
+                  ),
                   "top3_drawdowns": [
                       {
                           "rank": e["rank"],
@@ -240,7 +248,7 @@ jobs:
                   Decimal(r["attack_gross_loss"]),
               )
           )
-          print("FROZEN_DD_CAUSAL_FRONTIER=" + json.dumps(rows, sort_keys=True))
+          print("STRESS_CONFIDENCE_DD_FRONTIER=" + json.dumps(rows, sort_keys=True))
           print("STRICT_PARETO_CASES=" + json.dumps(
               [r["case"] for r in rows if r["strict_pareto"]]
           ))
@@ -251,7 +259,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: qore-cibo-frozen-dd-causal-frontier-${{ github.run_id }}
+          name: qore-cibo-stress-confidence-frontier-${{ github.run_id }}
           path: ${{ runner.temp }}/result/*.json
           if-no-files-found: error
           retention-days: 90
