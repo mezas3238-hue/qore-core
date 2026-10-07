@@ -97,6 +97,8 @@ class CiboThreeModeCandidate:
     expected_capital_minutes: Decimal
     walk_forward_positive_block_count: int
     walk_forward_nonpositive_block_count: int
+    walk_forward_expected_structural_r: Decimal | None
+    walk_forward_block_dispersion_r: Decimal
     native_cognition_recommended: bool | None
     context_quality_disposition: str
     minimum_volume: Decimal
@@ -380,6 +382,31 @@ def _candidate(
     nonpositive_blocks = int(
         expectation_payload.get("walk_forward_nonpositive_block_count", 0)
     )
+    raw_expected_structural_r = expectation_payload.get(
+        "walk_forward_expected_structural_r"
+    )
+    walk_forward_expected_structural_r = (
+        None
+        if raw_expected_structural_r is None
+        else Decimal(str(raw_expected_structural_r))
+    )
+    walk_forward_block_dispersion_r = Decimal(
+        str(expectation_payload.get("walk_forward_block_dispersion_r", "0"))
+    )
+    if (
+        walk_forward_expected_structural_r is not None
+        and not walk_forward_expected_structural_r.is_finite()
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab walk-forward expected structural R must be finite"
+        )
+    if (
+        not walk_forward_block_dispersion_r.is_finite()
+        or walk_forward_block_dispersion_r < 0
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab walk-forward block dispersion must be finite and nonnegative"
+        )
     with localcontext() as context:
         context.prec = 100
         stop = minimum * opportunity.stop_loss_per_volume
@@ -415,6 +442,10 @@ def _candidate(
         expected_capital_minutes=evidence.expected_capital_minutes,
         walk_forward_positive_block_count=positive_blocks,
         walk_forward_nonpositive_block_count=nonpositive_blocks,
+        walk_forward_expected_structural_r=(
+            walk_forward_expected_structural_r
+        ),
+        walk_forward_block_dispersion_r=walk_forward_block_dispersion_r,
         native_cognition_recommended=native_cognition_recommended,
         context_quality_disposition=context_disposition,
         minimum_volume=minimum,
@@ -905,6 +936,9 @@ def run_three_mode_trader_lab(
     ceiling_attack_loss_streak_taper_fraction: Decimal = Decimal("0.50"),
     ceiling_attack_drawdown_taper_trigger: Decimal | None = None,
     ceiling_attack_drawdown_taper_fraction: Decimal = Decimal("0.50"),
+    ceiling_attack_stress_confidence_drawdown_trigger: Decimal | None = None,
+    ceiling_attack_stress_confidence_ratio_ceiling: Decimal | None = None,
+    ceiling_attack_stress_confidence_taper_fraction: Decimal = Decimal("0.75"),
     ceiling_portfolio_shock_trigger_fraction: Decimal | None = None,
     ceiling_portfolio_shock_taper_fraction: Decimal = Decimal("0.50"),
     ceiling_portfolio_shock_one_shot: bool = False,
@@ -1103,6 +1137,65 @@ def run_three_mode_trader_lab(
     ):
         raise CiboCapitalManagementError(
             "Trader Lab ceiling ATTACK drawdown taper requires ceiling discovery mode"
+        )
+    if (
+        ceiling_attack_stress_confidence_drawdown_trigger is None
+    ) != (
+        ceiling_attack_stress_confidence_ratio_ceiling is None
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab stress-confidence ATTACK taper requires both "
+            "drawdown trigger and confidence-ratio ceiling"
+        )
+    if (
+        ceiling_attack_stress_confidence_drawdown_trigger is not None
+        and (
+            not isinstance(
+                ceiling_attack_stress_confidence_drawdown_trigger,
+                Decimal,
+            )
+            or not ceiling_attack_stress_confidence_drawdown_trigger.is_finite()
+            or ceiling_attack_stress_confidence_drawdown_trigger < 0
+            or ceiling_attack_stress_confidence_drawdown_trigger
+            >= Decimal("0.50")
+        )
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab stress-confidence drawdown trigger must be Decimal "
+            "in [0, 0.50)"
+        )
+    if (
+        ceiling_attack_stress_confidence_ratio_ceiling is not None
+        and (
+            not isinstance(
+                ceiling_attack_stress_confidence_ratio_ceiling,
+                Decimal,
+            )
+            or not ceiling_attack_stress_confidence_ratio_ceiling.is_finite()
+            or ceiling_attack_stress_confidence_ratio_ceiling <= 0
+        )
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab stress-confidence ratio ceiling must be positive Decimal"
+        )
+    if (
+        not isinstance(
+            ceiling_attack_stress_confidence_taper_fraction,
+            Decimal,
+        )
+        or not ceiling_attack_stress_confidence_taper_fraction.is_finite()
+        or ceiling_attack_stress_confidence_taper_fraction <= 0
+        or ceiling_attack_stress_confidence_taper_fraction > 1
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab stress-confidence taper fraction must be Decimal in (0, 1]"
+        )
+    if (
+        ceiling_attack_stress_confidence_drawdown_trigger is not None
+        and not ceiling_discovery_mode
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab stress-confidence ATTACK taper requires ceiling discovery mode"
         )
     if ceiling_portfolio_shock_trigger_fraction is not None and (
         not isinstance(ceiling_portfolio_shock_trigger_fraction, Decimal)
@@ -1574,6 +1667,7 @@ def run_three_mode_trader_lab(
     robust_leverage_cap_bind_count = 0
     attack_loss_streak_taper_bind_count = 0
     attack_drawdown_taper_bind_count = 0
+    attack_stress_confidence_taper_bind_count = 0
     portfolio_attack_shock_taper_bind_count = 0
     portfolio_last_attack_loss_fraction = Decimal(0)
     attack_epochs_funded = 0
@@ -3189,6 +3283,48 @@ def run_three_mode_trader_lab(
                             coordinated_attack_cap,
                             drawdown_tapered_attack_cap,
                         )
+                    if (
+                        ceiling_discovery_mode
+                        and ceiling_attack_stress_confidence_drawdown_trigger
+                        is not None
+                        and ceiling_attack_stress_confidence_ratio_ceiling
+                        is not None
+                        and total_drawdown_utilization
+                        >= ceiling_attack_stress_confidence_drawdown_trigger
+                        and candidate.walk_forward_expected_structural_r
+                        is not None
+                        and candidate.walk_forward_block_dispersion_r > 0
+                    ):
+                        with localcontext() as context:
+                            context.prec = 100
+                            stress_confidence_ratio = (
+                                candidate.walk_forward_expected_structural_r
+                                / candidate.walk_forward_block_dispersion_r
+                            )
+                        if (
+                            stress_confidence_ratio
+                            <= ceiling_attack_stress_confidence_ratio_ceiling
+                        ):
+                            stress_confidence_tapered_attack_cap = max(
+                                ATTACK_MINIMUM_MULTIPLIER,
+                                int(
+                                    (
+                                        Decimal(coordinated_attack_cap)
+                                        * ceiling_attack_stress_confidence_taper_fraction
+                                    ).to_integral_value(
+                                        rounding=ROUND_FLOOR
+                                    )
+                                ),
+                            )
+                            if (
+                                stress_confidence_tapered_attack_cap
+                                < coordinated_attack_cap
+                            ):
+                                attack_stress_confidence_taper_bind_count += 1
+                            coordinated_attack_cap = min(
+                                coordinated_attack_cap,
+                                stress_confidence_tapered_attack_cap,
+                            )
                     ceiling_drawdown_risk_cap = candidate.maximum_multiplier
                     if (
                         ceiling_discovery_mode
@@ -4309,6 +4445,26 @@ def run_three_mode_trader_lab(
                     if medium_drawdown_intensity_trigger is None
                     else format(medium_drawdown_intensity_trigger, "f")
                 ),
+                "ceiling_attack_stress_confidence_drawdown_trigger": (
+                    None
+                    if ceiling_attack_stress_confidence_drawdown_trigger is None
+                    else format(
+                        ceiling_attack_stress_confidence_drawdown_trigger, "f"
+                    )
+                ),
+                "ceiling_attack_stress_confidence_ratio_ceiling": (
+                    None
+                    if ceiling_attack_stress_confidence_ratio_ceiling is None
+                    else format(
+                        ceiling_attack_stress_confidence_ratio_ceiling, "f"
+                    )
+                ),
+                "ceiling_attack_stress_confidence_taper_fraction": format(
+                    ceiling_attack_stress_confidence_taper_fraction, "f"
+                ),
+                "attack_stress_confidence_taper_bind_count": (
+                    attack_stress_confidence_taper_bind_count
+                ),
             },
         },
         "economic_group_report": {
@@ -4342,6 +4498,26 @@ def run_three_mode_trader_lab(
             ),
             "attack_drawdown_taper_bind_count": (
                 attack_drawdown_taper_bind_count
+            ),
+            "ceiling_attack_stress_confidence_drawdown_trigger": (
+                None
+                if ceiling_attack_stress_confidence_drawdown_trigger is None
+                else format(
+                    ceiling_attack_stress_confidence_drawdown_trigger, "f"
+                )
+            ),
+            "ceiling_attack_stress_confidence_ratio_ceiling": (
+                None
+                if ceiling_attack_stress_confidence_ratio_ceiling is None
+                else format(
+                    ceiling_attack_stress_confidence_ratio_ceiling, "f"
+                )
+            ),
+            "ceiling_attack_stress_confidence_taper_fraction": format(
+                ceiling_attack_stress_confidence_taper_fraction, "f"
+            ),
+            "attack_stress_confidence_taper_bind_count": (
+                attack_stress_confidence_taper_bind_count
             ),
             "ceiling_portfolio_shock_trigger_fraction": (
                 None
