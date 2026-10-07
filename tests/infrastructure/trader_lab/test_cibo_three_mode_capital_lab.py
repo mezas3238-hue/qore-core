@@ -63,7 +63,7 @@ def _candidate() -> CiboThreeModeCandidate:
 
 
 class CiboThreeModeCapitalLabTest(unittest.TestCase):
-    def test_bank_protects_when_regime_is_defensive(self) -> None:
+    def test_defensive_regime_keeps_trader_entry_under_medium_management(self) -> None:
         mode = select_three_mode(
             regime=_regime(volatility=VolatilityState.DISLOCATED),
             risk_utilization=Decimal("0.1"),
@@ -72,7 +72,7 @@ class CiboThreeModeCapitalLabTest(unittest.TestCase):
             cushion_available_usd=Decimal("100"),
             best_candidate=_candidate(),
         )
-        self.assertIs(mode, CiboTraderLabMode.BANK)
+        self.assertIs(mode, CiboTraderLabMode.MEDIUM)
 
     def test_drawdown_blocks_attack_but_keeps_medium_working(self) -> None:
         candidate = _candidate()

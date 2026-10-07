@@ -201,6 +201,12 @@ jobs:
           assert Decimal(p["ending_portfolio_cushion_usd"]) >= 0
           assert Decimal(p["attack_sovereign_breach_usd"]) == 0
           assert p["mode_epoch_counts"].get("MEDIUM", 0) > 0
+          assert p["execution_funnel"]["final_trade_count"] == p["decision_count"]
+          assert p["execution_funnel"]["sizing_medium_rejected_count"] == 0
+          assert p["execution_funnel"]["sizing_medium_deferred_count"] == 0
+          assert p["execution_funnel"]["compound_portfolio_withheld_before_execution_engine_count"] == 0
+          assert p["governance"]["trader_entry_admission_authority"] == "TRADER"
+          assert p["governance"]["cibo_entry_rejection_authority"] is False
           sensors = p["engineering_sensor_report"]
           assert sensors["trace_event_count"] == len(p["engineering_trace"])
           assert set(sensors["functions"]) == {
@@ -242,6 +248,10 @@ jobs:
           assert legacy["governance"]["historical_prior_consumed"] is True
           assert legacy["governance"]["outcome_used_for_predecision"] is False
           assert Decimal(legacy["attack_sovereign_breach_usd"]) == 0
+          assert legacy["execution_funnel"]["final_trade_count"] == legacy["decision_count"]
+          assert legacy["execution_funnel"]["sizing_medium_rejected_count"] == 0
+          assert legacy["execution_funnel"]["sizing_medium_deferred_count"] == 0
+          assert legacy["execution_funnel"]["compound_portfolio_withheld_before_execution_engine_count"] == 0
 
           soft = json.loads(
               (

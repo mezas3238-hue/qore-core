@@ -588,7 +588,12 @@ def explain_three_mode(
     if margin_utilization >= Decimal("0.80"):
         bank_reasons.append("MARGIN_UTILIZATION_DEFENSIVE")
     if bank_reasons:
-        return CiboTraderLabMode.BANK, tuple(bank_reasons)
+        # Owner invariant: the Trader already owns the admission decision.
+        # CIBO may reduce intensity and defend the position, but it cannot
+        # convert an already-executed Trader entry into BANK/no-trade.
+        return CiboTraderLabMode.MEDIUM, tuple(
+            bank_reasons + ["DEFENSIVE_MEDIUM_MANAGEMENT"]
+        )
 
     if best_candidate is None:
         return CiboTraderLabMode.MEDIUM, ("NO_ATTACK_GRADE_CANDIDATE",)
@@ -1480,7 +1485,9 @@ def run_three_mode_trader_lab(
         if mode is CiboTraderLabMode.ATTACK:
             attack_epochs_funded += 1
 
-        selected: list[tuple[CiboThreeModeCandidate, int]] = []
+        selected: list[
+            tuple[CiboThreeModeCandidate, int, CiboTraderLabMode]
+        ] = []
         risk_left = max(Decimal(0), risk_capacity - state.open_stop_risk_usd)
         margin_left = max(
             Decimal(0),
@@ -1499,7 +1506,17 @@ def run_three_mode_trader_lab(
         if mode is not CiboTraderLabMode.BANK:
             candidate_surface = eligible
             for candidate in candidate_surface:
-                if mode is CiboTraderLabMode.MEDIUM:
+                candidate_mode = (
+                    CiboTraderLabMode.ATTACK
+                    if (
+                        mode is CiboTraderLabMode.ATTACK
+                        and best is not None
+                        and candidate.signal_fingerprint
+                        == best.signal_fingerprint
+                    )
+                    else CiboTraderLabMode.MEDIUM
+                )
+                if candidate_mode is CiboTraderLabMode.MEDIUM:
                     sizing_calls += 1
                     active_portfolio_edge = portfolio_edge(candidate)
                     active_portfolio_context = portfolio_context_allowed(
@@ -1523,19 +1540,16 @@ def run_three_mode_trader_lab(
                                     active_portfolio_edge, "f"
                                 ),
                             },
-                            action="DEFER_NATIVE_ABSTAIN_CAPITAL_PRESERVATION",
+                            action="CLASSIFY_DEFENSIVE_MEDIUM",
                             outputs={
-                                "selected_multiplier": 0,
-                                "economic_treatment": "DEFER",
+                                "economic_treatment": "DEFENSIVE_MEDIUM",
                             },
                             reaction=(
-                                "PRESERVE_BANK_SEED_FOR_STRONGER_CAUSAL_SIGNAL"
+                                "REDUCE_INTENSITY_WITHOUT_REJECTING_TRADER_ENTRY"
                             ),
-                            reasons=("NATIVE_ABSTAIN_DEFER",),
-                            call=True,
-                            restriction=True,
+                            reasons=("NATIVE_ABSTAIN_DEFENSIVE",),
                         )
-                        continue
+                    historical_prior_deployable = (
                     historical_prior_deployable = (
                         historical_control_ready(candidate)
                         if use_historical_prior
@@ -1565,19 +1579,16 @@ def run_three_mode_trader_lab(
                                     active_portfolio_edge, "f"
                                 ),
                             },
-                            action="DEFER_HISTORICAL_PRIOR_NONDEPLOYMENT",
+                            action="CLASSIFY_HISTORICAL_DEFENSIVE_MEDIUM",
                             outputs={
-                                "selected_multiplier": 0,
-                                "economic_treatment": "DEFER",
+                                "economic_treatment": "DEFENSIVE_MEDIUM",
                             },
                             reaction=(
-                                "KEEP_OPPORTUNITY_WORKED_WITHOUT_CAPITAL_RELEASE"
+                                "MANAGE_ENTRY_AT_MINIMUM_INTENSITY_NOT_DEFER"
                             ),
-                            reasons=("HISTORICAL_PRIOR_NO_DEPLOYMENT",),
-                            call=True,
-                            restriction=True,
+                            reasons=("HISTORICAL_PRIOR_DEFENSIVE",),
                         )
-                        continue
+                    per_entry_seed_budget = dynamic_bank_seed_budget_usd(
                     per_entry_seed_budget = dynamic_bank_seed_budget_usd(
                         state.total_capital_usd
                     )
@@ -1639,26 +1650,29 @@ def run_three_mode_trader_lab(
                         # lane preserves the causal DD-scaled entry budget and
                         # physical risk cap, while validating the realized DD
                         # after replay before the policy can be retained.
-                        medium_drawdown_allocator_cap_usd = (
+                        minimum_medium_risk_usd = (
+                            candidate.stop_risk_per_multiplier_usd
+                        )
+                        raw_medium_drawdown_allocator_cap_usd = (
                             risk_left
                             if soft_medium_drawdown_allocator
                             else medium_hard_drawdown_headroom_usd
                         )
-                        minimum_medium_risk_usd = (
-                            candidate.stop_risk_per_multiplier_usd
+                        # Drawdown is an intensity control, not an admission
+                        # authority. Preserve at least broker-minimum 1x
+                        # management for a Trader-executed entry whenever
+                        # physical account capacity can fund it.
+                        medium_drawdown_allocator_cap_usd = max(
+                            minimum_medium_risk_usd,
+                            raw_medium_drawdown_allocator_cap_usd,
                         )
-                        medium_risk_budget_usd = (
-                            min(
-                                risk_left,
-                                medium_drawdown_allocator_cap_usd,
-                                max(
-                                    medium_entry_risk_budget_usd,
-                                    minimum_medium_risk_usd,
-                                ),
-                            )
-                            if minimum_medium_risk_usd
-                            <= medium_drawdown_allocator_cap_usd
-                            else Decimal(0)
+                        medium_risk_budget_usd = min(
+                            risk_left,
+                            medium_drawdown_allocator_cap_usd,
+                            max(
+                                medium_entry_risk_budget_usd,
+                                minimum_medium_risk_usd,
+                            ),
                         )
                     executable_by_risk = int(
                         (
@@ -1670,6 +1684,12 @@ def run_three_mode_trader_lab(
                         (
                             margin_left
                             / candidate.margin_per_multiplier_usd
+                        ).to_integral_value(rounding=ROUND_FLOOR)
+                    )
+                    executable_by_source = int(
+                        (
+                            sovereign_left
+                            / candidate.source_cost_per_multiplier_usd
                         ).to_integral_value(rounding=ROUND_FLOOR)
                     )
                     native_intensity_cap = (
@@ -1697,6 +1717,7 @@ def run_three_mode_trader_lab(
                             native_intensity_cap,
                             executable_by_risk,
                             executable_by_margin,
+                            executable_by_source,
                         ),
                     )
                     record_engineering_sensor(
@@ -1732,7 +1753,7 @@ def run_three_mode_trader_lab(
                         signal_fingerprint=candidate.signal_fingerprint,
                         event="SIZING_INPUT",
                         inputs={
-                            "mode": mode.value,
+                            "mode": candidate_mode.value,
                             "bank_seed_usd": format(bank_seed, "f"),
                             "one_x_source_cost_usd": format(
                                 candidate.source_cost_per_multiplier_usd, "f"
@@ -1876,7 +1897,6 @@ def run_three_mode_trader_lab(
                     requested_leverage_capital = feasible_leverage_capital
                     withheld_leverage_capital = Decimal(0)
                     if multiplier < ATTACK_MINIMUM_MULTIPLIER:
-                        robust_sizing_reject_count += 1
                         record_engineering_sensor(
                             "ADAPTIVE_LEVERAGE",
                             epoch_index=epoch_index,
@@ -1888,102 +1908,117 @@ def run_three_mode_trader_lab(
                                     ATTACK_MINIMUM_MULTIPLIER
                                 ),
                             },
-                            action="REJECT_ATTACK_MULTIPLIER",
+                            action="FALLBACK_ATTACK_TO_DEFENSIVE_MEDIUM",
                             outputs={
-                                "feasible_multiplier": multiplier,
-                                "selected_multiplier": 0,
-                                "binding_caps": list(binding_caps),
+                                "feasible_attack_multiplier": multiplier,
+                                "economic_treatment": "DEFENSIVE_MEDIUM",
                             },
-                            reaction="ATTACK_NOT_DEPLOYED",
+                            reaction=(
+                                "KEEP_TRADER_ENTRY_AND_REMOVE_ONLY_ATTACK_ESCALATION"
+                            ),
                             reasons=binding_caps,
-                            rejection=True,
-                            requested_capital_usd=requested_leverage_capital,
-                            blocked_capital_usd=(
-                                requested_leverage_capital
+                        )
+                        candidate_mode = CiboTraderLabMode.MEDIUM
+                        sizing_calls += 1
+                        source_left = sovereign_left
+                        executable_by_risk = int(
+                            (
+                                risk_left
+                                / candidate.stop_risk_per_multiplier_usd
+                            ).to_integral_value(rounding=ROUND_FLOOR)
+                        )
+                        executable_by_margin = int(
+                            (
+                                margin_left
+                                / candidate.margin_per_multiplier_usd
+                            ).to_integral_value(rounding=ROUND_FLOOR)
+                        )
+                        executable_by_source = int(
+                            (
+                                sovereign_left
+                                / candidate.source_cost_per_multiplier_usd
+                            ).to_integral_value(rounding=ROUND_FLOOR)
+                        )
+                        multiplier = max(
+                            0,
+                            min(
+                                1,
+                                candidate.maximum_multiplier,
+                                executable_by_risk,
+                                executable_by_margin,
+                                executable_by_source,
                             ),
                         )
-                        continue
-                    record_engineering_sensor(
-                        "ADAPTIVE_LEVERAGE",
-                        epoch_index=epoch_index,
-                        signal_fingerprint=candidate.signal_fingerprint,
-                        event="LEVERAGE_OUTPUT",
-                        inputs={"caps": leverage_caps},
-                        action="APPROVE_ATTACK_MULTIPLIER",
-                        outputs={
-                            "selected_multiplier": multiplier,
-                            "binding_caps": list(binding_caps),
-                            "theoretical_multiplier": (
-                                candidate.maximum_multiplier
-                            ),
-                        },
-                        reaction="ATTACK_EXECUTABLE_CAPACITY_RELEASED",
-                        reasons=binding_caps,
-                        approval=True,
-                        restriction=withheld_leverage_capital > 0,
-                        requested_capital_usd=requested_leverage_capital,
-                        approved_capital_usd=feasible_leverage_capital,
-                        blocked_capital_usd=withheld_leverage_capital,
-                    )
+                        medium_risk_budget_usd = (
+                            candidate.stop_risk_per_multiplier_usd
+                            * Decimal(multiplier)
+                        )
+                        economic_cap = 1
+                    else:
+                        record_engineering_sensor(
+                            "ADAPTIVE_LEVERAGE",
+                            epoch_index=epoch_index,
+                            signal_fingerprint=candidate.signal_fingerprint,
+                            event="LEVERAGE_OUTPUT",
+                            inputs={"caps": leverage_caps},
+                            action="APPROVE_ATTACK_MULTIPLIER",
+                            outputs={
+                                "selected_multiplier": multiplier,
+                                "binding_caps": list(binding_caps),
+                                "theoretical_multiplier": (
+                                    candidate.maximum_multiplier
+                                ),
+                            },
+                            reaction="ATTACK_EXECUTABLE_CAPACITY_RELEASED",
+                            reasons=binding_caps,
+                            approval=True,
+                            restriction=withheld_leverage_capital > 0,
+                            requested_capital_usd=requested_leverage_capital,
+                            approved_capital_usd=feasible_leverage_capital,
+                            blocked_capital_usd=withheld_leverage_capital,
+                        )
                     # ATTACK is not bounded by robust utility. Portfolio
                     # Compound is the authority that enabled this mode.
 
-                if mode is CiboTraderLabMode.MEDIUM and multiplier < 1:
+                if candidate_mode is CiboTraderLabMode.MEDIUM and multiplier < 1:
                     physical_margin_block = executable_by_margin < 1
-                    action = (
-                        "REJECT_PHYSICAL_MARGIN_BELOW_MINIMUM"
-                        if physical_margin_block
-                        else "DEFER_MEDIUM_RISK_ENVELOPE"
-                    )
-                    reason = (
-                        "PHYSICAL_MARGIN_BELOW_1X"
-                        if physical_margin_block
-                        else "MEDIUM_CAUSAL_RISK_BUDGET_BELOW_1X"
-                    )
                     record_engineering_sensor(
                         "SIZING",
                         epoch_index=epoch_index,
                         signal_fingerprint=candidate.signal_fingerprint,
-                        event="SIZING_OUTPUT",
+                        event="MANAGEMENT_INVARIANT_VIOLATION",
                         inputs={
-                            "per_entry_bank_seed_usd": format(
-                                source_left, "f"
-                            ),
                             "medium_risk_budget_usd": format(
                                 medium_risk_budget_usd, "f"
                             ),
                             "one_x_stop_risk_usd": format(
                                 candidate.stop_risk_per_multiplier_usd, "f"
                             ),
+                            "sovereign_available_usd": format(
+                                sovereign_left, "f"
+                            ),
+                            "margin_left_usd": format(margin_left, "f"),
                         },
-                        action=action,
+                        action="FAIL_CLOSED_NO_SILENT_ENTRY_REJECTION",
                         outputs={
                             "selected_multiplier": 0,
-                            "economic_treatment": (
-                                "PHYSICAL_NONEXECUTABLE"
-                                if physical_margin_block
-                                else "DEFER"
-                            ),
+                            "economic_treatment": "INVARIANT_FAILURE",
                         },
                         reaction=(
-                            "THIS_ENTRY_NOT_PHYSICALLY_EXECUTABLE"
-                            if physical_margin_block
-                            else "PRESERVE_CAPITAL_AND_KEEP_OPPORTUNITY_WORKED"
+                            "TRADER_ENTRY_MUST_BE_MANAGED_NOT_DROPPED"
                         ),
-                        reasons=(reason,),
-                        rejection=physical_margin_block,
-                        restriction=not physical_margin_block,
-                        requested_capital_usd=(
-                            candidate.source_cost_per_multiplier_usd
-                        ),
-                        blocked_capital_usd=(
-                            candidate.source_cost_per_multiplier_usd
+                        reasons=(
+                            "PHYSICAL_MARGIN_BELOW_1X"
                             if physical_margin_block
-                            else Decimal(0)
+                            else "MINIMUM_MANAGEMENT_CAPACITY_BELOW_1X",
                         ),
                     )
-                    continue
+                    raise CiboCapitalManagementError(
+                        "Trader-executed entry reached CIBO without physical "
+                        "capacity for minimum 1x management"
+                    )
 
+                with localcontext() as context:
                 with localcontext() as context:
                     context.prec = 100
                     stop_risk = (
@@ -2009,14 +2044,14 @@ def run_three_mode_trader_lab(
                 if capacity_reasons:
                     target_function = (
                         "ADAPTIVE_LEVERAGE"
-                        if mode is CiboTraderLabMode.ATTACK
+                        if candidate_mode is CiboTraderLabMode.ATTACK
                         else "SIZING"
                     )
                     record_engineering_sensor(
                         target_function,
                         epoch_index=epoch_index,
                         signal_fingerprint=candidate.signal_fingerprint,
-                        event="CAPACITY_REACTION",
+                        event="MANAGEMENT_CAPACITY_INVARIANT",
                         inputs={
                             "stop_risk_usd": format(stop_risk, "f"),
                             "risk_left_usd": format(risk_left, "f"),
@@ -2027,24 +2062,26 @@ def run_three_mode_trader_lab(
                             ),
                             "source_left_usd": format(source_left, "f"),
                         },
-                        action="REJECT_ON_HARD_CAPACITY",
+                        action="FAIL_CLOSED_NO_SILENT_ENTRY_REJECTION",
                         outputs={"selected_multiplier": 0},
-                        reaction="CAPITAL_NOT_DEPLOYED",
+                        reaction="TRADER_ENTRY_MUST_BE_MANAGED_NOT_DROPPED",
                         reasons=tuple(capacity_reasons),
-                        rejection=True,
                         requested_capital_usd=source_reserved,
                         blocked_capital_usd=source_reserved,
                     )
-                    continue
-                selected.append((candidate, multiplier))
-                if mode is CiboTraderLabMode.MEDIUM:
+                    raise CiboCapitalManagementError(
+                        "Trader-executed entry exceeded physical management "
+                        "capacity after sizing"
+                    )
+                selected.append((candidate, multiplier, candidate_mode))
+                if candidate_mode is CiboTraderLabMode.MEDIUM:
                     record_engineering_sensor(
                         "SIZING",
                         epoch_index=epoch_index,
                         signal_fingerprint=candidate.signal_fingerprint,
                         event="SIZING_OUTPUT",
                         inputs={
-                            "mode": mode.value,
+                            "mode": candidate_mode.value,
                             "per_entry_bank_seed_usd": format(
                                 source_left, "f"
                             ),
@@ -2073,13 +2110,13 @@ def run_three_mode_trader_lab(
                     )
                 risk_left -= stop_risk
                 margin_left -= margin
-                if mode is CiboTraderLabMode.MEDIUM:
+                if candidate_mode is CiboTraderLabMode.MEDIUM:
                     sovereign_left -= source_reserved
                 else:
                     cushion_left -= source_reserved
                     portfolio_attack_release_left -= source_reserved
 
-        for candidate, multiplier in selected:
+        for candidate, multiplier, candidate_mode in selected:
             with localcontext() as context:
                 context.prec = 100
                 stop_risk = (
@@ -2098,7 +2135,7 @@ def run_three_mode_trader_lab(
             trade = CiboThreeModeOpenTrade(
                 signal_fingerprint=candidate.signal_fingerprint,
                 trader_id=candidate.trader_id,
-                mode=mode,
+                mode=candidate_mode,
                 multiplier=multiplier,
                 exit_at=candidate.exit_at,
                 gross_r=candidate.gross_r,
@@ -2113,7 +2150,7 @@ def run_three_mode_trader_lab(
                         ),
                         source_reserved,
                     )
-                    if mode is CiboTraderLabMode.MEDIUM
+                    if candidate_mode is CiboTraderLabMode.MEDIUM
                     else Decimal(0)
                 ),
             )
@@ -2124,7 +2161,7 @@ def run_three_mode_trader_lab(
                     "trader_id": candidate.trader_id,
                     "decision_at": candidate.decision_at.isoformat(),
                     "exit_at": candidate.exit_at.isoformat(),
-                    "mode": mode.value,
+                    "mode": candidate_mode.value,
                     "multiplier": multiplier,
                     "expected_edge_after_cost_usd": format(
                         candidate.expected_edge_after_cost_usd,
@@ -2161,12 +2198,12 @@ def run_three_mode_trader_lab(
                             multiplier=multiplier,
                             capital_base_usd=(
                                 state.sovereign_available_usd
-                                if mode is CiboTraderLabMode.MEDIUM
+                                if candidate_mode is CiboTraderLabMode.MEDIUM
                                 else state.cushion_available_usd
                             ),
                             expected_net_utility_usd=(
                                 candidate.attack_expected_net_utility_usd
-                                if mode is CiboTraderLabMode.ATTACK
+                                if candidate_mode is CiboTraderLabMode.ATTACK
                                 else candidate.expected_edge_after_cost_usd
                             ),
                         ),
@@ -2187,7 +2224,7 @@ def run_three_mode_trader_lab(
             )
             state.open_stop_risk_usd += stop_risk
             state.open_margin_usd += margin
-            if mode is CiboTraderLabMode.MEDIUM:
+            if candidate_mode is CiboTraderLabMode.MEDIUM:
                 medium_seed = trade.bank_seed_usd or Decimal(0)
                 state.sovereign_reserved_usd += source_reserved
                 state.bank_seed_reserved_usd += medium_seed
@@ -2199,7 +2236,7 @@ def run_three_mode_trader_lab(
                     Decimal(0),
                     state.portfolio_attack_credit_usd - source_reserved,
                 )
-            trade_mode_counts[mode.value] += 1
+            trade_mode_counts[candidate_mode.value] += 1
             leverage_sum += multiplier
             leverage_max = max(leverage_max, multiplier)
 
@@ -2213,7 +2250,8 @@ def run_three_mode_trader_lab(
                 "eligible_count": len(eligible),
                 "selected_count": len(selected),
                 "selected_multiplier_total": sum(
-                    multiplier for _candidate, multiplier in selected
+                    multiplier
+                    for _candidate, multiplier, _mode in selected
                 ),
                 "sovereign_bank_usd": format(
                     state.sovereign_bank_usd,
@@ -2627,7 +2665,7 @@ def run_three_mode_trader_lab(
             "historical_native_intensity_law": (
                 "HISTORICAL_PLUS_NATIVE_CONSENSUS_UP_TO_4X; "
                 "NATIVE_ONLY_OVERRIDE_1X; HISTORICAL_ONLY_DEFENSIVE_1X; "
-                "BOTH_NONDEPLOYMENT_DEFER"
+                "BOTH_NONDEPLOYMENT_DEFENSIVE_1X; NO_ENTRY_REJECTION"
             ),
             "historical_prior_consumed": use_historical_prior,
             "historical_control_sizing_prior_consumed": (
@@ -2665,6 +2703,12 @@ def run_three_mode_trader_lab(
             "outcome_used_for_predecision": False,
             "medium_positive_profit_split": "50%_SOVEREIGN_50%_CUSHION",
             "bank_role": "TREASURY_SEEDS_MEDIUM_ONLY_NO_TRADES",
+            "trader_entry_admission_authority": "TRADER",
+            "cibo_entry_rejection_authority": False,
+            "cibo_management_invariant": (
+                "EVERY_TRADER_EXECUTED_ENTRY_RECEIVES_NONZERO_MANAGEMENT; "
+                "COGNITION_CHANGES_INTENSITY_NOT_ADMISSION"
+            ),
             "drawdown_policy": (
                 "SOFT_CAUSAL_MEDIUM_ALLOCATOR_WITH_REALIZED_DD_VALIDATION; "
                 "ATTACK_STOPS_AT_20PCT"
