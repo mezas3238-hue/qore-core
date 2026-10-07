@@ -99,26 +99,6 @@ jobs:
               -d "$ROOT"
           done
 
-      - name: Run aggressive all defensive 1x
-        run: |
-          set -euo pipefail
-          python scripts/cibo_trader_lab_three_mode_ceiling.py \
-            --manifest "$MANIFEST" --baseline-replay "$BASELINE" \
-            --historical-manifest "$HISTORICAL_MANIFEST" --historical-replay "$HISTORICAL_REPLAY" \
-            --lifecycle-source-root "AUDJPY=$RUNNER_TEMP/atlas/AUDJPY" \
-            --lifecycle-source-root "EURUSD=$RUNNER_TEMP/atlas/EURUSD" \
-            --lifecycle-source-root "GBPJPY=$RUNNER_TEMP/atlas/GBPJPY" \
-            --lifecycle-source-root "GBPUSD=$RUNNER_TEMP/atlas/GBPUSD" \
-            --lifecycle-source-root "NAS100=$RUNNER_TEMP/atlas/NAS100" \
-            --lifecycle-source-root "XAUUSD=$RUNNER_TEMP/atlas/XAUUSD" \
-            --lifecycle-feature ADVERSE_STOP_TIGHTEN \
-            --lifecycle-defensive-medium-1x-only \
-            --lifecycle-adverse-loss-cut-r=-0.10 \
-            --lifecycle-adverse-tightened-stop-r=-0.35 \
-            --distributed-attack-frontier --attack-multiplier-cap 8 --medium-multiplier-cap 4 \
-            --coordinated-economic-group --economic-group-bootstrap-cushion-share 0.75 \
-            --output "$RUNNER_TEMP/result/tighten-aggressive-all.json"
-
       - name: Run balanced all defensive 1x
         run: |
           set -euo pipefail
@@ -189,7 +169,6 @@ jobs:
           from pathlib import Path
           root=Path(os.environ["RUNNER_TEMP"])/"result"
           for fn in (
-              "tighten-aggressive-all.json",
               "tighten-balanced-all.json",
               "tighten-balanced-highrisk.json",
               "tighten-conservative-highrisk.json",
