@@ -1588,7 +1588,6 @@ def run_three_mode_trader_lab(
                             reasons=("HISTORICAL_PRIOR_DEFENSIVE",),
                         )
                     per_entry_seed_budget = dynamic_bank_seed_budget_usd(
-                    per_entry_seed_budget = dynamic_bank_seed_budget_usd(
                         state.total_capital_usd
                     )
                     bank_seed = min(
@@ -2017,7 +2016,6 @@ def run_three_mode_trader_lab(
                         "capacity for minimum 1x management"
                     )
 
-                with localcontext() as context:
                 with localcontext() as context:
                     context.prec = 100
                     stop_risk = (
