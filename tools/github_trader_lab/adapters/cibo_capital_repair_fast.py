@@ -35,6 +35,21 @@ def d(value: object) -> Decimal:
     return result
 
 
+def d_or_zero(value: object) -> Decimal:
+    """Parse optional research telemetry without blocking an executed base trade."""
+
+    if value is None:
+        return ZERO
+    text = str(value).strip()
+    if not text or text.lower() in {"none", "null", "nan"}:
+        return ZERO
+    try:
+        result = Decimal(text)
+    except Exception:
+        return ZERO
+    return result if result.is_finite() else ZERO
+
+
 def ratio(numerator: Decimal, denominator: Decimal) -> Decimal:
     if denominator <= 0:
         return ZERO if numerator <= 0 else ONE
@@ -322,8 +337,10 @@ def _economic_assessment(
     if variant.recency_guard:
         blocks_raw = row.get("walk_forward_block_means_r")
         if isinstance(blocks_raw, list) and len(blocks_raw) == 5:
-            global_r = d(row["walk_forward_expected_structural_r"])
-            recent_r = d(blocks_raw[-1])
+            global_r = d_or_zero(
+                row.get("walk_forward_expected_structural_r")
+            )
+            recent_r = d_or_zero(blocks_raw[-1])
             conservative_r = min(global_r, recent_r)
             value = conservative_r * minimum_stop_risk - provider_cost
             reasons.append("RECENCY_GUARD_APPLIED")
@@ -1050,10 +1067,10 @@ def simulate(rows: list[dict[str, Any]], variant: Variant) -> dict[str, Any]:
                 expected_net_min_usd=assessments[
                     row_index
                 ].expected_net_usd,
-                global_expected_r=d(
-                    row.get("walk_forward_expected_structural_r", "0")
+                global_expected_r=d_or_zero(
+                    row.get("walk_forward_expected_structural_r")
                 ),
-                recent_block_r=d(
+                recent_block_r=d_or_zero(
                     (
                         row.get("walk_forward_block_means_r")
                         if isinstance(
@@ -1061,7 +1078,7 @@ def simulate(rows: list[dict[str, Any]], variant: Variant) -> dict[str, Any]:
                             list,
                         )
                         and row.get("walk_forward_block_means_r")
-                        else ["0"]
+                        else [None]
                     )[-1]
                 ),
             )
