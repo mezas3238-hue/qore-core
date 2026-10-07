@@ -41,7 +41,14 @@ class CiboLifecycleFeature(StrEnum):
     ADVERSE_LOSS_CUT = "ADVERSE_LOSS_CUT"
 
 
-FULL_CIBO_LIFECYCLE_FEATURES = frozenset(CiboLifecycleFeature)
+# Keep the established lifecycle baseline stable while the adverse-loss
+# feature is experimentally swept in Trader Lab. Promotion into the default
+# lifecycle set requires causal frontier evidence.
+FULL_CIBO_LIFECYCLE_FEATURES = frozenset(
+    item
+    for item in CiboLifecycleFeature
+    if item is not CiboLifecycleFeature.ADVERSE_LOSS_CUT
+)
 
 
 @dataclass(frozen=True, slots=True)
