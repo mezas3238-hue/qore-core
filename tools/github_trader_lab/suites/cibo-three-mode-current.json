@@ -1,10 +1,11 @@
 {
   "schema": "qore.github-trader-lab.cibo-three-mode-suite.v1",
-  "experiment_family": "CIBO_DD_GROSS_LOSS_COMPRESSION_001",
+  "experiment_family": "CIBO_DD_GROSS_LOSS_COMPRESSION_002_BOOTSTRAP_DEFENSE",
   "hypotheses": {
-    "drawdown": "early MEDIUM 1x-2x dominates max-DD episode",
-    "gross_loss": "ATTACK, especially 8x, dominates gross loss",
-    "acceptance": "preserve all Trader entries and seek lower DD + lower gross loss without ending-capital degradation"
+    "finding_001": "ATTACK-only adverse loss cut rejected: no efficient gross-loss improvement",
+    "drawdown_cause": "maximum DD is early and MEDIUM-dominated near low capital",
+    "hypothesis": "limit MEDIUM post-entry defense to bootstrap capital so later compounding is preserved",
+    "acceptance": "preserve 3368 entries; seek lower DD and gross loss with ending capital >= control"
   },
   "cases": [
     {
@@ -22,31 +23,7 @@
       ]
     },
     {
-      "name": "MEDIUM_DD_RIDGE_STOP020_DD005",
-      "uses_atlas": true,
-      "args": [
-        "--lifecycle-feature",
-        "DEFENSIVE_INITIAL_STOP_CAP",
-        "--lifecycle-defensive-medium-1x-only",
-        "--lifecycle-trader-loss-streak-trigger",
-        "1",
-        "--lifecycle-minimum-stop-risk-fraction-trigger",
-        "0.03",
-        "--lifecycle-defensive-initial-stop-r=-0.20",
-        "--distributed-attack-frontier",
-        "--attack-multiplier-cap",
-        "8",
-        "--medium-multiplier-cap",
-        "4",
-        "--coordinated-economic-group",
-        "--economic-group-bootstrap-cushion-share",
-        "0.75",
-        "--medium-drawdown-intensity-trigger",
-        "0.05"
-      ]
-    },
-    {
-      "name": "MEDIUM_DD_RIDGE_STOP020_DD0075",
+      "name": "MEDIUM_UNBOUNDED_REFERENCE_DD0075",
       "uses_atlas": true,
       "args": [
         "--lifecycle-feature",
@@ -70,13 +47,19 @@
       ]
     },
     {
-      "name": "ATTACK_ONLY_LOSS_CUT_070",
+      "name": "BOOT90_STOP020_LIFECYCLE_ONLY",
       "uses_atlas": true,
       "args": [
         "--lifecycle-feature",
-        "ADVERSE_LOSS_CUT",
-        "--lifecycle-attack-only",
-        "--lifecycle-adverse-loss-cut-r=-0.70",
+        "DEFENSIVE_INITIAL_STOP_CAP",
+        "--lifecycle-defensive-medium-1x-only",
+        "--lifecycle-trader-loss-streak-trigger",
+        "1",
+        "--lifecycle-minimum-stop-risk-fraction-trigger",
+        "0.03",
+        "--lifecycle-defensive-initial-stop-r=-0.20",
+        "--lifecycle-bootstrap-capital-ceiling",
+        "90",
         "--distributed-attack-frontier",
         "--attack-multiplier-cap",
         "8",
@@ -88,13 +71,19 @@
       ]
     },
     {
-      "name": "ATTACK_ONLY_LOSS_CUT_080",
+      "name": "BOOT100_STOP020_LIFECYCLE_ONLY",
       "uses_atlas": true,
       "args": [
         "--lifecycle-feature",
-        "ADVERSE_LOSS_CUT",
-        "--lifecycle-attack-only",
-        "--lifecycle-adverse-loss-cut-r=-0.80",
+        "DEFENSIVE_INITIAL_STOP_CAP",
+        "--lifecycle-defensive-medium-1x-only",
+        "--lifecycle-trader-loss-streak-trigger",
+        "1",
+        "--lifecycle-minimum-stop-risk-fraction-trigger",
+        "0.03",
+        "--lifecycle-defensive-initial-stop-r=-0.20",
+        "--lifecycle-bootstrap-capital-ceiling",
+        "100",
         "--distributed-attack-frontier",
         "--attack-multiplier-cap",
         "8",
@@ -106,13 +95,19 @@
       ]
     },
     {
-      "name": "ATTACK_ONLY_LOSS_CUT_090",
+      "name": "BOOT120_STOP020_LIFECYCLE_ONLY",
       "uses_atlas": true,
       "args": [
         "--lifecycle-feature",
-        "ADVERSE_LOSS_CUT",
-        "--lifecycle-attack-only",
-        "--lifecycle-adverse-loss-cut-r=-0.90",
+        "DEFENSIVE_INITIAL_STOP_CAP",
+        "--lifecycle-defensive-medium-1x-only",
+        "--lifecycle-trader-loss-streak-trigger",
+        "1",
+        "--lifecycle-minimum-stop-risk-fraction-trigger",
+        "0.03",
+        "--lifecycle-defensive-initial-stop-r=-0.20",
+        "--lifecycle-bootstrap-capital-ceiling",
+        "120",
         "--distributed-attack-frontier",
         "--attack-multiplier-cap",
         "8",
@@ -124,13 +119,19 @@
       ]
     },
     {
-      "name": "ATTACK_CUT080_PLUS_MEDIUM_DD005",
+      "name": "BOOT100_STOP020_PLUS_DD0075",
       "uses_atlas": true,
       "args": [
         "--lifecycle-feature",
-        "ADVERSE_LOSS_CUT",
-        "--lifecycle-attack-only",
-        "--lifecycle-adverse-loss-cut-r=-0.80",
+        "DEFENSIVE_INITIAL_STOP_CAP",
+        "--lifecycle-defensive-medium-1x-only",
+        "--lifecycle-trader-loss-streak-trigger",
+        "1",
+        "--lifecycle-minimum-stop-risk-fraction-trigger",
+        "0.03",
+        "--lifecycle-defensive-initial-stop-r=-0.20",
+        "--lifecycle-bootstrap-capital-ceiling",
+        "100",
         "--distributed-attack-frontier",
         "--attack-multiplier-cap",
         "8",
@@ -140,17 +141,23 @@
         "--economic-group-bootstrap-cushion-share",
         "0.75",
         "--medium-drawdown-intensity-trigger",
-        "0.05"
+        "0.075"
       ]
     },
     {
-      "name": "ATTACK_CUT090_PLUS_MEDIUM_DD005",
+      "name": "BOOT120_STOP020_PLUS_DD0075",
       "uses_atlas": true,
       "args": [
         "--lifecycle-feature",
-        "ADVERSE_LOSS_CUT",
-        "--lifecycle-attack-only",
-        "--lifecycle-adverse-loss-cut-r=-0.90",
+        "DEFENSIVE_INITIAL_STOP_CAP",
+        "--lifecycle-defensive-medium-1x-only",
+        "--lifecycle-trader-loss-streak-trigger",
+        "1",
+        "--lifecycle-minimum-stop-risk-fraction-trigger",
+        "0.03",
+        "--lifecycle-defensive-initial-stop-r=-0.20",
+        "--lifecycle-bootstrap-capital-ceiling",
+        "120",
         "--distributed-attack-frontier",
         "--attack-multiplier-cap",
         "8",
@@ -160,7 +167,33 @@
         "--economic-group-bootstrap-cushion-share",
         "0.75",
         "--medium-drawdown-intensity-trigger",
-        "0.05"
+        "0.075"
+      ]
+    },
+    {
+      "name": "BOOT150_STOP020_PLUS_DD0075",
+      "uses_atlas": true,
+      "args": [
+        "--lifecycle-feature",
+        "DEFENSIVE_INITIAL_STOP_CAP",
+        "--lifecycle-defensive-medium-1x-only",
+        "--lifecycle-trader-loss-streak-trigger",
+        "1",
+        "--lifecycle-minimum-stop-risk-fraction-trigger",
+        "0.03",
+        "--lifecycle-defensive-initial-stop-r=-0.20",
+        "--lifecycle-bootstrap-capital-ceiling",
+        "150",
+        "--distributed-attack-frontier",
+        "--attack-multiplier-cap",
+        "8",
+        "--medium-multiplier-cap",
+        "4",
+        "--coordinated-economic-group",
+        "--economic-group-bootstrap-cushion-share",
+        "0.75",
+        "--medium-drawdown-intensity-trigger",
+        "0.075"
       ]
     }
   ]
