@@ -175,6 +175,8 @@ class _State:
     medium_compound_recovery_deficit_usd: Decimal = Decimal(0)
     medium_compound_recovered_usd: Decimal = Decimal(0)
     attack_net_pnl_usd: Decimal = Decimal(0)
+    attack_profit_to_sovereign_usd: Decimal = Decimal(0)
+    attack_profit_to_cushion_usd: Decimal = Decimal(0)
 
     @property
     def total_capital_usd(self) -> Decimal:
@@ -715,6 +717,7 @@ def apply_three_mode_settlement(
     economic_group_bootstrap_cushion_share: Decimal = Decimal("0.75"),
     economic_group_ablation: str | None = None,
     ceiling_discovery_mode: bool = False,
+    compound_profit_reinvestment_fraction: Decimal | None = None,
 ) -> Decimal:
     """Settle one already-due trade; no outcome is consulted before exit."""
 
@@ -774,7 +777,11 @@ def apply_three_mode_settlement(
                 state.medium_compound_recovered_usd += recovery
             distributable = net_pnl - recovery
             sovereign_share = MEDIUM_SOVEREIGN_SHARE
-            if economic_group_ablation == "CIBO_COMPOUND":
+            if compound_profit_reinvestment_fraction is not None:
+                sovereign_share = (
+                    Decimal(1) - compound_profit_reinvestment_fraction
+                )
+            elif economic_group_ablation == "CIBO_COMPOUND":
                 sovereign_share = Decimal(1)
             elif coordinated_economic_group:
                 total = max(Decimal("0.00000001"), state.total_capital_usd)
@@ -820,7 +827,19 @@ def apply_three_mode_settlement(
             state.medium_compound_negative_net_usd += -net_pnl
     elif trade.mode is CiboTraderLabMode.ATTACK:
         state.cushion_reserved_usd -= trade.source_reserved_usd
-        state.portfolio_cushion_usd += net_pnl
+        if net_pnl > 0 and compound_profit_reinvestment_fraction is not None:
+            reinvested_gain = (
+                net_pnl * compound_profit_reinvestment_fraction
+            )
+            sovereign_gain = net_pnl - reinvested_gain
+            state.portfolio_cushion_usd += reinvested_gain
+            state.sovereign_bank_usd += sovereign_gain
+            state.attack_profit_to_cushion_usd += reinvested_gain
+            state.attack_profit_to_sovereign_usd += sovereign_gain
+        else:
+            state.portfolio_cushion_usd += net_pnl
+            if net_pnl > 0:
+                state.attack_profit_to_cushion_usd += net_pnl
         state.attack_net_pnl_usd += net_pnl
         if state.portfolio_cushion_usd < 0:
             breach = -state.portfolio_cushion_usd
@@ -881,6 +900,7 @@ def run_three_mode_trader_lab(
     ceiling_discovery_mode: bool = False,
     ceiling_growth_leverage_slope: Decimal | None = None,
     ceiling_attack_drawdown_budget_fraction: Decimal | None = None,
+    compound_profit_reinvestment_fraction: Decimal | None = None,
     collect_engineering_trace: bool = True,
     collect_epoch_receipts: bool = True,
     compact_trade_receipts: bool = False,
@@ -1009,6 +1029,15 @@ def run_three_mode_trader_lab(
     ):
         raise CiboCapitalManagementError(
             "Trader Lab ceiling ATTACK drawdown budget requires ceiling discovery mode"
+        )
+    if compound_profit_reinvestment_fraction is not None and (
+        not isinstance(compound_profit_reinvestment_fraction, Decimal)
+        or not compound_profit_reinvestment_fraction.is_finite()
+        or compound_profit_reinvestment_fraction <= 0
+        or compound_profit_reinvestment_fraction > Decimal(1)
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab compound profit reinvestment fraction must be Decimal in (0, 1]"
         )
     if economic_group_ablation not in {
         None,
@@ -1619,7 +1648,11 @@ def run_three_mode_trader_lab(
                     state.medium_compound_recovered_usd += recovery
                 distributable = net_pnl - recovery
                 sovereign_share = MEDIUM_SOVEREIGN_SHARE
-                if economic_group_ablation == "CIBO_COMPOUND":
+                if compound_profit_reinvestment_fraction is not None:
+                    sovereign_share = (
+                        Decimal(1) - compound_profit_reinvestment_fraction
+                    )
+                elif economic_group_ablation == "CIBO_COMPOUND":
                     sovereign_share = Decimal(1)
                 elif coordinated_economic_group:
                     total = max(
@@ -1678,7 +1711,22 @@ def run_three_mode_trader_lab(
                     Decimal(0),
                     state.cushion_reserved_usd - trade.provider_cost_usd,
                 )
-            state.portfolio_cushion_usd += net_pnl
+            if (
+                net_pnl > 0
+                and compound_profit_reinvestment_fraction is not None
+            ):
+                reinvested_gain = (
+                    net_pnl * compound_profit_reinvestment_fraction
+                )
+                sovereign_gain = net_pnl - reinvested_gain
+                state.portfolio_cushion_usd += reinvested_gain
+                state.sovereign_bank_usd += sovereign_gain
+                state.attack_profit_to_cushion_usd += reinvested_gain
+                state.attack_profit_to_sovereign_usd += sovereign_gain
+            else:
+                state.portfolio_cushion_usd += net_pnl
+                if net_pnl > 0:
+                    state.attack_profit_to_cushion_usd += net_pnl
             state.attack_net_pnl_usd += net_pnl
             if state.portfolio_cushion_usd < 0:
                 breach = -state.portfolio_cushion_usd
@@ -1833,6 +1881,9 @@ def run_three_mode_trader_lab(
                     ),
                     economic_group_ablation=economic_group_ablation,
                     ceiling_discovery_mode=ceiling_discovery_mode,
+                    compound_profit_reinvestment_fraction=(
+                        compound_profit_reinvestment_fraction
+                    ),
                 )
             else:
                 with localcontext() as context:
@@ -3802,6 +3853,17 @@ def run_three_mode_trader_lab(
             ),
             "ablation": economic_group_ablation,
             "ceiling_discovery_mode": ceiling_discovery_mode,
+            "compound_profit_reinvestment_fraction": (
+                None
+                if compound_profit_reinvestment_fraction is None
+                else format(compound_profit_reinvestment_fraction, "f")
+            ),
+            "attack_profit_to_sovereign_usd": format(
+                state.attack_profit_to_sovereign_usd, "f"
+            ),
+            "attack_profit_to_portfolio_cushion_usd": format(
+                state.attack_profit_to_cushion_usd, "f"
+            ),
             "ceiling_growth_leverage_slope": (
                 None
                 if ceiling_growth_leverage_slope is None
