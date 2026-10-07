@@ -169,6 +169,7 @@ jobs:
               --lifecycle-adverse-loss-cut-max-favorable-r "$MAX_FAVORABLE" \
               --lifecycle-drawdown-activation-fraction "$DD_ACTIVATION" \
               --lifecycle-adverse-loss-cut-close-fraction "$CLOSE_FRACTION" \
+              "${TRADER_ARGS[@]}" \
               --output "$RUNNER_TEMP/result/cibo-four-engine-loss-cut-${LABEL}.json" \
               > "$RUNNER_TEMP/result/cibo-four-engine-loss-cut-${LABEL}.log" 2>&1; then
               cat "$RUNNER_TEMP/result/cibo-four-engine-loss-cut-${LABEL}.log"
