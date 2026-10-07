@@ -940,6 +940,9 @@ def run_three_mode_trader_lab(
     ceiling_attack_multiplier_band_lower: int | None = None,
     ceiling_attack_multiplier_band_upper: int | None = None,
     ceiling_attack_multiplier_band_taper_fraction: Decimal = Decimal("0.50"),
+    ceiling_attack_risk_fraction_band_lower: Decimal | None = None,
+    ceiling_attack_risk_fraction_band_upper: Decimal | None = None,
+    ceiling_attack_risk_fraction_band_taper_fraction: Decimal = Decimal("0.50"),
     ceiling_attack_stress_confidence_drawdown_trigger: Decimal | None = None,
     ceiling_attack_stress_confidence_ratio_ceiling: Decimal | None = None,
     ceiling_attack_stress_confidence_taper_fraction: Decimal = Decimal("0.75"),
@@ -1191,6 +1194,44 @@ def run_three_mode_trader_lab(
     ):
         raise CiboCapitalManagementError(
             "Trader Lab ATTACK multiplier-band taper requires ceiling discovery mode"
+        )
+    if (
+        ceiling_attack_risk_fraction_band_lower is None
+    ) != (
+        ceiling_attack_risk_fraction_band_upper is None
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab ATTACK risk-fraction band taper requires both bounds"
+        )
+    if ceiling_attack_risk_fraction_band_lower is not None and (
+        not isinstance(ceiling_attack_risk_fraction_band_lower, Decimal)
+        or not ceiling_attack_risk_fraction_band_lower.is_finite()
+        or ceiling_attack_risk_fraction_band_lower < 0
+        or ceiling_attack_risk_fraction_band_upper is None
+        or not isinstance(ceiling_attack_risk_fraction_band_upper, Decimal)
+        or not ceiling_attack_risk_fraction_band_upper.is_finite()
+        or ceiling_attack_risk_fraction_band_upper
+        <= ceiling_attack_risk_fraction_band_lower
+        or ceiling_attack_risk_fraction_band_upper > Decimal("0.50")
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab ATTACK risk-fraction band must satisfy 0 <= lower < upper <= 0.50"
+        )
+    if (
+        not isinstance(ceiling_attack_risk_fraction_band_taper_fraction, Decimal)
+        or not ceiling_attack_risk_fraction_band_taper_fraction.is_finite()
+        or ceiling_attack_risk_fraction_band_taper_fraction <= 0
+        or ceiling_attack_risk_fraction_band_taper_fraction > 1
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab ATTACK risk-fraction band taper must be Decimal in (0, 1]"
+        )
+    if (
+        ceiling_attack_risk_fraction_band_lower is not None
+        and not ceiling_discovery_mode
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab ATTACK risk-fraction band taper requires ceiling discovery mode"
         )
     if (
         ceiling_attack_stress_confidence_drawdown_trigger is None
@@ -1759,6 +1800,7 @@ def run_three_mode_trader_lab(
     attack_loss_streak_taper_bind_count = 0
     attack_drawdown_taper_bind_count = 0
     attack_multiplier_band_taper_bind_count = 0
+    attack_risk_fraction_band_taper_bind_count = 0
     attack_stress_confidence_taper_bind_count = 0
     attack_trader_loss_ratio_taper_bind_count = 0
     portfolio_attack_shock_taper_bind_count = 0
@@ -3582,22 +3624,57 @@ def run_three_mode_trader_lab(
                     preliminary_multiplier = max(0, min(leverage_caps.values()))
                     if (
                         ceiling_discovery_mode
+                        and ceiling_attack_risk_fraction_band_lower is not None
+                        and ceiling_attack_risk_fraction_band_upper is not None
+                        and preliminary_multiplier >= ATTACK_MINIMUM_MULTIPLIER
+                    ):
+                        with localcontext() as context:
+                            context.prec = 100
+                            proposed_attack_risk_fraction = _ratio(
+                                candidate.stop_risk_per_multiplier_usd
+                                * Decimal(preliminary_multiplier),
+                                state.total_capital_usd,
+                            )
+                        if (
+                            ceiling_attack_risk_fraction_band_lower
+                            <= proposed_attack_risk_fraction
+                            < ceiling_attack_risk_fraction_band_upper
+                        ):
+                            risk_band_tapered_multiplier = max(
+                                ATTACK_MINIMUM_MULTIPLIER,
+                                int(
+                                    (
+                                        Decimal(preliminary_multiplier)
+                                        * ceiling_attack_risk_fraction_band_taper_fraction
+                                    ).to_integral_value(rounding=ROUND_FLOOR)
+                                ),
+                            )
+                            if risk_band_tapered_multiplier < preliminary_multiplier:
+                                attack_risk_fraction_band_taper_bind_count += 1
+                                leverage_caps[
+                                    "CEILING_RISK_FRACTION_BAND_TAPER_CAP"
+                                ] = risk_band_tapered_multiplier
+                    band_reference_multiplier = max(
+                        0, min(leverage_caps.values())
+                    )
+                    if (
+                        ceiling_discovery_mode
                         and ceiling_attack_multiplier_band_lower is not None
                         and ceiling_attack_multiplier_band_upper is not None
                         and ceiling_attack_multiplier_band_lower
-                        <= preliminary_multiplier
+                        <= band_reference_multiplier
                         <= ceiling_attack_multiplier_band_upper
                     ):
                         band_tapered_multiplier = max(
                             ATTACK_MINIMUM_MULTIPLIER,
                             int(
                                 (
-                                    Decimal(preliminary_multiplier)
+                                    Decimal(band_reference_multiplier)
                                     * ceiling_attack_multiplier_band_taper_fraction
                                 ).to_integral_value(rounding=ROUND_FLOOR)
                             ),
                         )
-                        if band_tapered_multiplier < preliminary_multiplier:
+                        if band_tapered_multiplier < band_reference_multiplier:
                             attack_multiplier_band_taper_bind_count += 1
                             leverage_caps[
                                 "CEILING_MULTIPLIER_BAND_TAPER_CAP"
@@ -4685,6 +4762,22 @@ def run_three_mode_trader_lab(
             ),
             "attack_multiplier_band_taper_bind_count": (
                 attack_multiplier_band_taper_bind_count
+            ),
+            "ceiling_attack_risk_fraction_band_lower": (
+                None
+                if ceiling_attack_risk_fraction_band_lower is None
+                else format(ceiling_attack_risk_fraction_band_lower, "f")
+            ),
+            "ceiling_attack_risk_fraction_band_upper": (
+                None
+                if ceiling_attack_risk_fraction_band_upper is None
+                else format(ceiling_attack_risk_fraction_band_upper, "f")
+            ),
+            "ceiling_attack_risk_fraction_band_taper_fraction": format(
+                ceiling_attack_risk_fraction_band_taper_fraction, "f"
+            ),
+            "attack_risk_fraction_band_taper_bind_count": (
+                attack_risk_fraction_band_taper_bind_count
             ),
             "ceiling_attack_stress_confidence_drawdown_trigger": (
                 None
