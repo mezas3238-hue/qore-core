@@ -151,6 +151,7 @@ class _State:
     peak_total_capital_usd: Decimal = INITIAL_CAPITAL_USD
     peak_sovereign_bank_usd: Decimal = INITIAL_CAPITAL_USD
     max_drawdown_usd: Decimal = Decimal(0)
+    max_drawdown_fraction_observed: Decimal = Decimal(0)
     max_sovereign_drawdown_usd: Decimal = Decimal(0)
     min_sovereign_bank_usd: Decimal = INITIAL_CAPITAL_USD
     sovereign_floor_breach_usd: Decimal = Decimal(0)
@@ -215,6 +216,14 @@ class _State:
         self.peak_total_capital_usd = max(self.peak_total_capital_usd, total)
         drawdown = max(Decimal(0), self.peak_total_capital_usd - total)
         self.max_drawdown_usd = max(self.max_drawdown_usd, drawdown)
+        current_drawdown_fraction = _ratio(
+            drawdown,
+            self.peak_total_capital_usd,
+        )
+        self.max_drawdown_fraction_observed = max(
+            self.max_drawdown_fraction_observed,
+            current_drawdown_fraction,
+        )
         floor_before_mark = self.sovereign_protection_floor_usd
         if self.sovereign_bank_usd < floor_before_mark:
             self.sovereign_floor_breach_usd = max(
@@ -2037,10 +2046,7 @@ def run_three_mode_trader_lab(
         if trade_count
         else Decimal(0)
     )
-    max_drawdown_pct = _ratio(
-        state.max_drawdown_usd,
-        state.peak_total_capital_usd,
-    )
+    max_drawdown_pct = state.max_drawdown_fraction_observed
     baseline_delta = None
     if baseline_ending_capital_usd is not None:
         baseline_delta = (
