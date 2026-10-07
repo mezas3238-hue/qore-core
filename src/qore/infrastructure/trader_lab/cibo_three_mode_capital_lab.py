@@ -2193,43 +2193,6 @@ def run_three_mode_trader_lab(
                         )
                         else 1
                     )
-                    compound_recovery_pressure = _ratio(
-                        state.medium_compound_recovery_deficit_usd,
-                        max(Decimal("0.00000001"), state.total_capital_usd),
-                    )
-                    settled_medium_abs_usd = (
-                        state.medium_compound_positive_net_usd
-                        + state.medium_compound_negative_net_usd
-                    )
-                    compound_loss_share = _ratio(
-                        state.medium_compound_negative_net_usd,
-                        settled_medium_abs_usd,
-                    )
-                    compound_feedback_cap = medium_multiplier_cap
-                    if coordinated_economic_group:
-                        if (
-                            compound_recovery_pressure >= Decimal("0.25")
-                            or compound_loss_share >= Decimal("0.60")
-                        ):
-                            compound_feedback_cap = 1
-                        elif (
-                            compound_recovery_pressure >= Decimal("0.15")
-                            or compound_loss_share >= Decimal("0.55")
-                        ):
-                            compound_feedback_cap = min(
-                                medium_multiplier_cap, 2
-                            )
-                        elif (
-                            compound_recovery_pressure >= Decimal("0.075")
-                            or compound_loss_share >= Decimal("0.50")
-                        ):
-                            compound_feedback_cap = min(
-                                medium_multiplier_cap, 3
-                            )
-                        native_intensity_cap = min(
-                            native_intensity_cap,
-                            compound_feedback_cap,
-                        )
                     multiplier = max(
                         1,
                         min(
@@ -2332,13 +2295,6 @@ def run_three_mode_trader_lab(
                             "medium_risk_budget_usd": format(
                                 medium_risk_budget_usd, "f"
                             ),
-                            "compound_recovery_pressure": format(
-                                compound_recovery_pressure, "f"
-                            ),
-                            "compound_loss_share": format(
-                                compound_loss_share, "f"
-                            ),
-                            "compound_feedback_cap": compound_feedback_cap,
                             "margin_left_usd": format(margin_left, "f"),
                             "native_confidence_band": native_confidence(
                                 candidate
@@ -2395,25 +2351,6 @@ def run_three_mode_trader_lab(
                     economic_cap = candidate.maximum_multiplier
                     coordinated_attack_cap = attack_multiplier_cap
                     if coordinated_economic_group:
-                        compound_recovery_pressure = _ratio(
-                            state.medium_compound_recovery_deficit_usd,
-                            max(
-                                Decimal("0.00000001"),
-                                state.total_capital_usd,
-                            ),
-                        )
-                        if compound_recovery_pressure >= Decimal("0.25"):
-                            coordinated_attack_cap = min(
-                                coordinated_attack_cap, 2
-                            )
-                        elif compound_recovery_pressure >= Decimal("0.15"):
-                            coordinated_attack_cap = min(
-                                coordinated_attack_cap, 4
-                            )
-                        elif compound_recovery_pressure >= Decimal("0.075"):
-                            coordinated_attack_cap = min(
-                                coordinated_attack_cap, 6
-                            )
                         if (
                             candidate.walk_forward_positive_block_count >= 5
                             and candidate.attack_expected_net_utility_usd > 0
