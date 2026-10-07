@@ -23,5 +23,5 @@ jobs:
   fast-trader-lab:
     uses: mezas3238-hue/qore-core/.github/workflows/github-trader-lab-fast.yml@agent/github-trader-lab-001
     with:
-      profile_path: tools/github_trader_lab/profiles/cibo-capital-repair.json
+      profile_path: tools/github_trader_lab/profiles/cibo-three-mode-suite.json
       subject_ref: ${{ github.sha }}
