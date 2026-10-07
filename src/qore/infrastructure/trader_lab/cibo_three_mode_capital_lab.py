@@ -939,6 +939,9 @@ def run_three_mode_trader_lab(
     ceiling_attack_stress_confidence_drawdown_trigger: Decimal | None = None,
     ceiling_attack_stress_confidence_ratio_ceiling: Decimal | None = None,
     ceiling_attack_stress_confidence_taper_fraction: Decimal = Decimal("0.75"),
+    ceiling_attack_trader_loss_ratio_trigger: Decimal | None = None,
+    ceiling_attack_trader_loss_ratio_min_settlements: int = 20,
+    ceiling_attack_trader_loss_ratio_taper_fraction: Decimal = Decimal("0.95"),
     ceiling_portfolio_shock_trigger_fraction: Decimal | None = None,
     ceiling_portfolio_shock_taper_fraction: Decimal = Decimal("0.50"),
     ceiling_portfolio_shock_one_shot: bool = False,
@@ -1196,6 +1199,40 @@ def run_three_mode_trader_lab(
     ):
         raise CiboCapitalManagementError(
             "Trader Lab stress-confidence ATTACK taper requires ceiling discovery mode"
+        )
+    if ceiling_attack_trader_loss_ratio_trigger is not None and (
+        not isinstance(ceiling_attack_trader_loss_ratio_trigger, Decimal)
+        or not ceiling_attack_trader_loss_ratio_trigger.is_finite()
+        or ceiling_attack_trader_loss_ratio_trigger <= 0
+        or ceiling_attack_trader_loss_ratio_trigger > Decimal("10")
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab Trader ATTACK loss/profit ratio trigger must be Decimal in (0, 10]"
+        )
+    if (
+        not isinstance(ceiling_attack_trader_loss_ratio_min_settlements, int)
+        or isinstance(ceiling_attack_trader_loss_ratio_min_settlements, bool)
+        or ceiling_attack_trader_loss_ratio_min_settlements < 1
+        or ceiling_attack_trader_loss_ratio_min_settlements > 1000
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab Trader ATTACK loss/profit ratio minimum settlements must be int in [1, 1000]"
+        )
+    if (
+        not isinstance(ceiling_attack_trader_loss_ratio_taper_fraction, Decimal)
+        or not ceiling_attack_trader_loss_ratio_taper_fraction.is_finite()
+        or ceiling_attack_trader_loss_ratio_taper_fraction <= 0
+        or ceiling_attack_trader_loss_ratio_taper_fraction > 1
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab Trader ATTACK loss/profit ratio taper fraction must be Decimal in (0, 1]"
+        )
+    if (
+        ceiling_attack_trader_loss_ratio_trigger is not None
+        and not ceiling_discovery_mode
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab Trader ATTACK loss/profit ratio taper requires ceiling discovery mode"
         )
     if ceiling_portfolio_shock_trigger_fraction is not None and (
         not isinstance(ceiling_portfolio_shock_trigger_fraction, Decimal)
@@ -1647,6 +1684,7 @@ def run_three_mode_trader_lab(
     trader_trades: Counter[str] = Counter()
     trader_loss_streak: Counter[str] = Counter()
     trader_attack_loss_streak: Counter[str] = Counter()
+    trader_attack_settlement_count: Counter[str] = Counter()
     attack_winning_trade_count = 0
     attack_losing_trade_count = 0
     attack_flat_trade_count = 0
@@ -1668,6 +1706,7 @@ def run_three_mode_trader_lab(
     attack_loss_streak_taper_bind_count = 0
     attack_drawdown_taper_bind_count = 0
     attack_stress_confidence_taper_bind_count = 0
+    attack_trader_loss_ratio_taper_bind_count = 0
     portfolio_attack_shock_taper_bind_count = 0
     portfolio_last_attack_loss_fraction = Decimal(0)
     attack_epochs_funded = 0
@@ -2441,6 +2480,7 @@ def run_three_mode_trader_lab(
             else:
                 trader_loss_streak[trade.trader_id] = 0
             if trade.mode is CiboTraderLabMode.ATTACK:
+                trader_attack_settlement_count[trade.trader_id] += 1
                 if settled_trade_net < 0:
                     portfolio_last_attack_loss_fraction = (
                         (-settled_trade_net) / before_total
@@ -3324,6 +3364,50 @@ def run_three_mode_trader_lab(
                             coordinated_attack_cap = min(
                                 coordinated_attack_cap,
                                 stress_confidence_tapered_attack_cap,
+                            )
+                    if (
+                        ceiling_discovery_mode
+                        and ceiling_attack_trader_loss_ratio_trigger is not None
+                        and trader_attack_settlement_count[candidate.trader_id]
+                        >= ceiling_attack_trader_loss_ratio_min_settlements
+                    ):
+                        realized_attack_profit = attack_gross_profit_by_trader[
+                            candidate.trader_id
+                        ]
+                        realized_attack_loss = attack_gross_loss_by_trader[
+                            candidate.trader_id
+                        ]
+                        trader_loss_pressure_active = (
+                            realized_attack_loss > 0
+                            and (
+                                realized_attack_profit <= 0
+                                or (
+                                    realized_attack_loss
+                                    / realized_attack_profit
+                                )
+                                >= ceiling_attack_trader_loss_ratio_trigger
+                            )
+                        )
+                        if trader_loss_pressure_active:
+                            trader_loss_ratio_tapered_attack_cap = max(
+                                ATTACK_MINIMUM_MULTIPLIER,
+                                int(
+                                    (
+                                        Decimal(coordinated_attack_cap)
+                                        * ceiling_attack_trader_loss_ratio_taper_fraction
+                                    ).to_integral_value(
+                                        rounding=ROUND_FLOOR
+                                    )
+                                ),
+                            )
+                            if (
+                                trader_loss_ratio_tapered_attack_cap
+                                < coordinated_attack_cap
+                            ):
+                                attack_trader_loss_ratio_taper_bind_count += 1
+                            coordinated_attack_cap = min(
+                                coordinated_attack_cap,
+                                trader_loss_ratio_tapered_attack_cap,
                             )
                     ceiling_drawdown_risk_cap = candidate.maximum_multiplier
                     if (
@@ -4519,6 +4603,24 @@ def run_three_mode_trader_lab(
             "attack_stress_confidence_taper_bind_count": (
                 attack_stress_confidence_taper_bind_count
             ),
+            "ceiling_attack_trader_loss_ratio_trigger": (
+                None
+                if ceiling_attack_trader_loss_ratio_trigger is None
+                else format(ceiling_attack_trader_loss_ratio_trigger, "f")
+            ),
+            "ceiling_attack_trader_loss_ratio_min_settlements": (
+                ceiling_attack_trader_loss_ratio_min_settlements
+            ),
+            "ceiling_attack_trader_loss_ratio_taper_fraction": format(
+                ceiling_attack_trader_loss_ratio_taper_fraction, "f"
+            ),
+            "attack_trader_loss_ratio_taper_bind_count": (
+                attack_trader_loss_ratio_taper_bind_count
+            ),
+            "trader_attack_settlement_counts": {
+                key: int(value)
+                for key, value in sorted(trader_attack_settlement_count.items())
+            },
             "ceiling_portfolio_shock_trigger_fraction": (
                 None
                 if ceiling_portfolio_shock_trigger_fraction is None
