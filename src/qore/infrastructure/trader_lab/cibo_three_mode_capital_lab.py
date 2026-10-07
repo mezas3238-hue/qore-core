@@ -1583,7 +1583,11 @@ def run_three_mode_trader_lab(
     drawdown_peak_at: datetime | None = None
     drawdown_episode_net_by_trader: dict[str, Decimal] = defaultdict(Decimal)
     drawdown_episode_net_by_mode: dict[str, Decimal] = defaultdict(Decimal)
+    drawdown_episode_net_by_multiplier: dict[int, Decimal] = defaultdict(Decimal)
+    drawdown_episode_gross_loss_by_multiplier: dict[int, Decimal] = defaultdict(Decimal)
     drawdown_episode_negative_settlements: list[dict[str, object]] = []
+    current_drawdown_episode: dict[str, object] = {}
+    drawdown_episodes: list[dict[str, object]] = []
     max_drawdown_attribution: dict[str, object] = {}
     trade_receipts: list[dict[str, object]] = []
     trade_receipt_by_signal: dict[str, dict[str, object]] = {}
@@ -1866,6 +1870,7 @@ def run_three_mode_trader_lab(
     def settle_due(up_to: datetime | None) -> None:
         nonlocal pending, compound_settlements
         nonlocal drawdown_peak_at, max_drawdown_attribution
+        nonlocal current_drawdown_episode
         nonlocal attack_winning_trade_count, attack_losing_trade_count
         nonlocal attack_flat_trade_count
         nonlocal attack_gross_profit_usd, attack_gross_loss_usd
@@ -1902,6 +1907,11 @@ def run_three_mode_trader_lab(
             before_sovereign = state.sovereign_bank_usd
             before_cushion = state.portfolio_cushion_usd
             before_total = state.total_capital_usd
+            before_open_stop_risk = state.open_stop_risk_usd
+            before_open_margin = state.open_margin_usd
+            before_sovereign_reserved = state.sovereign_reserved_usd
+            before_cushion_reserved = state.cushion_reserved_usd
+            before_bank_seed_reserved = state.bank_seed_reserved_usd
             peak_total_before = state.peak_total_capital_usd
             settlement_function = (
                 "CIBO_COMPOUND"
@@ -2084,14 +2094,78 @@ def run_three_mode_trader_lab(
 
             after_total = state.total_capital_usd
             if after_total >= peak_total_before:
+                if current_drawdown_episode:
+                    peak_at_raw = current_drawdown_episode.get("peak_at")
+                    underwater_seconds = None
+                    if isinstance(peak_at_raw, str):
+                        underwater_seconds = max(
+                            0,
+                            int(
+                                (
+                                    event_at - datetime.fromisoformat(peak_at_raw)
+                                ).total_seconds()
+                            ),
+                        )
+                    current_drawdown_episode["recovery_at"] = event_at.isoformat()
+                    current_drawdown_episode["recovery_capital_usd"] = format(
+                        after_total, "f"
+                    )
+                    current_drawdown_episode[
+                        "underwater_duration_seconds"
+                    ] = underwater_seconds
+                    current_drawdown_episode.pop("_last_at", None)
+                    drawdown_episodes.append(current_drawdown_episode)
+                    current_drawdown_episode = {}
                 drawdown_peak_at = event_at
                 drawdown_episode_net_by_trader.clear()
                 drawdown_episode_net_by_mode.clear()
+                drawdown_episode_net_by_multiplier.clear()
+                drawdown_episode_gross_loss_by_multiplier.clear()
                 drawdown_episode_negative_settlements.clear()
             else:
+                if not current_drawdown_episode:
+                    current_drawdown_episode = {
+                        "peak_at": (
+                            None
+                            if drawdown_peak_at is None
+                            else drawdown_peak_at.isoformat()
+                        ),
+                        "peak_capital_usd": format(peak_total_before, "f"),
+                        "peak_state": {
+                            "sovereign_bank_usd": format(
+                                before_sovereign, "f"
+                            ),
+                            "portfolio_cushion_usd": format(
+                                before_cushion, "f"
+                            ),
+                            "open_stop_risk_usd": format(
+                                before_open_stop_risk, "f"
+                            ),
+                            "open_margin_usd": format(
+                                before_open_margin, "f"
+                            ),
+                            "sovereign_reserved_usd": format(
+                                before_sovereign_reserved, "f"
+                            ),
+                            "cushion_reserved_usd": format(
+                                before_cushion_reserved, "f"
+                            ),
+                            "bank_seed_reserved_usd": format(
+                                before_bank_seed_reserved, "f"
+                            ),
+                        },
+                        "recovery_at": None,
+                        "recovery_capital_usd": None,
+                        "underwater_duration_seconds": None,
+                    }
+                current_drawdown_episode["_last_at"] = event_at.isoformat()
                 drawdown_episode_net_by_trader[trade.trader_id] += net
                 drawdown_episode_net_by_mode[trade.mode.value] += net
+                drawdown_episode_net_by_multiplier[trade.multiplier] += net
                 if net < 0:
+                    drawdown_episode_gross_loss_by_multiplier[
+                        trade.multiplier
+                    ] += -net
                     drawdown_episode_negative_settlements.append(
                         {
                             "occurred_at": event_at.isoformat(),
@@ -2106,6 +2180,111 @@ def run_three_mode_trader_lab(
                     peak_total_before - after_total,
                     peak_total_before,
                 )
+                current_episode_fraction = Decimal(
+                    str(
+                        current_drawdown_episode.get(
+                            "drawdown_fraction", "-1"
+                        )
+                    )
+                )
+                if current_drawdown_fraction >= current_episode_fraction:
+                    worst = sorted(
+                        drawdown_episode_negative_settlements,
+                        key=lambda item: Decimal(
+                            str(item["net_pnl_usd"])
+                        ),
+                    )[:20]
+                    current_drawdown_episode.update(
+                        {
+                            "trough_at": event_at.isoformat(),
+                            "trough_capital_usd": format(after_total, "f"),
+                            "drawdown_usd": format(
+                                peak_total_before - after_total, "f"
+                            ),
+                            "drawdown_fraction": format(
+                                current_drawdown_fraction, "f"
+                            ),
+                            "net_by_trader_usd": {
+                                key: format(value, "f")
+                                for key, value in sorted(
+                                    drawdown_episode_net_by_trader.items()
+                                )
+                            },
+                            "net_by_mode_usd": {
+                                key: format(value, "f")
+                                for key, value in sorted(
+                                    drawdown_episode_net_by_mode.items()
+                                )
+                            },
+                            "net_by_multiplier_usd": {
+                                str(key): format(value, "f")
+                                for key, value in sorted(
+                                    drawdown_episode_net_by_multiplier.items()
+                                )
+                            },
+                            "gross_loss_by_multiplier_usd": {
+                                str(key): format(value, "f")
+                                for key, value in sorted(
+                                    drawdown_episode_gross_loss_by_multiplier.items()
+                                )
+                            },
+                            "top_negative_settlements": worst,
+                            "trough_state": {
+                                "sovereign_bank_usd": format(
+                                    state.sovereign_bank_usd, "f"
+                                ),
+                                "portfolio_cushion_usd": format(
+                                    state.portfolio_cushion_usd, "f"
+                                ),
+                                "portfolio_attack_credit_usd": format(
+                                    state.portfolio_attack_credit_usd, "f"
+                                ),
+                                "open_stop_risk_usd": format(
+                                    state.open_stop_risk_usd, "f"
+                                ),
+                                "open_margin_usd": format(
+                                    state.open_margin_usd, "f"
+                                ),
+                                "sovereign_reserved_usd": format(
+                                    state.sovereign_reserved_usd, "f"
+                                ),
+                                "cushion_reserved_usd": format(
+                                    state.cushion_reserved_usd, "f"
+                                ),
+                                "bank_seed_reserved_usd": format(
+                                    state.bank_seed_reserved_usd, "f"
+                                ),
+                                "portfolio_last_attack_loss_fraction": format(
+                                    (
+                                        (-net) / before_total
+                                        if (
+                                            trade.mode
+                                            is CiboTraderLabMode.ATTACK
+                                            and net < 0
+                                            and before_total > 0
+                                        )
+                                        else portfolio_last_attack_loss_fraction
+                                    ),
+                                    "f",
+                                ),
+                                "portfolio_attack_shock_taper_bind_count": (
+                                    portfolio_attack_shock_taper_bind_count
+                                ),
+                                "trader_loss_streaks_before_settlement": {
+                                    key: int(value)
+                                    for key, value in sorted(
+                                        trader_loss_streak.items()
+                                    )
+                                },
+                                "trader_attack_loss_streaks_before_settlement": {
+                                    key: int(value)
+                                    for key, value in sorted(
+                                        trader_attack_loss_streak.items()
+                                    )
+                                },
+                            },
+                        }
+                    )
                 if (
                     not max_drawdown_attribution
                     or current_drawdown_fraction
@@ -2117,44 +2296,10 @@ def run_three_mode_trader_lab(
                         )
                     )
                 ):
-                    worst = sorted(
-                        drawdown_episode_negative_settlements,
-                        key=lambda item: Decimal(
-                            str(item["net_pnl_usd"])
-                        ),
-                    )[:20]
                     max_drawdown_attribution = {
-                        "peak_at": (
-                            None
-                            if drawdown_peak_at is None
-                            else drawdown_peak_at.isoformat()
-                        ),
-                        "trough_at": event_at.isoformat(),
-                        "peak_capital_usd": format(
-                            peak_total_before, "f"
-                        ),
-                        "trough_capital_usd": format(
-                            after_total, "f"
-                        ),
-                        "drawdown_usd": format(
-                            peak_total_before - after_total, "f"
-                        ),
-                        "drawdown_fraction": format(
-                            current_drawdown_fraction, "f"
-                        ),
-                        "net_by_trader_usd": {
-                            key: format(value, "f")
-                            for key, value in sorted(
-                                drawdown_episode_net_by_trader.items()
-                            )
-                        },
-                        "net_by_mode_usd": {
-                            key: format(value, "f")
-                            for key, value in sorted(
-                                drawdown_episode_net_by_mode.items()
-                            )
-                        },
-                        "top_negative_settlements": worst,
+                        key: value
+                        for key, value in current_drawdown_episode.items()
+                        if not key.startswith("_")
                     }
 
             if lifecycle_event is not None and not final_event:
@@ -3727,6 +3872,34 @@ def run_three_mode_trader_lab(
             state.mark()
 
     settle_due(None)
+    if current_drawdown_episode:
+        peak_at_raw = current_drawdown_episode.get("peak_at")
+        last_at_raw = current_drawdown_episode.pop("_last_at", None)
+        underwater_seconds = None
+        if isinstance(peak_at_raw, str) and isinstance(last_at_raw, str):
+            underwater_seconds = max(
+                0,
+                int(
+                    (
+                        datetime.fromisoformat(last_at_raw)
+                        - datetime.fromisoformat(peak_at_raw)
+                    ).total_seconds()
+                ),
+            )
+        current_drawdown_episode["underwater_duration_seconds"] = (
+            underwater_seconds
+        )
+        drawdown_episodes.append(current_drawdown_episode)
+        current_drawdown_episode = {}
+
+    drawdown_atlas_top_10 = sorted(
+        drawdown_episodes,
+        key=lambda item: Decimal(str(item.get("drawdown_fraction", "0"))),
+        reverse=True,
+    )[:10]
+    for rank, episode in enumerate(drawdown_atlas_top_10, start=1):
+        episode["rank"] = rank
+
     if any(
         "realized_net_r" not in receipt
         or "realized_net_pnl_usd" not in receipt
@@ -4094,6 +4267,50 @@ def run_three_mode_trader_lab(
         "attack_epoch_count_with_funded_cushion": attack_epochs_funded,
         "engineering_sensor_report": engineering_sensor_report,
         "max_drawdown_attribution": max_drawdown_attribution,
+        "drawdown_forensics": {
+            "episode_count": len(drawdown_episodes),
+            "top_10_episodes": drawdown_atlas_top_10,
+            "frozen_control_snapshot": {
+                "attack_multiplier_cap": attack_multiplier_cap,
+                "medium_multiplier_cap": medium_multiplier_cap,
+                "ceiling_growth_leverage_slope": (
+                    None
+                    if ceiling_growth_leverage_slope is None
+                    else format(ceiling_growth_leverage_slope, "f")
+                ),
+                "ceiling_attack_single_trade_risk_fraction": (
+                    None
+                    if ceiling_attack_single_trade_risk_fraction is None
+                    else format(
+                        ceiling_attack_single_trade_risk_fraction, "f"
+                    )
+                ),
+                "ceiling_attack_loss_streak_trigger": (
+                    ceiling_attack_loss_streak_trigger
+                ),
+                "ceiling_attack_loss_streak_taper_fraction": format(
+                    ceiling_attack_loss_streak_taper_fraction, "f"
+                ),
+                "ceiling_portfolio_shock_trigger_fraction": (
+                    None
+                    if ceiling_portfolio_shock_trigger_fraction is None
+                    else format(
+                        ceiling_portfolio_shock_trigger_fraction, "f"
+                    )
+                ),
+                "ceiling_portfolio_shock_taper_fraction": format(
+                    ceiling_portfolio_shock_taper_fraction, "f"
+                ),
+                "ceiling_portfolio_shock_one_shot": (
+                    ceiling_portfolio_shock_one_shot
+                ),
+                "medium_drawdown_intensity_trigger": (
+                    None
+                    if medium_drawdown_intensity_trigger is None
+                    else format(medium_drawdown_intensity_trigger, "f")
+                ),
+            },
+        },
         "economic_group_report": {
             "enabled": coordinated_economic_group,
             "bootstrap_cushion_share": format(
