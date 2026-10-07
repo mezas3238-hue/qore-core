@@ -1,6 +1,7 @@
 name: QORE CIBO Carrier39 Full Causal Trace
 
 # Research-only reused-holdout hypothesis generation; not certification evidence.
+# receipt-forensics-v2
 # Starts from the confirmed 48.37% strict-Pareto carrier and targets only low-multiplier ATTACK while live DD is active.
 
 on:
