@@ -634,6 +634,18 @@ def main() -> int:
         help="Fraction of coordinated ATTACK cap retained during recent-Trader loss pressure.",
     )
     parser.add_argument(
+        "--ceiling-attack-low-multiplier-demotion-upper",
+        type=int,
+        default=None,
+        help="Maximum proposed ATTACK multiplier demoted to MEDIUM 1x while live DD is active.",
+    )
+    parser.add_argument(
+        "--ceiling-attack-low-multiplier-demotion-drawdown-trigger",
+        type=Decimal,
+        default=Decimal("0.10"),
+        help="Minimum live realized drawdown before low-multiplier ATTACK demotion may activate.",
+    )
+    parser.add_argument(
         "--ceiling-portfolio-shock-trigger-fraction",
         type=Decimal,
         default=None,
@@ -1136,6 +1148,12 @@ def main() -> int:
         ),
         ceiling_attack_recent_trader_loss_taper_fraction=(
             args.ceiling_attack_recent_trader_loss_taper_fraction
+        ),
+        ceiling_attack_low_multiplier_demotion_upper=(
+            args.ceiling_attack_low_multiplier_demotion_upper
+        ),
+        ceiling_attack_low_multiplier_demotion_drawdown_trigger=(
+            args.ceiling_attack_low_multiplier_demotion_drawdown_trigger
         ),
         ceiling_portfolio_shock_trigger_fraction=(
             args.ceiling_portfolio_shock_trigger_fraction
