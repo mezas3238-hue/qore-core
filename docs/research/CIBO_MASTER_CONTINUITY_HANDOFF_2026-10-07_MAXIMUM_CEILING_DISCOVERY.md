@@ -66,6 +66,10 @@ El siguiente arquitecto NO debe detener investigación porque se alcance 8.000%.
 
 **8.000% es piso de ambición para 36 meses, no techo.**
 
+**Interpretación económica obligatoria:** ese +8.000% se refiere a **ganancia total acumulada sobre el capital inicial**, no a capital final expresado como porcentaje. Con USD 60 iniciales, +8.000% significa aproximadamente **USD 4.800 de ganancia neta acumulada** y aproximadamente **USD 4.860 de capital final**.
+
+**Bucle operativo obligatorio hasta descubrir el techo:** mejorar → lanzar replay → leer sensores y atribución económica → reparar/optimizar → lanzar replay de nuevo. Repetir sin detenerse en +8.000%; sólo detener la escalada cuando la evidencia revele el techo causal/operativo real o cuando seguir aumentando viole el límite soberano de drawdown.
+
 El techo debe descubrirse empíricamente.
 
 El drawdown máximo tolerado durante ceiling discovery debe quedar **≤25%**. El corredor de estrés deseado es aproximadamente **20–25% máximo**. Un DD menor es válido si no se está sacrificando innecesariamente el ceiling.
