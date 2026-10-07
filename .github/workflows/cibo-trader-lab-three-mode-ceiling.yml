@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - agent/cibo-causal-expectation-leakage-fix-001
+      - agent/cibo-selective-recovery-headroom-001
     paths:
       - '.github/workflows/cibo-trader-lab-three-mode-ceiling.yml'
       - 'src/qore/infrastructure/trader_lab/cibo_three_mode_capital_lab.py'
