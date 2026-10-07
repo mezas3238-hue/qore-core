@@ -36,7 +36,7 @@ env:
 jobs:
   shock-ceiling-expansion-fast:
     runs-on: ubuntu-24.04
-    timeout-minutes: 6
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -101,7 +101,11 @@ jobs:
             --summary-telemetry
           )
           run_case() {
-            name="$1"; attack="$2"; slope="$3"; risk="$4"
+            name="$1"; attack="$2"; slope="$3"; risk="$4"; oneshot="${5:-0}"
+            extra=()
+            if [[ "$oneshot" == "1" ]]; then
+              extra+=(--ceiling-portfolio-shock-one-shot)
+            fi
             if python scripts/cibo_trader_lab_three_mode_ceiling.py "${common[@]}" \
               --attack-multiplier-cap "$attack" \
               --medium-multiplier-cap 14 \
@@ -113,6 +117,7 @@ jobs:
               --ceiling-attack-loss-streak-taper-fraction 0.75 \
               --ceiling-portfolio-shock-trigger-fraction 0.05 \
               --ceiling-portfolio-shock-taper-fraction 0.50 \
+              "${extra[@]}" \
               --lifecycle-source-root "AUDJPY=$RUNNER_TEMP/atlas/AUDJPY" \
               --lifecycle-source-root "EURUSD=$RUNNER_TEMP/atlas/EURUSD" \
               --lifecycle-source-root "GBPJPY=$RUNNER_TEMP/atlas/GBPJPY" \
@@ -132,13 +137,11 @@ jobs:
           }
 
           for attack in 257 275 300 325 350; do
-            for risk in 0.20 0.22 0.24; do
-              rtag="$(echo "$risk" | tr -d '.')"
-              run_case "a${attack}-s10-r${rtag}" "$attack" 10 "$risk"
-            done
+            run_case "persist-a${attack}-r020" "$attack" 10 0.20 0
+            run_case "oneshot-a${attack}-r020" "$attack" 10 0.20 1
           done
-          run_case "a300-s11-r022" 300 11 0.22
-          run_case "a325-s11-r022" 325 11 0.22
+          run_case "persist-a300-r022" 300 10 0.22 0
+          run_case "persist-a350-r022" 350 10 0.22 0
 
       - name: Rank shock ceiling expansion
         run: |
