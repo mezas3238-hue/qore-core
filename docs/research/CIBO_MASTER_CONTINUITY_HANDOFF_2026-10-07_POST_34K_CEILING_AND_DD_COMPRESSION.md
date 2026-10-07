@@ -1647,3 +1647,69 @@ Decision rule:
 2. if provider/risk/margin/cushion limits create a plateau, refine around that plateau;
 3. if a terminal-capital cliff appears, bracket it from both sides;
 4. preserve the new high-leverage DD regime as a forensic target for the later DD-compression phase.
+
+
+---
+
+# 27. LIVE CONTINUITY UPDATE — 5000x STILL NOT THE CEILING
+
+Run `37650886009` completed successfully.
+
+Frontier:
+
+| ATTACK cap | Ending capital | Total gain | Max DD |
+|---:|---:|---:|---:|
+| 2000x | USD 225,464.91 | +375,674.84% | 64.55% |
+| 2500x | USD 274,100.55 | +456,734.25% | 65.10% |
+| 3000x | USD 295,441.04 | +492,301.73% | 65.10% |
+| 3500x | USD 318,897.46 | +531,395.77% | 65.10% |
+| 4000x | USD 358,917.78 | +598,096.30% | 65.10% |
+| 4500x | USD 400,240.75 | +666,967.91% | 65.10% |
+| 5000x | **USD 452,895.88** | **+754,726.47%** | **65.10%** |
+
+All cases preserved 3,368 / 3,368 entries and zero ATTACK sovereign breach.
+
+The max DD plateau is now ~65.10% from 2500x onward. The max-DD episode remains ATTACK-dominant around September–October 2020 rather than the original early-2020 episode.
+
+The exact 5000x bucket remains strongly economically productive:
+
+- gross profit ≈ USD 1,189,110.07;
+- gross loss ≈ USD 765,105.49;
+- net bucket contribution ≈ +USD 424,004.58.
+
+Therefore:
+
+> 5000x is NOT a demonstrated ceiling or cliff.
+
+To prevent future false ceilings caused by tooling, the remaining research-only upper-bound validation was removed entirely in commit:
+
+`aac4332ab0319d59f1632564c8e566d66eb670e9`
+
+The fast bridge for that change passed SUCCESS.
+
+Actual leverage remains bounded by the authoritative runtime caps:
+
+- PROVIDER_MAX;
+- single-trade risk;
+- drawdown-risk cap if enabled;
+- distributed ATTACK cap requested by the experiment;
+- cushion funding;
+- risk;
+- margin.
+
+New geometric ceiling sweep:
+
+- commit: `bc8053edfb49e41d38f15f392c3bde3fa5881402`;
+- run: `37651634970`;
+- caps: 5000 / 7500 / 10000 / 15000 / 20000 / 30000 / 50000x;
+- shock: persistent;
+- single-ATTACK risk: 20%;
+- growth slope: 10;
+- 3,368/3,368 preservation mandatory.
+
+Decision rule:
+
+- a flat maximum-selected multiplier below the requested cap indicates a real downstream/provider/economic bound;
+- a flat terminal-capital curve indicates a practical plateau;
+- a declining terminal-capital curve indicates a cliff;
+- continued monotonic growth with selected multiplier == requested cap requires further expansion.
