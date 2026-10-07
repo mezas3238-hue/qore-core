@@ -47,6 +47,7 @@ def _candidate() -> CiboThreeModeCandidate:
         walk_forward_positive_block_count=5,
         walk_forward_nonpositive_block_count=0,
         native_cognition_recommended=True,
+        context_quality_disposition="ALLOW",
         minimum_volume=Decimal("1"),
         maximum_multiplier=10,
         stop_risk_per_multiplier_usd=Decimal("1"),
