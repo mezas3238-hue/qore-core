@@ -709,6 +709,7 @@ def apply_three_mode_settlement(
     trade: CiboThreeModeOpenTrade,
     *,
     net_compound_before_split: bool = False,
+    coordinated_economic_group: bool = False,
 ) -> Decimal:
     """Settle one already-due trade; no outcome is consulted before exit."""
 
@@ -741,7 +742,29 @@ def apply_three_mode_settlement(
                 state.medium_compound_recovery_deficit_usd -= recovery
                 state.medium_compound_recovered_usd += recovery
             distributable = net_pnl - recovery
-            sovereign_gain = distributable * MEDIUM_SOVEREIGN_SHARE
+            sovereign_share = MEDIUM_SOVEREIGN_SHARE
+            if coordinated_economic_group:
+                total = max(Decimal("0.00000001"), state.total_capital_usd)
+                total_dd = _ratio(
+                    max(
+                        Decimal(0),
+                        state.peak_total_capital_usd - state.total_capital_usd,
+                    ),
+                    state.peak_total_capital_usd,
+                )
+                cushion_ratio = _ratio(
+                    state.portfolio_cushion_usd,
+                    total,
+                )
+                if total_dd >= Decimal("0.20"):
+                    sovereign_share = Decimal("0.80")
+                elif total_dd >= Decimal("0.10"):
+                    sovereign_share = Decimal("0.65")
+                elif cushion_ratio < Decimal("0.20"):
+                    sovereign_share = Decimal("0.35")
+                elif cushion_ratio > Decimal("0.60"):
+                    sovereign_share = Decimal("0.65")
+            sovereign_gain = distributable * sovereign_share
             cushion_gain = distributable - sovereign_gain
             state.sovereign_bank_usd += sovereign_gain
             state.portfolio_cushion_usd += cushion_gain
@@ -803,6 +826,7 @@ def run_three_mode_trader_lab(
     distributed_attack_frontier: bool = False,
     attack_multiplier_cap: int = DEFAULT_DISTRIBUTED_ATTACK_MULTIPLIER_CAP,
     medium_multiplier_cap: int = 4,
+    coordinated_economic_group: bool = False,
 ) -> dict[str, object]:
     """Run the isolated chronological three-mode ceiling experiment."""
 
@@ -817,6 +841,10 @@ def run_three_mode_trader_lab(
     if type(distributed_attack_frontier) is not bool:
         raise CiboCapitalManagementError(
             "Trader Lab distributed ATTACK frontier switch must be bool"
+        )
+    if type(coordinated_economic_group) is not bool:
+        raise CiboCapitalManagementError(
+            "Trader Lab coordinated economic group switch must be bool"
         )
     if (
         not isinstance(attack_multiplier_cap, int)
@@ -1188,6 +1216,7 @@ def run_three_mode_trader_lab(
     robust_leverage_cap_bind_count = 0
     attack_epochs_funded = 0
     mode_reason_counts: Counter[str] = Counter()
+    sizing_intensity_cap_counts: Counter[str] = Counter()
     trade_receipts: list[dict[str, object]] = []
     epoch_receipts: list[dict[str, object]] = []
 
@@ -1364,9 +1393,33 @@ def run_three_mode_trader_lab(
                     state.medium_compound_recovery_deficit_usd -= recovery
                     state.medium_compound_recovered_usd += recovery
                 distributable = net_pnl - recovery
-                sovereign_gain = (
-                    distributable * MEDIUM_SOVEREIGN_SHARE
-                )
+                sovereign_share = MEDIUM_SOVEREIGN_SHARE
+                if coordinated_economic_group:
+                    total = max(
+                        Decimal("0.00000001"),
+                        state.total_capital_usd,
+                    )
+                    total_dd = _ratio(
+                        max(
+                            Decimal(0),
+                            state.peak_total_capital_usd
+                            - state.total_capital_usd,
+                        ),
+                        state.peak_total_capital_usd,
+                    )
+                    cushion_ratio = _ratio(
+                        state.portfolio_cushion_usd,
+                        total,
+                    )
+                    if total_dd >= Decimal("0.20"):
+                        sovereign_share = Decimal("0.80")
+                    elif total_dd >= Decimal("0.10"):
+                        sovereign_share = Decimal("0.65")
+                    elif cushion_ratio < Decimal("0.20"):
+                        sovereign_share = Decimal("0.35")
+                    elif cushion_ratio > Decimal("0.60"):
+                        sovereign_share = Decimal("0.65")
+                sovereign_gain = distributable * sovereign_share
                 cushion_gain = distributable - sovereign_gain
                 state.sovereign_bank_usd += sovereign_gain
                 state.portfolio_cushion_usd += cushion_gain
@@ -1537,6 +1590,7 @@ def run_three_mode_trader_lab(
                     state,
                     trade,
                     net_compound_before_split=use_historical_prior,
+                    coordinated_economic_group=coordinated_economic_group,
                 )
             else:
                 with localcontext() as context:
@@ -2107,6 +2161,24 @@ def run_three_mode_trader_lab(
                                 candidate.native_cognition_recommended
                                 and historical_prior_deployable
                             )
+                            else min(
+                                candidate.maximum_multiplier,
+                                medium_multiplier_cap,
+                                3,
+                            )
+                            if (
+                                coordinated_economic_group
+                                and candidate.native_cognition_recommended
+                            )
+                            else min(
+                                candidate.maximum_multiplier,
+                                medium_multiplier_cap,
+                                2,
+                            )
+                            if (
+                                coordinated_economic_group
+                                and historical_prior_deployable
+                            )
                             else min(candidate.maximum_multiplier, 1)
                         )
                         if use_historical_prior
@@ -2131,6 +2203,9 @@ def run_three_mode_trader_lab(
                             executable_by_source,
                         ),
                     )
+                    sizing_intensity_cap_counts[
+                        str(native_intensity_cap)
+                    ] += 1
                     record_engineering_sensor(
                         "SIZING",
                         epoch_index=epoch_index,
@@ -2274,10 +2349,25 @@ def run_three_mode_trader_lab(
                         call=True,
                     )
                     economic_cap = candidate.maximum_multiplier
+                    coordinated_attack_cap = attack_multiplier_cap
+                    if coordinated_economic_group:
+                        if (
+                            candidate.walk_forward_positive_block_count >= 5
+                            and candidate.attack_expected_net_utility_usd > 0
+                        ):
+                            coordinated_attack_cap = attack_multiplier_cap
+                        elif candidate.walk_forward_positive_block_count >= 5:
+                            coordinated_attack_cap = min(
+                                attack_multiplier_cap, 6
+                            )
+                        else:
+                            coordinated_attack_cap = min(
+                                attack_multiplier_cap, 4
+                            )
                     leverage_caps = {
                         "PROVIDER_MAX": candidate.maximum_multiplier,
                         "DISTRIBUTED_ATTACK_CAP": (
-                            attack_multiplier_cap
+                            coordinated_attack_cap
                             if distributed_attack_frontier
                             else candidate.maximum_multiplier
                         ),
@@ -3017,6 +3107,32 @@ def run_three_mode_trader_lab(
         ),
         "attack_epoch_count_with_funded_cushion": attack_epochs_funded,
         "engineering_sensor_report": engineering_sensor_report,
+        "economic_group_report": {
+            "enabled": coordinated_economic_group,
+            "sizing_intensity_cap_counts": dict(
+                sorted(sizing_intensity_cap_counts.items())
+            ),
+            "medium_profit_to_sovereign_usd": format(
+                state.medium_profit_to_sovereign_usd, "f"
+            ),
+            "medium_profit_to_portfolio_cushion_usd": format(
+                state.medium_profit_to_cushion_usd, "f"
+            ),
+            "portfolio_attack_credit_recycled_total_usd": format(
+                state.portfolio_attack_credit_recycled_total_usd, "f"
+            ),
+            "attack_net_pnl_usd": format(state.attack_net_pnl_usd, "f"),
+            "net_account_production_usd": format(
+                state.total_capital_usd - INITIAL_CAPITAL_USD, "f"
+            ),
+            "handoff_chain": [
+                "SIZING",
+                "CIBO_COMPOUND",
+                "COMPOUND_PORTFOLIO",
+                "ADAPTIVE_LEVERAGE",
+            ],
+            "all_entries_preserved": trade_count == len(rows),
+        },
         "position_lifecycle_report": position_lifecycle_report,
         "engineering_trace": engineering_trace,
         "function_sensors": {
@@ -3099,6 +3215,12 @@ def run_three_mode_trader_lab(
                 "FROZEN_PREDECISION_WALK_FORWARD_REPLAY"
             ),
             "native_profile_consumed": True,
+            "coordinated_economic_group": coordinated_economic_group,
+            "economic_group_handoff": (
+                "SIZING_TO_CIBO_COMPOUND_TO_COMPOUND_PORTFOLIO_TO_ADAPTIVE_LEVERAGE"
+                if coordinated_economic_group
+                else None
+            ),
             "position_lifecycle_consumed": bool(lifecycle_map),
             "position_lifecycle_source": (
                 "MARKET_ATLAS_10Y_CAUSAL_CLOSED_M5_POST_ENTRY"
