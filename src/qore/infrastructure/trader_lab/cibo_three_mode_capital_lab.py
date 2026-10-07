@@ -1217,6 +1217,11 @@ def run_three_mode_trader_lab(
     attack_epochs_funded = 0
     mode_reason_counts: Counter[str] = Counter()
     sizing_intensity_cap_counts: Counter[str] = Counter()
+    drawdown_peak_at: datetime | None = None
+    drawdown_episode_net_by_trader: dict[str, Decimal] = defaultdict(Decimal)
+    drawdown_episode_net_by_mode: dict[str, Decimal] = defaultdict(Decimal)
+    drawdown_episode_negative_settlements: list[dict[str, object]] = []
+    max_drawdown_attribution: dict[str, object] = {}
     trade_receipts: list[dict[str, object]] = []
     epoch_receipts: list[dict[str, object]] = []
 
@@ -1497,6 +1502,7 @@ def run_three_mode_trader_lab(
             before_sovereign = state.sovereign_bank_usd
             before_cushion = state.portfolio_cushion_usd
             before_total = state.total_capital_usd
+            peak_total_before = state.peak_total_capital_usd
             settlement_function = (
                 "CIBO_COMPOUND"
                 if trade.mode is CiboTraderLabMode.MEDIUM
@@ -1666,6 +1672,81 @@ def run_three_mode_trader_lab(
                 capital_destroyed_usd=destroyed,
             )
             trader_net[trade.trader_id] += net
+
+            after_total = state.total_capital_usd
+            if after_total >= peak_total_before:
+                drawdown_peak_at = event_at
+                drawdown_episode_net_by_trader.clear()
+                drawdown_episode_net_by_mode.clear()
+                drawdown_episode_negative_settlements.clear()
+            else:
+                drawdown_episode_net_by_trader[trade.trader_id] += net
+                drawdown_episode_net_by_mode[trade.mode.value] += net
+                if net < 0:
+                    drawdown_episode_negative_settlements.append(
+                        {
+                            "occurred_at": event_at.isoformat(),
+                            "signal_fingerprint": trade.signal_fingerprint,
+                            "trader_id": trade.trader_id,
+                            "mode": trade.mode.value,
+                            "multiplier": trade.multiplier,
+                            "net_pnl_usd": format(net, "f"),
+                        }
+                    )
+                current_drawdown_fraction = _ratio(
+                    peak_total_before - after_total,
+                    peak_total_before,
+                )
+                if (
+                    not max_drawdown_attribution
+                    or current_drawdown_fraction
+                    >= Decimal(
+                        str(
+                            max_drawdown_attribution[
+                                "drawdown_fraction"
+                            ]
+                        )
+                    )
+                ):
+                    worst = sorted(
+                        drawdown_episode_negative_settlements,
+                        key=lambda item: Decimal(
+                            str(item["net_pnl_usd"])
+                        ),
+                    )[:20]
+                    max_drawdown_attribution = {
+                        "peak_at": (
+                            None
+                            if drawdown_peak_at is None
+                            else drawdown_peak_at.isoformat()
+                        ),
+                        "trough_at": event_at.isoformat(),
+                        "peak_capital_usd": format(
+                            peak_total_before, "f"
+                        ),
+                        "trough_capital_usd": format(
+                            after_total, "f"
+                        ),
+                        "drawdown_usd": format(
+                            peak_total_before - after_total, "f"
+                        ),
+                        "drawdown_fraction": format(
+                            current_drawdown_fraction, "f"
+                        ),
+                        "net_by_trader_usd": {
+                            key: format(value, "f")
+                            for key, value in sorted(
+                                drawdown_episode_net_by_trader.items()
+                            )
+                        },
+                        "net_by_mode_usd": {
+                            key: format(value, "f")
+                            for key, value in sorted(
+                                drawdown_episode_net_by_mode.items()
+                            )
+                        },
+                        "top_negative_settlements": worst,
+                    }
 
             if lifecycle_event is not None and not final_event:
                 pending.append(
@@ -3109,6 +3190,7 @@ def run_three_mode_trader_lab(
         ),
         "attack_epoch_count_with_funded_cushion": attack_epochs_funded,
         "engineering_sensor_report": engineering_sensor_report,
+        "max_drawdown_attribution": max_drawdown_attribution,
         "economic_group_report": {
             "enabled": coordinated_economic_group,
             "sizing_intensity_cap_counts": dict(
