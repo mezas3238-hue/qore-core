@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - agent/cibo-causal-expectation-leakage-fix-001
+      - agent/cibo-four-engine-cooperation-001
     paths:
       - '.github/workflows/cibo-trader-lab-three-mode-ceiling.yml'
       - 'src/qore/infrastructure/trader_lab/cibo_three_mode_capital_lab.py'
@@ -211,6 +212,30 @@ jobs:
             --four-engine-cooperation-frontier \
             --medium-multiplier-cap 4 \
             --output "$RUNNER_TEMP/result/cibo-four-engine-cooperation.json"
+
+      - name: Run four-engine causal adverse-loss-cut sweep
+        run: |
+          set -euo pipefail
+          for SPEC in "025:-0.25" "050:-0.50" "075:-0.75"; do
+            LABEL="${SPEC%%:*}"
+            THRESHOLD="${SPEC#*:}"
+            python scripts/cibo_trader_lab_three_mode_ceiling.py \
+              --manifest "$MANIFEST" \
+              --baseline-replay "$BASELINE" \
+              --historical-manifest "$HISTORICAL_MANIFEST" \
+              --historical-replay "$HISTORICAL_REPLAY" \
+              --four-engine-cooperation-frontier \
+              --medium-multiplier-cap 4 \
+              --lifecycle-source-root "AUDJPY=$RUNNER_TEMP/atlas/AUDJPY" \
+              --lifecycle-source-root "EURUSD=$RUNNER_TEMP/atlas/EURUSD" \
+              --lifecycle-source-root "GBPJPY=$RUNNER_TEMP/atlas/GBPJPY" \
+              --lifecycle-source-root "GBPUSD=$RUNNER_TEMP/atlas/GBPUSD" \
+              --lifecycle-source-root "NAS100=$RUNNER_TEMP/atlas/NAS100" \
+              --lifecycle-source-root "XAUUSD=$RUNNER_TEMP/atlas/XAUUSD" \
+              --lifecycle-feature ADVERSE_LOSS_CUT \
+              --lifecycle-adverse-loss-cut-r "$THRESHOLD" \
+              --output "$RUNNER_TEMP/result/cibo-four-engine-loss-cut-${LABEL}.json"
+          done
 
       - name: Run distributed ATTACK frontier 4x
         run: |
@@ -523,6 +548,45 @@ jobs:
           assert coop_funnel["sizing_medium_rejected_count"] == 0
           assert coop_funnel["sizing_medium_deferred_count"] == 0
 
+          for filename, threshold in (
+              ("cibo-four-engine-loss-cut-025.json", "-0.25"),
+              ("cibo-four-engine-loss-cut-050.json", "-0.50"),
+              ("cibo-four-engine-loss-cut-075.json", "-0.75"),
+          ):
+              guarded = json.loads(
+                  (
+                      Path(os.environ["RUNNER_TEMP"])
+                      / "result"
+                      / filename
+                  ).read_text()
+              )
+              assert guarded["research_lane"] == (
+                  "HISTORICAL_PRIOR_NATIVE_FOUR_ENGINE_COOPERATION_FRONTIER"
+              )
+              assert guarded["trade_count"] == guarded["decision_count"] == 3368
+              assert guarded["governance"][
+                  "four_engine_cooperation_frontier"
+              ] is True
+              assert guarded["governance"][
+                  "position_lifecycle_consumed"
+              ] is True
+              assert guarded["position_lifecycle_report"][
+                  "enabled_feature_codes"
+              ] == ["ADVERSE_LOSS_CUT"]
+              assert guarded["position_lifecycle_report"][
+                  "adverse_loss_cut_r"
+              ] == threshold
+              assert guarded["position_lifecycle_report"][
+                  "outcome_used_for_trigger"
+              ] is False
+              guarded_funnel = guarded["engineering_sensor_report"][
+                  "execution_funnel"
+              ]
+              assert guarded_funnel["final_trade_count"] == 3368
+              assert guarded_funnel["sizing_medium_rejected_count"] == 0
+              assert guarded_funnel["sizing_medium_deferred_count"] == 0
+              assert guarded_funnel["causal_conservation_check"] is True
+
           lifecycle = json.loads(
               (
                   Path(os.environ["RUNNER_TEMP"])
@@ -643,6 +707,9 @@ jobs:
             ${{ runner.temp }}/result/cibo-three-mode-historical-dd-26.json
             ${{ runner.temp }}/result/cibo-three-mode-historical-dd-27.json
             ${{ runner.temp }}/result/cibo-four-engine-cooperation.json
+            ${{ runner.temp }}/result/cibo-four-engine-loss-cut-025.json
+            ${{ runner.temp }}/result/cibo-four-engine-loss-cut-050.json
+            ${{ runner.temp }}/result/cibo-four-engine-loss-cut-075.json
             ${{ runner.temp }}/result/cibo-three-mode-distributed-attack-4x.json
             ${{ runner.temp }}/result/cibo-three-mode-distributed-attack-6x.json
             ${{ runner.temp }}/result/cibo-three-mode-distributed-attack-8x.json

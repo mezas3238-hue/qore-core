@@ -3321,14 +3321,14 @@ def run_three_mode_trader_lab(
         ),
         "adaptive_leverage_attack_approved_count": leverage_approval_count,
         "final_trade_count": trade_count,
+        # Conservation is a population identity, not a sum of engine
+        # approvals. In the four-engine lane the same managed entry is
+        # intentionally approved by Sizing and Adaptive Leverage, so adding
+        # both approval counters double-counts one Trader entry.
         "causal_conservation_check": (
             upstream_intake_filtered_count
             + portfolio_withheld_before_execution
-            + sizing_rejection_count
-            + sizing_deferred_count
-            + sizing_approval_count
-            + leverage_rejection_count
-            + leverage_approval_count
+            + trade_count
             == len(rows)
         ),
     }
