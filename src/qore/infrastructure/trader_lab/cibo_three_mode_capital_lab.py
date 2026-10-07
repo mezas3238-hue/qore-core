@@ -907,6 +907,7 @@ def run_three_mode_trader_lab(
     ceiling_attack_drawdown_taper_fraction: Decimal = Decimal("0.50"),
     ceiling_portfolio_shock_trigger_fraction: Decimal | None = None,
     ceiling_portfolio_shock_taper_fraction: Decimal = Decimal("0.50"),
+    ceiling_portfolio_shock_one_shot: bool = False,
     compound_profit_reinvestment_fraction: Decimal | None = None,
     collect_engineering_trace: bool = True,
     collect_epoch_receipts: bool = True,
@@ -1127,6 +1128,10 @@ def run_three_mode_trader_lab(
     ):
         raise CiboCapitalManagementError(
             "Trader Lab ceiling Portfolio shock taper requires ceiling discovery mode"
+        )
+    if type(ceiling_portfolio_shock_one_shot) is not bool:
+        raise CiboCapitalManagementError(
+            "Trader Lab ceiling Portfolio shock one-shot switch must be bool"
         )
     if compound_profit_reinvestment_fraction is not None and (
         not isinstance(compound_profit_reinvestment_fraction, Decimal)
@@ -3094,6 +3099,10 @@ def run_three_mode_trader_lab(
                                     ceiling_portfolio_shock_taper_fraction
                                 )
                                 portfolio_attack_shock_taper_bind_count += 1
+                                if ceiling_portfolio_shock_one_shot:
+                                    portfolio_last_attack_loss_fraction = (
+                                        Decimal(0)
+                                    )
                             single_trade_risk_budget_usd = max(
                                 Decimal(0),
                                 state.total_capital_usd
@@ -4124,6 +4133,9 @@ def run_three_mode_trader_lab(
             ),
             "ceiling_portfolio_shock_taper_fraction": format(
                 ceiling_portfolio_shock_taper_fraction, "f"
+            ),
+            "ceiling_portfolio_shock_one_shot": (
+                ceiling_portfolio_shock_one_shot
             ),
             "portfolio_last_attack_loss_fraction": format(
                 portfolio_last_attack_loss_fraction, "f"
