@@ -158,6 +158,8 @@ class _State:
     medium_compound_positive_net_usd: Decimal = Decimal(0)
     medium_compound_negative_net_usd: Decimal = Decimal(0)
     medium_compound_turnover_usd: Decimal = Decimal(0)
+    medium_compound_recovery_deficit_usd: Decimal = Decimal(0)
+    medium_compound_recovered_usd: Decimal = Decimal(0)
     attack_net_pnl_usd: Decimal = Decimal(0)
 
     @property
@@ -637,6 +639,8 @@ def select_three_mode(
 def apply_three_mode_settlement(
     state: _State,
     trade: CiboThreeModeOpenTrade,
+    *,
+    net_compound_before_split: bool = False,
 ) -> Decimal:
     """Settle one already-due trade; no outcome is consulted before exit."""
 
@@ -659,8 +663,18 @@ def apply_three_mode_settlement(
         state.medium_compound_turnover_usd += trade.source_reserved_usd
 
         if net_pnl > 0:
-            sovereign_gain = net_pnl * MEDIUM_SOVEREIGN_SHARE
-            cushion_gain = net_pnl - sovereign_gain
+            recovery = (
+                min(net_pnl, state.medium_compound_recovery_deficit_usd)
+                if net_compound_before_split
+                else Decimal(0)
+            )
+            if recovery > 0:
+                state.sovereign_bank_usd += recovery
+                state.medium_compound_recovery_deficit_usd -= recovery
+                state.medium_compound_recovered_usd += recovery
+            distributable = net_pnl - recovery
+            sovereign_gain = distributable * MEDIUM_SOVEREIGN_SHARE
+            cushion_gain = distributable - sovereign_gain
             state.sovereign_bank_usd += sovereign_gain
             state.portfolio_cushion_usd += cushion_gain
             state.portfolio_attack_credit_usd += cushion_gain
@@ -669,6 +683,8 @@ def apply_three_mode_settlement(
             state.medium_compound_positive_net_usd += net_pnl
         elif net_pnl < 0:
             state.sovereign_bank_usd += net_pnl
+            if net_compound_before_split:
+                state.medium_compound_recovery_deficit_usd += -net_pnl
             state.medium_compound_negative_net_usd += -net_pnl
     elif trade.mode is CiboTraderLabMode.ATTACK:
         state.cushion_reserved_usd -= trade.source_reserved_usd
@@ -1001,7 +1017,11 @@ def run_three_mode_trader_lab(
                 reaction="AWAIT_SETTLEMENT_OUTPUT",
                 call=True,
             )
-            net = apply_three_mode_settlement(state, trade)
+            net = apply_three_mode_settlement(
+                state,
+                trade,
+                net_compound_before_split=use_historical_prior,
+            )
             created = max(Decimal(0), net)
             destroyed = max(Decimal(0), -net)
             record_engineering_sensor(
@@ -2111,6 +2131,12 @@ def run_three_mode_trader_lab(
         "medium_compound_turnover_usd": format(
             state.medium_compound_turnover_usd, "f"
         ),
+        "medium_compound_recovery_deficit_usd": format(
+            state.medium_compound_recovery_deficit_usd, "f"
+        ),
+        "medium_compound_recovered_usd": format(
+            state.medium_compound_recovered_usd, "f"
+        ),
         "portfolio_attack_credit_usd": format(
             state.portfolio_attack_credit_usd, "f"
         ),
@@ -2210,6 +2236,11 @@ def run_three_mode_trader_lab(
                 "FROZEN_PREDECISION_WALK_FORWARD_REPLAY"
             ),
             "historical_prior_consumed": use_historical_prior,
+            "compound_distribution_basis": (
+                "NET_NEW_PRODUCTION_AFTER_LOSS_RECOVERY"
+                if use_historical_prior
+                else "PER_POSITIVE_SETTLEMENT"
+            ),
             "portfolio_prior_source": (
                 "FROZEN_HISTORICAL_PRIOR"
                 if use_historical_prior
