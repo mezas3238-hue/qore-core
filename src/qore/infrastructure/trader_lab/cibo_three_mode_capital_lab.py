@@ -884,6 +884,10 @@ def run_three_mode_trader_lab(
             edge = Decimal(str(profile.get("expected_edge_after_cost_usd")))
             minutes = Decimal(str(profile.get("expected_capital_minutes")))
             allowed = profile.get("context_allowed")
+            control_ready = profile.get("historical_control_ready")
+            control_risk_fraction_raw = profile.get(
+                "historical_stop_risk_fraction"
+            )
             if (
                 not edge.is_finite()
                 or not minutes.is_finite()
@@ -893,6 +897,19 @@ def run_three_mode_trader_lab(
                 raise CiboCapitalManagementError(
                     f"Trader Lab historical prior malformed for {signal}"
                 )
+            if control_ready is not None:
+                control_risk_fraction = Decimal(
+                    str(control_risk_fraction_raw)
+                )
+                if (
+                    type(control_ready) is not bool
+                    or not control_risk_fraction.is_finite()
+                    or control_risk_fraction < 0
+                    or control_risk_fraction > 1
+                ):
+                    raise CiboCapitalManagementError(
+                        "Trader Lab historical control sizing prior malformed"
+                    )
 
     def portfolio_edge(candidate: CiboThreeModeCandidate) -> Decimal:
         if not use_historical_prior:
@@ -932,6 +949,31 @@ def run_three_mode_trader_lab(
         with localcontext() as context:
             context.prec = 100
             return portfolio_edge(candidate) / minutes
+
+    def historical_control_ready(
+        candidate: CiboThreeModeCandidate,
+    ) -> bool:
+        if not use_historical_prior:
+            return False
+        profile = historical_prior_map[candidate.signal_fingerprint]
+        if "historical_control_ready" in profile:
+            return bool(profile["historical_control_ready"])
+        return (
+            portfolio_context_allowed(candidate)
+            and portfolio_edge(candidate) > 0
+        )
+
+    def historical_control_risk_fraction(
+        candidate: CiboThreeModeCandidate,
+    ) -> Decimal | None:
+        if not use_historical_prior:
+            return None
+        profile = historical_prior_map[candidate.signal_fingerprint]
+        raw = profile.get("historical_stop_risk_fraction")
+        if raw is None:
+            return None
+        value = Decimal(str(raw))
+        return min(value, MEDIUM_RECOMMEND_RISK_FRACTION)
 
     epochs = _group_epochs(rows)
     if len(rows) != manifest.get("opportunity_decision_count"):
@@ -1479,8 +1521,12 @@ def run_three_mode_trader_lab(
                         )
                         continue
                     historical_prior_deployable = (
-                        active_portfolio_context
-                        and active_portfolio_edge > 0
+                        historical_control_ready(candidate)
+                        if use_historical_prior
+                        else (
+                            active_portfolio_context
+                            and active_portfolio_edge > 0
+                        )
                     )
                     if (
                         use_historical_prior
@@ -1529,8 +1575,18 @@ def run_three_mode_trader_lab(
                             / candidate.source_cost_per_multiplier_usd
                         ).to_integral_value(rounding=ROUND_FLOOR)
                     )
+                    historical_risk_fraction = (
+                        historical_control_risk_fraction(candidate)
+                        if use_historical_prior
+                        and historical_prior_deployable
+                        else None
+                    )
                     medium_risk_fraction = (
-                        MEDIUM_RECOMMEND_RISK_FRACTION
+                        historical_risk_fraction
+                        if historical_risk_fraction is not None
+                        else MEDIUM_DEFENSIVE_RISK_FRACTION
+                        if use_historical_prior
+                        else MEDIUM_RECOMMEND_RISK_FRACTION
                         if candidate.native_cognition_recommended
                         else MEDIUM_DEFENSIVE_RISK_FRACTION
                     )
@@ -1662,6 +1718,18 @@ def run_three_mode_trader_lab(
                             "risk_left_usd": format(risk_left, "f"),
                             "medium_risk_fraction": format(
                                 medium_risk_fraction, "f"
+                            ),
+                            "historical_control_ready": (
+                                historical_prior_deployable
+                                if use_historical_prior
+                                else None
+                            ),
+                            "historical_control_risk_fraction": (
+                                None
+                                if historical_risk_fraction is None
+                                else format(
+                                    historical_risk_fraction, "f"
+                                )
                             ),
                             "medium_entry_risk_budget_usd": format(
                                 medium_entry_risk_budget_usd, "f"
@@ -2515,6 +2583,13 @@ def run_three_mode_trader_lab(
                 "BOTH_NONDEPLOYMENT_DEFER"
             ),
             "historical_prior_consumed": use_historical_prior,
+            "historical_control_sizing_prior_consumed": (
+                use_historical_prior
+                and all(
+                    "historical_control_ready" in profile
+                    for profile in historical_prior_map.values()
+                )
+            ),
             "compound_distribution_basis": (
                 "NET_NEW_PRODUCTION_AFTER_LOSS_RECOVERY"
                 if use_historical_prior
