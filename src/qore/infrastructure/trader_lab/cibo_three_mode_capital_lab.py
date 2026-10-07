@@ -963,6 +963,11 @@ def run_three_mode_trader_lab(
     ceiling_attack_drawdown_window4_multiplier_lower: int | None = None,
     ceiling_attack_drawdown_window4_multiplier_upper: int | None = None,
     ceiling_attack_drawdown_window4_taper_fraction: Decimal = Decimal("0.50"),
+    ceiling_attack_drawdown_window5_lower: Decimal | None = None,
+    ceiling_attack_drawdown_window5_upper: Decimal | None = None,
+    ceiling_attack_drawdown_window5_multiplier_lower: int | None = None,
+    ceiling_attack_drawdown_window5_multiplier_upper: int | None = None,
+    ceiling_attack_drawdown_window5_taper_fraction: Decimal = Decimal("0.50"),
     ceiling_attack_stress_confidence_drawdown_trigger: Decimal | None = None,
     ceiling_attack_stress_confidence_ratio_ceiling: Decimal | None = None,
     ceiling_attack_stress_confidence_taper_fraction: Decimal = Decimal("0.75"),
@@ -1466,6 +1471,58 @@ def run_three_mode_trader_lab(
     ):
         raise CiboCapitalManagementError(
             "Trader Lab ATTACK drawdown-window4 taper requires ceiling discovery mode"
+        )
+    window5_values = (
+        ceiling_attack_drawdown_window5_lower,
+        ceiling_attack_drawdown_window5_upper,
+        ceiling_attack_drawdown_window5_multiplier_lower,
+        ceiling_attack_drawdown_window5_multiplier_upper,
+    )
+    if any(value is None for value in window5_values) and any(
+        value is not None for value in window5_values
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab ATTACK drawdown-window5 taper requires all four window bounds"
+        )
+    if ceiling_attack_drawdown_window5_lower is not None and (
+        not isinstance(ceiling_attack_drawdown_window5_lower, Decimal)
+        or not ceiling_attack_drawdown_window5_lower.is_finite()
+        or ceiling_attack_drawdown_window5_lower < 0
+        or ceiling_attack_drawdown_window5_upper is None
+        or not isinstance(ceiling_attack_drawdown_window5_upper, Decimal)
+        or not ceiling_attack_drawdown_window5_upper.is_finite()
+        or ceiling_attack_drawdown_window5_upper
+        <= ceiling_attack_drawdown_window5_lower
+        or ceiling_attack_drawdown_window5_upper > 1
+        or ceiling_attack_drawdown_window5_multiplier_lower is None
+        or not isinstance(ceiling_attack_drawdown_window5_multiplier_lower, int)
+        or isinstance(ceiling_attack_drawdown_window5_multiplier_lower, bool)
+        or ceiling_attack_drawdown_window5_multiplier_lower
+        < ATTACK_MINIMUM_MULTIPLIER
+        or ceiling_attack_drawdown_window5_multiplier_upper is None
+        or not isinstance(ceiling_attack_drawdown_window5_multiplier_upper, int)
+        or isinstance(ceiling_attack_drawdown_window5_multiplier_upper, bool)
+        or ceiling_attack_drawdown_window5_multiplier_upper
+        < ceiling_attack_drawdown_window5_multiplier_lower
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab ATTACK drawdown-window5 bounds are invalid"
+        )
+    if (
+        not isinstance(ceiling_attack_drawdown_window5_taper_fraction, Decimal)
+        or not ceiling_attack_drawdown_window5_taper_fraction.is_finite()
+        or ceiling_attack_drawdown_window5_taper_fraction <= 0
+        or ceiling_attack_drawdown_window5_taper_fraction > 1
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab ATTACK drawdown-window5 taper fraction must be Decimal in (0, 1]"
+        )
+    if (
+        ceiling_attack_drawdown_window5_lower is not None
+        and not ceiling_discovery_mode
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab ATTACK drawdown-window5 taper requires ceiling discovery mode"
         )
     if (
         ceiling_attack_stress_confidence_drawdown_trigger is None
@@ -2118,6 +2175,7 @@ def run_three_mode_trader_lab(
     attack_drawdown_window2_taper_bind_count = 0
     attack_drawdown_window3_taper_bind_count = 0
     attack_drawdown_window4_taper_bind_count = 0
+    attack_drawdown_window5_taper_bind_count = 0
     attack_stress_confidence_taper_bind_count = 0
     attack_trader_loss_ratio_taper_bind_count = 0
     attack_recent_trader_loss_taper_bind_count = 0
@@ -4123,6 +4181,36 @@ def run_three_mode_trader_lab(
                     preliminary_multiplier = max(0, min(leverage_caps.values()))
                     if (
                         ceiling_discovery_mode
+                        and ceiling_attack_drawdown_window5_lower is not None
+                        and ceiling_attack_drawdown_window5_upper is not None
+                        and ceiling_attack_drawdown_window5_multiplier_lower
+                        is not None
+                        and ceiling_attack_drawdown_window5_multiplier_upper
+                        is not None
+                        and ceiling_attack_drawdown_window5_lower
+                        <= total_drawdown_utilization
+                        < ceiling_attack_drawdown_window5_upper
+                        and ceiling_attack_drawdown_window5_multiplier_lower
+                        <= preliminary_multiplier
+                        <= ceiling_attack_drawdown_window5_multiplier_upper
+                    ):
+                        drawdown_window5_tapered_multiplier = max(
+                            ATTACK_MINIMUM_MULTIPLIER,
+                            int(
+                                (
+                                    Decimal(preliminary_multiplier)
+                                    * ceiling_attack_drawdown_window5_taper_fraction
+                                ).to_integral_value(rounding=ROUND_FLOOR)
+                            ),
+                        )
+                        if drawdown_window5_tapered_multiplier < preliminary_multiplier:
+                            attack_drawdown_window5_taper_bind_count += 1
+                            leverage_caps[
+                                "CEILING_DRAWDOWN_WINDOW5_TAPER_CAP"
+                            ] = drawdown_window5_tapered_multiplier
+                    preliminary_multiplier = max(0, min(leverage_caps.values()))
+                    if (
+                        ceiling_discovery_mode
                         and ceiling_attack_risk_fraction_band_lower is not None
                         and ceiling_attack_risk_fraction_band_upper is not None
                         and preliminary_multiplier >= ATTACK_MINIMUM_MULTIPLIER
@@ -5365,6 +5453,28 @@ def run_three_mode_trader_lab(
             ),
             "attack_drawdown_window4_taper_bind_count": (
                 attack_drawdown_window4_taper_bind_count
+            ),
+            "ceiling_attack_drawdown_window5_lower": (
+                None
+                if ceiling_attack_drawdown_window5_lower is None
+                else format(ceiling_attack_drawdown_window5_lower, "f")
+            ),
+            "ceiling_attack_drawdown_window5_upper": (
+                None
+                if ceiling_attack_drawdown_window5_upper is None
+                else format(ceiling_attack_drawdown_window5_upper, "f")
+            ),
+            "ceiling_attack_drawdown_window5_multiplier_lower": (
+                ceiling_attack_drawdown_window5_multiplier_lower
+            ),
+            "ceiling_attack_drawdown_window5_multiplier_upper": (
+                ceiling_attack_drawdown_window5_multiplier_upper
+            ),
+            "ceiling_attack_drawdown_window5_taper_fraction": format(
+                ceiling_attack_drawdown_window5_taper_fraction, "f"
+            ),
+            "attack_drawdown_window5_taper_bind_count": (
+                attack_drawdown_window5_taper_bind_count
             ),
             "ceiling_attack_stress_confidence_drawdown_trigger": (
                 None
