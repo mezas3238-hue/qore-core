@@ -17,8 +17,8 @@ permissions:
   actions: read
 
 concurrency:
-  group: qore-cibo-loss-cut-${{ github.ref }}
-  cancel-in-progress: true
+  group: qore-cibo-loss-cut-${{ github.sha }}
+  cancel-in-progress: false
 
 env:
   PYTHONPATH: ${{ github.workspace }}/src
