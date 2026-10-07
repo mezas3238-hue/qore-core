@@ -710,7 +710,7 @@ def apply_three_mode_settlement(
     *,
     net_compound_before_split: bool = False,
     coordinated_economic_group: bool = False,
-    economic_group_bootstrap_cushion_share: Decimal = Decimal("0.65"),
+    economic_group_bootstrap_cushion_share: Decimal = Decimal("0.75"),
 ) -> Decimal:
     """Settle one already-due trade; no outcome is consulted before exit."""
 
@@ -831,7 +831,7 @@ def run_three_mode_trader_lab(
     attack_multiplier_cap: int = DEFAULT_DISTRIBUTED_ATTACK_MULTIPLIER_CAP,
     medium_multiplier_cap: int = 4,
     coordinated_economic_group: bool = False,
-    economic_group_bootstrap_cushion_share: Decimal = Decimal("0.65"),
+    economic_group_bootstrap_cushion_share: Decimal = Decimal("0.75"),
 ) -> dict[str, object]:
     """Run the isolated chronological three-mode ceiling experiment."""
 
