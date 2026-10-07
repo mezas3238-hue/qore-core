@@ -945,6 +945,7 @@ def run_three_mode_trader_lab(
     economic_group_ablation: str | None = None,
     ceiling_discovery_mode: bool = False,
     ceiling_growth_leverage_slope: Decimal | None = None,
+    ceiling_attack_compound_hysteresis_fraction: Decimal | None = None,
     ceiling_attack_drawdown_budget_fraction: Decimal | None = None,
     ceiling_attack_drawdown_budget_capital_floor: Decimal | None = None,
     ceiling_attack_drawdown_budget_capital_ceiling: Decimal | None = None,
@@ -1230,6 +1231,22 @@ def run_three_mode_trader_lab(
     ):
         raise CiboCapitalManagementError(
             "Trader Lab ceiling growth leverage slope must be Decimal in (0, 50]"
+        )
+    if ceiling_attack_compound_hysteresis_fraction is not None and (
+        not isinstance(ceiling_attack_compound_hysteresis_fraction, Decimal)
+        or not ceiling_attack_compound_hysteresis_fraction.is_finite()
+        or ceiling_attack_compound_hysteresis_fraction <= 0
+        or ceiling_attack_compound_hysteresis_fraction > Decimal("0.10")
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab ATTACK compound hysteresis fraction must be Decimal in (0, 0.10]"
+        )
+    if (
+        ceiling_attack_compound_hysteresis_fraction is not None
+        and not ceiling_discovery_mode
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab ATTACK compound hysteresis requires ceiling discovery mode"
         )
     if ceiling_attack_drawdown_budget_fraction is not None and (
         not isinstance(ceiling_attack_drawdown_budget_fraction, Decimal)
@@ -2708,6 +2725,10 @@ def run_three_mode_trader_lab(
     portfolio_attack_shock_taper_bind_count = 0
     portfolio_last_attack_loss_fraction = Decimal(0)
     attack_epochs_funded = 0
+    attack_scaling_capital_anchor_usd = INITIAL_CAPITAL_USD
+    attack_compound_hysteresis_hold_count = 0
+    attack_compound_hysteresis_raise_count = 0
+    attack_compound_hysteresis_drop_count = 0
     mode_reason_counts: Counter[str] = Counter()
     sizing_intensity_cap_counts: Counter[str] = Counter()
     medium_drawdown_intensity_cap_bind_count = 0
@@ -4312,6 +4333,25 @@ def run_three_mode_trader_lab(
                             coordinated_attack_cap = min(
                                 attack_multiplier_cap, 4
                             )
+                    attack_scaling_capital_base_usd = state.total_capital_usd
+                    if ceiling_attack_compound_hysteresis_fraction is not None:
+                        if state.total_capital_usd < attack_scaling_capital_anchor_usd:
+                            attack_scaling_capital_anchor_usd = state.total_capital_usd
+                            attack_compound_hysteresis_drop_count += 1
+                        elif state.total_capital_usd >= (
+                            attack_scaling_capital_anchor_usd
+                            * (
+                                Decimal(1)
+                                + ceiling_attack_compound_hysteresis_fraction
+                            )
+                        ):
+                            attack_scaling_capital_anchor_usd = state.total_capital_usd
+                            attack_compound_hysteresis_raise_count += 1
+                        else:
+                            attack_compound_hysteresis_hold_count += 1
+                        attack_scaling_capital_base_usd = (
+                            attack_scaling_capital_anchor_usd
+                        )
                     if (
                         ceiling_discovery_mode
                         and ceiling_growth_leverage_slope is not None
@@ -4320,7 +4360,7 @@ def run_three_mode_trader_lab(
                             context.prec = 100
                             growth_multiple = max(
                                 Decimal(1),
-                                state.total_capital_usd / INITIAL_CAPITAL_USD,
+                                attack_scaling_capital_base_usd / INITIAL_CAPITAL_USD,
                             )
                             growth_cap = max(
                                 ATTACK_MINIMUM_MULTIPLIER,
@@ -4640,7 +4680,7 @@ def run_three_mode_trader_lab(
                                 ] = Decimal(0)
                             single_trade_risk_budget_usd = max(
                                 Decimal(0),
-                                state.total_capital_usd
+                                attack_scaling_capital_base_usd
                                 * effective_single_trade_risk_fraction,
                             )
                             ceiling_single_trade_risk_cap = max(
@@ -6108,6 +6148,22 @@ def run_three_mode_trader_lab(
                     if ceiling_growth_leverage_slope is None
                     else format(ceiling_growth_leverage_slope, "f")
                 ),
+                "ceiling_attack_compound_hysteresis_fraction": (
+                    None
+                    if ceiling_attack_compound_hysteresis_fraction is None
+                    else format(
+                        ceiling_attack_compound_hysteresis_fraction, "f"
+                    )
+                ),
+                "attack_compound_hysteresis_hold_count": (
+                    attack_compound_hysteresis_hold_count
+                ),
+                "attack_compound_hysteresis_raise_count": (
+                    attack_compound_hysteresis_raise_count
+                ),
+                "attack_compound_hysteresis_drop_count": (
+                    attack_compound_hysteresis_drop_count
+                ),
                 "ceiling_attack_single_trade_risk_fraction": (
                     None
                     if ceiling_attack_single_trade_risk_fraction is None
@@ -6168,6 +6224,20 @@ def run_three_mode_trader_lab(
             ),
             "ablation": economic_group_ablation,
             "ceiling_discovery_mode": ceiling_discovery_mode,
+            "ceiling_attack_compound_hysteresis_fraction": (
+                None
+                if ceiling_attack_compound_hysteresis_fraction is None
+                else format(ceiling_attack_compound_hysteresis_fraction, "f")
+            ),
+            "attack_compound_hysteresis_hold_count": (
+                attack_compound_hysteresis_hold_count
+            ),
+            "attack_compound_hysteresis_raise_count": (
+                attack_compound_hysteresis_raise_count
+            ),
+            "attack_compound_hysteresis_drop_count": (
+                attack_compound_hysteresis_drop_count
+            ),
             "ceiling_attack_single_trade_risk_fraction": (
                 None
                 if ceiling_attack_single_trade_risk_fraction is None
