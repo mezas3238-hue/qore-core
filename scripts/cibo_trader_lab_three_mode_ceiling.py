@@ -1010,6 +1010,12 @@ def main() -> int:
         help="Optional planned target-R ceiling for ATTACK state-pressure taper.",
     )
     parser.add_argument(
+        "--ceiling-attack-state-pressure-confidence-ratio-ceiling",
+        type=Decimal,
+        default=None,
+        help="Optional walk-forward expected-R/dispersion ceiling for ATTACK state pressure.",
+    )
+    parser.add_argument(
         "--ceiling-attack-state-pressure-market-posture",
         choices=("DEFENSIVE", "RECOVERY", "STABLE", "WATCH"),
         default=None,
@@ -1832,6 +1838,9 @@ def main() -> int:
         ),
         ceiling_attack_state_pressure_target_r_ceiling=(
             args.ceiling_attack_state_pressure_target_r_ceiling
+        ),
+        ceiling_attack_state_pressure_confidence_ratio_ceiling=(
+            args.ceiling_attack_state_pressure_confidence_ratio_ceiling
         ),
         ceiling_attack_state_pressure_market_posture=(
             args.ceiling_attack_state_pressure_market_posture
