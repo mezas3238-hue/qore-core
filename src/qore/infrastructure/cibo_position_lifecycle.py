@@ -14,7 +14,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Protocol
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 from enum import StrEnum
 
@@ -139,6 +139,7 @@ def run_cibo_position_lifecycle(
     features: frozenset[CiboLifecycleFeature] = FULL_CIBO_LIFECYCLE_FEATURES,
     adverse_loss_cut_r: Decimal = Decimal("-0.50"),
     adverse_loss_cut_confirmation_bars: int = 1,
+    adverse_loss_cut_max_elapsed_minutes: int | None = None,
 ) -> CiboPositionLifecycleResult:
     """Evaluate one position using causal closed-bar lifecycle semantics."""
 
@@ -163,6 +164,19 @@ def run_cibo_position_lifecycle(
     ):
         raise CiboCapitalManagementError(
             "Lifecycle adverse loss-cut confirmation bars must be int in [1, 12]"
+        )
+    if (
+        adverse_loss_cut_max_elapsed_minutes is not None
+        and (
+            not isinstance(adverse_loss_cut_max_elapsed_minutes, int)
+            or isinstance(adverse_loss_cut_max_elapsed_minutes, bool)
+            or adverse_loss_cut_max_elapsed_minutes < 5
+            or adverse_loss_cut_max_elapsed_minutes > 10080
+        )
+    ):
+        raise CiboCapitalManagementError(
+            "Lifecycle adverse loss-cut max elapsed minutes must be None "
+            "or int in [5, 10080]"
         )
 
     risk_distance = abs(position.entry_price - position.structural_stop)
@@ -373,10 +387,17 @@ def run_cibo_position_lifecycle(
         # features do not address. Only positions that have never reached
         # +1R are eligible. A single adverse close can be noise, so require
         # causal closed-bar persistence when the frontier asks for it.
+        adverse_cut_window_open = (
+            adverse_loss_cut_max_elapsed_minutes is None
+            or bar.closed_at
+            <= position.entry_at
+            + timedelta(minutes=adverse_loss_cut_max_elapsed_minutes)
+        )
         if (
             CiboLifecycleFeature.ADVERSE_LOSS_CUT in features
             and best_favorable_seen < Decimal(1)
             and bar.closed_at < position.horizon_at
+            and adverse_cut_window_open
         ):
             if close_r <= adverse_loss_cut_r:
                 adverse_loss_cut_confirmation_count += 1
