@@ -16,58 +16,7 @@
       ]
     },
     {
-      "name": "COORDINATED_LOSS_CUT_070",
-      "uses_atlas": true,
-      "args": [
-        "--lifecycle-feature",
-        "ADVERSE_LOSS_CUT",
-        "--lifecycle-adverse-loss-cut-r=-0.70",
-        "--distributed-attack-frontier",
-        "--attack-multiplier-cap",
-        "8",
-        "--medium-multiplier-cap",
-        "4",
-        "--coordinated-economic-group",
-        "--economic-group-bootstrap-cushion-share",
-        "0.75"
-      ]
-    },
-    {
-      "name": "COORDINATED_LOSS_CUT_080",
-      "uses_atlas": true,
-      "args": [
-        "--lifecycle-feature",
-        "ADVERSE_LOSS_CUT",
-        "--lifecycle-adverse-loss-cut-r=-0.80",
-        "--distributed-attack-frontier",
-        "--attack-multiplier-cap",
-        "8",
-        "--medium-multiplier-cap",
-        "4",
-        "--coordinated-economic-group",
-        "--economic-group-bootstrap-cushion-share",
-        "0.75"
-      ]
-    },
-    {
-      "name": "COORDINATED_LOSS_CUT_090",
-      "uses_atlas": true,
-      "args": [
-        "--lifecycle-feature",
-        "ADVERSE_LOSS_CUT",
-        "--lifecycle-adverse-loss-cut-r=-0.90",
-        "--distributed-attack-frontier",
-        "--attack-multiplier-cap",
-        "8",
-        "--medium-multiplier-cap",
-        "4",
-        "--coordinated-economic-group",
-        "--economic-group-bootstrap-cushion-share",
-        "0.75"
-      ]
-    },
-    {
-      "name": "COORDINATED_INITIAL_STOP_003_035",
+      "name": "INITIAL_STOP_003_035",
       "uses_atlas": true,
       "args": [
         "--lifecycle-feature",
@@ -87,15 +36,17 @@
       ]
     },
     {
-      "name": "COORDINATED_INITIAL_STOP_0025_035",
+      "name": "INITIAL_STOP_003_035_DD005",
       "uses_atlas": true,
       "args": [
         "--lifecycle-feature",
         "DEFENSIVE_INITIAL_STOP_CAP",
         "--lifecycle-defensive-medium-1x-only",
         "--lifecycle-minimum-stop-risk-fraction-trigger",
-        "0.025",
+        "0.03",
         "--lifecycle-defensive-initial-stop-r=-0.35",
+        "--lifecycle-defense-drawdown-trigger",
+        "0.05",
         "--distributed-attack-frontier",
         "--attack-multiplier-cap",
         "8",
@@ -107,15 +58,61 @@
       ]
     },
     {
-      "name": "COORDINATED_INITIAL_STOP_002_035",
+      "name": "INITIAL_STOP_003_035_DD010",
       "uses_atlas": true,
       "args": [
         "--lifecycle-feature",
         "DEFENSIVE_INITIAL_STOP_CAP",
         "--lifecycle-defensive-medium-1x-only",
         "--lifecycle-minimum-stop-risk-fraction-trigger",
-        "0.02",
+        "0.03",
         "--lifecycle-defensive-initial-stop-r=-0.35",
+        "--lifecycle-defense-drawdown-trigger",
+        "0.10",
+        "--distributed-attack-frontier",
+        "--attack-multiplier-cap",
+        "8",
+        "--medium-multiplier-cap",
+        "4",
+        "--coordinated-economic-group",
+        "--economic-group-bootstrap-cushion-share",
+        "0.75"
+      ]
+    },
+    {
+      "name": "INITIAL_STOP_003_035_DD015",
+      "uses_atlas": true,
+      "args": [
+        "--lifecycle-feature",
+        "DEFENSIVE_INITIAL_STOP_CAP",
+        "--lifecycle-defensive-medium-1x-only",
+        "--lifecycle-minimum-stop-risk-fraction-trigger",
+        "0.03",
+        "--lifecycle-defensive-initial-stop-r=-0.35",
+        "--lifecycle-defense-drawdown-trigger",
+        "0.15",
+        "--distributed-attack-frontier",
+        "--attack-multiplier-cap",
+        "8",
+        "--medium-multiplier-cap",
+        "4",
+        "--coordinated-economic-group",
+        "--economic-group-bootstrap-cushion-share",
+        "0.75"
+      ]
+    },
+    {
+      "name": "INITIAL_STOP_0025_035_DD010",
+      "uses_atlas": true,
+      "args": [
+        "--lifecycle-feature",
+        "DEFENSIVE_INITIAL_STOP_CAP",
+        "--lifecycle-defensive-medium-1x-only",
+        "--lifecycle-minimum-stop-risk-fraction-trigger",
+        "0.025",
+        "--lifecycle-defensive-initial-stop-r=-0.35",
+        "--lifecycle-defense-drawdown-trigger",
+        "0.10",
         "--distributed-attack-frontier",
         "--attack-multiplier-cap",
         "8",
