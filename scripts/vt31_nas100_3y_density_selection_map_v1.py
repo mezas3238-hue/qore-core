@@ -64,6 +64,18 @@ VARIANTS: dict[str, frozenset[str]] = {
     "RELAX_LIQUIDITY_AND_LATE": frozenset(
         {NO_REFERENCE_LIQUIDITY, TOO_LATE}
     ),
+    "RELAX_PATH_REFERENCE_LATE": frozenset(
+        {PATH_NOT_COMPRESSED, LOW_DD_REFERENCE, TOO_LATE}
+    ),
+    "RELAX_PATH_REFERENCE_LIQUIDITY": frozenset(
+        {PATH_NOT_COMPRESSED, LOW_DD_REFERENCE, NO_REFERENCE_LIQUIDITY}
+    ),
+    "RELAX_PATH_LATE_LIQUIDITY": frozenset(
+        {PATH_NOT_COMPRESSED, TOO_LATE, NO_REFERENCE_LIQUIDITY}
+    ),
+    "RELAX_REFERENCE_LATE_LIQUIDITY": frozenset(
+        {LOW_DD_REFERENCE, TOO_LATE, NO_REFERENCE_LIQUIDITY}
+    ),
     "RELAX_ALL_FOUR": frozenset(
         {
             PATH_NOT_COMPRESSED,
@@ -323,6 +335,26 @@ def replay(evidence_path: Path) -> dict[str, object]:
             str(row["variant"]),
         ),
     )
+    target_distance_ranking = sorted(
+        (
+            {
+                "variant": name,
+                "selected_execute_days": int(
+                    report["selected_execute_days"]
+                ),
+                "distance_to_450": abs(
+                    TARGET_TRADES
+                    - int(report["selected_execute_days"])
+                ),
+            }
+            for name, report in reports.items()
+        ),
+        key=lambda row: (
+            int(row["distance_to_450"]),
+            -int(row["selected_execute_days"]),
+            str(row["variant"]),
+        ),
+    )
     return {
         "schema": SCHEMA,
         "base_id": BASE_ID,
@@ -331,6 +363,7 @@ def replay(evidence_path: Path) -> dict[str, object]:
         "current_selected_execute_days": current_selected,
         "variants": reports,
         "density_ranking": ranking,
+        "target_distance_ranking": target_distance_ranking,
         "governance": {
             "single_pass": True,
             "same_causal_state_all_variants": True,
@@ -362,6 +395,9 @@ def main() -> None:
                 "base_id": BASE_ID,
                 "target_trades_3y": TARGET_TRADES,
                 "density_ranking": payload["density_ranking"],
+                "target_distance_ranking": payload[
+                    "target_distance_ranking"
+                ],
             },
             sort_keys=True,
         )
