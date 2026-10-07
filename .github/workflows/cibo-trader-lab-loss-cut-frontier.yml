@@ -173,6 +173,72 @@ jobs:
             --medium-multiplier-cap 4 \
             --output "$RUNNER_TEMP/result/loss-cut-065.json"
 
+      - name: Run coordinated loss cut -0.35R
+        run: |
+          set -euo pipefail
+          python scripts/cibo_trader_lab_three_mode_ceiling.py \
+            --manifest "$MANIFEST" \
+            --baseline-replay "$BASELINE" \
+            --historical-manifest "$HISTORICAL_MANIFEST" \
+            --historical-replay "$HISTORICAL_REPLAY" \
+            --lifecycle-source-root "AUDJPY=$RUNNER_TEMP/atlas/AUDJPY" \
+            --lifecycle-source-root "EURUSD=$RUNNER_TEMP/atlas/EURUSD" \
+            --lifecycle-source-root "GBPJPY=$RUNNER_TEMP/atlas/GBPJPY" \
+            --lifecycle-source-root "GBPUSD=$RUNNER_TEMP/atlas/GBPUSD" \
+            --lifecycle-source-root "NAS100=$RUNNER_TEMP/atlas/NAS100" \
+            --lifecycle-source-root "XAUUSD=$RUNNER_TEMP/atlas/XAUUSD" \
+            --lifecycle-feature ADVERSE_LOSS_CUT \
+            --lifecycle-adverse-loss-cut-r=-0.35 \
+            --distributed-attack-frontier \
+            --attack-multiplier-cap 8 \
+            --medium-multiplier-cap 4 \
+            --coordinated-economic-group \
+            --output "$RUNNER_TEMP/result/coordinated-loss-cut-035.json"
+
+      - name: Run coordinated loss cut -0.50R
+        run: |
+          set -euo pipefail
+          python scripts/cibo_trader_lab_three_mode_ceiling.py \
+            --manifest "$MANIFEST" \
+            --baseline-replay "$BASELINE" \
+            --historical-manifest "$HISTORICAL_MANIFEST" \
+            --historical-replay "$HISTORICAL_REPLAY" \
+            --lifecycle-source-root "AUDJPY=$RUNNER_TEMP/atlas/AUDJPY" \
+            --lifecycle-source-root "EURUSD=$RUNNER_TEMP/atlas/EURUSD" \
+            --lifecycle-source-root "GBPJPY=$RUNNER_TEMP/atlas/GBPJPY" \
+            --lifecycle-source-root "GBPUSD=$RUNNER_TEMP/atlas/GBPUSD" \
+            --lifecycle-source-root "NAS100=$RUNNER_TEMP/atlas/NAS100" \
+            --lifecycle-source-root "XAUUSD=$RUNNER_TEMP/atlas/XAUUSD" \
+            --lifecycle-feature ADVERSE_LOSS_CUT \
+            --lifecycle-adverse-loss-cut-r=-0.50 \
+            --distributed-attack-frontier \
+            --attack-multiplier-cap 8 \
+            --medium-multiplier-cap 4 \
+            --coordinated-economic-group \
+            --output "$RUNNER_TEMP/result/coordinated-loss-cut-050.json"
+
+      - name: Run coordinated loss cut -0.65R
+        run: |
+          set -euo pipefail
+          python scripts/cibo_trader_lab_three_mode_ceiling.py \
+            --manifest "$MANIFEST" \
+            --baseline-replay "$BASELINE" \
+            --historical-manifest "$HISTORICAL_MANIFEST" \
+            --historical-replay "$HISTORICAL_REPLAY" \
+            --lifecycle-source-root "AUDJPY=$RUNNER_TEMP/atlas/AUDJPY" \
+            --lifecycle-source-root "EURUSD=$RUNNER_TEMP/atlas/EURUSD" \
+            --lifecycle-source-root "GBPJPY=$RUNNER_TEMP/atlas/GBPJPY" \
+            --lifecycle-source-root "GBPUSD=$RUNNER_TEMP/atlas/GBPUSD" \
+            --lifecycle-source-root "NAS100=$RUNNER_TEMP/atlas/NAS100" \
+            --lifecycle-source-root "XAUUSD=$RUNNER_TEMP/atlas/XAUUSD" \
+            --lifecycle-feature ADVERSE_LOSS_CUT \
+            --lifecycle-adverse-loss-cut-r=-0.65 \
+            --distributed-attack-frontier \
+            --attack-multiplier-cap 8 \
+            --medium-multiplier-cap 4 \
+            --coordinated-economic-group \
+            --output "$RUNNER_TEMP/result/coordinated-loss-cut-065.json"
+
       - name: Validate loss cut frontier
         run: |
           set -euo pipefail
@@ -206,6 +272,25 @@ jobs:
               assert funnel["sizing_medium_rejected_count"] == 0
               assert funnel["sizing_medium_deferred_count"] == 0
               assert funnel["compound_portfolio_withheld_before_execution_engine_count"] == 0
+
+          for filename, threshold in (
+              ("coordinated-loss-cut-035.json", "-0.35"),
+              ("coordinated-loss-cut-050.json", "-0.50"),
+              ("coordinated-loss-cut-065.json", "-0.65"),
+          ):
+              payload = json.loads((root / filename).read_text())
+              assert payload["decision_count"] == payload["trade_count"] == 3368
+              assert payload["governance"]["coordinated_economic_group"] is True
+              assert payload["economic_group_report"]["enabled"] is True
+              assert payload["economic_group_report"]["all_entries_preserved"] is True
+              assert payload["position_lifecycle_report"]["adverse_loss_cut_r"] == threshold
+              assert payload["position_lifecycle_report"]["outcome_used_for_trigger"] is False
+              assert payload["governance"]["outcome_used_for_predecision"] is False
+              funnel = payload["engineering_sensor_report"]["execution_funnel"]
+              assert funnel["final_trade_count"] == 3368
+              assert funnel["sizing_medium_rejected_count"] == 0
+              assert funnel["sizing_medium_deferred_count"] == 0
+              assert funnel["compound_portfolio_withheld_before_execution_engine_count"] == 0
           PY
 
       - uses: actions/upload-artifact@v4
@@ -215,5 +300,8 @@ jobs:
             ${{ runner.temp }}/result/loss-cut-035.json
             ${{ runner.temp }}/result/loss-cut-050.json
             ${{ runner.temp }}/result/loss-cut-065.json
+            ${{ runner.temp }}/result/coordinated-loss-cut-035.json
+            ${{ runner.temp }}/result/coordinated-loss-cut-050.json
+            ${{ runner.temp }}/result/coordinated-loss-cut-065.json
           if-no-files-found: error
           retention-days: 90
