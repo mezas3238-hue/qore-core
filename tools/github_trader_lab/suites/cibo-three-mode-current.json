@@ -36,16 +36,15 @@
       ]
     },
     {
-      "name": "STREAK1_PARTIAL25",
+      "name": "STREAK1_INITIAL035",
       "uses_atlas": true,
       "args": [
         "--lifecycle-feature",
-        "ADVERSE_PARTIAL_REDUCTION",
+        "DEFENSIVE_INITIAL_STOP_CAP",
         "--lifecycle-defensive-medium-1x-only",
         "--lifecycle-trader-loss-streak-trigger",
         "1",
-        "--lifecycle-adverse-loss-cut-r=-0.65",
-        "--lifecycle-adverse-partial-fraction=0.25",
+        "--lifecycle-defensive-initial-stop-r=-0.35",
         "--distributed-attack-frontier",
         "--attack-multiplier-cap",
         "8",
@@ -57,16 +56,15 @@
       ]
     },
     {
-      "name": "STREAK1_PARTIAL50",
+      "name": "STREAK1_INITIAL050",
       "uses_atlas": true,
       "args": [
         "--lifecycle-feature",
-        "ADVERSE_PARTIAL_REDUCTION",
+        "DEFENSIVE_INITIAL_STOP_CAP",
         "--lifecycle-defensive-medium-1x-only",
         "--lifecycle-trader-loss-streak-trigger",
         "1",
-        "--lifecycle-adverse-loss-cut-r=-0.65",
-        "--lifecycle-adverse-partial-fraction=0.50",
+        "--lifecycle-defensive-initial-stop-r=-0.50",
         "--distributed-attack-frontier",
         "--attack-multiplier-cap",
         "8",
@@ -78,16 +76,15 @@
       ]
     },
     {
-      "name": "STREAK2_PARTIAL50",
+      "name": "STREAK2_INITIAL035",
       "uses_atlas": true,
       "args": [
         "--lifecycle-feature",
-        "ADVERSE_PARTIAL_REDUCTION",
+        "DEFENSIVE_INITIAL_STOP_CAP",
         "--lifecycle-defensive-medium-1x-only",
         "--lifecycle-trader-loss-streak-trigger",
         "2",
-        "--lifecycle-adverse-loss-cut-r=-0.65",
-        "--lifecycle-adverse-partial-fraction=0.50",
+        "--lifecycle-defensive-initial-stop-r=-0.35",
         "--distributed-attack-frontier",
         "--attack-multiplier-cap",
         "8",
@@ -99,15 +96,17 @@
       ]
     },
     {
-      "name": "STREAK2_HARD065",
+      "name": "STREAK1_RISK002_INITIAL035",
       "uses_atlas": true,
       "args": [
         "--lifecycle-feature",
-        "ADVERSE_LOSS_CUT",
+        "DEFENSIVE_INITIAL_STOP_CAP",
         "--lifecycle-defensive-medium-1x-only",
         "--lifecycle-trader-loss-streak-trigger",
-        "2",
-        "--lifecycle-adverse-loss-cut-r=-0.65",
+        "1",
+        "--lifecycle-defensive-initial-stop-r=-0.35",
+        "--lifecycle-minimum-stop-risk-fraction-trigger",
+        "0.02",
         "--distributed-attack-frontier",
         "--attack-multiplier-cap",
         "8",
