@@ -372,6 +372,16 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--compound-profit-reinvestment-fraction",
+        type=Decimal,
+        default=None,
+        help=(
+            "Trader-Lab-only realized-profit split across the whole economic "
+            "cycle. Positive MEDIUM and ATTACK net profit sends this fraction "
+            "back to the growth pool and the remainder to Sovereign."
+        ),
+    )
+    parser.add_argument(
         "--summary-telemetry",
         action="store_true",
         help=(
@@ -742,6 +752,9 @@ def main() -> int:
         ),
         ceiling_attack_drawdown_budget_fraction=(
             args.ceiling_attack_drawdown_budget_fraction
+        ),
+        compound_profit_reinvestment_fraction=(
+            args.compound_profit_reinvestment_fraction
         ),
         collect_engineering_trace=not args.summary_telemetry,
         collect_epoch_receipts=not args.summary_telemetry,
