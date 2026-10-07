@@ -65,6 +65,66 @@
         "--economic-group-bootstrap-cushion-share",
         "0.75"
       ]
+    },
+    {
+      "name": "COORDINATED_INITIAL_STOP_003_035",
+      "uses_atlas": true,
+      "args": [
+        "--lifecycle-feature",
+        "DEFENSIVE_INITIAL_STOP_CAP",
+        "--lifecycle-defensive-medium-1x-only",
+        "--lifecycle-minimum-stop-risk-fraction-trigger",
+        "0.03",
+        "--lifecycle-defensive-initial-stop-r=-0.35",
+        "--distributed-attack-frontier",
+        "--attack-multiplier-cap",
+        "8",
+        "--medium-multiplier-cap",
+        "4",
+        "--coordinated-economic-group",
+        "--economic-group-bootstrap-cushion-share",
+        "0.75"
+      ]
+    },
+    {
+      "name": "COORDINATED_INITIAL_STOP_0025_035",
+      "uses_atlas": true,
+      "args": [
+        "--lifecycle-feature",
+        "DEFENSIVE_INITIAL_STOP_CAP",
+        "--lifecycle-defensive-medium-1x-only",
+        "--lifecycle-minimum-stop-risk-fraction-trigger",
+        "0.025",
+        "--lifecycle-defensive-initial-stop-r=-0.35",
+        "--distributed-attack-frontier",
+        "--attack-multiplier-cap",
+        "8",
+        "--medium-multiplier-cap",
+        "4",
+        "--coordinated-economic-group",
+        "--economic-group-bootstrap-cushion-share",
+        "0.75"
+      ]
+    },
+    {
+      "name": "COORDINATED_INITIAL_STOP_002_035",
+      "uses_atlas": true,
+      "args": [
+        "--lifecycle-feature",
+        "DEFENSIVE_INITIAL_STOP_CAP",
+        "--lifecycle-defensive-medium-1x-only",
+        "--lifecycle-minimum-stop-risk-fraction-trigger",
+        "0.02",
+        "--lifecycle-defensive-initial-stop-r=-0.35",
+        "--distributed-attack-frontier",
+        "--attack-multiplier-cap",
+        "8",
+        "--medium-multiplier-cap",
+        "4",
+        "--coordinated-economic-group",
+        "--economic-group-bootstrap-cushion-share",
+        "0.75"
+      ]
     }
   ]
 }
