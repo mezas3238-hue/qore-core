@@ -710,6 +710,7 @@ def apply_three_mode_settlement(
     *,
     net_compound_before_split: bool = False,
     coordinated_economic_group: bool = False,
+    economic_group_bootstrap_cushion_share: Decimal = Decimal("0.65"),
 ) -> Decimal:
     """Settle one already-due trade; no outcome is consulted before exit."""
 
@@ -1614,6 +1615,9 @@ def run_three_mode_trader_lab(
                     trade,
                     net_compound_before_split=use_historical_prior,
                     coordinated_economic_group=coordinated_economic_group,
+                    economic_group_bootstrap_cushion_share=(
+                        economic_group_bootstrap_cushion_share
+                    ),
                 )
             else:
                 with localcontext() as context:
