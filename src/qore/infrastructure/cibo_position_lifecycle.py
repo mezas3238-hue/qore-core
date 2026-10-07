@@ -26,6 +26,7 @@ class CiboLifecycleBar(Protocol):
 
     opened_at: datetime
     closed_at: datetime
+    open: Decimal
     high: Decimal
     low: Decimal
     close: Decimal
@@ -37,6 +38,7 @@ class CiboLifecycleFeature(StrEnum):
     TRAILING = "TRAILING"
     PARTIAL_REALIZATION = "PARTIAL_REALIZATION"
     EXTENDED_TARGET = "EXTENDED_TARGET"
+    ADVERSE_LOSS_CUT = "ADVERSE_LOSS_CUT"
 
 
 FULL_CIBO_LIFECYCLE_FEATURES = frozenset(CiboLifecycleFeature)
@@ -128,12 +130,22 @@ def run_cibo_position_lifecycle(
     bars: Sequence[CiboLifecycleBar],
     *,
     features: frozenset[CiboLifecycleFeature] = FULL_CIBO_LIFECYCLE_FEATURES,
+    adverse_loss_cut_r: Decimal = Decimal("-0.50"),
 ) -> CiboPositionLifecycleResult:
     """Evaluate one position using causal closed-bar lifecycle semantics."""
 
     if not isinstance(position, CiboPositionLifecycleInput):
         raise CiboCapitalManagementError(
             "Lifecycle requires canonical input"
+        )
+    if (
+        not isinstance(adverse_loss_cut_r, Decimal)
+        or not adverse_loss_cut_r.is_finite()
+        or adverse_loss_cut_r <= Decimal("-1")
+        or adverse_loss_cut_r >= Decimal(0)
+    ):
+        raise CiboCapitalManagementError(
+            "Lifecycle adverse loss cut must be Decimal strictly between -1R and 0R"
         )
 
     risk_distance = abs(position.entry_price - position.structural_stop)
@@ -195,17 +207,21 @@ def run_cibo_position_lifecycle(
     events: list[CiboLifecycleEvent] = []
     risk_fraction = Decimal(1)
     margin_fraction = Decimal(1)
+    best_favorable_seen = Decimal("-Infinity")
+    pending_adverse_loss_cut = False
 
     def favorable_adverse_close(
         bar: CiboLifecycleBar,
-    ) -> tuple[Decimal, Decimal, Decimal]:
+    ) -> tuple[Decimal, Decimal, Decimal, Decimal]:
         if position.side == "long":
             return (
+                (bar.open - position.entry_price) / risk_distance,
                 (bar.high - position.entry_price) / risk_distance,
                 (bar.low - position.entry_price) / risk_distance,
                 (bar.close - position.entry_price) / risk_distance,
             )
         return (
+            (position.entry_price - bar.open) / risk_distance,
             (position.entry_price - bar.low) / risk_distance,
             (position.entry_price - bar.high) / risk_distance,
             (position.entry_price - bar.close) / risk_distance,
@@ -242,7 +258,21 @@ def run_cibo_position_lifecycle(
         )
 
     for bar in causal_bars:
-        favorable, adverse, close_r = favorable_adverse_close(bar)
+        open_r, favorable, adverse, close_r = favorable_adverse_close(bar)
+
+        # A deterioration signal is known only after BAR N closes.  To keep
+        # the replay causal and executable, an adverse loss cut triggered on
+        # BAR N is realized at BAR N+1 open, never retroactively at BAR N close.
+        if pending_adverse_loss_cut:
+            delta = remaining * open_r
+            remaining = Decimal(0)
+            append_event(
+                bar.opened_at,
+                "ADVERSE_LOSS_CUT_NEXT_OPEN",
+                delta,
+                force_close=True,
+            )
+            break
 
         # If BAR N crosses the original structural stop while also
         # containing favorable lifecycle triggers, M5 alone cannot establish
@@ -265,6 +295,8 @@ def run_cibo_position_lifecycle(
                 force_close=True,
             )
             break
+
+        best_favorable_seen = max(best_favorable_seen, favorable)
 
         if (
             CiboLifecycleFeature.PARTIAL_REALIZATION in features
@@ -318,6 +350,18 @@ def run_cibo_position_lifecycle(
             if proposed > next_stop_r:
                 next_stop_r = proposed
                 close_actions.append("TRAIL_STOP")
+
+        # Direct-to-stop losers are the DD surface that winner-protection
+        # features do not address.  Only positions that have never reached
+        # +1R may arm this cut; this avoids amputating trades that already
+        # demonstrated material favorable excursion.
+        if (
+            CiboLifecycleFeature.ADVERSE_LOSS_CUT in features
+            and best_favorable_seen < Decimal(1)
+            and close_r <= adverse_loss_cut_r
+            and bar.closed_at < position.horizon_at
+        ):
+            pending_adverse_loss_cut = True
 
         # EXTENDED_TARGET remains non-actuating unless path beyond the
         # original structural settlement is supplied by a future adapter.
