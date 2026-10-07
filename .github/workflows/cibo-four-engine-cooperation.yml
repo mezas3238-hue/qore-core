@@ -27,6 +27,18 @@ env:
   HISTORICAL_SOURCE_ARTIFACT_DIGEST: 'sha256:30177639f660c9647ab70257c2d12c541bdade49ab5582347a3890f920070fee'
   HISTORICAL_CONTROL_ARTIFACT_ID: '11409086692'
   HISTORICAL_CONTROL_ARTIFACT_DIGEST: 'sha256:eeffdc99a736b82bd965ff646b8ca9bf084f50ae414e56e9b3d82961169d7187'
+  ATLAS_AUDJPY_ARTIFACT_ID: '10476530915'
+  ATLAS_AUDJPY_DIGEST: 'sha256:a416085cfcef04003ae89debaad360304a0c4c8bac65b3bf2b439a8a4b7098bf'
+  ATLAS_EURUSD_ARTIFACT_ID: '10475354631'
+  ATLAS_EURUSD_DIGEST: 'sha256:e0fa9e316b79ba61c338161a57508359d4c6afe2fbf97d3f50f1e27c2d359a86'
+  ATLAS_GBPJPY_ARTIFACT_ID: '10475453293'
+  ATLAS_GBPJPY_DIGEST: 'sha256:b68e74b2afa54295f891c11cde19e12e92db4192930496036c7ebb372474e415'
+  ATLAS_GBPUSD_ARTIFACT_ID: '10475449182'
+  ATLAS_GBPUSD_DIGEST: 'sha256:77d5b65ce3c6763e3ac5f620e4167d4ef071bfe1c13746cd5ca7ad9788268dcf'
+  ATLAS_NAS100_ARTIFACT_ID: '10476153072'
+  ATLAS_NAS100_DIGEST: 'sha256:87ae8095feadce23c5026cda4dada49765d44d0baa2237b5bd7704ccc8deb863'
+  ATLAS_XAUUSD_ARTIFACT_ID: '10476557530'
+  ATLAS_XAUUSD_DIGEST: 'sha256:dcb905b11380e3d4e1a4dc621e269bb75d2886806dd662e260d21d1d15362e08'
 
 jobs:
   cooperation:
@@ -84,6 +96,25 @@ jobs:
           echo "HISTORICAL_MANIFEST=$HISTORICAL_MANIFEST" >> "$GITHUB_ENV"
           echo "HISTORICAL_REPLAY=$HISTORICAL_REPLAY" >> "$GITHUB_ENV"
 
+          mkdir -p "$RUNNER_TEMP/atlas"
+          for SYMBOL in AUDJPY EURUSD GBPJPY GBPUSD NAS100 XAUUSD; do
+            ID_VAR="ATLAS_${SYMBOL}_ARTIFACT_ID"
+            DIGEST_VAR="ATLAS_${SYMBOL}_DIGEST"
+            ARTIFACT_ID="${!ID_VAR}"
+            ARTIFACT_DIGEST="${!DIGEST_VAR}"
+            ZIP="$RUNNER_TEMP/atlas-${SYMBOL}.zip"
+            ROOT="$RUNNER_TEMP/atlas/${SYMBOL}"
+            mkdir -p "$ROOT"
+            gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$ARTIFACT_ID/zip" > "$ZIP"
+            echo "${ARTIFACT_DIGEST#sha256:}  $ZIP" | sha256sum -c -
+            unzip -q "$ZIP" \
+              'RAW_M5_LEDGER/2019.jsonl' \
+              'RAW_M5_LEDGER/2020.jsonl' \
+              'RAW_M5_LEDGER/2021.jsonl' \
+              'RAW_M5_LEDGER/2022.jsonl' \
+              -d "$ROOT"
+          done
+
       - name: Run four-engine cooperation
         run: |
           set -euo pipefail
@@ -95,6 +126,30 @@ jobs:
             --four-engine-cooperation-frontier \
             --medium-multiplier-cap 4 \
             --output "$RUNNER_TEMP/result/cibo-four-engine-cooperation.json"
+
+      - name: Run causal loss-containment frontier
+        run: |
+          set -euo pipefail
+          for SPEC in "025:-0.25" "050:-0.50" "075:-0.75"; do
+            LABEL="${SPEC%%:*}"
+            THRESHOLD="${SPEC#*:}"
+            python scripts/cibo_trader_lab_three_mode_ceiling.py \
+              --manifest "$MANIFEST" \
+              --baseline-replay "$BASELINE" \
+              --historical-manifest "$HISTORICAL_MANIFEST" \
+              --historical-replay "$HISTORICAL_REPLAY" \
+              --four-engine-cooperation-frontier \
+              --medium-multiplier-cap 4 \
+              --lifecycle-source-root "AUDJPY=$RUNNER_TEMP/atlas/AUDJPY" \
+              --lifecycle-source-root "EURUSD=$RUNNER_TEMP/atlas/EURUSD" \
+              --lifecycle-source-root "GBPJPY=$RUNNER_TEMP/atlas/GBPJPY" \
+              --lifecycle-source-root "GBPUSD=$RUNNER_TEMP/atlas/GBPUSD" \
+              --lifecycle-source-root "NAS100=$RUNNER_TEMP/atlas/NAS100" \
+              --lifecycle-source-root "XAUUSD=$RUNNER_TEMP/atlas/XAUUSD" \
+              --lifecycle-feature ADVERSE_LOSS_CUT \
+              --lifecycle-adverse-loss-cut-r "$THRESHOLD" \
+              --output "$RUNNER_TEMP/result/cibo-four-engine-loss-cut-${LABEL}.json"
+          done
 
       - name: Enforce four-engine cooperation invariants
         run: |
@@ -144,6 +199,42 @@ jobs:
               "compound_portfolio_withheld_before_execution_engine_count"
           ] == 0
 
+          frontier = []
+          for filename, threshold in (
+              ("cibo-four-engine-loss-cut-025.json", "-0.25"),
+              ("cibo-four-engine-loss-cut-050.json", "-0.50"),
+              ("cibo-four-engine-loss-cut-075.json", "-0.75"),
+          ):
+              guarded = json.loads(
+                  (
+                      Path(os.environ["RUNNER_TEMP"])
+                      / "result"
+                      / filename
+                  ).read_text()
+              )
+              assert guarded["decision_count"] == guarded["trade_count"] == 3368
+              assert guarded["governance"]["four_engine_cooperation_frontier"] is True
+              assert guarded["governance"]["position_lifecycle_consumed"] is True
+              assert guarded["position_lifecycle_report"]["enabled_feature_codes"] == [
+                  "ADVERSE_LOSS_CUT"
+              ]
+              assert guarded["position_lifecycle_report"]["adverse_loss_cut_r"] == threshold
+              assert guarded["position_lifecycle_report"]["outcome_used_for_trigger"] is False
+              guarded_funnel = guarded["engineering_sensor_report"]["execution_funnel"]
+              assert guarded_funnel["final_trade_count"] == 3368
+              assert guarded_funnel["sizing_medium_rejected_count"] == 0
+              assert guarded_funnel["sizing_medium_deferred_count"] == 0
+              assert guarded_funnel["causal_conservation_check"] is True
+              frontier.append({
+                  "threshold_r": threshold,
+                  "ending_total_capital_usd": guarded["ending_total_capital_usd"],
+                  "max_drawdown_fraction": guarded["max_drawdown_fraction"],
+                  "changed_outcome_count": guarded["position_lifecycle_report"][
+                      "changed_outcome_count"
+                  ],
+                  "action_counts": guarded["position_lifecycle_report"]["action_counts"],
+              })
+
           print(json.dumps({
               "ending_total_capital_usd": p["ending_total_capital_usd"],
               "ending_sovereign_bank_usd": p["ending_sovereign_bank_usd"],
@@ -167,6 +258,7 @@ jobs:
                   "cooperative_portfolio_turnover_usd"
               ],
               "four_engine_cooperation_report": coop,
+              "causal_loss_cut_frontier": frontier,
               "economic_bottleneck_ranking": p[
                   "engineering_sensor_report"
               ]["bottleneck_ranking"],
@@ -177,6 +269,6 @@ jobs:
         if: always()
         with:
           name: qore-cibo-four-engine-cooperation-${{ github.run_id }}
-          path: ${{ runner.temp }}/result/cibo-four-engine-cooperation.json
+          path: ${{ runner.temp }}/result
           if-no-files-found: warn
           retention-days: 90
