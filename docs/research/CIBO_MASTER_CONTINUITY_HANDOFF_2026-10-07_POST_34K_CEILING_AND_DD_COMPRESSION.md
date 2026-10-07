@@ -1713,3 +1713,54 @@ Decision rule:
 - a flat terminal-capital curve indicates a practical plateau;
 - a declining terminal-capital curve indicates a cliff;
 - continued monotonic growth with selected multiplier == requested cap requires further expansion.
+
+
+---
+
+# 28. LIVE CONTINUITY UPDATE — FIRST REAL CEILING RIDGE AROUND 10,000x
+
+Run `37651634970` completed successfully on commit `bc8053edfb49e41d38f15f392c3bde3fa5881402`.
+
+Coarse geometric frontier:
+
+| ATTACK cap | Ending capital | Total gain | Max DD |
+|---:|---:|---:|---:|
+| 5,000x | USD 452,895.88 | +754,726.47% | 65.10% |
+| 7,500x | USD 531,258.68 | +885,331.13% | 65.10% |
+| 10,000x | **USD 582,440.03** | **+970,633.38%** | **65.10%** |
+| 15,000x | USD 554,213.07 | +923,588.45% | 65.10% |
+| 20,000x | USD 542,096.62 | +903,394.37% | 65.10% |
+| 30,000x | USD 520,702.97 | +867,738.29% | 65.10% |
+| 50,000x | USD 506,533.75 | +844,122.92% | 65.10% |
+
+This is the first observed terminal-capital ridge/cliff rather than an artificial lab boundary:
+
+- terminal capital rises strongly from 5k → 7.5k → 10k;
+- terminal capital then declines at 15k, 20k, 30k and 50k;
+- maximum selected multiplier still reaches the requested cap, so this is not explained by a flat provider maximum;
+- max DD remains ~65.10% across the ridge region, so the terminal-capital decline above 10k is not caused by a newly worsening max-DD statistic.
+
+Current record:
+
+> USD 60 → **USD 582,440.03**, total gain approximately **+970,633.38%**, max DD ~65.10%, 3,368 / 3,368 entries preserved.
+
+This is still a RECORD, not yet a frozen final ceiling, because the local ridge must be refined.
+
+Current fine-ridge replay:
+
+- commit: `9a28138d91d7fca0c0169c68875de538fc24e4e0`;
+- run: `37652223300`;
+- caps: 8,000 / 8,500 / 9,000 / 9,500 / 10,000 / 10,500 / 11,000 / 12,000 / 13,000 / 14,000x;
+- all other architecture frozen:
+  - persistent shock taper;
+  - 20% single-ATTACK risk;
+  - growth slope 10;
+  - lifecycle protections;
+  - full 3,368 / 3,368 conservation.
+
+Decision rule:
+
+1. identify local maximum inside 8k–14k;
+2. if maximum lands at an interior point, run a final narrower confirmation around it;
+3. only after the local ridge is bracketed from both sides may the true ceiling be frozen;
+4. then begin DD forensics / compression without degrading that frozen ceiling.
