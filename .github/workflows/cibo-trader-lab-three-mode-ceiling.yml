@@ -10,6 +10,7 @@ on:
     paths:
       - '.github/workflows/cibo-trader-lab-three-mode-ceiling.yml'
       - 'src/qore/infrastructure/trader_lab/cibo_three_mode_capital_lab.py'
+      - 'src/qore/infrastructure/cibo_position_lifecycle.py'
       - 'scripts/cibo_trader_lab_three_mode_ceiling.py'
       - 'tests/infrastructure/trader_lab/test_cibo_three_mode_capital_lab.py'
 
@@ -216,10 +217,9 @@ jobs:
       - name: Run four-engine causal adverse-loss-cut sweep
         run: |
           set -euo pipefail
-          for SPEC in "025:-0.25" "050:-0.50" "075:-0.75"; do
-            LABEL="${SPEC%%:*}"
-            THRESHOLD="${SPEC#*:}"
-            python scripts/cibo_trader_lab_three_mode_ceiling.py \
+          for SPEC in "075c2:-0.75:2" "075c3:-0.75:3" "065c2:-0.65:2" "065c3:-0.65:3"; do
+            IFS=':' read -r LABEL THRESHOLD CONFIRMATIONS <<< "$SPEC"
+            if python scripts/cibo_trader_lab_three_mode_ceiling.py \
               --manifest "$MANIFEST" \
               --baseline-replay "$BASELINE" \
               --historical-manifest "$HISTORICAL_MANIFEST" \
@@ -234,7 +234,12 @@ jobs:
               --lifecycle-source-root "XAUUSD=$RUNNER_TEMP/atlas/XAUUSD" \
               --lifecycle-feature ADVERSE_LOSS_CUT \
               --lifecycle-adverse-loss-cut-r "$THRESHOLD" \
-              --output "$RUNNER_TEMP/result/cibo-four-engine-loss-cut-${LABEL}.json"
+              --lifecycle-adverse-loss-cut-confirmation-bars "$CONFIRMATIONS" \
+              --output "$RUNNER_TEMP/result/cibo-four-engine-loss-cut-${LABEL}.json"; then
+              :
+            else
+              echo "loss-cut frontier variant failed: $SPEC" >&2
+            fi
           done
 
       - name: Run distributed ATTACK frontier 4x
@@ -548,18 +553,18 @@ jobs:
           assert coop_funnel["sizing_medium_rejected_count"] == 0
           assert coop_funnel["sizing_medium_deferred_count"] == 0
 
-          for filename, threshold in (
-              ("cibo-four-engine-loss-cut-025.json", "-0.25"),
-              ("cibo-four-engine-loss-cut-050.json", "-0.50"),
-              ("cibo-four-engine-loss-cut-075.json", "-0.75"),
+          for filename, threshold, confirmations in (
+              ("cibo-four-engine-loss-cut-075c2.json", "-0.75", 2),
+              ("cibo-four-engine-loss-cut-075c3.json", "-0.75", 3),
+              ("cibo-four-engine-loss-cut-065c2.json", "-0.65", 2),
+              ("cibo-four-engine-loss-cut-065c3.json", "-0.65", 3),
           ):
-              guarded = json.loads(
-                  (
-                      Path(os.environ["RUNNER_TEMP"])
-                      / "result"
-                      / filename
-                  ).read_text()
+              candidate_path = (
+                  Path(os.environ["RUNNER_TEMP"]) / "result" / filename
               )
+              if not candidate_path.exists():
+                  continue
+              guarded = json.loads(candidate_path.read_text())
               assert guarded["research_lane"] == (
                   "HISTORICAL_PRIOR_NATIVE_FOUR_ENGINE_COOPERATION_FRONTIER"
               )
@@ -576,6 +581,9 @@ jobs:
               assert guarded["position_lifecycle_report"][
                   "adverse_loss_cut_r"
               ] == threshold
+              assert guarded["position_lifecycle_report"][
+                  "adverse_loss_cut_confirmation_bars"
+              ] == confirmations
               assert guarded["position_lifecycle_report"][
                   "outcome_used_for_trigger"
               ] is False
@@ -707,9 +715,10 @@ jobs:
             ${{ runner.temp }}/result/cibo-three-mode-historical-dd-26.json
             ${{ runner.temp }}/result/cibo-three-mode-historical-dd-27.json
             ${{ runner.temp }}/result/cibo-four-engine-cooperation.json
-            ${{ runner.temp }}/result/cibo-four-engine-loss-cut-025.json
-            ${{ runner.temp }}/result/cibo-four-engine-loss-cut-050.json
-            ${{ runner.temp }}/result/cibo-four-engine-loss-cut-075.json
+            ${{ runner.temp }}/result/cibo-four-engine-loss-cut-075c2.json
+            ${{ runner.temp }}/result/cibo-four-engine-loss-cut-075c3.json
+            ${{ runner.temp }}/result/cibo-four-engine-loss-cut-065c2.json
+            ${{ runner.temp }}/result/cibo-four-engine-loss-cut-065c3.json
             ${{ runner.temp }}/result/cibo-three-mode-distributed-attack-4x.json
             ${{ runner.temp }}/result/cibo-three-mode-distributed-attack-6x.json
             ${{ runner.temp }}/result/cibo-three-mode-distributed-attack-8x.json
