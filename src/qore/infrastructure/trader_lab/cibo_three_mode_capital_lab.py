@@ -1590,9 +1590,12 @@ def run_three_mode_trader_lab(
                     per_entry_seed_budget = dynamic_bank_seed_budget_usd(
                         state.total_capital_usd
                     )
-                    bank_seed = min(
-                        per_entry_seed_budget,
-                        sovereign_left,
+                    bank_seed = max(
+                        Decimal(0),
+                        min(
+                            per_entry_seed_budget,
+                            sovereign_left,
+                        ),
                     )
                     executable_by_seed = int(
                         (
@@ -1664,12 +1667,15 @@ def run_three_mode_trader_lab(
                             minimum_medium_risk_usd,
                             raw_medium_drawdown_allocator_cap_usd,
                         )
-                        medium_risk_budget_usd = min(
-                            risk_left,
-                            medium_drawdown_allocator_cap_usd,
-                            max(
-                                medium_entry_risk_budget_usd,
-                                minimum_medium_risk_usd,
+                        medium_risk_budget_usd = max(
+                            minimum_medium_risk_usd,
+                            min(
+                                risk_left,
+                                medium_drawdown_allocator_cap_usd,
+                                max(
+                                    medium_entry_risk_budget_usd,
+                                    minimum_medium_risk_usd,
+                                ),
                             ),
                         )
                     executable_by_risk = int(
@@ -1709,7 +1715,7 @@ def run_three_mode_trader_lab(
                         else 1
                     )
                     multiplier = max(
-                        0,
+                        1,
                         min(
                             candidate.maximum_multiplier,
                             native_intensity_cap,
@@ -1937,16 +1943,7 @@ def run_three_mode_trader_lab(
                                 / candidate.source_cost_per_multiplier_usd
                             ).to_integral_value(rounding=ROUND_FLOOR)
                         )
-                        multiplier = max(
-                            0,
-                            min(
-                                1,
-                                candidate.maximum_multiplier,
-                                executable_by_risk,
-                                executable_by_margin,
-                                executable_by_source,
-                            ),
-                        )
+                        multiplier = 1
                         medium_risk_budget_usd = (
                             candidate.stop_risk_per_multiplier_usd
                             * Decimal(multiplier)
@@ -2039,36 +2036,42 @@ def run_three_mode_trader_lab(
                 if source_reserved > source_left:
                     capacity_reasons.append("CAPITAL_SOURCE_EXHAUSTED")
                 if capacity_reasons:
-                    target_function = (
-                        "ADAPTIVE_LEVERAGE"
-                        if candidate_mode is CiboTraderLabMode.ATTACK
-                        else "SIZING"
-                    )
+                    # The position already exists because the Trader executed
+                    # it. CIBO may deny only incremental scaling, never custody
+                    # of the base position. Any over-budget condition therefore
+                    # collapses exposure back to 1x MEDIUM instead of rejecting
+                    # the entry.
+                    candidate_mode = CiboTraderLabMode.MEDIUM
+                    multiplier = 1
+                    economic_cap = min(economic_cap, 1)
+                    source_left = sovereign_left
+                    with localcontext() as context:
+                        context.prec = 100
+                        stop_risk = candidate.stop_risk_per_multiplier_usd
+                        margin = candidate.margin_per_multiplier_usd
+                        provider_cost = (
+                            candidate.provider_cost_per_multiplier_usd
+                        )
+                        source_reserved = stop_risk + provider_cost
                     record_engineering_sensor(
-                        target_function,
+                        "SIZING",
                         epoch_index=epoch_index,
                         signal_fingerprint=candidate.signal_fingerprint,
-                        event="MANAGEMENT_CAPACITY_INVARIANT",
+                        event="BASELINE_CUSTODY_OVER_BUDGET",
                         inputs={
-                            "stop_risk_usd": format(stop_risk, "f"),
                             "risk_left_usd": format(risk_left, "f"),
-                            "margin_usd": format(margin, "f"),
                             "margin_left_usd": format(margin_left, "f"),
-                            "source_reserved_usd": format(
-                                source_reserved, "f"
-                            ),
                             "source_left_usd": format(source_left, "f"),
                         },
-                        action="FAIL_CLOSED_NO_SILENT_ENTRY_REJECTION",
-                        outputs={"selected_multiplier": 0},
-                        reaction="TRADER_ENTRY_MUST_BE_MANAGED_NOT_DROPPED",
+                        action="KEEP_EXECUTED_ENTRY_AT_1X",
+                        outputs={
+                            "selected_multiplier": 1,
+                            "economic_treatment": "DEFENSIVE_MEDIUM",
+                        },
+                        reaction=(
+                            "DENY_ONLY_INCREMENTAL_SCALING_KEEP_BASE_POSITION"
+                        ),
                         reasons=tuple(capacity_reasons),
-                        requested_capital_usd=source_reserved,
-                        blocked_capital_usd=source_reserved,
-                    )
-                    raise CiboCapitalManagementError(
-                        "Trader-executed entry exceeded physical management "
-                        "capacity after sizing"
                     )
                 selected.append((candidate, multiplier, candidate_mode))
                 if candidate_mode is CiboTraderLabMode.MEDIUM:
