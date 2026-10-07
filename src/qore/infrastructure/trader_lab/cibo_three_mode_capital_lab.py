@@ -840,8 +840,21 @@ def run_three_mode_trader_lab(
     medium_multiplier_cap: int = 4,
     coordinated_economic_group: bool = False,
     economic_group_bootstrap_cushion_share: Decimal = Decimal("0.75"),
+    collect_engineering_trace: bool = True,
+    collect_epoch_receipts: bool = True,
+    compact_trade_receipts: bool = False,
 ) -> dict[str, object]:
     """Run the isolated chronological three-mode ceiling experiment."""
+
+    for flag_name, flag_value in (
+        ("collect_engineering_trace", collect_engineering_trace),
+        ("collect_epoch_receipts", collect_epoch_receipts),
+        ("compact_trade_receipts", compact_trade_receipts),
+    ):
+        if type(flag_value) is not bool:
+            raise CiboCapitalManagementError(
+                f"Trader Lab {flag_name} must be bool"
+            )
 
     if type(lifecycle_defensive_medium_1x_only) is not bool:
         raise CiboCapitalManagementError(
@@ -1413,6 +1426,8 @@ def run_three_mode_trader_lab(
         action_counts[action] += 1
         for reason in reasons:
             reason_counts[reason] += 1
+        if not collect_engineering_trace:
+            return
         engineering_trace.append(
             {
                 "sequence": sensor_event_sequence,
@@ -2955,74 +2970,92 @@ def run_three_mode_trader_lab(
                 lifecycle_events=lifecycle_events_for_trade,
             )
             pending.append(trade)
-            trade_receipts.append(
-                {
-                    "signal_fingerprint": candidate.signal_fingerprint,
-                    "trader_id": candidate.trader_id,
-                    "decision_at": candidate.decision_at.isoformat(),
-                    "exit_at": candidate.exit_at.isoformat(),
-                    "mode": candidate_mode.value,
-                    "multiplier": multiplier,
-                    "expected_edge_after_cost_usd": format(
-                        candidate.expected_edge_after_cost_usd,
-                        "f",
-                    ),
-                    "expected_net_utility_usd": format(
-                        candidate.expected_net_utility_usd,
-                        "f",
-                    ),
-                    "attack_expected_net_utility_usd": format(
-                        candidate.attack_expected_net_utility_usd,
-                        "f",
-                    ),
-                    "walk_forward_positive_block_count": (
-                        candidate.walk_forward_positive_block_count
-                    ),
-                    "walk_forward_nonpositive_block_count": (
-                        candidate.walk_forward_nonpositive_block_count
-                    ),
-                    "native_cognition_recommended": (
-                        candidate.native_cognition_recommended
-                    ),
-                    "context_quality_disposition": (
-                        candidate.context_quality_disposition
-                    ),
-                    "capital_time_score": format(
-                        candidate.capital_time_score,
-                        "f",
-                    ),
-                    "robust_economic_multiplier_cap": economic_cap,
-                    "selected_robust_utility_usd": format(
-                        robust_capital_utility(
-                            candidate,
-                            multiplier=multiplier,
-                            capital_base_usd=(
-                                state.sovereign_available_usd
-                                if candidate_mode is CiboTraderLabMode.MEDIUM
-                                else state.cushion_available_usd
-                            ),
-                            expected_net_utility_usd=(
-                                candidate.attack_expected_net_utility_usd
-                                if candidate_mode is CiboTraderLabMode.ATTACK
-                                else candidate.expected_edge_after_cost_usd
-                            ),
+            if compact_trade_receipts:
+                trade_receipts.append(
+                    {
+                        "signal_fingerprint": candidate.signal_fingerprint,
+                        "trader_id": candidate.trader_id,
+                        "decision_at": candidate.decision_at.isoformat(),
+                        "exit_at": candidate.exit_at.isoformat(),
+                        "mode": candidate_mode.value,
+                        "multiplier": multiplier,
+                        "gross_structural_outcome_r_postdecision": format(
+                            candidate.gross_r,
+                            "f",
                         ),
-                        "f",
-                    ),
-                    "gross_structural_outcome_r_postdecision": format(
-                        candidate.gross_r,
-                        "f",
-                    ),
-                    "stop_risk_usd": format(stop_risk, "f"),
-                    "provider_cost_usd": format(provider_cost, "f"),
-                    "source_reserved_usd": format(source_reserved, "f"),
-                    "bank_seed_usd": format(
-                        trade.bank_seed_usd or Decimal(0), "f"
-                    ),
-                    "mode_reasons": list(mode_reasons),
-                }
-            )
-            state.open_stop_risk_usd += stop_risk
+                        "stop_risk_usd": format(stop_risk, "f"),
+                        "provider_cost_usd": format(provider_cost, "f"),
+                    }
+                )
+            else:
+                trade_receipts.append(
+                    {
+                        "signal_fingerprint": candidate.signal_fingerprint,
+                        "trader_id": candidate.trader_id,
+                        "decision_at": candidate.decision_at.isoformat(),
+                        "exit_at": candidate.exit_at.isoformat(),
+                        "mode": candidate_mode.value,
+                        "multiplier": multiplier,
+                        "expected_edge_after_cost_usd": format(
+                            candidate.expected_edge_after_cost_usd,
+                            "f",
+                        ),
+                        "expected_net_utility_usd": format(
+                            candidate.expected_net_utility_usd,
+                            "f",
+                        ),
+                        "attack_expected_net_utility_usd": format(
+                            candidate.attack_expected_net_utility_usd,
+                            "f",
+                        ),
+                        "walk_forward_positive_block_count": (
+                            candidate.walk_forward_positive_block_count
+                        ),
+                        "walk_forward_nonpositive_block_count": (
+                            candidate.walk_forward_nonpositive_block_count
+                        ),
+                        "native_cognition_recommended": (
+                            candidate.native_cognition_recommended
+                        ),
+                        "context_quality_disposition": (
+                            candidate.context_quality_disposition
+                        ),
+                        "capital_time_score": format(
+                            candidate.capital_time_score,
+                            "f",
+                        ),
+                        "robust_economic_multiplier_cap": economic_cap,
+                        "selected_robust_utility_usd": format(
+                            robust_capital_utility(
+                                candidate,
+                                multiplier=multiplier,
+                                capital_base_usd=(
+                                    state.sovereign_available_usd
+                                    if candidate_mode is CiboTraderLabMode.MEDIUM
+                                    else state.cushion_available_usd
+                                ),
+                                expected_net_utility_usd=(
+                                    candidate.attack_expected_net_utility_usd
+                                    if candidate_mode is CiboTraderLabMode.ATTACK
+                                    else candidate.expected_edge_after_cost_usd
+                                ),
+                            ),
+                            "f",
+                        ),
+                        "gross_structural_outcome_r_postdecision": format(
+                            candidate.gross_r,
+                            "f",
+                        ),
+                        "stop_risk_usd": format(stop_risk, "f"),
+                        "provider_cost_usd": format(provider_cost, "f"),
+                        "source_reserved_usd": format(source_reserved, "f"),
+                        "bank_seed_usd": format(
+                            trade.bank_seed_usd or Decimal(0), "f"
+                        ),
+                        "mode_reasons": list(mode_reasons),
+                    }
+                )
+                state.open_stop_risk_usd += stop_risk
             state.open_margin_usd += margin
             if candidate_mode is CiboTraderLabMode.MEDIUM:
                 medium_seed = trade.bank_seed_usd or Decimal(0)
@@ -3040,60 +3073,61 @@ def run_three_mode_trader_lab(
             leverage_sum += multiplier
             leverage_max = max(leverage_max, multiplier)
 
-        epoch_receipts.append(
-            {
-                "epoch_index": epoch_index,
-                "decision_at": decision_at.isoformat(),
-                "mode": mode.value,
-                "mode_reasons": list(mode_reasons),
-                "opportunity_count": len(candidates),
-                "eligible_count": len(eligible),
-                "selected_count": len(selected),
-                "selected_multiplier_total": sum(
-                    multiplier
-                    for _candidate, multiplier, _mode in selected
-                ),
-                "sovereign_bank_usd": format(
-                    state.sovereign_bank_usd,
-                    "f",
-                ),
-                "sovereign_protection_floor_usd": format(
-                    state.sovereign_protection_floor_usd,
-                    "f",
-                ),
-                "sovereign_risk_budget_available_usd": format(
-                    state.sovereign_risk_budget_available_usd,
-                    "f",
-                ),
-                "per_entry_bank_seed_fraction": format(
-                    MAX_CAPITAL_NEED_TO_CURRENT_CAPITAL_RATIO, "f"
-                ),
-                "per_entry_bank_seed_budget_usd": format(
-                    dynamic_bank_seed_budget_usd(state.total_capital_usd),
-                    "f",
-                ),
-                "bank_seed_reserved_usd": format(
-                    state.bank_seed_reserved_usd, "f"
-                ),
-                "portfolio_cushion_usd": format(
-                    state.portfolio_cushion_usd,
-                    "f",
-                ),
-                "portfolio_attack_credit_usd": format(
-                    state.portfolio_attack_credit_usd, "f"
-                ),
-                "open_stop_risk_usd": format(
-                    state.open_stop_risk_usd,
-                    "f",
-                ),
-                "risk_utilization": format(risk_utilization, "f"),
-                "drawdown_utilization": format(
-                    drawdown_utilization,
-                    "f",
-                ),
-            }
-        )
-        state.mark()
+        if collect_epoch_receipts:
+            epoch_receipts.append(
+                {
+                    "epoch_index": epoch_index,
+                    "decision_at": decision_at.isoformat(),
+                    "mode": mode.value,
+                    "mode_reasons": list(mode_reasons),
+                    "opportunity_count": len(candidates),
+                    "eligible_count": len(eligible),
+                    "selected_count": len(selected),
+                    "selected_multiplier_total": sum(
+                        multiplier
+                        for _candidate, multiplier, _mode in selected
+                    ),
+                    "sovereign_bank_usd": format(
+                        state.sovereign_bank_usd,
+                        "f",
+                    ),
+                    "sovereign_protection_floor_usd": format(
+                        state.sovereign_protection_floor_usd,
+                        "f",
+                    ),
+                    "sovereign_risk_budget_available_usd": format(
+                        state.sovereign_risk_budget_available_usd,
+                        "f",
+                    ),
+                    "per_entry_bank_seed_fraction": format(
+                        MAX_CAPITAL_NEED_TO_CURRENT_CAPITAL_RATIO, "f"
+                    ),
+                    "per_entry_bank_seed_budget_usd": format(
+                        dynamic_bank_seed_budget_usd(state.total_capital_usd),
+                        "f",
+                    ),
+                    "bank_seed_reserved_usd": format(
+                        state.bank_seed_reserved_usd, "f"
+                    ),
+                    "portfolio_cushion_usd": format(
+                        state.portfolio_cushion_usd,
+                        "f",
+                    ),
+                    "portfolio_attack_credit_usd": format(
+                        state.portfolio_attack_credit_usd, "f"
+                    ),
+                    "open_stop_risk_usd": format(
+                        state.open_stop_risk_usd,
+                        "f",
+                    ),
+                    "risk_utilization": format(risk_utilization, "f"),
+                    "drawdown_utilization": format(
+                        drawdown_utilization,
+                        "f",
+                    ),
+                }
+            )
+            state.mark()
 
     settle_due(None)
     position_lifecycle_report["applied_trade_count"] = (
@@ -3286,7 +3320,8 @@ def run_three_mode_trader_lab(
 
     engineering_sensor_report = {
         "schema": "qore.trader_lab.cibo_economic_engineering_sensors.v1",
-        "trace_event_count": len(engineering_trace),
+        "trace_event_count": sensor_event_sequence,
+        "trace_materialized_count": len(engineering_trace),
         "opportunity_decision_count": len(rows),
         "decision_epoch_count": len(epochs),
         "execution_funnel": execution_funnel,
@@ -3561,7 +3596,18 @@ def run_three_mode_trader_lab(
         "governance": {
             "trader_lab_only": True,
             "sovereign_runtime_mutated": False,
-            "full_economic_engineering_telemetry": True,
+            "full_economic_engineering_telemetry": collect_engineering_trace,
+            "engineering_telemetry_mode": (
+                "FULL_TRACE"
+                if collect_engineering_trace
+                else "SUMMARY_AGGREGATES"
+            ),
+            "epoch_receipts_collected": collect_epoch_receipts,
+            "trade_receipt_mode": (
+                "COMPACT_SCIENCE"
+                if compact_trade_receipts
+                else "FULL"
+            ),
             "economic_sensor_functions": list(economic_functions),
             "native_cognition_gate_consumed": True,
             "native_cognition_source": (
