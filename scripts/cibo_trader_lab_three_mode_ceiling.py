@@ -940,6 +940,18 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--ceiling-attack-stress-confidence-capital-floor",
+        type=Decimal,
+        default=None,
+        help="Optional live-capital floor for the causal stress-confidence ATTACK gate.",
+    )
+    parser.add_argument(
+        "--ceiling-attack-stress-confidence-capital-ceiling",
+        type=Decimal,
+        default=None,
+        help="Optional live-capital ceiling for the causal stress-confidence ATTACK gate.",
+    )
+    parser.add_argument(
         "--ceiling-attack-stress-confidence-risk-budget-taper-fraction",
         type=Decimal,
         default=Decimal("1"),
@@ -1735,6 +1747,12 @@ def main() -> int:
         ),
         ceiling_attack_stress_confidence_projected_risk_fraction_trigger=(
             args.ceiling_attack_stress_confidence_projected_risk_fraction_trigger
+        ),
+        ceiling_attack_stress_confidence_capital_floor=(
+            args.ceiling_attack_stress_confidence_capital_floor
+        ),
+        ceiling_attack_stress_confidence_capital_ceiling=(
+            args.ceiling_attack_stress_confidence_capital_ceiling
         ),
         ceiling_attack_stress_confidence_taper_fraction=(
             args.ceiling_attack_stress_confidence_taper_fraction
