@@ -29,6 +29,16 @@ def load(path: Path) -> dict[str, Any]:
     return raw
 
 
+def realtime_report_payload(row: dict[str, Any]) -> dict[str, Any]:
+    """Keep decision-grade report content while omitting raw trade vectors."""
+
+    return {
+        key: value
+        for key, value in row.items()
+        if key not in {"net_r_values"}
+    }
+
+
 def command(template: list[str], values: dict[str, str]) -> list[str]:
     result = [token.format(**values) for token in template]
     if result and result[0] == "python":
@@ -139,6 +149,14 @@ def experiment_lane(
             for name, row in payload["variants"].items()
         },
     }
+    for name, row in payload["variants"].items():
+        monitor.report(
+            "experiment.variant",
+            realtime_report_payload(row),
+            lane=lane,
+            variant=name,
+        )
+
     monitor.set_lane(
         lane,
         status="COMPLETE",
@@ -248,6 +266,28 @@ def main() -> int:
             encoding="utf-8",
         )
 
+        for name, row in battery["variants"].items():
+            monitor.report(
+                "science.variant",
+                realtime_report_payload(row),
+                variant=name,
+            )
+        monitor.report(
+            "science.summary",
+            {
+                "development_survivors": battery["development_survivors"],
+                "hard_dd_survivors": battery["hard_dd_survivors"],
+                "scientific_passes": battery["scientific_passes"],
+                "monte_carlo_required_variants": battery[
+                    "monte_carlo_required_variants"
+                ],
+                "monte_carlo_skipped_variants": battery[
+                    "monte_carlo_skipped_variants"
+                ],
+                "monte_carlo_cache": battery.get("monte_carlo_cache", {}),
+            },
+        )
+
         certification_started = time.monotonic()
         monitor.emit("certification_readiness.started", {})
         readiness = evaluate_certification_readiness(
@@ -260,6 +300,13 @@ def main() -> int:
             json.dumps(readiness, indent=2, sort_keys=True) + "\n",
             encoding="utf-8",
         )
+        for name, row in readiness["variants"].items():
+            monitor.report(
+                "certification.variant",
+                realtime_report_payload(row),
+                variant=name,
+            )
+
         readiness_statuses = {
             name: row["readiness_status"]
             for name, row in readiness["variants"].items()
@@ -332,6 +379,22 @@ def main() -> int:
         monitor.emit("science.completed", headline)
         monitor.set_run("COMPLETE")
         monitor.emit("run.completed", headline)
+        monitor.report("run.headline", headline)
+        monitor.report(
+            "run.report_index",
+            {
+                "stream_file": "live-reports.jsonl",
+                "events_file": "events.jsonl",
+                "status_file": "status.json",
+                "scientific_battery_file": "scientific-battery.json",
+                "certification_readiness_file": "certification-readiness.json",
+                "lane_normalized_files": {
+                    lane: f"lanes/{lane}/normalized.json"
+                    for lane in lanes
+                },
+                "artifact_download_required_for_reports": False,
+            },
+        )
         print(
             "QORE_TRADER_LAB_FAST_HEADLINE "
             + json.dumps(headline, sort_keys=True),
