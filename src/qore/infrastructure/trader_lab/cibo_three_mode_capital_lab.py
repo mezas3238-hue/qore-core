@@ -550,18 +550,6 @@ def explain_three_mode(
     )
     if cushion_available_usd < minimum_attack_cushion:
         attack_context_reasons.append("ATTACK_CUSHION_LT_2X")
-    attack_economic_cap = robust_economic_multiplier_cap(
-        best_candidate,
-        capital_base_usd=cushion_available_usd,
-        expected_net_utility_usd=(
-            best_candidate.attack_expected_net_utility_usd
-        ),
-    )
-    if attack_economic_cap < ATTACK_MINIMUM_MULTIPLIER:
-        attack_context_reasons.append(
-            "ATTACK_MARGINAL_ROBUST_UTILITY_LT_2X"
-        )
-
     if not attack_context_reasons:
         return CiboTraderLabMode.ATTACK, (
             "HEALTHY_CONTEXT",
@@ -1301,16 +1289,9 @@ def run_three_mode_trader_lab(
                         reaction="AWAIT_LEVERAGE_CAPS",
                         call=True,
                     )
-                    economic_cap = robust_economic_multiplier_cap(
-                        candidate,
-                        capital_base_usd=cushion_left,
-                        expected_net_utility_usd=(
-                            candidate.attack_expected_net_utility_usd
-                        ),
-                    )
+                    economic_cap = candidate.maximum_multiplier
                     leverage_caps = {
                         "PROVIDER_MAX": candidate.maximum_multiplier,
-                        "ROBUST_ECONOMIC_CAP": economic_cap,
                         "CUSHION_FUNDING_CAP": int(
                             (
                                 source_left
@@ -1336,19 +1317,12 @@ def run_three_mode_trader_lab(
                         for name, cap in leverage_caps.items()
                         if cap == multiplier
                     )
-                    requested_leverage_capital = (
-                        candidate.source_cost_per_multiplier_usd
-                        * Decimal(candidate.maximum_multiplier)
-                    )
                     feasible_leverage_capital = (
                         candidate.source_cost_per_multiplier_usd
                         * Decimal(multiplier)
                     )
-                    withheld_leverage_capital = max(
-                        Decimal(0),
-                        requested_leverage_capital
-                        - feasible_leverage_capital,
-                    )
+                    requested_leverage_capital = feasible_leverage_capital
+                    withheld_leverage_capital = Decimal(0)
                     if multiplier < ATTACK_MINIMUM_MULTIPLIER:
                         robust_sizing_reject_count += 1
                         record_engineering_sensor(
@@ -1391,11 +1365,7 @@ def run_three_mode_trader_lab(
                                 candidate.maximum_multiplier
                             ),
                         },
-                        reaction=(
-                            "LEVERAGE_RESTRICTED_BY_CAP"
-                            if withheld_leverage_capital > 0
-                            else "FULL_PROVIDER_MULTIPLIER_RELEASED"
-                        ),
+                        reaction="ATTACK_EXECUTABLE_CAPACITY_RELEASED",
                         reasons=binding_caps,
                         approval=True,
                         restriction=withheld_leverage_capital > 0,
@@ -1403,8 +1373,8 @@ def run_three_mode_trader_lab(
                         approved_capital_usd=feasible_leverage_capital,
                         blocked_capital_usd=withheld_leverage_capital,
                     )
-                    if multiplier == economic_cap:
-                        robust_leverage_cap_bind_count += 1
+                    # ATTACK is not bounded by robust utility. Portfolio
+                    # Compound is the authority that enabled this mode.
 
                 with localcontext() as context:
                     context.prec = 100
@@ -1951,8 +1921,10 @@ def run_three_mode_trader_lab(
             "medium_positive_profit_split": "50%_SOVEREIGN_50%_CUSHION",
             "attack_risk_source": "PORTFOLIO_CUSHION_ONLY",
             "leverage_law": (
-                "CANONICAL_CONCAVE_ROBUST_UTILITY_NO_REPLAY_TUNED_THRESHOLD"
+                "ATTACK_UNCAPPED_BY_ECONOMIC_UTILITY_AFTER_PORTFOLIO_ENABLE"
             ),
+            "attack_enable_authority": "COMPOUND_PORTFOLIO",
+            "attack_internal_economic_cap": "FORBIDDEN",
             "bank_sovereign_risk": "FORBIDDEN",
             "bank_recovery_probe": (
                 "1X_CUSHION_FUNDED_ROBUST_UTILITY_POSITIVE_ONLY"

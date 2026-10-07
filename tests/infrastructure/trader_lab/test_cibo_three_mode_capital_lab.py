@@ -82,7 +82,7 @@ class CiboThreeModeCapitalLabTest(unittest.TestCase):
         self.assertEqual(ATTACK_MINIMUM_MULTIPLIER, 2)
         self.assertIs(mode, CiboTraderLabMode.MEDIUM)
 
-    def test_cash_funded_two_x_stays_medium_when_marginal_utility_is_weak(self) -> None:
+    def test_portfolio_enables_attack_once_cushion_can_fund_two_x(self) -> None:
         candidate = _candidate()
         mode = select_three_mode(
             regime=_regime(),
@@ -92,9 +92,9 @@ class CiboThreeModeCapitalLabTest(unittest.TestCase):
             cushion_available_usd=Decimal("3.00"),
             best_candidate=candidate,
         )
-        self.assertIs(mode, CiboTraderLabMode.MEDIUM)
+        self.assertIs(mode, CiboTraderLabMode.ATTACK)
 
-    def test_attack_requires_cushion_and_positive_marginal_robust_utility(self) -> None:
+    def test_attack_requires_portfolio_cushion_and_favorable_context(self) -> None:
         candidate = _candidate()
         mode = select_three_mode(
             regime=_regime(),
