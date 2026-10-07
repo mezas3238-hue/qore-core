@@ -5094,15 +5094,19 @@ def run_three_mode_trader_lab(
                 if (
                     candidate_mode is CiboTraderLabMode.ATTACK
                     and ceiling_discovery_mode
-                    and ceiling_attack_drawdown_budget_fraction is not None
+                    and ceiling_attack_drawdown_budget_any_active
                 ):
+                    if effective_ceiling_attack_drawdown_budget_fraction is None:
+                        raise CiboCapitalManagementError(
+                            "Trader Lab active ATTACK DD budget missing effective fraction"
+                        )
                     with localcontext() as context:
                         context.prec = 100
                         allowed_ceiling_attack_stop_risk_usd = max(
                             Decimal(0),
                             (
                                 state.peak_total_capital_usd
-                                * ceiling_attack_drawdown_budget_fraction
+                                * effective_ceiling_attack_drawdown_budget_fraction
                             )
                             - total_drawdown_usd
                             - state.open_stop_risk_usd
@@ -5116,7 +5120,7 @@ def run_three_mode_trader_lab(
                             f"peak_total={format(state.peak_total_capital_usd, 'f')} "
                             f"live_total={format(state.total_capital_usd, 'f')} "
                             f"live_drawdown={format(total_drawdown_utilization, 'f')} "
-                            f"budget_fraction={format(ceiling_attack_drawdown_budget_fraction, 'f')} "
+                            f"budget_fraction={format(effective_ceiling_attack_drawdown_budget_fraction, 'f')} "
                             f"selected_multiplier={multiplier} "
                             f"risk_cap={ceiling_drawdown_risk_cap}"
                         )
