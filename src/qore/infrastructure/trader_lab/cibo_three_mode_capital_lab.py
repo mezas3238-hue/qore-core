@@ -99,6 +99,7 @@ class CiboThreeModeCandidate:
     walk_forward_nonpositive_block_count: int
     walk_forward_expected_structural_r: Decimal | None
     walk_forward_block_dispersion_r: Decimal
+    planned_target_r: Decimal
     native_cognition_recommended: bool | None
     context_quality_disposition: str
     minimum_volume: Decimal
@@ -407,8 +408,28 @@ def _candidate(
         raise CiboCapitalManagementError(
             "Trader Lab walk-forward block dispersion must be finite and nonnegative"
         )
+    trader_opportunity = _mapping(
+        row.get("trader_opportunity"),
+        "trader_opportunity",
+    )
+    intended_entry = Decimal(str(trader_opportunity.get("intended_entry")))
+    stop_loss = Decimal(str(trader_opportunity.get("stop_loss")))
+    take_profit = Decimal(str(trader_opportunity.get("take_profit")))
+    if (
+        not intended_entry.is_finite()
+        or not stop_loss.is_finite()
+        or not take_profit.is_finite()
+        or intended_entry == stop_loss
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab planned target-R inputs must be finite with nonzero risk"
+        )
     with localcontext() as context:
         context.prec = 100
+        planned_target_r = (
+            abs(take_profit - intended_entry)
+            / abs(intended_entry - stop_loss)
+        )
         stop = minimum * opportunity.stop_loss_per_volume
         margin = minimum * opportunity.margin_per_volume
         provider_cost = (
@@ -446,6 +467,7 @@ def _candidate(
             walk_forward_expected_structural_r
         ),
         walk_forward_block_dispersion_r=walk_forward_block_dispersion_r,
+        planned_target_r=planned_target_r,
         native_cognition_recommended=native_cognition_recommended,
         context_quality_disposition=context_disposition,
         minimum_volume=minimum,
@@ -1004,6 +1026,7 @@ def run_three_mode_trader_lab(
     ceiling_attack_drawdown_window7_capital_ceiling: Decimal | None = None,
     ceiling_attack_stress_confidence_drawdown_trigger: Decimal | None = None,
     ceiling_attack_stress_confidence_ratio_ceiling: Decimal | None = None,
+    ceiling_attack_stress_confidence_target_r_floor: Decimal | None = None,
     ceiling_attack_stress_confidence_multiplier_lower: int | None = None,
     ceiling_attack_stress_confidence_multiplier_upper: int | None = None,
     ceiling_attack_stress_confidence_projected_risk_fraction_trigger: Decimal | None = None,
@@ -1914,6 +1937,14 @@ def run_three_mode_trader_lab(
     ):
         raise CiboCapitalManagementError(
             "Trader Lab stress-confidence ratio ceiling must be positive Decimal"
+        )
+    if ceiling_attack_stress_confidence_target_r_floor is not None and (
+        not isinstance(ceiling_attack_stress_confidence_target_r_floor, Decimal)
+        or not ceiling_attack_stress_confidence_target_r_floor.is_finite()
+        or ceiling_attack_stress_confidence_target_r_floor <= 0
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab stress-confidence target-R floor must be positive Decimal"
         )
     if (
         ceiling_attack_stress_confidence_multiplier_lower is None
@@ -4444,6 +4475,11 @@ def run_three_mode_trader_lab(
                             )
                         )
                         and candidate.walk_forward_block_dispersion_r > 0
+                        and (
+                            ceiling_attack_stress_confidence_target_r_floor is None
+                            or candidate.planned_target_r
+                            >= ceiling_attack_stress_confidence_target_r_floor
+                        )
                         and (
                             ceiling_attack_stress_confidence_capital_floor is None
                             or state.total_capital_usd
