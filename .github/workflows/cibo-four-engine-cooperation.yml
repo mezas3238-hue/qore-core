@@ -8,6 +8,7 @@ on:
       - agent/cibo-dd-selective-custody-001
       - agent/cibo-dd-activated-custody-001
       - agent/cibo-dd-mfe-selective-001
+      - agent/cibo-dd-trader-adaptive-001
     paths:
       - '.github/workflows/cibo-four-engine-cooperation.yml'
       - 'src/qore/infrastructure/trader_lab/cibo_three_mode_capital_lab.py'
@@ -135,8 +136,19 @@ jobs:
         run: |
           set -euo pipefail
           : > "$RUNNER_TEMP/result/cibo-four-engine-loss-cut-failures.tsv"
-          for SPEC in "025f000:-0.25:2:180:0.00:0.10:1.00" "025f005:-0.25:2:180:0.05:0.10:1.00" "025f010:-0.25:2:180:0.10:0.10:1.00" "020f000:-0.20:2:180:0.00:0.10:1.00" "020f005:-0.20:2:180:0.05:0.10:1.00" "020f010:-0.20:2:180:0.10:0.10:1.00"; do
-            IFS=':' read -r LABEL THRESHOLD CONFIRMATIONS MAX_MINUTES MAX_FAVORABLE DD_ACTIVATION CLOSE_FRACTION <<< "$SPEC"
+          for SPEC in \
+            "g5_020p075:-0.20:2:180:0.25:0.10:0.75:R43_GBPUSD,R34_XAUUSD,VT31_NAS100,R38_GBPJPY,R42_AUDJPY" \
+            "g5_020p100:-0.20:2:180:0.25:0.10:1.00:R43_GBPUSD,R34_XAUUSD,VT31_NAS100,R38_GBPJPY,R42_AUDJPY" \
+            "g5_025p100:-0.25:2:180:0.25:0.10:1.00:R43_GBPUSD,R34_XAUUSD,VT31_NAS100,R38_GBPJPY,R42_AUDJPY" \
+            "g4_020p100:-0.20:2:180:0.25:0.10:1.00:R43_GBPUSD,R34_XAUUSD,R38_GBPJPY,R42_AUDJPY" \
+            "g4n34_020p100:-0.20:2:180:0.25:0.10:1.00:R43_GBPUSD,VT31_NAS100,R38_GBPJPY,R42_AUDJPY" \
+            "g5_020f050:-0.20:2:180:0.50:0.10:1.00:R43_GBPUSD,R34_XAUUSD,VT31_NAS100,R38_GBPJPY,R42_AUDJPY"; do
+            IFS=':' read -r LABEL THRESHOLD CONFIRMATIONS MAX_MINUTES MAX_FAVORABLE DD_ACTIVATION CLOSE_FRACTION TRADERS <<< "$SPEC"
+            TRADER_ARGS=()
+            IFS=',' read -ra TRADER_IDS <<< "$TRADERS"
+            for TRADER_ID in "${TRADER_IDS[@]}"; do
+              TRADER_ARGS+=(--lifecycle-adverse-loss-cut-trader-id "$TRADER_ID")
+            done
             if python scripts/cibo_trader_lab_three_mode_ceiling.py \
               --manifest "$MANIFEST" \
               --baseline-replay "$BASELINE" \
@@ -163,8 +175,8 @@ jobs:
             else
               STATUS=$?
               cat "$RUNNER_TEMP/result/cibo-four-engine-loss-cut-${LABEL}.log"
-              printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
-                "$LABEL" "$THRESHOLD" "$CONFIRMATIONS" "$MAX_MINUTES" "$MAX_FAVORABLE" "$DD_ACTIVATION" "$CLOSE_FRACTION" "$STATUS" >> \
+              printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+                "$LABEL" "$THRESHOLD" "$CONFIRMATIONS" "$MAX_MINUTES" "$MAX_FAVORABLE" "$DD_ACTIVATION" "$CLOSE_FRACTION" "$TRADERS" "$STATUS" >> \
                 "$RUNNER_TEMP/result/cibo-four-engine-loss-cut-failures.tsv"
             fi
           done
@@ -218,15 +230,14 @@ jobs:
           ] == 0
 
           frontier = []
-          for filename, threshold, confirmations, max_minutes, max_favorable, dd_activation, close_fraction in (
-              ("cibo-four-engine-loss-cut-025f000.json", "-0.25", 2, 180, "0.00", "0.10", "1.00"),
-              ("cibo-four-engine-loss-cut-025f005.json", "-0.25", 2, 180, "0.05", "0.10", "1.00"),
-              ("cibo-four-engine-loss-cut-025f010.json", "-0.25", 2, 180, "0.10", "0.10", "1.00"),
-              ("cibo-four-engine-loss-cut-020f000.json", "-0.20", 2, 180, "0.00", "0.10", "1.00"),
-              ("cibo-four-engine-loss-cut-020f005.json", "-0.20", 2, 180, "0.05", "0.10", "1.00"),
-              ("cibo-four-engine-loss-cut-020f010.json", "-0.20", 2, 180, "0.10", "0.10", "1.00"),
-          ):
-              candidate_path = (
+          for filename, threshold, confirmations, max_minutes, max_favorable, dd_activation, close_fraction, traders in (
+              ("cibo-four-engine-loss-cut-g5_020p075.json", "-0.20", 2, 180, "0.25", "0.10", "0.75", "R43_GBPUSD,R34_XAUUSD,VT31_NAS100,R38_GBPJPY,R42_AUDJPY"),
+              ("cibo-four-engine-loss-cut-g5_020p100.json", "-0.20", 2, 180, "0.25", "0.10", "1.00", "R43_GBPUSD,R34_XAUUSD,VT31_NAS100,R38_GBPJPY,R42_AUDJPY"),
+              ("cibo-four-engine-loss-cut-g5_025p100.json", "-0.25", 2, 180, "0.25", "0.10", "1.00", "R43_GBPUSD,R34_XAUUSD,VT31_NAS100,R38_GBPJPY,R42_AUDJPY"),
+              ("cibo-four-engine-loss-cut-g4_020p100.json", "-0.20", 2, 180, "0.25", "0.10", "1.00", "R43_GBPUSD,R34_XAUUSD,R38_GBPJPY,R42_AUDJPY"),
+              ("cibo-four-engine-loss-cut-g4n34_020p100.json", "-0.20", 2, 180, "0.25", "0.10", "1.00", "R43_GBPUSD,VT31_NAS100,R38_GBPJPY,R42_AUDJPY"),
+              ("cibo-four-engine-loss-cut-g5_020f050.json", "-0.20", 2, 180, "0.50", "0.10", "1.00", "R43_GBPUSD,R34_XAUUSD,VT31_NAS100,R38_GBPJPY,R42_AUDJPY"),
+          ):             candidate_path = (
                   Path(os.environ["RUNNER_TEMP"]) / "result" / filename
               )
               if not candidate_path.exists():
@@ -263,6 +274,9 @@ jobs:
               assert guarded["position_lifecycle_report"][
                   "adverse_loss_cut_close_fraction"
               ] == close_fraction
+              assert guarded["position_lifecycle_report"][
+                  "adverse_loss_cut_trader_ids"
+              ] == sorted(traders.split(","))
               assert guarded["position_lifecycle_report"]["outcome_used_for_trigger"] is False
               guarded_funnel = guarded["engineering_sensor_report"]["execution_funnel"]
               assert guarded_funnel["final_trade_count"] == 3368
@@ -276,6 +290,7 @@ jobs:
                   "max_favorable_r": max_favorable,
                   "drawdown_activation_fraction": dd_activation,
                   "close_fraction": close_fraction,
+                  "trader_ids": sorted(traders.split(",")),
                   "activated_entry_count": guarded["position_lifecycle_report"][
                       "activated_entry_count"
                   ],

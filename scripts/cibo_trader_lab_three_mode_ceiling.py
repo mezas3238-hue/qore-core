@@ -59,6 +59,7 @@ def _build_lifecycle_map(
     adverse_loss_cut_max_elapsed_minutes: int | None,
     adverse_loss_cut_max_favorable_r: Decimal,
     adverse_loss_cut_close_fraction: Decimal,
+    adverse_loss_cut_trader_ids: frozenset[str],
 ) -> dict[str, dict[str, object]]:
     if not roots:
         return {}
@@ -82,6 +83,7 @@ def _build_lifecycle_map(
             raise ValueError("lifecycle manifest row must be mapping")
         signal = str(raw["signal_fingerprint"])
         symbol = str(raw["qore_symbol"])
+        trader_id = str(raw["trader_id"])
         opportunity = raw.get("trader_opportunity")
         if not isinstance(opportunity, dict):
             raise ValueError("lifecycle trader opportunity missing")
@@ -90,6 +92,18 @@ def _build_lifecycle_map(
         series = bars_by_symbol[symbol]
         start = bisect_left(opened, outcome.entry_at)
         end = bisect_right(closed, outcome.exit_at)
+        managed_features = (
+            features
+            if (
+                not adverse_loss_cut_trader_ids
+                or trader_id in adverse_loss_cut_trader_ids
+            )
+            else frozenset(
+                item
+                for item in features
+                if item is not CiboLifecycleFeature.ADVERSE_LOSS_CUT
+            )
+        )
         managed = run_cibo_position_lifecycle(
             CiboPositionLifecycleInput(
                 signal_fingerprint=signal,
@@ -108,7 +122,7 @@ def _build_lifecycle_map(
                 original_settlement_gross_r=outcome.gross_structural_outcome_r,
             ),
             series[start:end] if start < end else (),
-            features=features,
+            features=managed_features,
             adverse_loss_cut_r=adverse_loss_cut_r,
             adverse_loss_cut_confirmation_bars=(
                 adverse_loss_cut_confirmation_bars
@@ -132,6 +146,10 @@ def _build_lifecycle_map(
             "actions": list(managed.actions),
             "events": managed.events,
             "enabled_features": sorted(item.value for item in features),
+            "adverse_loss_cut_trader_eligible": (
+                not adverse_loss_cut_trader_ids
+                or trader_id in adverse_loss_cut_trader_ids
+            ),
             "adverse_loss_cut_r": format(adverse_loss_cut_r, "f"),
             "adverse_loss_cut_confirmation_bars": (
                 adverse_loss_cut_confirmation_bars
@@ -221,6 +239,16 @@ def main() -> int:
         help=(
             "Fraction of the live position causally reduced at an adverse "
             "loss-cut event. 1.0 preserves the full-close experiment."
+        ),
+    )
+    parser.add_argument(
+        "--lifecycle-adverse-loss-cut-trader-id",
+        action="append",
+        default=[],
+        help=(
+            "Optional Trader allowlist for ADVERSE_LOSS_CUT. Repeat for each "
+            "Trader. Entries are still always admitted; this controls only "
+            "post-entry loss custody."
         ),
     )
     parser.add_argument(
@@ -318,6 +346,9 @@ def main() -> int:
         ),
         adverse_loss_cut_close_fraction=(
             args.lifecycle_adverse_loss_cut_close_fraction
+        ),
+        adverse_loss_cut_trader_ids=frozenset(
+            args.lifecycle_adverse_loss_cut_trader_id
         ),
     )
     baseline = None
@@ -605,6 +636,9 @@ def main() -> int:
             args.four_engine_cooperation_frontier
         ),
     )
+    result["position_lifecycle_report"][
+        "adverse_loss_cut_trader_ids"
+    ] = sorted(set(args.lifecycle_adverse_loss_cut_trader_id))
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
         json.dumps(result, indent=2, sort_keys=True) + "\n",
