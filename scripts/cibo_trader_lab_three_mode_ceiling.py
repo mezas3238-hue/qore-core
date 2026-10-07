@@ -39,6 +39,15 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--selective-recovery-headroom-ceiling",
+        type=Decimal,
+        help=(
+            "Trader-Lab-only recovery frontier: grant extra MEDIUM pre-trade "
+            "headroom only to context ALLOW plus 5/5 positive causal "
+            "walk-forward blocks. Realized DD must still remain <=0.25."
+        ),
+    )
+    parser.add_argument(
         "--enforce-context-abstain",
         action="store_true",
         help=(
@@ -323,6 +332,9 @@ def main() -> int:
         ),
         medium_pretrade_drawdown_ceiling=(
             args.medium_pretrade_drawdown_ceiling
+        ),
+        selective_recovery_headroom_ceiling=(
+            args.selective_recovery_headroom_ceiling
         ),
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)

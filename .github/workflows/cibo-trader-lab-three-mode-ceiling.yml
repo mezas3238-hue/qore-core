@@ -174,6 +174,50 @@ jobs:
             --medium-pretrade-drawdown-ceiling 0.27 \
             --output "$RUNNER_TEMP/result/cibo-three-mode-historical-dd-27.json"
 
+      - name: Run selective recovery headroom 27pct
+        run: |
+          set -euo pipefail
+          python scripts/cibo_trader_lab_three_mode_ceiling.py \
+            --manifest "$MANIFEST" \
+            --baseline-replay "$BASELINE" \
+            --historical-manifest "$HISTORICAL_MANIFEST" \
+            --historical-replay "$HISTORICAL_REPLAY" \
+            --selective-recovery-headroom-ceiling 0.27 \
+            --output "$RUNNER_TEMP/result/cibo-three-mode-selective-recovery-27.json"
+
+      - name: Run selective recovery headroom 30pct
+        run: |
+          set -euo pipefail
+          python scripts/cibo_trader_lab_three_mode_ceiling.py \
+            --manifest "$MANIFEST" \
+            --baseline-replay "$BASELINE" \
+            --historical-manifest "$HISTORICAL_MANIFEST" \
+            --historical-replay "$HISTORICAL_REPLAY" \
+            --selective-recovery-headroom-ceiling 0.30 \
+            --output "$RUNNER_TEMP/result/cibo-three-mode-selective-recovery-30.json"
+
+      - name: Run selective recovery headroom 35pct
+        run: |
+          set -euo pipefail
+          python scripts/cibo_trader_lab_three_mode_ceiling.py \
+            --manifest "$MANIFEST" \
+            --baseline-replay "$BASELINE" \
+            --historical-manifest "$HISTORICAL_MANIFEST" \
+            --historical-replay "$HISTORICAL_REPLAY" \
+            --selective-recovery-headroom-ceiling 0.35 \
+            --output "$RUNNER_TEMP/result/cibo-three-mode-selective-recovery-35.json"
+
+      - name: Run selective recovery headroom 50pct
+        run: |
+          set -euo pipefail
+          python scripts/cibo_trader_lab_three_mode_ceiling.py \
+            --manifest "$MANIFEST" \
+            --baseline-replay "$BASELINE" \
+            --historical-manifest "$HISTORICAL_MANIFEST" \
+            --historical-replay "$HISTORICAL_REPLAY" \
+            --selective-recovery-headroom-ceiling 0.50 \
+            --output "$RUNNER_TEMP/result/cibo-three-mode-selective-recovery-50.json"
+
       - name: Enforce Trader Lab scientific invariants
         run: |
           set -euo pipefail
@@ -282,6 +326,30 @@ jobs:
               ] == ceiling
               assert frontier["governance"]["outcome_used_for_predecision"] is False
               assert Decimal(frontier["attack_sovereign_breach_usd"]) == 0
+
+          for filename, ceiling in (
+              ("cibo-three-mode-selective-recovery-27.json", "0.27"),
+              ("cibo-three-mode-selective-recovery-30.json", "0.30"),
+              ("cibo-three-mode-selective-recovery-35.json", "0.35"),
+              ("cibo-three-mode-selective-recovery-50.json", "0.50"),
+          ):
+              selective = json.loads(
+                  (
+                      Path(os.environ["RUNNER_TEMP"])
+                      / "result"
+                      / filename
+                  ).read_text()
+              )
+              assert selective["research_lane"] == (
+                  "HISTORICAL_PRIOR_NATIVE_SELECTIVE_RECOVERY_HEADROOM"
+              )
+              assert selective["decision_count"] == 3368
+              assert selective["governance"]["historical_prior_consumed"] is True
+              assert selective["governance"][
+                  "selective_recovery_headroom_ceiling"
+              ] == ceiling
+              assert selective["governance"]["outcome_used_for_predecision"] is False
+              assert Decimal(selective["attack_sovereign_breach_usd"]) == 0
           PY
 
       - uses: actions/upload-artifact@v4
@@ -296,5 +364,9 @@ jobs:
             ${{ runner.temp }}/result/cibo-three-mode-historical-dd-255.json
             ${{ runner.temp }}/result/cibo-three-mode-historical-dd-26.json
             ${{ runner.temp }}/result/cibo-three-mode-historical-dd-27.json
+            ${{ runner.temp }}/result/cibo-three-mode-selective-recovery-27.json
+            ${{ runner.temp }}/result/cibo-three-mode-selective-recovery-30.json
+            ${{ runner.temp }}/result/cibo-three-mode-selective-recovery-35.json
+            ${{ runner.temp }}/result/cibo-three-mode-selective-recovery-50.json
           if-no-files-found: error
           retention-days: 90

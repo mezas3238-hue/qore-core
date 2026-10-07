@@ -758,6 +758,7 @@ def run_three_mode_trader_lab(
     enforce_research_context_abstain: bool = False,
     soft_medium_drawdown_allocator: bool = False,
     medium_pretrade_drawdown_ceiling: Decimal = ECONOMIC_DRAWDOWN_CEILING,
+    selective_recovery_headroom_ceiling: Decimal | None = None,
 ) -> dict[str, object]:
     """Run the isolated chronological three-mode ceiling experiment."""
 
@@ -778,6 +779,17 @@ def run_three_mode_trader_lab(
         raise CiboCapitalManagementError(
             "Trader Lab MEDIUM pretrade drawdown ceiling must be Decimal "
             "between 0.25 and 0.50"
+        )
+    if selective_recovery_headroom_ceiling is not None and (
+        not isinstance(selective_recovery_headroom_ceiling, Decimal)
+        or not selective_recovery_headroom_ceiling.is_finite()
+        or selective_recovery_headroom_ceiling
+        < ECONOMIC_DRAWDOWN_CEILING
+        or selective_recovery_headroom_ceiling > Decimal("0.50")
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab selective recovery headroom ceiling must be "
+            "None or Decimal between 0.25 and 0.50"
         )
     source_sha = validate_single_account_manifest_sha256(manifest)
     if manifest.get("initial_capital_usd") != "60":
@@ -1623,11 +1635,26 @@ def run_three_mode_trader_lab(
                             * medium_risk_fraction
                             * medium_drawdown_scale
                         )
+                        selective_recovery_headroom_active = (
+                            selective_recovery_headroom_ceiling is not None
+                            and candidate.context_quality_disposition == "ALLOW"
+                            and candidate.walk_forward_positive_block_count == 5
+                            and candidate.walk_forward_nonpositive_block_count == 0
+                        )
+                        medium_candidate_pretrade_drawdown_ceiling = (
+                            max(
+                                medium_pretrade_drawdown_ceiling,
+                                selective_recovery_headroom_ceiling,
+                            )
+                            if selective_recovery_headroom_active
+                            and selective_recovery_headroom_ceiling is not None
+                            else medium_pretrade_drawdown_ceiling
+                        )
                         medium_hard_drawdown_headroom_usd = max(
                             Decimal(0),
                             (
                                 state.peak_total_capital_usd
-                                * medium_pretrade_drawdown_ceiling
+                                * medium_candidate_pretrade_drawdown_ceiling
                             )
                             - total_drawdown_usd
                             - state.open_stop_risk_usd,
@@ -1778,6 +1805,19 @@ def run_three_mode_trader_lab(
                             ),
                             "medium_pretrade_drawdown_ceiling": format(
                                 medium_pretrade_drawdown_ceiling, "f"
+                            ),
+                            "selective_recovery_headroom_active": (
+                                selective_recovery_headroom_active
+                            ),
+                            "selective_recovery_headroom_ceiling": (
+                                None
+                                if selective_recovery_headroom_ceiling is None
+                                else format(
+                                    selective_recovery_headroom_ceiling, "f"
+                                )
+                            ),
+                            "medium_candidate_pretrade_drawdown_ceiling": format(
+                                medium_candidate_pretrade_drawdown_ceiling, "f"
                             ),
                             "medium_drawdown_allocator_cap_usd": format(
                                 medium_drawdown_allocator_cap_usd, "f"
@@ -2424,6 +2464,11 @@ def run_three_mode_trader_lab(
         "research_lane": (
             "HISTORICAL_PRIOR_NATIVE_SOFT_DRAWDOWN_ALLOCATOR"
             if use_historical_prior and soft_medium_drawdown_allocator
+            else "HISTORICAL_PRIOR_NATIVE_SELECTIVE_RECOVERY_HEADROOM"
+            if (
+                use_historical_prior
+                and selective_recovery_headroom_ceiling is not None
+            )
             else "HISTORICAL_PRIOR_NATIVE_DD_RESERVE_FRONTIER"
             if (
                 use_historical_prior
@@ -2679,6 +2724,16 @@ def run_three_mode_trader_lab(
             ),
             "medium_pretrade_drawdown_ceiling": format(
                 medium_pretrade_drawdown_ceiling, "f"
+            ),
+            "selective_recovery_headroom_policy": (
+                "CURRENT_CONTEXT_ALLOW_AND_5_OF_5_CAUSAL_WALK_FORWARD_BLOCKS"
+                if selective_recovery_headroom_ceiling is not None
+                else "DISABLED"
+            ),
+            "selective_recovery_headroom_ceiling": (
+                None
+                if selective_recovery_headroom_ceiling is None
+                else format(selective_recovery_headroom_ceiling, "f")
             ),
             "bank_seed_source": (
                 "4PCT_OF_CURRENT_TOTAL_ACCOUNT_CAPITAL_PER_MEDIUM_ENTRY"
