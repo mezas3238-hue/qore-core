@@ -830,14 +830,11 @@ def run_three_mode_trader_lab(
     ) -> int:
         if not candidate.native_cognition_recommended:
             return min(candidate.maximum_multiplier, 1)
-        # Historical control expressed 4x whenever capital was released.
-        # Current Native confidence may add up to five further intensity
-        # steps, one per 20 confidence points, while physical risk/margin/
-        # provider capacity remain the downstream hard constraints.
-        return min(
-            candidate.maximum_multiplier,
-            4 + native_confidence(candidate) // 20,
-        )
+        # Keep the proven historical MEDIUM expression at 4x. Native
+        # confidence is consumed as telemetry and by Portfolio/ATTACK; it
+        # must not inflate ordinary MEDIUM after the confidence-scaling
+        # ablation demonstrated destructive drawdown.
+        return min(candidate.maximum_multiplier, 4)
 
     use_historical_prior = historical_prior_by_signal is not None
     historical_prior_map: dict[str, dict[str, object]] = {}
@@ -2331,8 +2328,8 @@ def run_three_mode_trader_lab(
             ),
             "native_profile_consumed": True,
             "historical_native_intensity_law": (
-                "ABSTAIN_1X_DEFENSIVE; RECOMMEND_4X_PLUS_"
-                "FLOOR_CONFIDENCE_BAND_DIV_20"
+                "ABSTAIN_1X_DEFENSIVE; RECOMMEND_4X_PROVEN_MEDIUM; "
+                "NATIVE_CONFIDENCE_RESERVED_FOR_PORTFOLIO_ATTACK"
             ),
             "historical_prior_consumed": use_historical_prior,
             "compound_distribution_basis": (
