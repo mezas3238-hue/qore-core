@@ -8,6 +8,13 @@ import json
 from decimal import Decimal
 from pathlib import Path
 
+from qore.infrastructure.cibo_capital_management_authority import (
+    minimum_seed_volume,
+)
+from qore.infrastructure.cibo_single_account_manifest_economics import (
+    manifest_row_provider_cost_per_volume_usd,
+    manifest_row_to_ceiling_opportunity_evidence,
+)
 from qore.infrastructure.trader_lab.cibo_three_mode_capital_lab import (
     run_three_mode_trader_lab,
 )
@@ -18,6 +25,7 @@ def main() -> int:
     parser.add_argument("--manifest", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--baseline-replay", type=Path)
+    parser.add_argument("--historical-manifest", type=Path)
     parser.add_argument(
         "--enforce-context-abstain",
         action="store_true",
@@ -32,6 +40,7 @@ def main() -> int:
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
     baseline = None
     cognitive_recommend_by_signal = None
+    historical_prior_by_signal = None
     if args.baseline_replay is not None:
         payload = json.loads(
             args.baseline_replay.read_text(encoding="utf-8")
@@ -47,10 +56,46 @@ def main() -> int:
             for item in decisions
         }
 
+    if args.historical_manifest is not None:
+        historical = json.loads(
+            args.historical_manifest.read_text(encoding="utf-8")
+        )
+        historical_rows = historical.get("opportunities")
+        if not isinstance(historical_rows, list) or not historical_rows:
+            raise ValueError("historical prior manifest opportunities missing")
+        historical_prior_by_signal = {}
+        for row in historical_rows:
+            evidence = manifest_row_to_ceiling_opportunity_evidence(row)
+            opportunity = evidence.opportunity
+            minimum = minimum_seed_volume(opportunity)
+            provider_cost = (
+                minimum * manifest_row_provider_cost_per_volume_usd(row)
+            )
+            context_quality = row.get("context_quality")
+            if not isinstance(context_quality, dict):
+                raise ValueError("historical context quality missing")
+            historical_prior_by_signal[opportunity.signal_fingerprint] = {
+                "expected_edge_after_cost_usd": format(
+                    evidence.expected_net_value_usd - provider_cost,
+                    "f",
+                ),
+                "expected_capital_minutes": format(
+                    evidence.expected_capital_minutes,
+                    "f",
+                ),
+                "context_allowed": bool(
+                    evidence.context_allowed
+                    and evidence.provider_viable
+                    and evidence.capital_source_eligible
+                    and context_quality.get("disposition") == "ALLOW"
+                ),
+            }
+
     result = run_three_mode_trader_lab(
         manifest,
         baseline_ending_capital_usd=baseline,
         cognitive_recommend_by_signal=cognitive_recommend_by_signal,
+        historical_prior_by_signal=historical_prior_by_signal,
         enforce_research_context_abstain=args.enforce_context_abstain,
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
