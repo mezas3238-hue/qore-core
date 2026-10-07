@@ -1359,6 +1359,7 @@ def run_three_mode_trader_lab(
     drawdown_episode_negative_settlements: list[dict[str, object]] = []
     max_drawdown_attribution: dict[str, object] = {}
     trade_receipts: list[dict[str, object]] = []
+    trade_receipt_by_signal: dict[str, dict[str, object]] = {}
     epoch_receipts: list[dict[str, object]] = []
 
     economic_functions = (
@@ -1918,6 +1919,25 @@ def run_three_mode_trader_lab(
                 trade.signal_fingerprint,
                 Decimal(0),
             )
+            receipt = trade_receipt_by_signal.get(
+                trade.signal_fingerprint
+            )
+            if receipt is None:
+                raise CiboCapitalManagementError(
+                    "Trader Lab settlement missing trade receipt"
+                )
+            receipt["realized_net_pnl_usd"] = format(
+                settled_trade_net, "f"
+            )
+            receipt["realized_net_r"] = format(
+                (
+                    settled_trade_net / trade.stop_risk_usd
+                    if trade.stop_risk_usd > 0
+                    else Decimal(0)
+                ),
+                "f",
+            )
+            receipt["realized_exit_at"] = event_at.isoformat()
             if settled_trade_net < 0:
                 trader_loss_streak[trade.trader_id] += 1
             else:
@@ -3036,6 +3056,9 @@ def run_three_mode_trader_lab(
                         "provider_cost_usd": format(provider_cost, "f"),
                     }
                 )
+                trade_receipt_by_signal[
+                    candidate.signal_fingerprint
+                ] = trade_receipts[-1]
             else:
                 trade_receipts.append(
                     {
@@ -3104,6 +3127,9 @@ def run_three_mode_trader_lab(
                         "mode_reasons": list(mode_reasons),
                     }
                 )
+                trade_receipt_by_signal[
+                    candidate.signal_fingerprint
+                ] = trade_receipts[-1]
                 state.open_stop_risk_usd += stop_risk
             state.open_margin_usd += margin
             if candidate_mode is CiboTraderLabMode.MEDIUM:
@@ -3179,6 +3205,14 @@ def run_three_mode_trader_lab(
             state.mark()
 
     settle_due(None)
+    if any(
+        "realized_net_r" not in receipt
+        or "realized_net_pnl_usd" not in receipt
+        for receipt in trade_receipts
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab ended with incomplete realized trade receipts"
+        )
     position_lifecycle_report["applied_trade_count"] = (
         lifecycle_applied_trade_count
     )
