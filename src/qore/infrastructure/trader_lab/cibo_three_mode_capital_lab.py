@@ -756,12 +756,17 @@ def run_three_mode_trader_lab(
         Mapping[str, Mapping[str, object]] | None
     ) = None,
     enforce_research_context_abstain: bool = False,
+    soft_medium_drawdown_allocator: bool = False,
 ) -> dict[str, object]:
     """Run the isolated chronological three-mode ceiling experiment."""
 
     if type(enforce_research_context_abstain) is not bool:
         raise CiboCapitalManagementError(
             "Trader Lab context hypothesis switch must be bool"
+        )
+    if type(soft_medium_drawdown_allocator) is not bool:
+        raise CiboCapitalManagementError(
+            "Trader Lab soft MEDIUM drawdown allocator switch must be bool"
         )
     source_sha = validate_single_account_manifest_sha256(manifest)
     if manifest.get("initial_capital_usd") != "60":
@@ -1616,20 +1621,32 @@ def run_three_mode_trader_lab(
                             - total_drawdown_usd
                             - state.open_stop_risk_usd,
                         )
+                        # Frontier experiment: the hard pre-trade wall assumes
+                        # every open stop realizes at once. Near 25% DD that
+                        # deadlocks MEDIUM at broker minimum size and removes
+                        # the system's ability to compound back out. The soft
+                        # lane preserves the causal DD-scaled entry budget and
+                        # physical risk cap, while validating the realized DD
+                        # after replay before the policy can be retained.
+                        medium_drawdown_allocator_cap_usd = (
+                            risk_left
+                            if soft_medium_drawdown_allocator
+                            else medium_hard_drawdown_headroom_usd
+                        )
                         minimum_medium_risk_usd = (
                             candidate.stop_risk_per_multiplier_usd
                         )
                         medium_risk_budget_usd = (
                             min(
                                 risk_left,
-                                medium_hard_drawdown_headroom_usd,
+                                medium_drawdown_allocator_cap_usd,
                                 max(
                                     medium_entry_risk_budget_usd,
                                     minimum_medium_risk_usd,
                                 ),
                             )
                             if minimum_medium_risk_usd
-                            <= medium_hard_drawdown_headroom_usd
+                            <= medium_drawdown_allocator_cap_usd
                             else Decimal(0)
                         )
                     executable_by_risk = int(
@@ -1742,6 +1759,14 @@ def run_three_mode_trader_lab(
                             ),
                             "medium_hard_drawdown_headroom_usd": format(
                                 medium_hard_drawdown_headroom_usd, "f"
+                            ),
+                            "medium_drawdown_allocator": (
+                                "SOFT_CAUSAL_BUDGET"
+                                if soft_medium_drawdown_allocator
+                                else "HARD_WORST_CASE_HEADROOM"
+                            ),
+                            "medium_drawdown_allocator_cap_usd": format(
+                                medium_drawdown_allocator_cap_usd, "f"
                             ),
                             "minimum_medium_risk_usd": format(
                                 minimum_medium_risk_usd, "f"
@@ -2383,7 +2408,9 @@ def run_three_mode_trader_lab(
     return {
         "schema": "qore.trader_lab.cibo_three_mode_ceiling.v1",
         "research_lane": (
-            "HISTORICAL_PRIOR_NATIVE_TRANSFER"
+            "HISTORICAL_PRIOR_NATIVE_SOFT_DRAWDOWN_ALLOCATOR"
+            if use_historical_prior and soft_medium_drawdown_allocator
+            else "HISTORICAL_PRIOR_NATIVE_TRANSFER"
             if use_historical_prior
             else "POST_BURN_CONTEXT_ABSTAIN_HYPOTHESIS"
             if enforce_research_context_abstain
@@ -2619,8 +2646,16 @@ def run_three_mode_trader_lab(
             "medium_positive_profit_split": "50%_SOVEREIGN_50%_CUSHION",
             "bank_role": "TREASURY_SEEDS_MEDIUM_ONLY_NO_TRADES",
             "drawdown_policy": (
-                "TOTAL_DRAWDOWN_AT_20PCT_STOPS_NEW_ATTACK_TO_PRESERVE_"
-                "THE_25PCT_CEILING; MEDIUM_REMAINS_AVAILABLE"
+                "SOFT_CAUSAL_MEDIUM_ALLOCATOR_WITH_REALIZED_DD_VALIDATION; "
+                "ATTACK_STOPS_AT_20PCT"
+                if soft_medium_drawdown_allocator
+                else (
+                    "TOTAL_DRAWDOWN_AT_20PCT_STOPS_NEW_ATTACK_TO_PRESERVE_"
+                    "THE_25PCT_CEILING; MEDIUM_REMAINS_AVAILABLE"
+                )
+            ),
+            "soft_medium_drawdown_allocator": (
+                soft_medium_drawdown_allocator
             ),
             "bank_seed_source": (
                 "4PCT_OF_CURRENT_TOTAL_ACCOUNT_CAPITAL_PER_MEDIUM_ENTRY"

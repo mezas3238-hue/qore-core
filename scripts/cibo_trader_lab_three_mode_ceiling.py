@@ -21,6 +21,15 @@ def main() -> int:
     parser.add_argument("--historical-manifest", type=Path)
     parser.add_argument("--historical-replay", type=Path)
     parser.add_argument(
+        "--soft-medium-drawdown-allocator",
+        action="store_true",
+        help=(
+            "Trader-Lab-only frontier hypothesis: replace MEDIUM's hard "
+            "worst-case 25% headroom wall with the existing causal "
+            "drawdown-scaled risk allocator; realized DD is still measured."
+        ),
+    )
+    parser.add_argument(
         "--enforce-context-abstain",
         action="store_true",
         help=(
@@ -300,6 +309,9 @@ def main() -> int:
         native_profile_by_signal=native_profile_by_signal,
         historical_prior_by_signal=historical_prior_by_signal,
         enforce_research_context_abstain=args.enforce_context_abstain,
+        soft_medium_drawdown_allocator=(
+            args.soft_medium_drawdown_allocator
+        ),
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(

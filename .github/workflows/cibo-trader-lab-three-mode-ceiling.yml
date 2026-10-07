@@ -119,6 +119,17 @@ jobs:
             --historical-replay "$HISTORICAL_REPLAY" \
             --output "$RUNNER_TEMP/result/cibo-three-mode-historical-prior-native.json"
 
+      - name: Run historical-prior soft drawdown allocator frontier
+        run: |
+          set -euo pipefail
+          python scripts/cibo_trader_lab_three_mode_ceiling.py \
+            --manifest "$MANIFEST" \
+            --baseline-replay "$BASELINE" \
+            --historical-manifest "$HISTORICAL_MANIFEST" \
+            --historical-replay "$HISTORICAL_REPLAY" \
+            --soft-medium-drawdown-allocator \
+            --output "$RUNNER_TEMP/result/cibo-three-mode-historical-soft-dd.json"
+
       - name: Enforce Trader Lab scientific invariants
         run: |
           set -euo pipefail
@@ -187,6 +198,22 @@ jobs:
           assert legacy["governance"]["historical_prior_consumed"] is True
           assert legacy["governance"]["outcome_used_for_predecision"] is False
           assert Decimal(legacy["attack_sovereign_breach_usd"]) == 0
+
+          soft = json.loads(
+              (
+                  Path(os.environ["RUNNER_TEMP"])
+                  / "result"
+                  / "cibo-three-mode-historical-soft-dd.json"
+              ).read_text()
+          )
+          assert soft["research_lane"] == (
+              "HISTORICAL_PRIOR_NATIVE_SOFT_DRAWDOWN_ALLOCATOR"
+          )
+          assert soft["decision_count"] == 3368
+          assert soft["governance"]["historical_prior_consumed"] is True
+          assert soft["governance"]["soft_medium_drawdown_allocator"] is True
+          assert soft["governance"]["outcome_used_for_predecision"] is False
+          assert Decimal(soft["attack_sovereign_breach_usd"]) == 0
           PY
 
       - uses: actions/upload-artifact@v4
@@ -196,5 +223,6 @@ jobs:
             ${{ runner.temp }}/result/cibo-three-mode-ceiling.json
             ${{ runner.temp }}/result/cibo-three-mode-context-hypothesis.json
             ${{ runner.temp }}/result/cibo-three-mode-historical-prior-native.json
+            ${{ runner.temp }}/result/cibo-three-mode-historical-soft-dd.json
           if-no-files-found: error
           retention-days: 90
