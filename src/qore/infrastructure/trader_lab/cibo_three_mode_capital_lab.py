@@ -2307,6 +2307,7 @@ def run_three_mode_trader_lab(
             if mode is CiboTraderLabMode.ATTACK
             else Decimal(0)
         )
+        attack_risk_selected_this_epoch = Decimal(0)
         if mode is not CiboTraderLabMode.BANK:
             candidate_surface = eligible
             for candidate in candidate_surface:
@@ -2768,8 +2769,39 @@ def run_three_mode_trader_lab(
                             coordinated_attack_cap,
                             growth_cap,
                         )
+                    ceiling_drawdown_risk_cap = candidate.maximum_multiplier
+                    if (
+                        ceiling_discovery_mode
+                        and ceiling_attack_drawdown_budget_fraction is not None
+                    ):
+                        with localcontext() as context:
+                            context.prec = 100
+                            live_ceiling_attack_headroom_usd = max(
+                                Decimal(0),
+                                (
+                                    state.peak_total_capital_usd
+                                    * ceiling_attack_drawdown_budget_fraction
+                                )
+                                - total_drawdown_usd
+                                - state.open_stop_risk_usd
+                                - attack_risk_selected_this_epoch,
+                            )
+                            ceiling_drawdown_risk_cap = max(
+                                0,
+                                int(
+                                    (
+                                        live_ceiling_attack_headroom_usd
+                                        / candidate.stop_risk_per_multiplier_usd
+                                    ).to_integral_value(
+                                        rounding=ROUND_FLOOR
+                                    )
+                                ),
+                            )
                     leverage_caps = {
                         "PROVIDER_MAX": candidate.maximum_multiplier,
+                        "CEILING_DRAWDOWN_RISK_CAP": (
+                            ceiling_drawdown_risk_cap
+                        ),
                         "DISTRIBUTED_ATTACK_CAP": (
                             coordinated_attack_cap
                             if distributed_attack_frontier
@@ -3021,6 +3053,7 @@ def run_three_mode_trader_lab(
                 else:
                     cushion_left -= source_reserved
                     portfolio_attack_release_left -= source_reserved
+                    attack_risk_selected_this_epoch += stop_risk
 
         for candidate, multiplier, candidate_mode in selected:
             with localcontext() as context:
