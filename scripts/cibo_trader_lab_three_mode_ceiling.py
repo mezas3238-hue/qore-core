@@ -260,6 +260,16 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--lifecycle-projected-open-stop-risk-fraction-trigger",
+        type=Decimal,
+        default=None,
+        help=(
+            "Apply lifecycle defense only when current open stop risk plus "
+            "the new position's stop risk reaches this fraction of live "
+            "total capital."
+        ),
+    )
+    parser.add_argument(
         "--soft-medium-drawdown-allocator",
         action="store_true",
         help=(
@@ -630,6 +640,9 @@ def main() -> int:
         ),
         lifecycle_minimum_stop_risk_fraction_trigger=(
             args.lifecycle_minimum_stop_risk_fraction_trigger
+        ),
+        lifecycle_projected_open_stop_risk_fraction_trigger=(
+            args.lifecycle_projected_open_stop_risk_fraction_trigger
         ),
         enforce_research_context_abstain=args.enforce_context_abstain,
         soft_medium_drawdown_allocator=(
