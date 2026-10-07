@@ -56,7 +56,7 @@ def _build_lifecycle_map(
     features: frozenset[CiboLifecycleFeature],
     adverse_loss_cut_r: Decimal,
     adverse_partial_fraction: Decimal,
-    native_recommend_by_signal: dict[str, bool] | None = None,
+    native_recommend_by_signal: dict[str, bool | None] | None = None,
     native_defensive_only: bool = False,
 ) -> dict[str, dict[str, object]]:
     if not roots:
@@ -86,15 +86,22 @@ def _build_lifecycle_map(
             raise ValueError("lifecycle trader opportunity missing")
         outcome = manifest_row_to_shadow_outcome_observation(raw)
         native_defensive_applied = False
+        native_telemetry_state = "NOT_REQUESTED"
         if native_defensive_only:
-            if (
-                native_recommend_by_signal is None
-                or signal not in native_recommend_by_signal
-            ):
-                raise ValueError(
-                    "native-defensive lifecycle requires exact Native map"
-                )
-            native_defensive_applied = not native_recommend_by_signal[signal]
+            recommendation = (
+                None
+                if native_recommend_by_signal is None
+                else native_recommend_by_signal.get(signal)
+            )
+            native_telemetry_state = (
+                "AVAILABLE"
+                if type(recommendation) is bool
+                else "UNAVAILABLE"
+            )
+            # Telemetry is observational only. Defense is activated only by
+            # an explicit Native=false. Missing/partial telemetry preserves
+            # the Trader settlement and must never abort the replay.
+            native_defensive_applied = recommendation is False
             row_features = (
                 features
                 if native_defensive_applied
@@ -137,6 +144,7 @@ def _build_lifecycle_map(
             "events": managed.events,
             "enabled_features": sorted(item.value for item in features),
             "native_defensive_applied": native_defensive_applied,
+            "native_telemetry_state": native_telemetry_state,
             "adverse_loss_cut_r": format(adverse_loss_cut_r, "f"),
             "adverse_partial_fraction": format(
                 adverse_partial_fraction, "f"
@@ -300,7 +308,7 @@ def main() -> int:
             signal = str(item["signal_fingerprint"])
             sensors = item.get("cognitive_sensors")
             if not isinstance(sensors, list):
-                raise ValueError("baseline cognitive sensors missing")
+                sensors = []
             by_code = {
                 str(sensor.get("component_code")): sensor
                 for sensor in sensors
@@ -314,46 +322,59 @@ def main() -> int:
                 "METACOGNITION",
                 "ATTENTION_CONTEXT",
             }
-            if not required.issubset(by_code):
-                raise ValueError(
-                    "baseline cognitive sensor surface incomplete"
-                )
+            missing_components = sorted(required - set(by_code))
+
+            def status(code: str) -> str:
+                raw = by_code.get(code)
+                if not isinstance(raw, dict):
+                    return "UNAVAILABLE"
+                value = raw.get("status")
+                return str(value) if value is not None else "UNAVAILABLE"
 
             def metrics(code: str) -> dict[str, str]:
-                raw = by_code[code].get("output_metrics")
+                raw_sensor = by_code.get(code)
+                if not isinstance(raw_sensor, dict):
+                    return {}
+                raw = raw_sensor.get("output_metrics")
                 if not isinstance(raw, list):
-                    raise ValueError(
-                        f"cognitive output metrics malformed for {code}"
-                    )
+                    return {}
                 return {
                     str(pair[0]): str(pair[1])
                     for pair in raw
                     if isinstance(pair, list) and len(pair) == 2
                 }
 
-            executive = str(by_code["EXECUTIVE_SYNTHESIS"].get("status"))
+            executive = status("EXECUTIVE_SYNTHESIS")
             calibration = metrics("CALIBRATION")
             scenario = metrics("SCENARIO_ENGINE")
             attention = metrics("ATTENTION_CONTEXT")
-            recommended = executive == "recommend"
+            recommended: bool | None = (
+                True
+                if executive == "recommend"
+                else False
+                if executive == "abstain"
+                else None
+            )
             cognitive_recommend_by_signal[signal] = recommended
             native_profile_by_signal[signal] = {
+                "telemetry_state": (
+                    "AVAILABLE"
+                    if not missing_components
+                    else "PARTIAL"
+                    if by_code
+                    else "UNAVAILABLE"
+                ),
+                "missing_components": missing_components,
                 "executive_synthesis": executive,
-                "reasoning_routing": str(
-                    by_code["REASONING_ROUTING"].get("status")
-                ),
-                "calibration": str(
-                    by_code["CALIBRATION"].get("status")
-                ),
+                "reasoning_routing": status("REASONING_ROUTING"),
+                "calibration": status("CALIBRATION"),
                 "confidence_band": int(
                     calibration.get("confidence_band", "0")
                 ),
                 "scenario_abstained_count": int(
                     scenario.get("abstained_count", "0")
                 ),
-                "metacognition": str(
-                    by_code["METACOGNITION"].get("status")
-                ),
+                "metacognition": status("METACOGNITION"),
                 "attention_ranked_signal_count": int(
                     attention.get("ranked_signal_count", "0")
                 ),
