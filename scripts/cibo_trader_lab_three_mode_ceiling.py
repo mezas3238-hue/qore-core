@@ -56,6 +56,15 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--medium-multiplier-cap",
+        type=int,
+        default=4,
+        help=(
+            "Explicit ordinary MEDIUM intensity ceiling. This does not "
+            "reject Trader entries; it limits only CIBO's added intensity."
+        ),
+    )
+    parser.add_argument(
         "--enforce-context-abstain",
         action="store_true",
         help=(
@@ -343,6 +352,7 @@ def main() -> int:
         ),
         distributed_attack_frontier=args.distributed_attack_frontier,
         attack_multiplier_cap=args.attack_multiplier_cap,
+        medium_multiplier_cap=args.medium_multiplier_cap,
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
