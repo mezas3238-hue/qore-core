@@ -552,6 +552,39 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--ceiling-attack-drawdown-window3-lower",
+        type=Decimal,
+        default=None,
+        help="Research-only lower realized-DD bound for a third ATTACK window.",
+    )
+    parser.add_argument(
+        "--ceiling-attack-drawdown-window3-upper",
+        type=Decimal,
+        default=None,
+        help="Research-only exclusive upper realized-DD bound for a third ATTACK window.",
+    )
+    parser.add_argument(
+        "--ceiling-attack-drawdown-window3-multiplier-lower",
+        type=int,
+        default=None,
+        help="Lower proposed ATTACK multiplier bound inside the third DD window.",
+    )
+    parser.add_argument(
+        "--ceiling-attack-drawdown-window3-multiplier-upper",
+        type=int,
+        default=None,
+        help="Upper proposed ATTACK multiplier bound inside the third DD window.",
+    )
+    parser.add_argument(
+        "--ceiling-attack-drawdown-window3-taper-fraction",
+        type=Decimal,
+        default=Decimal("0.50"),
+        help=(
+            "Fraction of proposed ATTACK intensity retained only while both "
+            "the third DD window and multiplier window are active."
+        ),
+    )
+    parser.add_argument(
         "--ceiling-attack-stress-confidence-drawdown-trigger",
         type=Decimal,
         default=None,
@@ -1118,6 +1151,21 @@ def main() -> int:
         ),
         ceiling_attack_drawdown_window2_taper_fraction=(
             args.ceiling_attack_drawdown_window2_taper_fraction
+        ),
+        ceiling_attack_drawdown_window3_lower=(
+            args.ceiling_attack_drawdown_window3_lower
+        ),
+        ceiling_attack_drawdown_window3_upper=(
+            args.ceiling_attack_drawdown_window3_upper
+        ),
+        ceiling_attack_drawdown_window3_multiplier_lower=(
+            args.ceiling_attack_drawdown_window3_multiplier_lower
+        ),
+        ceiling_attack_drawdown_window3_multiplier_upper=(
+            args.ceiling_attack_drawdown_window3_multiplier_upper
+        ),
+        ceiling_attack_drawdown_window3_taper_fraction=(
+            args.ceiling_attack_drawdown_window3_taper_fraction
         ),
         ceiling_attack_stress_confidence_drawdown_trigger=(
             args.ceiling_attack_stress_confidence_drawdown_trigger
