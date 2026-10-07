@@ -261,6 +261,16 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--lifecycle-bootstrap-override-feature",
+        action="append",
+        choices=[item.value for item in CiboLifecycleFeature],
+        default=[],
+        help=(
+            "Repeat to define a lifecycle feature set used only by the "
+            "state-gated bootstrap override map."
+        ),
+    )
+    parser.add_argument(
         "--lifecycle-bootstrap-override-defensive-initial-stop-r",
         type=Decimal,
         default=None,
@@ -875,17 +885,31 @@ def main() -> int:
         defensive_initial_stop_r=args.lifecycle_defensive_initial_stop_r,
     )
     lifecycle_bootstrap_override_by_signal = None
-    if args.lifecycle_bootstrap_override_defensive_initial_stop_r is not None:
+    override_features = (
+        frozenset(
+            CiboLifecycleFeature(value)
+            for value in args.lifecycle_bootstrap_override_feature
+        )
+        if args.lifecycle_bootstrap_override_feature
+        else lifecycle_features
+    )
+    if (
+        args.lifecycle_bootstrap_override_feature
+        or args.lifecycle_bootstrap_override_defensive_initial_stop_r is not None
+    ):
         lifecycle_bootstrap_override_by_signal = _build_lifecycle_map(
             manifest,
             lifecycle_roots,
-            features=lifecycle_features,
+            features=override_features,
             adverse_loss_cut_r=args.lifecycle_adverse_loss_cut_r,
             adverse_partial_fraction=args.lifecycle_adverse_partial_fraction,
             bootstrap_partial_fraction=args.lifecycle_bootstrap_partial_fraction,
             adverse_tightened_stop_r=args.lifecycle_adverse_tightened_stop_r,
             defensive_initial_stop_r=(
                 args.lifecycle_bootstrap_override_defensive_initial_stop_r
+                if args.lifecycle_bootstrap_override_defensive_initial_stop_r
+                is not None
+                else args.lifecycle_defensive_initial_stop_r
             ),
         )
     baseline = None
