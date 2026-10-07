@@ -1,6 +1,6 @@
 name: QORE CIBO -> GitHub Trader Lab Fast
 
-# Research suite revision: refined streak-risk stop frontier
+# Research suite revision: tight selective streak-stop frontier
 
 on:
   push:
