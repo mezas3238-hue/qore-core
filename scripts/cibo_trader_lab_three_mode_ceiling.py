@@ -207,6 +207,15 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--lifecycle-drawdown-activation-fraction",
+        type=Decimal,
+        default=Decimal(0),
+        help=(
+            "Causally activate lifecycle protection only when realized account "
+            "drawdown at entry is at or above this fraction."
+        ),
+    )
+    parser.add_argument(
         "--soft-medium-drawdown-allocator",
         action="store_true",
         help=(
@@ -569,6 +578,9 @@ def main() -> int:
         distributed_attack_frontier=args.distributed_attack_frontier,
         attack_multiplier_cap=args.attack_multiplier_cap,
         medium_multiplier_cap=args.medium_multiplier_cap,
+        lifecycle_drawdown_activation_fraction=(
+            args.lifecycle_drawdown_activation_fraction
+        ),
         four_engine_cooperation_frontier=(
             args.four_engine_cooperation_frontier
         ),

@@ -133,8 +133,8 @@ jobs:
         run: |
           set -euo pipefail
           : > "$RUNNER_TEMP/result/cibo-four-engine-loss-cut-failures.tsv"
-          for SPEC in "045c2t180f025:-0.45:2:180:0.25" "040c2t180f025:-0.40:2:180:0.25" "035c2t180f025:-0.35:2:180:0.25" "030c2t180f025:-0.30:2:180:0.25"; do
-            IFS=':' read -r LABEL THRESHOLD CONFIRMATIONS MAX_MINUTES MAX_FAVORABLE <<< "$SPEC"
+          for SPEC in "040c2t180f025dd005:-0.40:2:180:0.25:0.05" "040c2t180f025dd010:-0.40:2:180:0.25:0.10" "040c2t180f025dd015:-0.40:2:180:0.25:0.15" "040c2t180f025dd020:-0.40:2:180:0.25:0.20"; do
+            IFS=':' read -r LABEL THRESHOLD CONFIRMATIONS MAX_MINUTES MAX_FAVORABLE DD_ACTIVATION <<< "$SPEC"
             if python scripts/cibo_trader_lab_three_mode_ceiling.py \
               --manifest "$MANIFEST" \
               --baseline-replay "$BASELINE" \
@@ -153,14 +153,15 @@ jobs:
               --lifecycle-adverse-loss-cut-confirmation-bars "$CONFIRMATIONS" \
               --lifecycle-adverse-loss-cut-max-elapsed-minutes "$MAX_MINUTES" \
               --lifecycle-adverse-loss-cut-max-favorable-r "$MAX_FAVORABLE" \
+              --lifecycle-drawdown-activation-fraction "$DD_ACTIVATION" \
               --output "$RUNNER_TEMP/result/cibo-four-engine-loss-cut-${LABEL}.json" \
               > "$RUNNER_TEMP/result/cibo-four-engine-loss-cut-${LABEL}.log" 2>&1; then
               cat "$RUNNER_TEMP/result/cibo-four-engine-loss-cut-${LABEL}.log"
             else
               STATUS=$?
               cat "$RUNNER_TEMP/result/cibo-four-engine-loss-cut-${LABEL}.log"
-              printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
-                "$LABEL" "$THRESHOLD" "$CONFIRMATIONS" "$MAX_MINUTES" "$MAX_FAVORABLE" "$STATUS" >> \
+              printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+                "$LABEL" "$THRESHOLD" "$CONFIRMATIONS" "$MAX_MINUTES" "$MAX_FAVORABLE" "$DD_ACTIVATION" "$STATUS" >> \
                 "$RUNNER_TEMP/result/cibo-four-engine-loss-cut-failures.tsv"
             fi
           done
@@ -214,11 +215,11 @@ jobs:
           ] == 0
 
           frontier = []
-          for filename, threshold, confirmations, max_minutes, max_favorable in (
-              ("cibo-four-engine-loss-cut-045c2t180f025.json", "-0.45", 2, 180, "0.25"),
-              ("cibo-four-engine-loss-cut-040c2t180f025.json", "-0.40", 2, 180, "0.25"),
-              ("cibo-four-engine-loss-cut-035c2t180f025.json", "-0.35", 2, 180, "0.25"),
-              ("cibo-four-engine-loss-cut-030c2t180f025.json", "-0.30", 2, 180, "0.25"),
+          for filename, threshold, confirmations, max_minutes, max_favorable, dd_activation in (
+              ("cibo-four-engine-loss-cut-040c2t180f025dd005.json", "-0.40", 2, 180, "0.25", "0.05"),
+              ("cibo-four-engine-loss-cut-040c2t180f025dd010.json", "-0.40", 2, 180, "0.25", "0.10"),
+              ("cibo-four-engine-loss-cut-040c2t180f025dd015.json", "-0.40", 2, 180, "0.25", "0.15"),
+              ("cibo-four-engine-loss-cut-040c2t180f025dd020.json", "-0.40", 2, 180, "0.25", "0.20"),
           ):
               candidate_path = (
                   Path(os.environ["RUNNER_TEMP"]) / "result" / filename
@@ -229,6 +230,7 @@ jobs:
                       "confirmation_bars": confirmations,
                       "max_elapsed_minutes": max_minutes,
                       "max_favorable_r": max_favorable,
+                      "drawdown_activation_fraction": dd_activation,
                       "status": "RUN_FAILED",
                   })
                   continue
@@ -249,6 +251,9 @@ jobs:
               assert guarded["position_lifecycle_report"][
                   "adverse_loss_cut_max_favorable_r"
               ] == max_favorable
+              assert guarded["position_lifecycle_report"][
+                  "drawdown_activation_fraction"
+              ] == dd_activation
               assert guarded["position_lifecycle_report"]["outcome_used_for_trigger"] is False
               guarded_funnel = guarded["engineering_sensor_report"]["execution_funnel"]
               assert guarded_funnel["final_trade_count"] == 3368
@@ -260,6 +265,13 @@ jobs:
                   "confirmation_bars": confirmations,
                   "max_elapsed_minutes": max_minutes,
                   "max_favorable_r": max_favorable,
+                  "drawdown_activation_fraction": dd_activation,
+                  "activated_entry_count": guarded["position_lifecycle_report"][
+                      "activated_entry_count"
+                  ],
+                  "activated_changed_outcome_count": guarded[
+                      "position_lifecycle_report"
+                  ]["activated_changed_outcome_count"],
                   "status": "SUCCESS",
                   "ending_total_capital_usd": guarded["ending_total_capital_usd"],
                   "max_drawdown_fraction": guarded["max_drawdown_fraction"],

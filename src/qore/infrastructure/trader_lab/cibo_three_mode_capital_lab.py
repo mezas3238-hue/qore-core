@@ -853,6 +853,7 @@ def run_three_mode_trader_lab(
     distributed_attack_frontier: bool = False,
     attack_multiplier_cap: int = DEFAULT_DISTRIBUTED_ATTACK_MULTIPLIER_CAP,
     medium_multiplier_cap: int = 4,
+    lifecycle_drawdown_activation_fraction: Decimal = Decimal(0),
     four_engine_cooperation_frontier: bool = False,
 ) -> dict[str, object]:
     """Run the isolated chronological three-mode ceiling experiment."""
@@ -904,6 +905,15 @@ def run_three_mode_trader_lab(
         raise CiboCapitalManagementError(
             "Trader Lab MEDIUM pretrade drawdown ceiling must be Decimal "
             "between 0.25 and 0.50"
+        )
+    if (
+        not isinstance(lifecycle_drawdown_activation_fraction, Decimal)
+        or not lifecycle_drawdown_activation_fraction.is_finite()
+        or lifecycle_drawdown_activation_fraction < Decimal(0)
+        or lifecycle_drawdown_activation_fraction > Decimal("0.50")
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab lifecycle drawdown activation must be Decimal in [0, 0.50]"
         )
     source_sha = validate_single_account_manifest_sha256(manifest)
     if manifest.get("initial_capital_usd") != "60":
@@ -1325,6 +1335,9 @@ def run_three_mode_trader_lab(
     robust_sizing_reject_count = 0
     robust_leverage_cap_bind_count = 0
     attack_epochs_funded = 0
+    lifecycle_activated_entry_count = 0
+    lifecycle_activated_changed_outcome_count = 0
+    lifecycle_activated_action_counts: Counter[str] = Counter()
     four_engine_joint_decision_count = 0
     four_engine_sizing_above_one_count = 0
     four_engine_compound_growth_enabled_count = 0
@@ -1855,6 +1868,20 @@ def run_three_mode_trader_lab(
                 "Trader Lab three-mode account exhausted"
             )
 
+        pre_epoch_total_drawdown_usd = max(
+            Decimal(0),
+            state.peak_total_capital_usd - state.total_capital_usd,
+        )
+        pre_epoch_drawdown_fraction = _ratio(
+            pre_epoch_total_drawdown_usd,
+            state.peak_total_capital_usd,
+        )
+        lifecycle_epoch_active = (
+            bool(lifecycle_map)
+            and pre_epoch_drawdown_fraction
+            >= lifecycle_drawdown_activation_fraction
+        )
+
         regimes = tuple(_regime_from_row(row) for row in epoch_rows)
         regime = regimes[0]
         if any(item != regime for item in regimes[1:]):
@@ -1884,7 +1911,7 @@ def run_three_mode_trader_lab(
                     "lifecycle managed_exit_at",
                 ),
             )
-            if lifecycle_map
+            if lifecycle_epoch_active
             else candidate
             for candidate in base_candidates
         )
@@ -3111,10 +3138,21 @@ def run_three_mode_trader_lab(
                             "events"
                         ]
                     )
-                    if lifecycle_map
+                    if lifecycle_epoch_active
                     else ()
                 ),
             )
+            if lifecycle_epoch_active:
+                lifecycle_activated_entry_count += 1
+                lifecycle_profile = lifecycle_map[
+                    candidate.signal_fingerprint
+                ]
+                lifecycle_activated_changed_outcome_count += int(
+                    Decimal(str(lifecycle_profile["managed_gross_r"]))
+                    != Decimal(str(lifecycle_profile["original_gross_r"]))
+                )
+                for lifecycle_action in lifecycle_profile["actions"]:
+                    lifecycle_activated_action_counts[str(lifecycle_action)] += 1
             pending.append(trade)
             trade_receipts.append(
                 {
@@ -3280,6 +3318,19 @@ def run_three_mode_trader_lab(
         raise CiboCapitalManagementError(
             "Trader Lab three-mode ended with unsettled trades"
         )
+
+    position_lifecycle_report[
+        "drawdown_activation_fraction"
+    ] = format(lifecycle_drawdown_activation_fraction, "f")
+    position_lifecycle_report[
+        "activated_entry_count"
+    ] = lifecycle_activated_entry_count
+    position_lifecycle_report[
+        "activated_changed_outcome_count"
+    ] = lifecycle_activated_changed_outcome_count
+    position_lifecycle_report[
+        "activated_action_counts"
+    ] = dict(sorted(lifecycle_activated_action_counts.items()))
 
     trade_count = sum(trade_mode_counts.values())
     average_leverage = (
