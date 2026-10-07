@@ -4,11 +4,12 @@ This module is deliberately isolated under Trader Lab. It does not mutate the
 sovereign runtime, QORE Risk, broker state, LIVE state or certifying evidence.
 
 Owner-defined economics:
-- BANK protects sovereign capital while seeding one minimum executable Sizing
-  probe when the defensive cause is sovereign drawdown alone.
-- BANK seeds and MEDIUM use ordinary 1x executable sizing. Positive net profit
-  from the Sizing + CIBO Compound loop is partitioned 50% to sovereign capital
-  and 50% to the Compound Portfolio cushion.
+- BANK is treasury only: it leaves a sovereign-backed working-capital seed
+  envelope for MEDIUM and never owns a trade.
+- MEDIUM is the joint Sizing + CIBO Compound engine. Sizing deploys only from
+  the BANK seed envelope; CIBO Compound settles that MEDIUM production. The
+  BANK seed is recycled and realized positive net profit is partitioned 50%
+  to sovereign capital and 50% to the Compound Portfolio cushion.
 - ATTACK is available only in healthy causal conditions and only when the
   Compound Portfolio cushion can fully fund at least 2x executable stop-risk
   plus provider cost. High leverage is paid exclusively from that cushion.
@@ -51,7 +52,6 @@ from qore.infrastructure.cibo_single_account_manifest_settlement import (
 INITIAL_CAPITAL_USD = Decimal("60")
 MEDIUM_SOVEREIGN_SHARE = Decimal("0.50")
 MEDIUM_CUSHION_SHARE = Decimal("0.50")
-COMPOUND_PORTFOLIO_ATTACK_RELEASE_SHARE = MEDIUM_CUSHION_SHARE
 ATTACK_MINIMUM_MULTIPLIER = 2
 MARGIN_CAPACITY_MULTIPLE = Decimal("100")
 SOVEREIGN_DEFENSIVE_DRAWDOWN = Decimal("0.50")
@@ -133,7 +133,12 @@ class _State:
     sovereign_bank_usd: Decimal = INITIAL_CAPITAL_USD
     portfolio_cushion_usd: Decimal = Decimal(0)
     sovereign_reserved_usd: Decimal = Decimal(0)
+    medium_seed_authorized_usd: Decimal = Decimal(0)
+    medium_seed_reserved_usd: Decimal = Decimal(0)
+    bank_seed_authorization_count: int = 0
+    bank_seed_authorized_total_usd: Decimal = Decimal(0)
     cushion_reserved_usd: Decimal = Decimal(0)
+    portfolio_attack_credit_usd: Decimal = Decimal(0)
     open_stop_risk_usd: Decimal = Decimal(0)
     open_margin_usd: Decimal = Decimal(0)
     peak_total_capital_usd: Decimal = INITIAL_CAPITAL_USD
@@ -146,11 +151,9 @@ class _State:
     attack_sovereign_breach_usd: Decimal = Decimal(0)
     medium_profit_to_sovereign_usd: Decimal = Decimal(0)
     medium_profit_to_cushion_usd: Decimal = Decimal(0)
-    bank_seed_profit_to_sovereign_usd: Decimal = Decimal(0)
-    bank_seed_profit_to_cushion_usd: Decimal = Decimal(0)
-    bank_seed_net_pnl_usd: Decimal = Decimal(0)
-    sizing_compound_loss_to_sovereign_usd: Decimal = Decimal(0)
-    sizing_compound_loss_to_cushion_usd: Decimal = Decimal(0)
+    medium_compound_positive_net_usd: Decimal = Decimal(0)
+    medium_compound_negative_net_usd: Decimal = Decimal(0)
+    medium_compound_turnover_usd: Decimal = Decimal(0)
     attack_net_pnl_usd: Decimal = Decimal(0)
 
     @property
@@ -169,6 +172,27 @@ class _State:
         return max(
             Decimal(0),
             self.portfolio_cushion_usd - self.cushion_reserved_usd,
+        )
+
+    @property
+    def medium_seed_available_usd(self) -> Decimal:
+        return max(
+            Decimal(0),
+            min(
+                self.medium_seed_authorized_usd
+                - self.medium_seed_reserved_usd,
+                self.sovereign_available_usd,
+            ),
+        )
+
+    @property
+    def attack_credit_available_usd(self) -> Decimal:
+        return max(
+            Decimal(0),
+            min(
+                self.portfolio_attack_credit_usd,
+                self.cushion_available_usd,
+            ),
         )
 
     @property
@@ -609,25 +633,28 @@ def apply_three_mode_settlement(
     state.open_margin_usd -= trade.margin_usd
     if trade.mode is CiboTraderLabMode.MEDIUM:
         state.sovereign_reserved_usd -= trade.source_reserved_usd
+        state.medium_seed_reserved_usd -= trade.source_reserved_usd
+        state.medium_compound_turnover_usd += trade.source_reserved_usd
         if net_pnl > 0:
             sovereign_gain = net_pnl * MEDIUM_SOVEREIGN_SHARE
             cushion_gain = net_pnl - sovereign_gain
             state.sovereign_bank_usd += sovereign_gain
             state.portfolio_cushion_usd += cushion_gain
+            # Only MEDIUM production creates new ATTACK release credit.
+            state.portfolio_attack_credit_usd += cushion_gain
             state.medium_profit_to_sovereign_usd += sovereign_gain
             state.medium_profit_to_cushion_usd += cushion_gain
+            state.medium_compound_positive_net_usd += net_pnl
         else:
-            loss = -net_pnl
-            target_cushion_loss = loss * MEDIUM_CUSHION_SHARE
-            cushion_loss = min(
-                state.portfolio_cushion_usd,
-                target_cushion_loss,
+            # The BANK seed is the MEDIUM working capital. A MEDIUM loss
+            # consumes that seed and sovereign capital; Portfolio is not used
+            # to subsidize the loss.
+            state.sovereign_bank_usd += net_pnl
+            state.medium_seed_authorized_usd = max(
+                Decimal(0),
+                state.medium_seed_authorized_usd + net_pnl,
             )
-            sovereign_loss = loss - cushion_loss
-            state.portfolio_cushion_usd -= cushion_loss
-            state.sovereign_bank_usd -= sovereign_loss
-            state.sizing_compound_loss_to_cushion_usd += cushion_loss
-            state.sizing_compound_loss_to_sovereign_usd += sovereign_loss
+            state.medium_compound_negative_net_usd += -net_pnl
     elif trade.mode is CiboTraderLabMode.ATTACK:
         state.cushion_reserved_usd -= trade.source_reserved_usd
         state.portfolio_cushion_usd += net_pnl
@@ -637,31 +664,14 @@ def apply_three_mode_settlement(
             state.attack_sovereign_breach_usd += breach
             state.portfolio_cushion_usd = Decimal(0)
             state.sovereign_bank_usd -= breach
+        state.portfolio_attack_credit_usd = min(
+            state.portfolio_attack_credit_usd,
+            state.cushion_available_usd,
+        )
     elif trade.mode is CiboTraderLabMode.BANK:
-        # BANK plants one minimum Sizing seed from sovereign capital. CIBO
-        # Compound then splits positive seed production 50/50 so recovery
-        # rebuilds both sovereign capital and the Portfolio cushion.
-        state.sovereign_reserved_usd -= trade.source_reserved_usd
-        state.bank_seed_net_pnl_usd += net_pnl
-        if net_pnl > 0:
-            sovereign_gain = net_pnl * MEDIUM_SOVEREIGN_SHARE
-            cushion_gain = net_pnl - sovereign_gain
-            state.sovereign_bank_usd += sovereign_gain
-            state.portfolio_cushion_usd += cushion_gain
-            state.bank_seed_profit_to_sovereign_usd += sovereign_gain
-            state.bank_seed_profit_to_cushion_usd += cushion_gain
-        else:
-            loss = -net_pnl
-            target_cushion_loss = loss * MEDIUM_CUSHION_SHARE
-            cushion_loss = min(
-                state.portfolio_cushion_usd,
-                target_cushion_loss,
-            )
-            sovereign_loss = loss - cushion_loss
-            state.portfolio_cushion_usd -= cushion_loss
-            state.sovereign_bank_usd -= sovereign_loss
-            state.sizing_compound_loss_to_cushion_usd += cushion_loss
-            state.sizing_compound_loss_to_sovereign_usd += sovereign_loss
+        raise CiboCapitalManagementError(
+            "BANK cannot own trades; BANK only seeds MEDIUM"
+        )
     else:
         raise CiboCapitalManagementError(
             "unknown Trader Lab operating mode"
@@ -875,8 +885,13 @@ def run_three_mode_trader_lab(
             before_sovereign = state.sovereign_bank_usd
             before_cushion = state.portfolio_cushion_usd
             before_total = state.total_capital_usd
+            settlement_function = (
+                "CIBO_COMPOUND"
+                if trade.mode is CiboTraderLabMode.MEDIUM
+                else "COMPOUND_PORTFOLIO"
+            )
             record_engineering_sensor(
-                "CIBO_COMPOUND",
+                settlement_function,
                 epoch_index=None,
                 signal_fingerprint=trade.signal_fingerprint,
                 event="SETTLEMENT_INPUT",
@@ -907,7 +922,7 @@ def run_three_mode_trader_lab(
             created = max(Decimal(0), net)
             destroyed = max(Decimal(0), -net)
             record_engineering_sensor(
-                "CIBO_COMPOUND",
+                settlement_function,
                 epoch_index=None,
                 signal_fingerprint=trade.signal_fingerprint,
                 event="SETTLEMENT_OUTPUT",
@@ -960,7 +975,8 @@ def run_three_mode_trader_lab(
             )
             trader_net[trade.trader_id] += net
             trader_trades[trade.trader_id] += 1
-            compound_settlements += 1
+            if trade.mode is CiboTraderLabMode.MEDIUM:
+                compound_settlements += 1
 
     for epoch_index, epoch_rows in enumerate(epochs, start=1):
         decision_at = _dt(
@@ -1068,7 +1084,7 @@ def run_three_mode_trader_lab(
             risk_utilization=risk_utilization,
             margin_utilization=margin_utilization,
             drawdown_utilization=drawdown_utilization,
-            cushion_available_usd=state.cushion_available_usd,
+            cushion_available_usd=state.attack_credit_available_usd,
             best_candidate=best,
         )
         mode_counts[mode.value] += 1
@@ -1109,6 +1125,9 @@ def run_three_mode_trader_lab(
                 "portfolio_cushion_available_usd": format(
                     state.cushion_available_usd, "f"
                 ),
+                "portfolio_attack_credit_available_usd": format(
+                    state.attack_credit_available_usd, "f"
+                ),
                 "risk_utilization": format(risk_utilization, "f"),
                 "margin_utilization": format(margin_utilization, "f"),
                 "drawdown_utilization": format(
@@ -1116,9 +1135,6 @@ def run_three_mode_trader_lab(
                 ),
                 "minimum_attack_cushion_usd": format(
                     minimum_attack_cushion, "f"
-                ),
-                "portfolio_attack_release_share": format(
-                    COMPOUND_PORTFOLIO_ATTACK_RELEASE_SHARE, "f"
                 ),
             },
             action=f"SELECT_{mode.value}",
@@ -1152,21 +1168,6 @@ def run_three_mode_trader_lab(
             attack_epochs_funded += 1
 
         selected: list[tuple[CiboThreeModeCandidate, int]] = []
-        portfolio_attack_release_budget = Decimal(0)
-        if mode is CiboTraderLabMode.ATTACK and best is not None:
-            minimum_attack_release = (
-                best.source_cost_per_multiplier_usd
-                * Decimal(ATTACK_MINIMUM_MULTIPLIER)
-            )
-            portfolio_attack_release_budget = min(
-                state.cushion_available_usd,
-                max(
-                    minimum_attack_release,
-                    state.cushion_available_usd
-                    * COMPOUND_PORTFOLIO_ATTACK_RELEASE_SHARE,
-                ),
-            )
-        portfolio_attack_release_left = portfolio_attack_release_budget
         risk_left = max(Decimal(0), risk_capacity - state.open_stop_risk_usd)
         margin_left = max(
             Decimal(0),
@@ -1175,64 +1176,106 @@ def run_three_mode_trader_lab(
         sovereign_left = state.sovereign_available_usd
         cushion_left = state.cushion_available_usd
 
-        bank_seed_allowed = (
-            mode is CiboTraderLabMode.BANK
-            and set(mode_reasons) == {"SOVEREIGN_DRAWDOWN_GE_50PCT"}
-            and best is not None
-        )
-        if mode is not CiboTraderLabMode.BANK or bank_seed_allowed:
-            candidate_surface = (
-                eligible[:1]
-                if bank_seed_allowed
-                else eligible
+        # BANK is treasury, not execution. Before MEDIUM works, BANK leaves a
+        # working-capital seed sized to current 1x MEDIUM demand. The seed is
+        # an earmarked subset of sovereign capital, so it never inflates total
+        # account capital.
+        if mode is CiboTraderLabMode.MEDIUM and eligible:
+            medium_seed_demand = sum(
+                (
+                    item.source_cost_per_multiplier_usd
+                    for item in eligible
+                ),
+                Decimal(0),
             )
+            bank_seed_target = min(
+                state.sovereign_available_usd
+                + state.medium_seed_reserved_usd,
+                medium_seed_demand,
+            )
+            bank_seed_topup = max(
+                Decimal(0),
+                bank_seed_target - state.medium_seed_authorized_usd,
+            )
+            if bank_seed_topup > 0:
+                state.medium_seed_authorized_usd += bank_seed_topup
+                state.bank_seed_authorization_count += 1
+                state.bank_seed_authorized_total_usd += bank_seed_topup
+            record_engineering_sensor(
+                "SIZING",
+                epoch_index=epoch_index,
+                signal_fingerprint=None,
+                event="BANK_SEED_SUPPLY",
+                inputs={
+                    "medium_seed_demand_usd": format(
+                        medium_seed_demand, "f"
+                    ),
+                    "sovereign_available_usd": format(
+                        state.sovereign_available_usd, "f"
+                    ),
+                },
+                action="BANK_LEAVES_MEDIUM_SEED",
+                outputs={
+                    "medium_seed_authorized_usd": format(
+                        state.medium_seed_authorized_usd, "f"
+                    ),
+                    "medium_seed_topup_usd": format(
+                        bank_seed_topup, "f"
+                    ),
+                },
+                reaction="SIZING_RECEIVES_BANK_SEED",
+                approved_capital_usd=bank_seed_topup,
+            )
+
+        portfolio_attack_release_left = (
+            state.attack_credit_available_usd
+            if mode is CiboTraderLabMode.ATTACK
+            else Decimal(0)
+        )
+        medium_seed_left = (
+            state.medium_seed_available_usd
+            if mode is CiboTraderLabMode.MEDIUM
+            else Decimal(0)
+        )
+
+        if mode is not CiboTraderLabMode.BANK:
+            candidate_surface = eligible
             for candidate in candidate_surface:
-                sizing_calls += 1
-                record_engineering_sensor(
-                    "SIZING",
-                    epoch_index=epoch_index,
-                    signal_fingerprint=candidate.signal_fingerprint,
-                    event="SIZING_INPUT",
-                    inputs={
-                        "mode": mode.value,
-                        "one_x_source_cost_usd": format(
-                            candidate.source_cost_per_multiplier_usd, "f"
-                        ),
-                        "one_x_stop_risk_usd": format(
-                            candidate.stop_risk_per_multiplier_usd, "f"
-                        ),
-                        "one_x_margin_usd": format(
-                            candidate.margin_per_multiplier_usd, "f"
-                        ),
-                        "expected_net_utility_usd": format(
-                            candidate.expected_net_utility_usd, "f"
-                        ),
-                        "sovereign_available_usd": format(
-                            state.sovereign_available_usd, "f"
-                        ),
-                        "cushion_available_usd": format(
-                            state.cushion_available_usd, "f"
-                        ),
-                        "risk_left_usd": format(risk_left, "f"),
-                        "margin_left_usd": format(margin_left, "f"),
-                    },
-                    action="EVALUATE_BASE_EXPOSURE",
-                    outputs={},
-                    reaction="AWAIT_SIZING_DECISION",
-                    call=True,
-                )
                 if mode is CiboTraderLabMode.MEDIUM:
-                    # Cognition/economic intake has already admitted the edge.
-                    # Sizing owns executable quantity, not a second edge veto.
+                    sizing_calls += 1
+                    record_engineering_sensor(
+                        "SIZING",
+                        epoch_index=epoch_index,
+                        signal_fingerprint=candidate.signal_fingerprint,
+                        event="SIZING_INPUT",
+                        inputs={
+                            "mode": mode.value,
+                            "one_x_source_cost_usd": format(
+                                candidate.source_cost_per_multiplier_usd, "f"
+                            ),
+                            "one_x_stop_risk_usd": format(
+                                candidate.stop_risk_per_multiplier_usd, "f"
+                            ),
+                            "one_x_margin_usd": format(
+                                candidate.margin_per_multiplier_usd, "f"
+                            ),
+                            "expected_net_utility_usd": format(
+                                candidate.expected_net_utility_usd, "f"
+                            ),
+                            "bank_seed_available_usd": format(
+                                medium_seed_left, "f"
+                            ),
+                            "risk_left_usd": format(risk_left, "f"),
+                            "margin_left_usd": format(margin_left, "f"),
+                        },
+                        action="SIZE_FROM_BANK_SEED",
+                        outputs={},
+                        reaction="AWAIT_SIZING_DECISION",
+                        call=True,
+                    )
                     economic_cap = 1
                     multiplier = 1
-                    source_left = sovereign_left
-                elif mode is CiboTraderLabMode.BANK:
-                    # BANK supplies exactly one minimum sovereign-funded seed to
-                    # Sizing. Sizing only checks hard physical capacity below.
-                    economic_cap = 1
-                    multiplier = 1
-                    source_left = sovereign_left
+                    source_left = medium_seed_left
                 else:
                     adaptive_leverage_calls += 1
                     source_left = min(
@@ -1401,40 +1444,41 @@ def run_three_mode_trader_lab(
                     )
                     continue
                 selected.append((candidate, multiplier))
-                record_engineering_sensor(
-                    "SIZING",
-                    epoch_index=epoch_index,
-                    signal_fingerprint=candidate.signal_fingerprint,
-                    event="SIZING_OUTPUT",
-                    inputs={
-                        "mode": mode.value,
-                        "economic_cap": economic_cap,
-                    },
-                    action="APPROVE_BASE_EXPOSURE",
-                    outputs={
-                        "selected_multiplier": multiplier,
-                        "stop_risk_usd": format(stop_risk, "f"),
-                        "margin_usd": format(margin, "f"),
-                        "source_reserved_usd": format(
-                            source_reserved, "f"
+                if mode is CiboTraderLabMode.MEDIUM:
+                    record_engineering_sensor(
+                        "SIZING",
+                        epoch_index=epoch_index,
+                        signal_fingerprint=candidate.signal_fingerprint,
+                        event="SIZING_OUTPUT",
+                        inputs={
+                            "mode": mode.value,
+                            "bank_seed_authorized_usd": format(
+                                state.medium_seed_authorized_usd, "f"
+                            ),
+                        },
+                        action="APPROVE_MEDIUM_FROM_BANK_SEED",
+                        outputs={
+                            "selected_multiplier": multiplier,
+                            "stop_risk_usd": format(stop_risk, "f"),
+                            "margin_usd": format(margin, "f"),
+                            "source_reserved_usd": format(
+                                source_reserved, "f"
+                            ),
+                        },
+                        reaction="PASS_TO_CIBO_COMPOUND",
+                        approval=True,
+                        requested_capital_usd=(
+                            candidate.source_cost_per_multiplier_usd
                         ),
-                    },
-                    reaction="PASS_TO_CAPITAL_RESERVATION",
-                    approval=True,
-                    requested_capital_usd=(
-                        candidate.source_cost_per_multiplier_usd
-                    ),
-                    approved_capital_usd=(
-                        candidate.source_cost_per_multiplier_usd
-                    ),
-                )
+                        approved_capital_usd=(
+                            candidate.source_cost_per_multiplier_usd
+                        ),
+                    )
                 risk_left -= stop_risk
                 margin_left -= margin
-                if mode in {
-                    CiboTraderLabMode.MEDIUM,
-                    CiboTraderLabMode.BANK,
-                }:
+                if mode is CiboTraderLabMode.MEDIUM:
                     sovereign_left -= source_reserved
+                    medium_seed_left -= source_reserved
                 else:
                     cushion_left -= source_reserved
                     portfolio_attack_release_left -= source_reserved
@@ -1510,11 +1554,8 @@ def run_three_mode_trader_lab(
                             candidate,
                             multiplier=multiplier,
                             capital_base_usd=(
-                                state.sovereign_available_usd
-                                if mode in {
-                                    CiboTraderLabMode.MEDIUM,
-                                    CiboTraderLabMode.BANK,
-                                }
+                                state.medium_seed_available_usd
+                                if mode is CiboTraderLabMode.MEDIUM
                                 else state.cushion_available_usd
                             ),
                             expected_net_utility_usd=(
@@ -1537,13 +1578,15 @@ def run_three_mode_trader_lab(
             )
             state.open_stop_risk_usd += stop_risk
             state.open_margin_usd += margin
-            if mode in {
-                CiboTraderLabMode.MEDIUM,
-                CiboTraderLabMode.BANK,
-            }:
+            if mode is CiboTraderLabMode.MEDIUM:
                 state.sovereign_reserved_usd += source_reserved
+                state.medium_seed_reserved_usd += source_reserved
             else:
                 state.cushion_reserved_usd += source_reserved
+                state.portfolio_attack_credit_usd = max(
+                    Decimal(0),
+                    state.portfolio_attack_credit_usd - source_reserved,
+                )
             trade_mode_counts[mode.value] += 1
             leverage_sum += multiplier
             leverage_max = max(leverage_max, multiplier)
@@ -1572,9 +1615,18 @@ def run_three_mode_trader_lab(
                     state.sovereign_risk_budget_available_usd,
                     "f",
                 ),
+                "medium_seed_authorized_usd": format(
+                    state.medium_seed_authorized_usd, "f"
+                ),
+                "medium_seed_available_usd": format(
+                    state.medium_seed_available_usd, "f"
+                ),
                 "portfolio_cushion_usd": format(
                     state.portfolio_cushion_usd,
                     "f",
+                ),
+                "portfolio_attack_credit_usd": format(
+                    state.portfolio_attack_credit_usd, "f"
                 ),
                 "open_stop_risk_usd": format(
                     state.open_stop_risk_usd,
@@ -1684,9 +1736,18 @@ def run_three_mode_trader_lab(
     sizing_call_count = int(sensor_stats["SIZING"]["call_count"])
     sizing_rejection_count = int(sensor_stats["SIZING"]["rejection_count"])
     sizing_approval_count = int(sensor_stats["SIZING"]["approval_count"])
-    portfolio_withheld_before_sizing = max(
+    leverage_call_count = int(
+        sensor_stats["ADAPTIVE_LEVERAGE"]["call_count"]
+    )
+    leverage_rejection_count = int(
+        sensor_stats["ADAPTIVE_LEVERAGE"]["rejection_count"]
+    )
+    leverage_approval_count = int(
+        sensor_stats["ADAPTIVE_LEVERAGE"]["approval_count"]
+    )
+    portfolio_withheld_before_execution = max(
         0,
-        economic_admitted_count - sizing_call_count,
+        economic_admitted_count - sizing_call_count - leverage_call_count,
     )
     execution_funnel = {
         "opportunity_decision_count": len(rows),
@@ -1694,24 +1755,25 @@ def run_three_mode_trader_lab(
             upstream_intake_filtered_count
         ),
         "economic_surface_admitted_count": economic_admitted_count,
-        "compound_portfolio_withheld_before_sizing_count": (
-            portfolio_withheld_before_sizing
+        "compound_portfolio_withheld_before_execution_engine_count": (
+            portfolio_withheld_before_execution
         ),
-        "sizing_evaluated_count": sizing_call_count,
-        "sizing_rejected_count": sizing_rejection_count,
-        "sizing_approved_count": sizing_approval_count,
-        "adaptive_leverage_evaluated_count": int(
-            sensor_stats["ADAPTIVE_LEVERAGE"]["call_count"]
+        "sizing_medium_evaluated_count": sizing_call_count,
+        "sizing_medium_rejected_count": sizing_rejection_count,
+        "sizing_medium_approved_count": sizing_approval_count,
+        "adaptive_leverage_attack_evaluated_count": leverage_call_count,
+        "adaptive_leverage_attack_rejected_count": (
+            leverage_rejection_count
         ),
-        "adaptive_leverage_rejected_count": int(
-            sensor_stats["ADAPTIVE_LEVERAGE"]["rejection_count"]
-        ),
+        "adaptive_leverage_attack_approved_count": leverage_approval_count,
         "final_trade_count": trade_count,
         "causal_conservation_check": (
             upstream_intake_filtered_count
-            + portfolio_withheld_before_sizing
+            + portfolio_withheld_before_execution
             + sizing_rejection_count
             + sizing_approval_count
+            + leverage_rejection_count
+            + leverage_approval_count
             == len(rows)
         ),
     }
@@ -1806,25 +1868,26 @@ def run_three_mode_trader_lab(
             state.medium_profit_to_cushion_usd,
             "f",
         ),
-        "bank_seed_profit_to_sovereign_usd": format(
-            state.bank_seed_profit_to_sovereign_usd,
-            "f",
+        "bank_seed_authorization_count": (
+            state.bank_seed_authorization_count
         ),
-        "bank_seed_profit_to_portfolio_cushion_usd": format(
-            state.bank_seed_profit_to_cushion_usd,
-            "f",
+        "bank_seed_authorized_total_usd": format(
+            state.bank_seed_authorized_total_usd, "f"
         ),
-        "bank_seed_net_pnl_usd": format(
-            state.bank_seed_net_pnl_usd,
-            "f",
+        "medium_seed_authorized_usd": format(
+            state.medium_seed_authorized_usd, "f"
         ),
-        "sizing_compound_loss_to_sovereign_usd": format(
-            state.sizing_compound_loss_to_sovereign_usd,
-            "f",
+        "medium_compound_positive_net_usd": format(
+            state.medium_compound_positive_net_usd, "f"
         ),
-        "sizing_compound_loss_to_portfolio_cushion_usd": format(
-            state.sizing_compound_loss_to_cushion_usd,
-            "f",
+        "medium_compound_negative_net_usd": format(
+            state.medium_compound_negative_net_usd, "f"
+        ),
+        "medium_compound_turnover_usd": format(
+            state.medium_compound_turnover_usd, "f"
+        ),
+        "portfolio_attack_credit_usd": format(
+            state.portfolio_attack_credit_usd, "f"
         ),
         "attack_net_pnl_usd": format(
             state.attack_net_pnl_usd,
@@ -1849,7 +1912,16 @@ def run_three_mode_trader_lab(
                 "final_binding_trade_count": trade_count,
             },
             "CIBO_COMPOUND": {
-                "settlement_count": compound_settlements,
+                "medium_settlement_count": compound_settlements,
+                "medium_positive_net_usd": format(
+                    state.medium_compound_positive_net_usd, "f"
+                ),
+                "medium_negative_net_usd": format(
+                    state.medium_compound_negative_net_usd, "f"
+                ),
+                "medium_turnover_usd": format(
+                    state.medium_compound_turnover_usd, "f"
+                ),
                 "medium_profit_to_sovereign_usd": format(
                     state.medium_profit_to_sovereign_usd,
                     "f",
@@ -1866,6 +1938,10 @@ def run_three_mode_trader_lab(
                 ),
                 "ending_cushion_usd": format(
                     state.portfolio_cushion_usd,
+                    "f",
+                ),
+                "ending_attack_credit_usd": format(
+                    state.portfolio_attack_credit_usd,
                     "f",
                 ),
             },
@@ -1925,31 +2001,29 @@ def run_three_mode_trader_lab(
             "certification_claimed": False,
             "outcome_used_for_predecision": False,
             "medium_positive_profit_split": "50%_SOVEREIGN_50%_CUSHION",
-            "bank_seed_positive_profit_split": "50%_SOVEREIGN_50%_CUSHION",
-            "sizing_compound_loss_split": (
-                "TARGET_50%_SOVEREIGN_50%_CUSHION_WITH_SOVEREIGN_SHORTFALL_COVER"
-            ),
-            "bank_seed_source": "SOVEREIGN_MINIMUM_SEED_ONLY",
+            "bank_role": "TREASURY_SEEDS_MEDIUM_ONLY_NO_TRADES",
+            "bank_seed_source": "SOVEREIGN_WORKING_CAPITAL_ENVELOPE",
+            "medium_engine": "SIZING_PLUS_CIBO_COMPOUND",
+            "medium_capital_source": "BANK_SEED_ONLY",
             "sizing_role": (
-                "EXECUTABLE_QUANTITY_AFTER_COGNITIVE_ECONOMIC_ADMISSION"
+                "ALLOCATE_BANK_SEED_AFTER_COGNITIVE_ECONOMIC_ADMISSION"
             ),
             "sizing_second_edge_veto": False,
+            "cibo_compound_role": (
+                "SETTLE_MEDIUM_RECYCLE_SEED_SPLIT_POSITIVE_PROFIT"
+            ),
             "attack_risk_source": "PORTFOLIO_CUSHION_ONLY",
             "portfolio_attack_release_policy": (
-                "MIN_2X_OR_50PCT_AVAILABLE_CUSHION_PER_EPOCH"
+                "ONLY_UNSPENT_CREDITS_CREATED_BY_MEDIUM_50PCT_PROFIT_SHARE"
             ),
             "leverage_law": (
                 "ATTACK_UNCAPPED_BY_ECONOMIC_UTILITY_AFTER_PORTFOLIO_ENABLE"
             ),
             "attack_enable_authority": "COMPOUND_PORTFOLIO",
             "attack_internal_economic_cap": "FORBIDDEN",
-            "bank_sovereign_risk": "MINIMUM_SEED_ONLY",
-            "bank_recovery_probe": (
-                "1X_SOVEREIGN_FUNDED_SIZING_SEED_WHEN_DRAWDOWN_ONLY"
-            ),
-            "bank_recovery_positive_pnl": (
-                "50%_TO_SOVEREIGN_50%_TO_COMPOUND_PORTFOLIO"
-            ),
+            "bank_sovereign_risk": "WORKING_CAPITAL_SEED_ENVELOPE_ONLY",
+            "bank_recovery_probe": "FORBIDDEN_BANK_DOES_NOT_TRADE",
+            "bank_recovery_positive_pnl": "NOT_APPLICABLE",
             "medium_sovereign_floor": (
                 "NOT_PREDEDUCTED; BANK_GATE_DEFENDS_AT_50PCT_DRAWDOWN"
             ),
