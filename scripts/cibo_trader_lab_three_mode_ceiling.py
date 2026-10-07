@@ -401,6 +401,43 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--ceiling-attack-drawdown-taper-trigger",
+        type=Decimal,
+        default=None,
+        help=(
+            "Trader-Lab-only realized drawdown trigger for temporary ATTACK "
+            "cap tapering. The base Trader entry remains mandatory."
+        ),
+    )
+    parser.add_argument(
+        "--ceiling-attack-drawdown-taper-fraction",
+        type=Decimal,
+        default=Decimal("0.50"),
+        help=(
+            "Fraction of the current ATTACK cap retained while the live "
+            "drawdown taper is active."
+        ),
+    )
+    parser.add_argument(
+        "--ceiling-portfolio-shock-trigger-fraction",
+        type=Decimal,
+        default=None,
+        help=(
+            "Trader-Lab-only Portfolio shock trigger. If the immediately "
+            "preceding settled ATTACK loss consumed at least this fraction "
+            "of pre-settlement capital, taper the next ATTACK risk budget."
+        ),
+    )
+    parser.add_argument(
+        "--ceiling-portfolio-shock-taper-fraction",
+        type=Decimal,
+        default=Decimal("0.50"),
+        help=(
+            "Fraction of the normal per-trade ATTACK risk retained for the "
+            "next ATTACK after a qualifying Portfolio shock."
+        ),
+    )
+    parser.add_argument(
         "--compound-profit-reinvestment-fraction",
         type=Decimal,
         default=None,
@@ -790,6 +827,18 @@ def main() -> int:
         ),
         ceiling_attack_loss_streak_taper_fraction=(
             args.ceiling_attack_loss_streak_taper_fraction
+        ),
+        ceiling_attack_drawdown_taper_trigger=(
+            args.ceiling_attack_drawdown_taper_trigger
+        ),
+        ceiling_attack_drawdown_taper_fraction=(
+            args.ceiling_attack_drawdown_taper_fraction
+        ),
+        ceiling_portfolio_shock_trigger_fraction=(
+            args.ceiling_portfolio_shock_trigger_fraction
+        ),
+        ceiling_portfolio_shock_taper_fraction=(
+            args.ceiling_portfolio_shock_taper_fraction
         ),
         compound_profit_reinvestment_fraction=(
             args.compound_profit_reinvestment_fraction
