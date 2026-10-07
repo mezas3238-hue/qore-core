@@ -153,6 +153,15 @@ def audit(paths: dict[str, Path]) -> dict[str, object]:
         },
         "sensor_integrity": {
             "missing_sensor_call_count": missing_sensor_calls,
+            "required_action_unobserved_count": routing[
+                "ROUTED_EXECUTION_UNOBSERVED"
+            ],
+            "required_action_not_executed_count": routing[
+                "ROUTED_NOT_EXECUTED"
+            ],
+            "required_action_not_routed_count": routing[
+                "OUTPUT_NOT_ROUTED"
+            ],
         },
         "governance": {
             "read_only": True,

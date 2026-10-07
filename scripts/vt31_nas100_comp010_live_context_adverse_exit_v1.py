@@ -55,6 +55,91 @@ def _d(value: object) -> Decimal:
     return Decimal(str(value))
 
 
+def _finalize_actuation_execution(
+    *,
+    day_bars: tuple[object, ...],
+    evaluations: list[dict[str, object]],
+    outcome: dict[str, object],
+) -> None:
+    """Attach the replay actuator acknowledgement to each routed action."""
+
+    by_open = {
+        cast(datetime, getattr(bar, "opened_at")): bar
+        for bar in day_bars
+    }
+    outcome_exit_at = (
+        None
+        if outcome.get("exit_at") is None
+        else datetime.fromisoformat(str(outcome["exit_at"]))
+    )
+    outcome_reason = str(outcome.get("exit_reason", ""))
+
+    for diagnostic in evaluations:
+        raw_sensor = cast(
+            dict[str, object],
+            diagnostic.get("actuation_sensor", {}),
+        )
+        if not raw_sensor:
+            continue
+
+        expected = str(raw_sensor.get("expected_action", "")).upper()
+        routed = tuple(
+            str(action).upper()
+            for action in cast(
+                list[str],
+                raw_sensor.get("routed_actions", []),
+            )
+        )
+        observation_at = datetime.fromisoformat(
+            str(diagnostic["observation_at"])
+        )
+        next_bar = by_open.get(observation_at)
+        expected_open_at = (
+            None
+            if next_bar is None
+            else cast(datetime, getattr(next_bar, "opened_at"))
+        )
+        route_accepted = expected in routed
+        executed = (
+            expected == "EXIT"
+            and route_accepted
+            and next_bar is not None
+            and outcome.get("pretarget_cognitive_exit_armed") is True
+            and outcome_reason == "composite-pretarget-cognitive-exit"
+            and outcome_exit_at == expected_open_at
+        )
+        executed_actions = (
+            ("EXIT",)
+            if executed
+            else ()
+            if route_accepted
+            else None
+        )
+        diagnostic["actuation_sensor"] = observe_cognitive_actuation(
+            expected_action=expected,
+            routed_actions=routed,
+            executed_actions=executed_actions,
+        ).payload()
+        diagnostic["actuation_execution"] = {
+            "decision_observation_at": observation_at.isoformat(),
+            "expected_next_valid_m1_open_at": (
+                None
+                if expected_open_at is None
+                else expected_open_at.isoformat()
+            ),
+            "route_accepted": route_accepted,
+            "execution_timestamp": (
+                expected_open_at.isoformat() if executed else None
+            ),
+            "execution_price": (
+                format(_d(getattr(next_bar, "open")), "f")
+                if executed and next_bar is not None
+                else None
+            ),
+            "actual_action_executed": "EXIT" if executed else None,
+        }
+
+
 def _fvg_h1_mixed_allowed(
     diagnostic: dict[str, object],
     *,
@@ -166,6 +251,11 @@ def _simulate_variant(
         state,
         window=adverse.WINDOW,
         pretarget_cognitive_exit_authorizer=exit_authorizer,
+    )
+    _finalize_actuation_execution(
+        day_bars=day_bars,
+        evaluations=evaluations,
+        outcome=outcome,
     )
     if outcome.get("status") == "terminal":
         outcome["target_plan"] = state["target_plan"]
