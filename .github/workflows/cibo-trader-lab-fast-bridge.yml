@@ -1,6 +1,6 @@
 name: QORE CIBO -> GitHub Trader Lab Fast
 
-# Research suite revision: causal Trader-loss-streak frontier
+# Research suite revision: early-stop after causal Trader-loss streak
 
 on:
   push:
