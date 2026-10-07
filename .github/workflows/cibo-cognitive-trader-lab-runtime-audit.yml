@@ -1,14 +1,9 @@
 name: QORE CIBO Cognitive Trader Lab Runtime Audit
 
-on:
-  push:
-    branches:
-      - agent/cibo-profitability-lab-001
-    paths:
-      - '.github/workflows/cibo-cognitive-trader-lab-runtime-audit.yml'
-      - 'scripts/cibo_cognitive_trader_lab_audit.py'
-      - 'docs/research/CIBO-COGNITIVE-TRADER-LAB-AUDIT-TRIGGER.json'
+# RETIRED AUTO-PATH: manual-only legacy evidence; automatic execution moved to QORE GitHub Trader Lab Fast.
 
+on:
+  workflow_dispatch:
 permissions:
   contents: read
   actions: read

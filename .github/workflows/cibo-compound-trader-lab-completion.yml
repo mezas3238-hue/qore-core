@@ -1,24 +1,8 @@
 name: QORE CIBO Compound Trader Lab Completion
 
+# RETIRED AUTO-PATH: manual-only legacy evidence; automatic execution moved to QORE GitHub Trader Lab Fast.
+
 on:
-  push:
-    branches:
-      - agent/cibo-profitability-lab-001
-    paths:
-      - '.github/workflows/cibo-compound-trader-lab-completion.yml'
-      - 'scripts/cibo_compound_trader_lab_completion_audit.py'
-      - 'scripts/cibo_compound_trader_lab_audit.py'
-      - 'scripts/cibo_full_function_trader_lab_audit.py'
-      - 'src/qore/infrastructure/cibo_compound_*.py'
-      - 'src/qore/infrastructure/cibo_core_compound_portfolio.py'
-      - 'src/qore/infrastructure/cibo_internal_capital_market.py'
-      - 'src/qore/infrastructure/cibo_sequential_compounding_*.py'
-      - 'src/qore/infrastructure/cibo_adaptive_compound_speed_shadow.py'
-      - 'src/qore/infrastructure/cibo_protected_reinvestment_policy.py'
-      - 'src/qore/infrastructure/trader_lab/cibo_functional_receipt.py'
-      - 'tests/infrastructure/test_cibo_compound_constant_statistics.py'
-      - 'tests/infrastructure/test_cibo_compound_temporal_population_assessment.py'
-      - 'tests/infrastructure/test_cibo_protected_reinvestment_policy.py'
   workflow_dispatch:
 
 permissions:

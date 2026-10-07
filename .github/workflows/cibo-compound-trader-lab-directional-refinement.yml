@@ -1,15 +1,8 @@
 name: QORE CIBO Compound Trader Lab Directional Refinement
 
+# RETIRED AUTO-PATH: manual-only legacy evidence; automatic execution moved to QORE GitHub Trader Lab Fast.
+
 on:
-  push:
-    branches:
-      - agent/cibo-profitability-lab-001
-    paths:
-      - '.github/workflows/cibo-compound-trader-lab-directional-refinement.yml'
-      - 'scripts/cibo_compound_trader_lab_directional_refinement.py'
-      - 'scripts/cibo_compound_protected_capital_reality_exam.py'
-      - 'src/qore/infrastructure/cibo_protected_reinvestment_policy.py'
-      - 'tests/infrastructure/test_cibo_protected_reinvestment_policy.py'
   workflow_dispatch:
 
 permissions:

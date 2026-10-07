@@ -1,16 +1,8 @@
 name: QORE CIBO Compound Trader Lab Side Capital Sweep
 
+# RETIRED AUTO-PATH: manual-only legacy evidence; automatic execution moved to QORE GitHub Trader Lab Fast.
+
 on:
-  push:
-    branches:
-      - agent/cibo-profitability-lab-001
-    paths:
-      - '.github/workflows/cibo-compound-trader-lab-side-capital-sweep.yml'
-      - 'scripts/cibo_compound_trader_lab_side_capital_sweep.py'
-      - 'scripts/cibo_compound_protected_capital_reality_exam.py'
-      - 'src/qore/infrastructure/cibo_protected_reinvestment_policy.py'
-      - 'src/qore/infrastructure/cibo_reused_holdout_compound_portfolio_lane.py'
-      - 'tests/infrastructure/test_cibo_protected_reinvestment_policy.py'
   workflow_dispatch:
 
 permissions:

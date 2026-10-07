@@ -1,16 +1,8 @@
 name: QORE CIBO Full Function Trader Lab Audit
 
+# RETIRED AUTO-PATH: manual-only legacy evidence; automatic execution moved to QORE GitHub Trader Lab Fast.
+
 on:
-  push:
-    branches:
-      - agent/cibo-profitability-lab-001
-    paths:
-      - '.github/workflows/cibo-full-function-trader-lab-audit.yml'
-      - 'scripts/cibo_full_function_trader_lab_audit.py'
-      - 'scripts/cibo_cognitive_trader_lab_audit.py'
-      - 'src/qore/infrastructure/trader_lab/cibo_functional_receipt.py'
-      - 'src/qore/infrastructure/cibo/**'
-      - 'src/qore/governance/cibo/**'
   workflow_dispatch:
 
 permissions:
