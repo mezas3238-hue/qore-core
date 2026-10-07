@@ -299,6 +299,16 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--lifecycle-attack-override-feature",
+        action="append",
+        choices=[item.value for item in CiboLifecycleFeature],
+        default=[],
+        help=(
+            "Repeat to define an isolated post-entry lifecycle feature set "
+            "for ATTACK positions without changing the MEDIUM lifecycle map."
+        ),
+    )
+    parser.add_argument(
         "--lifecycle-bootstrap-override-defensive-initial-stop-r",
         type=Decimal,
         default=None,
@@ -385,6 +395,16 @@ def main() -> int:
             "Apply lifecycle defense only when current open stop risk plus "
             "the new position's stop risk reaches this fraction of live "
             "total capital."
+        ),
+    )
+    parser.add_argument(
+        "--lifecycle-attack-override-projected-open-stop-risk-fraction-trigger",
+        type=Decimal,
+        default=None,
+        help=(
+            "Apply the isolated ATTACK lifecycle override only when current "
+            "open stop risk plus the new ATTACK stop risk reaches this "
+            "fraction of live total capital."
         ),
     )
     parser.add_argument(
@@ -1136,6 +1156,29 @@ def main() -> int:
                 else args.lifecycle_defensive_initial_stop_r
             ),
         )
+    lifecycle_attack_override_by_signal = None
+    if args.lifecycle_attack_override_feature:
+        lifecycle_attack_override_features = frozenset(
+            CiboLifecycleFeature(value)
+            for value in args.lifecycle_attack_override_feature
+        )
+        lifecycle_attack_override_by_signal = _build_lifecycle_map(
+            manifest,
+            lifecycle_roots,
+            features=lifecycle_attack_override_features,
+            adverse_loss_cut_r=args.lifecycle_adverse_loss_cut_r,
+            adverse_partial_fraction=args.lifecycle_adverse_partial_fraction,
+            adverse_partial_max_favorable_r=(
+                args.lifecycle_adverse_partial_max_favorable_r
+            ),
+            adverse_loss_cut_max_favorable_r=(
+                args.lifecycle_adverse_loss_cut_max_favorable_r
+            ),
+            bootstrap_partial_fraction=args.lifecycle_bootstrap_partial_fraction,
+            adverse_tightened_stop_r=args.lifecycle_adverse_tightened_stop_r,
+            defensive_initial_stop_r=args.lifecycle_defensive_initial_stop_r,
+        )
+
     baseline = None
     cognitive_recommend_by_signal = None
     native_profile_by_signal = None
@@ -1407,6 +1450,9 @@ def main() -> int:
         lifecycle_bootstrap_override_by_signal=(
             lifecycle_bootstrap_override_by_signal
         ),
+        lifecycle_attack_override_by_signal=(
+            lifecycle_attack_override_by_signal
+        ),
         lifecycle_bootstrap_override_capital_ceiling=(
             args.lifecycle_bootstrap_override_capital_ceiling
         ),
@@ -1427,6 +1473,9 @@ def main() -> int:
         ),
         lifecycle_bootstrap_override_expected_r_ceiling=(
             args.lifecycle_bootstrap_override_expected_r_ceiling
+        ),
+        lifecycle_attack_override_projected_open_stop_risk_fraction_trigger=(
+            args.lifecycle_attack_override_projected_open_stop_risk_fraction_trigger
         ),
         lifecycle_defensive_medium_1x_only=(
             args.lifecycle_defensive_medium_1x_only
