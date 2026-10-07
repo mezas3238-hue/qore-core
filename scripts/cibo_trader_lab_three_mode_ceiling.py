@@ -56,6 +56,7 @@ def _build_lifecycle_map(
     features: frozenset[CiboLifecycleFeature],
     adverse_loss_cut_r: Decimal,
     adverse_loss_cut_confirmation_bars: int,
+    adverse_loss_cut_max_elapsed_minutes: int | None,
 ) -> dict[str, dict[str, object]]:
     if not roots:
         return {}
@@ -110,6 +111,9 @@ def _build_lifecycle_map(
             adverse_loss_cut_confirmation_bars=(
                 adverse_loss_cut_confirmation_bars
             ),
+            adverse_loss_cut_max_elapsed_minutes=(
+                adverse_loss_cut_max_elapsed_minutes
+            ),
         )
         result[signal] = {
             "original_gross_r": format(outcome.gross_structural_outcome_r, "f"),
@@ -122,6 +126,9 @@ def _build_lifecycle_map(
             "adverse_loss_cut_r": format(adverse_loss_cut_r, "f"),
             "adverse_loss_cut_confirmation_bars": (
                 adverse_loss_cut_confirmation_bars
+            ),
+            "adverse_loss_cut_max_elapsed_minutes": (
+                adverse_loss_cut_max_elapsed_minutes
             ),
             "risk_released_before_exit_fraction": format(
                 managed.risk_released_before_exit_fraction, "f"
@@ -172,6 +179,15 @@ def main() -> int:
         help=(
             "Consecutive closed M5 bars at/below the adverse threshold "
             "required before arming the causal next-open exit."
+        ),
+    )
+    parser.add_argument(
+        "--lifecycle-adverse-loss-cut-max-elapsed-minutes",
+        type=int,
+        default=None,
+        help=(
+            "Optional early-window limit for adverse-loss confirmation. "
+            "Signals armed after this many elapsed minutes are ignored."
         ),
     )
     parser.add_argument(
@@ -251,6 +267,9 @@ def main() -> int:
         adverse_loss_cut_r=args.lifecycle_adverse_loss_cut_r,
         adverse_loss_cut_confirmation_bars=(
             args.lifecycle_adverse_loss_cut_confirmation_bars
+        ),
+        adverse_loss_cut_max_elapsed_minutes=(
+            args.lifecycle_adverse_loss_cut_max_elapsed_minutes
         ),
     )
     baseline = None
