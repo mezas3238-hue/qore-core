@@ -2405,6 +2405,7 @@ def run_three_mode_trader_lab(
     attack_recent_trader_loss_taper_bind_count = 0
     attack_trader_shock_taper_bind_count = 0
     trader_last_attack_loss_fraction: dict[str, Decimal] = defaultdict(Decimal)
+    trader_shock_protected_signals: set[str] = set()
     attack_low_multiplier_demotion_bind_count = 0
     portfolio_attack_shock_taper_bind_count = 0
     portfolio_last_attack_loss_fraction = Decimal(0)
@@ -3194,9 +3195,17 @@ def run_three_mode_trader_lab(
                         if before_total > 0
                         else Decimal("0.50")
                     )
-                    trader_last_attack_loss_fraction[trade.trader_id] = (
-                        portfolio_last_attack_loss_fraction
-                    )
+                    if trade.signal_fingerprint in trader_shock_protected_signals:
+                        trader_shock_protected_signals.discard(
+                            trade.signal_fingerprint
+                        )
+                        trader_last_attack_loss_fraction[trade.trader_id] = (
+                            Decimal(0)
+                        )
+                    else:
+                        trader_last_attack_loss_fraction[trade.trader_id] = (
+                            portfolio_last_attack_loss_fraction
+                        )
                     trader_attack_loss_streak[trade.trader_id] += 1
                     attack_losing_trade_count += 1
                     attack_gross_loss_usd += -settled_trade_net
@@ -3208,6 +3217,9 @@ def run_three_mode_trader_lab(
                     )
                 elif settled_trade_net > 0:
                     portfolio_last_attack_loss_fraction = Decimal(0)
+                    trader_shock_protected_signals.discard(
+                        trade.signal_fingerprint
+                    )
                     trader_last_attack_loss_fraction[trade.trader_id] = Decimal(0)
                     trader_attack_loss_streak[trade.trader_id] = 0
                     attack_winning_trade_count += 1
@@ -3220,6 +3232,9 @@ def run_three_mode_trader_lab(
                     )
                 else:
                     portfolio_last_attack_loss_fraction = Decimal(0)
+                    trader_shock_protected_signals.discard(
+                        trade.signal_fingerprint
+                    )
                     trader_last_attack_loss_fraction[trade.trader_id] = Decimal(0)
                     trader_attack_loss_streak[trade.trader_id] = 0
                     attack_flat_trade_count += 1
@@ -4250,6 +4265,9 @@ def run_three_mode_trader_lab(
                                     ceiling_attack_trader_shock_taper_fraction
                                 )
                                 attack_trader_shock_taper_bind_count += 1
+                                trader_shock_protected_signals.add(
+                                    candidate.signal_fingerprint
+                                )
                                 trader_last_attack_loss_fraction[
                                     candidate.trader_id
                                 ] = Decimal(0)
@@ -5941,6 +5959,9 @@ def run_three_mode_trader_lab(
                 key: format(value, "f")
                 for key, value in sorted(trader_last_attack_loss_fraction.items())
             },
+            "ending_trader_shock_protected_signal_count": len(
+                trader_shock_protected_signals
+            ),
             "ceiling_attack_low_multiplier_demotion_upper": (
                 ceiling_attack_low_multiplier_demotion_upper
             ),
