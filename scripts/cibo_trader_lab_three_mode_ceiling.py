@@ -382,6 +382,25 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--ceiling-attack-loss-streak-trigger",
+        type=int,
+        default=None,
+        help=(
+            "Trader-Lab-only causal ATTACK taper trigger. After this many "
+            "consecutive losing settled ATTACK trades from the same Trader, "
+            "reduce only incremental ATTACK scaling; the Trader entry remains."
+        ),
+    )
+    parser.add_argument(
+        "--ceiling-attack-loss-streak-taper-fraction",
+        type=Decimal,
+        default=Decimal("0.50"),
+        help=(
+            "Fraction of the current ATTACK cap retained while the same-Trader "
+            "causal ATTACK loss-streak taper is active."
+        ),
+    )
+    parser.add_argument(
         "--compound-profit-reinvestment-fraction",
         type=Decimal,
         default=None,
@@ -765,6 +784,12 @@ def main() -> int:
         ),
         ceiling_attack_single_trade_risk_fraction=(
             args.ceiling_attack_single_trade_risk_fraction
+        ),
+        ceiling_attack_loss_streak_trigger=(
+            args.ceiling_attack_loss_streak_trigger
+        ),
+        ceiling_attack_loss_streak_taper_fraction=(
+            args.ceiling_attack_loss_streak_taper_fraction
         ),
         compound_profit_reinvestment_fraction=(
             args.compound_profit_reinvestment_fraction
