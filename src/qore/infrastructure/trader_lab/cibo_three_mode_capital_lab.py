@@ -1007,10 +1007,10 @@ def run_three_mode_trader_lab(
         not isinstance(attack_multiplier_cap, int)
         or isinstance(attack_multiplier_cap, bool)
         or attack_multiplier_cap < ATTACK_MINIMUM_MULTIPLIER
-        or attack_multiplier_cap > 200
+        or attack_multiplier_cap > 500
     ):
         raise CiboCapitalManagementError(
-            "Trader Lab ATTACK multiplier cap must be int in [2, 200]"
+            "Trader Lab ATTACK multiplier cap must be int in [2, 500]"
         )
     if (
         not isinstance(medium_multiplier_cap, int)
