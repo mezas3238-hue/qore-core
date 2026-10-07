@@ -1456,3 +1456,38 @@ La misión inmediata es seguir subiendo hasta demostrar el true ceiling.
 Luego:
 
 **TECHO CONGELADO → ESTUDIO PROFUNDO DEL DD → REDUCCIÓN MÁXIMA DEL DD SIN DEGRADAR TECHO → ROBUSTEZ → FRESH OOS → EXÁMENES → ZERO-OPEN → CERTIFICACIÓN.**
+
+
+---
+
+# 23. LIVE CONTINUITY UPDATE — UPPER CEILING REPLAY RELAUNCHED
+
+The first upper-ceiling run `37644740113` was cancelled after a concurrent architecture update introduced support for one-shot Portfolio shock taper. Its incomplete result MUST NOT be interpreted scientifically.
+
+Current upper-ceiling experiment:
+
+- commit: `5bab4ba1f491328060cada14fb176a51702fd270`
+- workflow: `QORE CIBO Shock Ceiling Expansion Fast`
+- run: `37646016620`
+- state at handoff update: IN PROGRESS
+
+This replay compares, on the post-34k architecture:
+
+- ATTACK caps: 257 / 275 / 300 / 325 / 350;
+- baseline single-ATTACK risk: 20%;
+- probes at 22%;
+- persistent Portfolio shock taper vs one-shot Portfolio shock taper;
+- Portfolio shock trigger 5%;
+- shock taper 50%;
+- growth slope 10;
+- MEDIUM cap 14;
+- MEDIUM live-DD trigger 5%;
+- ATTACK loss-streak trigger 3 / taper 75%;
+- lifecycle defensive MEDIUM 1x;
+- lifecycle stop -0.20R;
+- minimum stop-risk trigger 3%;
+- mandatory 3.368/3.368 entry preservation.
+
+The next architect MUST read `37646016620` before creating another ceiling sweep.
+
+If any case exceeds USD 34,019.19 with similar or lower DD, it becomes the new observed record and ceiling discovery MUST continue upward. USD 34k remains explicitly classified as RECORD, NOT CEILING.
