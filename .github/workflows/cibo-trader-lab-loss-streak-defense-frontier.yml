@@ -182,7 +182,7 @@ jobs:
           import json, os
           from pathlib import Path
           root=Path(os.environ["RUNNER_TEMP"])/"result"
-          for filename in ("partial-025.json","partial-050.json","partial-075.json"):
+          for filename, streak in (("streak-1.json",1),("streak-2.json",2),("streak-3.json",3)):
               p=json.loads((root/filename).read_text())
               assert p["decision_count"]==p["trade_count"]==3368
               assert p["governance"]["coordinated_economic_group"] is True
@@ -210,8 +210,8 @@ jobs:
         with:
           name: qore-cibo-loss-streak-defense-${{ github.run_id }}
           path: |
-            ${{ runner.temp }}/result/partial-025.json
-            ${{ runner.temp }}/result/partial-050.json
-            ${{ runner.temp }}/result/partial-075.json
+            ${{ runner.temp }}/result/streak-1.json
+            ${{ runner.temp }}/result/streak-2.json
+            ${{ runner.temp }}/result/streak-3.json
           if-no-files-found: error
           retention-days: 90
