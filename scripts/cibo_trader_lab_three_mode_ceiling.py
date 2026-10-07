@@ -8,13 +8,6 @@ import json
 from decimal import Decimal
 from pathlib import Path
 
-from qore.infrastructure.cibo_capital_management_authority import (
-    minimum_seed_volume,
-)
-from qore.infrastructure.cibo_single_account_manifest_economics import (
-    manifest_row_provider_cost_per_volume_usd,
-    manifest_row_to_ceiling_opportunity_evidence,
-)
 from qore.infrastructure.trader_lab.cibo_three_mode_capital_lab import (
     run_three_mode_trader_lab,
 )
@@ -65,30 +58,68 @@ def main() -> int:
             raise ValueError("historical prior manifest opportunities missing")
         historical_prior_by_signal = {}
         for row in historical_rows:
-            evidence = manifest_row_to_ceiling_opportunity_evidence(row)
-            opportunity = evidence.opportunity
-            minimum = minimum_seed_volume(opportunity)
-            provider_cost = (
-                minimum * manifest_row_provider_cost_per_volume_usd(row)
-            )
+            if not isinstance(row, dict):
+                raise ValueError("historical prior row must be mapping")
+            signal = str(row.get("signal_fingerprint", ""))
+            if not signal:
+                raise ValueError("historical signal fingerprint missing")
+            expectation = row.get("expectation")
             context_quality = row.get("context_quality")
+            if not isinstance(expectation, dict):
+                raise ValueError("historical expectation missing")
             if not isinstance(context_quality, dict):
                 raise ValueError("historical context quality missing")
-            historical_prior_by_signal[opportunity.signal_fingerprint] = {
-                "expected_edge_after_cost_usd": format(
-                    evidence.expected_net_value_usd - provider_cost,
-                    "f",
-                ),
+            if expectation.get("basis") != "FROZEN_HISTORICAL_PRIOR":
+                raise ValueError("historical prior basis drift")
+            for flag in (
+                "future_market_used",
+                "outcome_used",
+                "pnl_used",
+                "post_entry_path_used",
+            ):
+                if expectation.get(flag) is not False:
+                    raise ValueError(
+                        f"historical prior violates causal flag {flag}"
+                    )
+            if context_quality.get("causal_predecision") is not True:
+                raise ValueError(
+                    "historical context is not causal predecision"
+                )
+            if context_quality.get("outcome_used") is not False:
+                raise ValueError(
+                    "historical context cannot consume outcome"
+                )
+            if row.get("outcome_available_to_predecision") is not False:
+                raise ValueError(
+                    "historical row exposes outcome to predecision"
+                )
+            expected_net = Decimal(
+                str(expectation["expected_net_value_usd"])
+            )
+            expected_minutes = Decimal(
+                str(expectation["expected_capital_minutes"])
+            )
+            if (
+                not expected_net.is_finite()
+                or not expected_minutes.is_finite()
+                or expected_minutes <= 0
+            ):
+                raise ValueError("historical prior numeric evidence malformed")
+            disposition = str(context_quality.get("disposition", ""))
+            if disposition not in {"ALLOW", "ABSTAIN"}:
+                raise ValueError(
+                    "historical context disposition is invalid"
+                )
+            historical_prior_by_signal[signal] = {
+                # The frozen prior already stores the causal expected net
+                # economic value used by the historical Portfolio engine.
+                # Do not reinterpret it through the newer walk-forward parser:
+                # that parser requires metadata introduced after this artifact.
+                "expected_edge_after_cost_usd": format(expected_net, "f"),
                 "expected_capital_minutes": format(
-                    evidence.expected_capital_minutes,
-                    "f",
+                    expected_minutes, "f"
                 ),
-                "context_allowed": bool(
-                    evidence.context_allowed
-                    and evidence.provider_viable
-                    and evidence.capital_source_eligible
-                    and context_quality.get("disposition") == "ALLOW"
-                ),
+                "context_allowed": disposition == "ALLOW",
             }
 
     result = run_three_mode_trader_lab(
