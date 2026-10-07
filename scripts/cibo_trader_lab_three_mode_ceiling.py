@@ -314,6 +314,16 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--medium-drawdown-intensity-trigger",
+        type=Decimal,
+        default=None,
+        help=(
+            "When live realized total-account drawdown reaches this fraction, "
+            "Sizing removes only incremental MEDIUM scaling and keeps the "
+            "already-executed Trader entry at mandatory 1x custody."
+        ),
+    )
+    parser.add_argument(
         "--coordinated-economic-group",
         action="store_true",
         help=(
@@ -654,6 +664,9 @@ def main() -> int:
         distributed_attack_frontier=args.distributed_attack_frontier,
         attack_multiplier_cap=args.attack_multiplier_cap,
         medium_multiplier_cap=args.medium_multiplier_cap,
+        medium_drawdown_intensity_trigger=(
+            args.medium_drawdown_intensity_trigger
+        ),
         coordinated_economic_group=args.coordinated_economic_group,
         economic_group_bootstrap_cushion_share=(
             args.economic_group_bootstrap_cushion_share
