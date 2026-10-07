@@ -1,4 +1,4 @@
-name: QORE CIBO Portfolio Shock Fast
+name: QORE CIBO Shock Ceiling Expansion Fast
 
 on:
   workflow_dispatch:
@@ -34,7 +34,7 @@ env:
   ATLAS_XAUUSD_DIGEST: 'sha256:dcb905b11380e3d4e1a4dc621e269bb75d2886806dd662e260d21d1d15362e08'
 
 jobs:
-  portfolio-shock-fast:
+  shock-ceiling-expansion-fast:
     runs-on: ubuntu-24.04
     timeout-minutes: 6
     steps:
@@ -87,7 +87,7 @@ jobs:
             unzip -q "$ZIP"               'RAW_M5_LEDGER/2019.jsonl'               'RAW_M5_LEDGER/2020.jsonl'               'RAW_M5_LEDGER/2021.jsonl'               'RAW_M5_LEDGER/2022.jsonl'               -d "$ROOT"
           done
 
-      - name: Run Portfolio shock fast
+      - name: Run shock ceiling expansion
         run: |
           set -u
           common=(
@@ -101,22 +101,18 @@ jobs:
             --summary-telemetry
           )
           run_case() {
-            name="$1"; trigger="${2:-}"; taper="${3:-}"
-            extra=()
-            if [[ -n "$trigger" ]]; then
-              extra+=(--ceiling-portfolio-shock-trigger-fraction "$trigger")
-              extra+=(--ceiling-portfolio-shock-taper-fraction "$taper")
-            fi
+            name="$1"; attack="$2"; slope="$3"; risk="$4"
             if python scripts/cibo_trader_lab_three_mode_ceiling.py "${common[@]}" \
-              --attack-multiplier-cap 257 \
+              --attack-multiplier-cap "$attack" \
               --medium-multiplier-cap 14 \
               --medium-drawdown-intensity-trigger 0.05 \
               --economic-group-bootstrap-cushion-share 1.00 \
-              --ceiling-growth-leverage-slope 10 \
-              --ceiling-attack-single-trade-risk-fraction 0.20 \
+              --ceiling-growth-leverage-slope "$slope" \
+              --ceiling-attack-single-trade-risk-fraction "$risk" \
               --ceiling-attack-loss-streak-trigger 3 \
               --ceiling-attack-loss-streak-taper-fraction 0.75 \
-              "${extra[@]}" \
+              --ceiling-portfolio-shock-trigger-fraction 0.05 \
+              --ceiling-portfolio-shock-taper-fraction 0.50 \
               --lifecycle-source-root "AUDJPY=$RUNNER_TEMP/atlas/AUDJPY" \
               --lifecycle-source-root "EURUSD=$RUNNER_TEMP/atlas/EURUSD" \
               --lifecycle-source-root "GBPJPY=$RUNNER_TEMP/atlas/GBPJPY" \
@@ -135,11 +131,16 @@ jobs:
             fi
           }
 
-          run_case "control"
-          run_case "shock005-t025" 0.05 0.25
-          run_case "shock008-t025" 0.08 0.25
+          for attack in 257 275 300 325 350; do
+            for risk in 0.20 0.22 0.24; do
+              rtag="$(echo "$risk" | tr -d '.')"
+              run_case "a${attack}-s10-r${rtag}" "$attack" 10 "$risk"
+            done
+          done
+          run_case "a300-s11-r022" 300 11 0.22
+          run_case "a325-s11-r022" 325 11 0.22
 
-      - name: Rank Portfolio shock fast
+      - name: Rank shock ceiling expansion
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -182,13 +183,13 @@ jobs:
                   "max_dd_attribution":p["max_drawdown_attribution"],
               })
           rows.sort(key=lambda x:Decimal(x["capital"]), reverse=True)
-          print("PORTFOLIO_SHOCK_FAST_TABLE="+json.dumps(rows,sort_keys=True))
+          print("SHOCK_CEILING_EXPANSION_TABLE="+json.dumps(rows,sort_keys=True))
           assert rows
           PY
 
       - uses: actions/upload-artifact@v4
         with:
-          name: qore-cibo-portfolio-shock-fast-${{ github.run_id }}
+          name: qore-cibo-shock-ceiling-expansion-${{ github.run_id }}
           path: ${{ runner.temp }}/result/*.json
           if-no-files-found: error
           retention-days: 90
