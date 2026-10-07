@@ -785,6 +785,18 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--ceiling-attack-drawdown-window6-capital-floor",
+        type=Decimal,
+        default=None,
+        help="Optional live-capital floor for the sixth causal ATTACK DD window.",
+    )
+    parser.add_argument(
+        "--ceiling-attack-drawdown-window6-capital-ceiling",
+        type=Decimal,
+        default=None,
+        help="Optional live-capital ceiling for the sixth causal ATTACK DD window.",
+    )
+    parser.add_argument(
         "--ceiling-attack-stress-confidence-drawdown-trigger",
         type=Decimal,
         default=None,
@@ -1515,6 +1527,12 @@ def main() -> int:
         ),
         ceiling_attack_drawdown_window6_taper_fraction=(
             args.ceiling_attack_drawdown_window6_taper_fraction
+        ),
+        ceiling_attack_drawdown_window6_capital_floor=(
+            args.ceiling_attack_drawdown_window6_capital_floor
+        ),
+        ceiling_attack_drawdown_window6_capital_ceiling=(
+            args.ceiling_attack_drawdown_window6_capital_ceiling
         ),
         ceiling_attack_stress_confidence_drawdown_trigger=(
             args.ceiling_attack_stress_confidence_drawdown_trigger
