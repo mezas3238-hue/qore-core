@@ -133,7 +133,7 @@ jobs:
         run: |
           set -euo pipefail
           : > "$RUNNER_TEMP/result/cibo-four-engine-loss-cut-failures.tsv"
-          for SPEC in "050c2t180f025:-0.50:2:180:0.25" "050c2t180f050:-0.50:2:180:0.50" "050c2t180f075:-0.50:2:180:0.75" "055c2t180f025:-0.55:2:180:0.25" "055c2t180f050:-0.55:2:180:0.50" "055c2t180f075:-0.55:2:180:0.75"; do
+          for SPEC in "045c2t180f025:-0.45:2:180:0.25" "040c2t180f025:-0.40:2:180:0.25" "035c2t180f025:-0.35:2:180:0.25" "030c2t180f025:-0.30:2:180:0.25"; do
             IFS=':' read -r LABEL THRESHOLD CONFIRMATIONS MAX_MINUTES MAX_FAVORABLE <<< "$SPEC"
             if python scripts/cibo_trader_lab_three_mode_ceiling.py \
               --manifest "$MANIFEST" \
@@ -215,12 +215,10 @@ jobs:
 
           frontier = []
           for filename, threshold, confirmations, max_minutes, max_favorable in (
-              ("cibo-four-engine-loss-cut-050c2t180f025.json", "-0.50", 2, 180, "0.25"),
-              ("cibo-four-engine-loss-cut-050c2t180f050.json", "-0.50", 2, 180, "0.50"),
-              ("cibo-four-engine-loss-cut-050c2t180f075.json", "-0.50", 2, 180, "0.75"),
-              ("cibo-four-engine-loss-cut-055c2t180f025.json", "-0.55", 2, 180, "0.25"),
-              ("cibo-four-engine-loss-cut-055c2t180f050.json", "-0.55", 2, 180, "0.50"),
-              ("cibo-four-engine-loss-cut-055c2t180f075.json", "-0.55", 2, 180, "0.75"),
+              ("cibo-four-engine-loss-cut-045c2t180f025.json", "-0.45", 2, 180, "0.25"),
+              ("cibo-four-engine-loss-cut-040c2t180f025.json", "-0.40", 2, 180, "0.25"),
+              ("cibo-four-engine-loss-cut-035c2t180f025.json", "-0.35", 2, 180, "0.25"),
+              ("cibo-four-engine-loss-cut-030c2t180f025.json", "-0.30", 2, 180, "0.25"),
           ):
               candidate_path = (
                   Path(os.environ["RUNNER_TEMP"]) / "result" / filename
