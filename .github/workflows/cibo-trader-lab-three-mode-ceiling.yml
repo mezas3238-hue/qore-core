@@ -1,17 +1,10 @@
 # Manual Trader Lab replay trigger: access-path verification 2026-10-07
 name: QORE CIBO Trader Lab Three Mode Ceiling
 
+# RETIRED AUTO-PATH: manual-only legacy evidence; automatic execution moved to QORE GitHub Trader Lab Fast.
+
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - agent/cibo-causal-expectation-leakage-fix-001
-    paths:
-      - '.github/workflows/cibo-trader-lab-three-mode-ceiling.yml'
-      - 'src/qore/infrastructure/trader_lab/cibo_three_mode_capital_lab.py'
-      - 'scripts/cibo_trader_lab_three_mode_ceiling.py'
-      - 'tests/infrastructure/trader_lab/test_cibo_three_mode_capital_lab.py'
-
 permissions:
   contents: read
   actions: read
