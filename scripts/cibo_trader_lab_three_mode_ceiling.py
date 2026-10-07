@@ -419,6 +419,35 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--ceiling-attack-stress-confidence-drawdown-trigger",
+        type=Decimal,
+        default=None,
+        help=(
+            "Research-only causal ATTACK taper trigger. When live realized "
+            "drawdown is at or above this fraction and the predecision "
+            "walk-forward expected-structural-R / block-dispersion ratio is "
+            "weak enough, reduce only incremental ATTACK scaling."
+        ),
+    )
+    parser.add_argument(
+        "--ceiling-attack-stress-confidence-ratio-ceiling",
+        type=Decimal,
+        default=None,
+        help=(
+            "Maximum causal predecision expectation/dispersion ratio that "
+            "activates the stress-confidence ATTACK taper."
+        ),
+    )
+    parser.add_argument(
+        "--ceiling-attack-stress-confidence-taper-fraction",
+        type=Decimal,
+        default=Decimal("0.75"),
+        help=(
+            "Fraction of the current incremental ATTACK cap retained while "
+            "the stress-confidence taper is active; Trader entry is preserved."
+        ),
+    )
+    parser.add_argument(
         "--ceiling-portfolio-shock-trigger-fraction",
         type=Decimal,
         default=None,
@@ -842,6 +871,15 @@ def main() -> int:
         ),
         ceiling_attack_drawdown_taper_fraction=(
             args.ceiling_attack_drawdown_taper_fraction
+        ),
+        ceiling_attack_stress_confidence_drawdown_trigger=(
+            args.ceiling_attack_stress_confidence_drawdown_trigger
+        ),
+        ceiling_attack_stress_confidence_ratio_ceiling=(
+            args.ceiling_attack_stress_confidence_ratio_ceiling
+        ),
+        ceiling_attack_stress_confidence_taper_fraction=(
+            args.ceiling_attack_stress_confidence_taper_fraction
         ),
         ceiling_portfolio_shock_trigger_fraction=(
             args.ceiling_portfolio_shock_trigger_fraction
