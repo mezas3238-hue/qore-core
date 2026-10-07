@@ -1550,3 +1550,100 @@ Decision rule after `37649450550`:
 1. if the frontier still rises materially through 1000x with no new DD regime, extend again;
 2. if terminal capital flattens, declines, or a new DD/tail-risk cliff appears, bracket that region and refine;
 3. do not call a ceiling until a real ridge/cliff is demonstrated by evidence.
+
+
+---
+
+# 25. LIVE CONTINUITY UPDATE — 500x BREAKS 100,000% TOTAL GAIN
+
+Run `37649450550` completed successfully.
+
+Validated cases:
+
+| ATTACK cap | Ending capital | Total gain | Max DD |
+|---:|---:|---:|---:|
+| 350x | USD 44,804.67 | +74,574.45% | 51.16% |
+| 400x | USD 50,807.95 | +84,579.92% | 51.16% |
+| 500x | **USD 62,649.88** | **+104,316.46%** | **51.16%** |
+
+The attempted 650x / 800x / 1000x cases in that run failed before scientific evaluation because Trader Lab still contained an artificial validation guard `attack_multiplier_cap <= 500`. Those failures are LAB-GUARD FAILURES, NOT ceiling evidence.
+
+The guard was separated from real execution constraints in commit:
+
+`ec125631e1e65fbaff12688c4df621faee8e097c`
+
+Trader Lab now allows a research-range cap up to 5000x, while the actual executed multiplier still remains the minimum of:
+
+- PROVIDER_MAX;
+- CEILING_SINGLE_TRADE_RISK_CAP;
+- CEILING_DRAWDOWN_RISK_CAP;
+- DISTRIBUTED_ATTACK_CAP;
+- CUSHION_FUNDING_CAP;
+- RISK_CAP;
+- MARGIN_CAP.
+
+The fast bridge for this change passed SUCCESS.
+
+Conclusion:
+
+> USD 62,649.88 became the observed record at 500x, but 500x was an artificial laboratory boundary and therefore could not be treated as the true ceiling.
+
+---
+
+# 26. LIVE CONTINUITY UPDATE — 2000x RECORD AND NEW DD REGIME
+
+Run `37650047198` completed successfully on commit `163319e1558a6a7c68ae8cc9989a5c85d85aefde`.
+
+All cases preserved the required 3,368 / 3,368 entries and zero ATTACK sovereign breach.
+
+Frontier:
+
+| ATTACK cap | Ending capital | Total gain | Max DD |
+|---:|---:|---:|---:|
+| 500x | USD 62,649.88 | +104,316.46% | 51.16% |
+| 650x | USD 78,846.98 | +131,311.63% | 55.14% |
+| 800x | USD 94,353.64 | +157,156.06% | 60.87% |
+| 1000x | USD 115,650.17 | +192,650.29% | 63.91% |
+| 1250x | USD 144,785.21 | +241,208.68% | 64.07% |
+| 1500x | USD 172,491.51 | +287,385.86% | 64.53% |
+| 2000x | **USD 225,464.91** | **+375,674.84%** | **64.55%** |
+
+Therefore:
+
+> USD 225,464.91 is the new OBSERVED RECORD, NOT the true ceiling.
+
+Important structural change:
+
+- up to 500x, max DD remained the early 2020 episode at ~51.16%;
+- from 650x upward a new high-leverage ATTACK drawdown regime appears;
+- at 2000x the max-DD peak is ~USD 14,131.59 on 2020-09-02 and the trough is ~USD 5,009.88 on 2020-10-05;
+- max DD is ~USD 9,121.71 / 64.55%;
+- attribution is overwhelmingly ATTACK (~-USD 9,108.48 vs ~-USD 13.23 MEDIUM).
+
+Main damage contributors in the 2000x max-DD episode include VT31_NAS100, R38_GBPJPY, R42_AUDJPY and R34_XAUUSD, with several losses above 500x and 1000x.
+
+However 2000x still does NOT show a terminal-capital cliff. At the exact 2000x multiplier bucket:
+
+- gross profit ≈ USD 634,329.51;
+- gross loss ≈ USD 432,613.17;
+- net contribution remains strongly positive.
+
+Thus the ceiling search must continue upward before final DD compression.
+
+Current next sweep:
+
+- workflow: `QORE CIBO Shock Ceiling Expansion Fast`;
+- commit: `492801f892940de2e34aeffa4604865290ac7ef7`;
+- run: `37650886009`;
+- caps: 2000 / 2500 / 3000 / 3500 / 4000 / 4500 / 5000x;
+- persistent Portfolio shock taper;
+- 20% single-ATTACK risk;
+- growth slope 10;
+- same causal and 3,368/3,368 invariants.
+
+Decision rule:
+
+1. if terminal capital keeps rising materially through 5000x, do NOT call ceiling;
+2. if provider/risk/margin/cushion limits create a plateau, refine around that plateau;
+3. if a terminal-capital cliff appears, bracket it from both sides;
+4. preserve the new high-leverage DD regime as a forensic target for the later DD-compression phase.
