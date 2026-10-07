@@ -150,6 +150,7 @@ def run_cibo_position_lifecycle(
     adverse_loss_cut_r: Decimal = Decimal("-0.50"),
     adverse_partial_fraction: Decimal = Decimal("0.25"),
     adverse_partial_max_favorable_r: Decimal = Decimal("1"),
+    adverse_loss_cut_max_favorable_r: Decimal = Decimal("1"),
     bootstrap_partial_fraction: Decimal = Decimal("0.50"),
     adverse_tightened_stop_r: Decimal = Decimal("-0.50"),
     defensive_initial_stop_r: Decimal = Decimal("-0.50"),
@@ -185,6 +186,14 @@ def run_cibo_position_lifecycle(
     ):
         raise CiboCapitalManagementError(
             "Lifecycle adverse partial max favorable R must be finite and nonnegative"
+        )
+    if (
+        not isinstance(adverse_loss_cut_max_favorable_r, Decimal)
+        or not adverse_loss_cut_max_favorable_r.is_finite()
+        or adverse_loss_cut_max_favorable_r < 0
+    ):
+        raise CiboCapitalManagementError(
+            "Lifecycle adverse loss-cut max favorable R must be finite and nonnegative"
         )
     if (
         not isinstance(bootstrap_partial_fraction, Decimal)
@@ -509,7 +518,7 @@ def run_cibo_position_lifecycle(
 
         if (
             CiboLifecycleFeature.ADVERSE_LOSS_CUT in features
-            and best_favorable_seen < Decimal(1)
+            and best_favorable_seen < adverse_loss_cut_max_favorable_r
             and close_r <= adverse_loss_cut_r
             and bar.closed_at < position.horizon_at
         ):
