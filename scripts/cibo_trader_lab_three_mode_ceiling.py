@@ -352,6 +352,8 @@ def main() -> int:
     requested_adverse_loss_cut_trader_ids = frozenset(
         args.lifecycle_adverse_loss_cut_trader_id
     )
+    # Dedicated staged-adaptive lab: protect the DD-forming trader group while
+    # preserving mandatory admission of every Trader entry.
     staged_adaptive_default_trader_ids = frozenset({
         "R43_GBPUSD",
         "R34_XAUUSD",
