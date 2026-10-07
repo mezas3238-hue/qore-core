@@ -149,6 +149,8 @@ class _State:
     bank_seed_profit_to_sovereign_usd: Decimal = Decimal(0)
     bank_seed_profit_to_cushion_usd: Decimal = Decimal(0)
     bank_seed_net_pnl_usd: Decimal = Decimal(0)
+    sizing_compound_loss_to_sovereign_usd: Decimal = Decimal(0)
+    sizing_compound_loss_to_cushion_usd: Decimal = Decimal(0)
     attack_net_pnl_usd: Decimal = Decimal(0)
 
     @property
@@ -615,7 +617,17 @@ def apply_three_mode_settlement(
             state.medium_profit_to_sovereign_usd += sovereign_gain
             state.medium_profit_to_cushion_usd += cushion_gain
         else:
-            state.sovereign_bank_usd += net_pnl
+            loss = -net_pnl
+            target_cushion_loss = loss * MEDIUM_CUSHION_SHARE
+            cushion_loss = min(
+                state.portfolio_cushion_usd,
+                target_cushion_loss,
+            )
+            sovereign_loss = loss - cushion_loss
+            state.portfolio_cushion_usd -= cushion_loss
+            state.sovereign_bank_usd -= sovereign_loss
+            state.sizing_compound_loss_to_cushion_usd += cushion_loss
+            state.sizing_compound_loss_to_sovereign_usd += sovereign_loss
     elif trade.mode is CiboTraderLabMode.ATTACK:
         state.cushion_reserved_usd -= trade.source_reserved_usd
         state.portfolio_cushion_usd += net_pnl
@@ -639,7 +651,17 @@ def apply_three_mode_settlement(
             state.bank_seed_profit_to_sovereign_usd += sovereign_gain
             state.bank_seed_profit_to_cushion_usd += cushion_gain
         else:
-            state.sovereign_bank_usd += net_pnl
+            loss = -net_pnl
+            target_cushion_loss = loss * MEDIUM_CUSHION_SHARE
+            cushion_loss = min(
+                state.portfolio_cushion_usd,
+                target_cushion_loss,
+            )
+            sovereign_loss = loss - cushion_loss
+            state.portfolio_cushion_usd -= cushion_loss
+            state.sovereign_bank_usd -= sovereign_loss
+            state.sizing_compound_loss_to_cushion_usd += cushion_loss
+            state.sizing_compound_loss_to_sovereign_usd += sovereign_loss
     else:
         raise CiboCapitalManagementError(
             "unknown Trader Lab operating mode"
@@ -1796,6 +1818,14 @@ def run_three_mode_trader_lab(
             state.bank_seed_net_pnl_usd,
             "f",
         ),
+        "sizing_compound_loss_to_sovereign_usd": format(
+            state.sizing_compound_loss_to_sovereign_usd,
+            "f",
+        ),
+        "sizing_compound_loss_to_portfolio_cushion_usd": format(
+            state.sizing_compound_loss_to_cushion_usd,
+            "f",
+        ),
         "attack_net_pnl_usd": format(
             state.attack_net_pnl_usd,
             "f",
@@ -1896,6 +1926,9 @@ def run_three_mode_trader_lab(
             "outcome_used_for_predecision": False,
             "medium_positive_profit_split": "50%_SOVEREIGN_50%_CUSHION",
             "bank_seed_positive_profit_split": "50%_SOVEREIGN_50%_CUSHION",
+            "sizing_compound_loss_split": (
+                "TARGET_50%_SOVEREIGN_50%_CUSHION_WITH_SOVEREIGN_SHORTFALL_COVER"
+            ),
             "bank_seed_source": "SOVEREIGN_MINIMUM_SEED_ONLY",
             "sizing_role": (
                 "EXECUTABLE_QUANTITY_AFTER_COGNITIVE_ECONOMIC_ADMISSION"
