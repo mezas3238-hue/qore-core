@@ -464,6 +464,24 @@ def main() -> int:
         help="Optional total-capital ceiling below which the research ATTACK DD budget is active.",
     )
     parser.add_argument(
+        "--ceiling-attack-drawdown-budget2-fraction",
+        type=Decimal,
+        default=None,
+        help="Optional second research ATTACK DD budget fraction.",
+    )
+    parser.add_argument(
+        "--ceiling-attack-drawdown-budget2-capital-floor",
+        type=Decimal,
+        default=None,
+        help="Capital floor for the second ATTACK DD budget band.",
+    )
+    parser.add_argument(
+        "--ceiling-attack-drawdown-budget2-capital-ceiling",
+        type=Decimal,
+        default=None,
+        help="Capital ceiling for the second ATTACK DD budget band.",
+    )
+    parser.add_argument(
         "--ceiling-attack-single-trade-risk-fraction",
         type=Decimal,
         default=None,
@@ -1365,6 +1383,15 @@ def main() -> int:
         ),
         ceiling_attack_drawdown_budget_capital_ceiling=(
             args.ceiling_attack_drawdown_budget_capital_ceiling
+        ),
+        ceiling_attack_drawdown_budget2_fraction=(
+            args.ceiling_attack_drawdown_budget2_fraction
+        ),
+        ceiling_attack_drawdown_budget2_capital_floor=(
+            args.ceiling_attack_drawdown_budget2_capital_floor
+        ),
+        ceiling_attack_drawdown_budget2_capital_ceiling=(
+            args.ceiling_attack_drawdown_budget2_capital_ceiling
         ),
         ceiling_attack_single_trade_risk_fraction=(
             args.ceiling_attack_single_trade_risk_fraction
