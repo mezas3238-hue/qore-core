@@ -149,6 +149,7 @@ def run_cibo_position_lifecycle(
     features: frozenset[CiboLifecycleFeature] = FULL_CIBO_LIFECYCLE_FEATURES,
     adverse_loss_cut_r: Decimal = Decimal("-0.50"),
     adverse_partial_fraction: Decimal = Decimal("0.25"),
+    adverse_partial_max_favorable_r: Decimal = Decimal("1"),
     bootstrap_partial_fraction: Decimal = Decimal("0.50"),
     adverse_tightened_stop_r: Decimal = Decimal("-0.50"),
     defensive_initial_stop_r: Decimal = Decimal("-0.50"),
@@ -176,6 +177,14 @@ def run_cibo_position_lifecycle(
     ):
         raise CiboCapitalManagementError(
             "Lifecycle adverse partial fraction must be Decimal strictly between 0 and 1"
+        )
+    if (
+        not isinstance(adverse_partial_max_favorable_r, Decimal)
+        or not adverse_partial_max_favorable_r.is_finite()
+        or adverse_partial_max_favorable_r < 0
+    ):
+        raise CiboCapitalManagementError(
+            "Lifecycle adverse partial max favorable R must be finite and nonnegative"
         )
     if (
         not isinstance(bootstrap_partial_fraction, Decimal)
@@ -485,13 +494,14 @@ def run_cibo_position_lifecycle(
             adverse_stop_tightened = True
 
         # Direct-to-stop losers are the DD surface that winner-protection
-        # features do not address.  Only positions that have never reached
-        # +1R may arm this cut; this avoids amputating trades that already
-        # demonstrated material favorable excursion.
+        # features do not address.  The favorable-excursion ceiling is a
+        # causal, closed-bar trajectory gate: Trader Lab may tighten it below
+        # +1R to avoid amputating positions that already demonstrated recovery
+        # potential, while the default preserves the established +1R behavior.
         if (
             CiboLifecycleFeature.ADVERSE_PARTIAL_REDUCTION in features
             and not adverse_partial_done
-            and best_favorable_seen < Decimal(1)
+            and best_favorable_seen < adverse_partial_max_favorable_r
             and close_r <= adverse_loss_cut_r
             and bar.closed_at < position.horizon_at
         ):
