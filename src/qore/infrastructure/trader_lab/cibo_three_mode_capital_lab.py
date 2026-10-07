@@ -51,6 +51,7 @@ MEDIUM_SOVEREIGN_SHARE = Decimal("0.50")
 MEDIUM_CUSHION_SHARE = Decimal("0.50")
 ATTACK_MINIMUM_MULTIPLIER = 2
 MARGIN_CAPACITY_MULTIPLE = Decimal("100")
+SOVEREIGN_DEFENSIVE_DRAWDOWN = Decimal("0.50")
 
 
 class CiboTraderLabMode(StrEnum):
@@ -124,8 +125,11 @@ class _State:
     open_stop_risk_usd: Decimal = Decimal(0)
     open_margin_usd: Decimal = Decimal(0)
     peak_total_capital_usd: Decimal = INITIAL_CAPITAL_USD
+    peak_sovereign_bank_usd: Decimal = INITIAL_CAPITAL_USD
     max_drawdown_usd: Decimal = Decimal(0)
+    max_sovereign_drawdown_usd: Decimal = Decimal(0)
     min_sovereign_bank_usd: Decimal = INITIAL_CAPITAL_USD
+    sovereign_floor_breach_usd: Decimal = Decimal(0)
     cushion_high_watermark_usd: Decimal = Decimal(0)
     attack_sovereign_breach_usd: Decimal = Decimal(0)
     medium_profit_to_sovereign_usd: Decimal = Decimal(0)
@@ -150,11 +154,46 @@ class _State:
             self.portfolio_cushion_usd - self.cushion_reserved_usd,
         )
 
+    @property
+    def sovereign_protection_floor_usd(self) -> Decimal:
+        with localcontext() as context:
+            context.prec = 100
+            return (
+                self.peak_sovereign_bank_usd
+                * (Decimal(1) - SOVEREIGN_DEFENSIVE_DRAWDOWN)
+            )
+
+    @property
+    def sovereign_risk_budget_available_usd(self) -> Decimal:
+        return max(
+            Decimal(0),
+            self.sovereign_available_usd
+            - self.sovereign_protection_floor_usd,
+        )
+
     def mark(self) -> None:
         total = self.total_capital_usd
         self.peak_total_capital_usd = max(self.peak_total_capital_usd, total)
         drawdown = max(Decimal(0), self.peak_total_capital_usd - total)
         self.max_drawdown_usd = max(self.max_drawdown_usd, drawdown)
+        floor_before_mark = self.sovereign_protection_floor_usd
+        if self.sovereign_bank_usd < floor_before_mark:
+            self.sovereign_floor_breach_usd = max(
+                self.sovereign_floor_breach_usd,
+                floor_before_mark - self.sovereign_bank_usd,
+            )
+        self.peak_sovereign_bank_usd = max(
+            self.peak_sovereign_bank_usd,
+            self.sovereign_bank_usd,
+        )
+        sovereign_drawdown = max(
+            Decimal(0),
+            self.peak_sovereign_bank_usd - self.sovereign_bank_usd,
+        )
+        self.max_sovereign_drawdown_usd = max(
+            self.max_sovereign_drawdown_usd,
+            sovereign_drawdown,
+        )
         self.min_sovereign_bank_usd = min(
             self.min_sovereign_bank_usd,
             self.sovereign_bank_usd,
@@ -413,8 +452,8 @@ def explain_three_mode(
         bank_reasons.append("CORRELATION_BREAK")
     if regime.position_path_adverse:
         bank_reasons.append("POSITION_PATH_ADVERSE")
-    if drawdown_utilization >= Decimal("0.50"):
-        bank_reasons.append("DRAWDOWN_GE_50PCT")
+    if drawdown_utilization >= SOVEREIGN_DEFENSIVE_DRAWDOWN:
+        bank_reasons.append("SOVEREIGN_DRAWDOWN_GE_50PCT")
     if risk_utilization >= cibo_new_capital_risk_utilization_ceiling():
         bank_reasons.append("RISK_UTILIZATION_DEFENSIVE")
     if margin_utilization >= Decimal("0.80"):
@@ -520,9 +559,22 @@ def apply_three_mode_settlement(
             state.attack_sovereign_breach_usd += breach
             state.portfolio_cushion_usd = Decimal(0)
             state.sovereign_bank_usd -= breach
+    elif trade.mode is CiboTraderLabMode.BANK:
+        # BANK recovery probes are cushion-funded. Positive recovery is
+        # harvested into the sovereign bank; loss remains in the cushion.
+        state.cushion_reserved_usd -= trade.source_reserved_usd
+        if net_pnl > 0:
+            state.sovereign_bank_usd += net_pnl
+        else:
+            state.portfolio_cushion_usd += net_pnl
+            if state.portfolio_cushion_usd < 0:
+                breach = -state.portfolio_cushion_usd
+                state.attack_sovereign_breach_usd += breach
+                state.portfolio_cushion_usd = Decimal(0)
+                state.sovereign_bank_usd -= breach
     else:
         raise CiboCapitalManagementError(
-            "BANK mode cannot own an open Trader Lab trade"
+            "unknown Trader Lab operating mode"
         )
     state.mark()
     return net_pnl
@@ -635,12 +687,15 @@ def run_three_mode_trader_lab(
             total * cibo_new_capital_risk_utilization_ceiling()
         )
         margin_capacity = total * MARGIN_CAPACITY_MULTIPLE
-        drawdown = max(Decimal(0), state.peak_total_capital_usd - total)
+        sovereign_drawdown = max(
+            Decimal(0),
+            state.peak_sovereign_bank_usd - state.sovereign_bank_usd,
+        )
         risk_utilization = _ratio(state.open_stop_risk_usd, risk_capacity)
         margin_utilization = _ratio(state.open_margin_usd, margin_capacity)
         drawdown_utilization = _ratio(
-            drawdown,
-            state.peak_total_capital_usd,
+            sovereign_drawdown,
+            state.peak_sovereign_bank_usd,
         )
         best = eligible[0] if eligible else None
         mode, mode_reasons = explain_three_mode(
@@ -667,8 +722,18 @@ def run_three_mode_trader_lab(
         sovereign_left = state.sovereign_available_usd
         cushion_left = state.cushion_available_usd
 
-        if mode is not CiboTraderLabMode.BANK:
-            for candidate in eligible:
+        bank_recovery_allowed = (
+            mode is CiboTraderLabMode.BANK
+            and set(mode_reasons) == {"SOVEREIGN_DRAWDOWN_GE_50PCT"}
+            and best is not None
+        )
+        if mode is not CiboTraderLabMode.BANK or bank_recovery_allowed:
+            candidate_surface = (
+                eligible[:1]
+                if bank_recovery_allowed
+                else eligible
+            )
+            for candidate in candidate_surface:
                 sizing_calls += 1
                 if mode is CiboTraderLabMode.MEDIUM:
                     economic_cap = robust_economic_multiplier_cap(
@@ -687,7 +752,32 @@ def run_three_mode_trader_lab(
                         robust_sizing_reject_count += 1
                         continue
                     multiplier = 1
-                    source_left = sovereign_left
+                    source_left = min(
+                        sovereign_left,
+                        state.sovereign_risk_budget_available_usd,
+                    )
+                elif mode is CiboTraderLabMode.BANK:
+                    # Existing CE2I DEMO recovery semantics permit a minimum-risk
+                    # probe. BANK never funds it from sovereign capital.
+                    economic_cap = robust_economic_multiplier_cap(
+                        candidate,
+                        capital_base_usd=cushion_left,
+                    )
+                    if (
+                        economic_cap < 1
+                        or cushion_left
+                        < candidate.source_cost_per_multiplier_usd
+                        or robust_capital_utility(
+                            candidate,
+                            multiplier=1,
+                            capital_base_usd=cushion_left,
+                        )
+                        <= 0
+                    ):
+                        robust_sizing_reject_count += 1
+                        continue
+                    multiplier = 1
+                    source_left = cushion_left
                 else:
                     adaptive_leverage_calls += 1
                     source_left = cushion_left
@@ -847,6 +937,14 @@ def run_three_mode_trader_lab(
                     state.sovereign_bank_usd,
                     "f",
                 ),
+                "sovereign_protection_floor_usd": format(
+                    state.sovereign_protection_floor_usd,
+                    "f",
+                ),
+                "sovereign_risk_budget_available_usd": format(
+                    state.sovereign_risk_budget_available_usd,
+                    "f",
+                ),
                 "portfolio_cushion_usd": format(
                     state.portfolio_cushion_usd,
                     "f",
@@ -912,6 +1010,22 @@ def run_three_mode_trader_lab(
         "max_drawdown_fraction": format(max_drawdown_pct, "f"),
         "minimum_sovereign_bank_usd": format(
             state.min_sovereign_bank_usd,
+            "f",
+        ),
+        "peak_sovereign_bank_usd": format(
+            state.peak_sovereign_bank_usd,
+            "f",
+        ),
+        "max_sovereign_drawdown_usd": format(
+            state.max_sovereign_drawdown_usd,
+            "f",
+        ),
+        "sovereign_protection_floor_usd": format(
+            state.sovereign_protection_floor_usd,
+            "f",
+        ),
+        "sovereign_floor_breach_usd": format(
+            state.sovereign_floor_breach_usd,
             "f",
         ),
         "portfolio_cushion_high_watermark_usd": format(
@@ -1014,6 +1128,11 @@ def run_three_mode_trader_lab(
             "leverage_law": (
                 "CANONICAL_CONCAVE_ROBUST_UTILITY_NO_REPLAY_TUNED_THRESHOLD"
             ),
-            "bank_new_risk": "FORBIDDEN",
+            "bank_sovereign_risk": "FORBIDDEN",
+            "bank_recovery_probe": (
+                "1X_CUSHION_FUNDED_ROBUST_UTILITY_POSITIVE_ONLY"
+            ),
+            "bank_recovery_positive_pnl": "100%_TO_SOVEREIGN_BANK",
+            "medium_sovereign_floor": "50%_OF_SOVEREIGN_HIGH_WATERMARK",
         },
     }
