@@ -1,16 +1,12 @@
 name: QORE CIBO Dual Carrier Two DD Windows
 
+# RETIRED AUTO-PATH: manual-only legacy carrier sweep; automatic research moved to QORE GitHub Trader Lab Fast.
+
 # Research-only reused-holdout hypothesis generation; not certification evidence.
 # Uses the strongest dual-band strict-Pareto carrier and spends only excess capital on DD compression.
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - agent/cibo-causal-expectation-leakage-fix-001
-    paths:
-      - '.github/workflows/cibo-trader-lab-dual-carrier-two-dd-windows.yml'
-
 permissions:
   contents: read
   actions: read
