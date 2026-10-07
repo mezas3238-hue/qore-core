@@ -1,0 +1,48 @@
+{
+  "schema": "qore.cibo.dd-gross-loss.strict-pareto.v1",
+  "subject": "CIBO",
+  "objective": "Reduce drawdown and gross losses while preserving all Trader entries and never breaching the frozen ceiling floor.",
+  "frozen_floor": {
+    "ending_capital_usd": "582440.0252953678696769360345",
+    "max_drawdown_fraction": "0.6510419759240315671719825681633489757925369664663770620335151596826649313533375179797855048624928231",
+    "total_gross_loss_usd": "1444736.060362508738067914772",
+    "attack_gross_loss_usd": "1443117.897425126985300959340",
+    "trade_count": 3368
+  },
+  "optimization_carrier": {
+    "case": "b2000-3999-f25",
+    "source_run_id": 37662670595,
+    "ending_capital_usd": "663394.7930435364541457211510",
+    "max_drawdown_fraction": "0.6401538258346635598794461290149869391555727440943208992121333240495424656931590235759620531962682660",
+    "total_gross_loss_usd": "1302694.091662142753189245677",
+    "attack_gross_loss_usd": "1301011.132562144661845718527",
+    "total_profit_factor": "1.509202273418749896589503329",
+    "trade_count": 3368,
+    "capital_headroom_above_floor_usd": "80954.7677481685844687851165",
+    "multiplier_band": {
+      "lower": 2000,
+      "upper": 3999,
+      "taper_fraction": "0.25"
+    }
+  },
+  "invariants": {
+    "trader_entries_preserved": 3368,
+    "reject_entries": false,
+    "attack_sovereign_breach_usd": "0",
+    "hard_capital_floor_usd": "582440.0252953678696769360345"
+  },
+  "promotion_logic": {
+    "strict_pareto_floor_gate": "capital >= hard floor AND DD < frozen-floor DD AND total gross loss < frozen-floor gross loss AND ATTACK gross loss < frozen-floor ATTACK gross loss",
+    "carrier_reporting": "Always report capital, DD, total gross loss and ATTACK gross loss deltas versus b2000-3999-f25.",
+    "headroom_usage": "Capital may fall below the carrier only to buy material DD/gross-loss compression, but must never fall below the frozen floor.",
+    "preferred_promotion": "Promote non-dominated candidates; prefer simultaneous lower DD/loss with equal-or-higher capital."
+  },
+  "methodology": [
+    "detect_loss_or_drawdown_cause",
+    "modify_CIBO",
+    "replay",
+    "compare_STRICT_PARETO",
+    "retain_only_improvements",
+    "repeat"
+  ]
+}
