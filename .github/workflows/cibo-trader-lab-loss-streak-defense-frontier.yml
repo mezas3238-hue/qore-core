@@ -1,14 +1,10 @@
 name: QORE CIBO Trader Loss-Streak Defense Frontier
+
+# RETIRED AUTO-PATH: manual-only legacy evidence; automatic execution moved to QORE GitHub Trader Lab Fast.
 # loss-streak frontier trigger
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - agent/cibo-causal-expectation-leakage-fix-001
-    paths:
-      - '.github/workflows/cibo-trader-lab-loss-streak-defense-frontier.yml'
-
 permissions:
   contents: read
   actions: read
