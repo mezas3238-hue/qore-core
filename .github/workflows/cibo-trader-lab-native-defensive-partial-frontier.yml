@@ -6,7 +6,8 @@ on:
     branches:
       - agent/cibo-causal-expectation-leakage-fix-001
     paths:
-      - '.github/workflows/cibo-trader-lab-adverse-native-defensive-partial-frontier.yml'
+      - '.github/workflows/cibo-trader-lab-native-defensive-partial-frontier.yml'
+      - 'scripts/cibo_trader_lab_native_defensive_frontier.py'
 
 permissions:
   contents: read
