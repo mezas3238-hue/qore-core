@@ -2971,7 +2971,9 @@ def run_three_mode_trader_lab(
     return {
         "schema": "qore.trader_lab.cibo_three_mode_ceiling.v1",
         "research_lane": (
-            "HISTORICAL_PRIOR_NATIVE_LIFECYCLE_DISTRIBUTED_ATTACK_FRONTIER"
+            "HISTORICAL_PRIOR_NATIVE_COORDINATED_ECONOMIC_GROUP"
+            if use_historical_prior and coordinated_economic_group and not lifecycle_map
+            else "HISTORICAL_PRIOR_NATIVE_LIFECYCLE_DISTRIBUTED_ATTACK_FRONTIER"
             if use_historical_prior and lifecycle_map and distributed_attack_frontier
             else "HISTORICAL_PRIOR_NATIVE_LIFECYCLE_CUSTODY"
             if use_historical_prior and lifecycle_map
