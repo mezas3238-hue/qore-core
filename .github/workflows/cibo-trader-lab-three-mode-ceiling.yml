@@ -26,6 +26,8 @@ env:
   SOURCE_ARTIFACT_DIGEST: 'sha256:d439957f21e2f79148b5a2fb75a53db6fa448698f17aeb6978f379ed3547f7ea'
   HISTORICAL_SOURCE_ARTIFACT_ID: '11389331836'
   HISTORICAL_SOURCE_ARTIFACT_DIGEST: 'sha256:30177639f660c9647ab70257c2d12c541bdade49ab5582347a3890f920070fee'
+  HISTORICAL_CONTROL_ARTIFACT_ID: '11409086692'
+  HISTORICAL_CONTROL_ARTIFACT_DIGEST: 'sha256:eeffdc99a736b82bd965ff646b8ca9bf084f50ae414e56e9b3d82961169d7187'
 
 jobs:
   three-mode-ceiling:
@@ -80,6 +82,16 @@ jobs:
           test -n "$HISTORICAL_MANIFEST"
           echo "HISTORICAL_MANIFEST=$HISTORICAL_MANIFEST" >> "$GITHUB_ENV"
 
+          mkdir -p "$RUNNER_TEMP/historical-control"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$HISTORICAL_CONTROL_ARTIFACT_ID" > "$RUNNER_TEMP/historical-control.meta.json"
+          jq -e --arg digest "$HISTORICAL_CONTROL_ARTIFACT_DIGEST" '.expired == false and .digest == $digest' "$RUNNER_TEMP/historical-control.meta.json"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$HISTORICAL_CONTROL_ARTIFACT_ID/zip" > "$RUNNER_TEMP/historical-control.zip"
+          echo "${HISTORICAL_CONTROL_ARTIFACT_DIGEST#sha256:}  $RUNNER_TEMP/historical-control.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/historical-control.zip" -d "$RUNNER_TEMP/historical-control"
+          HISTORICAL_REPLAY="$(find "$RUNNER_TEMP/historical-control" -type f -name historical-ceiling-replay.json -print -quit)"
+          test -n "$HISTORICAL_REPLAY"
+          echo "HISTORICAL_REPLAY=$HISTORICAL_REPLAY" >> "$GITHUB_ENV"
+
       - name: Run BANK MEDIUM ATTACK causal baseline
         run: |
           set -euo pipefail
@@ -104,6 +116,7 @@ jobs:
             --manifest "$MANIFEST" \
             --baseline-replay "$BASELINE" \
             --historical-manifest "$HISTORICAL_MANIFEST" \
+            --historical-replay "$HISTORICAL_REPLAY" \
             --output "$RUNNER_TEMP/result/cibo-three-mode-historical-prior-native.json"
 
       - name: Enforce Trader Lab scientific invariants
