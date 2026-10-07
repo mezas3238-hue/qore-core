@@ -304,6 +304,15 @@ def main() -> int:
         help="Maximum MEDIUM multiplier eligible for the bootstrap lifecycle override.",
     )
     parser.add_argument(
+        "--lifecycle-bootstrap-override-require-expectation",
+        action="store_true",
+        help=(
+            "Apply the bootstrap lifecycle override only when a causal "
+            "walk-forward expected structural R exists; cold-start entries "
+            "remain on the normal lifecycle path."
+        ),
+    )
+    parser.add_argument(
         "--lifecycle-bootstrap-capital-ceiling",
         type=Decimal,
         default=None,
@@ -1194,6 +1203,9 @@ def main() -> int:
         ),
         lifecycle_bootstrap_override_medium_max_multiplier=(
             args.lifecycle_bootstrap_override_medium_max_multiplier
+        ),
+        lifecycle_bootstrap_override_require_expectation=(
+            args.lifecycle_bootstrap_override_require_expectation
         ),
         lifecycle_defensive_medium_1x_only=(
             args.lifecycle_defensive_medium_1x_only
