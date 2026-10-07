@@ -763,15 +763,14 @@ def apply_three_mode_settlement(
                     state.portfolio_cushion_usd,
                     total,
                 )
-                if (
-                    not ceiling_discovery_mode
-                    and total_dd >= Decimal("0.20")
-                ):
+                if ceiling_discovery_mode:
+                    sovereign_share = (
+                        Decimal(1)
+                        - economic_group_bootstrap_cushion_share
+                    )
+                elif total_dd >= Decimal("0.20"):
                     sovereign_share = Decimal("0.80")
-                elif (
-                    not ceiling_discovery_mode
-                    and total_dd >= Decimal("0.10")
-                ):
+                elif total_dd >= Decimal("0.10"):
                     sovereign_share = Decimal("0.65")
                 elif cushion_ratio < Decimal("0.20"):
                     sovereign_share = (
@@ -1586,15 +1585,14 @@ def run_three_mode_trader_lab(
                         state.portfolio_cushion_usd,
                         total,
                     )
-                    if (
-                        not ceiling_discovery_mode
-                        and total_dd >= Decimal("0.20")
-                    ):
+                    if ceiling_discovery_mode:
+                        sovereign_share = (
+                            Decimal(1)
+                            - economic_group_bootstrap_cushion_share
+                        )
+                    elif total_dd >= Decimal("0.20"):
                         sovereign_share = Decimal("0.80")
-                    elif (
-                        not ceiling_discovery_mode
-                        and total_dd >= Decimal("0.10")
-                    ):
+                    elif total_dd >= Decimal("0.10"):
                         sovereign_share = Decimal("0.65")
                     elif cushion_ratio < Decimal("0.20"):
                         sovereign_share = (
