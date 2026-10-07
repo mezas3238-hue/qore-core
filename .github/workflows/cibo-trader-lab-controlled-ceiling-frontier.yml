@@ -1,5 +1,7 @@
 name: QORE CIBO Controlled Ceiling Frontier
 
+# Explicit leverage-cap revision
+
 on:
   workflow_dispatch:
   push:
