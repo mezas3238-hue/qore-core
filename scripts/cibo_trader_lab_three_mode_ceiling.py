@@ -54,6 +54,7 @@ def _build_lifecycle_map(
     roots: dict[str, Path],
     *,
     features: frozenset[CiboLifecycleFeature],
+    adverse_loss_cut_r: Decimal,
 ) -> dict[str, dict[str, object]]:
     if not roots:
         return {}
@@ -104,6 +105,7 @@ def _build_lifecycle_map(
             ),
             series[start:end] if start < end else (),
             features=features,
+            adverse_loss_cut_r=adverse_loss_cut_r,
         )
         result[signal] = {
             "original_gross_r": format(outcome.gross_structural_outcome_r, "f"),
@@ -144,6 +146,15 @@ def main() -> int:
         help=(
             "Repeat to run a lifecycle ablation. When omitted, the complete "
             "causal lifecycle feature set is enabled."
+        ),
+    )
+    parser.add_argument(
+        "--lifecycle-adverse-loss-cut-r",
+        type=Decimal,
+        default=Decimal("-0.50"),
+        help=(
+            "Closed-bar deterioration trigger for ADVERSE_LOSS_CUT; the exit "
+            "is executed causally at the next M5 open."
         ),
     )
     parser.add_argument(
@@ -211,6 +222,7 @@ def main() -> int:
         manifest,
         _lifecycle_roots(args.lifecycle_source_root),
         features=lifecycle_features,
+        adverse_loss_cut_r=args.lifecycle_adverse_loss_cut_r,
     )
     baseline = None
     cognitive_recommend_by_signal = None
