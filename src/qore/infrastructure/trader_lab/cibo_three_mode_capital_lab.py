@@ -1007,6 +1007,7 @@ def run_three_mode_trader_lab(
     ceiling_attack_stress_confidence_multiplier_upper: int | None = None,
     ceiling_attack_stress_confidence_projected_risk_fraction_trigger: Decimal | None = None,
     ceiling_attack_stress_confidence_taper_fraction: Decimal = Decimal("0.75"),
+    ceiling_attack_stress_confidence_risk_budget_taper_fraction: Decimal = Decimal("1"),
     ceiling_attack_trader_loss_ratio_trigger: Decimal | None = None,
     ceiling_attack_trader_loss_ratio_min_settlements: int = 20,
     ceiling_attack_trader_loss_ratio_taper_fraction: Decimal = Decimal("0.95"),
@@ -1934,6 +1935,18 @@ def run_three_mode_trader_lab(
         )
     if (
         not isinstance(
+            ceiling_attack_stress_confidence_risk_budget_taper_fraction,
+            Decimal,
+        )
+        or not ceiling_attack_stress_confidence_risk_budget_taper_fraction.is_finite()
+        or ceiling_attack_stress_confidence_risk_budget_taper_fraction <= 0
+        or ceiling_attack_stress_confidence_risk_budget_taper_fraction > 1
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab stress-confidence risk-budget taper fraction must be Decimal in (0, 1]"
+        )
+    if (
+        not isinstance(
             ceiling_attack_stress_confidence_taper_fraction,
             Decimal,
         )
@@ -2658,6 +2671,7 @@ def run_three_mode_trader_lab(
     attack_drawdown_window6_taper_bind_count = 0
     attack_drawdown_window7_taper_bind_count = 0
     attack_stress_confidence_taper_bind_count = 0
+    attack_stress_confidence_risk_budget_bind_count = 0
     attack_trader_loss_ratio_taper_bind_count = 0
     attack_recent_trader_loss_taper_bind_count = 0
     attack_trader_shock_taper_bind_count = 0
@@ -4342,6 +4356,7 @@ def run_three_mode_trader_lab(
                             coordinated_attack_cap,
                             drawdown_tapered_attack_cap,
                         )
+                    stress_confidence_active = False
                     if (
                         ceiling_discovery_mode
                         and ceiling_attack_stress_confidence_drawdown_trigger
@@ -4386,6 +4401,7 @@ def run_three_mode_trader_lab(
                             stress_confidence_ratio
                             <= ceiling_attack_stress_confidence_ratio_ceiling
                         ):
+                            stress_confidence_active = True
                             stress_confidence_tapered_attack_cap = max(
                                 ATTACK_MINIMUM_MULTIPLIER,
                                 int(
@@ -4538,6 +4554,15 @@ def run_three_mode_trader_lab(
                                 effective_single_trade_risk_fraction *= (
                                     ceiling_attack_drawdown_taper_fraction
                                 )
+                            if (
+                                stress_confidence_active
+                                and ceiling_attack_stress_confidence_risk_budget_taper_fraction
+                                < Decimal(1)
+                            ):
+                                effective_single_trade_risk_fraction *= (
+                                    ceiling_attack_stress_confidence_risk_budget_taper_fraction
+                                )
+                                attack_stress_confidence_risk_budget_bind_count += 1
                             if (
                                 ceiling_portfolio_shock_trigger_fraction is not None
                                 and portfolio_last_attack_loss_fraction
@@ -6360,8 +6385,14 @@ def run_three_mode_trader_lab(
             "ceiling_attack_stress_confidence_taper_fraction": format(
                 ceiling_attack_stress_confidence_taper_fraction, "f"
             ),
+            "ceiling_attack_stress_confidence_risk_budget_taper_fraction": format(
+                ceiling_attack_stress_confidence_risk_budget_taper_fraction, "f"
+            ),
             "attack_stress_confidence_taper_bind_count": (
                 attack_stress_confidence_taper_bind_count
+            ),
+            "attack_stress_confidence_risk_budget_bind_count": (
+                attack_stress_confidence_risk_budget_bind_count
             ),
             "ceiling_attack_trader_loss_ratio_trigger": (
                 None
