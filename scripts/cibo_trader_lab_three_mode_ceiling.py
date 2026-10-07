@@ -242,13 +242,12 @@ def main() -> int:
         ),
     )
     parser.add_argument(
-        "--lifecycle-adverse-loss-cut-trader-id",
-        action="append",
-        default=[],
+        "--lifecycle-adverse-loss-cut-traders",
+        default="",
         help=(
-            "Optional Trader allowlist for ADVERSE_LOSS_CUT. Repeat for each "
-            "Trader. Entries are still always admitted; this controls only "
-            "post-entry loss custody."
+            "Optional comma-separated Trader allowlist for ADVERSE_LOSS_CUT. "
+            "Entries are still always admitted; this controls only post-entry "
+            "loss custody."
         ),
     )
     parser.add_argument(
@@ -348,7 +347,9 @@ def main() -> int:
             args.lifecycle_adverse_loss_cut_close_fraction
         ),
         adverse_loss_cut_trader_ids=frozenset(
-            args.lifecycle_adverse_loss_cut_trader_id
+            item
+            for item in args.lifecycle_adverse_loss_cut_traders.split(",")
+            if item
         ),
     )
     baseline = None
@@ -638,7 +639,11 @@ def main() -> int:
     )
     result["position_lifecycle_report"][
         "adverse_loss_cut_trader_ids"
-    ] = sorted(set(args.lifecycle_adverse_loss_cut_trader_id))
+    ] = sorted(
+        item
+        for item in args.lifecycle_adverse_loss_cut_traders.split(",")
+        if item
+    )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
         json.dumps(result, indent=2, sort_keys=True) + "\n",
