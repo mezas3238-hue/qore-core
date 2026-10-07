@@ -134,7 +134,7 @@ jobs:
           for SPEC in "090:-0.90" "075:-0.75" "060:-0.60" "050:-0.50"; do
             LABEL="${SPEC%%:*}"
             THRESHOLD="${SPEC#*:}"
-            python scripts/cibo_trader_lab_three_mode_ceiling.py \
+            if python scripts/cibo_trader_lab_three_mode_ceiling.py \
               --manifest "$MANIFEST" \
               --baseline-replay "$BASELINE" \
               --historical-manifest "$HISTORICAL_MANIFEST" \
