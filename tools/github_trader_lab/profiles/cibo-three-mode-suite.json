@@ -91,7 +91,7 @@
     }
   },
   "science": {
-    "control": "COORDINATED_75_BASELINE",
+    "control": "b2000-3999-f25",
     "primary_lane": "cibo-three-mode-suite",
     "min_density": "1",
     "min_winner_count_preservation": "0",
