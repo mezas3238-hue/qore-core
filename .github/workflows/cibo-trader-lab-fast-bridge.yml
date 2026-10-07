@@ -1,6 +1,6 @@
 name: QORE CIBO -> GitHub Trader Lab Fast
 
-# Research suite revision: isolated M1 reproducibility check
+# Research suite revision: MEDIUM stress-defense ridge toward 25pct DD
 
 on:
   push:
