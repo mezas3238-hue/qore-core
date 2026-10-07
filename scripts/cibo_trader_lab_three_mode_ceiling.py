@@ -428,6 +428,32 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--ceiling-attack-multiplier-band-lower",
+        type=int,
+        default=None,
+        help=(
+            "Research-only lower bound of a proposed ATTACK multiplier band "
+            "whose incremental intensity may be selectively compressed."
+        ),
+    )
+    parser.add_argument(
+        "--ceiling-attack-multiplier-band-upper",
+        type=int,
+        default=None,
+        help=(
+            "Research-only upper bound of the causal ATTACK multiplier band."
+        ),
+    )
+    parser.add_argument(
+        "--ceiling-attack-multiplier-band-taper-fraction",
+        type=Decimal,
+        default=Decimal("0.50"),
+        help=(
+            "Fraction of a proposed ATTACK multiplier retained only when the "
+            "causal proposed multiplier lands inside the configured band."
+        ),
+    )
+    parser.add_argument(
         "--ceiling-attack-stress-confidence-drawdown-trigger",
         type=Decimal,
         default=None,
@@ -910,6 +936,15 @@ def main() -> int:
         ),
         ceiling_attack_drawdown_taper_fraction=(
             args.ceiling_attack_drawdown_taper_fraction
+        ),
+        ceiling_attack_multiplier_band_lower=(
+            args.ceiling_attack_multiplier_band_lower
+        ),
+        ceiling_attack_multiplier_band_upper=(
+            args.ceiling_attack_multiplier_band_upper
+        ),
+        ceiling_attack_multiplier_band_taper_fraction=(
+            args.ceiling_attack_multiplier_band_taper_fraction
         ),
         ceiling_attack_stress_confidence_drawdown_trigger=(
             args.ceiling_attack_stress_confidence_drawdown_trigger
