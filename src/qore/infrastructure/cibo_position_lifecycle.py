@@ -282,12 +282,6 @@ def run_cibo_position_lifecycle(
     bootstrap_partial_done = False
     adverse_stop_tightened = False
 
-    if CiboLifecycleFeature.DEFENSIVE_INITIAL_STOP_CAP in features:
-        append_event(
-            position.entry_at,
-            "DEFENSIVE_INITIAL_STOP_CAP_ARMED",
-        )
-
     def favorable_adverse_close(
         bar: CiboLifecycleBar,
     ) -> tuple[Decimal, Decimal, Decimal, Decimal]:
@@ -333,6 +327,12 @@ def run_cibo_position_lifecycle(
                 risk_fraction_remaining=risk_fraction,
                 margin_fraction_remaining=margin_fraction,
             )
+        )
+
+    if CiboLifecycleFeature.DEFENSIVE_INITIAL_STOP_CAP in features:
+        append_event(
+            position.entry_at,
+            "DEFENSIVE_INITIAL_STOP_CAP_ARMED",
         )
 
     for bar in causal_bars:
