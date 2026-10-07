@@ -10,6 +10,8 @@ from decimal import Decimal
 from pathlib import Path
 
 from qore.infrastructure.cibo_position_lifecycle import (
+    FULL_CIBO_LIFECYCLE_FEATURES,
+    CiboLifecycleFeature,
     CiboPositionLifecycleInput,
     run_cibo_position_lifecycle,
 )
@@ -50,6 +52,8 @@ def _lifecycle_roots(values: list[str]) -> dict[str, Path]:
 def _build_lifecycle_map(
     manifest: dict[str, object],
     roots: dict[str, Path],
+    *,
+    features: frozenset[CiboLifecycleFeature],
 ) -> dict[str, dict[str, object]]:
     if not roots:
         return {}
@@ -99,6 +103,7 @@ def _build_lifecycle_map(
                 original_settlement_gross_r=outcome.gross_structural_outcome_r,
             ),
             series[start:end] if start < end else (),
+            features=features,
         )
         result[signal] = {
             "original_gross_r": format(outcome.gross_structural_outcome_r, "f"),
@@ -106,6 +111,7 @@ def _build_lifecycle_map(
             "managed_exit_at": managed.exit_at.isoformat(),
             "data_available": managed.data_available,
             "actions": list(managed.actions),
+            "enabled_features": sorted(item.value for item in features),
             "risk_released_before_exit_fraction": format(
                 managed.risk_released_before_exit_fraction, "f"
             ),
@@ -128,6 +134,16 @@ def main() -> int:
         action="append",
         default=[],
         help="Post-entry causal Market Atlas source as SYMBOL=PATH.",
+    )
+    parser.add_argument(
+        "--lifecycle-feature",
+        action="append",
+        choices=[item.value for item in CiboLifecycleFeature],
+        default=[],
+        help=(
+            "Repeat to run a lifecycle ablation. When omitted, the complete "
+            "causal lifecycle feature set is enabled."
+        ),
     )
     parser.add_argument(
         "--soft-medium-drawdown-allocator",
@@ -185,9 +201,15 @@ def main() -> int:
     args = parser.parse_args()
 
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
+    lifecycle_features = (
+        frozenset(CiboLifecycleFeature(value) for value in args.lifecycle_feature)
+        if args.lifecycle_feature
+        else FULL_CIBO_LIFECYCLE_FEATURES
+    )
     lifecycle_by_signal = _build_lifecycle_map(
         manifest,
         _lifecycle_roots(args.lifecycle_source_root),
+        features=lifecycle_features,
     )
     baseline = None
     cognitive_recommend_by_signal = None
