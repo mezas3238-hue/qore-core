@@ -929,6 +929,15 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--ceiling-attack-stress-confidence-target-r-floor",
+        type=Decimal,
+        default=None,
+        help=(
+            "Optional causal planned reward/risk floor required before "
+            "stress-confidence may taper ATTACK."
+        ),
+    )
+    parser.add_argument(
         "--ceiling-attack-stress-confidence-multiplier-lower",
         type=int,
         default=None,
@@ -1751,6 +1760,9 @@ def main() -> int:
         ),
         ceiling_attack_stress_confidence_ratio_ceiling=(
             args.ceiling_attack_stress_confidence_ratio_ceiling
+        ),
+        ceiling_attack_stress_confidence_target_r_floor=(
+            args.ceiling_attack_stress_confidence_target_r_floor
         ),
         ceiling_attack_stress_confidence_multiplier_lower=(
             args.ceiling_attack_stress_confidence_multiplier_lower
