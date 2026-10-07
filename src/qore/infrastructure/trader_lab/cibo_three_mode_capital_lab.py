@@ -831,6 +831,7 @@ def run_three_mode_trader_lab(
     lifecycle_trader_loss_streak_trigger: int | None = None,
     lifecycle_bootstrap_capital_ceiling: Decimal | None = None,
     lifecycle_minimum_stop_risk_fraction_trigger: Decimal | None = None,
+    lifecycle_projected_open_stop_risk_fraction_trigger: Decimal | None = None,
     enforce_research_context_abstain: bool = False,
     soft_medium_drawdown_allocator: bool = False,
     medium_pretrade_drawdown_ceiling: Decimal = ECONOMIC_DRAWDOWN_CEILING,
@@ -881,6 +882,18 @@ def run_three_mode_trader_lab(
         raise CiboCapitalManagementError(
             "Trader Lab lifecycle minimum stop-risk fraction trigger must be "
             "Decimal in (0, 0.50]"
+        )
+    if lifecycle_projected_open_stop_risk_fraction_trigger is not None and (
+        not isinstance(
+            lifecycle_projected_open_stop_risk_fraction_trigger, Decimal
+        )
+        or not lifecycle_projected_open_stop_risk_fraction_trigger.is_finite()
+        or lifecycle_projected_open_stop_risk_fraction_trigger <= 0
+        or lifecycle_projected_open_stop_risk_fraction_trigger > Decimal("1")
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab lifecycle projected open stop-risk fraction trigger "
+            "must be Decimal in (0, 1]"
         )
     if type(enforce_research_context_abstain) is not bool:
         raise CiboCapitalManagementError(
@@ -1016,6 +1029,7 @@ def run_three_mode_trader_lab(
     lifecycle_trader_loss_streak_blocked_count = 0
     lifecycle_bootstrap_capital_blocked_count = 0
     lifecycle_minimum_stop_risk_fraction_blocked_count = 0
+    lifecycle_projected_open_stop_risk_fraction_blocked_count = 0
     for profile in lifecycle_map.values():
         lifecycle_data_available_count += int(bool(profile["data_available"]))
         lifecycle_changed_count += int(
@@ -2847,6 +2861,15 @@ def run_three_mode_trader_lab(
                 or minimum_stop_risk_fraction
                 >= lifecycle_minimum_stop_risk_fraction_trigger
             )
+            projected_open_stop_risk_fraction = _ratio(
+                state.open_stop_risk_usd + stop_risk,
+                max(Decimal("0.00000001"), state.total_capital_usd),
+            )
+            lifecycle_projected_open_stop_risk_fraction_allowed = (
+                lifecycle_projected_open_stop_risk_fraction_trigger is None
+                or projected_open_stop_risk_fraction
+                >= lifecycle_projected_open_stop_risk_fraction_trigger
+            )
             apply_lifecycle_to_trade = bool(
                 lifecycle_map
                 and lifecycle_grade_allowed
@@ -2854,6 +2877,7 @@ def run_three_mode_trader_lab(
                 and lifecycle_trader_streak_allowed
                 and lifecycle_bootstrap_capital_allowed
                 and lifecycle_minimum_stop_risk_fraction_allowed
+                and lifecycle_projected_open_stop_risk_fraction_allowed
             )
             if (
                 lifecycle_map
@@ -2885,6 +2909,16 @@ def run_three_mode_trader_lab(
                 and not lifecycle_minimum_stop_risk_fraction_allowed
             ):
                 lifecycle_minimum_stop_risk_fraction_blocked_count += 1
+            if (
+                lifecycle_map
+                and lifecycle_grade_allowed
+                and lifecycle_drawdown_allowed
+                and lifecycle_trader_streak_allowed
+                and lifecycle_bootstrap_capital_allowed
+                and lifecycle_minimum_stop_risk_fraction_allowed
+                and not lifecycle_projected_open_stop_risk_fraction_allowed
+            ):
+                lifecycle_projected_open_stop_risk_fraction_blocked_count += 1
             lifecycle_events_for_trade = (
                 tuple(
                     lifecycle_map[candidate.signal_fingerprint][
@@ -3102,6 +3136,18 @@ def run_three_mode_trader_lab(
     position_lifecycle_report[
         "minimum_stop_risk_fraction_blocked_count"
     ] = lifecycle_minimum_stop_risk_fraction_blocked_count
+    position_lifecycle_report[
+        "projected_open_stop_risk_fraction_trigger"
+    ] = (
+        None
+        if lifecycle_projected_open_stop_risk_fraction_trigger is None
+        else format(
+            lifecycle_projected_open_stop_risk_fraction_trigger, "f"
+        )
+    )
+    position_lifecycle_report[
+        "projected_open_stop_risk_fraction_blocked_count"
+    ] = lifecycle_projected_open_stop_risk_fraction_blocked_count
     if pending:
         raise CiboCapitalManagementError(
             "Trader Lab three-mode ended with unsettled trades"
@@ -3552,6 +3598,13 @@ def run_three_mode_trader_lab(
                 None
                 if lifecycle_minimum_stop_risk_fraction_trigger is None
                 else format(lifecycle_minimum_stop_risk_fraction_trigger, "f")
+            ),
+            "position_lifecycle_projected_open_stop_risk_fraction_trigger": (
+                None
+                if lifecycle_projected_open_stop_risk_fraction_trigger is None
+                else format(
+                    lifecycle_projected_open_stop_risk_fraction_trigger, "f"
+                )
             ),
             "position_lifecycle_source": (
                 "MARKET_ATLAS_10Y_CAUSAL_CLOSED_M5_POST_ENTRY"
