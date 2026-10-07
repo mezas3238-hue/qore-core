@@ -499,6 +499,16 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--ceiling-attack-compound-hysteresis-fraction",
+        type=Decimal,
+        default=None,
+        help=(
+            "Optional causal ATTACK compounding hysteresis. Risk scales down "
+            "immediately on capital loss but only scales back up after this "
+            "fractional capital increase from the current anchor."
+        ),
+    )
+    parser.add_argument(
         "--ceiling-attack-drawdown-budget-fraction",
         type=Decimal,
         default=None,
@@ -1564,6 +1574,9 @@ def main() -> int:
         ceiling_discovery_mode=args.ceiling_discovery_mode,
         ceiling_growth_leverage_slope=(
             args.ceiling_growth_leverage_slope
+        ),
+        ceiling_attack_compound_hysteresis_fraction=(
+            args.ceiling_attack_compound_hysteresis_fraction
         ),
         ceiling_attack_drawdown_budget_fraction=(
             args.ceiling_attack_drawdown_budget_fraction
