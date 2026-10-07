@@ -1,5 +1,7 @@
 name: QORE CIBO Summary Telemetry Parity
 
+# Parity revision 2 — exposure accounting repaired
+
 on:
   workflow_dispatch:
   push:
