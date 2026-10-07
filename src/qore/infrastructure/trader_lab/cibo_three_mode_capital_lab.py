@@ -723,11 +723,21 @@ def apply_three_mode_settlement(
         gross_pnl = trade.gross_r * trade.stop_risk_usd
         net_pnl = gross_pnl - trade.provider_cost_usd
 
+    open_stop_risk_before_usd = state.open_stop_risk_usd
+    open_margin_before_usd = state.open_margin_usd
     state.open_stop_risk_usd -= trade.stop_risk_usd
     state.open_margin_usd -= trade.margin_usd
     if state.open_stop_risk_usd < 0 or state.open_margin_usd < 0:
         raise CiboCapitalManagementError(
-            "Trader Lab open exposure accounting became negative during settlement"
+            "Trader Lab open exposure accounting became negative during settlement: "
+            f"signal={trade.signal_fingerprint} trader={trade.trader_id} "
+            f"mode={trade.mode.value} multiplier={trade.multiplier} "
+            f"open_stop_before={format(open_stop_risk_before_usd, 'f')} "
+            f"trade_stop_risk={format(trade.stop_risk_usd, 'f')} "
+            f"open_stop_after={format(state.open_stop_risk_usd, 'f')} "
+            f"open_margin_before={format(open_margin_before_usd, 'f')} "
+            f"trade_margin={format(trade.margin_usd, 'f')} "
+            f"open_margin_after={format(state.open_margin_usd, 'f')}"
         )
     if trade.mode is CiboTraderLabMode.MEDIUM:
         bank_seed = (
