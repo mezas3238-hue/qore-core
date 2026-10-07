@@ -2191,28 +2191,36 @@ def run_three_mode_trader_lab(
                         )
                     )
                     native_intensity_cap = (
-                        (
-                            min(
+                        min(
+                            candidate.maximum_multiplier,
+                            medium_multiplier_cap,
+                        )
+                        if four_engine_cooperation_frontier
+                        else (
+                            (
+                                min(
+                                    candidate.maximum_multiplier,
+                                    medium_multiplier_cap,
+                                )
+                                if (
+                                    candidate.native_cognition_recommended
+                                    and historical_prior_deployable
+                                )
+                                else min(candidate.maximum_multiplier, 1)
+                            )
+                            if use_historical_prior
+                            else min(
                                 candidate.maximum_multiplier,
                                 medium_multiplier_cap,
                             )
                             if (
                                 candidate.native_cognition_recommended
-                                and historical_prior_deployable
+                                and candidate.context_quality_disposition
+                                == "ALLOW"
+                                and candidate.expected_edge_after_cost_usd > 0
                             )
-                            else min(candidate.maximum_multiplier, 1)
+                            else 1
                         )
-                        if use_historical_prior
-                        else min(
-                            candidate.maximum_multiplier,
-                            medium_multiplier_cap,
-                        )
-                        if (
-                            candidate.native_cognition_recommended
-                            and candidate.context_quality_disposition == "ALLOW"
-                            and candidate.expected_edge_after_cost_usd > 0
-                        )
-                        else 1
                     )
                     multiplier = max(
                         1,
@@ -2545,6 +2553,11 @@ def run_three_mode_trader_lab(
                                 else None
                             ),
                             "native_intensity_cap": native_intensity_cap,
+                            "cooperative_sizing_role": (
+                                "PHYSICAL_RISK_MARGIN_SOURCE_DIMENSIONING"
+                                if four_engine_cooperation_frontier
+                                else None
+                            ),
                         },
                         reaction="AWAIT_HARD_CAPACITY_CHECK",
                         call=True,
@@ -3562,7 +3575,8 @@ def run_three_mode_trader_lab(
                 four_engine_cooperation_frontier
             ),
             "four_engine_cooperation_law": (
-                "TRADER_1X_INHERITED; SIZING_PROPOSES_INTENSITY; "
+                "TRADER_1X_INHERITED; SIZING_DIMENSIONS_PHYSICAL_RISK_MARGIN_"
+                "AND_SOURCE_WITHOUT_DUPLICATING_PORTFOLIO_EDGE_SELECTION; "
                 "CIBO_COMPOUND_CAPS_INCREMENTAL_REINVESTMENT_FROM_REALIZED_"
                 "NET_PRODUCTION; COMPOUND_PORTFOLIO_ALLOCATES_INCREMENTAL_"
                 "GROWTH_BY_CAUSAL_ACCOUNT_UTILITY; ADAPTIVE_LEVERAGE_BINDS_"
