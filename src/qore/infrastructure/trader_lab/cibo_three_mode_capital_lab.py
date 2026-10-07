@@ -977,6 +977,7 @@ def run_three_mode_trader_lab(
                     )
                 )
                 or type(profile.get("data_available")) is not bool
+                or not isinstance(profile.get("original_exit_at"), str)
                 or not isinstance(profile.get("managed_exit_at"), str)
                 or not isinstance(profile.get("actions"), (list, tuple))
                 or not isinstance(profile.get("enabled_features"), (list, tuple))
@@ -990,6 +991,7 @@ def run_three_mode_trader_lab(
                 raise CiboCapitalManagementError(
                     f"Trader Lab lifecycle profile malformed for {signal}"
                 )
+            _dt(profile["original_exit_at"], "lifecycle original_exit_at")
             _dt(profile["managed_exit_at"], "lifecycle managed_exit_at")
 
     lifecycle_action_counts: Counter[str] = Counter()
@@ -1338,6 +1340,8 @@ def run_three_mode_trader_lab(
     lifecycle_activated_entry_count = 0
     lifecycle_activated_changed_outcome_count = 0
     lifecycle_activated_action_counts: Counter[str] = Counter()
+    lifecycle_drawdown_gate_execute_count = 0
+    lifecycle_drawdown_gate_skip_count = 0
     four_engine_joint_decision_count = 0
     four_engine_sizing_above_one_count = 0
     four_engine_compound_growth_enabled_count = 0
@@ -1635,6 +1639,8 @@ def run_three_mode_trader_lab(
 
     def settle_due(up_to: datetime | None) -> None:
         nonlocal pending, compound_settlements
+        nonlocal lifecycle_drawdown_gate_execute_count
+        nonlocal lifecycle_drawdown_gate_skip_count
 
         def due_at(trade: CiboThreeModeOpenTrade) -> datetime:
             if (
@@ -1706,6 +1712,43 @@ def run_three_mode_trader_lab(
                 released_margin_usd = (
                     trade.margin_usd * released_margin_fraction
                 )
+
+            if (
+                lifecycle_event is not None
+                and lifecycle_event.action == "ADVERSE_LOSS_CUT_NEXT_OPEN"
+            ):
+                current_total_drawdown_usd = max(
+                    Decimal(0),
+                    state.peak_total_capital_usd - state.total_capital_usd,
+                )
+                current_total_drawdown_fraction = _ratio(
+                    current_total_drawdown_usd,
+                    state.peak_total_capital_usd,
+                )
+                if (
+                    current_total_drawdown_fraction
+                    < lifecycle_drawdown_activation_fraction
+                ):
+                    lifecycle_drawdown_gate_skip_count += 1
+                    profile = lifecycle_map[trade.signal_fingerprint]
+                    pending.append(
+                        replace(
+                            trade,
+                            exit_at=_dt(
+                                profile["original_exit_at"],
+                                "lifecycle original_exit_at",
+                            ),
+                            gross_r=Decimal(
+                                str(profile["original_gross_r"])
+                            ),
+                            lifecycle_events=(),
+                            lifecycle_event_index=0,
+                            lifecycle_risk_fraction_remaining=Decimal(1),
+                            lifecycle_margin_fraction_remaining=Decimal(1),
+                        )
+                    )
+                    continue
+                lifecycle_drawdown_gate_execute_count += 1
 
             record_engineering_sensor(
                 settlement_function,
@@ -1868,19 +1911,11 @@ def run_three_mode_trader_lab(
                 "Trader Lab three-mode account exhausted"
             )
 
-        pre_epoch_total_drawdown_usd = max(
-            Decimal(0),
-            state.peak_total_capital_usd - state.total_capital_usd,
-        )
-        pre_epoch_drawdown_fraction = _ratio(
-            pre_epoch_total_drawdown_usd,
-            state.peak_total_capital_usd,
-        )
-        lifecycle_epoch_active = (
-            bool(lifecycle_map)
-            and pre_epoch_drawdown_fraction
-            >= lifecycle_drawdown_activation_fraction
-        )
+        # Every open position carries its causal lifecycle proposal.
+        # The account drawdown gate is evaluated when the protection event
+        # actually becomes executable, so positions opened before a drawdown
+        # threshold crossing can still be defended.
+        lifecycle_epoch_active = bool(lifecycle_map)
 
         regimes = tuple(_regime_from_row(row) for row in epoch_rows)
         regime = regimes[0]
@@ -3331,6 +3366,18 @@ def run_three_mode_trader_lab(
     position_lifecycle_report[
         "activated_action_counts"
     ] = dict(sorted(lifecycle_activated_action_counts.items()))
+    position_lifecycle_report[
+        "drawdown_activation_timing"
+    ] = "LIFECYCLE_EVENT"
+    position_lifecycle_report[
+        "drawdown_gate_execute_count"
+    ] = lifecycle_drawdown_gate_execute_count
+    position_lifecycle_report[
+        "drawdown_gate_skip_count"
+    ] = lifecycle_drawdown_gate_skip_count
+    position_lifecycle_report[
+        "activated_changed_outcome_count"
+    ] = lifecycle_drawdown_gate_execute_count
 
     trade_count = sum(trade_mode_counts.values())
     average_leverage = (

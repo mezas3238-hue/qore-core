@@ -121,6 +121,7 @@ def _build_lifecycle_map(
         )
         result[signal] = {
             "original_gross_r": format(outcome.gross_structural_outcome_r, "f"),
+            "original_exit_at": outcome.exit_at.isoformat(),
             "managed_gross_r": format(managed.gross_r, "f"),
             "managed_exit_at": managed.exit_at.isoformat(),
             "data_available": managed.data_available,
