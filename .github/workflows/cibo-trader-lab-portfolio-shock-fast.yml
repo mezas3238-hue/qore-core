@@ -136,9 +136,9 @@ jobs:
             fi
           }
 
-          # 2000x remains economically productive; continue toward the current
-          # research-range guard while preserving provider/risk/margin/cushion caps.
-          for attack in 2000 2500 3000 3500 4000 4500 5000; do
+          # 5000x remains economically productive. No artificial research ceiling:
+          # probe geometrically until real provider/economic caps create a plateau or cliff.
+          for attack in 5000 7500 10000 15000 20000 30000 50000; do
             run_case "persist-a${attack}-r020" "$attack" 10 0.20 0
           done
 
