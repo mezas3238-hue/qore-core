@@ -914,6 +914,9 @@ def run_three_mode_trader_lab(
     lifecycle_bootstrap_override_by_signal: (
         Mapping[str, Mapping[str, object]] | None
     ) = None,
+    lifecycle_attack_override_by_signal: (
+        Mapping[str, Mapping[str, object]] | None
+    ) = None,
     lifecycle_bootstrap_override_capital_ceiling: Decimal | None = None,
     lifecycle_bootstrap_override_peak_capital_ceiling: Decimal | None = None,
     lifecycle_bootstrap_override_drawdown_trigger: Decimal | None = None,
@@ -921,6 +924,7 @@ def run_three_mode_trader_lab(
     lifecycle_bootstrap_override_medium_max_multiplier: int = 2,
     lifecycle_bootstrap_override_require_expectation: bool = False,
     lifecycle_bootstrap_override_expected_r_ceiling: Decimal | None = None,
+    lifecycle_attack_override_projected_open_stop_risk_fraction_trigger: Decimal | None = None,
     lifecycle_defensive_medium_1x_only: bool = False,
     lifecycle_attack_only: bool = False,
     lifecycle_defensive_medium_max_multiplier: int | None = None,
@@ -1175,6 +1179,24 @@ def run_three_mode_trader_lab(
         raise CiboCapitalManagementError(
             "Trader Lab lifecycle projected open stop-risk fraction trigger "
             "must be Decimal in (0, 1]"
+        )
+    if (
+        lifecycle_attack_override_projected_open_stop_risk_fraction_trigger
+        is not None
+        and (
+            not isinstance(
+                lifecycle_attack_override_projected_open_stop_risk_fraction_trigger,
+                Decimal,
+            )
+            or not lifecycle_attack_override_projected_open_stop_risk_fraction_trigger.is_finite()
+            or lifecycle_attack_override_projected_open_stop_risk_fraction_trigger <= 0
+            or lifecycle_attack_override_projected_open_stop_risk_fraction_trigger
+            > Decimal("1")
+        )
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab ATTACK lifecycle override projected open stop-risk "
+            "fraction trigger must be Decimal in (0, 1]"
         )
     if type(enforce_research_context_abstain) is not bool:
         raise CiboCapitalManagementError(
@@ -2238,6 +2260,39 @@ def run_three_mode_trader_lab(
                 "bootstrap lifecycle override managed_exit_at",
             )
 
+    lifecycle_attack_override_map: dict[str, dict[str, object]] = {}
+    if lifecycle_attack_override_by_signal is not None:
+        lifecycle_attack_override_map = {
+            str(signal): dict(profile)
+            for signal, profile in lifecycle_attack_override_by_signal.items()
+        }
+        if set(lifecycle_attack_override_map) != set(signals):
+            raise CiboCapitalManagementError(
+                "Trader Lab ATTACK lifecycle override map must cover exact manifest signals"
+            )
+        for signal, profile in lifecycle_attack_override_map.items():
+            managed = Decimal(str(profile.get("managed_gross_r")))
+            original = Decimal(str(profile.get("original_gross_r")))
+            if (
+                not managed.is_finite()
+                or not original.is_finite()
+                or type(profile.get("data_available")) is not bool
+                or not isinstance(profile.get("managed_exit_at"), str)
+                or not isinstance(profile.get("events"), (list, tuple))
+                or not profile.get("events")
+                or any(
+                    not isinstance(item, CiboLifecycleEvent)
+                    for item in profile["events"]
+                )
+            ):
+                raise CiboCapitalManagementError(
+                    f"Trader Lab ATTACK lifecycle override profile malformed for {signal}"
+                )
+            _dt(
+                profile["managed_exit_at"],
+                "ATTACK lifecycle override managed_exit_at",
+            )
+
     lifecycle_action_counts: Counter[str] = Counter()
     lifecycle_feature_sets = {
         tuple(str(item) for item in profile["enabled_features"])
@@ -2268,6 +2323,8 @@ def run_three_mode_trader_lab(
     lifecycle_changed_count = 0
     lifecycle_applied_trade_count = 0
     lifecycle_bootstrap_override_applied_count = 0
+    lifecycle_attack_override_applied_count = 0
+    lifecycle_attack_override_projected_risk_blocked_count = 0
     lifecycle_drawdown_trigger_blocked_count = 0
     lifecycle_trader_loss_streak_blocked_count = 0
     lifecycle_bootstrap_capital_blocked_count = 0
@@ -5246,6 +5303,24 @@ def run_three_mode_trader_lab(
                     )
                 )
             )
+            lifecycle_attack_override_projected_risk_allowed = (
+                lifecycle_attack_override_projected_open_stop_risk_fraction_trigger
+                is None
+                or projected_open_stop_risk_fraction
+                >= lifecycle_attack_override_projected_open_stop_risk_fraction_trigger
+            )
+            lifecycle_attack_override_allowed = bool(
+                lifecycle_attack_override_map
+                and candidate_mode is CiboTraderLabMode.ATTACK
+                and lifecycle_attack_override_projected_risk_allowed
+            )
+            if (
+                lifecycle_attack_override_map
+                and candidate_mode is CiboTraderLabMode.ATTACK
+                and not lifecycle_attack_override_projected_risk_allowed
+            ):
+                lifecycle_attack_override_projected_risk_blocked_count += 1
+
             if bootstrap_override_allowed:
                 lifecycle_events_for_trade = tuple(
                     lifecycle_bootstrap_override_map[
@@ -5253,6 +5328,13 @@ def run_three_mode_trader_lab(
                     ]["events"]
                 )
                 lifecycle_bootstrap_override_applied_count += 1
+            elif lifecycle_attack_override_allowed:
+                lifecycle_events_for_trade = tuple(
+                    lifecycle_attack_override_map[
+                        candidate.signal_fingerprint
+                    ]["events"]
+                )
+                lifecycle_attack_override_applied_count += 1
             else:
                 lifecycle_events_for_trade = (
                     tuple(
@@ -5542,6 +5624,26 @@ def run_three_mode_trader_lab(
         if lifecycle_bootstrap_override_expected_r_ceiling is None
         else format(lifecycle_bootstrap_override_expected_r_ceiling, "f")
     )
+    position_lifecycle_report["attack_override_enabled"] = bool(
+        lifecycle_attack_override_map
+    )
+    position_lifecycle_report["attack_override_applied_count"] = (
+        lifecycle_attack_override_applied_count
+    )
+    position_lifecycle_report[
+        "attack_override_projected_open_stop_risk_fraction_trigger"
+    ] = (
+        None
+        if lifecycle_attack_override_projected_open_stop_risk_fraction_trigger
+        is None
+        else format(
+            lifecycle_attack_override_projected_open_stop_risk_fraction_trigger,
+            "f",
+        )
+    )
+    position_lifecycle_report[
+        "attack_override_projected_risk_blocked_count"
+    ] = lifecycle_attack_override_projected_risk_blocked_count
     position_lifecycle_report["defensive_medium_1x_only"] = (
         lifecycle_defensive_medium_1x_only
     )
