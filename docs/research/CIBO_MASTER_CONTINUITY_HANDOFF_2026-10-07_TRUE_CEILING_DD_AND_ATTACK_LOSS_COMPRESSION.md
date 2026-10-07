@@ -2535,3 +2535,116 @@ Research targets are now:
 - then DD < 50%;
 - continue reducing gross loss by double digits;
 - never allow ending capital below the frozen USD 582,440.03 ceiling.
+
+
+---
+
+# 32. STRICT-PARETO ACCELERATION — 25% GROSS-LOSS COMPRESSION AND DD DOWN TO 56.68%
+
+The DD/loss laboratory is now producing multiple independent strict-Pareto surfaces.
+
+Frozen baseline remains the immutable minimum/reference:
+
+- capital: USD 582,440.0252953678696769360345;
+- max DD: 65.1041975924...%;
+- total gross loss: USD 1,444,736.060362508738067914772;
+- ATTACK gross loss: USD 1,443,117.897425126985300959340;
+- 3,368 / 3,368 entries.
+
+## Dual-band loss compression — run 37664514418
+
+Combining the destructive ATTACK multiplier band with the destructive normalized-risk band produced a major strict-Pareto gain.
+
+Best balanced dual-band carrier:
+
+`m20-r025-050-f50`
+
+- ending capital: **USD 728,846.92**;
+- +USD 146,406.89 above frozen baseline;
+- max DD: **63.9917%**;
+- total gross loss: **USD 1,090,594.40**;
+- total gross-loss reduction: **24.51%**;
+- ATTACK gross loss: USD 1,088,907.00;
+- strict Pareto: PASS.
+
+The tested carrier uses:
+
+- ATTACK multiplier band 2,000–3,999x at 20% retention;
+- normalized ATTACK risk-fraction band 2.5%–5.0% at 50% retention.
+
+This proves that the two destructive loss surfaces are complementary rather than redundant.
+
+## Loss-compression stack — run 37664471799
+
+Best current pure economic-compression candidate:
+
+`m25-r50-w75`
+
+- ending capital: **USD 752,751.56**;
+- +USD 170,311.53 over frozen baseline;
+- max DD: ~64.02%;
+- total gross loss: **USD 1,081,984.02**;
+- total gross-loss reduction: **25.11%**;
+- ATTACK gross loss: USD 1,080,296.62;
+- strict Pareto: PASS.
+
+Thus >25% gross-loss compression has been demonstrated without degrading the frozen ceiling.
+
+## Residual DD multiplier window — run 37664970209
+
+A bounded live-DD + multiplier window produced the best valid DD so far:
+
+`b25-w05-25-m800-1900-f50`
+
+- ending capital: **USD 619,896.01**;
+- still +USD 37,455.98 above frozen baseline;
+- max DD: **56.6767%**;
+- total gross loss: USD 1,259,760.41;
+- total gross-loss reduction: **12.80%**;
+- ATTACK gross loss: USD 1,258,089.58;
+- strict Pareto: PASS.
+
+Residual episode:
+
+- peak: 2020-09-07 05:50 UTC;
+- trough: 2020-10-05 14:10 UTC;
+- peak capital: ~USD 13,229.37;
+- trough capital: ~USD 5,731.39;
+- DD USD: ~USD 7,497.97;
+- ATTACK net in episode: ~-USD 7,497.22;
+- MEDIUM net in episode: only ~-USD 0.76.
+
+The residual damage has now shifted heavily toward:
+
+- R34_XAUUSD: ~-USD 5,706.25 in the episode;
+- R42_AUDJPY: ~-USD 1,763.73.
+
+Largest remaining losses are concentrated around multipliers approximately:
+
+324x / 503x / 525x / 547x / 867x / 909x / 966x / 1,094x / 1,324x.
+
+This is evidence that each successful compression changes the causal DD bottleneck. Future work must re-forensic the new winner rather than reuse old loss regions blindly.
+
+## Rejected lane
+
+`QORE CIBO Flat-Edge DD Windows` run `37664965902` returned no strict Pareto case.
+
+Some windows reduced DD strongly, but all such cases fell below frozen terminal capital. The lane is therefore diagnostic only and MUST NOT be promoted.
+
+## Current active deep-compression frontiers
+
+- run `37665184837` — Pareto DD Compression Ridge 2;
+- run `37665136328` — Band05 Sub60 DD Ridge;
+- run `37665462540` — Dual Band Plus DD Ridge;
+- run `37665594526` — Band05 Residual DD Window Ridge;
+- run `37665783341` — Dual Band Residual DD Window.
+
+The immediate scientific gates are now:
+
+1. preserve ending capital >= USD 582,440.03;
+2. keep total gross loss below baseline, preferably >=20% compression;
+3. break DD <55%;
+4. then refine toward DD <50%;
+5. continue toward the owner's ideal 20–25% corridor only through strict-Pareto steps.
+
+No global de-risking lane may replace a strict-Pareto carrier.
