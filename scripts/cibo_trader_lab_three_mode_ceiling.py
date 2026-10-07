@@ -30,6 +30,15 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--medium-pretrade-drawdown-ceiling",
+        type=Decimal,
+        default=Decimal("0.25"),
+        help=(
+            "Trader-Lab-only MEDIUM reserve frontier: pre-trade worst-case "
+            "drawdown ceiling. Realized DD must still remain <=0.25."
+        ),
+    )
+    parser.add_argument(
         "--enforce-context-abstain",
         action="store_true",
         help=(
@@ -311,6 +320,9 @@ def main() -> int:
         enforce_research_context_abstain=args.enforce_context_abstain,
         soft_medium_drawdown_allocator=(
             args.soft_medium_drawdown_allocator
+        ),
+        medium_pretrade_drawdown_ceiling=(
+            args.medium_pretrade_drawdown_ceiling
         ),
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)

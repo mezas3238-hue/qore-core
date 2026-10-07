@@ -130,6 +130,50 @@ jobs:
             --soft-medium-drawdown-allocator \
             --output "$RUNNER_TEMP/result/cibo-three-mode-historical-soft-dd.json"
 
+      - name: Run historical-prior DD reserve frontier 25.25pct
+        run: |
+          set -euo pipefail
+          python scripts/cibo_trader_lab_three_mode_ceiling.py \
+            --manifest "$MANIFEST" \
+            --baseline-replay "$BASELINE" \
+            --historical-manifest "$HISTORICAL_MANIFEST" \
+            --historical-replay "$HISTORICAL_REPLAY" \
+            --medium-pretrade-drawdown-ceiling 0.2525 \
+            --output "$RUNNER_TEMP/result/cibo-three-mode-historical-dd-2525.json"
+
+      - name: Run historical-prior DD reserve frontier 25.5pct
+        run: |
+          set -euo pipefail
+          python scripts/cibo_trader_lab_three_mode_ceiling.py \
+            --manifest "$MANIFEST" \
+            --baseline-replay "$BASELINE" \
+            --historical-manifest "$HISTORICAL_MANIFEST" \
+            --historical-replay "$HISTORICAL_REPLAY" \
+            --medium-pretrade-drawdown-ceiling 0.255 \
+            --output "$RUNNER_TEMP/result/cibo-three-mode-historical-dd-255.json"
+
+      - name: Run historical-prior DD reserve frontier 26pct
+        run: |
+          set -euo pipefail
+          python scripts/cibo_trader_lab_three_mode_ceiling.py \
+            --manifest "$MANIFEST" \
+            --baseline-replay "$BASELINE" \
+            --historical-manifest "$HISTORICAL_MANIFEST" \
+            --historical-replay "$HISTORICAL_REPLAY" \
+            --medium-pretrade-drawdown-ceiling 0.26 \
+            --output "$RUNNER_TEMP/result/cibo-three-mode-historical-dd-26.json"
+
+      - name: Run historical-prior DD reserve frontier 27pct
+        run: |
+          set -euo pipefail
+          python scripts/cibo_trader_lab_three_mode_ceiling.py \
+            --manifest "$MANIFEST" \
+            --baseline-replay "$BASELINE" \
+            --historical-manifest "$HISTORICAL_MANIFEST" \
+            --historical-replay "$HISTORICAL_REPLAY" \
+            --medium-pretrade-drawdown-ceiling 0.27 \
+            --output "$RUNNER_TEMP/result/cibo-three-mode-historical-dd-27.json"
+
       - name: Enforce Trader Lab scientific invariants
         run: |
           set -euo pipefail
@@ -214,6 +258,30 @@ jobs:
           assert soft["governance"]["soft_medium_drawdown_allocator"] is True
           assert soft["governance"]["outcome_used_for_predecision"] is False
           assert Decimal(soft["attack_sovereign_breach_usd"]) == 0
+
+          for filename, ceiling in (
+              ("cibo-three-mode-historical-dd-2525.json", "0.2525"),
+              ("cibo-three-mode-historical-dd-255.json", "0.255"),
+              ("cibo-three-mode-historical-dd-26.json", "0.26"),
+              ("cibo-three-mode-historical-dd-27.json", "0.27"),
+          ):
+              frontier = json.loads(
+                  (
+                      Path(os.environ["RUNNER_TEMP"])
+                      / "result"
+                      / filename
+                  ).read_text()
+              )
+              assert frontier["research_lane"] == (
+                  "HISTORICAL_PRIOR_NATIVE_DD_RESERVE_FRONTIER"
+              )
+              assert frontier["decision_count"] == 3368
+              assert frontier["governance"]["historical_prior_consumed"] is True
+              assert frontier["governance"][
+                  "medium_pretrade_drawdown_ceiling"
+              ] == ceiling
+              assert frontier["governance"]["outcome_used_for_predecision"] is False
+              assert Decimal(frontier["attack_sovereign_breach_usd"]) == 0
           PY
 
       - uses: actions/upload-artifact@v4
@@ -224,5 +292,9 @@ jobs:
             ${{ runner.temp }}/result/cibo-three-mode-context-hypothesis.json
             ${{ runner.temp }}/result/cibo-three-mode-historical-prior-native.json
             ${{ runner.temp }}/result/cibo-three-mode-historical-soft-dd.json
+            ${{ runner.temp }}/result/cibo-three-mode-historical-dd-2525.json
+            ${{ runner.temp }}/result/cibo-three-mode-historical-dd-255.json
+            ${{ runner.temp }}/result/cibo-three-mode-historical-dd-26.json
+            ${{ runner.temp }}/result/cibo-three-mode-historical-dd-27.json
           if-no-files-found: error
           retention-days: 90

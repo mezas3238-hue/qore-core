@@ -757,6 +757,7 @@ def run_three_mode_trader_lab(
     ) = None,
     enforce_research_context_abstain: bool = False,
     soft_medium_drawdown_allocator: bool = False,
+    medium_pretrade_drawdown_ceiling: Decimal = ECONOMIC_DRAWDOWN_CEILING,
 ) -> dict[str, object]:
     """Run the isolated chronological three-mode ceiling experiment."""
 
@@ -767,6 +768,16 @@ def run_three_mode_trader_lab(
     if type(soft_medium_drawdown_allocator) is not bool:
         raise CiboCapitalManagementError(
             "Trader Lab soft MEDIUM drawdown allocator switch must be bool"
+        )
+    if (
+        not isinstance(medium_pretrade_drawdown_ceiling, Decimal)
+        or not medium_pretrade_drawdown_ceiling.is_finite()
+        or medium_pretrade_drawdown_ceiling < ECONOMIC_DRAWDOWN_CEILING
+        or medium_pretrade_drawdown_ceiling > Decimal("0.50")
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab MEDIUM pretrade drawdown ceiling must be Decimal "
+            "between 0.25 and 0.50"
         )
     source_sha = validate_single_account_manifest_sha256(manifest)
     if manifest.get("initial_capital_usd") != "60":
@@ -1616,7 +1627,7 @@ def run_three_mode_trader_lab(
                             Decimal(0),
                             (
                                 state.peak_total_capital_usd
-                                * ECONOMIC_DRAWDOWN_CEILING
+                                * medium_pretrade_drawdown_ceiling
                             )
                             - total_drawdown_usd
                             - state.open_stop_risk_usd,
@@ -1764,6 +1775,9 @@ def run_three_mode_trader_lab(
                                 "SOFT_CAUSAL_BUDGET"
                                 if soft_medium_drawdown_allocator
                                 else "HARD_WORST_CASE_HEADROOM"
+                            ),
+                            "medium_pretrade_drawdown_ceiling": format(
+                                medium_pretrade_drawdown_ceiling, "f"
                             ),
                             "medium_drawdown_allocator_cap_usd": format(
                                 medium_drawdown_allocator_cap_usd, "f"
@@ -2410,6 +2424,12 @@ def run_three_mode_trader_lab(
         "research_lane": (
             "HISTORICAL_PRIOR_NATIVE_SOFT_DRAWDOWN_ALLOCATOR"
             if use_historical_prior and soft_medium_drawdown_allocator
+            else "HISTORICAL_PRIOR_NATIVE_DD_RESERVE_FRONTIER"
+            if (
+                use_historical_prior
+                and medium_pretrade_drawdown_ceiling
+                != ECONOMIC_DRAWDOWN_CEILING
+            )
             else "HISTORICAL_PRIOR_NATIVE_TRANSFER"
             if use_historical_prior
             else "POST_BURN_CONTEXT_ABSTAIN_HYPOTHESIS"
@@ -2656,6 +2676,9 @@ def run_three_mode_trader_lab(
             ),
             "soft_medium_drawdown_allocator": (
                 soft_medium_drawdown_allocator
+            ),
+            "medium_pretrade_drawdown_ceiling": format(
+                medium_pretrade_drawdown_ceiling, "f"
             ),
             "bank_seed_source": (
                 "4PCT_OF_CURRENT_TOTAL_ACCOUNT_CAPITAL_PER_MEDIUM_ENTRY"
