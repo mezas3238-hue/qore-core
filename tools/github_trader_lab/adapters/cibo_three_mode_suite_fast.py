@@ -1,16 +1,14 @@
 #!/usr/bin/env python3
-"""Consolidated CIBO three-mode/lifecycle suite for GitHub Trader Lab Fast.
-
-Reuses the subject's existing three-mode CLI in-process and memoizes Market
-Atlas loading so all frontier cases share one parsed causal evidence surface.
-"""
+"""Hot CIBO three-mode suite using prepared lifecycle sidecars."""
 
 from __future__ import annotations
 
 import argparse
-import functools
 import json
+import os
 import sys
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -31,7 +29,9 @@ def d(value: object) -> Decimal:
 def find_one(root: Path, name: str) -> Path:
     matches = sorted(root.rglob(name))
     if len(matches) != 1:
-        raise FileNotFoundError(f"{root}: expected exactly one {name}, got {len(matches)}")
+        raise FileNotFoundError(
+            f"{root}: expected exactly one {name}, got {len(matches)}"
+        )
     return matches[0]
 
 
@@ -55,7 +55,10 @@ def series_metrics(values: list[Decimal]) -> dict[str, str | int | None]:
     }
 
 
-def temporal_blocks(values: list[Decimal], blocks: int = 5) -> dict[str, dict[str, object]]:
+def temporal_blocks(
+    values: list[Decimal],
+    blocks: int = 5,
+) -> dict[str, dict[str, object]]:
     result: dict[str, dict[str, object]] = {}
     n = len(values)
     for index in range(blocks):
@@ -123,15 +126,18 @@ def normalize_case(name: str, result: dict[str, Any]) -> dict[str, Any]:
             "trade_mode_counts": result["trade_mode_counts"],
             "economic_group_report": result["economic_group_report"],
             "position_lifecycle_report": result["position_lifecycle_report"],
-            "native_telemetry_report": result.get("native_telemetry_report", {}),
+            "native_telemetry_report": result.get(
+                "native_telemetry_report",
+                {},
+            ),
             "function_sensors": result["function_sensors"],
             "engineering_sensor_report": {
                 "execution_funnel": result["engineering_sensor_report"][
                     "execution_funnel"
                 ],
-                "upstream_economic_intake": result["engineering_sensor_report"][
-                    "upstream_economic_intake"
-                ],
+                "upstream_economic_intake": result[
+                    "engineering_sensor_report"
+                ]["upstream_economic_intake"],
                 "bottleneck_ranking": result["engineering_sensor_report"][
                     "bottleneck_ranking"
                 ],
@@ -146,7 +152,10 @@ def normalize_case(name: str, result: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def apply_preservation(variants: dict[str, dict[str, Any]], control: str) -> None:
+def apply_preservation(
+    variants: dict[str, dict[str, Any]],
+    control: str,
+) -> None:
     base = variants[control]
     base_values = [d(value) for value in base["net_r_values"]]
     base_winners = [value for value in base_values if value > 0]
@@ -175,6 +184,113 @@ def apply_preservation(variants: dict[str, dict[str, Any]], control: str) -> Non
         }
 
 
+def deserialize_lifecycle(
+    path: Path,
+    subject_root: Path,
+) -> dict[str, dict[str, object]]:
+    sys.path.insert(0, str((subject_root / "src").resolve()))
+    from qore.infrastructure.cibo_position_lifecycle import (  # noqa: PLC0415
+        CiboLifecycleEvent,
+    )
+
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(raw, dict):
+        raise ValueError(f"{path}: lifecycle sidecar must be mapping")
+    result: dict[str, dict[str, object]] = {}
+    for signal, profile_raw in raw.items():
+        if not isinstance(profile_raw, dict):
+            raise ValueError(f"{path}: malformed lifecycle profile")
+        profile = dict(profile_raw)
+        events_raw = profile.get("events")
+        if not isinstance(events_raw, list) or not events_raw:
+            raise ValueError(f"{path}: lifecycle events missing")
+        profile["events"] = tuple(
+            CiboLifecycleEvent(
+                occurred_at=datetime.fromisoformat(str(event["occurred_at"])),
+                action=str(event["action"]),
+                realized_r_delta=d(event["realized_r_delta"]),
+                remaining_volume_fraction=d(
+                    event["remaining_volume_fraction"]
+                ),
+                risk_fraction_remaining=d(
+                    event["risk_fraction_remaining"]
+                ),
+                margin_fraction_remaining=d(
+                    event["margin_fraction_remaining"]
+                ),
+            )
+            for event in events_raw
+        )
+        profile["actions"] = tuple(profile.get("actions", []))
+        profile["enabled_features"] = tuple(
+            profile.get("enabled_features", [])
+        )
+        result[str(signal)] = profile
+    return result
+
+
+def run_case_worker(job: dict[str, object]) -> tuple[str, dict[str, Any]]:
+    name = str(job["name"])
+    subject_root = Path(str(job["subject_root"]))
+    sys.path.insert(0, str((subject_root / "src").resolve()))
+    sys.path.insert(0, str((subject_root / "scripts").resolve()))
+    import cibo_trader_lab_three_mode_ceiling as subject  # noqa: PLC0415
+
+    lifecycle_path_raw = job.get("lifecycle_sidecar")
+    original_builder = subject._build_lifecycle_map
+    if lifecycle_path_raw:
+        lifecycle_map = deserialize_lifecycle(
+            Path(str(lifecycle_path_raw)),
+            subject_root,
+        )
+
+        def prepared_builder(*_args: object, **_kwargs: object) -> dict[str, dict[str, object]]:
+            return lifecycle_map
+
+        subject._build_lifecycle_map = prepared_builder
+
+    case_output = Path(str(job["case_output"]))
+    argv = [
+        "cibo_trader_lab_three_mode_ceiling.py",
+        "--manifest",
+        str(job["manifest"]),
+        "--output",
+        str(case_output),
+        "--baseline-replay",
+        str(job["baseline"]),
+        "--historical-manifest",
+        str(job["primary"]),
+        "--historical-replay",
+        str(job["historical_replay"]),
+    ]
+    if bool(job["uses_atlas"]):
+        for symbol in SYMBOLS:
+            argv.extend(
+                [
+                    "--lifecycle-source-root",
+                    f"{symbol}={job['atlas_roots'][symbol]}",
+                ]
+            )
+    extra = job["extra"]
+    if not isinstance(extra, list) or any(
+        not isinstance(item, str) for item in extra
+    ):
+        raise ValueError(f"{name}: args must be string list")
+    argv.extend(extra)
+
+    previous = sys.argv
+    try:
+        sys.argv = argv
+        rc = subject.main()
+    finally:
+        sys.argv = previous
+        subject._build_lifecycle_map = original_builder
+    if rc != 0:
+        raise RuntimeError(f"{name}: subject runner returned {rc}")
+    result = json.loads(case_output.read_text(encoding="utf-8"))
+    return name, normalize_case(name, result)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--evidence-dir", required=True, type=Path)
@@ -185,16 +301,16 @@ def main() -> int:
     args = parser.parse_args()
 
     prepared = json.loads(args.prepared.read_text(encoding="utf-8"))
+    if (
+        prepared.get("schema")
+        != "qore.github-trader-lab.cibo-three-mode-prepared.v2"
+    ):
+        raise ValueError("CIBO prepared lifecycle cache schema mismatch")
+    if prepared.get("hot_path_requires_atlas_scan") is not False:
+        raise ValueError("CIBO hot path unexpectedly requires Atlas scan")
+
     primary = Path(str(prepared["primary_evidence"]))
     assets = args.evidence_dir / "assets"
-
-    sys.path.insert(0, str((args.subject_root / "src").resolve()))
-    sys.path.insert(0, str((args.subject_root / "scripts").resolve()))
-    import cibo_trader_lab_three_mode_ceiling as subject  # noqa: PLC0415
-
-    # All cases reuse one parsed Atlas surface in this process.
-    subject.load_raw_m5 = functools.lru_cache(maxsize=None)(subject.load_raw_m5)
-
     walk_root = assets / "walk-forward"
     control_root = assets / "historical-control"
     manifest = find_one(walk_root, "walk-forward-manifest.json")
@@ -204,7 +320,7 @@ def main() -> int:
         "historical-ceiling-replay.json",
     )
     atlas_roots = {
-        symbol: assets / f"atlas-{symbol}"
+        symbol: str((assets / f"atlas-{symbol}").resolve())
         for symbol in SYMBOLS
     }
 
@@ -213,54 +329,55 @@ def main() -> int:
     if not isinstance(cases, list) or not cases:
         raise ValueError("suite has no cases")
 
+    lifecycle_sidecars = prepared.get("lifecycle_sidecars", {})
+    if not isinstance(lifecycle_sidecars, dict):
+        raise ValueError("prepared lifecycle sidecar index missing")
+
     raw_root = args.output.parent / "raw-cases"
     raw_root.mkdir(parents=True, exist_ok=True)
-    variants: dict[str, dict[str, Any]] = {}
-
+    jobs: list[dict[str, object]] = []
     for case in cases:
         if not isinstance(case, dict):
             raise ValueError("suite case must be mapping")
         name = str(case["name"])
-        case_output = raw_root / f"{name}.json"
-        argv = [
-            "cibo_trader_lab_three_mode_ceiling.py",
-            "--manifest",
-            str(manifest),
-            "--output",
-            str(case_output),
-            "--baseline-replay",
-            str(baseline),
-            "--historical-manifest",
-            str(primary),
-            "--historical-replay",
-            str(historical_replay),
-        ]
-        if bool(case.get("uses_atlas")):
-            for symbol in SYMBOLS:
-                argv.extend(
-                    [
-                        "--lifecycle-source-root",
-                        f"{symbol}={atlas_roots[symbol]}",
-                    ]
-                )
-        extra = case.get("args", [])
-        if not isinstance(extra, list) or any(
-            not isinstance(item, str) for item in extra
-        ):
-            raise ValueError(f"{name}: args must be string list")
-        argv.extend(extra)
+        uses_atlas = bool(case.get("uses_atlas"))
+        lifecycle_sidecar = None
+        if uses_atlas:
+            relative = lifecycle_sidecars.get(name)
+            if not isinstance(relative, str):
+                raise ValueError(f"{name}: prepared lifecycle sidecar missing")
+            lifecycle_sidecar = str(
+                (args.prepared.parent / relative).resolve()
+            )
+        jobs.append(
+            {
+                "name": name,
+                "subject_root": str(args.subject_root.resolve()),
+                "manifest": str(manifest.resolve()),
+                "baseline": str(baseline.resolve()),
+                "primary": str(primary.resolve()),
+                "historical_replay": str(historical_replay.resolve()),
+                "atlas_roots": atlas_roots,
+                "uses_atlas": uses_atlas,
+                "lifecycle_sidecar": lifecycle_sidecar,
+                "extra": case.get("args", []),
+                "case_output": str((raw_root / f"{name}.json").resolve()),
+            }
+        )
 
-        previous = sys.argv
-        try:
-            sys.argv = argv
-            rc = subject.main()
-        finally:
-            sys.argv = previous
-        if rc != 0:
-            raise RuntimeError(f"{name}: subject runner returned {rc}")
-        result = json.loads(case_output.read_text(encoding="utf-8"))
-        variants[name] = normalize_case(name, result)
+    requested = int(os.environ.get("QORE_TRADER_LAB_CASE_WORKERS", "4"))
+    workers = max(1, min(len(jobs), requested, os.cpu_count() or 1))
+    completed: dict[str, dict[str, Any]] = {}
+    with ProcessPoolExecutor(max_workers=workers) as pool:
+        futures = {pool.submit(run_case_worker, job): str(job["name"]) for job in jobs}
+        for future in as_completed(futures):
+            name, row = future.result()
+            completed[name] = row
 
+    variants = {
+        str(case["name"]): completed[str(case["name"])]
+        for case in cases
+    }
     control = str(cases[0]["name"])
     apply_preservation(variants, control)
 
@@ -273,7 +390,9 @@ def main() -> int:
         "governance": {
             "research_only": True,
             "same_subject_code_reused": True,
-            "atlas_loaded_once_per_suite_process": True,
+            "lifecycle_resolved_during_prepare": True,
+            "atlas_scans_in_hot_path": 0,
+            "case_workers": workers,
             "trader_base_entry_conservation_required": True,
             "fresh_holdout_opened": False,
             "certification_claimed": False,
@@ -289,6 +408,8 @@ def main() -> int:
             {
                 "schema": payload["schema"],
                 "control": control,
+                "case_workers": workers,
+                "atlas_scans_in_hot_path": 0,
                 "variants": {
                     name: {
                         "trade_count": row["trade_count"],

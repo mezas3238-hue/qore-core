@@ -101,7 +101,8 @@ jobs:
           set -euo pipefail
           raw="$(python lab/tools/github_trader_lab/fingerprint.py \
             --profile "lab/${{ steps.request.outputs.profile_path }}" \
-            --subject-root subject)"
+            --subject-root subject \
+            --lab-root lab)"
           echo "$raw"
           fp="$(printf '%s\n' "$raw" | sed -n 's/^fingerprint=//p')"
           legacy_fp="$(printf '%s\n' "$raw" | sed -n 's/^legacy_fingerprint=//p')"

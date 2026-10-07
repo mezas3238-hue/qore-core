@@ -54,6 +54,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--profile", required=True, type=Path)
     parser.add_argument("--subject-root", required=True, type=Path)
+    parser.add_argument("--lab-root", type=Path)
     args = parser.parse_args()
 
     profile: dict[str, Any] = json.loads(
@@ -81,6 +82,26 @@ def main() -> int:
         subject_hash.update(b"\0")
     subject_digest = subject_hash.hexdigest()
 
+    lab_paths: set[Path] = set()
+    for pattern in prep.get("lab_dependency_globs", []):
+        if args.lab_root is None:
+            raise SystemExit("lab_dependency_globs require --lab-root")
+        for raw in glob.glob(
+            str(args.lab_root / pattern),
+            recursive=True,
+        ):
+            path = Path(raw)
+            if path.is_file():
+                lab_paths.add(path)
+    lab_hash = hashlib.sha256()
+    for path in sorted(lab_paths):
+        rel = path.relative_to(args.lab_root).as_posix()
+        lab_hash.update(rel.encode())
+        lab_hash.update(b"\0")
+        lab_hash.update(path.read_bytes())
+        lab_hash.update(b"\0")
+    lab_digest = lab_hash.hexdigest()
+
     # Preserve the previous fingerprint so existing v1 caches can be migrated
     # without paying another cold reconstruction.
     legacy = hashlib.sha256()
@@ -99,6 +120,7 @@ def main() -> int:
     prepared_identity = {
         "schema": "qore.github-trader-lab.prepared-cache.v2",
         "subject_dependencies_sha256": subject_digest,
+        "lab_dependencies_sha256": lab_digest,
         "preparation": prep,
         "evidence": evidence,
     }
@@ -111,6 +133,7 @@ def main() -> int:
     print(f"evidence_fingerprint={evidence_digest}")
     print(f"subject_dependencies_fingerprint={subject_digest}")
     print(f"file_count={len(paths)}")
+    print(f"lab_file_count={len(lab_paths)}")
     return 0
 
 
