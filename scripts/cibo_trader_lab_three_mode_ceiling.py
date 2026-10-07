@@ -18,6 +18,15 @@ def main() -> int:
     parser.add_argument("--manifest", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--baseline-replay", type=Path)
+    parser.add_argument(
+        "--enforce-context-abstain",
+        action="store_true",
+        help=(
+            "Trader-Lab-only post-burn hypothesis: treat the pre-existing "
+            "research context-quality ABSTAIN as no-deployment. This lane "
+            "requires genuinely fresh validation before any promotion."
+        ),
+    )
     args = parser.parse_args()
 
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
@@ -42,6 +51,7 @@ def main() -> int:
         manifest,
         baseline_ending_capital_usd=baseline,
         cognitive_recommend_by_signal=cognitive_recommend_by_signal,
+        enforce_research_context_abstain=args.enforce_context_abstain,
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
@@ -53,6 +63,7 @@ def main() -> int:
             {
                 "decision_count": result["decision_count"],
                 "decision_epoch_count": result["decision_epoch_count"],
+                "research_lane": result["research_lane"],
                 "ending_total_capital_usd": result[
                     "ending_total_capital_usd"
                 ],
