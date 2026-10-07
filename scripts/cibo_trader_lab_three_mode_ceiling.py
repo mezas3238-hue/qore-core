@@ -349,6 +349,24 @@ def main() -> int:
         if args.lifecycle_feature
         else FULL_CIBO_LIFECYCLE_FEATURES
     )
+    requested_adverse_loss_cut_trader_ids = frozenset(
+        args.lifecycle_adverse_loss_cut_trader_id
+    )
+    staged_adaptive_default_trader_ids = frozenset({
+        "R43_GBPUSD",
+        "R34_XAUUSD",
+        "VT31_NAS100",
+        "R38_GBPJPY",
+        "R42_AUDJPY",
+    })
+    effective_adverse_loss_cut_trader_ids = (
+        staged_adaptive_default_trader_ids
+        if (
+            args.lifecycle_adverse_loss_cut_second_stage_r is not None
+            and not requested_adverse_loss_cut_trader_ids
+        )
+        else requested_adverse_loss_cut_trader_ids
+    )
     lifecycle_by_signal = _build_lifecycle_map(
         manifest,
         _lifecycle_roots(args.lifecycle_source_root),
@@ -369,9 +387,7 @@ def main() -> int:
         adverse_loss_cut_second_stage_r=(
             args.lifecycle_adverse_loss_cut_second_stage_r
         ),
-        adverse_loss_cut_trader_ids=frozenset(
-            args.lifecycle_adverse_loss_cut_trader_id
-        ),
+        adverse_loss_cut_trader_ids=effective_adverse_loss_cut_trader_ids,
     )
     baseline = None
     cognitive_recommend_by_signal = None
@@ -660,7 +676,10 @@ def main() -> int:
     )
     result["position_lifecycle_report"][
         "adverse_loss_cut_trader_ids"
-    ] = sorted(set(args.lifecycle_adverse_loss_cut_trader_id))
+    ] = sorted(requested_adverse_loss_cut_trader_ids)
+    result["position_lifecycle_report"][
+        "adverse_loss_cut_effective_trader_ids"
+    ] = sorted(effective_adverse_loss_cut_trader_ids)
     result["position_lifecycle_report"][
         "adverse_loss_cut_second_stage_r"
     ] = (
