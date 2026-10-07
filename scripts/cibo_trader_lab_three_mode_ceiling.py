@@ -57,6 +57,7 @@ def _build_lifecycle_map(
     adverse_loss_cut_r: Decimal,
     adverse_partial_fraction: Decimal,
     bootstrap_partial_fraction: Decimal,
+    adverse_tightened_stop_r: Decimal,
 ) -> dict[str, dict[str, object]]:
     if not roots:
         return {}
@@ -110,6 +111,7 @@ def _build_lifecycle_map(
             adverse_loss_cut_r=adverse_loss_cut_r,
             adverse_partial_fraction=adverse_partial_fraction,
             bootstrap_partial_fraction=bootstrap_partial_fraction,
+            adverse_tightened_stop_r=adverse_tightened_stop_r,
         )
         result[signal] = {
             "original_gross_r": format(outcome.gross_structural_outcome_r, "f"),
@@ -125,6 +127,9 @@ def _build_lifecycle_map(
             ),
             "bootstrap_partial_fraction": format(
                 bootstrap_partial_fraction, "f"
+            ),
+            "adverse_tightened_stop_r": format(
+                adverse_tightened_stop_r, "f"
             ),
             "risk_released_before_exit_fraction": format(
                 managed.risk_released_before_exit_fraction, "f"
@@ -211,6 +216,15 @@ def main() -> int:
         help=(
             "Fraction of remaining exposure released at the first causal "
             "M5 open by BOOTSTRAP_PARTIAL_REDUCTION."
+        ),
+    )
+    parser.add_argument(
+        "--lifecycle-adverse-tightened-stop-r",
+        type=Decimal,
+        default=Decimal("-0.50"),
+        help=(
+            "Protected stop in R armed after a causal closed-bar adverse "
+            "warning when ADVERSE_STOP_TIGHTEN is enabled."
         ),
     )
     parser.add_argument(
@@ -317,6 +331,7 @@ def main() -> int:
         adverse_loss_cut_r=args.lifecycle_adverse_loss_cut_r,
         adverse_partial_fraction=args.lifecycle_adverse_partial_fraction,
         bootstrap_partial_fraction=args.lifecycle_bootstrap_partial_fraction,
+        adverse_tightened_stop_r=args.lifecycle_adverse_tightened_stop_r,
     )
     baseline = None
     cognitive_recommend_by_signal = None
