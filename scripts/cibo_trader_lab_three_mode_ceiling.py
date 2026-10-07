@@ -775,6 +775,18 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--ceiling-attack-stress-confidence-multiplier-lower",
+        type=int,
+        default=None,
+        help="Optional lower coordinated ATTACK cap bound for localized stress-confidence taper.",
+    )
+    parser.add_argument(
+        "--ceiling-attack-stress-confidence-multiplier-upper",
+        type=int,
+        default=None,
+        help="Optional upper coordinated ATTACK cap bound for localized stress-confidence taper.",
+    )
+    parser.add_argument(
         "--ceiling-attack-stress-confidence-taper-fraction",
         type=Decimal,
         default=Decimal("0.75"),
@@ -1458,6 +1470,12 @@ def main() -> int:
         ),
         ceiling_attack_stress_confidence_ratio_ceiling=(
             args.ceiling_attack_stress_confidence_ratio_ceiling
+        ),
+        ceiling_attack_stress_confidence_multiplier_lower=(
+            args.ceiling_attack_stress_confidence_multiplier_lower
+        ),
+        ceiling_attack_stress_confidence_multiplier_upper=(
+            args.ceiling_attack_stress_confidence_multiplier_upper
         ),
         ceiling_attack_stress_confidence_taper_fraction=(
             args.ceiling_attack_stress_confidence_taper_fraction
