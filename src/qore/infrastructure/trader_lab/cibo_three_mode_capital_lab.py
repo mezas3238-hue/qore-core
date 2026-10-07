@@ -727,9 +727,20 @@ def apply_three_mode_settlement(
     open_margin_before_usd = state.open_margin_usd
     state.open_stop_risk_usd -= trade.stop_risk_usd
     state.open_margin_usd -= trade.margin_usd
+    accounting_epsilon_usd = Decimal("1e-18")
+    if (
+        state.open_stop_risk_usd < 0
+        and state.open_stop_risk_usd >= -accounting_epsilon_usd
+    ):
+        state.open_stop_risk_usd = Decimal(0)
+    if (
+        state.open_margin_usd < 0
+        and state.open_margin_usd >= -accounting_epsilon_usd
+    ):
+        state.open_margin_usd = Decimal(0)
     if state.open_stop_risk_usd < 0 or state.open_margin_usd < 0:
         raise CiboCapitalManagementError(
-            "Trader Lab open exposure accounting became negative during settlement: "
+            "Trader Lab open exposure accounting became materially negative during settlement: "
             f"signal={trade.signal_fingerprint} trader={trade.trader_id} "
             f"mode={trade.mode.value} multiplier={trade.multiplier} "
             f"open_stop_before={format(open_stop_risk_before_usd, 'f')} "
@@ -737,7 +748,8 @@ def apply_three_mode_settlement(
             f"open_stop_after={format(state.open_stop_risk_usd, 'f')} "
             f"open_margin_before={format(open_margin_before_usd, 'f')} "
             f"trade_margin={format(trade.margin_usd, 'f')} "
-            f"open_margin_after={format(state.open_margin_usd, 'f')}"
+            f"open_margin_after={format(state.open_margin_usd, 'f')} "
+            f"epsilon={format(accounting_epsilon_usd, 'f')}"
         )
     if trade.mode is CiboTraderLabMode.MEDIUM:
         bank_seed = (
