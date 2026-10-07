@@ -108,7 +108,40 @@ def _completed_hour_closes(
     return [value for _, value in closes]
 
 
-def h4_history_tail(\n    bars: Sequence[OhlcSnapshot],\n) -> tuple[OhlcSnapshot, ...]:\n    """Retain only the last three complete causal H4 buckets.\n\n    The trend-state calculation consults at most the latest three completed\n    closes. Keeping the corresponding complete M1 buckets preserves that exact\n    semantic without choosing an arbitrary fixed number of prior market days.\n    """\n\n    groups: dict[tuple[object, int], list[OhlcSnapshot]] = defaultdict(list)\n    for bar in bars:\n        local = bar.opened_at.astimezone(_NY)\n        groups[(local.date(), local.hour // 4)].append(bar)\n\n    complete: list[tuple[datetime, tuple[OhlcSnapshot, ...]]] = []\n    for group in groups.values():\n        ordered = tuple(sorted(group, key=lambda bar: bar.opened_at))\n        if len(ordered) != 4 * 60:\n            continue\n        if any(\n            right.opened_at != left.closed_at\n            for left, right in zip(ordered, ordered[1:], strict=False)\n        ):\n            continue\n        complete.append((ordered[-1].closed_at, ordered))\n\n    complete.sort(key=lambda item: item[0])\n    return tuple(\n        bar\n        for _, group in complete[-3:]\n        for bar in group\n    )\n
+def h4_history_tail(
+    bars: Sequence[OhlcSnapshot],
+) -> tuple[OhlcSnapshot, ...]:
+    """Retain only the last three complete causal H4 buckets.
+
+    The trend-state calculation consults at most the latest three completed
+    closes. Keeping the corresponding complete M1 buckets preserves that exact
+    semantic without choosing an arbitrary fixed number of prior market days.
+    """
+
+    groups: dict[tuple[object, int], list[OhlcSnapshot]] = defaultdict(list)
+    for bar in bars:
+        local = bar.opened_at.astimezone(_NY)
+        groups[(local.date(), local.hour // 4)].append(bar)
+
+    complete: list[tuple[datetime, tuple[OhlcSnapshot, ...]]] = []
+    for group in groups.values():
+        ordered = tuple(sorted(group, key=lambda bar: bar.opened_at))
+        if len(ordered) != 4 * 60:
+            continue
+        if any(
+            right.opened_at != left.closed_at
+            for left, right in zip(ordered, ordered[1:], strict=False)
+        ):
+            continue
+        complete.append((ordered[-1].closed_at, ordered))
+
+    complete.sort(key=lambda item: item[0])
+    return tuple(
+        bar
+        for _, group in complete[-3:]
+        for bar in group
+    )
+
 
 def _completed_minute_bucket_closes(
     bars: Sequence[OhlcSnapshot],
