@@ -127,6 +127,35 @@ class CiboThreeModeCapitalLabTest(unittest.TestCase):
         self.assertEqual(state.sovereign_bank_usd, Decimal("60.95"))
         self.assertEqual(state.portfolio_cushion_usd, Decimal("0.95"))
 
+
+    def test_bank_seed_positive_profit_splits_fifty_fifty(self) -> None:
+        now = datetime(2026, 1, 1, tzinfo=UTC)
+        state = _State(sovereign_reserved_usd=Decimal("1.1"))
+        trade = CiboThreeModeOpenTrade(
+            signal_fingerprint="bank-seed",
+            trader_id="VT31_NAS100",
+            mode=CiboTraderLabMode.BANK,
+            multiplier=1,
+            exit_at=now,
+            gross_r=Decimal("2"),
+            stop_risk_usd=Decimal("1"),
+            margin_usd=Decimal("1"),
+            provider_cost_usd=Decimal("0.1"),
+            source_reserved_usd=Decimal("1.1"),
+        )
+        net = apply_three_mode_settlement(state, trade)
+        self.assertEqual(net, Decimal("1.9"))
+        self.assertEqual(state.sovereign_bank_usd, Decimal("60.95"))
+        self.assertEqual(state.portfolio_cushion_usd, Decimal("0.95"))
+        self.assertEqual(
+            state.bank_seed_profit_to_sovereign_usd,
+            Decimal("0.95"),
+        )
+        self.assertEqual(
+            state.bank_seed_profit_to_cushion_usd,
+            Decimal("0.95"),
+        )
+
     def test_attack_loss_is_charged_to_cushion_first(self) -> None:
         now = datetime(2026, 1, 1, tzinfo=UTC)
         state = _State(
