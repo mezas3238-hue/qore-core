@@ -157,6 +157,7 @@ def main() -> int:
     parser.add_argument("--subject-root", required=True, type=Path)
     parser.add_argument("--evidence-dir", required=True, type=Path)
     parser.add_argument("--prepared-dir", required=True, type=Path)
+    parser.add_argument("--science-cache-dir", required=True, type=Path)
     parser.add_argument("--output-dir", required=True, type=Path)
     parser.add_argument(
         "--run-id",
@@ -173,6 +174,7 @@ def main() -> int:
         int(profile.get("max_parallel_lanes", len(lanes))),
     )
     args.prepared_dir.mkdir(parents=True, exist_ok=True)
+    args.science_cache_dir.mkdir(parents=True, exist_ok=True)
     args.output_dir.mkdir(parents=True, exist_ok=True)
     monitor = RealtimeMonitor(args.output_dir.resolve(), str(args.run_id), lanes)
     monitor.set_run("RUNNING")
@@ -238,6 +240,7 @@ def main() -> int:
         battery = evaluate(
             profile,
             {lane: payloads[lane] for lane in lanes},
+            mc_cache_dir=args.science_cache_dir,
         )
         science_seconds = time.monotonic() - science_started
         (args.output_dir / "scientific-battery.json").write_text(
@@ -306,6 +309,7 @@ def main() -> int:
             "development_survivors": battery["development_survivors"],
             "hard_dd_survivors": battery["hard_dd_survivors"],
             "scientific_passes": battery["scientific_passes"],
+            "monte_carlo_cache": battery.get("monte_carlo_cache", {}),
             "certification_readiness": readiness_statuses,
             "primary_lane": primary_lane,
             "primary_risk_adjusted": primary_risk_adjusted,
