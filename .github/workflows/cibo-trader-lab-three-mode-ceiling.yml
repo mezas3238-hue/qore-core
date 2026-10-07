@@ -210,6 +210,45 @@ jobs:
             --attack-multiplier-cap 8 \
             --output "$RUNNER_TEMP/result/cibo-three-mode-distributed-attack-8x.json"
 
+      - name: Run distributed ATTACK 8x MEDIUM 1x
+        run: |
+          set -euo pipefail
+          python scripts/cibo_trader_lab_three_mode_ceiling.py \
+            --manifest "$MANIFEST" \
+            --baseline-replay "$BASELINE" \
+            --historical-manifest "$HISTORICAL_MANIFEST" \
+            --historical-replay "$HISTORICAL_REPLAY" \
+            --distributed-attack-frontier \
+            --attack-multiplier-cap 8 \
+            --medium-multiplier-cap 1 \
+            --output "$RUNNER_TEMP/result/cibo-three-mode-attack8-medium1.json"
+
+      - name: Run distributed ATTACK 8x MEDIUM 2x
+        run: |
+          set -euo pipefail
+          python scripts/cibo_trader_lab_three_mode_ceiling.py \
+            --manifest "$MANIFEST" \
+            --baseline-replay "$BASELINE" \
+            --historical-manifest "$HISTORICAL_MANIFEST" \
+            --historical-replay "$HISTORICAL_REPLAY" \
+            --distributed-attack-frontier \
+            --attack-multiplier-cap 8 \
+            --medium-multiplier-cap 2 \
+            --output "$RUNNER_TEMP/result/cibo-three-mode-attack8-medium2.json"
+
+      - name: Run distributed ATTACK 8x MEDIUM 3x
+        run: |
+          set -euo pipefail
+          python scripts/cibo_trader_lab_three_mode_ceiling.py \
+            --manifest "$MANIFEST" \
+            --baseline-replay "$BASELINE" \
+            --historical-manifest "$HISTORICAL_MANIFEST" \
+            --historical-replay "$HISTORICAL_REPLAY" \
+            --distributed-attack-frontier \
+            --attack-multiplier-cap 8 \
+            --medium-multiplier-cap 3 \
+            --output "$RUNNER_TEMP/result/cibo-three-mode-attack8-medium3.json"
+
       - name: Enforce Trader Lab scientific invariants
         run: |
           set -euo pipefail
@@ -361,6 +400,34 @@ jobs:
                   "sizing_medium_rejected_count"
               ] == 0
               assert distributed["governance"]["outcome_used_for_predecision"] is False
+
+          for filename, medium_cap in (
+              ("cibo-three-mode-attack8-medium1.json", 1),
+              ("cibo-three-mode-attack8-medium2.json", 2),
+              ("cibo-three-mode-attack8-medium3.json", 3),
+          ):
+              mixed = json.loads(
+                  (
+                      Path(os.environ["RUNNER_TEMP"])
+                      / "result"
+                      / filename
+                  ).read_text()
+              )
+              assert mixed["research_lane"] == (
+                  "HISTORICAL_PRIOR_NATIVE_DISTRIBUTED_ATTACK_FRONTIER"
+              )
+              assert mixed["decision_count"] == 3368
+              assert mixed["trade_count"] == 3368
+              assert mixed["governance"]["attack_multiplier_cap"] == 8
+              assert mixed["governance"]["medium_multiplier_cap"] == medium_cap
+              assert mixed["maximum_selected_multiplier"] <= 8
+              assert mixed["engineering_sensor_report"]["execution_funnel"][
+                  "sizing_medium_deferred_count"
+              ] == 0
+              assert mixed["engineering_sensor_report"]["execution_funnel"][
+                  "sizing_medium_rejected_count"
+              ] == 0
+              assert mixed["governance"]["outcome_used_for_predecision"] is False
           PY
 
       - uses: actions/upload-artifact@v4
@@ -378,5 +445,8 @@ jobs:
             ${{ runner.temp }}/result/cibo-three-mode-distributed-attack-4x.json
             ${{ runner.temp }}/result/cibo-three-mode-distributed-attack-6x.json
             ${{ runner.temp }}/result/cibo-three-mode-distributed-attack-8x.json
+            ${{ runner.temp }}/result/cibo-three-mode-attack8-medium1.json
+            ${{ runner.temp }}/result/cibo-three-mode-attack8-medium2.json
+            ${{ runner.temp }}/result/cibo-three-mode-attack8-medium3.json
           if-no-files-found: error
           retention-days: 90
