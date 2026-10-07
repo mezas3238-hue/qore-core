@@ -132,8 +132,8 @@ jobs:
         run: |
           set -euo pipefail
           : > "$RUNNER_TEMP/result/cibo-four-engine-loss-cut-failures.tsv"
-          for SPEC in "075c2:-0.75:2" "075c3:-0.75:3" "065c2:-0.65:2" "065c3:-0.65:3"; do
-            IFS=':' read -r LABEL THRESHOLD CONFIRMATIONS <<< "$SPEC"
+          for SPEC in "065c2t180:-0.65:2:180" "060c2t180:-0.60:2:180" "055c2t180:-0.55:2:180" "050c2t180:-0.50:2:180"; do
+            IFS=':' read -r LABEL THRESHOLD CONFIRMATIONS MAX_MINUTES <<< "$SPEC"
             if python scripts/cibo_trader_lab_three_mode_ceiling.py \
               --manifest "$MANIFEST" \
               --baseline-replay "$BASELINE" \
@@ -150,14 +150,15 @@ jobs:
               --lifecycle-feature ADVERSE_LOSS_CUT \
               --lifecycle-adverse-loss-cut-r "$THRESHOLD" \
               --lifecycle-adverse-loss-cut-confirmation-bars "$CONFIRMATIONS" \
+              --lifecycle-adverse-loss-cut-max-elapsed-minutes "$MAX_MINUTES" \
               --output "$RUNNER_TEMP/result/cibo-four-engine-loss-cut-${LABEL}.json" \
               > "$RUNNER_TEMP/result/cibo-four-engine-loss-cut-${LABEL}.log" 2>&1; then
               cat "$RUNNER_TEMP/result/cibo-four-engine-loss-cut-${LABEL}.log"
             else
               STATUS=$?
               cat "$RUNNER_TEMP/result/cibo-four-engine-loss-cut-${LABEL}.log"
-              printf '%s\t%s\t%s\t%s\n' \
-                "$LABEL" "$THRESHOLD" "$CONFIRMATIONS" "$STATUS" >> \
+              printf '%s\t%s\t%s\t%s\t%s\n' \
+                "$LABEL" "$THRESHOLD" "$CONFIRMATIONS" "$MAX_MINUTES" "$STATUS" >> \
                 "$RUNNER_TEMP/result/cibo-four-engine-loss-cut-failures.tsv"
             fi
           done
@@ -211,11 +212,11 @@ jobs:
           ] == 0
 
           frontier = []
-          for filename, threshold, confirmations in (
-              ("cibo-four-engine-loss-cut-075c2.json", "-0.75", 2),
-              ("cibo-four-engine-loss-cut-075c3.json", "-0.75", 3),
-              ("cibo-four-engine-loss-cut-065c2.json", "-0.65", 2),
-              ("cibo-four-engine-loss-cut-065c3.json", "-0.65", 3),
+          for filename, threshold, confirmations, max_minutes in (
+              ("cibo-four-engine-loss-cut-065c2t180.json", "-0.65", 2, 180),
+              ("cibo-four-engine-loss-cut-060c2t180.json", "-0.60", 2, 180),
+              ("cibo-four-engine-loss-cut-055c2t180.json", "-0.55", 2, 180),
+              ("cibo-four-engine-loss-cut-050c2t180.json", "-0.50", 2, 180),
           ):
               candidate_path = (
                   Path(os.environ["RUNNER_TEMP"]) / "result" / filename
@@ -224,6 +225,7 @@ jobs:
                   frontier.append({
                       "threshold_r": threshold,
                       "confirmation_bars": confirmations,
+                      "max_elapsed_minutes": max_minutes,
                       "status": "RUN_FAILED",
                   })
                   continue
@@ -238,6 +240,9 @@ jobs:
               assert guarded["position_lifecycle_report"][
                   "adverse_loss_cut_confirmation_bars"
               ] == confirmations
+              assert guarded["position_lifecycle_report"][
+                  "adverse_loss_cut_max_elapsed_minutes"
+              ] == max_minutes
               assert guarded["position_lifecycle_report"]["outcome_used_for_trigger"] is False
               guarded_funnel = guarded["engineering_sensor_report"]["execution_funnel"]
               assert guarded_funnel["final_trade_count"] == 3368
@@ -247,6 +252,7 @@ jobs:
               frontier.append({
                   "threshold_r": threshold,
                   "confirmation_bars": confirmations,
+                  "max_elapsed_minutes": max_minutes,
                   "status": "SUCCESS",
                   "ending_total_capital_usd": guarded["ending_total_capital_usd"],
                   "max_drawdown_fraction": guarded["max_drawdown_fraction"],
