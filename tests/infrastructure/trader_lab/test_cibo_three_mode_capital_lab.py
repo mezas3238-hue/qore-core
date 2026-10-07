@@ -122,8 +122,8 @@ class CiboThreeModeCapitalLabTest(unittest.TestCase):
     def test_medium_positive_profit_splits_fifty_fifty(self) -> None:
         now = datetime(2026, 1, 1, tzinfo=UTC)
         state = _State(
-            sovereign_reserved_usd=Decimal("1.1"),
-            medium_seed_authorized_usd=Decimal("1.1"),
+            medium_seed_target_usd=Decimal("1.1"),
+            medium_seed_balance_usd=Decimal("1.1"),
             medium_seed_reserved_usd=Decimal("1.1"),
         )
         trade = CiboThreeModeOpenTrade(
@@ -168,8 +168,8 @@ class CiboThreeModeCapitalLabTest(unittest.TestCase):
     def test_medium_profit_creates_portfolio_attack_credit(self) -> None:
         now = datetime(2026, 1, 1, tzinfo=UTC)
         state = _State(
-            sovereign_reserved_usd=Decimal("1.1"),
-            medium_seed_authorized_usd=Decimal("1.1"),
+            medium_seed_target_usd=Decimal("1.1"),
+            medium_seed_balance_usd=Decimal("1.1"),
             medium_seed_reserved_usd=Decimal("1.1"),
         )
         trade = CiboThreeModeOpenTrade(
