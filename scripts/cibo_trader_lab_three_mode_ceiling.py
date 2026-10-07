@@ -352,6 +352,14 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--summary-telemetry",
+        action="store_true",
+        help=(
+            "Hot-path replay mode: keep aggregate sensors and conservation "
+            "checks while omitting large per-event/per-epoch trace payloads."
+        ),
+    )
+    parser.add_argument(
         "--economic-group-bootstrap-cushion-share",
         type=Decimal,
         default=Decimal("0.75"),
@@ -709,6 +717,9 @@ def main() -> int:
         ),
         economic_group_ablation=args.economic_group_ablation,
         ceiling_discovery_mode=args.ceiling_discovery_mode,
+        collect_engineering_trace=not args.summary_telemetry,
+        collect_epoch_receipts=not args.summary_telemetry,
+        compact_trade_receipts=args.summary_telemetry,
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
