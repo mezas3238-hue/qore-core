@@ -67,13 +67,22 @@ jobs:
           echo "MANIFEST=$MANIFEST" >> "$GITHUB_ENV"
           echo "BASELINE=$BASELINE" >> "$GITHUB_ENV"
 
-      - name: Run BANK MEDIUM ATTACK ceiling experiment
+      - name: Run BANK MEDIUM ATTACK causal baseline
         run: |
           set -euo pipefail
           python scripts/cibo_trader_lab_three_mode_ceiling.py \
             --manifest "$MANIFEST" \
             --baseline-replay "$BASELINE" \
             --output "$RUNNER_TEMP/result/cibo-three-mode-ceiling.json"
+
+      - name: Run post-burn context-gate hypothesis
+        run: |
+          set -euo pipefail
+          python scripts/cibo_trader_lab_three_mode_ceiling.py \
+            --manifest "$MANIFEST" \
+            --baseline-replay "$BASELINE" \
+            --enforce-context-abstain \
+            --output "$RUNNER_TEMP/result/cibo-three-mode-context-hypothesis.json"
 
       - name: Enforce Trader Lab scientific invariants
         run: |
@@ -102,6 +111,21 @@ jobs:
           assert Decimal(p["ending_portfolio_cushion_usd"]) >= 0
           assert Decimal(p["attack_sovereign_breach_usd"]) == 0
           assert p["mode_epoch_counts"].get("MEDIUM", 0) > 0
+
+          h = json.loads(
+              (
+                  Path(os.environ["RUNNER_TEMP"])
+                  / "result"
+                  / "cibo-three-mode-context-hypothesis.json"
+              ).read_text()
+          )
+          assert h["research_lane"] == "POST_BURN_CONTEXT_ABSTAIN_HYPOTHESIS"
+          assert h["governance"]["trader_lab_only"] is True
+          assert h["governance"]["context_quality_abstain_enforced"] is True
+          assert h["governance"]["context_gate_status"] == (
+              "POST_BURN_HYPOTHESIS_REQUIRES_FRESH_VALIDATION"
+          )
+          assert Decimal(h["attack_sovereign_breach_usd"]) == 0
           PY
 
       - uses: actions/upload-artifact@v4
