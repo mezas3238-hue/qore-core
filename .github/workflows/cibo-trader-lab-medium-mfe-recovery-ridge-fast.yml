@@ -1,7 +1,7 @@
 name: QORE CIBO Medium MFE Recovery Ridge Fast
 
 # Research-only reused-holdout hypothesis generation; not certification evidence.
-# Tests causal MFE-aware adverse partial reduction on the 38.4621% carrier.
+# Tests a narrow causal MFE-aware adverse-partial ridge around the 38.4621% carrier.
 # Core source is NOT mutated: each case patches an isolated runner copy only.
 
 on:
@@ -222,11 +222,11 @@ jobs:
           }
 
           run_case "baseline-m100-er010-dd10-p30" 1.00 0.10 0.10 0.30 yes &
-          run_case "m25-er060-dd10-p30" 0.25 0.60 0.10 0.30 yes &
-          run_case "m25-er060-dd05-p30" 0.25 0.60 0.05 0.30 yes &
-          run_case "m25-er060-dd05-p40" 0.25 0.60 0.05 0.40 yes &
-          run_case "m50-er060-dd05-p30" 0.50 0.60 0.05 0.30 yes &
-          run_case "m25-noer-dd05-p30" 0.25 none 0.05 0.30 no &
+          run_case "m25-er010-dd10-p30" 0.25 0.10 0.10 0.30 yes &
+          run_case "m50-er010-dd10-p30" 0.50 0.10 0.10 0.30 yes &
+          run_case "m25-er0125-dd10-p30" 0.25 0.125 0.10 0.30 yes &
+          run_case "m25-er015-dd10-p30" 0.25 0.15 0.10 0.30 yes &
+          run_case "m25-er010-dd10-p40" 0.25 0.10 0.10 0.40 yes &
           wait
 
       - name: Rank strict Pareto against current 38.4621 carrier
