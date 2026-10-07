@@ -911,6 +911,13 @@ def run_three_mode_trader_lab(
     lifecycle_by_signal: (
         Mapping[str, Mapping[str, object]] | None
     ) = None,
+    lifecycle_bootstrap_override_by_signal: (
+        Mapping[str, Mapping[str, object]] | None
+    ) = None,
+    lifecycle_bootstrap_override_capital_ceiling: Decimal | None = None,
+    lifecycle_bootstrap_override_drawdown_trigger: Decimal | None = None,
+    lifecycle_bootstrap_override_trader_loss_streak_trigger: int | None = None,
+    lifecycle_bootstrap_override_medium_max_multiplier: int = 2,
     lifecycle_defensive_medium_1x_only: bool = False,
     lifecycle_attack_only: bool = False,
     lifecycle_defensive_medium_max_multiplier: int | None = None,
@@ -1000,6 +1007,49 @@ def run_three_mode_trader_lab(
                 f"Trader Lab {flag_name} must be bool"
             )
 
+    if lifecycle_bootstrap_override_capital_ceiling is not None and (
+        not isinstance(lifecycle_bootstrap_override_capital_ceiling, Decimal)
+        or not lifecycle_bootstrap_override_capital_ceiling.is_finite()
+        or lifecycle_bootstrap_override_capital_ceiling <= 0
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab bootstrap lifecycle override capital ceiling must be positive Decimal"
+        )
+    if lifecycle_bootstrap_override_drawdown_trigger is not None and (
+        not isinstance(lifecycle_bootstrap_override_drawdown_trigger, Decimal)
+        or not lifecycle_bootstrap_override_drawdown_trigger.is_finite()
+        or lifecycle_bootstrap_override_drawdown_trigger < 0
+        or lifecycle_bootstrap_override_drawdown_trigger >= Decimal("0.50")
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab bootstrap lifecycle override DD trigger must be Decimal in [0, 0.50)"
+        )
+    if lifecycle_bootstrap_override_trader_loss_streak_trigger is not None and (
+        not isinstance(lifecycle_bootstrap_override_trader_loss_streak_trigger, int)
+        or isinstance(lifecycle_bootstrap_override_trader_loss_streak_trigger, bool)
+        or lifecycle_bootstrap_override_trader_loss_streak_trigger < 1
+        or lifecycle_bootstrap_override_trader_loss_streak_trigger > 20
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab bootstrap lifecycle override loss streak trigger must be int in [1, 20]"
+        )
+    if (
+        not isinstance(lifecycle_bootstrap_override_medium_max_multiplier, int)
+        or isinstance(lifecycle_bootstrap_override_medium_max_multiplier, bool)
+        or lifecycle_bootstrap_override_medium_max_multiplier < 1
+        or lifecycle_bootstrap_override_medium_max_multiplier > 4
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab bootstrap lifecycle override MEDIUM max multiplier must be int in [1, 4]"
+        )
+    if lifecycle_bootstrap_override_by_signal is not None and (
+        lifecycle_bootstrap_override_capital_ceiling is None
+        or lifecycle_bootstrap_override_drawdown_trigger is None
+        or lifecycle_bootstrap_override_trader_loss_streak_trigger is None
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab bootstrap lifecycle override requires capital, DD and loss-streak triggers"
+        )
     if type(lifecycle_defensive_medium_1x_only) is not bool:
         raise CiboCapitalManagementError(
             "Trader Lab lifecycle defensive MEDIUM 1x switch must be bool"
@@ -1834,6 +1884,39 @@ def run_three_mode_trader_lab(
                 )
             _dt(profile["managed_exit_at"], "lifecycle managed_exit_at")
 
+    lifecycle_bootstrap_override_map: dict[str, dict[str, object]] = {}
+    if lifecycle_bootstrap_override_by_signal is not None:
+        lifecycle_bootstrap_override_map = {
+            str(signal): dict(profile)
+            for signal, profile in lifecycle_bootstrap_override_by_signal.items()
+        }
+        if set(lifecycle_bootstrap_override_map) != set(signals):
+            raise CiboCapitalManagementError(
+                "Trader Lab bootstrap lifecycle override map must cover exact manifest signals"
+            )
+        for signal, profile in lifecycle_bootstrap_override_map.items():
+            managed = Decimal(str(profile.get("managed_gross_r")))
+            original = Decimal(str(profile.get("original_gross_r")))
+            if (
+                not managed.is_finite()
+                or not original.is_finite()
+                or type(profile.get("data_available")) is not bool
+                or not isinstance(profile.get("managed_exit_at"), str)
+                or not isinstance(profile.get("events"), (list, tuple))
+                or not profile.get("events")
+                or any(
+                    not isinstance(item, CiboLifecycleEvent)
+                    for item in profile["events"]
+                )
+            ):
+                raise CiboCapitalManagementError(
+                    f"Trader Lab bootstrap lifecycle override profile malformed for {signal}"
+                )
+            _dt(
+                profile["managed_exit_at"],
+                "bootstrap lifecycle override managed_exit_at",
+            )
+
     lifecycle_action_counts: Counter[str] = Counter()
     lifecycle_feature_sets = {
         tuple(str(item) for item in profile["enabled_features"])
@@ -1863,6 +1946,7 @@ def run_three_mode_trader_lab(
     lifecycle_data_available_count = 0
     lifecycle_changed_count = 0
     lifecycle_applied_trade_count = 0
+    lifecycle_bootstrap_override_applied_count = 0
     lifecycle_drawdown_trigger_blocked_count = 0
     lifecycle_trader_loss_streak_blocked_count = 0
     lifecycle_bootstrap_capital_blocked_count = 0
@@ -4641,15 +4725,38 @@ def run_three_mode_trader_lab(
                 and not lifecycle_projected_open_stop_risk_fraction_allowed
             ):
                 lifecycle_projected_open_stop_risk_fraction_blocked_count += 1
-            lifecycle_events_for_trade = (
-                tuple(
-                    lifecycle_map[candidate.signal_fingerprint][
-                        "events"
-                    ]
-                )
-                if apply_lifecycle_to_trade
-                else ()
+            bootstrap_override_allowed = bool(
+                lifecycle_bootstrap_override_map
+                and candidate_mode is CiboTraderLabMode.MEDIUM
+                and multiplier <= lifecycle_bootstrap_override_medium_max_multiplier
+                and lifecycle_bootstrap_override_capital_ceiling is not None
+                and state.total_capital_usd
+                <= lifecycle_bootstrap_override_capital_ceiling
+                and lifecycle_bootstrap_override_drawdown_trigger is not None
+                and total_drawdown_utilization
+                >= lifecycle_bootstrap_override_drawdown_trigger
+                and lifecycle_bootstrap_override_trader_loss_streak_trigger
+                is not None
+                and trader_loss_streak[candidate.trader_id]
+                >= lifecycle_bootstrap_override_trader_loss_streak_trigger
             )
+            if bootstrap_override_allowed:
+                lifecycle_events_for_trade = tuple(
+                    lifecycle_bootstrap_override_map[
+                        candidate.signal_fingerprint
+                    ]["events"]
+                )
+                lifecycle_bootstrap_override_applied_count += 1
+            else:
+                lifecycle_events_for_trade = (
+                    tuple(
+                        lifecycle_map[candidate.signal_fingerprint][
+                            "events"
+                        ]
+                    )
+                    if apply_lifecycle_to_trade
+                    else ()
+                )
             if lifecycle_events_for_trade:
                 lifecycle_applied_trade_count += 1
 
@@ -4884,6 +4991,28 @@ def run_three_mode_trader_lab(
         )
     position_lifecycle_report["applied_trade_count"] = (
         lifecycle_applied_trade_count
+    )
+    position_lifecycle_report["bootstrap_override_enabled"] = bool(
+        lifecycle_bootstrap_override_map
+    )
+    position_lifecycle_report["bootstrap_override_applied_count"] = (
+        lifecycle_bootstrap_override_applied_count
+    )
+    position_lifecycle_report["bootstrap_override_capital_ceiling_usd"] = (
+        None
+        if lifecycle_bootstrap_override_capital_ceiling is None
+        else format(lifecycle_bootstrap_override_capital_ceiling, "f")
+    )
+    position_lifecycle_report["bootstrap_override_drawdown_trigger"] = (
+        None
+        if lifecycle_bootstrap_override_drawdown_trigger is None
+        else format(lifecycle_bootstrap_override_drawdown_trigger, "f")
+    )
+    position_lifecycle_report["bootstrap_override_trader_loss_streak_trigger"] = (
+        lifecycle_bootstrap_override_trader_loss_streak_trigger
+    )
+    position_lifecycle_report["bootstrap_override_medium_max_multiplier"] = (
+        lifecycle_bootstrap_override_medium_max_multiplier
     )
     position_lifecycle_report["defensive_medium_1x_only"] = (
         lifecycle_defensive_medium_1x_only
