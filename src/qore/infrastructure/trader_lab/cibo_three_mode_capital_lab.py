@@ -716,6 +716,9 @@ def run_three_mode_trader_lab(
     *,
     baseline_ending_capital_usd: Decimal | None = None,
     cognitive_recommend_by_signal: Mapping[str, bool] | None = None,
+    native_profile_by_signal: (
+        Mapping[str, Mapping[str, object]] | None
+    ) = None,
     historical_prior_by_signal: (
         Mapping[str, Mapping[str, object]] | None
     ) = None,
@@ -749,6 +752,91 @@ def run_three_mode_trader_lab(
     ):
         raise CiboCapitalManagementError(
             "Trader Lab cognitive recommendation map must cover exact manifest signals"
+        )
+
+    native_profile_map = (
+        {
+            signal: {
+                "executive_synthesis": (
+                    "recommend" if cognitive_map[signal] else "abstain"
+                ),
+                "reasoning_routing": (
+                    "proceed"
+                    if cognitive_map[signal]
+                    else "abstain-insufficient-evidence"
+                ),
+                "calibration": (
+                    "bounded_confidence"
+                    if cognitive_map[signal]
+                    else "abstain_defer"
+                ),
+                "confidence_band": 0,
+                "scenario_abstained_count": (
+                    0 if cognitive_map[signal] else 4
+                ),
+                "metacognition": (
+                    "sufficient"
+                    if cognitive_map[signal]
+                    else "insufficient-evidence"
+                ),
+                "attention_ranked_signal_count": 0,
+                "native_maximum_intelligence": True,
+                "full_semantics_consumed": True,
+            }
+            for signal in signals
+        }
+        if native_profile_by_signal is None
+        else {
+            str(signal): dict(profile)
+            for signal, profile in native_profile_by_signal.items()
+        }
+    )
+    if set(native_profile_map) != set(signals):
+        raise CiboCapitalManagementError(
+            "Trader Lab Native profile must cover exact manifest signals"
+        )
+    for signal, profile in native_profile_map.items():
+        confidence = profile.get("confidence_band")
+        executive = profile.get("executive_synthesis")
+        if (
+            executive not in {"recommend", "abstain"}
+            or not isinstance(confidence, int)
+            or isinstance(confidence, bool)
+            or confidence < 0
+            or confidence > 100
+            or profile.get("native_maximum_intelligence") is not True
+            or profile.get("full_semantics_consumed") is not True
+        ):
+            raise CiboCapitalManagementError(
+                f"Trader Lab Native profile malformed for {signal}"
+            )
+        if (
+            bool(cognitive_map[signal])
+            != (executive == "recommend")
+        ):
+            raise CiboCapitalManagementError(
+                "Trader Lab Native recommendation/profile drift"
+            )
+
+    def native_confidence(candidate: CiboThreeModeCandidate) -> int:
+        return int(
+            native_profile_map[candidate.signal_fingerprint][
+                "confidence_band"
+            ]
+        )
+
+    def historical_native_intensity_cap(
+        candidate: CiboThreeModeCandidate,
+    ) -> int:
+        if not candidate.native_cognition_recommended:
+            return min(candidate.maximum_multiplier, 1)
+        # Historical control expressed 4x whenever capital was released.
+        # Current Native confidence may add up to five further intensity
+        # steps, one per 20 confidence points, while physical risk/margin/
+        # provider capacity remain the downstream hard constraints.
+        return min(
+            candidate.maximum_multiplier,
+            4 + native_confidence(candidate) // 20,
         )
 
     use_historical_prior = historical_prior_by_signal is not None
@@ -1386,12 +1474,7 @@ def run_three_mode_trader_lab(
                         ).to_integral_value(rounding=ROUND_FLOOR)
                     )
                     native_intensity_cap = (
-                        min(candidate.maximum_multiplier, 4)
-                        if (
-                            use_historical_prior
-                            and candidate.native_cognition_recommended
-                        )
-                        else min(candidate.maximum_multiplier, 1)
+                        historical_native_intensity_cap(candidate)
                         if use_historical_prior
                         else min(candidate.maximum_multiplier, 4)
                         if (
@@ -1456,6 +1539,14 @@ def run_three_mode_trader_lab(
                             ),
                             "risk_left_usd": format(risk_left, "f"),
                             "margin_left_usd": format(margin_left, "f"),
+                            "native_confidence_band": native_confidence(
+                                candidate
+                            ),
+                            "native_executive_synthesis": (
+                                native_profile_map[
+                                    candidate.signal_fingerprint
+                                ]["executive_synthesis"]
+                            ),
                         },
                         action="SIZE_FROM_BANK_SEED_WITH_NATIVE_CAPABILITY",
                         outputs={
@@ -1975,6 +2066,7 @@ def run_three_mode_trader_lab(
     sizing_call_count = int(sensor_stats["SIZING"]["call_count"])
     sizing_rejection_count = int(sensor_stats["SIZING"]["rejection_count"])
     sizing_approval_count = int(sensor_stats["SIZING"]["approval_count"])
+    sizing_deferred_count = int(sensor_stats["SIZING"]["restriction_count"])
     leverage_call_count = int(
         sensor_stats["ADAPTIVE_LEVERAGE"]["call_count"]
     )
@@ -1999,6 +2091,7 @@ def run_three_mode_trader_lab(
         ),
         "sizing_medium_evaluated_count": sizing_call_count,
         "sizing_medium_rejected_count": sizing_rejection_count,
+        "sizing_medium_deferred_count": sizing_deferred_count,
         "sizing_medium_approved_count": sizing_approval_count,
         "adaptive_leverage_attack_evaluated_count": leverage_call_count,
         "adaptive_leverage_attack_rejected_count": (
@@ -2010,6 +2103,7 @@ def run_three_mode_trader_lab(
             upstream_intake_filtered_count
             + portfolio_withheld_before_execution
             + sizing_rejection_count
+            + sizing_deferred_count
             + sizing_approval_count
             + leverage_rejection_count
             + leverage_approval_count
@@ -2234,6 +2328,11 @@ def run_three_mode_trader_lab(
             "native_cognition_gate_consumed": True,
             "native_cognition_source": (
                 "FROZEN_PREDECISION_WALK_FORWARD_REPLAY"
+            ),
+            "native_profile_consumed": True,
+            "historical_native_intensity_law": (
+                "ABSTAIN_1X_DEFENSIVE; RECOMMEND_4X_PLUS_"
+                "FLOOR_CONFIDENCE_BAND_DIV_20"
             ),
             "historical_prior_consumed": use_historical_prior,
             "compound_distribution_basis": (
