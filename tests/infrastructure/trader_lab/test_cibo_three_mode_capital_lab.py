@@ -41,6 +41,7 @@ def _candidate() -> CiboThreeModeCandidate:
         decision_at=now,
         exit_at=now,
         gross_r=Decimal("2"),
+        expected_edge_after_cost_usd=Decimal("1"),
         expected_net_utility_usd=Decimal("1"),
         attack_expected_net_utility_usd=Decimal("1"),
         expected_capital_minutes=Decimal("10"),
