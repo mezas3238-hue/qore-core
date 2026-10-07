@@ -14,6 +14,31 @@
 
 # 0. DIRECTIVA SOBERANA — LEER ANTES DE TOCAR CÓDIGO
 
+## CORRECCIÓN SOBERANA POST-HANDOFF — SEPARACIÓN TRADER / CIBO
+
+Esta regla del owner SUPERA cualquier redacción anterior de este documento que sugiera que CIBO puede rechazar, filtrar o diferir una entrada del Trader.
+
+**El Trader es la única autoridad de entrada.** El Trader decide y ejecuta la entrada de su metodología; no tiene responsabilidad financiera posterior.
+
+Una vez que la entrada existe, **CIBO recibe la posición y queda a cargo de su administración financiera y de lifecycle. CIBO NO tiene potestad para rechazar, cancelar, borrar ni convertir esa entrada en no-trade por razones económicas.**
+
+Por tanto, para cada una de las oportunidades/entradas del replay:
+
+- la entrada del Trader se conserva;
+- CIBO debe asignar un tratamiento de gestión no nulo;
+- Native cognition cambia intensidad y tratamiento, NO admisión;
+- Sizing administra exposición/capacidad, NO decide si la señal del Trader existe;
+- Portfolio y Adaptive Leverage pueden escalar o no escalar, pero no eliminar la entrada base;
+- BANK sigue siendo tesorería y nunca puede representar rechazo de una entrada;
+- DEFER, REJECT_ENTRY, BANK_NO_TRADE o equivalentes no son destinos válidos para una entrada ya ejecutada;
+- si el banco de pruebas afirma que una entrada ejecutada no puede recibir ni gestión mínima física, eso se trata como **inconsistencia del modelo/capacidad**, no como rechazo legítimo de CIBO.
+
+La misión de CIBO sobre cada entrada es doble:
+
+1. **maximizar la probabilidad y magnitud de captura favorable** mediante Sizing, Compound, Portfolio, Adaptive Leverage y gestión de lifecycle cuando la evidencia causal lo permita;
+2. **minimizar la pérdida si la operación se dirige al Stop Loss**, usando protección causal post-entrada, reducción de intensidad y trailing/stop management cuando corresponda, sin usar información futura.
+
+El repositorio ya contiene un Position Lifecycle causal con OPEN -> TRAILING_STOP -> EXIT; la investigación de ceiling debe aprovechar esa capacidad como gestión post-entrada, manteniendo trailing monotónico/protector y evitando outcome leakage.
 Este handoff sustituye resúmenes parciales anteriores para esta línea de investigación.
 
 La misión NO es "llegar a 8.000% y detenerse".
@@ -240,12 +265,12 @@ Las 3.368 oportunidades deben ser **trabajadas** por la economía.
 Puede significar:
 
 - analizada;
-- diferida causalmente;
-- tratada defensivamente;
-- ejecutada MEDIUM;
-- escalada ATTACK.
+- administrada defensivamente con intensidad mínima;
+- administrada MEDIUM;
+- administrada STRONG MEDIUM;
+- escalada ATTACK cuando corresponda.
 
-Lo prohibido es que desaparezcan silenciosamente antes de que la economía las procese.
+Ninguna entrada ya ejecutada por el Trader puede transformarse en DEFER/no-trade. Lo prohibido no es sólo que desaparezca silenciosamente: **CIBO carece de autoridad de rechazo de entrada.**
 
 ---
 
@@ -800,15 +825,13 @@ Antes de buscar +8.000% o más, hay que conseguir que la nueva arquitectura con 
 2. supere USD 1.141 con DD ≤25%;
 3. siga escalando.
 
-## P6 — no confundir "trabajar una oportunidad" con "ejecutarla"
+## P6 — CORREGIDO: CIBO NO TIENE AUTORIDAD DE ADMISIÓN
 
-Las 3.368 deben recibir tratamiento económico.
+Las 3.368 entradas de la superficie actual representan entradas del Trader que CIBO debe administrar.
 
-Eso NO obliga a 3.368 trades.
+El Trader es responsable de ejecutar la entrada. CIBO empieza después: administra riesgo, exposición, Compound, Portfolio, leverage y lifecycle.
 
-Un DEFER puede ser legítimo si está justificado por cognitiva y preserva capital para mejores oportunidades.
-
-Lo que no se acepta es un filtro upstream ciego.
+Por tanto, la meta de esta superficie sí es **3.368 / 3.368 entradas bajo gestión CIBO no nula**. DEFER o rechazo financiero de una entrada ya ejecutada es arquitectura incorrecta. Si una entrada no puede recibir la gestión mínima por una contradicción física del simulador, el replay debe fallar y exponer la inconsistencia en lugar de adjudicar a CIBO una potestad de rechazo que no posee.
 
 ## P7 — no optimizar al outcome
 
