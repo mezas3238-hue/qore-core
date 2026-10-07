@@ -40,6 +40,7 @@ class CiboLifecycleFeature(StrEnum):
     EXTENDED_TARGET = "EXTENDED_TARGET"
     ADVERSE_LOSS_CUT = "ADVERSE_LOSS_CUT"
     ADVERSE_PARTIAL_REDUCTION = "ADVERSE_PARTIAL_REDUCTION"
+    BOOTSTRAP_PARTIAL_REDUCTION = "BOOTSTRAP_PARTIAL_REDUCTION"
 
 
 # Keep the established lifecycle baseline stable while the adverse-loss
@@ -51,6 +52,7 @@ FULL_CIBO_LIFECYCLE_FEATURES = frozenset(
     if item not in {
         CiboLifecycleFeature.ADVERSE_LOSS_CUT,
         CiboLifecycleFeature.ADVERSE_PARTIAL_REDUCTION,
+        CiboLifecycleFeature.BOOTSTRAP_PARTIAL_REDUCTION,
     }
 )
 
@@ -143,6 +145,7 @@ def run_cibo_position_lifecycle(
     features: frozenset[CiboLifecycleFeature] = FULL_CIBO_LIFECYCLE_FEATURES,
     adverse_loss_cut_r: Decimal = Decimal("-0.50"),
     adverse_partial_fraction: Decimal = Decimal("0.25"),
+    bootstrap_partial_fraction: Decimal = Decimal("0.50"),
 ) -> CiboPositionLifecycleResult:
     """Evaluate one position using causal closed-bar lifecycle semantics."""
 
@@ -167,6 +170,15 @@ def run_cibo_position_lifecycle(
     ):
         raise CiboCapitalManagementError(
             "Lifecycle adverse partial fraction must be Decimal strictly between 0 and 1"
+        )
+    if (
+        not isinstance(bootstrap_partial_fraction, Decimal)
+        or not bootstrap_partial_fraction.is_finite()
+        or bootstrap_partial_fraction <= 0
+        or bootstrap_partial_fraction >= 1
+    ):
+        raise CiboCapitalManagementError(
+            "Lifecycle bootstrap partial fraction must be Decimal strictly between 0 and 1"
         )
 
     risk_distance = abs(position.entry_price - position.structural_stop)
@@ -232,6 +244,7 @@ def run_cibo_position_lifecycle(
     pending_adverse_loss_cut = False
     pending_adverse_partial_reduction = False
     adverse_partial_done = False
+    bootstrap_partial_done = False
 
     def favorable_adverse_close(
         bar: CiboLifecycleBar,
@@ -282,6 +295,21 @@ def run_cibo_position_lifecycle(
 
     for bar in causal_bars:
         open_r, favorable, adverse, close_r = favorable_adverse_close(bar)
+
+        if (
+            CiboLifecycleFeature.BOOTSTRAP_PARTIAL_REDUCTION in features
+            and not bootstrap_partial_done
+            and bar.opened_at > position.entry_at
+            and remaining > 0
+        ):
+            close_fraction = min(bootstrap_partial_fraction, remaining)
+            remaining -= close_fraction
+            append_event(
+                bar.opened_at,
+                "BOOTSTRAP_PARTIAL_REDUCTION_NEXT_OPEN",
+                close_fraction * open_r,
+            )
+            bootstrap_partial_done = True
 
         # A deterioration signal is known only after BAR N closes. Both
         # defensive actions execute at BAR N+1 open, never retroactively.
