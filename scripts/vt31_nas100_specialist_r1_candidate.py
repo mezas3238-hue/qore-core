@@ -45,6 +45,7 @@ from qore.infrastructure.traders.vt31_nas100_cognitive_plumbing import (
 )
 from qore.infrastructure.traders.vt31_nas100_market_context_runtime import (
     build_higher_context,
+    h4_history_tail,
 )
 from qore.infrastructure.traders.vt31_nas100_reasoning_engine import (
     Nas100ReasoningState,
@@ -291,15 +292,26 @@ def _context_map(
     by_day: dict[date, tuple[object, ...]],
 ) -> dict[
     date,
-    tuple[Decimal | None, Decimal | None, tuple[object, ...]],
+    tuple[
+        Decimal | None,
+        Decimal | None,
+        tuple[object, ...],
+        tuple[object, ...],
+    ],
 ]:
     result: dict[
         date,
-        tuple[Decimal | None, Decimal | None, tuple[object, ...]],
+        tuple[
+            Decimal | None,
+            Decimal | None,
+            tuple[object, ...],
+            tuple[object, ...],
+        ],
     ] = {}
     admitted_ranges: list[Decimal | None] = []
     admitted_widths: list[Decimal] = []
     last_admitted_bars: tuple[object, ...] = ()
+    h4_history_bars: tuple[object, ...] = ()
     for local_day in sorted(by_day):
         previous_path_range = (
             admitted_ranges[-1] if admitted_ranges else None
@@ -311,6 +323,7 @@ def _context_map(
             previous_path_range,
             prior_ref_median,
             last_admitted_bars,
+            h4_history_bars,
         )
 
         day_bars = by_day[local_day]
@@ -325,6 +338,15 @@ def _context_map(
         if width is not None and width > 0:
             admitted_widths.append(width)
         last_admitted_bars = day_bars
+        h4_history_bars = cast(
+            tuple[object, ...],
+            h4_history_tail(
+                cast(
+                    tuple[OhlcSnapshot, ...],
+                    h4_history_bars + day_bars,
+                )
+            ),
+        )
     return result
 
 
@@ -333,6 +355,7 @@ def _state_snapshot(
     previous_path_range: Decimal | None,
     prior_ref_median: Decimal | None,
     prior_admitted_day_bars: tuple[object, ...],
+    prior_h4_history_bars: tuple[object, ...],
     session_prefix: tuple[object, ...],
     source: Vt31R22SourceSetup,
     executable: Vt31R22ExecutableSetup,
@@ -452,6 +475,10 @@ def _state_snapshot(
         prior_admitted_day_bars=cast(
             tuple[OhlcSnapshot, ...],
             prior_admitted_day_bars,
+        ),
+        prior_h4_history_bars=cast(
+            tuple[OhlcSnapshot, ...],
+            prior_h4_history_bars,
         ),
         decision_at=decision_at,
         side=executable.side.value,
@@ -1065,6 +1092,7 @@ def replay(evidence_path: Path) -> dict[str, object]:
             previous_path_range,
             prior_ref_median,
             prior_admitted_day_bars,
+            prior_h4_history_bars,
         ) = context_by_day[local_day]
         selected_source: Vt31R22SourceSetup | None = None
         selected: Vt31R22ExecutableSetup | None = None
@@ -1131,6 +1159,7 @@ def replay(evidence_path: Path) -> dict[str, object]:
                 previous_path_range,
                 prior_ref_median,
                 prior_admitted_day_bars,
+                prior_h4_history_bars,
                 session_prefix,
                 evaluation.setup,
                 executable,
