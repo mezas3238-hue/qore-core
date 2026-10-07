@@ -1495,6 +1495,15 @@ def run_three_mode_trader_lab(
     trader_trades: Counter[str] = Counter()
     trader_loss_streak: Counter[str] = Counter()
     trader_attack_loss_streak: Counter[str] = Counter()
+    attack_winning_trade_count = 0
+    attack_losing_trade_count = 0
+    attack_flat_trade_count = 0
+    attack_gross_profit_usd = Decimal(0)
+    attack_gross_loss_usd = Decimal(0)
+    attack_gross_profit_by_trader: dict[str, Decimal] = defaultdict(Decimal)
+    attack_gross_loss_by_trader: dict[str, Decimal] = defaultdict(Decimal)
+    attack_gross_profit_by_multiplier: dict[int, Decimal] = defaultdict(Decimal)
+    attack_gross_loss_by_multiplier: dict[int, Decimal] = defaultdict(Decimal)
     trade_realized_net_by_signal: dict[str, Decimal] = defaultdict(Decimal)
     leverage_sum = 0
     leverage_max = 0
@@ -1795,6 +1804,9 @@ def run_three_mode_trader_lab(
     def settle_due(up_to: datetime | None) -> None:
         nonlocal pending, compound_settlements
         nonlocal drawdown_peak_at, max_drawdown_attribution
+        nonlocal attack_winning_trade_count, attack_losing_trade_count
+        nonlocal attack_flat_trade_count
+        nonlocal attack_gross_profit_usd, attack_gross_loss_usd
 
         def due_at(trade: CiboThreeModeOpenTrade) -> datetime:
             if (
@@ -2129,8 +2141,27 @@ def run_three_mode_trader_lab(
             if trade.mode is CiboTraderLabMode.ATTACK:
                 if settled_trade_net < 0:
                     trader_attack_loss_streak[trade.trader_id] += 1
+                    attack_losing_trade_count += 1
+                    attack_gross_loss_usd += -settled_trade_net
+                    attack_gross_loss_by_trader[trade.trader_id] += (
+                        -settled_trade_net
+                    )
+                    attack_gross_loss_by_multiplier[trade.multiplier] += (
+                        -settled_trade_net
+                    )
+                elif settled_trade_net > 0:
+                    trader_attack_loss_streak[trade.trader_id] = 0
+                    attack_winning_trade_count += 1
+                    attack_gross_profit_usd += settled_trade_net
+                    attack_gross_profit_by_trader[trade.trader_id] += (
+                        settled_trade_net
+                    )
+                    attack_gross_profit_by_multiplier[trade.multiplier] += (
+                        settled_trade_net
+                    )
                 else:
                     trader_attack_loss_streak[trade.trader_id] = 0
+                    attack_flat_trade_count += 1
 
             trader_trades[trade.trader_id] += 1
             if trade.mode is CiboTraderLabMode.MEDIUM:
@@ -4015,6 +4046,46 @@ def run_three_mode_trader_lab(
                 state.portfolio_attack_credit_recycled_total_usd, "f"
             ),
             "attack_net_pnl_usd": format(state.attack_net_pnl_usd, "f"),
+        "portfolio_loss_report": {
+            "attack_winning_trade_count": attack_winning_trade_count,
+            "attack_losing_trade_count": attack_losing_trade_count,
+            "attack_flat_trade_count": attack_flat_trade_count,
+            "attack_gross_profit_usd": format(attack_gross_profit_usd, "f"),
+            "attack_gross_loss_usd": format(attack_gross_loss_usd, "f"),
+            "attack_net_pnl_usd": format(state.attack_net_pnl_usd, "f"),
+            "attack_profit_factor": (
+                None
+                if attack_gross_loss_usd <= 0
+                else format(
+                    attack_gross_profit_usd / attack_gross_loss_usd,
+                    "f",
+                )
+            ),
+            "gross_profit_by_trader_usd": {
+                key: format(value, "f")
+                for key, value in sorted(
+                    attack_gross_profit_by_trader.items()
+                )
+            },
+            "gross_loss_by_trader_usd": {
+                key: format(value, "f")
+                for key, value in sorted(
+                    attack_gross_loss_by_trader.items()
+                )
+            },
+            "gross_profit_by_multiplier_usd": {
+                str(key): format(value, "f")
+                for key, value in sorted(
+                    attack_gross_profit_by_multiplier.items()
+                )
+            },
+            "gross_loss_by_multiplier_usd": {
+                str(key): format(value, "f")
+                for key, value in sorted(
+                    attack_gross_loss_by_multiplier.items()
+                )
+            },
+        },
             "net_account_production_usd": format(
                 state.total_capital_usd - INITIAL_CAPITAL_USD, "f"
             ),
