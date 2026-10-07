@@ -944,6 +944,9 @@ def run_three_mode_trader_lab(
     ceiling_attack_drawdown_budget_fraction: Decimal | None = None,
     ceiling_attack_drawdown_budget_capital_floor: Decimal | None = None,
     ceiling_attack_drawdown_budget_capital_ceiling: Decimal | None = None,
+    ceiling_attack_drawdown_budget2_fraction: Decimal | None = None,
+    ceiling_attack_drawdown_budget2_capital_floor: Decimal | None = None,
+    ceiling_attack_drawdown_budget2_capital_ceiling: Decimal | None = None,
     ceiling_attack_single_trade_risk_fraction: Decimal | None = None,
     ceiling_attack_loss_streak_trigger: int | None = None,
     ceiling_attack_loss_streak_taper_fraction: Decimal = Decimal("0.50"),
@@ -1217,6 +1220,47 @@ def run_three_mode_trader_lab(
     ):
         raise CiboCapitalManagementError(
             "Trader Lab ceiling ATTACK drawdown budget capital ceiling must be positive Decimal"
+        )
+    if ceiling_attack_drawdown_budget2_fraction is not None and (
+        not isinstance(ceiling_attack_drawdown_budget2_fraction, Decimal)
+        or not ceiling_attack_drawdown_budget2_fraction.is_finite()
+        or ceiling_attack_drawdown_budget2_fraction <= 0
+        or ceiling_attack_drawdown_budget2_fraction > Decimal("0.50")
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab second ATTACK drawdown budget fraction must be Decimal in (0, 0.50]"
+        )
+    if ceiling_attack_drawdown_budget2_fraction is not None and (
+        ceiling_attack_drawdown_budget2_capital_floor is None
+        or ceiling_attack_drawdown_budget2_capital_ceiling is None
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab second ATTACK drawdown budget requires capital floor and ceiling"
+        )
+    if ceiling_attack_drawdown_budget2_capital_floor is not None and (
+        not isinstance(ceiling_attack_drawdown_budget2_capital_floor, Decimal)
+        or not ceiling_attack_drawdown_budget2_capital_floor.is_finite()
+        or ceiling_attack_drawdown_budget2_capital_floor < 0
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab second ATTACK drawdown budget capital floor must be nonnegative Decimal"
+        )
+    if ceiling_attack_drawdown_budget2_capital_ceiling is not None and (
+        not isinstance(ceiling_attack_drawdown_budget2_capital_ceiling, Decimal)
+        or not ceiling_attack_drawdown_budget2_capital_ceiling.is_finite()
+        or ceiling_attack_drawdown_budget2_capital_ceiling <= 0
+        or (
+            ceiling_attack_drawdown_budget2_capital_floor is not None
+            and ceiling_attack_drawdown_budget2_capital_ceiling
+            <= ceiling_attack_drawdown_budget2_capital_floor
+        )
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab second ATTACK drawdown budget capital band is invalid"
+        )
+    if ceiling_attack_drawdown_budget2_fraction is not None and not ceiling_discovery_mode:
+        raise CiboCapitalManagementError(
+            "Trader Lab second ATTACK drawdown budget requires ceiling discovery mode"
         )
     if (
         ceiling_attack_drawdown_budget_fraction is not None
@@ -3409,9 +3453,29 @@ def run_three_mode_trader_lab(
                 <= ceiling_attack_drawdown_budget_capital_ceiling
             )
         )
-        attack_drawdown_budget_fraction = (
+        ceiling_attack_drawdown_budget2_active = (
+            ceiling_discovery_mode
+            and ceiling_attack_drawdown_budget2_fraction is not None
+            and ceiling_attack_drawdown_budget2_capital_floor is not None
+            and ceiling_attack_drawdown_budget2_capital_ceiling is not None
+            and ceiling_attack_drawdown_budget2_capital_floor
+            <= state.total_capital_usd
+            <= ceiling_attack_drawdown_budget2_capital_ceiling
+        )
+        effective_ceiling_attack_drawdown_budget_fraction = (
             ceiling_attack_drawdown_budget_fraction
             if ceiling_attack_drawdown_budget_active
+            else ceiling_attack_drawdown_budget2_fraction
+            if ceiling_attack_drawdown_budget2_active
+            else None
+        )
+        ceiling_attack_drawdown_budget_any_active = (
+            ceiling_attack_drawdown_budget_active
+            or ceiling_attack_drawdown_budget2_active
+        )
+        attack_drawdown_budget_fraction = (
+            effective_ceiling_attack_drawdown_budget_fraction
+            if effective_ceiling_attack_drawdown_budget_fraction is not None
             else ATTACK_PORTFOLIO_DRAWDOWN_BUDGET
         )
         with localcontext() as context:
@@ -3429,7 +3493,7 @@ def run_three_mode_trader_lab(
             state.attack_credit_available_usd
             if (
                 ceiling_discovery_mode
-                and not ceiling_attack_drawdown_budget_active
+                and not ceiling_attack_drawdown_budget_any_active
             )
             else min(
                 state.attack_credit_available_usd,
@@ -4232,7 +4296,7 @@ def run_three_mode_trader_lab(
                                 )
                     ceiling_drawdown_risk_cap = candidate.maximum_multiplier
                     if (
-                        ceiling_attack_drawdown_budget_active
+                        ceiling_attack_drawdown_budget_any_active
                     ):
                         with localcontext() as context:
                             context.prec = 100
