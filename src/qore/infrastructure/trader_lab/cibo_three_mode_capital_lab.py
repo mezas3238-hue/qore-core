@@ -971,10 +971,10 @@ def run_three_mode_trader_lab(
         not isinstance(economic_group_bootstrap_cushion_share, Decimal)
         or not economic_group_bootstrap_cushion_share.is_finite()
         or economic_group_bootstrap_cushion_share < Decimal("0.50")
-        or economic_group_bootstrap_cushion_share > Decimal("0.95")
+        or economic_group_bootstrap_cushion_share > Decimal("1.00")
     ):
         raise CiboCapitalManagementError(
-            "Trader Lab economic-group bootstrap cushion share must be Decimal in [0.50, 0.95]"
+            "Trader Lab economic-group bootstrap cushion share must be Decimal in [0.50, 1.00]"
         )
     if (
         not isinstance(attack_multiplier_cap, int)
