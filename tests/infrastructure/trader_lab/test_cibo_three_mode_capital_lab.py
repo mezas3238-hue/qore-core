@@ -8,6 +8,9 @@ from qore.infrastructure.cibo_ce2i_regime_selector import (
     ProviderCondition,
     VolatilityState,
 )
+from qore.infrastructure.cibo_protected_reinvestment_policy import (
+    MAX_CAPITAL_NEED_TO_CURRENT_CAPITAL_RATIO,
+)
 from qore.infrastructure.trader_lab.cibo_three_mode_capital_lab import (
     ATTACK_MINIMUM_MULTIPLIER,
     CiboThreeModeCandidate,
@@ -16,6 +19,7 @@ from qore.infrastructure.trader_lab.cibo_three_mode_capital_lab import (
     CiboTraderLabRegime,
     _State,
     apply_three_mode_settlement,
+    dynamic_bank_seed_budget_usd,
     select_three_mode,
 )
 
@@ -122,9 +126,8 @@ class CiboThreeModeCapitalLabTest(unittest.TestCase):
     def test_medium_positive_profit_splits_fifty_fifty(self) -> None:
         now = datetime(2026, 1, 1, tzinfo=UTC)
         state = _State(
-            medium_seed_target_usd=Decimal("1.1"),
-            medium_seed_balance_usd=Decimal("1.1"),
-            medium_seed_reserved_usd=Decimal("1.1"),
+            sovereign_reserved_usd=Decimal("1.1"),
+            bank_seed_reserved_usd=Decimal("1.1"),
         )
         trade = CiboThreeModeOpenTrade(
             signal_fingerprint="s1",
@@ -143,6 +146,27 @@ class CiboThreeModeCapitalLabTest(unittest.TestCase):
         self.assertEqual(state.sovereign_bank_usd, Decimal("60.95"))
         self.assertEqual(state.portfolio_cushion_usd, Decimal("0.95"))
 
+
+    def test_dynamic_bank_seed_is_four_percent_per_entry(self) -> None:
+        self.assertEqual(
+            MAX_CAPITAL_NEED_TO_CURRENT_CAPITAL_RATIO,
+            Decimal("0.04"),
+        )
+        self.assertEqual(
+            dynamic_bank_seed_budget_usd(Decimal("60")),
+            Decimal("2.40"),
+        )
+        self.assertEqual(
+            dynamic_bank_seed_budget_usd(Decimal("600")),
+            Decimal("24.00"),
+        )
+        # The helper is called for every MEDIUM candidate, so two entries
+        # at USD60 each receive their own USD2.40 seed envelope.
+        self.assertEqual(
+            dynamic_bank_seed_budget_usd(Decimal("60"))
+            + dynamic_bank_seed_budget_usd(Decimal("60")),
+            Decimal("4.80"),
+        )
 
     def test_bank_never_owns_a_trade(self) -> None:
         now = datetime(2026, 1, 1, tzinfo=UTC)
@@ -168,9 +192,8 @@ class CiboThreeModeCapitalLabTest(unittest.TestCase):
     def test_medium_profit_creates_portfolio_attack_credit(self) -> None:
         now = datetime(2026, 1, 1, tzinfo=UTC)
         state = _State(
-            medium_seed_target_usd=Decimal("1.1"),
-            medium_seed_balance_usd=Decimal("1.1"),
-            medium_seed_reserved_usd=Decimal("1.1"),
+            sovereign_reserved_usd=Decimal("1.1"),
+            bank_seed_reserved_usd=Decimal("1.1"),
         )
         trade = CiboThreeModeOpenTrade(
             signal_fingerprint="medium-credit",
@@ -186,7 +209,8 @@ class CiboThreeModeCapitalLabTest(unittest.TestCase):
         )
         apply_three_mode_settlement(state, trade)
         self.assertEqual(state.portfolio_attack_credit_usd, Decimal("0.95"))
-        self.assertEqual(state.medium_seed_reserved_usd, Decimal("0"))
+        self.assertEqual(state.bank_seed_reserved_usd, Decimal("0"))
+        self.assertEqual(state.bank_seed_recycled_total_usd, Decimal("1.1"))
 
     def test_attack_loss_is_charged_to_cushion_first(self) -> None:
         now = datetime(2026, 1, 1, tzinfo=UTC)

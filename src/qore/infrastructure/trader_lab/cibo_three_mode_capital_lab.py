@@ -45,6 +45,9 @@ from qore.infrastructure.cibo_single_account_manifest_economics import (
 from qore.infrastructure.cibo_single_account_manifest_integrity import (
     validate_single_account_manifest_sha256,
 )
+from qore.infrastructure.cibo_protected_reinvestment_policy import (
+    MAX_CAPITAL_NEED_TO_CURRENT_CAPITAL_RATIO,
+)
 from qore.infrastructure.cibo_single_account_manifest_settlement import (
     manifest_row_to_shadow_outcome_observation,
 )
@@ -133,11 +136,10 @@ class _State:
     sovereign_bank_usd: Decimal = INITIAL_CAPITAL_USD
     portfolio_cushion_usd: Decimal = Decimal(0)
     sovereign_reserved_usd: Decimal = Decimal(0)
-    medium_seed_target_usd: Decimal = Decimal(0)
-    medium_seed_balance_usd: Decimal = Decimal(0)
-    medium_seed_reserved_usd: Decimal = Decimal(0)
-    bank_seed_authorization_count: int = 0
-    bank_seed_authorized_total_usd: Decimal = Decimal(0)
+    bank_seed_reserved_usd: Decimal = Decimal(0)
+    bank_seed_issuance_count: int = 0
+    bank_seed_issued_total_usd: Decimal = Decimal(0)
+    bank_seed_recycled_total_usd: Decimal = Decimal(0)
     cushion_reserved_usd: Decimal = Decimal(0)
     portfolio_attack_credit_usd: Decimal = Decimal(0)
     open_stop_risk_usd: Decimal = Decimal(0)
@@ -163,13 +165,9 @@ class _State:
 
     @property
     def sovereign_available_usd(self) -> Decimal:
-        # BANK seed is an earmarked subset of sovereign capital. Excluding the
-        # funded seed here prevents the same sovereign dollar being seeded twice.
         return max(
             Decimal(0),
-            self.sovereign_bank_usd
-            - self.medium_seed_balance_usd
-            - self.sovereign_reserved_usd,
+            self.sovereign_bank_usd - self.sovereign_reserved_usd,
         )
 
     @property
@@ -177,14 +175,6 @@ class _State:
         return max(
             Decimal(0),
             self.portfolio_cushion_usd - self.cushion_reserved_usd,
-        )
-
-    @property
-    def medium_seed_available_usd(self) -> Decimal:
-        return max(
-            Decimal(0),
-            self.medium_seed_balance_usd
-            - self.medium_seed_reserved_usd,
         )
 
     @property
@@ -450,6 +440,27 @@ def _group_epochs(
     )
 
 
+def dynamic_bank_seed_budget_usd(
+    current_total_capital_usd: Decimal,
+) -> Decimal:
+    """BANK seed budget for one MEDIUM entry: 4% of current account capital."""
+
+    if (
+        not isinstance(current_total_capital_usd, Decimal)
+        or not current_total_capital_usd.is_finite()
+        or current_total_capital_usd <= 0
+    ):
+        raise CiboCapitalManagementError(
+            "BANK dynamic seed requires positive current total capital"
+        )
+    with localcontext() as context:
+        context.prec = 100
+        return (
+            current_total_capital_usd
+            * MAX_CAPITAL_NEED_TO_CURRENT_CAPITAL_RATIO
+        )
+
+
 def robust_capital_utility(
     candidate: CiboThreeModeCandidate,
     *,
@@ -636,39 +647,23 @@ def apply_three_mode_settlement(
     state.open_stop_risk_usd -= trade.stop_risk_usd
     state.open_margin_usd -= trade.margin_usd
     if trade.mode is CiboTraderLabMode.MEDIUM:
-        state.medium_seed_reserved_usd -= trade.source_reserved_usd
+        state.sovereign_reserved_usd -= trade.source_reserved_usd
+        state.bank_seed_reserved_usd -= trade.source_reserved_usd
+        state.bank_seed_recycled_total_usd += trade.source_reserved_usd
         state.medium_compound_turnover_usd += trade.source_reserved_usd
 
-        # CIBO Compound owns the MEDIUM working-capital balance. Every MEDIUM
-        # outcome first compounds into the BANK seed. Winners recover prior
-        # seed damage before any distribution is permitted.
-        state.sovereign_bank_usd += net_pnl
-        state.medium_seed_balance_usd = max(
-            Decimal(0),
-            state.medium_seed_balance_usd + net_pnl,
-        )
         if net_pnl > 0:
-            state.medium_compound_positive_net_usd += net_pnl
-        elif net_pnl < 0:
-            state.medium_compound_negative_net_usd += -net_pnl
-
-        distributable = max(
-            Decimal(0),
-            state.medium_seed_balance_usd
-            - state.medium_seed_target_usd,
-        )
-        if distributable > 0:
-            sovereign_gain = distributable * MEDIUM_SOVEREIGN_SHARE
-            cushion_gain = distributable - sovereign_gain
-            # Full distributable profit leaves the MEDIUM seed envelope.
-            # Sovereign half remains in sovereign capital; Portfolio half is
-            # transferred out of sovereign capital into the Portfolio cushion.
-            state.medium_seed_balance_usd -= distributable
-            state.sovereign_bank_usd -= cushion_gain
+            sovereign_gain = net_pnl * MEDIUM_SOVEREIGN_SHARE
+            cushion_gain = net_pnl - sovereign_gain
+            state.sovereign_bank_usd += sovereign_gain
             state.portfolio_cushion_usd += cushion_gain
             state.portfolio_attack_credit_usd += cushion_gain
             state.medium_profit_to_sovereign_usd += sovereign_gain
             state.medium_profit_to_cushion_usd += cushion_gain
+            state.medium_compound_positive_net_usd += net_pnl
+        elif net_pnl < 0:
+            state.sovereign_bank_usd += net_pnl
+            state.medium_compound_negative_net_usd += -net_pnl
     elif trade.mode is CiboTraderLabMode.ATTACK:
         state.cushion_reserved_usd -= trade.source_reserved_usd
         state.portfolio_cushion_usd += net_pnl
@@ -1190,86 +1185,79 @@ def run_three_mode_trader_lab(
         sovereign_left = state.sovereign_available_usd
         cushion_left = state.cushion_available_usd
 
-        # BANK is treasury, not execution. Before MEDIUM works, BANK leaves a
-        # working-capital seed sized to current 1x MEDIUM demand. The seed is
-        # an earmarked subset of sovereign capital, so it never inflates total
-        # account capital.
-        if mode is CiboTraderLabMode.MEDIUM and eligible:
-            medium_seed_demand = sum(
-                (
-                    item.source_cost_per_multiplier_usd
-                    for item in eligible
-                ),
-                Decimal(0),
-            )
-            fundable_seed_target = min(
-                medium_seed_demand,
-                state.medium_seed_balance_usd
-                + state.sovereign_available_usd,
-            )
-            state.medium_seed_target_usd = max(
-                state.medium_seed_target_usd,
-                fundable_seed_target,
-            )
-            bank_seed_topup = min(
-                max(
-                    Decimal(0),
-                    state.medium_seed_target_usd
-                    - state.medium_seed_balance_usd,
-                ),
-                state.sovereign_available_usd,
-            )
-            if bank_seed_topup > 0:
-                # Earmark more sovereign working capital for MEDIUM. This is a
-                # sub-ledger reservation, not new capital and not a transfer.
-                state.medium_seed_balance_usd += bank_seed_topup
-                state.bank_seed_authorization_count += 1
-                state.bank_seed_authorized_total_usd += bank_seed_topup
-            record_engineering_sensor(
-                "SIZING",
-                epoch_index=epoch_index,
-                signal_fingerprint=None,
-                event="BANK_SEED_SUPPLY",
-                inputs={
-                    "medium_seed_demand_usd": format(
-                        medium_seed_demand, "f"
-                    ),
-                    "sovereign_available_usd": format(
-                        state.sovereign_available_usd, "f"
-                    ),
-                },
-                action="BANK_LEAVES_MEDIUM_SEED",
-                outputs={
-                    "medium_seed_target_usd": format(
-                        state.medium_seed_target_usd, "f"
-                    ),
-                    "medium_seed_balance_usd": format(
-                        state.medium_seed_balance_usd, "f"
-                    ),
-                    "medium_seed_topup_usd": format(
-                        bank_seed_topup, "f"
-                    ),
-                },
-                reaction="SIZING_RECEIVES_BANK_SEED",
-                approved_capital_usd=bank_seed_topup,
-            )
-
+        # BANK is treasury, not execution. Each MEDIUM candidate receives its
+        # own dynamic percentage seed envelope immediately before Sizing.
         portfolio_attack_release_left = (
             state.attack_credit_available_usd
             if mode is CiboTraderLabMode.ATTACK
             else Decimal(0)
         )
-        medium_seed_left = (
-            state.medium_seed_available_usd
-            if mode is CiboTraderLabMode.MEDIUM
-            else Decimal(0)
-        )
-
         if mode is not CiboTraderLabMode.BANK:
             candidate_surface = eligible
             for candidate in candidate_surface:
                 if mode is CiboTraderLabMode.MEDIUM:
                     sizing_calls += 1
+                    per_entry_seed_budget = dynamic_bank_seed_budget_usd(
+                        state.total_capital_usd
+                    )
+                    bank_seed = min(
+                        per_entry_seed_budget,
+                        sovereign_left,
+                    )
+                    executable_by_seed = int(
+                        (
+                            bank_seed
+                            / candidate.source_cost_per_multiplier_usd
+                        ).to_integral_value(rounding=ROUND_FLOOR)
+                    )
+                    executable_by_risk = int(
+                        (
+                            risk_left
+                            / candidate.stop_risk_per_multiplier_usd
+                        ).to_integral_value(rounding=ROUND_FLOOR)
+                    )
+                    executable_by_margin = int(
+                        (
+                            margin_left
+                            / candidate.margin_per_multiplier_usd
+                        ).to_integral_value(rounding=ROUND_FLOOR)
+                    )
+                    multiplier = max(
+                        0,
+                        min(
+                            candidate.maximum_multiplier,
+                            executable_by_seed,
+                            executable_by_risk,
+                            executable_by_margin,
+                        ),
+                    )
+                    record_engineering_sensor(
+                        "SIZING",
+                        epoch_index=epoch_index,
+                        signal_fingerprint=candidate.signal_fingerprint,
+                        event="BANK_SEED_INPUT",
+                        inputs={
+                            "current_total_capital_usd": format(
+                                state.total_capital_usd, "f"
+                            ),
+                            "per_entry_seed_fraction": format(
+                                MAX_CAPITAL_NEED_TO_CURRENT_CAPITAL_RATIO,
+                                "f",
+                            ),
+                            "per_entry_seed_budget_usd": format(
+                                per_entry_seed_budget, "f"
+                            ),
+                            "sovereign_available_usd": format(
+                                sovereign_left, "f"
+                            ),
+                        },
+                        action="BANK_ISSUES_4PCT_PER_ENTRY_SEED",
+                        outputs={
+                            "bank_seed_usd": format(bank_seed, "f"),
+                            "seed_multiplier_capacity": executable_by_seed,
+                        },
+                        reaction="PASS_SEED_TO_SIZING",
+                    )
                     record_engineering_sensor(
                         "SIZING",
                         epoch_index=epoch_index,
@@ -1277,6 +1265,7 @@ def run_three_mode_trader_lab(
                         event="SIZING_INPUT",
                         inputs={
                             "mode": mode.value,
+                            "bank_seed_usd": format(bank_seed, "f"),
                             "one_x_source_cost_usd": format(
                                 candidate.source_cost_per_multiplier_usd, "f"
                             ),
@@ -1286,23 +1275,16 @@ def run_three_mode_trader_lab(
                             "one_x_margin_usd": format(
                                 candidate.margin_per_multiplier_usd, "f"
                             ),
-                            "expected_net_utility_usd": format(
-                                candidate.expected_net_utility_usd, "f"
-                            ),
-                            "bank_seed_available_usd": format(
-                                medium_seed_left, "f"
-                            ),
                             "risk_left_usd": format(risk_left, "f"),
                             "margin_left_usd": format(margin_left, "f"),
                         },
-                        action="SIZE_FROM_BANK_SEED",
-                        outputs={},
-                        reaction="AWAIT_SIZING_DECISION",
+                        action="SIZE_WITHIN_4PCT_ENTRY_SEED",
+                        outputs={"selected_multiplier": multiplier},
+                        reaction="AWAIT_HARD_CAPACITY_CHECK",
                         call=True,
                     )
-                    economic_cap = 1
-                    multiplier = 1
-                    source_left = medium_seed_left
+                    economic_cap = multiplier
+                    source_left = bank_seed
                 else:
                     adaptive_leverage_calls += 1
                     source_left = min(
@@ -1418,6 +1400,31 @@ def run_three_mode_trader_lab(
                     # ATTACK is not bounded by robust utility. Portfolio
                     # Compound is the authority that enabled this mode.
 
+                if mode is CiboTraderLabMode.MEDIUM and multiplier < 1:
+                    record_engineering_sensor(
+                        "SIZING",
+                        epoch_index=epoch_index,
+                        signal_fingerprint=candidate.signal_fingerprint,
+                        event="SIZING_OUTPUT",
+                        inputs={
+                            "per_entry_bank_seed_usd": format(
+                                source_left, "f"
+                            ),
+                        },
+                        action="REJECT_4PCT_ENTRY_SEED_BELOW_MINIMUM",
+                        outputs={"selected_multiplier": 0},
+                        reaction="THIS_ENTRY_NOT_EXECUTABLE_WITH_4PCT_SEED",
+                        reasons=("PER_ENTRY_BANK_SEED_BELOW_1X",),
+                        rejection=True,
+                        requested_capital_usd=(
+                            candidate.source_cost_per_multiplier_usd
+                        ),
+                        blocked_capital_usd=(
+                            candidate.source_cost_per_multiplier_usd
+                        ),
+                    )
+                    continue
+
                 with localcontext() as context:
                     context.prec = 100
                     stop_risk = (
@@ -1479,14 +1486,15 @@ def run_three_mode_trader_lab(
                         event="SIZING_OUTPUT",
                         inputs={
                             "mode": mode.value,
-                            "bank_seed_target_usd": format(
-                                state.medium_seed_target_usd, "f"
+                            "per_entry_bank_seed_usd": format(
+                                source_left, "f"
                             ),
-                            "bank_seed_balance_usd": format(
-                                state.medium_seed_balance_usd, "f"
+                            "per_entry_seed_fraction": format(
+                                MAX_CAPITAL_NEED_TO_CURRENT_CAPITAL_RATIO,
+                                "f",
                             ),
                         },
-                        action="APPROVE_MEDIUM_FROM_BANK_SEED",
+                        action="APPROVE_MEDIUM_FROM_4PCT_ENTRY_SEED",
                         outputs={
                             "selected_multiplier": multiplier,
                             "stop_risk_usd": format(stop_risk, "f"),
@@ -1508,7 +1516,6 @@ def run_three_mode_trader_lab(
                 margin_left -= margin
                 if mode is CiboTraderLabMode.MEDIUM:
                     sovereign_left -= source_reserved
-                    medium_seed_left -= source_reserved
                 else:
                     cushion_left -= source_reserved
                     portfolio_attack_release_left -= source_reserved
@@ -1584,7 +1591,7 @@ def run_three_mode_trader_lab(
                             candidate,
                             multiplier=multiplier,
                             capital_base_usd=(
-                                state.medium_seed_available_usd
+                                state.sovereign_available_usd
                                 if mode is CiboTraderLabMode.MEDIUM
                                 else state.cushion_available_usd
                             ),
@@ -1609,7 +1616,10 @@ def run_three_mode_trader_lab(
             state.open_stop_risk_usd += stop_risk
             state.open_margin_usd += margin
             if mode is CiboTraderLabMode.MEDIUM:
-                state.medium_seed_reserved_usd += source_reserved
+                state.sovereign_reserved_usd += source_reserved
+                state.bank_seed_reserved_usd += source_reserved
+                state.bank_seed_issuance_count += 1
+                state.bank_seed_issued_total_usd += source_reserved
             else:
                 state.cushion_reserved_usd += source_reserved
                 state.portfolio_attack_credit_usd = max(
@@ -1644,14 +1654,15 @@ def run_three_mode_trader_lab(
                     state.sovereign_risk_budget_available_usd,
                     "f",
                 ),
-                "medium_seed_target_usd": format(
-                    state.medium_seed_target_usd, "f"
+                "per_entry_bank_seed_fraction": format(
+                    MAX_CAPITAL_NEED_TO_CURRENT_CAPITAL_RATIO, "f"
                 ),
-                "medium_seed_balance_usd": format(
-                    state.medium_seed_balance_usd, "f"
+                "per_entry_bank_seed_budget_usd": format(
+                    dynamic_bank_seed_budget_usd(state.total_capital_usd),
+                    "f",
                 ),
-                "medium_seed_available_usd": format(
-                    state.medium_seed_available_usd, "f"
+                "bank_seed_reserved_usd": format(
+                    state.bank_seed_reserved_usd, "f"
                 ),
                 "portfolio_cushion_usd": format(
                     state.portfolio_cushion_usd,
@@ -1900,17 +1911,18 @@ def run_three_mode_trader_lab(
             state.medium_profit_to_cushion_usd,
             "f",
         ),
-        "bank_seed_authorization_count": (
-            state.bank_seed_authorization_count
+        "per_entry_bank_seed_fraction": format(
+            MAX_CAPITAL_NEED_TO_CURRENT_CAPITAL_RATIO, "f"
         ),
-        "bank_seed_authorized_total_usd": format(
-            state.bank_seed_authorized_total_usd, "f"
+        "bank_seed_issuance_count": state.bank_seed_issuance_count,
+        "bank_seed_issued_total_usd": format(
+            state.bank_seed_issued_total_usd, "f"
         ),
-        "medium_seed_target_usd": format(
-            state.medium_seed_target_usd, "f"
+        "bank_seed_recycled_total_usd": format(
+            state.bank_seed_recycled_total_usd, "f"
         ),
-        "medium_seed_balance_usd": format(
-            state.medium_seed_balance_usd, "f"
+        "bank_seed_reserved_usd": format(
+            state.bank_seed_reserved_usd, "f"
         ),
         "medium_compound_positive_net_usd": format(
             state.medium_compound_positive_net_usd, "f"
@@ -2040,18 +2052,25 @@ def run_three_mode_trader_lab(
             "drawdown_policy": (
                 "DRAWDOWN_BLOCKS_ATTACK_NOT_MEDIUM; BANK_SEED_KEEPS_MEDIUM_WORKING"
             ),
-            "bank_seed_source": "SOVEREIGN_WORKING_CAPITAL_ENVELOPE",
+            "bank_seed_source": (
+                "4PCT_OF_CURRENT_TOTAL_ACCOUNT_CAPITAL_PER_MEDIUM_ENTRY"
+            ),
+            "bank_seed_fraction_per_entry": format(
+                MAX_CAPITAL_NEED_TO_CURRENT_CAPITAL_RATIO, "f"
+            ),
+            "bank_seed_scaling": "DYNAMIC_PER_ENTRY_WITH_ACCOUNT_GROWTH",
+            "bank_seed_hard_source_cap": "REMAINING_SOVEREIGN_AVAILABLE",
             "medium_engine": "SIZING_PLUS_CIBO_COMPOUND",
-            "medium_capital_source": "BANK_SEED_ONLY",
+            "medium_capital_source": "ROTATING_4PCT_BANK_SEED_PER_ENTRY",
             "sizing_role": (
                 "ALLOCATE_BANK_SEED_AFTER_COGNITIVE_ECONOMIC_ADMISSION"
             ),
             "sizing_second_edge_veto": False,
             "cibo_compound_role": (
-                "COMPOUND_ALL_MEDIUM_PNL_IN_BANK_SEED; DISTRIBUTE_ONLY_NET_EXCESS_ABOVE_SEED"
+                "SETTLE_MEDIUM_RETURN_SEED_TO_BANK_SPLIT_POSITIVE_PNL"
             ),
             "medium_profit_distribution_basis": (
-                "NET_COMPOUNDED_EXCESS_ABOVE_BANK_SEED_TARGET"
+                "REALIZED_MEDIUM_POSITIVE_PNL_50PCT_SOVEREIGN_50PCT_PORTFOLIO"
             ),
             "attack_risk_source": "PORTFOLIO_CUSHION_ONLY",
             "portfolio_attack_release_policy": (
