@@ -1470,6 +1470,7 @@ def run_three_mode_trader_lab(
 
     def settle_due(up_to: datetime | None) -> None:
         nonlocal pending, compound_settlements
+        nonlocal drawdown_peak_at, max_drawdown_attribution
 
         def due_at(trade: CiboThreeModeOpenTrade) -> datetime:
             if (
