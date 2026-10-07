@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import random
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from decimal import Decimal
+from pathlib import Path
 from typing import Any
 
 
@@ -313,9 +315,81 @@ def temporal_nondegrade(
     return all_ok, details
 
 
+def _mc_disk_key(
+    values: tuple[str, ...],
+    *,
+    paths: int,
+    block_length: int,
+) -> str:
+    payload = {
+        "algorithm": "circular-block-bootstrap-v5-persistent-cache",
+        "values": values,
+        "paths": paths,
+        "block_length": block_length,
+    }
+    raw = json.dumps(
+        payload,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode()
+    return hashlib.sha256(raw).hexdigest()
+
+
+def _load_mc_disk_cache(
+    cache_dir: Path | None,
+    *,
+    key: str,
+    paths: int,
+    block_length: int,
+) -> dict[str, Any] | None:
+    if cache_dir is None:
+        return None
+    path = cache_dir / f"{key}.json"
+    if not path.is_file():
+        return None
+    try:
+        row = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    if (
+        not isinstance(row, dict)
+        or int(row.get("paths", 0)) != paths
+        or int(row.get("block_length", 0)) != block_length
+        or row.get("positive_terminal_probability") is None
+        or row.get("p95_max_drawdown_r") is None
+    ):
+        return None
+    row["cache"] = "DISK_HIT"
+    row["cache_key"] = key
+    return row
+
+
+def _write_mc_disk_cache(
+    cache_dir: Path | None,
+    *,
+    key: str,
+    row: dict[str, Any],
+) -> None:
+    if cache_dir is None:
+        return
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    path = cache_dir / f"{key}.json"
+    payload = dict(row)
+    payload["cache"] = "PERSISTED"
+    payload["cache_key"] = key
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+    tmp.replace(path)
+
+
 def evaluate(
     profile: dict[str, Any],
     payloads: dict[str, dict[str, Any]],
+    *,
+    mc_cache_dir: Path | None = None,
 ) -> dict[str, Any]:
     science = profile["science"]
     control = str(science["control"])
@@ -381,13 +455,15 @@ def evaluate(
 
     mc_cache: dict[tuple[str, str], dict[str, Any]] = {}
     pending_by_series: dict[
-        tuple[str, tuple[str, ...]],
-        tuple[tuple[object, ...], str, int, int],
+        tuple[str, ...],
+        tuple[tuple[object, ...], str, int, int, str],
     ] = {}
     consumers: dict[
-        tuple[str, tuple[str, ...]],
+        tuple[str, ...],
         list[tuple[str, str]],
     ] = {}
+    mc_disk_hits = 0
+    mc_disk_misses = 0
 
     block_length = int(science.get("mc_block_length", 5))
     for lane in lanes:
@@ -421,20 +497,58 @@ def evaluate(
                     f"{lane}/{variant}: normalized replay missing net_r_values"
                 )
             canonical_values = tuple(str(value) for value in values)
-            series_key = (lane, canonical_values)
+            series_key = canonical_values
             consumers.setdefault(series_key, []).append((lane, variant))
             if series_key not in pending_by_series:
+                disk_key = _mc_disk_key(
+                    canonical_values,
+                    paths=mc_paths_min,
+                    block_length=block_length,
+                )
+                cached = _load_mc_disk_cache(
+                    mc_cache_dir,
+                    key=disk_key,
+                    paths=mc_paths_min,
+                    block_length=block_length,
+                )
+                if cached is not None:
+                    mc_disk_hits += 1
+                    for consumer in consumers[series_key]:
+                        mc_cache[consumer] = cached
+                    continue
+                mc_disk_misses += 1
                 paired_domain = (
-                    f"qore:github-trader-lab:"
-                    f"{profile['profile_id']}:{lane}:"
-                    f"n={len(canonical_values)}:paired-v2"
+                    f"qore:github-trader-lab:mc-v5:"
+                    f"{disk_key}"
                 )
                 pending_by_series[series_key] = (
                     canonical_values,
                     paired_domain,
                     mc_paths_min,
                     block_length,
+                    disk_key,
                 )
+
+    # Re-apply persistent hits after all consumers are known so identical
+    # series shared by multiple variants receive the same cached result.
+    for series_key, series_consumers in consumers.items():
+        if all(consumer in mc_cache for consumer in series_consumers):
+            continue
+        disk_key = _mc_disk_key(
+            series_key,
+            paths=mc_paths_min,
+            block_length=block_length,
+        )
+        cached = _load_mc_disk_cache(
+            mc_cache_dir,
+            key=disk_key,
+            paths=mc_paths_min,
+            block_length=block_length,
+        )
+        if cached is not None:
+            for consumer in series_consumers:
+                mc_cache[consumer] = cached
+            pending_by_series.pop(series_key, None)
 
     if pending_by_series:
         requested_workers = max(
@@ -453,13 +567,18 @@ def evaluate(
 
         if len(pending_by_series) == 1 and requested_workers > 1:
             key, args = next(iter(pending_by_series.items()))
-            values, domain, paths, block_length = args
+            values, domain, paths, block_length, disk_key = args
             computed[key] = parallel_block_bootstrap(
                 values,
                 domain=domain,
                 paths=paths,
                 block_length=block_length,
                 workers=requested_workers,
+            )
+            _write_mc_disk_cache(
+                mc_cache_dir,
+                key=disk_key,
+                row=computed[key],
             )
         else:
             max_workers = min(
@@ -468,15 +587,33 @@ def evaluate(
             )
             if max_workers == 1:
                 for key, args in pending_by_series.items():
-                    computed[key] = _bootstrap_worker(args)
+                    values, domain, paths, block_length, disk_key = args
+                    computed[key] = _bootstrap_worker(
+                        (values, domain, paths, block_length)
+                    )
+                    _write_mc_disk_cache(
+                        mc_cache_dir,
+                        key=disk_key,
+                        row=computed[key],
+                    )
             else:
                 with ProcessPoolExecutor(max_workers=max_workers) as pool:
                     futures = {
-                        pool.submit(_bootstrap_worker, args): key
+                        pool.submit(
+                            _bootstrap_worker,
+                            (args[0], args[1], args[2], args[3]),
+                        ): key
                         for key, args in pending_by_series.items()
                     }
                     for future in as_completed(futures):
-                        computed[futures[future]] = future.result()
+                        key = futures[future]
+                        computed[key] = future.result()
+                        disk_key = pending_by_series[key][4]
+                        _write_mc_disk_cache(
+                            mc_cache_dir,
+                            key=disk_key,
+                            row=computed[key],
+                        )
 
         for series_key, result in computed.items():
             for consumer in consumers[series_key]:
@@ -609,6 +746,11 @@ def evaluate(
         "monte_carlo_skipped_variants": sorted(
             set(variant_names) - mc_required_variants
         ),
+        "monte_carlo_cache": {
+            "disk_hits": mc_disk_hits,
+            "disk_misses": mc_disk_misses,
+            "persistent": mc_cache_dir is not None,
+        },
         "battery_layers": [
             "MULTI_LANE_REPLAY",
             "FIXED_FRICTION_FROM_SUBJECT_REPLAY",
