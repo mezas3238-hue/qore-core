@@ -761,7 +761,10 @@ def apply_three_mode_settlement(
                 elif total_dd >= Decimal("0.10"):
                     sovereign_share = Decimal("0.65")
                 elif cushion_ratio < Decimal("0.20"):
-                    sovereign_share = Decimal("0.35")
+                    sovereign_share = (
+                        Decimal(1)
+                        - economic_group_bootstrap_cushion_share
+                    )
                 elif cushion_ratio > Decimal("0.60"):
                     sovereign_share = Decimal("0.65")
             sovereign_gain = distributable * sovereign_share
@@ -827,6 +830,7 @@ def run_three_mode_trader_lab(
     attack_multiplier_cap: int = DEFAULT_DISTRIBUTED_ATTACK_MULTIPLIER_CAP,
     medium_multiplier_cap: int = 4,
     coordinated_economic_group: bool = False,
+    economic_group_bootstrap_cushion_share: Decimal = Decimal("0.65"),
 ) -> dict[str, object]:
     """Run the isolated chronological three-mode ceiling experiment."""
 
@@ -845,6 +849,15 @@ def run_three_mode_trader_lab(
     if type(coordinated_economic_group) is not bool:
         raise CiboCapitalManagementError(
             "Trader Lab coordinated economic group switch must be bool"
+        )
+    if (
+        not isinstance(economic_group_bootstrap_cushion_share, Decimal)
+        or not economic_group_bootstrap_cushion_share.is_finite()
+        or economic_group_bootstrap_cushion_share < Decimal("0.50")
+        or economic_group_bootstrap_cushion_share > Decimal("0.95")
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab economic-group bootstrap cushion share must be Decimal in [0.50, 0.95]"
         )
     if (
         not isinstance(attack_multiplier_cap, int)
@@ -1421,7 +1434,10 @@ def run_three_mode_trader_lab(
                     elif total_dd >= Decimal("0.10"):
                         sovereign_share = Decimal("0.65")
                     elif cushion_ratio < Decimal("0.20"):
-                        sovereign_share = Decimal("0.35")
+                        sovereign_share = (
+                            Decimal(1)
+                            - economic_group_bootstrap_cushion_share
+                        )
                     elif cushion_ratio > Decimal("0.60"):
                         sovereign_share = Decimal("0.65")
                 sovereign_gain = distributable * sovereign_share
@@ -3194,6 +3210,9 @@ def run_three_mode_trader_lab(
         "max_drawdown_attribution": max_drawdown_attribution,
         "economic_group_report": {
             "enabled": coordinated_economic_group,
+            "bootstrap_cushion_share": format(
+                economic_group_bootstrap_cushion_share, "f"
+            ),
             "sizing_intensity_cap_counts": dict(
                 sorted(sizing_intensity_cap_counts.items())
             ),
@@ -3301,6 +3320,9 @@ def run_three_mode_trader_lab(
             ),
             "native_profile_consumed": True,
             "coordinated_economic_group": coordinated_economic_group,
+            "economic_group_bootstrap_cushion_share": format(
+                economic_group_bootstrap_cushion_share, "f"
+            ),
             "economic_group_handoff": (
                 "SIZING_TO_CIBO_COMPOUND_TO_COMPOUND_PORTFOLIO_TO_ADAPTIVE_LEVERAGE"
                 if coordinated_economic_group
