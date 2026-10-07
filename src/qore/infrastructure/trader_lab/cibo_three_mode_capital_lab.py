@@ -97,7 +97,7 @@ class CiboThreeModeCandidate:
     expected_capital_minutes: Decimal
     walk_forward_positive_block_count: int
     walk_forward_nonpositive_block_count: int
-    native_cognition_recommended: bool
+    native_cognition_recommended: bool | None
     context_quality_disposition: str
     minimum_volume: Decimal
     maximum_multiplier: int
@@ -344,7 +344,7 @@ def _regime_from_row(row: Mapping[str, Any]) -> CiboTraderLabRegime:
 def _candidate(
     row: Mapping[str, Any],
     *,
-    native_cognition_recommended: bool,
+    native_cognition_recommended: bool | None,
     enforce_research_context_abstain: bool,
 ) -> CiboThreeModeCandidate:
     evidence = manifest_row_to_ceiling_opportunity_evidence(row)
@@ -424,7 +424,7 @@ def _candidate(
             evidence.context_allowed
             and evidence.provider_viable
             and evidence.capital_source_eligible
-            and native_cognition_recommended
+            and native_cognition_recommended is not False
             and (
                 context_disposition == "ALLOW"
                 or not enforce_research_context_abstain
@@ -624,8 +624,10 @@ def explain_three_mode(
         # liquidity/volatility/correlation/provider states. THIN, ELEVATED
         # and CONCENTRATED contexts may still earn bounded escalation when the
         # full Native predecision stack and walk-forward evidence agree.
-        if not best_candidate.native_cognition_recommended:
-            attack_context_reasons.append("ATTACK_NATIVE_NOT_RECOMMENDED")
+        if best_candidate.native_cognition_recommended is not True:
+            attack_context_reasons.append(
+                "ATTACK_NATIVE_POSITIVE_EVIDENCE_UNAVAILABLE"
+            )
         if best_candidate.context_quality_disposition != "ALLOW":
             attack_context_reasons.append(
                 "ATTACK_NATIVE_CONTEXT_QUALITY_ABSTAIN"
@@ -814,7 +816,7 @@ def run_three_mode_trader_lab(
     manifest: Mapping[str, Any],
     *,
     baseline_ending_capital_usd: Decimal | None = None,
-    cognitive_recommend_by_signal: Mapping[str, bool] | None = None,
+    cognitive_recommend_by_signal: Mapping[str, bool | None] | None = None,
     native_profile_by_signal: (
         Mapping[str, Mapping[str, object]] | None
     ) = None,
@@ -999,93 +1001,108 @@ def run_three_mode_trader_lab(
         "outcome_used_for_trigger": False,
     }
 
-    cognitive_map = (
-        {signal: True for signal in signals}
-        if cognitive_recommend_by_signal is None
-        else dict(cognitive_recommend_by_signal)
-    )
-    if set(cognitive_map) != set(signals) or any(
-        type(value) is not bool for value in cognitive_map.values()
+    cognitive_map: dict[str, bool | None] = {
+        signal: (
+            None
+            if cognitive_recommend_by_signal is None
+            else cognitive_recommend_by_signal.get(signal)
+        )
+        for signal in signals
+    }
+    if any(
+        value is not None and type(value) is not bool
+        for value in cognitive_map.values()
     ):
         raise CiboCapitalManagementError(
-            "Trader Lab cognitive recommendation map must cover exact manifest signals"
+            "Trader Lab cognitive recommendation telemetry must be bool/null"
         )
 
-    native_profile_map = (
-        {
-            signal: {
-                "executive_synthesis": (
-                    "recommend" if cognitive_map[signal] else "abstain"
-                ),
-                "reasoning_routing": (
-                    "proceed"
-                    if cognitive_map[signal]
-                    else "abstain-insufficient-evidence"
-                ),
-                "calibration": (
-                    "bounded_confidence"
-                    if cognitive_map[signal]
-                    else "abstain_defer"
-                ),
-                "confidence_band": 0,
-                "scenario_abstained_count": (
-                    0 if cognitive_map[signal] else 4
-                ),
-                "metacognition": (
-                    "sufficient"
-                    if cognitive_map[signal]
-                    else "insufficient-evidence"
-                ),
-                "attention_ranked_signal_count": 0,
-                "native_maximum_intelligence": True,
-                "full_semantics_consumed": True,
-            }
-            for signal in signals
+    def _default_native_profile(
+        signal: str,
+    ) -> dict[str, object]:
+        recommendation = cognitive_map[signal]
+        return {
+            "telemetry_state": (
+                "AVAILABLE"
+                if type(recommendation) is bool
+                else "UNAVAILABLE"
+            ),
+            "missing_components": [],
+            "executive_synthesis": (
+                "recommend"
+                if recommendation is True
+                else "abstain"
+                if recommendation is False
+                else "UNAVAILABLE"
+            ),
+            "reasoning_routing": "UNAVAILABLE",
+            "calibration": "UNAVAILABLE",
+            "confidence_band": 0,
+            "scenario_abstained_count": 0,
+            "metacognition": "UNAVAILABLE",
+            "attention_ranked_signal_count": 0,
+            "native_maximum_intelligence": True,
+            "full_semantics_consumed": True,
         }
-        if native_profile_by_signal is None
-        else {
-            str(signal): dict(profile)
-            for signal, profile in native_profile_by_signal.items()
-        }
-    )
-    if set(native_profile_map) != set(signals):
-        raise CiboCapitalManagementError(
-            "Trader Lab Native profile must cover exact manifest signals"
-        )
+
+    native_profile_map = {
+        signal: _default_native_profile(signal)
+        for signal in signals
+    }
+    if native_profile_by_signal is not None:
+        for signal, profile in native_profile_by_signal.items():
+            key = str(signal)
+            if key not in native_profile_map:
+                continue
+            if isinstance(profile, Mapping):
+                native_profile_map[key].update(dict(profile))
+
+    native_telemetry_counts: Counter[str] = Counter()
     for signal, profile in native_profile_map.items():
-        confidence = profile.get("confidence_band")
-        executive = profile.get("executive_synthesis")
+        state = str(profile.get("telemetry_state", "UNAVAILABLE"))
+        if state not in {"AVAILABLE", "PARTIAL", "UNAVAILABLE"}:
+            state = "PARTIAL"
+        native_telemetry_counts[state] += 1
+
+        confidence = profile.get("confidence_band", 0)
         if (
-            executive not in {"recommend", "abstain"}
-            or not isinstance(confidence, int)
+            not isinstance(confidence, int)
             or isinstance(confidence, bool)
             or confidence < 0
             or confidence > 100
-            or profile.get("native_maximum_intelligence") is not True
-            or profile.get("full_semantics_consumed") is not True
         ):
-            raise CiboCapitalManagementError(
-                f"Trader Lab Native profile malformed for {signal}"
-            )
-        if (
-            bool(cognitive_map[signal])
-            != (executive == "recommend")
+            profile["confidence_band"] = 0
+            state = "PARTIAL"
+            profile["telemetry_state"] = state
+
+        executive = str(
+            profile.get("executive_synthesis", "UNAVAILABLE")
+        )
+        recommendation = cognitive_map[signal]
+        if recommendation is None and executive in {"recommend", "abstain"}:
+            cognitive_map[signal] = executive == "recommend"
+            recommendation = cognitive_map[signal]
+        elif (
+            recommendation is not None
+            and executive in {"recommend", "abstain"}
+            and recommendation != (executive == "recommend")
         ):
-            raise CiboCapitalManagementError(
-                "Trader Lab Native recommendation/profile drift"
-            )
+            # Conflicting telemetry is diagnostic only. Keep the explicit
+            # recommendation map and downgrade observability.
+            profile["telemetry_state"] = "PARTIAL"
+
 
     def native_confidence(candidate: CiboThreeModeCandidate) -> int:
-        return int(
-            native_profile_map[candidate.signal_fingerprint][
-                "confidence_band"
-            ]
+        raw = native_profile_map[candidate.signal_fingerprint].get(
+            "confidence_band",
+            0,
         )
+        return int(raw) if isinstance(raw, int) and not isinstance(raw, bool) else 0
 
     def historical_native_intensity_cap(
         candidate: CiboThreeModeCandidate,
     ) -> int:
-        if not candidate.native_cognition_recommended:
+        if candidate.native_cognition_recommended is False:
             return min(candidate.maximum_multiplier, 1)
         # Keep the proven historical MEDIUM expression at 4x. Native
         # confidence is consumed as telemetry and by Portfolio/ATTACK; it
@@ -1203,7 +1220,7 @@ def run_three_mode_trader_lab(
         candidate: CiboThreeModeCandidate,
     ) -> bool:
         return (
-            candidate.native_cognition_recommended
+            candidate.native_cognition_recommended is True
             and candidate.context_quality_disposition == "ALLOW"
             and candidate.expected_net_utility_usd > 0
             and candidate.walk_forward_positive_block_count
@@ -2088,7 +2105,7 @@ def run_three_mode_trader_lab(
                     )
                     if (
                         not use_historical_prior
-                        and not candidate.native_cognition_recommended
+                        and candidate.native_cognition_recommended is False
                     ):
                         record_engineering_sensor(
                             "SIZING",
@@ -2124,7 +2141,7 @@ def run_three_mode_trader_lab(
                     if (
                         use_historical_prior
                         and not historical_prior_deployable
-                        and not candidate.native_cognition_recommended
+                        and candidate.native_cognition_recommended is False
                     ):
                         record_engineering_sensor(
                             "SIZING",
@@ -2179,7 +2196,7 @@ def run_three_mode_trader_lab(
                         else MEDIUM_DEFENSIVE_RISK_FRACTION
                         if use_historical_prior
                         else MEDIUM_RECOMMEND_RISK_FRACTION
-                        if candidate.native_cognition_recommended
+                        if candidate.native_cognition_recommended is not False
                         else MEDIUM_DEFENSIVE_RISK_FRACTION
                     )
                     if total_drawdown_utilization >= ECONOMIC_DRAWDOWN_CEILING:
@@ -2267,7 +2284,7 @@ def run_three_mode_trader_lab(
                                 medium_multiplier_cap,
                             )
                             if (
-                                candidate.native_cognition_recommended
+                                candidate.native_cognition_recommended is not False
                                 and historical_prior_deployable
                             )
                             else min(
@@ -2277,7 +2294,7 @@ def run_three_mode_trader_lab(
                             )
                             if (
                                 coordinated_economic_group
-                                and candidate.native_cognition_recommended
+                                and candidate.native_cognition_recommended is not False
                             )
                             else min(
                                 candidate.maximum_multiplier,
@@ -2296,7 +2313,7 @@ def run_three_mode_trader_lab(
                             medium_multiplier_cap,
                         )
                         if (
-                            candidate.native_cognition_recommended
+                            candidate.native_cognition_recommended is not False
                             and candidate.context_quality_disposition == "ALLOW"
                             and candidate.expected_edge_after_cost_usd > 0
                         )
@@ -3269,6 +3286,12 @@ def run_three_mode_trader_lab(
             "all_entries_preserved": trade_count == len(rows),
         },
         "position_lifecycle_report": position_lifecycle_report,
+        "native_telemetry_report": {
+            "states": dict(sorted(native_telemetry_counts.items())),
+            "telemetry_is_authority": False,
+            "missing_telemetry_aborts_replay": False,
+            "missing_telemetry_can_authorize_attack": False,
+        },
         "engineering_trace": engineering_trace,
         "function_sensors": {
             "SIZING": {
