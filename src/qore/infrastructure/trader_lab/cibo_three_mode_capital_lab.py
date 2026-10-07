@@ -829,6 +829,7 @@ def run_three_mode_trader_lab(
     lifecycle_defensive_medium_1x_only: bool = False,
     lifecycle_defense_drawdown_trigger: Decimal | None = None,
     lifecycle_trader_loss_streak_trigger: int | None = None,
+    lifecycle_bootstrap_capital_ceiling: Decimal | None = None,
     enforce_research_context_abstain: bool = False,
     soft_medium_drawdown_allocator: bool = False,
     medium_pretrade_drawdown_ceiling: Decimal = ECONOMIC_DRAWDOWN_CEILING,
@@ -861,6 +862,14 @@ def run_three_mode_trader_lab(
     ):
         raise CiboCapitalManagementError(
             "Trader Lab lifecycle Trader loss streak trigger must be int in [1, 10]"
+        )
+    if lifecycle_bootstrap_capital_ceiling is not None and (
+        not isinstance(lifecycle_bootstrap_capital_ceiling, Decimal)
+        or not lifecycle_bootstrap_capital_ceiling.is_finite()
+        or lifecycle_bootstrap_capital_ceiling <= 0
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab lifecycle bootstrap capital ceiling must be positive Decimal"
         )
     if type(enforce_research_context_abstain) is not bool:
         raise CiboCapitalManagementError(
@@ -994,6 +1003,7 @@ def run_three_mode_trader_lab(
     lifecycle_applied_trade_count = 0
     lifecycle_drawdown_trigger_blocked_count = 0
     lifecycle_trader_loss_streak_blocked_count = 0
+    lifecycle_bootstrap_capital_blocked_count = 0
     for profile in lifecycle_map.values():
         lifecycle_data_available_count += int(bool(profile["data_available"]))
         lifecycle_changed_count += int(
@@ -2811,11 +2821,17 @@ def run_three_mode_trader_lab(
                 or trader_loss_streak[candidate.trader_id]
                 >= lifecycle_trader_loss_streak_trigger
             )
+            lifecycle_bootstrap_capital_allowed = (
+                lifecycle_bootstrap_capital_ceiling is None
+                or state.total_capital_usd
+                <= lifecycle_bootstrap_capital_ceiling
+            )
             apply_lifecycle_to_trade = bool(
                 lifecycle_map
                 and lifecycle_grade_allowed
                 and lifecycle_drawdown_allowed
                 and lifecycle_trader_streak_allowed
+                and lifecycle_bootstrap_capital_allowed
             )
             if (
                 lifecycle_map
@@ -2830,6 +2846,14 @@ def run_three_mode_trader_lab(
                 and not lifecycle_trader_streak_allowed
             ):
                 lifecycle_trader_loss_streak_blocked_count += 1
+            if (
+                lifecycle_map
+                and lifecycle_grade_allowed
+                and lifecycle_drawdown_allowed
+                and lifecycle_trader_streak_allowed
+                and not lifecycle_bootstrap_capital_allowed
+            ):
+                lifecycle_bootstrap_capital_blocked_count += 1
             lifecycle_events_for_trade = (
                 tuple(
                     lifecycle_map[candidate.signal_fingerprint][
@@ -3031,6 +3055,14 @@ def run_three_mode_trader_lab(
         key: int(value)
         for key, value in sorted(trader_loss_streak.items())
     }
+    position_lifecycle_report["bootstrap_capital_ceiling_usd"] = (
+        None
+        if lifecycle_bootstrap_capital_ceiling is None
+        else format(lifecycle_bootstrap_capital_ceiling, "f")
+    )
+    position_lifecycle_report["bootstrap_capital_blocked_count"] = (
+        lifecycle_bootstrap_capital_blocked_count
+    )
     if pending:
         raise CiboCapitalManagementError(
             "Trader Lab three-mode ended with unsettled trades"
@@ -3471,6 +3503,11 @@ def run_three_mode_trader_lab(
             ),
             "position_lifecycle_trader_loss_streak_trigger": (
                 lifecycle_trader_loss_streak_trigger
+            ),
+            "position_lifecycle_bootstrap_capital_ceiling_usd": (
+                None
+                if lifecycle_bootstrap_capital_ceiling is None
+                else format(lifecycle_bootstrap_capital_ceiling, "f")
             ),
             "position_lifecycle_source": (
                 "MARKET_ATLAS_10Y_CAUSAL_CLOSED_M5_POST_ENTRY"
