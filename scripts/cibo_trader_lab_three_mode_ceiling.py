@@ -861,6 +861,12 @@ def main() -> int:
         help="Minimum live DD before the same-Trader one-shot shock may fire.",
     )
     parser.add_argument(
+        "--ceiling-attack-trader-shock-capital-ceiling",
+        type=Decimal,
+        default=None,
+        help="Optional total-capital ceiling for the causal same-Trader one-shot ATTACK shock.",
+    )
+    parser.add_argument(
         "--ceiling-attack-trader-shock-taper-fraction",
         type=Decimal,
         default=Decimal("0.75"),
@@ -1506,6 +1512,9 @@ def main() -> int:
         ),
         ceiling_attack_trader_shock_drawdown_trigger=(
             args.ceiling_attack_trader_shock_drawdown_trigger
+        ),
+        ceiling_attack_trader_shock_capital_ceiling=(
+            args.ceiling_attack_trader_shock_capital_ceiling
         ),
         ceiling_attack_trader_shock_taper_fraction=(
             args.ceiling_attack_trader_shock_taper_fraction
