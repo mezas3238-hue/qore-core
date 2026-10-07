@@ -203,6 +203,15 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--coordinated-economic-group",
+        action="store_true",
+        help=(
+            "Trader-Lab-only joint economics lane: coordinate Sizing, "
+            "CIBO Compound, Compound Portfolio and Adaptive Leverage as one "
+            "closed-loop capital engine without rejecting Trader entries."
+        ),
+    )
+    parser.add_argument(
         "--enforce-context-abstain",
         action="store_true",
         help=(
@@ -503,6 +512,7 @@ def main() -> int:
         distributed_attack_frontier=args.distributed_attack_frontier,
         attack_multiplier_cap=args.attack_multiplier_cap,
         medium_multiplier_cap=args.medium_multiplier_cap,
+        coordinated_economic_group=args.coordinated_economic_group,
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
@@ -563,6 +573,7 @@ def main() -> int:
                     "medium_compound_negative_net_usd"
                 ],
                 "attack_net_pnl_usd": result["attack_net_pnl_usd"],
+                "economic_group_report": result["economic_group_report"],
                 "position_lifecycle_report": result["position_lifecycle_report"],
             },
             sort_keys=True,
