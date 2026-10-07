@@ -56,6 +56,7 @@ def _build_lifecycle_map(
     features: frozenset[CiboLifecycleFeature],
     adverse_loss_cut_r: Decimal,
     adverse_partial_fraction: Decimal,
+    bootstrap_partial_fraction: Decimal,
 ) -> dict[str, dict[str, object]]:
     if not roots:
         return {}
@@ -108,6 +109,7 @@ def _build_lifecycle_map(
             features=features,
             adverse_loss_cut_r=adverse_loss_cut_r,
             adverse_partial_fraction=adverse_partial_fraction,
+            bootstrap_partial_fraction=bootstrap_partial_fraction,
         )
         result[signal] = {
             "original_gross_r": format(outcome.gross_structural_outcome_r, "f"),
@@ -120,6 +122,9 @@ def _build_lifecycle_map(
             "adverse_loss_cut_r": format(adverse_loss_cut_r, "f"),
             "adverse_partial_fraction": format(
                 adverse_partial_fraction, "f"
+            ),
+            "bootstrap_partial_fraction": format(
+                bootstrap_partial_fraction, "f"
             ),
             "risk_released_before_exit_fraction": format(
                 managed.risk_released_before_exit_fraction, "f"
@@ -197,6 +202,24 @@ def main() -> int:
         help=(
             "Fraction of remaining exposure released by "
             "ADVERSE_PARTIAL_REDUCTION at the next M5 open."
+        ),
+    )
+    parser.add_argument(
+        "--lifecycle-bootstrap-partial-fraction",
+        type=Decimal,
+        default=Decimal("0.50"),
+        help=(
+            "Fraction of remaining exposure released at the first causal "
+            "M5 open by BOOTSTRAP_PARTIAL_REDUCTION."
+        ),
+    )
+    parser.add_argument(
+        "--lifecycle-bootstrap-capital-ceiling",
+        type=Decimal,
+        default=None,
+        help=(
+            "Apply supplied lifecycle defense only while total capital is "
+            "at or below this bootstrap ceiling."
         ),
     )
     parser.add_argument(
@@ -284,6 +307,7 @@ def main() -> int:
         features=lifecycle_features,
         adverse_loss_cut_r=args.lifecycle_adverse_loss_cut_r,
         adverse_partial_fraction=args.lifecycle_adverse_partial_fraction,
+        bootstrap_partial_fraction=args.lifecycle_bootstrap_partial_fraction,
     )
     baseline = None
     cognitive_recommend_by_signal = None
@@ -561,6 +585,9 @@ def main() -> int:
         ),
         lifecycle_trader_loss_streak_trigger=(
             args.lifecycle_trader_loss_streak_trigger
+        ),
+        lifecycle_bootstrap_capital_ceiling=(
+            args.lifecycle_bootstrap_capital_ceiling
         ),
         enforce_research_context_abstain=args.enforce_context_abstain,
         soft_medium_drawdown_allocator=(
