@@ -1,16 +1,8 @@
 name: QORE CIBO Trader Lab Function Authority
 
+# RETIRED AUTO-PATH: manual-only legacy evidence; automatic execution moved to QORE GitHub Trader Lab Fast.
+
 on:
-  push:
-    branches:
-      - agent/cibo-profitability-lab-001
-    paths:
-      - '.github/workflows/cibo-trader-lab-function-authority.yml'
-      - 'src/qore/infrastructure/trader_lab/cibo_functional_receipt.py'
-      - 'src/qore/infrastructure/cibo/contracts.py'
-      - 'src/qore/infrastructure/cibo/opportunity_search.py'
-      - 'src/qore/infrastructure/cibo/functional_coordinator.py'
-      - 'tests/infrastructure/trader_lab/test_cibo_functional_receipt.py'
   workflow_dispatch:
 
 permissions:

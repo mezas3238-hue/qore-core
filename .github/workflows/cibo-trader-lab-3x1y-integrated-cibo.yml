@@ -1,36 +1,9 @@
 name: QORE CIBO Post-Repair 3x1Y Integrated Replay
 
+# RETIRED AUTO-PATH: manual-only legacy evidence; automatic execution moved to QORE GitHub Trader Lab Fast.
+
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - agent/cibo-capital-efficiency-sizing-lab-001
-    paths:
-      - '.github/workflows/cibo-trader-lab-3x1y-integrated-cibo.yml'
-      - 'scripts/cibo_maximum_capability_frontier.py'
-      - 'scripts/cibo_enrich_single_account_vt31_native_perception.py'
-      - 'scripts/cibo_single_account_native_perception_audit.py'
-      - 'src/qore/infrastructure/cibo_maximum_capability_frontier.py'
-      - 'scripts/cibo_single_account_historical_ceiling_replay.py'
-      - 'src/qore/infrastructure/cibo_single_account_historical_ceiling_state.py'
-      - 'src/qore/infrastructure/cibo_single_account_historical_ceiling_epoch.py'
-      - 'src/qore/infrastructure/cibo_single_account_sovereign_ceiling_executor.py'
-      - 'src/qore/infrastructure/cibo_single_account_historical_ceiling_replay.py'
-      - 'src/qore/infrastructure/cibo_sovereign_capital_runtime.py'
-      - 'tests/infrastructure/test_cibo_single_account_historical_ceiling_state.py'
-      - 'tests/infrastructure/test_cibo_single_account_historical_ceiling_epoch.py'
-      - 'tests/infrastructure/test_cibo_single_account_sovereign_ceiling_executor.py'
-      - 'src/qore/infrastructure/cibo_position_lifecycle.py'
-      - 'src/qore/infrastructure/cibo_profitability_lab_function_runtime.py'
-      - 'src/qore/infrastructure/cibo_capital_science_runtime_bridge.py'
-      - 'src/qore/infrastructure/cibo_crisis_capital_intelligence.py'
-      - 'src/qore/infrastructure/traders/vt31_nas100_native_perception.py'
-      - 'tests/infrastructure/test_cibo_capital_science_runtime_bridge.py'
-      - 'tests/infrastructure/test_cibo_reused_holdout_compound_portfolio_lane_alignment.py'
-      - 'tests/infrastructure/test_cibo_crisis_capital_intelligence.py'
-      - 'tests/infrastructure/test_cibo_maximum_capability_frontier.py'
-      - 'tests/infrastructure/test_cibo_vt31_native_perception_contract.py'
-
 permissions:
   contents: read
   actions: read

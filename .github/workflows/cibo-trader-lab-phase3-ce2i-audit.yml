@@ -1,18 +1,8 @@
 name: QORE CIBO Trader Lab Phase 3 CE2I Audit
 
+# RETIRED AUTO-PATH: manual-only legacy evidence; automatic execution moved to QORE GitHub Trader Lab Fast.
+
 on:
-  push:
-    branches:
-      - agent/cibo-profitability-lab-001
-    paths:
-      - '.github/workflows/cibo-trader-lab-phase3-ce2i-audit.yml'
-      - 'scripts/cibo_trader_lab_phase3_ce2i_audit.py'
-      - 'src/qore/infrastructure/cibo_ce2i_advanced_capital_tools.py'
-      - 'src/qore/infrastructure/cibo_ce2i_economic_effects.py'
-      - 'src/qore/infrastructure/cibo_ce2i_full_surface.py'
-      - 'src/qore/infrastructure/cibo_ce2i_tool_registry.py'
-      - 'src/qore/infrastructure/cibo_phase22_v4_chronological_execution.py'
-      - 'scripts/cibo_profitability_lab_all_trader.py'
   workflow_dispatch:
 
 permissions:

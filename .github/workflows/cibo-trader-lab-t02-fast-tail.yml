@@ -1,12 +1,8 @@
 name: QORE CIBO Trader Lab T02 Fast Tail
 
+# RETIRED AUTO-PATH: manual-only legacy evidence; automatic execution moved to QORE GitHub Trader Lab Fast.
+
 on:
-  push:
-    branches:
-      - agent/cibo-profitability-lab-001
-    paths:
-      - '.github/workflows/cibo-trader-lab-t02-fast-tail.yml'
-      - 'src/qore/infrastructure/trader_lab/cibo_t02_fast_tail_lab.py'
   workflow_dispatch:
 
 permissions:
