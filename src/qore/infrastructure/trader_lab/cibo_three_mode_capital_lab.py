@@ -20,7 +20,7 @@ from collections import Counter, defaultdict
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
-from decimal import ROUND_FLOOR, Decimal, localcontext
+from decimal import ROUND_CEILING, ROUND_FLOOR, Decimal, localcontext
 from enum import StrEnum
 from typing import Any
 
@@ -319,6 +319,76 @@ def _group_epochs(
     )
 
 
+def robust_capital_utility(
+    candidate: CiboThreeModeCandidate,
+    *,
+    multiplier: int,
+    capital_base_usd: Decimal,
+) -> Decimal:
+    """Canonical concave Portfolio utility for one causal exposure intensity."""
+
+    if (
+        not isinstance(multiplier, int)
+        or isinstance(multiplier, bool)
+        or multiplier < 0
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab robust multiplier must be non-negative int"
+        )
+    if (
+        not isinstance(capital_base_usd, Decimal)
+        or not capital_base_usd.is_finite()
+        or capital_base_usd <= 0
+    ):
+        return Decimal("-Infinity")
+    with localcontext() as context:
+        context.prec = 100
+        intensity = Decimal(multiplier)
+        risk = candidate.stop_risk_per_multiplier_usd * intensity
+        return (
+            candidate.expected_net_utility_usd * intensity
+            - (risk * risk / capital_base_usd)
+        )
+
+
+def robust_economic_multiplier_cap(
+    candidate: CiboThreeModeCandidate,
+    *,
+    capital_base_usd: Decimal,
+) -> int:
+    """Highest multiplier before canonical marginal robust utility turns non-positive."""
+
+    if (
+        capital_base_usd <= 0
+        or candidate.expected_net_utility_usd <= 0
+        or candidate.stop_risk_per_multiplier_usd <= 0
+    ):
+        return 0
+    with localcontext() as context:
+        context.prec = 100
+        marginal_limit = (
+            (
+                candidate.expected_net_utility_usd
+                * capital_base_usd
+                / (
+                    candidate.stop_risk_per_multiplier_usd
+                    * candidate.stop_risk_per_multiplier_usd
+                )
+            )
+            + Decimal(1)
+        ) / Decimal(2)
+        economic_cap = max(
+            0,
+            int(
+                marginal_limit.to_integral_value(
+                    rounding=ROUND_CEILING
+                )
+            )
+            - 1,
+        )
+    return min(candidate.maximum_multiplier, economic_cap)
+
+
 def explain_three_mode(
     *,
     regime: CiboTraderLabRegime,
@@ -378,6 +448,14 @@ def explain_three_mode(
     )
     if cushion_available_usd < minimum_attack_cushion:
         attack_context_reasons.append("ATTACK_CUSHION_LT_2X")
+    attack_economic_cap = robust_economic_multiplier_cap(
+        best_candidate,
+        capital_base_usd=cushion_available_usd,
+    )
+    if attack_economic_cap < ATTACK_MINIMUM_MULTIPLIER:
+        attack_context_reasons.append(
+            "ATTACK_MARGINAL_ROBUST_UTILITY_LT_2X"
+        )
 
     if not attack_context_reasons:
         return CiboTraderLabMode.ATTACK, (
@@ -490,6 +568,8 @@ def run_three_mode_trader_lab(
     sizing_calls = 0
     compound_settlements = 0
     adaptive_leverage_calls = 0
+    robust_sizing_reject_count = 0
+    robust_leverage_cap_bind_count = 0
     attack_epochs_funded = 0
     mode_reason_counts: Counter[str] = Counter()
     trade_receipts: list[dict[str, object]] = []
@@ -591,13 +671,33 @@ def run_three_mode_trader_lab(
             for candidate in eligible:
                 sizing_calls += 1
                 if mode is CiboTraderLabMode.MEDIUM:
+                    economic_cap = robust_economic_multiplier_cap(
+                        candidate,
+                        capital_base_usd=state.sovereign_available_usd,
+                    )
+                    if (
+                        economic_cap < 1
+                        or robust_capital_utility(
+                            candidate,
+                            multiplier=1,
+                            capital_base_usd=state.sovereign_available_usd,
+                        )
+                        <= 0
+                    ):
+                        robust_sizing_reject_count += 1
+                        continue
                     multiplier = 1
                     source_left = sovereign_left
                 else:
                     adaptive_leverage_calls += 1
                     source_left = cushion_left
+                    economic_cap = robust_economic_multiplier_cap(
+                        candidate,
+                        capital_base_usd=cushion_left,
+                    )
                     caps = [
                         candidate.maximum_multiplier,
+                        economic_cap,
                         int(
                             (
                                 source_left
@@ -619,7 +719,10 @@ def run_three_mode_trader_lab(
                     ]
                     multiplier = max(0, min(caps))
                     if multiplier < ATTACK_MINIMUM_MULTIPLIER:
+                        robust_sizing_reject_count += 1
                         continue
+                    if multiplier == economic_cap:
+                        robust_leverage_cap_bind_count += 1
 
                 with localcontext() as context:
                     context.prec = 100
@@ -693,6 +796,19 @@ def run_three_mode_trader_lab(
                     ),
                     "capital_time_score": format(
                         candidate.capital_time_score,
+                        "f",
+                    ),
+                    "robust_economic_multiplier_cap": economic_cap,
+                    "selected_robust_utility_usd": format(
+                        robust_capital_utility(
+                            candidate,
+                            multiplier=multiplier,
+                            capital_base_usd=(
+                                state.sovereign_available_usd
+                                if mode is CiboTraderLabMode.MEDIUM
+                                else state.cushion_available_usd
+                            ),
+                        ),
                         "f",
                     ),
                     "gross_structural_outcome_r_postdecision": format(
@@ -831,6 +947,7 @@ def run_three_mode_trader_lab(
         "function_sensors": {
             "SIZING": {
                 "call_count": sizing_calls,
+                "robust_utility_reject_count": robust_sizing_reject_count,
                 "final_binding_trade_count": trade_count,
             },
             "CIBO_COMPOUND": {
@@ -856,6 +973,9 @@ def run_three_mode_trader_lab(
             },
             "ADAPTIVE_LEVERAGE": {
                 "call_count": adaptive_leverage_calls,
+                "robust_economic_cap_binding_count": (
+                    robust_leverage_cap_bind_count
+                ),
                 "attack_trade_count": trade_mode_counts["ATTACK"],
                 "average_selected_multiplier": format(
                     average_leverage,
@@ -891,6 +1011,9 @@ def run_three_mode_trader_lab(
             "outcome_used_for_predecision": False,
             "medium_positive_profit_split": "50%_SOVEREIGN_50%_CUSHION",
             "attack_risk_source": "PORTFOLIO_CUSHION_ONLY",
+            "leverage_law": (
+                "CANONICAL_CONCAVE_ROBUST_UTILITY_NO_REPLAY_TUNED_THRESHOLD"
+            ),
             "bank_new_risk": "FORBIDDEN",
         },
     }
