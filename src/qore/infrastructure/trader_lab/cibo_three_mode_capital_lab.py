@@ -900,6 +900,7 @@ def run_three_mode_trader_lab(
     ceiling_discovery_mode: bool = False,
     ceiling_growth_leverage_slope: Decimal | None = None,
     ceiling_attack_drawdown_budget_fraction: Decimal | None = None,
+    ceiling_attack_single_trade_risk_fraction: Decimal | None = None,
     compound_profit_reinvestment_fraction: Decimal | None = None,
     collect_engineering_trace: bool = True,
     collect_epoch_receipts: bool = True,
@@ -1029,6 +1030,22 @@ def run_three_mode_trader_lab(
     ):
         raise CiboCapitalManagementError(
             "Trader Lab ceiling ATTACK drawdown budget requires ceiling discovery mode"
+        )
+    if ceiling_attack_single_trade_risk_fraction is not None and (
+        not isinstance(ceiling_attack_single_trade_risk_fraction, Decimal)
+        or not ceiling_attack_single_trade_risk_fraction.is_finite()
+        or ceiling_attack_single_trade_risk_fraction <= 0
+        or ceiling_attack_single_trade_risk_fraction > Decimal("0.50")
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab ceiling ATTACK single-trade risk fraction must be Decimal in (0, 0.50]"
+        )
+    if (
+        ceiling_attack_single_trade_risk_fraction is not None
+        and not ceiling_discovery_mode
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab ceiling ATTACK single-trade risk cap requires ceiling discovery mode"
         )
     if compound_profit_reinvestment_fraction is not None and (
         not isinstance(compound_profit_reinvestment_fraction, Decimal)
@@ -2874,8 +2891,34 @@ def run_three_mode_trader_lab(
                                     )
                                 ),
                             )
+                    ceiling_single_trade_risk_cap = candidate.maximum_multiplier
+                    if (
+                        ceiling_discovery_mode
+                        and ceiling_attack_single_trade_risk_fraction is not None
+                    ):
+                        with localcontext() as context:
+                            context.prec = 100
+                            single_trade_risk_budget_usd = max(
+                                Decimal(0),
+                                state.total_capital_usd
+                                * ceiling_attack_single_trade_risk_fraction,
+                            )
+                            ceiling_single_trade_risk_cap = max(
+                                0,
+                                int(
+                                    (
+                                        single_trade_risk_budget_usd
+                                        / candidate.source_cost_per_multiplier_usd
+                                    ).to_integral_value(
+                                        rounding=ROUND_FLOOR
+                                    )
+                                ),
+                            )
                     leverage_caps = {
                         "PROVIDER_MAX": candidate.maximum_multiplier,
+                        "CEILING_SINGLE_TRADE_RISK_CAP": (
+                            ceiling_single_trade_risk_cap
+                        ),
                         "CEILING_DRAWDOWN_RISK_CAP": (
                             ceiling_drawdown_risk_cap
                         ),
@@ -3853,6 +3896,11 @@ def run_three_mode_trader_lab(
             ),
             "ablation": economic_group_ablation,
             "ceiling_discovery_mode": ceiling_discovery_mode,
+            "ceiling_attack_single_trade_risk_fraction": (
+                None
+                if ceiling_attack_single_trade_risk_fraction is None
+                else format(ceiling_attack_single_trade_risk_fraction, "f")
+            ),
             "compound_profit_reinvestment_fraction": (
                 None
                 if compound_profit_reinvestment_fraction is None
