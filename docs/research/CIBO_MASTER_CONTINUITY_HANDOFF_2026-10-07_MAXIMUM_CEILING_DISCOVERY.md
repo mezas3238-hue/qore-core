@@ -167,6 +167,156 @@ El siguiente trabajo debe reducir el DD mediante administración post-entrada:
 
 ---
 
+## 0.2 DESCUBRIMIENTO NUEVO — ATTACK YA NO ES EL CUELLO DE BOTELLA
+
+Run decisivo exitoso:
+
+`37603184461`
+
+HEAD experimental:
+
+`a54321bb28b6216d1c942de186d2be4241c7c794`
+
+Se reparó la arquitectura de ATTACK para que deje de ser una excepción binaria de ~2% y pase a ser una graduación causal de intensidad.
+
+Reglas mantenidas:
+
+- 3.368 / 3.368 entradas administradas;
+- 0 rejected;
+- 0 deferred;
+- 0 withheld antes del motor económico;
+- Trader conserva autoridad de entrada;
+- CIBO conserva sólo autoridad de administración e intensidad;
+- outcome futuro no usado para predecisión.
+
+### Sweep ATTACK distribuido
+
+Cap 4x:
+
+- ATTACK: 777 / 3.368 = ~23,07%;
+- capital final: ~USD 1.028,24;
+- ATTACK net PnL: ~USD +633,80;
+- DD: ~57,30%.
+
+Cap 6x:
+
+- ATTACK: 774 / 3.368 = ~22,98%;
+- capital final: ~USD 1.352,44;
+- ATTACK net PnL: ~USD +921,64;
+- DD: ~57,30%.
+
+Cap 8x:
+
+- ATTACK: 763 / 3.368 = ~22,65%;
+- capital final: ~USD 1.561,98;
+- ATTACK net PnL: ~USD +1.145,09;
+- DD: ~57,30%;
+- max multiplier: 8x, reemplazando el estado anterior de hasta 376x.
+
+Conclusión:
+
+**La densidad ATTACK de ~2% era un defecto arquitectónico y quedó abierta hasta ~23% sin rechazar entradas.**
+
+ATTACK tampoco es el culpable principal del drawdown: al variar 4x → 6x → 8x el DD permanece prácticamente idéntico.
+
+### Sweep MEDIUM bajo ATTACK 8x
+
+Se separó el cap de MEDIUM del cap de ATTACK para comprobar si el DD provenía de la intensidad ordinaria.
+
+MEDIUM 1x:
+
+- ATTACK: 513 / 3.368 = ~15,23%;
+- capital final: ~USD 881,17;
+- DD: ~57,30%.
+
+MEDIUM 2x:
+
+- ATTACK: 492 / 3.368 = ~14,61%;
+- capital final: ~USD 874,63;
+- DD: ~57,30%.
+
+MEDIUM 3x:
+
+- ATTACK: 763 / 3.368 = ~22,65%;
+- capital final: ~USD 1.534,30;
+- DD: ~57,30%.
+
+MEDIUM 4x + ATTACK 8x:
+
+- ATTACK: 763 / 3.368 = ~22,65%;
+- capital final: ~USD 1.561,98;
+- DD: ~57,30%.
+
+**Resultado causal clave: reducir MEDIUM hasta 1x NO reduce el drawdown observado.**
+
+Por tanto, el DD ~57,30% no puede repararse:
+
+- rechazando entradas;
+- usando DEFER;
+- reduciendo ATTACK;
+- bajando MEDIUM de 4x a 1x;
+- endureciendo admission gates.
+
+El drawdown destructivo está en la **trayectoria de la posición base ya ejecutada**.
+
+### Próximo P0 obligatorio — CIBO POST-ENTRY LIFECYCLE MANAGEMENT
+
+CIBO necesita administrar causalmente el recorrido de cada posición después de la entrada:
+
+1. protección inicial;
+2. deterioro adverso;
+3. reducción parcial;
+4. stop dinámico;
+5. break-even cuando corresponda;
+6. trailing;
+7. preservación de winner;
+8. salida defensiva cuando la tesis se invalida;
+9. mantener intacto el upside cuando el trade merece continuar.
+
+Objetivo:
+
+**si la operación terminaría en stop bajo la gestión del Trader, CIBO debe intentar convertir esa pérdida en la menor pérdida causal posible sin destruir los winners.**
+
+### Restricción científica
+
+El manifest actual de 3.368 entradas sólo expone el resultado final de cada trade después del cierre:
+
+- entry_at;
+- exit_at;
+- exit_reason;
+- gross structural R.
+
+Esos campos son POSTDECISION y no pueden usarse para fingir una salida anticipada.
+
+Para estudiar stop/trailing/partial exit correctamente hay que conectar evidencia intratrade causal.
+
+Ya existen piezas de infraestructura relevantes:
+
+- `src/qore/infrastructure/cibo_ce2i_phase20_t14_path_readiness.py`: demuestra soporte para muestras longitudinales de posición, stop, volumen y settlement;
+- `src/qore/infrastructure/cibo_phase22_v4_m1_source.py`;
+- `src/qore/infrastructure/cibo_phase22_v5_m1_source.py`: corpus M1 causal NAS100.
+
+Pero V4/V5 son NAS100 y no cubren por sí solos toda la población histórica multi-Trader de 3.368 entradas.
+
+**PROHIBIDO reducir el DD usando exit_reason o gross R futuro como si CIBO lo conociera antes.**
+
+El siguiente arquitecto debe reconstruir/bindear el path causal histórico por Trader o usar una fuente intratrade equivalente antes de declarar una política de stop/trailing válida.
+
+### Estado de Trader por PnL en ATTACK 8x / MEDIUM 4x
+
+- R34_XAUUSD: ~+USD 824,63
+- R38_EURUSD: ~+USD 48,42
+- R38_GBPJPY: ~+USD 334,78
+- R42_AUDJPY: ~+USD 353,73
+- R43_GBPUSD: ~-USD 63,03
+- VT08_FOREX: ~+USD 11,26
+- VT31_NAS100: ~-USD 7,81
+
+No confundir PnL terminal con responsabilidad por máximo DD: el DD es cronológico y exige path/settlement attribution.
+
+
+---
+
 # 1. MÉTODO DE TRABAJO OBLIGATORIO
 
 Existe un banco de prueba rápido en GitHub:
