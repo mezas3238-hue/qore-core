@@ -72,6 +72,101 @@ El drawdown máximo tolerado durante ceiling discovery debe quedar **≤25%**. E
 
 ---
 
+## 0.1 REGLA SOBERANA DE AUTORIDAD — TRADER EJECUTA, CIBO ADMINISTRA
+
+Esta regla sustituye cualquier interpretación anterior de `DEFER`, `BANK` o filtros económicos como potestad de admisión.
+
+**El Trader es la única autoridad sobre la entrada.**
+
+El Trader:
+
+- detecta su setup;
+- decide la entrada según su metodología;
+- ejecuta la entrada.
+
+Desde el instante en que la entrada fue ejecutada, la posición queda bajo custodia de CIBO.
+
+**CIBO NO tiene potestad para rechazar, borrar, diferir ni convertir en no-trade una entrada ya ejecutada por el Trader.**
+
+CIBO sí tiene potestad y obligación para administrar financieramente esa posición:
+
+- tratamiento defensivo / mínimo;
+- sizing e intensidad económica;
+- Compound;
+- Portfolio;
+- Adaptive Leverage cuando corresponda;
+- reducción de exposición adicional;
+- protección de capital;
+- lifecycle de stop / trailing / salida cuando exista evidencia causal post-entrada;
+- reciclaje de beneficios.
+
+Interpretación obligatoria de señales débiles:
+
+- Native `ABSTAIN` NO significa rechazar la entrada;
+- prior histórico débil NO significa rechazar la entrada;
+- régimen adverso NO significa rechazar la entrada;
+- falta de permiso para ATTACK significa bajar a gestión MEDIUM/DEFENSIVE, no eliminar la posición;
+- límites de riesgo/margen/Portfolio pueden impedir **escalar por encima de la posición base**, pero no pueden borrar la posición que el Trader ya ejecutó.
+
+La cognitiva de CIBO decide **cómo administrar** la entrada, nunca si la entrada existió.
+
+### Primera verificación bajo esta regla
+
+Commit de implementación:
+
+`68123425456dc0e1946ca0fe66683c741e4f0054`
+
+Run Trader Lab:
+
+`37601138908`
+
+El replay confirmó por primera vez la conservación completa de entradas:
+
+- oportunidades/entradas: 3.368
+- entradas administradas: 3.368
+- rejected por Sizing: 0
+- deferred por Sizing: 0
+- withheld antes de motor económico: 0
+- upstream filtered: 0
+
+Esto valida la separación de autoridad.
+
+Pero la política de gestión todavía NO está lista: al administrar las 3.368 con la lógica actual, el drawdown observado subió a aproximadamente **57,30%**, muy por encima del máximo soberano de 25%.
+
+Lane histórica Native:
+
+- final capital: aproximadamente USD 613,47
+- MEDIUM: 3.301
+- ATTACK: 67
+- max multiplier: 376x
+- DD: aproximadamente 57,30%
+
+Lane causal base:
+
+- final capital: aproximadamente USD 498,66
+- 3.368/3.368 administradas
+- DD: aproximadamente 57,30%
+- Sovereign terminó negativo aunque el Portfolio mantuvo capital total positivo.
+
+El workflow terminó FAILURE por una invariante científica posterior al replay; esto es correcto como señal roja y NO invalida el descubrimiento de conservación 3.368/3.368.
+
+### Consecuencia para el siguiente trabajo
+
+**PROHIBIDO reducir el DD volviendo a rechazar o diferir entradas.**
+
+El siguiente trabajo debe reducir el DD mediante administración post-entrada:
+
+1. protección defensiva de posiciones débiles;
+2. reducción o denegación sólo de exposición incremental;
+3. lifecycle causal de stop / trailing / exit;
+4. preservación de ganadores;
+5. pérdida mínima posible cuando una posición termina en stop;
+6. ATTACK sólo sobre las posiciones que merecen escalamiento;
+7. mantener siempre 3.368/3.368 bajo administración de CIBO.
+
+
+---
+
 # 1. MÉTODO DE TRABAJO OBLIGATORIO
 
 Existe un banco de prueba rápido en GitHub:
