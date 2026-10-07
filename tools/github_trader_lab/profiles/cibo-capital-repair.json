@@ -45,7 +45,7 @@
     }
   },
   "science": {
-    "control": "MATURE_4X_CONTROL",
+    "control": "TRADER_BASE_1X_CONTROL",
     "primary_lane": "burned-repair",
     "min_density": "0",
     "min_winner_count_preservation": "0",
