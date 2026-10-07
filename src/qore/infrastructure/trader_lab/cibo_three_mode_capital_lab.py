@@ -854,6 +854,7 @@ def run_three_mode_trader_lab(
     economic_group_ablation: str | None = None,
     ceiling_discovery_mode: bool = False,
     ceiling_growth_leverage_slope: Decimal | None = None,
+    ceiling_attack_drawdown_budget_fraction: Decimal | None = None,
     collect_engineering_trace: bool = True,
     collect_epoch_receipts: bool = True,
     compact_trade_receipts: bool = False,
@@ -966,6 +967,22 @@ def run_three_mode_trader_lab(
     ):
         raise CiboCapitalManagementError(
             "Trader Lab ceiling growth leverage slope must be Decimal in (0, 50]"
+        )
+    if ceiling_attack_drawdown_budget_fraction is not None and (
+        not isinstance(ceiling_attack_drawdown_budget_fraction, Decimal)
+        or not ceiling_attack_drawdown_budget_fraction.is_finite()
+        or ceiling_attack_drawdown_budget_fraction <= 0
+        or ceiling_attack_drawdown_budget_fraction > Decimal("0.50")
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab ceiling ATTACK drawdown budget fraction must be Decimal in (0, 0.50]"
+        )
+    if (
+        ceiling_attack_drawdown_budget_fraction is not None
+        and not ceiling_discovery_mode
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab ceiling ATTACK drawdown budget requires ceiling discovery mode"
         )
     if economic_group_ablation not in {
         None,
@@ -2112,20 +2129,31 @@ def run_three_mode_trader_lab(
             total_drawdown_usd,
             state.peak_total_capital_usd,
         )
+        attack_drawdown_budget_fraction = (
+            ceiling_attack_drawdown_budget_fraction
+            if (
+                ceiling_discovery_mode
+                and ceiling_attack_drawdown_budget_fraction is not None
+            )
+            else ATTACK_PORTFOLIO_DRAWDOWN_BUDGET
+        )
         with localcontext() as context:
             context.prec = 100
             attack_drawdown_headroom_usd = max(
                 Decimal(0),
                 (
                     state.peak_total_capital_usd
-                    * ATTACK_PORTFOLIO_DRAWDOWN_BUDGET
+                    * attack_drawdown_budget_fraction
                 )
                 - total_drawdown_usd
                 - state.open_stop_risk_usd,
             )
         portfolio_attack_budget_usd = (
             state.attack_credit_available_usd
-            if ceiling_discovery_mode
+            if (
+                ceiling_discovery_mode
+                and ceiling_attack_drawdown_budget_fraction is None
+            )
             else min(
                 state.attack_credit_available_usd,
                 attack_drawdown_headroom_usd,
@@ -2216,6 +2244,16 @@ def run_three_mode_trader_lab(
                 ),
                 "attack_total_drawdown_guard": format(
                     ATTACK_TOTAL_DRAWDOWN_GUARD, "f"
+                ),
+                "attack_drawdown_budget_fraction": format(
+                    attack_drawdown_budget_fraction, "f"
+                ),
+                "ceiling_attack_drawdown_budget_fraction": (
+                    None
+                    if ceiling_attack_drawdown_budget_fraction is None
+                    else format(
+                        ceiling_attack_drawdown_budget_fraction, "f"
+                    )
                 ),
                 "minimum_attack_cushion_usd": format(
                     minimum_attack_cushion, "f"
@@ -3678,6 +3716,13 @@ def run_three_mode_trader_lab(
                 if ceiling_growth_leverage_slope is None
                 else format(ceiling_growth_leverage_slope, "f")
             ),
+            "ceiling_attack_drawdown_budget_fraction": (
+                None
+                if ceiling_attack_drawdown_budget_fraction is None
+                else format(
+                    ceiling_attack_drawdown_budget_fraction, "f"
+                )
+            ),
             "sizing_intensity_cap_counts": dict(
                 sorted(sizing_intensity_cap_counts.items())
             ),
@@ -3810,6 +3855,13 @@ def run_three_mode_trader_lab(
             ),
             "native_profile_consumed": True,
             "coordinated_economic_group": coordinated_economic_group,
+            "ceiling_attack_drawdown_budget_fraction": (
+                None
+                if ceiling_attack_drawdown_budget_fraction is None
+                else format(
+                    ceiling_attack_drawdown_budget_fraction, "f"
+                )
+            ),
             "medium_drawdown_intensity_trigger": (
                 None
                 if medium_drawdown_intensity_trigger is None
