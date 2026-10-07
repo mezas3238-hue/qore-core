@@ -985,6 +985,8 @@ def run_three_mode_trader_lab(
     ceiling_attack_drawdown_window6_taper_fraction: Decimal = Decimal("0.50"),
     ceiling_attack_stress_confidence_drawdown_trigger: Decimal | None = None,
     ceiling_attack_stress_confidence_ratio_ceiling: Decimal | None = None,
+    ceiling_attack_stress_confidence_multiplier_lower: int | None = None,
+    ceiling_attack_stress_confidence_multiplier_upper: int | None = None,
     ceiling_attack_stress_confidence_taper_fraction: Decimal = Decimal("0.75"),
     ceiling_attack_trader_loss_ratio_trigger: Decimal | None = None,
     ceiling_attack_trader_loss_ratio_min_settlements: int = 20,
@@ -1695,6 +1697,27 @@ def run_three_mode_trader_lab(
     ):
         raise CiboCapitalManagementError(
             "Trader Lab stress-confidence ratio ceiling must be positive Decimal"
+        )
+    if (
+        ceiling_attack_stress_confidence_multiplier_lower is None
+    ) != (
+        ceiling_attack_stress_confidence_multiplier_upper is None
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab localized stress-confidence requires both multiplier bounds"
+        )
+    if ceiling_attack_stress_confidence_multiplier_lower is not None and (
+        not isinstance(ceiling_attack_stress_confidence_multiplier_lower, int)
+        or isinstance(ceiling_attack_stress_confidence_multiplier_lower, bool)
+        or ceiling_attack_stress_confidence_multiplier_lower < ATTACK_MINIMUM_MULTIPLIER
+        or ceiling_attack_stress_confidence_multiplier_upper is None
+        or not isinstance(ceiling_attack_stress_confidence_multiplier_upper, int)
+        or isinstance(ceiling_attack_stress_confidence_multiplier_upper, bool)
+        or ceiling_attack_stress_confidence_multiplier_upper
+        < ceiling_attack_stress_confidence_multiplier_lower
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab localized stress-confidence multiplier bounds are invalid"
         )
     if (
         not isinstance(
@@ -4026,6 +4049,15 @@ def run_three_mode_trader_lab(
                         >= ceiling_attack_stress_confidence_drawdown_trigger
                         and candidate.walk_forward_expected_structural_r
                         is not None
+                        and (
+                            ceiling_attack_stress_confidence_multiplier_lower is None
+                            or (
+                                ceiling_attack_stress_confidence_multiplier_upper is not None
+                                and ceiling_attack_stress_confidence_multiplier_lower
+                                <= coordinated_attack_cap
+                                <= ceiling_attack_stress_confidence_multiplier_upper
+                            )
+                        )
                         and candidate.walk_forward_block_dispersion_r > 0
                     ):
                         with localcontext() as context:
@@ -5841,6 +5873,12 @@ def run_three_mode_trader_lab(
                 else format(
                     ceiling_attack_stress_confidence_ratio_ceiling, "f"
                 )
+            ),
+            "ceiling_attack_stress_confidence_multiplier_lower": (
+                ceiling_attack_stress_confidence_multiplier_lower
+            ),
+            "ceiling_attack_stress_confidence_multiplier_upper": (
+                ceiling_attack_stress_confidence_multiplier_upper
             ),
             "ceiling_attack_stress_confidence_taper_fraction": format(
                 ceiling_attack_stress_confidence_taper_fraction, "f"
