@@ -115,6 +115,7 @@ def _build_lifecycle_map(
             "actions": list(managed.actions),
             "events": managed.events,
             "enabled_features": sorted(item.value for item in features),
+            "adverse_loss_cut_r": format(adverse_loss_cut_r, "f"),
             "risk_released_before_exit_fraction": format(
                 managed.risk_released_before_exit_fraction, "f"
             ),
