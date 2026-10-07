@@ -309,6 +309,15 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--lifecycle-attack-override-adverse-partial-fraction",
+        type=Decimal,
+        default=None,
+        help=(
+            "Optional ATTACK-only adverse partial fraction. When omitted, "
+            "--lifecycle-adverse-partial-fraction remains authoritative."
+        ),
+    )
+    parser.add_argument(
         "--lifecycle-bootstrap-override-defensive-initial-stop-r",
         type=Decimal,
         default=None,
@@ -1176,7 +1185,12 @@ def main() -> int:
             lifecycle_roots,
             features=lifecycle_attack_override_features,
             adverse_loss_cut_r=args.lifecycle_adverse_loss_cut_r,
-            adverse_partial_fraction=args.lifecycle_adverse_partial_fraction,
+            adverse_partial_fraction=(
+                args.lifecycle_attack_override_adverse_partial_fraction
+                if args.lifecycle_attack_override_adverse_partial_fraction
+                is not None
+                else args.lifecycle_adverse_partial_fraction
+            ),
             adverse_partial_max_favorable_r=(
                 args.lifecycle_adverse_partial_max_favorable_r
             ),
