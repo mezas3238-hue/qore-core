@@ -154,6 +154,15 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--lifecycle-defense-drawdown-trigger",
+        type=Decimal,
+        default=None,
+        help=(
+            "Activate supplied post-entry lifecycle defense only when live "
+            "realized total-account drawdown has reached this causal fraction."
+        ),
+    )
+    parser.add_argument(
         "--lifecycle-feature",
         action="append",
         choices=[item.value for item in CiboLifecycleFeature],
@@ -537,6 +546,9 @@ def main() -> int:
         lifecycle_by_signal=lifecycle_by_signal or None,
         lifecycle_defensive_medium_1x_only=(
             args.lifecycle_defensive_medium_1x_only
+        ),
+        lifecycle_defense_drawdown_trigger=(
+            args.lifecycle_defense_drawdown_trigger
         ),
         enforce_research_context_abstain=args.enforce_context_abstain,
         soft_medium_drawdown_allocator=(
