@@ -1550,7 +1550,6 @@ def run_three_mode_trader_lab(
                             reasons=("NATIVE_ABSTAIN_DEFENSIVE",),
                         )
                     historical_prior_deployable = (
-                    historical_prior_deployable = (
                         historical_control_ready(candidate)
                         if use_historical_prior
                         else (
