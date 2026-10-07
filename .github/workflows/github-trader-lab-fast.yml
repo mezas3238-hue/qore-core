@@ -131,6 +131,16 @@ jobs:
           restore-keys: |
             qore-github-trader-lab-prepared-v1-${{ steps.prep.outputs.legacy_fingerprint }}
 
+      - name: Restore scientific Monte Carlo cache
+        id: science-cache
+        uses: actions/cache@v4
+        with:
+          path: .qore-cache/github-trader-lab/science-mc
+          key: qore-github-trader-lab-science-mc-v1-${{ github.sha }}
+          restore-keys: |
+            qore-github-trader-lab-science-mc-v1-
+
+
       - name: Migrate legacy prepared ledger
         shell: bash
         run: |
@@ -191,6 +201,7 @@ jobs:
             --subject-root "${{ github.workspace }}/subject" \
             --evidence-dir "${{ github.workspace }}/.qore-cache/github-trader-lab/evidence" \
             --prepared-dir "${{ github.workspace }}/$prepared" \
+            --science-cache-dir "${{ github.workspace }}/.qore-cache/github-trader-lab/science-mc" \
             --output-dir "$out" \
             | tee "$out/console.log"
 
@@ -215,6 +226,7 @@ jobs:
           print(f"- Development survivors: {h['development_survivors']}")
           print(f"- ≤6R survivors: {h['hard_dd_survivors']}")
           print(f"- Scientific passes: {h['scientific_passes']}")
+          print(f"- Monte Carlo cache: {h.get('monte_carlo_cache', {})}")
           print(f"- Walk-forward OOS present: {h['walk_forward_oos_present']}")
           print(f"- Fresh OOS present: {h['fresh_oos_present']}")
           print()
