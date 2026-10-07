@@ -872,6 +872,7 @@ def run_three_mode_trader_lab(
                 or type(profile.get("data_available")) is not bool
                 or not isinstance(profile.get("managed_exit_at"), str)
                 or not isinstance(profile.get("actions"), (list, tuple))
+                or not isinstance(profile.get("enabled_features"), (list, tuple))
             ):
                 raise CiboCapitalManagementError(
                     f"Trader Lab lifecycle profile malformed for {signal}"
@@ -879,6 +880,19 @@ def run_three_mode_trader_lab(
             _dt(profile["managed_exit_at"], "lifecycle managed_exit_at")
 
     lifecycle_action_counts: Counter[str] = Counter()
+    lifecycle_feature_sets = {
+        tuple(str(item) for item in profile["enabled_features"])
+        for profile in lifecycle_map.values()
+    }
+    if len(lifecycle_feature_sets) > 1:
+        raise CiboCapitalManagementError(
+            "Trader Lab lifecycle feature surface must be uniform"
+        )
+    lifecycle_feature_codes = (
+        list(next(iter(lifecycle_feature_sets)))
+        if lifecycle_feature_sets
+        else []
+    )
     lifecycle_data_available_count = 0
     lifecycle_changed_count = 0
     for profile in lifecycle_map.values():
@@ -898,6 +912,7 @@ def run_three_mode_trader_lab(
         ),
         "changed_outcome_count": lifecycle_changed_count,
         "action_counts": dict(sorted(lifecycle_action_counts.items())),
+        "enabled_feature_codes": lifecycle_feature_codes,
         "causal_closed_bar_only": bool(lifecycle_map),
         "outcome_used_for_trigger": False,
     }
