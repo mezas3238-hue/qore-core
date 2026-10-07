@@ -1,4 +1,5 @@
 name: QORE CIBO Trader Loss-Streak Defense Frontier
+# loss-streak frontier trigger
 
 on:
   workflow_dispatch:
