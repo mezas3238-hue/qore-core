@@ -1135,9 +1135,11 @@ def run_three_mode_trader_lab(
     if (
         ceiling_attack_loss_streak_trigger is not None
         and not ceiling_discovery_mode
+        and not coordinated_economic_group
     ):
         raise CiboCapitalManagementError(
-            "Trader Lab ceiling ATTACK loss streak taper requires ceiling discovery mode"
+            "Trader Lab ATTACK loss-streak taper requires ceiling-discovery "
+            "or coordinated-economic research mode"
         )
     if ceiling_attack_drawdown_taper_trigger is not None and (
         not isinstance(ceiling_attack_drawdown_taper_trigger, Decimal)
@@ -3441,7 +3443,7 @@ def run_three_mode_trader_lab(
                             growth_cap,
                         )
                     if (
-                        ceiling_discovery_mode
+                        (ceiling_discovery_mode or coordinated_economic_group)
                         and ceiling_attack_loss_streak_trigger is not None
                         and trader_attack_loss_streak[candidate.trader_id]
                         >= ceiling_attack_loss_streak_trigger
