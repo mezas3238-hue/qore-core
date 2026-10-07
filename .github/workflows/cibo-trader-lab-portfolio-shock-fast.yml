@@ -102,9 +102,16 @@ jobs:
           )
           run_case() {
             name="$1"; attack="$2"; slope="$3"; risk="$4"; oneshot="${5:-0}"
+            dd_trigger="${6:-none}"; dd_taper="${7:-0.50}"
             extra=()
             if [[ "$oneshot" == "1" ]]; then
               extra+=(--ceiling-portfolio-shock-one-shot)
+            fi
+            if [[ "$dd_trigger" != "none" ]]; then
+              extra+=(
+                --ceiling-attack-drawdown-taper-trigger "$dd_trigger"
+                --ceiling-attack-drawdown-taper-fraction "$dd_taper"
+              )
             fi
             if python scripts/cibo_trader_lab_three_mode_ceiling.py "${common[@]}" \
               --attack-multiplier-cap "$attack" \
@@ -136,9 +143,17 @@ jobs:
             fi
           }
 
-          # Frozen-ceiling forensic replay. Behaviour must remain bit-for-bit
-          # economically invariant while the new drawdown atlas observes episodes.
-          run_case "frozen-ceiling-a10000-r020" 10000 10 0.20 0
+          # DD-compression generation 1: preserve frozen 10k ceiling inputs and
+          # vary only causal live-drawdown ATTACK taper. No entry may be rejected.
+          run_case "baseline-a10000-r020" 10000 10 0.20 0
+          run_case "dd10-t50" 10000 10 0.20 0 0.10 0.50
+          run_case "dd15-t50" 10000 10 0.20 0 0.15 0.50
+          run_case "dd20-t50" 10000 10 0.20 0 0.20 0.50
+          run_case "dd25-t50" 10000 10 0.20 0 0.25 0.50
+          run_case "dd10-t75" 10000 10 0.20 0 0.10 0.75
+          run_case "dd15-t75" 10000 10 0.20 0 0.15 0.75
+          run_case "dd20-t75" 10000 10 0.20 0 0.20 0.75
+          run_case "dd25-t75" 10000 10 0.20 0 0.25 0.75
 
       - name: Rank shock ceiling expansion
         run: |
@@ -175,6 +190,9 @@ jobs:
                   "shock_trigger":p["economic_group_report"]["ceiling_portfolio_shock_trigger_fraction"],
                   "shock_taper":p["economic_group_report"]["ceiling_portfolio_shock_taper_fraction"],
                   "shock_bind_count":p["economic_group_report"]["portfolio_attack_shock_taper_bind_count"],
+                  "attack_dd_taper_trigger":p["economic_group_report"]["ceiling_attack_drawdown_taper_trigger"],
+                  "attack_dd_taper_fraction":p["economic_group_report"]["ceiling_attack_drawdown_taper_fraction"],
+                  "attack_dd_taper_bind_count":p["economic_group_report"]["attack_drawdown_taper_bind_count"],
                   "portfolio_loss_report":p["economic_group_report"]["portfolio_loss_report"],
                   "lifecycle":p["position_lifecycle_report"],
                   "sovereign":p["ending_sovereign_bank_usd"],
@@ -185,19 +203,22 @@ jobs:
           rows.sort(key=lambda x:Decimal(x["capital"]), reverse=True)
           print("SHOCK_CEILING_EXPANSION_TABLE="+json.dumps(rows,sort_keys=True))
           assert rows
-          assert len(rows) == 1
-          assert Decimal(rows[0]["capital"]) == Decimal(
+          baseline_path = next(root.glob("baseline-a10000-r020.json"))
+          baseline = json.loads(baseline_path.read_text())
+          assert Decimal(baseline["ending_total_capital_usd"]) == Decimal(
               "582440.0252953678696769360345"
           )
-          assert Decimal(rows[0]["dd"]) == Decimal(
+          assert Decimal(baseline["max_drawdown_fraction"]) == Decimal(
               "0.6510419759240315671719825681633489757925369664663770620335151596826649313533375179797855048624928231"
           )
-          forensic_path = next(root.glob("frozen-ceiling-a10000-r020.json"))
-          forensic = json.loads(forensic_path.read_text())
-          print(
-              "DD_FORENSICS="
-              + json.dumps(forensic["drawdown_forensics"], sort_keys=True)
+          pareto = sorted(
+              rows,
+              key=lambda x: (
+                  Decimal(x["dd"]),
+                  -Decimal(x["capital"]),
+              ),
           )
+          print("DD_TAPER_PARETO="+json.dumps(pareto,sort_keys=True))
           PY
 
       - uses: actions/upload-artifact@v4
