@@ -66,7 +66,6 @@ MEDIUM_DEFENSIVE_RISK_FRACTION = Decimal("0.01")
 ECONOMIC_DRAWDOWN_CEILING = Decimal("0.25")
 DISTRIBUTED_ATTACK_MIN_POSITIVE_BLOCKS = 4
 DEFAULT_DISTRIBUTED_ATTACK_MULTIPLIER_CAP = 8
-MAX_RESEARCH_ATTACK_MULTIPLIER_CAP = 5000
 
 
 class CiboTraderLabMode(StrEnum):
@@ -1166,11 +1165,10 @@ def run_three_mode_trader_lab(
         not isinstance(attack_multiplier_cap, int)
         or isinstance(attack_multiplier_cap, bool)
         or attack_multiplier_cap < ATTACK_MINIMUM_MULTIPLIER
-        or attack_multiplier_cap > MAX_RESEARCH_ATTACK_MULTIPLIER_CAP
     ):
         raise CiboCapitalManagementError(
-            "Trader Lab ATTACK multiplier cap must be int in "
-            f"[2, {MAX_RESEARCH_ATTACK_MULTIPLIER_CAP}]"
+            "Trader Lab ATTACK multiplier cap must be int >= 2; "
+            "provider/risk/margin/cushion caps remain authoritative"
         )
     if (
         not isinstance(medium_multiplier_cap, int)
