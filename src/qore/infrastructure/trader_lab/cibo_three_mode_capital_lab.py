@@ -1201,6 +1201,34 @@ def run_three_mode_trader_lab(
             for candidate in candidate_surface:
                 if mode is CiboTraderLabMode.MEDIUM:
                     sizing_calls += 1
+                    if not candidate.native_cognition_recommended:
+                        record_engineering_sensor(
+                            "SIZING",
+                            epoch_index=epoch_index,
+                            signal_fingerprint=candidate.signal_fingerprint,
+                            event="NATIVE_ECONOMIC_TREATMENT",
+                            inputs={
+                                "native_cognition_recommended": False,
+                                "context_quality_disposition": (
+                                    candidate.context_quality_disposition
+                                ),
+                                "expected_edge_after_cost_usd": format(
+                                    candidate.expected_edge_after_cost_usd, "f"
+                                ),
+                            },
+                            action="DEFER_NATIVE_ABSTAIN_CAPITAL_PRESERVATION",
+                            outputs={
+                                "selected_multiplier": 0,
+                                "economic_treatment": "DEFER",
+                            },
+                            reaction=(
+                                "PRESERVE_BANK_SEED_FOR_STRONGER_CAUSAL_SIGNAL"
+                            ),
+                            reasons=("NATIVE_ABSTAIN_DEFER",),
+                            call=True,
+                            restriction=True,
+                        )
+                        continue
                     per_entry_seed_budget = dynamic_bank_seed_budget_usd(
                         state.total_capital_usd
                     )
