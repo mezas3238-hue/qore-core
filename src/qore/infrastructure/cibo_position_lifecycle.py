@@ -42,6 +42,7 @@ class CiboLifecycleFeature(StrEnum):
     ADVERSE_PARTIAL_REDUCTION = "ADVERSE_PARTIAL_REDUCTION"
     BOOTSTRAP_PARTIAL_REDUCTION = "BOOTSTRAP_PARTIAL_REDUCTION"
     ADVERSE_STOP_TIGHTEN = "ADVERSE_STOP_TIGHTEN"
+    DEFENSIVE_INITIAL_STOP_CAP = "DEFENSIVE_INITIAL_STOP_CAP"
 
 
 # Keep the established lifecycle baseline stable while the adverse-loss
@@ -55,6 +56,7 @@ FULL_CIBO_LIFECYCLE_FEATURES = frozenset(
         CiboLifecycleFeature.ADVERSE_PARTIAL_REDUCTION,
         CiboLifecycleFeature.BOOTSTRAP_PARTIAL_REDUCTION,
         CiboLifecycleFeature.ADVERSE_STOP_TIGHTEN,
+        CiboLifecycleFeature.DEFENSIVE_INITIAL_STOP_CAP,
     }
 )
 
@@ -149,6 +151,7 @@ def run_cibo_position_lifecycle(
     adverse_partial_fraction: Decimal = Decimal("0.25"),
     bootstrap_partial_fraction: Decimal = Decimal("0.50"),
     adverse_tightened_stop_r: Decimal = Decimal("-0.50"),
+    defensive_initial_stop_r: Decimal = Decimal("-0.50"),
 ) -> CiboPositionLifecycleResult:
     """Evaluate one position using causal closed-bar lifecycle semantics."""
 
@@ -198,6 +201,15 @@ def run_cibo_position_lifecycle(
     ):
         raise CiboCapitalManagementError(
             "Lifecycle tightened stop must remain below its adverse close trigger"
+        )
+    if (
+        not isinstance(defensive_initial_stop_r, Decimal)
+        or not defensive_initial_stop_r.is_finite()
+        or defensive_initial_stop_r <= Decimal("-1")
+        or defensive_initial_stop_r >= Decimal(0)
+    ):
+        raise CiboCapitalManagementError(
+            "Lifecycle defensive initial stop must be Decimal strictly between -1R and 0R"
         )
 
     risk_distance = abs(position.entry_price - position.structural_stop)
@@ -251,7 +263,11 @@ def run_cibo_position_lifecycle(
         )
 
     remaining = Decimal(1)
-    stop_r = Decimal(-1)
+    stop_r = (
+        defensive_initial_stop_r
+        if CiboLifecycleFeature.DEFENSIVE_INITIAL_STOP_CAP in features
+        else Decimal(-1)
+    )
     partial_done = False
     be_done = False
     lock_done = False
@@ -265,6 +281,12 @@ def run_cibo_position_lifecycle(
     adverse_partial_done = False
     bootstrap_partial_done = False
     adverse_stop_tightened = False
+
+    if CiboLifecycleFeature.DEFENSIVE_INITIAL_STOP_CAP in features:
+        append_event(
+            position.entry_at,
+            "DEFENSIVE_INITIAL_STOP_CAP_ARMED",
+        )
 
     def favorable_adverse_close(
         bar: CiboLifecycleBar,
