@@ -342,6 +342,20 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--economic-group-ablation",
+        choices=(
+            "SIZING",
+            "CIBO_COMPOUND",
+            "COMPOUND_PORTFOLIO",
+            "ADAPTIVE_LEVERAGE",
+        ),
+        default=None,
+        help=(
+            "Trader-Lab-only leave-one-out test of one economic function. "
+            "Trader custody remains mandatory for every entry."
+        ),
+    )
+    parser.add_argument(
         "--enforce-context-abstain",
         action="store_true",
         help=(
@@ -671,6 +685,7 @@ def main() -> int:
         economic_group_bootstrap_cushion_share=(
             args.economic_group_bootstrap_cushion_share
         ),
+        economic_group_ablation=args.economic_group_ablation,
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
