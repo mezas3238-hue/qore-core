@@ -20,6 +20,18 @@ env:
   HISTORICAL_SOURCE_ARTIFACT_DIGEST: 'sha256:30177639f660c9647ab70257c2d12c541bdade49ab5582347a3890f920070fee'
   HISTORICAL_CONTROL_ARTIFACT_ID: '11409086692'
   HISTORICAL_CONTROL_ARTIFACT_DIGEST: 'sha256:eeffdc99a736b82bd965ff646b8ca9bf084f50ae414e56e9b3d82961169d7187'
+  ATLAS_AUDJPY_ARTIFACT_ID: '10476530915'
+  ATLAS_AUDJPY_DIGEST: 'sha256:a416085cfcef04003ae89debaad360304a0c4c8bac65b3bf2b439a8a4b7098bf'
+  ATLAS_EURUSD_ARTIFACT_ID: '10475354631'
+  ATLAS_EURUSD_DIGEST: 'sha256:e0fa9e316b79ba61c338161a57508359d4c6afe2fbf97d3f50f1e27c2d12c541bdade49ab5582347a3890f920070fee'
+  ATLAS_GBPJPY_ARTIFACT_ID: '10475453293'
+  ATLAS_GBPJPY_DIGEST: 'sha256:b68e74b2afa54295f891c11cde19e12e92db4192930496036c7ebb372474e415'
+  ATLAS_GBPUSD_ARTIFACT_ID: '10475449182'
+  ATLAS_GBPUSD_DIGEST: 'sha256:77d5b65ce3c6763e3ac5f620e4167d4ef071bfe1c13746cd5ca7ad9788268dcf'
+  ATLAS_NAS100_ARTIFACT_ID: '10476153072'
+  ATLAS_NAS100_DIGEST: 'sha256:87ae8095feadce23c5026cda4dada49765d44d0baa2237b5bd7704ccc8deb863'
+  ATLAS_XAUUSD_ARTIFACT_ID: '10476557530'
+  ATLAS_XAUUSD_DIGEST: 'sha256:dcb905b11380e3d4e1a4dc621e269bb75d2886806dd662e260d21d1d15362e08'
 
 jobs:
   bootstrap-dd-frontier:
@@ -34,7 +46,7 @@ jobs:
       - name: Compile
         run: |
           set -euo pipefail
-          python -m py_compile src/qore/infrastructure/trader_lab/cibo_three_mode_capital_lab.py scripts/cibo_trader_lab_three_mode_ceiling.py
+          python -m py_compile src/qore/infrastructure/cibo_position_lifecycle.py src/qore/infrastructure/trader_lab/cibo_three_mode_capital_lab.py scripts/cibo_trader_lab_three_mode_ceiling.py
 
       - name: Recover inputs
         env:
@@ -61,6 +73,20 @@ jobs:
           HISTORICAL_REPLAY="$(find "$RUNNER_TEMP/historical-control" -type f -name historical-ceiling-replay.json -print -quit)"
           echo "HISTORICAL_REPLAY=$HISTORICAL_REPLAY" >> "$GITHUB_ENV"
 
+          mkdir -p "$RUNNER_TEMP/atlas"
+          for SYMBOL in AUDJPY EURUSD GBPJPY GBPUSD NAS100 XAUUSD; do
+            ID_VAR="ATLAS_${SYMBOL}_ARTIFACT_ID"
+            DIGEST_VAR="ATLAS_${SYMBOL}_DIGEST"
+            ARTIFACT_ID="${!ID_VAR}"
+            ARTIFACT_DIGEST="${!DIGEST_VAR}"
+            ZIP="$RUNNER_TEMP/atlas-${SYMBOL}.zip"
+            ROOT="$RUNNER_TEMP/atlas/${SYMBOL}"
+            mkdir -p "$ROOT"
+            gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$ARTIFACT_ID/zip" > "$ZIP"
+            echo "${ARTIFACT_DIGEST#sha256:}  $ZIP" | sha256sum -c -
+            unzip -q "$ZIP"               'RAW_M5_LEDGER/2019.jsonl'               'RAW_M5_LEDGER/2020.jsonl'               'RAW_M5_LEDGER/2021.jsonl'               'RAW_M5_LEDGER/2022.jsonl'               -d "$ROOT"
+          done
+
       - name: Run bootstrap DD frontier
         run: |
           set -u
@@ -82,6 +108,12 @@ jobs:
               --economic-group-bootstrap-cushion-share 1.00 \
               --ceiling-growth-leverage-slope 10 \
               --ceiling-attack-single-trade-risk-fraction 0.20 \
+              --lifecycle-source-root "AUDJPY=$RUNNER_TEMP/atlas/AUDJPY" \
+              --lifecycle-source-root "EURUSD=$RUNNER_TEMP/atlas/EURUSD" \
+              --lifecycle-source-root "GBPJPY=$RUNNER_TEMP/atlas/GBPJPY" \
+              --lifecycle-source-root "GBPUSD=$RUNNER_TEMP/atlas/GBPUSD" \
+              --lifecycle-source-root "NAS100=$RUNNER_TEMP/atlas/NAS100" \
+              --lifecycle-source-root "XAUUSD=$RUNNER_TEMP/atlas/XAUUSD" \
               --lifecycle-feature DEFENSIVE_INITIAL_STOP_CAP \
               --lifecycle-defensive-initial-stop-r "$stop" \
               --lifecycle-bootstrap-capital-ceiling "$ceiling" \
