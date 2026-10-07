@@ -912,6 +912,7 @@ def run_three_mode_trader_lab(
         Mapping[str, Mapping[str, object]] | None
     ) = None,
     lifecycle_defensive_medium_1x_only: bool = False,
+    lifecycle_attack_only: bool = False,
     lifecycle_defensive_medium_max_multiplier: int | None = None,
     lifecycle_defense_drawdown_trigger: Decimal | None = None,
     lifecycle_trader_loss_streak_trigger: int | None = None,
@@ -966,6 +967,10 @@ def run_three_mode_trader_lab(
         raise CiboCapitalManagementError(
             "Trader Lab lifecycle defensive MEDIUM 1x switch must be bool"
         )
+    if type(lifecycle_attack_only) is not bool:
+        raise CiboCapitalManagementError(
+            "Trader Lab lifecycle ATTACK-only switch must be bool"
+        )
     if lifecycle_defensive_medium_max_multiplier is not None and (
         not isinstance(lifecycle_defensive_medium_max_multiplier, int)
         or isinstance(lifecycle_defensive_medium_max_multiplier, bool)
@@ -981,6 +986,13 @@ def run_three_mode_trader_lab(
     ):
         raise CiboCapitalManagementError(
             "Trader Lab lifecycle defensive MEDIUM grade selectors are mutually exclusive"
+        )
+    if lifecycle_attack_only and (
+        lifecycle_defensive_medium_1x_only
+        or lifecycle_defensive_medium_max_multiplier is not None
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab lifecycle ATTACK-only scope is mutually exclusive with MEDIUM selectors"
         )
     if lifecycle_defense_drawdown_trigger is not None and (
         not isinstance(lifecycle_defense_drawdown_trigger, Decimal)
@@ -2563,7 +2575,11 @@ def run_three_mode_trader_lab(
                     "lifecycle managed_exit_at",
                 ),
             )
-            if lifecycle_map and not lifecycle_defensive_medium_1x_only
+            if (
+                lifecycle_map
+                and not lifecycle_defensive_medium_1x_only
+                and not lifecycle_attack_only
+            )
             else candidate
             for candidate in base_candidates
         )
@@ -3798,17 +3814,21 @@ def run_three_mode_trader_lab(
                 )
                 source_reserved = stop_risk + provider_cost
             lifecycle_grade_allowed = (
-                (
-                    candidate_mode is CiboTraderLabMode.MEDIUM
-                    and multiplier
-                    <= lifecycle_defensive_medium_max_multiplier
-                )
-                if lifecycle_defensive_medium_max_multiplier is not None
+                candidate_mode is CiboTraderLabMode.ATTACK
+                if lifecycle_attack_only
                 else (
-                    not lifecycle_defensive_medium_1x_only
-                    or (
+                    (
                         candidate_mode is CiboTraderLabMode.MEDIUM
-                        and multiplier == 1
+                        and multiplier
+                        <= lifecycle_defensive_medium_max_multiplier
+                    )
+                    if lifecycle_defensive_medium_max_multiplier is not None
+                    else (
+                        not lifecycle_defensive_medium_1x_only
+                        or (
+                            candidate_mode is CiboTraderLabMode.MEDIUM
+                            and multiplier == 1
+                        )
                     )
                 )
             )
@@ -4141,6 +4161,7 @@ def run_three_mode_trader_lab(
     position_lifecycle_report["defensive_medium_1x_only"] = (
         lifecycle_defensive_medium_1x_only
     )
+    position_lifecycle_report["attack_only"] = lifecycle_attack_only
     position_lifecycle_report["defensive_medium_max_multiplier"] = (
         lifecycle_defensive_medium_max_multiplier
     )
@@ -4882,6 +4903,7 @@ def run_three_mode_trader_lab(
             "position_lifecycle_defensive_medium_1x_only": (
                 lifecycle_defensive_medium_1x_only
             ),
+            "position_lifecycle_attack_only": lifecycle_attack_only,
             "position_lifecycle_defensive_medium_max_multiplier": (
                 lifecycle_defensive_medium_max_multiplier
             ),
