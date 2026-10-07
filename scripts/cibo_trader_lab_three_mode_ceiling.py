@@ -509,6 +509,15 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--ceiling-attack-stress-confidence-reinvestment-hysteresis-fraction",
+        type=Decimal,
+        default=None,
+        help=(
+            "Optional one-shot compounding hysteresis armed only after a "
+            "stress-confidence ATTACK defense activates."
+        ),
+    )
+    parser.add_argument(
         "--ceiling-attack-drawdown-budget-fraction",
         type=Decimal,
         default=None,
@@ -1586,6 +1595,9 @@ def main() -> int:
         ),
         ceiling_attack_compound_hysteresis_fraction=(
             args.ceiling_attack_compound_hysteresis_fraction
+        ),
+        ceiling_attack_stress_confidence_reinvestment_hysteresis_fraction=(
+            args.ceiling_attack_stress_confidence_reinvestment_hysteresis_fraction
         ),
         ceiling_attack_drawdown_budget_fraction=(
             args.ceiling_attack_drawdown_budget_fraction
