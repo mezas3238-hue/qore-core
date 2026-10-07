@@ -129,6 +129,7 @@ class CiboThreeModeOpenTrade:
     margin_usd: Decimal
     provider_cost_usd: Decimal
     source_reserved_usd: Decimal
+    bank_seed_usd: Decimal | None = None
 
 
 @dataclass(slots=True)
@@ -647,9 +648,14 @@ def apply_three_mode_settlement(
     state.open_stop_risk_usd -= trade.stop_risk_usd
     state.open_margin_usd -= trade.margin_usd
     if trade.mode is CiboTraderLabMode.MEDIUM:
+        bank_seed = (
+            trade.source_reserved_usd
+            if trade.bank_seed_usd is None
+            else trade.bank_seed_usd
+        )
         state.sovereign_reserved_usd -= trade.source_reserved_usd
-        state.bank_seed_reserved_usd -= trade.source_reserved_usd
-        state.bank_seed_recycled_total_usd += trade.source_reserved_usd
+        state.bank_seed_reserved_usd -= bank_seed
+        state.bank_seed_recycled_total_usd += bank_seed
         state.medium_compound_turnover_usd += trade.source_reserved_usd
 
         if net_pnl > 0:
@@ -1021,9 +1027,7 @@ def run_three_mode_trader_lab(
                 (
                     item
                     for item in candidates
-                    if item.context_allowed
-                    and item.expected_edge_after_cost_usd > 0
-                    and item.maximum_multiplier > 0
+                    if item.maximum_multiplier > 0
                 ),
                 key=lambda item: (
                     -item.capital_time_score,
@@ -1222,11 +1226,20 @@ def run_three_mode_trader_lab(
                             / candidate.margin_per_multiplier_usd
                         ).to_integral_value(rounding=ROUND_FLOOR)
                     )
+                    native_intensity_cap = (
+                        min(candidate.maximum_multiplier, 4)
+                        if (
+                            candidate.native_cognition_recommended
+                            and candidate.context_quality_disposition == "ALLOW"
+                            and candidate.expected_edge_after_cost_usd > 0
+                        )
+                        else 1
+                    )
                     multiplier = max(
                         0,
                         min(
                             candidate.maximum_multiplier,
-                            executable_by_seed,
+                            native_intensity_cap,
                             executable_by_risk,
                             executable_by_margin,
                         ),
@@ -1278,13 +1291,16 @@ def run_three_mode_trader_lab(
                             "risk_left_usd": format(risk_left, "f"),
                             "margin_left_usd": format(margin_left, "f"),
                         },
-                        action="SIZE_WITHIN_4PCT_ENTRY_SEED",
-                        outputs={"selected_multiplier": multiplier},
+                        action="SIZE_FROM_BANK_SEED_WITH_NATIVE_CAPABILITY",
+                        outputs={
+                            "selected_multiplier": multiplier,
+                            "native_intensity_cap": native_intensity_cap,
+                        },
                         reaction="AWAIT_HARD_CAPACITY_CHECK",
                         call=True,
                     )
-                    economic_cap = multiplier
-                    source_left = bank_seed
+                    economic_cap = native_intensity_cap
+                    source_left = sovereign_left
                 else:
                     adaptive_leverage_calls += 1
                     source_left = min(
@@ -1411,10 +1427,10 @@ def run_three_mode_trader_lab(
                                 source_left, "f"
                             ),
                         },
-                        action="REJECT_4PCT_ENTRY_SEED_BELOW_MINIMUM",
+                        action="REJECT_PHYSICAL_CAPACITY_BELOW_MINIMUM",
                         outputs={"selected_multiplier": 0},
-                        reaction="THIS_ENTRY_NOT_EXECUTABLE_WITH_4PCT_SEED",
-                        reasons=("PER_ENTRY_BANK_SEED_BELOW_1X",),
+                        reaction="THIS_ENTRY_NOT_PHYSICALLY_EXECUTABLE",
+                        reasons=("PHYSICAL_CAPACITY_BELOW_1X",),
                         rejection=True,
                         requested_capital_usd=(
                             candidate.source_cost_per_multiplier_usd
@@ -1547,6 +1563,16 @@ def run_three_mode_trader_lab(
                 margin_usd=margin,
                 provider_cost_usd=provider_cost,
                 source_reserved_usd=source_reserved,
+                bank_seed_usd=(
+                    min(
+                        dynamic_bank_seed_budget_usd(
+                            state.total_capital_usd
+                        ),
+                        source_reserved,
+                    )
+                    if mode is CiboTraderLabMode.MEDIUM
+                    else Decimal(0)
+                ),
             )
             pending.append(trade)
             trade_receipts.append(
@@ -1610,16 +1636,20 @@ def run_three_mode_trader_lab(
                     "stop_risk_usd": format(stop_risk, "f"),
                     "provider_cost_usd": format(provider_cost, "f"),
                     "source_reserved_usd": format(source_reserved, "f"),
+                    "bank_seed_usd": format(
+                        trade.bank_seed_usd or Decimal(0), "f"
+                    ),
                     "mode_reasons": list(mode_reasons),
                 }
             )
             state.open_stop_risk_usd += stop_risk
             state.open_margin_usd += margin
             if mode is CiboTraderLabMode.MEDIUM:
+                medium_seed = trade.bank_seed_usd or Decimal(0)
                 state.sovereign_reserved_usd += source_reserved
-                state.bank_seed_reserved_usd += source_reserved
+                state.bank_seed_reserved_usd += medium_seed
                 state.bank_seed_issuance_count += 1
-                state.bank_seed_issued_total_usd += source_reserved
+                state.bank_seed_issued_total_usd += medium_seed
             else:
                 state.cushion_reserved_usd += source_reserved
                 state.portfolio_attack_credit_usd = max(
@@ -2061,9 +2091,13 @@ def run_three_mode_trader_lab(
             "bank_seed_scaling": "DYNAMIC_PER_ENTRY_WITH_ACCOUNT_GROWTH",
             "bank_seed_hard_source_cap": "REMAINING_SOVEREIGN_AVAILABLE",
             "medium_engine": "SIZING_PLUS_CIBO_COMPOUND",
-            "medium_capital_source": "ROTATING_4PCT_BANK_SEED_PER_ENTRY",
+            "medium_capital_source": (
+                "BANK_SEED_OPENS_CYCLE; SIZING_CAPABILITY_BOUNDED_BY_"
+                "NATIVE_INTENSITY_RISK_MARGIN_PROVIDER"
+            ),
             "sizing_role": (
-                "ALLOCATE_BANK_SEED_AFTER_COGNITIVE_ECONOMIC_ADMISSION"
+                "USE_4PCT_BANK_SEED_AS_WORKING_CAPITAL_PROVENANCE_NOT_"
+                "AS_HARD_EXPOSURE_CAP"
             ),
             "sizing_second_edge_veto": False,
             "cibo_compound_role": (
