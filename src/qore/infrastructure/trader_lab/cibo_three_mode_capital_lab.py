@@ -1532,25 +1532,26 @@ def run_three_mode_trader_lab(
                         if candidate.native_cognition_recommended
                         else MEDIUM_DEFENSIVE_RISK_FRACTION
                     )
+                    if total_drawdown_utilization >= ECONOMIC_DRAWDOWN_CEILING:
+                        medium_drawdown_scale = Decimal("0.0625")
+                    elif total_drawdown_utilization >= Decimal("0.20"):
+                        medium_drawdown_scale = Decimal("0.125")
+                    elif total_drawdown_utilization >= Decimal("0.15"):
+                        medium_drawdown_scale = Decimal("0.25")
+                    elif total_drawdown_utilization >= Decimal("0.10"):
+                        medium_drawdown_scale = Decimal("0.50")
+                    else:
+                        medium_drawdown_scale = Decimal(1)
                     with localcontext() as context:
                         context.prec = 100
                         medium_entry_risk_budget_usd = (
                             state.total_capital_usd
                             * medium_risk_fraction
-                        )
-                        medium_drawdown_headroom_usd = max(
-                            Decimal(0),
-                            (
-                                state.peak_total_capital_usd
-                                * ECONOMIC_DRAWDOWN_CEILING
-                            )
-                            - total_drawdown_usd
-                            - state.open_stop_risk_usd,
+                            * medium_drawdown_scale
                         )
                         medium_risk_budget_usd = min(
                             risk_left,
                             medium_entry_risk_budget_usd,
-                            medium_drawdown_headroom_usd,
                         )
                     executable_by_risk = int(
                         (
@@ -1635,8 +1636,11 @@ def run_three_mode_trader_lab(
                             "medium_entry_risk_budget_usd": format(
                                 medium_entry_risk_budget_usd, "f"
                             ),
-                            "medium_drawdown_headroom_usd": format(
-                                medium_drawdown_headroom_usd, "f"
+                            "total_drawdown_utilization": format(
+                                total_drawdown_utilization, "f"
+                            ),
+                            "medium_drawdown_scale": format(
+                                medium_drawdown_scale, "f"
                             ),
                             "medium_risk_budget_usd": format(
                                 medium_risk_budget_usd, "f"
