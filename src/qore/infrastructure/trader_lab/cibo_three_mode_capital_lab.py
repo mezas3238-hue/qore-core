@@ -997,6 +997,7 @@ def run_three_mode_trader_lab(
     ceiling_attack_recent_trader_loss_taper_fraction: Decimal = Decimal("0.75"),
     ceiling_attack_trader_shock_trigger_fraction: Decimal | None = None,
     ceiling_attack_trader_shock_drawdown_trigger: Decimal = Decimal("0.10"),
+    ceiling_attack_trader_shock_capital_ceiling: Decimal | None = None,
     ceiling_attack_trader_shock_taper_fraction: Decimal = Decimal("0.75"),
     ceiling_attack_low_multiplier_demotion_upper: int | None = None,
     ceiling_attack_low_multiplier_demotion_drawdown_trigger: Decimal = Decimal("0.10"),
@@ -1840,6 +1841,14 @@ def run_three_mode_trader_lab(
     ):
         raise CiboCapitalManagementError(
             "Trader Lab Trader one-shot shock DD trigger must be Decimal in [0, 0.50)"
+        )
+    if ceiling_attack_trader_shock_capital_ceiling is not None and (
+        not isinstance(ceiling_attack_trader_shock_capital_ceiling, Decimal)
+        or not ceiling_attack_trader_shock_capital_ceiling.is_finite()
+        or ceiling_attack_trader_shock_capital_ceiling <= 0
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab Trader one-shot shock capital ceiling must be positive Decimal"
         )
     if (
         not isinstance(ceiling_attack_trader_shock_taper_fraction, Decimal)
@@ -4256,6 +4265,11 @@ def run_three_mode_trader_lab(
                                 is not None
                                 and total_drawdown_utilization
                                 >= ceiling_attack_trader_shock_drawdown_trigger
+                                and (
+                                    ceiling_attack_trader_shock_capital_ceiling is None
+                                    or state.total_capital_usd
+                                    <= ceiling_attack_trader_shock_capital_ceiling
+                                )
                                 and trader_last_attack_loss_fraction[
                                     candidate.trader_id
                                 ]
@@ -5948,6 +5962,11 @@ def run_three_mode_trader_lab(
             ),
             "ceiling_attack_trader_shock_drawdown_trigger": format(
                 ceiling_attack_trader_shock_drawdown_trigger, "f"
+            ),
+            "ceiling_attack_trader_shock_capital_ceiling": (
+                None
+                if ceiling_attack_trader_shock_capital_ceiling is None
+                else format(ceiling_attack_trader_shock_capital_ceiling, "f")
             ),
             "ceiling_attack_trader_shock_taper_fraction": format(
                 ceiling_attack_trader_shock_taper_fraction, "f"
