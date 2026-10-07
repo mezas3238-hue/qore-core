@@ -1,5 +1,7 @@
 name: RETIRED cibo-trader-lab-250x-medium-tune.yml
 
+# RETIRED AUTO-PATH: manual-only legacy Trader Lab evidence; automatic execution moved to QORE GitHub Trader Lab Fast.
+
 # RETIRED: this specialized Trader Lab path is no longer operational.
 # Source-of-truth execution moved to QORE GitHub Trader Lab Fast.
 # Historical implementation remains available in Git history at 6f42214acb629bce7c950b949e270a404672ab08.
