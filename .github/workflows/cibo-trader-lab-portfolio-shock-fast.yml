@@ -136,9 +136,9 @@ jobs:
             fi
           }
 
-          # 5000x remains economically productive. No artificial research ceiling:
-          # probe geometrically until real provider/economic caps create a plateau or cliff.
-          for attack in 5000 7500 10000 15000 20000 30000 50000; do
+          # Coarse search found a real terminal-capital ridge near 10k:
+          # refine both sides while holding all other causal/economic controls fixed.
+          for attack in 8000 8500 9000 9500 10000 10500 11000 12000 13000 14000; do
             run_case "persist-a${attack}-r020" "$attack" 10 0.20 0
           done
 
