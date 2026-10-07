@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import inspect
 import json
+import multiprocessing
 import os
 import sys
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -18,6 +19,8 @@ from typing import Any
 ZERO = Decimal(0)
 INITIAL = Decimal("60")
 SYMBOLS = ("AUDJPY", "EURUSD", "GBPJPY", "GBPUSD", "NAS100", "XAUUSD")
+
+_PARENT_CANDIDATE_CACHE: dict[tuple[str, bool | None, bool], object] = {}
 
 
 def d(value: object) -> Decimal:
@@ -239,6 +242,77 @@ def deserialize_lifecycle(
     return result
 
 
+def build_parent_candidate_cache(
+    manifest_path: Path,
+    baseline_path: Path,
+    subject_root: Path,
+    cases: list[dict[str, object]],
+) -> int:
+    """Build immutable predecision candidates once before process fork."""
+
+    global _PARENT_CANDIDATE_CACHE
+    sys.path.insert(0, str((subject_root / "src").resolve()))
+    from qore.infrastructure.trader_lab import (  # noqa: PLC0415
+        cibo_three_mode_capital_lab as capital,
+    )
+
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    rows = manifest.get("opportunities")
+    if not isinstance(rows, list) or not rows:
+        raise ValueError("candidate cache manifest opportunities missing")
+
+    baseline = json.loads(baseline_path.read_text(encoding="utf-8"))
+    decisions = baseline.get("decision_receipts")
+    if not isinstance(decisions, list):
+        raise ValueError("candidate cache baseline decisions missing")
+    recommendations: dict[str, bool] = {}
+    for item in decisions:
+        if not isinstance(item, dict):
+            raise ValueError("candidate cache baseline decision malformed")
+        signal = str(item["signal_fingerprint"])
+        sensors = item.get("cognitive_sensors")
+        if not isinstance(sensors, list):
+            raise ValueError("candidate cache cognitive sensors missing")
+        executive = next(
+            (
+                sensor
+                for sensor in sensors
+                if isinstance(sensor, dict)
+                and str(sensor.get("component_code"))
+                == "EXECUTIVE_SYNTHESIS"
+            ),
+            None,
+        )
+        if not isinstance(executive, dict):
+            raise ValueError(
+                f"candidate cache executive synthesis missing for {signal}"
+            )
+        recommendations[signal] = (
+            str(executive.get("status")) == "recommend"
+        )
+
+    enforce_modes = {
+        "--enforce-context-abstain" in list(case.get("args", []))
+        for case in cases
+        if isinstance(case, dict)
+    }
+    cache: dict[tuple[str, bool | None, bool], object] = {}
+    for enforce in sorted(enforce_modes):
+        for row in rows:
+            if not isinstance(row, dict):
+                raise ValueError("candidate cache manifest row malformed")
+            signal = str(row["signal_fingerprint"])
+            recommendation = recommendations.get(signal)
+            candidate = capital._candidate(
+                row,
+                native_cognition_recommended=recommendation,
+                enforce_research_context_abstain=enforce,
+            )
+            cache[(signal, recommendation, enforce)] = candidate
+    _PARENT_CANDIDATE_CACHE = cache
+    return len(cache)
+
+
 def run_case_worker(
     job: dict[str, object],
 ) -> tuple[str, dict[str, Any] | None, dict[str, str] | None]:
@@ -247,7 +321,36 @@ def run_case_worker(
     sys.path.insert(0, str((subject_root / "src").resolve()))
     sys.path.insert(0, str((subject_root / "scripts").resolve()))
     import cibo_trader_lab_three_mode_ceiling as subject  # noqa: PLC0415
+    from qore.infrastructure.trader_lab import (  # noqa: PLC0415
+        cibo_three_mode_capital_lab as capital,
+    )
 
+    original_candidate = capital._candidate
+
+    def cached_candidate(
+        row: object,
+        *,
+        native_cognition_recommended: bool | None,
+        enforce_research_context_abstain: bool,
+    ) -> object:
+        if isinstance(row, dict):
+            key = (
+                str(row.get("signal_fingerprint", "")),
+                native_cognition_recommended,
+                enforce_research_context_abstain,
+            )
+            cached = _PARENT_CANDIDATE_CACHE.get(key)
+            if cached is not None:
+                return cached
+        return original_candidate(
+            row,
+            native_cognition_recommended=native_cognition_recommended,
+            enforce_research_context_abstain=(
+                enforce_research_context_abstain
+            ),
+        )
+
+    capital._candidate = cached_candidate
     lifecycle_path_raw = job.get("lifecycle_sidecar")
     original_builder = subject._build_lifecycle_map
     original_run = subject.run_three_mode_trader_lab
@@ -326,6 +429,7 @@ def run_case_worker(
         sys.argv = previous
         subject._build_lifecycle_map = original_builder
         subject.run_three_mode_trader_lab = original_run
+        capital._candidate = original_candidate
 
 
 def main() -> int:
@@ -402,11 +506,26 @@ def main() -> int:
             }
         )
 
+    candidate_cache_entries = build_parent_candidate_cache(
+        manifest,
+        baseline,
+        args.subject_root,
+        [case for case in cases if isinstance(case, dict)],
+    )
     requested = int(os.environ.get("QORE_TRADER_LAB_CASE_WORKERS", "4"))
     workers = max(1, min(len(jobs), requested, os.cpu_count() or 1))
     completed: dict[str, dict[str, Any]] = {}
     failures: dict[str, dict[str, str]] = {}
-    with ProcessPoolExecutor(max_workers=workers) as pool:
+    try:
+        fork_context = multiprocessing.get_context("fork")
+    except ValueError as error:
+        raise RuntimeError(
+            "CIBO Fast Lab requires fork-capable Linux runner"
+        ) from error
+    with ProcessPoolExecutor(
+        max_workers=workers,
+        mp_context=fork_context,
+    ) as pool:
         futures = {
             pool.submit(run_case_worker, job): str(job["name"])
             for job in jobs
@@ -443,6 +562,8 @@ def main() -> int:
             "lifecycle_resolved_during_prepare": True,
             "atlas_scans_in_hot_path": 0,
             "case_workers": workers,
+            "shared_predecision_candidate_cache": True,
+            "candidate_cache_entries": candidate_cache_entries,
             "failed_case_count": len(failures),
             "failed_cases_are_research_outcomes": True,
             "trader_base_entry_conservation_required": True,
@@ -461,6 +582,7 @@ def main() -> int:
                 "schema": payload["schema"],
                 "control": control,
                 "case_workers": workers,
+                "candidate_cache_entries": candidate_cache_entries,
                 "atlas_scans_in_hot_path": 0,
                 "case_failures": failures,
                 "variants": {

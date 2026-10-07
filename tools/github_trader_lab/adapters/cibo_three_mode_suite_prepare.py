@@ -8,6 +8,7 @@ import functools
 import hashlib
 import json
 import sys
+from bisect import bisect_left, bisect_right
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -109,12 +110,136 @@ def main() -> int:
         raise SystemExit(f"missing shared CIBO suite assets: {missing}")
 
     sys.path.insert(0, str((args.subject_root / "src").resolve()))
-    sys.path.insert(0, str((args.subject_root / "scripts").resolve()))
-    import cibo_trader_lab_three_mode_ceiling as subject  # noqa: PLC0415
+    from qore.infrastructure.cibo_position_lifecycle import (  # noqa: PLC0415
+        FULL_CIBO_LIFECYCLE_FEATURES,
+        CiboLifecycleFeature,
+        CiboPositionLifecycleInput,
+        run_cibo_position_lifecycle,
+    )
+    from qore.infrastructure.cibo_single_account_manifest_economics import (  # noqa: PLC0415
+        manifest_row_provider_cost_per_volume_usd,
+    )
+    from qore.infrastructure.cibo_single_account_manifest_settlement import (  # noqa: PLC0415
+        manifest_row_to_shadow_outcome_observation,
+    )
+    from qore.infrastructure.trader_lab.cibo_market_atlas_journey_extractor_v1 import (  # noqa: PLC0415
+        load_raw_m5,
+    )
 
     # PREPARE owns all Atlas parsing. The cache means six raw Atlas artifacts
     # are decoded once even when several lifecycle thresholds are prepared.
-    subject.load_raw_m5 = functools.lru_cache(maxsize=None)(subject.load_raw_m5)
+    load_raw_m5_cached = functools.lru_cache(maxsize=None)(load_raw_m5)
+
+    def build_lifecycle_map(
+        manifest: dict[str, object],
+        roots: dict[str, Path],
+        *,
+        features: frozenset[CiboLifecycleFeature],
+        adverse_loss_cut_r: Decimal,
+        adverse_partial_fraction: Decimal,
+        bootstrap_partial_fraction: Decimal,
+        adverse_tightened_stop_r: Decimal,
+        defensive_initial_stop_r: Decimal,
+    ) -> dict[str, dict[str, object]]:
+        rows = manifest.get("opportunities")
+        if not isinstance(rows, list):
+            raise ValueError("lifecycle custody requires manifest opportunities")
+
+        bars_by_symbol: dict[str, object] = {}
+        bounds_by_symbol: dict[str, tuple[tuple[object, ...], tuple[object, ...]]] = {}
+        for symbol in SYMBOLS:
+            evidence, _provenance = load_raw_m5_cached(roots[symbol])
+            if evidence.symbol != symbol:
+                raise ValueError(
+                    f"lifecycle Market Atlas identity drift: {symbol}"
+                )
+            bars_by_symbol[symbol] = evidence.bars
+            bounds_by_symbol[symbol] = (
+                tuple(item.opened_at for item in evidence.bars),
+                tuple(item.closed_at for item in evidence.bars),
+            )
+
+        result: dict[str, dict[str, object]] = {}
+        for raw in rows:
+            if not isinstance(raw, dict):
+                raise ValueError("lifecycle manifest row must be mapping")
+            signal = str(raw["signal_fingerprint"])
+            symbol = str(raw["qore_symbol"])
+            opportunity = raw.get("trader_opportunity")
+            if not isinstance(opportunity, dict):
+                raise ValueError("lifecycle trader opportunity missing")
+            outcome = manifest_row_to_shadow_outcome_observation(raw)
+            opened, closed = bounds_by_symbol[symbol]
+            series = bars_by_symbol[symbol]
+            start = bisect_left(opened, outcome.entry_at)
+            end = bisect_right(closed, outcome.exit_at)
+            managed = run_cibo_position_lifecycle(
+                CiboPositionLifecycleInput(
+                    signal_fingerprint=signal,
+                    side=str(opportunity["side"]),
+                    entry_at=outcome.entry_at,
+                    horizon_at=outcome.exit_at,
+                    entry_price=Decimal(str(opportunity["intended_entry"])),
+                    structural_stop=Decimal(str(opportunity["stop_loss"])),
+                    technical_target=Decimal(str(opportunity["take_profit"])),
+                    provider_cost_per_volume_usd=(
+                        manifest_row_provider_cost_per_volume_usd(raw)
+                    ),
+                    stop_risk_per_volume_usd=Decimal(
+                        str(opportunity["stop_loss_per_volume"])
+                    ),
+                    original_settlement_gross_r=(
+                        outcome.gross_structural_outcome_r
+                    ),
+                ),
+                series[start:end] if start < end else (),
+                features=features,
+                adverse_loss_cut_r=adverse_loss_cut_r,
+                adverse_partial_fraction=adverse_partial_fraction,
+                bootstrap_partial_fraction=bootstrap_partial_fraction,
+                adverse_tightened_stop_r=adverse_tightened_stop_r,
+                defensive_initial_stop_r=defensive_initial_stop_r,
+            )
+            result[signal] = {
+                "original_gross_r": format(
+                    outcome.gross_structural_outcome_r,
+                    "f",
+                ),
+                "managed_gross_r": format(managed.gross_r, "f"),
+                "managed_exit_at": managed.exit_at.isoformat(),
+                "data_available": managed.data_available,
+                "actions": list(managed.actions),
+                "events": managed.events,
+                "enabled_features": sorted(
+                    item.value for item in features
+                ),
+                "adverse_loss_cut_r": format(adverse_loss_cut_r, "f"),
+                "adverse_partial_fraction": format(
+                    adverse_partial_fraction,
+                    "f",
+                ),
+                "bootstrap_partial_fraction": format(
+                    bootstrap_partial_fraction,
+                    "f",
+                ),
+                "adverse_tightened_stop_r": format(
+                    adverse_tightened_stop_r,
+                    "f",
+                ),
+                "defensive_initial_stop_r": format(
+                    defensive_initial_stop_r,
+                    "f",
+                ),
+                "risk_released_before_exit_fraction": format(
+                    managed.risk_released_before_exit_fraction,
+                    "f",
+                ),
+                "margin_released_before_exit_fraction": format(
+                    managed.margin_released_before_exit_fraction,
+                    "f",
+                ),
+            }
+        return result
 
     suite: dict[str, Any] = json.loads(args.suite.read_text(encoding="utf-8"))
     cases = suite.get("cases")
@@ -148,13 +273,13 @@ def main() -> int:
         feature_values = option_values(tokens, "--lifecycle-feature")
         features = (
             frozenset(
-                subject.CiboLifecycleFeature(value)
+                CiboLifecycleFeature(value)
                 for value in feature_values
             )
             if feature_values
-            else subject.FULL_CIBO_LIFECYCLE_FEATURES
+            else FULL_CIBO_LIFECYCLE_FEATURES
         )
-        lifecycle = subject._build_lifecycle_map(
+        lifecycle = build_lifecycle_map(
             manifest,
             roots,
             features=features,

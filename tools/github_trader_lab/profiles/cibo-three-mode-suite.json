@@ -1,6 +1,6 @@
 {
   "schema": "qore.github-trader-lab.profile.v2",
-  "profile_id": "cibo-three-mode-suite-prepared-lifecycle-fast-v2",
+  "profile_id": "cibo-three-mode-suite-prepared-lifecycle-fast-v3",
   "repository": "mezas3238-hue/qore-core",
   "subject": "CIBO",
   "max_parallel_lanes": 1,
@@ -21,7 +21,6 @@
       "{prepared}"
     ],
     "dependency_globs": [
-      "scripts/cibo_trader_lab_three_mode_ceiling.py",
       "src/qore/infrastructure/cibo_position_lifecycle.py",
       "src/qore/infrastructure/trader_lab/cibo_market_atlas_journey_extractor_v1.py",
       "src/qore/infrastructure/cibo_single_account_manifest_economics.py",
