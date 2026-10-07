@@ -85,12 +85,21 @@ def normalize_case(name: str, result: dict[str, Any]) -> dict[str, Any]:
     for row in receipts:
         if not isinstance(row, dict):
             raise ValueError(f"{name}: malformed trade receipt")
-        risk = d(row["stop_risk_usd"])
-        gross_r = d(row["gross_structural_outcome_r_postdecision"])
-        provider_cost = d(row["provider_cost_usd"])
-        net_r_values.append(
-            gross_r if risk <= 0 else gross_r - (provider_cost / risk)
-        )
+        if "realized_net_r" not in row or "realized_net_pnl_usd" not in row:
+            raise ValueError(
+                f"{name}: realized lifecycle settlement missing from trade receipt"
+            )
+        realized_net_r = d(row["realized_net_r"])
+        realized_net_pnl = d(row["realized_net_pnl_usd"])
+        stop_risk = d(row["stop_risk_usd"])
+        if stop_risk > 0:
+            reconstructed = realized_net_r * stop_risk
+            tolerance = max(Decimal("0.00000001"), abs(realized_net_pnl) * Decimal("0.00000001"))
+            if abs(reconstructed - realized_net_pnl) > tolerance:
+                raise ValueError(
+                    f"{name}: realized net R/PnL receipt consistency failure"
+                )
+        net_r_values.append(realized_net_r)
 
     if int(result["decision_count"]) != int(result["trade_count"]):
         raise ValueError(f"{name}: Trader base entry conservation failed")
