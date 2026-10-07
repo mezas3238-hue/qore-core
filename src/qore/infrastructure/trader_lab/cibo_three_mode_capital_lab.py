@@ -1724,11 +1724,48 @@ def run_three_mode_trader_lab(
         ),
     )
 
+    economic_admitted_count = upstream_intake_admitted_count
+    sizing_call_count = int(sensor_stats["SIZING"]["call_count"])
+    sizing_rejection_count = int(sensor_stats["SIZING"]["rejection_count"])
+    sizing_approval_count = int(sensor_stats["SIZING"]["approval_count"])
+    portfolio_withheld_before_sizing = max(
+        0,
+        economic_admitted_count - sizing_call_count,
+    )
+    execution_funnel = {
+        "opportunity_decision_count": len(rows),
+        "upstream_filtered_before_economy_count": (
+            upstream_intake_filtered_count
+        ),
+        "economic_surface_admitted_count": economic_admitted_count,
+        "compound_portfolio_withheld_before_sizing_count": (
+            portfolio_withheld_before_sizing
+        ),
+        "sizing_evaluated_count": sizing_call_count,
+        "sizing_rejected_count": sizing_rejection_count,
+        "sizing_approved_count": sizing_approval_count,
+        "adaptive_leverage_evaluated_count": int(
+            sensor_stats["ADAPTIVE_LEVERAGE"]["call_count"]
+        ),
+        "adaptive_leverage_rejected_count": int(
+            sensor_stats["ADAPTIVE_LEVERAGE"]["rejection_count"]
+        ),
+        "final_trade_count": trade_count,
+        "causal_conservation_check": (
+            upstream_intake_filtered_count
+            + portfolio_withheld_before_sizing
+            + sizing_rejection_count
+            + sizing_approval_count
+            == len(rows)
+        ),
+    }
+
     engineering_sensor_report = {
         "schema": "qore.trader_lab.cibo_economic_engineering_sensors.v1",
         "trace_event_count": len(engineering_trace),
         "opportunity_decision_count": len(rows),
         "decision_epoch_count": len(epochs),
+        "execution_funnel": execution_funnel,
         "upstream_economic_intake": {
             "admitted_count": upstream_intake_admitted_count,
             "filtered_before_economic_surface_count": (
