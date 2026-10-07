@@ -159,6 +159,17 @@ def experiment_lane(
             lane=lane,
             variant=name,
         )
+    case_failures = payload.get("case_failures", {})
+    if isinstance(case_failures, dict):
+        for name, failure in case_failures.items():
+            if isinstance(failure, dict):
+                monitor.report(
+                    "experiment.case_failure",
+                    failure,
+                    lane=lane,
+                    variant=str(name),
+                )
+        summary["failed_cases"] = sorted(str(name) for name in case_failures)
 
     monitor.set_lane(
         lane,

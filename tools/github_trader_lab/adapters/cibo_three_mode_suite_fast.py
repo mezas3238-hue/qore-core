@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import inspect
 import json
 import os
 import sys
@@ -229,7 +230,9 @@ def deserialize_lifecycle(
     return result
 
 
-def run_case_worker(job: dict[str, object]) -> tuple[str, dict[str, Any]]:
+def run_case_worker(
+    job: dict[str, object],
+) -> tuple[str, dict[str, Any] | None, dict[str, str] | None]:
     name = str(job["name"])
     subject_root = Path(str(job["subject_root"]))
     sys.path.insert(0, str((subject_root / "src").resolve()))
@@ -238,6 +241,20 @@ def run_case_worker(job: dict[str, object]) -> tuple[str, dict[str, Any]]:
 
     lifecycle_path_raw = job.get("lifecycle_sidecar")
     original_builder = subject._build_lifecycle_map
+    original_run = subject.run_three_mode_trader_lab
+    fast_parameters = inspect.signature(original_run).parameters
+    if {
+        "collect_engineering_trace",
+        "collect_epoch_receipts",
+        "compact_trade_receipts",
+    }.issubset(fast_parameters):
+        def fast_run(*run_args: object, **run_kwargs: object) -> dict[str, object]:
+            run_kwargs["collect_engineering_trace"] = False
+            run_kwargs["collect_epoch_receipts"] = False
+            run_kwargs["compact_trade_receipts"] = True
+            return original_run(*run_args, **run_kwargs)
+
+        subject.run_three_mode_trader_lab = fast_run
     if lifecycle_path_raw:
         lifecycle_map = deserialize_lifecycle(
             Path(str(lifecycle_path_raw)),
@@ -282,13 +299,24 @@ def run_case_worker(job: dict[str, object]) -> tuple[str, dict[str, Any]]:
     try:
         sys.argv = argv
         rc = subject.main()
+        if rc != 0:
+            raise RuntimeError(f"{name}: subject runner returned {rc}")
+        result = json.loads(case_output.read_text(encoding="utf-8"))
+        return name, normalize_case(name, result), None
+    except Exception as error:
+        return (
+            name,
+            None,
+            {
+                "status": "FAILED_CASE",
+                "error_type": type(error).__name__,
+                "message": str(error),
+            },
+        )
     finally:
         sys.argv = previous
         subject._build_lifecycle_map = original_builder
-    if rc != 0:
-        raise RuntimeError(f"{name}: subject runner returned {rc}")
-    result = json.loads(case_output.read_text(encoding="utf-8"))
-    return name, normalize_case(name, result)
+        subject.run_three_mode_trader_lab = original_run
 
 
 def main() -> int:
@@ -368,17 +396,29 @@ def main() -> int:
     requested = int(os.environ.get("QORE_TRADER_LAB_CASE_WORKERS", "4"))
     workers = max(1, min(len(jobs), requested, os.cpu_count() or 1))
     completed: dict[str, dict[str, Any]] = {}
+    failures: dict[str, dict[str, str]] = {}
     with ProcessPoolExecutor(max_workers=workers) as pool:
-        futures = {pool.submit(run_case_worker, job): str(job["name"]) for job in jobs}
+        futures = {
+            pool.submit(run_case_worker, job): str(job["name"])
+            for job in jobs
+        }
         for future in as_completed(futures):
-            name, row = future.result()
-            completed[name] = row
+            name, row, failure = future.result()
+            if failure is not None:
+                failures[name] = failure
+            elif row is not None:
+                completed[name] = row
 
+    control = str(cases[0]["name"])
+    if control not in completed:
+        raise RuntimeError(
+            f"control case failed: {failures.get(control, {})}"
+        )
     variants = {
         str(case["name"]): completed[str(case["name"])]
         for case in cases
+        if str(case["name"]) in completed
     }
-    control = str(cases[0]["name"])
     apply_preservation(variants, control)
 
     payload = {
@@ -387,12 +427,15 @@ def main() -> int:
         "lane": "cibo-three-mode-suite",
         "control": control,
         "variants": variants,
+        "case_failures": failures,
         "governance": {
             "research_only": True,
             "same_subject_code_reused": True,
             "lifecycle_resolved_during_prepare": True,
             "atlas_scans_in_hot_path": 0,
             "case_workers": workers,
+            "failed_case_count": len(failures),
+            "failed_cases_are_research_outcomes": True,
             "trader_base_entry_conservation_required": True,
             "fresh_holdout_opened": False,
             "certification_claimed": False,
@@ -410,6 +453,7 @@ def main() -> int:
                 "control": control,
                 "case_workers": workers,
                 "atlas_scans_in_hot_path": 0,
+                "case_failures": failures,
                 "variants": {
                     name: {
                         "trade_count": row["trade_count"],
