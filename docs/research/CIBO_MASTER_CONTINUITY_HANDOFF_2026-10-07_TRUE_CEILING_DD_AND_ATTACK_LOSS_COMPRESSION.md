@@ -2779,3 +2779,62 @@ The following were tested and are not current winners:
 Next action:
 
 **finish fourth-window frontier → promote only a STRICT_PARETO sub-45% candidate if one exists → re-forensic its new max-DD episode → repeat.**
+
+
+---
+
+# 31. STRICT-PARETO RECORD — DD 40.16%; BOTTLENECK HAS MOVED FROM ATTACK TO MEDIUM BOOTSTRAP
+
+The compression program has crossed a new structural frontier.
+
+Current best confirmed strict-Pareto candidate:
+
+- ending capital: **USD 667,465.3815424082592337221428**;
+- frozen hard floor: USD 582,440.0252953678696769360345;
+- capital headroom above frozen floor: **~USD 85,025.36**;
+- max DD: **0.401623749215602999... = 40.1624%**;
+- frozen control DD: ~65.1042%;
+- total gross loss: **USD 961,632.2275181883032759702540**;
+- frozen control total gross loss: USD 1,444,736.060362508738067914772;
+- gross-loss reduction: **~USD 483,103.83 / ~33.44%**;
+- ATTACK gross loss: **USD 960,080.0724845935635332094296**;
+- entries: **3,368 / 3,368 preserved**;
+- strict Pareto: PASS.
+
+The path from frozen control is now approximately:
+
+65.10% DD -> 48.37% -> 46.25% -> 43.85% -> **40.16%**.
+
+## Structural bottleneck migration
+
+At this new carrier, max DD is no longer ATTACK-driven.
+
+Current max-DD episode:
+
+- peak: 2019-07-19T06:45:00+00:00;
+- trough: 2019-08-12T17:00:00+00:00;
+- peak capital: ~USD 79.7639;
+- trough capital: ~USD 47.7288;
+- DD USD: ~USD 32.0351;
+- DD fraction: ~40.1624%;
+- mode attribution: **MEDIUM = -USD 32.0351; ATTACK = 0 in the max-DD episode**.
+
+Losses in this episode are dominated by MEDIUM 1x-2x bootstrap trades. Therefore continuing to taper ATTACK cannot reduce the current max DD efficiently.
+
+The optimization target has migrated to:
+
+**low-capital MEDIUM bootstrap lifecycle defense, localized near the ~USD 80 capital region and activated only under live DD / realized loss state.**
+
+Broad MEDIUM protection is forbidden because earlier wide bootstrap defenses destroyed terminal compounding.
+
+## Active parallel work
+
+The following targeted experiments are active in parallel:
+
+- `QORE CIBO Carrier40 Adverse Partial Bootstrap` — run `37681076102`;
+- `QORE CIBO Carrier40 Adverse Tighten Bootstrap` — run `37681191273`;
+- `QORE CIBO Carrier40 Combined MEDIUM Bootstrap Defense` — run `37681353721`;
+- `QORE CIBO Carrier40 Bootstrap Capital Ridge` — run `37681421203`;
+- `QORE CIBO Carrier40 Bootstrap Initial Stop Ridge` — run `37681636785`.
+
+All are required to preserve 3,368 entries and the original frozen capital floor. The immediate research goal is a strict-Pareto crossing below 40%, then below 35%, while continuing gross-loss compression.
