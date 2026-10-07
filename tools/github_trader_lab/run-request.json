@@ -1,6 +1,6 @@
 {
   "schema": "qore.github-trader-lab.run-request.v1",
   "profile_path": "tools/github_trader_lab/profiles/cibo-three-mode-suite.json",
-  "subject_ref": "agent/cibo-causal-expectation-leakage-fix-001",
-  "benchmark": "cibo-three-mode-suite-migration-cold-001"
+  "subject_ref": "agent/cibo-dd-loss-compression-001",
+  "benchmark": "cibo-dd-gross-loss-causal-attack-streak-005"
 }

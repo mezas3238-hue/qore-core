@@ -258,6 +258,7 @@ def main() -> int:
     sidecar_root.mkdir(parents=True, exist_ok=True)
     lifecycle_sidecars: dict[str, str] = {}
     lifecycle_counts: dict[str, int] = {}
+    policy_cache: dict[str, tuple[str, int]] = {}
 
     for case in cases:
         if not isinstance(case, dict) or not bool(case.get("uses_atlas")):
@@ -279,37 +280,70 @@ def main() -> int:
             if feature_values
             else FULL_CIBO_LIFECYCLE_FEATURES
         )
+        adverse_loss_cut_r = decimal_option(
+            tokens,
+            "--lifecycle-adverse-loss-cut-r",
+            "-0.50",
+        )
+        adverse_partial_fraction = decimal_option(
+            tokens,
+            "--lifecycle-adverse-partial-fraction",
+            "0.25",
+        )
+        bootstrap_partial_fraction = decimal_option(
+            tokens,
+            "--lifecycle-bootstrap-partial-fraction",
+            "0.50",
+        )
+        adverse_tightened_stop_r = decimal_option(
+            tokens,
+            "--lifecycle-adverse-tightened-stop-r",
+            "-0.50",
+        )
+        defensive_initial_stop_r = decimal_option(
+            tokens,
+            "--lifecycle-defensive-initial-stop-r",
+            "-0.50",
+        )
+        policy_payload = {
+            "features": sorted(item.value for item in features),
+            "adverse_loss_cut_r": format(adverse_loss_cut_r, "f"),
+            "adverse_partial_fraction": format(
+                adverse_partial_fraction, "f"
+            ),
+            "bootstrap_partial_fraction": format(
+                bootstrap_partial_fraction, "f"
+            ),
+            "adverse_tightened_stop_r": format(
+                adverse_tightened_stop_r, "f"
+            ),
+            "defensive_initial_stop_r": format(
+                defensive_initial_stop_r, "f"
+            ),
+        }
+        policy_key = json.dumps(
+            policy_payload,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        cached = policy_cache.get(policy_key)
+        if cached is not None:
+            lifecycle_sidecars[name] = cached[0]
+            lifecycle_counts[name] = cached[1]
+            continue
+
         lifecycle = build_lifecycle_map(
             manifest,
             roots,
             features=features,
-            adverse_loss_cut_r=decimal_option(
-                tokens,
-                "--lifecycle-adverse-loss-cut-r",
-                "-0.50",
-            ),
-            adverse_partial_fraction=decimal_option(
-                tokens,
-                "--lifecycle-adverse-partial-fraction",
-                "0.25",
-            ),
-            bootstrap_partial_fraction=decimal_option(
-                tokens,
-                "--lifecycle-bootstrap-partial-fraction",
-                "0.50",
-            ),
-            adverse_tightened_stop_r=decimal_option(
-                tokens,
-                "--lifecycle-adverse-tightened-stop-r",
-                "-0.50",
-            ),
-            defensive_initial_stop_r=decimal_option(
-                tokens,
-                "--lifecycle-defensive-initial-stop-r",
-                "-0.50",
-            ),
+            adverse_loss_cut_r=adverse_loss_cut_r,
+            adverse_partial_fraction=adverse_partial_fraction,
+            bootstrap_partial_fraction=bootstrap_partial_fraction,
+            adverse_tightened_stop_r=adverse_tightened_stop_r,
+            defensive_initial_stop_r=defensive_initial_stop_r,
         )
-        sidecar = sidecar_root / f"{name}.json"
+        policy_id = hashlib.sha256(policy_key.encode()).hexdigest()[:16]
+        sidecar = sidecar_root / f"policy-{policy_id}.json"
         sidecar.write_text(
             json.dumps(
                 serialize_lifecycle_map(lifecycle),
@@ -319,10 +353,11 @@ def main() -> int:
             + "\n",
             encoding="utf-8",
         )
-        lifecycle_sidecars[name] = sidecar.relative_to(
-            args.output.parent
-        ).as_posix()
-        lifecycle_counts[name] = len(lifecycle)
+        relative = sidecar.relative_to(args.output.parent).as_posix()
+        count = len(lifecycle)
+        policy_cache[policy_key] = (relative, count)
+        lifecycle_sidecars[name] = relative
+        lifecycle_counts[name] = count
 
     payload = {
         "schema": "qore.github-trader-lab.cibo-three-mode-prepared.v2",
@@ -333,6 +368,7 @@ def main() -> int:
         "suite_sha256": sha256(args.suite),
         "lifecycle_sidecars": lifecycle_sidecars,
         "lifecycle_signal_counts": lifecycle_counts,
+        "unique_lifecycle_policy_count": len(policy_cache),
         "prepared_from_raw_m1": False,
         "prepared_from_cached_causal_artifacts": True,
         "atlas_consumed_only_during_prepare": True,
