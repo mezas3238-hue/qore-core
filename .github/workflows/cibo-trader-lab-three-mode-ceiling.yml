@@ -20,7 +20,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  PYTHONPATH: ${{ github.workspace }}
+  PYTHONPATH: ${{ github.workspace }}/src
   SOURCE_ARTIFACT_ID: '11451743578'
   SOURCE_ARTIFACT_DIGEST: 'sha256:d439957f21e2f79148b5a2fb75a53db6fa448698f17aeb6978f379ed3547f7ea'
 
