@@ -140,6 +140,7 @@ def run_cibo_position_lifecycle(
     adverse_loss_cut_r: Decimal = Decimal("-0.50"),
     adverse_loss_cut_confirmation_bars: int = 1,
     adverse_loss_cut_max_elapsed_minutes: int | None = None,
+    adverse_loss_cut_max_favorable_r: Decimal = Decimal("1"),
 ) -> CiboPositionLifecycleResult:
     """Evaluate one position using causal closed-bar lifecycle semantics."""
 
@@ -177,6 +178,15 @@ def run_cibo_position_lifecycle(
         raise CiboCapitalManagementError(
             "Lifecycle adverse loss-cut max elapsed minutes must be None "
             "or int in [5, 10080]"
+        )
+    if (
+        not isinstance(adverse_loss_cut_max_favorable_r, Decimal)
+        or not adverse_loss_cut_max_favorable_r.is_finite()
+        or adverse_loss_cut_max_favorable_r < Decimal(0)
+        or adverse_loss_cut_max_favorable_r > Decimal(1)
+    ):
+        raise CiboCapitalManagementError(
+            "Lifecycle adverse loss-cut max favorable R must be Decimal in [0, 1]"
         )
 
     risk_distance = abs(position.entry_price - position.structural_stop)
@@ -395,7 +405,7 @@ def run_cibo_position_lifecycle(
         )
         if (
             CiboLifecycleFeature.ADVERSE_LOSS_CUT in features
-            and best_favorable_seen < Decimal(1)
+            and best_favorable_seen < adverse_loss_cut_max_favorable_r
             and bar.closed_at < position.horizon_at
             and adverse_cut_window_open
         ):

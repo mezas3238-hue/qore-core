@@ -133,8 +133,8 @@ jobs:
         run: |
           set -euo pipefail
           : > "$RUNNER_TEMP/result/cibo-four-engine-loss-cut-failures.tsv"
-          for SPEC in "055c2t030:-0.55:2:30" "055c2t060:-0.55:2:60" "055c2t090:-0.55:2:90" "050c2t030:-0.50:2:30" "050c2t060:-0.50:2:60" "050c2t090:-0.50:2:90"; do
-            IFS=':' read -r LABEL THRESHOLD CONFIRMATIONS MAX_MINUTES <<< "$SPEC"
+          for SPEC in "050c2t180f025:-0.50:2:180:0.25" "050c2t180f050:-0.50:2:180:0.50" "050c2t180f075:-0.50:2:180:0.75" "055c2t180f025:-0.55:2:180:0.25" "055c2t180f050:-0.55:2:180:0.50" "055c2t180f075:-0.55:2:180:0.75"; do
+            IFS=':' read -r LABEL THRESHOLD CONFIRMATIONS MAX_MINUTES MAX_FAVORABLE <<< "$SPEC"
             if python scripts/cibo_trader_lab_three_mode_ceiling.py \
               --manifest "$MANIFEST" \
               --baseline-replay "$BASELINE" \
@@ -152,14 +152,15 @@ jobs:
               --lifecycle-adverse-loss-cut-r "$THRESHOLD" \
               --lifecycle-adverse-loss-cut-confirmation-bars "$CONFIRMATIONS" \
               --lifecycle-adverse-loss-cut-max-elapsed-minutes "$MAX_MINUTES" \
+              --lifecycle-adverse-loss-cut-max-favorable-r "$MAX_FAVORABLE" \
               --output "$RUNNER_TEMP/result/cibo-four-engine-loss-cut-${LABEL}.json" \
               > "$RUNNER_TEMP/result/cibo-four-engine-loss-cut-${LABEL}.log" 2>&1; then
               cat "$RUNNER_TEMP/result/cibo-four-engine-loss-cut-${LABEL}.log"
             else
               STATUS=$?
               cat "$RUNNER_TEMP/result/cibo-four-engine-loss-cut-${LABEL}.log"
-              printf '%s\t%s\t%s\t%s\t%s\n' \
-                "$LABEL" "$THRESHOLD" "$CONFIRMATIONS" "$MAX_MINUTES" "$STATUS" >> \
+              printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
+                "$LABEL" "$THRESHOLD" "$CONFIRMATIONS" "$MAX_MINUTES" "$MAX_FAVORABLE" "$STATUS" >> \
                 "$RUNNER_TEMP/result/cibo-four-engine-loss-cut-failures.tsv"
             fi
           done
@@ -213,13 +214,13 @@ jobs:
           ] == 0
 
           frontier = []
-          for filename, threshold, confirmations, max_minutes in (
-              ("cibo-four-engine-loss-cut-055c2t030.json", "-0.55", 2, 30),
-              ("cibo-four-engine-loss-cut-055c2t060.json", "-0.55", 2, 60),
-              ("cibo-four-engine-loss-cut-055c2t090.json", "-0.55", 2, 90),
-              ("cibo-four-engine-loss-cut-050c2t030.json", "-0.50", 2, 30),
-              ("cibo-four-engine-loss-cut-050c2t060.json", "-0.50", 2, 60),
-              ("cibo-four-engine-loss-cut-050c2t090.json", "-0.50", 2, 90),
+          for filename, threshold, confirmations, max_minutes, max_favorable in (
+              ("cibo-four-engine-loss-cut-050c2t180f025.json", "-0.50", 2, 180, "0.25"),
+              ("cibo-four-engine-loss-cut-050c2t180f050.json", "-0.50", 2, 180, "0.50"),
+              ("cibo-four-engine-loss-cut-050c2t180f075.json", "-0.50", 2, 180, "0.75"),
+              ("cibo-four-engine-loss-cut-055c2t180f025.json", "-0.55", 2, 180, "0.25"),
+              ("cibo-four-engine-loss-cut-055c2t180f050.json", "-0.55", 2, 180, "0.50"),
+              ("cibo-four-engine-loss-cut-055c2t180f075.json", "-0.55", 2, 180, "0.75"),
           ):
               candidate_path = (
                   Path(os.environ["RUNNER_TEMP"]) / "result" / filename
@@ -229,6 +230,7 @@ jobs:
                       "threshold_r": threshold,
                       "confirmation_bars": confirmations,
                       "max_elapsed_minutes": max_minutes,
+                      "max_favorable_r": max_favorable,
                       "status": "RUN_FAILED",
                   })
                   continue
@@ -246,6 +248,9 @@ jobs:
               assert guarded["position_lifecycle_report"][
                   "adverse_loss_cut_max_elapsed_minutes"
               ] == max_minutes
+              assert guarded["position_lifecycle_report"][
+                  "adverse_loss_cut_max_favorable_r"
+              ] == max_favorable
               assert guarded["position_lifecycle_report"]["outcome_used_for_trigger"] is False
               guarded_funnel = guarded["engineering_sensor_report"]["execution_funnel"]
               assert guarded_funnel["final_trade_count"] == 3368
@@ -256,6 +261,7 @@ jobs:
                   "threshold_r": threshold,
                   "confirmation_bars": confirmations,
                   "max_elapsed_minutes": max_minutes,
+                  "max_favorable_r": max_favorable,
                   "status": "SUCCESS",
                   "ending_total_capital_usd": guarded["ending_total_capital_usd"],
                   "max_drawdown_fraction": guarded["max_drawdown_fraction"],

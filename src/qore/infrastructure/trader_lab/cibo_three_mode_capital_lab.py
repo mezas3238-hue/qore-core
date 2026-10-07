@@ -939,10 +939,16 @@ def run_three_mode_trader_lab(
             adverse_loss_cut_max_elapsed_minutes = profile.get(
                 "adverse_loss_cut_max_elapsed_minutes"
             )
+            adverse_loss_cut_max_favorable_r = Decimal(
+                str(profile.get("adverse_loss_cut_max_favorable_r", "1"))
+            )
             if (
                 not managed.is_finite()
                 or not original.is_finite()
                 or not adverse_loss_cut_r.is_finite()
+                or not adverse_loss_cut_max_favorable_r.is_finite()
+                or adverse_loss_cut_max_favorable_r < Decimal(0)
+                or adverse_loss_cut_max_favorable_r > Decimal(1)
                 or not isinstance(adverse_loss_cut_confirmation_bars, int)
                 or isinstance(adverse_loss_cut_confirmation_bars, bool)
                 or adverse_loss_cut_confirmation_bars < 1
@@ -1029,6 +1035,19 @@ def run_three_mode_trader_lab(
         if lifecycle_loss_cut_windows
         else None
     )
+    lifecycle_loss_cut_favorable_caps = {
+        Decimal(str(profile.get("adverse_loss_cut_max_favorable_r", "1")))
+        for profile in lifecycle_map.values()
+    }
+    if len(lifecycle_loss_cut_favorable_caps) > 1:
+        raise CiboCapitalManagementError(
+            "Trader Lab lifecycle loss-cut favorable cap must be uniform"
+        )
+    lifecycle_adverse_loss_cut_max_favorable_r = (
+        next(iter(lifecycle_loss_cut_favorable_caps))
+        if lifecycle_loss_cut_favorable_caps
+        else None
+    )
     lifecycle_data_available_count = 0
     lifecycle_changed_count = 0
     for profile in lifecycle_map.values():
@@ -1059,6 +1078,11 @@ def run_three_mode_trader_lab(
         ),
         "adverse_loss_cut_max_elapsed_minutes": (
             lifecycle_adverse_loss_cut_max_elapsed_minutes
+        ),
+        "adverse_loss_cut_max_favorable_r": (
+            None
+            if lifecycle_adverse_loss_cut_max_favorable_r is None
+            else format(lifecycle_adverse_loss_cut_max_favorable_r, "f")
         ),
         "causal_closed_bar_only": bool(lifecycle_map),
         "outcome_used_for_trigger": False,

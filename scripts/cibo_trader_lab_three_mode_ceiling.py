@@ -57,6 +57,7 @@ def _build_lifecycle_map(
     adverse_loss_cut_r: Decimal,
     adverse_loss_cut_confirmation_bars: int,
     adverse_loss_cut_max_elapsed_minutes: int | None,
+    adverse_loss_cut_max_favorable_r: Decimal,
 ) -> dict[str, dict[str, object]]:
     if not roots:
         return {}
@@ -114,6 +115,9 @@ def _build_lifecycle_map(
             adverse_loss_cut_max_elapsed_minutes=(
                 adverse_loss_cut_max_elapsed_minutes
             ),
+            adverse_loss_cut_max_favorable_r=(
+                adverse_loss_cut_max_favorable_r
+            ),
         )
         result[signal] = {
             "original_gross_r": format(outcome.gross_structural_outcome_r, "f"),
@@ -129,6 +133,9 @@ def _build_lifecycle_map(
             ),
             "adverse_loss_cut_max_elapsed_minutes": (
                 adverse_loss_cut_max_elapsed_minutes
+            ),
+            "adverse_loss_cut_max_favorable_r": format(
+                adverse_loss_cut_max_favorable_r, "f"
             ),
             "risk_released_before_exit_fraction": format(
                 managed.risk_released_before_exit_fraction, "f"
@@ -188,6 +195,15 @@ def main() -> int:
         help=(
             "Optional early-window limit for adverse-loss confirmation. "
             "Signals armed after this many elapsed minutes are ignored."
+        ),
+    )
+    parser.add_argument(
+        "--lifecycle-adverse-loss-cut-max-favorable-r",
+        type=Decimal,
+        default=Decimal("1"),
+        help=(
+            "Only arm ADVERSE_LOSS_CUT while the best favorable excursion "
+            "seen so far remains below this causal R threshold."
         ),
     )
     parser.add_argument(
@@ -270,6 +286,9 @@ def main() -> int:
         ),
         adverse_loss_cut_max_elapsed_minutes=(
             args.lifecycle_adverse_loss_cut_max_elapsed_minutes
+        ),
+        adverse_loss_cut_max_favorable_r=(
+            args.lifecycle_adverse_loss_cut_max_favorable_r
         ),
     )
     baseline = None
