@@ -16,54 +16,6 @@
       ]
     },
     {
-      "name": "MEDIUM_DD_INTENSITY_005",
-      "uses_atlas": false,
-      "args": [
-        "--medium-drawdown-intensity-trigger",
-        "0.05",
-        "--distributed-attack-frontier",
-        "--attack-multiplier-cap",
-        "8",
-        "--medium-multiplier-cap",
-        "4",
-        "--coordinated-economic-group",
-        "--economic-group-bootstrap-cushion-share",
-        "0.75"
-      ]
-    },
-    {
-      "name": "MEDIUM_DD_INTENSITY_010",
-      "uses_atlas": false,
-      "args": [
-        "--medium-drawdown-intensity-trigger",
-        "0.10",
-        "--distributed-attack-frontier",
-        "--attack-multiplier-cap",
-        "8",
-        "--medium-multiplier-cap",
-        "4",
-        "--coordinated-economic-group",
-        "--economic-group-bootstrap-cushion-share",
-        "0.75"
-      ]
-    },
-    {
-      "name": "MEDIUM_DD_INTENSITY_015",
-      "uses_atlas": false,
-      "args": [
-        "--medium-drawdown-intensity-trigger",
-        "0.15",
-        "--distributed-attack-frontier",
-        "--attack-multiplier-cap",
-        "8",
-        "--medium-multiplier-cap",
-        "4",
-        "--coordinated-economic-group",
-        "--economic-group-bootstrap-cushion-share",
-        "0.75"
-      ]
-    },
-    {
       "name": "INITIAL_STOP_003_035",
       "uses_atlas": true,
       "args": [
@@ -84,17 +36,16 @@
       ]
     },
     {
-      "name": "INITIAL_STOP_003_035_PLUS_MEDIUM_DD010",
+      "name": "STREAK1_PARTIAL25",
       "uses_atlas": true,
       "args": [
         "--lifecycle-feature",
-        "DEFENSIVE_INITIAL_STOP_CAP",
+        "ADVERSE_PARTIAL_REDUCTION",
         "--lifecycle-defensive-medium-1x-only",
-        "--lifecycle-minimum-stop-risk-fraction-trigger",
-        "0.03",
-        "--lifecycle-defensive-initial-stop-r=-0.35",
-        "--medium-drawdown-intensity-trigger",
-        "0.10",
+        "--lifecycle-trader-loss-streak-trigger",
+        "1",
+        "--lifecycle-adverse-loss-cut-r=-0.65",
+        "--lifecycle-adverse-partial-fraction=0.25",
         "--distributed-attack-frontier",
         "--attack-multiplier-cap",
         "8",
@@ -106,17 +57,57 @@
       ]
     },
     {
-      "name": "INITIAL_STOP_003_035_PLUS_MEDIUM_DD015",
+      "name": "STREAK1_PARTIAL50",
       "uses_atlas": true,
       "args": [
         "--lifecycle-feature",
-        "DEFENSIVE_INITIAL_STOP_CAP",
+        "ADVERSE_PARTIAL_REDUCTION",
         "--lifecycle-defensive-medium-1x-only",
-        "--lifecycle-minimum-stop-risk-fraction-trigger",
-        "0.03",
-        "--lifecycle-defensive-initial-stop-r=-0.35",
-        "--medium-drawdown-intensity-trigger",
-        "0.15",
+        "--lifecycle-trader-loss-streak-trigger",
+        "1",
+        "--lifecycle-adverse-loss-cut-r=-0.65",
+        "--lifecycle-adverse-partial-fraction=0.50",
+        "--distributed-attack-frontier",
+        "--attack-multiplier-cap",
+        "8",
+        "--medium-multiplier-cap",
+        "4",
+        "--coordinated-economic-group",
+        "--economic-group-bootstrap-cushion-share",
+        "0.75"
+      ]
+    },
+    {
+      "name": "STREAK2_PARTIAL50",
+      "uses_atlas": true,
+      "args": [
+        "--lifecycle-feature",
+        "ADVERSE_PARTIAL_REDUCTION",
+        "--lifecycle-defensive-medium-1x-only",
+        "--lifecycle-trader-loss-streak-trigger",
+        "2",
+        "--lifecycle-adverse-loss-cut-r=-0.65",
+        "--lifecycle-adverse-partial-fraction=0.50",
+        "--distributed-attack-frontier",
+        "--attack-multiplier-cap",
+        "8",
+        "--medium-multiplier-cap",
+        "4",
+        "--coordinated-economic-group",
+        "--economic-group-bootstrap-cushion-share",
+        "0.75"
+      ]
+    },
+    {
+      "name": "STREAK2_HARD065",
+      "uses_atlas": true,
+      "args": [
+        "--lifecycle-feature",
+        "ADVERSE_LOSS_CUT",
+        "--lifecycle-defensive-medium-1x-only",
+        "--lifecycle-trader-loss-streak-trigger",
+        "2",
+        "--lifecycle-adverse-loss-cut-r=-0.65",
         "--distributed-attack-frontier",
         "--attack-multiplier-cap",
         "8",
