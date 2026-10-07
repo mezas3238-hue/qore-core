@@ -261,6 +261,39 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--lifecycle-bootstrap-override-defensive-initial-stop-r",
+        type=Decimal,
+        default=None,
+        help=(
+            "Optional second causal lifecycle map with a stronger initial stop, "
+            "selected only by the bootstrap override state gates."
+        ),
+    )
+    parser.add_argument(
+        "--lifecycle-bootstrap-override-capital-ceiling",
+        type=Decimal,
+        default=None,
+        help="Maximum live total capital for the bootstrap lifecycle override.",
+    )
+    parser.add_argument(
+        "--lifecycle-bootstrap-override-drawdown-trigger",
+        type=Decimal,
+        default=None,
+        help="Minimum live realized DD for the bootstrap lifecycle override.",
+    )
+    parser.add_argument(
+        "--lifecycle-bootstrap-override-trader-loss-streak-trigger",
+        type=int,
+        default=None,
+        help="Minimum same-Trader settled loss streak for the bootstrap lifecycle override.",
+    )
+    parser.add_argument(
+        "--lifecycle-bootstrap-override-medium-max-multiplier",
+        type=int,
+        default=2,
+        help="Maximum MEDIUM multiplier eligible for the bootstrap lifecycle override.",
+    )
+    parser.add_argument(
         "--lifecycle-bootstrap-capital-ceiling",
         type=Decimal,
         default=None,
@@ -830,9 +863,10 @@ def main() -> int:
         if args.lifecycle_feature
         else FULL_CIBO_LIFECYCLE_FEATURES
     )
+    lifecycle_roots = _lifecycle_roots(args.lifecycle_source_root)
     lifecycle_by_signal = _build_lifecycle_map(
         manifest,
-        _lifecycle_roots(args.lifecycle_source_root),
+        lifecycle_roots,
         features=lifecycle_features,
         adverse_loss_cut_r=args.lifecycle_adverse_loss_cut_r,
         adverse_partial_fraction=args.lifecycle_adverse_partial_fraction,
@@ -840,6 +874,20 @@ def main() -> int:
         adverse_tightened_stop_r=args.lifecycle_adverse_tightened_stop_r,
         defensive_initial_stop_r=args.lifecycle_defensive_initial_stop_r,
     )
+    lifecycle_bootstrap_override_by_signal = None
+    if args.lifecycle_bootstrap_override_defensive_initial_stop_r is not None:
+        lifecycle_bootstrap_override_by_signal = _build_lifecycle_map(
+            manifest,
+            lifecycle_roots,
+            features=lifecycle_features,
+            adverse_loss_cut_r=args.lifecycle_adverse_loss_cut_r,
+            adverse_partial_fraction=args.lifecycle_adverse_partial_fraction,
+            bootstrap_partial_fraction=args.lifecycle_bootstrap_partial_fraction,
+            adverse_tightened_stop_r=args.lifecycle_adverse_tightened_stop_r,
+            defensive_initial_stop_r=(
+                args.lifecycle_bootstrap_override_defensive_initial_stop_r
+            ),
+        )
     baseline = None
     cognitive_recommend_by_signal = None
     native_profile_by_signal = None
@@ -1108,6 +1156,21 @@ def main() -> int:
         native_profile_by_signal=native_profile_by_signal,
         historical_prior_by_signal=historical_prior_by_signal,
         lifecycle_by_signal=lifecycle_by_signal or None,
+        lifecycle_bootstrap_override_by_signal=(
+            lifecycle_bootstrap_override_by_signal
+        ),
+        lifecycle_bootstrap_override_capital_ceiling=(
+            args.lifecycle_bootstrap_override_capital_ceiling
+        ),
+        lifecycle_bootstrap_override_drawdown_trigger=(
+            args.lifecycle_bootstrap_override_drawdown_trigger
+        ),
+        lifecycle_bootstrap_override_trader_loss_streak_trigger=(
+            args.lifecycle_bootstrap_override_trader_loss_streak_trigger
+        ),
+        lifecycle_bootstrap_override_medium_max_multiplier=(
+            args.lifecycle_bootstrap_override_medium_max_multiplier
+        ),
         lifecycle_defensive_medium_1x_only=(
             args.lifecycle_defensive_medium_1x_only
         ),
