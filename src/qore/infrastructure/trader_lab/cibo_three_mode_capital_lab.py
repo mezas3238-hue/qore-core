@@ -1919,6 +1919,16 @@ def run_three_mode_trader_lab(
             total_drawdown_utilization=total_drawdown_utilization,
             distributed_attack_frontier=distributed_attack_frontier,
         )
+        if four_engine_cooperation_frontier:
+            # This lane tests the economic group, not ATTACK. Every executed
+            # Trader entry must traverse the same four-engine chain. ATTACK is
+            # therefore demoted to an intensity label downstream rather than
+            # a bypass around Sizing/Compound/Portfolio/Leverage.
+            mode = CiboTraderLabMode.MEDIUM
+            mode_reasons = (
+                "FOUR_ENGINE_COOPERATION_ALL_ENTRIES",
+                *mode_reasons,
+            )
         if (
             four_engine_cooperation_frontier
             and mode is CiboTraderLabMode.ATTACK
