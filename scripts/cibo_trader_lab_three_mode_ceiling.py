@@ -837,6 +837,24 @@ def main() -> int:
         help="Fraction of coordinated ATTACK cap retained during recent-Trader loss pressure.",
     )
     parser.add_argument(
+        "--ceiling-attack-trader-shock-trigger-fraction",
+        type=Decimal,
+        default=None,
+        help="Previous same-Trader ATTACK loss fraction that arms a one-shot taper.",
+    )
+    parser.add_argument(
+        "--ceiling-attack-trader-shock-drawdown-trigger",
+        type=Decimal,
+        default=Decimal("0.10"),
+        help="Minimum live DD before the same-Trader one-shot shock may fire.",
+    )
+    parser.add_argument(
+        "--ceiling-attack-trader-shock-taper-fraction",
+        type=Decimal,
+        default=Decimal("0.75"),
+        help="Fraction of ATTACK single-trade risk retained for one same-Trader decision after shock.",
+    )
+    parser.add_argument(
         "--ceiling-attack-low-multiplier-demotion-upper",
         type=int,
         default=None,
@@ -1464,6 +1482,15 @@ def main() -> int:
         ),
         ceiling_attack_recent_trader_loss_taper_fraction=(
             args.ceiling_attack_recent_trader_loss_taper_fraction
+        ),
+        ceiling_attack_trader_shock_trigger_fraction=(
+            args.ceiling_attack_trader_shock_trigger_fraction
+        ),
+        ceiling_attack_trader_shock_drawdown_trigger=(
+            args.ceiling_attack_trader_shock_drawdown_trigger
+        ),
+        ceiling_attack_trader_shock_taper_fraction=(
+            args.ceiling_attack_trader_shock_taper_fraction
         ),
         ceiling_attack_low_multiplier_demotion_upper=(
             args.ceiling_attack_low_multiplier_demotion_upper
