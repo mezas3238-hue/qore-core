@@ -352,6 +352,16 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--ceiling-growth-leverage-slope",
+        type=Decimal,
+        default=None,
+        help=(
+            "Trader-Lab-only growth-staged ATTACK cap. In raw ceiling mode, "
+            "the incremental leverage ceiling grows with total-capital multiple "
+            "instead of exposing the full fixed cap from the start."
+        ),
+    )
+    parser.add_argument(
         "--summary-telemetry",
         action="store_true",
         help=(
@@ -717,6 +727,9 @@ def main() -> int:
         ),
         economic_group_ablation=args.economic_group_ablation,
         ceiling_discovery_mode=args.ceiling_discovery_mode,
+        ceiling_growth_leverage_slope=(
+            args.ceiling_growth_leverage_slope
+        ),
         collect_engineering_trace=not args.summary_telemetry,
         collect_epoch_receipts=not args.summary_telemetry,
         compact_trade_receipts=args.summary_telemetry,
