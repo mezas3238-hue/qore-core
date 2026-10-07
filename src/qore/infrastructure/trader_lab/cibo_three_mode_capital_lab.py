@@ -988,6 +988,8 @@ def run_three_mode_trader_lab(
     ceiling_attack_drawdown_window6_multiplier_lower: int | None = None,
     ceiling_attack_drawdown_window6_multiplier_upper: int | None = None,
     ceiling_attack_drawdown_window6_taper_fraction: Decimal = Decimal("0.50"),
+    ceiling_attack_drawdown_window6_capital_floor: Decimal | None = None,
+    ceiling_attack_drawdown_window6_capital_ceiling: Decimal | None = None,
     ceiling_attack_stress_confidence_drawdown_trigger: Decimal | None = None,
     ceiling_attack_stress_confidence_ratio_ceiling: Decimal | None = None,
     ceiling_attack_stress_confidence_multiplier_lower: int | None = None,
@@ -1720,6 +1722,31 @@ def run_three_mode_trader_lab(
     ):
         raise CiboCapitalManagementError(
             "Trader Lab ATTACK drawdown-window6 taper requires ceiling discovery mode"
+        )
+    if ceiling_attack_drawdown_window6_capital_floor is not None and (
+        not isinstance(ceiling_attack_drawdown_window6_capital_floor, Decimal)
+        or not ceiling_attack_drawdown_window6_capital_floor.is_finite()
+        or ceiling_attack_drawdown_window6_capital_floor < 0
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab ATTACK drawdown-window6 capital floor must be nonnegative Decimal"
+        )
+    if ceiling_attack_drawdown_window6_capital_ceiling is not None and (
+        not isinstance(ceiling_attack_drawdown_window6_capital_ceiling, Decimal)
+        or not ceiling_attack_drawdown_window6_capital_ceiling.is_finite()
+        or ceiling_attack_drawdown_window6_capital_ceiling <= 0
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab ATTACK drawdown-window6 capital ceiling must be positive Decimal"
+        )
+    if (
+        ceiling_attack_drawdown_window6_capital_floor is not None
+        and ceiling_attack_drawdown_window6_capital_ceiling is not None
+        and ceiling_attack_drawdown_window6_capital_floor
+        >= ceiling_attack_drawdown_window6_capital_ceiling
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab ATTACK drawdown-window6 capital floor must be below ceiling"
         )
     if (
         ceiling_attack_stress_confidence_drawdown_trigger is None
@@ -4604,6 +4631,16 @@ def run_three_mode_trader_lab(
                         and ceiling_attack_drawdown_window6_multiplier_lower
                         <= preliminary_multiplier
                         <= ceiling_attack_drawdown_window6_multiplier_upper
+                        and (
+                            ceiling_attack_drawdown_window6_capital_floor is None
+                            or state.total_capital_usd
+                            >= ceiling_attack_drawdown_window6_capital_floor
+                        )
+                        and (
+                            ceiling_attack_drawdown_window6_capital_ceiling is None
+                            or state.total_capital_usd
+                            <= ceiling_attack_drawdown_window6_capital_ceiling
+                        )
                     ):
                         drawdown_window6_tapered_multiplier = max(
                             ATTACK_MINIMUM_MULTIPLIER,
@@ -5989,6 +6026,16 @@ def run_three_mode_trader_lab(
             ),
             "ceiling_attack_drawdown_window6_taper_fraction": format(
                 ceiling_attack_drawdown_window6_taper_fraction, "f"
+            ),
+            "ceiling_attack_drawdown_window6_capital_floor": (
+                None
+                if ceiling_attack_drawdown_window6_capital_floor is None
+                else format(ceiling_attack_drawdown_window6_capital_floor, "f")
+            ),
+            "ceiling_attack_drawdown_window6_capital_ceiling": (
+                None
+                if ceiling_attack_drawdown_window6_capital_ceiling is None
+                else format(ceiling_attack_drawdown_window6_capital_ceiling, "f")
             ),
             "attack_drawdown_window6_taper_bind_count": (
                 attack_drawdown_window6_taper_bind_count
