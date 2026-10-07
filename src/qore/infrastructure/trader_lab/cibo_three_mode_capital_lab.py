@@ -711,6 +711,128 @@ def run_three_mode_trader_lab(
     trade_receipts: list[dict[str, object]] = []
     epoch_receipts: list[dict[str, object]] = []
 
+    economic_functions = (
+        "SIZING",
+        "ADAPTIVE_LEVERAGE",
+        "CIBO_COMPOUND",
+        "COMPOUND_PORTFOLIO",
+    )
+    engineering_trace: list[dict[str, object]] = []
+    sensor_event_sequence = 0
+    sensor_stats: dict[str, dict[str, object]] = {
+        name: {
+            "call_count": 0,
+            "approval_count": 0,
+            "rejection_count": 0,
+            "restriction_count": 0,
+            "requested_capital_usd": Decimal(0),
+            "approved_capital_usd": Decimal(0),
+            "blocked_capital_usd": Decimal(0),
+            "capital_created_usd": Decimal(0),
+            "capital_destroyed_usd": Decimal(0),
+            "reason_counts": Counter(),
+            "action_counts": Counter(),
+        }
+        for name in economic_functions
+    }
+    upstream_intake_reason_counts: Counter[str] = Counter()
+    upstream_intake_filtered_count = 0
+    upstream_intake_admitted_count = 0
+
+    def record_engineering_sensor(
+        function_name: str,
+        *,
+        epoch_index: int | None,
+        signal_fingerprint: str | None,
+        event: str,
+        inputs: Mapping[str, object],
+        action: str,
+        outputs: Mapping[str, object],
+        reaction: str,
+        reasons: tuple[str, ...] = (),
+        call: bool = False,
+        approval: bool = False,
+        rejection: bool = False,
+        restriction: bool = False,
+        requested_capital_usd: Decimal = Decimal(0),
+        approved_capital_usd: Decimal = Decimal(0),
+        blocked_capital_usd: Decimal = Decimal(0),
+        capital_created_usd: Decimal = Decimal(0),
+        capital_destroyed_usd: Decimal = Decimal(0),
+    ) -> None:
+        nonlocal sensor_event_sequence
+        if function_name not in sensor_stats:
+            raise CiboCapitalManagementError(
+                f"unknown engineering sensor function {function_name}"
+            )
+        sensor_event_sequence += 1
+        stats = sensor_stats[function_name]
+        if call:
+            stats["call_count"] = int(stats["call_count"]) + 1
+        if approval:
+            stats["approval_count"] = int(stats["approval_count"]) + 1
+        if rejection:
+            stats["rejection_count"] = int(stats["rejection_count"]) + 1
+        if restriction:
+            stats["restriction_count"] = int(stats["restriction_count"]) + 1
+        stats["requested_capital_usd"] = (
+            stats["requested_capital_usd"] + requested_capital_usd
+        )
+        stats["approved_capital_usd"] = (
+            stats["approved_capital_usd"] + approved_capital_usd
+        )
+        stats["blocked_capital_usd"] = (
+            stats["blocked_capital_usd"] + blocked_capital_usd
+        )
+        stats["capital_created_usd"] = (
+            stats["capital_created_usd"] + capital_created_usd
+        )
+        stats["capital_destroyed_usd"] = (
+            stats["capital_destroyed_usd"] + capital_destroyed_usd
+        )
+        action_counts = stats["action_counts"]
+        reason_counts = stats["reason_counts"]
+        if not isinstance(action_counts, Counter) or not isinstance(
+            reason_counts, Counter
+        ):
+            raise CiboCapitalManagementError(
+                "engineering sensor counter corruption"
+            )
+        action_counts[action] += 1
+        for reason in reasons:
+            reason_counts[reason] += 1
+        engineering_trace.append(
+            {
+                "sequence": sensor_event_sequence,
+                "epoch_index": epoch_index,
+                "signal_fingerprint": signal_fingerprint,
+                "function": function_name,
+                "event": event,
+                "inputs": dict(inputs),
+                "action": action,
+                "outputs": dict(outputs),
+                "reaction": reaction,
+                "reasons": list(reasons),
+                "capital_effect": {
+                    "requested_capital_usd": format(
+                        requested_capital_usd, "f"
+                    ),
+                    "approved_capital_usd": format(
+                        approved_capital_usd, "f"
+                    ),
+                    "blocked_capital_usd": format(
+                        blocked_capital_usd, "f"
+                    ),
+                    "capital_created_usd": format(
+                        capital_created_usd, "f"
+                    ),
+                    "capital_destroyed_usd": format(
+                        capital_destroyed_usd, "f"
+                    ),
+                },
+            }
+        )
+
     def settle_due(up_to: datetime | None) -> None:
         nonlocal pending, compound_settlements
         due = sorted(
@@ -726,7 +848,92 @@ def run_three_mode_trader_lab(
         due_ids = {id(item) for item in due}
         pending = [item for item in pending if id(item) not in due_ids]
         for trade in due:
+            before_sovereign = state.sovereign_bank_usd
+            before_cushion = state.portfolio_cushion_usd
+            before_total = state.total_capital_usd
+            record_engineering_sensor(
+                "CIBO_COMPOUND",
+                epoch_index=None,
+                signal_fingerprint=trade.signal_fingerprint,
+                event="SETTLEMENT_INPUT",
+                inputs={
+                    "mode": trade.mode.value,
+                    "multiplier": trade.multiplier,
+                    "gross_r_postdecision": format(trade.gross_r, "f"),
+                    "stop_risk_usd": format(trade.stop_risk_usd, "f"),
+                    "provider_cost_usd": format(
+                        trade.provider_cost_usd, "f"
+                    ),
+                    "source_reserved_usd": format(
+                        trade.source_reserved_usd, "f"
+                    ),
+                    "sovereign_bank_before_usd": format(
+                        before_sovereign, "f"
+                    ),
+                    "portfolio_cushion_before_usd": format(
+                        before_cushion, "f"
+                    ),
+                },
+                action="SETTLE_DUE_TRADE",
+                outputs={"exit_at": trade.exit_at.isoformat()},
+                reaction="AWAIT_SETTLEMENT_OUTPUT",
+                call=True,
+            )
             net = apply_three_mode_settlement(state, trade)
+            created = max(Decimal(0), net)
+            destroyed = max(Decimal(0), -net)
+            record_engineering_sensor(
+                "CIBO_COMPOUND",
+                epoch_index=None,
+                signal_fingerprint=trade.signal_fingerprint,
+                event="SETTLEMENT_OUTPUT",
+                inputs={
+                    "total_capital_before_usd": format(before_total, "f"),
+                },
+                action=(
+                    "COMPOUND_GAIN"
+                    if net > 0
+                    else "COMPOUND_LOSS"
+                    if net < 0
+                    else "COMPOUND_FLAT"
+                ),
+                outputs={
+                    "net_pnl_usd": format(net, "f"),
+                    "sovereign_bank_after_usd": format(
+                        state.sovereign_bank_usd, "f"
+                    ),
+                    "portfolio_cushion_after_usd": format(
+                        state.portfolio_cushion_usd, "f"
+                    ),
+                    "total_capital_after_usd": format(
+                        state.total_capital_usd, "f"
+                    ),
+                    "sovereign_delta_usd": format(
+                        state.sovereign_bank_usd - before_sovereign, "f"
+                    ),
+                    "cushion_delta_usd": format(
+                        state.portfolio_cushion_usd - before_cushion, "f"
+                    ),
+                },
+                reaction=(
+                    "INCREASE_FUTURE_CAPITAL_CAPACITY"
+                    if net > 0
+                    else "REDUCE_FUTURE_CAPITAL_CAPACITY"
+                    if net < 0
+                    else "NO_CAPITAL_CHANGE"
+                ),
+                reasons=(
+                    ("POSITIVE_SETTLEMENT",)
+                    if net > 0
+                    else ("NEGATIVE_SETTLEMENT",)
+                    if net < 0
+                    else ("FLAT_SETTLEMENT",)
+                ),
+                approval=net >= 0,
+                restriction=net < 0,
+                capital_created_usd=created,
+                capital_destroyed_usd=destroyed,
+            )
             trader_net[trade.trader_id] += net
             trader_trades[trade.trader_id] += 1
             compound_settlements += 1
@@ -776,6 +983,40 @@ def run_three_mode_trader_lab(
                 ),
             )
         )
+        eligible_signals = {item.signal_fingerprint for item in eligible}
+        for candidate in candidates:
+            if candidate.signal_fingerprint in eligible_signals:
+                upstream_intake_admitted_count += 1
+                continue
+            upstream_intake_filtered_count += 1
+            intake_reasons: list[str] = []
+            if not candidate.context_allowed:
+                intake_reasons.append("CONTEXT_OR_COGNITION_NOT_ALLOWED")
+            if candidate.expected_net_utility_usd <= 0:
+                intake_reasons.append("EXPECTED_NET_UTILITY_NONPOSITIVE")
+            if candidate.maximum_multiplier <= 0:
+                intake_reasons.append("PROVIDER_MAX_MULTIPLIER_ZERO")
+            if not intake_reasons:
+                intake_reasons.append("UNCLASSIFIED_INTAKE_FILTER")
+            for reason in intake_reasons:
+                upstream_intake_reason_counts[reason] += 1
+            record_engineering_sensor(
+                "COMPOUND_PORTFOLIO",
+                epoch_index=epoch_index,
+                signal_fingerprint=candidate.signal_fingerprint,
+                event="ECONOMIC_INTAKE_REACTION",
+                inputs={
+                    "context_allowed": candidate.context_allowed,
+                    "expected_net_utility_usd": format(
+                        candidate.expected_net_utility_usd, "f"
+                    ),
+                    "maximum_multiplier": candidate.maximum_multiplier,
+                },
+                action="OBSERVE_UPSTREAM_FILTER",
+                outputs={"admitted_to_economic_surface": False},
+                reaction="NO_SIZING_OR_LEVERAGE_CALL_POSSIBLE",
+                reasons=tuple(intake_reasons),
+            )
 
         total = state.total_capital_usd
         risk_capacity = (
@@ -805,6 +1046,76 @@ def run_three_mode_trader_lab(
         for reason in mode_reasons:
             mode_reason_counts[reason] += 1
         portfolio_calls += 1
+        minimum_attack_cushion = (
+            Decimal(0)
+            if best is None
+            else (
+                best.source_cost_per_multiplier_usd
+                * Decimal(ATTACK_MINIMUM_MULTIPLIER)
+            )
+        )
+        attack_capital_gap = max(
+            Decimal(0),
+            minimum_attack_cushion - state.cushion_available_usd,
+        )
+        record_engineering_sensor(
+            "COMPOUND_PORTFOLIO",
+            epoch_index=epoch_index,
+            signal_fingerprint=(
+                None if best is None else best.signal_fingerprint
+            ),
+            event="MODE_ALLOCATION",
+            inputs={
+                "candidate_count": len(candidates),
+                "eligible_count": len(eligible),
+                "sovereign_bank_usd": format(
+                    state.sovereign_bank_usd, "f"
+                ),
+                "sovereign_available_usd": format(
+                    state.sovereign_available_usd, "f"
+                ),
+                "sovereign_risk_budget_available_usd": format(
+                    state.sovereign_risk_budget_available_usd, "f"
+                ),
+                "portfolio_cushion_available_usd": format(
+                    state.cushion_available_usd, "f"
+                ),
+                "risk_utilization": format(risk_utilization, "f"),
+                "margin_utilization": format(margin_utilization, "f"),
+                "drawdown_utilization": format(
+                    drawdown_utilization, "f"
+                ),
+                "minimum_attack_cushion_usd": format(
+                    minimum_attack_cushion, "f"
+                ),
+            },
+            action=f"SELECT_{mode.value}",
+            outputs={
+                "mode": mode.value,
+                "attack_capital_gap_usd": format(
+                    attack_capital_gap, "f"
+                ),
+                "mode_reasons": list(mode_reasons),
+            },
+            reaction=(
+                "RELEASE_CUSHION_TO_ATTACK"
+                if mode is CiboTraderLabMode.ATTACK
+                else "KEEP_BUILDING_OR_PRESERVING_CAPITAL"
+                if mode is CiboTraderLabMode.MEDIUM
+                else "DEFEND_CAPITAL"
+            ),
+            reasons=tuple(mode_reasons),
+            call=True,
+            approval=mode is CiboTraderLabMode.ATTACK,
+            restriction=mode is not CiboTraderLabMode.ATTACK,
+            requested_capital_usd=minimum_attack_cushion,
+            approved_capital_usd=(
+                minimum_attack_cushion
+                if mode is CiboTraderLabMode.ATTACK
+                else Decimal(0)
+            ),
+            blocked_capital_usd=attack_capital_gap,
+        )
         if mode is CiboTraderLabMode.ATTACK:
             attack_epochs_funded += 1
 
@@ -830,21 +1141,79 @@ def run_three_mode_trader_lab(
             )
             for candidate in candidate_surface:
                 sizing_calls += 1
+                record_engineering_sensor(
+                    "SIZING",
+                    epoch_index=epoch_index,
+                    signal_fingerprint=candidate.signal_fingerprint,
+                    event="SIZING_INPUT",
+                    inputs={
+                        "mode": mode.value,
+                        "one_x_source_cost_usd": format(
+                            candidate.source_cost_per_multiplier_usd, "f"
+                        ),
+                        "one_x_stop_risk_usd": format(
+                            candidate.stop_risk_per_multiplier_usd, "f"
+                        ),
+                        "one_x_margin_usd": format(
+                            candidate.margin_per_multiplier_usd, "f"
+                        ),
+                        "expected_net_utility_usd": format(
+                            candidate.expected_net_utility_usd, "f"
+                        ),
+                        "sovereign_available_usd": format(
+                            state.sovereign_available_usd, "f"
+                        ),
+                        "cushion_available_usd": format(
+                            state.cushion_available_usd, "f"
+                        ),
+                        "risk_left_usd": format(risk_left, "f"),
+                        "margin_left_usd": format(margin_left, "f"),
+                    },
+                    action="EVALUATE_BASE_EXPOSURE",
+                    outputs={},
+                    reaction="AWAIT_SIZING_DECISION",
+                    call=True,
+                )
                 if mode is CiboTraderLabMode.MEDIUM:
                     economic_cap = robust_economic_multiplier_cap(
                         candidate,
                         capital_base_usd=state.sovereign_available_usd,
                     )
-                    if (
-                        economic_cap < 1
-                        or robust_capital_utility(
-                            candidate,
-                            multiplier=1,
-                            capital_base_usd=state.sovereign_available_usd,
-                        )
-                        <= 0
-                    ):
+                    one_x_utility = robust_capital_utility(
+                        candidate,
+                        multiplier=1,
+                        capital_base_usd=state.sovereign_available_usd,
+                    )
+                    if economic_cap < 1 or one_x_utility <= 0:
                         robust_sizing_reject_count += 1
+                        sizing_reasons = (
+                            ("ROBUST_ECONOMIC_CAP_LT_1X",)
+                            if economic_cap < 1
+                            else ("ROBUST_UTILITY_NONPOSITIVE_AT_1X",)
+                        )
+                        record_engineering_sensor(
+                            "SIZING",
+                            epoch_index=epoch_index,
+                            signal_fingerprint=candidate.signal_fingerprint,
+                            event="SIZING_OUTPUT",
+                            inputs={
+                                "robust_economic_cap": economic_cap,
+                                "one_x_robust_utility_usd": format(
+                                    one_x_utility, "f"
+                                ),
+                            },
+                            action="REJECT_BASE_EXPOSURE",
+                            outputs={"selected_multiplier": 0},
+                            reaction="CAPITAL_NOT_DEPLOYED",
+                            reasons=sizing_reasons,
+                            rejection=True,
+                            requested_capital_usd=(
+                                candidate.source_cost_per_multiplier_usd
+                            ),
+                            blocked_capital_usd=(
+                                candidate.source_cost_per_multiplier_usd
+                            ),
+                        )
                         continue
                     multiplier = 1
                     source_left = min(
@@ -858,24 +1227,80 @@ def run_three_mode_trader_lab(
                         candidate,
                         capital_base_usd=cushion_left,
                     )
-                    if (
-                        economic_cap < 1
-                        or cushion_left
-                        < candidate.source_cost_per_multiplier_usd
-                        or robust_capital_utility(
-                            candidate,
-                            multiplier=1,
-                            capital_base_usd=cushion_left,
+                    one_x_utility = robust_capital_utility(
+                        candidate,
+                        multiplier=1,
+                        capital_base_usd=cushion_left,
+                    )
+                    bank_sizing_reasons: list[str] = []
+                    if economic_cap < 1:
+                        bank_sizing_reasons.append(
+                            "ROBUST_ECONOMIC_CAP_LT_1X"
                         )
-                        <= 0
+                    if (
+                        cushion_left
+                        < candidate.source_cost_per_multiplier_usd
                     ):
+                        bank_sizing_reasons.append(
+                            "CUSHION_CANNOT_FUND_1X"
+                        )
+                    if one_x_utility <= 0:
+                        bank_sizing_reasons.append(
+                            "ROBUST_UTILITY_NONPOSITIVE_AT_1X"
+                        )
+                    if bank_sizing_reasons:
                         robust_sizing_reject_count += 1
+                        record_engineering_sensor(
+                            "SIZING",
+                            epoch_index=epoch_index,
+                            signal_fingerprint=candidate.signal_fingerprint,
+                            event="SIZING_OUTPUT",
+                            inputs={
+                                "robust_economic_cap": economic_cap,
+                                "one_x_robust_utility_usd": format(
+                                    one_x_utility, "f"
+                                ),
+                            },
+                            action="REJECT_BANK_RECOVERY_PROBE",
+                            outputs={"selected_multiplier": 0},
+                            reaction="CAPITAL_NOT_DEPLOYED",
+                            reasons=tuple(bank_sizing_reasons),
+                            rejection=True,
+                            requested_capital_usd=(
+                                candidate.source_cost_per_multiplier_usd
+                            ),
+                            blocked_capital_usd=(
+                                candidate.source_cost_per_multiplier_usd
+                            ),
+                        )
                         continue
                     multiplier = 1
                     source_left = cushion_left
                 else:
                     adaptive_leverage_calls += 1
                     source_left = cushion_left
+                    record_engineering_sensor(
+                        "ADAPTIVE_LEVERAGE",
+                        epoch_index=epoch_index,
+                        signal_fingerprint=candidate.signal_fingerprint,
+                        event="LEVERAGE_INPUT",
+                        inputs={
+                            "provider_maximum_multiplier": (
+                                candidate.maximum_multiplier
+                            ),
+                            "attack_expected_net_utility_usd": format(
+                                candidate.attack_expected_net_utility_usd,
+                                "f",
+                            ),
+                            "cushion_left_usd": format(cushion_left, "f"),
+                            "risk_left_usd": format(risk_left, "f"),
+                            "margin_left_usd": format(margin_left, "f"),
+                        },
+                        action="EVALUATE_ATTACK_MULTIPLIER",
+                        outputs={},
+                        reaction="AWAIT_LEVERAGE_CAPS",
+                        call=True,
+                    )
                     economic_cap = robust_economic_multiplier_cap(
                         candidate,
                         capital_base_usd=cushion_left,
@@ -883,32 +1308,101 @@ def run_three_mode_trader_lab(
                             candidate.attack_expected_net_utility_usd
                         ),
                     )
-                    caps = [
-                        candidate.maximum_multiplier,
-                        economic_cap,
-                        int(
+                    leverage_caps = {
+                        "PROVIDER_MAX": candidate.maximum_multiplier,
+                        "ROBUST_ECONOMIC_CAP": economic_cap,
+                        "CUSHION_FUNDING_CAP": int(
                             (
                                 source_left
                                 / candidate.source_cost_per_multiplier_usd
                             ).to_integral_value(rounding=ROUND_FLOOR)
                         ),
-                        int(
+                        "RISK_CAP": int(
                             (
                                 risk_left
                                 / candidate.stop_risk_per_multiplier_usd
                             ).to_integral_value(rounding=ROUND_FLOOR)
                         ),
-                        int(
+                        "MARGIN_CAP": int(
                             (
                                 margin_left
                                 / candidate.margin_per_multiplier_usd
                             ).to_integral_value(rounding=ROUND_FLOOR)
                         ),
-                    ]
-                    multiplier = max(0, min(caps))
+                    }
+                    multiplier = max(0, min(leverage_caps.values()))
+                    binding_caps = tuple(
+                        name
+                        for name, cap in leverage_caps.items()
+                        if cap == multiplier
+                    )
+                    requested_leverage_capital = (
+                        candidate.source_cost_per_multiplier_usd
+                        * Decimal(candidate.maximum_multiplier)
+                    )
+                    feasible_leverage_capital = (
+                        candidate.source_cost_per_multiplier_usd
+                        * Decimal(multiplier)
+                    )
+                    withheld_leverage_capital = max(
+                        Decimal(0),
+                        requested_leverage_capital
+                        - feasible_leverage_capital,
+                    )
                     if multiplier < ATTACK_MINIMUM_MULTIPLIER:
                         robust_sizing_reject_count += 1
+                        record_engineering_sensor(
+                            "ADAPTIVE_LEVERAGE",
+                            epoch_index=epoch_index,
+                            signal_fingerprint=candidate.signal_fingerprint,
+                            event="LEVERAGE_OUTPUT",
+                            inputs={
+                                "caps": leverage_caps,
+                                "minimum_attack_multiplier": (
+                                    ATTACK_MINIMUM_MULTIPLIER
+                                ),
+                            },
+                            action="REJECT_ATTACK_MULTIPLIER",
+                            outputs={
+                                "feasible_multiplier": multiplier,
+                                "selected_multiplier": 0,
+                                "binding_caps": list(binding_caps),
+                            },
+                            reaction="ATTACK_NOT_DEPLOYED",
+                            reasons=binding_caps,
+                            rejection=True,
+                            requested_capital_usd=requested_leverage_capital,
+                            blocked_capital_usd=(
+                                requested_leverage_capital
+                            ),
+                        )
                         continue
+                    record_engineering_sensor(
+                        "ADAPTIVE_LEVERAGE",
+                        epoch_index=epoch_index,
+                        signal_fingerprint=candidate.signal_fingerprint,
+                        event="LEVERAGE_OUTPUT",
+                        inputs={"caps": leverage_caps},
+                        action="APPROVE_ATTACK_MULTIPLIER",
+                        outputs={
+                            "selected_multiplier": multiplier,
+                            "binding_caps": list(binding_caps),
+                            "theoretical_multiplier": (
+                                candidate.maximum_multiplier
+                            ),
+                        },
+                        reaction=(
+                            "LEVERAGE_RESTRICTED_BY_CAP"
+                            if withheld_leverage_capital > 0
+                            else "FULL_PROVIDER_MULTIPLIER_RELEASED"
+                        ),
+                        reasons=binding_caps,
+                        approval=True,
+                        restriction=withheld_leverage_capital > 0,
+                        requested_capital_usd=requested_leverage_capital,
+                        approved_capital_usd=feasible_leverage_capital,
+                        blocked_capital_usd=withheld_leverage_capital,
+                    )
                     if multiplier == economic_cap:
                         robust_leverage_cap_bind_count += 1
 
@@ -927,13 +1421,71 @@ def run_three_mode_trader_lab(
                         * Decimal(multiplier)
                     )
                     source_reserved = stop_risk + provider_cost
-                if (
-                    stop_risk > risk_left
-                    or margin > margin_left
-                    or source_reserved > source_left
-                ):
+                capacity_reasons: list[str] = []
+                if stop_risk > risk_left:
+                    capacity_reasons.append("RISK_CAPACITY_EXHAUSTED")
+                if margin > margin_left:
+                    capacity_reasons.append("MARGIN_CAPACITY_EXHAUSTED")
+                if source_reserved > source_left:
+                    capacity_reasons.append("CAPITAL_SOURCE_EXHAUSTED")
+                if capacity_reasons:
+                    target_function = (
+                        "ADAPTIVE_LEVERAGE"
+                        if mode is CiboTraderLabMode.ATTACK
+                        else "SIZING"
+                    )
+                    record_engineering_sensor(
+                        target_function,
+                        epoch_index=epoch_index,
+                        signal_fingerprint=candidate.signal_fingerprint,
+                        event="CAPACITY_REACTION",
+                        inputs={
+                            "stop_risk_usd": format(stop_risk, "f"),
+                            "risk_left_usd": format(risk_left, "f"),
+                            "margin_usd": format(margin, "f"),
+                            "margin_left_usd": format(margin_left, "f"),
+                            "source_reserved_usd": format(
+                                source_reserved, "f"
+                            ),
+                            "source_left_usd": format(source_left, "f"),
+                        },
+                        action="REJECT_ON_HARD_CAPACITY",
+                        outputs={"selected_multiplier": 0},
+                        reaction="CAPITAL_NOT_DEPLOYED",
+                        reasons=tuple(capacity_reasons),
+                        rejection=True,
+                        requested_capital_usd=source_reserved,
+                        blocked_capital_usd=source_reserved,
+                    )
                     continue
                 selected.append((candidate, multiplier))
+                record_engineering_sensor(
+                    "SIZING",
+                    epoch_index=epoch_index,
+                    signal_fingerprint=candidate.signal_fingerprint,
+                    event="SIZING_OUTPUT",
+                    inputs={
+                        "mode": mode.value,
+                        "economic_cap": economic_cap,
+                    },
+                    action="APPROVE_BASE_EXPOSURE",
+                    outputs={
+                        "selected_multiplier": multiplier,
+                        "stop_risk_usd": format(stop_risk, "f"),
+                        "margin_usd": format(margin, "f"),
+                        "source_reserved_usd": format(
+                            source_reserved, "f"
+                        ),
+                    },
+                    reaction="PASS_TO_CAPITAL_RESERVATION",
+                    approval=True,
+                    requested_capital_usd=(
+                        candidate.source_cost_per_multiplier_usd
+                    ),
+                    approved_capital_usd=(
+                        candidate.source_cost_per_multiplier_usd
+                    ),
+                )
                 risk_left -= stop_risk
                 margin_left -= margin
                 if mode is CiboTraderLabMode.MEDIUM:
@@ -1103,6 +1655,99 @@ def run_three_mode_trader_lab(
             state.total_capital_usd - baseline_ending_capital_usd
         )
 
+    engineering_function_reports: dict[str, dict[str, object]] = {}
+    for function_name in economic_functions:
+        stats = sensor_stats[function_name]
+        reason_counts = stats["reason_counts"]
+        action_counts = stats["action_counts"]
+        if not isinstance(reason_counts, Counter) or not isinstance(
+            action_counts, Counter
+        ):
+            raise CiboCapitalManagementError(
+                "engineering sensor report counter corruption"
+            )
+        engineering_function_reports[function_name] = {
+            "call_count": stats["call_count"],
+            "approval_count": stats["approval_count"],
+            "rejection_count": stats["rejection_count"],
+            "restriction_count": stats["restriction_count"],
+            "requested_capital_usd": format(
+                stats["requested_capital_usd"], "f"
+            ),
+            "approved_capital_usd": format(
+                stats["approved_capital_usd"], "f"
+            ),
+            "blocked_capital_usd": format(
+                stats["blocked_capital_usd"], "f"
+            ),
+            "capital_created_usd": format(
+                stats["capital_created_usd"], "f"
+            ),
+            "capital_destroyed_usd": format(
+                stats["capital_destroyed_usd"], "f"
+            ),
+            "reason_counts": dict(sorted(reason_counts.items())),
+            "action_counts": dict(sorted(action_counts.items())),
+        }
+
+    bottleneck_ranking = sorted(
+        (
+            {
+                "function": function_name,
+                "capital_pressure_usd": format(
+                    sensor_stats[function_name]["blocked_capital_usd"]
+                    + sensor_stats[function_name]["capital_destroyed_usd"],
+                    "f",
+                ),
+                "blocked_capital_usd": format(
+                    sensor_stats[function_name]["blocked_capital_usd"],
+                    "f",
+                ),
+                "capital_destroyed_usd": format(
+                    sensor_stats[function_name]["capital_destroyed_usd"],
+                    "f",
+                ),
+                "rejection_count": sensor_stats[function_name][
+                    "rejection_count"
+                ],
+                "restriction_count": sensor_stats[function_name][
+                    "restriction_count"
+                ],
+            }
+            for function_name in economic_functions
+        ),
+        key=lambda item: (
+            -Decimal(str(item["capital_pressure_usd"])),
+            -int(item["rejection_count"]),
+            -int(item["restriction_count"]),
+            str(item["function"]),
+        ),
+    )
+
+    engineering_sensor_report = {
+        "schema": "qore.trader_lab.cibo_economic_engineering_sensors.v1",
+        "trace_event_count": len(engineering_trace),
+        "opportunity_decision_count": len(rows),
+        "decision_epoch_count": len(epochs),
+        "upstream_economic_intake": {
+            "admitted_count": upstream_intake_admitted_count,
+            "filtered_before_economic_surface_count": (
+                upstream_intake_filtered_count
+            ),
+            "reason_counts": dict(
+                sorted(upstream_intake_reason_counts.items())
+            ),
+        },
+        "functions": engineering_function_reports,
+        "bottleneck_ranking": bottleneck_ranking,
+        "interpretation_rule": (
+            "blocked_capital measures capital requested but not released by "
+            "that function; capital_destroyed measures realized post-exit "
+            "losses at CIBO_COMPOUND. Upstream intake is reported separately "
+            "and is not falsely attributed to any economic function."
+        ),
+    }
+
     return {
         "schema": "qore.trader_lab.cibo_three_mode_ceiling.v1",
         "research_lane": (
@@ -1182,6 +1827,8 @@ def run_three_mode_trader_lab(
         ),
         "maximum_selected_multiplier": leverage_max,
         "attack_epoch_count_with_funded_cushion": attack_epochs_funded,
+        "engineering_sensor_report": engineering_sensor_report,
+        "engineering_trace": engineering_trace,
         "function_sensors": {
             "SIZING": {
                 "call_count": sizing_calls,
@@ -1242,6 +1889,8 @@ def run_three_mode_trader_lab(
         "governance": {
             "trader_lab_only": True,
             "sovereign_runtime_mutated": False,
+            "full_economic_engineering_telemetry": True,
+            "economic_sensor_functions": list(economic_functions),
             "native_cognition_gate_consumed": True,
             "native_cognition_source": (
                 "FROZEN_PREDECISION_WALK_FORWARD_REPLAY"

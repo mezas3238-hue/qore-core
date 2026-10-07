@@ -87,6 +87,15 @@ def main() -> int:
                 "delta_vs_baseline_ending_capital_usd": result[
                     "delta_vs_baseline_ending_capital_usd"
                 ],
+                "engineering_trace_event_count": result[
+                    "engineering_sensor_report"
+                ]["trace_event_count"],
+                "upstream_economic_intake": result[
+                    "engineering_sensor_report"
+                ]["upstream_economic_intake"],
+                "economic_bottleneck_ranking": result[
+                    "engineering_sensor_report"
+                ]["bottleneck_ranking"],
             },
             sort_keys=True,
         )

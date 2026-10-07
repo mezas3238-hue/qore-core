@@ -111,6 +111,19 @@ jobs:
           assert Decimal(p["ending_portfolio_cushion_usd"]) >= 0
           assert Decimal(p["attack_sovereign_breach_usd"]) == 0
           assert p["mode_epoch_counts"].get("MEDIUM", 0) > 0
+          sensors = p["engineering_sensor_report"]
+          assert sensors["trace_event_count"] == len(p["engineering_trace"])
+          assert set(sensors["functions"]) == {
+              "SIZING",
+              "ADAPTIVE_LEVERAGE",
+              "CIBO_COMPOUND",
+              "COMPOUND_PORTFOLIO",
+          }
+          assert sensors["trace_event_count"] > p["decision_epoch_count"]
+          assert sensors["upstream_economic_intake"]["admitted_count"] + sensors[
+              "upstream_economic_intake"
+          ]["filtered_before_economic_surface_count"] == p["decision_count"]
+          assert len(sensors["bottleneck_ranking"]) == 4
 
           h = json.loads(
               (
@@ -131,6 +144,8 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: qore-cibo-trader-lab-three-mode-ceiling-${{ github.run_id }}
-          path: ${{ runner.temp }}/result/cibo-three-mode-ceiling.json
+          path: |
+            ${{ runner.temp }}/result/cibo-three-mode-ceiling.json
+            ${{ runner.temp }}/result/cibo-three-mode-context-hypothesis.json
           if-no-files-found: error
           retention-days: 90
