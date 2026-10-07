@@ -169,6 +169,16 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--lifecycle-defensive-medium-max-multiplier",
+        type=int,
+        default=None,
+        help=(
+            "Trader-Lab-only bounded MEDIUM grade eligible for supplied "
+            "lifecycle defense; preserves every entry and only changes "
+            "post-entry management."
+        ),
+    )
+    parser.add_argument(
         "--lifecycle-defense-drawdown-trigger",
         type=Decimal,
         default=None,
@@ -652,6 +662,9 @@ def main() -> int:
         lifecycle_by_signal=lifecycle_by_signal or None,
         lifecycle_defensive_medium_1x_only=(
             args.lifecycle_defensive_medium_1x_only
+        ),
+        lifecycle_defensive_medium_max_multiplier=(
+            args.lifecycle_defensive_medium_max_multiplier
         ),
         lifecycle_defense_drawdown_trigger=(
             args.lifecycle_defense_drawdown_trigger
