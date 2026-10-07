@@ -39,6 +39,15 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--medium-open-risk-stress-weight",
+        type=Decimal,
+        default=Decimal("1"),
+        help=(
+            "Trader-Lab-only MEDIUM concurrency stress factor applied to "
+            "currently open stop risk inside the 25% pre-trade drawdown wall."
+        ),
+    )
+    parser.add_argument(
         "--selective-recovery-headroom-ceiling",
         type=Decimal,
         help=(
@@ -335,6 +344,9 @@ def main() -> int:
         ),
         selective_recovery_headroom_ceiling=(
             args.selective_recovery_headroom_ceiling
+        ),
+        medium_open_risk_stress_weight=(
+            args.medium_open_risk_stress_weight
         ),
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)

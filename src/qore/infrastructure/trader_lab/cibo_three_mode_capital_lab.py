@@ -759,6 +759,7 @@ def run_three_mode_trader_lab(
     soft_medium_drawdown_allocator: bool = False,
     medium_pretrade_drawdown_ceiling: Decimal = ECONOMIC_DRAWDOWN_CEILING,
     selective_recovery_headroom_ceiling: Decimal | None = None,
+    medium_open_risk_stress_weight: Decimal = Decimal("1"),
 ) -> dict[str, object]:
     """Run the isolated chronological three-mode ceiling experiment."""
 
@@ -790,6 +791,16 @@ def run_three_mode_trader_lab(
         raise CiboCapitalManagementError(
             "Trader Lab selective recovery headroom ceiling must be "
             "None or Decimal between 0.25 and 0.50"
+        )
+    if (
+        not isinstance(medium_open_risk_stress_weight, Decimal)
+        or not medium_open_risk_stress_weight.is_finite()
+        or medium_open_risk_stress_weight < Decimal(0)
+        or medium_open_risk_stress_weight > Decimal(1)
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab MEDIUM open-risk stress weight must be Decimal "
+            "between 0 and 1"
         )
     source_sha = validate_single_account_manifest_sha256(manifest)
     if manifest.get("initial_capital_usd") != "60":
@@ -1657,7 +1668,10 @@ def run_three_mode_trader_lab(
                                 * medium_candidate_pretrade_drawdown_ceiling
                             )
                             - total_drawdown_usd
-                            - state.open_stop_risk_usd,
+                            - (
+                                state.open_stop_risk_usd
+                                * medium_open_risk_stress_weight
+                            ),
                         )
                         # Frontier experiment: the hard pre-trade wall assumes
                         # every open stop realizes at once. Near 25% DD that
@@ -1818,6 +1832,9 @@ def run_three_mode_trader_lab(
                             ),
                             "medium_candidate_pretrade_drawdown_ceiling": format(
                                 medium_candidate_pretrade_drawdown_ceiling, "f"
+                            ),
+                            "medium_open_risk_stress_weight": format(
+                                medium_open_risk_stress_weight, "f"
                             ),
                             "medium_drawdown_allocator_cap_usd": format(
                                 medium_drawdown_allocator_cap_usd, "f"
@@ -2469,6 +2486,11 @@ def run_three_mode_trader_lab(
                 use_historical_prior
                 and selective_recovery_headroom_ceiling is not None
             )
+            else "HISTORICAL_PRIOR_NATIVE_OPEN_RISK_STRESS_FRONTIER"
+            if (
+                use_historical_prior
+                and medium_open_risk_stress_weight != Decimal("1")
+            )
             else "HISTORICAL_PRIOR_NATIVE_DD_RESERVE_FRONTIER"
             if (
                 use_historical_prior
@@ -2734,6 +2756,12 @@ def run_three_mode_trader_lab(
                 None
                 if selective_recovery_headroom_ceiling is None
                 else format(selective_recovery_headroom_ceiling, "f")
+            ),
+            "medium_open_risk_stress_weight": format(
+                medium_open_risk_stress_weight, "f"
+            ),
+            "open_risk_stress_interpretation": (
+                "FRACTION_OF_OPEN_STOP_RISK_ASSUMED_TO_FAIL_SIMULTANEOUSLY"
             ),
             "bank_seed_source": (
                 "4PCT_OF_CURRENT_TOTAL_ACCOUNT_CAPITAL_PER_MEDIUM_ENTRY"

@@ -219,6 +219,50 @@ jobs:
             --selective-recovery-headroom-ceiling 0.50 \
             --output "$RUNNER_TEMP/result/cibo-three-mode-selective-recovery-50.json"
 
+      - name: Run open-risk stress frontier 90pct
+        run: |
+          set -euo pipefail
+          python scripts/cibo_trader_lab_three_mode_ceiling.py \
+            --manifest "$MANIFEST" \
+            --baseline-replay "$BASELINE" \
+            --historical-manifest "$HISTORICAL_MANIFEST" \
+            --historical-replay "$HISTORICAL_REPLAY" \
+            --medium-open-risk-stress-weight 0.90 \
+            --output "$RUNNER_TEMP/result/cibo-three-mode-open-risk-stress-90.json"
+
+      - name: Run open-risk stress frontier 75pct
+        run: |
+          set -euo pipefail
+          python scripts/cibo_trader_lab_three_mode_ceiling.py \
+            --manifest "$MANIFEST" \
+            --baseline-replay "$BASELINE" \
+            --historical-manifest "$HISTORICAL_MANIFEST" \
+            --historical-replay "$HISTORICAL_REPLAY" \
+            --medium-open-risk-stress-weight 0.75 \
+            --output "$RUNNER_TEMP/result/cibo-three-mode-open-risk-stress-75.json"
+
+      - name: Run open-risk stress frontier 50pct
+        run: |
+          set -euo pipefail
+          python scripts/cibo_trader_lab_three_mode_ceiling.py \
+            --manifest "$MANIFEST" \
+            --baseline-replay "$BASELINE" \
+            --historical-manifest "$HISTORICAL_MANIFEST" \
+            --historical-replay "$HISTORICAL_REPLAY" \
+            --medium-open-risk-stress-weight 0.50 \
+            --output "$RUNNER_TEMP/result/cibo-three-mode-open-risk-stress-50.json"
+
+      - name: Run open-risk stress frontier 25pct
+        run: |
+          set -euo pipefail
+          python scripts/cibo_trader_lab_three_mode_ceiling.py \
+            --manifest "$MANIFEST" \
+            --baseline-replay "$BASELINE" \
+            --historical-manifest "$HISTORICAL_MANIFEST" \
+            --historical-replay "$HISTORICAL_REPLAY" \
+            --medium-open-risk-stress-weight 0.25 \
+            --output "$RUNNER_TEMP/result/cibo-three-mode-open-risk-stress-25.json"
+
       - name: Enforce Trader Lab scientific invariants
         run: |
           set -euo pipefail
@@ -351,6 +395,28 @@ jobs:
               ] == ceiling
               assert selective["governance"]["outcome_used_for_predecision"] is False
               assert Decimal(selective["attack_sovereign_breach_usd"]) == 0
+
+          for filename, weight in (
+              ("cibo-three-mode-open-risk-stress-90.json", "0.90"),
+              ("cibo-three-mode-open-risk-stress-75.json", "0.75"),
+              ("cibo-three-mode-open-risk-stress-50.json", "0.50"),
+              ("cibo-three-mode-open-risk-stress-25.json", "0.25"),
+          ):
+              stress = json.loads(
+                  (
+                      Path(os.environ["RUNNER_TEMP"])
+                      / "result"
+                      / filename
+                  ).read_text()
+              )
+              assert stress["research_lane"] == (
+                  "HISTORICAL_PRIOR_NATIVE_OPEN_RISK_STRESS_FRONTIER"
+              )
+              assert stress["decision_count"] == 3368
+              assert stress["governance"]["historical_prior_consumed"] is True
+              assert stress["governance"]["medium_open_risk_stress_weight"] == weight
+              assert stress["governance"]["outcome_used_for_predecision"] is False
+              assert Decimal(stress["attack_sovereign_breach_usd"]) == 0
           PY
 
       - uses: actions/upload-artifact@v4
@@ -369,5 +435,9 @@ jobs:
             ${{ runner.temp }}/result/cibo-three-mode-selective-recovery-30.json
             ${{ runner.temp }}/result/cibo-three-mode-selective-recovery-35.json
             ${{ runner.temp }}/result/cibo-three-mode-selective-recovery-50.json
+            ${{ runner.temp }}/result/cibo-three-mode-open-risk-stress-90.json
+            ${{ runner.temp }}/result/cibo-three-mode-open-risk-stress-75.json
+            ${{ runner.temp }}/result/cibo-three-mode-open-risk-stress-50.json
+            ${{ runner.temp }}/result/cibo-three-mode-open-risk-stress-25.json
           if-no-files-found: error
           retention-days: 90
