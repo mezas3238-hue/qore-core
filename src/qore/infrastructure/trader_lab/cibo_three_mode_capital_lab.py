@@ -714,6 +714,7 @@ def apply_three_mode_settlement(
     coordinated_economic_group: bool = False,
     economic_group_bootstrap_cushion_share: Decimal = Decimal("0.75"),
     economic_group_ablation: str | None = None,
+    ceiling_discovery_mode: bool = False,
 ) -> Decimal:
     """Settle one already-due trade; no outcome is consulted before exit."""
 
@@ -762,9 +763,15 @@ def apply_three_mode_settlement(
                     state.portfolio_cushion_usd,
                     total,
                 )
-                if total_dd >= Decimal("0.20"):
+                if (
+                    not ceiling_discovery_mode
+                    and total_dd >= Decimal("0.20")
+                ):
                     sovereign_share = Decimal("0.80")
-                elif total_dd >= Decimal("0.10"):
+                elif (
+                    not ceiling_discovery_mode
+                    and total_dd >= Decimal("0.10")
+                ):
                     sovereign_share = Decimal("0.65")
                 elif cushion_ratio < Decimal("0.20"):
                     sovereign_share = (
@@ -846,6 +853,7 @@ def run_three_mode_trader_lab(
     coordinated_economic_group: bool = False,
     economic_group_bootstrap_cushion_share: Decimal = Decimal("0.75"),
     economic_group_ablation: str | None = None,
+    ceiling_discovery_mode: bool = False,
     collect_engineering_trace: bool = True,
     collect_epoch_receipts: bool = True,
     compact_trade_receipts: bool = False,
@@ -945,6 +953,10 @@ def run_three_mode_trader_lab(
     if type(coordinated_economic_group) is not bool:
         raise CiboCapitalManagementError(
             "Trader Lab coordinated economic group switch must be bool"
+        )
+    if type(ceiling_discovery_mode) is not bool:
+        raise CiboCapitalManagementError(
+            "Trader Lab ceiling discovery switch must be bool"
         )
     if economic_group_ablation not in {
         None,
@@ -1574,9 +1586,15 @@ def run_three_mode_trader_lab(
                         state.portfolio_cushion_usd,
                         total,
                     )
-                    if total_dd >= Decimal("0.20"):
+                    if (
+                        not ceiling_discovery_mode
+                        and total_dd >= Decimal("0.20")
+                    ):
                         sovereign_share = Decimal("0.80")
-                    elif total_dd >= Decimal("0.10"):
+                    elif (
+                        not ceiling_discovery_mode
+                        and total_dd >= Decimal("0.10")
+                    ):
                         sovereign_share = Decimal("0.65")
                     elif cushion_ratio < Decimal("0.20"):
                         sovereign_share = (
@@ -1763,6 +1781,7 @@ def run_three_mode_trader_lab(
                         economic_group_bootstrap_cushion_share
                     ),
                     economic_group_ablation=economic_group_ablation,
+                    ceiling_discovery_mode=ceiling_discovery_mode,
                 )
             else:
                 with localcontext() as context:
@@ -2096,9 +2115,13 @@ def run_three_mode_trader_lab(
                 - total_drawdown_usd
                 - state.open_stop_risk_usd,
             )
-        portfolio_attack_budget_usd = min(
-            state.attack_credit_available_usd,
-            attack_drawdown_headroom_usd,
+        portfolio_attack_budget_usd = (
+            state.attack_credit_available_usd
+            if ceiling_discovery_mode
+            else min(
+                state.attack_credit_available_usd,
+                attack_drawdown_headroom_usd,
+            )
         )
         if economic_group_ablation == "COMPOUND_PORTFOLIO":
             portfolio_attack_budget_usd = Decimal(0)
@@ -2114,10 +2137,18 @@ def run_three_mode_trader_lab(
             regime=regime,
             risk_utilization=risk_utilization,
             margin_utilization=margin_utilization,
-            drawdown_utilization=drawdown_utilization,
+            drawdown_utilization=(
+                Decimal(0)
+                if ceiling_discovery_mode
+                else drawdown_utilization
+            ),
             cushion_available_usd=portfolio_attack_budget_usd,
             best_candidate=best,
-            total_drawdown_utilization=total_drawdown_utilization,
+            total_drawdown_utilization=(
+                Decimal(0)
+                if ceiling_discovery_mode
+                else total_drawdown_utilization
+            ),
             distributed_attack_frontier=distributed_attack_frontier,
         )
         mode_counts[mode.value] += 1
@@ -2351,7 +2382,9 @@ def run_three_mode_trader_lab(
                         if candidate.native_cognition_recommended is not False
                         else MEDIUM_DEFENSIVE_RISK_FRACTION
                     )
-                    if total_drawdown_utilization >= ECONOMIC_DRAWDOWN_CEILING:
+                    if ceiling_discovery_mode:
+                        medium_drawdown_scale = Decimal(1)
+                    elif total_drawdown_utilization >= ECONOMIC_DRAWDOWN_CEILING:
                         medium_drawdown_scale = Decimal("0.0625")
                     elif total_drawdown_utilization >= Decimal("0.20"):
                         medium_drawdown_scale = Decimal("0.125")
@@ -2389,7 +2422,10 @@ def run_three_mode_trader_lab(
                         )
                         raw_medium_drawdown_allocator_cap_usd = (
                             risk_left
-                            if soft_medium_drawdown_allocator
+                            if (
+                                soft_medium_drawdown_allocator
+                                or ceiling_discovery_mode
+                            )
                             else medium_hard_drawdown_headroom_usd
                         )
                         # Drawdown is an intensity control, not an admission
@@ -3603,6 +3639,7 @@ def run_three_mode_trader_lab(
                 economic_group_bootstrap_cushion_share, "f"
             ),
             "ablation": economic_group_ablation,
+            "ceiling_discovery_mode": ceiling_discovery_mode,
             "sizing_intensity_cap_counts": dict(
                 sorted(sizing_intensity_cap_counts.items())
             ),
