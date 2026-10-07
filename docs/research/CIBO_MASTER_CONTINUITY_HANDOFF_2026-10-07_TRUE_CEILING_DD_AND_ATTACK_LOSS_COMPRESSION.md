@@ -2648,3 +2648,134 @@ The immediate scientific gates are now:
 5. continue toward the owner's ideal 20–25% corridor only through strict-Pareto steps.
 
 No global de-risking lane may replace a strict-Pareto carrier.
+
+
+---
+
+# 31. STRICT-PARETO DD COMPRESSION — 65.10% → 46.24% WITHOUT BREAKING THE FROZEN FLOOR
+
+The DD/gross-loss laboratory has now produced multiple genuine STRICT_PARETO improvements.
+
+The sovereign hard floor remains the frozen true-ceiling reference:
+
+- ending capital floor: USD 582,440.0252953678696769360345;
+- max-DD reference: 65.1041975924...%;
+- total gross-loss reference: USD 1,444,736.060362508738067914772;
+- ATTACK gross-loss reference: USD 1,443,117.897425126985300959340;
+- 3,368 / 3,368 entries mandatory.
+
+The current best confirmed DD carrier is no longer the original 10,000x control.
+
+Current STRICT_PARETO DD champion:
+
+- source run: `37675317327` / `QORE CIBO Bootstrap 46pct Fine Ridge`;
+- case: `w3-dd15-50-m2-20-f82` (f83 is numerically identical);
+- ending capital: **USD 687,257.4401881953175885079800**;
+- capital above sovereign frozen floor: **+USD 104,817.4148928274479115719455**;
+- max DD: **46.2446937951%**;
+- total gross loss: **USD 1,021,837.039293154126396003274**;
+- total gross-loss reduction vs frozen reference: **~29.2717%**;
+- ATTACK gross loss: **USD 1,020,155.010848302369358428985**;
+- total profit factor: **~1.67251**;
+- 3,368 / 3,368 entries preserved;
+- zero Sizing reject/defer;
+- zero ATTACK sovereign breach.
+
+This means CIBO has now compressed the frozen-control DD by approximately:
+
+**65.10% → 46.24%**
+
+while simultaneously reducing total gross loss by roughly USD 422.9k and still finishing about USD 104.8k above the frozen capital floor.
+
+## Causal architecture of the current carrier
+
+The current DD carrier stacks selective protections rather than global de-risking:
+
+1. selective ATTACK multiplier band around 2,000–3,999x;
+2. normalized ATTACK risk-fraction band;
+3. causal DD/multiplier window around 800–1,900x;
+4. causal DD/multiplier window around 350–450x;
+5. causal low-multiplier bootstrap window around 2–20x while live DD is active.
+
+All protections preserve the Trader entry. They only change economic escalation after admission.
+
+## DD migration is now empirically demonstrated
+
+The dominant DD episode has migrated as destructive surfaces are removed.
+
+Earlier states:
+
+1. frozen 10k control — ~65.10% DD, late Sep–Oct 2020 high-scale ATTACK cluster;
+2. two-window strict-Pareto carrier — ~48.37% DD, Jan–Mar 2020 bootstrap low-multiplier cluster;
+3. current ~46.24% carrier — max DD has migrated again to Feb–Mar 2021.
+
+Current 46.24% max-DD episode:
+
+- peak: 2021-02-09T06:55:00+00:00;
+- trough: 2021-03-03T00:45:00+00:00;
+- peak capital: ~USD 67,006.40;
+- trough capital: ~USD 36,016.64;
+- DD dollars: ~USD 30,989.75;
+- ATTACK net inside episode: ~-USD 30,998.95;
+- MEDIUM net inside episode: ~+USD 9.19.
+
+Largest causal loss concentration:
+
+- R43_GBPUSD 4,863x: ~-USD 11,573.94;
+- R43_GBPUSD 5,182x: ~-USD 10,001.26;
+- repeated R42_AUDJPY 5,000x losses, including ~-USD 7,434.90 and ~-USD 5,980.56.
+
+However, whole-history economics show that 5,000x itself remains strongly productive:
+
+- 5,000x gross profit ~USD 765,246.59;
+- 5,000x gross loss ~USD 554,250.21;
+- 5,000x net ~+USD 210,996.39;
+- PF ~1.38.
+
+By contrast, several adjacent multipliers are pure-loss in the current replay:
+
+- 4,863x: gross profit 0 / gross loss ~USD 11,573.94;
+- 4,919x: gross profit 0 / gross loss ~USD 2,742.20;
+- 5,182x: gross profit 0 / gross loss ~USD 10,001.26.
+
+Therefore the next optimization MUST NOT indiscriminately suppress 5,000x.
+
+## Fourth causal DD/multiplier window
+
+Engine support for a fourth independent causal DD/multiplier window was added:
+
+- engine commit: `320dd40fb60571a263b746ed16402bddb33c4cc9`;
+- CLI commit: `4219a589cd4d581dd09212d166a35b39c435c424`;
+- fast Trader Lab bridge run: `37675520465` — SUCCESS.
+
+The fourth window remains causal:
+
+- current realized live-DD state only;
+- current proposed multiplier only;
+- no future outcome;
+- no hardcoded Trader identity;
+- no entry rejection.
+
+Active experiments:
+
+- `37675905414` — broad 4.5k–5.5k / 4.8k–5.2k fourth-window frontier;
+- `37676091076` — split fourth-window frontier, deliberately excluding productive 5,000x:
+  - left: 4,800–4,999x;
+  - right: 5,001–5,200x.
+
+The split experiment is scientifically preferred if it can improve DD because it targets the pure-loss sides while preserving the productive 5,000x center.
+
+## Rejected/closed directions
+
+The following were tested and are not current winners:
+
+- broad/global DD budgets — severe capital destruction;
+- broad low-multiplier demotion to MEDIUM — severe path destruction;
+- exact narrow bootstrap hotspot tapers — nonlinear path degradation;
+- earlier global ATTACK loss-streak response — DD worsened or capital collapsed;
+- lower global Portfolio shock thresholds — below ~4% caused severe degradation;
+- cumulative/recent Trader loss pressure can create useful capital headroom but did not beat the current DD champion.
+
+Next action:
+
+**finish fourth-window frontier → promote only a STRICT_PARETO sub-45% candidate if one exists → re-forensic its new max-DD episode → repeat.**
