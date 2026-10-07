@@ -325,48 +325,14 @@ def run_case_worker(
         cibo_three_mode_capital_lab as capital,
     )
 
+    # Parity mode: keep the expensive Atlas lifecycle sidecar prepared, but
+    # execute the subject's candidate construction and economic replay exactly
+    # as the direct Trader Lab does. Candidate-cache and summary-telemetry
+    # shortcuts are intentionally disabled until parity is proven.
     original_candidate = capital._candidate
-
-    def cached_candidate(
-        row: object,
-        *,
-        native_cognition_recommended: bool | None,
-        enforce_research_context_abstain: bool,
-    ) -> object:
-        if isinstance(row, dict):
-            key = (
-                str(row.get("signal_fingerprint", "")),
-                native_cognition_recommended,
-                enforce_research_context_abstain,
-            )
-            cached = _PARENT_CANDIDATE_CACHE.get(key)
-            if cached is not None:
-                return cached
-        return original_candidate(
-            row,
-            native_cognition_recommended=native_cognition_recommended,
-            enforce_research_context_abstain=(
-                enforce_research_context_abstain
-            ),
-        )
-
-    capital._candidate = cached_candidate
     lifecycle_path_raw = job.get("lifecycle_sidecar")
     original_builder = subject._build_lifecycle_map
     original_run = subject.run_three_mode_trader_lab
-    fast_parameters = inspect.signature(original_run).parameters
-    if {
-        "collect_engineering_trace",
-        "collect_epoch_receipts",
-        "compact_trade_receipts",
-    }.issubset(fast_parameters):
-        def fast_run(*run_args: object, **run_kwargs: object) -> dict[str, object]:
-            run_kwargs["collect_engineering_trace"] = False
-            run_kwargs["collect_epoch_receipts"] = False
-            run_kwargs["compact_trade_receipts"] = True
-            return original_run(*run_args, **run_kwargs)
-
-        subject.run_three_mode_trader_lab = fast_run
     if lifecycle_path_raw:
         lifecycle_map = deserialize_lifecycle(
             Path(str(lifecycle_path_raw)),
