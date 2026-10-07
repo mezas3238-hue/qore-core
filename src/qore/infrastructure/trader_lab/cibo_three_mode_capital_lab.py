@@ -725,6 +725,10 @@ def apply_three_mode_settlement(
 
     state.open_stop_risk_usd -= trade.stop_risk_usd
     state.open_margin_usd -= trade.margin_usd
+    if state.open_stop_risk_usd < 0 or state.open_margin_usd < 0:
+        raise CiboCapitalManagementError(
+            "Trader Lab open exposure accounting became negative during settlement"
+        )
     if trade.mode is CiboTraderLabMode.MEDIUM:
         bank_seed = (
             trade.source_reserved_usd
@@ -3324,7 +3328,10 @@ def run_three_mode_trader_lab(
                 trade_receipt_by_signal[
                     candidate.signal_fingerprint
                 ] = trade_receipts[-1]
-                state.open_stop_risk_usd += stop_risk
+            # Economic state must be identical in FULL and SUMMARY telemetry.
+            # Receipt verbosity is observational only and can never change
+            # risk/margin accounting.
+            state.open_stop_risk_usd += stop_risk
             state.open_margin_usd += margin
             if candidate_mode is CiboTraderLabMode.MEDIUM:
                 medium_seed = trade.bank_seed_usd or Decimal(0)
