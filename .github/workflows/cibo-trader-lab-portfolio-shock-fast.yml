@@ -136,9 +136,9 @@ jobs:
             fi
           }
 
-          # Coarse search found a real terminal-capital ridge near 10k:
-          # refine both sides while holding all other causal/economic controls fixed.
-          for attack in 8000 8500 9000 9500 10000 10500 11000 12000 13000 14000; do
+          # Final local confirmation around the observed 10k ridge.
+          # Use 100x spacing to bracket the discrete path-dependent maximum.
+          for attack in 9600 9700 9800 9900 10000 10100 10200 10300 10400 10500; do
             run_case "persist-a${attack}-r020" "$attack" 10 0.20 0
           done
 
