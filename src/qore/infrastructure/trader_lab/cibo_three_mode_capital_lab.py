@@ -936,6 +936,9 @@ def run_three_mode_trader_lab(
             adverse_loss_cut_confirmation_bars = profile.get(
                 "adverse_loss_cut_confirmation_bars", 1
             )
+            adverse_loss_cut_max_elapsed_minutes = profile.get(
+                "adverse_loss_cut_max_elapsed_minutes"
+            )
             if (
                 not managed.is_finite()
                 or not original.is_finite()
@@ -944,6 +947,19 @@ def run_three_mode_trader_lab(
                 or isinstance(adverse_loss_cut_confirmation_bars, bool)
                 or adverse_loss_cut_confirmation_bars < 1
                 or adverse_loss_cut_confirmation_bars > 12
+                or (
+                    adverse_loss_cut_max_elapsed_minutes is not None
+                    and (
+                        not isinstance(
+                            adverse_loss_cut_max_elapsed_minutes, int
+                        )
+                        or isinstance(
+                            adverse_loss_cut_max_elapsed_minutes, bool
+                        )
+                        or adverse_loss_cut_max_elapsed_minutes < 5
+                        or adverse_loss_cut_max_elapsed_minutes > 10080
+                    )
+                )
                 or type(profile.get("data_available")) is not bool
                 or not isinstance(profile.get("managed_exit_at"), str)
                 or not isinstance(profile.get("actions"), (list, tuple))
@@ -1000,6 +1016,19 @@ def run_three_mode_trader_lab(
         if lifecycle_loss_cut_confirmation_bars
         else None
     )
+    lifecycle_loss_cut_windows = {
+        profile.get("adverse_loss_cut_max_elapsed_minutes")
+        for profile in lifecycle_map.values()
+    }
+    if len(lifecycle_loss_cut_windows) > 1:
+        raise CiboCapitalManagementError(
+            "Trader Lab lifecycle loss-cut window must be uniform"
+        )
+    lifecycle_adverse_loss_cut_max_elapsed_minutes = (
+        next(iter(lifecycle_loss_cut_windows))
+        if lifecycle_loss_cut_windows
+        else None
+    )
     lifecycle_data_available_count = 0
     lifecycle_changed_count = 0
     for profile in lifecycle_map.values():
@@ -1027,6 +1056,9 @@ def run_three_mode_trader_lab(
         ),
         "adverse_loss_cut_confirmation_bars": (
             lifecycle_adverse_loss_cut_confirmation_bars
+        ),
+        "adverse_loss_cut_max_elapsed_minutes": (
+            lifecycle_adverse_loss_cut_max_elapsed_minutes
         ),
         "causal_closed_bar_only": bool(lifecycle_map),
         "outcome_used_for_trigger": False,
