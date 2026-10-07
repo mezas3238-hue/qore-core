@@ -2219,3 +2219,84 @@ Decision rule:
 2. if maximum lands at an interior point, run a final narrower confirmation around it;
 3. only after the local ridge is bracketed from both sides may the true ceiling be frozen;
 4. then begin DD forensics / compression without degrading that frozen ceiling.
+
+
+---
+
+# 29. SOVEREIGN FREEZE — TRUE CEILING LOCKED; DD + GROSS-LOSS COMPRESSION IS NOW THE ONLY OPTIMIZATION PRIORITY
+
+Owner directive is now explicit and frozen:
+
+> The ceiling-discovery phase is CLOSED for the current architecture.
+>
+> Frozen current ceiling reference:
+>
+> - initial capital: USD 60;
+> - ending capital: **USD 582,440.0252953678696769360345**;
+> - total gain: approximately **+970,633.38%**;
+> - ATTACK cap at ridge: **10,000x**;
+> - max drawdown: **0.651041975924031567... (~65.10%)**;
+> - entry conservation: **3,368 / 3,368**;
+> - ATTACK sovereign breach: zero.
+
+The scientific mission is no longer to raise the ceiling.
+
+The mission is now:
+
+**PRESERVE THE FROZEN CEILING → REDUCE MAX DRAWDOWN AS FAR AS POSSIBLE → REDUCE GROSS LOSSES AGGRESSIVELY → DO NOT REJECT TRADER ENTRIES → DO NOT DEGRADE THE FROZEN CEILING.**
+
+The baseline measured ATTACK gross loss at the frozen control is:
+
+**USD 1,443,117.897425126985300959340**
+
+This is not an acceptable long-term loss surface. Gross-loss compression is now a first-class optimization target alongside DD compression.
+
+## Mandatory acceptance gate
+
+A candidate is a true improvement only if all of the following hold simultaneously:
+
+1. ending capital >= USD 582,440.0252953678696769360345;
+2. max DD < frozen control DD;
+3. measured ATTACK gross loss < USD 1,443,117.897425126985300959340;
+4. 3,368 / 3,368 Trader entries preserved;
+5. zero Sizing rejection / deferral of already-executed Trader entries;
+6. zero ATTACK sovereign breach;
+7. causal information rules preserved;
+8. no outcome leakage;
+9. no change to Trader admission authority.
+
+This is the **STRICT PARETO gate**.
+
+A candidate that improves DD and/or gross loss but finishes below the frozen ceiling is useful forensic evidence, but it is NOT an accepted replacement architecture.
+
+## Research focus
+
+Global tapers have already shown that brute-force risk reduction can reduce DD and gross loss while destroying terminal compounding. Therefore the next work must prioritize causal, selective compression of the destructive tail:
+
+- high-multiplier ATTACK loss clusters;
+- concentration by Trader during the September–October 2020 DD episode;
+- later February–March 2021 loss cluster;
+- recent realized-loss state;
+- per-Trader concentration;
+- multiplier escalation state;
+- Portfolio shock state;
+- live peak-to-equity drawdown state;
+- temporary ATTACK intensity compression with automatic restoration after the damaging cluster.
+
+The objective is not to make CIBO timid.
+
+The objective is to stop paying unnecessary gross losses while preserving the profitable 10,000x ceiling architecture.
+
+## Active experiment
+
+Current workflow:
+
+- `QORE CIBO DD Budget Frontier`;
+- run: `37658678198`;
+- branch: `agent/cibo-causal-expectation-leakage-fix-001`.
+
+That workflow already encodes the strict Pareto condition:
+
+`capital >= frozen capital AND DD < frozen DD AND ATTACK gross loss < frozen ATTACK gross loss`.
+
+If no STRICT_PARETO case is found, the next iteration MUST NOT revert to broad global de-risking. It must move to targeted tail/concentration controls intended to remove losing high-scale exposure while leaving the profitable ceiling-producing path intact.
