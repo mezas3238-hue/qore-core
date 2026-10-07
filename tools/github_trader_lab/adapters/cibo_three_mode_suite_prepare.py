@@ -258,6 +258,8 @@ def main() -> int:
     sidecar_root.mkdir(parents=True, exist_ok=True)
     lifecycle_sidecars: dict[str, str] = {}
     lifecycle_counts: dict[str, int] = {}
+    lifecycle_policy_sidecars: dict[str, str] = {}
+    lifecycle_case_policies: dict[str, str] = {}
     policy_cache: dict[str, tuple[str, int]] = {}
 
     for case in cases:
@@ -326,10 +328,13 @@ def main() -> int:
             sort_keys=True,
             separators=(",", ":"),
         )
+        policy_hash = hashlib.sha256(policy_key.encode()).hexdigest()
+        lifecycle_case_policies[name] = policy_hash
         cached = policy_cache.get(policy_key)
         if cached is not None:
             lifecycle_sidecars[name] = cached[0]
             lifecycle_counts[name] = cached[1]
+            lifecycle_policy_sidecars[policy_hash] = cached[0]
             continue
 
         lifecycle = build_lifecycle_map(
@@ -342,7 +347,7 @@ def main() -> int:
             adverse_tightened_stop_r=adverse_tightened_stop_r,
             defensive_initial_stop_r=defensive_initial_stop_r,
         )
-        policy_id = hashlib.sha256(policy_key.encode()).hexdigest()[:16]
+        policy_id = policy_hash[:16]
         sidecar = sidecar_root / f"policy-{policy_id}.json"
         sidecar.write_text(
             json.dumps(
@@ -356,6 +361,7 @@ def main() -> int:
         relative = sidecar.relative_to(args.output.parent).as_posix()
         count = len(lifecycle)
         policy_cache[policy_key] = (relative, count)
+        lifecycle_policy_sidecars[policy_hash] = relative
         lifecycle_sidecars[name] = relative
         lifecycle_counts[name] = count
 
@@ -368,6 +374,8 @@ def main() -> int:
         "suite_sha256": sha256(args.suite),
         "lifecycle_sidecars": lifecycle_sidecars,
         "lifecycle_signal_counts": lifecycle_counts,
+        "lifecycle_policy_sidecars": lifecycle_policy_sidecars,
+        "lifecycle_case_policies": lifecycle_case_policies,
         "unique_lifecycle_policy_count": len(policy_cache),
         "prepared_from_raw_m1": False,
         "prepared_from_cached_causal_artifacts": True,

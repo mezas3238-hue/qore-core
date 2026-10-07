@@ -31,6 +31,55 @@ def d(value: object) -> Decimal:
     return result
 
 
+def option_values(tokens: list[str], name: str) -> list[str]:
+    values: list[str] = []
+    index = 0
+    prefix = name + "="
+    while index < len(tokens):
+        token = tokens[index]
+        if token.startswith(prefix):
+            values.append(token[len(prefix):])
+        elif token == name:
+            if index + 1 >= len(tokens):
+                raise ValueError(f"{name}: missing value")
+            values.append(tokens[index + 1])
+            index += 1
+        index += 1
+    return values
+
+
+def lifecycle_policy_hash(tokens: list[str]) -> str:
+    def last(name: str, default: str) -> str:
+        values = option_values(tokens, name)
+        return values[-1] if values else default
+
+    payload = {
+        "features": sorted(option_values(tokens, "--lifecycle-feature")),
+        "adverse_loss_cut_r": last(
+            "--lifecycle-adverse-loss-cut-r", "-0.50"
+        ),
+        "adverse_partial_fraction": last(
+            "--lifecycle-adverse-partial-fraction", "0.25"
+        ),
+        "bootstrap_partial_fraction": last(
+            "--lifecycle-bootstrap-partial-fraction", "0.50"
+        ),
+        "adverse_tightened_stop_r": last(
+            "--lifecycle-adverse-tightened-stop-r", "-0.50"
+        ),
+        "defensive_initial_stop_r": last(
+            "--lifecycle-defensive-initial-stop-r", "-0.50"
+        ),
+    }
+    canonical = json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode()
+    import hashlib
+    return hashlib.sha256(canonical).hexdigest()
+
+
 def find_one(root: Path, name: str) -> Path:
     matches = sorted(root.rglob(name))
     if len(matches) != 1:
@@ -583,6 +632,12 @@ def main() -> int:
     lifecycle_sidecars = prepared.get("lifecycle_sidecars", {})
     if not isinstance(lifecycle_sidecars, dict):
         raise ValueError("prepared lifecycle sidecar index missing")
+    lifecycle_policy_sidecars = prepared.get(
+        "lifecycle_policy_sidecars",
+        {},
+    )
+    if not isinstance(lifecycle_policy_sidecars, dict):
+        lifecycle_policy_sidecars = {}
 
     raw_root = args.output.parent / "raw-cases"
     raw_root.mkdir(parents=True, exist_ok=True)
@@ -594,9 +649,20 @@ def main() -> int:
         uses_atlas = bool(case.get("uses_atlas"))
         lifecycle_sidecar = None
         if uses_atlas:
-            relative = lifecycle_sidecars.get(name)
+            case_args = case.get("args", [])
+            if not isinstance(case_args, list) or any(
+                not isinstance(item, str) for item in case_args
+            ):
+                raise ValueError(f"{name}: args must be string list")
+            policy_hash = lifecycle_policy_hash(list(case_args))
+            relative = lifecycle_policy_sidecars.get(policy_hash)
             if not isinstance(relative, str):
-                raise ValueError(f"{name}: prepared lifecycle sidecar missing")
+                relative = lifecycle_sidecars.get(name)
+            if not isinstance(relative, str):
+                raise ValueError(
+                    f"{name}: lifecycle policy {policy_hash[:12]} is not "
+                    "prepared; bump preparation.policy_generation once"
+                )
             lifecycle_sidecar = str(
                 (args.prepared.parent / relative).resolve()
             )

@@ -1,6 +1,6 @@
 {
   "schema": "qore.github-trader-lab.profile.v2",
-  "profile_id": "cibo-three-mode-suite-prepared-lifecycle-fast-v3",
+  "profile_id": "cibo-three-mode-suite-prepared-lifecycle-fast-v4",
   "repository": "mezas3238-hue/qore-core",
   "subject": "CIBO",
   "max_parallel_lanes": 1,
@@ -28,9 +28,9 @@
     ],
     "prepared_schema": "qore.github-trader-lab.cibo-three-mode-prepared.v2",
     "lab_dependency_globs": [
-      "tools/github_trader_lab/adapters/cibo_three_mode_suite_prepare.py",
-      "tools/github_trader_lab/suites/cibo-three-mode-current.json"
-    ]
+      "tools/github_trader_lab/adapters/cibo_three_mode_suite_prepare.py"
+    ],
+    "policy_generation": "defensive-initial-stop-cap-medium1x-stop020-v1"
   },
   "experiment": {
     "command": [
