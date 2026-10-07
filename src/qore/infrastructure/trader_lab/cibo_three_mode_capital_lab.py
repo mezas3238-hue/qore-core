@@ -78,7 +78,11 @@ class CiboThreeModeCandidate:
     exit_at: datetime
     gross_r: Decimal
     expected_net_utility_usd: Decimal
+    attack_expected_net_utility_usd: Decimal
     expected_capital_minutes: Decimal
+    walk_forward_positive_block_count: int
+    walk_forward_nonpositive_block_count: int
+    native_cognition_recommended: bool
     minimum_volume: Decimal
     maximum_multiplier: int
     stop_risk_per_multiplier_usd: Decimal
@@ -283,11 +287,28 @@ def _regime_from_row(row: Mapping[str, Any]) -> CiboTraderLabRegime:
     )
 
 
-def _candidate(row: Mapping[str, Any]) -> CiboThreeModeCandidate:
+def _candidate(
+    row: Mapping[str, Any],
+    *,
+    native_cognition_recommended: bool,
+) -> CiboThreeModeCandidate:
     evidence = manifest_row_to_ceiling_opportunity_evidence(row)
     outcome = manifest_row_to_shadow_outcome_observation(row)
     opportunity = evidence.opportunity
     minimum = minimum_seed_volume(opportunity)
+    expectation_payload = _mapping(row.get("expectation"), "expectation")
+    raw_block_means = expectation_payload.get("walk_forward_block_means_r", ())
+    if not isinstance(raw_block_means, (list, tuple)):
+        raise CiboCapitalManagementError(
+            "Trader Lab three-mode walk-forward block means malformed"
+        )
+    block_means = tuple(Decimal(str(value)) for value in raw_block_means)
+    positive_blocks = int(
+        expectation_payload.get("walk_forward_positive_block_count", 0)
+    )
+    nonpositive_blocks = int(
+        expectation_payload.get("walk_forward_nonpositive_block_count", 0)
+    )
     with localcontext() as context:
         context.prec = 100
         stop = minimum * opportunity.stop_loss_per_volume
@@ -305,6 +326,11 @@ def _candidate(row: Mapping[str, Any]) -> CiboThreeModeCandidate:
             - provider_cost
             - evidence.uncertainty_penalty_usd
         )
+        attack_expected_net = (
+            min(block_means) * stop - provider_cost
+            if len(block_means) == 5
+            else Decimal("-1")
+        )
     return CiboThreeModeCandidate(
         signal_fingerprint=opportunity.signal_fingerprint,
         trader_id=opportunity.trader_id.value,
@@ -312,7 +338,11 @@ def _candidate(row: Mapping[str, Any]) -> CiboThreeModeCandidate:
         exit_at=outcome.exit_at,
         gross_r=outcome.gross_structural_outcome_r,
         expected_net_utility_usd=expected_net,
+        attack_expected_net_utility_usd=attack_expected_net,
         expected_capital_minutes=evidence.expected_capital_minutes,
+        walk_forward_positive_block_count=positive_blocks,
+        walk_forward_nonpositive_block_count=nonpositive_blocks,
+        native_cognition_recommended=native_cognition_recommended,
         minimum_volume=minimum,
         maximum_multiplier=max(0, maximum_multiplier),
         stop_risk_per_multiplier_usd=stop,
@@ -322,6 +352,7 @@ def _candidate(row: Mapping[str, Any]) -> CiboThreeModeCandidate:
             evidence.context_allowed
             and evidence.provider_viable
             and evidence.capital_source_eligible
+            and native_cognition_recommended
         ),
     )
 
@@ -363,6 +394,7 @@ def robust_capital_utility(
     *,
     multiplier: int,
     capital_base_usd: Decimal,
+    expected_net_utility_usd: Decimal | None = None,
 ) -> Decimal:
     """Canonical concave Portfolio utility for one causal exposure intensity."""
 
@@ -384,22 +416,30 @@ def robust_capital_utility(
         context.prec = 100
         intensity = Decimal(multiplier)
         risk = candidate.stop_risk_per_multiplier_usd * intensity
-        return (
-            candidate.expected_net_utility_usd * intensity
-            - (risk * risk / capital_base_usd)
+        expected_net = (
+            candidate.expected_net_utility_usd
+            if expected_net_utility_usd is None
+            else expected_net_utility_usd
         )
+        return expected_net * intensity - (risk * risk / capital_base_usd)
 
 
 def robust_economic_multiplier_cap(
     candidate: CiboThreeModeCandidate,
     *,
     capital_base_usd: Decimal,
+    expected_net_utility_usd: Decimal | None = None,
 ) -> int:
     """Highest multiplier before canonical marginal robust utility turns non-positive."""
 
+    expected_net = (
+        candidate.expected_net_utility_usd
+        if expected_net_utility_usd is None
+        else expected_net_utility_usd
+    )
     if (
         capital_base_usd <= 0
-        or candidate.expected_net_utility_usd <= 0
+        or expected_net <= 0
         or candidate.stop_risk_per_multiplier_usd <= 0
     ):
         return 0
@@ -407,7 +447,7 @@ def robust_economic_multiplier_cap(
         context.prec = 100
         marginal_limit = (
             (
-                candidate.expected_net_utility_usd
+                expected_net
                 * capital_base_usd
                 / (
                     candidate.stop_risk_per_multiplier_usd
@@ -474,8 +514,10 @@ def explain_three_mode(
         attack_context_reasons.append("ATTACK_VOLATILITY_NOT_GRADE")
     if regime.correlation is not CorrelationState.NORMAL:
         attack_context_reasons.append("ATTACK_CORRELATION_NOT_NORMAL")
-    if best_candidate.expected_net_utility_usd <= 0:
-        attack_context_reasons.append("ATTACK_EXPECTANCY_NOT_POSITIVE")
+    if best_candidate.attack_expected_net_utility_usd <= 0:
+        attack_context_reasons.append(
+            "ATTACK_WEAKEST_CHRONOLOGICAL_BLOCK_NOT_POSITIVE"
+        )
     if not best_candidate.context_allowed:
         attack_context_reasons.append("ATTACK_CONTEXT_NOT_ALLOWED")
     if best_candidate.maximum_multiplier < ATTACK_MINIMUM_MULTIPLIER:
@@ -490,6 +532,9 @@ def explain_three_mode(
     attack_economic_cap = robust_economic_multiplier_cap(
         best_candidate,
         capital_base_usd=cushion_available_usd,
+        expected_net_utility_usd=(
+            best_candidate.attack_expected_net_utility_usd
+        ),
     )
     if attack_economic_cap < ATTACK_MINIMUM_MULTIPLIER:
         attack_context_reasons.append(
@@ -584,6 +629,7 @@ def run_three_mode_trader_lab(
     manifest: Mapping[str, Any],
     *,
     baseline_ending_capital_usd: Decimal | None = None,
+    cognitive_recommend_by_signal: Mapping[str, bool] | None = None,
 ) -> dict[str, object]:
     """Run the isolated chronological three-mode ceiling experiment."""
 
@@ -598,6 +644,18 @@ def run_three_mode_trader_lab(
             "Trader Lab three-mode manifest has no opportunities"
         )
     rows = [_mapping(row, "manifest opportunity") for row in rows_raw]
+    signals = tuple(str(row.get("signal_fingerprint", "")) for row in rows)
+    cognitive_map = (
+        {signal: True for signal in signals}
+        if cognitive_recommend_by_signal is None
+        else dict(cognitive_recommend_by_signal)
+    )
+    if set(cognitive_map) != set(signals) or any(
+        type(value) is not bool for value in cognitive_map.values()
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab cognitive recommendation map must cover exact manifest signals"
+        )
     epochs = _group_epochs(rows)
     if len(rows) != manifest.get("opportunity_decision_count"):
         raise CiboCapitalManagementError(
@@ -664,7 +722,15 @@ def run_three_mode_trader_lab(
             raise CiboCapitalManagementError(
                 "Trader Lab three-mode mixed regime inside epoch"
             )
-        candidates = tuple(_candidate(row) for row in epoch_rows)
+        candidates = tuple(
+            _candidate(
+                row,
+                native_cognition_recommended=cognitive_map[
+                    str(row["signal_fingerprint"])
+                ],
+            )
+            for row in epoch_rows
+        )
         eligible = tuple(
             sorted(
                 (
@@ -784,6 +850,9 @@ def run_three_mode_trader_lab(
                     economic_cap = robust_economic_multiplier_cap(
                         candidate,
                         capital_base_usd=cushion_left,
+                        expected_net_utility_usd=(
+                            candidate.attack_expected_net_utility_usd
+                        ),
                     )
                     caps = [
                         candidate.maximum_multiplier,
@@ -884,6 +953,19 @@ def run_three_mode_trader_lab(
                         candidate.expected_net_utility_usd,
                         "f",
                     ),
+                    "attack_expected_net_utility_usd": format(
+                        candidate.attack_expected_net_utility_usd,
+                        "f",
+                    ),
+                    "walk_forward_positive_block_count": (
+                        candidate.walk_forward_positive_block_count
+                    ),
+                    "walk_forward_nonpositive_block_count": (
+                        candidate.walk_forward_nonpositive_block_count
+                    ),
+                    "native_cognition_recommended": (
+                        candidate.native_cognition_recommended
+                    ),
                     "capital_time_score": format(
                         candidate.capital_time_score,
                         "f",
@@ -897,6 +979,11 @@ def run_three_mode_trader_lab(
                                 state.sovereign_available_usd
                                 if mode is CiboTraderLabMode.MEDIUM
                                 else state.cushion_available_usd
+                            ),
+                            expected_net_utility_usd=(
+                                candidate.attack_expected_net_utility_usd
+                                if mode is CiboTraderLabMode.ATTACK
+                                else None
                             ),
                         ),
                         "f",
@@ -1118,6 +1205,13 @@ def run_three_mode_trader_lab(
         "governance": {
             "trader_lab_only": True,
             "sovereign_runtime_mutated": False,
+            "native_cognition_gate_consumed": True,
+            "native_cognition_source": (
+                "FROZEN_PREDECISION_WALK_FORWARD_REPLAY"
+            ),
+            "attack_expectation_law": (
+                "WEAKEST_OF_FIVE_CAUSAL_CHRONOLOGICAL_BLOCKS"
+            ),
             "qore_risk_authority_claimed": False,
             "broker_mutation": False,
             "live_authority": False,
