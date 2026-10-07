@@ -226,6 +226,15 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--economic-group-bootstrap-cushion-share",
+        type=Decimal,
+        default=Decimal("0.65"),
+        help=(
+            "Share of healthy early MEDIUM distributable profit routed into "
+            "Compound Portfolio while its cushion is below 20% of capital."
+        ),
+    )
+    parser.add_argument(
         "--enforce-context-abstain",
         action="store_true",
         help=(
@@ -528,6 +537,9 @@ def main() -> int:
         attack_multiplier_cap=args.attack_multiplier_cap,
         medium_multiplier_cap=args.medium_multiplier_cap,
         coordinated_economic_group=args.coordinated_economic_group,
+        economic_group_bootstrap_cushion_share=(
+            args.economic_group_bootstrap_cushion_share
+        ),
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
