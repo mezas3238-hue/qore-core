@@ -19,6 +19,7 @@ class RealtimeMonitor:
         self.run_id = run_id
         self.root.mkdir(parents=True, exist_ok=True)
         self.events_path = root / "events.jsonl"
+        self.reports_path = root / "live-reports.jsonl"
         self.status_path = root / "status.json"
         self._seq = 0
         self._lock = threading.RLock()
@@ -83,6 +84,37 @@ class RealtimeMonitor:
                 title = f"Trader Lab {kind}"
                 message = compact.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
                 print(f"::notice title={title}::{message}", flush=True)
+
+    def report(
+        self,
+        report_type: str,
+        payload: dict[str, Any],
+        *,
+        lane: str | None = None,
+        variant: str | None = None,
+    ) -> None:
+        """Publish a compact structured report immediately to disk and stdout."""
+
+        with self._lock:
+            row = {
+                "run_id": self.run_id,
+                "at": utc_now(),
+                "report_type": report_type,
+                "lane": lane,
+                "variant": variant,
+                "payload": payload,
+            }
+            with self.reports_path.open("a", encoding="utf-8") as handle:
+                handle.write(
+                    json.dumps(row, sort_keys=True, separators=(",", ":"))
+                    + "\n"
+                )
+            compact = json.dumps(
+                row,
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            print(f"QORE_TRADER_LAB_REPORT {compact}", flush=True)
 
     def set_run(self, status: str) -> None:
         with self._lock:
