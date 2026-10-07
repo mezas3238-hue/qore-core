@@ -145,6 +145,15 @@ def main() -> int:
         help="Post-entry causal Market Atlas source as SYMBOL=PATH.",
     )
     parser.add_argument(
+        "--lifecycle-defensive-medium-1x-only",
+        action="store_true",
+        help=(
+            "Apply supplied lifecycle events only to MEDIUM positions that "
+            "Sizing kept at mandatory 1x custody. Stronger 2x+ positions "
+            "retain their original settlement path."
+        ),
+    )
+    parser.add_argument(
         "--lifecycle-feature",
         action="append",
         choices=[item.value for item in CiboLifecycleFeature],
@@ -526,6 +535,9 @@ def main() -> int:
         native_profile_by_signal=native_profile_by_signal,
         historical_prior_by_signal=historical_prior_by_signal,
         lifecycle_by_signal=lifecycle_by_signal or None,
+        lifecycle_defensive_medium_1x_only=(
+            args.lifecycle_defensive_medium_1x_only
+        ),
         enforce_research_context_abstain=args.enforce_context_abstain,
         soft_medium_drawdown_allocator=(
             args.soft_medium_drawdown_allocator
