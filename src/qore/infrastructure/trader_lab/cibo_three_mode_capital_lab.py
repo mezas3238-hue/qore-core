@@ -2966,6 +2966,35 @@ def run_three_mode_trader_lab(
                         * Decimal(multiplier)
                     )
                     source_reserved = stop_risk + provider_cost
+                if (
+                    candidate_mode is CiboTraderLabMode.ATTACK
+                    and ceiling_discovery_mode
+                    and ceiling_attack_drawdown_budget_fraction is not None
+                ):
+                    with localcontext() as context:
+                        context.prec = 100
+                        allowed_ceiling_attack_stop_risk_usd = max(
+                            Decimal(0),
+                            (
+                                state.peak_total_capital_usd
+                                * ceiling_attack_drawdown_budget_fraction
+                            )
+                            - total_drawdown_usd
+                            - state.open_stop_risk_usd
+                            - attack_risk_selected_this_epoch,
+                        )
+                    if stop_risk > allowed_ceiling_attack_stop_risk_usd:
+                        raise CiboCapitalManagementError(
+                            "Trader Lab ceiling ATTACK risk-cap invariant failed: "
+                            f"selected_stop_risk={format(stop_risk, 'f')} "
+                            f"allowed_stop_risk={format(allowed_ceiling_attack_stop_risk_usd, 'f')} "
+                            f"peak_total={format(state.peak_total_capital_usd, 'f')} "
+                            f"live_total={format(state.total_capital_usd, 'f')} "
+                            f"live_drawdown={format(total_drawdown_utilization, 'f')} "
+                            f"budget_fraction={format(ceiling_attack_drawdown_budget_fraction, 'f')} "
+                            f"selected_multiplier={multiplier} "
+                            f"risk_cap={ceiling_drawdown_risk_cap}"
+                        )
                 capacity_reasons: list[str] = []
                 if stop_risk > risk_left:
                     capacity_reasons.append("RISK_CAPACITY_EXHAUSTED")
