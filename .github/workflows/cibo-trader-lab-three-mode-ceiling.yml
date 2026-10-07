@@ -24,6 +24,8 @@ env:
   PYTHONPATH: ${{ github.workspace }}/src
   SOURCE_ARTIFACT_ID: '11451743578'
   SOURCE_ARTIFACT_DIGEST: 'sha256:d439957f21e2f79148b5a2fb75a53db6fa448698f17aeb6978f379ed3547f7ea'
+  HISTORICAL_SOURCE_ARTIFACT_ID: '11389331836'
+  HISTORICAL_SOURCE_ARTIFACT_DIGEST: 'sha256:30177639f660c9647ab70257c2d12c541bdade49ab5582347a3890f920070fee'
 
 jobs:
   three-mode-ceiling:
@@ -68,6 +70,16 @@ jobs:
           echo "MANIFEST=$MANIFEST" >> "$GITHUB_ENV"
           echo "BASELINE=$BASELINE" >> "$GITHUB_ENV"
 
+          mkdir -p "$RUNNER_TEMP/historical-source"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$HISTORICAL_SOURCE_ARTIFACT_ID" > "$RUNNER_TEMP/historical-source.meta.json"
+          jq -e --arg digest "$HISTORICAL_SOURCE_ARTIFACT_DIGEST" '.expired == false and .digest == $digest' "$RUNNER_TEMP/historical-source.meta.json"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$HISTORICAL_SOURCE_ARTIFACT_ID/zip" > "$RUNNER_TEMP/historical-source.zip"
+          echo "${HISTORICAL_SOURCE_ARTIFACT_DIGEST#sha256:}  $RUNNER_TEMP/historical-source.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/historical-source.zip" -d "$RUNNER_TEMP/historical-source"
+          HISTORICAL_MANIFEST="$(find "$RUNNER_TEMP/historical-source" -type f -name single-account-manifest-native.json -print -quit)"
+          test -n "$HISTORICAL_MANIFEST"
+          echo "HISTORICAL_MANIFEST=$HISTORICAL_MANIFEST" >> "$GITHUB_ENV"
+
       - name: Run BANK MEDIUM ATTACK causal baseline
         run: |
           set -euo pipefail
@@ -84,6 +96,15 @@ jobs:
             --baseline-replay "$BASELINE" \
             --enforce-context-abstain \
             --output "$RUNNER_TEMP/result/cibo-three-mode-context-hypothesis.json"
+
+      - name: Run historical-prior Native transfer
+        run: |
+          set -euo pipefail
+          python scripts/cibo_trader_lab_three_mode_ceiling.py \
+            --manifest "$MANIFEST" \
+            --baseline-replay "$BASELINE" \
+            --historical-manifest "$HISTORICAL_MANIFEST" \
+            --output "$RUNNER_TEMP/result/cibo-three-mode-historical-prior-native.json"
 
       - name: Enforce Trader Lab scientific invariants
         run: |
@@ -140,6 +161,19 @@ jobs:
               "POST_BURN_HYPOTHESIS_REQUIRES_FRESH_VALIDATION"
           )
           assert Decimal(h["attack_sovereign_breach_usd"]) == 0
+
+          legacy = json.loads(
+              (
+                  Path(os.environ["RUNNER_TEMP"])
+                  / "result"
+                  / "cibo-three-mode-historical-prior-native.json"
+              ).read_text()
+          )
+          assert legacy["research_lane"] == "HISTORICAL_PRIOR_NATIVE_TRANSFER"
+          assert legacy["decision_count"] == 3368
+          assert legacy["governance"]["historical_prior_consumed"] is True
+          assert legacy["governance"]["outcome_used_for_predecision"] is False
+          assert Decimal(legacy["attack_sovereign_breach_usd"]) == 0
           PY
 
       - uses: actions/upload-artifact@v4
@@ -148,5 +182,6 @@ jobs:
           path: |
             ${{ runner.temp }}/result/cibo-three-mode-ceiling.json
             ${{ runner.temp }}/result/cibo-three-mode-context-hypothesis.json
+            ${{ runner.temp }}/result/cibo-three-mode-historical-prior-native.json
           if-no-files-found: error
           retention-days: 90
