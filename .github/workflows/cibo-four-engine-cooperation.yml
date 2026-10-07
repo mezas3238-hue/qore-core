@@ -8,6 +8,7 @@ on:
     paths:
       - '.github/workflows/cibo-four-engine-cooperation.yml'
       - 'src/qore/infrastructure/trader_lab/cibo_three_mode_capital_lab.py'
+      - 'src/qore/infrastructure/cibo_position_lifecycle.py'
       - 'scripts/cibo_trader_lab_three_mode_ceiling.py'
       - 'tests/infrastructure/trader_lab/test_cibo_three_mode_capital_lab.py'
 
@@ -131,9 +132,8 @@ jobs:
         run: |
           set -euo pipefail
           : > "$RUNNER_TEMP/result/cibo-four-engine-loss-cut-failures.tsv"
-          for SPEC in "090:-0.90" "075:-0.75" "060:-0.60" "050:-0.50"; do
-            LABEL="${SPEC%%:*}"
-            THRESHOLD="${SPEC#*:}"
+          for SPEC in "075c2:-0.75:2" "075c3:-0.75:3" "065c2:-0.65:2" "065c3:-0.65:3"; do
+            IFS=':' read -r LABEL THRESHOLD CONFIRMATIONS <<< "$SPEC"
             if python scripts/cibo_trader_lab_three_mode_ceiling.py \
               --manifest "$MANIFEST" \
               --baseline-replay "$BASELINE" \
@@ -149,13 +149,15 @@ jobs:
               --lifecycle-source-root "XAUUSD=$RUNNER_TEMP/atlas/XAUUSD" \
               --lifecycle-feature ADVERSE_LOSS_CUT \
               --lifecycle-adverse-loss-cut-r "$THRESHOLD" \
+              --lifecycle-adverse-loss-cut-confirmation-bars "$CONFIRMATIONS" \
               --output "$RUNNER_TEMP/result/cibo-four-engine-loss-cut-${LABEL}.json" \
               > "$RUNNER_TEMP/result/cibo-four-engine-loss-cut-${LABEL}.log" 2>&1; then
               cat "$RUNNER_TEMP/result/cibo-four-engine-loss-cut-${LABEL}.log"
             else
               STATUS=$?
               cat "$RUNNER_TEMP/result/cibo-four-engine-loss-cut-${LABEL}.log"
-              printf '%s\t%s\t%s\n' "$LABEL" "$THRESHOLD" "$STATUS" >> \
+              printf '%s\t%s\t%s\t%s\n' \
+                "$LABEL" "$THRESHOLD" "$CONFIRMATIONS" "$STATUS" >> \
                 "$RUNNER_TEMP/result/cibo-four-engine-loss-cut-failures.tsv"
             fi
           done
@@ -209,11 +211,11 @@ jobs:
           ] == 0
 
           frontier = []
-          for filename, threshold in (
-              ("cibo-four-engine-loss-cut-090.json", "-0.90"),
-              ("cibo-four-engine-loss-cut-075.json", "-0.75"),
-              ("cibo-four-engine-loss-cut-060.json", "-0.60"),
-              ("cibo-four-engine-loss-cut-050.json", "-0.50"),
+          for filename, threshold, confirmations in (
+              ("cibo-four-engine-loss-cut-075c2.json", "-0.75", 2),
+              ("cibo-four-engine-loss-cut-075c3.json", "-0.75", 3),
+              ("cibo-four-engine-loss-cut-065c2.json", "-0.65", 2),
+              ("cibo-four-engine-loss-cut-065c3.json", "-0.65", 3),
           ):
               candidate_path = (
                   Path(os.environ["RUNNER_TEMP"]) / "result" / filename
@@ -221,6 +223,7 @@ jobs:
               if not candidate_path.exists():
                   frontier.append({
                       "threshold_r": threshold,
+                      "confirmation_bars": confirmations,
                       "status": "RUN_FAILED",
                   })
                   continue
@@ -232,6 +235,9 @@ jobs:
                   "ADVERSE_LOSS_CUT"
               ]
               assert guarded["position_lifecycle_report"]["adverse_loss_cut_r"] == threshold
+              assert guarded["position_lifecycle_report"][
+                  "adverse_loss_cut_confirmation_bars"
+              ] == confirmations
               assert guarded["position_lifecycle_report"]["outcome_used_for_trigger"] is False
               guarded_funnel = guarded["engineering_sensor_report"]["execution_funnel"]
               assert guarded_funnel["final_trade_count"] == 3368
@@ -240,6 +246,7 @@ jobs:
               assert guarded_funnel["causal_conservation_check"] is True
               frontier.append({
                   "threshold_r": threshold,
+                  "confirmation_bars": confirmations,
                   "status": "SUCCESS",
                   "ending_total_capital_usd": guarded["ending_total_capital_usd"],
                   "max_drawdown_fraction": guarded["max_drawdown_fraction"],
