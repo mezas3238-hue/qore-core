@@ -1491,3 +1491,62 @@ This replay compares, on the post-34k architecture:
 The next architect MUST read `37646016620` before creating another ceiling sweep.
 
 If any case exceeds USD 34,019.19 with similar or lower DD, it becomes the new observed record and ceiling discovery MUST continue upward. USD 34k remains explicitly classified as RECORD, NOT CEILING.
+
+
+---
+
+# 24. LIVE CONTINUITY UPDATE — 350x BREAKS THE 34K RECORD
+
+Run `37646016620` completed successfully on commit `5bab4ba1f491328060cada14fb176a51702fd270`.
+
+Scientific result:
+
+- all evaluated cases preserved 3,368 / 3,368 entries;
+- persistent Portfolio shock taper dominated one-shot taper on both terminal capital and max DD;
+- 20% single-ATTACK risk dominated the 22% probes;
+- terminal capital improved monotonically as the ATTACK cap expanded from 257x to 350x.
+
+Key persistent / 20% frontier:
+
+| ATTACK cap | Ending capital | Total gain | Max DD |
+|---:|---:|---:|---:|
+| 257x | USD 34,019.19 | +56,598.66% | 51.16% |
+| 275x | USD 36,076.02 | +60,026.70% | 51.16% |
+| 300x | USD 38,919.72 | +64,766.20% | 51.16% |
+| 325x | USD 41,751.43 | +69,485.71% | 51.16% |
+| 350x | **USD 44,804.67** | **+74,574.45%** | **51.16%** |
+
+Therefore:
+
+> USD 44,804.67 is the new OBSERVED RECORD, NOT the true ceiling.
+
+The unchanged 51.16% max DD while terminal capital rises is consistent with the previously identified chronology: the worst drawdown occurs early, before the upper ATTACK cap becomes the dominant late-stage limiter.
+
+Rejected/dominated branches from this run:
+
+- one-shot Portfolio shock taper: worse terminal capital and worse DD (~57.06%);
+- 22% single-ATTACK risk probes: worse terminal capital and worse DD (~53.77%) than persistent / 20%.
+
+Immediate consequence:
+
+- do NOT begin final DD compression yet;
+- continue true-ceiling discovery upward;
+- hold persistent shock taper + 20% single-ATTACK risk fixed while probing the still-binding upper ATTACK cap.
+
+Next coarse upper-ceiling replay launched:
+
+- workflow: `QORE CIBO Shock Ceiling Expansion Fast`
+- commit: `00d75cc5e0618ac2565722f80d0ebdf39d2c583a`
+- run: `37649450550`
+- branch: `agent/cibo-causal-expectation-leakage-fix-001`
+- caps: 350 / 400 / 500 / 650 / 800 / 1000x
+- shock: persistent
+- single-ATTACK risk: 20%
+- growth slope: 10
+- all previous causal and 3,368/3,368 preservation invariants remain mandatory.
+
+Decision rule after `37649450550`:
+
+1. if the frontier still rises materially through 1000x with no new DD regime, extend again;
+2. if terminal capital flattens, declines, or a new DD/tail-risk cliff appears, bracket that region and refine;
+3. do not call a ceiling until a real ridge/cliff is demonstrated by evidence.
