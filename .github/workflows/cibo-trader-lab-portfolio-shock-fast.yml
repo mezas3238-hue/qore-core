@@ -136,10 +136,9 @@ jobs:
             fi
           }
 
-          # Post-37646016620 coarse upper-ceiling continuation.
-          # The old 500x Trader Lab research guard was artificial; provider/risk/margin/
-          # cushion caps still bind independently. Continue the physical/economic search.
-          for attack in 500 650 800 1000 1250 1500 2000; do
+          # 2000x remains economically productive; continue toward the current
+          # research-range guard while preserving provider/risk/margin/cushion caps.
+          for attack in 2000 2500 3000 3500 4000 4500 5000; do
             run_case "persist-a${attack}-r020" "$attack" 10 0.20 0
           done
 
