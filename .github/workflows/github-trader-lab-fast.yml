@@ -183,6 +183,38 @@ jobs:
                   )
           PY
 
+      - name: Enforce single automatic Trader Lab path
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          root=Path("subject/.github/workflows")
+          allowed={"cibo-trader-lab-fast-bridge.yml"}
+          offenders=[]
+          for path in sorted(root.glob("cibo-trader-lab-*.yml")):
+              if path.name in allowed:
+                  continue
+              lines=path.read_text(encoding="utf-8").splitlines()
+              try:
+                  on_index=lines.index("on:")
+              except ValueError:
+                  continue
+              for line in lines[on_index+1:]:
+                  if line and not line.startswith(" ") and not line.startswith("#"):
+                      break
+                  if line.startswith("  push:"):
+                      offenders.append(path.as_posix())
+                      break
+          if offenders:
+              raise SystemExit(
+                  "automatic specialized Trader Lab workflows are forbidden; "
+                  "use QORE GitHub Trader Lab Fast: " + ", ".join(offenders)
+              )
+          print("QORE_TRADER_LAB_ARCHITECTURE_GUARD=PASS")
+          PY
+
       - name: Static preflight
         shell: bash
         run: |
