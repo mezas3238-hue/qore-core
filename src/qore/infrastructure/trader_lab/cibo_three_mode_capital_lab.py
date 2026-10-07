@@ -794,6 +794,7 @@ def run_three_mode_trader_lab(
     medium_pretrade_drawdown_ceiling: Decimal = ECONOMIC_DRAWDOWN_CEILING,
     distributed_attack_frontier: bool = False,
     attack_multiplier_cap: int = DEFAULT_DISTRIBUTED_ATTACK_MULTIPLIER_CAP,
+    medium_multiplier_cap: int = 4,
 ) -> dict[str, object]:
     """Run the isolated chronological three-mode ceiling experiment."""
 
@@ -817,6 +818,15 @@ def run_three_mode_trader_lab(
     ):
         raise CiboCapitalManagementError(
             "Trader Lab ATTACK multiplier cap must be int in [2, 50]"
+        )
+    if (
+        not isinstance(medium_multiplier_cap, int)
+        or isinstance(medium_multiplier_cap, bool)
+        or medium_multiplier_cap < 1
+        or medium_multiplier_cap > 20
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab MEDIUM multiplier cap must be int in [1, 20]"
         )
     if (
         not isinstance(medium_pretrade_drawdown_ceiling, Decimal)
@@ -1768,7 +1778,10 @@ def run_three_mode_trader_lab(
                     )
                     native_intensity_cap = (
                         (
-                            min(candidate.maximum_multiplier, 4)
+                            min(
+                                candidate.maximum_multiplier,
+                                medium_multiplier_cap,
+                            )
                             if (
                                 candidate.native_cognition_recommended
                                 and historical_prior_deployable
@@ -1776,7 +1789,10 @@ def run_three_mode_trader_lab(
                             else min(candidate.maximum_multiplier, 1)
                         )
                         if use_historical_prior
-                        else min(candidate.maximum_multiplier, 4)
+                        else min(
+                            candidate.maximum_multiplier,
+                            medium_multiplier_cap,
+                        )
                         if (
                             candidate.native_cognition_recommended
                             and candidate.context_quality_disposition == "ALLOW"
@@ -2749,7 +2765,7 @@ def run_three_mode_trader_lab(
             ),
             "native_profile_consumed": True,
             "historical_native_intensity_law": (
-                "HISTORICAL_PLUS_NATIVE_CONSENSUS_UP_TO_4X; "
+                "HISTORICAL_PLUS_NATIVE_CONSENSUS_UP_TO_CONFIGURED_MEDIUM_CAP; "
                 "NATIVE_ONLY_OVERRIDE_1X; HISTORICAL_ONLY_DEFENSIVE_1X; "
                 "BOTH_NONDEPLOYMENT_DEFENSIVE_1X; NO_ENTRY_REJECTION"
             ),
@@ -2784,6 +2800,7 @@ def run_three_mode_trader_lab(
                 DISTRIBUTED_ATTACK_MIN_POSITIVE_BLOCKS
             ),
             "attack_multiplier_cap": attack_multiplier_cap,
+            "medium_multiplier_cap": medium_multiplier_cap,
             "context_quality_abstain_enforced": (
                 enforce_research_context_abstain
             ),
