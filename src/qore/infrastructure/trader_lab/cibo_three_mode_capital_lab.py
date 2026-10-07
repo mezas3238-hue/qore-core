@@ -158,6 +158,8 @@ class _State:
     medium_compound_positive_net_usd: Decimal = Decimal(0)
     medium_compound_negative_net_usd: Decimal = Decimal(0)
     medium_compound_turnover_usd: Decimal = Decimal(0)
+    medium_recovery_deficit_usd: Decimal = Decimal(0)
+    medium_profit_recovered_to_sovereign_usd: Decimal = Decimal(0)
     attack_net_pnl_usd: Decimal = Decimal(0)
 
     @property
@@ -659,8 +661,14 @@ def apply_three_mode_settlement(
         state.medium_compound_turnover_usd += trade.source_reserved_usd
 
         if net_pnl > 0:
-            sovereign_gain = net_pnl * MEDIUM_SOVEREIGN_SHARE
-            cushion_gain = net_pnl - sovereign_gain
+            recovery = min(net_pnl, state.medium_recovery_deficit_usd)
+            if recovery > 0:
+                state.sovereign_bank_usd += recovery
+                state.medium_recovery_deficit_usd -= recovery
+                state.medium_profit_recovered_to_sovereign_usd += recovery
+            distributable_profit = net_pnl - recovery
+            sovereign_gain = distributable_profit * MEDIUM_SOVEREIGN_SHARE
+            cushion_gain = distributable_profit - sovereign_gain
             state.sovereign_bank_usd += sovereign_gain
             state.portfolio_cushion_usd += cushion_gain
             state.portfolio_attack_credit_usd += cushion_gain
@@ -668,8 +676,10 @@ def apply_three_mode_settlement(
             state.medium_profit_to_cushion_usd += cushion_gain
             state.medium_compound_positive_net_usd += net_pnl
         elif net_pnl < 0:
+            loss = -net_pnl
             state.sovereign_bank_usd += net_pnl
-            state.medium_compound_negative_net_usd += -net_pnl
+            state.medium_recovery_deficit_usd += loss
+            state.medium_compound_negative_net_usd += loss
     elif trade.mode is CiboTraderLabMode.ATTACK:
         state.cushion_reserved_usd -= trade.source_reserved_usd
         state.portfolio_cushion_usd += net_pnl
@@ -1991,6 +2001,12 @@ def run_three_mode_trader_lab(
         "medium_compound_turnover_usd": format(
             state.medium_compound_turnover_usd, "f"
         ),
+        "medium_recovery_deficit_usd": format(
+            state.medium_recovery_deficit_usd, "f"
+        ),
+        "medium_profit_recovered_to_sovereign_usd": format(
+            state.medium_profit_recovered_to_sovereign_usd, "f"
+        ),
         "portfolio_attack_credit_usd": format(
             state.portfolio_attack_credit_usd, "f"
         ),
@@ -2034,6 +2050,12 @@ def run_three_mode_trader_lab(
                 "medium_profit_to_cushion_usd": format(
                     state.medium_profit_to_cushion_usd,
                     "f",
+                ),
+                "medium_recovery_deficit_usd": format(
+                    state.medium_recovery_deficit_usd, "f"
+                ),
+                "medium_profit_recovered_to_sovereign_usd": format(
+                    state.medium_profit_recovered_to_sovereign_usd, "f"
                 ),
             },
             "COMPOUND_PORTFOLIO": {
@@ -2132,7 +2154,8 @@ def run_three_mode_trader_lab(
                 "SETTLE_MEDIUM_RETURN_SEED_TO_BANK_SPLIT_POSITIVE_PNL"
             ),
             "medium_profit_distribution_basis": (
-                "REALIZED_MEDIUM_POSITIVE_PNL_50PCT_SOVEREIGN_50PCT_PORTFOLIO"
+                "RECOVER_MEDIUM_LOSS_DEFICIT_TO_BANK_FIRST_THEN_SPLIT_"
+                "NET_NEW_PRODUCTION_50PCT_SOVEREIGN_50PCT_PORTFOLIO"
             ),
             "attack_risk_source": "PORTFOLIO_CUSHION_ONLY",
             "portfolio_attack_release_policy": (
