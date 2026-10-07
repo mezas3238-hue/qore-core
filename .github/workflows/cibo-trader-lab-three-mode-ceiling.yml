@@ -153,6 +153,42 @@ jobs:
             --historical-native-override-min-confidence 100 \
             --output "$RUNNER_TEMP/result/cibo-three-mode-native-override-100.json"
 
+      - name: Run Native 100 plus revolving ATTACK release 25pct
+        run: |
+          set -euo pipefail
+          python scripts/cibo_trader_lab_three_mode_ceiling.py \
+            --manifest "$MANIFEST" \
+            --baseline-replay "$BASELINE" \
+            --historical-manifest "$HISTORICAL_MANIFEST" \
+            --historical-replay "$HISTORICAL_REPLAY" \
+            --historical-native-override-min-confidence 100 \
+            --attack-portfolio-release-fraction 0.25 \
+            --output "$RUNNER_TEMP/result/cibo-three-mode-native100-attack-release-25.json"
+
+      - name: Run Native 100 plus revolving ATTACK release 50pct
+        run: |
+          set -euo pipefail
+          python scripts/cibo_trader_lab_three_mode_ceiling.py \
+            --manifest "$MANIFEST" \
+            --baseline-replay "$BASELINE" \
+            --historical-manifest "$HISTORICAL_MANIFEST" \
+            --historical-replay "$HISTORICAL_REPLAY" \
+            --historical-native-override-min-confidence 100 \
+            --attack-portfolio-release-fraction 0.50 \
+            --output "$RUNNER_TEMP/result/cibo-three-mode-native100-attack-release-50.json"
+
+      - name: Run Native 100 plus revolving ATTACK release 75pct
+        run: |
+          set -euo pipefail
+          python scripts/cibo_trader_lab_three_mode_ceiling.py \
+            --manifest "$MANIFEST" \
+            --baseline-replay "$BASELINE" \
+            --historical-manifest "$HISTORICAL_MANIFEST" \
+            --historical-replay "$HISTORICAL_REPLAY" \
+            --historical-native-override-min-confidence 100 \
+            --attack-portfolio-release-fraction 0.75 \
+            --output "$RUNNER_TEMP/result/cibo-three-mode-native100-attack-release-75.json"
+
       - name: Run historical-prior soft drawdown allocator frontier
         run: |
           set -euo pipefail
@@ -300,6 +336,31 @@ jobs:
               assert override["governance"]["outcome_used_for_predecision"] is False
               assert Decimal(override["attack_sovereign_breach_usd"]) == 0
 
+          for filename, fraction in (
+              ("cibo-three-mode-native100-attack-release-25.json", "0.25"),
+              ("cibo-three-mode-native100-attack-release-50.json", "0.50"),
+              ("cibo-three-mode-native100-attack-release-75.json", "0.75"),
+          ):
+              release = json.loads(
+                  (
+                      Path(os.environ["RUNNER_TEMP"])
+                      / "result"
+                      / filename
+                  ).read_text()
+              )
+              assert release["research_lane"] == (
+                  "HISTORICAL_PRIOR_NATIVE_OVERRIDE_ATTACK_RELEASE_FRONTIER"
+              )
+              assert release["decision_count"] == 3368
+              assert release["governance"][
+                  "historical_native_override_min_confidence"
+              ] == 100
+              assert release["governance"][
+                  "attack_portfolio_release_fraction"
+              ] == fraction
+              assert release["governance"]["outcome_used_for_predecision"] is False
+              assert Decimal(release["attack_sovereign_breach_usd"]) == 0
+
           soft = json.loads(
               (
                   Path(os.environ["RUNNER_TEMP"])
@@ -351,6 +412,9 @@ jobs:
             ${{ runner.temp }}/result/cibo-three-mode-native-override-60.json
             ${{ runner.temp }}/result/cibo-three-mode-native-override-80.json
             ${{ runner.temp }}/result/cibo-three-mode-native-override-100.json
+            ${{ runner.temp }}/result/cibo-three-mode-native100-attack-release-25.json
+            ${{ runner.temp }}/result/cibo-three-mode-native100-attack-release-50.json
+            ${{ runner.temp }}/result/cibo-three-mode-native100-attack-release-75.json
             ${{ runner.temp }}/result/cibo-three-mode-historical-soft-dd.json
             ${{ runner.temp }}/result/cibo-three-mode-historical-dd-2525.json
             ${{ runner.temp }}/result/cibo-three-mode-historical-dd-255.json

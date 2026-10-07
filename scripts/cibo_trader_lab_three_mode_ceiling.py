@@ -50,6 +50,16 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--attack-portfolio-release-fraction",
+        type=Decimal,
+        default=Decimal("1"),
+        help=(
+            "Trader-Lab-only ATTACK frontier: fraction of the causal "
+            "Portfolio/drawdown budget released to one ATTACK event. "
+            "Portfolio remains revolving authority; no fixed leverage cap."
+        ),
+    )
+    parser.add_argument(
         "--enforce-context-abstain",
         action="store_true",
         help=(
@@ -337,6 +347,9 @@ def main() -> int:
         ),
         historical_native_override_min_confidence=(
             args.historical_native_override_min_confidence
+        ),
+        attack_portfolio_release_fraction=(
+            args.attack_portfolio_release_fraction
         ),
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)

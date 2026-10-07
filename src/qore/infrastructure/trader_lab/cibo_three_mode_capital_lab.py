@@ -759,6 +759,7 @@ def run_three_mode_trader_lab(
     soft_medium_drawdown_allocator: bool = False,
     medium_pretrade_drawdown_ceiling: Decimal = ECONOMIC_DRAWDOWN_CEILING,
     historical_native_override_min_confidence: int = 0,
+    attack_portfolio_release_fraction: Decimal = Decimal("1"),
 ) -> dict[str, object]:
     """Run the isolated chronological three-mode ceiling experiment."""
 
@@ -789,6 +790,16 @@ def run_three_mode_trader_lab(
         raise CiboCapitalManagementError(
             "Trader Lab historical Native override confidence must be int "
             "between 0 and 100"
+        )
+    if (
+        not isinstance(attack_portfolio_release_fraction, Decimal)
+        or not attack_portfolio_release_fraction.is_finite()
+        or attack_portfolio_release_fraction <= 0
+        or attack_portfolio_release_fraction > 1
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab ATTACK Portfolio release fraction must be Decimal "
+            "greater than 0 and at most 1"
         )
     source_sha = validate_single_account_manifest_sha256(manifest)
     if manifest.get("initial_capital_usd") != "60":
@@ -1385,9 +1396,13 @@ def run_three_mode_trader_lab(
                 - total_drawdown_usd
                 - state.open_stop_risk_usd,
             )
-        portfolio_attack_budget_usd = min(
+        raw_portfolio_attack_budget_usd = min(
             state.attack_credit_available_usd,
             attack_drawdown_headroom_usd,
+        )
+        portfolio_attack_budget_usd = (
+            raw_portfolio_attack_budget_usd
+            * attack_portfolio_release_fraction
         )
         best = eligible[0] if eligible else None
         mode, mode_reasons = explain_three_mode(
@@ -1442,6 +1457,12 @@ def run_three_mode_trader_lab(
                 ),
                 "portfolio_attack_drawdown_headroom_usd": format(
                     attack_drawdown_headroom_usd, "f"
+                ),
+                "raw_portfolio_attack_budget_usd": format(
+                    raw_portfolio_attack_budget_usd, "f"
+                ),
+                "portfolio_attack_release_fraction": format(
+                    attack_portfolio_release_fraction, "f"
                 ),
                 "portfolio_attack_budget_usd": format(
                     portfolio_attack_budget_usd, "f"
@@ -2463,6 +2484,12 @@ def run_three_mode_trader_lab(
         "research_lane": (
             "HISTORICAL_PRIOR_NATIVE_SOFT_DRAWDOWN_ALLOCATOR"
             if use_historical_prior and soft_medium_drawdown_allocator
+            else "HISTORICAL_PRIOR_NATIVE_OVERRIDE_ATTACK_RELEASE_FRONTIER"
+            if (
+                use_historical_prior
+                and historical_native_override_min_confidence > 0
+                and attack_portfolio_release_fraction != Decimal("1")
+            )
             else "HISTORICAL_PRIOR_NATIVE_OVERRIDE_CONFIDENCE_FRONTIER"
             if (
                 use_historical_prior
@@ -2726,6 +2753,9 @@ def run_three_mode_trader_lab(
             ),
             "historical_native_override_min_confidence": (
                 historical_native_override_min_confidence
+            ),
+            "attack_portfolio_release_fraction": format(
+                attack_portfolio_release_fraction, "f"
             ),
             "bank_seed_source": (
                 "4PCT_OF_CURRENT_TOTAL_ACCOUNT_CAPITAL_PER_MEDIUM_ENTRY"
