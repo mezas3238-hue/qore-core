@@ -362,6 +362,16 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--ceiling-attack-drawdown-budget-fraction",
+        type=Decimal,
+        default=None,
+        help=(
+            "Optional causal ATTACK risk envelope for ceiling discovery. "
+            "Limits incremental ATTACK funding to the remaining fraction of "
+            "peak total capital after realized drawdown and open stop risk."
+        ),
+    )
+    parser.add_argument(
         "--summary-telemetry",
         action="store_true",
         help=(
@@ -729,6 +739,9 @@ def main() -> int:
         ceiling_discovery_mode=args.ceiling_discovery_mode,
         ceiling_growth_leverage_slope=(
             args.ceiling_growth_leverage_slope
+        ),
+        ceiling_attack_drawdown_budget_fraction=(
+            args.ceiling_attack_drawdown_budget_fraction
         ),
         collect_engineering_trace=not args.summary_telemetry,
         collect_epoch_receipts=not args.summary_telemetry,
