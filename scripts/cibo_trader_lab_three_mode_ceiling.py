@@ -313,6 +313,15 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--lifecycle-bootstrap-override-expected-r-ceiling",
+        type=Decimal,
+        default=None,
+        help=(
+            "Optional causal walk-forward expected structural R ceiling for "
+            "the bootstrap lifecycle override."
+        ),
+    )
+    parser.add_argument(
         "--lifecycle-bootstrap-capital-ceiling",
         type=Decimal,
         default=None,
@@ -1206,6 +1215,9 @@ def main() -> int:
         ),
         lifecycle_bootstrap_override_require_expectation=(
             args.lifecycle_bootstrap_override_require_expectation
+        ),
+        lifecycle_bootstrap_override_expected_r_ceiling=(
+            args.lifecycle_bootstrap_override_expected_r_ceiling
         ),
         lifecycle_defensive_medium_1x_only=(
             args.lifecycle_defensive_medium_1x_only
