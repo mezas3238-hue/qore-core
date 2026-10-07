@@ -28,14 +28,25 @@ def _canonical(value: object) -> bytes:
     ).encode()
 
 
-def _evidence_payload(profile: dict[str, Any]) -> dict[str, dict[str, object]]:
+def _evidence_payload(profile: dict[str, Any]) -> dict[str, object]:
     return {
-        lane: {
-            "artifact_id": spec["artifact_id"],
-            "artifact_path": spec["artifact_path"],
-            "sha256": spec["sha256"],
-        }
-        for lane, spec in sorted(profile["lanes"].items())
+        "lanes": {
+            lane: {
+                "artifact_id": spec["artifact_id"],
+                "artifact_path": spec["artifact_path"],
+                "sha256": spec["sha256"],
+            }
+            for lane, spec in sorted(profile["lanes"].items())
+        },
+        "auxiliary_artifacts": {
+            name: {
+                "artifact_id": spec["artifact_id"],
+                "archive_sha256": spec["archive_sha256"],
+            }
+            for name, spec in sorted(
+                profile.get("auxiliary_artifacts", {}).items()
+            )
+        },
     }
 
 
