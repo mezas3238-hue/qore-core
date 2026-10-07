@@ -41,6 +41,7 @@ class CiboLifecycleFeature(StrEnum):
     ADVERSE_LOSS_CUT = "ADVERSE_LOSS_CUT"
     ADVERSE_PARTIAL_REDUCTION = "ADVERSE_PARTIAL_REDUCTION"
     BOOTSTRAP_PARTIAL_REDUCTION = "BOOTSTRAP_PARTIAL_REDUCTION"
+    ADVERSE_STOP_TIGHTEN = "ADVERSE_STOP_TIGHTEN"
 
 
 # Keep the established lifecycle baseline stable while the adverse-loss
@@ -53,6 +54,7 @@ FULL_CIBO_LIFECYCLE_FEATURES = frozenset(
         CiboLifecycleFeature.ADVERSE_LOSS_CUT,
         CiboLifecycleFeature.ADVERSE_PARTIAL_REDUCTION,
         CiboLifecycleFeature.BOOTSTRAP_PARTIAL_REDUCTION,
+        CiboLifecycleFeature.ADVERSE_STOP_TIGHTEN,
     }
 )
 
@@ -146,6 +148,7 @@ def run_cibo_position_lifecycle(
     adverse_loss_cut_r: Decimal = Decimal("-0.50"),
     adverse_partial_fraction: Decimal = Decimal("0.25"),
     bootstrap_partial_fraction: Decimal = Decimal("0.50"),
+    adverse_tightened_stop_r: Decimal = Decimal("-0.50"),
 ) -> CiboPositionLifecycleResult:
     """Evaluate one position using causal closed-bar lifecycle semantics."""
 
@@ -179,6 +182,22 @@ def run_cibo_position_lifecycle(
     ):
         raise CiboCapitalManagementError(
             "Lifecycle bootstrap partial fraction must be Decimal strictly between 0 and 1"
+        )
+    if (
+        not isinstance(adverse_tightened_stop_r, Decimal)
+        or not adverse_tightened_stop_r.is_finite()
+        or adverse_tightened_stop_r <= Decimal("-1")
+        or adverse_tightened_stop_r >= Decimal(0)
+    ):
+        raise CiboCapitalManagementError(
+            "Lifecycle adverse tightened stop must be Decimal strictly between -1R and 0R"
+        )
+    if (
+        CiboLifecycleFeature.ADVERSE_STOP_TIGHTEN in features
+        and adverse_tightened_stop_r >= adverse_loss_cut_r
+    ):
+        raise CiboCapitalManagementError(
+            "Lifecycle tightened stop must remain below its adverse close trigger"
         )
 
     risk_distance = abs(position.entry_price - position.structural_stop)
@@ -245,6 +264,7 @@ def run_cibo_position_lifecycle(
     pending_adverse_partial_reduction = False
     adverse_partial_done = False
     bootstrap_partial_done = False
+    adverse_stop_tightened = False
 
     def favorable_adverse_close(
         bar: CiboLifecycleBar,
@@ -335,13 +355,30 @@ def run_cibo_position_lifecycle(
             )
             break
 
+        # A protection armed on a prior closed bar is executable from this
+        # bar's open. If price gaps through that stop, use the observable open
+        # rather than granting an impossible fill at the protected stop.
+        active_stop_r = stop_r
+        if (
+            active_stop_r > Decimal("-1")
+            and open_r <= active_stop_r
+        ):
+            delta = remaining * open_r
+            remaining = Decimal(0)
+            append_event(
+                bar.opened_at,
+                "PROTECTED_STOP_GAP_OPEN",
+                delta,
+                force_close=True,
+            )
+            break
+
         # If BAR N crosses the original structural stop while also
         # containing favorable lifecycle triggers, M5 alone cannot establish
         # which path occurred first.  Do not invent intrabar ordering or apply
         # lifecycle actions that may have occurred after the position ceased.
         # Preserve the original structural settlement as the authoritative
         # outcome and stop lifecycle evaluation for this position.
-        active_stop_r = stop_r
         if active_stop_r == Decimal(-1) and adverse <= Decimal(-1):
             break
 
@@ -411,6 +448,19 @@ def run_cibo_position_lifecycle(
             if proposed > next_stop_r:
                 next_stop_r = proposed
                 close_actions.append("TRAIL_STOP")
+
+        if (
+            CiboLifecycleFeature.ADVERSE_STOP_TIGHTEN in features
+            and not adverse_stop_tightened
+            and best_favorable_seen < Decimal(1)
+            and close_r <= adverse_loss_cut_r
+            and bar.closed_at < position.horizon_at
+        ):
+            proposed = max(next_stop_r, adverse_tightened_stop_r)
+            if proposed > next_stop_r:
+                next_stop_r = proposed
+                close_actions.append("ADVERSE_STOP_TIGHTEN")
+            adverse_stop_tightened = True
 
         # Direct-to-stop losers are the DD surface that winner-protection
         # features do not address.  Only positions that have never reached
