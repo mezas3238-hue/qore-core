@@ -237,7 +237,8 @@ jobs:
               ("cibo-four-engine-loss-cut-g4_020p100.json", "-0.20", 2, 180, "0.25", "0.10", "1.00", "R43_GBPUSD,R34_XAUUSD,R38_GBPJPY,R42_AUDJPY"),
               ("cibo-four-engine-loss-cut-g4n34_020p100.json", "-0.20", 2, 180, "0.25", "0.10", "1.00", "R43_GBPUSD,VT31_NAS100,R38_GBPJPY,R42_AUDJPY"),
               ("cibo-four-engine-loss-cut-g5_020f050.json", "-0.20", 2, 180, "0.50", "0.10", "1.00", "R43_GBPUSD,R34_XAUUSD,VT31_NAS100,R38_GBPJPY,R42_AUDJPY"),
-          ):             candidate_path = (
+          ):
+              candidate_path = (
                   Path(os.environ["RUNNER_TEMP"]) / "result" / filename
               )
               if not candidate_path.exists():
