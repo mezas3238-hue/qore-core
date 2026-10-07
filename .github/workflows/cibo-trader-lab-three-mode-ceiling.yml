@@ -291,7 +291,7 @@ jobs:
             --lifecycle-source-root "XAUUSD=$RUNNER_TEMP/atlas/XAUUSD" \
             --output "$RUNNER_TEMP/result/cibo-three-mode-lifecycle-custody.json"
 
-      - name: Run lifecycle ATTACK8 MEDIUM1
+      - name: Run lifecycle ablation BREAKEVEN
         run: |
           set -euo pipefail
           python scripts/cibo_trader_lab_three_mode_ceiling.py \
@@ -305,10 +305,59 @@ jobs:
             --lifecycle-source-root "GBPUSD=$RUNNER_TEMP/atlas/GBPUSD" \
             --lifecycle-source-root "NAS100=$RUNNER_TEMP/atlas/NAS100" \
             --lifecycle-source-root "XAUUSD=$RUNNER_TEMP/atlas/XAUUSD" \
-            --distributed-attack-frontier \
-            --attack-multiplier-cap 8 \
-            --medium-multiplier-cap 1 \
-            --output "$RUNNER_TEMP/result/cibo-three-mode-lifecycle-attack8-medium1.json"
+            --lifecycle-feature BREAKEVEN \
+            --output "$RUNNER_TEMP/result/cibo-three-mode-lifecycle-breakeven.json"
+
+      - name: Run lifecycle ablation PROFIT_LOCK
+        run: |
+          set -euo pipefail
+          python scripts/cibo_trader_lab_three_mode_ceiling.py \
+            --manifest "$MANIFEST" \
+            --baseline-replay "$BASELINE" \
+            --historical-manifest "$HISTORICAL_MANIFEST" \
+            --historical-replay "$HISTORICAL_REPLAY" \
+            --lifecycle-source-root "AUDJPY=$RUNNER_TEMP/atlas/AUDJPY" \
+            --lifecycle-source-root "EURUSD=$RUNNER_TEMP/atlas/EURUSD" \
+            --lifecycle-source-root "GBPJPY=$RUNNER_TEMP/atlas/GBPJPY" \
+            --lifecycle-source-root "GBPUSD=$RUNNER_TEMP/atlas/GBPUSD" \
+            --lifecycle-source-root "NAS100=$RUNNER_TEMP/atlas/NAS100" \
+            --lifecycle-source-root "XAUUSD=$RUNNER_TEMP/atlas/XAUUSD" \
+            --lifecycle-feature PROFIT_LOCK \
+            --output "$RUNNER_TEMP/result/cibo-three-mode-lifecycle-profit-lock.json"
+
+      - name: Run lifecycle ablation TRAILING
+        run: |
+          set -euo pipefail
+          python scripts/cibo_trader_lab_three_mode_ceiling.py \
+            --manifest "$MANIFEST" \
+            --baseline-replay "$BASELINE" \
+            --historical-manifest "$HISTORICAL_MANIFEST" \
+            --historical-replay "$HISTORICAL_REPLAY" \
+            --lifecycle-source-root "AUDJPY=$RUNNER_TEMP/atlas/AUDJPY" \
+            --lifecycle-source-root "EURUSD=$RUNNER_TEMP/atlas/EURUSD" \
+            --lifecycle-source-root "GBPJPY=$RUNNER_TEMP/atlas/GBPJPY" \
+            --lifecycle-source-root "GBPUSD=$RUNNER_TEMP/atlas/GBPUSD" \
+            --lifecycle-source-root "NAS100=$RUNNER_TEMP/atlas/NAS100" \
+            --lifecycle-source-root "XAUUSD=$RUNNER_TEMP/atlas/XAUUSD" \
+            --lifecycle-feature TRAILING \
+            --output "$RUNNER_TEMP/result/cibo-three-mode-lifecycle-trailing.json"
+
+      - name: Run lifecycle ablation PARTIAL_REALIZATION
+        run: |
+          set -euo pipefail
+          python scripts/cibo_trader_lab_three_mode_ceiling.py \
+            --manifest "$MANIFEST" \
+            --baseline-replay "$BASELINE" \
+            --historical-manifest "$HISTORICAL_MANIFEST" \
+            --historical-replay "$HISTORICAL_REPLAY" \
+            --lifecycle-source-root "AUDJPY=$RUNNER_TEMP/atlas/AUDJPY" \
+            --lifecycle-source-root "EURUSD=$RUNNER_TEMP/atlas/EURUSD" \
+            --lifecycle-source-root "GBPJPY=$RUNNER_TEMP/atlas/GBPJPY" \
+            --lifecycle-source-root "GBPUSD=$RUNNER_TEMP/atlas/GBPUSD" \
+            --lifecycle-source-root "NAS100=$RUNNER_TEMP/atlas/NAS100" \
+            --lifecycle-source-root "XAUUSD=$RUNNER_TEMP/atlas/XAUUSD" \
+            --lifecycle-feature PARTIAL_REALIZATION \
+            --output "$RUNNER_TEMP/result/cibo-three-mode-lifecycle-partial.json"
 
       - name: Enforce Trader Lab scientific invariants
         run: |
@@ -453,20 +502,36 @@ jobs:
           assert lifecycle_funnel["sizing_medium_deferred_count"] == 0
           assert lifecycle_funnel["compound_portfolio_withheld_before_execution_engine_count"] == 0
 
-          lifecycle_attack = json.loads(
-              (
-                  Path(os.environ["RUNNER_TEMP"])
-                  / "result"
-                  / "cibo-three-mode-lifecycle-attack8-medium1.json"
-              ).read_text()
-          )
-          assert lifecycle_attack["research_lane"] == (
-              "HISTORICAL_PRIOR_NATIVE_LIFECYCLE_DISTRIBUTED_ATTACK_FRONTIER"
-          )
-          assert lifecycle_attack["trade_count"] == 3368
-          assert lifecycle_attack["maximum_selected_multiplier"] <= 8
-          assert lifecycle_attack["governance"]["medium_multiplier_cap"] == 1
-          assert lifecycle_attack["governance"]["position_lifecycle_consumed"] is True
+          for filename, feature in (
+              ("cibo-three-mode-lifecycle-breakeven.json", "BREAKEVEN"),
+              ("cibo-three-mode-lifecycle-profit-lock.json", "PROFIT_LOCK"),
+              ("cibo-three-mode-lifecycle-trailing.json", "TRAILING"),
+              ("cibo-three-mode-lifecycle-partial.json", "PARTIAL_REALIZATION"),
+          ):
+              ablation = json.loads(
+                  (
+                      Path(os.environ["RUNNER_TEMP"])
+                      / "result"
+                      / filename
+                  ).read_text()
+              )
+              assert ablation["research_lane"] == (
+                  "HISTORICAL_PRIOR_NATIVE_LIFECYCLE_CUSTODY"
+              )
+              assert ablation["trade_count"] == ablation["decision_count"] == 3368
+              assert ablation["governance"]["position_lifecycle_consumed"] is True
+              assert ablation["position_lifecycle_report"][
+                  "enabled_feature_codes"
+              ] == [feature]
+              assert ablation["position_lifecycle_report"][
+                  "outcome_used_for_trigger"
+              ] is False
+              funnel = ablation["engineering_sensor_report"]["execution_funnel"]
+              assert funnel["sizing_medium_rejected_count"] == 0
+              assert funnel["sizing_medium_deferred_count"] == 0
+              assert funnel[
+                  "compound_portfolio_withheld_before_execution_engine_count"
+              ] == 0
 
           for filename, cap in (
               ("cibo-three-mode-distributed-attack-4x.json", 4),
@@ -544,6 +609,9 @@ jobs:
             ${{ runner.temp }}/result/cibo-three-mode-attack8-medium2.json
             ${{ runner.temp }}/result/cibo-three-mode-attack8-medium3.json
             ${{ runner.temp }}/result/cibo-three-mode-lifecycle-custody.json
-            ${{ runner.temp }}/result/cibo-three-mode-lifecycle-attack8-medium1.json
+            ${{ runner.temp }}/result/cibo-three-mode-lifecycle-breakeven.json
+            ${{ runner.temp }}/result/cibo-three-mode-lifecycle-profit-lock.json
+            ${{ runner.temp }}/result/cibo-three-mode-lifecycle-trailing.json
+            ${{ runner.temp }}/result/cibo-three-mode-lifecycle-partial.json
           if-no-files-found: error
           retention-days: 90
