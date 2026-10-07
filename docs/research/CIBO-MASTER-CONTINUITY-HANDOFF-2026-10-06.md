@@ -1,95 +1,141 @@
 # QORE CORE — CIBO MASTER CONTINUITY HANDOFF
 
-## CAPITAL-LEAK CLOSURE -> TRUE CEILING DISCOVERY -> POST-CEILING REFINEMENT -> EXAMS
+## FOUR-ENGINE REPAIR CLOSURE -> CLEAN CAUSAL BASELINE -> TRUE CEILING -> FRESH HOLDOUT -> CERTIFICATION EXAMS
 
 **Owner / CEO:** Sergio Meza  
 **Repository source of truth:** `mezas3238-hue/qore-core`  
-**Canonical active research branch for the newest causal work:** `agent/cibo-causal-expectation-leakage-fix-001`  
-**Canonical CIBO PR:** #651 — DRAFT / OPEN / UNMERGED  
-**This handoff supersedes incomplete chat summaries.**
+**Canonical active branch:** `agent/cibo-causal-expectation-leakage-fix-001`  
+**HEAD immediately before this handoff update:** `69161fda58f6234f2d9dfa478870618a34951803`  
+**Date:** 2026-10-06  
+**Status:** RESEARCH ONLY / NOT CERTIFIED / NOT LIVE AUTHORIZED / NO REAL-CAPITAL AUTHORITY
+
+This file is the canonical continuity handoff. It supersedes stale sections, older chat summaries and any instruction that still assumes a fixed 4x ceiling, a binding MAX Frontier, or that Sizing / Adaptive Leverage / CIBO Compound / Compound Portfolio should be studied as four isolated systems.
 
 ---
 
 # 0. SOVEREIGN DIRECTIVE FOR THE NEXT ARCHITECT
 
-The current mission is NOT to produce a pretty replay number and NOT to rush into certification.
+The first job is URGENT:
 
-The binding order is:
+**REPAIR QUICKLY AND EFFECTIVELY ALL CURRENTLY OBSERVED FAILURES IN THE FOUR-ENGINE CAPITAL SYSTEM, THEN RE-RUN THE SAME REPLAY AND MEASURE THE DIFFERENCE.**
 
-1. **CLOSE ALL MATERIAL CAPITAL LEAKS.**
-2. **DISCOVER THE TRUE CEILING OF CIBO.**
-3. **ONLY AFTER LEAK CLOSURE, STUDY IN DEPTH:**
-   - Sizing;
+The latest full causal replay processed:
+
+- 3,368 opportunity decisions;
+- 3,305 decision epochs;
+- only 11 decisions reached QORE Risk and settled;
+- initial capital: USD 60;
+- ending capital: USD 66.536069121994...;
+- net: +USD 6.536069121994...;
+- cumulative return: +10.8934485366...%;
+- maximum drawdown: USD 19.4329997399...;
+- peak capital: USD 71.9260691219....
+
+This is economically unacceptable relative to the amount of opportunity and intelligence available.
+
+The next architect must NOT interpret this as CIBO's ceiling.
+
+It is an **integration / cooperation failure state**.
+
+The immediate objective is:
+
+1. repair the broken cooperation among:
    - Adaptive Leverage;
+   - Sizing;
    - CIBO Compound;
-   - Compound Portfolio.
-4. Use those four capital powers together only after the base intelligence/economics are clean.
-5. Once the ceiling is discovered, perform post-ceiling causal refinement and freeze the candidate.
-6. Then execute the exams in this order:
-   - Exam 1 — All Trader Rescue;
-   - Exam 3 — worst/negative Trader rescue;
-   - Exam 2 — +2000% NET in <=10 calendar months.
+   - Compound Portfolio;
+2. repair the remaining sensor/coherence defects;
+3. re-run the same burned full replay;
+4. compare:
+   - selected decisions;
+   - settlements;
+   - ending capital;
+   - net PnL;
+   - max drawdown;
+   - capital path;
+   - module call counts;
+   - downstream consumption;
+   - final binding counts;
+   - four-engine cooperation patterns;
+5. continue until the four engines operate as one coherent capital system.
 
-The +2000%/10-month criterion is an EXAM, never a tuning target.
+Do NOT start true ceiling discovery while the current four-engine architecture remains structurally broken.
 
-The owner has explicitly REJECTED the earlier ~USD 1,141 result as economically insufficient and it is also now methodologically invalid as a causal baseline due to expectation-time leakage discovered later.
+Do NOT open the fresh holdout yet.
 
 ---
 
-# 1. NON-NEGOTIABLE ARCHITECTURAL LAWS
+# 1. OWNER INTENT — DO NOT LOSE THIS
 
-## 1.1 CIBO must be universal
+CIBO is intended to use the maximum lawful capacity of its native intelligence and capital-management functions.
 
-CIBO is not a NAS100 system, not a VT31 system, not a cTrader system and not a FundedNext system.
+The goal is NOT:
 
-The cognitive and economic core must work across:
+- to make a replay look good;
+- to hardcode a multiplier;
+- to optimize directly to +2000%;
+- to force more trades for cosmetic reasons;
+- to bypass Risk;
+- to rescue bad economics with arbitrary sizing;
+- to overfit burned history.
 
-- Forex;
-- indices;
-- metals;
-- futures;
-- equities;
-- crypto;
-- any later supported market.
+The goal is:
 
-And across:
+**make full CIBO cognition and all capital functions work together so that valid economic opportunity is converted into robust capital growth while preserving causality, survival and universality.**
 
-- DEMO;
-- TEST;
-- SANDBOX;
-- broker accounts;
-- funded/prop accounts;
-- PRODUCTION when separately authorized.
+The owner specifically requires that these four capital powers work TOGETHER:
 
-Platform/provider specifics belong only in adapters/provider edges.
+- Adaptive Leverage;
+- Sizing;
+- CIBO Compound;
+- Compound Portfolio.
 
-Core CIBO must reason over universal contracts for:
+They must not behave as four disconnected calculators.
 
-- Trader identity;
-- market opportunity;
+They also must not merely duplicate the same output and be counted as separate intelligence.
+
+---
+
+# 2. NON-NEGOTIABLE LAWS
+
+## 2.1 CIBO remains universal
+
+CIBO must not become:
+
+- VT31-specific;
+- NAS100-specific;
+- cTrader-specific;
+- MT5-specific;
+- broker-specific;
+- prop-firm-specific.
+
+Provider/platform details stay at adapters and provider edges.
+
+The sovereign cognitive/economic core must reason over universal contracts for:
+
+- Trader;
+- opportunity;
+- account;
 - provider economics;
-- account mission;
 - margin;
-- cost;
 - risk;
-- portfolio;
 - capital;
+- lifecycle;
+- portfolio;
 - cognition.
 
-No cTrader/MT4/MT5/FundedNext/FTMO/OANDA/IBKR/TradeStation/Tastytrade-specific import is allowed in the sovereign core.
+## 2.2 Full Native MAX intelligence
 
-## 1.2 Full Native CIBO intelligence
+No simplified intelligence substitute.
 
-CIBO must use its full native intelligence, not a simplified substitute.
+No external AI in runtime.
 
-No external AI is allowed in the CIBO runtime.
-
-The current cognitive surface includes 31 tracked components:
+The tracked cognitive surface currently contains 31 components:
 
 1. NATIVE_PERCEPTION
 2. MISSION_DIRECTOR
 3. FUNCTIONAL_COORDINATOR
-4-22. CF01..CF19
+4-22. CF01 through CF19
 23. WORLD_MODEL
 24. ATTENTION_CONTEXT
 25. REASONING_ROUTING
@@ -100,179 +146,266 @@ The current cognitive surface includes 31 tracked components:
 30. COGNITIVE_INTEGRATION
 31. EXECUTIVE_SYNTHESIS
 
-## 1.3 Risk remains sovereign
+## 2.3 QORE Risk remains sovereign
 
-Canonical chain:
+Target chain:
 
-TRADER -> opportunity / geometry  
-CIBO -> cognition + capital authority  
-CMA / Portfolio / Sizing / Compound / Capital Science -> capital plan  
-QORE Risk -> independent hard survivability governor  
-Execution -> only after downstream authorization
+TRADER / OPPORTUNITY
+-> FULL CIBO COGNITION
+-> FOUR-ENGINE JOINT CAPITAL INTENT
+-> CMA / CAPITAL SCIENCE
+-> QORE RISK
+-> EXECUTION
 
-No CIBO optimization may bypass QORE Risk.
+No repair is allowed to bypass QORE Risk.
 
-## 1.4 No cheating
+## 2.4 No cheating
 
 Forbidden:
 
 - future leakage;
 - outcome-aware tuning;
 - target-capital tuning;
-- holdout reuse as fresh evidence;
-- fake provider history;
-- fake forward evidence;
+- fake provider evidence;
 - fake covariance;
+- fake capital;
 - account resets;
-- economic-era resets;
 - capital resurrection;
+- floating-PnL double spend;
+- holdout reuse represented as fresh;
 - post-outcome rule fitting represented as causal;
-- broker mutation during research;
-- certification claims from research replays.
+- direct tuning to Exam 2's +2000% target.
 
 ---
 
-# 2. CURRENT GIT / BRANCH STATE
+# 3. CURRENT GIT / EVIDENCE STATE
 
-## 2.1 PR #651
-
-PR #651:
-- state: OPEN
-- draft: TRUE
-- merged: FALSE
-- head branch: `agent/cibo-capital-efficiency-sizing-lab-001`
-- current head at handoff verification: `a8ca39558a6ca14c4d0a465a8e7467fff7df4c5b`
-
-No merge authority is granted by this handoff.
-
-## 2.2 Sensor / observability branch
-
-`agent/cibo-function-economic-sensors-001`
-
-Current verified head:
-`c93260b48bd55cfc1ddc114d09cc077691884a45`
-
-This branch contains:
-- economic sensors;
-- cognitive sensors;
-- root-cause analyzer;
-- universal sovereign boundary work;
-- VT31 predecision enrichment work;
-- temporary research workflows.
-
-Temporary CI workflows from this branch are not automatically sovereign production artifacts.
-
-## 2.3 Causal expectation / leakage repair branch
+Canonical branch:
 
 `agent/cibo-causal-expectation-leakage-fix-001`
 
-Current verified head at handoff creation:
-`ab62bf09a62c8ca830959541811f3a506fcfa128`
+HEAD immediately before this handoff update:
 
-This is the most advanced branch for:
-- expectation chronology repair;
-- context research authority repair;
-- causal prior-window replay;
-- walk-forward expectation engine;
-- full-period causal walk-forward replay work.
+`69161fda58f6234f2d9dfa478870618a34951803`
 
-## 2.4 VT31 isolated research branch
+Frozen canonical source:
 
-`agent/cibo-vt31-primary-shield-ablation-001`
-
-Current verified head:
-`5139f30833b1075d495633245e50a93b8aeb4419`
-
-Do not promote a VT31-specific shield as a universal CIBO rule unless the mechanism generalizes causally.
-
----
-
-# 3. FROZEN POPULATION / ORIGINAL CEILING INPUT
-
-Single account:
-- initial capital: USD 60
+- artifact ID: `11389331836`
+- ZIP digest: `sha256:30177639f660c9647ab70257c2d12c541bdade49ab5582347a3890f920070fee`
+- source manifest SHA: `sha256:76ffb7e1c72bf3c18e2fc7614007e8f2124463379acd185167cc5e46b8b2e669`
+- opportunities: 3,368
+- decision epochs: 3,305
+- period: 2019-07-01 through 2022-06-29
+- initial account capital: USD 60
 - no account reset
-- no economic era reset
+- no economic-era reset
 
-7 Traders:
-- VT08_FOREX
+Frozen Traders:
+
 - R34_XAUUSD
 - R38_EURUSD
-- R43_GBPUSD
 - R38_GBPJPY
 - R42_AUDJPY
+- R43_GBPUSD
+- VT08_FOREX
 - VT31_NAS100
 
-Frozen opportunity population:
-- 3,368 opportunities
-- 3,305 decision epochs
-
-Counts:
-- R34_XAUUSD: 492
-- R38_EURUSD: 495
-- R38_GBPJPY: 543
-- R42_AUDJPY: 631
-- R43_GBPUSD: 561
-- VT08_FOREX: 162
-- VT31_NAS100: 484
-
-Frozen Native MAX:
-- 3,368 / 3,368 PASS
-- external AI calls: 0
-
-Frozen artifact:
-- Artifact ID: 11389331836
-- ZIP digest: `sha256:30177639f660c9647ab70257c2d12c541bdade49ab5582347a3890f920070fee`
-- manifest SHA: `sha256:76ffb7e1c72bf3c18e2fc7614007e8f2124463379acd185167cc5e46b8b2e669`
-
 ---
 
-# 4. ORIGINAL FULL REPLAY — IMPORTANT BUT NOW REJECTED
+# 4. CURRENT AUTHORITATIVE FULL REPLAY
 
-A full historical replay previously completed GREEN.
+Workflow:
 
-Observed old result:
-- 3,368 decisions
-- 1,216 settlements
-- USD 60 -> USD 1,141.706048812696...
-- net PnL: USD 1,081.706048812696...
-- peak: USD 1,168.466967043467...
+`QORE CIBO Walk Forward Full Replay`
+
+Run:
+
+`37547594291`
+
+Head:
+
+`f562d53e5777858985f0e846d542294f5bace96a`
+
+Conclusion:
+
+`SUCCESS`
+
+Artifact:
+
+- ID: `11451743578`
+- digest: `sha256:d439957f21e2f79148b5a2fb75a53db6fa448698f17aeb6978f379ed3547f7ea`
+
+Results:
+
+- decisions: 3,368
+- epochs: 3,305
+- initial capital: USD 60
+- ending capital: USD 66.536069121994164282834259435122...
+- net PnL: +USD 6.536069121994...
+- cumulative return: +10.8934485366569...%
+- peak capital: USD 71.926069121994...
+- maximum drawdown: USD 19.432999739945...
+- max DD as fraction of initial capital: ~32.39%
+- selected decisions: 11
+- settlements: 11
+- QORE Risk ALLOW: 11
+- QORE Risk NOT_REQUESTED: 3,357
+- future outcome used: false
+- outcome-aware tuning: false
+- certification claimed: false
 - external AI: 0
-- account resets: 0
-- economic era resets: 0
-- broker mutation: false
 
-Time range:
-- first decision: 2019-07-01
-- last decision: 2022-06-29
-- ~3 years
+Net PnL by Trader in those 11 settlements:
 
-That corresponds to approximately:
-- +1,802.8% cumulative
-- ~19x capital
-- ~167% annualized CAGR
+- R38_GBPJPY: +USD 8.168200924266...
+- R42_AUDJPY: -USD 1.592131802272...
+- VT31_NAS100: approximately -USD 0.04
 
-The owner explicitly rejected this return as far too low for CIBO's intended ceiling.
+The other Traders produced no settled capital path in this current replay.
 
-MORE IMPORTANTLY: this replay is no longer acceptable as causal evidence because later work discovered expectation-time leakage.
-
-Do not use USD 1,141 as a valid ceiling baseline.
-
-It may only be retained as a historical diagnostic reference.
+This replay is a diagnostic baseline, NOT a certification result.
 
 ---
 
-# 5. SENSOR AND OBSERVABILITY WORK COMPLETED
+# 5. FIXED 4x CEILING HAS BEEN REMOVED
 
-## 5.1 Economic sensor
+The owner explicitly rejected an artificial fixed 4x ceiling.
+
+That work is now implemented across the principal chain.
+
+The current model no longer assumes 4x is the maximum research intensity.
+
+Provider/executable capacity is derived from real geometry such as:
+
+`floor(maximum_volume / minimum executable seed volume)`
+
+and then constrained by actual:
+
+- provider volume limits;
+- capital;
+- margin;
+- survival;
+- robust utility;
+- Capital Science;
+- CMA;
+- QORE Risk.
+
+Evidence that >4 is active in the current replay:
+
+- maximum selected Adaptive Leverage multiplier: **39x**
+- decisions with selected multiplier >4: **464**
+
+Current leverage distribution includes:
+
+- 0x: 1,984
+- 1x: 378
+- 2x: 247
+- 3x: 155
+- 4x: 140
+- 5x: 104
+- 6x: 78
+- 7x: 51
+- 8x: 62
+- 9x: 41
+- 10x: 44
+- 11x: 16
+- 12x: 17
+- additional values through 39x.
+
+IMPORTANT:
+
+"no fixed 4x ceiling" does NOT mean "risk infinity."
+
+QORE Risk, margin, survival and executable provider geometry remain binding.
+
+---
+
+# 6. MAX FRONTIER CURRENT CONTRACT
+
+MAX Frontier exists:
+
+`src/qore/infrastructure/cibo_maximum_capability_frontier.py`
+
+Current required role:
+
+**ADVISORY / DIAGNOSTIC.**
+
+It must NOT truncate Native MAX.
+
+It must NOT impose a hard fixed multiplier ceiling.
+
+It may:
+
+- estimate a frontier;
+- expose causal capacity;
+- report divergence;
+- diagnose missed/unsafe capacity.
+
+It may NOT:
+
+- replace Portfolio;
+- select broker volume;
+- bypass CMA;
+- bypass QORE Risk;
+- silently reduce Native MAX's action surface.
+
+Current P0 observability defect:
+
+`MAX_FRONTIER_MALFORMED`
+
+Observed:
+
+- event count: 3,368
+
+This must be repaired because malformed Frontier telemetry corrupts diagnostics even though Frontier is not currently the sovereign actuator.
+
+---
+
+# 7. SENSOR ARCHITECTURE NOW AVAILABLE
+
+CIBO now has multiple layers of sensors.
+
+The next architect MUST use them instead of guessing.
+
+## 7.1 Cognitive reach / input-output sensors
 
 File:
+
+`src/qore/infrastructure/cibo_cognitive_reach_sensors.py`
+
+Purpose:
+
+- observe all 31 tracked cognitive components;
+- distinguish engine called vs not called;
+- record input metrics;
+- record output metrics;
+- distinguish native output consumption from semantic payload propagation;
+- prevent "present in the digest" from being treated as economic contribution;
+- expose semantic-only components;
+- expose downstream reach.
+
+Important correction already made:
+
+Older telemetry could report downstream consumption even when a native engine was not actually called.
+
+The sensor model was repaired to distinguish:
+
+- called;
+- native output consumed;
+- semantic payload consumed;
+- applicable;
+- downstream consumed.
+
+## 7.2 Function / economic sensors
+
+File:
+
 `src/qore/infrastructure/cibo_function_economic_sensors.py`
 
-Read-only.
+Current tracked function/economic surfaces include:
 
-Tracks economic/control surfaces including:
 - COGNITION
+- MAX_FRONTIER
 - GEN-C11_MPC
 - COMPOUND_PORTFOLIO
 - ADAPTIVE_LEVERAGE
@@ -281,1367 +414,1188 @@ Tracks economic/control surfaces including:
 - CIBO_COMPOUND
 - CMA_FINAL_PLAN
 - QORE_RISK_HANDOFF
-- CAPITAL_SCIENCE:GEN-Cx
+- Capital Science GEN-C receipts.
 
-Core law:
-- activity != contribution
-- reach != value
-- only isolated causal ablation proves contribution
+The sensor distinguishes:
 
-## 5.2 Cognitive sensor
+- called;
+- downstream consumed;
+- decision gate triggered;
+- final capital binding;
+- local change without final binding;
+- risk delta;
+- input digest;
+- output digest.
 
-File:
-`src/qore/infrastructure/cibo_cognitive_reach_sensors.py`
+This distinction is critical:
 
-Tracks the 31 components listed above.
+**activity != contribution.**
 
-Contribution states include:
-- UNPROVEN
-- ABLATION_PROVEN
+## 7.3 Four-engine cooperation sensors
 
-Important sensor correction already made:
-- a module being present in a digest no longer automatically means it reached the capital decision.
-- direct capital reach is only claimed when an observed gate/control change is emitted, or later proven by ablation.
+Current four-engine target set:
 
-## 5.3 Full sensor replay
+- COMPOUND_PORTFOLIO
+- ADAPTIVE_LEVERAGE
+- SIZING
+- CIBO_COMPOUND
 
-Historical full sensor replay completed GREEN.
+Instrumentation commit:
 
-Key counts:
-- cognitive sensor events: 104,408
-- function sensor events: 57,256
-- decisions: 3,368
-- settlements in old baseline: 1,216
+`902ed4d8b13e9c60debb5dab1167f22caef5d22a`
 
-## 5.4 Root-cause analyzer
+Auditor:
 
-File:
-`scripts/cibo_control_root_cause_analysis.py`
+`scripts/cibo_four_engine_cooperation_report.py`
 
-The analyzer separates:
-- cognitive reach;
-- observed gates;
-- first upstream cause;
-- expectation calibration;
-- duration calibration;
-- burned post-outcome diagnostics.
-
-It explicitly prevents:
-- treating co-occurrence as causation;
-- treating burned outcomes as tuning labels;
-- double counting propagated downstream gates.
-
-Root-cause CI had a GREEN run:
-- run 37469852518
-
----
-
-# 6. MAJOR OBSERVATIONAL FINDINGS FROM THE OLD BASELINE
-
-These findings are diagnostic only where outcomes were burned.
-
-## 6.1 All executed decisions used 4x
-
-In the old replay:
-- 1,216 executed settlements
-- all executed decisions used Adaptive Leverage multiplier = 4
-- all were CAPABILITY_MAXIMUM
-- all QORE Risk = ALLOW
-
-Blocked decisions had leverage 0.
-
-Thus old Adaptive Leverage behaved effectively:
-- 0x OR 4x
-- not genuinely contextual 1/2/3/4
-
-This remains a major research target AFTER base leak closure.
-
-## 6.2 Old selection cause accounting
-
-Old first-cause decomposition:
-- 1,216 executed
-- 976 Context Quality ABSTAIN
-- 1,176 nonpositive expected net utility
-
-This explained all 3,368 once.
-
-However:
-- the 1,176 expected-utility gate was later found to rely on a temporally contaminated prior for much of the full period;
-- the 976 Context Quality veto was later found to be using reused/burned research as a hard capital veto despite governance flags saying it had no such authority.
-
-Therefore BOTH major blocking mechanisms needed repair.
-
-## 6.3 Burned diagnostic on nonpositive utility rejects
-
-The old 1,176 nonpositive expected-utility rejects later showed approximately:
-- +404.46R net structural
-- PF ~1.656
-
-This was a strong sign the selection mechanism was discarding valuable opportunity.
-
-This MUST NOT be used as direct tuning evidence.
-
-It was used only to identify the mechanism for deeper investigation.
-
-## 6.4 Context Quality burned diagnostic
-
-Old 976 Context Quality rejects were roughly neutral overall:
-- approximately -1.77R
-- PF ~0.994
-
-One H1 directional-target rule appeared protective in burned diagnostics.
-
-Again:
-- burned diagnostics identify mechanisms;
-- they do not authorize retrospective tuning.
-
-## 6.5 Expectation calibration was poor
-
-Old frozen prior expectation vs later realized structural R:
-- Pearson ~ -0.017
-- Spearman ~ -0.005
-
-Expected velocity vs realized R/minute:
-- Pearson ~ -0.302
-- Spearman ~ -0.099
-
-This was nearly non-predictive or negatively aligned.
-
-## 6.6 Duration forecast was materially stale
-
-Selected opportunities averaged roughly 3x the expected capital duration.
-
-Examples:
-- VT31 expected 6 min, selected actual ~29 min (~4.9x)
-- R38_GBPJPY expected 55, selected actual ~151 min
-- R42 expected 80, selected actual ~211 min
-- R43 expected 45, selected actual ~264 min
-
-This means Capital Velocity was using low-resolution duration assumptions.
-
-## 6.7 VT31 loss concentration
-
-Old baseline:
-- VT31 = 442 settlements
-- 132 wins / 310 losses
-- loss rate ~70.1%
-- net still positive ~USD 159.90
-- ~53.1% of all gross monetary loss
-
-Provider-cost burden for VT31 was also high.
-
-This makes VT31 a powerful diagnostic microscope.
-
-But DO NOT solve CIBO with a VT31-only hack.
-
-Any promoted mechanism must be universal or isolated as a Trader-specific adapter/perception feature.
-
----
-
-# 7. COGNITIVE REPAIRS COMPLETED
-
-## 7.1 Prior problem
-
-Native cognition executed many faculties, but much semantic content was reduced to fingerprints and Executive Synthesis often remained invariant.
-
-Observed old state:
-- 31 components present
-- Executive Synthesis effectively RECOMMEND across the full old population
-- 0 observed cognitive gates initially
-
-This did NOT mean cognition was useless.
-It meant much cognition was not visibly controlling capital.
-
-## 7.2 Economic context wired into Native MAX
-
-Repairs made so cognition explicitly receives:
-- Context Quality state;
-- expectation basis;
-- expected value;
-- expected net utility;
-- expected capital minutes.
-
-CF07 became the explicit semantic carrier for economic expectation/net utility.
-
-CF16 became the explicit carrier for Trader/context-quality semantics.
-
-## 7.3 Direct gate attribution repaired
-
-After repair:
-- CF16 was able to explain Context Quality gating;
-- CF07 was able to explain Expected Net Utility gating.
-
-Sensors were changed so they no longer claim every faculty reaches capital simply because its receipt flows through the chain.
-
-## 7.4 Cognitive remediation gate
-
-Cognitive Semantic Remediation reached GREEN.
-
-The repaired chain preserved economics in the old baseline when only attribution/wiring changed.
-
-This proved the wiring repair itself did not silently mutate the economic result.
-
----
-
-# 8. UNIVERSALITY REPAIRS COMPLETED
-
-## 8.1 Native MAX whitelist removed
-
-A serious universality defect was found:
-
-`cibo_native_maximum_intelligence.py` previously rejected any Trader outside the existing closed set.
-
-It could raise:
-`native maximum intelligence received unsupported Trader`
-
-That violated the owner's universal-CIBO requirement.
-
-Repair:
-- removed closed Trader admission list;
-- Native MAX can now accept dynamic Trader identities;
-- universal causal perception contract introduced;
-- VT08/VT31 may retain extra specialist validation, but no longer define admission to CIBO itself.
-
-## 8.2 Universal Sovereign Boundary
-
-Dedicated CI:
-`QORE CIBO Universal Sovereign Boundary`
-
-Latest verified GREEN run:
-- run #5
-- run ID 37490891992
-- head `c93260b48bd55cfc1ddc114d09cc077691884a45`
-
-The gate watches the sovereign/economic/cognitive core for provider/platform-specific coupling.
-
-The audited core included:
-- sovereign capital runtime;
-- economic engine wiring;
-- sizing authority;
-- CMA;
-- Capital Science bridge;
-- Full Economic Twin;
-- MPC;
-- Portfolio;
-- Native MAX;
-- native faculty semantics;
-- native cognitive episode;
-- Native MAX MPC bridge;
-- Native Sovereign Runtime;
-- sovereign function consultation/runtime;
-- reasoned sovereign runtime;
-- world model;
-- scenarios;
-- causality;
-- executive brain.
-
-No provider/platform-specific imports were found in these core modules.
-
-## 8.3 Account mission universality
-
-The account mission already supports generic provider identity and environments:
-- DEMO
-- TEST
-- SANDBOX
-- PRODUCTION
-
-Provider-specific restrictions belong at provider/Risk edges.
-
----
-
-# 9. ADAPTIVE LEVERAGE ABLATION COMPLETED
-
-A clean causal ablation was built using the canonical existing `fixed_multiplier` hook.
-
-Ablation:
-- same frozen market;
-- same chronology;
-- same cognition;
-- same Portfolio objective;
-- same Sizing;
-- same Compound;
-- same CMA;
-- same QORE Risk;
-- only Adaptive Leverage OFF -> fixed 1x.
-
-Result:
-- the 1x ablation was GREEN;
-- removing Adaptive Leverage destroyed roughly USD 800 of ending capital relative to the old baseline.
-
-Interpretation:
-- leverage is not globally useless;
-- it contributes materially;
-- but old behavior is too binary 0/4;
-- later work must make it contextually discriminative, not simply remove it.
-
-Do not optimize leverage further until base capital leaks are closed.
-
----
-
-# 10. FORECAST CONFIDENCE REPAIR COMPLETED — ECONOMICALLY NEUTRAL
-
-A structural repair was added:
-
-A `FROZEN_HISTORICAL_PRIOR` can inform expected value but should not dominate capital-velocity ranking as though its duration estimate were a precise contextual forecast.
-
-Portfolio was changed so duration-based velocity priority is trusted only for:
-- CURRENT_STATE_FORECAST
-- CAUSAL_MODEL_FORECAST
-
-Tests were added:
-- prior-only duration cannot dominate allocation ranking;
-- contextual forecast can use capital velocity.
-
-Forecast Confidence Remediation gate went GREEN.
-
-Full-replay comparison showed:
-- 0 decision changes;
-- 0 leverage changes;
-- 0 settlement changes;
-- same old ending capital.
-
-Conclusion:
-- architecturally correct;
-- economically neutral on this population;
-- NOT counted as capital leak recovered.
-
----
-
-# 11. CRITICAL DISCOVERY — FUTURE LEAKAGE IN THE OLD EXPECTATION PRIOR
-
-This is one of the most important findings in the entire work.
-
-The frozen Phase20 TRAIN prior was trained on:
-
-- start: 2021-09-23
-- end: 2022-03-09 17:00 UTC
-
-But the old full replay begins:
-
-- 2019-07-01
-
-The code previously allowed the prior to be stamped with:
-- `as_of = decision_at`
-
-even when the CONTENT of that prior did not yet exist at that historical decision date.
-
-Therefore the old full replay used future-trained expectation content on earlier decisions.
-
-This invalidates the old USD 1,141 full-period result as causal evidence.
-
-## 11.1 Repair implemented
-
-Branch:
-`agent/cibo-causal-expectation-leakage-fix-001`
-
-Implemented:
-- `frozen_train_prior_available_at()`
-- frozen prior cannot be used before the training window completed
-- expectation evidence must declare/derive availability time
-- manifest economics rejects expectation evidence if availability > decision_at
-
-Dedicated gate:
-`QORE CIBO Causal Expectation Chronology`
-
-Latest verified runs were GREEN, including run #8.
-
-## 11.2 Old full manifest now fails closed
-
-The old 3-year frozen manifest is now deliberately rejected for expectation-time leakage.
-
-That is correct behavior.
-
----
-
-# 12. SECOND CAPITAL-AUTHORITY LEAK — BURNED CONTEXT RESEARCH WAS ACTING AS A HARD VETO
-
-Context Quality policy identity:
-
-`CIBO_BURNED_3X1Y_CONTEXT_QUALITY_GATE_V1`
-
-Research mode:
-
-`NON_CERTIFYING_REUSED_HOLDOUT_ADAPTIVE_RESEARCH`
-
-Its own governance said:
-- no sizing authority;
-- no Risk authority;
-- no execution authority.
-
-But the manifest adapter converted:
-- disposition ABSTAIN
-into:
-- `context_allowed=False`
-
-which gave reused/burned research an actual capital veto.
-
-That is a governance contradiction.
-
-## 12.1 Repair implemented
-
-Research-only/burned Context Quality is now advisory.
-
-A Context Quality hard gate requires:
-- explicit `hard_gate_authorized=true`
-- explicit `policy_available_at`
-- policy availability <= decision_at
-
-Native cognition also distinguishes:
-- advisory research warning
-vs
-- authoritative context veto.
-
-Tests cover:
-- burned research cannot hard-veto;
-- valid causal policy can hard-veto;
-- future policy cannot veto historical decisions.
-
-This repair is on:
-`agent/cibo-causal-expectation-leakage-fix-001`
-
-Chronology/authority gates are GREEN.
-
----
-
-# 13. CAUSAL PRIOR-WINDOW REPLAYS
-
-Because the frozen prior only truly existed after 2022-03-09 17:00 UTC, a causally valid subwindow was extracted.
-
-Valid window:
-- first decision: 2022-03-09 18:35 UTC
-- last decision: 2022-06-29 22:40 UTC
-- 333 opportunities
-- 328 decision epochs
-- all 7 Traders retained
-
-## 13.1 First clean chronology-only window result
-
-Run #1:
-- run ID 37495955152
-- GREEN
-
-Result:
-- USD 60 -> USD 201.1250
-- +235.21%
-- 124 settlements
-- ~112.17 days
-
-This still included the old burned Context Quality veto.
-
-## 13.2 Later causal-window result after context-authority changes
-
-Run #5:
-- run ID 37498258150
-- GREEN
-
-Result:
-- USD 60 -> USD 158.112269762348...
-- net +USD 98.112269762348...
-- peak USD 189.664990933881...
-- 333 opportunities
-- 328 epochs
-- 171 settlements
-- ~112.17 days
-- cumulative +163.52%
-
-Interpretation:
-- removing unauthorized burned-context veto increased participation but did NOT improve this window's ending capital.
-- therefore “remove all vetoes” is NOT the solution.
-- the missing piece is a better causal/contextual forecast and better decision quality, not blind participation.
-
----
-
-# 14. WALK-FORWARD EXPECTATION ENGINE — NEW WORK
-
-The next architecture was built to recover the entire 2019-2022 period without future leakage.
-
-Key new work includes:
-- `src/qore/infrastructure/cibo_walk_forward_expectation.py`
-- `scripts/cibo_build_walk_forward_expectation_manifest.py`
-- walk-forward settlement/observation logic
-- tests for chronology and manifest building
-
-Walk-forward rules:
-- first 5 observations per Trader = cold start
-- thereafter forecasts use only outcomes whose exits already occurred
-- no outcome decoded before exit
-- no future outcome used
-- no capital PnL used as forecast feature
-- provider-specific model = false
-- platform-specific model = false
-- market-specific model = false
-
-Dedicated gate:
-`QORE CIBO Walk Forward Expectation`
-
-Run #1:
-- run ID 37498415480
-- GREEN
-
-Coverage:
-- 3,368 opportunities
-- 35 cold-start decisions total
-- 3,333 walk-forward forecast decisions
-- 5 cold-start per Trader
-- decoded_before_exit_count = 0
-- future_outcome_used = false
-
-This is the correct direction for the full-period causal ceiling replay.
-
----
-
-# 15. FULL WALK-FORWARD REPLAY — CURRENT BLOCKER
-
-Workflow:
-`QORE CIBO Walk Forward Full Replay`
-
-Run #1:
-- run ID 37498620697
-- head `ab62bf09a62c8ca830959541811f3a506fcfa128`
-- FAILED during full sovereign replay
-
-Important:
-- validation passed;
-- frozen source recovery passed;
-- walk-forward manifest build passed;
-- chronology/coverage proof passed;
-- failure occurred only during economic replay.
-
-At epoch ~100:
-- capital had fallen to roughly USD 15.91
-- then Sizing failed closed with:
-
-`CiboCapitalManagementError: maximum account-constrained capacity cannot express minimum seed`
-
-This is NOT a reason to weaken safety.
-
-This is a critical new capital-leak/survival signal.
-
-The next architect must investigate:
-- why causal walk-forward selection drove capital toward the minimum-seed impossibility;
-- whether CIBO should abstain earlier under capital scarcity;
-- whether Survival / protected base / optionality / capital reserve / minimum executable seed are correctly integrated;
-- whether Portfolio admits opportunities whose minimum seed becomes incompatible with surviving capital;
-- whether Sizing is correctly signaling an upstream selection failure rather than being blamed itself.
-
-Do NOT “fix” this by forcing smaller illegal volume, changing provider minimums, hiding the error, or using leverage/sizing tricks.
-
----
-
-# 16. VT31 PREDECISION ENRICHMENT
-
-VT31 was found to be underrepresented by the old universal Context Quality rules.
-
-A safe enrichment adapter was built:
-`scripts/cibo_enrich_vt31_phase18_predecision_semantics.py`
-
-It joins frozen VT31 opportunities to official Phase18 source using decision-time identity.
-
-Whitelisted fields include:
-- vt31_entry_family
-- vt31_confirmation_latency_minutes
-- vt31_risk_ref
-- provenance SHA
-
-Explicitly forbidden:
-- exit
-- PnL
-- MAE/MFE
-- post-entry labels
-- future outcome
+The auditor classifies decisions into joint patterns and checks handoff identity between modules.
 
 Dedicated workflow:
-`QORE CIBO VT31 Predecision Semantics Enrichment`
 
-Completed GREEN.
+`QORE CIBO Four Engine Cooperation Replay`
 
-Important:
-- this enrichment is useful evidence plumbing;
-- it does NOT authorize a VT31-specific shield as universal CIBO logic.
+Authoritative full run:
 
-An older VT31 combined shield did not generalize cleanly to the ceiling population.
+`37547594216`
 
-Any promoted protection must be mechanism-based and universal or remain Trader-specific perception/adaptation.
+Artifact:
 
----
-
-# 17. WHAT IS ACTUALLY CLOSED
-
-The next architect should NOT redo these unless directly impacted:
-
-- frozen 3,368-opportunity population construction;
-- Native MAX full-perception pass on the frozen population;
-- exact Decimal repair across Risk/CMA/Sizing/Economic Twin/runtime;
-- Turtle source semantic +0.10 repair;
-- gap evidence guard;
-- exact GEN-C10 capacity conservation/provenance;
-- exact stop-risk and margin geometry;
-- historical replay infrastructure;
-- economic sensor infrastructure;
-- cognitive sensor infrastructure;
-- root-cause analyzer;
-- truthful cognitive reach semantics;
-- explicit CF07 / CF16 economic-context wiring;
-- universal Native MAX admission;
-- provider/platform-neutral sovereign boundary gate;
-- fixed-1x Adaptive Leverage ablation plumbing;
-- Forecast Confidence basis propagation;
-- expectation evidence chronology fail-closed;
-- burned Context Quality authority separation;
-- causal prior-window extractor;
-- walk-forward expectation manifest builder and chronology tests.
+- ID: `11451398893`
+- digest: `sha256:5f2d036e2aa603b735d7777a5ab8b1a8b87b79ec63ab5ce6af8343ace82f8834`
 
 ---
 
-# 18. CAPITAL LEAKS STILL OPEN — HIGHEST PRIORITY
+# 8. FOUR-ENGINE COOPERATION — CURRENT HARD FINDINGS
 
-The owner directive is:
+This is the most important current section.
 
-**CLOSE ALL CAPITAL LEAKS BEFORE STUDYING SIZING / LEVERAGE / CIBO COMPOUND / COMPOUND PORTFOLIO IN DEPTH.**
+## 8.1 Compound Portfolio and Adaptive Leverage are duplicating the same surface
 
-Open leak program:
+Across all 3,368 audited decisions:
 
-## P0 — Full walk-forward survival failure
+- Portfolio -> Leverage multiplier match: 3,368 / 3,368
+- Portfolio -> Leverage risk match: 3,368 / 3,368
+- Portfolio -> Leverage margin match: 3,368 / 3,368
+- Leverage declares shared Portfolio line: 3,368 / 3,368
+- Leverage input matches Portfolio output: 3,368 / 3,368
 
-Current full causal walk-forward replay drives the account into a state where minimum seed can no longer be expressed.
+Auditor finding:
 
-Need:
-- identify first irreversible capital deterioration;
-- attribute by Trader/opportunity/regime/provider cost;
-- inspect selected vs rejected opportunities before failure;
-- verify survival reserve and minimum-seed feasibility are visible BEFORE capital allocation;
-- make upstream cognition/Portfolio respect executable survival constraints.
+`PORTFOLIO_LEVERAGE_SHARED_OUTPUT_SURFACE`
 
-## P0 — Walk-forward forecast quality
+Severity:
 
-Walk-forward chronology is clean, but chronology alone does not guarantee forecast quality.
+`HIGH`
 
-Need:
-- calibration by Trader;
-- calibration by regime;
-- calibration by uncertainty;
-- forecast error distribution;
-- duration error;
-- expected utility vs realized structural R;
-- cold-start behavior;
-- stale-evidence behavior;
-- minimum sample adequacy;
-- shrinkage / uncertainty treatment WITHOUT burned-outcome tuning.
+Meaning:
 
-## P0 — Cognition -> capital discrimination
+Adaptive Leverage is not independently observable as a distinct economic actuator.
 
-Need isolated decision-delta ablations.
+The system currently risks counting one decision surface twice.
 
-Priority components:
-1. Executive Synthesis
-2. Scenario Engine / Native MAX MPC bridge
-3. Calibration
-4. Metacognition
-5. World Model / Attention / Causal Reasoning
-6. CF01..CF19
+Required repair:
 
-An ablation proves influence only if downstream control changes.
+- Compound Portfolio must own portfolio-level competition/allocation;
+- Adaptive Leverage must own contextual intensity transformation;
+- Adaptive Leverage must consume Portfolio + Sizing + cognition/account state, not simply mirror the selected Portfolio line;
+- its output must be independently measurable.
 
-Record deltas in:
-- directive;
-- reasoning mode;
-- uncertainty;
-- scenario/world paths;
-- MPC caps;
-- portfolio multiplier;
-- leverage;
-- sizing request;
-- sizing authorization;
-- capital disposition;
-- Risk request;
-- Risk outcome;
-- ending capital;
-- max drawdown;
-- capital velocity.
+Do NOT solve this by deleting Leverage.
 
-## P0 — Capital scarcity / minimum seed
+Earlier clean ablations showed leverage can materially contribute.
 
-The new walk-forward failure proves this is real.
+Repair the role boundary.
 
-Need:
-- formal predecision `minimum_executable_seed_feasible`;
-- optionality preservation;
-- protected/survival capital interaction;
-- stop opening opportunities that leave the account unable to express future valid minimum seed;
-- verify no double counting of reserve/margin/risk.
+## 8.2 Sizing works on every decision but never binds the final plan
 
-## P1 — Provider-cost burden
+Sizing:
 
-Especially VT31 in old diagnostics.
+- call_count: 3,368
+- active_output_count: 3,368
+- active_rate: 100%
+- downstream_consumed_count: 3,368
+- consumption_rate: 100%
+- final_binding_count: **0**
+- binding_rate: **0%**
 
-Need universal mechanism:
-- provider cost as fraction of expected structural edge;
-- cost-conditioned confidence;
-- cost-conditioned participation;
-- no symbol-specific hardcoded rule.
+Auditor finding:
 
-## P1 — Duration / capital velocity
+`SIZING_NEVER_FINAL_BINDING`
 
-Need true causal duration forecast.
+Meaning:
 
-Do not reuse the old fixed Trader-duration prior as precise velocity.
+Sizing is doing computation but no observed decision is finally determined by its output.
 
-Need:
-- walk-forward duration estimate;
-- uncertainty interval;
-- regime conditioning if justified;
-- capital occupancy stress;
-- opportunity-cost attribution.
+Required repair:
 
-## P1 — Loss amplification under 4x
+- make Sizing's executable volume / source-lot / survival geometry a real input to the joint capital plan;
+- if its output is intentionally non-binding, prove why;
+- do not leave a permanently decorative capital engine.
 
-Old runtime used 4x for every execution.
+## 8.3 CIBO Compound is effectively dead as a productive engine
 
-Need identify:
-- which losses would have been smaller under lower leverage;
-- which winners require 4x to preserve economic value;
-- whether cognition can discriminate 1/2/3/4 causally.
+CIBO Compound:
 
-Do NOT begin optimization until P0 leaks are closed.
+- call_count: 3,368
+- applicable_count: 3,057
+- downstream_consumed_count: 3,057
+- decision_gate_count: 3,057
+- final_binding_count: 3,057
+- **active_output_count: 0**
+- **compound_allowed_count: 0**
 
-## P1 — Portfolio competition
+Current pattern:
 
-Need isolate simultaneous epochs and test whether the chosen opportunity was actually the best causal allocation.
+CIBO Compound is mostly acting as a blocker, not as a productive reinvestment engine.
 
-Must use causal inputs only.
+Capital Science telemetry also showed GEN-C5 repeatedly unable to authorize realized-profit capacity, propagating into GEN-C8 unavailability in the affected path.
 
-## P1 — GEN-C8 / GEN-C11 / other Capital Science
+Required repair:
 
-Old data showed large loss association but positive net groups.
+- trace Sizing capital-source lots -> realized-profit source -> GEN-C5 canonical input -> GEN-C7/GEN-C8 -> Compound consumer;
+- prove realized profits are actually recognized when they exist;
+- allow productive Compound when causal realized-profit capital is legitimately deployable;
+- never use floating PnL;
+- never invent epsilon capital;
+- never double-spend realized profit;
+- never resurrect lost capital.
 
-Therefore:
-- do not disable them from observational association;
-- run isolated ablations;
-- separate contribution from propagated gate.
+## 8.4 Current cooperation patterns
 
-## P1 — Trader contribution
+Across 3,368 decisions:
 
-Need universal attribution:
-- gross profit;
-- gross loss;
-- net;
-- provider cost;
-- capital minutes;
-- drawdown contribution;
-- opportunity cost;
-- correlation/concentration contribution.
+- FULL_FOUR_ENGINE_JOINT: **0**
+- COMPOUND_BLOCKED_AFTER_THREE_ENGINE_PATH: **1,373**
+- SIZING_WITHOUT_PORTFOLIO_LEVERAGE: **1,984**
+- THREE_ENGINE_BASE_CAPITAL_PATH: **11**
 
-VT31 is high priority but not the only target.
+Those 11 THREE_ENGINE_BASE_CAPITAL_PATH decisions produced the entire current settled result:
 
----
++USD 6.536069121994...
 
-# 19. REQUIRED CAPITAL-LEAK CLOSURE GATE
+There is currently **no observed productive four-engine joint path**.
 
-Before moving to the four capital-power studies, require:
+This is the central engineering failure.
 
-- no expectation-time leakage;
-- no research-only policy with hidden hard authority;
-- no unexplained minimum-seed/survival crash;
-- forecast calibration documented;
-- duration calibration documented;
-- provider-cost leak mapped;
-- selected/rejected opportunity causes fully attributed;
-- cognitive direct-control deltas measured;
-- no unexplained downstream gate double counting;
-- max drawdown and survival tracked;
-- no external AI;
-- no account reset;
-- no economic-era reset;
-- no broker mutation;
-- no future outcome predecision.
+## 8.5 Module details
 
-Only then freeze a CLEAN BASELINE.
+### Adaptive Leverage
+
+- calls: 3,368
+- active output: 1,384
+- final binding: 1,995
+- maximum selected multiplier: 39
+
+Problem:
+
+its output surface is identical to Compound Portfolio.
+
+### Compound Portfolio
+
+- calls: 3,368
+- active output: 1,384
+- final binding: 1,995
+
+Problem:
+
+currently shares exact multiplier/risk/margin output with Adaptive Leverage.
+
+### Sizing
+
+- calls: 3,368
+- active output: 3,368
+- final binding: 0
+
+Problem:
+
+computes continuously, but never becomes final authority.
+
+### CIBO Compound
+
+- calls: 3,368
+- applicable: 3,057
+- allowed: 0
+- active output: 0
+
+Problem:
+
+never becomes productive.
 
 ---
 
-# 20. AFTER LEAK CLOSURE — STUDY FOUR CAPITAL POWERS IN DEPTH
+# 9. EARLY-WINDOW CONFIRMATION
 
-Do NOT use these to rescue a broken base.
+Workflow:
 
-The owner wants deep study of:
+`QORE CIBO Maturity Early Window`
 
-1. Sizing
-2. Adaptive Leverage
-3. CIBO Compound
-4. Compound Portfolio
+Run:
 
-## 20.1 Sizing study
+`37548239812`
 
-Questions:
-- what is its independent causal contribution?
-- does it increase ending capital without unacceptable DD?
-- does it improve capital efficiency?
-- where does it overallocate?
-- does it preserve minimum executable seed?
-- how should cognition modulate it?
+Head:
 
-## 20.2 Adaptive Leverage study
+`69161fda58f6234f2d9dfa478870618a34951803`
 
-Already know:
-- fixed 1x destroys material value vs old 4x baseline;
-- old runtime was effectively 0/4.
+Conclusion:
 
-Need controlled studies:
-- fixed 1x
-- fixed 2x
-- fixed 3x
-- fixed 4x
-- cognition-driven dynamic 0/1/2/3/4
+`SUCCESS`
 
-Evaluate:
-- return;
-- max DD;
-- survival;
-- provider cost burden;
-- capital velocity;
-- loss amplification;
-- recovery;
-- optionality.
+Window:
 
-## 20.3 CIBO Compound study
+- 544 decisions
+- 537 epochs
+- initial USD 60
+- ending USD 71.926069121994...
+- net +USD 11.926069121994...
+- max DD USD 19.432999739945...
+- selected/settled: 9
 
-Need prove:
-- realized capital only;
-- no floating-PnL funding;
-- no capital resurrection;
-- no double spend;
-- protected base respected;
-- compound should not mechanically increase size after wins;
-- cognition decides when reinvestment is economically justified.
+Four-engine pattern in that early window:
 
-## 20.4 Compound Portfolio study
+- FULL_FOUR_ENGINE_JOINT: 0
+- COMPOUND_BLOCKED_AFTER_THREE_ENGINE_PATH: 48
+- SIZING_WITHOUT_PORTFOLIO_LEVERAGE: 487
+- THREE_ENGINE_BASE_CAPITAL_PATH: 9
 
-Need prove:
-- account-wide capital allocation;
+This confirms the cooperation defect is not merely a late-period artifact.
+
+---
+
+# 10. COGNITIVE / FUNCTIONAL COHERENCE FINDINGS
+
+Current full coherence audit found:
+
+## P0
+
+`MAX_FRONTIER_MALFORMED`
+
+- events: 3,368
+
+## P1
+
+`LOCAL_CHANGE_NEVER_BINDS:CAPITAL_SCIENCE:GEN-C11`
+
+- events: 487
+
+Meaning:
+
+GEN-C11 changes local state but those changes never become observable in the final capital plan.
+
+The next architect must trace:
+
+GEN-C11 output
+-> consumer
+-> Portfolio / Sizing / Compound / CMA
+-> final plan
+
+and either:
+
+- connect the intended economic consequence; or
+- prove the local change is advisory/non-binding and correct the sensor contract.
+
+Do not leave 487 unexplained local changes.
+
+---
+
+# 11. MAJOR REPAIRS ALREADY COMPLETED — DO NOT RESTART THEM
+
+## 11.1 Expectation chronology / future leakage
+
+A severe historical leak was found:
+
+a frozen prior trained later in time was previously stamped as though it were available at earlier decisions.
+
+Repairs include:
+
+- explicit expectation evidence availability;
+- fail-closed chronology;
+- no future-trained prior before it existed;
+- no future outcome in predecision.
+
+Current walk-forward replay reports:
+
+- future_outcome_used: false
+- outcome_aware_tuning: false.
+
+## 11.2 Burned Context Quality authority leak
+
+Burned/reused Context Quality research had been able to create a hard capital veto despite not possessing such authority.
+
+Repair:
+
+- burned/advisory context remains advisory;
+- hard context gate requires explicit authority and causal availability.
+
+## 11.3 Minimum-seed scarcity
+
+Old crash:
+
+`maximum account-constrained capacity cannot express minimum seed`
+
+Repair:
+
+- infeasible minimum-seed capacity returns HOLD/fail-closed;
+- no fake fractional executable volume;
+- no invariant weakening.
+
+Do not reopen unless a new regression proves it broken.
+
+## 11.4 Zero marginal GEN-C5 request
+
+Old path asked GEN-C5 to evaluate non-positive marginal capacity.
+
+Repair:
+
+- zero/non-positive marginal request becomes not-applicable / no-marginal-capacity;
+- no fake epsilon request;
+- GEN-C8 fails closed when its canonical dependency is unavailable.
+
+## 11.5 Forecast maturity
+
+The first destructive population was entirely provisional.
+
+Repair:
+
+- 5–24 observations = PROVISIONAL;
+- >=25 completed observations = MATURE;
+- provisional forecasts abstain from capital admission.
+
+This repaired the original early account-death mechanism.
+
+## 11.6 Walk-forward duration estimator
+
+Old duration forecast was too optimistic.
+
+Repair:
+
+- causal prior-only upper quartile duration estimator;
+- no future duration use.
+
+## 11.7 Monetary uncertainty penalty
+
+Walk-forward MAD now contributes a monetary uncertainty penalty:
+
+`median_absolute_deviation_r * stop_risk_usd`
+
+No future outcome is used.
+
+## 11.8 Survival envelope alignment
+
+Historical Twin / Risk / cognition were aligned to a canonical defensive new-capital utilization ceiling derived from existing policy semantics rather than a burned tuning optimum.
+
+Do not replace this with a percent chosen from burned ablations.
+
+## 11.9 GEN-C12 universal pause
+
+GEN-C12 `PAUSE_NEW_CAPITAL` was repaired to bind all new-deployment paths, not only EXPAND.
+
+## 11.10 Robust Portfolio utility
+
+Old Portfolio objective effectively preferred maximum multiplier whenever net utility was positive.
+
+Repair introduced robust concentration cost.
+
+Later work also removed the artificial 4x surface and changed the solver to operate on dynamic capacity.
+
+## 11.11 Solver performance after removing 4x
+
+Removing 4x exposed Cartesian explosion.
+
+Performance repairs:
+
+- single-opportunity uncapped Portfolio solved analytically:
+  `4f0e179d7edf6038eb72ce0a9699f2cf79a8e3ef`
+- two-option uncapped Portfolio optimized without Cartesian explosion:
+  `f562d53e5777858985f0e846d542294f5bace96a`
+
+Do not restore 4x to solve performance.
+
+If multi-option epochs remain expensive, improve the solver.
+
+---
+
+# 12. IMPORTANT HISTORICAL REPLAY REFERENCES
+
+These are research references, not current certification evidence.
+
+## 12.1 Original maturity failure
+
+Run:
+
+`37512709504`
+
+Result:
+
+- maturity repaired;
+- full account still died;
+- ending ~USD 0.08;
+- almost all deployment at old 4x.
+
+This proved maturity repair alone was insufficient.
+
+## 12.2 Damage attribution ablation
+
+Run:
+
+`37516432478`
+
+Success.
+
+Fixed-multiplier burned-window result:
+
+- 1x -> ending ~USD 188.30
+- 2x -> ~USD 316.22
+- 3x -> ~USD 358.78
+- 4x -> ~USD 0.08
+
+This proved an old capital-intensity survival cliff.
+
+It did NOT authorize selecting 3x as a production optimum.
+
+## 12.3 Strong repaired full replay before current uncapped/joint rewrite
+
+Run:
+
+`37527623713`
+
+Head:
+
+`7cab1f4204bd043e2a9ff7cd1d36daa3c42cc58a`
+
+Success.
+
+Observed:
+
+- USD 60 -> ~USD 542.74
+- net ~+USD 482.74
+- cumulative return ~+804.57%
+- peak ~USD 670.11
+- max DD ~USD 201.40
+- selected/settled 1,451
+- no 4x in that configuration
+- negative contribution remained in R43 and VT08.
+
+This run proves CIBO has previously achieved far more economic throughput after some repairs.
+
+However it predates the owner's current "no fixed 4x ceiling" architecture and predates the current four-engine cooperation diagnosis.
+
+Do NOT revert blindly to it.
+
+Use it as evidence that the current +10.89% result is a regression/integration problem, not an intrinsic ceiling.
+
+---
+
+# 13. FORECAST ECONOMIC CALIBRATION REMAINS A MATERIAL OPEN PROBLEM
+
+The causal walk-forward calibration still shows weak predictive quality in several populations.
+
+Latest full replay calibration:
+
+- forecasts: 3,333
+- cold-start decisions: 35
+- global sign accuracy ~0.5233
+- mean absolute error ~1.175R
+- RMSE ~2.271R
+- forecast bias expected minus realized ~-0.0318R
+- mean expected duration ~133.55 min
+- mean realized duration ~105.19 min.
+
+By Trader, some signals are notably weak; VT31 sign accuracy remains low.
+
+This remains a research problem.
+
+But the current 11/3,368 capital throughput cannot be blamed on forecast calibration alone because the four-engine sensor replay exposes direct architectural disconnects.
+
+Repair the wiring first, then remeasure calibration interactions.
+
+---
+
+# 14. FIRST URGENT ENGINEERING PROGRAM FOR THE NEXT ARCHITECT
+
+Do this BEFORE ceiling discovery.
+
+## Phase A — Repair observability truth
+
+1. Fix `MAX_FRONTIER_MALFORMED` across all 3,368 decisions.
+2. Verify each sensor can distinguish:
+   - input arrived;
+   - engine called;
+   - output produced;
+   - output consumed;
+   - output changed local state;
+   - output changed final capital plan.
+3. Repair or correctly classify the 487 GEN-C11 local changes that never bind.
+
+Acceptance:
+
+- P0 coherence count = 0;
+- no function may claim contribution merely because it was called.
+
+## Phase B — Separate Compound Portfolio and Adaptive Leverage responsibilities
+
+Current defect:
+
+they expose identical multiplier/risk/margin on 3,368 / 3,368 decisions.
+
+Required architecture:
+
+### Compound Portfolio owns:
+
 - cross-Trader opportunity competition;
+- account-wide allocation;
+- portfolio risk budget;
+- margin budget;
 - concentration;
 - correlation;
+- optionality;
 - capital velocity;
-- simultaneous opportunity tradeoffs;
-- optionality;
-- capital redeployment;
-- no fake netting/hedge credit.
+- which opportunity receives capital.
 
-## 20.5 Joint cognitive dynamic controller
+### Adaptive Leverage owns:
 
-Only after each component is understood independently.
+- contextual intensity of an already ranked/sized opportunity;
+- account/regime/volatility/provider-aware amplification or de-amplification;
+- intensity proposal that is independently observable;
+- no fixed hard 4x ceiling;
+- no bypass of survival or QORE Risk.
 
-Final target architecture:
+Adaptive Leverage must consume the joint state, not copy Portfolio's output.
 
-Market + Traders + Account + Provider reality
--> Full CIBO Cognition
--> capital-intent vector
--> {Sizing, Leverage, CIBO Compound, Compound Portfolio}
--> CMA / Capital Science
--> QORE Risk
--> Execution
+Acceptance:
 
-The four powers should ultimately become context-dependent, not static/mechanical.
+- Portfolio/Leverage exact-output-surface flag becomes false when context warrants divergence;
+- Leverage retains meaningful contribution;
+- no arbitrary multiplier ceiling is reintroduced.
 
-But this is POST leak-closure work.
+## Phase C — Make Sizing economically binding
 
----
+Current:
 
-# 21. TRUE CEILING DISCOVERY
+- 3,368 active Sizing outputs;
+- 0 final binding.
 
-The top priority after leak closure is not certification.
+Sizing should own:
 
-It is:
+- executable base volume;
+- broker/provider step geometry;
+- capital-source lots;
+- protected-base constraints;
+- survival geometry;
+- feasible executable size.
 
-**DISCOVER THE TRUE CEILING OF CIBO USING MAXIMUM INTELLIGENCE AND MAXIMUM LAWFUL CAPITAL CAPABILITY.**
+The joint plan must consume Sizing output.
 
-Ceiling study must explore:
-- cognition;
-- Portfolio;
-- Sizing;
-- Adaptive Leverage;
-- CIBO Compound;
-- Compound Portfolio;
-- Capital Science GEN-C stack;
-- MPC;
-- T14 release/redeployment;
-- lifecycle;
+Acceptance:
+
+- Sizing final-binding count >0 when its constraints are the limiting cause;
+- when it is non-binding, the sensor must identify which downstream module legitimately dominates;
+- no decorative 100%-activity / 0%-binding state.
+
+## Phase D — Repair CIBO Compound
+
+Current:
+
+- 3,057 applicable;
+- 0 allowed;
+- 0 productive.
+
+Trace fully:
+
+SIZING capital-source lots
+-> realized profit inventory
+-> GEN-C5 canonical input
+-> GEN-C7 preservation
+-> GEN-C8 dependency state
+-> CIBO Compound consumer
+-> CMA final plan.
+
+CIBO Compound should control:
+
+- whether realized profits are reinvestable;
+- how much realized profit is deployable;
+- protected base;
+- no floating PnL;
+- no double spend;
+- no resurrection.
+
+Acceptance:
+
+- after legitimate realized profit exists, Compound can become active when cognition/economics justify it;
+- active count >0 on an appropriate burned replay if valid reinvestment opportunities exist;
+- blocked counts must have coherent reasons;
+- no fabricated capacity.
+
+## Phase E — Build a JOINT four-engine capital contract
+
+Do not keep four independent calculators.
+
+Target joint graph:
+
+FULL CIBO COGNITION
+-> OPPORTUNITY / ACCOUNT / PROVIDER STATE
+-> COMPOUND PORTFOLIO allocates scarce account capital across opportunities
+-> SIZING expresses executable volume and capital-source geometry
+-> ADAPTIVE LEVERAGE transforms contextual intensity
+-> CIBO COMPOUND controls realized-profit reinvestment authority
+-> JOINT CAPITAL INTENT / CMA reconciliation
+-> CAPITAL SCIENCE
+-> QORE RISK
+-> EXECUTION
+
+This graph can contain feedback/reconciliation iterations, but every dependency must be causal and sensor-visible.
+
+Important:
+
+"all four work together" does NOT mean CIBO Compound must increase every trade.
+
+Before realized profit exists, Compound can correctly be NOT_APPLICABLE.
+
+What is forbidden is the current state where Compound is applicable thousands of times and never becomes productive.
+
+## Phase F — Replay and compare
+
+After repairs, re-run:
+
+1. dedicated four-engine cooperation replay;
+2. full 3,368-opportunity causal walk-forward replay.
+
+Compare against authoritative current baseline:
+
+- selected decisions: 11
+- settlements: 11
+- ending capital: USD 66.536...
+- return: +10.8934%
+- max DD: USD 19.433
+- FULL_FOUR_ENGINE_JOINT: 0
+- Compound allowed: 0
+- Sizing final binding: 0
+- Portfolio/Leverage duplicate surface: true
+- MAX Frontier malformed: 3,368
+- GEN-C11 local-no-final binding: 487
+
+Do not declare improvement based on ending capital alone.
+
+Require improvement in:
+
+- cooperation;
+- sensor coherence;
+- throughput;
 - survival;
-- optionality;
-- capital velocity.
-
-Do not call population exhaustion an intrinsic CIBO ceiling.
-
-If opportunities end while CIBO still has capital-growth capacity:
-- classification = OBSERVED_LOWER_BOUND
-- limiting factor = opportunity population exhausted
-
-True ceiling classification remains OPEN.
+- causal economics;
+- drawdown;
+- provider cost;
+- robust utility;
+- capital velocity;
+- per-Trader contribution.
 
 ---
 
-# 22. EXAMS AFTER CEILING
+# 15. SPEED / TRADER LAB DIRECTIVE
 
-Order is binding:
+The owner wants iteration to be fast.
 
-## Exam 1 — All Trader Rescue
+An independent GitHub Trader Lab exists on:
 
-Freeze Traders.
+`agent/github-trader-lab-001`
 
-Do not modify Trader methodologies.
+It already supports cached/prepared evidence and hot-path replay architecture.
 
-Ask whether CIBO can materially improve/account-manage the full Trader set.
+CIBO-specific integration into Trader Lab is still incomplete.
 
-## Exam 3 — Worst / Negative Trader Rescue
+The next architect should use the dedicated CIBO burned replay workflows immediately, but should also finish a CIBO Trader Lab adapter/profile so that repeated four-engine experiments do not require rebuilding the entire causal manifest.
 
-Use historically weak/negative Trader material.
+Rules:
 
-Test whether CIBO can transform poor input through:
+- Trader Lab is a research/test bank;
+- do not modify the sovereign production workflow to make experiments faster;
+- use immutable burned/frozen evidence;
+- holdout must remain sealed;
+- no certification claim from Trader Lab.
+
+Speed is an engineering problem.
+
+Do NOT reintroduce fixed leverage caps merely to make enumeration cheaper.
+
+---
+
+# 16. CLEAN BASELINE EXIT GATES BEFORE TRUE CEILING
+
+Do not begin true ceiling discovery until the following are materially closed:
+
+1. four-engine sensor integrity is green;
+2. MAX Frontier malformed telemetry = 0;
+3. Portfolio and Adaptive Leverage have distinct, coherent roles;
+4. Sizing is no longer permanently decorative;
+5. CIBO Compound is productive when causally applicable;
+6. GEN-C11 propagation is understood;
+7. all four engine outputs reach a coherent joint capital intent;
+8. QORE Risk remains sovereign;
+9. no future/outcome leakage;
+10. no capital-source fabrication;
+11. no minimum-volume invariant weakening;
+12. burned full replay completes;
+13. capital throughput is no longer pathologically 11 / 3,368 solely because of integration errors;
+14. max drawdown / survival are explicitly measured;
+15. regressions against previously stronger repaired baselines are explained.
+
+The objective is not "more trades at any cost."
+
+The objective is:
+
+**more valid economic throughput because intelligence and capital functions are finally connected.**
+
+---
+
+# 17. TRUE CEILING DISCOVERY — ONLY AFTER REPAIR CLOSURE
+
+After clean baseline:
+
+Discover CIBO's true ceiling using:
+
+- full Native MAX cognition;
+- Compound Portfolio;
+- Adaptive Leverage;
+- Sizing;
+- CIBO Compound;
+- Capital Science;
+- MPC / GEN-C11;
+- GEN-C12 crisis logic;
+- T14 release/redeploy;
+- lifecycle;
+- optionality;
+- survival;
+- capital velocity;
+- provider economics.
+
+There is no arbitrary fixed 4x ceiling.
+
+The maximum executable intensity is derived dynamically from real constraints.
+
+MAX Frontier remains diagnostic/advisory unless a future separately justified authority contract is approved.
+
+Ceiling classification must distinguish:
+
+- intrinsic CIBO limit;
+- data/opportunity population exhaustion;
+- provider capacity limit;
+- account mission limit;
+- survival limit;
+- capital-source limit.
+
+Do NOT call "no more opportunities in this dataset" the intrinsic CIBO ceiling.
+
+---
+
+# 18. POST-CEILING REFINEMENT
+
+After the ceiling is measured:
+
+- diagnose excessive drawdown;
+- remove economically destructive over-intensity;
+- improve forecast calibration;
+- improve provider-cost sufficiency;
+- improve capital duration / velocity;
+- preserve good winners;
+- reduce destructive paths;
+- freeze final candidate.
+
+The candidate must then become immutable for fresh validation.
+
+No tuning on fresh holdout outcomes.
+
+---
+
+# 19. FRESH HOLDOUT GOVERNANCE
+
+Fresh holdout remains sealed now.
+
+Do NOT open it during four-engine repair.
+
+When the candidate is frozen:
+
+1. prove active holdout identity is genuinely untouched;
+2. freeze exact code SHA;
+3. freeze exact calibration / policies;
+4. run fresh holdout once;
+5. do not tune using holdout outcomes;
+6. if it fails, the holdout becomes burned and cannot be reused as fresh evidence.
+
+Fresh holdout success alone does not certify CIBO.
+
+Certification exams remain mandatory.
+
+---
+
+# 20. CERTIFICATION EXAMS — BINDING ORDER
+
+After:
+
+CLEAN FOUR-ENGINE BASELINE
+-> TRUE CEILING DISCOVERY
+-> POST-CEILING REFINEMENT
+-> CANDIDATE FREEZE
+-> FRESH HOLDOUT
+
+execute the exams in this order:
+
+## EXAM 1 — ALL TRADER RESCUE
+
+Freeze the Trader methodologies.
+
+Do not change Trader rules to make CIBO look better.
+
+Question:
+
+Can CIBO materially improve/account-manage the complete Trader population using its own cognition and capital functions?
+
+Evaluate:
+
+- survival;
+- total return;
+- drawdown;
+- capital utilization;
+- per-Trader contribution;
+- capital preservation;
+- opportunity selection;
+- lifecycle;
+- redeployment;
+- provider costs;
+- whether weak Traders are correctly throttled or rescued.
+
+## EXAM 3 — WORST / NEGATIVE TRADER RESCUE
+
+Use historically weak / negative Trader material.
+
+Freeze Trader methodologies.
+
+Question:
+
+Can CIBO transform poor raw input into materially better account economics through:
+
 - cognition;
 - selection;
 - capital preservation;
-- allocation;
+- Compound Portfolio;
+- Sizing;
+- Adaptive Leverage;
+- CIBO Compound;
 - lifecycle;
-- redeployment;
-- capital functions.
+- redeployment?
 
 No Trader-rule changes.
 
-## Exam 2 — +2000% NET / <=10 MONTHS
+This exam is intentionally hard.
+
+## EXAM 2 — +2000% NET IN <=10 CALENDAR MONTHS
 
 Final growth exam.
 
-Requirements:
-- +2000% NET
-- <=10 calendar months
+Requirement:
+
+- **+2000% NET**
+- **within <=10 calendar months**
 
 This is an evaluation gate only.
 
 Never tune directly to the target.
 
----
-
-# 23. IMMEDIATE NEXT WORK ORDER
-
-The next architect should begin here, without restarting research:
-
-1. Open branch:
-   `agent/cibo-causal-expectation-leakage-fix-001`
-
-2. Inspect workflow:
-   `.github/workflows/cibo-walk-forward-full-replay.yml`
-
-3. Reproduce/analyze run:
-   `37498620697`
-
-4. Find the first point where clean walk-forward capital deterioration becomes structurally dangerous.
-
-5. Trace:
-   - Trader;
-   - opportunity;
-   - forecast;
-   - context;
-   - cost;
-   - duration;
-   - portfolio rank;
-   - leverage;
-   - sizing;
-   - Risk;
-   - capital after settlement.
-
-6. Repair the upstream cause of:
-   `maximum account-constrained capacity cannot express minimum seed`
-
-7. Do NOT weaken minimum volume/provider constraints.
-
-8. Do NOT hide the exception.
-
-9. Do NOT rescue with leverage/sizing.
-
-10. Once the walk-forward full replay completes causally:
-    - measure full-period ending capital;
-    - max DD;
-    - settlement count;
-    - selected count;
-    - per-Trader contribution;
-    - provider cost;
-    - duration;
-    - forecast calibration;
-    - survival.
-
-11. Continue leak closure until no major capital leak remains unexplained.
-
-12. Freeze CLEAN BASELINE.
-
-13. Then begin separate and joint studies of:
-    - Sizing;
-    - Adaptive Leverage;
-    - CIBO Compound;
-    - Compound Portfolio.
-
-14. Then discover true ceiling.
-
-15. Then Exam 1 -> Exam 3 -> Exam 2.
+Passing it must come from a generally valid CIBO architecture.
 
 ---
 
-# 24. IMPORTANT WORKFLOW / ARTIFACT REFERENCES
+# 21. CERTIFICATION STATUS
 
-Frozen population:
-- artifact 11389331836
-- digest `sha256:30177639f660c9647ab70257c2d12c541bdade49ab5582347a3890f920070fee`
+CIBO is currently:
 
-Old full sensor artifact:
-- artifact 11415099219
-- digest `sha256:fb43256b3861e09c1988612c5b76fd485ae42ee2a770a14c5e3969bc7f1ec44c`
-
-Root-cause GREEN:
-- run 37469852518
-
-Universal Sovereign Boundary GREEN:
-- run 37490891992
-
-Causal chronology GREEN:
-- latest verified series includes run 37498363203
-
-Causal prior-window GREEN:
-- run 37498258150
-- artifact from that run was successfully uploaded
-
-Walk-forward expectation GREEN:
-- run 37498415480
-
-Walk-forward full replay current blocker:
-- run 37498620697
-- failure = minimum account-constrained capacity cannot express minimum seed
-- failure occurred after capital deteriorated sharply in early replay
-
----
-
-# 25. FINAL OWNER INTENT
-
-Do not optimize CIBO to look good.
-
-Make CIBO genuinely superior.
-
-The owner wants:
-
-- all capital leaks closed;
-- maximum use of CIBO intelligence;
-- all economic functions causally useful;
-- universal operation across markets/platforms/providers/accounts;
-- dynamic capital intelligence after base repair;
-- true ceiling discovered before exams;
-- certification only after the ceiling/refinement program.
-
-The next architect must do materially better than the current CIBO.
-
-The correct question is not:
-
-“Can CIBO pass a replay?”
-
-The correct question is:
-
-**“How much robust economic value can full CIBO intelligence extract while preserving capital, causality, survival and universal operation?”**
-
-That is the mission.
-
----
-
-# 26. LATEST DELTA AFTER HANDOFF CREATION — 2026-10-06
-
-This section is authoritative over any older "current blocker" wording above.
-
-## 26.1 Current branch head
-
-Canonical causal branch:
-
-`agent/cibo-causal-expectation-leakage-fix-001`
-
-Current verified head:
-
-`537d61f8267f9a6b15f533228c6f436bcaa14ca9`
-
-Commits added after the original handoff snapshot:
-
-- `e0c04fc6ccd6b1c5e667f655c549514399aa4892` — fail closed to HOLD when minimum seed is infeasible;
-- `ab6ff05f6db5a44467de33f36df93c5ab5cef8b9` — regression coverage for fail-closed scarcity;
-- `537d61f8267f9a6b15f533228c6f436bcaa14ca9` — exercise scarcity sizing in the full walk-forward replay.
-
-## 26.2 Minimum-seed crash partially closed
-
-The previous failure:
-
-`maximum account-constrained capacity cannot express minimum seed`
-
-was not silenced and provider minimums were not weakened.
-
-Instead, maximum account-constrained sizing now fails closed to:
-
-- CapitalAction.HOLD;
-- volume = 0;
-- risk = 0;
-- margin = 0;
-
-when either:
-
-- there is no deployable risk/margin headroom; or
-- the maximum lawful account-constrained volume is below the provider minimum seed.
-
-This is the correct scarcity behavior at the Sizing boundary.
-
-Regression tests cover both cases.
-
-## 26.3 New P0 blocker exposed downstream
-
-Latest full causal walk-forward replay:
-
-- workflow: `QORE CIBO Walk Forward Full Replay`;
-- run: `37507899860`;
-- head: `537d61f8267f9a6b15f533228c6f436bcaa14ca9`;
-- result: FAILURE.
-
-The walk-forward chronology remains clean:
-
-- 3,368 opportunities;
-- 3,305 decision epochs;
-- 35 cold-start decisions;
-- 3,333 causal walk-forward forecasts;
-- 0 decoded-before-exit;
-- future outcome used = false;
-- capital PnL used for forecast = false;
-- provider/platform/market-specific model = false.
-
-At epoch ~100:
-
-- peak realized capital ~USD 72.3956;
-- realized capital ~USD 15.9065;
-- 37 settlements;
-- 0 open positions.
-
-The new failure is:
-
-`CiboCompoundCapitalError: marginal capital request must be positive`
-
-Stack location:
-
-- `cibo_capital_science_runtime_bridge.py`;
-- `_native_genc5_inputs(...)`;
-- construction of `MarginalCapitalUtilityEvidence`;
-- validation in `cibo_marginal_capital_utility_evidence.py`.
-
-Interpretation:
-
-The Sizing scarcity boundary is now behaving fail-closed, but GEN-C5 still assumes that a marginal capital request reaching its evidence contract is strictly positive.
-
-Under deep capital scarcity, zero/non-positive deployable marginal capital must be represented truthfully as an abstain/hold/no-marginal-capacity state before GEN-C5 attempts to construct positive-request evidence.
-
-Do NOT fix this by:
-
-- inventing a tiny positive request;
-- clamping to epsilon;
-- weakening the evidence invariant;
-- resurrecting capital;
-- changing provider minimums;
-- using leverage or sizing to hide the scarcity state.
-
-## 26.4 Immediate new work order
-
-The next architect must now:
-
-1. Reproduce run `37507899860`.
-2. Trace the exact capital state and proposed marginal request entering `_native_genc5_inputs`.
-3. Identify which upstream capital-science/compound branch is incorrectly asking GEN-C5 to evaluate a non-positive marginal request.
-4. Introduce an explicit causal NO_MARGINAL_CAPACITY / HOLD path before positive marginal-utility evidence construction.
-5. Prove that:
-   - zero/negative marginal capacity never becomes an OPEN request;
-   - no fake epsilon capital is created;
-   - no realized/floating PnL is double spent;
-   - minimum-seed scarcity remains fail-closed;
-   - QORE Risk remains sovereign.
-6. Re-run the full 3,368-opportunity causal walk-forward replay.
-7. If another downstream scarcity assumption fails, continue tracing rather than weakening invariants.
-8. Only after the full causal replay completes should capital-leak attribution resume.
-
-## 26.5 Certification status after this delta
-
-CIBO remains:
-
+- NOT clean-baseline closed;
+- NOT four-engine repaired;
 - NOT ceiling-discovered;
+- NOT post-ceiling refined;
 - NOT candidate-frozen;
-- NOT fresh-holdout-ready;
+- NOT fresh-holdout validated;
+- NOT Exam-1 passed;
+- NOT Exam-3 passed;
+- NOT Exam-2 passed;
 - NOT certified;
 - NOT LIVE-authorized;
-- NOT real-capital-authorized;
-- NOT production-authorized.
-
-The order remains:
-
-CAPITAL-LEAK CLOSURE
--> CLEAN CAUSAL BASELINE
--> Sizing / Adaptive Leverage / CIBO Compound / Compound Portfolio studies
--> TRUE CEILING DISCOVERY
--> POST-CEILING REFINEMENT
--> Exam 1
--> Exam 3
--> Exam 2 (+2000% NET in <=10 calendar months)
--> certification adjudication.
+- NOT real-capital-authorized.
 
 ---
 
-# 27. P0 CAUSAL DAMAGE ATTRIBUTION — 2026-10-06 LATEST
+# 22. KEY FILES FOR THE NEXT ARCHITECT
 
-This section supersedes the old blocker wording in sections 18, 23, 24 and 26.
+Core cognition / telemetry:
 
-Canonical detailed autopsy:
+- `src/qore/infrastructure/cibo_cognitive_reach_sensors.py`
+- `src/qore/infrastructure/cibo_native_max_cognitive_episode.py`
+- `src/qore/infrastructure/cibo_native_maximum_intelligence.py`
 
-`docs/research/CIBO_WALK_FORWARD_DAMAGE_ATTRIBUTION_2026-10-06.md`
+Economic / function sensors:
 
-Latest causal ablation:
+- `src/qore/infrastructure/cibo_function_economic_sensors.py`
 
-- workflow: `QORE CIBO Damage Attribution Ablation`;
-- run: `37516432478`;
-- head: `5464332be9371cc113c2cae495230b60fced553c`;
-- result: SUCCESS.
+Four-engine audit:
 
-## 27.1 Minimum-seed / GEN-C5 technical blockers are closed
+- `scripts/cibo_four_engine_cooperation_report.py`
 
-The replay now completes through all 3,368 decisions.
+Coherence audit:
 
-Do not reopen:
+- `scripts/cibo_cognitive_function_coherence_audit.py`
 
-- minimum-seed scarcity HOLD repair;
-- zero-marginal GEN-C5 abstention;
-- provider-envelope / historical Full Economic Twin alignment.
+Sovereign runtime:
 
-## 27.2 Forecast maturity defect was real and is repaired
+- `src/qore/infrastructure/cibo_sovereign_capital_runtime.py`
 
-Original destructive baseline:
+Portfolio:
 
-- 39 selected trades;
-- all had only 5–19 completed walk-forward observations;
-- ending capital ~USD 0.14646.
+- `src/qore/infrastructure/cibo_portfolio_allocation_engine.py`
 
-After requiring 25 observations before capital consideration, the early 2019 replay:
+Sizing:
 
-- survives;
-- grows from USD 60 to ~USD 115.04.
+- `src/qore/infrastructure/cibo_account_sizing_authority.py`
 
-Therefore the provisional-forecast admission defect was causal.
+Capital Science:
 
-## 27.3 Full repaired replay exposes the next account-killing mechanism
+- `src/qore/infrastructure/cibo_capital_science_runtime_bridge.py`
 
-Full maturity-repaired run `37512709504`:
+MAX Frontier:
 
-- peak capital ~USD 147.57;
-- ending capital ~USD 0.0803;
-- 292 selected settlements;
-- 291 decisions request 4x;
-- Risk ALLOW on all 292.
+- `src/qore/infrastructure/cibo_maximum_capability_frontier.py`
 
-This proves maturity alone is insufficient.
+Historical state / replay:
 
-## 27.4 Fixed-multiplier causal reruns
+- `src/qore/infrastructure/cibo_single_account_historical_ceiling_state.py`
+- `src/qore/infrastructure/cibo_single_account_historical_ceiling_replay.py`
+- `src/qore/infrastructure/cibo_single_account_sovereign_ceiling_run.py`
 
-Same maturity-gated burned window through 2020-04-30:
+Walk-forward expectation:
 
-| Multiplier | Ending capital | Net PnL | Max DD | Selected |
-| --- | ---: | ---: | ---: | ---: |
-| 1x | ~USD 188.30 | ~+USD 128.30 | ~USD 38.39 | 456 |
-| 2x | ~USD 316.22 | ~+USD 256.22 | ~USD 75.82 | 456 |
-| 3x | ~USD 358.78 | ~+USD 298.78 | ~USD 112.53 | 448 |
-| 4x | ~USD 0.08 | ~-USD 59.92 | ~USD 147.49 | 292 |
+- `src/qore/infrastructure/cibo_walk_forward_expectation.py`
+- `src/qore/infrastructure/cibo_walk_forward_forecast_confidence.py`
+- `scripts/cibo_build_walk_forward_expectation_manifest.py`
+- `scripts/cibo_walk_forward_forecast_calibration.py`
 
-This is direct causal evidence that current 4x behavior crosses a survival cliff.
+Capital-path diagnostics:
 
-Do not conclude that 3x is the final production setting. The window is burned research.
+- `scripts/cibo_walk_forward_capital_path_diagnostics.py`
 
-## 27.5 Current leverage/Portfolio wiring defect
+Workflows of immediate interest:
 
-Historical Full Economic Twin hardcodes:
+- `.github/workflows/cibo-walk-forward-full-replay.yml`
+- dedicated Four Engine Cooperation Replay workflow on this branch;
+- `.github/workflows/cibo-causal-diagnostics-unit.yml`
 
-`capital_intensity_cap = 4`.
+---
 
-Cognition currently behaves effectively as:
+# 23. KEY COMMITS FROM THE LATEST REPAIR SERIES
 
-- 0 if ABSTAIN;
-- leave 4 available if RECOMMEND.
+Four-engine observability:
 
-Portfolio maximizes positive expected utility approximately linearly in multiplier until capacity becomes binding.
+- `902ed4d8b13e9c60debb5dab1167f22caef5d22a` — instrument four-engine input/output cooperation sensors
+- `53ffcd83ef43fd616a76edb3b52b18b7361c86d4` — add four-engine cooperation replay auditor
+- `032a6321cf1f5720df0e18e3ee1ac0188203248c` — dedicated four-engine cooperation replay
+- `69161fda58f6234f2d9dfa478870618a34951803` — audit four-engine cooperation on burned early window
 
-Therefore the current “Adaptive Leverage” is not truly adaptive across 1/2/3/4 under ordinary positive recommendations.
+Uncapped Native MAX / no fixed 4x:
 
-This is now P0.
+- `9e77ba2c3b5c0a5d82208a3473547d85ee573551` — remove fixed 4x Twin ceiling
+- `5b14442bec06e2f1df16b2c7cad242e9139ed9f5` — remove fixed 4x Portfolio ceiling
+- `6d5d3dd61229061c56327ba7d7d33156291dfc30` — remove fixed 4x Native MAX ceiling
+- `8f8edf33ae6049a86efb83b2ae97d290cd3aa30c` — remove fixed 4x MAX Frontier ceiling
+- `784bfd34b0250d2138a49d8f6593691b3966f35a` — keep Native MAX full-range and Frontier advisory
+- `ba997b2f82b163dad7f7da4e29ec749dedb8282c` — remove residual 4x replay receipt ceiling
 
-## 27.6 Survival-envelope causal evidence
+Dynamic solver:
 
-Current baseline provider/Risk research envelope allows total stop risk up to 100% of equity.
+- `4f0e179d7edf6038eb72ce0a9699f2cf79a8e3ef` — analytical uncapped single-opportunity Portfolio
+- `f562d53e5777858985f0e846d542294f5bace96a` — efficient uncapped two-option Portfolio
 
-Burned-window reruns with tighter total risk envelopes materially alter survival:
+Capital Science / dynamic capacity:
 
-- 2% -> ending ~USD 104.46;
-- 3% -> ~USD 60.50;
-- 5% -> ~USD 42.47;
-- 10% -> ~USD 211.11;
-- 25% -> ~USD 423.08;
-- 100% -> ~USD 0.08.
+- `1df299a9ecf85eb4c17a05f52ddfe2153e78ebfa` — derive Capital Science intensity from causal headroom
 
-This relationship is path-dependent and non-monotonic.
+---
 
-Do NOT tune a production percentage from these results.
+# 24. RUNS / ARTIFACTS THE NEXT ARCHITECT SHOULD OPEN FIRST
 
-The justified conclusion is only:
+## Current full replay
 
-**the 100%-equity survival envelope is causally unsafe.**
+Run:
 
-## 27.7 Forecast economic calibration remains open
+`37547594291`
 
-On the 292 mature selected trades:
+Artifact:
 
-- aggregate expected Portfolio utility ~+USD 258;
-- realized net ~-USD 59.92;
-- expected-return ranking has almost no useful relationship with realized result;
-- mean expected capital duration ~49 min;
-- mean actual capital duration ~136 min.
+`11451743578`
 
-Selected gross structural PnL was ~+USD 32.81, but provider costs were ~USD 92.73.
+Use this for:
 
-Thus CIBO also overestimates:
+- full capital path;
+- 3,368-decision sensor map;
+- coherence report;
+- four-engine report;
+- current return/DD/settlement baseline.
 
-- economic value;
-- capital velocity;
-- the amount of edge available after provider friction.
+## Dedicated four-engine replay
 
-## 27.8 Current causal hierarchy
+Run:
 
-P0 root / actuator hierarchy:
+`37547594216`
 
-1. Forecast maturity admission — repaired.
-2. Forecast economic calibration — OPEN.
-3. Portfolio / Adaptive Leverage 0-or-4 wiring — OPEN and directly causal.
-4. Survival envelope — OPEN and directly causal.
-5. Provider-cost sufficiency — OPEN.
-6. Duration / capital-velocity calibration — OPEN.
-7. GEN-C12 PAUSE_NEW_CAPITAL not universally binding for OPEN_CAPABILITY_MAX — OPEN integration defect.
+Artifact:
 
-Not supported as principal culprit:
+`11451398893`
 
+This is the primary evidence for:
+
+- Portfolio/Leverage shared-output defect;
+- Sizing zero final-binding defect;
+- CIBO Compound 0 productive-use defect;
+- current cooperation pattern counts.
+
+## Early-window cooperation confirmation
+
+Run:
+
+`37548239812`
+
+Artifact:
+
+`11452025369`
+
+Use to prove the four-engine defect appears early, not only late in the 3-year path.
+
+## Historical high-throughput reference
+
+Run:
+
+`37527623713`
+
+Head:
+
+`7cab1f4204bd043e2a9ff7cd1d36daa3c42cc58a`
+
+Use only as historical evidence that repaired CIBO previously achieved much higher throughput.
+
+Do not restore its older assumptions blindly.
+
+---
+
+# 25. SUCCESS CRITERIA FOR THE NEXT REPLAY
+
+The next replay after repairs must publish a before/after table against run `37547594291`.
+
+At minimum report:
+
+- decision count;
+- selected count;
+- settlement count;
+- ending capital;
+- net PnL;
+- cumulative return;
+- peak capital;
+- max DD USD;
+- max DD %;
+- QORE Risk ALLOW/REDUCE/REJECT/NOT_REQUESTED;
+- maximum multiplier;
+- multiplier distribution;
+- >4 multiplier count;
+- per-Trader PnL;
+- provider cost;
+- expected vs realized duration;
+- forecast calibration;
+- Compound Portfolio calls/active/binding;
+- Adaptive Leverage calls/active/binding;
+- Sizing calls/active/binding;
+- CIBO Compound applicable/allowed/active/binding;
+- FULL_FOUR_ENGINE_JOINT count;
+- duplicate Portfolio/Leverage surface flag;
+- MAX Frontier malformed count;
+- GEN-C11 local-no-final-binding count.
+
+The next architect should not report "SUCCESS" merely because GitHub Actions is green.
+
+The economic architecture must improve.
+
+---
+
+# 26. DO NOT MAKE THESE MISTAKES
+
+Do NOT:
+
+- reintroduce a fixed 4x ceiling;
+- make MAX Frontier silently binding;
+- bypass QORE Risk;
+- force Compound on before realized profits exist;
+- count identical Portfolio and Leverage outputs as two contributions;
+- count Sizing as productive simply because it executes code;
+- optimize directly to burned PnL;
+- use fresh holdout while still repairing;
+- alter Trader methodologies during Rescue exams;
+- claim certification from a research replay;
+- treat 11 settlements as a "selectivity feature" without proving it;
+- conclude that +10.89% is CIBO's ceiling.
+
+---
+
+# 27. EXACT STARTING ORDER FOR THE NEXT ARCHITECT
+
+Start here:
+
+1. checkout `agent/cibo-causal-expectation-leakage-fix-001`;
+2. read this file completely;
+3. open run `37547594216` and artifact `11451398893`;
+4. open run `37547594291` and artifact `11451743578`;
+5. fix `MAX_FRONTIER_MALFORMED`;
+6. redesign Portfolio / Adaptive Leverage role separation;
+7. wire Sizing into the joint capital plan so it can bind when appropriate;
+8. repair realized-profit -> GEN-C5/GEN-C7/GEN-C8 -> CIBO Compound path;
+9. trace the 487 GEN-C11 local changes;
+10. add regression tests proving all four engine outputs can be independently observed;
+11. re-run dedicated four-engine replay;
+12. re-run full 3,368-opportunity replay;
+13. publish before/after delta;
+14. continue repairs if cooperation remains broken;
+15. only after clean baseline, begin true ceiling discovery;
+16. after ceiling/refinement freeze candidate;
+17. fresh holdout;
+18. Exam 1;
+19. Exam 3;
+20. Exam 2;
+21. certification adjudication.
+
+---
+
+# 28. FINAL CONTINUITY STATEMENT
+
+The current bottleneck is no longer "we do not know why CIBO is weak."
+
+We now have direct sensor evidence.
+
+CIBO has:
+
+- cognitive sensors;
+- functional/economic sensors;
+- four-engine input/output sensors;
+- capital-path diagnostics;
+- coherence auditing;
+- a causal walk-forward replay;
+- an uncapped research intensity surface;
+- QORE Risk still sovereign.
+
+The current problem is that the economic powers are **not cooperating correctly**.
+
+The next architect must turn:
+
+- Leverage;
+- Sizing;
 - CIBO Compound;
-- GEN-C5 profit-funded expansion;
-- QORE Risk as opportunity selector.
+- Compound Portfolio
 
-## 27.9 Immediate next work
+from partially duplicated / disconnected engines into **one coordinated capital intelligence system**.
 
-Before ceiling discovery:
+Then remeasure.
 
-1. replace binary 0-or-4 capital intensity with a causal graded intensity contract;
-2. make Portfolio robust-risk / uncertainty aware instead of linearly maximizing multiplier;
-3. incorporate provider-cost sufficiency and duration uncertainty into economic admission;
-4. make survival capacity consistent across Cognition / Twin / Capital Science / Portfolio / Risk;
-5. make GEN-C12 NO_NEW_DEPLOYMENT binding for all new-deployment actions;
-6. validate on burned replay only for debugging;
-7. freeze candidate;
-8. then fresh holdout.
-
-CIBO remains NOT CERTIFIED and NOT production-authorized.
+Only after that is it meaningful to ask where CIBO's true ceiling is.
 
