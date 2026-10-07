@@ -1,0 +1,255 @@
+name: QORE CIBO Carrier39 Mild Trader Shock Ridge
+
+# Research-only reused-holdout hypothesis generation; not certification evidence.
+# Starts from the 40.0058% strict-Pareto carrier and targets the residual 50x-170x ATTACK DD hotspot causally.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/cibo-causal-expectation-leakage-fix-001
+    paths:
+      - '.github/workflows/cibo-trader-lab-carrier39-mild-trader-shock-ridge.yml'
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  PYTHONPATH: ${{ github.workspace }}/src
+  SOURCE_ARTIFACT_ID: '11451743578'
+  SOURCE_ARTIFACT_DIGEST: 'sha256:d439957f21e2f79148b5a2fb75a53db6fa448698f17aeb6978f379ed3547f7ea'
+  HISTORICAL_SOURCE_ARTIFACT_ID: '11389331836'
+  HISTORICAL_SOURCE_ARTIFACT_DIGEST: 'sha256:30177639f660c9647ab70257c2d12c541bdade49ab5582347a3890f920070fee'
+  HISTORICAL_CONTROL_ARTIFACT_ID: '11409086692'
+  HISTORICAL_CONTROL_ARTIFACT_DIGEST: 'sha256:eeffdc99a736b82bd965ff646b8ca9bf084f50ae414e56e9b3d82961169d7187'
+  ATLAS_AUDJPY_ARTIFACT_ID: '10476530915'
+  ATLAS_AUDJPY_DIGEST: 'sha256:a416085cfcef04003ae89debaad360304a0c4c8bac65b3bf2b439a8a4b7098bf'
+  ATLAS_EURUSD_ARTIFACT_ID: '10475354631'
+  ATLAS_EURUSD_DIGEST: 'sha256:e0fa9e316b79ba61c338161a57508359d4c6afe2fbf97d3f50f1e27c2d359a86'
+  ATLAS_GBPJPY_ARTIFACT_ID: '10475453293'
+  ATLAS_GBPJPY_DIGEST: 'sha256:b68e74b2afa54295f891c11cde19e12e92db4192930496036c7ebb372474e415'
+  ATLAS_GBPUSD_ARTIFACT_ID: '10475449182'
+  ATLAS_GBPUSD_DIGEST: 'sha256:77d5b65ce3c6763e3ac5f620e4167d4ef071bfe1c13746cd5ca7ad9788268dcf'
+  ATLAS_NAS100_ARTIFACT_ID: '10476153072'
+  ATLAS_NAS100_DIGEST: 'sha256:87ae8095feadce23c5026cda4dada49765d44d0baa2237b5bd7704ccc8deb863'
+  ATLAS_XAUUSD_ARTIFACT_ID: '10476557530'
+  ATLAS_XAUUSD_DIGEST: 'sha256:dcb905b11380e3d4e1a4dc621e269bb75d2886806dd662e260d21d1d15362e08'
+
+jobs:
+  carrier39-mild-trader-shock-ridge:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Compile
+        run: |
+          set -euo pipefail
+          python -m py_compile src/qore/infrastructure/cibo_position_lifecycle.py src/qore/infrastructure/trader_lab/cibo_three_mode_capital_lab.py scripts/cibo_trader_lab_three_mode_ceiling.py
+
+      - name: Recover inputs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/source" "$RUNNER_TEMP/historical-source" "$RUNNER_TEMP/historical-control" "$RUNNER_TEMP/result"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$SOURCE_ARTIFACT_ID/zip" > "$RUNNER_TEMP/source.zip"
+          echo "${SOURCE_ARTIFACT_DIGEST#sha256:}  $RUNNER_TEMP/source.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/source.zip" -d "$RUNNER_TEMP/source"
+          MANIFEST="$(find "$RUNNER_TEMP/source" -type f -name walk-forward-manifest.json -print -quit)"
+          BASELINE="$(find "$RUNNER_TEMP/source" -type f -name walk-forward-replay.json -print -quit)"
+          echo "MANIFEST=$MANIFEST" >> "$GITHUB_ENV"; echo "BASELINE=$BASELINE" >> "$GITHUB_ENV"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$HISTORICAL_SOURCE_ARTIFACT_ID/zip" > "$RUNNER_TEMP/historical-source.zip"
+          echo "${HISTORICAL_SOURCE_ARTIFACT_DIGEST#sha256:}  $RUNNER_TEMP/historical-source.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/historical-source.zip" -d "$RUNNER_TEMP/historical-source"
+          HISTORICAL_MANIFEST="$(find "$RUNNER_TEMP/historical-source" -type f -name single-account-manifest-native.json -print -quit)"
+          echo "HISTORICAL_MANIFEST=$HISTORICAL_MANIFEST" >> "$GITHUB_ENV"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$HISTORICAL_CONTROL_ARTIFACT_ID/zip" > "$RUNNER_TEMP/historical-control.zip"
+          echo "${HISTORICAL_CONTROL_ARTIFACT_DIGEST#sha256:}  $RUNNER_TEMP/historical-control.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/historical-control.zip" -d "$RUNNER_TEMP/historical-control"
+          HISTORICAL_REPLAY="$(find "$RUNNER_TEMP/historical-control" -type f -name historical-ceiling-replay.json -print -quit)"
+          echo "HISTORICAL_REPLAY=$HISTORICAL_REPLAY" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/atlas"
+          for SYMBOL in AUDJPY EURUSD GBPJPY GBPUSD NAS100 XAUUSD; do
+            ID_VAR="ATLAS_${SYMBOL}_ARTIFACT_ID"; DIGEST_VAR="ATLAS_${SYMBOL}_DIGEST"
+            ARTIFACT_ID="${!ID_VAR}"; ARTIFACT_DIGEST="${!DIGEST_VAR}"
+            ZIP="$RUNNER_TEMP/atlas-${SYMBOL}.zip"; ROOT="$RUNNER_TEMP/atlas/${SYMBOL}"
+            mkdir -p "$ROOT"
+            gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$ARTIFACT_ID/zip" > "$ZIP"
+            echo "${ARTIFACT_DIGEST#sha256:}  $ZIP" | sha256sum -c -
+            unzip -q "$ZIP" 'RAW_M5_LEDGER/2019.jsonl' 'RAW_M5_LEDGER/2020.jsonl' 'RAW_M5_LEDGER/2021.jsonl' 'RAW_M5_LEDGER/2022.jsonl' -d "$ROOT"
+          done
+
+      - name: Run carrier39 mild trader shock ridge
+        run: |
+          set -u
+          common=(
+            --manifest "$MANIFEST"
+            --baseline-replay "$BASELINE"
+            --historical-manifest "$HISTORICAL_MANIFEST"
+            --historical-replay "$HISTORICAL_REPLAY"
+            --distributed-attack-frontier
+            --coordinated-economic-group
+            --ceiling-discovery-mode
+            --summary-telemetry
+          )
+
+          run_case() {
+            name="$1"; shock="$2"; dd="$3"; taper="$4"
+            extra=(
+              --ceiling-attack-multiplier-band-lower 2000
+              --ceiling-attack-multiplier-band-upper 3999
+              --ceiling-attack-multiplier-band-taper-fraction 0.20
+              --ceiling-attack-risk-fraction-band-lower 0.025
+              --ceiling-attack-risk-fraction-band-upper 0.05
+              --ceiling-attack-risk-fraction-band-taper-fraction 0.50
+              --ceiling-attack-drawdown-window-lower 0.10
+              --ceiling-attack-drawdown-window-upper 0.30
+              --ceiling-attack-drawdown-window-multiplier-lower 800
+              --ceiling-attack-drawdown-window-multiplier-upper 1900
+              --ceiling-attack-drawdown-window-taper-fraction 0.40
+              --ceiling-attack-drawdown-window2-lower 0.10
+              --ceiling-attack-drawdown-window2-upper 0.35
+              --ceiling-attack-drawdown-window2-multiplier-lower 350
+              --ceiling-attack-drawdown-window2-multiplier-upper 450
+              --ceiling-attack-drawdown-window2-taper-fraction 0.60
+              --ceiling-attack-drawdown-window3-lower 0.15
+              --ceiling-attack-drawdown-window3-upper 0.50
+              --ceiling-attack-drawdown-window3-multiplier-lower 2
+              --ceiling-attack-drawdown-window3-multiplier-upper 20
+              --ceiling-attack-drawdown-window3-taper-fraction 0.80
+              --ceiling-attack-drawdown-window4-lower 0.15
+              --ceiling-attack-drawdown-window4-upper 0.50
+              --ceiling-attack-drawdown-window4-multiplier-lower 4800
+              --ceiling-attack-drawdown-window4-multiplier-upper 5200
+              --ceiling-attack-drawdown-window4-taper-fraction 0.90
+              --ceiling-attack-drawdown-window5-lower 0.10
+              --ceiling-attack-drawdown-window5-upper 0.50
+              --ceiling-attack-drawdown-window5-multiplier-lower 4400
+              --ceiling-attack-drawdown-window5-multiplier-upper 4799
+              --ceiling-attack-drawdown-window5-taper-fraction 0.85
+              --ceiling-attack-low-multiplier-demotion-upper 2
+              --ceiling-attack-low-multiplier-demotion-drawdown-trigger 0.15
+            )
+            if [[ "$shock" != "none" ]]; then
+              extra+=(
+                --ceiling-attack-trader-shock-trigger-fraction "$shock"
+                --ceiling-attack-trader-shock-drawdown-trigger "$dd"
+                --ceiling-attack-trader-shock-taper-fraction "$taper"
+              )
+            fi
+            override=(
+              --lifecycle-bootstrap-override-feature ADVERSE_PARTIAL_REDUCTION
+              --lifecycle-bootstrap-override-require-expectation
+              --lifecycle-bootstrap-override-expected-r-ceiling 0.10
+              --lifecycle-adverse-loss-cut-r -0.40
+              --lifecycle-adverse-partial-fraction 0.30
+              --lifecycle-bootstrap-override-capital-ceiling 100
+              --lifecycle-bootstrap-override-drawdown-trigger 0.10
+              --lifecycle-bootstrap-override-trader-loss-streak-trigger 1
+              --lifecycle-bootstrap-override-medium-max-multiplier 2
+            )
+            python scripts/cibo_trader_lab_three_mode_ceiling.py "${common[@]}" \
+              --attack-multiplier-cap 10000 \
+              --medium-multiplier-cap 14 \
+              --medium-drawdown-intensity-trigger 0.05 \
+              --economic-group-bootstrap-cushion-share 1.00 \
+              --ceiling-growth-leverage-slope 10 \
+              --ceiling-attack-single-trade-risk-fraction 0.20 \
+              --ceiling-attack-loss-streak-trigger 3 \
+              --ceiling-attack-loss-streak-taper-fraction 0.75 \
+              --ceiling-portfolio-shock-trigger-fraction 0.05 \
+              --ceiling-portfolio-shock-taper-fraction 0.50 \
+              "${extra[@]}" \
+              --lifecycle-source-root "AUDJPY=$RUNNER_TEMP/atlas/AUDJPY" \
+              --lifecycle-source-root "EURUSD=$RUNNER_TEMP/atlas/EURUSD" \
+              --lifecycle-source-root "GBPJPY=$RUNNER_TEMP/atlas/GBPJPY" \
+              --lifecycle-source-root "GBPUSD=$RUNNER_TEMP/atlas/GBPUSD" \
+              --lifecycle-source-root "NAS100=$RUNNER_TEMP/atlas/NAS100" \
+              --lifecycle-source-root "XAUUSD=$RUNNER_TEMP/atlas/XAUUSD" \
+              --lifecycle-feature DEFENSIVE_INITIAL_STOP_CAP \
+              --lifecycle-defensive-medium-1x-only \
+              --lifecycle-defensive-initial-stop-r -0.20 \
+              --lifecycle-trader-loss-streak-trigger 2 \
+              --lifecycle-minimum-stop-risk-fraction-trigger 0.03 \
+              "${override[@]}" \
+              --output "$RUNNER_TEMP/result/${name}.json"
+          }
+
+          run_case "base-p30" none 0 1 &
+          run_case "s05-dd10-f95" 0.05 0.10 0.95 &
+          run_case "s05-dd15-f95" 0.05 0.15 0.95 &
+          run_case "s10-dd10-f95" 0.10 0.10 0.95 &
+          run_case "s10-dd15-f95" 0.10 0.15 0.95 &
+          run_case "s15-dd10-f95" 0.15 0.10 0.95 &
+          run_case "s15-dd15-f90" 0.15 0.15 0.90 &
+          wait
+
+      - name: Rank third-window strict Pareto
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os
+          from decimal import Decimal
+          from pathlib import Path
+          root=Path(os.environ["RUNNER_TEMP"])/"result"
+          base_cap=Decimal("582440.0252953678696769360345")
+          base_dd=Decimal("0.6510419759240315671719825681633489757925369664663770620335151596826649313533375179797855048624928231")
+          base_tgl=Decimal("1444736.060362508738067914772")
+          base_agl=Decimal("1443117.897425126985300959340")
+          rows=[]
+          for pth in sorted(root.glob("*.json")):
+              p=json.loads(pth.read_text())
+              assert p["decision_count"]==p["trade_count"]==3368
+              assert p["economic_group_report"]["all_entries_preserved"] is True
+              assert Decimal(p["attack_sovereign_breach_usd"])==0
+              f=p["engineering_sensor_report"]["execution_funnel"]
+              assert f["final_trade_count"]==3368
+              assert f["sizing_medium_rejected_count"]==0 and f["sizing_medium_deferred_count"]==0
+              cap=Decimal(p["ending_total_capital_usd"]); dd=Decimal(p["max_drawdown_fraction"])
+              loss=p["economic_group_report"]["portfolio_loss_report"]
+              tgl=Decimal(loss["total_gross_loss_usd"]); agl=Decimal(loss["attack_gross_loss_usd"])
+              eg=p["economic_group_report"]
+              strict=cap>=base_cap and dd<base_dd and tgl<base_tgl and agl<base_agl
+              rows.append({
+                "case":pth.stem,
+                "capital":str(cap),"capital_delta":str(cap-base_cap),"capital_ratio":str(cap/base_cap),
+                "dd":str(dd),"dd_pct":str(dd*Decimal("100")),"dd_delta":str(dd-base_dd),
+                "total_gross_loss":str(tgl),"total_gross_loss_delta":str(tgl-base_tgl),
+                "gross_loss_reduction_pct":str((base_tgl-tgl)/base_tgl*Decimal("100")),
+                "attack_gross_loss":str(agl),"attack_gross_loss_delta":str(agl-base_agl),
+                "total_profit_factor":loss["total_profit_factor"],"attack_profit_factor":loss["attack_profit_factor"],
+                "w1_bind":eg.get("attack_drawdown_window_taper_bind_count",0),
+                "w2_bind":eg.get("attack_drawdown_window2_taper_bind_count",0),
+                "w3_bind":eg.get("attack_drawdown_window3_taper_bind_count",0),
+                "w4_bind":eg.get("attack_drawdown_window4_taper_bind_count",0),
+                "demotion_bind":eg.get("attack_low_multiplier_demotion_bind_count",0),
+                "w5_bind":eg.get("attack_drawdown_window5_taper_bind_count",0),
+                "w6_bind":eg.get("attack_drawdown_window6_taper_bind_count",0),
+                "trader_shock_bind":eg.get("attack_trader_shock_taper_bind_count",0),
+                "bootstrap_override_count":p["position_lifecycle_report"].get("bootstrap_override_applied_count",0),
+                "strict_pareto":strict,
+                "dd_below_45":strict and dd<Decimal("0.45"),
+                "dd_below_40":strict and dd<Decimal("0.40"),
+                "dd_below_35":strict and dd<Decimal("0.35"),
+                "loss30":strict and tgl<=base_tgl*Decimal("0.70"),
+              })
+          rows.sort(key=lambda r:(not r["dd_below_35"],not r["dd_below_40"],not r["dd_below_45"],not r["loss30"],not r["strict_pareto"],Decimal(r["dd"]),-Decimal(r["capital"]),Decimal(r["total_gross_loss"])))
+          print("CARRIER39_MILD_TRADER_SHOCK_RIDGE="+json.dumps(rows,sort_keys=True))
+          print("STRICT_PARETO_CASES="+json.dumps([r["case"] for r in rows if r["strict_pareto"]]))
+          print("DD_BELOW_45_CASES="+json.dumps([r["case"] for r in rows if r["dd_below_45"]]))
+          print("DD_BELOW_35_CASES="+json.dumps([r["case"] for r in rows if r["dd_below_35"]]))
+          print("DD_BELOW_40_CASES="+json.dumps([r["case"] for r in rows if r["dd_below_40"]]))
+          print("LOSS30_CASES="+json.dumps([r["case"] for r in rows if r["loss30"]]))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-carrier39-mild-trader-shock-ridge-${{ github.run_id }}
+          path: ${{ runner.temp }}/result/*.json
+          if-no-files-found: error
+          retention-days: 90
