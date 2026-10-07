@@ -360,6 +360,7 @@ def main() -> int:
         "VT31_NAS100",
         "R38_GBPJPY",
         "R42_AUDJPY",
+        "R38_EURUSD",
     })
     effective_adverse_loss_cut_trader_ids = (
         staged_adaptive_default_trader_ids
