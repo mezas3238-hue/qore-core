@@ -448,6 +448,35 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--ceiling-attack-trader-loss-ratio-trigger",
+        type=Decimal,
+        default=None,
+        help=(
+            "Research-only causal per-Trader ATTACK loss/profit pressure trigger. "
+            "Uses only already-settled ATTACK gross loss and profit; when the "
+            "realized loss/profit ratio reaches this level, reduce only the "
+            "Trader's incremental ATTACK scaling."
+        ),
+    )
+    parser.add_argument(
+        "--ceiling-attack-trader-loss-ratio-min-settlements",
+        type=int,
+        default=20,
+        help=(
+            "Minimum number of already-settled ATTACK trades for a Trader "
+            "before the causal loss/profit pressure taper may activate."
+        ),
+    )
+    parser.add_argument(
+        "--ceiling-attack-trader-loss-ratio-taper-fraction",
+        type=Decimal,
+        default=Decimal("0.95"),
+        help=(
+            "Fraction of the current incremental ATTACK cap retained while "
+            "the causal per-Trader loss/profit pressure taper is active."
+        ),
+    )
+    parser.add_argument(
         "--ceiling-portfolio-shock-trigger-fraction",
         type=Decimal,
         default=None,
@@ -880,6 +909,15 @@ def main() -> int:
         ),
         ceiling_attack_stress_confidence_taper_fraction=(
             args.ceiling_attack_stress_confidence_taper_fraction
+        ),
+        ceiling_attack_trader_loss_ratio_trigger=(
+            args.ceiling_attack_trader_loss_ratio_trigger
+        ),
+        ceiling_attack_trader_loss_ratio_min_settlements=(
+            args.ceiling_attack_trader_loss_ratio_min_settlements
+        ),
+        ceiling_attack_trader_loss_ratio_taper_fraction=(
+            args.ceiling_attack_trader_loss_ratio_taper_fraction
         ),
         ceiling_portfolio_shock_trigger_fraction=(
             args.ceiling_portfolio_shock_trigger_fraction
