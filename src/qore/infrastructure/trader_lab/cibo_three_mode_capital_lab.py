@@ -138,6 +138,9 @@ class CiboThreeModeOpenTrade:
     provider_cost_usd: Decimal
     source_reserved_usd: Decimal
     bank_seed_usd: Decimal | None = None
+    cooperative_sovereign_source_reserved_usd: Decimal = Decimal(0)
+    cooperative_portfolio_source_reserved_usd: Decimal = Decimal(0)
+    cooperative_portfolio_incremental_multiplier: int = 0
     lifecycle_events: tuple[CiboLifecycleEvent, ...] = ()
     lifecycle_event_index: int = 0
     lifecycle_risk_fraction_remaining: Decimal = Decimal(1)
@@ -175,6 +178,9 @@ class _State:
     medium_compound_recovery_deficit_usd: Decimal = Decimal(0)
     medium_compound_recovered_usd: Decimal = Decimal(0)
     attack_net_pnl_usd: Decimal = Decimal(0)
+    cooperative_portfolio_net_pnl_usd: Decimal = Decimal(0)
+    cooperative_portfolio_turnover_usd: Decimal = Decimal(0)
+    cooperative_portfolio_sovereign_breach_usd: Decimal = Decimal(0)
 
     @property
     def total_capital_usd(self) -> Decimal:
@@ -720,19 +726,51 @@ def apply_three_mode_settlement(
     state.open_stop_risk_usd -= trade.stop_risk_usd
     state.open_margin_usd -= trade.margin_usd
     if trade.mode is CiboTraderLabMode.MEDIUM:
+        cooperative_incremental = (
+            trade.cooperative_portfolio_incremental_multiplier
+        )
+        cooperative = cooperative_incremental > 0
+        sovereign_source = (
+            trade.cooperative_sovereign_source_reserved_usd
+            if cooperative
+            else trade.source_reserved_usd
+        )
+        portfolio_source = (
+            trade.cooperative_portfolio_source_reserved_usd
+            if cooperative
+            else Decimal(0)
+        )
         bank_seed = (
-            trade.source_reserved_usd
+            sovereign_source
             if trade.bank_seed_usd is None
             else trade.bank_seed_usd
         )
-        state.sovereign_reserved_usd -= trade.source_reserved_usd
+        state.sovereign_reserved_usd -= sovereign_source
+        state.cushion_reserved_usd -= portfolio_source
         state.bank_seed_reserved_usd -= bank_seed
         state.bank_seed_recycled_total_usd += bank_seed
-        state.medium_compound_turnover_usd += trade.source_reserved_usd
+        state.medium_compound_turnover_usd += sovereign_source
+        state.cooperative_portfolio_turnover_usd += portfolio_source
 
-        if net_pnl > 0:
+        if cooperative:
+            with localcontext() as context:
+                context.prec = 100
+                portfolio_fraction = (
+                    Decimal(cooperative_incremental)
+                    / Decimal(trade.multiplier)
+                )
+                portfolio_net_pnl = net_pnl * portfolio_fraction
+                medium_net_pnl = net_pnl - portfolio_net_pnl
+        else:
+            medium_net_pnl = net_pnl
+            portfolio_net_pnl = Decimal(0)
+
+        if medium_net_pnl > 0:
             recovery = (
-                min(net_pnl, state.medium_compound_recovery_deficit_usd)
+                min(
+                    medium_net_pnl,
+                    state.medium_compound_recovery_deficit_usd,
+                )
                 if net_compound_before_split
                 else Decimal(0)
             )
@@ -740,7 +778,7 @@ def apply_three_mode_settlement(
                 state.sovereign_bank_usd += recovery
                 state.medium_compound_recovery_deficit_usd -= recovery
                 state.medium_compound_recovered_usd += recovery
-            distributable = net_pnl - recovery
+            distributable = medium_net_pnl - recovery
             sovereign_gain = distributable * MEDIUM_SOVEREIGN_SHARE
             cushion_gain = distributable - sovereign_gain
             state.sovereign_bank_usd += sovereign_gain
@@ -748,12 +786,24 @@ def apply_three_mode_settlement(
             state.portfolio_attack_credit_usd += cushion_gain
             state.medium_profit_to_sovereign_usd += sovereign_gain
             state.medium_profit_to_cushion_usd += cushion_gain
-            state.medium_compound_positive_net_usd += net_pnl
-        elif net_pnl < 0:
-            state.sovereign_bank_usd += net_pnl
+            state.medium_compound_positive_net_usd += medium_net_pnl
+        elif medium_net_pnl < 0:
+            state.sovereign_bank_usd += medium_net_pnl
             if net_compound_before_split:
-                state.medium_compound_recovery_deficit_usd += -net_pnl
-            state.medium_compound_negative_net_usd += -net_pnl
+                state.medium_compound_recovery_deficit_usd += -medium_net_pnl
+            state.medium_compound_negative_net_usd += -medium_net_pnl
+
+        if portfolio_net_pnl:
+            state.portfolio_cushion_usd += portfolio_net_pnl
+            state.cooperative_portfolio_net_pnl_usd += portfolio_net_pnl
+            if state.portfolio_cushion_usd < 0:
+                breach = -state.portfolio_cushion_usd
+                state.cooperative_portfolio_sovereign_breach_usd += breach
+                state.portfolio_cushion_usd = Decimal(0)
+                state.sovereign_bank_usd -= breach
+            state.portfolio_attack_credit_usd = (
+                state.cushion_available_usd
+            )
     elif trade.mode is CiboTraderLabMode.ATTACK:
         state.cushion_reserved_usd -= trade.source_reserved_usd
         state.portfolio_cushion_usd += net_pnl
@@ -958,6 +1008,12 @@ def run_three_mode_trader_lab(
         "causal_closed_bar_only": bool(lifecycle_map),
         "outcome_used_for_trigger": False,
     }
+
+    if four_engine_cooperation_frontier and lifecycle_map:
+        raise CiboCapitalManagementError(
+            "four-engine source-provenance frontier must be validated before "
+            "combining with lifecycle event settlement"
+        )
 
     cognitive_map = (
         {signal: True for signal in signals}
@@ -2118,11 +2174,21 @@ def run_three_mode_trader_lab(
                             / candidate.margin_per_multiplier_usd
                         ).to_integral_value(rounding=ROUND_FLOOR)
                     )
-                    executable_by_source = int(
-                        (
-                            sovereign_left
-                            / candidate.source_cost_per_multiplier_usd
-                        ).to_integral_value(rounding=ROUND_FLOOR)
+                    executable_by_source = (
+                        1
+                        + int(
+                            (
+                                cushion_left
+                                / candidate.source_cost_per_multiplier_usd
+                            ).to_integral_value(rounding=ROUND_FLOOR)
+                        )
+                        if four_engine_cooperation_frontier
+                        else int(
+                            (
+                                sovereign_left
+                                / candidate.source_cost_per_multiplier_usd
+                            ).to_integral_value(rounding=ROUND_FLOOR)
+                        )
                     )
                     native_intensity_cap = (
                         (
@@ -2685,7 +2751,18 @@ def run_three_mode_trader_lab(
                     capacity_reasons.append("RISK_CAPACITY_EXHAUSTED")
                 if margin > margin_left:
                     capacity_reasons.append("MARGIN_CAPACITY_EXHAUSTED")
-                if source_reserved > source_left:
+                if four_engine_cooperation_frontier and (
+                    candidate_mode is CiboTraderLabMode.MEDIUM
+                ):
+                    incremental_source_required = (
+                        candidate.source_cost_per_multiplier_usd
+                        * Decimal(max(0, multiplier - 1))
+                    )
+                    if incremental_source_required > cushion_left:
+                        capacity_reasons.append(
+                            "PORTFOLIO_INCREMENTAL_SOURCE_EXHAUSTED"
+                        )
+                elif source_reserved > source_left:
                     capacity_reasons.append("CAPITAL_SOURCE_EXHAUSTED")
                 if capacity_reasons:
                     # The position already exists because the Trader executed
@@ -2705,6 +2782,7 @@ def run_three_mode_trader_lab(
                             candidate.provider_cost_per_multiplier_usd
                         )
                         source_reserved = stop_risk + provider_cost
+                    incremental_source_required = Decimal(0)
                     record_engineering_sensor(
                         "SIZING",
                         epoch_index=epoch_index,
@@ -2763,7 +2841,22 @@ def run_three_mode_trader_lab(
                 risk_left -= stop_risk
                 margin_left -= margin
                 if candidate_mode is CiboTraderLabMode.MEDIUM:
-                    sovereign_left -= source_reserved
+                    if four_engine_cooperation_frontier:
+                        sovereign_left = max(
+                            Decimal(0),
+                            sovereign_left
+                            - candidate.source_cost_per_multiplier_usd,
+                        )
+                        cushion_left = max(
+                            Decimal(0),
+                            cushion_left
+                            - (
+                                candidate.source_cost_per_multiplier_usd
+                                * Decimal(max(0, multiplier - 1))
+                            ),
+                        )
+                    else:
+                        sovereign_left -= source_reserved
                 else:
                     cushion_left -= source_reserved
                     portfolio_attack_release_left -= source_reserved
@@ -2800,10 +2893,42 @@ def run_three_mode_trader_lab(
                         dynamic_bank_seed_budget_usd(
                             state.total_capital_usd
                         ),
-                        source_reserved,
+                        (
+                            candidate.source_cost_per_multiplier_usd
+                            if (
+                                four_engine_cooperation_frontier
+                                and candidate_mode is CiboTraderLabMode.MEDIUM
+                            )
+                            else source_reserved
+                        ),
                     )
                     if candidate_mode is CiboTraderLabMode.MEDIUM
                     else Decimal(0)
+                ),
+                cooperative_sovereign_source_reserved_usd=(
+                    candidate.source_cost_per_multiplier_usd
+                    if (
+                        four_engine_cooperation_frontier
+                        and candidate_mode is CiboTraderLabMode.MEDIUM
+                    )
+                    else Decimal(0)
+                ),
+                cooperative_portfolio_source_reserved_usd=(
+                    candidate.source_cost_per_multiplier_usd
+                    * Decimal(max(0, multiplier - 1))
+                    if (
+                        four_engine_cooperation_frontier
+                        and candidate_mode is CiboTraderLabMode.MEDIUM
+                    )
+                    else Decimal(0)
+                ),
+                cooperative_portfolio_incremental_multiplier=(
+                    max(0, multiplier - 1)
+                    if (
+                        four_engine_cooperation_frontier
+                        and candidate_mode is CiboTraderLabMode.MEDIUM
+                    )
+                    else 0
                 ),
                 lifecycle_events=(
                     tuple(
@@ -2877,6 +3002,17 @@ def run_three_mode_trader_lab(
                     "stop_risk_usd": format(stop_risk, "f"),
                     "provider_cost_usd": format(provider_cost, "f"),
                     "source_reserved_usd": format(source_reserved, "f"),
+                    "cooperative_sovereign_source_reserved_usd": format(
+                        trade.cooperative_sovereign_source_reserved_usd,
+                        "f",
+                    ),
+                    "cooperative_portfolio_source_reserved_usd": format(
+                        trade.cooperative_portfolio_source_reserved_usd,
+                        "f",
+                    ),
+                    "cooperative_portfolio_incremental_multiplier": (
+                        trade.cooperative_portfolio_incremental_multiplier
+                    ),
                     "bank_seed_usd": format(
                         trade.bank_seed_usd or Decimal(0), "f"
                     ),
@@ -2887,7 +3023,15 @@ def run_three_mode_trader_lab(
             state.open_margin_usd += margin
             if candidate_mode is CiboTraderLabMode.MEDIUM:
                 medium_seed = trade.bank_seed_usd or Decimal(0)
-                state.sovereign_reserved_usd += source_reserved
+                if four_engine_cooperation_frontier:
+                    state.sovereign_reserved_usd += (
+                        trade.cooperative_sovereign_source_reserved_usd
+                    )
+                    state.cushion_reserved_usd += (
+                        trade.cooperative_portfolio_source_reserved_usd
+                    )
+                else:
+                    state.sovereign_reserved_usd += source_reserved
                 state.bank_seed_reserved_usd += medium_seed
                 state.bank_seed_issuance_count += 1
                 state.bank_seed_issued_total_usd += medium_seed
@@ -3239,6 +3383,18 @@ def run_three_mode_trader_lab(
             state.attack_net_pnl_usd,
             "f",
         ),
+        "cooperative_portfolio_net_pnl_usd": format(
+            state.cooperative_portfolio_net_pnl_usd,
+            "f",
+        ),
+        "cooperative_portfolio_turnover_usd": format(
+            state.cooperative_portfolio_turnover_usd,
+            "f",
+        ),
+        "cooperative_portfolio_sovereign_breach_usd": format(
+            state.cooperative_portfolio_sovereign_breach_usd,
+            "f",
+        ),
         "mode_epoch_counts": dict(sorted(mode_counts.items())),
         "mode_reason_counts": dict(sorted(mode_reason_counts.items())),
         "trade_mode_counts": dict(sorted(trade_mode_counts.items())),
@@ -3410,7 +3566,9 @@ def run_three_mode_trader_lab(
                 "CIBO_COMPOUND_CAPS_INCREMENTAL_REINVESTMENT_FROM_REALIZED_"
                 "NET_PRODUCTION; COMPOUND_PORTFOLIO_ALLOCATES_INCREMENTAL_"
                 "GROWTH_BY_CAUSAL_ACCOUNT_UTILITY; ADAPTIVE_LEVERAGE_BINDS_"
-                "THE_FINAL_MULTIPLIER; NO_ENGINE_MAY_REJECT_THE_BASE_ENTRY"
+                "THE_FINAL_MULTIPLIER; BASE_1X_USES_SOVEREIGN_CUSTODY; "
+                "INCREMENTAL_GT1X_USES_COMPOUND_PORTFOLIO_CUSHION; "
+                "NO_ENGINE_MAY_REJECT_THE_BASE_ENTRY"
             ),
             "distributed_attack_min_positive_blocks": (
                 DISTRIBUTED_ATTACK_MIN_POSITIVE_BLOCKS

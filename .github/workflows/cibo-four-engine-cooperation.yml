@@ -123,6 +123,9 @@ jobs:
           assert p["governance"]["four_engine_cooperation_frontier"] is True
           assert p["governance"]["outcome_used_for_predecision"] is False
           assert Decimal(p["ending_total_capital_usd"]) > 0
+          assert Decimal(
+              p["cooperative_portfolio_sovereign_breach_usd"]
+          ) == 0
 
           coop = p["four_engine_cooperation_report"]
           assert coop["enabled"] is True
@@ -150,6 +153,12 @@ jobs:
               ],
               "medium_compound_negative_net_usd": p[
                   "medium_compound_negative_net_usd"
+              ],
+              "cooperative_portfolio_net_pnl_usd": p[
+                  "cooperative_portfolio_net_pnl_usd"
+              ],
+              "cooperative_portfolio_turnover_usd": p[
+                  "cooperative_portfolio_turnover_usd"
               ],
               "four_engine_cooperation_report": coop,
               "economic_bottleneck_ranking": p[
