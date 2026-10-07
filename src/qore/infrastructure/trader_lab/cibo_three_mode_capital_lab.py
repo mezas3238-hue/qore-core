@@ -83,6 +83,7 @@ class CiboThreeModeCandidate:
     walk_forward_positive_block_count: int
     walk_forward_nonpositive_block_count: int
     native_cognition_recommended: bool
+    context_quality_disposition: str
     minimum_volume: Decimal
     maximum_multiplier: int
     stop_risk_per_multiplier_usd: Decimal
@@ -291,8 +292,23 @@ def _candidate(
     row: Mapping[str, Any],
     *,
     native_cognition_recommended: bool,
+    enforce_research_context_abstain: bool,
 ) -> CiboThreeModeCandidate:
     evidence = manifest_row_to_ceiling_opportunity_evidence(row)
+    context_quality = _mapping(row.get("context_quality"), "context_quality")
+    context_disposition = str(context_quality.get("disposition", ""))
+    if context_disposition not in {"ALLOW", "ABSTAIN"}:
+        raise CiboCapitalManagementError(
+            "Trader Lab context-quality disposition is invalid"
+        )
+    if context_quality.get("causal_predecision") is not True:
+        raise CiboCapitalManagementError(
+            "Trader Lab context-quality evidence must be causal predecision"
+        )
+    if context_quality.get("outcome_used") is not False:
+        raise CiboCapitalManagementError(
+            "Trader Lab context-quality evidence cannot use outcome"
+        )
     outcome = manifest_row_to_shadow_outcome_observation(row)
     opportunity = evidence.opportunity
     minimum = minimum_seed_volume(opportunity)
@@ -343,6 +359,7 @@ def _candidate(
         walk_forward_positive_block_count=positive_blocks,
         walk_forward_nonpositive_block_count=nonpositive_blocks,
         native_cognition_recommended=native_cognition_recommended,
+        context_quality_disposition=context_disposition,
         minimum_volume=minimum,
         maximum_multiplier=max(0, maximum_multiplier),
         stop_risk_per_multiplier_usd=stop,
@@ -353,6 +370,10 @@ def _candidate(
             and evidence.provider_viable
             and evidence.capital_source_eligible
             and native_cognition_recommended
+            and (
+                context_disposition == "ALLOW"
+                or not enforce_research_context_abstain
+            )
         ),
     )
 
@@ -630,9 +651,14 @@ def run_three_mode_trader_lab(
     *,
     baseline_ending_capital_usd: Decimal | None = None,
     cognitive_recommend_by_signal: Mapping[str, bool] | None = None,
+    enforce_research_context_abstain: bool = False,
 ) -> dict[str, object]:
     """Run the isolated chronological three-mode ceiling experiment."""
 
+    if type(enforce_research_context_abstain) is not bool:
+        raise CiboCapitalManagementError(
+            "Trader Lab context hypothesis switch must be bool"
+        )
     source_sha = validate_single_account_manifest_sha256(manifest)
     if manifest.get("initial_capital_usd") != "60":
         raise CiboCapitalManagementError(
@@ -728,6 +754,9 @@ def run_three_mode_trader_lab(
                 native_cognition_recommended=cognitive_map[
                     str(row["signal_fingerprint"])
                 ],
+                enforce_research_context_abstain=(
+                    enforce_research_context_abstain
+                ),
             )
             for row in epoch_rows
         )
@@ -966,6 +995,9 @@ def run_three_mode_trader_lab(
                     "native_cognition_recommended": (
                         candidate.native_cognition_recommended
                     ),
+                    "context_quality_disposition": (
+                        candidate.context_quality_disposition
+                    ),
                     "capital_time_score": format(
                         candidate.capital_time_score,
                         "f",
@@ -1073,6 +1105,11 @@ def run_three_mode_trader_lab(
 
     return {
         "schema": "qore.trader_lab.cibo_three_mode_ceiling.v1",
+        "research_lane": (
+            "POST_BURN_CONTEXT_ABSTAIN_HYPOTHESIS"
+            if enforce_research_context_abstain
+            else "CAUSAL_BASELINE_THREE_MODE"
+        ),
         "source_manifest_sha256": source_sha,
         "decision_count": len(rows),
         "decision_epoch_count": len(epochs),
@@ -1211,6 +1248,14 @@ def run_three_mode_trader_lab(
             ),
             "attack_expectation_law": (
                 "WEAKEST_OF_FIVE_CAUSAL_CHRONOLOGICAL_BLOCKS"
+            ),
+            "context_quality_abstain_enforced": (
+                enforce_research_context_abstain
+            ),
+            "context_gate_status": (
+                "POST_BURN_HYPOTHESIS_REQUIRES_FRESH_VALIDATION"
+                if enforce_research_context_abstain
+                else "ADVISORY_ONLY_AS_DECLARED_BY_SOURCE_MANIFEST"
             ),
             "qore_risk_authority_claimed": False,
             "broker_mutation": False,
