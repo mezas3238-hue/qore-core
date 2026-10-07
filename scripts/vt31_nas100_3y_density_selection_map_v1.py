@@ -123,10 +123,10 @@ def replay(evidence_path: Path) -> dict[str, object]:
     series, _, evidence, _, _, _ = load_market_evidence(evidence_path)
     raw: dict[date, list[object]] = defaultdict(list)
     for bar in series:
-        raw[_day(getattr(bar, "opened_at"))].append(bar)
+        raw[_day(bar.opened_at)].append(bar)
     by_day = {
         local_day: tuple(
-            sorted(items, key=lambda item: getattr(item, "opened_at"))
+            sorted(items, key=lambda item: item.opened_at)
         )
         for local_day, items in raw.items()
     }
@@ -171,9 +171,9 @@ def replay(evidence_path: Path) -> dict[str, object]:
 
         for bar in session:
             prefix.append(bar)
-            observation_at = cast(datetime, getattr(bar, "closed_at"))
+            observation_at = cast(datetime, bar.closed_at)
             evaluation = evaluate_vt31_r2_2_source(
-                instrument=getattr(bar, "instrument"),
+                instrument=bar.instrument,
                 as_of=observation_at,
                 m1_candles=cast(Any, tuple(prefix)),
                 evidence_fingerprint=evidence,
@@ -208,7 +208,7 @@ def replay(evidence_path: Path) -> dict[str, object]:
                 item
                 for item in prefix
                 if (10, 0, 0)
-                <= _wall(getattr(item, "opened_at"))
+                <= _wall(item.opened_at)
                 < (11, 0, 0)
             )
             state = specialist._state_snapshot(
