@@ -22,15 +22,26 @@ def main() -> int:
 
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
     baseline = None
+    cognitive_recommend_by_signal = None
     if args.baseline_replay is not None:
         payload = json.loads(
             args.baseline_replay.read_text(encoding="utf-8")
         )
         baseline = Decimal(str(payload["ending_capital_usd"]))
+        decisions = payload.get("decision_receipts")
+        if not isinstance(decisions, list):
+            raise ValueError("baseline replay decision receipts missing")
+        cognitive_recommend_by_signal = {
+            str(item["signal_fingerprint"]): (
+                str(item["capital_disposition"]) != "COGNITIVE_BLOCK"
+            )
+            for item in decisions
+        }
 
     result = run_three_mode_trader_lab(
         manifest,
         baseline_ending_capital_usd=baseline,
+        cognitive_recommend_by_signal=cognitive_recommend_by_signal,
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
