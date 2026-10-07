@@ -169,6 +169,15 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--lifecycle-attack-only",
+        action="store_true",
+        help=(
+            "Apply supplied post-entry lifecycle events only to ATTACK "
+            "positions. Trader admission and initial ATTACK selection remain "
+            "unchanged; the lifecycle acts only after entry."
+        ),
+    )
+    parser.add_argument(
         "--lifecycle-defensive-medium-max-multiplier",
         type=int,
         default=None,
@@ -843,6 +852,7 @@ def main() -> int:
         lifecycle_defensive_medium_1x_only=(
             args.lifecycle_defensive_medium_1x_only
         ),
+        lifecycle_attack_only=args.lifecycle_attack_only,
         lifecycle_defensive_medium_max_multiplier=(
             args.lifecycle_defensive_medium_max_multiplier
         ),
