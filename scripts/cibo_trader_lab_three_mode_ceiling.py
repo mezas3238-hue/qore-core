@@ -922,6 +922,15 @@ def main() -> int:
         help="Optional upper coordinated ATTACK cap bound for localized stress-confidence taper.",
     )
     parser.add_argument(
+        "--ceiling-attack-stress-confidence-projected-risk-fraction-trigger",
+        type=Decimal,
+        default=None,
+        help=(
+            "Optional causal projected stop-risk fraction of live capital "
+            "required before stress-confidence may taper ATTACK."
+        ),
+    )
+    parser.add_argument(
         "--ceiling-attack-stress-confidence-taper-fraction",
         type=Decimal,
         default=Decimal("0.75"),
@@ -1700,6 +1709,9 @@ def main() -> int:
         ),
         ceiling_attack_stress_confidence_multiplier_upper=(
             args.ceiling_attack_stress_confidence_multiplier_upper
+        ),
+        ceiling_attack_stress_confidence_projected_risk_fraction_trigger=(
+            args.ceiling_attack_stress_confidence_projected_risk_fraction_trigger
         ),
         ceiling_attack_stress_confidence_taper_fraction=(
             args.ceiling_attack_stress_confidence_taper_fraction
