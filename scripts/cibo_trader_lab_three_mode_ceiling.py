@@ -395,6 +395,14 @@ def main() -> int:
                 "economic_bottleneck_ranking": result[
                     "engineering_sensor_report"
                 ]["bottleneck_ranking"],
+                "trader_results": result["trader_results"],
+                "medium_compound_positive_net_usd": result[
+                    "medium_compound_positive_net_usd"
+                ],
+                "medium_compound_negative_net_usd": result[
+                    "medium_compound_negative_net_usd"
+                ],
+                "attack_net_pnl_usd": result["attack_net_pnl_usd"],
             },
             sort_keys=True,
         )
