@@ -998,6 +998,36 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--ceiling-attack-state-pressure-expected-minutes-floor",
+        type=Decimal,
+        default=None,
+        help="Optional causal expected-capital-minutes floor for ATTACK state-pressure taper.",
+    )
+    parser.add_argument(
+        "--ceiling-attack-state-pressure-target-r-ceiling",
+        type=Decimal,
+        default=None,
+        help="Optional planned target-R ceiling for ATTACK state-pressure taper.",
+    )
+    parser.add_argument(
+        "--ceiling-attack-state-pressure-market-posture",
+        choices=("DEFENSIVE", "RECOVERY", "STABLE", "WATCH"),
+        default=None,
+        help="Optional causal market-regime posture required by ATTACK state-pressure taper.",
+    )
+    parser.add_argument(
+        "--ceiling-attack-state-pressure-h4-range-state",
+        choices=("balanced", "compressed", "expanded", "extreme"),
+        default=None,
+        help="Optional causal H4 range state required by ATTACK state-pressure taper.",
+    )
+    parser.add_argument(
+        "--ceiling-attack-state-pressure-risk-budget-taper-fraction",
+        type=Decimal,
+        default=Decimal("1"),
+        help="Fraction of ATTACK single-trade risk budget retained under state pressure.",
+    )
+    parser.add_argument(
         "--ceiling-attack-trader-loss-ratio-trigger",
         type=Decimal,
         default=None,
@@ -1796,6 +1826,21 @@ def main() -> int:
         ),
         ceiling_attack_stress_confidence_risk_budget_taper_fraction=(
             args.ceiling_attack_stress_confidence_risk_budget_taper_fraction
+        ),
+        ceiling_attack_state_pressure_expected_minutes_floor=(
+            args.ceiling_attack_state_pressure_expected_minutes_floor
+        ),
+        ceiling_attack_state_pressure_target_r_ceiling=(
+            args.ceiling_attack_state_pressure_target_r_ceiling
+        ),
+        ceiling_attack_state_pressure_market_posture=(
+            args.ceiling_attack_state_pressure_market_posture
+        ),
+        ceiling_attack_state_pressure_h4_range_state=(
+            args.ceiling_attack_state_pressure_h4_range_state
+        ),
+        ceiling_attack_state_pressure_risk_budget_taper_fraction=(
+            args.ceiling_attack_state_pressure_risk_budget_taper_fraction
         ),
         ceiling_attack_trader_loss_ratio_trigger=(
             args.ceiling_attack_trader_loss_ratio_trigger
