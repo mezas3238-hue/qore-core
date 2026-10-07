@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - agent/cibo-four-engine-cooperation-001
+      - agent/cibo-dd-selective-custody-001
     paths:
       - '.github/workflows/cibo-four-engine-cooperation.yml'
       - 'src/qore/infrastructure/trader_lab/cibo_three_mode_capital_lab.py'
@@ -132,7 +133,7 @@ jobs:
         run: |
           set -euo pipefail
           : > "$RUNNER_TEMP/result/cibo-four-engine-loss-cut-failures.tsv"
-          for SPEC in "065c2t180:-0.65:2:180" "060c2t180:-0.60:2:180" "055c2t180:-0.55:2:180" "050c2t180:-0.50:2:180"; do
+          for SPEC in "055c2t030:-0.55:2:30" "055c2t060:-0.55:2:60" "055c2t090:-0.55:2:90" "050c2t030:-0.50:2:30" "050c2t060:-0.50:2:60" "050c2t090:-0.50:2:90"; do
             IFS=':' read -r LABEL THRESHOLD CONFIRMATIONS MAX_MINUTES <<< "$SPEC"
             if python scripts/cibo_trader_lab_three_mode_ceiling.py \
               --manifest "$MANIFEST" \
@@ -213,10 +214,12 @@ jobs:
 
           frontier = []
           for filename, threshold, confirmations, max_minutes in (
-              ("cibo-four-engine-loss-cut-065c2t180.json", "-0.65", 2, 180),
-              ("cibo-four-engine-loss-cut-060c2t180.json", "-0.60", 2, 180),
-              ("cibo-four-engine-loss-cut-055c2t180.json", "-0.55", 2, 180),
-              ("cibo-four-engine-loss-cut-050c2t180.json", "-0.50", 2, 180),
+              ("cibo-four-engine-loss-cut-055c2t030.json", "-0.55", 2, 30),
+              ("cibo-four-engine-loss-cut-055c2t060.json", "-0.55", 2, 60),
+              ("cibo-four-engine-loss-cut-055c2t090.json", "-0.55", 2, 90),
+              ("cibo-four-engine-loss-cut-050c2t030.json", "-0.50", 2, 30),
+              ("cibo-four-engine-loss-cut-050c2t060.json", "-0.50", 2, 60),
+              ("cibo-four-engine-loss-cut-050c2t090.json", "-0.50", 2, 90),
           ):
               candidate_path = (
                   Path(os.environ["RUNNER_TEMP"]) / "result" / filename
