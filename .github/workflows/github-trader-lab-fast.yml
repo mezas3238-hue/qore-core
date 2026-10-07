@@ -17,6 +17,16 @@ on:
         description: 'Subject Git ref'
         required: false
         type: string
+  workflow_call:
+    inputs:
+      profile_path:
+        description: 'Trader Lab profile path'
+        required: false
+        type: string
+      subject_ref:
+        description: 'Subject Git ref'
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -35,14 +45,15 @@ jobs:
       - name: Checkout independent Trader Lab
         uses: actions/checkout@v4
         with:
+          ref: agent/github-trader-lab-001
           path: lab
 
       - name: Resolve request
         id: request
         shell: bash
         env:
-          INPUT_PROFILE: ${{ github.event.inputs.profile_path || '' }}
-          INPUT_SUBJECT_REF: ${{ github.event.inputs.subject_ref || '' }}
+          INPUT_PROFILE: ${{ inputs.profile_path || '' }}
+          INPUT_SUBJECT_REF: ${{ inputs.subject_ref || '' }}
         run: |
           set -euo pipefail
           python - <<'PY'
