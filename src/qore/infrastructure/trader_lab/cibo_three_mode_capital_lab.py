@@ -915,6 +915,7 @@ def run_three_mode_trader_lab(
         Mapping[str, Mapping[str, object]] | None
     ) = None,
     lifecycle_bootstrap_override_capital_ceiling: Decimal | None = None,
+    lifecycle_bootstrap_override_peak_capital_ceiling: Decimal | None = None,
     lifecycle_bootstrap_override_drawdown_trigger: Decimal | None = None,
     lifecycle_bootstrap_override_trader_loss_streak_trigger: int | None = None,
     lifecycle_bootstrap_override_medium_max_multiplier: int = 2,
@@ -1016,6 +1017,14 @@ def run_three_mode_trader_lab(
     ):
         raise CiboCapitalManagementError(
             "Trader Lab bootstrap lifecycle override capital ceiling must be positive Decimal"
+        )
+    if lifecycle_bootstrap_override_peak_capital_ceiling is not None and (
+        not isinstance(lifecycle_bootstrap_override_peak_capital_ceiling, Decimal)
+        or not lifecycle_bootstrap_override_peak_capital_ceiling.is_finite()
+        or lifecycle_bootstrap_override_peak_capital_ceiling <= 0
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab bootstrap lifecycle override peak-capital ceiling must be positive Decimal"
         )
     if lifecycle_bootstrap_override_drawdown_trigger is not None and (
         not isinstance(lifecycle_bootstrap_override_drawdown_trigger, Decimal)
@@ -4745,6 +4754,11 @@ def run_three_mode_trader_lab(
                 and lifecycle_bootstrap_override_capital_ceiling is not None
                 and state.total_capital_usd
                 <= lifecycle_bootstrap_override_capital_ceiling
+                and (
+                    lifecycle_bootstrap_override_peak_capital_ceiling is None
+                    or state.peak_total_capital_usd
+                    <= lifecycle_bootstrap_override_peak_capital_ceiling
+                )
                 and lifecycle_bootstrap_override_drawdown_trigger is not None
                 and total_drawdown_utilization
                 >= lifecycle_bootstrap_override_drawdown_trigger
@@ -5027,6 +5041,11 @@ def run_three_mode_trader_lab(
         None
         if lifecycle_bootstrap_override_capital_ceiling is None
         else format(lifecycle_bootstrap_override_capital_ceiling, "f")
+    )
+    position_lifecycle_report["bootstrap_override_peak_capital_ceiling_usd"] = (
+        None
+        if lifecycle_bootstrap_override_peak_capital_ceiling is None
+        else format(lifecycle_bootstrap_override_peak_capital_ceiling, "f")
     )
     position_lifecycle_report["bootstrap_override_drawdown_trigger"] = (
         None
