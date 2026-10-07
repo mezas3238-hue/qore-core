@@ -610,6 +610,30 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--ceiling-attack-recent-trader-loss-window",
+        type=int,
+        default=None,
+        help="Rolling settled ATTACK count used for causal same-Trader loss pressure.",
+    )
+    parser.add_argument(
+        "--ceiling-attack-recent-trader-loss-fraction-trigger",
+        type=Decimal,
+        default=None,
+        help="Recent same-Trader net-loss fraction of live capital that activates ATTACK taper.",
+    )
+    parser.add_argument(
+        "--ceiling-attack-recent-trader-loss-drawdown-trigger",
+        type=Decimal,
+        default=Decimal("0.10"),
+        help="Minimum live realized drawdown required before recent-Trader loss pressure can taper.",
+    )
+    parser.add_argument(
+        "--ceiling-attack-recent-trader-loss-taper-fraction",
+        type=Decimal,
+        default=Decimal("0.75"),
+        help="Fraction of coordinated ATTACK cap retained during recent-Trader loss pressure.",
+    )
+    parser.add_argument(
         "--ceiling-portfolio-shock-trigger-fraction",
         type=Decimal,
         default=None,
@@ -1100,6 +1124,18 @@ def main() -> int:
         ),
         ceiling_attack_trader_loss_ratio_taper_fraction=(
             args.ceiling_attack_trader_loss_ratio_taper_fraction
+        ),
+        ceiling_attack_recent_trader_loss_window=(
+            args.ceiling_attack_recent_trader_loss_window
+        ),
+        ceiling_attack_recent_trader_loss_fraction_trigger=(
+            args.ceiling_attack_recent_trader_loss_fraction_trigger
+        ),
+        ceiling_attack_recent_trader_loss_drawdown_trigger=(
+            args.ceiling_attack_recent_trader_loss_drawdown_trigger
+        ),
+        ceiling_attack_recent_trader_loss_taper_fraction=(
+            args.ceiling_attack_recent_trader_loss_taper_fraction
         ),
         ceiling_portfolio_shock_trigger_fraction=(
             args.ceiling_portfolio_shock_trigger_fraction
