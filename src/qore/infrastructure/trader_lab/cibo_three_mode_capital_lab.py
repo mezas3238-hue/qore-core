@@ -918,6 +918,7 @@ def run_three_mode_trader_lab(
     lifecycle_bootstrap_override_drawdown_trigger: Decimal | None = None,
     lifecycle_bootstrap_override_trader_loss_streak_trigger: int | None = None,
     lifecycle_bootstrap_override_medium_max_multiplier: int = 2,
+    lifecycle_bootstrap_override_require_expectation: bool = False,
     lifecycle_defensive_medium_1x_only: bool = False,
     lifecycle_attack_only: bool = False,
     lifecycle_defensive_medium_max_multiplier: int | None = None,
@@ -1041,6 +1042,10 @@ def run_three_mode_trader_lab(
     ):
         raise CiboCapitalManagementError(
             "Trader Lab bootstrap lifecycle override MEDIUM max multiplier must be int in [1, 4]"
+        )
+    if type(lifecycle_bootstrap_override_require_expectation) is not bool:
+        raise CiboCapitalManagementError(
+            "Trader Lab bootstrap lifecycle expectation gate must be bool"
         )
     if lifecycle_bootstrap_override_by_signal is not None and (
         lifecycle_bootstrap_override_capital_ceiling is None
@@ -4739,6 +4744,10 @@ def run_three_mode_trader_lab(
                 is not None
                 and trader_loss_streak[candidate.trader_id]
                 >= lifecycle_bootstrap_override_trader_loss_streak_trigger
+                and (
+                    not lifecycle_bootstrap_override_require_expectation
+                    or candidate.walk_forward_expected_structural_r is not None
+                )
             )
             if bootstrap_override_allowed:
                 lifecycle_events_for_trade = tuple(
@@ -5013,6 +5022,9 @@ def run_three_mode_trader_lab(
     )
     position_lifecycle_report["bootstrap_override_medium_max_multiplier"] = (
         lifecycle_bootstrap_override_medium_max_multiplier
+    )
+    position_lifecycle_report["bootstrap_override_require_expectation"] = (
+        lifecycle_bootstrap_override_require_expectation
     )
     position_lifecycle_report["defensive_medium_1x_only"] = (
         lifecycle_defensive_medium_1x_only
