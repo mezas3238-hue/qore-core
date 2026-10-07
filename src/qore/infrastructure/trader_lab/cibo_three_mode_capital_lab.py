@@ -871,9 +871,13 @@ def run_three_mode_trader_lab(
         for signal, profile in lifecycle_map.items():
             managed = Decimal(str(profile.get("managed_gross_r")))
             original = Decimal(str(profile.get("original_gross_r")))
+            adverse_loss_cut_r = Decimal(
+                str(profile.get("adverse_loss_cut_r"))
+            )
             if (
                 not managed.is_finite()
                 or not original.is_finite()
+                or not adverse_loss_cut_r.is_finite()
                 or type(profile.get("data_available")) is not bool
                 or not isinstance(profile.get("managed_exit_at"), str)
                 or not isinstance(profile.get("actions"), (list, tuple))
@@ -904,6 +908,19 @@ def run_three_mode_trader_lab(
         if lifecycle_feature_sets
         else []
     )
+    lifecycle_loss_cut_thresholds = {
+        Decimal(str(profile["adverse_loss_cut_r"]))
+        for profile in lifecycle_map.values()
+    }
+    if len(lifecycle_loss_cut_thresholds) > 1:
+        raise CiboCapitalManagementError(
+            "Trader Lab lifecycle adverse loss-cut threshold must be uniform"
+        )
+    lifecycle_adverse_loss_cut_r = (
+        next(iter(lifecycle_loss_cut_thresholds))
+        if lifecycle_loss_cut_thresholds
+        else None
+    )
     lifecycle_data_available_count = 0
     lifecycle_changed_count = 0
     for profile in lifecycle_map.values():
@@ -924,6 +941,11 @@ def run_three_mode_trader_lab(
         "changed_outcome_count": lifecycle_changed_count,
         "action_counts": dict(sorted(lifecycle_action_counts.items())),
         "enabled_feature_codes": lifecycle_feature_codes,
+        "adverse_loss_cut_r": (
+            None
+            if lifecycle_adverse_loss_cut_r is None
+            else format(lifecycle_adverse_loss_cut_r, "f")
+        ),
         "causal_closed_bar_only": bool(lifecycle_map),
         "outcome_used_for_trigger": False,
     }
