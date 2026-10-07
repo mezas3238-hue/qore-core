@@ -481,6 +481,44 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--ceiling-attack-drawdown-window-lower",
+        type=Decimal,
+        default=None,
+        help=(
+            "Research-only lower bound of a realized-DD window for selective "
+            "ATTACK multiplier compression."
+        ),
+    )
+    parser.add_argument(
+        "--ceiling-attack-drawdown-window-upper",
+        type=Decimal,
+        default=None,
+        help=(
+            "Research-only exclusive upper bound of the realized-DD window."
+        ),
+    )
+    parser.add_argument(
+        "--ceiling-attack-drawdown-window-multiplier-lower",
+        type=int,
+        default=None,
+        help="Lower proposed ATTACK multiplier bound inside the DD window.",
+    )
+    parser.add_argument(
+        "--ceiling-attack-drawdown-window-multiplier-upper",
+        type=int,
+        default=None,
+        help="Upper proposed ATTACK multiplier bound inside the DD window.",
+    )
+    parser.add_argument(
+        "--ceiling-attack-drawdown-window-taper-fraction",
+        type=Decimal,
+        default=Decimal("0.50"),
+        help=(
+            "Fraction of proposed ATTACK intensity retained only while both "
+            "the DD window and multiplier window are active."
+        ),
+    )
+    parser.add_argument(
         "--ceiling-attack-stress-confidence-drawdown-trigger",
         type=Decimal,
         default=None,
@@ -981,6 +1019,21 @@ def main() -> int:
         ),
         ceiling_attack_risk_fraction_band_taper_fraction=(
             args.ceiling_attack_risk_fraction_band_taper_fraction
+        ),
+        ceiling_attack_drawdown_window_lower=(
+            args.ceiling_attack_drawdown_window_lower
+        ),
+        ceiling_attack_drawdown_window_upper=(
+            args.ceiling_attack_drawdown_window_upper
+        ),
+        ceiling_attack_drawdown_window_multiplier_lower=(
+            args.ceiling_attack_drawdown_window_multiplier_lower
+        ),
+        ceiling_attack_drawdown_window_multiplier_upper=(
+            args.ceiling_attack_drawdown_window_multiplier_upper
+        ),
+        ceiling_attack_drawdown_window_taper_fraction=(
+            args.ceiling_attack_drawdown_window_taper_fraction
         ),
         ceiling_attack_stress_confidence_drawdown_trigger=(
             args.ceiling_attack_stress_confidence_drawdown_trigger
