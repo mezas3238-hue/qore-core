@@ -59,6 +59,7 @@ ATTACK_MINIMUM_MULTIPLIER = 2
 MARGIN_CAPACITY_MULTIPLE = Decimal("100")
 SOVEREIGN_DEFENSIVE_DRAWDOWN = Decimal("0.50")
 ATTACK_TOTAL_DRAWDOWN_GUARD = Decimal("0.20")
+ATTACK_PORTFOLIO_DRAWDOWN_BUDGET = Decimal("0.20")
 
 
 class CiboTraderLabMode(StrEnum):
@@ -1292,13 +1293,28 @@ def run_three_mode_trader_lab(
             total_drawdown_usd,
             state.peak_total_capital_usd,
         )
+        with localcontext() as context:
+            context.prec = 100
+            attack_drawdown_headroom_usd = max(
+                Decimal(0),
+                (
+                    state.peak_total_capital_usd
+                    * ATTACK_PORTFOLIO_DRAWDOWN_BUDGET
+                )
+                - total_drawdown_usd
+                - state.open_stop_risk_usd,
+            )
+        portfolio_attack_budget_usd = min(
+            state.attack_credit_available_usd,
+            attack_drawdown_headroom_usd,
+        )
         best = eligible[0] if eligible else None
         mode, mode_reasons = explain_three_mode(
             regime=regime,
             risk_utilization=risk_utilization,
             margin_utilization=margin_utilization,
             drawdown_utilization=drawdown_utilization,
-            cushion_available_usd=state.attack_credit_available_usd,
+            cushion_available_usd=portfolio_attack_budget_usd,
             best_candidate=best,
             total_drawdown_utilization=total_drawdown_utilization,
         )
@@ -1342,6 +1358,12 @@ def run_three_mode_trader_lab(
                 ),
                 "portfolio_attack_credit_available_usd": format(
                     state.attack_credit_available_usd, "f"
+                ),
+                "portfolio_attack_drawdown_headroom_usd": format(
+                    attack_drawdown_headroom_usd, "f"
+                ),
+                "portfolio_attack_budget_usd": format(
+                    portfolio_attack_budget_usd, "f"
                 ),
                 "risk_utilization": format(risk_utilization, "f"),
                 "margin_utilization": format(margin_utilization, "f"),
@@ -1400,7 +1422,7 @@ def run_three_mode_trader_lab(
         # BANK is treasury, not execution. Each MEDIUM candidate receives its
         # own dynamic percentage seed envelope immediately before Sizing.
         portfolio_attack_release_left = (
-            state.attack_credit_available_usd
+            portfolio_attack_budget_usd
             if mode is CiboTraderLabMode.ATTACK
             else Decimal(0)
         )
