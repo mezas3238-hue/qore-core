@@ -454,6 +454,33 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--ceiling-attack-risk-fraction-band-lower",
+        type=Decimal,
+        default=None,
+        help=(
+            "Research-only lower bound of the proposed ATTACK stop-risk "
+            "fraction band, measured against live total capital."
+        ),
+    )
+    parser.add_argument(
+        "--ceiling-attack-risk-fraction-band-upper",
+        type=Decimal,
+        default=None,
+        help=(
+            "Research-only exclusive upper bound of the proposed ATTACK "
+            "stop-risk fraction band."
+        ),
+    )
+    parser.add_argument(
+        "--ceiling-attack-risk-fraction-band-taper-fraction",
+        type=Decimal,
+        default=Decimal("0.50"),
+        help=(
+            "Fraction of proposed ATTACK intensity retained only when the "
+            "causal stop-risk fraction lands inside the configured band."
+        ),
+    )
+    parser.add_argument(
         "--ceiling-attack-stress-confidence-drawdown-trigger",
         type=Decimal,
         default=None,
@@ -945,6 +972,15 @@ def main() -> int:
         ),
         ceiling_attack_multiplier_band_taper_fraction=(
             args.ceiling_attack_multiplier_band_taper_fraction
+        ),
+        ceiling_attack_risk_fraction_band_lower=(
+            args.ceiling_attack_risk_fraction_band_lower
+        ),
+        ceiling_attack_risk_fraction_band_upper=(
+            args.ceiling_attack_risk_fraction_band_upper
+        ),
+        ceiling_attack_risk_fraction_band_taper_fraction=(
+            args.ceiling_attack_risk_fraction_band_taper_fraction
         ),
         ceiling_attack_stress_confidence_drawdown_trigger=(
             args.ceiling_attack_stress_confidence_drawdown_trigger
