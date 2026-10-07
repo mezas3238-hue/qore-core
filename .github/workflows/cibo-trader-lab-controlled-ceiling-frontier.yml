@@ -1,6 +1,6 @@
 name: QORE CIBO Controlled Ceiling Frontier
 
-# Explicit leverage-cap revision 2
+# Explicit leverage-cap revision 3 — summary risk ledger repaired
 
 on:
   workflow_dispatch:
