@@ -1,5 +1,7 @@
 name: QORE CIBO Stress Confidence DD Frontier
 
+# Research-only reused-holdout experiment; not certification evidence.
+
 on:
   workflow_dispatch:
   push:
