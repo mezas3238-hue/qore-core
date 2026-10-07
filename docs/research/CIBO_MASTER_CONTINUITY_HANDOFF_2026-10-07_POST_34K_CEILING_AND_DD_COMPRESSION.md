@@ -1874,3 +1874,149 @@ Immediate priority becomes:
 > **DD FORENSICS → IDENTIFY CAUSAL DAMAGE MECHANISMS → COMPRESS DD TOWARD 20–25% OR LESS WITHOUT DEGRADING THE USD 582,440 CEILING.**
 
 No defensive tuning should be accepted merely because it lowers DD. The frozen ceiling is the comparison baseline.
+
+
+---
+
+# 30. DD FORENSICS AT FROZEN CEILING — TOP-10 ATLAS ACTIVE
+
+A causal Top-10 drawdown atlas was added to Trader Lab in commit:
+
+`18b4d8f04e2d58be881f425e8e07ea12d01388ed`
+
+The change is observability-only. The independent Trader Lab fast bridge run `37654161220` passed SUCCESS.
+
+Frozen-ceiling forensic replay:
+
+- workflow commit: `ec0b5239e3757aa3a546d2bffbe447767153c5aa`;
+- run: `37654343976`;
+- artifact id: `11497518162`;
+- artifact digest: `sha256:1bdd3464c0a2adb969e51ae764a81d1618edba5a403fdeca28cbc095de0d825a`;
+- result: SUCCESS;
+- hard invariance assertions passed exactly:
+  - ending capital = USD 582,440.0252953678696769360345;
+  - max DD = 65.1041975924031567%;
+  - 3,368 / 3,368 entries preserved.
+
+Therefore the forensic sensor did NOT alter economic behavior.
+
+The atlas detected 114 distinct underwater episodes and retains the Top-10 by maximum drawdown depth.
+
+## Structural finding A — two different DD families exist
+
+Nine of the Top-10 episodes are ATTACK-dominant.
+
+The exception is rank #6:
+
+- peak: 2019-07-19;
+- trough: 2019-08-12;
+- recovery: 2019-10-18;
+- DD: ~40.16%;
+- ATTACK contribution: 0;
+- MEDIUM damage: ~USD 32.04.
+
+This means a perfect ATTACK repair alone cannot mathematically deliver the sovereign 20–25% target on this replay. After ATTACK compression, MEDIUM must also be repaired.
+
+## Structural finding B — frozen max DD is ATTACK concentration, not 10,000x itself
+
+Rank #1:
+
+- peak: 2020-09-10;
+- trough: 2020-10-05;
+- recovery: 2020-11-09;
+- underwater duration: ~60 days;
+- DD: ~65.10%;
+- ATTACK contribution: ~100%;
+- MEDIUM is approximately flat/slightly positive;
+- R42_AUDJPY damage: ~USD 5,414;
+- R34_XAUUSD damage: ~USD 3,826.
+
+Largest loss multipliers are approximately:
+
+- 842x;
+- 1,020x;
+- 2,366x;
+- 280x;
+- 1,145x;
+- 945x;
+- 836x.
+
+The global frozen 10,000x cap is NOT directly present among the largest losses that create the max DD.
+
+## Structural finding C — later severe DD has high-multiplier clustering
+
+Rank #2:
+
+- DD ~58.94%;
+- peak 2021-02-09;
+- trough 2021-03-03;
+- recovery 2021-04-01;
+- dominant damage: R43_GBPUSD / R34_XAUUSD / R42_AUDJPY;
+- major losses cluster around ~3,775x / 4,320x / 5,000x / 5,101x / 5,354x.
+
+Rank #4 (~49.81%) also contains material 1,000–5,000x loss concentration.
+
+Therefore the architecture has state-dependent tail concentration, not one universal bad multiplier.
+
+## Structural finding D — Top-10 damage bands
+
+Aggregated gross-loss amounts across the Top-10 episodes approximately:
+
+- 1–10x: USD 673;
+- 11–100x: USD 1,050;
+- 101–500x: USD 4,343;
+- 501–1,000x: USD 5,785;
+- 1,001–2,500x: USD 26,615;
+- 2,501–5,000x: USD 82,299;
+- >5,000x: USD 22,587.
+
+Important: these are gross losses inside underwater episodes, not net DD contributions, because winning settlements can partially offset them.
+
+## Structural finding E — damage is concentrated by Trader
+
+Aggregated negative Trader contribution across Top-10 episodes is led by approximately:
+
+- R34_XAUUSD: USD 40.9k;
+- R43_GBPUSD: USD 27.8k;
+- R42_AUDJPY: USD 18.1k;
+- VT31_NAS100: USD 13.3k;
+- R38_GBPJPY: USD 12.8k.
+
+This MUST NOT be interpreted as permission to reject those Traders. Trader authority remains frozen. It is evidence for state-aware economic intensity management only.
+
+## First DD-compression experiment
+
+The first causal repair frontier has been launched:
+
+- commit: `1664fe43ca799d4d16cf8177ebded9fa8878af18`;
+- run: `37654709166`;
+- frozen ATTACK cap: 10,000x;
+- frozen single-ATTACK risk: 20%;
+- frozen persistent Portfolio shock taper;
+- all 3,368 entries mandatory.
+
+Only ATTACK live-DD taper varies:
+
+- trigger 10% / taper 50%;
+- trigger 15% / taper 50%;
+- trigger 20% / taper 50%;
+- trigger 25% / taper 50%;
+- trigger 10% / taper 75%;
+- trigger 15% / taper 75%;
+- trigger 20% / taper 75%;
+- trigger 25% / taper 75%;
+- plus exact frozen baseline.
+
+Rationale:
+
+- it is causal and uses only live drawdown;
+- it does not reject Trader entries;
+- it reduces incremental ATTACK intensity only while underwater;
+- full ceiling authority returns automatically after recovery;
+- therefore it has a plausible path to cut tail DD without globally lowering the 10,000x ceiling.
+
+The baseline remains the immutable comparison:
+
+USD 582,440.03 / +970,633.38% / DD 65.10%.
+
+No candidate may be promoted merely for lower DD if it materially degrades the frozen ceiling.
