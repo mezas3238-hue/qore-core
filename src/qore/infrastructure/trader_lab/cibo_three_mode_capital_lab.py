@@ -941,15 +941,14 @@ def run_three_mode_trader_lab(
         tuple(str(item) for item in profile["enabled_features"])
         for profile in lifecycle_map.values()
     }
-    if len(lifecycle_feature_sets) > 1:
-        raise CiboCapitalManagementError(
-            "Trader Lab lifecycle feature surface must be uniform"
-        )
-    lifecycle_feature_codes = (
-        list(next(iter(lifecycle_feature_sets)))
-        if lifecycle_feature_sets
-        else []
+    lifecycle_feature_codes = sorted(
+        {
+            str(item)
+            for profile in lifecycle_map.values()
+            for item in profile["enabled_features"]
+        }
     )
+    lifecycle_feature_surface_mixed = len(lifecycle_feature_sets) > 1
     lifecycle_loss_cut_thresholds = {
         Decimal(str(profile["adverse_loss_cut_r"]))
         for profile in lifecycle_map.values()
@@ -983,6 +982,8 @@ def run_three_mode_trader_lab(
         "changed_outcome_count": lifecycle_changed_count,
         "action_counts": dict(sorted(lifecycle_action_counts.items())),
         "enabled_feature_codes": lifecycle_feature_codes,
+        "mixed_feature_surface": lifecycle_feature_surface_mixed,
+        "feature_surface_variant_count": len(lifecycle_feature_sets),
         "adverse_loss_cut_r": (
             None
             if lifecycle_adverse_loss_cut_r is None
