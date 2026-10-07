@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - agent/cibo-causal-expectation-leakage-fix-001
+      - agent/cibo-native-disagreement-frontier-001
     paths:
       - '.github/workflows/cibo-trader-lab-three-mode-ceiling.yml'
       - 'src/qore/infrastructure/trader_lab/cibo_three_mode_capital_lab.py'
@@ -118,6 +119,39 @@ jobs:
             --historical-manifest "$HISTORICAL_MANIFEST" \
             --historical-replay "$HISTORICAL_REPLAY" \
             --output "$RUNNER_TEMP/result/cibo-three-mode-historical-prior-native.json"
+
+      - name: Run Native historical-disagreement confidence frontier 60
+        run: |
+          set -euo pipefail
+          python scripts/cibo_trader_lab_three_mode_ceiling.py \
+            --manifest "$MANIFEST" \
+            --baseline-replay "$BASELINE" \
+            --historical-manifest "$HISTORICAL_MANIFEST" \
+            --historical-replay "$HISTORICAL_REPLAY" \
+            --historical-native-override-min-confidence 60 \
+            --output "$RUNNER_TEMP/result/cibo-three-mode-native-override-60.json"
+
+      - name: Run Native historical-disagreement confidence frontier 80
+        run: |
+          set -euo pipefail
+          python scripts/cibo_trader_lab_three_mode_ceiling.py \
+            --manifest "$MANIFEST" \
+            --baseline-replay "$BASELINE" \
+            --historical-manifest "$HISTORICAL_MANIFEST" \
+            --historical-replay "$HISTORICAL_REPLAY" \
+            --historical-native-override-min-confidence 80 \
+            --output "$RUNNER_TEMP/result/cibo-three-mode-native-override-80.json"
+
+      - name: Run Native historical-disagreement confidence frontier 100
+        run: |
+          set -euo pipefail
+          python scripts/cibo_trader_lab_three_mode_ceiling.py \
+            --manifest "$MANIFEST" \
+            --baseline-replay "$BASELINE" \
+            --historical-manifest "$HISTORICAL_MANIFEST" \
+            --historical-replay "$HISTORICAL_REPLAY" \
+            --historical-native-override-min-confidence 100 \
+            --output "$RUNNER_TEMP/result/cibo-three-mode-native-override-100.json"
 
       - name: Run historical-prior soft drawdown allocator frontier
         run: |
@@ -243,6 +277,29 @@ jobs:
           assert legacy["governance"]["outcome_used_for_predecision"] is False
           assert Decimal(legacy["attack_sovereign_breach_usd"]) == 0
 
+          for filename, confidence in (
+              ("cibo-three-mode-native-override-60.json", 60),
+              ("cibo-three-mode-native-override-80.json", 80),
+              ("cibo-three-mode-native-override-100.json", 100),
+          ):
+              override = json.loads(
+                  (
+                      Path(os.environ["RUNNER_TEMP"])
+                      / "result"
+                      / filename
+                  ).read_text()
+              )
+              assert override["research_lane"] == (
+                  "HISTORICAL_PRIOR_NATIVE_OVERRIDE_CONFIDENCE_FRONTIER"
+              )
+              assert override["decision_count"] == 3368
+              assert override["governance"]["historical_prior_consumed"] is True
+              assert override["governance"][
+                  "historical_native_override_min_confidence"
+              ] == confidence
+              assert override["governance"]["outcome_used_for_predecision"] is False
+              assert Decimal(override["attack_sovereign_breach_usd"]) == 0
+
           soft = json.loads(
               (
                   Path(os.environ["RUNNER_TEMP"])
@@ -291,6 +348,9 @@ jobs:
             ${{ runner.temp }}/result/cibo-three-mode-ceiling.json
             ${{ runner.temp }}/result/cibo-three-mode-context-hypothesis.json
             ${{ runner.temp }}/result/cibo-three-mode-historical-prior-native.json
+            ${{ runner.temp }}/result/cibo-three-mode-native-override-60.json
+            ${{ runner.temp }}/result/cibo-three-mode-native-override-80.json
+            ${{ runner.temp }}/result/cibo-three-mode-native-override-100.json
             ${{ runner.temp }}/result/cibo-three-mode-historical-soft-dd.json
             ${{ runner.temp }}/result/cibo-three-mode-historical-dd-2525.json
             ${{ runner.temp }}/result/cibo-three-mode-historical-dd-255.json

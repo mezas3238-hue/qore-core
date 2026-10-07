@@ -39,6 +39,17 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--historical-native-override-min-confidence",
+        type=int,
+        default=0,
+        help=(
+            "Trader-Lab-only disagreement frontier: when historical control "
+            "did not deploy, require this causal Native confidence band before "
+            "current Native may override that prior. This gates disagreement; "
+            "it never scales exposure."
+        ),
+    )
+    parser.add_argument(
         "--enforce-context-abstain",
         action="store_true",
         help=(
@@ -323,6 +334,9 @@ def main() -> int:
         ),
         medium_pretrade_drawdown_ceiling=(
             args.medium_pretrade_drawdown_ceiling
+        ),
+        historical_native_override_min_confidence=(
+            args.historical_native_override_min_confidence
         ),
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)

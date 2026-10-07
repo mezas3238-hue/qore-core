@@ -758,6 +758,7 @@ def run_three_mode_trader_lab(
     enforce_research_context_abstain: bool = False,
     soft_medium_drawdown_allocator: bool = False,
     medium_pretrade_drawdown_ceiling: Decimal = ECONOMIC_DRAWDOWN_CEILING,
+    historical_native_override_min_confidence: int = 0,
 ) -> dict[str, object]:
     """Run the isolated chronological three-mode ceiling experiment."""
 
@@ -778,6 +779,16 @@ def run_three_mode_trader_lab(
         raise CiboCapitalManagementError(
             "Trader Lab MEDIUM pretrade drawdown ceiling must be Decimal "
             "between 0.25 and 0.50"
+        )
+    if (
+        isinstance(historical_native_override_min_confidence, bool)
+        or not isinstance(historical_native_override_min_confidence, int)
+        or historical_native_override_min_confidence < 0
+        or historical_native_override_min_confidence > 100
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab historical Native override confidence must be int "
+            "between 0 and 100"
         )
     source_sha = validate_single_account_manifest_sha256(manifest)
     if manifest.get("initial_capital_usd") != "60":
@@ -1544,11 +1555,22 @@ def run_three_mode_trader_lab(
                             and active_portfolio_edge > 0
                         )
                     )
+                    historical_native_override_confidence = (
+                        native_confidence(candidate)
+                    )
+                    historical_native_override_allowed = (
+                        candidate.native_cognition_recommended
+                        and historical_native_override_confidence
+                        >= historical_native_override_min_confidence
+                    )
                     if (
                         use_historical_prior
                         and not historical_prior_deployable
-                        and not candidate.native_cognition_recommended
+                        and not historical_native_override_allowed
                     ):
+                        native_override_blocked = (
+                            candidate.native_cognition_recommended
+                        )
                         record_engineering_sensor(
                             "SIZING",
                             epoch_index=epoch_index,
@@ -1558,6 +1580,12 @@ def run_three_mode_trader_lab(
                                 "native_cognition_recommended": (
                                     candidate.native_cognition_recommended
                                 ),
+                                "native_confidence_band": (
+                                    historical_native_override_confidence
+                                ),
+                                "native_override_min_confidence": (
+                                    historical_native_override_min_confidence
+                                ),
                                 "historical_context_allowed": (
                                     active_portfolio_context
                                 ),
@@ -1565,15 +1593,26 @@ def run_three_mode_trader_lab(
                                     active_portfolio_edge, "f"
                                 ),
                             },
-                            action="DEFER_HISTORICAL_PRIOR_NONDEPLOYMENT",
+                            action=(
+                                "DEFER_NATIVE_OVERRIDE_BELOW_CONFIDENCE"
+                                if native_override_blocked
+                                else "DEFER_HISTORICAL_PRIOR_NONDEPLOYMENT"
+                            ),
                             outputs={
                                 "selected_multiplier": 0,
                                 "economic_treatment": "DEFER",
                             },
                             reaction=(
-                                "KEEP_OPPORTUNITY_WORKED_WITHOUT_CAPITAL_RELEASE"
+                                "PRESERVE_CAPITAL_WHEN_NATIVE_HISTORICAL_"
+                                "DISAGREEMENT_IS_NOT_STRONG_ENOUGH"
+                                if native_override_blocked
+                                else "KEEP_OPPORTUNITY_WORKED_WITHOUT_CAPITAL_RELEASE"
                             ),
-                            reasons=("HISTORICAL_PRIOR_NO_DEPLOYMENT",),
+                            reasons=(
+                                ("NATIVE_OVERRIDE_CONFIDENCE_BELOW_FLOOR",)
+                                if native_override_blocked
+                                else ("HISTORICAL_PRIOR_NO_DEPLOYMENT",)
+                            ),
                             call=True,
                             restriction=True,
                         )
@@ -2424,6 +2463,11 @@ def run_three_mode_trader_lab(
         "research_lane": (
             "HISTORICAL_PRIOR_NATIVE_SOFT_DRAWDOWN_ALLOCATOR"
             if use_historical_prior and soft_medium_drawdown_allocator
+            else "HISTORICAL_PRIOR_NATIVE_OVERRIDE_CONFIDENCE_FRONTIER"
+            if (
+                use_historical_prior
+                and historical_native_override_min_confidence > 0
+            )
             else "HISTORICAL_PRIOR_NATIVE_DD_RESERVE_FRONTIER"
             if (
                 use_historical_prior
@@ -2679,6 +2723,9 @@ def run_three_mode_trader_lab(
             ),
             "medium_pretrade_drawdown_ceiling": format(
                 medium_pretrade_drawdown_ceiling, "f"
+            ),
+            "historical_native_override_min_confidence": (
+                historical_native_override_min_confidence
             ),
             "bank_seed_source": (
                 "4PCT_OF_CURRENT_TOTAL_ACCOUNT_CAPITAL_PER_MEDIUM_ENTRY"
