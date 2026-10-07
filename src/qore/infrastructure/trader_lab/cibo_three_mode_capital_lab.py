@@ -1549,9 +1549,30 @@ def run_three_mode_trader_lab(
                             * medium_risk_fraction
                             * medium_drawdown_scale
                         )
-                        medium_risk_budget_usd = min(
-                            risk_left,
-                            medium_entry_risk_budget_usd,
+                        medium_hard_drawdown_headroom_usd = max(
+                            Decimal(0),
+                            (
+                                state.peak_total_capital_usd
+                                * ECONOMIC_DRAWDOWN_CEILING
+                            )
+                            - total_drawdown_usd
+                            - state.open_stop_risk_usd,
+                        )
+                        minimum_medium_risk_usd = (
+                            candidate.stop_risk_per_multiplier_usd
+                        )
+                        medium_risk_budget_usd = (
+                            min(
+                                risk_left,
+                                medium_hard_drawdown_headroom_usd,
+                                max(
+                                    medium_entry_risk_budget_usd,
+                                    minimum_medium_risk_usd,
+                                ),
+                            )
+                            if minimum_medium_risk_usd
+                            <= medium_hard_drawdown_headroom_usd
+                            else Decimal(0)
                         )
                     executable_by_risk = int(
                         (
@@ -1641,6 +1662,12 @@ def run_three_mode_trader_lab(
                             ),
                             "medium_drawdown_scale": format(
                                 medium_drawdown_scale, "f"
+                            ),
+                            "medium_hard_drawdown_headroom_usd": format(
+                                medium_hard_drawdown_headroom_usd, "f"
+                            ),
+                            "minimum_medium_risk_usd": format(
+                                minimum_medium_risk_usd, "f"
                             ),
                             "medium_risk_budget_usd": format(
                                 medium_risk_budget_usd, "f"
