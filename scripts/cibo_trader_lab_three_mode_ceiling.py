@@ -39,6 +39,23 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--distributed-attack-frontier",
+        action="store_true",
+        help=(
+            "Trader-Lab-only ATTACK density experiment: relax ATTACK from "
+            "perfect-regime binary gating to a bounded causal escalation "
+            "grade while preserving every Trader-executed base entry."
+        ),
+    )
+    parser.add_argument(
+        "--attack-multiplier-cap",
+        type=int,
+        default=8,
+        help=(
+            "Explicit ATTACK multiplier ceiling for the distributed frontier."
+        ),
+    )
+    parser.add_argument(
         "--enforce-context-abstain",
         action="store_true",
         help=(
@@ -324,6 +341,8 @@ def main() -> int:
         medium_pretrade_drawdown_ceiling=(
             args.medium_pretrade_drawdown_ceiling
         ),
+        distributed_attack_frontier=args.distributed_attack_frontier,
+        attack_multiplier_cap=args.attack_multiplier_cap,
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
@@ -353,6 +372,11 @@ def main() -> int:
                 "maximum_selected_multiplier": result[
                     "maximum_selected_multiplier"
                 ],
+                "attack_trade_count": result["attack_trade_count"],
+                "attack_density_fraction": result[
+                    "attack_density_fraction"
+                ],
+                "mode_reason_counts": result["mode_reason_counts"],
                 "attack_sovereign_breach_usd": result[
                     "attack_sovereign_breach_usd"
                 ],
