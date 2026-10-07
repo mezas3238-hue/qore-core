@@ -1,0 +1,194 @@
+name: QORE CIBO Portfolio Shock Fast
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/cibo-causal-expectation-leakage-fix-001
+    paths:
+      - '.github/workflows/cibo-trader-lab-portfolio-shock-fast.yml'
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  PYTHONPATH: ${{ github.workspace }}/src
+  SOURCE_ARTIFACT_ID: '11451743578'
+  SOURCE_ARTIFACT_DIGEST: 'sha256:d439957f21e2f79148b5a2fb75a53db6fa448698f17aeb6978f379ed3547f7ea'
+  HISTORICAL_SOURCE_ARTIFACT_ID: '11389331836'
+  HISTORICAL_SOURCE_ARTIFACT_DIGEST: 'sha256:30177639f660c9647ab70257c2d12c541bdade49ab5582347a3890f920070fee'
+  HISTORICAL_CONTROL_ARTIFACT_ID: '11409086692'
+  HISTORICAL_CONTROL_ARTIFACT_DIGEST: 'sha256:eeffdc99a736b82bd965ff646b8ca9bf084f50ae414e56e9b3d82961169d7187'
+  ATLAS_AUDJPY_ARTIFACT_ID: '10476530915'
+  ATLAS_AUDJPY_DIGEST: 'sha256:a416085cfcef04003ae89debaad360304a0c4c8bac65b3bf2b439a8a4b7098bf'
+  ATLAS_EURUSD_ARTIFACT_ID: '10475354631'
+  ATLAS_EURUSD_DIGEST: 'sha256:e0fa9e316b79ba61c338161a57508359d4c6afe2fbf97d3f50f1e27c2d359a86'
+  ATLAS_GBPJPY_ARTIFACT_ID: '10475453293'
+  ATLAS_GBPJPY_DIGEST: 'sha256:b68e74b2afa54295f891c11cde19e12e92db4192930496036c7ebb372474e415'
+  ATLAS_GBPUSD_ARTIFACT_ID: '10475449182'
+  ATLAS_GBPUSD_DIGEST: 'sha256:77d5b65ce3c6763e3ac5f620e4167d4ef071bfe1c13746cd5ca7ad9788268dcf'
+  ATLAS_NAS100_ARTIFACT_ID: '10476153072'
+  ATLAS_NAS100_DIGEST: 'sha256:87ae8095feadce23c5026cda4dada49765d44d0baa2237b5bd7704ccc8deb863'
+  ATLAS_XAUUSD_ARTIFACT_ID: '10476557530'
+  ATLAS_XAUUSD_DIGEST: 'sha256:dcb905b11380e3d4e1a4dc621e269bb75d2886806dd662e260d21d1d15362e08'
+
+jobs:
+  portfolio-shock-fast:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Compile
+        run: |
+          set -euo pipefail
+          python -m py_compile src/qore/infrastructure/cibo_position_lifecycle.py src/qore/infrastructure/trader_lab/cibo_three_mode_capital_lab.py scripts/cibo_trader_lab_three_mode_ceiling.py
+
+      - name: Recover inputs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/source" "$RUNNER_TEMP/historical-source" "$RUNNER_TEMP/historical-control" "$RUNNER_TEMP/result"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$SOURCE_ARTIFACT_ID/zip" > "$RUNNER_TEMP/source.zip"
+          echo "${SOURCE_ARTIFACT_DIGEST#sha256:}  $RUNNER_TEMP/source.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/source.zip" -d "$RUNNER_TEMP/source"
+          MANIFEST="$(find "$RUNNER_TEMP/source" -type f -name walk-forward-manifest.json -print -quit)"
+          BASELINE="$(find "$RUNNER_TEMP/source" -type f -name walk-forward-replay.json -print -quit)"
+          echo "MANIFEST=$MANIFEST" >> "$GITHUB_ENV"; echo "BASELINE=$BASELINE" >> "$GITHUB_ENV"
+
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$HISTORICAL_SOURCE_ARTIFACT_ID/zip" > "$RUNNER_TEMP/historical-source.zip"
+          echo "${HISTORICAL_SOURCE_ARTIFACT_DIGEST#sha256:}  $RUNNER_TEMP/historical-source.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/historical-source.zip" -d "$RUNNER_TEMP/historical-source"
+          HISTORICAL_MANIFEST="$(find "$RUNNER_TEMP/historical-source" -type f -name single-account-manifest-native.json -print -quit)"
+          echo "HISTORICAL_MANIFEST=$HISTORICAL_MANIFEST" >> "$GITHUB_ENV"
+
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$HISTORICAL_CONTROL_ARTIFACT_ID/zip" > "$RUNNER_TEMP/historical-control.zip"
+          echo "${HISTORICAL_CONTROL_ARTIFACT_DIGEST#sha256:}  $RUNNER_TEMP/historical-control.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/historical-control.zip" -d "$RUNNER_TEMP/historical-control"
+          HISTORICAL_REPLAY="$(find "$RUNNER_TEMP/historical-control" -type f -name historical-ceiling-replay.json -print -quit)"
+          echo "HISTORICAL_REPLAY=$HISTORICAL_REPLAY" >> "$GITHUB_ENV"
+
+          mkdir -p "$RUNNER_TEMP/atlas"
+          for SYMBOL in AUDJPY EURUSD GBPJPY GBPUSD NAS100 XAUUSD; do
+            ID_VAR="ATLAS_${SYMBOL}_ARTIFACT_ID"
+            DIGEST_VAR="ATLAS_${SYMBOL}_DIGEST"
+            ARTIFACT_ID="${!ID_VAR}"
+            ARTIFACT_DIGEST="${!DIGEST_VAR}"
+            ZIP="$RUNNER_TEMP/atlas-${SYMBOL}.zip"
+            ROOT="$RUNNER_TEMP/atlas/${SYMBOL}"
+            mkdir -p "$ROOT"
+            gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$ARTIFACT_ID/zip" > "$ZIP"
+            echo "${ARTIFACT_DIGEST#sha256:}  $ZIP" | sha256sum -c -
+            unzip -q "$ZIP"               'RAW_M5_LEDGER/2019.jsonl'               'RAW_M5_LEDGER/2020.jsonl'               'RAW_M5_LEDGER/2021.jsonl'               'RAW_M5_LEDGER/2022.jsonl'               -d "$ROOT"
+          done
+
+      - name: Run Portfolio shock fast
+        run: |
+          set -u
+          common=(
+            --manifest "$MANIFEST"
+            --baseline-replay "$BASELINE"
+            --historical-manifest "$HISTORICAL_MANIFEST"
+            --historical-replay "$HISTORICAL_REPLAY"
+            --distributed-attack-frontier
+            --coordinated-economic-group
+            --ceiling-discovery-mode
+            --summary-telemetry
+          )
+          run_case() {
+            name="$1"; trigger="${2:-}"; taper="${3:-}"
+            extra=()
+            if [[ -n "$trigger" ]]; then
+              extra+=(--ceiling-portfolio-shock-trigger-fraction "$trigger")
+              extra+=(--ceiling-portfolio-shock-taper-fraction "$taper")
+            fi
+            if python scripts/cibo_trader_lab_three_mode_ceiling.py "${common[@]}" \
+              --attack-multiplier-cap 257 \
+              --medium-multiplier-cap 14 \
+              --medium-drawdown-intensity-trigger 0.05 \
+              --economic-group-bootstrap-cushion-share 1.00 \
+              --ceiling-growth-leverage-slope 10 \
+              --ceiling-attack-single-trade-risk-fraction 0.20 \
+              --ceiling-attack-loss-streak-trigger 3 \
+              --ceiling-attack-loss-streak-taper-fraction 0.75 \
+              "${extra[@]}" \
+              --lifecycle-source-root "AUDJPY=$RUNNER_TEMP/atlas/AUDJPY" \
+              --lifecycle-source-root "EURUSD=$RUNNER_TEMP/atlas/EURUSD" \
+              --lifecycle-source-root "GBPJPY=$RUNNER_TEMP/atlas/GBPJPY" \
+              --lifecycle-source-root "GBPUSD=$RUNNER_TEMP/atlas/GBPUSD" \
+              --lifecycle-source-root "NAS100=$RUNNER_TEMP/atlas/NAS100" \
+              --lifecycle-source-root "XAUUSD=$RUNNER_TEMP/atlas/XAUUSD" \
+              --lifecycle-feature DEFENSIVE_INITIAL_STOP_CAP \
+              --lifecycle-defensive-medium-1x-only \
+              --lifecycle-defensive-initial-stop-r -0.20 \
+              --lifecycle-trader-loss-streak-trigger 2 \
+              --lifecycle-minimum-stop-risk-fraction-trigger 0.03 \
+              --output "$RUNNER_TEMP/result/${name}.json"; then
+              echo "CASE_OK=${name}"
+            else
+              echo "CASE_FAILED=${name}"
+            fi
+          }
+
+          run_case "control"
+          run_case "shock005-t025" 0.05 0.25
+          run_case "shock008-t025" 0.08 0.25
+
+      - name: Rank Portfolio shock fast
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os
+          from decimal import Decimal
+          from pathlib import Path
+          root=Path(os.environ["RUNNER_TEMP"])/"result"
+          rows=[]
+          for pth in root.glob("*.json"):
+              p=json.loads(pth.read_text())
+              assert p["decision_count"]==p["trade_count"]==3368
+              assert p["economic_group_report"]["all_entries_preserved"] is True
+              f=p["engineering_sensor_report"]["execution_funnel"]
+              assert f["final_trade_count"]==3368
+              assert f["sizing_medium_rejected_count"]==0
+              assert f["sizing_medium_deferred_count"]==0
+              cap=Decimal(p["ending_total_capital_usd"])
+              rows.append({
+                  "case":pth.stem,
+                  "capital":p["ending_total_capital_usd"],
+                  "gain_pct":format((cap-Decimal("60"))/Decimal("60")*Decimal("100"),"f"),
+                  "dd":p["max_drawdown_fraction"],
+                  "attack":p["attack_trade_count"],
+                  "max_multiplier":p["maximum_selected_multiplier"],
+                  "attack_net":p["attack_net_pnl_usd"],
+                  "medium_positive":p["medium_compound_positive_net_usd"],
+                  "medium_negative":p["medium_compound_negative_net_usd"],
+                  "to_cushion":p["economic_group_report"]["medium_profit_to_portfolio_cushion_usd"],
+                  "to_sovereign":p["economic_group_report"]["medium_profit_to_sovereign_usd"],
+                  "recycled":p["economic_group_report"]["portfolio_attack_credit_recycled_total_usd"],
+                  "single_trade_risk_fraction":p["economic_group_report"]["ceiling_attack_single_trade_risk_fraction"],
+                  "shock_trigger":p["economic_group_report"]["ceiling_portfolio_shock_trigger_fraction"],
+                  "shock_taper":p["economic_group_report"]["ceiling_portfolio_shock_taper_fraction"],
+                  "shock_bind_count":p["economic_group_report"]["portfolio_attack_shock_taper_bind_count"],
+                  "portfolio_loss_report":p["economic_group_report"]["portfolio_loss_report"],
+                  "lifecycle":p["position_lifecycle_report"],
+                  "sovereign":p["ending_sovereign_bank_usd"],
+                  "cushion":p["ending_portfolio_cushion_usd"],
+                  "attack_breach":p["attack_sovereign_breach_usd"],
+                  "max_dd_attribution":p["max_drawdown_attribution"],
+              })
+          rows.sort(key=lambda x:Decimal(x["capital"]), reverse=True)
+          print("PORTFOLIO_SHOCK_FAST_TABLE="+json.dumps(rows,sort_keys=True))
+          assert rows
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-portfolio-shock-fast-${{ github.run_id }}
+          path: ${{ runner.temp }}/result/*.json
+          if-no-files-found: error
+          retention-days: 90
