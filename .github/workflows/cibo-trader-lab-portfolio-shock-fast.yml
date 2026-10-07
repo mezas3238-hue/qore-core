@@ -137,9 +137,9 @@ jobs:
           }
 
           # Post-37646016620 coarse upper-ceiling continuation.
-          # Persistent shock + 20% single-ATTACK risk dominates one-shot and 22% risk,
-          # so keep those fixed and expand only the still-binding ATTACK cap.
-          for attack in 350 400 500 650 800 1000; do
+          # The old 500x Trader Lab research guard was artificial; provider/risk/margin/
+          # cushion caps still bind independently. Continue the physical/economic search.
+          for attack in 500 650 800 1000 1250 1500 2000; do
             run_case "persist-a${attack}-r020" "$attack" 10 0.20 0
           done
 
