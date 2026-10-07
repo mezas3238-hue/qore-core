@@ -1,0 +1,110 @@
+{
+  "schema": "qore.github-trader-lab.profile.v2",
+  "profile_id": "cibo-three-mode-suite-fast-v1",
+  "repository": "mezas3238-hue/qore-core",
+  "subject": "CIBO",
+  "max_parallel_lanes": 1,
+  "max_parallel_evidence_downloads": 8,
+  "preparation": {
+    "command": [
+      "python",
+      "{lab_root}/tools/github_trader_lab/adapters/cibo_three_mode_suite_prepare.py",
+      "--evidence",
+      "{evidence}",
+      "--evidence-dir",
+      "{evidence_dir}",
+      "--output",
+      "{prepared}"
+    ],
+    "dependency_globs": [
+      "scripts/cibo_trader_lab_three_mode_ceiling.py",
+      "src/qore/infrastructure/trader_lab/cibo_three_mode_capital_lab.py",
+      "src/qore/infrastructure/cibo_position_lifecycle.py",
+      "src/qore/infrastructure/trader_lab/cibo_market_atlas_journey_extractor_v1.py",
+      "src/qore/infrastructure/cibo_single_account_manifest_economics.py",
+      "src/qore/infrastructure/cibo_single_account_manifest_settlement.py"
+    ]
+  },
+  "experiment": {
+    "command": [
+      "python",
+      "{lab_root}/tools/github_trader_lab/adapters/cibo_three_mode_suite_fast.py",
+      "--evidence-dir",
+      "{evidence_dir}",
+      "--prepared",
+      "{prepared}",
+      "--subject-root",
+      "{subject_root}",
+      "--suite",
+      "{lab_root}/tools/github_trader_lab/suites/cibo-three-mode-current.json",
+      "--output",
+      "{normalized_output}"
+    ]
+  },
+  "lanes": {
+    "cibo-three-mode-suite": {
+      "artifact_id": 11389331836,
+      "artifact_path": "single-account-manifest-native.json",
+      "sha256": "c7050def4b0e0c7db9dc7f2d25c3d0a897379ac243038d5a6b0e317dc534929a",
+      "evidence_role": "DEVELOPMENT_RESEARCH"
+    }
+  },
+  "auxiliary_artifacts": {
+    "walk-forward": {
+      "artifact_id": 11451743578,
+      "archive_sha256": "d439957f21e2f79148b5a2fb75a53db6fa448698f17aeb6978f379ed3547f7ea"
+    },
+    "historical-control": {
+      "artifact_id": 11409086692,
+      "archive_sha256": "eeffdc99a736b82bd965ff646b8ca9bf084f50ae414e56e9b3d82961169d7187"
+    },
+    "atlas-AUDJPY": {
+      "artifact_id": 10476530915,
+      "archive_sha256": "a416085cfcef04003ae89debaad360304a0c4c8bac65b3bf2b439a8a4b7098bf"
+    },
+    "atlas-EURUSD": {
+      "artifact_id": 10475354631,
+      "archive_sha256": "e0fa9e316b79ba61c338161a57508359d4c6afe2fbf97d3f50f1e27c2d359a86"
+    },
+    "atlas-GBPJPY": {
+      "artifact_id": 10475453293,
+      "archive_sha256": "b68e74b2afa54295f891c11cde19e12e92db4192930496036c7ebb372474e415"
+    },
+    "atlas-GBPUSD": {
+      "artifact_id": 10475449182,
+      "archive_sha256": "77d5b65ce3c6763e3ac5f620e4167d4ef071bfe1c13746cd5ca7ad9788268dcf"
+    },
+    "atlas-NAS100": {
+      "artifact_id": 10476153072,
+      "archive_sha256": "87ae8095feadce23c5026cda4dada49765d44d0baa2237b5bd7704ccc8deb863"
+    },
+    "atlas-XAUUSD": {
+      "artifact_id": 10476557530,
+      "archive_sha256": "dcb905b11380e3d4e1a4dc621e269bb75d2886806dd662e260d21d1d15362e08"
+    }
+  },
+  "science": {
+    "control": "COORDINATED_75_BASELINE",
+    "primary_lane": "cibo-three-mode-suite",
+    "min_density": "1",
+    "min_winner_count_preservation": "0",
+    "min_winner_r_preservation": "0",
+    "all_lane_pf_floor": "0",
+    "hard_dd_max_r": "999",
+    "primary_pf_floor": "0",
+    "primary_mean_r_floor": "-999",
+    "mc_paths_min": 10000,
+    "mc_block_length": 5,
+    "mc_positive_floor": "0",
+    "mc_p95_dd_max_r": "9999",
+    "require_temporal_nondegrade": false
+  },
+  "certification_policy": {
+    "hard_dd_max_r": "999",
+    "pure_edge_no_sizing_required": false,
+    "walk_forward_oos_required": true,
+    "fresh_oos_required": true,
+    "sharpe_threshold": null,
+    "sortino_threshold": null
+  }
+}
