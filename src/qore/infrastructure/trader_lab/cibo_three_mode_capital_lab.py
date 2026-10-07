@@ -803,6 +803,7 @@ def run_three_mode_trader_lab(
     distributed_attack_frontier: bool = False,
     attack_multiplier_cap: int = DEFAULT_DISTRIBUTED_ATTACK_MULTIPLIER_CAP,
     medium_multiplier_cap: int = 4,
+    four_engine_cooperation_frontier: bool = False,
 ) -> dict[str, object]:
     """Run the isolated chronological three-mode ceiling experiment."""
 
@@ -817,6 +818,14 @@ def run_three_mode_trader_lab(
     if type(distributed_attack_frontier) is not bool:
         raise CiboCapitalManagementError(
             "Trader Lab distributed ATTACK frontier switch must be bool"
+        )
+    if type(four_engine_cooperation_frontier) is not bool:
+        raise CiboCapitalManagementError(
+            "Trader Lab four-engine cooperation switch must be bool"
+        )
+    if four_engine_cooperation_frontier and distributed_attack_frontier:
+        raise CiboCapitalManagementError(
+            "four-engine cooperation frontier isolates joint economics from ATTACK"
         )
     if (
         not isinstance(attack_multiplier_cap, int)
@@ -1187,6 +1196,12 @@ def run_three_mode_trader_lab(
     robust_sizing_reject_count = 0
     robust_leverage_cap_bind_count = 0
     attack_epochs_funded = 0
+    four_engine_joint_decision_count = 0
+    four_engine_sizing_above_one_count = 0
+    four_engine_compound_growth_enabled_count = 0
+    four_engine_portfolio_growth_enabled_count = 0
+    four_engine_leverage_above_one_count = 0
+    four_engine_binding_counts: Counter[str] = Counter()
     mode_reason_counts: Counter[str] = Counter()
     trade_receipts: list[dict[str, object]] = []
     epoch_receipts: list[dict[str, object]] = []
@@ -2131,6 +2146,210 @@ def run_three_mode_trader_lab(
                             executable_by_source,
                         ),
                     )
+                    sizing_proposed_multiplier = multiplier
+                    if four_engine_cooperation_frontier:
+                        four_engine_joint_decision_count += 1
+                        four_engine_sizing_above_one_count += int(
+                            sizing_proposed_multiplier > 1
+                        )
+                        compound_net_production_usd = max(
+                            Decimal(0),
+                            state.medium_compound_positive_net_usd
+                            - state.medium_compound_negative_net_usd,
+                        )
+                        compound_reinvestment_steps = int(
+                            (
+                                compound_net_production_usd
+                                / candidate.source_cost_per_multiplier_usd
+                            ).to_integral_value(rounding=ROUND_FLOOR)
+                        )
+                        compound_multiplier_cap = max(
+                            1,
+                            min(
+                                candidate.maximum_multiplier,
+                                medium_multiplier_cap,
+                                1 + compound_reinvestment_steps,
+                            ),
+                        )
+                        four_engine_compound_growth_enabled_count += int(
+                            compound_multiplier_cap > 1
+                        )
+                        portfolio_growth_allowed = (
+                            active_portfolio_context
+                            and active_portfolio_edge > 0
+                            and candidate.expected_net_utility_usd > 0
+                            and candidate.native_cognition_recommended
+                        )
+                        portfolio_multiplier_cap = (
+                            min(
+                                candidate.maximum_multiplier,
+                                medium_multiplier_cap,
+                            )
+                            if portfolio_growth_allowed
+                            else 1
+                        )
+                        four_engine_portfolio_growth_enabled_count += int(
+                            portfolio_multiplier_cap > 1
+                        )
+                        cooperative_caps = {
+                            "SIZING": sizing_proposed_multiplier,
+                            "CIBO_COMPOUND": compound_multiplier_cap,
+                            "COMPOUND_PORTFOLIO": portfolio_multiplier_cap,
+                            "PROVIDER": candidate.maximum_multiplier,
+                        }
+                        multiplier = max(1, min(cooperative_caps.values()))
+                        binding = tuple(
+                            name
+                            for name, cap in cooperative_caps.items()
+                            if cap == multiplier
+                        )
+                        for name in binding:
+                            four_engine_binding_counts[name] += 1
+                        four_engine_leverage_above_one_count += int(
+                            multiplier > 1
+                        )
+                        adaptive_leverage_calls += 1
+
+                        requested_coop_capital = (
+                            candidate.source_cost_per_multiplier_usd
+                            * Decimal(sizing_proposed_multiplier)
+                        )
+                        compound_approved_capital = (
+                            candidate.source_cost_per_multiplier_usd
+                            * Decimal(
+                                min(
+                                    sizing_proposed_multiplier,
+                                    compound_multiplier_cap,
+                                )
+                            )
+                        )
+                        portfolio_approved_capital = (
+                            candidate.source_cost_per_multiplier_usd
+                            * Decimal(
+                                min(
+                                    sizing_proposed_multiplier,
+                                    compound_multiplier_cap,
+                                    portfolio_multiplier_cap,
+                                )
+                            )
+                        )
+                        final_approved_capital = (
+                            candidate.source_cost_per_multiplier_usd
+                            * Decimal(multiplier)
+                        )
+                        record_engineering_sensor(
+                            "CIBO_COMPOUND",
+                            epoch_index=epoch_index,
+                            signal_fingerprint=candidate.signal_fingerprint,
+                            event="PREDECISION_REINVESTMENT_CAP",
+                            inputs={
+                                "realized_positive_medium_usd": format(
+                                    state.medium_compound_positive_net_usd, "f"
+                                ),
+                                "realized_negative_medium_usd": format(
+                                    state.medium_compound_negative_net_usd, "f"
+                                ),
+                                "net_realized_medium_production_usd": format(
+                                    compound_net_production_usd, "f"
+                                ),
+                                "sizing_proposed_multiplier": (
+                                    sizing_proposed_multiplier
+                                ),
+                            },
+                            action="CAP_INCREMENTAL_REINVESTMENT",
+                            outputs={
+                                "compound_multiplier_cap": (
+                                    compound_multiplier_cap
+                                ),
+                            },
+                            reaction="PASS_REINVESTMENT_CAP_TO_PORTFOLIO",
+                            call=True,
+                            approval=compound_multiplier_cap > 1,
+                            restriction=(
+                                compound_multiplier_cap
+                                < sizing_proposed_multiplier
+                            ),
+                            requested_capital_usd=requested_coop_capital,
+                            approved_capital_usd=compound_approved_capital,
+                            blocked_capital_usd=max(
+                                Decimal(0),
+                                requested_coop_capital
+                                - compound_approved_capital,
+                            ),
+                        )
+                        record_engineering_sensor(
+                            "COMPOUND_PORTFOLIO",
+                            epoch_index=epoch_index,
+                            signal_fingerprint=candidate.signal_fingerprint,
+                            event="SHARED_GROWTH_ALLOCATION",
+                            inputs={
+                                "portfolio_edge_after_cost_usd": format(
+                                    active_portfolio_edge, "f"
+                                ),
+                                "portfolio_context_allowed": (
+                                    active_portfolio_context
+                                ),
+                                "native_recommended": (
+                                    candidate.native_cognition_recommended
+                                ),
+                                "compound_multiplier_cap": (
+                                    compound_multiplier_cap
+                                ),
+                            },
+                            action="ALLOCATE_INCREMENTAL_INTENSITY",
+                            outputs={
+                                "portfolio_growth_allowed": (
+                                    portfolio_growth_allowed
+                                ),
+                                "portfolio_multiplier_cap": (
+                                    portfolio_multiplier_cap
+                                ),
+                            },
+                            reaction="PASS_SHARED_CAP_TO_LEVERAGE",
+                            call=True,
+                            approval=portfolio_multiplier_cap > 1,
+                            restriction=(
+                                portfolio_multiplier_cap
+                                < min(
+                                    sizing_proposed_multiplier,
+                                    compound_multiplier_cap,
+                                )
+                            ),
+                            requested_capital_usd=compound_approved_capital,
+                            approved_capital_usd=portfolio_approved_capital,
+                            blocked_capital_usd=max(
+                                Decimal(0),
+                                compound_approved_capital
+                                - portfolio_approved_capital,
+                            ),
+                        )
+                        record_engineering_sensor(
+                            "ADAPTIVE_LEVERAGE",
+                            epoch_index=epoch_index,
+                            signal_fingerprint=candidate.signal_fingerprint,
+                            event="FOUR_ENGINE_FINAL_INTENSITY",
+                            inputs={"cooperative_caps": cooperative_caps},
+                            action="BIND_FINAL_MULTIPLIER",
+                            outputs={
+                                "selected_multiplier": multiplier,
+                                "binding_engines": list(binding),
+                            },
+                            reaction="EXECUTE_CIBO_MANAGEMENT_INTENSITY",
+                            reasons=binding,
+                            call=True,
+                            approval=True,
+                            restriction=(
+                                multiplier < sizing_proposed_multiplier
+                            ),
+                            requested_capital_usd=portfolio_approved_capital,
+                            approved_capital_usd=final_approved_capital,
+                            blocked_capital_usd=max(
+                                Decimal(0),
+                                portfolio_approved_capital
+                                - final_approved_capital,
+                            ),
+                        )
+
                     record_engineering_sensor(
                         "SIZING",
                         epoch_index=epoch_index,
@@ -2237,7 +2456,16 @@ def run_three_mode_trader_lab(
                         },
                         action="SIZE_FROM_BANK_SEED_WITH_NATIVE_CAPABILITY",
                         outputs={
-                            "selected_multiplier": multiplier,
+                            "selected_multiplier": (
+                                sizing_proposed_multiplier
+                                if four_engine_cooperation_frontier
+                                else multiplier
+                            ),
+                            "final_cooperative_multiplier": (
+                                multiplier
+                                if four_engine_cooperation_frontier
+                                else None
+                            ),
                             "native_intensity_cap": native_intensity_cap,
                         },
                         reaction="AWAIT_HARD_CAPACITY_CHECK",
@@ -2881,7 +3109,9 @@ def run_three_mode_trader_lab(
     return {
         "schema": "qore.trader_lab.cibo_three_mode_ceiling.v1",
         "research_lane": (
-            "HISTORICAL_PRIOR_NATIVE_LIFECYCLE_DISTRIBUTED_ATTACK_FRONTIER"
+            "HISTORICAL_PRIOR_NATIVE_FOUR_ENGINE_COOPERATION_FRONTIER"
+            if use_historical_prior and four_engine_cooperation_frontier
+            else "HISTORICAL_PRIOR_NATIVE_LIFECYCLE_DISTRIBUTED_ATTACK_FRONTIER"
             if use_historical_prior and lifecycle_map and distributed_attack_frontier
             else "HISTORICAL_PRIOR_NATIVE_LIFECYCLE_CUSTODY"
             if use_historical_prior and lifecycle_map
@@ -3072,6 +3302,24 @@ def run_three_mode_trader_lab(
                 "maximum_selected_multiplier": leverage_max,
             },
         },
+        "four_engine_cooperation_report": {
+            "enabled": four_engine_cooperation_frontier,
+            "joint_decision_count": four_engine_joint_decision_count,
+            "sizing_above_one_count": four_engine_sizing_above_one_count,
+            "compound_growth_enabled_count": (
+                four_engine_compound_growth_enabled_count
+            ),
+            "portfolio_growth_enabled_count": (
+                four_engine_portfolio_growth_enabled_count
+            ),
+            "leverage_above_one_count": four_engine_leverage_above_one_count,
+            "binding_counts": dict(sorted(four_engine_binding_counts.items())),
+            "all_entries_preserve_minimum_1x": True,
+            "economic_chain": (
+                "SIZING->CIBO_COMPOUND->COMPOUND_PORTFOLIO->"
+                "ADAPTIVE_LEVERAGE"
+            ),
+        },
         "trader_results": {
             trader: {
                 "trade_count": trader_trades[trader],
@@ -3142,6 +3390,16 @@ def run_three_mode_trader_lab(
                 else "WEAKEST_OF_FIVE_CAUSAL_CHRONOLOGICAL_BLOCKS"
             ),
             "distributed_attack_frontier": distributed_attack_frontier,
+            "four_engine_cooperation_frontier": (
+                four_engine_cooperation_frontier
+            ),
+            "four_engine_cooperation_law": (
+                "TRADER_1X_INHERITED; SIZING_PROPOSES_INTENSITY; "
+                "CIBO_COMPOUND_CAPS_INCREMENTAL_REINVESTMENT_FROM_REALIZED_"
+                "NET_PRODUCTION; COMPOUND_PORTFOLIO_ALLOCATES_INCREMENTAL_"
+                "GROWTH_BY_CAUSAL_ACCOUNT_UTILITY; ADAPTIVE_LEVERAGE_BINDS_"
+                "THE_FINAL_MULTIPLIER; NO_ENGINE_MAY_REJECT_THE_BASE_ENTRY"
+            ),
             "distributed_attack_min_positive_blocks": (
                 DISTRIBUTED_ATTACK_MIN_POSITIVE_BLOCKS
             ),

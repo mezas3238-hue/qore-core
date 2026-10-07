@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - agent/cibo-causal-expectation-leakage-fix-001
+      - agent/cibo-four-engine-cooperation-001
     paths:
       - '.github/workflows/cibo-trader-lab-three-mode-ceiling.yml'
       - 'src/qore/infrastructure/trader_lab/cibo_three_mode_capital_lab.py'
@@ -199,6 +200,18 @@ jobs:
             --historical-replay "$HISTORICAL_REPLAY" \
             --medium-pretrade-drawdown-ceiling 0.27 \
             --output "$RUNNER_TEMP/result/cibo-three-mode-historical-dd-27.json"
+
+      - name: Run four-engine cooperation frontier
+        run: |
+          set -euo pipefail
+          python scripts/cibo_trader_lab_three_mode_ceiling.py \
+            --manifest "$MANIFEST" \
+            --baseline-replay "$BASELINE" \
+            --historical-manifest "$HISTORICAL_MANIFEST" \
+            --historical-replay "$HISTORICAL_REPLAY" \
+            --four-engine-cooperation-frontier \
+            --medium-multiplier-cap 4 \
+            --output "$RUNNER_TEMP/result/cibo-four-engine-cooperation.json"
 
       - name: Run distributed ATTACK frontier 4x
         run: |
@@ -483,6 +496,34 @@ jobs:
               assert frontier["governance"]["outcome_used_for_predecision"] is False
               assert Decimal(frontier["attack_sovereign_breach_usd"]) == 0
 
+          cooperation = json.loads(
+              (
+                  Path(os.environ["RUNNER_TEMP"])
+                  / "result"
+                  / "cibo-four-engine-cooperation.json"
+              ).read_text()
+          )
+          assert cooperation["research_lane"] == (
+              "HISTORICAL_PRIOR_NATIVE_FOUR_ENGINE_COOPERATION_FRONTIER"
+          )
+          assert cooperation["trade_count"] == cooperation["decision_count"] == 3368
+          assert cooperation["governance"][
+              "four_engine_cooperation_frontier"
+          ] is True
+          coop = cooperation["four_engine_cooperation_report"]
+          assert coop["enabled"] is True
+          assert coop["joint_decision_count"] == 3368
+          assert coop["sizing_above_one_count"] > 0
+          assert coop["compound_growth_enabled_count"] > 0
+          assert coop["portfolio_growth_enabled_count"] > 0
+          assert coop["leverage_above_one_count"] > 0
+          coop_funnel = cooperation["engineering_sensor_report"][
+              "execution_funnel"
+          ]
+          assert coop_funnel["final_trade_count"] == 3368
+          assert coop_funnel["sizing_medium_rejected_count"] == 0
+          assert coop_funnel["sizing_medium_deferred_count"] == 0
+
           lifecycle = json.loads(
               (
                   Path(os.environ["RUNNER_TEMP"])
@@ -602,6 +643,7 @@ jobs:
             ${{ runner.temp }}/result/cibo-three-mode-historical-dd-255.json
             ${{ runner.temp }}/result/cibo-three-mode-historical-dd-26.json
             ${{ runner.temp }}/result/cibo-three-mode-historical-dd-27.json
+            ${{ runner.temp }}/result/cibo-four-engine-cooperation.json
             ${{ runner.temp }}/result/cibo-three-mode-distributed-attack-4x.json
             ${{ runner.temp }}/result/cibo-three-mode-distributed-attack-6x.json
             ${{ runner.temp }}/result/cibo-three-mode-distributed-attack-8x.json

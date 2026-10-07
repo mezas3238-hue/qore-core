@@ -177,6 +177,15 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--four-engine-cooperation-frontier",
+        action="store_true",
+        help=(
+            "Trader-Lab-only joint economics frontier: every managed entry "
+            "passes Sizing -> CIBO Compound -> Compound Portfolio -> "
+            "Adaptive Leverage before final incremental intensity."
+        ),
+    )
+    parser.add_argument(
         "--distributed-attack-frontier",
         action="store_true",
         help=(
@@ -503,6 +512,9 @@ def main() -> int:
         distributed_attack_frontier=args.distributed_attack_frontier,
         attack_multiplier_cap=args.attack_multiplier_cap,
         medium_multiplier_cap=args.medium_multiplier_cap,
+        four_engine_cooperation_frontier=(
+            args.four_engine_cooperation_frontier
+        ),
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
@@ -564,6 +576,9 @@ def main() -> int:
                 ],
                 "attack_net_pnl_usd": result["attack_net_pnl_usd"],
                 "position_lifecycle_report": result["position_lifecycle_report"],
+                "four_engine_cooperation_report": result[
+                    "four_engine_cooperation_report"
+                ],
             },
             sort_keys=True,
         )
