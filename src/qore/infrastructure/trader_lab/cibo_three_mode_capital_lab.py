@@ -963,6 +963,8 @@ def run_three_mode_trader_lab(
     ceiling_attack_recent_trader_loss_fraction_trigger: Decimal | None = None,
     ceiling_attack_recent_trader_loss_drawdown_trigger: Decimal = Decimal("0.10"),
     ceiling_attack_recent_trader_loss_taper_fraction: Decimal = Decimal("0.75"),
+    ceiling_attack_low_multiplier_demotion_upper: int | None = None,
+    ceiling_attack_low_multiplier_demotion_drawdown_trigger: Decimal = Decimal("0.10"),
     ceiling_portfolio_shock_trigger_fraction: Decimal | None = None,
     ceiling_portfolio_shock_taper_fraction: Decimal = Decimal("0.50"),
     ceiling_portfolio_shock_one_shot: bool = False,
@@ -1495,6 +1497,30 @@ def run_three_mode_trader_lab(
         raise CiboCapitalManagementError(
             "Trader Lab recent-Trader ATTACK loss taper requires ceiling discovery mode"
         )
+    if ceiling_attack_low_multiplier_demotion_upper is not None and (
+        not isinstance(ceiling_attack_low_multiplier_demotion_upper, int)
+        or isinstance(ceiling_attack_low_multiplier_demotion_upper, bool)
+        or ceiling_attack_low_multiplier_demotion_upper < ATTACK_MINIMUM_MULTIPLIER
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab low-multiplier ATTACK demotion upper must be int >= ATTACK minimum"
+        )
+    if (
+        not isinstance(ceiling_attack_low_multiplier_demotion_drawdown_trigger, Decimal)
+        or not ceiling_attack_low_multiplier_demotion_drawdown_trigger.is_finite()
+        or ceiling_attack_low_multiplier_demotion_drawdown_trigger < 0
+        or ceiling_attack_low_multiplier_demotion_drawdown_trigger >= Decimal("0.50")
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab low-multiplier ATTACK demotion DD trigger must be Decimal in [0, 0.50)"
+        )
+    if (
+        ceiling_attack_low_multiplier_demotion_upper is not None
+        and not ceiling_discovery_mode
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab low-multiplier ATTACK demotion requires ceiling discovery mode"
+        )
     if ceiling_portfolio_shock_trigger_fraction is not None and (
         not isinstance(ceiling_portfolio_shock_trigger_fraction, Decimal)
         or not ceiling_portfolio_shock_trigger_fraction.is_finite()
@@ -1979,6 +2005,7 @@ def run_three_mode_trader_lab(
     attack_stress_confidence_taper_bind_count = 0
     attack_trader_loss_ratio_taper_bind_count = 0
     attack_recent_trader_loss_taper_bind_count = 0
+    attack_low_multiplier_demotion_bind_count = 0
     portfolio_attack_shock_taper_bind_count = 0
     portfolio_last_attack_loss_fraction = Decimal(0)
     attack_epochs_funded = 0
@@ -3846,6 +3873,20 @@ def run_three_mode_trader_lab(
                     preliminary_multiplier = max(0, min(leverage_caps.values()))
                     if (
                         ceiling_discovery_mode
+                        and ceiling_attack_low_multiplier_demotion_upper is not None
+                        and total_drawdown_utilization
+                        >= ceiling_attack_low_multiplier_demotion_drawdown_trigger
+                        and ATTACK_MINIMUM_MULTIPLIER
+                        <= preliminary_multiplier
+                        <= ceiling_attack_low_multiplier_demotion_upper
+                    ):
+                        attack_low_multiplier_demotion_bind_count += 1
+                        leverage_caps[
+                            "CEILING_LOW_MULTIPLIER_DD_DEMOTION_CAP"
+                        ] = 1
+                    preliminary_multiplier = max(0, min(leverage_caps.values()))
+                    if (
+                        ceiling_discovery_mode
                         and ceiling_attack_drawdown_window_lower is not None
                         and ceiling_attack_drawdown_window_upper is not None
                         and ceiling_attack_drawdown_window_multiplier_lower
@@ -5161,6 +5202,15 @@ def run_three_mode_trader_lab(
             ),
             "attack_recent_trader_loss_taper_bind_count": (
                 attack_recent_trader_loss_taper_bind_count
+            ),
+            "ceiling_attack_low_multiplier_demotion_upper": (
+                ceiling_attack_low_multiplier_demotion_upper
+            ),
+            "ceiling_attack_low_multiplier_demotion_drawdown_trigger": format(
+                ceiling_attack_low_multiplier_demotion_drawdown_trigger, "f"
+            ),
+            "attack_low_multiplier_demotion_bind_count": (
+                attack_low_multiplier_demotion_bind_count
             ),
             "ending_trader_attack_recent_net_pnl_usd": {
                 key: format(sum(values, Decimal(0)), "f")
