@@ -2300,3 +2300,107 @@ That workflow already encodes the strict Pareto condition:
 `capital >= frozen capital AND DD < frozen DD AND ATTACK gross loss < frozen ATTACK gross loss`.
 
 If no STRICT_PARETO case is found, the next iteration MUST NOT revert to broad global de-risking. It must move to targeted tail/concentration controls intended to remove losing high-scale exposure while leaving the profitable ceiling-producing path intact.
+
+
+---
+
+# 30. DD / GROSS-LOSS COMPRESSION UPDATE — GLOBAL BUDGET REJECTED; CAUSAL TRADER LOSS-PRESSURE FRONTIER ACTIVE
+
+Run `37658678198` — `QORE CIBO DD Budget Frontier` — completed SUCCESS.
+
+Scientific conclusion:
+
+> A global ATTACK drawdown-budget envelope is decisively REJECTED for ceiling-preserving compression.
+
+The budget cases reduced measured DD to approximately 40–42%, and reduced ATTACK gross loss massively, but terminal capital collapsed from the frozen USD 582,440.03 ceiling to roughly USD 495–708.
+
+Examples:
+
+- control: capital USD 582,440.03 / DD 65.10% / ATTACK gross loss USD 1,443,117.90;
+- budget20: capital ~USD 649.38 / DD ~40.16%;
+- budget30-conf050-f95: capital ~USD 708.47 / DD ~40.16%;
+- budget35: capital ~USD 634.75 / DD ~41.55%.
+
+`STRICT_PARETO_CASES=[]`.
+
+This is strong evidence that broad DD budgets remove the profitable compounding engine together with the losses. They MUST NOT be promoted.
+
+## New gross-loss instrumentation
+
+Commit:
+
+`751c1d7fde210f04abded8b9388a2a478311eee9`
+
+Trader Lab now measures both:
+
+- ATTACK gross profit / gross loss;
+- TOTAL account gross profit / gross loss across all final settled trades.
+
+This prevents the optimization target from being limited to ATTACK bookkeeping when the owner directive is to reduce total gross loss substantially.
+
+## New causal per-Trader ATTACK loss-pressure control
+
+Implementation commits:
+
+- `86cfce1ffef4f144afb315a4fae9d51db32615b2` — engine control;
+- `0c26e00fe41f68c148a56db11f34b1282a82f9a0` — CLI surface.
+
+The control is causal and does NOT hardcode Trader identities.
+
+For each Trader it uses only already-settled ATTACK observations:
+
+- cumulative realized ATTACK gross profit;
+- cumulative realized ATTACK gross loss;
+- number of settled ATTACK trades.
+
+After a configurable minimum sample, if realized gross-loss / gross-profit pressure exceeds the configured threshold, CIBO temporarily reduces only incremental ATTACK scaling for that Trader.
+
+The Trader entry remains preserved.
+
+There is no outcome lookup, no future information, and no admission veto.
+
+The control automatically stops binding when subsequent realized profit repairs the causal P/L ratio.
+
+## Why this direction is structurally justified
+
+Frozen 10,000x control ATTACK gross-loss attribution:
+
+- R34_XAUUSD: ~USD 543,393.86 (~37.65% of ATTACK gross loss), but strongly net positive;
+- R42_AUDJPY: ~USD 357,331.50 (~24.76%), but net positive;
+- R38_GBPJPY: ~USD 230,306.76 (~15.96%), strongly net positive;
+- VT31_NAS100: ~USD 155,430.62 (~10.77%), net negative;
+- R43_GBPUSD: ~USD 128,996.34 (~8.94%), net negative;
+- VT08_FOREX: ~USD 27,622.58 (~1.91%), net negative;
+- R38_EURUSD: negligible gross loss and slightly net positive.
+
+Therefore a hardcoded Trader blacklist would be scientifically invalid and economically dangerous. The correct hypothesis is a causal online loss-pressure governor capable of identifying when a Trader is currently consuming too much gross loss relative to its already-realized gross profit.
+
+## Active strict-Pareto replay
+
+Workflow:
+
+`QORE CIBO Trader Loss Pressure Frontier`
+
+Run:
+
+`37659649615`
+
+Workflow:
+
+`.github/workflows/cibo-trader-lab-trader-loss-pressure-frontier.yml`
+
+The experiment tests multiple realized loss/profit thresholds and mild 95–97% ATTACK cap retention, plus selected combinations with weak late-tail DD taper.
+
+Mandatory ranking requires simultaneously:
+
+1. ending capital >= frozen USD 582,440.0252953678696769360345;
+2. DD < frozen 65.1041975924...%;
+3. TOTAL gross loss < frozen control total gross loss;
+4. ATTACK gross loss < frozen control ATTACK gross loss;
+5. 3,368 / 3,368 entries;
+6. zero ATTACK sovereign breach;
+7. zero Sizing rejection/defer.
+
+It also reports total gross-loss reduction percentage and identifies candidates with >=5% total gross-loss compression while still passing the strict Pareto gate.
+
+The next architect must prefer this selective causal direction over global leverage/DD reduction.
