@@ -19,6 +19,7 @@ def main() -> int:
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--baseline-replay", type=Path)
     parser.add_argument("--historical-manifest", type=Path)
+    parser.add_argument("--historical-replay", type=Path)
     parser.add_argument(
         "--enforce-context-abstain",
         action="store_true",
@@ -186,6 +187,111 @@ def main() -> int:
                 ),
                 "context_allowed": disposition == "ALLOW",
             }
+
+    if args.historical_replay is not None:
+        if historical_prior_by_signal is None:
+            raise ValueError(
+                "historical replay requires historical manifest"
+            )
+        control = json.loads(
+            args.historical_replay.read_text(encoding="utf-8")
+        )
+        if control.get("governance", {}).get(
+            "outcome_used_for_predecision"
+        ) is not False:
+            raise ValueError(
+                "historical control violates predecision causality"
+            )
+        control_decisions = control.get("decision_receipts")
+        control_settlements = control.get("settlement_receipts")
+        if not isinstance(control_decisions, list) or not isinstance(
+            control_settlements, list
+        ):
+            raise ValueError("historical control receipts missing")
+
+        settlements = sorted(
+            control_settlements,
+            key=lambda item: (
+                str(item["settled_at"]),
+                str(item["signal_fingerprint"]),
+            ),
+        )
+        running_capital = Decimal("60")
+        settlement_index = 0
+        for decision in sorted(
+            control_decisions,
+            key=lambda item: (
+                str(item["decided_at"]),
+                str(item["signal_fingerprint"]),
+            ),
+        ):
+            decided_at = str(decision["decided_at"])
+            while (
+                settlement_index < len(settlements)
+                and str(settlements[settlement_index]["settled_at"])
+                <= decided_at
+            ):
+                running_capital += Decimal(
+                    str(
+                        settlements[settlement_index][
+                            "realized_net_pnl_usd"
+                        ]
+                    )
+                )
+                settlement_index += 1
+
+            signal = str(decision["signal_fingerprint"])
+            if signal not in historical_prior_by_signal:
+                raise ValueError(
+                    "historical control signal absent from manifest prior"
+                )
+            if decision.get("outcome_used_for_predecision") is not False:
+                raise ValueError(
+                    "historical decision exposes outcome to predecision"
+                )
+            authorized_risk = Decimal(
+                str(decision["authorized_stop_risk_usd"])
+            )
+            if authorized_risk < 0 or running_capital <= 0:
+                raise ValueError(
+                    "historical control capital/risk malformed"
+                )
+            control_ready = (
+                str(decision["capital_disposition"])
+                == "RISK_REVIEW_READY"
+                and str(decision["risk_decision"]) == "ALLOW"
+                and authorized_risk > 0
+            )
+            historical_prior_by_signal[signal].update(
+                {
+                    "historical_control_ready": control_ready,
+                    "historical_authorized_stop_risk_usd": format(
+                        authorized_risk, "f"
+                    ),
+                    "historical_realized_capital_predecision_usd": format(
+                        running_capital, "f"
+                    ),
+                    "historical_stop_risk_fraction": format(
+                        (
+                            authorized_risk / running_capital
+                            if authorized_risk > 0
+                            else Decimal(0)
+                        ),
+                        "f",
+                    ),
+                    "historical_adaptive_leverage_multiplier": int(
+                        decision["adaptive_leverage_multiplier"]
+                    ),
+                }
+            )
+
+        if set(historical_prior_by_signal) != {
+            str(item["signal_fingerprint"])
+            for item in control_decisions
+        }:
+            raise ValueError(
+                "historical control/prior signal surface drift"
+            )
 
     result = run_three_mode_trader_lab(
         manifest,
