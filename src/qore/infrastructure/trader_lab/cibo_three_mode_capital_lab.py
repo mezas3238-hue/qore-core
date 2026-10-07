@@ -143,6 +143,7 @@ class _State:
     bank_seed_recycled_total_usd: Decimal = Decimal(0)
     cushion_reserved_usd: Decimal = Decimal(0)
     portfolio_attack_credit_usd: Decimal = Decimal(0)
+    portfolio_attack_credit_recycled_total_usd: Decimal = Decimal(0)
     open_stop_risk_usd: Decimal = Decimal(0)
     open_margin_usd: Decimal = Decimal(0)
     peak_total_capital_usd: Decimal = INITIAL_CAPITAL_USD
@@ -695,10 +696,14 @@ def apply_three_mode_settlement(
             state.attack_sovereign_breach_usd += breach
             state.portfolio_cushion_usd = Decimal(0)
             state.sovereign_bank_usd -= breach
-        state.portfolio_attack_credit_usd = min(
-            state.portfolio_attack_credit_usd,
-            state.cushion_available_usd,
+        state.portfolio_attack_credit_recycled_total_usd += (
+            trade.source_reserved_usd
         )
+        # Portfolio Compound is revolving capital. Once ATTACK settles, its
+        # reserved principal is released and the realized PnL is already
+        # reflected in the cushion. The full unreserved cushion therefore
+        # becomes available to fund the next cognitively enabled ATTACK.
+        state.portfolio_attack_credit_usd = state.cushion_available_usd
     elif trade.mode is CiboTraderLabMode.BANK:
         raise CiboCapitalManagementError(
             "BANK cannot own trades; BANK only seeds MEDIUM"
@@ -2231,6 +2236,9 @@ def run_three_mode_trader_lab(
         "portfolio_attack_credit_usd": format(
             state.portfolio_attack_credit_usd, "f"
         ),
+        "portfolio_attack_credit_recycled_total_usd": format(
+            state.portfolio_attack_credit_recycled_total_usd, "f"
+        ),
         "attack_net_pnl_usd": format(
             state.attack_net_pnl_usd,
             "f",
@@ -2389,7 +2397,8 @@ def run_three_mode_trader_lab(
             ),
             "attack_risk_source": "PORTFOLIO_CUSHION_ONLY",
             "portfolio_attack_release_policy": (
-                "ONLY_UNSPENT_CREDITS_CREATED_BY_MEDIUM_50PCT_PROFIT_SHARE"
+                "REVOLVING_PORTFOLIO_CUSHION; MEDIUM_50PCT_PROFIT_AND_"
+                "SETTLED_ATTACK_CAPITAL_REMAIN_AVAILABLE_FOR_FUTURE_ATTACK"
             ),
             "leverage_law": (
                 "ATTACK_UNCAPPED_BY_ECONOMIC_UTILITY_AFTER_PORTFOLIO_ENABLE"
