@@ -157,6 +157,110 @@ def fast_block_bootstrap(
     }
 
 
+def _bootstrap_chunk_worker(
+    args: tuple[tuple[object, ...], str, int, int, int],
+) -> tuple[list[float], list[float], str]:
+    values_raw, domain, paths, block_length, chunk_index = args
+    values = tuple(float(value) for value in values_raw)
+    n = len(values)
+    summaries = _block_summaries(values, block_length=block_length)
+    seed = int.from_bytes(
+        hashlib.sha256(
+            f"{domain}:chunk:{chunk_index}".encode()
+        ).digest()[:16],
+        "big",
+    )
+    rng = random.Random(seed)
+    randrange = rng.randrange
+    terminals: list[float] = []
+    drawdowns: list[float] = []
+    blocks_per_path = (n + block_length - 1) // block_length
+    tail = n % block_length
+
+    for _ in range(paths):
+        equity = 0.0
+        peak = 0.0
+        max_dd = 0.0
+        for block_index in range(blocks_per_path):
+            start = randrange(n)
+            take = (
+                tail
+                if tail and block_index == blocks_per_path - 1
+                else block_length
+            )
+            total, local_peak, local_minimum, local_dd = summaries[take][start]
+            cross_dd = peak - (equity + local_minimum)
+            if cross_dd > max_dd:
+                max_dd = cross_dd
+            if local_dd > max_dd:
+                max_dd = local_dd
+            candidate_peak = equity + local_peak
+            if candidate_peak > peak:
+                peak = candidate_peak
+            equity += total
+        terminals.append(equity)
+        drawdowns.append(max_dd)
+
+    return terminals, drawdowns, format(seed, "032x")
+
+
+def parallel_block_bootstrap(
+    values_raw: tuple[object, ...],
+    *,
+    domain: str,
+    paths: int,
+    block_length: int,
+    workers: int,
+) -> dict[str, Any]:
+    workers = max(1, min(workers, paths))
+    counts = [
+        paths // workers + (1 if index < paths % workers else 0)
+        for index in range(workers)
+    ]
+    args = [
+        (values_raw, domain, count, block_length, index)
+        for index, count in enumerate(counts)
+        if count
+    ]
+    terminals: list[float] = []
+    drawdowns: list[float] = []
+    seeds: list[str] = []
+    with ProcessPoolExecutor(max_workers=len(args)) as pool:
+        for chunk_terminals, chunk_drawdowns, seed in pool.map(
+            _bootstrap_chunk_worker,
+            args,
+        ):
+            terminals.extend(chunk_terminals)
+            drawdowns.extend(chunk_drawdowns)
+            seeds.append(seed)
+
+    terminals.sort()
+    drawdowns.sort()
+    positive = sum(value > 0.0 for value in terminals) / paths
+    return {
+        "algorithm": (
+            "sha256-seeded-mt19937-circular-block-bootstrap-v4-parallel"
+        ),
+        "paths": paths,
+        "block_length": block_length,
+        "worker_count": len(args),
+        "chunk_seed_sha256": seeds,
+        "positive_terminal_probability": format(positive, ".12g"),
+        "p05_terminal_r": format(
+            terminals[(paths - 1) * 5 // 100],
+            ".12g",
+        ),
+        "p50_terminal_r": format(
+            terminals[(paths - 1) * 50 // 100],
+            ".12g",
+        ),
+        "p95_max_drawdown_r": format(
+            drawdowns[(paths - 1) * 95 // 100],
+            ".12g",
+        ),
+    }
+
+
 def _bootstrap_worker(
     args: tuple[tuple[object, ...], str, int, int],
 ) -> dict[str, Any]:
@@ -333,33 +437,46 @@ def evaluate(
                 )
 
     if pending_by_series:
-        max_workers = min(
-            len(pending_by_series),
-            max(
-                1,
-                int(
-                    science.get(
-                        "mc_max_workers",
-                        min(4, os.cpu_count() or 1),
-                    )
-                ),
+        requested_workers = max(
+            1,
+            int(
+                science.get(
+                    "mc_max_workers",
+                    min(4, os.cpu_count() or 1),
+                )
             ),
         )
         computed: dict[
             tuple[str, tuple[str, ...]],
             dict[str, Any],
         ] = {}
-        if max_workers == 1:
-            for key, args in pending_by_series.items():
-                computed[key] = _bootstrap_worker(args)
+
+        if len(pending_by_series) == 1 and requested_workers > 1:
+            key, args = next(iter(pending_by_series.items()))
+            values, domain, paths, block_length = args
+            computed[key] = parallel_block_bootstrap(
+                values,
+                domain=domain,
+                paths=paths,
+                block_length=block_length,
+                workers=requested_workers,
+            )
         else:
-            with ProcessPoolExecutor(max_workers=max_workers) as pool:
-                futures = {
-                    pool.submit(_bootstrap_worker, args): key
-                    for key, args in pending_by_series.items()
-                }
-                for future in as_completed(futures):
-                    computed[futures[future]] = future.result()
+            max_workers = min(
+                len(pending_by_series),
+                requested_workers,
+            )
+            if max_workers == 1:
+                for key, args in pending_by_series.items():
+                    computed[key] = _bootstrap_worker(args)
+            else:
+                with ProcessPoolExecutor(max_workers=max_workers) as pool:
+                    futures = {
+                        pool.submit(_bootstrap_worker, args): key
+                        for key, args in pending_by_series.items()
+                    }
+                    for future in as_completed(futures):
+                        computed[futures[future]] = future.result()
 
         for series_key, result in computed.items():
             for consumer in consumers[series_key]:
@@ -499,7 +616,7 @@ def evaluate(
             "DENSITY_FLOOR",
             "WINNER_COUNT_AND_R_PRESERVATION",
             "TEMPORAL_BLOCK_STRESS",
-            "DETERMINISTIC_10000_PATH_PAIRED_CIRCULAR_BLOCK_BOOTSTRAP_V3_FAST",
+            "DETERMINISTIC_10000_PATH_PAIRED_CIRCULAR_BLOCK_BOOTSTRAP_V4_PARALLEL",
             "CROSS_LANE_PF_FLOOR",
             "OBSERVED_DD_HARD_GATE",
             "PRIMARY_LANE_DIRECTION_GATES",
