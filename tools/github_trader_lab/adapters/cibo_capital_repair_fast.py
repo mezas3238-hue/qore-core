@@ -66,10 +66,19 @@ class Variant:
     recency_guard: bool = False
     profit_funded_leverage: bool = False
     max_frontier: bool = False
+    legacy_pre_economic_veto: bool = False
 
 
 VARIANTS = (
-    Variant("MATURE_4X_CONTROL", Decimal("1"), False, False, False, False),
+    Variant(
+        "MATURE_4X_CONTROL",
+        Decimal("1"),
+        False,
+        False,
+        False,
+        False,
+        legacy_pre_economic_veto=True,
+    ),
     Variant("GRADED_INTENSITY", Decimal("1"), True, False, False, False),
     Variant("GRADED_PLUS_SURVIVAL", Decimal("0.70"), True, False, False, True),
     Variant("FULL_CAUSAL_REPAIR", Decimal("0.70"), True, True, True, True),
@@ -121,6 +130,30 @@ VARIANTS = (
         max_frontier=True,
     ),
 )
+
+
+@dataclass(frozen=True)
+class EconomicAssessment:
+    disposition: str
+    sizing_mode: str
+    expected_net_usd: Decimal
+    multiplier_cap: int
+    reason_codes: tuple[str, ...]
+    legacy_prefilter_would_drop: bool
+
+    def __post_init__(self) -> None:
+        if self.disposition not in {
+            "ELIGIBLE_FOR_INTERNAL_CAPITAL_MARKET",
+            "REDUCE_INCREMENT",
+            "RESERVE_DOMINATED",
+            "INSUFFICIENT",
+            "LEGACY_PRE_ECONOMIC_VETO",
+        }:
+            raise ValueError("unknown economic disposition")
+        if self.multiplier_cap not in {0, 1, 2, 3, 4}:
+            raise ValueError("economic multiplier cap outside 0..4")
+        if not self.reason_codes:
+            raise ValueError("economic assessment requires reason codes")
 
 
 @dataclass
@@ -261,35 +294,159 @@ def _maximum_frontier_cap(
     return cap
 
 
-def _eligible_net(
+def _economic_assessment(
     row: dict[str, Any],
     *,
-    uncertainty_priced: bool,
-    recency_guard: bool = False,
-) -> Decimal | None:
-    if (
-        row.get("expectation_basis") != "WALK_FORWARD_EMPIRICAL_FORECAST"
-        or not bool(row.get("walk_forward_mature"))
-        or not bool(row.get("context_allowed"))
-        or not bool(row.get("provider_viable"))
-        or not bool(row.get("capital_source_eligible"))
-    ):
-        return None
+    variant: Variant,
+    has_capacity: bool,
+) -> EconomicAssessment:
+    """Route every Native opportunity through economics.
+
+    Context, forecast edge and provider state are modifiers/dispositions, not
+    deletion gates. A 0x reserve decision remains an explicit economic result.
+    """
+
+    basis = str(row.get("expectation_basis", ""))
+    mature = bool(row.get("walk_forward_mature"))
+    context_allowed = bool(row.get("context_allowed"))
+    provider_viable = bool(row.get("provider_viable"))
+    capital_source_eligible = bool(row.get("capital_source_eligible"))
+
     minimum_volume = d(row["minimum_volume"])
     provider_cost = d(row["provider_cost_per_volume_usd"]) * minimum_volume
     minimum_stop_risk = d(row["stop_loss_per_volume"]) * minimum_volume
     value = d(row["expected_net_value_usd"]) - provider_cost
-    if recency_guard:
+
+    reasons: list[str] = []
+    if variant.recency_guard:
         blocks_raw = row.get("walk_forward_block_means_r")
-        if not isinstance(blocks_raw, list) or len(blocks_raw) != 5:
-            raise ValueError("recency guard requires five causal block means")
-        global_r = d(row["walk_forward_expected_structural_r"])
-        recent_r = d(blocks_raw[-1])
-        conservative_r = min(global_r, recent_r)
-        value = conservative_r * minimum_stop_risk - provider_cost
-    if uncertainty_priced:
+        if isinstance(blocks_raw, list) and len(blocks_raw) == 5:
+            global_r = d(row["walk_forward_expected_structural_r"])
+            recent_r = d(blocks_raw[-1])
+            conservative_r = min(global_r, recent_r)
+            value = conservative_r * minimum_stop_risk - provider_cost
+            reasons.append("RECENCY_GUARD_APPLIED")
+        else:
+            reasons.append("RECENCY_EVIDENCE_INSUFFICIENT")
+
+    if variant.uncertainty_priced:
         value -= d(row["uncertainty_penalty_usd"])
-    return value if value > 0 else None
+        reasons.append("UNCERTAINTY_PRICED")
+
+    regime = row["regime"]
+    provider_condition = str(regime.get("provider_condition", "UNAVAILABLE"))
+    evidence_stale = bool(regime.get("evidence_stale"))
+    liquidity = str(regime.get("liquidity", "STRESSED"))
+
+    legacy_would_drop = (
+        basis != "WALK_FORWARD_EMPIRICAL_FORECAST"
+        or not mature
+        or not context_allowed
+        or not provider_viable
+        or not capital_source_eligible
+        or value <= 0
+    )
+
+    if variant.legacy_pre_economic_veto and legacy_would_drop:
+        legacy_reasons = []
+        if basis != "WALK_FORWARD_EMPIRICAL_FORECAST":
+            legacy_reasons.append("LEGACY_EXPECTATION_BASIS_VETO")
+        if not mature:
+            legacy_reasons.append("LEGACY_MATURITY_VETO")
+        if not context_allowed:
+            legacy_reasons.append("LEGACY_CONTEXT_VETO")
+        if not provider_viable:
+            legacy_reasons.append("LEGACY_PROVIDER_VETO")
+        if not capital_source_eligible:
+            legacy_reasons.append("LEGACY_CAPITAL_SOURCE_VETO")
+        if value <= 0:
+            legacy_reasons.append("LEGACY_NET_EDGE_VETO")
+        return EconomicAssessment(
+            disposition="LEGACY_PRE_ECONOMIC_VETO",
+            sizing_mode="LEGACY_NOT_ROUTED_TO_ECONOMY",
+            expected_net_usd=value,
+            multiplier_cap=0,
+            reason_codes=tuple(sorted(set(legacy_reasons))),
+            legacy_prefilter_would_drop=True,
+        )
+
+    # Missing/immature causal forecast is an explicit insufficient-evidence
+    # disposition, not disappearance from the opportunity surface.
+    if basis != "WALK_FORWARD_EMPIRICAL_FORECAST" or not mature:
+        if basis != "WALK_FORWARD_EMPIRICAL_FORECAST":
+            reasons.append("FORECAST_BASIS_NOT_WALK_FORWARD")
+        if not mature:
+            reasons.append("FORECAST_NOT_MATURE")
+        return EconomicAssessment(
+            disposition="INSUFFICIENT",
+            sizing_mode="RESERVE",
+            expected_net_usd=value,
+            multiplier_cap=0,
+            reason_codes=tuple(sorted(set(reasons))),
+            legacy_prefilter_would_drop=legacy_would_drop,
+        )
+
+    # Economics may choose reserve because capital/provider/edge does not
+    # deserve deployment. This is downstream economic adjudication.
+    if not has_capacity:
+        reasons.append("ACCOUNT_CAPACITY_EXHAUSTED")
+    if not capital_source_eligible:
+        reasons.append("CAPITAL_SOURCE_INELIGIBLE")
+    if provider_condition == "UNAVAILABLE":
+        reasons.append("PROVIDER_UNAVAILABLE")
+    if value <= 0:
+        reasons.append("NET_INCREMENTAL_RETURN_NON_POSITIVE")
+    if (
+        not has_capacity
+        or not capital_source_eligible
+        or provider_condition == "UNAVAILABLE"
+        or value <= 0
+    ):
+        return EconomicAssessment(
+            disposition="RESERVE_DOMINATED",
+            sizing_mode="RESERVE",
+            expected_net_usd=value,
+            multiplier_cap=0,
+            reason_codes=tuple(sorted(set(reasons))),
+            legacy_prefilter_would_drop=legacy_would_drop,
+        )
+
+    defensive = False
+    if not context_allowed:
+        defensive = True
+        reasons.append("CONTEXT_REQUIRES_DEFENSIVE_CAPITAL")
+    if not provider_viable:
+        defensive = True
+        reasons.append("PROVIDER_VIABILITY_REQUIRES_REDUCTION")
+    if provider_condition == "DEGRADED":
+        defensive = True
+        reasons.append("PROVIDER_DEGRADED")
+    if variant.genc12_binding and evidence_stale:
+        defensive = True
+        reasons.append("GENC12_EVIDENCE_STALE")
+    if variant.genc12_binding and liquidity == "STRESSED":
+        defensive = True
+        reasons.append("GENC12_STRESSED_LIQUIDITY")
+
+    if defensive:
+        return EconomicAssessment(
+            disposition="REDUCE_INCREMENT",
+            sizing_mode="SURVIVAL_MINIMAL_SEED",
+            expected_net_usd=value,
+            multiplier_cap=1,
+            reason_codes=tuple(sorted(set(reasons))),
+            legacy_prefilter_would_drop=legacy_would_drop,
+        )
+
+    reasons.append("NEXT_INCREMENT_PASSES_MARGINAL_UTILITY_HURDLES")
+    return EconomicAssessment(
+        disposition="ELIGIBLE_FOR_INTERNAL_CAPITAL_MARKET",
+        sizing_mode="ECONOMIC_ENGINE",
+        expected_net_usd=value,
+        multiplier_cap=4,
+        reason_codes=tuple(sorted(set(reasons))),
+        legacy_prefilter_would_drop=legacy_would_drop,
+    )
 
 
 def _portfolio(
@@ -302,22 +459,31 @@ def _portfolio(
     risk_utilization: Decimal,
     margin_utilization: Decimal,
     drawdown_utilization: Decimal,
-) -> tuple[tuple[int, ...], tuple[Decimal, ...]]:
+) -> tuple[
+    tuple[int, ...],
+    tuple[Decimal, ...],
+    tuple[EconomicAssessment, ...],
+]:
     caps: list[int] = []
     nets: list[Decimal] = []
+    assessments: list[EconomicAssessment] = []
+    has_capacity = risk_headroom > 0 and margin_headroom > 0
     for row in rows:
-        net = _eligible_net(
+        assessment = _economic_assessment(
             row,
-            uncertainty_priced=variant.uncertainty_priced,
-            recency_guard=variant.recency_guard,
+            variant=variant,
+            has_capacity=has_capacity,
         )
-        nets.append(net if net is not None else ZERO)
-        if net is None:
-            caps.append(0)
-            continue
+        assessments.append(assessment)
+        net = assessment.expected_net_usd
+        nets.append(net)
         minimum_volume = d(row["minimum_volume"])
         maximum_volume = d(row["maximum_volume"])
-        cap = min(4, int(maximum_volume / minimum_volume))
+        cap = min(
+            assessment.multiplier_cap,
+            4,
+            int(maximum_volume / minimum_volume),
+        )
         if variant.graded_intensity:
             cap = min(
                 cap,
@@ -420,7 +586,7 @@ def _portfolio(
             best_combo = tuple(int(value) for value in combo)
             best_velocity = tuple(velocity_lines)
 
-    return best_combo, best_velocity
+    return best_combo, best_velocity, tuple(assessments)
 
 
 def _temporal_blocks(settlements: list[dict[str, Any]]) -> dict[str, Any]:
@@ -584,6 +750,35 @@ def _metrics(
             "maximum_drawdown_fraction_of_initial": format(max_dd / INITIAL, "f"),
             "adaptive_leverage_counts": dict(sorted(multiplier_counts.items())),
             "block_counts": dict(sorted(block_counts.items())),
+            "economic_routing": {
+                "presented": int(block_counts["ECONOMIC_PRESENTED"]),
+                "evaluated": int(block_counts["ECONOMIC_EVALUATED"]),
+                "legacy_prefilter_would_drop": int(
+                    block_counts["LEGACY_PREFILTER_WOULD_DROP"]
+                ),
+                "recovered_to_economy": int(
+                    block_counts["RECOVERED_TO_ECONOMY"]
+                ),
+                "eligible": int(
+                    block_counts[
+                        "ECONOMIC_DISPOSITION_ELIGIBLE_FOR_INTERNAL_CAPITAL_MARKET"
+                    ]
+                ),
+                "reduce_increment": int(
+                    block_counts["ECONOMIC_DISPOSITION_REDUCE_INCREMENT"]
+                ),
+                "reserve_dominated": int(
+                    block_counts["ECONOMIC_DISPOSITION_RESERVE_DOMINATED"]
+                ),
+                "insufficient": int(
+                    block_counts["ECONOMIC_DISPOSITION_INSUFFICIENT"]
+                ),
+                "legacy_vetoed_control_only": int(
+                    block_counts[
+                        "ECONOMIC_DISPOSITION_LEGACY_PRE_ECONOMIC_VETO"
+                    ]
+                ),
+            },
         },
         "net_r_values": [format(value, "f") for value in net_rs],
         "temporal_blocks": _temporal_blocks(settlements),
@@ -707,17 +902,7 @@ def simulate(rows: list[dict[str, Any]], variant: Variant) -> dict[str, Any]:
             ),
         )
 
-        if variant.genc12_binding and not all(
-            _genc12_allows_new_capital(
-                row,
-                has_capacity=(risk_headroom > 0 and margin_headroom > 0),
-            )
-            for row in rows_sorted
-        ):
-            block_counts["GENC12_PAUSE_NEW_CAPITAL"] += len(rows_sorted)
-            continue
-
-        combo, velocities = _portfolio(
+        combo, velocities, assessments = _portfolio(
             rows_sorted,
             variant=variant,
             capital=capital,
@@ -728,6 +913,20 @@ def simulate(rows: list[dict[str, Any]], variant: Variant) -> dict[str, Any]:
             drawdown_utilization=drawdown_utilization,
         )
 
+        block_counts["ECONOMIC_PRESENTED"] += len(rows_sorted)
+        block_counts["ECONOMIC_EVALUATED"] += len(assessments)
+        for assessment in assessments:
+            block_counts[
+                f"ECONOMIC_DISPOSITION_{assessment.disposition}"
+            ] += 1
+            block_counts[
+                f"ECONOMIC_SIZING_MODE_{assessment.sizing_mode}"
+            ] += 1
+            if assessment.legacy_prefilter_would_drop:
+                block_counts["LEGACY_PREFILTER_WOULD_DROP"] += 1
+                if not variant.legacy_pre_economic_veto:
+                    block_counts["RECOVERED_TO_ECONOMY"] += 1
+
         selected = [
             (index, row, combo[index], velocities[index])
             for index, row in enumerate(rows_sorted)
@@ -736,11 +935,7 @@ def simulate(rows: list[dict[str, Any]], variant: Variant) -> dict[str, Any]:
         selected.sort(
             key=lambda item: (
                 -item[3],
-                -(_eligible_net(
-                    item[1],
-                    uncertainty_priced=variant.uncertainty_priced,
-                    recency_guard=variant.recency_guard,
-                ) or ZERO),
+                -assessments[item[0]].expected_net_usd,
                 str(item[1]["signal_fingerprint"]),
             )
         )
@@ -810,14 +1005,7 @@ def simulate(rows: list[dict[str, Any]], variant: Variant) -> dict[str, Any]:
                 ),
                 mad_r=d(row.get("walk_forward_mad_r", "0")),
                 dispersion_r=d(row.get("walk_forward_dispersion_r", "0")),
-                expected_net_min_usd=(
-                    _eligible_net(
-                        row,
-                        uncertainty_priced=variant.uncertainty_priced,
-                        recency_guard=variant.recency_guard,
-                    )
-                    or ZERO
-                ),
+                expected_net_min_usd=assessments[_].expected_net_usd,
                 global_expected_r=d(
                     row.get("walk_forward_expected_structural_r", "0")
                 ),
@@ -913,6 +1101,9 @@ def run(prepared_path: Path, lane: str) -> dict[str, Any]:
             "prepared_causal_ledger_reused": True,
             "max_frontier_policy_loaded_from_current_subject": True,
             "max_frontier_constraining_only": True,
+            "native_opportunities_route_to_economy_before_zero_x": True,
+            "context_edge_provider_are_economic_modifiers_not_deletion_gates": True,
+            "legacy_pre_economic_veto_preserved_only_in_control": True,
             "outcome_available_to_same_decision": False,
             "trader_methodology_changed": False,
             "fresh_holdout_opened": False,
