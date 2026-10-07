@@ -77,6 +77,7 @@ class CiboThreeModeCandidate:
     decision_at: datetime
     exit_at: datetime
     gross_r: Decimal
+    expected_edge_after_cost_usd: Decimal
     expected_net_utility_usd: Decimal
     attack_expected_net_utility_usd: Decimal
     expected_capital_minutes: Decimal
@@ -97,7 +98,10 @@ class CiboThreeModeCandidate:
             return Decimal("-Infinity")
         with localcontext() as context:
             context.prec = 100
-            return self.expected_net_utility_usd / self.expected_capital_minutes
+            return (
+                self.expected_edge_after_cost_usd
+                / self.expected_capital_minutes
+            )
 
     @property
     def source_cost_per_multiplier_usd(self) -> Decimal:
@@ -337,10 +341,11 @@ def _candidate(
                 rounding=ROUND_FLOOR
             )
         )
+        expected_after_cost = (
+            evidence.expected_net_value_usd - provider_cost
+        )
         expected_net = (
-            evidence.expected_net_value_usd
-            - provider_cost
-            - evidence.uncertainty_penalty_usd
+            expected_after_cost - evidence.uncertainty_penalty_usd
         )
         attack_expected_net = (
             min(block_means) * stop - provider_cost
@@ -353,6 +358,7 @@ def _candidate(
         decision_at=outcome.decision_at,
         exit_at=outcome.exit_at,
         gross_r=outcome.gross_structural_outcome_r,
+        expected_edge_after_cost_usd=expected_after_cost,
         expected_net_utility_usd=expected_net,
         attack_expected_net_utility_usd=attack_expected_net,
         expected_capital_minutes=evidence.expected_capital_minutes,
@@ -961,7 +967,7 @@ def run_three_mode_trader_lab(
                     item
                     for item in candidates
                     if item.context_allowed
-                    and item.expected_net_utility_usd > 0
+                    and item.expected_edge_after_cost_usd > 0
                     and item.maximum_multiplier > 0
                 ),
                 key=lambda item: (
@@ -980,8 +986,10 @@ def run_three_mode_trader_lab(
             intake_reasons: list[str] = []
             if not candidate.context_allowed:
                 intake_reasons.append("CONTEXT_OR_COGNITION_NOT_ALLOWED")
-            if candidate.expected_net_utility_usd <= 0:
-                intake_reasons.append("EXPECTED_NET_UTILITY_NONPOSITIVE")
+            if candidate.expected_edge_after_cost_usd <= 0:
+                intake_reasons.append(
+                    "EXPECTED_EDGE_AFTER_COST_NONPOSITIVE"
+                )
             if candidate.maximum_multiplier <= 0:
                 intake_reasons.append("PROVIDER_MAX_MULTIPLIER_ZERO")
             if not intake_reasons:
@@ -995,7 +1003,10 @@ def run_three_mode_trader_lab(
                 event="ECONOMIC_INTAKE_REACTION",
                 inputs={
                     "context_allowed": candidate.context_allowed,
-                    "expected_net_utility_usd": format(
+                    "expected_edge_after_cost_usd": format(
+                        candidate.expected_edge_after_cost_usd, "f"
+                    ),
+                    "uncertainty_adjusted_utility_usd": format(
                         candidate.expected_net_utility_usd, "f"
                     ),
                     "maximum_multiplier": candidate.maximum_multiplier,
@@ -1166,11 +1177,17 @@ def run_three_mode_trader_lab(
                     economic_cap = robust_economic_multiplier_cap(
                         candidate,
                         capital_base_usd=state.sovereign_available_usd,
+                        expected_net_utility_usd=(
+                            candidate.expected_edge_after_cost_usd
+                        ),
                     )
                     one_x_utility = robust_capital_utility(
                         candidate,
                         multiplier=1,
                         capital_base_usd=state.sovereign_available_usd,
+                        expected_net_utility_usd=(
+                            candidate.expected_edge_after_cost_usd
+                        ),
                     )
                     if economic_cap < 1 or one_x_utility <= 0:
                         robust_sizing_reject_count += 1
@@ -1204,10 +1221,7 @@ def run_three_mode_trader_lab(
                         )
                         continue
                     multiplier = 1
-                    source_left = min(
-                        sovereign_left,
-                        state.sovereign_risk_budget_available_usd,
-                    )
+                    source_left = sovereign_left
                 elif mode is CiboTraderLabMode.BANK:
                     # Existing CE2I DEMO recovery semantics permit a minimum-risk
                     # probe. BANK never funds it from sovereign capital.
@@ -1500,6 +1514,10 @@ def run_three_mode_trader_lab(
                     "exit_at": candidate.exit_at.isoformat(),
                     "mode": mode.value,
                     "multiplier": multiplier,
+                    "expected_edge_after_cost_usd": format(
+                        candidate.expected_edge_after_cost_usd,
+                        "f",
+                    ),
                     "expected_net_utility_usd": format(
                         candidate.expected_net_utility_usd,
                         "f",
@@ -1537,7 +1555,7 @@ def run_three_mode_trader_lab(
                             expected_net_utility_usd=(
                                 candidate.attack_expected_net_utility_usd
                                 if mode is CiboTraderLabMode.ATTACK
-                                else None
+                                else candidate.expected_edge_after_cost_usd
                             ),
                         ),
                         "f",
@@ -1930,6 +1948,11 @@ def run_three_mode_trader_lab(
                 "1X_CUSHION_FUNDED_ROBUST_UTILITY_POSITIVE_ONLY"
             ),
             "bank_recovery_positive_pnl": "100%_TO_SOVEREIGN_BANK",
-            "medium_sovereign_floor": "50%_OF_SOVEREIGN_HIGH_WATERMARK",
+            "medium_sovereign_floor": (
+                "NOT_PREDEDUCTED; BANK_GATE_DEFENDS_AT_50PCT_DRAWDOWN"
+            ),
+            "medium_uncertainty_policy": (
+                "UNCERTAINTY_INFORMS_ESCALATION_NOT_MINIMUM_EDGE_EXISTENCE"
+            ),
         },
     }

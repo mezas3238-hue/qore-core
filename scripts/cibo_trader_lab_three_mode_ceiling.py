@@ -90,6 +90,9 @@ def main() -> int:
                 "engineering_trace_event_count": result[
                     "engineering_sensor_report"
                 ]["trace_event_count"],
+                "execution_funnel": result[
+                    "engineering_sensor_report"
+                ]["execution_funnel"],
                 "upstream_economic_intake": result[
                     "engineering_sensor_report"
                 ]["upstream_economic_intake"],
