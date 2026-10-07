@@ -824,6 +824,7 @@ def run_three_mode_trader_lab(
     lifecycle_by_signal: (
         Mapping[str, Mapping[str, object]] | None
     ) = None,
+    lifecycle_defensive_medium_1x_only: bool = False,
     enforce_research_context_abstain: bool = False,
     soft_medium_drawdown_allocator: bool = False,
     medium_pretrade_drawdown_ceiling: Decimal = ECONOMIC_DRAWDOWN_CEILING,
@@ -835,6 +836,10 @@ def run_three_mode_trader_lab(
 ) -> dict[str, object]:
     """Run the isolated chronological three-mode ceiling experiment."""
 
+    if type(lifecycle_defensive_medium_1x_only) is not bool:
+        raise CiboCapitalManagementError(
+            "Trader Lab lifecycle defensive MEDIUM 1x switch must be bool"
+        )
     if type(enforce_research_context_abstain) is not bool:
         raise CiboCapitalManagementError(
             "Trader Lab context hypothesis switch must be bool"
@@ -964,6 +969,7 @@ def run_three_mode_trader_lab(
     )
     lifecycle_data_available_count = 0
     lifecycle_changed_count = 0
+    lifecycle_applied_trade_count = 0
     for profile in lifecycle_map.values():
         lifecycle_data_available_count += int(bool(profile["data_available"]))
         lifecycle_changed_count += int(
@@ -1831,7 +1837,7 @@ def run_three_mode_trader_lab(
                     "lifecycle managed_exit_at",
                 ),
             )
-            if lifecycle_map
+            if lifecycle_map and not lifecycle_defensive_medium_1x_only
             else candidate
             for candidate in base_candidates
         )
@@ -2737,6 +2743,28 @@ def run_three_mode_trader_lab(
                     * Decimal(multiplier)
                 )
                 source_reserved = stop_risk + provider_cost
+            apply_lifecycle_to_trade = bool(
+                lifecycle_map
+                and (
+                    not lifecycle_defensive_medium_1x_only
+                    or (
+                        candidate_mode is CiboTraderLabMode.MEDIUM
+                        and multiplier == 1
+                    )
+                )
+            )
+            lifecycle_events_for_trade = (
+                tuple(
+                    lifecycle_map[candidate.signal_fingerprint][
+                        "events"
+                    ]
+                )
+                if apply_lifecycle_to_trade
+                else ()
+            )
+            if lifecycle_events_for_trade:
+                lifecycle_applied_trade_count += 1
+
             trade = CiboThreeModeOpenTrade(
                 signal_fingerprint=candidate.signal_fingerprint,
                 trader_id=candidate.trader_id,
@@ -2758,15 +2786,7 @@ def run_three_mode_trader_lab(
                     if candidate_mode is CiboTraderLabMode.MEDIUM
                     else Decimal(0)
                 ),
-                lifecycle_events=(
-                    tuple(
-                        lifecycle_map[candidate.signal_fingerprint][
-                            "events"
-                        ]
-                    )
-                    if lifecycle_map
-                    else ()
-                ),
+                lifecycle_events=lifecycle_events_for_trade,
             )
             pending.append(trade)
             trade_receipts.append(
@@ -2910,6 +2930,12 @@ def run_three_mode_trader_lab(
         state.mark()
 
     settle_due(None)
+    position_lifecycle_report["applied_trade_count"] = (
+        lifecycle_applied_trade_count
+    )
+    position_lifecycle_report["defensive_medium_1x_only"] = (
+        lifecycle_defensive_medium_1x_only
+    )
     if pending:
         raise CiboCapitalManagementError(
             "Trader Lab three-mode ended with unsettled trades"
@@ -3334,6 +3360,9 @@ def run_three_mode_trader_lab(
                 else None
             ),
             "position_lifecycle_consumed": bool(lifecycle_map),
+            "position_lifecycle_defensive_medium_1x_only": (
+                lifecycle_defensive_medium_1x_only
+            ),
             "position_lifecycle_source": (
                 "MARKET_ATLAS_10Y_CAUSAL_CLOSED_M5_POST_ENTRY"
                 if lifecycle_map else None
