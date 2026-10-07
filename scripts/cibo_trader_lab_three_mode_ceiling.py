@@ -57,6 +57,7 @@ def _build_lifecycle_map(
     adverse_loss_cut_r: Decimal,
     adverse_partial_fraction: Decimal,
     adverse_partial_max_favorable_r: Decimal,
+    adverse_loss_cut_max_favorable_r: Decimal,
     bootstrap_partial_fraction: Decimal,
     adverse_tightened_stop_r: Decimal,
     defensive_initial_stop_r: Decimal,
@@ -113,6 +114,7 @@ def _build_lifecycle_map(
             adverse_loss_cut_r=adverse_loss_cut_r,
             adverse_partial_fraction=adverse_partial_fraction,
             adverse_partial_max_favorable_r=adverse_partial_max_favorable_r,
+            adverse_loss_cut_max_favorable_r=adverse_loss_cut_max_favorable_r,
             bootstrap_partial_fraction=bootstrap_partial_fraction,
             adverse_tightened_stop_r=adverse_tightened_stop_r,
             defensive_initial_stop_r=defensive_initial_stop_r,
@@ -131,6 +133,9 @@ def _build_lifecycle_map(
             ),
             "adverse_partial_max_favorable_r": format(
                 adverse_partial_max_favorable_r, "f"
+            ),
+            "adverse_loss_cut_max_favorable_r": format(
+                adverse_loss_cut_max_favorable_r, "f"
             ),
             "bootstrap_partial_fraction": format(
                 bootstrap_partial_fraction, "f"
@@ -245,6 +250,15 @@ def main() -> int:
         help=(
             "Maximum causal favorable excursion observed before an adverse "
             "partial reduction may arm. Default 1R preserves prior behavior."
+        ),
+    )
+    parser.add_argument(
+        "--lifecycle-adverse-loss-cut-max-favorable-r",
+        type=Decimal,
+        default=Decimal("1"),
+        help=(
+            "Maximum causal favorable excursion observed before a full "
+            "ADVERSE_LOSS_CUT may arm. Default 1R preserves prior behavior."
         ),
     )
     parser.add_argument(
@@ -1036,6 +1050,9 @@ def main() -> int:
         adverse_partial_max_favorable_r=(
             args.lifecycle_adverse_partial_max_favorable_r
         ),
+        adverse_loss_cut_max_favorable_r=(
+            args.lifecycle_adverse_loss_cut_max_favorable_r
+        ),
         bootstrap_partial_fraction=args.lifecycle_bootstrap_partial_fraction,
         adverse_tightened_stop_r=args.lifecycle_adverse_tightened_stop_r,
         defensive_initial_stop_r=args.lifecycle_defensive_initial_stop_r,
@@ -1061,6 +1078,9 @@ def main() -> int:
             adverse_partial_fraction=args.lifecycle_adverse_partial_fraction,
             adverse_partial_max_favorable_r=(
                 args.lifecycle_adverse_partial_max_favorable_r
+            ),
+            adverse_loss_cut_max_favorable_r=(
+                args.lifecycle_adverse_loss_cut_max_favorable_r
             ),
             bootstrap_partial_fraction=args.lifecycle_bootstrap_partial_fraction,
             adverse_tightened_stop_r=args.lifecycle_adverse_tightened_stop_r,
