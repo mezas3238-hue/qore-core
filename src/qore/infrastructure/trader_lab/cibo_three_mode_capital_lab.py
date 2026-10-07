@@ -827,6 +827,7 @@ def run_three_mode_trader_lab(
         Mapping[str, Mapping[str, object]] | None
     ) = None,
     lifecycle_defensive_medium_1x_only: bool = False,
+    lifecycle_defense_drawdown_trigger: Decimal | None = None,
     enforce_research_context_abstain: bool = False,
     soft_medium_drawdown_allocator: bool = False,
     medium_pretrade_drawdown_ceiling: Decimal = ECONOMIC_DRAWDOWN_CEILING,
@@ -841,6 +842,15 @@ def run_three_mode_trader_lab(
     if type(lifecycle_defensive_medium_1x_only) is not bool:
         raise CiboCapitalManagementError(
             "Trader Lab lifecycle defensive MEDIUM 1x switch must be bool"
+        )
+    if lifecycle_defense_drawdown_trigger is not None and (
+        not isinstance(lifecycle_defense_drawdown_trigger, Decimal)
+        or not lifecycle_defense_drawdown_trigger.is_finite()
+        or lifecycle_defense_drawdown_trigger < 0
+        or lifecycle_defense_drawdown_trigger >= Decimal("0.50")
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab lifecycle defense drawdown trigger must be Decimal in [0, 0.50)"
         )
     if type(enforce_research_context_abstain) is not bool:
         raise CiboCapitalManagementError(
@@ -972,6 +982,7 @@ def run_three_mode_trader_lab(
     lifecycle_data_available_count = 0
     lifecycle_changed_count = 0
     lifecycle_applied_trade_count = 0
+    lifecycle_drawdown_trigger_blocked_count = 0
     for profile in lifecycle_map.values():
         lifecycle_data_available_count += int(bool(profile["data_available"]))
         lifecycle_changed_count += int(
@@ -2760,16 +2771,29 @@ def run_three_mode_trader_lab(
                     * Decimal(multiplier)
                 )
                 source_reserved = stop_risk + provider_cost
-            apply_lifecycle_to_trade = bool(
-                lifecycle_map
-                and (
-                    not lifecycle_defensive_medium_1x_only
-                    or (
-                        candidate_mode is CiboTraderLabMode.MEDIUM
-                        and multiplier == 1
-                    )
+            lifecycle_grade_allowed = (
+                not lifecycle_defensive_medium_1x_only
+                or (
+                    candidate_mode is CiboTraderLabMode.MEDIUM
+                    and multiplier == 1
                 )
             )
+            lifecycle_drawdown_allowed = (
+                lifecycle_defense_drawdown_trigger is None
+                or total_drawdown_utilization
+                >= lifecycle_defense_drawdown_trigger
+            )
+            apply_lifecycle_to_trade = bool(
+                lifecycle_map
+                and lifecycle_grade_allowed
+                and lifecycle_drawdown_allowed
+            )
+            if (
+                lifecycle_map
+                and lifecycle_grade_allowed
+                and not lifecycle_drawdown_allowed
+            ):
+                lifecycle_drawdown_trigger_blocked_count += 1
             lifecycle_events_for_trade = (
                 tuple(
                     lifecycle_map[candidate.signal_fingerprint][
@@ -2952,6 +2976,14 @@ def run_three_mode_trader_lab(
     )
     position_lifecycle_report["defensive_medium_1x_only"] = (
         lifecycle_defensive_medium_1x_only
+    )
+    position_lifecycle_report["drawdown_trigger"] = (
+        None
+        if lifecycle_defense_drawdown_trigger is None
+        else format(lifecycle_defense_drawdown_trigger, "f")
+    )
+    position_lifecycle_report["drawdown_trigger_blocked_count"] = (
+        lifecycle_drawdown_trigger_blocked_count
     )
     if pending:
         raise CiboCapitalManagementError(
@@ -3385,6 +3417,11 @@ def run_three_mode_trader_lab(
             "position_lifecycle_consumed": bool(lifecycle_map),
             "position_lifecycle_defensive_medium_1x_only": (
                 lifecycle_defensive_medium_1x_only
+            ),
+            "position_lifecycle_drawdown_trigger": (
+                None
+                if lifecycle_defense_drawdown_trigger is None
+                else format(lifecycle_defense_drawdown_trigger, "f")
             ),
             "position_lifecycle_source": (
                 "MARKET_ATLAS_10Y_CAUSAL_CLOSED_M5_POST_ENTRY"
