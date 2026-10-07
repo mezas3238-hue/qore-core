@@ -19,7 +19,7 @@ The experiment consumes outcome evidence only after each trade's exit time.
 
 from __future__ import annotations
 
-from collections import Counter, defaultdict
+from collections import Counter, defaultdict, deque
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from datetime import datetime
@@ -959,6 +959,10 @@ def run_three_mode_trader_lab(
     ceiling_attack_trader_loss_ratio_trigger: Decimal | None = None,
     ceiling_attack_trader_loss_ratio_min_settlements: int = 20,
     ceiling_attack_trader_loss_ratio_taper_fraction: Decimal = Decimal("0.95"),
+    ceiling_attack_recent_trader_loss_window: int | None = None,
+    ceiling_attack_recent_trader_loss_fraction_trigger: Decimal | None = None,
+    ceiling_attack_recent_trader_loss_drawdown_trigger: Decimal = Decimal("0.10"),
+    ceiling_attack_recent_trader_loss_taper_fraction: Decimal = Decimal("0.75"),
     ceiling_portfolio_shock_trigger_fraction: Decimal | None = None,
     ceiling_portfolio_shock_taper_fraction: Decimal = Decimal("0.50"),
     ceiling_portfolio_shock_one_shot: bool = False,
@@ -1440,6 +1444,57 @@ def run_three_mode_trader_lab(
         raise CiboCapitalManagementError(
             "Trader Lab Trader ATTACK loss/profit ratio taper requires ceiling discovery mode"
         )
+    if (
+        ceiling_attack_recent_trader_loss_window is None
+    ) != (
+        ceiling_attack_recent_trader_loss_fraction_trigger is None
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab recent-Trader ATTACK loss pressure requires both window and loss fraction trigger"
+        )
+    if ceiling_attack_recent_trader_loss_window is not None and (
+        not isinstance(ceiling_attack_recent_trader_loss_window, int)
+        or isinstance(ceiling_attack_recent_trader_loss_window, bool)
+        or ceiling_attack_recent_trader_loss_window < 2
+        or ceiling_attack_recent_trader_loss_window > 50
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab recent-Trader ATTACK loss window must be int in [2, 50]"
+        )
+    if ceiling_attack_recent_trader_loss_fraction_trigger is not None and (
+        not isinstance(ceiling_attack_recent_trader_loss_fraction_trigger, Decimal)
+        or not ceiling_attack_recent_trader_loss_fraction_trigger.is_finite()
+        or ceiling_attack_recent_trader_loss_fraction_trigger <= 0
+        or ceiling_attack_recent_trader_loss_fraction_trigger > Decimal("1")
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab recent-Trader ATTACK loss fraction trigger must be Decimal in (0, 1]"
+        )
+    if (
+        not isinstance(ceiling_attack_recent_trader_loss_drawdown_trigger, Decimal)
+        or not ceiling_attack_recent_trader_loss_drawdown_trigger.is_finite()
+        or ceiling_attack_recent_trader_loss_drawdown_trigger < 0
+        or ceiling_attack_recent_trader_loss_drawdown_trigger >= Decimal("0.50")
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab recent-Trader ATTACK loss DD trigger must be Decimal in [0, 0.50)"
+        )
+    if (
+        not isinstance(ceiling_attack_recent_trader_loss_taper_fraction, Decimal)
+        or not ceiling_attack_recent_trader_loss_taper_fraction.is_finite()
+        or ceiling_attack_recent_trader_loss_taper_fraction <= 0
+        or ceiling_attack_recent_trader_loss_taper_fraction > 1
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab recent-Trader ATTACK loss taper fraction must be Decimal in (0, 1]"
+        )
+    if (
+        ceiling_attack_recent_trader_loss_window is not None
+        and not ceiling_discovery_mode
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab recent-Trader ATTACK loss taper requires ceiling discovery mode"
+        )
     if ceiling_portfolio_shock_trigger_fraction is not None and (
         not isinstance(ceiling_portfolio_shock_trigger_fraction, Decimal)
         or not ceiling_portfolio_shock_trigger_fraction.is_finite()
@@ -1891,6 +1946,10 @@ def run_three_mode_trader_lab(
     trader_loss_streak: Counter[str] = Counter()
     trader_attack_loss_streak: Counter[str] = Counter()
     trader_attack_settlement_count: Counter[str] = Counter()
+    recent_window_size = ceiling_attack_recent_trader_loss_window or 2
+    trader_attack_recent_net_pnl: dict[str, deque[Decimal]] = defaultdict(
+        lambda: deque(maxlen=recent_window_size)
+    )
     attack_winning_trade_count = 0
     attack_losing_trade_count = 0
     attack_flat_trade_count = 0
@@ -1919,6 +1978,7 @@ def run_three_mode_trader_lab(
     attack_drawdown_window2_taper_bind_count = 0
     attack_stress_confidence_taper_bind_count = 0
     attack_trader_loss_ratio_taper_bind_count = 0
+    attack_recent_trader_loss_taper_bind_count = 0
     portfolio_attack_shock_taper_bind_count = 0
     portfolio_last_attack_loss_fraction = Decimal(0)
     attack_epochs_funded = 0
@@ -2698,6 +2758,9 @@ def run_three_mode_trader_lab(
                 trader_loss_streak[trade.trader_id] = 0
             if trade.mode is CiboTraderLabMode.ATTACK:
                 trader_attack_settlement_count[trade.trader_id] += 1
+                trader_attack_recent_net_pnl[trade.trader_id].append(
+                    settled_trade_net
+                )
                 if settled_trade_net < 0:
                     portfolio_last_attack_loss_fraction = (
                         (-settled_trade_net) / before_total
@@ -3630,6 +3693,49 @@ def run_three_mode_trader_lab(
                                 coordinated_attack_cap,
                                 trader_loss_ratio_tapered_attack_cap,
                             )
+                    if (
+                        ceiling_discovery_mode
+                        and ceiling_attack_recent_trader_loss_window is not None
+                        and ceiling_attack_recent_trader_loss_fraction_trigger
+                        is not None
+                        and total_drawdown_utilization
+                        >= ceiling_attack_recent_trader_loss_drawdown_trigger
+                    ):
+                        recent_values = trader_attack_recent_net_pnl[
+                            candidate.trader_id
+                        ]
+                        if len(recent_values) >= 2:
+                            recent_net_pnl = sum(recent_values, Decimal(0))
+                            recent_loss_fraction = (
+                                (-recent_net_pnl) / state.total_capital_usd
+                                if recent_net_pnl < 0
+                                and state.total_capital_usd > 0
+                                else Decimal(0)
+                            )
+                            if (
+                                recent_loss_fraction
+                                >= ceiling_attack_recent_trader_loss_fraction_trigger
+                            ):
+                                recent_loss_tapered_attack_cap = max(
+                                    ATTACK_MINIMUM_MULTIPLIER,
+                                    int(
+                                        (
+                                            Decimal(coordinated_attack_cap)
+                                            * ceiling_attack_recent_trader_loss_taper_fraction
+                                        ).to_integral_value(
+                                            rounding=ROUND_FLOOR
+                                        )
+                                    ),
+                                )
+                                if (
+                                    recent_loss_tapered_attack_cap
+                                    < coordinated_attack_cap
+                                ):
+                                    attack_recent_trader_loss_taper_bind_count += 1
+                                coordinated_attack_cap = min(
+                                    coordinated_attack_cap,
+                                    recent_loss_tapered_attack_cap,
+                                )
                     ceiling_drawdown_risk_cap = candidate.maximum_multiplier
                     if (
                         ceiling_discovery_mode
@@ -5036,6 +5142,29 @@ def run_three_mode_trader_lab(
             "trader_attack_settlement_counts": {
                 key: int(value)
                 for key, value in sorted(trader_attack_settlement_count.items())
+            },
+            "ceiling_attack_recent_trader_loss_window": (
+                ceiling_attack_recent_trader_loss_window
+            ),
+            "ceiling_attack_recent_trader_loss_fraction_trigger": (
+                None
+                if ceiling_attack_recent_trader_loss_fraction_trigger is None
+                else format(
+                    ceiling_attack_recent_trader_loss_fraction_trigger, "f"
+                )
+            ),
+            "ceiling_attack_recent_trader_loss_drawdown_trigger": format(
+                ceiling_attack_recent_trader_loss_drawdown_trigger, "f"
+            ),
+            "ceiling_attack_recent_trader_loss_taper_fraction": format(
+                ceiling_attack_recent_trader_loss_taper_fraction, "f"
+            ),
+            "attack_recent_trader_loss_taper_bind_count": (
+                attack_recent_trader_loss_taper_bind_count
+            ),
+            "ending_trader_attack_recent_net_pnl_usd": {
+                key: format(sum(values, Decimal(0)), "f")
+                for key, values in sorted(trader_attack_recent_net_pnl.items())
             },
             "ceiling_portfolio_shock_trigger_fraction": (
                 None
