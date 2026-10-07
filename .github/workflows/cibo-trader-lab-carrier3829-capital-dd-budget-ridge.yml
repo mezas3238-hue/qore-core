@@ -2,6 +2,7 @@ name: QORE CIBO Carrier3829 Capital DD Budget Ridge
 
 # Research-only reused-holdout hypothesis generation; not certification evidence.
 # Starts from the 38.29095% strict-Pareto carrier.
+# Re-run after capital-gated invariant fix 1b5c726f2fada2fe2f8db0ef1bd386dcb6b02024.
 # Tests a narrow causal ATTACK drawdown budget only while live capital is
 # USD 600-1500. Trader entry remains preserved; only economic escalation changes.
 
