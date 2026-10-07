@@ -2404,3 +2404,134 @@ Mandatory ranking requires simultaneously:
 It also reports total gross-loss reduction percentage and identifies candidates with >=5% total gross-loss compression while still passing the strict Pareto gate.
 
 The next architect must prefer this selective causal direction over global leverage/DD reduction.
+
+
+---
+
+# 31. FIRST TRUE STRICT-PARETO BREAKTHROUGH — LOSS COMPRESSION WITHOUT CEILING DEGRADATION
+
+The DD/loss-compression phase has now produced the first genuine strict-Pareto candidates.
+
+Frozen baseline remains unchanged:
+
+- ending capital: USD 582,440.0252953678696769360345;
+- max DD: 65.1041975924...%;
+- total gross loss: USD 1,444,736.060362508738067914772;
+- ATTACK gross loss: USD 1,443,117.897425126985300959340;
+- 3,368 / 3,368 entries.
+
+## ATTACK multiplier-band frontier — run 37662670595
+
+A selective causal ATTACK multiplier band produced several strict-Pareto cases.
+
+First major winner:
+
+`b2000-3999-f25`
+
+- ending capital: USD 663,394.79;
+- +13.90% vs frozen capital;
+- max DD: 64.0154%;
+- DD improvement: ~1.09 percentage points;
+- total gross loss: USD 1,302,694.09;
+- total gross-loss reduction: ~9.83%;
+- ATTACK gross loss: USD 1,301,011.13;
+- all 3,368 entries preserved;
+- zero sovereign breach.
+
+This proved that a meaningful fraction of CIBO gross loss is removable inefficiency rather than required cost of the ceiling.
+
+## Fine ridge — run 37663861074
+
+The same 2,000–3,999x destructive band was refined.
+
+Strongest current economic Pareto carrier:
+
+`b2000-3999-f05`
+
+- ending capital: **USD 687,489.26**;
+- capital delta vs frozen baseline: **+USD 105,049.24**;
+- capital ratio: 1.18036x baseline;
+- max DD: **62.4155%**;
+- DD improvement: ~2.69 percentage points;
+- total gross loss: **USD 1,270,435.26**;
+- total gross-loss reduction: **12.06%**;
+- ATTACK gross loss: USD 1,268,716.97;
+- strict Pareto: PASS;
+- material gross-loss compression: PASS.
+
+`b2000-3999-f10` is also strong:
+
+- capital: USD 677,747.02;
+- DD: 62.4005%;
+- total gross-loss reduction: 11.84%.
+
+The entire tested fine ridge from 5% through 40% retention produced strict-Pareto candidates except the control.
+
+## Spending Pareto headroom on DD — run 37663937350
+
+The first material sub-60% DD strict Pareto has now been observed.
+
+`b25-dd35-f90`
+
+- ending capital: **USD 638,999.86**;
+- still +USD 56,559.84 above the frozen ceiling reference;
+- max DD: **59.0382%**;
+- DD improvement: **~6.07 percentage points**;
+- total gross loss: USD 1,292,160.61;
+- total gross-loss reduction: **10.56%**;
+- ATTACK gross loss: USD 1,290,475.93;
+- strict Pareto: PASS;
+- 3,368 / 3,368 preserved.
+
+Higher-capital balanced candidate:
+
+`b25-dd35-f95`
+
+- capital: USD 673,664.25;
+- max DD: 60.1573%;
+- gross-loss reduction: 10.14%;
+- strict Pareto: PASS.
+
+This establishes that CIBO can reduce both DD and gross loss materially WITHOUT degrading the frozen USD 582,440.03 ceiling.
+
+## Residual DD forensic after first strict Pareto
+
+For `b2000-3999-f25`, the remaining max-DD episode is still 2020-09-02 → 2020-10-05 and remains overwhelmingly ATTACK-dominant.
+
+Residual DD attribution:
+
+- DD ~64.02%;
+- peak capital ~USD 13,919.05;
+- trough ~USD 5,008.72;
+- DD USD ~8,910.33;
+- ATTACK episode net ~-USD 8,897.11;
+- MEDIUM episode net only ~-USD 13.23.
+
+Largest remaining losses are concentrated mostly below 2,000x, with prominent losses around 283x, 514x, 536x, 844–1,253x and 1,857x.
+
+Therefore the next DD work must distinguish:
+
+1. global loss-compression band 2,000–3,999x, which already improves total economics;
+2. residual live-DD loss surface below ~2,000x, which should be tapered only while actual DD is active;
+3. recovery trades, which must remain free to restore capital.
+
+## Active deeper-compression experiments
+
+Current runs include:
+
+- `37664325600` — bounded DD window;
+- `37664471799` — loss compression stack;
+- `37664514418` — dual multiplier-band + risk-band Pareto frontier;
+- `37664970209` — corrected residual DD multiplier window;
+- `37665136328` — Band05 Sub60 DD Ridge.
+
+The Band05 Sub60 ridge specifically uses the current strongest carrier `b2000-3999-f05` and spends its +USD 105k capital headroom on progressively stronger live-DD tapering.
+
+Research targets are now:
+
+- first preserve strict Pareto;
+- then break DD < 60%;
+- then DD < 55%;
+- then DD < 50%;
+- continue reducing gross loss by double digits;
+- never allow ending capital below the frozen USD 582,440.03 ceiling.
