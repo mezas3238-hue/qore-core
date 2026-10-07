@@ -60,6 +60,9 @@ MARGIN_CAPACITY_MULTIPLE = Decimal("100")
 SOVEREIGN_DEFENSIVE_DRAWDOWN = Decimal("0.50")
 ATTACK_TOTAL_DRAWDOWN_GUARD = Decimal("0.20")
 ATTACK_PORTFOLIO_DRAWDOWN_BUDGET = Decimal("0.20")
+MEDIUM_RECOMMEND_RISK_FRACTION = Decimal("0.04")
+MEDIUM_DEFENSIVE_RISK_FRACTION = Decimal("0.01")
+ECONOMIC_DRAWDOWN_CEILING = Decimal("0.25")
 
 
 class CiboTraderLabMode(StrEnum):
@@ -1524,9 +1527,34 @@ def run_three_mode_trader_lab(
                             / candidate.source_cost_per_multiplier_usd
                         ).to_integral_value(rounding=ROUND_FLOOR)
                     )
+                    medium_risk_fraction = (
+                        MEDIUM_RECOMMEND_RISK_FRACTION
+                        if candidate.native_cognition_recommended
+                        else MEDIUM_DEFENSIVE_RISK_FRACTION
+                    )
+                    with localcontext() as context:
+                        context.prec = 100
+                        medium_entry_risk_budget_usd = (
+                            state.total_capital_usd
+                            * medium_risk_fraction
+                        )
+                        medium_drawdown_headroom_usd = max(
+                            Decimal(0),
+                            (
+                                state.peak_total_capital_usd
+                                * ECONOMIC_DRAWDOWN_CEILING
+                            )
+                            - total_drawdown_usd
+                            - state.open_stop_risk_usd,
+                        )
+                        medium_risk_budget_usd = min(
+                            risk_left,
+                            medium_entry_risk_budget_usd,
+                            medium_drawdown_headroom_usd,
+                        )
                     executable_by_risk = int(
                         (
-                            risk_left
+                            medium_risk_budget_usd
                             / candidate.stop_risk_per_multiplier_usd
                         ).to_integral_value(rounding=ROUND_FLOOR)
                     )
@@ -1601,6 +1629,18 @@ def run_three_mode_trader_lab(
                                 candidate.margin_per_multiplier_usd, "f"
                             ),
                             "risk_left_usd": format(risk_left, "f"),
+                            "medium_risk_fraction": format(
+                                medium_risk_fraction, "f"
+                            ),
+                            "medium_entry_risk_budget_usd": format(
+                                medium_entry_risk_budget_usd, "f"
+                            ),
+                            "medium_drawdown_headroom_usd": format(
+                                medium_drawdown_headroom_usd, "f"
+                            ),
+                            "medium_risk_budget_usd": format(
+                                medium_risk_budget_usd, "f"
+                            ),
                             "margin_left_usd": format(margin_left, "f"),
                             "native_confidence_band": native_confidence(
                                 candidate
@@ -1737,6 +1777,17 @@ def run_three_mode_trader_lab(
                     # Compound is the authority that enabled this mode.
 
                 if mode is CiboTraderLabMode.MEDIUM and multiplier < 1:
+                    physical_margin_block = executable_by_margin < 1
+                    action = (
+                        "REJECT_PHYSICAL_MARGIN_BELOW_MINIMUM"
+                        if physical_margin_block
+                        else "DEFER_MEDIUM_RISK_ENVELOPE"
+                    )
+                    reason = (
+                        "PHYSICAL_MARGIN_BELOW_1X"
+                        if physical_margin_block
+                        else "MEDIUM_CAUSAL_RISK_BUDGET_BELOW_1X"
+                    )
                     record_engineering_sensor(
                         "SIZING",
                         epoch_index=epoch_index,
@@ -1746,17 +1797,37 @@ def run_three_mode_trader_lab(
                             "per_entry_bank_seed_usd": format(
                                 source_left, "f"
                             ),
+                            "medium_risk_budget_usd": format(
+                                medium_risk_budget_usd, "f"
+                            ),
+                            "one_x_stop_risk_usd": format(
+                                candidate.stop_risk_per_multiplier_usd, "f"
+                            ),
                         },
-                        action="REJECT_PHYSICAL_CAPACITY_BELOW_MINIMUM",
-                        outputs={"selected_multiplier": 0},
-                        reaction="THIS_ENTRY_NOT_PHYSICALLY_EXECUTABLE",
-                        reasons=("PHYSICAL_CAPACITY_BELOW_1X",),
-                        rejection=True,
+                        action=action,
+                        outputs={
+                            "selected_multiplier": 0,
+                            "economic_treatment": (
+                                "PHYSICAL_NONEXECUTABLE"
+                                if physical_margin_block
+                                else "DEFER"
+                            ),
+                        },
+                        reaction=(
+                            "THIS_ENTRY_NOT_PHYSICALLY_EXECUTABLE"
+                            if physical_margin_block
+                            else "PRESERVE_CAPITAL_AND_KEEP_OPPORTUNITY_WORKED"
+                        ),
+                        reasons=(reason,),
+                        rejection=physical_margin_block,
+                        restriction=not physical_margin_block,
                         requested_capital_usd=(
                             candidate.source_cost_per_multiplier_usd
                         ),
                         blocked_capital_usd=(
                             candidate.source_cost_per_multiplier_usd
+                            if physical_margin_block
+                            else Decimal(0)
                         ),
                     )
                     continue
