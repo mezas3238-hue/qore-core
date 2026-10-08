@@ -14,6 +14,7 @@ on:
       - agent/cibo-trader-lab-ultrafast-widefix-20261008-001
     paths:
       - '.github/workflows/cibo-sovereign-causal-rebalance-pilot-20261008.yml'
+      - 'scripts/cibo_sovereign_causal_rebalance_replay.py'
 
 permissions:
   contents: read
