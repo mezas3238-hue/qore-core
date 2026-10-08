@@ -20,9 +20,10 @@ T = datetime(2026, 10, 8, 12, tzinfo=timezone.utc)
 KEY = b"treasury-secret-unique-at-least-32-bytes!!"
 
 
-def signed(risk="3", floor="56.4", source="15", now=T):
+def signed(risk="3", floor="1996.4", source="15", now=T):
     payload = dict(account_id="123", sequence=1, observed_at=now.isoformat(),
                    qore_unreserved_risk_usd=risk,
+                   qore_trading_capital_usd="60",
                    sovereign_free_source_usd=source,
                    cushion_free_source_usd="10",
                    active_provider_mll_floor_usd=floor,
@@ -34,8 +35,8 @@ def signed(risk="3", floor="56.4", source="15", now=T):
 
 class MT5:
     def account_info(self):
-        return SimpleNamespace(login=123, currency="USD", balance=60,
-                               equity=60, margin_free=50)
+        return SimpleNamespace(login=123, currency="USD", balance=2000,
+                               equity=2000, margin_free=1950)
     def positions_get(self):
         return ()
     def orders_get(self):
@@ -54,7 +55,7 @@ class TestTreasury(unittest.TestCase):
     def test_verified_event_and_fundednext_provider_equity_loss_headroom(self):
         verified = verify_treasury_hmac_event(
             signed(), KEY, now=T, expected_account_id="123")
-        self.assertEqual(verified.active_provider_mll_floor_usd, D("56.4"))
+        self.assertEqual(verified.active_provider_mll_floor_usd, D("1996.4"))
         with patch("qdle_qore_account_event_publisher.urllib.request.urlopen",
                    return_value=Response()) as send:
             seq = forward_account(MT5(), signed_event=signed(),
