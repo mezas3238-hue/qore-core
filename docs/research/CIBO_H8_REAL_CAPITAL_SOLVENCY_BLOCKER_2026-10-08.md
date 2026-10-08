@@ -50,3 +50,17 @@ The nominal global case's sovereign-floor breach is approximately **USD 84.6172*
 **Current status: NOT CERTIFIED — REAL-CAPITAL-FUNDING BLOCKER (P0).**
 
 Further research-only context-stop DD reductions on the old permissive ledger cannot override this decision.
+
+---
+
+## Addendum: modern replay proves 35.2066% carrier unfunded (2026-10-08)
+
+Exact modern-engine H8 replay [37766889084](https://github.com/mezas3238-hue/qore-core/actions/runs/37766889084), **SUCCESS diagnostically / STRATEGY BLOCKED**. At decision 2019-08-07 06:55 UTC, epoch 102, mandatory MEDIUM 1x required **USD 6.020000** of stop-risk+provider-fee source vs **USD 3.380219937157485631395490315** legitimately available after sovereign floor. Sovereign bank USD 33.81755034706532138196271917; protected floor USD30; free portfolio cushion **USD 19.76393860806455076191180576**. The 35.20661% old DD curve **does not survive the original bank-only hard funding rule**. The workflow's GREEN diagnostic is NOT a GREEN strategy.
+
+Independent first-breach causality [37767846850](https://github.com/mezas3238-hue/qore-core/actions/runs/37767846850): earliest marked bank-floor violation at bank **USD 26.50342695591958**, floor USD30, free cushion **USD 68.33166195542810**, required internal top-up **USD 3.49657304408042**. First negative sovereign bank later arose with free cushion approximately **USD 8,938.17**. This is clear evidence of disjoint treasury allocation even when the combined ledger has funds; it is not evidence those funds can always meet broker stop-out constraints.
+
+Research-only physically conserved bank/cushion bridge branch: `agent/cibo-h8-fundable-cushion-transfer-prototype-001`, code gate patch commit `8f68c8d726d8d231e93629165506dcdc3d0a6999`. Prototypes (1) cash transfer only from available unreserved cushion, (2) instantaneous conservation of bank+cushion total, (3) sovereign reserve+floor protection after settlement, (4) FAIL if insufficient cash. Run [37767770097](https://github.com/mezas3238-hue/qore-core/actions/runs/37767770097) exercises 35.20661% under these conditions; its outcome must be checked from Actions before claiming improvement. Three cash-bridge unit tests PASS, [37767945929](https://github.com/mezas3238-hue/qore-core/actions/runs/37767945929), but no unit test is substitute for full replay.
+
+Alternative profit routing (bootstrap cushion share constrained to **0.50–1.00** by current engine) is being probed separately at [37767843304](https://github.com/mezas3238-hue/qore-core/actions/runs/37767843304). The earlier 0/25% probe was invalid CLI configuration and the earlier raw-M5-warm-cache error was tooling, not an economic result. Do not report either as strategy failure or success.
+
+**Promotion remains blocked until a completed H8 full replay demonstrates 3,368 funded entries and no bank floor breaches, and independent broker mark-to-market/margin stop-out tests pass.**
