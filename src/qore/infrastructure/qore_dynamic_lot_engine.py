@@ -570,9 +570,14 @@ class QDLE:
             raw = self._meta(db, "account")
             pending = db.execute("""SELECT COUNT(*) FROM reservations
                                     WHERE state IN ('HELD','FILL_UNRECONCILED')""").fetchone()[0]
+            symbol_rows = db.execute("SELECT payload FROM symbols").fetchall()
         stale = (raw is None or (now - datetime.fromisoformat(raw["as_of"])) < timedelta(0)
                  or (now - datetime.fromisoformat(raw["as_of"])) > self.max_age)
-        return {"ready": self._ready_in_this_process and not stale,
+        provider_stale = (not symbol_rows or any(
+            not timedelta(0) <= now - datetime.fromisoformat(
+                json.loads(row[0])["as_of"]) <= self.max_age for row in symbol_rows
+        ))
+        return {"ready": self._ready_in_this_process and not stale and not provider_stale,
                 "account_sequence": raw["sequence"] if raw else None,
                 "pending_or_unreconciled_reservations": pending,
                 "mode": "CALCULATE_RESERVE_ONLY_NO_ORDER_SEND"}
