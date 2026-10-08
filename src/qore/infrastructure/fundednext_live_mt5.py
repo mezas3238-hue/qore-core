@@ -205,6 +205,8 @@ class FundedNextLiveMt5ExecutionGateway:
         submission_enabled: bool,
         max_spec_age: timedelta = timedelta(seconds=10),
         max_spread_points: Decimal | None = None,
+        qdle_live_presend_gate: object | None = None,
+        qdle_required_for_live: bool = False,
     ) -> None:
         if account.environment is not MarketRuntimeEnvironment.PRODUCTION:
             raise Mt5ExecutionValidationError("live gateway requires PRODUCTION account")
@@ -237,6 +239,14 @@ class FundedNextLiveMt5ExecutionGateway:
         self._authorization = live_authorization
         self._safety = safety
         self._submission_enabled = bool(submission_enabled)
+        self._qdle_live_gate = qdle_live_presend_gate
+        self._qdle_required_for_live = bool(qdle_required_for_live)
+        if self._qdle_required_for_live and not callable(
+            getattr(self._qdle_live_gate, "assert_reserved", None)
+        ):
+            raise Mt5ExecutionValidationError(
+                "QDLE mandatory LIVE gate absent; no funded order_send allowed"
+            )
         self._max_spec_age = max_spec_age
         self._max_spread_points = max_spread_points
         self._records = {item.idempotency_key: item for item in mutation_ledger.records()}
@@ -403,6 +413,14 @@ class FundedNextLiveMt5ExecutionGateway:
             plan.provider_symbol,
             max_tick_age=M1_PROFILE.tick_max_age,
         )
+
+        # P0 QDLE: enforce the exact lotage across shared treasury and all
+        # Traders in an atomic one-shot reservation. No live admission power:
+        # sovereign Risk, strategy, MT5 ticks and broker checks above still apply.
+        if self._qdle_required_for_live:
+            if self._qdle_live_gate is None:
+                raise Mt5ExecutionBlockedError("qdle-live-reservation-service-absent")
+            self._qdle_live_gate.assert_reserved(submission, plan, final_checked_at)
 
         risk_id, risk_fingerprint, reservation_id = extract_risk_provenance(submission)
         record = FundedNextMt5MutationRecord(
