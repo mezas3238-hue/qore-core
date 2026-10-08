@@ -1,3 +1,7 @@
+> **OBSOLETO — ERROR DE COMISIONES CORREGIDO (2026-10-08):** Este H9 preliminar calculó USD7 **FIJOS por operación** y sus ocho resultados NO deben usarse como base económica. El usuario exige un escenario principal de **USD7 por lote al abrir + USD7 por lote al cerrar = USD14 por lote round-trip**. Se ejecutaron 12 replays corregidos y publicaron los resultados canónicos en [H9b — corrección de costes proporcional a lotes](./CIBO_H9B_STELLAR_INSTANT_2K_PER_LOT_FEE_CORRECTION_2026-10-08.md). Ejemplos correctos: 2 lotes→USD28; 0,10 lotes→USD1,40. La cifra de USD2,80 a 0,10 lotes se probó solo en sensibilidad USD28/lote. La tarifa oficial FundedNext también se distingue del escenario conservador. **CIBO NO CERTIFICADO.**
+
+---
+
 # QORE CIBO — H9 FundedNext Stellar Instant USD2,000: forensic funded feasibility replay
 
 **Date** 2026-10-08. **P0 status: NOT CERTIFIED / NO LIVE AUTHORITY / NO CLAIMED PROFIT.**
