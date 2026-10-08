@@ -182,6 +182,30 @@ class TestQDLE(unittest.TestCase):
         self.engine.reconcile_fill("entry")
         self.assertEqual(self.engine.health(now=T)["pending_or_unreconciled_reservations"], 0)
 
+    def test_broker_close_deal_cannot_be_attributed_twice(self):
+        self.engine.reserve_for_trader(intent("one", risk="2"), now=T)
+        self.engine.acknowledge_fill("one", "ticket-one")
+        self.engine.publish_account(account(2, risk="50", sovereign="50",
+            positions=(Position("ticket-one", "EURUSD", "BUY", D(".02")),),
+            covered=("ticket-one",)))
+        self.engine.reconcile_fill("one")
+        self.engine.publish_account(account(3, risk="50", sovereign="50"))
+        self.engine.record_broker_settlement(
+            "one", "ticket-one", "broker-deal:77", D("-2"))
+        self.engine.reserve_for_trader(intent("two", seq=3, risk="2"), now=T)
+        self.engine.acknowledge_fill("two", "ticket-two")
+        self.engine.publish_account(account(4, risk="50", sovereign="50",
+            positions=(Position("ticket-two", "EURUSD", "BUY", D(".02")),),
+            covered=("ticket-two",)))
+        self.engine.reconcile_fill("two")
+        self.engine.publish_account(account(5, risk="50", sovereign="50"))
+        with self.assertRaisesRegex(QDLEError, "deal receipt reused"):
+            self.engine.record_broker_settlement(
+                "two", "ticket-two", "broker-deal:77", D("3"))
+        self.assertEqual(
+            sum(x["event"] == "BROKER_REALIZED_SETTLEMENT"
+                for x in self.engine.ledger()), 1)
+
     def test_manual_release_only_with_verified_broker_no_fill(self):
         self.engine.reserve_for_trader(intent("refused"), now=T)
         with self.assertRaises(QDLEError):
