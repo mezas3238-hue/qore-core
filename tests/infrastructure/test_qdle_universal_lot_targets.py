@@ -64,11 +64,11 @@ def limits(*, target=None, requested="50000", sizing="50000", compound="50000",
     )
 
 
-def snapshot(seq=1, risk="50000", source="50000", time=T):
+def snapshot(seq=1, risk="5000", source="5000", time=T):
     return QDLEAccount(
         "broker-account-test", "FundedNext", "USD", seq, time,
         D("100000"), D("100000"), D("100000"), D(risk),
-        D(source), D("0"), D("1000000"),
+        D(source), D("0"), D("100000"),
     )
 
 
