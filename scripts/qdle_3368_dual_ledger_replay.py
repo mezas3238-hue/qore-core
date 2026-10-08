@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import heapq
 import json
+from datetime import timedelta
 import tempfile
 from collections import Counter, defaultdict
 from datetime import datetime
@@ -42,6 +43,32 @@ TICKS = {"AUDJPY": D(".001"), "EURUSD": D(".00001"),
          "XAUUSD": D(".01"), "NDX100": D(".01")}
 PROFIT = {"AUDJPY": "JPY", "GBPJPY": "JPY", "EURUSD": "USD",
           "GBPUSD": "USD", "XAUUSD": "USD", "NDX100": "USD"}
+# Swap points and triple-rollover day transcribed from mobile MT5 (2026).
+# RESEARCH UTC midnight proxy ONLY: historical rate/server rollover not known.
+SWAP = {
+    "AUDJPY": {"BUY": D("-11.27"), "SELL": D("-19.841")},
+    "EURUSD": {"BUY": D("-13.472"), "SELL": D("0.107")},
+    "GBPJPY": {"BUY": D("-25.806"), "SELL": D("-44.278")},
+    "GBPUSD": {"BUY": D("-17.13"), "SELL": D("-2.977")},
+    "XAUUSD": {"BUY": D("-107.151"), "SELL": D("-46.917")},
+    "NDX100": {"BUY": D("-372.912"), "SELL": D("-57.6")},
+}
+SWAP_TRIPLE_WEEKDAY = {"NDX100": 4, "XAUUSD": 2,
+                        "AUDJPY": 2, "EURUSD": 2, "GBPJPY": 2, "GBPUSD": 2}
+TICK_VALUES_PER_LOT_USD = {"XAUUSD": D("1"), "NDX100": D("0.10")}
+
+
+def utc_midnight_swap_proxy(trade: dict, exit_at: datetime) -> D:
+    # Count rollovers on the previous UTC weekday. An MT5 server may
+    # have a different rollover clock, so this MUST NOT imply real swaps.
+    day = trade["opened_at"].date()
+    last = exit_at.date()
+    swaps = ZERO
+    while day < last:
+        multiple = 3 if day.weekday() == SWAP_TRIPLE_WEEKDAY[trade["symbol"]] else 1
+        swaps += trade["lots"] * trade["swap_usd_per_lot"] * multiple
+        day += timedelta(days=1)
+    return swaps
 
 
 class HistoricalProxy:
@@ -66,6 +93,7 @@ def main() -> int:
     p.add_argument("--manifest", type=Path, required=True)
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--min-policy", choices=["original_trader", "broker_grid"], default="original_trader")
+    p.add_argument("--swap-proxy", choices=["off", "utc_midnight"], default="utc_midnight")
     args = p.parse_args()
     raw = json.loads(args.manifest.read_text(encoding="utf-8"))
     opportunities = raw["opportunities"]
@@ -90,6 +118,8 @@ def main() -> int:
     rejection_binding_counts = Counter()
     sym_counts: dict[str, Counter] = defaultdict(Counter)
     total_cost = ZERO
+    swap_pnl = ZERO
+    rollover_count = 0
     realized_count = 0
     provider_floor_breach = 0
     provider_closed_at = None
@@ -132,6 +162,7 @@ def main() -> int:
             nonlocal nav, peak_nav, max_dd_ratio, maximum_absolute_dd
             nonlocal provider_closed_at, unresolved_at_breach
             nonlocal realized_count, total_cost, wins, losses, realized_gains
+            nonlocal swap_pnl, rollover_count
             if provider_closed_at is not None:
                 return
             while exits and exits[0][0] <= at:
@@ -139,10 +170,14 @@ def main() -> int:
                 trade = active.pop(ticket)
                 gross = trade["lots"] * trade["stop_per_lot"] * trade["r"]
                 cost = trade["lots"] * trade["fee_per_lot"]
-                pnl = gross - cost
+                swap = utc_midnight_swap_proxy(trade, when) if args.swap_proxy == "utc_midnight" else ZERO
+                if swap != ZERO:
+                    rollover_count += 1
+                swap_pnl += swap
+                pnl = gross - cost + swap
                 realized_gains += pnl
                 # Entry commission was already removed from NAV at hypothetical fill.
-                nav += gross
+                nav += gross + swap
                 wins += max(ZERO, pnl)
                 losses += max(ZERO, -pnl)
                 realized_count += 1
@@ -286,7 +321,16 @@ def main() -> int:
                     expiration = datetime.fromisoformat(row["settlement_outcome_research_only"]["exit_at"])
                     if expiration < at:
                         raise QDLEError("HISTORICAL_EXIT_PRECEDES_DECISION")
+                    # Tick values observed for metals/index; FX conversion
+                    # from the historical research manifest loss-per-volume.
+                    if symbol in TICK_VALUES_PER_LOT_USD:
+                        usd_per_swap_point_per_lot = TICK_VALUES_PER_LOT_USD[symbol]
+                    else:
+                        usd_per_swap_point_per_lot = (
+                            stop_per_lot * TICKS[symbol] / abs(entry - stop))
                     active[synthetic_ticket] = {
+                        "opened_at": at,
+                        "swap_usd_per_lot": SWAP[symbol][side] * usd_per_swap_point_per_lot,
                         "symbol": symbol, "side": side, "lots": result.lots,
                         "margin": result.margin_usd, "planned_risk": result.total_risk_usd,
                         "stop_per_lot": stop_per_lot, "fee_per_lot": fee,
@@ -345,6 +389,9 @@ def main() -> int:
             "gross_wins_usd": str(wins),
             "gross_losses_usd": str(losses),
             "entry_cost_proxy_usd": str(total_cost),
+            "net_swap_pnl_utc_midnight_proxy_usd": str(swap_pnl),
+            "swap_rollover_position_count_proxy": rollover_count,
+            "swap_model": "SCREENSHOT_2026_POINTS_AT_UTC_MIDNIGHT_PROXY" if args.swap_proxy == "utc_midnight" else "OMITTED_NO_DATA",
             "profit_factor_proxy": str(wins / losses) if losses > 0 else None,
             "max_closed_equity_drawdown_usd": str(maximum_absolute_dd),
             "max_closed_equity_drawdown_pct": str(max_dd_ratio * 100),
@@ -363,6 +410,7 @@ def main() -> int:
                 "At stop, capital is mark from last settlement/fee, NOT liquidation cash",
                 "Original limit-order fill/partial fills not reconstructed",
                 "Broker actual deals/spreads/slippage/swaps not measured",
+                "Swap rollover model uses UTC midnight and current screenshot points, NOT historical broker records",
                 "Closed-equity-only DD understates possible intratrade DD",
                 "Pnl from realized structural R after exit, not actual MT5 transactions",
                 "Four-module limits are same 5% ceiling, not historically replayed independent decisions",
