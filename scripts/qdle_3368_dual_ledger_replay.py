@@ -87,6 +87,7 @@ def main() -> int:
     active: dict[str, dict] = {}
     exits: list[tuple[datetime, str]] = []
     source_counts = Counter()
+    rejection_binding_counts = Counter()
     sym_counts: dict[str, Counter] = defaultdict(Counter)
     total_cost = ZERO
     realized_count = 0
@@ -260,9 +261,14 @@ def main() -> int:
                              risk_budget_usd=str(risk_budget),
                              nav_at_decision_usd=str(nav))
                 if result.lots == 0:
-                    source_counts["NO_VALID_LOTS_OR_MARGIN"] += 1
+                    primary_constraint = result.binding_limits[0] if result.binding_limits else "UNKNOWN_BROKER_GRID"
+                    rejection_binding_counts[primary_constraint] += 1
+                    event["reason"] = "BROKER_MINIMUM_UNFINANCEABLE_BY_" + primary_constraint
+                    source_counts[event["reason"]] += 1
                     sym_counts[symbol]["unfundable"] += 1
                 else:
+                    if result.total_risk_usd > risk_budget or result.margin_usd > free_broker:
+                        raise QDLEError("QDLE_INTERNAL_RISK_OR_MARGIN_BREACH")
                     # Research-only hypothetical fill at supplied structural entry,
                     # NEVER counts as broker-confirmed trade execution.
                     synthetic_ticket = "RESEARCH:" + rid
@@ -346,6 +352,7 @@ def main() -> int:
             "provider_floor_proxy_breach_sample_count": provider_floor_breach,
             "by_symbol": {k: dict(v) for k, v in sorted(sym_counts.items())},
             "reasons": dict(source_counts.most_common()),
+            "unfundable_binding_constraints": dict(rejection_binding_counts.most_common()),
             "decisions": decisions,
             "limitations": [
                 "Not historical MT5 symbol/margin or account-specific fees",
