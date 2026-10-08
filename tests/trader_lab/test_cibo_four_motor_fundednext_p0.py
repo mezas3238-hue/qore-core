@@ -25,7 +25,7 @@ class P0FourMotorTests(unittest.TestCase):
    ["SIZING","CIBO_COMPOUND","COMPOUND_PORTFOLIO","ADAPTIVE_LEVERAGE"])
   self.assertEqual(a.quote.lots,D(".02"))
   self.assertFalse(a.broker_order_sent)
-  self.assertTrue(a.can_submit_to_broker)
+  self.assertFalse(a.can_submit_to_broker) # no authenticated portfolio rehydration
  def test_attack_cannot_use_sovereign_bank(self):
   with self.assertRaisesRegex(FundingError,"COMPOUND_SOURCE"):
    self.allow("one",mode="ATTACK")
