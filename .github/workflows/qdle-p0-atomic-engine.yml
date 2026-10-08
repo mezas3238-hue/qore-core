@@ -29,6 +29,8 @@ on:
       - tests/infrastructure/test_qdle_four_motor_evidence.py
       - tests/infrastructure/test_qdle_provider_floor.py
       - tests/infrastructure/test_qdle_partial_fills.py
+      - tests/infrastructure/test_qdle_mt5_fee_publisher.py
+      - scripts/qdle_mt5_metadata_publisher.py
       - tests/infrastructure/test_fundednext_live_mt5.py
       - tests/infrastructure/test_cibo_physical_lot_sizing.py
       - .github/workflows/qdle-p0-atomic-engine.yml
@@ -60,6 +62,7 @@ jobs:
           python -m unittest discover -s tests/infrastructure -p test_qdle_four_motor_evidence.py -v
           python -m unittest discover -s tests/infrastructure -p test_qdle_provider_floor.py -v
           python -m unittest discover -s tests/infrastructure -p test_qdle_partial_fills.py -v
+          python -m unittest discover -s tests/infrastructure -p test_qdle_mt5_fee_publisher.py -v
       - name: QDLE live gateway no-send contract (pytest)
         env:
           PYTHONPATH: src
