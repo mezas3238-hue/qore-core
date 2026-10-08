@@ -64,6 +64,52 @@ class PreentryPartialGateTests(unittest.TestCase):
         self.assertTrue(active)
         self.assertEqual(selected,frozenset({self.stop}))
 
+    def test_matching_alternative_group_preserves_partial(self):
+        selected, active = _causal_partial_features(
+            self.full,
+            {"reg_h1_body_alignment":"opposed",
+             "reg_h4_range_state":"balanced",
+             "reg_m5_volatility_state":"balanced"},
+            (("reg_h1_body_alignment","flat"),),
+            ((("reg_h4_range_state","balanced"),
+              ("reg_m5_volatility_state","balanced")),),
+        )
+        self.assertTrue(active)
+        self.assertEqual(selected,self.full)
+
+    def test_partial_alternative_group_only_one_condition_fails_closed(self):
+        selected, active = _causal_partial_features(
+            self.full,
+            {"reg_h1_body_alignment":"opposed",
+             "reg_h4_range_state":"balanced",
+             "reg_m5_volatility_state":"expanded"},
+            (("reg_h1_body_alignment","flat"),),
+            ((("reg_h4_range_state","balanced"),
+              ("reg_m5_volatility_state","balanced")),),
+        )
+        self.assertFalse(active)
+        self.assertEqual(selected,frozenset({self.stop}))
+
+    def test_original_flat_condition_still_works_when_or_groups_present(self):
+        selected, active = _causal_partial_features(
+            self.full,
+            {"reg_h1_body_alignment":"flat",
+             "reg_h4_range_state":"compressed"},
+            (("reg_h1_body_alignment","flat"),),
+            ((("reg_h4_range_state","balanced"),
+              ("reg_m5_volatility_state","balanced")),),
+        )
+        self.assertTrue(active)
+        self.assertEqual(selected,self.full)
+
+    def test_empty_alternative_does_not_add_eligibility(self):
+        selected, active = _causal_partial_features(
+            self.full,{"reg_h1_body_alignment":"opposed"},
+            (("reg_h1_body_alignment","flat"),), ((),)
+        )
+        self.assertFalse(active)
+        self.assertEqual(selected,frozenset({self.stop}))
+
 
 if __name__=="__main__":
     unittest.main()
