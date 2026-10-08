@@ -3,6 +3,8 @@
 **Rama propietaria:** `agent/cibo-architect-1-cognitive-trade-ops-20261008` · **Issue:** #737 · **PR:** #742.  
 **Clase de evidencia:** capturas de pantalla de especificaciones instrumentales en una aplicación MT5 móvil facilitadas por el propietario. Esta transcripción NO es una llamada autenticada `symbol_info`/`account_info`, una cotización activa, una comprobación de comisión al cerrar ni una confirmación de FundedNext sobre reglas del proveedor. No se publican imágenes ni datos de acceso o cuentas del propietario en el repositorio público.
 
+> **DIRECTIVA DEL PROPIETARIO — CAMBIO DE AUTORIDAD P0 (2026-10-08):** TODA la administración de especificaciones y mecánica financiera/física MT5 descrita en este informe queda a cargo de **QDLE / Arquitecto 3 (#739)**. CIBO / Arquitecto 1 almacena esta documentación únicamente para explicar el contexto de sus propuestas cognitivas, no para mantener tablas operativas, calcular lotes, valorar contratos o mutar stops. Este documento no es el registro técnico canónico del broker. QDLE debe poseer la fuente técnica versionada, validar vigencia y autenticidad mediante MT5 read-only, calcular y validar los volúmenes/SL/TP/fees/margen con QORE Risk y el comité de cuatro motores, reservar capital y reconciliar posiciones/deals. La ejecución efectiva de órdenes y modificaciones sigue restringida al Trader gateway autorizado, nunca a CIBO ni a QDLE directamente.
+
 ## Observaciones visuales de MT5 — primera serie y ampliación de GBPJPY (tres capturas adicionales, reloj del teléfono ~20:06 sin zona verificada)
 
 | Propiedad mostrada | XAUUSD | NDX100 (NAS100) | EURUSD | GBPJPY |
@@ -39,7 +41,7 @@ Los márgenes monetarios por 0,01 lote derivados linealmente de los valores apro
 - Una captura de propiedad que indica 0,01 mínimo y 40 máximo NO autoriza cualquier lote: QDLE debe intersectar el presupuesto de riesgo por operación (5% del NAV QORE dinámico o menos), stops/costes, QORE Risk, margen libre MT5 y restricciones provider. CIBO solo administra la posición después de un fill real y emite propuestas; Trader gateway autentica ejecución.
 - **Fuente de los tres valores adicionales:** tres capturas móviles de GBPJPY proporcionadas en la conversación; información documental, no `symbol_info` autenticado ni recibo de `order_send`. NO LIVE.
 
-### Consecuencias para CIBO Arquitecto 1
+### Información que CIBO puede consumir desde QDLE (sin autoridad físico-financiera)
 
 1. CIBO comprueba **Bid para liquidación de BUY** y **Ask para liquidación de SELL**, sin usar el precio Bid del gráfico como precio favorable universal.
 2. Diferencia exposición contractual, margen broker, volatilidad, riesgo hasta SL y coste de mantener la posición. Los swaps son **puntos**, NO importes USD por defecto.
@@ -50,12 +52,30 @@ Los márgenes monetarios por 0,01 lote derivados linealmente de los valores apro
 7. Tras nuevos deals, recalcular riesgo a SL con valoración broker, patrimonio QORE reconciliado, cuatro decisiones económicas independientes y QDLE como autoridad única de lotaje.
 8. Ningún valor económico de estas capturas certifica PnL del replay 2019–2022 ni el NAV final. La vigencia y autenticidad broker actual deben verificarse con consulta MT5 de solo lectura.
 
-### Próxima adquisición obligatoria (Arquitectos 2/3)
+### Próxima adquisición física obligatoria — propietario QDLE / Arquitecto 3
 
-- `account_info` seguro (sin secretos), `symbol_info` y `symbol_info_tick` para las seis especies reales; `order_calc_profit` BUY/SELL hasta SL y `order_calc_margin` con volúmenes legales.
+- **QDLE es propietario de esta tarea.** `account_info` seguro (sin secretos), `symbol_info` y `symbol_info_tick` para las seis especies reales; `order_calc_profit` BUY/SELL hasta SL y `order_calc_margin` con volúmenes legales.
 - Tarifas de **entrada y salida**, spreads/ticks, swap conversión/rollover y NDX total fees; validación de base porcentual oro.
 - Moneda/cuenta y reglas de pérdida diaria/máxima y piso FundedNext; no inferirlos del margen screenshot.
 - Completar la validación read-only actual de AUDJPY y GBPUSD y contrastar la nueva ficha completa de GBPJPY con `symbol_info`, en particular `trade_tick_value_profit`/`loss` y conversión JPY→USD; no interpretar el dato como dólar fijo por pip.
 - MT5 deal-history autenticado para certificar fills, partials, realized PnL y costes.
 
 **Estado:** evidencia SCREENSHOT_OBSERVED / LIVE_AUTHENTICATION_PENDING / FINANCIAL_CERTIFICATION_REJECTED. PR #742 permanece DRAFT / NO LIVE.
+
+## Matriz soberana de responsabilidad corregida — directiva explícita del propietario
+
+| Aspecto MT5 | Responsable único de validación física / custodia | Uso de CIBO |
+| --- | --- | --- |
+| Contrato, tick size/value, profit/margin currency, lot min/max/step, side, stop/freeze levels | **QDLE** | Recibe capacidad/riesgo ya verificados; no replica fichas ni convierte JPY/USD |
+| Bid/Ask broker autenticados, spread actual, sesiones servidor, simbología exacta y datos stale | **QDLE** para adquisición/validación de fuente | Interpreta condiciones de mercado; nunca reemplaza snapshot oficial |
+| Comisión de entrada y salida, base porcentual XAU, NDX desconocido, swaps puntos→USD y triple rollover | **QDLE** | Considera costo monetario certificado/escenario y propone manejo; no establece tarifa |
+| Margen BUY/SELL real, free margin, leverage, provider floor, portfolio reserves y pérdida total en SL | **QDLE** verifica físicamente; cuatro motores deciden topes y QORE Risk impone gates | Solicita opciones y observa restricciones; nunca asigna lote |
+| Stop/TP/trailing/reducción/cierre parcial | **CIBO** propone criterio/tesis e invalidación; **QDLE** verifica impacto físico, costo, volumen y margen y aplica gates | No modifica posiciones por cuenta propia |
+| `order_send`/órdenes y modificación efectivamente enviada | **Trader mediante gateway autorizado** | No ejecuta; QDLE tampoco envía por sí mismo |
+| Broker order/deal IDs, fills parciales, swaps, fees, PnL reconciliado, reservas durables | **QDLE + reconciliación broker** | Consume eventos y administra estado lógico sin inventar ejecución |
+
+### Flujo correcto, sin duplicación de autoridad
+
+Trader emite señal → CIBO razona y plantea gestión → cuatro motores económicos entregan decisiones independientes → QDLE consulta estado real MT5, realiza **todas** las conversiones monetarias/valoraciones y fija el **único** volumen ejecutable con reservas → Trader gateway autorizado envía si los controles aceptan → MT5 confirma orden/deals → QDLE concilia y publica recibos → CIBO sigue administrando la tesis, riesgos y salidas en forma de propuestas que deben pasar nuevamente por QDLE/gates antes de cualquier modificación física.
+
+Los valores de pantalla de este informe son **evidencia inicial para la tarea de QDLE**, no parámetros productivos ni certificación LIVE. Toda discrepancia o ausencia de tarifas/contratos → no certificar cálculos de ejecución.
