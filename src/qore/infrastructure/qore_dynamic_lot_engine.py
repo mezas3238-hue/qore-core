@@ -213,7 +213,12 @@ class QDLE:
     """
 
     def __init__(self, path: str | Path, calculator: BrokerCalculator,
-                 max_age_seconds: int = 10) -> None:
+                 max_age_seconds: int = 10,
+                 entry_risk_fraction: Decimal = Decimal('0.05')) -> None:
+        _d('entry_risk_fraction', entry_risk_fraction)
+        if entry_risk_fraction > Decimal(1):
+            raise QDLEError('entry risk fraction cannot exceed account equity')
+        self.entry_risk_fraction = entry_risk_fraction
         if max_age_seconds <= 0:
             raise QDLEError("invalid maximum snapshot age")
         self.path = str(path)
@@ -391,7 +396,9 @@ class QDLE:
             remaining_risk = max(Decimal(0), acc.qore_unreserved_risk_usd
                                  - total_held_risk)
             remaining_margin = max(Decimal(0), acc.free_margin - total_held_margin)
-            zero_ceiling = (min(intent.requested_risk_usd, intent.sizing_cap_usd,
+            causal_entry_budget = min(intent.requested_risk_usd,
+                                      acc.equity * self.entry_risk_fraction)
+            zero_ceiling = (min(causal_entry_budget, intent.sizing_cap_usd,
                                 intent.cibo_compound_cap_usd, intent.portfolio_cap_usd,
                                 remaining_risk, free_source,
                                 remaining_margin, intent.margin_cap_usd,
@@ -423,7 +430,8 @@ class QDLE:
                           free_source: Decimal, remaining_risk: Decimal,
                           remaining_margin: Decimal, volume_cap: Decimal) -> QDLEResult:
             input_spec = CiboLotSizingInput(
-                requested_loss_budget_usd=intent.requested_risk_usd,
+                requested_loss_budget_usd=min(intent.requested_risk_usd,
+                    acc.equity * self.entry_risk_fraction),
                 stop_risk_usd_per_lot=valuation.stop_loss_per_lot_usd,
                 provider_cost_usd_per_lot=(spec.fee_usd_per_lot
                                             + intent.slippage_usd_per_lot),
@@ -455,7 +463,7 @@ class QDLE:
                     computed.provider_cost_usd, computed.all_in_loss_if_stopped_usd,
                     computed.margin_required_usd, acc.sequence,
                     computed.binding_constraints,
-                    "Not an MT5 order or fill; requires broker confirmation",
+                    "Causal account-equity dynamic 5pct or configured cap; not an MT5 fill",
                 )
             return result
 
