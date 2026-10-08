@@ -377,16 +377,16 @@ jobs:
           run_case "transfer-floor-attackctx-control" "reclaim" -0.60 0.9490 3999 0.20 none 0 0 0.50 0.50 "reg_h1_body_alignment=flat" -0.90 baseline
           run_case "transfer-floor-atk-h4bal-volbal-h1op-80" "reclaim" -0.60 0.9490 3999 0.20 none 0 0 0.50 0.50 "reg_h1_body_alignment=flat" -0.80 h4bal-volbal-h1op
           run_case "transfer-floor-atk-h4bal-volbal-h1op-95" "reclaim" -0.60 0.9490 3999 0.20 none 0 0 0.50 0.50 "reg_h1_body_alignment=flat" -0.95 h4bal-volbal-h1op
-          run_case "transfer-floor-atk-h4bal-volbal-h1op-110" "reclaim" -0.60 0.9490 3999 0.20 none 0 0 0.50 0.50 "reg_h1_body_alignment=flat" -1.10 h4bal-volbal-h1op
+          run_case "transfer-floor-atk-h4bal-volbal-h1op-98" "reclaim" -0.60 0.9490 3999 0.20 none 0 0 0.50 0.50 "reg_h1_body_alignment=flat" -0.98 h4bal-volbal-h1op
           run_case "transfer-floor-atk-h4bal-rangeq2-m5bal-80" "reclaim" -0.60 0.9490 3999 0.20 none 0 0 0.50 0.50 "reg_h1_body_alignment=flat" -0.80 h4bal-rangeq2-m5bal
           run_case "transfer-floor-atk-h4bal-rangeq2-m5bal-95" "reclaim" -0.60 0.9490 3999 0.20 none 0 0 0.50 0.50 "reg_h1_body_alignment=flat" -0.95 h4bal-rangeq2-m5bal
-          run_case "transfer-floor-atk-h4bal-rangeq2-m5bal-110" "reclaim" -0.60 0.9490 3999 0.20 none 0 0 0.50 0.50 "reg_h1_body_alignment=flat" -1.10 h4bal-rangeq2-m5bal
+          run_case "transfer-floor-atk-h4bal-rangeq2-m5bal-98" "reclaim" -0.60 0.9490 3999 0.20 none 0 0 0.50 0.50 "reg_h1_body_alignment=flat" -0.98 h4bal-rangeq2-m5bal
           run_case "transfer-floor-atk-h4bal-h1comp-low-80" "reclaim" -0.60 0.9490 3999 0.20 none 0 0 0.50 0.50 "reg_h1_body_alignment=flat" -0.80 h4bal-h1comp-low
           run_case "transfer-floor-atk-h4bal-h1comp-low-95" "reclaim" -0.60 0.9490 3999 0.20 none 0 0 0.50 0.50 "reg_h1_body_alignment=flat" -0.95 h4bal-h1comp-low
-          run_case "transfer-floor-atk-h4bal-h1comp-low-110" "reclaim" -0.60 0.9490 3999 0.20 none 0 0 0.50 0.50 "reg_h1_body_alignment=flat" -1.10 h4bal-h1comp-low
+          run_case "transfer-floor-atk-h4bal-h1comp-low-98" "reclaim" -0.60 0.9490 3999 0.20 none 0 0 0.50 0.50 "reg_h1_body_alignment=flat" -0.98 h4bal-h1comp-low
           run_case "transfer-floor-atk-h4bal-m5medium-reclaim-80" "reclaim" -0.60 0.9490 3999 0.20 none 0 0 0.50 0.50 "reg_h1_body_alignment=flat" -0.80 h4bal-m5medium-reclaim
           run_case "transfer-floor-atk-h4bal-m5medium-reclaim-95" "reclaim" -0.60 0.9490 3999 0.20 none 0 0 0.50 0.50 "reg_h1_body_alignment=flat" -0.95 h4bal-m5medium-reclaim
-          run_case "transfer-floor-atk-h4bal-m5medium-reclaim-110" "reclaim" -0.60 0.9490 3999 0.20 none 0 0 0.50 0.50 "reg_h1_body_alignment=flat" -1.10 h4bal-m5medium-reclaim
+          run_case "transfer-floor-atk-h4bal-m5medium-reclaim-98" "reclaim" -0.60 0.9490 3999 0.20 none 0 0 0.50 0.50 "reg_h1_body_alignment=flat" -0.98 h4bal-m5medium-reclaim
           python scripts/cibo_sovereign_causal_rebalance_replay.py \
             --cases "$RUNNER_TEMP/cibo-cases.jsonl" --workers 4 \
             --m5-cache-dir "$GITHUB_WORKSPACE/.qore-cache/cibo-ultrafast-v1" \
