@@ -61,6 +61,8 @@ def _build_lifecycle_map(
     bootstrap_partial_fraction: Decimal,
     adverse_tightened_stop_r: Decimal,
     defensive_initial_stop_r: Decimal,
+    context_defensive_initial_stop_r: Decimal | None = None,
+    context_requirements: tuple[tuple[str, str], ...] = (),
 ) -> dict[str, dict[str, object]]:
     if not roots:
         return {}
@@ -88,6 +90,27 @@ def _build_lifecycle_map(
         if not isinstance(opportunity, dict):
             raise ValueError("lifecycle trader opportunity missing")
         outcome = manifest_row_to_shadow_outcome_observation(raw)
+        row_decision_context_raw = opportunity.get("decision_context", ())
+        if not isinstance(row_decision_context_raw, (list, tuple)):
+            raise ValueError("lifecycle decision context must be sequence")
+        row_decision_context = {
+            str(item[0]): str(item[1])
+            for item in row_decision_context_raw
+            if isinstance(item, (list, tuple)) and len(item) == 2
+        }
+        context_stop_active = bool(
+            context_defensive_initial_stop_r is not None
+            and context_requirements
+            and all(
+                row_decision_context.get(key) == value
+                for key, value in context_requirements
+            )
+        )
+        selected_defensive_initial_stop_r = (
+            context_defensive_initial_stop_r
+            if context_stop_active
+            else defensive_initial_stop_r
+        )
         opened, closed = bounds_by_symbol[symbol]
         series = bars_by_symbol[symbol]
         start = bisect_left(opened, outcome.entry_at)
@@ -117,7 +140,7 @@ def _build_lifecycle_map(
             adverse_loss_cut_max_favorable_r=adverse_loss_cut_max_favorable_r,
             bootstrap_partial_fraction=bootstrap_partial_fraction,
             adverse_tightened_stop_r=adverse_tightened_stop_r,
-            defensive_initial_stop_r=defensive_initial_stop_r,
+            defensive_initial_stop_r=selected_defensive_initial_stop_r,
         )
         result[signal] = {
             "original_gross_r": format(outcome.gross_structural_outcome_r, "f"),
@@ -144,8 +167,9 @@ def _build_lifecycle_map(
                 adverse_tightened_stop_r, "f"
             ),
             "defensive_initial_stop_r": format(
-                defensive_initial_stop_r, "f"
+                selected_defensive_initial_stop_r, "f"
             ),
+            "context_defensive_stop_active": context_stop_active,
             "risk_released_before_exit_fraction": format(
                 managed.risk_released_before_exit_fraction, "f"
             ),
@@ -287,6 +311,21 @@ def main() -> int:
             "Immediate post-entry financial stop cap in R when "
             "DEFENSIVE_INITIAL_STOP_CAP is enabled."
         ),
+    )
+    parser.add_argument(
+        "--lifecycle-context-defensive-initial-stop-r",
+        type=Decimal,
+        default=None,
+        help=(
+            "Optional alternate immediate defensive stop R used only when all "
+            "--lifecycle-context-require KEY=VALUE predicates match pre-entry context."
+        ),
+    )
+    parser.add_argument(
+        "--lifecycle-context-require",
+        action="append",
+        default=[],
+        help="Repeatable causal pre-entry decision-context predicate as KEY=VALUE.",
     )
     parser.add_argument(
         "--lifecycle-bootstrap-override-feature",
@@ -1277,6 +1316,21 @@ def main() -> int:
     )
     args = parser.parse_args()
 
+    lifecycle_context_requirements: list[tuple[str, str]] = []
+    for raw_requirement in args.lifecycle_context_require:
+        key, separator, value = raw_requirement.partition("=")
+        if not separator or not key or not value:
+            raise ValueError(
+                "lifecycle context requirement must be nonempty KEY=VALUE"
+            )
+        lifecycle_context_requirements.append((key, value))
+    if (
+        args.lifecycle_context_defensive_initial_stop_r is None
+    ) != (not lifecycle_context_requirements):
+        raise ValueError(
+            "context defensive stop requires both stop R and at least one context predicate"
+        )
+
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
     lifecycle_features = (
         frozenset(CiboLifecycleFeature(value) for value in args.lifecycle_feature)
@@ -1299,6 +1353,10 @@ def main() -> int:
         bootstrap_partial_fraction=args.lifecycle_bootstrap_partial_fraction,
         adverse_tightened_stop_r=args.lifecycle_adverse_tightened_stop_r,
         defensive_initial_stop_r=args.lifecycle_defensive_initial_stop_r,
+        context_defensive_initial_stop_r=(
+            args.lifecycle_context_defensive_initial_stop_r
+        ),
+        context_requirements=tuple(lifecycle_context_requirements),
     )
     lifecycle_bootstrap_override_by_signal = None
     override_features = (
