@@ -11,6 +11,7 @@ on:
     branches:
       - agent/cibo-causal-expectation-leakage-fix-001
       - agent/cibo-trader-lab-runtime-speed-fix-001
+      - agent/cibo-trader-lab-ultrafast-20261008-001
     paths:
       - '.github/workflows/cibo-trader-lab-carrier37772-medium-h4m5-loss-cluster-ridge.yml'
 
@@ -233,7 +234,7 @@ jobs:
           run_case "h4m5-s1500" -0.1500 cluster
           run_case "h4m5-s1400" -0.1400 cluster
           run_case "h4m5-s1300" -0.1300 cluster
-          python scripts/cibo_trader_lab_batch_runner.py --cases "$RUNNER_TEMP/cibo-cases.jsonl" --workers 2
+          python scripts/cibo_trader_lab_batch_runner.py --cases "$RUNNER_TEMP/cibo-cases.jsonl" --workers 4
 
       - name: Rank strict Pareto vs carrier3829
         run: |
