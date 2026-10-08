@@ -100,6 +100,10 @@ class FourMotorObservation:
     symbol_max_lots: Decimal
     provider_direction_max_lots: Decimal
     open_and_reserved_direction_lots: Decimal
+    broker_quote_at: datetime | None = None
+    broker_fees_complete: bool = False
+    broker_profit_valuation_complete: bool = False
+    broker_margin_valuation_complete: bool = False
 
     def __post_init__(self) -> None:
         if not all(isinstance(x, str) and x for x in (self.request_id, self.trader_id, self.symbol)):
@@ -109,6 +113,14 @@ class FourMotorObservation:
         if type(self.account_sequence) is not int or self.account_sequence <= 0:
             raise FourMotorPolicyError("causal account_sequence required")
         now = utc("observed_at", self.observed_at)
+        quote = utc("broker_quote_at", self.broker_quote_at)
+        age = (now - quote).total_seconds()
+        if not 0 <= age <= 10:
+            raise FourMotorPolicyError("broker valuation stale or from the future")
+        for provenance in ("broker_fees_complete", "broker_profit_valuation_complete",
+                           "broker_margin_valuation_complete"):
+            if getattr(self, provenance) is not True:
+                raise FourMotorPolicyError(f"{provenance} required: no incomplete broker economics")
         digest("broker_evidence_sha256", self.broker_evidence_sha256)
         if not isinstance(self.reconciled_cashflows, tuple) or any(
             not isinstance(e, ReconciledQoreCashflow) for e in self.reconciled_cashflows
@@ -200,6 +212,10 @@ class FourMotorProposal:
                     source_lane=s.source_lane, qore_nav_usd=str(s.qore_nav_usd),
                     dynamic_entry_budget_usd=str(s.base_entry_budget_usd),
                     upstream_event_sha256=s.broker_evidence_sha256,
+                    broker_quote_at=utc("broker_quote_at", s.broker_quote_at).isoformat(),
+                    broker_fees_complete=s.broker_fees_complete,
+                    broker_profit_valuation_complete=s.broker_profit_valuation_complete,
+                    broker_margin_valuation_complete=s.broker_margin_valuation_complete,
                     realized_event_ids=[x.event_id for x in s.reconciled_cashflows],
                     reason_codes=list(self.reason_codes), **self.limits)
 
