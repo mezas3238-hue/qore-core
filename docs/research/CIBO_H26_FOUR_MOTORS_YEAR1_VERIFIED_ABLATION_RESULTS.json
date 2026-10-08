@@ -92,24 +92,46 @@
   "full_book_metrics_confirmed": {
     "FULL": {
       "ending_capital_usd": "3589.260487255495141276366310",
-      "max_drawdown_pct": "34.35372258175",
-      "sovereign_floor_breach_usd": "0"
+      "max_drawdown_pct": "34.35372258175292259029897896",
+      "sovereign_floor_breach_usd": "0",
+      "mode_counts": {
+        "ATTACK": 848,
+        "MEDIUM": 2520
+      }
     },
     "WITHOUT_SIZING": {
-      "ending_capital_usd": "3082.4236517447025",
-      "counterfactual_validated_bank": true
+      "ending_capital_usd": "3082.423651744702881832691950",
+      "max_drawdown_pct": "36.92804164452319442075278042",
+      "sovereign_floor_breach_usd": "0",
+      "mode_counts": {
+        "ATTACK": 848,
+        "MEDIUM": 2520
+      }
     },
     "WITHOUT_CIBO_COMPOUND": {
-      "ending_capital_usd": "582.9200074255205",
-      "counterfactual_validated_bank": true
+      "ending_capital_usd": "582.9200074255206456984847650",
+      "max_drawdown_pct": "34.35372258175292259029897896",
+      "sovereign_floor_breach_usd": "0",
+      "mode_counts": {
+        "MEDIUM": 3368
+      }
     },
     "WITHOUT_PORTFOLIO_COMPOUND": {
-      "ending_capital_usd": "582.9200074255205",
-      "counterfactual_validated_bank": true
+      "ending_capital_usd": "582.9200074255206456984847648",
+      "max_drawdown_pct": "34.35372258175292259029897896",
+      "sovereign_floor_breach_usd": "0",
+      "mode_counts": {
+        "MEDIUM": 3368
+      }
     },
     "WITHOUT_ADAPTIVE_LEVERAGE": {
-      "ending_capital_usd": "759.5411513229251",
-      "counterfactual_validated_bank": true
+      "ending_capital_usd": "759.5411513229255886415853309",
+      "max_drawdown_pct": "34.35372258175292259029897896",
+      "sovereign_floor_breach_usd": "0",
+      "mode_counts": {
+        "ATTACK": 833,
+        "MEDIUM": 2535
+      }
     }
   },
   "warnings": [
