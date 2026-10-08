@@ -639,6 +639,15 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--ceiling-attack-drawdown-budget-trigger",
+        type=Decimal,
+        default=None,
+        help=(
+            "Optional realized total-drawdown fraction required before the "
+            "research ATTACK drawdown budget becomes active."
+        ),
+    )
+    parser.add_argument(
         "--ceiling-attack-drawdown-budget-capital-floor",
         type=Decimal,
         default=None,
@@ -2052,6 +2061,9 @@ def main() -> int:
         ),
         ceiling_attack_drawdown_budget_fraction=(
             args.ceiling_attack_drawdown_budget_fraction
+        ),
+        ceiling_attack_drawdown_budget_trigger=(
+            args.ceiling_attack_drawdown_budget_trigger
         ),
         ceiling_attack_drawdown_budget_capital_floor=(
             args.ceiling_attack_drawdown_budget_capital_floor
