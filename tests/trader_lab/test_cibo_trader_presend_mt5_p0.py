@@ -18,7 +18,8 @@ class TestTraderPreSend(unittest.TestCase):
   self.mt5.TRADE_ACTION_DEAL=1
   self.mt5.TRADE_RETCODE_DONE=10009
   self.cibo=CoordinatedCiboCapital(
-      FundedNextMT5Calculator(self.mt5,MAP),RiskPolicy(),realized_bank_usd=D(60))
+      FundedNextMT5Calculator(self.mt5,MAP),
+      RiskPolicy(per_entry_usd=D("3")),realized_bank_usd=D(60))
   self.sig=TraderSignal("VT31-2019-07-01","VT31","EURUSD",
          "BUY",D("1.099"),D("1.102"),"USD","MEDIUM")
  def test_trader_asks_and_receives_lotage_no_order_sent(self):
@@ -53,6 +54,13 @@ class TestTraderPreSend(unittest.TestCase):
   report=check_broker_execution(presend=p,order_result=NS(
       retcode=10009,deal=123,volume=.02,price=1.1),mt5=self.mt5)
   self.assertTrue(report["certified"])
+ def test_trader_presend_uses_dynamic_five_percent_risk_budget(self):
+  self.cibo=CoordinatedCiboCapital(FundedNextMT5Calculator(self.mt5,MAP),
+      RiskPolicy(),realized_bank_usd=D(2000))
+  p=prepare_trader_order(signal=self.sig,cibo=self.cibo,mt5=self.mt5)
+  self.assertEqual(p.authorization.quote.dynamic_risk_target_usd,D(100))
+  self.assertGreater(p.authorization.quote.lots,D(".02"))
+  self.assertFalse(p.authorization.can_submit_to_broker)
  def test_inverted_take_profit_cannot_leave_reservation(self):
   bad=TraderSignal(self.sig.decision_id,self.sig.trader_id,
      self.sig.core_symbol,"BUY",D("1.099"),D("1.05"),"USD","MEDIUM")
