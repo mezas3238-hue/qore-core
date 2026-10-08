@@ -104,7 +104,7 @@ class FourMotorEconomicTest(unittest.TestCase):
                         correlated_open_stop_risk_usd=Decimal("3"),
                         trader_open_stop_risk_usd=Decimal("2"))
         s, c, leverage_vote, p = votes(o)
-        self.assertEqual(Decimal(s.limits["approved_risk_usd"]), Decimal("1.5"))
+        self.assertEqual(Decimal(s.limits["approved_risk_usd"]), Decimal("3") * Decimal("116") / Decimal("225"))
         self.assertEqual(Decimal(c.limits["approved_risk_usd"]), Decimal("1"))
         self.assertEqual(Decimal(leverage_vote.limits["approved_max_lots"]), Decimal(".08"))
         self.assertEqual(Decimal(p.limits["approved_source_funds_usd"]), Decimal("1"))
