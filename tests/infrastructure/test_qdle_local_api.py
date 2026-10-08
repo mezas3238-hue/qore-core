@@ -61,8 +61,8 @@ class TestQDLELocalAPI(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertFalse(health["ready"])
         acc = dict(account_id="123", provider="FundedNext", currency="USD",
-                   sequence=1, as_of=self.now, balance="60", equity="60",
-                   free_margin="60", qore_unreserved_risk_usd="3",
+                   sequence=1, as_of=self.now, balance="2000", equity="2000",
+                   free_margin="1900", qore_trading_capital_usd="60", qore_unreserved_risk_usd="3",
                    sovereign_free_source_usd="3", cushion_free_source_usd="0",
                    positions=[], covered_fill_tickets=[])
         self.assertEqual(self.request("POST", "/v1/account-event", self.trader, acc)[0], 403)
