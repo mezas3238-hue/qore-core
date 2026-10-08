@@ -31,8 +31,9 @@ class Probe:
 
 
 def account(equity="60", seq=1):
+    # FundedNext supplies margin; QORE proprietary capital is independent.
     return QDLEAccount("123", "FundedNext", "USD", seq, T,
-        D(equity), D(equity), D("200"), D("200"), D("200"), D("0"))
+        D("2000"), D("2000"), D("1900"), D(equity), D(equity), D("0"), D(equity))
 
 
 def intent(rid="signal-1", budget="30", sequence=1):
