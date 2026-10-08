@@ -43,3 +43,37 @@ Solo los casos 2–5 son contrafactuales de investigación. **Nunca** despliegan
 - La cuenta no produce «ganancia mensual fija»: los primeros 6 meses neto USD32.393 y 12 meses USD408.142, fruto de secuencia concreta de resultados 2019–2020.
 
 **Acción obligatoria**: extraer resultados del run H26 y actualizar este documento; diagnosticar la principal presión económica del primer año con los resultados ablation verificados y luego formular experimentos sobre RISK BUDGET eficaz que preserven piso soberano y 25% DD. No modificar producción ni ramas de otros arquitectos.
+
+## FINAL H26 FIVE-REPLAY OUTCOME — ALL VERIFIED SUCCESS
+
+GitHub Actions: https://github.com/mezas3238-hue/qore-core/actions/runs/37790775732
+Artefacto: `11556880895` (todos los recibos de los cinco escenarios, más `h26-first-year-motor-marginals.json`).
+Informe JSON persistente: `docs/research/CIBO_H26_FOUR_MOTORS_YEAR1_VERIFIED_ABLATION_RESULTS.json` (commit `fbe683a21947a3c7bd4ebc818ecbed5aab7dbc33`).
+Confirmado en stdout: `CIBO_H26_CONTROL_3368_FULL_H25_PARITY=YES`. Todas las 5 ejecuciones tuvieron 3368/3368 entradas, contabilidad conciliada y violación piso soberano 0 en el ledger de 3 años; la ejecución del workflow terminó **SUCCESS**.
+
+### Primera anualidad 2019-07 a 2020-06 — beneficio NETO con comisiones nativas
+
+| FULL vs motor apagado | 1er año neto USD | diferencia marginal respecto FULL USD | 3 años capital final USD | DD 3 años |
+|---|---:|---:|---:|---:|
+| **FULL CIBO H21** | **408.141848879** | — | **3589.260487255** | **34.35372258%** |
+| SIN **SIZING** incremental | 388.113358876 | **+20.028490003** sizing | 3082.423651745 | 36.92804164% |
+| SIN **CIBO_COMPOUND** | 265.831258969 | **+142.310589910** combo conditional | 582.920007426 | 34.35372258% |
+| SIN **COMPOUND_PORTFOLIO** | 265.831258969 | **+142.310589910** combo conditional | 582.920007426 | 34.35372258% |
+| SIN **ADAPTIVE_LEVERAGE** | 297.581330860 | **+110.560518019** leverage conditional | 759.541151323 | 34.35372258% |
+
+**Estos efectos NO son aditivos**. En CIBO completo los dos motores compuestos constituyen una dependencia funcional del colateral ATTACK: si se desactiva cualquiera de los dos, **ATTACK genera 0/1109 operaciones en todo el primer año y 0/3368 en tres años**, todas las entradas se administran como MEDIUM. Por ello las dos ablations coinciden dentro de precisión Decimal. Esto demuestra la necesidad de la *cadena completa* para el modo ATTACK, NO que cada motor gane $142.31 aparte ni que haya 2x $142.31 de dinero nuevo. Sin Adaptive Leverage, ATTACK ejecutó solo 140 primeros-año (contra 155 FULL) y su retorno neto cayó a ~$92.88 vs ~$198.96 FULL. Sin Sizing, MEDIUM +$197.21 vs $209.18 y ATTACK +$190.90 vs $198.96; el Sizing también reduce DD desde 36.928% a 34.354% en todo el experimento.
+
+### Por qué arranca lento y qué no debemos hacer
+
+Primer mes: MEDIUM 83, ATTACK 0; mediana STOP-risk por operación **$0.69**, no los $3 solicitados sobre $60 (solo 2 de 83 operaciones tuvieron riesgo $3 o más). Primer semestre: MEDIUM +$34.13, ATTACK −$1.73; primer año MEDIUM +$209.18 (954 entradas, 891 al multiplicador 1x), ATTACK +$198.96 (155 entradas, leverage promedio ~3.97x, mediana 3x, máximo 19x). No puede confundirse el parámetro de límite 5% con gasto real de 5% en stop por operación. Lo mismo ocurre con el límite general de leverage 10,000x que NO significa utilizar 10,000x.
+
+Hay señales inequívocas de **eficiencia de capital limitada** en arranque, pero no prueba de defecto funcional: 50/50 de beneficio neto MEDIUM a banco/portafolio protege piso soberano; los frenos de 1x evitan sobreexponer el banco y DD, que aun así siguen sin certificarse a <=25%.
+
+### Prioridades concretas de ingeniería (ninguna desplegada)
+
+1. **Instrumentar binding reason por trade y año**: objetivo stop USD3 frente a stop realmente aplicado, fee, lote mínimo real, bank/cushion, margen requerido, exposición simultánea, regla 1x y DD gate. No basta con registrar un 5% de configuración; medir `actual_risk/entry_time_equity`, causal y sin futuro.
+2. Probar gradualmente elevar asignación 1x mediante el **mismo método CIBO**, solo donde existencia de riesgo libre y capacidad del banco esté probada; mantener las 3368 entradas, 0 infracciones. Nunca forzar x4.3 un stop original sin broker-margin ni saldo libre.
+3. Probar diferenciar condiciones de financiación efectiva para ATTACK (sin eliminar dependencia de Compound y sin ablation en producción), comparar capital a 1,3,6,12m y **DD 3 años<=25%, ideal20%**. Los experimentos deben conservar el verdadero banco, PnL y original 3368.
+4. No usar el mismo histórico 2019-22 como validación OOS luego de hacer tuning sobre él; exigir replay sellado fresco y stress de coste real. Las ganancias de USD408 primer año son **modeladas**, no $408 cobrables en un funded USD2000 ni bajo comisión de $14/lot.
+
+**DIAGNÓSTICO:** los cuatro motores son funcionales, pero MEDIUM arranca con exceso de exposición restringida y ATTACK obtiene financiación y leverage modestos; la prioridad no es quitar motores sino auditar y elevar cuidadosamente su utilización real sin romper piso ni DD.
