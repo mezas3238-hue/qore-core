@@ -1,0 +1,82 @@
+{
+  "cases": {
+    "h24-def005-min025-dd025": {
+      "attack_trades": 844,
+      "bank_valid": false,
+      "dd_pct": "33.54132538659425245937332113",
+      "dd_under_25": false,
+      "ending_bank_usd": "177.8884689324228246684305834",
+      "episode_max_dd_peak": "2019-07-19T06:45:00+00:00",
+      "final_usd": "3304.584830236900055589619771",
+      "gross_losses_usd": "12774.66149334717506912915162",
+      "max_dd_mode_net": {
+        "MEDIUM": "-26.75388218969420937484343050"
+      },
+      "medium_trades": 2524,
+      "minimum_bank_usd": "38.12403187066824448935088983",
+      "net_usd": "3244.584830236900055589619764",
+      "provider_fees_usd": "1561.077010375933750533827340",
+      "reconciliation_usd": "7E-24",
+      "sovereign_floor_breach_usd": "3.454509922785898845978580075",
+      "sovereign_floor_usd": "157.554459674254967874925741600",
+      "target_20pct": false,
+      "trades": 3368
+    },
+    "h24-def005-min030-dd020": {
+      "attack_trades": 846,
+      "bank_valid": true,
+      "dd_pct": "33.54132538659425245937332113",
+      "dd_under_25": false,
+      "ending_bank_usd": "182.3486982737037240273605905",
+      "episode_max_dd_peak": "2019-07-19T06:45:00+00:00",
+      "final_usd": "3304.366913245765764906010596",
+      "gross_losses_usd": "12779.12651299301193148877590",
+      "max_dd_mode_net": {
+        "MEDIUM": "-26.75388218969420937484343050"
+      },
+      "medium_trades": 2522,
+      "minimum_bank_usd": "43.00312687066824448935088983",
+      "net_usd": "3244.366913245765764906010589",
+      "provider_fees_usd": "1561.763755281610333466143995",
+      "reconciliation_usd": "7E-24",
+      "sovereign_floor_breach_usd": "0",
+      "sovereign_floor_usd": "159.784574344895417554390745150",
+      "target_20pct": false,
+      "trades": 3368
+    },
+    "h24-def010-min025-dd020": {
+      "attack_trades": 846,
+      "bank_valid": true,
+      "dd_pct": "33.81212445164714250301520707",
+      "dd_under_25": false,
+      "ending_bank_usd": "182.3824829009073275707813323",
+      "episode_max_dd_peak": "2019-07-19T06:45:00+00:00",
+      "final_usd": "3304.419775252288598401977367",
+      "gross_losses_usd": "12779.61641472106178559584675",
+      "max_dd_mode_net": {
+        "MEDIUM": "-26.96988218969420937484343050"
+      },
+      "medium_trades": 2522,
+      "minimum_bank_usd": "42.91208711433806600611247237",
+      "net_usd": "3244.419775252288598401977361",
+      "provider_fees_usd": "1561.802724845697053272987960",
+      "reconciliation_usd": "6E-24",
+      "sovereign_floor_breach_usd": "0",
+      "sovereign_floor_usd": "159.801466658497219326101116050",
+      "target_20pct": false,
+      "trades": 3368
+    }
+  },
+  "decision": "If no cases pass both, DO NOT claim fixed or certify. Study early 2019 MEDIUM R and actual bank deficits.",
+  "passed_both": [],
+  "rule": "Only original 5% CIBO; changes are distribution of REAL medium net profit and existing post-entry loss-cut threshold, no fabricated cash.",
+  "status": "RESEARCH_ONLY",
+  "evidence": {
+    "url": "https://github.com/mezas3238-hue/qore-core/actions/runs/37782797158",
+    "run_id": 37782797158,
+    "conclusion": "success",
+    "best_max_dd_bank_safe": "h24-def005-min030-dd020",
+    "strict_pareto_vs_h23": false,
+    "warning": "More drawdown improvement but ~$269.81 less final capital; no case DD <=25, historical costs not funded brokerage certified"
+  }
+}
