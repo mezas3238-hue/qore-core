@@ -496,7 +496,9 @@ class QDLE:
                 raise QDLEError("broker position or QORE funded-source coverage absent")
             db.execute("UPDATE reservations SET state='ABSORBED' WHERE request_id=?",
                        (request_id,))
-            self._audit(db, "FILLED_AND_COVERED", request_id, {"ticket": row[1]})
+            self._audit(db, "FILLED_AND_COVERED", request_id,
+                        {"ticket": row[1], "executed_lots": str(matches[0].lots),
+                         "source_covered": True, "account_sequence": acc.sequence})
 
     def confirm_rejection(self, request_id: str, broker_rejection_ref: str) -> None:
         """Only call with verified broker refusal/no-fill. Unknown outcomes stay held."""
@@ -511,6 +513,47 @@ class QDLE:
                        (request_id,))
             self._audit(db, "BROKER_REJECTED_NO_FILL", request_id,
                         {"broker_ref": broker_rejection_ref})
+
+    def record_broker_settlement(
+        self, request_id: str, broker_ticket: str, deal_receipt: str,
+        realized_net_pnl_usd: Decimal,
+    ) -> None:
+        """Post-execution loss/profit telemetry only; NO broker position mutation.
+
+        The broker provider actor must verify final historical deal receipt.
+        Requires a newer account snapshot without the position, so terminal
+        cash, equity and sovereign risk reflect the closed trade already.
+        """
+        _d("realized PnL magnitude", abs(realized_net_pnl_usd), zero=True)
+        if not broker_ticket or not deal_receipt:
+            raise QDLEError("verified broker close/deal receipt required")
+        with self._tx() as db:
+            row = db.execute("""SELECT state,fill_ticket,snapshot_seq, result
+                                FROM reservations WHERE request_id=?""",
+                             (request_id,)).fetchone()
+            if not row or row[0] != "ABSORBED" or row[1] != broker_ticket:
+                raise QDLEError("only broker-confirmed, funded fills may be settled")
+            raw = self._meta(db, "account")
+            if not raw or raw["sequence"] <= row[2]:
+                raise QDLEError("settlement requires newer account snapshot")
+            acc = self._account(raw)
+            if any(p.ticket == broker_ticket for p in acc.positions):
+                raise QDLEError("broker still reports position open")
+            receipt = self._result(json.loads(row[3]))
+            db.execute("UPDATE reservations SET state='SETTLED' WHERE request_id=?",
+                       (request_id,))
+            self._audit(db, "BROKER_REALIZED_SETTLEMENT", request_id, {
+                "broker_ticket": broker_ticket, "deal_receipt": deal_receipt,
+                "realized_net_pnl_usd": format(realized_net_pnl_usd, "f"),
+                "executed_lots": format(receipt.lots, "f"),
+                "planned_stop_usd": format(receipt.total_risk_usd, "f"),
+                "margin_reserved_usd": format(receipt.margin_usd, "f"),
+                "risk_budget_efficiency": (
+                    format(receipt.total_risk_usd /
+                           max(Decimal("1e-50"), receipt.stop_usd + receipt.cost_usd), "f")
+                ),
+                "account_sequence": acc.sequence,
+            })
 
     def ledger(self, limit: int = 100) -> list[dict]:
         if not 0 < limit <= 1000:
