@@ -85,6 +85,8 @@ def build_local_handler(engine: QDLE, *, trader_token: str,
                 "/v1/account-event": treasury_token,
                 "/v1/symbol-event": provider_token,
                 "/v1/fill": provider_token,
+                "/v1/partial-fill": provider_token,
+                "/v1/partial-remainder-cancelled": provider_token,
                 "/v1/reject": provider_token,
                 "/v1/settlement": provider_token,
                 "/v1/reconcile": treasury_token,
@@ -162,6 +164,15 @@ def build_local_handler(engine: QDLE, *, trader_token: str,
                 elif self.path == "/v1/fill":
                     engine.acknowledge_fill(row["request_id"], row["broker_ticket"])
                     response = {"fill_held_until_qore_and_mt5_reconcile": True}
+                elif self.path == "/v1/partial-fill":
+                    engine.record_partial_fill(
+                        row["request_id"], row["broker_ticket"],
+                        row["broker_deal_id"], _decimal(row, "filled_lots"))
+                    response = {"partial_broker_deal_held_for_reconciliation": True}
+                elif self.path == "/v1/partial-remainder-cancelled":
+                    engine.confirm_partial_remainder_cancelled(
+                        row["request_id"], row["broker_cancel_receipt"])
+                    response = {"broker_remainder_cancelled_pending_reconcile": True}
                 elif self.path == "/v1/reject":
                     engine.confirm_rejection(row["request_id"], row["broker_rejection_ref"])
                     response = {"no_fill_confirmed": True}
