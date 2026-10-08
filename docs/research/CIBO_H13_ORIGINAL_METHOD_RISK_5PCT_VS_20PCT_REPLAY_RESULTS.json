@@ -1,0 +1,46 @@
+{
+  "cases": {
+    "h13-original-risk-005": {
+      "attack_gross_loss_usd": "10154.52895186129793411795019",
+      "attack_sovereign_breach_usd": "0",
+      "capital_usd": "3082.350019536757144936215095",
+      "certifiable_bank": false,
+      "dd_pct": "36.91053924475215947767935340",
+      "initial_usd": "60",
+      "profit_factor": "1.251994788144559747779702205",
+      "risk_cap": "0.05",
+      "sovereign_floor_breach_usd": "85.52194124379984873897452658",
+      "total_gross_loss_usd": "11993.70051178578671241080012",
+      "trades": 3368
+    },
+    "h13-original-risk-020": {
+      "attack_gross_loss_usd": "938872.8495404670959553183518",
+      "attack_sovereign_breach_usd": "0",
+      "capital_usd": "673146.5254539803718539973234",
+      "certifiable_bank": false,
+      "dd_pct": "36.91053924475215947767935340",
+      "initial_usd": "60",
+      "profit_factor": "1.715717704383285242069131779",
+      "risk_cap": "0.20",
+      "sovereign_floor_breach_usd": "85.41649567391081325466487569",
+      "total_gross_loss_usd": "940435.7630554367602465029838",
+      "trades": 3368
+    }
+  },
+  "certified": false,
+  "delta_5pct_minus_20pct": {
+    "capital_usd": "-670064.1754344436147090611083",
+    "dd_percentage_points": "0E-26",
+    "gross_loss_usd": "-928442.0625436509735340921837"
+  },
+  "methodology": "same CIBO method; MEDIUM nominal monetary risk target 5pct and ATTACK single trade ceiling 5pct; no logic/exit changes",
+  "provenance": {
+    "source": "GitHub Actions comparison step succeeded",
+    "run_id": 37772543921,
+    "job_id": 113295397908,
+    "workflow_ref": "8e3052251412f5ba292ab99af772a38beb43d66e",
+    "publish_step_status": "failed because concurrent branch write; this copy is posted directly via GitHub API",
+    "certification_status": "RESEARCH ONLY; sovereign floor failed",
+    "run_url": "https://github.com/mezas3238-hue/qore-core/actions/runs/37772543921"
+  }
+}
