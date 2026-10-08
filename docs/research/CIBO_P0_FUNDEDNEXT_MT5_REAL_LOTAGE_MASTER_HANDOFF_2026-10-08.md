@@ -1,3 +1,12 @@
+# P0 OVERRIDE · 2026-10-08 · EL RIESGO ES 5% DINÁMICO, NO USD 3 FIJOS
+
+**DOCUMENTO HISTÓRICO SUPERADO EN POLÍTICA DE RIESGO.** Leer primero el nuevo handoff maestro canónico:
+[`docs/research/CIBO_P0_MASTER_CONTINUITY_HANDOFF_2026-10-08_DYNAMIC_5PCT_MT5_LOTAGE_AND_SOLVENCY.md`](./CIBO_P0_MASTER_CONTINUITY_HANDOFF_2026-10-08_DYNAMIC_5PCT_MT5_LOTAGE_AND_SOLVENCY.md).
+
+**Regla vigente e implementada en rama `agent/cibo-p0-dynamic-equity-5pct-lotage-002`:** `0.05 * min(latest_causal_equity, latest_realized_balance)` antes de cada nueva entrada. USD60→USD3; USD100→USD5; USD1000→USD50; los topes agregados también escalan. Ejecución sigue NO CERTIFICADA sin VPS MT5 auténtico, sin broker-state reconcilation ni replay 3 años dinámico. Última suite CI **50 PASS**: https://github.com/mezas3238-hue/qore-core/actions/runs/37814146300.
+
+---
+
 > **OVERRIDE P0 — 2026-10-08: REGLA DE LOTAJE DINÁMICO DEL USUARIO**
 > Esta versión contiene referencias históricas a USD 3 FIJOS que ya han sido REVOCADAS como política vigente. **CIBO ahora calcula 5% del capital causal de la cuenta POR CADA NUEVA ENTRADA**: USD60→USD3, USD100→USD5, USD1.000→USD50. Escala hacia arriba y hacia abajo, sin inventar lotes ni margen. Mantener advertencia H8 de solvencia NO CERTIFICADA.
 > **HANDOFF MAESTRO ACTUAL OBLIGATORIO:** [CIBO P0 5% dinámico](docs/research/CIBO_P0_MASTER_DYNAMIC_5PCT_LOTAGE_CONTINUITY_HANDOFF_2026-10-08.md). Rama: agent/cibo-p0-dynamic-equity-5pct-lotage-002. Pruebas CI: [50/50 SUCCESS](https://github.com/mezas3238-hue/qore-core/actions/runs/37814146300). Replay causal y MT5 real pendientes. No promover a producción.
