@@ -215,6 +215,19 @@ class UniversalLotTargetTests(unittest.TestCase):
         good = secured.reserve_for_trader(parsed, now=T)
         self.assertEqual(good.lots, D("20"))
         self.assertIn("REQUESTED_TARGET_LOTS", good.binding_limits)
+        # The persisted approval must reconstruct the optional Decimal target
+        # during one-shot pre-send validation, without placing any broker order.
+        secured.arm_for_live_send(
+            request_id="signed-target", provider_symbol="EURUSD",
+            side="BUY", lots=D("20"), executable_entry=D("10"),
+            stop_price=D("9.99"), now=T,
+        )
+        with self.assertRaises(QDLEError):
+            secured.arm_for_live_send(
+                request_id="signed-target", provider_symbol="EURUSD",
+                side="BUY", lots=D("20"), executable_entry=D("10"),
+                stop_price=D("9.99"), now=T,
+            )
 
 
 if __name__ == "__main__":
