@@ -141,6 +141,7 @@ class QDLEIntent:
     source_lane: str
     slippage_usd_per_lot: Decimal
     expected_account_sequence: int
+    methodology_min_lots: Decimal = Decimal(0)
 
     def __post_init__(self) -> None:
         if not self.request_id or not self.trader_id or not self.symbol:
@@ -159,6 +160,7 @@ class QDLEIntent:
                      "leverage_cap_lots", "margin_cap_usd"):
             _d(name, getattr(self, name), zero=True)
         _d("slippage_usd_per_lot", self.slippage_usd_per_lot, zero=True)
+        _d("methodology_min_lots", self.methodology_min_lots, zero=True)
         if self.expected_account_sequence <= 0:
             raise QDLEError("expected account sequence required")
 
@@ -426,7 +428,7 @@ class QDLE:
                 provider_cost_usd_per_lot=(spec.fee_usd_per_lot
                                             + intent.slippage_usd_per_lot),
                 margin_usd_per_lot=valuation.margin_per_lot_usd,
-                broker_min_lot=spec.min_lot,
+                broker_min_lot=max(spec.min_lot, intent.methodology_min_lots),
                 broker_max_lot=spec.max_lot,
                 broker_lot_step=spec.lot_step,
                 sizing_risk_cap_usd=intent.sizing_cap_usd,
