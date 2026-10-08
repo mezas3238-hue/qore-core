@@ -143,3 +143,24 @@ The DD problem is path-dependent: generic pretrade throttles collapse the compou
 - **New design hypothesis:** do not apply universal adverse reduction. Separate recoverable temporary heat from irreversible deterioration using *only past closed-bar evidence and current book states*, perhaps conditional closed-bar adverse + native context confluence + minimal-favorable-excursion window. This must be tested against *wins saved, losses compressed, real DD, all capital and Sovereign gates*; no lookahead via MFE computed after exit, no preemptive admission veto.
 - Parallel risk/accounting blocker remains: internal protected Sovereign != broker executable leverage/margin. Current reused holdout is already contaminated by many iterative searches and cannot certify an eventual candidate.
 
+
+## New experiment: causal context gating instead of universal ATTACK adverse reduction
+
+[Pre-entry cohort attribution SUCCESS 37785085926](https://github.com/mezas3238-hue/qore-core/actions/runs/37785085926) joined SHA256-frozen 3368-entry manifest source `11451743578` with paired postentry full-replay receipts from immutable `11552864997`. Grouped results by strictly **pre-decision** `trader_opportunity.decision_context` values, then compared ex-post winner destruction and losing trade relief. All feature cohort sums overlap; no feature may be mistaken for an independent controlled causal effect. **Data snooping risk is severe; this is hypothesis generation ONLY**, must verify on new sealed holdout before any promotion.
+
+Examples of net **historical** gain/loss attributable to universal partial conditioned on named pre-entry feature subcohort (do NOT hardcode dates/Trader IDs/strategy family):
+- `ctx_source_range_state_bucket=q4:<=2.0`: n=122, 52 economic receipts changed, approximately +USD 25,261 historical net contribution under partial-vs-control attribution (cohort-only).
+- `reg_m5_volatility_state=compressed`: n=977, 207 changed, ~+USD 7,950 historical cohort net contribution, with USD ~175,089 loss relief vs USD ~179,679 damage to preexisting winners (non-exhaustive decomposition, global compounding interactions).
+- `reg_h1_body_alignment=flat`: n=29, only 6 changes, historical contribution ~+USD 4,708.
+- Most universal-partial harm happens outside those groups. Features `family`, `ctx_symbol`, calendar fields, source strategy identity are **not** admissible post hoc policy targets. Even suggested generic features are subject to postselection and not OOS.
+
+Research-only opt-in `--lifecycle-attack-override-partial-require KEY=VALUE` added to `scripts/cibo_trader_lab_three_mode_ceiling.py`. The new pure `_causal_partial_features()` gate:
+- reads only immutable pre-entry decision context,
+- disables **only** `ADVERSE_PARTIAL_REDUCTION` on nonmatches,
+- preserves existing `DEFENSIVE_INITIAL_STOP_CAP` and Trader entry custody,
+- defaults to original behavior if the new option is absent,
+- fails closed on missing required context and refuses context gate without partial feature enabled.
+[CI SUCCESS 37785336579](https://github.com/mezas3238-hue/qore-core/actions/runs/37785336579): 27 unit tests pass (9 transfer, 12 sovereign/robust Pareto, 6 context gate).
+
+[12-case context-specific replay workflow](https://github.com/mezas3238-hue/qore-core/blob/agent/cibo-dual-dd-context-defense-20261008-001/.github/workflows/cibo-sovereign-context-only-postentry-partial-ridge-20261008.yml) isolates cause with same base parameters and independent Sovereign/GL/DD gates, using only normalized geometry/volatility context. Record actual outcomes only after completed receipts; no policy promotion from reused holdout.
+
