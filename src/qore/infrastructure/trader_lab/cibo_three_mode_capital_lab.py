@@ -1004,6 +1004,7 @@ def run_three_mode_trader_lab(
     distributed_attack_frontier: bool = False,
     attack_multiplier_cap: int = DEFAULT_DISTRIBUTED_ATTACK_MULTIPLIER_CAP,
     medium_multiplier_cap: int = 4,
+    medium_entry_risk_fraction_override: Decimal | None = None,
     medium_drawdown_intensity_trigger: Decimal | None = None,
     coordinated_economic_group: bool = False,
     economic_group_bootstrap_cushion_share: Decimal = Decimal("0.75"),
@@ -4542,6 +4543,20 @@ def run_three_mode_trader_lab(
                         if candidate.native_cognition_recommended is not False
                         else MEDIUM_DEFENSIVE_RISK_FRACTION
                     )
+                    # H13 budget-only override. None preserves the *exact*
+                    # original CIBO mode/cognition/lifecycle methodology.
+                    # The 5pct experiment changes only the MEDIUM monetary
+                    # sizing target; all native caps/seed/margin guards remain.
+                    if medium_entry_risk_fraction_override is not None:
+                        if (
+                            not isinstance(medium_entry_risk_fraction_override, Decimal)
+                            or not medium_entry_risk_fraction_override.is_finite()
+                            or not Decimal(0) < medium_entry_risk_fraction_override <= Decimal(1)
+                        ):
+                            raise CiboCapitalManagementError(
+                                "H13 MEDIUM risk target must be a Decimal in (0,1]"
+                            )
+                        medium_risk_fraction = medium_entry_risk_fraction_override
                     if ceiling_discovery_mode:
                         medium_drawdown_scale = Decimal(1)
                     elif total_drawdown_utilization >= ECONOMIC_DRAWDOWN_CEILING:
