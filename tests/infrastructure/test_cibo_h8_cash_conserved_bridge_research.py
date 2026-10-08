@@ -92,6 +92,26 @@ class TestCiboH8CashConservedBridge(unittest.TestCase):
                 before,
             )
 
+    def test_roundoff_reserve_is_not_available_money(self):
+        state = _State(
+            sovereign_bank_usd=D("40"),
+            portfolio_cushion_usd=D("20"),
+            sovereign_reserved_usd=D("-0.0000000000000000000000000110"),
+            cushion_reserved_usd=D("-0.0000000000000000000000000030"),
+        )
+        with localcontext() as context:
+            context.prec = 100
+            before = state.sovereign_bank_usd + state.portfolio_cushion_usd
+            state.normalize_h8_roundoff_only()
+            self.assertEqual(state.sovereign_reserved_usd, D(0))
+            self.assertEqual(state.cushion_reserved_usd, D(0))
+            self.assertEqual(state.sovereign_bank_usd + state.portfolio_cushion_usd, before)
+
+    def test_material_negative_reserve_fails_closed(self):
+        state = _State(sovereign_reserved_usd=D("-0.000001"))
+        with self.assertRaises(CiboCapitalManagementError):
+            state.normalize_h8_roundoff_only()
+
     def test_zero_transfer_is_no_op(self):
         state = _State()
         total_before = state.total_capital_usd
