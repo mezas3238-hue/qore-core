@@ -25,6 +25,7 @@ Las políticas nuevas tienen *umbrales de investigación*, sujetos a calibració
 - `cibo_four_motor_policy.py`: `ReconciledQoreCashflow`, `FourMotorObservation`, `FourMotorProposal`, `sign_producer_receipt`.
 - Un `request_id`, `trader_id`, `symbol`, BUY/SELL, `source_lane`, `account_sequence`, reloj UTC, hash de upstream y cashflows conciliados con IDs no duplicados.
 - Importes `Decimal` finitos no negativos; profit realizado exige `reconciled=True` y timestamp no posterior a la decisión. Floats positivos jamás acreditados como capital.
+- Fail-closed de evidencia broker: quote UTC a menos de 10 segundos, nunca futuro; los tres flags explícitos `broker_fees_complete`, `broker_profit_valuation_complete`, `broker_margin_valuation_complete` deben ser verdaderos. Un flag en un test sintético **no prueba** autenticidad MT5; ésta sigue pendiente del Arquitecto 3.
 - Cada función emite límites, evidencia de la decisión y `reason_codes`, en su propia unidad física.
 - Firma HMAC SHA256 con **clave individual del productor**, inyectada por el servicio de ese productor, no por un harness con las cuatro claves. `source_event_sha256` firma el contenido canónico del recibo y `upstream_event_sha256` vincula el dato recibido.
 - El receptor QDLE existente exige identidad de productor, cuatro hashes diferentes, HMAC distintas, match exacto de límites, epoch y frescura <= 10 segundos. La comprobación real de autoría del feed broker y la gestión aislada de secretos, en despliegue, están **pendientes**: un hash válido por sí solo NO certifica un deal auténtico.
