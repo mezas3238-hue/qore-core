@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
+import json
 import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
@@ -13,6 +15,8 @@ from qore.infrastructure.qore_dynamic_lot_engine import (
 )
 
 T = datetime(2026, 10, 8, 12, tzinfo=timezone.utc)
+KEYS = {name: (name + "-never-live-test-only-crypto-key").encode().ljust(64, b"x")
+        for name in ("SIZING", "CIBO_COMPOUND", "ADAPTIVE_LEVERAGE", "PORTFOLIO_COMPOUND")}
 
 
 class FakeBroker:
@@ -38,20 +42,23 @@ def receipts():
             "approved_max_lots": "40", "approved_margin_usd": "1900"},
         "PORTFOLIO_COMPOUND": {"approved_source_funds_usd": "60"},
     }
-    return {
-        name: dict(request_id="four-receipts", account_sequence=1,
-                   observed_at=T.isoformat(),
-                   source_event_sha256="sha256:" + hashlib.sha256(name.encode()).hexdigest(),
-                   **fields)
-        for name, fields in caps.items()
-    }
+    signed = {}
+    for name, fields in caps.items():
+        payload = dict(producer=name, request_id="four-receipts", account_sequence=1,
+                       observed_at=T.isoformat(), **fields)
+        canonical = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+        signed[name] = dict(
+            payload, source_event_sha256="sha256:" + hashlib.sha256(canonical).hexdigest(),
+            hmac_sha256=hmac.new(KEYS[name], canonical, hashlib.sha256).hexdigest())
+    return signed
 
 
 class TestFourMotorEvidence(unittest.TestCase):
     def setUp(self):
         self.folder = tempfile.TemporaryDirectory()
         self.q = QDLE(Path(self.folder.name) / "motor.sqlite",
-                      FakeBroker(), enforce_finance_approval=True)
+                      FakeBroker(), enforce_finance_approval=True,
+                      motor_hmac_keys=KEYS)
         self.q.publish_account(QDLEAccount(
             "123", "FundedNext", "USD", 1, T, D("2000"), D("2000"),
             D("1900"), D("60"), D("60"), D("0"), D("60")))
@@ -80,18 +87,32 @@ class TestFourMotorEvidence(unittest.TestCase):
             altered["SIZING"]["source_event_sha256"] = "sha256:" + "a"*64
             self.q.publish_finance_approval(signal(), T, altered)
 
+    def test_tampered_signature_and_missing_real_keys_block(self):
+        tampered = receipts()
+        tampered["SIZING"]["hmac_sha256"] = "0" * 64
+        with self.assertRaisesRegex(QDLEError, "signature invalid"):
+            self.q.publish_finance_approval(signal(), T, tampered)
+        with tempfile.TemporaryDirectory() as d:
+            missing = QDLE(Path(d) / "missing.sqlite", FakeBroker(),
+                           enforce_finance_approval=True)
+            missing.publish_account(QDLEAccount(
+                "123", "FundedNext", "USD", 1, T, D("2000"), D("2000"),
+                D("1900"), D("60"), D("60"), D("0"), D("60")))
+            with self.assertRaisesRegex(QDLEError, "signing keys required"):
+                missing.publish_finance_approval(signal(), T, receipts())
+
     def test_reused_proof_wrong_economics_and_stale_decision_fail(self):
         same = receipts()
         same["CIBO_COMPOUND"]["source_event_sha256"] = same["SIZING"]["source_event_sha256"]
-        with self.assertRaisesRegex(QDLEError, "reuse"):
+        with self.assertRaisesRegex(QDLEError, "hash not bound"):
             self.q.publish_finance_approval(signal(), T, same)
         wrong = receipts()
         wrong["SIZING"]["approved_risk_usd"] = "100"
-        with self.assertRaisesRegex(QDLEError, "differs"):
+        with self.assertRaisesRegex(QDLEError, "hash not bound"):
             self.q.publish_finance_approval(signal(), T, wrong)
         stale = receipts()
         stale["PORTFOLIO_COMPOUND"]["observed_at"] = (T-timedelta(minutes=1)).isoformat()
-        with self.assertRaisesRegex(QDLEError, "stale"):
+        with self.assertRaisesRegex(QDLEError, "hash not bound"):
             self.q.publish_finance_approval(signal(), T, stale)
 
 
