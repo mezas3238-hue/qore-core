@@ -902,16 +902,31 @@ class QDLE:
             if not raw or raw["sequence"] <= row[2]:
                 raise QDLEError("newer account snapshot must reflect fill")
             acc = self._account(raw)
+            partials = db.execute(
+                "SELECT broker_ticket,lots FROM broker_partial_fills WHERE request_id=?",
+                (request_id,)).fetchall()
+            executed_lots = Decimal(row[5])
+            if partials:
+                if {p[0] for p in partials} != {row[1]}:
+                    raise QDLEError("partial broker tickets do not reconcile")
+                executed_lots = sum((Decimal(p[1]) for p in partials), Decimal(0))
+                if executed_lots > Decimal(row[5]):
+                    raise QDLEError("broker partial executions exceed QDLE reservation")
+                if executed_lots < Decimal(row[5]) and not db.execute(
+                    "SELECT cancel_receipt FROM broker_partial_cancellations WHERE request_id=?",
+                    (request_id,)).fetchone():
+                    raise QDLEError("broker unfilled remainder cancellation missing")
             matches = [p for p in acc.positions if p.ticket == row[1]
                        and p.symbol == row[3] and p.side == row[4]
-                       and p.lots == Decimal(row[5])]
+                       and p.lots == executed_lots]
             if len(matches) != 1 or row[1] not in acc.covered_fill_tickets:
                 raise QDLEError("broker position or QORE funded-source coverage absent")
             db.execute("UPDATE reservations SET state='ABSORBED' WHERE request_id=?",
                        (request_id,))
             self._audit(db, "FILLED_AND_COVERED", request_id,
-                        {"ticket": row[1], "executed_lots": str(matches[0].lots),
-                         "source_covered": True, "account_sequence": acc.sequence})
+                        {"ticket": row[1], "executed_lots": str(executed_lots),
+                         "source_covered": True, "account_sequence": acc.sequence,
+                         "partial_deal_count": len(partials)})
 
     def confirm_rejection(self, request_id: str, broker_rejection_ref: str) -> None:
         """Only call with verified broker refusal/no-fill. Unknown outcomes stay held."""
@@ -953,6 +968,11 @@ class QDLE:
             if any(p.ticket == broker_ticket for p in acc.positions):
                 raise QDLEError("broker still reports position open")
             receipt = self._result(json.loads(row[3]))
+            partial_lots = [Decimal(p[0]) for p in db.execute(
+                "SELECT lots FROM broker_partial_fills WHERE request_id=?",
+                (request_id,)).fetchall()]
+            actual_executed_lots = (
+                sum(partial_lots, Decimal(0)) if partial_lots else receipt.lots)
             already_recorded = db.execute(
                 "SELECT request_id FROM broker_settlements WHERE deal_receipt=?",
                 (deal_receipt,)).fetchone()
@@ -969,7 +989,7 @@ class QDLE:
             self._audit(db, "BROKER_REALIZED_SETTLEMENT", request_id, {
                 "broker_ticket": broker_ticket, "deal_receipt": deal_receipt,
                 "realized_net_pnl_usd": format(realized_net_pnl_usd, "f"),
-                "executed_lots": format(receipt.lots, "f"),
+                "executed_lots": format(actual_executed_lots, "f"),
                 "planned_stop_usd": format(receipt.total_risk_usd, "f"),
                 "margin_reserved_usd": format(receipt.margin_usd, "f"),
                 "realized_pnl_to_reserved_margin_ratio": (
