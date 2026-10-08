@@ -81,6 +81,7 @@ def build_local_handler(engine: QDLE, *, trader_token: str,
             permitted = {
                 "/v1/reserve": trader_token,
                 "/v1/finance-approval": treasury_token,
+                "/v1/pre-send-check": provider_token,
                 "/v1/account-event": treasury_token,
                 "/v1/symbol-event": provider_token,
                 "/v1/fill": provider_token,
@@ -107,6 +108,16 @@ def build_local_handler(engine: QDLE, *, trader_token: str,
                     cmd = _intent(row)
                     engine.publish_finance_approval(cmd, approved_at=datetime.fromisoformat(row["approved_at"]))
                     response = {"approval_recorded": True, "request_id": cmd.request_id}
+                elif self.path == "/v1/pre-send-check":
+                    engine.arm_for_live_send(
+                        request_id=row["request_id"], provider_symbol=row["provider_symbol"],
+                        side=row["side"], lots=_decimal(row, "lots"),
+                        executable_entry=_decimal(row, "executable_entry"),
+                        stop_price=_decimal(row, "stop_price"),
+                        now=datetime.fromisoformat(row["at"]),
+                    )
+                    response = {"qdle_live_send_armed_once": True,
+                                "broker_fill_confirmed": False}
                 elif self.path == "/v1/account-event":
                     cmd = QDLEAccount(
                         account_id=row["account_id"], provider=row["provider"],
