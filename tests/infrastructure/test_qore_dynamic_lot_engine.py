@@ -294,7 +294,7 @@ class TestMT5Adapter(unittest.TestCase):
         mapping["NAS100"] = "NDX100"
         mapping["NDX100"] = "NDX100"
         items = read_mt5_symbols(mt5, mapping,
-            lambda symbol, info: VerifiedFee(D("7"), "TEST_CONFIG_EVIDENCE"), as_of=T)
+            lambda symbol, info: VerifiedFee(D("7"), "TEST_CONFIG_COMPLETE_FEE", covers_open_and_close=True), as_of=T)
         self.assertEqual(len(items), 6)
         self.assertIn("NAS100", next(s for s in items
                       if s.broker_symbol == "NDX100").aliases)
