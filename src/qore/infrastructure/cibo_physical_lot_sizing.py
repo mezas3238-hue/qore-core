@@ -57,6 +57,8 @@ class CiboLotSizingInput:
     sizing_risk_cap_usd: Decimal
     cibo_compound_risk_cap_usd: Decimal
     portfolio_unreserved_cash_usd: Decimal
+    sovereign_unreserved_cash_usd: Decimal
+    source_lane: str
     leverage_available_margin_usd: Decimal
     sovereign_unreserved_risk_usd: Decimal
     leverage_max_lots: Decimal
@@ -71,9 +73,12 @@ class CiboLotSizingInput:
         for name in (
             "provider_cost_usd_per_lot", "sizing_risk_cap_usd",
             "cibo_compound_risk_cap_usd", "portfolio_unreserved_cash_usd",
-            "leverage_available_margin_usd", "sovereign_unreserved_risk_usd",
+            "sovereign_unreserved_cash_usd", "leverage_available_margin_usd",
+            "sovereign_unreserved_risk_usd",
         ):
             _value(name, getattr(self, name), allow_zero=True)
+        if self.source_lane not in {"SOVEREIGN_BANK", "PORTFOLIO_CUSHION"}:
+            raise CiboLotSizingError("source_lane must be a physical treasury source")
         if self.broker_min_lot > self.broker_max_lot:
             raise CiboLotSizingError("broker minimum lot exceeds maximum lot")
 
@@ -98,7 +103,9 @@ def compute_cibo_lot_sizing(spec: CiboLotSizingInput) -> CiboLotSizingDecision:
     SIZING and CIBO_COMPOUND propose *risk USD*; PORTFOLIO provides unreserved
     money for stop+cost; ADAPTIVE_LEVERAGE provides actual free margin and its
     authorized maximum volume; QORE_RISK provides a hard stop-risk ceiling.
-    These are upper bounds, not balances to sum or promises of leverage.
+    MEDIUM chooses the actual sovereign bank, ATTACK the actual cushion;
+    unused money in another lane is NOT fungible without authorized atomic
+    transfer. These are upper bounds, not balances to sum.
     """
     if not isinstance(spec, CiboLotSizingInput):
         raise CiboLotSizingError("CiboLotSizingInput required")
@@ -119,6 +126,16 @@ def compute_cibo_lot_sizing(spec: CiboLotSizingInput) -> CiboLotSizingDecision:
                 (amount / step).to_integral_value(rounding=ROUND_FLOOR) * step,
             )
 
+        source_usd = (
+            spec.sovereign_unreserved_cash_usd
+            if spec.source_lane == "SOVEREIGN_BANK"
+            else spec.portfolio_unreserved_cash_usd
+        )
+        source_code = (
+            "SOVEREIGN_BANK"
+            if spec.source_lane == "SOVEREIGN_BANK"
+            else "COMPOUND_PORTFOLIO"
+        )
         caps = (
             ("REQUESTED_USD", quantized(
                 spec.requested_loss_budget_usd / effective_loss_per_lot
@@ -129,8 +146,8 @@ def compute_cibo_lot_sizing(spec: CiboLotSizingInput) -> CiboLotSizingDecision:
             ("CIBO_COMPOUND", quantized(
                 spec.cibo_compound_risk_cap_usd / effective_loss_per_lot
             )),
-            ("COMPOUND_PORTFOLIO", quantized(
-                spec.portfolio_unreserved_cash_usd / effective_loss_per_lot
+            (source_code, quantized(
+                source_usd / effective_loss_per_lot
             )),
             ("ADAPTIVE_LEVERAGE_MARGIN", quantized(
                 spec.leverage_available_margin_usd / spec.margin_usd_per_lot
@@ -164,7 +181,7 @@ def compute_cibo_lot_sizing(spec: CiboLotSizingInput) -> CiboLotSizingDecision:
             all_in_loss > spec.requested_loss_budget_usd
             or all_in_loss > spec.sizing_risk_cap_usd
             or all_in_loss > spec.cibo_compound_risk_cap_usd
-            or all_in_loss > spec.portfolio_unreserved_cash_usd
+            or all_in_loss > source_usd
             or all_in_loss > spec.sovereign_unreserved_risk_usd
             or margin > spec.leverage_available_margin_usd
             or candidate > spec.leverage_max_lots
