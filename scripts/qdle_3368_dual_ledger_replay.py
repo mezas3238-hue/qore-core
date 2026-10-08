@@ -146,6 +146,9 @@ def main() -> int:
     module_audit_present = Counter()
     sym_counts: dict[str, Counter] = defaultdict(Counter)
     total_cost = ZERO
+    entry_commission_paid = ZERO
+    closing_commission_paid = ZERO
+    recent_settlements: list[tuple[datetime, str, D]] = []
     swap_pnl = ZERO
     rollover_count = 0
     realized_count = 0
@@ -190,6 +193,7 @@ def main() -> int:
             nonlocal nav, peak_nav, max_dd_ratio, maximum_absolute_dd
             nonlocal provider_closed_at, unresolved_at_breach
             nonlocal realized_count, total_cost, wins, losses, realized_gains
+            nonlocal closing_commission_paid
             nonlocal swap_pnl, rollover_count
             if provider_closed_at is not None:
                 return
@@ -211,7 +215,9 @@ def main() -> int:
                 )
                 realized_gains += pnl
                 # Entry commission was already removed from NAV at hypothetical fill.
-                nav += gross + swap
+                nav += gross + swap - trade.get("deferred_close_fee", ZERO)
+                closing_commission_paid += trade.get("deferred_close_fee", ZERO)
+                recent_settlements.append((when, ticket, pnl))
                 wins += max(ZERO, pnl)
                 losses += max(ZERO, -pnl)
                 realized_count += 1
@@ -336,11 +342,25 @@ def main() -> int:
                     digest = "sha256:" + hashlib.sha256(
                         (rid + at.isoformat() + str(nav) + str(fee)).encode()
                     ).hexdigest()
+                    # Keep 3 most recent completed trade settlements distinct,
+                    # so Compound's three-loss defense can really activate.
+                    # Aggregate earlier cashflows + already debited opening fees
+                    # in a prior synthetic cashbook receipt without inventing profit.
+                    recent = recent_settlements[-3:]
+                    previous_amount = nav - START_QORE - sum(
+                        (v for _, _, v in recent), ZERO
+                    )
+                    prior_time = (recent[0][0] - timedelta(microseconds=1)
+                                  if recent else at)
                     simulated_flows = (
-                        (ReconciledQoreCashflow(
-                            "REPLAY_BALANCE:" + rid, at, nav - START_QORE,
-                            digest, True,
-                        ),) if nav != START_QORE else ()
+                        ((ReconciledQoreCashflow(
+                            "REPLAY_PRIOR_CASHBOOK:" + rid, prior_time,
+                            previous_amount, digest, True),)
+                         if previous_amount != ZERO else ())
+                        + tuple(ReconciledQoreCashflow(
+                            "REPLAY_SETTLED:" + trade_id, completed_at,
+                            net, digest, True,
+                        ) for completed_at, trade_id, net in recent)
                     )
                     obs = FourMotorObservation(
                         request_id=rid, trader_id=row["trader_id"], symbol=symbol, side=side,
@@ -439,9 +459,16 @@ def main() -> int:
                     qdle.acknowledge_fill(rid, synthetic_ticket)
                     # Fee debited at entry, not at settlement: immediate QORE
                     # NAV and broker equity reduction feeds subsequent decisions.
-                    entry_fee = result.lots * fee
+                    # Broker-style simulated timing: opening fee at entry;
+                    # closing fee ONLY at the modeled exit. QDLE pre-reserves
+                    # the full two-leg cost before entry in both cases.
+                    full_fee = result.lots * fee
+                    entry_fee = (full_fee / D("2") if args.motor_policy == "independent_four_motors"
+                                 else full_fee)
+                    close_fee = full_fee - entry_fee
                     nav -= entry_fee
-                    total_cost += entry_fee
+                    entry_commission_paid += entry_fee
+                    total_cost += full_fee
                     peak_nav = max(peak_nav, nav)
                     dd_at_entry = max(ZERO, peak_nav - nav)
                     maximum_absolute_dd = max(maximum_absolute_dd, dd_at_entry)
@@ -464,6 +491,7 @@ def main() -> int:
                         "symbol": symbol, "side": side, "trader": row["trader_id"], "lots": result.lots,
                         "margin": result.margin_usd, "planned_risk": result.total_risk_usd,
                         "stop_per_lot": stop_per_lot, "fee_per_lot": fee,
+                        "deferred_close_fee": close_fee,
                         "r": D(row["settlement_outcome_research_only"]["gross_structural_outcome_r"]),
                     }
                     publish(at)
@@ -527,6 +555,10 @@ def main() -> int:
             "gross_wins_usd": str(wins),
             "gross_losses_usd": str(losses),
             "entry_cost_proxy_usd": str(total_cost),
+            "roundtrip_total_commission_committed_proxy_usd": str(total_cost),
+            "opening_commission_paid_proxy_usd": str(entry_commission_paid),
+            "closing_commission_paid_proxy_usd": str(closing_commission_paid),
+            "unsettled_future_close_fee_not_charged_usd": str(sum((x.get("deferred_close_fee", ZERO) for x in active.values()), ZERO)),
             "net_swap_pnl_utc_midnight_proxy_usd": str(swap_pnl),
             "swap_rollover_position_count_proxy": rollover_count,
             "swap_model": "SCREENSHOT_2026_POINTS_AT_UTC_MIDNIGHT_PROXY" if args.swap_proxy == "utc_midnight" else "OMITTED_NO_DATA",
