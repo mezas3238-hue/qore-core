@@ -34,7 +34,7 @@ Large negative 2021 ATTACK settlements: 8,106x/−USD 9,565.08, 5,000x/−USD 5,
 
 [Run 37718339097](https://github.com/mezas3238-hue/qore-core/actions/runs/37718339097) — 9 experiments, SUCCESS. Experimentally repurposing window7 for high multipliers (5,000–10,000x, capital USD 35k–65k) produced DD 37.66598266%, capital USD 668,746.73 and loss USD 963,755.87 vs control loss USD 957,225.91. Worse gross loss, slight capital degradation: NOT STRICT PARETO. Neutralizing original window7 caused catastrophic drop to USD 550,446: original low-capital window7 is indispensable in tested path despite 3 binds. **Do not replace window7 to create new feature.**
 
-## Experiment D1 — in progress
+## Experiment D1 — completed, rejected
 
 Workflow `.github/workflows/cibo-trader-lab-riskshield-highmult-window4-d1.yml` in isolated branch. Unlike C1, retains **original window7** and varies width/taper of the existing high multiplier window4 (initially 4,800–5,200x, factor 0.90) to include exposure up to 9,000x. Nine parallel cases include exact control, and full count/no-breach/capital/loss DD ranking. The hypothesis is causal and portfolio-wide, rather than Trader-specific.
 
@@ -54,3 +54,29 @@ Workflow `.github/workflows/cibo-trader-lab-riskshield-highmult-window4-d1.yml` 
 - B1 run `37717684638`, artifact `11524622662`, includes forensic baseline JSON and `drawdown_forensics.top_10_episodes`.
 - C1 run `37718339097`, artifact `11524349886`.
 - D1 isolated workflow provided above; use GitHub Actions branch filter to locate its exact run.
+
+## D1 FINAL RESULTS — 2026-10-07 / GitHub 2026-10-08 UTC
+
+- Initial technical run `37718642771` failed before any replay because `w4lo` was unbound outside `run_case`. Isolated workflow corrected in commit `43bb8ee92ac722777c72feebb1762287d20e6da6`.
+- Corrected [run 37718741078](https://github.com/mezas3238-hue/qore-core/actions/runs/37718741078) **SUCCESS**, complete 9-case ranking and replay artifact **11525186866**. No production change.
+- Frozen control reproduced exactly: capital USD **668,910.439683**, max DD **37.772111615%**, gross loss USD **957,225.911831**, ATTACK gross loss USD **955,665.772156**, window4 binds **39**, window7 binds **3**.
+- W4 upper limit **6,500x** at taper 0.90: DD unchanged at **37.772111615%**, capital falls to **663,774.49**, total GL **956,731.47**. DD unchanged, no strict improvement.
+- W4 upper limit **8,000x** at taper 0.90: capital USD **548,064.74** (BELOW sovereign floor), DD still 37.7721%, rejects.
+- W4 upper **8,200–9,000x** at taper 0.90: capital USD **440,852.83**, DD **48.4281%**, 107 binds, rejects.
+- W4 upper **9,000x** at taper 0.95: capital USD **461,193.02**, DD **58.3452%**, rejects.
+- W4 upper **9,000x** at taper 0.99: capital USD **568,137.70**, DD **44.4388%**, rejects.
+- Repurposed 7,000–9,000x at 0.90: capital USD **572,748.84**, DD **44.5605%**, 0 window4 binds, rejects.
+- **Verdict: STRICT_PARETO_CASES=[], DOMINATES_CURRENT_CASES=[], DD_LE_25_CASES=[].** Keep the frozen 37.772111615% control; D1 did not find a promotion candidate.
+
+## Revised P0 — additive causal headroom architecture, not global multiplier widening
+
+These tests clarify that the current 7-window system is path dependent. Removing the 3-bind original window7 can cost more than USD 100k of terminal capital, while widening window4 broadly beyond 8,000x can destroy capital and raise DD. The ATTACK 2021 worst-loss cluster (8,106x and two 5,000x negative settlements) needs **a separate additive, state-dependent, forward-only risk monitor and response**, leaving existing windows intact.
+
+Required scientific implementation on a fresh isolated branch:
+1. Record **pre-decision and post-entry** bankroll, peak, live DD, open position stop-risk, portfolio cushion, net trader loss pressure, correlated exposure by symbol, and coherent scenario loss headroom. Validate ledger timing, no outcome leakage or use of future price.
+2. Calculate stochastic/stress total downside headroom vs internal 20% DD *aspiration*, with reserves and slippage guard, but never claim mathematical guarantee. Keep Trader entries sovereign. CIBO may manage post-entry partials, stop tightening and authorized risk budget, subject to provider/account constraints.
+3. Implement a new optional **eighth** independent guard ONLY if supported by causal entry/position information and promote neither this nor any result until strict replays establish DD compression with cap >=USD 668,910.44 as growth-preserving ambition, loss <=USD 957,225.91, 3,368 entries and no breaches.
+4. Demonstrate value against all top-10 DD episodes: 2021 ATTACK (37.772%), 2019 MEDIUM (37.666%), 2020 Sep/Oct ATTACK (37.017%) and other >30% epochs. A local win that only shifts DD to 37.666% cannot be considered 20%-ready.
+5. After research convergence: freeze and run independent unseen three-year holdout. Reused research replay is NOT certification evidence.
+
+**No promotion performed.** Canonical branch `agent/cibo-causal-expectation-leakage-fix-001` remains unchanged by the independent RiskShield B1/C1/D1 experiments.
