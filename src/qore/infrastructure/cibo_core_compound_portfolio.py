@@ -31,12 +31,11 @@ from qore.infrastructure.cibo_compound_floor import (
 from qore.infrastructure.cibo_compound_portfolio_ledger import (
     CompoundPortfolioLedger,
 )
-
 from qore.infrastructure.cibo_four_motor_policy import (
+    ZERO,
     FourMotorObservation,
     FourMotorPolicyError,
     FourMotorProposal,
-    ZERO,
 )
 
 
