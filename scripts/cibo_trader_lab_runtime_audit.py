@@ -10,6 +10,7 @@ from pathlib import Path
 
 ROOT = Path(".github/workflows")
 MIGRATED = {
+    "carrier37082-medium-trough-context2-ridge",
     "carrier37655-medium-context-stop-ridge",
     "carrier37655-medium-balanced-regime-ridge",
     "carrier37655-medium-extreme-cluster-ridge",
