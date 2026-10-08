@@ -141,7 +141,8 @@ def read_mt5_symbols(
             tick_value_loss_usd=_money(info.trade_tick_value_loss, "tick_value_loss"),
             contract_size=_money(info.trade_contract_size, "contract_size"),
             currency_profit=str(info.currency_profit),
-            fee_usd_per_lot=fee.usd_per_lot, fee_provenance=fee.evidence,
+            fee_usd_per_lot=fee.usd_per_lot,
+            fee_provenance="BROKER_ROUND_TRIP_VERIFIED:" + fee.evidence,
             as_of=as_of,
             tradable=bool(info.visible and info.trade_mode == mt5.SYMBOL_TRADE_MODE_FULL),
         ))
