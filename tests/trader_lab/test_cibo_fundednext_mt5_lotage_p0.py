@@ -141,7 +141,7 @@ class FundedNextP0Tests(unittest.TestCase):
   self.assertLessEqual(q.total_stop_risk_usd,D("2.95"))
  def test_slippage_decreases_allowed_lotage(self):
   x=self.ask("EURUSD","BUY",1.0991)
-  y=self.ask("EURUSD","BUY",1.0991,policy=RiskPolicy(slippage_points=D("3")),trade_id="B")
+  y=self.ask("EURUSD","BUY",1.0991,policy=RiskPolicy(per_entry_usd=D("3"),slippage_points=D("3")),trade_id="B")
   self.assertLessEqual(y.lots,x.lots)
  def test_wrong_side_sl_rejected(self):
   with self.assertRaisesRegex(FundingError,"BUY_STOP"):self.ask("EURUSD","BUY",1.101)
