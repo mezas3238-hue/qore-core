@@ -9,7 +9,7 @@ capital conserving and identity-free. Not approved for live use.
 from __future__ import annotations
 
 import json
-from decimal import Decimal
+from decimal import Decimal, localcontext
 from qore.infrastructure.trader_lab import cibo_three_mode_capital_lab as lab
 import cibo_trader_lab_batch_runner as batch
 
@@ -25,25 +25,27 @@ _first_rebalance = None
 
 def reconcile_available_cushion(state, target: Decimal) -> Decimal:
     """Transfer only unreserved Portfolio assets. Preserve total capital."""
-    gap = max(Decimal(0), target - state.sovereign_bank_usd)
-    available = max(Decimal(0), state.portfolio_cushion_usd - state.cushion_reserved_usd)
-    transfer = min(gap, available)
-    if transfer == 0:
+    with localcontext() as context:
+        context.prec = 100
+        gap = max(Decimal(0), target - state.sovereign_bank_usd)
+        available = max(Decimal(0), state.portfolio_cushion_usd - state.cushion_reserved_usd)
+        transfer = min(gap, available)
+        if transfer == 0:
+            return transfer
+        before = state.total_capital_usd
+        credit_before = state.portfolio_attack_credit_usd
+        state.portfolio_cushion_usd -= transfer
+        state.sovereign_bank_usd += transfer
+        state.portfolio_attack_credit_usd = max(
+            Decimal(0), min(credit_before - transfer, state.cushion_available_usd)
+        )
+        if state.total_capital_usd != before:
+            raise AssertionError("cross-ledger transfer silently created capital")
+        if state.portfolio_cushion_usd < state.cushion_reserved_usd:
+            raise AssertionError("cross-ledger transfer spent reserved cushion")
+        if state.portfolio_attack_credit_usd > state.cushion_available_usd:
+            raise AssertionError("cross-ledger transfer double-pledged ATTACK credit")
         return transfer
-    before = state.total_capital_usd
-    credit_before = state.portfolio_attack_credit_usd
-    state.portfolio_cushion_usd -= transfer
-    state.sovereign_bank_usd += transfer
-    state.portfolio_attack_credit_usd = max(
-        Decimal(0), min(credit_before - transfer, state.cushion_available_usd)
-    )
-    if state.total_capital_usd != before:
-        raise AssertionError("cross-ledger transfer silently created capital")
-    if state.portfolio_cushion_usd < state.cushion_reserved_usd:
-        raise AssertionError("cross-ledger transfer spent reserved cushion")
-    if state.portfolio_attack_credit_usd > state.cushion_available_usd:
-        raise AssertionError("cross-ledger transfer double-pledged ATTACK credit")
-    return transfer
 
 
 def _mark(state):
