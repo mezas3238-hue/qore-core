@@ -688,6 +688,24 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--ceiling-attack-single-trade-risk-drawdown-trigger",
+        type=Decimal,
+        default=None,
+        help="Optional realized DD required before the localized ATTACK per-trade risk cap is active.",
+    )
+    parser.add_argument(
+        "--ceiling-attack-single-trade-risk-capital-floor",
+        type=Decimal,
+        default=None,
+        help="Optional total-capital floor for the ATTACK per-trade risk cap.",
+    )
+    parser.add_argument(
+        "--ceiling-attack-single-trade-risk-capital-ceiling",
+        type=Decimal,
+        default=None,
+        help="Optional total-capital ceiling for the ATTACK per-trade risk cap.",
+    )
+    parser.add_argument(
         "--ceiling-attack-loss-streak-trigger",
         type=int,
         default=None,
@@ -2082,6 +2100,15 @@ def main() -> int:
         ),
         ceiling_attack_single_trade_risk_fraction=(
             args.ceiling_attack_single_trade_risk_fraction
+        ),
+        ceiling_attack_single_trade_risk_drawdown_trigger=(
+            args.ceiling_attack_single_trade_risk_drawdown_trigger
+        ),
+        ceiling_attack_single_trade_risk_capital_floor=(
+            args.ceiling_attack_single_trade_risk_capital_floor
+        ),
+        ceiling_attack_single_trade_risk_capital_ceiling=(
+            args.ceiling_attack_single_trade_risk_capital_ceiling
         ),
         ceiling_attack_loss_streak_trigger=(
             args.ceiling_attack_loss_streak_trigger
