@@ -11,7 +11,7 @@ import hashlib
 import json
 import sqlite3
 from contextlib import contextmanager
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
@@ -437,7 +437,7 @@ class QDLE:
                 raise QDLEError("broker valuation required")
             self._fresh(valuation.as_of, now)
             held = db.execute("""SELECT source_lane,symbol,side,lots,risk,margin
-                                FROM reservations WHERE state IN ('HELD','FILL_UNRECONCILED')""").fetchall()
+                                FROM reservations WHERE state IN ('HELD','SENDING','FILL_UNRECONCILED')""").fetchall()
             total_held_risk = sum((Decimal(x[4]) for x in held), Decimal(0))
             total_held_margin = sum((Decimal(x[5]) for x in held), Decimal(0))
             source_held = sum((Decimal(x[4]) for x in held
@@ -529,6 +529,100 @@ class QDLE:
                 )
             return result
 
+    def arm_for_live_send(
+        self, *, request_id: str, provider_symbol: str,
+        side: str, lots: Decimal, executable_entry: Decimal,
+        stop_price: Decimal, now: datetime,
+    ) -> None:
+        """Atomic one-shot LIVE gate immediately before broker order_send.
+
+        This ONLY grants a one-shot reservation claim, not permission to enter
+        or any broker proof of a fill. The LIVE gateway separately verifies
+        canonical RiskAuthorization, provider rules, fresh ticks, and order_check.
+        A crash during SENDING remains RESERVED/UNKNOWN until broker reconciliation.
+        """
+        _dt(now)
+        for label, item in (("lots", lots), ("entry", executable_entry),
+                            ("stop", stop_price)):
+            _d(label, item)
+        if not self.enforce_finance_approval or not self._ready_in_this_process:
+            raise QDLEError("LIVE gate needs treasury approved fresh account service")
+        with self._tx() as db:
+            reservation = db.execute(
+                """SELECT state,symbol,side,lots,risk,margin,snapshot_seq
+                   FROM reservations WHERE request_id=?""",
+                (request_id,)).fetchone()
+            if reservation is None or reservation[0] != "HELD":
+                raise QDLEError("LIVE requires a unique HELD, unconsumed QDLE reservation")
+            if (reservation[1] != provider_symbol or reservation[2] != side
+                    or Decimal(reservation[3]) != lots):
+                raise QDLEError("Trader LIVE lotage, symbol or direction differs from QDLE")
+            approval = db.execute(
+                """SELECT account_sequence, approval_at, intent_json
+                   FROM finance_approvals WHERE request_id=?""",
+                (request_id,)).fetchone()
+            if approval is None or approval[2] is None:
+                raise QDLEError("no immutable QORE finance-approved intent")
+            raw = json.loads(approval[2])
+            numeric_fields = (
+                "entry_price", "stop_price", "requested_risk_usd",
+                "sizing_cap_usd", "cibo_compound_cap_usd",
+                "portfolio_cap_usd", "leverage_cap_lots", "margin_cap_usd",
+                "slippage_usd_per_lot", "methodology_min_lots",
+            )
+            for name in numeric_fields:
+                raw[name] = Decimal(str(raw[name]))
+            approved_intent = QDLEIntent(**raw)
+            if (approved_intent.request_id != request_id
+                    or approved_intent.side != side
+                    or approved_intent.stop_price != stop_price
+                    or approved_intent.symbol not in (provider_symbol,)):
+                # Canonical live payload must use exactly the same broker
+                # symbol as the original Treasury-approved intent.
+                raise QDLEError("LIVE geometry differs from QORE-approved entry")
+            account_raw = self._meta(db, "account")
+            if account_raw is None:
+                raise QDLEError("LIVE account snapshot absent")
+            account = self._account(account_raw)
+            self._fresh(account.as_of, now)
+            self._fresh(datetime.fromisoformat(approval[1]), now)
+            if (account.sequence != reservation[6]
+                    or account.sequence != approval[0]):
+                raise QDLEError("LIVE QORE funds changed: new approval and reservation needed")
+            broker_row = db.execute(
+                "SELECT payload FROM symbols WHERE symbol=?", (provider_symbol,)
+            ).fetchone()
+            if broker_row is None:
+                raise QDLEError("LIVE missing real broker instrument")
+            spec = self._symbol(json.loads(broker_row[0]))
+            self._fresh(spec.as_of, now)
+            if not spec.tradable:
+                raise QDLEError("LIVE symbol cannot be traded")
+            current = replace(approved_intent, entry_price=executable_entry)
+            quote = self.calculator.value(spec, current, now)
+            if not isinstance(quote, BrokerValuation):
+                raise QDLEError("LIVE broker-native valuation missing")
+            self._fresh(quote.as_of, now)
+            actual_loss = (quote.stop_loss_per_lot_usd + spec.fee_usd_per_lot
+                           + current.slippage_usd_per_lot) * lots
+            actual_margin = quote.margin_per_lot_usd * lots
+            if (actual_loss > Decimal(reservation[4])
+                    or actual_margin > Decimal(reservation[5])
+                    or actual_loss > account.equity * self.entry_risk_fraction):
+                raise QDLEError("LIVE price/margin drift exceeds atomically funded reservation")
+            self.calculator.check_volume(spec, current, lots)
+            db.execute("""UPDATE reservations SET state='SENDING'
+                          WHERE request_id=? AND state='HELD'""",
+                       (request_id,))
+            self._audit(db, "QDLE_LIVE_SEND_ARMED_ONCE", request_id, {
+                "symbol": provider_symbol, "side": side,
+                "broker_lots": format(lots, "f"),
+                "revalidated_stop_usd": format(actual_loss, "f"),
+                "revalidated_margin_usd": format(actual_margin, "f"),
+                "account_sequence": account.sequence,
+                "live_send_is_not_fill": True,
+            })
+
     def acknowledge_fill(self, request_id: str, ticket: str) -> None:
         """Broker-confirmed fill. Retain its entire reserve until QORE+MT5 reconcile."""
         if not ticket:
@@ -536,7 +630,7 @@ class QDLE:
         with self._tx() as db:
             row = db.execute("SELECT state,fill_ticket FROM reservations WHERE request_id=?",
                              (request_id,)).fetchone()
-            if not row or row[0] not in ("HELD", "FILL_UNRECONCILED"):
+            if not row or row[0] not in ("HELD", "SENDING", "FILL_UNRECONCILED"):
                 raise QDLEError("unknown or non-reserved fill")
             if row[1] and row[1] != ticket:
                 raise QDLEError("contradictory broker fill ticket")
@@ -577,8 +671,8 @@ class QDLE:
         with self._tx() as db:
             row = db.execute("SELECT state FROM reservations WHERE request_id=?",
                              (request_id,)).fetchone()
-            if not row or row[0] != "HELD":
-                raise QDLEError("only unfilled held requests can be released")
+            if not row or row[0] not in ("HELD", "SENDING"):
+                raise QDLEError("only broker-confirmed no-fill requests may be released")
             db.execute("UPDATE reservations SET state='REJECTED_NO_FILL' WHERE request_id=?",
                        (request_id,))
             self._audit(db, "BROKER_REJECTED_NO_FILL", request_id,
@@ -639,7 +733,7 @@ class QDLE:
         with sqlite3.connect(self.path) as db:
             raw = self._meta(db, "account")
             pending = db.execute("""SELECT COUNT(*) FROM reservations
-                                    WHERE state IN ('HELD','FILL_UNRECONCILED')""").fetchone()[0]
+                                    WHERE state IN ('HELD','SENDING','FILL_UNRECONCILED')""").fetchone()[0]
             symbol_rows = db.execute("SELECT payload FROM symbols").fetchall()
         stale = (raw is None or (now - datetime.fromisoformat(raw["as_of"])) < timedelta(0)
                  or (now - datetime.fromisoformat(raw["as_of"])) > self.max_age)
