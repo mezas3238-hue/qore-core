@@ -37,6 +37,12 @@ from qore.infrastructure.cibo_capital_management_authority import (
     plan_minimal_seed,
 )
 
+from qore.infrastructure.cibo_four_motor_policy import (
+    FourMotorObservation,
+    FourMotorPolicyError,
+    FourMotorProposal,
+)
+
 
 class CiboAccountSizingMode(StrEnum):
     SURVIVAL_MINIMAL_SEED = "SURVIVAL_MINIMAL_SEED"
@@ -436,12 +442,6 @@ def capital_stage_for_action(action: CapitalAction) -> CapitalStage:
         return CapitalStage.CAPITALIZE
     return CapitalStage.MINIMAL_SEED
 
-
-# P0 Architect 2: independent, signed-producer-ready SHADOW economic vote.
-# Kept separate from legacy mission modes above; no LIVE authority.
-from qore.infrastructure.cibo_four_motor_policy import (
-    FourMotorObservation, FourMotorProposal, FourMotorPolicyError,
-)
 
 
 def propose_p0_sizing_vote(observation: FourMotorObservation) -> FourMotorProposal:
