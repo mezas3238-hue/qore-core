@@ -40,6 +40,10 @@ def _intent(row: dict) -> QDLEIntent:
         slippage_usd_per_lot=_decimal(row, "slippage_usd_per_lot"),
         expected_account_sequence=int(row["expected_account_sequence"]),
         methodology_min_lots=Decimal(str(row.get("methodology_min_lots", "0"))),
+        requested_target_lots=(
+            _decimal(row, "requested_target_lots")
+            if row.get("requested_target_lots") is not None else None
+        ),
     )
 
 
