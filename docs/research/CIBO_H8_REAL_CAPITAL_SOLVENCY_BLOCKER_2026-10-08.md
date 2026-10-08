@@ -95,3 +95,12 @@ A standalone alternate 50% MEDIUM-to-cushion profit share was launched as [37769
 - H8 isolated cash bridge precise regression suite [37768917841](https://github.com/mezas3238-hue/qore-core/actions/runs/37768917841): **5/5 PASS**. Validates local money conservation and exact first H8 shortage in isolation only.
 
 **No P0 clearance:** physically funded 3,368/3,368 positions, broker intratrade margin, liquidation and new valid DD/economic ceiling remain unproven.
+
+
+## P0 continuity: negative collateral is not free cash (2026-10-08)
+
+Exact per-epoch funds H8 v3 [37769446768](https://github.com/mezas3238-hue/qore-core/actions/runs/37769446768) completed **SUCCESS as diagnostic / STRATEGY STILL BLOCKED** at 2020-07-13 21:10 UTC, epoch 1129. A mandatory 1x entry required USD0.310000000; reserved-source gate observed USD0.3099999999999999999999999960. This discrepancy is 4E-27 dollars, while the combined account ledger had thousands in free cushion. It does **not** authorize bypassing the funding gate: investigate stale/negative reserved collateral.
+
+Follow-up H8 v4 commit `b23543d14f8504abd1fd71f620f048d68c643b2a` adds `_State.normalize_h8_roundoff_only()` to strictly reject materially negative collateral values. Only negative residual reservations smaller than USD 1E-18 may be normalized to zero (not turned into free cash); sovereign/cushion actual cash balances are unchanged. Also adds exact diagnostic telemetry for pending per-epoch source commitments, sovereign reserved, and needed transfer at the next failed mandatory entry. Unit tests [37769848767](https://github.com/mezas3238-hue/qore-core/actions/runs/37769848767) **7/7 PASS** (when verified, use actual CI log for count); H8 v4 full exact-carrier run [37769863803](https://github.com/mezas3238-hue/qore-core/actions/runs/37769863803) must be read for actual funding result — NO CLAIM of a valid strategy yet.
+
+A GH Actions green result means **diagnostic** unless the replay successfully produces all 3,368 physically financed entries and the positive economic and bank-floor invariants. The current legacy USD670k values remain NOT VALIDATED for broker execution.
