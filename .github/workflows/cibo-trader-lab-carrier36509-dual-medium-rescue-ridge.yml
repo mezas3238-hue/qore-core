@@ -282,26 +282,29 @@ jobs:
                 --lifecycle-medium-context2-require "reg_h4_range_state=expanded"
               )
             fi
-            python scripts/cibo_trader_lab_three_mode_ceiling.py "${common[@]}" "${extra[@]}" \
-              --output "$RUNNER_TEMP/result/${name}.json"
+            python -c 'import json,sys; print(json.dumps(sys.argv[1:]))' "${common[@]}" "${extra[@]}" \
+              --output "$RUNNER_TEMP/result/${name}.json" >> "$RUNNER_TEMP/cibo-cases.jsonl"
           }
 
-          run_case "carrier36509-tfb" -0.30 control &
-          run_case "dm-r275-080" -0.275 -0.80 &
-          run_case "dm-r275-060" -0.275 -0.60 &
-          run_case "dm-r275-040" -0.275 -0.40 &
-          run_case "dm-r250-080" -0.25 -0.80 &
-          run_case "dm-r250-070" -0.25 -0.70 &
-          run_case "dm-r250-060" -0.25 -0.60 &
-          run_case "dm-r250-050" -0.25 -0.50 &
-          run_case "dm-r250-040" -0.25 -0.40 &
-          run_case "dm-r250-030" -0.25 -0.30 &
-          run_case "dm-r225-060" -0.225 -0.60 &
-          run_case "dm-r225-040" -0.225 -0.40 &
-          run_case "dm-r200-060" -0.20 -0.60 &
-          run_case "dm-r200-040" -0.20 -0.40 &
+          run_case "carrier36509-tfb" -0.30 control
+          run_case "dm-r275-080" -0.275 -0.80
+          run_case "dm-r275-060" -0.275 -0.60
+          run_case "dm-r275-040" -0.275 -0.40
+          run_case "dm-r250-080" -0.25 -0.80
+          run_case "dm-r250-070" -0.25 -0.70
+          run_case "dm-r250-060" -0.25 -0.60
+          run_case "dm-r250-050" -0.25 -0.50
+          run_case "dm-r250-040" -0.25 -0.40
+          run_case "dm-r250-030" -0.25 -0.30
+          run_case "dm-r225-060" -0.225 -0.60
+          run_case "dm-r225-040" -0.225 -0.40
+          run_case "dm-r200-060" -0.20 -0.60
+          run_case "dm-r200-040" -0.20 -0.40
 
-          wait
+          python scripts/cibo_trader_lab_batch_runner.py \
+            --cases "$RUNNER_TEMP/cibo-cases.jsonl" --workers 4 \
+            --m5-cache-dir "$GITHUB_WORKSPACE/.qore-cache/cibo-ultrafast-v1" \
+            --result-cache-dir "$GITHUB_WORKSPACE/.qore-cache/cibo-ultrafast-results"
 
       - name: Rank floor-valid and Pareto candidates
         run: |
