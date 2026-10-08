@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Mapping
 from dataclasses import fields, is_dataclass
 from datetime import datetime
 from decimal import Decimal
@@ -156,8 +157,8 @@ def build_ce2i_runtime_receipt(
     engine_name: str,
     stage: str,
     scope_id: str,
-    input_payload: dict[str, object],
-    output_payload: dict[str, object],
+    input_payload: Mapping[str, object],
+    output_payload: Mapping[str, object],
     downstream_consumer: str,
     consumer_action: str,
     status: str = "APPLIED",
@@ -170,10 +171,10 @@ def build_ce2i_runtime_receipt(
         engine_name=engine_name,
         stage=stage,
         scope_id=scope_id,
-        input_payload=input_payload,
-        output_payload=output_payload,
-        input_sha256=_sha256(input_payload),
-        output_sha256=_sha256(output_payload),
+        input_payload=dict(input_payload),
+        output_payload=dict(output_payload),
+        input_sha256=_sha256(dict(input_payload)),
+        output_sha256=_sha256(dict(output_payload)),
         downstream_consumer=downstream_consumer,
         consumer_action=consumer_action,
         status=status,
