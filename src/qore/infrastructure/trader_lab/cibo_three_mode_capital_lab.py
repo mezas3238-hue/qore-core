@@ -1080,6 +1080,7 @@ def run_three_mode_trader_lab(
     ceiling_attack_state_pressure2_capital_ceiling: Decimal | None = None,
     ceiling_attack_state_pressure2_market_posture: str | None = None,
     ceiling_attack_state_pressure2_h4_range_state: str | None = None,
+    ceiling_attack_state_pressure2_cap_taper_fraction: Decimal = Decimal("1"),
     ceiling_attack_state_pressure2_risk_budget_taper_fraction: Decimal = Decimal("1"),
     ceiling_attack_trader_loss_ratio_trigger: Decimal | None = None,
     ceiling_attack_trader_loss_ratio_min_settlements: int = 20,
@@ -2281,6 +2282,18 @@ def run_three_mode_trader_lab(
         )
     if (
         not isinstance(
+            ceiling_attack_state_pressure2_cap_taper_fraction,
+            Decimal,
+        )
+        or not ceiling_attack_state_pressure2_cap_taper_fraction.is_finite()
+        or ceiling_attack_state_pressure2_cap_taper_fraction <= 0
+        or ceiling_attack_state_pressure2_cap_taper_fraction > 1
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab ATTACK state-pressure2 cap taper must be Decimal in (0, 1]"
+        )
+    if (
+        not isinstance(
             ceiling_attack_state_pressure2_risk_budget_taper_fraction,
             Decimal,
         )
@@ -2301,6 +2314,8 @@ def run_three_mode_trader_lab(
             or ceiling_attack_state_pressure2_capital_ceiling is not None
             or ceiling_attack_state_pressure2_market_posture is not None
             or ceiling_attack_state_pressure2_h4_range_state is not None
+            or ceiling_attack_state_pressure2_cap_taper_fraction
+            != Decimal("1")
             or ceiling_attack_state_pressure2_risk_budget_taper_fraction
             != Decimal("1")
         )
@@ -4992,6 +5007,24 @@ def run_three_mode_trader_lab(
                             == ceiling_attack_state_pressure2_h4_range_state
                         )
                     )
+                    if (
+                        state_pressure2_active
+                        and ceiling_attack_state_pressure2_cap_taper_fraction
+                        < Decimal(1)
+                    ):
+                        state_pressure2_tapered_attack_cap = max(
+                            ATTACK_MINIMUM_MULTIPLIER,
+                            int(
+                                (
+                                    Decimal(coordinated_attack_cap)
+                                    * ceiling_attack_state_pressure2_cap_taper_fraction
+                                ).to_integral_value(rounding=ROUND_FLOOR)
+                            ),
+                        )
+                        coordinated_attack_cap = min(
+                            coordinated_attack_cap,
+                            state_pressure2_tapered_attack_cap,
+                        )
                     if (
                         ceiling_discovery_mode
                         and ceiling_attack_trader_loss_ratio_trigger is not None
