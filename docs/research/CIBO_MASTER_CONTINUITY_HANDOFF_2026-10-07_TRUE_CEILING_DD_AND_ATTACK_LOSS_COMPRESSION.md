@@ -1,3 +1,292 @@
+# OVERRIDE FINAL CANÓNICO — 2026-10-08 10:35 UTC — CARRIER35240
+## CIBO: 35,240189% DD VALIDADO → ATAQUE 2020 APR–MAY → OBJETIVO 20–25%
+
+> **ÉSTA ES LA AUTORIDAD MÁS RECIENTE DEL DOCUMENTO.**
+>
+> Todo bloque inferior que todavía diga 35,84%, 36,17%, 36,40%, 37.x o 38.x como “estado actual” queda subordinado a este override.
+>
+> El historial inferior se conserva porque contiene toda la genealogía experimental, métricas, cliffs, controles, runs, hipótesis y deuda técnica.
+
+Repositorio: mezas3238-hue/qore-core  
+Branch: agent/cibo-causal-expectation-leakage-fix-001  
+HEAD observado antes de este override: bc2a541b13503a382e30ee74190f0012607ab88f  
+Handoff canónico: docs/research/CIBO_MASTER_CONTINUITY_HANDOFF_2026-10-07_TRUE_CEILING_DD_AND_ATTACK_LOSS_COMPRESSION.md
+
+---
+
+# 0. DIRECTIVA SOBERANA
+
+Prioridad absoluta:
+
+> **REDUCIR EL MAX DRAWDOWN A 20–25%, IDEALMENTE ~20%, SIN DEGRADAR EL PISO ECONÓMICO CONGELADO Y SIN TOCAR LAS 3.368 ENTRADAS.**
+
+Reglas:
+
+- capital inicial: USD 60;
+- piso congelado: **USD 582.440,0252953678696769360345**;
+- preservar **3.368 / 3.368**;
+- CIBO no rechaza ni defer entradas;
+- el Trader ejecuta, CIBO administra financieramente después;
+- cero sovereign breach;
+- cero leakage / future outcome / fechas o IDs hardcodeados;
+- Sizing + Adaptive Leverage + CIBO Compound + Compound Portfolio deben coordinarse;
+- 25% es el máximo tolerable;
+- ~20% es el ideal;
+- ~22% validado = **“trabajo cumplido” para la fase DD**, no certificación final;
+- luego comienza batería científica.
+
+---
+
+# 1. CARRIER ACTUAL DOMINANTE — m1-0700
+
+Run decisivo:
+
+**37763827843 — QORE CIBO Carrier35838 PostW2 M1 Extension Ridge**
+
+Workflow:
+
+.github/workflows/cibo-trader-lab-carrier35838-postw2-m1-extension-ridge.yml
+
+Commit del replay:
+
+**79500d771360f14a94dcc1a261cf7344a870dfca**
+
+Caso:
+
+**m1-0700**
+
+Estado:
+
+- STRICT PARETO: **TRUE**
+- DOMINATES_CURRENT: **TRUE**
+- floor-valid: **TRUE**
+- entradas: **3.368 / 3.368**
+- sovereign breach: **0 por invariantes del workflow**
+
+Métricas exactas:
+
+- capital final: **USD 670.926,0074625642083966569884**
+- capital sobre piso: **USD 88.485,9821671963387197209539**
+- max DD: **35,24018942564197395053048754%**
+- total gross loss: **USD 959.362,0571599843609460255812**
+- ATTACK gross loss: **USD 957.795,9847244472650145654346**
+- PF: **1,699283448262004584163293675**
+- ATTACK override count: **851**
+- bootstrap override count: **108**
+
+Contra Carrier35838:
+
+- capital: **+USD 0,1562844**
+- DD: **-0,5977789 puntos**
+- total GL: **-USD 7,9458911**
+- ATTACK GL: **-USD 15,9391179**
+
+Por tanto, m1-0700 no es sólo una frontera física: **domina localmente al comparator de partida**.
+
+---
+
+# 2. EL BOTTLENECK MIGRÓ — YA NO ES MEDIUM 2019
+
+Con m1-0700, el max-DD actual es:
+
+- peak: **2020-04-03 03:05 UTC**
+- trough: **2020-05-13 06:15 UTC**
+- DD: **35,240189%**
+- ATTACK net dentro del episodio: **~ -USD 253,8994**
+- MEDIUM net dentro del episodio: **~ +USD 5,4120**
+
+Conclusión obligatoria:
+
+> **EL CUELLO ACTUAL ES ATTACK APRIL–MAY 2020.**
+
+No seguir apretando 2019 MEDIUM por inercia. Ese plateau ya fue quebrado.
+
+Ahora toca rehacer forense sobre 2020:
+
+- top losses;
+- multipliers;
+- open stop risk;
+- loss clustering;
+- W6 / 50–170x;
+- capital y DD previo;
+- projected risk;
+- H1/H4/M5 states;
+- expected minutes;
+- confidence;
+- target R;
+- posture;
+- lifecycle;
+- compounding path.
+
+---
+
+# 3. NUEVA FRONTERA / CLIFF DEL M1 EXTENSION
+
+El sweep que produjo m1-0700 encontró una zona segura:
+
+- m1-0700: DD 35,240189% — dominante;
+- m1-0750: DD 35,241528% — dominante;
+- m1-0800: DD 35,254047% — dominante;
+- m1-0900: DD 35,281002% — dominante;
+- m1-1000: DD 35,307956% — dominante;
+- m1-1300: DD 35,388820% — dominante;
+- m1-1500: DD 35,502237% — dominante;
+- m1-1950: DD ~35,8044% — dominante.
+
+Pero:
+
+- m1-0600 / m1-0500:
+  - capital ~USD 551.746;
+  - debajo del piso;
+  - DD ~50,26%;
+  - RECHAZADOS.
+
+Esto confirma otro cliff discreto.
+
+**No profundizar por debajo de 0,0700 por fuerza bruta. Cambiar de dimensión causal.**
+
+---
+
+# 4. TRABAJO ACTIVO AL CERRAR ESTE HANDOFF
+
+Run activo:
+
+**37764222387 — QORE CIBO Carrier35240 W6 Early Defense Ridge**
+
+Workflow:
+
+.github/workflows/cibo-trader-lab-carrier35240-w6-early-defense-ridge.yml
+
+Head del run:
+
+**36f86a721cbbfc4e5176e08c4e6a5bfc6518de3f**
+
+Objetivo:
+
+> preemptar el cluster de pérdidas **50–170x** de 2020 desde aproximadamente **1% de live DD**, ahora que el max-DD migró a Apr–May 2020.
+
+**Primer paso del siguiente arquitecto: revisar el resultado de 37764222387 antes de crear un experimento W6 superpuesto.**
+
+Si el run termina después de este handoff:
+
+- promover sólo si preserva piso/invariantes;
+- actualizar este mismo handoff;
+- recalcular el nuevo top-DD atlas;
+- continuar inmediatamente sobre el plateau migrado.
+
+---
+
+# 5. PROGRESIÓN RECIENTE QUE NO DEBE PERDERSE
+
+Secuencia más relevante:
+
+- 38,11543%
+- 38,03081%
+- 37,92249%
+- 37,88187%
+- 37,81078%
+- 37,77211%
+- 37,65504%
+- 37,08176%
+- 36,91390%
+- 36,91054%
+- 36,50943%
+- 36,45907%
+- 36,40871%
+- 36,17370%
+- 35,83797%
+- **35,24019% — actual**
+
+Desde ~65,10% se han eliminado aproximadamente **29,86 puntos porcentuales de DD**.
+
+Faltan aproximadamente:
+
+- **10,24 puntos** para 25%;
+- **13,24 puntos** para 22%;
+- **15,24 puntos** para 20%.
+
+Por eso el siguiente arquitecto debe buscar saltos por causalidad y plateau, no quedarse en micro-ridges de centésimas.
+
+---
+
+# 6. PRIORIDAD DE INVESTIGACIÓN A PARTIR DE AHORA
+
+1. Leer run 37764222387.
+2. Congelar m1-0700 como carrier base actual.
+3. Construir top-10 DD atlas nuevo.
+4. Atacar ATTACK Apr–May 2020.
+5. Localizar exactamente el cluster 50–170x / W6 y cualquier pérdida grande asociada.
+6. Separar señales causales de ganadores y perdedores.
+7. Preferir lifecycle/context-only o risk envelope localizado antes que recortes globales.
+8. Reutilizar open-stop-risk / running peak / realized DD como señales causales.
+9. No tocar entradas.
+10. Al romper 35%, volver a forense inmediatamente.
+11. Después atacar 30%.
+12. Después <=25%.
+13. Ideal de cierre ~20–22%.
+
+---
+
+# 7. CERTIFICACIÓN — QUÉ FALTA
+
+CIBO **NO está certificado**.
+
+Antes de batería científica:
+
+- DD <=25%, ideal ~20–22%;
+- capital >= USD 582.440,0253;
+- 3.368/3.368;
+- cero reject/defer;
+- cero breach;
+- causalidad y anti-leakage auditadas;
+- carrier reproducible y congelado.
+
+Batería científica posterior:
+
+- freeze exacto de código/config/input;
+- accounting provenance;
+- ablations;
+- Monte Carlo / bootstrap / path stress;
+- clustered-loss stress;
+- slippage/cost/latency;
+- margin/provider/leverage stress;
+- portfolio concurrency/correlation;
+- temporal replication;
+- fresh sealed OOS;
+- forward/shadow telemetry;
+- reproducibilidad;
+- validación de interacción del cuarteto económico.
+
+El holdout reutilizado hasta ahora es **investigación**, no evidencia final suficiente para certificación.
+
+---
+
+# 8. REGLA DE CONTINUIDAD
+
+No empezar de cero.
+
+No volver a 38%, 37% o 36% salvo para comparación.
+
+No repetir experimentos rechazados sin una hipótesis nueva.
+
+Continuar:
+
+**forense profundo → causa causal → intervención → Trader Lab Ultra Fast → compare → promote/reject → siguiente plateau.**
+
+La prioridad soberana sigue siendo:
+
+> **DD 20–25%, ideal 20%, preservando el piso económico y las 3.368 entradas.**
+
+---
+
+# 9. NOTA DE PRECEDENCIA
+
+Los bloques inferiores contienen varias actualizaciones históricas escritas en distintos momentos y algunas dicen “authoritative/current”.
+
+**Esta sección de 10:35 UTC es superior a todas ellas.**
+
+---
+
 # ACTUALIZACIÓN MAESTRA CANÓNICA FINAL — 2026-10-08 10:31 UTC
 ## CIBO — TRUE CEILING → DD COMPRESSION MULTI-BOTTLENECK → GROSS-LOSS CONTROL → SCIENTIFIC CERTIFICATION
 
