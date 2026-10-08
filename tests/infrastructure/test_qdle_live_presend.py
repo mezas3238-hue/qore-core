@@ -54,7 +54,8 @@ class TestQdleLiveGate(unittest.TestCase):
         self.directory = tempfile.TemporaryDirectory()
         self.broker = Probe()
         self.q = QDLE(Path(self.directory.name) / "engine.sqlite",
-                      self.broker, enforce_finance_approval=True)
+                      self.broker, enforce_finance_approval=True,
+                      strict_live_fee_evidence=False)
         self.q.publish_account(account())
         self.q.publish_symbol(symbol())
 
