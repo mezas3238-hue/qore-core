@@ -63,6 +63,7 @@ def build_local_handler(engine: QDLE, *, trader_token: str,
                 "/v1/symbol-event": provider_token,
                 "/v1/fill": provider_token,
                 "/v1/reject": provider_token,
+                "/v1/settlement": provider_token,
                 "/v1/reconcile": treasury_token,
             }
             expected = permitted.get(self.path)
@@ -135,6 +136,11 @@ def build_local_handler(engine: QDLE, *, trader_token: str,
                 elif self.path == "/v1/reject":
                     engine.confirm_rejection(row["request_id"], row["broker_rejection_ref"])
                     response = {"no_fill_confirmed": True}
+                elif self.path == "/v1/settlement":
+                    engine.record_broker_settlement(
+                        row["request_id"], row["broker_ticket"], row["deal_receipt"],
+                        _decimal(row, "realized_net_pnl_usd"))
+                    response = {"settlement_telemetry_recorded": True}
                 else:
                     engine.reconcile_fill(row["request_id"])
                     response = {"funded_position_absorbed": True}
