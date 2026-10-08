@@ -39,8 +39,8 @@ def _intent(row: dict) -> QDLEIntent:
         source_lane=row["source_lane"],
         slippage_usd_per_lot=_decimal(row, "slippage_usd_per_lot"),
         expected_account_sequence=int(row["expected_account_sequence"]),
-            methodology_min_lots=Decimal(str(row.get("methodology_min_lots", "0"))),
-                    )
+        methodology_min_lots=Decimal(str(row.get("methodology_min_lots", "0"))),
+    )
 
 
 def build_local_handler(engine: QDLE, *, trader_token: str,
