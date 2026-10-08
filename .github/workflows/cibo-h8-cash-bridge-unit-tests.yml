@@ -1,0 +1,31 @@
+name: QORE CIBO H8 Cash Bridge Invariant Unit Tests
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/cibo-h8-fundable-cushion-transfer-prototype-001
+    paths:
+      - .github/workflows/cibo-h8-cash-bridge-unit-tests.yml
+      - tests/infrastructure/test_cibo_h8_cash_conserved_bridge_research.py
+permissions:
+  contents: read
+jobs:
+  h8-cash-invariants:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    env:
+      PYTHONPATH: ${{ github.workspace }}/src
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile bridge and unit suite
+        run: |
+          set -euo pipefail
+          python -m py_compile src/qore/infrastructure/trader_lab/cibo_three_mode_capital_lab.py tests/infrastructure/test_cibo_h8_cash_conserved_bridge_research.py
+      - name: Assert no fabricated cash and reserved cushion conservation
+        run: |
+          set -euo pipefail
+          python -m unittest discover -s tests/infrastructure -p test_cibo_h8_cash_conserved_bridge_research.py -v
+          echo H8_RESEARCH_BRIDGE_UNIT_TESTS=PASS
