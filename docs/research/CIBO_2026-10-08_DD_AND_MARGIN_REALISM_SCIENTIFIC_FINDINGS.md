@@ -49,3 +49,32 @@ Current DD cannot reach 25% by targeting one episode: 10 recorded episodes excee
 - [Next reclaim threshold experiment workflow](https://github.com/mezas3238-hue/qore-core/blob/agent/cibo-dual-dd-context-defense-20261008-001/.github/workflows/cibo-trader-lab-dual-dd-reclaim-cliff-ridge-20261008.yml)
 
 This is an isolated technical supplement for the canonical master; never rewrite another active architect's handoff concurrently.
+
+## Second W6 rescue result (verified 2026-10-08 11:00 UTC)
+
+[W6 rebound recovery run 37767150980](https://github.com/mezas3238-hue/qore-core/actions/runs/37767150980), workflow `.github/workflows/cibo-trader-lab-dual-dd-w6-gl-rebound-recovery-20261008.yml`, 16 cases. `reclaim-base`: DD 34.924014%, capital USD 671185.07, total GL USD 959500.30. W6 fractions **0.94916–0.94935** preserve identical 34.924014% DD but improve gross loss to USD **959347.01**, ATTACK GL **957787.79**, capital **670889.32**. These cases are **not global strict Pareto**, and DD is unchanged; they trade ~USD 296 final capital for ~USD 153 loss compression. At **0.94940** or greater tested, discrete compounding cliff collapses capital to **USD 521136.07**, below floor. Explicitly reject those. Keep a separate DD/GL frontier: no single universal winner.
+
+## NEW P0 blocker: Sovereign subledger floor violation, not just ATTACK breach
+
+[Exact-artifact sovereign audit 37767236400](https://github.com/mezas3238-hue/qore-core/actions/runs/37767236400) discloses **nonzero `sovereign_floor_breach_usd` despite `attack_sovereign_breach_usd=0`** for every sampled candidate. In `m2-reclaim-060`:
+- total ending simulated capital = **USD 671185.0736747881** = Sovereign bank **-USD 45.6047501253** + cushion **USD 671230.6784249133**; arithmetic reconciles;
+- minimum Sovereign bank = **-USD 54.2945470025**;
+- Sovereign protection floor breach = **USD 84.2945470025** (positive);
+- ATTACK Sovereign breach = zero;
+- minimum total capital among ten known historical DD troughs ~= USD 52.05776 (this is NOT a verified global minimum or mark-to-market broker equity).
+
+The engine's `_State.sovereign_protection_floor_usd` is peak Sovereign bank times `1 - SOVEREIGN_DEFENSIVE_DRAWDOWN`; the constant is `0.50`. Its `mark()` tracks `sovereign_floor_breach_usd` whenever bank falls below floor. Current ranking scripts check **ATTACK** breach but do not require zero separate **Sovereign** floor breach or nonnegative minimum Sovereign. Never claim this test passes full sovereign invariants based on the ATTACK-only check. The negative compartment balance alone does NOT prove the consolidated broker account became negative; causal funding, reservations, transfers and liquidation must be audited separately. However **positive ending combined capital does NOT cure an explicit Sovereign floor breach**.
+
+### Prevent false certification: implemented independent gate
+
+Code: `scripts/cibo_replay_integrity_gate.py`  
+Tests: `tests/test_cibo_replay_integrity_gate.py`  
+[Validation run 37767520613](https://github.com/mezas3238-hue/qore-core/actions/runs/37767520613) **SUCCESS**: 8 unit tests passed; exact artifact SHA256 verified; both baseline `m1cliff-n00624` and `m2-reclaim-060` correctly flagged as **FAIL** for independent Sovereign floor/minimum-balance and 25% DD gates. `certified=false` always, separate margin/OOS gates also required. Audit does **not** change PnL or force a hard failure of research experiments.
+
+**Governance:** From now on report separate columns for terminal floor, DD, full Sovereign floor breach, minimum Sovereign, ATTACK breach, economic preservation, provider margin feasibility, and OOS/certification. Do not promote a candidate as **sovereign-certified** with any missing/failed gate. If the floor is allowed to be cross-funded from cushion, implement an auditable, causal, reserved-capital-safe transfer/reconciliation contract and test without double spend; do not silently net subledgers or retroactively erase violation. Formal ledger design choice belongs to explicit governance and scientific proof.
+
+## Remaining tasks
+1. Reproduce first timestamp of Sovereign floor breach, with prior Sovereign/cushion balances, reservations, provider fills and MEDIUM settlement. Inspect whether transfers were possible at that moment; rule out unsupported cross-book funding.
+2. Add exact accounting/provenance/zero-double-spend tests to any ledger repair, including every one of 3368 entries; rerun holdout for DD/GL/capital.
+3. Re-evaluate realistic margin and provider capacity (current engine permits synthetic margin capacity 100x simulated total).
+4. Continue causal DD compression across multiple bottlenecks on the **research lane**, but certification promotion is blocked until all invariants pass and sealed fresh OOS is completed.
