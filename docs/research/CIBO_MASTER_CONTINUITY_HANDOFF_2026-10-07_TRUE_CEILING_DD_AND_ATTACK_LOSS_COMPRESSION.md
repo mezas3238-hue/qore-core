@@ -1,3 +1,22 @@
+# OVERRIDE CRÍTICO P0 — 2026-10-08 — H8 FONDEO FÍSICO / BANCO SOBERANO NEGATIVO
+## TODAS LAS CURVAS HISTÓRICAS DE USD ~670k ESTÁN NO CERTIFICADAS Y NO SON GANANCIAS DEMOSTRADAS
+
+> **ESTA ADVERTENCIA PREVALECE SOBRE LOS CONTROLES DE PARETO, LOS SUPUESTOS "DD FÍSICOS" Y EL CAPITAL FINAL QUE APARECEN MÁS ABAJO.**
+>
+> El DD de 34,95158%, 35,20661%, 35,24019% o 36,40871% fue producido por la simulación legacy de liquidaciones y **NO prueba financiación broker-executable ni supervivencia de la cuenta**.
+>
+> P0 inmediato: reparar fuente real de capital, mínimo 1x, reserva soberana, margen, precio intratrade y stop-out **antes de aceptar ganancias y antes de reiniciar la compresión de DD**. El DD ideal sigue <=20% y el máximo tolerable <=25%, pero sólo sobre un recorrido físicamente financiado.
+
+**Prueba científica independiente**: H8 run [37766123403](https://github.com/mezas3238-hue/qore-core/actions/runs/37766123403), SUCCESS **diagnóstico**: el simulador encontró la entrada 1x obligatoria no financiable; USD 4,5200 requeridos contra USD 4,215535 disponibles. Se debe fallar el replay, no inventar capital ni omitir una entrada.
+
+**Auditoría 4 carriers**: run [37767203071](https://github.com/mezas3238-hue/qore-core/actions/runs/37767203071) SUCCESS **diagnóstico**: mínimo del banco soberano **-USD 54,6172** en global STRICT y fronteras 35,24/35,206; **-USD 55,3845** en 34,95158%; piso soberano +USD30 vulnerado en los cuatro. El indicador `attack_sovereign_breach_usd=0` **no detecta** esta violación bancaria. No confundir banco soberano negativo con evidencia de cuenta combinada <0: ninguna prueba intrabar/margen está completa.
+
+**Handoff corregido y obligatorio**: [CIBO_H8_REAL_CAPITAL_SOLVENCY_BLOCKER_2026-10-08.md](CIBO_H8_REAL_CAPITAL_SOLVENCY_BLOCKER_2026-10-08.md).
+
+**Investigación activa aislada**: `agent/cibo-h8-modern-35206-hardgate-001` implementa hard gate H8 en el código actual y repite 35,206% y distribución de beneficios banco/colchón. Los replays pendientes deben leerse por run, no presumir PASS. Ninguna curva antigua se promueve hasta pasar física financiera, mark-to-market, margin/stop-out y los demás exámenes científicos.
+
+---
+
 # OVERRIDE FINAL CANÓNICO — 2026-10-08 10:35 UTC — CARRIER35240
 ## CIBO: 35,240189% DD VALIDADO → ATAQUE 2020 APR–MAY → OBJETIVO 20–25%
 
