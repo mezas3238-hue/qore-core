@@ -1,0 +1,190 @@
+{
+  "cases": {
+    "h16-5pct": {
+      "bank_seed_issued_usd": "4473.941393385212683976590327",
+      "bank_seed_recycled_usd": "4473.941393385212683976590327",
+      "bank_valid": false,
+      "economic_group_ablation": null,
+      "ending_capital_usd": "3180.250243846026296514554695",
+      "ending_portfolio_cushion_usd": "3218.664050580839951997289704",
+      "ending_sovereign_bank_usd": "-38.41380673481365548273500913",
+      "initial_capital_usd": "60",
+      "max_drawdown_pct": "36.91053924475215947767935340",
+      "medium_profit_to_cushion_usd": "374.9349533246529227495150819",
+      "medium_profit_to_sovereign_usd": "0.00000000000000000000000000000000000000000000000000000000000",
+      "modes": {
+        "ATTACK": {
+          "gross_stop_risk_assigned_usd": "20380.07473573458223088540188",
+          "negative_settlements_usd": "10651.83325400877504813393043",
+          "net_profit_usd": "2843.729097256187029247774625",
+          "positive_settlements_usd": "13495.56235126496207738170507",
+          "provider_fees_usd": "1263.324204102179924274054441",
+          "trades": 849
+        },
+        "BANK": {
+          "gross_stop_risk_assigned_usd": "0",
+          "negative_settlements_usd": "0",
+          "net_profit_usd": "0",
+          "positive_settlements_usd": "0",
+          "provider_fees_usd": "0",
+          "trades": 0
+        },
+        "MEDIUM": {
+          "gross_stop_risk_assigned_usd": "4303.786196119224226576609891",
+          "negative_settlements_usd": "1717.147330780950654072715039",
+          "net_profit_usd": "276.5211465898392672667800733",
+          "positive_settlements_usd": "1993.668477370789921339495116",
+          "provider_fees_usd": "259.7926618361752432940547566",
+          "trades": 2519
+        }
+      },
+      "net_profit_usd": "3120.250243846026296514554698",
+      "portfolio_credit_recycled_usd": "21643.39893983676215515945640",
+      "sovereign_floor_breach_usd": "77.10360361201308384012139048"
+    },
+    "h16-5pct-no-portfolio": {
+      "bank_seed_issued_usd": "5776.463069466707066562008679",
+      "bank_seed_recycled_usd": "5776.463069466707066562008679",
+      "bank_valid": false,
+      "economic_group_ablation": "COMPOUND_PORTFOLIO",
+      "ending_capital_usd": "582.4329893720162331233015940",
+      "ending_portfolio_cushion_usd": "581.3778933009855824861682051",
+      "ending_sovereign_bank_usd": "1.055096071030650637133388869",
+      "initial_capital_usd": "60",
+      "max_drawdown_pct": "36.91053924475215947767935340",
+      "medium_profit_to_cushion_usd": "581.3778933009855824861682051",
+      "medium_profit_to_sovereign_usd": "0.00000000000000000000000000000000000000000000000000000000000",
+      "modes": {
+        "ATTACK": {
+          "gross_stop_risk_assigned_usd": "0",
+          "negative_settlements_usd": "0",
+          "net_profit_usd": "0",
+          "positive_settlements_usd": "0",
+          "provider_fees_usd": "0",
+          "trades": 0
+        },
+        "BANK": {
+          "gross_stop_risk_assigned_usd": "0",
+          "negative_settlements_usd": "0",
+          "net_profit_usd": "0",
+          "positive_settlements_usd": "0",
+          "provider_fees_usd": "0",
+          "trades": 0
+        },
+        "MEDIUM": {
+          "gross_stop_risk_assigned_usd": "5540.046144299200988684052936",
+          "negative_settlements_usd": "2318.613445989841175923252925",
+          "net_profit_usd": "522.4329893720162331233015938",
+          "positive_settlements_usd": "2841.046435361857409046554516",
+          "provider_fees_usd": "343.2605364756181064696296698",
+          "trades": 3368
+        }
+      },
+      "net_profit_usd": "522.4329893720162331233015938",
+      "portfolio_credit_recycled_usd": "0",
+      "sovereign_floor_breach_usd": "53.35520634962292105558246233"
+    },
+    "h16-5pct-no-sizing": {
+      "bank_seed_issued_usd": "3308.749388027714646314026474",
+      "bank_seed_recycled_usd": "3308.749388027714646314026474",
+      "bank_valid": false,
+      "economic_group_ablation": "SIZING",
+      "ending_capital_usd": "3021.155225151630827665021245",
+      "ending_portfolio_cushion_usd": "3010.434974631521938813245121",
+      "ending_sovereign_bank_usd": "10.72025052010888885177612424",
+      "initial_capital_usd": "60",
+      "max_drawdown_pct": "39.67487753697572820697995216",
+      "medium_profit_to_cushion_usd": "315.7239557042107347611674297",
+      "medium_profit_to_sovereign_usd": "0.00000000000000000000000000000000000000000000000000000000000",
+      "modes": {
+        "ATTACK": {
+          "gross_stop_risk_assigned_usd": "19462.06740563483107197304979",
+          "negative_settlements_usd": "10186.33085152322715636429572",
+          "net_profit_usd": "2694.711018927311204052077687",
+          "positive_settlements_usd": "12881.04187045053836041637339",
+          "provider_fees_usd": "1207.888551544460959624758137",
+          "trades": 847
+        },
+        "BANK": {
+          "gross_stop_risk_assigned_usd": "0",
+          "negative_settlements_usd": "0",
+          "net_profit_usd": "0",
+          "positive_settlements_usd": "0",
+          "provider_fees_usd": "0",
+          "trades": 0
+        },
+        "MEDIUM": {
+          "gross_stop_risk_assigned_usd": "3215.890444466447012117582785",
+          "negative_settlements_usd": "1250.981988707958858909727706",
+          "net_profit_usd": "266.4442062243196236129435538",
+          "positive_settlements_usd": "1517.426194932278482522671264",
+          "provider_fees_usd": "200.3772001441035637002168529",
+          "trades": 2521
+        }
+      },
+      "net_profit_usd": "2961.155225151630827665021241",
+      "portfolio_credit_recycled_usd": "20669.95595717929203159780790",
+      "sovereign_floor_breach_usd": "30.47253289450139928377665850"
+    },
+    "h16-original": {
+      "bank_seed_issued_usd": "4035.003440775476150144461433",
+      "bank_seed_recycled_usd": "4035.003440775476150144461433",
+      "bank_valid": false,
+      "economic_group_ablation": null,
+      "ending_capital_usd": "673146.5254539803718539973234",
+      "ending_portfolio_cushion_usd": "673193.2521527770832388946019",
+      "ending_sovereign_bank_usd": "-46.72669879671138489727849439",
+      "initial_capital_usd": "60",
+      "max_drawdown_pct": "36.91053924475215947767935340",
+      "medium_profit_to_cushion_usd": "291.9150222214017650300732684",
+      "medium_profit_to_sovereign_usd": "0.00000000000000000000000000000000000000000000000000000000000",
+      "modes": {
+        "ATTACK": {
+          "gross_stop_risk_assigned_usd": "2387657.527380178125365328781",
+          "negative_settlements_usd": "938872.8495404670959553183518",
+          "net_profit_usd": "672901.3371305556814738645285",
+          "positive_settlements_usd": "1611774.186671022777429182880",
+          "provider_fees_usd": "130201.0877541555030144843148",
+          "trades": 860
+        },
+        "BANK": {
+          "gross_stop_risk_assigned_usd": "0",
+          "negative_settlements_usd": "0",
+          "net_profit_usd": "0",
+          "positive_settlements_usd": "0",
+          "provider_fees_usd": "0",
+          "trades": 0
+        },
+        "MEDIUM": {
+          "gross_stop_risk_assigned_usd": "3863.071326480461322269487982",
+          "negative_settlements_usd": "1562.913514969664291184631499",
+          "net_profit_usd": "185.1883234246903801327947734",
+          "positive_settlements_usd": "1748.101838394354671317426278",
+          "provider_fees_usd": "239.2231519075828535845761276",
+          "trades": 2508
+        }
+      },
+      "net_profit_usd": "673086.5254539803718539973233",
+      "portfolio_credit_recycled_usd": "2517858.615134333628379813099",
+      "sovereign_floor_breach_usd": "85.41649567391081325466487569"
+    }
+  },
+  "caveat": "$60 original CIBO costs; excludes separate FundedNext $14/lot fee test. Bank transfers are not independent profit. No-Sizing/No-Portfolio are only explanatory ablations.",
+  "counterfactual_engine_marginal_not_additive": {
+    "portfolio_compound_marginal_usd": "2597.817254474010063391253104",
+    "sizing_marginal_usd": "159.095018694395468849533457"
+  },
+  "research_only_not_certified": true,
+  "source_sha": "dd89b93e864d867b892a9463a2fb099aa91a9769",
+  "provenance": {
+    "run_id": 37777655782,
+    "run_url": "https://github.com/mezas3238-hue/qore-core/actions/runs/37777655782",
+    "run_conclusion": "success",
+    "output_artifact_id": 11550507522,
+    "canonical_clone_source_unchanged": true,
+    "h17_module_import_verification_run": 37778184947,
+    "h17_module_import_success": true,
+    "median_risk_target_note": "5pct nominal stop budget is loaded but actual economic outputs remain identical to H15; physical CIBO caps/bank seed govern exposure, no claim exactly $3 used on each trade",
+    "not_fundednext_broker_certified": true
+  }
+}
