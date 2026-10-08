@@ -49,6 +49,10 @@ from qore.infrastructure.cibo_protected_reinvestment_policy import (
     MAX_CAPITAL_NEED_TO_CURRENT_CAPITAL_RATIO,
 )
 from qore.infrastructure.cibo_position_lifecycle import CiboLifecycleEvent
+from qore.infrastructure.trader_lab.cibo_four_motor_lotage_h30 import (
+    LotageContext,
+    coordinate_four_motor_lotage,
+)
 from qore.infrastructure.cibo_single_account_manifest_settlement import (
     manifest_row_to_shadow_outcome_observation,
 )
@@ -111,6 +115,7 @@ class CiboThreeModeCandidate:
     margin_per_multiplier_usd: Decimal
     provider_cost_per_multiplier_usd: Decimal
     context_allowed: bool
+    volume_step: Decimal = Decimal(0)
 
     @property
     def capital_time_score(self) -> Decimal:
@@ -506,6 +511,7 @@ def _candidate(
         stop_risk_per_multiplier_usd=stop,
         margin_per_multiplier_usd=margin,
         provider_cost_per_multiplier_usd=provider_cost,
+        volume_step=Decimal(str(trader_opportunity.get("volume_step", minimum))),
         context_allowed=(
             evidence.context_allowed
             and evidence.provider_viable
@@ -1008,6 +1014,7 @@ def run_three_mode_trader_lab(
     coordinated_economic_group: bool = False,
     economic_group_bootstrap_cushion_share: Decimal = Decimal("0.75"),
     economic_group_ablation: str | None = None,
+    four_motor_lotage_initial_stop_usd: Decimal | None = None,
     ceiling_discovery_mode: bool = False,
     ceiling_growth_leverage_slope: Decimal | None = None,
     ceiling_attack_compound_hysteresis_fraction: Decimal | None = None,
@@ -2630,6 +2637,15 @@ def run_three_mode_trader_lab(
         raise CiboCapitalManagementError(
             "Trader Lab compound profit reinvestment fraction must be Decimal in (0, 1]"
         )
+    if four_motor_lotage_initial_stop_usd is not None and (
+        not isinstance(four_motor_lotage_initial_stop_usd, Decimal)
+        or not four_motor_lotage_initial_stop_usd.is_finite()
+        or four_motor_lotage_initial_stop_usd <= 0
+        or four_motor_lotage_initial_stop_usd > Decimal("3")
+    ):
+        raise CiboCapitalManagementError(
+            "H30 initial stop target must be positive Decimal <= 3 USD"
+        )
     if economic_group_ablation not in {
         None,
         "SIZING",
@@ -3323,6 +3339,11 @@ def run_three_mode_trader_lab(
     drawdown_episodes: list[dict[str, object]] = []
     max_drawdown_attribution: dict[str, object] = {}
     trade_receipts: list[dict[str, object]] = []
+    lotage_quotes = 0
+    lotage_target_met = 0
+    lotage_unfunded_minimum = 0
+    lotage_binding: Counter[str] = Counter()
+    lotage_examples: list[dict[str, object]] = []
     trade_receipt_by_signal: dict[str, dict[str, object]] = {}
     epoch_receipts: list[dict[str, object]] = []
 
@@ -5921,6 +5942,90 @@ def run_three_mode_trader_lab(
                     # ATTACK is not bounded by robust utility. Portfolio
                     # Compound is the authority that enabled this mode.
 
+                # H30 four independent monetary calculator stages share ONE
+                # capital ledger: risk, sovereign compound, portfolio compound,
+                # and final provider/leverage lotage. Optional research lane.
+                if four_motor_lotage_initial_stop_usd is not None:
+                    if candidate_mode is CiboTraderLabMode.MEDIUM:
+                        growth_cognition_allowed = (
+                            candidate.native_cognition_recommended is not False
+                            and candidate.context_quality_disposition == "ALLOW"
+                            and total_drawdown_utilization < Decimal("0.05")
+                        )
+                        lotage_native_cap = (
+                            min(candidate.maximum_multiplier, medium_multiplier_cap)
+                            if growth_cognition_allowed
+                            else max(1,native_intensity_cap)
+                        )
+                    else:
+                        lotage_native_cap = max(1,multiplier)
+                    lotage = coordinate_four_motor_lotage(LotageContext(
+                        mode=candidate_mode.value,
+                        equity_usd=state.total_capital_usd,
+                        initial_capital_usd=INITIAL_CAPITAL_USD,
+                        initial_stop_target_usd=four_motor_lotage_initial_stop_usd,
+                        min_lots=candidate.minimum_volume,
+                        step_lots=candidate.volume_step,
+                        max_multiplier=candidate.maximum_multiplier,
+                        native_cap=lotage_native_cap,
+                        stop_usd_per_min_lot=candidate.stop_risk_per_multiplier_usd,
+                        margin_usd_per_min_lot=candidate.margin_per_multiplier_usd,
+                        fee_usd_per_min_lot=candidate.provider_cost_per_multiplier_usd,
+                        risk_left_usd=risk_left,
+                        margin_left_usd=margin_left,
+                        bank_free_usd=sovereign_left,
+                        cushion_free_usd=cushion_left,
+                        portfolio_credit_free_usd=portfolio_attack_release_left,
+                        strict_account_cash_margin=True,
+                    ))
+                    lotage_quotes += 1
+                    lotage_target_met += int(lotage.target_attained)
+                    for part in lotage.all_stages:
+                        lotage_binding[part.binding_reason] += 1
+                        record_engineering_sensor(
+                            part.motor,epoch_index=epoch_index,
+                            signal_fingerprint=candidate.signal_fingerprint,
+                            event="H30_ACTUAL_FINANCED_LOT_CALCULATOR",
+                            inputs={
+                                "requested_lots":format(part.requested_lots,"f"),
+                                "free_cash_usd":format(part.free_cash_usd,"f"),
+                                "requested_stop_usd":format(lotage.requested_stop_usd,"f"),
+                            },
+                            action="CALCULATE_FUNDABLE_LOTS_WITH_SHARED_ACCOUNT",
+                            outputs={
+                                "approved_lots":format(part.approved_lots,"f"),
+                                "approved_stop_usd":format(part.approved_stop_usd,"f"),
+                            },
+                            reaction="NO_CAPITAL_DOUBLE_COUNTED",
+                            reasons=(part.binding_reason,),
+                        )
+                    if len(lotage_examples)<12:
+                        lotage_examples.append({
+                            "trader_id":candidate.trader_id,
+                            "decision_at":candidate.decision_at.isoformat(),
+                            "mode":candidate_mode.value,
+                            "requested_stop_usd":format(lotage.requested_stop_usd,"f"),
+                            "approved_stop_usd":format(lotage.selected_stop_usd,"f"),
+                            "volume_lots":format(lotage.selected_lots,"f"),
+                            "binding_reason":lotage.binding_reason,
+                            "target_attained":lotage.target_attained,
+                            "minimum_fundable":lotage.minimum_lot_fundable,
+                        })
+                    if lotage.funded:
+                        multiplier = (
+                            min(multiplier,lotage.selected_multiplier)
+                            if candidate_mode is CiboTraderLabMode.ATTACK
+                            else lotage.selected_multiplier
+                        )
+                    else:
+                        # An already executed Trader base entry is preserved;
+                        # record infeasible capacity instead of claiming
+                        # its $2.95 target was filled.
+                        lotage_unfunded_minimum += 1
+                        candidate_mode = CiboTraderLabMode.MEDIUM
+                        source_left = sovereign_left
+                        multiplier = 1
+
                 if candidate_mode is CiboTraderLabMode.MEDIUM and multiplier < 1:
                     physical_margin_block = executable_by_margin < 1
                     record_engineering_sensor(
@@ -7823,6 +7928,20 @@ def run_three_mode_trader_lab(
         "delta_vs_baseline_ending_capital_usd": (
             None if baseline_delta is None else format(baseline_delta, "f")
         ),
+        "four_motor_lotage_report": {
+            "enabled": four_motor_lotage_initial_stop_usd is not None,
+            "initial_stop_target_usd": (
+                None if four_motor_lotage_initial_stop_usd is None
+                else format(four_motor_lotage_initial_stop_usd,"f")
+            ),
+            "quoted_entries": lotage_quotes,
+            "target_attained_entries": lotage_target_met,
+            "unfunded_minimum_entries": lotage_unfunded_minimum,
+            "binding_reasons": dict(sorted(lotage_binding.items())),
+            "first_twelve_quotes": lotage_examples,
+            "real_broker_validation": False,
+            "budget_policy": "ONE_SHARED_LEDGER_FOUR_FINANCED_CALCULATORS",
+        },
         "trade_receipts": trade_receipts,
         "epoch_receipts": epoch_receipts,
         "governance": {
