@@ -23,6 +23,7 @@ class QDLETreasuryEvent:
     sequence: int
     observed_at: datetime
     qore_unreserved_risk_usd: Decimal
+    qore_trading_capital_usd: Decimal
     sovereign_free_source_usd: Decimal
     cushion_free_source_usd: Decimal
     active_provider_mll_floor_usd: Decimal
@@ -51,6 +52,7 @@ def verify_treasury_hmac_event(
         when = datetime.fromisoformat(payload["observed_at"])
         values = [Decimal(str(payload[k])) for k in (
             "qore_unreserved_risk_usd",
+            "qore_trading_capital_usd",
             "sovereign_free_source_usd",
             "cushion_free_source_usd",
             "active_provider_mll_floor_usd",
@@ -71,9 +73,10 @@ def verify_treasury_hmac_event(
     return QDLETreasuryEvent(
         account_id=account_id, sequence=sequence, observed_at=when,
         qore_unreserved_risk_usd=values[0],
-        sovereign_free_source_usd=values[1],
-        cushion_free_source_usd=values[2],
-        active_provider_mll_floor_usd=values[3],
+        qore_trading_capital_usd=values[1],
+        sovereign_free_source_usd=values[2],
+        cushion_free_source_usd=values[3],
+        active_provider_mll_floor_usd=values[4],
         covered_fill_tickets=covered,
         ledger_receipt=receipt,
     )
