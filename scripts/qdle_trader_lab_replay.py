@@ -56,6 +56,8 @@ def replay(events: list[dict], db_path: str | Path,
     engine = QDLE(db_path, broker, max_age_seconds=30)
     intent_rows = []
     failures = []
+    seen_request_ids: set[str] = set()
+    counted_intents = 0
     last_time = None
     for ix, event in enumerate(events):
         kind = event["type"]
@@ -95,6 +97,13 @@ def replay(events: list[dict], db_path: str | Path,
         elif kind == "VALUATION":
             broker.observe(dict(event, as_of=event["at"]))
         elif kind == "INTENT":
+            counted_intents += 1
+            request_id = event["request_id"]
+            if request_id in seen_request_ids:
+                failures.append({"index": ix, "request_id": request_id,
+                                 "reason": "DUPLICATE_TRADER_SIGNAL_NOT_DISTINCT_ENTRY"})
+                continue
+            seen_request_ids.add(request_id)
             trade = QDLEIntent(
                 request_id=event["request_id"], trader_id=event["trader_id"],
                 symbol=event["symbol"], side=event["side"],
@@ -133,10 +142,7 @@ def replay(events: list[dict], db_path: str | Path,
             engine.confirm_rejection(event["request_id"], event["broker_rejection_ref"])
         else:
             raise QDLEError(f"unsupported event: {kind}")
-    if expected_intents is not None and len(intent_rows) + sum(
-        "request_id" in x and x["request_id"] not in {
-            row["request_id"] for row in intent_rows} for x in failures
-    ) != expected_intents:
+    if expected_intents is not None and counted_intents != expected_intents:
         failures.append({"reason": "EXPECTED_ENTRY_COUNT_MISMATCH"})
     reserved = [r for r in intent_rows if r["state"] == "RESERVED_FOR_TRADER"]
     status = "RESEARCH_PHYSICAL_GATE_PASS" if not failures else "RESEARCH_FAIL_CLOSED"
@@ -145,9 +151,8 @@ def replay(events: list[dict], db_path: str | Path,
         "schema": "qore.qdle.trader-lab-financing-report.v1",
         "status": status, "certified": False, "broker_execution_proven": False,
         "source_plane": "SEALED_REPLAY_NOT_LIVE_MT5",
-        "total_intents_accounted": len(intent_rows) +
-                                 sum("request_id" in x and x["request_id"] not in {
-                                     row["request_id"] for row in intent_rows} for x in failures),
+        "total_intents_accounted": counted_intents,
+        "unique_signal_ids": len(seen_request_ids),
         "reserved_proposals": len(reserved),
         "unfundable_or_invalid": len(failures),
         "proposed_stop_risk_usd": str(sum((Decimal(r["all_in_stop_usd"])
