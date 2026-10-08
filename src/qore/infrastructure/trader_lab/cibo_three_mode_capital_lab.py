@@ -1013,6 +1013,7 @@ def run_three_mode_trader_lab(
     ceiling_attack_compound_hysteresis_fraction: Decimal | None = None,
     ceiling_attack_stress_confidence_reinvestment_hysteresis_fraction: Decimal | None = None,
     ceiling_attack_drawdown_budget_fraction: Decimal | None = None,
+    ceiling_attack_drawdown_budget_trigger: Decimal | None = None,
     ceiling_attack_drawdown_budget_capital_floor: Decimal | None = None,
     ceiling_attack_drawdown_budget_capital_ceiling: Decimal | None = None,
     ceiling_attack_drawdown_budget2_fraction: Decimal | None = None,
@@ -1368,6 +1369,15 @@ def run_three_mode_trader_lab(
     ):
         raise CiboCapitalManagementError(
             "Trader Lab ceiling ATTACK drawdown budget fraction must be Decimal in (0, 0.50]"
+        )
+    if ceiling_attack_drawdown_budget_trigger is not None and (
+        not isinstance(ceiling_attack_drawdown_budget_trigger, Decimal)
+        or not ceiling_attack_drawdown_budget_trigger.is_finite()
+        or ceiling_attack_drawdown_budget_trigger < 0
+        or ceiling_attack_drawdown_budget_trigger > Decimal("0.50")
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab ceiling ATTACK drawdown budget trigger must be Decimal in [0, 0.50]"
         )
     if ceiling_attack_drawdown_budget_capital_floor is not None and (
         not isinstance(ceiling_attack_drawdown_budget_capital_floor, Decimal)
@@ -4215,6 +4225,11 @@ def run_three_mode_trader_lab(
             ceiling_discovery_mode
             and ceiling_attack_drawdown_budget_fraction is not None
             and (
+                ceiling_attack_drawdown_budget_trigger is None
+                or total_drawdown_utilization
+                >= ceiling_attack_drawdown_budget_trigger
+            )
+            and (
                 ceiling_attack_drawdown_budget_capital_floor is None
                 or state.total_capital_usd
                 >= ceiling_attack_drawdown_budget_capital_floor
@@ -5307,7 +5322,7 @@ def run_three_mode_trader_lab(
                                 Decimal(0),
                                 (
                                     state.peak_total_capital_usd
-                                    * ceiling_attack_drawdown_budget_fraction
+                                    * effective_ceiling_attack_drawdown_budget_fraction
                                 )
                                 - total_drawdown_usd
                                 - state.open_stop_risk_usd
@@ -7552,6 +7567,11 @@ def run_three_mode_trader_lab(
                 else format(
                     ceiling_attack_drawdown_budget_fraction, "f"
                 )
+            ),
+            "ceiling_attack_drawdown_budget_trigger": (
+                None
+                if ceiling_attack_drawdown_budget_trigger is None
+                else format(ceiling_attack_drawdown_budget_trigger, "f")
             ),
             "sizing_intensity_cap_counts": dict(
                 sorted(sizing_intensity_cap_counts.items())
