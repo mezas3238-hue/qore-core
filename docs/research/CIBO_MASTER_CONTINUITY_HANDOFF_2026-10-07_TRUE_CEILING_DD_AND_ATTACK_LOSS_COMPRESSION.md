@@ -1,3 +1,1095 @@
+# MASTER UPDATE — 2026-10-08 — DD COMPRESSION PROGRAM
+
+> **THIS SECTION OVERRIDES ANY OLDER "CURRENT STATE", "BEST CARRIER", "NEXT STEP" OR "PRIORITY" STATEMENT BELOW.**
+>
+> The remainder of this file is intentionally preserved as historical continuity. Read this update first, then use the older sections only as lineage / experiment history.
+
+**Owner / CEO:** Sergio Meza  
+**Repository source of truth:** `mezas3238-hue/qore-core`  
+**Canonical branch:** `agent/cibo-causal-expectation-leakage-fix-001`  
+**Canonical handoff:** `docs/research/CIBO_MASTER_CONTINUITY_HANDOFF_2026-10-07_TRUE_CEILING_DD_AND_ATTACK_LOSS_COMPRESSION.md`  
+**HEAD immediately before this update:** `79500d771360f14a94dcc1a261cf7344a870dfca`  
+**Initial capital:** USD 60  
+**Frozen economic floor:** USD 582,440.0252953678696769360345  
+**Preserved Trader admissions:** 3,368 / 3,368  
+**Certification state:** ACTIVE RESEARCH — NOT CERTIFIED  
+**Sovereign directive:** reduce DD as far as causally possible without degrading the frozen economic ceiling/floor. Ideal DD <=20%; maximum tolerable DD <=25%. Anything above 25% remains unfinished.
+
+---
+
+## A. EXECUTIVE STATE — READ THIS FIRST
+
+The DD-compression program has progressed materially beyond the old 38.46% carrier documented below.
+
+### Current best dominant DD carrier: `tb-6500`
+
+Decisive run:
+
+- Run: **37763397877**
+- Workflow: **QORE CIBO Carrier36423 W2 Taper Boundary Ridge**
+- Workflow path: `.github/workflows/cibo-trader-lab-carrier36423-w2-taper-boundary-ridge.yml`
+- Head SHA: **74c2b0646d8d83845dc55eb29417b9b17900bf6a**
+- Case: **tb-6500**
+- Result: **STRICT_PARETO = true**
+- Result: **DOMINATES_CURRENT = true**
+- Result: floor-valid
+- Entries: 3,368 / 3,368 preserved by workflow invariants
+- ATTACK sovereign breach: 0 by workflow invariants
+
+Exact economics:
+
+- terminal capital: **USD 670,926.0204345728784686849120**
+- capital headroom above frozen floor: **USD 88,485.9951392050087917488775**
+- max drawdown: **36.17369997743141917180404451%**
+- total gross loss: **USD 959,364.9078905783825567884950**
+- ATTACK gross loss: **USD 957,806.5608890020828213759980**
+- total profit factor: **1.699281383878895618871897448**
+- ATTACK override count: **852**
+- bootstrap override count: **110**
+- stress-confidence direct taper binds: 0
+- stress-confidence risk-budget binds: 4
+
+Improvement versus the immediate Carrier36423 comparator:
+
+- capital: **+$206.6419841820094812510288**
+- max DD: **-0.2493368296042967372685649642 percentage points**
+- total gross loss: **-$69.7578104274674753007922**
+- ATTACK gross loss: **-$69.7578104274674753007924**
+- therefore the candidate improves capital, DD, total GL and ATTACK GL simultaneously.
+
+The current max-DD bottleneck after `tb-6500` is again the early MEDIUM episode:
+
+- peak: **2019-07-19T06:45:00+00:00**
+- trough: **2019-08-09T01:35:00+00:00**
+- max-DD net by mode: **MEDIUM = -USD 28.85356784226385744244804277**
+- ATTACK is no longer the max-DD driver in this carrier.
+
+### Absolute objective remains unchanged
+
+The work is **not finished**.
+
+- ideal DD: **<=20%**
+- tolerable maximum: **<=25%**
+- 35%, 30% and 25% are gates / milestones, not reasons to stop early.
+- current 36.17370% remains materially outside certification range.
+
+The next architect must continue the loop without resetting the program:
+
+**forensics -> causal hypothesis -> isolated change -> Trader Lab replay -> compare -> promote only valid improvement -> re-forensics new max DD -> repeat.**
+
+---
+
+## B. IMPORTANT DISTINCTION — ECONOMIC CARRIER VS DD-FIRST CARRIER
+
+During the 36–37% phase two ranking concepts appeared and MUST NOT be conflated.
+
+### 1. Dominant-current / economic Pareto
+
+A candidate is strongest when it simultaneously:
+
+- capital >= current comparator capital;
+- DD < current comparator DD;
+- total gross loss <= current comparator total GL;
+- ATTACK gross loss <= current comparator ATTACK GL;
+- frozen floor is respected;
+- 3,368 entries preserved;
+- zero sovereign breach.
+
+`tb-6500` satisfies this stronger condition relative to Carrier36423.
+
+### 2. Floor-valid DD-first / strict Pareto relative to frozen floor
+
+Some experiments intentionally accepted a small reduction from the current terminal capital while staying far above the frozen USD 582,440.03 floor, if DD and gross loss improved materially.
+
+Example:
+
+- run **37762989521**
+- case **f-m2850-h0060**
+- capital **USD 670,974.1001848462935084207540**
+- DD **36.40871215817896688739414547%**
+- total GL **USD 957,685.0671680592184528907798**
+- ATTACK GL **USD 956,129.1127115113457698208008**
+- strict Pareto = true versus Carrier36459
+- dominates-current = false because terminal capital was ~USD 103 below the comparator.
+
+The next architect must state explicitly which comparison is being used. Do not call a floor-valid candidate "dominates current" unless it actually does.
+
+---
+
+## C. REAL DD PROGRESSION — DO NOT RESET
+
+The complete program has moved from the original ceiling carrier at ~65% DD through a long chain of localized causal compression.
+
+Important checkpoints:
+
+| Stage | Approx terminal capital | Max DD | Meaning |
+|---|---:|---:|---|
+| frozen ceiling baseline | 582,440 | 65.10% | economic floor / old true-ceiling reference |
+| ATTACK band compression | 663,395 | 64.02% | 2,000–3,999x destructive band discovered |
+| residual-window carrier | 687,903 | 51.15% | localized 800–1,900x defense |
+| second-window carrier | 689,841 | 48.37% | 350–450x residual |
+| low-mult window | 687,114 | 46.25% | 2–20x under live DD |
+| high-mult window | 688,634 | 44.05% | 4,800–5,200x |
+| exact 2x demotion | 690,681 | 43.85% | 2x useful, broader demotion harmful |
+| high-left window | 689,672 | 41.73% | 4,400–4,799x |
+| expected-R / MEDIUM lifecycle | 667,465 | 40.01% | MEDIUM floor compression |
+| carrier39 | 667,459 | 39.685% | 40% barrier broken |
+| capital-gated window6 | 668,086 | 39.174% | 50–170x localized by capital |
+| old handoff carrier | 668,086 | 38.462% | p30 + capital-gated window6 |
+| Carrier3829 | 668,086 | 38.291% | MFE / causal micro improvements |
+| target-stretch + hysteresis | ~667,588–668,045 | 38.263% | first GL-compensated strict Pareto around target stretch |
+| Carrier3822 family | ~667,839 | 38.221% | bottleneck migrated to Feb-2021 ATTACK |
+| tc-f3000 | 667,846 | 38.217% | strict dominant target-collapse |
+| tc-f2800 / Carrier38204 | ~668,094 | 38.2047% | target-collapse fine ridge |
+| sc-j | 668,009 | 38.1154% | high-target stress strict Pareto |
+| p4150 / Carrier37772 | 668,910 | 37.7721% | state-pressure / contextual pressure phase |
+| ctx-s050 / Carrier37655 | 670,939 | 37.6550% | ATTACK context-only stop breakthrough |
+| Carrier37082 | 673,215 | 37.0818% | next multi-context carrier |
+| tf-b / Carrier36509 | 671,077 | 36.5094% | triple-context DD-first carrier |
+| m1-2925 / Carrier36459 | 671,077 | 36.4591% | dominant-current MEDIUM M1 micro improvement |
+| f-m2850-h0060 | 670,974 | 36.4087% | floor-valid strict Pareto; lower DD but not current-cap dominant |
+| Carrier36423 | 670,719 | 36.4230% | DD-first research carrier used for W2 boundary work |
+| **tb-6500** | **670,926** | **36.1737%** | **latest dominant-current carrier** |
+
+The essential lesson remains:
+
+> Max DD is a moving target. Every successful defense exposes another episode. The correct process is multi-episode causal compression, not global derisking.
+
+---
+
+## D. MAJOR BREAKTHROUGH — CONTEXT-ONLY LIFECYCLE
+
+The most important architectural advance after the old handoff was the move from broad sizing/risk-budget gates to **context-only lifecycle overrides**.
+
+### Why this was necessary
+
+Multiple ATTACK sizing experiments showed a discontinuous compounding cliff:
+
+- tiny risk-budget / cap changes often did nothing;
+- once a discrete multiplier threshold was crossed, terminal capital collapsed toward ~USD 550k or lower;
+- aggressive variants could reduce some local loss but generated 50–70% DD elsewhere.
+
+Therefore, changing initial multiplier was often too coarse.
+
+The successful alternative:
+
+1. keep Trader admission unchanged;
+2. keep initial economic sizing / multiplier unchanged;
+3. identify a causal pre-entry context signature;
+4. apply a defensive lifecycle stop only when the complete signature matches;
+5. for nonmatches, preserve original settlement / behavior.
+
+This protects a tiny adverse subset without globally derisking the portfolio.
+
+### First ATTACK context-only implementation
+
+Core commit:
+
+- **6761e1657b156e3f4b64966bed53e3ba881b7338**
+- message: `research(cibo): add ATTACK context-only defensive stop`
+
+Decisive workflow:
+
+- run **37755900609**
+- workflow **QORE CIBO Carrier37772 ATTACK Context Stop Ridge**
+- case **ctx-s050**
+
+Exact result:
+
+- capital: **USD 670,938.6019098824267612724062**
+- DD: **37.65503786736055569923678558%**
+- total GL: **USD 950,652.1484123080309106915780**
+- ATTACK GL: **USD 949,092.0260621076816265570460**
+- PF: **1.705703556269580093631776452**
+- capital versus previous current: **+$2,028.14**
+- total GL improvement: **-$6,573.75**
+- ATTACK GL improvement: **-$6,573.75**
+- strict Pareto: true
+- dominates-current: true
+
+The gate was based on generic causal context, not Trader identity or symbol identity.
+
+The initial forensics found a very narrow context signature that selected only a tiny historical adverse subset. The key lesson is not the literal fields alone; it is the architecture:
+
+> **contextual selectivity + post-entry protection can reduce loss without changing the initial multiplier, avoiding the compounding cliff.**
+
+### MEDIUM context-only overrides
+
+A corresponding MEDIUM context-only path was implemented after ATTACK success.
+
+Important commits / phase:
+
+- **56d3335dfccd1a93d85fcceeed4e212bb0b8b139** — add MEDIUM context-only stop override
+- **b4a4c04058cd186f5a5faaa61d7f5b7bccc7e148** — expose MEDIUM context-only stop
+- later second MEDIUM context-only support:
+  - **3870e2bbadbf2511f64b0471437a841b68ca3bd8**
+  - **b4a5d4b522f13dcde94dd01a98d4d84cae86670a**
+
+These mechanisms became critical because the max DD repeatedly migrated back to MEDIUM 2019 after ATTACK episodes were compressed.
+
+### Additional ATTACK context surfaces
+
+The branch later added second and third ATTACK context-only overrides to attack distinct 2020 clusters:
+
+- **2eb5b13377bc81848f14f5e23f101f509433735a**
+- **ec0971ef57a19dc82940c46700377c89b542bc08**
+- **427f8c7e0281bd0146c1d24b8f4e11435a62fcfd**
+- **89541472166e0350869b20087fc10432efd3ad1a**
+
+Representative workflows:
+
+- `.github/workflows/cibo-trader-lab-carrier37655-attack-2020-context2-ridge.yml`
+- `.github/workflows/cibo-trader-lab-carrier37655-attack-aprmay-context3-ridge.yml`
+- `.github/workflows/cibo-trader-lab-carrier37655-triple-context-fusion-ridge.yml`
+
+The correct principle is generic causal context, not identity hardcoding.
+
+---
+
+## E. TARGET-STRETCH / STATE-PRESSURE WORK — WHAT WAS LEARNED
+
+A major forensic branch studied ultrafast ATTACK stopouts.
+
+Key causal feature:
+
+`planned_target_r = abs(take_profit - intended_entry) / abs(intended_entry - stop_loss)`
+
+A harmful cluster was discovered when very stretched targets coincided with weak causal confidence / high dispersion.
+
+Representative findings:
+
+- targetR >=4 and expected_structural_r / block_dispersion <=0.20:
+  - ~17 cases
+  - ~94% losers
+  - net roughly -USD 10.3k
+- targetR >=3 and ratio <=0.20:
+  - ~20 cases
+  - ~95% losers
+- targetR >=3 and ratio <=0.22:
+  - ~23 cases
+  - ~95.7% losers
+
+Relevant commits:
+
+- **fa1a6c783ce6662bc3adf547e5683c3a1d9d18c6** — gate stress confidence by target R
+- **9baf83235fce9e670d7475567067ae6f604f9e85** — CLI exposure
+
+This produced the Target Stretch / Hysteresis sequence.
+
+Important runs:
+
+- 37703003847 — target-stretch + hysteresis joint ridge
+- 37703074371 — joint depth
+- 37705250732 — target-collapse depth
+- 37708965278 — target-collapse fine ridge
+
+Important accepted cases:
+
+- joint-h0010: first clean strict-Pareto combination breaking the prior few-dollar GL barrier
+- tc-f3000:
+  - capital ~USD 667,846.44
+  - DD ~38.21727%
+  - total/ATTACK GL improved by USD 2.56 versus Carrier3822
+  - strict Pareto + dominates-current
+- tc-f2800 / Carrier38204:
+  - DD ~38.20474%
+  - capital ~USD 668,094
+  - became a later base.
+
+Important rejected observation:
+
+- stronger target collapse could lower the physical DD frontier but increased gross loss materially or caused compounding migration.
+
+---
+
+## F. PROJECTED-RISK / STATE-PRESSURE SENSORS ADDED
+
+The 2021 forensics showed that several large ATTACK losses had unusually high projected stop risk relative to live capital.
+
+This led to:
+
+- projected-risk trigger inside state-pressure
+- capital floor/ceiling for state-pressure
+- H1/H4 range-state selectors
+- second state-pressure channel
+- optional direct cap taper in state-pressure2.
+
+Relevant commits from this phase include:
+
+- **0c818fd...** — gate state pressure by projected risk
+- **509e144...** — expose projected-risk state-pressure gate
+- **67795e4...** — localize state pressure by capital regime
+- **b8282ab...** — expose state-pressure capital regime
+- **73cba533561550b28dcacfecfd7dacd8a95c6ad7** — add state-pressure2 cap taper
+- **90d048dfbba4515dbe309de58ef044c6ce667332** — expose state-pressure2 cap taper
+- **2c404471c5ae25b7fe321ca55f2125082866fb2c / bc66f664fe4f7129b62dbc313ddaf83ad87227d2** — H1 range selectors / exposure
+
+Key negative lesson:
+
+> risk-budget and direct-cap tapering around the huge 2021 positions is often quantized. A tiny parameter change can produce no effect until a threshold is crossed, then the entire compounding path changes abruptly and terminal capital collapses.
+
+Therefore these tools remain useful for forensics and carefully localized experiments, but they are not a license for broad derisking.
+
+---
+
+## G. DRAWDOWN MOUNTAINS — WHY THE PROBLEM IS HARD
+
+The research proved that CIBO does not have a single DD mountain.
+
+As one episode is compressed, another becomes max DD. Repeatedly observed dominant or near-dominant episodes include:
+
+- 2019 Jul–Aug — MEDIUM-dominated
+- 2020 Jan–Mar
+- 2020 Apr–May
+- 2020 May–Jun
+- 2020 Sep–Oct
+- 2021 Feb–Mar — ATTACK-dominated before contextual ATTACK protection
+- later 2022 paths can become catastrophic if a defense distorts compounding.
+
+Earlier at ~38.20%, the top mountains were roughly:
+
+- ~38.20% — May–Jun 2020
+- ~38.11% — Feb 2021
+- ~38.03% — Jul–Aug 2019
+- ~37.82% — Sep–Oct 2020
+- ~36.41% — Apr–May 2020
+- ~34.85% — Jan–Mar 2020
+
+This is the central reason global controls fail: they "fix" one episode while moving the max DD elsewhere.
+
+### Current bottleneck after tb-6500
+
+The current max is again:
+
+- **2019-07-19 06:45 UTC -> 2019-08-09 01:35 UTC**
+- **MEDIUM net ~ -USD 28.8536**
+- max DD **36.17370%**
+
+The immediate task is NOT "turn risk down everywhere."
+
+It is:
+
+1. decompose this exact 2019 episode;
+2. identify losing MEDIUM 1x/2x subcontexts;
+3. compare them with winners under identical pre-entry state;
+4. apply context-only lifecycle / financial management;
+5. re-run;
+6. after the episode falls, immediately re-forensics the new max episode.
+
+---
+
+## H. W2 459x BOUNDARY — LATEST DISCOVERY
+
+A June-2020 loss around the second DD window produced a discrete boundary around the 459x region.
+
+Workflow sequence:
+
+- **37763166003** — Carrier36423 W2 459 Capture Ridge
+- **37763397877** — Carrier36423 W2 Taper Boundary Ridge
+
+The first capture sweep showed an abrupt cliff:
+
+- one side of the boundary did nothing;
+- more aggressive settings could lower local DD but collapse capital below the floor or create 50–70% DD elsewhere.
+
+The boundary ridge resolved a useful point:
+
+### tb-6500
+
+- capital: **USD 670,926.0204345728784686849120**
+- DD: **36.17369997743141917180404451%**
+- total GL: **USD 959,364.9078905783825567884950**
+- ATTACK GL: **USD 957,806.5608890020828213759980**
+- PF: **1.699281383878895618871897448**
+- dominates-current: true
+- strict Pareto: true
+
+Rejected neighboring points include:
+
+- tb-6000:
+  - same local DD 36.1737%
+  - terminal capital ~USD 551,469
+  - **below frozen floor**
+- tb-7500 / 8000 / 9000 / 9500 etc:
+  - large compounding migration
+  - DD ~55–61% or worse
+  - many below floor.
+
+Conclusion:
+
+> The W2 taper surface is highly discontinuous. `tb-6500` is a narrow safe point. Do not broaden this taper blindly.
+
+---
+
+## I. MEDIUM M1 MICRO / HYSTERESIS EDGE
+
+Once the active max DD returned to MEDIUM 2019, the program resolved a fine boundary in the M1 contextual defense.
+
+### Run 37762724394 — Carrier36509 MEDIUM M1 Micro Ridge
+
+Important case:
+
+`m1-2925`
+
+- capital: **USD 671,077.4539648386230952204858**
+- DD: **36.45907191119629854073488139%**
+- total GL: **USD 957,746.5414819274567391081328**
+- ATTACK GL: **USD 956,190.5468564571041386829792**
+- PF: **1.700621119368981431695946134**
+- strict Pareto: true
+- dominates-current: true
+
+Neighboring m1-2950 / 2975 / 2985 / 2990 / 2995 were also dominant-current, with gradually different DD.
+
+The next fusion run:
+
+### Run 37762989521 — Carrier36459 M1 Hysteresis Fusion Ridge
+
+Best low-DD strict-Pareto point:
+
+`f-m2850-h0060`
+
+- capital: **USD 670,974.1001848462935084207540**
+- DD: **36.40871215817896688739414547%**
+- total GL: **USD 957,685.0671680592184528907798**
+- ATTACK GL: **USD 956,129.1127115113457698208008**
+- PF: **1.700558172185753664476943659**
+- strict Pareto: true
+- dominates-current: false (capital ~USD 103 below Carrier36459)
+
+This is a useful floor-valid research point but it is not the current dominant carrier.
+
+---
+
+## J. ULTRA-FAST TRADER LAB ACCELERATION
+
+Trader Lab execution had become a material bottleneck. The branch now contains a dedicated runtime-acceleration program.
+
+Recent changes include:
+
+- verified research-sweep acceleration
+- exact-case result cache
+- prepared trade-window cache
+- runtime audit workflow
+- Ultra Fast batch support
+- inline ranking requirements
+- reusable cached inputs / prepared windows for research sweeps.
+
+Relevant recent HEAD lineage includes:
+
+- `74ee781d2299d30306daa58f0639bc345524d23b` — verified Trader Lab research sweep acceleration
+- runtime audit workflows repeatedly completing successfully
+- latest boundary run restored:
+  - exact-case result cache
+  - prepared trade-window cache
+  - inputs
+  - replay
+  - ranking
+  - artifact upload.
+
+Important governance:
+
+> Fast execution is useful only if the ranking and JSON evidence are still produced and validated. Do not trade correctness for speed.
+
+---
+
+## K. EXPERIMENT FAMILIES CLOSED / REJECTED — DO NOT REPEAT BLINDLY
+
+### 1. Broad/global protections
+
+Rejected repeatedly because they destroy compounding:
+
+- broad ATTACK taper
+- broad stress-confidence taper
+- broad DD budget
+- broad lifecycle loss cut
+- broad ATTACK partial
+- global high-risk protection
+- global MEDIUM tighter stop
+- global bootstrap stop tightening.
+
+### 2. ATTACK adverse partial
+
+Strongly rejected.
+
+Historical examples:
+
+- DD 50–70%+
+- large reductions in gross loss can coexist with catastrophic loss of terminal capital.
+- not a valid solution.
+
+### 3. Projected-risk global pressure
+
+Can reduce some late losses but changes the capital path too broadly. Use only with tight state/context gating.
+
+### 4. Direct cap / risk-budget microtapers
+
+Around some high-multiplier ATTACK losses:
+
+- 0.9995–0.981 risk-budget microtapers often produced no change;
+- crossing a discrete threshold produced a compounding cliff.
+
+### 5. Floor-Seeking aggressive sweeps
+
+Using headroom aggressively did not automatically improve DD. Many variants:
+
+- moved DD to another episode;
+- fell below USD 582,440.03;
+- or worsened DD despite huge gross-loss reduction.
+
+### 6. MEDIUM bootstrap hardening
+
+Bootstrap defensive-stop / partial-depth sweeps were rejected.
+
+Representative old behavior:
+
+- some cases dropped terminal capital to ~USD 550k or lower;
+- DD could explode to ~48–69%;
+- therefore do not revisit without a new narrow context.
+
+### 7. MEDIUM global stop tightening
+
+The program has repeatedly shown a narrow boundary. Small extra tightening can move the trajectory to a completely different path.
+
+### 8. W2 boundary beyond safe point
+
+Latest run proves:
+
+- `tb-6500` is safe/dominant;
+- nearby stronger settings can catastrophically re-route compounding.
+
+---
+
+## L. CORE ENGINEERING CHANGES NOW PRESENT
+
+The next architect should expect the branch to contain, at minimum, the following research capabilities:
+
+### Economic / DD controls
+
+- multiplier-band taper
+- risk-fraction-band taper
+- seven+ localized DD multiplier windows
+- capital floor/ceiling gates
+- exact low-multiplier demotion
+- same-Trader loss streak pressure
+- recent-Trader loss pressure
+- portfolio shock
+- compound hysteresis
+- stress-confidence target-R gate
+- stress-confidence risk-budget gate
+- target stretch / collapse
+- state-pressure
+- state-pressure projected-risk trigger
+- state-pressure capital regime
+- H1/H4 range state
+- state-pressure2
+- state-pressure2 direct cap taper
+- realized-DD-triggered budget research
+- multi-band DD budget research
+- W2 459x capture/boundary tuning.
+
+### Lifecycle controls
+
+- MEDIUM base defensive initial stop
+- adverse partial reduction
+- adverse loss cut
+- adverse stop tighten
+- bootstrap partial
+- bootstrap state override
+- causal context stop predicates
+- ATTACK override map
+- ATTACK context-only defensive initial stop
+- multiple ATTACK context surfaces
+- MEDIUM context-only stop override
+- second MEDIUM context-only stop.
+
+### Causality / governance
+
+- all context predicates must be pre-entry causal
+- closed-bar post-entry actions execute only when causally observable
+- no outcome/future leakage
+- no Trader/symbol identity hardcoding as a risk rule
+- all Trader admissions preserved.
+
+Core files:
+
+- `src/qore/infrastructure/trader_lab/cibo_three_mode_capital_lab.py`
+- `scripts/cibo_trader_lab_three_mode_ceiling.py`
+- `src/qore/infrastructure/cibo_position_lifecycle.py`
+
+---
+
+## M. CURRENT FORENSIC PRIORITY — DEEP DRAWDOWN STUDY
+
+The Owner explicitly requires a deep study of what causes DD before applying more controls.
+
+The next architect must maintain / extend a **drawdown causal atlas**.
+
+For each of the top 10 DD episodes, extract and compare:
+
+### Economic state
+
+- total capital
+- peak capital
+- live realized DD
+- Sovereign bank
+- Portfolio cushion
+- attack credit
+- reserved cushion
+- open margin
+- open stop risk
+- current compounding anchors
+- requested / approved multiplier
+- risk fraction
+- exact gate / cap that bound.
+
+### Trader state
+
+Use Trader identity only for attribution, not as the rule.
+
+Record:
+
+- same-Trader settled loss streak
+- last 1 / 2 / 3 / 5 outcomes
+- recent gross loss
+- recent gross profit
+- rolling PF
+- time since last shock
+- whether Trader had recovered from prior shock.
+
+### Cognitive / expectation state
+
+- expected structural R
+- expected capital minutes
+- dispersion
+- confidence ratio
+- native confidence band
+- context disposition
+- market posture
+- H1/H4 range state
+- M5 volatility state
+- body alignment
+- rejection wick bucket
+- reclaim latency bucket
+- close-location bucket
+- any other strictly predecision context.
+
+### Position / target geometry
+
+- target R
+- structural stop distance
+- projected stop-risk fraction
+- multiplier
+- mode
+- expected holding time
+- actual holding time for postmortem only.
+
+### Lifecycle path
+
+- MFE
+- MAE
+- first closed bar after entry
+- whether stop occurred before any complete M5 bar
+- whether the trade could have been rescued causally post-entry
+- whether a defensive initial stop would have protected it
+- whether a winner with the same pre-entry signature would have been harmed.
+
+### Cross-portfolio state
+
+- concurrent positions
+- same asset overlap
+- cross-asset overlap
+- cumulative open stop risk
+- loss clustering in prior hour/day
+- Portfolio cushion recovery state.
+
+### Engine attribution
+
+Explicitly show the contribution of:
+
+- SIZING
+- ADAPTIVE_LEVERAGE
+- CIBO_COMPOUND
+- COMPOUND_PORTFOLIO
+
+Do not stop at "ATTACK lost" or "MEDIUM lost." Explain what economic state allowed the exposure and why.
+
+---
+
+## N. NEXT WORK — PRIORITIZED
+
+### P0 — promote / freeze tb-6500 as the current dominant carrier
+
+Before making another architectural change:
+
+1. preserve `tb-6500` exact parameters;
+2. record its artifact / digest;
+3. verify 3,368 entries, zero breach, accounting invariants;
+4. use it as the comparator for the next dominant-current search.
+
+### P0 — attack current 2019 MEDIUM max DD
+
+Current max DD is 36.17370% and MEDIUM-dominated.
+
+Required sequence:
+
+1. open `tb-6500` artifact;
+2. enumerate every MEDIUM settlement between peak and trough;
+3. rank gross-loss contribution and net contribution;
+4. separate M1 and M2;
+5. cluster by causal pre-entry context;
+6. search for high-precision losing contexts with minimal winner contamination;
+7. prefer context-only lifecycle over global stop hardening;
+8. sweep tiny stop / partial changes;
+9. require replay evidence.
+
+### P0 — break 35%
+
+The immediate milestone is **<35%**, but do not treat it as completion.
+
+Once <35% is reached:
+
+- re-forensics the new max episode;
+- continue toward <30%;
+- then <=25%;
+- ideal <=20%.
+
+### P1 — retain economic headroom
+
+Current capital remains ~USD 88.5k above the frozen floor.
+
+Use that headroom carefully. Do not spend it through broad derisking.
+
+### P1 — gross loss
+
+Gross loss remains a secondary sovereign objective.
+
+Keep reporting:
+
+- terminal capital
+- max DD
+- total gross profit
+- total gross loss
+- ATTACK GL
+- net PnL
+- PF
+- trade count
+- entries preserved
+- breaches
+- bind counts.
+
+### P1 — investigate multiple mountains in parallel
+
+Do not serially optimize one mountain forever.
+
+Maintain candidate defenses for:
+
+- 2019 MEDIUM
+- 2020 ATTACK/MEDIUM mixed episodes
+- 2021 ATTACK residuals
+- 2022 catastrophic migration risks.
+
+---
+
+## O. PROMOTION RULES
+
+Minimum frozen acceptance:
+
+- terminal capital >= **USD 582,440.0252953678696769360345**
+- 3,368 / 3,368 entries
+- zero sovereign breach
+- no admission rejection
+- no future/outcome leakage.
+
+Preferred dominant-current promotion:
+
+- capital >= current carrier
+- DD < current carrier
+- total GL <= current carrier
+- ATTACK GL <= current carrier.
+
+If a candidate is floor-valid but not dominant-current, label it exactly:
+
+- `STRICT_PARETO / FLOOR-VALID`
+- `NOT DOMINATES_CURRENT`
+
+Do not blur those classes.
+
+For DD-first research, a floor-valid candidate may be valuable even if capital is slightly below current, but it must not silently replace the dominant economic carrier.
+
+---
+
+## P. CERTIFICATION — WHAT STILL HAS TO HAPPEN
+
+CIBO is **not certified**.
+
+Reaching 20–25% is the prerequisite for the scientific battery, not the end.
+
+### Gate 1 — DD target
+
+- ideal <=20%
+- maximum tolerable <=25%
+- preserve frozen economic floor / ceiling constraints.
+
+### Gate 2 — architecture freeze
+
+When the DD carrier is accepted:
+
+- freeze parameters
+- freeze context signatures
+- freeze economic functions
+- freeze lifecycle maps
+- freeze expected-R / confidence models
+- freeze exact Git commit and artifacts.
+
+### Gate 3 — accounting / provenance
+
+Formally verify:
+
+- every dollar source
+- every reservation
+- every release
+- every recycle
+- Sovereign / cushion / Compound reconciliation
+- no double count
+- no double spend
+- no silent capital creation
+- no release before reconciliation.
+
+### Gate 4 — ablations
+
+Ablate individually and jointly:
+
+- SIZING
+- ADAPTIVE_LEVERAGE
+- CIBO_COMPOUND
+- COMPOUND_PORTFOLIO
+- lifecycle
+- context-only lifecycle
+- DD windows
+- state pressure
+- target-R gates
+- hysteresis.
+
+Prove each component has measurable purpose.
+
+### Gate 5 — temporal robustness
+
+- chronological folds
+- walk-forward
+- temporal replication
+- regime slices
+- year / semester slices
+- no retune across validation periods.
+
+### Gate 6 — Monte Carlo / path stress
+
+- causal-compatible reorder
+- clustered losses
+- p05 outcome
+- p95 DD
+- probability positive
+- probability of ruin
+- recovery time
+- tail path stress.
+
+### Gate 7 — cost / execution stress
+
+- spread stress
+- slippage stress
+- cost x2
+- margin compression
+- provider constraints
+- latency / fill degradation where relevant.
+
+### Gate 8 — concentration stress
+
+- Trader concentration
+- asset concentration
+- regime concentration
+- remove best 1 trade
+- remove best 2 trades
+- remove best 3 trades
+- correlated burst losses.
+
+### Gate 9 — failure engineering
+
+Hard requirements:
+
+- ZERO DOUBLE-SPEND
+- ZERO DUPLICATE AUTHORITY
+- ZERO SILENT SOURCE CREATION
+- ZERO RELEASE BEFORE RECONCILIATION
+
+Test:
+
+- restart
+- idempotency
+- duplicate events
+- duplicate reservation
+- partial settlement
+- ledger crash
+- stale snapshot
+- reconciliation mismatch
+- concurrent allocation
+- recovery after interruption.
+
+### Gate 10 — forward qualification
+
+- predeclared gates
+- no retune
+- complete observability
+- zero-open closure.
+
+### Gate 11 — fresh sealed OOS
+
+Protected holdout:
+
+`CIBO_USD60_6M_HOLDOUT_2017H1_V1`
+
+**DO NOT OPEN EARLY.**
+
+Only after architecture freeze and prerequisites.
+
+### Gate 12 — final exams
+
+Still pending:
+
+1. Worst-Trader Rescue Exam
+2. Final Integrated Certification Exam
+3. World Cup Maximum Capability Exam
+4. fresh OOS
+5. zero-open closure
+6. final certification candidate.
+
+---
+
+## Q. SOVEREIGN DIRECTIVES THAT MUST SURVIVE CHAT HANDOFF
+
+The next architect must preserve these rules exactly:
+
+- Trader owns admission / execution.
+- CIBO manages financially after entry.
+- CIBO cannot reject Trader entries.
+- preserve 3,368 / 3,368.
+- Sizing must not reject/defer custody.
+- Sizing + Adaptive Leverage + CIBO Compound + Compound Portfolio work jointly.
+- no hardcoded Trader or symbol.
+- no future/outcome leakage.
+- replay every change.
+- do not touch sealed OOS early.
+- 8,000% / 36 months was a historical base objective, not the ceiling.
+- do not rediscover the ceiling from zero.
+- do not sacrifice the frozen economic floor for cosmetic DD.
+- do not declare certification before the scientific battery.
+- **DD ideal = 20%; tolerable maximum = 25%.**
+- current priority is DD compression, not new ceiling discovery.
+
+---
+
+## R. KEY RECENT RUNS / WORKFLOWS TO READ
+
+The next architect should inspect these before changing the engine:
+
+- **37755900609** — Carrier37772 ATTACK Context Stop Ridge
+- **37757418981** — Carrier37655 MEDIUM Context Stop Ridge
+- **37757846297** — Carrier37655 ATTACK 2020 Context2 Ridge
+- **37758109665** — Carrier37655 ATTACK Apr-May Context3 Ridge
+- **37758259160** — Carrier37655 Triple Context Fusion Ridge
+- **37759321394** — Carrier37082 MEDIUM Trough Context2 Ridge
+- **37761751207** — fast replay of Carrier37082 context2 path
+- **37761752377** — Carrier36509 Dual MEDIUM Rescue Ridge
+- **37761758630** — Carrier36509 Rescue DD Envelope Ridge
+- **37762019994** — Carrier36509 Localized DD Budget Ridge
+- **37762060159** — Carrier36509 Narrow DD Budget Ridge
+- **37762199165** — Carrier36509 Two Band DD Budget Ridge
+- **37762433200** — Carrier36509 Rescue DD Envelope Inline Rank
+- **37762660789** — Carrier36509 Triggered DD Budget Ridge
+- **37762724394** — Carrier36509 MEDIUM M1 Micro Ridge
+- **37762989521** — Carrier36459 M1 Hysteresis Fusion Ridge
+- **37763166003** — Carrier36423 W2 459 Capture Ridge
+- **37763397877** — **Carrier36423 W2 Taper Boundary Ridge — current decisive run**
+
+Workflows:
+
+- `.github/workflows/cibo-trader-lab-carrier37772-attack-context-stop-ridge.yml`
+- `.github/workflows/cibo-trader-lab-carrier37655-medium-context-stop-ridge.yml`
+- `.github/workflows/cibo-trader-lab-carrier37655-attack-2020-context2-ridge.yml`
+- `.github/workflows/cibo-trader-lab-carrier37655-attack-aprmay-context3-ridge.yml`
+- `.github/workflows/cibo-trader-lab-carrier37655-triple-context-fusion-ridge.yml`
+- `.github/workflows/cibo-trader-lab-carrier37082-medium-trough-context2-ridge.yml`
+- `.github/workflows/cibo-trader-lab-carrier36509-medium-m1-micro-ridge.yml`
+- `.github/workflows/cibo-trader-lab-carrier36459-m1-hysteresis-fusion-ridge.yml`
+- `.github/workflows/cibo-trader-lab-carrier36423-w2-459-capture-ridge.yml`
+- `.github/workflows/cibo-trader-lab-carrier36423-w2-taper-boundary-ridge.yml`
+
+---
+
+## S. FAILED / TECHNICAL WORKFLOW NOTES
+
+Not every GitHub failure is negative experiment evidence.
+
+Examples in the latest lineage:
+
+- `cibo-trader-lab-carrier36459-medium-context2-surgical-ridge.yml` had immediate workflow failures during the latest branch work.
+- treat those as technical CI/workflow failures unless a replay actually completed and produced metrics.
+- never infer "hypothesis rejected" from a YAML / trigger / syntax failure.
+
+The Runtime Audit workflow is now part of the operational health surface and should be checked when research workflows behave unexpectedly.
+
+---
+
+## T. FIRST ACTIONS FOR THE NEXT ARCHITECT
+
+1. Fetch branch HEAD before editing.
+2. Read this handoff update.
+3. Inspect run **37763397877** and artifact.
+4. Reproduce / freeze **tb-6500**.
+5. Build top-10 DD atlas from tb-6500.
+6. Start with current 2019 MEDIUM max:
+   - peak 2019-07-19 06:45 UTC
+   - trough 2019-08-09 01:35 UTC
+   - MEDIUM net -USD 28.8536.
+7. Search high-precision MEDIUM losing contexts:
+   - no Trader identity
+   - no symbol identity
+   - only causal context.
+8. Prefer context-only lifecycle / tiny economic changes over global controls.
+9. Replay in Ultra Fast Trader Lab.
+10. Promote only valid evidence.
+11. Repeat immediately on the next migrated max-DD episode.
+12. Keep driving toward <=25%; ideal <=20%.
+
+---
+
+## U. CONTINUITY BLOCK FOR A NEW CHAT
+
+> Continue CIBO from repository `mezas3238-hue/qore-core`, branch `agent/cibo-causal-expectation-leakage-fix-001`. Read first `docs/research/CIBO_MASTER_CONTINUITY_HANDOFF_2026-10-07_TRUE_CEILING_DD_AND_ATTACK_LOSS_COMPRESSION.md`, especially MASTER UPDATE 2026-10-08 at the top. Frozen economic floor is USD 582,440.0252953678696769360345 from USD 60, with all 3,368 Trader entries preserved. Current decisive dominant carrier is `tb-6500`, run 37763397877: terminal capital USD 670,926.0204345729, max DD 36.1736999774%, total GL USD 959,364.9078905784, ATTACK GL USD 957,806.5608890021, PF 1.69928138, zero sovereign breach by invariants. It dominates Carrier36423 in capital, DD and gross losses. Current max DD is MEDIUM 2019-07-19 -> 2019-08-09, net MEDIUM about -USD 28.8536. Priority is deep causal DD forensics and continued compression without degrading the frozen ceiling/floor. Ideal DD <=20%; tolerable max <=25%; do not stop at 35% or 30%. Do not reject entries, do not hardcode Trader/symbol, do not use future/outcome leakage. Use context-only lifecycle and localized causal controls; replay every modification. Once <=20–25% is reached and architecture frozen, execute the full scientific certification battery: accounting/provenance, ablations, temporal folds, walk-forward, Monte Carlo, cost/margin/concentration stress, failure engineering, forward no-retune, fresh sealed OOS, Worst-Trader Rescue, Final Integrated Certification and World Cup Maximum Capability.
+
+---
+
+## V. FINAL STATUS AT THIS HANDOFF UPDATE
+
+**Best dominant carrier:** `tb-6500`  
+**Run:** 37763397877  
+**Terminal capital:** USD 670,926.02  
+**Max DD:** 36.17370%  
+**Total gross loss:** USD 959,364.91  
+**ATTACK gross loss:** USD 957,806.56  
+**PF:** 1.69928  
+**Frozen floor:** PASS by ~USD 88,485.995  
+**Entries:** 3,368 / 3,368  
+**Sovereign breach:** 0  
+**Certification:** NO  
+**Immediate bottleneck:** 2019 MEDIUM DD  
+**Priority:** reduce DD aggressively but causally, without degrading frozen ceiling/floor  
+**Ideal DD:** <=20%  
+**Maximum tolerable DD:** <=25%  
+
+---
+
+# HISTORICAL HANDOFF BELOW — PRESERVED FOR LINEAGE
+
 # ACTUALIZACIÓN MAESTRA CANÓNICA — 2026-10-08
 ## CIBO TRUE CEILING → DRAWDOWN COMPRESSION → PÉRDIDA BRUTA → CERTIFICACIÓN
 
