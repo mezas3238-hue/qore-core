@@ -392,6 +392,7 @@ def main() -> int:
                     requested = build_four_motor_qdle_intent(
                         observation=obs, votes=votes, entry_price=entry,
                         stop_price=stop, methodology_min_lots=policy_min,
+                        requested_target_lots=args.target_lots,
                     )
                     # XAU percent fee is price-dependent in this sensitivity,
                     # carried through QDLE's per-entry buffer. FX fees in Symbol.
@@ -427,7 +428,7 @@ def main() -> int:
                         slippage_usd_per_lot=fee, expected_account_sequence=sequence,
                         methodology_min_lots=policy_min,
                     )
-                if args.target_lots is not None:
+                if args.target_lots is not None and args.motor_policy != "independent_four_motors":
                     requested = replace(requested, requested_target_lots=args.target_lots)
                 for label, value in event["four_engine_caps_usd"].items():
                     module_summed_limits_usd[label] += D(value)
