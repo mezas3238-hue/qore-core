@@ -46,3 +46,23 @@ Ranking validates 3,368 trades, zero MEDIUM reject/defer, zero ATTACK sovereign 
 - Track top 10 historical DD episodes, including 2019 MEDIUM at ~37.666%, 2020 Sep ~37.017%, 2020 Apr ~36.406%; dropping just one episode cannot achieve 22%.
 - If W8 finds a favorable narrow band, prefer a *causal projected-risk and confidence guard* instead of memorizing these calendar dates/Trader IDs.
 - Preserve sealed future 3-year OOS and never call reused replays certification.
+
+## FINAL EXPERIMENT RESULT — VERIFIED STRICT PARETO
+
+- GitHub workflow [37738207384](https://github.com/mezas3238-hue/qore-core/actions/runs/37738207384) SUCCESS, all 9 JSON runs uploaded; artifact `11533205527`.
+- Best candidate **`w8-5k10k-f900`**: optional 8th window, multiplier 5,000–10,000x, capital USD 35k–65k, realized DD 0–45%, taper fraction 0.90. W8 binds **10**, original W7 still binds **3**, portfolio shock binds **67**, bootstrap MEDIUM overrides **127**.
+- Compared with frozen control (exact reproducible parity):
+  - **Capital** USD 668,910.439682713 → **671,596.019535245** (**+2,685.579853**).
+  - **Max DD** **37.7721116155% → 37.6659826629%** (improvement **0.1061289526 percentage points**).
+  - **Total gross loss** USD 957,225.911831171 → **942,631.991968356** (**−14,593.919863**).
+  - **ATTACK gross loss** USD 955,665.772155971 → **941,071.852293155** (**−14,593.919863**).
+  - **Total profit factor** ~1.698738335 → **1.712405292**.
+  - All **3,368 / 3,368 Trader entries**, zero MEDIUM Sizing rejection/defer, zero ATTACK sovereign breach.
+- Ranker confirmed `STRICT_PARETO_CASES` contains `w8-5k10k-f900`, and `DOMINATES_CURRENT_CASES` contains it. **G1 is a successful exploratory STRICT PARETO successor to 37.7721%** but **NOT a certification or production promotion**.
+- Critical **sovereign_floor_breach_usd = 84.6172359343947** remains present in both control and G1 candidate. This is an independent ledger defect/constraint requiring forensic repair before full economic certification, even with attack breach zero.
+- Dominant max-DD migrated to **2019-07-19T06:45Z → 2019-08-12T11:25Z**, fully **MEDIUM** net loss ~USD **30.0438712874** (vs ATTACK-dominant 2021 in the old carrier). Reducing ATTACK alone now cannot beat 37.6659827%; work next on causal MEDIUM lifecycle and broader multi-epoch control.
+- Goal **22% DD remains unachieved**; no `DD_LE_22_CASES`. Fresh external sealed three-year holdout remains untouched.
+
+### Next precisely controlled investigation
+
+Create a NEW isolated branch retaining **W8 best result** and all other economic controls; perturb only MEDIUM bootstrap adverse partial fraction around the incumbent 0.40 using narrow values, reproducing W8 exact control. Compare full STRICT PARETO against **USD 671,596.019535245**, DD **37.66598266290644%**, gross loss **USD 942,631.991968356**, ATTACK gross loss **USD 941,071.852293155**, and 3,368 entries. Do not regress ATTACK tail; record top ten episodes, and do not confuse in-sample tuning with certified OOS transfer.
