@@ -24,6 +24,13 @@ from qore.infrastructure.cibo_account_capital_mission import (
     CiboAccountCapitalIdentity,
 )
 
+from qore.infrastructure.cibo_four_motor_policy import (
+    FourMotorObservation,
+    FourMotorPolicyError,
+    FourMotorProposal,
+    ZERO,
+)
+
 _SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 
 
@@ -319,12 +326,6 @@ def _aware(value: datetime, name: str) -> None:
             f"compound {name} must be timezone-aware"
         )
 
-
-# P0 Architect 2: independent SHADOW vote; original GEN-C1 realized-profit
-# research ledger remains immutable. Floating wins cannot create capital.
-from qore.infrastructure.cibo_four_motor_policy import (
-    FourMotorObservation, FourMotorProposal, FourMotorPolicyError, ZERO,
-)
 
 
 def propose_p0_compound_vote(observation: FourMotorObservation) -> FourMotorProposal:
