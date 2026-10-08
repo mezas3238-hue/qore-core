@@ -64,3 +64,52 @@ jobs:
                           elif isinstance(v,dict): inventory(v,route,depth+1)
               inventory(x,'root')
           PY
+
+      - name: Compare top DD episodes and MEDIUM loss clustering
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from decimal import Decimal as D
+          from datetime import datetime
+          root=Path('/tmp/cibo-w6')
+          def get(stem):
+              return json.loads(next(p for p in root.rglob('*.json') if p.stem==stem).read_text())
+          for stem in ('carrier35240-m10700','w6-f9490'):
+              x=get(stem)
+              print('DD_ATLAS_CASE',stem)
+              episodes=x['drawdown_forensics']['top_10_episodes']
+              print('DD_ATLAS_TOP10',json.dumps([{
+                  'rank':e.get('rank'), 'dd_pct':round(float(e['drawdown_fraction'])*100,6),
+                  'peak':e['peak_at'],'trough':e['trough_at'],
+                  'peak_capital':e.get('peak_capital_usd'),
+                  'net_by_mode':e.get('net_by_mode_usd')
+              } for e in episodes]))
+              d=x['max_drawdown_attribution']
+              start=datetime.fromisoformat(d['peak_at']); end=datetime.fromisoformat(d['trough_at'])
+              trades=[r for r in x['trade_receipts'] if r.get('realized_exit_at') and
+                      start<=datetime.fromisoformat(r['realized_exit_at'])<=end]
+              losses=[r for r in trades if D(str(r['realized_net_pnl_usd']))<0]
+              wins=[r for r in trades if D(str(r['realized_net_pnl_usd']))>0]
+              def total(rows):return str(sum((D(str(r['realized_net_pnl_usd'])) for r in rows),D(0)))
+              def groups(field):
+                  vals={}
+                  for row in trades:
+                      key=str(row.get(field))
+                      rec=vals.setdefault(key,{'count':0,'losses':0,'wins':0,'loss_usd':D(0),'win_usd':D(0)})
+                      pnl=D(str(row['realized_net_pnl_usd']))
+                      rec['count']+=1
+                      if pnl<0:rec['losses']+=1;rec['loss_usd']-=pnl
+                      if pnl>0:rec['wins']+=1;rec['win_usd']+=pnl
+                  return {k:{f:str(v) for f,v in d.items()} for k,d in sorted(vals.items())}
+              print('DD_EPISODE_TRADE_AGG',json.dumps({'n_trades':len(trades),'n_losers':len(losses),
+                  'n_winners':len(wins),'gross_loss':str(-D(total(losses))),
+                  'gross_profit':total(wins),'net':total(trades),
+                  'by_mode':groups('mode'),'by_multiplier':groups('multiplier')},sort_keys=True))
+              days={}
+              for row in trades:
+                  day=row['realized_exit_at'][:10];drec=days.setdefault(day,{'n':0,'net':D(0),'loss':D(0)})
+                  pnl=D(str(row['realized_net_pnl_usd']))
+                  drec['n']+=1;drec['net']+=pnl;drec['loss']+=max(-pnl,D(0))
+              print('DD_DAILY',json.dumps({k:{f:str(v) for f,v in d.items()} for k,d in sorted(days.items())}))
+          PY
