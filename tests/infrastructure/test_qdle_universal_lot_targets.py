@@ -164,6 +164,35 @@ class UniversalLotTargetTests(unittest.TestCase):
         )
         self.assertEqual((blocked.state, blocked.lots), ("UNFUNDABLE", D("0")))
 
+    def test_eurusd_ten_pips_60_usd_nav_includes_seven_each_way(self):
+        # Synthetic EURUSD 10 pips = $100 loss/lot; $7 opening + $7 closing
+        # = $14/lot all-in. Thus 0.03 lots risks $3.42 (> $3 allowed).
+        # Exact broker grid floors to 0.02 lots ($2 SL + $0.28 fee).
+        at = T + timedelta(seconds=1)
+        self.engine.publish_account(QDLEAccount(
+            "broker-account-test", "FundedNext", "USD", 2, at,
+            D("2000"), D("2000"), D("1900"), D("3"),
+            D("3"), D("0"), D("60"),
+        ))
+        self.engine.publish_symbol(QDLESymbol(
+            broker_symbol="EURUSD", aliases=("EURUSD",),
+            min_lot=D(".01"), max_lot=D("100"), lot_step=D(".01"),
+            directional_volume_limit=D("0"), tick_size=D(".00001"),
+            tick_value_loss_usd=D("1"), contract_size=D("100000"),
+            currency_profit="USD", fee_usd_per_lot=D("14"),
+            fee_provenance="TEST_ONLY_SEVEN_OPEN_AND_SEVEN_CLOSE", as_of=at,
+        ))
+        # SyntheticNativeValuation: 0.10 price gap * $1000/price= $100/lot.
+        result = reserve_cibo_entry(
+            self.engine, opportunity("fee14", stop="9.90"),
+            limits(seq=2, target="100"), at,
+        )
+        self.assertEqual(result.lots, D("0.02"))
+        self.assertEqual(result.stop_usd, D("2.00"))
+        self.assertEqual(result.cost_usd, D("0.28"))
+        self.assertEqual(result.total_risk_usd, D("2.28"))
+        self.assertLessEqual(result.total_risk_usd, D("3.00"))
+
     def test_hundred_lot_demand_never_overrides_dynamic_five_percent_nav(self):
         # Broker equity $2000 is only a margin constraint. The risk base is
         # QORE's genuine $60 NAV, giving a $3 all-in per-entry ceiling.
