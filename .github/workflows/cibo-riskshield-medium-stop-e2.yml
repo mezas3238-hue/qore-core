@@ -1,0 +1,8 @@
+name: QORE CIBO RiskShield E2
+on:
+  workflow_dispatch:
+jobs:
+  checkpoint:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo checkpoint
