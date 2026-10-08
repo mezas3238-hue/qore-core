@@ -1016,6 +1016,15 @@ def main() -> int:
         help="Optional walk-forward expected-R/dispersion ceiling for ATTACK state pressure.",
     )
     parser.add_argument(
+        "--ceiling-attack-state-pressure-projected-risk-fraction-trigger",
+        type=Decimal,
+        default=None,
+        help=(
+            "Optional projected ATTACK stop-risk fraction of live capital "
+            "required by the causal state-pressure gate."
+        ),
+    )
+    parser.add_argument(
         "--ceiling-attack-state-pressure-market-posture",
         choices=("DEFENSIVE", "RECOVERY", "STABLE", "WATCH"),
         default=None,
@@ -1841,6 +1850,9 @@ def main() -> int:
         ),
         ceiling_attack_state_pressure_confidence_ratio_ceiling=(
             args.ceiling_attack_state_pressure_confidence_ratio_ceiling
+        ),
+        ceiling_attack_state_pressure_projected_risk_fraction_trigger=(
+            args.ceiling_attack_state_pressure_projected_risk_fraction_trigger
         ),
         ceiling_attack_state_pressure_market_posture=(
             args.ceiling_attack_state_pressure_market_posture
