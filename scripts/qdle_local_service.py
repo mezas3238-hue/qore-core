@@ -41,8 +41,24 @@ def main() -> int:
             raise QDLEError("live terminal differs from configured funded account")
         db_file = Path(os.environ["QDLE_SQLITE_PATH"]).resolve()
         db_file.parent.mkdir(parents=True, exist_ok=True)
-        engine = QDLE(db_file, MT5ReadOnlyCalculator(mt5, account_id),
-                      enforce_finance_approval=True)
+        signing_env = {
+            "SIZING": "QDLE_SIZING_HMAC_KEY_HEX",
+            "CIBO_COMPOUND": "QDLE_CIBO_COMPOUND_HMAC_KEY_HEX",
+            "ADAPTIVE_LEVERAGE": "QDLE_ADAPTIVE_LEVERAGE_HMAC_KEY_HEX",
+            "PORTFOLIO_COMPOUND": "QDLE_PORTFOLIO_COMPOUND_HMAC_KEY_HEX",
+        }
+        try:
+            keys = {module: bytes.fromhex(os.environ[key])
+                    for module, key in signing_env.items()}
+        except (KeyError, ValueError) as exc:
+            raise QDLEError("four genuine motor signing secrets required") from exc
+        if (any(len(value) < 32 for value in keys.values())
+                or len(set(keys.values())) != 4):
+            raise QDLEError("four distinct high-entropy motor secrets required")
+        engine = QDLE(
+            db_file, MT5ReadOnlyCalculator(mt5, account_id),
+            enforce_finance_approval=True, motor_hmac_keys=keys,
+        )
         # Intentionally starts NOT READY until a fresh independently funded QORE
         # ACCOUNT event AND verified MT5 SYMBOL events have arrived.
         serve_loopback(
