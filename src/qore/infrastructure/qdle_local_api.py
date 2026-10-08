@@ -135,6 +135,9 @@ def build_local_handler(engine: QDLE, *, trader_token: str,
                                                  _decimal(p, "lots"))
                                         for p in row.get("positions", [])),
                         covered_fill_tickets=tuple(row.get("covered_fill_tickets", [])),
+                        provider_loss_floor_usd=(
+                            _decimal(row, "provider_loss_floor_usd")
+                            if row.get("provider_loss_floor_usd") is not None else None),
                     )
                     engine.publish_account(cmd)
                     response = {"updated": True, "sequence": cmd.sequence}
