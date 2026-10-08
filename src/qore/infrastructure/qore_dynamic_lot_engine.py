@@ -214,11 +214,13 @@ class QDLE:
 
     def __init__(self, path: str | Path, calculator: BrokerCalculator,
                  max_age_seconds: int = 10,
-                 entry_risk_fraction: Decimal = Decimal('0.05')) -> None:
+                 entry_risk_fraction: Decimal = Decimal('0.05'),
+                 enforce_finance_approval: bool = False) -> None:
         _d('entry_risk_fraction', entry_risk_fraction)
         if entry_risk_fraction > Decimal(1):
             raise QDLEError('entry risk fraction cannot exceed account equity')
         self.entry_risk_fraction = entry_risk_fraction
+        self.enforce_finance_approval = enforce_finance_approval
         if max_age_seconds <= 0:
             raise QDLEError("invalid maximum snapshot age")
         self.path = str(path)
@@ -233,6 +235,9 @@ class QDLE:
                 source_lane TEXT NOT NULL, symbol TEXT NOT NULL, side TEXT NOT NULL,
                 lots TEXT NOT NULL, risk TEXT NOT NULL, margin TEXT NOT NULL,
                 snapshot_seq INTEGER NOT NULL, fill_ticket TEXT, result TEXT NOT NULL)""")
+            db.execute("""CREATE TABLE IF NOT EXISTS finance_approvals (
+                request_id TEXT PRIMARY KEY, payload_sha TEXT NOT NULL,
+                account_sequence INTEGER NOT NULL, approval_at TEXT NOT NULL)""")
             db.execute("""CREATE TABLE IF NOT EXISTS audit (
                 id INTEGER PRIMARY KEY AUTOINCREMENT, event TEXT NOT NULL,
                 request_id TEXT, receipt TEXT NOT NULL)""")
@@ -333,6 +338,45 @@ class QDLE:
             self._audit(db, "SYMBOL_SPEC", None,
                         {"symbol": spec.broker_symbol, "as_of": spec.as_of})
 
+    def publish_finance_approval(self, intent: QDLEIntent,
+                                 approved_at: datetime) -> None:
+        """Treasury-only: approve immutable four-engine economics and Trader geometry.
+
+        Authenticate the caller at the local service boundary; approvals cannot
+        be submitted by Traders. A second, conflicting approval ID fails closed.
+        Every approval binds to the exact causal account snapshot sequence.
+        """
+        if not isinstance(intent, QDLEIntent):
+            raise QDLEError("QDLEIntent required for sovereign finance approval")
+        approved_at = _dt(approved_at)
+        fingerprint = hashlib.sha256(_j(asdict(intent)).encode()).hexdigest()
+        with self._tx() as db:
+            current = self._meta(db, "account")
+            if current is None or current["sequence"] != intent.expected_account_sequence:
+                raise QDLEError("approval requires matching current account snapshot")
+            self._fresh(datetime.fromisoformat(current["as_of"]), approved_at)
+            existing = db.execute(
+                "SELECT payload_sha FROM finance_approvals WHERE request_id=?",
+                (intent.request_id,)).fetchone()
+            if existing and existing[0] != fingerprint:
+                raise QDLEError("cannot change economic approval for a signal ID")
+            db.execute("""INSERT OR IGNORE INTO finance_approvals
+                        (request_id,payload_sha,account_sequence,approval_at)
+                        VALUES(?,?,?,?)""",
+                       (intent.request_id, fingerprint,
+                        intent.expected_account_sequence, approved_at.isoformat()))
+            self._audit(db, "QORE_FOUR_ENGINE_FINANCE_APPROVED",
+                        intent.request_id, {
+                            "account_sequence": intent.expected_account_sequence,
+                            "sha256": fingerprint,
+                            "requested_risk_usd": intent.requested_risk_usd,
+                            "sizing_risk_usd": intent.sizing_cap_usd,
+                            "cibo_compound_risk_usd": intent.cibo_compound_cap_usd,
+                            "portfolio_source_budget_usd": intent.portfolio_cap_usd,
+                            "adaptive_leverage_lots": intent.leverage_cap_lots,
+                            "adaptive_leverage_margin_usd": intent.margin_cap_usd,
+                        })
+
     def _fresh(self, when: datetime, now: datetime) -> None:
         age = _dt(now) - _dt(when)
         if age < timedelta(0) or age > self.max_age:
@@ -353,6 +397,16 @@ class QDLE:
                 if prior[0] != fingerprint:
                     raise QDLEError("idempotency key reused for a different entry")
                 return self._result(json.loads(prior[1]))
+            if self.enforce_finance_approval:
+                approval = db.execute(
+                    """SELECT payload_sha,account_sequence,approval_at
+                       FROM finance_approvals WHERE request_id=?""",
+                    (intent.request_id,)).fetchone()
+                if approval is None or approval[0] != fingerprint:
+                    raise QDLEError("no QORE sovereign four-engine financial approval")
+                if approval[1] != intent.expected_account_sequence:
+                    raise QDLEError("economic approval account epoch mismatch")
+                self._fresh(datetime.fromisoformat(approval[2]), now)
             raw = self._meta(db, "account")
             if raw is None:
                 raise QDLEError("no account snapshot")
