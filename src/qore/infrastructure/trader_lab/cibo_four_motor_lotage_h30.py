@@ -31,6 +31,7 @@ class LotageContext:
     cushion_free_usd: D
     portfolio_credit_free_usd: D
     strict_account_cash_margin: bool = True
+    already_committed_margin_usd: D = D(0)
 
 
 @dataclass(frozen=True)
@@ -69,7 +70,7 @@ def _check(x: LotageContext) -> None:
           x.min_lots,x.step_lots,x.stop_usd_per_min_lot,
           x.margin_usd_per_min_lot,x.fee_usd_per_min_lot,x.risk_left_usd,
           x.margin_left_usd,x.bank_free_usd,x.cushion_free_usd,
-          x.portfolio_credit_free_usd)
+          x.portfolio_credit_free_usd,x.already_committed_margin_usd)
     if not all(_amount_ok(a) for a in vals):
         raise ValueError("negative/nonfinite lotage economic input")
     if any(a<=0 for a in (x.equity_usd,x.initial_capital_usd,
@@ -147,7 +148,8 @@ def adaptive_leverage_lotage(ctx: LotageContext, prior: MotorQuote) -> MotorQuot
     basecap=min(ctx.max_multiplier,ctx.native_cap)
     # An exchange requires funded margin in actual free funds. In H30 the
     # historical manifest is treated as a provider-model approximation only.
-    cashmargin=(ctx.equity_usd if ctx.strict_account_cash_margin else ctx.margin_left_usd)
+    cashmargin=(max(D(0),ctx.equity_usd-ctx.already_committed_margin_usd)
+                if ctx.strict_account_cash_margin else ctx.margin_left_usd)
     feasible_margin=min(cashmargin,ctx.margin_left_usd)
     units_from_margin=(
         _floor_int(feasible_margin/ctx.margin_usd_per_min_lot)
@@ -188,6 +190,6 @@ def coordinate_four_motor_lotage(ctx: LotageContext) -> CoordinatedLotage:
             ctx.stop_usd_per_min_lot+ctx.fee_usd_per_min_lot
             <= (ctx.bank_free_usd if ctx.mode=="MEDIUM" else min(ctx.cushion_free_usd,ctx.portfolio_credit_free_usd))
             and ctx.margin_usd_per_min_lot<=ctx.margin_left_usd
-            and (not ctx.strict_account_cash_margin or ctx.margin_usd_per_min_lot<=ctx.equity_usd)
+            and (not ctx.strict_account_cash_margin or ctx.margin_usd_per_min_lot<=max(D(0),ctx.equity_usd-ctx.already_committed_margin_usd))
         ),
     )
