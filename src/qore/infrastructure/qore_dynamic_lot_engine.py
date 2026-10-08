@@ -8,6 +8,7 @@ This module NEVER sends broker orders and NEVER treats a quote as a fill.
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 import sqlite3
 from contextlib import contextmanager
@@ -219,7 +220,8 @@ class QDLE:
                  entry_risk_fraction: Decimal = Decimal('0.05'),
                  enforce_finance_approval: bool = False,
                  strict_live_fee_evidence: bool = True,
-                 strict_four_motor_evidence: bool = True) -> None:
+                 strict_four_motor_evidence: bool = True,
+                 motor_hmac_keys: dict[str, bytes] | None = None) -> None:
         _d('entry_risk_fraction', entry_risk_fraction)
         if entry_risk_fraction != Decimal("0.05"):
             raise QDLEError("QDLE sovereign risk fraction is fixed at 5pct of QORE trading capital")
@@ -229,6 +231,7 @@ class QDLE:
         # Synthetic tests must opt out; deployed VPS uses the strict default.
         self.strict_live_fee_evidence = strict_live_fee_evidence
         self.strict_four_motor_evidence = strict_four_motor_evidence
+        self.motor_hmac_keys = dict(motor_hmac_keys or {})
         if max_age_seconds <= 0:
             raise QDLEError("invalid maximum snapshot age")
         self.path = str(path)
@@ -393,8 +396,7 @@ class QDLE:
             self._audit(db, "SYMBOL_SPEC", None,
                         {"symbol": spec.broker_symbol, "as_of": spec.as_of})
 
-    @staticmethod
-    def _validate_motor_receipts(intent: QDLEIntent, proof: dict | None,
+    def _validate_motor_receipts(self, intent: QDLEIntent, proof: dict | None,
                                  approved_at: datetime) -> None:
         """Enforce four separately attributable event receipts before LIVE.
 
@@ -414,12 +416,18 @@ class QDLE:
         }
         if not isinstance(proof, dict) or set(proof) != set(expected):
             raise QDLEError("missing independent four-motor economic receipts")
+        if (set(self.motor_hmac_keys) != set(expected)
+                or any(not isinstance(key, bytes) or len(key) < 32
+                       for key in self.motor_hmac_keys.values())
+                or len(set(self.motor_hmac_keys.values())) != len(expected)):
+            raise QDLEError("four independent motor signing keys required: LIVE blocked")
         hashes = set()
         for name, fields in expected.items():
             row = proof[name]
             if not isinstance(row, dict):
                 raise QDLEError(f"{name} evidence must be an object")
-            if (row.get("request_id") != intent.request_id
+            if (row.get("producer") != name
+                    or row.get("request_id") != intent.request_id
                     or row.get("account_sequence") != intent.expected_account_sequence):
                 raise QDLEError(f"{name} receipt is bound to a different signal/epoch")
             receipt = row.get("source_event_sha256")
@@ -427,6 +435,17 @@ class QDLE:
                     or len(receipt) != 71
                     or any(c not in "0123456789abcdef" for c in receipt[7:])):
                 raise QDLEError(f"{name} has no source-specific SHA256 evidence")
+            canonical = _j({k: v for k, v in row.items()
+                            if k not in ("source_event_sha256", "hmac_sha256")}).encode("utf-8")
+            actual_sha = "sha256:" + hashlib.sha256(canonical).hexdigest()
+            if not hmac.compare_digest(receipt, actual_sha):
+                raise QDLEError(f"{name} source event hash not bound to content")
+            signature = row.get("hmac_sha256")
+            expected_signature = hmac.new(
+                self.motor_hmac_keys[name], canonical, hashlib.sha256).hexdigest()
+            if not isinstance(signature, str) or not hmac.compare_digest(
+                    signature, expected_signature):
+                raise QDLEError(f"{name} sovereign economic decision signature invalid")
             if receipt in hashes:
                 raise QDLEError("four motors cannot reuse a single decision receipt")
             hashes.add(receipt)
