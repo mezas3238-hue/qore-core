@@ -129,3 +129,16 @@ Para el siguiente arquitecto:
 9. Sólo tras full replay físicamente financiado, redescubrir nuevo techo CIBO y reducir DD <=25% (ideal <=20%), seguido de la batería científica, OOS y certificación.
 
 **LIMITACIÓN DECLARADA**: QDLE central y su bridge están construidos; todavía hay deuda de integración end-to-end con Trader Lab original, recálculo dinámico intratrade y conectores LIVE de QORE Treasury/MT5. QDLE no demuestra hoy 3.368 fills fundables ni el capital terminal histórico. No difundir etiqueta CERTIFIED ni DEPLOYED.
+
+
+## INVENTARIO REAL FUNDEDNEXT PREPARADO (PENDIENTE DE VPS ONLINE)
+
+Se agregó scripts/qdle_mt5_read_only_inventory.py y su prueba test_qdle_mt5_inventory.py. Cuando vuelva a conectarse el agente vps-vrix, ejecutar la captura en la instancia Windows donde MT5 está asociado a la cuenta correcta, SIN operar ni alterar posiciones:
+
+    set QDLE_MT5_ACCOUNT_ID=<login de la cuenta, solo como variable local>
+    python scripts/qdle_mt5_read_only_inventory.py --output qdle_mt5_observed_specs.json
+
+El inventario registra de modo observacional para AUDJPY, EURUSD, GBPJPY, GBPUSD, NAS100/NDX100 y XAUUSD: MT5 exact symbol, lot min/max/step/limit, contract_size, tick size/value, profit currency y trade mode; no guarda login ni inventa comisiones. Ambigüedad NAS100/NDX100 y cualquier otro alias requieren identificación humana respaldada por contrato real. El código publica todas las coincidencias observadas y retorna error si faltan o sobran. Un resultado unit-test sintético no constituye observación de FundedNext.
+
+Luego verificar fees/commission y símbolo específico, publicar el mapa autorizado para el provider event pump y obtener aprobaciones reales de QORE Risk/Treasury. El presente PR NO está desplegado ni aprobado para trading; preservar toda evidencia y el veto H8 hasta 3-year financed replay.
+
