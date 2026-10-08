@@ -9,6 +9,7 @@ on:
     paths:
       - scripts/cibo_trader_lab_runtime_audit.py
       - .github/workflows/cibo-trader-lab-runtime-audit.yml
+      - '.github/workflows/cibo-trader-lab-*.yml'
   pull_request:
     paths:
       - scripts/cibo_trader_lab_runtime_audit.py
@@ -23,6 +24,8 @@ jobs:
     timeout-minutes: 2
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Audit legacy CIBO research workflows
         run: python scripts/cibo_trader_lab_runtime_audit.py
       - name: Upload verified inventory
