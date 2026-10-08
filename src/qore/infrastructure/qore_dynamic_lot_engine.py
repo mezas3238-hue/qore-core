@@ -148,6 +148,7 @@ class QDLEIntent:
     slippage_usd_per_lot: Decimal
     expected_account_sequence: int
     methodology_min_lots: Decimal = Decimal(0)
+    requested_target_lots: Decimal | None = None
 
     def __post_init__(self) -> None:
         if not self.request_id or not self.trader_id or not self.symbol:
@@ -167,6 +168,8 @@ class QDLEIntent:
             _d(name, getattr(self, name), zero=True)
         _d("slippage_usd_per_lot", self.slippage_usd_per_lot, zero=True)
         _d("methodology_min_lots", self.methodology_min_lots, zero=True)
+        if self.requested_target_lots is not None:
+            _d("requested_target_lots", self.requested_target_lots)
         if self.expected_account_sequence <= 0:
             raise QDLEError("expected account sequence required")
 
@@ -655,6 +658,7 @@ class QDLE:
                     remaining_margin, intent.margin_cap_usd),
                 sovereign_unreserved_risk_usd=remaining_risk,
                 leverage_max_lots=min(intent.leverage_cap_lots, volume_cap),
+                requested_target_lots=intent.requested_target_lots,
             )
             # Every positive quote must pass native broker order_check (or
             # explicit deterministic replay preflight), before reserving cash.
@@ -712,9 +716,11 @@ class QDLE:
                 "sizing_cap_usd", "cibo_compound_cap_usd",
                 "portfolio_cap_usd", "leverage_cap_lots", "margin_cap_usd",
                 "slippage_usd_per_lot", "methodology_min_lots",
+                "requested_target_lots",
             )
             for name in numeric_fields:
-                raw[name] = Decimal(str(raw[name]))
+                if raw.get(name) is not None:
+                    raw[name] = Decimal(str(raw[name]))
             approved_intent = QDLEIntent(**raw)
             if (approved_intent.request_id != request_id
                     or approved_intent.side != side
