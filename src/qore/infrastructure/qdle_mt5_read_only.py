@@ -29,14 +29,21 @@ def _money(value: object, label: str) -> Decimal:
 
 @dataclass(frozen=True)
 class VerifiedFee:
+    # QDLE loss-to-stop budgets MUST include both entry and expected exit fees.
+    # An MT5 mobile screenshot that only lists ENTRY commission is insufficient.
     usd_per_lot: Decimal
     evidence: str
+    covers_open_and_close: bool = False
 
     def __post_init__(self) -> None:
-        if not self.evidence or self.evidence == "ASSUMED":
-            raise QDLEError("account-specific fee schedule evidence required")
-        if self.usd_per_lot < 0 or not self.usd_per_lot.is_finite():
+        if (not isinstance(self.evidence, str) or not self.evidence.strip()
+                or self.evidence.strip().upper() in ("ASSUMED", "UNKNOWN", "SYNTHETIC")):
+            raise QDLEError("account-specific broker fee evidence required")
+        if not isinstance(self.usd_per_lot, Decimal) or (
+                self.usd_per_lot < 0 or not self.usd_per_lot.is_finite()):
             raise QDLEError("invalid verified fee")
+        if self.covers_open_and_close is not True:
+            raise QDLEError("all-in round-trip broker commission unknown: NO LIVE LOTAGE")
 
 
 class MT5ReadOnlyCalculator:
