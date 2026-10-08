@@ -318,3 +318,34 @@ def _aware(value: datetime, name: str) -> None:
         raise CiboCompoundCapitalError(
             f"compound {name} must be timezone-aware"
         )
+
+
+# P0 Architect 2: independent SHADOW vote; original GEN-C1 realized-profit
+# research ledger remains immutable. Floating wins cannot create capital.
+from qore.infrastructure.cibo_four_motor_policy import (
+    FourMotorObservation, FourMotorProposal, FourMotorPolicyError, ZERO,
+)
+
+
+def propose_p0_compound_vote(observation: FourMotorObservation) -> FourMotorProposal:
+    """Reinvest reconciled net QORE NAV after protected/held reserves only."""
+    if not isinstance(observation, FourMotorObservation):
+        raise FourMotorPolicyError("canonical observation required")
+    base = observation.base_entry_budget_usd
+    available = observation.risk_cash_remaining_usd
+    chronological = sorted(observation.reconciled_cashflows,
+                           key=lambda e: (e.realized_at, e.event_id))
+    streak = 0
+    for event in reversed(chronological):
+        if event.net_usd < ZERO:
+            streak += 1
+        else:
+            break
+    loss_streak_factor = Decimal("0.5") if streak >= 3 else Decimal("1")
+    cap = min(available, base * loss_streak_factor)
+    reasons = ("RECONCILED_ONLY_NET_QORE_NAV",
+               "PROTECTED_AND_FLOAT_LOSS_AND_RESERVATION_DEDUCTED",
+               "THREE_SETTLED_LOSSES_HAIR_CUT" if streak >= 3
+               else "NORMAL_COMPOUND_REINVESTMENT")
+    return FourMotorProposal("CIBO_COMPOUND", observation,
+                             {"approved_risk_usd": str(cap)}, reasons)
