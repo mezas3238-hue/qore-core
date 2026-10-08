@@ -43,10 +43,10 @@ class DeterministicBroker:
 
 
 def account(seq=1, *, risk="100", sovereign="100", cushion="100",
-            margin="100", positions=(), covered=(), time=T):
+            margin="100", positions=(), covered=(), time=T, capital="1000", broker_equity="1000"):
     return QDLEAccount("demo-123", "FundedNext", "USD", seq, time,
-                       D("1000"), D("1000"), D(margin), D(risk),
-                       D(sovereign), D(cushion), tuple(positions), tuple(covered))
+                       D(broker_equity), D(broker_equity), D(margin), D(risk),
+                       D(sovereign), D(cushion), D(capital), tuple(positions), tuple(covered))
 
 
 def symbol(name, aliases=(), time=T, **overrides):
@@ -269,6 +269,7 @@ class TestMT5Adapter(unittest.TestCase):
         self.assertEqual(items[0].lot_step, D("0.01"))
         account_data = read_mt5_account_with_qore_treasury(mt5, account_id="123",
             sequence=1, qore_unreserved_risk_usd=D("5"),
+            qore_trading_capital_usd=D("60"),
             sovereign_free_source_usd=D("5"),
             cushion_free_source_usd=D("0"), as_of=T)
         self.assertEqual(account_data.free_margin, D("50"))
