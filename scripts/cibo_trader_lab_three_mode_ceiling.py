@@ -1142,6 +1142,12 @@ def main() -> int:
         help="Optional H4 range state required by ATTACK state-pressure lane 2.",
     )
     parser.add_argument(
+        "--ceiling-attack-state-pressure2-cap-taper-fraction",
+        type=Decimal,
+        default=Decimal("1"),
+        help="Fraction of coordinated ATTACK cap retained under state-pressure2.",
+    )
+    parser.add_argument(
         "--ceiling-attack-state-pressure2-risk-budget-taper-fraction",
         type=Decimal,
         default=Decimal("1"),
@@ -2016,6 +2022,9 @@ def main() -> int:
         ),
         ceiling_attack_state_pressure2_h4_range_state=(
             args.ceiling_attack_state_pressure2_h4_range_state
+        ),
+        ceiling_attack_state_pressure2_cap_taper_fraction=(
+            args.ceiling_attack_state_pressure2_cap_taper_fraction
         ),
         ceiling_attack_state_pressure2_risk_budget_taper_fraction=(
             args.ceiling_attack_state_pressure2_risk_budget_taper_fraction
