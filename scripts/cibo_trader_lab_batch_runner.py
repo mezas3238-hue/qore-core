@@ -107,7 +107,7 @@ def _prune_per_trade(evidence: Evidence, rows: list[dict]) -> Evidence:
         start = bisect_left(opened, outcome.entry_at)
         end = bisect_right(closed, outcome.exit_at)
         if start < end:
-            selected[start:end] = b"\\x01" * (end - start)
+            selected[start:end] = bytes([1]) * (end - start)
     slim = tuple(bar for i, bar in enumerate(evidence.bars) if selected[i])
     if not slim:
         slim = evidence.bars[:1]
