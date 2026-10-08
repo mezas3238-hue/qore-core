@@ -8,6 +8,8 @@ on:
       - 'tests/trader_lab/test_cibo_fundednext_mt5_lotage_p0.py'
       - 'src/qore/infrastructure/trader_lab/cibo_four_motor_fundednext_p0.py'
       - 'tests/trader_lab/test_cibo_four_motor_fundednext_p0.py'
+      - 'src/qore/infrastructure/trader_lab/cibo_trader_presend_mt5_p0.py'
+      - 'tests/trader_lab/test_cibo_trader_presend_mt5_p0.py'
   workflow_dispatch:
 permissions:
   contents: read
@@ -25,6 +27,7 @@ jobs:
           PYTHONPATH: src
         run: |
           set -euo pipefail
-          python -m py_compile src/qore/infrastructure/trader_lab/cibo_fundednext_mt5_lotage_p0.py src/qore/infrastructure/trader_lab/cibo_four_motor_fundednext_p0.py
+          python -m py_compile src/qore/infrastructure/trader_lab/cibo_fundednext_mt5_lotage_p0.py src/qore/infrastructure/trader_lab/cibo_four_motor_fundednext_p0.py src/qore/infrastructure/trader_lab/cibo_trader_presend_mt5_p0.py
           python -m unittest discover -s tests/trader_lab -p 'test_cibo_*fundednext*p0.py' -v
+          python -m unittest discover -s tests/trader_lab -p 'test_cibo_trader_presend_mt5_p0.py' -v
           echo 'CIBO_P0_MT5_6_MARKETS_AND_FOUR_MOTORS=PASS'
