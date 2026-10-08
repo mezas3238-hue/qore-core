@@ -265,7 +265,7 @@ jobs:
                 "total_gross_loss":str(tgl),"total_gl_delta":str(tgl-cur_tgl),
                 "attack_gross_loss":str(agl),"attack_gl_delta":str(agl-cur_agl),
                 "profit_factor":loss["total_profit_factor"],
-                "portfolio_shock_bind_count":eg.get("portfolio_shock_taper_bind_count",0),
+                "portfolio_shock_bind_count":eg.get("portfolio_attack_shock_taper_bind_count",0),
                 "stress_confidence_bind":eg.get("attack_stress_confidence_taper_bind_count",0),
                 "stress_confidence_risk_budget_bind":eg.get("attack_stress_confidence_risk_budget_bind_count",0),
                 "attack_override_count":pl.get("attack_override_applied_count",0),
