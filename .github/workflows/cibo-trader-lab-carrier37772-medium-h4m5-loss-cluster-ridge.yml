@@ -60,9 +60,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .qore-cache/cibo-ultrafast-results
-          key: qore-cibo-exact-v1-${{ hashFiles('.github/workflows/cibo-trader-lab-carrier37772-medium-h4m5-loss-cluster-ridge.yml') }}
+          key: qore-cibo-exact-v2-h4m5-${{ hashFiles('.github/workflows/cibo-trader-lab-carrier37772-medium-h4m5-loss-cluster-ridge.yml') }}
           restore-keys: |
-            qore-cibo-exact-v1-
+            qore-cibo-exact-v2-h4m5-
+            qore-cibo-exact-v1-3f67a8a8fe348f89e89f3537208d26dc449ca4ab6027495870f5e6cae458935b
 
       - name: Restore prepared trade-window cache
         id: m5cache
