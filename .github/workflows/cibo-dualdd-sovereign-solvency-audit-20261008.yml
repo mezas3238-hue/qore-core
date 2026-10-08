@@ -1,0 +1,71 @@
+name: QORE CIBO Sovereign Subledger Solvency Audit 20261008
+on:
+  workflow_dispatch:
+  push:
+    branches: [agent/cibo-dual-dd-context-defense-20261008-001]
+    paths: [.github/workflows/cibo-dualdd-sovereign-solvency-audit-20261008.yml]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Recover frozen replay results and verify digest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/cibo-solvency
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/11546195020/zip" > /tmp/cibo-solvency/input.zip
+          echo "61c144d287773c11ac0161542246a0dec62fdd9d2f7d0ba1ecb5f0586540875e  /tmp/cibo-solvency/input.zip" | sha256sum -c -
+          unzip -q /tmp/cibo-solvency/input.zip -d /tmp/cibo-solvency
+      - name: Reconcile sovereign and portfolio capital components
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from decimal import Decimal as D
+          root=Path('/tmp/cibo-solvency')
+          out=[]
+          for key in ['baseline','m2-reclaim-060','m2-wick-060','m2-h4m5-060']:
+              files=list(root.rglob(key+'.json'))
+              assert len(files)==1,(key,files)
+              x=json.loads(files[0].read_text())
+              assert x['decision_count']==x['trade_count']==3368
+              final=D(x['ending_total_capital_usd'])
+              sovereign=D(x['ending_sovereign_bank_usd'])
+              cushion=D(x['ending_portfolio_cushion_usd'])
+              assert abs(final-sovereign-cushion)<D('0.00000001')
+              minima=D(x['minimum_sovereign_bank_usd'])
+              peak=D(x['peak_sovereign_bank_usd'])
+              floorbreach=D(x['sovereign_floor_breach_usd'])
+              attackbreach=D(x['attack_sovereign_breach_usd'])
+              row={
+                'case':key,'final_equity_usd':str(final),
+                'final_sovereign_usd':str(sovereign),
+                'final_portfolio_cushion_usd':str(cushion),
+                'minimum_sovereign_bank_usd':str(minima),
+                'peak_sovereign_bank_usd':str(peak),
+                'sovereign_bank_negative_observed':minima<0,
+                'sovereign_floor_breach_usd':str(floorbreach),
+                'attack_sovereign_breach_usd':str(attackbreach),
+                'max_sovereign_drawdown_usd':x['max_sovereign_drawdown_usd'],
+                'max_total_drawdown_pct':str(D(x['max_drawdown_fraction'])*100),
+                'minimum_total_capital_in_known_top10_troughs_usd':str(min(
+                    D(e['trough_capital_usd']) for e in x['drawdown_forensics']['top_10_episodes'])),
+                'minimum_sovereign_in_known_top10_trough_states_usd':str(min(
+                    D(e['trough_state'].get('sovereign_bank_usd','0')) for e in x['drawdown_forensics']['top_10_episodes'])),
+                'initial_capital_usd':x['initial_capital_usd'],
+                'limitations':'A negative Treasury/sovereign subledger balance does not by itself prove total broker equity negative; full marked-to-market balance and provider reconciliation are separate gates.'
+              }
+              out.append(row)
+          (root/'solvency-report.json').write_text(json.dumps(out,indent=2,sort_keys=True))
+          print('CIBO_SUBLEDGER_SOLVENCY_AUDIT='+json.dumps(out,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cibo-dualdd-sovereign-audit-${{ github.run_id }}
+          path: /tmp/cibo-solvency/solvency-report.json
+          retention-days: 90
