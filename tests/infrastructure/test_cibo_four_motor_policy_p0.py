@@ -18,6 +18,7 @@ from qore.infrastructure.cibo_four_motor_policy import (
     FourMotorObservation,
     FourMotorPolicyError,
     ReconciledQoreCashflow,
+    roundtrip_commission_usd_per_lot,
     sign_producer_receipt,
 )
 from qore.infrastructure.cibo_four_motor_qdle_proposal import build_four_motor_qdle_intent
@@ -52,7 +53,10 @@ def observation(**kwargs):
         total_open_stop_risk_usd=Decimal("0"), correlated_open_stop_risk_usd=Decimal("0"),
         trader_open_stop_risk_usd=Decimal("0"), broker_free_margin_usd=Decimal("1900"),
         broker_margin_reservations_usd=Decimal("0"), stop_loss_usd_per_lot=Decimal("100"),
-        roundtrip_fees_usd_per_lot=Decimal("7"), execution_buffer_usd_per_lot=Decimal("2"),
+        roundtrip_fees_usd_per_lot=roundtrip_commission_usd_per_lot(
+            open_side_usd_per_lot=Decimal("7"),
+            close_side_usd_per_lot=Decimal("7"),
+        ), execution_buffer_usd_per_lot=Decimal("2"),
         stress_extra_loss_usd_per_lot=Decimal("0"), broker_margin_usd_per_lot=Decimal("1000"),
         symbol_max_lots=Decimal("40"), provider_direction_max_lots=Decimal("40"),
         open_and_reserved_direction_lots=Decimal("0"),
@@ -87,6 +91,28 @@ class FourMotorEconomicTest(unittest.TestCase):
                 self.assertEqual(Decimal(votes(o)[0].limits["approved_risk_usd"]), Decimal(risk))
                 self.assertEqual(Decimal(votes(o)[1].limits["approved_risk_usd"]), Decimal(risk))
 
+    def test_7_each_side_commission_and_5pct_risk_budget(self):
+        roundtrip = roundtrip_commission_usd_per_lot(
+            open_side_usd_per_lot=Decimal("7"),
+            close_side_usd_per_lot=Decimal("7"),
+        )
+        self.assertEqual(roundtrip, Decimal("14"))
+        self.assertEqual(roundtrip * Decimal("0.03"), Decimal("0.42"))
+        observed = observation()
+        self.assertEqual(observed.full_stop_cost_per_lot_usd, Decimal("116"))
+        self.assertEqual(observed.base_entry_budget_usd, Decimal("3"))
+        self.assertGreater(
+            observed.full_stop_cost_per_lot_usd * Decimal("0.03"), Decimal("3")
+        )
+        self.assertLessEqual(
+            observed.full_stop_cost_per_lot_usd * Decimal("0.02"), Decimal("3")
+        )
+        with self.assertRaises(FourMotorPolicyError):
+            roundtrip_commission_usd_per_lot(
+                open_side_usd_per_lot=Decimal("NaN"),
+                close_side_usd_per_lot=Decimal("7"),
+            )
+
     def test_four_distinct_units_and_constraints(self):
         o = observation()
         sizing, compound, leverage, portfolio = votes(o)
@@ -97,7 +123,7 @@ class FourMotorEconomicTest(unittest.TestCase):
         self.assertNotIn("approved_risk_usd", leverage.limits)
 
     def test_stress_protected_bank_and_margin_reservations(self):
-        o = observation(stress_extra_loss_usd_per_lot=Decimal("109"),
+        o = observation(stress_extra_loss_usd_per_lot=Decimal("116"),
                         protected_capital_usd=Decimal("58"), floating_loss_reserve_usd=Decimal("1"),
                         broker_margin_reservations_usd=Decimal("1800"),
                         total_open_stop_risk_usd=Decimal("3"),
@@ -188,12 +214,12 @@ class FourMotorEconomicTest(unittest.TestCase):
                 Decimal("1900"), Decimal("60"), Decimal("60"), Decimal("0"), Decimal("60")))
             q.publish_symbol(QDLESymbol(
                 "EURUSD", ("EURUSD",), Decimal(".01"), Decimal("40"), Decimal(".01"), Decimal("0"),
-                Decimal(".00001"), Decimal("1"), Decimal("100000"), "USD", Decimal("7"),
+                Decimal(".00001"), Decimal("1"), Decimal("100000"), "USD", Decimal("14"),
                 "SYNTHETIC_ONLY", T))
             q.publish_finance_approval(intent, T, signed)
             reserved = q.reserve_for_trader(intent, T)
             self.assertEqual(reserved.lots, Decimal(".02"))
-            self.assertEqual(reserved.total_risk_usd, Decimal("2.18"))
+            self.assertEqual(reserved.total_risk_usd, Decimal("2.32"))
             self.assertLessEqual(reserved.total_risk_usd, Decimal("3"))
             broken = dict(signed)
             broken["SIZING"] = dict(signed["SIZING"], hmac_sha256="0"*64)
@@ -204,7 +230,7 @@ class FourMotorEconomicTest(unittest.TestCase):
     def test_five_arm_ablation_independent_constraints_same_costs(self):
         from qore.infrastructure.cibo_four_motor_ablation import ablate_four_motors
         cases = (
-            ("SIZING", observation(stress_extra_loss_usd_per_lot=Decimal("109"))),
+            ("SIZING", observation(stress_extra_loss_usd_per_lot=Decimal("116"))),
             ("CIBO_COMPOUND", observation(reconciled_cashflows=(
                 cash(1, "-8", -4), cash(2, "-2", -3), cash(3, "-10", -2)))),
             ("ADAPTIVE_LEVERAGE", observation(
