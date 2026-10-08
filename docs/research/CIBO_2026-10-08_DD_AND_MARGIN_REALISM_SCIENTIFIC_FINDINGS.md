@@ -184,3 +184,14 @@ Exact vs original full-Sovereign-protected `transfer-floor-control`:
 Notably `transfer-floor-h1flat20` (20% partial) collapses capital to USD 552130.09 below frozen floor even though DD stays ~34.924%; fractions strongly nonlinear. Further [H1 flat fraction ridge workflow](https://github.com/mezas3238-hue/qore-core/blob/agent/cibo-dual-dd-context-defense-20261008-001/.github/workflows/cibo-sovereign-h1flat-partial-cliff-ridge-20261008.yml) brackets 35%-70% to seek a better GL/capital frontier. Record actual results after completion; do not assume material DD progress.
 
 **Next scientific priority:** use newly protected and economically superior R&D carrier to seek joint, ex-ante causal 2020+2021 DD reduction without reducing winner convexity. All discovery is overfit-prone because 2019-2022 holdout repeatedly mined; eventual promotion requires untouched sealed out-of-sample evaluation and provider-realistic execution/funding certification.
+
+## H1-flat 50% local economic ridge bracket: stable only at/below cliff
+
+[14-case fraction cliff ridge 37786035895](https://github.com/mezas3238-hue/qore-core/actions/runs/37786035895) SUCCESS. Tested fractions 35%,40%,42%,44%,46%,48%,49%,50%,51%,52%,55%,60%,65%,70% with constant immutable H1 flat geometry and original Sovereign protection. All remain 3368-admitted, full protected Sovereign, but **no variant dominates 50%** on both capital and GL at non-worse DD:
+- 50% remains the most favorable observed: capital USD **672671.47**, DD **34.924014%**, total GL USD **959378.84**;
+- 49%: USD **672640.74**, total GL **959397.83**, same DD;
+- 48%: USD **672615.81**, total GL **959422.76**, same DD;
+- 51%-70%: nonlinear cliff to ~USD **666403–666883**, DD **44.970–44.974%**, GL **978194–978669**. No promotion.
+This is a local historical boundary, **not evidence of a universal optimum**; it may be overfit to already mined 2019–2022 data.
+
+New independent scientific direction: [dual DD bottleneck causal feature atlas](https://github.com/mezas3238-hue/qore-core/blob/agent/cibo-dual-dd-context-defense-20261008-001/.github/workflows/cibo-dual-bottleneck-causal-risk-atlas-20261008.yml), comparing peak-to-trough 2020 and 2021 losing-event geometry to all ATTACK winners; no date/Trader ID/realized outcome is permitted as a future runtime trigger. The objective remains **material DD <=25%**, ideally 20–22%, while preserving the now-verified experimental economic headroom. No live deployment approved.
