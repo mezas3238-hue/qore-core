@@ -60,6 +60,18 @@ class TestQDLETraderLab(unittest.TestCase):
         self.assertEqual(out["unfundable_or_invalid"], 1)
         self.assertEqual(out["intents"][1]["lotage"], "0")
 
+    def test_repeated_signal_never_counts_as_multiple_financed_trades(self):
+        items = event_set(1)
+        items.append(dict(items[-1]))
+        with tempfile.TemporaryDirectory() as d:
+            out = replay(items, Path(d) / "r.sqlite", expected_intents=2)
+        self.assertEqual(out["status"], "RESEARCH_FAIL_CLOSED")
+        self.assertEqual(out["total_intents_accounted"], 2)
+        self.assertEqual(out["unique_signal_ids"], 1)
+        self.assertEqual(out["reserved_proposals"], 1)
+        self.assertEqual(out["failures"][0]["reason"],
+                         "DUPLICATE_TRADER_SIGNAL_NOT_DISTINCT_ENTRY")
+
     def test_missing_historical_entries_are_not_silently_dropped(self):
         with tempfile.TemporaryDirectory() as d:
             out = replay(event_set(1), Path(d) / "r.sqlite", expected_intents=3368)
