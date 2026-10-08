@@ -26,7 +26,8 @@ class TestQDLELocalAPI(unittest.TestCase):
         self.directory = tempfile.TemporaryDirectory()
         self.engine = QDLE(Path(self.directory.name) / "qdle.db", Broker(),
                            enforce_finance_approval=True,
-                           strict_live_fee_evidence=False)
+                           strict_live_fee_evidence=False,
+                           strict_four_motor_evidence=False)
         self.trader = "trader-token-supersecret-123456"
         self.treasury = "treasury-token-supersecret-123456"
         self.provider = "provider-token-supersecret-123456"
