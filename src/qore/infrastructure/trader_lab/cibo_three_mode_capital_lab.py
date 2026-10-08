@@ -6052,6 +6052,47 @@ def run_three_mode_trader_lab(
                         ),
                         reasons=tuple(capacity_reasons),
                     )
+                # H8 SCIENTIFIC HARD GATE (isolated current-canonical research branch):
+                # Switching over-budget ATTACK to the mandatory Trader baseline
+                # MEDIUM 1x must never magically create source capital. The
+                # Trader entry already occurred: we FAIL THE SIMULATION rather
+                # than reject/suppress an entry or book an unfunded position.
+                # source_left is reset to sovereign_left in the fallback above.
+                funded_source_left = source_left
+                if candidate_mode is CiboTraderLabMode.MEDIUM:
+                    funded_source_left = min(
+                        source_left,
+                        max(
+                            Decimal(0),
+                            sovereign_left
+                            - state.sovereign_protection_floor_usd,
+                        ),
+                    )
+                if (
+                    stop_risk > risk_left
+                    or margin > margin_left
+                    or source_reserved > funded_source_left
+                ):
+                    raise CiboCapitalManagementError(
+                        "CIBO_H8_UNFUNDED_EXECUTED_TRADER_BASELINE: "
+                        "physical ledger cannot finance a mandatory 1x "
+                        "entry without violating sovereign floor; "
+                        f"mode={candidate_mode.value} "
+                        f"required_source={format(source_reserved, 'f')} "
+                        f"available_source={format(funded_source_left, 'f')} "
+                        f"required_risk={format(stop_risk, 'f')} "
+                        f"remaining_risk={format(risk_left, 'f')} "
+                        f"required_margin={format(margin, 'f')} "
+                        f"remaining_margin={format(margin_left, 'f')}. "
+                        f"decision_at={candidate.decision_at.isoformat()} "
+                        f"epoch_index={epoch_index} "
+                        f"sovereign_bank={format(state.sovereign_bank_usd, 'f')} "
+                        f"sovereign_floor={format(state.sovereign_protection_floor_usd, 'f')} "
+                        f"portfolio_cushion={format(state.portfolio_cushion_usd, 'f')} "
+                        f"cushion_available={format(state.cushion_available_usd, 'f')}. "
+                        "RESEARCH CARRIER INVALID; do not credit any gains. "
+                        "Fix funding/execution architecture before replay."
+                    )
                 selected.append((candidate, multiplier, candidate_mode))
                 if candidate_mode is CiboTraderLabMode.MEDIUM:
                     record_engineering_sensor(
