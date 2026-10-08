@@ -254,7 +254,11 @@ class _State:
                 self.portfolio_attack_credit_usd,
                 self.cushion_available_usd,
             )
-            if self.total_capital_usd != previous_total:
+            # Decimal's ambient 28-digit precision can round the sum of
+            # two 100-digit separately-booked ledgers. That sub-cent noise
+            # must not be mistaken for actual minting of cash; the tolerance
+            # below is < one ten-millionth of one cent.
+            if abs(self.total_capital_usd - previous_total) > Decimal("1e-18"):
                 raise CiboCapitalManagementError(
                     "H19_REAL_CASH_TRANSFER_CREATED_OR_DESTROYED_CAPITAL"
                 )
