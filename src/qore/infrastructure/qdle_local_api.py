@@ -24,8 +24,29 @@ def _decimal(row, name: str) -> Decimal:
     return Decimal(str(row[name]))
 
 
+def _intent(row: dict) -> QDLEIntent:
+    return QDLEIntent(
+        request_id=row["request_id"], trader_id=row["trader_id"],
+        symbol=row["symbol"], side=row["side"],
+        entry_price=_decimal(row, "entry_price"),
+        stop_price=_decimal(row, "stop_price"),
+        requested_risk_usd=_decimal(row, "requested_risk_usd"),
+        sizing_cap_usd=_decimal(row, "sizing_cap_usd"),
+        cibo_compound_cap_usd=_decimal(row, "cibo_compound_cap_usd"),
+        portfolio_cap_usd=_decimal(row, "portfolio_cap_usd"),
+        leverage_cap_lots=_decimal(row, "leverage_cap_lots"),
+        margin_cap_usd=_decimal(row, "margin_cap_usd"),
+        source_lane=row["source_lane"],
+        slippage_usd_per_lot=_decimal(row, "slippage_usd_per_lot"),
+        expected_account_sequence=int(row["expected_account_sequence"]),
+            methodology_min_lots=Decimal(str(row.get("methodology_min_lots", "0"))),
+                    )
+
+
 def build_local_handler(engine: QDLE, *, trader_token: str,
                         treasury_token: str, provider_token: str):
+    if not engine.enforce_finance_approval:
+        raise QDLEError("production IPC requires sovereign four-engine approval enforcement")
     tokens = (trader_token, treasury_token, provider_token)
     if any(len(t) < 24 for t in tokens) or len(set(tokens)) != 3:
         raise QDLEError("three distinct high-entropy authority tokens required")
@@ -59,6 +80,7 @@ def build_local_handler(engine: QDLE, *, trader_token: str,
         def do_POST(self):
             permitted = {
                 "/v1/reserve": trader_token,
+                "/v1/finance-approval": treasury_token,
                 "/v1/account-event": treasury_token,
                 "/v1/symbol-event": provider_token,
                 "/v1/fill": provider_token,
@@ -79,22 +101,12 @@ def build_local_handler(engine: QDLE, *, trader_token: str,
                 if not isinstance(row, dict):
                     raise QDLEError("JSON object required")
                 if self.path == "/v1/reserve":
-                    cmd = QDLEIntent(
-                        request_id=row["request_id"], trader_id=row["trader_id"],
-                        symbol=row["symbol"], side=row["side"],
-                        entry_price=_decimal(row, "entry_price"),
-                        stop_price=_decimal(row, "stop_price"),
-                        requested_risk_usd=_decimal(row, "requested_risk_usd"),
-                        sizing_cap_usd=_decimal(row, "sizing_cap_usd"),
-                        cibo_compound_cap_usd=_decimal(row, "cibo_compound_cap_usd"),
-                        portfolio_cap_usd=_decimal(row, "portfolio_cap_usd"),
-                        leverage_cap_lots=_decimal(row, "leverage_cap_lots"),
-                        margin_cap_usd=_decimal(row, "margin_cap_usd"),
-                        source_lane=row["source_lane"],
-                        slippage_usd_per_lot=_decimal(row, "slippage_usd_per_lot"),
-                        expected_account_sequence=int(row["expected_account_sequence"]),
-                    )
+                    cmd = _intent(row)
                     response = asdict(engine.reserve_for_trader(cmd))
+                elif self.path == "/v1/finance-approval":
+                    cmd = _intent(row)
+                    engine.publish_finance_approval(cmd, approved_at=datetime.fromisoformat(row["approved_at"]))
+                    response = {"approval_recorded": True, "request_id": cmd.request_id}
                 elif self.path == "/v1/account-event":
                     cmd = QDLEAccount(
                         account_id=row["account_id"], provider=row["provider"],
