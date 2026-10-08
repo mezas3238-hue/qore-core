@@ -1,0 +1,69 @@
+name: QORE CIBO H6 Sovereign DD Root-Cause Audit
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/cibo-sovereign-dd-rootcause-h6-001
+    paths:
+      - '.github/workflows/cibo-sovereign-dd-rootcause-h6.yml'
+      - 'scripts/cibo_sovereign_dd_rootcause_h6.py'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  audit-frozen-3368:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      REPLAY_ARTIFACT_ID: '11542321736'
+      REPLAY_ARTIFACT_SHA256: '0e14d059be5053f453861ef02d119a7290d803d01ca3c74735a94e3a0f127d52'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile independent audit
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/cibo_sovereign_dd_rootcause_h6.py
+      - name: Recover exact pinned em-s06745 full replay
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/h6-input" "$RUNNER_TEMP/h6-results"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$REPLAY_ARTIFACT_ID/zip" > "$RUNNER_TEMP/h6-source.zip"
+          echo "$REPLAY_ARTIFACT_SHA256  $RUNNER_TEMP/h6-source.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/h6-source.zip" em-s06745.json -d "$RUNNER_TEMP/h6-input"
+      - name: Audit first bank shortfall, custody, open stop-risk pressure and all top 10 DD epochs
+        run: |
+          set -euo pipefail
+          python scripts/cibo_sovereign_dd_rootcause_h6.py \
+            --replay "$RUNNER_TEMP/h6-input/em-s06745.json" \
+            --output "$RUNNER_TEMP/h6-results/cibo-h6-sovereign-dd-rootcause.json"
+          python - <<'PY'
+          import json
+          import os
+          from decimal import Decimal as D
+          from pathlib import Path
+          p=Path(os.environ["RUNNER_TEMP"])/"h6-results"/"cibo-h6-sovereign-dd-rootcause.json"
+          d=json.loads(p.read_text())
+          assert d["trade_count"]==3368
+          assert D(d["capital_final_usd"])==D("673146.5254539803718539973234")
+          assert D(d["max_drawdown_pct"]) > D("36.9")
+          assert D(d["gross_loss_usd"])==D("940435.7630554367602465029838")
+          assert D(d["attack_sovereign_breach_usd"])==0
+          assert D(d["sovereign_floor_breach_usd"])>0
+          assert D(d["ending_sovereign_bank_usd"])<0
+          assert len(d["drawdown_episodes"])==10
+          assert all(D(e["drawdown_pct"])>D(25) for e in d["drawdown_episodes"])
+          print("H6_ACCOUNTING_AND_TOP10_FORENSIC_GATES=PASS")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-h6-sovereign-dd-rootcause-${{ github.run_id }}
+          path: ${{ runner.temp }}/h6-results/*.json
+          if-no-files-found: error
+          retention-days: 90
