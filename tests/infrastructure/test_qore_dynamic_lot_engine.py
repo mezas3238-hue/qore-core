@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import tempfile
+import sqlite3
 import threading
 import unittest
 from concurrent.futures import ThreadPoolExecutor
@@ -192,6 +193,13 @@ class TestQDLE(unittest.TestCase):
         self.engine.publish_account(account(3, risk="50", sovereign="50"))
         self.engine.record_broker_settlement(
             "one", "ticket-one", "broker-deal:77", D("-2"))
+        # Simulate an old database with audit data but no uniqueness index rows.
+        with sqlite3.connect(self.path) as db:
+            db.execute("DELETE FROM broker_settlements")
+        QDLE(self.path, DeterministicBroker())  # replays authenticated receipts
+        with sqlite3.connect(self.path) as db:
+            self.assertEqual(
+                db.execute("SELECT COUNT(*) FROM broker_settlements").fetchone()[0], 1)
         self.engine.reserve_for_trader(intent("two", seq=3, risk="2"), now=T)
         self.engine.acknowledge_fill("two", "ticket-two")
         self.engine.publish_account(account(4, risk="50", sovereign="50",
