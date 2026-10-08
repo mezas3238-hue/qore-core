@@ -5,6 +5,8 @@ on:
     branches: [agent/cibo-dual-dd-context-defense-20261008-001]
     paths:
       - tests/test_cibo_sovereign_transfer_invariants.py
+      - tests/test_cibo_postentry_context_gate.py
+      - scripts/cibo_trader_lab_three_mode_ceiling.py
       - scripts/cibo_sovereign_causal_rebalance_replay.py
       - .github/workflows/cibo-sovereign-transfer-invariants-ci-20261008.yml
 permissions:
@@ -24,3 +26,4 @@ jobs:
           export PYTHONPATH="$GITHUB_WORKSPACE/src:$GITHUB_WORKSPACE/scripts"
           python -m unittest discover -s tests -p 'test_cibo_sovereign_transfer_invariants.py' -v
           python -m unittest discover -s tests -p 'test_cibo_replay_integrity_gate.py' -v
+          python -m unittest discover -s tests -p 'test_cibo_postentry_context_gate.py' -v
