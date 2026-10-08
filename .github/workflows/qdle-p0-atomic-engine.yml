@@ -8,10 +8,12 @@ on:
       - src/qore/infrastructure/qdle_mt5_read_only.py
       - src/qore/infrastructure/cibo_physical_lot_sizing.py
       - src/qore/infrastructure/qdle_local_api.py
+      - src/qore/infrastructure/qdle_cibo_bridge.py
       - scripts/qdle_trader_lab_replay.py
       - tests/infrastructure/test_qore_dynamic_lot_engine.py
       - tests/infrastructure/test_qdle_trader_lab_replay.py
       - tests/infrastructure/test_qdle_local_api.py
+      - tests/infrastructure/test_qdle_cibo_bridge.py
       - tests/infrastructure/test_cibo_physical_lot_sizing.py
       - .github/workflows/qdle-p0-atomic-engine.yml
   workflow_dispatch:
@@ -34,3 +36,4 @@ jobs:
           python -m unittest discover -s tests/infrastructure -p test_qore_dynamic_lot_engine.py -v
           python -m unittest discover -s tests/infrastructure -p test_qdle_trader_lab_replay.py -v
           python -m unittest discover -s tests/infrastructure -p test_qdle_local_api.py -v
+          python -m unittest discover -s tests/infrastructure -p test_qdle_cibo_bridge.py -v
