@@ -34,6 +34,7 @@ def forward_account(mt5, *, signed_event: dict, hmac_key: bytes,
         sovereign_free_source_usd=receipt.sovereign_free_source_usd,
         cushion_free_source_usd=receipt.cushion_free_source_usd,
         covered_fill_tickets=receipt.covered_fill_tickets,
+        provider_loss_floor_usd=receipt.active_provider_mll_floor_usd,
         as_of=now,
     )
     # Never pretend that a strategy's gross revenue is funded cash.
