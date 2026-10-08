@@ -183,6 +183,9 @@ class _State:
     attack_net_pnl_usd: Decimal = Decimal(0)
     attack_profit_to_sovereign_usd: Decimal = Decimal(0)
     attack_profit_to_cushion_usd: Decimal = Decimal(0)
+    sovereign_real_cash_rebalance_count: int = 0
+    sovereign_real_cash_rebalance_total_usd: Decimal = Decimal(0)
+    sovereign_rebalance_insufficient_cash_peak_usd: Decimal = Decimal(0)
 
     @property
     def total_capital_usd(self) -> Decimal:
@@ -230,6 +233,36 @@ class _State:
         )
 
     def mark(self) -> None:
+        # H19 SCIENTIFIC FINANCING CORRECTION: sovereign minimum reserve
+        # is a custody floor, not an independent bank that can go into
+        # imaginary debt while the same account has free portfolio cash.
+        # Transfer ONLY existing, UNRESERVED portfolio dollars; this is
+        # zero-sum internal treasury accounting, not minted equity.
+        # This cannot rescue a bankrupt portfolio or cure total-account DD.
+        floor = self.sovereign_protection_floor_usd
+        needed = max(Decimal(0), floor - self.sovereign_bank_usd)
+        liquid_cushion = self.cushion_available_usd
+        transfer = min(needed, liquid_cushion)
+        if transfer > 0:
+            previous_total = self.total_capital_usd
+            self.portfolio_cushion_usd -= transfer
+            self.sovereign_bank_usd += transfer
+            self.sovereign_real_cash_rebalance_count += 1
+            self.sovereign_real_cash_rebalance_total_usd += transfer
+            # Transfer reduces genuine Portfolio deployable cash and credit.
+            self.portfolio_attack_credit_usd = min(
+                self.portfolio_attack_credit_usd,
+                self.cushion_available_usd,
+            )
+            if self.total_capital_usd != previous_total:
+                raise CiboCapitalManagementError(
+                    "H19_REAL_CASH_TRANSFER_CREATED_OR_DESTROYED_CAPITAL"
+                )
+        unfunded = max(Decimal(0), floor - self.sovereign_bank_usd)
+        self.sovereign_rebalance_insufficient_cash_peak_usd = max(
+            self.sovereign_rebalance_insufficient_cash_peak_usd,
+            unfunded,
+        )
         total = self.total_capital_usd
         self.peak_total_capital_usd = max(self.peak_total_capital_usd, total)
         drawdown = max(Decimal(0), self.peak_total_capital_usd - total)
@@ -6949,6 +6982,13 @@ def run_three_mode_trader_lab(
         "sovereign_floor_breach_usd": format(
             state.sovereign_floor_breach_usd,
             "f",
+        ),
+        "h19_sovereign_real_cash_rebalance_count": state.sovereign_real_cash_rebalance_count,
+        "h19_sovereign_real_cash_rebalance_total_usd": format(
+            state.sovereign_real_cash_rebalance_total_usd, "f"
+        ),
+        "h19_sovereign_rebalance_insufficient_cash_peak_usd": format(
+            state.sovereign_rebalance_insufficient_cash_peak_usd, "f"
         ),
         "portfolio_cushion_high_watermark_usd": format(
             state.cushion_high_watermark_usd,
