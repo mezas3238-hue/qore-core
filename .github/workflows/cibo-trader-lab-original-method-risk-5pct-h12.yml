@@ -1,0 +1,294 @@
+name: QORE CIBO H12 Original Method 5pct ATTACK Per-Trade Risk Replay
+
+# CIBO ORIGINAL METHODOLOGY. Exactly one risk-budget parameter changes:
+# attack single-trade cap 0.20 control vs 0.05 experiment.
+# All 3368 signals, MEDIUM and lifecycle settings preserved.
+# RESEARCH ONLY, not real broker simulation or certified.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/cibo-original-method-only-5pct-risk-h12-001
+    paths:
+      - '.github/workflows/cibo-trader-lab-original-method-risk-5pct-h12.yml'
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  PYTHONPATH: ${{ github.workspace }}/src
+  SOURCE_ARTIFACT_ID: '11451743578'
+  SOURCE_ARTIFACT_DIGEST: 'sha256:d439957f21e2f79148b5a2fb75a53db6fa448698f17aeb6978f379ed3547f7ea'
+  HISTORICAL_SOURCE_ARTIFACT_ID: '11389331836'
+  HISTORICAL_SOURCE_ARTIFACT_DIGEST: 'sha256:30177639f660c9647ab70257c2d12c541bdade49ab5582347a3890f920070fee'
+  HISTORICAL_CONTROL_ARTIFACT_ID: '11409086692'
+  HISTORICAL_CONTROL_ARTIFACT_DIGEST: 'sha256:eeffdc99a736b82bd965ff646b8ca9bf084f50ae414e56e9b3d82961169d7187'
+  ATLAS_AUDJPY_ARTIFACT_ID: '10476530915'
+  ATLAS_AUDJPY_DIGEST: 'sha256:a416085cfcef04003ae89debaad360304a0c4c8bac65b3bf2b439a8a4b7098bf'
+  ATLAS_EURUSD_ARTIFACT_ID: '10475354631'
+  ATLAS_EURUSD_DIGEST: 'sha256:e0fa9e316b79ba61c338161a57508359d4c6afe2fbf97d3f50f1e27c2d359a86'
+  ATLAS_GBPJPY_ARTIFACT_ID: '10475453293'
+  ATLAS_GBPJPY_DIGEST: 'sha256:b68e74b2afa54295f891c11cde19e12e92db4192930496036c7ebb372474e415'
+  ATLAS_GBPUSD_ARTIFACT_ID: '10475449182'
+  ATLAS_GBPUSD_DIGEST: 'sha256:77d5b65ce3c6763e3ac5f620e4167d4ef071bfe1c13746cd5ca7ad9788268dcf'
+  ATLAS_NAS100_ARTIFACT_ID: '10476153072'
+  ATLAS_NAS100_DIGEST: 'sha256:87ae8095feadce23c5026cda4dada49765d44d0baa2237b5bd7704ccc8deb863'
+  ATLAS_XAUUSD_ARTIFACT_ID: '10476557530'
+  ATLAS_XAUUSD_DIGEST: 'sha256:dcb905b11380e3d4e1a4dc621e269bb75d2886806dd662e260d21d1d15362e08'
+
+jobs:
+  h12-original-method-risk-ab:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Compile
+        run: |
+          set -euo pipefail
+          python -m py_compile src/qore/infrastructure/cibo_position_lifecycle.py src/qore/infrastructure/trader_lab/cibo_three_mode_capital_lab.py scripts/cibo_trader_lab_three_mode_ceiling.py
+
+      - name: Recover inputs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/source" "$RUNNER_TEMP/historical-source" "$RUNNER_TEMP/historical-control" "$RUNNER_TEMP/result"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$SOURCE_ARTIFACT_ID/zip" > "$RUNNER_TEMP/source.zip"
+          echo "${SOURCE_ARTIFACT_DIGEST#sha256:}  $RUNNER_TEMP/source.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/source.zip" -d "$RUNNER_TEMP/source"
+          MANIFEST="$(find "$RUNNER_TEMP/source" -type f -name walk-forward-manifest.json -print -quit)"
+          BASELINE="$(find "$RUNNER_TEMP/source" -type f -name walk-forward-replay.json -print -quit)"
+          echo "MANIFEST=$MANIFEST" >> "$GITHUB_ENV"; echo "BASELINE=$BASELINE" >> "$GITHUB_ENV"
+
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$HISTORICAL_SOURCE_ARTIFACT_ID/zip" > "$RUNNER_TEMP/historical-source.zip"
+          echo "${HISTORICAL_SOURCE_ARTIFACT_DIGEST#sha256:}  $RUNNER_TEMP/historical-source.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/historical-source.zip" -d "$RUNNER_TEMP/historical-source"
+          HISTORICAL_MANIFEST="$(find "$RUNNER_TEMP/historical-source" -type f -name single-account-manifest-native.json -print -quit)"
+          echo "HISTORICAL_MANIFEST=$HISTORICAL_MANIFEST" >> "$GITHUB_ENV"
+
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$HISTORICAL_CONTROL_ARTIFACT_ID/zip" > "$RUNNER_TEMP/historical-control.zip"
+          echo "${HISTORICAL_CONTROL_ARTIFACT_DIGEST#sha256:}  $RUNNER_TEMP/historical-control.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/historical-control.zip" -d "$RUNNER_TEMP/historical-control"
+          HISTORICAL_REPLAY="$(find "$RUNNER_TEMP/historical-control" -type f -name historical-ceiling-replay.json -print -quit)"
+          echo "HISTORICAL_REPLAY=$HISTORICAL_REPLAY" >> "$GITHUB_ENV"
+
+          mkdir -p "$RUNNER_TEMP/atlas"
+          for SYMBOL in AUDJPY EURUSD GBPJPY GBPUSD NAS100 XAUUSD; do
+            ID_VAR="ATLAS_${SYMBOL}_ARTIFACT_ID"; DIGEST_VAR="ATLAS_${SYMBOL}_DIGEST"
+            ARTIFACT_ID="${!ID_VAR}"; ARTIFACT_DIGEST="${!DIGEST_VAR}"
+            ZIP="$RUNNER_TEMP/atlas-${SYMBOL}.zip"; ROOT="$RUNNER_TEMP/atlas/${SYMBOL}"
+            mkdir -p "$ROOT"
+            gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$ARTIFACT_ID/zip" > "$ZIP"
+            echo "${ARTIFACT_DIGEST#sha256:}  $ZIP" | sha256sum -c -
+            unzip -q "$ZIP" 'RAW_M5_LEDGER/2019.jsonl' 'RAW_M5_LEDGER/2020.jsonl' 'RAW_M5_LEDGER/2021.jsonl' 'RAW_M5_LEDGER/2022.jsonl' -d "$ROOT"
+          done
+
+      - name: Replay same CIBO method two risk caps across 3368 trades
+        run: |
+          set -u
+          common=(
+            --manifest "$MANIFEST"
+            --baseline-replay "$BASELINE"
+            --historical-manifest "$HISTORICAL_MANIFEST"
+            --historical-replay "$HISTORICAL_REPLAY"
+            --distributed-attack-frontier
+            --coordinated-economic-group
+            --ceiling-discovery-mode
+            --summary-telemetry
+            --attack-multiplier-cap 10000
+            --medium-multiplier-cap 14
+            --medium-drawdown-intensity-trigger 0.05
+            --economic-group-bootstrap-cushion-share 1.00
+            --ceiling-growth-leverage-slope 10
+            --ceiling-attack-loss-streak-trigger 3
+            --ceiling-attack-loss-streak-taper-fraction 0.75
+            --ceiling-portfolio-shock-trigger-fraction 0.05
+            --ceiling-portfolio-shock-taper-fraction 0.50
+            --ceiling-attack-multiplier-band-lower 2000
+            --ceiling-attack-multiplier-band-upper 3999
+            --ceiling-attack-multiplier-band-taper-fraction 0.20
+            --ceiling-attack-risk-fraction-band-lower 0.025
+            --ceiling-attack-risk-fraction-band-upper 0.05
+            --ceiling-attack-risk-fraction-band-taper-fraction 0.50
+            --ceiling-attack-drawdown-window-lower 0.10
+            --ceiling-attack-drawdown-window-upper 0.30
+            --ceiling-attack-drawdown-window-multiplier-lower 800
+            --ceiling-attack-drawdown-window-multiplier-upper 1900
+            --ceiling-attack-drawdown-window-taper-fraction 0.40
+            --ceiling-attack-drawdown-window2-lower 0.10
+            --ceiling-attack-drawdown-window2-upper 0.35
+            --ceiling-attack-drawdown-window2-multiplier-lower 350
+            --ceiling-attack-drawdown-window2-multiplier-upper 450
+            --ceiling-attack-drawdown-window2-taper-fraction 0.60
+            --ceiling-attack-drawdown-window3-lower 0.15
+            --ceiling-attack-drawdown-window3-upper 0.50
+            --ceiling-attack-drawdown-window3-multiplier-lower 2
+            --ceiling-attack-drawdown-window3-multiplier-upper 20
+            --ceiling-attack-drawdown-window3-taper-fraction 0.80
+            --ceiling-attack-drawdown-window4-lower 0.15
+            --ceiling-attack-drawdown-window4-upper 0.50
+            --ceiling-attack-drawdown-window4-multiplier-lower 4800
+            --ceiling-attack-drawdown-window4-multiplier-upper 5200
+            --ceiling-attack-drawdown-window4-taper-fraction 0.90
+            --ceiling-attack-drawdown-window5-lower 0.10
+            --ceiling-attack-drawdown-window5-upper 0.50
+            --ceiling-attack-drawdown-window5-multiplier-lower 4400
+            --ceiling-attack-drawdown-window5-multiplier-upper 4799
+            --ceiling-attack-drawdown-window5-taper-fraction 0.85
+            --ceiling-attack-low-multiplier-demotion-upper 2
+            --ceiling-attack-low-multiplier-demotion-drawdown-trigger 0.15
+            --ceiling-attack-drawdown-window6-lower 0.05
+            --ceiling-attack-drawdown-window6-upper 0.45
+            --ceiling-attack-drawdown-window6-multiplier-lower 50
+            --ceiling-attack-drawdown-window6-multiplier-upper 170
+            --ceiling-attack-drawdown-window6-taper-fraction 0.95
+            --ceiling-attack-drawdown-window6-capital-floor 600
+            --ceiling-attack-drawdown-window6-capital-ceiling 1500
+            --lifecycle-source-root "AUDJPY=$RUNNER_TEMP/atlas/AUDJPY"
+            --lifecycle-source-root "EURUSD=$RUNNER_TEMP/atlas/EURUSD"
+            --lifecycle-source-root "GBPJPY=$RUNNER_TEMP/atlas/GBPJPY"
+            --lifecycle-source-root "GBPUSD=$RUNNER_TEMP/atlas/GBPUSD"
+            --lifecycle-source-root "NAS100=$RUNNER_TEMP/atlas/NAS100"
+            --lifecycle-source-root "XAUUSD=$RUNNER_TEMP/atlas/XAUUSD"
+            --lifecycle-feature DEFENSIVE_INITIAL_STOP_CAP
+            --lifecycle-defensive-medium-1x-only
+            --lifecycle-defensive-initial-stop-r -0.20
+            --lifecycle-trader-loss-streak-trigger 2
+            --lifecycle-minimum-stop-risk-fraction-trigger 0.03
+            --lifecycle-bootstrap-override-feature ADVERSE_PARTIAL_REDUCTION
+            --lifecycle-bootstrap-override-require-expectation
+            --lifecycle-bootstrap-override-expected-r-ceiling 0.10
+            --lifecycle-adverse-loss-cut-r -0.40
+            --lifecycle-adverse-partial-max-favorable-r 0.50
+            --lifecycle-adverse-partial-fraction 0.40
+            --lifecycle-bootstrap-override-capital-ceiling 100
+            --lifecycle-bootstrap-override-drawdown-trigger 0.10
+            --lifecycle-bootstrap-override-trader-loss-streak-trigger 1
+            --lifecycle-bootstrap-override-medium-max-multiplier 2
+          )
+
+          run_case() {
+            name="$1"; single_trade_risk_fraction="$2"
+            extra=(
+              --ceiling-attack-single-trade-risk-fraction "$single_trade_risk_fraction"
+              --ceiling-attack-stress-confidence-drawdown-trigger 0.00
+              --ceiling-attack-stress-confidence-ratio-ceiling 0.45
+              --ceiling-attack-stress-confidence-target-r-floor 4
+              --ceiling-attack-stress-confidence-multiplier-lower 50
+              --ceiling-attack-stress-confidence-multiplier-upper 170
+              --ceiling-attack-stress-confidence-projected-risk-fraction-trigger 0.12
+              --ceiling-attack-stress-confidence-capital-floor 700
+              --ceiling-attack-stress-confidence-capital-ceiling 1500
+              --ceiling-attack-stress-confidence-taper-fraction 1.00
+              --ceiling-attack-stress-confidence-risk-budget-taper-fraction 0.35
+              --ceiling-attack-compound-hysteresis-fraction 0.0050
+              --ceiling-attack-drawdown-window7-lower 0.00
+              --ceiling-attack-drawdown-window7-upper 0.05
+              --ceiling-attack-drawdown-window7-multiplier-lower 100
+              --ceiling-attack-drawdown-window7-multiplier-upper 170
+              --ceiling-attack-drawdown-window7-capital-floor 1000
+              --ceiling-attack-drawdown-window7-capital-ceiling 1300
+              --ceiling-attack-drawdown-window7-taper-fraction 0.9900
+              --ceiling-attack-state-pressure-expected-minutes-floor 100
+              --ceiling-attack-state-pressure-target-r-ceiling 0.20
+              --ceiling-attack-state-pressure-confidence-ratio-ceiling 0.50
+              --ceiling-attack-state-pressure-projected-risk-fraction-trigger 0.10
+              --ceiling-attack-state-pressure-capital-floor 35000
+              --ceiling-attack-state-pressure-capital-ceiling 65000
+              --ceiling-attack-state-pressure-market-posture WATCH
+              --ceiling-attack-state-pressure-h4-range-state compressed
+              --ceiling-attack-state-pressure-risk-budget-taper-fraction 0.4150
+              --ceiling-attack-drawdown-window-multiplier-lower 500
+              --ceiling-attack-drawdown-window-multiplier-upper 1950
+              --ceiling-attack-drawdown-window-taper-fraction 0.40
+
+              # inherited MEDIUM carrier edge
+              --lifecycle-context-defensive-initial-stop-r -0.1485
+              --lifecycle-context-require "ctx_close_location_bucket=q4:>0.75"
+              --lifecycle-context-require "ctx_reclaim_latency_bucket=<=5m"
+
+              # inherited ATTACK context-only carrier
+              --lifecycle-attack-override-feature DEFENSIVE_INITIAL_STOP_CAP
+              --lifecycle-attack-override-context-defensive-initial-stop-r -0.50
+              --lifecycle-attack-override-context-require "reg_h1_range_state=balanced"
+              --lifecycle-attack-override-context-require "reg_h4_range_state=balanced"
+              --lifecycle-attack-override-context-require "ctx_rejection_wick_bucket=q4:>0.50"
+              --lifecycle-attack-override-context-require "ctx_reclaim_latency_bucket=<=5m"
+              --lifecycle-attack-override-context-require "reg_h1_body_alignment=opposed"
+              --lifecycle-attack-override-context-require "reg_h4_body_alignment=with"
+            )
+            # Exactly retain the already verified -0.6745 MEDIUM protective stop.
+            extra+=(
+              --lifecycle-medium-context-stop-r -0.6745
+              --lifecycle-medium-context-require "reg_m5_efficiency_state=medium"
+              --lifecycle-medium-context-require "ctx_cisd_progress_bucket=q4:>0.75"
+              --lifecycle-medium-context-require "reg_m5_volatility_state=expanded"
+              --lifecycle-medium-context-require "reg_h1_range_state=extreme"
+            )
+            # Methodology unchanged except one attack risk budget parameter.
+            python scripts/cibo_trader_lab_three_mode_ceiling.py "${common[@]}" "${extra[@]}" \
+              --output "$RUNNER_TEMP/result/${name}.json"
+          }
+
+          # Fail explicitly if either of the two full replays fails.
+          set -e
+          run_case "h12-original-risk-020" 0.20 &
+          a_pid=$!
+          run_case "h12-original-risk-005" 0.05 &
+          b_pid=$!
+          wait "$a_pid"
+          wait "$b_pid"
+
+      - name: Compare original CIBO risk 20pct vs 5pct with all 3368 entries
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os
+          from decimal import Decimal as D
+          from pathlib import Path
+          root=Path(os.environ["RUNNER_TEMP"])/"result"
+          names=("h12-original-risk-020","h12-original-risk-005")
+          out={}
+          for name in names:
+              p=json.loads((root/(name+".json")).read_text())
+              assert p["decision_count"]==p["trade_count"]==3368, (name,"partial trades")
+              assert p["economic_group_report"]["all_entries_preserved"] is True
+              f=p["engineering_sensor_report"]["execution_funnel"]
+              assert f["final_trade_count"]==3368 and f["sizing_medium_rejected_count"]==0 and f["sizing_medium_deferred_count"]==0
+              loss=p["economic_group_report"]["portfolio_loss_report"]
+              out[name]={
+                "initial_usd":"60","risk_cap":("0.20" if name.endswith("020") else "0.05"),
+                "trades":p["trade_count"],
+                "capital_usd":p["ending_total_capital_usd"],
+                "dd_pct":str(D(p["max_drawdown_fraction"])*D(100)),
+                "total_gross_loss_usd":loss["total_gross_loss_usd"],
+                "attack_gross_loss_usd":loss["attack_gross_loss_usd"],
+                "profit_factor":loss["total_profit_factor"],
+                "sovereign_floor_breach_usd":p["sovereign_floor_breach_usd"],
+                "attack_sovereign_breach_usd":p["attack_sovereign_breach_usd"],
+                "certifiable_bank":D(p["sovereign_floor_breach_usd"])==0 and D(p["attack_sovereign_breach_usd"])==0,
+              }
+          a=out[names[0]]; b=out[names[1]]
+          assert abs(D(a["capital_usd"])-D("673146.5254539803718539973234"))<D(".00000001"),"CIBO control capital mismatch"
+          assert abs(D(a["dd_pct"])-D("36.9105392447521594776793534035781822183424303702176782906063221986253646218438"))<D(".00000001"),"CIBO control DD mismatch"
+          summary={"cases":out,"delta_5pct_minus_20pct":{
+            "capital_usd":str(D(b["capital_usd"])-D(a["capital_usd"])),
+            "dd_percentage_points":str(D(b["dd_pct"])-D(a["dd_pct"])),
+            "gross_loss_usd":str(D(b["total_gross_loss_usd"])-D(a["total_gross_loss_usd"]))
+          },"methodology":"original CIBO, only single ATTACK risk ceiling changes; MEDIUM unchanged","certified":False}
+          (root/"h12-original-risk-ab-report.json").write_text(json.dumps(summary,indent=2))
+          print("CIBO_H12_RESULT="+json.dumps(summary,sort_keys=True))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-h12-original-risk-005-vs-020-${{ github.run_id }}
+          path: ${{ runner.temp }}/result/*.json
+          if-no-files-found: error
+          retention-days: 90
