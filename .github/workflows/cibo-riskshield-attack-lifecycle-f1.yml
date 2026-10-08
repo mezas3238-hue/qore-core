@@ -107,6 +107,8 @@ jobs:
             --economic-group-bootstrap-cushion-share 1.00
             --ceiling-growth-leverage-slope 10
             --ceiling-attack-single-trade-risk-fraction 0.20
+            --ceiling-portfolio-shock-trigger-fraction 0.05
+            --ceiling-portfolio-shock-taper-fraction 0.50
             --ceiling-attack-loss-streak-trigger 3
             --ceiling-attack-loss-streak-taper-fraction 0.75
             --ceiling-attack-multiplier-band-lower 2000
@@ -253,6 +255,7 @@ jobs:
           rows=[]
           paths=sorted(root.glob("*.json"))
           assert len(paths)==8, f"Expected 8 complete replay outputs; got {len(paths)}"
+          assert (root/"carrier37772-control.json").exists(), "Frozen control not replayed"
           for pth in paths:
               p=json.loads(pth.read_text())
               assert p["decision_count"]==p["trade_count"]==3368
