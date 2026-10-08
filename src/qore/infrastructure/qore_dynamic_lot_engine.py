@@ -1,0 +1,516 @@
+"""QORE Dynamic Lot Engine (QDLE), fail-closed, broker-agnostic and trader-neutral.
+
+The sole lot-quantity calculation service; no trading or admission authority.
+SQLite BEGIN IMMEDIATE serializes reservations across threads/processes. A
+fresh QORE treasury snapshot and broker-native valuation are prerequisites.
+This module NEVER sends broker orders and NEVER treats a quote as a fill.
+"""
+from __future__ import annotations
+
+import hashlib
+import json
+import sqlite3
+from contextlib import contextmanager
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
+from decimal import Decimal
+from pathlib import Path
+from typing import Protocol
+
+from qore.infrastructure.cibo_physical_lot_sizing import (
+    CiboLotSizingInput, compute_cibo_lot_sizing,
+)
+
+
+class QDLEError(ValueError):
+    """Hard safety invariant or stale/unknown broker information."""
+
+
+def _d(name: str, value: Decimal, zero: bool = False) -> Decimal:
+    if not isinstance(value, Decimal) or not value.is_finite():
+        raise QDLEError(f"{name}: finite Decimal required")
+    if value < 0 or (not zero and value == 0):
+        raise QDLEError(f"{name}: invalid nonpositive amount")
+    return value
+
+
+def _dt(value: datetime) -> datetime:
+    if not isinstance(value, datetime) or value.tzinfo is None or value.utcoffset() is None:
+        raise QDLEError("timezone-aware event timestamp required")
+    return value
+
+
+def _j(value: object) -> str:
+    return json.dumps(value, default=lambda x: format(x, "f") if isinstance(x, Decimal)
+                      else x.isoformat() if isinstance(x, datetime) else str(x),
+                      sort_keys=True, separators=(",", ":"))
+
+
+@dataclass(frozen=True)
+class Position:
+    ticket: str
+    symbol: str
+    side: str
+    lots: Decimal
+
+    def __post_init__(self) -> None:
+        if not self.ticket or not self.symbol or self.side not in ("BUY", "SELL"):
+            raise QDLEError("invalid position identity/side")
+        _d("position.lots", self.lots)
+
+
+@dataclass(frozen=True)
+class QDLEAccount:
+    account_id: str
+    provider: str
+    currency: str
+    sequence: int
+    as_of: datetime
+    balance: Decimal
+    equity: Decimal
+    free_margin: Decimal
+    qore_unreserved_risk_usd: Decimal
+    sovereign_free_source_usd: Decimal
+    cushion_free_source_usd: Decimal
+    positions: tuple[Position, ...] = ()
+    covered_fill_tickets: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        if not self.account_id or self.provider != "FundedNext" or self.currency != "USD":
+            raise QDLEError("verified FundedNext USD account binding required")
+        if type(self.sequence) is not int or self.sequence <= 0:
+            raise QDLEError("account snapshot sequence must increase")
+        _dt(self.as_of)
+        for name in ("balance", "equity", "free_margin", "qore_unreserved_risk_usd",
+                     "sovereign_free_source_usd", "cushion_free_source_usd"):
+            _d(name, getattr(self, name), zero=True)
+        if len({p.ticket for p in self.positions}) != len(self.positions):
+            raise QDLEError("duplicate MT5 position ticket")
+        if len(self.covered_fill_tickets) != len(set(self.covered_fill_tickets)):
+            raise QDLEError("duplicate covered ticket")
+        if set(self.covered_fill_tickets) - {p.ticket for p in self.positions}:
+            raise QDLEError("covered ticket must exist in current positions")
+
+
+@dataclass(frozen=True)
+class QDLESymbol:
+    broker_symbol: str
+    aliases: tuple[str, ...]
+    min_lot: Decimal
+    max_lot: Decimal
+    lot_step: Decimal
+    directional_volume_limit: Decimal
+    tick_size: Decimal
+    tick_value_loss_usd: Decimal
+    contract_size: Decimal
+    currency_profit: str
+    fee_usd_per_lot: Decimal
+    fee_provenance: str
+    as_of: datetime
+    tradable: bool = True
+
+    def __post_init__(self) -> None:
+        if not self.broker_symbol or not self.aliases or not self.currency_profit:
+            raise QDLEError("missing real broker symbol, alias or profit currency")
+        if not self.fee_provenance or self.fee_provenance == "ASSUMED":
+            raise QDLEError("fee schedule must have verifiable provenance")
+        _dt(self.as_of)
+        for name in ("min_lot", "max_lot", "lot_step", "tick_size",
+                     "tick_value_loss_usd", "contract_size"):
+            _d(name, getattr(self, name))
+        _d("directional_volume_limit", self.directional_volume_limit, zero=True)
+        _d("fee_usd_per_lot", self.fee_usd_per_lot, zero=True)
+        if self.min_lot > self.max_lot:
+            raise QDLEError("broker minimum exceeds maximum")
+
+
+@dataclass(frozen=True)
+class QDLEIntent:
+    request_id: str
+    trader_id: str
+    symbol: str
+    side: str
+    entry_price: Decimal
+    stop_price: Decimal
+    requested_risk_usd: Decimal
+    sizing_cap_usd: Decimal
+    cibo_compound_cap_usd: Decimal
+    portfolio_cap_usd: Decimal
+    leverage_cap_lots: Decimal
+    margin_cap_usd: Decimal
+    source_lane: str
+    slippage_usd_per_lot: Decimal
+    expected_account_sequence: int
+
+    def __post_init__(self) -> None:
+        if not self.request_id or not self.trader_id or not self.symbol:
+            raise QDLEError("trader intent requires request identity and symbol")
+        if self.side not in ("BUY", "SELL") or self.source_lane not in (
+            "SOVEREIGN_BANK", "PORTFOLIO_CUSHION"
+        ):
+            raise QDLEError("side or treasury source invalid")
+        _d("entry", self.entry_price)
+        _d("stop", self.stop_price)
+        if ((self.side == "BUY" and self.stop_price >= self.entry_price)
+                or (self.side == "SELL" and self.stop_price <= self.entry_price)):
+            raise QDLEError("stop must be adverse to the entry")
+        for name in ("requested_risk_usd", "sizing_cap_usd",
+                     "cibo_compound_cap_usd", "portfolio_cap_usd",
+                     "leverage_cap_lots", "margin_cap_usd"):
+            _d(name, getattr(self, name), zero=True)
+        _d("slippage_usd_per_lot", self.slippage_usd_per_lot, zero=True)
+        if self.expected_account_sequence <= 0:
+            raise QDLEError("expected account sequence required")
+
+
+@dataclass(frozen=True)
+class BrokerValuation:
+    stop_loss_per_lot_usd: Decimal
+    margin_per_lot_usd: Decimal
+    as_of: datetime
+    provenance: str
+
+    def __post_init__(self) -> None:
+        _d("stop loss per lot", self.stop_loss_per_lot_usd)
+        _d("margin per lot", self.margin_per_lot_usd)
+        _dt(self.as_of)
+        if not self.provenance:
+            raise QDLEError("broker valuation provenance missing")
+
+
+class BrokerCalculator(Protocol):
+    def value(self, instrument: QDLESymbol, intent: QDLEIntent, now: datetime) -> BrokerValuation: ...
+
+
+@dataclass(frozen=True)
+class QDLEResult:
+    request_id: str
+    state: str
+    symbol: str
+    lots: Decimal
+    stop_usd: Decimal
+    cost_usd: Decimal
+    total_risk_usd: Decimal
+    margin_usd: Decimal
+    account_sequence: int
+    binding_limits: tuple[str, ...]
+    note: str = ""
+
+
+class QDLE:
+    """Persistent account-wide reservation authority.
+
+    One SQLite path is one funded account, not one Trader. Reserving quotes uses
+    BEGIN IMMEDIATE, preventing two concurrent orders from spending one margin
+    or unreserved stop-loss budget. Public interface: publish_account,
+    publish_symbol, reserve_for_trader, acknowledge_fill, reconcile_fill,
+    confirm_rejection, ledger, health. Snapshots are authoritative AFTER open
+    positions are accounted for; unsettled reservations are deducted here.
+    """
+
+    def __init__(self, path: str | Path, calculator: BrokerCalculator,
+                 max_age_seconds: int = 10) -> None:
+        if max_age_seconds <= 0:
+            raise QDLEError("invalid maximum snapshot age")
+        self.path = str(path)
+        self.calculator = calculator
+        self.max_age = timedelta(seconds=max_age_seconds)
+        self._ready_in_this_process = False
+        with self._tx() as db:
+            db.execute("CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+            db.execute("CREATE TABLE IF NOT EXISTS symbols (symbol TEXT PRIMARY KEY, payload TEXT NOT NULL)")
+            db.execute("""CREATE TABLE IF NOT EXISTS reservations (
+                request_id TEXT PRIMARY KEY, payload_sha TEXT NOT NULL, state TEXT NOT NULL,
+                source_lane TEXT NOT NULL, symbol TEXT NOT NULL, side TEXT NOT NULL,
+                lots TEXT NOT NULL, risk TEXT NOT NULL, margin TEXT NOT NULL,
+                snapshot_seq INTEGER NOT NULL, fill_ticket TEXT, result TEXT NOT NULL)""")
+            db.execute("""CREATE TABLE IF NOT EXISTS audit (
+                id INTEGER PRIMARY KEY AUTOINCREMENT, event TEXT NOT NULL,
+                request_id TEXT, receipt TEXT NOT NULL)""")
+
+    @contextmanager
+    def _tx(self):
+        with sqlite3.connect(self.path, isolation_level=None, timeout=15) as db:
+            db.execute("PRAGMA busy_timeout=15000")
+            db.execute("BEGIN IMMEDIATE")
+            try:
+                yield db
+                db.execute("COMMIT")
+            except BaseException:
+                db.execute("ROLLBACK")
+                raise
+
+    @staticmethod
+    def _meta(db, key: str) -> dict | None:
+        row = db.execute("SELECT value FROM meta WHERE key=?", (key,)).fetchone()
+        return json.loads(row[0]) if row else None
+
+    @staticmethod
+    def _audit(db, event: str, rid: str | None, receipt: object) -> None:
+        db.execute("INSERT INTO audit(event,request_id,receipt) VALUES(?,?,?)",
+                   (event, rid, _j(receipt)))
+
+    @staticmethod
+    def _account(raw: dict) -> QDLEAccount:
+        return QDLEAccount(
+            account_id=raw["account_id"], provider=raw["provider"], currency=raw["currency"],
+            sequence=raw["sequence"], as_of=datetime.fromisoformat(raw["as_of"]),
+            balance=Decimal(raw["balance"]), equity=Decimal(raw["equity"]),
+            free_margin=Decimal(raw["free_margin"]),
+            qore_unreserved_risk_usd=Decimal(raw["qore_unreserved_risk_usd"]),
+            sovereign_free_source_usd=Decimal(raw["sovereign_free_source_usd"]),
+            cushion_free_source_usd=Decimal(raw["cushion_free_source_usd"]),
+            positions=tuple(Position(
+                p["ticket"], p["symbol"], p["side"], Decimal(p["lots"])
+            ) for p in raw["positions"]),
+            covered_fill_tickets=tuple(raw["covered_fill_tickets"]),
+        )
+
+    @staticmethod
+    def _symbol(raw: dict) -> QDLESymbol:
+        return QDLESymbol(
+            broker_symbol=raw["broker_symbol"], aliases=tuple(raw["aliases"]),
+            min_lot=Decimal(raw["min_lot"]), max_lot=Decimal(raw["max_lot"]),
+            lot_step=Decimal(raw["lot_step"]),
+            directional_volume_limit=Decimal(raw["directional_volume_limit"]),
+            tick_size=Decimal(raw["tick_size"]),
+            tick_value_loss_usd=Decimal(raw["tick_value_loss_usd"]),
+            contract_size=Decimal(raw["contract_size"]),
+            currency_profit=raw["currency_profit"],
+            fee_usd_per_lot=Decimal(raw["fee_usd_per_lot"]),
+            fee_provenance=raw["fee_provenance"],
+            as_of=datetime.fromisoformat(raw["as_of"]),
+            tradable=raw["tradable"],
+        )
+
+    @staticmethod
+    def _result(raw: dict) -> QDLEResult:
+        return QDLEResult(
+            request_id=raw["request_id"], state=raw["state"],
+            symbol=raw["symbol"], lots=Decimal(raw["lots"]),
+            stop_usd=Decimal(raw["stop_usd"]), cost_usd=Decimal(raw["cost_usd"]),
+            total_risk_usd=Decimal(raw["total_risk_usd"]),
+            margin_usd=Decimal(raw["margin_usd"]),
+            account_sequence=raw["account_sequence"],
+            binding_limits=tuple(raw["binding_limits"]), note=raw["note"],
+        )
+
+    def publish_account(self, snapshot: QDLEAccount) -> None:
+        if not isinstance(snapshot, QDLEAccount):
+            raise QDLEError("QDLEAccount required")
+        with self._tx() as db:
+            previous = self._meta(db, "account")
+            if previous and previous["account_id"] != snapshot.account_id:
+                raise QDLEError("different account: independent database required")
+            if previous and snapshot.sequence <= previous["sequence"]:
+                raise QDLEError("out-of-order account event")
+            db.execute("INSERT OR REPLACE INTO meta VALUES('account',?)",
+                       (_j(asdict(snapshot)),))
+            self._audit(db, "ACCOUNT_SNAPSHOT", None,
+                        {"sequence": snapshot.sequence, "equity": snapshot.equity,
+                         "positions": len(snapshot.positions)})
+        self._ready_in_this_process = True
+
+    def publish_symbol(self, spec: QDLESymbol) -> None:
+        if not isinstance(spec, QDLESymbol):
+            raise QDLEError("QDLESymbol required")
+        with self._tx() as db:
+            previous = db.execute("SELECT payload FROM symbols WHERE symbol=?",
+                                  (spec.broker_symbol,)).fetchone()
+            if previous and spec.as_of <= datetime.fromisoformat(json.loads(previous[0])["as_of"]):
+                raise QDLEError("out-of-order symbol specification")
+            db.execute("INSERT OR REPLACE INTO symbols VALUES(?,?)",
+                       (spec.broker_symbol, _j(asdict(spec))))
+            self._audit(db, "SYMBOL_SPEC", None,
+                        {"symbol": spec.broker_symbol, "as_of": spec.as_of})
+
+    def _fresh(self, when: datetime, now: datetime) -> None:
+        age = _dt(now) - _dt(when)
+        if age < timedelta(0) or age > self.max_age:
+            raise QDLEError("stale or future-dated MT5/QORE snapshot")
+
+    def reserve_for_trader(self, intent: QDLEIntent,
+                           now: datetime | None = None) -> QDLEResult:
+        if not isinstance(intent, QDLEIntent):
+            raise QDLEError("QDLEIntent required")
+        now = _dt(now or datetime.now(timezone.utc))
+        if not self._ready_in_this_process:
+            raise QDLEError("not synchronized since process start; publish fresh account")
+        fingerprint = hashlib.sha256(_j(asdict(intent)).encode()).hexdigest()
+        with self._tx() as db:
+            prior = db.execute("SELECT payload_sha,result FROM reservations WHERE request_id=?",
+                               (intent.request_id,)).fetchone()
+            if prior:
+                if prior[0] != fingerprint:
+                    raise QDLEError("idempotency key reused for a different entry")
+                return self._result(json.loads(prior[1]))
+            raw = self._meta(db, "account")
+            if raw is None:
+                raise QDLEError("no account snapshot")
+            acc = self._account(raw)
+            self._fresh(acc.as_of, now)
+            if acc.sequence != intent.expected_account_sequence:
+                raise QDLEError("stale economic coordination epoch")
+            rows = db.execute("SELECT payload FROM symbols").fetchall()
+            specs = [self._symbol(json.loads(row[0])) for row in rows]
+            matching = [s for s in specs if
+                        intent.symbol in s.aliases or intent.symbol == s.broker_symbol]
+            if len(matching) != 1:
+                raise QDLEError("symbol alias unresolved or ambiguous")
+            spec = matching[0]
+            self._fresh(spec.as_of, now)
+            if not spec.tradable:
+                raise QDLEError("MT5 symbol is not tradeable")
+            valuation = self.calculator.value(spec, intent, now)
+            if not isinstance(valuation, BrokerValuation):
+                raise QDLEError("broker valuation required")
+            self._fresh(valuation.as_of, now)
+            held = db.execute("""SELECT source_lane,symbol,side,lots,risk,margin
+                                FROM reservations WHERE state IN ('HELD','FILL_UNRECONCILED')""").fetchall()
+            total_held_risk = sum((Decimal(x[4]) for x in held), Decimal(0))
+            total_held_margin = sum((Decimal(x[5]) for x in held), Decimal(0))
+            source_held = sum((Decimal(x[4]) for x in held
+                               if x[0] == intent.source_lane), Decimal(0))
+            volume_held = sum((Decimal(x[3]) for x in held
+                               if x[1] == spec.broker_symbol and x[2] == intent.side),
+                              Decimal(0))
+            open_lots = sum((p.lots for p in acc.positions
+                             if p.symbol == spec.broker_symbol and p.side == intent.side),
+                            Decimal(0))
+            volume_cap = (spec.max_lot if spec.directional_volume_limit == 0
+                          else max(Decimal(0), spec.directional_volume_limit
+                                   - open_lots - volume_held))
+            source_total = (acc.sovereign_free_source_usd
+                            if intent.source_lane == "SOVEREIGN_BANK"
+                            else acc.cushion_free_source_usd)
+            free_source = max(Decimal(0), source_total - source_held)
+            remaining_risk = max(Decimal(0), acc.qore_unreserved_risk_usd
+                                 - total_held_risk)
+            remaining_margin = max(Decimal(0), acc.free_margin - total_held_margin)
+            input_spec = CiboLotSizingInput(
+                requested_loss_budget_usd=intent.requested_risk_usd,
+                stop_risk_usd_per_lot=valuation.stop_loss_per_lot_usd,
+                provider_cost_usd_per_lot=(spec.fee_usd_per_lot
+                                            + intent.slippage_usd_per_lot),
+                margin_usd_per_lot=valuation.margin_per_lot_usd,
+                broker_min_lot=spec.min_lot,
+                broker_max_lot=spec.max_lot,
+                broker_lot_step=spec.lot_step,
+                sizing_risk_cap_usd=intent.sizing_cap_usd,
+                cibo_compound_risk_cap_usd=intent.cibo_compound_cap_usd,
+                sovereign_unreserved_cash_usd=(min(free_source, intent.portfolio_cap_usd)
+                        if intent.source_lane == "SOVEREIGN_BANK" else Decimal(0)),
+                portfolio_unreserved_cash_usd=(min(free_source, intent.portfolio_cap_usd)
+                        if intent.source_lane == "PORTFOLIO_CUSHION" else Decimal(0)),
+                source_lane=intent.source_lane,
+                leverage_available_margin_usd=min(
+                    remaining_margin, intent.margin_cap_usd),
+                sovereign_unreserved_risk_usd=remaining_risk,
+                leverage_max_lots=min(intent.leverage_cap_lots, volume_cap),
+            )
+            # QDLE is the only authority converting coordinated USD budgets to lots.
+            # Zero cap must BLOCK, never turn into 1x or a nominal real execution.
+            if input_spec.leverage_max_lots == 0 or input_spec.requested_loss_budget_usd == 0:
+                result = QDLEResult(intent.request_id, "UNFUNDABLE", spec.broker_symbol,
+                                    Decimal(0), Decimal(0), Decimal(0), Decimal(0),
+                                    Decimal(0), acc.sequence, ("EXPOSURE_OR_RISK_ZERO",),
+                                    "No physical broker-minimum allocation")
+            else:
+                computed = compute_cibo_lot_sizing(input_spec)
+                result = QDLEResult(
+                    intent.request_id,
+                    "RESERVED_FOR_TRADER" if computed.lots > 0 else "UNFUNDABLE",
+                    spec.broker_symbol, computed.lots, computed.stop_risk_usd,
+                    computed.provider_cost_usd, computed.all_in_loss_if_stopped_usd,
+                    computed.margin_required_usd, acc.sequence,
+                    computed.binding_constraints,
+                    "Not an MT5 order or fill; requires broker confirmation",
+                )
+            db.execute("""INSERT INTO reservations
+                (request_id,payload_sha,state,source_lane,symbol,side,lots,risk,margin,
+                 snapshot_seq,fill_ticket,result)
+                 VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""",
+                       (intent.request_id, fingerprint,
+                        "HELD" if result.lots > 0 else "BLOCKED",
+                        intent.source_lane, spec.broker_symbol, intent.side,
+                        str(result.lots), str(result.total_risk_usd),
+                        str(result.margin_usd), acc.sequence, None,
+                        _j(asdict(result))))
+            self._audit(db, "VOLUME_RESERVED" if result.lots else "UNFUNDABLE",
+                        intent.request_id, asdict(result))
+            return result
+
+    def acknowledge_fill(self, request_id: str, ticket: str) -> None:
+        """Broker-confirmed fill. Retain its entire reserve until QORE+MT5 reconcile."""
+        if not ticket:
+            raise QDLEError("broker fill ticket required")
+        with self._tx() as db:
+            row = db.execute("SELECT state,fill_ticket FROM reservations WHERE request_id=?",
+                             (request_id,)).fetchone()
+            if not row or row[0] not in ("HELD", "FILL_UNRECONCILED"):
+                raise QDLEError("unknown or non-reserved fill")
+            if row[1] and row[1] != ticket:
+                raise QDLEError("contradictory broker fill ticket")
+            other = db.execute("SELECT request_id FROM reservations WHERE fill_ticket=? AND request_id!=?",
+                               (ticket, request_id)).fetchone()
+            if other:
+                raise QDLEError("broker ticket attributed to more than one entry")
+            db.execute("""UPDATE reservations SET state='FILL_UNRECONCILED',
+                          fill_ticket=? WHERE request_id=?""", (ticket, request_id))
+            self._audit(db, "BROKER_FILL_UNRECONCILED", request_id, {"ticket": ticket})
+
+    def reconcile_fill(self, request_id: str) -> None:
+        """Release local hold ONLY after newer broker+QORE covered-position snapshot."""
+        with self._tx() as db:
+            row = db.execute("""SELECT state,fill_ticket,snapshot_seq,symbol,side,lots
+                                FROM reservations WHERE request_id=?""", (request_id,)).fetchone()
+            if not row or row[0] != "FILL_UNRECONCILED" or not row[1]:
+                raise QDLEError("fill not awaiting reconciliation")
+            raw = self._meta(db, "account")
+            if not raw or raw["sequence"] <= row[2]:
+                raise QDLEError("newer account snapshot must reflect fill")
+            acc = self._account(raw)
+            matches = [p for p in acc.positions if p.ticket == row[1]
+                       and p.symbol == row[3] and p.side == row[4]
+                       and p.lots == Decimal(row[5])]
+            if len(matches) != 1 or row[1] not in acc.covered_fill_tickets:
+                raise QDLEError("broker position or QORE funded-source coverage absent")
+            db.execute("UPDATE reservations SET state='ABSORBED' WHERE request_id=?",
+                       (request_id,))
+            self._audit(db, "FILLED_AND_COVERED", request_id, {"ticket": row[1]})
+
+    def confirm_rejection(self, request_id: str, broker_rejection_ref: str) -> None:
+        """Only call with verified broker refusal/no-fill. Unknown outcomes stay held."""
+        if not broker_rejection_ref:
+            raise QDLEError("verified broker no-fill receipt required")
+        with self._tx() as db:
+            row = db.execute("SELECT state FROM reservations WHERE request_id=?",
+                             (request_id,)).fetchone()
+            if not row or row[0] != "HELD":
+                raise QDLEError("only unfilled held requests can be released")
+            db.execute("UPDATE reservations SET state='REJECTED_NO_FILL' WHERE request_id=?",
+                       (request_id,))
+            self._audit(db, "BROKER_REJECTED_NO_FILL", request_id,
+                        {"broker_ref": broker_rejection_ref})
+
+    def ledger(self, limit: int = 100) -> list[dict]:
+        if not 0 < limit <= 1000:
+            raise QDLEError("invalid audit limit")
+        with sqlite3.connect(self.path) as db:
+            rows = db.execute("""SELECT id,event,request_id,receipt
+                                 FROM audit ORDER BY id DESC LIMIT ?""", (limit,)).fetchall()
+        return [{"sequence": i, "event": e, "request_id": r,
+                 "receipt": json.loads(receipt)} for i, e, r, receipt in rows]
+
+    def health(self, now: datetime | None = None) -> dict:
+        now = _dt(now or datetime.now(timezone.utc))
+        with sqlite3.connect(self.path) as db:
+            raw = self._meta(db, "account")
+            pending = db.execute("""SELECT COUNT(*) FROM reservations
+                                    WHERE state IN ('HELD','FILL_UNRECONCILED')""").fetchone()[0]
+        stale = (raw is None or (now - datetime.fromisoformat(raw["as_of"])) < timedelta(0)
+                 or (now - datetime.fromisoformat(raw["as_of"])) > self.max_age)
+        return {"ready": self._ready_in_this_process and not stale,
+                "account_sequence": raw["sequence"] if raw else None,
+                "pending_or_unreconciled_reservations": pending,
+                "mode": "CALCULATE_RESERVE_ONLY_NO_ORDER_SEND"}
