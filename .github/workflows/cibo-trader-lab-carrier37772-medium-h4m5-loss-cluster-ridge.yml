@@ -56,6 +56,14 @@ jobs:
           set -euo pipefail
           python -m py_compile src/qore/infrastructure/cibo_position_lifecycle.py src/qore/infrastructure/trader_lab/cibo_three_mode_capital_lab.py scripts/cibo_trader_lab_three_mode_ceiling.py scripts/cibo_trader_lab_batch_runner.py
 
+      - name: Restore exact-case result cache
+        uses: actions/cache@v4
+        with:
+          path: .qore-cache/cibo-ultrafast-results
+          key: qore-cibo-exact-v1-${{ hashFiles('.github/workflows/cibo-trader-lab-carrier37772-medium-h4m5-loss-cluster-ridge.yml') }}
+          restore-keys: |
+            qore-cibo-exact-v1-
+
       - name: Restore prepared trade-window cache
         id: m5cache
         uses: actions/cache@v4
@@ -262,7 +270,7 @@ jobs:
           run_case "h4m5-s1500" -0.1500 cluster
           run_case "h4m5-s1400" -0.1400 cluster
           run_case "h4m5-s1300" -0.1300 cluster
-          python scripts/cibo_trader_lab_batch_runner.py --cases "$RUNNER_TEMP/cibo-cases.jsonl" --workers 4 --m5-cache-dir "$GITHUB_WORKSPACE/.qore-cache/cibo-ultrafast-v1"
+          python scripts/cibo_trader_lab_batch_runner.py --cases "$RUNNER_TEMP/cibo-cases.jsonl" --workers 4 --m5-cache-dir "$GITHUB_WORKSPACE/.qore-cache/cibo-ultrafast-v1" --result-cache-dir "$GITHUB_WORKSPACE/.qore-cache/cibo-ultrafast-results"
 
       - name: Rank strict Pareto vs carrier3829
         run: |
