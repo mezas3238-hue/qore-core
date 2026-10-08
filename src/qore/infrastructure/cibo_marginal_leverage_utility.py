@@ -15,15 +15,14 @@ from qore.infrastructure.cibo_capital_efficient_exposure import (
     CiboCapitalEfficientExposureState,
 )
 from qore.infrastructure.cibo_compound_capital import CiboCompoundCapitalError
-from qore.infrastructure.cibo_marginal_capital_utility_evidence import (
-    MarginalCapitalUtilityEvidence,
-)
-
 from qore.infrastructure.cibo_four_motor_policy import (
+    ZERO,
     FourMotorObservation,
     FourMotorPolicyError,
     FourMotorProposal,
-    ZERO,
+)
+from qore.infrastructure.cibo_marginal_capital_utility_evidence import (
+    MarginalCapitalUtilityEvidence,
 )
 
 
