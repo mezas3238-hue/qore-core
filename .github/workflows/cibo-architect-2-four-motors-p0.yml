@@ -1,0 +1,90 @@
+name: CIBO Architect 2 Four Economic Motors P0
+on:
+  push:
+    branches:
+      - agent/cibo-architect-2-four-economic-motors-20261008
+    paths:
+      - 'src/qore/infrastructure/cibo_four_motor_policy.py'
+      - 'src/qore/infrastructure/cibo_four_motor_ablation.py'
+      - 'src/qore/infrastructure/cibo_four_motor_qdle_proposal.py'
+      - 'src/qore/infrastructure/cibo_account_sizing_authority.py'
+      - 'src/qore/infrastructure/cibo_compound_capital.py'
+      - 'src/qore/infrastructure/cibo_marginal_leverage_utility.py'
+      - 'src/qore/infrastructure/cibo_core_compound_portfolio.py'
+      - 'tests/infrastructure/test_cibo_four_motor_policy_p0.py'
+      - '.github/workflows/cibo-trader-lab-carrier36459-medium-context2-surgical-ridge.yml'
+      - '.github/workflows/cibo-architect-2-four-motors-p0.yml'
+  pull_request:
+    paths:
+      - 'src/qore/infrastructure/cibo_four_motor_policy.py'
+      - 'src/qore/infrastructure/cibo_four_motor_ablation.py'
+      - 'src/qore/infrastructure/cibo_four_motor_qdle_proposal.py'
+      - 'src/qore/infrastructure/cibo_account_sizing_authority.py'
+      - 'src/qore/infrastructure/cibo_compound_capital.py'
+      - 'src/qore/infrastructure/cibo_marginal_leverage_utility.py'
+      - 'src/qore/infrastructure/cibo_core_compound_portfolio.py'
+      - 'tests/infrastructure/test_cibo_four_motor_policy_p0.py'
+      - '.github/workflows/cibo-trader-lab-carrier36459-medium-context2-surgical-ridge.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  independent-shadow-votes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install project development dependencies
+        run: python -m pip install --disable-pip-version-check -e '.[dev]'
+      - name: Lint all changed economic producers and contract tests
+        run: |
+          ruff check \
+            src/qore/infrastructure/cibo_four_motor_policy.py \
+            src/qore/infrastructure/cibo_four_motor_ablation.py \
+            src/qore/infrastructure/cibo_four_motor_qdle_proposal.py \
+            src/qore/infrastructure/cibo_account_sizing_authority.py \
+            src/qore/infrastructure/cibo_compound_capital.py \
+            src/qore/infrastructure/cibo_marginal_leverage_utility.py \
+            src/qore/infrastructure/cibo_core_compound_portfolio.py \
+            tests/infrastructure/test_cibo_four_motor_policy_p0.py
+      - name: Verify Trader Lab workflow syntax without executing a research replay
+        run: |
+          python -m pip install --disable-pip-version-check pyyaml
+          python - <<'PY'
+          import pathlib
+          import subprocess
+          import yaml
+
+          path = pathlib.Path(
+              ".github/workflows/cibo-trader-lab-carrier36459-medium-context2-surgical-ridge.yml"
+          )
+          document = yaml.safe_load(path.read_text(encoding="utf-8"))
+          jobs = document["jobs"]
+          assert len(jobs) == 1
+          scripts = [step["run"] for job in jobs.values() for step in job["steps"]
+                     if "run" in step]
+          assert scripts
+          assert all("ctx_source_range_state_bucket=q          run_case" not in script
+                     for script in scripts)
+          for script in scripts:
+              subprocess.run(["bash", "-n"], input=script, text=True, check=True)
+          print("Recovered workflow YAML and all Bash run blocks: syntax validated")
+          PY
+      - name: CIBO P0 Four Economic Motors shadow contracts and signed QDLE gate
+        env:
+          PYTHONPATH: src
+        run: python -m unittest discover -s tests/infrastructure -p test_cibo_four_motor_policy_p0.py -v
+      - name: Existing research authority regression suites (pytest tests)
+        env:
+          PYTHONPATH: src
+        run: |
+          python -m pytest -o addopts='' -q \
+            tests/infrastructure/test_cibo_account_sizing_authority.py \
+            tests/infrastructure/test_cibo_core_compound_portfolio.py \
+            tests/infrastructure/test_cibo_marginal_leverage_utility.py \
+            tests/infrastructure/test_qdle_four_motor_evidence.py

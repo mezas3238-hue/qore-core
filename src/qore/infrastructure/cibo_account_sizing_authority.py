@@ -36,6 +36,11 @@ from qore.infrastructure.cibo_capital_management_authority import (
     minimum_seed_volume,
     plan_minimal_seed,
 )
+from qore.infrastructure.cibo_four_motor_policy import (
+    FourMotorObservation,
+    FourMotorPolicyError,
+    FourMotorProposal,
+)
 
 
 class CiboAccountSizingMode(StrEnum):
@@ -435,3 +440,23 @@ def capital_stage_for_action(action: CapitalAction) -> CapitalStage:
     if action is CapitalAction.EXPAND:
         return CapitalStage.CAPITALIZE
     return CapitalStage.MINIMAL_SEED
+
+
+
+def propose_p0_sizing_vote(observation: FourMotorObservation) -> FourMotorProposal:
+    """Risk USD at adverse SL, including broker all-in roundtrip costs.
+
+    The extra stress is a tail beyond separately priced spread/slippage, not
+    an invented Forex tick multiplier. Only QDLE may decide actual lots.
+    """
+    if not isinstance(observation, FourMotorObservation):
+        raise FourMotorPolicyError("canonical observation required")
+    actual_cost = observation.full_stop_cost_per_lot_usd
+    maximum = observation.base_entry_budget_usd
+    cap = maximum * actual_cost / (actual_cost + observation.stress_extra_loss_usd_per_lot)
+    reasons = ("BROKER_STOP_AND_FULL_ROUNDTRIP_USD_PER_LOT",
+               "STRESS_EXTRA_LOSS_DISCOUNTS_RISK_CAP" if cap < maximum
+               else "NO_ADDITIONAL_STRESS_DISCOUNT",
+               "QDLE_IS_SOLE_PHYSICAL_LOT_AUTHORITY")
+    return FourMotorProposal("SIZING", observation,
+                             {"approved_risk_usd": str(cap)}, reasons)

@@ -274,7 +274,15 @@ jobs:
               --lifecycle-medium-context-require "reg_h1_range_state=extreme"
               --lifecycle-medium-context2-stop-r "$m2"
               --lifecycle-medium-context2-require "ctx_cisd_progress_bucket=q2:<=0.50"
-              --lifecycle-medium-context2-require "ctx_source_range_state_bucket=q          run_case "carrier36459-m2925" -0.99
+              # BLOCKED PROVENANCE: upstream truncated ctx_source_range_state_bucket.
+              # Original bucket value is unrecoverable. Do not infer it or claim
+              # scientific comparability for this repaired research-only ridge.
+            )
+            python -c 'import json,sys; print(json.dumps(sys.argv[1:]))' "${common[@]}" "${extra[@]}" \
+              --output "$RUNNER_TEMP/result/${name}.json" >> "$RUNNER_TEMP/cibo-cases.jsonl"
+          }
+
+          run_case "carrier36459-m2925" -0.99
           run_case "c2-s090" -0.90
           run_case "c2-s080" -0.80
           run_case "c2-s070" -0.70
@@ -286,7 +294,7 @@ jobs:
           run_case "c2-s035" -0.35
           run_case "c2-s030" -0.30
 
-_case "m1-3050" -0.3050
+          run_case "m1-3050" -0.3050
           run_case "m1-3025" -0.3025
           run_case "m1-3010" -0.3010
           run_case "m1-3005" -0.3005
