@@ -9,15 +9,23 @@ historical provider conditions. Structural R outcome consumed ONLY at exit.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import heapq
 import json
 from datetime import timedelta
+from dataclasses import replace
 import tempfile
 from collections import Counter, defaultdict
 from datetime import datetime
 from decimal import Decimal as D
 from pathlib import Path
 
+from qore.infrastructure.cibo_account_sizing_authority import propose_p0_sizing_vote
+from qore.infrastructure.cibo_compound_capital import propose_p0_compound_vote
+from qore.infrastructure.cibo_marginal_leverage_utility import propose_p0_adaptive_leverage_vote
+from qore.infrastructure.cibo_core_compound_portfolio import propose_p0_portfolio_vote
+from qore.infrastructure.cibo_four_motor_policy import FourMotorObservation, ReconciledQoreCashflow
+from qore.infrastructure.cibo_four_motor_qdle_proposal import build_four_motor_qdle_intent
 from qore.infrastructure.qore_dynamic_lot_engine import (
     BrokerValuation, Position, QDLE, QDLEAccount, QDLEError, QDLEIntent, QDLESymbol,
 )
@@ -91,12 +99,24 @@ class HistoricalProxy:
 def main() -> int:
     p = argparse.ArgumentParser()
     p.add_argument("--manifest", type=Path, required=True)
+    p.add_argument("--motor-policy", choices=["shared_proxy", "independent_four_motors"], default="shared_proxy")
+    p.add_argument("--target-lots", type=D, default=None, help="Optional maximum broker lots requested, never additional risk authorization")
+    p.add_argument("--ndx-roundtrip-fee-proxy-usd-per-lot", type=D, default=None,
+                   help="Explicit research sensitivity only; unknown NDX fee never inferred")
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--min-policy", choices=["original_trader", "broker_grid"], default="original_trader")
     p.add_argument("--swap-proxy", choices=["off", "utc_midnight"], default="utc_midnight")
     p.add_argument("--provider-trailing-usd", type=str, default="120",
                    help="USD loss threshold sensitivity; disabled = provider rule NOT modeled")
     args = p.parse_args()
+    if args.target_lots is not None and (not args.target_lots.is_finite() or args.target_lots <= ZERO):
+        raise SystemExit("Invalid target lots")
+    if args.motor_policy == "independent_four_motors" and (
+        args.ndx_roundtrip_fee_proxy_usd_per_lot is None
+        or not args.ndx_roundtrip_fee_proxy_usd_per_lot.is_finite()
+        or args.ndx_roundtrip_fee_proxy_usd_per_lot < ZERO
+    ):
+        raise SystemExit("Independent replay requires explicit NDX all-in fee sensitivity; zero permitted only as optimistic sensitivity")
     provider_limit = None if args.provider_trailing_usd == "disabled" else D(args.provider_trailing_usd)
     if provider_limit is not None and provider_limit <= 0:
         raise SystemExit("Invalid trailing USD model")
@@ -249,18 +269,6 @@ def main() -> int:
                     raise QDLEError("INVALID_DIRECTIONAL_STOP")
                 if nav <= 0:
                     raise QDLEError("QORE_PROPRIETARY_NAV_EXHAUSTED")
-                if at > last_spec_time.get(symbol, datetime.min.replace(tzinfo=at.tzinfo)):
-                    # A synthetic constant screenshot-based lot grid.
-                    qdle.publish_symbol(QDLESymbol(
-                        broker_symbol=symbol, aliases=(symbol, "NAS100") if symbol == "NDX100" else (symbol,),
-                        min_lot=D(".01"), max_lot=D("50") if symbol == "XAUUSD" else D("40"),
-                        lot_step=D(".01"), directional_volume_limit=ZERO,
-                        tick_size=TICKS[symbol], tick_value_loss_usd=D("1"),
-                        contract_size=CONTRACTS[symbol], currency_profit=PROFIT[symbol],
-                        fee_usd_per_lot=D("0"), fee_provenance="SCREENSHOT_RESEARCH_PROXY",
-                        as_of=at, tradable=True,
-                    ))
-                    last_spec_time[symbol] = at
                 # FXJPY uses USD-per-lot proxy captured in original research
                 # manifest; EUR/GBPUSD recompute from USD quote; XAU/NDX
                 # contract economics come from user screenshots.
@@ -271,15 +279,36 @@ def main() -> int:
                 )
                 if stop_per_lot <= 0:
                     raise QDLEError("INVALID_RESEARCH_STOP_VALUATION")
-                # Forex entry commission from MT5 screenshot; XAU commission
-                # screenshot percent of unknown basis approximated as notional;
-                # NDX100 commission unknown -> ZERO optimistic lower bound.
+                # Explicit scenario fees are all-in *proxies*, not broker proof.
+                # FX opening $7 + closing $7 per lot, as requested by the user.
+                # XAU 0.0016% screenshot: unknown base/side, model 2 symmetric legs.
+                # NDX has NO observed fee; caller must supply a scenario assumption.
                 if symbol in {"AUDJPY", "GBPJPY", "GBPUSD", "EURUSD"}:
-                    fee = D("7")
+                    fee = (D("14") if args.motor_policy == "independent_four_motors"
+                           else D("7"))
                 elif symbol == "XAUUSD":
                     fee = D("0.000016") * CONTRACTS[symbol] * entry
+                    if args.motor_policy == "independent_four_motors":
+                        fee *= 2
+                elif args.motor_policy == "independent_four_motors":
+                    fee = args.ndx_roundtrip_fee_proxy_usd_per_lot
                 else:
                     fee = ZERO
+                if at > last_spec_time.get(symbol, datetime.min.replace(tzinfo=at.tzinfo)):
+                    qdle.publish_symbol(QDLESymbol(
+                        broker_symbol=symbol, aliases=(symbol, "NAS100") if symbol == "NDX100" else (symbol,),
+                        min_lot=D(".01"), max_lot=D("50") if symbol == "XAUUSD" else D("40"),
+                        lot_step=D(".01"), directional_volume_limit=ZERO,
+                        tick_size=TICKS[symbol], tick_value_loss_usd=D("1"),
+                        contract_size=CONTRACTS[symbol], currency_profit=PROFIT[symbol],
+                        # Price-dependent XAU costs travel as a per-entry extra
+                        # allowance below; fixed FX/NDX fees live in broker spec.
+                        fee_usd_per_lot=(fee if args.motor_policy == "independent_four_motors"
+                                         and symbol != "XAUUSD" else ZERO),
+                        fee_provenance="SCENARIO_COST_PROXY_UNVERIFIED",
+                        as_of=at, tradable=True,
+                    ))
+                    last_spec_time[symbol] = at
                 broker.quote = BrokerValuation(
                     stop_per_lot, MARGINS[symbol][side], at, "SCREENSHOT_2026_STATIC_MARGIN_RESEARCH_PROXY",
                 )
@@ -291,31 +320,99 @@ def main() -> int:
                 policy_min = D(t["minimum_volume"]) * D(t.get("minimum_execution_steps", 1))
                 if args.min_policy == "broker_grid":
                     policy_min = D(".01")
-                event["four_engine_caps_usd"] = {
-                    "SIZING": str(risk_budget),
-                    "CIBO_COMPOUND": str(risk_budget),
-                    "PORTFOLIO_COMPOUND_AVAILABLE_SOURCE": str(free_qore),
-                }
-                event["leverage_margin_budget_usd"] = str(free_broker)
-                event["leverage_max_lots"] = str(limit_lots)
                 event["stop_loss_usd_per_lot"] = str(stop_per_lot)
+                event["commission_roundtrip_proxy_per_lot"] = str(fee) if args.motor_policy == "independent_four_motors" else None
                 event["commission_entry_usd_per_lot_proxy"] = str(fee)
+                if args.motor_policy == "independent_four_motors":
+                    open_stop = sum((x["planned_risk"] for x in active.values()), ZERO)
+                    open_margin = sum((x["margin"] for x in active.values()), ZERO)
+                    same_symbol_stop = sum((x["planned_risk"] for x in active.values()
+                                            if x["symbol"] == symbol), ZERO)
+                    same_trader_stop = sum((x["planned_risk"] for x in active.values()
+                                            if x.get("trader") == row["trader_id"]), ZERO)
+                    same_direction = sum((x["lots"] for x in active.values()
+                                          if x["symbol"] == symbol and x["side"] == side), ZERO)
+                    # Simulated cashbook is NOT a broker settlement statement.
+                    digest = "sha256:" + hashlib.sha256(
+                        (rid + at.isoformat() + str(nav) + str(fee)).encode()
+                    ).hexdigest()
+                    simulated_flows = (
+                        (ReconciledQoreCashflow(
+                            "REPLAY_BALANCE:" + rid, at, nav - START_QORE,
+                            digest, True,
+                        ),) if nav != START_QORE else ()
+                    )
+                    obs = FourMotorObservation(
+                        request_id=rid, trader_id=row["trader_id"], symbol=symbol, side=side,
+                        source_lane="SOVEREIGN_BANK", observed_at=at,
+                        account_sequence=sequence, broker_evidence_sha256=digest,
+                        initial_qore_nav_usd=START_QORE, reconciled_cashflows=simulated_flows,
+                        protected_capital_usd=ZERO, floating_loss_reserve_usd=ZERO,
+                        risk_reservations_usd=open_stop, bank_unreserved_usd=free_qore,
+                        cushion_unreserved_usd=ZERO, total_open_stop_risk_usd=open_stop,
+                        correlated_open_stop_risk_usd=same_symbol_stop,
+                        trader_open_stop_risk_usd=same_trader_stop,
+                        broker_free_margin_usd=START_BROKER + nav - START_QORE,
+                        broker_margin_reservations_usd=open_margin,
+                        stop_loss_usd_per_lot=stop_per_lot,
+                        roundtrip_fees_usd_per_lot=fee,
+                        execution_buffer_usd_per_lot=ZERO,
+                        stress_extra_loss_usd_per_lot=ZERO,
+                        broker_margin_usd_per_lot=MARGINS[symbol][side],
+                        symbol_max_lots=limit_lots, provider_direction_max_lots=limit_lots,
+                        open_and_reserved_direction_lots=same_direction,
+                        broker_quote_at=at, broker_fees_complete=True,
+                        broker_profit_valuation_complete=True,
+                        broker_margin_valuation_complete=True,
+                    )
+                    votes = (propose_p0_sizing_vote(obs),
+                             propose_p0_compound_vote(obs),
+                             propose_p0_adaptive_leverage_vote(obs),
+                             propose_p0_portfolio_vote(obs))
+                    requested = build_four_motor_qdle_intent(
+                        observation=obs, votes=votes, entry_price=entry,
+                        stop_price=stop, methodology_min_lots=policy_min,
+                    )
+                    # XAU percent fee is price-dependent in this sensitivity,
+                    # carried through QDLE's per-entry buffer. FX fees in Symbol.
+                    if symbol == "XAUUSD":
+                        requested = replace(requested, slippage_usd_per_lot=fee)
+                    event["four_engine_reason_codes"] = {
+                        v.producer: list(v.reason_codes) for v in votes
+                    }
+                    event["four_engine_caps_usd"] = {
+                        "SIZING": votes[0].limits["approved_risk_usd"],
+                        "CIBO_COMPOUND": votes[1].limits["approved_risk_usd"],
+                        "PORTFOLIO_COMPOUND_AVAILABLE_SOURCE": votes[3].limits["approved_source_funds_usd"],
+                    }
+                    event["leverage_margin_budget_usd"] = votes[2].limits["approved_margin_usd"]
+                    event["leverage_max_lots"] = votes[2].limits["approved_max_lots"]
+                else:
+                    event["four_engine_caps_usd"] = {
+                        "SIZING": str(risk_budget),
+                        "CIBO_COMPOUND": str(risk_budget),
+                        "PORTFOLIO_COMPOUND_AVAILABLE_SOURCE": str(free_qore),
+                    }
+                    event["leverage_margin_budget_usd"] = str(free_broker)
+                    event["leverage_max_lots"] = str(limit_lots)
+                    requested = QDLEIntent(
+                        request_id=rid, trader_id=row["trader_id"], symbol=symbol, side=side,
+                        entry_price=entry, stop_price=stop,
+                        requested_risk_usd=risk_budget, sizing_cap_usd=risk_budget,
+                        cibo_compound_cap_usd=risk_budget,
+                        portfolio_cap_usd=free_qore,
+                        leverage_cap_lots=limit_lots,
+                        margin_cap_usd=free_broker,
+                        source_lane="SOVEREIGN_BANK",
+                        slippage_usd_per_lot=fee, expected_account_sequence=sequence,
+                        methodology_min_lots=policy_min,
+                    )
+                if args.target_lots is not None:
+                    requested = replace(requested, requested_target_lots=args.target_lots)
                 for label, value in event["four_engine_caps_usd"].items():
                     module_summed_limits_usd[label] += D(value)
                     module_audit_present[label] += 1
                 module_audit_present["ADAPTIVE_LEVERAGE"] += 1
-                requested = QDLEIntent(
-                    request_id=rid, trader_id=row["trader_id"], symbol=symbol, side=side,
-                    entry_price=entry, stop_price=stop,
-                    requested_risk_usd=risk_budget, sizing_cap_usd=risk_budget,
-                    cibo_compound_cap_usd=risk_budget,
-                    portfolio_cap_usd=free_qore,
-                    leverage_cap_lots=limit_lots,
-                    margin_cap_usd=free_broker,
-                    source_lane="SOVEREIGN_BANK",
-                    slippage_usd_per_lot=fee, expected_account_sequence=sequence,
-                    methodology_min_lots=policy_min,
-                )
                 result = qdle.reserve_for_trader(requested, now=at)
                 event.update(status=result.state, lots=str(result.lots),
                              bound_modules=list(result.binding_limits),
@@ -364,7 +461,7 @@ def main() -> int:
                         "decision_event": event,
                         "opened_at": at,
                         "swap_usd_per_lot": SWAP[symbol][side] * usd_per_swap_point_per_lot,
-                        "symbol": symbol, "side": side, "lots": result.lots,
+                        "symbol": symbol, "side": side, "trader": row["trader_id"], "lots": result.lots,
                         "margin": result.margin_usd, "planned_risk": result.total_risk_usd,
                         "stop_per_lot": stop_per_lot, "fee_per_lot": fee,
                         "r": D(row["settlement_outcome_research_only"]["gross_structural_outcome_r"]),
@@ -402,8 +499,11 @@ def main() -> int:
             "qore_initial_capital_usd": "60",
             "historical_exposure_model": "STATIC_2026_SCREENSHOT_MARGIN_NOT_HISTORICAL_BROKER",
             "provider_loss_limit_model": ("RESEARCH_SENSITIVITY_TRAILING_" + str(provider_limit) + "_USD_NOT_VERIFIED") if provider_limit is not None else "NO_VERIFIED_PROVIDER_LIMIT_NOT_SIMULATED",
-            "commission_model": "FOREX_ENTRY_ONLY_7USD_LOT__XAU_NOTIONAL_PROXY__NDX_ZERO_UNKNOWN",
-            "module_caps_provenance": "PROXY_SHARED_5PCT_NOT_INDEPENDENT_MOTOR_DECISIONS",
+            "commission_model": ("FOREX_7_OPEN_PLUS_7_CLOSE_PER_LOT__XAU_SYMMETRIC_2_LEG_NOTIONAL_PROXY__NDX_EXPLICIT_SENSITIVITY" if args.motor_policy == "independent_four_motors" else "FOREX_ENTRY_ONLY_7USD_LOT__XAU_NOTIONAL_PROXY__NDX_ZERO_UNKNOWN"),
+            "ndx_assumed_total_fee_usd_per_lot": str(args.ndx_roundtrip_fee_proxy_usd_per_lot) if args.motor_policy == "independent_four_motors" else None,
+            "module_caps_provenance": ("SIMULATED_INDEPENDENT_FOUR_MOTOR_VOTES" if args.motor_policy == "independent_four_motors" else "PROXY_SHARED_5PCT_NOT_INDEPENDENT_MOTOR_DECISIONS"),
+            "economic_motor_mode": args.motor_policy,
+            "requested_target_lots": str(args.target_lots) if args.target_lots is not None else None,
             "module_binding_ties_on_funded": dict(module_binding_ties),
             "module_audit_observations": dict(module_audit_present),
             "module_summed_approved_usd_not_disbursed": {k: str(v) for k,v in module_summed_limits_usd.items()},
@@ -451,7 +551,9 @@ def main() -> int:
                 "Swap rollover model uses UTC midnight and current screenshot points, NOT historical broker records",
                 "Closed-equity-only DD understates possible intratrade DD",
                 "Pnl from realized structural R after exit, not actual MT5 transactions",
-                "Four-module limits are same 5% ceiling, not historically replayed independent decisions",
+                "Four-module decisions are research policies calculated on simulated cashflows/quotes, not authentic historical broker votes",
+                "Independent 4-motor mode assumes fee completeness for RESEARCH ONLY; fake evidence must never be used for live authorization",
+                "No per-trader allocation receipts proved independently of the replay scenario",
                 "Binding cap ties do NOT establish incremental independent module performance",
                 "Research proxy is NOT a certified 36-month broker-financed backtest",
             ],
