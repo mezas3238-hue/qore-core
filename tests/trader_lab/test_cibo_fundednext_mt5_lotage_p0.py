@@ -1,5 +1,6 @@
 """P0 FundedNext simulator unit tests: NEVER claim these are real MT5 specs."""
 from dataclasses import dataclass
+from datetime import datetime,timezone
 from decimal import Decimal as D
 from types import SimpleNamespace as NS
 import threading,unittest
@@ -42,6 +43,7 @@ class MockMT5:
    "EURUSD":(1.09998,1.10),"GBPUSD":(1.24998,1.25),
    "AUDJPY":(98.998,99),"GBPJPY":(198.998,199),
    "NDX100":(19999.95,20000.0),"XAUUSD":(2699.99,2700.0)}
+  self.tick_time_shift=0
   self.stop_margin_fail=False
   self.bad_profit=False
   self.specs=ASSETS.copy()
@@ -49,14 +51,14 @@ class MockMT5:
   c=self.specs.get(sym)
   if c is None:return None
   return NS(volume_min=c.minlot,volume_step=c.step,volume_max=c.maxlot,
-   trade_contract_size=c.contract,trade_tick_size=c.point,point=c.point)
+   trade_contract_size=c.contract,trade_tick_size=c.point,point=c.point,trade_mode=4,visible=True)
  def symbol_info_tick(self,sym):
   if sym not in self.price:return None
   bid,ask=self.price[sym]
-  return NS(bid=bid,ask=ask)
+  return NS(bid=bid,ask=ask,time=int(datetime.now(timezone.utc).timestamp())+self.tick_time_shift)
  def account_info(self):
   return NS(equity=self.capital,margin_free=self.free,margin=self.held,
-    currency=self.account_currency)
+    currency=self.account_currency,trade_allowed=True)
  def order_calc_profit(self,kind,sym,volume,start,end):
   if self.bad_profit:return None
   a=self.specs[sym]
@@ -201,6 +203,10 @@ class FundedNextP0Tests(unittest.TestCase):
   self.mt5.price["EURUSD"]=(1.09998,1.1002)
   b=self.ask("EURUSD","BUY",1.0990,trade_id="x")
   self.assertGreater(b.price_stop_risk_usd,a.price_stop_risk_usd)
+ def test_stale_mt5_tick_fails_closed(self):
+  self.mt5.tick_time_shift=-360
+  with self.assertRaisesRegex(FundingError,"MT5_QUOTE_STALE_OR_FUTURE"):
+   self.ask("EURUSD","BUY",1.0990)
  def test_no_fabricated_profit_if_server_returns_none(self):
   self.mt5.bad_profit=True
   with self.assertRaisesRegex(FundingError,"MT5_PROFIT_OR_MARGIN"):
