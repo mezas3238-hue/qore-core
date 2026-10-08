@@ -43,3 +43,26 @@ New exploratory case configurations still need an actual replay; a cache cannot 
 - Working branch: `agent/cibo-trader-lab-ultrafast-20261008-001`
 - Main CIBO research branch remains `agent/cibo-causal-expectation-leakage-fix-001` pending verified merge.
 - Only the two named current suites migrated in this unit. Migrate other active legacy suites with exact baseline parity checks, not global find/replace.
+
+## Novel-case incremental benchmark (staging-only, not promoted as research improvement)
+
+Run 37758703051 (staging only): H4M5 eight-case suite, one case changed from
+`-0.1300` to `-0.1310` while seven controls were bytewise-identical.
+GitHub Actions wall time **27 seconds**; engine batch 7.051 seconds; seven
+sealed exact-cache hits and one **fresh** replay with a different outcome.
+All 7 unchanged cases retained exactly their 25 baseline comparison fields.
+The changed stop setting was only a performance test and is **not promoted**
+to canonical strategy/research workflows.
+
+## Canonical adoption
+
+PR #729 merged to research branch on 2026-10-08, merge commit
+`f496371dc9be2e17d8d4a2678477b8ed99b269e4`.
+Canonical post-merge first-run checks:
+- H4M5 run 37758564814: SUCCESS
+- Floor run 37758564650: SUCCESS
+- Independent Trader Lab Fast bridge run 37758565170: SUCCESS
+
+The first canonical run is expected to rebuild branch-scoped GitHub caches.
+Use repeat runs to measure **warm exact-cache** performance; do not
+compare a first-time cache build to the warm-cache 15–19 s target.
