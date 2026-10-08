@@ -94,7 +94,12 @@ def main() -> int:
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--min-policy", choices=["original_trader", "broker_grid"], default="original_trader")
     p.add_argument("--swap-proxy", choices=["off", "utc_midnight"], default="utc_midnight")
+    p.add_argument("--provider-trailing-usd", type=str, default="120",
+                   help="USD loss threshold sensitivity; disabled = provider rule NOT modeled")
     args = p.parse_args()
+    provider_limit = None if args.provider_trailing_usd == "disabled" else D(args.provider_trailing_usd)
+    if provider_limit is not None and provider_limit <= 0:
+        raise SystemExit("Invalid trailing USD model")
     raw = json.loads(args.manifest.read_text(encoding="utf-8"))
     opportunities = raw["opportunities"]
     if len(opportunities) != 3368 or len({x["signal_fingerprint"] for x in opportunities}) != 3368:
@@ -116,6 +121,9 @@ def main() -> int:
     exits: list[tuple[datetime, str]] = []
     source_counts = Counter()
     rejection_binding_counts = Counter()
+    module_binding_ties = Counter()
+    module_summed_limits_usd = defaultdict(lambda: ZERO)
+    module_audit_present = Counter()
     sym_counts: dict[str, Counter] = defaultdict(Counter)
     total_cost = ZERO
     swap_pnl = ZERO
@@ -137,9 +145,9 @@ def main() -> int:
             broker_equity = START_BROKER + nav - START_QORE
             broker_peak = max(broker_peak, broker_equity)
             # Sensitivity proxy ONLY, not independently verified account rules.
-            assumed_floor = broker_peak - D("120")
+            assumed_floor = broker_peak - provider_limit if provider_limit is not None else ZERO
             headroom = max(ZERO, broker_equity - assumed_floor)
-            if broker_equity <= assumed_floor:
+            if provider_limit is not None and broker_equity <= assumed_floor:
                 provider_floor_breach += 1
             open_risk = sum((x["planned_risk"] for x in active.values()), ZERO)
             open_margin = sum((x["margin"] for x in active.values()), ZERO)
@@ -175,6 +183,12 @@ def main() -> int:
                     rollover_count += 1
                 swap_pnl += swap
                 pnl = gross - cost + swap
+                trade["decision_event"].update(
+                    realized_pnl_usd_proxy=str(pnl),
+                    pnl_gross_usd_proxy=str(gross),
+                    realized_exit_at=when.isoformat(),
+                    swap_usd_proxy=str(swap),
+                )
                 realized_gains += pnl
                 # Entry commission was already removed from NAV at hypothetical fill.
                 nav += gross + swap
@@ -188,7 +202,7 @@ def main() -> int:
                     max_dd_ratio = max(max_dd_ratio, dd / peak_nav)
                 sym_counts[trade["symbol"]]["research_settlements"] += 1
                 publish(when)
-                if START_BROKER + nav - START_QORE <= broker_peak - D("120"):
+                if provider_limit is not None and START_BROKER + nav - START_QORE <= broker_peak - provider_limit:
                     provider_closed_at = when.isoformat()
                     unresolved_at_breach = len(active)
                     source_counts["PROVIDER_CLOSED_EQUITY_TRAILING_BREACH"] += 1
@@ -277,6 +291,19 @@ def main() -> int:
                 policy_min = D(t["minimum_volume"]) * D(t.get("minimum_execution_steps", 1))
                 if args.min_policy == "broker_grid":
                     policy_min = D(".01")
+                event["four_engine_caps_usd"] = {
+                    "SIZING": str(risk_budget),
+                    "CIBO_COMPOUND": str(risk_budget),
+                    "PORTFOLIO_COMPOUND_AVAILABLE_SOURCE": str(free_qore),
+                }
+                event["leverage_margin_budget_usd"] = str(free_broker)
+                event["leverage_max_lots"] = str(limit_lots)
+                event["stop_loss_usd_per_lot"] = str(stop_per_lot)
+                event["commission_entry_usd_per_lot_proxy"] = str(fee)
+                for label, value in event["four_engine_caps_usd"].items():
+                    module_summed_limits_usd[label] += D(value)
+                    module_audit_present[label] += 1
+                module_audit_present["ADAPTIVE_LEVERAGE"] += 1
                 requested = QDLEIntent(
                     request_id=rid, trader_id=row["trader_id"], symbol=symbol, side=side,
                     entry_price=entry, stop_price=stop,
@@ -291,10 +318,15 @@ def main() -> int:
                 )
                 result = qdle.reserve_for_trader(requested, now=at)
                 event.update(status=result.state, lots=str(result.lots),
+                             bound_modules=list(result.binding_limits),
+                             fees_entry_usd_proxy=str(result.cost_usd),
                              planned_stop_usd=str(result.total_risk_usd),
                              margin_usd=str(result.margin_usd),
                              risk_budget_usd=str(risk_budget),
                              nav_at_decision_usd=str(nav))
+                if result.lots > 0:
+                    for bound in result.binding_limits:
+                        module_binding_ties[bound] += 1
                 if result.lots == 0:
                     primary_constraint = result.binding_limits[0] if result.binding_limits else "UNKNOWN_BROKER_GRID"
                     rejection_binding_counts[primary_constraint] += 1
@@ -329,6 +361,7 @@ def main() -> int:
                         usd_per_swap_point_per_lot = (
                             stop_per_lot * TICKS[symbol] / abs(entry - stop))
                     active[synthetic_ticket] = {
+                        "decision_event": event,
                         "opened_at": at,
                         "swap_usd_per_lot": SWAP[symbol][side] * usd_per_swap_point_per_lot,
                         "symbol": symbol, "side": side, "lots": result.lots,
@@ -339,7 +372,7 @@ def main() -> int:
                     publish(at)
                     qdle.reconcile_fill(rid)
                     heapq.heappush(exits, (expiration, synthetic_ticket))
-                    if START_BROKER + nav - START_QORE <= broker_peak - D("120"):
+                    if provider_limit is not None and START_BROKER + nav - START_QORE <= broker_peak - provider_limit:
                         provider_closed_at = at.isoformat()
                         unresolved_at_breach = len(active)
                         source_counts["PROVIDER_ENTRY_FEE_TRAILING_BREACH"] += 1
@@ -368,8 +401,13 @@ def main() -> int:
             "broker_initial_equity_usd": "2000",
             "qore_initial_capital_usd": "60",
             "historical_exposure_model": "STATIC_2026_SCREENSHOT_MARGIN_NOT_HISTORICAL_BROKER",
-            "provider_loss_limit_model": "RESEARCH_SENSITIVITY_TRAILING_120_USD_NOT_VERIFIED",
+            "provider_loss_limit_model": ("RESEARCH_SENSITIVITY_TRAILING_" + str(provider_limit) + "_USD_NOT_VERIFIED") if provider_limit is not None else "NO_VERIFIED_PROVIDER_LIMIT_NOT_SIMULATED",
             "commission_model": "FOREX_ENTRY_ONLY_7USD_LOT__XAU_NOTIONAL_PROXY__NDX_ZERO_UNKNOWN",
+            "module_caps_provenance": "PROXY_SHARED_5PCT_NOT_INDEPENDENT_MOTOR_DECISIONS",
+            "module_binding_ties_on_funded": dict(module_binding_ties),
+            "module_audit_observations": dict(module_audit_present),
+            "module_summed_approved_usd_not_disbursed": {k: str(v) for k,v in module_summed_limits_usd.items()},
+            "module_pnl_attribution_usd": None,
             "pnl_model": "POST_EXIT_STRUCTURAL_R_TIMES_CAUSAL_STOP_LOSS_PROXY_MINUS_ENTRY_COST",
             "research_volume_policy": args.min_policy,
             "signal_count": len(opportunities),
@@ -414,6 +452,7 @@ def main() -> int:
                 "Closed-equity-only DD understates possible intratrade DD",
                 "Pnl from realized structural R after exit, not actual MT5 transactions",
                 "Four-module limits are same 5% ceiling, not historically replayed independent decisions",
+                "Binding cap ties do NOT establish incremental independent module performance",
                 "Research proxy is NOT a certified 36-month broker-financed backtest",
             ],
         }
