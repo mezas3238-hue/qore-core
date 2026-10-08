@@ -268,6 +268,11 @@ class QDLE:
             db.execute("""CREATE TABLE IF NOT EXISTS broker_settlements (
                 deal_receipt TEXT PRIMARY KEY, request_id TEXT NOT NULL UNIQUE,
                 broker_ticket TEXT NOT NULL, net_pnl_usd TEXT NOT NULL)""")
+            db.execute("""CREATE TABLE IF NOT EXISTS broker_partial_fills (
+                deal_id TEXT PRIMARY KEY, request_id TEXT NOT NULL,
+                broker_ticket TEXT NOT NULL, lots TEXT NOT NULL)""")
+            db.execute("""CREATE TABLE IF NOT EXISTS broker_partial_cancellations (
+                request_id TEXT PRIMARY KEY, cancel_receipt TEXT NOT NULL UNIQUE)""")
             # Recovery of existing persistent QDLE databases: reconstruct the
             # unique deal registry from the append-only audit before accepting
             # a new settlement. Never silently discard conflicting receipts.
@@ -770,6 +775,98 @@ class QDLE:
                 "live_send_is_not_fill": True,
             })
 
+    def record_partial_fill(self, request_id: str, broker_ticket: str,
+                            broker_deal_id: str, filled_lots: Decimal) -> None:
+        """Provider-observed deal. Do not release any reserves for partial fills.
+
+        This supports multiple deals aggregating into ONE broker position ticket.
+        A netting/hedging aggregation spanning other tickets is fail-closed.
+        """
+        _d("broker partial filled lots", filled_lots)
+        if not request_id or not broker_ticket or not broker_deal_id:
+            raise QDLEError("partial fill requires real broker ticket and deal identity")
+        with self._tx() as db:
+            row = db.execute(
+                "SELECT state,lots,fill_ticket FROM reservations WHERE request_id=?",
+                (request_id,)).fetchone()
+            if row is None or row[0] not in ("SENDING", "FILL_UNRECONCILED"):
+                raise QDLEError("partial fill requires one-shot armed broker submission")
+            if row[2] and row[2] != broker_ticket:
+                raise QDLEError("multi-ticket partial fill not safely reconcilable")
+            previous = db.execute(
+                "SELECT request_id,broker_ticket,lots FROM broker_partial_fills WHERE deal_id=?",
+                (broker_deal_id,)).fetchone()
+            if previous is not None:
+                if previous == (request_id, broker_ticket, str(filled_lots)):
+                    return
+                raise QDLEError("broker partial deal reused or mutated")
+            other = db.execute(
+                "SELECT COUNT(*) FROM broker_partial_fills WHERE request_id=?",
+                (request_id,)).fetchone()[0]
+            if row[0] == "FILL_UNRECONCILED" and not other:
+                raise QDLEError("legacy broker fill cannot be mixed with partial deals")
+            if db.execute(
+                "SELECT request_id FROM reservations WHERE fill_ticket=? AND request_id!=?",
+                (broker_ticket, request_id)).fetchone():
+                raise QDLEError("broker position ticket shared across unrelated entries")
+            current = sum(
+                (Decimal(r[0]) for r in db.execute(
+                    "SELECT lots FROM broker_partial_fills WHERE request_id=?", (request_id,))),
+                Decimal(0),
+            )
+            if current + filled_lots > Decimal(row[1]):
+                raise QDLEError("partial fills exceed reserved broker volume")
+            if db.execute(
+                "SELECT request_id FROM broker_partial_cancellations WHERE request_id=?",
+                (request_id,)).fetchone():
+                raise QDLEError("additional broker fill after remainder cancellation")
+            db.execute(
+                "INSERT INTO broker_partial_fills (deal_id,request_id,broker_ticket,lots) VALUES(?,?,?,?)",
+                (broker_deal_id, request_id, broker_ticket, str(filled_lots)),
+            )
+            db.execute(
+                "UPDATE reservations SET state='FILL_UNRECONCILED',fill_ticket=? WHERE request_id=?",
+                (broker_ticket, request_id),
+            )
+            self._audit(db, "BROKER_PARTIAL_FILL_UNRECONCILED", request_id,
+                        {"broker_ticket": broker_ticket, "broker_deal_id": broker_deal_id,
+                         "filled_lots": filled_lots,
+                         "cumulative_lots": current + filled_lots})
+
+    def confirm_partial_remainder_cancelled(self, request_id: str,
+                                            broker_cancel_receipt: str) -> None:
+        """Require confirmed broker cancellation for any unfilled remainder."""
+        if not broker_cancel_receipt:
+            raise QDLEError("authentic broker cancellation receipt required")
+        with self._tx() as db:
+            row = db.execute(
+                "SELECT state,lots FROM reservations WHERE request_id=?",
+                (request_id,)).fetchone()
+            if row is None or row[0] != "FILL_UNRECONCILED":
+                raise QDLEError("no unreconciled partial broker position")
+            recorded = db.execute(
+                "SELECT cancel_receipt FROM broker_partial_cancellations WHERE request_id=?",
+                (request_id,)).fetchone()
+            if recorded:
+                if recorded[0] == broker_cancel_receipt:
+                    return
+                raise QDLEError("contradictory broker partial cancellation")
+            received = sum((Decimal(r[0]) for r in db.execute(
+                "SELECT lots FROM broker_partial_fills WHERE request_id=?", (request_id,))),
+                Decimal(0))
+            if received <= 0 or received >= Decimal(row[1]):
+                raise QDLEError("no unfilled broker volume to cancel")
+            try:
+                db.execute(
+                    "INSERT INTO broker_partial_cancellations VALUES (?,?)",
+                    (request_id, broker_cancel_receipt),
+                )
+            except sqlite3.IntegrityError as exc:
+                raise QDLEError("broker cancellation receipt shared across requests") from exc
+            self._audit(db, "PARTIAL_REMAINDER_CANCELLED_BY_BROKER",
+                        request_id, {"receipt": broker_cancel_receipt,
+                                     "unfilled_lots": Decimal(row[1]) - received})
+
     def acknowledge_fill(self, request_id: str, ticket: str) -> None:
         """Broker-confirmed fill. Retain its entire reserve until QORE+MT5 reconcile."""
         if not ticket:
@@ -781,6 +878,9 @@ class QDLE:
                 raise QDLEError("unknown or non-reserved fill")
             if self.enforce_finance_approval and row[0] == "HELD":
                 raise QDLEError("broker fill before sovereign LIVE presend arm is forbidden")
+            if db.execute("SELECT COUNT(*) FROM broker_partial_fills WHERE request_id=?",
+                          (request_id,)).fetchone()[0]:
+                raise QDLEError("full fill acknowledgement cannot overwrite partial receipts")
             if row[1] and row[1] != ticket:
                 raise QDLEError("contradictory broker fill ticket")
             other = db.execute("SELECT request_id FROM reservations WHERE fill_ticket=? AND request_id!=?",
