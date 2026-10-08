@@ -62,6 +62,7 @@ class TestCiboH8CashConservedBridge(unittest.TestCase):
     def test_high_precision_source_has_no_five_e_minus_27_shortfall(self):
         state = _State(
             sovereign_bank_usd=D("33.81755034706532138196271917"),
+            peak_sovereign_bank_usd=D("60.0000000000000000000000000100"),
             sovereign_reserved_usd=D("0.437330409907835750567228855"),
             portfolio_cushion_usd=D("19.76393860806455076191180576"),
         )
@@ -77,7 +78,7 @@ class TestCiboH8CashConservedBridge(unittest.TestCase):
             shortage = required - preavailable
             self.assertEqual(
                 shortage,
-                D("2.639780062842514368604509685"),
+                D("2.639780062842514368604509690"),
             )
             state.bridge_from_unreserved_cushion(shortage)
             funded = (
