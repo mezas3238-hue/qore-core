@@ -101,6 +101,7 @@ class CiboThreeModeCandidate:
     walk_forward_block_dispersion_r: Decimal
     planned_target_r: Decimal
     market_regime_posture: str
+    h1_range_state: str | None
     h4_range_state: str | None
     native_cognition_recommended: bool | None
     context_quality_disposition: str
@@ -437,6 +438,7 @@ def _candidate(
         for item in raw_decision_context
         if isinstance(item, (list, tuple)) and len(item) == 2
     }
+    h1_range_state = decision_context.get("reg_h1_range_state")
     h4_range_state = decision_context.get("reg_h4_range_state")
     intended_entry = Decimal(str(trader_opportunity.get("intended_entry")))
     stop_loss = Decimal(str(trader_opportunity.get("stop_loss")))
@@ -495,6 +497,7 @@ def _candidate(
         walk_forward_block_dispersion_r=walk_forward_block_dispersion_r,
         planned_target_r=planned_target_r,
         market_regime_posture=market_regime_posture,
+        h1_range_state=h1_range_state,
         h4_range_state=h4_range_state,
         native_cognition_recommended=native_cognition_recommended,
         context_quality_disposition=context_disposition,
@@ -1070,6 +1073,7 @@ def run_three_mode_trader_lab(
     ceiling_attack_state_pressure_capital_floor: Decimal | None = None,
     ceiling_attack_state_pressure_capital_ceiling: Decimal | None = None,
     ceiling_attack_state_pressure_market_posture: str | None = None,
+    ceiling_attack_state_pressure_h1_range_state: str | None = None,
     ceiling_attack_state_pressure_h4_range_state: str | None = None,
     ceiling_attack_state_pressure_risk_budget_taper_fraction: Decimal = Decimal("1"),
     ceiling_attack_state_pressure2_expected_minutes_floor: Decimal | None = None,
@@ -1079,6 +1083,7 @@ def run_three_mode_trader_lab(
     ceiling_attack_state_pressure2_capital_floor: Decimal | None = None,
     ceiling_attack_state_pressure2_capital_ceiling: Decimal | None = None,
     ceiling_attack_state_pressure2_market_posture: str | None = None,
+    ceiling_attack_state_pressure2_h1_range_state: str | None = None,
     ceiling_attack_state_pressure2_h4_range_state: str | None = None,
     ceiling_attack_state_pressure2_cap_taper_fraction: Decimal = Decimal("1"),
     ceiling_attack_state_pressure2_risk_budget_taper_fraction: Decimal = Decimal("1"),
@@ -2161,6 +2166,14 @@ def run_three_mode_trader_lab(
             "Trader Lab ATTACK state-pressure market posture is invalid"
         )
     if (
+        ceiling_attack_state_pressure_h1_range_state is not None
+        and ceiling_attack_state_pressure_h1_range_state
+        not in {"balanced", "compressed", "expanded", "extreme"}
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab ATTACK state-pressure H1 range state is invalid"
+        )
+    if (
         ceiling_attack_state_pressure_h4_range_state is not None
         and ceiling_attack_state_pressure_h4_range_state
         not in {"balanced", "compressed", "expanded", "extreme"}
@@ -2189,6 +2202,7 @@ def run_three_mode_trader_lab(
             or ceiling_attack_state_pressure_capital_floor is not None
             or ceiling_attack_state_pressure_capital_ceiling is not None
             or ceiling_attack_state_pressure_market_posture is not None
+            or ceiling_attack_state_pressure_h1_range_state is not None
             or ceiling_attack_state_pressure_h4_range_state is not None
             or ceiling_attack_state_pressure_risk_budget_taper_fraction
             != Decimal("1")
@@ -2273,6 +2287,14 @@ def run_three_mode_trader_lab(
             "Trader Lab ATTACK state-pressure2 market posture is invalid"
         )
     if (
+        ceiling_attack_state_pressure2_h1_range_state is not None
+        and ceiling_attack_state_pressure2_h1_range_state
+        not in {"balanced", "compressed", "expanded", "extreme"}
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab ATTACK state-pressure2 H1 range state is invalid"
+        )
+    if (
         ceiling_attack_state_pressure2_h4_range_state is not None
         and ceiling_attack_state_pressure2_h4_range_state
         not in {"balanced", "compressed", "expanded", "extreme"}
@@ -2313,6 +2335,7 @@ def run_three_mode_trader_lab(
             or ceiling_attack_state_pressure2_capital_floor is not None
             or ceiling_attack_state_pressure2_capital_ceiling is not None
             or ceiling_attack_state_pressure2_market_posture is not None
+            or ceiling_attack_state_pressure2_h1_range_state is not None
             or ceiling_attack_state_pressure2_h4_range_state is not None
             or ceiling_attack_state_pressure2_cap_taper_fraction
             != Decimal("1")
@@ -4945,6 +4968,11 @@ def run_three_mode_trader_lab(
                             == ceiling_attack_state_pressure_market_posture
                         )
                         and (
+                            ceiling_attack_state_pressure_h1_range_state is None
+                            or candidate.h1_range_state
+                            == ceiling_attack_state_pressure_h1_range_state
+                        )
+                        and (
                             ceiling_attack_state_pressure_h4_range_state is None
                             or candidate.h4_range_state
                             == ceiling_attack_state_pressure_h4_range_state
@@ -5000,6 +5028,11 @@ def run_three_mode_trader_lab(
                             ceiling_attack_state_pressure2_market_posture is None
                             or candidate.market_regime_posture
                             == ceiling_attack_state_pressure2_market_posture
+                        )
+                        and (
+                            ceiling_attack_state_pressure2_h1_range_state is None
+                            or candidate.h1_range_state
+                            == ceiling_attack_state_pressure2_h1_range_state
                         )
                         and (
                             ceiling_attack_state_pressure2_h4_range_state is None
