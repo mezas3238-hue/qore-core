@@ -63,6 +63,7 @@ def _build_lifecycle_map(
     defensive_initial_stop_r: Decimal,
     context_defensive_initial_stop_r: Decimal | None = None,
     context_requirements: tuple[tuple[str, str], ...] = (),
+    context_only_features: frozenset[CiboLifecycleFeature] = frozenset(),
 ) -> dict[str, dict[str, object]]:
     if not roots:
         return {}
@@ -111,6 +112,11 @@ def _build_lifecycle_map(
             if context_stop_active
             else defensive_initial_stop_r
         )
+        selected_features = (
+            features
+            if context_stop_active
+            else features - context_only_features
+        )
         opened, closed = bounds_by_symbol[symbol]
         series = bars_by_symbol[symbol]
         start = bisect_left(opened, outcome.entry_at)
@@ -133,7 +139,7 @@ def _build_lifecycle_map(
                 original_settlement_gross_r=outcome.gross_structural_outcome_r,
             ),
             series[start:end] if start < end else (),
-            features=features,
+            features=selected_features,
             adverse_loss_cut_r=adverse_loss_cut_r,
             adverse_partial_fraction=adverse_partial_fraction,
             adverse_partial_max_favorable_r=adverse_partial_max_favorable_r,
@@ -149,7 +155,7 @@ def _build_lifecycle_map(
             "data_available": managed.data_available,
             "actions": list(managed.actions),
             "events": managed.events,
-            "enabled_features": sorted(item.value for item in features),
+            "enabled_features": sorted(item.value for item in selected_features),
             "adverse_loss_cut_r": format(adverse_loss_cut_r, "f"),
             "adverse_partial_fraction": format(
                 adverse_partial_fraction, "f"
@@ -346,6 +352,21 @@ def main() -> int:
             "Repeat to define an isolated post-entry lifecycle feature set "
             "for ATTACK positions without changing the MEDIUM lifecycle map."
         ),
+    )
+    parser.add_argument(
+        "--lifecycle-attack-override-context-defensive-initial-stop-r",
+        type=Decimal,
+        default=None,
+        help=(
+            "Optional ATTACK-override defensive stop activated only when all "
+            "ATTACK override context predicates match. Nonmatches preserve original settlement."
+        ),
+    )
+    parser.add_argument(
+        "--lifecycle-attack-override-context-require",
+        action="append",
+        default=[],
+        help="Repeatable causal pre-entry ATTACK override context predicate as KEY=VALUE.",
     )
     parser.add_argument(
         "--lifecycle-attack-override-adverse-partial-fraction",
@@ -1349,6 +1370,21 @@ def main() -> int:
             "context defensive stop requires both stop R and at least one context predicate"
         )
 
+    attack_override_context_requirements = []
+    for raw_requirement in args.lifecycle_attack_override_context_require:
+        key, separator, value = raw_requirement.partition("=")
+        if not separator or not key or not value:
+            raise ValueError(
+                "ATTACK override context requirement must be nonempty KEY=VALUE"
+            )
+        attack_override_context_requirements.append((key, value))
+    if (
+        args.lifecycle_attack_override_context_defensive_initial_stop_r is None
+    ) != (not attack_override_context_requirements):
+        raise ValueError(
+            "ATTACK override context defensive stop requires both stop R and context predicates"
+        )
+
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
     lifecycle_features = (
         frozenset(CiboLifecycleFeature(value) for value in args.lifecycle_feature)
@@ -1436,6 +1472,15 @@ def main() -> int:
             bootstrap_partial_fraction=args.lifecycle_bootstrap_partial_fraction,
             adverse_tightened_stop_r=args.lifecycle_adverse_tightened_stop_r,
             defensive_initial_stop_r=args.lifecycle_defensive_initial_stop_r,
+            context_defensive_initial_stop_r=(
+                args.lifecycle_attack_override_context_defensive_initial_stop_r
+            ),
+            context_requirements=tuple(attack_override_context_requirements),
+            context_only_features=frozenset(
+                {CiboLifecycleFeature.DEFENSIVE_INITIAL_STOP_CAP}
+                if attack_override_context_requirements
+                else set()
+            ),
         )
 
     baseline = None
