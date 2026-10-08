@@ -1,0 +1,103 @@
+name: QORE CIBO Sovereign Transfer Gross-Loss Forensics 20261008
+on:
+  workflow_dispatch:
+  push:
+    branches: [agent/cibo-dual-dd-context-defense-20261008-001]
+    paths: [.github/workflows/cibo-sovereign-transfer-gross-loss-forensics-20261008.yml]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  causal-receipts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Retrieve and SHA256 verify transfer replay
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/cibo-transfer-receipts
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/11546521595/zip" > /tmp/cibo-transfer-receipts/input.zip
+          echo "58a88e89b418023445c3a934db034496a70db70ce176b8ea45b3ca36c06a19ad  /tmp/cibo-transfer-receipts/input.zip" | sha256sum -c -
+          unzip -q /tmp/cibo-transfer-receipts/input.zip -d /tmp/cibo-transfer-receipts
+      - name: Reconcile and rank gross loss deterioration without policy hardcoding
+        run: |
+          python - <<'PY'
+          import json
+          from decimal import Decimal as D
+          from collections import defaultdict
+          from pathlib import Path
+          root=Path('/tmp/cibo-transfer-receipts')
+          a=json.loads((root/'baseline.json').read_text())
+          b=json.loads((root/'transfer-floor-m2-reclaim.json').read_text())
+          assert len(a['trade_receipts'])==len(b['trade_receipts'])==3368
+          def lookup(x):
+              out={}
+              for r in x['trade_receipts']:
+                  k=r['signal_fingerprint']
+                  assert k not in out
+                  out[k]=r
+              return out
+          aa=lookup(a);bb=lookup(b);assert set(aa)==set(bb)
+          delta=[];counts=defaultdict(int);groups=defaultdict(lambda: {'count':0,'loss_delta':D(0),'net_delta':D(0)})
+          for k,v in aa.items():
+              o=bb[k]
+              old=D(v['realized_net_pnl_usd']); new=D(o['realized_net_pnl_usd'])
+              loss_old=max(D(0),-old);loss_new=max(D(0),-new)
+              dloss=loss_new-loss_old
+              dnet=new-old
+              if not(dloss or dnet): continue
+              x={'signal':k,'decision_at':o['decision_at'],'mode_before':v['mode'],
+                 'mode_after':o['mode'],'multiplier_before':v['multiplier'],
+                 'multiplier_after':o['multiplier'],
+                 'loss_delta_usd':str(dloss),'net_delta_usd':str(dnet),
+                 'net_before_usd':str(old),'net_after_usd':str(new),
+                 'risk_before_usd':v.get('stop_risk_usd'),
+                 'risk_after_usd':o.get('stop_risk_usd')}
+              delta.append(x)
+              counts[o['mode']]+=1
+              for key in ('mode:'+str(o['mode']), 'year:'+str(o['decision_at'][:4]),
+                          'multiplier_band:'+('x<100' if o['multiplier']<100
+                                else 'x100-499' if o['multiplier']<500
+                                else 'x500-1999' if o['multiplier']<2000
+                                else 'x2000+')):
+                  v2=groups[key];v2['count']+=1;v2['loss_delta']+=dloss;v2['net_delta']+=dnet
+          loss_receipt_delta=sum((D(x['loss_delta_usd']) for x in delta),D(0))
+          net_receipt_delta=sum((D(x['net_delta_usd']) for x in delta),D(0))
+          def official_total_loss(z):
+              return D(z['economic_group_report']['portfolio_loss_report']['total_gross_loss_usd'])
+          official_gl_delta=official_total_loss(b)-official_total_loss(a)
+          report={
+              'schema':'qore.cibo.transfer_gross_loss_forensics.v1',
+              'research_only':True,'certification_evidence':False,
+              'changed_trade_receipts':len(delta),
+              'delta_gross_loss_official_usd':str(official_gl_delta),
+              'delta_gross_loss_final_receipts_usd':str(loss_receipt_delta),
+              'gross_loss_reconciliation_residual_usd':str(official_gl_delta-loss_receipt_delta),
+              'delta_final_receipt_net_usd':str(net_receipt_delta),
+              'delta_terminal_capital_usd':str(D(b['ending_total_capital_usd'])-D(a['ending_total_capital_usd'])),
+              'changed_by_mode':dict(counts),
+              'change_groups':{k:{k2:str(v2) for k2,v2 in v.items()} for k,v in groups.items()},
+              'top_loss_deterioration':sorted(delta,key=lambda x:D(x['loss_delta_usd']),reverse=True)[:40],
+              'top_loss_savings':sorted(delta,key=lambda x:D(x['loss_delta_usd']))[:40],
+              'top_net_winners':sorted(delta,key=lambda x:D(x['net_delta_usd']),reverse=True)[:20],
+              'top_net_losers':sorted(delta,key=lambda x:D(x['net_delta_usd']))[:20],
+              'limitations':['Ex-post signal and date are attribution labels ONLY; never live policy features.',
+                  'Summary final trade receipts may differ from official partial-settlement gross loss.',
+                  'Future return cannot be used for pre-entry or post-entry decisions.',
+                  'Cross-book transfers affect downstream adaptive mode and sizing.'],
+          }
+          (root/'difference.json').write_text(json.dumps(report,indent=2,sort_keys=True))
+          summary={k:report[k] for k in ('changed_trade_receipts','delta_gross_loss_official_usd',
+             'delta_gross_loss_final_receipts_usd','gross_loss_reconciliation_residual_usd',
+             'delta_terminal_capital_usd','delta_final_receipt_net_usd','change_groups')}
+          summary['top_8_worsened']=report['top_loss_deterioration'][:8]
+          summary['top_8_saved']=report['top_loss_savings'][:8]
+          print('CIBO_TRANSFER_GL_FORENSICS='+json.dumps(summary,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cibo-transfer-gl-causes-${{ github.run_id }}
+          path: /tmp/cibo-transfer-receipts/difference.json
+          retention-days: 90

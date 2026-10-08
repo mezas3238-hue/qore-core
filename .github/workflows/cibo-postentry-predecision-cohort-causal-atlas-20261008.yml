@@ -1,0 +1,98 @@
+name: QORE CIBO Postentry Predecision Causal Cohort Atlas 20261008
+on:
+  workflow_dispatch:
+  push:
+    branches: [agent/cibo-dual-dd-context-defense-20261008-001]
+    paths: [.github/workflows/cibo-postentry-predecision-cohort-causal-atlas-20261008.yml]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  atlas:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Recover SHA256-verified immutable manifest and paired replays
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/cibo-partial-cohorts/manifest /tmp/cibo-partial-cohorts/replay
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/11451743578/zip" > /tmp/cibo-partial-cohorts/manifest.zip
+          echo "d439957f21e2f79148b5a2fb75a53db6fa448698f17aeb6978f379ed3547f7ea  /tmp/cibo-partial-cohorts/manifest.zip" | sha256sum -c -
+          unzip -q /tmp/cibo-partial-cohorts/manifest.zip -d /tmp/cibo-partial-cohorts/manifest
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/11552864997/zip" > /tmp/cibo-partial-cohorts/results.zip
+          echo "992d147baec7dc7e2db0fa940a5d1597c43f95dc03cdde29d4b415be3658840e  /tmp/cibo-partial-cohorts/results.zip" | sha256sum -c -
+          unzip -q /tmp/cibo-partial-cohorts/results.zip -d /tmp/cibo-partial-cohorts/replay
+      - name: Quantify ex-post partial damage by strictly pre-entry features
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from decimal import Decimal as D
+          from collections import defaultdict
+          root=Path('/tmp/cibo-partial-cohorts')
+          manifests=list((root/'manifest').rglob('walk-forward-manifest.json'))
+          assert len(manifests)==1,manifests
+          manifest=json.loads(manifests[0].read_text())
+          context={}
+          for op in manifest['opportunities']:
+              ident=op['signal_fingerprint']
+              ctx=op['trader_opportunity']['decision_context']
+              assert ident not in context
+              context[ident]={str(k):str(v) for k,v in ctx if k and v is not None}
+          assert len(context)==3368
+          def load(stem):
+              f=root/'replay'/(stem+'.json')
+              raw=json.loads(f.read_text())
+              assert raw['trade_count']==raw['decision_count']==3368
+              return {x['signal_fingerprint']:x for x in raw['trade_receipts']}
+          base=load('transfer-floor-control')
+          other=load('transfer-floor-part50-f50')
+          assert base.keys()==other.keys()==context.keys()
+          out=defaultdict(lambda:{'n':0,'changed':0,'prior_win':0,'prior_loss':0,
+                 'prior_winner_profit_sacrificed':D(0),'prior_loser_loss_relief':D(0),
+                 'net_delta':D(0),'prior_win_profit_total':D(0)})
+          for sig,v in base.items():
+              nxt=other[sig]
+              before=D(v['realized_net_pnl_usd']); after=D(nxt['realized_net_pnl_usd'])
+              delta=after-before
+              pairs=list(context[sig].items())
+              # Passive features defined by original pre-entry rows only.
+              for k,val in pairs:
+                  key=k+'='+val; bucket=out[key];bucket['n']+=1
+                  bucket['changed']+=bool(delta)
+                  bucket['prior_win']+=before>0
+                  bucket['prior_loss']+=before<0
+                  bucket['prior_win_profit_total']+=max(before,0)
+                  bucket['net_delta']+=delta
+                  if before>0 and delta<0:bucket['prior_winner_profit_sacrificed']+=-delta
+                  if before<0 and delta>0:bucket['prior_loser_loss_relief']+=delta
+          rows=[]
+          for k,v in out.items():
+              if v['n']<25:continue
+              winner_d=v['prior_winner_profit_sacrificed']
+              save=v['prior_loser_loss_relief']
+              rows.append({'context':k,'n':v['n'],'changed':v['changed'],
+                'prior_win':v['prior_win'],'prior_loss':v['prior_loss'],
+                'prior_winner_profit_sacrificed_usd':str(winner_d),
+                'prior_loser_loss_relief_usd':str(save),
+                'net_delta_usd':str(v['net_delta']),
+                'winner_to_loser_relief_ratio':str(winner_d/(save+D('0.0000001'))),
+                'prior_win_profit_total_usd':str(v['prior_win_profit_total'])})
+          rows.sort(key=lambda x:D(x['net_delta_usd']),reverse=True)
+          target=root/'predecision_context_cohorts.json'
+          target.write_text(json.dumps(rows,sort_keys=True,indent=2))
+          report={
+              'count_n_ge_25':len(rows),
+              'least_damaging_or_helpful_preentry_cohorts':rows[:25],
+              'most_damaging_preentry_cohorts':rows[-20:],
+              'methodology':'Post-hoc feature attribution using immutable PRE-entry context values. NO runtime policy selection; future outcome never allowed as a live condition. Multiple features overlap.'
+          }
+          print('CIBO_PREDECISION_POSTENTRY_COHORT_ATLAS='+json.dumps(report,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cibo-predecision-postentry-context-${{ github.run_id }}
+          path: /tmp/cibo-partial-cohorts/predecision_context_cohorts.json
+          retention-days: 90

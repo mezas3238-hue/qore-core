@@ -1,0 +1,126 @@
+name: QORE CIBO Dual DD Bottleneck Causal Risk Atlas 20261008
+on:
+  workflow_dispatch:
+  push:
+    branches: [agent/cibo-dual-dd-context-defense-20261008-001]
+    paths: [.github/workflows/cibo-dual-bottleneck-causal-risk-atlas-20261008.yml]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Recover exact SHA256-verified preentry context and carrier
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/cibo-dual-risk/manifest /tmp/cibo-dual-risk/replay
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/11451743578/zip" > /tmp/cibo-dual-risk/manifest.zip
+          echo "d439957f21e2f79148b5a2fb75a53db6fa448698f17aeb6978f379ed3547f7ea  /tmp/cibo-dual-risk/manifest.zip" | sha256sum -c -
+          unzip -q /tmp/cibo-dual-risk/manifest.zip -d /tmp/cibo-dual-risk/manifest
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/11554376374/zip" > /tmp/cibo-dual-risk/replay.zip
+          echo "37ff402efa052719f8fed635b015bac1586603dc929c86422bebb20e226d291c  /tmp/cibo-dual-risk/replay.zip" | sha256sum -c -
+          unzip -q /tmp/cibo-dual-risk/replay.zip -d /tmp/cibo-dual-risk/replay
+      - name: Attribute two worst DD episodes to pre-decision causal geometry
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from decimal import Decimal as D
+          from collections import defaultdict
+          root=Path('/tmp/cibo-dual-risk')
+          mf=list((root/'manifest').rglob('walk-forward-manifest.json'))
+          assert len(mf)==1
+          manifest=json.loads(mf[0].read_text())
+          replay=json.loads((root/'replay'/'transfer-floor-h1flat50.json').read_text())
+          assert replay['decision_count']==replay['trade_count']==3368
+          ctx={}
+          for x in manifest['opportunities']:
+              ctx[x['signal_fingerprint']]={str(k):str(v) for k,v in x['trader_opportunity']['decision_context']}
+          assert len(ctx)==3368
+          whitelist={
+              'reg_h1_body_alignment','reg_h4_body_alignment','reg_h4_range_state',
+              'reg_h1_range_state','reg_m5_volatility_state','reg_m5_efficiency_state',
+              'ctx_source_range_state_bucket','ctx_reclaim_latency_bucket',
+              'ctx_cisd_progress_bucket','ctx_rejection_wick_bucket',
+              'ctx_raid_depth_range_bucket','ctx_protected_risk_range_bucket',
+              'ctx_close_location_bucket','ctx_prior_body_alignment',
+          }
+          total={}
+          for row in replay['trade_receipts']:
+              if row['mode']!='ATTACK':continue
+              pnl=D(row['realized_net_pnl_usd'])
+              for key,val in ctx[row['signal_fingerprint']].items():
+                  if key not in whitelist:continue
+                  k=key+'='+val
+                  b=total.setdefault(k,{'wins':0,'losses':0,'gross_profit':D(0),'gross_loss':D(0)})
+                  if pnl>0:b['wins']+=1;b['gross_profit']+=pnl
+                  if pnl<0:b['losses']+=1;b['gross_loss']+=-pnl
+          eps=replay['drawdown_forensics']['top_10_episodes'][:2]
+          assert len(eps)==2
+          eventmap={}
+          signatures={}
+          for e in eps:
+              rid=e['rank']
+              losses={}
+              for row in e.get('top_negative_settlements',[]):
+                  if row['mode']!='ATTACK':continue
+                  pnl=D(row['net_pnl_usd'])
+                  if pnl>=0:continue
+                  sig=row['signal_fingerprint']
+                  losses[sig]=losses.get(sig,D(0))+(-pnl)
+              signatures[rid]=list(losses)
+              counts=defaultdict(lambda:{'events':0,'loss_usd':D(0)})
+              for sig,loss in losses.items():
+                  for key,val in ctx[sig].items():
+                      if key not in whitelist:continue
+                      k=key+'='+val
+                      counts[k]['events']+=1
+                      counts[k]['loss_usd']+=loss
+              eventmap[rid]=counts
+          pairs=[]
+          for k in set(eventmap[1])|set(eventmap[2]):
+              a=eventmap[1].get(k,{'events':0,'loss_usd':D(0)})
+              b=eventmap[2].get(k,{'events':0,'loss_usd':D(0)})
+              if a['events']+b['events']<4:continue
+              tot=total.get(k,{'wins':0,'losses':0,'gross_profit':D(0),'gross_loss':D(0)})
+              pairs.append({
+                  'context':k,
+                  'episode1_loss_events':a['events'],'episode2_loss_events':b['events'],
+                  'episode1_loss_usd':str(a['loss_usd']),'episode2_loss_usd':str(b['loss_usd']),
+                  'all_replay_attack_winner_count':tot['wins'],
+                  'all_replay_attack_loser_count':tot['losses'],
+                  'all_replay_attack_winner_profit_usd':str(tot['gross_profit']),
+                  'all_replay_attack_loser_loss_usd':str(tot['gross_loss']),
+                  'episode_losses_to_total_attack_wins_ratio':str(
+                      (a['loss_usd']+b['loss_usd'])/(tot['gross_profit']+D('0.000001'))),
+              })
+          pairs.sort(key=lambda x:(
+              x['episode1_loss_events']>0 and x['episode2_loss_events']>0,
+              D(x['episode1_loss_usd'])+D(x['episode2_loss_usd'])
+          ),reverse=True)
+          out={
+              'schema':'qore.cibo.dual_dd_causal_forensic.v1',
+              'research_only':True,
+              'case':'transfer-floor-h1flat50',
+              'episode1_peak':eps[0]['peak_at'],'episode1_trough':eps[0]['trough_at'],
+              'episode2_peak':eps[1]['peak_at'],'episode2_trough':eps[1]['trough_at'],
+              'episode1_attack_top_loss_events':len(signatures[1]),
+              'episode2_attack_top_loss_events':len(signatures[2]),
+              'candidate_predecision_features':pairs,
+              'warning':'Ex-post episode/feature attribution only. Never hardcode dates, IDs, outcomes, or select features on the reused holdout as certification. Report untruncated winner opportunity cost before any policy change.'
+          }
+          (root/'dual-bottleneck.json').write_text(json.dumps(out,sort_keys=True,indent=2))
+          print('CIBO_DUAL_BOTTLENECK_PREENTRY_FEATURES='+json.dumps({
+              **{k:v for k,v in out.items() if k!='candidate_predecision_features'},
+              'top_features':pairs[:30]
+          },sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cibo-dual-dd-preentry-atlas-${{ github.run_id }}
+          path: /tmp/cibo-dual-risk/dual-bottleneck.json
+          retention-days: 90

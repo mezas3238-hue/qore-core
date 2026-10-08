@@ -1,0 +1,108 @@
+name: QORE CIBO Why DD 35 vs 94 Percent 20261008
+on:
+  workflow_dispatch:
+  push:
+    branches: [agent/cibo-dual-dd-context-defense-20261008-001]
+    paths: [.github/workflows/cibo-dd-small-vs-large-path-cause-20261008.yml]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  compare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Read and SHA256 verify unchanged replay receipts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/dd-why
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/11555856371/zip" > /tmp/dd-why/source.zip
+          echo "6cf9ffc5bf3c44dca82b8b505c44a5f3beeb5f9ade8e2e22ea458ab05e59d5af  /tmp/dd-why/source.zip" | sha256sum -c -
+          unzip -q /tmp/dd-why/source.zip -d /tmp/dd-why
+      - name: Attribute changed winners, losers, profit, drawdown peak and loss mode
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from decimal import Decimal as D
+          import json
+          root=Path('/tmp/dd-why')
+          names=['transfer-floor-attackctx-control',
+                 'transfer-floor-attackctx-balanced-risk-55',
+                 'transfer-floor-attackctx-balanced-only-55']
+          data={}
+          for name in names:
+              matches=list(root.rglob(name+'.json'))
+              assert len(matches)==1,(name,matches)
+              raw=json.loads(matches[0].read_text())
+              assert raw['trade_count']==raw['decision_count']==3368
+              receipt={x['signal_fingerprint']:x for x in raw['trade_receipts']}
+              assert len(receipt)==3368
+              data[name]=(raw,receipt)
+          reference,control=data[names[0]]
+          output=[]
+          for name in names[1:]:
+              variant,other=data[name]
+              assert other.keys()==control.keys()
+              changed=0
+              old_winner_sacrificed=D(0)
+              old_loser_relief=D(0)
+              formerly_positive_to_nonpositive=0
+              formerly_negative_to_positive=0
+              mode_changes=0
+              net_change=D(0)
+              top_lost_winners=[]
+              for sig,a in control.items():
+                  b=other[sig]
+                  av=D(a['realized_net_pnl_usd'])
+                  bv=D(b['realized_net_pnl_usd'])
+                  delta=bv-av
+                  net_change+=delta
+                  if delta:
+                      changed+=1
+                  if av>0 and delta<0:
+                      old_winner_sacrificed+=-delta
+                      top_lost_winners.append({
+                          'loss_of_prior_profit_usd':str(-delta),
+                          'before_mode':a['mode'],'after_mode':b['mode'],
+                          'before_multiplier':a['multiplier'],
+                          'after_multiplier':b['multiplier'],
+                      })
+                  if av<0 and delta>0:
+                      old_loser_relief+=delta
+                  formerly_positive_to_nonpositive+=(av>0 and bv<=0)
+                  formerly_negative_to_positive+=(av<0 and bv>0)
+                  mode_changes+=(a['mode']!=b['mode'])
+              dd=variant['drawdown_forensics']['top_10_episodes'][0]
+              before_dd=reference['drawdown_forensics']['top_10_episodes'][0]
+              terminal_diff=D(variant['ending_total_capital_usd'])-D(reference['ending_total_capital_usd'])
+              assert abs(net_change-terminal_diff)<D('0.00000001'), (net_change, terminal_diff)
+              result={
+                  'variant':name,'changed_receipts':changed,'mode_changed_receipts':mode_changes,
+                  'old_winner_profit_sacrificed_usd':str(old_winner_sacrificed),
+                  'old_loser_loss_saved_usd':str(old_loser_relief),
+                  'previous_winner_flipped_nonpositive_count':formerly_positive_to_nonpositive,
+                  'previous_loser_flipped_positive_count':formerly_negative_to_positive,
+                  'realized_net_capital_delta_usd':str(net_change),
+                  'old_max_dd_pct':str(D(reference['max_drawdown_fraction'])*100),
+                  'new_max_dd_pct':str(D(variant['max_drawdown_fraction'])*100),
+                  'old_dd_peak':before_dd['peak_at'],'old_dd_trough':before_dd['trough_at'],
+                  'new_dd_peak':dd['peak_at'],'new_dd_trough':dd['trough_at'],
+                  'new_dd_peak_capital_usd':dd['peak_capital_usd'],
+                  'new_dd_trough_capital_usd':dd['trough_capital_usd'],
+                  'new_dd_net_by_mode':dd.get('net_by_mode_usd',{}),
+                  'old_gross_loss_usd':reference['economic_group_report']['portfolio_loss_report']['total_gross_loss_usd'],
+                  'new_gross_loss_usd':variant['economic_group_report']['portfolio_loss_report']['total_gross_loss_usd'],
+                  'top_5_winner_sacrifices':sorted(top_lost_winners,key=lambda z:D(z['loss_of_prior_profit_usd']),reverse=True)[:5],
+                  'warning':'Full-path change includes causal downstream compounding and mode assignments; this is ex-post attribution, not live outcome-based rules.'
+              }
+              output.append(result)
+          (root/'why-dd-diverges.json').write_text(json.dumps(output,indent=2,sort_keys=True))
+          print('CIBO_DD_WHY_DIVERGED='+json.dumps(output,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cibo-dd-35-versus-94-forensics-${{ github.run_id }}
+          path: /tmp/dd-why/why-dd-diverges.json
+          retention-days: 90

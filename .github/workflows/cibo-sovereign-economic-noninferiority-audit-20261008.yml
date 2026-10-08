@@ -1,0 +1,63 @@
+name: QORE CIBO Sovereign Economic Noninferiority Proof 20261008
+on:
+  workflow_dispatch:
+  push:
+    branches: [agent/cibo-dual-dd-context-defense-20261008-001]
+    paths:
+      - .github/workflows/cibo-sovereign-economic-noninferiority-audit-20261008.yml
+      - scripts/cibo_replay_integrity_gate.py
+      - tests/test_cibo_replay_integrity_gate.py
+permissions:
+  contents: read
+  actions: read
+jobs:
+  eligibility:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify independent and noninferiority regression suite
+        run: |
+          set -euo pipefail
+          export PYTHONPATH="$GITHUB_WORKSPACE/src:$GITHUB_WORKSPACE/scripts"
+          python -m unittest discover -s tests -p 'test_cibo_replay_integrity_gate.py' -v
+      - name: Recover immutable exact runner receipts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/cibo-noninferiority
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/11554376374/zip" > /tmp/cibo-noninferiority/results.zip
+          echo "37ff402efa052719f8fed635b015bac1586603dc929c86422bebb20e226d291c  /tmp/cibo-noninferiority/results.zip" | sha256sum -c -
+          unzip -q /tmp/cibo-noninferiority/results.zip -d /tmp/cibo-noninferiority
+      - name: Independently certify historical noninferiority ONLY
+        run: |
+          set -euo pipefail
+          PYTHONPATH="$GITHUB_WORKSPACE/src:$GITHUB_WORKSPACE/scripts" python - <<'PY'
+          import json
+          from pathlib import Path
+          from cibo_replay_integrity_gate import assess_economic_noninferiority, assess_replay
+          root=Path('/tmp/cibo-noninferiority')
+          ref=json.loads((root/'transfer-floor-control.json').read_text())
+          new=json.loads((root/'transfer-floor-h1flat50.json').read_text())
+          candidate=assess_replay(new)
+          assessment=assess_economic_noninferiority(new,ref)
+          assert assessment['economic_noninferiority_pass'],assessment
+          assert candidate['sovereign_integrity_pass']
+          assert candidate['checks']['all_entries_preserved']
+          assert candidate['checks']['terminal_capital_floor']
+          assert not candidate['checks']['max_dd_target'], 'no false 25% claim'
+          assert not assessment['certified']
+          assert not assessment['fresh_oos_verified']
+          assert not assessment['broker_margin_verified']
+          print("CIBO_SOVEREIGN_ECON_NONINFERIORITY="+json.dumps(assessment,sort_keys=True))
+          (root/'economic-noninferiority.json').write_text(json.dumps(assessment,sort_keys=True,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cibo-sovereign-economic-noninferiority-${{ github.run_id }}
+          path: /tmp/cibo-noninferiority/economic-noninferiority.json
+          retention-days: 90

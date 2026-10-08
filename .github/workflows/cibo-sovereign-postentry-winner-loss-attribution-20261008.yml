@@ -1,0 +1,111 @@
+name: QORE CIBO Postentry Winner Loss Attribution 20261008
+on:
+  workflow_dispatch:
+  push:
+    branches: [agent/cibo-dual-dd-context-defense-20261008-001]
+    paths: [.github/workflows/cibo-sovereign-postentry-winner-loss-attribution-20261008.yml]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  economic-attribution:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Retrieve exact replay cases and verify digest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/cibo-postentry-attribution
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/11552864997/zip" > /tmp/cibo-postentry-attribution/input.zip
+          echo "992d147baec7dc7e2db0fa940a5d1597c43f95dc03cdde29d4b415be3658840e  /tmp/cibo-postentry-attribution/input.zip" | sha256sum -c -
+          unzip -q /tmp/cibo-postentry-attribution/input.zip -d /tmp/cibo-postentry-attribution
+      - name: Quantify winners sacrificed versus losers protected
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from decimal import Decimal as D
+          root=Path('/tmp/cibo-postentry-attribution')
+          def load(name):
+              p=root/(name+'.json')
+              assert p.is_file(),p
+              x=json.loads(p.read_text())
+              assert x['trade_count']==x['decision_count']==3368
+              return x
+          base=load('transfer-floor-control')
+          def index(x):
+              ret={}
+              for row in x['trade_receipts']:
+                  k=row['signal_fingerprint']
+                  assert k not in ret
+                  ret[k]=row
+              assert len(ret)==3368
+              return ret
+          old=index(base)
+          cases=['transfer-floor-part10-f50','transfer-floor-part20-f50',
+                 'transfer-floor-part30-f50','transfer-floor-part40-f50',
+                 'transfer-floor-part50-f50','transfer-floor-part20-f25',
+                 'transfer-floor-part30-f25','transfer-floor-part20-f75']
+          results=[]
+          for case in cases:
+              replay=load(case);new=index(replay);assert new.keys()==old.keys()
+              net_delta=D(0);winners_truncated=D(0);losers_relief=D(0)
+              winner_sign_flip=0;loser_to_winner=0
+              outcomes_changed=0;changed_by_mode={}
+              baseline_positive=D(0);variant_positive=D(0)
+              baseline_negative=D(0);variant_negative=D(0)
+              top_profit_sacrifice=[]
+              for sig,a in old.items():
+                  b=new[sig]
+                  v=D(a['realized_net_pnl_usd']);w=D(b['realized_net_pnl_usd'])
+                  delta=w-v;net_delta+=delta
+                  baseline_positive+=max(v,0);variant_positive+=max(w,0)
+                  baseline_negative+=max(-v,0);variant_negative+=max(-w,0)
+                  if delta:
+                      outcomes_changed+=1
+                      mode=str(b['mode'])
+                      changed_by_mode[mode]=changed_by_mode.get(mode,0)+1
+                      if v>0 and delta<0:
+                          winners_truncated+=-delta
+                          top_profit_sacrifice.append({
+                              'mode':mode,'baseline_multiplier':a['multiplier'],
+                              'variant_multiplier':b['multiplier'],
+                              'profit_sacrificed_usd':str(-delta),
+                              'baseline_net_usd':str(v),
+                              'new_net_usd':str(w)
+                          })
+                      elif v<0 and delta>0:
+                          losers_relief+=delta
+                      if v>0 and w<=0:winner_sign_flip+=1
+                      if v<0 and w>0:loser_to_winner+=1
+              ending_delta=D(replay['ending_total_capital_usd'])-D(base['ending_total_capital_usd'])
+              assert abs(net_delta-ending_delta)<D('0.0000001'),(case,net_delta,ending_delta)
+              report={
+                  'case':case,
+                  'capital':replay['ending_total_capital_usd'],
+                  'dd_pct':str(D(replay['max_drawdown_fraction'])*100),
+                  'changed_trade_count':outcomes_changed,
+                  'changed_by_mode':changed_by_mode,
+                  'profit_sacrificed_on_prior_winners_usd':str(winners_truncated),
+                  'loss_recovered_on_prior_losers_usd':str(losers_relief),
+                  'winner_to_flat_or_loser_count':winner_sign_flip,
+                  'loser_to_winner_count':loser_to_winner,
+                  'baseline_positive_net_usd':str(baseline_positive),
+                  'variant_positive_net_usd':str(variant_positive),
+                  'baseline_negative_net_usd':str(baseline_negative),
+                  'variant_negative_net_usd':str(variant_negative),
+                  'net_delta_usd':str(net_delta),
+                  'top_prior_winner_sacrifices':sorted(top_profit_sacrifice,key=lambda a:D(a['profit_sacrificed_usd']),reverse=True)[:8],
+              }
+              results.append(report)
+          target=root/'postentry-winners-forensics.json'
+          target.write_text(json.dumps(results,indent=2,sort_keys=True))
+          print('CIBO_POSTENTRY_WINNER_LOSS_ATTRIBUTION='+json.dumps(results,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cibo-postentry-winner-forensics-${{ github.run_id }}
+          path: /tmp/cibo-postentry-attribution/postentry-winners-forensics.json
+          retention-days: 90

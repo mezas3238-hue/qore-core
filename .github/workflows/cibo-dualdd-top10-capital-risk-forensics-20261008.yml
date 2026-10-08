@@ -1,0 +1,78 @@
+name: QORE CIBO Top10 DD Capital Risk Forensics 20261008
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/cibo-dual-dd-context-defense-20261008-001
+    paths:
+      - .github/workflows/cibo-dualdd-top10-capital-risk-forensics-20261008.yml
+permissions:
+  contents: read
+  actions: read
+jobs:
+  top10-capital-risk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Recover exact replay
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/cibo-dualdd
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/11543738930/zip" > /tmp/cibo-dualdd/input.zip
+          echo "7643863b5d53ae762f2d63e956b20278132d0a9ec554235b28cabaca659f5be9  /tmp/cibo-dualdd/input.zip" | sha256sum -c -
+          unzip -q /tmp/cibo-dualdd/input.zip -d /tmp/cibo-dualdd
+      - name: Audit top-ten capital exposures without outcome-based rules
+        run: |
+          python - <<'PY'
+          import json
+          from decimal import Decimal as D
+          from pathlib import Path
+          root=Path('/tmp/cibo-dualdd')
+          files=list(root.rglob('m1cliff-n00624.json'))
+          assert len(files)==1,files
+          r=json.loads(files[0].read_text())
+          assert r['decision_count']==r['trade_count']==3368
+          assert r['economic_group_report']['all_entries_preserved']
+          assert D(r['attack_sovereign_breach_usd'])==0
+          episodes=r['drawdown_forensics']['top_10_episodes']
+          out=[]
+          for e in episodes:
+              p=e['peak_state']; t=e['trough_state']; peak=D(e['peak_capital_usd'])
+              risk=D(p.get('open_stop_risk_usd') or '0')
+              margin=D(p.get('open_margin_usd') or '0')
+              reserve=D(p.get('sovereign_reserved_usd') or '0')
+              row={
+                'rank':e['rank'],'dd_pct':str(D(e['drawdown_fraction'])*100),
+                'peak':e['peak_at'],'trough':e['trough_at'],
+                'peak_equity_usd':str(peak),'trough_equity_usd':e['trough_capital_usd'],
+                'peak_open_stop_risk_usd':str(risk),'peak_open_stop_risk_pct_equity':str(100*risk/peak),
+                'peak_open_margin_usd':str(margin),'peak_open_margin_pct_equity':str(100*margin/peak),
+                'peak_sovereign_reserved_usd':str(reserve),
+                'peak_portfolio_cushion_usd':str(p.get('portfolio_cushion_usd','0')),
+                'peak_sovereign_bank_usd':str(p.get('sovereign_bank_usd','0')),
+                'trough_sovereign_bank_usd':str(t.get('sovereign_bank_usd','0')),
+                'trough_open_stop_risk_usd':str(t.get('open_stop_risk_usd','0')),
+                'net_by_mode_usd':e.get('net_by_mode_usd',{}),
+                'gross_loss_by_multiplier_usd':e.get('gross_loss_by_multiplier_usd',{}),
+                'worst_5_settlements':[{
+                    'mode':o.get('mode'),'multiplier':o.get('multiplier'),
+                    'loss_usd':o.get('net_pnl_usd')} for o in e['top_negative_settlements'][:5]],
+              }
+              out.append(row)
+          res={'schema':'qore.cibo.top10_capital_risk_forensics.v1','research_only':True,
+               'run_source':37765706712,'case':'m1cliff-n00624',
+               'episodes':out,
+               'notes':['Historical episode comparisons are outcomes; NEVER read these labels in live policy.',
+                 'Peak risk and margin are measured ex-post at DD peak; validate snapshot chronology prior to implementing causal risk envelope.',
+                 'Reused holdout results are research, NOT certification.']}
+          target=root/'top10-capital-risk-forensics.json'
+          target.write_text(json.dumps(res,indent=2,sort_keys=True))
+          print('CIBO_TOP10_RISK_SUMMARY='+json.dumps(out,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cibo-dualdd-top10-risk-${{ github.run_id }}
+          path: /tmp/cibo-dualdd/top10-capital-risk-forensics.json
+          retention-days: 90
