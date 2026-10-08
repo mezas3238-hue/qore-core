@@ -60,3 +60,19 @@ The design attempts to preserve profitable ATTACK tails by leaving residual runn
 5. Investigate `sovereign_floor_breach_usd` with ledger provenance before certification. Seal fresh unseen 3-year holdout.
 
 **No default promotion authorized in this document.** Only replay-confirmed improvements can be promoted.
+
+## F1 final experimental result and winner collateral analysis
+
+- Corrected authoritative [run 37737706543](https://github.com/mezas3238-hue/qore-core/actions/runs/37737706543): **SUCCESS**, all eight complete replay cases; artifact **11532810886**. Earlier 37737555155 was a shell configuration failure; 37737663208 is a non-authoritative configuration variant with missing portfolio shock parity.
+- Exact frozen control reproduced capital USD **668,910.439682713**, max DD **37.77211161549%**, total gross loss USD **957,225.91183**, ATTACK gross loss USD **955,665.77216**. `sovereign_floor_breach_usd=84.6172359344`, separate existing accounting anomaly.
+- Best of the seven isolated adverse partials by DD, `atk-p05-risk10` (partial **5%**, projected ATTACK open stop risk >=10%), produced capital USD **664,842.8864057**, DD **49.795139385%**, gross loss **937,825.5143346**, PF **1.70886**, applied to 124 ATTACK positions. **NOT Pareto**; all larger partials were worse, with DD up to ~70.891%, capital as low as USD 49,230.4455.
+- Differential receipt-level forensic comparison against *exact control* for the mild 5% case, using all `trade_receipts`:
+  - **207 positions** had nontrivial realized net PnL changes (not equal to applied-override count, because path changes cascade to later positions).
+  - **116 originally profitable positions** lost a total of **USD 23,468.111593** net PnL.
+  - **91 originally loss-making positions** were improved by **USD 19,400.558316** net PnL.
+  - **Net difference: −USD 4,067.553277**, matching terminal capital deficit before rounding.
+  - Example significant originally positive positions impacted across years, not just 2021: June 2022 USD 48,900 winner loses USD 3,785; March 2022 USD 31,100 winner loses USD 3,300; March 2021 USD 4,746.96 winner loses USD 2,751.71.
+- Causal scientific conclusion: a *directionally correct* loss reduction gate is NOT sufficient. This intervention harms far more winning PnL than it rescues in losses and triggers pathological compounded drawdowns; attack global partial EXIT should be rejected.
+- **Stop tuning this ATTACK override** unless an incremental predecision/closed-bar discriminator separates loser deteriorations from winners using strictly causal MFE/MAE/expected-R/market context and proves preserved winner PnL; no Trader identity hardcode, no future outcome classification.
+
+The next independent code path is additive window8 scientific test [run 37738207384](https://github.com/mezas3238-hue/qore-core/actions/runs/37738207384), preserving original window7 and all four economic engines. See `agent/cibo-riskshield-additive-window8-g1-001` and its separate G1 report; G1 results are not yet a certification.
