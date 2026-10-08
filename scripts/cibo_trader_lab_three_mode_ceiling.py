@@ -957,6 +957,51 @@ def main() -> int:
         help="Optional live-capital ceiling for the seventh causal ATTACK DD window.",
     )
     parser.add_argument(
+        "--ceiling-attack-drawdown-window8-lower",
+        type=Decimal,
+        default=None,
+        help="Research-only lower realized-DD bound for a eighth ATTACK window.",
+    )
+    parser.add_argument(
+        "--ceiling-attack-drawdown-window8-upper",
+        type=Decimal,
+        default=None,
+        help="Research-only exclusive upper realized-DD bound for a eighth ATTACK window.",
+    )
+    parser.add_argument(
+        "--ceiling-attack-drawdown-window8-multiplier-lower",
+        type=int,
+        default=None,
+        help="Lower proposed ATTACK multiplier bound inside the eighth DD window.",
+    )
+    parser.add_argument(
+        "--ceiling-attack-drawdown-window8-multiplier-upper",
+        type=int,
+        default=None,
+        help="Upper proposed ATTACK multiplier bound inside the eighth DD window.",
+    )
+    parser.add_argument(
+        "--ceiling-attack-drawdown-window8-taper-fraction",
+        type=Decimal,
+        default=Decimal("0.50"),
+        help=(
+            "Fraction of proposed ATTACK intensity retained only while both "
+            "the eighth DD window and multiplier window are active."
+        ),
+    )
+    parser.add_argument(
+        "--ceiling-attack-drawdown-window8-capital-floor",
+        type=Decimal,
+        default=None,
+        help="Optional live-capital floor for the eighth causal ATTACK DD window.",
+    )
+    parser.add_argument(
+        "--ceiling-attack-drawdown-window8-capital-ceiling",
+        type=Decimal,
+        default=None,
+        help="Optional live-capital ceiling for the eighth causal ATTACK DD window.",
+    )
+    parser.add_argument(
         "--ceiling-attack-stress-confidence-drawdown-trigger",
         type=Decimal,
         default=None,
@@ -1935,6 +1980,27 @@ def main() -> int:
         ),
         ceiling_attack_drawdown_window7_capital_ceiling=(
             args.ceiling_attack_drawdown_window7_capital_ceiling
+        ),
+        ceiling_attack_drawdown_window8_lower=(
+            args.ceiling_attack_drawdown_window8_lower
+        ),
+        ceiling_attack_drawdown_window8_upper=(
+            args.ceiling_attack_drawdown_window8_upper
+        ),
+        ceiling_attack_drawdown_window8_multiplier_lower=(
+            args.ceiling_attack_drawdown_window8_multiplier_lower
+        ),
+        ceiling_attack_drawdown_window8_multiplier_upper=(
+            args.ceiling_attack_drawdown_window8_multiplier_upper
+        ),
+        ceiling_attack_drawdown_window8_taper_fraction=(
+            args.ceiling_attack_drawdown_window8_taper_fraction
+        ),
+        ceiling_attack_drawdown_window8_capital_floor=(
+            args.ceiling_attack_drawdown_window8_capital_floor
+        ),
+        ceiling_attack_drawdown_window8_capital_ceiling=(
+            args.ceiling_attack_drawdown_window8_capital_ceiling
         ),
         ceiling_attack_stress_confidence_drawdown_trigger=(
             args.ceiling_attack_stress_confidence_drawdown_trigger
