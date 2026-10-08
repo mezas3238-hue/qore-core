@@ -1,7 +1,7 @@
 name: QORE CIBO Carrier37772 MEDIUM H4M5 Loss Cluster Ridge
 
 # Research-only reused-holdout hypothesis generation; not certification evidence.
-# Benchmark dispatch: validate warm, SHA256-checked prepared-cache parity.
+# Benchmark dispatch: one novel hypothesis (-0.1310R) + seven exact cached controls; staging-only.
 # Starts from sc-j: 38.1154333579% strict-Pareto carrier.
 # Preserves the validated sc-j high-target defense and tests capital-localized
 # 2021 state-pressure signatures. No Trader or symbol identity is used.
@@ -270,7 +270,7 @@ jobs:
           run_case "h4m5-s1600" -0.1600 cluster
           run_case "h4m5-s1500" -0.1500 cluster
           run_case "h4m5-s1400" -0.1400 cluster
-          run_case "h4m5-s1300" -0.1300 cluster
+          run_case "h4m5-s1300" -0.1310 cluster
           python scripts/cibo_trader_lab_batch_runner.py --cases "$RUNNER_TEMP/cibo-cases.jsonl" --workers 4 --m5-cache-dir "$GITHUB_WORKSPACE/.qore-cache/cibo-ultrafast-v1" --result-cache-dir "$GITHUB_WORKSPACE/.qore-cache/cibo-ultrafast-results"
 
       - name: Rank strict Pareto vs carrier3829
