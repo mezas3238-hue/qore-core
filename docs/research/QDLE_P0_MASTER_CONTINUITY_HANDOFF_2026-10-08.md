@@ -6,6 +6,14 @@
 **Estado:** motor QDLE implementado con CI sintética positiva; integración observacional MT5, servicio de reservas SQLite y puente de cuatro motores; **NO LIVE**, **NO CERTIFICADO**, sin aprobación física real de los 3.368 intentos de Trader Lab.
 
 
+## ACTUALIZACIÓN REPLAY QDLE 3.368 / 36 MESES — 2026-10-08
+
+**Evidencia más reciente:** [Informe replay con QDLE acoplado, comisiones, swaps y corte por provider DD](QDLE_P0_3368_DUAL_CAPITAL_PHYSICAL_LOTAGE_REPLAY_REPORT_2026-10-08.md). Run [37830200266](https://github.com/mezas3238-hue/qore-core/actions/runs/37830200266), SHA de código probado `5481bfd22cb9ec23f7953fc97f39a652ab03b313`, SUCCESS.
+
+**Resultados**: 3.368/3.368 señales; propuesta financiable 697 (mínimo original Trader) o 1.628 (mínimo broker 0.01). Capital QORE USD60 → USD5.50 / USD125.05 modelados, DD de equity cerrado 92.86% / 87.75%. **La variante 0.01 sufre stop de proveedor hipotético el 2021-05-05 y 1.276 señales siguientes son bloqueadas; USD125.05 NO es saldo superviviente.** Resto de P&L es proxy de outcomes R investigación sin deals reales MT5. No certificar ni desplegar; continuar con ticks, account terms y reconciliación física.
+
+---
+
 ## DIRECTIVA SOBERANA P0 — CUENTA FUNDEDNEXT USD 2000, CAPITAL QORE USD 60
 
 **Override del propietario (2026-10-08) — prevalece sobre toda interpretación anterior que use el equity MT5 como base del 5%.**
