@@ -237,7 +237,11 @@ class QDLE:
                 snapshot_seq INTEGER NOT NULL, fill_ticket TEXT, result TEXT NOT NULL)""")
             db.execute("""CREATE TABLE IF NOT EXISTS finance_approvals (
                 request_id TEXT PRIMARY KEY, payload_sha TEXT NOT NULL,
-                account_sequence INTEGER NOT NULL, approval_at TEXT NOT NULL)""")
+                account_sequence INTEGER NOT NULL, approval_at TEXT NOT NULL,
+                intent_json TEXT)""")
+            existing_columns = {x[1] for x in db.execute("PRAGMA table_info(finance_approvals)")}
+            if "intent_json" not in existing_columns:
+                db.execute("ALTER TABLE finance_approvals ADD COLUMN intent_json TEXT")
             db.execute("""CREATE TABLE IF NOT EXISTS audit (
                 id INTEGER PRIMARY KEY AUTOINCREMENT, event TEXT NOT NULL,
                 request_id TEXT, receipt TEXT NOT NULL)""")
@@ -361,10 +365,14 @@ class QDLE:
             if existing and existing[0] != fingerprint:
                 raise QDLEError("cannot change economic approval for a signal ID")
             db.execute("""INSERT OR IGNORE INTO finance_approvals
-                        (request_id,payload_sha,account_sequence,approval_at)
-                        VALUES(?,?,?,?)""",
+                        (request_id,payload_sha,account_sequence,approval_at,intent_json)
+                        VALUES(?,?,?,?,?)""",
                        (intent.request_id, fingerprint,
-                        intent.expected_account_sequence, approved_at.isoformat()))
+                        intent.expected_account_sequence, approved_at.isoformat(),
+                        _j(asdict(intent))))
+            db.execute("""UPDATE finance_approvals SET intent_json=?
+                          WHERE request_id=? AND intent_json IS NULL""",
+                       (_j(asdict(intent)), intent.request_id))
             self._audit(db, "QORE_FOUR_ENGINE_FINANCE_APPROVED",
                         intent.request_id, {
                             "account_sequence": intent.expected_account_sequence,
