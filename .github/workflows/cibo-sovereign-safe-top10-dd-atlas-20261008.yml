@@ -1,0 +1,66 @@
+name: QORE CIBO Sovereign-Safe Top10 DD Atlas 20261008
+on:
+  workflow_dispatch:
+  push:
+    branches: [agent/cibo-dual-dd-context-defense-20261008-001]
+    paths: [.github/workflows/cibo-sovereign-safe-top10-dd-atlas-20261008.yml]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  atlas:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Recover exact 3-case research pilot
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/sovereign-safe-dd-atlas
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/11546521595/zip" > /tmp/sovereign-safe-dd-atlas/input.zip
+          echo "58a88e89b418023445c3a934db034496a70db70ce176b8ea45b3ca36c06a19ad  /tmp/sovereign-safe-dd-atlas/input.zip" | sha256sum -c -
+          unzip -q /tmp/sovereign-safe-dd-atlas/input.zip -d /tmp/sovereign-safe-dd-atlas
+      - name: Report ten independent DD episodes and exposure context
+        run: |
+          python - <<'PY'
+          import json
+          from decimal import Decimal as D
+          from pathlib import Path
+          root=Path('/tmp/sovereign-safe-dd-atlas')
+          out=[]
+          for case in ('baseline','transfer-floor-m2-reclaim'):
+              replay=json.loads((root/(case+'.json')).read_text())
+              episodes=replay['drawdown_forensics']['top_10_episodes']
+              table=[]
+              for e in episodes:
+                  peak=D(e['peak_capital_usd'])
+                  trough=D(e['trough_capital_usd'])
+                  dd=D(e['drawdown_fraction'])
+                  abs_loss=peak-trough
+                  extra_loss_to_25=max(D(0),abs_loss-peak*D('.25'))
+                  table.append({'rank':e['rank'],'dd_percent':str(dd*100),
+                      'peak_at':e['peak_at'],'trough_at':e['trough_at'],
+                      'peak_equity_usd':str(peak),'trough_equity_usd':str(trough),
+                      'loss_above_25pct_target_usd':str(extra_loss_to_25),
+                      'net_by_mode':e.get('net_by_mode_usd',{}),
+                      'peak_open_stop_risk_usd':e['peak_state'].get('open_stop_risk_usd'),
+                      'peak_open_margin_usd':e['peak_state'].get('open_margin_usd'),
+                      'gross_loss_by_multiplier':e.get('gross_loss_by_multiplier_usd',{}),
+                      'top_5_negative_settlements':[
+                          {key:x.get(key) for key in ('mode','multiplier','net_pnl_usd')}
+                          for x in e.get('top_negative_settlements',[])[:5]],
+                      })
+              out.append({'case':case,'top10':table})
+          (root/'atlas.json').write_text(json.dumps(out,indent=2,sort_keys=True))
+          for x in out:
+              summary=[{k:e[k] for k in ('rank','dd_percent','peak_at','trough_at',
+                 'peak_equity_usd','loss_above_25pct_target_usd','net_by_mode')}
+                 for e in x['top10']]
+              print('CIBO_SOVEREIGN_SAFE_DD_TOP10='+json.dumps({'case':x['case'],'episodes':summary}))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cibo-sovereign-safe-dd-atlas-${{ github.run_id }}
+          path: /tmp/sovereign-safe-dd-atlas/atlas.json
+          retention-days: 90
