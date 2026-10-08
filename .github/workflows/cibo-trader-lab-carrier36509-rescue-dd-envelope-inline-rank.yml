@@ -358,6 +358,8 @@ jobs:
                 "dd_le_25":floor_valid and dd<=Decimal("0.25"),
                 "dd_le_22":floor_valid and dd<=Decimal("0.22"),
               })
+          expected_count=sum(1 for line in (Path(os.environ["RUNNER_TEMP"])/"cibo-cases.jsonl").open(encoding="utf-8") if line.strip())
+          assert rows and len(rows)==expected_count, f"missing replay JSONs: found {len(rows)} of {expected_count}"
           rows.sort(key=lambda r:(not r["dd_le_22"],not r["dd_le_25"],not r["dd_le_30"],not r["dd_le_35"],not r["floor_valid_dd"],Decimal(r["dd"]),-Decimal(r["capital"]),Decimal(r["total_gross_loss"])))
           print("CARRIER36509_RESCUE_DD_ENVELOPE_RIDGE="+json.dumps(rows,sort_keys=True))
           print("FLOOR_VALID_DD_CASES="+json.dumps([r["case"] for r in rows if r["floor_valid_dd"]]))
@@ -368,3 +370,10 @@ jobs:
           print("DD_LE_25_CASES="+json.dumps([r["case"] for r in rows if r["dd_le_25"]]))
           print("DD_LE_22_CASES="+json.dumps([r["case"] for r in rows if r["dd_le_22"]]))
           PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-carrier36509-rescue-dd-envelope-inline-rank-${{ github.run_id }}
+          path: ${{ runner.temp }}/result/*.json
+          if-no-files-found: error
+          retention-days: 90
