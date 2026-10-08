@@ -1,0 +1,66 @@
+{
+  "cases": {
+    "h19-bank50-cut025": {
+      "attack_trades": 849,
+      "bank_valid": true,
+      "cash_rebalance_count": 0,
+      "cash_rebalance_total_usd": "0",
+      "dd_pct": "34.69618526302922950248167706",
+      "dd_under_25": false,
+      "ending_bank_usd": "273.5612072702275834261815177",
+      "episode_max_dd_peak": "2019-07-19T06:45:00+00:00",
+      "final_usd": "3571.798587075842850769307856",
+      "gross_losses_usd": "13322.49646847142860551172271",
+      "max_dd_mode_net": {
+        "MEDIUM": "-27.67504391254297459339652574"
+      },
+      "medium_trades": 2519,
+      "minimum_bank_usd": "42.20692539148930078755937713",
+      "net_usd": "3511.798587075842850769307848",
+      "provider_fees_usd": "1619.170742634375380240156682",
+      "reconciliation_usd": "8E-24",
+      "sovereign_floor_breach_usd": "0",
+      "sovereign_floor_usd": "207.076057112506948702471471650",
+      "target_20pct": false,
+      "trades": 3368,
+      "unfunded_sovereign_peak_usd": "0"
+    },
+    "h19-control-100-cut040": {
+      "attack_trades": 849,
+      "bank_valid": false,
+      "cash_rebalance_count": 73,
+      "cash_rebalance_total_usd": "163.7158415746844603154531986",
+      "dd_pct": "36.91053924475215947767935340",
+      "dd_under_25": false,
+      "ending_bank_usd": "86.49539115859734923403229942",
+      "episode_max_dd_peak": "2019-07-19T06:45:00+00:00",
+      "final_usd": "3304.547153631290514215911985",
+      "gross_losses_usd": "12770.23105542862459828745797",
+      "max_dd_mode_net": {
+        "MEDIUM": "-29.44129986308968538183865648"
+      },
+      "medium_trades": 2519,
+      "minimum_bank_usd": "30.00000000000000000000000000",
+      "net_usd": "3244.547153631290514215911984",
+      "provider_fees_usd": "1561.226565444251723158921878",
+      "reconciliation_usd": "1E-24",
+      "sovereign_floor_breach_usd": "0.0000000000000000000000000050",
+      "sovereign_floor_usd": "77.805594281397920876645918150",
+      "target_20pct": false,
+      "trades": 3368,
+      "unfunded_sovereign_peak_usd": "0.0000000000000000000000000050"
+    }
+  },
+  "decision": "If no cases pass both, DO NOT claim fixed or certify. Study early 2019 MEDIUM R and actual bank deficits.",
+  "passed_both": [],
+  "rule": "Only original 5% CIBO; changes are distribution of REAL medium net profit and existing post-entry loss-cut threshold, no fabricated cash.",
+  "status": "RESEARCH_ONLY",
+  "evidence": {
+    "run_id": 37781691734,
+    "url": "https://github.com/mezas3238-hue/qore-core/actions/runs/37781691734",
+    "conclusion": "SUCCESS",
+    "do_not_promote": true,
+    "reason": "H21 is already fully floor-valid via native profit split, and H19 additional internal cash rebalancing doesn't improve 2019 DD; 5e-27 residual fails strict sovereign zero assertion in 100pct bootstrap test.",
+    "cash_conservation": true
+  }
+}
