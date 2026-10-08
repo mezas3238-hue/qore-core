@@ -1,7 +1,7 @@
 name: CIBO P0 FundedNext MT5 Lotage Solvency Tests
 on:
   push:
-    branches: [agent/cibo-p0-fundednext-real-mt5-lotage-financing-001]
+    branches: [agent/cibo-p0-fundednext-real-mt5-lotage-financing-001, agent/cibo-p0-dynamic-equity-5pct-lotage-002]
     paths:
       - '.github/workflows/cibo-p0-fundednext-mt5-lotage-solvency.yml'
       - 'src/qore/infrastructure/trader_lab/cibo_fundednext_mt5_lotage_p0.py'
@@ -22,7 +22,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Six-market MT5 profit and margin tests; risk < USD3 including costs
+      - name: Dynamic 5 percent causal equity stop risk + MT5 six-market and four motor tests
         env:
           PYTHONPATH: src
         run: |
@@ -30,4 +30,4 @@ jobs:
           python -m py_compile src/qore/infrastructure/trader_lab/cibo_fundednext_mt5_lotage_p0.py src/qore/infrastructure/trader_lab/cibo_four_motor_fundednext_p0.py src/qore/infrastructure/trader_lab/cibo_trader_presend_mt5_p0.py
           python -m unittest discover -s tests/trader_lab -p 'test_cibo_*fundednext*p0.py' -v
           python -m unittest discover -s tests/trader_lab -p 'test_cibo_trader_presend_mt5_p0.py' -v
-          echo 'CIBO_P0_MT5_6_MARKETS_AND_FOUR_MOTORS=PASS'
+          echo 'CIBO_P0_DYNAMIC_FIVE_PERCENT_FOUR_MOTORS=PASS'
