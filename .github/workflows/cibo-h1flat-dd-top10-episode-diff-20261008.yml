@@ -1,0 +1,58 @@
+name: QORE CIBO H1 Flat DD Top10 Episode Diff 20261008
+on:
+  workflow_dispatch:
+  push:
+    branches: [agent/cibo-dual-dd-context-defense-20261008-001]
+    paths: [.github/workflows/cibo-h1flat-dd-top10-episode-diff-20261008.yml]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Recover exact research replay and verify sha256
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/cibo-dd-episode-diff
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/11554376374/zip" > /tmp/cibo-dd-episode-diff/input.zip
+          echo "37ff402efa052719f8fed635b015bac1586603dc929c86422bebb20e226d291c  /tmp/cibo-dd-episode-diff/input.zip" | sha256sum -c -
+          unzip -q /tmp/cibo-dd-episode-diff/input.zip -d /tmp/cibo-dd-episode-diff
+      - name: Compare full top10 episodes and causal by-mode losses
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from decimal import Decimal as D
+          root=Path('/tmp/cibo-dd-episode-diff')
+          output=[]
+          for stem in ['transfer-floor-control','transfer-floor-h1flat50']:
+              x=json.loads((root/(stem+'.json')).read_text())
+              assert x['decision_count']==x['trade_count']==3368
+              eps=x['drawdown_forensics']['top_10_episodes']
+              rows=[]
+              for e in eps:
+                  rows.append({
+                      'rank':e['rank'],
+                      'dd_pct':str(D(e['drawdown_fraction'])*100),
+                      'peak_at':e['peak_at'],'trough_at':e['trough_at'],
+                      'peak_capital_usd':e['peak_capital_usd'],
+                      'trough_capital_usd':e['trough_capital_usd'],
+                      'net_by_mode':e.get('net_by_mode_usd',{}),
+                  })
+              output.append({
+                  'case':stem,'total_dd_pct':str(D(x['max_drawdown_fraction'])*100),
+                  'episode_count':x['drawdown_forensics']['episode_count'],
+                  'top10':rows
+              })
+          (root/'h1flat-episode-diff.json').write_text(json.dumps(output,sort_keys=True,indent=2))
+          print('CIBO_H1FLAT_DD_EPISODE_DIFF='+json.dumps(output,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cibo-h1flat-dd-episode-diff-${{ github.run_id }}
+          path: /tmp/cibo-dd-episode-diff/h1flat-episode-diff.json
+          retention-days: 90
