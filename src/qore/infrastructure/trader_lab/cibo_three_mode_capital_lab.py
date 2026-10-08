@@ -5973,7 +5973,17 @@ def run_three_mode_trader_lab(
                         fee_usd_per_min_lot=candidate.provider_cost_per_multiplier_usd,
                         risk_left_usd=risk_left,
                         margin_left_usd=margin_left,
-                        bank_free_usd=sovereign_left,
+                        already_committed_margin_usd=max(
+                            Decimal(0),margin_capacity-margin_left
+                        ),
+                        # Account-level stress reserve: never propose new
+                        # MEDIUM exposure out of the top 75% sovereign peak.
+                        # The existing 50% sovereign floor remains the hard
+                        # mandatory policy. This 25% buffer is H31-only.
+                        bank_free_usd=max(
+                            Decimal(0),
+                            sovereign_left-state.peak_sovereign_bank_usd*Decimal("0.75"),
+                        ),
                         cushion_free_usd=cushion_left,
                         portfolio_credit_free_usd=portfolio_attack_release_left,
                         strict_account_cash_margin=True,
