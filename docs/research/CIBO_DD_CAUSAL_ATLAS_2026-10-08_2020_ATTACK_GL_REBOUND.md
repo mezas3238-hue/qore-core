@@ -71,3 +71,31 @@ Prior W6 experiment already shows a sharp cliff: `0.9490` retained approximately
 Promote **only** if terminal capital >= USD 582,440.0252953678696769360345, all 3,368 entries conserved, no defer/reject/breach, deterministic provenance and no future leakage. Classify separately: (a) DD physical frontier, (b) local Pareto, (c) global STRICT Pareto requiring total and ATTACK GL non-worsening versus `f-m2850-h0060`. Any parameter crossing the capital cliff is **REJECTED**.
 
 The ideal DD remains <=20%, maximum tolerable <=25%. Above 25% remains **NOT CERTIFIED**.
+
+---
+
+## 9. ADDENDUM — 2019 bootstrap MEDIUM bottleneck, W6+M1 verified replays
+
+### Independent later workflows executed in this continuity cycle
+
+- [37765229488](https://github.com/mezas3238-hue/qore-core/actions/runs/37765229488), 16-point fine W6 taper sweep: SUCCESS. No case improved below **35.227092840837%**. Multiple 0.9483–0.9490 tapers produced identical DD, capital and GL. This is a physical plateau, not a global STRICT carrier.
+- [37765489528](https://github.com/mezas3238-hue/qore-core/actions/runs/37765489528), 14-case W6=0.9490 plus MEDIUM context stop sweep: SUCCESS. **Local Pareto / floor-valid** `w6m1-n00625`: capital **USD 670,925.7609379143**, max DD **35.206876938411%**, total GL **USD 959,321.2243307622**, ATTACK GL **USD 957,755.1920641476**. Conserves 3,368 entries / 0 breaches / 0 rejection or deferral. **Not global STRICT**.
+- [37765706712](https://github.com/mezas3238-hue/qore-core/actions/runs/37765706712), 14-case high-resolution M1 capital-cliff boundary sweep: SUCCESS. Best floor-valid local `m1cliff-n00624` at MEDIUM context stop `-0.0624R`: capital **USD 670,925.7614735000**, DD **35.206607393046%**, total GL **USD 959,321.2237951765**, ATTACK GL **USD 957,755.1920641476**; 3,368 entries preserved, zero sovereign breach, zero reject/defer.
+- The immediately adjacent `-0.0623R` produced approximately **USD 551,665.1665** and **50.26065% DD**, **below frozen floor**: reject. The phase transition occurs in the short interval between **-0.0624R (floor-valid)** and **-0.0623R (floor-failing)**. **STOP microgrinding this cliff**: the remaining local DD headroom is immaterial to closing 35% -> <=25%, whereas compound path collapse is enormous.
+- [37765762713](https://github.com/mezas3238-hue/qore-core/actions/runs/37765762713), 2019 MEDIUM frozen preentry context analysis: SUCCESS; **2,513 MEDIUM trades**, **41 terminal MEDIUM losing trades** in the new max-DD episode; **1,367** post-hoc preentry signatures enumerated. The first ranked multi-Trader cohort matches 2 losses in the episode of only **USD 0.5973** and 4 historical winners totaling **USD 2.6621**. This is insufficient as a direct winner-safe intervention; retrospective screening itself introduces selection risk.
+
+### Causal interpretation
+
+The active **physical** max-DD is now the **2019-07-19 06:45 UTC → 2019-08-07 09:30 UTC** MEDIUM episode (at the early bootstrap stage), not the ATTACK April–May 2020 episode. In the W6 comparator this episode had **peak capital USD 79.7639386**, loss **USD 28.0985167** and DD **35.22709%**; broad ATTACK measures cannot directly solve this percentage bottleneck.
+
+The engine can respond *smoothly* to changes in an identity-free, context-only MEDIUM stop until it crosses a compounding phase transition. This proves that optimizing 2019 MEDIUM independently of the full capital trajectory is unsafe: apparent local loss-cutting generates downstream 2021 ATTACK DD >50%, and collapses capital below the sovereign floor.
+
+### Next P0 before new sweep
+
+1. Reconstruct the **full 2019 MEDIUM bootstrap ledger** (the exact July–August episode), including the original peak USD ~79.76, USD ~28.10 net decline, per-trade stop risks, settlement and closed-bar M5 chronology. The 41 terminal losers are descriptive but not an exact partial-settlement event ledger.
+2. Evaluate a **multi-position, context-only, causally enforceable bootstrap damage control**, not a global parameter shave or Trader-ID rule; inspect the winners sacrificed and counterfactual **3,368-trade** capital path.
+3. Retain separate global STRICT vs physical frontier comparators. Current global STRICT **remains f-m2850-h0060 DD 36.408712%**; current lowest observed physical/floor-valid DD becomes **35.20660739%** subject to this new addendum. The global GL gap is still >USD 1.6k.
+4. Prefer candidate interventions that address both independent bottlenecks: 2019 early-capital MEDIUM plus 2020 ATTACK. Rebuild Drawdown Causal Atlas after each regime migration.
+5. Reused holdout must not be represented as fresh OOS; stop optimization before obtaining genuine sealed independent evidence and running scientific certification gates.
+
+**Promote no runtime strategy solely because the offline sweep has found a new physical DD minimum.**
