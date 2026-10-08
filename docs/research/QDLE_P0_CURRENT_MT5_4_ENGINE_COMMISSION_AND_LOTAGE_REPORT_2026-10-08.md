@@ -1,5 +1,8 @@
 # QDLE P0 — INFORME COMISIONES, LOTAJE Y LOS 4 MOTORES CON FICHAS MT5 ACTUALES
 
+> **P0 — INVALIDACIÓN DE CERTIFICACIÓN FINANCIERA (2026-10-08).** La auditoría posterior detectó **272/2113 pérdidas simuladas superiores al 5% del capital QORE inicial de la entrada**, 777 pérdidas superiores al stop reservado y 306 propuestas NDX100 con comisión desconocida representada como cero. Los cuatro motores NO se ejecutaron independientemente. **CI SUCCESS NO equivale a finanzas verificadas.** Ver [dictamen canónico](QDLE_P0_FINANCIAL_CALCULATION_INVALIDATION_AND_REPAIR_2026-10-08.md). No usar PnL, DD, ni bindings previos como certificación o resultados actuales de mercado.
+
+
 **Fecha:** 2026-10-08.
 **Referencia reproducible:** [QDLE 3368 Current-Contract Replay #37831818976](https://github.com/mezas3238-hue/qore-core/actions/runs/37831818976), SHA `3e86cbe563ad64c1ab85757a6f6b1cb9cc039e17`, CI **SUCCESS**, artefacto `qdle-3368-dual-capital-RESEARCH-37831818976` (3 reportes JSON completos).
 **Código:** `scripts/qdle_3368_dual_ledger_replay.py` + kernel QDLE. PR #735 DRAFT, NO LIVE.
