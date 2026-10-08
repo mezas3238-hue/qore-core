@@ -49,7 +49,7 @@ class FourMotorLotageTests(unittest.TestCase):
         c=setup(equity_usd=D(120),bank_free_usd=D(120),margin_left_usd=D(9000))
         p=coordinate_four_motor_lotage(c)
         self.assertEqual(p.requested_stop_usd,D("5.90"))
-        self.assertEqual(p.selected_stop_usd,D("2.36")) # 7x or 8x? 120/15.299 = 7.84 => 7x
+        self.assertEqual(p.selected_stop_usd,D("2.065")) # 120/15.299 = 7.84 => 7x
         self.assertEqual(p.selected_multiplier,7)
 
     def test_bank_is_never_spent_by_attack(self):
