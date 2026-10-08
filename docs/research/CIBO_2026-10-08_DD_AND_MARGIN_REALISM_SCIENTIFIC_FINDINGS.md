@@ -111,3 +111,13 @@ The new floor-preserving internal rebalance case `transfer-floor-m2-reclaim` is 
 6. **Certification / live deployment**: BLOCKED.
 
 No high-dimensional after-the-fact ridge may be called certification evidence; keep all research cases isolated and do not modify source-of-truth carrier until every hard criterion is proven. This supplement complements the original master handoff and open issue #733.
+
+## Final dual-bottleneck DD ledger atlas (post-transfer, exact)
+
+[Run 37769298700](https://github.com/mezas3238-hue/qore-core/actions/runs/37769298700) completed **SUCCESS** from SHA256-checked original 3-case pilot artifact. On `transfer-floor-m2-reclaim`, top replay DD peaks:
+- 2020-04-03 to 2020-05-13 **34.924014%**, peak equity **USD 706.9201**, amount beyond a hypothetical 25% peak-to-trough loss ~**USD 70.15**, ATTACK ~ -252.296887, MEDIUM ~ +5.412013.
+- 2021-02-09 to 2021-03-03 **34.918%**, peak equity ~**USD 56969.44**, amount beyond 25% ~**USD 5650.08**, strongly ATTACK losses ~ -19901.63. This is a near-tie with 2020. Eliminating the 2020 episode alone cannot achieve 25%.
+- 2019-07-19 MEDIUM **34.735%**; 2020-09-10 ATTACK **34.504%**; 2020-03-23 **32.190%**; 2020-08-19 **31.890%**; 2020-06-24 **30.835%**; 2020-05-21 **30.808%**; 2020-01-31 **29.455%**; 2019-11-04 **28.449%**. All ten historical episodes exceed 25%. Do not treat amounts beyond 25% as directly additive: each intervention changes the equity path.
+
+**Causal research priority after accounting fixes:** design multi-episode ex-ante projected risk and portfolio-concurrency envelope with still-active Trader entries and post-entry context; independently measure protected winners and losses, reserve/cushion pressure and compounded terminal capital. High-multiplier broad caps provably violate the capital floor in current sweeps. No identity/date/outcome policy hardcoding. Report both pure DD-physical and strict-safe + GL comparisons after every test. This historical holdout is already mined extensively and will require entirely sealed fresh OOS after freeze.
+
