@@ -23,12 +23,11 @@ from qore.infrastructure.account_wide_risk import (
 from qore.infrastructure.cibo_account_capital_mission import (
     CiboAccountCapitalIdentity,
 )
-
 from qore.infrastructure.cibo_four_motor_policy import (
+    ZERO,
     FourMotorObservation,
     FourMotorPolicyError,
     FourMotorProposal,
-    ZERO,
 )
 
 _SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
