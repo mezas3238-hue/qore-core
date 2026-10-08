@@ -7,6 +7,7 @@ accepted by QDLE. Broker-deal provenance must be authenticated upstream.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from types import MappingProxyType
 from datetime import datetime, timezone
 from decimal import Decimal
 import hashlib
@@ -195,8 +196,11 @@ class FourMotorProposal:
             "ADAPTIVE_LEVERAGE": {"approved_max_lots", "approved_margin_usd"},
             "PORTFOLIO_COMPOUND": {"approved_source_funds_usd"},
         }[self.producer]
-        if set(self.limits) != required or not self.reason_codes:
+        if set(self.limits) != required or not isinstance(self.reason_codes, tuple) or not self.reason_codes:
             raise FourMotorPolicyError("producer limits or explanation missing")
+        if any(not isinstance(reason, str) or not reason for reason in self.reason_codes):
+            raise FourMotorPolicyError("reason code must identify an independent decision")
+        object.__setattr__(self, "limits", MappingProxyType(dict(self.limits)))
         for name, value in self.limits.items():
             try:
                 nonnegative(name, Decimal(value))
@@ -217,6 +221,8 @@ class FourMotorProposal:
                     broker_profit_valuation_complete=s.broker_profit_valuation_complete,
                     broker_margin_valuation_complete=s.broker_margin_valuation_complete,
                     realized_event_ids=[x.event_id for x in s.reconciled_cashflows],
+                    decision_state="SHADOW_ADVISORY_ONLY",
+                    rationale="; ".join(self.reason_codes),
                     reason_codes=list(self.reason_codes), **self.limits)
 
 
