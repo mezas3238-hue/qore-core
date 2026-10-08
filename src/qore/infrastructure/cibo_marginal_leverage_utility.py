@@ -15,6 +15,12 @@ from qore.infrastructure.cibo_capital_efficient_exposure import (
     CiboCapitalEfficientExposureState,
 )
 from qore.infrastructure.cibo_compound_capital import CiboCompoundCapitalError
+from qore.infrastructure.cibo_four_motor_policy import (
+    ZERO,
+    FourMotorObservation,
+    FourMotorPolicyError,
+    FourMotorProposal,
+)
 from qore.infrastructure.cibo_marginal_capital_utility_evidence import (
     MarginalCapitalUtilityEvidence,
 )
@@ -288,3 +294,26 @@ def assess_marginal_leverage_utility(
         reserve_utility_per_capital=reserve_utility_per_capital,
         reason_codes=tuple(sorted(set(reasons))),
     )
+
+
+
+def propose_p0_adaptive_leverage_vote(observation: FourMotorObservation) -> FourMotorProposal:
+    """Real USD margin and broker-unit lot capacity, not abstract leverage."""
+    if not isinstance(observation, FourMotorObservation):
+        raise FourMotorPolicyError("canonical observation required")
+    available = max(ZERO, observation.broker_free_margin_usd
+                    - observation.broker_margin_reservations_usd)
+    margin_cap = available * Decimal("0.8")
+    volume_room = min(
+        max(ZERO, observation.symbol_max_lots - observation.open_and_reserved_direction_lots),
+        max(ZERO, observation.provider_direction_max_lots
+            - observation.open_and_reserved_direction_lots),
+    )
+    max_lots = min(volume_room, margin_cap / observation.broker_margin_usd_per_lot)
+    reasons = ("BROKER_MARGIN_PER_WHOLE_LOT_USD",
+               "FREE_MARGIN_MINUS_HELD_MARGIN",
+               "DIRECTIONAL_AND_PROVIDER_VOLUME_CONCENTRATION",
+               "BROKER_ORDER_CHECK_STILL_REQUIRED")
+    return FourMotorProposal("ADAPTIVE_LEVERAGE", observation,
+                             {"approved_max_lots": str(max_lots),
+                              "approved_margin_usd": str(margin_cap)}, reasons)
