@@ -39,11 +39,13 @@ jobs:
         env:
           PYTHONPATH: src
         run: python -m unittest discover -s tests/infrastructure -p test_cibo_four_motor_policy_p0.py -v
-      - name: Existing four research authority regression suites
+      - name: Existing research authority regression suites (pytest tests)
         env:
           PYTHONPATH: src
         run: |
-          python -m unittest discover -s tests/infrastructure -p test_cibo_account_sizing_authority.py -v
-          python -m unittest discover -s tests/infrastructure -p test_cibo_core_compound_portfolio.py -v
-          python -m unittest discover -s tests/infrastructure -p test_cibo_marginal_leverage_utility.py -v
-          python -m unittest discover -s tests/infrastructure -p test_qdle_four_motor_evidence.py -v
+          python -m pip install --disable-pip-version-check pytest
+          python -m pytest -o addopts='' -q \
+            tests/infrastructure/test_cibo_account_sizing_authority.py \
+            tests/infrastructure/test_cibo_core_compound_portfolio.py \
+            tests/infrastructure/test_cibo_marginal_leverage_utility.py \
+            tests/infrastructure/test_qdle_four_motor_evidence.py
