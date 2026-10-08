@@ -1,3 +1,160 @@
+# LATEST STATE OVERRIDE — 2026-10-08 10:32 UTC — CARRIER35240
+
+> **THIS BLOCK IS THE AUTHORITATIVE CURRENT STATE. IT OVERRIDES THE 36.17% SNAPSHOT IMMEDIATELY BELOW.**
+>
+> A concurrent research run finished just before the prior handoff commit and pushed the DD frontier lower. Preserve the older MASTER UPDATE below as lineage, but continue from this block.
+
+**Repository:** `mezas3238-hue/qore-core`  
+**Branch:** `agent/cibo-causal-expectation-leakage-fix-001`  
+**HEAD immediately before this correction:** `022878a8ece7e4ac9888e740fb09653751c2ce50`  
+**Canonical handoff:** `docs/research/CIBO_MASTER_CONTINUITY_HANDOFF_2026-10-07_TRUE_CEILING_DD_AND_ATTACK_LOSS_COMPRESSION.md`
+
+## Current best active dominant carrier — `m1-0700`
+
+Decisive run:
+
+- **37763827843 — QORE CIBO Carrier35838 PostW2 M1 Extension Ridge**
+- workflow: `.github/workflows/cibo-trader-lab-carrier35838-postw2-m1-extension-ridge.yml`
+- head SHA: **79500d771360f14a94dcc1a261cf7344a870dfca**
+- case: **m1-0700**
+- strict Pareto: **true**
+- dominates-current: **true**
+- floor-valid: **true**
+- entries: **3,368 / 3,368**
+- sovereign breach: **0 by workflow invariants**
+
+Exact metrics:
+
+- terminal capital: **USD 670,926.0074625642083966569884**
+- capital above frozen USD 582,440.0252953678696769360345 floor:
+  **USD 88,485.9821671963387197209539**
+- max DD: **35.24018942564197395053048754%**
+- total gross loss: **USD 959,362.0571599843609460255812**
+- ATTACK gross loss: **USD 957,795.9847244472650145654346**
+- PF: **1.699283448262004584163293675**
+- ATTACK override count: **851**
+- bootstrap override count: **108**
+
+Improvement versus Carrier35838 comparator:
+
+- capital: **+$0.1562844396065304681218**
+- DD: **-0.5977788650072341990019841627 percentage points**
+- total GL: **-$7.9458910893656818794540**
+- ATTACK GL: **-$15.9391178666946602949352**
+- therefore it improves all dominant-current gates used by this workflow.
+
+## Current max-DD bottleneck after m1-0700
+
+The max DD migrated again.
+
+- peak: **2020-04-03T03:05:00+00:00**
+- trough: **2020-05-13T06:15:00+00:00**
+- max DD: **35.2401894256%**
+- net by mode inside max-DD attribution:
+  - **ATTACK: -USD 253.8994163924961170769880446**
+  - **MEDIUM: +USD 5.412013474518243177149564713**
+
+Therefore the immediate bottleneck is no longer the 2019 MEDIUM plateau. The next architect must now perform fresh forensics on the **2020 Apr–May ATTACK-dominated episode**.
+
+Do NOT keep tightening the 2019 MEDIUM M1 control just because it produced the last jump. The bottleneck has migrated.
+
+## How the last two jumps occurred
+
+### Run 37763614889 — Carrier36173 PostW2 M1 Ridge
+
+Starting from `tb-6500` at 36.17370%, a MEDIUM M1 extension found a narrow safe boundary.
+
+Important dominant cases:
+
+- m1-2250:
+  - capital USD 670,937.1943
+  - DD 36.005834%
+  - strict Pareto + dominates-current
+- m1-2300:
+  - DD 36.039407%
+- m1-2425:
+  - DD 36.123340%
+
+A more aggressive DD-first point:
+
+- m1-2000:
+  - DD **35.837968%**
+  - capital USD 670,925.8512
+  - but GL was slightly worse versus tb-6500, so it was not strict Pareto in that direct comparison.
+
+This DD-first point became **Carrier35838** for the next extension sweep.
+
+### Run 37763827843 — Carrier35838 PostW2 M1 Extension Ridge
+
+The extension sweep resolved a new safe region.
+
+Important cases:
+
+- **m1-0700 — current best**
+  - DD 35.240189%
+  - dominates-current
+- m1-0750:
+  - DD 35.241528%
+  - dominates-current
+- m1-0800:
+  - DD 35.254047%
+  - dominates-current
+- m1-0900:
+  - DD 35.281002%
+  - dominates-current
+- m1-1000:
+  - DD 35.307956%
+  - dominates-current
+- m1-1300:
+  - DD 35.388820%
+  - dominates-current
+- m1-1500:
+  - DD 35.502237%
+  - dominates-current
+- m1-1950:
+  - DD 35.804395%
+  - dominates-current
+
+Rejected cliff below the safe region:
+
+- m1-0500 / m1-0600:
+  - terminal capital ~USD 551,746
+  - below frozen floor
+  - DD ~50.26%
+  - therefore reject.
+
+This is another discrete boundary: **0.0700 is currently the safe edge; pushing to 0.0600/0.0500 destroys the trajectory.**
+
+## Immediate next mission
+
+The program is now only ~0.2402 percentage points above the 35% milestone.
+
+But 35% is NOT the goal.
+
+Next steps:
+
+1. freeze `m1-0700` exact parameters and artifact;
+2. build a fresh top-10 DD atlas from `m1-0700`;
+3. deep-forensics the 2020 Apr–May max episode;
+4. identify the handful of ATTACK losses making ~USD 253.9 net damage;
+5. compare those losses against winners with the same causal pre-entry context;
+6. use context-only ATTACK lifecycle or another highly localized causal control;
+7. avoid broad risk-budget/cap changes because prior work showed cliffs;
+8. break <35%;
+9. immediately re-forensics the migrated max;
+10. continue to <30%, then <=25%; ideal <=20%.
+
+## Certification status
+
+Still **NOT CERTIFIED**.
+
+- Current DD **35.24019%**
+- Ideal target **<=20%**
+- Maximum tolerable **<=25%**
+- scientific certification battery begins only after the DD architecture reaches the target zone and is frozen.
+
+---
+
 # MASTER UPDATE — 2026-10-08 — DD COMPRESSION PROGRAM
 
 > **THIS SECTION OVERRIDES ANY OLDER "CURRENT STATE", "BEST CARRIER", "NEXT STEP" OR "PRIORITY" STATEMENT BELOW.**
