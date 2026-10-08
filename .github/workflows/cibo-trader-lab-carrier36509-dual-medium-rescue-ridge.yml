@@ -300,3 +300,72 @@ jobs:
           run_case "dm-r225-040" -0.225 -0.40 &
           run_case "dm-r200-060" -0.20 -0.60 &
           run_case "dm-r200-040" -0.20 -0.40 &
+
+          wait
+
+      - name: Rank floor-valid and Pareto candidates
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os
+          from decimal import Decimal
+          from pathlib import Path
+          root=Path(os.environ["RUNNER_TEMP"])/"result"
+          floor_cap=Decimal("582440.0252953678696769360345")
+          cur_cap=Decimal("671077.4137959161431778653112")
+          cur_dd=Decimal("0.3650943166421363019407561730785626240659057224705174103296661973063289126248490163786508681431170765")
+          cur_tgl=Decimal("957746.5816508499366564633076")
+          cur_agl=Decimal("956190.5468564571041386829792")
+          rows=[]
+          for pth in sorted(root.glob("*.json")):
+              p=json.loads(pth.read_text())
+              assert p["decision_count"]==p["trade_count"]==3368
+              assert p["economic_group_report"]["all_entries_preserved"] is True
+              assert Decimal(p["attack_sovereign_breach_usd"])==0
+              f=p["engineering_sensor_report"]["execution_funnel"]
+              assert f["final_trade_count"]==3368
+              assert f["sizing_medium_rejected_count"]==0 and f["sizing_medium_deferred_count"]==0
+              cap=Decimal(p["ending_total_capital_usd"]); dd=Decimal(p["max_drawdown_fraction"])
+              loss=p["economic_group_report"]["portfolio_loss_report"]
+              tgl=Decimal(loss["total_gross_loss_usd"]); agl=Decimal(loss["attack_gross_loss_usd"])
+              strict=(cap>=floor_cap and dd<cur_dd and tgl<=cur_tgl and agl<=cur_agl)
+              dominant=(cap>=cur_cap and dd<cur_dd and tgl<=cur_tgl and agl<=cur_agl)
+              floor_valid=(cap>=floor_cap and dd<cur_dd)
+              eg=p["economic_group_report"]; pl=p["position_lifecycle_report"]; attr=p["max_drawdown_attribution"]
+              rows.append({
+                "case":pth.stem,
+                "capital":str(cap),"capital_vs_current":str(cap-cur_cap),"capital_vs_floor":str(cap-floor_cap),
+                "dd":str(dd),"dd_pct":str(dd*Decimal("100")),"dd_delta":str(dd-cur_dd),
+                "total_gross_loss":str(tgl),"total_gl_delta":str(tgl-cur_tgl),
+                "attack_gross_loss":str(agl),"attack_gl_delta":str(agl-cur_agl),
+                "profit_factor":loss["total_profit_factor"],
+                "stress_confidence_bind":eg.get("attack_stress_confidence_taper_bind_count",0),
+                "stress_confidence_risk_budget_bind":eg.get("attack_stress_confidence_risk_budget_bind_count",0),
+                "attack_override_count":pl.get("attack_override_applied_count",0),
+                "bootstrap_override_count":pl.get("bootstrap_override_applied_count",0),
+                "maxdd_peak":attr["peak_at"],"maxdd_trough":attr["trough_at"],
+                "maxdd_net_by_mode":attr["net_by_mode_usd"],
+                "floor_valid_dd":floor_valid,
+                "strict_pareto":strict,"dominates_current":dominant,
+                "dd_le_35":floor_valid and dd<=Decimal("0.35"),
+                "dd_le_30":floor_valid and dd<=Decimal("0.30"),
+                "dd_le_25":floor_valid and dd<=Decimal("0.25"),
+                "dd_le_22":floor_valid and dd<=Decimal("0.22"),
+              })
+          rows.sort(key=lambda r:(not r["dd_le_22"],not r["dd_le_25"],not r["dd_le_30"],not r["dd_le_35"],not r["floor_valid_dd"],Decimal(r["dd"]),-Decimal(r["capital"]),Decimal(r["total_gross_loss"])))
+          print("CARRIER36509_DUAL_MEDIUM_RESCUE_RIDGE="+json.dumps(rows,sort_keys=True))
+          print("FLOOR_VALID_DD_CASES="+json.dumps([r["case"] for r in rows if r["floor_valid_dd"]]))
+          print("STRICT_PARETO_CASES="+json.dumps([r["case"] for r in rows if r["strict_pareto"]]))
+          print("DOMINATES_CURRENT_CASES="+json.dumps([r["case"] for r in rows if r["dominates_current"]]))
+          print("DD_LE_35_CASES="+json.dumps([r["case"] for r in rows if r["dd_le_35"]]))
+          print("DD_LE_30_CASES="+json.dumps([r["case"] for r in rows if r["dd_le_30"]]))
+          print("DD_LE_25_CASES="+json.dumps([r["case"] for r in rows if r["dd_le_25"]]))
+          print("DD_LE_22_CASES="+json.dumps([r["case"] for r in rows if r["dd_le_22"]]))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-carrier36509-dual-medium-rescue-${{ github.run_id }}
+          path: ${{ runner.temp }}/result/*.json
+          if-no-files-found: error
+          retention-days: 90
