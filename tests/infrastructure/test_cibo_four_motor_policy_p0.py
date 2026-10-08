@@ -49,6 +49,10 @@ def observation(**kwargs):
         stress_extra_loss_usd_per_lot=D("0"), broker_margin_usd_per_lot=D("1000"),
         symbol_max_lots=D("40"), provider_direction_max_lots=D("40"),
         open_and_reserved_direction_lots=D("0"),
+        broker_quote_at=T,
+        broker_fees_complete=True,
+        broker_profit_valuation_complete=True,
+        broker_margin_valuation_complete=True,
     )
     options.update(kwargs)
     return FourMotorObservation(**options)
@@ -208,6 +212,31 @@ class FourMotorEconomicTest(unittest.TestCase):
             self.assertEqual(len(report.arms), 5)
             self.assertFalse(report.pnl_attributed)
         self.assertEqual(len(seen), 3368)
+
+
+    def test_six_symbol_both_sides_provenance_and_staleness(self):
+        symbols = ("AUDJPY", "EURUSD", "GBPJPY", "GBPUSD", "XAUUSD", "NDX100")
+        for i, symbol in enumerate(symbols, start=1):
+            for side in ("BUY", "SELL"):
+                o = observation(symbol=symbol, side=side,
+                                stop_loss_usd_per_lot=D(50*i),
+                                broker_margin_usd_per_lot=D(200*i))
+                four = votes(o)
+                intent = build_four_motor_qdle_intent(
+                    observation=o, votes=four,
+                    entry_price=D("100"),
+                    stop_price=D("99") if side == "BUY" else D("101"))
+                self.assertEqual(intent.symbol, symbol)
+                self.assertEqual(intent.side, side)
+                self.assertLessEqual(intent.sizing_cap_usd, D("3"))
+        with self.assertRaisesRegex(FourMotorPolicyError, "stale"):
+            observation(broker_quote_at=T-timedelta(seconds=11))
+        with self.assertRaisesRegex(FourMotorPolicyError, "future"):
+            observation(broker_quote_at=T+timedelta(seconds=1))
+        for flag in ("broker_fees_complete", "broker_profit_valuation_complete",
+                     "broker_margin_valuation_complete"):
+            with self.assertRaisesRegex(FourMotorPolicyError, "incomplete"):
+                observation(**{flag:False})
 
 
 if __name__ == "__main__":
