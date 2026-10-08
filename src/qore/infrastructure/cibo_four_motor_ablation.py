@@ -8,15 +8,18 @@ No credit is given to a motor with a tied/nonbinding limit.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from decimal import Decimal, ROUND_CEILING, ROUND_FLOOR
+from decimal import ROUND_CEILING, ROUND_FLOOR, Decimal
 
-from qore.infrastructure.cibo_four_motor_policy import (
-    FourMotorObservation, FourMotorProposal, FourMotorPolicyError, ZERO, positive,
-)
 from qore.infrastructure.cibo_account_sizing_authority import propose_p0_sizing_vote
 from qore.infrastructure.cibo_compound_capital import propose_p0_compound_vote
-from qore.infrastructure.cibo_marginal_leverage_utility import propose_p0_adaptive_leverage_vote
 from qore.infrastructure.cibo_core_compound_portfolio import propose_p0_portfolio_vote
+from qore.infrastructure.cibo_four_motor_policy import (
+    ZERO,
+    FourMotorObservation,
+    FourMotorPolicyError,
+    positive,
+)
+from qore.infrastructure.cibo_marginal_leverage_utility import propose_p0_adaptive_leverage_vote
 
 NAMES = ("SIZING", "CIBO_COMPOUND", "ADAPTIVE_LEVERAGE", "PORTFOLIO_COMPOUND")
 
@@ -73,10 +76,16 @@ def ablate_four_motors(
             "SOURCE_UNRESERVED": observation.source_available_usd,
             "SIZING": Decimal(proposals["SIZING"].limits["approved_risk_usd"])
                       if removed != "SIZING" else observation.base_entry_budget_usd,
-            "CIBO_COMPOUND": Decimal(proposals["CIBO_COMPOUND"].limits["approved_risk_usd"])
-                             if removed != "CIBO_COMPOUND" else observation.base_entry_budget_usd,
-            "PORTFOLIO_COMPOUND": Decimal(proposals["PORTFOLIO_COMPOUND"].limits["approved_source_funds_usd"])
-                                  if removed != "PORTFOLIO_COMPOUND" else observation.source_available_usd,
+            "CIBO_COMPOUND": (
+                Decimal(proposals["CIBO_COMPOUND"].limits["approved_risk_usd"])
+                if removed != "CIBO_COMPOUND"
+                else observation.base_entry_budget_usd
+            ),
+            "PORTFOLIO_COMPOUND": (
+                Decimal(proposals["PORTFOLIO_COMPOUND"].limits["approved_source_funds_usd"])
+                if removed != "PORTFOLIO_COMPOUND"
+                else observation.source_available_usd
+            ),
         }
         margin = (Decimal(proposals["ADAPTIVE_LEVERAGE"].limits["approved_margin_usd"])
                   if removed != "ADAPTIVE_LEVERAGE" else margin_free)
@@ -90,7 +99,9 @@ def ablate_four_motors(
         }
         caps = {**{k: v / all_in for k, v in risk_caps.items()}, **physical_caps}
         limiting = min(caps.values())
-        quantized = max(ZERO, (limiting / lot_step).to_integral_value(rounding=ROUND_FLOOR) * lot_step)
+        quantized = max(
+            ZERO, (limiting / lot_step).to_integral_value(rounding=ROUND_FLOOR) * lot_step
+        )
         funded = quantized >= legal_min
         binding = tuple(sorted(k for k, v in caps.items() if v == limiting))
         arms.append(ShadowCapacityArm(
