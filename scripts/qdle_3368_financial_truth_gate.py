@@ -47,10 +47,19 @@ def audit(report: dict) -> dict:
         if reserved > budget + D("0.000000001"):
             raise AssertionError("RESERVATION_EXCEEDS_5PCT_CAP")
         if symbol in {"AUDJPY", "EURUSD", "GBPJPY", "GBPUSD"}:
-            if abs(fee - D("7") * lots) > D("0.000000001"):
-                raise AssertionError("FOREX_ENTRY_FEE_NOT_7_USD_PER_LOT")
+            # Baseline: opening only; new scenario: $7 open + $7 close per lot.
+            fx_roundtrip = report.get("economic_motor_mode") == "independent_four_motors"
+            expected_per_lot = D("14") if fx_roundtrip else D("7")
+            if abs(fee - expected_per_lot * lots) > D("0.000000001"):
+                raise AssertionError("FOREX_FEE_NOT_MATCHING_DECLARED_SCENARIO")
         if symbol == "NDX100":
-            checks["INDEX_FEE_MISSING_ASSUMED_ZERO"] += 1
+            if report.get("economic_motor_mode") == "independent_four_motors":
+                sensitivity = D(report["ndx_assumed_total_fee_usd_per_lot"])
+                if abs(fee - sensitivity * lots) > D("0.000000001"):
+                    raise AssertionError("INDEX_SENSITIVITY_FEE_INCONSISTENT")
+                checks["INDEX_FEE_UNKNOWN_USING_EXPLICIT_SENSITIVITY"] += 1
+            else:
+                checks["INDEX_FEE_MISSING_ASSUMED_ZERO"] += 1
             per["index_fee_unknown"] += 1
         if (e.get("four_engine_caps_usd", {}).get("SIZING") ==
                 e.get("four_engine_caps_usd", {}).get("CIBO_COMPOUND")):
@@ -80,10 +89,14 @@ def audit(report: dict) -> dict:
     blockers = [
         "ONLY_HISTORICAL_2019_2022_R_OUTCOMES_AVAILABLE",
         "SCREENSHOT_2026_MARGINS_BACKDATED_AS_HISTORICAL_SNAPSHOT",
-        "NO_FOUR_INDEPENDENT_ENGINE_DECISIONS_OR_ABLATIONS",
+        ("FOUR_INDEPENDENT_MOTORS_USING_SIMULATED_NOT_AUTHENTICATED_ECONOMIC_OBSERVATIONS"
+         if report.get("economic_motor_mode") == "independent_four_motors"
+         else "NO_FOUR_INDEPENDENT_ENGINE_DECISIONS_OR_ABLATIONS"),
         "NO_MT5_BID_ASK_FILL_OR_REALIZED_TRADE_RECEIPTS",
         "NO_VERIFIED_FLOATING_EQUITY_DRAWNDOWN",
-        "CLOSE_SIDE_COMMISSIONS_AND_SPREAD_UNVERIFIED",
+        ("ROUNDTRIP_COSTS_ARE_RESEARCH_SENSITIVITY_NOT_BROKER_STATEMENT"
+         if report.get("economic_motor_mode") == "independent_four_motors"
+         else "CLOSE_SIDE_COMMISSIONS_AND_SPREAD_UNVERIFIED"),
         "XAU_PERCENT_COMMISSION_BASIS_UNKNOWN",
         "NDX100_BROKER_COMMISSION_UNKNOWN",
         "SWAP_ROLLOVER_TIMESTAMP_NOT_SERVER_VERIFIED",
