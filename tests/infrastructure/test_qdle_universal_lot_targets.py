@@ -164,6 +164,38 @@ class UniversalLotTargetTests(unittest.TestCase):
         )
         self.assertEqual((blocked.state, blocked.lots), ("UNFUNDABLE", D("0")))
 
+    def test_hundred_lot_demand_never_overrides_dynamic_five_percent_nav(self):
+        # Broker equity $2000 is only a margin constraint. The risk base is
+        # QORE's genuine $60 NAV, giving a $3 all-in per-entry ceiling.
+        first_time = T + timedelta(seconds=1)
+        self.engine.publish_account(QDLEAccount(
+            "broker-account-test", "FundedNext", "USD", 2, first_time,
+            D("2000"), D("2000"), D("1900"), D("3"),
+            D("3"), D("0"), D("60"),
+        ))
+        small = reserve_cibo_entry(
+            self.engine, opportunity("nav60"),
+            limits(target="100", seq=2), first_time,
+        )
+        self.assertEqual(small.lots, D("0.25"))
+        self.assertEqual(small.total_risk_usd, D("3.00"))
+        self.engine.confirm_rejection("nav60", "SYNTHETIC_BROKER_NO_FILL")
+
+        # No fixed $3 ceiling: with fresh, independently provided NAV $120,
+        # the same stop, fees and 100-lot request can fund up to $6.
+        next_time = T + timedelta(seconds=2)
+        self.engine.publish_account(QDLEAccount(
+            "broker-account-test", "FundedNext", "USD", 3, next_time,
+            D("2000"), D("2000"), D("1900"), D("6"),
+            D("6"), D("0"), D("120"),
+        ))
+        doubled = reserve_cibo_entry(
+            self.engine, opportunity("nav120"),
+            limits(target="100", seq=3), next_time,
+        )
+        self.assertEqual(doubled.lots, D("0.50"))
+        self.assertEqual(doubled.total_risk_usd, D("6.00"))
+
     def test_broker_grid_and_target_smaller_than_minimum_fail_closed(self):
         unrepresentable = reserve_cibo_entry(
             self.engine, opportunity("sub-minimum"),
