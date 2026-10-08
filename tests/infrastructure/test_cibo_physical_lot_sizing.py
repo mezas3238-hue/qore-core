@@ -8,6 +8,7 @@ from qore.infrastructure.cibo_physical_lot_sizing import (
     CiboLotSizingInput,
     compute_cibo_lot_sizing,
     stop_loss_usd_per_lot,
+    quote_cibo_trader_opportunity_lots,
 )
 
 
@@ -144,6 +145,49 @@ class CiboDynamicLotSizingTests(TestCase):
             ).lots,
             D("0.10"),
         )
+
+    def test_real_trader_envelope_yields_three_dollar_lot(self) -> None:
+        from qore.infrastructure.account_wide_risk import TraderLineage
+        from qore.infrastructure.cibo_capital_management_authority import (
+            TraderOpportunityEnvelope,
+        )
+        opportunity = TraderOpportunityEnvelope(
+            trader_id=TraderLineage.R38_EURUSD,
+            signal_fingerprint="test-fingerprint",
+            qore_symbol="EURUSD", provider_symbol="EURUSD",
+            side="long", entry_type="MARKET",
+            intended_entry=D("1.1000"), stop_loss=D("1.0950"),
+            take_profit=D("1.1100"),
+            stop_loss_per_volume=D("30"),
+            margin_per_volume=D("50"),
+            volume_step=D("0.01"), minimum_volume=D("0.01"),
+            maximum_volume=D("10"),
+        )
+        args = dict(
+            requested_loss_budget_usd=D("3"),
+            provider_cost_usd_per_lot=D("0"),
+            sizing_risk_cap_usd=D("3"),
+            cibo_compound_risk_cap_usd=D("3"),
+            portfolio_unreserved_cash_usd=D("0"),
+            sovereign_unreserved_cash_usd=D("3"),
+            source_lane="SOVEREIGN_BANK",
+            leverage_available_margin_usd=D("500"),
+            sovereign_unreserved_risk_usd=D("3"),
+            leverage_max_lots=D("10"),
+        )
+        proposal = quote_cibo_trader_opportunity_lots(opportunity, **args)
+        self.assertEqual(proposal.lots, D("0.10"))
+        self.assertEqual(proposal.all_in_loss_if_stopped_usd, D("3"))
+
+        # Methodology minimum execution steps cannot be silently ignored.
+        strict = replace(
+            opportunity,
+            minimum_execution_steps=4,
+            stop_loss_per_volume=D("300"),
+        )
+        blocked = quote_cibo_trader_opportunity_lots(strict, **args)
+        self.assertEqual(blocked.status, "UNFUNDABLE_BROKER_MINIMUM")
+        self.assertEqual(blocked.physical_min_lots, D("0.04"))
 
     def test_invalid_or_unknown_broker_values_fail_closed(self) -> None:
         for overrides in (
