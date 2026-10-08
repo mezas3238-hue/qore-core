@@ -1025,6 +1025,18 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--ceiling-attack-state-pressure-capital-floor",
+        type=Decimal,
+        default=None,
+        help="Optional live-capital floor for the causal ATTACK state-pressure gate.",
+    )
+    parser.add_argument(
+        "--ceiling-attack-state-pressure-capital-ceiling",
+        type=Decimal,
+        default=None,
+        help="Optional live-capital ceiling for the causal ATTACK state-pressure gate.",
+    )
+    parser.add_argument(
         "--ceiling-attack-state-pressure-market-posture",
         choices=("DEFENSIVE", "RECOVERY", "STABLE", "WATCH"),
         default=None,
@@ -1853,6 +1865,12 @@ def main() -> int:
         ),
         ceiling_attack_state_pressure_projected_risk_fraction_trigger=(
             args.ceiling_attack_state_pressure_projected_risk_fraction_trigger
+        ),
+        ceiling_attack_state_pressure_capital_floor=(
+            args.ceiling_attack_state_pressure_capital_floor
+        ),
+        ceiling_attack_state_pressure_capital_ceiling=(
+            args.ceiling_attack_state_pressure_capital_ceiling
         ),
         ceiling_attack_state_pressure_market_posture=(
             args.ceiling_attack_state_pressure_market_posture
