@@ -46,3 +46,6 @@ Worst baseline episode peak `2019-07-19T06:45Z` capital $79.76393861 to trough `
 - Do not touch other architect's source branch; this is isolated forensics, and owner approval of 5% micro risk is nominal budget rather than broker feasibility guarantee.
 
 **NO CERTIFICATION CLAIMS. CURRENT RESEARCH FRONTIER H21: $3589.26 / DD34.3537% / sovereign breach0 / 3368 entries.**
+
+## IMPORTANT: DISTINCT GLOBAL PERFORMANCE CEILING NOT REPLACED BY MICRO 5% RESULT
+The historic CIBO maximum-return sovereign economic floor **$582,440.03** (discovered with different 10,000x ATTACK compounding and DD ~65%) belongs to a *different unconstrained capital/execution experimental regime*. This branch H21 is a **new, owner-demanded $60 micro-capital 5% nominal-risk study**, so its $3,589.26 is not a superior replacement for that historical ceiling. Treat each as independent unsolved certification programs. None of these old model dollar outcomes demonstrates real broker-fundable gross capital; deployment must satisfy physical minimum lots, liquidity and intratrade margin. H21 zero internal sovereign breach is required but never sufficient proof.
