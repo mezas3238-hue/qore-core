@@ -104,6 +104,54 @@ def assess_replay(
     return result
 
 
+
+def assess_research_pareto(
+    candidate: dict[str, Any],
+    comparator: dict[str, Any],
+    *,
+    capital_floor: Decimal = DEFAULT_FLOOR,
+    minimum_real_dd_improvement: Decimal = Decimal("0.00000001"),
+) -> dict[str, Any]:
+    """Research-only comparison with meaningful DD delta and full Sovereign safety.
+
+    The previous ridge reporters can mislabel the *same* control as STRICT PARETO
+    when DD differs by ~1e-32 after Decimal serialization/recalculation.
+    Never promote a control/self-match due to sub-microscopic numerical drift.
+    """
+    if minimum_real_dd_improvement <= 0:
+        raise ValueError("DD improvement threshold must be positive")
+    cand_check = assess_replay(candidate, capital_floor=capital_floor)
+    cand_loss = candidate["economic_group_report"]["portfolio_loss_report"]
+    ref_loss = comparator["economic_group_report"]["portfolio_loss_report"]
+    if not isinstance(cand_loss, dict) or not isinstance(ref_loss, dict):
+        raise ValueError("missing gross-loss ledgers")
+    cdd = _decimal(candidate, "max_drawdown_fraction")
+    rdd = _decimal(comparator, "max_drawdown_fraction")
+    ccap = _decimal(candidate, "ending_total_capital_usd")
+    ctgl = _decimal(cand_loss, "total_gross_loss_usd")
+    rtgl = _decimal(ref_loss, "total_gross_loss_usd")
+    cagl = _decimal(cand_loss, "attack_gross_loss_usd")
+    ragl = _decimal(ref_loss, "attack_gross_loss_usd")
+    delta = rdd - cdd
+    passes = {
+        "meaningful_dd_improvement": delta >= minimum_real_dd_improvement,
+        "capital_above_frozen_floor": ccap >= capital_floor,
+        "gross_loss_nonworsening": ctgl <= rtgl,
+        "attack_gross_loss_nonworsening": cagl <= ragl,
+        "full_sovereign_integrity": cand_check["sovereign_integrity_pass"],
+        "all_trader_entries_preserved": cand_check["checks"]["all_entries_preserved"],
+    }
+    return {
+        "schema": "qore.cibo.research_sovereign_safe_pareto.v1",
+        "research_only": True,
+        "certified": False,
+        "dd_improvement_fraction": str(delta),
+        "dd_materiality_threshold_fraction": str(minimum_real_dd_improvement),
+        "checks": passes,
+        "strict_sovereign_safe_research_pareto": all(passes.values()),
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("replay", type=Path, nargs="+")
