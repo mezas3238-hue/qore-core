@@ -76,6 +76,7 @@ class QDLEAccount:
     qore_trading_capital_usd: Decimal
     positions: tuple[Position, ...] = ()
     covered_fill_tickets: tuple[str, ...] = ()
+    provider_loss_floor_usd: Decimal | None = None
 
     def __post_init__(self) -> None:
         if not self.account_id or self.provider != "FundedNext" or self.currency != "USD":
@@ -87,6 +88,8 @@ class QDLEAccount:
                      "sovereign_free_source_usd", "cushion_free_source_usd",
                      "qore_trading_capital_usd"):
             _d(name, getattr(self, name), zero=True)
+        if self.provider_loss_floor_usd is not None:
+            _d("provider_loss_floor_usd", self.provider_loss_floor_usd, zero=True)
         if len({p.ticket for p in self.positions}) != len(self.positions):
             raise QDLEError("duplicate MT5 position ticket")
         if len(self.covered_fill_tickets) != len(set(self.covered_fill_tickets)):
@@ -221,7 +224,8 @@ class QDLE:
                  enforce_finance_approval: bool = False,
                  strict_live_fee_evidence: bool = True,
                  strict_four_motor_evidence: bool = True,
-                 motor_hmac_keys: dict[str, bytes] | None = None) -> None:
+                 motor_hmac_keys: dict[str, bytes] | None = None,
+                 strict_provider_floor: bool = True) -> None:
         _d('entry_risk_fraction', entry_risk_fraction)
         if entry_risk_fraction != Decimal("0.05"):
             raise QDLEError("QDLE sovereign risk fraction is fixed at 5pct of QORE trading capital")
@@ -232,6 +236,7 @@ class QDLE:
         self.strict_live_fee_evidence = strict_live_fee_evidence
         self.strict_four_motor_evidence = strict_four_motor_evidence
         self.motor_hmac_keys = dict(motor_hmac_keys or {})
+        self.strict_provider_floor = strict_provider_floor
         if max_age_seconds <= 0:
             raise QDLEError("invalid maximum snapshot age")
         self.path = str(path)
@@ -328,6 +333,9 @@ class QDLE:
                 p["ticket"], p["symbol"], p["side"], Decimal(p["lots"])
             ) for p in raw["positions"]),
             covered_fill_tickets=tuple(raw["covered_fill_tickets"]),
+            provider_loss_floor_usd=(
+                Decimal(raw["provider_loss_floor_usd"])
+                if raw.get("provider_loss_floor_usd") is not None else None),
         )
 
     @staticmethod
@@ -581,6 +589,12 @@ class QDLE:
             free_source = max(Decimal(0), source_total - source_held)
             remaining_risk = max(Decimal(0), acc.qore_unreserved_risk_usd
                                  - total_held_risk)
+            if self.enforce_finance_approval and self.strict_provider_floor:
+                if acc.provider_loss_floor_usd is None:
+                    raise QDLEError("unknown provider loss floor: NO LIVE LOTAGE")
+                broker_loss_buffer = max(
+                    Decimal(0), acc.equity - acc.provider_loss_floor_usd - total_held_risk)
+                remaining_risk = min(remaining_risk, broker_loss_buffer)
             remaining_margin = max(Decimal(0), acc.free_margin - total_held_margin)
             causal_entry_budget = min(intent.requested_risk_usd,
                                       acc.qore_trading_capital_usd * self.entry_risk_fraction)
@@ -734,6 +748,11 @@ class QDLE:
             actual_loss = (quote.stop_loss_per_lot_usd + spec.fee_usd_per_lot
                            + current.slippage_usd_per_lot) * lots
             actual_margin = quote.margin_per_lot_usd * lots
+            if self.strict_provider_floor:
+                if account.provider_loss_floor_usd is None:
+                    raise QDLEError("LIVE provider loss floor unverified")
+                if account.equity - actual_loss <= account.provider_loss_floor_usd:
+                    raise QDLEError("LIVE stop risk could breach funded provider loss floor")
             if (actual_loss > Decimal(reservation[4])
                     or actual_margin > Decimal(reservation[5])
                     or actual_loss > account.qore_trading_capital_usd * self.entry_risk_fraction):
