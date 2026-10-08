@@ -156,6 +156,7 @@ def read_mt5_account_with_qore_treasury(
     sovereign_free_source_usd: Decimal,
     cushion_free_source_usd: Decimal,
     covered_fill_tickets: tuple[str, ...] = (),
+    provider_loss_floor_usd: Decimal | None = None,
     as_of: datetime | None = None,
 ) -> QDLEAccount:
     """Read broker account and positions, requiring *separate* QORE ledger cash.
@@ -198,4 +199,5 @@ def read_mt5_account_with_qore_treasury(
         sovereign_free_source_usd=sovereign_free_source_usd,
         cushion_free_source_usd=cushion_free_source_usd,
         positions=tuple(pos), covered_fill_tickets=covered_fill_tickets,
+        provider_loss_floor_usd=provider_loss_floor_usd,
     )
