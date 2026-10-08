@@ -1,0 +1,52 @@
+# CIBO — H8 ACTUAL ACCOUNT SOLVENCY: CRITICAL P0 / NO GO
+## 2026-10-08 — Research evidence, not certification
+
+**AUTHORITATIVE OVERRIDE of past claims that modeled USD 670k terminal capital proves a real funded return.** Previous 35–36% DD "physical frontiers" meant *final-capital-floor-valid within a permissive settlement ledger*, not broker/margin/funded-execution certified.
+
+## First physically unfunded mandatory executed position
+
+Independent H8 fail-closed branch: `agent/cibo-physical-solvency-failclosed-h8-001`, workflow [37766123403](https://github.com/mezas3238-hue/qore-core/actions/runs/37766123403), SUCCESS **only as a diagnostic**, NOT successful trading certification.
+
+Confirmed failure:
+`CIBO_H8_UNFUNDED_EXECUTED_TRADER_BASELINE`
+- Mandatory 1x MEDIUM source required USD **4.520000**.
+- Physically available sovereign source USD **4.215535347065321381962719165**.
+- Deficit about USD **0.30446465**, even though overall ledger risk/margin capacity checks were green.
+- H8 policy correctly fails the research simulation rather than silently booking an unfunded entry or rejecting the Trader. There is no permission to credit eventual model PnL.
+
+Root issue: the old engine demoted over-capacity ATTACK to MEDIUM 1x without rechecking source availability, stop-risk and margin before `selected.append`; MEDIUM losses debit the sovereign bank while bootstrap wins could flow to the ATTACK cushion. The invariant `attack_sovereign_breach_usd == 0` did not detect sovereign bank insolvency.
+
+## Quantified ledger losses across four modeled carriers
+
+Read-only audit: [37767203071](https://github.com/mezas3238-hue/qore-core/actions/runs/37767203071), SUCCESS, frozen preexisting replay artifacts and exact 3,368-entry checks.
+
+| Archived research carrier | Model capital final USD | Min sovereign bank USD | End bank USD | Sovereign bank protection floor | Violation |
+|---|---:|---:|---:|---:|---|
+| Global STRICT `f-m2850-h0060` | 670,974.1002 | **-54.6172** | **-45.9274** | 30 | YES |
+| Physical 35.24019 `m1-0700` | 670,926.0075 | **-54.6172** | **-45.9274** | 30 | YES |
+| Physical 35.20661 `m1cliff-n00624` | 670,925.7615 | **-54.6172** | **-45.9274** | 30 | YES |
+| Research 34.95158 `ctx2-a-s50` | 670,718.4234 | **-55.3845** | **-46.6947** | 30 | YES |
+
+The nominal global case's sovereign-floor breach is approximately **USD 84.6172**, in spite of `attack_sovereign_breach_usd == 0`. In the three first listed cases, terminal cushion exceeds the modeled total capital because a negative sovereign bank is offset against it. This **is not proof the whole combined account reached zero at a settlement timestamp**; the critical claim is precisely that a protected bank and mandatory entry were **not properly funded**. Intratrade mark-to-market, liquidation prices, minimum broker lots, costs and margin closeouts remain unproven.
+
+## New reproducible modern H8 research branch
+
+`agent/cibo-h8-modern-35206-hardgate-001` began from current canonical `62c053603fbb96af779c2632783270551bace8a4`, preserving the current CIBO model, not the outdated script in the original H8 branch. It adds the H8 physical funded-source/stop-risk/margin gate **before** any entry is booked.
+
+- `.github/workflows/cibo-h8-modern-physical-capacity-35206.yml` / [run 37766889084](https://github.com/mezas3238-hue/qore-core/actions/runs/37766889084): exact 35.20661% candidate under modern hard-gated engine. Check final verdict; **do not assume pass**.
+- `.github/workflows/cibo-h8-physical-bootstrap-share-ablation.yml` / [run 37767055543](https://github.com/mezas3238-hue/qore-core/actions/runs/37767055543): causally redirect bootstrap MEDIUM profit share between sovereign and cushion (0%,25%,50%,75%,100%) while demanding actually funded mandatory 1x. This is a **research ablation**; any floor miss or capacity breach is a rejection.
+- `.github/workflows/cibo-h8-historical-carrier-ledger-audit.yml` / [run 37767203071](https://github.com/mezas3238-hue/qore-core/actions/runs/37767203071): read-only legacy negative-bank audit, finished SUCCESS.
+
+## Binding decision / mandatory next work
+
+1. **Block promotion, trading deployment, certification and claiming withdrawable profits** based on the four archived curves. Keep them as historical *hypothesis research*, not real economically viable carriers.
+2. Prove every mandatory Trader entry is **broker-fundable at its actual minimum executable quantity** with the real cash ledger. CIBO remains responsible for post-execution management and may not veto a Trader's entry. If the original 3,368 positions cannot all fit USD60 initial available financing, document **infeasibility**; don't conjure new bank credits, suppress entries or use a 10,000x multiplier as a substitute.
+3. A valid redesign may reallocate **already realized, unreserved** available profits across sovereign/cushion *atomically* under explicit Sovereign authorization; it must reconcile money conservation on each decision, never re-label borrowed reserve as cash, never borrow future profit. It must still pass the full replay and all broker margin conditions.
+4. After true 1x funded execution, model **mark-to-market equity, intrabar worst adverse excursion, gap/slippage, stop-out margin and broker lot steps**, plus forced liquidation chronology. Terminal settlement PnL and DD alone are insufficient.
+5. Rebuild the REAL economic ceiling and max-DD frontiers from USD60 with the corrected physical model. The old floor USD582,440.03 is a **historical comparison target only**, not evidence a surviving cash path exists.
+6. Retain 3,368 required Trader entry intents/decisions for audit, but if an execution is physically impossible the test must emit **FAIL**, not log an imaginary executed trade. No claim that all 3,368 are fundable until proven.
+7. Only if a physically funded policy actually survives without negative bank/margin liquidation can CIBO resume genuine <=25% (ideal <=20%) DD optimization, temporal OOS, Monte Carlo, realistic costs, accounting reconciliation, Worst-Trader Rescue and Final Integrated Certification.
+
+**Current status: NOT CERTIFIED — REAL-CAPITAL-FUNDING BLOCKER (P0).**
+
+Further research-only context-stop DD reductions on the old permissive ledger cannot override this decision.
