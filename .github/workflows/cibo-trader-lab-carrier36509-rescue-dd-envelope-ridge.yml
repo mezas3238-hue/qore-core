@@ -289,25 +289,28 @@ jobs:
                 --ceiling-attack-drawdown-taper-fraction "$taper"
               )
             fi
-            python scripts/cibo_trader_lab_three_mode_ceiling.py "${common[@]}" "${extra[@]}" \
-              --output "$RUNNER_TEMP/result/${name}.json"
+            python -c 'import json,sys; print(json.dumps(sys.argv[1:]))' "${common[@]}" "${extra[@]}" \
+              --output "$RUNNER_TEMP/result/${name}.json" >> "$RUNNER_TEMP/cibo-cases.jsonl"
           }
 
-          run_case "carrier36509-tfb" -0.30 control control 0.15 0.60 &
-          run_case "re-a" -0.275 -0.60 0.30 0.16 0.70 &
-          run_case "re-b" -0.275 -0.50 0.275 0.15 0.65 &
-          run_case "re-c" -0.25 -0.70 0.275 0.15 0.65 &
-          run_case "re-d" -0.25 -0.60 0.25 0.14 0.60 &
-          run_case "re-e" -0.25 -0.50 0.25 0.14 0.60 &
-          run_case "re-f" -0.25 -0.40 0.23 0.13 0.55 &
-          run_case "re-g" -0.225 -0.60 0.25 0.14 0.60 &
-          run_case "re-h" -0.225 -0.50 0.23 0.13 0.55 &
-          run_case "re-i" -0.225 -0.40 0.22 0.12 0.50 &
-          run_case "re-j" -0.20 -0.50 0.23 0.13 0.55 &
-          run_case "re-k" -0.20 -0.40 0.22 0.12 0.50 &
-          run_case "re-l" -0.20 -0.30 0.20 0.10 0.45 &
+          run_case "carrier36509-tfb" -0.30 control control 0.15 0.60
+          run_case "re-a" -0.275 -0.60 0.30 0.16 0.70
+          run_case "re-b" -0.275 -0.50 0.275 0.15 0.65
+          run_case "re-c" -0.25 -0.70 0.275 0.15 0.65
+          run_case "re-d" -0.25 -0.60 0.25 0.14 0.60
+          run_case "re-e" -0.25 -0.50 0.25 0.14 0.60
+          run_case "re-f" -0.25 -0.40 0.23 0.13 0.55
+          run_case "re-g" -0.225 -0.60 0.25 0.14 0.60
+          run_case "re-h" -0.225 -0.50 0.23 0.13 0.55
+          run_case "re-i" -0.225 -0.40 0.22 0.12 0.50
+          run_case "re-j" -0.20 -0.50 0.23 0.13 0.55
+          run_case "re-k" -0.20 -0.40 0.22 0.12 0.50
+          run_case "re-l" -0.20 -0.30 0.20 0.10 0.45
 
-          wait
+          python scripts/cibo_trader_lab_batch_runner.py \
+            --cases "$RUNNER_TEMP/cibo-cases.jsonl" --workers 4 \
+            --m5-cache-dir "$GITHUB_WORKSPACE/.qore-cache/cibo-ultrafast-v1" \
+            --result-cache-dir "$GITHUB_WORKSPACE/.qore-cache/cibo-ultrafast-results"
 
       - name: Rank floor-valid and Pareto candidates
         run: |
