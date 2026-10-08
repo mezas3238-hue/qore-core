@@ -22,8 +22,8 @@ jobs:
           set -euo pipefail
           mkdir -p /tmp/qore-sov-audit/output
           for spec in global:11542893252 physical35p240:11543178956 physical35p206:11543738930 physical34p951:11544134366; do
-            name="\${spec%%:*}"
-            id="\${spec##*:}"
+            name="${spec%%:*}"
+            id="${spec##*:}"
             mkdir -p "/tmp/qore-sov-audit/$name"
             gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$id/zip" > "/tmp/qore-sov-audit/$name.zip"
             sha256sum "/tmp/qore-sov-audit/$name.zip"
