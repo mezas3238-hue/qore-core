@@ -1,0 +1,49 @@
+name: CIBO P0 Full 3 Year 3368 Signal Lotage Audit No Fake Fills
+on:
+  push:
+    branches: [agent/cibo-p0-fundednext-real-mt5-lotage-financing-001]
+    paths:
+      - '.github/workflows/cibo-p0-offline-3368-fundednext-stop-risk-audit.yml'
+      - 'scripts/cibo_p0_three_year_offline_lotage_audit.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+env:
+  SOURCE_ARTIFACT_ID: '11451743578'
+  SOURCE_ARTIFACT_DIGEST: 'sha256:d439957f21e2f79148b5a2fb75a53db6fa448698f17aeb6978f379ed3547f7ea'
+jobs:
+  historical-lotage-diagnostics:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Recover exact pinned 2019-2022 canonical 3368-signal research inputs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/source" "$RUNNER_TEMP/out"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$SOURCE_ARTIFACT_ID/zip" > "$RUNNER_TEMP/source.zip"
+          echo "${SOURCE_ARTIFACT_DIGEST#sha256:}  $RUNNER_TEMP/source.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/source.zip" -d "$RUNNER_TEMP/source"
+          MANIFEST="$(find "$RUNNER_TEMP/source" -type f -name walk-forward-manifest.json -print -quit)"
+          test -n "$MANIFEST"
+          echo "MANIFEST=$MANIFEST" >> "$GITHUB_ENV"
+      - name: Compute historical money-at-SL lots for six symbols, 3USD vs 2.95USD
+        run: |
+          set -euo pipefail
+          python scripts/cibo_p0_three_year_offline_lotage_audit.py \
+            --manifest "$MANIFEST" \
+            --output "$RUNNER_TEMP/out/cibo-p0-offline-3368-risk3-and-risk295.json" \
+            --csv "$RUNNER_TEMP/out/cibo-p0-3368-trade-lotage-risk3.csv"
+          echo 'CIBO_P0_REPLAY_IS_OFFLINE_RISK_SCREEN_NOT_MT5_EXECUTABLE_PNL=YES'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-p0-six-symbol-3368-offline-lotage-${{ github.run_id }}
+          path: ${{ runner.temp }}/out/*
+          if-no-files-found: error
+          retention-days: 90
