@@ -1,0 +1,26 @@
+name: QORE CIBO Sovereign Transfer Contract Tests 20261008
+on:
+  workflow_dispatch:
+  push:
+    branches: [agent/cibo-dual-dd-context-defense-20261008-001]
+    paths:
+      - tests/test_cibo_sovereign_transfer_invariants.py
+      - scripts/cibo_sovereign_causal_rebalance_replay.py
+      - .github/workflows/cibo-sovereign-transfer-invariants-ci-20261008.yml
+permissions:
+  contents: read
+jobs:
+  invariant-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify exact 100-digit accounting, reserves and Portfolio credit
+        run: |
+          set -euo pipefail
+          export PYTHONPATH="$GITHUB_WORKSPACE/src:$GITHUB_WORKSPACE/scripts"
+          python -m unittest discover -s tests -p 'test_cibo_sovereign_transfer_invariants.py' -v
+          python -m unittest discover -s tests -p 'test_cibo_replay_integrity_gate.py' -v
