@@ -36,6 +36,19 @@ def positive(name: str, x: Decimal) -> Decimal:
     return x
 
 
+def roundtrip_commission_usd_per_lot(
+    *, open_side_usd_per_lot: Decimal, close_side_usd_per_lot: Decimal
+) -> Decimal:
+    """Physical entry + exit fee per whole lot; not a broker schedule guess.
+
+    A 7 USD/lot charge EACH side is 14 USD/lot roundtrip; for 0.03 lot
+    this costs 0.42 USD. Feed must authenticate both sides before LIVE.
+    """
+    nonnegative("open_side_usd_per_lot", open_side_usd_per_lot)
+    nonnegative("close_side_usd_per_lot", close_side_usd_per_lot)
+    return open_side_usd_per_lot + close_side_usd_per_lot
+
+
 def utc(name: str, t: datetime) -> datetime:
     if not isinstance(t, datetime) or t.tzinfo is None or t.utcoffset() is None:
         raise FourMotorPolicyError(f"{name} must be timezone-aware")
