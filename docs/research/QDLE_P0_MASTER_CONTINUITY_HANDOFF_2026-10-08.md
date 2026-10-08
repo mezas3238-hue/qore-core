@@ -1,5 +1,8 @@
 # QDLE P0 — HANDOFF MAESTRO DEL MOTOR INDEPENDIENTE (2026-10-08)
 
+> **P0 — INVALIDACIÓN DE CERTIFICACIÓN FINANCIERA (2026-10-08).** La auditoría posterior detectó **272/2113 pérdidas simuladas superiores al 5% del capital QORE inicial de la entrada**, 777 pérdidas superiores al stop reservado y 306 propuestas NDX100 con comisión desconocida representada como cero. Los cuatro motores NO se ejecutaron independientemente. **CI SUCCESS NO equivale a finanzas verificadas.** Ver [dictamen canónico](QDLE_P0_FINANCIAL_CALCULATION_INVALIDATION_AND_REPAIR_2026-10-08.md). No usar PnL, DD, ni bindings previos como certificación o resultados actuales de mercado.
+
+
 **Repositorio:** mezas3238-hue/qore-core
 **Branch:** agent/qdle-independent-engine-p0-20261008-001
 **Base original:** e0ea443b92cfb4773d05d932f20b1d1448be46b8
