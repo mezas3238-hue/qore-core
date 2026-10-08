@@ -201,7 +201,7 @@ jobs:
               --ceiling-attack-state-pressure-capital-ceiling 65000
               --ceiling-attack-state-pressure-market-posture WATCH
               --ceiling-attack-state-pressure-h4-range-state compressed
-              --ceiling-attack-state-pressure-risk-budget-taper-fraction "$pressure"
+              --ceiling-attack-state-pressure-risk-budget-taper-fraction 0.4150
               --ceiling-attack-drawdown-window-multiplier-lower 500
               --ceiling-attack-drawdown-window-multiplier-upper 1950
               --ceiling-attack-drawdown-window-taper-fraction 0.40
@@ -233,7 +233,9 @@ jobs:
           run_case "atk-p10-risk15" 0.10 0.15 -0.40 0.50 &
           run_case "atk-p15-risk15" 0.15 0.15 -0.40 0.50 &
           run_case "atk-p10-risk20" 0.10 0.20 -0.40 0.50 &
-          wait
+          failed=0
+          for pid in $(jobs -p); do wait "$pid" || failed=1; done
+          test "$failed" -eq 0
 
       - name: Rank RiskShield F1 vs frozen carrier37772
         run: |
