@@ -11,6 +11,7 @@ on:
     branches:
       - agent/cibo-causal-expectation-leakage-fix-001
       - agent/cibo-trader-lab-runtime-speed-fix-001
+      - agent/cibo-trader-lab-ultrafast-20261008-001
     paths:
       - '.github/workflows/cibo-trader-lab-carrier37772-floor-seeking-accelerated-ridge.yml'
 
@@ -252,7 +253,7 @@ jobs:
           run_case "floor-h" 1.10 0.035 1.50 0.7000 balanced 2.00 0.06 6.00 0.9000 0.6500 expanded -0.15
           run_case "floor-i" 1.25 0.030 1.75 0.7000 balanced 2.50 0.05 7.00 0.9000 0.6500 expanded -0.149
           run_case "floor-j" 1.25 0.035 1.75 0.6500 balanced 2.50 0.06 7.00 0.8750 0.6000 expanded -0.148
-          python scripts/cibo_trader_lab_batch_runner.py --cases "$RUNNER_TEMP/cibo-cases.jsonl" --workers 2
+          python scripts/cibo_trader_lab_batch_runner.py --cases "$RUNNER_TEMP/cibo-cases.jsonl" --workers 4
 
       - name: Rank strict Pareto vs carrier3829
         run: |
