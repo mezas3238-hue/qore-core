@@ -548,9 +548,9 @@ class QDLE:
                 "executed_lots": format(receipt.lots, "f"),
                 "planned_stop_usd": format(receipt.total_risk_usd, "f"),
                 "margin_reserved_usd": format(receipt.margin_usd, "f"),
-                "risk_budget_efficiency": (
-                    format(receipt.total_risk_usd /
-                           max(Decimal("1e-50"), receipt.stop_usd + receipt.cost_usd), "f")
+                "realized_pnl_to_reserved_margin_ratio": (
+                    format(realized_net_pnl_usd /
+                           max(Decimal("1e-50"), receipt.margin_usd), "f")
                 ),
                 "account_sequence": acc.sequence,
             })
