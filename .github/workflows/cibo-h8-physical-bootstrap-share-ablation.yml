@@ -107,12 +107,8 @@ jobs:
           echo "HISTORICAL_REPLAY=$HISTORICAL_REPLAY" >> "$GITHUB_ENV"
 
           mkdir -p "$RUNNER_TEMP/atlas"
-          if [[ "${{ steps.m5cache.outputs.cache-hit }}" == "true" ]]; then
-            echo "QORE_CIBO_ULTRA_CACHE_RESTORED: raw M5 input download skipped"
-            for SYMBOL in AUDJPY EURUSD GBPJPY GBPUSD NAS100 XAUUSD; do
-              mkdir -p "$RUNNER_TEMP/atlas/${SYMBOL}"
-            done
-          else
+          # Direct single-case Python replays require raw Market Atlas partitions
+          # regardless of the batch runner's prepared-M5 cache hit.
           for SYMBOL in AUDJPY EURUSD GBPJPY GBPUSD NAS100 XAUUSD; do
             ID_VAR="ATLAS_${SYMBOL}_ARTIFACT_ID"; DIGEST_VAR="ATLAS_${SYMBOL}_DIGEST"
             ARTIFACT_ID="${!ID_VAR}"; ARTIFACT_DIGEST="${!DIGEST_VAR}"
@@ -122,7 +118,6 @@ jobs:
             echo "${ARTIFACT_DIGEST#sha256:}  $ZIP" | sha256sum -c -
             unzip -q "$ZIP" 'RAW_M5_LEDGER/2019.jsonl' 'RAW_M5_LEDGER/2020.jsonl' 'RAW_M5_LEDGER/2021.jsonl' 'RAW_M5_LEDGER/2022.jsonl' -d "$ROOT"
           done
-          fi
 
       - name: Run carrier35227 W6 fine boundary ridge
         run: |
