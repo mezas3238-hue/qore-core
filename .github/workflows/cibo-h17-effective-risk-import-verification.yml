@@ -1,0 +1,53 @@
+name: QORE CIBO H17 Prove Effective Risk Source Module Import
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/cibo-h17-effective-risk-import-verification-001
+    paths:
+      - '.github/workflows/cibo-h17-effective-risk-import-verification.yml'
+permissions:
+  contents: read
+jobs:
+  verify-risk-module:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Assert exact source loaded from variant when Python launches CIBO
+        run: |
+          set -euo pipefail
+          cp -a src "$RUNNER_TEMP/cibo-variant-src"
+          python - <<'PY'
+          import os,pathlib
+          path=pathlib.Path(os.environ["RUNNER_TEMP"])/"cibo-variant-src/qore/infrastructure/trader_lab/cibo_three_mode_capital_lab.py"
+          s=path.read_text()
+          anchor=('                    )\n'
+                  '                    if ceiling_discovery_mode:\n')
+          i=s.index('                    medium_risk_fraction = (')
+          j=s.index(anchor,i)
+          target='                    medium_risk_fraction = Decimal("0.05")\n'
+          path.write_text(s[:j]+anchor.replace('                    if ceiling_discovery_mode:\n',target+'                    if ceiling_discovery_mode:\n')+s[j+len(anchor):])
+          assert target in path.read_text()
+          print("H17_VARIANT_DIFF=ONE_EFFECTIVE_5PCT_RISK_ASSIGNMENT")
+          PY
+          PYTHONPATH="$RUNNER_TEMP/cibo-variant-src" python - <<'PY'
+          import inspect,os,pathlib
+          from qore.infrastructure.trader_lab import cibo_three_mode_capital_lab as mod
+          p=pathlib.Path(mod.__file__).resolve()
+          expected=(pathlib.Path(os.environ["RUNNER_TEMP"])/"cibo-variant-src/qore/infrastructure/trader_lab/cibo_three_mode_capital_lab.py").resolve()
+          print("H17_ACTUAL_MODULE="+str(p))
+          print("H17_EXPECTED_MODULE="+str(expected))
+          print("H17_EFFECTIVE_5PCT_SOURCE_PRESENT="+str('medium_risk_fraction = Decimal("0.05")' in inspect.getsource(mod.run_three_mode_trader_lab)))
+          assert p==expected,"CIBO is importing wrong module despite PYTHONPATH override"
+          assert 'medium_risk_fraction = Decimal("0.05")' in inspect.getsource(mod.run_three_mode_trader_lab)
+          PY
+          PYTHONPATH="$GITHUB_WORKSPACE/src" python - <<'PY'
+          from qore.infrastructure.trader_lab import cibo_three_mode_capital_lab as mod
+          import inspect
+          assert 'medium_risk_fraction = Decimal("0.05")' not in inspect.getsource(mod.run_three_mode_trader_lab)
+          print("H17_ORIGINAL_CANONICAL_MODULE_UNCHANGED=YES")
+          PY
