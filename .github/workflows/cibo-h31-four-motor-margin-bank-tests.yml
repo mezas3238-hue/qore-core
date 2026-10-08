@@ -1,0 +1,31 @@
+name: QORE CIBO H31 Four Motor Lotage Unit Integrity
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/cibo-h31-lotage-bank-floor-and-free-margin-001
+    paths:
+      - '.github/workflows/cibo-h31-four-motor-margin-bank-tests.yml'
+      - 'src/qore/infrastructure/trader_lab/cibo_four_motor_lotage_h30.py'
+      - 'src/qore/infrastructure/trader_lab/cibo_three_mode_capital_lab.py'
+      - 'scripts/cibo_trader_lab_three_mode_ceiling.py'
+      - 'tests/trader_lab/test_cibo_four_motor_lotage_h30.py'
+permissions:
+  contents: read
+jobs:
+  four-motor-integrity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile main CIBO + run pure lotage contract tests
+        env:
+          PYTHONPATH: src
+        run: |
+          set -euo pipefail
+          python -m py_compile src/qore/infrastructure/trader_lab/cibo_three_mode_capital_lab.py src/qore/infrastructure/trader_lab/cibo_four_motor_lotage_h30.py scripts/cibo_trader_lab_three_mode_ceiling.py
+          python -m unittest discover -s tests/trader_lab -p test_cibo_four_motor_lotage_h30.py -v
+          echo "CIBO_H31_FOUR_MOTOR_LOTAGE_UNIT_TESTS=PASS"
