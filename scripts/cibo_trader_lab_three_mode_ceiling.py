@@ -369,6 +369,18 @@ def main() -> int:
         help="Repeatable causal pre-entry MEDIUM context predicate as KEY=VALUE.",
     )
     parser.add_argument(
+        "--lifecycle-attack-context2-stop-r",
+        type=Decimal,
+        default=None,
+        help="Optional second ATTACK context-only defensive stop.",
+    )
+    parser.add_argument(
+        "--lifecycle-attack-context2-require",
+        action="append",
+        default=[],
+        help="Repeatable causal pre-entry second ATTACK context predicate as KEY=VALUE.",
+    )
+    parser.add_argument(
         "--lifecycle-attack-override-context-defensive-initial-stop-r",
         type=Decimal,
         default=None,
@@ -1400,6 +1412,21 @@ def main() -> int:
             "MEDIUM context-only stop requires both stop R and context predicates"
         )
 
+    attack_context2_requirements = []
+    for raw_requirement in args.lifecycle_attack_context2_require:
+        key, separator, value = raw_requirement.partition("=")
+        if not separator or not key or not value:
+            raise ValueError(
+                "ATTACK context-stop2 requirement must be nonempty KEY=VALUE"
+            )
+        attack_context2_requirements.append((key, value))
+    if (
+        args.lifecycle_attack_context2_stop_r is None
+    ) != (not attack_context2_requirements):
+        raise ValueError(
+            "ATTACK context-stop2 requires both stop R and context predicates"
+        )
+
     attack_override_context_requirements = []
     for raw_requirement in args.lifecycle_attack_override_context_require:
         key, separator, value = raw_requirement.partition("=")
@@ -1495,6 +1522,30 @@ def main() -> int:
             defensive_initial_stop_r=args.lifecycle_defensive_initial_stop_r,
             context_defensive_initial_stop_r=args.lifecycle_medium_context_stop_r,
             context_requirements=tuple(medium_context_stop_requirements),
+            context_only_features=frozenset(
+                {CiboLifecycleFeature.DEFENSIVE_INITIAL_STOP_CAP}
+            ),
+        )
+
+    lifecycle_attack_context_stop2_by_signal = None
+    if args.lifecycle_attack_context2_stop_r is not None:
+        lifecycle_attack_context_stop2_by_signal = _build_lifecycle_map(
+            manifest,
+            lifecycle_roots,
+            features=frozenset({CiboLifecycleFeature.DEFENSIVE_INITIAL_STOP_CAP}),
+            adverse_loss_cut_r=args.lifecycle_adverse_loss_cut_r,
+            adverse_partial_fraction=args.lifecycle_adverse_partial_fraction,
+            adverse_partial_max_favorable_r=(
+                args.lifecycle_adverse_partial_max_favorable_r
+            ),
+            adverse_loss_cut_max_favorable_r=(
+                args.lifecycle_adverse_loss_cut_max_favorable_r
+            ),
+            bootstrap_partial_fraction=args.lifecycle_bootstrap_partial_fraction,
+            adverse_tightened_stop_r=args.lifecycle_adverse_tightened_stop_r,
+            defensive_initial_stop_r=args.lifecycle_defensive_initial_stop_r,
+            context_defensive_initial_stop_r=args.lifecycle_attack_context2_stop_r,
+            context_requirements=tuple(attack_context2_requirements),
             context_only_features=frozenset(
                 {CiboLifecycleFeature.DEFENSIVE_INITIAL_STOP_CAP}
             ),
@@ -1813,6 +1864,9 @@ def main() -> int:
         ),
         lifecycle_medium_context_stop_by_signal=(
             lifecycle_medium_context_stop_by_signal
+        ),
+        lifecycle_attack_context_stop2_by_signal=(
+            lifecycle_attack_context_stop2_by_signal
         ),
         lifecycle_bootstrap_override_capital_ceiling=(
             args.lifecycle_bootstrap_override_capital_ceiling
