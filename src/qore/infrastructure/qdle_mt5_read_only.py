@@ -144,6 +144,7 @@ def read_mt5_symbols(
 def read_mt5_account_with_qore_treasury(
     mt5: object, *, account_id: str, sequence: int,
     qore_unreserved_risk_usd: Decimal,
+    qore_trading_capital_usd: Decimal,
     sovereign_free_source_usd: Decimal,
     cushion_free_source_usd: Decimal,
     covered_fill_tickets: tuple[str, ...] = (),
@@ -185,6 +186,7 @@ def read_mt5_account_with_qore_treasury(
         balance=_money(info.balance, "balance"), equity=_money(info.equity, "equity"),
         free_margin=_money(info.margin_free, "margin free"),
         qore_unreserved_risk_usd=qore_unreserved_risk_usd,
+        qore_trading_capital_usd=qore_trading_capital_usd,
         sovereign_free_source_usd=sovereign_free_source_usd,
         cushion_free_source_usd=cushion_free_source_usd,
         positions=tuple(pos), covered_fill_tickets=covered_fill_tickets,
