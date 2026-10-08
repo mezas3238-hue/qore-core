@@ -1,0 +1,80 @@
+name: QORE CIBO H8 Historic Carrier Sovereign Ledger Audit
+# Retrospective audit; NOT a physical funding rerun or fresh OOS.
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/cibo-h8-modern-35206-hardgate-001
+    paths:
+      - .github/workflows/cibo-h8-historical-carrier-ledger-audit.yml
+permissions:
+  contents: read
+  actions: read
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Retrieve frozen raw replay artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/qore-sov-audit/output
+          for spec in global:11542893252 physical35p240:11543178956 physical35p206:11543738930 physical34p951:11544134366; do
+            name="\${spec%%:*}"
+            id="\${spec##*:}"
+            mkdir -p "/tmp/qore-sov-audit/$name"
+            gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$id/zip" > "/tmp/qore-sov-audit/$name.zip"
+            sha256sum "/tmp/qore-sov-audit/$name.zip"
+            unzip -q "/tmp/qore-sov-audit/$name.zip" -d "/tmp/qore-sov-audit/$name"
+          done
+      - name: Strict historic sovereign path inspection
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          from decimal import Decimal as D
+          import json
+          base=Path('/tmp/qore-sov-audit')
+          samples={'global':'f-m2850-h0060',
+            'physical35p240':'m1-0700','physical35p206':'m1cliff-n00624',
+            'physical34p951':'ctx2-a-s50'}
+          result={}
+          for bucket,name in samples.items():
+            files=list((base/bucket).rglob(name+'.json'))
+            assert len(files)==1,(bucket,name,[str(x) for x in files])
+            x=json.loads(files[0].read_text())
+            assert x['decision_count']==x['trade_count']==3368
+            assert x['economic_group_report']['all_entries_preserved']
+            funnel=x['engineering_sensor_report']['execution_funnel']
+            assert funnel['final_trade_count']==3368
+            assert not funnel['sizing_medium_rejected_count']
+            assert not funnel['sizing_medium_deferred_count']
+            keys=['minimum_sovereign_bank_usd','ending_sovereign_bank_usd',
+              'peak_sovereign_bank_usd','sovereign_floor_breach_usd',
+              'sovereign_protection_floor_usd','max_sovereign_drawdown_usd',
+              'ending_portfolio_cushion_usd','ending_total_capital_usd',
+              'max_drawdown_fraction','attack_sovereign_breach_usd','max_drawdown_usd']
+            values={key:x.get(key) for key in keys}
+            values.update({'case':name,'count':x['trade_count']})
+            missing=[key for key in keys if values[key] is None]
+            assert not missing,(bucket,missing)
+            values['sovereign_bank_below_zero']=D(values['minimum_sovereign_bank_usd'])<0
+            values['sovereign_floor_violation']=D(values['sovereign_floor_breach_usd'])>0
+            values['valid_physical_solvency_proven']=False
+            result[bucket]=values
+          (base/'output/sovereign_ledger_audit.json').write_text(json.dumps({
+            'schema':'qore.cibo.h8_historical_sovereign_audit.v1',
+            'replay_execution_policy':'LEGACY_UNGUARDED_HISTORICAL_RESEARCH',
+            'no_ledger_zero_implies_broker_survival':False,'rows':result,
+            'disclaimer':'Event-settlement-only, no intrabar margin. New hard-gate replay required.'
+          },indent=2,sort_keys=True))
+          print('CIBO_H8_HISTORIC_SOVEREIGN_LEDGER='+json.dumps(result,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-h8-legacy-sovereign-audit-${{ github.run_id }}
+          path: /tmp/qore-sov-audit/output/*
+          if-no-files-found: error
+          retention-days: 90
