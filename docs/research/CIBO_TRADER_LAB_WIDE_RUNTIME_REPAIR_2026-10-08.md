@@ -45,7 +45,7 @@ Each migrated workflow now:
 ## Whole-repository audit
 `scripts/cibo_trader_lab_runtime_audit.py` and
 `.github/workflows/cibo-trader-lab-runtime-audit.yml` perform a reproducible inventory.
-Latest audit run **37759818652**: 252 `cibo-trader-lab-*.yml` files, **92 remaining legacy full-CLI fanout** workflows, 13 already using batch, 147 different patterns. The audit checks 11 newly migrated suites for regression and blocks any increase above 92 legacy fanout workflows.
+Latest audit run **37759818652**: 252 `cibo-trader-lab-*.yml` files, **92 remaining legacy full-CLI fanout** workflows, 13 already using batch, 147 different patterns. The audit checks the 11 newly migrated suites for regression, and detects newly introduced or enlarged legacy fanout relative to each real Git push/PR baseline. Other architects added three legacy workflows on the target branch during this remediation; the PR merge preview contained 95 legacy fanouts. This is tracked honestly, not treated as a verified repair.
 
 **Critical: This does NOT certify the remaining 92 workflows as fast.**
 The remaining legacy jobs need migration under a separate controlled staged sequence and strict old/new replay-result parity. The audit artifact lists their exact names.
@@ -55,3 +55,17 @@ The remaining legacy jobs need migration under a separate controlled staged sequ
 - Historical reused holdout results remain hypothesis generation. Cached duplicate results are not fresh OOS evidence.
 - Fresh 3-year holdout required after scientific work; do not use speed optimizations to infer a 20–25% DD.
 - No claim that all 252 CIBO workflow types or all 434 repository workflows are accelerated.
+
+## Warm exact-case repeat and cache correctness (after dependency-scope repair)
+
+Run **37760370678**: 37655 MEDIUM Context Stop repeated its 11
+identical cases, 20 seconds total wall time, **11/11 sealed exact-cache hits**,
+no recomputations, engine batch 0.711 seconds, no result field difference
+against original 11-minute run 37757418981.
+
+There was a transient audit failure because the canonical research
+branch advanced concurrently from 92 to 95 legacy workflows. The
+CI rule was replaced by a strict per-change regression check using the
+actual PR merge parent / GitHub push baseline. This does not silently
+grandfather new fanout introduced in a change; unrelated concurrent
+branch activity no longer incorrectly blocks this speed fix.
