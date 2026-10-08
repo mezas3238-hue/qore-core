@@ -106,7 +106,9 @@ def build_local_handler(engine: QDLE, *, trader_token: str,
                     response = asdict(engine.reserve_for_trader(cmd))
                 elif self.path == "/v1/finance-approval":
                     cmd = _intent(row)
-                    engine.publish_finance_approval(cmd, approved_at=datetime.fromisoformat(row["approved_at"]))
+                    engine.publish_finance_approval(
+                        cmd, approved_at=datetime.fromisoformat(row["approved_at"]),
+                        module_evidence=row.get("module_evidence"))
                     response = {"approval_recorded": True, "request_id": cmd.request_id}
                 elif self.path == "/v1/pre-send-check":
                     engine.arm_for_live_send(
