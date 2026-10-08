@@ -84,7 +84,15 @@ class TestFourMotorEvidence(unittest.TestCase):
         self.assertEqual(funded.total_risk_usd, D("3"))
         with self.assertRaisesRegex(QDLEError, "cannot alter"):
             altered = receipts()
-            altered["SIZING"]["source_event_sha256"] = "sha256:" + "a"*64
+            amended = altered["SIZING"]
+            amended["observed_at"] = (T - timedelta(seconds=1)).isoformat()
+            canonical = json.dumps(
+                {k: v for k, v in amended.items()
+                 if k not in ("source_event_sha256", "hmac_sha256")},
+                sort_keys=True, separators=(",", ":")).encode()
+            amended["source_event_sha256"] = "sha256:" + hashlib.sha256(canonical).hexdigest()
+            amended["hmac_sha256"] = hmac.new(
+                KEYS["SIZING"], canonical, hashlib.sha256).hexdigest()
             self.q.publish_finance_approval(signal(), T, altered)
 
     def test_tampered_signature_and_missing_real_keys_block(self):
