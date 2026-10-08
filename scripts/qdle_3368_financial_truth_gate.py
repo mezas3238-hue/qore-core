@@ -79,7 +79,16 @@ def audit(report: dict) -> dict:
     if checks["sized"] != report["research_financed_proposals"]:
         raise AssertionError("REPORT_SIZE_TOTAL_MISMATCH")
     if abs(entry_fees - D(report["entry_cost_proxy_usd"])) > D("0.000000001"):
-        raise AssertionError("ENTRY_FEE_TOTAL_MISMATCH")
+        raise AssertionError("COMMITTED_FULL_ROUNDTRIP_FEE_TOTAL_MISMATCH")
+    if report.get("economic_motor_mode") == "independent_four_motors":
+        opening = D(report["opening_commission_paid_proxy_usd"])
+        closing = D(report["closing_commission_paid_proxy_usd"])
+        pending = D(report["unsettled_future_close_fee_not_charged_usd"])
+        full = D(report["roundtrip_total_commission_committed_proxy_usd"])
+        if (any(x < D("0") for x in (opening, closing, pending))
+                or abs(opening + closing + pending - full) > D("0.000000001")):
+            raise AssertionError("OPEN_CLOSE_COMMISSION_CASHBOOK_DOES_NOT_RECONCILE")
+        checks["SEPARATE_OPEN_CLOSE_COMMISSION_ACCOUNTING"] += 1
     # On stopped-provider scenarios, unresolved positions are not settled;
     # only validate net PnL against NAV when all assumed positions closed.
     if not report["provider_stopped"]:
