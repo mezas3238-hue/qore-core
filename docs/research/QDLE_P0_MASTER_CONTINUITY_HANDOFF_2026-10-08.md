@@ -5,6 +5,37 @@
 **Base original:** e0ea443b92cfb4773d05d932f20b1d1448be46b8
 **Estado:** motor QDLE implementado con CI sintética positiva; integración observacional MT5, servicio de reservas SQLite y puente de cuatro motores; **NO LIVE**, **NO CERTIFICADO**, sin aprobación física real de los 3.368 intentos de Trader Lab.
 
+
+## ACTUALIZACIÓN P0 — GATEWAY MT5 LIVE + FINANZAS CAUSALES DEL 5%
+
+**PR DRAFT:** https://github.com/mezas3238-hue/qore-core/pull/735
+
+**VPS:** vps-vrix sigue OFFLINE según Desktop Commander; última conexión ~67 h antes de este trabajo. No se inspeccionó la cuenta FundedNext, ni existe replay real de 3 años financiado, ni se enviaron órdenes.
+
+### Extensiones implementadas
+
+- Motor QDLE: riesgo objetivo = 5% de equity causal actual EN CADA ENTRADA, sujeto a QORE Risk, origen de efectivo soberano, margen libre, costes reales y restricciones MT5. USD60 -> riesgo techo USD3; USD100 -> techo USD5. No se fuerza riesgo si lote mínimo es imposible.
+- Aprobación financiera independiente: publish_finance_approval persiste un hash de la oportunidad + límites del cuarteto aprobados por Treasury; el token Trader no puede aprobar economía ni sustituir presupuestos luego de la aprobación. Servicio HTTP se inicia en modo enforce_finance_approval=True.
+- Broker pre-send arming: arm_for_live_send revisa broker-native stop/margin al precio ejecutable más reciente, snapshot de la cuenta, riesgo 5%, estado HELD y coincidencia exacta de lotes/símbolo/SL. Transición HELD -> SENDING atómica y única; el crash o resultado incierto retiene el dinero hasta broker reconciliation. Sólo provider autentificado accede a /v1/pre-send-check.
+- src/qore/infrastructure/qdle_live_submission_guard.py: puerta HTTP localhost 127.0.0.1 obligatoria, no envía órdenes; error o timeout bloquea.
+- src/qore/infrastructure/fundednext_live_mt5.py: integración ANTES del order_send real, y DESPUÉS de las barreras existentes de QORE Risk, reglas proveedor, tick fresco, profit-risk y order_check. La guardia no tiene autoridad de admisión de Trader.
+- scripts/qore_fundednext_runtime.py: modo LIVE configura qdle_required_for_live=True y exige QDLE_PROVIDER_TOKEN; SHADOW no cambia. Sin el productor real de contabilidad soberana + cuarteto, ese LIVE bloqueará órdenes. NO fusionar ni activar en VPS hasta completar el emisor de aprobaciones, fuentes reales y replay.
+- scripts/qdle_trader_lab_replay.py: cuenta total de intentos y signal IDs únicos; un request_id duplicado devuelve RESEARCH_FAIL_CLOSED en vez de fingir otra entrada/ejecución.
+- Tests: test_qdle_live_presend.py, test_qdle_local_api.py, test_qdle_trader_lab_replay.py, casos de live gateway en test_fundednext_live_mt5.py. GitHub Actions QDLE ejecuta unittest + pytest y comprueba que un veto/no autorización no llega a order_send. Todos los valores de seis activos en CI siguen SYNTHETIC_TEST_ONLY.
+
+### Bloqueos para GO-LIVE
+
+1. Reconectar VPS y obtener symbol_info + order_calc_profit + order_calc_margin + volume grid + fees auténticas de seis activos (NAS100 vs NDX100 por resolución explícita).
+2. Construir e integrar el emisor real y autenticado de bank/cushion/equity/risk limits/MLL + las cuatro decisiones del cuarteto. Sin esos eventos FINANCE_APPROVAL la API LIVE falla cerrada, y así debe quedarse.
+3. Consistencia de RiskAuthorization y QDLE en TODOS los Traders: nunca autorizar una cantidad mayor que el QORE Risk ni alterar el Trader. Si los lotajes no coinciden se pide una nueva autorización soberana y se BLOQUEA.
+4. Desarrollar conciliación MT5 de fills parciales, órdenes pending, fees, slippage, swaps, hedging/netting, stop-out, y unknown results, sin liberar SENDING arbitrariamente.
+5. Alimentar Trader Lab con 3 años reales, 3.368 intenciones causales originales y condiciones broker equivalentes; reconstruir gross loss, portfolio PnL, equity y DD intratrade, registrar cada UNFUNDABLE y conservar densidad sin fingir ejecución. No elevar USD670k del antiguo carrier a capital certificado.
+6. Sólo entonces batería científica, OOS, control de DD ideal <=20%, tolerable <=25% sin degradar el nuevo techo realmente financiado.
+
+**Nota:** las pruebas unitarias prueban código y bloqueos, NO rentabilidad certificada ni autoridad para entrar en real. El PR #735 debe seguir DRAFT.
+
+---
+
 ## DIRECTIVA SOBERANA
 
 Traders poseen decisión estratégica de entrada y ejecución, nunca el cálculo de volumen. QDLE es la única autoridad técnica para convertir límites coordinados de Sizing, CIBO Compuesto, Adaptive Leverage y Portafolio Compuesto en lotaje físico del broker. CIBO gestiona el dinero y las posiciones conforme al contrato de autoridad; QORE Risk y el bróker mantienen bloqueo físico obligatorio. No rechazar señales no significa poder inventar fills: si el broker no financia el mínimo, FAIL con recibo; no marcar como ejecutado.
