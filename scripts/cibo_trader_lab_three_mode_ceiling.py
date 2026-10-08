@@ -572,6 +572,12 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--medium-entry-risk-fraction",
+        type=Decimal,
+        default=None,
+        help="H13: optional MEDIUM monetary stop-risk target, 0.05 = 5pct; None retains original CIBO method.",
+    )
+    parser.add_argument(
         "--medium-drawdown-intensity-trigger",
         type=Decimal,
         default=None,
@@ -2032,6 +2038,7 @@ def main() -> int:
         distributed_attack_frontier=args.distributed_attack_frontier,
         attack_multiplier_cap=args.attack_multiplier_cap,
         medium_multiplier_cap=args.medium_multiplier_cap,
+        medium_entry_risk_fraction_override=args.medium_entry_risk_fraction,
         medium_drawdown_intensity_trigger=(
             args.medium_drawdown_intensity_trigger
         ),
