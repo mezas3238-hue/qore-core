@@ -1,0 +1,29 @@
+name: QORE CIBO H28 Exact USD3 Stop Risk Broker Lot Gate
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/cibo-h28-exact-3usd-broker-lot-sizing-001
+    paths:
+      - '.github/workflows/cibo-h28-exact-dollar-lot-gate.yml'
+      - 'src/qore/infrastructure/trader_lab/cibo_exact_three_dollar_lot_sizing_h28.py'
+      - 'tests/trader_lab/test_cibo_exact_three_dollar_lot_sizing_h28.py'
+permissions:
+  contents: read
+jobs:
+  exact-dollar-stop-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile and run pure broker-funding guard tests
+        env:
+          PYTHONPATH: src
+        run: |
+          set -euo pipefail
+          python -m py_compile src/qore/infrastructure/trader_lab/cibo_exact_three_dollar_lot_sizing_h28.py
+          python -m unittest discover -s tests/trader_lab -p test_cibo_exact_three_dollar_lot_sizing_h28.py -v
+          echo "CIBO_H28_EXACT_USD3_BROKER_LOT_TESTS=PASS"
