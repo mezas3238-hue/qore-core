@@ -183,6 +183,8 @@ class _State:
     attack_net_pnl_usd: Decimal = Decimal(0)
     attack_profit_to_sovereign_usd: Decimal = Decimal(0)
     attack_profit_to_cushion_usd: Decimal = Decimal(0)
+    physical_cushion_to_sovereign_bridge_count: int = 0
+    physical_cushion_to_sovereign_bridge_total_usd: Decimal = Decimal(0)
 
     @property
     def total_capital_usd(self) -> Decimal:
@@ -212,6 +214,26 @@ class _State:
             ),
         )
 
+    def bridge_from_unreserved_cushion(self, amount: Decimal) -> None:
+        """Research only: move real free cushion to sovereign, never mint cash."""
+        if amount <= 0:
+            return
+        before_total = self.total_capital_usd
+        if amount > self.cushion_available_usd:
+            raise CiboCapitalManagementError(
+                "CIBO_H8_BRIDGE_INSUFFICIENT_UNRESERVED_CUSHION"
+            )
+        self.portfolio_cushion_usd -= amount
+        self.sovereign_bank_usd += amount
+        self.portfolio_attack_credit_usd = min(
+            self.portfolio_attack_credit_usd, self.cushion_available_usd
+        )
+        self.physical_cushion_to_sovereign_bridge_count += 1
+        self.physical_cushion_to_sovereign_bridge_total_usd += amount
+        if self.total_capital_usd != before_total:
+            raise CiboCapitalManagementError(
+                "CIBO_H8_BRIDGE_MONEY_CONSERVATION_FAILURE"
+            )
     @property
     def sovereign_protection_floor_usd(self) -> Decimal:
         with localcontext() as context:
@@ -3598,6 +3620,25 @@ def run_three_mode_trader_lab(
             raise CiboCapitalManagementError(
                 "BANK cannot own lifecycle-managed trades"
             )
+        # RESEARCH ONLY: atomic liquidity recirculation from ACTUALLY free
+        # portfolio capital. Cover booked sovereign reservation + protected
+        # floor at every event, not just at entry; fail when cash is absent.
+        required_bank = (
+            state.sovereign_protection_floor_usd
+            + state.sovereign_reserved_usd
+        )
+        if state.sovereign_bank_usd < required_bank:
+            shortfall = required_bank - state.sovereign_bank_usd
+            if shortfall > state.cushion_available_usd:
+                raise CiboCapitalManagementError(
+                    "CIBO_H8_POST_SETTLEMENT_SOVEREIGN_CASH_SHORTFALL: "
+                    f"required_transfer={format(shortfall, 'f')} "
+                    f"free_cushion={format(state.cushion_available_usd, 'f')} "
+                    f"bank={format(state.sovereign_bank_usd, 'f')} "
+                    f"floor={format(state.sovereign_protection_floor_usd, 'f')}. "
+                    "UNFUNDED ECONOMICS; no gain may be credited."
+                )
+            state.bridge_from_unreserved_cushion(shortfall)
         state.mark()
 
     def settle_due(up_to: datetime | None) -> None:
@@ -6058,6 +6099,49 @@ def run_three_mode_trader_lab(
                 # Trader entry already occurred: we FAIL THE SIMULATION rather
                 # than reject/suppress an entry or book an unfunded position.
                 # source_left is reset to sovereign_left in the fallback above.
+                # RESEARCH ONLY: fund mandatory Trader MEDIUM 1x by an
+                # explicit, same-timestamp cash transfer from already realized,
+                # unreserved portfolio cushion. Never lend future profits.
+                if candidate_mode is CiboTraderLabMode.MEDIUM:
+                    protected_source = max(
+                        Decimal(0),
+                        min(
+                            source_left,
+                            sovereign_left - state.sovereign_protection_floor_usd,
+                        ),
+                    )
+                    transfer_needed = max(
+                        Decimal(0), source_reserved - protected_source
+                    )
+                    if (
+                        transfer_needed > 0
+                        and stop_risk <= risk_left
+                        and margin <= margin_left
+                        and transfer_needed <= cushion_left
+                        and transfer_needed <= state.cushion_available_usd
+                    ):
+                        state.bridge_from_unreserved_cushion(transfer_needed)
+                        sovereign_left += transfer_needed
+                        cushion_left -= transfer_needed
+                        source_left += transfer_needed
+                        record_engineering_sensor(
+                            "COMPOUND_PORTFOLIO",
+                            epoch_index=epoch_index,
+                            signal_fingerprint=candidate.signal_fingerprint,
+                            event="H8_CASH_FUNDED_CUSHION_TO_SOVEREIGN_BRIDGE",
+                            inputs={
+                                "existing_unreserved_cushion_usd": format(
+                                    cushion_left + transfer_needed, "f"
+                                ),
+                                "mandatory_1x_source_needed_usd": format(
+                                    source_reserved, "f"
+                                ),
+                            },
+                            action="REAL_CASH_TREASURY_REALLOCATION",
+                            outputs={"transferred_usd": format(transfer_needed, "f")},
+                            reaction="PRESERVE_BANK_FLOOR_AND_TRADE_CUSTODY",
+                            approval=True,
+                        )
                 funded_source_left = source_left
                 if candidate_mode is CiboTraderLabMode.MEDIUM:
                     funded_source_left = min(
@@ -6953,6 +7037,8 @@ def run_three_mode_trader_lab(
         "decision_count": len(rows),
         "decision_epoch_count": len(epochs),
         "initial_capital_usd": format(INITIAL_CAPITAL_USD, "f"),
+        "h8_real_cushion_to_sovereign_bridge_count": state.physical_cushion_to_sovereign_bridge_count,
+        "h8_real_cushion_to_sovereign_bridge_total_usd": format(state.physical_cushion_to_sovereign_bridge_total_usd, "f"),
         "ending_total_capital_usd": format(
             state.total_capital_usd,
             "f",
