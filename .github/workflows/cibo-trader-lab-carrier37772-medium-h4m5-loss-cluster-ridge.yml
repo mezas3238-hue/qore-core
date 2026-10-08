@@ -10,6 +10,7 @@ on:
   push:
     branches:
       - agent/cibo-causal-expectation-leakage-fix-001
+      - agent/cibo-trader-lab-runtime-speed-fix-001
     paths:
       - '.github/workflows/cibo-trader-lab-carrier37772-medium-h4m5-loss-cluster-ridge.yml'
 
@@ -220,19 +221,19 @@ jobs:
                 --lifecycle-context-require "reg_m5_volatility_state=balanced"
               )
             fi
-            python scripts/cibo_trader_lab_three_mode_ceiling.py "${common[@]}" "${extra[@]}" \
-              --output "$RUNNER_TEMP/result/${name}.json"
+            python -c 'import json,sys; print(json.dumps(sys.argv[1:]))' "${common[@]}" "${extra[@]}" \
+              --output "$RUNNER_TEMP/result/${name}.json" >> "$RUNNER_TEMP/cibo-cases.jsonl"
           }
 
-          run_case "carrier37772-p4150" -0.1500 control &
-          run_case "h4m5-s2000" -0.2000 cluster &
-          run_case "h4m5-s1800" -0.1800 cluster &
-          run_case "h4m5-s1700" -0.1700 cluster &
-          run_case "h4m5-s1600" -0.1600 cluster &
-          run_case "h4m5-s1500" -0.1500 cluster &
-          run_case "h4m5-s1400" -0.1400 cluster &
-          run_case "h4m5-s1300" -0.1300 cluster &
-          wait
+          run_case "carrier37772-p4150" -0.1500 control
+          run_case "h4m5-s2000" -0.2000 cluster
+          run_case "h4m5-s1800" -0.1800 cluster
+          run_case "h4m5-s1700" -0.1700 cluster
+          run_case "h4m5-s1600" -0.1600 cluster
+          run_case "h4m5-s1500" -0.1500 cluster
+          run_case "h4m5-s1400" -0.1400 cluster
+          run_case "h4m5-s1300" -0.1300 cluster
+          python scripts/cibo_trader_lab_batch_runner.py --cases "$RUNNER_TEMP/cibo-cases.jsonl" --workers 2
 
       - name: Rank strict Pareto vs carrier3829
         run: |
