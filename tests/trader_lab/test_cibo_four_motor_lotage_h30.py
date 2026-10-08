@@ -83,5 +83,20 @@ class FourMotorLotageTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             coordinate_four_motor_lotage(setup(cushion_free_usd=D(-1)))
 
+    def test_open_position_margin_is_not_reused(self):
+        original=coordinate_four_motor_lotage(setup())
+        self.assertEqual(original.selected_multiplier,3)
+        after=coordinate_four_motor_lotage(setup(already_committed_margin_usd=D("50")))
+        self.assertEqual(after.selected_multiplier,0)
+        self.assertFalse(after.minimum_lot_fundable)
+
+    def test_peak_bank_reserve_limits_incremental_medium_lots(self):
+        base=coordinate_four_motor_lotage(setup(bank_free_usd=D(".5")))
+        self.assertEqual(base.selected_multiplier,1)
+        assert base.all_stages[1].binding_reason=="BANK_CUSTODY_CAP"
+        blocked=coordinate_four_motor_lotage(setup(bank_free_usd=D(".1")))
+        self.assertFalse(blocked.funded)
+
+
 if __name__=="__main__":
     unittest.main()
