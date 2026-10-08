@@ -256,6 +256,33 @@ class QDLE:
             db.execute("""CREATE TABLE IF NOT EXISTS broker_settlements (
                 deal_receipt TEXT PRIMARY KEY, request_id TEXT NOT NULL UNIQUE,
                 broker_ticket TEXT NOT NULL, net_pnl_usd TEXT NOT NULL)""")
+            # Recovery of existing persistent QDLE databases: reconstruct the
+            # unique deal registry from the append-only audit before accepting
+            # a new settlement. Never silently discard conflicting receipts.
+            for legacy_id, legacy_request, receipt_json in db.execute(
+                """SELECT id,request_id,receipt FROM audit
+                   WHERE event='BROKER_REALIZED_SETTLEMENT' ORDER BY id"""
+            ).fetchall():
+                try:
+                    evidence = json.loads(receipt_json)
+                    deal = str(evidence["deal_receipt"])
+                    ticket = str(evidence["broker_ticket"])
+                    pnl = str(evidence["realized_net_pnl_usd"])
+                except (KeyError, TypeError, ValueError) as exc:
+                    raise QDLEError(
+                        f"existing settlement audit {legacy_id} cannot migrate") from exc
+                previous = db.execute(
+                    "SELECT request_id FROM broker_settlements WHERE deal_receipt=?",
+                    (deal,),
+                ).fetchone()
+                if previous is not None and previous[0] != legacy_request:
+                    raise QDLEError("duplicate legacy broker deal: account frozen")
+                db.execute(
+                    """INSERT OR IGNORE INTO broker_settlements
+                       (deal_receipt,request_id,broker_ticket,net_pnl_usd)
+                       VALUES (?,?,?,?)""",
+                    (deal, legacy_request, ticket, pnl),
+                )
 
     @contextmanager
     def _tx(self):
