@@ -217,12 +217,16 @@ class QDLE:
     def __init__(self, path: str | Path, calculator: BrokerCalculator,
                  max_age_seconds: int = 10,
                  entry_risk_fraction: Decimal = Decimal('0.05'),
-                 enforce_finance_approval: bool = False) -> None:
+                 enforce_finance_approval: bool = False,
+                 strict_live_fee_evidence: bool = True) -> None:
         _d('entry_risk_fraction', entry_risk_fraction)
         if entry_risk_fraction != Decimal("0.05"):
             raise QDLEError("QDLE sovereign risk fraction is fixed at 5pct of QORE trading capital")
         self.entry_risk_fraction = entry_risk_fraction
         self.enforce_finance_approval = enforce_finance_approval
+        # Only explicitly trusted broker round-trip fee schedules permit LIVE.
+        # Synthetic tests must opt out; deployed VPS uses the strict default.
+        self.strict_live_fee_evidence = strict_live_fee_evidence
         if max_age_seconds <= 0:
             raise QDLEError("invalid maximum snapshot age")
         self.path = str(path)
@@ -609,6 +613,10 @@ class QDLE:
             self._fresh(spec.as_of, now)
             if not spec.tradable:
                 raise QDLEError("LIVE symbol cannot be traded")
+            if (self.strict_live_fee_evidence
+                    and not spec.fee_provenance.startswith("BROKER_ROUND_TRIP_VERIFIED:")):
+                raise QDLEError(
+                    "LIVE commission schedule does not prove open AND close fees")
             current = replace(approved_intent, entry_price=executable_entry)
             quote = self.calculator.value(spec, current, now)
             if not isinstance(quote, BrokerValuation):
