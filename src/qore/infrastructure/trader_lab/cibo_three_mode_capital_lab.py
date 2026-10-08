@@ -973,6 +973,9 @@ def run_three_mode_trader_lab(
     lifecycle_medium_context_stop_by_signal: (
         Mapping[str, Mapping[str, object]] | None
     ) = None,
+    lifecycle_attack_context_stop2_by_signal: (
+        Mapping[str, Mapping[str, object]] | None
+    ) = None,
     lifecycle_bootstrap_override_capital_ceiling: Decimal | None = None,
     lifecycle_bootstrap_override_peak_capital_ceiling: Decimal | None = None,
     lifecycle_bootstrap_override_drawdown_trigger: Decimal | None = None,
@@ -2735,6 +2738,40 @@ def run_three_mode_trader_lab(
                 "MEDIUM context-stop managed_exit_at",
             )
 
+    lifecycle_attack_context_stop2_map: dict[str, dict[str, object]] = {}
+    if lifecycle_attack_context_stop2_by_signal is not None:
+        lifecycle_attack_context_stop2_map = {
+            str(signal): dict(profile)
+            for signal, profile in lifecycle_attack_context_stop2_by_signal.items()
+        }
+        if set(lifecycle_attack_context_stop2_map) != set(signals):
+            raise CiboCapitalManagementError(
+                "Trader Lab ATTACK context-stop2 map must cover exact manifest signals"
+            )
+        for signal, profile in lifecycle_attack_context_stop2_map.items():
+            managed = Decimal(str(profile.get("managed_gross_r")))
+            original = Decimal(str(profile.get("original_gross_r")))
+            if (
+                not managed.is_finite()
+                or not original.is_finite()
+                or type(profile.get("data_available")) is not bool
+                or not isinstance(profile.get("managed_exit_at"), str)
+                or type(profile.get("context_defensive_stop_active")) is not bool
+                or not isinstance(profile.get("events"), (list, tuple))
+                or not profile.get("events")
+                or any(
+                    not isinstance(item, CiboLifecycleEvent)
+                    for item in profile["events"]
+                )
+            ):
+                raise CiboCapitalManagementError(
+                    f"Trader Lab ATTACK context-stop2 profile malformed for {signal}"
+                )
+            _dt(
+                profile["managed_exit_at"],
+                "ATTACK context-stop2 managed_exit_at",
+            )
+
     lifecycle_attack_override_map: dict[str, dict[str, object]] = {}
     if lifecycle_attack_override_by_signal is not None:
         lifecycle_attack_override_map = {
@@ -2799,6 +2836,7 @@ def run_three_mode_trader_lab(
     lifecycle_applied_trade_count = 0
     lifecycle_bootstrap_override_applied_count = 0
     lifecycle_medium_context_stop_applied_count = 0
+    lifecycle_attack_context_stop2_applied_count = 0
     lifecycle_attack_override_applied_count = 0
     lifecycle_attack_override_projected_risk_blocked_count = 0
     lifecycle_drawdown_trigger_blocked_count = 0
@@ -6062,6 +6100,13 @@ def run_three_mode_trader_lab(
                     )
                 )
             )
+            attack_context_stop2_allowed = bool(
+                lifecycle_attack_context_stop2_map
+                and candidate_mode is CiboTraderLabMode.ATTACK
+                and lifecycle_attack_context_stop2_map[
+                    candidate.signal_fingerprint
+                ].get("context_defensive_stop_active") is True
+            )
             lifecycle_attack_override_projected_risk_allowed = (
                 lifecycle_attack_override_projected_open_stop_risk_fraction_trigger
                 is None
@@ -6094,6 +6139,13 @@ def run_three_mode_trader_lab(
                     ]["events"]
                 )
                 lifecycle_bootstrap_override_applied_count += 1
+            elif attack_context_stop2_allowed:
+                lifecycle_events_for_trade = tuple(
+                    lifecycle_attack_context_stop2_map[
+                        candidate.signal_fingerprint
+                    ]["events"]
+                )
+                lifecycle_attack_context_stop2_applied_count += 1
             elif lifecycle_attack_override_allowed:
                 lifecycle_events_for_trade = tuple(
                     lifecycle_attack_override_map[
@@ -6395,6 +6447,12 @@ def run_three_mode_trader_lab(
     )
     position_lifecycle_report["medium_context_stop_applied_count"] = (
         lifecycle_medium_context_stop_applied_count
+    )
+    position_lifecycle_report["attack_context_stop2_enabled"] = bool(
+        lifecycle_attack_context_stop2_map
+    )
+    position_lifecycle_report["attack_context_stop2_applied_count"] = (
+        lifecycle_attack_context_stop2_applied_count
     )
     position_lifecycle_report["attack_override_enabled"] = bool(
         lifecycle_attack_override_map
