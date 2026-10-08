@@ -109,6 +109,17 @@ class TestQdleLiveGate(unittest.TestCase):
         result = self.q.reserve_for_trader(intent(), T)
         self.assertEqual(result.lots, D(".03"))
 
+    def test_broker_cannot_acknowledge_live_fill_before_qdle_presend(self):
+        approved = intent("premature-fill")
+        self.q.publish_finance_approval(approved, T)
+        reserved = self.q.reserve_for_trader(approved, T)
+        self.assertGreater(reserved.lots, D("0"))
+        with self.assertRaisesRegex(QDLEError, "before sovereign LIVE presend"):
+            self.q.acknowledge_fill("premature-fill", "forged-or-premature-ticket")
+        self.assertEqual(
+            self.q.health(now=T)["pending_or_unreconciled_reservations"], 1,
+        )
+
     def test_live_presend_is_single_use_and_held_after_unknown(self):
         self.q.publish_finance_approval(intent(), T)
         funded = self.q.reserve_for_trader(intent(), T)
