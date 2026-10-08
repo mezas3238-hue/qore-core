@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from cibo_replay_integrity_gate import assess_replay, assess_research_pareto
+from cibo_replay_integrity_gate import assess_replay, assess_research_pareto, assess_economic_noninferiority
 
 
 def sample():
@@ -123,6 +123,53 @@ class CiboReplayIntegrityGateTest(unittest.TestCase):
         r = assess_research_pareto(x, baseline)
         self.assertFalse(r["strict_sovereign_safe_research_pareto"])
         self.assertFalse(r["checks"]["full_sovereign_integrity"])
+
+    def test_economic_noninferiority_accepts_profit_and_gl_improvement_at_same_dd(self):
+        x=sample();ref=sample()
+        x["ending_total_capital_usd"]="600050"
+        x["ending_portfolio_cushion_usd"]="600010"
+        x["economic_group_report"]["portfolio_loss_report"]["total_gross_loss_usd"]="959950"
+        x["economic_group_report"]["portfolio_loss_report"]["attack_gross_loss_usd"]="958950"
+        res=assess_economic_noninferiority(x,ref)
+        self.assertTrue(res["economic_noninferiority_pass"])
+        self.assertFalse(res["certified"])
+
+    def test_economic_noninferiority_rejects_nonzero_sovereign_floor_breach(self):
+        x=sample();ref=sample()
+        x["ending_total_capital_usd"]="600050"
+        x["ending_portfolio_cushion_usd"]="600010"
+        x["sovereign_floor_breach_usd"]="1"
+        x["economic_group_report"]["portfolio_loss_report"]["total_gross_loss_usd"]="959950"
+        x["economic_group_report"]["portfolio_loss_report"]["attack_gross_loss_usd"]="958950"
+        self.assertFalse(assess_economic_noninferiority(x,ref)["economic_noninferiority_pass"])
+
+    def test_economic_noninferiority_rejects_dd_degradation(self):
+        x=sample();ref=sample()
+        x["ending_total_capital_usd"]="600050"
+        x["ending_portfolio_cushion_usd"]="600010"
+        x["max_drawdown_fraction"]="0.22001"
+        x["economic_group_report"]["portfolio_loss_report"]["total_gross_loss_usd"]="959950"
+        x["economic_group_report"]["portfolio_loss_report"]["attack_gross_loss_usd"]="958950"
+        self.assertFalse(assess_economic_noninferiority(x,ref)["economic_noninferiority_pass"])
+
+    def test_economic_noninferiority_rejects_no_material_capital_improvement(self):
+        x=sample();ref=sample()
+        x["economic_group_report"]["portfolio_loss_report"]["total_gross_loss_usd"]="959950"
+        x["economic_group_report"]["portfolio_loss_report"]["attack_gross_loss_usd"]="958950"
+        self.assertFalse(assess_economic_noninferiority(x,ref)["economic_noninferiority_pass"])
+
+    def test_economic_noninferiority_accepts_decimal_noise_not_fake_dd_breakthrough(self):
+        x=sample();ref=sample()
+        x["ending_total_capital_usd"]="600050"
+        x["ending_portfolio_cushion_usd"]="600010"
+        x["max_drawdown_fraction"]="0.220000000000000000000000000000000000001"
+        x["economic_group_report"]["portfolio_loss_report"]["total_gross_loss_usd"]="959950"
+        x["economic_group_report"]["portfolio_loss_report"]["attack_gross_loss_usd"]="958950"
+        r=assess_economic_noninferiority(x,ref)
+        self.assertTrue(r["economic_noninferiority_pass"])
+        self.assertNotEqual(r["dd_change_fraction"],"0")
+
+
 
 
 if __name__ == "__main__":
