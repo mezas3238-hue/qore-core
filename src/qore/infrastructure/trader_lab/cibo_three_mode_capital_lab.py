@@ -6114,16 +6114,21 @@ def run_three_mode_trader_lab(
                 # explicit, same-timestamp cash transfer from already realized,
                 # unreserved portfolio cushion. Never lend future profits.
                 if candidate_mode is CiboTraderLabMode.MEDIUM:
-                    protected_source = max(
-                        Decimal(0),
-                        min(
-                            source_left,
-                            sovereign_left - state.sovereign_protection_floor_usd,
-                        ),
-                    )
-                    transfer_needed = max(
-                        Decimal(0), source_reserved - protected_source
-                    )
+                    with localcontext() as context:
+                        context.prec = 100
+                        protected_source = max(
+                            Decimal(0),
+                            min(
+                                source_left,
+                                state.sovereign_bank_usd
+                                - state.sovereign_reserved_usd
+                                - state.sovereign_protection_floor_usd,
+                            ),
+                        )
+                        transfer_needed = max(
+                            Decimal(0),
+                            source_reserved - protected_source,
+                        )
                     if (
                         transfer_needed > 0
                         and stop_risk <= risk_left
@@ -6132,9 +6137,11 @@ def run_three_mode_trader_lab(
                         and transfer_needed <= state.cushion_available_usd
                     ):
                         state.bridge_from_unreserved_cushion(transfer_needed)
-                        sovereign_left += transfer_needed
-                        cushion_left -= transfer_needed
-                        source_left += transfer_needed
+                        with localcontext() as context:
+                            context.prec = 100
+                            sovereign_left += transfer_needed
+                            cushion_left -= transfer_needed
+                            source_left += transfer_needed
                         record_engineering_sensor(
                             "COMPOUND_PORTFOLIO",
                             epoch_index=epoch_index,
@@ -6153,16 +6160,22 @@ def run_three_mode_trader_lab(
                             reaction="PRESERVE_BANK_FLOOR_AND_TRADE_CUSTODY",
                             approval=True,
                         )
-                funded_source_left = source_left
-                if candidate_mode is CiboTraderLabMode.MEDIUM:
-                    funded_source_left = min(
-                        source_left,
-                        max(
-                            Decimal(0),
-                            sovereign_left
-                            - state.sovereign_protection_floor_usd,
-                        ),
-                    )
+                # Exact broker-fund check must use the post-transfer physical
+                # bank and pending reserve, with the same Decimal precision
+                # as the atomic transfer. Never round a funding shortfall away.
+                with localcontext() as context:
+                    context.prec = 100
+                    funded_source_left = source_left
+                    if candidate_mode is CiboTraderLabMode.MEDIUM:
+                        funded_source_left = min(
+                            source_left,
+                            max(
+                                Decimal(0),
+                                state.sovereign_bank_usd
+                                - state.sovereign_reserved_usd
+                                - state.sovereign_protection_floor_usd,
+                            ),
+                        )
                 if (
                     stop_risk > risk_left
                     or margin > margin_left
