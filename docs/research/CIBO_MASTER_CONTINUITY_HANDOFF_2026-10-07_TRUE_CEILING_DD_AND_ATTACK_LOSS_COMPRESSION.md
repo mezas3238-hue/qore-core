@@ -1,3 +1,928 @@
+# ACTUALIZACIÓN MAESTRA CANÓNICA — 2026-10-08
+## CIBO TRUE CEILING → DRAWDOWN COMPRESSION → PÉRDIDA BRUTA → CERTIFICACIÓN
+
+> **ESTA SECCIÓN ES LA AUTORIDAD NUMÉRICA MÁS RECIENTE Y SUPERA CUALQUIER CIFRA ANTIGUA DEL CUERPO HISTÓRICO QUE APARECE MÁS ABAJO.**
+>
+> El cuerpo anterior se conserva deliberadamente como historial de investigación, decisiones, hipótesis y arquitectura. Cuando exista contradicción entre una cifra antigua y esta actualización, manda esta actualización.
+
+Owner / CEO: Sergio Meza  
+Repositorio fuente de verdad: `mezas3238-hue/qore-core`  
+Branch canónico: `agent/cibo-causal-expectation-leakage-fix-001`  
+HEAD observado antes de publicar esta actualización: `cfc65b895f21fda94ed3ca14ed4622e5de2caeac` — `research(cibo): attack 36.17 MEDIUM plateau after 459x capture`
+
+---
+
+# 0. DIRECTIVA SOBERANA ACTUAL
+
+La misión ya no es descubrir si CIBO puede producir capital. Eso quedó demostrado.
+
+La misión vigente es:
+
+> **REDUCIR EL MAX DRAWDOWN DE CIBO LO MÁXIMO POSIBLE SIN DEGRADAR EL TECHO ECONÓMICO CONGELADO, SIN ROMPER EL COMPOUNDING, SIN RECHAZAR ENTRADAS Y SIN INTRODUCIR LEAKAGE.**
+
+Objetivos soberanos:
+
+- capital inicial: **USD 60**;
+- preservar **3.368 / 3.368 entradas**;
+- el Trader decide/admite/ejecuta la entrada;
+- CIBO administra financieramente la posición después de la entrada;
+- CIBO **NO puede rechazar entradas**;
+- piso económico congelado: **USD 582.440,0252953678696769360345**;
+- cero Sizing rejection;
+- cero Sizing deferral;
+- cero ATTACK sovereign breach;
+- reglas genéricas, causales, identity-free y sin outcome/future leakage;
+- DD ideal: **<=20%**;
+- DD tolerable máximo: **<=25%**;
+- **26% NO cumple**;
+- el rango 20–25% es condición necesaria para pasar a batería científica, pero **NO equivale a certificación**.
+
+El objetivo de 8.000% en 36 meses fue una base histórica, **NO un techo**. No limitar artificialmente la capacidad de CIBO a 8.000%.
+
+---
+
+# 1. ESTADO ACTUAL REAL — NUEVO CARRIER STRICT PARETO GLOBAL
+
+## Carrier global vigente de investigación
+
+Caso:
+
+`f-m2850-h0060`
+
+Workflow:
+
+`.github/workflows/cibo-trader-lab-carrier36459-m1-hysteresis-fusion-ridge.yml`
+
+Run decisivo:
+
+**37762989521**
+
+Commit que lanzó el ridge:
+
+**1f1d65adb54d31d46e67ddee813c34d7fd087676**
+
+Métricas:
+
+- capital final: **USD 670.974,1001848463**
+- max DD: **36,40871215817897%**
+- total gross loss: **USD 957.685,0671680592**
+- ATTACK gross loss: **USD 956.129,1127115113**
+- total PF: **~1,70055817**
+- entradas: **3.368 / 3.368**
+- sovereign breach: **0**
+- max-DD peak: **2019-07-19 06:45 UTC**
+- max-DD trough: **2019-08-09 01:35 UTC**
+- max-DD net por modo: **MEDIUM ~ -USD 29,0410**
+- capital sobre piso congelado: **~USD 88.534,07**
+- STRICT PARETO: **TRUE** contra el carrier previo `m1-2925`
+
+Configuración diferencial principal:
+
+- MEDIUM context-stop principal alrededor de **-0,2850R**
+- ATTACK compound hysteresis **0,0060**
+
+Este carrier reduce simultáneamente DD y gross loss frente al carrier `m1-2925`. El capital baja aproximadamente USD 103 frente a `m1-2925`, pero permanece muy por encima del piso congelado y también por encima de los ceilings históricos que motivaron esta fase. Por tanto, se acepta como carrier de investigación DD bajo la política STRICT PARETO vigente.
+
+---
+
+# 2. TRAYECTORIA DE DRAWDOWN CONSEGUIDA
+
+La compresión no fue cosmética. La secuencia aproximada ha sido:
+
+- **65,10%**
+- **64,02%**
+- **51,15%**
+- **48,37%**
+- **46,25%**
+- **44,05%**
+- **43,85%**
+- **41,73%**
+- **40,0058%**
+- **39,6850%**
+- **39,1742%**
+- **38,4621%**
+- **38,29095%**
+- **38,26313%**
+- **38,22140%**
+- **38,21727%**
+- luego nuevas defensas contextuales / microcliffs llevaron el carrier a la zona 37.x
+- **37,65504%**
+- **37,082% aprox.**
+- **36,91% aprox.**
+- **36,50943%**
+- **36,45907%**
+- **36,40871% — CARRIER GLOBAL VIGENTE**
+
+La investigación ya eliminó más de **28,6 puntos porcentuales de DD** desde el estado ~65,10%, preservando las 3.368 entradas.
+
+La misión sigue abierta porque **36,41% todavía está muy por encima del tolerable 25%**.
+
+---
+
+# 3. NUEVA FRONTERA FÍSICA MÁS BAJA — NO PROMOVER TODAVÍA
+
+El ridge:
+
+`.github/workflows/cibo-trader-lab-carrier36423-w2-taper-boundary-ridge.yml`
+
+Run:
+
+**37763397877**
+
+Commit:
+
+**74c2b0646d8d83845dc55eb29417b9b17900bf6a**
+
+encontró:
+
+`tb-6500`
+
+Métricas:
+
+- capital: **USD 670.926,0204345729**
+- DD: **36,17369997743142%**
+- total GL: **USD 959.364,9078905784**
+- ATTACK GL: **USD 957.806,5608890021**
+- PF: **~1,69928138**
+- peak/trough del DD: **2019-07-19 06:45 → 2019-08-09 01:35 UTC**
+- max-DD MEDIUM: **~ -USD 28,8536**
+- 3.368 / 3.368 entradas;
+- zero sovereign breach;
+- floor PASS.
+
+Dentro de su rama `td-f`, `tb-6500` figura como STRICT PARETO y `dominates_current=true`.
+
+**Pero NO debe promoverse todavía como carrier global**, porque comparado contra el carrier global `f-m2850-h0060`:
+
+- DD mejora ~0,235 puntos;
+- capital sólo baja ~USD 48;
+- pero total GL empeora aproximadamente **USD 1,68k**;
+- ATTACK GL empeora aproximadamente **USD 1,68k**.
+
+Interpretación:
+
+> **36,17370% es una frontera física validada y muy prometedora. El siguiente arquitecto debe intentar compensar sólo ese pequeño rebote de GL sin perder la compresión de DD.**
+
+No repetir protecciones globales para lograrlo. Usar una palanca GL-negativa pequeña, localizada y causal.
+
+---
+
+# 4. NUEVO BREAKTHROUGH: MICRO-RIDGE MEDIUM EN EL EPISODIO 2019
+
+Workflow:
+
+`.github/workflows/cibo-trader-lab-carrier36509-medium-m1-micro-ridge.yml`
+
+Run:
+
+**37762724394**
+
+Commit:
+
+**d893b9d48eb844d712f752a6b469d678980ad885**
+
+Carrier de partida:
+
+`carrier36509-tfb`
+
+- capital: **USD 671.077,4137959161**
+- DD: **36,50943166421363%**
+- total GL: **USD 957.746,5816508499**
+- ATTACK GL: **USD 956.190,5468564571**
+- PF: **~1,70062105**
+
+El micro-ridge alrededor de -0,30R demostró que el borde es suave y útil antes del cliff.
+
+Resultados relevantes:
+
+### `m1-2925` — STRICT PARETO + DOMINANTE
+
+- capital: **USD 671.077,4539648386**
+- DD: **36,45907191119630%**
+- total GL: **USD 957.746,5414819275**
+- ATTACK GL: **sin degradación**
+- PF: **~1,70062112**
+- mejora capital;
+- mejora DD;
+- mejora total GL;
+- 3.368 entradas;
+- zero breach.
+
+### `m1-2900` — frontera física no Pareto
+
+- capital: **USD 671.094,9012186111**
+- DD: **36,44228532685719%**
+- total GL rebota sólo **~USD 9,85**
+- ATTACK GL rebota **~USD 9,90**
+
+Este caso fue importante porque demostró que se podía profundizar el DD y que el único bloqueo era un gap de gross loss de unos pocos dólares.
+
+### Hysteresis compensation
+
+Al fusionar el stop MEDIUM con hysteresis se obtuvieron varios STRICT PARETO:
+
+- `f-m2900-h0055`
+- `f-m2900-h0060`
+- `f-m2875-h0055`
+- `f-m2875-h0060`
+- `f-m2850-h0060`
+
+El mejor carrier global por DD+GL es actualmente `f-m2850-h0060` con **36,40871%**.
+
+Conclusión:
+
+> El primer contexto MEDIUM está bien identificado y produce mejoras continuas, pero **no parece suficiente por sí solo para atravesar 35% sin entrar en un cliff**. Hay que encontrar un segundo cluster MEDIUM independiente o compensar una frontera más agresiva.
+
+---
+
+# 5. REALIZED-DD BUDGET — NUEVA CAPACIDAD Y RESULTADO
+
+Se añadió soporte para activar el ATTACK drawdown budget **sólo después de que exista drawdown realizado**, evitando estrangular compounding desde el peak.
+
+Implementación/exposición:
+
+- commit **3763ab919c4f7feccdb7ad1a0b949eb3fe3f9764**
+- parámetro:
+  `--ceiling-attack-drawdown-budget-trigger`
+
+Workflow de ridge:
+
+`.github/workflows/cibo-trader-lab-carrier36509-triggered-dd-budget-ridge.yml`
+
+Run:
+
+**37762660789**
+
+Mejor frontera de esa familia:
+
+`td-f`
+
+- capital: **USD 670.719,3784503909**
+- DD: **36,42303680703572%**
+- total GL: **USD 959.434,6657010059**
+- ATTACK GL: **USD 957.876,3186994296**
+- floor-valid DD improvement: **TRUE**
+- STRICT PARETO: **FALSE**
+- motivo: gross loss empeora aproximadamente **USD 1,69k**
+
+Conclusión:
+
+- la activación por realized-DD sí evita parte del daño de los budgets antiguos;
+- abre una frontera física útil;
+- **no resuelve el carrier global por sí sola**;
+- además, el DD gobernante es MEDIUM 2019, por lo que un budget ATTACK no puede ser la única solución.
+
+---
+
+# 6. W2 459x JUNE-2020 CAPTURE — QUÉ SE APRENDIÓ
+
+La rama concurrente atacó una pérdida ~459x de junio 2020.
+
+Workflow:
+
+`.github/workflows/cibo-trader-lab-carrier36423-w2-459-capture-ridge.yml`
+
+Run:
+
+**37763166003**
+
+Commit:
+
+**a7839fdc72bdd0f3b14d36d47e561997cebad60d**
+
+Una variante agresiva:
+
+`w2-u460-f60`
+
+alcanzó:
+
+- DD **36,17370%**
+- total GL fuertemente menor;
+- pero capital **~USD 551.468,70**, por debajo del piso congelado.
+
+RECHAZADA.
+
+Después se resolvió el taper boundary y apareció `tb-6500`, que conserva capital ~USD 670,9k y el mismo DD físico 36,17370%, pero con un rebote pequeño de GL contra el carrier global.
+
+Conclusión:
+
+> La pérdida 459x es una palanca real para bajar DD, pero la intensidad debe estar extremadamente localizada. El boundary ~0,65 muestra una zona económicamente viable que merece fusión con una palanca de compensación de GL.
+
+---
+
+# 7. SECOND MEDIUM CONTEXT — HIPÓTESIS PROMETEDORA, WORKFLOW FALLÓ TÉCNICAMENTE
+
+Se identificó una segunda firma MEDIUM muy selectiva, independiente del primer contexto:
+
+- sólo **2 operaciones MEDIUM 1x** en los 3 años;
+- **2 perdedoras**;
+- **0 ganadoras**;
+- ambas dentro del max-DD 2019;
+- pérdida agregada aproximada **-USD 3,56**;
+- sin solaparse con el primer contexto.
+
+La idea era probar un segundo context-only stop con requisitos causales tipo:
+
+- `ctx_cisd_progress_bucket=q2:<=0.50`
+- `ctx_source_range_state_bucket=q1:<=0.75`
+- `reg_h1_range_state=balanced`
+- `reg_m5_efficiency_state=high`
+
+Workflow:
+
+`.github/workflows/cibo-trader-lab-carrier36459-medium-context2-surgical-ridge.yml`
+
+Commit de creación:
+
+**31093449f3b75b8ba3b72acefc5048e4492e480b**
+
+Runs técnicos fallidos:
+
+- **37763320214**
+- **37763396352**
+
+**IMPORTANTE: estos failures NO son evidencia económica negativa. El replay no llegó a ejecutarse.**
+
+Problema observado:
+
+- el YAML quedó malformado durante generación del bloque `run_case`;
+- se mezclaron líneas viejas del micro-ridge con el nuevo bloque;
+- el archivo debe repararse antes de volver a lanzar.
+
+Primer trabajo recomendado para el siguiente arquitecto:
+
+1. reparar ese workflow;
+2. basarlo sobre el carrier global vigente `f-m2850-h0060`, no sobre una cifra vieja;
+3. mantener el primer contexto MEDIUM exactamente congelado;
+4. variar sólo el segundo context-stop;
+5. ejecutar vía Ultra Fast batch;
+6. rankear contra el carrier global 36,40871%.
+
+Esta hipótesis puede ser más valiosa que seguir apretando el primer stop, porque ataca un cluster independiente del mismo trough.
+
+---
+
+# 8. BUDGETS Y RESCATES RECIENTES RECHAZADOS — NO REPETIR
+
+Sobre `carrier36509-tfb` se probaron:
+
+## Localized DD Budget
+
+Run **37762019994**
+
+- `FLOOR_VALID_DD_CASES=[]`
+- `STRICT_PARETO_CASES=[]`
+
+RECHAZADO.
+
+## Narrow DD Budget
+
+Run **37762060159**
+
+- algunos casos bajaron DD a ~36,40%;
+- pero destruyeron capital hasta ~USD 551k o peor;
+- cero floor-valid Pareto.
+
+RECHAZADO.
+
+## Two-Band DD Budget
+
+Run **37762199165**
+
+- destrucción extrema del compounding;
+- capital en muchos casos ~USD 43k–65k;
+- cero Pareto.
+
+RECHAZADO.
+
+## Rescue DD Envelope
+
+Runs **37761758630** y **37762433200**
+
+- algunas cifras visuales de DD ~35,84%;
+- pero capital colapsó a ~USD 1k;
+- cero floor-valid DD cases.
+
+RECHAZADO.
+
+## Dual MEDIUM Rescue
+
+Run **37761342431**
+
+- no produjo ruta válida al objetivo;
+- las defensas MEDIUM demasiado fuertes cruzan el cliff y rompen compounding.
+
+## Long-horizon / broad protections anteriores
+
+También siguen rechazadas:
+
+- broad ATTACK lifecycle;
+- broad DD budgets;
+- broad state pressure;
+- global multiplier cuts;
+- broad partial reduction;
+- aggressive compound hysteresis;
+- global low-multiplier demotion;
+- cualquier variante que baje GL “bonito” a costa de matar el terminal capital.
+
+Patrón soberano confirmado:
+
+> **Las defensas globales pueden bajar pérdidas brutas, pero destruyen la trayectoria de compounding. La solución debe ser quirúrgica, causal, state-aware y reversible.**
+
+---
+
+# 9. DIAGNÓSTICO ACTUAL DEL MAX DRAWDOWN
+
+El max-DD global sigue gobernado por un episodio **MEDIUM**, no por el ATTACK que originalmente dominaba 2020/2021.
+
+Carrier global `f-m2850-h0060`:
+
+- peak: **2019-07-19 06:45 UTC**
+- trough: **2019-08-09 01:35 UTC**
+- modo responsable: esencialmente **MEDIUM**
+- max-DD net MEDIUM ~**-USD 29,041**
+
+Esto cambia la metodología.
+
+No sirve seguir optimizando sólo ATTACK.
+
+Hay que diseccionar el episodio 2019 operación por operación y explicar:
+
+1. qué trades construyen el peak-to-trough;
+2. qué pérdidas son direct-to-stop;
+3. cuáles tuvieron MFE antes de deteriorarse;
+4. qué evidencia de barras cerradas existía antes de la pérdida;
+5. cuáles son 1x vs 2x;
+6. qué expected-R / confidence / dispersion tenían;
+7. qué regime state compartían;
+8. qué capital state / peak state existía;
+9. qué losers tienen twins ganadores y por qué;
+10. qué acción habría ahorrado pérdida sin matar recovery winners;
+11. cómo interactuaron Sizing, Adaptive Leverage, CIBO Compound y Compound Portfolio;
+12. si CIBO reescaló demasiado rápido después de una pérdida;
+13. si hubo clustering temporal de pérdidas;
+14. si hay un segundo o tercer cluster causal pequeño no cubierto por el primer context-stop.
+
+No aceptar la explicación “MEDIUM perdió”. Se necesita **atribución causal por trade y por motor económico**.
+
+---
+
+# 10. METODOLOGÍA OBLIGATORIA DESDE AQUÍ
+
+Ciclo operativo:
+
+> **FORensics profundo → hipótesis causal → cambio mínimo → Trader Lab replay → STRICT PARETO → conservar/rechazar → recalcular atlas → repetir**
+
+Reglas:
+
+- una modificación por hipótesis cuando sea posible;
+- no hardcodear Trader/símbolo;
+- no outcome leakage;
+- predecision o closed-bar evidence;
+- preservar 3.368 entradas;
+- mantener invariantes;
+- comparar siempre contra el carrier global vigente;
+- no promover una “frontera física” si empeora GL sin una razón explícitamente aceptada;
+- aprovechar fronteras físicas para diseñar compensadores, no para redefinir el criterio después del resultado.
+
+Hitos intermedios útiles:
+
+- <36%;
+- <35%;
+- <32%;
+- <30%;
+- <27,5%;
+- <=25%;
+- ideal <=20%.
+
+**Ningún hito intermedio es meta final.**
+
+---
+
+# 11. PRIORIDAD ABSOLUTA: ESTUDIO PROFUNDO DE LAS CAUSAS DEL DD
+
+El Owner exige un estudio a profundidad de los factores que ocasionan Drawdown para atacar la problemática existente.
+
+El siguiente arquitecto debe producir un **Drawdown Causal Atlas** por episodio.
+
+Para cada peak-to-trough dominante:
+
+## A. Ledger temporal
+
+- timestamp;
+- capital antes;
+- peak capital causal;
+- live DD;
+- posición abierta;
+- settlement;
+- capital después;
+- DD después;
+- modo económico;
+- multiplier;
+- risk fraction;
+- stop risk;
+- realized PnL;
+- cumulative PnL dentro del episodio.
+
+## B. Contexto causal de cada operación
+
+- expected structural R;
+- confidence / dispersion;
+- planned target R;
+- projected risk;
+- M5/H1/H4 range state;
+- efficiency state;
+- volatility state;
+- body alignment;
+- close location;
+- rejection wick;
+- CISD progress;
+- raid depth;
+- reclaim latency;
+- source range state;
+- capital band;
+- peak-capital band;
+- generation;
+- loss streak;
+- recent loss pressure.
+
+## C. Lifecycle
+
+- duration;
+- MAE;
+- MFE;
+- first +0,25R / +0,5R / +1R;
+- first adverse threshold;
+- última barra causal antes del stop;
+- si existió oportunidad real para partial reduction;
+- si el mismo rule dañaría winners.
+
+## D. Atribución económica
+
+Medir contribución de:
+
+- SIZING;
+- ADAPTIVE_LEVERAGE;
+- CIBO_COMPOUND;
+- COMPOUND_PORTFOLIO.
+
+La arquitectura económica debe trabajar **en conjunto**. No convertir CIBO en un simple stop manager.
+
+## E. Cross-portfolio
+
+- simultaneidad;
+- concentración por asset;
+- concentración por Trader;
+- correlación temporal;
+- stop-risk overlap;
+- pérdida agregada por ventanas;
+- reescalado después de drawdown;
+- recovery velocity.
+
+---
+
+# 12. STRICT PARETO — CRITERIO DE PROMOCIÓN
+
+Carrier global sólo se reemplaza si:
+
+1. capital >= **USD 582.440,0252953678696769360345**;
+2. DD mejora;
+3. total GL <= carrier comparator;
+4. ATTACK GL <= carrier comparator;
+5. 3.368/3.368;
+6. zero reject/defer;
+7. zero sovereign breach;
+8. reglas causales;
+9. sin leakage;
+10. sin quitar autoridad de entrada al Trader.
+
+`dominates_current` es más fuerte y pide además capital >= capital del comparator.
+
+Puede existir un STRICT PARETO no-dominante si cede una pequeña parte de capital pero mejora DD y GL y permanece ampliamente sobre el floor, como `f-m2850-h0060`.
+
+---
+
+# 13. TRADER LAB — ESTADO DE VELOCIDAD
+
+Se trabajó también sobre la lentitud de Trader Lab.
+
+Cambios recientes migraron numerosos workflows legacy al **Ultra Fast prepared batch**.
+
+Evidencia documentada en commits recientes:
+
+- varios workflows de 6–11 minutos bajaron a aproximadamente **43–114 segundos cold**;
+- benchmark de 13 casos pasó de ~16m23s a ~2m03s cold;
+- repeticiones exact-cache han llegado a ~**20–21 segundos**;
+- se añadió Runtime Audit para impedir nuevas regresiones de fanout;
+- se exige ranking verificado y JSON artifact en suites Ultra Fast.
+
+No volver a introducir fanout oversubscribed ni workflows de investigación que ignoren el batch runner.
+
+Core:
+
+- `scripts/cibo_trader_lab_batch_runner.py`
+- cache prepared M5;
+- exact result cache;
+- workers acotados;
+- timeout fail-closed.
+
+La prioridad científica sigue siendo DD, pero el laboratorio debe mantenerse suficientemente rápido para iterar sin ciclos de 9–11 minutos.
+
+---
+
+# 14. QUÉ FALTA PARA LLEGAR A 20–25% DD
+
+## P0 — congelar carrier global actual para comparación
+
+Usar:
+
+`f-m2850-h0060` / run **37762989521**
+
+hasta que exista un nuevo STRICT PARETO global.
+
+## P1 — reparar y ejecutar second MEDIUM context
+
+Es la acción más directa sobre el cuello actual.
+
+## P2 — fusionar la frontera `tb-6500` 36,17370% con GL compensation
+
+El gap de GL frente al carrier global es sólo ~USD 1,68k.
+
+Buscar compensación localizada, por ejemplo:
+
+- hysteresis pequeño;
+- taper causal de un microcluster distinto;
+- state-pressure ya validado sólo si no destruye compounding;
+- defensa de una pérdida ATTACK específica por estado, no por identidad.
+
+No usar broad budget.
+
+## P3 — descubrir tercer cluster dentro del trough 2019
+
+Cuando el primer + segundo context no basten, volver al atlas y buscar la siguiente contribución marginal.
+
+## P4 — cuando el DD migre, cambiar de episodio inmediatamente
+
+No sobreoptimizar julio-agosto 2019 cuando deje de ser el máximo.
+
+Cada migración de max-DD define un nuevo problema causal.
+
+## P5 — objetivos de escalón
+
+- bajar de 36%;
+- perforar 35%;
+- 32%;
+- 30%;
+- 27,5%;
+- <=25%;
+- ideal <=20%.
+
+No parar en 35/30/27,5.
+
+---
+
+# 15. QUÉ FALTA PARA CERTIFICAR CIBO
+
+**CIBO NO ESTÁ CERTIFICADO.**
+
+Llegar a DD 20–25% sólo habilita la fase científica final.
+
+Después de cerrar ingeniería de DD/pérdidas:
+
+## A. Freeze de arquitectura
+
+- policy;
+- parámetros;
+- expected-R;
+- confidence;
+- calibration;
+- lifecycle;
+- economic group;
+- hashes;
+- commit reproducible;
+- artifacts y digests.
+
+## B. Accounting / provenance / conservation
+
+Demostrar:
+
+- conservación exacta;
+- provenance de cada dólar;
+- no double counting;
+- no double spend;
+- reservations;
+- releases;
+- settlement;
+- recycling;
+- reconciliation Sovereign/Portfolio/Compound;
+- generation invariants.
+
+## C. Ablations
+
+Ablar:
+
+- SIZING;
+- ADAPTIVE_LEVERAGE;
+- CIBO_COMPOUND;
+- COMPOUND_PORTFOLIO;
+- lifecycle;
+- DD windows;
+- expected-R;
+- confidence;
+- state pressure;
+- hysteresis;
+- context stops.
+
+## D. Temporal robustness
+
+- chronological folds;
+- walk-forward;
+- temporal replication;
+- múltiples regímenes;
+- años/semestres separados;
+- estabilidad de DD y PF;
+- no dependencia de un único régimen.
+
+## E. Monte Carlo / path stress
+
+- clustering;
+- p05/P95;
+- probability positive;
+- probability of ruin;
+- recovery time;
+- loss bursts;
+- compatible reorderings.
+
+## F. Cost / execution stress
+
+- spread;
+- slippage;
+- costs x2;
+- latency;
+- fill degradation;
+- margin compression;
+- provider constraints.
+
+## G. Concentration stress
+
+- por Trader;
+- por asset;
+- por regime;
+- simultaneous correlation;
+- remove best 1/2/3 trades;
+- worst-cluster stress.
+
+## H. Failure engineering
+
+Probar:
+
+- restart;
+- duplicate event;
+- duplicate reservation;
+- partial settlement;
+- stale snapshot;
+- ledger crash;
+- reconciliation mismatch;
+- concurrent allocation;
+- provider unavailable;
+- idempotency.
+
+Hard invariants:
+
+- ZERO DOUBLE-SPEND;
+- ZERO DUPLICATE AUTHORITY;
+- ZERO SILENT SOURCE CREATION;
+- ZERO RELEASE BEFORE RECONCILIATION.
+
+## I. Forward qualification
+
+- forward separado;
+- gates definidos antes;
+- no retune;
+- observabilidad completa;
+- zero-open final.
+
+## J. Fresh sealed OOS
+
+Holdout protegido:
+
+**CIBO_USD60_6M_HOLDOUT_2017H1_V1**
+
+**NO ABRIR todavía.**
+
+Sólo usar después de freeze + prerequisites.
+
+## K. Exámenes finales
+
+Pendientes:
+
+1. Worst-Trader Rescue Exam;
+2. Final Integrated Certification Exam;
+3. World Cup Maximum Capability Exam;
+4. fresh sealed OOS;
+5. zero-open closure;
+6. final certification candidate.
+
+---
+
+# 16. COSAS QUE EL SIGUIENTE ARQUITECTO NO DEBE HACER
+
+- no volver a empezar ceiling discovery desde cero;
+- no tratar 8.000% como techo;
+- no rechazar entradas;
+- no blacklistar Trader o símbolo;
+- no usar identidad para defender;
+- no usar futuro/outcome leakage;
+- no sacrificar el floor para presumir DD bajo;
+- no promover `tb-6500` como global sin reparar el rebote de GL;
+- no considerar los failures 37763320214/37763396352 como resultado económico;
+- no repetir Localized/Narrow/Two-Band broad budgets;
+- no usar stop MEDIUM global duro;
+- no seguir apretando el mismo context-stop cuando la curva entra en cliff;
+- no tocar el sealed holdout;
+- no declarar certificación por un replay reutilizado;
+- no olvidar que Sizing + Leverage + CIBO Compound + Portfolio Compound deben trabajar conjuntamente.
+
+---
+
+# 17. RUNS / COMMITS QUE EL SIGUIENTE ARQUITECTO DEBE LEER PRIMERO
+
+## Runs
+
+- **37762724394** — Carrier36509 MEDIUM M1 Micro Ridge.
+- **37762989521** — Carrier36459 M1 Hysteresis Fusion Ridge — contiene carrier global 36,40871%.
+- **37762660789** — Triggered DD Budget Ridge — `td-f` 36,42303%, frontera no-Pareto global.
+- **37763166003** — W2 459 Capture Ridge.
+- **37763397877** — W2 Taper Boundary Ridge — `tb-6500` 36,17370%, frontera física.
+- **37763320214 / 37763396352** — failures técnicos del second MEDIUM context workflow.
+
+## Commits
+
+- **d893b9d48eb844d712f752a6b469d678980ad885** — launch MEDIUM M1 micro ridge.
+- **1f1d65adb54d31d46e67ddee813c34d7fd087676** — fuse 36.45 MEDIUM edge with GL hysteresis.
+- **3763ab919c4f7feccdb7ad1a0b949eb3fe3f9764** — expose realized-DD budget trigger.
+- **a7839fdc72bdd0f3b14d36d47e561997cebad60d** — capture 459x June-2020 loss in DD window2.
+- **31093449f3b75b8ba3b72acefc5048e4492e480b** — second MEDIUM context workflow, requiere reparación.
+- **74c2b0646d8d83845dc55eb29417b9b17900bf6a** — resolve 459x W2 taper boundary.
+
+---
+
+# 18. CONTINUIDAD INMEDIATA PARA EL SIGUIENTE ARQUITECTO
+
+Leer este handoff completo y luego:
+
+1. **Tomar `f-m2850-h0060` como carrier global vigente.**
+2. Reparar `cibo-trader-lab-carrier36459-medium-context2-surgical-ridge.yml`.
+3. Relanzarlo contra el comparator **36,40871215817897%** y los GL del carrier global.
+4. En paralelo, usar `tb-6500` como frontier para buscar **GL compensation de ~USD 1,68k**.
+5. No degradar el floor USD 582.440,03.
+6. Preservar 3.368 entradas.
+7. Si aparece nuevo STRICT PARETO, promover y recalcular max-DD attribution.
+8. Si el max-DD migra, detener tuning del episodio viejo y atacar el nuevo episodio.
+9. Repetir hasta <=25%, ideal <=20%.
+10. Sólo entonces freeze + batería científica completa.
+
+Frase soberana:
+
+> **“Reducir Drawdown a lo máximo posible sin degradar el techo; estudiar causalmente cada episodio de pérdida; reparar, replay, comparar STRICT PARETO y repetir. Ideal 20%, tolerable hasta 25%. No detenerse en metas intermedias.”**
+
+---
+
+# 19. RESUMEN EJECUTIVO PARA HANDOFF
+
+Estado histórico de referencia:
+
+- capital ~USD 582.440;
+- DD ~65,10%;
+- GL ~USD 1,445M.
+
+Carrier global actual:
+
+- capital **USD 670.974,10**
+- DD **36,40871%**
+- total GL **USD 957.685,07**
+- ATTACK GL **USD 956.129,11**
+- PF **~1,70056**
+- 3.368/3.368
+- zero breach
+- ~USD 88,5k sobre floor.
+
+Frontier física más baja identificada:
+
+- **36,17370%** en `tb-6500`;
+- capital ~USD 670.926;
+- todavía requiere compensar ~USD 1,68k de GL para superar al carrier global bajo el criterio completo.
+
+La prioridad absoluta sigue siendo **DRAWDOWN**.
+
+**Ideal = 20%. Tolerable = hasta 25%.**
+
+CIBO **NO está certificado**.
+
+---
+
+
+
 # QORE CORE — CIBO MASTER CONTINUITY HANDOFF
 
 ## TRUE CEILING FROZEN → STRICT-PARETO DD / GROSS-LOSS COMPRESSION → 20% IDEAL / 25% MAX TOLERABLE → SCIENTIFIC CERTIFICATION
