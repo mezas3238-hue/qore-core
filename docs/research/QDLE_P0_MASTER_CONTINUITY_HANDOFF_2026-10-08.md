@@ -1,5 +1,14 @@
 # QDLE P0 — HANDOFF MAESTRO DEL MOTOR INDEPENDIENTE (2026-10-08)
 
+## OVERRIDE DE CONTINUIDAD: PROGRAMA DE TRES ARQUITECTOS P0
+
+**El handoff maestro actual para coordinar el trabajo conjunto es** [QORE_CIBO_THREE_ARCHITECT_MASTER_HANDOFF_2026-10-08.md](QORE_CIBO_THREE_ARCHITECT_MASTER_HANDOFF_2026-10-08.md). Define las tres responsabilidades (#737 CIBO director cognitivo, #738 cuatro motores económicos, #739 QDLE/MT5/certificación) y las ramas de trabajo aisladas. La meta es una mesa de trading cognitiva, con criterio como un operador profesional, no cuatro topes de 5% clonados.
+
+**El estado aquí conservado sigue siendo ingeniería P0 sin certificación LIVE.** No elevar hallazgos de research a resultados realizados. El programa de tres arquitectos sustituye las instrucciones de «un único arquitecto» de secciones históricas sin borrar genealogía. Conservar USD2000 broker para margen, USD60 QORE para riesgo 5% dinámico y el criterio de seguridad de QDLE.
+
+---
+
+
 ## ESTADO DE REPARACIÓN P0 — COMISIONES, FILL, DUPLICADOS Y LOS 4 MOTORES
 
 **Reparaciones aplicadas (2026-10-08):** [Handoff de ingeniería P0 y bloqueos aún existentes](QDLE_P0_FINANCIAL_REPAIR_EXECUTION_STATUS_2026-10-08.md). **QDLE Atomic Engine #37847261427 SUCCESS**: 67 unit tests + 3 pruebas de integración sobre código `fea2b85e8ccbf1de172ffeb698f815123eb76b9f`. Son pruebas de software, no certificación.
