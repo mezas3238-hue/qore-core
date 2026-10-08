@@ -57,12 +57,19 @@ jobs:
             --manifest "$RUNNER_TEMP/qore-source/walk-forward-manifest.json" \
             --min-policy broker_grid \
             --output "$RUNNER_TEMP/qdle-results/qdle-3368-broker-grid-min.json"
+      - name: Sensitivity with today's contracts and no assumed provider rule
+        run: |
+          python scripts/qdle_3368_dual_ledger_replay.py \
+            --manifest "$RUNNER_TEMP/qore-source/walk-forward-manifest.json" \
+            --min-policy broker_grid \
+            --provider-trailing-usd disabled \
+            --output "$RUNNER_TEMP/qdle-results/qdle-3368-broker-grid-provider-unverified.json"
       - name: Audit both 3368 full-coverage reports
         run: |
           python - <<'PY'
           import json, os, pathlib
           root=pathlib.Path(os.environ['RUNNER_TEMP'])/'qdle-results'
-          for name in ['qdle-3368-original-trader-min.json', 'qdle-3368-broker-grid-min.json']:
+          for name in ['qdle-3368-original-trader-min.json', 'qdle-3368-broker-grid-min.json', 'qdle-3368-broker-grid-provider-unverified.json']:
               d=json.loads((root/name).read_text())
               assert d['signal_count']==3368
               assert d['unique_signal_count']==3368
