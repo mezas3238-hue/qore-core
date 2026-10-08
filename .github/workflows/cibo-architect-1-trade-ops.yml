@@ -1,0 +1,29 @@
+name: CIBO Architect 1 Causal Trade Ops
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/cibo-architect-1-cognitive-trade-ops-20261008
+    paths:
+      - 'src/qore/infrastructure/cibo_trade_ops_director.py'
+      - 'tests/infrastructure/test_cibo_trade_ops_director.py'
+      - '.github/workflows/cibo-architect-1-trade-ops.yml'
+  pull_request:
+    paths:
+      - 'src/qore/infrastructure/cibo_trade_ops_director.py'
+      - 'tests/infrastructure/test_cibo_trade_ops_director.py'
+permissions:
+  contents: read
+jobs:
+  causal-trade-ops:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify event ledger and decisions without sending orders
+        env:
+          PYTHONPATH: src
+        run: python -m unittest discover -s tests/infrastructure -p test_cibo_trade_ops_director.py -v
