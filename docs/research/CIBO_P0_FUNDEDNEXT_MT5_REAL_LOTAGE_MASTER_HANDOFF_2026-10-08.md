@@ -100,3 +100,23 @@ H. Master handoff — this document.
 - A code SUCCESS or 3368 SIGNAL replay does not mean successful profit performance or certification.
 
 **RELEASE VERDICT: KEEP RESEARCH BRANCH ONLY, NOT MERGE / NO VPS LIVE ORDERS.**
+
+
+## Final fail-closed release restriction — latest code
+
+After broker portfolio rehydration audit, `CoordinatedCiboCapital` now defaults
+`complete_broker_positions_reconciled=False` and sets
+`ExecutionAuthorization.can_submit_to_broker=False`. Until a real authorized MT5
+session reconstructs **all already-open positions' risk, volume and reserved margin**
+and verifies fee model, the Trader must NOT execute a staged P0 intent.
+Although tests use simulated `MockMT5`, they deliberately prove the default
+authorizations are NOT live-submittable.
+
+Last verified CI on code containing this fail-closed behavior:
+**[GitHub Actions 37810894912](https://github.com/mezas3238-hue/qore-core/actions/runs/37810894912) —
+SUCCESS — 34 unified MT5/compound tests + 6 Trader presend tests = 40 green**.
+This newer run supersedes the original CI link in the preceding section.
+
+Broker position rehydration, broker-deal/close proof (do not accept a mere
+boolean flag), actual partial fills / SL slippage repricing, timestamp check
+and account's actual funded model ID are still required before release.
