@@ -1,0 +1,97 @@
+name: QORE CIBO DD Top3 Root Cause Atlas 20261008
+on:
+  workflow_dispatch:
+  push:
+    branches: [agent/cibo-dual-dd-context-defense-20261008-001]
+    paths: [.github/workflows/cibo-dd-top3-episode-root-cause-20261008.yml]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  root-cause:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Recover and verify immutable replay and manifest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/cibo-dd-root/replay /tmp/cibo-dd-root/manifest
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/11554376374/zip" >/tmp/cibo-dd-root/replay.zip
+          echo "37ff402efa052719f8fed635b015bac1586603dc929c86422bebb20e226d291c  /tmp/cibo-dd-root/replay.zip" |sha256sum -c -
+          unzip -q /tmp/cibo-dd-root/replay.zip -d /tmp/cibo-dd-root/replay
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/11451743578/zip" >/tmp/cibo-dd-root/manifest.zip
+          echo "d439957f21e2f79148b5a2fb75a53db6fa448698f17aeb6978f379ed3547f7ea  /tmp/cibo-dd-root/manifest.zip" |sha256sum -c -
+          unzip -q /tmp/cibo-dd-root/manifest.zip -d /tmp/cibo-dd-root/manifest
+      - name: Attribute current maximum DD episodes to prior-available context
+        run: |
+          python - <<'PY'
+          from decimal import Decimal as D
+          from pathlib import Path
+          from collections import defaultdict
+          import json
+          root=Path('/tmp/cibo-dd-root')
+          manifest_files=list((root/'manifest').rglob('walk-forward-manifest.json'))
+          assert len(manifest_files)==1
+          manifest=json.loads(manifest_files[0].read_text())
+          replay=json.loads((root/'replay'/'transfer-floor-h1flat50.json').read_text())
+          assert replay['trade_count']==replay['decision_count']==3368
+          original={}
+          for op in manifest['opportunities']:
+              o=op['trader_opportunity']
+              original[op['signal_fingerprint']]={
+                'ctx':{str(k):str(v) for k,v in o['decision_context']},
+                'source_stop_risk':o.get('stop_loss_per_volume'),
+                'side':o.get('side'),
+              }
+          assert len(original)==3368
+          receipts={p['signal_fingerprint']:p for p in replay['trade_receipts']}
+          dd=replay['drawdown_forensics']['top_10_episodes'][:5]
+          allowed={'reg_h1_body_alignment','reg_h4_body_alignment','reg_h1_range_state','reg_h4_range_state','reg_m5_volatility_state','reg_m5_efficiency_state','ctx_source_range_state_bucket','ctx_reclaim_latency_bucket','ctx_cisd_progress_bucket','ctx_rejection_wick_bucket','ctx_raid_depth_range_bucket','ctx_protected_risk_range_bucket','ctx_close_location_bucket','ctx_prior_body_alignment'}
+          output=[]
+          for ep in dd:
+              negatives=ep.get('top_negative_settlements',[])
+              summarized=[]
+              aggregated=defaultdict(lambda:{'n':0,'loss':D(0),'attack':0,'medium':0})
+              for row in negatives:
+                  sig=row.get('signal_fingerprint')
+                  if sig not in original:continue
+                  pnl=D(row.get('net_pnl_usd',0))
+                  if pnl>=0:continue
+                  x=original[sig]
+                  y=receipts[sig]
+                  contexts={k:v for k,v in x['ctx'].items() if k in allowed}
+                  summarized.append({
+                    'loss_usd':str(-pnl),'mode':row.get('mode'),
+                    'multiplier':row.get('multiplier'),
+                    'original_preentry_context':contexts,
+                    'current_realized_trade_net':y.get('realized_net_pnl_usd'),
+                    'entry_at':y.get('decision_at'),
+                  })
+                  for k,v in contexts.items():
+                      a=aggregated[k+'='+v]
+                      a['n']+=1;a['loss']+=-pnl
+                      a['attack']+=row.get('mode')=='ATTACK'
+                      a['medium']+=row.get('mode')=='MEDIUM'
+              summarized.sort(key=lambda x:D(x['loss_usd']),reverse=True)
+              agg=sorted(({'feature':k,'n':v['n'],'loss_usd':str(v['loss']),'attack':v['attack'],'medium':v['medium']}
+                  for k,v in aggregated.items()),key=lambda x:D(x['loss_usd']),reverse=True)
+              output.append({
+                'rank':ep['rank'],'peak':ep['peak_at'],'trough':ep['trough_at'],
+                'dd_pct':str(D(ep['drawdown_fraction'])*100),
+                'peak_equity_usd':ep['peak_capital_usd'],
+                'trough_equity_usd':ep['trough_capital_usd'],
+                'net_by_mode':ep.get('net_by_mode_usd',{}),
+                'top_negative_events':summarized[:20],
+                'top_context_losses':agg[:25],
+                'top_negative_count_with_context':len(summarized)
+              })
+          (root/'dd-top3-root-cause.json').write_text(json.dumps(output,sort_keys=True,indent=2))
+          print('CIBO_DD_ROOT_CAUSE_TOP5='+json.dumps(output,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cibo-dd-top3-root-cause-${{ github.run_id }}
+          path: /tmp/cibo-dd-root/dd-top3-root-cause.json
+          retention-days: 90
