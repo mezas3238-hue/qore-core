@@ -72,6 +72,7 @@ class QDLEAccount:
     qore_unreserved_risk_usd: Decimal
     sovereign_free_source_usd: Decimal
     cushion_free_source_usd: Decimal
+    qore_trading_capital_usd: Decimal
     positions: tuple[Position, ...] = ()
     covered_fill_tickets: tuple[str, ...] = ()
 
@@ -82,7 +83,8 @@ class QDLEAccount:
             raise QDLEError("account snapshot sequence must increase")
         _dt(self.as_of)
         for name in ("balance", "equity", "free_margin", "qore_unreserved_risk_usd",
-                     "sovereign_free_source_usd", "cushion_free_source_usd"):
+                     "sovereign_free_source_usd", "cushion_free_source_usd",
+                     "qore_trading_capital_usd"):
             _d(name, getattr(self, name), zero=True)
         if len({p.ticket for p in self.positions}) != len(self.positions):
             raise QDLEError("duplicate MT5 position ticket")
@@ -217,8 +219,8 @@ class QDLE:
                  entry_risk_fraction: Decimal = Decimal('0.05'),
                  enforce_finance_approval: bool = False) -> None:
         _d('entry_risk_fraction', entry_risk_fraction)
-        if entry_risk_fraction > Decimal(1):
-            raise QDLEError('entry risk fraction cannot exceed account equity')
+        if entry_risk_fraction != Decimal("0.05"):
+            raise QDLEError("QDLE sovereign risk fraction is fixed at 5pct of QORE trading capital")
         self.entry_risk_fraction = entry_risk_fraction
         self.enforce_finance_approval = enforce_finance_approval
         if max_age_seconds <= 0:
@@ -278,6 +280,7 @@ class QDLE:
             qore_unreserved_risk_usd=Decimal(raw["qore_unreserved_risk_usd"]),
             sovereign_free_source_usd=Decimal(raw["sovereign_free_source_usd"]),
             cushion_free_source_usd=Decimal(raw["cushion_free_source_usd"]),
+            qore_trading_capital_usd=Decimal(raw["qore_trading_capital_usd"]),
             positions=tuple(Position(
                 p["ticket"], p["symbol"], p["side"], Decimal(p["lots"])
             ) for p in raw["positions"]),
@@ -316,6 +319,13 @@ class QDLE:
     def publish_account(self, snapshot: QDLEAccount) -> None:
         if not isinstance(snapshot, QDLEAccount):
             raise QDLEError("QDLEAccount required")
+        if snapshot.qore_trading_capital_usd > snapshot.equity:
+            raise QDLEError("QORE economic capital exceeds broker equity")
+        if (snapshot.sovereign_free_source_usd + snapshot.cushion_free_source_usd
+                > snapshot.qore_trading_capital_usd):
+            raise QDLEError("QORE economic sources exceed proprietary trading capital")
+        if snapshot.qore_unreserved_risk_usd > snapshot.qore_trading_capital_usd:
+            raise QDLEError("QORE risk headroom exceeds proprietary trading capital")
         with self._tx() as db:
             previous = self._meta(db, "account")
             if previous and previous["account_id"] != snapshot.account_id:
@@ -325,7 +335,8 @@ class QDLE:
             db.execute("INSERT OR REPLACE INTO meta VALUES('account',?)",
                        (_j(asdict(snapshot)),))
             self._audit(db, "ACCOUNT_SNAPSHOT", None,
-                        {"sequence": snapshot.sequence, "equity": snapshot.equity,
+                        {"sequence": snapshot.sequence, "broker_equity": snapshot.equity,
+                         "qore_trading_capital_usd": snapshot.qore_trading_capital_usd,
                          "positions": len(snapshot.positions)})
         self._ready_in_this_process = True
 
@@ -459,7 +470,7 @@ class QDLE:
                                  - total_held_risk)
             remaining_margin = max(Decimal(0), acc.free_margin - total_held_margin)
             causal_entry_budget = min(intent.requested_risk_usd,
-                                      acc.equity * self.entry_risk_fraction)
+                                      acc.qore_trading_capital_usd * self.entry_risk_fraction)
             zero_ceiling = (min(causal_entry_budget, intent.sizing_cap_usd,
                                 intent.cibo_compound_cap_usd, intent.portfolio_cap_usd,
                                 remaining_risk, free_source,
@@ -493,7 +504,7 @@ class QDLE:
                           remaining_margin: Decimal, volume_cap: Decimal) -> QDLEResult:
             input_spec = CiboLotSizingInput(
                 requested_loss_budget_usd=min(intent.requested_risk_usd,
-                    acc.equity * self.entry_risk_fraction),
+                    acc.qore_trading_capital_usd * self.entry_risk_fraction),
                 stop_risk_usd_per_lot=valuation.stop_loss_per_lot_usd,
                 provider_cost_usd_per_lot=(spec.fee_usd_per_lot
                                             + intent.slippage_usd_per_lot),
@@ -525,7 +536,7 @@ class QDLE:
                     computed.provider_cost_usd, computed.all_in_loss_if_stopped_usd,
                     computed.margin_required_usd, acc.sequence,
                     computed.binding_constraints,
-                    "Causal account-equity dynamic 5pct or configured cap; not an MT5 fill",
+                    "5pct dynamic QORE-owned trading capital; broker margin separate; not an MT5 fill",
                 )
             return result
 
@@ -608,7 +619,7 @@ class QDLE:
             actual_margin = quote.margin_per_lot_usd * lots
             if (actual_loss > Decimal(reservation[4])
                     or actual_margin > Decimal(reservation[5])
-                    or actual_loss > account.equity * self.entry_risk_fraction):
+                    or actual_loss > account.qore_trading_capital_usd * self.entry_risk_fraction):
                 raise QDLEError("LIVE price/margin drift exceeds atomically funded reservation")
             self.calculator.check_volume(spec, current, lots)
             db.execute("""UPDATE reservations SET state='SENDING'
