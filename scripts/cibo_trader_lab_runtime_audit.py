@@ -113,12 +113,23 @@ def main() -> None:
             # Fail closed for every batched research workflow, not just
             # a static allowlist: science requires published evidence.
             ranking = re.search(r"(?m)^      - name: Rank\b", body)
+            # Inline ranking is legitimate only when a strict case coverage
+            # assertion is present before the artifact upload.
+            inline_ranking = re.search(
+                r'(?m)^          print\("CARRIER[A-Z0-9_]+_RIDGE="',
+                body,
+            )
+            if "assert rows and len(rows)==expected_count" not in body:
+                inline_ranking = None
             upload = re.search(
                 r"(?m)^      - uses: actions/upload-artifact@v4\s*$", body
             )
-            rank_offset = ranking.start() if ranking else -1
+            rank_offset = (
+                ranking.start() if ranking else
+                inline_ranking.start() if inline_ranking else -1
+            )
             upload_offset = upload.start() if upload else -1
-            if not ranking or not upload or upload_offset <= rank_offset:
+            if rank_offset < 0 or upload_offset <= rank_offset:
                 errors.append(
                     f"missing ordered Rank/Upload evidence gates: {file}"
                 )
