@@ -219,16 +219,23 @@ def _load_or_prepare(
 def _economic_code_fingerprint() -> str:
     """Hash every relevant Python source so stale economics cannot be memoized."""
     digest = hashlib.sha256()
-    roots = [Path("src/qore"), Path("scripts")]
-    for root in roots:
-        paths = sorted(root.rglob("*.py"))
-        if not paths:
-            raise ValueError(f"missing replay Python source tree: {root}")
-        for path in paths:
-            # Include path as well as content; unchanged commits can reuse results.
-            digest.update(str(path).encode())
-            digest.update(bytes([0]))
-            digest.update(hashlib.sha256(path.read_bytes()).digest())
+    # The replay CLI imports its economic modules from src/qore. Hash the
+    # entire source tree conservatively, but do NOT hash unrelated scripts
+    # (audits, build helpers, independent traders) which cannot affect this
+    # CLI and would make every unrelated commit a false cache miss.
+    source_root = Path("src/qore")
+    paths = sorted(source_root.rglob("*.py"))
+    replay_entrypoints = [
+        Path("scripts/cibo_trader_lab_three_mode_ceiling.py"),
+        Path("scripts/cibo_trader_lab_batch_runner.py"),
+    ]
+    if not paths or any(not item.is_file() for item in replay_entrypoints):
+        raise ValueError("missing sovereign replay dependency sources")
+    paths.extend(replay_entrypoints)
+    for path in paths:
+        digest.update(path.as_posix().encode())
+        digest.update(bytes([0]))
+        digest.update(hashlib.sha256(path.read_bytes()).digest())
     return digest.hexdigest()
 
 
