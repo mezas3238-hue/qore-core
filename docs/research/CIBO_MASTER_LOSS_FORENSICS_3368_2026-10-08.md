@@ -131,3 +131,9 @@ A single large −USD54k in March 2022 strongly affects gross loss and final wea
 - This report is the canonical P0 for the new forensics lane; do not overwrite or silently change another architect's research branch.
 
 **Present milestone: 22% DD not achieved. “Trabajo cumplido” requires a verified new replay meeting all gates, not a loss-concentration observation.**
+
+## 5. Previously running G3/G4 closed: do not keep blind sweeps
+
+- [G3 37757591148](https://github.com/mezas3238-hue/qore-core/actions/runs/37757591148) SUCCESS, 9 replays, **STRICT_PARETO_CASES=[]**. An earlier MEDIUM adverse trigger `p4020-r35` lowered DD to **37.029711%**, but capital dropped to **USD665,735.99** and gross loss increased to **USD955,333.35** (from USD942,631.97). **Reject economic regression**.
+- [G4 37757768704](https://github.com/mezas3238-hue/qore-core/actions/runs/37757768704) SUCCESS, 9 replays, **STRICT_PARETO_CASES=[]**. The mild bootstrap initial stop `bt-stop25-dd10` produced DD **41.109836%**, total GL **USD949,891.34**, capital ~USD671,611.75; other variants further degraded DD, many collapsed wealth. **Reject**.
+- These negative scientific results reinforce the user's P0 directive to STOP parameter tuning divorced from causal loss classification and protection of winners. Keep G2 as the best verified carrier for this workstream; distinguish any concurrently discovered stronger Pareto candidate on the main architect branch.
