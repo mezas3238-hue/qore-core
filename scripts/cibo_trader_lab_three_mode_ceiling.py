@@ -190,6 +190,11 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--manifest", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument(
+        "--four-motor-lotage-initial-stop-usd",
+        type=Decimal,default=None,
+        help="H30 research: run all four CIBO economic lotage calculators against one account, target initial USD2.95 at stop, compound after."
+    )
     parser.add_argument("--baseline-replay", type=Path)
     parser.add_argument("--historical-manifest", type=Path)
     parser.add_argument("--historical-replay", type=Path)
@@ -2401,6 +2406,7 @@ def main() -> int:
         compound_profit_reinvestment_fraction=(
             args.compound_profit_reinvestment_fraction
         ),
+        four_motor_lotage_initial_stop_usd=args.four_motor_lotage_initial_stop_usd,
         collect_engineering_trace=not args.summary_telemetry,
         collect_epoch_receipts=not args.summary_telemetry,
         compact_trade_receipts=args.summary_telemetry,
