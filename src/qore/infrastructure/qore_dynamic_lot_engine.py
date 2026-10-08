@@ -180,6 +180,8 @@ class BrokerValuation:
 
 class BrokerCalculator(Protocol):
     def value(self, instrument: QDLESymbol, intent: QDLEIntent, now: datetime) -> BrokerValuation: ...
+    def check_volume(self, instrument: QDLESymbol, intent: QDLEIntent,
+                     lots: Decimal) -> None: ...
 
 
 @dataclass(frozen=True)
@@ -387,6 +389,37 @@ class QDLE:
             remaining_risk = max(Decimal(0), acc.qore_unreserved_risk_usd
                                  - total_held_risk)
             remaining_margin = max(Decimal(0), acc.free_margin - total_held_margin)
+            zero_ceiling = (min(intent.requested_risk_usd, intent.sizing_cap_usd,
+                                intent.cibo_compound_cap_usd, intent.portfolio_cap_usd,
+                                remaining_risk, free_source,
+                                remaining_margin, intent.margin_cap_usd,
+                                intent.leverage_cap_lots, volume_cap) <= 0)
+            if zero_ceiling:
+                result = QDLEResult(intent.request_id, "UNFUNDABLE", spec.broker_symbol,
+                                    Decimal(0), Decimal(0), Decimal(0), Decimal(0),
+                                    Decimal(0), acc.sequence, ("ZERO_FINANCE_CAPACITY",),
+                                    "No physical broker-minimum allocation")
+            else:
+                result = self._reserve_positive(db, spec, intent, acc,
+                    valuation, free_source, remaining_risk, remaining_margin, volume_cap)
+            db.execute("""INSERT INTO reservations
+                (request_id,payload_sha,state,source_lane,symbol,side,lots,risk,margin,
+                 snapshot_seq,fill_ticket,result)
+                 VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""",
+                       (intent.request_id, fingerprint,
+                        "HELD" if result.lots > 0 else "BLOCKED",
+                        intent.source_lane, spec.broker_symbol, intent.side,
+                        str(result.lots), str(result.total_risk_usd),
+                        str(result.margin_usd), acc.sequence, None,
+                        _j(asdict(result))))
+            self._audit(db, "VOLUME_RESERVED" if result.lots else "UNFUNDABLE",
+                        intent.request_id, asdict(result))
+            return result
+
+    def _reserve_positive(self, db, spec: QDLESymbol, intent: QDLEIntent,
+                          acc: QDLEAccount, valuation: BrokerValuation,
+                          free_source: Decimal, remaining_risk: Decimal,
+                          remaining_margin: Decimal, volume_cap: Decimal) -> QDLEResult:
             input_spec = CiboLotSizingInput(
                 requested_loss_budget_usd=intent.requested_risk_usd,
                 stop_risk_usd_per_lot=valuation.stop_loss_per_lot_usd,
@@ -408,16 +441,12 @@ class QDLE:
                 sovereign_unreserved_risk_usd=remaining_risk,
                 leverage_max_lots=min(intent.leverage_cap_lots, volume_cap),
             )
-            # QDLE is the only authority converting coordinated USD budgets to lots.
-            # Zero cap must BLOCK, never turn into 1x or a nominal real execution.
-            if input_spec.leverage_max_lots == 0 or input_spec.requested_loss_budget_usd == 0:
-                result = QDLEResult(intent.request_id, "UNFUNDABLE", spec.broker_symbol,
-                                    Decimal(0), Decimal(0), Decimal(0), Decimal(0),
-                                    Decimal(0), acc.sequence, ("EXPOSURE_OR_RISK_ZERO",),
-                                    "No physical broker-minimum allocation")
-            else:
-                computed = compute_cibo_lot_sizing(input_spec)
-                result = QDLEResult(
+            # Every positive quote must pass native broker order_check (or
+            # explicit deterministic replay preflight), before reserving cash.
+            computed = compute_cibo_lot_sizing(input_spec)
+            if computed.lots > 0:
+                self.calculator.check_volume(spec, intent, computed.lots)
+            result = QDLEResult(
                     intent.request_id,
                     "RESERVED_FOR_TRADER" if computed.lots > 0 else "UNFUNDABLE",
                     spec.broker_symbol, computed.lots, computed.stop_risk_usd,
@@ -426,18 +455,6 @@ class QDLE:
                     computed.binding_constraints,
                     "Not an MT5 order or fill; requires broker confirmation",
                 )
-            db.execute("""INSERT INTO reservations
-                (request_id,payload_sha,state,source_lane,symbol,side,lots,risk,margin,
-                 snapshot_seq,fill_ticket,result)
-                 VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""",
-                       (intent.request_id, fingerprint,
-                        "HELD" if result.lots > 0 else "BLOCKED",
-                        intent.source_lane, spec.broker_symbol, intent.side,
-                        str(result.lots), str(result.total_risk_usd),
-                        str(result.margin_usd), acc.sequence, None,
-                        _j(asdict(result))))
-            self._audit(db, "VOLUME_RESERVED" if result.lots else "UNFUNDABLE",
-                        intent.request_id, asdict(result))
             return result
 
     def acknowledge_fill(self, request_id: str, ticket: str) -> None:
