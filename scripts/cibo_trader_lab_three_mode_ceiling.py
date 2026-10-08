@@ -49,6 +49,19 @@ def _lifecycle_roots(values: list[str]) -> dict[str, Path]:
     return roots
 
 
+def _causal_context_matches(
+    available_predecision: dict[str, str],
+    requirements: tuple[tuple[str, str], ...],
+) -> bool:
+    """Only entry-time data; __MISSING__ requires genuine absent context."""
+    return all(
+        key not in available_predecision
+        if value == "__MISSING__"
+        else available_predecision.get(key) == value
+        for key, value in requirements
+    )
+
+
 def _build_lifecycle_map(
     manifest: dict[str, object],
     roots: dict[str, Path],
@@ -102,9 +115,9 @@ def _build_lifecycle_map(
         context_stop_active = bool(
             context_defensive_initial_stop_r is not None
             and context_requirements
-            and all(
-                row_decision_context.get(key) == value
-                for key, value in context_requirements
+            and _causal_context_matches(
+                row_decision_context,
+                context_requirements,
             )
         )
         selected_defensive_initial_stop_r = (
