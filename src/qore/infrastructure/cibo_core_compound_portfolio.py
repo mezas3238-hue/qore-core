@@ -354,3 +354,42 @@ class QoreCoreCompoundPortfolio:
                 key=lambda item: item[0].value,
             )
         )
+
+
+# P0 Architect 2: independent SHADOW portfolio treasury/source vote.
+# Canonical GEN-C3 accounting views remain read-only and account-local.
+from qore.infrastructure.cibo_four_motor_policy import (
+    FourMotorObservation, FourMotorProposal, FourMotorPolicyError, ZERO,
+)
+
+
+def propose_p0_portfolio_vote(observation: FourMotorObservation) -> FourMotorProposal:
+    """Risk-backed source USD with correlated/simultaneous-stop constraints.
+
+    Research policy only: global <= 15% NAV, correlated cluster <= 7.5%,
+    Trader <= 10%. Not asserted to be FundedNext provider rules.
+    """
+    if not isinstance(observation, FourMotorObservation):
+        raise FourMotorPolicyError("canonical observation required")
+    nav = observation.qore_nav_usd
+    caps = {
+        "SOURCE": observation.source_available_usd,
+        "UNPROTECTED": observation.risk_cash_remaining_usd,
+        "GLOBAL_STOPS": max(ZERO, nav * Decimal("0.15")
+                            - observation.total_open_stop_risk_usd
+                            - observation.risk_reservations_usd),
+        "CORRELATED": max(ZERO, nav * Decimal("0.075")
+                          - observation.correlated_open_stop_risk_usd
+                          - observation.risk_reservations_usd),
+        "TRADER": max(ZERO, nav * Decimal("0.10")
+                      - observation.trader_open_stop_risk_usd
+                      - observation.risk_reservations_usd),
+    }
+    cap = min(caps.values())
+    constraints = tuple(sorted(k for k, v in caps.items() if v == cap))
+    reasons = ("ACCOUNT_LOCAL_SOURCE_LANE_NO_TRANSFER",
+               "SIMULTANEOUS_STOP_RISK_BUDGET",
+               "CORRELATED_CLUSTER_AND_TRADER_CONCENTRATION",
+               "BINDING_" + "_".join(constraints))
+    return FourMotorProposal("PORTFOLIO_COMPOUND", observation,
+                             {"approved_source_funds_usd": str(cap)}, reasons)
