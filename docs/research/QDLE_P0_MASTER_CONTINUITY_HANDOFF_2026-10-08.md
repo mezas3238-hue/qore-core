@@ -6,6 +6,14 @@
 **Estado:** motor QDLE implementado con CI sintética positiva; integración observacional MT5, servicio de reservas SQLite y puente de cuatro motores; **NO LIVE**, **NO CERTIFICADO**, sin aprobación física real de los 3.368 intentos de Trader Lab.
 
 
+## INFORME 4 MOTORES + COSTES ACTUALES MT5 — 2026-10-08
+
+**Enlace:** [Informe completo de comisiones, lotaje y Sizing/CIBO Compuesto/Leverage/Portafolio](QDLE_P0_CURRENT_MT5_4_ENGINE_COMMISSION_AND_LOTAGE_REPORT_2026-10-08.md). Replay GitHub Actions [37831818976](https://github.com/mezas3238-hue/qore-core/actions/runs/37831818976), exact-SHA `3e86cbe563ad64c1ab85757a6f6b1cb9cc039e17`, SUCCESS. Se incluyen topes de cuatro motores y comisión por señal en 3 informes JSON reproducibles, con 3.368 señales por caso.
+
+**Diagnóstico P0:** Broker 0,01 sin inventar regla de trailing desconocida -> 2.113 propuestas QDLE, **USD60 a USD9,84 NAV QORE proxy**, DD cerrado 97,53%, comisión de apertura ~USD479,16, swap proxy -USD154,67. No es trading ni PnL MT5 real. Si hipotéticamente aplicamos trailing $120 -> 1.628 propuestas y stop simulado 2021-05-05, resultado no superviviente. El informe separa métrica observable de cada módulo: Sizing/CIBO Compuesto duplican techo 5%, Portafolio Compuesto no es tope final, Leverage limita margen; **no hay cuatro ganancias independientes atribuibles**. Prueba de código no implica certificación ni producción.
+
+---
+
 ## ACTUALIZACIÓN REPLAY QDLE 3.368 / 36 MESES — 2026-10-08
 
 **Evidencia más reciente:** [Informe replay con QDLE acoplado, comisiones, swaps y corte por provider DD](QDLE_P0_3368_DUAL_CAPITAL_PHYSICAL_LOTAGE_REPLAY_REPORT_2026-10-08.md). Run [37830200266](https://github.com/mezas3238-hue/qore-core/actions/runs/37830200266), SHA de código probado `5481bfd22cb9ec23f7953fc97f39a652ab03b313`, SUCCESS.
