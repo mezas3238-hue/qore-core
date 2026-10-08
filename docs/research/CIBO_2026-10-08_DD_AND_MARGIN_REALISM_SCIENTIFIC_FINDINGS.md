@@ -164,3 +164,23 @@ Research-only opt-in `--lifecycle-attack-override-partial-require KEY=VALUE` add
 
 [12-case context-specific replay workflow](https://github.com/mezas3238-hue/qore-core/blob/agent/cibo-dual-dd-context-defense-20261008-001/.github/workflows/cibo-sovereign-context-only-postentry-partial-ridge-20261008.yml) isolates cause with same base parameters and independent Sovereign/GL/DD gates, using only normalized geometry/volatility context. Record actual outcomes only after completed receipts; no policy promotion from reused holdout.
 
+
+## Scientific breakthrough: full-Sovereign economic noninferiority with H1 flat context (2026-10-08)
+
+[12-case contextual ATTACK partial ridge 37785438088](https://github.com/mezas3238-hue/qore-core/actions/runs/37785438088) **SUCCESS** (SHA256-frozen exact outputs artifact `11554376374` digest `37ff402efa052719f8fed635b015bac1586603dc929c86422bebb20e226d291c`).
+
+Research candidate `transfer-floor-h1flat50` adds closed-bar ATTACK adverse partial release of fraction 0.50, but **only when immutable pre-entry `reg_h1_body_alignment=flat`**. It **does not reject any** of 3368 opportunities, and removes only the partial feature on nonmatches, while preserving the pre-existing context-dependent defensive stop.
+
+Exact vs original full-Sovereign-protected `transfer-floor-control`:
+- Candidate final USD **672671.4731058652870261462079**, from control USD 671563.3972065475124241607281; **+USD 1108.0758993177746019854798**.
+- DD **0.349240140632946906062729154214387036177284... = 34.92401406329469%**; actual numeric change to source control 0E-100 in independent replay, **NO MATERIAL DD REDUCTION**. Critical 2020/2021 episodes unresolved.
+- Total gross loss **USD 959378.8420864768849772034844**, down **USD 3156.0423407500542774184468** from USD 962534.884427226939.
+- ATTACK gross loss **USD 957286.4219360003626447298416**, down USD 3156.0423407500542774184466.
+- PF 1.70109058444842914, final Sovereign bank USD +123.88585558, minimum Sovereign USD +30, `sovereign_floor_breach_usd=0`; all entries 3368/3368 preserved and the fixed terminal floor USD 582440.02529537 satisfied.
+- **Not global strict DD Pareto**: DD not reduced meaningfully and compared with older global gross-loss benchmarks is still higher. Treat as an economic noninferiority proof / additional R&D headroom, not true final ceiling or certification.
+
+[Independent SHA256-artifact audit 37785929563](https://github.com/mezas3238-hue/qore-core/actions/runs/37785929563) **SUCCESS**, 17 regression tests pass. Added `assess_economic_noninferiority()` into independent `scripts/cibo_replay_integrity_gate.py`: requires baseline & candidate full Sovereign-safe, all 3368, terminal above frozen floor, material positive capital improvement, material gross loss compression, ATTACK gross loss nonworsening and DD noninferiority tolerance 1e-8. Exact result: `economic_noninferiority_pass=true`, `dd_target_pass=false`, `certified=false`, `fresh_oos_verified=false`, `broker_margin_verified=false`. No live deployment or merge.
+
+Notably `transfer-floor-h1flat20` (20% partial) collapses capital to USD 552130.09 below frozen floor even though DD stays ~34.924%; fractions strongly nonlinear. Further [H1 flat fraction ridge workflow](https://github.com/mezas3238-hue/qore-core/blob/agent/cibo-dual-dd-context-defense-20261008-001/.github/workflows/cibo-sovereign-h1flat-partial-cliff-ridge-20261008.yml) brackets 35%-70% to seek a better GL/capital frontier. Record actual results after completion; do not assume material DD progress.
+
+**Next scientific priority:** use newly protected and economically superior R&D carrier to seek joint, ex-ante causal 2020+2021 DD reduction without reducing winner convexity. All discovery is overfit-prone because 2019-2022 holdout repeatedly mined; eventual promotion requires untouched sealed out-of-sample evaluation and provider-realistic execution/funding certification.
