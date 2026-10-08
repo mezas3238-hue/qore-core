@@ -2,6 +2,13 @@ name: QDLE 3368 Dual Capital Research Replay
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - agent/qdle-independent-engine-p0-20261008-001
+    paths:
+      - "scripts/qdle_3368_dual_ledger_replay.py"
+      - ".github/workflows/qdle-3368-dual-capital-replay.yml"
+      - "src/qore/infrastructure/qore_dynamic_lot_engine.py"
   pull_request:
     paths:
       - "scripts/qdle_3368_dual_ledger_replay.py"
