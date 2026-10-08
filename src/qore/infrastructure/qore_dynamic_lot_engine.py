@@ -251,6 +251,11 @@ class QDLE:
             db.execute("""CREATE TABLE IF NOT EXISTS audit (
                 id INTEGER PRIMARY KEY AUTOINCREMENT, event TEXT NOT NULL,
                 request_id TEXT, receipt TEXT NOT NULL)""")
+            # Multiple trade IDs must never attribute the same authenticated
+            # broker close deal as two independent profits.
+            db.execute("""CREATE TABLE IF NOT EXISTS broker_settlements (
+                deal_receipt TEXT PRIMARY KEY, request_id TEXT NOT NULL UNIQUE,
+                broker_ticket TEXT NOT NULL, net_pnl_usd TEXT NOT NULL)""")
 
     @contextmanager
     def _tx(self):
@@ -651,6 +656,8 @@ class QDLE:
                              (request_id,)).fetchone()
             if not row or row[0] not in ("HELD", "SENDING", "FILL_UNRECONCILED"):
                 raise QDLEError("unknown or non-reserved fill")
+            if self.enforce_finance_approval and row[0] == "HELD":
+                raise QDLEError("broker fill before sovereign LIVE presend arm is forbidden")
             if row[1] and row[1] != ticket:
                 raise QDLEError("contradictory broker fill ticket")
             other = db.execute("SELECT request_id FROM reservations WHERE fill_ticket=? AND request_id!=?",
@@ -723,6 +730,17 @@ class QDLE:
             if any(p.ticket == broker_ticket for p in acc.positions):
                 raise QDLEError("broker still reports position open")
             receipt = self._result(json.loads(row[3]))
+            already_recorded = db.execute(
+                "SELECT request_id FROM broker_settlements WHERE deal_receipt=?",
+                (deal_receipt,)).fetchone()
+            if already_recorded is not None:
+                raise QDLEError("broker settlement deal receipt reused by another trade")
+            db.execute(
+                """INSERT INTO broker_settlements
+                   (deal_receipt,request_id,broker_ticket,net_pnl_usd)
+                   VALUES (?,?,?,?)""",
+                (deal_receipt, request_id, broker_ticket, format(realized_net_pnl_usd, "f")),
+            )
             db.execute("UPDATE reservations SET state='SETTLED' WHERE request_id=?",
                        (request_id,))
             self._audit(db, "BROKER_REALIZED_SETTLEMENT", request_id, {
