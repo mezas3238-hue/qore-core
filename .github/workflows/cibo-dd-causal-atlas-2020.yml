@@ -1,0 +1,139 @@
+name: QORE CIBO DD Causal Atlas 2020
+on:
+  workflow_dispatch:
+  push:
+    branches: [agent/cibo-causal-expectation-leakage-fix-001]
+    paths: [.github/workflows/cibo-dd-causal-atlas-2020.yml]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  atlas:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Recover frozen artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/atlas/{a,b,results}
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/11543178956/zip" > /tmp/atlas/a.zip
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/11542893252/zip" > /tmp/atlas/b.zip
+          sha256sum /tmp/atlas/{a,b}.zip
+          unzip -q /tmp/atlas/a.zip -d /tmp/atlas/a
+          unzip -q /tmp/atlas/b.zip -d /tmp/atlas/b
+      - name: Analyze official DD and trade receipt loss gap
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from decimal import Decimal as D
+          from datetime import datetime
+          from collections import defaultdict
+          from pathlib import Path
+          root=Path('/tmp/atlas')
+          def load(folder,name):
+              files=list((root/folder).rglob(name+'.json'))
+              assert len(files)==1,files
+              r=json.loads(files[0].read_text())
+              assert r['decision_count']==r['trade_count']==3368
+              assert r['economic_group_report']['all_entries_preserved']
+              assert D(str(r['attack_sovereign_breach_usd']))==0
+              assert len(r['trade_receipts'])==3368
+              funnel=r['engineering_sensor_report']['execution_funnel']
+              assert funnel['final_trade_count']==3368
+              assert not funnel['sizing_medium_rejected_count']
+              assert not funnel['sizing_medium_deferred_count']
+              return r
+          a=load('a','m1-0700');b=load('b','f-m2850-h0060')
+          def metrics(r):
+              pl=r['economic_group_report']['portfolio_loss_report']
+              at=r['max_drawdown_attribution']
+              return dict(capital=r['ending_total_capital_usd'],
+                  dd_percent=str(D(r['max_drawdown_fraction'])*100),
+                  total_gross_loss=pl['total_gross_loss_usd'],
+                  attack_gross_loss=pl['attack_gross_loss_usd'],
+                  max_dd_attribution=at,
+                  top_10_episodes=r['drawdown_forensics']['top_10_episodes'])
+          f=metrics(a);g=metrics(b)
+          assert D(f['capital'])>=D('582440.0252953678696769360345')
+          gap=D(f['total_gross_loss'])-D(g['total_gross_loss'])
+          attack_gap=D(f['attack_gross_loss'])-D(g['attack_gross_loss'])
+          def d(x):return D(str(x or '0'))
+          def when(x):return datetime.fromisoformat(x.replace('Z','+00:00'))
+          start=when(f['max_dd_attribution']['peak_at'])
+          end=when(f['max_dd_attribution']['trough_at'])
+          window=[]; by=defaultdict(lambda:{'count':0,'net':D(0),'gross_loss':D(0)})
+          for r in a['trade_receipts']:
+              at=r.get('realized_exit_at')
+              if at is None or not start<=when(at)<=end:continue
+              x={key:r.get(key) for key in ('signal_fingerprint','trader_id','decision_at',
+                  'realized_exit_at','mode','multiplier','stop_risk_usd',
+                  'realized_net_pnl_usd','realized_net_r','gross_structural_outcome_r_postdecision')}
+              window.append(x)
+              for group in ('mode:'+str(r['mode']),'multiplier:'+str(r['multiplier']),
+                            'day:'+at[:10]):
+                  obj=by[group]; net=d(r['realized_net_pnl_usd'])
+                  obj['count']+=1;obj['net']+=net;obj['gross_loss']+=max(-net,D(0))
+          def lookup(r):
+              z={}
+              for x in r['trade_receipts']:
+                  k=x['signal_fingerprint'];assert k not in z;k and None
+                  z[k]=x
+              return z
+          x=lookup(a);y=lookup(b);assert set(x)==set(y)
+          differences=[]
+          for key in x:
+              new=max(-d(x[key].get('realized_net_pnl_usd')),D(0))
+              old=max(-d(y[key].get('realized_net_pnl_usd')),D(0))
+              if new==old:continue
+              differences.append({'signal':key,'mode_new':x[key]['mode'],'mode_old':y[key]['mode'],
+                 'multiplier_new':x[key]['multiplier'],'multiplier_old':y[key]['multiplier'],
+                 'new_loss':str(new),'old_loss':str(old),'delta_loss':str(new-old)})
+          differences.sort(key=lambda z:d(z['delta_loss']),reverse=True)
+          terminal_gap=sum((d(z['delta_loss']) for z in differences),D(0))
+          attack_total=lambda r:sum((max(-d(z.get('realized_net_pnl_usd')),D(0))
+             for z in r['trade_receipts'] if z['mode']=='ATTACK'),D(0))
+          attack_receipt_gap=attack_total(a)-attack_total(b)
+          report={'schema':'qore.cibo.2020_dd_causal_atlas.v1',
+             'research_only':True,'certification_evidence':False,
+             'global_run':37762989521,'frontier_run':37763827843,
+             'global':g,'frontier':f,
+             'official_total_gross_loss_rebound':str(gap),
+             'official_attack_gross_loss_rebound':str(attack_gap),
+             'terminal_trade_receipt_loss_gap':str(terminal_gap),
+             'terminal_trade_receipt_attack_loss_gap':str(attack_receipt_gap),
+             'receipt_loss_reconciliation_residual':str(gap-terminal_gap),
+             'attack_loss_reconciliation_residual':str(attack_gap-attack_receipt_gap),
+             'window_final_receipt_count':len(window),
+             'window_final_receipt_net':str(sum((d(z['realized_net_pnl_usd']) for z in window),D(0))),
+             'window_groups':{k:{k2:str(v2) for k2,v2 in v.items()} for k,v in by.items()},
+             'worst_30_final_receipts':sorted(window,key=lambda z:d(z['realized_net_pnl_usd']))[:30],
+             'all_window_final_receipts':window,
+             'top_40_gl_rebounds':differences[:40],
+             'top_40_gl_savings':list(reversed(differences[-40:])),
+             'all_receipt_loss_changes':differences,
+             'limitations':['Partial lifecycle settlements may not equal final trade receipts.',
+                'Summary receipts lack pre-entry context; join frozen manifest before changing policy.',
+                'No trader/symbol/entry ID hardcoding; no future-outcome-derived runtime decisions.',
+                'Holdout reused: NOT fresh OOS, NOT certification.']}
+          (root/'results/atlas.json').write_text(json.dumps(report,indent=2,sort_keys=True))
+          summary={'dd_global':g['dd_percent'],'dd_frontier':f['dd_percent'],
+             'peak':str(start),'trough':str(end),
+             'official_mode_net':f['max_dd_attribution'].get('net_by_mode_usd'),
+             'official_gl_gap':str(gap),'official_attack_gl_gap':str(attack_gap),
+             'terminal_receipt_gap_residual':str(gap-terminal_gap),
+             'attack_receipt_gap_residual':str(attack_gap-attack_receipt_gap),
+             'window_final_receipts':len(window),
+             'worst_5':report['worst_30_final_receipts'][:5],
+             'top_5_rebounds':differences[:5]}
+          (root/'results/summary.json').write_text(json.dumps(summary,indent=2))
+          print('CIBO_CAUSAL_ATLAS_SUMMARY='+json.dumps(summary,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-2020-dd-causal-atlas-${{ github.run_id }}
+          path: /tmp/atlas/results/*.json
+          if-no-files-found: error
+          retention-days: 90
