@@ -347,6 +347,8 @@ def _gateway(
     submission_enabled: bool,
     clock: Callable[[], datetime] | None = None,
     rules: StellarInstantRuleVerification | None = None,
+    qdle_gate: object | None = None,
+    qdle_live_required: bool = False,
 ) -> FundedNextLiveMt5ExecutionGateway:
     transport = MetaTrader5FundedNextLiveTransport(
         api=api,
@@ -366,6 +368,8 @@ def _gateway(
         account_identity_fingerprint=_HASH,
         expected_server="FundedNext-Server",
         submission_enabled=submission_enabled,
+        qdle_live_presend_gate=qdle_gate,
+        qdle_required_for_live=qdle_live_required,
     )
 
 
@@ -474,3 +478,47 @@ def test_live_gateway_resolves_nas100_to_ndx100() -> None:
     gateway = _gateway(api, complete=False, submission_enabled=False)
     spec = gateway.read_symbol("NAS100", now=_NOW)
     assert spec.provider_symbol == "NDX100"
+
+
+class _QDLEVeto:
+    def assert_reserved(self, submission, plan, now) -> None:
+        raise Mt5ExecutionBlockedError("qdle-rejected-broker-lotage")
+
+
+class _QDLEPermit:
+    def __init__(self):
+        self.calls = 0
+        self.actual_lot = None
+
+    def assert_reserved(self, submission, plan, now) -> None:
+        self.calls += 1
+        self.actual_lot = plan.volume
+
+
+def test_qdle_live_required_missing_gate_refuses_before_order_send() -> None:
+    api = _Api()
+    with pytest.raises(Mt5ExecutionValidationError, match="QDLE"):
+        _gateway(api, complete=True, submission_enabled=True,
+                 qdle_live_required=True)
+    assert api.sent == 0
+
+
+def test_qdle_live_presend_veto_blocks_actual_mt5_send() -> None:
+    api = _Api()
+    gateway = _gateway(api, complete=True, submission_enabled=True,
+                       qdle_live_required=True, qdle_gate=_QDLEVeto())
+    with pytest.raises(Mt5ExecutionBlockedError, match="qdle-rejected"):
+        gateway.submit_live(_submission(), now=_NOW)
+    assert api.checked == 2
+    assert api.sent == 0
+
+
+def test_qdle_live_presend_arm_allows_exact_one_broker_submission() -> None:
+    api = _Api()
+    permit = _QDLEPermit()
+    gateway = _gateway(api, complete=True, submission_enabled=True,
+                       qdle_live_required=True, qdle_gate=permit)
+    gateway.submit_live(_submission(), now=_NOW)
+    assert permit.calls == 1
+    assert permit.actual_lot == Decimal("0.01")
+    assert api.sent == 1
