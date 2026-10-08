@@ -22,7 +22,9 @@ def quote(**changes: D) -> CiboLotSizingInput:
         broker_lot_step=D("0.01"),
         sizing_risk_cap_usd=D("3"),
         cibo_compound_risk_cap_usd=D("3"),
-        portfolio_unreserved_cash_usd=D("3"),
+        portfolio_unreserved_cash_usd=D("0"),
+        sovereign_unreserved_cash_usd=D("3"),
+        source_lane="SOVEREIGN_BANK",
         leverage_available_margin_usd=D("500"),
         sovereign_unreserved_risk_usd=D("3"),
         leverage_max_lots=D("100"),
@@ -92,10 +94,23 @@ class CiboDynamicLotSizingTests(TestCase):
 
     def test_portfolio_cannot_spend_reserved_cash(self) -> None:
         result = compute_cibo_lot_sizing(
-            quote(portfolio_unreserved_cash_usd=D("0.3"))
+            quote(source_lane="PORTFOLIO_CUSHION", portfolio_unreserved_cash_usd=D("0.3"))
         )
         self.assertEqual(result.lots, D("0.01"))
         self.assertIn("COMPOUND_PORTFOLIO", result.binding_constraints)
+
+    def test_medium_does_not_require_unfunded_cushion(self) -> None:
+        result = compute_cibo_lot_sizing(quote(portfolio_unreserved_cash_usd=D("0")))
+        self.assertEqual(result.lots, D("0.10"))
+        self.assertNotIn("COMPOUND_PORTFOLIO", dict(result.engine_max_lots))
+
+    def test_source_isolation_never_borrows_cushion_for_bank(self) -> None:
+        result = compute_cibo_lot_sizing(
+            quote(sovereign_unreserved_cash_usd=D("0"),
+                  portfolio_unreserved_cash_usd=D("5000"))
+        )
+        self.assertEqual(result.status, "UNFUNDABLE_BROKER_MINIMUM")
+        self.assertIn("SOVEREIGN_BANK", result.binding_constraints)
 
     def test_leverage_margin_restricts_without_inventing_cash(self) -> None:
         result = compute_cibo_lot_sizing(
