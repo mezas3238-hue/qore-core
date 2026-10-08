@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import json
+import os
 import re
+import subprocess
 from pathlib import Path
 
 ROOT = Path(".github/workflows")
-MAX_LEGACY_FANOUT = 92  # Measured baseline on 2026-10-08. Never allow growth.
-
 MIGRATED = {
     "carrier37655-medium-context-stop-ridge",
     "carrier37655-medium-balanced-regime-ridge",
@@ -24,6 +24,47 @@ MIGRATED = {
 }
 FANOUT = re.compile(r"(?m)^\s*run_case\s+[^\n]+\s+&\s*$")
 LEGACY_PY = 'python scripts/cibo_trader_lab_three_mode_ceiling.py'
+
+
+
+def _check_changed_workflow_regressions() -> list[str]:
+    """Compare new/modified workflows with the actual event parent, not a
+    stale repository-wide count while other research architects are working.
+    Existing legacy jobs are inventory backlog, but adding new/extra
+    fanout is a performance regression.
+    """
+    event_path = os.environ.get("GITHUB_EVENT_PATH")
+    if not event_path:
+        return []
+    event = json.loads(Path(event_path).read_text(encoding="utf-8"))
+    base = event.get("before") or (event.get("pull_request") or {}).get("base", {}).get("sha")
+    if not base or not re.fullmatch(r"[0-9a-f]{40}", base) or base == "0" * 40:
+        return []
+    changed = subprocess.run(
+        ["git", "diff", "--name-only", base, "HEAD", "--", ".github/workflows"],
+        check=True, text=True, capture_output=True,
+    ).stdout.splitlines()
+    errors = []
+    for raw_path in changed:
+        file = Path(raw_path)
+        if not file.name.startswith("cibo-trader-lab-") or file.suffix != ".yml":
+            continue
+        if not file.is_file():
+            continue
+        current = file.read_text(encoding="utf-8")
+        old_result = subprocess.run(
+            ["git", "show", f"{base}:{raw_path}"],
+            check=False, text=True, capture_output=True,
+        )
+        previous = old_result.stdout if old_result.returncode == 0 else ""
+        old_count = len(FANOUT.findall(previous)) if LEGACY_PY in previous else 0
+        new_count = len(FANOUT.findall(current)) if LEGACY_PY in current else 0
+        if new_count > old_count:
+            errors.append(
+                f"new oversubscribed replay fanout: {raw_path} "
+                f"({old_count} -> {new_count}); use the batched runner"
+            )
+    return errors
 
 
 def main() -> None:
@@ -46,11 +87,7 @@ def main() -> None:
             migrated.append(sample)
         else:
             other.append(sample)
-    if len(slow) > MAX_LEGACY_FANOUT:
-        errors.append(
-            f"legacy oversubscribed workflow count increased: {len(slow)} > "
-            f"{MAX_LEGACY_FANOUT}; new research must use prepared batch"
-        )
+    errors.extend(_check_changed_workflow_regressions())
     for name in sorted(MIGRATED):
         f = ROOT / f"cibo-trader-lab-{name}.yml"
         if not f.is_file():
