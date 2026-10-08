@@ -130,12 +130,13 @@ class CoordinatedCiboCapital:
             if not isinstance(realized_net_usd,D) or not realized_net_usd.is_finite():
                 raise FundingError("BAD_BROKER_REALIZED_PNL")
             lane=self._mode[trade_id]
-            if lane=="MEDIUM":
-                self.bank+=realized_net_usd
-            else:self.cushion+=realized_net_usd
+            projected_bank=self.bank+(realized_net_usd if lane=="MEDIUM" else D(0))
+            projected_cushion=self.cushion+(realized_net_usd if lane=="ATTACK" else D(0))
+            if projected_bank<0 or projected_cushion<0:
+                raise FundingError("REALIZED_LOSS_VIOLATES_CAPITAL_SOLVENCY")
             self.ledger.release(trade_id)
+            self.bank=projected_bank
+            self.cushion=projected_cushion
             del self._authorizations[trade_id]
             self._settled.add(trade_id)
-            if self.bank<0 or self.cushion<0:
-                raise FundingError("REALIZED_LOSS_VIOLATES_CAPITAL_SOLVENCY")
             return self.wallet()
