@@ -53,7 +53,14 @@ jobs:
       - name: Compile
         run: |
           set -euo pipefail
-          python -m py_compile src/qore/infrastructure/cibo_position_lifecycle.py src/qore/infrastructure/trader_lab/cibo_three_mode_capital_lab.py scripts/cibo_trader_lab_three_mode_ceiling.py
+          python -m py_compile src/qore/infrastructure/cibo_position_lifecycle.py src/qore/infrastructure/trader_lab/cibo_three_mode_capital_lab.py scripts/cibo_trader_lab_three_mode_ceiling.py scripts/cibo_trader_lab_batch_runner.py
+
+      - name: Restore prepared trade-window cache
+        id: m5cache
+        uses: actions/cache@v4
+        with:
+          path: .qore-cache/cibo-ultrafast-v1
+          key: qore-cibo-ultrafast-v1-${{ hashFiles('scripts/cibo_trader_lab_batch_runner.py', 'scripts/cibo_trader_lab_three_mode_ceiling.py', 'src/qore/infrastructure/cibo_position_lifecycle.py', 'src/qore/infrastructure/cibo_single_account_manifest_settlement.py', 'src/qore/infrastructure/cibo_single_account_manifest_economics.py', 'src/qore/infrastructure/trader_lab/cibo_market_atlas_journey_extractor_v1.py', '.github/workflows/cibo-trader-lab-carrier37772-medium-h4m5-loss-cluster-ridge.yml') }}
 
       - name: Recover inputs
         env:
@@ -81,6 +88,12 @@ jobs:
           echo "HISTORICAL_REPLAY=$HISTORICAL_REPLAY" >> "$GITHUB_ENV"
 
           mkdir -p "$RUNNER_TEMP/atlas"
+          if [[ "${{ steps.m5cache.outputs.cache-hit }}" == "true" ]]; then
+            echo "QORE_CIBO_ULTRA_CACHE_RESTORED: skip repeated raw M5 downloads"
+            for SYMBOL in AUDJPY EURUSD GBPJPY GBPUSD NAS100 XAUUSD; do
+              mkdir -p "$RUNNER_TEMP/atlas/${SYMBOL}"
+            done
+          else
           for SYMBOL in AUDJPY EURUSD GBPJPY GBPUSD NAS100 XAUUSD; do
             ID_VAR="ATLAS_${SYMBOL}_ARTIFACT_ID"; DIGEST_VAR="ATLAS_${SYMBOL}_DIGEST"
             ARTIFACT_ID="${!ID_VAR}"; ARTIFACT_DIGEST="${!DIGEST_VAR}"
@@ -90,6 +103,7 @@ jobs:
             echo "${ARTIFACT_DIGEST#sha256:}  $ZIP" | sha256sum -c -
             unzip -q "$ZIP" 'RAW_M5_LEDGER/2019.jsonl' 'RAW_M5_LEDGER/2020.jsonl' 'RAW_M5_LEDGER/2021.jsonl' 'RAW_M5_LEDGER/2022.jsonl' -d "$ROOT"
           done
+          fi
 
       - name: Run carrier37772 MEDIUM H4M5 loss-cluster ridge
         run: |
@@ -234,7 +248,7 @@ jobs:
           run_case "h4m5-s1500" -0.1500 cluster
           run_case "h4m5-s1400" -0.1400 cluster
           run_case "h4m5-s1300" -0.1300 cluster
-          python scripts/cibo_trader_lab_batch_runner.py --cases "$RUNNER_TEMP/cibo-cases.jsonl" --workers 4
+          python scripts/cibo_trader_lab_batch_runner.py --cases "$RUNNER_TEMP/cibo-cases.jsonl" --workers 4 --m5-cache-dir "$GITHUB_WORKSPACE/.qore-cache/cibo-ultrafast-v1"
 
       - name: Rank strict Pareto vs carrier3829
         run: |
