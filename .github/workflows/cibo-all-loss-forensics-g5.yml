@@ -1,0 +1,63 @@
+name: QORE CIBO G5 All 3368 Losses Reproducible Forensics
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/cibo-loss-tail-causal-exposure-g5-001
+    paths:
+      - '.github/workflows/cibo-all-loss-forensics-g5.yml'
+      - 'scripts/cibo_loss_tail_forensics.py'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  audit-all-3368:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      FROZEN_REPLAY_ARTIFACT: '11542321736'
+      FROZEN_REPLAY_DIGEST: '0e14d059be5053f453861ef02d119a7290d803d01ca3c74735a94e3a0f127d52'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile and recover pinned historical full-trade replay
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/cibo_loss_tail_forensics.py
+          mkdir -p "$RUNNER_TEMP/input" "$RUNNER_TEMP/reports"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$FROZEN_REPLAY_ARTIFACT/zip" > "$RUNNER_TEMP/pinned.zip"
+          echo "$FROZEN_REPLAY_DIGEST  $RUNNER_TEMP/pinned.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/pinned.zip" em-s06745.json -d "$RUNNER_TEMP/input"
+      - name: Audit full winners losses cost stop-risk and ten drawdown regimes
+        run: |
+          set -euo pipefail
+          python scripts/cibo_loss_tail_forensics.py \
+            --replay "$RUNNER_TEMP/input/em-s06745.json" \
+            --output "$RUNNER_TEMP/reports/cibo-all-loss-forensics-g5.json"
+          python - <<'PY'
+          import json, os
+          from decimal import Decimal as D
+          from pathlib import Path
+          f=Path(os.environ['RUNNER_TEMP'])/'reports'/'cibo-all-loss-forensics-g5.json'
+          d=json.loads(f.read_text())
+          assert d['decision_count']==3368
+          assert d['negative_count']+d['positive_count']==3368
+          assert D(d['max_dd_pct'])==D('36.91053924475215947767935340357818221834243037021767829060632022198625364621842394388703665989482219')
+          assert D(d['final_capital_usd'])==D('673146.5254539803718539973234')
+          assert D(d['total_gross_loss_usd'])==D('940435.7630554367602465029838')
+          assert D(d['attack_sovereign_breach_usd'])==0
+          assert D(d['sovereign_floor_breach_usd'])>0
+          assert len(d['top_10_drawdown_episodes'])==10
+          assert all(D(e['drawdown_pct'])>22 for e in d['top_10_drawdown_episodes'])
+          print('AUDIT_3368_AND_TEN_DD_EPISODES=PASS')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-g5-all-loss-forensics-${{ github.run_id }}
+          path: ${{ runner.temp }}/reports/*.json
+          if-no-files-found: error
+          retention-days: 90
