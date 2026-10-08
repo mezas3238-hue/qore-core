@@ -1,0 +1,66 @@
+name: QORE CIBO Dual Bottleneck Forensics 20261008
+
+# Research diagnostics only: reused holdout, never certification evidence.
+# No policy, trader admission, or live trading actions are changed.
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/cibo-causal-expectation-leakage-fix-001
+    paths:
+      - '.github/workflows/cibo-trader-lab-dd-dual-bottleneck-forensics-20261008.yml'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  forensic-receipts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify exact replay artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/11543751853/zip" > /tmp/w6-boundary.zip
+          echo "3ed693e2e8b583bf542b328bd6332c702d0b4b589bf0e8518ee4ff38005835ed  /tmp/w6-boundary.zip" | sha256sum -c -
+          mkdir -p /tmp/cibo-w6
+          unzip -q /tmp/w6-boundary.zip -d /tmp/cibo-w6
+          find /tmp/cibo-w6 -maxdepth 3 -type f | head -25
+
+      - name: Causal forensics inventory and DD attribution
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('/tmp/cibo-w6')
+          def locate(stem):
+              found=[p for p in root.rglob('*.json') if p.stem==stem]
+              if len(found)!=1:
+                  raise AssertionError(f'{stem} expected one JSON, found {len(found)}')
+              return json.loads(found[0].read_text())
+          for stem in ('carrier35240-m10700','w6-f9490'):
+              x=locate(stem)
+              print('QORE_FORENSICS_CASE',stem)
+              print('QORE_TOP_LEVEL_KEYS',sorted(x))
+              print('QORE_COUNTS', x.get('decision_count'),x.get('trade_count'))
+              for label in ('max_drawdown_attribution','position_lifecycle_report','engineering_sensor_report','economic_group_report'):
+                  v=x.get(label)
+                  print('QORE_SECTION',label,'keys',sorted(v) if isinstance(v,dict) else type(v).__name__)
+                  if label=='max_drawdown_attribution':
+                      print('QORE_MAXDD_DETAIL',json.dumps(v,default=str)[:10000])
+              wanted=('trade','receipt','loss','drawdown','trace','epoch','equity','timeline','path','curve')
+              def inventory(node,prefix,depth=0):
+                  if depth>3: return
+                  if isinstance(node,dict):
+                      for k,v in node.items():
+                          route=prefix+'/'+str(k)
+                          if isinstance(v,list):
+                              if len(v)>0 or any(q in str(k).lower() for q in wanted):
+                                  print('QORE_LIST',route,'count',len(v),'sample_keys',sorted(v[0])[:60] if v and isinstance(v[0],dict) else 'non-dict')
+                          elif isinstance(v,dict): inventory(v,route,depth+1)
+              inventory(x,'root')
+          PY
