@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from cibo_replay_integrity_gate import assess_replay
+from cibo_replay_integrity_gate import assess_replay, assess_research_pareto
 
 
 def sample():
@@ -18,7 +18,13 @@ def sample():
         "max_drawdown_fraction": "0.22",
         "decision_count": 3368,
         "trade_count": 3368,
-        "economic_group_report": {"all_entries_preserved": True},
+        "economic_group_report": {
+            "all_entries_preserved": True,
+            "portfolio_loss_report": {
+                "total_gross_loss_usd": "960000",
+                "attack_gross_loss_usd": "959000",
+            },
+        },
         "engineering_sensor_report": {"execution_funnel": {
             "final_trade_count": 3368,
             "sizing_medium_rejected_count": 0,
@@ -81,6 +87,42 @@ class CiboReplayIntegrityGateTest(unittest.TestCase):
         x["ending_sovereign_bank_usd"] = "NaN"
         with self.assertRaisesRegex(ValueError, "non-finite"):
             assess_replay(x)
+
+
+    def test_control_itself_cannot_be_strict_pareto(self):
+        x = sample()
+        r = assess_research_pareto(x, x)
+        self.assertFalse(r["checks"]["meaningful_dd_improvement"])
+        self.assertFalse(r["strict_sovereign_safe_research_pareto"])
+
+    def test_tiny_dd_serialization_drift_not_strict_pareto(self):
+        baseline = sample()
+        x = sample()
+        x["max_drawdown_fraction"] = "0.21999999999999999999999999999999998"
+        r = assess_research_pareto(x, baseline)
+        self.assertFalse(r["strict_sovereign_safe_research_pareto"])
+
+    def test_materially_lower_dd_and_nonworse_loss_passes_research_only(self):
+        baseline = sample()
+        x = sample()
+        x["max_drawdown_fraction"] = "0.219"
+        x["economic_group_report"]["portfolio_loss_report"]["total_gross_loss_usd"] = "959900"
+        x["economic_group_report"]["portfolio_loss_report"]["attack_gross_loss_usd"] = "958900"
+        r = assess_research_pareto(x, baseline)
+        self.assertTrue(r["strict_sovereign_safe_research_pareto"])
+        self.assertFalse(r["certified"])
+
+    def test_research_pareto_does_not_override_sovereign_breach(self):
+        baseline = sample()
+        x = sample()
+        x["max_drawdown_fraction"] = "0.210"
+        x["ending_sovereign_bank_usd"] = "-50"
+        x["ending_portfolio_cushion_usd"] = "600090"
+        x["minimum_sovereign_bank_usd"] = "-60"
+        x["sovereign_floor_breach_usd"] = "90"
+        r = assess_research_pareto(x, baseline)
+        self.assertFalse(r["strict_sovereign_safe_research_pareto"])
+        self.assertFalse(r["checks"]["full_sovereign_integrity"])
 
 
 if __name__ == "__main__":
