@@ -132,6 +132,12 @@ class FourMotorEconomicTest(unittest.TestCase):
         signed = {}
         for p in votes(o):
             r = sign_producer_receipt(p, producer=p.producer, secret=KEYS[p.producer])
+            self.assertEqual(r["decision_state"], "SHADOW_ADVISORY_ONLY")
+            self.assertTrue(r["rationale"])
+            with self.assertRaises(TypeError):
+                p.limits["approved_risk_usd" if p.producer in ("SIZING", "CIBO_COMPOUND") else
+                         "approved_max_lots" if p.producer == "ADAPTIVE_LEVERAGE" else
+                         "approved_source_funds_usd"] = "999"
             body = {k:v for k,v in r.items() if k not in ("hmac_sha256", "source_event_sha256")}
             canonical = json.dumps(body, sort_keys=True, separators=(",", ":")).encode()
             self.assertEqual(r["source_event_sha256"], "sha256:"+hashlib.sha256(canonical).hexdigest())
