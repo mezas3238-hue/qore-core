@@ -82,6 +82,26 @@ jobs:
                     "ENDING_QORE",d['qore_ending_capital_usd'],
                     "MAX_CLOSED_DD_PCT",d['max_closed_equity_drawdown_pct'])
           PY
+      - name: Run noncertification financial truth gate on all scenarios
+        run: |
+          for scenario in original-trader-min broker-grid-min broker-grid-provider-unverified; do
+            python scripts/qdle_3368_financial_truth_gate.py \
+              --report "$RUNNER_TEMP/qdle-results/qdle-3368-$scenario.json" \
+              --output "$RUNNER_TEMP/qdle-results/qdle-truth-gate-$scenario.json"
+          done
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          folder = Path(os.environ["RUNNER_TEMP"]) / "qdle-results"
+          for file in folder.glob("qdle-truth-gate-*.json"):
+              d = json.loads(file.read_text())
+              assert d["audit_integrity"] == "PASSED"
+              assert d["financial_certification"] == "REJECTED"
+              assert not d["four_motor_independent_attribution"]
+              assert not d["broker_real_time_current_market_simulation"]
+              print("QDLE_AUDITED_BUT_NOT_CERTIFIED", file.name,
+                    d["lot_proposals_research_only"])
+          PY
       - name: Upload strictly RESEARCH artifacts (no broker fill claim)
         if: always()
         uses: actions/upload-artifact@v4
