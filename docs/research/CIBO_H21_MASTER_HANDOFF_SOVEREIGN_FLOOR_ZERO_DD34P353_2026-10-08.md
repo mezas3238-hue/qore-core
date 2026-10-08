@@ -52,3 +52,17 @@ The historic CIBO maximum-return sovereign economic floor **$582,440.03** (disco
 
 ## H23 result (not pending anymore) — independent 3,368 replay success
 [H23 run 37782194937](https://github.com/mezas3238-hue/qore-core/actions/runs/37782194937) completed SUCCESS. Variant `h23-def010-dd020` conditioned an existing MEDIUM 1x protection stop at −0.10R only when *already observed* realized portfolio DD >=20%, native trader loss streak>=1, 1x risk>=1.5%, with bank profit split50% and adverse partial cut−0.20R. It recorded **final $3574.18138, max DD33.81212445%, bank floor breach0, 3368 entries**. DD is 0.5416pp better than H21 but final capital ~$15.079 lower, so *not strict Pareto over H21*. Other H23 combinations DD38.37% and DD46.06%, reject. See H23 branch JSON `docs/research/CIBO_H23_DD_CONDITIONAL_MEDIUM_33P812_VERIFIED_RESULTS.json` commit `b20888d9c64f561f04f43bf3eeb8c3cf48f13815`. H24 is follow-up targeting only large MEDIUM risks when account DD >=20–25%, **not yet verified** at this update.
+
+## H24 final verified results — historical DD minimum reduced but not yet certified
+H24 run [37782797158](https://github.com/mezas3238-hue/qore-core/actions/runs/37782797158) **SUCCESS** and 3,368/3,368 entries, native no-source-change risk/stop parameter tuning.
+- Best zero-bank-breach *raw DD floor*: `h24-def005-min030-dd020`, bank share50%; existing MEDIUM defensive initial stop −0.05R, only after predecision live portfolio DD>=20%, prior same-trader losing streak>=1 and entry baseline stop risk >=3.0% of current capital; native adverse partial cut−0.20R. **DD33.5413253866%, capital $3304.366913, bank breach0, sovereign bank end $182.348698**. 846 ATTACK + 2522 MEDIUM, 0 BANK trades. Gross losses $12,779.126513.
+- `h24-def010-min025-dd020`: DD33.812124%, cap $3304.419775, bank breach0; lower net than H23 without DD benefit. Reject.
+- `h24-def005-min025-dd025`: DD33.541325%, cap $3304.584830, **sovereign breach $3.454510**. Reject.
+- H24 33.5413% is better DD than H23 33.8121%, but $269.814 less capital, so **NOT strict Pareto H23**. Neither meets <=25% requirement. Persisted H24 machine-results JSON `docs/research/CIBO_H24_LARGE_RISK_CAUSAL_DD_33P541_RESULTS.json` commit `6e87aa22bfc767e75ffb53b9cde0b83ae181d9ce` on H24 branch.
+- The previous “frozen” $582,440.03 historical extreme-leverage ceiling is a separate regime; neither H21/H23/H24 can claim matching that floor with nominal 5% micro-capital risk.
+
+**CURRENT VERIFIED MULTI-OBJECTIVE FRONTIER (NO WINNER UNDER BOTH TARGETS)**:
+H21 maximum capital $3589.26 / DD34.3537% / bank breach0;
+H23 better DD33.8121% / cap $3574.18 / bank breach0;
+H24 minimum DD33.5413% / cap $3304.37 / bank breach0.
+No candidate achieves DD<=25% nor historical broker-fundable viability. Never promote an overfitted 2019-only signature to certified without blind fresh OOS.
