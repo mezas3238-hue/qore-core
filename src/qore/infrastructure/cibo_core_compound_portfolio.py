@@ -32,6 +32,13 @@ from qore.infrastructure.cibo_compound_portfolio_ledger import (
     CompoundPortfolioLedger,
 )
 
+from qore.infrastructure.cibo_four_motor_policy import (
+    FourMotorObservation,
+    FourMotorPolicyError,
+    FourMotorProposal,
+    ZERO,
+)
+
 
 @dataclass(frozen=True, slots=True)
 class CompoundPortfolioAttributionRow:
@@ -355,12 +362,6 @@ class QoreCoreCompoundPortfolio:
             )
         )
 
-
-# P0 Architect 2: independent SHADOW portfolio treasury/source vote.
-# Canonical GEN-C3 accounting views remain read-only and account-local.
-from qore.infrastructure.cibo_four_motor_policy import (
-    FourMotorObservation, FourMotorProposal, FourMotorPolicyError, ZERO,
-)
 
 
 def propose_p0_portfolio_vote(observation: FourMotorObservation) -> FourMotorProposal:
