@@ -1020,6 +1020,9 @@ def run_three_mode_trader_lab(
     ceiling_attack_drawdown_budget2_capital_floor: Decimal | None = None,
     ceiling_attack_drawdown_budget2_capital_ceiling: Decimal | None = None,
     ceiling_attack_single_trade_risk_fraction: Decimal | None = None,
+    ceiling_attack_single_trade_risk_drawdown_trigger: Decimal | None = None,
+    ceiling_attack_single_trade_risk_capital_floor: Decimal | None = None,
+    ceiling_attack_single_trade_risk_capital_ceiling: Decimal | None = None,
     ceiling_attack_loss_streak_trigger: int | None = None,
     ceiling_attack_loss_streak_taper_fraction: Decimal = Decimal("0.50"),
     ceiling_attack_drawdown_taper_trigger: Decimal | None = None,
@@ -1458,6 +1461,50 @@ def run_three_mode_trader_lab(
     ):
         raise CiboCapitalManagementError(
             "Trader Lab ceiling ATTACK single-trade risk cap requires ceiling discovery mode"
+        )
+    if ceiling_attack_single_trade_risk_drawdown_trigger is not None and (
+        not isinstance(ceiling_attack_single_trade_risk_drawdown_trigger, Decimal)
+        or not ceiling_attack_single_trade_risk_drawdown_trigger.is_finite()
+        or ceiling_attack_single_trade_risk_drawdown_trigger < 0
+        or ceiling_attack_single_trade_risk_drawdown_trigger > Decimal("0.50")
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab ceiling ATTACK single-trade risk drawdown trigger must be Decimal in [0, 0.50]"
+        )
+    for label, value in (
+        ("capital floor", ceiling_attack_single_trade_risk_capital_floor),
+        ("capital ceiling", ceiling_attack_single_trade_risk_capital_ceiling),
+    ):
+        if value is not None and (
+            not isinstance(value, Decimal)
+            or not value.is_finite()
+            or value < 0
+        ):
+            raise CiboCapitalManagementError(
+                f"Trader Lab ceiling ATTACK single-trade risk {label} must be a nonnegative Decimal"
+            )
+    if (
+        ceiling_attack_single_trade_risk_capital_floor is not None
+        and ceiling_attack_single_trade_risk_capital_ceiling is not None
+        and ceiling_attack_single_trade_risk_capital_ceiling
+        <= ceiling_attack_single_trade_risk_capital_floor
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab ceiling ATTACK single-trade risk capital band is invalid"
+        )
+    if (
+        any(
+            value is not None
+            for value in (
+                ceiling_attack_single_trade_risk_drawdown_trigger,
+                ceiling_attack_single_trade_risk_capital_floor,
+                ceiling_attack_single_trade_risk_capital_ceiling,
+            )
+        )
+        and ceiling_attack_single_trade_risk_fraction is None
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab localized ATTACK single-trade risk controls require a risk fraction"
         )
     if ceiling_attack_loss_streak_trigger is not None and (
         not isinstance(ceiling_attack_loss_streak_trigger, int)
@@ -5343,6 +5390,21 @@ def run_three_mode_trader_lab(
                     if (
                         ceiling_discovery_mode
                         and ceiling_attack_single_trade_risk_fraction is not None
+                        and (
+                            ceiling_attack_single_trade_risk_drawdown_trigger is None
+                            or total_drawdown_utilization
+                            >= ceiling_attack_single_trade_risk_drawdown_trigger
+                        )
+                        and (
+                            ceiling_attack_single_trade_risk_capital_floor is None
+                            or state.total_capital_usd
+                            >= ceiling_attack_single_trade_risk_capital_floor
+                        )
+                        and (
+                            ceiling_attack_single_trade_risk_capital_ceiling is None
+                            or state.total_capital_usd
+                            <= ceiling_attack_single_trade_risk_capital_ceiling
+                        )
                     ):
                         with localcontext() as context:
                             context.prec = 100
@@ -6997,6 +7059,21 @@ def run_three_mode_trader_lab(
                         ceiling_attack_single_trade_risk_fraction, "f"
                     )
                 ),
+                "ceiling_attack_single_trade_risk_drawdown_trigger": (
+                    None
+                    if ceiling_attack_single_trade_risk_drawdown_trigger is None
+                    else format(ceiling_attack_single_trade_risk_drawdown_trigger, "f")
+                ),
+                "ceiling_attack_single_trade_risk_capital_floor": (
+                    None
+                    if ceiling_attack_single_trade_risk_capital_floor is None
+                    else format(ceiling_attack_single_trade_risk_capital_floor, "f")
+                ),
+                "ceiling_attack_single_trade_risk_capital_ceiling": (
+                    None
+                    if ceiling_attack_single_trade_risk_capital_ceiling is None
+                    else format(ceiling_attack_single_trade_risk_capital_ceiling, "f")
+                ),
                 "ceiling_attack_loss_streak_trigger": (
                     ceiling_attack_loss_streak_trigger
                 ),
@@ -7088,6 +7165,21 @@ def run_three_mode_trader_lab(
                 None
                 if ceiling_attack_single_trade_risk_fraction is None
                 else format(ceiling_attack_single_trade_risk_fraction, "f")
+            ),
+            "ceiling_attack_single_trade_risk_drawdown_trigger": (
+                None
+                if ceiling_attack_single_trade_risk_drawdown_trigger is None
+                else format(ceiling_attack_single_trade_risk_drawdown_trigger, "f")
+            ),
+            "ceiling_attack_single_trade_risk_capital_floor": (
+                None
+                if ceiling_attack_single_trade_risk_capital_floor is None
+                else format(ceiling_attack_single_trade_risk_capital_floor, "f")
+            ),
+            "ceiling_attack_single_trade_risk_capital_ceiling": (
+                None
+                if ceiling_attack_single_trade_risk_capital_ceiling is None
+                else format(ceiling_attack_single_trade_risk_capital_ceiling, "f")
             ),
             "ceiling_attack_loss_streak_trigger": (
                 ceiling_attack_loss_streak_trigger
