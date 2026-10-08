@@ -59,6 +59,38 @@ class TestCiboH8CashConservedBridge(unittest.TestCase):
                 transferred,
             )
 
+    def test_high_precision_source_has_no_five_e_minus_27_shortfall(self):
+        state = _State(
+            sovereign_bank_usd=D("33.81755034706532138196271917"),
+            sovereign_reserved_usd=D("0.437330409907835750567228855"),
+            portfolio_cushion_usd=D("19.76393860806455076191180576"),
+        )
+        required = D("6.020000")
+        with localcontext() as ctx:
+            ctx.prec = 100
+            before = state.sovereign_bank_usd + state.portfolio_cushion_usd
+            preavailable = (
+                state.sovereign_bank_usd
+                - state.sovereign_reserved_usd
+                - state.sovereign_protection_floor_usd
+            )
+            shortage = required - preavailable
+            self.assertEqual(
+                shortage,
+                D("2.639780062842514368604509685"),
+            )
+            state.bridge_from_unreserved_cushion(shortage)
+            funded = (
+                state.sovereign_bank_usd
+                - state.sovereign_reserved_usd
+                - state.sovereign_protection_floor_usd
+            )
+            self.assertEqual(funded, required)
+            self.assertEqual(
+                state.sovereign_bank_usd + state.portfolio_cushion_usd,
+                before,
+            )
+
     def test_zero_transfer_is_no_op(self):
         state = _State()
         total_before = state.total_capital_usd
