@@ -60,7 +60,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .qore-cache/cibo-ultrafast-v1
-          key: qore-cibo-ultrafast-v1-${{ hashFiles('scripts/cibo_trader_lab_batch_runner.py', 'scripts/cibo_trader_lab_three_mode_ceiling.py', 'src/qore/infrastructure/cibo_position_lifecycle.py', 'src/qore/infrastructure/cibo_single_account_manifest_settlement.py', 'src/qore/infrastructure/cibo_single_account_manifest_economics.py', 'src/qore/infrastructure/trader_lab/cibo_market_atlas_journey_extractor_v1.py', '.github/workflows/cibo-trader-lab-carrier37772-floor-seeking-accelerated-ridge.yml') }}
+          key: qore-cibo-ultrafast-v1-${{ hashFiles('scripts/cibo_trader_lab_batch_runner.py', 'scripts/cibo_trader_lab_three_mode_ceiling.py', 'src/qore/infrastructure/cibo_position_lifecycle.py', 'src/qore/infrastructure/cibo_single_account_manifest_settlement.py', 'src/qore/infrastructure/cibo_single_account_manifest_economics.py', 'src/qore/infrastructure/trader_lab/cibo_market_atlas_journey_extractor_v1.py') }}-atlas-11451743578
 
       - name: Recover inputs
         env:
