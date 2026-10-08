@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - agent/qdle-independent-engine-p0-20261008-001
+      - agent/cibo-architect-3-qdle-mt5-physical-20261008
     paths:
       - "scripts/qdle_3368_dual_ledger_replay.py"
       - ".github/workflows/qdle-3368-dual-capital-replay.yml"
