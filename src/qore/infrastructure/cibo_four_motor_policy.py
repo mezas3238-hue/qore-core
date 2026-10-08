@@ -6,14 +6,14 @@ accepted by QDLE. Broker-deal provenance must be authenticated upstream.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
-from types import MappingProxyType
-from datetime import datetime, timezone
-from decimal import Decimal
 import hashlib
 import hmac
 import json
 import re
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from decimal import Decimal
+from types import MappingProxyType
 
 HASH = re.compile(r"^sha256:[0-9a-f]{64}$")
 PRODUCERS = frozenset(("SIZING", "CIBO_COMPOUND", "ADAPTIVE_LEVERAGE", "PORTFOLIO_COMPOUND"))
@@ -39,7 +39,7 @@ def positive(name: str, x: Decimal) -> Decimal:
 def utc(name: str, t: datetime) -> datetime:
     if not isinstance(t, datetime) or t.tzinfo is None or t.utcoffset() is None:
         raise FourMotorPolicyError(f"{name} must be timezone-aware")
-    return t.astimezone(timezone.utc)
+    return t.astimezone(UTC)
 
 
 def digest(name: str, h: str) -> str:
@@ -107,9 +107,13 @@ class FourMotorObservation:
     broker_margin_valuation_complete: bool = False
 
     def __post_init__(self) -> None:
-        if not all(isinstance(x, str) and x for x in (self.request_id, self.trader_id, self.symbol)):
+        if not all(
+            isinstance(x, str) and x for x in (self.request_id, self.trader_id, self.symbol)
+        ):
             raise FourMotorPolicyError("signal, trader and symbol required")
-        if self.side not in ("BUY", "SELL") or self.source_lane not in ("SOVEREIGN_BANK", "PORTFOLIO_CUSHION"):
+        if self.side not in ("BUY", "SELL") or self.source_lane not in (
+            "SOVEREIGN_BANK", "PORTFOLIO_CUSHION"
+        ):
             raise FourMotorPolicyError("invalid trade side/source lane")
         if type(self.account_sequence) is not int or self.account_sequence <= 0:
             raise FourMotorPolicyError("causal account_sequence required")
@@ -196,7 +200,11 @@ class FourMotorProposal:
             "ADAPTIVE_LEVERAGE": {"approved_max_lots", "approved_margin_usd"},
             "PORTFOLIO_COMPOUND": {"approved_source_funds_usd"},
         }[self.producer]
-        if set(self.limits) != required or not isinstance(self.reason_codes, tuple) or not self.reason_codes:
+        if (
+            set(self.limits) != required
+            or not isinstance(self.reason_codes, tuple)
+            or not self.reason_codes
+        ):
             raise FourMotorPolicyError("producer limits or explanation missing")
         if any(not isinstance(reason, str) or not reason for reason in self.reason_codes):
             raise FourMotorPolicyError("reason code must identify an independent decision")
@@ -226,7 +234,9 @@ class FourMotorProposal:
                     reason_codes=list(self.reason_codes), **self.limits)
 
 
-def sign_producer_receipt(proposal: FourMotorProposal, *, producer: str, secret: bytes) -> dict[str, object]:
+def sign_producer_receipt(
+    proposal: FourMotorProposal, *, producer: str, secret: bytes
+) -> dict[str, object]:
     """Call in the producer trust boundary; never give a coordinator all keys."""
     if proposal.producer != producer or producer not in PRODUCERS:
         raise FourMotorPolicyError("cross-producer receipt signing forbidden")
