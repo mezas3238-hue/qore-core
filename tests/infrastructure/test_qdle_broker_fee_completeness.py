@@ -51,7 +51,7 @@ class TestFeeGate(unittest.TestCase):
     def test_live_presend_rejects_research_fee_even_when_reservation_exists(self):
         with tempfile.TemporaryDirectory() as d:
             e = QDLE(Path(d) / "qdle.sqlite", Broker(), enforce_finance_approval=True,
-                     strict_four_motor_evidence=False)
+                     strict_four_motor_evidence=False, strict_provider_floor=False)
             e.publish_account(QDLEAccount(
                 "123", "FundedNext", "USD", 1, AT,
                 D("2000"), D("2000"), D("1900"),
