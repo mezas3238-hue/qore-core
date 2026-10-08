@@ -64,6 +64,7 @@ def _build_lifecycle_map(
     context_defensive_initial_stop_r: Decimal | None = None,
     context_requirements: tuple[tuple[str, str], ...] = (),
     context_only_features: frozenset[CiboLifecycleFeature] = frozenset(),
+    adverse_partial_context_requirements: tuple[tuple[str, str], ...] = (),
 ) -> dict[str, dict[str, object]]:
     if not roots:
         return {}
@@ -117,6 +118,19 @@ def _build_lifecycle_map(
             if context_stop_active
             else features - context_only_features
         )
+        # Research-only causal eligibility: independent from the pre-existing
+        # ATTACK override's context-specific STOP. No outcome data is consulted.
+        adverse_partial_context_active = (
+            not adverse_partial_context_requirements
+            or all(
+                row_decision_context.get(key) == value
+                for key, value in adverse_partial_context_requirements
+            )
+        )
+        if not adverse_partial_context_active:
+            selected_features = selected_features - frozenset(
+                {CiboLifecycleFeature.ADVERSE_PARTIAL_REDUCTION}
+            )
         opened, closed = bounds_by_symbol[symbol]
         series = bars_by_symbol[symbol]
         start = bisect_left(opened, outcome.entry_at)
@@ -176,6 +190,7 @@ def _build_lifecycle_map(
                 selected_defensive_initial_stop_r, "f"
             ),
             "context_defensive_stop_active": context_stop_active,
+            "adverse_partial_context_active": adverse_partial_context_active,
             "risk_released_before_exit_fraction": format(
                 managed.risk_released_before_exit_fraction, "f"
             ),
@@ -418,6 +433,16 @@ def main() -> int:
         action="append",
         default=[],
         help="Repeatable causal pre-entry ATTACK override context predicate as KEY=VALUE.",
+    )
+    parser.add_argument(
+        "--lifecycle-attack-override-partial-require",
+        action="append",
+        default=[],
+        help=(
+            "Research-only repeatable pre-entry ATTACK adverse partial predicate "
+            "KEY=VALUE. Missing/nonmatching fields disable only partial "
+            "reduction; existing context stop and all 3368 entries remain."
+        ),
     )
     parser.add_argument(
         "--lifecycle-attack-override-adverse-partial-fraction",
@@ -1523,6 +1548,23 @@ def main() -> int:
             "ATTACK override context defensive stop requires both stop R and context predicates"
         )
 
+    attack_partial_context_requirements: list[tuple[str, str]] = []
+    for raw_requirement in args.lifecycle_attack_override_partial_require:
+        key, sep, value = raw_requirement.partition("=")
+        if not sep or not key or not value:
+            raise ValueError(
+                "ATTACK adverse partial context predicate requires KEY=VALUE"
+            )
+        attack_partial_context_requirements.append((key, value))
+    if (
+        attack_partial_context_requirements
+        and "ADVERSE_PARTIAL_REDUCTION"
+        not in args.lifecycle_attack_override_feature
+    ):
+        raise ValueError(
+            "ATTACK adverse partial context requires its opt-in lifecycle feature"
+        )
+
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
     lifecycle_features = (
         frozenset(CiboLifecycleFeature(value) for value in args.lifecycle_feature)
@@ -1714,6 +1756,9 @@ def main() -> int:
                 {CiboLifecycleFeature.DEFENSIVE_INITIAL_STOP_CAP}
                 if attack_override_context_requirements
                 else set()
+            ),
+            adverse_partial_context_requirements=(
+                tuple(attack_partial_context_requirements)
             ),
         )
 
