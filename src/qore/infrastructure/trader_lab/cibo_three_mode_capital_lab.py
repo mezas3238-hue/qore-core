@@ -214,6 +214,27 @@ class _State:
             ),
         )
 
+    def normalize_h8_roundoff_only(self) -> None:
+        """Reject negative collateral balances, normalizing only sub-nanodollar drift.
+
+        A negative reservation is NOT available cash and must never increase
+        mandatory 1x capacity. Changes reservations only, not either cash ledger.
+        """
+        epsilon = Decimal("0.000000000000000001")
+        for name in (
+            "sovereign_reserved_usd",
+            "cushion_reserved_usd",
+            "bank_seed_reserved_usd",
+        ):
+            val = getattr(self, name)
+            if val < -epsilon:
+                raise CiboCapitalManagementError(
+                    "CIBO_H8_NEGATIVE_RESERVED_COLLATERAL: "
+                    f"ledger={name} value={format(val, 'f')}"
+                )
+            if val < 0:
+                setattr(self, name, Decimal(0))
+
     def bridge_from_unreserved_cushion(self, amount: Decimal) -> None:
         """Research only: move real free cushion to sovereign, never mint cash."""
         if amount <= 0:
@@ -3631,6 +3652,7 @@ def run_three_mode_trader_lab(
             raise CiboCapitalManagementError(
                 "BANK cannot own lifecycle-managed trades"
             )
+        state.normalize_h8_roundoff_only()
         # RESEARCH ONLY: atomic liquidity recirculation from ACTUALLY free
         # portfolio capital. Cover booked sovereign reservation + protected
         # floor at every event, not just at entry; fail when cash is absent.
@@ -6117,6 +6139,7 @@ def run_three_mode_trader_lab(
                 # Trader entry already occurred: we FAIL THE SIMULATION rather
                 # than reject/suppress an entry or book an unfunded position.
                 # source_left is reset to sovereign_left in the fallback above.
+                state.normalize_h8_roundoff_only()
                 # RESEARCH ONLY: fund mandatory Trader MEDIUM 1x by an
                 # explicit, same-timestamp cash transfer from already realized,
                 # unreserved portfolio cushion. Never lend future profits.
@@ -6211,6 +6234,11 @@ def run_three_mode_trader_lab(
                         f"decision_at={candidate.decision_at.isoformat()} "
                         f"epoch_index={epoch_index} "
                         f"sovereign_bank={format(state.sovereign_bank_usd, 'f')} "
+                        f"sovereign_reserved={format(state.sovereign_reserved_usd, 'f')} "
+                        f"epoch_sovereign_committed={format(h8_epoch_sovereign_committed, 'f')} "
+                        f"epoch_cushion_committed={format(h8_epoch_cushion_committed, 'f')} "
+                        f"latest_source_left={format(source_left, 'f')} "
+                        f"transfer_needed={format(transfer_needed, 'f') if candidate_mode is CiboTraderLabMode.MEDIUM else 'N/A'} "
                         f"sovereign_floor={format(state.sovereign_protection_floor_usd, 'f')} "
                         f"portfolio_cushion={format(state.portfolio_cushion_usd, 'f')} "
                         f"cushion_available={format(state.cushion_available_usd, 'f')}. "
