@@ -1,0 +1,123 @@
+{
+  "status": "SUCCESS",
+  "source": "https://github.com/mezas3238-hue/qore-core/actions/runs/37790775732",
+  "run_id": 37790775732,
+  "artifact_id": 11556880895,
+  "validated_all_3368_trades": true,
+  "first_year_reference_period": "2019-07-01..2020-06-30 UTC",
+  "first_year_baseline": {
+    "first_year_mode_breakdown": {
+      "ATTACK": {
+        "already_charged_provider_fees_usd": "43.73035594057398071779798314",
+        "multiplier_hist": {
+          "2": 60,
+          "3": 22,
+          "4": 21,
+          "5": 11,
+          "6": 30,
+          "7": 4,
+          "8": 3,
+          "9": 1,
+          "12": 1,
+          "19": 2
+        },
+        "n": 155,
+        "net_profit_usd": "198.9576656534881889951639416",
+        "sum_stop_risk_usd": "705.6552758008603269051373876"
+      },
+      "BANK": {
+        "already_charged_provider_fees_usd": "0",
+        "multiplier_hist": {},
+        "n": 0,
+        "net_profit_usd": "0",
+        "sum_stop_risk_usd": "0"
+      },
+      "MEDIUM": {
+        "already_charged_provider_fees_usd": "81.92904435956224963795172622",
+        "multiplier_hist": {
+          "1": 891,
+          "2": 47,
+          "3": 16
+        },
+        "n": 954,
+        "net_profit_usd": "209.1841832256055809115266151",
+        "sum_stop_risk_usd": "1288.875927046377966469677413"
+      }
+    },
+    "first_year_net_profit_usd": "408.1418488790937699066905567",
+    "first_year_settled_balance_usd": "468.1418488790937699066905567",
+    "total_ATTACK_risk_fraction_band_cap_count": 529,
+    "total_MEDIUM_dd_force_1x_count": 585,
+    "total_sizing_intensity_hist": {
+      "1": 1922,
+      "2": 210,
+      "3": 304,
+      "14": 70
+    }
+  },
+  "conditional_motor_deltas": {
+    "ADAPTIVE_LEVERAGE": {
+      "counterfactual_all_3year_trades": 3368,
+      "counterfactual_bank_valid_full_3year": true,
+      "first_year_counterfactual_net_usd": "297.5813308603984797551193746",
+      "first_year_marginal_usd": "110.5605180186952901515711821",
+      "full_3year_marginal_usd": "2829.719335932569552634780979",
+      "remark": "Conditional full-vs-no-motor change; not standalone or additive income. No-engine run changes downstream trading/capital allocation."
+    },
+    "CIBO_COMPOUND": {
+      "counterfactual_all_3year_trades": 3368,
+      "counterfactual_bank_valid_full_3year": true,
+      "first_year_counterfactual_net_usd": "265.8312589688483405424878861",
+      "first_year_marginal_usd": "142.3105899102454293642026706",
+      "full_3year_marginal_usd": "3006.340479829974495577881545",
+      "remark": "Conditional full-vs-no-motor change; not standalone or additive income. No-engine run changes downstream trading/capital allocation."
+    },
+    "COMPOUND_PORTFOLIO": {
+      "counterfactual_all_3year_trades": 3368,
+      "counterfactual_bank_valid_full_3year": true,
+      "first_year_counterfactual_net_usd": "265.8312589688483405424878861",
+      "first_year_marginal_usd": "142.3105899102454293642026706",
+      "full_3year_marginal_usd": "3006.340479829974495577881545",
+      "remark": "Conditional full-vs-no-motor change; not standalone or additive income. No-engine run changes downstream trading/capital allocation."
+    },
+    "SIZING": {
+      "counterfactual_all_3year_trades": 3368,
+      "counterfactual_bank_valid_full_3year": true,
+      "first_year_counterfactual_net_usd": "388.1133588762785016092359887",
+      "first_year_marginal_usd": "20.0284900028152682974545680",
+      "full_3year_marginal_usd": "506.836835510792259443674360",
+      "remark": "Conditional full-vs-no-motor change; not standalone or additive income. No-engine run changes downstream trading/capital allocation."
+    }
+  },
+  "full_book_metrics_confirmed": {
+    "FULL": {
+      "ending_capital_usd": "3589.260487255495141276366310",
+      "max_drawdown_pct": "34.35372258175",
+      "sovereign_floor_breach_usd": "0"
+    },
+    "WITHOUT_SIZING": {
+      "ending_capital_usd": "3082.4236517447025",
+      "counterfactual_validated_bank": true
+    },
+    "WITHOUT_CIBO_COMPOUND": {
+      "ending_capital_usd": "582.9200074255205",
+      "counterfactual_validated_bank": true
+    },
+    "WITHOUT_PORTFOLIO_COMPOUND": {
+      "ending_capital_usd": "582.9200074255205",
+      "counterfactual_validated_bank": true
+    },
+    "WITHOUT_ADAPTIVE_LEVERAGE": {
+      "ending_capital_usd": "759.5411513229251",
+      "counterfactual_validated_bank": true
+    }
+  },
+  "warnings": [
+    "same 3368 signal set reused, not sealed out-of-sample",
+    "marginal effects are not independently additive",
+    "original provider cost model, not FundedNext USD14/lot",
+    "gross stop risk target 5% not achieved in most early 1x trades",
+    "DD 34.35% > 25%, research not certified"
+  ],
+  "report_type": "ARCHITECTURAL_DIAGNOSTIC_NOT_PROFIT_CERT"
+}
