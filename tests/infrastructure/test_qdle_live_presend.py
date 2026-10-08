@@ -74,6 +74,31 @@ class TestQdleLiveGate(unittest.TestCase):
         self.assertEqual(second.lots, D("0.05"))
         self.assertEqual(second.total_risk_usd, D("5"))
 
+    def test_broker_equity_growth_alone_does_not_increase_qore_risk(self):
+        # USD 3,000 at broker cannot turn proprietary USD 60 into USD 150 risk.
+        from dataclasses import replace
+        self.q.publish_account(replace(
+            account(equity="60", seq=2), balance=D("3000"), equity=D("3000"),
+        ))
+        approved = intent("broker-only-growth", sequence=2)
+        self.q.publish_finance_approval(approved, T)
+        result = self.q.reserve_for_trader(approved, T)
+        self.assertEqual(result.total_risk_usd, D("3"))
+        self.assertEqual(result.lots, D("0.03"))
+
+    def test_falling_qore_capital_shrinks_risk_with_stable_broker(self):
+        self.q.publish_account(account(equity="40", seq=2))
+        approved = intent("drawdown-entry", sequence=2)
+        self.q.publish_finance_approval(approved, T)
+        result = self.q.reserve_for_trader(approved, T)
+        self.assertEqual(result.total_risk_usd, D("2"))
+        self.assertEqual(result.lots, D("0.02"))
+
+    def test_five_percent_risk_fraction_cannot_be_overridden(self):
+        with self.assertRaisesRegex(QDLEError, "fixed at 5pct"):
+            QDLE(Path(self.directory.name) / "forbidden.sqlite",
+                 self.broker, entry_risk_fraction=D("0.50"))
+
     def test_trader_may_not_approve_or_change_coordinated_economics(self):
         with self.assertRaises(QDLEError):
             self.q.reserve_for_trader(intent(), T)
