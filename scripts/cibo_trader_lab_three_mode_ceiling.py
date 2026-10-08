@@ -53,11 +53,19 @@ def _causal_partial_features(
     features: frozenset[CiboLifecycleFeature],
     decision_context: dict[str, str],
     requirements: tuple[tuple[str, str], ...],
+    alternative_groups: tuple[tuple[tuple[str, str], ...], ...] = (),
 ) -> tuple[frozenset[CiboLifecycleFeature], bool]:
-    """Never consult realized outcome; preserve every nonpartial lifecycle feature."""
+    """Pure prior-context gate: original conjunction OR additional conjunctions.
+
+    Never consult realized outcome; preserve every nonpartial lifecycle feature.
+    """
     active = (
         not requirements
         or all(decision_context.get(key) == value for key, value in requirements)
+        or any(
+            bool(group) and all(decision_context.get(k) == v for k, v in group)
+            for group in alternative_groups
+        )
     )
     if active:
         return features, True
@@ -83,6 +91,9 @@ def _build_lifecycle_map(
     context_requirements: tuple[tuple[str, str], ...] = (),
     context_only_features: frozenset[CiboLifecycleFeature] = frozenset(),
     adverse_partial_context_requirements: tuple[tuple[str, str], ...] = (),
+    adverse_partial_context_alternative_groups: tuple[
+        tuple[tuple[str, str], ...], ...
+    ] = (),
 ) -> dict[str, dict[str, object]]:
     if not roots:
         return {}
@@ -143,6 +154,7 @@ def _build_lifecycle_map(
                 selected_features,
                 row_decision_context,
                 adverse_partial_context_requirements,
+                adverse_partial_context_alternative_groups,
             )
         )
         opened, closed = bounds_by_symbol[symbol]
@@ -456,6 +468,18 @@ def main() -> int:
             "Research-only repeatable pre-entry ATTACK adverse partial predicate "
             "KEY=VALUE. Missing/nonmatching fields disable only partial "
             "reduction; existing context stop and all 3368 entries remain."
+        ),
+    )
+    parser.add_argument(
+        "--lifecycle-attack-override-partial-allow-group",
+        action="append",
+        default=[],
+        help=(
+            "Research-only OR group of immutable PRE-entry predicates joined "
+            "by & (for example reg_h4_range_state=balanced&"
+            "reg_m5_volatility_state=balanced). Requires an existing "
+            "--lifecycle-attack-override-partial-require conjunction; "
+            "never consults trade outcomes."
         ),
     )
     parser.add_argument(
@@ -1570,6 +1594,29 @@ def main() -> int:
                 "ATTACK adverse partial context predicate requires KEY=VALUE"
             )
         attack_partial_context_requirements.append((key, value))
+    attack_partial_context_alternative_groups: list[
+        tuple[tuple[str, str], ...]
+    ] = []
+    for group_text in args.lifecycle_attack_override_partial_allow_group:
+        components = group_text.split("&")
+        predicates: list[tuple[str, str]] = []
+        for raw_requirement in components:
+            key, sep, value = raw_requirement.partition("=")
+            if not sep or not key or not value:
+                raise ValueError("ATTACK partial OR group requires KEY=VALUE")
+            predicates.append((key, value))
+        if len(predicates) < 2:
+            raise ValueError(
+                "ATTACK partial OR groups require at least two predicates"
+            )
+        attack_partial_context_alternative_groups.append(tuple(predicates))
+    if (
+        attack_partial_context_alternative_groups
+        and not attack_partial_context_requirements
+    ):
+        raise ValueError(
+            "ATTACK partial OR group requires the original AND requirement"
+        )
     if (
         attack_partial_context_requirements
         and "ADVERSE_PARTIAL_REDUCTION"
@@ -1773,6 +1820,9 @@ def main() -> int:
             ),
             adverse_partial_context_requirements=(
                 tuple(attack_partial_context_requirements)
+            ),
+            adverse_partial_context_alternative_groups=(
+                tuple(attack_partial_context_alternative_groups)
             ),
         )
 
