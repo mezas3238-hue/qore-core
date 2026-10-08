@@ -288,8 +288,15 @@ jobs:
               cap=Decimal(p["ending_total_capital_usd"]); dd=Decimal(p["max_drawdown_fraction"])
               loss=p["economic_group_report"]["portfolio_loss_report"]
               tgl=Decimal(loss["total_gross_loss_usd"]); agl=Decimal(loss["attack_gross_loss_usd"])
-              strict=(cap>=floor_cap and dd<cur_dd and tgl<=cur_tgl and agl<=cur_agl)
-              dominant=(cap>=cur_cap and dd<cur_dd and tgl<=cur_tgl and agl<=cur_agl)
+              # P0: a capital/DD gain with violated BANK floor is NEVER Pareto.
+              # This carrier is quarantined until the sovereign ledger is repaired.
+              sovereign_valid=(Decimal(p["sovereign_floor_breach_usd"])==0 and
+                               Decimal(p["ending_sovereign_bank_usd"])>=0 and
+                               Decimal(p["attack_sovereign_breach_usd"])==0)
+              strict=(sovereign_valid and cap>=floor_cap and dd<cur_dd and
+                      tgl<=cur_tgl and agl<=cur_agl)
+              dominant=(sovereign_valid and cap>=cur_cap and dd<cur_dd and
+                        tgl<=cur_tgl and agl<=cur_agl)
               eg=p["economic_group_report"]; pl=p["position_lifecycle_report"]; attr=p["max_drawdown_attribution"]
               rows.append({
                 "case":pth.stem,
@@ -303,6 +310,8 @@ jobs:
                 "attack_override_count":pl.get("attack_override_applied_count",0),
                 "missing_context_postentry_applied":pl.get("attack_context_stop2_applied_count",0),
                 "sovereign_floor_breach_usd":p["sovereign_floor_breach_usd"],
+                "sovereign_valid":sovereign_valid,
+                "research_only_uncertified":True,
                 "attack_override_risk_blocked":pl.get("attack_override_projected_risk_blocked_count",0),
                 "bootstrap_override_count":pl.get("bootstrap_override_applied_count",0),
                 "maxdd_peak":attr["peak_at"],"maxdd_trough":attr["trough_at"],
@@ -316,6 +325,8 @@ jobs:
           frozen=next(r for r in rows if r["case"]=="h7-control-em-s06745")
           assert Decimal(frozen["capital"])==cur_cap and Decimal(frozen["dd"])==cur_dd, "H7 baseline capital/DD parity mismatch"
           assert Decimal(frozen["total_gross_loss"])==cur_tgl and Decimal(frozen["attack_gross_loss"])==cur_agl, "H7 baseline loss parity mismatch"
+          assert frozen["sovereign_valid"] is False, "H7 frozen control must remain quarantined"
+          print("H7_FROZEN_CARRIER_SOVEREIGN_STATUS=QUARANTINED_UNCERTIFIED")
           rows.sort(key=lambda r:(not r["dd_le_25"],not r["dd_le_30"],not r["dd_le_35"],not r["strict_pareto"],Decimal(r["dd"]),-Decimal(r["capital"]),Decimal(r["total_gross_loss"])))
           print("CIBO_H7_MISSING_CONTEXT_POSTENTRY_RIDGE="+json.dumps(rows,sort_keys=True))
           print("STRICT_PARETO_CASES="+json.dumps([r["case"] for r in rows if r["strict_pareto"]]))
