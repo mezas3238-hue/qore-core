@@ -2,7 +2,8 @@
 
 Trader chooses signal/side/SL/TP. CIBO authorizes VOLUME, not signal.
 Every engine receives a separate receipt but there is one funded account.
-- SIZING computes loss-to-SL and ≤USD3 including opening costs.
+- SIZING computes loss-to-SL and <=5% causal account equity
+  (capped by realized balance to exclude floating gains) including costs.
 - CIBO_COMPOUND releases only realized, unreserved BANK profits.
 - PORTFOLIO_COMPOUND authorizes only the correct BANK/CUSHION lane plus
   open risk, concentration, shared margin and unique trade identifier.
@@ -11,7 +12,7 @@ Never assumes profit/settlement before broker reports a close.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass,replace
+from dataclasses import dataclass
 from decimal import Decimal as D
 from threading import RLock
 from typing import Any
@@ -86,22 +87,21 @@ class CoordinatedCiboCapital:
             source=("BANK_AVAILABLE" if mode=="MEDIUM" else "CUSHION_AVAILABLE")
             cash=snapshot[source]
             if cash<=0:raise FundingError("COMPOUND_SOURCE_HAS_NO_REALIZED_UNRESERVED_FUNDS")
-            budget=min(self.policy.per_entry_usd,cash)
-            # Risk to stop + fees must be funded by its own wallet; never
-            # authorize an ATTACK from the sovereign BANK.
+            # No fixed USD3 cap. The MT5 snapshot computes fresh 5% of
+            # min(equity,realized balance) on EVERY new entry. Its risk cap
+            # is then reduced by this specific funded MEDIUM/ATTACK wallet.
+            # Single ledger lock prevents duplicate reserved money.
             quote=self.ledger.authorize(
                 trade_id=trade_id,trader_id=trader_id,
                 core_symbol=core_symbol,side=side,stop_price=stop_price,
-                group_id=group_id,policy_override=replace(
-                    self.policy,per_entry_usd=budget,
-                    sovereign_floor_usd=self.policy.sovereign_floor_usd
-                )
+                group_id=group_id,source_available_usd=cash
             )
+            budget=quote.effective_risk_budget_usd
             self._mode[trade_id]=mode
             out=ExecutionAuthorization(
                 quote=quote,funding_lane=mode,
                 decisions=(
-                    MotorDecision("SIZING",self.policy.per_entry_usd,quote.lots,
+                    MotorDecision("SIZING",quote.dynamic_risk_target_usd,quote.lots,
                         "SL_PROFIT_AND_OPENING_COST_AND_SLIPPAGE"),
                     MotorDecision("CIBO_COMPOUND",cash,quote.lots,
                         "REALIZED_BANK_CASH_ONLY" if mode=="MEDIUM" else "REALIZED_CUSHION_ONLY"),
