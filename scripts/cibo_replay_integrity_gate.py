@@ -152,6 +152,78 @@ def assess_research_pareto(
     }
 
 
+
+def assess_economic_noninferiority(
+    candidate: dict[str, Any],
+    comparator: dict[str, Any],
+    *,
+    capital_floor: Decimal = DEFAULT_FLOOR,
+    max_dd_worsening_fraction: Decimal = Decimal("1e-8"),
+    minimum_capital_gain: Decimal = Decimal("0.01"),
+    minimum_gross_loss_reduction: Decimal = Decimal("0.01"),
+) -> dict[str, Any]:
+    """Research-only economic improvement while full Sovereign and DD survive.
+
+    This does NOT assert a DD breakthrough and does NOT certify historical data.
+    It separates a material capital+gross-loss improvement from pseudo-Pareto
+    flags caused by ~1e-28 Decimal DD drift.
+    """
+    if (
+        max_dd_worsening_fraction < 0
+        or minimum_capital_gain <= 0
+        or minimum_gross_loss_reduction <= 0
+    ):
+        raise ValueError("invalid noninferiority thresholds")
+    c = assess_replay(candidate, capital_floor=capital_floor)
+    r = assess_replay(comparator, capital_floor=capital_floor)
+    c_loss = candidate["economic_group_report"]["portfolio_loss_report"]
+    r_loss = comparator["economic_group_report"]["portfolio_loss_report"]
+    candidate_cap = _decimal(candidate, "ending_total_capital_usd")
+    comparator_cap = _decimal(comparator, "ending_total_capital_usd")
+    candidate_dd = _decimal(candidate, "max_drawdown_fraction")
+    comparator_dd = _decimal(comparator, "max_drawdown_fraction")
+    gross_reduction = _decimal(r_loss, "total_gross_loss_usd") - _decimal(
+        c_loss, "total_gross_loss_usd"
+    )
+    attack_reduction = _decimal(r_loss, "attack_gross_loss_usd") - _decimal(
+        c_loss, "attack_gross_loss_usd"
+    )
+    checks = {
+        "reference_sovereign_safe": r["sovereign_integrity_pass"],
+        "candidate_sovereign_safe": c["sovereign_integrity_pass"],
+        "all_trader_entries_preserved": (
+            r["checks"]["all_entries_preserved"]
+            and c["checks"]["all_entries_preserved"]
+        ),
+        "capital_floor": candidate_cap >= capital_floor,
+        "minimum_real_capital_gain": (
+            candidate_cap - comparator_cap >= minimum_capital_gain
+        ),
+        "gross_loss_materially_reduced": (
+            gross_reduction >= minimum_gross_loss_reduction
+        ),
+        "attack_loss_nonworsening": attack_reduction >= 0,
+        "dd_not_materially_worse": (
+            candidate_dd <= comparator_dd + max_dd_worsening_fraction
+        ),
+    }
+    return {
+        "schema": "qore.cibo.research_economic_noninferiority.v1",
+        "research_only": True,
+        "certified": False,
+        "dd_target_pass": c["checks"]["max_dd_target"],
+        "broker_margin_verified": False,
+        "fresh_oos_verified": False,
+        "checks": checks,
+        "economic_noninferiority_pass": all(checks.values()),
+        "capital_gain_usd": str(candidate_cap - comparator_cap),
+        "gross_loss_reduction_usd": str(gross_reduction),
+        "attack_gross_loss_reduction_usd": str(attack_reduction),
+        "dd_change_fraction": str(candidate_dd - comparator_dd),
+        "max_dd_worsening_fraction": str(max_dd_worsening_fraction),
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("replay", type=Path, nargs="+")
