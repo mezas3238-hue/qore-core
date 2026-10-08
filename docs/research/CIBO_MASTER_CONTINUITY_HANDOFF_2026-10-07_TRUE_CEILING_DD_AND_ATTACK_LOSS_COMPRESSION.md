@@ -1,3 +1,21 @@
+# ACTIVE WORK AT HANDOFF — 2026-10-08 10:33 UTC
+
+> This block is informational and sits above the authoritative Carrier35240 state below.
+> A new replay was launched after the Carrier35240 handoff state was determined. It had not completed when this handoff was finalized, so **do not assume a result**. The next architect must inspect this run first.
+
+- Branch HEAD at handoff finalization: **36f86a721cbbfc4e5176e08c4e6a5bfc6518de3f**
+- HEAD message: **research(cibo): preempt 2020 50-170x cluster from 1pct DD**
+- Active run: **37764222387**
+- Workflow: **QORE CIBO Carrier35240 W6 Early Defense Ridge**
+- Workflow path: `.github/workflows/cibo-trader-lab-carrier35240-w6-early-defense-ridge.yml`
+- Run head SHA: **36f86a721cbbfc4e5176e08c4e6a5bfc6518de3f**
+- Objective: preempt the 2020 **50–170x** loss cluster beginning around ~1% live DD, now that the max-DD bottleneck migrated to Apr–May 2020.
+- Status at handoff finalization: **IN PROGRESS**
+- Required first action for successor: inspect run 37764222387 ranking before creating any overlapping W6 experiment.
+- Promotion rule remains: preserve 3,368 entries, zero breach, frozen floor, and require a valid DD/economic improvement. Do not infer success from workflow launch alone.
+
+---
+
 # LATEST STATE OVERRIDE — 2026-10-08 10:32 UTC — CARRIER35240
 
 > **THIS BLOCK IS THE AUTHORITATIVE CURRENT STATE. IT OVERRIDES THE 36.17% SNAPSHOT IMMEDIATELY BELOW.**
