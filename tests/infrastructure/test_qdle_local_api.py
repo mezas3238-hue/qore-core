@@ -96,6 +96,17 @@ class TestQDLELocalAPI(unittest.TestCase):
         self.assertEqual(result["lots"], "0.03")
         self.assertEqual(result["total_risk_usd"], "3.00")
         self.assertFalse(self.engine.ledger(limit=1)[0]["event"] == "BROKER_FILL_UNRECONCILED")
+        presend = dict(request_id="api-1", provider_symbol="EURUSD",
+                       side="BUY", lots="0.03", executable_entry="1.1",
+                       stop_price="1.09", at=self.now)
+        self.assertEqual(self.request("POST", "/v1/pre-send-check",
+                                      self.trader, presend)[0], 403)
+        self.assertEqual(self.request("POST", "/v1/pre-send-check",
+                                      self.provider, presend)[0], 200)
+        self.assertEqual(self.request("POST", "/v1/pre-send-check",
+                                      self.provider, presend)[0], 409)
+        self.assertEqual(self.engine.health()["pending_or_unreconciled_reservations"], 1)
+
 
     def test_high_entropy_tokens_required(self):
         with self.assertRaises(QDLEError):
