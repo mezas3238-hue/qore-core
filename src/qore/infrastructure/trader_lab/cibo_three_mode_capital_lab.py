@@ -3634,22 +3634,24 @@ def run_three_mode_trader_lab(
         # RESEARCH ONLY: atomic liquidity recirculation from ACTUALLY free
         # portfolio capital. Cover booked sovereign reservation + protected
         # floor at every event, not just at entry; fail when cash is absent.
-        required_bank = (
-            state.sovereign_protection_floor_usd
-            + state.sovereign_reserved_usd
-        )
-        if state.sovereign_bank_usd < required_bank:
-            shortfall = required_bank - state.sovereign_bank_usd
-            if shortfall > state.cushion_available_usd:
-                raise CiboCapitalManagementError(
-                    "CIBO_H8_POST_SETTLEMENT_SOVEREIGN_CASH_SHORTFALL: "
-                    f"required_transfer={format(shortfall, 'f')} "
-                    f"free_cushion={format(state.cushion_available_usd, 'f')} "
-                    f"bank={format(state.sovereign_bank_usd, 'f')} "
-                    f"floor={format(state.sovereign_protection_floor_usd, 'f')}. "
-                    "UNFUNDED ECONOMICS; no gain may be credited."
-                )
-            state.bridge_from_unreserved_cushion(shortfall)
+        with localcontext() as context:
+            context.prec = 100
+            required_bank = (
+                state.sovereign_protection_floor_usd
+                + state.sovereign_reserved_usd
+            )
+            if state.sovereign_bank_usd < required_bank:
+                shortfall = required_bank - state.sovereign_bank_usd
+                if shortfall > state.cushion_available_usd:
+                    raise CiboCapitalManagementError(
+                        "CIBO_H8_POST_SETTLEMENT_SOVEREIGN_CASH_SHORTFALL: "
+                        f"required_transfer={format(shortfall, 'f')} "
+                        f"free_cushion={format(state.cushion_available_usd, 'f')} "
+                        f"bank={format(state.sovereign_bank_usd, 'f')} "
+                        f"floor={format(state.sovereign_protection_floor_usd, 'f')}. "
+                        "UNFUNDED ECONOMICS; no gain may be credited."
+                    )
+                state.bridge_from_unreserved_cushion(shortfall)
         state.mark()
 
     def settle_due(up_to: datetime | None) -> None:
@@ -4519,6 +4521,11 @@ def run_three_mode_trader_lab(
         selected: list[
             tuple[CiboThreeModeCandidate, int, CiboTraderLabMode]
         ] = []
+        # H8 physical-source use within THIS decision epoch. Source reservations
+        # are booked into the state only after selecting the epoch's positions.
+        # Never credit the same unreserved dollar to two mandatory entries.
+        h8_epoch_sovereign_committed = Decimal(0)
+        h8_epoch_cushion_committed = Decimal(0)
         risk_left = max(Decimal(0), risk_capacity - state.open_stop_risk_usd)
         margin_left = max(
             Decimal(0),
@@ -6118,12 +6125,15 @@ def run_three_mode_trader_lab(
                         context.prec = 100
                         protected_source = max(
                             Decimal(0),
-                            min(
-                                source_left,
-                                state.sovereign_bank_usd
-                                - state.sovereign_reserved_usd
-                                - state.sovereign_protection_floor_usd,
-                            ),
+                            state.sovereign_bank_usd
+                            - state.sovereign_reserved_usd
+                            - h8_epoch_sovereign_committed
+                            - state.sovereign_protection_floor_usd,
+                        )
+                        free_cushion_for_epoch = max(
+                            Decimal(0),
+                            state.cushion_available_usd
+                            - h8_epoch_cushion_committed,
                         )
                         transfer_needed = max(
                             Decimal(0),
@@ -6133,8 +6143,7 @@ def run_three_mode_trader_lab(
                         transfer_needed > 0
                         and stop_risk <= risk_left
                         and margin <= margin_left
-                        and transfer_needed <= cushion_left
-                        and transfer_needed <= state.cushion_available_usd
+                        and transfer_needed <= free_cushion_for_epoch
                     ):
                         state.bridge_from_unreserved_cushion(transfer_needed)
                         with localcontext() as context:
@@ -6167,13 +6176,20 @@ def run_three_mode_trader_lab(
                     context.prec = 100
                     funded_source_left = source_left
                     if candidate_mode is CiboTraderLabMode.MEDIUM:
+                        funded_source_left = max(
+                            Decimal(0),
+                            state.sovereign_bank_usd
+                            - state.sovereign_reserved_usd
+                            - h8_epoch_sovereign_committed
+                            - state.sovereign_protection_floor_usd,
+                        )
+                    else:
                         funded_source_left = min(
                             source_left,
                             max(
                                 Decimal(0),
-                                state.sovereign_bank_usd
-                                - state.sovereign_reserved_usd
-                                - state.sovereign_protection_floor_usd,
+                                state.cushion_available_usd
+                                - h8_epoch_cushion_committed,
                             ),
                         )
                 if (
@@ -6236,14 +6252,21 @@ def run_three_mode_trader_lab(
                             candidate.source_cost_per_multiplier_usd
                         ),
                     )
-                risk_left -= stop_risk
-                margin_left -= margin
-                if candidate_mode is CiboTraderLabMode.MEDIUM:
-                    sovereign_left -= source_reserved
-                else:
-                    cushion_left -= source_reserved
-                    portfolio_attack_release_left -= source_reserved
-                    attack_risk_selected_this_epoch += stop_risk
+                # State reservations are not yet booked for this epoch.
+                # Track exact source expenditure for both ledgers before the
+                # next candidate's funding check (no collateral reuse).
+                with localcontext() as context:
+                    context.prec = 100
+                    risk_left -= stop_risk
+                    margin_left -= margin
+                    if candidate_mode is CiboTraderLabMode.MEDIUM:
+                        h8_epoch_sovereign_committed += source_reserved
+                        sovereign_left -= source_reserved
+                    else:
+                        h8_epoch_cushion_committed += source_reserved
+                        cushion_left -= source_reserved
+                        portfolio_attack_release_left -= source_reserved
+                        attack_risk_selected_this_epoch += stop_risk
 
         for candidate, multiplier, candidate_mode in selected:
             with localcontext() as context:
