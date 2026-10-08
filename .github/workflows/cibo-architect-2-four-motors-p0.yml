@@ -1,0 +1,49 @@
+name: CIBO Architect 2 Four Economic Motors P0
+on:
+  push:
+    branches:
+      - agent/cibo-architect-2-four-economic-motors-20261008
+    paths:
+      - 'src/qore/infrastructure/cibo_four_motor_policy.py'
+      - 'src/qore/infrastructure/cibo_four_motor_qdle_proposal.py'
+      - 'src/qore/infrastructure/cibo_account_sizing_authority.py'
+      - 'src/qore/infrastructure/cibo_compound_capital.py'
+      - 'src/qore/infrastructure/cibo_marginal_leverage_utility.py'
+      - 'src/qore/infrastructure/cibo_core_compound_portfolio.py'
+      - 'tests/infrastructure/test_cibo_four_motor_policy_p0.py'
+      - '.github/workflows/cibo-architect-2-four-motors-p0.yml'
+  pull_request:
+    paths:
+      - 'src/qore/infrastructure/cibo_four_motor_policy.py'
+      - 'src/qore/infrastructure/cibo_four_motor_qdle_proposal.py'
+      - 'src/qore/infrastructure/cibo_account_sizing_authority.py'
+      - 'src/qore/infrastructure/cibo_compound_capital.py'
+      - 'src/qore/infrastructure/cibo_marginal_leverage_utility.py'
+      - 'src/qore/infrastructure/cibo_core_compound_portfolio.py'
+      - 'tests/infrastructure/test_cibo_four_motor_policy_p0.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  independent-shadow-votes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: CIBO P0 Four Economic Motors shadow contracts and signed QDLE gate
+        env:
+          PYTHONPATH: src
+        run: python -m unittest discover -s tests/infrastructure -p test_cibo_four_motor_policy_p0.py -v
+      - name: Existing four research authority regression suites
+        env:
+          PYTHONPATH: src
+        run: |
+          python -m unittest discover -s tests/infrastructure -p test_cibo_account_sizing_authority.py -v
+          python -m unittest discover -s tests/infrastructure -p test_cibo_core_compound_portfolio.py -v
+          python -m unittest discover -s tests/infrastructure -p test_cibo_marginal_leverage_utility.py -v
+          python -m unittest discover -s tests/infrastructure -p test_qdle_four_motor_evidence.py -v
