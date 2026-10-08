@@ -24,7 +24,8 @@ class Broker:
 class TestQDLELocalAPI(unittest.TestCase):
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()
-        self.engine = QDLE(Path(self.directory.name) / "qdle.db", Broker())
+        self.engine = QDLE(Path(self.directory.name) / "qdle.db", Broker(),
+                           enforce_finance_approval=True)
         self.trader = "trader-token-supersecret-123456"
         self.treasury = "treasury-token-supersecret-123456"
         self.provider = "provider-token-supersecret-123456"
@@ -82,6 +83,13 @@ class TestQDLELocalAPI(unittest.TestCase):
                       source_lane="SOVEREIGN_BANK", slippage_usd_per_lot="0",
                       expected_account_sequence=1)
         self.assertEqual(self.request("POST", "/v1/reserve", self.provider, intent)[0], 403)
+        self.assertEqual(self.request("POST", "/v1/finance-approval", self.trader,
+                                      dict(intent, approved_at=self.now))[0], 403)
+        self.assertEqual(self.request("POST", "/v1/reserve", self.trader, intent)[0], 409)
+        self.assertEqual(self.request("POST", "/v1/finance-approval", self.treasury,
+                                      dict(intent, approved_at=self.now))[0], 200)
+        self.assertEqual(self.request("POST", "/v1/reserve", self.trader,
+                                      dict(intent, requested_risk_usd="30"))[0], 409)
         code, result = self.request("POST", "/v1/reserve", self.trader, intent)
         self.assertEqual(code, 200)
         self.assertEqual(result["state"], "RESERVED_FOR_TRADER")
