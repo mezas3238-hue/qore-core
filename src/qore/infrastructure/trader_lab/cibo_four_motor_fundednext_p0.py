@@ -43,12 +43,14 @@ class CoordinatedCiboCapital:
     """Research authorization: never sends MT5 order, never fabricates fill."""
     def __init__(self,calculator:FundedNextMT5Calculator,
                  policy:RiskPolicy,*,realized_bank_usd:D,
-                 realized_cushion_usd:D=D(0)):
+                 realized_cushion_usd:D=D(0),
+                 complete_broker_positions_reconciled:bool=False):
         if not isinstance(realized_bank_usd,D) or not isinstance(realized_cushion_usd,D):
             raise FundingError("CAPITAL_MUST_BE_DECIMAL")
         if realized_bank_usd<0 or realized_cushion_usd<0:
             raise FundingError("NEGATIVE_INITIAL_REALIZED_CAPITAL")
         self.policy=policy
+        self.complete_broker_positions_reconciled=complete_broker_positions_reconciled
         self.bank=realized_bank_usd
         self.cushion=realized_cushion_usd
         self.ledger=AtomicPortfolioReservations(calculator,policy)
@@ -107,7 +109,7 @@ class CoordinatedCiboCapital:
                         "SINGLE_ATOMIC_WALLET_RISK_SYMBOL_TRADER_GROUP_LIMITS"),
                     MotorDecision("ADAPTIVE_LEVERAGE",quote.margin_free_before_usd,
                         quote.lots,"BROKER_MT5_ORDER_CALC_MARGIN_AND_MARGIN_LEVEL"),
-                ),can_submit_to_broker=True)
+                ),can_submit_to_broker=self.complete_broker_positions_reconciled)
             self._authorizations[trade_id]=out
             return out
 
