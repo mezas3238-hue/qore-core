@@ -6,12 +6,14 @@ on:
       - agent/cibo-architect-1-cognitive-trade-ops-20261008
     paths:
       - 'src/qore/infrastructure/cibo_trade_ops_director.py'
-      - 'tests/infrastructure/test_cibo_trade_ops_director.py'
+      - 'src/qore/infrastructure/cibo_trade_ops_audit.py'
+      - 'tests/infrastructure/test_cibo_trade_ops_*.py'
       - '.github/workflows/cibo-architect-1-trade-ops.yml'
   pull_request:
     paths:
       - 'src/qore/infrastructure/cibo_trade_ops_director.py'
-      - 'tests/infrastructure/test_cibo_trade_ops_director.py'
+      - 'src/qore/infrastructure/cibo_trade_ops_audit.py'
+      - 'tests/infrastructure/test_cibo_trade_ops_*.py'
 permissions:
   contents: read
 jobs:
@@ -23,7 +25,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Verify event ledger and decisions without sending orders
+      - name: Verify full causal lifecycle and exact-manifest audit without order sends
         env:
           PYTHONPATH: src
-        run: python -m unittest discover -s tests/infrastructure -p test_cibo_trade_ops_director.py -v
+        run: python -m unittest discover -s tests/infrastructure -p 'test_cibo_trade_ops_*.py' -v
