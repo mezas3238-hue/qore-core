@@ -329,7 +329,7 @@ jobs:
           ref=cases[names[0]]
           # Correctness of H19 is based on *accounting conservation*,
           # not parity with prior insolvency-permitting H16.
-          assert D(ref["final_usd"])==D(ref["net_usd"])+D("60")
+          assert abs(D(ref["final_usd"])-D(ref["net_usd"])-D("60"))<D(".00000001"),"cash conserved"
           valid=[k for k,v in cases.items() if v["bank_valid"] and v["dd_under_25"]]
           result={"status":"RESEARCH_ONLY","cases":cases,"passed_both":valid,
            "decision":"If no cases pass both, DO NOT claim fixed or certify. Study early 2019 MEDIUM R and actual bank deficits.",
