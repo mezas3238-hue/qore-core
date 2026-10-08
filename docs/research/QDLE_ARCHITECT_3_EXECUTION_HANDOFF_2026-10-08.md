@@ -69,3 +69,28 @@ La clave por símbolo en `--verified-fees` debe ser:
 **No es un valor ejemplar de comisión:** `IMPORTE_TOTAL...` debe sustituirse por el dato broker auténtico antes de ejecutar; la sola presencia del campo `true` no acredita la procedencia. El lector QDLE rechaza la omisión de esa bandera y valores no numéricos/incompletos. Dejar instrumentos sin tarifa confirmada en modo no-live.
 
 **Conclusión:** se cerró una brecha concreta de cobertura de parciales y se repararon dos defectos verificables del contrato de tarifas. El alcance unitario es GREEN exact-SHA; certificación financiera y física broker-real permanecen NO.
+
+## 6. Ampliación: QDLE universal, SL del Trader y lotajes objetivo variables
+
+**Mandato recibido:** QDLE atiende a TODOS los integrantes que necesiten lotaje (Traders, CIBO y los cuatro motores económicos). El Trader es dueño de dirección/entrada/stop; Sizing, CIBO Compuesto, Portafolio Compuesto y Adaptive Leverage son productores de límites económicos independientes. **Solo QDLE calcula y reserva el lotaje final; no ejecuta `order_send`**.
+
+### Contrato implementado en Arquitecto 3
+
+- Campo nuevo opcional `requested_target_lots: Decimal | None` en `CiboFourEngineLimits`, `QDLEIntent` y `CiboLotSizingInput`, más `/v1/reserve` y `/v1/finance-approval`. Se conserva el comportamiento de lotaje dinámico automático cuando el campo no aparece.
+- `requested_target_lots` acepta volúmenes positivos **arbitrarios**, incluyendo 5, 10, 20 y 100, pero funciona como **techo de cantidad solicitada**. No es autorización de riesgo ni promesa de ejecución. Se rechazan cero, valores negativos, no finitos o tipos no decimales; se redondea **hacia abajo** al `volume_step` real; un objetivo inferior al lote mínimo financiable produce `UNFUNDABLE`.
+- Algoritmo: partir del **precio de entrada + stop adverso del Trader** → `order_calc_profit` nativo / costo stop por 1 lote contemporáneo → sumar comisión total apertura+cierre verificada y allowance de deslizamiento → intersecar techo 5% × NAV QORE **actual**, presupuesto solicitado, riesgo Sizing, riesgo CIBO Compuesto, fondos autorizados Portafolio, riesgo libre soberano, margen MT5 libre, margen autorizado y máximo en lotes de Adaptive Leverage, `volume_max`, `volume_step`, `volume_limit`, lotaje metodológico mínimo y nuevo `requested_target_lots`.
+- El objetivo completo viaja en el **hash de la aprobación financiera soberana** de cada señal/cuenta. Reusar `request_id` con otro target o alterar el target tras la firma es un error, no redimensiona silenciosamente. Al reconstituir la intención en el chequeo one-shot anterior a LIVE, el Decimal opcional se deserializa correctamente. Pre-send verifica riesgo físico y volumen exacto y **nunca envía una orden**.
+- CIBO **no adquiere veto sobre señales**; un `UNFUNDABLE` informa que ese lote no es ejecutable bajo los límites físicos o financieros actuales, sin falsificar volumen mínimo ni convertir decisión en fill. El Trader conserva la ejecución sujeto a la autorización del gateway.
+- El capital propio de QORE y el broker siguen separados. Solicitar 100 lotes **NO** permite saltarse el 5% por entrada, ni convertir USD 2000 de equity FundedNext en el NAV propio de USD 60.
+
+### Evidencia y entrega entre arquitectos
+
+Archivos de implementación: `src/qore/infrastructure/cibo_physical_lot_sizing.py`, `src/qore/infrastructure/qore_dynamic_lot_engine.py`, `src/qore/infrastructure/qdle_cibo_bridge.py`, `src/qore/infrastructure/qdle_local_api.py`. Suite añadida: `tests/infrastructure/test_qdle_universal_lot_targets.py`; CI en `.github/workflows/qdle-p0-atomic-engine.yml`.
+
+- Fixtures sintéticas: 5/10/20/100 lotes cuando todo el presupuesto lo permite; sin target, cálculo por USD; stop más amplio reduce lotes; cada motor puede ser limitante; dos identidades de Trader compiten por el **mismo banco de riesgo atómico**, sin doble gasto; retícula y mínimo broker; target firmado inmutable y presend one-shot; NAV USD 60/120 y pedido de 100 lotes dan techos de riesgo USD 3/6 respectivamente.
+- Las cantidades de fixtures provienen de un calculador ficticio explícito y **NO corresponden a contratos auténticos FundedNext**.
+- Arquitecto 1: conservar el `TraderOpportunityEnvelope` (SL, entry, símbolo, identidad) íntegro hasta QDLE. No sustituir stop con multiplicadores.
+- Arquitecto 2: enviar caps económicos **por señal, cuenta y epoch**, firmados de forma independiente. `requested_target_lots` es opcional si se quiere expresar una preferencia de volumen, pero **ningún motor puede elevar los techos soberanos**. Documentar el capital de origen y tratamiento de fees.
+- Arquitecto 3: permanece responsable de broker-native `order_calc_profit`/`order_calc_margin`/`order_check`, margen, comisión completa, retícula y fills/settlements. Sin evidencia broker autenticada y gates P0 verdes: **NO LIVE**.
+
+PR [#741](https://github.com/mezas3238-hue/qore-core/pull/741) permanece **DRAFT**. Se exige CI de SHA exacto antes de considerar cerrada esta ampliación; la certificación física FundedNext sigue **PENDIENTE**.
