@@ -195,3 +195,20 @@ Notably `transfer-floor-h1flat20` (20% partial) collapses capital to USD 552130.
 This is a local historical boundary, **not evidence of a universal optimum**; it may be overfit to already mined 2019–2022 data.
 
 New independent scientific direction: [dual DD bottleneck causal feature atlas](https://github.com/mezas3238-hue/qore-core/blob/agent/cibo-dual-dd-context-defense-20261008-001/.github/workflows/cibo-dual-bottleneck-causal-risk-atlas-20261008.yml), comparing peak-to-trough 2020 and 2021 losing-event geometry to all ATTACK winners; no date/Trader ID/realized outcome is permitted as a future runtime trigger. The objective remains **material DD <=25%**, ideally 20–22%, while preserving the now-verified experimental economic headroom. No live deployment approved.
+
+## Critical updated DD episode ranking and failed early-capital DD budget intervention (2026-10-08)
+
+[Exact replay episode diff 37786561457](https://github.com/mezas3238-hue/qore-core/actions/runs/37786561457) **SUCCESS**, comparing baseline `transfer-floor-control` and R&D carrier `transfer-floor-h1flat50` from one hash-verified artifact:
+- Overall max DD remains **34.924014%**, 2020-04-03 → 2020-05-13, primarily ATTACK (net about -USD252.30).
+- The formerly *nearly tied* 2021-02-09 → 2021-03-03 DD fell materially from **34.917732%** to **33.391652%** (~**1.52608 pp improvement**). Its ATTACK absolute losses did NOT simply shrink (net about -USD19901 baseline vs -USD20598 candidate): the relative DD improvement is driven by changed capital/peak path. Do not claim causal trade-level ATTACK losses alone fell in that episode.
+- The now-second highest DD is **2019-07-19 → 2019-08-07 MEDIUM-only, 34.735216%** (unchanged), then **2020-09-10 → 2020-09-28 ATTACK-led, 34.511782%**. 2021 is now fourth. All ten biggest DD episodes still exceed 25%. Thus immediate multi-bottleneck problem after economic carrier freeze: 2020 spring ATTACK, 2019 MEDIUM1x, 2020 fall ATTACK. Other episodes remain.
+- Earlier [generic dual-bottleneck atlas 37786371555](https://github.com/mezas3238-hue/qore-core/actions/runs/37786371555) selected by **current** rank, not hard-coded calendar years. Therefore its second selected event was in **2019 MEDIUM**, and `episode2_attack_top_loss_events=0`; it is **not** a valid shared ATTACK 2020+2021 factor inference. Do not overinterpret or promote its feature correlations. The 2020 top ATTACK loss event cohort is small and broadly overlaps ATTACK winners; no robust predictor was established by it.
+
+[14-case early-capital ATTACK DD-budget2 sweep 37786760074](https://github.com/mezas3238-hue/qore-core/actions/runs/37786760074) **SUCCESS** (research experiment, no real-world orders). Added a second causal ATTACK DD budget fraction (0.10–0.40) only while live simulated capital within several bands between ~USD400 and USD900. All Sovereign-protected, 3368 custody, but **NONE** preserved the frozen USD582440 terminal floor **and** improved DD/GL. Some variants ruined compounding catastrophically:
+- Budget2 0.15 in $550–$800 band: terminal only **USD 668.55**, DD 36.692882%.
+- Budget2 0.20 in $400–$900: terminal only **USD 886.95**, DD 74.786857%.
+- Budget2 0.40 in $400–$900: terminal USD 568454.54 (below floor), DD 50.884136%.
+- Control remains **USD 672671.4731**, max DD 34.924014%, total GL USD959378.8421, complete Sovereign internal floor protection.
+This is evidence of nonlinear portfolio compounding and physical capacity constraints, not that DD protections are inherently useless. A naive capital-band risk clamp is **not** a satisfactory solution and must not be promoted.
+
+**Engineering handoff:** prioritize rigorous accounting and *local post-entry, position-level, mark-to-market drawdown causes* over wide synchronized early-capital multipliers. Preserve current research economic carrier `transfer-floor-h1flat50` as a separate benchmark without claiming full Pareto/25%-DD certification; production remains unchanged. Next genuine scientific step needs new sealed independent OOS after methodology freeze, and broker-realistic lot/margin/cost/stop-out validation. Strict target DD <=25% (ideal 20–22%) continues.
