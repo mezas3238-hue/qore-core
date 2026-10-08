@@ -13,6 +13,7 @@ on:
       - agent/cibo-h19-sovereign-liquid-reserve-rebalance-001
     paths:
       - '.github/workflows/cibo-trader-lab-physical-sovereign-cash-and-dd-h19.yml'
+      - 'src/qore/infrastructure/trader_lab/cibo_three_mode_capital_lab.py'
 
 permissions:
   contents: read
@@ -277,17 +278,13 @@ jobs:
           # only tuning two ORIGINAL parameters: split real MEDIUM profit
           # toward Bank, and causal post-entry defensive loss cut.
           set -e
+          # Two independent full CIBO replays, repaired treasury + DD guard.
+          set -e
           run_case "h19-control-100-cut040" 0.05 "$RUNNER_TEMP/cibo-risk5-src" 1.00 -0.40 &
           p0=$!
-          run_case "h19-bank75-cut040" 0.05 "$RUNNER_TEMP/cibo-risk5-src" 0.75 -0.40 &
-          p1=$!
-          run_case "h19-bank50-cut040" 0.05 "$RUNNER_TEMP/cibo-risk5-src" 0.50 -0.40 &
-          p2=$!
-          run_case "h19-bank75-cut025" 0.05 "$RUNNER_TEMP/cibo-risk5-src" 0.75 -0.25 &
-          p3=$!
           run_case "h19-bank50-cut025" 0.05 "$RUNNER_TEMP/cibo-risk5-src" 0.50 -0.25 &
-          p4=$!
-          wait "$p0"; wait "$p1"; wait "$p2"; wait "$p3"; wait "$p4"
+          p1=$!
+          wait "$p0"; wait "$p1"
 
       - name: Audit bank floor and realized DD against original full case
         run: |
@@ -297,7 +294,7 @@ jobs:
           import json,os
           from pathlib import Path
           root=Path(os.environ["RUNNER_TEMP"])/"result"
-          names=["h19-control-100-cut040","h19-bank75-cut040","h19-bank50-cut040","h19-bank75-cut025","h19-bank50-cut025"]
+          names=["h19-control-100-cut040","h19-bank50-cut025"]
           cases={}
           for name in names:
               d=json.loads((root/(name+".json")).read_text())
