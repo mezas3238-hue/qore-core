@@ -94,3 +94,25 @@ Archivos de implementación: `src/qore/infrastructure/cibo_physical_lot_sizing.p
 - Arquitecto 3: permanece responsable de broker-native `order_calc_profit`/`order_calc_margin`/`order_check`, margen, comisión completa, retícula y fills/settlements. Sin evidencia broker autenticada y gates P0 verdes: **NO LIVE**.
 
 PR [#741](https://github.com/mezas3238-hue/qore-core/pull/741) permanece **DRAFT**. La ampliación de lotaje universal está **VERIFICADA EN CI SINTÉTICO**: [GitHub Actions run 37857035541](https://github.com/mezas3238-hue/qore-core/actions/runs/37857035541), exact-SHA de código `fc48cc71ae8fc8f88fe1fe6efadb0875864a175e`, resultado SUCCESS, **98 unittest** (incluidas 9 pruebas de lotaje universal) + **3 pytest gateway** (12 deselected), job `113583571564` íntegramente verde. La certificación física FundedNext y los gates globales siguen **PENDIENTES / NO LIVE**.
+
+## 7. Cambio expreso de alcance: NO VPS; simulación como si fuera operativa real
+
+**Directiva del usuario (2026-10-08):** **no se operará en VPS**. El trabajo prioritario pasa a ser simular la operativa, ejecutar replays causales y comparar resultados de lotaje/stop/riesgo/margen/comisiones/capital. Cualquier sección previa sobre desplegar en el VPS queda en segundo plano y **no es un paso autorizado de esta misión**. No usar `order_send`, no conectar capital real, no afirmar que existe un fill físico. El contrato físico de bróker (metadatos y tarifas reales) sigue siendo deseable como **dataset verificable o fixture offline**, nunca como permiso para operar.
+
+### Ejecución de replay confirmada por GitHub Actions
+
+[Run 37858772829](https://github.com/mezas3238-hue/qore-core/actions/runs/37858772829), **SUCCESS**, SHA `20966f17edfc0fefefe4eb35e3473ab6dc8bb008`, job `113589245360`. Origen pinneado por ZIP SHA256 del manifest original 2019–2022, **3.368 señales únicas comprobadas** en los tres escenarios. Artefacto de informes/decisiones/auditoría: **11585371062** (`qdle-3368-dual-capital-RESEARCH-37858772829`) en el mismo run. Esta ejecución fue disparada en rama 3 al habilitarla en `.github/workflows/qdle-3368-dual-capital-replay.yml`, no en VPS.
+
+| Escenario | Propuestas financiables | No financiables/bloqueadas | QORE NAV final USD | Broker equity proxy USD | PnL net proxy USD | Max DD cierre | Provider stop |
+|---|---:|---:|---:|---:|---:|---:|---|
+| `original_trader` + $120 trailing supuesto | 697 | 2671 | 5.50230747 | 1945.50230747 | -54.49769253 | 92.8591% | No |
+| `broker_grid` min 0.01 + $120 trailing supuesto | 1628 | 1740 | 125.05318843 | 2065.05318843 | +65.05318843 | 87.7482% | **Sí, 2021-05-05** |
+| `broker_grid` min 0.01 + provider rule disabled | 2113 | 1255 | 9.83837158 | 1949.83837158 | -50.16162842 | 97.5319% | No |
+
+**Auditoría:** `audit_integrity=PASSED`, `financial_certification=REJECTED` en todos. Recuentos de pérdidas realizadas con -PnL superior al presupuesto original 5%: **91 / 201 / 272** respectivamente. Tarifas NDX100 asumidas cero por desconocimiento en **0 / 247 / 306** propuestas. Sizing y CIBO Compound usan idéntico techo proxy 5% y no son decisiones históricas independientes; por tanto **NO atribuir PnL a los cuatro motores**. La simulación aplica screenshot MT5 2026 sobre oportunidades 2019–2022, solo comisión de apertura Forex $7/lot, cierre sin demostrar, XAU fee base estimada y NDX fee desconocida, swaps con reloj UTC inventariado, sin bid/ask verdadero ni estados intratrade. El DD es **closed-equity**, no max DD físico intratrade.
+
+**Diagnóstico causal operativo:** el mínimo original del Trader deja sin financiamiento ~79.3% de las señales; bajar ese mínimo a 0.01 incrementa participación simulada, pero el riesgo del capital QORE sigue altísimo. El caso de NAV USD 125.05 es **stopped temprano por un umbral provider no verificado**, no una solución. Sin esa regla arbitraria, el mismo broker-grid simulado finaliza con USD 9.84. Así, **no extrapolar rentabilidad, no declarar listo a QDLE/traders/capital**. Demuestra que un número de señales esperado no implica ese mismo número de entradas financiadas.
+
+**Prioridad de continuación científica sin VPS:** (1) modelar fill parcial, spread, slippage y comisión completa por parámetros de sensibilidad explícitos, sin llamar reales a costes no confirmados; (2) stop-loss intratrade/MTM y trailing provider irreversibles con series temporales o cotizaciones reproducibles; (3) recuperar snapshots y decisiones independientes de los cuatro motores del Arquitecto 2, con trazas causales por señal; (4) comparar sensibilidad de `requested_target_lots` (5/10/20/100, nunca encima de presupuesto 5% NAV, margen ni grid); (5) no reinterpretar un mínimo de 0.01 como autorización para modificar metodología original del Trader; (6) reproducir resultados con semillas, versiones de manifest y escenarios y reducir DD documentando el sacrificio/retención de capital y densidad.
+
+**Estado definitivo del replay de esta entrega:** terminado y verificado CI **como simulación investigativa**, no certificado como broker-real ni como estrategia aprobada; usuario no desea VPS.
