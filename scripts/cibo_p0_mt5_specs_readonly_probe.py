@@ -53,7 +53,7 @@ def probe(mt5,account_model_label:str="STELLAR_INSTANT"):
             # it. A successful contract probe MUST still be reviewed before
             # mapping and actual CIBO pre-trade execution.
             sym=found[0]
-            mt5.symbol_select(sym,True) # add to Market Watch for quotes only
+            # No symbol_select: avoid mutating even Market Watch configuration.
             info=mt5.symbol_info(sym)
             tick=mt5.symbol_info_tick(sym)
             if info is None or tick is None:
