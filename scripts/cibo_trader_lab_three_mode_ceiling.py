@@ -1055,6 +1055,60 @@ def main() -> int:
         help="Fraction of ATTACK single-trade risk budget retained under state pressure.",
     )
     parser.add_argument(
+        "--ceiling-attack-state-pressure2-expected-minutes-floor",
+        type=Decimal,
+        default=None,
+        help="Optional causal expected-capital-minutes floor for ATTACK state-pressure lane 2.",
+    )
+    parser.add_argument(
+        "--ceiling-attack-state-pressure2-target-r-ceiling",
+        type=Decimal,
+        default=None,
+        help="Optional planned target-R ceiling for ATTACK state-pressure lane 2.",
+    )
+    parser.add_argument(
+        "--ceiling-attack-state-pressure2-confidence-ratio-ceiling",
+        type=Decimal,
+        default=None,
+        help="Optional expected-R/dispersion ceiling for ATTACK state-pressure lane 2.",
+    )
+    parser.add_argument(
+        "--ceiling-attack-state-pressure2-projected-risk-fraction-trigger",
+        type=Decimal,
+        default=None,
+        help="Optional projected stop-risk fraction trigger for ATTACK state-pressure lane 2.",
+    )
+    parser.add_argument(
+        "--ceiling-attack-state-pressure2-capital-floor",
+        type=Decimal,
+        default=None,
+        help="Optional live-capital floor for ATTACK state-pressure lane 2.",
+    )
+    parser.add_argument(
+        "--ceiling-attack-state-pressure2-capital-ceiling",
+        type=Decimal,
+        default=None,
+        help="Optional live-capital ceiling for ATTACK state-pressure lane 2.",
+    )
+    parser.add_argument(
+        "--ceiling-attack-state-pressure2-market-posture",
+        choices=("DEFENSIVE", "RECOVERY", "STABLE", "WATCH"),
+        default=None,
+        help="Optional market posture required by ATTACK state-pressure lane 2.",
+    )
+    parser.add_argument(
+        "--ceiling-attack-state-pressure2-h4-range-state",
+        choices=("balanced", "compressed", "expanded", "extreme"),
+        default=None,
+        help="Optional H4 range state required by ATTACK state-pressure lane 2.",
+    )
+    parser.add_argument(
+        "--ceiling-attack-state-pressure2-risk-budget-taper-fraction",
+        type=Decimal,
+        default=Decimal("1"),
+        help="Fraction of ATTACK single-trade risk budget retained under state-pressure lane 2.",
+    )
+    parser.add_argument(
         "--ceiling-attack-trader-loss-ratio-trigger",
         type=Decimal,
         default=None,
@@ -1880,6 +1934,33 @@ def main() -> int:
         ),
         ceiling_attack_state_pressure_risk_budget_taper_fraction=(
             args.ceiling_attack_state_pressure_risk_budget_taper_fraction
+        ),
+        ceiling_attack_state_pressure2_expected_minutes_floor=(
+            args.ceiling_attack_state_pressure2_expected_minutes_floor
+        ),
+        ceiling_attack_state_pressure2_target_r_ceiling=(
+            args.ceiling_attack_state_pressure2_target_r_ceiling
+        ),
+        ceiling_attack_state_pressure2_confidence_ratio_ceiling=(
+            args.ceiling_attack_state_pressure2_confidence_ratio_ceiling
+        ),
+        ceiling_attack_state_pressure2_projected_risk_fraction_trigger=(
+            args.ceiling_attack_state_pressure2_projected_risk_fraction_trigger
+        ),
+        ceiling_attack_state_pressure2_capital_floor=(
+            args.ceiling_attack_state_pressure2_capital_floor
+        ),
+        ceiling_attack_state_pressure2_capital_ceiling=(
+            args.ceiling_attack_state_pressure2_capital_ceiling
+        ),
+        ceiling_attack_state_pressure2_market_posture=(
+            args.ceiling_attack_state_pressure2_market_posture
+        ),
+        ceiling_attack_state_pressure2_h4_range_state=(
+            args.ceiling_attack_state_pressure2_h4_range_state
+        ),
+        ceiling_attack_state_pressure2_risk_budget_taper_fraction=(
+            args.ceiling_attack_state_pressure2_risk_budget_taper_fraction
         ),
         ceiling_attack_trader_loss_ratio_trigger=(
             args.ceiling_attack_trader_loss_ratio_trigger
