@@ -36,7 +36,6 @@ from qore.infrastructure.cibo_capital_management_authority import (
     minimum_seed_volume,
     plan_minimal_seed,
 )
-
 from qore.infrastructure.cibo_four_motor_policy import (
     FourMotorObservation,
     FourMotorPolicyError,
