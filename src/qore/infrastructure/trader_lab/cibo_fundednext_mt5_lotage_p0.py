@@ -11,6 +11,7 @@ Orders without server specs/funds are rejected before broker submission.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime,timezone
 from decimal import Decimal as D, ROUND_FLOOR
 from threading import RLock
 from typing import Any, Protocol
@@ -113,6 +114,16 @@ class FundedNextMT5Calculator:
         account=self.client.account_info()
         if info is None or tick is None or account is None:
             raise FundingError("MT5_SPECS_OR_TICK_OR_ACCOUNT_UNAVAILABLE")
+        if getattr(account,"trade_allowed",True) is False:
+            raise FundingError("MT5_ACCOUNT_TRADE_DISABLED")
+        if getattr(info,"visible",True) is False:
+            raise FundingError("MT5_SYMBOL_NOT_VISIBLE_NO_FRESH_TICK")
+        quote_time=getattr(tick,"time",None)
+        if quote_time is None or isinstance(quote_time,bool):
+            raise FundingError("MT5_QUOTE_TIMESTAMP_MISSING")
+        quote_age=D(str(datetime.now(timezone.utc).timestamp()))-dec(quote_time,"tick.time")
+        if quote_age< D("-15") or quote_age>D(self.max_quote_age_s):
+            raise FundingError("MT5_QUOTE_STALE_OR_FUTURE")
         for k in ("volume_min","volume_step","volume_max","trade_contract_size","trade_tick_size"):
             dec(getattr(info,k,None),k)
         mn,st,mx=(dec(getattr(info,k),k) for k in ("volume_min","volume_step","volume_max"))
@@ -121,6 +132,8 @@ class FundedNextMT5Calculator:
         bid=dec(getattr(tick,"bid",None),"bid")
         ask=dec(getattr(tick,"ask",None),"ask")
         if ask<bid:raise FundingError("MT5_BID_ASK_CROSSED")
+        if getattr(info,"trade_mode",4)==0:
+            raise FundingError("MT5_SYMBOL_TRADE_MODE_DISABLED")
         equity=dec(getattr(account,"equity",None),"equity")
         free=dec(getattr(account,"margin_free",None),"margin_free",allow_zero=True)
         held=dec(getattr(account,"margin",None),"margin",allow_zero=True)
