@@ -170,6 +170,25 @@ class FourMotorEconomicTest(unittest.TestCase):
                 votes=(votes(o)[0], *votes(replace(o, account_sequence=8))[1:]),
                 entry_price=Decimal("1.1"), stop_price=Decimal("1.09"))
 
+    def test_four_motor_intent_supports_independently_requested_target_lots(self):
+        o = observation()
+        for target in ("5", "10", "20", "100"):
+            with self.subTest(target=target):
+                intent = build_four_motor_qdle_intent(
+                    observation=o, votes=votes(o),
+                    entry_price=Decimal("1.1"), stop_price=Decimal("1.09"),
+                    requested_target_lots=Decimal(target),
+                )
+                self.assertEqual(intent.requested_target_lots, Decimal(target))
+                self.assertEqual(intent.requested_risk_usd, Decimal("3"))
+                self.assertEqual(intent.sizing_cap_usd, Decimal("3"))
+        with self.assertRaisesRegex(FourMotorPolicyError, "positive"):
+            build_four_motor_qdle_intent(
+                observation=o, votes=votes(o),
+                entry_price=Decimal("1.1"), stop_price=Decimal("1.09"),
+                requested_target_lots=Decimal("0"),
+            )
+
     def test_qdle_accepts_native_signed_votes_and_keeps_no_send(self):
         o = observation()
         producer_votes = votes(o)
