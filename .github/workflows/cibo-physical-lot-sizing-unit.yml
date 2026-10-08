@@ -1,0 +1,27 @@
+name: CIBO Physical Lot Sizing Unit
+on:
+  push:
+    branches:
+      - agent/cibo-lot-sizing-physical-risk-20261008-001
+    paths:
+      - src/qore/infrastructure/cibo_physical_lot_sizing.py
+      - tests/infrastructure/test_cibo_physical_lot_sizing.py
+      - .github/workflows/cibo-physical-lot-sizing-unit.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  decimal-physical-lots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Audit USD risk, broker steps and bank/cushion segregation
+        env:
+          PYTHONPATH: src
+        run: python -m unittest discover -s tests/infrastructure -p test_cibo_physical_lot_sizing.py -v

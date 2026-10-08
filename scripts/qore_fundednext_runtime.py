@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import subprocess
 from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
@@ -2127,6 +2128,19 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
     exit_ledger = JsonFileFundedNextPositionExitLedger(state_dir / "position-exits.json")
     exit_ledger.mark_interrupted_unknown(now=datetime.now(UTC))
     risk = DurableAccountWideRiskEngine(risk_ledger)
+    # P0 — No LIVE Trader can bypass the independently financed QDLE lot gate.
+    # SHADOW is unchanged for observational scientific comparison. LIVE stays
+    # blocked until the treasury-authorized QDLE daemon and MT5 are online.
+    from qore.infrastructure.qdle_live_submission_guard import QdleHttpPresendGate
+    qdle_presend_gate = None
+    if mode == "live":
+        qdle_provider_secret = os.environ.get("QDLE_PROVIDER_TOKEN", "")
+        if len(qdle_provider_secret) < 24:
+            raise RuntimeError("qdle-p0-live-blocked-provider-token-not-configured")
+        qdle_presend_gate = QdleHttpPresendGate(
+            "http://127.0.0.1:" + os.environ.get("QDLE_PORT", "18761"),
+            qdle_provider_secret,
+        )
     gateway = FundedNextLiveMt5ExecutionGateway(
         account=account,
         transport=transport,
@@ -2143,6 +2157,8 @@ def run(root: Path, *, mode: str, activation_path: Path) -> None:
         account_identity_fingerprint=fingerprint,
         expected_server=_EXPECTED_SERVER,
         submission_enabled=mode == "live",
+        qdle_live_presend_gate=qdle_presend_gate,
+        qdle_required_for_live=(mode == "live"),
     )
     gateway.reconcile_unknown(now=datetime.now(UTC))
 

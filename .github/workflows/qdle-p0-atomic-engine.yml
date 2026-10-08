@@ -1,0 +1,65 @@
+name: QDLE P0 Atomic Physical Lot Engine
+# Covers QDLE live arm-once, authority segregation and 5% dynamic equity.
+on:
+  push:
+    branches:
+      - agent/qdle-independent-engine-p0-20261008-001
+    paths:
+      - src/qore/infrastructure/qore_dynamic_lot_engine.py
+      - src/qore/infrastructure/qdle_mt5_read_only.py
+      - src/qore/infrastructure/cibo_physical_lot_sizing.py
+      - src/qore/infrastructure/qdle_local_api.py
+      - src/qore/infrastructure/qdle_live_submission_guard.py
+      - src/qore/infrastructure/fundednext_live_mt5.py
+      - scripts/qore_fundednext_runtime.py
+      - src/qore/infrastructure/qdle_cibo_bridge.py
+      - src/qore/infrastructure/qdle_signed_treasury.py
+      - scripts/qdle_qore_account_event_publisher.py
+      - scripts/qdle_mt5_read_only_inventory.py
+      - scripts/qdle_trader_lab_replay.py
+      - tests/infrastructure/test_qore_dynamic_lot_engine.py
+      - tests/infrastructure/test_qdle_trader_lab_replay.py
+      - tests/infrastructure/test_qdle_local_api.py
+      - tests/infrastructure/test_qdle_cibo_bridge.py
+      - tests/infrastructure/test_qdle_signed_treasury.py
+      - tests/infrastructure/test_qdle_live_presend.py
+      - tests/infrastructure/test_qdle_mt5_inventory.py
+      - tests/infrastructure/test_qdle_broker_fee_completeness.py
+      - tests/infrastructure/test_qdle_four_motor_evidence.py
+      - tests/infrastructure/test_qdle_provider_floor.py
+      - tests/infrastructure/test_fundednext_live_mt5.py
+      - tests/infrastructure/test_cibo_physical_lot_sizing.py
+      - .github/workflows/qdle-p0-atomic-engine.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  offline-atomic-physics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: QDLE synthetic six-symbol physics, finance, concurrency and crash recovery
+        env:
+          PYTHONPATH: src
+        run: |
+          python -m unittest discover -s tests/infrastructure -p test_cibo_physical_lot_sizing.py -v
+          python -m unittest discover -s tests/infrastructure -p test_qore_dynamic_lot_engine.py -v
+          python -m unittest discover -s tests/infrastructure -p test_qdle_trader_lab_replay.py -v
+          python -m unittest discover -s tests/infrastructure -p test_qdle_local_api.py -v
+          python -m unittest discover -s tests/infrastructure -p test_qdle_cibo_bridge.py -v
+          python -m unittest discover -s tests/infrastructure -p test_qdle_signed_treasury.py -v
+          python -m unittest discover -s tests/infrastructure -p test_qdle_live_presend.py -v
+          python -m unittest discover -s tests/infrastructure -p test_qdle_mt5_inventory.py -v
+          python -m unittest discover -s tests/infrastructure -p test_qdle_broker_fee_completeness.py -v
+          python -m unittest discover -s tests/infrastructure -p test_qdle_four_motor_evidence.py -v
+          python -m unittest discover -s tests/infrastructure -p test_qdle_provider_floor.py -v
+      - name: QDLE live gateway no-send contract (pytest)
+        env:
+          PYTHONPATH: src
+        run: |
+          python -m pip install --disable-pip-version-check pytest
+          python -m pytest -o addopts='' -q tests/infrastructure/test_fundednext_live_mt5.py -k qdle_live

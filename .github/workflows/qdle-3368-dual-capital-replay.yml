@@ -1,0 +1,111 @@
+name: QDLE 3368 Dual Capital Research Replay
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/qdle-independent-engine-p0-20261008-001
+    paths:
+      - "scripts/qdle_3368_dual_ledger_replay.py"
+      - ".github/workflows/qdle-3368-dual-capital-replay.yml"
+      - "src/qore/infrastructure/qore_dynamic_lot_engine.py"
+  pull_request:
+    paths:
+      - "scripts/qdle_3368_dual_ledger_replay.py"
+      - ".github/workflows/qdle-3368-dual-capital-replay.yml"
+      - "src/qore/infrastructure/qore_dynamic_lot_engine.py"
+      - "src/qore/infrastructure/cibo_physical_lot_sizing.py"
+      - "src/qore/infrastructure/qdle_mt5_read_only.py"
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  SOURCE_ARTIFACT_ID: "11451743578"
+  SOURCE_ARTIFACT_DIGEST: "sha256:d439957f21e2f79148b5a2fb75a53db6fa448698f17aeb6978f379ed3547f7ea"
+  PYTHONPATH: src
+
+jobs:
+  pinned-3368-dual-ledger:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Recover pinned sealed 3368 historical source; verify raw artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/qore-source" "$RUNNER_TEMP/qdle-results"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$SOURCE_ARTIFACT_ID/zip" > "$RUNNER_TEMP/source.zip"
+          echo "${SOURCE_ARTIFACT_DIGEST#sha256:}  $RUNNER_TEMP/source.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/source.zip" walk-forward-manifest.json -d "$RUNNER_TEMP/qore-source"
+      - name: Research QDLE physical gate, original Trader min lots
+        run: |
+          python scripts/qdle_3368_dual_ledger_replay.py \
+            --manifest "$RUNNER_TEMP/qore-source/walk-forward-manifest.json" \
+            --min-policy original_trader \
+            --output "$RUNNER_TEMP/qdle-results/qdle-3368-original-trader-min.json"
+      - name: Sensitivity QDLE physical gate, broker min 0.01 lots
+        run: |
+          python scripts/qdle_3368_dual_ledger_replay.py \
+            --manifest "$RUNNER_TEMP/qore-source/walk-forward-manifest.json" \
+            --min-policy broker_grid \
+            --output "$RUNNER_TEMP/qdle-results/qdle-3368-broker-grid-min.json"
+      - name: Sensitivity with today's contracts and no assumed provider rule
+        run: |
+          python scripts/qdle_3368_dual_ledger_replay.py \
+            --manifest "$RUNNER_TEMP/qore-source/walk-forward-manifest.json" \
+            --min-policy broker_grid \
+            --provider-trailing-usd disabled \
+            --output "$RUNNER_TEMP/qdle-results/qdle-3368-broker-grid-provider-unverified.json"
+      - name: Audit both 3368 full-coverage reports
+        run: |
+          python - <<'PY'
+          import json, os, pathlib
+          root=pathlib.Path(os.environ['RUNNER_TEMP'])/'qdle-results'
+          for name in ['qdle-3368-original-trader-min.json', 'qdle-3368-broker-grid-min.json', 'qdle-3368-broker-grid-provider-unverified.json']:
+              d=json.loads((root/name).read_text())
+              assert d['signal_count']==3368
+              assert d['unique_signal_count']==3368
+              assert d['research_financed_proposals'] + d['research_unfundable_or_invalid'] ==3368
+              assert d['real_fundednext_fills']==0
+              assert d['certified'] is False
+              print("FULL_COVERAGE_RESEARCH_AUDIT",name,
+                    "FINANCED",d['research_financed_proposals'],
+                    "UNFUNDABLE",d['research_unfundable_or_invalid'],
+                    "ENDING_QORE",d['qore_ending_capital_usd'],
+                    "MAX_CLOSED_DD_PCT",d['max_closed_equity_drawdown_pct'])
+          PY
+      - name: Run noncertification financial truth gate on all scenarios
+        run: |
+          for scenario in original-trader-min broker-grid-min broker-grid-provider-unverified; do
+            python scripts/qdle_3368_financial_truth_gate.py \
+              --report "$RUNNER_TEMP/qdle-results/qdle-3368-$scenario.json" \
+              --output "$RUNNER_TEMP/qdle-results/qdle-truth-gate-$scenario.json"
+          done
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          folder = Path(os.environ["RUNNER_TEMP"]) / "qdle-results"
+          for file in folder.glob("qdle-truth-gate-*.json"):
+              d = json.loads(file.read_text())
+              assert d["audit_integrity"] == "PASSED"
+              assert d["financial_certification"] == "REJECTED"
+              assert not d["four_motor_independent_attribution"]
+              assert not d["broker_real_time_current_market_simulation"]
+              print("QDLE_AUDITED_BUT_NOT_CERTIFIED", file.name,
+                    d["lot_proposals_research_only"])
+          PY
+      - name: Upload strictly RESEARCH artifacts (no broker fill claim)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qdle-3368-dual-capital-RESEARCH-${{ github.run_id }}
+          path: ${{ runner.temp }}/qdle-results/*.json
+          if-no-files-found: warn
