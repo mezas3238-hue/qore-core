@@ -14,7 +14,7 @@ on:
       - '.github/workflows/cibo-trader-lab-original-method-risk-5pct-h12.yml'
 
 permissions:
-  contents: read
+  contents: write
   actions: read
 
 env:
@@ -285,6 +285,21 @@ jobs:
           (root/"h12-original-risk-ab-report.json").write_text(json.dumps(summary,indent=2))
           print("CIBO_H12_RESULT="+json.dumps(summary,sort_keys=True))
           PY
+
+      - name: Publish A/B result to isolated research branch for subsequent verification
+        run: |
+          set -euo pipefail
+          mkdir -p docs/research
+          cp "$RUNNER_TEMP/result/h12-original-risk-ab-report.json" docs/research/CIBO_H12_ORIGINAL_METHOD_RISK_5PCT_VS_20PCT_REPLAY_RESULTS.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/research/CIBO_H12_ORIGINAL_METHOD_RISK_5PCT_VS_20PCT_REPLAY_RESULTS.json
+          if git diff --cached --quiet; then
+            echo "No change in certified-for-research A/B results"
+          else
+            git commit -m "research(cibo h12): publish reproduced original CIBO 5pct risk replay outcomes"
+            git push origin "HEAD:agent/cibo-original-method-only-5pct-risk-h12-001"
+          fi
 
       - uses: actions/upload-artifact@v4
         with:
