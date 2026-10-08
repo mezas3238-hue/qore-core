@@ -1,0 +1,187 @@
+{
+  "all_3year_original_average_realized_net_usd_per_trade": "1.047880192177997369737638450",
+  "all_3year_original_net_profit_usd": "3529.260487255495141276366301",
+  "all_3year_trades": {
+    "amount_goal_stop_usd": "3",
+    "currently_risk_at_or_above_target": 1131,
+    "currently_risk_less_than_target": 2237,
+    "exact_target_mathematically_impossible_by_integer_multiplier": 3247,
+    "exact_target_mathematically_possible_by_integer_multiplier": 121,
+    "first_three_examples": [
+      {
+        "actual_stop_usd": "0.29500",
+        "at": "2019-07-01T14:31:00+00:00",
+        "one_x_stop_usd": "0.29500",
+        "original_multiplier": 1,
+        "overshoot_vs_target_usd": "0.24500",
+        "requested_stop_usd": "3",
+        "required_fractional_multiplier_for_exact_target": "10.16949152542372881355932203",
+        "required_integer_multiplier_at_least_target": 11,
+        "risk_if_rounded_integer_up_usd": "3.24500",
+        "trader": "VT31_NAS100"
+      },
+      {
+        "actual_stop_usd": "0.81000",
+        "at": "2019-07-01T14:38:00+00:00",
+        "one_x_stop_usd": "0.40500",
+        "original_multiplier": 2,
+        "overshoot_vs_target_usd": "0.24000",
+        "requested_stop_usd": "3",
+        "required_fractional_multiplier_for_exact_target": "7.407407407407407407407407407",
+        "required_integer_multiplier_at_least_target": 8,
+        "risk_if_rounded_integer_up_usd": "3.24000",
+        "trader": "VT31_NAS100"
+      },
+      {
+        "actual_stop_usd": "0.6007028627461272167255566716",
+        "at": "2019-07-01T21:30:00+00:00",
+        "one_x_stop_usd": "0.6007028627461272167255566716",
+        "original_multiplier": 1,
+        "overshoot_vs_target_usd": "0.003514313730636083627783358",
+        "requested_stop_usd": "3",
+        "required_fractional_multiplier_for_exact_target": "4.994149663754605203582169224",
+        "required_integer_multiplier_at_least_target": 5,
+        "risk_if_rounded_integer_up_usd": "3.003514313730636083627783358",
+        "trader": "R38_GBPJPY"
+      }
+    ],
+    "less_than_target_pct": "66.41923990498812351543942993",
+    "mean_actual_stop_usd": "7.893901509857777154303479424",
+    "median_actual_stop_usd": "1.549181067082117558923804048",
+    "median_required_integer_multiplier_for_at_least_goal": "4.0",
+    "modes": {
+      "ATTACK": 848,
+      "MEDIUM": 2520
+    },
+    "need_size_increase_vs_original_multiplier": 2237,
+    "requiring_gt_10x_unit_to_hit_target": 290,
+    "total_entries": 3368
+  },
+  "conclusion": "Original $60->$468 first-year model is NOT an answer to owner-specified $3 actual stop risk. Exact $3 stop is unrepresentable on most entries with native integer multipliers. Do not simply mark desired cap=5% and call it executed. Fractional position unit/verified broker minimum, accurate pre-entry floating equity and margin are prerequisites for an honest complete *3USD executed* replay.",
+  "first_july_entries": {
+    "amount_goal_stop_usd": "3",
+    "currently_risk_at_or_above_target": 2,
+    "currently_risk_less_than_target": 82,
+    "exact_target_mathematically_impossible_by_integer_multiplier": 82,
+    "exact_target_mathematically_possible_by_integer_multiplier": 2,
+    "first_three_examples": [
+      {
+        "actual_stop_usd": "0.29500",
+        "at": "2019-07-01T14:31:00+00:00",
+        "one_x_stop_usd": "0.29500",
+        "original_multiplier": 1,
+        "overshoot_vs_target_usd": "0.24500",
+        "requested_stop_usd": "3",
+        "required_fractional_multiplier_for_exact_target": "10.16949152542372881355932203",
+        "required_integer_multiplier_at_least_target": 11,
+        "risk_if_rounded_integer_up_usd": "3.24500",
+        "trader": "VT31_NAS100"
+      },
+      {
+        "actual_stop_usd": "0.81000",
+        "at": "2019-07-01T14:38:00+00:00",
+        "one_x_stop_usd": "0.40500",
+        "original_multiplier": 2,
+        "overshoot_vs_target_usd": "0.24000",
+        "requested_stop_usd": "3",
+        "required_fractional_multiplier_for_exact_target": "7.407407407407407407407407407",
+        "required_integer_multiplier_at_least_target": 8,
+        "risk_if_rounded_integer_up_usd": "3.24000",
+        "trader": "VT31_NAS100"
+      },
+      {
+        "actual_stop_usd": "0.6007028627461272167255566716",
+        "at": "2019-07-01T21:30:00+00:00",
+        "one_x_stop_usd": "0.6007028627461272167255566716",
+        "original_multiplier": 1,
+        "overshoot_vs_target_usd": "0.003514313730636083627783358",
+        "requested_stop_usd": "3",
+        "required_fractional_multiplier_for_exact_target": "4.994149663754605203582169224",
+        "required_integer_multiplier_at_least_target": 5,
+        "risk_if_rounded_integer_up_usd": "3.003514313730636083627783358",
+        "trader": "R38_GBPJPY"
+      }
+    ],
+    "less_than_target_pct": "97.61904761904761904761904762",
+    "mean_actual_stop_usd": "0.9382243418060639152247505482",
+    "median_actual_stop_usd": "0.6927753415898631254726907045",
+    "median_required_integer_multiplier_for_at_least_goal": "5.0",
+    "modes": {
+      "MEDIUM": 84
+    },
+    "need_size_increase_vs_original_multiplier": 82,
+    "requiring_gt_10x_unit_to_hit_target": 19,
+    "total_entries": 84
+  },
+  "first_year_average_realized_net_usd_per_closed_trade": "0.3680269151299312623144188969",
+  "first_year_closed_trades": {
+    "amount_goal_stop_usd": "3",
+    "currently_risk_at_or_above_target": 187,
+    "currently_risk_less_than_target": 922,
+    "exact_target_mathematically_impossible_by_integer_multiplier": 1062,
+    "exact_target_mathematically_possible_by_integer_multiplier": 47,
+    "first_three_examples": [
+      {
+        "actual_stop_usd": "0.29500",
+        "at": "2019-07-01T14:31:00+00:00",
+        "one_x_stop_usd": "0.29500",
+        "original_multiplier": 1,
+        "overshoot_vs_target_usd": "0.24500",
+        "requested_stop_usd": "3",
+        "required_fractional_multiplier_for_exact_target": "10.16949152542372881355932203",
+        "required_integer_multiplier_at_least_target": 11,
+        "risk_if_rounded_integer_up_usd": "3.24500",
+        "trader": "VT31_NAS100"
+      },
+      {
+        "actual_stop_usd": "0.81000",
+        "at": "2019-07-01T14:38:00+00:00",
+        "one_x_stop_usd": "0.40500",
+        "original_multiplier": 2,
+        "overshoot_vs_target_usd": "0.24000",
+        "requested_stop_usd": "3",
+        "required_fractional_multiplier_for_exact_target": "7.407407407407407407407407407",
+        "required_integer_multiplier_at_least_target": 8,
+        "risk_if_rounded_integer_up_usd": "3.24000",
+        "trader": "VT31_NAS100"
+      },
+      {
+        "actual_stop_usd": "0.6007028627461272167255566716",
+        "at": "2019-07-01T21:30:00+00:00",
+        "one_x_stop_usd": "0.6007028627461272167255566716",
+        "original_multiplier": 1,
+        "overshoot_vs_target_usd": "0.003514313730636083627783358",
+        "requested_stop_usd": "3",
+        "required_fractional_multiplier_for_exact_target": "4.994149663754605203582169224",
+        "required_integer_multiplier_at_least_target": 5,
+        "risk_if_rounded_integer_up_usd": "3.003514313730636083627783358",
+        "trader": "R38_GBPJPY"
+      }
+    ],
+    "less_than_target_pct": "83.13796212804328223624887286",
+    "mean_actual_stop_usd": "1.798495223487140030094512894",
+    "median_actual_stop_usd": "0.9611245803938035467608906746",
+    "median_required_integer_multiplier_for_at_least_goal": "4",
+    "modes": {
+      "ATTACK": 155,
+      "MEDIUM": 954
+    },
+    "need_size_increase_vs_original_multiplier": 922,
+    "requiring_gt_10x_unit_to_hit_target": 132,
+    "total_entries": 1109
+  },
+  "first_year_net_profit_usd_original_noncompliant_model": "408.1418488790937699066905567",
+  "methodological_limits": "USD3 is a FIXED first-seed dollar reference across full receipt corpus, not proof of per-decision 5% dynamic risk; snapshots of floating equity would be needed for that. No modified strategy or fabricated PnL.",
+  "replay_status": "ORIGINAL_CIBO_FULL_3368_SUCCESS_BUT_RISK_SPEC_FAIL",
+  "risk_3usd_at_usd60_fraction": "0.05",
+  "status": "NONCOMPLIANT_WITH_3USD_STOP_REQUEST",
+  "provenance": {
+    "run_id": 37793406108,
+    "run_url": "https://github.com/mezas3238-hue/qore-core/actions/runs/37793406108",
+    "workflow_conclusion": "success",
+    "risk_contract_conclusion": "FAIL_3USD_EXACT_STOP",
+    "program_proof": "CIBO_H27_MODEL_REPLAY_3368_CLOSED_RECEIPTS=PASS",
+    "physical_funded": "NOT_ESTABLISHED",
+    "native_integer_multiplier_rule": "unchanged CIBO 1x multipliers"
+  }
+}
