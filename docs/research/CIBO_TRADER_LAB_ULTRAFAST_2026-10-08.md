@@ -25,13 +25,14 @@
 
 Exact original-vs-prepared warm comparison: 8/8 and 11/11 case metric rows identical for all recorded comparison keys (0 differences). This checks capital, DD, gross losses, PF, and strict Pareto per case.
 
-## Exact-case memoization acceptance gates
+## Exact-case memoization acceptance results — PASSED
 
-1. First cold run computes all cases and writes digest-sealed result cache.
-2. Second run changes a workflow comment without touching source data or CLI flags. Runner must report a cache hit for **every** identical case.
-3. Compare all strict Pareto output row fields exactly to baseline, and verify same 3,368 decisions, no sovereign breach.
-4. New case flags must produce a different digest and fresh calculation.
-5. Do not merge staging branch until these checks pass.
+- Cold case-result cache creation: H4M5 run 37758132492 and Floor run 37758137909, each SUCCESS; all 19 original metrics rows match exactly (25 fields per row).
+- True warm verification, changed YAML comment only: H4M5 run 37758353826, **15 s end-to-end**, 8/8 sealed exact-result cache hits, no result recomputes; Floor run 37758361576, **19 s end-to-end**, 11/11 exact-result cache hits, no result recomputes.
+- Warm reports **19/19 cases, 25 comparison fields each, zero differences** versus the original unspecialized full-M5 research runs; 3,368 expected decisions and no sovereign breach inherited from bytewise output parity.
+- Memoized replay case batch time: H4M5 0.811 s, Floor 0.712 s; end-to-end GitHub Actions remains 15–19 s due to Actions startup/cache/ZIP verification/artifact upload.
+- Changed flags produce different case SHA256 identities and cannot reuse existing result. New cases still run the engine; the exact memoized result is not independent scientific evidence.
+- Independent warm preparation cache (without exact result memoization) ran H4M5 37757768601 in 40 s and Floor 37757836252 in 51 s; exact row parity also confirmed.
 
 ## Critical limitations
 
