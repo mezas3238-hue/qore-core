@@ -354,6 +354,21 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--lifecycle-medium-context-stop-r",
+        type=Decimal,
+        default=None,
+        help=(
+            "Optional MEDIUM 1x context-only defensive stop. It activates "
+            "only when every MEDIUM context predicate matches."
+        ),
+    )
+    parser.add_argument(
+        "--lifecycle-medium-context-require",
+        action="append",
+        default=[],
+        help="Repeatable causal pre-entry MEDIUM context predicate as KEY=VALUE.",
+    )
+    parser.add_argument(
         "--lifecycle-attack-override-context-defensive-initial-stop-r",
         type=Decimal,
         default=None,
@@ -1370,6 +1385,21 @@ def main() -> int:
             "context defensive stop requires both stop R and at least one context predicate"
         )
 
+    medium_context_stop_requirements = []
+    for raw_requirement in args.lifecycle_medium_context_require:
+        key, separator, value = raw_requirement.partition("=")
+        if not separator or not key or not value:
+            raise ValueError(
+                "MEDIUM context-stop requirement must be nonempty KEY=VALUE"
+            )
+        medium_context_stop_requirements.append((key, value))
+    if (
+        args.lifecycle_medium_context_stop_r is None
+    ) != (not medium_context_stop_requirements):
+        raise ValueError(
+            "MEDIUM context-only stop requires both stop R and context predicates"
+        )
+
     attack_override_context_requirements = []
     for raw_requirement in args.lifecycle_attack_override_context_require:
         key, separator, value = raw_requirement.partition("=")
@@ -1446,6 +1476,30 @@ def main() -> int:
                 else args.lifecycle_defensive_initial_stop_r
             ),
         )
+    lifecycle_medium_context_stop_by_signal = None
+    if args.lifecycle_medium_context_stop_r is not None:
+        lifecycle_medium_context_stop_by_signal = _build_lifecycle_map(
+            manifest,
+            lifecycle_roots,
+            features=frozenset({CiboLifecycleFeature.DEFENSIVE_INITIAL_STOP_CAP}),
+            adverse_loss_cut_r=args.lifecycle_adverse_loss_cut_r,
+            adverse_partial_fraction=args.lifecycle_adverse_partial_fraction,
+            adverse_partial_max_favorable_r=(
+                args.lifecycle_adverse_partial_max_favorable_r
+            ),
+            adverse_loss_cut_max_favorable_r=(
+                args.lifecycle_adverse_loss_cut_max_favorable_r
+            ),
+            bootstrap_partial_fraction=args.lifecycle_bootstrap_partial_fraction,
+            adverse_tightened_stop_r=args.lifecycle_adverse_tightened_stop_r,
+            defensive_initial_stop_r=args.lifecycle_defensive_initial_stop_r,
+            context_defensive_initial_stop_r=args.lifecycle_medium_context_stop_r,
+            context_requirements=tuple(medium_context_stop_requirements),
+            context_only_features=frozenset(
+                {CiboLifecycleFeature.DEFENSIVE_INITIAL_STOP_CAP}
+            ),
+        )
+
     lifecycle_attack_override_by_signal = None
     if args.lifecycle_attack_override_feature:
         lifecycle_attack_override_features = frozenset(
@@ -1756,6 +1810,9 @@ def main() -> int:
         ),
         lifecycle_attack_override_by_signal=(
             lifecycle_attack_override_by_signal
+        ),
+        lifecycle_medium_context_stop_by_signal=(
+            lifecycle_medium_context_stop_by_signal
         ),
         lifecycle_bootstrap_override_capital_ceiling=(
             args.lifecycle_bootstrap_override_capital_ceiling
