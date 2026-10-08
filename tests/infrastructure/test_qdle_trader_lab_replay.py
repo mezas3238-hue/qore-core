@@ -16,8 +16,9 @@ AT = "2026-10-08T12:00:00+00:00"
 def event_set(number: int = 1) -> list[dict]:
     events = [
         dict(type="ACCOUNT", at=AT, account_id="replay-1", provider="FundedNext",
-             currency="USD", sequence=1, balance="60", equity="60",
-             free_margin="100", qore_unreserved_risk_usd="3",
+             currency="USD", sequence=1, balance="2000", equity="2000",
+             free_margin="1900", qore_trading_capital_usd="60",
+             qore_unreserved_risk_usd="3",
              sovereign_free_source_usd="3", cushion_free_source_usd="0",
              positions=[], covered_fill_tickets=[]),
         dict(type="SYMBOL", at=AT, symbol="EURUSD", aliases=["EURUSD"],
