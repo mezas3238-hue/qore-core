@@ -315,10 +315,11 @@ jobs:
             fi
           }
 
-          run_case "h8-bootstrap-s000" 0.9490 -0.0624 0.00
-          run_case "h8-bootstrap-s025" 0.9490 -0.0624 0.25
           run_case "h8-bootstrap-s050" 0.9490 -0.0624 0.50
-          run_case "h8-bootstrap-s075" 0.9490 -0.0624 0.75
+          run_case "h8-bootstrap-s060" 0.9490 -0.0624 0.60
+          run_case "h8-bootstrap-s070" 0.9490 -0.0624 0.70
+          run_case "h8-bootstrap-s080" 0.9490 -0.0624 0.80
+          run_case "h8-bootstrap-s090" 0.9490 -0.0624 0.90
           run_case "h8-bootstrap-s100" 0.9490 -0.0624 1.00
 
       - uses: actions/upload-artifact@v4
