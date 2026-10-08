@@ -19,6 +19,13 @@ from qore.infrastructure.cibo_marginal_capital_utility_evidence import (
     MarginalCapitalUtilityEvidence,
 )
 
+from qore.infrastructure.cibo_four_motor_policy import (
+    FourMotorObservation,
+    FourMotorPolicyError,
+    FourMotorProposal,
+    ZERO,
+)
+
 
 class CiboMarginalLeverageDisposition(StrEnum):
     ELIGIBLE_FOR_INTERNAL_CAPITAL_MARKET = (
@@ -289,12 +296,6 @@ def assess_marginal_leverage_utility(
         reason_codes=tuple(sorted(set(reasons))),
     )
 
-
-# P0 Architect 2: broker-margin SHADOW vote only; QDLE still runs fresh
-# order_calc_margin / order_check and broker legal lot grid independently.
-from qore.infrastructure.cibo_four_motor_policy import (
-    FourMotorObservation, FourMotorProposal, FourMotorPolicyError, ZERO,
-)
 
 
 def propose_p0_adaptive_leverage_vote(observation: FourMotorObservation) -> FourMotorProposal:
