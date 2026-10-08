@@ -91,6 +91,8 @@ def main() -> int:
     total_cost = ZERO
     realized_count = 0
     provider_floor_breach = 0
+    provider_closed_at = None
+    unresolved_at_breach = 0
     decisions = []
     last_spec_time: dict[str, datetime] = {}
 
@@ -127,6 +129,7 @@ def main() -> int:
             ))
         def settle_until(at: datetime) -> None:
             nonlocal nav, peak_nav, max_dd_ratio, maximum_absolute_dd
+            nonlocal provider_closed_at, unresolved_at_breach
             nonlocal realized_count, total_cost, wins, losses, realized_gains
             while exits and exits[0][0] <= at:
                 when, ticket = heapq.heappop(exits)
@@ -134,9 +137,9 @@ def main() -> int:
                 gross = trade["lots"] * trade["stop_per_lot"] * trade["r"]
                 cost = trade["lots"] * trade["fee_per_lot"]
                 pnl = gross - cost
-                total_cost += cost
                 realized_gains += pnl
-                nav += pnl
+                # Entry commission was already removed from NAV at hypothetical fill.
+                nav += gross
                 wins += max(ZERO, pnl)
                 losses += max(ZERO, -pnl)
                 realized_count += 1
@@ -147,22 +150,43 @@ def main() -> int:
                     max_dd_ratio = max(max_dd_ratio, dd / peak_nav)
                 sym_counts[trade["symbol"]]["research_settlements"] += 1
                 publish(when)
+                if START_BROKER + nav - START_QORE <= broker_peak - D("120"):
+                    provider_closed_at = when.isoformat()
+                    unresolved_at_breach = len(active)
+                    # Provider breach: stop accounting future hypothetical gains;
+                    # actual forced-close PnL requires missing intratrade ticks.
+                    return
                 # synthetic lifecycle: NOT a verified broker ticket/deal.
                 # Do not call record_broker_settlement: that method requires
                 # authentic broker settlement receipts not present in source.
 
-        for index, row in enumerate(opportunities):
-            at = datetime.fromisoformat(row["market_decision_at"])
-            settle_until(at)  # future outcome never used for sizing.
+        # The original manifest orders decisions, not hypothetical fills.
+        # Historical entry_at can lag a limit decision by >2 days.
+        # Evaluate economic/margin capacity when a hypothetical entry would fill.
+        chronological = sorted(enumerate(opportunities),
+                               key=lambda x: (x[1]["settlement_outcome_research_only"]["entry_at"], x[0]))
+        for index, row in chronological:
+            at = datetime.fromisoformat(row["settlement_outcome_research_only"]["entry_at"])
+            decision_at = datetime.fromisoformat(row["market_decision_at"])
+            settle_until(at)  # only outcomes with known exits at/before entry time.
             t = row["trader_opportunity"]
             symbol = "NDX100" if row["qore_symbol"] == "NAS100" else row["qore_symbol"]
             side = "BUY" if t["side"] == "long" else "SELL"
             entry, stop = D(t["intended_entry"]), D(t["stop_loss"])
             rid = row["signal_fingerprint"]
             event = {"index": index, "signal_fingerprint": rid, "at": at.isoformat(),
+                     "signal_at": decision_at.isoformat(),
+                     "research_entry_type": t["entry_type"],
                      "symbol": symbol, "trader": row["trader_id"],
                      "status": "UNFUNDABLE", "lots": "0"}
             sym_counts[symbol]["original_signals"] += 1
+            if provider_closed_at is not None:
+                event["status"] = "BLOCKED_AFTER_PROVIDER_LIMIT"
+                event["reason"] = "PROVIDER_TRAILING_LIMIT_TRIGGERED_CLOSED_EQUITY_PROXY"
+                decisions.append(event)
+                sym_counts[symbol]["unfundable"] += 1
+                source_counts["BLOCKED_AFTER_PROVIDER_LIMIT"] += 1
+                continue
             publish(at)
             try:
                 if entry <= 0 or stop <= 0:
@@ -239,6 +263,16 @@ def main() -> int:
                     # NEVER counts as broker-confirmed trade execution.
                     synthetic_ticket = "RESEARCH:" + rid
                     qdle.acknowledge_fill(rid, synthetic_ticket)
+                    # Fee debited at entry, not at settlement: immediate QORE
+                    # NAV and broker equity reduction feeds subsequent decisions.
+                    entry_fee = result.lots * fee
+                    nav -= entry_fee
+                    total_cost += entry_fee
+                    peak_nav = max(peak_nav, nav)
+                    dd_at_entry = max(ZERO, peak_nav - nav)
+                    maximum_absolute_dd = max(maximum_absolute_dd, dd_at_entry)
+                    if peak_nav > ZERO:
+                        max_dd_ratio = max(max_dd_ratio, dd_at_entry / peak_nav)
                     expiration = datetime.fromisoformat(row["settlement_outcome_research_only"]["exit_at"])
                     if expiration < at:
                         raise QDLEError("HISTORICAL_EXIT_PRECEDES_DECISION")
@@ -251,6 +285,9 @@ def main() -> int:
                     publish(at)
                     qdle.reconcile_fill(rid)
                     heapq.heappush(exits, (expiration, synthetic_ticket))
+                    if START_BROKER + nav - START_QORE <= broker_peak - D("120"):
+                        provider_closed_at = at.isoformat()
+                        unresolved_at_breach = len(active)
                     source_counts["RESEARCH_HYPOTHETICAL_FUNDED"] += 1
                     sym_counts[symbol]["research_financed"] += 1
             except (QDLEError, ValueError, KeyError) as exc:
@@ -260,7 +297,10 @@ def main() -> int:
             decisions.append(event)
             if (index + 1) % 500 == 0:
                 print("QDLE_PROGRESS", index + 1, "NAV", str(nav), "active", len(active), flush=True)
-        settle_until(datetime.max.replace(tzinfo=at.tzinfo))
+        if provider_closed_at is None:
+            settle_until(datetime.max.replace(tzinfo=at.tzinfo))
+        # Restore original manifest index order in the independent audit output.
+        decisions.sort(key=lambda x: x["index"])
         broker_end = START_BROKER + nav - START_QORE
         report = {
             "schema": "qore.qdle.3368.dual-capital-research.v1",
@@ -285,7 +325,12 @@ def main() -> int:
             "open_at_end": len(active),
             "qore_ending_capital_usd": str(nav),
             "broker_ending_equity_usd": str(broker_end),
-            "net_research_pnl_usd": str(realized_gains),
+            "net_research_pnl_usd": str(nav - START_QORE),
+            "settled_trade_net_pnl_excluding_open_fee_effect_usd": str(realized_gains),
+            "provider_trailing_closed_equity_stop_at": provider_closed_at,
+            "provider_unresolved_positions_at_stop": unresolved_at_breach,
+            "provider_stopped": provider_closed_at is not None,
+            "risk_revaluation_epoch": "HYPOTHETICAL_ENTRY_AT_NOT_SIGNAL_AT",
             "gross_wins_usd": str(wins),
             "gross_losses_usd": str(losses),
             "entry_cost_proxy_usd": str(total_cost),
@@ -301,6 +346,9 @@ def main() -> int:
                 "Not historical MT5 symbol/margin or account-specific fees",
                 "USDJPY currency-conversion uses original manifest research risk proxy",
                 "NDX100 replaces USTEC: contract/strategy equivalence not established",
+                "Historical research entry_at used as hypothetical fill: no tick/path proof",
+                "Broker stop triggered on sampled closed equity only; unresolved forced liquidation",
+                "At stop, capital is mark from last settlement/fee, NOT liquidation cash",
                 "Original limit-order fill/partial fills not reconstructed",
                 "Broker actual deals/spreads/slippage/swaps not measured",
                 "Closed-equity-only DD understates possible intratrade DD",
