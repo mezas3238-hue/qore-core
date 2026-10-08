@@ -20,3 +20,34 @@ H15 run [37776873181](https://github.com/mezas3238-hue/qore-core/actions/runs/37
 - Sovereign bank negatives o piso incumplido INVALIDAN certificación de ganancias, incluso si el balance final es positivo.
 
 **Criterio**: 3368/3368, fuente idéntica, diff exacto 1 línea monetaria, conciliación `initial+sum(mode net)==final`, DD, GL, PF, soberano; solo resultados observados en el run, no anticipados. H16 resultado debe adjuntarse al terminar verificación.
+
+## VERIFICACIÓN FINAL H16 — EJECUCIÓN SUCCESS
+
+GitHub Actions [37777655782](https://github.com/mezas3238-hue/qore-core/actions/runs/37777655782) SUCCESS. Artifact `11550507522`; JSON auditado `docs/research/CIBO_H16_FAITHFUL_CANONICAL_5PCT_THREE_MODES_SIZING_PORTFOLIO_VERIFIED_RESULTS.json` @ commit `d2f354abb8b1d343bd196da846db124a2781440d`.
+
+El control exacto reproduce USD60 → USD673146.525454 y DD36.910539%. La variante objetivo nominal 5% USD60 → **USD3180.250244** y **DD36.910539%**, **soberano breach USD77.103604**, final banco **−USD38.413807**: ¡NO CERTIFICABLE!
+
+### PnL neto real del ledger del CIBO modelado, no cifras imputadas a motores dos veces
+
+| Modo | Entradas | Positivos USD | Negativos USD | Neto USD | Provider fees USD |
+|---|---:|---:|---:|---:|---:|
+| BANK | 0 | 0 | 0 | **0.00** | 0 |
+| MEDIUM | 2519 | 1993.67 | 1717.15 | **+276.52** | 259.79 |
+| ATTACK | 849 | 13495.56 | 10651.83 | **+2843.73** | 1263.32 |
+| Total | 3368 | 15489.23 | 12368.98 | **+3120.25** | 1523.12 |
+
+USD60 + 3120.250244 = 3180.250244, reconciled at Decimal precision. Provider costs are those of original model and are already accounted for in net per trade; **NOT FundedNext USD14/lot**.
+
+### Sizing and Portfolio Compound: marginal scientific ablation, not standalone trades
+
+- Full original CIBO nominal5%: capital USD3180.250244; profit USD3120.250244, DD36.910539%.
+- *Counterfactual without SIZING incremental* 3368 receipts: capital USD3021.155225; profit USD2961.155225; DD39.674878%. Sizing incremental contribution **+USD159.095019** in conditional replay and **−2.764338 percentage points drawdown** relative to no-Sizing.
+- *Counterfactual without COMPOUND_PORTFOLIO* 3368 receipts: capital USD582.432989; profit USD522.432989; DD36.910539%. Portfolio Compound conditional marginal contribution **+USD2597.817254**. Without Portfolio Compound ATTACK has **0 entries** and all 3368 are handled as MEDIUM in the ablation. This is a different research counterfactual; does **not** imply Portfolio Compound individually receives USD2597.82 of cash.
+- Bank issued USD4473.941393 and recycled USD4473.941393 as internal seed, not income. Medium-to-cushion USD374.934953 is transfer, not a separate PnL. Portfolio credit recycled USD21643.398940 is funding turnover, NOT profit.
+- **Cannot add** Sizing +159 and Portfolio +2598 as if 2 independent new gains; their interventions interact causally with MEDIUM/ATTACK modes and compounding.
+
+### H17 strict import diagnostic
+H17 independent GitHub run [37778184947](https://github.com/mezas3238-hue/qore-core/actions/runs/37778184947) PASS: actual imported CIBO module `/home/runner/work/_temp/cibo-variant-src/qore/infrastructure/trader_lab/cibo_three_mode_capital_lab.py`, exact target source verified; `medium_risk_fraction = Decimal("0.05")` present in executable function. The canonical original module is unchanged. **H16 financial output remained EXACTLY equal to H15** despite effective MEDIUM 5% target loading. Therefore one must not claim every trade used USD3 or that MEDIUM effective physical risk changed. Original BANK seed, available capital, physical risk/margin and native intensity are possible binding constraints, requiring a separate instrumented constraint-binding audit to prove which one binds in each entry. It is incorrect to attribute this sameness to a Python import bug: H17 ruled that out.
+
+### Limits and certification
+The H16 replay reuses frozen em-s06745 config with the latest canonical source snapshot. It is **not** a newly calibrated latest best 36.44% carrier nor an actual USD2000 funded Stellar Instant 6% trailing drawdown / fee $14-per-lot replay. It is strictly a faithful method / risk-only comparison on $60 research account. Sovereign floor violation >USD77 makes it INVALID for live financial production claims; a positive model book does not prove the bank/portfolio survives margin calls. No deployment sign-off.
