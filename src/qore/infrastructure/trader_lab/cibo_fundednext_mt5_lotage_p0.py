@@ -257,7 +257,8 @@ class AtomicPortfolioReservations:
         self._reserved:dict[str,Quote]={}
         self._closed:set[str]=set()
     def authorize(self,*,trade_id:str,trader_id:str,core_symbol:str,side:str,
-                  stop_price:D,group_id:str)->Quote:
+                  stop_price:D,group_id:str,
+                  policy_override:RiskPolicy|None=None)->Quote:
         with self._lock:
             if trade_id in self._closed:raise FundingError("TRADE_ID_ALREADY_CLOSED")
             if trade_id in self._reserved:
@@ -274,7 +275,7 @@ class AtomicPortfolioReservations:
                 reserved_margin=sum((v.margin_usd for v in values),D(0)))
             q=self.calculator.quote(trade_id=trade_id,trader_id=trader_id,
                     core_symbol=core_symbol,side=side,stop_price=stop_price,
-                    group_id=group_id,policy=self.policy,**kw)
+                    group_id=group_id,policy=policy_override or self.policy,**kw)
             self._reserved[trade_id]=q
             return q
     def release(self,trade_id:str)->Quote:
