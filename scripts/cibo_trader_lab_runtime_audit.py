@@ -37,13 +37,33 @@ def _check_changed_workflow_regressions() -> list[str]:
     if not event_path:
         return []
     event = json.loads(Path(event_path).read_text(encoding="utf-8"))
-    base = event.get("before") or (event.get("pull_request") or {}).get("base", {}).get("sha")
+    if os.environ.get("GITHUB_EVENT_NAME") == "pull_request":
+        # Checkout of a pull request points at a synthetic merge commit.
+        # Its first parent is the real target-branch baseline; event.before
+        # is not the PR merge base and may be unavailable in the checkout.
+        base = subprocess.run(
+            ["git", "rev-parse", "HEAD^1"],
+            check=True, text=True, capture_output=True,
+        ).stdout.strip()
+    else:
+        base = event.get("before")
     if not base or not re.fullmatch(r"[0-9a-f]{40}", base) or base == "0" * 40:
         return []
-    changed = subprocess.run(
+    if subprocess.run(
+        ["git", "cat-file", "-e", f"{base}^{{commit}}"],
+        check=False, capture_output=True,
+    ).returncode:
+        subprocess.run(
+            ["git", "fetch", "--no-tags", "origin", base],
+            check=True, text=True, capture_output=True,
+        )
+    diff = subprocess.run(
         ["git", "diff", "--name-only", base, "HEAD", "--", ".github/workflows"],
-        check=True, text=True, capture_output=True,
-    ).stdout.splitlines()
+        check=False, text=True, capture_output=True,
+    )
+    if diff.returncode:
+        raise RuntimeError("cannot verify performance baseline: " + diff.stderr)
+    changed = diff.stdout.splitlines()
     errors = []
     for raw_path in changed:
         file = Path(raw_path)
