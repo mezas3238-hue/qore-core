@@ -1,5 +1,13 @@
 # QDLE P0 — HANDOFF MAESTRO DEL MOTOR INDEPENDIENTE (2026-10-08)
 
+## ESTADO DE REPARACIÓN P0 — COMISIONES, FILL, DUPLICADOS Y LOS 4 MOTORES
+
+**Reparaciones aplicadas (2026-10-08):** [Handoff de ingeniería P0 y bloqueos aún existentes](QDLE_P0_FINANCIAL_REPAIR_EXECUTION_STATUS_2026-10-08.md). **QDLE Atomic Engine #37847261427 SUCCESS**: 67 unit tests + 3 pruebas de integración sobre código `fea2b85e8ccbf1de172ffeb698f815123eb76b9f`. Son pruebas de software, no certificación.
+
+El camino LIVE ahora falla cerrado si faltan comisiones verificadas de **apertura+cierre**, si el broker reporta un fill antes del armado one-shot QDLE, si un deal de liquidación se reutiliza en más de una cuenta/operación, o si faltan las cuatro evidencias temporales y económicas distintas de los motores. El histórico SQLite migra deals para impedir doble contabilidad tras reinicio. **Falta** comprobar criptográficamente los cuatro emisores y conectar sus decisiones auténticas, resolver fills parciales y obtener precio/costes/reglas actuales MT5. No usar reportes legacy como beneficio validado. PR #735 continúa DRAFT/NO LIVE.
+
+---
+
 > **P0 — INVALIDACIÓN DE CERTIFICACIÓN FINANCIERA (2026-10-08).** La auditoría posterior detectó **272/2113 pérdidas simuladas superiores al 5% del capital QORE inicial de la entrada**, 777 pérdidas superiores al stop reservado y 306 propuestas NDX100 con comisión desconocida representada como cero. Los cuatro motores NO se ejecutaron independientemente. **CI SUCCESS NO equivale a finanzas verificadas.** Ver [dictamen canónico](QDLE_P0_FINANCIAL_CALCULATION_INVALIDATION_AND_REPAIR_2026-10-08.md). No usar PnL, DD, ni bindings previos como certificación o resultados actuales de mercado.
 
 
