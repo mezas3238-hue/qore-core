@@ -216,18 +216,113 @@ def _load_or_prepare(
     }), flush=True)
 
 
-def _child(name: str, args: list[str]) -> None:
+def _economic_code_fingerprint() -> str:
+    """Hash every relevant Python source so stale economics cannot be memoized."""
+    digest = hashlib.sha256()
+    roots = [Path("src/qore"), Path("scripts")]
+    for root in roots:
+        paths = sorted(root.rglob("*.py"))
+        if not paths:
+            raise ValueError(f"missing replay Python source tree: {root}")
+        for path in paths:
+            # Include path as well as content; unchanged commits can reuse results.
+            digest.update(str(path).encode())
+            digest.update(bytes([0]))
+            digest.update(hashlib.sha256(path.read_bytes()).digest())
+    return digest.hexdigest()
+
+
+def _result_identity(name: str, argv: list[str], code_hash: str, manifest_hash: str) -> str:
+    inputs = {}
+    for field in ("SOURCE_ARTIFACT_DIGEST", "HISTORICAL_SOURCE_ARTIFACT_DIGEST",
+                  "HISTORICAL_CONTROL_ARTIFACT_DIGEST"):
+        value = os.environ.get(field)
+        if not value or not value.startswith("sha256:") or len(value) != 71:
+            raise ValueError(f"missing verified immutable replay input: {field}")
+        inputs[field] = value
+    for symbol in sorted(replay._LIFECYCLE_SYMBOLS):
+        field = f"ATLAS_{symbol}_DIGEST"
+        value = os.environ.get(field)
+        if not value or not value.startswith("sha256:") or len(value) != 71:
+            raise ValueError(f"missing verified source: {field}")
+        inputs[field] = value
+    payload = {
+        "schema": "qore.cibo.ultra.exact-case-results.v1",
+        "name": name,
+        "arguments": argv,
+        "code_hash": code_hash,
+        "manifest_hash": manifest_hash,
+        "immutable_inputs": inputs,
+    }
+    return hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
+
+
+def _exact_result_cache(
+    name: str, argv: list[str], cache_root: Path, identity: str
+) -> bool:
+    """Restore ONLY bitwise identical cases, or generate an immutable digest record."""
+    cached = cache_root / f"{identity}.json.gz"
+    seal = cache_root / f"{identity}.sha256"
+    destination = Path(_arg_value(argv, "--output"))
+    if cached.exists():
+        if not seal.exists():
+            raise ValueError("unsealed replay result cache")
+        with gzip.open(cached, "rb") as handle:
+            raw = handle.read()
+        if hashlib.sha256(raw).hexdigest() != seal.read_text().strip():
+            raise ValueError("replay result cache digest mismatch")
+        payload = json.loads(raw)
+        if (not isinstance(payload, dict)
+                or not all(name in payload for name in (
+                    "decision_count", "ending_total_capital_usd",
+                    "max_drawdown_fraction", "attack_sovereign_breach_usd"))):
+            raise ValueError("invalid cached sovereign replay output")
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(raw)
+        print("QORE_CIBO_ULTRA_EXACT_RESULT_HIT " + json.dumps({
+            "case": name, "identity": identity,
+            "decision_count": payload["decision_count"],
+        }), flush=True)
+        return True
+
+    sys.argv = ["cibo_trader_lab_three_mode_ceiling.py", *argv]
+    result = replay.main()
+    if result not in (None, 0):
+        raise RuntimeError(f"CIBO case {name!r} returned {result!r}")
+    raw = destination.read_bytes()
+    payload = json.loads(raw)
+    if not isinstance(payload, dict) or "decision_count" not in payload:
+        raise ValueError("cannot cache malformed replay result")
+    cache_root.mkdir(parents=True, exist_ok=True)
+    temp = cached.with_suffix(".tmp")
+    with gzip.open(temp, "wb", compresslevel=3) as handle:
+        handle.write(raw)
+    os.replace(temp, cached)
+    seal.write_text(hashlib.sha256(raw).hexdigest() + chr(10))
+    print("QORE_CIBO_ULTRA_EXACT_RESULT_BUILT " + json.dumps({
+        "case": name, "identity": identity,
+    }), flush=True)
+    return False
+
+
+def _child(name: str, args: list[str], result_dir: str | None = None, identity: str | None = None) -> None:
     # fork inherits the immutable, already verified M5 evidence and cached
     # load_raw_m5() results; each child builds its own isolated decision state.
     sys.argv = ["cibo_trader_lab_three_mode_ceiling.py", *args]
     started = time.monotonic()
     print("QORE_CIBO_BATCH_CASE_START " + json.dumps({"name": name}), flush=True)
-    outcome = replay.main()
-    if outcome not in (None, 0):
-        raise RuntimeError(f"CIBO case {name!r} returned {outcome!r}")
+    if result_dir is not None:
+        if identity is None:
+            raise ValueError("missing result cache identity")
+        reused = _exact_result_cache(name, args, Path(result_dir), identity)
+    else:
+        outcome = replay.main()
+        if outcome not in (None, 0):
+            raise RuntimeError(f"CIBO case {name!r} returned {outcome!r}")
+        reused = False
     print(
         "QORE_CIBO_BATCH_CASE_DONE " + json.dumps(
-            {"name": name, "elapsed_seconds": round(time.monotonic() - started, 3)}
+            {"name": name, "elapsed_seconds": round(time.monotonic() - started, 3), "cache_hit": reused}
         ),
         flush=True,
     )
@@ -238,6 +333,7 @@ def main() -> int:
     parser.add_argument("--cases", required=True, type=Path)
     parser.add_argument("--workers", type=int, default=2)
     parser.add_argument("--m5-cache-dir", type=Path)
+    parser.add_argument("--result-cache-dir", type=Path)
     parsed = parser.parse_args()
     if not sys.platform.startswith("linux"):
         raise RuntimeError("CIBO preload sharing requires Linux fork")
@@ -280,6 +376,15 @@ def main() -> int:
         raise ValueError("empty research batch")
 
     started = time.monotonic()
+    identities: dict[str, str] = {}
+    if parsed.result_cache_dir is not None:
+        code_hash = _economic_code_fingerprint()
+        manifest_path = Path(_arg_value(cases[0][1], "--manifest"))
+        manifest_hash = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+        for name, argv in cases:
+            identities[name] = _result_identity(
+                name, argv, code_hash, manifest_hash
+            )
     if root_signature:
         if set(dict(root_signature)) != replay._LIFECYCLE_SYMBOLS:
             raise ValueError("expected exactly six sovereign M5 symbol roots")
@@ -311,7 +416,15 @@ def main() -> int:
         while pending or running:
             while pending and len(running) < parsed.workers and not failures:
                 name, argv = pending.popleft()
-                process = ctx.Process(target=_child, args=(name, argv), name=name)
+                process = ctx.Process(
+                    target=_child,
+                    args=(
+                        name, argv,
+                        str(parsed.result_cache_dir.resolve()) if parsed.result_cache_dir else None,
+                        identities.get(name),
+                    ),
+                    name=name,
+                )
                 process.start()
                 if process.pid is None:
                     raise RuntimeError(f"failed to start case {name}")
