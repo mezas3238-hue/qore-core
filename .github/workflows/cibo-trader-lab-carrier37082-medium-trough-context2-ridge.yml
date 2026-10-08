@@ -1,6 +1,7 @@
 name: QORE CIBO Carrier37082 MEDIUM Trough Context2 Ridge
 
 # Research-only reused-holdout hypothesis generation; not certification evidence.
+# Ultra Fast warm-cache parity benchmark: original 13 variant CLI arguments unchanged.
 # Starts from sc-j: 38.1154333579% strict-Pareto carrier.
 # Preserves the validated sc-j high-target defense and tests capital-localized
 # 2021 state-pressure signatures. No Trader or symbol identity is used.
@@ -10,6 +11,7 @@ on:
   push:
     branches:
       - agent/cibo-causal-expectation-leakage-fix-001
+      - agent/cibo-ultrafast-trough-context2-20261008-001
     paths:
       - '.github/workflows/cibo-trader-lab-carrier37082-medium-trough-context2-ridge.yml'
 
@@ -41,7 +43,7 @@ env:
 jobs:
   carrier37082-medium-trough-context2-ridge:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 3
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -51,7 +53,22 @@ jobs:
       - name: Compile
         run: |
           set -euo pipefail
-          python -m py_compile src/qore/infrastructure/cibo_position_lifecycle.py src/qore/infrastructure/trader_lab/cibo_three_mode_capital_lab.py scripts/cibo_trader_lab_three_mode_ceiling.py
+          python -m py_compile src/qore/infrastructure/cibo_position_lifecycle.py src/qore/infrastructure/trader_lab/cibo_three_mode_capital_lab.py scripts/cibo_trader_lab_three_mode_ceiling.py scripts/cibo_trader_lab_batch_runner.py
+
+      - name: Restore exact-case result cache
+        uses: actions/cache@v4
+        with:
+          path: .qore-cache/cibo-ultrafast-results
+          key: qore-cibo-exact-v3-carrier37082-medium-trough-context2-ridge-${{ hashFiles('.github/workflows/cibo-trader-lab-carrier37082-medium-trough-context2-ridge.yml') }}
+          restore-keys: |
+            qore-cibo-exact-v3-carrier37082-medium-trough-context2-ridge-
+
+      - name: Restore prepared trade-window cache
+        uses: actions/cache@v4
+        id: m5cache
+        with:
+          path: .qore-cache/cibo-ultrafast-v1
+          key: qore-cibo-ultrafast-v2-${{ hashFiles('scripts/cibo_trader_lab_batch_runner.py', 'scripts/cibo_trader_lab_three_mode_ceiling.py', 'src/qore/infrastructure/cibo_position_lifecycle.py', 'src/qore/infrastructure/cibo_single_account_manifest_settlement.py', 'src/qore/infrastructure/cibo_single_account_manifest_economics.py', 'src/qore/infrastructure/trader_lab/cibo_market_atlas_journey_extractor_v1.py') }}-atlas-11451743578
 
       - name: Recover inputs
         env:
@@ -59,26 +76,43 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/source" "$RUNNER_TEMP/historical-source" "$RUNNER_TEMP/historical-control" "$RUNNER_TEMP/result"
-          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$SOURCE_ARTIFACT_ID/zip" > "$RUNNER_TEMP/source.zip"
-          echo "${SOURCE_ARTIFACT_DIGEST#sha256:}  $RUNNER_TEMP/source.zip" | sha256sum -c -
+          fetch_checked_archive() {
+            local id="$1" digest="$2" stem="$3"
+            local archive="$RUNNER_TEMP/${stem}.zip"
+            local cached="$GITHUB_WORKSPACE/.qore-cache/cibo-ultrafast-v1/${stem}.zip"
+            mkdir -p "$(dirname "$cached")"
+            if [[ -f "$cached" ]]; then
+              cp "$cached" "$archive"
+              echo "QORE_CIBO_ULTRA_INPUT_CACHE_HIT ${stem}"
+            else
+              gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/${id}/zip" > "$archive"
+            fi
+            echo "${digest#sha256:}  $archive" | sha256sum -c -
+            cp "$archive" "$cached"
+          }
+          fetch_checked_archive "$SOURCE_ARTIFACT_ID" "$SOURCE_ARTIFACT_DIGEST" source
           unzip -q "$RUNNER_TEMP/source.zip" -d "$RUNNER_TEMP/source"
           MANIFEST="$(find "$RUNNER_TEMP/source" -type f -name walk-forward-manifest.json -print -quit)"
           BASELINE="$(find "$RUNNER_TEMP/source" -type f -name walk-forward-replay.json -print -quit)"
           echo "MANIFEST=$MANIFEST" >> "$GITHUB_ENV"; echo "BASELINE=$BASELINE" >> "$GITHUB_ENV"
 
-          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$HISTORICAL_SOURCE_ARTIFACT_ID/zip" > "$RUNNER_TEMP/historical-source.zip"
-          echo "${HISTORICAL_SOURCE_ARTIFACT_DIGEST#sha256:}  $RUNNER_TEMP/historical-source.zip" | sha256sum -c -
+          fetch_checked_archive "$HISTORICAL_SOURCE_ARTIFACT_ID" "$HISTORICAL_SOURCE_ARTIFACT_DIGEST" historical-source
           unzip -q "$RUNNER_TEMP/historical-source.zip" -d "$RUNNER_TEMP/historical-source"
           HISTORICAL_MANIFEST="$(find "$RUNNER_TEMP/historical-source" -type f -name single-account-manifest-native.json -print -quit)"
           echo "HISTORICAL_MANIFEST=$HISTORICAL_MANIFEST" >> "$GITHUB_ENV"
 
-          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$HISTORICAL_CONTROL_ARTIFACT_ID/zip" > "$RUNNER_TEMP/historical-control.zip"
-          echo "${HISTORICAL_CONTROL_ARTIFACT_DIGEST#sha256:}  $RUNNER_TEMP/historical-control.zip" | sha256sum -c -
+          fetch_checked_archive "$HISTORICAL_CONTROL_ARTIFACT_ID" "$HISTORICAL_CONTROL_ARTIFACT_DIGEST" historical-control
           unzip -q "$RUNNER_TEMP/historical-control.zip" -d "$RUNNER_TEMP/historical-control"
           HISTORICAL_REPLAY="$(find "$RUNNER_TEMP/historical-control" -type f -name historical-ceiling-replay.json -print -quit)"
           echo "HISTORICAL_REPLAY=$HISTORICAL_REPLAY" >> "$GITHUB_ENV"
 
           mkdir -p "$RUNNER_TEMP/atlas"
+          if [[ "${{ steps.m5cache.outputs.cache-hit }}" == "true" ]]; then
+            for SYMBOL in AUDJPY EURUSD GBPJPY GBPUSD NAS100 XAUUSD; do
+              mkdir -p "$RUNNER_TEMP/atlas/${SYMBOL}"
+            done
+            echo "QORE_CIBO_ULTRA_CACHE_RESTORED"
+          else
           for SYMBOL in AUDJPY EURUSD GBPJPY GBPUSD NAS100 XAUUSD; do
             ID_VAR="ATLAS_${SYMBOL}_ARTIFACT_ID"; DIGEST_VAR="ATLAS_${SYMBOL}_DIGEST"
             ARTIFACT_ID="${!ID_VAR}"; ARTIFACT_DIGEST="${!DIGEST_VAR}"
@@ -88,10 +122,11 @@ jobs:
             echo "${ARTIFACT_DIGEST#sha256:}  $ZIP" | sha256sum -c -
             unzip -q "$ZIP" 'RAW_M5_LEDGER/2019.jsonl' 'RAW_M5_LEDGER/2020.jsonl' 'RAW_M5_LEDGER/2021.jsonl' 'RAW_M5_LEDGER/2022.jsonl' -d "$ROOT"
           done
+          fi
 
       - name: Run carrier37082 MEDIUM trough context2 ridge
         run: |
-          set -u
+          set -euo pipefail
           common=(
             --manifest "$MANIFEST"
             --baseline-replay "$BASELINE"
@@ -238,24 +273,27 @@ jobs:
                 --lifecycle-medium-context2-require "reg_h4_range_state=expanded"
               )
             fi
-            python scripts/cibo_trader_lab_three_mode_ceiling.py "${common[@]}" "${extra[@]}" \
-              --output "$RUNNER_TEMP/result/${name}.json"
+            python -c 'import json,sys; print(json.dumps(sys.argv[1:]))' "${common[@]}" "${extra[@]}" \
+              --output "$RUNNER_TEMP/result/${name}.json" >> "$RUNNER_TEMP/cibo-cases.jsonl"
           }
 
-          run_case "carrier37082-exs070" control &
-          run_case "tr-s080" -0.80 &
-          run_case "tr-s070" -0.70 &
-          run_case "tr-s060" -0.60 &
-          run_case "tr-s050" -0.50 &
-          run_case "tr-s040" -0.40 &
-          run_case "tr-s030" -0.30 &
-          run_case "tr-s025" -0.25 &
-          run_case "tr-s020" -0.20 &
-          run_case "tr-s0175" -0.175 &
-          run_case "tr-s015" -0.15 &
-          run_case "tr-s0125" -0.125 &
-          run_case "tr-s010" -0.10 &
-          wait
+          run_case "carrier37082-exs070" control
+          run_case "tr-s080" -0.80
+          run_case "tr-s070" -0.70
+          run_case "tr-s060" -0.60
+          run_case "tr-s050" -0.50
+          run_case "tr-s040" -0.40
+          run_case "tr-s030" -0.30
+          run_case "tr-s025" -0.25
+          run_case "tr-s020" -0.20
+          run_case "tr-s0175" -0.175
+          run_case "tr-s015" -0.15
+          run_case "tr-s0125" -0.125
+          run_case "tr-s010" -0.10
+          python scripts/cibo_trader_lab_batch_runner.py \
+            --cases "$RUNNER_TEMP/cibo-cases.jsonl" --workers 4 \
+            --m5-cache-dir "$GITHUB_WORKSPACE/.qore-cache/cibo-ultrafast-v1" \
+            --result-cache-dir "$GITHUB_WORKSPACE/.qore-cache/cibo-ultrafast-results"
 
       - name: Rank strict Pareto vs carrier3829
         run: |
