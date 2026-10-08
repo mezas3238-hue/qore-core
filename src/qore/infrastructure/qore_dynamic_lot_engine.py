@@ -432,12 +432,13 @@ class QDLE:
             hashes.add(receipt)
             try:
                 event_time = datetime.fromisoformat(row["observed_at"])
-                if not timedelta(0) <= _dt(approved_at) - _dt(event_time) <= timedelta(seconds=10):
-                    raise QDLEError(f"{name} economic approval stale or future")
-                if any(Decimal(str(row[k])) != value for k, value in fields.items()):
-                    raise QDLEError(f"{name} signed economic cap differs from QDLE intent")
+                observed = {k: Decimal(str(row[k])) for k in fields}
             except (KeyError, TypeError, ValueError) as exc:
                 raise QDLEError(f"{name} economic proof incomplete") from exc
+            if not timedelta(0) <= _dt(approved_at) - _dt(event_time) <= timedelta(seconds=10):
+                raise QDLEError(f"{name} economic approval stale or future")
+            if any(observed[k] != value for k, value in fields.items()):
+                raise QDLEError(f"{name} signed economic cap differs from QDLE intent")
 
     def publish_finance_approval(self, intent: QDLEIntent,
                                  approved_at: datetime,
