@@ -32,7 +32,8 @@ def summarize(replay: dict, source: bytes) -> dict:
     snapshots = replay["epoch_receipts"]
     assert len(trades) == replay["trade_count"] == replay["decision_count"] == 3368
     assert replay["economic_group_report"]["all_entries_preserved"] is True
-    assert len(snapshots) > 0, "full epoch snapshots needed for custody reconciliation"
+    # --summary-telemetry intentionally omits epoch receipts. The ledger
+    # counters and full 3368 settlement receipts still permit a real audit.
     assert D(replay["attack_sovereign_breach_usd"]) == ZERO
     ledger = replay["economic_group_report"]["portfolio_loss_report"]
     losses = sum((-decimal(t, "realized_net_pnl_usd") for t in trades
@@ -97,6 +98,49 @@ def summarize(replay: dict, source: bytes) -> dict:
     assert reported_breach >= max_snapshot_breach - D("0.00000001")
     assert reported_breach > ZERO, "expected frozen em-s06745 breach"
     assert decimal(replay, "ending_sovereign_bank_usd") < ZERO
+    medium_losses = decimal(replay, "medium_compound_negative_net_usd")
+    medium_recovered = decimal(replay, "medium_compound_recovered_usd")
+    medium_to_bank = decimal(replay, "medium_profit_to_sovereign_usd")
+    bank_expected = (
+        decimal(replay, "initial_capital_usd") - medium_losses
+        + medium_recovered + medium_to_bank
+        - decimal(replay, "attack_sovereign_breach_usd")
+    )
+    reported_bank = decimal(replay, "ending_sovereign_bank_usd")
+    assert abs(bank_expected - reported_bank) <= D("0.00000001")
+    reported_min_bank = decimal(replay, "minimum_sovereign_bank_usd")
+    reported_floor = decimal(replay, "sovereign_protection_floor_usd")
+    assert abs(max(ZERO, reported_floor-reported_min_bank)-reported_breach) <= D("0.00000001")
+
+    # Approximate chronology from final settlements only: partial lifecycle
+    # events may shift exact bank-change times, never turn a proxy into proof.
+    proxy_bank = decimal(replay, "initial_capital_usd")
+    proxy_deficit = ZERO
+    proxy_low = proxy_bank
+    proxy_first = None
+    proxy_low_at = None
+    for receipt in settlements:
+        if receipt["mode"] != "MEDIUM":
+            continue
+        pnl = decimal(receipt, "realized_net_pnl_usd")
+        if pnl < ZERO:
+            proxy_bank += pnl
+            proxy_deficit -= pnl
+        elif pnl > ZERO:
+            recovery = min(pnl, proxy_deficit)
+            proxy_bank += recovery
+            proxy_deficit -= recovery
+        if proxy_first is None and proxy_bank < reported_floor:
+            proxy_first = {
+                "settled_at_proxy": receipt["realized_exit_at"],
+                "bank_usd_proxy": str(proxy_bank),
+                "unrecovered_deficit_usd_proxy": str(proxy_deficit),
+                "caveat": "Final-exit ordering, not partial lifecycle event timeline.",
+            }
+        if proxy_bank < proxy_low:
+            proxy_low = proxy_bank
+            proxy_low_at = receipt["realized_exit_at"]
+    assert abs(proxy_bank - reported_bank) <= D("0.00000001")
 
     def settled_window(start: str, end: str) -> dict:
         start_at, end_at = timestamp(start), timestamp(end)
@@ -146,6 +190,22 @@ def summarize(replay: dict, source: bytes) -> dict:
         "source_case": "em-s06745",
         "trade_count": len(trades),
         "epoch_count": len(snapshot_rows),
+        "epoch_snapshots_available": bool(snapshot_rows),
+        "sovereign_ledger_reconciliation": {
+            "initial_bank_usd": replay["initial_capital_usd"],
+            "medium_debits_usd": str(medium_losses),
+            "medium_recovery_credits_usd": str(medium_recovered),
+            "medium_profit_allocated_to_bank_usd": str(medium_to_bank),
+            "attack_bank_overflow_usd": replay["attack_sovereign_breach_usd"],
+            "reconstructed_ending_bank_usd": str(bank_expected),
+            "actual_ending_bank_usd": str(reported_bank),
+            "unrecovered_medium_deficit_usd": replay["medium_compound_recovery_deficit_usd"],
+            "reported_minimum_bank_usd": str(reported_min_bank),
+            "reported_sovereign_floor_usd": str(reported_floor),
+        },
+        "proxy_first_breach_from_medium_final_settlements": proxy_first,
+        "proxy_min_bank_usd": str(proxy_low),
+        "proxy_min_bank_at": proxy_low_at,
         "capital_final_usd": replay["ending_total_capital_usd"],
         "max_drawdown_pct": str(decimal(replay, "max_drawdown_fraction")*100),
         "gross_loss_usd": str(losses),
@@ -197,6 +257,10 @@ def main() -> None:
         report["first_floor_breach_snapshot"], sort_keys=True))
     print("CIBO_H6_FIRST_BREACH_CONTEXT=" + json.dumps(
         report["first_floor_breach_settlement_context"], sort_keys=True))
+    print("CIBO_H6_MEDIUM_LEDGER=" + json.dumps(
+        report["sovereign_ledger_reconciliation"], sort_keys=True))
+    print("CIBO_H6_FIRST_BREACH_PROXY=" + json.dumps(
+        report["proxy_first_breach_from_medium_final_settlements"], sort_keys=True))
 
 
 if __name__ == "__main__":
