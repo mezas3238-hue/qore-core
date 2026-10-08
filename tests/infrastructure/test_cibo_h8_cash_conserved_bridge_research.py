@@ -1,5 +1,5 @@
 """Research-only invariants for H8 real-cash sovereign liquidity bridge."""
-from decimal import Decimal as D
+from decimal import Decimal as D, localcontext
 import unittest
 
 from qore.infrastructure.cibo_capital_management_authority import (
@@ -40,6 +40,24 @@ class TestCiboH8CashConservedBridge(unittest.TestCase):
         self.assertEqual(state.sovereign_bank_usd, D("35"))
         self.assertEqual(state.portfolio_cushion_usd, D("20"))
         self.assertEqual(state.physical_cushion_to_sovereign_bridge_count, 0)
+
+    def test_precision_100_matches_real_replay_cash_without_rounding(self):
+        state = _State(
+            sovereign_bank_usd=D("33.81755034706532138196271917"),
+            portfolio_cushion_usd=D("19.76393860806455076191180576"),
+            portfolio_attack_credit_usd=D("19.76393860806455076191180576"),
+        )
+        with localcontext() as ctx:
+            ctx.prec = 100
+            before = state.sovereign_bank_usd + state.portfolio_cushion_usd
+            transferred = D("2.639780062842514368604509685")
+            state.bridge_from_unreserved_cushion(transferred)
+            after = state.sovereign_bank_usd + state.portfolio_cushion_usd
+            self.assertEqual(before, after)
+            self.assertEqual(
+                state.physical_cushion_to_sovereign_bridge_total_usd,
+                transferred,
+            )
 
     def test_zero_transfer_is_no_op(self):
         state = _State()
