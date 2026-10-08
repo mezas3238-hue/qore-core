@@ -1,4 +1,5 @@
 name: QDLE P0 Atomic Physical Lot Engine
+# Covers QDLE live arm-once, authority segregation and 5% dynamic equity.
 on:
   push:
     branches:
