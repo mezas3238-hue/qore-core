@@ -49,6 +49,24 @@ def _lifecycle_roots(values: list[str]) -> dict[str, Path]:
     return roots
 
 
+def _causal_partial_features(
+    features: frozenset[CiboLifecycleFeature],
+    decision_context: dict[str, str],
+    requirements: tuple[tuple[str, str], ...],
+) -> tuple[frozenset[CiboLifecycleFeature], bool]:
+    """Never consult realized outcome; preserve every nonpartial lifecycle feature."""
+    active = (
+        not requirements
+        or all(decision_context.get(key) == value for key, value in requirements)
+    )
+    if active:
+        return features, True
+    return (
+        features - frozenset({CiboLifecycleFeature.ADVERSE_PARTIAL_REDUCTION}),
+        False,
+    )
+
+
 def _build_lifecycle_map(
     manifest: dict[str, object],
     roots: dict[str, Path],
@@ -120,17 +138,13 @@ def _build_lifecycle_map(
         )
         # Research-only causal eligibility: independent from the pre-existing
         # ATTACK override's context-specific STOP. No outcome data is consulted.
-        adverse_partial_context_active = (
-            not adverse_partial_context_requirements
-            or all(
-                row_decision_context.get(key) == value
-                for key, value in adverse_partial_context_requirements
+        selected_features, adverse_partial_context_active = (
+            _causal_partial_features(
+                selected_features,
+                row_decision_context,
+                adverse_partial_context_requirements,
             )
         )
-        if not adverse_partial_context_active:
-            selected_features = selected_features - frozenset(
-                {CiboLifecycleFeature.ADVERSE_PARTIAL_REDUCTION}
-            )
         opened, closed = bounds_by_symbol[symbol]
         series = bars_by_symbol[symbol]
         start = bisect_left(opened, outcome.entry_at)
