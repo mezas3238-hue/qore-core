@@ -64,3 +64,14 @@ Research-only physically conserved bank/cushion bridge branch: `agent/cibo-h8-fu
 Alternative profit routing (bootstrap cushion share constrained to **0.50–1.00** by current engine) is being probed separately at [37767843304](https://github.com/mezas3238-hue/qore-core/actions/runs/37767843304). The earlier 0/25% probe was invalid CLI configuration and the earlier raw-M5-warm-cache error was tooling, not an economic result. Do not report either as strategy failure or success.
 
 **Promotion remains blocked until a completed H8 full replay demonstrates 3,368 funded entries and no bank floor breaches, and independent broker mark-to-market/margin stop-out tests pass.**
+
+
+## Addendum: exact Decimal precision and scientific replay custody
+
+The first prototype run [37767770097](https://github.com/mezas3238-hue/qore-core/actions/runs/37767770097) failed **as software engineering evidence**, raising `CIBO_H8_BRIDGE_MONEY_CONSERVATION_FAILURE` when using Python Decimal's default 28-digit context with longer receipt precision. This is **not** proof that real transfers invent money: the research implementation was not exact enough for the audited ledger.
+
+Corrective commit [181e728b67505bf3a42036553ceeb31792d4cea0](https://github.com/mezas3238-hue/qore-core/commit/181e728b67505bf3a42036553ceeb31792d4cea0) places the entire atomic debit/credit and before/after reconciliation inside a local **100-digit Decimal** context, preserving invariants at original precision. Independent [unit run 37768247176](https://github.com/mezas3238-hue/qore-core/actions/runs/37768247176): **4/4 PASS**, including a high-precision regression using account balances from the first H8 capacity failure. Success of these tests **does not** establish a viable 3,368-trade strategy.
+
+After also repairing raw-M5 input restoration for direct CLI replays, full bridge trial [37768291949](https://github.com/mezas3238-hue/qore-core/actions/runs/37768291949) was launched. It has no verified economic verdict in this addendum; inspect run results before reporting. On scientific success one must still verify all 3,368 entries, count/totals of actual cushion-to-bank transfers, min sovereign bank >= its protection floor, zero 1x unfunded errors, terminal floor, cost and broker margin.
+
+Bootstrap share 0.00 and 0.25 are rejected by the existing parameter domain `[0.50,1.00]`; do not treat them as valid economic research results. Corrected separate share ablation `0.50/0.60/0.70/0.80/0.90/1.00` is [run 37767843304](https://github.com/mezas3238-hue/qore-core/actions/runs/37767843304) with raw M5 restored for the direct evaluator.
