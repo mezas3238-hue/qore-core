@@ -1,0 +1,30 @@
+name: QDLE P0 Atomic Physical Lot Engine
+on:
+  push:
+    branches:
+      - agent/qdle-independent-engine-p0-20261008-001
+    paths:
+      - src/qore/infrastructure/qore_dynamic_lot_engine.py
+      - src/qore/infrastructure/qdle_mt5_read_only.py
+      - src/qore/infrastructure/cibo_physical_lot_sizing.py
+      - tests/infrastructure/test_qore_dynamic_lot_engine.py
+      - tests/infrastructure/test_cibo_physical_lot_sizing.py
+      - .github/workflows/qdle-p0-atomic-engine.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  offline-atomic-physics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: QDLE synthetic six-symbol physics, finance, concurrency and crash recovery
+        env:
+          PYTHONPATH: src
+        run: |
+          python -m unittest discover -s tests/infrastructure -p test_cibo_physical_lot_sizing.py -v
+          python -m unittest discover -s tests/infrastructure -p test_qore_dynamic_lot_engine.py -v
