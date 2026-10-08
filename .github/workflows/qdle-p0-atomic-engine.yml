@@ -52,4 +52,4 @@ jobs:
           PYTHONPATH: src
         run: |
           python -m pip install --disable-pip-version-check pytest
-          python -m pytest -q tests/infrastructure/test_fundednext_live_mt5.py -k qdle_live
+          python -m pytest -o addopts='' -q tests/infrastructure/test_fundednext_live_mt5.py -k qdle_live
