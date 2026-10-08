@@ -2,8 +2,12 @@
 from __future__ import annotations
 
 from decimal import Decimal
+
 from qore.infrastructure.cibo_four_motor_policy import (
-    FourMotorObservation, FourMotorProposal, FourMotorPolicyError, nonnegative,
+    FourMotorObservation,
+    FourMotorPolicyError,
+    FourMotorProposal,
+    nonnegative,
 )
 from qore.infrastructure.qore_dynamic_lot_engine import QDLEIntent
 
