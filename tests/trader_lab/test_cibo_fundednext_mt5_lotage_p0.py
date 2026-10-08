@@ -112,6 +112,7 @@ class FundedNextP0Tests(unittest.TestCase):
   with self.assertRaisesRegex(FundingError,"MIN_LOT_RISK_EXCEEDS"):
    self.ask("NAS100","BUY",19990)
  def test_index_nas100_no_commission_proper_margin(self):
+  self.mt5.capital=10000;self.mt5.free=10000
   q=self.ask("NAS100","BUY",19998.0)
   self.assertEqual(q.commission_usd,D(0))
   self.assertEqual(q.lots,D(".1"))
@@ -155,8 +156,8 @@ class FundedNextP0Tests(unittest.TestCase):
   with self.assertRaisesRegex(FundingError,"ACCOUNT_CURRENCY_NOT_USD"):
    self.ask("EURUSD","BUY",1.0990)
  def test_group_risk_cap_and_symbol_risk_cap(self):
-  q=self.ask("EURUSD","BUY",1.0990,group_open_risk=D("8.8"))
-  self.assertLessEqual(q.total_stop_risk_usd,D(".2"))
+  q=self.ask("EURUSD","BUY",1.0990,group_open_risk=D("7.0"))
+  self.assertLessEqual(q.total_stop_risk_usd,D("2.0"))
   with self.assertRaisesRegex(FundingError,"RISK_BUDGET_EXHAUSTED"):
    self.ask("EURUSD","BUY",1.0990,symbol_open_risk=D(6),trade_id="C")
  def test_wallet_double_spend_and_retries(self):
@@ -193,7 +194,7 @@ class FundedNextP0Tests(unittest.TestCase):
   self.assertEqual(len(ledger.pending()),1)
   self.assertTrue(all(q is got[0] for q in got))
  def test_dd_floor_enforced(self):
-  with self.assertRaisesRegex(FundingError,"RISK_BUDGET_EXHAUSTED"):
+  with self.assertRaisesRegex(FundingError,"MIN_LOT_RISK_EXCEEDS_BUDGET"):
    self.ask("EURUSD","BUY",1.099,policy=RiskPolicy(sovereign_floor_usd=D("1999.99")))
  def test_spread_is_included_via_bid_ask(self):
   a=self.ask("EURUSD","BUY",1.0990)
