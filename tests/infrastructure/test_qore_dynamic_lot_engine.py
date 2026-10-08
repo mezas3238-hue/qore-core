@@ -101,6 +101,38 @@ class TestQDLE(unittest.TestCase):
             self.assertEqual(r.symbol, name)
         self.assertEqual(len(self.broker.checks), 6)
 
+    def test_2000_broker_margin_can_support_gold_and_ndx_with_60_qore_nav(self):
+        # Synthetically replays screenshot margin, NOT MT5 execution certification.
+        # Proprietary risk remains $3 while broker margin headroom is $1900.
+        from dataclasses import replace
+
+        class ScreenshotMarginMock:
+            def value(self, instrument, intent, now):
+                margins = {"XAUUSD": D("53637.48"), "NDX100": D("61481.98")}
+                return BrokerValuation(D("100"), margins[instrument.broker_symbol],
+                                       now, "SYNTHETIC_MARGIN_FROM_SCREENSHOT")
+            def check_volume(self, instrument, intent, lots):
+                return None
+
+        for name in ("XAUUSD", "NDX100"):
+            with self.subTest(symbol=name):
+                path = Path(self.tmp.name) / f"{name}.sqlite"
+                engine = QDLE(path, ScreenshotMarginMock())
+                engine.publish_account(account(
+                    capital="60", broker_equity="2000", risk="60",
+                    sovereign="60", cushion="0", margin="1900",
+                ))
+                engine.publish_symbol(symbol(name, aliases=(name,),
+                                             max_lot=D("50") if name == "XAUUSD" else D("40")))
+                order = replace(intent(f"two-layers:{name}", name=name,
+                                       risk="30", sourcecap="60"),
+                                margin_cap_usd=D("1900"))
+                result = engine.reserve_for_trader(order, now=T)
+                self.assertEqual(result.lots, D("0.03"))
+                self.assertEqual(result.total_risk_usd, D("3"))
+                self.assertLessEqual(result.margin_usd, D("1900"))
+                self.assertGreater(result.margin_usd, D("60"))
+
     def test_same_request_is_idempotent(self):
         first = self.engine.reserve_for_trader(intent("same"), now=T)
         again = self.engine.reserve_for_trader(intent("same"), now=T)
