@@ -58,7 +58,7 @@ class TestFourMotorEvidence(unittest.TestCase):
         self.folder = tempfile.TemporaryDirectory()
         self.q = QDLE(Path(self.folder.name) / "motor.sqlite",
                       FakeBroker(), enforce_finance_approval=True,
-                      motor_hmac_keys=KEYS)
+                      motor_hmac_keys=KEYS, strict_provider_floor=False)
         self.q.publish_account(QDLEAccount(
             "123", "FundedNext", "USD", 1, T, D("2000"), D("2000"),
             D("1900"), D("60"), D("60"), D("0"), D("60")))
