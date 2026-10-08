@@ -35,6 +35,7 @@ class MockMT5:
  ORDER_TYPE_BUY=0;ORDER_TYPE_SELL=1
  def __init__(self,capital=2000):
   self.capital=capital
+  self.balance=capital
   self.free=capital
   self.held=0
   self.account_currency="USD"
@@ -57,7 +58,7 @@ class MockMT5:
   bid,ask=self.price[sym]
   return NS(bid=bid,ask=ask,time=int(datetime.now(timezone.utc).timestamp())+self.tick_time_shift)
  def account_info(self):
-  return NS(equity=self.capital,margin_free=self.free,margin=self.held,
+  return NS(equity=self.capital,balance=self.balance,margin_free=self.free,margin=self.held,
     currency=self.account_currency,trade_allowed=True)
  def order_calc_profit(self,kind,sym,volume,start,end):
   if self.bad_profit:return None
@@ -81,7 +82,13 @@ class FundedNextP0Tests(unittest.TestCase):
  def setUp(self):
   self.mt5=MockMT5()
   self.c=FundedNextMT5Calculator(self.mt5,MAP)
-  self.p=RiskPolicy()
+  # Historical fixed-ceiling test reference; production defaults to
+  # RiskPolicy() = 5% dynamic causal account.
+  self.p=RiskPolicy(per_entry_usd=D("3"),
+    max_portfolio_open_stop_usd=D("9"),
+    max_symbol_open_stop_usd=D("6"),
+    max_trader_open_stop_usd=D("6"),
+    max_group_open_stop_usd=D("9"))
  def ask(self,sym,side,stop,**kw):
   return self.c.quote(trade_id=kw.pop("trade_id","A"),
      trader_id=kw.pop("trader_id","VT31"),core_symbol=sym,
@@ -207,6 +214,70 @@ class FundedNextP0Tests(unittest.TestCase):
   self.mt5.tick_time_shift=-360
   with self.assertRaisesRegex(FundingError,"MT5_QUOTE_STALE_OR_FUTURE"):
    self.ask("EURUSD","BUY",1.0990)
+ def test_canonical_5pct_dynamic_60_100_1000_accounts(self):
+  # Budget is computed causally from the account before EACH new signal.
+  for capital,expected in ((60,D("3")),(100,D("5")),(1000,D("50"))):
+   self.mt5.capital=capital
+   self.mt5.balance=capital
+   self.mt5.free=capital
+   q=self.ask("EURUSD","BUY",1.0990,policy=RiskPolicy(),trade_id=str(capital))
+   self.assertEqual(q.risk_base_usd,D(capital))
+   self.assertEqual(q.dynamic_risk_target_usd,expected)
+   self.assertEqual(q.effective_risk_budget_usd,expected)
+   self.assertLessEqual(q.total_stop_risk_usd,expected)
+   self.assertTrue(q.lots>0)
+ def test_growth_and_drawdown_change_5pct_after_every_quote(self):
+  self.mt5.capital=2000
+  self.mt5.balance=2000
+  self.mt5.free=2000
+  first=self.ask("EURUSD","BUY",1.0990,policy=RiskPolicy())
+  self.assertEqual(first.dynamic_risk_target_usd,D(100))
+  self.mt5.capital=4000
+  self.mt5.balance=4000
+  self.mt5.free=4000
+  up=self.ask("EURUSD","BUY",1.0990,policy=RiskPolicy(),trade_id="up")
+  self.assertEqual(up.dynamic_risk_target_usd,D(200))
+  self.assertGreater(up.lots,first.lots)
+  self.mt5.capital=1000
+  self.mt5.balance=1000
+  self.mt5.free=1000
+  down=self.ask("EURUSD","BUY",1.0990,policy=RiskPolicy(),trade_id="down")
+  self.assertEqual(down.dynamic_risk_target_usd,D(50))
+  self.assertLess(down.lots,up.lots)
+ def test_floating_unrealized_profits_do_not_expand_sizing(self):
+  self.mt5.capital=4000
+  self.mt5.balance=2000
+  self.mt5.free=4000
+  q=self.ask("EURUSD","BUY",1.0990,policy=RiskPolicy())
+  self.assertEqual(q.dynamic_risk_target_usd,D(100))
+  self.assertEqual(q.risk_base_usd,D(2000))
+ def test_floating_loss_immediately_reduces_5pct_risk(self):
+  self.mt5.capital=1000
+  self.mt5.balance=2000
+  self.mt5.free=1000
+  q=self.ask("EURUSD","BUY",1.0990,policy=RiskPolicy())
+  self.assertEqual(q.dynamic_risk_target_usd,D(50))
+ def test_fixed_usd_3_is_only_additional_experimental_cap(self):
+  self.mt5.capital=2000
+  self.mt5.balance=2000
+  self.mt5.free=2000
+  q=self.ask("EURUSD","BUY",1.0990,policy=RiskPolicy(per_entry_usd=D(3)))
+  self.assertEqual(q.dynamic_risk_target_usd,D(100))
+  self.assertEqual(q.effective_risk_budget_usd,D(3))
+ def test_5pct_dynamic_portfolio_limits_also_scale(self):
+  self.mt5.capital=2000
+  self.mt5.balance=2000
+  self.mt5.free=2000
+  q=self.ask("EURUSD","BUY",1.0990,policy=RiskPolicy(),group_open_risk=D("50"))
+  self.assertEqual(q.effective_risk_budget_usd,D(100))
+  self.assertLessEqual(q.total_stop_risk_usd,D(100))
+  with self.assertRaisesRegex(FundingError,"RISK_BUDGET_EXHAUSTED"):
+   self.ask("EURUSD","BUY",1.0990,policy=RiskPolicy(),
+            currently_open_risk=D(300),trade_id="blocked")
+ def test_invalid_percentage_above_100pct_rejected(self):
+  with self.assertRaisesRegex(FundingError,"RISK_FRACTION_MUST_NOT_EXCEED"):
+   self.ask("EURUSD","BUY",1.0990,policy=RiskPolicy(
+    per_entry_risk_fraction=D("1.01")))
  def test_no_fabricated_profit_if_server_returns_none(self):
   self.mt5.bad_profit=True
   with self.assertRaisesRegex(FundingError,"MT5_PROFIT_OR_MARGIN"):
