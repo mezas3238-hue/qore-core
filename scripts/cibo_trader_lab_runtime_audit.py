@@ -112,9 +112,9 @@ def main() -> None:
             # report "success" with no Rank/Upload stage declared.
             # Fail closed for every batched research workflow, not just
             # a static allowlist: science requires published evidence.
-            ranking = re.search(r"(?m)^      - name: Rank\\b", body)
+            ranking = re.search(r"(?m)^      - name: Rank\b", body)
             upload = re.search(
-                r"(?m)^      - uses: actions/upload-artifact@v4\\s*$", body
+                r"(?m)^      - uses: actions/upload-artifact@v4\s*$", body
             )
             rank_offset = ranking.start() if ranking else -1
             upload_offset = upload.start() if upload else -1
