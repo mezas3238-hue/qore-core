@@ -1,3 +1,7 @@
+> **OVERRIDE P0 — 2026-10-08: REGLA DE LOTAJE DINÁMICO DEL USUARIO**
+> Esta versión contiene referencias históricas a USD 3 FIJOS que ya han sido REVOCADAS como política vigente. **CIBO ahora calcula 5% del capital causal de la cuenta POR CADA NUEVA ENTRADA**: USD60→USD3, USD100→USD5, USD1.000→USD50. Escala hacia arriba y hacia abajo, sin inventar lotes ni margen. Mantener advertencia H8 de solvencia NO CERTIFICADA.
+> **HANDOFF MAESTRO ACTUAL OBLIGATORIO:** [CIBO P0 5% dinámico](docs/research/CIBO_P0_MASTER_DYNAMIC_5PCT_LOTAGE_CONTINUITY_HANDOFF_2026-10-08.md). Rama: agent/cibo-p0-dynamic-equity-5pct-lotage-002. Pruebas CI: [50/50 SUCCESS](https://github.com/mezas3238-hue/qore-core/actions/runs/37814146300). Replay causal y MT5 real pendientes. No promover a producción.
+
 # OVERRIDE CRÍTICO P0 — 2026-10-08 — H8 FONDEO FÍSICO / BANCO SOBERANO NEGATIVO
 ## TODAS LAS CURVAS HISTÓRICAS DE USD ~670k ESTÁN NO CERTIFICADAS Y NO SON GANANCIAS DEMOSTRADAS
 
