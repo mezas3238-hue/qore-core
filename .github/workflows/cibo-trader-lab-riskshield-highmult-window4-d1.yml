@@ -134,9 +134,6 @@ jobs:
             --ceiling-attack-drawdown-window3-taper-fraction 0.80
             --ceiling-attack-drawdown-window4-lower 0.15
             --ceiling-attack-drawdown-window4-upper 0.50
-            --ceiling-attack-drawdown-window4-multiplier-lower "$w4lo"
-            --ceiling-attack-drawdown-window4-multiplier-upper "$w4hi"
-            --ceiling-attack-drawdown-window4-taper-fraction "$w4taper"
             --ceiling-attack-drawdown-window5-lower 0.10
             --ceiling-attack-drawdown-window5-upper 0.50
             --ceiling-attack-drawdown-window5-multiplier-lower 4400
@@ -177,6 +174,9 @@ jobs:
           run_case() {
             name="$1"; pressure="$2"; w4lo="$3"; w4hi="$4"; w4taper="$5"
             extra=(
+              --ceiling-attack-drawdown-window4-multiplier-lower "$w4lo"
+              --ceiling-attack-drawdown-window4-multiplier-upper "$w4hi"
+              --ceiling-attack-drawdown-window4-taper-fraction "$w4taper"
               --ceiling-attack-stress-confidence-drawdown-trigger 0.00
               --ceiling-attack-stress-confidence-ratio-ceiling 0.45
               --ceiling-attack-stress-confidence-target-r-floor 4
