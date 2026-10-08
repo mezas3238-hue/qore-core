@@ -1,0 +1,60 @@
+name: QORE CIBO Replay Integrity Gate Test 20261008
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/cibo-dual-dd-context-defense-20261008-001
+    paths:
+      - scripts/cibo_replay_integrity_gate.py
+      - tests/test_cibo_replay_integrity_gate.py
+      - .github/workflows/cibo-dualdd-integrity-gate-certification-audit-20261008.yml
+permissions:
+  contents: read
+  actions: read
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Unit tests for all sovereign gates
+        run: |
+          set -euo pipefail
+          python -m unittest discover -s tests -p 'test_cibo_replay_integrity_gate.py' -v
+      - name: Verify exact replay artifact input
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/sovereign-gate
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/11546195020/zip" > /tmp/sovereign-gate/input.zip
+          echo "61c144d287773c11ac0161542246a0dec62fdd9d2f7d0ba1ecb5f0586540875e  /tmp/sovereign-gate/input.zip" | sha256sum -c -
+          unzip -q /tmp/sovereign-gate/input.zip -d /tmp/sovereign-gate
+      - name: Audit historical candidates and assert real sovereignty block
+        run: |
+          set -euo pipefail
+          python scripts/cibo_replay_integrity_gate.py \
+            /tmp/sovereign-gate/baseline.json \
+            /tmp/sovereign-gate/m2-reclaim-060.json \
+            --research-report-only --output /tmp/sovereign-gate/audit.json
+          python - <<'PY'
+          import json
+          x=json.load(open('/tmp/sovereign-gate/audit.json'))
+          assert len(x)==2
+          for c in x:
+              assert not c['replay_prerequisites_pass']
+              assert c['checks']['attack_sovereign_breach_zero']
+              assert not c['checks']['sovereign_protection_floor_breach_zero']
+              assert not c['checks']['no_negative_sovereign_bank']
+              assert not c['checks']['max_dd_target']
+              assert not c['certified']
+          print('SOVEREIGN_FALSE_PASS_PREVENTION_TEST=SUCCESS')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cibo-dualdd-integrity-gate-${{ github.run_id }}
+          path: /tmp/sovereign-gate/audit.json
+          retention-days: 90
