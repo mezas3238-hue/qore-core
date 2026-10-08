@@ -1082,6 +1082,12 @@ def main() -> int:
         help="Optional causal market-regime posture required by ATTACK state-pressure taper.",
     )
     parser.add_argument(
+        "--ceiling-attack-state-pressure-h1-range-state",
+        choices=("balanced", "compressed", "expanded", "extreme"),
+        default=None,
+        help="Optional causal H1 range state required by ATTACK state-pressure taper.",
+    )
+    parser.add_argument(
         "--ceiling-attack-state-pressure-h4-range-state",
         choices=("balanced", "compressed", "expanded", "extreme"),
         default=None,
@@ -1134,6 +1140,12 @@ def main() -> int:
         choices=("DEFENSIVE", "RECOVERY", "STABLE", "WATCH"),
         default=None,
         help="Optional market posture required by ATTACK state-pressure lane 2.",
+    )
+    parser.add_argument(
+        "--ceiling-attack-state-pressure2-h1-range-state",
+        choices=("balanced", "compressed", "expanded", "extreme"),
+        default=None,
+        help="Optional causal H1 range state required by ATTACK state-pressure2 taper.",
     )
     parser.add_argument(
         "--ceiling-attack-state-pressure2-h4-range-state",
@@ -1993,6 +2005,9 @@ def main() -> int:
         ceiling_attack_state_pressure_market_posture=(
             args.ceiling_attack_state_pressure_market_posture
         ),
+        ceiling_attack_state_pressure_h1_range_state=(
+            args.ceiling_attack_state_pressure_h1_range_state
+        ),
         ceiling_attack_state_pressure_h4_range_state=(
             args.ceiling_attack_state_pressure_h4_range_state
         ),
@@ -2019,6 +2034,9 @@ def main() -> int:
         ),
         ceiling_attack_state_pressure2_market_posture=(
             args.ceiling_attack_state_pressure2_market_posture
+        ),
+        ceiling_attack_state_pressure2_h1_range_state=(
+            args.ceiling_attack_state_pressure2_h1_range_state
         ),
         ceiling_attack_state_pressure2_h4_range_state=(
             args.ceiling_attack_state_pressure2_h4_range_state
