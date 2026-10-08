@@ -6,6 +6,25 @@
 **Estado:** motor QDLE implementado con CI sintética positiva; integración observacional MT5, servicio de reservas SQLite y puente de cuatro motores; **NO LIVE**, **NO CERTIFICADO**, sin aprobación física real de los 3.368 intentos de Trader Lab.
 
 
+## DIRECTIVA SOBERANA P0 — CUENTA FUNDEDNEXT USD 2000, CAPITAL QORE USD 60
+
+**Override del propietario (2026-10-08) — prevalece sobre toda interpretación anterior que use el equity MT5 como base del 5%.**
+
+- **Cuenta de ejecución/margen:** FundedNext MT5 tiene **USD 2.000 nominales inicialmente**, sujetos a sus propias reglas, margen libre, posiciones, trailing DD y límites de capital del proveedor. **No se asignan estos USD 2.000 como capital económico de QORE**.
+- **Capital económico QORE:** cuenta virtual/ledger segregado, **USD 60 al inicio**, que registra únicamente resultados económicos reales atribuibles a QORE. Base autónoma de cálculo: \`qore_trading_capital_usd\`. No confundir con \`balance\`/\`equity\` del bróker.
+- **5% único y CONSTANTE como porcentaje, DINÁMICO como monto:** \`risk_target_usd = 0.05 * qore_trading_capital_usd\` para **cada nueva señal**. Ejemplos: capital QORE $60 → stop risk objetivo $3; $100 → $5; $1.000 → $50; si cae a $40 → $2. No sumar USD 2.000 en la base ni usar 5% del broker MT5. La fracción no debe configurarse por otros módulos.
+- **Evolución causal del capital:** un emisor QORE firmado y reconciliado calcula la cartera económica neta de resultados realizados, fees, swaps y pérdidas; floating losses reducen prudencialmente la capacidad, mientras ganancias flotantes no pueden inflar el capital antes de realizarse/conciliarse. Nunca añadir depósitos ficticios ni aplicar a la cuenta interna 5% de equity externo.
+- **Cuarteto:** Sizing, CIBO Compuesto, Adaptive Leverage y Portafolio Compuesto reciben el **mismo objetivo** del 5% QORE y responden con sus topes monetarios, reservas de capital, utilización de margen y lotes. **No hay cuatro presupuestos de 5% que se acumulen**. QDLE convierte la intersección de todos los límites y la distancia real al SL en lotaje legal; QORE Risk y reglas proveedor pueden imponer topes **inferiores** y nunca se fuerza un mínimo inviable.
+- **Financiación del margen:** broker \`free_margin\` MT5, cotización actual, \`order_calc_margin\` y \`order_check\`, tras deducir reservas, órdenes y posiciones abiertas. El respaldo de USD 2.000 **no autoriza** pérdidas superiores a la capacidad neta y a los límites QORE/broker.
+- **Escenario de las capturas:** con MT5 de USD 2.000 de equity y margen libre suficiente, los mínimos de 0.01 lote para **XAUUSD (~$536 margen)** y **NDX100 (~$615 margen)** podrían superar la restricción de margen que surgiría de **USD 60 de broker**, PERO aún deben superar el stop-risk máximo de **$3**, las fuentes internas, el riesgo agregado y todos los controles del proveedor. El anterior diagnóstico «XAUUSD/NDX100 no financiables con USD 60 de margen broker» **NO aplica automáticamente** a esta arquitectura de dos capas.
+- **VPS/sandbox:** las pruebas y especificaciones MT5 aportadas por capturas son observacionales; no permiten proclamar fills ni resultados certificados. No activar trading real ni fusionar PR por esta actualización.
+
+**Corrección implementada en la rama QDLE:** se incorporó \`qore_trading_capital_usd\` al snapshot QDLE (requerido), evento firmado de tesorería, publisher MT5, API local y replay. \`QDLE.reserve_for_trader\` y \`arm_for_live_send\` usan la base QORE, y la fracción está fijada en 5%. Migrar los emisores de snapshots anteriores: si falta el campo, **FAIL CLOSED**; no usar silenciosamente \`equity\` MT5 como sustituto. El código debe superar CI exact-SHA antes de considerarse probado.
+
+**Pendiente explícito:** implementar/verificar atribución real y causal de PnL al libro QORE, reconciliar posiciones/fees/MTM y validar los límites agregados y proveedor; el campo firmado por sí solo no certifica que los USD 60 o su evolución sean verdaderos.
+
+---
+
 ## ACTUALIZACIÓN P0 — GATEWAY MT5 LIVE + FINANZAS CAUSALES DEL 5%
 
 **PR DRAFT:** https://github.com/mezas3238-hue/qore-core/pull/735
