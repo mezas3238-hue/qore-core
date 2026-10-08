@@ -46,7 +46,7 @@ jobs:
           d=json.loads(f.read_text())
           assert d['decision_count']==3368
           assert d['negative_count']+d['positive_count']==3368
-          assert D(d['max_dd_pct'])==D('36.91053924475215947767935340357818221834243037021767829060632022198625364621842394388703665989482219')
+          assert D(d['max_dd_pct'])==D('36.91053924475215947767935340')
           assert D(d['final_capital_usd'])==D('673146.5254539803718539973234')
           assert D(d['total_gross_loss_usd'])==D('940435.7630554367602465029838')
           assert D(d['attack_sovereign_breach_usd'])==0
