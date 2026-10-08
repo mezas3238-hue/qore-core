@@ -174,5 +174,41 @@ class FourMotorEconomicTest(unittest.TestCase):
                 q._validate_motor_receipts(intent, broken, T)
 
 
+    def test_five_arm_ablation_independent_constraints_same_costs(self):
+        from qore.infrastructure.cibo_four_motor_ablation import ablate_four_motors
+        cases = (
+            ("SIZING", observation(stress_extra_loss_usd_per_lot=D("109"))),
+            ("CIBO_COMPOUND", observation(reconciled_cashflows=(
+                cash(1, "-8", -4), cash(2, "-2", -3), cash(3, "-10", -2)))),
+            ("ADAPTIVE_LEVERAGE", observation(
+                broker_free_margin_usd=D("10"), broker_margin_usd_per_lot=D("500"))),
+            ("PORTFOLIO_COMPOUND", observation(
+                total_open_stop_risk_usd=D("4.1"),
+                correlated_open_stop_risk_usd=D("4.1"))),
+        )
+        for binding_motor, obs in cases:
+            report = ablate_four_motors(obs, minimum_lot=D(".01"), lot_step=D(".01"))
+            self.assertEqual(len(report.arms), 5)
+            self.assertFalse(report.pnl_attributed)
+            self.assertFalse(report.drawdown_attributed)
+            impacts = dict(report.incremental_lots_if_disabled)
+            self.assertGreater(impacts[binding_motor], 0, binding_motor)
+            self.assertTrue(all(delta >= 0 for delta in impacts.values()))
+            self.assertTrue(all(arm.potential_risk_usd <= arm.potential_lots *
+                                obs.full_stop_cost_per_lot_usd for arm in report.arms))
+
+    def test_3368_distinct_signal_coverage_is_not_historical_fills(self):
+        from qore.infrastructure.cibo_four_motor_ablation import ablate_four_motors
+        seen = set()
+        for i in range(3368):
+            obs = replace(observation(), request_id=f"research-{i}")
+            report = ablate_four_motors(obs, minimum_lot=D(".01"), lot_step=D(".01"))
+            self.assertNotIn(report.request_id, seen)
+            seen.add(report.request_id)
+            self.assertEqual(len(report.arms), 5)
+            self.assertFalse(report.pnl_attributed)
+        self.assertEqual(len(seen), 3368)
+
+
 if __name__ == "__main__":
     unittest.main()
