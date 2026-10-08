@@ -48,6 +48,13 @@ _NOW = datetime(2026, 9, 15, 12, 0, tzinfo=UTC)
 _SHA = "a" * 40
 _HASH = "b" * 64
 
+_AUTH_FINGERPRINT = sha256("|".join((
+    _HASH, TraderLineage.VT08_FOREX.value, "signal-test",
+    "GBPUSD", "short", "market",
+    "1.2500", "1.2550", "1.2400", "0.01", "",
+    _NOW.isoformat(timespec="microseconds"),
+)).encode()).hexdigest()
+
 
 def _server_epoch(at: datetime) -> int:
     local_wall = at.astimezone(FUNDEDNEXT_SERVER_TZ).replace(tzinfo=None)
@@ -303,7 +310,7 @@ def _rules() -> StellarInstantRuleVerification:
 
 def _submission() -> ExecutionSubmission:
     auth = RiskAuthorization(
-        authorization_id="risk-test",
+        authorization_id=f"risk-{_AUTH_FINGERPRINT[:24]}",
         account_binding_id=_HASH,
         trader_id=TraderLineage.VT08_FOREX,
         request_id="request-test",
@@ -327,12 +334,7 @@ def _submission() -> ExecutionSubmission:
         reason="test",
         issued_at=_NOW,
         expires_at=_NOW + timedelta(minutes=2),
-        authorization_fingerprint=sha256("|".join((
-            _HASH, TraderLineage.VT08_FOREX.value, "signal-test",
-            "GBPUSD", "short", "market",
-            "1.2500", "1.2550", "1.2400", "0.01", "",
-            _NOW.isoformat(timespec="microseconds"),
-        )).encode()).hexdigest(),
+        authorization_fingerprint=_AUTH_FINGERPRINT,
     )
     return build_account_bound_submission(
         auth,
