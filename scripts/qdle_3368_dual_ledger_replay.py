@@ -131,6 +131,8 @@ def main() -> int:
             nonlocal nav, peak_nav, max_dd_ratio, maximum_absolute_dd
             nonlocal provider_closed_at, unresolved_at_breach
             nonlocal realized_count, total_cost, wins, losses, realized_gains
+            if provider_closed_at is not None:
+                return
             while exits and exits[0][0] <= at:
                 when, ticket = heapq.heappop(exits)
                 trade = active.pop(ticket)
@@ -153,6 +155,7 @@ def main() -> int:
                 if START_BROKER + nav - START_QORE <= broker_peak - D("120"):
                     provider_closed_at = when.isoformat()
                     unresolved_at_breach = len(active)
+                    source_counts["PROVIDER_CLOSED_EQUITY_TRAILING_BREACH"] += 1
                     # Provider breach: stop accounting future hypothetical gains;
                     # actual forced-close PnL requires missing intratrade ticks.
                     return
@@ -168,7 +171,8 @@ def main() -> int:
         for index, row in chronological:
             at = datetime.fromisoformat(row["settlement_outcome_research_only"]["entry_at"])
             decision_at = datetime.fromisoformat(row["market_decision_at"])
-            settle_until(at)  # only outcomes with known exits at/before entry time.
+            if provider_closed_at is None:
+                settle_until(at)  # no PnL after provider shutdown; no future leakage.
             t = row["trader_opportunity"]
             symbol = "NDX100" if row["qore_symbol"] == "NAS100" else row["qore_symbol"]
             side = "BUY" if t["side"] == "long" else "SELL"
@@ -288,6 +292,7 @@ def main() -> int:
                     if START_BROKER + nav - START_QORE <= broker_peak - D("120"):
                         provider_closed_at = at.isoformat()
                         unresolved_at_breach = len(active)
+                        source_counts["PROVIDER_ENTRY_FEE_TRAILING_BREACH"] += 1
                     source_counts["RESEARCH_HYPOTHETICAL_FUNDED"] += 1
                     sym_counts[symbol]["research_financed"] += 1
             except (QDLEError, ValueError, KeyError) as exc:
