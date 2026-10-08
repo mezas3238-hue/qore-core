@@ -41,7 +41,8 @@ def main() -> int:
             raise QDLEError("live terminal differs from configured funded account")
         db_file = Path(os.environ["QDLE_SQLITE_PATH"]).resolve()
         db_file.parent.mkdir(parents=True, exist_ok=True)
-        engine = QDLE(db_file, MT5ReadOnlyCalculator(mt5, account_id))
+        engine = QDLE(db_file, MT5ReadOnlyCalculator(mt5, account_id),
+                      enforce_finance_approval=True)
         # Intentionally starts NOT READY until a fresh independently funded QORE
         # ACCOUNT event AND verified MT5 SYMBOL events have arrived.
         serve_loopback(
