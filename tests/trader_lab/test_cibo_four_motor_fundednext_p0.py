@@ -12,7 +12,12 @@ class P0FourMotorTests(unittest.TestCase):
  def setUp(self):
   self.m=MockMT5(capital=2000)
   self.c=CoordinatedCiboCapital(
-   FundedNextMT5Calculator(self.m,MAP),RiskPolicy(),
+   FundedNextMT5Calculator(self.m,MAP),
+   RiskPolicy(per_entry_usd=D("3"),
+     max_portfolio_open_stop_usd=D("9"),
+     max_symbol_open_stop_usd=D("6"),
+     max_trader_open_stop_usd=D("6"),
+     max_group_open_stop_usd=D("9")),
    realized_bank_usd=D(60),realized_cushion_usd=D(0))
  def allow(self,trade_id,mode="MEDIUM",**kwargs):
   args=dict(trade_id=trade_id,trader_id="R38",core_symbol="EURUSD",
@@ -72,6 +77,35 @@ class P0FourMotorTests(unittest.TestCase):
   a=self.allow("a",mode="ATTACK")
   self.assertTrue(a.quote.total_stop_risk_usd<=D(3))
   self.assertLess(self.c.wallet()["CUSHION_AVAILABLE"],D(10))
+ def test_cibo_four_motors_share_dynamic_five_percent_after_realized_gain(self):
+  self.c=CoordinatedCiboCapital(
+   FundedNextMT5Calculator(self.m,MAP),RiskPolicy(),
+   realized_bank_usd=D(2000),realized_cushion_usd=D(0))
+  first=self.allow("baseline")
+  self.assertEqual(first.quote.dynamic_risk_target_usd,D(100))
+  self.assertEqual(first.decisions[0].authorized_usd,D(100))
+  self.c.close_after_broker_receipt("baseline",realized_net_usd=D(1000),
+      broker_execution_proven=True)
+  self.m.capital=3000
+  self.m.balance=3000
+  self.m.free=3000
+  second=self.allow("after-gain")
+  self.assertEqual(second.quote.dynamic_risk_target_usd,D(150))
+  self.assertEqual(second.decisions[0].authorized_usd,D(150))
+  self.assertGreater(second.quote.lots,first.quote.lots)
+ def test_cibo_four_motors_risk_shrinks_after_realized_loss(self):
+  self.c=CoordinatedCiboCapital(
+   FundedNextMT5Calculator(self.m,MAP),RiskPolicy(),
+   realized_bank_usd=D(2000),realized_cushion_usd=D(0))
+  first=self.allow("before-loss")
+  self.c.close_after_broker_receipt("before-loss",realized_net_usd=D(-1000),
+      broker_execution_proven=True)
+  self.m.capital=1000
+  self.m.balance=1000
+  self.m.free=1000
+  second=self.allow("after-loss")
+  self.assertEqual(second.quote.dynamic_risk_target_usd,D(50))
+  self.assertLess(second.quote.lots,first.quote.lots)
  def test_wallet_bank_floor_prevents_spend(self):
   calculator=FundedNextMT5Calculator(self.m,MAP)
   c=CoordinatedCiboCapital(calculator,RiskPolicy(sovereign_floor_usd=D(59.5)),
