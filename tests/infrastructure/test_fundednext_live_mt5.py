@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from hashlib import sha256
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -326,7 +327,12 @@ def _submission() -> ExecutionSubmission:
         reason="test",
         issued_at=_NOW,
         expires_at=_NOW + timedelta(minutes=2),
-        authorization_fingerprint="c" * 64,
+        authorization_fingerprint=sha256("|".join((
+            _HASH, TraderLineage.VT08_FOREX.value, "signal-test",
+            "GBPUSD", "short", "market",
+            "1.2500", "1.2550", "1.2400", "0.01", "",
+            _NOW.isoformat(timespec="microseconds"),
+        )).encode()).hexdigest(),
     )
     return build_account_bound_submission(
         auth,
