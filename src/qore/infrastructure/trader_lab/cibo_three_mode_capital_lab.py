@@ -218,22 +218,33 @@ class _State:
         """Research only: move real free cushion to sovereign, never mint cash."""
         if amount <= 0:
             return
-        before_total = self.total_capital_usd
-        if amount > self.cushion_available_usd:
-            raise CiboCapitalManagementError(
-                "CIBO_H8_BRIDGE_INSUFFICIENT_UNRESERVED_CUSHION"
+        # Monetary receipts use up to 100 Decimal digits. The default 28-digit
+        # context would silently round a cash transfer even when the two
+        # ledger entries should sum EXACTLY to the original account balance.
+        with localcontext() as context:
+            context.prec = 100
+            before_total = self.sovereign_bank_usd + self.portfolio_cushion_usd
+            if amount > self.cushion_available_usd:
+                raise CiboCapitalManagementError(
+                    "CIBO_H8_BRIDGE_INSUFFICIENT_UNRESERVED_CUSHION"
+                )
+            self.portfolio_cushion_usd -= amount
+            self.sovereign_bank_usd += amount
+            self.portfolio_attack_credit_usd = min(
+                self.portfolio_attack_credit_usd,
+                self.cushion_available_usd,
             )
-        self.portfolio_cushion_usd -= amount
-        self.sovereign_bank_usd += amount
-        self.portfolio_attack_credit_usd = min(
-            self.portfolio_attack_credit_usd, self.cushion_available_usd
-        )
-        self.physical_cushion_to_sovereign_bridge_count += 1
-        self.physical_cushion_to_sovereign_bridge_total_usd += amount
-        if self.total_capital_usd != before_total:
-            raise CiboCapitalManagementError(
-                "CIBO_H8_BRIDGE_MONEY_CONSERVATION_FAILURE"
-            )
+            self.physical_cushion_to_sovereign_bridge_count += 1
+            self.physical_cushion_to_sovereign_bridge_total_usd += amount
+            after_total = self.sovereign_bank_usd + self.portfolio_cushion_usd
+            if after_total != before_total:
+                raise CiboCapitalManagementError(
+                    "CIBO_H8_BRIDGE_MONEY_CONSERVATION_FAILURE: "
+                    f"before={format(before_total, 'f')} "
+                    f"after={format(after_total, 'f')} "
+                    f"difference={format(after_total - before_total, 'f')}"
+                )
+
     @property
     def sovereign_protection_floor_usd(self) -> Decimal:
         with localcontext() as context:
