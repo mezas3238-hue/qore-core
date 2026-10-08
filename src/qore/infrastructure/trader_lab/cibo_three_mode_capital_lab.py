@@ -1066,6 +1066,7 @@ def run_three_mode_trader_lab(
     ceiling_attack_state_pressure_expected_minutes_floor: Decimal | None = None,
     ceiling_attack_state_pressure_target_r_ceiling: Decimal | None = None,
     ceiling_attack_state_pressure_confidence_ratio_ceiling: Decimal | None = None,
+    ceiling_attack_state_pressure_projected_risk_fraction_trigger: Decimal | None = None,
     ceiling_attack_state_pressure_market_posture: str | None = None,
     ceiling_attack_state_pressure_h4_range_state: str | None = None,
     ceiling_attack_state_pressure_risk_budget_taper_fraction: Decimal = Decimal("1"),
@@ -2104,6 +2105,21 @@ def run_three_mode_trader_lab(
             "Trader Lab ATTACK state-pressure confidence-ratio ceiling must be positive Decimal"
         )
     if (
+        ceiling_attack_state_pressure_projected_risk_fraction_trigger is not None
+        and (
+            not isinstance(
+                ceiling_attack_state_pressure_projected_risk_fraction_trigger,
+                Decimal,
+            )
+            or not ceiling_attack_state_pressure_projected_risk_fraction_trigger.is_finite()
+            or ceiling_attack_state_pressure_projected_risk_fraction_trigger <= 0
+            or ceiling_attack_state_pressure_projected_risk_fraction_trigger > 1
+        )
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab ATTACK state-pressure projected-risk trigger must be Decimal in (0, 1]"
+        )
+    if (
         ceiling_attack_state_pressure_market_posture is not None
         and ceiling_attack_state_pressure_market_posture
         not in {"DEFENSIVE", "RECOVERY", "STABLE", "WATCH"}
@@ -2136,6 +2152,7 @@ def run_three_mode_trader_lab(
         and (
             ceiling_attack_state_pressure_target_r_ceiling is not None
             or ceiling_attack_state_pressure_confidence_ratio_ceiling is not None
+            or ceiling_attack_state_pressure_projected_risk_fraction_trigger is not None
             or ceiling_attack_state_pressure_market_posture is not None
             or ceiling_attack_state_pressure_h4_range_state is not None
             or ceiling_attack_state_pressure_risk_budget_taper_fraction
@@ -4738,6 +4755,19 @@ def run_three_mode_trader_lab(
                             )
                         )
                         and (
+                            ceiling_attack_state_pressure_projected_risk_fraction_trigger
+                            is None
+                            or (
+                                state.total_capital_usd > 0
+                                and (
+                                    candidate.stop_risk_per_multiplier_usd
+                                    * Decimal(coordinated_attack_cap)
+                                    / state.total_capital_usd
+                                )
+                                >= ceiling_attack_state_pressure_projected_risk_fraction_trigger
+                            )
+                        )
+                        and (
                             ceiling_attack_state_pressure_market_posture is None
                             or candidate.market_regime_posture
                             == ceiling_attack_state_pressure_market_posture
@@ -6814,6 +6844,14 @@ def run_three_mode_trader_lab(
                 if ceiling_attack_state_pressure_confidence_ratio_ceiling is None
                 else format(
                     ceiling_attack_state_pressure_confidence_ratio_ceiling,
+                    "f",
+                )
+            ),
+            "ceiling_attack_state_pressure_projected_risk_fraction_trigger": (
+                None
+                if ceiling_attack_state_pressure_projected_risk_fraction_trigger is None
+                else format(
+                    ceiling_attack_state_pressure_projected_risk_fraction_trigger,
                     "f",
                 )
             ),
