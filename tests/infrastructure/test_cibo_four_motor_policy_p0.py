@@ -114,7 +114,10 @@ class FourMotorEconomicTest(unittest.TestCase):
                         cash(2, "-2", -3), cash(3, "-10", -2)))
         self.assertEqual(o.qore_nav_usd, Decimal("40"))
         self.assertEqual(Decimal(votes(o)[1].limits["approved_risk_usd"]), Decimal("1"))
-        self.assertEqual(observation(floating_loss_reserve_usd=Decimal("59")).qore_nav_usd, Decimal("60"))
+        self.assertEqual(
+            observation(floating_loss_reserve_usd=Decimal("59")).qore_nav_usd,
+            Decimal("60"),
+        )
         with self.assertRaisesRegex(FourMotorPolicyError, "future"):
             observation(reconciled_cashflows=(cash(1, "900", +1),))
         with self.assertRaisesRegex(FourMotorPolicyError, "double-counted"):
