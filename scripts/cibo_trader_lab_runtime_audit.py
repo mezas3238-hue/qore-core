@@ -7,6 +7,8 @@ import re
 from pathlib import Path
 
 ROOT = Path(".github/workflows")
+MAX_LEGACY_FANOUT = 92  # Measured baseline on 2026-10-08. Never allow growth.
+
 MIGRATED = {
     "carrier37655-medium-context-stop-ridge",
     "carrier37655-medium-balanced-regime-ridge",
@@ -44,6 +46,11 @@ def main() -> None:
             migrated.append(sample)
         else:
             other.append(sample)
+    if len(slow) > MAX_LEGACY_FANOUT:
+        errors.append(
+            f"legacy oversubscribed workflow count increased: {len(slow)} > "
+            f"{MAX_LEGACY_FANOUT}; new research must use prepared batch"
+        )
     for name in sorted(MIGRATED):
         f = ROOT / f"cibo-trader-lab-{name}.yml"
         if not f.is_file():
