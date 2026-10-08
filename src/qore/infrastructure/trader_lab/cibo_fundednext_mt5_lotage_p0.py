@@ -58,16 +58,24 @@ def valid_grid(volume:D,minimum:D,step:D,maximum:D)->bool:
 
 @dataclass(frozen=True)
 class RiskPolicy:
-    per_entry_usd:D=D("3.00")
-    max_portfolio_open_stop_usd:D=D("9.00")
-    max_symbol_open_stop_usd:D=D("6.00")
-    max_trader_open_stop_usd:D=D("6.00")
-    max_group_open_stop_usd:D=D("9.00")
+    # Mandatory 5% of causal account for EACH new entry.
+    # min(equity, balance) prevents scaling from floating profits.
+    per_entry_risk_fraction:D=D("0.05")
+    portfolio_open_risk_fraction:D=D("0.15")
+    symbol_open_risk_fraction:D=D("0.10")
+    trader_open_risk_fraction:D=D("0.10")
+    group_open_risk_fraction:D=D("0.15")
+    # Additional optional fixed monetary ceilings are only experimental.
+    per_entry_usd:D|None=None
+    max_portfolio_open_stop_usd:D|None=None
+    max_symbol_open_stop_usd:D|None=None
+    max_trader_open_stop_usd:D|None=None
+    max_group_open_stop_usd:D|None=None
     slippage_points:D=D("0")
     adverse_extra_usd_per_lot:D=D("0")
     min_margin_level_pct:D=D("150")
     sovereign_floor_usd:D=D("0")
-    policy_version:str="stellar-instant-p0-fixed-3usd-v1"
+    policy_version:str="stellar-instant-p0-dynamic-5pct-account-v2"
 
 
 @dataclass(frozen=True)
@@ -95,6 +103,9 @@ class Quote:
     provider_snapshot_status:str
     policy_version:str
     group_id:str
+    risk_base_usd:D
+    dynamic_risk_target_usd:D
+    effective_risk_budget_usd:D
 
 
 class FundedNextMT5Calculator:
@@ -135,6 +146,8 @@ class FundedNextMT5Calculator:
         if getattr(info,"trade_mode",4)==0:
             raise FundingError("MT5_SYMBOL_TRADE_MODE_DISABLED")
         equity=dec(getattr(account,"equity",None),"equity")
+        balance=dec(getattr(account,"balance",None),"balance")
+        risk_base=min(equity,balance)
         free=dec(getattr(account,"margin_free",None),"margin_free",allow_zero=True)
         held=dec(getattr(account,"margin",None),"margin",allow_zero=True)
         if str(getattr(account,"currency","")).upper()!="USD":
@@ -144,14 +157,16 @@ class FundedNextMT5Calculator:
                     volume_min=mn,volume_step=st,volume_max=mx,
                     contract_size=dec(info.trade_contract_size,"trade_contract_size"),
                     point=dec(getattr(info,"point",None),"point"),
-                    bid=bid,ask=ask,equity=equity,margin_free=free,
+                    bid=bid,ask=ask,equity=equity,balance=balance,
+                    risk_base=risk_base,margin_free=free,
                     margin_held=held)
 
     def quote(self,*,trade_id:str,trader_id:str,core_symbol:str,side:str,
               stop_price:D,policy:RiskPolicy,group_id:str="UNCLASSIFIED",
               currently_open_risk:D=D(0),symbol_open_risk:D=D(0),
               trader_open_risk:D=D(0),group_open_risk:D=D(0),
-              reserved_margin:D=D(0),broker_trading_allowed:bool=True) -> Quote:
+              reserved_margin:D=D(0),broker_trading_allowed:bool=True,
+               source_available_usd:D|None=None) -> Quote:
         if not trade_id or not trader_id or side not in ("BUY","SELL") or not group_id:
             raise FundingError("TRADE_IDENTIFIERS_OR_SIDE_INVALID")
         if not broker_trading_allowed:raise FundingError("SERVER_TRADE_DISABLED")
@@ -164,24 +179,46 @@ class FundedNextMT5Calculator:
         c=SYMBOL_CLASSES[core_symbol]
         leverage=INSTANT_MAX_LEVERAGE[c]
         if leverage<=0:raise FundingError("LEVERAGE_INVALID")
-        for attr in ("per_entry_usd","max_portfolio_open_stop_usd",
-                     "max_symbol_open_stop_usd","max_trader_open_stop_usd",
-                     "max_group_open_stop_usd","min_margin_level_pct"):
-            dec(getattr(policy,attr),attr)
+
+        for attr in ("per_entry_risk_fraction","portfolio_open_risk_fraction",
+                     "symbol_open_risk_fraction","trader_open_risk_fraction",
+                     "group_open_risk_fraction"):
+            fraction=dec(getattr(policy,attr),attr)
+            if fraction>D(1):
+                raise FundingError("RISK_FRACTION_MUST_NOT_EXCEED_100PCT")
+        dec(policy.min_margin_level_pct,"min_margin_level_pct")
         for attr in ("slippage_points","adverse_extra_usd_per_lot",
                      "sovereign_floor_usd"):
             dec(getattr(policy,attr),attr,allow_zero=True)
-        for v in (currently_open_risk,symbol_open_risk,trader_open_risk,
-                  group_open_risk,reserved_margin):
-            dec(v,"already_committed",allow_zero=True)
-        available_budget=min(
-            policy.per_entry_usd,
-            policy.max_portfolio_open_stop_usd-currently_open_risk,
-            policy.max_symbol_open_stop_usd-symbol_open_risk,
-            policy.max_trader_open_stop_usd-trader_open_risk,
-            policy.max_group_open_stop_usd-group_open_risk,
+        for attr in ("per_entry_usd","max_portfolio_open_stop_usd",
+                     "max_symbol_open_stop_usd","max_trader_open_stop_usd",
+                     "max_group_open_stop_usd"):
+            fixed=getattr(policy,attr)
+            if fixed is not None:dec(fixed,attr)
+        for value in (currently_open_risk,symbol_open_risk,trader_open_risk,
+                      group_open_risk,reserved_margin):
+            dec(value,"already_committed",allow_zero=True)
+        if source_available_usd is not None:
+            dec(source_available_usd,"source_available_usd",allow_zero=True)
+        basis=s["risk_base"]
+        risk_target=basis*policy.per_entry_risk_fraction
+        def limited(ratio:D,fixed:D|None)->D:
+            cap=basis*ratio
+            return min(cap,fixed) if fixed is not None else cap
+        constraints=[
+            limited(policy.per_entry_risk_fraction,policy.per_entry_usd),
+            limited(policy.portfolio_open_risk_fraction,
+                    policy.max_portfolio_open_stop_usd)-currently_open_risk,
+            limited(policy.symbol_open_risk_fraction,
+                    policy.max_symbol_open_stop_usd)-symbol_open_risk,
+            limited(policy.trader_open_risk_fraction,
+                    policy.max_trader_open_stop_usd)-trader_open_risk,
+            limited(policy.group_open_risk_fraction,
+                    policy.max_group_open_stop_usd)-group_open_risk,
             max(D(0),s["equity"]-policy.sovereign_floor_usd-currently_open_risk),
-        )
+        ]
+        if source_available_usd is not None:constraints.append(source_available_usd)
+        available_budget=min(constraints)
         if available_budget<=0:raise FundingError("RISK_BUDGET_EXHAUSTED")
         # Enter on ask for BUY, bid for SELL. SL adverse slippage in points.
         execution_at_sl=(stop-policy.slippage_points*s["point"]
@@ -254,6 +291,8 @@ class FundedNextMT5Calculator:
             theoretical_lots=theoretical,contract_size=s["contract_size"],
             volume_step=step,provider_snapshot_status="MT5_LIVE_ACCOUNT_CALC",
             policy_version=policy.policy_version,group_id=group_id,
+            risk_base_usd=basis,dynamic_risk_target_usd=risk_target,
+            effective_risk_budget_usd=available_budget,
         )
 
 
@@ -271,7 +310,8 @@ class AtomicPortfolioReservations:
         self._closed:set[str]=set()
     def authorize(self,*,trade_id:str,trader_id:str,core_symbol:str,side:str,
                   stop_price:D,group_id:str,
-                  policy_override:RiskPolicy|None=None)->Quote:
+                  policy_override:RiskPolicy|None=None,
+                   source_available_usd:D|None=None)->Quote:
         with self._lock:
             if trade_id in self._closed:raise FundingError("TRADE_ID_ALREADY_CLOSED")
             if trade_id in self._reserved:
@@ -288,7 +328,8 @@ class AtomicPortfolioReservations:
                 reserved_margin=sum((v.margin_usd for v in values),D(0)))
             q=self.calculator.quote(trade_id=trade_id,trader_id=trader_id,
                     core_symbol=core_symbol,side=side,stop_price=stop_price,
-                    group_id=group_id,policy=policy_override or self.policy,**kw)
+                    group_id=group_id,policy=policy_override or self.policy,
+                    source_available_usd=source_available_usd,**kw)
             self._reserved[trade_id]=q
             return q
     def release(self,trade_id:str)->Quote:
