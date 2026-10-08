@@ -1,0 +1,153 @@
+name: QORE CIBO 2020 Preentry Context Loss Atlas
+# Research-only hypothesis generation from reused holdout. No certification claims.
+on:
+  workflow_dispatch:
+  push:
+    branches: [agent/cibo-causal-expectation-leakage-fix-001]
+    paths: [.github/workflows/cibo-dd-preentry-context-2020.yml]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  atlas:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Recover frozen manifest and trade results
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/qore-context/{source,result,output}
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/11451743578/zip" > /tmp/qore-context/source.zip
+          echo 'd439957f21e2f79148b5a2fb75a53db6fa448698f17aeb6978f379ed3547f7ea  /tmp/qore-context/source.zip' | sha256sum -c -
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/11543178956/zip" > /tmp/qore-context/result.zip
+          unzip -q /tmp/qore-context/source.zip -d /tmp/qore-context/source
+          unzip -q /tmp/qore-context/result.zip -d /tmp/qore-context/result
+      - name: Join frozen pre-entry signal contexts and cohort outcomes
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,itertools
+          from collections import Counter,defaultdict
+          from decimal import Decimal as D
+          from datetime import datetime
+          from pathlib import Path
+          root=Path('/tmp/qore-context')
+          manifests=list((root/'source').rglob('walk-forward-manifest.json'))
+          cases=list((root/'result').rglob('m1-0700.json'))
+          assert len(manifests)==len(cases)==1
+          manifest=json.loads(manifests[0].read_text())
+          result=json.loads(cases[0].read_text())
+          assert result['trade_count']==3368
+          opportunities=manifest.get('opportunities')
+          assert isinstance(opportunities,list),type(opportunities)
+          def context(raw):
+              opp=raw.get('trader_opportunity',{})
+              arr=opp.get('decision_context',[])
+              assert isinstance(arr,(list,tuple))
+              return {str(x[0]):str(x[1]) for x in arr
+                      if isinstance(x,(list,tuple)) and len(x)==2}
+          signals={}
+          for raw in opportunities:
+              key=str(raw['signal_fingerprint'])
+              assert key not in signals
+              signals[key]=context(raw)
+          receipts=result['trade_receipts']
+          assert len(receipts)==3368
+          assert set(signals)=={str(r['signal_fingerprint']) for r in receipts}
+          a=result['max_drawdown_attribution']
+          def dt(s):return datetime.fromisoformat(s.replace('Z','+00:00'))
+          start=dt(a['peak_at']);end=dt(a['trough_at'])
+          def num(x):return D(str(x or '0'))
+          pool=[]
+          for r in receipts:
+              if r['mode']!='ATTACK':continue
+              c=signals[r['signal_fingerprint']]
+              net=num(r['realized_net_pnl_usd'])
+              at=r.get('realized_exit_at')
+              in_window=bool(at and start<=dt(at)<=end)
+              pool.append({'signal':r['signal_fingerprint'],'net':net,
+                  'risk':num(r.get('stop_risk_usd')),
+                  'in_window':in_window,'ctx':c,
+                  'trader_id':r.get('trader_id'),
+                  'settled_at':at})
+          assert pool
+          losers=[r for r in pool if r['net']<0 and r['in_window']]
+          winners=[r for r in pool if r['net']>0]
+          # Candidate sets use context only; outcomes are consulted offline for ranking.
+          # Blacklist identity/time fields even if accidentally present.
+          banned=('trader','symbol','signal','fingerprint','date','timestamp',
+                  'outcome','pnl','profit','future','postdecision','target_exit')
+          allowed=lambda k: not any(part in k.lower() for part in banned)
+          core=['reg_h1_range_state','reg_h4_range_state',
+                'reg_m5_efficiency_state','reg_m5_volatility_state',
+                'reg_h1_body_alignment','reg_h4_body_alignment',
+                'ctx_rejection_wick_bucket','ctx_close_location_bucket',
+                'ctx_reclaim_latency_bucket','ctx_cisd_progress_bucket',
+                'ctx_raid_depth_range_bucket']
+          keys=[k for k in core if allowed(k)]
+          hit_counts=Counter()
+          for r in losers:
+              for k in keys:
+                  if k in r['ctx']:hit_counts[(k,r['ctx'][k])]+=1
+          # Choose only predicates occurring in >=2 episode losing ATTACK trades.
+          features=sorted([x for x,n in hit_counts.items() if n>=2])
+          candidates=[]
+          for width in (1,2,3):
+              if width==3:
+                  base=sorted(features,key=lambda x:-hit_counts[x])[:25]
+              else:base=features
+              for cand in itertools.combinations(base,width):
+                  if len({k for k,v in cand})!=width:continue
+                  matched=[r for r in pool if all(r['ctx'].get(k)==v for k,v in cand)]
+                  window_losses=[r for r in matched if r['net']<0 and r['in_window']]
+                  if len(window_losses)<2:continue
+                  all_losses=[r for r in matched if r['net']<0]
+                  all_wins=[r for r in matched if r['net']>0]
+                  window_wins=[r for r in matched if r['net']>0 and r['in_window']]
+                  # A hypothetical limit is ONLY a bound; actual M5 chronology
+                  # and counterfactual replay are required to validate savings.
+                  candidate={'predicates':[f'{k}={v}' for k,v in cand],
+                     'matched_all_attack':len(matched),
+                     'matched_loss_all':len(all_losses),
+                     'matched_winners_all':len(all_wins),
+                     'matched_window_losses':len(window_losses),
+                     'matched_window_winners':len(window_wins),
+                     'net_all':str(sum((r['net'] for r in matched),D(0))),
+                     'gross_loss_window':str(sum((-r['net'] for r in window_losses),D(0))),
+                     'gross_profit_all':str(sum((r['net'] for r in all_wins),D(0))),
+                     'unique_traders_in_window_losses':len({r['trader_id'] for r in window_losses}),
+                     'window_loser_risk_usd':str(sum((r['risk'] for r in window_losses),D(0)))}
+                  candidates.append(candidate)
+          candidates.sort(key=lambda c:(c['matched_winners_all'],
+             c['matched_window_winners'],
+             -D(c['gross_loss_window']),len(c['predicates'])))
+          # Explicit independent evidence gate required before any promotion.
+          report={'schema':'qore.cibo.2020_preentry_context_loss_atlas.v1',
+             'research_only':True,'eligible_for_certification':False,
+             'source_artifact_id':11451743578,'frontier_run':37763827843,
+             'max_dd_peak':a['peak_at'],'max_dd_trough':a['trough_at'],
+             'attack_trades_total':len(pool),'attack_window_losers':len(losers),
+             'attack_winners_total':len(winners),
+             'keys_available_in_window_losers':{k:sum(k in r['ctx'] for r in losers) for k in keys},
+             'single_and_combined_context_candidates_total':len(candidates),
+             'top_60_candidate_predicates':candidates[:60],
+             'warnings':['This is retrospective feature exploration on a reused holdout.',
+                'Matching fewer winners in sample is NOT evidence of genuine future discrimination.',
+                'Do not execute any identity-based rules.',
+                'M5 chronology and a full replay preserving 3368 trades, DD, floor and GL are mandatory.',
+                'Lock hypotheses prior to temporal folds and fresh sealed OOS.']}
+          dest=root/'output'
+          (dest/'preentry_context_atlas.json').write_text(json.dumps(report,indent=2))
+          brief={'attack_window_losers':len(losers),'attack_total':len(pool),
+              'candidates':len(candidates),'top_15':candidates[:15]}
+          (dest/'preentry_context_summary.json').write_text(json.dumps(brief,indent=2))
+          print('CIBO_PREENTRY_CONTEXT_ATLAS='+json.dumps(brief,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-cibo-dd-preentry-context-${{ github.run_id }}
+          path: /tmp/qore-context/output/*.json
+          if-no-files-found: error
+          retention-days: 90
