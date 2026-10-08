@@ -14,6 +14,13 @@ on:
       - src/qore/infrastructure/fundednext_live_mt5.py
       - scripts/qore_fundednext_runtime.py
       - src/qore/infrastructure/qdle_cibo_bridge.py
+      - src/qore/infrastructure/cibo_four_motor_policy.py
+      - src/qore/infrastructure/cibo_four_motor_qdle_proposal.py
+      - src/qore/infrastructure/cibo_account_sizing_authority.py
+      - src/qore/infrastructure/cibo_compound_capital.py
+      - src/qore/infrastructure/cibo_marginal_leverage_utility.py
+      - src/qore/infrastructure/cibo_core_compound_portfolio.py
+      - tests/infrastructure/test_cibo_four_motor_policy_p0.py
       - src/qore/infrastructure/qdle_signed_treasury.py
       - scripts/qdle_qore_account_event_publisher.py
       - scripts/qdle_mt5_read_only_inventory.py
@@ -65,6 +72,7 @@ jobs:
           python -m unittest discover -s tests/infrastructure -p test_qdle_partial_fills.py -v
           python -m unittest discover -s tests/infrastructure -p test_qdle_mt5_fee_publisher.py -v
           python -m unittest discover -s tests/infrastructure -p test_qdle_universal_lot_targets.py -v
+          python -m unittest discover -s tests/infrastructure -p test_cibo_four_motor_policy_p0.py -v
       - name: QDLE live gateway no-send contract (pytest)
         env:
           PYTHONPATH: src
