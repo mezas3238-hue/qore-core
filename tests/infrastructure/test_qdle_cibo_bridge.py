@@ -53,8 +53,8 @@ class TestBridge(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.engine = QDLE(Path(self.tmp.name) / "test.sqlite", Synthetic())
         self.engine.publish_account(QDLEAccount(
-            "login", "FundedNext", "USD", 1, T, D("60"), D("60"),
-            D("50"), D("3"), D("3"), D("0"),
+            "login", "FundedNext", "USD", 1, T, D("2000"), D("2000"),
+            D("1950"), D("3"), D("3"), D("0"), D("60"),
         ))
         self.engine.publish_symbol(QDLESymbol(
             broker_symbol="EURUSD", aliases=("EURUSD",),
