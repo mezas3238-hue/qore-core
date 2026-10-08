@@ -218,7 +218,8 @@ class QDLE:
                  max_age_seconds: int = 10,
                  entry_risk_fraction: Decimal = Decimal('0.05'),
                  enforce_finance_approval: bool = False,
-                 strict_live_fee_evidence: bool = True) -> None:
+                 strict_live_fee_evidence: bool = True,
+                 strict_four_motor_evidence: bool = True) -> None:
         _d('entry_risk_fraction', entry_risk_fraction)
         if entry_risk_fraction != Decimal("0.05"):
             raise QDLEError("QDLE sovereign risk fraction is fixed at 5pct of QORE trading capital")
@@ -227,6 +228,7 @@ class QDLE:
         # Only explicitly trusted broker round-trip fee schedules permit LIVE.
         # Synthetic tests must opt out; deployed VPS uses the strict default.
         self.strict_live_fee_evidence = strict_live_fee_evidence
+        self.strict_four_motor_evidence = strict_four_motor_evidence
         if max_age_seconds <= 0:
             raise QDLEError("invalid maximum snapshot age")
         self.path = str(path)
@@ -248,6 +250,8 @@ class QDLE:
             existing_columns = {x[1] for x in db.execute("PRAGMA table_info(finance_approvals)")}
             if "intent_json" not in existing_columns:
                 db.execute("ALTER TABLE finance_approvals ADD COLUMN intent_json TEXT")
+            if "module_evidence_json" not in existing_columns:
+                db.execute("ALTER TABLE finance_approvals ADD COLUMN module_evidence_json TEXT")
             db.execute("""CREATE TABLE IF NOT EXISTS audit (
                 id INTEGER PRIMARY KEY AUTOINCREMENT, event TEXT NOT NULL,
                 request_id TEXT, receipt TEXT NOT NULL)""")
@@ -389,8 +393,55 @@ class QDLE:
             self._audit(db, "SYMBOL_SPEC", None,
                         {"symbol": spec.broker_symbol, "as_of": spec.as_of})
 
-    def publish_finance_approval(self, intent: QDLEIntent,
+    @staticmethod
+    def _validate_motor_receipts(intent: QDLEIntent, proof: dict | None,
                                  approved_at: datetime) -> None:
+        """Enforce four separately attributable event receipts before LIVE.
+
+        Only the treasury actor may forward these. Receipt presence does NOT
+        replace verifying each source producer's signature upstream.
+        """
+        expected = {
+            "SIZING": {"approved_risk_usd": intent.sizing_cap_usd},
+            "CIBO_COMPOUND": {"approved_risk_usd": intent.cibo_compound_cap_usd},
+            "ADAPTIVE_LEVERAGE": {
+                "approved_max_lots": intent.leverage_cap_lots,
+                "approved_margin_usd": intent.margin_cap_usd,
+            },
+            "PORTFOLIO_COMPOUND": {
+                "approved_source_funds_usd": intent.portfolio_cap_usd,
+            },
+        }
+        if not isinstance(proof, dict) or set(proof) != set(expected):
+            raise QDLEError("missing independent four-motor economic receipts")
+        hashes = set()
+        for name, fields in expected.items():
+            row = proof[name]
+            if not isinstance(row, dict):
+                raise QDLEError(f"{name} evidence must be an object")
+            if (row.get("request_id") != intent.request_id
+                    or row.get("account_sequence") != intent.expected_account_sequence):
+                raise QDLEError(f"{name} receipt is bound to a different signal/epoch")
+            receipt = row.get("source_event_sha256")
+            if (not isinstance(receipt, str) or not receipt.startswith("sha256:")
+                    or len(receipt) != 71
+                    or any(c not in "0123456789abcdef" for c in receipt[7:])):
+                raise QDLEError(f"{name} has no source-specific SHA256 evidence")
+            if receipt in hashes:
+                raise QDLEError("four motors cannot reuse a single decision receipt")
+            hashes.add(receipt)
+            try:
+                event_time = datetime.fromisoformat(row["observed_at"])
+                if not timedelta(0) <= _dt(approved_at) - _dt(event_time) <= timedelta(seconds=10):
+                    raise QDLEError(f"{name} economic approval stale or future")
+                if any(Decimal(str(row[k])) != value for k, value in fields.items()):
+                    raise QDLEError(f"{name} signed economic cap differs from QDLE intent")
+            except (KeyError, TypeError, ValueError) as exc:
+                raise QDLEError(f"{name} economic proof incomplete") from exc
+
+    def publish_finance_approval(self, intent: QDLEIntent,
+                                 approved_at: datetime,
+                                 module_evidence: dict | None = None) -> None:
         """Treasury-only: approve immutable four-engine economics and Trader geometry.
 
         Authenticate the caller at the local service boundary; approvals cannot
@@ -400,6 +451,8 @@ class QDLE:
         if not isinstance(intent, QDLEIntent):
             raise QDLEError("QDLEIntent required for sovereign finance approval")
         approved_at = _dt(approved_at)
+        if self.enforce_finance_approval and self.strict_four_motor_evidence:
+            self._validate_motor_receipts(intent, module_evidence, approved_at)
         fingerprint = hashlib.sha256(_j(asdict(intent)).encode()).hexdigest()
         with self._tx() as db:
             current = self._meta(db, "account")
@@ -407,16 +460,20 @@ class QDLE:
                 raise QDLEError("approval requires matching current account snapshot")
             self._fresh(datetime.fromisoformat(current["as_of"]), approved_at)
             existing = db.execute(
-                "SELECT payload_sha FROM finance_approvals WHERE request_id=?",
+                "SELECT payload_sha,module_evidence_json FROM finance_approvals WHERE request_id=?",
                 (intent.request_id,)).fetchone()
             if existing and existing[0] != fingerprint:
                 raise QDLEError("cannot change economic approval for a signal ID")
+            signed_modules = _j(module_evidence) if module_evidence is not None else None
+            if existing and existing[1] != signed_modules:
+                raise QDLEError("cannot alter the four motor receipts for a signal ID")
             db.execute("""INSERT OR IGNORE INTO finance_approvals
-                        (request_id,payload_sha,account_sequence,approval_at,intent_json)
-                        VALUES(?,?,?,?,?)""",
+                        (request_id,payload_sha,account_sequence,approval_at,
+                         intent_json,module_evidence_json)
+                        VALUES(?,?,?,?,?,?)""",
                        (intent.request_id, fingerprint,
                         intent.expected_account_sequence, approved_at.isoformat(),
-                        _j(asdict(intent))))
+                        _j(asdict(intent)), signed_modules))
             db.execute("""UPDATE finance_approvals SET intent_json=?
                           WHERE request_id=? AND intent_json IS NULL""",
                        (_j(asdict(intent)), intent.request_id))
