@@ -15,6 +15,7 @@ on:
       - src/qore/infrastructure/qdle_cibo_bridge.py
       - src/qore/infrastructure/qdle_signed_treasury.py
       - scripts/qdle_qore_account_event_publisher.py
+      - scripts/qdle_mt5_read_only_inventory.py
       - scripts/qdle_trader_lab_replay.py
       - tests/infrastructure/test_qore_dynamic_lot_engine.py
       - tests/infrastructure/test_qdle_trader_lab_replay.py
@@ -22,6 +23,7 @@ on:
       - tests/infrastructure/test_qdle_cibo_bridge.py
       - tests/infrastructure/test_qdle_signed_treasury.py
       - tests/infrastructure/test_qdle_live_presend.py
+      - tests/infrastructure/test_qdle_mt5_inventory.py
       - tests/infrastructure/test_fundednext_live_mt5.py
       - tests/infrastructure/test_cibo_physical_lot_sizing.py
       - .github/workflows/qdle-p0-atomic-engine.yml
@@ -48,6 +50,7 @@ jobs:
           python -m unittest discover -s tests/infrastructure -p test_qdle_cibo_bridge.py -v
           python -m unittest discover -s tests/infrastructure -p test_qdle_signed_treasury.py -v
           python -m unittest discover -s tests/infrastructure -p test_qdle_live_presend.py -v
+          python -m unittest discover -s tests/infrastructure -p test_qdle_mt5_inventory.py -v
       - name: QDLE live gateway no-send contract (pytest)
         env:
           PYTHONPATH: src
