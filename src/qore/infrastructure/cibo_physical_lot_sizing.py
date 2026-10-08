@@ -200,3 +200,51 @@ def compute_cibo_lot_sizing(spec: CiboLotSizingInput) -> CiboLotSizingDecision:
             engine_max_lots=caps,
             binding_constraints=binding,
         )
+
+
+def quote_cibo_trader_opportunity_lots(
+    opportunity: object,
+    *,
+    requested_loss_budget_usd: Decimal,
+    provider_cost_usd_per_lot: Decimal,
+    sizing_risk_cap_usd: Decimal,
+    cibo_compound_risk_cap_usd: Decimal,
+    portfolio_unreserved_cash_usd: Decimal,
+    sovereign_unreserved_cash_usd: Decimal,
+    source_lane: str,
+    leverage_available_margin_usd: Decimal,
+    sovereign_unreserved_risk_usd: Decimal,
+    leverage_max_lots: Decimal,
+) -> CiboLotSizingDecision:
+    """Bridge actual TraderOpportunityEnvelope economics to shared calculator.
+
+    Every input reflects a causal, contemporary preexecution account snapshot;
+    no historical profit, implicit bank/cushion loan or unverified tick value.
+    It honors methodology minimum_execution_steps from the Trader envelope.
+    """
+    from qore.infrastructure.cibo_capital_management_authority import (
+        TraderOpportunityEnvelope,
+        minimum_seed_volume,
+    )
+
+    if not isinstance(opportunity, TraderOpportunityEnvelope):
+        raise CiboLotSizingError("a verified TraderOpportunityEnvelope is required")
+    return compute_cibo_lot_sizing(
+        CiboLotSizingInput(
+            requested_loss_budget_usd=requested_loss_budget_usd,
+            stop_risk_usd_per_lot=opportunity.stop_loss_per_volume,
+            provider_cost_usd_per_lot=provider_cost_usd_per_lot,
+            margin_usd_per_lot=opportunity.margin_per_volume,
+            broker_min_lot=minimum_seed_volume(opportunity),
+            broker_max_lot=opportunity.maximum_volume,
+            broker_lot_step=opportunity.volume_step,
+            sizing_risk_cap_usd=sizing_risk_cap_usd,
+            cibo_compound_risk_cap_usd=cibo_compound_risk_cap_usd,
+            portfolio_unreserved_cash_usd=portfolio_unreserved_cash_usd,
+            sovereign_unreserved_cash_usd=sovereign_unreserved_cash_usd,
+            source_lane=source_lane,
+            leverage_available_margin_usd=leverage_available_margin_usd,
+            sovereign_unreserved_risk_usd=sovereign_unreserved_risk_usd,
+            leverage_max_lots=leverage_max_lots,
+        )
+    )
