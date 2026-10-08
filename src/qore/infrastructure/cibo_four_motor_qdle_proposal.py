@@ -8,6 +8,7 @@ from qore.infrastructure.cibo_four_motor_policy import (
     FourMotorPolicyError,
     FourMotorProposal,
     nonnegative,
+    positive,
 )
 from qore.infrastructure.qore_dynamic_lot_engine import QDLEIntent
 
@@ -15,7 +16,8 @@ from qore.infrastructure.qore_dynamic_lot_engine import QDLEIntent
 def build_four_motor_qdle_intent(*, observation: FourMotorObservation,
                                  votes: tuple[FourMotorProposal, ...],
                                  entry_price: Decimal, stop_price: Decimal,
-                                 methodology_min_lots: Decimal = Decimal(0)) -> QDLEIntent:
+                                 methodology_min_lots: Decimal = Decimal(0),
+                                 requested_target_lots: Decimal | None = None) -> QDLEIntent:
     """Build economic caps: QDLE+Treasury still sign, verify, reserve and send."""
     if not isinstance(observation, FourMotorObservation):
         raise FourMotorPolicyError("causal economic observation required")
@@ -32,6 +34,8 @@ def build_four_motor_qdle_intent(*, observation: FourMotorObservation,
         if not isinstance(x, Decimal) or not x.is_finite() or x <= 0:
             raise FourMotorPolicyError(f"{name} must be positive finite")
     nonnegative("methodology_min_lots", methodology_min_lots)
+    if requested_target_lots is not None:
+        positive("requested_target_lots", requested_target_lots)
     return QDLEIntent(
         request_id=observation.request_id, trader_id=observation.trader_id,
         symbol=observation.symbol, side=observation.side,
@@ -46,4 +50,5 @@ def build_four_motor_qdle_intent(*, observation: FourMotorObservation,
         slippage_usd_per_lot=observation.execution_buffer_usd_per_lot,
         expected_account_sequence=observation.account_sequence,
         methodology_min_lots=methodology_min_lots,
+        requested_target_lots=requested_target_lots,
     )
