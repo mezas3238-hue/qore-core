@@ -142,3 +142,48 @@ El inventario registra de modo observacional para AUDJPY, EURUSD, GBPJPY, GBPUSD
 
 Luego verificar fees/commission y símbolo específico, publicar el mapa autorizado para el provider event pump y obtener aprobaciones reales de QORE Risk/Treasury. El presente PR NO está desplegado ni aprobado para trading; preservar toda evidencia y el veto H8 hasta 3-year financed replay.
 
+## ANEXO 2026-10-08 — SEIS SÍMBOLOS OBSERVADOS EN MT5 MÓVIL (OPERADOR, NO CERTIFICADO VPS)
+
+**Proveniencia y validez:** El operador aportó capturas de propiedades/commissions/margins MT5 de los seis activos. Son **observaciones de la interfaz MT5 móvil** en una sesión puntual, no resultados de \`scripts/qdle_mt5_read_only_inventory.py\` en VPS, no evidencia de la identidad de cuenta/servidor, ni contrato histórico 2019–2022. Los USD de margen por lote en la pantalla son **aproximados**, sujetos a la cotización/condiciones de cuenta. Úsense únicamente para diseñar y contrastar el motor, nunca como fuente automática de autorización.
+
+| Propiedad observada | AUDJPY | EURUSD | GBPJPY | GBPUSD | XAUUSD | NAS100 (bróker: NDX100) |
+| --- | --- | --- | --- | --- | --- | --- |
+| Símbolo visible MT5 | AUDJPY | EURUSD | GBPJPY | GBPUSD | XAUUSD | NDX100 (descripción NAS100) |
+| digits | 3 | 5 | 3 | 5 | 2 | 2 |
+| contract_size | 100000 | 100000 | 100000 | 100000 | 100 | 10 |
+| volume_min | 0.01 | 0.01 | 0.01 | 0.01 | 0.01 | 0.01 |
+| volume_max | 40 | 40 | 40 | 40 | 50 | 40 |
+| volume_step | 0.01 | 0.01 | 0.01 | 0.01 | 0.01 | 0.01 |
+| tick_size | no visible | no visible | no visible | no visible | 0.01 | 0.01 |
+| tick_value (pantalla, por 1 lote) | no visible | no visible | no visible | no visible | USD 1 | USD 0.10 |
+| currency_margin | AUD | EUR | GBP | GBP | USD | USD |
+| currency_profit | JPY | USD | JPY | USD | USD | USD |
+| Comisión observada al abrir | USD 7/lote | USD 7/lote | USD 7/lote | USD 7/lote | 0.0016% en USD por lote (base no explicitada) | no visible |
+| margen BUY aprox USD/1 lote | 2318.93 | 3735.03 | 4407.40 | 4407.63 | 53637.48 | 61481.98 |
+| margen SELL aprox USD/1 lote | 2318.67 | 3734.77 | 4407.40 | 4407.63 | 53629.68 | 61478.78 |
+| swap long (puntos) | -11.27 | -13.472 | -25.806 | -17.13 | -107.151 | -372.912 |
+| swap short (puntos) | -19.841 | +0.107 | -44.278 | -2.977 | -46.917 | -57.6 |
+| día de coeficiente triple | miércoles | miércoles | miércoles | miércoles | miércoles | **viernes** |
+
+Todas las capturas indicaron spread **flotante**, stops_level 0, permiso trading «Acceso completo» y ejecución de mercado; **ello NO equivale a permiso/autorización de órdenes de QORE ni garantiza fills**. En XAUUSD y NDX100 el modo de beneficio es «Contratos»; para los cuatro FX «Forex». En EURUSD, la captura muestra trading 00:15–23:55 de lunes a viernes; en XAUUSD y NDX100 muestra 01:15–24:00 en días hábiles, con intervalos 00:00–00:00 para NDX100 mar-jue que requieren interpretación del servidor. Husos horarios aún NO corroborados: no usar como calendario histórico absoluto.
+
+### Impacto imprescindible en la simulación causal de USD 60 iniciales
+
+Los márgenes mínimos *linealizados como aproximación inicial del screenshot* (margen por 1 lote × 0.01 lotes), suponiendo no haber posiciones abiertas, cotización idéntica y sin efecto de offsets por cobertura, son:
+
+| Símbolo | Margen BUY aprox USD / 0.01 lote | Margen SELL aprox USD / 0.01 lote |
+| --- | ---: | ---: |
+| AUDJPY | 23.19 | 23.19 |
+| EURUSD | 37.35 | 37.35 |
+| GBPJPY | 44.07 | 44.07 |
+| GBPUSD | 44.08 | 44.08 |
+| XAUUSD | 536.37 | 536.30 |
+| NDX100 | 614.82 | 614.79 |
+
+Para equity inicial USD 60, riesgo objetivo de 5% = **USD 3 por nueva señal**. *Si estos requisitos de margen fueran aplicables a la cuenta simulada con USD 60 de margen libre*, el volumen mínimo 0.01 de XAUUSD y NDX100 **no cabe**, incluso si la pérdida estimada a SL estuviera dentro de USD 3. Es obligación registrar la señal y \`UNFUNDABLE_BROKER_MARGIN\` **sin inventar ejecución ni eliminarla de la población de 3.368 señales**. No extrapolar estas cifras de margen como condiciones fijas del broker a 36 meses ni sustituir \`order_calc_margin\`/\`order_check\`.
+
+En XAUUSD, \`tick_size=0.01, tick_value=$1/1 lote\` implica, si la tarifa de valoración permanece, **$1 de PnL por movimiento de $1 del oro con 0.01 lote**, antes de costes. En NDX100, \`tick_size=0.01, tick_value=$0.10/1 lote\` implica **$0.10 por movimiento de 1 punto del índice con 0.01 lote**, antes de costes. **No confundir PnL, riesgo al SL y margen**. El stop real y los costes deben determinar el lotaje y el recálculo secuencial del 5%; el margen puede vetar incluso la mínima cantidad.
+
+**Pendientes para pasar de evidencia manual a inventario broker-real:** identidad correcta FundedNext/VPS, símbolo exacto NAS100→NDX100 en el servidor, tick values direccionales y su divisa, comisiones efectivas (especialmente la base exacta del 0.0016% XAUUSD y si NDX100 cobra comisión), valores \`order_calc_profit/order_calc_margin\`, coste de rollover, spread, slippage, free margin, posiciones abiertas y las reglas de cuenta. Verificar en terminal con un probe **solo lectura, jamás order_send**. Cuando se conozca la tarifa histórica se recalculará el replay con eventos del broker y marks intraoperación.
+
+**Estado de este anexo:** 6/6 símbolos CON DATOS MANUALES observados; **0/6 certificados desde VPS/servidor** a través de este documento. Cero replay QDLE de 3.368 entradas certificado. PR continúa DRAFT / NO LIVE.
