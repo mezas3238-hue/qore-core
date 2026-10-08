@@ -1,0 +1,37 @@
+{
+  "cases": {
+    "h12-original-risk-020": {
+      "initial_usd": "60",
+      "risk_cap": "0.20",
+      "trades": 3368,
+      "capital_usd": "673146.5254539803718539973234",
+      "dd_pct": "36.91053924475215947767935340",
+      "total_gross_loss_usd": "940435.7630554367602465029838",
+      "attack_gross_loss_usd": "938872.8495404670959553183518",
+      "profit_factor": "1.715717704383285242069131779",
+      "sovereign_floor_breach_usd": "85.41649567391081325466487569",
+      "attack_sovereign_breach_usd": "0",
+      "certifiable_bank": false
+    },
+    "h12-original-risk-005": {
+      "initial_usd": "60",
+      "risk_cap": "0.05",
+      "trades": 3368,
+      "capital_usd": "3180.250243846026296514554695",
+      "dd_pct": "36.91053924475215947767935340",
+      "total_gross_loss_usd": "12368.98058478972570220664546",
+      "attack_gross_loss_usd": "10651.83325400877504813393043",
+      "profit_factor": "1.252264139510658869815713545",
+      "sovereign_floor_breach_usd": "77.10360361201308384012139048",
+      "attack_sovereign_breach_usd": "0",
+      "certifiable_bank": false
+    }
+  },
+  "delta_5pct_minus_20pct": {
+    "capital_usd": "-669966.2752101343455574827687",
+    "dd_percentage_points": "0E-26",
+    "gross_loss_usd": "-928066.7824706470345442963383"
+  },
+  "methodology": "original CIBO, only single ATTACK risk ceiling changes; MEDIUM unchanged",
+  "certified": false
+}
