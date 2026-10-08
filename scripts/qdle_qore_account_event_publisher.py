@@ -30,6 +30,7 @@ def forward_account(mt5, *, signed_event: dict, hmac_key: bytes,
     broker = read_mt5_account_with_qore_treasury(
         mt5, account_id=account_id, sequence=receipt.sequence,
         qore_unreserved_risk_usd=receipt.qore_unreserved_risk_usd,
+        qore_trading_capital_usd=receipt.qore_trading_capital_usd,
         sovereign_free_source_usd=receipt.sovereign_free_source_usd,
         cushion_free_source_usd=receipt.cushion_free_source_usd,
         covered_fill_tickets=receipt.covered_fill_tickets,
@@ -43,8 +44,13 @@ def forward_account(mt5, *, signed_event: dict, hmac_key: bytes,
         raise QDLEError("FundedNext provider MLL/stop-out floor already breached")
     if receipt.qore_unreserved_risk_usd > headroom:
         raise QDLEError("QORE risk allocation exceeds remaining provider loss buffer")
-    if receipt.sovereign_free_source_usd + receipt.cushion_free_source_usd > broker.equity:
-        raise QDLEError("nonreserved bank+cushion exceeds available real equity")
+    if receipt.qore_trading_capital_usd > broker.equity:
+        raise QDLEError("QORE trading capital exceeds MT5 broker equity")
+    if (receipt.sovereign_free_source_usd + receipt.cushion_free_source_usd
+            > receipt.qore_trading_capital_usd):
+        raise QDLEError("QORE cash lanes exceed funded proprietary capital")
+    if receipt.qore_unreserved_risk_usd > receipt.qore_trading_capital_usd:
+        raise QDLEError("QORE risk headroom exceeds proprietary capital")
     data = json.dumps(asdict(broker), default=str).encode()
     request = urllib.request.Request(
         base_url.rstrip("/") + "/v1/account-event", data=data,
