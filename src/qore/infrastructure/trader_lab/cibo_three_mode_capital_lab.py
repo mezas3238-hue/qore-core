@@ -1072,6 +1072,15 @@ def run_three_mode_trader_lab(
     ceiling_attack_state_pressure_market_posture: str | None = None,
     ceiling_attack_state_pressure_h4_range_state: str | None = None,
     ceiling_attack_state_pressure_risk_budget_taper_fraction: Decimal = Decimal("1"),
+    ceiling_attack_state_pressure2_expected_minutes_floor: Decimal | None = None,
+    ceiling_attack_state_pressure2_target_r_ceiling: Decimal | None = None,
+    ceiling_attack_state_pressure2_confidence_ratio_ceiling: Decimal | None = None,
+    ceiling_attack_state_pressure2_projected_risk_fraction_trigger: Decimal | None = None,
+    ceiling_attack_state_pressure2_capital_floor: Decimal | None = None,
+    ceiling_attack_state_pressure2_capital_ceiling: Decimal | None = None,
+    ceiling_attack_state_pressure2_market_posture: str | None = None,
+    ceiling_attack_state_pressure2_h4_range_state: str | None = None,
+    ceiling_attack_state_pressure2_risk_budget_taper_fraction: Decimal = Decimal("1"),
     ceiling_attack_trader_loss_ratio_trigger: Decimal | None = None,
     ceiling_attack_trader_loss_ratio_min_settlements: int = 20,
     ceiling_attack_trader_loss_ratio_taper_fraction: Decimal = Decimal("0.95"),
@@ -2194,6 +2203,118 @@ def run_three_mode_trader_lab(
         raise CiboCapitalManagementError(
             "Trader Lab ATTACK state-pressure taper requires ceiling discovery mode"
         )
+    if ceiling_attack_state_pressure2_expected_minutes_floor is not None and (
+        not isinstance(ceiling_attack_state_pressure2_expected_minutes_floor, Decimal)
+        or not ceiling_attack_state_pressure2_expected_minutes_floor.is_finite()
+        or ceiling_attack_state_pressure2_expected_minutes_floor <= 0
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab ATTACK state-pressure2 expected-minutes floor must be positive Decimal"
+        )
+    if ceiling_attack_state_pressure2_target_r_ceiling is not None and (
+        not isinstance(ceiling_attack_state_pressure2_target_r_ceiling, Decimal)
+        or not ceiling_attack_state_pressure2_target_r_ceiling.is_finite()
+        or ceiling_attack_state_pressure2_target_r_ceiling <= 0
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab ATTACK state-pressure2 target-R ceiling must be positive Decimal"
+        )
+    if ceiling_attack_state_pressure2_confidence_ratio_ceiling is not None and (
+        not isinstance(ceiling_attack_state_pressure2_confidence_ratio_ceiling, Decimal)
+        or not ceiling_attack_state_pressure2_confidence_ratio_ceiling.is_finite()
+        or ceiling_attack_state_pressure2_confidence_ratio_ceiling <= 0
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab ATTACK state-pressure2 confidence-ratio ceiling must be positive Decimal"
+        )
+    if (
+        ceiling_attack_state_pressure2_projected_risk_fraction_trigger is not None
+        and (
+            not isinstance(
+                ceiling_attack_state_pressure2_projected_risk_fraction_trigger,
+                Decimal,
+            )
+            or not ceiling_attack_state_pressure2_projected_risk_fraction_trigger.is_finite()
+            or ceiling_attack_state_pressure2_projected_risk_fraction_trigger <= 0
+            or ceiling_attack_state_pressure2_projected_risk_fraction_trigger > 1
+        )
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab ATTACK state-pressure2 projected-risk trigger must be Decimal in (0, 1]"
+        )
+    for name, value in (
+        ("state-pressure2 capital floor", ceiling_attack_state_pressure2_capital_floor),
+        ("state-pressure2 capital ceiling", ceiling_attack_state_pressure2_capital_ceiling),
+    ):
+        if value is not None and (
+            not isinstance(value, Decimal)
+            or not value.is_finite()
+            or value <= 0
+        ):
+            raise CiboCapitalManagementError(
+                f"Trader Lab ATTACK {name} must be positive Decimal"
+            )
+    if (
+        ceiling_attack_state_pressure2_capital_floor is not None
+        and ceiling_attack_state_pressure2_capital_ceiling is not None
+        and ceiling_attack_state_pressure2_capital_floor
+        >= ceiling_attack_state_pressure2_capital_ceiling
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab ATTACK state-pressure2 capital floor must be below ceiling"
+        )
+    if (
+        ceiling_attack_state_pressure2_market_posture is not None
+        and ceiling_attack_state_pressure2_market_posture
+        not in {"DEFENSIVE", "RECOVERY", "STABLE", "WATCH"}
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab ATTACK state-pressure2 market posture is invalid"
+        )
+    if (
+        ceiling_attack_state_pressure2_h4_range_state is not None
+        and ceiling_attack_state_pressure2_h4_range_state
+        not in {"balanced", "compressed", "expanded", "extreme"}
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab ATTACK state-pressure2 H4 range state is invalid"
+        )
+    if (
+        not isinstance(
+            ceiling_attack_state_pressure2_risk_budget_taper_fraction,
+            Decimal,
+        )
+        or not ceiling_attack_state_pressure2_risk_budget_taper_fraction.is_finite()
+        or ceiling_attack_state_pressure2_risk_budget_taper_fraction <= 0
+        or ceiling_attack_state_pressure2_risk_budget_taper_fraction > 1
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab ATTACK state-pressure2 risk taper must be Decimal in (0, 1]"
+        )
+    if (
+        ceiling_attack_state_pressure2_expected_minutes_floor is None
+        and (
+            ceiling_attack_state_pressure2_target_r_ceiling is not None
+            or ceiling_attack_state_pressure2_confidence_ratio_ceiling is not None
+            or ceiling_attack_state_pressure2_projected_risk_fraction_trigger is not None
+            or ceiling_attack_state_pressure2_capital_floor is not None
+            or ceiling_attack_state_pressure2_capital_ceiling is not None
+            or ceiling_attack_state_pressure2_market_posture is not None
+            or ceiling_attack_state_pressure2_h4_range_state is not None
+            or ceiling_attack_state_pressure2_risk_budget_taper_fraction
+            != Decimal("1")
+        )
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab ATTACK state-pressure2 gates require expected-minutes floor"
+        )
+    if (
+        ceiling_attack_state_pressure2_expected_minutes_floor is not None
+        and not ceiling_discovery_mode
+    ):
+        raise CiboCapitalManagementError(
+            "Trader Lab ATTACK state-pressure2 taper requires ceiling discovery mode"
+        )
     if (
         not isinstance(
             ceiling_attack_stress_confidence_taper_fraction,
@@ -2922,6 +3043,7 @@ def run_three_mode_trader_lab(
     attack_stress_confidence_taper_bind_count = 0
     attack_stress_confidence_risk_budget_bind_count = 0
     attack_state_pressure_risk_budget_bind_count = 0
+    attack_state_pressure2_risk_budget_bind_count = 0
     attack_trader_loss_ratio_taper_bind_count = 0
     attack_recent_trader_loss_taper_bind_count = 0
     attack_trader_shock_taper_bind_count = 0
@@ -4813,6 +4935,63 @@ def run_three_mode_trader_lab(
                             == ceiling_attack_state_pressure_h4_range_state
                         )
                     )
+                    state_pressure2_active = (
+                        ceiling_discovery_mode
+                        and ceiling_attack_state_pressure2_expected_minutes_floor
+                        is not None
+                        and candidate.expected_capital_minutes
+                        >= ceiling_attack_state_pressure2_expected_minutes_floor
+                        and (
+                            ceiling_attack_state_pressure2_target_r_ceiling is None
+                            or candidate.planned_target_r
+                            <= ceiling_attack_state_pressure2_target_r_ceiling
+                        )
+                        and (
+                            ceiling_attack_state_pressure2_confidence_ratio_ceiling is None
+                            or (
+                                candidate.walk_forward_expected_structural_r is not None
+                                and candidate.walk_forward_block_dispersion_r > 0
+                                and (
+                                    candidate.walk_forward_expected_structural_r
+                                    / candidate.walk_forward_block_dispersion_r
+                                )
+                                <= ceiling_attack_state_pressure2_confidence_ratio_ceiling
+                            )
+                        )
+                        and (
+                            ceiling_attack_state_pressure2_projected_risk_fraction_trigger
+                            is None
+                            or (
+                                state.total_capital_usd > 0
+                                and (
+                                    candidate.stop_risk_per_multiplier_usd
+                                    * Decimal(coordinated_attack_cap)
+                                    / state.total_capital_usd
+                                )
+                                >= ceiling_attack_state_pressure2_projected_risk_fraction_trigger
+                            )
+                        )
+                        and (
+                            ceiling_attack_state_pressure2_capital_floor is None
+                            or state.total_capital_usd
+                            >= ceiling_attack_state_pressure2_capital_floor
+                        )
+                        and (
+                            ceiling_attack_state_pressure2_capital_ceiling is None
+                            or state.total_capital_usd
+                            <= ceiling_attack_state_pressure2_capital_ceiling
+                        )
+                        and (
+                            ceiling_attack_state_pressure2_market_posture is None
+                            or candidate.market_regime_posture
+                            == ceiling_attack_state_pressure2_market_posture
+                        )
+                        and (
+                            ceiling_attack_state_pressure2_h4_range_state is None
+                            or candidate.h4_range_state
+                            == ceiling_attack_state_pressure2_h4_range_state
+                        )
+                    )
                     if (
                         ceiling_discovery_mode
                         and ceiling_attack_trader_loss_ratio_trigger is not None
@@ -4963,6 +5142,15 @@ def run_three_mode_trader_lab(
                                     ceiling_attack_state_pressure_risk_budget_taper_fraction
                                 )
                                 attack_state_pressure_risk_budget_bind_count += 1
+                            if (
+                                state_pressure2_active
+                                and ceiling_attack_state_pressure2_risk_budget_taper_fraction
+                                < Decimal(1)
+                            ):
+                                effective_single_trade_risk_fraction *= (
+                                    ceiling_attack_state_pressure2_risk_budget_taper_fraction
+                                )
+                                attack_state_pressure2_risk_budget_bind_count += 1
                             if (
                                 ceiling_portfolio_shock_trigger_fraction is not None
                                 and portfolio_last_attack_loss_fraction
@@ -6902,6 +7090,48 @@ def run_three_mode_trader_lab(
             ),
             "attack_state_pressure_risk_budget_bind_count": (
                 attack_state_pressure_risk_budget_bind_count
+            ),
+            "ceiling_attack_state_pressure2_expected_minutes_floor": (
+                None
+                if ceiling_attack_state_pressure2_expected_minutes_floor is None
+                else format(ceiling_attack_state_pressure2_expected_minutes_floor, "f")
+            ),
+            "ceiling_attack_state_pressure2_target_r_ceiling": (
+                None
+                if ceiling_attack_state_pressure2_target_r_ceiling is None
+                else format(ceiling_attack_state_pressure2_target_r_ceiling, "f")
+            ),
+            "ceiling_attack_state_pressure2_confidence_ratio_ceiling": (
+                None
+                if ceiling_attack_state_pressure2_confidence_ratio_ceiling is None
+                else format(ceiling_attack_state_pressure2_confidence_ratio_ceiling, "f")
+            ),
+            "ceiling_attack_state_pressure2_projected_risk_fraction_trigger": (
+                None
+                if ceiling_attack_state_pressure2_projected_risk_fraction_trigger is None
+                else format(ceiling_attack_state_pressure2_projected_risk_fraction_trigger, "f")
+            ),
+            "ceiling_attack_state_pressure2_capital_floor": (
+                None
+                if ceiling_attack_state_pressure2_capital_floor is None
+                else format(ceiling_attack_state_pressure2_capital_floor, "f")
+            ),
+            "ceiling_attack_state_pressure2_capital_ceiling": (
+                None
+                if ceiling_attack_state_pressure2_capital_ceiling is None
+                else format(ceiling_attack_state_pressure2_capital_ceiling, "f")
+            ),
+            "ceiling_attack_state_pressure2_market_posture": (
+                ceiling_attack_state_pressure2_market_posture
+            ),
+            "ceiling_attack_state_pressure2_h4_range_state": (
+                ceiling_attack_state_pressure2_h4_range_state
+            ),
+            "ceiling_attack_state_pressure2_risk_budget_taper_fraction": format(
+                ceiling_attack_state_pressure2_risk_budget_taper_fraction, "f"
+            ),
+            "attack_state_pressure2_risk_budget_bind_count": (
+                attack_state_pressure2_risk_budget_bind_count
             ),
             "ceiling_attack_trader_loss_ratio_trigger": (
                 None
