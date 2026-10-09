@@ -1,5 +1,23 @@
 # QORE CORE — HANDOFF MAESTRO CANÓNICO P0 — REPARACIÓN URGENTE CIBO + QDLE EN TRADER LAB
 
+## OVERRIDE 2026-10-09 — CORTE P0 POSTERIOR AL HANDOFF: QDLE PAPER PERSISTENTE (NO CIBO CERTIFICADO)
+
+**Prevalece sobre la descripción anterior de “SQLite NUEVO por señal” únicamente para el runner de la rama integradora actualizada.** Commit de código verificado `016a69feae21b209772c27bd16cc28d86832ac33`. GitHub Actions [#37954318995](https://github.com/mezas3238-hue/qore-core/actions/runs/37954318995) terminó **SUCCESS**, incluyendo compilación, 3 pruebas unitarias PAPER y replay completo.
+
+Cambios implementados:
+- `src/qore/infrastructure/qdle_paper_book.py`: adaptador aislado que reutiliza UNA QDLE y UNA SQLite durante toda la corrida, sin contaminar las rutas de tickets, fills, settlements o presend LIVE. Estados PAPER explícitos y auditable `PAPER_UNASSESSABLE_NO_PHYSICAL_QUOTE`; un método auxiliar para digest determinista de auditoría, **no firma autenticada**.
+- `scripts/cibo_trader_lab_native_qdle_market_atlas_3368.py`: comparte esa instancia, actualiza el snapshot con posiciones PAPER abiertas, libera reservas al cerrar, registra explícitamente las oportunidades no cotizables y concilia contadores del libro físico.
+- `tests/infrastructure/test_qdle_paper_book.py` + workflow M5: 3 pruebas PASS; la CI exige `physical_quotes + unassessable == 3368` y `paper_filled == paper_open`, `paper_settled == settled`.
+
+Reconciliación confirmada **3368 recibidas = 3348 con evaluación QDLE física + 20 NO EVALUABLES POR GEOMETRÍA (registradas en el libro, sin falso lote)**. De 3348 cotizaciones, **2809 sin lote** y **539 con lote PAPER**. De 539 aperturas, **537 cerradas** y **2 sin salida terminal**. Resultados de este escenario **sin mejora por cambiar persistencia**: net cerrado `-$50.77962071869291`, PF `0.716659000917`, cash-DD `85.19724614858%`, caja final `$9.0803792813`, **NAV MTM/DD intratrade certificados NULL**. Ningún fill MT5, ninguna ejecución LIVE.
+
+**NO levantar los gates P0 por este éxito de CI:** faltan episodios Native MAX genuinos 3368/3368; votos de los cuatro motores calculados de nuevo desde NAV y observación causal (actualmente son límites NAV60 reescalados); 20 geometrías originales aún deben recibir replanteamiento cognitivo válido antes de una posible cotización física; no existe scheduler causal de acciones intratrade ni DD MTM global; comisiones/cotizaciones 2026 no son históricos broker 2019–2022. El gate independiente de evidencia universal en [PR #746](https://github.com/mezas3238-hue/qore-core/pull/746) **debe continuar rechazando el replay baseline** hasta que A1/A2/A3 reparen realmente estas causas.
+
+**Siguiente paso técnico prioritario:** A1 producir episodio/plan nuevo por señal y gestión por barra; A2 emisión de cuatro votos nuevos por cada snapshot sin reutilización de CAPs; A3 incorporar razones vinculantes de UNFUNDABLE y trazabilidad física exacta por ID; integrador construir scheduler temporal único con NAV MTM y pruebas de perturbación futura/causalidad. Conservar límites físicos 5% NAV, lot min/max/step y precio/comisión sin fabricar fills. Mantener DRAFT/NO LIVE.
+
+---
+
+
 **Fecha:** 2026-10-09 (corte tras Trader Lab #37949977967).  
 **Repositorio:** mezas3238-hue/qore-core.  
 **Rama integradora:** agent/cibo-sovereign-integration-p0-20261008.  
