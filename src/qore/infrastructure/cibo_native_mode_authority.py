@@ -109,7 +109,7 @@ class NativeSovereignModeInstruction:
         }
 
     def as_json(self):
-        return {**self._content(), "decision_digest": self.decision_digest}
+        return {**self._content(), "exit_policy": [[k, v] for k, v in self.exit_policy], "decision_digest": self.decision_digest}
 
 
 def issue_native_sovereign_mode_instruction(
