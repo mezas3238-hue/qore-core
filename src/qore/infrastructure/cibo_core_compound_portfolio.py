@@ -363,7 +363,9 @@ class QoreCoreCompoundPortfolio:
 
 
 
-def propose_p0_portfolio_vote(observation: FourMotorObservation) -> FourMotorProposal:
+def propose_p0_portfolio_vote(
+    observation: FourMotorObservation, *, research_disable_legacy_quotas: bool = False,
+) -> FourMotorProposal:
     """Risk-backed source USD with correlated/simultaneous-stop constraints.
 
     Research policy only: global <= 15% NAV, correlated cluster <= 7.5%,
@@ -385,9 +387,13 @@ def propose_p0_portfolio_vote(observation: FourMotorObservation) -> FourMotorPro
                       - observation.trader_open_stop_risk_usd
                       - observation.risk_reservations_usd),
     }
+    if research_disable_legacy_quotas:
+        caps = {key: caps[key] for key in ("SOURCE", "UNPROTECTED")}
     cap = min(caps.values())
     constraints = tuple(sorted(k for k, v in caps.items() if v == cap))
-    reasons = ("ACCOUNT_LOCAL_SOURCE_LANE_NO_TRANSFER",
+    reasons = ("RESEARCH_LEGACY_STRATEGIC_QUOTAS_DISABLED"
+               if research_disable_legacy_quotas else
+               "ACCOUNT_LOCAL_SOURCE_LANE_NO_TRANSFER",
                "SIMULTANEOUS_STOP_RISK_BUDGET",
                "CORRELATED_CLUSTER_AND_TRADER_CONCENTRATION",
                "BINDING_" + "_".join(constraints))
