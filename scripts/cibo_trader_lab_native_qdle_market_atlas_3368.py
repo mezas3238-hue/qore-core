@@ -17,6 +17,7 @@ from pathlib import Path
 import hashlib
 import heapq
 import json
+import sqlite3
 import tempfile
 
 from qore.infrastructure.qdle_stellar_instant_costs import (
@@ -516,6 +517,41 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
                       "closed",counts["settled"],"paper_open",counts["paper_open"],
                       "QORE_cash",str(bank),flush=True)
         settle(datetime.max.replace(tzinfo=chronological[-1] and datetime.fromisoformat(chronological[-1]["at"]).tzinfo))
+
+        # Export the durable per-account QDLE PAPER journal before the isolated
+        # SQLite directory is disposed. Missing/unpriceable != viable zero lots.
+        with sqlite3.connect(session.qdle.path) as db:
+            quoted_rows = db.execute(
+                "SELECT request_id,state,lots,risk,margin,snapshot_seq FROM reservations ORDER BY request_id"
+            ).fetchall()
+            no_quote_rows = db.execute(
+                "SELECT request_id,reason,snapshot_seq FROM paper_unassessable ORDER BY request_id"
+            ).fetchall()
+            journal_events = dict(db.execute(
+                "SELECT event,COUNT(*) FROM audit GROUP BY event ORDER BY event"
+            ).fetchall())
+        account_receipts = [
+            {"signal_fingerprint":sid,"state":state,"lots":lots,
+             "risk_usd":risk,"margin_usd":margin,"account_sequence":seq,
+             "physically_quoted":True}
+            for sid,state,lots,risk,margin,seq in quoted_rows
+        ] + [
+            {"signal_fingerprint":sid,"state":"RESEARCH_UNASSESSABLE_NOT_QUOTED",
+             "reason":reason,"account_sequence":seq,
+             "physically_quoted":False,"lots":"0"}
+            for sid,reason,seq in no_quote_rows
+        ]
+        account_receipts.sort(key=lambda r:r["signal_fingerprint"])
+        journal_ids=[r["signal_fingerprint"] for r in account_receipts]
+        journal_complete=(len(journal_ids)==3368
+                          and len(set(journal_ids))==3368
+                          and set(journal_ids)==set(origins))
+        paper_states=dict(Counter(r["state"] for r in account_receipts))
+        if paper_states.get("PAPER_SETTLED",0)!=len(closed):
+            raise ValueError("PAPER QDLE settled ledger diverged from closed trades")
+        if paper_states.get("PAPER_OPEN",0)!=len(active):
+            raise ValueError("PAPER QDLE open ledger diverged from active trades")
+
     # Event outcomes are PAPER only, not broker-confirmed orders.
     paper_outcomes = {
         "NO_QORE_NAV": "PAPER_UNFUNDABLE",
@@ -562,6 +598,12 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
         "atlas_provenance":metadata,
         "paper_qdle_account_ledger_scope":"ONE_SQLITE_ONE_QDLE_PER_SIMULATION",
         "paper_qdle_account_snapshots":session.sequence,
+        "paper_qdle_account_receipts":account_receipts,
+        "paper_qdle_ledger_complete_3368":journal_complete,
+        "paper_qdle_physical_quote_count":len(quoted_rows),
+        "paper_qdle_unassessable_count":len(no_quote_rows),
+        "paper_qdle_state_counts":paper_states,
+        "paper_qdle_event_counts":journal_events,
         "paper_qdle_broker_tickets_are_synthetic":False,
         "paper_qdle_uses_broker_receipt_api":False,
         "signal_count":3368,"counts":dict(counts),
