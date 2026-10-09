@@ -24,7 +24,7 @@ from qore.infrastructure.qdle_stellar_instant_costs import (
 )
 from qore.infrastructure.qore_dynamic_lot_engine import (
     QDLE, QDLEError, QDLEAccount, QDLESymbol, QDLEIntent,
-    BrokerValuation,
+    BrokerValuation, Position,
 )
 from qore.infrastructure.cibo_managed_exit_replay import (
     CiboExitPolicy, CiboManagedTrade, ExecutableOhlcBar,
@@ -114,69 +114,124 @@ def price_usd_per_unit(symbol):
     return CONTRACTS[symbol]
 
 
-def _mode_quote(row, symbol, side, entry, stop, stop_per_lot,
-                opening_fee, as_of, nav, reserved, margin_held, index,
-                root_dir):
-    """Independent paper QDLE quote; actual physical engine computes volume.
+class PaperQdleSession:
+    """ONE PAPER account QDLE and SQLite reservation ledger for the entire run.
 
-    Four-motor caps preserved from fresh Native 3368 observations but scaled
-    to CURRENT modeled NAV. NOT a fresh re-evaluation by four cognitive motors.
-    No fake broker acknowledgements nor simulated broker settlement receipts.
+    Synthetic paper ticket IDs are NEVER MT5 tickets and cannot be used for
+    LIVE. Every fill is confirmed exclusively by this research simulator.
+    The normal QDLE reservation -> fill -> covered-position reconciliation
+    protocol is exercised instead of resetting QDLE for each opportunity.
+    This is not, by itself, a certified CIBO cognition or MTM engine.
     """
-    broker = ResearchM5Broker()
-    broker.value_at = BrokerValuation(
+
+    def __init__(self, database: Path):
+        self.broker = ResearchM5Broker()
+        self.qdle = QDLE(
+            database, self.broker, strict_live_fee_evidence=False,
+            strict_four_motor_evidence=False,
+        )
+        self.sequence = 0
+        self.last_symbol_at = {}
+
+    @staticmethod
+    def _position(sid, trade):
+        return Position("PAPER:" + sid, trade["symbol"], trade["side"], trade["lots"])
+
+    def publish_snapshot(self, *, at, nav, active):
+        """Atomically publish all simulator-confirmed PAPER positions to QDLE."""
+        self.sequence += 1
+        nav = max(nav, ZERO)
+        held_risk = sum((trade["risk"] for trade in active.values()), ZERO)
+        held_margin = sum((trade["margin"] for trade in active.values()), ZERO)
+        available = max(nav - held_risk, ZERO)
+        broker_equity_proxy = max(BROKER_INITIAL + nav - INITIAL, ZERO)
+        positions = tuple(self._position(sid, trade)
+                          for sid, trade in sorted(active.items()))
+        self.qdle.publish_account(QDLEAccount(
+            account_id="RESEARCH_CIBO_TRADER_LAB",
+            provider="FundedNext", currency="USD",
+            sequence=self.sequence, as_of=at,
+            balance=broker_equity_proxy, equity=broker_equity_proxy,
+            free_margin=max(broker_equity_proxy - held_margin, ZERO),
+            qore_unreserved_risk_usd=available,
+            sovereign_free_source_usd=available,
+            cushion_free_source_usd=ZERO,
+            qore_trading_capital_usd=nav,
+            positions=positions,
+            covered_fill_tickets=tuple(p.ticket for p in positions),
+        ))
+        return self.sequence
+
+    def publish_symbol(self, *, at, symbol, fee):
+        previous = self.last_symbol_at.get(symbol)
+        if previous is not None and at == previous[0]:
+            if fee != previous[1]:
+                raise QDLEError("conflicting fee for same-symbol same-time PAPER quote")
+            return
+        self.qdle.publish_symbol(QDLESymbol(
+            broker_symbol=symbol,
+            aliases=(symbol, "NAS100") if symbol == "NDX100" else (symbol,),
+            min_lot=MIN_LOT,
+            max_lot=D("50") if symbol == "XAUUSD" else D("40"),
+            lot_step=STEP, directional_volume_limit=ZERO,
+            tick_size=TICK[symbol],
+            tick_value_loss_usd=TICK[symbol] * price_usd_per_unit(symbol),
+            contract_size=CONTRACTS[symbol],
+            currency_profit="JPY" if symbol.endswith("JPY") else "USD",
+            fee_usd_per_lot=fee,
+            fee_provenance="FUNDEDNEXT_STELLAR_INSTANT_FAQ_ACCOUNT_SAMPLE_2026_PROXY",
+            as_of=at, tradable=True,
+        ))
+        self.last_symbol_at[symbol] = (at, fee)
+
+    def paper_fill(self, *, sid, at, nav, active):
+        """Paper fill must remain reserved until position appears in QDLE."""
+        self.qdle.acknowledge_fill(sid, "PAPER:" + sid)
+        self.publish_snapshot(at=at, nav=nav, active=active)
+        self.qdle.reconcile_fill(sid)
+
+    def paper_no_fill(self, *, sid, reason):
+        """Simulator-observed NO PAPER order: release unused HELD capacity."""
+        self.qdle.confirm_rejection(
+            sid, "PAPER_SIMULATOR_NO_FILL:" + reason + ":" + sid)
+
+
+def _mode_quote(row, symbol, side, entry, stop, stop_per_lot,
+                opening_fee, as_of, nav, active, session):
+    """Physical QDLE quote with ONE durable PAPER ledger.
+
+    Caps remain historical rescalings, NOT independent fresh motor votes.
+    The experiment stays incomplete until genuine four-motor recomputation.
+    """
+    session.broker.value_at = BrokerValuation(
         stop_per_lot, MARGIN[symbol][side], as_of,
         "TRADER_LAB_ATLAS_M5_CEO_2026_FIXED_SPREAD_RESEARCH",
     )
-    nav = max(nav, ZERO)
-    free_qore = max(nav - reserved, ZERO)
-    free_margin = max(BROKER_INITIAL + nav-INITIAL-margin_held, ZERO)
+    sequence = session.publish_snapshot(at=as_of, nav=nav, active=active)
+    session.publish_symbol(at=as_of, symbol=symbol, fee=opening_fee)
     caps = row["four_engine_caps_usd"]
-    scale = nav / INITIAL
-    instruction_fraction = _d(row["cibo_max_native_requested_risk_fraction_of_nav"])
-    if instruction_fraction not in (D("0.0125"), D("0.025"), D("0.05")):
+    scale = max(nav, ZERO) / INITIAL
+    fraction = _d(row["cibo_max_native_requested_risk_fraction_of_nav"])
+    if fraction not in (D("0.0125"), D("0.025"), D("0.05")):
         raise ValueError("native risk mode fraction invalid")
     sid = row["signal_fingerprint"]
-    # Paper quote-only ephemeral SQLite isolates reservations from real MT5.
-    db = root_dir / (str(index) + ".sqlite")
-    q = QDLE(db, broker, strict_live_fee_evidence=False,
-             strict_four_motor_evidence=False)
-    q.publish_account(QDLEAccount(
-        account_id="RESEARCH_CIBO_TRADER_LAB", provider="FundedNext", currency="USD",
-        sequence=index + 1, as_of=as_of, balance=BROKER_INITIAL + nav-INITIAL,
-        equity=BROKER_INITIAL + nav-INITIAL, free_margin=free_margin,
-        qore_unreserved_risk_usd=free_qore,
-        sovereign_free_source_usd=free_qore, cushion_free_source_usd=ZERO,
-        qore_trading_capital_usd=nav,
-    ))
-    q.publish_symbol(QDLESymbol(
-        broker_symbol=symbol,
-        aliases=(symbol,"NAS100") if symbol=="NDX100" else (symbol,),
-        min_lot=MIN_LOT, max_lot=D("50") if symbol=="XAUUSD" else D("40"),
-        lot_step=STEP, directional_volume_limit=ZERO,
-        tick_size=TICK[symbol],
-        tick_value_loss_usd=TICK[symbol]*price_usd_per_unit(symbol),
-        contract_size=CONTRACTS[symbol],
-        currency_profit="JPY" if symbol.endswith("JPY") else "USD",
-        fee_usd_per_lot=opening_fee,
-        fee_provenance="FUNDEDNEXT_STELLAR_INSTANT_FAQ_ACCOUNT_SAMPLE_2026_PROXY",
-        as_of=as_of, tradable=True,
-    ))
-    intent=QDLEIntent(
-        request_id=sid,trader_id=row["trader"],symbol=symbol,side=side,
-        entry_price=entry,stop_price=stop,
-        requested_risk_usd=nav*instruction_fraction,
-        sizing_cap_usd=min(nav*FIVE, _d(caps["SIZING"])*scale),
-        cibo_compound_cap_usd=min(nav*FIVE, _d(caps["CIBO_COMPOUND"])*scale),
-        portfolio_cap_usd=min(nav*FIVE, _d(caps["PORTFOLIO_COMPOUND_AVAILABLE_SOURCE"])*scale),
-        leverage_cap_lots=max(ZERO,_d(row["leverage_max_lots"])),
-        margin_cap_usd=min(free_margin,_d(row["leverage_margin_budget_usd"])),
-        source_lane="SOVEREIGN_BANK",slippage_usd_per_lot=ZERO,
-        expected_account_sequence=index+1,
+    held_margin = sum((trade["margin"] for trade in active.values()), ZERO)
+    free_margin = max(BROKER_INITIAL + nav - INITIAL - held_margin, ZERO)
+    intent = QDLEIntent(
+        request_id=sid, trader_id=row["trader"], symbol=symbol, side=side,
+        entry_price=entry, stop_price=stop,
+        requested_risk_usd=max(nav, ZERO) * fraction,
+        sizing_cap_usd=min(max(nav, ZERO) * FIVE, _d(caps["SIZING"]) * scale),
+        cibo_compound_cap_usd=min(max(nav, ZERO) * FIVE,
+                                  _d(caps["CIBO_COMPOUND"]) * scale),
+        portfolio_cap_usd=min(max(nav, ZERO) * FIVE,
+                               _d(caps["PORTFOLIO_COMPOUND_AVAILABLE_SOURCE"]) * scale),
+        leverage_cap_lots=max(ZERO, _d(row["leverage_max_lots"])),
+        margin_cap_usd=min(free_margin, _d(row["leverage_margin_budget_usd"])),
+        source_lane="SOVEREIGN_BANK", slippage_usd_per_lot=ZERO,
+        expected_account_sequence=sequence,
     )
-    result=q.reserve_for_trader(intent,now=as_of)
-    return result
-
+    return session.qdle.reserve_for_trader(intent, now=as_of)
 
 def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
     source=manifest["opportunities"]
@@ -250,6 +305,7 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
     with tempfile.TemporaryDirectory(prefix="cibo-trader-lab-qdle-",
                                      dir=workdir) as tmp:
         td=Path(tmp)
+        session=PaperQdleSession(td / 'account-qdle.sqlite')
         for idx, d in enumerate(chronological):
             sid=d["signal_fingerprint"]
             at=datetime.fromisoformat(d["at"])
@@ -305,7 +361,7 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
             try:
                 q=_mode_quote(d,symbol,side,entry,stop_econ,risk_per_lot,
                               tariff.total_usd,first.opened_at,bank,
-                              held_risk,held_margin,sequence,td)
+                              active,session)
                 sequence+=1
             except (QDLEError,ValueError) as exc:
                 counts["qdle_rejected"]+=1
@@ -352,6 +408,7 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
             except (ManagedReplayError, ValueError, ArithmeticError) as exc:
                 counts["exit_policy_error"]+=1
                 r["status"]="EXIT_POLICY_ERROR";r["error"]=str(exc)[:150]
+                session.paper_no_fill(sid=sid, reason="EXIT_POLICY_ERROR")
                 rows.append(r);continue
             fee=q.lots*tariff.opening_usd
             # Research entry occurs before outcome is known; missing future
@@ -363,8 +420,9 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
             active[sid]={
                 "risk":q.total_risk_usd,"margin":q.margin_usd,
                 "lots":q.lots,"fee":fee,"opened_at":first.opened_at,
-                "mode":mode,"symbol":symbol,
+                "mode":mode,"symbol":symbol,"side":side,
             }
+            session.paper_fill(sid=sid,at=first.opened_at,nav=bank,active=active)
             r["status"]="PAPER_OPEN"
             r["paper_entry_at"]=first.opened_at.isoformat()
             r["paper_entry_price"]=str(entry)
@@ -411,6 +469,9 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
         "usd_jpy_fixed_2026_anchor":str(JPY_USDJPY_ANCHOR),
         "spreads_fixed_by_symbol":{k:str(v) for k,v in SCREENSHOT_SPREAD.items()},
         "atlas_provenance":metadata,
+        "paper_qdle_account_ledger_scope":"ONE_SQLITE_ONE_QDLE_PER_SIMULATION",
+        "paper_qdle_account_snapshots":session.sequence,
+        "paper_qdle_broker_tickets_are_synthetic":True,
         "signal_count":3368,"counts":dict(counts),
         "by_mode":{k:dict(v) for k,v in per_mode.items()},
         "by_symbol":{k:dict(v) for k,v in per_symbol.items()},
@@ -436,7 +497,9 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
             "Snapshot spread from October 2026 is not historical 2019-2022 spread",
             "Atlas M5 unknown bid/ask side; executable bid/ask modeled via constant offset",
             "USDJPY uses October 2026 conversion anchor, not historical cross rate",
-            "QDLE physical kernel used per signal; 4 motor caps scaled from original 60 USD quote evidence, not freshly reissued motor votes",
+            "One persistent QDLE PAPER account; 4 motor caps scaled from original 60 USD quote evidence, not freshly reissued motor votes",
+            "Synthetic simulator paper fill receipts are not verified broker tickets",
+            "Signals rejected before quote for missing prices/geometry still lack universal physical QDLE assessment",
             "Paper fill next eligible M5 open; original LIMIT order fills not reconstructed",
             "Incomplete market paths kept OPEN and reserve funds, no fabricated result",
             "Intratrade global portfolio MTM drawdown cannot be certified",
