@@ -1,0 +1,51 @@
+name: "CIBO P0 #746 migration to canonical PaperQDLE — no competing PAPER book"
+on:
+  workflow_dispatch:
+  push:
+    branches: [agent/cibo-p0-trader-lab-universal-gates-20261009]
+    paths:
+      - "src/qore/infrastructure/qore_dynamic_lot_engine.py"
+      - "src/qore/infrastructure/qdle_paper_book.py"
+      - "scripts/cibo_trader_lab_native_qdle_market_atlas_3368.py"
+      - "tests/infrastructure/test_qdle_paper_account_lifecycle.py"
+      - "tests/infrastructure/test_cibo_trader_lab_single_qdle_account.py"
+      - ".github/workflows/cibo-p0-canonical-paper-branch-746-migration-gate.yml"
+  pull_request:
+    branches: [agent/cibo-sovereign-integration-p0-20261008]
+permissions:
+  contents: read
+env:
+  QORE_LIVE_TRADING: "false"
+  PYTHONPATH: src
+jobs:
+  canonical-research-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Disallow LIVE and compile exact canonical replay source
+        run: |
+          test "$QORE_LIVE_TRADING" = false
+          python -m py_compile \
+            src/qore/infrastructure/qore_dynamic_lot_engine.py \
+            src/qore/infrastructure/qdle_paper_book.py \
+            scripts/cibo_trader_lab_native_qdle_market_atlas_3368.py
+          python - <<'PY'
+          from pathlib import Path
+          source=Path("scripts/cibo_trader_lab_native_qdle_market_atlas_3368.py").read_text()
+          assert "self.qdle = PaperQDLE(database, self.broker)" in source
+          assert "QDLE(\n            database, self.broker" not in source
+          assert "self.qdle.paper_transition(" not in source
+          print("ONE_PAPER_AUTHORITY_SOURCE_GATE_PASS")
+          PY
+      - name: Validate canonical PAPER lifecycle, account session, live isolation
+        run: |
+          python -m unittest discover -s tests/infrastructure -p 'test_qdle_paper_account_lifecycle.py' -v
+          python -m unittest discover -s tests/infrastructure -p 'test_cibo_trader_lab_single_qdle_account.py' -v
+          python -m unittest discover -s tests/infrastructure -p 'test_qore_dynamic_lot_engine.py' -q
+      - name: Verify original 3368 source-causality gate stays research-only
+        run: |
+          python -m unittest discover -s tests/infrastructure -p 'test_cibo_p0_universal_3368_evidence_gate.py' -v
