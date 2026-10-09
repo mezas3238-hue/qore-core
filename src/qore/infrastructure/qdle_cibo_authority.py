@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 
 from qore.infrastructure.cibo_four_motor_policy import (
-    FourMotorObservation, FourMotorProposal, FourMotorPolicyError, nonnegative, utc,
+    FourMotorObservation, FourMotorProposal, FourMotorPolicyError, nonnegative, positive, utc,
 )
 from qore.infrastructure.cibo_four_motor_qdle_proposal import build_four_motor_qdle_intent
 from qore.infrastructure.qore_dynamic_lot_engine import QDLEIntent, QDLEResult
