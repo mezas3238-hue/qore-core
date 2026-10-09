@@ -29,6 +29,9 @@ from qore.infrastructure.cibo_multi_period_capital_mpc import (
     Genc11KnownOptionSchedule,
     Genc11WorldPath,
 )
+from qore.infrastructure.cibo_native_mode_authority import (
+    NativeSovereignModeInstruction, issue_native_sovereign_mode_instruction,
+)
 from qore.infrastructure.cibo_native_max_mpc_bridge import (
     build_native_max_mpc_inputs,
 )
@@ -105,6 +108,22 @@ class CiboNativeSovereignCapitalDecision:
             raise CiboCapitalManagementError(
                 "native-derived MPC must consume all four Native MAX scenarios"
             )
+
+    @property
+    def native_qdle_mode_instruction(self) -> NativeSovereignModeInstruction:
+        """CIBO-owned management direction for EVERY cognition-processed signal.
+
+        Independent of historical disposition/legacy admission. The four motors
+        and sole physical QDLE still determine whether a lot can be financed.
+        """
+        capital = self.capital
+        return issue_native_sovereign_mode_instruction(
+            episode=self.intelligence.cognitive_episode,
+            signal_fingerprint=capital.final_plan.signal_fingerprint,
+            trader_id=capital.final_plan.trader_id.value,
+            decided_at=self.consultation.decision_at,
+            semantic_digest=self.intelligence.semantic_digest,
+        )
 
 
 def run_cibo_native_sovereign_capital_runtime(
