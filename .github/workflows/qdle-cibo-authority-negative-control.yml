@@ -76,9 +76,59 @@ jobs:
             'signal_count':3368,'financed':0,'bank':'30','cushion':'30',
             'financially_certified':False,'CIBO_management_replayed':False})
           PY
+      - name: Generate SYNTHETIC CIBO authorization for one EURUSD lot and managed 1R exit
+        run: |
+          python scripts/qdle_synthetic_cibo_authority_fixture.py \
+            --manifest "$RUNNER_TEMP/cibo-neg/walk-forward-manifest.json" \
+            --one-authorized-test-trade \
+            --output "$RUNNER_TEMP/cibo-neg/synthetic-one-trade.json"
+      - name: Replay 3368 inputs with only the one CIBO-authorized synthetic position
+        run: |
+          python scripts/qdle_3368_dual_ledger_replay.py \
+            --manifest "$RUNNER_TEMP/cibo-neg/walk-forward-manifest.json" \
+            --motor-policy independent_four_motors \
+            --cibo-instructions "$RUNNER_TEMP/cibo-neg/synthetic-one-trade.json" \
+            --min-policy broker_grid \
+            --ndx-roundtrip-fee-proxy-usd-per-lot 20 \
+            --provider-trailing-usd disabled \
+            --swap-proxy off \
+            --output "$RUNNER_TEMP/cibo-neg/research-cibo-one-trade.json"
+      - name: Audit CIBO-approved trade, exit management and segregated funding
+        run: |
+          python - <<'PY'
+          import json, os
+          from decimal import Decimal
+          from pathlib import Path
+          r=json.loads((Path(os.environ['RUNNER_TEMP'])/'cibo-neg'/'research-cibo-one-trade.json').read_text())
+          assert r['signal_count']==3368 and r['unique_signal_count']==3368
+          assert r['cibo_authority_mode']=='CIBO_EXPLICIT_DIRECTIVES'
+          assert r['cibo_directives_consumed']==3368
+          assert r['research_financed_proposals']==1, r['research_financed_proposals']
+          assert r['research_unfundable_or_invalid']==3367
+          assert r['cibo_managed_exit_receipts_consumed']==1
+          assert r['cibo_exit_management_replayed'] is True
+          assert r['real_fundednext_fills']==0 and r['certified'] is False
+          assert Decimal(r['qore_ending_capital_usd']) > 60
+          balances=r['cibo_source_balances_usd']
+          assert Decimal(balances['SOVEREIGN_BANK'])==30
+          assert Decimal(balances['PORTFOLIO_CUSHION']) > 30
+          financed=[x for x in r['decisions'] if Decimal(x['lots'])>0]
+          assert len(financed)==1
+          assert financed[0]['symbol']=='EURUSD'
+          assert financed[0]['cibo_source_lane']=='PORTFOLIO_CUSHION'
+          assert Decimal(financed[0]['lots']) == Decimal('0.01')
+          assert financed[0]['cibo_managed_exit_evidence_sha256'].startswith('sha256:')
+          assert 'realized_pnl_usd_proxy' in financed[0]
+          print('QDLE_OBEYS_CIBO_ONE_MANAGED_EURUSD_ONLY',
+                'CAPITAL',r['qore_ending_capital_usd'],
+                'BALANCES',balances,'BROKER_FILLS',0,
+                'SYNTHETIC_NOT_CIBO_OR_BROKER',True)
+          PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: cibo-qdle-authority-zero-budget-RESEARCH-${{ github.run_id }}
-          path: ${{ runner.temp }}/cibo-neg/research-cibo-zero-control.json
+          path: |
+            ${{ runner.temp }}/cibo-neg/research-cibo-zero-control.json
+            ${{ runner.temp }}/cibo-neg/research-cibo-one-trade.json
           if-no-files-found: warn
