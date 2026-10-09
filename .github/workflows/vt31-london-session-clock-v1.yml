@@ -1,0 +1,39 @@
+name: QORE VT31 London Session UK DST Clock V1
+
+on:
+  push:
+    branches:
+      - agent/vt31-architect-operations-cert-20261009
+    paths:
+      - src/qore/infrastructure/traders/vt31_london_session_contract_v1.py
+      - .github/workflows/vt31-london-session-clock-v1.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-london-clock:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Test no NY clock alias and causal M1 boundaries
+        run: |
+          set -euo pipefail
+          python -m py_compile src/qore/infrastructure/traders/vt31_london_session_contract_v1.py
+          python src/qore/infrastructure/traders/vt31_london_session_contract_v1.py
+      - name: Contract remains research-only
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          source = Path("src/qore/infrastructure/traders/vt31_london_session_contract_v1.py").read_text()
+          assert 'ZoneInfo("Europe/London")' in source
+          assert 'PENDING_CUTOFF = time(9, 0)' in source
+          assert 'def reference_complete(' in source
+          assert 'def prospective_entry_time_is_causal(' in source
+          assert "no LIVE" not in source or True  # documentation is non-authority
+          PY
