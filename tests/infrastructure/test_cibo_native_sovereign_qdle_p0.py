@@ -16,6 +16,7 @@ from qore.infrastructure.cibo_native_sovereign_qdle import (
     bind_native_max_receipt,
 )
 from qore.infrastructure.cibo_p0_native_cognitive_management import native_sensor_management_plan
+from qore.infrastructure.cibo_native_mode_authority import SOURCE as NATIVE_SOURCE, native_mode_from_json
 from qore.infrastructure.cibo_sovereign_integration import administer_native_cibo_qdle_shadow
 from qore.infrastructure.cibo_trade_ops_director import Stage
 from qore.infrastructure.qore_dynamic_lot_engine import QDLE, QDLEIntent
@@ -27,6 +28,31 @@ def native(confidence=85, disposition="COGNITIVE_BLOCK"):
     r=native_row(confidence=confidence, disposition=disposition)
     r.update(signal_fingerprint="signal-A", trader_id="trader-A",
              decided_at=T.isoformat())
+    # Synthetic *test* native instruction: same canonical sealed schema that
+    # genuine CIBO Native MAX publishes from typed cognition in production.
+    # This fixture is not an authenticated source or proof of a real order.
+    import hashlib
+    import json
+    plan = native_sensor_management_plan(r)
+    fields = dict(
+        signal_fingerprint=r["signal_fingerprint"],
+        trader_id=r["trader_id"],
+        decided_at=r["decided_at"],
+        semantic_digest=r["semantic_digest"],
+        mode=plan["mode"],
+        requested_risk_fraction_of_nav=plan["requested_risk_fraction_of_current_qore_nav"],
+        exit_policy=[[k, v] for k,v in plan["exit_policy_SHADOW"].items()],
+        calibration_confidence=int(confidence),
+        abstention_required=False,
+        scenario_count=4,
+        producer=NATIVE_SOURCE,
+        qdle_lot_authority_only=True,
+        broker_execution_authorized=False,
+    )
+    digest = "sha256:" + hashlib.sha256(
+        json.dumps(fields,sort_keys=True,separators=(",",":")).encode()
+    ).hexdigest()
+    r["native_mode_instruction"] = dict(fields, decision_digest=digest)
     return r
 
 
@@ -43,6 +69,26 @@ class TestCiboNativeSovereignQdleP0(unittest.TestCase):
                 qdle=engine, event_id="sovereign-funded", at=T,
                 broker_min_lot=D(".01"), broker_lot_step=D(".01"),
             )
+
+    def test_native_mode_instruction_roundtrip_and_tamper_protection(self):
+        direct = native(85)
+        parsed = native_mode_from_json(direct["native_mode_instruction"])
+        self.assertEqual(parsed.mode, "ATTACK")
+        self.assertEqual(parsed.as_json(), direct["native_mode_instruction"])
+        corrupt = dict(direct)
+        corrupt["native_mode_instruction"] = dict(
+            direct["native_mode_instruction"], mode="BANK"
+        )
+        with self.assertRaises(ValueError):
+            bind_native_max_receipt(
+                native_receipt=corrupt, cibo=cibo(), observation=observation(),
+            )
+        no_instruction = dict(direct)
+        del no_instruction["native_mode_instruction"]
+        legacy = bind_native_max_receipt(
+            native_receipt=no_instruction, cibo=cibo(), observation=observation(),
+        )
+        self.assertFalse(legacy["native_runtime_mode_instruction_consumed"])
 
     def test_native_evidence_controls_real_physical_qdle_lot(self):
         results=[self._run(level) for level in (20,55,85)]
