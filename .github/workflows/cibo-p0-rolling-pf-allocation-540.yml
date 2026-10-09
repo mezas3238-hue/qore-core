@@ -1,0 +1,89 @@
+name: CIBO P0 Rolling PF Trader Allocation 540 PAPER
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/cibo-p0-fresh-paper-economic-votes-20261009
+    paths:
+      - ".github/workflows/cibo-p0-rolling-pf-allocation-540.yml"
+      - "scripts/cibo_trader_lab_p0_rolling_pf_allocation_540.py"
+      - "tests/infrastructure/test_cibo_trader_lab_p0_rolling_pf_allocation.py"
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: cibo-p0-rolling-pf-allocation-540
+  cancel-in-progress: true
+env:
+  PYTHONPATH: src
+  QORE_LIVE_TRADING: "false"
+  MANIFEST_ARTIFACT: "11451743578"
+  MANIFEST_SHA256: "d439957f21e2f79148b5a2fb75a53db6fa448698f17aeb6978f379ed3547f7ea"
+  FROZEN_540_ARTIFACT: "11639429464"
+  FROZEN_540_SHA256: "ef269745e321cf0a847fc20f98872a87bef6bb3f7d7e6e122f2850904140323a"
+jobs:
+  p0-rolling-pf:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Enforce strictly PAPER and validate compilation
+        run: |
+          test "$QORE_LIVE_TRADING" = "false"
+          python -m py_compile scripts/cibo_trader_lab_p0_rolling_pf_allocation_540.py
+          python -m py_compile tests/infrastructure/test_cibo_trader_lab_p0_rolling_pf_allocation.py
+      - name: Restore immutable original 3368 manifest and audited 540 PAPER candidates
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/cibo-rolling-pf"
+          cd "$RUNNER_TEMP/cibo-rolling-pf"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$MANIFEST_ARTIFACT/zip" > source.zip
+          echo "$MANIFEST_SHA256  source.zip" | sha256sum -c -
+          unzip -q source.zip walk-forward-manifest.json
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$FROZEN_540_ARTIFACT/zip" > paper.zip
+          echo "$FROZEN_540_SHA256  paper.zip" | sha256sum -c -
+          unzip -q paper.zip trader-lab-cibo-qdle-spread-3368.json
+      - name: Prove rolling estimation does not include future or skipped outcomes
+        run: python -m unittest discover -s tests/infrastructure -p 'test_cibo_trader_lab_p0_rolling_pf_allocation.py' -v
+      - name: Execute four predeclared PAPER allocation policies over identical 540 candidates
+        run: |
+          python scripts/cibo_trader_lab_p0_rolling_pf_allocation_540.py \
+            --manifest "$RUNNER_TEMP/cibo-rolling-pf/walk-forward-manifest.json" \
+            --replay "$RUNNER_TEMP/cibo-rolling-pf/trader-lab-cibo-qdle-spread-3368.json" \
+            --output "$RUNNER_TEMP/cibo-rolling-pf/p0-rolling-pf-540-allocation.json"
+      - name: Audit true 540 baseline, no extra fill, no future and full PAPER-only provenance
+        run: |
+          python - <<'PY'
+          import json,os,pathlib
+          from decimal import Decimal as D
+          root=pathlib.Path(os.environ["RUNNER_TEMP"])/"cibo-rolling-pf"
+          doc=json.loads((root/"p0-rolling-pf-540-allocation.json").read_text())
+          base=json.loads((root/"trader-lab-cibo-qdle-spread-3368.json").read_text())
+          assert doc["certified"] is False and doc["broker_fills"] == 0
+          assert doc["funded_population"] == "FROZEN_540_NO_NEW_TRADES"
+          assert set(doc["policies"]) == {"BASELINE","ROLLING_PF","COOLDOWN","ROLLING_PF_AND_COOLDOWN"}
+          assert doc["policies"]["BASELINE"]["paper_openings"] == 540
+          assert doc["policies"]["BASELINE"]["closed"] == 538
+          assert abs(D(doc["policies"]["BASELINE"]["net_usd"]) -
+                     D(base["shadow_projected_settled_net_pnl_usd"])) < D("0.00000001")
+          for key,val in doc["policies"].items():
+            assert val["paper_openings"] <= 540 and val["closed"] <= 538
+            assert val["decisions_with_future_data"] == 0
+            assert val["no_unauthorized_new_lot"] is True
+            assert len(doc["decisions"][key]) == 540
+            for row in doc["decisions"][key]:
+              assert D(row["actual_lot"]) % D("0.01") == 0
+              assert row["prior_settled_n"] <= 30
+          print("CIBO_P0_ROLLING_PF_SCIENTIFIC_PAPER_FINISH",json.dumps(doc["policies"],sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cibo-p0-rolling-pf-540-${{ github.run_id }}
+          path: ${{ runner.temp }}/cibo-rolling-pf/p0-rolling-pf-540-allocation.json
+          if-no-files-found: warn

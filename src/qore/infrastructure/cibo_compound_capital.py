@@ -341,10 +341,14 @@ def propose_p0_compound_vote(observation: FourMotorObservation) -> FourMotorProp
             streak += 1
         else:
             break
-    loss_streak_factor = Decimal("0.5") if streak >= 3 else Decimal("1")
+    # Legacy haircut is intentionally disabled ONLY in explicit research.
+    loss_streak_factor = (Decimal("1") if observation.research_scenario_only
+                          else Decimal("0.5") if streak >= 3 else Decimal("1"))
     cap = min(available, base * loss_streak_factor)
     reasons = ("RECONCILED_ONLY_NET_QORE_NAV",
                "PROTECTED_AND_FLOAT_LOSS_AND_RESERVATION_DEDUCTED",
+               "PAPER_NO_THREE_LOSS_STRATEGIC_HAIRCUT"
+               if observation.research_scenario_only else
                "THREE_SETTLED_LOSSES_HAIR_CUT" if streak >= 3
                else "NORMAL_COMPOUND_REINVESTMENT")
     return FourMotorProposal("CIBO_COMPOUND", observation,

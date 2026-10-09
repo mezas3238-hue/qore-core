@@ -118,6 +118,7 @@ class FourMotorObservation:
     broker_fees_complete: bool = False
     broker_profit_valuation_complete: bool = False
     broker_margin_valuation_complete: bool = False
+    research_scenario_only: bool = False
 
     def __post_init__(self) -> None:
         if not all(
@@ -135,10 +136,18 @@ class FourMotorObservation:
         age = (now - quote).total_seconds()
         if not 0 <= age <= 10:
             raise FourMotorPolicyError("broker valuation stale or from the future")
-        for provenance in ("broker_fees_complete", "broker_profit_valuation_complete",
-                           "broker_margin_valuation_complete"):
-            if getattr(self, provenance) is not True:
-                raise FourMotorPolicyError(f"{provenance} required: no incomplete broker economics")
+        provenance_fields = ("broker_fees_complete", "broker_profit_valuation_complete",
+                             "broker_margin_valuation_complete")
+        if type(self.research_scenario_only) is not bool:
+            raise FourMotorPolicyError("research_scenario_only must be bool")
+        if self.research_scenario_only:
+            # No scenario-only quote can claim broker completion, even in PAPER.
+            if any(getattr(self, name) is not False for name in provenance_fields):
+                raise FourMotorPolicyError("research scenario cannot claim verified broker economics")
+        else:
+            for provenance in provenance_fields:
+                if getattr(self, provenance) is not True:
+                    raise FourMotorPolicyError(f"{provenance} required: no incomplete broker economics")
         digest("broker_evidence_sha256", self.broker_evidence_sha256)
         if not isinstance(self.reconciled_cashflows, tuple) or any(
             not isinstance(e, ReconciledQoreCashflow) for e in self.reconciled_cashflows
@@ -242,7 +251,9 @@ class FourMotorProposal:
                     broker_profit_valuation_complete=s.broker_profit_valuation_complete,
                     broker_margin_valuation_complete=s.broker_margin_valuation_complete,
                     realized_event_ids=[x.event_id for x in s.reconciled_cashflows],
-                    decision_state="SHADOW_ADVISORY_ONLY",
+                    decision_state=("RESEARCH_SCENARIO_NON_BROKER"
+                                    if s.research_scenario_only else "SHADOW_ADVISORY_ONLY"),
+                    research_scenario_only=s.research_scenario_only,
                     rationale="; ".join(self.reason_codes),
                     reason_codes=list(self.reason_codes), **self.limits)
 
@@ -253,6 +264,8 @@ def sign_producer_receipt(
     """Call in the producer trust boundary; never give a coordinator all keys."""
     if proposal.producer != producer or producer not in PRODUCERS:
         raise FourMotorPolicyError("cross-producer receipt signing forbidden")
+    if proposal.observation.research_scenario_only:
+        raise FourMotorPolicyError("PAPER scenario votes cannot be signed as sovereign LIVE receipts")
     if not isinstance(secret, bytes) or len(secret) < 32:
         raise FourMotorPolicyError("producer HMAC key unavailable")
     payload = proposal.payload()

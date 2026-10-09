@@ -228,8 +228,17 @@ class QDLE:
                  strict_live_fee_evidence: bool = True,
                  strict_four_motor_evidence: bool = True,
                  motor_hmac_keys: dict[str, bytes] | None = None,
-                 strict_provider_floor: bool = True) -> None:
+                 strict_provider_floor: bool = True,
+                 research_paper_mode: bool = False) -> None:
         _d('entry_risk_fraction', entry_risk_fraction)
+        # There must be ONE PAPER book API. In particular, the competing
+        # DRAFT QDLE(research_paper_mode=True) path cannot act as a second
+        # authority after integrating this canonical PaperQDLE adapter.
+        if research_paper_mode and (
+            type(self).__module__ != "qore.infrastructure.qdle_paper_book"
+            or type(self).__name__ != "PaperQDLE"
+        ):
+            raise QDLEError("PAPER authority must use canonical PaperQDLE")
         if entry_risk_fraction != Decimal("0.05"):
             raise QDLEError("QDLE sovereign risk fraction is fixed at 5pct of QORE trading capital")
         self.entry_risk_fraction = entry_risk_fraction
@@ -240,6 +249,7 @@ class QDLE:
         self.strict_four_motor_evidence = strict_four_motor_evidence
         self.motor_hmac_keys = dict(motor_hmac_keys or {})
         self.strict_provider_floor = strict_provider_floor
+        self.research_paper_mode = bool(research_paper_mode)
         if max_age_seconds <= 0:
             raise QDLEError("invalid maximum snapshot age")
         self.path = str(path)
@@ -248,6 +258,41 @@ class QDLE:
         self._ready_in_this_process = False
         with self._tx() as db:
             db.execute("CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+            # Persist a research-only SQLite marker. A real/broker-capable
+            # QDLE must never reopen this database even after a restart.
+            marker = db.execute(
+                "SELECT value FROM meta WHERE key='canonical_research_paper_authority'"
+            ).fetchone()
+            if research_paper_mode:
+                if marker is None:
+                    # #746 used a separate incompatible PAPER book marker.
+                    # NEVER auto-migrate its SQLite merely because it has
+                    # zero reservations; it requires audited explicit import.
+                    other_book = db.execute(
+                        "SELECT value FROM meta WHERE key='research_paper_database'"
+                    ).fetchone()
+                    if other_book is not None:
+                        raise QDLEError("competing PAPER SQLite authority: explicit migration required")
+                    historical_table = db.execute(
+                        "SELECT name FROM sqlite_master WHERE type='table' AND name='reservations'"
+                    ).fetchone()
+                    if historical_table and db.execute(
+                        "SELECT COUNT(*) FROM reservations"
+                    ).fetchone()[0]:
+                        raise QDLEError("cannot convert broker reservations into PAPER")
+                    other_state = db.execute(
+                        "SELECT COUNT(*) FROM meta WHERE key!='canonical_research_paper_authority'"
+                    ).fetchone()[0]
+                    if other_state:
+                        raise QDLEError("cannot import other QDLE account state without explicit migration")
+                    db.execute(
+                        "INSERT INTO meta(key,value) VALUES('canonical_research_paper_authority',?)",
+                        ('"PaperQDLE_V1_SINGLE_RESERVATION_BOOK"',),
+                    )
+                elif marker[0] != '"PaperQDLE_V1_SINGLE_RESERVATION_BOOK"':
+                    raise QDLEError("incompatible PAPER reservation authority marker")
+            elif marker is not None:
+                raise QDLEError("PAPER SQLite is research-only; broker-capable reopen forbidden")
             db.execute("CREATE TABLE IF NOT EXISTS symbols (symbol TEXT PRIMARY KEY, payload TEXT NOT NULL)")
             db.execute("""CREATE TABLE IF NOT EXISTS reservations (
                 request_id TEXT PRIMARY KEY, payload_sha TEXT NOT NULL, state TEXT NOT NULL,
@@ -577,7 +622,7 @@ class QDLE:
                 raise QDLEError("broker valuation required")
             self._fresh(valuation.as_of, now)
             held = db.execute("""SELECT source_lane,symbol,side,lots,risk,margin
-                                FROM reservations WHERE state IN ('HELD','SENDING','FILL_UNRECONCILED')""").fetchall()
+                                FROM reservations WHERE state IN ('HELD','SENDING','FILL_UNRECONCILED','PAPER_FILLED')""").fetchall()
             total_held_risk = sum((Decimal(x[4]) for x in held), Decimal(0))
             total_held_margin = sum((Decimal(x[5]) for x in held), Decimal(0))
             source_held = sum((Decimal(x[4]) for x in held
@@ -597,6 +642,14 @@ class QDLE:
             free_source = max(Decimal(0), source_total - source_held)
             remaining_risk = max(Decimal(0), acc.qore_unreserved_risk_usd
                                  - total_held_risk)
+            if self.research_paper_mode:
+                # One account-wide 5% risk limit across ALL open PAPER trades.
+                # The held query also includes PAPER_FILLED after PAPER open.
+                aggregate_remaining = max(
+                    Decimal(0),
+                    acc.qore_trading_capital_usd * self.entry_risk_fraction - total_held_risk,
+                )
+                remaining_risk = min(remaining_risk, aggregate_remaining)
             if self.enforce_finance_approval and self.strict_provider_floor:
                 if acc.provider_loss_floor_usd is None:
                     raise QDLEError("unknown provider loss floor: NO LIVE LOTAGE")

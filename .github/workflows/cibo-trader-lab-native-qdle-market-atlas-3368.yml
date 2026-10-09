@@ -2,11 +2,21 @@ name: CIBO Trader Lab Native MAX QDLE Market Atlas M5 3368 PAPER
 on:
   workflow_dispatch:
   push:
-    branches: [agent/cibo-sovereign-integration-p0-20261008]
+    branches: [agent/cibo-sovereign-integration-p0-20261008, agent/cibo-p0-fresh-paper-economic-votes-20261009]
     paths:
       - ".github/workflows/cibo-trader-lab-native-qdle-market-atlas-3368.yml"
       - "scripts/cibo_trader_lab_native_qdle_market_atlas_3368.py"
+      - "scripts/cibo_trader_lab_p0_winrate_540_diagnostic.py"
+      - "scripts/cibo_trader_lab_source_signal_audit_3368.py"
+      - "tests/infrastructure/test_cibo_trader_lab_p0_winrate_diagnostic.py"
       - "src/qore/infrastructure/qdle_paper_book.py"
+      - "src/qore/infrastructure/cibo_trader_lab_fresh_four_motor_votes.py"
+      - "src/qore/infrastructure/cibo_four_motor_policy.py"
+      - "src/qore/infrastructure/cibo_account_sizing_authority.py"
+      - "src/qore/infrastructure/cibo_compound_capital.py"
+      - "src/qore/infrastructure/cibo_marginal_leverage_utility.py"
+      - "src/qore/infrastructure/cibo_core_compound_portfolio.py"
+      - "tests/infrastructure/test_cibo_trader_lab_fresh_four_motor_votes.py"
       - "tests/infrastructure/test_qdle_paper_book.py"
       - "tests/infrastructure/test_cibo_trader_lab_native_qdle_snapshot_spread.py"
 permissions:
@@ -75,6 +85,10 @@ jobs:
             echo "${!SHA_VAR}  $ARCHIVE" | sha256sum -c -
             unzip -q "$ARCHIVE" 'RAW_M5_LEDGER/2019.jsonl' 'RAW_M5_LEDGER/2020.jsonl' 'RAW_M5_LEDGER/2021.jsonl' 'RAW_M5_LEDGER/2022.jsonl' -d "$ROOT"
           done
+      - name: Test stop-first M5, ATR14 anti-lookahead and paired-exit diagnostics
+        run: python -m unittest discover -s tests/infrastructure -p test_cibo_trader_lab_p0_winrate_diagnostic.py -v
+      - name: Test fresh independent economic votes and no broker spoofing
+        run: python -m unittest discover -s tests/infrastructure -p test_cibo_trader_lab_fresh_four_motor_votes.py -v
       - name: Test persistent QDLE PAPER lifecycle and no-LIVE guarantees
         run: python -m unittest discover -s tests/infrastructure -p test_qdle_paper_book.py -v
       - name: Run TRADER LAB full 3368 M5 plus CEO Bid-Ask snapshot and Stellar commissions
@@ -109,6 +123,20 @@ jobs:
           assert pbook["physical_quotes"]+pbook["unassessable"]==3368
           assert pbook["paper_filled"]==r["counts"].get("paper_open",0)
           assert pbook["paper_settled"]==r["counts"].get("settled",0)
+          assert r["qdle_canonical_sqlite_role"]=="PaperQDLE_V1_SINGLE_RESERVATION_BOOK"
+          assert r["qdle_paper_event_audit"]["event_count"] >= 3368
+          import hashlib
+          archive=p/"db/cibo-p0-canonical-paper-3368.sqlite"
+          assert archive.is_file()
+          assert "sha256:"+hashlib.sha256(archive.read_bytes()).hexdigest() == r["qdle_paper_sqlite_sha256"]
+          assert r["four_motor_votes_fresh_per_physical_quote"] is True
+          assert r["four_motor_votes_broker_authenticated"] is False
+          assert r["counts"]["fresh_four_motor_signal_decisions"]==pbook["physical_quotes"]
+          assert r["counts"]["fresh_four_motor_producer_votes"]==4*pbook["physical_quotes"]
+          assert all(len(row.get("four_engine_current_votes", []))==4 for row in r["signal_decisions"]
+                     if row.get("qdle_assessment_state") in ("RESERVED_FOR_TRADER","UNFUNDABLE"))
+          assert all(not v["producer_signature_authenticated"]
+                     for row in r["signal_decisions"] for v in row.get("four_engine_current_votes", []))
           assert r["qdle_book_role"]=="SINGLE_ACCOUNT_PAPER_ONLY_NOT_BROKER"
           assert r["full_cibo_managed_drawdown_pct"] is None
           assert r["counts"].get("paper_open",0)>=r["counts"].get("settled",0)
@@ -121,10 +149,100 @@ jobs:
               "financial_certification":r["financial_certification"],
           },sort_keys=True),flush=True)
           PY
+      - name: Segregate frozen 540 control from revised no-lookahead PAPER cohort
+        run: |
+          python - <<'PY'
+          import json,os,pathlib
+          p=pathlib.Path(os.environ["RUNNER_TEMP"])/"cibo-atlas-3368"
+          r=json.loads((p/"trader-lab-cibo-qdle-spread-3368.json").read_text())
+          comparable=(r["counts"].get("paper_open")==540 and
+                      r["counts"].get("settled")==538 and
+                      r["counts"].get("future_m5_quote_rejected",0)==0)
+          with open(os.environ["GITHUB_ENV"],"a") as f:
+              f.write("LEGACY_540_PAIRABLE="+("true" if comparable else "false")+"\n")
+          if not comparable:
+              (p/"cibo-p0-prior-540-not-comparable.json").write_text(
+                  json.dumps({
+                      "status":"REJECTED_PRIOR_540_COMPARISON_AFTER_CAUSALITY_GATE",
+                      "current_opened":r["counts"].get("paper_open",0),
+                      "current_settled":r["counts"].get("settled",0),
+                      "future_m5_quote_rejected":r["counts"].get("future_m5_quote_rejected",0),
+                      "original_540_cohort_unchanged":False,
+                      "certified_profit_factor":None,
+                  },sort_keys=True,indent=2)+"\n")
+          print("CIBO_P0_540_COMPARABILITY",comparable,
+                "future_quote_rejected",r["counts"].get("future_m5_quote_rejected",0))
+          PY
+      - name: Diagnose fixed 540 with static stops/targets and causal ATR grid
+        if: env.LEGACY_540_PAIRABLE == 'true'
+        run: |
+          python scripts/cibo_trader_lab_p0_winrate_540_diagnostic.py \
+            --manifest "$RUNNER_TEMP/cibo-atlas-3368/walk-forward-manifest.json" \
+            --native-stellar-qdle "$RUNNER_TEMP/cibo-atlas-3368/stellar-instant-3368.json" \
+            --replay "$RUNNER_TEMP/cibo-atlas-3368/trader-lab-cibo-qdle-spread-3368.json" \
+            --atlas-root "AUDJPY=$RUNNER_TEMP/atlas/AUDJPY" \
+            --atlas-root "EURUSD=$RUNNER_TEMP/atlas/EURUSD" \
+            --atlas-root "GBPJPY=$RUNNER_TEMP/atlas/GBPJPY" \
+            --atlas-root "GBPUSD=$RUNNER_TEMP/atlas/GBPUSD" \
+            --atlas-root "NDX100=$RUNNER_TEMP/atlas/NDX100" \
+            --atlas-root "XAUUSD=$RUNNER_TEMP/atlas/XAUUSD" \
+            --output "$RUNNER_TEMP/cibo-atlas-3368/cibo-p0-winrate-frozen-540-diagnostic.json"
+      - name: Audit frozen 540 diagnostic integrity
+        if: env.LEGACY_540_PAIRABLE == 'true'
+        run: |
+          python - <<'PY'
+          import json,os,pathlib
+          p=pathlib.Path(os.environ["RUNNER_TEMP"])/"cibo-atlas-3368"
+          j=json.loads((p/"cibo-p0-winrate-frozen-540-diagnostic.json").read_text())
+          assert j["source_signals"]==3368 and j["frozen_paper_openings"]==540
+          assert j["managed_settled"]==538 and len(j["rows"])==540
+          assert j["broker_fills"]==0 and j["certified"] is False
+          assert j["fixed_counterfactual_pairs"]["A_ECONOMIC_STOP_TP_ORIGINAL"]["paired_with_managed"] <= 538
+          assert all(v["fixed"]["settled"] == v["paired_with_managed"] for v in j["fixed_counterfactual_pairs"].values())
+          assert all(row["real_bidask_verified"] is False for row in j["rows"])
+          print("TRADER_LAB_P0_WINRATE_DIAGNOSTIC_PASS",json.dumps({
+            "frozen":j["frozen_paper_openings"],
+            "atr14_available":j["atr14_available"],
+            "managed_settled":j["managed_settled"],
+            "paired_arm_counts":{k:v["paired_with_managed"] for k,v in j["fixed_counterfactual_pairs"].items()},
+          },sort_keys=True))
+          PY
+      - name: Audit original Trader signal source families and actual strategy timeframes
+        if: env.LEGACY_540_PAIRABLE == 'true'
+        run: |
+          python scripts/cibo_trader_lab_source_signal_audit_3368.py \
+            --manifest "$RUNNER_TEMP/cibo-atlas-3368/walk-forward-manifest.json" \
+            --replay "$RUNNER_TEMP/cibo-atlas-3368/trader-lab-cibo-qdle-spread-3368.json" \
+            --output "$RUNNER_TEMP/cibo-atlas-3368/cibo-p0-source-signal-audit-3368.json"
+      - name: Assert 3368 provenance, seven Traders and source H1/H4/M1/M15 evidence
+        if: env.LEGACY_540_PAIRABLE == 'true'
+        run: |
+          python - <<'PY'
+          import json,os,pathlib
+          p=pathlib.Path(os.environ["RUNNER_TEMP"])/"cibo-atlas-3368"
+          j=json.loads((p/"cibo-p0-source-signal-audit-3368.json").read_text())
+          assert j["classification"]=="RESEARCH_ONLY_FROZEN_BURNED_NOT_OOS"
+          assert j["total"]["source_signals"]==3368
+          assert j["total"]["paper_openings"]==540
+          assert j["total"]["paper_settled"]==538
+          assert j["total"]["unresolved_openings"]==2
+          assert {k:int(v["source_signals"]) for k,v in j["groups"]["timeframe"].items()} == {
+            "H1":2229,"H4":493,"M1":484,"M15":162}
+          assert len(j["groups"]["trader"])==7
+          assert j["source_reuse_governance"]["fresh_oos_claimed"] is False
+          print("TRADER_LAB_P0_SOURCE_PROVENANCE_PASS", json.dumps({
+            "origins":{k:v["source_signals"] for k,v in j["groups"]["trader"].items()},
+            "timeframes":{k:v["source_signals"] for k,v in j["groups"]["timeframe"].items()},
+          }, sort_keys=True),flush=True)
+          PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: trader-lab-cibo-native-qdle-atlas-3368-${{ github.run_id }}
           path: |
             ${{ runner.temp }}/cibo-atlas-3368/trader-lab-cibo-qdle-spread-3368.json
+            ${{ runner.temp }}/cibo-atlas-3368/db/cibo-p0-canonical-paper-3368.sqlite
+            ${{ runner.temp }}/cibo-atlas-3368/cibo-p0-prior-540-not-comparable.json
+            ${{ runner.temp }}/cibo-atlas-3368/cibo-p0-winrate-frozen-540-diagnostic.json
+            ${{ runner.temp }}/cibo-atlas-3368/cibo-p0-source-signal-audit-3368.json
           if-no-files-found: warn
