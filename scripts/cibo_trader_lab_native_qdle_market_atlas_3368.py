@@ -358,6 +358,25 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
                 counts["qdle_unassessable"]+=1
                 rows.append(r);continue
             first=bars[pos]
+            if first.opened_at > at:
+                # The next M5 OPEN is a future paper fill candidate, never a
+                # predecision QDLE market observation or cognitive evidence.
+                counts["future_entry_price_unobservable"]+=1
+                r["status"]="FUTURE_M5_PRICE_NOT_CAUSALLY_OBSERVABLE"
+                missing=session.paper_unassessable(
+                    sid=sid,reason="FUTURE_M5_PRICE_NOT_CAUSALLY_OBSERVABLE",
+                    at=at,nav=bank,active=active)
+                r["qdle_assessment_state"]=missing.state
+                r["qdle_lots"]="0"
+                r["qdle_physical_quote_computed"]=False
+                r["qdle_physical_assessment"]={
+                    "request_id":sid,"state":missing.state,"lots":"0",
+                    "account_sequence":missing.account_sequence,
+                    "binding_limits":list(missing.binding_limits),
+                    "physical_quote_computed":False,
+                }
+                counts["qdle_unassessable"]+=1
+                rows.append(r);continue
             midpoint=first.open
             spread=SCREENSHOT_SPREAD[symbol]
             half=spread/D(2)
@@ -416,7 +435,7 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
             held_margin=sum(x["margin"] for x in active.values())
             try:
                 q=_mode_quote(d,symbol,side,entry,stop_econ,risk_per_lot,
-                              tariff.total_usd,first.opened_at,bank,
+                              tariff.total_usd,at,bank,
                               active,session)
                 sequence+=1
             except (QDLEError,ValueError) as exc:
@@ -562,6 +581,7 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
     paper_outcomes = {
         "NO_QORE_NAV": "PAPER_UNFUNDABLE",
         "NO_ATLAS_M5_ENTRY": "NO_EXECUTABLE_ENTRY",
+        "FUTURE_M5_PRICE_NOT_CAUSALLY_OBSERVABLE": "INCOMPLETE_EVIDENCE",
         "INVALID_GEOMETRY": "INCOMPLETE_EVIDENCE",
         "INVALID_CROSS_SIDE_GEOMETRY": "INCOMPLETE_EVIDENCE",
         "QDLE_ERROR": "INCOMPLETE_EVIDENCE",
@@ -641,6 +661,7 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
             "One persistent QDLE PAPER account; 4 motor caps scaled from original 60 USD quote evidence, not freshly reissued motor votes",
             "Paper lifecycle uses isolated research-only receipts; NO broker fill or settlement attestation",
             "Missing prices/geometry have durable QDLE research UNASSESSABLE receipts, NOT physical executable lot quotes",
+            "PAPER physical lot quote never uses an M5 open after the decision time",
             "Paper fill next eligible M5 open; original LIMIT order fills not reconstructed",
             "Incomplete market paths kept OPEN and reserve funds, no fabricated result",
             "Intratrade global portfolio MTM drawdown cannot be certified",
