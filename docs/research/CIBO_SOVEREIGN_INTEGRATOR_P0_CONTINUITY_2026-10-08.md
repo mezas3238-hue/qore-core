@@ -1,5 +1,8 @@
 # CIBO Soberano — P0 integración cross-architect — corte de ingeniería 2026-10-08
 
+> **OVERRIDE CEO P0 — 2026-10-09 — PRIORIDAD ALTA:** CIBO ahora es **ADMINISTRADOR DE ENTRADAS DEL TRADER, NO FILTRO DE ADMISIÓN DE SEÑALES**. Leer primero [directiva de paradigma corregido](CIBO_P0_PARADIGM_OVERRIDE_2026-10-09_TRADER_EXECUTION_MANAGEMENT_QDLE.md). Fuente: 3.368 señales; entregar 3.368 recibos de recepción, evaluar STOP económico/riesgo y dejar QDLE como única autoridad del lote físico. Nunca forzar 0.01 por promesa de salida antes del stop. Nuevo código `src/qore/infrastructure/cibo_trader_signal_administration.py` + tests; CI [#37887976025](https://github.com/mezas3238-hue/qore-core/actions/runs/37887976025) PASS. El censo OLD SELECTOR no es política actual. Aún falta acoplar al motor runtime y a replay causal; no afirmar integracion completa.
+
+
 > **NO LIVE · DRAFT · NO ORDER_SEND · FINANCIAL_CERTIFICATION=REJECTED.** Este documento registra una integración **parcial** y pruebas SHADOW, no una simulación financiera certificada ni el despliegue en VPS.
 
 ## Punto de partida y propiedad
