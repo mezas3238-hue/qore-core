@@ -27,6 +27,7 @@ from qore.infrastructure.cibo_core_compound_portfolio import propose_p0_portfoli
 from qore.infrastructure.cibo_four_motor_policy import FourMotorObservation, ReconciledQoreCashflow
 from qore.infrastructure.cibo_four_motor_qdle_proposal import build_four_motor_qdle_intent
 from qore.infrastructure.cibo_native_sovereign_qdle import apply_native_qdle_risk_cap
+from qore.infrastructure.qdle_stellar_instant_costs import LEGACY_REPLAY_PROXY, MODELS, estimate_per_lot_fees
 from qore.infrastructure.qdle_cibo_authority import CiboEconomicInstruction, build_cibo_directed_qdle_intent, audit_cibo_qdle_lotage
 from qore.infrastructure.cibo_trader_signal_administration import (
     TraderSignalIntake, EconomicStopBudget, propose_received_trader_management,
@@ -113,7 +114,9 @@ def main() -> int:
     p.add_argument("--experimental-native-lane-policy", choices=["all_bank", "split_30_30_alternate"], default="all_bank",
                    help="Hypothetical Bank/Cushion scenario only; NOT actual native CIBO fund allocation")
     p.add_argument("--ndx-roundtrip-fee-proxy-usd-per-lot", type=D, default=None,
-                   help="Explicit research sensitivity only; unknown NDX fee never inferred")
+                   help="Legacy NDX fee scenario; Stellar Instant published index fee is zero")
+    p.add_argument("--fee-model", choices=MODELS, default=LEGACY_REPLAY_PROXY,
+                   help="Published Stellar tariff vs old model; not evidence of account-specific historical fees")
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--min-policy", choices=["original_trader", "broker_grid"], default="original_trader")
     p.add_argument("--native-max-management-advisories", type=Path, default=None,
@@ -152,12 +155,16 @@ def main() -> int:
         raise SystemExit("Native MAX management is a PAPER predecision advisory, never a pretrade veto or LIVE signal.")
     if args.target_lots is not None and (not args.target_lots.is_finite() or args.target_lots <= ZERO):
         raise SystemExit("Invalid target lots")
-    if args.motor_policy == "independent_four_motors" and (
+    if args.fee_model != LEGACY_REPLAY_PROXY and args.motor_policy != "independent_four_motors":
+        raise SystemExit("Stellar fee scenarios require independent four-motor policy")
+    if args.fee_model == LEGACY_REPLAY_PROXY and args.motor_policy == "independent_four_motors" and (
         args.ndx_roundtrip_fee_proxy_usd_per_lot is None
         or not args.ndx_roundtrip_fee_proxy_usd_per_lot.is_finite()
         or args.ndx_roundtrip_fee_proxy_usd_per_lot < ZERO
     ):
-        raise SystemExit("Independent replay requires explicit NDX all-in fee sensitivity; zero permitted only as optimistic sensitivity")
+        raise SystemExit("Legacy model requires explicit NDX assumption")
+    if args.fee_model != LEGACY_REPLAY_PROXY and args.ndx_roundtrip_fee_proxy_usd_per_lot not in (None, ZERO):
+        raise SystemExit("Cannot mix old NDX assumption with Stellar published fee scenario")
     provider_limit = None if args.provider_trailing_usd == "disabled" else D(args.provider_trailing_usd)
     if provider_limit is not None and provider_limit <= 0:
         raise SystemExit("Invalid trailing USD model")
