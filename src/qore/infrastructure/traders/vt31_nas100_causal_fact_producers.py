@@ -136,22 +136,26 @@ def _regime_fact(
     side: str,
 ) -> CausalBooleanFact:
     source = "frozen-entry-regime-versus-causal-current-regime"
-    aligned = "bullish" if side == "long" else "bearish"
     opposite = "bearish" if side == "long" else "bullish"
+    valid_states = frozenset({"bullish", "bearish", "mixed", "flat"})
     if (
-        entry_regime != aligned
-        or current_regime not in {"bullish", "bearish", "mixed", "flat"}
+        entry_regime not in valid_states
+        or current_regime not in valid_states
         or regime_observed_at is None
     ):
         return CausalBooleanFact(
             "regime_changed_against_thesis", "NOT_EVALUABLE", None,
-            None, source, "ALIGNED_ENTRY_OR_CAUSAL_REGIME_UNAVAILABLE",
+            None, source, "ENTRY_OR_CAUSAL_CURRENT_REGIME_UNAVAILABLE",
         )
     if regime_observed_at.tzinfo is None or regime_observed_at.utcoffset() is None:
         raise ValueError("regime observation must be timezone-aware")
     if regime_observed_at > as_of:
         raise ValueError("future regime observation forbidden")
-    changed = current_regime == opposite
+    # MIXED/FLAT is a real, observed frozen regime, not a missing input.
+    # A new adverse regime exists only when the entry regime was NOT
+    # already adverse for the thesis and the current closed-H1 regime is.
+    # This is a state transition, not a prediction or terminal-loss label.
+    changed = entry_regime != opposite and current_regime == opposite
     return CausalBooleanFact(
         "regime_changed_against_thesis", "OBSERVED", changed,
         regime_observed_at, source,
