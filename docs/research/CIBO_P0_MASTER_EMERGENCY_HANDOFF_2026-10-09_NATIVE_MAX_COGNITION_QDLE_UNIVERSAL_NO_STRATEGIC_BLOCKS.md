@@ -337,3 +337,20 @@ El arquitecto de continuidad realizó reparaciones en CÓDIGO y pruebas en GitHu
 7. P0 sigue ABIERTO. Falta ejecutar / autenticar la decisión cognitiva nativa con órdenes económicas y ajustes intratrade, obtener trayectoria bid/ask histórica de 6 símbolos, scheduler con OPEN/CLOSE fee, NAV Bank/Cushion, métricas mark-to-market y conciliación MT5. NO LIVE, NO `order_send`, PR #745 DRAFT.
 
 **Continuar SIEMPRE por el checkpoint enlazado primero**: contiene rutas exactas, commits, pruebas y medidas. El objetivo 3368/3368 significa **entregadas a CIBO**, nunca debe falsearse como 3368 fills cuando no son físicamente financiables.
+
+---
+
+# ADDENDUM P0 — INTEGRACIÓN DIRECTA CIBO SOBERANO ↔ QDLE (2026-10-09)
+
+**NUEVO ESTADO VALIDADO — CÓDIGO P0 SHADOW, NO LIVE.** La conexión solicitada entre CIBO Soberano y QDLE se implementó en la API canónica con cuatro motores.
+
+**Leer primero:** [CIBO_SOVEREIGN_QDLE_DIRECT_INTEGRATION_P0_2026-10-09.md](CIBO_SOVEREIGN_QDLE_DIRECT_INTEGRATION_P0_2026-10-09.md). Incluye contrato, rutas, 55 pruebas, lotaje físico 0/0.01/0.02 según cognitiva, origen de NAV y pendientes.
+
+- Punto oficial `src/qore/infrastructure/cibo_sovereign_integration.py::administer_native_cibo_qdle_shadow`.
+- Motor de acoplamiento `src/qore/infrastructure/cibo_native_sovereign_qdle.py::administer_native_sovereign_qdle_shadow`. Conserva la decisión económica original de CIBO (capital, cuenta, lane, SL, dirección), aplica solamente el riesgo Native MAX derivado de sensores causales, convoca los cuatro motores y ejecuta la reserva/quote física por QDLE; devuelve un recibo que actualiza el estado de CIBO como fundable/unfundable. NO broker fill.
+- `scripts/qdle_3368_dual_ledger_replay.py` comparte ahora exactamente la función de riesgo cognitivo de la integración soberana. No replica otro motor de lotaje ni vuelve a introducir `gross_structural_outcome_r` al NAV del manager.
+- NO SE ACEPTAN liquidaciones `TRADER_CONTROL_ONLY:`, `REPLAY_SETTLED:` o `REPLAY_PRIOR_CASHBOOK:` como `CIBO_MANAGED` en la nueva frontera.
+- CI [#37932304931](https://github.com/mezas3238-hue/qore-core/actions/runs/37932304931): **SUCCESS 55 tests**, incluyendo CIBO Soberano→Native MAX→Sizing/Compound/Leverage/Portfolio→QDLE y retour lifecycle. Running/latest full #37932270093 debe verificarse de forma independiente y no se debe afirmar que ya terminó sin consultar el job/artifact.
+- EL TRABAJO NO SE CIERRA como certificado mientras no existan instrucciones nativas autenticadas, feed broker real, trayectorias bid/ask y liquidaciones auténticamente modeladas de CIBO. Las 3368 señales son recibidas, NO 3368 fills. QDLE conserva siempre máximo dinámico 5% all-in, comisiones, vol grid, stop/margen/proveedor.
+
+**PR #745 permanece DRAFT / NO LIVE.**
