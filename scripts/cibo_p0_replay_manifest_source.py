@@ -42,7 +42,8 @@ def original_chronological_signals(manifest: dict, *, expected_count: int = 3368
             "signal_fingerprint":sid,
             "at":dt.isoformat(),
             "signal_at":at,
-            "symbol":symbol,
+            # Canonical market Atlas uses NDX100; original trader is NAS100.
+            "symbol":"NDX100" if symbol == "NAS100" else symbol,
             "trader":trader,
         })
     output.sort(key=lambda r:(datetime.fromisoformat(r["at"]),r["signal_fingerprint"]))
