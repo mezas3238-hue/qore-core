@@ -100,7 +100,7 @@ class CanonicalSessionIntegration(unittest.TestCase):
         for idx in (1,2):
             sid="concurrent-"+str(idx)
             at=self.t+timedelta(minutes=idx)
-            q=self.quote(sid,at,nav,fraction="0.02",active=active)
+            q=self.quote(sid,at,nav,fraction="0.025",active=active)
             self.assertEqual(q.lots,D(".01"))
             fee=q.lots*D("7")
             nav-=fee
