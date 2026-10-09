@@ -463,14 +463,16 @@ def _native_report(
     target_status: str = "NOT_APPLICABLE",
 ) -> MarketNativeProducerReport:
     timestamp = datetime.fromisoformat(as_of)
-    observed = lambda name, value: CausalBooleanFact(
+    def observed(name: str, value: bool | None) -> CausalBooleanFact:
+        return CausalBooleanFact(
         name=name,
         status="OBSERVED" if value is not None else "NOT_EVALUABLE",
         value=value,
         observed_at=timestamp if value is not None else None,
         source="closed-m1-frozen-thesis-fixture",
-        reason="FIXTURE_EVIDENCE",
-    )
+            reason="FIXTURE_EVIDENCE",
+        )
+
     return MarketNativeProducerReport(
         as_of=timestamp,
         structure_invalidated=observed("structure_invalidated", structure),
