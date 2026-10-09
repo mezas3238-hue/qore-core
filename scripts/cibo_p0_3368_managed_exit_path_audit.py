@@ -32,7 +32,7 @@ def _load_market_paths(path: Path | None, expected_ids: set[str]) -> dict[str, t
     if path is None:
         return {}
     data = json.loads(path.read_text())
-    if data.get("schema") != "qore.market.executable-bid-ask-ohcl-paths.v1":
+    if data.get("schema") != "qore.market.executable-bid-ask-ohlc-paths.v1":
         raise MissingPathError("authorized executable bid/ask OHLC path schema required")
     out = {}
     paths = data.get("paths")
