@@ -458,6 +458,27 @@ def self_test() -> None:
     ).isoformat()
     assert cand["mt5_or_bid_ask_fill_proven"] is False
     assert result["governance"]["outcomes_used_for_selection"] is False
+    # Separate first-FVG-per-side proof: neither direction can silently
+    # suppress the other before canonical cognitive DOL establishes bias.
+    two_sides = day_before + [
+        make(t, 112, 103, 106),
+        make(t + timedelta(minutes=1), 110, 99, 104),
+        make(t + timedelta(minutes=2), 100, 95, 97),
+        make(t + timedelta(minutes=3), 103, 99, 100),
+        make(t + timedelta(minutes=4), 108, 104, 107),
+        make(t + timedelta(minutes=5), 110, 105, 109),
+        make(t + timedelta(minutes=6), 108, 102, 105),
+    ] + [
+        make(t + timedelta(minutes=i), 103, 99, 100)
+        for i in range(7, 60)
+    ]
+    directional = analyze(two_sides)["models"]["VT31_NY_AM"]
+    assert directional["directional_hypothesis_count_not_trades"] == 2
+    assert directional["directional_hypothesis_count_by_side"] == {
+        "SHORT": 1, "LONG": 1
+    }
+    assert directional["days_with_first_pdh_pdl_10point_fvg_hypothesis"] == 1
+    assert directional["directional_count_can_be_up_to_two_per_session_day"] is True
     # Reject late or concurrent M1 ambiguities.
     try:
         analyze(test[:1] + test[:1])
