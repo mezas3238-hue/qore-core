@@ -142,6 +142,14 @@ def administer_native_sovereign_qdle_shadow(
         observation, FourMotorObservation
     ):
         raise CiboSovereignQdleBridgeError("sovereign CIBO instruction and four motor evidence required")
+    # Legacy Trader CONTROL settlements are never sovereign managed cashflows.
+    # Do not let their losses activate Compound's three-settlement haircut.
+    if any(flow.event_id.startswith((
+        "TRADER_CONTROL_ONLY:", "REPLAY_SETTLED:", "REPLAY_PRIOR_CASHBOOK:"
+    )) for flow in observation.reconciled_cashflows):
+        raise CiboSovereignQdleBridgeError(
+            "Trader CONTROL cashflow forbidden in CIBO sovereign managed NAV"
+        )
     plan = bind_native_max_receipt(
         native_receipt=native_receipt, cibo=cibo, observation=observation,
     )
