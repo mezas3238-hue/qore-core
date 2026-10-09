@@ -707,6 +707,7 @@ class QDLE:
             raise QDLEError("PAPER-only missing-quote receipt")
         if not request_id or reason not in {
             "NO_QORE_NAV", "NO_ATLAS_M5_ENTRY",
+            "FUTURE_M5_PRICE_NOT_CAUSALLY_OBSERVABLE",
             "INVALID_ORIGINAL_GEOMETRY", "INVALID_CROSS_SIDE_GEOMETRY",
         }:
             raise QDLEError("invalid PAPER physical assessment gap")
