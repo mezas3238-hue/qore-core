@@ -1,5 +1,8 @@
 # CIBO P0 — Política formal experimental de SL por ATR y causalidad de selección
 
+> **OVERRIDE CEO P0 (2026-10-09): DOCUMENTO HISTÓRICO DE LA ARQUITECTURA SELECTOR / NO ES DIRECTIVA OPERATIVA.** El flujo válido es *Trader decide → CIBO recibe y administra todas las señales → QDLE determina factibilidad física*. Mantener este estudio para explicar por qué Native MAX bloqueó 3.357 señales; no ejecutar sus recomendaciones de aflojar/optimizar filtros ni usar su cohorte de 200 como programa prioritario. Directiva vigente: [CIBO P0 PARADIGM OVERRIDE](CIBO_P0_PARADIGM_OVERRIDE_2026-10-09_TRADER_EXECUTION_MANAGEMENT_QDLE.md).
+
+
 **Estado:** PROPUESTA EXPERIMENTAL / NO LIVE / no certifica ventaja; owner: CIBO Soberano + cuatro motores + QDLE.  
 **Repositorio:** `mezas3238-hue/qore-core` · **PR:** #745 · **Referencia científica:** [Trader Lab Fast corregido #37878805062](https://github.com/mezas3238-hue/qore-core/actions/runs/37878805062) · **Subject:** `da64fb6fdafacd426fd09cd75dce559c13649692`.
 
