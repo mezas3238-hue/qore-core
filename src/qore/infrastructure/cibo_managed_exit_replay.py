@@ -11,6 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal, ROUND_FLOOR, localcontext
+from typing import Callable
 
 
 class ManagedReplayError(ValueError):
@@ -141,6 +142,77 @@ class CiboManagedTrade:
 
 
 @dataclass(frozen=True, slots=True)
+class CiboPositionCloseObservation:
+    """Only the already-closed executable bar and present position state."""
+    signal_id: str
+    observed_at: datetime
+    executable_close: Decimal
+    entry_price: Decimal
+    protective_stop: Decimal
+    favorable_r: Decimal
+    remaining_lots: Decimal
+    original_lots: Decimal
+    side: str
+    bar_evidence_sha256: str
+
+    def __post_init__(self) -> None:
+        _at(self.observed_at, "position observation")
+        for label in ("executable_close", "entry_price", "protective_stop",
+                      "remaining_lots", "original_lots"):
+            _p(getattr(self, label), label)
+        if not isinstance(self.favorable_r, Decimal) or not self.favorable_r.is_finite():
+            raise ManagedReplayError("postfill R mark must be finite")
+        if self.remaining_lots > self.original_lots:
+            raise ManagedReplayError("postfill remaining lot cannot exceed original")
+        if self.side not in ("BUY", "SELL") or not self.signal_id:
+            raise ManagedReplayError("postfill side / signal invalid")
+        if not (self.bar_evidence_sha256.startswith("sha256:") and
+                len(self.bar_evidence_sha256) == 71):
+            raise ManagedReplayError("postfill bar provenance missing")
+
+
+@dataclass(frozen=True, slots=True)
+class CiboCognitivePostfillAction:
+    """Native MAX advisory consumed by the PAPER manager at NEXT bar open only.
+
+    HOLD, EXIT_NEXT_OPEN, PARTIAL_NEXT_OPEN or TIGHTEN_STOP_NEXT_OPEN.
+    No broker access, real fill assertions, hindsight observations or risk expansion.
+    """
+    signal_id: str
+    decided_at: datetime
+    action: str
+    native_episode_digest: str
+    proposed_stop: Decimal | None = None
+    partial_fraction: Decimal | None = None
+
+    def __post_init__(self) -> None:
+        _at(self.decided_at, "cognitive postfill decision")
+        if not self.signal_id or self.action not in {
+            "HOLD", "EXIT_NEXT_OPEN", "PARTIAL_NEXT_OPEN",
+            "TIGHTEN_STOP_NEXT_OPEN",
+        }:
+            raise ManagedReplayError("invalid Native postfill action")
+        if not (isinstance(self.native_episode_digest, str) and
+                len(self.native_episode_digest) == 71 and
+                self.native_episode_digest.startswith("sha256:")):
+            raise ManagedReplayError("Native postfill digest required")
+        if (self.proposed_stop is not None) != (
+            self.action == "TIGHTEN_STOP_NEXT_OPEN"
+        ):
+            raise ManagedReplayError("postfill stop allowed only when tightening")
+        if self.proposed_stop is not None:
+            _p(self.proposed_stop, "postfill proposed stop")
+        if (self.partial_fraction is not None) != (
+            self.action == "PARTIAL_NEXT_OPEN"
+        ):
+            raise ManagedReplayError("postfill partial fraction allowed only on partial")
+        if self.partial_fraction is not None:
+            _p(self.partial_fraction, "cognitive partial fraction")
+            if self.partial_fraction >= 1:
+                raise ManagedReplayError("cognitive partial must leave a remainder")
+
+
+@dataclass(frozen=True, slots=True)
 class CiboManagedExitResult:
     status: str
     signal_id: str
@@ -163,6 +235,7 @@ class CiboManagedExitResult:
 def replay_cibo_managed_position(
     trade: CiboManagedTrade, bars: tuple[ExecutableOhlcBar, ...],
     *, policy: CiboExitPolicy | None = None,
+    postfill_decider: Callable[[CiboPositionCloseObservation], CiboCognitivePostfillAction] | None = None,
 ) -> CiboManagedExitResult:
     """Causal OHLC result iff complete consecutive price path ends at SL/TP.
 
@@ -198,6 +271,7 @@ def replay_cibo_managed_position(
         worst = Decimal(0)
         partials = stop_updates = defensive = 0
         pending_partial = pending_defensive = False
+        pending_partial_fraction: Decimal | None = None
         pending_stop: Decimal | None = None
         closed_at: datetime | None = None
         exit_reason: str | None = None
@@ -244,7 +318,11 @@ def replay_cibo_managed_position(
                 settle(side_open, lots, "DEFENSIVE_CLOSE_NEXT_OPEN", bar.opened_at)
                 break
             if pending_partial:
-                qty = (trade.lots * policy.partial_fraction / trade.lot_step).to_integral_value(
+                fraction = (pending_partial_fraction if postfill_decider is not None
+                            else policy.partial_fraction)
+                if fraction is None:
+                    raise ManagedReplayError("cognitive pending partial fraction missing")
+                qty = (trade.lots * fraction / trade.lot_step).to_integral_value(
                     rounding=ROUND_FLOOR
                 ) * trade.lot_step
                 # Physical lot grid for BOTH residual and partial.
@@ -254,6 +332,7 @@ def replay_cibo_managed_position(
                 else:
                     actions.append("PARTIAL_SKIPPED_BROKER_MIN_GRID")
                 pending_partial = False
+                pending_partial_fraction = None
             # Touch sequencing is UNKNOWN inside the bar: STOP before TP, even
             # if this sacrifices gains; no hindsight-friendly path selection.
             loss_side_extreme = bar.bid_low if long else bar.ask_high
@@ -274,25 +353,70 @@ def replay_cibo_managed_position(
             if hit_target:
                 settle(trade.trader_take_profit_price, lots, "TAKE_PROFIT", bar.closed_at)
                 break
-            # At CLOSE compute actions effective NEXT OPEN only.
+            # At CLOSE only: the observed bar and current position state can
+            # generate instructions to be executed NEXT OPEN. The decider sees
+            # no future bar and cannot widen stops or fabricate broker fills.
             favorable_r = ((side_close-trade.entry_price) if long
                            else (trade.entry_price-side_close)) / structural_r
-            if favorable_r <= policy.defensive_close_at_r:
-                pending_defensive = True
-                actions.append("DEFENSIVE_TRIGGER_AT_CLOSE:" + bar.closed_at.isoformat())
-            elif favorable_r >= policy.partial_at_r and partials == 0 and not pending_partial:
-                pending_partial = True
-                actions.append("PARTIAL_TRIGGER_AT_CLOSE:" + bar.closed_at.isoformat())
-            if favorable_r >= policy.breakeven_at_r:
-                pending = trade.entry_price
-                if favorable_r >= policy.trailing_activate_at_r:
-                    trail_distance = structural_r * policy.trailing_distance_r
-                    candidate = side_close-trail_distance if long else side_close+trail_distance
-                    pending = max(pending,candidate) if long else min(pending,candidate)
-                pending_stop = (
-                    max(protective_stop,pending) if long
-                    else min(protective_stop,pending)
+            if postfill_decider is not None:
+                if not callable(postfill_decider):
+                    raise ManagedReplayError("postfill_decider must be callable")
+                observation = CiboPositionCloseObservation(
+                    signal_id=trade.signal_id,
+                    observed_at=bar.closed_at,
+                    executable_close=side_close,
+                    entry_price=trade.entry_price,
+                    protective_stop=protective_stop,
+                    favorable_r=favorable_r,
+                    remaining_lots=lots,
+                    original_lots=trade.lots,
+                    side=trade.side,
+                    bar_evidence_sha256=bar.evidence_sha256,
                 )
+                decision = postfill_decider(observation)
+                if (not isinstance(decision, CiboCognitivePostfillAction)
+                        or decision.decided_at != bar.closed_at
+                        or decision.signal_id != trade.signal_id):
+                    raise ManagedReplayError(
+                        "postfill cognitive decision must be typed and timestamp-causal"
+                    )
+                actions.append(
+                    "NATIVE_POSTFILL_AT_CLOSE:" + decision.action
+                    + ":" + decision.native_episode_digest
+                )
+                if decision.action == "EXIT_NEXT_OPEN":
+                    pending_defensive = True
+                elif decision.action == "PARTIAL_NEXT_OPEN":
+                    if partials == 0 and not pending_partial:
+                        pending_partial = True
+                        pending_partial_fraction = decision.partial_fraction
+                elif decision.action == "TIGHTEN_STOP_NEXT_OPEN":
+                    candidate = decision.proposed_stop
+                    if (candidate is None or
+                            (candidate < protective_stop if long
+                             else candidate > protective_stop)):
+                        raise ManagedReplayError(
+                            "cognitive postfill cannot widen protective stop"
+                        )
+                    pending_stop = (max(protective_stop, candidate)
+                                    if long else min(protective_stop, candidate))
+            else:
+                if favorable_r <= policy.defensive_close_at_r:
+                    pending_defensive = True
+                    actions.append("DEFENSIVE_TRIGGER_AT_CLOSE:" + bar.closed_at.isoformat())
+                elif favorable_r >= policy.partial_at_r and partials == 0 and not pending_partial:
+                    pending_partial = True
+                    actions.append("PARTIAL_TRIGGER_AT_CLOSE:" + bar.closed_at.isoformat())
+                if favorable_r >= policy.breakeven_at_r:
+                    pending = trade.entry_price
+                    if favorable_r >= policy.trailing_activate_at_r:
+                        trail_distance = structural_r * policy.trailing_distance_r
+                        candidate = side_close-trail_distance if long else side_close+trail_distance
+                        pending = max(pending,candidate) if long else min(pending,candidate)
+                    pending_stop = (
+                        max(protective_stop,pending) if long
+                        else min(protective_stop,pending)
+                    )
         else:
             # Incomplete history (or target never hit) -> no synthetic PnL
             return CiboManagedExitResult(
