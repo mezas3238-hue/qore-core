@@ -13,7 +13,7 @@ from decimal import Decimal
 from pathlib import Path
 
 
-def audit(manifest: dict, native: dict, qdle: dict) -> dict:
+def audit(manifest: dict, native: dict, qdle: dict, joined: dict | None = None) -> dict:
     opportunities = manifest["opportunities"]
     source_ids = [row["signal_fingerprint"] for row in opportunities]
     if len(source_ids) != 3368 or len(set(source_ids)) != 3368:
@@ -59,6 +59,68 @@ def audit(manifest: dict, native: dict, qdle: dict) -> dict:
                 "qdle_lots_research": q.get("lots"),
                 "qdle_reason": q.get("reason", q.get("status")),
             })
+    research_joint = None
+    if joined is not None:
+        joined_rows = joined.get("decisions")
+        if not isinstance(joined_rows, list) or len(joined_rows) != 3368:
+            raise ValueError("joined CIBO->four-motor->QDLE must account for 3368 signals")
+        joined_by_id = {str(x.get("signal_fingerprint")): x for x in joined_rows}
+        if len(joined_by_id) != 3368 or set(joined_by_id) != set(source_ids):
+            raise ValueError("joined signal identities drifted")
+        if (joined.get("cibo_authority_mode")
+            != "EXPERIMENTAL_NATIVE_CIBO_APPROVAL_GATE_QDLE_PHYSICAL_PROJECTION"
+            or joined.get("native_cibo_cognitive_decisions_consumed") != 3368
+            or joined.get("certified") is not False
+            or joined.get("real_fundednext_fills") != 0):
+            raise ValueError("joined experimental mode cannot claim broker certification")
+        violations = []
+        by_lane = Counter()
+        linked = 0
+        unbudgeted = 0
+        losses_over_5pct = 0
+        for sid in source_ids:
+            d = joined_by_id[sid]
+            if "cibo_qdle_audit" in d:
+                linked += 1
+                a = d["cibo_qdle_audit"]
+                if D(a["all_in_risk_reserved_usd"]) > D(a["five_percent_max_usd"]):
+                    violations.append(sid)
+                if a.get("real_mt5_fill_proven") is not False:
+                    raise ValueError("fabricated joined MT5 fill")
+            elif sid in n_authorized:
+                unbudgeted += 1
+            if D(str(d.get("lots", "0"))) > 0:
+                by_lane[str(d.get("cibo_source_lane", "UNKNOWN"))] += 1
+                if ("realized_pnl_usd_proxy" in d
+                    and D(str(d["realized_pnl_usd_proxy"])) < 0
+                    and "nav_at_decision_usd" in d
+                    and abs(D(str(d["realized_pnl_usd_proxy"])))
+                    > D(str(d["nav_at_decision_usd"])) * D("0.05")):
+                    losses_over_5pct += 1
+        if violations:
+            raise ValueError("joined QDLE risk exceeded 5pct on " + str(len(violations)) + " signals")
+        research_joint = {
+            "status": "EXECUTED_NATIVE_CIBO_APPROVAL_WITH_EXPLICIT_RESEARCH_LANE_AND_TRADER_EXIT",
+            "simulated_cibo_projection_not_real_management": True,
+            "all_native_decisions_read": 3368,
+            "cibo_qdle_audits_emitted": linked,
+            "native_approved_missing_joined_quote": unbudgeted,
+            "hypothetical_lots_financed": joined["research_financed_proposals"],
+            "not_financeable_or_invalid": joined["research_unfundable_or_invalid"],
+            "hypothetical_ending_qore_nav_usd": joined["qore_ending_capital_usd"],
+            "hypothetical_max_closed_dd_pct": joined["max_closed_equity_drawdown_pct"],
+            "hypothetical_pf_proxy": joined["profit_factor_proxy"],
+            "hypothetical_gross_loss_usd": joined["gross_losses_usd"],
+            "hypothetical_open_fees_usd": joined["opening_commission_paid_proxy_usd"],
+            "hypothetical_close_fees_usd": joined["closing_commission_paid_proxy_usd"],
+            "by_declared_research_source_lane_funded_count": dict(by_lane),
+            "hypothetical_realized_loss_over_5pct_entry_nav_count": losses_over_5pct,
+            "broker_fills": 0,
+            "true_cibo_bank_cushion_allocation_validated": False,
+            "true_cibo_managed_exits_validated": False,
+            "intratrade_dd_observed": False,
+            "native_abstract_volume_used_as_broker_lots": False,
+        }
     return {
         "schema": "qore.cibo.ceo.experimental-offline-replay-audit.v1",
         "authorization": "CEO_EXPERIMENTAL_REPLAY_ONLY",
@@ -67,6 +129,7 @@ def audit(manifest: dict, native: dict, qdle: dict) -> dict:
         "native_cibo_authorized_count": len(n_authorized),
         "qdle_four_motor_financed_hypotheses": len(q_financed),
         "overlap_native_authorized_and_qdle_financed": len(n_authorized & q_financed),
+        "native_cibo_4motor_qdle_joint_research_projection": research_joint,
         "contingency_table_by_signal": dict(pairs),
         "mismatch_examples_first_40": discrepancies,
         "native_ceiling_research_capital_usd": native.get("ending_capital_usd"),
@@ -110,10 +173,13 @@ def main() -> int:
     p.add_argument("--manifest", type=Path, required=True)
     p.add_argument("--native", type=Path, required=True)
     p.add_argument("--qdle", type=Path, required=True)
+    p.add_argument("--joined", type=Path, default=None)
     p.add_argument("--output", type=Path, required=True)
     a = p.parse_args()
-    result = audit(*(json.loads(x.read_text(encoding="utf-8"))
-                     for x in (a.manifest, a.native, a.qdle)))
+    raw = [json.loads(x.read_text(encoding="utf-8"))
+           for x in (a.manifest, a.native, a.qdle)]
+    result = audit(*raw, joined=(json.loads(a.joined.read_text(encoding="utf-8"))
+                                 if a.joined is not None else None))
     a.output.parent.mkdir(parents=True, exist_ok=True)
     a.output.write_text(json.dumps(result, indent=2, sort_keys=True)+"\n")
     print("CEO_EXPERIMENTAL_REPLAY_3368", json.dumps({
