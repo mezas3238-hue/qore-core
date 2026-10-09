@@ -1,3 +1,5 @@
+> **P0 SOURCE CORRECTION (2026-10-09): This earlier 07:00–08:00 / 08:00–09:00 Europe/London pilot is RETIRED as an ICT-fidelity trading clock.** The verified PRIMARY 2023 ICT Silver Bullet lesson is [ICT Silver Bullet Time Based Trading Model](https://www.youtube.com/watch?v=tRq1hyGGtl4). Its London setup forms in **03:00–04:00 America/New_York**, which maps to **07:00–08:00 Europe/London** during UK/US DST mismatch weeks and **08:00–09:00 Europe/London** during the usual aligned weeks. Europe/London 08:00 always is NOT reliable. The source clock has now been corrected in `vt31_london_session_contract_v1.py`. The previous 60-minute London 07:00 reference is NOT a mandatory original-ICT entry condition. The historical coverage counts below remain real *clock-window diagnostic counts only*, not Silver Bullet trade eligibility or certification. See the new primary-source fidelity document for binding policy.
+
 # VT31_LONDON — Frozen 3Y M1 Coverage & Causal Session Control V0
 
 **Date:** 2026-10-09  
