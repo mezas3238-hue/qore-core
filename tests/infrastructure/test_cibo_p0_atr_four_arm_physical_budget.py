@@ -86,7 +86,7 @@ class FourArmPhysicalContractTests(unittest.TestCase):
         x=quote(symbol="XAUUSD",timeframe="H1",entry=D("2000"),
                 structural_stop=D("1998"),atr14=D(".5"),
                 contract_size=D("100"),margin_per_lot=D("1000"))
-        self.assertEqual(x["fee_open_usd_per_lot"],"3.2000000")
+        self.assertEqual(x["fee_open_usd_per_lot"],"3.200000")
         self.assertGreater(D(x["lots"]),D("0"))
 
     def test_epoch_USDJPY_required_no_frozen_2026_anchor(self):
