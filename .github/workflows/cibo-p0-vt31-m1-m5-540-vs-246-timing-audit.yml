@@ -1,0 +1,93 @@
+name: "CIBO P0 VT31 M1-M5 causal time / 540-vs-246 PAPER membership"
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/cibo-p0-fresh-paper-economic-votes-20261009
+    paths:
+      - ".github/workflows/cibo-p0-vt31-m1-m5-540-vs-246-timing-audit.yml"
+      - "scripts/cibo_p0_vt31_m1_m5_join_540_246.py"
+      - "tests/infrastructure/test_cibo_p0_vt31_m1_m5_join_540_246.py"
+      - "docs/research/CIBO_P0_VT31_M1_TO_M5_CAUSAL_TIMING_AND_540_VS_246_SELECTION_2026-10-09.md"
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: cibo-p0-vt31-m1-m5-audit
+  cancel-in-progress: true
+env:
+  QORE_LIVE_TRADING: "false"
+  MANIFEST_ARTIFACT: "11451743578"
+  MANIFEST_ARCHIVE_SHA256: "d439957f21e2f79148b5a2fb75a53db6fa448698f17aeb6978f379ed3547f7ea"
+  PAPER_540_ARTIFACT: "11639429464"
+  PAPER_246_ARTIFACT: "11630019202"
+jobs:
+  source-timing-and-selection:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify PAPER-only and run synthetic causal timestamp tests
+        run: |
+          test "$QORE_LIVE_TRADING" = false
+          python -m compileall -q scripts/cibo_p0_vt31_m1_m5_join_540_246.py
+          python -m unittest discover -s tests/infrastructure -p 'test_cibo_p0_vt31_m1_m5_join_540_246.py' -v
+      - name: Download sealed manifest and actual earlier PAPER experiment outputs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/cibo-p0-vt31-timing"
+          for NAME in MANIFEST PAPER_540 PAPER_246; do
+            ARTIFACT_VAR="${NAME}_ARTIFACT"
+            ARCHIVE="$RUNNER_TEMP/cibo-p0-vt31-timing/${NAME}.zip"
+            gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/${!ARTIFACT_VAR}/zip" > "$ARCHIVE"
+            sha256sum "$ARCHIVE"
+          done
+          echo "$MANIFEST_ARCHIVE_SHA256  $RUNNER_TEMP/cibo-p0-vt31-timing/MANIFEST.zip" | sha256sum -c -
+          unzip -p "$RUNNER_TEMP/cibo-p0-vt31-timing/MANIFEST.zip" walk-forward-manifest.json > "$RUNNER_TEMP/cibo-p0-vt31-timing/manifest.json"
+          unzip -p "$RUNNER_TEMP/cibo-p0-vt31-timing/PAPER_540.zip" trader-lab-cibo-qdle-spread-3368.json > "$RUNNER_TEMP/cibo-p0-vt31-timing/540.json"
+          unzip -p "$RUNNER_TEMP/cibo-p0-vt31-timing/PAPER_246.zip" trader-lab-cibo-qdle-spread-3368.json > "$RUNNER_TEMP/cibo-p0-vt31-timing/246.json"
+          test -s "$RUNNER_TEMP/cibo-p0-vt31-timing/540.json"
+          test -s "$RUNNER_TEMP/cibo-p0-vt31-timing/246.json"
+      - name: Audit all 3368 source fingerprints, actual VT31 delay and openings
+        run: |
+          python scripts/cibo_p0_vt31_m1_m5_join_540_246.py \
+            --manifest "$RUNNER_TEMP/cibo-p0-vt31-timing/manifest.json" \
+            --replay-540 "$RUNNER_TEMP/cibo-p0-vt31-timing/540.json" \
+            --replay-246 "$RUNNER_TEMP/cibo-p0-vt31-timing/246.json" \
+            --output "$RUNNER_TEMP/cibo-p0-vt31-timing/cibo-p0-vt31-m1-m5-selection-comparison.json"
+      - name: Require exact experimental closure, same seven Traders and no BROKER
+        run: |
+          python - <<'PY'
+          import json,os,pathlib
+          p=pathlib.Path(os.environ["RUNNER_TEMP"])/"cibo-p0-vt31-timing"
+          r=json.loads((p/"cibo-p0-vt31-m1-m5-selection-comparison.json").read_text())
+          assert r["source_signal_count"] == 3368
+          assert r["vt31_m1_native_source_count"] == 484
+          assert len(r["by_trader"]) == 7
+          n=r["opening_intersection"]
+          assert n["opened_both"]+n["opened_only_540"] == 540
+          assert n["opened_both"]+n["opened_only_246"] == 246
+          assert n["source_signals"] == 3368
+          assert r["no_live"] and not r["two_books_unified"]
+          assert not r["vt31_delays"]["540"]["m1_broker_price_verified"]
+          assert not r["vt31_delays"]["246"]["m1_broker_price_verified"]
+          print("CIBO_P0_VT31_M1_M5_TIMING_GATE_PASS",json.dumps({
+            "opening_intersection":n,
+            "vt31":r["vt31_delays"],
+            "trader_openings":{k:{
+              "540":v["original"]["opened"],"246":v["revised"]["opened"]
+            }for k,v in r["by_trader"].items()},
+            "certified":False
+          },sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cibo-p0-vt31-m1-m5-540vs246-${{ github.run_id }}
+          path: ${{ runner.temp }}/cibo-p0-vt31-timing/cibo-p0-vt31-m1-m5-selection-comparison.json
+          if-no-files-found: warn
