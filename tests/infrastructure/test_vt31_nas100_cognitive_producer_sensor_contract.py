@@ -14,6 +14,7 @@ from qore.infrastructure.traders.vt31_nas100_causal_fact_producers import (
     produce_market_native_facts,
 )
 from qore.infrastructure.traders.vt31_nas100_cognitive_telemetry import (
+    _unresolved_string,
     capture_post_entry_cognitive_sensor,
 )
 from qore.infrastructure.traders.vt31_nas100_position_intelligence import (
@@ -183,3 +184,14 @@ def test_audit_fails_closed_on_missing_required_action_route(tmp_path: Path) -> 
     assert result["native_fact_sensor"]["status_counts"][
         "structure_invalidated:UNWIRED"
     ] == 1
+
+
+def test_semantic_state_parser_handles_composites_without_false_positives() -> None:
+    assert _unresolved_string("NOT_EVALUATED") is True
+    assert _unresolved_string("M15_CONTEXT_UNWIRED") is True
+    assert _unresolved_string("RESEARCH_ONLY_UNCALIBRATED") is True
+    assert _unresolved_string("H4_CONTEXT_UNAVAILABLE") is True
+    assert _unresolved_string("NO_CONFIRMED_EXHAUSTION") is False
+    assert _unresolved_string("KNOWN_NOT_FAILED") is False
+    assert _unresolved_string("CALIBRATED_PRE_DOL1_CURRENT_JOURNEY") is False
+    assert _unresolved_string("NOT_EVALUATED:YET") is True
