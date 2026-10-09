@@ -115,6 +115,8 @@ def main() -> int:
                    help="Explicit research sensitivity only; unknown NDX fee never inferred")
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--min-policy", choices=["original_trader", "broker_grid"], default="original_trader")
+    p.add_argument("--experimental-paper-bypass-strategy-caps", action="store_true",
+                   help="PAPER-ONLY research ablation: bypass Sizing/Compound/Leverage/Portfolio discretionary caps for all signals, while QDLE retains 5pct NAV, real volume grid, broker margin, actual source and fees. NO LIVE or real fills.")
     p.add_argument("--experimental-cibo-administrator", action="store_true",
                    help="CEO CIBO manager: re-quote economic SL physically via QDLE for EVERY Trader signal. Changed-stop lots are quote-only, NEVER settled with old Trader R.")
     p.add_argument("--swap-proxy", choices=["off", "utc_midnight"], default="utc_midnight")
@@ -128,6 +130,15 @@ def main() -> int:
         or args.min_policy != "broker_grid"
     ):
         raise SystemExit("CEO CIBO administrator requires four-motor broker-grid research without legacy admission gate")
+    if args.experimental_paper_bypass_strategy_caps and (
+        not args.experimental_cibo_administrator
+        or args.motor_policy != "independent_four_motors"
+        or args.cibo_instructions is not None
+        or args.experimental_native_ceiling_report is not None
+        or args.min_policy != "broker_grid"
+        or args.provider_trailing_usd != "disabled"
+    ):
+        raise SystemExit("PAPER-ONLY strategy ablation requires manager+four-motor broker-grid and provider proxy disabled; cannot target LIVE or original CIBO.")
     if args.target_lots is not None and (not args.target_lots.is_finite() or args.target_lots <= ZERO):
         raise SystemExit("Invalid target lots")
     if args.motor_policy == "independent_four_motors" and (
@@ -743,6 +754,25 @@ def main() -> int:
                         slippage_usd_per_lot=fee, expected_account_sequence=sequence,
                         methodology_min_lots=policy_min,
                     )
+                if args.experimental_paper_bypass_strategy_caps:
+                    # PAPER-ONLY bypass discretionary recommendations: physical
+                    # QDLE nevertheless enforces risk <= 5pct NAV (as well as
+                    # broker grid, fees and available source/margin). Never
+                    # alter QDLEIntent authority or remove the LIVE guards.
+                    event["four_engine_caps_before_research_bypass"] = dict(
+                        event["four_engine_caps_usd"]
+                    )
+                    event["strategy_policy_ablation"] = "RESEARCH_ONLY_ALL_FOUR_STRATEGY_VOTES_BYPASSED"
+                    requested = replace(
+                        requested,
+                        requested_risk_usd=risk_budget,
+                        sizing_cap_usd=risk_budget,
+                        cibo_compound_cap_usd=risk_budget,
+                        portfolio_cap_usd=free_qore,
+                        leverage_cap_lots=limit_lots,
+                        margin_cap_usd=free_broker,
+                    )
+                    event["cibo_paper_bypass_applied"] = True
                 if args.target_lots is not None and args.motor_policy != "independent_four_motors":
                     requested = replace(requested, requested_target_lots=args.target_lots)
                 for label, value in event["four_engine_caps_usd"].items():
@@ -904,6 +934,13 @@ def main() -> int:
         report = {
             "schema": "qore.qdle.3368.dual-capital-research.v1",
             "cibo_manager_experimental_activated": args.experimental_cibo_administrator,
+            "experimental_paper_bypass_strategy_caps": args.experimental_paper_bypass_strategy_caps,
+            "research_policy_bypassed_four_voters": (
+                ["SIZING", "CIBO_COMPOUND", "ADAPTIVE_LEVERAGE", "PORTFOLIO_COMPOUND"]
+                if args.experimental_paper_bypass_strategy_caps else []
+            ),
+            "qdle_physical_and_5pct_caps_preserved": True,
+            "paper_only_hard_no_live_gateway": True,
             "cibo_manager_actions": dict(manager_actions),
             "cibo_manager_economic_stop_qdle_quote_only": manager_qdle_quoted,
             "cibo_manager_economic_stop_quoted_lots_not_filled": str(manager_qdle_quoted_lots),
