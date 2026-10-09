@@ -1,9 +1,6 @@
-"""End-to-end local QDLE reservations and settlements in Trader Lab PAPER only.
+"""Integration P0: #746 Trader Lab uses the one #745 canonical PaperQDLE."""
+from __future__ import annotations
 
-Synthetic fills/settlements are explicitly non-MT5 and the live gateway stays
-unused. Tests exercise the production QDLE physical kernel with an isolated
-per-simulation account SQLite database.
-"""
 import sqlite3
 import tempfile
 import unittest
@@ -14,134 +11,144 @@ from pathlib import Path
 from scripts.cibo_trader_lab_native_qdle_market_atlas_3368 import (
     PaperQdleSession, _mode_quote,
 )
-from qore.infrastructure.qore_dynamic_lot_engine import QDLEError
+from qore.infrastructure.qore_dynamic_lot_engine import QDLE, QDLEError
+from qore.infrastructure.qdle_paper_book import PaperQDLE
 
 
-class PersistentPaperQdleTest(unittest.TestCase):
+class CanonicalSessionIntegration(unittest.TestCase):
     def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory()
-        self.addCleanup(self.tmp.cleanup)
-        self.path = Path(self.tmp.name) / "account-qdle.sqlite"
-        self.session = PaperQdleSession(self.path)
-        self.start = datetime(2020, 3, 2, 10, tzinfo=timezone.utc)
+        temp=tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        self.path=Path(temp.name)/"one-and-only-paper.sqlite"
+        self.session=PaperQdleSession(self.path)
+        self.t=datetime(2020,3,2,10,tzinfo=timezone.utc)
 
     @staticmethod
-    def _row(sid):
+    def _row(sid, fraction="0.05"):
         return {
-            "signal_fingerprint": sid,
-            "trader": "TRADER_TEST",
-            "four_engine_caps_usd": {
-                "SIZING": "30",
-                "CIBO_COMPOUND": "30",
-                "PORTFOLIO_COMPOUND_AVAILABLE_SOURCE": "30",
+            "signal_fingerprint":sid,
+            "trader":"TRADER_TEST",
+            "four_engine_caps_usd":{
+                "SIZING":"30","CIBO_COMPOUND":"30",
+                "PORTFOLIO_COMPOUND_AVAILABLE_SOURCE":"30",
             },
-            "cibo_max_native_requested_risk_fraction_of_nav": "0.05",
-            "leverage_max_lots": "1",
-            "leverage_margin_budget_usd": "2000",
+            "cibo_max_native_requested_risk_fraction_of_nav":fraction,
+            "leverage_max_lots":"1","leverage_margin_budget_usd":"2000",
         }
 
-    def _quote(self, sid, t, nav=D("60"), active=None):
+    def quote(self,sid,at,nav=D("60"),fraction="0.05",active=None):
         return _mode_quote(
-            self._row(sid), "EURUSD", "BUY", D("1.10000"),
-            D("1.09900"), D("100"), D("7"), t, nav,
-            active if active is not None else {}, self.session,
+            self._row(sid,fraction), "EURUSD","BUY",D("1.10000"),
+            D("1.09900"),D("100"),D("7"),at,nav,
+            active if active is not None else {},self.session,
         )
 
-    def _state(self, sid):
+    def state(self,sid):
         with sqlite3.connect(self.path) as db:
             return db.execute(
                 "SELECT state FROM reservations WHERE request_id=?", (sid,)
             ).fetchone()[0]
 
-    def test_one_database_fill_and_settle_without_reusing_reserve(self):
-        first = self._quote("signal-1", self.start)
-        self.assertGreater(first.lots, D(0))
-        self.assertLessEqual(first.total_risk_usd, D("3"))
-        self.assertEqual(self._state("signal-1"), "HELD")
-        fee = first.lots * D("7")
-        active = {
-            "signal-1": {
-                "symbol": "EURUSD", "side": "BUY", "lots": first.lots,
-                "risk": first.total_risk_usd, "margin": first.margin_usd,
-            }
-        }
-        nav_after_open_fee = D("60") - fee
-        self.session.paper_fill(
-            sid="signal-1", at=self.start, nav=nav_after_open_fee, active=active,
-        )
-        self.assertEqual(self._state("signal-1"), "PAPER_OPEN")
-        second = self._quote(
-            "signal-2", self.start+timedelta(minutes=5),
-            nav_after_open_fee, active,
-        )
-        self.assertGreaterEqual(second.lots, D(0))
-        if second.lots:
-            self.session.paper_no_fill(sid="signal-2",reason="SIMULATED_CANCEL")
-            self.assertEqual(self._state("signal-2"), "PAPER_ABORTED")
-        active.clear()
-        after_close_nav = nav_after_open_fee + D("0.5")
-        self.session.publish_snapshot(
-            at=self.start+timedelta(minutes=10),
-            nav=after_close_nav, active=active,
-        )
-        self.session.paper_settle(sid="signal-1")
-        self.assertEqual(self._state("signal-1"), "PAPER_SETTLED")
+    def test_single_authority_open_settle_and_no_broker_events(self):
+        q=self.quote("source-1",self.t)
+        self.assertEqual(q.lots,D(".02"))
+        self.assertEqual(self.state("source-1"),"HELD")
+        fee=q.lots*D("7")
+        nav=D("60")-fee
+        active={"source-1":{
+            "symbol":"EURUSD","side":"BUY","lots":q.lots,
+            "risk":q.total_risk_usd,"margin":q.margin_usd,
+            "paper_ticket":"PAPER:source-1",
+        }}
+        self.session.paper_fill(sid="source-1",at=self.t,nav=nav,active=active)
+        self.assertEqual(self.state("source-1"),"PAPER_FILLED")
+        self.session.qdle.assert_paper_positions(active)
+        # The second $1.07 physical 0.01-lot cannot fit after first $2.14
+        # reservation in a 5%-of-$59.86 account.
+        later=self.t+timedelta(minutes=5)
+        second=self.quote("source-2",later,nav,active=active)
+        self.assertEqual(second.lots,D(0))
+        self.assertEqual(self.state("source-2"),"BLOCKED")
+        self.session.paper_settle(sid="source-1",
+                                  at=later+timedelta(seconds=1),
+                                  gross=D(".50"))
+        self.assertEqual(self.state("source-1"),"PAPER_SETTLED")
+        self.session.paper_settle(sid="source-1",
+                                  at=later+timedelta(seconds=1),
+                                  gross=D(".50"))
         with sqlite3.connect(self.path) as db:
-            paper_events = db.execute(
-                "SELECT event_kind, request_id FROM paper_events WHERE request_id = ? ORDER BY event_kind",
-                ("signal-1",)
-            ).fetchall()
-            false_broker_deals = db.execute(
+            row=db.execute(
+                "SELECT paper_ticket,realized_gross_usd FROM paper_trades "
+                "WHERE request_id='source-1'"
+            ).fetchone()
+            broker_deals=db.execute(
                 "SELECT COUNT(*) FROM broker_settlements"
             ).fetchone()[0]
-        self.assertEqual(
-            paper_events,
-            [("PAPER_FILL", "signal-1"), ("PAPER_SETTLE", "signal-1")],
-        )
-        self.assertEqual(false_broker_deals, 0)
-        self.assertGreaterEqual(self.session.sequence, 3)
+            events=dict(db.execute(
+                "SELECT event,COUNT(*) FROM audit GROUP BY event"
+            ).fetchall())
+        self.assertEqual(row,("PAPER:source-1","0.50"))
+        self.assertEqual(broker_deals,0)
+        self.assertEqual(events["PAPER_FILL_MODELED_NOT_MT5"],1)
+        self.assertEqual(events["PAPER_SETTLED_NOT_MT5"],1)
+        with self.assertRaisesRegex(QDLEError,"research-only"):
+            QDLE(self.path,self.session.broker)
 
-    def test_two_concurrent_fills_reconcile_in_one_account(self):
-        active = {}
-        nav = D("60")
-        for ix in (1,2):
-            sid = "concurrent-" + str(ix)
-            quote = self._quote(sid,self.start+timedelta(minutes=ix),nav,active)
-            self.assertGreater(quote.lots,D(0))
-            nav -= quote.lots*D("7")
-            active[sid] = {
-                "symbol": "EURUSD", "side": "BUY",
-                "lots": quote.lots, "risk": quote.total_risk_usd,
-                "margin": quote.margin_usd,
+    def test_multiple_concurrent_positions_respect_shared_5pct(self):
+        nav=D("60")
+        active={}
+        for idx in (1,2):
+            sid="concurrent-"+str(idx)
+            at=self.t+timedelta(minutes=idx)
+            q=self.quote(sid,at,nav,fraction="0.02",active=active)
+            self.assertEqual(q.lots,D(".01"))
+            fee=q.lots*D("7")
+            nav-=fee
+            active[sid]={
+                "symbol":"EURUSD","side":"BUY","lots":q.lots,
+                "risk":q.total_risk_usd,"margin":q.margin_usd,
+                "paper_ticket":"PAPER:"+sid,
             }
-            self.session.paper_fill(
-                sid=sid,at=self.start+timedelta(minutes=ix),
-                nav=nav,active=active,
-            )
+            self.session.paper_fill(sid=sid,at=at,nav=nav,active=active)
+        self.session.qdle.assert_paper_positions(active)
+        risk=sum((x["risk"] for x in active.values()),D(0))
+        self.assertEqual(risk,D("2.14"))
+        self.assertLessEqual(risk,nav*D("0.05"))
+        third=self.quote("concurrent-3",self.t+timedelta(minutes=3),nav,active=active)
+        self.assertEqual(third.lots,D(0))
+        self.assertEqual(self.session.qdle.paper_coverage()["paper_filled"],2)
         with sqlite3.connect(self.path) as db:
-            states = db.execute(
-                "SELECT request_id,state FROM reservations ORDER BY request_id"
+            states=db.execute(
+                "SELECT request_id,state FROM reservations "
+                "WHERE state='PAPER_FILLED' ORDER BY request_id"
             ).fetchall()
-        self.assertEqual(states,[("concurrent-1","PAPER_OPEN"),
-                                 ("concurrent-2","PAPER_OPEN")])
-        self.assertGreater(sum(t["risk"] for t in active.values()),D("3"))
-        # Shared portfolio capital prevents infinite simultaneous fills,
-        # even though sovereign 5% is an individual trade upper bound.
-        third = self._quote(
-            "concurrent-3",self.start+timedelta(minutes=3),nav,active,
-        )
-        self.assertGreaterEqual(third.lots,D("0"))
-        self.assertLessEqual(
-            third.total_risk_usd,
-            max(D(0),nav-sum(t["risk"] for t in active.values())),
-        )
+        self.assertEqual(states,[
+            ("concurrent-1","PAPER_FILLED"),
+            ("concurrent-2","PAPER_FILLED"),
+        ])
 
-    def test_no_paper_fill_without_positive_reservation(self):
+    def test_unassessable_and_cancel_preserve_distinct_receipts(self):
+        missing=self.session.paper_unassessable(
+            sid="no-native-m1",reason="NATIVE_M1_PRICE_NOT_VERIFIED",
+            at=self.t,nav=D("60"),active={})
+        self.assertEqual(missing.state,"RESEARCH_UNASSESSABLE_NOT_QUOTED")
+        self.assertEqual(missing.lots,D(0))
+        q=self.quote("cancelled",self.t+timedelta(minutes=1))
+        self.assertGreater(q.lots,D(0))
+        self.session.paper_no_fill(
+            sid="cancelled",at=self.t+timedelta(minutes=1),
+            reason="NO_CAUSAL_EXIT_PRICE_PATH")
+        self.assertEqual(self.state("cancelled"),"PAPER_CANCELLED")
+        self.assertEqual(self.session.qdle.paper_coverage()["received_accounted"],2)
         with self.assertRaises(QDLEError):
             self.session.paper_fill(
-                sid="unquoted",at=self.start,nav=D("60"),active={}
-            )
+                sid="no-native-m1",at=self.t,nav=D("60"),active={})
+
+    def test_no_generic_parallel_research_book(self):
+        with self.assertRaisesRegex(QDLEError,"canonical PaperQDLE"):
+            QDLE(self.path,self.session.broker,research_paper_mode=True)
+        self.assertIsInstance(self.session.qdle,PaperQDLE)
 
 
-if __name__ == "__main__":
+if __name__=="__main__":
     unittest.main()
