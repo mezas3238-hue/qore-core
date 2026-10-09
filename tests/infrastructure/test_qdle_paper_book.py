@@ -111,6 +111,26 @@ class TestPaperQDLE(unittest.TestCase):
             with self.assertRaises(QDLEError):
                 q.arm_for_live_send("s3")
 
+    def test_second_generic_paper_authority_is_rejected(self):
+        from qore.infrastructure.qore_dynamic_lot_engine import QDLE
+        with tempfile.TemporaryDirectory() as td:
+            with self.assertRaisesRegex(QDLEError,"canonical PaperQDLE"):
+                QDLE(Path(td)/"competing.sqlite",PaperBroker(),
+                     research_paper_mode=True)
+
+    def test_existing_broker_reservations_cannot_be_relabelled_paper(self):
+        from qore.infrastructure.qore_dynamic_lot_engine import QDLE
+        with tempfile.TemporaryDirectory() as td:
+            path=Path(td)/"broker.sqlite"
+            broker=QDLE(path,PaperBroker())
+            snapshot(broker,1,AT)
+            symbol(broker,AT)
+            self.assertEqual(
+                broker.reserve_for_trader(request("real_hold",1),now=AT).lots,
+                D("0.03"))
+            with self.assertRaisesRegex(QDLEError,"cannot convert broker reservations"):
+                PaperQDLE(path,PaperBroker())
+
     def test_paper_sqlite_rejects_broker_QDLE_reopen_after_restart(self):
         with tempfile.TemporaryDirectory() as td:
             path=Path(td)/"paper.sqlite"
