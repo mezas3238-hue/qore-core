@@ -18,6 +18,9 @@ from dataclasses import dataclass, replace
 from datetime import datetime
 from decimal import Decimal
 
+from qore.infrastructure.traders.vt31_nas100_causal_fact_producers import (
+    MarketNativeProducerReport,
+)
 from qore.infrastructure.traders.vt31_nas100_position_intelligence import (
     FullCognitivePositionState,
     ManagementContext,
@@ -100,6 +103,56 @@ class PostEntryMarketFacts:
     liquidity_failure_confirmed: bool
     momentum_deteriorated: bool
     regime_changed_against_thesis: bool
+
+
+def build_market_facts_from_causal_report(
+    *,
+    template: PostEntryMarketFacts,
+    report: MarketNativeProducerReport,
+    observation: PostEntryCausalObservation,
+) -> PostEntryMarketFacts:
+    """Bridge evidenced producers to the ONE canonical position-decision input.
+
+    Never default a missing mandatory native fact to False. This function
+    makes no policy/execution decision; the canonical cognitive action stays
+    in reassess_and_decide_post_entry.
+    """
+    as_of = datetime.fromisoformat(observation.as_of)
+    if as_of.tzinfo is None or as_of.utcoffset() is None:
+        raise ValueError("market-fact bridge requires timezone-aware as_of")
+    if as_of != report.as_of:
+        raise ValueError("producer report must match position decision as_of")
+
+    mandatory = (
+        "structure_invalidated",
+        "liquidity_failure_confirmed",
+        "regime_changed_against_thesis",
+    )
+    values: dict[str, bool] = {}
+    for name in mandatory:
+        fact = getattr(report, name)
+        if fact.status != "OBSERVED" or fact.value is None:
+            raise ValueError(f"mandatory native fact not evaluable: {name}")
+        if fact.observed_at is None or fact.observed_at > as_of:
+            raise ValueError(f"noncausal native fact timestamp: {name}")
+        values[name] = fact.value
+
+    next_fact = report.next_structural_target
+    if next_fact.status == "AVAILABLE":
+        if next_fact.observed_at is None or next_fact.observed_at > as_of:
+            raise ValueError("noncausal next structural target")
+        next_target = next_fact.candidate
+    elif next_fact.status == "NOT_APPLICABLE":
+        next_target = None
+    else:
+        raise ValueError("required next structural target is not established")
+    return replace(
+        template,
+        structure_invalidated=values["structure_invalidated"],
+        liquidity_failure_confirmed=values["liquidity_failure_confirmed"],
+        regime_changed_against_thesis=values["regime_changed_against_thesis"],
+        next_structural_target=next_target,
+    )
 
 
 @dataclass(frozen=True, slots=True)
