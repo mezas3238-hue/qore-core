@@ -65,3 +65,15 @@ El objetivo bajo el paradigma nuevo es:
 6. Mantener PR #745 DRAFT/NO LIVE y gates de riesgo intactos mientras falte broker evidence.
 
 **Directiva de precedencia:** este documento reemplaza para el flujo operativo las recomendaciones de aflojar filtros, calibrar CF07 para autorizar más señales y el shadow de solo 200 bloqueadas sugeridos en `CIBO_P0_PRE_REGISTERED_BLOCK_TAXONOMY_AND_BLIND_COUNTERFACTUAL_2026-10-09.md`. Aquella investigación se conserva para explicar por qué el diseño legacy bloqueó 3357 señales, **no** como el plan para el nuevo paradigma. No se permite declarar completada la migración por publicar solo este documento.
+
+## 5. Primer ensayo real de recepción de 3.368 señales: resultado verificable
+
+[GitHub Actions #37888164184](https://github.com/mezas3238-hue/qore-core/actions/runs/37888164184): **SUCCESS**, 11 tests de recepción económica PASS, fuente `11451743578` hash validado; [artefacto con recibos señal por señal #11596279890](https://github.com/mezas3238-hue/qore-core/actions/runs/37888164184/artifacts/11596279890). Programa `scripts/cibo_p0_3368_manager_intake_sensitivity.py`; test `test_cibo_trader_signal_administration.py`.
+
+- **3368/3368 señales originales** recibidas y con identidad única sin ejecutar el gate Native de admisión; ningún `COGNITIVE_BLOCK` desaparece de auditoría legacy, pero ya no elimina una señal de la ruta de gestión.
+- Escenario **hipotético individual aislado** con NAV constante USD60, 5%=USD3, `min_lot=0.01` y coste proxy OPEN+CLOSE por instrumento: **3068 SL estructurales asequibles** al mínimo y **300 SL económicos propuestos** cuando el original excedía USD3.
+- Conteos de propuestas económicas por instrumento: AUDJPY **24**, EURUSD **1**, GBPJPY **29**, GBPUSD **38**, NDX100 **30**, XAUUSD **178**; suma = **300**.
+- **TODOS** esos resultados significan `RECEIVED_READY_FOR_QDLE` como **candidato geométrico**, **NO FINANCIABLES DEMOSTRADOS**: escenario optimista con distancia mínima provider=0 **desconocida**, buffer de gaps/slippage=0, sin margen, sin ATR causal, sin verificación de stop estructural alternativo, sin prueba de ejecución `order_check`, sin exposición simultánea ni Bank/Cushion real. No usar el conteo 3368 como `funded_proposals`.
+- **0** lotes físicos QDLE confirmados aquí, **0** fill real MT5, **0** salidas CIBO reconstruidas, **PF/DD = NO MEDIDOS**. El único resultado comprobado es cobertura administrativa, no rentabilidad. La comparación histórica `11/3368` permanece control del selector obsoleto.
+- **Siguiente bloqueo P0:** conectar este intake de 3368 al director A1, fuentes de los cuatro motores, QDLE y lifecycle, con broker min_stop/costs, ATR closed-bar, financiación por SL y NAV 5% **dinámico secuencial**, reconstrucción de stop hits y exits, sin confundir cotización con ejecución. Hasta entonces no desplegar.
+
