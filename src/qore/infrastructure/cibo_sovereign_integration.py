@@ -111,3 +111,27 @@ def record_shadow_qdle_result(
         requested_lots=receipt.lots if receipt.lots > 0 else None,
     )
     return ShadowFundingOutcome(apply_trade_event(prepared.state, evt), receipt)
+
+
+def administer_native_cibo_qdle_shadow(
+    *, state: TradeOpsState, native_receipt: dict,
+    cibo: CiboEconomicInstruction, observation: FourMotorObservation,
+    qdle: "QDLE", event_id: str, at: datetime,
+    broker_min_lot: Decimal, broker_lot_step: Decimal,
+) -> "SovereignNativeQdleShadowOutcome":
+    """Canonical CIBO Soberano P0 entrypoint for the Native MAX / QDLE bridge.
+
+    A single request crosses Native cognitive management -> four independent
+    economics -> physical QDLE -> CIBO lifecycle funding receipt. This direct
+    wrapper intentionally imports the Native adapter lazily to prevent a
+    circular module dependency; still NO SEND, NO broker fill, NO NAV credit.
+    """
+    from qore.infrastructure.cibo_native_sovereign_qdle import (
+        administer_native_sovereign_qdle_shadow,
+    )
+    return administer_native_sovereign_qdle_shadow(
+        state=state, native_receipt=native_receipt,
+        cibo=cibo, observation=observation, qdle=qdle,
+        event_id=event_id, at=at,
+        broker_min_lot=broker_min_lot, broker_lot_step=broker_lot_step,
+    )
