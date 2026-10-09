@@ -128,6 +128,7 @@ jobs:
           name: trader-lab-cibo-p0-singleton-qdle-3368-${{ github.run_id }}
           path: |
             ${{ runner.temp }}/cibo-atlas-3368/trader-lab-cibo-qdle-spread-3368.json
+            ${{ runner.temp }}/cibo-atlas-3368/db/cibo-paper-qdle-account-ledger.sqlite
           if-no-files-found: warn
 
       - name: Report PAPER evidence and job status to coordinating PR 746
