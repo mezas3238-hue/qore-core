@@ -49,4 +49,4 @@ jobs:
       - name: Verify original 3368 source-causality gate stays research-only
         run: |
           python -m pip install --quiet pytest
-          python -m pytest -q tests/infrastructure/test_cibo_p0_universal_3368_evidence_gate.py
+          python -m pytest -q -o addopts='' tests/infrastructure/test_cibo_p0_universal_3368_evidence_gate.py
