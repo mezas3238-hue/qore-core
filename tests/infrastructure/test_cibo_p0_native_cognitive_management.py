@@ -69,6 +69,52 @@ class NativeCognitivePaperManagerTest(unittest.TestCase):
         self.assertNotEqual(low["exit_policy_SHADOW"], high["exit_policy_SHADOW"])
         self.assertFalse(high["native_disposition_used_for_policy"])
 
+    def test_causal_native_sensor_risk_changes_real_qdle_physical_quote(self):
+        # Same broker price, fees, margin and USD60 NAV; ONLY the native
+        # cognitive sensor confidence changes the risk request.
+        import tempfile
+        from datetime import datetime, timezone
+        from decimal import Decimal as D
+        from pathlib import Path
+        from qore.infrastructure.qore_dynamic_lot_engine import (
+            BrokerValuation, QDLE, QDLEAccount, QDLEIntent, QDLESymbol,
+        )
+        at = datetime(2026, 10, 9, 10, tzinfo=timezone.utc)
+        class PaperBroker:
+            def value(self, spec, intent, now):
+                return BrokerValuation(D("100"), D("1000"), now, "SYNTHETIC_TEST_ONLY")
+            def check_volume(self, spec, intent, lots):
+                return None
+        results = []
+        for confidence in (20, 55, 85):
+            fraction = D(native_sensor_management_plan(
+                native_row(confidence=confidence)
+            )["requested_risk_fraction_of_current_qore_nav"])
+            cap = D("60") * fraction
+            with tempfile.TemporaryDirectory() as td:
+                q = QDLE(Path(td) / "physical.sqlite", PaperBroker())
+                q.publish_account(QDLEAccount(
+                    "paper", "FundedNext", "USD", 1, at, D("2000"), D("2000"),
+                    D("1900"), D("60"), D("60"), D("0"), D("60")))
+                q.publish_symbol(QDLESymbol(
+                    "EURUSD", ("EURUSD",), D(".01"), D("40"), D(".01"), D("0"),
+                    D(".00001"), D("1"), D("100000"), "USD", D("14"),
+                    "SYNTHETIC_TEST_ONLY", at))
+                instruction = QDLEIntent(
+                    request_id=f"sig-{confidence}", trader_id="trader-1",
+                    symbol="EURUSD", side="BUY",
+                    entry_price=D("1.10000"), stop_price=D("1.09000"),
+                    requested_risk_usd=cap, sizing_cap_usd=cap,
+                    cibo_compound_cap_usd=cap, portfolio_cap_usd=D("60"),
+                    leverage_cap_lots=D("40"), margin_cap_usd=D("1900"),
+                    source_lane="SOVEREIGN_BANK", slippage_usd_per_lot=D("0"),
+                    expected_account_sequence=1, methodology_min_lots=D(".01"),
+                )
+                quote = q.reserve_for_trader(instruction, now=at)
+                results.append(quote.lots)
+                self.assertLessEqual(quote.total_risk_usd, cap)
+        self.assertEqual(results, [D("0"), D(".01"), D(".02")])
+
     def test_cognitive_abstention_is_not_an_admission_veto(self):
         r=native_sensor_management_plan(native_row(
             confidence=90, abstain="True"))
