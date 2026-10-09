@@ -411,7 +411,10 @@ def self_test() -> None:
     ]
     result = analyze(test)
     am = result["models"]["VT31_NY_AM"]
-    assert am["complete_source_hour_days"] == 1, repr({k: v for k, v in am.items() if k != "research_hypotheses"})
+    # The synthetic previous day spans 00:00-12:00 NY, so it also contains
+    # a complete 10-11 hour; only the following day has a real FVG.
+    assert am["complete_source_hour_days"] == 2
+    assert am["complete_days_with_raw_fvg"] == 1
     assert am["days_with_first_pdh_pdl_10point_fvg_hypothesis"] == 1
     assert am["days_with_subsequent_intrawindow_midpoint_touch"] == 1
     cand = am["research_hypotheses"][0]
