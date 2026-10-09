@@ -2,7 +2,7 @@ name: CIBO Trader Lab Native MAX QDLE Market Atlas M5 3368 PAPER
 on:
   workflow_dispatch:
   push:
-    branches: [agent/cibo-sovereign-integration-p0-20261008, agent/cibo-p0-trader-lab-universal-gates-20261009]
+    branches: [agent/cibo-sovereign-integration-p0-20261008]
     paths:
       - ".github/workflows/cibo-trader-lab-native-qdle-market-atlas-3368.yml"
       - "scripts/cibo_trader_lab_native_qdle_market_atlas_3368.py"
