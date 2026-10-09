@@ -17,6 +17,9 @@ on:
       - scripts/cibo_p0_universal_3368_evidence_gate.py
       - tests/infrastructure/test_cibo_p0_universal_3368_evidence_gate.py
       - .github/workflows/cibo-p0-universal-3368-evidence-gate.yml
+      - src/qore/infrastructure/qore_dynamic_lot_engine.py
+      - tests/infrastructure/test_qdle_paper_account_lifecycle.py
+      - scripts/cibo_trader_lab_native_qdle_market_atlas_3368.py
   workflow_dispatch:
 
 permissions:
