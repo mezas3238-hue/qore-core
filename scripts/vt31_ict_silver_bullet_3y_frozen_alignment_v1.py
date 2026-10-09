@@ -95,11 +95,16 @@ def build(
     if len(rows) != 55 or len(audit_by_signal) != 55:
         raise AssertionError("55 frozen identities required")
     ny = pdh_census["models"]["VT31_NY_AM"]
-    by_day = {
-        x["ny_date"]: x for x in ny["research_hypotheses"]
+    # Pre-decision DOL bias is COG-owned and is NOT currently available.
+    # Audit first qualified FVG separately in each independently observable
+    # direction; NEVER give historical trades the first global FVG as
+    # hindsight-inferred side authority.
+    directional = ny["directional_first_fvg_hypotheses"]
+    by_day_side = {
+        (x["ny_date"], x["side"]): x for x in directional
     }
-    if len(by_day) != len(ny["research_hypotheses"]):
-        raise ValueError("more than one day hypothesis would create ambiguity")
+    if len(by_day_side) != len(directional):
+        raise ValueError("duplicate first FVG side/day identity")
 
     result_rows = []
     equity = Decimal(0)
@@ -126,13 +131,11 @@ def build(
             source["latest_raw_fvg_closed_at"]
         ) > signal:
             raise AssertionError("future closed FVG identified as historical")
-        candidate = by_day.get(day)
+        candidate = by_day_side.get((day, side))
         qualified = False
         mismatch_reason: str
         if candidate is None:
-            mismatch_reason = "NO_PDH_PDL_FVG_HYPOTHESIS_ON_NY_DAY"
-        elif candidate["side"] != side:
-            mismatch_reason = "FIRST_PDH_PDL_FVG_HYPOTHESIS_OPPOSITE_SIDE"
+            mismatch_reason = "NO_SAME_SIDE_PDH_PDL_FVG_HYPOTHESIS"
         elif _dt(candidate["source_fvg_closed_at_utc"]) > signal:
             mismatch_reason = "FIRST_PDH_PDL_FVG_HYPOTHESIS_AFTER_SIGNAL"
         elif not raw_fvg_earlier:
@@ -210,6 +213,7 @@ def build(
         "all_frozen_trades_by_alignment": _group(
             result_rows, by="source_alignment_category"
         ),
+        "directional_pdh_pdl_not_a_preselected_ict_bias": True,
         "all_frozen_trades_by_family": _group(
             result_rows, by="entry_family"
         ),
@@ -222,6 +226,7 @@ def build(
             "frozen_trades_not_filtered_or_resimulated": True,
             "pdh_pdl_is_not_complete_ict_liquidity_thesis": True,
             "first_fvg_is_not_selected_setup_provenance": True,
+            "two_direction_hypotheses_not_an_execution_side_choice": True,
             "no_trader_policy_change": True,
             "no_sizing_or_leverage": True,
             "fresh_holdout_opened": False,
