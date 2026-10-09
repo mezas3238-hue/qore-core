@@ -1,3 +1,9 @@
+# ACTUALIZACIÓN CANÓNICA MÁS RECIENTE (2026-10-09, TRADER LAB REAL)
+
+> **PRÓXIMO ARQUITECTO: leer primero** [HANDOFF MAESTRO P0 3368 COGNITIVA + QDLE](CIBO_MASTER_P0_HANDOFF_2026-10-09_TRADER_LAB_3368_FULL_COGNITION_QDLE_REPAIR.md). La auditoría nueva [Trader Lab #37949977967](https://github.com/mezas3238-hue/qore-core/actions/runs/37949977967) pasó la ejecución PAPER con Market Atlas: 3368 señales, 20 descartadas por geometría antes de QDLE, 2809 sin lote, 539 PAPER abiertas, 537 cerradas, 2 abiertas; P&L neto PAPER −$50.78, PF .7167, DD **CASH** 85.20%, caja ~$9.08, DD real de equity sin certificar. CIBO reusa política rígida y 4 cap reciclados, QDLE DB efímera por señal; **P0 NO RESUELTO**. Este handoff antiguo tiene hallazgos históricos válidos, pero cifras y ejecutores anteriores NO sustituyen el nuevo master. QDLE Stellar Instant corregido, NO legacy.
+
+---
+
 # QORE CORE — HANDOFF MAESTRO DE EMERGENCIA P0
 ## Integración REAL de la cognitiva CIBO MAX Native + gestión activa universal de las 3.368 señales + cuatro motores económicos + QDLE
 
