@@ -132,6 +132,7 @@ def main() -> int:
         raise SystemExit("FAIL CLOSED: sealed opportunity order not chronological")
 
     cibo_by_signal = None
+    cibo_declared_provenance = None
     cibo_managed_outcomes = {}
     lane_cash = None
     transfer_events = []
@@ -149,6 +150,9 @@ def main() -> int:
             or len({x["signal_id"] for x in instructions}) != len(opportunities)):
             raise SystemExit("FAIL CLOSED: missing, duplicated or foreign CIBO instructions")
         cibo_by_signal = {x["signal_id"]: x for x in instructions}
+        cibo_declared_provenance = authority.get("provenance", "CIBO_EXTERNAL_RESEARCH_INPUT_NOT_BROKER_AUTHENTICATED")
+        if not isinstance(cibo_declared_provenance, str) or not cibo_declared_provenance.strip():
+            raise SystemExit("FAIL CLOSED: CIBO source provenance declaration required")
         settlements = authority.get("managed_settlement_receipts", [])
         if not isinstance(settlements, list) or any(
             not isinstance(x, dict) or not x.get("signal_id")
@@ -270,6 +274,8 @@ def main() -> int:
             available_qore = max(ZERO, nav - open_risk)
             if lane_cash is not None:
                 apply_cibo_transfers(at)
+                if any(balance < ZERO for balance in lane_cash.values()):
+                    raise QDLEError("CIBO_SOURCE_LANE_INSOLVENT_NO_AUTOMATIC_BANK_BAILOUT")
                 if abs(sum(lane_cash.values()) - nav) > D("0.00000001"):
                     raise QDLEError("CIBO_SOURCE_LEDGER_DIVERGES_FROM_QORE_NAV")
                 free_bank = max(ZERO, lane_cash["SOVEREIGN_BANK"] -
@@ -697,6 +703,8 @@ def main() -> int:
             "economic_motor_mode": args.motor_policy,
             "cibo_authority_mode": ("CIBO_EXPLICIT_DIRECTIVES" if cibo_by_signal is not None
                                    else "NOT_CIBO_INTEGRATED_ECONOMIC_PROXIES"),
+            "cibo_instruction_provenance": cibo_declared_provenance,
+            "cibo_management_broker_authenticated": False,
             "cibo_directives_consumed": cibo_directions_consumed,
             "cibo_exit_management_replayed": (
                 cibo_by_signal is not None
