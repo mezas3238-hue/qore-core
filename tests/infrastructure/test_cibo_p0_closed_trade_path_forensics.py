@@ -44,6 +44,8 @@ def envelope(rows):
     return {"ledger_authority":AUTHORITY,"price_source":SOURCE,
             "ledger_sha256":SHA,"input_sha256":SHA,
             "code_sha256":SHA,"market_data_sha256":SHA,
+            "source_signal_count":3368,"paper_open_count":len(rows),
+            "paper_unresolved_count":0,
             "closed_trade_paths":rows}
 
 
@@ -135,3 +137,20 @@ def test_refuse_future_or_missing_bars_for_a_fake_closed_trade():
     another["bars"][0]["evidence_sha256"]="UNTRUSTED"
     with pytest.raises(ValueError,match="evidence"):
         analyze_closed_trade(another)
+
+def test_fail_when_opened_and_closed_counts_are_inconsistent():
+    values=envelope([trade()])
+    values["paper_open_count"]=539
+    values["paper_unresolved_count"]=2
+    with pytest.raises(ValueError,match="do not reconcile"):
+        report_forensics(values)
+    values["source_signal_count"]=3367
+    with pytest.raises(ValueError,match="3368"):
+        report_forensics(values)
+
+
+def test_legacy_report_cannot_pass_without_canonical_coverage():
+    values=envelope([trade()])
+    del values["source_signal_count"]
+    with pytest.raises(ValueError,match="3368"):
+        report_forensics(values)
