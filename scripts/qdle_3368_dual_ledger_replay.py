@@ -558,21 +558,29 @@ def main() -> int:
                 )
                 if stop_per_lot <= 0:
                     raise QDLEError("INVALID_RESEARCH_STOP_VALUATION")
-                # Explicit scenario fees are all-in *proxies*, not broker proof.
-                # FX opening $7 + closing $7 per lot, as requested by the user.
-                # XAU 0.0016% screenshot: unknown base/side, model 2 symmetric legs.
-                # NDX has NO observed fee; caller must supply a scenario assumption.
-                if symbol in {"AUDJPY", "GBPJPY", "GBPUSD", "EURUSD"}:
-                    fee = (D("14") if args.motor_policy == "independent_four_motors"
-                           else D("7"))
-                elif symbol == "XAUUSD":
-                    fee = D("0.000016") * CONTRACTS[symbol] * entry
-                    if args.motor_policy == "independent_four_motors":
-                        fee *= 2
-                elif args.motor_policy == "independent_four_motors":
-                    fee = args.ndx_roundtrip_fee_proxy_usd_per_lot
+                # Explicit OPEN/CLOSE tariff per symbol, never falsely marked MT5-verified.
+                if args.motor_policy == "independent_four_motors":
+                    tariff = estimate_per_lot_fees(
+                        symbol, entry_price=entry, contract_size=CONTRACTS[symbol],
+                        model=args.fee_model,
+                        legacy_ndx_fee_usd=args.ndx_roundtrip_fee_proxy_usd_per_lot,
+                    )
+                    opening_fee, closing_fee = tariff.opening_usd, tariff.closing_usd
+                    fee_source = tariff.fee_evidence
                 else:
-                    fee = ZERO
+                    opening_fee = (
+                        D("7") if symbol in {"AUDJPY", "GBPJPY", "GBPUSD", "EURUSD"}
+                        else D("0.000016") * CONTRACTS[symbol] * entry
+                        if symbol == "XAUUSD" else ZERO
+                    )
+                    closing_fee = ZERO
+                    fee_source = "SHARED_LEGACY_RESEARCH_ENTRY_ONLY_PROXY"
+                fee = opening_fee + closing_fee
+                event["fee_model"] = args.fee_model
+                event["fee_source"] = fee_source
+                event["commission_open_estimated_usd_per_lot"] = str(opening_fee)
+                event["commission_close_estimated_usd_per_lot"] = str(closing_fee)
+                event["commission_actual_account_verified"] = False
                 # CEO MANAGER, NOT SELECTOR: record a valid CIBO management
                 # action for every Trader signal, and use DYNAMIC entry-time
                 # NAV and independent remaining risk source to propose a
@@ -605,8 +613,8 @@ def main() -> int:
                             # Historical provider min-stops unverified.
                             broker_min_stop_distance_price=ZERO,
                             price_loss_usd_per_price_unit_per_lot=valuation_per_price,
-                            opening_commission_usd_per_lot=fee / D("2"),
-                            closing_commission_usd_per_lot=fee / D("2"),
+                            opening_commission_usd_per_lot=opening_fee,
+                            closing_commission_usd_per_lot=closing_fee,
                             execution_buffer_usd_per_lot=ZERO,
                             broker_data_as_of=decision_at,
                             price_valuation_evidence_sha256="sha256:"+hashlib.sha256(
@@ -670,7 +678,7 @@ def main() -> int:
                     policy_min = D(".01")
                 event["stop_loss_usd_per_lot"] = str(stop_per_lot)
                 event["commission_roundtrip_proxy_per_lot"] = str(fee) if args.motor_policy == "independent_four_motors" else None
-                event["commission_entry_usd_per_lot_proxy"] = str(fee)
+                event["commission_entry_usd_per_lot_proxy"] = str(opening_fee)
                 if args.motor_policy == "independent_four_motors":
                     cibo = None
                     if cibo_by_signal is not None:
@@ -931,6 +939,8 @@ def main() -> int:
                              bound_modules=list(result.binding_limits),
                              fees_entry_usd_proxy=str(result.cost_usd),
                              commission_roundtrip_reserved_usd_proxy=str(result.cost_usd),
+                             commission_open_reserved_usd_proxy=str(result.lots * opening_fee),
+                             commission_close_reserved_usd_proxy=str(result.lots * closing_fee),
                              commission_open_paid_usd_proxy="0",
                              planned_stop_usd=str(result.total_risk_usd),
                              margin_usd=str(result.margin_usd),
@@ -988,9 +998,10 @@ def main() -> int:
                     # closing fee ONLY at the modeled exit. QDLE pre-reserves
                     # the full two-leg cost before entry in both cases.
                     full_fee = result.lots * fee
-                    entry_fee = (full_fee / D("2") if args.motor_policy == "independent_four_motors"
-                                 else full_fee)
-                    close_fee = full_fee - entry_fee
+                    entry_fee = result.lots * opening_fee
+                    close_fee = result.lots * closing_fee
+                    if entry_fee + close_fee != full_fee:
+                        raise QDLEError("BROKER_FEE_OPEN_CLOSE_SPLIT_MISMATCH")
                     event["commission_open_paid_usd_proxy"] = str(entry_fee)
                     event["commission_close_committed_usd_proxy"] = str(close_fee)
                     nav -= entry_fee
