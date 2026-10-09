@@ -21,6 +21,10 @@ import json
 import tempfile
 
 from cibo_p0_native_replay_runtime import reconstruct_native_max_at_epoch
+from cibo_p0_replay_manifest_source import original_chronological_signals
+from qore.infrastructure.cibo_single_account_manifest_integrity import (
+    validate_single_account_manifest_sha256,
+)
 from qore.infrastructure.cibo_four_motor_policy import (
     FourMotorObservation, ReconciledQoreCashflow,
 )
@@ -217,19 +221,14 @@ def _mode_quote(row,symbol,side,entry,stop,stop_per_lot,opening_fee,
     return result,[vote.payload() for vote in votes]
 
 
-def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
+def simulate(manifest, roots, *, workdir, max_bars=3200):
     source=manifest["opportunities"]
     if len(source)!=3368 or len(set(x["signal_fingerprint"] for x in source))!=3368:
         raise ValueError("Trader Lab requires 3368 unique sealed source opportunities")
-    decision_rows=quotes["decisions"]
-    if (len(decision_rows)!=3368 or quotes.get("fee_model")!=STELLAR_HELP_OPEN_ONLY
-        or quotes.get("native_cibo_bank_medium_attack_instructions_consumed")!=3368
-        or quotes.get("real_fundednext_fills")!=0):
-        raise ValueError("requires only fresh Native + UPDATED Stellar QDLE scenario")
-    decisions={r["signal_fingerprint"]:r for r in decision_rows}
+    # Only original sealed Trader signals schedule CIBO, NEVER the old quote JSON.
+    source_manifest_sha256=validate_single_account_manifest_sha256(manifest)
     origins={r["signal_fingerprint"]:r for r in source}
-    if set(decisions)!=set(origins) or len(decisions)!=len(decision_rows):
-        raise ValueError("CIBO/Trader source identity mismatch")
+    chronological=original_chronological_signals(manifest)
     atlas={}
     metadata={}
     for symbol in SCREENSHOT_SPREAD:
@@ -239,7 +238,6 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
             raise ValueError("Atlas source symbol drift: "+symbol)
         atlas[symbol]=(corpus.bars,tuple(b.opened_at for b in corpus.bars))
         metadata[symbol]=provenance
-    chronological=sorted(decision_rows,key=lambda r:(r["at"],r["signal_fingerprint"]))
     counts=Counter()
     per_mode=defaultdict(Counter)
     per_symbol=defaultdict(Counter)
@@ -523,6 +521,8 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
         "spreads_fixed_by_symbol":{k:str(v) for k,v in SCREENSHOT_SPREAD.items()},
         "atlas_provenance":metadata,
         "signal_count":3368,"counts":dict(counts),
+        "origin_manifest_sha256":source_manifest_sha256,
+        "legacy_qdle_quote_decisions_consumed":False,
         "research_persistent_qdle_single_account":True,
         "research_recomputed_four_motor_votes":counts["four_motor_voted"],
         "full_native_max_cognition_recomputed":counts["native_max_recomputed"]==3368,
@@ -571,7 +571,6 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
 def main():
     p=argparse.ArgumentParser()
     p.add_argument("--manifest",required=True,type=Path)
-    p.add_argument("--native-stellar-qdle",required=True,type=Path)
     p.add_argument("--atlas-root",action="append",required=True)
     p.add_argument("--workdir",required=True,type=Path)
     p.add_argument("--output",required=True,type=Path)
@@ -589,7 +588,6 @@ def main():
         p.error("max bars out of bounded research range")
     args.workdir.mkdir(parents=True,exist_ok=True)
     result=simulate(json.loads(args.manifest.read_text()),
-                    json.loads(args.native_stellar_qdle.read_text()),
                     roots,workdir=args.workdir,max_bars=args.max_bars)
     args.output.parent.mkdir(parents=True,exist_ok=True)
     args.output.write_text(json.dumps(result,indent=2,sort_keys=True)+"\n")
