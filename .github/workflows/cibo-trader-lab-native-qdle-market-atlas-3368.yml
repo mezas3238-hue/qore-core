@@ -110,6 +110,13 @@ jobs:
           assert pbook["paper_filled"]==r["counts"].get("paper_open",0)
           assert pbook["paper_settled"]==r["counts"].get("settled",0)
           assert r["qdle_book_role"]=="SINGLE_ACCOUNT_PAPER_ONLY_NOT_BROKER"
+          assert r["qdle_canonical_sqlite_role"]=="PaperQDLE_V1_SINGLE_RESERVATION_BOOK"
+          assert r["qdle_paper_event_audit"]["event_count"] >= 3368
+          import hashlib
+          dbfile=p/"db/cibo-p0-canonical-paper-3368.sqlite"
+          assert dbfile.is_file()
+          assert ("sha256:"+hashlib.sha256(dbfile.read_bytes()).hexdigest()
+                  == r["qdle_paper_sqlite_sha256"])
           assert r["full_cibo_managed_drawdown_pct"] is None
           assert r["counts"].get("paper_open",0)>=r["counts"].get("settled",0)
           print("TRADER_LAB_NATIVE_QDLE_SCIENTIFIC_PAPER_FINISH",json.dumps({
@@ -127,4 +134,5 @@ jobs:
           name: trader-lab-cibo-native-qdle-atlas-3368-${{ github.run_id }}
           path: |
             ${{ runner.temp }}/cibo-atlas-3368/trader-lab-cibo-qdle-spread-3368.json
+            ${{ runner.temp }}/cibo-atlas-3368/db/cibo-p0-canonical-paper-3368.sqlite
           if-no-files-found: warn
