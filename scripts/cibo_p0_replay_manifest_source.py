@@ -45,5 +45,5 @@ def original_chronological_signals(manifest: dict, *, expected_count: int = 3368
             "symbol":symbol,
             "trader":trader,
         })
-    output.sort(key=lambda r:(r["at"],r["signal_fingerprint"]))
+    output.sort(key=lambda r:(datetime.fromisoformat(r["at"]),r["signal_fingerprint"]))
     return tuple(output)
