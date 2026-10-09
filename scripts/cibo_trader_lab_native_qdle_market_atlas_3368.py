@@ -425,11 +425,20 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
             except (ManagedReplayError, ValueError, ArithmeticError) as exc:
                 counts["exit_policy_error"]+=1
                 r["status"]="EXIT_POLICY_ERROR";r["error"]=str(exc)[:150]
+                engine.finish_research_reservation(
+                    request_id=sid,
+                    event_id=paper_hash("PAPER_PATH_INVALID",sid,at.isoformat(),str(exc)),
+                    reason="PAPER_PATH_INVALID",now=at,
+                )
                 rows.append(r);continue
             fee=q.lots*tariff.opening_usd
             # Research entry occurs before outcome is known; missing future
             # prices DO NOT cause a fake settlement nor restore an opening fee.
             bank-=fee
+            flows.append(ReconciledQoreCashflow(
+                sid+":paper_open_fee",at,-fee,
+                paper_hash("PAPER_OPEN_FEE",sid,at.isoformat(),fee),True,
+            ))
             opened_fees+=fee
             total_lots+=q.lots
             mark_cash()
@@ -437,6 +446,7 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
                 "risk":q.total_risk_usd,"margin":q.margin_usd,
                 "lots":q.lots,"fee":fee,"opened_at":first.opened_at,
                 "mode":mode,"symbol":symbol,
+                "trader":d["trader"],"side":side,
             }
             r["status"]="PAPER_OPEN"
             r["paper_entry_at"]=first.opened_at.isoformat()
@@ -466,8 +476,8 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
                       "closed",counts["settled"],"paper_open",counts["paper_open"],
                       "QORE_cash",str(bank),flush=True)
         settle(datetime.max.replace(tzinfo=chronological[-1] and datetime.fromisoformat(chronological[-1]["at"]).tzinfo))
-    if counts["received"]!=3368:
-        raise ValueError("unexpected native input cardinality")
+    if counts["received"]!=3368 or counts["qdle_assessed"]!=3368:
+        raise ValueError("universal QDLE assessment cardinality mismatch")
     winners=sum(_d(x["net_usd"])>ZERO for x in closed)
     losing=sum(_d(x["net_usd"])<ZERO for x in closed)
     final_complete=(not active and counts["no_executable_atlas_entry"]==0
@@ -485,6 +495,10 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
         "spreads_fixed_by_symbol":{k:str(v) for k,v in SCREENSHOT_SPREAD.items()},
         "atlas_provenance":metadata,
         "signal_count":3368,"counts":dict(counts),
+        "research_persistent_qdle_single_account":True,
+        "research_recomputed_four_motor_votes":counts["four_motor_voted"],
+        "full_native_max_cognition_recomputed":False,
+        "research_account_nav_is_cash_not_equity_mtm":True,
         "by_mode":{k:dict(v) for k,v in per_mode.items()},
         "by_symbol":{k:dict(v) for k,v in per_symbol.items()},
         "qore_initial_nav_usd":str(INITIAL),
@@ -509,7 +523,11 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
             "Snapshot spread from October 2026 is not historical 2019-2022 spread",
             "Atlas M5 unknown bid/ask side; executable bid/ask modeled via constant offset",
             "USDJPY uses October 2026 conversion anchor, not historical cross rate",
-            "QDLE physical kernel used per signal; 4 motor caps scaled from original 60 USD quote evidence, not freshly reissued motor votes",
+            "Singleton research QDLE holds and releases paper risk/margin on modeled terminal events; never an MT5 fill",
+            "Four new economic motor proposals per quotable signal, not recycled NAV60 caps",
+            "Unquotable signals have typed QDLE rejection but no four-motor votes; full P0 coverage gate still FAILED",
+            "Native MAX entry instruction and exit policy are still historical presets: cognition gate FAILED",
+            "Research-only broker economics (2019-22 M5 plus 2026 fixed quotes), completeness flags FALSE",
             "Paper fill next eligible M5 open; original LIMIT order fills not reconstructed",
             "Incomplete market paths kept OPEN and reserve funds, no fabricated result",
             "Intratrade global portfolio MTM drawdown cannot be certified",
