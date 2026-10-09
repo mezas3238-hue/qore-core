@@ -12,10 +12,11 @@ from pathlib import Path
 
 from qore.infrastructure.cibo_native_sovereign_qdle import (
     CiboSovereignQdleBridgeError,
-    administer_native_sovereign_qdle_shadow, apply_native_qdle_risk_cap,
+    apply_native_qdle_risk_cap,
     bind_native_max_receipt,
 )
 from qore.infrastructure.cibo_p0_native_cognitive_management import native_sensor_management_plan
+from qore.infrastructure.cibo_sovereign_integration import administer_native_cibo_qdle_shadow
 from qore.infrastructure.cibo_trade_ops_director import Stage
 from qore.infrastructure.qore_dynamic_lot_engine import QDLE, QDLEIntent
 from test_cibo_p0_native_cognitive_management import native_row
@@ -34,7 +35,7 @@ class TestCiboNativeSovereignQdleP0(unittest.TestCase):
              cibo_instruction=None, observed=None):
         with tempfile.TemporaryDirectory() as tmp:
             engine=qdle(Path(tmp)/"qdle.sqlite")
-            return administer_native_sovereign_qdle_shadow(
+            return administer_native_cibo_qdle_shadow(
                 state=valued_state(),
                 native_receipt=native(confidence, old_gate),
                 cibo=cibo_instruction if cibo_instruction is not None else cibo(),
@@ -106,7 +107,7 @@ class TestCiboNativeSovereignQdleP0(unittest.TestCase):
     def test_no_cibo_instruction_or_incomplete_economic_evidence(self):
         with tempfile.TemporaryDirectory() as tmp:
             with self.assertRaisesRegex(CiboSovereignQdleBridgeError,"instruction"):
-                administer_native_sovereign_qdle_shadow(
+                administer_native_cibo_qdle_shadow(
                     state=valued_state(),native_receipt=native(),
                     cibo=None, observation=observation(),
                     qdle=qdle(Path(tmp)/"broker.sqlite"),
