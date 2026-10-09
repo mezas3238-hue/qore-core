@@ -70,6 +70,34 @@ def request(sid, seq):
 
 
 class TestPaperQDLE(unittest.TestCase):
+    def test_opening_commission_debit_cannot_break_dynamic_five_pct_cap(self):
+        class FeeBroker(PaperBroker):
+            def value(self, instrument, intent, now):
+                return BrokerValuation(D("90"),D("200"),now,"TEST_NOT_MT5")
+        with tempfile.TemporaryDirectory() as td:
+            q=PaperQDLE(Path(td)/"fee-account.sqlite",FeeBroker())
+            snapshot(q,1,AT)
+            q.publish_symbol(QDLESymbol(
+                broker_symbol="EURUSD",aliases=("EURUSD",),
+                min_lot=D(".01"),max_lot=D("10"),lot_step=D(".01"),
+                directional_volume_limit=D(0),tick_size=D(".00001"),
+                tick_value_loss_usd=D("1"),contract_size=D("100000"),
+                currency_profit="USD",fee_usd_per_lot=D("10"),
+                fee_provenance="PAPER_OPEN_FEE_TEST",as_of=AT,tradable=True,
+            ))
+            # Before OPEN fee: 0.03 lots * $100 all-in = exactly $3.
+            # Afterwards: NAV=$59.70, so max aggregate is only $2.985.
+            # The repaired physical PAPER book must round down to 0.02.
+            result=q.reserve_for_trader(request("with_fee",1),now=AT)
+            self.assertEqual(result.lots,D(".02"))
+            immediate_fee=result.lots*D("10")
+            self.assertLessEqual(result.total_risk_usd,
+                                 D("0.05")*(D("60")-immediate_fee))
+            q.paper_fill("with_fee",AT)
+            q.assert_paper_positions({
+                "with_fee":{"paper_ticket":"PAPER:with_fee","lots":D(".02")}
+            })
+
     def test_single_account_total_five_pct_hold_and_idempotent_settlement(self):
         with tempfile.TemporaryDirectory() as td:
             path=Path(td) / "one-account.sqlite"
