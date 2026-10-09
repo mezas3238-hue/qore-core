@@ -55,7 +55,7 @@ class CausalMarketTests(unittest.TestCase):
         self.assertEqual(v1,v2)
 
     def test_missing_native_m1_cannot_substitute_M5(self):
-        with self.assertRaisesRegex(CausalEvidenceError,"timeframe"):
+        with self.assertRaisesRegex(CausalEvidenceError,"symbol/TF drift"):
             native_wilder_atr14(
                 bars(timeframe="M15"),symbol="NDX100",timeframe="M1",
                 decision_at=T+timedelta(hours=5))
