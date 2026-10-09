@@ -20,6 +20,16 @@ def fixture():
         {"signal_at": "2026-01-06T15:10:00+00:00", "r_multiple": "-1",
          "entry_family": "breaker", "side": "short"},
     ]
+    metrics = _observed_metrics(trades)
+    stress = {
+        "sample": metrics["trade_count"],
+        "mean_r": metrics["stressed_mean_r"],
+        "profit_factor": metrics["stressed_profit_factor"],
+        "max_drawdown_r": metrics["observed_max_drawdown_r"],
+        "total_r": metrics["raw_total_r_minus_0_05r_cost_each"],
+        "wins": metrics["stressed_winners"],
+        "losses": metrics["stressed_nonwinners"],
+    }
     baseline = {
         "base_id": BASE_ID,
         "current_stack": {
@@ -27,7 +37,7 @@ def fixture():
             "variants": {"COMP006_CONTROL": {
                 "trade_count": 2,
                 "candidate_rows": trades,
-                "stress_0_05r": {"sample": 2},
+                "stress_0_05r": stress,
             }},
         },
     }
@@ -119,3 +129,12 @@ def test_refuses_noncanonical_or_trade_altering_shadow():
     bad["governance"]["runtime_action_altered"] = True
     with pytest.raises(ValueError, match="shadow did not preserve"):
         audit(base, bad)
+
+
+def test_fails_if_recomputed_55_control_economics_no_longer_matches() -> None:
+    baseline, shadow = fixture()
+    baseline["current_stack"]["variants"]["COMP006_CONTROL"][
+        "stress_0_05r"
+    ]["profit_factor"] = "999"
+    with pytest.raises(ValueError, match="economic parity mismatch"):
+        audit(baseline, shadow)
