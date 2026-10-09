@@ -31,9 +31,19 @@ El runner mantenía `first = bars[bisect_left(M5.opened_at, signal_decision_at)]
   - **10 pruebas** persistencia PAPER, reservas, concurrencia, reinicio, LIVE aislamiento: OK.
   - **3 pruebas** retirada de recorte por tres pérdidas, NAV real y capital protegido: OK.
   - **17 pruebas** QDLE broker/regresión: OK.
-  - Total **30/30** en las pruebas ejecutadas por este gate. No significa que todas las suites de Core estén certificadas.
+  - Total **30/30** en ese SHA anterior; el SHA posterior con comisión inmediata ejecutó **31/31**, detallado debajo. No significa que todas las suites de Core estén certificadas.
 - El runner de 3.368 de #745 está instrumentado para exportar `cibo-p0-canonical-paper-3368.sqlite`, SHA256 y hash de auditoría de eventos **cuando se complete un replay nuevo**. No afirmar existencia ni valores del artifact hasta inspeccionar GitHub Actions del SHA nuevo.
 - El workflow histórico de 3.368 aún usa M5 y comisiones/snapshot 2026 como **escenario RESEARCH PROXY**, no datos reales 2019–22. `full_cibo_managed_drawdown_pct` continúa nulo.
+
+### P0 adicional — techo de riesgo después de comisión de apertura (2026-10-09)
+
+El requisito 5% también se preserva **después** de que el broker debita la comisión OPEN: si un lote `0.03` cabe justo en el NAV anterior, pero su comisión reduce inmediatamente el NAV, QDLE reduce a `0.02` si es necesario. Para PAPER, se limita el volumen por `(5% NAV - total_held_risk)/(stop_loss_usd_per_lot + all_in_costs_per_lot + 5% fee_usd_per_lot)`. Esto hace que `sum(open all-in stop risk) <= 5% NAV_after_immediate_fee` en la admisión, con la grilla física. No se tocó autorización broker/LIVE.
+
+**CI exact-SHA [#37992942627](https://github.com/mezas3238-hue/qore-core/actions/runs/37992942627) SUCCESS** sobre `b8ba8b9938ed61d99caf78f9cd2dc2d23c4e9db9`:
+- 11 pruebas PAPER (incluida comisión inmediata), OK.
+- 3 pruebas sin haircut heredado, OK.
+- 17 pruebas QDLE/regresión broker, OK.
+- Total 31/31 en este gate. Esta métrica cuenta tests unitarios; no es certificación del mercado ni full replay.
 
 ## Estado del arbitraje e implementación cuatro escenarios
 
