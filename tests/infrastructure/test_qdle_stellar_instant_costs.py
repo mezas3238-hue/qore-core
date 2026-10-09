@@ -26,6 +26,26 @@ class StellarInstantCostTests(unittest.TestCase):
                 self.assertEqual(x.total_usd * D(".01"), D(".07"))
                 self.assertFalse(x.actual_mt5_account_verified)
 
+    def test_gbpusd_matches_eurusd_costs_for_all_scenarios_and_5pct_modes(self):
+        # A 100K USD-quoted FX lot is $10/pip for both EURUSD and GBPUSD.
+        # Both pay the same per-lot tariff; volume and SL still depend on
+        # each signal and available QORE risk/capital.
+        pip_value_usd = D("100000") * D("0.0001")
+        self.assertEqual(pip_value_usd, D("10"))
+        for model in (STELLAR_HELP_OPEN_ONLY, GENERAL_RULES_PER_SIDE,
+                      LEGACY_REPLAY_PROXY):
+            eu = self.fee("EURUSD", model, price="1.11923")
+            gb = self.fee("GBPUSD", model, price="1.32254")
+            with self.subTest(model=model):
+                self.assertEqual((eu.opening_usd, eu.closing_usd),
+                                 (gb.opening_usd, gb.closing_usd))
+                for budget in (D("0.75"), D("1.50"), D("3.00")):
+                    loss_per_lot_to_10pip_stop = D("10") * pip_value_usd
+                    self.assertEqual(
+                        budget/(loss_per_lot_to_10pip_stop+eu.total_usd),
+                        budget/(loss_per_lot_to_10pip_stop+gb.total_usd),
+                    )
+
     def test_index_zero_both_legs(self):
         x = self.fee("NDX100")
         self.assertEqual((x.opening_usd, x.closing_usd), (D(0), D(0)))
