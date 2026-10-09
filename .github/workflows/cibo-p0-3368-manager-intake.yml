@@ -1,0 +1,74 @@
+name: CIBO P0 - 3368 Trader Managed Intake (No Selection)
+on:
+  workflow_dispatch:
+  push:
+    branches: [agent/cibo-sovereign-integration-p0-20261008]
+    paths:
+      - "src/qore/infrastructure/cibo_trader_signal_administration.py"
+      - "tests/infrastructure/test_cibo_trader_signal_administration.py"
+      - "scripts/cibo_p0_3368_manager_intake_sensitivity.py"
+      - ".github/workflows/cibo-p0-3368-manager-intake.yml"
+permissions:
+  contents: read
+  actions: read
+jobs:
+  all-signals-managed:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify administration invariant and fail-closed volume
+        env:
+          PYTHONPATH: src
+        run: |
+          python -m unittest discover -s tests/infrastructure -p test_cibo_trader_signal_administration.py -v
+      - name: Fetch sealed original manifest SHA256
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/cibo-manager"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/11451743578/zip" > "$RUNNER_TEMP/cibo-manager/source.zip"
+          echo "d439957f21e2f79148b5a2fb75a53db6fa448698f17aeb6978f379ed3547f7ea  $RUNNER_TEMP/cibo-manager/source.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/cibo-manager/source.zip" walk-forward-manifest.json -d "$RUNNER_TEMP/cibo-manager"
+      - name: Receive all 3368 without Native MAX admission screening
+        env:
+          PYTHONPATH: src
+        run: |
+          python scripts/cibo_p0_3368_manager_intake_sensitivity.py \
+            --manifest "$RUNNER_TEMP/cibo-manager/walk-forward-manifest.json" \
+            --output "$RUNNER_TEMP/cibo-manager/manager-intake-report.json"
+      - name: Preserve economic truth (no MT5/proxy PnL claims)
+        run: |
+          python - <<'PY'
+          import json,os,pathlib,decimal,collections
+          path=pathlib.Path(os.environ['RUNNER_TEMP'])/'cibo-manager'/'manager-intake-report.json'
+          data=json.loads(path.read_text())
+          s=data['summary']
+          assert s['signals_received']==s['unique_trader_signal_ids']==s['cibo_administration_receipts']==3368
+          assert s['old_cibo_cognitive_admission_gate_used'] is False
+          assert s['real_mt5_fills']==0
+          assert s['profit_factor'] is s['drawdown'] is None
+          assert s['physical_qdle_financing_tested'] is False
+          assert len(s['by_symbol'])==6
+          assert len(data['receipts'])==3368
+          for d in data['receipts']:
+              assert d['intake']=='CIBO_MANAGEMENT_RECEIVED'
+              assert not d['broker_fill'] and d['physical_qdle_lots'] is None
+              v=d['min_lot_risk_at_proposed_stop_proxy_usd']
+              if d['status']=='RECEIVED_READY_FOR_QDLE':
+                  assert v is not None and decimal.Decimal(v)<=decimal.Decimal('3')
+          print('CIBO_MANAGER_ALL_RECEIVED_3368_PASS', json.dumps({
+            'signals':s['signals_received'],'status_reasons':s['reasons'],
+            'real_fills':s['real_mt5_fills'],'performance_not_claimed':True,
+          }))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cibo-p0-3368-management-intake-${{ github.run_id }}
+          path: ${{ runner.temp }}/cibo-manager/manager-intake-report.json
+          if-no-files-found: warn
