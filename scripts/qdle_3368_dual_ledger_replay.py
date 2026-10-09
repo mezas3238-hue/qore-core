@@ -26,6 +26,7 @@ from qore.infrastructure.cibo_marginal_leverage_utility import propose_p0_adapti
 from qore.infrastructure.cibo_core_compound_portfolio import propose_p0_portfolio_vote
 from qore.infrastructure.cibo_four_motor_policy import FourMotorObservation, ReconciledQoreCashflow
 from qore.infrastructure.cibo_four_motor_qdle_proposal import build_four_motor_qdle_intent
+from qore.infrastructure.cibo_native_sovereign_qdle import apply_native_qdle_risk_cap
 from qore.infrastructure.qdle_cibo_authority import CiboEconomicInstruction, build_cibo_directed_qdle_intent, audit_cibo_qdle_lotage
 from qore.infrastructure.cibo_trader_signal_administration import (
     TraderSignalIntake, EconomicStopBudget, propose_received_trader_management,
@@ -852,11 +853,12 @@ def main() -> int:
                     cognitive_cap = max(ZERO, nav) * D(
                         native_management_by_signal[rid]["manager_risk_fraction_of_nav_SHADOW"]
                     )
-                    requested = replace(
-                        requested,
-                        requested_risk_usd=min(requested.requested_risk_usd, cognitive_cap),
-                        sizing_cap_usd=min(requested.sizing_cap_usd, cognitive_cap),
-                        cibo_compound_cap_usd=min(requested.cibo_compound_cap_usd, cognitive_cap),
+                    requested = apply_native_qdle_risk_cap(
+                        intent=requested,
+                        qore_nav_usd=max(ZERO, nav),
+                        native_plan=native_management_by_signal[rid][
+                            "manager_cognitive_sensor_evidence_SHADOW"
+                        ],
                     )
                     event["cibo_max_native_economic_budget_requested_usd"] = str(cognitive_cap)
                     event["cibo_max_native_economic_budget_applied_to_qdle"] = True
