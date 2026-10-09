@@ -5,10 +5,18 @@ on:
   push:
     branches:
       - agent/qdle-independent-engine-p0-20261008-001
+      - agent/cibo-architect-3-qdle-mt5-physical-20261008
     paths:
       - "scripts/qdle_3368_dual_ledger_replay.py"
       - ".github/workflows/qdle-3368-dual-capital-replay.yml"
       - "src/qore/infrastructure/qore_dynamic_lot_engine.py"
+      - "src/qore/infrastructure/cibo_four_motor_policy.py"
+      - "src/qore/infrastructure/cibo_four_motor_qdle_proposal.py"
+      - "src/qore/infrastructure/cibo_account_sizing_authority.py"
+      - "src/qore/infrastructure/cibo_compound_capital.py"
+      - "src/qore/infrastructure/cibo_marginal_leverage_utility.py"
+      - "src/qore/infrastructure/cibo_core_compound_portfolio.py"
+      - "scripts/qdle_3368_financial_truth_gate.py"
   pull_request:
     paths:
       - "scripts/qdle_3368_dual_ledger_replay.py"
@@ -64,12 +72,20 @@ jobs:
             --min-policy broker_grid \
             --provider-trailing-usd disabled \
             --output "$RUNNER_TEMP/qdle-results/qdle-3368-broker-grid-provider-unverified.json"
+      - name: REPLAY 3368 original signals through four native independent economic motors
+        run: |
+          python scripts/qdle_3368_dual_ledger_replay.py \
+            --manifest "$RUNNER_TEMP/qore-source/walk-forward-manifest.json" \
+            --min-policy broker_grid \
+            --motor-policy independent_four_motors \
+            --ndx-roundtrip-fee-proxy-usd-per-lot 20 \
+            --output "$RUNNER_TEMP/qdle-results/qdle-3368-native-four-motors.json"
       - name: Audit both 3368 full-coverage reports
         run: |
           python - <<'PY'
           import json, os, pathlib
           root=pathlib.Path(os.environ['RUNNER_TEMP'])/'qdle-results'
-          for name in ['qdle-3368-original-trader-min.json', 'qdle-3368-broker-grid-min.json', 'qdle-3368-broker-grid-provider-unverified.json']:
+          for name in ['qdle-3368-original-trader-min.json', 'qdle-3368-broker-grid-min.json', 'qdle-3368-broker-grid-provider-unverified.json', 'qdle-3368-native-four-motors.json']:
               d=json.loads((root/name).read_text())
               assert d['signal_count']==3368
               assert d['unique_signal_count']==3368
@@ -84,7 +100,7 @@ jobs:
           PY
       - name: Run noncertification financial truth gate on all scenarios
         run: |
-          for scenario in original-trader-min broker-grid-min broker-grid-provider-unverified; do
+          for scenario in original-trader-min broker-grid-min broker-grid-provider-unverified native-four-motors; do
             python scripts/qdle_3368_financial_truth_gate.py \
               --report "$RUNNER_TEMP/qdle-results/qdle-3368-$scenario.json" \
               --output "$RUNNER_TEMP/qdle-results/qdle-truth-gate-$scenario.json"

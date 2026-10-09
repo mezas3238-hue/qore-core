@@ -1,0 +1,84 @@
+name: QDLE CIBO Native Research Baseline Parity
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/cibo-architect-3-qdle-mt5-physical-20261008
+    paths:
+      - ".github/workflows/qdle-cibo-native-baseline-parity.yml"
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  PYTHONPATH: src
+  SOURCE_ARTIFACT_ID: "11451743578"
+  SOURCE_ARTIFACT_DIGEST: "sha256:d439957f21e2f79148b5a2fb75a53db6fa448698f17aeb6978f379ed3547f7ea"
+
+jobs:
+  causal-native-cibo-baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Restore same pinned 3368 signal source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/cibo-parity"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$SOURCE_ARTIFACT_ID/zip" > "$RUNNER_TEMP/source.zip"
+          echo "${SOURCE_ARTIFACT_DIGEST#sha256:}  $RUNNER_TEMP/source.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/source.zip" walk-forward-manifest.json -d "$RUNNER_TEMP/cibo-parity"
+      - name: Observe exact input compatibility with Native CIBO (no fallback)
+        run: |
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          p=Path(os.environ['RUNNER_TEMP'])/'cibo-parity'/'walk-forward-manifest.json'
+          d=json.loads(p.read_text())
+          print('SAME_SEALED_CIBO_INPUT_KEYS',sorted(d.keys()))
+          print('SAME_SOURCE_SIGNALS',len(d['opportunities']))
+          print('CIBO_REPLAY_INPUT_HAS_IDENTITY', {
+            key:d.get(key) for key in
+            ('initial_capital_usd','account_count','account_reset_count','economic_era_reset_count')
+          })
+          print('CIBO_MANIFEST_DIGEST_PRESENT',bool(d.get('manifest_sha256')))
+          PY
+      - name: Run original CIBO native historical ceiling under its own assumption
+        run: |
+          python scripts/cibo_single_account_historical_ceiling_replay.py \
+            --manifest "$RUNNER_TEMP/cibo-parity/walk-forward-manifest.json" \
+            --output "$RUNNER_TEMP/cibo-parity/cibo-native-baseline.json" \
+            --progress-every 500
+      - name: Assess coverage and economically authorised CIBO decision receipts
+        run: |
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          p=Path(os.environ['RUNNER_TEMP'])/'cibo-parity'/'cibo-native-baseline.json'
+          r=json.loads(p.read_text())
+          decisions=r['decision_receipts']
+          actual=[x for x in decisions if float(x.get('authorized_volume','0'))>0]
+          signals={x['signal_fingerprint'] for x in decisions}
+          print('CIBO_NATIVE_INDEPENDENT_BASELINE', {
+            'decisions':len(decisions),
+            'unique_signals':len(signals),
+            'CIBO_authorized_decisions':len(actual),
+            'CIBO_model_final_NAV_usd':r['ending_capital_usd'],
+            'CIBO_model_not_broker_certified':not r['governance']['certification_claimed'],
+            'has_cibo_explicit_source_lane': all('source_lane' in x for x in actual),
+            'has_cibo_managed_exit_event':all('managed_exit_at' in x for x in actual),
+          })
+          assert not r['governance']['certification_claimed']
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cibo-qdle-native-replay-parity-RESEARCH-${{ github.run_id }}
+          path: ${{ runner.temp }}/cibo-parity/cibo-native-baseline.json
+          if-no-files-found: warn

@@ -29,6 +29,7 @@ class CiboFourEngineLimits:
     slippage_buffer_usd_per_lot: Decimal
     funded_source_lane: str
     account_sequence: int
+    requested_target_lots: Decimal | None = None
 
 
 def reserve_cibo_entry(
@@ -59,5 +60,6 @@ def reserve_cibo_entry(
         slippage_usd_per_lot=limits.slippage_buffer_usd_per_lot,
         expected_account_sequence=limits.account_sequence,
         methodology_min_lots=minimum_seed_volume(opportunity),
+        requested_target_lots=limits.requested_target_lots,
     )
     return engine.reserve_for_trader(command, now=now)

@@ -9,15 +9,24 @@ historical provider conditions. Structural R outcome consumed ONLY at exit.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import heapq
 import json
 from datetime import timedelta
+from dataclasses import replace
 import tempfile
 from collections import Counter, defaultdict
 from datetime import datetime
 from decimal import Decimal as D
 from pathlib import Path
 
+from qore.infrastructure.cibo_account_sizing_authority import propose_p0_sizing_vote
+from qore.infrastructure.cibo_compound_capital import propose_p0_compound_vote
+from qore.infrastructure.cibo_marginal_leverage_utility import propose_p0_adaptive_leverage_vote
+from qore.infrastructure.cibo_core_compound_portfolio import propose_p0_portfolio_vote
+from qore.infrastructure.cibo_four_motor_policy import FourMotorObservation, ReconciledQoreCashflow
+from qore.infrastructure.cibo_four_motor_qdle_proposal import build_four_motor_qdle_intent
+from qore.infrastructure.qdle_cibo_authority import CiboEconomicInstruction, build_cibo_directed_qdle_intent, audit_cibo_qdle_lotage
 from qore.infrastructure.qore_dynamic_lot_engine import (
     BrokerValuation, Position, QDLE, QDLEAccount, QDLEError, QDLEIntent, QDLESymbol,
 )
@@ -91,12 +100,26 @@ class HistoricalProxy:
 def main() -> int:
     p = argparse.ArgumentParser()
     p.add_argument("--manifest", type=Path, required=True)
+    p.add_argument("--motor-policy", choices=["shared_proxy", "independent_four_motors"], default="shared_proxy")
+    p.add_argument("--target-lots", type=D, default=None, help="Optional maximum broker lots requested, never additional risk authorization")
+    p.add_argument("--cibo-instructions", type=Path, default=None,
+                   help="CIBO-authorized bank/cushion and per-signal budget; never synthesized")
+    p.add_argument("--ndx-roundtrip-fee-proxy-usd-per-lot", type=D, default=None,
+                   help="Explicit research sensitivity only; unknown NDX fee never inferred")
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--min-policy", choices=["original_trader", "broker_grid"], default="original_trader")
     p.add_argument("--swap-proxy", choices=["off", "utc_midnight"], default="utc_midnight")
     p.add_argument("--provider-trailing-usd", type=str, default="120",
                    help="USD loss threshold sensitivity; disabled = provider rule NOT modeled")
     args = p.parse_args()
+    if args.target_lots is not None and (not args.target_lots.is_finite() or args.target_lots <= ZERO):
+        raise SystemExit("Invalid target lots")
+    if args.motor_policy == "independent_four_motors" and (
+        args.ndx_roundtrip_fee_proxy_usd_per_lot is None
+        or not args.ndx_roundtrip_fee_proxy_usd_per_lot.is_finite()
+        or args.ndx_roundtrip_fee_proxy_usd_per_lot < ZERO
+    ):
+        raise SystemExit("Independent replay requires explicit NDX all-in fee sensitivity; zero permitted only as optimistic sensitivity")
     provider_limit = None if args.provider_trailing_usd == "disabled" else D(args.provider_trailing_usd)
     if provider_limit is not None and provider_limit <= 0:
         raise SystemExit("Invalid trailing USD model")
@@ -107,6 +130,79 @@ def main() -> int:
     if any(opportunities[i]["market_decision_at"] > opportunities[i + 1]["market_decision_at"]
            for i in range(len(opportunities) - 1)):
         raise SystemExit("FAIL CLOSED: sealed opportunity order not chronological")
+
+    cibo_by_signal = None
+    cibo_declared_provenance = None
+    cibo_managed_outcomes = {}
+    lane_cash = None
+    transfer_events = []
+    if args.cibo_instructions:
+        if args.motor_policy != "independent_four_motors":
+            raise SystemExit("CIBO instructions require independent four-motor policy")
+        authority = json.loads(args.cibo_instructions.read_text(encoding="utf-8"))
+        if authority.get("schema") != "qore.cibo.qdle-authoritative-economic-input.v1":
+            raise SystemExit("FAIL CLOSED: canonical CIBO economic instructions required")
+        instructions = authority.get("instructions")
+        source_ids = {row["signal_fingerprint"] for row in opportunities}
+        if (not isinstance(instructions, list) or len(instructions) != len(opportunities)
+            or any(not isinstance(x, dict) or not x.get("signal_id") for x in instructions)
+            or {x["signal_id"] for x in instructions} != source_ids
+            or len({x["signal_id"] for x in instructions}) != len(opportunities)):
+            raise SystemExit("FAIL CLOSED: missing, duplicated or foreign CIBO instructions")
+        cibo_by_signal = {x["signal_id"]: x for x in instructions}
+        cibo_declared_provenance = authority.get("provenance", "CIBO_EXTERNAL_RESEARCH_INPUT_NOT_BROKER_AUTHENTICATED")
+        if not isinstance(cibo_declared_provenance, str) or not cibo_declared_provenance.strip():
+            raise SystemExit("FAIL CLOSED: CIBO source provenance declaration required")
+        settlements = authority.get("managed_settlement_receipts", [])
+        if not isinstance(settlements, list) or any(
+            not isinstance(x, dict) or not x.get("signal_id")
+            or x["signal_id"] not in source_ids for x in settlements
+        ):
+            raise SystemExit("FAIL CLOSED: invalid CIBO managed settlement list")
+        if len({x["signal_id"] for x in settlements}) != len(settlements):
+            raise SystemExit("FAIL CLOSED: duplicate CIBO management settlement")
+        cibo_managed_outcomes = {x["signal_id"]: x for x in settlements}
+        # A hypothetical funded operation cannot quietly inherit the
+        # Trader's structural historical R if CIBO did not supply its managed
+        # exit. Do NOT use outcome amount when deciding budget or volume.
+        for instruction in instructions:
+            if D(str(instruction["authorized_all_in_risk_usd"])) > ZERO:
+                if instruction["signal_id"] not in cibo_managed_outcomes:
+                    raise SystemExit("FAIL CLOSED: CIBO authorizes risk without its management settlement")
+        for exit_receipt in settlements:
+            try:
+                final_at = datetime.fromisoformat(str(exit_receipt["exit_at"]))
+                r_value = D(str(exit_receipt["gross_outcome_r"]))
+                evidence = str(exit_receipt["evidence_sha256"])
+                if (final_at.tzinfo is None or final_at.utcoffset() is None
+                    or not r_value.is_finite() or len(evidence) != 71
+                    or not evidence.startswith("sha256:")):
+                    raise ValueError("managed exit chronology/rate/evidence invalid")
+            except (ValueError, KeyError, TypeError, ArithmeticError) as exc:
+                raise SystemExit("FAIL CLOSED: managed exit incomplete: " + str(exc)) from exc
+        try:
+            lane_cash = {
+                "SOVEREIGN_BANK": D(str(authority["initial_bank_usd"])),
+                "PORTFOLIO_CUSHION": D(str(authority["initial_cushion_usd"])),
+            }
+            if (any(not x.is_finite() or x < ZERO for x in lane_cash.values())
+                or sum(lane_cash.values()) != START_QORE):
+                raise ValueError("CIBO bank+cushion must equal USD60")
+            transfer_events = authority.get("capital_transfers", [])
+            if not isinstance(transfer_events, list):
+                raise ValueError("capital_transfers must be list")
+            transfer_events = sorted(transfer_events, key=lambda x: x["at"])
+            for tx in transfer_events:
+                if (tx.get("from_lane") not in lane_cash
+                    or tx.get("to_lane") not in lane_cash
+                    or tx["from_lane"] == tx["to_lane"]
+                    or not str(tx.get("evidence_sha256", "")).startswith("sha256:")
+                    or len(str(tx["evidence_sha256"])) != 71
+                    or not D(str(tx["usd"])).is_finite()
+                    or D(str(tx["usd"])) <= ZERO):
+                    raise ValueError("invalid CIBO transfer receipt")
+        except (ValueError, KeyError, TypeError, ArithmeticError) as err:
+            raise SystemExit("FAIL CLOSED: CIBO cash or transfer: " + str(err)) from err
 
     nav = START_QORE
     peak_nav = nav
@@ -126,6 +222,9 @@ def main() -> int:
     module_audit_present = Counter()
     sym_counts: dict[str, Counter] = defaultdict(Counter)
     total_cost = ZERO
+    entry_commission_paid = ZERO
+    closing_commission_paid = ZERO
+    recent_settlements: list[tuple[datetime, str, D]] = []
     swap_pnl = ZERO
     rollover_count = 0
     realized_count = 0
@@ -134,11 +233,32 @@ def main() -> int:
     unresolved_at_breach = 0
     decisions = []
     last_spec_time: dict[str, datetime] = {}
+    cibo_transfers_applied = 0
+    cibo_directions_consumed = 0
+    cibo_managed_exit_receipts_consumed = 0
 
     with tempfile.TemporaryDirectory() as t:
         broker = HistoricalProxy()
         qdle = QDLE(Path(t) / "qdle_3368_sealed.sqlite", broker)
         sequence = 0
+        def apply_cibo_transfers(at: datetime) -> None:
+            nonlocal cibo_transfers_applied
+            if lane_cash is None:
+                return
+            while cibo_transfers_applied < len(transfer_events):
+                tx = transfer_events[cibo_transfers_applied]
+                when = datetime.fromisoformat(tx["at"])
+                if when > at:
+                    break
+                debit, credit, amount = tx["from_lane"], tx["to_lane"], D(str(tx["usd"]))
+                reserved = sum((v["planned_risk"] for v in active.values()
+                                if v["source_lane"] == debit), ZERO)
+                if lane_cash[debit] - reserved < amount:
+                    raise QDLEError("CIBO_TRANSFER_UNBACKED_OR_ALREADY_RESERVED")
+                lane_cash[debit] -= amount
+                lane_cash[credit] += amount
+                cibo_transfers_applied += 1
+
         def publish(at: datetime) -> None:
             nonlocal sequence, broker_peak, provider_floor_breach
             sequence += 1
@@ -152,6 +272,20 @@ def main() -> int:
             open_risk = sum((x["planned_risk"] for x in active.values()), ZERO)
             open_margin = sum((x["margin"] for x in active.values()), ZERO)
             available_qore = max(ZERO, nav - open_risk)
+            if lane_cash is not None:
+                apply_cibo_transfers(at)
+                if any(balance < ZERO for balance in lane_cash.values()):
+                    raise QDLEError("CIBO_SOURCE_LANE_INSOLVENT_NO_AUTOMATIC_BANK_BAILOUT")
+                if abs(sum(lane_cash.values()) - nav) > D("0.00000001"):
+                    raise QDLEError("CIBO_SOURCE_LEDGER_DIVERGES_FROM_QORE_NAV")
+                free_bank = max(ZERO, lane_cash["SOVEREIGN_BANK"] -
+                    sum((v["planned_risk"] for v in active.values()
+                         if v["source_lane"] == "SOVEREIGN_BANK"), ZERO))
+                free_cushion = max(ZERO, lane_cash["PORTFOLIO_CUSHION"] -
+                    sum((v["planned_risk"] for v in active.values()
+                         if v["source_lane"] == "PORTFOLIO_CUSHION"), ZERO))
+            else:
+                free_bank, free_cushion = available_qore, ZERO
             broker_free_margin = max(ZERO, broker_equity - open_margin)
             qdle.publish_account(QDLEAccount(
                 account_id="SEALED_RESEARCH_2000", provider="FundedNext", currency="USD",
@@ -159,8 +293,8 @@ def main() -> int:
                 balance=max(ZERO, broker_equity), equity=max(ZERO, broker_equity),
                 free_margin=broker_free_margin,
                 qore_unreserved_risk_usd=min(available_qore, headroom),
-                sovereign_free_source_usd=available_qore,
-                cushion_free_source_usd=ZERO,
+                sovereign_free_source_usd=free_bank,
+                cushion_free_source_usd=free_cushion,
                 qore_trading_capital_usd=max(ZERO, nav),
                 positions=tuple(Position(k, v["symbol"], v["side"], v["lots"])
                                 for k, v in sorted(active.items())),
@@ -170,6 +304,7 @@ def main() -> int:
             nonlocal nav, peak_nav, max_dd_ratio, maximum_absolute_dd
             nonlocal provider_closed_at, unresolved_at_breach
             nonlocal realized_count, total_cost, wins, losses, realized_gains
+            nonlocal closing_commission_paid
             nonlocal swap_pnl, rollover_count
             if provider_closed_at is not None:
                 return
@@ -188,10 +323,15 @@ def main() -> int:
                     pnl_gross_usd_proxy=str(gross),
                     realized_exit_at=when.isoformat(),
                     swap_usd_proxy=str(swap),
+                    commission_close_paid_usd_proxy=str(trade.get("deferred_close_fee", ZERO)),
                 )
                 realized_gains += pnl
                 # Entry commission was already removed from NAV at hypothetical fill.
-                nav += gross + swap
+                nav += gross + swap - trade.get("deferred_close_fee", ZERO)
+                if lane_cash is not None:
+                    lane_cash[trade["source_lane"]] += gross + swap - trade.get("deferred_close_fee", ZERO)
+                closing_commission_paid += trade.get("deferred_close_fee", ZERO)
+                recent_settlements.append((when, ticket, pnl))
                 wins += max(ZERO, pnl)
                 losses += max(ZERO, -pnl)
                 realized_count += 1
@@ -249,18 +389,6 @@ def main() -> int:
                     raise QDLEError("INVALID_DIRECTIONAL_STOP")
                 if nav <= 0:
                     raise QDLEError("QORE_PROPRIETARY_NAV_EXHAUSTED")
-                if at > last_spec_time.get(symbol, datetime.min.replace(tzinfo=at.tzinfo)):
-                    # A synthetic constant screenshot-based lot grid.
-                    qdle.publish_symbol(QDLESymbol(
-                        broker_symbol=symbol, aliases=(symbol, "NAS100") if symbol == "NDX100" else (symbol,),
-                        min_lot=D(".01"), max_lot=D("50") if symbol == "XAUUSD" else D("40"),
-                        lot_step=D(".01"), directional_volume_limit=ZERO,
-                        tick_size=TICKS[symbol], tick_value_loss_usd=D("1"),
-                        contract_size=CONTRACTS[symbol], currency_profit=PROFIT[symbol],
-                        fee_usd_per_lot=D("0"), fee_provenance="SCREENSHOT_RESEARCH_PROXY",
-                        as_of=at, tradable=True,
-                    ))
-                    last_spec_time[symbol] = at
                 # FXJPY uses USD-per-lot proxy captured in original research
                 # manifest; EUR/GBPUSD recompute from USD quote; XAU/NDX
                 # contract economics come from user screenshots.
@@ -271,15 +399,36 @@ def main() -> int:
                 )
                 if stop_per_lot <= 0:
                     raise QDLEError("INVALID_RESEARCH_STOP_VALUATION")
-                # Forex entry commission from MT5 screenshot; XAU commission
-                # screenshot percent of unknown basis approximated as notional;
-                # NDX100 commission unknown -> ZERO optimistic lower bound.
+                # Explicit scenario fees are all-in *proxies*, not broker proof.
+                # FX opening $7 + closing $7 per lot, as requested by the user.
+                # XAU 0.0016% screenshot: unknown base/side, model 2 symmetric legs.
+                # NDX has NO observed fee; caller must supply a scenario assumption.
                 if symbol in {"AUDJPY", "GBPJPY", "GBPUSD", "EURUSD"}:
-                    fee = D("7")
+                    fee = (D("14") if args.motor_policy == "independent_four_motors"
+                           else D("7"))
                 elif symbol == "XAUUSD":
                     fee = D("0.000016") * CONTRACTS[symbol] * entry
+                    if args.motor_policy == "independent_four_motors":
+                        fee *= 2
+                elif args.motor_policy == "independent_four_motors":
+                    fee = args.ndx_roundtrip_fee_proxy_usd_per_lot
                 else:
                     fee = ZERO
+                if at > last_spec_time.get(symbol, datetime.min.replace(tzinfo=at.tzinfo)):
+                    qdle.publish_symbol(QDLESymbol(
+                        broker_symbol=symbol, aliases=(symbol, "NAS100") if symbol == "NDX100" else (symbol,),
+                        min_lot=D(".01"), max_lot=D("50") if symbol == "XAUUSD" else D("40"),
+                        lot_step=D(".01"), directional_volume_limit=ZERO,
+                        tick_size=TICKS[symbol], tick_value_loss_usd=D("1"),
+                        contract_size=CONTRACTS[symbol], currency_profit=PROFIT[symbol],
+                        # Price-dependent XAU costs travel as a per-entry extra
+                        # allowance below; fixed FX/NDX fees live in broker spec.
+                        fee_usd_per_lot=(fee if args.motor_policy == "independent_four_motors"
+                                         and symbol != "XAUUSD" else ZERO),
+                        fee_provenance="SCENARIO_COST_PROXY_UNVERIFIED",
+                        as_of=at, tradable=True,
+                    ))
+                    last_spec_time[symbol] = at
                 broker.quote = BrokerValuation(
                     stop_per_lot, MARGINS[symbol][side], at, "SCREENSHOT_2026_STATIC_MARGIN_RESEARCH_PROXY",
                 )
@@ -291,35 +440,190 @@ def main() -> int:
                 policy_min = D(t["minimum_volume"]) * D(t.get("minimum_execution_steps", 1))
                 if args.min_policy == "broker_grid":
                     policy_min = D(".01")
-                event["four_engine_caps_usd"] = {
-                    "SIZING": str(risk_budget),
-                    "CIBO_COMPOUND": str(risk_budget),
-                    "PORTFOLIO_COMPOUND_AVAILABLE_SOURCE": str(free_qore),
-                }
-                event["leverage_margin_budget_usd"] = str(free_broker)
-                event["leverage_max_lots"] = str(limit_lots)
                 event["stop_loss_usd_per_lot"] = str(stop_per_lot)
+                event["commission_roundtrip_proxy_per_lot"] = str(fee) if args.motor_policy == "independent_four_motors" else None
                 event["commission_entry_usd_per_lot_proxy"] = str(fee)
+                if args.motor_policy == "independent_four_motors":
+                    cibo = None
+                    if cibo_by_signal is not None:
+                        raw_cibo = cibo_by_signal[rid]
+                        cibo = CiboEconomicInstruction(
+                            signal_id=str(raw_cibo["signal_id"]),
+                            trader_id=str(raw_cibo["trader_id"]),
+                            symbol=str(raw_cibo["symbol"]),
+                            side=str(raw_cibo["side"]),
+                            entry_price=D(str(raw_cibo["entry_price"])),
+                            stop_price=D(str(raw_cibo["stop_price"])),
+                            source_lane=str(raw_cibo["source_lane"]),
+                            allocated_source_funds_usd=D(str(raw_cibo["allocated_source_funds_usd"])),
+                            authorized_all_in_risk_usd=D(str(raw_cibo["authorized_all_in_risk_usd"])),
+                            maximum_requested_lots=(D(str(raw_cibo["maximum_requested_lots"]))
+                                if raw_cibo.get("maximum_requested_lots") is not None else None),
+                            account_sequence=int(raw_cibo["account_sequence"]),
+                            issued_at=datetime.fromisoformat(str(raw_cibo["issued_at"])),
+                            evidence_sha256=str(raw_cibo["evidence_sha256"]),
+                        )
+                        if (cibo.trader_id != row["trader_id"]
+                            or cibo.symbol != symbol or cibo.side != side
+                            or cibo.entry_price != entry or cibo.stop_price != stop):
+                            raise QDLEError("CIBO_IDENTITY_OR_GEOMETRY_DRIFT")
+                    open_stop = sum((x["planned_risk"] for x in active.values()), ZERO)
+                    open_margin = sum((x["margin"] for x in active.values()), ZERO)
+                    same_symbol_stop = sum((x["planned_risk"] for x in active.values()
+                                            if x["symbol"] == symbol), ZERO)
+                    same_trader_stop = sum((x["planned_risk"] for x in active.values()
+                                            if x.get("trader") == row["trader_id"]), ZERO)
+                    same_direction = sum((x["lots"] for x in active.values()
+                                          if x["symbol"] == symbol and x["side"] == side), ZERO)
+                    # Simulated cashbook is NOT a broker settlement statement.
+                    digest = "sha256:" + hashlib.sha256(
+                        (rid + at.isoformat() + str(nav) + str(fee)).encode()
+                    ).hexdigest()
+                    # Keep 3 most recent completed trade settlements distinct,
+                    # so Compound's three-loss defense can really activate.
+                    # Aggregate earlier cashflows + already debited opening fees
+                    # in a prior synthetic cashbook receipt without inventing profit.
+                    recent = recent_settlements[-3:]
+                    previous_amount = nav - START_QORE - sum(
+                        (v for _, _, v in recent), ZERO
+                    )
+                    prior_time = (recent[0][0] - timedelta(microseconds=1)
+                                  if recent else at)
+                    simulated_flows = (
+                        ((ReconciledQoreCashflow(
+                            "REPLAY_PRIOR_CASHBOOK:" + rid, prior_time,
+                            previous_amount, digest, True),)
+                         if previous_amount != ZERO else ())
+                        + tuple(ReconciledQoreCashflow(
+                            "REPLAY_SETTLED:" + trade_id, completed_at,
+                            net, digest, True,
+                        ) for completed_at, trade_id, net in recent)
+                    )
+                    obs = FourMotorObservation(
+                        request_id=rid, trader_id=row["trader_id"], symbol=symbol, side=side,
+                        source_lane=cibo.source_lane if cibo is not None else "SOVEREIGN_BANK", observed_at=at,
+                        account_sequence=sequence, broker_evidence_sha256=digest,
+                        initial_qore_nav_usd=START_QORE, reconciled_cashflows=simulated_flows,
+                        protected_capital_usd=ZERO, floating_loss_reserve_usd=ZERO,
+                        risk_reservations_usd=open_stop,
+                        bank_unreserved_usd=(
+                            max(ZERO, lane_cash["SOVEREIGN_BANK"] -
+                                sum((x["planned_risk"] for x in active.values()
+                                     if x["source_lane"] == "SOVEREIGN_BANK"), ZERO))
+                            if lane_cash is not None else free_qore),
+                        cushion_unreserved_usd=(
+                            max(ZERO, lane_cash["PORTFOLIO_CUSHION"] -
+                                sum((x["planned_risk"] for x in active.values()
+                                     if x["source_lane"] == "PORTFOLIO_CUSHION"), ZERO))
+                            if lane_cash is not None else ZERO),
+                        total_open_stop_risk_usd=open_stop,
+                        correlated_open_stop_risk_usd=same_symbol_stop,
+                        trader_open_stop_risk_usd=same_trader_stop,
+                        broker_free_margin_usd=START_BROKER + nav - START_QORE,
+                        broker_margin_reservations_usd=open_margin,
+                        stop_loss_usd_per_lot=stop_per_lot,
+                        roundtrip_fees_usd_per_lot=fee,
+                        execution_buffer_usd_per_lot=ZERO,
+                        stress_extra_loss_usd_per_lot=ZERO,
+                        broker_margin_usd_per_lot=MARGINS[symbol][side],
+                        symbol_max_lots=limit_lots, provider_direction_max_lots=limit_lots,
+                        open_and_reserved_direction_lots=same_direction,
+                        broker_quote_at=at, broker_fees_complete=True,
+                        broker_profit_valuation_complete=True,
+                        broker_margin_valuation_complete=True,
+                    )
+                    votes = (propose_p0_sizing_vote(obs),
+                             propose_p0_compound_vote(obs),
+                             propose_p0_adaptive_leverage_vote(obs),
+                             propose_p0_portfolio_vote(obs))
+                    if cibo is not None:
+                        requested = build_cibo_directed_qdle_intent(
+                            cibo=cibo, observation=obs, votes=votes,
+                            methodology_min_lots=policy_min,
+                        )
+                        cibo_directions_consumed += 1
+                        event["cibo_source_lane"] = cibo.source_lane
+                        event["cibo_source_allocation_usd"] = str(cibo.allocated_source_funds_usd)
+                        event["cibo_authorized_risk_usd"] = str(cibo.authorized_all_in_risk_usd)
+                        event["cibo_evidence_sha256"] = cibo.evidence_sha256
+                    else:
+                        requested = build_four_motor_qdle_intent(
+                            observation=obs, votes=votes, entry_price=entry,
+                            stop_price=stop, methodology_min_lots=policy_min,
+                            requested_target_lots=args.target_lots,
+                        )
+                    # XAU percent fee is price-dependent in this sensitivity,
+                    # carried through QDLE's per-entry buffer. FX fees in Symbol.
+                    if symbol == "XAUUSD":
+                        requested = replace(requested, slippage_usd_per_lot=fee)
+                    event["four_engine_reason_codes"] = {
+                        v.producer: list(v.reason_codes) for v in votes
+                    }
+                    event["four_engine_caps_usd"] = {
+                        "SIZING": votes[0].limits["approved_risk_usd"],
+                        "CIBO_COMPOUND": votes[1].limits["approved_risk_usd"],
+                        "PORTFOLIO_COMPOUND_AVAILABLE_SOURCE": votes[3].limits["approved_source_funds_usd"],
+                    }
+                    event["leverage_margin_budget_usd"] = votes[2].limits["approved_margin_usd"]
+                    event["leverage_max_lots"] = votes[2].limits["approved_max_lots"]
+                else:
+                    event["four_engine_caps_usd"] = {
+                        "SIZING": str(risk_budget),
+                        "CIBO_COMPOUND": str(risk_budget),
+                        "PORTFOLIO_COMPOUND_AVAILABLE_SOURCE": str(free_qore),
+                    }
+                    event["leverage_margin_budget_usd"] = str(free_broker)
+                    event["leverage_max_lots"] = str(limit_lots)
+                    requested = QDLEIntent(
+                        request_id=rid, trader_id=row["trader_id"], symbol=symbol, side=side,
+                        entry_price=entry, stop_price=stop,
+                        requested_risk_usd=risk_budget, sizing_cap_usd=risk_budget,
+                        cibo_compound_cap_usd=risk_budget,
+                        portfolio_cap_usd=free_qore,
+                        leverage_cap_lots=limit_lots,
+                        margin_cap_usd=free_broker,
+                        source_lane="SOVEREIGN_BANK",
+                        slippage_usd_per_lot=fee, expected_account_sequence=sequence,
+                        methodology_min_lots=policy_min,
+                    )
+                if args.target_lots is not None and args.motor_policy != "independent_four_motors":
+                    requested = replace(requested, requested_target_lots=args.target_lots)
                 for label, value in event["four_engine_caps_usd"].items():
                     module_summed_limits_usd[label] += D(value)
                     module_audit_present[label] += 1
                 module_audit_present["ADAPTIVE_LEVERAGE"] += 1
-                requested = QDLEIntent(
-                    request_id=rid, trader_id=row["trader_id"], symbol=symbol, side=side,
-                    entry_price=entry, stop_price=stop,
-                    requested_risk_usd=risk_budget, sizing_cap_usd=risk_budget,
-                    cibo_compound_cap_usd=risk_budget,
-                    portfolio_cap_usd=free_qore,
-                    leverage_cap_lots=limit_lots,
-                    margin_cap_usd=free_broker,
-                    source_lane="SOVEREIGN_BANK",
-                    slippage_usd_per_lot=fee, expected_account_sequence=sequence,
-                    methodology_min_lots=policy_min,
-                )
                 result = qdle.reserve_for_trader(requested, now=at)
+                if cibo_by_signal is not None:
+                    receipt = audit_cibo_qdle_lotage(
+                        cibo=cibo, observation=obs, votes=votes, result=result,
+                        broker_min_lot=D(".01"), broker_lot_step=D(".01"),
+                    )
+                    event["cibo_qdle_audit"] = {
+                        "decision_state": receipt.decision_state,
+                        "source_lane": receipt.source_lane,
+                        "trader_id": receipt.trader_id,
+                        "entry_price": str(receipt.entry_price),
+                        "stop_price": str(receipt.stop_price),
+                        "qore_nav_usd": str(receipt.qore_nav_usd),
+                        "five_percent_max_usd": str(receipt.sovereign_5pct_ceiling_usd),
+                        "cibo_authorized_risk_usd": str(receipt.cibo_risk_budget_usd),
+                        "cibo_allocated_working_capital_usd": str(receipt.cibo_allocated_funds_usd),
+                        "lots": str(receipt.lots),
+                        "stop_loss_usd": str(receipt.stop_loss_usd),
+                        "roundtrip_cost_reserved_usd": str(receipt.total_roundtrip_cost_usd),
+                        "all_in_risk_reserved_usd": str(receipt.all_in_risk_usd),
+                        "margin_usd": str(receipt.broker_margin_usd),
+                        "binding_reason_codes": list(receipt.reason_codes),
+                        "account_sequence": receipt.account_sequence,
+                        "cibo_source_evidence_sha256": receipt.cibo_source_evidence_sha256,
+                        "broker_source_evidence_sha256": receipt.broker_source_evidence_sha256,
+                        "real_mt5_fill_proven": receipt.real_mt5_fill_proven,
+                    }
                 event.update(status=result.state, lots=str(result.lots),
                              bound_modules=list(result.binding_limits),
                              fees_entry_usd_proxy=str(result.cost_usd),
+                             commission_roundtrip_reserved_usd_proxy=str(result.cost_usd),
+                             commission_open_paid_usd_proxy="0",
                              planned_stop_usd=str(result.total_risk_usd),
                              margin_usd=str(result.margin_usd),
                              risk_budget_usd=str(risk_budget),
@@ -342,15 +646,35 @@ def main() -> int:
                     qdle.acknowledge_fill(rid, synthetic_ticket)
                     # Fee debited at entry, not at settlement: immediate QORE
                     # NAV and broker equity reduction feeds subsequent decisions.
-                    entry_fee = result.lots * fee
+                    # Broker-style simulated timing: opening fee at entry;
+                    # closing fee ONLY at the modeled exit. QDLE pre-reserves
+                    # the full two-leg cost before entry in both cases.
+                    full_fee = result.lots * fee
+                    entry_fee = (full_fee / D("2") if args.motor_policy == "independent_four_motors"
+                                 else full_fee)
+                    close_fee = full_fee - entry_fee
+                    event["commission_open_paid_usd_proxy"] = str(entry_fee)
+                    event["commission_close_committed_usd_proxy"] = str(close_fee)
                     nav -= entry_fee
-                    total_cost += entry_fee
+                    if lane_cash is not None:
+                        lane_cash[requested.source_lane] -= entry_fee
+                    entry_commission_paid += entry_fee
+                    total_cost += full_fee
                     peak_nav = max(peak_nav, nav)
                     dd_at_entry = max(ZERO, peak_nav - nav)
                     maximum_absolute_dd = max(maximum_absolute_dd, dd_at_entry)
                     if peak_nav > ZERO:
                         max_dd_ratio = max(max_dd_ratio, dd_at_entry / peak_nav)
-                    expiration = datetime.fromisoformat(row["settlement_outcome_research_only"]["exit_at"])
+                    if cibo_by_signal is not None:
+                        managed = cibo_managed_outcomes[rid]
+                        expiration = datetime.fromisoformat(str(managed["exit_at"]))
+                        outcome_r = D(str(managed["gross_outcome_r"]))
+                        event["cibo_managed_exit_evidence_sha256"] = managed["evidence_sha256"]
+                        event["cibo_managed_exit_at"] = expiration.isoformat()
+                        cibo_managed_exit_receipts_consumed += 1
+                    else:
+                        expiration = datetime.fromisoformat(row["settlement_outcome_research_only"]["exit_at"])
+                        outcome_r = D(row["settlement_outcome_research_only"]["gross_structural_outcome_r"])
                     if expiration < at:
                         raise QDLEError("HISTORICAL_EXIT_PRECEDES_DECISION")
                     # Tick values observed for metals/index; FX conversion
@@ -364,10 +688,12 @@ def main() -> int:
                         "decision_event": event,
                         "opened_at": at,
                         "swap_usd_per_lot": SWAP[symbol][side] * usd_per_swap_point_per_lot,
-                        "symbol": symbol, "side": side, "lots": result.lots,
+                        "symbol": symbol, "side": side, "trader": row["trader_id"], "lots": result.lots,
                         "margin": result.margin_usd, "planned_risk": result.total_risk_usd,
+                        "source_lane": requested.source_lane,
                         "stop_per_lot": stop_per_lot, "fee_per_lot": fee,
-                        "r": D(row["settlement_outcome_research_only"]["gross_structural_outcome_r"]),
+                        "deferred_close_fee": close_fee,
+                        "r": outcome_r,
                     }
                     publish(at)
                     qdle.reconcile_fill(rid)
@@ -402,8 +728,25 @@ def main() -> int:
             "qore_initial_capital_usd": "60",
             "historical_exposure_model": "STATIC_2026_SCREENSHOT_MARGIN_NOT_HISTORICAL_BROKER",
             "provider_loss_limit_model": ("RESEARCH_SENSITIVITY_TRAILING_" + str(provider_limit) + "_USD_NOT_VERIFIED") if provider_limit is not None else "NO_VERIFIED_PROVIDER_LIMIT_NOT_SIMULATED",
-            "commission_model": "FOREX_ENTRY_ONLY_7USD_LOT__XAU_NOTIONAL_PROXY__NDX_ZERO_UNKNOWN",
-            "module_caps_provenance": "PROXY_SHARED_5PCT_NOT_INDEPENDENT_MOTOR_DECISIONS",
+            "commission_model": ("FOREX_7_OPEN_PLUS_7_CLOSE_PER_LOT__XAU_SYMMETRIC_2_LEG_NOTIONAL_PROXY__NDX_EXPLICIT_SENSITIVITY" if args.motor_policy == "independent_four_motors" else "FOREX_ENTRY_ONLY_7USD_LOT__XAU_NOTIONAL_PROXY__NDX_ZERO_UNKNOWN"),
+            "ndx_assumed_total_fee_usd_per_lot": str(args.ndx_roundtrip_fee_proxy_usd_per_lot) if args.motor_policy == "independent_four_motors" else None,
+            "module_caps_provenance": ("SIMULATED_INDEPENDENT_FOUR_MOTOR_VOTES" if args.motor_policy == "independent_four_motors" else "PROXY_SHARED_5PCT_NOT_INDEPENDENT_MOTOR_DECISIONS"),
+            "economic_motor_mode": args.motor_policy,
+            "cibo_authority_mode": ("CIBO_EXPLICIT_DIRECTIVES" if cibo_by_signal is not None
+                                   else "NOT_CIBO_INTEGRATED_ECONOMIC_PROXIES"),
+            "cibo_instruction_provenance": cibo_declared_provenance,
+            "cibo_management_broker_authenticated": False,
+            "cibo_directives_consumed": cibo_directions_consumed,
+            "cibo_exit_management_replayed": (
+                cibo_by_signal is not None
+                and cibo_managed_exit_receipts_consumed == sum(
+                    x["research_financed"] for x in sym_counts.values())
+                and cibo_managed_exit_receipts_consumed > 0
+            ),
+            "cibo_managed_exit_receipts_consumed": cibo_managed_exit_receipts_consumed,
+            "cibo_capital_transfers_applied": cibo_transfers_applied,
+            "cibo_source_balances_usd": {k: str(v) for k, v in lane_cash.items()} if lane_cash is not None else None,
+            "requested_target_lots": str(args.target_lots) if args.target_lots is not None else None,
             "module_binding_ties_on_funded": dict(module_binding_ties),
             "module_audit_observations": dict(module_audit_present),
             "module_summed_approved_usd_not_disbursed": {k: str(v) for k,v in module_summed_limits_usd.items()},
@@ -427,6 +770,12 @@ def main() -> int:
             "gross_wins_usd": str(wins),
             "gross_losses_usd": str(losses),
             "entry_cost_proxy_usd": str(total_cost),
+            "roundtrip_total_commission_committed_proxy_usd": str(total_cost),
+            "per_trade_fees_entry_usd_proxy_field_is_historical_compatibility": True,
+            "per_trade_commission_open_and_close_fields_are_authoritative_research": True,
+            "opening_commission_paid_proxy_usd": str(entry_commission_paid),
+            "closing_commission_paid_proxy_usd": str(closing_commission_paid),
+            "unsettled_future_close_fee_not_charged_usd": str(sum((x.get("deferred_close_fee", ZERO) for x in active.values()), ZERO)),
             "net_swap_pnl_utc_midnight_proxy_usd": str(swap_pnl),
             "swap_rollover_position_count_proxy": rollover_count,
             "swap_model": "SCREENSHOT_2026_POINTS_AT_UTC_MIDNIGHT_PROXY" if args.swap_proxy == "utc_midnight" else "OMITTED_NO_DATA",
@@ -451,7 +800,15 @@ def main() -> int:
                 "Swap rollover model uses UTC midnight and current screenshot points, NOT historical broker records",
                 "Closed-equity-only DD understates possible intratrade DD",
                 "Pnl from realized structural R after exit, not actual MT5 transactions",
-                "Four-module limits are same 5% ceiling, not historically replayed independent decisions",
+                "Four-module decisions are research policies calculated on simulated cashflows/quotes, not authentic historical broker votes",
+                "Independent 4-motor mode assumes fee completeness for RESEARCH ONLY; fake evidence must never be used for live authorization",
+                ("CIBO economic instructions supplied and honored, but broker authenticity not proved"
+                 if cibo_by_signal is not None else
+                 "NO CIBO trade management or portfolio allocation instructions; economic cap proxy ONLY"),
+                ("CIBO-supplied managed exit date and gross R dictate research settlement; no actual MT5 broker deal"
+                 if cibo_managed_exit_receipts_consumed else
+                 "No CIBO-managed exits; original historical structural R dictates settlement"),
+                "No per-trader allocation receipts proved independently of the replay scenario",
                 "Binding cap ties do NOT establish incremental independent module performance",
                 "Research proxy is NOT a certified 36-month broker-financed backtest",
             ],

@@ -62,6 +62,7 @@ class CiboLotSizingInput:
     leverage_available_margin_usd: Decimal
     sovereign_unreserved_risk_usd: Decimal
     leverage_max_lots: Decimal
+    requested_target_lots: Decimal | None = None
 
     def __post_init__(self) -> None:
         for name in (
@@ -77,6 +78,8 @@ class CiboLotSizingInput:
             "sovereign_unreserved_risk_usd",
         ):
             _value(name, getattr(self, name), allow_zero=True)
+        if self.requested_target_lots is not None:
+            _value("requested_target_lots", self.requested_target_lots)
         if self.source_lane not in {"SOVEREIGN_BANK", "PORTFOLIO_CUSHION"}:
             raise CiboLotSizingError("source_lane must be a physical treasury source")
         if self.broker_min_lot > self.broker_max_lot:
@@ -158,6 +161,9 @@ def compute_cibo_lot_sizing(spec: CiboLotSizingInput) -> CiboLotSizingDecision:
             )),
             ("BROKER_MAX", quantized(spec.broker_max_lot)),
         )
+        if spec.requested_target_lots is not None:
+            # A target is a ceiling, not permission to evade risk or margin.
+            caps += (("REQUESTED_TARGET_LOTS", quantized(spec.requested_target_lots)),)
         candidate = min(v for _, v in caps)
         binding = tuple(name for name, limit in caps if limit == candidate)
         if candidate < minimum_lots:
@@ -215,6 +221,7 @@ def quote_cibo_trader_opportunity_lots(
     leverage_available_margin_usd: Decimal,
     sovereign_unreserved_risk_usd: Decimal,
     leverage_max_lots: Decimal,
+    requested_target_lots: Decimal | None = None,
 ) -> CiboLotSizingDecision:
     """Bridge actual TraderOpportunityEnvelope economics to shared calculator.
 
@@ -246,5 +253,6 @@ def quote_cibo_trader_opportunity_lots(
             leverage_available_margin_usd=leverage_available_margin_usd,
             sovereign_unreserved_risk_usd=sovereign_unreserved_risk_usd,
             leverage_max_lots=leverage_max_lots,
+            requested_target_lots=requested_target_lots,
         )
     )

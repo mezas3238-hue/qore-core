@@ -40,7 +40,7 @@ class VerifiedFee:
                 or self.evidence.strip().upper() in ("ASSUMED", "UNKNOWN", "SYNTHETIC")):
             raise QDLEError("account-specific broker fee evidence required")
         if not isinstance(self.usd_per_lot, Decimal) or (
-                self.usd_per_lot < 0 or not self.usd_per_lot.is_finite()):
+                not self.usd_per_lot.is_finite() or self.usd_per_lot < 0):
             raise QDLEError("invalid verified fee")
         if self.covers_open_and_close is not True:
             raise QDLEError("all-in round-trip broker commission unknown: NO LIVE LOTAGE")

@@ -33,6 +33,28 @@ def post_provider(endpoint: str, token: str, payload: dict) -> None:
             raise QDLEError("QDLE provider event not accepted")
 
 
+def verified_roundtrip_fee_for_symbol(fees: dict, symbol: str) -> VerifiedFee:
+    """Reject incomplete rates: an ENTRY screenshot cannot price an EXIT.
+
+    Local input must provide a verified all-in USD/lot quote, its evidence ID
+    and an explicit JSON boolean. The flag is a contract requirement, NOT a
+    substitute for authentic account-specific commission documentation.
+    """
+    item = fees.get(symbol)
+    if not isinstance(item, dict):
+        raise QDLEError("missing verified account-specific fee: " + symbol)
+    if item.get("covers_open_and_close") is not True:
+        raise QDLEError("missing explicit round-trip open AND close fee: " + symbol)
+    try:
+        amount = Decimal(str(item["usd_per_lot"]))
+        evidence = item["evidence"]
+    except (KeyError, ValueError, TypeError, ArithmeticError) as exc:
+        raise QDLEError("invalid account-specific commission quote: " + symbol) from exc
+    return VerifiedFee(
+        amount, evidence, covers_open_and_close=True,
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--aliases", required=True, type=Path)
@@ -61,10 +83,7 @@ def main() -> int:
         parser.error("cannot attach to active MT5 terminal")
     try:
         def fee_quote(symbol, info):
-            item = fees.get(symbol)
-            if not isinstance(item, dict):
-                raise QDLEError("missing verified account-specific fee: " + symbol)
-            return VerifiedFee(Decimal(str(item["usd_per_lot"])), item["evidence"])
+            return verified_roundtrip_fee_for_symbol(fees, symbol)
 
         while True:
             current = mt5.account_info()
