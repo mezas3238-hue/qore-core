@@ -1,0 +1,93 @@
+name: QORE VT31 ICT Primary Silver Bullet 3Y Source Fast V1
+
+on:
+  push:
+    branches:
+      - agent/vt31-architect-operations-cert-20261009
+    paths:
+      - scripts/vt31_ict_silver_bullet_3y_source_fidelity_probe_v1.py
+      - .github/workflows/vt31-ict-silver-bullet-source-fidelity-fast-v1.yml
+  workflow_dispatch:
+
+concurrency:
+  group: vt31-ict-original-source-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  FROZEN_3Y_EVIDENCE_ID: "11459859004"
+
+jobs:
+  primary-ict-source-census:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Unit test exact NY window, causal FVG and US-UK DST
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/vt31_ict_silver_bullet_3y_source_fidelity_probe_v1.py
+          python scripts/vt31_ict_silver_bullet_3y_source_fidelity_probe_v1.py --self-test
+          python -m pip install 'ijson>=3.3,<4'
+
+      - name: Reuse identical consumed NAS100 3Y M1
+        run: |
+          set -euo pipefail
+          mkdir -p input result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${FROZEN_3Y_EVIDENCE_ID}/zip" > frozen-3y.zip
+          unzip -q frozen-3y.zip -d input
+          test -s input/NAS100/market-evidence.json
+          if [ -f input/EVIDENCE-SHA256SUMS ]; then
+            (cd input && sha256sum -c EVIDENCE-SHA256SUMS)
+          fi
+
+      - name: Scan 03-04 London 10-11 NY AM 14-15 NY PM source FVGs
+        run: |
+          set -euo pipefail
+          python scripts/vt31_ict_silver_bullet_3y_source_fidelity_probe_v1.py \
+            --evidence input/NAS100/market-evidence.json \
+            --output result/ict-primary-source-3y-fvg-census.json \
+            | tee result/ict-primary-source-3y-summary.json
+
+      - name: Require original source clock and no false trade certification
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          x = json.loads(Path("result/ict-primary-source-3y-fvg-census.json").read_text())
+          assert x["base_id"] == "VT31_NAS100_OWNER_3Y_BASE_001"
+          assert x["all_m1_count"] > 1000000
+          assert set(x["models"]) == {"VT31_LONDON", "VT31_NY_AM", "VT31_NY_PM"}
+          assert x["models"]["VT31_LONDON"]["ny_source_window"] == "03:00-04:00"
+          assert x["models"]["VT31_NY_AM"]["ny_source_window"] == "10:00-11:00"
+          assert x["models"]["VT31_NY_PM"]["ny_source_window"] == "14:00-15:00"
+          assert x["source_setup_count"] == "NOT_ESTABLISHED_BY_RAW_FVG"
+          assert x["executed_trade_count"] == "NOT_ESTABLISHED_BY_RAW_FVG"
+          assert x["governance"]["raw_fvg_does_not_authorize_trade"] is True
+          assert x["governance"]["future_bar_authority"] is False
+          assert x["governance"]["fresh_holdout_opened"] is False
+          assert x["governance"]["candidate_certified"] is False
+          PY
+
+      - name: Bind artifacts
+        run: |
+          set -euo pipefail
+          echo "$GITHUB_SHA" > result/git-sha.txt
+          echo "$FROZEN_3Y_EVIDENCE_ID" > result/frozen-evidence-artifact-id.txt
+          (cd result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+          (cd result && sha256sum -c SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-primary-ict-silver-bullet-3y-fvg-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
