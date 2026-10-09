@@ -1124,8 +1124,23 @@ def main() -> int:
             "qore_initial_capital_usd": "60",
             "historical_exposure_model": "STATIC_2026_SCREENSHOT_MARGIN_NOT_HISTORICAL_BROKER",
             "provider_loss_limit_model": ("RESEARCH_SENSITIVITY_TRAILING_" + str(provider_limit) + "_USD_NOT_VERIFIED") if provider_limit is not None else "NO_VERIFIED_PROVIDER_LIMIT_NOT_SIMULATED",
-            "commission_model": ("FOREX_7_OPEN_PLUS_7_CLOSE_PER_LOT__XAU_SYMMETRIC_2_LEG_NOTIONAL_PROXY__NDX_EXPLICIT_SENSITIVITY" if args.motor_policy == "independent_four_motors" else "FOREX_ENTRY_ONLY_7USD_LOT__XAU_NOTIONAL_PROXY__NDX_ZERO_UNKNOWN"),
-            "ndx_assumed_total_fee_usd_per_lot": str(args.ndx_roundtrip_fee_proxy_usd_per_lot) if args.motor_policy == "independent_four_motors" else None,
+            "commission_model": (
+                "FUNDEDNEXT_STELLAR_INSTANT_HELP_OPEN_ONLY__PUBLIC_TARIFF_UNVERIFIED_ACCOUNT"
+                if args.fee_model == "stellar_instant_open_only" else
+                "FUNDEDNEXT_GENERAL_RULES_PER_SIDE_RESEARCH_SENSITIVITY"
+                if args.fee_model == "stellar_general_per_side" else
+                "FOREX_7_OPEN_PLUS_7_CLOSE_PER_LOT__XAU_SYMMETRIC_2_LEG_NOTIONAL_PROXY__NDX_EXPLICIT_SENSITIVITY"
+                if args.motor_policy == "independent_four_motors" else
+                "FOREX_ENTRY_ONLY_7USD_LOT__XAU_NOTIONAL_PROXY__NDX_ZERO_UNKNOWN"
+            ),
+            "fee_model": args.fee_model,
+            "broker_account_commission_verified": False,
+            "fee_tariff_only_public_stellar_instant": args.fee_model != LEGACY_REPLAY_PROXY,
+            "ndx_assumed_total_fee_usd_per_lot": (
+                str(args.ndx_roundtrip_fee_proxy_usd_per_lot)
+                if args.fee_model == LEGACY_REPLAY_PROXY and args.motor_policy == "independent_four_motors"
+                else "0" if args.fee_model != LEGACY_REPLAY_PROXY else None
+            ),
             "module_caps_provenance": ("SIMULATED_INDEPENDENT_FOUR_MOTOR_VOTES" if args.motor_policy == "independent_four_motors" else "PROXY_SHARED_5PCT_NOT_INDEPENDENT_MOTOR_DECISIONS"),
             "economic_motor_mode": args.motor_policy,
             "cibo_authority_mode": (
