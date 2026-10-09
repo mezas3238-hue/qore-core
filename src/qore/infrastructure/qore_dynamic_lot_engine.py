@@ -228,11 +228,19 @@ class QDLE:
                  strict_live_fee_evidence: bool = True,
                  strict_four_motor_evidence: bool = True,
                  motor_hmac_keys: dict[str, bytes] | None = None,
-                 strict_provider_floor: bool = True) -> None:
+                 strict_provider_floor: bool = True,
+                 research_paper_mode: bool = False) -> None:
         _d('entry_risk_fraction', entry_risk_fraction)
         if entry_risk_fraction != Decimal("0.05"):
             raise QDLEError("QDLE sovereign risk fraction is fixed at 5pct of QORE trading capital")
         self.entry_risk_fraction = entry_risk_fraction
+        # PAPER has a deliberately separate lifecycle. It must never be a
+        # shortcut around LIVE finance approval or provider-cost evidence.
+        if research_paper_mode and (enforce_finance_approval
+                                    or strict_live_fee_evidence
+                                    or strict_four_motor_evidence):
+            raise QDLEError("PAPER needs explicit non-LIVE research-only switches")
+        self.research_paper_mode = research_paper_mode
         self.enforce_finance_approval = enforce_finance_approval
         # Only explicitly trusted broker round-trip fee schedules permit LIVE.
         # Synthetic tests must opt out; deployed VPS uses the strict default.
@@ -248,6 +256,18 @@ class QDLE:
         self._ready_in_this_process = False
         with self._tx() as db:
             db.execute("CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+            marker = self._meta(db, "research_paper_database")
+            if marker is not None and not self.research_paper_mode:
+                raise QDLEError("PAPER QDLE database cannot be opened in LIVE mode")
+            if self.research_paper_mode and marker is None:
+                db.execute("INSERT INTO meta(key,value) VALUES(?,?)",
+                           ("research_paper_database", _j({"research_only": True})))
+            db.execute("""CREATE TABLE IF NOT EXISTS paper_events (
+                event_id TEXT PRIMARY KEY, request_id TEXT NOT NULL,
+                event_kind TEXT NOT NULL, UNIQUE(request_id,event_kind))""")
+            db.execute("""CREATE TABLE IF NOT EXISTS paper_unassessable (
+                request_id TEXT PRIMARY KEY, reason TEXT NOT NULL,
+                snapshot_seq INTEGER NOT NULL)""")
             db.execute("CREATE TABLE IF NOT EXISTS symbols (symbol TEXT PRIMARY KEY, payload TEXT NOT NULL)")
             db.execute("""CREATE TABLE IF NOT EXISTS reservations (
                 request_id TEXT PRIMARY KEY, payload_sha TEXT NOT NULL, state TEXT NOT NULL,
@@ -577,7 +597,7 @@ class QDLE:
                 raise QDLEError("broker valuation required")
             self._fresh(valuation.as_of, now)
             held = db.execute("""SELECT source_lane,symbol,side,lots,risk,margin
-                                FROM reservations WHERE state IN ('HELD','SENDING','FILL_UNRECONCILED')""").fetchall()
+                                FROM reservations WHERE state IN ('HELD','PAPER_OPEN','SENDING','FILL_UNRECONCILED')""").fetchall()
             total_held_risk = sum((Decimal(x[4]) for x in held), Decimal(0))
             total_held_margin = sum((Decimal(x[5]) for x in held), Decimal(0))
             source_held = sum((Decimal(x[4]) for x in held
@@ -676,6 +696,92 @@ class QDLE:
                 )
             return result
 
+    def paper_unassessable(self, request_id: str, reason: str, now: datetime) -> QDLEResult:
+        """Durably account for a signal that cannot be physically priced in PAPER.
+
+        This is NOT a QDLE quote or evidence that a zero lot was viable.
+        Crucially the missing-evidence signal is neither discarded nor
+        converted into a fabricated broker-sized trade.
+        """
+        if not self.research_paper_mode:
+            raise QDLEError("PAPER-only missing-quote receipt")
+        if not request_id or reason not in {
+            "NO_QORE_NAV", "NO_ATLAS_M5_ENTRY",
+            "INVALID_ORIGINAL_GEOMETRY", "INVALID_CROSS_SIDE_GEOMETRY",
+        }:
+            raise QDLEError("invalid PAPER physical assessment gap")
+        now = _dt(now)
+        with self._tx() as db:
+            raw = self._meta(db, "account")
+            if raw is None:
+                raise QDLEError("PAPER account snapshot missing")
+            acc = self._account(raw)
+            self._fresh(acc.as_of, now)
+            if db.execute("SELECT request_id FROM reservations WHERE request_id=?",
+                          (request_id,)).fetchone():
+                raise QDLEError("PAPER assessment conflicts with physical reservation")
+            existing = db.execute(
+                "SELECT reason,snapshot_seq FROM paper_unassessable WHERE request_id=?",
+                (request_id,)).fetchone()
+            if existing and existing[0] != reason:
+                raise QDLEError("PAPER missing-quote identity reused for another reason")
+            if not existing:
+                db.execute("INSERT INTO paper_unassessable VALUES(?,?,?)",
+                           (request_id, reason, acc.sequence))
+                self._audit(db, "PAPER_PHYSICAL_ASSESSMENT_UNAVAILABLE", request_id,
+                            {"reason": reason, "account_sequence": acc.sequence,
+                             "physical_quote_computed": False})
+            seq = existing[1] if existing else acc.sequence
+            return QDLEResult(
+                request_id, "RESEARCH_UNASSESSABLE_NOT_QUOTED", "", Decimal(0),
+                Decimal(0), Decimal(0), Decimal(0), Decimal(0),
+                seq, (reason,), "No executable physical assessment from missing research inputs"
+            )
+
+    def paper_transition(self, request_id: str, event_id: str,
+                         event_kind: str) -> None:
+        """Account-scoped research reserve lifecycle: no fake MT5 receipts.
+
+        PAPER_FILL denotes a synthetic fill, not a broker fill.
+        PAPER_SETTLE/PAPER_NO_FILL release exposure atomically, and may not
+        be replayed with an alternate evidence ID. A path-incomplete position
+        stays PAPER_OPEN (held) rather than inventing a terminal P&L.
+        """
+        if not self.research_paper_mode:
+            raise QDLEError("PAPER reserve transition forbidden outside research")
+        if not request_id or not event_id or event_kind not in (
+            "PAPER_FILL", "PAPER_SETTLE", "PAPER_NO_FILL"
+        ):
+            raise QDLEError("invalid PAPER transition")
+        target = {
+            "PAPER_FILL": "PAPER_OPEN", "PAPER_SETTLE": "PAPER_SETTLED",
+            "PAPER_NO_FILL": "PAPER_ABORTED",
+        }[event_kind]
+        expected = "PAPER_OPEN" if event_kind == "PAPER_SETTLE" else "HELD"
+        with self._tx() as db:
+            existing = db.execute(
+                "SELECT event_id,request_id,event_kind FROM paper_events WHERE event_id=?",
+                (event_id,)).fetchone()
+            if existing:
+                if existing != (event_id,request_id,event_kind):
+                    raise QDLEError("PAPER event ID cannot be reassigned")
+                return
+            row = db.execute("SELECT state,lots FROM reservations WHERE request_id=?",
+                             (request_id,)).fetchone()
+            if row is None or row[0] != expected or Decimal(row[1]) <= 0:
+                raise QDLEError("PAPER transition requires matching held physical lot")
+            try:
+                db.execute("INSERT INTO paper_events VALUES(?,?,?)",
+                           (event_id,request_id,event_kind))
+            except sqlite3.IntegrityError as exc:
+                raise QDLEError("PAPER transition kind duplicated for request") from exc
+            db.execute("UPDATE reservations SET state=? WHERE request_id=?",
+                       (target,request_id))
+            self._audit(db, "RESEARCH_" + event_kind, request_id, {
+                "event_id":event_id, "result_state":target,
+                "broker_confirmed":False, "paper_only":True,
+            })
+
     def arm_for_live_send(
         self, *, request_id: str, provider_symbol: str,
         side: str, lots: Decimal, executable_entry: Decimal,
@@ -689,6 +795,8 @@ class QDLE:
         A crash during SENDING remains RESERVED/UNKNOWN until broker reconciliation.
         """
         _dt(now)
+        if self.research_paper_mode:
+            raise QDLEError("PAPER database is forbidden from arming LIVE order_send")
         for label, item in (("lots", lots), ("entry", executable_entry),
                             ("stop", stop_price)):
             _d(label, item)
@@ -1019,7 +1127,7 @@ class QDLE:
         with sqlite3.connect(self.path) as db:
             raw = self._meta(db, "account")
             pending = db.execute("""SELECT COUNT(*) FROM reservations
-                                    WHERE state IN ('HELD','SENDING','FILL_UNRECONCILED')""").fetchone()[0]
+                                    WHERE state IN ('HELD','PAPER_OPEN','SENDING','FILL_UNRECONCILED')""").fetchone()[0]
             symbol_rows = db.execute("SELECT payload FROM symbols").fetchall()
         stale = (raw is None or (now - datetime.fromisoformat(raw["as_of"])) < timedelta(0)
                  or (now - datetime.fromisoformat(raw["as_of"])) > self.max_age)

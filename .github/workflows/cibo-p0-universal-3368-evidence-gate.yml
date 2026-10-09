@@ -1,0 +1,33 @@
+name: CIBO P0 Universal 3368 Evidence Gate
+
+on:
+  push:
+    branches:
+      - agent/cibo-p0-trader-lab-universal-gates-20261009
+    paths:
+      - scripts/cibo_p0_universal_3368_evidence_gate.py
+      - tests/infrastructure/test_cibo_p0_universal_3368_evidence_gate.py
+      - .github/workflows/cibo-p0-universal-3368-evidence-gate.yml
+  pull_request:
+    paths:
+      - scripts/cibo_p0_universal_3368_evidence_gate.py
+      - tests/infrastructure/test_cibo_p0_universal_3368_evidence_gate.py
+      - .github/workflows/cibo-p0-universal-3368-evidence-gate.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  paper-acceptance-contract:
+    name: Trader Lab P0 receipt coverage tests (no broker)
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install pytest
+      - name: Verify 3368 signal intake, P0 stage evidence and negative controls
+        run: python -m pytest -q -o addopts= tests/infrastructure/test_cibo_p0_universal_3368_evidence_gate.py
