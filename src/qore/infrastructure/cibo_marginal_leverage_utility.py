@@ -297,13 +297,16 @@ def assess_marginal_leverage_utility(
 
 
 
-def propose_p0_adaptive_leverage_vote(observation: FourMotorObservation) -> FourMotorProposal:
+def propose_p0_adaptive_leverage_vote(
+    observation: FourMotorObservation, *, research_use_full_free_margin: bool = False,
+) -> FourMotorProposal:
     """Real USD margin and broker-unit lot capacity, not abstract leverage."""
     if not isinstance(observation, FourMotorObservation):
         raise FourMotorPolicyError("canonical observation required")
     available = max(ZERO, observation.broker_free_margin_usd
                     - observation.broker_margin_reservations_usd)
-    margin_cap = available * Decimal("0.8")
+    margin_cap = available * (Decimal("1") if research_use_full_free_margin
+                              else Decimal("0.8"))
     volume_room = min(
         max(ZERO, observation.symbol_max_lots - observation.open_and_reserved_direction_lots),
         max(ZERO, observation.provider_direction_max_lots
