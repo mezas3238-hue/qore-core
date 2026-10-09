@@ -12,7 +12,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
-from decimal import Decimal
+from decimal import Decimal, localcontext
 
 from qore.infrastructure.cibo_four_motor_policy import (
     FourMotorObservation, FourMotorProposal, FourMotorPolicyError, nonnegative, positive, utc,
@@ -181,8 +181,17 @@ def audit_cibo_qdle_lotage(
         raise FourMotorPolicyError("QDLE binding constraints required")
     for label in ("lots", "stop_usd", "cost_usd", "total_risk_usd", "margin_usd"):
         nonnegative(label, getattr(result, label))
-    if result.stop_usd + result.cost_usd != result.total_risk_usd:
-        raise FourMotorPolicyError("QDLE risk excludes stop loss or costs")
+    # QDLE calculates stop + roundtrip costs with precision=100. The audit
+    # must not round that exact Decimal identity back to the process default
+    # (usually 28 digits); doing so incorrectly rejected valid FXJPY lots.
+    with localcontext() as ctx:
+        ctx.prec = max(
+            100,
+            len(result.stop_usd.as_tuple().digits)
+            + len(result.cost_usd.as_tuple().digits) + 2,
+        )
+        if result.stop_usd + result.cost_usd != result.total_risk_usd:
+            raise FourMotorPolicyError("QDLE risk excludes stop loss or costs")
     limits = {v.producer: v for v in votes}
     max_loss = min(
         cibo.authorized_all_in_risk_usd,
