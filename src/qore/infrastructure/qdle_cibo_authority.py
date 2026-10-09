@@ -18,7 +18,7 @@ from qore.infrastructure.cibo_four_motor_policy import (
     FourMotorObservation, FourMotorProposal, FourMotorPolicyError, nonnegative, utc,
 )
 from qore.infrastructure.cibo_four_motor_qdle_proposal import build_four_motor_qdle_intent
-from qore.infrastructure.qore_dynamic_lot_engine import QDLEIntent
+from qore.infrastructure.qore_dynamic_lot_engine import QDLEIntent, QDLEResult
 
 
 _SHA = re.compile(r"^sha256:[a-f0-9]{64}$")
@@ -114,4 +114,125 @@ def build_cibo_directed_qdle_intent(
         target,
         requested_risk_usd=min(target.requested_risk_usd, cibo.authorized_all_in_risk_usd),
         portfolio_cap_usd=min(target.portfolio_cap_usd, cibo.allocated_source_funds_usd),
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class CiboLotageAuditReceipt:
+    """Research decision audit, NOT a fill, a signed LIVE receipt or broker proof.
+
+    Stop-risk and round-trip costs are separately reported; do not display
+    broker margin as loss-risk or CIBO allocation as permission to lose it.
+    """
+    signal_id: str
+    trader_id: str
+    broker_symbol: str
+    side: str
+    source_lane: str
+    decision_state: str
+    entry_price: Decimal
+    stop_price: Decimal
+    lots: Decimal
+    qore_nav_usd: Decimal
+    sovereign_5pct_ceiling_usd: Decimal
+    cibo_risk_budget_usd: Decimal
+    cibo_allocated_funds_usd: Decimal
+    stop_loss_usd: Decimal
+    total_roundtrip_cost_usd: Decimal
+    all_in_risk_usd: Decimal
+    broker_margin_usd: Decimal
+    broker_grid_min_lots: Decimal
+    broker_grid_step_lots: Decimal
+    reason_codes: tuple[str, ...]
+    account_sequence: int
+    cibo_source_evidence_sha256: str
+    broker_source_evidence_sha256: str
+    real_mt5_fill_proven: bool = False
+
+
+def audit_cibo_qdle_lotage(
+    *,
+    cibo: CiboEconomicInstruction,
+    observation: FourMotorObservation,
+    votes: tuple[FourMotorProposal, ...],
+    result: QDLEResult,
+    broker_min_lot: Decimal,
+    broker_lot_step: Decimal,
+) -> CiboLotageAuditReceipt:
+    """Check CIBO's request against QDLE's actual *computed* research result.
+
+    Does not independently value a broker contract or authorize sending.
+    The producer receipt/evidence and broker's stop valuation remain needed
+    for anything LIVE; this audit makes no claims about MT5 fills or slippage.
+    """
+    if not isinstance(result, QDLEResult):
+        raise FourMotorPolicyError("QDLE physical computation result required")
+    intent = build_cibo_directed_qdle_intent(
+        cibo=cibo, observation=observation, votes=votes,
+    )
+    if (result.request_id != intent.request_id or
+            result.account_sequence != intent.expected_account_sequence):
+        raise FourMotorPolicyError("QDLE receipt request/epoch mismatch")
+    positive("broker_min_lot", broker_min_lot)
+    positive("broker_lot_step", broker_lot_step)
+    if result.state not in ("RESERVED_FOR_TRADER", "UNFUNDABLE"):
+        raise FourMotorPolicyError("QDLE status not a broker proposal decision")
+    if not isinstance(result.binding_limits, tuple):
+        raise FourMotorPolicyError("QDLE binding constraints required")
+    for label in ("lots", "stop_usd", "cost_usd", "total_risk_usd", "margin_usd"):
+        nonnegative(label, getattr(result, label))
+    if result.stop_usd + result.cost_usd != result.total_risk_usd:
+        raise FourMotorPolicyError("QDLE risk excludes stop loss or costs")
+    limits = {v.producer: v for v in votes}
+    max_loss = min(
+        cibo.authorized_all_in_risk_usd,
+        observation.base_entry_budget_usd,
+        intent.requested_risk_usd,
+        intent.sizing_cap_usd,
+        intent.cibo_compound_cap_usd,
+        intent.portfolio_cap_usd,
+        observation.source_available_usd,
+    )
+    if result.total_risk_usd > max_loss:
+        raise FourMotorPolicyError("QDLE all-in risk exceeds CIBO or motor budget")
+    margin_limit = min(
+        intent.margin_cap_usd,
+        observation.broker_free_margin_usd - observation.broker_margin_reservations_usd,
+    )
+    if result.margin_usd > max(Decimal(0), margin_limit):
+        raise FourMotorPolicyError("QDLE exceeds broker/engine margin")
+    if result.lots > intent.leverage_cap_lots:
+        raise FourMotorPolicyError("QDLE volume exceeds Adaptive Leverage")
+    if result.lots == 0:
+        if (result.state != "UNFUNDABLE" or result.total_risk_usd != 0
+                or result.margin_usd != 0):
+            raise FourMotorPolicyError("zero lot must be unfundable with zero exposure")
+        reason = ("NO_FINANCEABLE_BROKER_LOT",) + result.binding_limits
+    else:
+        if result.state != "RESERVED_FOR_TRADER":
+            raise FourMotorPolicyError("positive lot must remain a proposal")
+        if result.lots < broker_min_lot or result.lots % broker_lot_step != 0:
+            raise FourMotorPolicyError("QDLE violated broker lot grid")
+        if intent.requested_target_lots is not None and result.lots > intent.requested_target_lots:
+            raise FourMotorPolicyError("QDLE exceeded CIBO volume preference")
+        reason = ("RESERVED_NOT_EXECUTED",) + result.binding_limits
+    # Require all four distinct independent proposals and their unit-bound limits.
+    if set(limits) != {"SIZING", "CIBO_COMPOUND", "ADAPTIVE_LEVERAGE", "PORTFOLIO_COMPOUND"}:
+        raise FourMotorPolicyError("all four economic producers required")
+    return CiboLotageAuditReceipt(
+        signal_id=cibo.signal_id, trader_id=cibo.trader_id,
+        broker_symbol=result.symbol, side=cibo.side, source_lane=cibo.source_lane,
+        decision_state=result.state, entry_price=cibo.entry_price,
+        stop_price=cibo.stop_price, lots=result.lots,
+        qore_nav_usd=observation.qore_nav_usd,
+        sovereign_5pct_ceiling_usd=observation.base_entry_budget_usd,
+        cibo_risk_budget_usd=cibo.authorized_all_in_risk_usd,
+        cibo_allocated_funds_usd=cibo.allocated_source_funds_usd,
+        stop_loss_usd=result.stop_usd, total_roundtrip_cost_usd=result.cost_usd,
+        all_in_risk_usd=result.total_risk_usd, broker_margin_usd=result.margin_usd,
+        broker_grid_min_lots=broker_min_lot, broker_grid_step_lots=broker_lot_step,
+        reason_codes=reason, account_sequence=result.account_sequence,
+        cibo_source_evidence_sha256=cibo.evidence_sha256,
+        broker_source_evidence_sha256=observation.broker_evidence_sha256,
+        real_mt5_fill_proven=False,
     )
