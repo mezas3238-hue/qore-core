@@ -1,0 +1,70 @@
+name: CIBO P0 Block Taxonomy - Native 3368 Blind 200
+on:
+  workflow_dispatch:
+  push:
+    branches: [agent/cibo-sovereign-integration-p0-20261008]
+    paths:
+      - "scripts/cibo_p0_rejection_taxonomy_audit.py"
+      - "tests/infrastructure/test_cibo_p0_rejection_taxonomy_audit.py"
+      - ".github/workflows/cibo-p0-block-taxonomy-blind200.yml"
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: cibo-p0-block-taxonomy-blind200
+  cancel-in-progress: true
+jobs:
+  taxonomy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify classifier and sample correctness (NO LIVE)
+        run: |
+          python -m unittest discover -s tests/infrastructure -p test_cibo_p0_rejection_taxonomy_audit.py -v
+      - name: Retrieve pinned immutable Native and manifest inputs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/cibo-p0"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/11451743578/zip" > "$RUNNER_TEMP/cibo-p0/manifest.zip"
+          echo "d439957f21e2f79148b5a2fb75a53db6fa448698f17aeb6978f379ed3547f7ea  $RUNNER_TEMP/cibo-p0/manifest.zip" | sha256sum -c -
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/11588089131/zip" > "$RUNNER_TEMP/cibo-p0/native.zip"
+          echo "eebf6de43da63aadc200a3783109246188d46e0fcdd7da127f07eff815d6cec6  $RUNNER_TEMP/cibo-p0/native.zip" | sha256sum -c -
+      - name: Reproduce first-effective-gate taxonomy and blind 200 sample
+        run: |
+          python scripts/cibo_p0_rejection_taxonomy_audit.py \
+            --native-zip "$RUNNER_TEMP/cibo-p0/native.zip" \
+            --manifest-zip "$RUNNER_TEMP/cibo-p0/manifest.zip" \
+            --output-dir "$RUNNER_TEMP/cibo-p0/report" \
+            --sample-each 100
+      - name: Refuse ungrounded performance or policy change
+        run: |
+          python - <<'PY'
+          import json,os,pathlib
+          p=pathlib.Path(os.environ['RUNNER_TEMP'])/'cibo-p0'/'report'
+          s=json.loads((p/'summary.json').read_text())
+          assert s['decision_count']==3368
+          assert s['primary_counts']=={
+            'CAP_GENC12_NEW_CAPITAL_PAUSED':1,
+            'CAP_PORTFOLIO_MULTIPLIER_ZERO':3,
+            'CAP_REALIZED_PROFIT_INCREMENTAL_COMPOUND_NOT_ADMITTED':1549,
+            'COG_CF07_COLD_START':35,
+            'COG_CF07_NONPOSITIVE_CAUSAL_NET_UTILITY':1629,
+            'COG_CF07_PROVISIONAL_FORECAST':140,
+            'RISK_REVIEW_READY':11,
+          }
+          assert s['sample_cognitive']==s['sample_capital']==100
+          assert s['broker_fills_proven'] is False
+          print('CIBO_P0_BLIND200_PASS',s['sample_sha256'])
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cibo-p0-native-block-taxonomy-blind200-${{ github.run_id }}
+          path: ${{ runner.temp }}/cibo-p0/report/
+          if-no-files-found: warn
