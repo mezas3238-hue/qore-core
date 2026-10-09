@@ -111,6 +111,9 @@ def classify_native_advisory(row: dict, original: dict) -> dict:
         "manager_risk_fraction_of_nav_SHADOW":plan["requested_risk_fraction_of_current_qore_nav"],
         "manager_cognitive_sensor_evidence_SHADOW":plan,
         "manager_exit_policy_SHADOW":plan["exit_policy_SHADOW"],
+        "native_cibo_mode_instruction_issued": plan["native_runtime_mode_instruction_consumed"],
+        "native_cibo_mode_instruction_sha256": plan["native_runtime_mode_instruction_digest"],
+        "bank_medium_attack_request_qdle_physical_lotage": True,
         "trader_signal_received":True,
         "admission_gate_applied":False,
         "economic_stop_and_lot_owned_by_cibo_qdle_not_native_abstract_volume":True,
@@ -134,6 +137,7 @@ def prepare(manifest: dict, native_rows) -> dict:
         raise NativeManagementEvidenceError("Native MAX failed 3368 coverage")
     receipt_list=[by_id[r["signal_fingerprint"]] for r in rows]
     mode=Counter(r["manager_mode_SHADOW_from_native_cognitive_sensors"] for r in receipt_list)
+    native_count = sum(r["native_cibo_mode_instruction_issued"] for r in receipt_list)
     notes=Counter(r["native_max_calibration_note"] for r in receipt_list)
     legacy=Counter(r["native_legacy_capital_disposition_for_diagnostics_only"] for r in receipt_list)
     digest="sha256:"+hashlib.sha256(json.dumps(
@@ -147,6 +151,8 @@ def prepare(manifest: dict, native_rows) -> dict:
         "trader_signals_received":3368,
         "manager_exit_policies_are_research_hypotheses":True,
         "cognitive_sensor_evidence_controls_qdle_risk_request":True,
+        "native_cibo_bank_medium_attack_instructions_issued":native_count,
+        "native_cibo_qdle_mode_authority_is_runtime":native_count==3368,
         "legacy_disposition_is_not_an_economic_policy_input":True,
         "exit_price_path_reconstruction_done":False,
         "real_mt5_fills":0,
