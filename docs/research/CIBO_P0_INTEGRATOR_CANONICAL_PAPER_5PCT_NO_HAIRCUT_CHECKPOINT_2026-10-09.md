@@ -1,3 +1,31 @@
+## PRE-REPLAY SCIENTIFIC READINESS — 3368 SOURCE FORENSICS / NATIVE M1 (Oct 9, 2026)
+
+### Ahora implementado en el integrador #745
+- `config/research/cibo_p0_four_arm_atr_5pct_3368_2026-10-09.json`: cuatro combinaciones exactas A-X, A-Y, B-X, B-Y; BANK A=1,25%, BANK B=hasta5% NAV dinámico, NDX Y=$20/lote estrictamente **sensibilidad no broker real**, mínimo/grilla física 0,01.
+- `scripts/cibo_p0_atr_four_arm_physical_budget.py`: política de lotaje para los cuatro brazos y techo de riesgo del 5% **después de descontar la comisión al abrir**, corregido con prueba de redondeo 0,03→0,02 lotes.
+- `src/qore/infrastructure/cibo_p0_native_causal_market.py`: NativeBar M1/M15/H1/H4, Wilder ATR14 de velas nativas completamente cerradas, quote BID/ASK observable en o antes de T (nunca futura M5 OPEN), USDJPY del instante original para JPY. NO se afirma que un hash textual autentique fuente broker.
+- `scripts/cibo_p0_native_3368_evidence_gate.py`: preflight del manifiesto sellado, identidad por fingerprint, Trader, año, símbolo y temporalidad; admite el futuro paquete `qore.cibo.p0.native-broker-evidence-by-signal.v1` y emite el motivo de falta por operación, siempre PAPER y cero broker fills.
+
+### Evidencia ACTUAL verificada por GitHub Actions
+- **[Manifiesto 3368 real, evidencia source gate #37997029969](https://github.com/mezas3238-hue/qore-core/actions/runs/37997029969): SUCCESS**, ZIP original SHA256 verificado, 8 pruebas unitarias PASS, archivo de resultados artifact **11647398006** `cibo-p0-3368-true-source-evidence-readiness-37997029969`.
+- Población ORIGINAL exacta: **3368** señales, siete emisores. TF nativas **H1=2229, H4=493, M1=484 (VT31), M15=162**.
+- `NO_CAUSAL_EVIDENCE_PACK_FOR_SIGNAL=3368` porque **esa ejecución NO suministró paquete histórico de bid/ask nativo, USDJPY y comisiones broker**, no porque CIBO haya rechazado financiar 3368 entradas. Esto es un resultado de **disponibilidad de evidencias, NO de estrategia**. `full_replay_ready=false`, `broker_fills=0`.
+- **[Native M1/ATR14/USDJPY causal #37997030056](https://github.com/mezas3238-hue/qore-core/actions/runs/37997030056): SUCCESS** (10 tests).
+- **[Cuatro brazos riesgo/costes preflight #37997030027](https://github.com/mezas3238-hue/qore-core/actions/runs/37997030027): SUCCESS**, política únicamente; no es un replay.
+- **[Canonical QDLE ledger #37997030020](https://github.com/mezas3238-hue/qore-core/actions/runs/37997030020): SUCCESS**.
+- CI integrada GEN-C1/C2/C3 y puente soberano pasó tras corregir las expectativas antiguas del handicap `THREE_SETTLED_LOSSES_HAIR_CUT`. Persisten **FAIL** en `Zero Open Work Gate` y `Legacy Stack Quarantine`, prohibido certificar Core entero.
+- PR **#746** recibió código migrado desde `QDLE(research_paper_mode=True)` a `PaperQDLE`, conservando los 3368 expedientes y formato separado de `PAPER_UNASSESSABLE`. Su test independiente es draft **PR #749**; revisar estado PASS exact-SHA y reconciliar conflictos de merge antes de declararlo integrado.
+
+### Lo que impide afirmar "listo para los cuatro replays financieros"
+1. Datos **genuinos** 2019–2022 de tick/bid/ask en época M1 VT31 y todos los símbolos; no usar M5 con spread de 2026 como sustituto de esa decisión.
+2. ATR14 nativo H1/H4/M15/M1 con suficiente histórico de velas cerradas, para los 3368 fingerprints; ahora existe el motor causal pero NO el paquete completo de datos.
+3. USDJPY histórico as-of para GBPJPY y AUDJPY, no el screenshot 2026.
+4. Tarifas y acuerdos de comisión de la cuenta real conforme período, más slippage/swap/margen/intrabar y marcas MTM para DD equity. `NDX $20` solo brazo de estrés contrafactual.
+5. El runner global 3368×4 con selector Native MAX/four motors nuevos, salida parcial/trailing física y libro único, más baterías científicas y reporte anual aún requiere integrar fuentes. En particular **ningún PF/DD nuevo de los cuatro escenarios está calculado**.
+6. PR #746 todavía DRAFT/conflictivo contra #745; no ejecutar dos libros competidores.
+
+**Estado vigente**: `CANONICAL_LEDGER_AND_4ARM_CONTRACT_PRESENT_IN_INTEGRATOR / NATIVE_CAUSAL_PRIMITIVES_TESTED / REAL_3368_MANIFEST_AUDITED / HISTORICAL_BROKER_DATA_PACK_NOT_SUPPLIED / 4ARM_FINANCIAL_REPLAY_NOT_CERTIFIED / NO_LIVE / NO_VPS`.
+
 # QORE CORE — P0 Integrador: libro PAPER canónico, riesgo total 5% y eliminación del haircut
 
 **Fecha:** 2026-10-09 · **Integrador:** PR #745 · Rama `agent/cibo-sovereign-integration-p0-20261008` · Estado `DRAFT / PAPER / NO LIVE`.
