@@ -17,7 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ff40a990a1ecaa30d0f1a055b77184b235d1d30a
+          ref: da64fb6fdafacd426fd09cd75dce559c13649692
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -33,6 +33,12 @@ jobs:
           gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/11588089131/zip" > "$RUNNER_TEMP/cibo-qdle/native.zip"
           echo "eebf6de43da63aadc200a3783109246188d46e0fcdd7da127f07eff815d6cec6  $RUNNER_TEMP/cibo-qdle/native.zip" | sha256sum -c -
           unzip -q "$RUNNER_TEMP/cibo-qdle/native.zip" cibo-native-baseline.json -d "$RUNNER_TEMP/cibo-qdle"
+      - name: Run exact-decimal CIBO QDLE regression and contractual tests
+        env:
+          PYTHONPATH: src
+        run: |
+          python -m unittest discover -s tests/infrastructure -p test_qdle_cibo_authority.py -q
+          python -m unittest discover -s tests/infrastructure -p test_cibo_sovereign_integration_p0.py -q
       - name: Replay 3368 Native CIBO approvals through four motors and QDLE
         env:
           PYTHONPATH: src
