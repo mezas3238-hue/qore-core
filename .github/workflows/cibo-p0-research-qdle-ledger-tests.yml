@@ -5,6 +5,8 @@ on:
       - agent/cibo-p0-replay-qdle-persistence-20261009
     paths:
       - "scripts/cibo_trader_lab_native_qdle_market_atlas_3368.py"
+      - "scripts/cibo_p0_native_replay_runtime.py"
+      - "tests/infrastructure/test_cibo_p0_native_replay_runtime.py"
       - "src/qore/infrastructure/qore_dynamic_lot_engine.py"
       - "src/qore/infrastructure/cibo_four_motor_policy.py"
       - "src/qore/infrastructure/cibo_compound_capital.py"
@@ -38,6 +40,7 @@ jobs:
           test "$QORE_LIVE_TRADING" = "false"
           python -m py_compile \
             scripts/cibo_trader_lab_native_qdle_market_atlas_3368.py \
+            scripts/cibo_p0_native_replay_runtime.py \
             src/qore/infrastructure/qore_dynamic_lot_engine.py \
             src/qore/infrastructure/cibo_four_motor_policy.py \
             src/qore/infrastructure/cibo_compound_capital.py \
@@ -46,5 +49,6 @@ jobs:
       - name: Isolated financial evidence and research ledger regression
         run: |
           python -m unittest discover -s tests/infrastructure -p test_cibo_p0_research_qdle_persistence.py -q
+          python -m unittest discover -s tests/infrastructure -p test_cibo_p0_native_replay_runtime.py -q
           python -m unittest discover -s tests/infrastructure -p test_cibo_four_motor_policy_p0.py -q
           python -m unittest discover -s tests/infrastructure -p test_qdle_trader_lab_replay.py -q
