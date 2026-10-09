@@ -118,6 +118,22 @@ class TestCiboNativeSovereignQdleP0(unittest.TestCase):
         with self.assertRaises(ValueError):
             self._run(cibo_instruction=cibo(source_lane="PORTFOLIO_CUSHION"))
 
+    def test_trader_control_cashflows_cannot_activate_compound_loss_haircut(self):
+        from qore.infrastructure.cibo_four_motor_policy import ReconciledQoreCashflow
+        from test_cibo_sovereign_integration_p0 import SHA
+        old_losses = (ReconciledQoreCashflow(
+            "REPLAY_SETTLED:old-trader-control",
+            T-timedelta(seconds=1), D("-1"), SHA, True,
+        ),)
+        with self.assertRaisesRegex(CiboSovereignQdleBridgeError, "CONTROL cashflow"):
+            self._run(observed=observation(reconciled_cashflows=old_losses))
+        managed_losses = (ReconciledQoreCashflow(
+            "CIBO_MANAGED_SETTLED:authentic-test",
+            T-timedelta(seconds=1), D("-1"), SHA, True,
+        ),)
+        output = self._run(observed=observation(reconciled_cashflows=managed_losses))
+        self.assertIn(output.funding.state.stage, (Stage.ECONOMICALLY_FUNDED,Stage.UNFUNDABLE))
+
     def test_cognitive_cap_cannot_increase_any_original_motor_budget(self):
         plan=native_sensor_management_plan(native(85))
         original=self._run(85,cibo_instruction=cibo(risk="1.5")).prepared.intent
