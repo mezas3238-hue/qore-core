@@ -66,6 +66,9 @@ def audit(evidence_path: Path) -> dict[str, object]:
     state_counts: Counter[str] = Counter()
     event_counts: Counter[str] = Counter()
     actionable_counts: Counter[str] = Counter()
+    independent_trade_true_counts: Counter[str] = Counter()
+    trade_not_evaluable_counts: Counter[str] = Counter()
+    zero_call_trade_ids: list[str] = []
     family_counts: Counter[str] = Counter()
     selected_count = 0
     filled_count = 0
@@ -130,6 +133,8 @@ def audit(evidence_path: Path) -> dict[str, object]:
         exit_at = datetime.fromisoformat(str(structural["exit_at"]))
         causal_closed: list[Any] = []
         preterminal = 0
+        true_in_trade: set[str] = set()
+        not_evaluable_in_trade: set[str] = set()
         # Existing control invokes post-fill cognition only after the
         # filling candle. The terminal candle has already closed a position
         # before a next-open actuator could act. Both are out of scope.
@@ -178,13 +183,21 @@ def audit(evidence_path: Path) -> dict[str, object]:
                 event_counts[key] += 1
                 if fact.value is True:
                     actionable_counts[name] += 1
+                    true_in_trade.add(name)
+                if fact.status == "NOT_EVALUABLE":
+                    not_evaluable_in_trade.add(name)
             target_fact = facts.next_structural_target
             event_counts[
                 f"next_structural_target:{target_fact.status}"
             ] += 1
 
+        for name in true_in_trade:
+            independent_trade_true_counts[name] += 1
+        for name in not_evaluable_in_trade:
+            trade_not_evaluable_counts[name] += 1
         if preterminal == 0:
             zero_preterminal_count += 1
+            zero_call_trade_ids.append(executable.decision_at.isoformat())
         if len(sample_rows) < 14:
             sample_rows.append({
                 "signal_at": executable.decision_at.isoformat(),
@@ -229,6 +242,13 @@ def audit(evidence_path: Path) -> dict[str, object]:
         "selected_families": _status_dict(family_counts),
         "native_fact_event_counts": _status_dict(event_counts),
         "preterminal_true_observation_counts": _status_dict(actionable_counts),
+        "independent_trades_with_true_fact_counts": _status_dict(
+            independent_trade_true_counts
+        ),
+        "trades_with_not_evaluable_fact_counts": _status_dict(
+            trade_not_evaluable_counts
+        ),
+        "zero_call_structural_trade_signal_ids": sorted(zero_call_trade_ids),
         "example_structural_lifecycles": sample_rows,
         "governance": {
             "consumed_development_evidence_only": True,
