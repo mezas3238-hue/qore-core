@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import inspect
 from dataclasses import replace
+from datetime import datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -16,6 +17,7 @@ from qore.infrastructure.traders.vt31_nas100_post_entry_cognitive_runtime import
     PostEntryCausalObservation,
     PostEntryMarketFacts,
     reassess_and_decide_post_entry,
+    revalidate_prospective_fill,
     rebuild_post_entry_situation,
 )
 from qore.infrastructure.traders.vt31_nas100_reasoning_engine import reason
@@ -396,3 +398,53 @@ def test_validated_comp009_adverse_exit_requires_material_adverse_journey() -> N
     assert decision.cognition.maximum_cognition_verified is True
     assert decision.position.action is PositionAction.HOLD
     assert decision.position.reason == "MARKET_STRUCTURE_REMAINS_VALID"
+
+
+def test_fill_time_shadow_uses_canonical_entry_reasoning_not_post_entry_r() -> None:
+    entry = _entry_situation()
+    observation = _observation()  # M15 defaults to UNWIRED.
+    outcome = revalidate_prospective_fill(
+        entry_situation=entry,
+        entry_reasoning=reason(entry),
+        observation=observation,
+        prospective_fill_open_at=datetime.fromisoformat(observation.as_of),
+        apply_comp008_admission=False,
+    )
+    assert outcome.execution_authority is False
+    assert outcome.canonical_reasoning_evaluated is True
+    assert outcome.candidate_fill_accepted is False
+    assert "M15_CONTEXT_UNWIRED" in outcome.entry_mandatory_blockers
+    current = rebuild_post_entry_situation(
+        entry_situation=entry,
+        observation=observation,
+    )
+    assert outcome.current_reasoning_action == reason(current).action
+    assert outcome.entry_situation_fingerprint == entry.fingerprint()
+
+
+def test_fill_time_fails_closed_if_post_fill_r_is_smuggled_in() -> None:
+    entry = _entry_situation()
+    observation = replace(_observation(), current_open_r=Decimal("1"))
+    with pytest.raises(ValueError, match="post-fill open R"):
+        revalidate_prospective_fill(
+            entry_situation=entry,
+            entry_reasoning=reason(entry),
+            observation=observation,
+            prospective_fill_open_at=datetime.fromisoformat(observation.as_of),
+            apply_comp008_admission=False,
+        )
+
+
+def test_fill_time_requires_exact_as_of_prospective_open() -> None:
+    entry = _entry_situation()
+    observation = _observation()
+    with pytest.raises(ValueError, match="exact prospective"):
+        revalidate_prospective_fill(
+            entry_situation=entry,
+            entry_reasoning=reason(entry),
+            observation=observation,
+            prospective_fill_open_at=(
+                datetime.fromisoformat(observation.as_of) + timedelta(minutes=1)
+            ),
+            apply_comp008_admission=False,
+        )
