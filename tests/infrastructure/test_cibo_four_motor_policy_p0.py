@@ -109,11 +109,11 @@ class FourMotorEconomicTest(unittest.TestCase):
         self.assertEqual(Decimal(leverage_vote.limits["approved_max_lots"]), Decimal(".08"))
         self.assertEqual(Decimal(p.limits["approved_source_funds_usd"]), Decimal("1"))
 
-    def test_reconciled_loss_streak_and_no_floating_wins(self):
+    def test_realized_losses_reduce_nav_not_arbitrary_sizing_haircut(self):
         o = observation(reconciled_cashflows=(cash(1, "-8", -4),
                         cash(2, "-2", -3), cash(3, "-10", -2)))
         self.assertEqual(o.qore_nav_usd, Decimal("40"))
-        self.assertEqual(Decimal(votes(o)[1].limits["approved_risk_usd"]), Decimal("1"))
+        self.assertEqual(Decimal(votes(o)[1].limits["approved_risk_usd"]), Decimal("2"))
         self.assertEqual(
             observation(floating_loss_reserve_usd=Decimal("59")).qore_nav_usd,
             Decimal("60"),
