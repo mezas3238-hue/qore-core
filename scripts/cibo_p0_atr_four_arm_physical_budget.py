@@ -208,7 +208,16 @@ def physical_order_quote(config: dict, *, arm: str, mode: str, symbol: str,
     )+commission_open_per_lot(config,symbol,entry,contract,variant)+other
     if cost<=0:
         raise ResearchBlockedError("nonpositive all-in risk per lot")
-    risk_grid=(available/cost/lot_step).to_integral_value(rounding=ROUND_FLOOR)*lot_step
+    opening_fee_per_lot=commission_open_per_lot(
+        config,symbol,entry,contract,variant)
+    # OPEN fees debit cash/NAV immediately. Reserve against AFTER-FEE NAV:
+    # held_stop_risk + new_stop_risk <= 5%*(NAV-new_open_fee)
+    # => lots*(all_in_risk_per_lot+5%*open_fee_per_lot)
+    #    <= 5%*NAV - currently_held_stop_risk.
+    # A weaker before-fee inequality admits portfolio 5% breaches.
+    fee_adjusted_denom=cost+FIVE_PCT*opening_fee_per_lot
+    risk_grid=(available/fee_adjusted_denom/lot_step).to_integral_value(
+        rounding=ROUND_FLOOR)*lot_step
     margin_grid=(free/margin/lot_step).to_integral_value(rounding=ROUND_FLOOR)*lot_step
     lots=max(ZERO,min(risk_grid,margin_grid))
     return {
@@ -219,7 +228,8 @@ def physical_order_quote(config: dict, *, arm: str, mode: str, symbol: str,
         "mode_risk_requested_usd":str(mode_request),
         "portfolio_new_risk_limit_usd":str(available),
         "held_risk_before_usd":str(held),
-        "fee_open_usd_per_lot":str(commission_open_per_lot(config,symbol,entry,contract,variant)),
+        "fee_open_usd_per_lot":str(opening_fee_per_lot),
+        "nav_after_open_fee_usd":str(nav-lots*opening_fee_per_lot if lots>=lot_min else nav),
         "stop_loss_usd_per_lot":str(cost),
         "margin_usd":str(lots*margin if lots>=lot_min else ZERO),
         "atr_multiplier":str(mult),
