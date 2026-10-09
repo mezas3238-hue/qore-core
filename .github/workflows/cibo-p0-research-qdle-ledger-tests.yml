@@ -6,6 +6,9 @@ on:
     paths:
       - "scripts/cibo_trader_lab_native_qdle_market_atlas_3368.py"
       - "scripts/cibo_p0_native_replay_runtime.py"
+      - "scripts/cibo_p0_native_postfill_director.py"
+      - "src/qore/infrastructure/cibo_managed_exit_replay.py"
+      - "tests/infrastructure/test_cibo_p0_native_postfill_director.py"
       - "tests/infrastructure/test_cibo_p0_native_replay_runtime.py"
       - "tests/infrastructure/test_cibo_four_motor_policy_p0.py"
       - "src/qore/infrastructure/qore_dynamic_lot_engine.py"
@@ -42,6 +45,8 @@ jobs:
           python -m py_compile \
             scripts/cibo_trader_lab_native_qdle_market_atlas_3368.py \
             scripts/cibo_p0_native_replay_runtime.py \
+            scripts/cibo_p0_native_postfill_director.py \
+            src/qore/infrastructure/cibo_managed_exit_replay.py \
             src/qore/infrastructure/qore_dynamic_lot_engine.py \
             src/qore/infrastructure/cibo_four_motor_policy.py \
             src/qore/infrastructure/cibo_compound_capital.py \
@@ -51,5 +56,7 @@ jobs:
         run: |
           python -m unittest discover -s tests/infrastructure -p test_cibo_p0_research_qdle_persistence.py -q
           python -m unittest discover -s tests/infrastructure -p test_cibo_p0_native_replay_runtime.py -q
+          python -m unittest discover -s tests/infrastructure -p test_cibo_p0_native_postfill_director.py -q
+          python -m unittest discover -s tests/infrastructure -p test_cibo_managed_exit_replay.py -q
           python -m unittest discover -s tests/infrastructure -p test_cibo_four_motor_policy_p0.py -q
           python -m unittest discover -s tests/infrastructure -p test_qdle_trader_lab_replay.py -q
