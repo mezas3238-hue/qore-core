@@ -1,7 +1,7 @@
 """P0 causal ATR/stop calibration candidate; SHADOW-ONLY, never an MT5 order.
 
-CIBO decides whether/why a trade is admitted. This pure component can propose
-stop geometry only when complete predecision ATR and independently verified
+CIBO receives Trader-created valid signals without cognitive admission voting.
+This pure module proposes stop geometry only with predecision ATR and verified
 structure are available. No future candles, hidden ATR inference, outcomes,
 budget overrides, or physical lot computation. QDLE owns actual broker lotage.
 """
