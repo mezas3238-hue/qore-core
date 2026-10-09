@@ -530,6 +530,11 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
             journal_events = dict(db.execute(
                 "SELECT event,COUNT(*) FROM audit GROUP BY event ORDER BY event"
             ).fetchall())
+            # Preserve an auditable copy beyond this run's temporary SQLite.
+            # SQLite backup is consistent and cannot mutate the live account.
+            export_db=Path(workdir)/"cibo-paper-qdle-account-ledger.sqlite"
+            with sqlite3.connect(export_db) as archived:
+                db.backup(archived)
         account_receipts = [
             {"signal_fingerprint":sid,"state":state,"lots":lots,
              "risk_usd":risk,"margin_usd":margin,"account_sequence":seq,
@@ -552,6 +557,7 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
         if paper_states.get("PAPER_OPEN",0)!=len(active):
             raise ValueError("PAPER QDLE open ledger diverged from active trades")
 
+    paper_ledger_archive_sha256="sha256:"+hashlib.sha256(export_db.read_bytes()).hexdigest()
     # Event outcomes are PAPER only, not broker-confirmed orders.
     paper_outcomes = {
         "NO_QORE_NAV": "PAPER_UNFUNDABLE",
@@ -604,6 +610,7 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
         "paper_qdle_unassessable_count":len(no_quote_rows),
         "paper_qdle_state_counts":paper_states,
         "paper_qdle_event_counts":journal_events,
+        "paper_qdle_archive_sha256":paper_ledger_archive_sha256,
         "paper_qdle_broker_tickets_are_synthetic":False,
         "paper_qdle_uses_broker_receipt_api":False,
         "signal_count":3368,"counts":dict(counts),
