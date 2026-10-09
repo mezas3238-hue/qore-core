@@ -54,7 +54,7 @@ def audit(manifest: dict, replay: dict) -> dict:
     originals = manifest["opportunities"]
     decisions = replay["signal_decisions"]
     closes = replay["closed_trades"]
-    if len(originals) != len(decisions) != 3368:
+    if len(originals) != 3368 or len(decisions) != 3368:
         raise ValueError("source/replay counts differ from frozen 3368")
     sources = {o["signal_fingerprint"]: o for o in originals}
     assessments = {d["signal_fingerprint"]: d for d in decisions}
