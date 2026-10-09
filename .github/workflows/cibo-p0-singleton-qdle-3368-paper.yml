@@ -128,37 +128,6 @@ jobs:
               "financial_certification":r["financial_certification"],
           },sort_keys=True),flush=True)
           PY
-      - name: Publish exact-SHA Trader Lab P0 status to coordinating PR
-        if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          python - <<'PY'
-          import json,os,pathlib
-          p=pathlib.Path(os.environ["RUNNER_TEMP"])/"cibo-atlas-3368/trader-lab-cibo-qdle-spread-3368.json"
-          target=pathlib.Path(os.environ["RUNNER_TEMP"])/"p0-qdle-github-comment.md"
-          link=f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}"
-          lines=["### P0 Trader Lab PAPER — GitHub Actions result",
-                 f"Run: {link}", f"Commit: \`{os.environ['GITHUB_SHA']}\`",
-                 "This is synthetic research only, NO VPS, NO LIVE, NO certified PF/DD."]
-          if p.exists():
-              r=json.loads(p.read_text())
-              lines.extend([
-                  f"Original signals: {r.get('signal_count')}",
-                  f"QDLE ledger complete: {r.get('paper_qdle_ledger_complete_3368')}",
-                  f"Actual physical QDLE quotes: {r.get('paper_qdle_physical_quote_count')}",
-                  f"Unassessable (no physical quote): {r.get('paper_qdle_unassessable_count')}",
-                  f"Paper fills: {r.get('counts',{}).get('paper_open',0)}",
-                  f"Paper settlements: {r.get('counts',{}).get('settled',0)}",
-                  f"Research cash-DD% (NOT MTM): {r.get('shadow_projected_closed_cash_max_dd_pct')}",
-                  f"Research settled PF (NOT certified): {r.get('shadow_projected_settled_profit_factor')}",
-                  f"Paper ledger SHA-256: {r.get('paper_qdle_archive_sha256')}",
-              ])
-          else:
-              lines.append("No replay JSON was produced. Inspect the run failure; no results claimed.")
-          target.write_text("\\n".join(lines)+"\\n")
-          PY
-          gh api --method POST "/repos/$GITHUB_REPOSITORY/issues/746/comments" -f body="$(cat "$RUNNER_TEMP/p0-qdle-github-comment.md")"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
