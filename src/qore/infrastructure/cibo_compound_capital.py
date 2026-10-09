@@ -328,24 +328,19 @@ def _aware(value: datetime, name: str) -> None:
 
 
 def propose_p0_compound_vote(observation: FourMotorObservation) -> FourMotorProposal:
-    """Reinvest reconciled net QORE NAV after protected/held reserves only."""
+    """Use actual reconciled NAV, not legacy loss-streak penalties.
+
+    Settled losses must reduce QORE NAV exactly once through the verified
+    cashflow ledger. Risk reservations and floating liabilities remain hard
+    economic constraints; an arbitrary THREE_SETTLED_LOSSES_HAIR_CUT is not.
+    """
     if not isinstance(observation, FourMotorObservation):
         raise FourMotorPolicyError("canonical observation required")
-    base = observation.base_entry_budget_usd
-    available = observation.risk_cash_remaining_usd
-    chronological = sorted(observation.reconciled_cashflows,
-                           key=lambda e: (e.realized_at, e.event_id))
-    streak = 0
-    for event in reversed(chronological):
-        if event.net_usd < ZERO:
-            streak += 1
-        else:
-            break
-    loss_streak_factor = Decimal("0.5") if streak >= 3 else Decimal("1")
-    cap = min(available, base * loss_streak_factor)
+    cap = min(observation.risk_cash_remaining_usd,
+              observation.base_entry_budget_usd)
     reasons = ("RECONCILED_ONLY_NET_QORE_NAV",
                "PROTECTED_AND_FLOAT_LOSS_AND_RESERVATION_DEDUCTED",
-               "THREE_SETTLED_LOSSES_HAIR_CUT" if streak >= 3
-               else "NORMAL_COMPOUND_REINVESTMENT")
+               "NO_LEGACY_LOSS_STREAK_PENALTY",
+               "QDLE_IS_SOLE_PHYSICAL_LOT_AUTHORITY")
     return FourMotorProposal("CIBO_COMPOUND", observation,
                              {"approved_risk_usd": str(cap)}, reasons)
