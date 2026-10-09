@@ -117,6 +117,10 @@ jobs:
           assert financed[0]['symbol']=='EURUSD'
           assert financed[0]['cibo_source_lane']=='PORTFOLIO_CUSHION'
           assert Decimal(financed[0]['lots']) == Decimal('0.01')
+          assert Decimal(financed[0]['commission_roundtrip_reserved_usd_proxy'])==Decimal('0.14')
+          assert Decimal(financed[0]['commission_open_paid_usd_proxy'])==Decimal('0.07')
+          assert Decimal(financed[0]['commission_close_paid_usd_proxy'])==Decimal('0.07')
+          assert Decimal(financed[0]['planned_stop_usd'])<=Decimal('3')
           assert financed[0]['cibo_managed_exit_evidence_sha256'].startswith('sha256:')
           assert 'realized_pnl_usd_proxy' in financed[0]
           print('QDLE_OBEYS_CIBO_ONE_MANAGED_EURUSD_ONLY',
