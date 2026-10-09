@@ -6,6 +6,9 @@ on:
     paths:
       - ".github/workflows/cibo-trader-lab-native-qdle-market-atlas-3368.yml"
       - "scripts/cibo_trader_lab_native_qdle_market_atlas_3368.py"
+      - "scripts/cibo_p0_native_replay_runtime.py"
+      - "src/qore/infrastructure/cibo_compound_capital.py"
+      - "tests/infrastructure/test_cibo_p0_native_replay_runtime.py"
       - "tests/infrastructure/test_cibo_p0_research_qdle_persistence.py"
       - ".github/workflows/cibo-trader-lab-p0-persistent-qdle-3368.yml"
 permissions:
@@ -46,9 +49,11 @@ jobs:
       - name: Assert PAPER-only and compile actual Trader Lab / updated QDLE code
         run: |
           test "$QORE_LIVE_TRADING" = false
-          python -m py_compile scripts/cibo_trader_lab_native_qdle_market_atlas_3368.py
+          python -m py_compile scripts/cibo_trader_lab_native_qdle_market_atlas_3368.py scripts/cibo_p0_native_replay_runtime.py
           python -m unittest discover -s tests/infrastructure -p test_qdle_stellar_instant_costs.py -q
           python -m unittest discover -s tests/infrastructure -p test_cibo_p0_research_qdle_persistence.py -q
+          python -m unittest discover -s tests/infrastructure -p test_cibo_p0_native_replay_runtime.py -q
+          python -m unittest discover -s tests/infrastructure -p test_cibo_four_motor_policy_p0.py -q
           python -m unittest discover -s tests/infrastructure -p test_cibo_managed_exit_replay.py -q
           if [ -f tests/infrastructure/test_cibo_trader_lab_native_qdle_snapshot_spread.py ]; then
             python -m unittest discover -s tests/infrastructure -p test_cibo_trader_lab_native_qdle_snapshot_spread.py -q
@@ -98,7 +103,10 @@ jobs:
           r=json.loads((p/"trader-lab-cibo-qdle-spread-3368.json").read_text())
           assert r["signal_count"]==r["counts"]["received"]==r["counts"]["qdle_assessed"]==3368
           assert r["research_persistent_qdle_single_account"] is True
-          assert r["full_native_max_cognition_recomputed"] is False
+          assert r["full_native_max_cognition_recomputed"] is True, (
+              r["counts"].get("native_max_reconstruction_failed", 0),
+              r["counts"].get("native_max_recomputed", 0))
+          assert r["counts"]["native_max_recomputed"]==3368
           assert r["commission_model"]=="FUNDEDNEXT_STELLAR_INSTANT_OPEN_ONLY"
           assert r["legacy_fee_model_used"] is False
           assert r["certified"] is False and r["broker_fills"]==0
