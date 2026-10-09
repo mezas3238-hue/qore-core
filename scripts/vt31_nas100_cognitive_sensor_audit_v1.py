@@ -36,6 +36,9 @@ def audit(paths: dict[str, Path]) -> dict[str, object]:
     routing: Counter[str] = Counter()
     output_to_routing: Counter[str] = Counter()
     observation_only: Counter[str] = Counter()
+    native_statuses: Counter[str] = Counter()
+    native_values: Counter[str] = Counter()
+    native_sources: Counter[str] = Counter()
 
     fold_calls: dict[str, int] = {}
     calls_per_trade: list[int] = []
@@ -44,6 +47,7 @@ def audit(paths: dict[str, Path]) -> dict[str, object]:
     maximum_cognition_calls = 0
     missing_sensor_calls = 0
     zero_call_trades = 0
+    required_action_missing_route_sensor = 0
 
     for fold, path in sorted(paths.items()):
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -93,6 +97,27 @@ def audit(paths: dict[str, Path]) -> dict[str, object]:
                         ),
                     )
                 )
+                native = cast(
+                    dict[str, str], sensor.get("native_fact_statuses", {})
+                )
+                native_evidence = cast(
+                    dict[str, dict[str, object]],
+                    sensor.get("native_fact_evidence", {}),
+                )
+                for name in (
+                    "structure_invalidated",
+                    "liquidity_failure_confirmed",
+                    "regime_changed_against_thesis",
+                    "next_structural_target",
+                ):
+                    status = str(native.get(name, "UNOBSERVED_LEGACY"))
+                    native_statuses[f"{name}:{status}"] += 1
+                    proof = native_evidence.get(name, {})
+                    if "value" in proof:
+                        value = proof["value"]
+                        native_values[f"{name}:{value}"] += 1
+                    if proof.get("source"):
+                        native_sources[f"{name}:{proof['source']}"] += 1
                 reasoning[str(sensor["current_reasoning_action"])] += 1
                 action = str(sensor["output_action"])
                 outputs[action] += 1
@@ -110,6 +135,8 @@ def audit(paths: dict[str, Path]) -> dict[str, object]:
                     status = str(route["status"])
                     routing[status] += 1
                     output_to_routing[f"{action}->{status}"] += 1
+                elif sensor.get("output_requires_actuation") is True:
+                    required_action_missing_route_sensor += 1
 
         fold_calls[fold] = fold_count
 
@@ -140,6 +167,11 @@ def audit(paths: dict[str, Path]) -> dict[str, object]:
             "maximum_intelligence_blocker_counts": _sorted(blockers),
             "observation_only_field_counts": _sorted(observation_only),
         },
+        "native_fact_sensor": {
+            "status_counts": _sorted(native_statuses),
+            "value_counts": _sorted(native_values),
+            "producer_source_counts": _sorted(native_sources),
+        },
         "reasoning_sensor": {
             "current_action_counts": _sorted(reasoning),
         },
@@ -153,9 +185,13 @@ def audit(paths: dict[str, Path]) -> dict[str, object]:
         },
         "sensor_integrity": {
             "missing_sensor_call_count": missing_sensor_calls,
-            "required_action_unobserved_count": routing[
-                "ROUTED_EXECUTION_UNOBSERVED"
-            ],
+            "required_action_unobserved_count": (
+                routing["ROUTED_EXECUTION_UNOBSERVED"]
+                + required_action_missing_route_sensor
+            ),
+            "missing_actuation_sensor_for_required_action_count": (
+                required_action_missing_route_sensor
+            ),
             "required_action_not_executed_count": routing[
                 "ROUTED_NOT_EXECUTED"
             ],
