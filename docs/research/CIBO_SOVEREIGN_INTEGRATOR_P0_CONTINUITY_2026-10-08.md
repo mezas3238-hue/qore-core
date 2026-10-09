@@ -48,3 +48,10 @@
 6. Solo después de CI y evidencia científica, revisión owner separada del uso LIVE.
 
 **Criterio de cierre:** Hasta completar los AC01–AC10 del handoff maestro, integración NO TERMINADA.
+
+## PR y CI global — verificación exacta posterior
+
+- Integración publicada como [PR #745 DRAFT](https://github.com/mezas3238-hue/qore-core/pull/745), basado en A3; no confundir con PR #741.
+- Al SHA exacto `70054d844044a8ab5d1cb356c5a955d905da69aa`: [CI cross-architect #37873318878](https://github.com/mezas3238-hue/qore-core/actions/runs/37873318878) SUCCESS (55 pruebas); [CE2I #37873318949](https://github.com/mezas3238-hue/qore-core/actions/runs/37873318949) SUCCESS; [GEN-C5 #37873318975](https://github.com/mezas3238-hue/qore-core/actions/runs/37873318975) SUCCESS; [GEN-C6 #37873318834](https://github.com/mezas3238-hue/qore-core/actions/runs/37873318834) SUCCESS.
+- En el mismo SHA: [Legacy Stack Quarantine #37873318845](https://github.com/mezas3238-hue/qore-core/actions/runs/37873318845) FAILURE (3 passed, 1 failed: `productive_runtime_import_detected=True`, se sigue importando cognitiva legacy productivamente). [Zero Open #37873318832](https://github.com/mezas3238-hue/qore-core/actions/runs/37873318832) FAILURE (STRICT/PRE_EXAM; en PRE_EXAM `FRESH_OOS` continúa abierto, junto con orphans sin clasificación y dependencias externas). [Phase20 #37873318809](https://github.com/mezas3238-hue/qore-core/actions/runs/37873318809) FAILURE (holdout/proveedor; diagnosticar recibos/código sin relajar burn checks).
+- La corrección A2 CE2I y GEN-C5 se ha reproducido como GREEN en rama integradora sin falsificar estados de los restantes gates. **NO LIVE**.
