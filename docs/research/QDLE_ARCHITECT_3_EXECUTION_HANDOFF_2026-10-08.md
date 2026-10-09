@@ -1,5 +1,10 @@
 # QDLE — Arquitecto 3/3, reporte de implementación y continuidad P0
 
+
+## OVERRIDE P0 DE INTEGRACIÓN GENERAL (2026-10-08)
+
+**Handoff CANÓNICO ACTUAL para el próximo arquitecto:** [CIBO_SOVEREIGN_QDLE_MASTER_HANDOFF_2026-10-08_GENERAL_INTEGRATION_P0.md](CIBO_SOVEREIGN_QDLE_MASTER_HANDOFF_2026-10-08_GENERAL_INTEGRATION_P0.md). Prioridad absoluta: arreglar el circuito CIBO cognitivo + cuatro motores + QDLE + capital Bank/Medium/Attack + gestión de posiciones, reconciliar ramas A1/A2/A3, reparar Legacy Stack Quarantine / Zero Open Work / CE2I / GEN-C5 / Phase20 OOS, y ejecutar replay causal completo sin fabricaciones. Este enlace **prevalece sobre planes antiguos que propongan cerrar QDLE aisladamente**; no borra genealogía ni convierte CI verde aislado en certificación financiera. **NO LIVE**.
+
 **Fecha:** 2026-10-08  
 **Repositorio:** `mezas3238-hue/qore-core`  
 **Rama aislada:** `agent/cibo-architect-3-qdle-mt5-physical-20261008`  
