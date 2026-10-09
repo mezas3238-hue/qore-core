@@ -708,7 +708,8 @@ class QDLE:
         if (not request_id or not trader_id or not symbol
                 or side not in ("BUY", "SELL")
                 or reason not in ("NO_QORE_NAV", "NO_ATLAS_M5_ENTRY",
-                                  "INVALID_GEOMETRY", "INVALID_CROSS_SIDE_GEOMETRY")):
+                                  "INVALID_GEOMETRY", "INVALID_CROSS_SIDE_GEOMETRY",
+                                  "NATIVE_COGNITION_UNAVAILABLE")):
             raise QDLEError("identified research physical blocker required")
         fingerprint = hashlib.sha256(_j({
             "request_id": request_id, "trader_id": trader_id, "symbol": symbol,
