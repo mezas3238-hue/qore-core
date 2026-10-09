@@ -41,6 +41,6 @@ jobs:
             tests/infrastructure/test_vt31_nas100_cognitive_producer_sensor_contract.py
       - name: Causal fixtures and strict sensor integrity
         run: |
-          pytest -q -o addopts='' \
+          PYTHONPATH=. pytest -q -o addopts='' \
             tests/infrastructure/test_vt31_nas100_causal_fact_producers.py \
             tests/infrastructure/test_vt31_nas100_cognitive_producer_sensor_contract.py
