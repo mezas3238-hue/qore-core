@@ -17,8 +17,8 @@ from qore.infrastructure.traders.vt31_nas100_post_entry_cognitive_runtime import
     PostEntryCausalObservation,
     PostEntryMarketFacts,
     reassess_and_decide_post_entry,
-    revalidate_prospective_fill,
     rebuild_post_entry_situation,
+    revalidate_prospective_fill,
 )
 from qore.infrastructure.traders.vt31_nas100_reasoning_engine import reason
 from qore.infrastructure.traders.vt31_nas100_situation_model import (
