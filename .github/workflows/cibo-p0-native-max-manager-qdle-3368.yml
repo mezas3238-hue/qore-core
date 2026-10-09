@@ -31,6 +31,7 @@ jobs:
           python -m unittest discover -s tests/infrastructure -p test_qdle_cibo_authority.py -q
           python -m unittest discover -s tests/infrastructure -p test_cibo_trader_signal_administration.py -q
           python -m unittest discover -s tests/infrastructure -p test_cibo_managed_exit_replay.py -q
+          python -m unittest discover -s tests/infrastructure -p test_cibo_p0_native_cognitive_management.py -q
       - name: Obtain sealed historical Trader opportunities AND exact 3368 Native MAX cognition
         env:
           GH_TOKEN: ${{ github.token }}
@@ -94,6 +95,14 @@ jobs:
               assert r['signal_count']==r['unique_signal_count']==3368
               assert r['native_max_3368_cognitive_evidence_joined'] is True
               assert r['native_max_cognitive_evidence_receipts_joined']==3368
+              assert r['native_max_cognitive_economic_intents_applied']==3368
+              assert r['native_max_all_qdle_quotes_nonsettling_without_price_path']
+              assert r['native_max_control_cashflows_excluded_from_manager_nav']
+              assert r['net_research_pnl_usd'] is None
+              assert r['settled_research_outcomes']==0
+              assert r['opening_commission_paid_proxy_usd']=='0'
+              assert r['cibo_manager_original_stop_historical_structural_proxy_funded']==0
+              assert r['qore_ending_capital_usd']=='60'
               assert not r['native_max_real_managed_trade_exits_rebuilt']
               assert r['native_max_legacy_admission_filter_disabled'] is True
               assert r['native_cibo_cognitive_decisions_consumed']==0
@@ -105,9 +114,14 @@ jobs:
               assert r['native_max_management_mode_counts']==a['mode_counts']
               assert sum(r['cibo_manager_actions'].values())==3368
               funded=r['research_financed_proposals']
-              shadow=r['cibo_manager_economic_stop_qdle_quote_only']
+              shadow=r['cibo_manager_native_policy_qdle_quote_only']
               unfundable=r['research_unfundable_or_invalid']
-              assert funded+shadow+unfundable==3368,(funded,shadow,unfundable)
+              assert funded==0 and funded+shadow+unfundable==3368,(funded,shadow,unfundable)
+              assert all(
+                  d.get('cibo_max_native_economic_budget_applied_to_qdle') is True
+                  for d in r['decisions']
+                  if d.get('status') in ('CIBO_NATIVE_COGNITIVE_QDLE_QUOTE_SHADOW',)
+              )
               assert all(
                 d.get('cibo_max_native_cognition_consumed') is True
                 and d.get('cibo_max_native_trade_admission_gate_used') is False
@@ -118,20 +132,24 @@ jobs:
                 decimal.Decimal(d['nav_at_decision_usd'])*decimal.Decimal('0.05') +
                 decimal.Decimal('0.000000001')
                 for d in r['decisions']
-                if d['status'] in ('RESERVED_FOR_TRADER','ECONOMIC_STOP_QDLE_PHYSICAL_QUOTE_SHADOW')
+                if d['status'] in ('RESERVED_FOR_TRADER','ECONOMIC_STOP_QDLE_PHYSICAL_QUOTE_SHADOW','CIBO_NATIVE_COGNITIVE_QDLE_QUOTE_SHADOW')
               )
               reports[name]={
                 'native_max_analyzed':3368,'cibo_received':3368,
                 'original_stop_funded_structural_exit_proxy':funded,
-                'new_economic_stop_QDLE_quote_only':shadow,
+                'native_cognitive_qdle_quote_only':shadow,
+                'new_economic_stop_QDLE_quote_only':r['cibo_manager_economic_stop_qdle_quote_only'],
+                'original_stop_QDLE_quote_only':r['cibo_manager_original_stop_native_qdle_quote_only'],
                 'no_physical_volume_in_proxy':unfundable,
                 'native_max_modes':a['mode_counts'],
                 'real_mt5_fills':0,
                 'full_manager_profit_factor':None,
                 'full_manager_drawdown':None,
-                'original_stop_subset_structural_PnL_USD':r['net_research_pnl_usd'],
-                'original_stop_subset_structural_closedDD_pct':r['max_closed_equity_drawdown_pct'],
-                'original_stop_subset_structural_PF':r['profit_factor_proxy'],
+                'original_stop_subset_structural_PnL_USD':None,
+                'original_stop_subset_structural_closedDD_pct':None,
+                'original_stop_subset_structural_PF':None,
+                'native_cognitive_economic_budget_wired_to_qdle':True,
+                'control_settlements_excluded_from_manager':True,
               }
           full={'schema':'qore.cibo.max-native-manager-qdle-3368-comparison.v1',
                 'research_only':True,
