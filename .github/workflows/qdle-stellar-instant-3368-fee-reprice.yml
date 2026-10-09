@@ -5,6 +5,8 @@ on:
     branches: [agent/cibo-sovereign-integration-p0-20261008]
     paths:
       - "src/qore/infrastructure/qdle_stellar_instant_costs.py"
+      - "src/qore/infrastructure/qdle_mt5_history_fee_audit.py"
+      - "tests/infrastructure/test_qdle_mt5_history_fee_audit.py"
       - "scripts/qdle_3368_dual_ledger_replay.py"
       - "scripts/qdle_3368_fee_model_comparison.py"
       - "tests/infrastructure/test_qdle_stellar_instant_costs.py"
@@ -32,8 +34,29 @@ jobs:
         run: |
           test "$QORE_LIVE_TRADING" = false
           python -m unittest discover -s tests/infrastructure -p test_qdle_stellar_instant_costs.py -q
+          python -m unittest discover -s tests/infrastructure -p test_qdle_mt5_history_fee_audit.py -q
           python -m unittest discover -s tests/infrastructure -p test_cibo_native_sovereign_qdle_p0.py -q
           python -m unittest discover -s tests/infrastructure -p test_cibo_managed_exit_replay.py -q
+      - name: Reconcile observed MT5 5 closed trades and screenshot commission total
+        run: |
+          mkdir -p "$RUNNER_TEMP/qdle-stellar-3368"
+          PYTHONPATH=src:tests/infrastructure python - <<'PY'
+          import json,os,pathlib
+          from test_qdle_mt5_history_fee_audit import audit
+          report=audit()
+          assert report["observed_final_balance_usd"]=="1998.85"
+          assert report["observed_total_commission_debit_usd"]=="0.28"
+          assert report["all_observed_fees_match_stellar_faq"]
+          assert report["cibo_3368_managed_dd_pct"] is None
+          p=pathlib.Path(os.environ["RUNNER_TEMP"])/"qdle-stellar-3368"
+          (p/"actual-mt5-5-closed-trades-commission-reconciliation.json").write_text(
+              json.dumps(report,indent=2,sort_keys=True)+"\\n")
+          print("MT5_5_CLOSED_POSITIONS_FEE_RECONCILED",
+                json.dumps({k:report[k] for k in (
+                    "position_count","observed_total_commission_debit_usd",
+                    "observed_price_pnl_usd","observed_net_change_usd",
+                    "observed_final_balance_usd")},sort_keys=True))
+          PY
       - name: Fetch proven 3368 Trader manifest and FRESH Native CIBO management receipts
         env:
           GH_TOKEN: ${{ github.token }}
@@ -118,4 +141,5 @@ jobs:
             ${{ runner.temp }}/qdle-stellar-3368/general-per-side-3368.json
             ${{ runner.temp }}/qdle-stellar-3368/summary-comparison.json
             ${{ runner.temp }}/qdle-stellar-3368/cibo-exit-path-coverage.json
+            ${{ runner.temp }}/qdle-stellar-3368/actual-mt5-5-closed-trades-commission-reconciliation.json
           if-no-files-found: warn
