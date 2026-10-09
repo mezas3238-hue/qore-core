@@ -1,5 +1,8 @@
 # CIBO P0 — Taxonomía vinculante, muestra ciega y contrafactual prerregistrado
 
+> **OVERRIDE CEO P0 (2026-10-09): DOCUMENTO HISTÓRICO DE LA ARQUITECTURA SELECTOR / NO ES DIRECTIVA OPERATIVA.** El flujo válido es *Trader decide → CIBO recibe y administra todas las señales → QDLE determina factibilidad física*. Mantener este estudio para explicar por qué Native MAX bloqueó 3.357 señales; no ejecutar sus recomendaciones de aflojar/optimizar filtros ni usar su cohorte de 200 como programa prioritario. Directiva vigente: [CIBO P0 PARADIGM OVERRIDE](CIBO_P0_PARADIGM_OVERRIDE_2026-10-09_TRADER_EXECUTION_MANAGEMENT_QDLE.md).
+
+
 **Estado:** investigación de selección, **NINGUNA modificación de umbrales**; no autorización LIVE, no nuevos retornos ATR calculados.  
 **Dueño:** arquitecto integrador CIBO + comité económico QDLE.  
 **Código:** `scripts/cibo_p0_rejection_taxonomy_audit.py`, tests `test_cibo_p0_rejection_taxonomy_audit.py`; workflow `cibo-p0-block-taxonomy-blind200.yml`.  
