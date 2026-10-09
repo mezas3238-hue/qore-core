@@ -7,6 +7,9 @@ Legacy capital_disposition is NEVER an input to the management decision.
 from __future__ import annotations
 
 from decimal import Decimal, InvalidOperation
+from qore.infrastructure.cibo_native_mode_authority import (
+    CiboNativeModeError, SOURCE as NATIVE_RUNTIME_PRODUCER, native_mode_from_json,
+)
 
 
 class NativeCognitiveManagementError(ValueError):
@@ -88,6 +91,32 @@ def native_sensor_management_plan(row: dict) -> dict:
          "trailing_distance_r", "defensive_close_at_r"), template
     ))
     risk_fraction = Decimal("0.05") * risk_share
+    # Only a canonical instruction issued IN Native MAX is sovereign mode
+    # authority. Sensors remain diagnostic and an independent consistency
+    # check, never an alternate provider of the new physical QDLE directive.
+    runtime_raw = row.get("native_mode_instruction")
+    native_owned = runtime_raw is not None
+    instruction = None
+    if native_owned:
+        try:
+            instruction = native_mode_from_json(runtime_raw)
+        except CiboNativeModeError as exc:
+            raise NativeCognitiveManagementError(
+                "invalid Native MAX sovereign mode instruction"
+            ) from exc
+        if (
+            instruction.signal_fingerprint != row.get("signal_fingerprint")
+            or instruction.trader_id != row.get("trader_id")
+            or instruction.semantic_digest != row.get("semantic_digest")
+            or instruction.decided_at.isoformat() != row.get("decided_at")
+            or instruction.mode != mode
+            or instruction.requested_risk_fraction_of_nav != risk_fraction
+            or dict(instruction.exit_policy) != exit_policy
+            or instruction.calibration_confidence != confidence
+        ):
+            raise NativeCognitiveManagementError(
+                "Native MAX sovereign instruction and causal sensor decision drift"
+            )
     return {
         "mode": mode,
         "requested_risk_fraction_of_current_qore_nav": format(risk_fraction, "f"),
@@ -100,7 +129,12 @@ def native_sensor_management_plan(row: dict) -> dict:
         "native_scenario_count": int(count),
         "native_executive_directive": synthesis["directive"],
         "native_executive_uncertainty": synthesis["uncertainty"],
-        "producer": "P0_DETERMINISTIC_SENSOR_DERIVED_RESEARCH_ADAPTER_NOT_NATIVE_BROKER_AUTHORIZATION",
+        "producer": NATIVE_RUNTIME_PRODUCER if native_owned else "P0_DETERMINISTIC_SENSOR_DERIVED_RESEARCH_ADAPTER_NOT_NATIVE_BROKER_AUTHORIZATION",
+        "native_runtime_mode_instruction_consumed": native_owned,
+        "native_runtime_mode_instruction_digest": (
+            instruction.decision_digest if instruction is not None else None
+        ),
+        "qdle_is_only_physical_lot_authority": True,
         "native_disposition_used_for_policy": False,
         "risk_fraction_is_upper_request_not_guaranteed_executable_volume": True,
         "exit_policy_actually_executed": False,
