@@ -85,6 +85,9 @@ class PostEntryCausalObservation:
     # Strategy-native current journey R from frozen initial risk and the latest
     # fully closed causal price. No account/volume fields participate.
     current_open_r: Decimal | None = None
+    # Updated strictly as-of prospective pending-fill open, if observable.
+    entry_evidence_freshness: str | None = None
+    double_sided_before_decision: bool | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -223,6 +226,16 @@ def rebuild_post_entry_situation(
         cross_index_state=observation.cross_index_state,
         m15_state=observation.m15_state,
         current_open_r=observation.current_open_r,
+        entry_evidence_freshness=(
+            entry_situation.entry_evidence_freshness
+            if observation.entry_evidence_freshness is None
+            else observation.entry_evidence_freshness
+        ),
+        double_sided_before_decision=(
+            entry_situation.double_sided_before_decision
+            if observation.double_sided_before_decision is None
+            else observation.double_sided_before_decision
+        ),
     )
 
 
