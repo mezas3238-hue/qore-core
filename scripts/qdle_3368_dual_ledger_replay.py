@@ -210,7 +210,7 @@ def main() -> int:
                     raise SystemExit("Native runtime did not issue BANK/MEDIUM/ATTACK QDLE instruction")
             if a.get("native_cibo_mode_instruction_issued") is True:
                 native_mode_instructions_consumed += 1
-             fraction = D(str(a.get("manager_risk_fraction_of_nav_SHADOW", "NaN")))
+            fraction = D(str(a.get("manager_risk_fraction_of_nav_SHADOW", "NaN")))
             if not fraction.is_finite() or not ZERO < fraction <= FIVE:
                 raise SystemExit("Native MAX paper risk fraction violates 5pct all-in cap")
             native_management_modes[a["manager_mode_SHADOW_from_native_cognitive_sensors"]] += 1
