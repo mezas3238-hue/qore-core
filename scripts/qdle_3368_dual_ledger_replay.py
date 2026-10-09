@@ -323,6 +323,7 @@ def main() -> int:
                     pnl_gross_usd_proxy=str(gross),
                     realized_exit_at=when.isoformat(),
                     swap_usd_proxy=str(swap),
+                    commission_close_paid_usd_proxy=str(trade.get("deferred_close_fee", ZERO)),
                 )
                 realized_gains += pnl
                 # Entry commission was already removed from NAV at hypothetical fill.
@@ -595,6 +596,8 @@ def main() -> int:
                 event.update(status=result.state, lots=str(result.lots),
                              bound_modules=list(result.binding_limits),
                              fees_entry_usd_proxy=str(result.cost_usd),
+                             commission_roundtrip_reserved_usd_proxy=str(result.cost_usd),
+                             commission_open_paid_usd_proxy="0",
                              planned_stop_usd=str(result.total_risk_usd),
                              margin_usd=str(result.margin_usd),
                              risk_budget_usd=str(risk_budget),
@@ -624,6 +627,8 @@ def main() -> int:
                     entry_fee = (full_fee / D("2") if args.motor_policy == "independent_four_motors"
                                  else full_fee)
                     close_fee = full_fee - entry_fee
+                    event["commission_open_paid_usd_proxy"] = str(entry_fee)
+                    event["commission_close_committed_usd_proxy"] = str(close_fee)
                     nav -= entry_fee
                     if lane_cash is not None:
                         lane_cash[requested.source_lane] -= entry_fee
@@ -740,6 +745,8 @@ def main() -> int:
             "gross_losses_usd": str(losses),
             "entry_cost_proxy_usd": str(total_cost),
             "roundtrip_total_commission_committed_proxy_usd": str(total_cost),
+            "per_trade_fees_entry_usd_proxy_field_is_historical_compatibility": True,
+            "per_trade_commission_open_and_close_fields_are_authoritative_research": True,
             "opening_commission_paid_proxy_usd": str(entry_commission_paid),
             "closing_commission_paid_proxy_usd": str(closing_commission_paid),
             "unsettled_future_close_fee_not_charged_usd": str(sum((x.get("deferred_close_fee", ZERO) for x in active.values()), ZERO)),
