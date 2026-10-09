@@ -24,7 +24,7 @@ from qore.infrastructure.qdle_stellar_instant_costs import (
 )
 from qore.infrastructure.qore_dynamic_lot_engine import (
     QDLE, QDLEError, QDLEAccount, QDLESymbol, QDLEIntent,
-    BrokerValuation, Position,
+    BrokerValuation,
 )
 from qore.infrastructure.cibo_managed_exit_replay import (
     CiboExitPolicy, CiboManagedTrade, ExecutableOhlcBar,
@@ -128,42 +128,39 @@ class PaperQdleSession:
         self.broker = ResearchM5Broker()
         self.qdle = QDLE(
             database, self.broker, strict_live_fee_evidence=False,
-            strict_four_motor_evidence=False,
+            strict_four_motor_evidence=False, research_paper_mode=True,
         )
         self.sequence = 0
         self.last_symbol_at = {}
 
-    @staticmethod
-    def _position(sid, trade):
-        return Position("PAPER:" + sid, trade["symbol"], trade["side"], trade["lots"])
-
     def publish_snapshot(self, *, at, nav, active):
-        """Atomically publish all simulator-confirmed PAPER positions to QDLE."""
+        """Publish economic resources, leaving PAPER holds inside QDLE.
+
+        Never double-subtract active simulated risk/margin from this snapshot:
+        PAPER_OPEN rows in the same SQLite ledger carry the commitments.
+        """
         self.sequence += 1
         nav = max(nav, ZERO)
-        held_risk = sum((trade["risk"] for trade in active.values()), ZERO)
-        held_margin = sum((trade["margin"] for trade in active.values()), ZERO)
-        available = max(nav - held_risk, ZERO)
         broker_equity_proxy = max(BROKER_INITIAL + nav - INITIAL, ZERO)
-        positions = tuple(self._position(sid, trade)
-                          for sid, trade in sorted(active.items()))
         self.qdle.publish_account(QDLEAccount(
             account_id="RESEARCH_CIBO_TRADER_LAB",
             provider="FundedNext", currency="USD",
             sequence=self.sequence, as_of=at,
             balance=broker_equity_proxy, equity=broker_equity_proxy,
-            free_margin=max(broker_equity_proxy - held_margin, ZERO),
-            qore_unreserved_risk_usd=available,
-            sovereign_free_source_usd=available,
+            free_margin=broker_equity_proxy,
+            qore_unreserved_risk_usd=nav,
+            sovereign_free_source_usd=nav,
             cushion_free_source_usd=ZERO,
             qore_trading_capital_usd=nav,
-            positions=positions,
-            covered_fill_tickets=tuple(p.ticket for p in positions),
+            # Synthetic PAPER fills are NOT verified broker positions.
+            positions=(), covered_fill_tickets=(),
         ))
         return self.sequence
 
     def publish_symbol(self, *, at, symbol, fee):
         previous = self.last_symbol_at.get(symbol)
+        if previous is not None and at < previous[0]:
+            raise QDLEError("noncausal symbol timestamp in PAPER QDLE")
         if previous is not None and at == previous[0]:
             if fee != previous[1]:
                 raise QDLEError("conflicting fee for same-symbol same-time PAPER quote")
@@ -185,22 +182,21 @@ class PaperQdleSession:
         self.last_symbol_at[symbol] = (at, fee)
 
     def paper_fill(self, *, sid, at, nav, active):
-        """Paper fill must remain reserved until position appears in QDLE."""
-        self.qdle.acknowledge_fill(sid, "PAPER:" + sid)
-        self.publish_snapshot(at=at, nav=nav, active=active)
-        self.qdle.reconcile_fill(sid)
+        """Persist a synthetic fill WITHOUT calling broker receipt APIs."""
+        self.qdle.paper_transition(sid, "PAPER_FILL:" + sid, "PAPER_FILL")
+
+    def paper_settle(self, *, sid):
+        """Atomic release only after a scheduled PAPER settlement event."""
+        self.qdle.paper_transition(sid, "PAPER_SETTLE:" + sid, "PAPER_SETTLE")
 
     def paper_no_fill(self, *, sid, reason):
-        """Simulator-observed NO PAPER order: release unused HELD capacity."""
-        self.qdle.confirm_rejection(
-            sid, "PAPER_SIMULATOR_NO_FILL:" + reason + ":" + sid)
+        """Release an unfilled QDLE hold without inventing MT5 rejection."""
+        self.qdle.paper_transition(sid, "PAPER_NO_FILL:" + sid, "PAPER_NO_FILL")
 
-    def paper_settlement(self, *, sid, realized_net):
-        """Isolated PAPER close evidence, never an MT5 deal."""
-        self.qdle.record_broker_settlement(
-            sid, "PAPER:" + sid, "PAPER_SIMULATOR_SETTLED:" + sid,
-            realized_net,
-        )
+    def paper_unassessable(self, *, sid, reason, at, nav, active):
+        self.publish_snapshot(at=at, nav=nav, active=active)
+        return self.qdle.paper_unassessable(sid, reason, at)
+
 
 
 def _mode_quote(row, symbol, side, entry, stop, stop_per_lot,
@@ -222,8 +218,7 @@ def _mode_quote(row, symbol, side, entry, stop, stop_per_lot,
     if fraction not in (D("0.0125"), D("0.025"), D("0.05")):
         raise ValueError("native risk mode fraction invalid")
     sid = row["signal_fingerprint"]
-    held_margin = sum((trade["margin"] for trade in active.values()), ZERO)
-    free_margin = max(BROKER_INITIAL + nav - INITIAL - held_margin, ZERO)
+    free_margin = max(BROKER_INITIAL + nav - INITIAL, ZERO)
     intent = QDLEIntent(
         request_id=sid, trader_id=row["trader"], symbol=symbol, side=side,
         entry_price=entry, stop_price=stop,
@@ -293,6 +288,7 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
             exit_time,sid,gross,net,mode,symbol,reason,worst=heapq.heappop(closings)
             if sid not in active:
                 raise ValueError("duplicate closing")
+            session.paper_settle(sid=sid)
             trade=active.pop(sid)
             bank+=gross  # OPEN fee was already debited at entry
             net_wins+=max(net,ZERO)
@@ -336,12 +332,26 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
                "signal_at":d["signal_at"],"qdle_at":at.isoformat()}
             if bank<=ZERO:
                 counts["nav_exhausted"]+=1
-                r["status"]="NO_QORE_NAV";rows.append(r);continue
+                r["status"]="NO_QORE_NAV"
+                unquoted=session.paper_unassessable(
+                    sid=sid, reason="NO_QORE_NAV", at=at, nav=bank, active=active)
+                r["qdle_assessment_state"]=unquoted.state
+                r["qdle_lots"]="0"
+                r["qdle_physical_quote_computed"]=False
+                counts["qdle_unassessable"]+=1
+                rows.append(r);continue
             bars,opened=atlas[symbol]
             pos=bisect_left(opened,at)
             if pos>=len(opened) or opened[pos] > at+timedelta(minutes=5):
                 counts["no_executable_atlas_entry"]+=1
-                r["status"]="NO_ATLAS_M5_ENTRY";rows.append(r);continue
+                r["status"]="NO_ATLAS_M5_ENTRY"
+                unquoted=session.paper_unassessable(
+                    sid=sid, reason="NO_ATLAS_M5_ENTRY", at=at, nav=bank, active=active)
+                r["qdle_assessment_state"]=unquoted.state
+                r["qdle_lots"]="0"
+                r["qdle_physical_quote_computed"]=False
+                counts["qdle_unassessable"]+=1
+                rows.append(r);continue
             first=bars[pos]
             midpoint=first.open
             spread=SCREENSHOT_SPREAD[symbol]
@@ -353,7 +363,14 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
             target_dist=abs(original_entry-_d(original["take_profit"]))
             if not (dist>ZERO and ZERO<econ_dist<=dist and target_dist>half):
                 counts["invalid_original_geometry"]+=1
-                r["status"]="INVALID_GEOMETRY";rows.append(r);continue
+                r["status"]="INVALID_GEOMETRY"
+                unquoted=session.paper_unassessable(
+                    sid=sid, reason="INVALID_ORIGINAL_GEOMETRY", at=at, nav=bank, active=active)
+                r["qdle_assessment_state"]=unquoted.state
+                r["qdle_lots"]="0"
+                r["qdle_physical_quote_computed"]=False
+                counts["qdle_unassessable"]+=1
+                rows.append(r);continue
             direction=D(1) if side=="BUY" else D(-1)
             # Cross-side stop/target at the historical M5 mid ± fixed observed
             # spread. Do not convert today's absolute price into 2019 price.
@@ -364,7 +381,14 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
                 side=="SELL" and not (target<entry<stop_econ<=stop_struct)
             ):
                 counts["invalid_cross_side_geometry"]+=1
-                r["status"]="INVALID_CROSS_SIDE_GEOMETRY";rows.append(r);continue
+                r["status"]="INVALID_CROSS_SIDE_GEOMETRY"
+                unquoted=session.paper_unassessable(
+                    sid=sid, reason="INVALID_CROSS_SIDE_GEOMETRY", at=at, nav=bank, active=active)
+                r["qdle_assessment_state"]=unquoted.state
+                r["qdle_lots"]="0"
+                r["qdle_physical_quote_computed"]=False
+                counts["qdle_unassessable"]+=1
+                rows.append(r);continue
             unit=price_usd_per_unit(symbol)
             tariff=estimate_per_lot_fees(
                 symbol,entry_price=entry,contract_size=CONTRACTS[symbol],
@@ -383,6 +407,8 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
                 r["status"]="QDLE_ERROR"
                 r["error"]=str(exc)[:120]
                 rows.append(r);continue
+            r["qdle_assessment_state"]=q.state
+            r["qdle_physical_quote_computed"]=True
             r["qdle_lots"]=str(q.lots)
             r["qdle_all_in_risk"]=str(q.total_risk_usd)
             r["bank_at_entry"]=str(bank)
@@ -486,7 +512,8 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
         "atlas_provenance":metadata,
         "paper_qdle_account_ledger_scope":"ONE_SQLITE_ONE_QDLE_PER_SIMULATION",
         "paper_qdle_account_snapshots":session.sequence,
-        "paper_qdle_broker_tickets_are_synthetic":True,
+        "paper_qdle_broker_tickets_are_synthetic":False,
+        "paper_qdle_uses_broker_receipt_api":False,
         "signal_count":3368,"counts":dict(counts),
         "by_mode":{k:dict(v) for k,v in per_mode.items()},
         "by_symbol":{k:dict(v) for k,v in per_symbol.items()},
@@ -513,8 +540,8 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
             "Atlas M5 unknown bid/ask side; executable bid/ask modeled via constant offset",
             "USDJPY uses October 2026 conversion anchor, not historical cross rate",
             "One persistent QDLE PAPER account; 4 motor caps scaled from original 60 USD quote evidence, not freshly reissued motor votes",
-            "Synthetic simulator paper fill receipts are not verified broker tickets",
-            "Signals rejected before quote for missing prices/geometry still lack universal physical QDLE assessment",
+            "Paper lifecycle uses isolated research-only receipts; NO broker fill or settlement attestation",
+            "Missing prices/geometry have durable QDLE research UNASSESSABLE receipts, NOT physical executable lot quotes",
             "Paper fill next eligible M5 open; original LIMIT order fills not reconstructed",
             "Incomplete market paths kept OPEN and reserve funds, no fabricated result",
             "Intratrade global portfolio MTM drawdown cannot be certified",
