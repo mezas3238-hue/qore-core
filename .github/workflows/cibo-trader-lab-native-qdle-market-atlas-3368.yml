@@ -6,6 +6,8 @@ on:
     paths:
       - ".github/workflows/cibo-trader-lab-native-qdle-market-atlas-3368.yml"
       - "scripts/cibo_trader_lab_native_qdle_market_atlas_3368.py"
+      - "src/qore/infrastructure/qdle_paper_book.py"
+      - "tests/infrastructure/test_qdle_paper_book.py"
       - "tests/infrastructure/test_cibo_trader_lab_native_qdle_snapshot_spread.py"
 permissions:
   contents: read
@@ -73,6 +75,8 @@ jobs:
             echo "${!SHA_VAR}  $ARCHIVE" | sha256sum -c -
             unzip -q "$ARCHIVE" 'RAW_M5_LEDGER/2019.jsonl' 'RAW_M5_LEDGER/2020.jsonl' 'RAW_M5_LEDGER/2021.jsonl' 'RAW_M5_LEDGER/2022.jsonl' -d "$ROOT"
           done
+      - name: Test persistent QDLE PAPER lifecycle and no-LIVE guarantees
+        run: python -m unittest discover -s tests/infrastructure -p test_qdle_paper_book.py -v
       - name: Run TRADER LAB full 3368 M5 plus CEO Bid-Ask snapshot and Stellar commissions
         run: |
           mkdir -p "$RUNNER_TEMP/cibo-atlas-3368/db"
@@ -100,6 +104,12 @@ jobs:
           assert r["certified"] is False and r["broker_fills"]==0
           assert r["bid_ask_verified_2019_2022"] is False
           assert len(r["signal_decisions"])==3368
+          pbook=r["qdle_persistent_paper_ledger"]
+          assert pbook["received_accounted"]==3368
+          assert pbook["physical_quotes"]+pbook["unassessable"]==3368
+          assert pbook["paper_filled"]==r["counts"].get("paper_open",0)
+          assert pbook["paper_settled"]==r["counts"].get("settled",0)
+          assert r["qdle_book_role"]=="SINGLE_ACCOUNT_PAPER_ONLY_NOT_BROKER"
           assert r["full_cibo_managed_drawdown_pct"] is None
           assert r["counts"].get("paper_open",0)>=r["counts"].get("settled",0)
           print("TRADER_LAB_NATIVE_QDLE_SCIENTIFIC_PAPER_FINISH",json.dumps({
