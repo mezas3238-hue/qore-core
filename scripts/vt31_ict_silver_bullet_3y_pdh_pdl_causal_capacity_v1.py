@@ -173,33 +173,33 @@ def _candidate_at_close(
 
 def _candidate_record(model: str, day: str, cand: Chosen) -> dict[str, object]:
     """Standalone immutable snapshot of as-of selected research hypothesis."""
-        return {
-            "ny_date": day,
-            "model": model,
-            "side": cand.side,
-            "source_fvg_closed_at_utc": cand.formed_at.isoformat(),
-            "first_raw_fvg_closed_at_utc": cand.raw_fvg_first_at.isoformat(),
-            "gap_lower": _s(cand.gap_low),
-            "gap_upper": _s(cand.gap_high),
-            "gap_midpoint": _s(cand.midpoint),
-            "causal_draw_family": cand.dol_family,
-            "causal_draw_target": _s(cand.dol_price),
-            "draw_available_at_utc": cand.dol_available_at.isoformat(),
-            "draw_prior_ny_day": cand.pd_source_day.isoformat(),
-            "projected_index_points_to_pdh_pdl": _s(cand.framework),
-            "research_only_later_midpoint_touch": (
-                cand.later_midpoint_touch_at is not None
-            ),
-            "research_only_touch_observed_at_utc": (
-                None if cand.later_midpoint_touch_at is None
-                else cand.later_midpoint_touch_at.isoformat()
-            ),
-            "mt5_or_bid_ask_fill_proven": False,
-            "cognitive_dol_thesis_proven": False,
-            "mss_displacement_proven": False,
-            "structural_stop_proven": False,
-            "ict_trade_certified": False,
-        }
+    return {
+        "ny_date": day,
+        "model": model,
+        "side": cand.side,
+        "source_fvg_closed_at_utc": cand.formed_at.isoformat(),
+        "first_raw_fvg_closed_at_utc": cand.raw_fvg_first_at.isoformat(),
+        "gap_lower": _s(cand.gap_low),
+        "gap_upper": _s(cand.gap_high),
+        "gap_midpoint": _s(cand.midpoint),
+        "causal_draw_family": cand.dol_family,
+        "causal_draw_target": _s(cand.dol_price),
+        "draw_available_at_utc": cand.dol_available_at.isoformat(),
+        "draw_prior_ny_day": cand.pd_source_day.isoformat(),
+        "projected_index_points_to_pdh_pdl": _s(cand.framework),
+        "research_only_later_midpoint_touch": (
+            cand.later_midpoint_touch_at is not None
+        ),
+        "research_only_touch_observed_at_utc": (
+            None if cand.later_midpoint_touch_at is None
+            else cand.later_midpoint_touch_at.isoformat()
+        ),
+        "mt5_or_bid_ask_fill_proven": False,
+        "cognitive_dol_thesis_proven": False,
+        "mss_displacement_proven": False,
+        "structural_stop_proven": False,
+        "ict_trade_certified": False,
+    }
 
 def analyze(rows: Iterable[dict[str, Any]]) -> dict[str, object]:
     windows: dict[str, dict[str, Window]] = {
