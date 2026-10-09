@@ -9,6 +9,8 @@ on:
       - "src/qore/infrastructure/qdle_paper_book.py"
       - "scripts/cibo_trader_lab_native_qdle_market_atlas_3368.py"
       - "tests/infrastructure/test_qdle_paper_book.py"
+      - "src/qore/infrastructure/cibo_compound_capital.py"
+      - "tests/infrastructure/test_cibo_p0_no_loss_streak_haircut_integrator.py"
   push:
     branches: [agent/cibo-p0-fresh-paper-economic-votes-20261009]
     paths:
@@ -37,6 +39,7 @@ jobs:
           test "$QORE_LIVE_TRADING" = false
           python -m py_compile src/qore/infrastructure/qore_dynamic_lot_engine.py src/qore/infrastructure/qdle_paper_book.py scripts/cibo_trader_lab_native_qdle_market_atlas_3368.py
           python -m unittest discover -s tests/infrastructure -p 'test_qdle_paper_book.py' -v
+          python -m unittest discover -s tests/infrastructure -p 'test_cibo_p0_no_loss_streak_haircut_integrator.py' -v
       - name: Prove broker/live QDLE regressions unchanged
         run: |
           python -m unittest discover -s tests/infrastructure -p 'test_qore_dynamic_lot_engine.py' -q
