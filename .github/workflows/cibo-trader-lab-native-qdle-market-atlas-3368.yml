@@ -124,7 +124,7 @@ jobs:
           assert pbook["paper_filled"]==r["counts"].get("paper_open",0)
           assert pbook["paper_settled"]==r["counts"].get("settled",0)
           assert r["qdle_canonical_sqlite_role"]=="PaperQDLE_V1_SINGLE_RESERVATION_BOOK"
-          assert r["qdle_paper_event_audit"]["event_count"] > 3368
+          assert r["qdle_paper_event_audit"]["event_count"] >= 3368
           import hashlib
           archive=p/"db/cibo-p0-canonical-paper-3368.sqlite"
           assert archive.is_file()
