@@ -1,0 +1,42 @@
+name: "CIBO P0 Native M1 ATR14 + USDJPY causal pricing gate (PAPER)"
+on:
+  workflow_dispatch:
+  push:
+    branches: [agent/cibo-sovereign-integration-p0-20261008]
+    paths:
+      - ".github/workflows/cibo-p0-native-m1-atr14-jpy-causal-preflight.yml"
+      - "src/qore/infrastructure/cibo_p0_native_causal_market.py"
+      - "tests/infrastructure/test_cibo_p0_native_causal_market.py"
+  pull_request:
+    branches: [agent/cibo-architect-3-qdle-mt5-physical-20261008]
+    paths:
+      - ".github/workflows/cibo-p0-native-m1-atr14-jpy-causal-preflight.yml"
+      - "src/qore/infrastructure/cibo_p0_native_causal_market.py"
+      - "tests/infrastructure/test_cibo_p0_native_causal_market.py"
+permissions:
+  contents: read
+env:
+  QORE_LIVE_TRADING: "false"
+  PYTHONPATH: src
+jobs:
+  native-causal-price-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify closed-native-ATR14, actual asof bidask and epoch USDJPY
+        run: |
+          set -euo pipefail
+          test "$QORE_LIVE_TRADING" = false
+          python -m py_compile src/qore/infrastructure/cibo_p0_native_causal_market.py
+          python -m unittest discover -s tests/infrastructure -p 'test_cibo_p0_native_causal_market.py' -v
+      - name: Explicit empirical provenance remains an external prerequisite
+        run: |
+          python - <<'PY'
+          from qore.infrastructure.cibo_p0_native_causal_market import HistoricalBidAsk
+          assert HistoricalBidAsk.__module__.endswith("cibo_p0_native_causal_market")
+          print("NATIVE_ALGORITHM_TESTED; HISTORICAL_M1_AND_USDJPY_DATA_NOT_ATTESTED; NO_LIVE")
+          PY
