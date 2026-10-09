@@ -2,11 +2,18 @@ name: CIBO Trader Lab Native MAX QDLE Market Atlas M5 3368 PAPER
 on:
   workflow_dispatch:
   push:
-    branches: [agent/cibo-sovereign-integration-p0-20261008]
+    branches: [agent/cibo-sovereign-integration-p0-20261008, agent/cibo-p0-fresh-paper-economic-votes-20261009]
     paths:
       - ".github/workflows/cibo-trader-lab-native-qdle-market-atlas-3368.yml"
       - "scripts/cibo_trader_lab_native_qdle_market_atlas_3368.py"
       - "src/qore/infrastructure/qdle_paper_book.py"
+      - "src/qore/infrastructure/cibo_trader_lab_fresh_four_motor_votes.py"
+      - "src/qore/infrastructure/cibo_four_motor_policy.py"
+      - "src/qore/infrastructure/cibo_account_sizing_authority.py"
+      - "src/qore/infrastructure/cibo_compound_capital.py"
+      - "src/qore/infrastructure/cibo_marginal_leverage_utility.py"
+      - "src/qore/infrastructure/cibo_core_compound_portfolio.py"
+      - "tests/infrastructure/test_cibo_trader_lab_fresh_four_motor_votes.py"
       - "tests/infrastructure/test_qdle_paper_book.py"
       - "tests/infrastructure/test_cibo_trader_lab_native_qdle_snapshot_spread.py"
 permissions:
@@ -75,6 +82,8 @@ jobs:
             echo "${!SHA_VAR}  $ARCHIVE" | sha256sum -c -
             unzip -q "$ARCHIVE" 'RAW_M5_LEDGER/2019.jsonl' 'RAW_M5_LEDGER/2020.jsonl' 'RAW_M5_LEDGER/2021.jsonl' 'RAW_M5_LEDGER/2022.jsonl' -d "$ROOT"
           done
+      - name: Test fresh independent economic votes and no broker spoofing
+        run: python -m unittest discover -s tests/infrastructure -p test_cibo_trader_lab_fresh_four_motor_votes.py -v
       - name: Test persistent QDLE PAPER lifecycle and no-LIVE guarantees
         run: python -m unittest discover -s tests/infrastructure -p test_qdle_paper_book.py -v
       - name: Run TRADER LAB full 3368 M5 plus CEO Bid-Ask snapshot and Stellar commissions
@@ -109,6 +118,14 @@ jobs:
           assert pbook["physical_quotes"]+pbook["unassessable"]==3368
           assert pbook["paper_filled"]==r["counts"].get("paper_open",0)
           assert pbook["paper_settled"]==r["counts"].get("settled",0)
+          assert r["four_motor_votes_fresh_per_physical_quote"] is True
+          assert r["four_motor_votes_broker_authenticated"] is False
+          assert r["counts"]["fresh_four_motor_signal_decisions"]==pbook["physical_quotes"]
+          assert r["counts"]["fresh_four_motor_producer_votes"]==4*pbook["physical_quotes"]
+          assert all(len(row.get("four_engine_current_votes", []))==4 for row in r["signal_decisions"]
+                     if row.get("qdle_assessment_state") in ("RESERVED_FOR_TRADER","UNFUNDABLE"))
+          assert all(not v["producer_signature_authenticated"]
+                     for row in r["signal_decisions"] for v in row.get("four_engine_current_votes", []))
           assert r["qdle_book_role"]=="SINGLE_ACCOUNT_PAPER_ONLY_NOT_BROKER"
           assert r["full_cibo_managed_drawdown_pct"] is None
           assert r["counts"].get("paper_open",0)>=r["counts"].get("settled",0)
