@@ -293,6 +293,17 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
                 counts["no_executable_atlas_entry"]+=1
                 r["status"]="NO_ATLAS_M5_ENTRY";paper_unassessable(r["status"]);rows.append(r);continue
             first=bars[pos]
+            r["first_candidate_atlas_m5_open_at"]=first.opened_at.isoformat()
+            r["price_known_at_decision"]=first.opened_at<=at
+            if first.opened_at > at:
+                # The prior runner priced QDLE as_of=decision_at using an M5
+                # OPEN that had not occurred. Missing causally executable M1
+                # quotes must remain UNASSESSABLE, not instant fair-value fills.
+                counts["future_m5_quote_rejected"]+=1
+                r["status"]="FUTURE_M5_OPEN_NOT_OBSERVED_AT_TRADER_DECISION"
+                paper_unassessable(r["status"])
+                rows.append(r)
+                continue
             midpoint=first.open
             spread=SCREENSHOT_SPREAD[symbol]
             half=spread/D(2)
