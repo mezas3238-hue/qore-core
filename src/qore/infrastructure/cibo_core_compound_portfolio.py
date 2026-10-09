@@ -372,6 +372,18 @@ def propose_p0_portfolio_vote(observation: FourMotorObservation) -> FourMotorPro
     if not isinstance(observation, FourMotorObservation):
         raise FourMotorPolicyError("canonical observation required")
     nav = observation.qore_nav_usd
+    if observation.research_scenario_only:
+        # Research-only: no arbitrary 15%/7.5%/10% quota.
+        # QDLE still imposes source solvency, per-trade 5%, and broker grid.
+        cap = min(observation.source_available_usd,
+                  observation.risk_cash_remaining_usd)
+        return FourMotorProposal(
+            "PORTFOLIO_COMPOUND", observation,
+            {"approved_source_funds_usd": str(cap)},
+            ("PAPER_CONCURRENT_RISK_OBSERVED",
+             "PAPER_NO_ARBITRARY_GLOBAL_CORRELATED_TRADER_QUOTAS",
+             "PHYSICAL_SOURCE_AND_QDLE_MAX_5PCT_STILL_BIND"),
+        )
     caps = {
         "SOURCE": observation.source_available_usd,
         "UNPROTECTED": observation.risk_cash_remaining_usd,
