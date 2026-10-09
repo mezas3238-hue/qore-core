@@ -30,6 +30,11 @@ def audit(payload: dict) -> dict:
     mode_gross_positive=defaultdict(lambda:Decimal("0"))
     mode_gross_negative=defaultdict(lambda:Decimal("0"))
     no_lot_examples = []
+    cognitive_note_by_mode=defaultdict(Counter)
+    cognitive_gate_by_mode=defaultdict(Counter)
+    cognitive_abstention_by_mode=defaultdict(Counter)
+    min_lot_shortfall_by_mode=defaultdict(Counter)
+    new_cognitive_trace_count = 0
     for row in rows:
         st = str(row.get("status", "UNKNOWN"))
         mo = str(row.get("mode", "UNKNOWN"))
@@ -44,6 +49,16 @@ def audit(payload: dict) -> dict:
             binding[str(code)] += 1
             if st == "QDLE_NO_FINANCEABLE_LOT":
                 no_lot_binding[str(code)] += 1
+        cognitive=row.get("native_max_cognitive_receipt") or {}
+        if "native_calibration_note" in cognitive:
+            new_cognitive_trace_count += 1
+            cognitive_note_by_mode[mo][str(cognitive["native_calibration_note"])] += 1
+            cognitive_abstention_by_mode[mo][str(cognitive["native_abstention_required"])] += 1
+            for gate in cognitive.get("native_decision_gate_codes", []):
+                cognitive_gate_by_mode[mo][str(gate)] += 1
+        if "minimum_lot_risk_shortfall_usd" in row:
+            shortage=Decimal(row["minimum_lot_risk_shortfall_usd"])
+            min_lot_shortfall_by_mode[mo]["positive" if shortage>0 else "zero"]+=1
         if row.get("native_max_recomputed") is False:
             native_error[str(row.get("native_max_error", "NONE"))] += 1
         if st == "QDLE_NO_FINANCEABLE_LOT" and len(no_lot_examples) < 12:
@@ -84,6 +99,19 @@ def audit(payload: dict) -> dict:
         "qdle_no_financeable_lot_binding_limits":dict(no_lot_binding.most_common()),
         "qdle_unfundable_examples":no_lot_examples,
         "native_errors":dict(native_error.most_common()),
+        "cognitive_reason_traces_available_count":new_cognitive_trace_count,
+        "native_bank_reason_by_mode":{
+            k:dict(v.most_common()) for k,v in sorted(cognitive_note_by_mode.items())
+        },
+        "native_abstention_by_mode":{
+            k:dict(v.most_common()) for k,v in sorted(cognitive_abstention_by_mode.items())
+        },
+        "native_decision_gates_by_mode":{
+            k:dict(v.most_common()) for k,v in sorted(cognitive_gate_by_mode.items())
+        },
+        "minimum_physical_lot_risk_shortfall_by_mode":{
+            k:dict(v) for k,v in sorted(min_lot_shortfall_by_mode.items())
+        },
         "mode_financing":{k:dict(v) for k,v in sorted(mode_financing.items())},
         "symbol_financing":{k:dict(v) for k,v in sorted(symbol_financing.items())},
         "settlement_reason_counts":dict(close_reasons.most_common()),
