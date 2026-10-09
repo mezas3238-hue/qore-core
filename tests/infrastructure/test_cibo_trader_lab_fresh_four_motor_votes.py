@@ -54,6 +54,9 @@ class TestFreshFourMotorPaper(unittest.TestCase):
             x["research_scenario_only"] and not x["broker_evidence_authenticated"]
             and not x["producer_signature_authenticated"]
             and x["decision_state"] == "RESEARCH_SCENARIO_NON_BROKER"
+            and x["realized_event_count"] == 1
+            and "realized_event_ids" not in x
+            and x["realized_event_ids_sha256"].startswith("sha256:")
             for x in gain.receipts()
         ))
 
