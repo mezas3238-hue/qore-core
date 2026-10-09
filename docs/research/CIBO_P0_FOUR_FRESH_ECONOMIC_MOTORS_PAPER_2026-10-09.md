@@ -1,5 +1,36 @@
 # CIBO P0 — cuatro motores nuevos por evento PAPER — checkpoint 2026-10-09
 
+## Override final verificado: replay compactado + diagnóstico 2.808 sin lote
+
+**GitHub Actions definitivo:** [#37956379198](https://github.com/mezas3238-hue/qore-core/actions/runs/37956379198), SHA `7e65c3e5be7d5ccabbba4b165e21b6fb926cf601`, **SUCCESS**. Todos los pasos de compilación, 4 tests nuevos + 3 tests del libro PAPER, replay 3368 y auditoría de cardinalidad PASS. El posterior commit de este documento no altera código ni workflow.
+
+**Mismas métricas comprobadas:** 3368 señales originales, 3348 cotizables físicamente, 20 geometrías inválidas, 13.392 votos nuevos, 2808 sin lote, 540 PAPER abiertas, 538 cerradas, 2 unresolved, PnL cerrado -$51.17463426574761, PF 0.71660333453, DD SOBRE CAJA 85.8411937331%. Sin NAV/DD MTM certificado y 0 MT5 real deals. No se ha declarado certificación financiera.
+
+**Artefacto nuevo:** [artifact #11628042022](https://github.com/mezas3238-hue/qore-core/actions/runs/37956379198/artifacts/11628042022). ZIP anterior con listas redundantes ~230.615.283 bytes frente a ZIP compactado **1.675.649 bytes** (reducción >99%). Las huellas sha256 mantienen el compromiso de los eventos y no implican autenticación.
+
+### Causa física específica en el JSON (2860 posibilidades no deben confundirse con ejecución)
+
+Todos los **2.808 NO_LOT** tienen el límite vinculante `REQUESTED_USD`: el coste all-in calculado para 0,01 lotes excede el riesgo elegido en el modo antiguo BANK/MEDIUM/ATTACK. De los 2808:
+- **1712** exceden incluso el 5% absoluto del NAV de CAJA PAPER en ese momento; sería deshonesto fabricar lotes legales a ese tamaño sin replan físico.
+- **1096** cuestan <=5% de la caja PAPER en stop+fee de escenario y pasan la comprobación básica de margen mínimo, pero el antiguo modo de CIBO solicitó por debajo del coste mínimo. Requieren nueva decisión CIBO genuina de riesgo, si lo justifican mercado y capital, nunca incremento externo forzado.
+
+| Activo | NO_LOT | mínimo <=5% caja PAPER | mínimo >5% caja PAPER |
+|---|---:|---:|---:|
+| AUDJPY | 462 | 182 | 280 |
+| EURUSD | 402 | 245 | 157 |
+| GBPJPY | 522 | 194 | 328 |
+| GBPUSD | 548 | 255 | 293 |
+| NDX100 | 395 | 138 | 257 |
+| XAUUSD | 479 | 82 | 397 |
+| **TOTAL** | **2808** | **1096** | **1712** |
+
+Las 1096 se concentran en los modos con riesgo PREFIJADO: **BANK 980** y **MEDIUM 116**; **ATTACK 0**. No se puede concluir que todas las 1096 lleguen a ser nuevas aperturas reales porque falta autorización cognitiva auténtica, posibles correlaciones, SL estructural, validación histórica de costes, origen de fondos y fill confirmado. Son oportunidades de *revisión cognitiva*, no ejecuciones garantizadas. El cálculo usa el **fee/open-only y los spreads 2026 del escenario**; no comisión roundtrip histórica comprobada.
+
+**Dirección siguiente para A1:** eliminar la equivalencia fija `BANK=1.25%, MEDIUM=2.5%, ATTACK=5%` como sustituto del razonamiento. CIBO debe elegir su `desired_risk_fraction` individual entre 0-5% atendiendo a riesgo actual, mercado y cartera; QDLE vuelve a cotizar. No elevar automáticamente a 5% las 1096. Para las 1712 físicamente inviables, CIBO solo podrá proponer otra entrada, SL físicamente defendible o abstenerse explícitamente, nunca reducir stops arbitrariamente ni falsificar tamaños.
+
+---
+
+
 **Rama:** `agent/cibo-p0-fresh-paper-economic-votes-20261009`  
 **PR draft:** https://github.com/mezas3238-hue/qore-core/pull/748  
 **Integrador base:** `agent/cibo-sovereign-integration-p0-20261008` / PR #745  
