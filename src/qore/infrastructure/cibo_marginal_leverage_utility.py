@@ -303,7 +303,9 @@ def propose_p0_adaptive_leverage_vote(observation: FourMotorObservation) -> Four
         raise FourMotorPolicyError("canonical observation required")
     available = max(ZERO, observation.broker_free_margin_usd
                     - observation.broker_margin_reservations_usd)
-    margin_cap = available * Decimal("0.8")
+    # PAPER only: avoid an unrequested fixed 20% margin haircut.
+    margin_cap = (available if observation.research_scenario_only
+                  else available * Decimal("0.8"))
     volume_room = min(
         max(ZERO, observation.symbol_max_lots - observation.open_and_reserved_direction_lots),
         max(ZERO, observation.provider_direction_max_lots
@@ -313,7 +315,9 @@ def propose_p0_adaptive_leverage_vote(observation: FourMotorObservation) -> Four
     reasons = ("BROKER_MARGIN_PER_WHOLE_LOT_USD",
                "FREE_MARGIN_MINUS_HELD_MARGIN",
                "DIRECTIONAL_AND_PROVIDER_VOLUME_CONCENTRATION",
-               "BROKER_ORDER_CHECK_STILL_REQUIRED")
+               "BROKER_ORDER_CHECK_STILL_REQUIRED",
+               "PAPER_NO_MARGIN_BUFFER_PRESET" if observation.research_scenario_only
+               else "LIVE_ADVISORY_MARGIN_BUFFER")
     return FourMotorProposal("ADAPTIVE_LEVERAGE", observation,
                              {"approved_max_lots": str(max_lots),
                               "approved_margin_usd": str(margin_cap)}, reasons)
