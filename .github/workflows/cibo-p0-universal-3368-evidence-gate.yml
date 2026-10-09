@@ -27,7 +27,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-      - run: python -m pip install pytest pytest-cov
+          python-version: '3.12'
+      - run: python -m pip install pytest
       - name: Verify 3368 signal intake, P0 stage evidence and negative controls
-        run: python -m pytest -q tests/infrastructure/test_cibo_p0_universal_3368_evidence_gate.py
+        run: python -m pytest -q -o addopts= tests/infrastructure/test_cibo_p0_universal_3368_evidence_gate.py
