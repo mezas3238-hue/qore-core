@@ -12,6 +12,7 @@ import argparse
 import json
 from collections import Counter, deque
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -88,8 +89,8 @@ def audit_rows(
         previous.append({
             "opened": opened,
             "closed": closed,
-            "high": float(raw["high"]),
-            "low": float(raw["low"]),
+            "high": Decimal(str(raw["high"])),
+            "low": Decimal(str(raw["low"])),
         })
         if len(previous) != 3:
             continue
