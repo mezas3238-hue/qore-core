@@ -123,8 +123,8 @@ class FourArmPhysicalContractTests(unittest.TestCase):
 
     def test_no_double_margin_as_stop_risk(self):
         q=quote(free_margin=D("100"),margin_per_lot=D("1000"))
-        self.assertEqual(q["lots"],"0.10")
-        self.assertEqual(q["margin_usd"],"100.00")
+        self.assertEqual(D(q["lots"]),D("0.10"))
+        self.assertEqual(D(q["margin_usd"]),D("100.00"))
         self.assertLessEqual(D(q["risk_usd"]),D("3"))
 
 
