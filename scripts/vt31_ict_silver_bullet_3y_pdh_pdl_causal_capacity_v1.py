@@ -411,7 +411,7 @@ def self_test() -> None:
     ]
     result = analyze(test)
     am = result["models"]["VT31_NY_AM"]
-    assert am["complete_source_hour_days"] == 1
+    assert am["complete_source_hour_days"] == 1, repr({k: v for k, v in am.items() if k != "research_hypotheses"})
     assert am["days_with_first_pdh_pdl_10point_fvg_hypothesis"] == 1
     assert am["days_with_subsequent_intrawindow_midpoint_touch"] == 1
     cand = am["research_hypotheses"][0]
