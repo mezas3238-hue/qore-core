@@ -195,8 +195,6 @@ def run(manifest, scenario, roots, *, max_bars=MAX_BARS):
             or len(closed) != 538 or len(set(sources)) != 3368
             or any(x["signal_fingerprint"] not in sources for x in opens)):
         raise ValueError("unexpected source identity or change to frozen 540 cohort")
-    origins = {x["signal_fingerprint"]: x for x in scenario["signal_decisions"]
-               if x.get("status") in ("PAPER_OPEN", "PAPER_OPEN_UNRESOLVED_NO_EXIT_PATH")}
     atlas = {}
     for sym in SCREENSHOT_SPREAD:
         corpus, _ = load_raw_m5(roots[sym])
@@ -224,9 +222,6 @@ def run(manifest, scenario, roots, *, max_bars=MAX_BARS):
         entry = D(rec["paper_entry_price"])
         original_entry = D(orig["intended_entry"])
         orig_stop_dist = abs(original_entry - D(orig["stop_loss"]))
-        econ_stop_dist = abs(original_entry - D(
-            next(x for x in manifest["opportunities"]
-                 if x["signal_fingerprint"] == sid)["trader_opportunity"]["stop_loss"]))
         # The economic stop was calculated by CIBO before QDLE, but its
         # proposed absolute price is only retained in the 3368 native quote input.
         # It must be provided by the caller via source decision map.
