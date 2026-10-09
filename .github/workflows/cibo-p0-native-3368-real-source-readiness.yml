@@ -16,7 +16,7 @@ permissions:
   actions: read
 env:
   QORE_LIVE_TRADING: "false"
-  PYTHONPATH: src
+  PYTHONPATH: 'src:.'
   MANIFEST_ARTIFACT: "11451743578"
   MANIFEST_SHA256: "d439957f21e2f79148b5a2fb75a53db6fa448698f17aeb6978f379ed3547f7ea"
 jobs:
