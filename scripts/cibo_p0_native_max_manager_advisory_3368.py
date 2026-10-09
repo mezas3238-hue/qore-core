@@ -13,6 +13,7 @@ import argparse
 import hashlib
 import json
 from collections import Counter, defaultdict
+from contextlib import ExitStack
 from pathlib import Path
 from zipfile import ZipFile
 
@@ -36,12 +37,17 @@ class NativeManagementEvidenceError(ValueError):
     pass
 
 
-def _stream_receipts(archive: Path):
+def _stream_receipts(archive: Path, *, raw_json: bool=False):
     """Read 377 MB Native MAX JSON without materializing verbose sensor arrays."""
-    with ZipFile(archive) as zipped:
-        if SOURCE_MEMBER not in zipped.namelist():
-            raise NativeManagementEvidenceError("missing native max report")
-        with zipped.open(SOURCE_MEMBER) as f:
+    with ExitStack() as context:
+        if raw_json:
+            f = context.enter_context(archive.open("rb"))
+        else:
+            zipped = context.enter_context(ZipFile(archive))
+            if SOURCE_MEMBER not in zipped.namelist():
+                raise NativeManagementEvidenceError("missing native max report")
+            f = context.enter_context(zipped.open(SOURCE_MEMBER))
+        if True:
             needle='"decision_receipts": ['
             buffer=""
             while needle not in buffer:
@@ -172,12 +178,16 @@ def prepare(manifest: dict, native_rows) -> dict:
 def main()->None:
     p=argparse.ArgumentParser()
     p.add_argument("--manifest",type=Path,required=True)
-    p.add_argument("--native-zip",type=Path,required=True)
+    p.add_argument("--native-zip",type=Path)
+    p.add_argument("--native-json",type=Path)
     p.add_argument("--output",type=Path,required=True)
     a=p.parse_args()
+    if (a.native_zip is None) == (a.native_json is None):
+        raise NativeManagementEvidenceError("exactly one Native MAX source required")
     with ZipFile(a.manifest) as z:
         manifest=json.load(z.open(MANIFEST_MEMBER))
-    result=prepare(manifest,_stream_receipts(a.native_zip))
+    native_source = a.native_json if a.native_json is not None else a.native_zip
+    result=prepare(manifest,_stream_receipts(native_source, raw_json=a.native_json is not None))
     a.output.parent.mkdir(parents=True,exist_ok=True)
     a.output.write_text(json.dumps(result,sort_keys=True,indent=2)+"\n")
     print("CIBO_NATIVE_MAX_3368_RECONCILED",json.dumps({
