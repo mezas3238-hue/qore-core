@@ -195,6 +195,13 @@ class PaperQdleSession:
         self.qdle.confirm_rejection(
             sid, "PAPER_SIMULATOR_NO_FILL:" + reason + ":" + sid)
 
+    def paper_settlement(self, *, sid, realized_net):
+        """Isolated PAPER close evidence, never an MT5 deal."""
+        self.qdle.record_broker_settlement(
+            sid, "PAPER:" + sid, "PAPER_SIMULATOR_SETTLED:" + sid,
+            realized_net,
+        )
+
 
 def _mode_quote(row, symbol, side, entry, stop, stop_per_lot,
                 opening_fee, as_of, nav, active, session):
@@ -281,6 +288,7 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
 
     def settle(t):
         nonlocal bank,net_wins,net_losses,worst_intratrade
+        paper_settlements=[]
         while closings and closings[0][0] <= t:
             exit_time,sid,gross,net,mode,symbol,reason,worst=heapq.heappop(closings)
             if sid not in active:
@@ -302,6 +310,13 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
                 "commission_close_usd":"0","net_usd":str(net),
                 "exit_reason":reason,"bank_after_close_usd":str(bank),
             })
+            paper_settlements.append((sid,net))
+        if paper_settlements:
+            # One causal global account snapshot after the due paper closures:
+            # a closed position is absent before its QDLE ledger settlement.
+            session.publish_snapshot(at=t,nav=bank,active=active)
+            for closed_sid,closed_net in paper_settlements:
+                session.paper_settlement(sid=closed_sid,realized_net=closed_net)
     with tempfile.TemporaryDirectory(prefix="cibo-trader-lab-qdle-",
                                      dir=workdir) as tmp:
         td=Path(tmp)
