@@ -110,6 +110,11 @@ jobs:
           assert r["certified"] is False and r["broker_fills"]==0
           assert r["bid_ask_verified_2019_2022"] is False
           assert len(r["signal_decisions"])==3368
+          assert r["paper_qdle_ledger_complete_3368"] is True, "missing durable QDLE paper records"
+          assert (r["paper_qdle_physical_quote_count"]
+                  + r["paper_qdle_unassessable_count"]) == 3368
+          assert len(r["paper_qdle_account_receipts"]) == 3368
+          assert r["paper_qdle_uses_broker_receipt_api"] is False
           assert r["paper_qdle_ledger_complete_3368"], "missing or duplicate QDLE paper accounts"
           assert r["full_cibo_managed_drawdown_pct"] is None
           assert r["counts"].get("paper_open",0)>=r["counts"].get("settled",0)
