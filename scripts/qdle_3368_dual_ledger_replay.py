@@ -292,6 +292,7 @@ def main() -> int:
     manager_requoted_ids: list[str] = []
     last_account_snapshot: QDLEAccount | None = None
     last_symbol_snapshot: QDLESymbol | None = None
+    symbol_snapshots: dict[str, QDLESymbol] = {}
 
     with tempfile.TemporaryDirectory() as t:
         broker = HistoricalProxy()
@@ -553,6 +554,7 @@ def main() -> int:
                         as_of=at, tradable=True,
                     )
                     qdle.publish_symbol(last_symbol_snapshot)
+                    symbol_snapshots[symbol] = last_symbol_snapshot
                     last_spec_time[symbol] = at
                 broker.quote = BrokerValuation(
                     stop_per_lot, MARGINS[symbol][side], at, "SCREENSHOT_2026_STATIC_MARGIN_RESEARCH_PROXY",
@@ -755,7 +757,7 @@ def main() -> int:
                     if last_account_snapshot is None or last_symbol_snapshot is None:
                         raise QDLEError("MANAGER_QUOTE_MISSING_CAUSAL_ACCOUNT_SPEC")
                     quote_qdle.publish_account(last_account_snapshot)
-                    quote_qdle.publish_symbol(last_symbol_snapshot)
+                    quote_qdle.publish_symbol(symbol_snapshots[symbol])
                     result = quote_qdle.reserve_for_trader(requested, now=at)
                 else:
                     result = qdle.reserve_for_trader(requested, now=at)
