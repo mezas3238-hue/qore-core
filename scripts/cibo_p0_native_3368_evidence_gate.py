@@ -87,9 +87,16 @@ def audit(manifest:dict,evidence_pack:dict|None,config:dict,
     for sid,src in source.items():
         t=_timestamp(src["market_decision_at"])
         tf=dict(src["trader_opportunity"]["decision_context"]).get("ctx_timeframe")
-        symbol=src.get("qore_symbol")
+        original_symbol=src.get("qore_symbol")
+        # Market Atlas uses NDX100 while the VT31 original Trader labels
+        # NAS100. Preserve original alias and canonicalize only this proven
+        # execution instrument identity, NEVER invent a missing symbol.
+        symbol="NDX100" if original_symbol=="NAS100" else original_symbol
         if tf not in FRAMES or symbol not in ASSETS:
-            raise CorpusError("source native timeframe/symbol absent: "+sid)
+            raise CorpusError(
+                "source native timeframe/symbol absent: "+sid+
+                " trader="+str(src.get("trader_id"))+
+                " tf="+str(tf)+" original_symbol="+str(original_symbol))
         if require_original_seven and not 2019<=t.year<=2022:
             raise CorpusError("source year not 2019–2022")
         if src["trader_id"]=="VT31_NAS100" and (tf!="M1" or symbol!="NDX100"):
