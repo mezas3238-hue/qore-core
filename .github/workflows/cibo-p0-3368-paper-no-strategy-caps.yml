@@ -9,7 +9,7 @@ permissions:
   contents: read
   actions: read
 jobs:
-  3368-paper-ablation:
+  paper-ablation-3368:
     runs-on: ubuntu-24.04
     timeout-minutes: 12
     env:
