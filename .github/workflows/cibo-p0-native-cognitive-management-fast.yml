@@ -10,6 +10,7 @@ on:
       - "src/qore/infrastructure/cibo_native_sovereign_capital_runtime.py"
       - "src/qore/infrastructure/cibo_single_account_sovereign_ceiling_run.py"
       - "tests/infrastructure/test_cibo_native_sovereign_qdle_p0.py"
+      - "tests/infrastructure/test_cibo_native_mode_authority_real_runtime.py"
       - "scripts/cibo_p0_native_max_manager_advisory_3368.py"
       - "scripts/qdle_3368_dual_ledger_replay.py"
       - "scripts/cibo_p0_native_managed_exit_path_audit.py"
@@ -46,6 +47,8 @@ jobs:
         run: python -m unittest discover -s tests/infrastructure -p test_cibo_p0_native_cognitive_management.py -v
       - name: Causal bid/ask exit path coverage adapter
         run: python -m unittest discover -s tests/infrastructure -p test_cibo_p0_native_managed_exit_path_audit.py -v
+      - name: Real CIBO Native MAX cognitive source emits canonical QDLE mode instruction
+        run: python -m unittest discover -s tests/infrastructure -p test_cibo_native_mode_authority_real_runtime.py -v
       - name: Full CIBO Soberano Native -> four engines -> QDLE physical research contract
         run: python -m unittest discover -s tests/infrastructure -p test_cibo_native_sovereign_qdle_p0.py -v
       - name: QDLE physical invariants
