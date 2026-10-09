@@ -21,7 +21,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Test no NY clock alias and causal M1 boundaries
+      - name: Test primary ICT NY time anchor, UK DST and causal M1 boundaries
         run: |
           set -euo pipefail
           python -m py_compile src/qore/infrastructure/traders/vt31_london_session_contract_v1.py
@@ -32,9 +32,9 @@ jobs:
           from pathlib import Path
           source = Path("src/qore/infrastructure/traders/vt31_london_session_contract_v1.py").read_text()
           assert 'ZoneInfo("Europe/London")' in source
-          assert 'PENDING_CUTOFF = time(9, 0)' in source
+          assert '"VT31_LONDON": (3, 4)' in source
           assert 'def reference_complete(' in source
           assert 'def prospective_entry_time_is_causal(' in source
-          assert "America/New_York" not in source
+          assert 'ZoneInfo("America/New_York")' in source
           assert "from qore." not in source  # clock is independent of the NY trader
           PY
