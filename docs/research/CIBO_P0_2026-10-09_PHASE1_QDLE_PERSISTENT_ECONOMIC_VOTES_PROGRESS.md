@@ -36,19 +36,58 @@ Handoff fuente:
    (compilación, tests de esta fase, four-motor tests y replay unitario).
 7. Workflow de replay 3368 RESEARCH lanzado desde feature
    `cibo-trader-lab-p0-persistent-qdle-3368.yml`: run #37954501697.
-   **No afirmar resultados hasta verificar conclusion SUCCESS y artefacto.**
+   **SUCCESS VERIFICADO**: run #37954501697 sobre SHA
+   `a9146db3480ea924cc70137368197a25299dd150`.
+   El resultado sigue estrictamente RESEARCH / NO LIVE.
+   Artifact #11626963342, `trader-lab-cibo-native-qdle-atlas-3368-37954501697`,
+   ZIP digest `sha256:38efd52c50bda0c12c62ab8310c89f5f03c3d1edcb3fb8fd7b2cdadbde733a8d`.
+
+## Replay P0 efectivamente ejecutado — resultados del run #37954501697
+
+**Fuente:** log del workflow [37954501697](https://github.com/mezas3238-hue/qore-core/actions/runs/37954501697), paso
+`Run TRADER LAB full 3368 M5 plus CEO Bid-Ask snapshot and Stellar commissions`, con
+auditoría `TRADER_LAB_NATIVE_QDLE_SCIENTIFIC_PAPER_FINISH` PASS. El artefacto
+ZIP se publicó; digest `sha256:38efd52c50bda0c12c62ab8310c89f5f03c3d1edcb3fb8fd7b2cdadbde733a8d`.
+
+| Magnitud PAPER | Valor |
+| --- | ---: |
+| 3368 señales recibidas | 3368 |
+| Assessments QDLE | **3368** |
+| Votos económicos genuinos nuevos | **13392 = 4 × 3348** |
+| Invalid original geometry registrados en QDLE sin lote | 20 |
+| QDLE sin lote por fondos/mínimo | 2808 |
+| PAPER aperturas simuladas | 540 |
+| PAPER cierres proyectados | 538 |
+| PAPER posiciones sin cierre terminal | 2 |
+| PnL neto de los 538 cierres PAPER | **−$51,1746342657** |
+| Caja de investigación después de eventos | **$8,6853657343** |
+| PF neto de 538 cierres | **0,7166033345** |
+| Max DD PAPER sobre CAJA, no equity | **85,8411937331%** |
+| WIN rate de cierres PAPER | **37,1747211896%** |
+| NAV final genuino y DD MTM | **null** |
+
+**Comparación contra baseline SAME M5/SNAPSHOT:** anterior 539 entradas/537
+cierres, −$50,77962072 PnL y 85,197246% DD cash, PF 0,716659. Nuevo
+540/538, −$51,17463427, 85,841194% cash DD, PF 0,716603. La
+arquitectura de evaluación QDLE mejoró pero **el resultado financiero
+empeoró levemente**. No afirmar mejoras del trading.
+
+**Reparación P0 NO TERMINADA:** 20 geometrías sin 4 votos económicos,
+3.368 decisiones Native MAX sin reeval genuina, sin gestor cognitivo M5,
+sin NAV MTM, 2 PAPER abiertas, historical provider unverified. Mantener
+DRAFT / NO LIVE.
 
 ## Estado estricto de gates
 
-- AC01 (set 3368/3368): validación del script; falta verificar nuevo artifact.
+- AC01 (set 3368/3368): **PASS del gate cardinalidad de workflow**; hash por señal detallado pendiente.
 - AC02: **FAILED**. CIBO Native MAX continúa heredado de decisiones previas.
   Requiere reconstruir `CiboEconomicConsultationReceipt` y ejecutar
   `build_native_max_cognitive_episode` en el timestamp causal por señal.
 - AC03: **PARTIAL**. Se ejecutan 4 motores nativos por señal cotizable,
   pero los prequote no producen todavía 4 votos. Las observaciones dependen
   de NAV cash y no MTM, con input broker proxy.
-- AC04: **PARTIAL**. Una fila de QDLE por señal incluyendo condiciones
-  UNQUOTABLE; falta verificación de run integral.
+- AC04: **PARTIAL**. 3368/3368 assessments QDLE confirmado en run integral;
+  evidencia económica completa de 20 geometrías no cotizables aún pendiente.
 - AC05: **PARTIAL**. Una SQLite y deducción/release de HELD;
   no hay `reconcile_fill` broker porque por contrato NO hay deals reales.
 - AC06: **FAILED**. BANK/MEDIUM/ATTACK y políticas de salida aún son presets.
@@ -57,7 +96,8 @@ Handoff fuente:
 - AC08: **PARTIAL/NO CERTIFICATION**. Capital cash QORE y broker paper
   separados, sin una curva de NAV/equity MTM global.
 - AC09: **FAILED para evidencia histórica real**. Fixed spread 2026 sobre M5 2019-22.
-- AC10: **PARTIAL**. CI unitaria PASS, replay full no certificado.
+- AC10: **PARTIAL**. CI unitaria PASS, replay full SUCCESS y artefacto publicado,
+  pero investigación no certificada y queda pendiente matriz de escenarios.
 - AC11: **PARTIAL**. Rechazos prequote auditados; forensics globales restantes.
 - AC12: **FAILED**. PR #747 y #745 siguen DRAFT/NO LIVE.
 
