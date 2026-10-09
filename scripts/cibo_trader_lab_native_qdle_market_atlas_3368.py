@@ -330,6 +330,12 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
                 r["qdle_assessment_state"]=unquoted.state
                 r["qdle_lots"]="0"
                 r["qdle_physical_quote_computed"]=False
+                r["qdle_physical_assessment"]={
+                    "request_id":sid,"state":unquoted.state,"lots":"0",
+                    "account_sequence":unquoted.account_sequence,
+                    "binding_limits":list(unquoted.binding_limits),
+                    "physical_quote_computed":False,
+                }
                 counts["qdle_unassessable"]+=1
                 rows.append(r);continue
             bars,opened=atlas[symbol]
@@ -342,6 +348,12 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
                 r["qdle_assessment_state"]=unquoted.state
                 r["qdle_lots"]="0"
                 r["qdle_physical_quote_computed"]=False
+                r["qdle_physical_assessment"]={
+                    "request_id":sid,"state":unquoted.state,"lots":"0",
+                    "account_sequence":unquoted.account_sequence,
+                    "binding_limits":list(unquoted.binding_limits),
+                    "physical_quote_computed":False,
+                }
                 counts["qdle_unassessable"]+=1
                 rows.append(r);continue
             first=bars[pos]
@@ -361,6 +373,12 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
                 r["qdle_assessment_state"]=unquoted.state
                 r["qdle_lots"]="0"
                 r["qdle_physical_quote_computed"]=False
+                r["qdle_physical_assessment"]={
+                    "request_id":sid,"state":unquoted.state,"lots":"0",
+                    "account_sequence":unquoted.account_sequence,
+                    "binding_limits":list(unquoted.binding_limits),
+                    "physical_quote_computed":False,
+                }
                 counts["qdle_unassessable"]+=1
                 rows.append(r);continue
             direction=D(1) if side=="BUY" else D(-1)
@@ -379,6 +397,12 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
                 r["qdle_assessment_state"]=unquoted.state
                 r["qdle_lots"]="0"
                 r["qdle_physical_quote_computed"]=False
+                r["qdle_physical_assessment"]={
+                    "request_id":sid,"state":unquoted.state,"lots":"0",
+                    "account_sequence":unquoted.account_sequence,
+                    "binding_limits":list(unquoted.binding_limits),
+                    "physical_quote_computed":False,
+                }
                 counts["qdle_unassessable"]+=1
                 rows.append(r);continue
             unit=price_usd_per_unit(symbol)
@@ -401,6 +425,14 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
                 rows.append(r);continue
             r["qdle_assessment_state"]=q.state
             r["qdle_physical_quote_computed"]=True
+            r["qdle_physical_assessment"]={
+                "request_id":sid,"state":q.state,"lots":str(q.lots),
+                "account_sequence":q.account_sequence,
+                "binding_limits":list(q.binding_limits),
+                "all_in_stop_risk_usd":str(q.total_risk_usd),
+                "margin_usd":str(q.margin_usd),
+                "physical_quote_computed":True,
+            }
             r["qdle_lots"]=str(q.lots)
             r["qdle_all_in_risk"]=str(q.total_risk_usd)
             r["bank_at_entry"]=str(bank)
@@ -484,6 +516,32 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
                       "closed",counts["settled"],"paper_open",counts["paper_open"],
                       "QORE_cash",str(bank),flush=True)
         settle(datetime.max.replace(tzinfo=chronological[-1] and datetime.fromisoformat(chronological[-1]["at"]).tzinfo))
+    # Event outcomes are PAPER only, not broker-confirmed orders.
+    paper_outcomes = {
+        "NO_QORE_NAV": "PAPER_UNFUNDABLE",
+        "NO_ATLAS_M5_ENTRY": "NO_EXECUTABLE_ENTRY",
+        "INVALID_GEOMETRY": "INCOMPLETE_EVIDENCE",
+        "INVALID_CROSS_SIDE_GEOMETRY": "INCOMPLETE_EVIDENCE",
+        "QDLE_ERROR": "INCOMPLETE_EVIDENCE",
+        "QDLE_NO_FINANCEABLE_LOT": "PAPER_UNFUNDABLE",
+        "EXIT_POLICY_ERROR": "PAPER_UNFILLED",
+        "PAPER_OPEN": "PAPER_OPEN",
+        "PAPER_OPEN_UNRESOLVED_NO_EXIT_PATH": "INCOMPLETE_PRICE_PATH",
+    }
+    for receipt in rows:
+        sid = receipt["signal_fingerprint"]
+        state = receipt["status"]
+        if state not in paper_outcomes:
+            raise ValueError("unrecognized PAPER research execution state: "+state)
+        receipt["execution_outcome"] = {
+            "request_id":sid,
+            "paper_status":paper_outcomes[state],
+            "source_status":state,
+            "broker_confirmed":False,
+        }
+    # Research-only QDLE_ERROR rows cannot claim a genuine priced quote.
+    # Each such failure is counted independently rather than replaced with a
+    # zero-lot physical response or swept under the 3368 acceptance count.
     if counts["received"]!=3368:
         raise ValueError("unexpected native input cardinality")
     winners=sum(_d(x["net_usd"])>ZERO for x in closed)
