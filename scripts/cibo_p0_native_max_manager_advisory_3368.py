@@ -188,6 +188,8 @@ def main()->None:
         manifest=json.load(z.open(MANIFEST_MEMBER))
     native_source = a.native_json if a.native_json is not None else a.native_zip
     result=prepare(manifest,_stream_receipts(native_source, raw_json=a.native_json is not None))
+    if a.native_json is not None:
+        result["source"]="FRESH_NATIVE_MAX_REPLAY_3368_SAME_SEALED_TRADER_INPUT"
     a.output.parent.mkdir(parents=True,exist_ok=True)
     a.output.write_text(json.dumps(result,sort_keys=True,indent=2)+"\n")
     print("CIBO_NATIVE_MAX_3368_RECONCILED",json.dumps({
