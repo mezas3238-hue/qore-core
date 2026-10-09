@@ -122,6 +122,15 @@ def reconstruct_native_max_at_epoch(
         "native_regime_risk_utilization": str(risk_utilization),
         "native_regime_drawdown_utilization": str(drawdown),
         "native_mode": instruction.mode,
+        "native_calibration_confidence": instruction.calibration_confidence,
+        "native_abstention_required": instruction.abstention_required,
+        "native_calibration_note": str(result.cognitive_episode.calibration.note),
+        "native_calibration_kind": str(result.cognitive_episode.calibration.kind),
+        "native_reasoning_route": result.cognitive_episode.reasoning_routing.decision.value,
+        "native_metacognitive_evidence_sufficiency": (
+            result.cognitive_episode.metacognitive_audit.evidence_sufficiency.value
+        ),
+        "native_decision_gate_codes": list(result.cognitive_episode.decision_gate_codes),
         "native_cognitive_not_authentic_broker_exec": True,
         "native_exit_policy_is_static_template": True,
     }
