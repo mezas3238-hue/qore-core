@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+import sqlite3
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
@@ -110,6 +111,26 @@ class TestPaperQDLE(unittest.TestCase):
                 q.acknowledge_fill("s3","MT5_FAKE")
             with self.assertRaises(QDLEError):
                 q.arm_for_live_send("s3")
+
+    def test_legacy_competing_paper_marker_requires_explicit_migration(self):
+        with tempfile.TemporaryDirectory() as td:
+            path=Path(td)/"other-paper.sqlite"
+            with sqlite3.connect(path) as db:
+                db.execute(
+                    "CREATE TABLE meta(key TEXT PRIMARY KEY,value TEXT NOT NULL)")
+                db.execute(
+                    "INSERT INTO meta VALUES('research_paper_database','true')")
+            with self.assertRaisesRegex(QDLEError,"competing PAPER SQLite"):
+                PaperQDLE(path,PaperBroker())
+
+    def test_prior_live_snapshot_without_reservations_not_silently_converted(self):
+        from qore.infrastructure.qore_dynamic_lot_engine import QDLE
+        with tempfile.TemporaryDirectory() as td:
+            path=Path(td)/"broker.sqlite"
+            broker=QDLE(path,PaperBroker())
+            snapshot(broker,1,AT)
+            with self.assertRaisesRegex(QDLEError,"explicit migration"):
+                PaperQDLE(path,PaperBroker())
 
     def test_second_generic_paper_authority_is_rejected(self):
         from qore.infrastructure.qore_dynamic_lot_engine import QDLE
