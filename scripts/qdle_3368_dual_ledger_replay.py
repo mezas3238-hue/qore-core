@@ -115,6 +115,8 @@ def main() -> int:
                    help="Explicit research sensitivity only; unknown NDX fee never inferred")
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--min-policy", choices=["original_trader", "broker_grid"], default="original_trader")
+    p.add_argument("--native-max-management-advisories", type=Path, default=None,
+                   help="Pinned 3368 original Native MAX cognitive receipts mapped to PAPER CIBO exit-management modes (NEVER admissions).")
     p.add_argument("--experimental-paper-bypass-strategy-caps", action="store_true",
                    help="PAPER-ONLY research ablation: bypass Sizing/Compound/Leverage/Portfolio discretionary caps for all signals, while QDLE retains 5pct NAV, real volume grid, broker margin, actual source and fees. NO LIVE or real fills.")
     p.add_argument("--experimental-cibo-administrator", action="store_true",
@@ -139,6 +141,14 @@ def main() -> int:
         or args.provider_trailing_usd != "disabled"
     ):
         raise SystemExit("PAPER-ONLY strategy ablation requires manager+four-motor broker-grid and provider proxy disabled; cannot target LIVE or original CIBO.")
+    if args.native_max_management_advisories is not None and (
+        not args.experimental_cibo_administrator
+        or args.cibo_instructions is not None
+        or args.experimental_native_ceiling_report is not None
+        or args.motor_policy != "independent_four_motors"
+        or args.min_policy != "broker_grid"
+    ):
+        raise SystemExit("Native MAX management is a PAPER predecision advisory, never a pretrade veto or LIVE signal.")
     if args.target_lots is not None and (not args.target_lots.is_finite() or args.target_lots <= ZERO):
         raise SystemExit("Invalid target lots")
     if args.motor_policy == "independent_four_motors" and (
@@ -154,6 +164,32 @@ def main() -> int:
     opportunities = raw["opportunities"]
     if len(opportunities) != 3368 or len({x["signal_fingerprint"] for x in opportunities}) != 3368:
         raise SystemExit("FAIL CLOSED: 3368 unique original signals required")
+    native_management_by_signal = None
+    native_management_modes = Counter()
+    if args.native_max_management_advisories is not None:
+        advisory = json.loads(args.native_max_management_advisories.read_text(encoding="utf-8"))
+        receipt_rows = advisory.get("receipts")
+        if (advisory.get("schema") != "qore.cibo.p0.native-max-3368-received-manager-advisory.v1"
+            or advisory.get("admission_gate_applied") is not False
+            or not isinstance(receipt_rows, list) or len(receipt_rows) != 3368
+            or advisory.get("cognitive_intelligence_receipts_consumed") != 3368):
+            raise SystemExit("Native MAX 3368 management source untrusted, cannot proceed")
+        native_management_by_signal = {x["signal_fingerprint"]: x for x in receipt_rows}
+        if len(native_management_by_signal) != 3368 or set(native_management_by_signal) != {
+            x["signal_fingerprint"] for x in opportunities
+        }:
+            raise SystemExit("Native MAX 3368 management fingerprints missing or duplicate")
+        for opportunity in opportunities:
+            a = native_management_by_signal[opportunity["signal_fingerprint"]]
+            if (a.get("trader_id") != opportunity["trader_id"]
+                or a.get("decided_at") != opportunity["market_decision_at"]
+                or a.get("native_max_cognition_read") is not True
+                or a.get("admission_gate_applied") is not False
+                or a.get("manager_mode_SHADOW_from_native_legacy_disposition") not in (
+                    "BANK", "MEDIUM", "ATTACK"
+                )):
+                raise SystemExit("Native MAX shadow economics/trader clock mismatch")
+            native_management_modes[a["manager_mode_SHADOW_from_native_legacy_disposition"]] += 1
     if any(opportunities[i]["market_decision_at"] > opportunities[i + 1]["market_decision_at"]
            for i in range(len(opportunities) - 1)):
         raise SystemExit("FAIL CLOSED: sealed opportunity order not chronological")
@@ -444,6 +480,20 @@ def main() -> int:
                      "symbol": symbol, "trader": row["trader_id"],
                      "status": "UNFUNDABLE", "lots": "0"}
             sym_counts[symbol]["original_signals"] += 1
+            if native_management_by_signal is not None:
+                native_advice = native_management_by_signal[rid]
+                event["cibo_max_native_cognition_consumed"] = True
+                event["cibo_max_native_semantic_digest"] = native_advice["native_max_semantic_digest"]
+                event["cibo_max_native_legacy_reason_observation_only"] = native_advice[
+                    "native_legacy_capital_disposition_for_diagnostics_only"
+                ]
+                event["cibo_max_native_calibration_note"] = native_advice["native_max_calibration_note"]
+                event["cibo_max_native_management_mode"] = native_advice[
+                    "manager_mode_SHADOW_from_native_legacy_disposition"
+                ]
+                event["cibo_max_native_proposed_exit_management"] = native_advice["manager_exit_policy_SHADOW"]
+                event["cibo_max_native_exit_policy_executed"] = False
+                event["cibo_max_native_trade_admission_gate_used"] = False
             if provider_closed_at is not None:
                 event["status"] = "BLOCKED_AFTER_PROVIDER_LIMIT"
                 event["reason"] = "PROVIDER_TRAILING_LIMIT_TRIGGERED_CLOSED_EQUITY_PROXY"
@@ -935,6 +985,14 @@ def main() -> int:
             "schema": "qore.qdle.3368.dual-capital-research.v1",
             "cibo_manager_experimental_activated": args.experimental_cibo_administrator,
             "experimental_paper_bypass_strategy_caps": args.experimental_paper_bypass_strategy_caps,
+            "native_max_3368_cognitive_evidence_joined": native_management_by_signal is not None,
+            "native_max_cognitive_evidence_receipts_joined": (
+                len(native_management_by_signal) if native_management_by_signal is not None else 0
+            ),
+            "native_max_management_mode_counts": dict(sorted(native_management_modes.items())),
+            "native_max_legacy_admission_filter_disabled": native_management_by_signal is not None,
+            "native_max_real_managed_trade_exits_rebuilt": False,
+            "native_max_management_plans_research_only": native_management_by_signal is not None,
             "research_policy_bypassed_four_voters": (
                 ["SIZING", "CIBO_COMPOUND", "ADAPTIVE_LEVERAGE", "PORTFOLIO_COMPOUND"]
                 if args.experimental_paper_bypass_strategy_caps else []
