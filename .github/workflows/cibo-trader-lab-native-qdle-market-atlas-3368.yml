@@ -149,7 +149,32 @@ jobs:
               "financial_certification":r["financial_certification"],
           },sort_keys=True),flush=True)
           PY
+      - name: Segregate frozen 540 control from revised no-lookahead PAPER cohort
+        run: |
+          python - <<'PY'
+          import json,os,pathlib
+          p=pathlib.Path(os.environ["RUNNER_TEMP"])/"cibo-atlas-3368"
+          r=json.loads((p/"trader-lab-cibo-qdle-spread-3368.json").read_text())
+          comparable=(r["counts"].get("paper_open")==540 and
+                      r["counts"].get("settled")==538 and
+                      r["counts"].get("future_m5_quote_rejected",0)==0)
+          with open(os.environ["GITHUB_ENV"],"a") as f:
+              f.write("LEGACY_540_PAIRABLE="+("true" if comparable else "false")+"\\n")
+          if not comparable:
+              (p/"cibo-p0-prior-540-not-comparable.json").write_text(
+                  json.dumps({
+                      "status":"REJECTED_PRIOR_540_COMPARISON_AFTER_CAUSALITY_GATE",
+                      "current_opened":r["counts"].get("paper_open",0),
+                      "current_settled":r["counts"].get("settled",0),
+                      "future_m5_quote_rejected":r["counts"].get("future_m5_quote_rejected",0),
+                      "original_540_cohort_unchanged":False,
+                      "certified_profit_factor":None,
+                  },sort_keys=True,indent=2)+"\\n")
+          print("CIBO_P0_540_COMPARABILITY",comparable,
+                "future_quote_rejected",r["counts"].get("future_m5_quote_rejected",0))
+          PY
       - name: Diagnose fixed 540 with static stops/targets and causal ATR grid
+        if: env.LEGACY_540_PAIRABLE == 'true'
         run: |
           python scripts/cibo_trader_lab_p0_winrate_540_diagnostic.py \
             --manifest "$RUNNER_TEMP/cibo-atlas-3368/walk-forward-manifest.json" \
@@ -163,6 +188,7 @@ jobs:
             --atlas-root "XAUUSD=$RUNNER_TEMP/atlas/XAUUSD" \
             --output "$RUNNER_TEMP/cibo-atlas-3368/cibo-p0-winrate-frozen-540-diagnostic.json"
       - name: Audit frozen 540 diagnostic integrity
+        if: env.LEGACY_540_PAIRABLE == 'true'
         run: |
           python - <<'PY'
           import json,os,pathlib
@@ -182,12 +208,14 @@ jobs:
           },sort_keys=True))
           PY
       - name: Audit original Trader signal source families and actual strategy timeframes
+        if: env.LEGACY_540_PAIRABLE == 'true'
         run: |
           python scripts/cibo_trader_lab_source_signal_audit_3368.py \
             --manifest "$RUNNER_TEMP/cibo-atlas-3368/walk-forward-manifest.json" \
             --replay "$RUNNER_TEMP/cibo-atlas-3368/trader-lab-cibo-qdle-spread-3368.json" \
             --output "$RUNNER_TEMP/cibo-atlas-3368/cibo-p0-source-signal-audit-3368.json"
       - name: Assert 3368 provenance, seven Traders and source H1/H4/M1/M15 evidence
+        if: env.LEGACY_540_PAIRABLE == 'true'
         run: |
           python - <<'PY'
           import json,os,pathlib
@@ -214,6 +242,7 @@ jobs:
           path: |
             ${{ runner.temp }}/cibo-atlas-3368/trader-lab-cibo-qdle-spread-3368.json
             ${{ runner.temp }}/cibo-atlas-3368/db/cibo-p0-canonical-paper-3368.sqlite
+            ${{ runner.temp }}/cibo-atlas-3368/cibo-p0-prior-540-not-comparable.json
             ${{ runner.temp }}/cibo-atlas-3368/cibo-p0-winrate-frozen-540-diagnostic.json
             ${{ runner.temp }}/cibo-atlas-3368/cibo-p0-source-signal-audit-3368.json
           if-no-files-found: warn
