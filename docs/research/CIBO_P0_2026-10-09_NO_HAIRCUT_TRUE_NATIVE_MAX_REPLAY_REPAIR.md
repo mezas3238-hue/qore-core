@@ -58,6 +58,23 @@ requiere contrato Native MAX por evento de posición, sin mirar velas futuras,
 que produzca acción HOLD/MODIFY_STOP/PARTIAL/EXIT para cada decisión y
 conectarlo al motor PAPER de ejecución, riesgo y fee de QDLE.
 
+## Eliminación adicional de dependencia heredada del corpus QDLE
+
+La revisión siguiente elimina por completo `stellar-instant-3368.json`
+de la CLI de replay y del workflow. Ya no puede decidir orden temporal,
+Trader, símbolo, clase de modo, stop ni salida. El único calendario de
+oportunidades viene de `walk-forward-manifest.json` con `manifest_sha256`
+validado, 3368 fingerprints únicos y timestamps UTC conscientes.
+`scripts/cibo_p0_replay_manifest_source.py` preserva todos los IDs
+originales y realiza el orden temporal causal. Las seis particiones Atlas M5,
+tarifas research y QDLE actual siguen siendo los insumos económicos/mercado.
+La fuente anterior permanece exclusivamente como comparación en el handoff;
+**no participa en el nuevo replay**.
+
+Nuevo run del contrato sin datos antiguos:
+https://github.com/mezas3238-hue/qore-core/actions/runs/37957305555.
+No afirmar resultado antes de SUCCESS + artifact.
+
 ## Evidencia reproducible
 
 - [Unit tests actualizados](https://github.com/mezas3238-hue/qore-core/actions/runs/37956391200) — SUCCESS, SHA `9ab5f19f6a730aa83cafa18a520acc9f7f85aac2`.
