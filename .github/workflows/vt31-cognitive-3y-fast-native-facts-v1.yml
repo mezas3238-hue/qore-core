@@ -6,6 +6,8 @@ on:
       - agent/vt31-architect-cognition-sensors-20261009
     paths:
       - scripts/vt31_nas100_cognitive_3y_native_fact_fast_audit_v1.py
+      - src/qore/infrastructure/traders/vt31_nas100_causal_fact_producers.py
+      - tests/infrastructure/test_vt31_nas100_causal_fact_producers.py
       - .github/workflows/vt31-cognitive-3y-fast-native-facts-v1.yml
   workflow_dispatch:
 
