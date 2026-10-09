@@ -265,6 +265,14 @@ class QDLE:
             ).fetchone()
             if research_paper_mode:
                 if marker is None:
+                    # #746 used a separate incompatible PAPER book marker.
+                    # NEVER auto-migrate its SQLite merely because it has
+                    # zero reservations; it requires audited explicit import.
+                    other_book = db.execute(
+                        "SELECT value FROM meta WHERE key='research_paper_database'"
+                    ).fetchone()
+                    if other_book is not None:
+                        raise QDLEError("competing PAPER SQLite authority: explicit migration required")
                     historical_table = db.execute(
                         "SELECT name FROM sqlite_master WHERE type='table' AND name='reservations'"
                     ).fetchone()
@@ -272,6 +280,11 @@ class QDLE:
                         "SELECT COUNT(*) FROM reservations"
                     ).fetchone()[0]:
                         raise QDLEError("cannot convert broker reservations into PAPER")
+                    other_state = db.execute(
+                        "SELECT COUNT(*) FROM meta WHERE key!='canonical_research_paper_authority'"
+                    ).fetchone()[0]
+                    if other_state:
+                        raise QDLEError("cannot import other QDLE account state without explicit migration")
                     db.execute(
                         "INSERT INTO meta(key,value) VALUES('canonical_research_paper_authority',?)",
                         ('"PaperQDLE_V1_SINGLE_RESERVATION_BOOK"',),
