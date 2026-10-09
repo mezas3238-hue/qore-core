@@ -102,6 +102,9 @@ class TestFreshFourMotorPaper(unittest.TestCase):
             replace(p, research_scenario_only=False)
         with self.assertRaises(FourMotorPolicyError):
             replace(p, broker_fees_complete=True)
+        from qore.infrastructure.cibo_four_motor_policy import sign_producer_receipt
+        with self.assertRaises(FourMotorPolicyError):
+            sign_producer_receipt(make().votes[0], producer="SIZING", secret=b"x"*32)
         # Scenario-only exception does not change strict defaults.
 
 
