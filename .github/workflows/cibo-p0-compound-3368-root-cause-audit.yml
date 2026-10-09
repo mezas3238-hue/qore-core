@@ -1,0 +1,60 @@
+name: CIBO P0 - Compuesto 2782 Root Cause on 3368 Replay
+on:
+  workflow_dispatch:
+  push:
+    branches: [agent/cibo-sovereign-integration-p0-20261008]
+    paths:
+      - "scripts/cibo_p0_compound_replay_audit.py"
+      - "tests/infrastructure/test_cibo_p0_compound_replay_audit.py"
+      - ".github/workflows/cibo-p0-compound-3368-root-cause-audit.yml"
+permissions:
+  contents: read
+  actions: read
+jobs:
+  compound-read-only-audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run no-mutating CIBO compound diagnosis tests
+        run: |
+          python -m unittest discover -s tests/infrastructure -p test_cibo_p0_compound_replay_audit.py -v
+      - name: Download pinned verified 3368 CEO manager QDLE research report
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/compound-audit"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/11605550958/zip" > "$RUNNER_TEMP/compound-audit/input.zip"
+          echo "cb52e91e5aff43a251cff431b6bfddbdb7197f60281684d6dc346d3255df69b2  $RUNNER_TEMP/compound-audit/input.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/compound-audit/input.zip" qdle-cibo-manager-economic-sl.json -d "$RUNNER_TEMP/compound-audit"
+      - name: Audit first-binding causality of ALL 2782 compound blocks
+        run: |
+          python scripts/cibo_p0_compound_replay_audit.py \
+            --report "$RUNNER_TEMP/compound-audit/qdle-cibo-manager-economic-sl.json" \
+            --output "$RUNNER_TEMP/compound-audit/compound-first-binding-3368.json"
+      - name: Verify exact root cause, no fake ablation fills or economic policy change
+        run: |
+          python - <<'PY'
+          import json,os,pathlib
+          p=pathlib.Path(os.environ['RUNNER_TEMP'])/'compound-audit'/'compound-first-binding-3368.json'
+          d=json.loads(p.read_text());s=d['summary']
+          assert len(d['decision_audit'])==3368
+          assert s['compound_primary_block']==2782
+          assert s['isolated_removal_half_risk_cap_minlot_price_feasibility']==2782
+          assert s['isolated_removal_half_risk_cap_sequential_qdle_proposals'] is None
+          assert s['isolated_removal_half_risk_cap_reconstructed_pnl'] is None
+          assert s['other_constraints_insufficient_in_2782_at_static_proxy']=={}
+          assert s['risk_policy_changed'] is False
+          assert s['real_mt5_fills']==0
+          print('CIBO_COMPOUND_2782_DETERMINISTIC_CAUSE_PASS',json.dumps(s,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cibo-p0-compound-2782-root-cause-${{ github.run_id }}
+          path: ${{ runner.temp }}/compound-audit/compound-first-binding-3368.json
+          if-no-files-found: warn
