@@ -54,6 +54,43 @@ jobs:
             --provider-trailing-usd disabled \
             --swap-proxy off \
             --output "$RUNNER_TEMP/cibo-p0-replay/qdle-original-stops.json"
+      - name: CEO MANAGER all 3368 - dynamic NAV economic stop, four engines, independent QDLE physical requote
+        run: |
+          python scripts/qdle_3368_dual_ledger_replay.py \
+            --manifest "$RUNNER_TEMP/cibo-p0-replay/walk-forward-manifest.json" \
+            --motor-policy independent_four_motors \
+            --min-policy broker_grid \
+            --ndx-roundtrip-fee-proxy-usd-per-lot 20 \
+            --provider-trailing-usd disabled \
+            --swap-proxy off \
+            --experimental-cibo-administrator \
+            --output "$RUNNER_TEMP/cibo-p0-replay/qdle-cibo-manager-economic-sl.json"
+      - name: Audit ALL 3368 CIBO management actions and independent QDLE economic SL quotes
+        run: |
+          python - <<'PY'
+          import json,os,pathlib
+          f=pathlib.Path(os.environ['RUNNER_TEMP'])/'cibo-p0-replay'/'qdle-cibo-manager-economic-sl.json'
+          r=json.loads(f.read_text())
+          assert r['signal_count']==r['unique_signal_count']==3368
+          assert r['cibo_manager_experimental_activated'] is True
+          assert r['native_cibo_cognitive_decisions_consumed']==0
+          assert sum(r['cibo_manager_actions'].values())==3368
+          quotes=r['cibo_manager_economic_stop_qdle_quote_only']
+          funded=r['research_financed_proposals']
+          blocked=r['research_unfundable_or_invalid']
+          assert quotes+funded+blocked==3368,(quotes,funded,blocked)
+          assert r['cibo_manager_full_real_strategy_NAV_USD'] is None
+          assert r['cibo_manager_full_real_strategy_PF'] is None
+          assert r['cibo_manager_full_real_strategy_DD'] is None
+          assert r['real_fundednext_fills']==0 and r['certified'] is False
+          assert r['cibo_exit_management_replayed'] is False
+          print('CEO_CIBO_3368_MANAGER_REAL_QDLE_QUOTE_PASS',json.dumps({
+            'signals':3368,'manager_actions':r['cibo_manager_actions'],
+            'qdle_economic_sl_physical_quotes':quotes,
+            'qdle_original_stop_conditional_funded':funded,
+            'unfinanceable':blocked,'real_mt5_fills':0,
+          },sort_keys=True))
+          PY
       - name: Join all 3368 manager decisions with QDLE; distinguish economic-stop shadow
         run: |
           python scripts/cibo_p0_manager_qdle_replay_audit.py \
@@ -104,6 +141,7 @@ jobs:
           path: |
             ${{ runner.temp }}/cibo-p0-replay/manager-intake.json
             ${{ runner.temp }}/cibo-p0-replay/qdle-original-stops.json
+            ${{ runner.temp }}/cibo-p0-replay/qdle-cibo-manager-economic-sl.json
             ${{ runner.temp }}/cibo-p0-replay/combined-report.json
             ${{ runner.temp }}/cibo-p0-replay/managed-exit-path-audit.json
           if-no-files-found: warn
