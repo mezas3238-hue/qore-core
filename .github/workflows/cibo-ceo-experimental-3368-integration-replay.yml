@@ -62,12 +62,25 @@ jobs:
             --provider-trailing-usd disabled \
             --swap-proxy off \
             --output "$RUNNER_TEMP/ceo-experiment/four-motor-qdle-research.json"
+      - name: Integrated experimental replay — CIBO Native causal authorizations through 4 motors and QDLE
+        run: |
+          python scripts/qdle_3368_dual_ledger_replay.py \
+            --manifest "$RUNNER_TEMP/ceo-experiment/walk-forward-manifest.json" \
+            --motor-policy independent_four_motors \
+            --experimental-native-ceiling-report "$RUNNER_TEMP/ceo-experiment/native-cibo-ceiling.json" \
+            --experimental-native-lane-policy all_bank \
+            --min-policy broker_grid \
+            --ndx-roundtrip-fee-proxy-usd-per-lot 20 \
+            --provider-trailing-usd disabled \
+            --swap-proxy off \
+            --output "$RUNNER_TEMP/ceo-experiment/native-cibo-four-motor-qdle-all-bank-RESEARCH.json"
       - name: Join exact 3368 IDs, expose CIBO/QDLE discrepancies and source gaps
         run: |
           python scripts/cibo_ceo_experimental_replay_audit.py \
             --manifest "$RUNNER_TEMP/ceo-experiment/walk-forward-manifest.json" \
             --native "$RUNNER_TEMP/ceo-experiment/native-cibo-ceiling.json" \
             --qdle "$RUNNER_TEMP/ceo-experiment/four-motor-qdle-research.json" \
+            --joined "$RUNNER_TEMP/ceo-experiment/native-cibo-four-motor-qdle-all-bank-RESEARCH.json" \
             --output "$RUNNER_TEMP/ceo-experiment/ceo-3368-integrator-audit.json"
       - name: Verify no false physical execution or financial certification claim
         run: |
@@ -80,6 +93,8 @@ jobs:
           assert r["real_mt5_fills"] == 0
           assert r["same_cibo_strategy_and_qdle_actual_joint_execution"] is False
           assert r["native_and_qdle_pnl_are_not_economically_comparable"] is True
+          assert r["native_cibo_4motor_qdle_joint_research_projection"]["broker_fills"] == 0
+          assert r["native_cibo_4motor_qdle_joint_research_projection"]["all_native_decisions_read"] == 3368
           print("EXPERIMENTAL_AUDIT_PASS: NO LIVE, NO FABRICATED FILLS, ALL SIGNALS TRACED")
           PY
       - name: Publish research reports even if experiment fails so root cause survives
@@ -90,5 +105,6 @@ jobs:
           path: |
             ${{ runner.temp }}/ceo-experiment/native-cibo-ceiling.json
             ${{ runner.temp }}/ceo-experiment/four-motor-qdle-research.json
+            ${{ runner.temp }}/ceo-experiment/native-cibo-four-motor-qdle-all-bank-RESEARCH.json
             ${{ runner.temp }}/ceo-experiment/ceo-3368-integrator-audit.json
           if-no-files-found: warn
