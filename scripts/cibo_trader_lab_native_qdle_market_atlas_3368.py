@@ -207,6 +207,7 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
     counts=Counter()
     per_mode=defaultdict(Counter)
     per_symbol=defaultdict(Counter)
+    no_lot_causes=Counter()
     active={}
     closings=[]
     rows=[]
@@ -349,8 +350,24 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
             r["qdle_assessment_state"] = q.state
             r["qdle_lots"]=str(q.lots)
             r["qdle_all_in_risk"]=str(q.total_risk_usd)
+            r["qdle_binding_limits"]=list(q.binding_limits)
+            r["qdle_assessment_note"]=q.note
+            r["qdle_stop_usd"]=str(q.stop_usd)
+            r["qdle_cost_usd"]=str(q.cost_usd)
+            r["qdle_margin_usd"]=str(q.margin_usd)
+            r["minimum_lot_stopped_loss_plus_fee_usd"]=str(
+                MIN_LOT*(risk_per_lot+tariff.total_usd))
+            r["minimum_lot_margin_usd"]=str(MIN_LOT*MARGIN[symbol][side])
+            r["economic_desired_risk_usd"]=str(economic.intent.requested_risk_usd)
+            r["economic_sizing_cap_usd"]=str(economic.intent.sizing_cap_usd)
+            r["economic_compound_cap_usd"]=str(economic.intent.cibo_compound_cap_usd)
+            r["economic_portfolio_cap_usd"]=str(economic.intent.portfolio_cap_usd)
+            r["economic_margin_cap_usd"]=str(economic.intent.margin_cap_usd)
+            r["economic_leverage_cap_lots"]=str(economic.intent.leverage_cap_lots)
             r["bank_at_entry"]=str(bank)
             if q.lots<=ZERO:
+                for cause in (q.binding_limits or ("NO_BINDING_CAUSE_FROM_PHYSICAL_ENGINE",)):
+                    no_lot_causes[cause]+=1
                 counts["qdle_no_lot"]+=1
                 per_mode[mode]["unfundable"]+=1
                 r["status"]="QDLE_NO_FINANCEABLE_LOT";rows.append(r);continue
@@ -465,6 +482,7 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
         "four_motor_votes_broker_authenticated":False,
         "four_motor_votes_research_only":True,
         "by_mode":{k:dict(v) for k,v in per_mode.items()},
+        "no_lot_binding_constraints_nonexclusive":dict(no_lot_causes),
         "by_symbol":{k:dict(v) for k,v in per_symbol.items()},
         "qore_initial_nav_usd":str(INITIAL),
         "shadow_paper_cash_balance_after_known_events_usd":str(bank),
