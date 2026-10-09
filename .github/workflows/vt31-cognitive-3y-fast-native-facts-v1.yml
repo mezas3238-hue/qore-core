@@ -1,0 +1,93 @@
+name: QORE VT31 Cognitive 3Y Fast Native Facts V1
+
+on:
+  push:
+    branches:
+      - agent/vt31-architect-cognition-sensors-20261009
+    paths:
+      - scripts/vt31_nas100_cognitive_3y_native_fact_fast_audit_v1.py
+      - .github/workflows/vt31-cognitive-3y-fast-native-facts-v1.yml
+  workflow_dispatch:
+
+concurrency:
+  group: vt31-cog-native-facts-3y-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  CANONICAL_3Y_ARTIFACT_ID: "11459859004"
+
+jobs:
+  trader-lab-fast-shadow:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install runtime
+        run: pip install -e ".[dev]"
+      - name: Static 3Y shadow audit check
+        run: |
+          python -m py_compile scripts/vt31_nas100_cognitive_3y_native_fact_fast_audit_v1.py
+          ruff check scripts/vt31_nas100_cognitive_3y_native_fact_fast_audit_v1.py
+          PYTHONPATH=. pytest -q -o addopts='' tests/infrastructure/test_vt31_nas100_causal_fact_producers.py tests/infrastructure/test_vt31_nas100_cognitive_producer_sensor_contract.py tests/infrastructure/test_vt31_nas100_post_entry_cognitive_runtime.py
+      - name: Recover exact consumed 3Y NAS100 artifact
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${CANONICAL_3Y_ARTIFACT_ID}" --jq '{id,name,expired}' | tee evidence-artifact-metadata.json
+          python - <<'PY'
+          import json
+          x=json.load(open("evidence-artifact-metadata.json",encoding="utf-8"))
+          assert x["id"] == 11459859004
+          assert x["name"] == "qore-vt31-nas100-owner-3y-base-v1"
+          assert x["expired"] is False
+          PY
+          mkdir -p input result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${CANONICAL_3Y_ARTIFACT_ID}/zip" > evidence.zip
+          unzip -q evidence.zip -d input
+          test -f input/NAS100/market-evidence.json
+          if test -f input/EVIDENCE-SHA256SUMS; then
+            (cd input && sha256sum -c EVIDENCE-SHA256SUMS)
+          fi
+          cp evidence-artifact-metadata.json result/
+          sha256sum input/NAS100/market-evidence.json | tee result/3y-evidence-sha256.txt
+      - name: Causal producer real-evidence shadow replay
+        run: |
+          set -euo pipefail
+          PYTHONPATH=scripts python scripts/vt31_nas100_cognitive_3y_native_fact_fast_audit_v1.py input/NAS100/market-evidence.json --output result/3y-native-facts-shadow-audit.json | tee result/3y-native-facts-summary.json
+      - name: Fail closed on shadow contracts
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          x=json.loads(Path("result/3y-native-facts-shadow-audit.json").read_text())
+          assert x["schema"] == "qore.vt31.nas100.cognitive_3y_native_fact_shadow.v1"
+          assert x["base_id"] == "VT31_NAS100_OWNER_3Y_BASE_001"
+          assert x["selected_source_count"] >= x["structural_terminal_count"]
+          assert x["total_shadow_closed_m1_observations"] > 0
+          assert x["structural_terminal_count"] == 79
+          assert x["governance"]["source_selection_control_unchanged"]
+          assert x["governance"]["structural_control_returned_unchanged"]
+          assert x["governance"]["read_only_observation"]
+          assert x["governance"]["fresh_holdout_opened"] is False
+          assert x["governance"]["candidate_certified"] is False
+          assert x["governance"]["live_authorized"] is False
+          PY
+      - name: Bind immutable run hashes
+        run: |
+          printf "%s\\n" "$GITHUB_SHA" > result/git-sha.txt
+          (cd result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+          (cd result && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-cog-3y-native-facts-fast-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
