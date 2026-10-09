@@ -21,10 +21,10 @@ env:
   GH_TOKEN: ${{ github.token }}
   FROZEN_NY_3Y_REPLAY_ID: "11459439466"
   FROZEN_SOURCE_FVG_AUDIT_ID: "11646815205"
-  FROZEN_PDH_PDL_CAPACITY_ID: "11647425717"
+  FROZEN_PDH_PDL_CAPACITY_ID: "11647381389"
   FROZEN_CONTROL_SHA: 8f91ee489d33c1fa0b90972270d4ac6c32fcca32
   FROZEN_FVG_SHA: 32306062d952417209dcaef364afbf953ee5ad18
-  FROZEN_PDH_PDL_SHA: 8cc24dde673864cee196a91b3c5db80c3f3211f9
+  FROZEN_PDH_PDL_SHA: 3d0eb44d0a2bd38dcdbc64acb508273fe7851f0a
 
 jobs:
   alignment:
@@ -90,6 +90,7 @@ jobs:
           assert g["outcomes_used_to_select_source_hypothesis"] is False
           assert g["frozen_trades_not_filtered_or_resimulated"] is True
           assert g["first_fvg_is_not_selected_setup_provenance"] is True
+          assert g["two_direction_hypotheses_not_an_execution_side_choice"] is True
           assert g["fresh_holdout_opened"] is False
           assert g["candidate_certified"] is False
           assert g["live_authorized"] is False
