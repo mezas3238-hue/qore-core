@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 from bisect import bisect_left
 from collections import Counter, defaultdict
+from dataclasses import replace
 from datetime import timedelta, datetime
 from decimal import Decimal as D
 from pathlib import Path
@@ -19,6 +20,14 @@ import heapq
 import json
 import tempfile
 
+from qore.infrastructure.cibo_four_motor_policy import (
+    FourMotorObservation, ReconciledQoreCashflow,
+)
+from qore.infrastructure.cibo_account_sizing_authority import propose_p0_sizing_vote
+from qore.infrastructure.cibo_compound_capital import propose_p0_compound_vote
+from qore.infrastructure.cibo_core_compound_portfolio import propose_p0_portfolio_vote
+from qore.infrastructure.cibo_marginal_leverage_utility import propose_p0_adaptive_leverage_vote
+from qore.infrastructure.cibo_four_motor_qdle_proposal import build_four_motor_qdle_intent
 from qore.infrastructure.qdle_stellar_instant_costs import (
     STELLAR_HELP_OPEN_ONLY, estimate_per_lot_fees,
 )
@@ -114,68 +123,96 @@ def price_usd_per_unit(symbol):
     return CONTRACTS[symbol]
 
 
-def _mode_quote(row, symbol, side, entry, stop, stop_per_lot,
-                opening_fee, as_of, nav, reserved, margin_held, index,
-                root_dir):
-    """Independent paper QDLE quote; actual physical engine computes volume.
+def paper_hash(*parts):
+    return "sha256:" + hashlib.sha256(
+        "|".join(map(str, parts)).encode("utf-8")
+    ).hexdigest()
 
-    Four-motor caps preserved from fresh Native 3368 observations but scaled
-    to CURRENT modeled NAV. NOT a fresh re-evaluation by four cognitive motors.
-    No fake broker acknowledgements nor simulated broker settlement receipts.
+
+def publish_paper_account(engine, when, cash, sequence):
+    nav=max(ZERO,cash)
+    engine.publish_account(QDLEAccount(
+        account_id="RESEARCH_CIBO_TRADER_LAB",provider="FundedNext",currency="USD",
+        sequence=sequence,as_of=when,
+        balance=BROKER_INITIAL+nav-INITIAL,equity=BROKER_INITIAL+nav-INITIAL,
+        free_margin=max(ZERO,BROKER_INITIAL+nav-INITIAL),
+        qore_unreserved_risk_usd=nav,sovereign_free_source_usd=nav,
+        cushion_free_source_usd=ZERO,qore_trading_capital_usd=nav,
+    ))
+
+
+def _mode_quote(row,symbol,side,entry,stop,stop_per_lot,opening_fee,
+                as_of,nav,active,flows,account_sequence,engine,broker,published):
+    """Causal paper economic snapshot, four REAL producer votes, one QDLE.
+
+    CIBO decision remains historical here: Native MAX cognition NOT certified.
+    Market Atlas plus 2026 quote/fees are explicitly incomplete research proxies.
     """
-    broker = ResearchM5Broker()
-    broker.value_at = BrokerValuation(
-        stop_per_lot, MARGIN[symbol][side], as_of,
-        "TRADER_LAB_ATLAS_M5_CEO_2026_FIXED_SPREAD_RESEARCH",
+    broker.value_at=BrokerValuation(
+        stop_per_lot,MARGIN[symbol][side],as_of,
+        "ATLAS_M5_FIXED_2026_BIDASK_PAPER_NOT_BROKER")
+    if published.get(symbol)!=as_of:
+        engine.publish_symbol(QDLESymbol(
+            broker_symbol=symbol,
+            aliases=(symbol,"NAS100") if symbol=="NDX100" else (symbol,),
+            min_lot=MIN_LOT,max_lot=D("50") if symbol=="XAUUSD" else D("40"),
+            lot_step=STEP,directional_volume_limit=ZERO,
+            tick_size=TICK[symbol],
+            tick_value_loss_usd=TICK[symbol]*price_usd_per_unit(symbol),
+            contract_size=CONTRACTS[symbol],
+            currency_profit="JPY" if symbol.endswith("JPY") else "USD",
+            fee_usd_per_lot=opening_fee,
+            fee_provenance="STELLAR_INSTANT_OCT_2026_RESEARCH_PROXY",
+            as_of=as_of,tradable=True,
+        ))
+        published[symbol]=as_of
+    held_risk=sum((a["risk"] for a in active.values()),ZERO)
+    held_margin=sum((a["margin"] for a in active.values()),ZERO)
+    correlated=sum((a["risk"] for a in active.values()
+                    if a["symbol"]==symbol or
+                    (symbol.endswith("JPY") and a["symbol"].endswith("JPY"))),ZERO)
+    trader_risk=sum((a["risk"] for a in active.values()
+                     if a["trader"]==row["trader"]),ZERO)
+    directional_lots=sum((a["lots"] for a in active.values()
+                          if a["symbol"]==symbol and a["side"]==side),ZERO)
+    observation=FourMotorObservation(
+        request_id=row["signal_fingerprint"],trader_id=row["trader"],
+        symbol=symbol,side=side,source_lane="SOVEREIGN_BANK",
+        observed_at=as_of,account_sequence=account_sequence,
+        broker_evidence_sha256=paper_hash("M5_PROXY",symbol,side,as_of,entry,stop,opening_fee),
+        initial_qore_nav_usd=INITIAL,reconciled_cashflows=tuple(flows),
+        protected_capital_usd=ZERO,floating_loss_reserve_usd=ZERO,
+        risk_reservations_usd=min(max(nav,ZERO),held_risk),
+        bank_unreserved_usd=max(nav,ZERO),cushion_unreserved_usd=ZERO,
+        total_open_stop_risk_usd=held_risk,correlated_open_stop_risk_usd=correlated,
+        trader_open_stop_risk_usd=trader_risk,
+        broker_free_margin_usd=max(ZERO,BROKER_INITIAL+nav-INITIAL),
+        broker_margin_reservations_usd=held_margin,
+        stop_loss_usd_per_lot=stop_per_lot,
+        roundtrip_fees_usd_per_lot=opening_fee,
+        execution_buffer_usd_per_lot=ZERO,stress_extra_loss_usd_per_lot=ZERO,
+        broker_margin_usd_per_lot=MARGIN[symbol][side],
+        symbol_max_lots=D("50") if symbol=="XAUUSD" else D("40"),
+        provider_direction_max_lots=D("50") if symbol=="XAUUSD" else D("40"),
+        open_and_reserved_direction_lots=directional_lots,
+        broker_quote_at=as_of,research_proxy_only=True,
+        broker_fees_complete=False,broker_profit_valuation_complete=False,
+        broker_margin_valuation_complete=False,
     )
-    nav = max(nav, ZERO)
-    free_qore = max(nav - reserved, ZERO)
-    free_margin = max(BROKER_INITIAL + nav-INITIAL-margin_held, ZERO)
-    caps = row["four_engine_caps_usd"]
-    scale = nav / INITIAL
-    instruction_fraction = _d(row["cibo_max_native_requested_risk_fraction_of_nav"])
-    if instruction_fraction not in (D("0.0125"), D("0.025"), D("0.05")):
-        raise ValueError("native risk mode fraction invalid")
-    sid = row["signal_fingerprint"]
-    # Paper quote-only ephemeral SQLite isolates reservations from real MT5.
-    db = root_dir / (str(index) + ".sqlite")
-    q = QDLE(db, broker, strict_live_fee_evidence=False,
-             strict_four_motor_evidence=False)
-    q.publish_account(QDLEAccount(
-        account_id="RESEARCH_CIBO_TRADER_LAB", provider="FundedNext", currency="USD",
-        sequence=index + 1, as_of=as_of, balance=BROKER_INITIAL + nav-INITIAL,
-        equity=BROKER_INITIAL + nav-INITIAL, free_margin=free_margin,
-        qore_unreserved_risk_usd=free_qore,
-        sovereign_free_source_usd=free_qore, cushion_free_source_usd=ZERO,
-        qore_trading_capital_usd=nav,
-    ))
-    q.publish_symbol(QDLESymbol(
-        broker_symbol=symbol,
-        aliases=(symbol,"NAS100") if symbol=="NDX100" else (symbol,),
-        min_lot=MIN_LOT, max_lot=D("50") if symbol=="XAUUSD" else D("40"),
-        lot_step=STEP, directional_volume_limit=ZERO,
-        tick_size=TICK[symbol],
-        tick_value_loss_usd=TICK[symbol]*price_usd_per_unit(symbol),
-        contract_size=CONTRACTS[symbol],
-        currency_profit="JPY" if symbol.endswith("JPY") else "USD",
-        fee_usd_per_lot=opening_fee,
-        fee_provenance="FUNDEDNEXT_STELLAR_INSTANT_FAQ_ACCOUNT_SAMPLE_2026_PROXY",
-        as_of=as_of, tradable=True,
-    ))
-    intent=QDLEIntent(
-        request_id=sid,trader_id=row["trader"],symbol=symbol,side=side,
-        entry_price=entry,stop_price=stop,
-        requested_risk_usd=nav*instruction_fraction,
-        sizing_cap_usd=min(nav*FIVE, _d(caps["SIZING"])*scale),
-        cibo_compound_cap_usd=min(nav*FIVE, _d(caps["CIBO_COMPOUND"])*scale),
-        portfolio_cap_usd=min(nav*FIVE, _d(caps["PORTFOLIO_COMPOUND_AVAILABLE_SOURCE"])*scale),
-        leverage_cap_lots=max(ZERO,_d(row["leverage_max_lots"])),
-        margin_cap_usd=min(free_margin,_d(row["leverage_margin_budget_usd"])),
-        source_lane="SOVEREIGN_BANK",slippage_usd_per_lot=ZERO,
-        expected_account_sequence=index+1,
+    votes=(
+        propose_p0_sizing_vote(observation),
+        propose_p0_compound_vote(observation,research_disable_legacy_haircut=True),
+        propose_p0_adaptive_leverage_vote(observation,research_use_full_free_margin=True),
+        propose_p0_portfolio_vote(observation,research_disable_legacy_quotas=True),
     )
-    result=q.reserve_for_trader(intent,now=as_of)
-    return result
+    frac=_d(row["cibo_max_native_requested_risk_fraction_of_nav"])
+    if not ZERO<=frac<=FIVE:
+        raise ValueError("native historical instruction exceeds 5pct limit")
+    intent=build_four_motor_qdle_intent(
+        observation=observation,votes=votes,entry_price=entry,stop_price=stop)
+    intent=replace(intent,requested_risk_usd=max(nav,ZERO)*frac)
+    result=engine.reserve_for_trader(intent,now=as_of)
+    return result,[vote.payload() for vote in votes]
 
 
 def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
