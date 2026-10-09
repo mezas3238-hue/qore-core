@@ -104,6 +104,10 @@ def main() -> int:
     p.add_argument("--target-lots", type=D, default=None, help="Optional maximum broker lots requested, never additional risk authorization")
     p.add_argument("--cibo-instructions", type=Path, default=None,
                    help="CIBO-authorized bank/cushion and per-signal budget; never synthesized")
+    p.add_argument("--experimental-native-ceiling-report", type=Path, default=None,
+                   help="CEO research: Native MAX causal approval projected to new 5pct QDLE physical NAV, NOT original strategy PnL")
+    p.add_argument("--experimental-native-lane-policy", choices=["all_bank", "split_30_30_alternate"], default="all_bank",
+                   help="Hypothetical Bank/Cushion scenario only; NOT actual native CIBO fund allocation")
     p.add_argument("--ndx-roundtrip-fee-proxy-usd-per-lot", type=D, default=None,
                    help="Explicit research sensitivity only; unknown NDX fee never inferred")
     p.add_argument("--output", type=Path, required=True)
@@ -131,11 +135,44 @@ def main() -> int:
            for i in range(len(opportunities) - 1)):
         raise SystemExit("FAIL CLOSED: sealed opportunity order not chronological")
 
+    if args.experimental_native_ceiling_report is not None and (
+        args.cibo_instructions is not None or args.motor_policy != "independent_four_motors"
+    ):
+        raise SystemExit("FAIL CLOSED: experimental native CIBO requires four motors and excludes explicit CIBO directions")
+    native_decisions_by_signal = None
     cibo_by_signal = None
     cibo_declared_provenance = None
     cibo_managed_outcomes = {}
     lane_cash = None
     transfer_events = []
+    if args.experimental_native_ceiling_report is not None:
+        native = json.loads(args.experimental_native_ceiling_report.read_text(encoding="utf-8"))
+        if native.get("governance", {}).get("certification_claimed") is not False:
+            raise SystemExit("FAIL CLOSED: native source must be noncertifying research")
+        native_rows = native.get("decision_receipts")
+        signals = {x["signal_fingerprint"] for x in opportunities}
+        if (not isinstance(native_rows, list) or len(native_rows) != 3368
+            or {x.get("signal_fingerprint") for x in native_rows} != signals):
+            raise SystemExit("FAIL CLOSED: exact 3368 Native CIBO decision identities needed")
+        native_decisions_by_signal = {x["signal_fingerprint"]: x for x in native_rows}
+        if len(native_decisions_by_signal) != 3368:
+            raise SystemExit("FAIL CLOSED: duplicate Native CIBO signal")
+        for row in opportunities:
+            n = native_decisions_by_signal[row["signal_fingerprint"]]
+            decision_time = datetime.fromisoformat(str(n["decided_at"]))
+            first_entry = datetime.fromisoformat(str(row["settlement_outcome_research_only"]["entry_at"]))
+            if (n["trader_id"] != row["trader_id"]
+                or decision_time.tzinfo is None or decision_time > first_entry
+                or D(str(n["authorized_volume"])) < ZERO
+                or D(str(n["authorized_stop_risk_usd"])) < ZERO
+                or (D(str(n["authorized_volume"])) == ZERO and D(str(n["authorized_stop_risk_usd"])) > ZERO)
+                or not str(n["semantic_digest"]).startswith("sha256:")
+                or len(str(n["semantic_digest"])) != 71):
+                raise SystemExit("FAIL CLOSED: native CIBO approval/chronology/trader contract invalid")
+        lane_cash = ({"SOVEREIGN_BANK": START_QORE, "PORTFOLIO_CUSHION": ZERO}
+                     if args.experimental_native_lane_policy == "all_bank"
+                     else {"SOVEREIGN_BANK": D("30"), "PORTFOLIO_CUSHION": D("30")})
+        cibo_declared_provenance = "EXPERIMENTAL_NATIVE_CIBO_PREDECISION_GATE_WITH_SIMULATED_ENTRY_NAV_AND_DECLARED_LANE_POLICY"
     if args.cibo_instructions:
         if args.motor_policy != "independent_four_motors":
             raise SystemExit("CIBO instructions require independent four-motor policy")
@@ -467,6 +504,35 @@ def main() -> int:
                             or cibo.symbol != symbol or cibo.side != side
                             or cibo.entry_price != entry or cibo.stop_price != stop):
                             raise QDLEError("CIBO_IDENTITY_OR_GEOMETRY_DRIFT")
+                    elif native_decisions_by_signal is not None:
+                        n = native_decisions_by_signal[rid]
+                        # Only Native CIBO's causal allow/risk budget is consumed here.
+                        # Research lane, entry-time NAV, broker fees and historic
+                        # Trader structural exits are DECLARED counterfactuals.
+                        native_approval = D(str(n["authorized_volume"])) > ZERO
+                        native_cap = D(str(n["authorized_stop_risk_usd"])) if native_approval else ZERO
+                        research_risk = min(native_cap, max(ZERO, nav) * FIVE)
+                        lane = ("SOVEREIGN_BANK"
+                                if args.experimental_native_lane_policy == "all_bank"
+                                or index % 2 == 0 else "PORTFOLIO_CUSHION")
+                        lane_held = sum((v["planned_risk"] for v in active.values()
+                                         if v["source_lane"] == lane), ZERO)
+                        backing = max(ZERO, lane_cash[lane] - lane_held)
+                        cibo = CiboEconomicInstruction(
+                            signal_id=rid, trader_id=row["trader_id"], symbol=symbol,
+                            side=side, entry_price=entry, stop_price=stop,
+                            source_lane=lane, allocated_source_funds_usd=backing,
+                            authorized_all_in_risk_usd=research_risk,
+                            maximum_requested_lots=None, account_sequence=sequence,
+                            issued_at=at, evidence_sha256=str(n["semantic_digest"]),
+                        )
+                        event["native_cibo_risk_decision"] = n["risk_decision"]
+                        event["native_cibo_authorized_volume_abstract"] = str(n["authorized_volume"])
+                        event["native_cibo_authorized_stop_risk_usd"] = str(native_cap)
+                        event["native_cibo_decided_at"] = n["decided_at"]
+                        event["native_cibo_semantic_digest"] = n["semantic_digest"]
+                        event["cibo_lane_model"] = "EXPERIMENTAL_UNVERIFIED_" + args.experimental_native_lane_policy
+                        event["cibo_budget_recomputed_on_simulated_entry_epoch"] = True
                     open_stop = sum((x["planned_risk"] for x in active.values()), ZERO)
                     open_margin = sum((x["margin"] for x in active.values()), ZERO)
                     same_symbol_stop = sum((x["planned_risk"] for x in active.values()
@@ -593,7 +659,7 @@ def main() -> int:
                     module_audit_present[label] += 1
                 module_audit_present["ADAPTIVE_LEVERAGE"] += 1
                 result = qdle.reserve_for_trader(requested, now=at)
-                if cibo_by_signal is not None:
+                if cibo_by_signal is not None or native_decisions_by_signal is not None:
                     receipt = audit_cibo_qdle_lotage(
                         cibo=cibo, observation=obs, votes=votes, result=result,
                         broker_min_lot=D(".01"), broker_lot_step=D(".01"),
@@ -675,6 +741,8 @@ def main() -> int:
                     else:
                         expiration = datetime.fromisoformat(row["settlement_outcome_research_only"]["exit_at"])
                         outcome_r = D(row["settlement_outcome_research_only"]["gross_structural_outcome_r"])
+                        if native_decisions_by_signal is not None:
+                            event["research_exit_source"] = "HISTORICAL_TRADER_STRUCTURAL_R_NOT_NATIVE_CIBO_MANAGED_EXIT"
                     if expiration < at:
                         raise QDLEError("HISTORICAL_EXIT_PRECEDES_DECISION")
                     # Tick values observed for metals/index; FX conversion
@@ -732,8 +800,18 @@ def main() -> int:
             "ndx_assumed_total_fee_usd_per_lot": str(args.ndx_roundtrip_fee_proxy_usd_per_lot) if args.motor_policy == "independent_four_motors" else None,
             "module_caps_provenance": ("SIMULATED_INDEPENDENT_FOUR_MOTOR_VOTES" if args.motor_policy == "independent_four_motors" else "PROXY_SHARED_5PCT_NOT_INDEPENDENT_MOTOR_DECISIONS"),
             "economic_motor_mode": args.motor_policy,
-            "cibo_authority_mode": ("CIBO_EXPLICIT_DIRECTIVES" if cibo_by_signal is not None
-                                   else "NOT_CIBO_INTEGRATED_ECONOMIC_PROXIES"),
+            "cibo_authority_mode": (
+                "CIBO_EXPLICIT_DIRECTIVES" if cibo_by_signal is not None
+                else "EXPERIMENTAL_NATIVE_CIBO_APPROVAL_GATE_QDLE_PHYSICAL_PROJECTION"
+                if native_decisions_by_signal is not None
+                else "NOT_CIBO_INTEGRATED_ECONOMIC_PROXIES"
+            ),
+            "native_cibo_cognitive_decisions_consumed": (len(native_decisions_by_signal)
+                                                         if native_decisions_by_signal is not None else 0),
+            "native_cibo_true_source_lanes_verified": False,
+            "native_cibo_actual_management_settlements_verified": False,
+            "experimental_native_lane_policy": (args.experimental_native_lane_policy
+                                                if native_decisions_by_signal is not None else None),
             "cibo_instruction_provenance": cibo_declared_provenance,
             "cibo_management_broker_authenticated": False,
             "cibo_directives_consumed": cibo_directions_consumed,
@@ -804,6 +882,8 @@ def main() -> int:
                 "Independent 4-motor mode assumes fee completeness for RESEARCH ONLY; fake evidence must never be used for live authorization",
                 ("CIBO economic instructions supplied and honored, but broker authenticity not proved"
                  if cibo_by_signal is not None else
+                 "NATIVE CIBO APPROVAL used, but source lane/entry-time budget projected as a RESEARCH scenario"
+                 if native_decisions_by_signal is not None else
                  "NO CIBO trade management or portfolio allocation instructions; economic cap proxy ONLY"),
                 ("CIBO-supplied managed exit date and gross R dictate research settlement; no actual MT5 broker deal"
                  if cibo_managed_exit_receipts_consumed else
