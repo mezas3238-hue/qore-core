@@ -66,7 +66,6 @@ def audit(evidence_path: Path) -> dict[str, object]:
     state_counts: Counter[str] = Counter()
     event_counts: Counter[str] = Counter()
     actionable_counts: Counter[str] = Counter()
-    terminal_only_counts: Counter[str] = Counter()
     family_counts: Counter[str] = Counter()
     selected_count = 0
     filled_count = 0
@@ -97,6 +96,20 @@ def audit(evidence_path: Path) -> dict[str, object]:
             return structural
         filled_count += 1
         fill_bar = day_bars[fill_index]
+        # Ambiguous fill-bar paths are censored, not open trades. Do not
+        # invent hundreds of post-entry cognitive calls on these fills.
+        if structural["status"] != "terminal":
+            if len(sample_rows) < 14:
+                sample_rows.append({
+                    "signal_at": executable.decision_at.isoformat(),
+                    "entry_family": family,
+                    "fill_open_at": fill_bar.opened_at.isoformat(),
+                    "structural_status": structural["status"],
+                    "preterminal_closed_m1_observations": 0,
+                    "excluded_from_cognitive_denominator": True,
+                    "exit_at": None,
+                })
+            return structural
         fill_open = cast(datetime, fill_bar.opened_at)
         if fill_open < executable.decision_at:
             raise AssertionError("fill precedes signal")
@@ -114,16 +127,15 @@ def audit(evidence_path: Path) -> dict[str, object]:
 
         # Structural control is unchanged. Only its actually closed M1 path is
         # shadow-observed; the terminal bar cannot route an action before exit.
-        exit_at = (
-            datetime.fromisoformat(str(structural["exit_at"]))
-            if structural.get("status") == "terminal"
-            else None
-        )
+        exit_at = datetime.fromisoformat(str(structural["exit_at"]))
         causal_closed: list[Any] = []
         preterminal = 0
-        for bar in day_bars[fill_index:]:
+        # Existing control invokes post-fill cognition only after the
+        # filling candle. The terminal candle has already closed a position
+        # before a next-open actuator could act. Both are out of scope.
+        for bar in day_bars[fill_index + 1:]:
             at = cast(datetime, bar.closed_at)
-            if exit_at is not None and at > exit_at:
+            if at >= exit_at:
                 break
             if specialist.baseline._local_minute(bar) >= specialist.LIFECYCLE_MINUTE:
                 break
@@ -159,18 +171,13 @@ def audit(evidence_path: Path) -> dict[str, object]:
                 confirmed_next_destinations=(),
             )
             timeline_count += 1
-            actionable = exit_at is None or at < exit_at
-            if actionable:
-                preterminal += 1
+            preterminal += 1
             for name in BOOLEAN_FACTS:
                 fact = getattr(facts, name)
                 key = f"{name}:{fact.status}:{fact.value}"
                 event_counts[key] += 1
                 if fact.value is True:
-                    (
-                        actionable_counts if actionable
-                        else terminal_only_counts
-                    )[name] += 1
+                    actionable_counts[name] += 1
             target_fact = facts.next_structural_target
             event_counts[
                 f"next_structural_target:{target_fact.status}"
@@ -185,9 +192,8 @@ def audit(evidence_path: Path) -> dict[str, object]:
                 "fill_open_at": fill_open.isoformat(),
                 "structural_status": structural["status"],
                 "preterminal_closed_m1_observations": preterminal,
-                "exit_at": (
-                    None if exit_at is None else exit_at.isoformat()
-                ),
+                "exit_at": exit_at.isoformat(),
+                "excluded_from_cognitive_denominator": False,
             })
         return structural
 
@@ -223,9 +229,6 @@ def audit(evidence_path: Path) -> dict[str, object]:
         "selected_families": _status_dict(family_counts),
         "native_fact_event_counts": _status_dict(event_counts),
         "preterminal_true_observation_counts": _status_dict(actionable_counts),
-        "terminal_only_true_observation_counts": _status_dict(
-            terminal_only_counts
-        ),
         "example_structural_lifecycles": sample_rows,
         "governance": {
             "consumed_development_evidence_only": True,
@@ -239,6 +242,8 @@ def audit(evidence_path: Path) -> dict[str, object]:
             "future_bar_used_for_producer": False,
             "terminal_outcome_used_for_producer": False,
             "terminal_timestamp_used_only_for_sensor_attribution": True,
+            "censored_fills_excluded_from_cognition_denominator": True,
+            "fill_candle_and_terminal_candle_excluded": True,
             "r5_r6_r8_operating_folds_used": False,
             "fresh_holdout_opened": False,
             "sizing_or_leverage_used": False,
