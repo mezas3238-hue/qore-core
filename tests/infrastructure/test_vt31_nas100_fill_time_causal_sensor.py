@@ -47,10 +47,10 @@ def bar(i: int, price: float, top: float, bottom: float) -> OhlcSnapshot:
         timeframe=Timeframe(60),
         opened_at=opened_at,
         closed_at=opened_at + timedelta(minutes=1),
-        open=price,
-        high=top,
-        low=bottom,
-        close=price,
+        open=float(price),
+        high=float(top),
+        low=float(bottom),
+        close=float(price),
     )
 
 
