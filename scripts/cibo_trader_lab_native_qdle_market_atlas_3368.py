@@ -20,6 +20,7 @@ import heapq
 import json
 import tempfile
 
+from cibo_p0_native_replay_runtime import reconstruct_native_max_at_epoch
 from qore.infrastructure.cibo_four_motor_policy import (
     FourMotorObservation, ReconciledQoreCashflow,
 )
@@ -142,7 +143,8 @@ def publish_paper_account(engine, when, cash, sequence):
 
 
 def _mode_quote(row,symbol,side,entry,stop,stop_per_lot,opening_fee,
-                as_of,nav,active,flows,account_sequence,engine,broker,published):
+                as_of,nav,active,flows,account_sequence,engine,broker,published,
+                native_instruction):
     """Causal paper economic snapshot, four REAL producer votes, one QDLE.
 
     CIBO decision remains historical here: Native MAX cognition NOT certified.
@@ -205,9 +207,9 @@ def _mode_quote(row,symbol,side,entry,stop,stop_per_lot,opening_fee,
         propose_p0_adaptive_leverage_vote(observation,research_use_full_free_margin=True),
         propose_p0_portfolio_vote(observation,research_disable_legacy_quotas=True),
     )
-    frac=_d(row["cibo_max_native_requested_risk_fraction_of_nav"])
+    frac=native_instruction.requested_risk_fraction_of_nav
     if not ZERO<=frac<=FIVE:
-        raise ValueError("native historical instruction exceeds 5pct limit")
+        raise ValueError("new Native MAX instruction exceeds 5pct limit")
     intent=build_four_motor_qdle_intent(
         observation=observation,votes=votes,entry_price=entry,stop_price=stop)
     intent=replace(intent,requested_risk_usd=max(nav,ZERO)*frac)
@@ -306,13 +308,12 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
             at=datetime.fromisoformat(d["at"])
             settle(at)
             symbol=d["symbol"]
-            original=origins[sid]["trader_opportunity"]
-            mode=d["cibo_max_native_management_mode"]
+            original_row=origins[sid]
+            original=original_row["trader_opportunity"]
             side="BUY" if original["side"]=="long" else "SELL"
-            per_mode[mode]["received"]+=1
             per_symbol[symbol]["received"]+=1
             counts["received"]+=1
-            r={"signal_fingerprint":sid,"symbol":symbol,"mode":mode,
+            r={"signal_fingerprint":sid,"symbol":symbol,
                "signal_at":d["signal_at"],"qdle_at":at.isoformat()}
             sequence+=1
             publish_paper_account(engine,at,bank,sequence)
@@ -328,6 +329,33 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
                 r["qdle_binding_limits"]=list(refusal.binding_limits)
                 r["four_motor_voted_count"]=0
 
+            try:
+                native_instruction,native_trace=reconstruct_native_max_at_epoch(
+                    original=original_row,decision_at=at,
+                    qore_cash_usd=max(bank,ZERO),peak_cash_usd=max(peak,ZERO),
+                    open_stop_risk_usd=sum((x["risk"] for x in active.values()),ZERO),
+                    broker_margin_held_usd=sum((x["margin"] for x in active.values()),ZERO),
+                    open_positions=len(active),
+                    broker_cash_usd=max(ZERO,BROKER_INITIAL+bank-INITIAL),
+                )
+            except Exception as exc:
+                # Never substitute a historical native label if genuine runtime
+                # cannot consume the sealed context; preserve QDLE trace.
+                counts["native_max_reconstruction_failed"]+=1
+                r["native_max_recomputed"]=False
+                r["native_max_error"]=f"{type(exc).__name__}: {exc}"[:220]
+                r["mode"]="NATIVE_UNAVAILABLE"
+                per_mode["NATIVE_UNAVAILABLE"]["received"]+=1
+                r["status"]="NATIVE_COGNITION_UNAVAILABLE"
+                reject_unquotable(r["status"])
+                rows.append(r)
+                continue
+            counts["native_max_recomputed"]+=1
+            r["native_max_recomputed"]=True
+            r["native_max_cognitive_receipt"]=native_trace
+            mode=native_instruction.mode
+            r["mode"]=mode
+            per_mode[mode]["received"]+=1
             if bank<=ZERO:
                 counts["nav_exhausted"]+=1
                 r["status"]="NO_QORE_NAV";reject_unquotable(r["status"])
@@ -345,7 +373,7 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
             entry=midpoint+half if side=="BUY" else midpoint-half
             original_entry=_d(original["intended_entry"])
             dist=abs(original_entry-_d(original["stop_loss"]))
-            econ_dist=abs(original_entry-_d(d["cibo_manager_stop_proposed"]))
+            econ_dist=dist  # Trader protective SL, not previously fabricated CIBO tightening
             target_dist=abs(original_entry-_d(original["take_profit"]))
             if not (dist>ZERO and ZERO<econ_dist<=dist and target_dist>half):
                 counts["invalid_original_geometry"]+=1
@@ -373,7 +401,7 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
                 q,votes=_mode_quote(
                     d,symbol,side,entry,stop_econ,risk_per_lot,
                     tariff.total_usd,at,bank,active,flows,sequence,
-                    engine,broker,published_symbols,
+                    engine,broker,published_symbols,native_instruction,
                 )
             except (QDLEError,ValueError) as exc:
                 raise RuntimeError(
@@ -395,7 +423,7 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
             counts["qdle_quote_positive"]+=1
             per_mode[mode]["quoted"]+=1
             r["qdle_quote_state"]=q.state
-            if q.total_risk_usd>bank*_d(d["cibo_max_native_requested_risk_fraction_of_nav"]):
+            if q.total_risk_usd>bank*native_instruction.requested_risk_fraction_of_nav:
                 raise ValueError("mode risk cap breached by QDLE")
             r["price_path_source"]="ATLAS_M5_FIXED_SPREAD_SYNTHETIC_EXECUTABLE_SIDES"
             # Build consecutive 5-min synthetic bid/ask until a natural market
@@ -416,10 +444,10 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
                     lots=q.lots,min_lot=MIN_LOT,lot_step=STEP,
                     price_pnl_usd_per_lot_per_unit=unit,
                     roundtrip_commission_usd_per_lot=tariff.total_usd,
-                    maximum_all_in_risk_usd=bank*_d(d["cibo_max_native_requested_risk_fraction_of_nav"]),
+                    maximum_all_in_risk_usd=bank*native_instruction.requested_risk_fraction_of_nav,
                 )
                 policy=CiboExitPolicy(**{
-                    k:_d(v) for k,v in d["cibo_max_native_proposed_exit_management"].items()
+                    k:_d(v) for k,v in native_instruction.exit_policy
                 })
                 outcome=replay_cibo_managed_position(trade,tuple(path),policy=policy)
             except (ManagedReplayError, ValueError, ArithmeticError) as exc:
@@ -497,7 +525,9 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
         "signal_count":3368,"counts":dict(counts),
         "research_persistent_qdle_single_account":True,
         "research_recomputed_four_motor_votes":counts["four_motor_voted"],
-        "full_native_max_cognition_recomputed":False,
+        "full_native_max_cognition_recomputed":counts["native_max_recomputed"]==3368,
+        "native_max_cognition_recomputed":counts["native_max_recomputed"],
+        "native_max_cognition_failed":counts["native_max_reconstruction_failed"],
         "research_account_nav_is_cash_not_equity_mtm":True,
         "by_mode":{k:dict(v) for k,v in per_mode.items()},
         "by_symbol":{k:dict(v) for k,v in per_symbol.items()},
@@ -526,7 +556,8 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
             "Singleton research QDLE holds and releases paper risk/margin on modeled terminal events; never an MT5 fill",
             "Four new economic motor proposals per quotable signal, not recycled NAV60 caps",
             "Unquotable signals have typed QDLE rejection but no four-motor votes; full P0 coverage gate still FAILED",
-            "Native MAX entry instruction and exit policy are still historical presets: cognition gate FAILED",
+            "Real CF01-CF19 consultation and Native MAX reconstruction per signal; denied when source perception is incomplete",
+            "Native mode emission still has fixed BANK/MEDIUM/ATTACK risk fractions and exit templates; fully autonomous management gate NOT PASSED",
             "Research-only broker economics (2019-22 M5 plus 2026 fixed quotes), completeness flags FALSE",
             "Paper fill next eligible M5 open; original LIMIT order fills not reconstructed",
             "Incomplete market paths kept OPEN and reserve funds, no fabricated result",
