@@ -12,7 +12,7 @@ import hashlib
 from decimal import Decimal
 
 from qore.infrastructure.qore_dynamic_lot_engine import (
-    QDLE, QDLEError, _dt,
+    QDLE, QDLEAccount, QDLEError, _dt,
 )
 
 
@@ -23,7 +23,7 @@ class PaperQDLE(QDLE):
         super().__init__(
             path, calculator, enforce_finance_approval=False,
             strict_live_fee_evidence=False, strict_four_motor_evidence=False,
-            strict_provider_floor=False,
+            strict_provider_floor=False, research_paper_mode=True,
         )
         with self._tx() as db:
             db.execute("""CREATE TABLE IF NOT EXISTS paper_trades (
@@ -37,6 +37,20 @@ class PaperQDLE(QDLE):
                 request_id TEXT PRIMARY KEY,
                 observed_at TEXT NOT NULL, reason TEXT NOT NULL
             )""")
+
+    def publish_account(self, snapshot: QDLEAccount) -> None:
+        """PAPER holds are counted ONCE by native QDLE, never pre-subtracted.
+
+        Snapshot values are the gross current QORE NAV and broker margin
+        *before* this book's PAPER reserves. The research portfolio is mirrored
+        in paper_trades, not separately in MT5 position tickets.
+        """
+        if (snapshot.qore_unreserved_risk_usd != snapshot.qore_trading_capital_usd
+                or snapshot.sovereign_free_source_usd != snapshot.qore_trading_capital_usd
+                or snapshot.cushion_free_source_usd != 0
+                or snapshot.positions or snapshot.covered_fill_tickets):
+            raise QDLEError("PAPER account snapshot double-counts QDLE open reservations")
+        super().publish_account(snapshot)
 
     def arm_for_live_send(self, *args, **kwargs):
         raise QDLEError("PAPER ONLY: live submission forbidden")
@@ -87,6 +101,14 @@ class PaperQDLE(QDLE):
                 "SELECT state,lots FROM reservations WHERE request_id=?",
                 (request_id,),
             ).fetchone()
+            if row and row[0] == "PAPER_FILLED":
+                prior = db.execute(
+                    "SELECT paper_ticket,opened_at FROM paper_trades WHERE request_id=?",
+                    (request_id,),
+                ).fetchone()
+                if prior == (ticket, opened_at.isoformat()):
+                    return ticket  # exact-once across retries/restarts
+                raise QDLEError("conflicting replay of a PAPER fill")
             if not row or row[0] != "HELD" or Decimal(row[1]) <= 0:
                 raise QDLEError("PAPER fill requires a positive existing reservation")
             db.execute(
@@ -127,10 +149,14 @@ class PaperQDLE(QDLE):
             raise QDLEError("finite paper PnL Decimal required")
         with self._tx() as db:
             row = db.execute(
-                """SELECT r.state,p.opened_at FROM reservations r
-                   JOIN paper_trades p ON p.request_id=r.request_id
+                """SELECT r.state,p.opened_at,p.settled_at,p.realized_gross_usd
+                   FROM reservations r JOIN paper_trades p ON p.request_id=r.request_id
                    WHERE r.request_id=?""", (request_id,),
             ).fetchone()
+            if row and row[0] == "PAPER_SETTLED":
+                if row[2] == at.isoformat() and row[3] == str(gross_pnl_usd):
+                    return  # idempotent event; never credit the same cash twice
+                raise QDLEError("conflicting PAPER settlement replay")
             if not row or row[0] != "PAPER_FILLED":
                 raise QDLEError("PAPER settlement requires one open paper fill")
             if at < datetime.fromisoformat(row[1]):
