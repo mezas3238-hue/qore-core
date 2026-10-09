@@ -118,6 +118,7 @@ class FourMotorObservation:
     broker_fees_complete: bool = False
     broker_profit_valuation_complete: bool = False
     broker_margin_valuation_complete: bool = False
+    research_proxy_only: bool = False
 
     def __post_init__(self) -> None:
         if not all(
@@ -137,8 +138,13 @@ class FourMotorObservation:
             raise FourMotorPolicyError("broker valuation stale or from the future")
         for provenance in ("broker_fees_complete", "broker_profit_valuation_complete",
                            "broker_margin_valuation_complete"):
-            if getattr(self, provenance) is not True:
+            if getattr(self, provenance) is not True and not self.research_proxy_only:
                 raise FourMotorPolicyError(f"{provenance} required: no incomplete broker economics")
+        if self.research_proxy_only and any((
+            self.broker_fees_complete, self.broker_profit_valuation_complete,
+            self.broker_margin_valuation_complete,
+        )):
+            raise FourMotorPolicyError("paper proxy cannot claim complete historical broker evidence")
         digest("broker_evidence_sha256", self.broker_evidence_sha256)
         if not isinstance(self.reconciled_cashflows, tuple) or any(
             not isinstance(e, ReconciledQoreCashflow) for e in self.reconciled_cashflows
@@ -242,7 +248,8 @@ class FourMotorProposal:
                     broker_profit_valuation_complete=s.broker_profit_valuation_complete,
                     broker_margin_valuation_complete=s.broker_margin_valuation_complete,
                     realized_event_ids=[x.event_id for x in s.reconciled_cashflows],
-                    decision_state="SHADOW_ADVISORY_ONLY",
+                    research_proxy_only=s.research_proxy_only,
+                     decision_state="SHADOW_ADVISORY_ONLY",
                     rationale="; ".join(self.reason_codes),
                     reason_codes=list(self.reason_codes), **self.limits)
 
