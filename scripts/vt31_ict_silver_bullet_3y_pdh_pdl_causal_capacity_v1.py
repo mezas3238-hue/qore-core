@@ -102,6 +102,7 @@ class Window:
     raw_fvg: int = 0
     first_raw_fvg_at: datetime | None = None
     first_candidate: Chosen | None = None
+    first_by_side: dict[str, Chosen] = field(default_factory=dict)
     rejected: Counter[str] = field(default_factory=Counter)
 
 
@@ -168,6 +169,37 @@ def _candidate_at_close(
         "FIRST_CAUSAL_PDH_PDL_HYPOTHESIS_FVG",
     )
 
+
+
+def _candidate_record(model: str, day: str, cand: Chosen) -> dict[str, object]:
+    """Standalone immutable snapshot of as-of selected research hypothesis."""
+        return {
+            "ny_date": day,
+            "model": model,
+            "side": cand.side,
+            "source_fvg_closed_at_utc": cand.formed_at.isoformat(),
+            "first_raw_fvg_closed_at_utc": cand.raw_fvg_first_at.isoformat(),
+            "gap_lower": _s(cand.gap_low),
+            "gap_upper": _s(cand.gap_high),
+            "gap_midpoint": _s(cand.midpoint),
+            "causal_draw_family": cand.dol_family,
+            "causal_draw_target": _s(cand.dol_price),
+            "draw_available_at_utc": cand.dol_available_at.isoformat(),
+            "draw_prior_ny_day": cand.pd_source_day.isoformat(),
+            "projected_index_points_to_pdh_pdl": _s(cand.framework),
+            "research_only_later_midpoint_touch": (
+                cand.later_midpoint_touch_at is not None
+            ),
+            "research_only_touch_observed_at_utc": (
+                None if cand.later_midpoint_touch_at is None
+                else cand.later_midpoint_touch_at.isoformat()
+            ),
+            "mt5_or_bid_ask_fill_proven": False,
+            "cognitive_dol_thesis_proven": False,
+            "mss_displacement_proven": False,
+            "structural_stop_proven": False,
+            "ict_trade_certified": False,
+        }
 
 def analyze(rows: Iterable[dict[str, Any]]) -> dict[str, object]:
     windows: dict[str, dict[str, Window]] = {
@@ -238,15 +270,14 @@ def analyze(rows: Iterable[dict[str, Any]]) -> dict[str, object]:
             # Only a PREVIOUSLY selected candidate can be touched. The
             # entire current M1 candle is used AFTER its close as a
             # retrospective touch outcome; not an at-open decision.
-            chosen = window.first_candidate
-            if (
-                chosen is not None
-                and chosen.later_midpoint_touch_at is None
-                and bar.opened >= chosen.formed_at
-                and bar.low <= chosen.midpoint <= bar.high
-            ):
-                chosen.later_midpoint_touch_at = bar.closed
-                chosen.later_bar_open = bar.opened
+            for chosen in window.first_by_side.values():
+                if (
+                    chosen.later_midpoint_touch_at is None
+                    and bar.opened >= chosen.formed_at
+                    and bar.low <= chosen.midpoint <= bar.high
+                ):
+                    chosen.later_midpoint_touch_at = bar.closed
+                    chosen.later_bar_open = bar.opened
 
             if len(previous_three) != 3:
                 continue
@@ -258,8 +289,11 @@ def analyze(rows: Iterable[dict[str, Any]]) -> dict[str, object]:
             window.raw_fvg += 1
             if window.first_raw_fvg_at is None:
                 window.first_raw_fvg_at = third.closed
-            # Exactly one first accepted FVG research hypothesis per day.
-            if window.first_candidate is not None:
+            # FIRST qualified event PER SIDE. The original model needs a
+            # directional DOL BEFORE source selection; choosing one global
+            # first-gap side would silently impose a hindsight bias.
+            forming_side = "LONG" if third.low > first.high else "SHORT"
+            if forming_side in window.first_by_side:
                 continue
             candidate, classification = _candidate_at_close(
                 day=day, model=model, bar1=first, bar3=third,
@@ -268,7 +302,11 @@ def analyze(rows: Iterable[dict[str, Any]]) -> dict[str, object]:
             window.rejected[classification] += 1
             if candidate is not None:
                 candidate.raw_fvg_first_at = window.first_raw_fvg_at
-                window.first_candidate = candidate
+                window.first_by_side[candidate.side] = candidate
+                if window.first_candidate is None:
+                    # Retain earlier global-first candidate for audit
+                    # compatibility, but NOT as directional trade authority.
+                    window.first_candidate = candidate
 
     if total_m1 == 0:
         raise ValueError("no 3Y M1 evidence")
@@ -278,39 +316,20 @@ def analyze(rows: Iterable[dict[str, Any]]) -> dict[str, object]:
         partial = sorted(day for day, item in by_day.items() if item.mask != COMPLETE_HOUR)
         reasons: Counter[str] = Counter()
         eligible: list[dict[str, object]] = []
+        directional: list[dict[str, object]] = []
         for day in full:
             item = by_day[day]
             reasons.update(item.rejected)
+            for direction in ("LONG", "SHORT"):
+                chosen_for_side = item.first_by_side.get(direction)
+                if chosen_for_side is not None:
+                    directional.append(_candidate_record(
+                        model, day, chosen_for_side
+                    ))
             cand = item.first_candidate
             if cand is None:
                 continue
-            eligible.append({
-                "ny_date": day,
-                "model": model,
-                "side": cand.side,
-                "source_fvg_closed_at_utc": cand.formed_at.isoformat(),
-                "first_raw_fvg_closed_at_utc": cand.raw_fvg_first_at.isoformat(),
-                "gap_lower": _s(cand.gap_low),
-                "gap_upper": _s(cand.gap_high),
-                "gap_midpoint": _s(cand.midpoint),
-                "causal_draw_family": cand.dol_family,
-                "causal_draw_target": _s(cand.dol_price),
-                "draw_available_at_utc": cand.dol_available_at.isoformat(),
-                "draw_prior_ny_day": cand.pd_source_day.isoformat(),
-                "projected_index_points_to_pdh_pdl": _s(cand.framework),
-                "research_only_later_midpoint_touch": (
-                    cand.later_midpoint_touch_at is not None
-                ),
-                "research_only_touch_observed_at_utc": (
-                    None if cand.later_midpoint_touch_at is None
-                    else cand.later_midpoint_touch_at.isoformat()
-                ),
-                "mt5_or_bid_ask_fill_proven": False,
-                "cognitive_dol_thesis_proven": False,
-                "mss_displacement_proven": False,
-                "structural_stop_proven": False,
-                "ict_trade_certified": False,
-            })
+            eligible.append(_candidate_record(model, day, cand))
         touched = sum(x["research_only_later_midpoint_touch"] for x in eligible)
         payload[model] = {
             "original_ict_ny_hour": f"{SOURCE_HOURS[model]:02d}:00-"
@@ -330,6 +349,12 @@ def analyze(rows: Iterable[dict[str, Any]]) -> dict[str, object]:
                 sorted(reasons.items())
             ),
             "research_hypotheses": eligible,
+            "directional_first_fvg_hypotheses": directional,
+            "directional_hypothesis_count_not_trades": len(directional),
+            "directional_hypothesis_count_by_side": dict(Counter(
+                str(x["side"]) for x in directional
+            )),
+            "directional_count_can_be_up_to_two_per_session_day": True,
             "candidate_count_is_not_executed_trade_count": True,
             "trade_count": "NOT_PROVEN",
             "profit_factor": "NOT_COMPUTABLE_WITHOUT_EXECUTION",
@@ -352,6 +377,8 @@ def analyze(rows: Iterable[dict[str, Any]]) -> dict[str, object]:
             "pdh_pdl_only_one_dol_family_not_universal_ict_requirement": True,
             "prior_day_only_after_ny_midnight_close": True,
             "first_selected_candidate_from_asof_only": True,
+            "first_qualified_fvg_separated_by_direction": True,
+            "no_ex_post_direction_selection_as_trading_authority": True,
             "same_bar_entry_or_fill_claimed": False,
             "m1_intrabar_touch_not_a_verified_fill": True,
             "no_mss_or_cognitive_authority_claimed": True,
@@ -417,6 +444,8 @@ def self_test() -> None:
     assert am["complete_days_with_raw_fvg"] == 1
     assert am["days_with_first_pdh_pdl_10point_fvg_hypothesis"] == 1
     assert am["days_with_subsequent_intrawindow_midpoint_touch"] == 1
+    assert am["directional_hypothesis_count_not_trades"] == 1
+    assert am["directional_first_fvg_hypotheses"][0]["side"] == "SHORT"
     cand = am["research_hypotheses"][0]
     assert cand["causal_draw_family"] == "PREVIOUS_DAY_LOW"
     assert cand["projected_index_points_to_pdh_pdl"] == "27"
