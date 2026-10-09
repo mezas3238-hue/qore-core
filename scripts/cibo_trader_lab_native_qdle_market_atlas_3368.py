@@ -395,6 +395,15 @@ def simulate(manifest, roots, *, workdir, max_bars=3200):
                 model=STELLAR_HELP_OPEN_ONLY,
             )
             risk_per_lot=abs(entry-stop_econ)*unit
+            # Explain why a physical 0.01 lot cannot be funded, without
+            # manufacturing sub-minimal lots or relaxing sovereign 5% risk.
+            native_risk_request=max(bank,ZERO)*native_instruction.requested_risk_fraction_of_nav
+            physical_minimum_loss=MIN_LOT*(risk_per_lot+tariff.total_usd)
+            r["native_requested_risk_usd"]=str(native_risk_request)
+            r["minimum_physical_all_in_stop_loss_usd"]=str(physical_minimum_loss)
+            r["minimum_lot_risk_shortfall_usd"]=str(
+                max(ZERO,physical_minimum_loss-native_risk_request)
+            )
             try:
                 q,votes=_mode_quote(
                     d,symbol,side,entry,stop_econ,risk_per_lot,
