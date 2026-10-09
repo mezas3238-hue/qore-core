@@ -15,6 +15,7 @@ outside trader-certification authority.
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from datetime import datetime
 from decimal import Decimal
 
 from qore.infrastructure.traders.vt31_nas100_position_intelligence import (
@@ -29,6 +30,7 @@ from qore.infrastructure.traders.vt31_nas100_position_intelligence import (
 )
 from qore.infrastructure.traders.vt31_nas100_reasoning_engine import (
     Nas100ReasoningDecision,
+    reason,
     reason_position,
 )
 from qore.infrastructure.traders.vt31_nas100_situation_model import (
@@ -168,6 +170,97 @@ def rebuild_post_entry_situation(
         cross_index_state=observation.cross_index_state,
         m15_state=observation.m15_state,
         current_open_r=observation.current_open_r,
+    )
+
+
+ENTRY_FILL_MANDATORY_BLOCKERS = frozenset(
+    {
+        "M15_CONTEXT_UNWIRED",
+        "H4_CONTEXT_UNAVAILABLE",
+        "H1_CONTEXT_UNAVAILABLE",
+        "STRUCTURE_CONTEXT_UNAVAILABLE",
+        "VOLATILITY_CONTEXT_UNAVAILABLE",
+        "ENTRY_INTELLIGENCE_UNAVAILABLE",
+    }
+)
+
+
+@dataclass(frozen=True, slots=True)
+class ProspectiveFillRevalidation:
+    """Shadow candidate verdict, never an autonomous order cancellation."""
+
+    fill_open_at: str
+    entry_situation_fingerprint: str
+    current_situation_fingerprint: str
+    current_reasoning_action: str
+    entry_mandatory_blockers: tuple[str, ...]
+    post_entry_only_blockers: tuple[str, ...]
+    candidate_fill_accepted: bool
+    canonical_reasoning_evaluated: bool = True
+    execution_authority: bool = False
+    sizing_authority: bool = False
+
+
+def revalidate_prospective_fill(
+    *,
+    entry_situation: Nas100SituationModel,
+    entry_reasoning: Nas100ReasoningDecision,
+    observation: PostEntryCausalObservation,
+    prospective_fill_open_at: datetime,
+    apply_comp008_admission: bool,
+) -> ProspectiveFillRevalidation:
+    """Reconsider a frozen thesis at prospective M1 open, without lookahead.
+
+    CONTROL remains unchanged until OPS explicitly joins the shadow verdict
+    to the *actual* fill opportunity under a frozen 3Y comparison. This helper
+    is canonical entry reasoning, not reason_position (no position exists).
+    """
+    at = datetime.fromisoformat(observation.as_of)
+    if at.tzinfo is None or at.utcoffset() is None:
+        raise ValueError("fill observation must be timezone-aware")
+    if (
+        prospective_fill_open_at.tzinfo is None
+        or prospective_fill_open_at.utcoffset() is None
+        or at != prospective_fill_open_at
+    ):
+        raise ValueError("fill cognition requires exact prospective M1 open T")
+    original_at = datetime.fromisoformat(entry_situation.as_of)
+    if original_at.tzinfo is None or original_at.utcoffset() is None:
+        raise ValueError("frozen thesis timestamp must be timezone-aware")
+    if at < original_at:
+        raise ValueError("fill cannot precede frozen entry thesis")
+    if observation.current_open_r is not None:
+        raise ValueError("prospective fill must not contain post-fill open R")
+    if (
+        entry_reasoning.action != "EXECUTE"
+        or entry_reasoning.situation_fingerprint != entry_situation.fingerprint()
+    ):
+        raise ValueError("fill requires coherent frozen EXECUTE entry reasoning")
+
+    current = rebuild_post_entry_situation(
+        entry_situation=entry_situation,
+        observation=observation,
+    )
+    latest = reason(
+        current,
+        apply_comp008_admission=apply_comp008_admission,
+    )
+    entry_blockers = tuple(
+        item for item in latest.max_intelligence_blockers
+        if item in ENTRY_FILL_MANDATORY_BLOCKERS
+    )
+    position_only = tuple(
+        item for item in latest.max_intelligence_blockers
+        if item not in ENTRY_FILL_MANDATORY_BLOCKERS
+    )
+    return ProspectiveFillRevalidation(
+        fill_open_at=at.isoformat(),
+        entry_situation_fingerprint=entry_situation.fingerprint(),
+        current_situation_fingerprint=current.fingerprint(),
+        current_reasoning_action=latest.action,
+        entry_mandatory_blockers=entry_blockers,
+        post_entry_only_blockers=position_only,
+        candidate_fill_accepted=latest.action == "EXECUTE" and not entry_blockers,
     )
 
 
