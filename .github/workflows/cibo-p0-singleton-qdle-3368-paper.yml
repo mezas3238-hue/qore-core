@@ -9,6 +9,12 @@ on:
       - "tests/infrastructure/test_cibo_trader_lab_native_qdle_snapshot_spread.py"
       - "tests/infrastructure/test_cibo_trader_lab_single_qdle_account.py"
       - ".github/workflows/cibo-p0-singleton-qdle-3368-paper.yml"
+  pull_request:
+    paths:
+      - "scripts/cibo_trader_lab_native_qdle_market_atlas_3368.py"
+      - "src/qore/infrastructure/qore_dynamic_lot_engine.py"
+      - "tests/infrastructure/test_cibo_trader_lab_single_qdle_account.py"
+      - ".github/workflows/cibo-p0-singleton-qdle-3368-paper.yml"
 permissions:
   contents: read
   actions: read
