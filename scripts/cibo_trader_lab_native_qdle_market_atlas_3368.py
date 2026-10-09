@@ -25,8 +25,9 @@ from qore.infrastructure.qdle_stellar_instant_costs import (
 )
 from qore.infrastructure.qore_dynamic_lot_engine import (
     QDLE, QDLEError, QDLEAccount, QDLESymbol, QDLEIntent,
-    BrokerValuation,
+    BrokerValuation, QDLEResult,
 )
+from qore.infrastructure.qdle_paper_book import PaperQDLE
 from qore.infrastructure.cibo_managed_exit_replay import (
     CiboExitPolicy, CiboManagedTrade, ExecutableOhlcBar,
     ManagedReplayError, replay_cibo_managed_position,
@@ -127,10 +128,8 @@ class PaperQdleSession:
 
     def __init__(self, database: Path):
         self.broker = ResearchM5Broker()
-        self.qdle = QDLE(
-            database, self.broker, strict_live_fee_evidence=False,
-            strict_four_motor_evidence=False, research_paper_mode=True,
-        )
+        # Only the canonical #745 PaperQDLE owns reservations and PAPER fills.
+        self.qdle = PaperQDLE(database, self.broker)
         self.sequence = 0
         self.last_symbol_at = {}
 
@@ -184,19 +183,26 @@ class PaperQdleSession:
 
     def paper_fill(self, *, sid, at, nav, active):
         """Persist a synthetic fill WITHOUT calling broker receipt APIs."""
-        self.qdle.paper_transition(sid, "PAPER_FILL:" + sid, "PAPER_FILL")
+        ticket=self.qdle.paper_fill(sid, at)
+        if ticket != "PAPER:"+sid:
+            raise QDLEError("invalid canonical PAPER ticket after fill")
 
-    def paper_settle(self, *, sid):
-        """Atomic release only after a scheduled PAPER settlement event."""
-        self.qdle.paper_transition(sid, "PAPER_SETTLE:" + sid, "PAPER_SETTLE")
+    def paper_settle(self, *, sid, at, gross):
+        """Persist one PAPER settlement; never attribute it to an MT5 deal."""
+        self.qdle.paper_settle(sid, at, gross)
 
-    def paper_no_fill(self, *, sid, reason):
-        """Release an unfilled QDLE hold without inventing MT5 rejection."""
-        self.qdle.paper_transition(sid, "PAPER_NO_FILL:" + sid, "PAPER_NO_FILL")
+    def paper_no_fill(self, *, sid, at, reason):
+        """Release a held PAPER quote without a broker rejection."""
+        self.qdle.paper_cancel(sid, at, reason)
 
     def paper_unassessable(self, *, sid, reason, at, nav, active):
-        self.publish_snapshot(at=at, nav=nav, active=active)
-        return self.qdle.paper_unassessable(sid, reason, at)
+        seq=self.publish_snapshot(at=at, nav=nav, active=active)
+        self.qdle.paper_unassessable(sid, at, reason)
+        return QDLEResult(
+            sid, "RESEARCH_UNASSESSABLE_NOT_QUOTED", "", ZERO,
+            ZERO, ZERO, ZERO, ZERO, seq, (reason,),
+            "Canonical PaperQDLE unpriceable event, never broker quote",
+        )
 
 
 
@@ -288,7 +294,7 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
             exit_time,sid,gross,net,mode,symbol,reason,worst=heapq.heappop(closings)
             if sid not in active:
                 raise ValueError("duplicate closing")
-            session.paper_settle(sid=sid)
+            session.paper_settle(sid=sid, at=exit_time, gross=gross)
             trade=active.pop(sid)
             bank+=gross  # OPEN fee was already debited at entry
             net_wins+=max(net,ZERO)
@@ -493,7 +499,8 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
             except (ManagedReplayError, ValueError, ArithmeticError) as exc:
                 counts["exit_policy_error"]+=1
                 r["status"]="EXIT_POLICY_ERROR";r["error"]=str(exc)[:150]
-                session.paper_no_fill(sid=sid, reason="EXIT_POLICY_ERROR")
+                session.paper_no_fill(sid=sid, at=first.opened_at,
+                                      reason="EXIT_POLICY_ERROR")
                 rows.append(r);continue
             fee=q.lots*tariff.opening_usd
             # Research entry occurs before outcome is known; missing future
@@ -506,6 +513,7 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
                 "risk":q.total_risk_usd,"margin":q.margin_usd,
                 "lots":q.lots,"fee":fee,"opened_at":first.opened_at,
                 "mode":mode,"symbol":symbol,"side":side,
+                "paper_ticket":"PAPER:"+sid,
             }
             session.paper_fill(sid=sid,at=first.opened_at,nav=bank,active=active)
             r["status"]="PAPER_OPEN"
@@ -544,7 +552,7 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
                 "SELECT request_id,state,lots,risk,margin,snapshot_seq FROM reservations ORDER BY request_id"
             ).fetchall()
             no_quote_rows = db.execute(
-                "SELECT request_id,reason,snapshot_seq FROM paper_unassessable ORDER BY request_id"
+                "SELECT request_id,reason,observed_at FROM paper_unassessable ORDER BY request_id"
             ).fetchall()
             journal_events = dict(db.execute(
                 "SELECT event,COUNT(*) FROM audit GROUP BY event ORDER BY event"
@@ -561,9 +569,9 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
             for sid,state,lots,risk,margin,seq in quoted_rows
         ] + [
             {"signal_fingerprint":sid,"state":"RESEARCH_UNASSESSABLE_NOT_QUOTED",
-             "reason":reason,"account_sequence":seq,
+             "reason":reason,"account_sequence":None,"observed_at":at,
              "physically_quoted":False,"lots":"0"}
-            for sid,reason,seq in no_quote_rows
+            for sid,reason,at in no_quote_rows
         ]
         account_receipts.sort(key=lambda r:r["signal_fingerprint"])
         journal_ids=[r["signal_fingerprint"] for r in account_receipts]
@@ -573,8 +581,13 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
         paper_states=dict(Counter(r["state"] for r in account_receipts))
         if paper_states.get("PAPER_SETTLED",0)!=len(closed):
             raise ValueError("PAPER QDLE settled ledger diverged from closed trades")
-        if paper_states.get("PAPER_OPEN",0)!=len(active):
-            raise ValueError("PAPER QDLE open ledger diverged from active trades")
+        if paper_states.get("PAPER_FILLED",0)!=len(active):
+            raise ValueError("canonical PAPER QDLE filled ledger diverged from active trades")
+        session.qdle.assert_paper_positions(active)
+        canonical_coverage=session.qdle.paper_coverage()
+        canonical_digest=session.qdle.paper_audit_digest()
+        if canonical_coverage["received_accounted"]!=3368:
+            raise ValueError("canonical PAPER source coverage incomplete")
 
     paper_ledger_archive_sha256="sha256:"+hashlib.sha256(export_db.read_bytes()).hexdigest()
     # Event outcomes are PAPER only, not broker-confirmed orders.
@@ -622,7 +635,10 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
         "usd_jpy_fixed_2026_anchor":str(JPY_USDJPY_ANCHOR),
         "spreads_fixed_by_symbol":{k:str(v) for k,v in SCREENSHOT_SPREAD.items()},
         "atlas_provenance":metadata,
-        "paper_qdle_account_ledger_scope":"ONE_SQLITE_ONE_QDLE_PER_SIMULATION",
+        "paper_qdle_account_ledger_scope":"ONE_SQLITE_ONE_CANONICAL_PaperQDLE_PER_SIMULATION",
+        "canonical_paper_authority":"PaperQDLE_V1_SINGLE_RESERVATION_BOOK",
+        "canonical_paper_coverage":canonical_coverage,
+        "canonical_paper_audit_digest":canonical_digest,
         "paper_qdle_account_snapshots":session.sequence,
         "paper_qdle_account_receipts":account_receipts,
         "paper_qdle_ledger_complete_3368":journal_complete,
@@ -631,7 +647,7 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
         "paper_qdle_state_counts":paper_states,
         "paper_qdle_event_counts":journal_events,
         "paper_qdle_archive_sha256":paper_ledger_archive_sha256,
-        "paper_qdle_broker_tickets_are_synthetic":False,
+        "paper_qdle_broker_tickets_are_synthetic":True,
         "paper_qdle_uses_broker_receipt_api":False,
         "signal_count":3368,"counts":dict(counts),
         "by_mode":{k:dict(v) for k,v in per_mode.items()},
