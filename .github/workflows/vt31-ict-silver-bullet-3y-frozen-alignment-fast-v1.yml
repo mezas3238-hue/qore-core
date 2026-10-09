@@ -1,0 +1,113 @@
+name: QORE VT31 ICT 3Y Frozen NY 55-to-23 Source Alignment Fast V1
+
+on:
+  push:
+    branches:
+      - agent/vt31-architect-operations-cert-20261009
+    paths:
+      - scripts/vt31_ict_silver_bullet_3y_frozen_alignment_v1.py
+      - .github/workflows/vt31-ict-silver-bullet-3y-frozen-alignment-fast-v1.yml
+  workflow_dispatch:
+
+concurrency:
+  group: vt31-ict-frozen-loss-source-join-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  FROZEN_NY_3Y_REPLAY_ID: "11459439466"
+  FROZEN_SOURCE_FVG_AUDIT_ID: "11646815205"
+  FROZEN_PDH_PDL_CAPACITY_ID: "11647425717"
+  FROZEN_CONTROL_SHA: 8f91ee489d33c1fa0b90972270d4ac6c32fcca32
+  FROZEN_FVG_SHA: 32306062d952417209dcaef364afbf953ee5ad18
+  FROZEN_PDH_PDL_SHA: 8cc24dde673864cee196a91b3c5db80c3f3211f9
+
+jobs:
+  alignment:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Static tests
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/vt31_ict_silver_bullet_3y_frozen_alignment_v1.py
+          python scripts/vt31_ict_silver_bullet_3y_frozen_alignment_v1.py --self-test
+
+      - name: Fetch exact frozen, already consumed artifacts
+        run: |
+          set -euo pipefail
+          mkdir -p frozen fvg pdh result
+          fetch_archive() {
+            gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/$1/zip" > "$2.zip"
+            unzip -q "$2.zip" -d "$2"
+          }
+          fetch_archive "$FROZEN_NY_3Y_REPLAY_ID" frozen &
+          p1=$!
+          fetch_archive "$FROZEN_SOURCE_FVG_AUDIT_ID" fvg &
+          p2=$!
+          fetch_archive "$FROZEN_PDH_PDL_CAPACITY_ID" pdh &
+          p3=$!
+          wait "$p1" "$p2" "$p3"
+          test "$(cat frozen/git-sha.txt)" = "$FROZEN_CONTROL_SHA"
+          test "$(cat fvg/git-sha.txt)" = "$FROZEN_FVG_SHA"
+          test "$(cat pdh/git-sha.txt)" = "$FROZEN_PDH_PDL_SHA"
+          test -s frozen/3y-replay.json
+          test -s fvg/ict-ny-3y-55-admitted-fvg-audit.json
+          test -s pdh/ict-3y-causal-pdh-pdl-fvg-capacity.json
+          if [ -f fvg/SHA256SUMS ]; then (cd fvg && sha256sum -c SHA256SUMS); fi
+          if [ -f pdh/SHA256SUMS ]; then (cd pdh && sha256sum -c SHA256SUMS); fi
+
+      - name: Compare all 55 entries and worst 23 losses with as-of ICT context
+        run: |
+          set -euo pipefail
+          python scripts/vt31_ict_silver_bullet_3y_frozen_alignment_v1.py \
+            --frozen-replay frozen/3y-replay.json \
+            --fvg-audit fvg/ict-ny-3y-55-admitted-fvg-audit.json \
+            --pdh-pdl-audit pdh/ict-3y-causal-pdh-pdl-fvg-capacity.json \
+            --output result/ict-frozen-ny-55-to-23-asof-source-alignment.json \
+            | tee result/ict-frozen-ny-55-to-23-summary.json
+
+      - name: Gate exact outcome and source truth without retrospective filter
+        run: |
+          python - <<'PY'
+          import json
+          from decimal import Decimal
+          from pathlib import Path
+          x = json.loads(Path("result/ict-frozen-ny-55-to-23-asof-source-alignment.json").read_text())
+          assert x["base_id"] == "VT31_NAS100_OWNER_3Y_BASE_001"
+          assert x["trade_count"] == 55
+          assert x["frozen_dd_episode"]["losses"] == 23
+          assert Decimal(x["frozen_continuous_dd_r"]) > 21
+          g = x["governance"]
+          assert g["outcomes_used_to_select_source_hypothesis"] is False
+          assert g["frozen_trades_not_filtered_or_resimulated"] is True
+          assert g["first_fvg_is_not_selected_setup_provenance"] is True
+          assert g["fresh_holdout_opened"] is False
+          assert g["candidate_certified"] is False
+          assert g["live_authorized"] is False
+          PY
+
+      - name: Bind exact source revision
+        run: |
+          set -euo pipefail
+          echo "$GITHUB_SHA" > result/git-sha.txt
+          echo "$FROZEN_NY_3Y_REPLAY_ID" > result/replay-artifact-id.txt
+          echo "$FROZEN_SOURCE_FVG_AUDIT_ID" > result/first-fvg-artifact-id.txt
+          echo "$FROZEN_PDH_PDL_CAPACITY_ID" > result/pdh-capacity-artifact-id.txt
+          (cd result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+          (cd result && sha256sum -c SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-ict-ny-55-to-23-alignment-${{ github.sha }}
+          path: result/
+          if-no-files-found: error
+          retention-days: 90
