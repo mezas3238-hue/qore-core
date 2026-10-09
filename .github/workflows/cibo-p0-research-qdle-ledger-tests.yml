@@ -7,6 +7,7 @@ on:
       - "scripts/cibo_trader_lab_native_qdle_market_atlas_3368.py"
       - "scripts/cibo_p0_native_replay_runtime.py"
       - "tests/infrastructure/test_cibo_p0_native_replay_runtime.py"
+      - "tests/infrastructure/test_cibo_four_motor_policy_p0.py"
       - "src/qore/infrastructure/qore_dynamic_lot_engine.py"
       - "src/qore/infrastructure/cibo_four_motor_policy.py"
       - "src/qore/infrastructure/cibo_compound_capital.py"
