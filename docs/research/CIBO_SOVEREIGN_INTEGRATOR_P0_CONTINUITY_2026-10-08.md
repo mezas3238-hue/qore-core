@@ -1,3 +1,5 @@
+> **OVERRIDE ACTUAL — LEER PRIMERO NUEVO MASTER P0 (2026-10-09):** [Reparación urgente CIBO FULL COGNITION + QDLE para 3368 en Trader Lab](CIBO_MASTER_P0_HANDOFF_2026-10-09_TRADER_LAB_3368_FULL_COGNITION_QDLE_REPAIR.md). Último run [#37949977967](https://github.com/mezas3238-hue/qore-core/actions/runs/37949977967): 3368 señales; 539 PAPER aperturas; 537 cierres; PF .7167, DD caja 85.20%, P&L −$50.78, 2 sin cierre. Reutilizar cognitiva y 4 motores no basta; recuperar decisiones reales, 3368 assessments QDLE, single account y equity MTM. Nunca usar comisiones LEGACY ni inventar 3368 fills. **Este documento anterior queda subordinado al master nuevo.**
+
 # CIBO Soberano — P0 integración cross-architect — corte de ingeniería 2026-10-08
 
 > # 🚨 HANDOFF MAESTRO CANÓNICO P0 EMERGENCIA — 2026-10-09
