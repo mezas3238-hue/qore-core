@@ -1,0 +1,84 @@
+name: QDLE CIBO Authority No-Invention Replay
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/cibo-architect-3-qdle-mt5-physical-20261008
+    paths:
+      - ".github/workflows/qdle-cibo-authority-negative-control.yml"
+      - "src/qore/infrastructure/qdle_cibo_authority.py"
+      - "src/qore/infrastructure/cibo_four_motor_qdle_proposal.py"
+      - "scripts/qdle_3368_dual_ledger_replay.py"
+      - "scripts/qdle_synthetic_cibo_authority_fixture.py"
+      - "tests/infrastructure/test_qdle_cibo_authority.py"
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  PYTHONPATH: src
+  SOURCE_ARTIFACT_ID: "11451743578"
+  SOURCE_ARTIFACT_DIGEST: "sha256:d439957f21e2f79148b5a2fb75a53db6fa448698f17aeb6978f379ed3547f7ea"
+
+jobs:
+  cibo-fail-closed-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify CIBO-first lotage and lane unit tests
+        run: python -m unittest discover -s tests/infrastructure -p test_qdle_cibo_authority.py -v
+      - name: Recover the exact 3368 historical signal source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/cibo-neg"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$SOURCE_ARTIFACT_ID/zip" > "$RUNNER_TEMP/source.zip"
+          echo "${SOURCE_ARTIFACT_DIGEST#sha256:}  $RUNNER_TEMP/source.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/source.zip" walk-forward-manifest.json -d "$RUNNER_TEMP/cibo-neg"
+      - name: Generate explicitly synthetic ZERO-risk CIBO directions for all original signals
+        run: |
+          python scripts/qdle_synthetic_cibo_authority_fixture.py \
+            --manifest "$RUNNER_TEMP/cibo-neg/walk-forward-manifest.json" \
+            --output "$RUNNER_TEMP/cibo-neg/synthetic-zero-directives.json"
+      - name: Verify 3368 CIBO signals CANNOT be financed autonomously by QDLE
+        run: |
+          python scripts/qdle_3368_dual_ledger_replay.py \
+            --manifest "$RUNNER_TEMP/cibo-neg/walk-forward-manifest.json" \
+            --motor-policy independent_four_motors \
+            --cibo-instructions "$RUNNER_TEMP/cibo-neg/synthetic-zero-directives.json" \
+            --min-policy broker_grid \
+            --ndx-roundtrip-fee-proxy-usd-per-lot 20 \
+            --provider-trailing-usd disabled \
+            --swap-proxy off \
+            --output "$RUNNER_TEMP/cibo-neg/research-cibo-zero-control.json"
+      - name: Audit complete no-invention and two-lane cashbook invariants
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          r=json.loads((Path(os.environ['RUNNER_TEMP'])/'cibo-neg'/'research-cibo-zero-control.json').read_text())
+          assert r['signal_count']==3368 and r['unique_signal_count']==3368
+          assert r['cibo_authority_mode']=='CIBO_EXPLICIT_DIRECTIVES'
+          assert r['cibo_directives_consumed']==3368
+          assert r['research_financed_proposals']==0
+          assert r['research_unfundable_or_invalid']==3368
+          assert r['qore_ending_capital_usd']=='60'
+          assert r['cibo_source_balances_usd']=={'SOVEREIGN_BANK':'30','PORTFOLIO_CUSHION':'30'}
+          assert r['real_fundednext_fills']==0 and r['certified'] is False
+          assert not r['cibo_exit_management_replayed']
+          print('CIBO_QDLE_NO_SELF_FUNDED_TRADES_3368_PASS', {
+            'signal_count':3368,'financed':0,'bank':'30','cushion':'30',
+            'financially_certified':False,'CIBO_management_replayed':False})
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cibo-qdle-authority-zero-budget-RESEARCH-${{ github.run_id }}
+          path: ${{ runner.temp }}/cibo-neg/research-cibo-zero-control.json
+          if-no-files-found: warn
