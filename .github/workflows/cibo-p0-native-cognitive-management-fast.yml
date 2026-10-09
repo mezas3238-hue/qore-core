@@ -6,6 +6,10 @@ on:
     paths:
       - ".github/workflows/cibo-p0-native-cognitive-management-fast.yml"
       - "src/qore/infrastructure/cibo_p0_native_cognitive_management.py"
+      - "src/qore/infrastructure/cibo_native_mode_authority.py"
+      - "src/qore/infrastructure/cibo_native_sovereign_capital_runtime.py"
+      - "src/qore/infrastructure/cibo_single_account_sovereign_ceiling_run.py"
+      - "tests/infrastructure/test_cibo_native_sovereign_qdle_p0.py"
       - "scripts/cibo_p0_native_max_manager_advisory_3368.py"
       - "scripts/qdle_3368_dual_ledger_replay.py"
       - "scripts/cibo_p0_native_managed_exit_path_audit.py"
@@ -31,6 +35,9 @@ jobs:
       - name: Compile exact changed code
         run: |
           python -m py_compile src/qore/infrastructure/cibo_p0_native_cognitive_management.py
+          python -m py_compile src/qore/infrastructure/cibo_native_mode_authority.py
+          python -m py_compile src/qore/infrastructure/cibo_native_sovereign_capital_runtime.py
+          python -m py_compile src/qore/infrastructure/cibo_single_account_sovereign_ceiling_run.py
           python -m py_compile scripts/cibo_p0_native_max_manager_advisory_3368.py
           python -m py_compile scripts/qdle_3368_dual_ledger_replay.py
           python -m py_compile scripts/cibo_p0_native_managed_exit_path_audit.py
