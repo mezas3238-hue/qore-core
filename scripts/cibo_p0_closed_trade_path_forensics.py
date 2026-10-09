@@ -220,6 +220,16 @@ def report_forensics(payload, *, expected_closed=None):
     trades=payload.get("closed_trade_paths")
     if not isinstance(trades,list):
         raise ValueError("closed_trade_paths list required")
+    source_count=payload.get("source_signal_count")
+    opened_count=payload.get("paper_open_count")
+    unresolved_count=payload.get("paper_unresolved_count")
+    if source_count!=3368 or type(source_count) is not int:
+        raise ValueError("exact 3368 original signals required")
+    if (type(opened_count) is not int or type(unresolved_count) is not int
+            or opened_count<0 or unresolved_count<0
+            or opened_count>source_count
+            or opened_count!=len(trades)+unresolved_count):
+        raise ValueError("PAPER open/closed/unresolved counts do not reconcile")
     if expected_closed is not None and len(trades)!=expected_closed:
         raise ValueError("expected closed trade count mismatch")
     rows=[analyze_closed_trade(trade) for trade in trades]
@@ -273,7 +283,9 @@ def report_forensics(payload, *, expected_closed=None):
         "status":"RESEARCH_M5_OHLC_BOUNDED_NOT_BROKER_CERTIFIED",
         "authority":AUTHORITY,"ledger_sha256":payload["ledger_sha256"],
         "input_sha256":payload["input_sha256"],"code_sha256":payload["code_sha256"],
-        "price_source":SOURCE,"closed_count":sample,
+        "price_source":SOURCE,"source_signal_count":source_count,
+        "paper_open_count":opened_count,"paper_unresolved_count":unresolved_count,
+        "closed_count":sample,
         "wins":wins,"losses":losses,"breakeven":sample-wins-losses,
         "win_rate_pct":str(D(100)*D(wins)/D(sample)) if sample else None,
         "profit_factor_net":str(pf) if pf is not None else None,
