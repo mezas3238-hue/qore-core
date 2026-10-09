@@ -107,10 +107,14 @@ def audit(
     matched: list[dict[str, Any]] = []
     preserved: list[dict[str, Any]] = []
     removed: list[dict[str, Any]] = []
+    comp008_preserved: list[dict[str, Any]] = []
     zero_all: list[dict[str, Any]] = []
     zero_rejected = 0
+    comp008_zero_rejected = 0
     rejected_winners = 0
     rejected_nonwinners = 0
+    comp008_rejected_winners = 0
+    comp008_rejected_nonwinners = 0
     for row in rows:
         k = _identity(row["signal_at"])
         decision = indexed.get(k)
@@ -150,8 +154,40 @@ def audit(
             else:
                 rejected_nonwinners += 1
 
+        if decision["comp008_shadow_fill_accepted"] is True:
+            comp008_preserved.append(row)
+        else:
+            if enriched["zero_postfill_cognition"]:
+                comp008_zero_rejected += 1
+            if raw_r > 0:
+                comp008_rejected_winners += 1
+            else:
+                comp008_rejected_nonwinners += 1
+
     if len(matched) != len(rows):
         raise AssertionError("admitted population mapping is incomplete")
+    if len({_identity(row["signal_at"]) for row in rows}) != len(rows):
+        raise ValueError("duplicate frozen admitted trade identity")
+    control_metrics = _observed_metrics(rows)
+    # Independent arithmetic replay of the *same* admitted R ledger must
+    # reproduce the frozen control exactly before presenting a hypothetical.
+    reported = cast(dict[str, object], control["stress_0_05r"])
+    parity_fields = {
+        "sample": "trade_count",
+        "mean_r": "stressed_mean_r",
+        "profit_factor": "stressed_profit_factor",
+        "max_drawdown_r": "observed_max_drawdown_r",
+        "total_r": "raw_total_r_minus_0_05r_cost_each",
+        "wins": "stressed_winners",
+        "losses": "stressed_nonwinners",
+    }
+    for reported_name, derived_name in parity_fields.items():
+        lhs = reported.get(reported_name)
+        rhs = control_metrics[derived_name]
+        if lhs is None or rhs is None or Decimal(str(lhs)) != Decimal(str(rhs)):
+            raise ValueError(
+                f"frozen control economic parity mismatch: {reported_name}"
+            )
     return {
         "schema": SCHEMA,
         "base_id": BASE_ID,
@@ -164,9 +200,20 @@ def audit(
         "rejected_admitted_raw_nonwinners": rejected_nonwinners,
         "zero_postfill_admitted_trades": len(zero_all),
         "zero_postfill_rejected_in_shadow": zero_rejected,
-        "retrospective_control_metrics_recomputed": _observed_metrics(rows),
+        "comp008_shadow_accepted_admitted_trades": len(comp008_preserved),
+        "comp008_shadow_rejected_admitted_trades": (
+            len(rows) - len(comp008_preserved)
+        ),
+        "comp008_rejected_admitted_raw_winners": comp008_rejected_winners,
+        "comp008_rejected_admitted_raw_nonwinners": comp008_rejected_nonwinners,
+        "comp008_zero_postfill_rejected_in_shadow": comp008_zero_rejected,
+        "frozen_control_economic_arithmetic_parity_verified": True,
+        "retrospective_control_metrics_recomputed": control_metrics,
         "naive_delete_rejected_trades_diagnostic": _observed_metrics(
             preserved
+        ),
+        "comp008_naive_delete_diagnostic": _observed_metrics(
+            comp008_preserved
         ),
         "frozen_control_reported_stress_0_05r": control.get("stress_0_05r"),
         "joined_55_control_trade_ledger": matched,
