@@ -99,7 +99,7 @@ def test_unavailable_facts_are_not_false_or_invented() -> None:
         (bar(0, 102.0, 103.0, 101.0),), T + timedelta(minutes=1),
         structural_invalidation_level=None,
         liquidity_failure_boundary=None,
-        entry_regime="mixed",
+        entry_regime="unavailable",
     )
     assert result.not_evaluable_facts == (
         "structure_invalidated",
@@ -197,3 +197,27 @@ def test_no_sizing_or_equity_authority_in_producer_contract() -> None:
     names = {item.name for item in fields(MarketNativeProducerReport)}
     forbidden = {"volume", "lot", "capital", "sizing", "leverage", "pnl"}
     assert names.isdisjoint(forbidden)
+
+
+def test_frozen_mixed_h1_to_opposite_h1_is_observed_regime_change() -> None:
+    result = report(
+        (bar(0, 102.0, 103.0, 101.0),),
+        T + timedelta(minutes=1),
+        entry_regime="mixed",
+        current_regime="bearish",
+        regime_observed_at=T + timedelta(minutes=1),
+    )
+    assert result.regime_changed_against_thesis.status == "OBSERVED"
+    assert result.regime_changed_against_thesis.value is True
+
+
+def test_frozen_already_adverse_h1_does_not_fake_new_regime_change() -> None:
+    result = report(
+        (bar(0, 102.0, 103.0, 101.0),),
+        T + timedelta(minutes=1),
+        entry_regime="bearish",
+        current_regime="bearish",
+        regime_observed_at=T + timedelta(minutes=1),
+    )
+    assert result.regime_changed_against_thesis.status == "OBSERVED"
+    assert result.regime_changed_against_thesis.value is False
