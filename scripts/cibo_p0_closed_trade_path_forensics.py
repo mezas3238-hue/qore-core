@@ -197,6 +197,8 @@ def analyze_closed_trade(row):
         "signal_fingerprint":sid,
         "symbol":row["symbol"],"trader_id":row["trader_id"],
         "mode":row["mode"],"side":side,
+        "entry_hour_utc":str(fill_at.astimezone(
+            __import__("datetime").timezone.utc).hour).zfill(2),
         "result":("WIN" if net>0 else "LOSS" if net<0 else "BREAKEVEN"),
         "net_pnl_usd":str(net),"exit_reason":reason,
         "duration_minutes":str(D((exit_at-fill_at).total_seconds())/D(60)),
@@ -251,6 +253,24 @@ def report_forensics(payload, *, expected_closed=None):
         state:sum(r["post_stop_target_windows"][label]==state for r in stops)
         for state in ("YES_POST_STOP","NO","UNKNOWN_COVERAGE")}.items()))
         for label in (str(n)+"m" for n in WINDOW_MINUTES)}
+    cohorts={}
+    for field in ("symbol","trader_id","mode","exit_reason","entry_hour_utc"):
+        groups=defaultdict(list)
+        for receipt in rows:
+            groups[receipt[field]].append(receipt)
+        cohorts[field]={
+            group: {
+                "n":len(members),
+                "win_rate_pct":str(D(100)*D(sum(m["result"]=="WIN" for m in members))/D(len(members))),
+                "net_total_usd":str(sum((D(m["net_pnl_usd"]) for m in members),D(0))),
+                "duration_minutes":_stats([D(m["duration_minutes"]) for m in members]),
+                "mfe_r_lower_bound":_stats([D(m["mfe_r_lower_bound"]) for m in members]),
+                "mfe_r_upper_bound":_stats([D(m["mfe_r_upper_bound"]) for m in members]),
+                "mae_r_lower_bound":_stats([D(m["mae_r_lower_bound"]) for m in members]),
+                "mae_r_upper_bound":_stats([D(m["mae_r_upper_bound"]) for m in members]),
+            }
+            for group,members in sorted(groups.items())
+        }
     return {
         "schema":"qore.cibo.p0.closed-trade-forensics.v1",
         "status":"RESEARCH_M5_OHLC_BOUNDED_NOT_BROKER_CERTIFIED",
@@ -269,6 +289,11 @@ def report_forensics(payload, *, expected_closed=None):
         "ambiguous_stop_and_tp_same_bar":sum(r["stop_and_tp_same_bar_order_unknown"] for r in stops),
         "post_stop_target_counts":posterior,
         "by_result":by_result,
+        "by_symbol":cohorts["symbol"],
+        "by_trader":cohorts["trader_id"],
+        "by_mode":cohorts["mode"],
+        "by_exit_reason":cohorts["exit_reason"],
+        "by_entry_utc_hour":cohorts["entry_hour_utc"],
         "closed_trades":rows,
         "certifies_historical_broker_pnl":False,
         "certifies_cibo_native_max":False,
