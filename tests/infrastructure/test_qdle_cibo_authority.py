@@ -60,9 +60,12 @@ def run_cibo_physical_quote(
                   stop_loss_usd_per_lot=stop_per_lot,
                   roundtrip_fees_usd_per_lot=D(fee),
                   symbol=symbol)
-    stop_price = D("1.1000") - stop_pips * D(".0001")
+    entry_price = D("2100") if symbol == "XAUUSD" else D("1.1000")
+    stop_price = entry_price - stop_pips * (
+        D(".1") if symbol == "XAUUSD" else D(".0001")
+    )
     cibo = replace(directive(obs, budget=str(budget), allocation=str(source)),
-                   symbol=symbol, stop_price=stop_price)
+                   symbol=symbol, entry_price=entry_price, stop_price=stop_price)
     motor_votes = votes(obs)
     intent = build_cibo_directed_qdle_intent(
         cibo=cibo, observation=obs, votes=motor_votes)
