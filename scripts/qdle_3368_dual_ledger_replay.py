@@ -27,6 +27,9 @@ from qore.infrastructure.cibo_core_compound_portfolio import propose_p0_portfoli
 from qore.infrastructure.cibo_four_motor_policy import FourMotorObservation, ReconciledQoreCashflow
 from qore.infrastructure.cibo_four_motor_qdle_proposal import build_four_motor_qdle_intent
 from qore.infrastructure.qdle_cibo_authority import CiboEconomicInstruction, build_cibo_directed_qdle_intent, audit_cibo_qdle_lotage
+from qore.infrastructure.cibo_trader_signal_administration import (
+    TraderSignalIntake, EconomicStopBudget, propose_received_trader_management,
+)
 from qore.infrastructure.qore_dynamic_lot_engine import (
     BrokerValuation, Position, QDLE, QDLEAccount, QDLEError, QDLEIntent, QDLESymbol,
 )
@@ -112,10 +115,19 @@ def main() -> int:
                    help="Explicit research sensitivity only; unknown NDX fee never inferred")
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--min-policy", choices=["original_trader", "broker_grid"], default="original_trader")
+    p.add_argument("--experimental-cibo-administrator", action="store_true",
+                   help="CEO CIBO manager: re-quote economic SL physically via QDLE for EVERY Trader signal. Changed-stop lots are quote-only, NEVER settled with old Trader R.")
     p.add_argument("--swap-proxy", choices=["off", "utc_midnight"], default="utc_midnight")
     p.add_argument("--provider-trailing-usd", type=str, default="120",
                    help="USD loss threshold sensitivity; disabled = provider rule NOT modeled")
     args = p.parse_args()
+    if args.experimental_cibo_administrator and (
+        args.motor_policy != "independent_four_motors"
+        or args.cibo_instructions is not None
+        or args.experimental_native_ceiling_report is not None
+        or args.min_policy != "broker_grid"
+    ):
+        raise SystemExit("CEO CIBO administrator requires four-motor broker-grid research without legacy admission gate")
     if args.target_lots is not None and (not args.target_lots.is_finite() or args.target_lots <= ZERO):
         raise SystemExit("Invalid target lots")
     if args.motor_policy == "independent_four_motors" and (
@@ -273,6 +285,13 @@ def main() -> int:
     cibo_transfers_applied = 0
     cibo_directions_consumed = 0
     cibo_managed_exit_receipts_consumed = 0
+    manager_actions = Counter()
+    manager_qdle_quoted = 0
+    manager_qdle_quoted_lots = ZERO
+    manager_funded_with_original_stop = 0
+    manager_requoted_ids: list[str] = []
+    last_account_snapshot: QDLEAccount | None = None
+    last_symbol_snapshot: QDLESymbol | None = None
 
     with tempfile.TemporaryDirectory() as t:
         broker = HistoricalProxy()
@@ -297,7 +316,7 @@ def main() -> int:
                 cibo_transfers_applied += 1
 
         def publish(at: datetime) -> None:
-            nonlocal sequence, broker_peak, provider_floor_breach
+            nonlocal sequence, broker_peak, provider_floor_breach, last_account_snapshot
             sequence += 1
             broker_equity = START_BROKER + nav - START_QORE
             broker_peak = max(broker_peak, broker_equity)
@@ -324,7 +343,7 @@ def main() -> int:
             else:
                 free_bank, free_cushion = available_qore, ZERO
             broker_free_margin = max(ZERO, broker_equity - open_margin)
-            qdle.publish_account(QDLEAccount(
+            last_account_snapshot = QDLEAccount(
                 account_id="SEALED_RESEARCH_2000", provider="FundedNext", currency="USD",
                 sequence=sequence, as_of=at,
                 balance=max(ZERO, broker_equity), equity=max(ZERO, broker_equity),
@@ -336,7 +355,8 @@ def main() -> int:
                 positions=tuple(Position(k, v["symbol"], v["side"], v["lots"])
                                 for k, v in sorted(active.items())),
                 covered_fill_tickets=tuple(sorted(active)),
-            ))
+            )
+            qdle.publish_account(last_account_snapshot)
         def settle_until(at: datetime) -> None:
             nonlocal nav, peak_nav, max_dd_ratio, maximum_absolute_dd
             nonlocal provider_closed_at, unresolved_at_breach
@@ -451,8 +471,75 @@ def main() -> int:
                     fee = args.ndx_roundtrip_fee_proxy_usd_per_lot
                 else:
                     fee = ZERO
+                # CEO MANAGER, NOT SELECTOR: record a valid CIBO management
+                # action for every Trader signal, and use DYNAMIC entry-time
+                # NAV and independent remaining risk source to propose a
+                # protective economic stop. This is RESEARCH ONLY.
+                manager_revised_stop = False
+                manager_original_stop = stop
+                if args.experimental_cibo_administrator:
+                    signal = TraderSignalIntake(
+                        signal_fingerprint=rid, trader_id=row["trader_id"],
+                        symbol=symbol, side=side, entry_price=entry,
+                        structural_stop_price=stop,
+                        take_profit_price=D(str(t["take_profit"])),
+                        decided_at=decision_at,
+                        trader_evidence_sha256="sha256:" + hashlib.sha256(
+                            (rid + "|SEALED_TRADER_MANIFEST").encode()
+                        ).hexdigest(),
+                    )
+                    source_free = max(ZERO, nav - sum(
+                        (x["planned_risk"] for x in active.values()), ZERO
+                    ))
+                    valuation_per_price = stop_per_lot / abs(entry - stop)
+                    receipt = propose_received_trader_management(
+                        signal=signal,
+                        budget=EconomicStopBudget(
+                            qore_reconciled_nav_usd=max(ZERO,nav),
+                            cibo_max_loss_usd=max(ZERO,nav)*FIVE,
+                            source_unreserved_loss_capacity_usd=source_free,
+                            broker_min_lot=D(".01"),broker_lot_step=D(".01"),
+                            tick_size_price=TICKS[symbol],
+                            # Historical provider min-stops unverified.
+                            broker_min_stop_distance_price=ZERO,
+                            price_loss_usd_per_price_unit_per_lot=valuation_per_price,
+                            opening_commission_usd_per_lot=fee / D("2"),
+                            closing_commission_usd_per_lot=fee / D("2"),
+                            execution_buffer_usd_per_lot=ZERO,
+                            broker_data_as_of=decision_at,
+                            price_valuation_evidence_sha256="sha256:"+hashlib.sha256(
+                                (rid+"|DECISION_TIME_PROXY_MARGIN_PRICE").encode()
+                            ).hexdigest(),
+                        ),
+                    )
+                    manager_action = receipt.reason_codes[0]
+                    manager_actions[manager_action] += 1
+                    event["cibo_manager_status"] = receipt.status
+                    event["cibo_manager_action"] = manager_action
+                    event["cibo_manager_stop_original"] = str(manager_original_stop)
+                    event["cibo_manager_stop_proposed"] = (
+                        str(receipt.proposed_protective_stop_price)
+                        if receipt.proposed_protective_stop_price is not None else None
+                    )
+                    event["cibo_manager_budget_dynamic_usd"] = str(receipt.budget_usd)
+                    event["cibo_manager_received"] = True
+                    if receipt.proposed_protective_stop_price is not None:
+                        stop = receipt.proposed_protective_stop_price
+                        stop_per_lot = abs(entry - stop) * valuation_per_price
+                        manager_revised_stop = stop != manager_original_stop
+                    else:
+                        # No viable protective stop; CIBO does not reject the
+                        # signal, but cannot request an unsafe physical lot.
+                        event["status"] = "RECEIVED_UNFUNDABLE_CIBO_NO_SAFE_STOP"
+                        event["reason"] = manager_action
+                        event["lots"] = "0"
+                        decisions.append(event)
+                        sym_counts[symbol]["unfundable"] += 1
+                        sym_counts[symbol]["manager_no_safe_stop"] += 1
+                        source_counts[manager_action] += 1
+                        continue
                 if at > last_spec_time.get(symbol, datetime.min.replace(tzinfo=at.tzinfo)):
-                    qdle.publish_symbol(QDLESymbol(
+                    last_symbol_snapshot = QDLESymbol(
                         broker_symbol=symbol, aliases=(symbol, "NAS100") if symbol == "NDX100" else (symbol,),
                         min_lot=D(".01"), max_lot=D("50") if symbol == "XAUUSD" else D("40"),
                         lot_step=D(".01"), directional_volume_limit=ZERO,
@@ -464,7 +551,8 @@ def main() -> int:
                                          and symbol != "XAUUSD" else ZERO),
                         fee_provenance="SCENARIO_COST_PROXY_UNVERIFIED",
                         as_of=at, tradable=True,
-                    ))
+                    )
+                    qdle.publish_symbol(last_symbol_snapshot)
                     last_spec_time[symbol] = at
                 broker.quote = BrokerValuation(
                     stop_per_lot, MARGINS[symbol][side], at, "SCREENSHOT_2026_STATIC_MARGIN_RESEARCH_PROXY",
@@ -658,7 +746,19 @@ def main() -> int:
                     module_summed_limits_usd[label] += D(value)
                     module_audit_present[label] += 1
                 module_audit_present["ADAPTIVE_LEVERAGE"] += 1
-                result = qdle.reserve_for_trader(requested, now=at)
+                if args.experimental_cibo_administrator and manager_revised_stop:
+                    # Independent ephemeral QDLE instance: its HOLD is a
+                    # physical **RESEARCH QUOTE** only, not a broker rejected
+                    # or filled trade. Never contaminate the original-stop
+                    # account ledger or invent a no-fill broker receipt.
+                    quote_qdle = QDLE(Path(t) / ("manager-quote-" + str(index) + ".sqlite"), broker)
+                    if last_account_snapshot is None or last_symbol_snapshot is None:
+                        raise QDLEError("MANAGER_QUOTE_MISSING_CAUSAL_ACCOUNT_SPEC")
+                    quote_qdle.publish_account(last_account_snapshot)
+                    quote_qdle.publish_symbol(last_symbol_snapshot)
+                    result = quote_qdle.reserve_for_trader(requested, now=at)
+                else:
+                    result = qdle.reserve_for_trader(requested, now=at)
                 if cibo_by_signal is not None or native_decisions_by_signal is not None:
                     receipt = audit_cibo_qdle_lotage(
                         cibo=cibo, observation=obs, votes=votes, result=result,
@@ -697,13 +797,27 @@ def main() -> int:
                 if result.lots > 0:
                     for bound in result.binding_limits:
                         module_binding_ties[bound] += 1
-                if result.lots == 0:
+                if args.experimental_cibo_administrator and manager_revised_stop and result.lots > 0:
+                    # Changed stop can only be valued using a full bid/ask
+                    # historical path. NO Trader original outcome R as PnL!
+                    manager_qdle_quoted += 1
+                    manager_qdle_quoted_lots += result.lots
+                    manager_requoted_ids.append(rid)
+                    event["status"] = "ECONOMIC_STOP_QDLE_PHYSICAL_QUOTE_SHADOW"
+                    event["cibo_manager_action"] = "ECONOMIC_STOP_AND_QDLE_QUOTE"
+                    event["cibo_manager_exit_status"] = "NEEDS_CAUSAL_PRICE_PATH"
+                    event["historical_structural_R_used_for_modified_stop"] = False
+                    sym_counts[symbol]["manager_economic_sl_quote_only"] += 1
+                    source_counts["ECONOMIC_SL_QDLE_QUOTE_NOT_HISTORICAL_FILL"] += 1
+                elif result.lots == 0:
                     primary_constraint = result.binding_limits[0] if result.binding_limits else "UNKNOWN_BROKER_GRID"
                     rejection_binding_counts[primary_constraint] += 1
                     event["reason"] = "BROKER_MINIMUM_UNFINANCEABLE_BY_" + primary_constraint
                     source_counts[event["reason"]] += 1
                     sym_counts[symbol]["unfundable"] += 1
                 else:
+                    if args.experimental_cibo_administrator:
+                        manager_funded_with_original_stop += 1
                     if result.total_risk_usd > risk_budget or result.margin_usd > free_broker:
                         raise QDLEError("QDLE_INTERNAL_RISK_OR_MARGIN_BREACH")
                     # Research-only hypothetical fill at supplied structural entry,
@@ -786,6 +900,19 @@ def main() -> int:
         broker_end = START_BROKER + nav - START_QORE
         report = {
             "schema": "qore.qdle.3368.dual-capital-research.v1",
+            "cibo_manager_experimental_activated": args.experimental_cibo_administrator,
+            "cibo_manager_actions": dict(manager_actions),
+            "cibo_manager_economic_stop_qdle_quote_only": manager_qdle_quoted,
+            "cibo_manager_economic_stop_quoted_lots_not_filled": str(manager_qdle_quoted_lots),
+            "cibo_manager_economic_stop_quoted_signal_ids": manager_requoted_ids,
+            "cibo_manager_original_stop_historical_structural_proxy_funded": manager_funded_with_original_stop,
+            "cibo_manager_full_real_strategy_NAV_USD": None if args.experimental_cibo_administrator else str(nav),
+            "cibo_manager_full_real_strategy_PF": None,
+            "cibo_manager_full_real_strategy_DD": None,
+            "cibo_manager_managed_exits_replayed": False,
+            "cibo_manager_exit_path_missing": True if args.experimental_cibo_administrator else None,
+            "cibo_manager_static_provider_stop_distance_assumed_zero": args.experimental_cibo_administrator,
+
             "certified": False,
             "broker_execution_proven": False,
             "real_fundednext_fills": 0,
