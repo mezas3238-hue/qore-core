@@ -264,6 +264,8 @@ def sign_producer_receipt(
     """Call in the producer trust boundary; never give a coordinator all keys."""
     if proposal.producer != producer or producer not in PRODUCERS:
         raise FourMotorPolicyError("cross-producer receipt signing forbidden")
+    if proposal.observation.research_scenario_only:
+        raise FourMotorPolicyError("PAPER scenario votes cannot be signed as sovereign LIVE receipts")
     if not isinstance(secret, bytes) or len(secret) < 32:
         raise FourMotorPolicyError("producer HMAC key unavailable")
     payload = proposal.payload()
