@@ -8,11 +8,15 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
+from datetime import datetime
 from decimal import Decimal
 from enum import Enum
 from typing import Any
 
+from qore.infrastructure.traders.vt31_nas100_causal_fact_producers import (
+    MarketNativeProducerReport,
+)
 from qore.infrastructure.traders.vt31_nas100_post_entry_cognitive_runtime import (
     PostEntryCausalObservation,
     PostEntryCognitiveDecision,
@@ -35,6 +39,8 @@ _ACTIONS_REQUIRING_ROUTE = frozenset(
 
 
 def _normalize(value: Any) -> Any:
+    if isinstance(value, datetime):
+        return value.isoformat()
     if isinstance(value, Decimal):
         return format(value, "f")
     if isinstance(value, Enum):
@@ -91,6 +97,8 @@ class CognitiveSensorFrame:
     output_next_stop: str | None
     output_next_target: str | None
     output_requires_actuation: bool
+    native_fact_statuses: dict[str, str] = field(default_factory=dict)
+    native_fact_evidence: dict[str, dict[str, Any]] = field(default_factory=dict)
     read_only: bool = True
     policy_authority: bool = False
     sizing_authority: bool = False
@@ -122,11 +130,59 @@ class CognitiveActuationSensor:
         return _normalize(asdict(self))
 
 
+def _verify_native_fact_parity(
+    *,
+    observation: PostEntryCausalObservation,
+    market: PostEntryMarketFacts,
+    producer_report: MarketNativeProducerReport | None,
+) -> tuple[dict[str, str], dict[str, dict[str, Any]]]:
+    """Never mark an unconnected producer as a verified False.
+
+    When a producer has been connected, reject disagreements between its
+    evidenced value and the value consumed by canonical position cognition.
+    This is telemetry/parity validation only, not a separate decision policy.
+    """
+    names = (
+        "structure_invalidated",
+        "liquidity_failure_confirmed",
+        "regime_changed_against_thesis",
+        "next_structural_target",
+    )
+    if producer_report is None:
+        return ({name: "UNWIRED" for name in names}, {})
+
+    observed_at = datetime.fromisoformat(observation.as_of)
+    if observed_at.tzinfo is None or observed_at.utcoffset() is None:
+        raise ValueError("sensor decision timestamp must be timezone-aware")
+    if producer_report.as_of != observed_at:
+        raise ValueError("native producer and cognition as_of mismatch")
+
+    statuses: dict[str, str] = {}
+    evidence: dict[str, dict[str, Any]] = {}
+    for name in names:
+        fact = getattr(producer_report, name)
+        statuses[name] = fact.status
+        evidence[name] = _normalize(asdict(fact))
+        if name == "next_structural_target":
+            if fact.status == "AVAILABLE":
+                if market.next_structural_target != fact.candidate:
+                    raise ValueError("producer/runtime next target disagreement")
+            elif market.next_structural_target is not None:
+                raise ValueError("runtime has destination without producer proof")
+        elif (
+            fact.status == "OBSERVED"
+            and getattr(market, name) != fact.value
+        ):
+            raise ValueError(f"producer/runtime {name} disagreement")
+    return statuses, evidence
+
+
 def capture_post_entry_cognitive_sensor(
     *,
     observation: PostEntryCausalObservation,
     market: PostEntryMarketFacts,
     decision: PostEntryCognitiveDecision,
+    producer_report: MarketNativeProducerReport | None = None,
 ) -> CognitiveSensorFrame:
     """Capture inputs/process/output without changing the canonical decision."""
 
@@ -139,6 +195,11 @@ def capture_post_entry_cognitive_sensor(
         market_values, prefix="market"
     )
 
+    native_fact_statuses, native_fact_evidence = _verify_native_fact_parity(
+        observation=observation,
+        market=market,
+        producer_report=producer_report,
+    )
     cognition = decision.cognition
     position = decision.position
     action = position.action.value
@@ -186,6 +247,8 @@ def capture_post_entry_cognitive_sensor(
         output_next_stop=next_stop,
         output_next_target=next_target,
         output_requires_actuation=action in _ACTIONS_REQUIRING_ROUTE,
+        native_fact_statuses=native_fact_statuses,
+        native_fact_evidence=native_fact_evidence,
     )
 
 
