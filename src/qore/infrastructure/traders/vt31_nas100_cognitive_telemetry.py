@@ -53,10 +53,19 @@ def _normalize(value: Any) -> Any:
 
 
 def _unresolved_string(value: str) -> bool:
-    segments = frozenset(
-        item for item in re.split(r"[^A-Z0-9]+", value.upper()) if item
+    # Multiword states such as NOT_EVALUATED must not disappear merely
+    # because separators tokenize the phrase. Never use substring matches:
+    # NO_CONFIRMED_EXHAUSTION is a valid negative observation, not UNKNOWN.
+    normalized = re.sub(r"[^A-Z0-9]+", "_", value.upper()).strip("_")
+    parts = tuple(part for part in normalized.split("_") if part)
+    singles = _UNRESOLVED_TOKENS - {"NOT_EVALUATED"}
+    return (
+        bool(set(parts) & singles)
+        or any(
+            left == "NOT" and right == "EVALUATED"
+            for left, right in zip(parts, parts[1:], strict=False)
+        )
     )
-    return bool(segments & _UNRESOLVED_TOKENS)
 
 
 def _input_health(
