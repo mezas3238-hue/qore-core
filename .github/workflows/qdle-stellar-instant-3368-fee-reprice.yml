@@ -50,7 +50,7 @@ jobs:
           assert report["cibo_3368_managed_dd_pct"] is None
           p=pathlib.Path(os.environ["RUNNER_TEMP"])/"qdle-stellar-3368"
           (p/"actual-mt5-5-closed-trades-commission-reconciliation.json").write_text(
-              json.dumps(report,indent=2,sort_keys=True)+"\\n")
+              json.dumps(report,indent=2,sort_keys=True)+"\n")
           print("MT5_5_CLOSED_POSITIONS_FEE_RECONCILED",
                 json.dumps({k:report[k] for k in (
                     "position_count","observed_total_commission_debit_usd",
