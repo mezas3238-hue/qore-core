@@ -276,6 +276,11 @@ class QDLE:
                 broker_ticket TEXT NOT NULL, lots TEXT NOT NULL)""")
             db.execute("""CREATE TABLE IF NOT EXISTS broker_partial_cancellations (
                 request_id TEXT PRIMARY KEY, cancel_receipt TEXT NOT NULL UNIQUE)""")
+            # Research-only release proofs live in the same SQLite account book.
+            # They cannot masquerade as MT5 fill/settlement evidence.
+            db.execute("""CREATE TABLE IF NOT EXISTS research_terminal_events (
+                request_id TEXT PRIMARY KEY, event_id TEXT NOT NULL UNIQUE,
+                reason TEXT NOT NULL, occurred_at TEXT NOT NULL)""")
             # Recovery of existing persistent QDLE databases: reconstruct the
             # unique deal registry from the append-only audit before accepting
             # a new settlement. Never silently discard conflicting receipts.
@@ -675,6 +680,112 @@ class QDLE:
                     "5pct dynamic QORE-owned trading capital; broker margin separate; not an MT5 fill",
                 )
             return result
+
+    def _require_research_paper_account(self, db) -> QDLEAccount:
+        """A paper ledger cannot release any reservation in a live QDLE."""
+        if (self.enforce_finance_approval or self.strict_live_fee_evidence
+                or self.strict_four_motor_evidence):
+            raise QDLEError("research-only operation forbidden in production QDLE")
+        raw = self._meta(db, "account")
+        if raw is None:
+            raise QDLEError("research account snapshot missing")
+        acc = self._account(raw)
+        if not acc.account_id.startswith("RESEARCH_"):
+            raise QDLEError("research terminal events require isolated RESEARCH_ account")
+        return acc
+
+    def reject_research_unquotable(
+        self, *, request_id: str, trader_id: str, symbol: str, side: str,
+        reason: str, now: datetime,
+    ) -> QDLEResult:
+        """Exactly one typed physical assessment for an unquotable paper signal.
+
+        Missing candles, invalid adverse-stop geometry or exhausted QORE NAV
+        must be visible in the global QDLE ledger, never silently discarded.
+        This is NOT a funded lot quote, nor a broker rejection.
+        """
+        when = _dt(now)
+        if (not request_id or not trader_id or not symbol
+                or side not in ("BUY", "SELL")
+                or reason not in ("NO_QORE_NAV", "NO_ATLAS_M5_ENTRY",
+                                  "INVALID_GEOMETRY", "INVALID_CROSS_SIDE_GEOMETRY")):
+            raise QDLEError("identified research physical blocker required")
+        fingerprint = hashlib.sha256(_j({
+            "request_id": request_id, "trader_id": trader_id, "symbol": symbol,
+            "side": side, "reason": reason, "at": when.isoformat(),
+        }).encode()).hexdigest()
+        with self._tx() as db:
+            acc = self._require_research_paper_account(db)
+            if acc.as_of != when:
+                raise QDLEError("research rejection account epoch timestamp mismatch")
+            existing = db.execute(
+                "SELECT payload_sha,result FROM reservations WHERE request_id=?",
+                (request_id,)).fetchone()
+            if existing:
+                if existing[0] != fingerprint:
+                    raise QDLEError("research signal reused with different rejection")
+                return self._result(json.loads(existing[1]))
+            result = QDLEResult(
+                request_id, "UNQUOTABLE_RESEARCH", symbol, Decimal(0),
+                Decimal(0), Decimal(0), Decimal(0), Decimal(0),
+                acc.sequence, (reason,), "No executable geometry/price: 0 physical lots",
+            )
+            db.execute("""INSERT INTO reservations
+                (request_id,payload_sha,state,source_lane,symbol,side,lots,risk,margin,
+                 snapshot_seq,fill_ticket,result)
+                VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""", (
+                    request_id, fingerprint, "BLOCKED", "SOVEREIGN_BANK",
+                    symbol, side, "0", "0", "0", acc.sequence, None,
+                    _j(asdict(result)),
+                ))
+            self._audit(db, "RESEARCH_UNQUOTABLE", request_id,
+                        {"reason": reason, "account_sequence": acc.sequence})
+            return result
+
+    def finish_research_reservation(
+        self, *, request_id: str, event_id: str, reason: str, now: datetime,
+    ) -> None:
+        """Release PAPER risk/margin after causal synthetic terminal evidence.
+
+        No broker fill or QORE realized settlement is asserted; broker APIs are
+        never called. Crash/retry is idempotent. Unresolved paths remain HELD.
+        """
+        when = _dt(now)
+        if (not request_id or not event_id
+                or reason not in ("PAPER_CLOSED", "PAPER_NO_FILL",
+                                  "PAPER_PATH_INVALID")):
+            raise QDLEError("identified paper terminal reason required")
+        with self._tx() as db:
+            acc = self._require_research_paper_account(db)
+            if acc.as_of > when:
+                raise QDLEError("paper release before account observation")
+            prior = db.execute(
+                "SELECT event_id,reason,occurred_at FROM research_terminal_events "
+                "WHERE request_id=?", (request_id,),
+            ).fetchone()
+            if prior:
+                if prior != (event_id, reason, when.isoformat()):
+                    raise QDLEError("conflicting paper terminal replay")
+                return
+            row = db.execute(
+                "SELECT state FROM reservations WHERE request_id=?",
+                (request_id,),
+            ).fetchone()
+            if not row or row[0] != "HELD":
+                raise QDLEError("paper terminal requires HELD QDLE reservation")
+            db.execute(
+                "INSERT INTO research_terminal_events VALUES(?,?,?,?)",
+                (request_id, event_id, reason, when.isoformat()),
+            )
+            db.execute(
+                "UPDATE reservations SET state='RESEARCH_TERMINAL' WHERE request_id=?",
+                (request_id,),
+            )
+            self._audit(db, "RESEARCH_PAPER_TERMINAL", request_id, {
+                "event_id": event_id, "reason": reason,
+                "occurred_at": when.isoformat(),
+                "real_broker_deals": 0,
+            })
 
     def arm_for_live_send(
         self, *, request_id: str, provider_symbol: str,
