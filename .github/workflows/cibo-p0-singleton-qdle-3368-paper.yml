@@ -18,6 +18,7 @@ on:
 permissions:
   contents: read
   actions: read
+  issues: write
 concurrency:
   group: cibo-p0-singleton-qdle-m5-3368-${{ github.ref }}
   cancel-in-progress: true
@@ -109,6 +110,7 @@ jobs:
           assert r["certified"] is False and r["broker_fills"]==0
           assert r["bid_ask_verified_2019_2022"] is False
           assert len(r["signal_decisions"])==3368
+          assert r["paper_qdle_ledger_complete_3368"], "missing or duplicate QDLE paper accounts"
           assert r["full_cibo_managed_drawdown_pct"] is None
           assert r["counts"].get("paper_open",0)>=r["counts"].get("settled",0)
           print("TRADER_LAB_NATIVE_QDLE_SCIENTIFIC_PAPER_FINISH",json.dumps({
@@ -127,3 +129,37 @@ jobs:
           path: |
             ${{ runner.temp }}/cibo-atlas-3368/trader-lab-cibo-qdle-spread-3368.json
           if-no-files-found: warn
+
+      - name: Report PAPER evidence and job status to coordinating PR 746
+        if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=Path(os.environ["RUNNER_TEMP"])/"cibo-atlas-3368"/"trader-lab-cibo-qdle-spread-3368.json"
+          prefix=(f"### GitHub Trader Lab P0 singleton QDLE PAPER — run "
+                  f"{os.environ['GITHUB_RUN_ID']}\n\n"
+                  f"Commit: \`{os.environ['GITHUB_SHA']}\`\n"
+                  f"[Open workflow](https://github.com/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']})\n\n")
+          if p.exists():
+              r=json.loads(p.read_text())
+              fields=("counts","shadow_paper_cash_balance_after_known_events_usd",
+                      "shadow_projected_closed_cash_max_dd_pct",
+                      "shadow_projected_settled_profit_factor",
+                      "shadow_projected_settled_net_pnl_usd",
+                      "open_positions_missing_full_path",
+                      "paper_qdle_ledger_complete_3368",
+                      "paper_qdle_physical_quote_count",
+                      "paper_qdle_unassessable_count",
+                      "paper_qdle_state_counts")
+              detail={k:r.get(k) for k in fields}
+              body=prefix+"Historical bid/ask verified: **NO**; broker fills: **0**; LIVE: **NO**.\n\n"+\
+                   "```json\n"+json.dumps(detail,indent=2,sort_keys=True)+"\n```"
+          else:
+              body=prefix+"**No report artifact produced**. Inspect the workflow failed step; no new PF/DD/NAV can be claimed."
+          Path("/tmp/cibo-p0-comment.md").write_text(body)
+          PY
+          gh api -X POST "/repos/$GITHUB_REPOSITORY/issues/746/comments" --raw-field body="$(cat /tmp/cibo-p0-comment.md)"
