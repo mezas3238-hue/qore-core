@@ -196,6 +196,8 @@ def audit(evidence_path: Path) -> dict[str, object]:
         specialist._monte_carlo = lambda _: {
             "status": "NOT_RUN_SHADOW_SENSOR_AUDIT",
             "paths": 0,
+            "positive_terminal_probability": "0",
+            "p95_max_drawdown_r": "0",
         }
         actual = specialist.replay(evidence_path)
     finally:
