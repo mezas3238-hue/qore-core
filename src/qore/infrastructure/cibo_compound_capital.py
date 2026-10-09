@@ -327,7 +327,9 @@ def _aware(value: datetime, name: str) -> None:
 
 
 
-def propose_p0_compound_vote(observation: FourMotorObservation) -> FourMotorProposal:
+def propose_p0_compound_vote(
+    observation: FourMotorObservation, *, research_disable_legacy_haircut: bool = False,
+) -> FourMotorProposal:
     """Reinvest reconciled net QORE NAV after protected/held reserves only."""
     if not isinstance(observation, FourMotorObservation):
         raise FourMotorPolicyError("canonical observation required")
@@ -341,10 +343,13 @@ def propose_p0_compound_vote(observation: FourMotorObservation) -> FourMotorProp
             streak += 1
         else:
             break
-    loss_streak_factor = Decimal("0.5") if streak >= 3 else Decimal("1")
+    loss_streak_factor = (Decimal("0.5") if streak >= 3
+                          and not research_disable_legacy_haircut else Decimal("1"))
     cap = min(available, base * loss_streak_factor)
     reasons = ("RECONCILED_ONLY_NET_QORE_NAV",
                "PROTECTED_AND_FLOAT_LOSS_AND_RESERVATION_DEDUCTED",
+               "RESEARCH_LEGACY_LOSS_STREAK_HAIRCUT_DISABLED"
+               if research_disable_legacy_haircut else
                "THREE_SETTLED_LOSSES_HAIR_CUT" if streak >= 3
                else "NORMAL_COMPOUND_REINVESTMENT")
     return FourMotorProposal("CIBO_COMPOUND", observation,
