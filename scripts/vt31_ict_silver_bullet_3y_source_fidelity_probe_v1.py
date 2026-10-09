@@ -50,7 +50,7 @@ def _candle(row: dict[str, Any]) -> dict[str, Any]:
     o, h, low, close = (
         _decimal(row[x]) for x in ("open", "high", "low", "close")
     )
-    if low > min(o, close) or high < max(o, close):
+    if low > min(o, close) or h < max(o, close):
         raise ValueError("OHLC invalid range")
     return {
         "opened_at": start, "closed_at": end,
