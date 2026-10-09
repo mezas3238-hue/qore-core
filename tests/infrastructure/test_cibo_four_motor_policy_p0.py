@@ -224,13 +224,20 @@ class FourMotorEconomicTest(unittest.TestCase):
         from qore.infrastructure.cibo_four_motor_ablation import ablate_four_motors
         cases = (
             ("SIZING", observation(stress_extra_loss_usd_per_lot=Decimal("109"))),
-            ("CIBO_COMPOUND", observation(reconciled_cashflows=(
-                cash(1, "-8", -4), cash(2, "-2", -3), cash(3, "-10", -2)))),
             ("ADAPTIVE_LEVERAGE", observation(
                 broker_free_margin_usd=Decimal("10"), broker_margin_usd_per_lot=Decimal("500"))),
             ("PORTFOLIO_COMPOUND", observation(
                 total_open_stop_risk_usd=Decimal("4.1"),
                 correlated_open_stop_risk_usd=Decimal("4.1"))),
+        )
+        # Loss-streak no longer creates artificial unique CIBO_COMPOUND bindings.
+        real_losses = observation(reconciled_cashflows=(
+            cash(1, "-8", -4), cash(2, "-2", -3), cash(3, "-10", -2)))
+        loss_report = ablate_four_motors(
+            real_losses, minimum_lot=Decimal(".01"), lot_step=Decimal(".01"))
+        self.assertEqual(
+            dict(loss_report.incremental_lots_if_disabled)["CIBO_COMPOUND"],
+            Decimal("0"),
         )
         for binding_motor, obs in cases:
             report = ablate_four_motors(obs, minimum_lot=Decimal(".01"), lot_step=Decimal(".01"))
