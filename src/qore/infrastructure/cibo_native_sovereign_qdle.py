@@ -19,6 +19,7 @@ from decimal import Decimal, InvalidOperation
 from qore.infrastructure.cibo_p0_native_cognitive_management import (
     native_sensor_management_plan,
 )
+from qore.infrastructure.cibo_native_mode_authority import SOURCE as NATIVE_RUNTIME_PRODUCER
 from qore.infrastructure.cibo_sovereign_integration import (
     PreparedShadowDecision,
     ShadowFundingOutcome,
@@ -41,8 +42,10 @@ class CiboSovereignQdleBridgeError(ValueError):
 def _risk_fraction(plan: dict) -> Decimal:
     if (not isinstance(plan, dict)
         or plan.get("native_disposition_used_for_policy") is not False
-        or plan.get("producer") !=
-        "P0_DETERMINISTIC_SENSOR_DERIVED_RESEARCH_ADAPTER_NOT_NATIVE_BROKER_AUTHORIZATION"):
+        or plan.get("producer") not in (
+            NATIVE_RUNTIME_PRODUCER,
+            "P0_DETERMINISTIC_SENSOR_DERIVED_RESEARCH_ADAPTER_NOT_NATIVE_BROKER_AUTHORIZATION",
+        )):
         raise CiboSovereignQdleBridgeError("Native MAX causal research plan required")
     try:
         fraction = Decimal(str(plan["requested_risk_fraction_of_current_qore_nav"]))
