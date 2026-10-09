@@ -12,12 +12,12 @@ from qore.infrastructure.cibo_account_sizing_authority import propose_p0_sizing_
 from qore.infrastructure.cibo_compound_capital import propose_p0_compound_vote
 from qore.infrastructure.cibo_marginal_leverage_utility import propose_p0_adaptive_leverage_vote
 from qore.infrastructure.cibo_core_compound_portfolio import propose_p0_portfolio_vote
-from qore.infrastructure.cibo_four_motor_policy import FourMotorObservation, FourMotorPolicyError
+from qore.infrastructure.cibo_four_motor_policy import FourMotorObservation, FourMotorPolicyError, ReconciledQoreCashflow
 from qore.infrastructure.qdle_cibo_authority import (
-    CiboEconomicInstruction, build_cibo_directed_qdle_intent,
+    CiboEconomicInstruction, build_cibo_directed_qdle_intent, audit_cibo_qdle_lotage,
 )
 from qore.infrastructure.qore_dynamic_lot_engine import (
-    BrokerValuation, QDLE, QDLEAccount, QDLESymbol,
+    BrokerValuation, QDLE, QDLEAccount, QDLESymbol, QDLEResult,
 )
 
 T = datetime(2026, 10, 8, 12, tzinfo=UTC)
@@ -29,6 +29,62 @@ class Broker:
         return BrokerValuation(D("100"), D("1000"), now, "SYNTHETIC_ONLY")
     def check_volume(self, instrument, intent, lots):
         pass
+
+
+
+class StopBroker(Broker):
+    def __init__(self, stop_usd_per_lot, margin="1000"):
+        self.stop_usd_per_lot = D(stop_usd_per_lot)
+        self.margin_per_lot = D(margin)
+
+    def value(self, instrument, intent, now):
+        return BrokerValuation(self.stop_usd_per_lot, self.margin_per_lot, now,
+                               "TEST_DETERMINISTIC_USD_STOP_AND_MARGIN")
+
+
+def run_cibo_physical_quote(
+    *, nav, stop_pips, risk=None, fee="14", broker_free_margin="1900",
+    allocation=None, min_lot=".01", step=".01", symbol="EURUSD",
+):
+    """Test-only physical QDLE, with reconciled profits never floating."""
+    nav, stop_pips = D(nav), D(stop_pips)
+    budget = risk if risk is not None else nav * D(".05")
+    source = D(allocation) if allocation is not None else nav
+    original = observation(source=str(source))
+    flows = (ReconciledQoreCashflow(
+        "settlement-for-"+str(nav), T, nav - D("60"), HASH, True,
+    ),) if nav != D("60") else ()
+    stop_per_lot = stop_pips * D("10")
+    obs = replace(original, initial_qore_nav_usd=D("60"),
+                  reconciled_cashflows=flows,
+                  stop_loss_usd_per_lot=stop_per_lot,
+                  roundtrip_fees_usd_per_lot=D(fee),
+                  symbol=symbol)
+    stop_price = D("1.1000") - stop_pips * D(".0001")
+    cibo = replace(directive(obs, budget=str(budget), allocation=str(source)),
+                   symbol=symbol, stop_price=stop_price)
+    motor_votes = votes(obs)
+    intent = build_cibo_directed_qdle_intent(
+        cibo=cibo, observation=obs, votes=motor_votes)
+    with tempfile.TemporaryDirectory() as tmp:
+        qdle = QDLE(Path(tmp)/"cibo-test.sqlite", StopBroker(stop_per_lot))
+        qdle.publish_account(QDLEAccount(
+            "acct", "FundedNext", "USD", 1, T,
+            D("2000"), D("2000"), D(broker_free_margin),
+            nav, D("0"), source, nav,
+        ))
+        qdle.publish_symbol(QDLESymbol(
+            symbol, (symbol,), D(min_lot), D("40"), D(step), D("0"),
+            D(".00001"), D("1"), D("100000"), "USD",
+            D(fee), "SYNTHETIC_FEE_SCHEDULE_NOT_FUNDedNEXT", T,
+        ))
+        result = qdle.reserve_for_trader(intent, T)
+        receipt = audit_cibo_qdle_lotage(
+            cibo=cibo, observation=obs, votes=motor_votes,
+            result=result, broker_min_lot=D(min_lot),
+            broker_lot_step=D(step),
+        )
+    return result, receipt, obs, cibo, motor_votes
 
 
 def observation(*, nav="60", lane="PORTFOLIO_CUSHION", source="50",
@@ -160,6 +216,103 @@ class TestCiboQdleAuthority(unittest.TestCase):
             cibo=directive(obs, budget="0"), observation=obs, votes=votes(obs),
         )
         self.assertEqual(intent.requested_risk_usd, D("0"))
+
+
+    def test_qdle_dynamic_5pct_replayed_from_realized_qore_cashflows(self):
+        """20 pip EURUSD; never round the 5pct result up to exceed loss budget."""
+        for nav, expected in [
+            ("60", ".01"), ("100", ".02"), ("150", ".03"),
+            ("200", ".04"), ("300", ".07"), ("500", ".11"),
+            ("1000", ".23"),
+        ]:
+            with self.subTest(nav=nav):
+                actual, receipt, observation_at_entry, _, _ = run_cibo_physical_quote(
+                    nav=nav, stop_pips="20",
+                )
+                self.assertEqual(actual.lots, D(expected))
+                self.assertEqual(receipt.qore_nav_usd, D(nav))
+                self.assertEqual(receipt.sovereign_5pct_ceiling_usd, D(nav)*D(".05"))
+                self.assertLessEqual(receipt.all_in_risk_usd, D(nav)*D(".05"))
+                self.assertEqual(receipt.all_in_risk_usd, D(expected)*D("214"))
+                self.assertFalse(receipt.real_mt5_fill_proven)
+
+    def test_bank_medium_attack_examples_are_cibo_stop_not_qdle_strategy(self):
+        for nav, stop, lots, all_in in [
+            ("60", "10", ".02", "2.28"),
+            ("60", "18", ".01", "1.94"),
+            ("60", "25", ".01", "2.64"),
+            ("150", "10", ".06", "6.84"),
+            ("150", "18", ".03", "5.82"),
+            ("150", "25", ".02", "5.28"),
+        ]:
+            with self.subTest(nav=nav, trader_setup_stop_pips=stop):
+                result, receipt, _, cibo, _ = run_cibo_physical_quote(
+                    nav=nav, stop_pips=stop,
+                )
+                self.assertEqual(result.lots, D(lots))
+                self.assertEqual(receipt.all_in_risk_usd, D(all_in))
+                self.assertEqual(receipt.stop_price, cibo.stop_price)
+                self.assertEqual(receipt.total_roundtrip_cost_usd, result.lots*D("14"))
+                self.assertEqual(receipt.decision_state, "RESERVED_FOR_TRADER")
+
+    def test_qdle_does_not_force_minimum_when_fees_or_margin_unfundable(self):
+        cases = [
+            dict(nav="60", stop_pips="40", fee="14"),
+            dict(nav="60", stop_pips="10", fee="14",
+                 broker_free_margin="5"),
+            dict(nav="60", stop_pips="10", fee="14", allocation="0"),
+        ]
+        for params in cases:
+            with self.subTest(params=params):
+                result, receipt, *_ = run_cibo_physical_quote(**params)
+                self.assertEqual(result.lots, D("0"))
+                self.assertEqual(receipt.decision_state, "UNFUNDABLE")
+                self.assertIn("NO_FINANCEABLE_BROKER_LOT", receipt.reason_codes)
+                self.assertEqual(receipt.all_in_risk_usd, D("0"))
+
+    def test_cibo_smaller_risk_preserved_even_when_5pct_headroom_exists(self):
+        result, receipt, *_ = run_cibo_physical_quote(
+            nav="150", stop_pips="10", risk="2", allocation="40",
+        )
+        self.assertEqual(receipt.cibo_risk_budget_usd, D("2"))
+        self.assertEqual(receipt.cibo_allocated_funds_usd, D("40"))
+        self.assertEqual(result.lots, D(".01"))
+        self.assertEqual(receipt.all_in_risk_usd, D("1.14"))
+
+    def test_symbol_specific_fee_not_universal_forex_14(self):
+        result, receipt, *_ = run_cibo_physical_quote(
+            nav="60", stop_pips="10", fee="30", symbol="XAUUSD",
+        )
+        self.assertEqual(result.lots, D(".02"))
+        self.assertEqual(receipt.total_roundtrip_cost_usd, D(".60"))
+        self.assertEqual(receipt.all_in_risk_usd, D("2.60"))
+
+    def test_audit_detects_corrupted_fee_risk_and_grid(self):
+        result, _, obs, cibo, evotes = run_cibo_physical_quote(
+            nav="60", stop_pips="10",
+        )
+        bad = [
+            replace(result, total_risk_usd=D("0")),
+            replace(result, lots=D("0.015")),
+            replace(result, account_sequence=999),
+            replace(result, total_risk_usd=D("4")),
+        ]
+        for forged in bad:
+            with self.subTest(forged=forged):
+                with self.assertRaises(FourMotorPolicyError):
+                    audit_cibo_qdle_lotage(
+                        cibo=cibo, observation=obs, votes=evotes,
+                        result=forged, broker_min_lot=D(".01"),
+                        broker_lot_step=D(".01"),
+                    )
+
+    def test_audit_and_directive_are_not_mt5_orders(self):
+        _, receipt, *_ = run_cibo_physical_quote(nav="60", stop_pips="10")
+        self.assertFalse(receipt.real_mt5_fill_proven)
+        self.assertEqual(receipt.reason_codes[0], "RESERVED_NOT_EXECUTED")
+        self.assertEqual(receipt.broker_margin_usd, D("20"))
+        self.assertEqual(receipt.stop_loss_usd, D("2"))
+        self.assertEqual(receipt.total_roundtrip_cost_usd, D(".28"))
 
 
 if __name__ == "__main__":
