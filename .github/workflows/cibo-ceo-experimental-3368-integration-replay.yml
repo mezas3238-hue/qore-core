@@ -10,6 +10,10 @@ on:
       - "scripts/cibo_ceo_experimental_replay_audit.py"
       - "src/qore/infrastructure/cibo_sovereign_integration.py"
 
+concurrency:
+  group: ceo-experimental-3368-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
   actions: read
