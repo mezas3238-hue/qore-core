@@ -290,6 +290,17 @@ class TestCiboQdleAuthority(unittest.TestCase):
         self.assertEqual(receipt.total_roundtrip_cost_usd, D(".60"))
         self.assertEqual(receipt.all_in_risk_usd, D("2.60"))
 
+    def test_high_precision_stop_plus_roundtrip_fee_does_not_false_reject(self):
+        """QDLE prec=100 USDJPY-like risk must survive default Decimal 28 audit."""
+        result, receipt, _, _, _ = run_cibo_physical_quote(
+            nav="60", stop_pips="8.536303839023913079784226386",
+            fee="14", symbol="EURUSD",
+        )
+        self.assertEqual(result.lots, D("0.03"))
+        self.assertEqual(receipt.decision_state, "RESERVED_FOR_TRADER")
+        self.assertEqual(receipt.all_in_risk_usd, result.total_risk_usd)
+        self.assertLessEqual(receipt.all_in_risk_usd, D("3"))
+
     def test_audit_detects_corrupted_fee_risk_and_grid(self):
         result, _, obs, cibo, evotes = run_cibo_physical_quote(
             nav="60", stop_pips="10",
