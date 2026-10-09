@@ -6,6 +6,10 @@ on:
     paths:
       - ".github/workflows/cibo-p0-native-max-manager-qdle-3368.yml"
       - "scripts/cibo_p0_native_max_manager_advisory_3368.py"
+      - "scripts/qdle_3368_dual_ledger_replay.py"
+      - "src/qore/infrastructure/cibo_native_sovereign_qdle.py"
+      - "src/qore/infrastructure/cibo_sovereign_integration.py"
+      - "src/qore/infrastructure/cibo_p0_native_cognitive_management.py"
 permissions:
   contents: read
   actions: read
@@ -32,6 +36,7 @@ jobs:
           python -m unittest discover -s tests/infrastructure -p test_cibo_trader_signal_administration.py -q
           python -m unittest discover -s tests/infrastructure -p test_cibo_managed_exit_replay.py -q
           python -m unittest discover -s tests/infrastructure -p test_cibo_p0_native_cognitive_management.py -q
+          python -m unittest discover -s tests/infrastructure -p test_cibo_native_sovereign_qdle_p0.py -q
       - name: Obtain sealed historical Trader opportunities AND exact 3368 Native MAX cognition
         env:
           GH_TOKEN: ${{ github.token }}
