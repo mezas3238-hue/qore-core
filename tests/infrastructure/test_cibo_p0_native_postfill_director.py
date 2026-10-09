@@ -89,6 +89,54 @@ class CiboPostfillCognitionTests(unittest.TestCase):
         self.assertTrue(all(x["native_faculties_applicable"]>=16
                             for x in director.receipts))
 
+    def test_true_native_max_controls_managed_trade_without_mode_template(self):
+        from qore.infrastructure.cibo_managed_exit_replay import (
+            CiboManagedTrade, ExecutableOhlcBar,
+        )
+        def account(at):
+            return ResearchAccountAtClose(
+                observed_at=at,qore_cash_usd=D("60"),peak_cash_usd=D("60"),
+                open_stop_risk_usd=D(".30"),broker_margin_held_usd=D("12"),
+                open_positions=1,broker_cash_usd=D("2000"),
+            )
+        director=CiboNativeMaxPostfillResearchDirector(
+            original=original(),account_at_close=account,min_lot=D(".01"))
+        t=CiboManagedTrade(
+            signal_id="native-case-1",symbol="XAUUSD",side="BUY",
+            entry_at=AT,entry_price=D("3000.2"),
+            trader_structural_stop_price=D("2990.2"),
+            economic_stop_price=D("2990.2"),
+            trader_take_profit_price=D("3040.2"),
+            lots=D(".02"),min_lot=D(".01"),lot_step=D(".01"),
+            price_pnl_usd_per_lot_per_unit=D("1"),
+            roundtrip_commission_usd_per_lot=D("1"),
+            maximum_all_in_risk_usd=D("3"),
+        )
+        def b(start,opening,high,low,close):
+            start_at=AT+timedelta(minutes=start)
+            return ExecutableOhlcBar(
+                opened_at=start_at,closed_at=start_at+timedelta(minutes=5),
+                bid_open=D(opening),bid_high=D(high),
+                bid_low=D(low),bid_close=D(close),
+                ask_open=D(opening)+D(".2"),ask_high=D(high)+D(".2"),
+                ask_low=D(low)+D(".2"),ask_close=D(close)+D(".2"),
+                evidence_sha256=SHA,
+            )
+        bars=(
+            b(0,"3000","3007","2999","3006"),
+            b(5,"3005","3012","3003","3008"),
+        )
+        result=replay_cibo_managed_position(
+            t,bars,postfill_decider=director,
+        )
+        self.assertEqual(result.status,"NEEDS_PRICE_PATH")
+        self.assertEqual(len(director.receipts),2)
+        self.assertTrue(all(item["recomputed_native_max"] for item in director.receipts))
+        self.assertTrue(all(item["broker_fills"]==0 for item in director.receipts))
+        self.assertIn("NATIVE_POSTFILL_AT_CLOSE","|".join(result.actions))
+        self.assertEqual(result.mt5_fills_proven,0)
+        self.assertFalse(result.certified)
+
     def test_postfill_account_is_exact_bar_epoch(self):
         director=CiboNativeMaxPostfillResearchDirector(
             original=original(),
