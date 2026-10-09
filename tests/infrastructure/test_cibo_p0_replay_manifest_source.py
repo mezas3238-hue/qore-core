@@ -22,6 +22,13 @@ class ManifestSourceTest(unittest.TestCase):
         out=original_chronological_signals(data,expected_count=3)
         self.assertEqual([x["signal_fingerprint"] for x in out],["a","b","z"])
         self.assertTrue(all("mode" not in x for x in out))
+    def test_canonical_nas100_alias_keeps_trader_identity(self):
+        row=self.make_row("vt31","2021-01-01T10:00:00+00:00","VT31_NAS100")
+        row["qore_symbol"]="NAS100"
+        out=original_chronological_signals({"opportunities":[row]},expected_count=1)
+        self.assertEqual(out[0]["symbol"],"NDX100")
+        self.assertEqual(out[0]["trader"],"VT31_NAS100")
+
     def test_duplicates_and_naive_time_fail(self):
         r=self.make_row("a","2021-01-01T10:00:00+00:00")
         with self.assertRaisesRegex(CiboP0ManifestSourceError,"duplicate"):
