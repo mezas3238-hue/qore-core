@@ -7,6 +7,11 @@ from decimal import Decimal
 
 import pytest
 
+from qore.infrastructure.traders.vt31_nas100_causal_fact_producers import (
+    CausalBooleanFact,
+    CausalDestinationFact,
+    MarketNativeProducerReport,
+)
 from qore.infrastructure.traders.vt31_nas100_position_intelligence import (
     PositionAction,
     ProtectionUrgency,
@@ -16,6 +21,7 @@ from qore.infrastructure.traders.vt31_nas100_position_intelligence import (
 from qore.infrastructure.traders.vt31_nas100_post_entry_cognitive_runtime import (
     PostEntryCausalObservation,
     PostEntryMarketFacts,
+    build_market_facts_from_causal_report,
     reassess_and_decide_post_entry,
     rebuild_post_entry_situation,
     revalidate_prospective_fill,
@@ -447,4 +453,98 @@ def test_fill_time_requires_exact_as_of_prospective_open() -> None:
                 datetime.fromisoformat(observation.as_of) + timedelta(minutes=1)
             ),
             apply_comp008_admission=False,
+        )
+
+
+def _native_report(
+    *,
+    as_of: str,
+    structure: bool | None = True,
+    target_status: str = "NOT_APPLICABLE",
+) -> MarketNativeProducerReport:
+    timestamp = datetime.fromisoformat(as_of)
+    observed = lambda name, value: CausalBooleanFact(
+        name=name,
+        status="OBSERVED" if value is not None else "NOT_EVALUABLE",
+        value=value,
+        observed_at=timestamp if value is not None else None,
+        source="closed-m1-frozen-thesis-fixture",
+        reason="FIXTURE_EVIDENCE",
+    )
+    return MarketNativeProducerReport(
+        as_of=timestamp,
+        structure_invalidated=observed("structure_invalidated", structure),
+        liquidity_failure_confirmed=observed(
+            "liquidity_failure_confirmed", False
+        ),
+        regime_changed_against_thesis=observed(
+            "regime_changed_against_thesis", False
+        ),
+        next_structural_target=CausalDestinationFact(
+            status=target_status,
+            candidate=None,
+            observed_at=None,
+            source="explicit-destination-lifecycle",
+            reason="FIXTURE",
+        ),
+    )
+
+
+def test_causal_native_report_reaches_canonical_position_exit() -> None:
+    entry = _entry_situation()
+    observation = _observation(dol1_state="ACTIVE_OPPOSITE_09_BOUNDARY")
+    report = _native_report(as_of=observation.as_of, structure=True)
+    market = build_market_facts_from_causal_report(
+        template=_market(),
+        report=report,
+        observation=observation,
+    )
+    assert market.structure_invalidated is True
+    assert market.next_structural_target is None
+    decision = reassess_and_decide_post_entry(
+        entry_situation=entry,
+        entry_reasoning=reason(entry),
+        observation=observation,
+        market=market,
+        entry_tier="CORE",
+    )
+    assert decision.position.action is PositionAction.EXIT
+    assert decision.position.reason == "STRUCTURAL_INVALIDATION_CONFIRMED"
+
+
+def test_missing_mandatory_native_report_refuses_canonical_bridge() -> None:
+    observation = _observation()
+    report = _native_report(as_of=observation.as_of, structure=None)
+    with pytest.raises(ValueError, match="mandatory native fact not evaluable"):
+        build_market_facts_from_causal_report(
+            template=_market(),
+            report=report,
+            observation=observation,
+        )
+
+
+def test_required_next_target_and_future_report_fail_closed() -> None:
+    observation = _observation()
+    report = _native_report(
+        as_of=observation.as_of,
+        target_status="MISSING_REQUIRED",
+    )
+    with pytest.raises(ValueError, match="required next structural target"):
+        build_market_facts_from_causal_report(
+            template=_market(),
+            report=report,
+            observation=observation,
+        )
+    earlier = replace(
+        observation,
+        as_of=(
+            datetime.fromisoformat(observation.as_of)
+            - timedelta(minutes=1)
+        ).isoformat(),
+    )
+    with pytest.raises(ValueError, match="must match position decision as_of"):
+        build_market_facts_from_causal_report(
+            template=_market(),
+            report=report,
+            observation=earlier,
         )
