@@ -27,6 +27,9 @@ from qore.infrastructure.qore_dynamic_lot_engine import (
     BrokerValuation, Position,
 )
 from qore.infrastructure.qdle_paper_book import PaperQDLE
+from qore.infrastructure.cibo_trader_lab_fresh_four_motor_votes import (
+    calculate_fresh_paper_four_votes, paper_cashflow,
+)
 from qore.infrastructure.cibo_managed_exit_replay import (
     CiboExitPolicy, CiboManagedTrade, ExecutableOhlcBar,
     ManagedReplayError, replay_cibo_managed_position,
@@ -118,7 +121,7 @@ def price_usd_per_unit(symbol):
 
 def _mode_quote(row, symbol, side, entry, stop, stop_per_lot,
                 opening_fee, as_of, nav, reserved, margin_held, index,
-                q, active):
+                q, active, paper_cash_events):
     """One persistent PAPER QDLE quote; reused account-wide, never LIVE."""
     broker = q.calculator
     broker.value_at = BrokerValuation(
@@ -128,8 +131,8 @@ def _mode_quote(row, symbol, side, entry, stop, stop_per_lot,
     nav = max(nav, ZERO)
     free_qore = max(nav - reserved, ZERO)
     free_margin = max(BROKER_INITIAL + nav-INITIAL-margin_held, ZERO)
-    caps = row["four_engine_caps_usd"]
-    scale = nav / INITIAL
+    # CIBO's Native instruction is still cached on this research baseline;
+    # the four economic producers below are genuinely re-invoked NOW.
     instruction_fraction = _d(row["cibo_max_native_requested_risk_fraction_of_nav"])
     if instruction_fraction not in (D("0.0125"), D("0.025"), D("0.05")):
         raise ValueError("native risk mode fraction invalid")
@@ -162,20 +165,20 @@ def _mode_quote(row, symbol, side, entry, stop, stop_per_lot,
         as_of=as_of, tradable=True,
         ))
         broker.last_spec_at[symbol] = as_of
-    intent=QDLEIntent(
-        request_id=sid,trader_id=row["trader"],symbol=symbol,side=side,
-        entry_price=entry,stop_price=stop,
-        requested_risk_usd=nav*instruction_fraction,
-        sizing_cap_usd=min(nav*FIVE, _d(caps["SIZING"])*scale),
-        cibo_compound_cap_usd=min(nav*FIVE, _d(caps["CIBO_COMPOUND"])*scale),
-        portfolio_cap_usd=min(nav*FIVE, _d(caps["PORTFOLIO_COMPOUND_AVAILABLE_SOURCE"])*scale),
-        leverage_cap_lots=max(ZERO,_d(row["leverage_max_lots"])),
-        margin_cap_usd=min(free_margin,_d(row["leverage_margin_budget_usd"])),
-        source_lane="SOVEREIGN_BANK",slippage_usd_per_lot=ZERO,
-        expected_account_sequence=index+1,
+    economic = calculate_fresh_paper_four_votes(
+        signal_id=sid, trader_id=row["trader"], symbol=symbol, side=side,
+        at=as_of, sequence=index+1, entry_price=entry, stop_price=stop,
+        requested_fraction=instruction_fraction, current_paper_cash_usd=nav,
+        paper_initial_capital_usd=INITIAL,
+        paper_broker_balance_usd=BROKER_INITIAL+nav-INITIAL,
+        stop_loss_usd_per_lot=stop_per_lot,
+        estimated_fee_per_lot=opening_fee,
+        broker_margin_per_lot=MARGIN[symbol][side],
+        symbol_max_lots=D("50") if symbol=="XAUUSD" else D("40"),
+        open_positions=active, paper_cash_events=tuple(paper_cash_events),
     )
-    result=q.reserve_for_trader(intent,now=as_of)
-    return result
+    result=q.reserve_for_trader(economic.intent,now=as_of)
+    return result, economic
 
 
 def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
@@ -208,6 +211,7 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
     closings=[]
     rows=[]
     closed=[]
+    paper_cash_events=[]
     bank=INITIAL
     peak=INITIAL
     max_dd=ZERO
@@ -234,6 +238,8 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
                 raise ValueError("duplicate closing")
             trade=active.pop(sid)
             qdle.paper_settle(sid, exit_time, gross)
+            paper_cash_events.append(paper_cashflow(
+                event_id="CLOSE_GROSS:"+sid, at=exit_time, delta_usd=gross))
             bank+=gross  # OPEN fee was already debited at entry
             net_wins+=max(net,ZERO)
             net_losses+=max(-net,ZERO)
@@ -315,9 +321,10 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
             held_risk=sum(x["risk"] for x in active.values())
             held_margin=sum(x["margin"] for x in active.values())
             try:
-                q=_mode_quote(d,symbol,side,entry,stop_econ,risk_per_lot,
+                q, economic=_mode_quote(d,symbol,side,entry,stop_econ,risk_per_lot,
                               tariff.total_usd,first.opened_at,bank,
-                              held_risk,held_margin,sequence,qdle,active)
+                              held_risk,held_margin,sequence,qdle,active,
+                              paper_cash_events)
                 sequence+=1
             except (QDLEError,ValueError) as exc:
                 counts["qdle_rejected"]+=1
@@ -325,6 +332,20 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
                 r["error"]=str(exc)[:120]
                 paper_unassessable("QDLE_ERROR: " + r["error"])
                 rows.append(r);continue
+            receipts = economic.receipts()
+            if len(receipts) != 4:
+                raise ValueError("incomplete four-engine causal PAPER evaluation")
+            r["four_engine_current_votes"] = receipts
+            r["four_engine_observation"] = {
+                "observed_at": economic.observation.observed_at.isoformat(),
+                "account_sequence": economic.observation.account_sequence,
+                "paper_cash_nav_usd": str(economic.observation.qore_nav_usd),
+                "open_stop_risk_usd": str(economic.observation.total_open_stop_risk_usd),
+                "scenario_only_not_broker_verified": True,
+                "cashflow_event_count": len(paper_cash_events),
+            }
+            counts["fresh_four_motor_signal_decisions"]+=1
+            counts["fresh_four_motor_producer_votes"]+=4
             r["qdle_assessment_state"] = q.state
             r["qdle_lots"]=str(q.lots)
             r["qdle_all_in_risk"]=str(q.total_risk_usd)
@@ -373,6 +394,8 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
             # Research entry occurs before outcome is known; missing future
             # prices DO NOT cause a fake settlement nor restore an opening fee.
             bank-=fee
+            paper_cash_events.append(paper_cashflow(
+                event_id="OPEN_FEE:"+sid, at=first.opened_at, delta_usd=-fee))
             opened_fees+=fee
             total_lots+=q.lots
             mark_cash()
@@ -380,6 +403,7 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
                 "risk":q.total_risk_usd,"margin":q.margin_usd,
                 "lots":q.lots,"fee":fee,"opened_at":first.opened_at,
                 "mode":mode,"symbol":symbol,"side":side,
+                "trader":d["trader"],
                 "paper_ticket":paper_ticket,
             }
             r["status"]="PAPER_OPEN"
@@ -437,6 +461,9 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
         "signal_count":3368,"counts":dict(counts),
         "qdle_persistent_paper_ledger":paper_coverage,
         "qdle_book_role":"SINGLE_ACCOUNT_PAPER_ONLY_NOT_BROKER",
+        "four_motor_votes_fresh_per_physical_quote":True,
+        "four_motor_votes_broker_authenticated":False,
+        "four_motor_votes_research_only":True,
         "by_mode":{k:dict(v) for k,v in per_mode.items()},
         "by_symbol":{k:dict(v) for k,v in per_symbol.items()},
         "qore_initial_nav_usd":str(INITIAL),
@@ -462,7 +489,8 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
             "Atlas M5 unknown bid/ask side; executable bid/ask modeled via constant offset",
             "USDJPY uses October 2026 conversion anchor, not historical cross rate",
             "QDLE uses one persistent PAPER book for all signals, with separate PAPER fill/settlement state, not MT5 deals",
-            "Historical four-engine caps are scaled from 60 USD; new independent votes are NOT implemented",
+            "Four producer functions rerun on causal settled PAPER cashbook and open stop reservations for each physically priceable signal, NOT cached NAV60 caps",
+            "Four producer votes are scenario-only and NOT authenticated MT5 economics; 20 invalid geometries still need cognitive replanning",
             "No fresh Native MAX cognitive episode per signal; receipts and exit policies remain precomputed",
             "Not all signals have valid geometry/market observations for physical sizing; unassessable audited separately",
             "Paper fill next eligible M5 open; original LIMIT order fills not reconstructed",
