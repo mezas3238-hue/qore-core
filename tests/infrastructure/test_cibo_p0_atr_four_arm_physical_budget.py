@@ -56,6 +56,19 @@ class FourArmPhysicalContractTests(unittest.TestCase):
         self.assertEqual(b["fee_open_usd_per_lot"],"7.00")
         self.assertEqual(b["status"],"RESEARCH_POSITIVE_PHYSICAL_LOT_QUOTE")
 
+    def test_after_open_fee_5pct_cap_rounds_three_lots_down_to_two(self):
+        x=quote(arm="B-X",mode="BANK",entry=D("1.1000"),
+                structural_stop=D("1.0980"),atr14=D("0.00186"))
+        # 0.50 ATR = .00093 => $93 stop + $7 opening fee = $100/l.
+        # Before opening commission 0.03 lots would exactly spend $3,
+        # but afterwards NAV falls to $59.79 and its 5% is $2.9895.
+        self.assertEqual(D(x["lots"]),D("0.02"))
+        self.assertLessEqual(
+            D(x["risk_usd"]),
+            D(x["nav_after_open_fee_usd"])*D("0.05"),
+        )
+        self.assertEqual(D(x["risk_usd"]),D("2.00"))
+
     def test_portfolio_total_held_hard_cap(self):
         allowed=quote(held_risk=D("2.50"))
         self.assertEqual(allowed["portfolio_new_risk_limit_usd"],"0.50")
