@@ -7,6 +7,7 @@ on:
       - ".github/workflows/cibo-trader-lab-native-qdle-market-atlas-3368.yml"
       - "scripts/cibo_trader_lab_native_qdle_market_atlas_3368.py"
       - "scripts/cibo_trader_lab_p0_winrate_540_diagnostic.py"
+      - "scripts/cibo_trader_lab_source_signal_audit_3368.py"
       - "tests/infrastructure/test_cibo_trader_lab_p0_winrate_diagnostic.py"
       - "src/qore/infrastructure/qdle_paper_book.py"
       - "src/qore/infrastructure/cibo_trader_lab_fresh_four_motor_votes.py"
@@ -174,6 +175,32 @@ jobs:
             "paired_arm_counts":{k:v["paired_with_managed"] for k,v in j["fixed_counterfactual_pairs"].items()},
           },sort_keys=True))
           PY
+      - name: Audit original Trader signal source families and actual strategy timeframes
+        run: |
+          python scripts/cibo_trader_lab_source_signal_audit_3368.py \
+            --manifest "$RUNNER_TEMP/cibo-atlas-3368/walk-forward-manifest.json" \
+            --replay "$RUNNER_TEMP/cibo-atlas-3368/trader-lab-cibo-qdle-spread-3368.json" \
+            --output "$RUNNER_TEMP/cibo-atlas-3368/cibo-p0-source-signal-audit-3368.json"
+      - name: Assert 3368 provenance, seven Traders and source H1/H4/M1/M15 evidence
+        run: |
+          python - <<'PY'
+          import json,os,pathlib
+          p=pathlib.Path(os.environ["RUNNER_TEMP"])/"cibo-atlas-3368"
+          j=json.loads((p/"cibo-p0-source-signal-audit-3368.json").read_text())
+          assert j["classification"]=="RESEARCH_ONLY_FROZEN_BURNED_NOT_OOS"
+          assert j["total"]["source_signals"]==3368
+          assert j["total"]["paper_openings"]==540
+          assert j["total"]["paper_settled"]==538
+          assert j["total"]["unresolved_openings"]==2
+          assert {k:int(v["source_signals"]) for k,v in j["groups"]["timeframe"].items()} == {
+            "H1":2229,"H4":493,"M1":484,"M15":162}
+          assert len(j["groups"]["trader"])==7
+          assert j["source_reuse_governance"]["fresh_oos_claimed"] is False
+          print("TRADER_LAB_P0_SOURCE_PROVENANCE_PASS", json.dumps({
+            "origins":{k:v["source_signals"] for k,v in j["groups"]["trader"].items()},
+            "timeframes":{k:v["source_signals"] for k,v in j["groups"]["timeframe"].items()},
+          }, sort_keys=True),flush=True)
+          PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -181,4 +208,5 @@ jobs:
           path: |
             ${{ runner.temp }}/cibo-atlas-3368/trader-lab-cibo-qdle-spread-3368.json
             ${{ runner.temp }}/cibo-atlas-3368/cibo-p0-winrate-frozen-540-diagnostic.json
+            ${{ runner.temp }}/cibo-atlas-3368/cibo-p0-source-signal-audit-3368.json
           if-no-files-found: warn
