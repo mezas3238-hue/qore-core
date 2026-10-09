@@ -58,7 +58,7 @@ def classify(event: dict) -> dict:
         "ECONOMIC_STOP_AND_QDLE_QUOTE",
     ):
         raise CompoundAuditError(f"unsupported manager action {action}")
-    caps = event["four_engine_caps_usd"]
+    caps = event.get("four_engine_caps_usd")
     if not caps or "CIBO_COMPOUND" not in caps or "SIZING" not in caps:
         raise CompoundAuditError("four-motor economic evidence absent")
     nav = _d(event["nav_at_decision_usd"], "nav")
