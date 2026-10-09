@@ -129,8 +129,11 @@ def _mode_quote(row, symbol, side, entry, stop, stop_per_lot,
         "TRADER_LAB_ATLAS_M5_CEO_2026_FIXED_SPREAD_RESEARCH",
     )
     nav = max(nav, ZERO)
-    free_qore = max(nav - reserved, ZERO)
-    free_margin = max(BROKER_INITIAL + nav-INITIAL-margin_held, ZERO)
+    # PAPER_FILLED risk and margin remain atomically reserved in SQLite.
+    # Publish the gross current cash/NAV source ONCE. Subtracting active
+    # here AND in QDLE would double-count and bias financing/selection.
+    free_qore = nav
+    free_margin = max(BROKER_INITIAL + nav-INITIAL, ZERO)
     # CIBO's Native instruction is still cached on this research baseline;
     # the four economic producers below are genuinely re-invoked NOW.
     instruction_fraction = _d(row["cibo_max_native_requested_risk_fraction_of_nav"])
@@ -144,10 +147,9 @@ def _mode_quote(row, symbol, side, entry, stop, stop_per_lot,
         qore_unreserved_risk_usd=free_qore,
         sovereign_free_source_usd=free_qore, cushion_free_source_usd=ZERO,
         qore_trading_capital_usd=nav,
-        positions=tuple(Position(ticket=p["paper_ticket"], symbol=p["symbol"],
-                                 side=p["side"], lots=p["lots"])
-                        for p in active.values()),
-        covered_fill_tickets=tuple(p["paper_ticket"] for p in active.values()),
+        # The single PAPER book already accounts for each open lot; do not
+        # mirror it as a broker Position or mark a fake covered MT5 ticket.
+        positions=(), covered_fill_tickets=(),
     ))
     # Reuse one market spec when several signals have the same M5 open.
     if broker.last_spec_at.get(symbol) != as_of:
