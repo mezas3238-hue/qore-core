@@ -83,19 +83,19 @@ def audit(manifest: dict, native: dict, qdle: dict, joined: dict | None = None) 
             if "cibo_qdle_audit" in d:
                 linked += 1
                 a = d["cibo_qdle_audit"]
-                if D(a["all_in_risk_reserved_usd"]) > D(a["five_percent_max_usd"]):
+                if Decimal(a["all_in_risk_reserved_usd"]) > Decimal(a["five_percent_max_usd"]):
                     violations.append(sid)
                 if a.get("real_mt5_fill_proven") is not False:
                     raise ValueError("fabricated joined MT5 fill")
             elif sid in n_authorized:
                 unbudgeted += 1
-            if D(str(d.get("lots", "0"))) > 0:
+            if Decimal(str(d.get("lots", "0"))) > 0:
                 by_lane[str(d.get("cibo_source_lane", "UNKNOWN"))] += 1
                 if ("realized_pnl_usd_proxy" in d
-                    and D(str(d["realized_pnl_usd_proxy"])) < 0
+                    and Decimal(str(d["realized_pnl_usd_proxy"])) < 0
                     and "nav_at_decision_usd" in d
-                    and abs(D(str(d["realized_pnl_usd_proxy"])))
-                    > D(str(d["nav_at_decision_usd"])) * D("0.05")):
+                    and abs(Decimal(str(d["realized_pnl_usd_proxy"])))
+                    > Decimal(str(d["nav_at_decision_usd"])) * Decimal("0.05")):
                     losses_over_5pct += 1
         if violations:
             raise ValueError("joined QDLE risk exceeded 5pct on " + str(len(violations)) + " signals")
