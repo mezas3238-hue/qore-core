@@ -690,6 +690,18 @@ class QDLE:
                           acc: QDLEAccount, valuation: BrokerValuation,
                           free_source: Decimal, remaining_risk: Decimal,
                           remaining_margin: Decimal, volume_cap: Decimal) -> QDLEResult:
+            # In PAPER a commission debit immediately reduces QORE NAV.
+            # Enforce held_total + new all-in SL loss <= 5% of NAV AFTER
+            # the opening fee. Treating all scheduled fee as opening cost
+            # is conservative when the provider splits the charge.
+            paper_after_fee_cap = volume_cap
+            if self.research_paper_mode:
+                per_lot_loss = (
+                    valuation.stop_loss_per_lot_usd + spec.fee_usd_per_lot
+                    + intent.slippage_usd_per_lot
+                )
+                denom = per_lot_loss + self.entry_risk_fraction * spec.fee_usd_per_lot
+                paper_after_fee_cap = max(Decimal(0), remaining_risk / denom)
             input_spec = CiboLotSizingInput(
                 requested_loss_budget_usd=min(intent.requested_risk_usd,
                     acc.qore_trading_capital_usd * self.entry_risk_fraction),
@@ -710,7 +722,8 @@ class QDLE:
                 leverage_available_margin_usd=min(
                     remaining_margin, intent.margin_cap_usd),
                 sovereign_unreserved_risk_usd=remaining_risk,
-                leverage_max_lots=min(intent.leverage_cap_lots, volume_cap),
+                leverage_max_lots=min(intent.leverage_cap_lots, volume_cap,
+                                      paper_after_fee_cap),
                 requested_target_lots=intent.requested_target_lots,
             )
             # Every positive quote must pass native broker order_check (or
