@@ -17,6 +17,7 @@ from pathlib import Path
 import hashlib
 import heapq
 import json
+import sqlite3
 import tempfile
 
 from qore.infrastructure.qdle_stellar_instant_costs import (
@@ -466,6 +467,15 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
         settle(datetime.max.replace(tzinfo=chronological[-1] and datetime.fromisoformat(chronological[-1]["at"]).tzinfo))
         qdle.assert_paper_positions(active)
         paper_coverage = qdle.paper_coverage()
+        paper_audit = qdle.paper_audit_digest()
+        # Archive the ONLY authoritative PAPER book before cleanup, with a
+        # consistent SQLite backup (never a file copy of an open WAL).
+        ledger_archive = Path(workdir)/"cibo-p0-canonical-paper-3368.sqlite"
+        with sqlite3.connect(qdle.path) as open_book, sqlite3.connect(ledger_archive) as archived:
+            open_book.backup(archived)
+        paper_archive_sha256 = "sha256:" + hashlib.sha256(
+            ledger_archive.read_bytes()
+        ).hexdigest()
     if counts["received"]!=3368:
         raise ValueError("unexpected native input cardinality")
     if paper_coverage["received_accounted"] != 3368:
@@ -490,6 +500,10 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
         "atlas_provenance":metadata,
         "signal_count":3368,"counts":dict(counts),
         "qdle_persistent_paper_ledger":paper_coverage,
+        "qdle_canonical_sqlite_role":"PaperQDLE_V1_SINGLE_RESERVATION_BOOK",
+        "qdle_paper_event_audit":paper_audit,
+        "qdle_paper_sqlite_sha256":paper_archive_sha256,
+        "qdle_paper_archive_filename":ledger_archive.name,
         "qdle_book_role":"SINGLE_ACCOUNT_PAPER_ONLY_NOT_BROKER",
         "four_motor_votes_fresh_per_physical_quote":True,
         "four_motor_votes_broker_authenticated":False,
