@@ -17,21 +17,10 @@ from contextlib import ExitStack
 from pathlib import Path
 from zipfile import ZipFile
 
+from qore.infrastructure.cibo_p0_native_cognitive_management import native_sensor_management_plan
+
 SOURCE_MEMBER = "cibo-native-baseline.json"
 MANIFEST_MEMBER = "walk-forward-manifest.json"
-
-MANAGEMENT_POLICY = {
-    # Economic precaution is expressed as exit management, not a veto.
-    "BANK": {"partial_at_r":"0.75", "breakeven_at_r":"0.75",
-             "trailing_activate_at_r":"1.1", "trailing_distance_r":"0.5",
-             "defensive_close_at_r":"-0.35"},
-    "MEDIUM": {"partial_at_r":"1", "breakeven_at_r":"1",
-               "trailing_activate_at_r":"1.5", "trailing_distance_r":"0.75",
-               "defensive_close_at_r":"-0.5"},
-    "ATTACK": {"partial_at_r":"1.5", "breakeven_at_r":"1.5",
-               "trailing_activate_at_r":"2", "trailing_distance_r":"1",
-               "defensive_close_at_r":"-0.75"},
-}
 
 class NativeManagementEvidenceError(ValueError):
     pass
@@ -93,7 +82,7 @@ def _calibration_note(row: dict) -> str:
 
 
 def classify_native_advisory(row: dict, original: dict) -> dict:
-    """Classify by actual Native MAX disposition, never fabricate positive utility."""
+    """Use real causal MAX sensors for a research economic plan, not legacy gates."""
     sid=row.get("signal_fingerprint")
     if (sid!=original["signal_fingerprint"]
         or row.get("trader_id")!=original["trader_id"]
@@ -104,22 +93,12 @@ def classify_native_advisory(row: dict, original: dict) -> dict:
             and row.get("outcome_used_for_predecision") is False
             and row.get("external_ai_call_count")==0):
         raise NativeManagementEvidenceError("Native MAX causal semantic integrity not verified")
-    disposition=row["capital_disposition"]
-    note=_calibration_note(row)
-    if disposition=="COGNITIVE_BLOCK":
-        if note not in (
-            "nonpositive-causal-expected-net-utility",
-            "walk-forward-provisional-forecast-history-required",
-            "walk-forward-cold-start-history-required",
-        ):
-            raise NativeManagementEvidenceError("Native MAX unknown cognitive reason")
-        mode="BANK"
-    elif disposition=="CAPITAL_BLOCK":
-        mode="MEDIUM"
-    elif disposition=="RISK_REVIEW_READY":
-        mode="ATTACK"
-    else:
+    disposition=row["capital_disposition"]  # audit only; NEVER controls the plan
+    if disposition not in ("COGNITIVE_BLOCK", "CAPITAL_BLOCK", "RISK_REVIEW_READY"):
         raise NativeManagementEvidenceError("Native MAX unknown legacy disposition")
+    note=_calibration_note(row)
+    plan=native_sensor_management_plan(row)
+    mode=plan["mode"]
     return {
         "signal_fingerprint":sid,
         "trader_id":row["trader_id"],
@@ -128,8 +107,10 @@ def classify_native_advisory(row: dict, original: dict) -> dict:
         "native_max_semantic_digest":row["semantic_digest"],
         "native_legacy_capital_disposition_for_diagnostics_only":disposition,
         "native_max_calibration_note":note,
-        "manager_mode_SHADOW_from_native_legacy_disposition":mode,
-        "manager_exit_policy_SHADOW":dict(MANAGEMENT_POLICY[mode]),
+        "manager_mode_SHADOW_from_native_cognitive_sensors":mode,
+        "manager_risk_fraction_of_nav_SHADOW":plan["requested_risk_fraction_of_current_qore_nav"],
+        "manager_cognitive_sensor_evidence_SHADOW":plan,
+        "manager_exit_policy_SHADOW":plan["exit_policy_SHADOW"],
         "trader_signal_received":True,
         "admission_gate_applied":False,
         "economic_stop_and_lot_owned_by_cibo_qdle_not_native_abstract_volume":True,
@@ -152,7 +133,7 @@ def prepare(manifest: dict, native_rows) -> dict:
     if set(by_id)!=set(original):
         raise NativeManagementEvidenceError("Native MAX failed 3368 coverage")
     receipt_list=[by_id[r["signal_fingerprint"]] for r in rows]
-    mode=Counter(r["manager_mode_SHADOW_from_native_legacy_disposition"] for r in receipt_list)
+    mode=Counter(r["manager_mode_SHADOW_from_native_cognitive_sensors"] for r in receipt_list)
     notes=Counter(r["native_max_calibration_note"] for r in receipt_list)
     legacy=Counter(r["native_legacy_capital_disposition_for_diagnostics_only"] for r in receipt_list)
     digest="sha256:"+hashlib.sha256(json.dumps(
@@ -165,6 +146,8 @@ def prepare(manifest: dict, native_rows) -> dict:
         "cognitive_intelligence_receipts_consumed":3368,
         "trader_signals_received":3368,
         "manager_exit_policies_are_research_hypotheses":True,
+        "cognitive_sensor_evidence_controls_qdle_risk_request":True,
+        "legacy_disposition_is_not_an_economic_policy_input":True,
         "exit_price_path_reconstruction_done":False,
         "real_mt5_fills":0,
         "seal_sha256":digest,
