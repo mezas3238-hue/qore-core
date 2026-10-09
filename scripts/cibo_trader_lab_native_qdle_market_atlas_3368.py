@@ -254,6 +254,7 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
     total_lots=ZERO
     worst_intratrade = ZERO
     sequence=0
+    flows=[]  # paper cash events, NOT authenticated broker settlements
 
     def mark_cash():
         nonlocal peak,max_dd
@@ -268,6 +269,15 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
             if sid not in active:
                 raise ValueError("duplicate closing")
             trade=active.pop(sid)
+            engine.finish_research_reservation(
+                request_id=sid,
+                event_id=paper_hash("CLOSED",sid,exit_time.isoformat(),gross),
+                reason="PAPER_CLOSED",now=exit_time,
+            )
+            flows.append(ReconciledQoreCashflow(
+                sid+":paper_settlement",exit_time,gross,
+                paper_hash("PAPER_SETTLEMENT",sid,exit_time.isoformat(),gross),True,
+            ))
             bank+=gross  # OPEN fee was already debited at entry
             net_wins+=max(net,ZERO)
             net_losses+=max(-net,ZERO)
@@ -287,6 +297,10 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
     with tempfile.TemporaryDirectory(prefix="cibo-trader-lab-qdle-",
                                      dir=workdir) as tmp:
         td=Path(tmp)
+        broker=ResearchM5Broker()
+        engine=QDLE(td/"research-account.sqlite",broker,
+                    strict_live_fee_evidence=False,strict_four_motor_evidence=False)
+        published_symbols={}
         for idx, d in enumerate(chronological):
             sid=d["signal_fingerprint"]
             at=datetime.fromisoformat(d["at"])
@@ -300,14 +314,30 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
             counts["received"]+=1
             r={"signal_fingerprint":sid,"symbol":symbol,"mode":mode,
                "signal_at":d["signal_at"],"qdle_at":at.isoformat()}
+            sequence+=1
+            publish_paper_account(engine,at,bank,sequence)
+
+            def reject_unquotable(reason):
+                refusal=engine.reject_research_unquotable(
+                    request_id=sid,trader_id=d["trader"],
+                    symbol=symbol,side=side,reason=reason,now=at,
+                )
+                counts["qdle_assessed"]+=1
+                r["qdle_lots"]=str(refusal.lots)
+                r["qdle_state"]=refusal.state
+                r["qdle_binding_limits"]=list(refusal.binding_limits)
+                r["four_motor_voted_count"]=0
+
             if bank<=ZERO:
                 counts["nav_exhausted"]+=1
-                r["status"]="NO_QORE_NAV";rows.append(r);continue
+                r["status"]="NO_QORE_NAV";reject_unquotable(r["status"])
+                rows.append(r);continue
             bars,opened=atlas[symbol]
             pos=bisect_left(opened,at)
             if pos>=len(opened) or opened[pos] > at+timedelta(minutes=5):
                 counts["no_executable_atlas_entry"]+=1
-                r["status"]="NO_ATLAS_M5_ENTRY";rows.append(r);continue
+                r["status"]="NO_ATLAS_M5_ENTRY";reject_unquotable(r["status"])
+                rows.append(r);continue
             first=bars[pos]
             midpoint=first.open
             spread=SCREENSHOT_SPREAD[symbol]
@@ -319,7 +349,8 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
             target_dist=abs(original_entry-_d(original["take_profit"]))
             if not (dist>ZERO and ZERO<econ_dist<=dist and target_dist>half):
                 counts["invalid_original_geometry"]+=1
-                r["status"]="INVALID_GEOMETRY";rows.append(r);continue
+                r["status"]="INVALID_GEOMETRY";reject_unquotable(r["status"])
+                rows.append(r);continue
             direction=D(1) if side=="BUY" else D(-1)
             # Cross-side stop/target at the historical M5 mid ± fixed observed
             # spread. Do not convert today's absolute price into 2019 price.
@@ -330,25 +361,30 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
                 side=="SELL" and not (target<entry<stop_econ<=stop_struct)
             ):
                 counts["invalid_cross_side_geometry"]+=1
-                r["status"]="INVALID_CROSS_SIDE_GEOMETRY";rows.append(r);continue
+                r["status"]="INVALID_CROSS_SIDE_GEOMETRY";reject_unquotable(r["status"])
+                rows.append(r);continue
             unit=price_usd_per_unit(symbol)
             tariff=estimate_per_lot_fees(
                 symbol,entry_price=entry,contract_size=CONTRACTS[symbol],
                 model=STELLAR_HELP_OPEN_ONLY,
             )
             risk_per_lot=abs(entry-stop_econ)*unit
-            held_risk=sum(x["risk"] for x in active.values())
-            held_margin=sum(x["margin"] for x in active.values())
             try:
-                q=_mode_quote(d,symbol,side,entry,stop_econ,risk_per_lot,
-                              tariff.total_usd,first.opened_at,bank,
-                              held_risk,held_margin,sequence,td)
-                sequence+=1
+                q,votes=_mode_quote(
+                    d,symbol,side,entry,stop_econ,risk_per_lot,
+                    tariff.total_usd,at,bank,active,flows,sequence,
+                    engine,broker,published_symbols,
+                )
             except (QDLEError,ValueError) as exc:
-                counts["qdle_rejected"]+=1
-                r["status"]="QDLE_ERROR"
-                r["error"]=str(exc)[:120]
-                rows.append(r);continue
+                raise RuntimeError(
+                    "P0 four-motor/QDLE attempt cannot silently disappear: "+sid
+                ) from exc
+            counts["qdle_assessed"]+=1
+            counts["four_motor_voted"]+=4
+            r["qdle_state"]=q.state
+            r["qdle_binding_limits"]=list(q.binding_limits)
+            r["four_motor_voted_count"]=len(votes)
+            r["four_motor_receipts"]=votes
             r["qdle_lots"]=str(q.lots)
             r["qdle_all_in_risk"]=str(q.total_risk_usd)
             r["bank_at_entry"]=str(bank)
