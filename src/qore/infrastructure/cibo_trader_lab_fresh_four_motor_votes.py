@@ -46,6 +46,11 @@ class PaperEconomicDecision:
         output = []
         for proposal in self.votes:
             payload = proposal.payload()
+            # The unabridged event IDs remain in the PAPER cashbook. Do not
+            # serialize the same growing event list four times per signal.
+            cashbook_ids = payload.pop("realized_event_ids")
+            payload["realized_event_count"] = len(cashbook_ids)
+            payload["realized_event_ids_sha256"] = _sha(cashbook_ids)
             payload["scenario_receipt_sha256"] = _sha(payload)
             payload["producer_signature_authenticated"] = False
             payload["broker_evidence_authenticated"] = False
