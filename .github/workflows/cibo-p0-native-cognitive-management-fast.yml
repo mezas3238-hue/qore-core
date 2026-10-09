@@ -8,6 +8,8 @@ on:
       - "src/qore/infrastructure/cibo_p0_native_cognitive_management.py"
       - "scripts/cibo_p0_native_max_manager_advisory_3368.py"
       - "scripts/qdle_3368_dual_ledger_replay.py"
+      - "scripts/cibo_p0_native_managed_exit_path_audit.py"
+      - "tests/infrastructure/test_cibo_p0_native_managed_exit_path_audit.py"
       - "tests/infrastructure/test_cibo_p0_native_cognitive_management.py"
 permissions:
   contents: read
@@ -28,8 +30,11 @@ jobs:
           python -m py_compile src/qore/infrastructure/cibo_p0_native_cognitive_management.py
           python -m py_compile scripts/cibo_p0_native_max_manager_advisory_3368.py
           python -m py_compile scripts/qdle_3368_dual_ledger_replay.py
+          python -m py_compile scripts/cibo_p0_native_managed_exit_path_audit.py
       - name: Native cognitive policy causal ablation and guards
         run: python -m unittest discover -s tests/infrastructure -p test_cibo_p0_native_cognitive_management.py -v
+      - name: Causal bid/ask exit path coverage adapter
+        run: python -m unittest discover -s tests/infrastructure -p test_cibo_p0_native_managed_exit_path_audit.py -v
       - name: QDLE physical invariants
         run: |
           python -m unittest discover -s tests/infrastructure -p test_qdle_cibo_authority.py -q
