@@ -69,7 +69,7 @@ class PersistentPaperQdleTest(unittest.TestCase):
         self.session.paper_fill(
             sid="signal-1", at=self.start, nav=nav_after_open_fee, active=active,
         )
-        self.assertEqual(self._state("signal-1"), "ABSORBED")
+        self.assertEqual(self._state("signal-1"), "PAPER_OPEN")
         second = self._quote(
             "signal-2", self.start+timedelta(minutes=5),
             nav_after_open_fee, active,
@@ -77,21 +77,29 @@ class PersistentPaperQdleTest(unittest.TestCase):
         self.assertGreaterEqual(second.lots, D(0))
         if second.lots:
             self.session.paper_no_fill(sid="signal-2",reason="SIMULATED_CANCEL")
-            self.assertEqual(self._state("signal-2"), "REJECTED_NO_FILL")
+            self.assertEqual(self._state("signal-2"), "PAPER_ABORTED")
         active.clear()
         after_close_nav = nav_after_open_fee + D("0.5")
         self.session.publish_snapshot(
             at=self.start+timedelta(minutes=10),
             nav=after_close_nav, active=active,
         )
-        self.session.paper_settlement(sid="signal-1", realized_net=D("0.5"))
-        self.assertEqual(self._state("signal-1"), "SETTLED")
+        self.session.paper_settle(sid="signal-1")
+        self.assertEqual(self._state("signal-1"), "PAPER_SETTLED")
         with sqlite3.connect(self.path) as db:
-            rows = db.execute(
-                "SELECT request_id,deal_receipt FROM broker_settlements"
+            paper_events = db.execute(
+                "SELECT event_kind, request_id FROM paper_events WHERE request_id = ? ORDER BY event_kind",
+                ("signal-1",)
             ).fetchall()
-        self.assertEqual(rows, [("signal-1", "PAPER_SIMULATOR_SETTLED:signal-1")])
-        self.assertGreaterEqual(self.session.sequence, 4)
+            false_broker_deals = db.execute(
+                "SELECT COUNT(*) FROM broker_settlements"
+            ).fetchone()[0]
+        self.assertEqual(
+            paper_events,
+            [("PAPER_FILL", "signal-1"), ("PAPER_SETTLE", "signal-1")],
+        )
+        self.assertEqual(false_broker_deals, 0)
+        self.assertGreaterEqual(self.session.sequence, 3)
 
     def test_two_concurrent_fills_reconcile_in_one_account(self):
         active = {}
@@ -114,8 +122,8 @@ class PersistentPaperQdleTest(unittest.TestCase):
             states = db.execute(
                 "SELECT request_id,state FROM reservations ORDER BY request_id"
             ).fetchall()
-        self.assertEqual(states,[("concurrent-1","ABSORBED"),
-                                 ("concurrent-2","ABSORBED")])
+        self.assertEqual(states,[("concurrent-1","PAPER_OPEN"),
+                                 ("concurrent-2","PAPER_OPEN")])
         self.assertGreater(sum(t["risk"] for t in active.values()),D("3"))
         # Shared portfolio capital prevents infinite simultaneous fills,
         # even though sovereign 5% is an individual trade upper bound.
