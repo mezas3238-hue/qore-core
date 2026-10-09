@@ -1,0 +1,47 @@
+name: CIBO P0 Analyze Native MAX QDLE 3368 PAPER Result
+on:
+  push:
+    branches: [agent/cibo-p0-replay-qdle-persistence-20261009]
+    paths:
+      - "scripts/cibo_p0_replay_behavior_audit.py"
+      - ".github/workflows/cibo-p0-behavior-forensic-3368.yml"
+permissions:
+  contents: read
+  actions: read
+jobs:
+  analyze-existing-sealed-run:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 16
+    env:
+      SOURCE_ARTIFACT_ID: "11630019202"
+      SOURCE_RUN_ID: "37957631672"
+      QORE_LIVE_TRADING: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Forbid LIVE and assert forensic program compiles
+        run: |
+          test "$QORE_LIVE_TRADING" = false
+          python -m py_compile scripts/cibo_p0_replay_behavior_audit.py
+      - name: Download unchanged SUCCESS paper run 37957631672
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/behavior"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$SOURCE_ARTIFACT_ID/zip" > "$RUNNER_TEMP/behavior/result.zip"
+          unzip -l "$RUNNER_TEMP/behavior/result.zip"
+          unzip -p "$RUNNER_TEMP/behavior/result.zip" trader-lab-cibo-qdle-spread-3368.json > "$RUNNER_TEMP/behavior/source.json"
+      - name: Independently count Native MAX decisions, QDLE binding reasons and losses
+        run: |
+          python scripts/cibo_p0_replay_behavior_audit.py \
+            --report "$RUNNER_TEMP/behavior/source.json" \
+            --output "$RUNNER_TEMP/behavior/p0-forensic-behavior.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cibo-p0-qdle-forensic-3368-${{ github.run_id }}
+          path: ${{ runner.temp }}/behavior/p0-forensic-behavior.json
+          if-no-files-found: warn
