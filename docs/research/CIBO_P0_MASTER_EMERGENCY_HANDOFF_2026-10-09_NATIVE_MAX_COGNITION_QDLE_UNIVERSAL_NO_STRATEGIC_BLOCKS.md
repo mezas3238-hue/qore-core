@@ -319,3 +319,21 @@ Todos los cambios primero branch/PR #745 y tests; coordinar sin sobrescribir otr
 **PUNTO DE CONTINUACIÓN:** `scripts/cibo_p0_native_max_manager_advisory_3368.py` y `scripts/qdle_3368_dual_ledger_replay.py`, especialmente `classify_native_advisory`, `cibo_max_native_exit_policy_executed=False`, rama `manager_revised_stop` con quote-only, `recent_settlements[-3:]` del control; conectarlo a `cibo_native_max_cognitive_episode.py`, `cibo_managed_exit_replay.py`, cashbook Compuesto y tesorería QDLE. Antes: verificar #37912035662 y la procedencia de sus datos.
 
 **NO DECLARAR CIBO MAX CERTIFICADO HASTA QUE ESTÉN REPARADAS ESTAS FALTAS.**
+
+---
+
+# ADDENDUM P0 — REPARACIÓN DE CÓDIGO REAL 2026-10-09 (NO CERTIFICACIÓN)
+
+**NUEVO CHECKPOINT TÉCNICO OBLIGATORIO:** [CIBO_P0_NATIVE_MAX_QDLE_IMPLEMENTATION_CHECKPOINT_2026-10-09_CAUSAL_SENSORS_NO_CONTROL_PNL.md](CIBO_P0_NATIVE_MAX_QDLE_IMPLEMENTATION_CHECKPOINT_2026-10-09_CAUSAL_SENSORS_NO_CONTROL_PNL.md).
+
+El arquitecto de continuidad realizó reparaciones en CÓDIGO y pruebas en GitHub sobre esta rama:
+
+1. Run original #37912035662: **SUCCESS**; artifact **11609885185**, SHA256 `aeb47d8a0e234c2c01d3406b11c5ded55ccc0a156caa84ce9e1344a3485c635f`. Sigue siendo un resultado de recibos/etiquetas, no CIBO liquidando realmente 3368 posiciones.
+2. El mapper ya no usa `COGNITIVE_BLOCK`, `CAPITAL_BLOCK`, `RISK_REVIEW_READY` para escoger modo de gestión. Consume `CALIBRATION`, `REASONING_ROUTING`, `SCENARIO_ENGINE`, `METACOGNITION`, `CAUSAL_REASONING` y `EXECUTIVE_SYNTHESIS`. La nueva política es un **adaptador temporal de investigación**, NO una decisión CIBO auténtica sobre lifecycle ni certificación MAX.
+3. El presupuesto dinámico inferido de sensores se pasa al **QDLE físico** (risk request dentro del 5% NAV). Se probó una perturbación del sensor real con misma cuenta USD60/fee/modelo y lotaje QDLE 0.00 / 0.01 / 0.02. No se usan etiquetas anteriores como gate.
+4. Se cortó el uso de PnL, `gross_structural_outcome_r` y rachas `REPLAY_SETTLED` del Trader CONTROL para establecer NAV y PnL de CIBO Native. **Todos los lotes Native del replay sin bid/ask completo quedan QUOTE_ONLY sin comisión OPEN pagada, sin ejecución ni settlement**. El NAV sintético de ensayo permanece USD60 pero capital final/PF/DD del administrador es **NULL / NO MEDIDO**, no rentabilidad cero.
+5. Se añadió `scripts/cibo_p0_native_managed_exit_path_audit.py` para auditar salidas verdaderamente causales cuando se aporte bid/ask de la operación. Con datos sintéticos de test da resultados de SL/partial/BE/trailing/defense y no inventa R histórico ante cobertura incompleta. **Todavía NO mueve NAV global de los cuatro motores**; requiere scheduler de parciales y liquidaciones reales.
+6. CI rápida (48 tests): [#37916235608](https://github.com/mezas3238-hue/qore-core/actions/runs/37916235608) PASS. Posterior [#37916291567](https://github.com/mezas3238-hue/qore-core/actions/runs/37916291567) PASS. El nuevo replay full [#37915676547](https://github.com/mezas3238-hue/qore-core/actions/runs/37915676547) seguía **IN_PROGRESS** al escribir este addendum: investigar inmediatamente logs/artifact final, **no presumir PASS**.
+7. P0 sigue ABIERTO. Falta ejecutar / autenticar la decisión cognitiva nativa con órdenes económicas y ajustes intratrade, obtener trayectoria bid/ask histórica de 6 símbolos, scheduler con OPEN/CLOSE fee, NAV Bank/Cushion, métricas mark-to-market y conciliación MT5. NO LIVE, NO `order_send`, PR #745 DRAFT.
+
+**Continuar SIEMPRE por el checkpoint enlazado primero**: contiene rutas exactas, commits, pruebas y medidas. El objetivo 3368/3368 significa **entregadas a CIBO**, nunca debe falsearse como 3368 fills cuando no son físicamente financiables.
