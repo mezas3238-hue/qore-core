@@ -11,10 +11,8 @@ from __future__ import annotations
 
 import argparse
 import json
-import hashlib
-import statistics
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal as D, InvalidOperation
 from pathlib import Path
 
@@ -197,8 +195,7 @@ def analyze_closed_trade(row):
         "signal_fingerprint":sid,
         "symbol":row["symbol"],"trader_id":row["trader_id"],
         "mode":row["mode"],"side":side,
-        "entry_hour_utc":str(fill_at.astimezone(
-            __import__("datetime").timezone.utc).hour).zfill(2),
+        "entry_hour_utc":str(fill_at.astimezone(timezone.utc).hour).zfill(2),
         "result":("WIN" if net>0 else "LOSS" if net<0 else "BREAKEVEN"),
         "net_pnl_usd":str(net),"exit_reason":reason,
         "duration_minutes":str(D((exit_at-fill_at).total_seconds())/D(60)),
