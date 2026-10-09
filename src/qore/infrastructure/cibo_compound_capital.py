@@ -327,30 +327,22 @@ def _aware(value: datetime, name: str) -> None:
 
 
 
-def propose_p0_compound_vote(
-    observation: FourMotorObservation, *, research_disable_legacy_haircut: bool = False,
-) -> FourMotorProposal:
-    """Reinvest reconciled net QORE NAV after protected/held reserves only."""
+def propose_p0_compound_vote(observation: FourMotorObservation) -> FourMotorProposal:
+    """Reinvest real, reconciled QORE capital without legacy loss-streak haircuts.
+
+    Previous trades may enter the account only through genuine settled net
+    cashflows: old CONTROL/PAPER 'three losses' patterns are never admission
+    rules and cannot halve new capital discretion. Cash, protected capital,
+    unresolved floating liabilities and already-held reserves remain actual
+    financial quantities, not retrospective strategic penalties.
+    """
     if not isinstance(observation, FourMotorObservation):
         raise FourMotorPolicyError("canonical observation required")
-    base = observation.base_entry_budget_usd
-    available = observation.risk_cash_remaining_usd
-    chronological = sorted(observation.reconciled_cashflows,
-                           key=lambda e: (e.realized_at, e.event_id))
-    streak = 0
-    for event in reversed(chronological):
-        if event.net_usd < ZERO:
-            streak += 1
-        else:
-            break
-    loss_streak_factor = (Decimal("0.5") if streak >= 3
-                          and not research_disable_legacy_haircut else Decimal("1"))
-    cap = min(available, base * loss_streak_factor)
+    cap = min(observation.risk_cash_remaining_usd,
+              observation.base_entry_budget_usd)
     reasons = ("RECONCILED_ONLY_NET_QORE_NAV",
                "PROTECTED_AND_FLOAT_LOSS_AND_RESERVATION_DEDUCTED",
-               "RESEARCH_LEGACY_LOSS_STREAK_HAIRCUT_DISABLED"
-               if research_disable_legacy_haircut else
-               "THREE_SETTLED_LOSSES_HAIR_CUT" if streak >= 3
-               else "NORMAL_COMPOUND_REINVESTMENT")
+               "NO_LEGACY_LOSS_STREAK_PENALTY",
+               "QDLE_IS_SOLE_PHYSICAL_LOT_AUTHORITY")
     return FourMotorProposal("CIBO_COMPOUND", observation,
                              {"approved_risk_usd": str(cap)}, reasons)
