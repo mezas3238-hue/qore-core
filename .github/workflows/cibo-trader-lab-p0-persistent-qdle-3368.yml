@@ -7,6 +7,8 @@ on:
       - ".github/workflows/cibo-trader-lab-native-qdle-market-atlas-3368.yml"
       - "scripts/cibo_trader_lab_native_qdle_market_atlas_3368.py"
       - "scripts/cibo_p0_native_replay_runtime.py"
+      - "scripts/cibo_p0_replay_manifest_source.py"
+      - "tests/infrastructure/test_cibo_p0_replay_manifest_source.py"
       - "src/qore/infrastructure/cibo_compound_capital.py"
       - "tests/infrastructure/test_cibo_p0_native_replay_runtime.py"
       - "tests/infrastructure/test_cibo_four_motor_policy_p0.py"
@@ -24,8 +26,6 @@ env:
   QORE_REPLAY_AUTHORITY: "TRADER_LAB_CIBO_NATIVE_MAX_PAPER_NOT_LIVE"
   MANIFEST_ARTIFACT: "11451743578"
   MANIFEST_SHA: "d439957f21e2f79148b5a2fb75a53db6fa448698f17aeb6978f379ed3547f7ea"
-  UPDATED_QDLE_ARTIFACT: "11624832575"
-  UPDATED_QDLE_SHA: "1be41e8c4eb7831ae9057521b92ce6f3cd2141102276e357fe8a31f589c6309b"
   ATLAS_AUDJPY_ARTIFACT: "10476530915"
   ATLAS_AUDJPY_SHA: "a416085cfcef04003ae89debaad360304a0c4c8bac65b3bf2b439a8a4b7098bf"
   ATLAS_EURUSD_ARTIFACT: "10475354631"
@@ -50,16 +50,17 @@ jobs:
       - name: Assert PAPER-only and compile actual Trader Lab / updated QDLE code
         run: |
           test "$QORE_LIVE_TRADING" = false
-          python -m py_compile scripts/cibo_trader_lab_native_qdle_market_atlas_3368.py scripts/cibo_p0_native_replay_runtime.py
+          python -m py_compile scripts/cibo_trader_lab_native_qdle_market_atlas_3368.py scripts/cibo_p0_native_replay_runtime.py scripts/cibo_p0_replay_manifest_source.py
           python -m unittest discover -s tests/infrastructure -p test_qdle_stellar_instant_costs.py -q
           python -m unittest discover -s tests/infrastructure -p test_cibo_p0_research_qdle_persistence.py -q
           python -m unittest discover -s tests/infrastructure -p test_cibo_p0_native_replay_runtime.py -q
+          python -m unittest discover -s tests/infrastructure -p test_cibo_p0_replay_manifest_source.py -q
           python -m unittest discover -s tests/infrastructure -p test_cibo_four_motor_policy_p0.py -q
           python -m unittest discover -s tests/infrastructure -p test_cibo_managed_exit_replay.py -q
           if [ -f tests/infrastructure/test_cibo_trader_lab_native_qdle_snapshot_spread.py ]; then
             python -m unittest discover -s tests/infrastructure -p test_cibo_trader_lab_native_qdle_snapshot_spread.py -q
           fi
-      - name: Restore sealed 3368 Native QDLE and six Atlas 2019-2022 M5 partitions
+      - name: Restore only original sealed 3368 Trader manifest and six Atlas M5 partitions
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -68,9 +69,6 @@ jobs:
           gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$MANIFEST_ARTIFACT/zip" > "$RUNNER_TEMP/cibo-atlas-3368/manifest.zip"
           echo "$MANIFEST_SHA  $RUNNER_TEMP/cibo-atlas-3368/manifest.zip" | sha256sum -c -
           unzip -q "$RUNNER_TEMP/cibo-atlas-3368/manifest.zip" walk-forward-manifest.json -d "$RUNNER_TEMP/cibo-atlas-3368"
-          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$UPDATED_QDLE_ARTIFACT/zip" > "$RUNNER_TEMP/cibo-atlas-3368/qdle.zip"
-          echo "$UPDATED_QDLE_SHA  $RUNNER_TEMP/cibo-atlas-3368/qdle.zip" | sha256sum -c -
-          unzip -q "$RUNNER_TEMP/cibo-atlas-3368/qdle.zip" stellar-instant-3368.json -d "$RUNNER_TEMP/cibo-atlas-3368"
           for SYMBOL in AUDJPY EURUSD GBPJPY GBPUSD NDX100 XAUUSD; do
             ID_VAR="ATLAS_${SYMBOL}_ARTIFACT"
             SHA_VAR="ATLAS_${SYMBOL}_SHA"
@@ -86,7 +84,6 @@ jobs:
           mkdir -p "$RUNNER_TEMP/cibo-atlas-3368/db"
           python scripts/cibo_trader_lab_native_qdle_market_atlas_3368.py \
             --manifest "$RUNNER_TEMP/cibo-atlas-3368/walk-forward-manifest.json" \
-            --native-stellar-qdle "$RUNNER_TEMP/cibo-atlas-3368/stellar-instant-3368.json" \
             --atlas-root "AUDJPY=$RUNNER_TEMP/atlas/AUDJPY" \
             --atlas-root "EURUSD=$RUNNER_TEMP/atlas/EURUSD" \
             --atlas-root "GBPJPY=$RUNNER_TEMP/atlas/GBPJPY" \
@@ -104,6 +101,8 @@ jobs:
           r=json.loads((p/"trader-lab-cibo-qdle-spread-3368.json").read_text())
           assert r["signal_count"]==r["counts"]["received"]==r["counts"]["qdle_assessed"]==3368
           assert r["research_persistent_qdle_single_account"] is True
+          assert r["legacy_qdle_quote_decisions_consumed"] is False
+          assert r["origin_manifest_sha256"].startswith("sha256:")
           assert r["full_native_max_cognition_recomputed"] is True, (
               r["counts"].get("native_max_reconstruction_failed", 0),
               r["counts"].get("native_max_recomputed", 0))
