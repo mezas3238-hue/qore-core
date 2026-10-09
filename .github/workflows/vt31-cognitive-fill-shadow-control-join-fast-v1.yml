@@ -1,0 +1,95 @@
+name: QORE VT31 3Y Fill Shadow Control Join Fast V1
+
+on:
+  push:
+    branches:
+      - agent/vt31-architect-cognition-sensors-20261009
+    paths:
+      - scripts/vt31_nas100_cognitive_fill_shadow_control_join_v1.py
+      - tests/infrastructure/test_vt31_nas100_cognitive_fill_shadow_control_join.py
+      - .github/workflows/vt31-cognitive-fill-shadow-control-join-fast-v1.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  FROZEN_BASELINE_ARTIFACT_ID: "11459439466"
+  COG_FILL_SHADOW_ARTIFACT_ID: "11645867877"
+
+jobs:
+  causal-shadow-control-join:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - name: Fail closed on static code and pure join tests
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/vt31_nas100_cognitive_fill_shadow_control_join_v1.py tests/infrastructure/test_vt31_nas100_cognitive_fill_shadow_control_join.py
+          ruff check scripts/vt31_nas100_cognitive_fill_shadow_control_join_v1.py tests/infrastructure/test_vt31_nas100_cognitive_fill_shadow_control_join.py
+          PYTHONPATH=. pytest -q -o addopts='' tests/infrastructure/test_vt31_nas100_cognitive_fill_shadow_control_join.py
+      - name: Retrieve frozen original 3Y control and independent shadow
+        run: |
+          set -euo pipefail
+          mkdir -p control shadow result
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${FROZEN_BASELINE_ARTIFACT_ID}" --jq '{id,name,expired}' | tee result/control-artifact.json
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${COG_FILL_SHADOW_ARTIFACT_ID}" --jq '{id,name,expired}' | tee result/shadow-artifact.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          a=json.loads(Path("result/control-artifact.json").read_text())
+          b=json.loads(Path("result/shadow-artifact.json").read_text())
+          assert a["id"] == 11459439466 and a["expired"] is False
+          assert b["id"] == 11645867877 and b["expired"] is False
+          assert b["name"].startswith("qore-vt31-cog-fill-shadow-3y-")
+          PY
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${FROZEN_BASELINE_ARTIFACT_ID}/zip" > control.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${COG_FILL_SHADOW_ARTIFACT_ID}/zip" > shadow.zip
+          unzip -q control.zip -d control
+          unzip -q shadow.zip -d shadow
+          test -f control/3y-replay.json
+          test -f shadow/3y-fill-revalidation-shadow.json
+          sha256sum control/3y-replay.json | tee result/frozen-baseline-replay-sha256.txt
+          sha256sum shadow/3y-fill-revalidation-shadow.json | tee result/frozen-shadow-sha256.txt
+      - name: Join 55 admitted control to exact prospective fill evidence
+        run: |
+          set -euo pipefail
+          PYTHONPATH=. python scripts/vt31_nas100_cognitive_fill_shadow_control_join_v1.py \
+            --baseline-replay control/3y-replay.json \
+            --fill-shadow shadow/3y-fill-revalidation-shadow.json \
+            --output result/3y-fill-shadow-55-control-join.json \
+            | tee result/summary.json
+      - name: Reject economic or sample identity drift
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          x=json.loads(Path("result/3y-fill-shadow-55-control-join.json").read_text())
+          assert x["control_admitted_trade_count"] == 55
+          assert len(x["joined_55_control_trade_ledger"]) == 55
+          assert x["base_id"] == "VT31_NAS100_OWNER_3Y_BASE_001"
+          assert x["governance"]["naive_removal_not_real_counterfactual"] is True
+          assert x["governance"]["source_execution_altered"] is False
+          assert x["governance"]["fresh_holdout_opened"] is False
+          assert x["governance"]["candidate_certified"] is False
+          assert x["governance"]["live_authorized"] is False
+          PY
+      - name: Freeze output fingerprints
+        run: |
+          printf "%s\n" "$GITHUB_SHA" > result/git-sha.txt
+          (cd result && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+          (cd result && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qore-vt31-cog-3y-fill-shadow-55-control-join-${{ github.sha }}
+          path: result/
+          retention-days: 90
+          if-no-files-found: error
