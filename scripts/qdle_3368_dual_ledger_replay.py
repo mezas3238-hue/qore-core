@@ -296,7 +296,8 @@ def main() -> int:
 
     with tempfile.TemporaryDirectory() as t:
         broker = HistoricalProxy()
-        qdle = QDLE(Path(t) / "qdle_3368_sealed.sqlite", broker)
+        research_tmpdir = t  # do not reuse loop-local Trader dict named t
+        qdle = QDLE(Path(research_tmpdir) / "qdle_3368_sealed.sqlite", broker)
         sequence = 0
         def apply_cibo_transfers(at: datetime) -> None:
             nonlocal cibo_transfers_applied
@@ -753,7 +754,7 @@ def main() -> int:
                     # physical **RESEARCH QUOTE** only, not a broker rejected
                     # or filled trade. Never contaminate the original-stop
                     # account ledger or invent a no-fill broker receipt.
-                    quote_qdle = QDLE(Path(t) / ("manager-quote-" + str(index) + ".sqlite"), broker)
+                    quote_qdle = QDLE(Path(research_tmpdir) / ("manager-quote-" + str(index) + ".sqlite"), broker)
                     if last_account_snapshot is None or last_symbol_snapshot is None:
                         raise QDLEError("MANAGER_QUOTE_MISSING_CAUSAL_ACCOUNT_SPEC")
                     quote_qdle.publish_account(last_account_snapshot)
