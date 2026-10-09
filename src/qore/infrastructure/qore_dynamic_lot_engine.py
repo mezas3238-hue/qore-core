@@ -231,6 +231,14 @@ class QDLE:
                  strict_provider_floor: bool = True,
                  research_paper_mode: bool = False) -> None:
         _d('entry_risk_fraction', entry_risk_fraction)
+        # There must be ONE PAPER book API. In particular, the competing
+        # DRAFT QDLE(research_paper_mode=True) path cannot act as a second
+        # authority after integrating this canonical PaperQDLE adapter.
+        if research_paper_mode and (
+            type(self).__module__ != "qore.infrastructure.qdle_paper_book"
+            or type(self).__name__ != "PaperQDLE"
+        ):
+            raise QDLEError("PAPER authority must use canonical PaperQDLE")
         if entry_risk_fraction != Decimal("0.05"):
             raise QDLEError("QDLE sovereign risk fraction is fixed at 5pct of QORE trading capital")
         self.entry_risk_fraction = entry_risk_fraction
