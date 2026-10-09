@@ -132,6 +132,7 @@ def main() -> int:
         raise SystemExit("FAIL CLOSED: sealed opportunity order not chronological")
 
     cibo_by_signal = None
+    cibo_managed_outcomes = {}
     lane_cash = None
     transfer_events = []
     if args.cibo_instructions:
@@ -148,6 +149,33 @@ def main() -> int:
             or len({x["signal_id"] for x in instructions}) != len(opportunities)):
             raise SystemExit("FAIL CLOSED: missing, duplicated or foreign CIBO instructions")
         cibo_by_signal = {x["signal_id"]: x for x in instructions}
+        settlements = authority.get("managed_settlement_receipts", [])
+        if not isinstance(settlements, list) or any(
+            not isinstance(x, dict) or not x.get("signal_id")
+            or x["signal_id"] not in source_ids for x in settlements
+        ):
+            raise SystemExit("FAIL CLOSED: invalid CIBO managed settlement list")
+        if len({x["signal_id"] for x in settlements}) != len(settlements):
+            raise SystemExit("FAIL CLOSED: duplicate CIBO management settlement")
+        cibo_managed_outcomes = {x["signal_id"]: x for x in settlements}
+        # A hypothetical funded operation cannot quietly inherit the
+        # Trader's structural historical R if CIBO did not supply its managed
+        # exit. Do NOT use outcome amount when deciding budget or volume.
+        for instruction in instructions:
+            if D(str(instruction["authorized_all_in_risk_usd"])) > ZERO:
+                if instruction["signal_id"] not in cibo_managed_outcomes:
+                    raise SystemExit("FAIL CLOSED: CIBO authorizes risk without its management settlement")
+        for exit_receipt in settlements:
+            try:
+                final_at = datetime.fromisoformat(str(exit_receipt["exit_at"]))
+                r_value = D(str(exit_receipt["gross_outcome_r"]))
+                evidence = str(exit_receipt["evidence_sha256"])
+                if (final_at.tzinfo is None or final_at.utcoffset() is None
+                    or not r_value.is_finite() or len(evidence) != 71
+                    or not evidence.startswith("sha256:")):
+                    raise ValueError("managed exit chronology/rate/evidence invalid")
+            except (ValueError, KeyError, TypeError, ArithmeticError) as exc:
+                raise SystemExit("FAIL CLOSED: managed exit incomplete: " + str(exc)) from exc
         try:
             lane_cash = {
                 "SOVEREIGN_BANK": D(str(authority["initial_bank_usd"])),
@@ -203,6 +231,7 @@ def main() -> int:
     last_spec_time: dict[str, datetime] = {}
     cibo_transfers_applied = 0
     cibo_directions_consumed = 0
+    cibo_managed_exit_receipts_consumed = 0
 
     with tempfile.TemporaryDirectory() as t:
         broker = HistoricalProxy()
@@ -599,7 +628,16 @@ def main() -> int:
                     maximum_absolute_dd = max(maximum_absolute_dd, dd_at_entry)
                     if peak_nav > ZERO:
                         max_dd_ratio = max(max_dd_ratio, dd_at_entry / peak_nav)
-                    expiration = datetime.fromisoformat(row["settlement_outcome_research_only"]["exit_at"])
+                    if cibo_by_signal is not None:
+                        managed = cibo_managed_outcomes[rid]
+                        expiration = datetime.fromisoformat(str(managed["exit_at"]))
+                        outcome_r = D(str(managed["gross_outcome_r"]))
+                        event["cibo_managed_exit_evidence_sha256"] = managed["evidence_sha256"]
+                        event["cibo_managed_exit_at"] = expiration.isoformat()
+                        cibo_managed_exit_receipts_consumed += 1
+                    else:
+                        expiration = datetime.fromisoformat(row["settlement_outcome_research_only"]["exit_at"])
+                        outcome_r = D(row["settlement_outcome_research_only"]["gross_structural_outcome_r"])
                     if expiration < at:
                         raise QDLEError("HISTORICAL_EXIT_PRECEDES_DECISION")
                     # Tick values observed for metals/index; FX conversion
@@ -618,7 +656,7 @@ def main() -> int:
                         "source_lane": requested.source_lane,
                         "stop_per_lot": stop_per_lot, "fee_per_lot": fee,
                         "deferred_close_fee": close_fee,
-                        "r": D(row["settlement_outcome_research_only"]["gross_structural_outcome_r"]),
+                        "r": outcome_r,
                     }
                     publish(at)
                     qdle.reconcile_fill(rid)
@@ -660,7 +698,13 @@ def main() -> int:
             "cibo_authority_mode": ("CIBO_EXPLICIT_DIRECTIVES" if cibo_by_signal is not None
                                    else "NOT_CIBO_INTEGRATED_ECONOMIC_PROXIES"),
             "cibo_directives_consumed": cibo_directions_consumed,
-            "cibo_exit_management_replayed": False,
+            "cibo_exit_management_replayed": (
+                cibo_by_signal is not None
+                and cibo_managed_exit_receipts_consumed == sum(
+                    x["research_financed"] for x in sym_counts.values())
+                and cibo_managed_exit_receipts_consumed > 0
+            ),
+            "cibo_managed_exit_receipts_consumed": cibo_managed_exit_receipts_consumed,
             "cibo_capital_transfers_applied": cibo_transfers_applied,
             "cibo_source_balances_usd": {k: str(v) for k, v in lane_cash.items()} if lane_cash is not None else None,
             "requested_target_lots": str(args.target_lots) if args.target_lots is not None else None,
@@ -720,7 +764,9 @@ def main() -> int:
                 ("CIBO economic instructions supplied and honored, but broker authenticity not proved"
                  if cibo_by_signal is not None else
                  "NO CIBO trade management or portfolio allocation instructions; economic cap proxy ONLY"),
-                "No CIBO-managed exits; research structural R still dictates settlement",
+                ("CIBO-supplied managed exit date and gross R dictate research settlement; no actual MT5 broker deal"
+                 if cibo_managed_exit_receipts_consumed else
+                 "No CIBO-managed exits; original historical structural R dictates settlement"),
                 "No per-trader allocation receipts proved independently of the replay scenario",
                 "Binding cap ties do NOT establish incremental independent module performance",
                 "Research proxy is NOT a certified 36-month broker-financed backtest",
