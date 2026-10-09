@@ -36,6 +36,7 @@ from qore.infrastructure.cibo_function_economic_sensors import (
     build_sovereign_function_sensors,
     summarize_function_sensors,
 )
+from qore.infrastructure.cibo_native_mode_authority import NativeSovereignModeInstruction
 from qore.infrastructure.cibo_native_sovereign_capital_runtime import (
     CiboNativeSovereignCapitalDecision,
 )
@@ -113,6 +114,7 @@ class CiboSovereignCeilingDecisionReceipt:
     native_mpc_derived_from_cognition: bool
     function_sensors: tuple[CiboFunctionEconomicSensor, ...] = ()
     cognitive_sensors: tuple[CiboCognitiveReachSensor, ...] = ()
+    native_mode_instruction: NativeSovereignModeInstruction | None = None
     native_maximum_intelligence: bool = True
     sovereign_runtime_evaluated: bool = True
     full_semantics_consumed: bool = True
@@ -219,6 +221,17 @@ class CiboSovereignCeilingDecisionReceipt:
             raise CiboCapitalManagementError(
                 "sovereign ceiling cognitive sensor receipt invalid"
             )
+        if self.native_mode_instruction is not None:
+            instruction = self.native_mode_instruction
+            if (not isinstance(instruction, NativeSovereignModeInstruction)
+                or instruction.signal_fingerprint != self.signal_fingerprint
+                or instruction.trader_id != self.trader_id
+                or instruction.semantic_digest != self.semantic_digest
+                or instruction.decided_at != self.decided_at
+                or instruction.broker_execution_authorized):
+                raise CiboCapitalManagementError(
+                    "sovereign Native MAX management instruction identity/provenance drift"
+                )
         cognitive_codes = tuple(
             item.component_code for item in self.cognitive_sensors
         )
@@ -449,6 +462,7 @@ def decision_receipt_from_native_runtime(
         cognitive_sensors=build_native_cognitive_reach_sensors(
             native_decision
         ),
+        native_mode_instruction=native_decision.native_qdle_mode_instruction,
         native_maximum_intelligence=True,
         sovereign_runtime_evaluated=True,
         full_semantics_consumed=(
