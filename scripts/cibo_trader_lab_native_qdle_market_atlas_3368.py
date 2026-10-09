@@ -201,7 +201,7 @@ def _mode_quote(row,symbol,side,entry,stop,stop_per_lot,opening_fee,
     )
     votes=(
         propose_p0_sizing_vote(observation),
-        propose_p0_compound_vote(observation,research_disable_legacy_haircut=True),
+        propose_p0_compound_vote(observation),
         propose_p0_adaptive_leverage_vote(observation,research_use_full_free_margin=True),
         propose_p0_portfolio_vote(observation,research_disable_legacy_quotas=True),
     )
