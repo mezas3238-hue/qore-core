@@ -26,7 +26,7 @@ from qore.infrastructure.cibo_marginal_leverage_utility import propose_p0_adapti
 from qore.infrastructure.cibo_core_compound_portfolio import propose_p0_portfolio_vote
 from qore.infrastructure.cibo_four_motor_policy import FourMotorObservation, ReconciledQoreCashflow
 from qore.infrastructure.cibo_four_motor_qdle_proposal import build_four_motor_qdle_intent
-from qore.infrastructure.qdle_cibo_authority import CiboEconomicInstruction, build_cibo_directed_qdle_intent
+from qore.infrastructure.qdle_cibo_authority import CiboEconomicInstruction, build_cibo_directed_qdle_intent, audit_cibo_qdle_lotage
 from qore.infrastructure.qore_dynamic_lot_engine import (
     BrokerValuation, Position, QDLE, QDLEAccount, QDLEError, QDLEIntent, QDLESymbol,
 )
@@ -593,6 +593,32 @@ def main() -> int:
                     module_audit_present[label] += 1
                 module_audit_present["ADAPTIVE_LEVERAGE"] += 1
                 result = qdle.reserve_for_trader(requested, now=at)
+                if cibo_by_signal is not None:
+                    receipt = audit_cibo_qdle_lotage(
+                        cibo=cibo, observation=obs, votes=votes, result=result,
+                        broker_min_lot=D(".01"), broker_lot_step=D(".01"),
+                    )
+                    event["cibo_qdle_audit"] = {
+                        "decision_state": receipt.decision_state,
+                        "source_lane": receipt.source_lane,
+                        "trader_id": receipt.trader_id,
+                        "entry_price": str(receipt.entry_price),
+                        "stop_price": str(receipt.stop_price),
+                        "qore_nav_usd": str(receipt.qore_nav_usd),
+                        "five_percent_max_usd": str(receipt.sovereign_5pct_ceiling_usd),
+                        "cibo_authorized_risk_usd": str(receipt.cibo_risk_budget_usd),
+                        "cibo_allocated_working_capital_usd": str(receipt.cibo_allocated_funds_usd),
+                        "lots": str(receipt.lots),
+                        "stop_loss_usd": str(receipt.stop_loss_usd),
+                        "roundtrip_cost_reserved_usd": str(receipt.total_roundtrip_cost_usd),
+                        "all_in_risk_reserved_usd": str(receipt.all_in_risk_usd),
+                        "margin_usd": str(receipt.broker_margin_usd),
+                        "binding_reason_codes": list(receipt.reason_codes),
+                        "account_sequence": receipt.account_sequence,
+                        "cibo_source_evidence_sha256": receipt.cibo_source_evidence_sha256,
+                        "broker_source_evidence_sha256": receipt.broker_source_evidence_sha256,
+                        "real_mt5_fill_proven": receipt.real_mt5_fill_proven,
+                    }
                 event.update(status=result.state, lots=str(result.lots),
                              bound_modules=list(result.binding_limits),
                              fees_entry_usd_proxy=str(result.cost_usd),
