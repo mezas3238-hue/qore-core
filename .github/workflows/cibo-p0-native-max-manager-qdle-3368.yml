@@ -15,7 +15,7 @@ concurrency:
 jobs:
   native-max-3368-cibo-manager-qdle:
     runs-on: ubuntu-24.04
-    timeout-minutes: 18
+    timeout-minutes: 35
     env:
       PYTHONPATH: src
       QORE_LIVE_TRADING: "false"
@@ -42,11 +42,17 @@ jobs:
           gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/11588089131/zip" > "$RUNNER_TEMP/cibo-native-max-3368/native-max-source.zip"
           echo "eebf6de43da63aadc200a3783109246188d46e0fcdd7da127f07eff815d6cec6  $RUNNER_TEMP/cibo-native-max-3368/native-max-source.zip" | sha256sum -c -
           unzip -q "$RUNNER_TEMP/cibo-native-max-3368/original-trader.zip" walk-forward-manifest.json -d "$RUNNER_TEMP/cibo-native-max-3368"
+      - name: Recompute FRESH actual Native MAX engine for the full 3368 original signal timeline
+        run: |
+          python scripts/cibo_single_account_historical_ceiling_replay.py \
+            --manifest "$RUNNER_TEMP/cibo-native-max-3368/walk-forward-manifest.json" \
+            --progress-every 500 \
+            --output "$RUNNER_TEMP/cibo-native-max-3368/native-max-fresh-full.json"
       - name: CIBO MAX Native cognitive management plans for all 3368 (NO admission filter)
         run: |
           python scripts/cibo_p0_native_max_manager_advisory_3368.py \
             --manifest "$RUNNER_TEMP/cibo-native-max-3368/original-trader.zip" \
-            --native-zip "$RUNNER_TEMP/cibo-native-max-3368/native-max-source.zip" \
+            --native-json "$RUNNER_TEMP/cibo-native-max-3368/native-max-fresh-full.json" \
             --output "$RUNNER_TEMP/cibo-native-max-3368/native-max-3368-management-advisories.json"
       - name: Full CIBO MAX Native + four economics + QDLE - normal motor caps, 3368 signals
         run: |
@@ -80,6 +86,7 @@ jobs:
           path=pathlib.Path(os.environ['RUNNER_TEMP'])/'cibo-native-max-3368'
           a=json.loads((path/'native-max-3368-management-advisories.json').read_text())
           assert a['cognitive_intelligence_receipts_consumed']==a['trader_signals_received']==3368
+          assert a['source']=='FRESH_NATIVE_MAX_REPLAY_3368_SAME_SEALED_TRADER_INPUT'
           assert len(a['receipts'])==3368 and not a['admission_gate_applied']
           reports={}
           for name in ('original-caps','paper-no-strategy-caps'):
