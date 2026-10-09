@@ -1,0 +1,70 @@
+name: "CIBO P0 four-arm ATR 5pct PAPER specification + readiness (NO LIVE)"
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - agent/cibo-architect-3-qdle-mt5-physical-20261008
+    paths:
+      - ".github/workflows/cibo-p0-four-arm-atr-5pct-contract-preflight.yml"
+      - "scripts/cibo_p0_atr_four_arm_physical_budget.py"
+      - "tests/infrastructure/test_cibo_p0_atr_four_arm_physical_budget.py"
+      - "config/research/cibo_p0_four_arm_atr_5pct_3368_2026-10-09.json"
+      - "docs/research/CIBO_P0_FOUR_ARM_ATR_SOVEREIGN_5PCT_NATIVE_QDLE_REPLAY_SPEC_2026-10-09.md"
+  push:
+    branches:
+      - agent/cibo-sovereign-integration-p0-20261008
+    paths:
+      - ".github/workflows/cibo-p0-four-arm-atr-5pct-contract-preflight.yml"
+      - "scripts/cibo_p0_atr_four_arm_physical_budget.py"
+      - "tests/infrastructure/test_cibo_p0_atr_four_arm_physical_budget.py"
+      - "config/research/cibo_p0_four_arm_atr_5pct_3368_2026-10-09.json"
+      - "docs/research/CIBO_P0_FOUR_ARM_ATR_SOVEREIGN_5PCT_NATIVE_QDLE_REPLAY_SPEC_2026-10-09.md"
+permissions:
+  contents: read
+concurrency:
+  group: cibo-p0-four-arm-contract-preflight
+  cancel-in-progress: true
+env:
+  QORE_LIVE_TRADING: "false"
+  QORE_REPLAY_AUTHORITY: "TRADER_LAB_PAPER_ONLY"
+jobs:
+  verify-contract-and-expose-blockers:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Four-arm policies and exact PAPER risk invariant tests
+        run: |
+          test "$QORE_LIVE_TRADING" = false
+          python -m compileall -q scripts/cibo_p0_atr_four_arm_physical_budget.py
+          python -m unittest discover -s tests/infrastructure -p "test_cibo_p0_atr_four_arm_physical_budget.py" -v
+      - name: Produce P0 evidence readiness document (not a replay or profit claim)
+        run: |
+          mkdir -p "$RUNNER_TEMP/cibo-p0-four-arm"
+          python scripts/cibo_p0_atr_four_arm_physical_budget.py \
+            --config config/research/cibo_p0_four_arm_atr_5pct_3368_2026-10-09.json \
+            --output "$RUNNER_TEMP/cibo-p0-four-arm/readiness.json"
+          python - <<'PY'
+          import os,json,pathlib
+          p=pathlib.Path(os.environ["RUNNER_TEMP"])/"cibo-p0-four-arm/readiness.json"
+          r=json.loads(p.read_text())
+          assert r["status"]=="BLOCKED_MISSING_EMPIRICAL_PROVENANCE",r
+          assert r["four_arms"]==["A-X","A-Y","B-X","B-Y"]
+          assert "one_canonical_sqlite_book" in r["blocked_gates"]
+          assert "causal_vt31_m1_executable_quotes" in r["blocked_gates"]
+          assert "historical_account_commission_receipts" in r["blocked_gates"]
+          assert r["no_live"] and r["broker_fills"]==0
+          assert not r["ready_for_claim_of_historical_profits"]
+          print("CIBO_P0_4_ARM_PRECHECK_BLOCKED_AS_DESIGNED",json.dumps(
+            {"arms":r["four_arms"],"missing":r["blocked_gates"],
+             "not_a_full_replay":True},sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cibo-p0-four-arm-atr-preflight-${{ github.run_id }}
+          path: ${{ runner.temp }}/cibo-p0-four-arm/readiness.json
+          if-no-files-found: warn
