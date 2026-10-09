@@ -8,10 +8,11 @@ send and settlement APIs are forbidden for this subclass.
 from __future__ import annotations
 
 from datetime import datetime
+import hashlib
 from decimal import Decimal
 
 from qore.infrastructure.qore_dynamic_lot_engine import (
-    QDLE, QDLEError, _dt, _d, _j,
+    QDLE, QDLEError, _dt,
 )
 
 
@@ -157,6 +158,23 @@ class PaperQDLE(QDLE):
                   for rid, trade in active.items()}
         if expected != actual:
             raise QDLEError("PAPER portfolio / QDLE lifecycle diverged")
+
+    def paper_audit_digest(self) -> dict[str, str | int]:
+        """Deterministic event commitment, NOT an authenticated broker signature."""
+        sha = hashlib.sha256()
+        count = 0
+        with self._tx() as db:
+            for sequence, event, request_id, receipt in db.execute(
+                "SELECT id,event,request_id,receipt FROM audit ORDER BY id"
+            ):
+                line = (
+                    str(sequence) + "\\t" + event + "\\t" +
+                    (request_id or "") + "\\t" + receipt + "\\n"
+                )
+                sha.update(line.encode("utf-8"))
+                count += 1
+        return {"event_count": count, "audit_sha256": "sha256:" + sha.hexdigest(),
+                "signature_verified": False}
 
     def paper_coverage(self) -> dict[str, int]:
         with self._tx() as db:
