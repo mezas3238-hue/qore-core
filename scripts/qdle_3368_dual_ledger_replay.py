@@ -167,6 +167,9 @@ def main() -> int:
         raise SystemExit("FAIL CLOSED: 3368 unique original signals required")
     native_management_by_signal = None
     native_management_modes = Counter()
+    native_mode_instructions_consumed = 0
+    native_mode_qdle_quotes = Counter()
+    native_mode_qdle_unfundable = Counter()
     native_shadow_only = args.native_max_management_advisories is not None
     # No executable bid/ask price trajectories in the sealed Trader manifest.
     # Native cognitive management may QUOTE but cannot settle Trader CONTROL R.
@@ -194,10 +197,20 @@ def main() -> int:
                 ) or a.get("manager_cognitive_sensor_evidence_SHADOW", {}).get(
                     "native_disposition_used_for_policy") is not False
                 or a.get("manager_cognitive_sensor_evidence_SHADOW", {}).get(
-                    "producer") != "P0_DETERMINISTIC_SENSOR_DERIVED_RESEARCH_ADAPTER_NOT_NATIVE_BROKER_AUTHORIZATION"
+                    "producer") not in (
+                        "CIBO_NATIVE_MAX_SOVEREIGN_MODE_QDLE_PAPER",
+                        "P0_DETERMINISTIC_SENSOR_DERIVED_RESEARCH_ADAPTER_NOT_NATIVE_BROKER_AUTHORIZATION",
+                    )
                 ):
                 raise SystemExit("Native MAX management causal sensor/trader clock mismatch")
-            fraction = D(str(a.get("manager_risk_fraction_of_nav_SHADOW", "NaN")))
+            if advisory.get("source") == "FRESH_NATIVE_MAX_REPLAY_3368_SAME_SEALED_TRADER_INPUT":
+                if (a.get("native_cibo_mode_instruction_issued") is not True
+                    or a.get("bank_medium_attack_request_qdle_physical_lotage") is not True
+                    or not str(a.get("native_cibo_mode_instruction_sha256", "")).startswith("sha256:")):
+                    raise SystemExit("Native runtime did not issue BANK/MEDIUM/ATTACK QDLE instruction")
+            if a.get("native_cibo_mode_instruction_issued") is True:
+                native_mode_instructions_consumed += 1
+             fraction = D(str(a.get("manager_risk_fraction_of_nav_SHADOW", "NaN")))
             if not fraction.is_finite() or not ZERO < fraction <= FIVE:
                 raise SystemExit("Native MAX paper risk fraction violates 5pct all-in cap")
             native_management_modes[a["manager_mode_SHADOW_from_native_cognitive_sensors"]] += 1
@@ -924,6 +937,10 @@ def main() -> int:
                     # even when its economic stop equals the original stop:
                     # cognitive partials/trailing/defense change the outcome.
                     manager_qdle_quoted += 1
+                    if native_shadow_only:
+                        native_mode_qdle_quotes[
+                            native_management_by_signal[rid]["manager_mode_SHADOW_from_native_cognitive_sensors"]
+                        ] += 1
                     manager_qdle_quoted_lots += result.lots
                     if manager_revised_stop:
                         manager_changed_stop_quoted += 1
@@ -940,6 +957,10 @@ def main() -> int:
                         sym_counts[symbol]["manager_economic_sl_quote_only"] += 1
                     source_counts["CIBO_QDLE_QUOTE_NOT_HISTORICAL_FILL"] += 1
                 elif result.lots == 0:
+                    if native_shadow_only:
+                        native_mode_qdle_unfundable[
+                            native_management_by_signal[rid]["manager_mode_SHADOW_from_native_cognitive_sensors"]
+                        ] += 1
                     primary_constraint = result.binding_limits[0] if result.binding_limits else "UNKNOWN_BROKER_GRID"
                     rejection_binding_counts[primary_constraint] += 1
                     event["reason"] = "BROKER_MINIMUM_UNFINANCEABLE_BY_" + primary_constraint
@@ -1037,6 +1058,14 @@ def main() -> int:
                 len(native_management_by_signal) if native_management_by_signal is not None else 0
             ),
             "native_max_management_mode_counts": dict(sorted(native_management_modes.items())),
+            "native_cibo_bank_medium_attack_instructions_consumed": native_mode_instructions_consumed,
+            "native_cibo_modes_qdle_physically_quoted": dict(sorted(native_mode_qdle_quotes.items())),
+            "native_cibo_modes_qdle_no_financeable_lot": dict(sorted(native_mode_qdle_unfundable.items())),
+            "native_cibo_all_three_modes_pass_through_physical_qdle": (
+                native_mode_instructions_consumed == len(opportunities)
+                and sum(native_mode_qdle_quotes.values())
+                + sum(native_mode_qdle_unfundable.values()) == len(opportunities)
+            ),
             "native_max_cognitive_economic_intents_applied": len(native_management_by_signal) if native_shadow_only else 0,
             "native_max_all_qdle_quotes_nonsettling_without_price_path": native_shadow_only,
             "native_max_control_cashflows_excluded_from_manager_nav": native_shadow_only,
@@ -1085,12 +1114,17 @@ def main() -> int:
                 "CIBO_EXPLICIT_DIRECTIVES" if cibo_by_signal is not None
                 else "EXPERIMENTAL_NATIVE_CIBO_APPROVAL_GATE_QDLE_PHYSICAL_PROJECTION"
                 if native_decisions_by_signal is not None
+                else "NATIVE_SOVEREIGN_BANK_MEDIUM_ATTACK_INSTRUCTIONS_TO_QDLE_QUOTE_ONLY_NO_MANAGED_EXITS"
+                if native_shadow_only and native_mode_instructions_consumed == 3368
                 else "NATIVE_SENSOR_DERIVED_RESEARCH_QDLE_QUOTE_ONLY_NO_MANAGED_EXITS"
                 if native_shadow_only
                 else "NOT_CIBO_INTEGRATED_ECONOMIC_PROXIES"
             ),
-            "native_cibo_cognitive_decisions_consumed": (len(native_decisions_by_signal)
-                                                         if native_decisions_by_signal is not None else 0),
+            "native_cibo_cognitive_decisions_consumed": (
+                len(native_decisions_by_signal)
+                if native_decisions_by_signal is not None
+                else native_mode_instructions_consumed
+            ),
             "native_cibo_true_source_lanes_verified": False,
             "native_cibo_actual_management_settlements_verified": False,
             "experimental_native_lane_policy": (args.experimental_native_lane_policy
