@@ -159,7 +159,7 @@ jobs:
                       r["counts"].get("settled")==538 and
                       r["counts"].get("future_m5_quote_rejected",0)==0)
           with open(os.environ["GITHUB_ENV"],"a") as f:
-              f.write("LEGACY_540_PAIRABLE="+("true" if comparable else "false")+"\\n")
+              f.write("LEGACY_540_PAIRABLE="+("true" if comparable else "false")+"\n")
           if not comparable:
               (p/"cibo-p0-prior-540-not-comparable.json").write_text(
                   json.dumps({
@@ -169,7 +169,7 @@ jobs:
                       "future_m5_quote_rejected":r["counts"].get("future_m5_quote_rejected",0),
                       "original_540_cohort_unchanged":False,
                       "certified_profit_factor":None,
-                  },sort_keys=True,indent=2)+"\\n")
+                  },sort_keys=True,indent=2)+"\n")
           print("CIBO_P0_540_COMPARABILITY",comparable,
                 "future_quote_rejected",r["counts"].get("future_m5_quote_rejected",0))
           PY
