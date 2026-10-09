@@ -5,6 +5,9 @@ on:
     branches: [agent/cibo-sovereign-integration-p0-20261008]
     paths:
       - "scripts/cibo_p0_manager_qdle_replay_audit.py"
+      - "scripts/cibo_p0_3368_managed_exit_path_audit.py"
+      - "src/qore/infrastructure/cibo_managed_exit_replay.py"
+      - "tests/infrastructure/test_cibo_managed_exit_replay.py"
       - "scripts/cibo_p0_3368_manager_intake_sensitivity.py"
       - "scripts/qdle_3368_dual_ledger_replay.py"
       - ".github/workflows/cibo-p0-manager-qdle-replay.yml"
@@ -26,6 +29,7 @@ jobs:
         run: |
           python -m unittest discover -s tests/infrastructure -p test_cibo_trader_signal_administration.py -q
           python -m unittest discover -s tests/infrastructure -p test_qdle_cibo_authority.py -q
+          python -m unittest discover -s tests/infrastructure -p test_cibo_managed_exit_replay.py -v
       - name: Retrieve immutable walk-forward manifest with SHA256
         env:
           GH_TOKEN: ${{ github.token }}
@@ -56,6 +60,13 @@ jobs:
             --manager "$RUNNER_TEMP/cibo-p0-replay/manager-intake.json" \
             --qdle "$RUNNER_TEMP/cibo-p0-replay/qdle-original-stops.json" \
             --output "$RUNNER_TEMP/cibo-p0-replay/combined-report.json"
+      - name: Replay managed exits ONLY if causal executable bars were supplied
+        run: |
+          python scripts/cibo_p0_3368_managed_exit_path_audit.py \
+            --manifest "$RUNNER_TEMP/cibo-p0-replay/walk-forward-manifest.json" \
+            --manager "$RUNNER_TEMP/cibo-p0-replay/manager-intake.json" \
+            --qdle "$RUNNER_TEMP/cibo-p0-replay/qdle-original-stops.json" \
+            --output "$RUNNER_TEMP/cibo-p0-replay/managed-exit-path-audit.json"
       - name: Verify no real fills and no invented modified-stop performance
         run: |
           python - <<'PY'
@@ -72,6 +83,19 @@ jobs:
           assert not s['cibo_selector_used'] and not s['outcomes_from_new_economic_stops_measured']
           print('CIBO_P0_MANAGER_QDLE_3368_INTEGRITY_PASS')
           print('CIBO_P0_MANAGER_QDLE_RESULTS',json.dumps(s,sort_keys=True))
+          p=json.loads((root/'managed-exit-path-audit.json').read_text())
+          m=p['summary']
+          assert m['signals_received']==3368
+          assert m['reason_counts']=={
+            'ECONOMIC_STOP_NEEDS_QDLE_REQUOTE_AND_PATH':300,
+            'MANAGED_EXIT_MISSING_PRICE_PATH':359,
+            'ORIGINAL_STOP_NOT_FINANCED':2709,
+          }
+          assert m['managed_strategy_profit_factor'] is None
+          assert m['managed_strategy_max_drawdown_pct'] is None
+          assert m['managed_strategy_final_NAV_USD'] is None
+          assert m['real_mt5_fills']==0 and not m['certified']
+          print('CIBO_P0_MANAGEMENT_CAUSAL_PROOF_AUDIT_PASS',json.dumps(m,sort_keys=True))
           PY
       - uses: actions/upload-artifact@v4
         if: always()
@@ -81,4 +105,5 @@ jobs:
             ${{ runner.temp }}/cibo-p0-replay/manager-intake.json
             ${{ runner.temp }}/cibo-p0-replay/qdle-original-stops.json
             ${{ runner.temp }}/cibo-p0-replay/combined-report.json
+            ${{ runner.temp }}/cibo-p0-replay/managed-exit-path-audit.json
           if-no-files-found: warn
