@@ -10,6 +10,10 @@ on:
       - "src/qore/infrastructure/cibo_native_sovereign_qdle.py"
       - "src/qore/infrastructure/cibo_sovereign_integration.py"
       - "src/qore/infrastructure/cibo_p0_native_cognitive_management.py"
+      - "src/qore/infrastructure/cibo_native_mode_authority.py"
+      - "src/qore/infrastructure/cibo_native_sovereign_capital_runtime.py"
+      - "src/qore/infrastructure/cibo_single_account_sovereign_ceiling_run.py"
+      - "tests/infrastructure/test_cibo_native_sovereign_qdle_p0.py"
 permissions:
   contents: read
   actions: read
@@ -94,6 +98,11 @@ jobs:
           assert a['cognitive_intelligence_receipts_consumed']==a['trader_signals_received']==3368
           assert a['source']=='FRESH_NATIVE_MAX_REPLAY_3368_SAME_SEALED_TRADER_INPUT'
           assert len(a['receipts'])==3368 and not a['admission_gate_applied']
+          assert a['native_cibo_bank_medium_attack_instructions_issued']==3368
+          assert a['native_cibo_qdle_mode_authority_is_runtime'] is True
+          assert all(d['native_cibo_mode_instruction_issued'] is True
+                     and d['bank_medium_attack_request_qdle_physical_lotage'] is True
+                     for d in a['receipts'])
           reports={}
           for name in ('original-caps','paper-no-strategy-caps'):
               r=json.loads((path/f'native-max-qdle-3368-{name}.json').read_text())
@@ -101,6 +110,14 @@ jobs:
               assert r['native_max_3368_cognitive_evidence_joined'] is True
               assert r['native_max_cognitive_evidence_receipts_joined']==3368
               assert r['native_max_cognitive_economic_intents_applied']==3368
+              assert r['native_cibo_bank_medium_attack_instructions_consumed']==3368
+              assert r['native_cibo_cognitive_decisions_consumed']==3368
+              assert r['native_cibo_all_three_modes_pass_through_physical_qdle'] is True
+              assert r['cibo_directives_consumed']==0  # NOT authenticated LIVE execution instructions
+              for mode in ('BANK','MEDIUM','ATTACK'):
+                  assert (r['native_cibo_modes_qdle_physically_quoted'].get(mode,0)
+                          +r['native_cibo_modes_qdle_no_financeable_lot'].get(mode,0)
+                          ==r['native_max_management_mode_counts'][mode])
               assert r['native_max_all_qdle_quotes_nonsettling_without_price_path']
               assert r['native_max_control_cashflows_excluded_from_manager_nav']
               assert r['net_research_pnl_usd'] is None
@@ -110,7 +127,7 @@ jobs:
               assert r['qore_ending_capital_usd']=='60'
               assert not r['native_max_real_managed_trade_exits_rebuilt']
               assert r['native_max_legacy_admission_filter_disabled'] is True
-              assert r['native_cibo_cognitive_decisions_consumed']==0
+              assert r['native_cibo_cognitive_decisions_consumed']==3368
               assert r['real_fundednext_fills']==0 and r['certified'] is False
               assert r['cibo_manager_full_real_strategy_NAV_USD'] is None
               assert r['cibo_manager_full_real_strategy_PF'] is None
@@ -154,6 +171,9 @@ jobs:
                 'original_stop_subset_structural_closedDD_pct':None,
                 'original_stop_subset_structural_PF':None,
                 'native_cognitive_economic_budget_wired_to_qdle':True,
+                'cibo_native_bank_medium_attack_requests_to_qdle':r['native_cibo_bank_medium_attack_instructions_consumed'],
+                'qdle_quotes_by_mode':r['native_cibo_modes_qdle_physically_quoted'],
+                'qdle_unfundable_by_mode':r['native_cibo_modes_qdle_no_financeable_lot'],
                 'control_settlements_excluded_from_manager':True,
               }
           full={'schema':'qore.cibo.max-native-manager-qdle-3368-comparison.v1',
