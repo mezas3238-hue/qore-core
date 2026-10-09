@@ -123,6 +123,12 @@ jobs:
           assert pbook["physical_quotes"]+pbook["unassessable"]==3368
           assert pbook["paper_filled"]==r["counts"].get("paper_open",0)
           assert pbook["paper_settled"]==r["counts"].get("settled",0)
+          assert r["qdle_canonical_sqlite_role"]=="PaperQDLE_V1_SINGLE_RESERVATION_BOOK"
+          assert r["qdle_paper_event_audit"]["event_count"] > 3368
+          import hashlib
+          archive=p/"db/cibo-p0-canonical-paper-3368.sqlite"
+          assert archive.is_file()
+          assert "sha256:"+hashlib.sha256(archive.read_bytes()).hexdigest() == r["qdle_paper_sqlite_sha256"]
           assert r["four_motor_votes_fresh_per_physical_quote"] is True
           assert r["four_motor_votes_broker_authenticated"] is False
           assert r["counts"]["fresh_four_motor_signal_decisions"]==pbook["physical_quotes"]
@@ -207,6 +213,7 @@ jobs:
           name: trader-lab-cibo-native-qdle-atlas-3368-${{ github.run_id }}
           path: |
             ${{ runner.temp }}/cibo-atlas-3368/trader-lab-cibo-qdle-spread-3368.json
+            ${{ runner.temp }}/cibo-atlas-3368/db/cibo-p0-canonical-paper-3368.sqlite
             ${{ runner.temp }}/cibo-atlas-3368/cibo-p0-winrate-frozen-540-diagnostic.json
             ${{ runner.temp }}/cibo-atlas-3368/cibo-p0-source-signal-audit-3368.json
           if-no-files-found: warn
