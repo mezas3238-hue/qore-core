@@ -24,7 +24,6 @@ from qore.infrastructure.cibo_account_capital_mission import (
     CiboAccountCapitalIdentity,
 )
 from qore.infrastructure.cibo_four_motor_policy import (
-    ZERO,
     FourMotorObservation,
     FourMotorPolicyError,
     FourMotorProposal,
