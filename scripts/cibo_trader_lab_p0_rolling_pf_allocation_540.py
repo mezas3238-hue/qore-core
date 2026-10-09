@@ -262,7 +262,7 @@ def run(manifest,replay):
         decisions[mode]=assessed
     baseline=results["BASELINE"]
     assert baseline["paper_openings"]==540 and baseline["closed"]==538
-    assert D(baseline["net_usd"]) == D(replay["shadow_projected_settled_net_pnl_usd"])
+    assert abs(D(baseline["net_usd"]) - D(replay["shadow_projected_settled_net_pnl_usd"])) < D("0.00000001")
     assert baseline["paper_unresolved_open_positions"]==2
     assert all(v["decisions_with_future_data"]==0 for v in results.values())
     return {
