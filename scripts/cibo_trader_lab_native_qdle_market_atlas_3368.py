@@ -17,6 +17,7 @@ from pathlib import Path
 import hashlib
 import heapq
 import json
+import sqlite3
 import tempfile
 
 from qore.infrastructure.qdle_stellar_instant_costs import (
@@ -126,8 +127,10 @@ def _mode_quote(row, symbol, side, entry, stop, stop_per_lot,
         "TRADER_LAB_ATLAS_M5_CEO_2026_FIXED_SPREAD_RESEARCH",
     )
     nav = max(nav, ZERO)
-    free_qore = max(nav - reserved, ZERO)
-    free_margin = max(BROKER_INITIAL + nav-INITIAL-margin_held, ZERO)
+    # The sole SQLite QDLE reserve book already holds risk+margin for every
+    # PAPER_FILLED trade. Publish gross sources, never pre-subtract them twice.
+    free_qore = nav
+    free_margin = max(BROKER_INITIAL + nav-INITIAL, ZERO)
     caps = row["four_engine_caps_usd"]
     scale = nav / INITIAL
     instruction_fraction = _d(row["cibo_max_native_requested_risk_fraction_of_nav"])
@@ -141,10 +144,7 @@ def _mode_quote(row, symbol, side, entry, stop, stop_per_lot,
         qore_unreserved_risk_usd=free_qore,
         sovereign_free_source_usd=free_qore, cushion_free_source_usd=ZERO,
         qore_trading_capital_usd=nav,
-        positions=tuple(Position(ticket=p["paper_ticket"], symbol=p["symbol"],
-                                 side=p["side"], lots=p["lots"])
-                        for p in active.values()),
-        covered_fill_tickets=tuple(p["paper_ticket"] for p in active.values()),
+        positions=(), covered_fill_tickets=(),
     ))
     # Reuse one market spec when several signals have the same M5 open.
     if broker.last_spec_at.get(symbol) != as_of:
@@ -284,6 +284,17 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
                 counts["no_executable_atlas_entry"]+=1
                 r["status"]="NO_ATLAS_M5_ENTRY";paper_unassessable(r["status"]);rows.append(r);continue
             first=bars[pos]
+            r["first_candidate_atlas_m5_open_at"]=first.opened_at.isoformat()
+            r["price_known_at_decision"]=first.opened_at<=at
+            if first.opened_at>at:
+                # Never price a Trader's earlier decision using a future M5
+                # open. A true delayed fill needs a causal quote at decision
+                # and separate next-fill revalidation. No such data here.
+                counts["future_m5_quote_rejected"]+=1
+                r["status"]="FUTURE_M5_OPEN_NOT_OBSERVED_AT_TRADER_DECISION"
+                paper_unassessable(r["status"])
+                rows.append(r)
+                continue
             midpoint=first.open
             spread=SCREENSHOT_SPREAD[symbol]
             half=spread/D(2)
@@ -412,6 +423,14 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
         settle(datetime.max.replace(tzinfo=chronological[-1] and datetime.fromisoformat(chronological[-1]["at"]).tzinfo))
         qdle.assert_paper_positions(active)
         paper_coverage = qdle.paper_coverage()
+        paper_audit = qdle.paper_audit_digest()
+        # Back up exactly one canonical SQLite book and prove bytes match
+        # the downloadable research artifact; never copy active SQLite WAL.
+        canonical_sqlite_path=Path(workdir)/"cibo-p0-canonical-paper-3368.sqlite"
+        with sqlite3.connect(qdle.path) as source_db, sqlite3.connect(canonical_sqlite_path) as target_db:
+            source_db.backup(target_db)
+        canonical_sqlite_sha256="sha256:"+hashlib.sha256(
+            canonical_sqlite_path.read_bytes()).hexdigest()
     if counts["received"]!=3368:
         raise ValueError("unexpected native input cardinality")
     if paper_coverage["received_accounted"] != 3368:
@@ -436,6 +455,10 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
         "atlas_provenance":metadata,
         "signal_count":3368,"counts":dict(counts),
         "qdle_persistent_paper_ledger":paper_coverage,
+        "qdle_canonical_sqlite_role":"PaperQDLE_V1_SINGLE_RESERVATION_BOOK",
+        "qdle_paper_event_audit":paper_audit,
+        "qdle_paper_sqlite_sha256":canonical_sqlite_sha256,
+        "qdle_paper_archive_filename":canonical_sqlite_path.name,
         "qdle_book_role":"SINGLE_ACCOUNT_PAPER_ONLY_NOT_BROKER",
         "by_mode":{k:dict(v) for k,v in per_mode.items()},
         "by_symbol":{k:dict(v) for k,v in per_symbol.items()},
@@ -465,7 +488,8 @@ def simulate(manifest, quotes, roots, *, workdir, max_bars=3200):
             "Historical four-engine caps are scaled from 60 USD; new independent votes are NOT implemented",
             "No fresh Native MAX cognitive episode per signal; receipts and exit policies remain precomputed",
             "Not all signals have valid geometry/market observations for physical sizing; unassessable audited separately",
-            "Paper fill next eligible M5 open; original LIMIT order fills not reconstructed",
+            "Future M5 OPEN is explicitly rejected if after Trader decision; native M1 fills not verified",
+            "Paper fill only at causal M5 open; original LIMIT fills not reconstructed",
             "Incomplete market paths kept OPEN and reserve funds, no fabricated result",
             "Intratrade global portfolio MTM drawdown cannot be certified",
             "Historical broker actual swap, margin, slippage and gap path not verified",
