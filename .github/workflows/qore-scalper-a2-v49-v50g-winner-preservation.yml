@@ -88,12 +88,21 @@ jobs:
           assert w["all_markets_trace_covered"] is True
           assert w["source_opportunities_total"] == r["source_opportunities"]
           assert w["trader_certified"] is False
+          from collections import Counter
+          geometry = Counter()
+          cognition = Counter()
           for market in w["markets"]:
               print("GATE DROPS", market["symbol"],
                     "source", market["source_opportunities"],
                     "not_ready", market["geometry_not_ready"],
                     "cognition_denied", market["cognitive_denied_among_geometry_ready"],
                     "after_max3", market["cognitive_policy_after_max3"])
+              geometry.update(dict(market["geometry_reason_occurrences"]))
+              cognition.update(dict(market["bridge_reason_occurrences_on_geometry_ready"]))
+          print("GEOMETRY REJECTION REASON OCCURRENCES:", sorted(geometry.items()))
+          print("COGNITIVE REJECTION REASON OCCURRENCES:", sorted(cognition.items()))
+          print("GEOMETRY FAIL TOTAL:", sum(m["geometry_not_ready"] for m in w["markets"]))
+          print("COGNITION DENIED AFTER READY:", sum(m["cognitive_denied_among_geometry_ready"] for m in w["markets"]))
           PY
       - name: Archive full matched winner IDs and preservation verdict
         uses: actions/upload-artifact@v4
