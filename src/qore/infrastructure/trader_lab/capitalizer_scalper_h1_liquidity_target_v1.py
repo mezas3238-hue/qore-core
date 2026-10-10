@@ -133,7 +133,7 @@ def discover_h1_liquidity_targets(
 
     completed_h1 = tuple(b for b in h1 if b.closed_at <= at)
     completed_m1 = tuple(b for b in m1 if b.closed_at <= at)
-    if len(completed_h1) < 3 or not completed_m1:
+    if not completed_h1 or not completed_m1:
         raise ValueError("no complete H1/M1 source history")
 
     def ahead(price: Decimal) -> bool:
