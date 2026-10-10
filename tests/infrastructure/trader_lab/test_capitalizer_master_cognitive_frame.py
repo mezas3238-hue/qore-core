@@ -7,6 +7,7 @@ import pytest
 
 from qore.infrastructure.trader_lab.capitalizer_a1_full_frame_research_adapter import (
     A1CausalSettledMemory,
+    A1FullFrameResearchDecision,
     A1SettledChosenTrade,
     A1SourceBinding,
     evaluate_full_frame_research_batch,
@@ -272,7 +273,7 @@ def _a1_research_run(
     contexts: tuple[CapitalizerCandidateCognitiveContext, ...] | None = None,
     bindings: tuple[A1SourceBinding, ...] | None = None,
     memory: A1CausalSettledMemory | None = None,
-):
+) -> tuple[A1FullFrameResearchDecision, ...]:
     return evaluate_full_frame_research_batch(
         world=_world(at),
         perceptions=_perceptions(at) if perceptions is None else perceptions,
