@@ -41,16 +41,16 @@ def _bar(
 
 
 def _fixtures() -> tuple[tuple[M1Bar, ...], datetime]:
-    previous = datetime(2026, 1, 2, 12, tzinfo=UTC)
+    previous = datetime(2026, 1, 2, 14, 30, tzinfo=UTC)
     today = datetime(2026, 1, 5, 5, tzinfo=UTC)
-    # Prior completed NY trading day: explicit high 150, low 80.
+    # FULL prior NY cash session 09:30-16:00: explicit high 150, low 80.
     prev_bars = tuple(
         _bar(
             previous + timedelta(minutes=i),
             o="110", h="150" if i == 33 else "114",
             lo="80" if i == 45 else "108", c="111",
         )
-        for i in range(180)
+        for i in range(390)
     )
     # Completed Asian range 00:00-03:00 NY: 180 closed M1.
     asia = tuple(
@@ -78,7 +78,7 @@ def test_one_cleanroom_cognition_produces_timestamped_dol_and_shift() -> None:
     assert result.decision is not None, result.missing
     assert result.decision.session is SessionId.LONDON
     assert result.decision.side is Side.LONG
-    assert result.decision.draw_family == "PRIOR_NY_DAY_HIGH"
+    assert result.decision.draw_family == "PRIOR_NY_CASH_SESSION_HIGH"
     assert result.decision.draw_target == Decimal("150")
     assert result.decision.structure_level == Decimal("105")
     assert result.decision.structure_level_confirmed_at < (
@@ -132,7 +132,7 @@ def test_timestamped_liquidity_has_no_future_source() -> None:
     now = _verified_pools(
         bars, at, SessionId.LONDON,
     )
-    assert any(p.family == "PRIOR_NY_DAY_HIGH" for p in now)
+    assert any(p.family == "PRIOR_NY_CASH_SESSION_HIGH" for p in now)
     assert any(p.family == "ASIA_NY_CLOCK_HIGH" for p in now)
     assert all(p.confirmed_at <= at for p in now)
     after = _verified_pools(
@@ -224,3 +224,15 @@ def test_real_cognitive_decision_is_consumed_by_ops_same_session_fvg() -> None:
     assert state["registered_trader_count"] == 1
     assert state["session_windows"][-1]["model"] == "LONDON"
     assert state["live_authorized"] is False
+
+
+def test_partial_previous_day_is_not_false_confirmed_pdh_or_cash_pool() -> None:
+    bars, at = _fixtures()
+    prior = tuple(b for b in bars if b.opened_at.date() != at.date())
+    current = tuple(b for b in bars if b.opened_at.date() == at.date())
+    incomplete = prior[:180] + current
+    pools = _verified_pools(incomplete, at, SessionId.LONDON)
+    assert not any(p.family.startswith("PRIOR_NY_CASH_SESSION") for p in pools)
+    full = _verified_pools(bars, at, SessionId.LONDON)
+    assert any(p.family == "PRIOR_NY_CASH_SESSION_HIGH" for p in full)
+    assert all(p.confirmed_at <= at for p in full)
