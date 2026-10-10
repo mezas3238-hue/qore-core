@@ -325,6 +325,160 @@ def _confirmed_break(
     return None
 
 
+class _OnlineCausalIndex:
+    """Constant-work closed-M1 cache for real 3Y streaming replays.
+
+    Every incremental fact is emitted ONLY once its entire source bar/window
+    has closed. A missing M1 never manufactures a complete M15/H1/H4 or
+    intra-session reference. Unswept pool membership is updated per M1.
+    """
+
+    def __init__(self) -> None:
+        self._htf_active: dict[int, tuple[datetime, list[M1Bar]]] = {}
+        self._htf_completed: dict[
+            int, deque[tuple[datetime, Decimal, Decimal, Decimal]]
+        ] = {i: deque(maxlen=2) for i in (15, 60, 240)}
+        self._window_active: dict[
+            str, tuple[object, list[M1Bar]]
+        ] = {}
+        self._available_pools: dict[str, LiquidityPool] = {}
+        self._recent_mss: deque[M1Bar] = deque(maxlen=95)
+
+    def observe(self, bar: M1Bar) -> None:
+        opened = utc(bar.opened_at)
+        closed_at = utc(bar.closed_at)
+        self._recent_mss.append(bar)
+
+        # Previously confirmed pools are invalid if any *later* completed M1
+        # wicks through the corresponding liquidity. Never resurrect them.
+        for key, pool in tuple(self._available_pools.items()):
+            if (
+                opened >= utc(pool.confirmed_at)
+                and (
+                    bar.high >= pool.level if pool.side is Side.LONG
+                    else bar.low <= pool.level
+                )
+            ):
+                del self._available_pools[key]
+
+        for interval in (15, 60, 240):
+            minute = opened.hour * 60 + opened.minute
+            begin = opened - timedelta(minutes=minute % interval)
+            old = self._htf_active.get(interval)
+            if old is None or old[0] != begin:
+                samples = [bar]
+            else:
+                samples = old[1]
+                if samples[-1].closed_at != opened:
+                    samples = [bar]
+                else:
+                    samples.append(bar)
+            self._htf_active[interval] = (begin, samples)
+            if (
+                len(samples) == interval
+                and utc(samples[0].opened_at) == begin
+                and closed_at == begin + timedelta(minutes=interval)
+            ):
+                self._htf_completed[interval].append((
+                    closed_at,
+                    max(row.high for row in samples),
+                    min(row.low for row in samples),
+                    samples[-1].close,
+                ))
+
+        local = opened.astimezone(NEW_YORK)
+        minute = local.hour * 60 + local.minute
+        source: tuple[str, int, int] | None = None
+        if 0 <= minute < 180:
+            source = ("ASIA_NY_CLOCK", 0, 180)
+        elif 180 <= minute < 300:
+            source = ("LONDON_NY_CLOCK", 180, 300)
+        elif 570 <= minute < 960:
+            source = ("PRIOR_NY_CASH_SESSION", 570, 960)
+        if source is None:
+            return
+        family, first_minute, last_minute = source
+        day = local.date()
+        old_source = self._window_active.get(family)
+        if old_source is None or old_source[0] != day:
+            observed = [bar]
+        else:
+            observed = old_source[1]
+            if utc(observed[-1].closed_at) != opened:
+                observed = [bar]
+            else:
+                observed.append(bar)
+        self._window_active[family] = (day, observed)
+        if minute != last_minute - 1:
+            return
+        if len(observed) != last_minute - first_minute:
+            return
+        first_local = utc(observed[0].opened_at).astimezone(NEW_YORK)
+        if first_local.hour * 60 + first_local.minute != first_minute:
+            return
+        pair = _range_pool(
+            bars=tuple(observed), name=family,
+            minimum_bars=last_minute - first_minute,
+        )
+        if pair is not None:
+            for pool in pair:
+                self._available_pools[pool.family] = pool
+
+    def context(
+        self, as_of: datetime
+    ) -> tuple[tuple[str, ...], dict[str, str]]:
+        at = utc(as_of)
+        names: list[str] = []
+        states: dict[str, str] = {}
+        for interval, label in ((15, "M15"), (60, "H1"), (240, "H4")):
+            candles = self._htf_completed[interval]
+            if len(candles) < 2:
+                states[label] = "NOT_EVALUABLE"
+                continue
+            previous, latest = candles[-2], candles[-1]
+            if at - latest[0] > timedelta(minutes=interval * 2):
+                states[label] = "STALE"
+                continue
+            states[label] = (
+                "BULLISH" if latest[3] > previous[3]
+                else "BEARISH" if latest[3] < previous[3]
+                else "FLAT"
+            )
+            names.append(label)
+        return tuple(names), states
+
+    def pools(
+        self, as_of: datetime, session: SessionId
+    ) -> tuple[LiquidityPool, ...]:
+        at = utc(as_of)
+        local_day = _ny_day(at)
+        pools: list[LiquidityPool] = []
+        for pool in self._available_pools.values():
+            if pool.confirmed_at > at:
+                continue
+            source_day = _ny_day(pool.source_start)
+            if pool.family.startswith("PRIOR_NY_CASH_SESSION"):
+                if source_day >= local_day:
+                    continue
+                if at - pool.confirmed_at > timedelta(days=5):
+                    continue
+            elif pool.family.startswith("ASIA_NY_CLOCK"):
+                if source_day != local_day:
+                    continue
+            elif pool.family.startswith("LONDON_NY_CLOCK"):
+                if session not in (SessionId.NY_AM, SessionId.NY_PM):
+                    continue
+                if source_day != local_day:
+                    continue
+            else:
+                raise ValueError("unrecognized cleanroom liquidity family")
+            pools.append(pool)
+        return tuple(pools)
+
+    def shift(self) -> CausalSwingBreak | None:
+        return _confirmed_break(tuple(self._recent_mss))
+
+
 class VT31CleanroomCognition:
     """Single persistent market memory shared by both VT31 session models."""
 
@@ -332,6 +486,8 @@ class VT31CleanroomCognition:
         if max_m1_history < 1440:
             raise ValueError("require enough history for prior session context")
         self._history: deque[M1Bar] = deque(maxlen=max_m1_history)
+        self._index = _OnlineCausalIndex()
+        self._observed_count = 0
         self.latest_assessment: CognitiveAssessment | None = None
 
     def observe_closed_m1(self, bar: M1Bar) -> None:
@@ -340,6 +496,8 @@ class VT31CleanroomCognition:
         if self._history and utc(bar.opened_at) < utc(self._history[-1].closed_at):
             raise ValueError("duplicate/overlapping/out-of-order M1")
         self._history.append(bar)
+        self._index.observe(bar)
+        self._observed_count += 1
 
     def assess(
         self, *, session: SessionId, as_of: datetime
@@ -352,12 +510,11 @@ class VT31CleanroomCognition:
         begin, end = window_bounds(at - timedelta(microseconds=1), session)
         if not begin < at <= end:
             raise ValueError("cognition outside its original ICT source window")
-        closed = tuple(self._history)
-        if any(utc(b.closed_at) > at for b in closed):
-            raise AssertionError("future M1 in frozen cognition")
-        verified, htf = _htf_context(closed)
-        pools = _verified_pools(closed, at, session)
-        shift = _confirmed_break(closed)
+        # O(1) indexed facts; no tuple(22k-history) and no three full
+        # M15/H1/H4 repartitions for each of ~137k Silver Bullet M1.
+        verified, htf = self._index.context(at)
+        pools = self._index.pools(at, session)
+        shift = self._index.shift()
         missing: list[str] = []
         if htf.get("H1") in {"NOT_EVALUABLE", "STALE"}:
             missing.append("H1_CLOSED_CONTEXT")
@@ -369,7 +526,7 @@ class VT31CleanroomCognition:
             missing.append("CONFIRMED_DISPLACEMENT_MSS")
         decision: CognitiveDecision | None = None
         if not missing and shift is not None:
-            last = closed[-1]
+            last = self._history[-1]
             # A market-origin draw must be a confirmed *future destination*
             # in the breakout direction, not whichever past level eventually
             # paid out after the trade ended.
@@ -416,7 +573,7 @@ class VT31CleanroomCognition:
         result = CognitiveAssessment(
             as_of=at, session=session, decision=decision,
             state=status,
-            causal_closed_m1_count=len(closed),
+            causal_closed_m1_count=self._observed_count,
             verified_htf=verified,
             source_pool_count=len(pools),
             structure_shift_detected=shift is not None,
