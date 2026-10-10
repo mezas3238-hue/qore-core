@@ -11,7 +11,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-from collections import Counter
+from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
@@ -174,6 +174,98 @@ def _count_pairs(value: object, *, field: str) -> Counter[str]:
     return result
 
 
+
+def _source_trade_key(
+    *,
+    symbol: str,
+    session: str,
+    operating_date: str,
+    entry_at: str,
+    entry_price: str,
+    trigger_family: str,
+    h1_basis: str,
+) -> tuple[str, str, str, datetime, str, str, str]:
+    return (
+        symbol,
+        session,
+        operating_date,
+        _strict_time(entry_at),
+        entry_price,
+        trigger_family,
+        h1_basis,
+    )
+
+
+def _join_executions_to_source(
+    opportunities: tuple[V49Opportunity, ...],
+    trades: tuple[V50GTrade, ...],
+    gates: tuple[OpportunityGateRow, ...],
+    *,
+    require_traces: bool,
+) -> dict[str, set[str]]:
+    """Reject source-less, ambiguous, duplicate or non-eligible policy fills.
+
+    V50GTrade carries no unique source ID; this post-hoc join is conservative:
+    a composite key with two possible V49 parents is UNKNOWN, never arbitrarily
+    assigned to one. Monetary outcomes are intentionally excluded.
+    """
+
+    sources: dict[
+        tuple[str, str, str, datetime, str, str, str], list[str]
+    ] = defaultdict(list)
+    for item in opportunities:
+        key = _source_trade_key(
+            symbol=item.symbol,
+            session=item.session,
+            operating_date=item.operating_date,
+            entry_at=item.m1_trigger_confirmed_at,
+            entry_price=item.decision_reference_price,
+            trigger_family=item.m1_trigger_family,
+            h1_basis=item.h1_state_basis,
+        )
+        sources[key].append(source_id(item))
+
+    gates_by_id = {gate.source_opportunity_id: gate for gate in gates}
+    matched: dict[str, set[str]] = {policy: set() for policy in POLICIES}
+    for trade in trades:
+        key = _source_trade_key(
+            symbol=trade.symbol,
+            session=trade.session,
+            operating_date=trade.operating_date,
+            entry_at=trade.entry_at,
+            entry_price=trade.entry_price,
+            trigger_family=trade.trigger_family,
+            h1_basis=trade.h1_basis,
+        )
+        candidates = sources.get(key, [])
+        if len(candidates) != 1:
+            raise ValueError(
+                "trade has absent or ambiguous V49 origin; execution ID required"
+            )
+        identifier = candidates[0]
+        if identifier in matched[trade.policy]:
+            raise ValueError("duplicate trade for one source opportunity and policy")
+        matched[trade.policy].add(identifier)
+        if require_traces:
+            gate = gates_by_id.get(identifier)
+            if gate is None:
+                raise ValueError("trade references a source without A1 cognitive trace")
+            allowed = (
+                gate.geometry_policy_eligible
+                if trade.policy == "GEOMETRY_ONLY"
+                else gate.cognitive_policy_eligible
+            )
+            if not allowed:
+                raise ValueError(
+                    "executed trade contradicts its source-specific gate decision"
+                )
+    if not matched["COGNITIVE_GEOMETRY"].issubset(
+        matched["GEOMETRY_ONLY"]
+    ):
+        raise ValueError("cognitive policy cannot execute without geometry policy")
+    return matched
+
+
 def build_waterfall(
     capacity_root: Path,
     v50_root: Path,
@@ -328,6 +420,15 @@ def build_waterfall(
                 raise ValueError("missing-session-bars does not reconcile")
         if report.get("cognitive_trace_rows") not in (None, len(opps)):
             raise ValueError("V50 cognitive trace declared with wrong cardinality")
+        per_market_executions = _join_executions_to_source(
+            opps,
+            tuple(item for item in all_trades if item.symbol == symbol),
+            tuple(local_gates),
+            require_traces=traces_available,
+        )
+        for policy in POLICIES:
+            if len(per_market_executions[policy]) != actual[policy]:
+                raise ValueError("trade/source reconciliation lost executions")
         coverage.append({
             "symbol": symbol,
             "session": report["session"],
