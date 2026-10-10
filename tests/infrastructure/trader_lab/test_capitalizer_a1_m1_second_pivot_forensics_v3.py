@@ -16,7 +16,6 @@ from qore.infrastructure.trader_lab.capitalizer_a1_m1_protected_route_forensics_
     review_source_m1,
 )
 from qore.infrastructure.trader_lab.capitalizer_a1_m1_second_pivot_forensics_v3 import (
-    A1SecondPivotReview,
     SecondaryPivotClass,
     review_second_pivot,
 )
