@@ -21,6 +21,9 @@ SCHEMA: Final = "VT08_5M_CANDIDATE_EVENT_V1"
 SOURCE_ID: Final = re.compile(r"vt08-5m-source:[0-9a-f]{64}\Z")
 HEX: Final = re.compile(r"[0-9a-f]{64}\Z")
 CAUSAL_SOURCE_KEYS: Final = ("source_h4", "cisd", "protected_swing")
+# NO jointly signed A/B source-situation manifest exists. A caller-supplied
+# boolean is never acceptable evidence of an approved integration contract.
+APPROVED_A_B_MANIFEST_SHA256: Final[str | None] = None
 
 
 class Vt08CandidateBoundaryError(ValueError):
@@ -54,7 +57,7 @@ def _timestamp(raw: object, name: str) -> datetime:
 def inspect_architect_a_candidate(
     envelope: Mapping[str, object],
     *,
-    joint_contract_approved: bool = False,
+    joint_contract_manifest_sha256: str | None = None,
 ) -> Vt08CandidateReadiness:
     """Never turn incomplete source into a cognition EXECUTE decision.
 
@@ -121,7 +124,10 @@ def inspect_architect_a_candidate(
             if _timestamp(features[name], name) > decision:
                 raise Vt08CandidateBoundaryError("future cognitive feature forbidden")
 
-    if not joint_contract_approved:
+    if (
+        APPROVED_A_B_MANIFEST_SHA256 is None
+        or joint_contract_manifest_sha256 != APPROVED_A_B_MANIFEST_SHA256
+    ):
         blockers.append("A_B:CONTRACT_NOT_JOINTLY_FROZEN")
     return Vt08CandidateReadiness(
         source_event_id=source_id,
