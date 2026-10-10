@@ -19,6 +19,7 @@ from qore.infrastructure.traders.vt08_cognitive_position_intelligence import (
 )
 from qore.infrastructure.traders.vt08_cognitive_v1_contracts import (
     Vt08CognitiveAction,
+    Vt08KnowledgeState,
     Vt08PositionAction,
 )
 
@@ -256,3 +257,89 @@ def test_position_refuses_unauthorized_side_change_and_old_candle() -> None:
             ),
             _position(later),
         )
+
+
+def test_every_sovereign_decision_component_is_in_auditable_trace() -> None:
+    gate = Vt08FiveMarketCognitiveGate()
+    supported = gate.evaluate(_snapshot())
+    assert supported.metacognitive_state is Vt08KnowledgeState.SUPPORTED
+    assert supported.supporting_evidence == ("SOURCE:CISD", "SOURCE:PS")
+    assert supported.adversarial_challenges == ()
+    assert supported.adversarial_unknowns == ()
+    assert len(supported.memory_fingerprint) == 64
+    assert len(supported.market_context_fingerprint) == 64
+    assert len(supported.strategy_identity_fingerprint) == 64
+
+    unknown = gate.evaluate(
+        _snapshot(
+            source="different-source-unknown",
+            supporting_evidence=(),
+        )
+    )
+    assert unknown.action is Vt08CognitiveAction.WAIT
+    assert unknown.metacognitive_state is Vt08KnowledgeState.UNKNOWN
+    assert unknown.supporting_evidence == ()
+
+    disputed = gate.evaluate(
+        _snapshot(
+            source="different-source-contradicted",
+            material_contradictions=("SOURCE:THESIS_INVALID",),
+        )
+    )
+    assert disputed.action is Vt08CognitiveAction.ABSTAIN
+    assert disputed.metacognitive_state is Vt08KnowledgeState.CONTRADICTED
+    assert disputed.adversarial_challenges == ("SOURCE:THESIS_INVALID",)
+
+
+def test_no_cross_market_event_clock_regression() -> None:
+    gate = Vt08FiveMarketCognitiveGate()
+    later = T0 + timedelta(minutes=3)
+    gate.evaluate(_snapshot(source="A", market="EURJPY", when=later))
+    with pytest.raises(ValueError, match="global replay clock"):
+        gate.evaluate(_snapshot(source="B", market="CADJPY", when=T0))
+    assert gate.evaluate(
+        _snapshot(source="B", market="CADJPY", when=later)
+    ).action is Vt08CognitiveAction.EXECUTE
+
+
+def test_position_trace_exposes_journey_destination_and_management_provenance() -> None:
+    gate = Vt08FiveMarketCognitiveGate()
+    gate.evaluate(_snapshot())
+    later = T0 + timedelta(minutes=3)
+    state = gate.evaluate_position(
+        _snapshot(
+            when=later,
+            entry_state="FILLED",
+            position_state="OPEN",
+            journey_stage="IN_TRADE",
+            structural_destination_state="APPROACHING",
+        ),
+        _position(later),
+    )
+    assert state.journey_state == "ADVANCING"
+    assert state.destination_state == "APPROACHING"
+    assert state.action is Vt08PositionAction.HOLD
+    assert state.next_stop is None
+    assert state.policy_calibrated is False
+    assert not state.broker_order_authorized
+
+
+def test_h4_expiry_position_has_an_explicit_cognitive_exit_proposal() -> None:
+    gate = Vt08FiveMarketCognitiveGate()
+    gate.evaluate(_snapshot())
+    at_expiry = T0 + timedelta(hours=4)
+    outcome = gate.evaluate_position(
+        _snapshot(
+            when=at_expiry,
+            entry_state="FILLED",
+            position_state="OPEN",
+            journey_stage="IN_TRADE",
+            h4_lifecycle_valid=False,
+        ),
+        _position(at_expiry),
+    )
+    assert outcome.action is Vt08PositionAction.EXIT
+    assert "POSITION:EXIT_H4_LIFECYCLE_END" in outcome.reason_codes
+    assert outcome.journey_state == "INVALIDATED"
+    assert outcome.research_only
+    assert not outcome.broker_order_authorized
