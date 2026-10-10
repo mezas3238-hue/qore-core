@@ -8,7 +8,6 @@ the original trigger close. Never feed any such output to Master Frame.
 from __future__ import annotations
 
 import argparse
-import bisect
 import json
 from collections import Counter
 from dataclasses import asdict, dataclass
