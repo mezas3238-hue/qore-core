@@ -18,7 +18,7 @@ import bisect
 import json
 from collections import defaultdict
 from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 from statistics import median
@@ -290,7 +290,8 @@ def build_market(
     symbol = sources[0].symbol
     if any(s.symbol != symbol or s.session != sources[0].session for s in sources):
         raise ValueError("mixed market source")
-    by_source = {_origin(trade, _source_table(sources)): trade for trade in trades}
+    source_table = _source_table(sources)
+    by_source = {_origin(trade, source_table): trade for trade in trades}
     if len(by_source) != len(sources):
         raise ValueError("duplicated original trade identity")
     bars = tuple(b for b in iter_cibo_m1(native_m1)
