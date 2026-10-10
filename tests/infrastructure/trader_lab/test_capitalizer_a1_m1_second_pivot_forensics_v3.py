@@ -11,12 +11,6 @@ from test_capitalizer_a1_source_sensor_independent_attestation_v1 import (
     _source,
 )
 
-from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
-    CapitalizerM1Bar,
-)
-from qore.infrastructure.trader_lab.capitalizer_high_frequency_capacity_census_v49 import (
-    V49Opportunity,
-)
 from qore.infrastructure.trader_lab.capitalizer_a1_m1_protected_route_forensics_v2 import (
     M1ProtectionClass,
     review_source_m1,
@@ -25,9 +19,17 @@ from qore.infrastructure.trader_lab.capitalizer_a1_m1_second_pivot_forensics_v3 
     SecondaryPivotClass,
     review_second_pivot,
 )
+from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
+    CapitalizerM1Bar,
+)
+from qore.infrastructure.trader_lab.capitalizer_high_frequency_capacity_census_v49 import (
+    V49Opportunity,
+)
 
 
-def _second_pivot_bars(\n    *, break_second: bool = False\n) -> tuple[V49Opportunity, tuple[CapitalizerM1Bar, ...]]:
+def _second_pivot_bars(
+    *, break_second: bool = False
+) -> tuple[V49Opportunity, tuple[CapitalizerM1Bar, ...]]:
     older, _, _ = _fixtures()
     t = datetime(2026, 1, 5, 1, 4, tzinfo=UTC)
     extension = (
