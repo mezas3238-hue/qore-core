@@ -11,6 +11,10 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
+from test_capitalizer_master_cognitive_frame import (
+    _a1_multi_hypothesis_fixture,
+    _paper_source,
+)
 
 from qore.infrastructure.trader_lab.capitalizer_a1_master_frame_paper_trader_integration_v1 import (
     A1PaperSource,
@@ -24,11 +28,6 @@ from qore.infrastructure.trader_lab.capitalizer_cibo_m1_reader_v1 import (
 from qore.infrastructure.trader_lab.capitalizer_scalper_entry_timing_sensors_shadow_v1 import (
     EntrySensorInput,
 )
-from test_capitalizer_master_cognitive_frame import (
-    _a1_multi_hypothesis_fixture,
-    _paper_source,
-)
-
 T = datetime(2026, 1, 5, 1, tzinfo=UTC)
 
 
