@@ -1147,3 +1147,22 @@ def test_a1_trader_port_nine_simultaneous_candidates_never_create_order() -> Non
         state=A1TraderCognitionState(), barrier=permuted
     )
     assert packet == stable
+
+
+def test_a1_settlement_visibility_uses_ack_time_without_falsifying_real_exit() -> None:
+    at = datetime(2026, 1, 5, 1, 0, tzinfo=UTC)
+    actual_exit = at + timedelta(seconds=10)
+    known = at + timedelta(minutes=2)
+    settled = A1SettledChosenTrade(
+        execution_id="FILLED:1",
+        entry_at=at,
+        exit_at=actual_exit,
+        confirmed_at=known,
+    )
+    ledger = A1CausalSettledMemory((settled,))
+    assert settled.exit_at == actual_exit
+    assert ledger.as_of(at + timedelta(minutes=1)) == ()
+    assert ledger.as_of(known) == ()
+    assert ledger.as_of(known + timedelta(microseconds=1)) == (settled,)
+    with pytest.raises(ValueError, match="confirmed before actual exit"):
+        replace(settled, confirmed_at=at)
