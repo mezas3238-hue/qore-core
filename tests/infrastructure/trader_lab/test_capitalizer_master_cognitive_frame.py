@@ -17,6 +17,10 @@ from qore.infrastructure.trader_lab.capitalizer_a1_full_frame_research_adapter i
     A1SourceBinding,
     evaluate_full_frame_research_batch,
 )
+from qore.infrastructure.trader_lab.capitalizer_a1_joint_competition_research import (
+    A1ProspectiveSourceExposure,
+    assess_joint_competition_barrier,
+)
 from qore.infrastructure.trader_lab.capitalizer_a1_multi_hypothesis_research import (
     A1MultiHypothesisBarrier,
     A1SourceHypothesisAlternative,
@@ -43,6 +47,11 @@ from qore.infrastructure.trader_lab.capitalizer_contract import (
 )
 from qore.infrastructure.trader_lab.capitalizer_cross_market_causality import (
     CapitalizerCrossMarketCausalGraph,
+    CapitalizerCrossMarketEdge,
+    CapitalizerCrossMarketRelation,
+)
+from qore.infrastructure.trader_lab.capitalizer_exposure_graph import (
+    CapitalizerSide,
 )
 from qore.infrastructure.trader_lab.capitalizer_decision_sovereignty import (
     CapitalizerCognitiveGateDecision,
@@ -776,3 +785,169 @@ def test_a1_multi_hypothesis_dense_burst_preserves_every_candidate() -> None:
     assert barrier.world.execution_slots_remaining == 1
     assert direct.trade_selected is False
     assert direct.economic_admission_changed is False
+
+
+def test_a1_joint_simultaneous_competition_keeps_three_and_flags_unknown_edges() -> None:
+    at = datetime(2026, 1, 5, 1, 0, tzinfo=UTC)
+    barrier = _a1_multi_hypothesis_fixture(at)
+    census = replay_multi_hypothesis_evidence(
+        barriers=(barrier,), chosen_settlements=A1CausalSettledMemory()
+    )
+    joint = assess_joint_competition_barrier(barrier=barrier, census=census)
+    assert len(joint.candidate_rows) == 3
+    assert len(joint.pair_rows) == 3
+    assert len(joint.pass_source_ids) == 3
+    assert joint.remaining_session_slots == 1
+    assert joint.capacity_competition_required
+    assert joint.source_policy_arbitration_required
+    assert joint.selected_source_ids == ()
+    assert not joint.changes_source_eligibility
+    assert not joint.changes_economic_admission
+    assert all(not pair.selects_winner for pair in joint.pair_rows)
+    same = next(p for p in joint.pair_rows if p.left_symbol == p.right_symbol)
+    assert same.relation == "SAME_MARKET_OVERLAPPING_HYPOTHESES"
+    assert same.requires_joint_review
+    cross = [p for p in joint.pair_rows if p.left_symbol != p.right_symbol]
+    assert len(cross) == 2
+    assert all(p.relation == "CAUSAL_RELATION_UNKNOWN" for p in cross)
+    assert all(p.missing_causal_relation for p in cross)
+    assert all(p.hypothetical_joint_exposure is None for p in joint.pair_rows)
+    assert all(r.missing_exposure_intent for r in joint.candidate_rows)
+    assert all("JOINT_REVIEW_PENDING_NOT_A_TRADE_SELECTION" in r.why_tokens
+               for r in joint.candidate_rows)
+
+
+def test_a1_joint_graph_and_true_factor_exposure_are_only_hypothetical() -> None:
+    at = datetime(2026, 1, 5, 1, 0, tzinfo=UTC)
+    barrier = _a1_multi_hypothesis_fixture(at)
+    graph = CapitalizerCrossMarketCausalGraph(
+        observed_at=at,
+        edges=(
+            CapitalizerCrossMarketEdge(
+                left_symbol="AUDJPY",
+                right_symbol="USDJPY",
+                relation=CapitalizerCrossMarketRelation.REDUNDANT,
+                observed_at=at - timedelta(seconds=1),
+                causal_tokens=("EVIDENCED_SHARED_DIRECTIONAL_CAUSE",),
+            ),
+        ),
+    )
+    barrier = replace(barrier, cross_market_graph=graph)
+    census = replay_multi_hypothesis_evidence(
+        barriers=(barrier,), chosen_settlements=A1CausalSettledMemory()
+    )
+    intents = (
+        A1ProspectiveSourceExposure(
+            "SRC:AUDJPY:A", "AUDJPY", CapitalizerSide.LONG, Decimal("0.5"), at
+        ),
+        A1ProspectiveSourceExposure(
+            "SRC:AUDJPY:B", "AUDJPY", CapitalizerSide.SHORT, Decimal("0.25"), at
+        ),
+        A1ProspectiveSourceExposure(
+            "SRC:USDJPY:C", "USDJPY", CapitalizerSide.LONG, Decimal("0.75"), at
+        ),
+    )
+    joint = assess_joint_competition_barrier(
+        barrier=barrier, census=census, exposure_intents=intents
+    )
+    assert len(joint.pass_source_ids) == len(census.decisions) == 3
+    assert len(joint.pair_rows) == 3
+    assert all(not p.missing_causal_relation for p in joint.pair_rows)
+    assert all(p.factor_overlap == ("JPY",) for p in joint.pair_rows)
+    cross = [p for p in joint.pair_rows if p.left_symbol != p.right_symbol]
+    assert all(p.relation == "REDUNDANT" for p in cross)
+    assert all(p.evidence_tokens == ("EVIDENCED_SHARED_DIRECTIONAL_CAUSE",)
+               for p in cross)
+    pair = next(
+        p for p in joint.pair_rows if {
+            p.left_source_id, p.right_source_id
+        } == {"SRC:AUDJPY:A", "SRC:USDJPY:C"}
+    )
+    assert pair.hypothetical_joint_exposure is not None
+    exposure = {x.factor: x for x in pair.hypothetical_joint_exposure}
+    assert exposure["JPY"].gross_r == Decimal("1.25")
+    assert exposure["JPY"].net_r == Decimal("-1.25")
+    assert exposure["USD"].net_r == Decimal("0.75")
+    assert all(not row.missing_exposure_intent for row in joint.candidate_rows)
+    assert joint.selected_source_ids == ()
+    assert not joint.grants_capital_authority
+
+
+def test_a1_joint_fails_closed_on_mismatched_ledger_future_graph_or_exposure() -> None:
+    at = datetime(2026, 1, 5, 1, 0, tzinfo=UTC)
+    barrier = _a1_multi_hypothesis_fixture(at)
+    census = replay_multi_hypothesis_evidence(
+        barriers=(barrier,), chosen_settlements=A1CausalSettledMemory()
+    )
+    with pytest.raises(ValueError, match="source candidates"):
+        assess_joint_competition_barrier(
+            barrier=replace(barrier, alternatives=barrier.alternatives[:-1]),
+            census=census,
+        )
+    with pytest.raises(ValueError, match="time barriers differ"):
+        assess_joint_competition_barrier(
+            barrier=replace(barrier, world=_world(at + timedelta(seconds=1))),
+            census=census,
+        )
+    with pytest.raises(ValueError, match="future causal graph"):
+        assess_joint_competition_barrier(
+            barrier=replace(
+                barrier,
+                cross_market_graph=CapitalizerCrossMarketCausalGraph(
+                    observed_at=at + timedelta(seconds=1), edges=()
+                ),
+            ),
+            census=census,
+        )
+    good = A1ProspectiveSourceExposure(
+        "SRC:AUDJPY:A", "AUDJPY", CapitalizerSide.LONG, Decimal("0.5"), at
+    )
+    with pytest.raises(ValueError, match="duplicate or unrecognized"):
+        assess_joint_competition_barrier(
+            barrier=barrier, census=census, exposure_intents=(good, good)
+        )
+    with pytest.raises(ValueError, match="symbol or time frontier"):
+        assess_joint_competition_barrier(
+            barrier=barrier,
+            census=census,
+            exposure_intents=(replace(good, observed_at=at + timedelta(seconds=1)),),
+        )
+    with pytest.raises(ValueError, match="risk_r must be positive"):
+        replace(good, assumed_risk_r=Decimal("0"))
+
+
+def test_a1_joint_dense_burst_preserves_9_sources_and_36_pair_relations() -> None:
+    at = datetime(2026, 1, 5, 1, 0, tzinfo=UTC)
+    base = _a1_multi_hypothesis_fixture(at)
+    more = tuple(
+        replace(
+            base.alternatives[0],
+            binding=A1SourceBinding(f"SRC:AUDJPY:{index}", "AUDJPY", at),
+            hypothesis_id=f"H-{index}",
+            source_event_id=f"SRC-EVENT-{index}",
+        )
+        for index in range(3, 9)
+    )
+    alts = (*base.alternatives[:2], *more, base.alternatives[2])
+    barrier = replace(
+        base, alternatives=alts,
+        expected_source_ids=tuple(a.binding.source_opportunity_id for a in alts),
+    )
+    census = replay_multi_hypothesis_evidence(
+        barriers=(barrier,), chosen_settlements=A1CausalSettledMemory()
+    )
+    joint = assess_joint_competition_barrier(barrier=barrier, census=census)
+    assert len(joint.source_ids) == 9
+    assert len(joint.pass_source_ids) == 9
+    assert len(joint.pair_rows) == 36
+    assert joint.remaining_session_slots == 1
+    assert joint.capacity_competition_required
+    assert joint.source_policy_arbitration_required
+    assert joint.selected_source_ids == ()
+    assert all(p.requires_joint_review for p in joint.pair_rows)
+    reordered = replace(barrier, alternatives=tuple(reversed(alts)))
+    another = replay_multi_hypothesis_evidence(
+        barriers=(reordered,), chosen_settlements=A1CausalSettledMemory()
+    )
+    stable = assess_joint_competition_barrier(barrier=reordered, census=another)
+    assert joint == stable
