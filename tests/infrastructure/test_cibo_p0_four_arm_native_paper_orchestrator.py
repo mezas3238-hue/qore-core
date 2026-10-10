@@ -57,6 +57,8 @@ class FourArmOrchestrationTests(unittest.TestCase):
         self.assertIsNone(r["new_drawdown_pct"])
         self.assertTrue(r["not_a_four_arm_financial_replay"])
         files=set()
+        archives=set()
+        journal_hashes=set()
         for arm,part in r["arm_results"].items():
             self.assertEqual(part["coverage"]["unassessable"],3)
             self.assertEqual(part["coverage"]["physical_quotes"],0)
@@ -76,9 +78,17 @@ class FourArmOrchestrationTests(unittest.TestCase):
                 ).fetchone()[0]
                 # QDLE stores SQLite meta strings as canonical JSON values.
                 self.assertEqual(json.loads(m),"PaperQDLE_V1_SINGLE_RESERVATION_BOOK")
+                saved=db.execute(
+                    "SELECT value FROM meta WHERE key='canonical_paper_scenario_arm'"
+                ).fetchone()[0]
+                self.assertEqual(json.loads(saved),arm)
             self.assertTrue(Path(part["sqlite_archive"]["path"]).is_file())
             self.assertTrue(part["receipts_sha256"].startswith("sha256:"))
+            archives.add(part["sqlite_archive"]["sha256"])
+            journal_hashes.add(part["journal_digest"]["audit_sha256"])
         self.assertEqual(len(files),4)
+        self.assertEqual(len(archives),4)
+        self.assertEqual(len(journal_hashes),4)
 
     def test_no_reuse_prior_scenario_run_and_broker_live_cannot_reopen(self):
         self.run_sample()
