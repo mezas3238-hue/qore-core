@@ -6,6 +6,8 @@ on:
       - agent/scalper-architect-a-cognition-20261010
     paths:
       - '.github/workflows/qore-scalper-a1-nine-market-full-frame-preflight.yml'
+      - 'src/qore/infrastructure/trader_lab/capitalizer_a1_historical_full_frame_preflight_v1.py'
+      - 'tests/infrastructure/trader_lab/test_capitalizer_a1_historical_full_frame_preflight_v1.py'
   workflow_dispatch:
 
 permissions:
