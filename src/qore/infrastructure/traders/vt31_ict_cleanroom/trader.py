@@ -76,13 +76,18 @@ class VT31Trader:
             raise ValueError("VT31 accepts only valid cleanroom M1Bar")
         at = utc(bar.closed_at)
         opened = utc(bar.opened_at)
-        window: SessionId | None = None
-        for candidate in SessionId:
-            start, end = window_bounds(opened, candidate)
-            if start <= opened < end:
-                if window is not None:
-                    raise AssertionError("ambiguous shared trader source clock")
-                window = candidate
+        local_hour = opened.astimezone(NEW_YORK).hour
+        # Avoid constructing 3 timezone-aware NY windows on each of the
+        # 1,059,784 real M1 bars. These are the ONLY three source hours.
+        window: SessionId | None = {
+            3: SessionId.LONDON,
+            10: SessionId.NY_AM,
+            14: SessionId.NY_PM,
+        }.get(local_hour)
+        if window is not None:
+            start, end = window_bounds(opened, window)
+            if not start <= opened < end:
+                raise AssertionError("DST source-hour detection drift")
 
         if window is None:
             self.cognition.observe_closed_m1(bar)
@@ -133,6 +138,25 @@ class VT31Trader:
             cognition=assessment,
             operational_phase=phase,
         )
+
+    def research_observe_incomplete_source_m1(
+        self, bar: M1Bar
+    ) -> None:
+        """Ingest missing-coverage source-hour evidence WITHOUT any setup.
+
+        Fast 3Y evidence may contain e.g. 58 of the required 60 M1 for an
+        ICT window. Preserve their original market facts in ONE cognitive
+        memory but do not create an OPS state, retrospectively choose a FVG,
+        or claim a fill. May be called by the scientific replay after the
+        hour is *completely classified* as incomplete.
+        """
+        if not isinstance(bar, M1Bar):
+            raise ValueError("requires cleanroom validated M1")
+        local_hour = utc(bar.opened_at).astimezone(NEW_YORK).hour
+        if local_hour not in (3, 10, 14):
+            raise ValueError("incomplete-window feed only for ICT source M1")
+        self.cognition.observe_closed_m1(bar)
+        self.total_closed_m1 += 1
 
     def snapshot(self) -> dict[str, object]:
         """Session-separated telemetry; a single trader registry identity."""
