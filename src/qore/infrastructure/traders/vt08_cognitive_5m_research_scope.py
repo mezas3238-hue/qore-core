@@ -16,6 +16,12 @@ from typing import Final
 from qore.infrastructure.traders.vt08_cognitive_situation_model import (
     Vt08ForexSituationModel,
 )
+from qore.infrastructure.traders.vt08_cognitive_strategy_identity_memory import (
+    strategy_identity_fingerprint,
+)
+from qore.infrastructure.traders.vt08_cognitive_v1_contracts import (
+    architecture_fingerprint,
+)
 from qore.infrastructure.traders.vt08_source_kernel_r3_2 import OWNER_FOREX_ANCHORS
 
 RESEARCH_MARKETS: Final = (
@@ -94,3 +100,36 @@ def research_market_anchor_context(
     raw = json.dumps(context, sort_keys=True, separators=(",", ":"))
     context["fingerprint"] = hashlib.sha256(raw.encode("utf-8")).hexdigest()
     return context
+
+
+def research_strategy_identity_fingerprint() -> str:
+    """Add five-market research scope without modifying certified identity."""
+    payload = {
+        "schema": "qore.vt08.cognitive_5m.strategy_identity.research.v1",
+        "scope": RESEARCH_SCOPE_ID,
+        "parent_strategy_identity_fingerprint": strategy_identity_fingerprint(),
+        "markets": RESEARCH_MARKETS,
+        "anchors": tuple(OWNER_FOREX_ANCHORS),
+        "operational_authority": False,
+    }
+    return hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+
+
+def research_cognitive_memory_fingerprint() -> str:
+    """Research MEMORY_UNKNOWN envelope, not the seven-market memory's data."""
+    payload = {
+        "schema": "qore.vt08.cognitive_5m.memory_bundle.research.v1",
+        "scope": RESEARCH_SCOPE_ID,
+        "architecture": architecture_fingerprint(),
+        "strategy": research_strategy_identity_fingerprint(),
+        "markets": RESEARCH_MARKETS,
+        "state": MEMORY_STATE,
+        "temporal_coverage": "NOT_VALIDATED",
+        "runtime_self_training": False,
+        "operational_authority": False,
+    }
+    return hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
