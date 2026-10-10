@@ -201,6 +201,7 @@ def assess_joint_competition_barrier(
         a, b = source_map[left_id], source_map[right_id]
         left_symbol, right_symbol = a.binding.symbol, b.binding.symbol
         unknown = False
+        tokens: tuple[str, ...]
         if left_symbol == right_symbol:
             relation = "SAME_MARKET_OVERLAPPING_HYPOTHESES"
             tokens = ("SIMULTANEOUS_SAME_MARKET_SOURCE_CANDIDATES",)
