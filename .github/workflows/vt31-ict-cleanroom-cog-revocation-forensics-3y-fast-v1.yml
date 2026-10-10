@@ -1,0 +1,101 @@
+name: VT31 ONE Trader COG Root Cause 3Y Real M1
+
+on:
+  push:
+    branches:
+      - agent/vt31-cog-revocation-forensics-20261010
+    paths:
+      - scripts/vt31_ict_cleanroom_cog_revocation_forensics_3y_fast_v1.py
+      - tests/infrastructure/test_vt31_ict_cleanroom_cog_revocation_forensics.py
+      - .github/workflows/vt31-ict-cleanroom-cog-revocation-forensics-3y-fast-v1.yml
+  workflow_dispatch:
+
+concurrency:
+  group: vt31-cog-forensic-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  FROZEN_SOURCE_ID: "11459859004"
+  VT31_INPUT_SOURCE_SHA256: "0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa"
+
+jobs:
+  m1-causal-thesis-revocations:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install scientific research requirements
+        run: |
+          python -m pip install -e ".[dev]"
+          python -m pip install "ijson>=3.3,<4"
+      - name: Strict new script + tests + native prefill invariants
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/vt31_ict_cleanroom_cog_revocation_forensics_3y_fast_v1.py tests/infrastructure/test_vt31_ict_cleanroom_cog_revocation_forensics.py
+          ruff check scripts/vt31_ict_cleanroom_cog_revocation_forensics_3y_fast_v1.py tests/infrastructure/test_vt31_ict_cleanroom_cog_revocation_forensics.py
+          PYTHONPATH=src pytest -q -o addopts='' tests/infrastructure/test_vt31_ict_cleanroom_cog_revocation_forensics.py tests/infrastructure/test_vt31_ict_cleanroom_cognitive_telemetry.py tests/infrastructure/test_vt31_ict_cleanroom_ops.py tests/infrastructure/test_vt31_ict_cleanroom_single_trader.py
+          PYTHONPATH=src python scripts/vt31_ict_cleanroom_cog_revocation_forensics_3y_fast_v1.py --self-test
+      - name: Restore actual frozen owner-consumed NAS100 M1 and verify byte digest
+        run: |
+          set -euo pipefail
+          mkdir -p input output
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${FROZEN_SOURCE_ID}" --jq '{id,expired,name}' | tee output/source-artifact.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          a=json.loads(Path("output/source-artifact.json").read_text())
+          assert a["id"]==11459859004 and a["expired"] is False
+          PY
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${FROZEN_SOURCE_ID}/zip" > frozen.zip
+          unzip -q frozen.zip -d input
+          test "$(sha256sum input/NAS100/market-evidence.json | cut -d ' ' -f 1)" = "${VT31_INPUT_SOURCE_SHA256}"
+          printf '%s\n' "${VT31_INPUT_SOURCE_SHA256}" > output/market-evidence-sha256.txt
+      - name: 3Y as-of causal MSS/DOL source revocation attribution
+        run: |
+          set -euo pipefail
+          PYTHONPATH=src python scripts/vt31_ict_cleanroom_cog_revocation_forensics_3y_fast_v1.py \
+            --evidence input/NAS100/market-evidence.json \
+            --output output/vt31-cog-revocation-3y.json \
+            | tee output/summary.json
+      - name: Frozen source counts and safety semantics
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path('output/vt31-cog-revocation-3y.json').read_text())
+          assert d['input_base']=='VT31_NAS100_OWNER_3Y_BASE_001'
+          assert d['market_closed_m1']==1059784
+          assert d['registered_trader_count']==1
+          assert d['session_models']==['LONDON','NEW_YORK']
+          assert d['cognitive_calls']==137160
+          assert d['full_m1_window_days']=={'VT31_LONDON':774,'VT31_NY_AM':771,'VT31_NY_PM':741}
+          assert d['source_candidate_by_window']=={'VT31_LONDON':766,'VT31_NY_AM':721,'VT31_NY_PM':653}
+          assert sum(d['final_source_candidate_states'].values())==2140
+          assert d['unique_source_pending_without_cog']==0
+          assert d['pending_m1_without_cog']==0
+          p=d['interpretation_limits']
+          assert p['OHLC_cannot_resolve_same_M1_fill_cancel_order']
+          assert not p['financial_execution_or_broker_fill_proven']
+          assert not p['live_authorized']
+          assert not p['certified']
+          PY
+      - name: Immutable source and forensic output signatures
+        run: |
+          echo "${GITHUB_SHA}" > output/source-git-sha.txt
+          (cd output && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+          (cd output && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vt31-cleanroom-cog-revocation-real-3y-${{ github.sha }}
+          path: output/
+          if-no-files-found: error
+          retention-days: 90
