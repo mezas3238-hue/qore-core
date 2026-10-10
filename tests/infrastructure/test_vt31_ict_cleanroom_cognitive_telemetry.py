@@ -11,8 +11,14 @@ from qore.infrastructure.traders.vt31_ict_cleanroom.cognitive_telemetry import (
     COMPONENT_ROLES,
     CognitiveTelemetry,
 )
-from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import M1Bar
-from qore.infrastructure.traders.vt31_ict_cleanroom.trader import VT31Trader
+from qore.infrastructure.traders.vt31_ict_cleanroom.contracts import (
+    M1Bar,
+    MethodologyDecision,
+)
+from qore.infrastructure.traders.vt31_ict_cleanroom.trader import (
+    UnifiedVT31Observation,
+    VT31Trader,
+)
 
 
 def _bar(
@@ -55,7 +61,9 @@ def _real_source_sequence() -> tuple[M1Bar, ...]:
     return prev + asian + source
 
 
-def _run(use_audit: bool):
+def _run(
+    use_audit: bool,
+) -> tuple[VT31Trader, UnifiedVT31Observation | None, CognitiveTelemetry | None]:
     observer = CognitiveTelemetry() if use_audit else None
     t = VT31Trader(cognition=VT31CleanroomCognition(telemetry=observer))
     last = None
@@ -111,7 +119,7 @@ def test_component_has_true_input_output_and_gate_counters() -> None:
     assert report["cibo_qdle_connected"] is False
 
 
-def test_loss_of_cognitive_thesis_flags_pending_source_p0() -> None:
+def test_loss_of_cognitive_thesis_cancels_pending_source_p0() -> None:
     audit = CognitiveTelemetry()
     trader = VT31Trader(cognition=VT31CleanroomCognition(telemetry=audit))
     bars = _real_source_sequence()
@@ -125,18 +133,17 @@ def test_loss_of_cognitive_thesis_flags_pending_source_p0() -> None:
     ))
     assert lost.cognition is not None
     assert lost.cognition.decision is None
-    # Observe OPS-owned defect without mutating its true state here.
+    # Cross-architect P0 is repaired in the merged OPS state machine:
+    # COG revocation on later M1 MUST NOT leave the source pending.
+    assert lost.operational_phase is MethodologyDecision.SOURCE_INVALIDATED
     assert sum(
         count for key, count in audit.by_session.items()
         if key.endswith("|P0_PENDING_WITHOUT_COG")
-    ) >= 1
+    ) == 0
     report = audit.report()
-    assert report["p0_pending_without_cog_unique_candidate_sources"] == {
-        "VT31_LONDON": 1
-    }
-    assert report["p0_pending_without_cog_examples"][0]["remaining_ops_state"] == (
-        "RESEARCH_PENDING_CE"
-    )
+    assert report["p0_pending_without_cog_unique_candidate_sources"] == {}
+    assert report["p0_pending_without_cog_examples"] == []
+
 
 
 def test_m1_market_component_does_not_imply_broker_or_agent_reasoning() -> None:
