@@ -119,7 +119,7 @@ def test_economic_replay_cannot_silently_relabel_source(
 def test_audit_rejects_missing_and_duplicate_trades() -> None:
     s = _source("EURUSD", 0, "100.4")
     t = _trade(s, "TARGET", "0.4")
-    with pytest.raises(ValueError, match="multiple times"):
+    with pytest.raises(ValueError, match="same source twice|multiple times"):
         report_source_target_geometry((s,), (t, t), expected_markets=1)
     with pytest.raises(ValueError, match="not complete"):
         report_source_target_geometry((s,), (), expected_markets=1)
