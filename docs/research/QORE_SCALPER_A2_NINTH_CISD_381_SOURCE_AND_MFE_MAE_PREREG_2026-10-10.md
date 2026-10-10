@@ -37,3 +37,43 @@ En misma fila y **para ambos instantes fuente vs sensor**, retorno direccional f
 ## Certificación
 
 **SCALPER NO CERTIFICADO**. Queda vigente 934 winners originales/415.75R masa original, n suficiente, PF neto tras broker físico, drawdown ≤6R conforme Owner, fuente TTrades y robustez OOS. Nunca promover un filtro binario o usar retrospección para autorizar entrada.
+
+## RESULTADOS FINALIZADOS — nueve mercados, CI 11/11 GREEN
+
+**GitHub Actions:** [#38076268436](https://github.com/mezas3238-hue/qore-core/actions/runs/38076268436) **SUCCESS 11/11**, SHA de código probado `1cc7b569682ec82b97fd355f5808bbc6202ef19d`. [Informe agregado descargable, Artifact #11679210450](https://github.com/mezas3238-hue/qore-core/actions/runs/38076268436/artifacts/11679210450). Nueve artifacts por symbol con 2.876 eventos source por ID y ambos vectores MFE/MAE a 15/30/60; todas las 381 divergencias conservadas, y 2495 coincidencias. Ruff, mypy y 5 pruebas de causalidad GREEN. Auditoría de metodología posterior [#38076353370](https://github.com/mezas3238-hue/qore-core/actions/runs/38076353370) GREEN.
+
+### Qué ocurrió en las 381 discrepancias
+
+| Tipo | n | % sobre discrepancias |
+|---|---:|---:|
+| **SENSOR_EARLIER_THAN_V49** | **247** | **64.83%** |
+| **SAME_TIME_DIFFERENT_FAMILY** | **134** | **35.17%** |
+| Sensor posterior | **0** | **0%** — imposible en panel as-of evaluado al timestamp V49 |
+| Sensor sin detectar | **0** | **0%** |
+
+**Discrepancias exactas de ruta, hallazgo P0:** 
+- 171 originales `FVG_RETRACE_CISD` → sensor `LIQUIDITY_SWEEP_CISD` **anterior**;
+- 76 originales `LIQUIDITY_SWEEP_CISD` → sensor `FVG_RETRACE_CISD` **anterior**;
+- 134 originales `LIQUIDITY_SWEEP_CISD` → sensor `FVG_RETRACE_CISD` **al mismo cierre M1**.
+
+Así, **381/381 cambian de familia**, y **247/381 cambian además de instante**. No hay un solo caso de CISD mismo tipo en diferente minuto. Los 134 de empate temporal son reclasificación de ruta sin diferencia de hora, precio de cierre ni desplazamiento posterior. Por tanto, atribuirles un «mejor timing» sería falso. El panel hereda la dirección del source H1, luego la *dirección contraria* NO está instrumentada y no puede concluirse ausente en el mercado: solo es imposible dentro del panel.
+
+### MFE / MAE comparados sobre pares de fuente, velas M1 contiguas
+
+**Dirección favorable del cierre a +30m**, en **349/381 fuentes con cobertura completa en ambas rutas y antes de cierre de sesión**:
+
+| Grupo | n pareadas | Sensor favorable +30m | V49 favorable +30m | Diferencia SENSOR−V49 |
+|---|---:|---:|---:|---:|
+| **Todas las discrepancias** | **349** | **189/349 = 54.15%** | **176/349 = 50.43%** | **+3.725 pp** |
+| **Solo sensor más temprano** | **224** | **126/224 = 56.25%** | **113/224 = 50.45%** | **+5.804 pp** |
+| **Mismo cierre, familia distinta** | **125** | **63/125 = 50.40%** | **63/125 = 50.40%** | **0.0 pp** |
+
+**La mejoría a +30min NO es monótona ni garantiza edge**. Para las **247 señales anteriores**, a +15min la comparación pareada disponible (239 casos) es sensor 107/239=44.77% frente V49 115/239=48.12% (**−3.347 pp**). A +60m, 204 pares observables obtienen 106 favorables por brazo, **0.0 pp**. En el conjunto de 381: +15m sensor 171/370=46.22%, original 179/370=48.38% (−2.16pp); +60m ambos 167/312=53.53%.
+
+**Excursiones MFE/MAE en R orientativas, con STOP M15 original, SOLO donde geometría es válida:** para grupo sensor más temprano a +30m, MFE medio sensor ~**1.103R** vs V49 ~**0.793R**, pero también **MAE media sube** de ~**0.580R** en V49 a ~**0.724R** en instante anterior. Hay 219/224 geometrías de riesgo válidas para el sensor y 224/224 para V49 en esa ventana; las medias R usan denominadores distintos y NO son diferencias causales pareadas de mismo soporte válido. Las cifras en precio para activos distintos **no deben agregarse como si fueran dólares del mismo lote**, y no existe P&L monetizable del evento hipotético. No se simularon SL/TP/fees del sensor ni entradas adelantadas.
+
+**Diagnóstico:** las discrepancias de la novena ronda son **conflictos de PRECEDENCIA entre familias y/o ventanas temporales fuente**, no evidencia de que el cierre CISD esté invertido. Los dos observadores utilizan la dirección H1 dada, y el Sweep usa el nivel `opening` de la primera vela de la serie de cierres opuestos, como TTrades. Los datos no permiten declarar que V49 sea incorrecto ni que el sensor sea una mejora operable. El aumento a +30m existe en el contraste retrospectivo temprano, pero se acompaña de excursión adversa mayor, cambia de signo a +15m y desaparece a +60m; reforzar el veto automático habría empeorado PF y DD, como ya probó el PAPER previo.
+
+**Siguiente P0 de ingeniería causal**: para las mismas 247+134 discrepancias reconstruir *exactamente* la ventana V49 original de `_earliest_m1_trigger` (hasta siguiente setup M15 o H1 state as-of), confrontarla con el snapshot prefix-only, y enumerar condiciones exactas de precursor sweep/FVG y prioridad en empate. Fijar la precedencia de ruta solo por definición fuente del autor y cronología causal, no por cuál produce mayor R en este mismo desarrollo. A1 debe seguir conectando Master Frame real as-of al motor PAPER (no false cognitive metrics) e informar su DD bajo todos los controles de winner retention y costes.
+
+**Certificación:** NO CERTIFICABLE. Datos septiembre 2025 a septiembre 2026; robustez 2023/2024 OOS no aportada, motor económico continúa negativo, full Master Frame decisor no verificado, broker físico no integrado. No hubo cambios de política LIVE, VPS ni fusión de PR.
