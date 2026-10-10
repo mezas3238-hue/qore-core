@@ -63,12 +63,13 @@ def test_all_mandatory_causal_fields_and_joint_approval_are_both_required() -> N
     not_signed = inspect_architect_a_candidate(data)
     assert not not_signed.cognitive_ready
     assert not_signed.blockers == ("A_B:CONTRACT_NOT_JOINTLY_FROZEN",)
-    hypothetical_signed = inspect_architect_a_candidate(
-        data, joint_contract_approved=True
+    # A supplied approval string cannot promote an unreviewed contract.
+    caller_claimed_signed = inspect_architect_a_candidate(
+        data, joint_contract_manifest_sha256="a" * 64
     )
-    assert hypothetical_signed.cognitive_ready
-    assert hypothetical_signed.blockers == ()
-    assert not hypothetical_signed.order_authorized
+    assert not caller_claimed_signed.cognitive_ready
+    assert caller_claimed_signed.blockers == ("A_B:CONTRACT_NOT_JOINTLY_FROZEN",)
+    assert not caller_claimed_signed.order_authorized
 
 
 @pytest.mark.parametrize(
