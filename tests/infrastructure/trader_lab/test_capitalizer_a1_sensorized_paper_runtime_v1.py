@@ -29,6 +29,7 @@ from qore.infrastructure.trader_lab.capitalizer_a1_master_frame_paper_trader_int
     A1PaperSource,
 )
 from qore.infrastructure.trader_lab.capitalizer_a1_sensorized_paper_runtime_v1 import (
+    A1SensorizedPaperBridgeResult,
     run_sensorized_master_frame_paper,
 )
 from qore.infrastructure.trader_lab.capitalizer_a1_source_sensor_independent_attestation_v1 import (
@@ -352,15 +353,20 @@ def test_second_confirmed_m1_pivot_reaches_true_master_context_not_trade_veto() 
             swing_at=(T-timedelta(minutes=2)).isoformat(),
             confirmed_at=(T-timedelta(minutes=1)).isoformat(),
         )
-    kwargs = {
-        "barriers": (_a1_multi_hypothesis_fixture(T, source_ids=ids),),
-        "source_evidence": snapshots,
-        "source_originals": originals,
-        "baseline_selected_source_ids": ids,
-    }
-    result = run_sensorized_master_frame_paper(
-        **kwargs, m1_route_reviews=first, m1_secondary_reviews=second,
-    )
+    def invoke(
+        route: dict[str, A1M1ProtectedRouteReview] | None,
+        revised: dict[str, A1SecondPivotReview] | None,
+    ) -> A1SensorizedPaperBridgeResult:
+        return run_sensorized_master_frame_paper(
+            barriers=(_a1_multi_hypothesis_fixture(T, source_ids=ids),),
+            source_evidence=snapshots,
+            source_originals=originals,
+            baseline_selected_source_ids=ids,
+            m1_route_reviews=route,
+            m1_secondary_reviews=revised,
+        )
+
+    result = invoke(first, second)
     assert result.full_master_frame_invoked
     assert result.causal_m1_route_reviews_received == 3
     assert result.secondary_m1_route_reviews_received == 3
@@ -369,21 +375,17 @@ def test_second_confirmed_m1_pivot_reaches_true_master_context_not_trade_veto() 
     assert not result.automatically_vetoed_cisd_conflicts
     assert not result.live_authorized
     with pytest.raises(ValueError, match="need original V2 lineage"):
-        run_sensorized_master_frame_paper(
-            **kwargs, m1_secondary_reviews=second,
-        )
+        invoke(None, second)
     with pytest.raises(ValueError, match="false source/V2 ancestry"):
-        run_sensorized_master_frame_paper(
-            **kwargs, m1_route_reviews=first,
-            m1_secondary_reviews={
+        invoke(
+            first,
+            {
                 **second,
-                ids[0]: replace(second[ids[0]], previous_class=(
-                    M1ProtectionClass.NO_CONFIRMED_STRUCTURAL_PIVOT
-                )),
+                ids[0]: replace(
+                    second[ids[0]],
+                    previous_class=M1ProtectionClass.NO_CONFIRMED_STRUCTURAL_PIVOT,
+                ),
             },
         )
     with pytest.raises(ValueError, match="need original V2 lineage"):
-        run_sensorized_master_frame_paper(
-            **kwargs, m1_route_reviews=first,
-            m1_secondary_reviews={ids[0]: second[ids[0]]},
-        )
+        invoke(first, {ids[0]: second[ids[0]]})
