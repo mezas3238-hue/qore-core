@@ -1,6 +1,7 @@
 """Fail-closed guards for V50-G's truthful cognitive audit trace."""
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import pytest
 
@@ -83,7 +84,7 @@ def test_trace_exposes_partial_bridge_without_claiming_full_cognition() -> None:
         {"readiness_origin": "EVIDENCE_BACKED"},
     ],
 )
-def test_trace_rejects_false_integration_claims(changes: dict[str, object]) -> None:
+def test_trace_rejects_false_integration_claims(changes: dict[str, Any]) -> None:
     with pytest.raises(ValueError):
         replace(_trace(), **changes)
 
