@@ -166,6 +166,11 @@ class SilverBulletCausalResearch:
         when = _utc(as_of)
         if not self.start <= when < self.end:
             raise ValueError("cognition evidence outside source creation hour")
+        if self.last_close is None:
+            if when != self.start:
+                raise ValueError("future cognition without matching closed M1 prefix")
+        elif when != self.last_close:
+            raise ValueError("cognition event must follow the exact latest closed M1")
         if _utc(dol.observed_at) > when or _utc(mss.break_confirmed_at) > when:
             raise ValueError("future cognitive evidence rejected")
         if dol.side != mss.side:
@@ -319,11 +324,11 @@ def self_test() -> None:
                   start, "COG_TEST_PRIOR_DAY")
     m = CausalMSS(Side.SHORT, Decimal("105"), start,
                   start+timedelta(minutes=2), "COG_TEST_CAUSAL_SWING")
+    fsm.on_closed_m1(candle(0, "110", "106", "108"))
+    fsm.on_closed_m1(candle(1, "109", "105", "106"))
     fsm.present_cognitive_evidence(
         as_of=start+timedelta(minutes=2), dol=d, mss=m
     )
-    fsm.on_closed_m1(candle(0, "110", "106", "108"))
-    fsm.on_closed_m1(candle(1, "109", "105", "106"))
     fsm.on_closed_m1(candle(2, "103", "100", "102"))
     assert fsm.phase == Phase.PENDING_RESEARCH
     x = fsm.snapshot()
@@ -353,6 +358,8 @@ def self_test() -> None:
         raise AssertionError("retroactive cognitive DOL rewrite accepted")
     # Opposite DOL is rejected even when a raw gap is present.
     opposed = SilverBulletCausalResearch("VT31_LONDON", start)
+    for i in range(2):
+        opposed.on_closed_m1(candle(i, "110", "105", "108"))
     try:
         opposed.present_cognitive_evidence(
             as_of=start+timedelta(minutes=2),
@@ -374,16 +381,39 @@ def self_test() -> None:
         raise AssertionError("prewindow candle passed")
     # No deterministic broker fill from ambiguous same M1 high-low.
     ambiguous = SilverBulletCausalResearch("VT31_LONDON", start)
+    vals = [
+        ("110", "106", "108"), ("109", "105", "106"),
+        ("103", "100", "102"), ("110", "101", "107")
+    ]
+    for i in range(2):
+        ambiguous.on_closed_m1(candle(i, *vals[i]))
     ambiguous.present_cognitive_evidence(
         as_of=start+timedelta(minutes=2), dol=d, mss=m
     )
-    for i, vals in enumerate([
-        ("110", "106", "108"), ("109", "105", "106"),
-        ("103", "100", "102"), ("110", "101", "107")
-    ]):
-        ambiguous.on_closed_m1(candle(i, *vals))
+    for i in range(2, len(vals)):
+        ambiguous.on_closed_m1(candle(i, *vals[i]))
     assert ambiguous.phase == Phase.AMBIGUOUS_TOUCH_AND_INVALIDATION
     assert not ambiguous.snapshot()["has_broker_fill"]
+    # US/UK DST differences must never shift the primary source hour:
+    # London = 03-04 NY; New York AM = 10-11 NY; PM = 14-15 NY.
+    for day in (datetime(2026, 3, 10, 12, tzinfo=UTC),
+                datetime(2026, 3, 30, 12, tzinfo=UTC),
+                datetime(2026, 11, 2, 12, tzinfo=UTC)):
+        for model, h in _SESSION_HOURS.items():
+            clock = SilverBulletCausalResearch(model, day)
+            assert clock.start.astimezone(_NY).hour == h
+            assert clock.end - clock.start == timedelta(hours=1)
+    # Prohibit invented DOL/MSS evidence at a future timestamp that
+    # has not yet been reconstructed from M1.
+    no_history = SilverBulletCausalResearch("VT31_LONDON", start)
+    try:
+        no_history.present_cognitive_evidence(
+            as_of=start+timedelta(minutes=2), dol=d, mss=m
+        )
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("future cognition accepted without M1 history")
     # No invented mandatory 10:00-10:15 preparation / sweep timetable.
     assert "SWEEP" not in Phase.__members__
     assert all(not x["has_execution_authority"]
