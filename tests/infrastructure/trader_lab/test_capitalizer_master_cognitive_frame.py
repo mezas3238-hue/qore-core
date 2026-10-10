@@ -6,6 +6,10 @@ from decimal import Decimal
 
 import pytest
 
+from qore.infrastructure.trader_lab.capitalizer_a1_chronological_cognitive_replay import (
+    A1ObservedNineMarketBarrier,
+    replay_observed_cognitive_barriers,
+)
 from qore.infrastructure.trader_lab.capitalizer_a1_full_frame_research_adapter import (
     A1CausalSettledMemory,
     A1FullFrameResearchDecision,
@@ -394,7 +398,9 @@ def test_a1_settled_loss_changes_real_adversarial_gate_only_after_settlement() -
         (A1SettledChosenTrade("EXEC-1", entered, exit_at, loss),)
     )
 
-    def evaluate(at: datetime, chosen: A1CausalSettledMemory):
+    def evaluate(
+        at: datetime, chosen: A1CausalSettledMemory
+    ) -> dict[str, A1FullFrameResearchDecision]:
         contexts = _candidate_contexts(at)
         contexts = (
             replace(
@@ -478,4 +484,101 @@ def test_a1_rejects_unproven_world_loss_history_and_mismatched_chosen_loss() -> 
                 A1SourceBinding("SRC:USDJPY", "USDJPY", at),
             ),
             settled_memory=A1CausalSettledMemory(),
+        )
+
+
+def _a1_observed_barrier(
+    at: datetime, *, fingerprint: str | None = None, new_event: bool = True
+) -> A1ObservedNineMarketBarrier:
+    contexts = _candidate_contexts(at)
+    return A1ObservedNineMarketBarrier(
+        world=_world(at),
+        perceptions=_perceptions(at),
+        regime_hypotheses=_regimes(at),
+        cross_market_graph=CapitalizerCrossMarketCausalGraph(observed_at=at, edges=()),
+        pressure_facts=CapitalizerCognitivePressureFacts(),
+        contexts=(
+            replace(
+                contexts[0],
+                failure_state_fingerprint=fingerprint,
+                genuinely_new_causal_event=new_event,
+            ),
+            contexts[1],
+        ),
+        source_bindings=(
+            A1SourceBinding(f"SRC:AUDJPY:{at.isoformat()}", "AUDJPY", at),
+            A1SourceBinding(f"SRC:USDJPY:{at.isoformat()}", "USDJPY", at),
+        ),
+    )
+
+
+def test_a1_chronological_replay_preserves_population_and_reveals_loss_causally() -> None:
+    before = datetime(2026, 1, 5, 1, 0, tzinfo=UTC)
+    after = before + timedelta(minutes=2)
+    loss = CapitalizerLossCause(
+        loss_id="CHOSEN-LOSS",
+        symbol="AUDJPY",
+        session=CapitalizerSession.ASIA,
+        hypothesis_id="H-AUDJPY",
+        failure_state_fingerprint="SAME-STATE",
+        realized_r=Decimal("-1"),
+        causes=("STRUCTURAL_INVALIDATION",),
+    )
+    selected = A1CausalSettledMemory(
+        (
+            A1SettledChosenTrade(
+                "CHOSEN-LOSS",
+                before - timedelta(minutes=10),
+                before + timedelta(minutes=1),
+                loss,
+            ),
+        )
+    )
+    barriers = (
+        _a1_observed_barrier(before, fingerprint="SAME-STATE", new_event=False),
+        _a1_observed_barrier(after, fingerprint="SAME-STATE", new_event=False),
+    )
+    report = replay_observed_cognitive_barriers(
+        barriers=barriers, chosen_settlements=selected
+    )
+    no_memory = replay_observed_cognitive_barriers(
+        barriers=barriers, chosen_settlements=A1CausalSettledMemory()
+    )
+    assert report.barriers_evaluated == 2
+    assert report.source_opportunities == len(report.decisions) == 4
+    assert report.pass_to_strategy == 3
+    assert report.abstain == 1
+    assert report.wait == 0
+    assert no_memory.pass_to_strategy == 4
+    assert no_memory.abstain == 0
+    assert tuple(item.closed_chosen_failure_count for item in report.decisions) == (
+        0, 0, 1, 1
+    )
+    assert not any(item.economic_admission_changed for item in report.decisions)
+
+
+def test_a1_chronological_replay_rejects_ties_reused_source_and_missing_market() -> None:
+    at = datetime(2026, 1, 5, 1, 0, tzinfo=UTC)
+    earlier = _a1_observed_barrier(at)
+    later = _a1_observed_barrier(at + timedelta(minutes=1))
+    with pytest.raises(ValueError, match="chronological"):
+        replay_observed_cognitive_barriers(
+            barriers=(later, earlier), chosen_settlements=A1CausalSettledMemory()
+        )
+    with pytest.raises(ValueError, match="ties grouped"):
+        replay_observed_cognitive_barriers(
+            barriers=(earlier, earlier), chosen_settlements=A1CausalSettledMemory()
+        )
+    with pytest.raises(ValueError, match="reused source"):
+        replay_observed_cognitive_barriers(
+            barriers=(
+                earlier,
+                replace(later, source_bindings=earlier.source_bindings),
+            ),
+            chosen_settlements=A1CausalSettledMemory(),
+        )
+    with pytest.raises(ValueError, match="nine markets|perception snapshot"):
+        replay_observed_cognitive_barriers(
+            barriers=(replace(earlier, perceptions=earlier.perceptions[:-1]),),
+            chosen_settlements=A1CausalSettledMemory(),
         )
