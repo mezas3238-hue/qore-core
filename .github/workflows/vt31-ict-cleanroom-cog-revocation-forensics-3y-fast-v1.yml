@@ -1,17 +1,18 @@
-name: VT31 ONE Trader COG Root Cause 3Y Real M1
+name: VT31 One Trader Paired AB Real 3Y Source Science
 
 on:
   push:
     branches:
-      - agent/vt31-cog-revocation-forensics-20261010
+      - agent/vt31-ab-research-20261010
     paths:
-      - scripts/vt31_ict_cleanroom_cog_revocation_forensics_3y_fast_v1.py
-      - tests/infrastructure/test_vt31_ict_cleanroom_cog_revocation_forensics.py
+      - scripts/vt31_shadow_opposite_pivot_ab_v1.py
+      - scripts/vt31_shadow_ab_3y_runner.py
+      - docs/research/VT31_OPPOSITE_PIVOT_AB_PREREGISTRATION_2026-10-10.md
       - .github/workflows/vt31-ict-cleanroom-cog-revocation-forensics-3y-fast-v1.yml
   workflow_dispatch:
 
 concurrency:
-  group: vt31-cog-forensic-${{ github.ref }}
+  group: vt31-source-paired-ab-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -24,7 +25,7 @@ env:
   VT31_INPUT_SOURCE_SHA256: "0563370fd021ad091392eb26f60cda0d3356d38c801fc1c2083cceafc5043cfa"
 
 jobs:
-  m1-causal-thesis-revocations:
+  m1-original-fvg-matched-paired-ab:
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
@@ -40,10 +41,10 @@ jobs:
       - name: Strict new script + tests + native prefill invariants
         run: |
           set -euo pipefail
-          python -m py_compile scripts/vt31_ict_cleanroom_cog_revocation_forensics_3y_fast_v1.py tests/infrastructure/test_vt31_ict_cleanroom_cog_revocation_forensics.py
-          ruff check scripts/vt31_ict_cleanroom_cog_revocation_forensics_3y_fast_v1.py tests/infrastructure/test_vt31_ict_cleanroom_cog_revocation_forensics.py
+          python -m py_compile scripts/vt31_shadow_opposite_pivot_ab_v1.py scripts/vt31_shadow_ab_3y_runner.py
+          ruff check scripts/vt31_shadow_opposite_pivot_ab_v1.py scripts/vt31_shadow_ab_3y_runner.py
           PYTHONPATH=src pytest -q -o addopts='' tests/infrastructure/test_vt31_ict_cleanroom_cog_revocation_forensics.py tests/infrastructure/test_vt31_ict_cleanroom_cognitive_telemetry.py tests/infrastructure/test_vt31_ict_cleanroom_ops.py tests/infrastructure/test_vt31_ict_cleanroom_single_trader.py
-          PYTHONPATH=src python scripts/vt31_ict_cleanroom_cog_revocation_forensics_3y_fast_v1.py --self-test
+          PYTHONPATH=src python scripts/vt31_shadow_ab_3y_runner.py --self-test
       - name: Restore actual frozen owner-consumed NAS100 M1 and verify byte digest
         run: |
           set -euo pipefail
@@ -59,34 +60,48 @@ jobs:
           unzip -q frozen.zip -d input
           test "$(sha256sum input/NAS100/market-evidence.json | cut -d ' ' -f 1)" = "${VT31_INPUT_SOURCE_SHA256}"
           printf '%s\n' "${VT31_INPUT_SOURCE_SHA256}" > output/market-evidence-sha256.txt
-      - name: 3Y as-of causal MSS/DOL source revocation attribution
+      - name: Paired 3Y original M1 source A/B without broker fills
         run: |
           set -euo pipefail
-          PYTHONPATH=src python scripts/vt31_ict_cleanroom_cog_revocation_forensics_3y_fast_v1.py \
+          PYTHONPATH=src python scripts/vt31_shadow_ab_3y_runner.py \
             --evidence input/NAS100/market-evidence.json \
-            --output output/vt31-cog-revocation-3y.json \
+            --output output/vt31-paired-ab-3y.json \
             | tee output/summary.json
-      - name: Frozen source counts and safety semantics
+      - name: Paired source parity / preregistered statistics / zero execution
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
-          d=json.loads(Path('output/vt31-cog-revocation-3y.json').read_text())
-          assert d['input_base']=='VT31_NAS100_OWNER_3Y_BASE_001'
-          assert d['market_closed_m1']==1059784
+          d=json.loads(Path('output/vt31-paired-ab-3y.json').read_text())
+          assert d['base']=='VT31_NAS100_OWNER_3Y_BASE_001'
+          assert d['market_M1']==1059784
           assert d['registered_trader_count']==1
-          assert d['session_models']==['LONDON','NEW_YORK']
-          assert d['cognitive_calls']==137160
-          assert d['full_m1_window_days']=={'VT31_LONDON':774,'VT31_NY_AM':771,'VT31_NY_PM':741}
-          assert d['source_candidate_by_window']=={'VT31_LONDON':766,'VT31_NY_AM':721,'VT31_NY_PM':653}
-          assert sum(d['final_source_candidate_states'].values())==2140
-          assert d['unique_source_pending_without_cog']==0
-          assert d['pending_m1_without_cog']==0
-          p=d['interpretation_limits']
-          assert p['OHLC_cannot_resolve_same_M1_fill_cancel_order']
-          assert not p['financial_execution_or_broker_fill_proven']
-          assert not p['live_authorized']
-          assert not p['certified']
+          assert d['models']==['LONDON','NEW_YORK']
+          assert d['cog_and_OPS_M1_calls']==137160
+          assert d['full_source_hours']=={
+            'VT31_LONDON':774,'VT31_NY_AM':771,'VT31_NY_PM':741}
+          assert d['first_FVG_same_in_both']=={
+            'VT31_LONDON':766,'VT31_NY_AM':721,'VT31_NY_PM':653}
+          n=sum(d['first_FVG_same_in_both'].values())
+          assert n==2140
+          assert len(d['paired_candidate_records'])==n
+          assert sum(d['paired_contingency_by_window'].values())==n
+          assert sum(d['A_mutually_exclusive_labels'].values())==n
+          assert sum(d['B_mutually_exclusive_labels'].values())==n
+          assert sum(d['A_original_OPS_source_terminal'].values())==n
+          assert sum(d['B_protected_swing_shadow_source_terminal'].values())==n
+          assert d['original_P0_pending_without_COG']==0
+          e=d['preregistered_primary_endpoint']
+          assert e['population_original_first_FVGs']==2140
+          assert e['min_net_B_advantage_percentage_points']==5.0
+          assert e['max_B_indeterminate_percentage']==10.0
+          assert not e['authorized_for_real_money_or_production']
+          assert d['multiple_comparisons']['three_windows_secondary_exploratory']
+          g=d['guards']
+          assert g['broker_fills_confirmed']==0
+          assert g['profit_factor_drawdown_sharpe'] is None
+          assert g['holdout_sealed']
+          assert not g['live_authorized']
           PY
       - name: Immutable source and forensic output signatures
         run: |
@@ -95,7 +110,7 @@ jobs:
           (cd output && sha256sum -c SHA256SUMS)
       - uses: actions/upload-artifact@v4
         with:
-          name: vt31-cleanroom-cog-revocation-real-3y-${{ github.sha }}
+          name: vt31-cleanroom-paired-ab-source-real-3y-${{ github.sha }}
           path: output/
           if-no-files-found: error
           retention-days: 90
