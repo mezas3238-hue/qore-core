@@ -6,11 +6,13 @@ from pathlib import Path
 
 import pytest
 
-from qore.infrastructure.trader_lab import (\n    capitalizer_scalper_a2_eleventh_cisd_prefix_membership_v1 as membership,\n)\n\n# Short binding keeps the source import within repo Ruff's 100-character limit.\n
-    aggregate,
-    classify_row,
-    route_first_at,
+from qore.infrastructure.trader_lab import (
+    capitalizer_scalper_a2_eleventh_cisd_prefix_membership_v1 as membership,
 )
+
+aggregate = membership.aggregate
+classify_row = membership.classify_row
+route_first_at = membership.route_first_at
 
 T = "2026-05-04T12:00:00+00:00"
 EARLY = "2026-05-04T11:55:00+00:00"
