@@ -28,6 +28,21 @@ jobs:
           set -euo pipefail
           python -m compileall -q src/qore/infrastructure/traders/vt31_ict_cleanroom
           PYTHONPATH=src python -m unittest discover -s tests/infrastructure -p test_vt31_ict_cleanroom_ops.py -v
+      - name: Verify 668 legacy VT31 paths no longer exist on rebuilt branch
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          src = Path('src/qore/infrastructure/traders')
+          scripts = Path('scripts')
+          tests = Path('tests')
+          wf = Path('.github/workflows')
+          assert not list(src.glob('vt31_*.py')), 'legacy VT31 trader source remains'
+          assert not list(scripts.glob('vt31_nas100_*.py')), 'legacy VT31 scripts remain'
+          assert not list(tests.rglob('test_vt31_nas100_*.py')), 'legacy VT31 tests remain'
+          assert not [p for p in wf.glob('vt31-*.yml') if 'cleanroom' not in p.name], 'old VT31 workflows remain'
+          assert list(src.glob('vt31_ict_cleanroom/*.py')), 'cleanroom not installed'
+          print('Legacy VT31 executable paths absent; only cleanroom remains: PASS')
+          PY
       - name: Fail if OPS cleanroom imports any legacy VT31
         run: |
           python - <<'PY'
